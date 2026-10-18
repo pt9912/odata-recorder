@@ -13,9 +13,9 @@
 **Abhängigkeitsrichtung:**
 
 ```text
-Inbound Actor → Driving Adapter → Inbound Port ← Application Service
+Driving Actor → Driving Adapter → Inbound Port ← Application Service
 Application Service → Domain Model
-Application Service → Outbound Port ← Driven Adapter → Outbound Actor
+Application Service → Outbound Port ← Driven Adapter → Driven Actor
 Composition Root verdrahtet konkrete Implementierungen.
 ```
 
@@ -200,10 +200,10 @@ Fachliche `404`, `409`, `412` und ungültige Requests lösen keinen Fallback aus
 
 | ID | System | Rolle | Substituierbarkeit |
 |---|---|---|---|
-| `ARC-013` | OData-V4-Server | Externer Outbound Actor für Record / erlaubten Hybrid-Fallback | Über `UpstreamClient` fakebar |
+| `ARC-013` | OData-V4-Server | Externer Driven Actor für Record / erlaubten Hybrid-Fallback | Über `UpstreamClient` fakebar |
 | `ARC-014` | SQLite | Persistenz für Sessions, Exchanges, Entity State, Cursor und Coverage | Über Repository-Ports austauschbar |
 | `ARC-015` | Dateisystem / OCI Volume | Persistente Blob-Ablage und Datenverzeichnis | Über Blob-Port austauschbar |
-| `ARC-016` | HTTP/OData-Client | Inbound Actor, der Record/Replay/Mock aufruft | Test-HTTP-Client |
+| `ARC-016` | HTTP/OData-Client | Driving Actor, der Record/Replay/Mock aufruft | Test-HTTP-Client |
 | `ARC-017` | OData V4 / CSDL / HTTP | Externe Protokollverträge für die Adapter | Contract-Test-Suite |
 | `ARC-018` | Docker/OCI Runtime | Prozessausführung, Konfiguration, Persistenz-Volumes | Binary auch nativ startbar |
 
