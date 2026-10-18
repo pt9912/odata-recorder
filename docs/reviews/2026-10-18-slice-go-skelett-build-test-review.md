@@ -1,8 +1,8 @@
 # Review: slice-go-skelett-build-test (Commit 703f174)
 
 * Rolle: Reviewer (Modul 10), Skill `.harness/skills/reviewer.md`
-* Gegenstand: `git show 703f174` gegen `docs/plan/planning/in-progress/slice-go-skelett-build-test.md`, ADR-0001/0002/0003, AGENTS.md §3, `spec/architecture.md` §2
-* Bezug: `LH-QA-06`, `LH-RB-03`, ADR-0001
+* Gegenstand: `git show 703f174` gegen `docs/plan/planning/in-progress/slice-go-skelett-build-test.md`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md)/0002/0003, AGENTS.md §3, `spec/architecture.md` §2
+* Bezug: `LH-QA-06`, `LH-RB-03`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md)
 * Gefahrene Gates: `make gates` (grün), `make build` (grün; Binary gibt `odata-recorder dev` aus)
 * Vorherige Findings am Modul: keine (docs/reviews/ trägt nur Spec-Straten-Reviews)
 
@@ -68,7 +68,7 @@ Ergebnis: 0 HIGH, 3 MEDIUM, 4 LOW, 2 INFO.
 
 ### F8
 - kategorie: INFO
-- quelle: `.golangci.yml`, ADR-0003
+- quelle: `.golangci.yml`, [ADR-0003](../plan/adr/0003-lint-profil-golangci.md)
 - pfad: `src/bootstrap/main/main.go` · „var version = "dev""
 - befund: `gochecknoglobals` nimmt `version` aus. `os.Std*` ist für `src/bootstrap/` per Ausnahme freigegeben. `testpackage` (Paket `bootstrap_test`) und `forbidigo` sind erfüllt. Ein Verstoß gegen das Profil ist nicht erkennbar; Lauf nicht verifizierbar, solange `make lint` kein Gate ist.
 - verifizierbar: nein (Lint-Gate fehlt, Folge: slice-lint-stufe)
@@ -76,7 +76,7 @@ Ergebnis: 0 HIGH, 3 MEDIUM, 4 LOW, 2 INFO.
 
 ### F9
 - kategorie: INFO
-- quelle: `spec/architecture.md` §2, ADR-0002
+- quelle: `spec/architecture.md` §2, [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md)
 - pfad: `src/bootstrap/main/main.go` · „import (\"os\" ..."
 - befund: `src/bootstrap/main` liegt im Glob `src/bootstrap/**` und importiert nur `bootstrap`; kein Importgraph-Verstoß. Verifikation gegen die DoD ist Sache des Verifiers.
 - verifizierbar: ja (`make a-check`)
@@ -87,9 +87,9 @@ Ergebnis: 0 HIGH, 3 MEDIUM, 4 LOW, 2 INFO.
 - `.dockerignore`: Allowlist `go.mod`, `go.sum`, `src/` stimmt mit §3 überein; geprüft, ohne Befund.
 - `Dockerfile`: Digest-Pin auf dem einzigen `FROM`, `RUN --network=none` in `test` und `build`, Netz nur in `deps`, `-trimpath -buildvcs=false`, `GOTOOLCHAIN=local`; geprüft, ohne Befund (außer F5).
 - `harness/mk/go-gates.mk`: `GATE_CHECKS += build test`, Kommentare tragen Kopplung und Grenze; geprüft, ohne Befund (außer F3).
-- `harness/README.md` (Sensors-Zeilen, „Nicht behauptet"): Bindung ADR-0001, Zeilen stimmen mit den Targets überein; geprüft, ohne Befund.
+- `harness/README.md` (Sensors-Zeilen, „Nicht behauptet"): Bindung [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), Zeilen stimmen mit den Targets überein; geprüft, ohne Befund.
 - `harness/vertraege/README.md`: Index-Zeile nennt beide Targets; geprüft, ohne Befund.
 - `go.mod`: keine Fremdabhängigkeit; geprüft, ohne Befund.
 - `src/bootstrap/bootstrap_test.go`: Table-Test deckt Happy, unbekanntes Kommando und Zusatzargument; geprüft, ohne Befund außer F1 und F2.
 - Hard Rules §3.1 (Docker-only: Build und Test nur über das Dockerfile), §3.2 (keine Suppression), §3.14 (Marke in §4 nennt die Metrik `git diff --numstat`): geprüft, ohne Befund.
-- ADR-Verstöße (ADR-0001, ADR-0002, ADR-0003): geprüft, ohne Befund. Geheimnis-, Persistenz- und Zustandsmodell-HIGH-Regeln: nicht berührt.
+- ADR-Verstöße ([ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md)): geprüft, ohne Befund. Geheimnis-, Persistenz- und Zustandsmodell-HIGH-Regeln: nicht berührt.

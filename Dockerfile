@@ -1,14 +1,14 @@
 # Dockerfile — Build und Test des OData Recorder in Stufen.
-# Eingangs-Images sind per Digest gepinnt; eine Anhebung ist ein bewusster Commit.
+# Das Eingangs-Image ist per Digest gepinnt; eine Anhebung ist ein bewusster Commit.
 # Netz braucht nur die Stufe deps; alle Stufen danach laufen mit `RUN --network=none`.
 
-# --- deps: Module aus go.mod (und go.sum, sobald es Abhängigkeiten gibt), geprüft
-# gegen go.sum. Die Stufe und alle von ihr abgeleiteten laufen auf der Plattform
+# --- deps: Module aus go.mod und go.sum (go.sum entsteht mit der ersten Abhängigkeit),
+# `go mod verify` prüft sie dagegen. Die Stufe und alle von ihr abgeleiteten laufen auf der Plattform
 # des Bau-Hosts.
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine@sha256:8a5910f31396cd4d89662f56c68b3ae31d374308270a1c3bd96672ee5ed43414 AS deps
 WORKDIR /src
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
-COPY go.mod ./
+COPY go.mod go.sum* ./
 RUN go mod download && go mod verify
 
 # --- source: der Quellstand; .dockerignore lässt nur go.mod und src/ in den Kontext.

@@ -19,6 +19,8 @@ func TestRun(t *testing.T) {
 		{"version gibt die Version aus", []string{"version"}, 0, "odata-recorder 1.2.3\n", ""},
 		{"unbekanntes Kommando endet mit 2", []string{"foo"}, 2, "", "Unbekanntes Kommando: foo\n"},
 		{"version mit Zusatzargument endet mit 2", []string{"version", "x"}, 2, "", "Unbekanntes Kommando: version\n"},
+		{"leeres Argument endet mit 2", []string{""}, 2, "", "Unbekanntes Kommando: \n"},
+		{"Flag --help endet mit 2", []string{"--help"}, 2, "", "Unbekanntes Kommando: --help\n"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -34,5 +36,14 @@ func TestRun(t *testing.T) {
 				t.Errorf("stderr = %q, erwartet %q", stderr.String(), tc.wantStderr)
 			}
 		})
+	}
+}
+
+func TestRunNilWriter(t *testing.T) {
+	if code := bootstrap.Run(nil, "1.2.3", nil, nil); code != 0 {
+		t.Errorf("Exit-Code ohne Writer (Version) = %d, erwartet 0", code)
+	}
+	if code := bootstrap.Run([]string{"foo"}, "1.2.3", nil, nil); code != 2 {
+		t.Errorf("Exit-Code ohne Writer (Fehler) = %d, erwartet 2", code)
 	}
 }
