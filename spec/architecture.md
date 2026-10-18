@@ -64,6 +64,8 @@ flowchart TB
 
 **Abgrenzung:** Die OData-Query-Semantik (Filter, Sortierung, Paging, Typregeln) gehört zum Core; das Parsen konkreter HTTP-/CSDL-/JSON-Darstellungen liegt im Codec-Adapter. Der Core verwendet einen technologieunabhängigen AST.
 
+**Codec-Zugriff:** Kein Driving Adapter ruft den Codec auf und importiert `adapters/driven/odata`. Der HTTP-Adapter reicht Methode, Pfad, `raw_query`, Header und Body-Strom unverändert als Domain-DTO an einen Inbound Port; Parsen und Serialisieren geschieht im Application Service über den Outbound Port `ODataCodec`. Die konkrete Implementierung verdrahtet allein `internal/bootstrap` (Composition Root). Damit bleibt der Importgraph auf die erlaubten Kanten beschränkt, und der Codec lässt sich im Test durch einen Fake ersetzen.
+
 ---
 
 ## 2. Schichten und Constraints
