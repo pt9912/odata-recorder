@@ -1,7 +1,7 @@
 # Verifikation: slice-go-skelett-build-test
 
 **Rolle:** Verifier (Modul 11) — Frage „Bauen wir es richtig?" gegen Plan und DoD.
-**Gegenstand:** `docs/plan/planning/in-progress/slice-go-skelett-build-test.md`, Commits 703f174, 5906398, 3386932 (Review-Report 425e373).
+**Gegenstand:** `docs/plan/planning/done/slice-go-skelett-build-test.md`, Commits 703f174, 5906398, 3386932 (Review-Report 425e373).
 **Bezug:** `LH-QA-06`, `LH-RB-03`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md)
 **Datum:** 2026-10-18
 

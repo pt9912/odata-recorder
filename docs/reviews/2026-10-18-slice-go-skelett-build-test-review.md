@@ -1,7 +1,7 @@
 # Review: slice-go-skelett-build-test (Commit 703f174)
 
 * Rolle: Reviewer (Modul 10), Skill `.harness/skills/reviewer.md`
-* Gegenstand: `git show 703f174` gegen `docs/plan/planning/in-progress/slice-go-skelett-build-test.md`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md)/0002/0003, AGENTS.md §3, `spec/architecture.md` §2
+* Gegenstand: `git show 703f174` gegen `docs/plan/planning/done/slice-go-skelett-build-test.md`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md)/0002/0003, AGENTS.md §3, `spec/architecture.md` §2
 * Bezug: `LH-QA-06`, `LH-RB-03`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md)
 * Gefahrene Gates: `make gates` (grün), `make build` (grün; Binary gibt `odata-recorder dev` aus)
 * Vorherige Findings am Modul: keine (docs/reviews/ trägt nur Spec-Straten-Reviews)
@@ -13,7 +13,7 @@ Ergebnis: 0 HIGH, 3 MEDIUM, 4 LOW, 2 INFO.
 ### F1
 - kategorie: MEDIUM
 - quelle: AGENTS.md §3.12 (Randformen vor dem Code), `LH-QA-06`
-- pfad: `docs/plan/planning/in-progress/slice-go-skelett-build-test.md` · „## 6. Risiken und offene Punkte"; `harness/vertraege/SPEC-036-test.md`
+- pfad: `docs/plan/planning/done/slice-go-skelett-build-test.md` · „## 6. Risiken und offene Punkte"; `harness/vertraege/SPEC-036-test.md`
 - befund: §6 nennt keine Randformen von `Run`, und SPEC-036 entscheidet sie nicht. Das betrifft leere args, `version` mit Zusatzargument, unbekanntes Kommando, leeres Argument `[""]`, Flags wie `--help` und nil-Writer. Der Code entscheidet sie selbst (Exit 2, Meldung nur zu `args[0]`). Ein nil-`io.Writer` paniert in `fmt.Fprintf`; keine Stelle entscheidet oder testet das.
 - verifizierbar: nein (kein Gate prüft, ob §6 Randformen nennt)
 - klasse: Randform im Code statt vor dem Code entschieden
@@ -37,7 +37,7 @@ Ergebnis: 0 HIGH, 3 MEDIUM, 4 LOW, 2 INFO.
 ### F4
 - kategorie: LOW
 - quelle: AGENTS.md §3.9 (Slice-Plan folgt der Korrektur)
-- pfad: `docs/plan/planning/in-progress/slice-go-skelett-build-test.md` · „`Run(args, stdout, stderr) int` gibt die Version aus"
+- pfad: `docs/plan/planning/done/slice-go-skelett-build-test.md` · „`Run(args, stdout, stderr) int` gibt die Version aus"
 - befund: §3 nennt die Signatur ohne Parameter `version`; der Code hat `Run(args, version, stdout, stderr)`. §3 beschreibt außerdem „Test der Version und der Fehlerausgabe (Happy, Negative)", der Test deckt aber auch den Zusatzargument-Fall ab. Die Plan-Zeile ist nicht nachgezogen.
 - verifizierbar: nein
 - klasse: Slice-Plan nicht mit Code nachgezogen
