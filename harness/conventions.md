@@ -222,4 +222,7 @@ streicht sie. Regel: Baseline-Regelwerk `grundlagen-harness-dateien.md`
 
 | Begriff | Bedeutung |
 |---|---|
-| <repo-spezifischer Begriff> | <Bedeutung in diesem Repo> |
+| Baseline | Unveränderlicher Snapshot der Art `baseline`, aus Recordings importiert; Ausgangspunkt jedes Workspace |
+| Match-Key | Aus der redigierten Repräsentation eines Requests gebildeter Schlüssel, über den Replay einen aufgezeichneten Austausch findet |
+| Replay-Cursor | Pro Workspace, Replay-Session und Recording-Session geführte Position samt Menge verbrauchter Austausche |
+| Spec-Straten | Die drei Spec-Dateien Lastenheft, Spezifikation, Architektur; Verweise gehen nur nach oben |

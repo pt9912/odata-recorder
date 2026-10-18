@@ -60,16 +60,9 @@ Diese Datei dupliziert sie nicht.
 
 | Target | Vertrag | Bindung |
 |---|---|---|
-| `make docs-check` | Doku-Referenzen (d-check); das Gate, das die Vorlage mitbringt | — |
-| `<make-target>` | <was prüft es> | — |
-| `<make-target>` | <…> | — |
-| `<make-target>` | <…> | ADR-<NNNN> |
-| `<make-target>` | <…>, bootstrap-aware | Schwelle X %, M<n> → Y % |
-| `<make-target>` | <…> | bootstrap via `CO-<NNN>` bis <Slice/Welle> |
+| `make docs-check` | Doku-Referenzen und Spec-Straten-Richtung (d-check) | — |
+| `make schema-check` | Persistenzschema: d-migrate validate und generate, DDL in SQLite, Negativtests der Constraints, `foreign_key_check`/`integrity_check` (netzlos, ohne Mount) | — |
 | `make gates` | alle inneren Gates | — |
-| `<make-target>` | gates + extras | — |
-| `<make-target>` | volle Closure | Image-Hash `sha256:…` (Modul 14) |
-| `make <gate-mit-grenze>` | <…>; Grenze und Ausgänge in der verlinkten Datei | ADR-<NNNN> |
 
 **Werkzeuge — genannt, weil der Lauf sie braucht, aber kein Gate:**
 
@@ -79,8 +72,8 @@ Diese Datei dupliziert sie nicht.
 | `make schema-generate` | erzeugt SQLite-DDL und Report aus dem Schema als Tar-Strom auf stdout (netzlos, ohne Mount) | kein Gate |
 
 **Aktueller Lauf-Status:** CI-Badge bzw. lokal `make help` / `make gates`.
-**Rote Gates:** Begründung im verlinkten `CO-<NNN>` (siehe Bindung-Spalte), Modul 7.
-**Nicht behauptet** (geplant): `<make-target-1>`, `<make-target-2>` (Welle <n>).
+**Rote Gates:** keine; ein rotes Gate bekommt einen `CO-<NNN>` und verweist in der Bindung-Spalte darauf (Modul 7).
+**Nicht behauptet:** Build-, Test-, Lint- und Coverage-Gates sowie der Lasttest zu `LH-QA-01` — es gibt noch keinen Code. Ebenso fehlt die Migrationskette des Schemas; sie braucht eine zweite Schemaversion.
 
 **Targets der Werkzeug-Fragmente:** [`mk/ai-harness-init.md`](mk/ai-harness-init.md) — der Teil dieses Index, den `ai-harness-init` bei jedem Lauf neu schreibt; was das Repo über eines dieser Targets entscheidet, steht in dieser Zeile.
 
@@ -95,8 +88,10 @@ Diese Datei dupliziert sie nicht.
 
 
 
-- <…>
-- <…>
+- Kein Code, kein Geheimnis und kein echter Upstream-Zugang im Repo: Prüfläufe sind netzlos und laufen ohne Bind-Mount (`AGENTS.md` §3.1).
+- Änderungen am Lastenheft folgen seiner Historie-Regel (`spec/lastenheft.md` §Historie); Tatsachenberichtigungen werden als solche gekennzeichnet.
+- Die vendorte Baseline unter `.harness/baseline/` wird nicht bearbeitet; ein Stand-Wechsel ist ein eigener Commit samt `make baseline-verify`.
+- Ein Gate wird nicht gelockert (`AGENTS.md` §3.6); neue Gates sind erlaubt.
 
 ## Minimal agent workflow
 
@@ -122,6 +117,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-harness-dateien.md`
 drei bis fünf **geordnete** Zeiger, was ein neuer Mensch zuerst liest und was
 bei Bedarf; eine Leseordnung, die alles nennt, ist keine.
 
-1. <zuerst — z. B. `AGENTS.md` §Hard Rules>
-2. <dann — z. B. `spec/lastenheft.md`>
-3. <bei Bedarf — z. B. `harness/conventions.md`>
+1. [`AGENTS.md`](../AGENTS.md) §Harte Regeln
+2. [`spec/lastenheft.md`](../spec/lastenheft.md) — was zugesagt ist
+3. [`spec/spezifikation.md`](../spec/spezifikation.md) — wie genau, mit Defaults und Fehlercodes
+4. [`spec/architecture.md`](../spec/architecture.md) — Komponenten und Sequenzen
+5. bei Bedarf [`conventions.md`](conventions.md)

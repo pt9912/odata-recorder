@@ -76,20 +76,23 @@ In dieser Reihenfolge:
 
 
 
-Kein lokales <venv/SDK/Toolchain-Install>. Alles läuft über `make`
-(das Docker nutzt). Host braucht nur Docker und GNU `make`.
+Kein lokaler Toolchain-Install (Compiler, Python, SQLite, Java). Alles läuft über
+`make`, das Docker nutzt; Images sind per Digest gepinnt, die Prüfläufe netzlos
+(`--network none`) und ohne Bind-Mount — Eingaben gehen per `docker cp` hinein,
+Ergebnisse als Tar-Strom heraus. Host braucht nur Docker und GNU `make`.
 
-**Falsch:** <z.B. `pip install ...`>
-**Richtig:** <z.B. `<make-target>`>
+**Falsch:** `sqlite3 :memory: < schema.sql`, `python tools/schema/check.py`
+**Richtig:** `make schema-check`
 
 **Begründung:** Toolchain-Reproduzierbarkeit + Supply-Chain-Defense.
 
 ### 3.2 Suppression-Verbot
 
-
-
-Inline-Suppression bricht das `<suppression>-gate`. Ausnahmen leben in
-<zentraler Konfigurations-Datei> mit Begründung.
+Eine Prüfung wird nicht durch Unterdrücken im geprüften Text umgangen. Heute gibt es
+genau eine Unterdrückung, die Doku-Ausnahme `<!-- d-check:ignore (Grund) -->`; sie
+trägt ihre Begründung in der Klammer, und eine ohne Begründung ist ein Befund. Ein
+Code-Linter-Gate existiert noch nicht; kommt eines, leben seine Ausnahmen in dessen
+zentraler Konfigurationsdatei mit Begründung, nicht inline im Code.
 
 ### 3.3 git mv + Inhaltsänderung = zwei Commits
 
