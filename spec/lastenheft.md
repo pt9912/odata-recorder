@@ -9,13 +9,19 @@
 
 ## 1. Zweck und Geltungsbereich
 
-Der OData Recorder ist ein Werkzeug für Softwareentwickler und Testautomatisierung, das die Kommunikation zwischen OData-Clients und bestehenden OData-Diensten aufzeichnet, zu einem späteren Zeitpunkt reproduzierbar wiedergibt und einen zustandsbehafteten OData-Mockdienst auf Grundlage verfügbarer Metadaten und aufgezeichneter Daten bereitstellt. Integrationstests sollen ohne dauerhaft erreichbaren Produktiv- oder Testserver ausführbar sein.
+Der OData Recorder ist ein Werkzeug für Softwareentwickler und Testautomatisierung, das die Kommunikation zwischen OData-Clients und bestehenden OData-Diensten aufzeichnet, zu einem späteren Zeitpunkt reproduzierbar wiedergibt und einen zustandsbehafteten OData-Mockdienst auf Grundlage verfügbarer Metadaten und aufgezeichneter Daten bereitstellt.
+Integrationstests sollen ohne dauerhaft erreichbaren Produktiv- oder Testserver ausführbar sein.
 
-Zum System gehören die Erfassung und Verwaltung von HTTP/OData-Austauschen, ein deterministischer Replay-Betrieb, die Bereitstellung eines lokal veränderbaren OData-Datenbestands, die Verwaltung von Testzuständen sowie eine bedienbare Schnittstelle für Konfiguration und Teststeuerung. Das System darf nicht voraussetzen, dass eine Aufzeichnung einen vollständigen Datenbestand enthält. Unvollständige Abdeckung muss erkennbar bleiben.
+Zum System gehören die Erfassung und Verwaltung von HTTP/OData-Austauschen, ein deterministischer Replay-Betrieb, die Bereitstellung eines lokal veränderbaren OData-Datenbestands, die Verwaltung von Testzuständen sowie eine bedienbare Schnittstelle für Konfiguration und Teststeuerung.
+Das System darf nicht voraussetzen, dass eine Aufzeichnung einen vollständigen Datenbestand enthält.
+Unvollständige Abdeckung muss erkennbar bleiben.
 
-Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testausführung. Der erste Abnahmeumfang umfasst OData V4 mit JSON und XML-Metadaten; OData V2 ist eine mögliche spätere Erweiterung. Eine vollständige Simulation beliebiger Geschäftslogik wird nicht verlangt.
+Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testausführung.
+Der erste Abnahmeumfang umfasst OData V4 mit JSON und XML-Metadaten; OData V2 ist eine mögliche spätere Erweiterung.
+Eine vollständige Simulation beliebiger Geschäftslogik wird nicht verlangt.
 
-**Priorisierung:** Anforderungen in diesem Entwurf sind mit **Muss** (erste abnahmefähige Version), **Soll** (geplanter Ausbau) oder **Kann** (optional) gekennzeichnet. Der Status `Draft` bedeutet, dass Umfang und Grenzwerte noch abgestimmt werden können.
+**Priorisierung:** Anforderungen in diesem Entwurf sind mit **Muss** (erste abnahmefähige Version), **Soll** (geplanter Ausbau) oder **Kann** (optional) gekennzeichnet.
+Der Status `Draft` bedeutet, dass Umfang und Grenzwerte noch abgestimmt werden können.
 
 ## 2. Stakeholder
 
@@ -70,14 +76,16 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-FA-04 — Deterministisches Replay (Muss)
 
-**Beschreibung:** Das System beantwortet Anfragen aus einer ausdrücklich zugeordneten Recording-Session und einem isolierten Workspace, ohne den Upstream zu kontaktieren. Wiederholte identische Requests werden nach einer dokumentierten, konfigurierbaren Sequenzregel behandelt.
+**Beschreibung:** Das System beantwortet Anfragen aus einer ausdrücklich zugeordneten Recording-Session und einem isolierten Workspace, ohne den Upstream zu kontaktieren.
+Wiederholte identische Requests werden nach einer dokumentierten, konfigurierbaren Sequenzregel behandelt.
 
 **Akzeptanzkriterien:**
 - **Happy Path:** Given ein aufgezeichneter Request mit Response, when derselbe Request im Replay-Modus eingeht, then wird die passende gespeicherte Response mit Status und Nutzdaten geliefert.
 - **Boundary:** Given zwei identische aufgezeichnete Requests mit unterschiedlichen Responses und expliziter Workspace-/Session-Zuordnung, when sie im Sequenzmodus zweimal angefragt werden, then werden die Responses in aufgezeichneter Reihenfolge geliefert.
 - **Negative:** Given kein passender Austausch oder eine fehlende/mehrdeutige Workspace-/Session-Zuordnung, when Replay angefragt wird, then wird ein eindeutiger Fehler gemeldet und kein Upstream kontaktiert.
 
-**Zusätzliche verbindliche Abnahmeregel:** Given zwei parallele Replay-Sessions desselben Workspaces, when beide dieselbe Recording-Session abspielen, then bleiben ihre Cursor unabhängig; ein Workspace-Reset setzt alle zugehörigen Replay-Cursor auf ihren Anfangszustand.
+**Zusätzliche verbindliche Abnahmeregel:** Given zwei parallele Replay-Sessions desselben Workspaces, when beide dieselbe Recording-Session abspielen, then bleiben ihre Cursor unabhängig;
+ein Workspace-Reset setzt alle zugehörigen Replay-Cursor auf ihren Anfangszustand.
 
 **Out-of-Scope:** Automatisches Erfinden fehlender Antworten.
 
@@ -85,7 +93,8 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-FA-05 — Konfigurierbares Request-Matching (Muss)
 
-**Beschreibung:** Das System bietet ein dokumentiertes HTTP-Matching, das semantisch irrelevante Unterschiede in der Reihenfolge von Query-Parametern und deren äquivalenter URL-Kodierung toleriert. Relevante Unterschiede dürfen nicht unbemerkt zusammenfallen.
+**Beschreibung:** Das System bietet ein dokumentiertes HTTP-Matching, das semantisch irrelevante Unterschiede in der Reihenfolge von Query-Parametern und deren äquivalenter URL-Kodierung toleriert.
+Relevante Unterschiede dürfen nicht unbemerkt zusammenfallen.
 
 **Akzeptanzkriterien:**
 - **Happy Path:** Given zwei Requests mit gleicher Methode, gleichem Pfad und gleichen Query-Parametern in anderer Reihenfolge, when sie verglichen werden, then gelten sie als passend.
@@ -98,7 +107,8 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-FA-06 — OData-Metadaten bereitstellen (Muss)
 
-**Beschreibung:** Der Recorder kann die Metadaten eines unterstützten OData-V4-Dienstes erfassen und im Mock-Modus bereitstellen. Der Mock nutzt daraus mindestens EntitySets, Schlüssel und Eigenschaftstypen.
+**Beschreibung:** Der Recorder kann die Metadaten eines unterstützten OData-V4-Dienstes erfassen und im Mock-Modus bereitstellen.
+Der Mock nutzt daraus mindestens EntitySets, Schlüssel und Eigenschaftstypen.
 
 **Akzeptanzkriterien:**
 - **Happy Path:** Given gültige OData-V4-Metadaten, when der Mock gestartet und `$metadata` abgefragt wird, then wird ein konsistentes Metadatendokument geliefert und das enthaltene EntitySet ist abfragbar.
@@ -111,7 +121,8 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-FA-07 — Zustandsbehaftete CRUD-Operationen (Muss)
 
-**Beschreibung:** Der Mockserver ermöglicht das Lesen, Erstellen, Aktualisieren und Löschen von Entitäten in einem lokalen, pro Testlauf isolierten Datenbestand. Er respektiert definierte Schlüssel und grundlegende Typ-/Pflichtfeldregeln.
+**Beschreibung:** Der Mockserver ermöglicht das Lesen, Erstellen, Aktualisieren und Löschen von Entitäten in einem lokalen, pro Testlauf isolierten Datenbestand.
+Er respektiert definierte Schlüssel und grundlegende Typ-/Pflichtfeldregeln.
 
 **Akzeptanzkriterien:**
 - **Happy Path:** Given ein gültiges EntitySet, when eine Entität per POST angelegt, per GET gelesen, per PATCH verändert und per DELETE gelöscht wird, then sind die Zustandsübergänge in nachfolgenden GET-Anfragen sichtbar.
@@ -137,7 +148,9 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-FA-09 — Isolierte Workspaces und Reset (Muss)
 
-**Beschreibung:** Testläufe können aus derselben Ausgangslage unabhängige Zustände erhalten. Ein Reset stellt den Baseline-Entity-State und sämtliche Replay-Sequenzpositionen des Workspaces auf ihre initialen Werte zurück. Ein Snapshot-Restore stellt ausschließlich den Entity-State wieder her und lässt Replay-Cursor unverändert.
+**Beschreibung:** Testläufe können aus derselben Ausgangslage unabhängige Zustände erhalten.
+Ein Reset stellt den Baseline-Entity-State und sämtliche Replay-Sequenzpositionen des Workspaces auf ihre initialen Werte zurück.
+Ein Snapshot-Restore stellt ausschließlich den Entity-State wieder her und lässt Replay-Cursor unverändert.
 
 **Akzeptanzkriterien:**
 - **Happy Path:** Given zwei aus derselben Baseline erstellte Workspaces, when Workspace A eine Entität verändert, then bleibt Workspace B unverändert.
@@ -153,7 +166,8 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 **Beschreibung:** Nutzer können benannte konsistente Zustands-Snapshots erstellen, auswählen und wiederherstellen.
 
 **Akzeptanzkriterien:**
-- **Happy Path:** Given ein veränderter Workspace, when ein Snapshot erstellt, weitere Änderungen vorgenommen und der Snapshot wiederhergestellt wird, then entspricht der Entity-State dem Zeitpunkt der Snapshot-Erstellung; Replay-Cursor bleiben auf ihrer aktuellen Position.
+- **Happy Path:** Given ein veränderter Workspace, when ein Snapshot erstellt, weitere Änderungen vorgenommen und der Snapshot wiederhergestellt wird, then entspricht der Entity-State dem Zeitpunkt der Snapshot-Erstellung;
+  Replay-Cursor bleiben auf ihrer aktuellen Position.
 - **Boundary:** Given ein leerer Workspace und ein fortgeschrittener Replay-Cursor, when ein Snapshot erstellt und wiederhergestellt wird, then bleibt der Entity-State leer und der Replay-Cursor unverändert.
 - **Negative:** Given eine ungültige Snapshot-ID, when Wiederherstellung angefordert wird, then wird kein Teilzustand übernommen.
 
@@ -163,12 +177,14 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-FA-11 — Erkennbarkeit unvollständiger Daten (Muss)
 
-**Beschreibung:** Das System unterscheidet zwischen nachweislich vollständig, teilweise und unbekannt erfassten Datenbeständen. Es darf unvollständige Daten nicht stillschweigend als vollständiges Ergebnis ausgeben, wenn der strikte Abdeckungsmodus aktiviert ist.
+**Beschreibung:** Das System unterscheidet zwischen nachweislich vollständig, teilweise und unbekannt erfassten Datenbeständen.
+Es darf unvollständige Daten nicht stillschweigend als vollständiges Ergebnis ausgeben, wenn der strikte Abdeckungsmodus aktiviert ist.
 
 **Akzeptanzkriterien:**
 - **Happy Path:** Given ein ausdrücklich als vollständig validierter EntitySet-Bestand, when eine unterstützte Collection-Abfrage erfolgt, then wird sie aus dem Bestand beantwortet.
 - **Boundary:** Given eine Aufzeichnung mit `$top=10` ohne Vollständigkeitsnachweis, when sie importiert wird, then lautet die Abdeckung `partial` oder `unknown`, nicht `complete`.
-- **Negative:** Given ein unvollständiger oder unbekannter Bestand im strikten Modus, when eine nicht sicher beantwortbare Collection-Abfrage erfolgt, then wird vor Query-Ausführung eine eindeutige Coverage-Fehlermeldung geliefert; null beobachtete Entitäten gelten nicht als Nachweis einer leeren Collection.
+- **Negative:** Given ein unvollständiger oder unbekannter Bestand im strikten Modus, when eine nicht sicher beantwortbare Collection-Abfrage erfolgt, then wird vor Query-Ausführung eine eindeutige Coverage-Fehlermeldung geliefert;
+  null beobachtete Entitäten gelten nicht als Nachweis einer leeren Collection.
 
 **Out-of-Scope:** Automatischer Vollständigkeitsbeweis aus beliebigen partiellen Antworten.
 
@@ -176,7 +192,8 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-FA-12 — Sichere Betriebsarten und Fallback (Muss)
 
-**Beschreibung:** Nutzer können Record, Replay und Mock ausdrücklich auswählen. Ein kombinierter Betrieb darf nur nach expliziten Regeln auf den Upstream zugreifen; schreibende Requests dürfen niemals implizit weitergereicht werden.
+**Beschreibung:** Nutzer können Record, Replay und Mock ausdrücklich auswählen.
+Ein kombinierter Betrieb darf nur nach expliziten Regeln auf den Upstream zugreifen; schreibende Requests dürfen niemals implizit weitergereicht werden.
 
 **Akzeptanzkriterien:**
 - **Happy Path:** Given Replay- oder Mock-Modus ohne Upstream-Fallback, when Requests eingehen, then entstehen keine Upstream-Verbindungen.
@@ -189,7 +206,8 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-FA-13 — Management und Diagnose (Muss)
 
-**Beschreibung:** Das System bietet eine von den OData-Routen getrennte Verwaltung für Sessions, Workspaces, Snapshots, Coverage und Fehlerdiagnose. Der Betriebsmodus wird beim Prozessstart gewählt; eine Laufzeit-Modusumschaltung gehört nicht zum ersten Abnahmeumfang.
+**Beschreibung:** Das System bietet eine von den OData-Routen getrennte Verwaltung für Sessions, Workspaces, Snapshots, Coverage und Fehlerdiagnose.
+Der Betriebsmodus wird beim Prozessstart gewählt; eine Laufzeit-Modusumschaltung gehört nicht zum ersten Abnahmeumfang.
 
 **Akzeptanzkriterien:**
 - **Happy Path:** Given ein gestarteter Recorder, when ein Nutzer Sessions und Workspaces über die Verwaltungsschnittstelle abfragt, then erhält er deren Kennungen und Status.
@@ -202,7 +220,10 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-FA-14 — Schutz sensibler Aufzeichnungsdaten (Muss)
 
-**Beschreibung:** Geheimnisse in Headern und konfigurierbaren Body-Feldern werden vor persistenter Speicherung und vor Diagnoseausgaben gemäß definierten Regeln entfernt oder ersetzt. Live-HTTP-Transparenz und Vollständigkeit des gespeicherten Recordings sind getrennte Zusagen: Ein Capture-Fehler nach Beginn des Response-Streamings ändert die bereits gesendete HTTP-Antwort nicht nachträglich; der Austausch wird als unvollständig markiert. Redigierte Bodies sind nicht zwingend byteidentisch replayfähig.
+**Beschreibung:** Geheimnisse in Headern und konfigurierbaren Body-Feldern werden vor persistenter Speicherung und vor Diagnoseausgaben gemäß definierten Regeln entfernt oder ersetzt.
+Live-HTTP-Transparenz und Vollständigkeit des gespeicherten Recordings sind getrennte Zusagen: Ein Capture-Fehler nach Beginn des Response-Streamings ändert die bereits gesendete HTTP-Antwort nicht nachträglich;
+der Austausch wird als unvollständig markiert.
+Redigierte Bodies sind nicht zwingend byteidentisch replayfähig.
 
 **Akzeptanzkriterien:**
 - **Happy Path:** Given ein Request mit `Authorization` und `Cookie`, when er aufgezeichnet wird, then sind diese Werte weder in der Recording-Datei noch im regulären Log im Klartext vorhanden.
@@ -252,7 +273,9 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-FA-18 — Recording-Daten in Mock-Baseline importieren (Muss)
 
-**Beschreibung:** Der Nutzer kann geeignete aufgezeichnete OData-V4-Entity- und Collection-Antworten ausdrücklich in eine neue, unveränderliche Mock-Baseline importieren. Die Übernahme ist anhand der zugehörigen Metadaten typisiert, nachvollziehbar und atomar; Konflikte und unvollständige Daten werden ausgewiesen. Ein Import geschieht nicht stillschweigend während des Recordings.
+**Beschreibung:** Der Nutzer kann geeignete aufgezeichnete OData-V4-Entity- und Collection-Antworten ausdrücklich in eine neue, unveränderliche Mock-Baseline importieren.
+Die Übernahme ist anhand der zugehörigen Metadaten typisiert, nachvollziehbar und atomar; Konflikte und unvollständige Daten werden ausgewiesen.
+Ein Import geschieht nicht stillschweigend während des Recordings.
 
 **Akzeptanzkriterien:**
 - **Happy Path:** Given gültige Metadaten und eine aufgezeichnete Collection mit zwei eindeutig geschlüsselten Entitäten, when der Import für diese Session gestartet wird, then enthält die neue Baseline beide Entitäten mit Herkunftsnachweis und ein daraus erzeugter Workspace kann sie lesen.
@@ -261,7 +284,8 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 **Zusätzliche verbindliche Abnahmeregeln:**
 - **Baseline-gebundene Coverage:** Given zwei unterschiedliche Baselines desselben Dienstes, von denen nur eine nachweislich vollständig ist, when beide abgefragt werden, then kann die vollständige Coverage nicht auf die andere Baseline übertragen werden.
-- **Teilprojektion:** Given eine importierte Entity mit `$select`-Teilprojektion, when eine nicht nachweislich vorhandene Property gelesen oder die Entity verändert werden soll, then wird der Vorgang entweder nach expliziter, verlustfreier Regel behandelt oder mit Coverage-Fehler abgewiesen; fehlend und `null` bleiben unterscheidbar.
+- **Teilprojektion:** Given eine importierte Entity mit `$select`-Teilprojektion, when eine nicht nachweislich vorhandene Property gelesen oder die Entity verändert werden soll, then wird der Vorgang entweder nach expliziter, verlustfreier Regel behandelt oder mit Coverage-Fehler abgewiesen;
+  fehlend und `null` bleiben unterscheidbar.
 - **Import-Autorisierung:** Given ein nicht autorisierter Admin-Client, when er einen Import anfordert, then wird der Import ohne Änderung abgewiesen.
 
 **Out-of-Scope:** Automatisches Crawling aller nicht beobachteten Backend-Daten und stillschweigende Bereinigung fachlicher Datenkonflikte.
@@ -272,12 +296,17 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-QA-01 — Replay-Performance
 
-- **Anforderung:** Bei lokalem Speicher, 2 vCPU, 4 GiB RAM, 10.000 aufgezeichneten Austauschen, Antwort-Bodies bis 64 KiB und 20 Requests/s beträgt die zusätzliche Verarbeitungszeit des Replay-Dienstes p95 höchstens 100 ms. Der Wert gilt für Antworten, die der Dienst allein aus lokalem Speicher bildet (Replay und Mockserver); im Record- und im Pass-through-Betrieb bestimmt der Upstream die Antwortzeit, dort wird keine Latenz zugesagt. Vorläufiger, nicht freigegebener Abnahmezielwert. Fachlicher Owner muss p95 ≤ 100 ms oder einen alternativen Zielwert vor Status Accepted explizit bestätigen; ohne Entscheidung keine fachliche Freigabe.
+- **Anforderung:** Bei lokalem Speicher, 2 vCPU, 4 GiB RAM, 10.000 aufgezeichneten Austauschen, Antwort-Bodies bis 64 KiB und 20 Requests/s beträgt die zusätzliche Verarbeitungszeit des Replay-Dienstes p95 höchstens 100 ms.
+  Der Wert gilt für Antworten, die der Dienst allein aus lokalem Speicher bildet (Replay und Mockserver);
+  im Record- und im Pass-through-Betrieb bestimmt der Upstream die Antwortzeit, dort wird keine Latenz zugesagt.
+  Vorläufiger, nicht freigegebener Abnahmezielwert.
+  Fachlicher Owner muss p95 ≤ 100 ms oder einen alternativen Zielwert vor Status Accepted explizit bestätigen; ohne Entscheidung keine fachliche Freigabe.
 - **Messmethode:** Reproduzierbarer Lasttest mit 10 Minuten Messdauer nach Warm-up; Messung zwischen Request-Eingang und Beginn der Response-Ausgabe.
 
 ### LH-QA-02 — Determinismus
 
-- **Anforderung:** Gleiche Recording-Session, Matching-Konfiguration und initialer Workspace-Zustand liefern bei identischer sequenzieller Request-Folge dieselben Statuscodes, fachlichen Bodies und relevanten Header. Volatile Header sind explizit zu definieren.
+- **Anforderung:** Gleiche Recording-Session, Matching-Konfiguration und initialer Workspace-Zustand liefern bei identischer sequenzieller Request-Folge dieselben Statuscodes, fachlichen Bodies und relevanten Header.
+  Volatile Header sind explizit zu definieren.
 - **Messmethode:** 100 identische Testläufe nach Reset; Vergleich normalisierter Antworten.
 
 ### LH-QA-03 — Isolation und Konsistenz
@@ -297,18 +326,21 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ### LH-QA-06 — Portabilität und Reproduzierbarkeit
 
-- **Anforderung:** Der Dienst läuft auf Linux als Container und kann ohne verpflichtende externe Infrastruktur gestartet werden; gleiche Konfiguration und gleiche Eingabedaten führen zu gleichem Testverhalten.
+- **Anforderung:** Der Dienst läuft auf Linux als Container und kann ohne verpflichtende externe Infrastruktur gestartet werden;
+  gleiche Konfiguration und gleiche Eingabedaten führen zu gleichem Testverhalten.
 - **Messmethode:** Containerbasierter CI-Test mit frischem Datenverzeichnis und anschließendem Persistenz-/Neustarttest.
 
 ### LH-QA-07 — Protokolltreue
 
-- **Anforderung:** Der Record-Modus darf gültige unterstützte OData-Austausche nicht fachlich verändern; unbekannte OData-Erweiterungen dürfen die reine HTTP-Aufzeichnung nicht grundsätzlich verhindern.
+- **Anforderung:** Der Record-Modus darf gültige unterstützte OData-Austausche nicht fachlich verändern;
+  unbekannte OData-Erweiterungen dürfen die reine HTTP-Aufzeichnung nicht grundsätzlich verhindern.
 - **Messmethode:** Vergleich von Direktzugriff und Proxy-Zugriff anhand eines Referenzdienstes, einschließlich Status, Body und relevanter Header.
 
 ### LH-RB-01 — OData-Kompatibilität
 
 - **Art:** Technisch
-- **Vorgabe:** Der erste Abnahmeumfang orientiert sich an OData V4.0. Der konkret unterstützte Teilumfang ist verbindlich zu dokumentieren; nicht unterstützte Funktionen dürfen nicht stillschweigend als unterstützt erscheinen.
+- **Vorgabe:** Der erste Abnahmeumfang orientiert sich an OData V4.0.
+  Der konkret unterstützte Teilumfang ist verbindlich zu dokumentieren; nicht unterstützte Funktionen dürfen nicht stillschweigend als unterstützt erscheinen.
 - **Nachweis:** Konformitätsorientierte Tests mit Referenzanfragen und Negativfällen.
 
 ### LH-RB-02 — HTTP-Schnittstelle
@@ -326,10 +358,12 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 ### LH-RB-04 — Schutz von Daten und Zugangsdaten
 
 - **Art:** Rechtlich / organisatorisch
-- **Vorgabe:** Der Einsatz mit personenbezogenen oder vertraulichen Daten muss durch geeignete Zugriffskontrolle, Redaktionsregeln und Aufbewahrungsvorgaben abgesichert werden; die Verantwortung für zulässige Testdaten verbleibt beim Betreiber.
+- **Vorgabe:** Der Einsatz mit personenbezogenen oder vertraulichen Daten muss durch geeignete Zugriffskontrolle, Redaktionsregeln und Aufbewahrungsvorgaben abgesichert werden;
+  die Verantwortung für zulässige Testdaten verbleibt beim Betreiber.
 - **Nachweis:** Dokumentierte Schutzmaßnahmen, Konfigurationsprüfung und Test auf Geheimnisoffenlegung.
 
-**Erstabnahme:** Muss-Anforderungen sind abnahmebindend; Soll- und Kann-Anforderungen sind dokumentierter Ausbau und nicht Teil der Erstabnahme. Die QA-Grenzwerte müssen vor Freigabe des Lastenhefts bestätigt werden.
+**Erstabnahme:** Muss-Anforderungen sind abnahmebindend; Soll- und Kann-Anforderungen sind dokumentierter Ausbau und nicht Teil der Erstabnahme.
+Die QA-Grenzwerte müssen vor Freigabe des Lastenhefts bestätigt werden.
 
 ## 5. Globale Out-of-Scope-Punkte
 
@@ -366,7 +400,10 @@ Primäres Einsatzszenario ist die lokale Entwicklung und automatisierte CI-Testa
 
 ## 7. Historie
 
-Ab Status `Accepted` sind inhaltliche Änderungen nur über einen dokumentierten Change Request zulässig. Der Versionssprung und der externe Änderungsverweis werden dann hier eingetragen. Vor `Accepted` sind Änderungen am Entwurf ohne Change Request möglich. Tatsachenberichtigungen ohne Anforderungsänderung sind ausdrücklich als solche zu kennzeichnen.
+Ab Status `Accepted` sind inhaltliche Änderungen nur über einen dokumentierten Change Request zulässig.
+Der Versionssprung und der externe Änderungsverweis werden dann hier eingetragen.
+Vor `Accepted` sind Änderungen am Entwurf ohne Change Request möglich.
+Tatsachenberichtigungen ohne Anforderungsänderung sind ausdrücklich als solche zu kennzeichnen.
 
 | Version | Datum | Änderung | Verweis |
 |---|---|---|---|

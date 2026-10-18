@@ -2,9 +2,12 @@
 
 **Status:** Draft · **Letzte Änderung:** 2026-10-18
 
-**Rolle:** Derivative Architektur-Sicht gemäß `ai-harness-course`: keine neuen Anforderungen, keine Meilensteine, keine Historie, keine ADR-Bezüge. **Bezug:** `spec/lastenheft.md`, `spec/spezifikation.md`.
+**Rolle:** Derivative Architektur-Sicht gemäß `ai-harness-course`: keine neuen Anforderungen, keine Meilensteine, keine Historie, keine ADR-Bezüge.
+**Bezug:** `spec/lastenheft.md`, `spec/spezifikation.md`.
 
-**Architekturstil:** Hexagonale Architektur (Ports & Adapters), modularer Monolith. Die Struktur ergänzt Aufzeichnung und Wiedergabe um OData-Metadaten, Query-Auswertung und zustandsbehaftete Workspaces. Die hier dargestellten Ports sind konzeptionelle Verträge, keine bereits implementierten APIs.
+**Architekturstil:** Hexagonale Architektur (Ports & Adapters), modularer Monolith.
+Die Struktur ergänzt Aufzeichnung und Wiedergabe um OData-Metadaten, Query-Auswertung und zustandsbehaftete Workspaces.
+Die hier dargestellten Ports sind konzeptionelle Verträge, keine bereits implementierten APIs.
 
 ---
 
@@ -19,7 +22,8 @@ Application Service → Outbound Port ← Driven Adapter → Driven Actor
 Composition Root verdrahtet konkrete Implementierungen.
 ```
 
-Der Application Core kennt weder HTTP-Server- oder -Client-Bibliotheken, SQLite-Treiber, OData-XML-/JSON-Bibliotheken, Dateisystem noch CLI-Frameworks. Die Transport- und Persistenztechnologie bleibt an den Adaptern.
+Der Application Core kennt weder HTTP-Server- oder -Client-Bibliotheken, SQLite-Treiber, OData-XML-/JSON-Bibliotheken, Dateisystem noch CLI-Frameworks.
+Die Transport- und Persistenztechnologie bleibt an den Adaptern.
 
 ```mermaid
 %%{init: {'themeVariables': {'lineColor': '#8b949e', 'signalColor': '#8b949e', 'signalTextColor': '#8b949e', 'actorLineColor': '#8b949e', 'loopTextColor': '#8b949e', 'textColor': '#c9d1d9', 'primaryTextColor': '#1f2328', 'nodeTextColor': '#1f2328', 'actorTextColor': '#1f2328', 'noteTextColor': '#1f2328', 'edgeLabelBackground': '#30363d'}}}%%
@@ -72,11 +76,17 @@ flowchart TB
 | `ARC-021` | Querschnitts-Ports (`src/hexagon/ports/support`) | `AuditLog`, `Telemetry`, `Clock`, `IDGenerator`; jede Schicht darf sie nutzen, damit Adapter ohne Use Case Audit-Einträge, Korrelations-IDs und Spans erzeugen können |
 | `ARC-020` | Audit/Telemetry Driven Adapter (`src/adapters/driven/audit`, `src/adapters/driven/telemetry`) | Audit-Log, strukturierte Logs, Metriken und Spans hinter `AuditLog` und `Telemetry` |
 
-**Baseline-Import:** `ImportUseCase` in `ARC-002` liest Exchanges über `RecordingRepository`, interpretiert OData-V4-JSON über den Port `ODataCodec` (`ARC-011`), validiert Schlüssel und Typen gegen `MetadataRepository`, schreibt ein unveränderliches Snapshot-Manifest über `SnapshotRepository`/`BlobRepository`, führt Import-Eintrag und Baseline-Quellen über `ImportRepository` und veröffentlicht die Baseline atomar. Kein HTTP-Adapter und kein SQLite-Adapter entscheidet selbst über Deduplizierung oder Coverage.
+**Baseline-Import:** `ImportUseCase` in `ARC-002` liest Exchanges über `RecordingRepository`, interpretiert OData-V4-JSON über den Port `ODataCodec` (`ARC-011`), validiert Schlüssel und Typen gegen `MetadataRepository`, schreibt ein unveränderliches Snapshot-Manifest über `SnapshotRepository`/`BlobRepository`, führt Import-Eintrag und Baseline-Quellen über `ImportRepository` und veröffentlicht die Baseline atomar.
+Kein HTTP-Adapter und kein SQLite-Adapter entscheidet selbst über Deduplizierung oder Coverage.
 
-**Abgrenzung:** Die OData-Query-Semantik (Filter, Sortierung, Paging, Typregeln) gehört zum Core; das Parsen konkreter HTTP-/CSDL-/JSON-Darstellungen liegt im Codec-Adapter. Der Core verwendet einen technologieunabhängigen AST.
+**Abgrenzung:** Die OData-Query-Semantik (Filter, Sortierung, Paging, Typregeln) gehört zum Core; das Parsen konkreter HTTP-/CSDL-/JSON-Darstellungen liegt im Codec-Adapter.
+Der Core verwendet einen technologieunabhängigen AST.
 
-**Codec-Zugriff:** Kein Driving Adapter ruft den Codec auf und importiert `adapters/driven/odata`. Der HTTP-Adapter reicht Methode, Pfad, `raw_query`, Header und Body-Strom unverändert als Domain-DTO an einen Inbound Port; Parsen und Serialisieren geschieht im Application Service über den Outbound Port `ODataCodec`. Die konkrete Implementierung verdrahtet allein `src/bootstrap` (Composition Root). Damit bleibt der Importgraph auf die erlaubten Kanten beschränkt, und der Codec lässt sich im Test durch einen Fake ersetzen.
+**Codec-Zugriff:** Kein Driving Adapter ruft den Codec auf und importiert `adapters/driven/odata`.
+Der HTTP-Adapter reicht Methode, Pfad, `raw_query`, Header und Body-Strom unverändert als Domain-DTO an einen Inbound Port;
+Parsen und Serialisieren geschieht im Application Service über den Outbound Port `ODataCodec`.
+Die konkrete Implementierung verdrahtet allein `src/bootstrap` (Composition Root).
+Damit bleibt der Importgraph auf die erlaubten Kanten beschränkt, und der Codec lässt sich im Test durch einen Fake ersetzen.
 
 ---
 
@@ -96,8 +106,11 @@ flowchart TB
 - Der Core verwendet in öffentlichen fachlichen Port-Signaturen keinen Typ einer Datenbank- oder HTTP-Bibliothek.
 - HTTP-Header und Bodies werden am Adapter-Rand in kanonische Domain-DTOs abgebildet; Rohbytes dürfen als Byte-Folgen oder Streams über explizite Ports weitergegeben werden.
 - SQLite-SQL und Migrationen liegen ausschließlich in `ARC-009` (`adapters/driven/sqlite/migrations`); Dateisystemzugriffe für Blobs in `ARC-010`.
-- Die OData-Parserbibliothek ist nur in `ARC-011` erlaubt. Ein AST-Typ im Domain Model darf keine Parserbibliothek referenzieren.
-- Adapter importieren einander nicht, Services ebenso wenig: Ein Use Case ruft einen anderen nur über dessen Inbound Port auf (Hybrid → Mock, Replay). Gemeinsame Funktionen gehören in Domain oder Ports. Die Capture-Pipeline ist ein internes Paket des Record-Service, kein eigener Service.
+- Die OData-Parserbibliothek ist nur in `ARC-011` erlaubt.
+  Ein AST-Typ im Domain Model darf keine Parserbibliothek referenzieren.
+- Adapter importieren einander nicht, Services ebenso wenig: Ein Use Case ruft einen anderen nur über dessen Inbound Port auf (Hybrid → Mock, Replay).
+  Gemeinsame Funktionen gehören in Domain oder Ports.
+  Die Capture-Pipeline ist ein internes Paket des Record-Service, kein eigener Service.
 - Kein inneres Package beendet den Prozess; Signalbehandlung liegt in CLI/Bootstrap.
 - Die Admin API ist von der OData-Service-API getrennt und darf keine fachlichen Mock-Abkürzungen direkt in die Datenbank schreiben.
 
@@ -167,7 +180,8 @@ tests/
 | `MaintenanceUseCase` | Startwartung vor dem Öffnen der Listener: offene Sessions auf `incomplete` setzen, im Modus `record` die erste Recording-Session über `SessionUseCase` anlegen, Aufbewahrung anwenden, Integritätsprüfung, Blob-Bereinigung; löschende Use Cases rufen die Blob-Bereinigung nach dem Commit hier auf | Wartungsbericht |
 | `InspectionUseCase` | Exchanges, Coverage und Diagnose lesen | paginierte Verwaltungsdaten |
 
-Der HTTP-Adapter entscheidet **nicht** über Replay-Cursor, Match-Key, Coverage oder CRUD-Semantik. Der Core entscheidet **nicht** über TLS, Socket-Lifecycle oder HTTP-Chunking.
+Der HTTP-Adapter entscheidet **nicht** über Replay-Cursor, Match-Key, Coverage oder CRUD-Semantik.
+Der Core entscheidet **nicht** über TLS, Socket-Lifecycle oder HTTP-Chunking.
 
 ### 2.3 Outbound Ports
 
@@ -190,23 +204,41 @@ Der HTTP-Adapter entscheidet **nicht** über Replay-Cursor, Match-Key, Coverage 
 | `Telemetry` (Querschnitts-Port) | Strukturierte Logs, Metriken und Spans (`SPEC-026`–`SPEC-030`) ausgeben |
 | `Clock` / `IDGenerator` (Querschnitts-Ports) | Deterministische Zeit und IDs in Tests |
 
-**Streaming-Port-Lifecycle:** Der HTTP-Adapter besitzt Request-/Response-Streams und schließt sie. Der Record-Service erhält kontextgebundene Stream-Handles; `CaptureWriter` erlaubt `Write` und genau einen Abschluss (`Commit` oder `Abort`). Ein Capture-Fehler nach Beginn der Response-Ausgabe darf den HTTP-Status nicht rückwirkend verändern. Backpressure und Body-Limit führen zum Abbruch der Aufzeichnung, nicht zu unbeschränktem Puffern. Redigierte Bodies sind als eingeschränkt replayfähig gekennzeichnet.
+**Streaming-Port-Lifecycle:** Der HTTP-Adapter besitzt Request-/Response-Streams und schließt sie.
+Der Record-Service erhält kontextgebundene Stream-Handles; `CaptureWriter` erlaubt `Write` und genau einen Abschluss (`Commit` oder `Abort`).
+Ein Capture-Fehler nach Beginn der Response-Ausgabe darf den HTTP-Status nicht rückwirkend verändern.
+Backpressure und Body-Limit führen zum Abbruch der Aufzeichnung, nicht zu unbeschränktem Puffern.
+Redigierte Bodies sind als eingeschränkt replayfähig gekennzeichnet.
 
-**Replay-Zuordnung:** Die Zuordnung wird an der HTTP-Grenze entgegengenommen und im Replay-Service gegen die Spezifikation validiert (`LH-FA-04.b`, `SPEC-052`). Der Cursor gehört zum Tupel `(workspace, replay_session, recording_session)` und liegt hinter `CursorRepository`.
+**Replay-Zuordnung:** Die Zuordnung wird an der HTTP-Grenze entgegengenommen und im Replay-Service gegen die Spezifikation validiert (`LH-FA-04.b`, `SPEC-052`).
+Der Cursor gehört zum Tupel `(workspace, replay_session, recording_session)` und liegt hinter `CursorRepository`.
 
-**Reset vs. Restore:** Die Wirkung auf Entity-State und Cursor legen `LH-FA-09` und `LH-FA-10` fest; Reset greift auf `EntityRepository` und `CursorRepository` zu, Restore nur auf `EntityRepository`.
+**Reset vs.
+Restore:** Die Wirkung auf Entity-State und Cursor legen `LH-FA-09` und `LH-FA-10` fest; Reset greift auf `EntityRepository` und `CursorRepository` zu, Restore nur auf `EntityRepository`.
 
-**Port-Design:** Die Transaktionsgrenze ist fachlich (`WithWorkspaceTransaction` oder äquivalentes Unit-of-Work-Konzept), nicht als offene SQL-Connection exponiert. Reset (Entity-State und Cursor) und Löschen eines Workspace laufen in einer solchen Transaktion über `WorkspaceRepository`, `EntityRepository`, `CursorRepository` und `SnapshotRepository`; ebenso die Import-Publikation (Snapshot, Import-Eintrag, Baseline-Quellen, Coverage über `SnapshotRepository`, `ImportRepository`, `CoverageRepository`) und das Löschen einer Session (Prüfung der Baseline-Quellen über `ImportRepository`, Exchanges und Cursor über `SessionRepository`); die Blob-Bereinigung folgt dem Commit über `MaintenanceUseCase`. Für große Bodies existiert ein Streaming-Port mit begrenztem Puffer und explizitem Abschluss.
+**Port-Design:** Die Transaktionsgrenze ist fachlich (`WithWorkspaceTransaction` oder äquivalentes Unit-of-Work-Konzept), nicht als offene SQL-Connection exponiert.
+Reset (Entity-State und Cursor) und Löschen eines Workspace laufen in einer solchen Transaktion über `WorkspaceRepository`, `EntityRepository`, `CursorRepository` und `SnapshotRepository`;
+ebenso die Import-Publikation (Snapshot, Import-Eintrag, Baseline-Quellen, Coverage über `SnapshotRepository`, `ImportRepository`, `CoverageRepository`) und das Löschen einer Session (Prüfung der Baseline-Quellen über `ImportRepository`, Exchanges und Cursor über `SessionRepository`);
+die Blob-Bereinigung folgt dem Commit über `MaintenanceUseCase`.
+Für große Bodies existiert ein Streaming-Port mit begrenztem Puffer und explizitem Abschluss.
 
 ### 2.4 Fachliche Zustände
 
-**Exchange-Capture:** Ein laufender Austausch ist noch keine Zeile. Er wird mit `capture_status` `complete`, `incomplete` oder `failed` abgeschlossen und erst dann angehängt. Nur `complete`-Exchanges sind regulär replayfähig.
+**Exchange-Capture:** Ein laufender Austausch ist noch keine Zeile.
+Er wird mit `capture_status` `complete`, `incomplete` oder `failed` abgeschlossen und erst dann angehängt.
+Nur `complete`-Exchanges sind regulär replayfähig.
 
-**Session:** `open → complete` oder `open → incomplete` (Werte `sessions.status`); `SessionUseCase` setzt den Status beim Beenden der Aufzeichnung, `MaintenanceUseCase` beim Start (offene Sessions werden `incomplete`); Replay und Import weisen `open`-Sessions ab.
+**Session:** `open → complete` oder `open → incomplete` (Werte `sessions.status`);
+`SessionUseCase` setzt den Status beim Beenden der Aufzeichnung, `MaintenanceUseCase` beim Start (offene Sessions werden `incomplete`);
+Replay und Import weisen `open`-Sessions ab.
 
-**Replay:** `UNASSIGNED → READY → MATCHING → RESPONDING → READY`. Ein Mismatch, ein nicht replayfähiger Treffer und ein Strict-Mismatch beenden die Anfrage mit einem Fehler und lassen den Cursor unverändert in `READY`. `EXHAUSTED` gilt je Match-Key (im Modus `strict` am Ende der Folge) und sperrt weitere Anfragen mit anderem Key nicht. Der Cursor gehört zur Application Session / zum Workspace, nicht zum HTTP-Adapter.
+**Replay:** `UNASSIGNED → READY → MATCHING → RESPONDING → READY`.
+Ein Mismatch, ein nicht replayfähiger Treffer und ein Strict-Mismatch beenden die Anfrage mit einem Fehler und lassen den Cursor unverändert in `READY`.
+`EXHAUSTED` gilt je Match-Key (im Modus `strict` am Ende der Folge) und sperrt weitere Anfragen mit anderem Key nicht.
+Der Cursor gehört zur Application Session / zum Workspace, nicht zum HTTP-Adapter.
 
-**Mock:** `READY → VALIDATING → READING|MUTATING → SERIALIZING → READY`. Mutationen werden erst nach erfolgreicher Validierung committed.
+**Mock:** `READY → VALIDATING → READING|MUTATING → SERIALIZING → READY`.
+Mutationen werden erst nach erfolgreicher Validierung committed.
 
 **Coverage:** `unknown`, `partial`, `complete`; vor Collection-Reads geprüft; null beobachtete Entities sind kein Leerheitsbeweis; `complete` ist nur nach belegter Vollerfassung zulässig.
 
@@ -219,7 +251,12 @@ Der HTTP-Adapter entscheidet **nicht** über Replay-Cursor, Match-Key, Coverage 
 | `mock` | Mock Service → Entity State | Nein |
 | `hybrid` | Mock; bei explizit erlaubtem `unsupported`/`coverage_insufficient` optional Replay; sonst Fehler | Nur explizit erlaubte Requests (`LH-FA-12.a`) |
 
-Fachliche `404`, `409`, `412` und ungültige Requests lösen keinen Fallback aus. Der Betriebsmodus wird beim Prozessstart festgelegt und nicht über die Admin API gewechselt; der Composition Root bindet je Modus genau einen Use Case (`RecordUseCase`, `ReplayUseCase`, `MockUseCase` oder `HybridUseCase`) an den OData-Listener, der HTTP-Adapter kennt den Modus nicht. Unbekannte Operationen im Mock dürfen nicht in einen unkontrollierten Upstream-Fallback münden. Die Fallback-Policy wird vor dem Senden an den Upstream geprüft. `HybridUseCase` ruft `MockUseCase` und `ReplayUseCase` über deren Inbound Ports auf, nie über deren Pakete.
+Fachliche `404`, `409`, `412` und ungültige Requests lösen keinen Fallback aus.
+Der Betriebsmodus wird beim Prozessstart festgelegt und nicht über die Admin API gewechselt;
+der Composition Root bindet je Modus genau einen Use Case (`RecordUseCase`, `ReplayUseCase`, `MockUseCase` oder `HybridUseCase`) an den OData-Listener, der HTTP-Adapter kennt den Modus nicht.
+Unbekannte Operationen im Mock dürfen nicht in einen unkontrollierten Upstream-Fallback münden.
+Die Fallback-Policy wird vor dem Senden an den Upstream geprüft.
+`HybridUseCase` ruft `MockUseCase` und `ReplayUseCase` über deren Inbound Ports auf, nie über deren Pakete.
 
 ---
 
@@ -234,7 +271,8 @@ Fachliche `404`, `409`, `412` und ungültige Requests lösen keinen Fallback aus
 | `ARC-017` | OData V4 / CSDL / HTTP | Externe Protokollverträge für die Adapter | Contract-Test-Suite |
 | `ARC-018` | Docker/OCI Runtime | Prozessausführung, Konfiguration, Persistenz-Volumes | Binary auch nativ startbar |
 
-Die Bibliothekswahl ist keine Eigenschaft des Domain Models. Ein Austausch des HTTP-Stacks, SQLite-Treibers oder OData-Parsers darf die fachlichen Use Cases nicht verändern.
+Die Bibliothekswahl ist keine Eigenschaft des Domain Models.
+Ein Austausch des HTTP-Stacks, SQLite-Treibers oder OData-Parsers darf die fachlichen Use Cases nicht verändern.
 
 ---
 
@@ -459,7 +497,9 @@ sequenceDiagram
     end
 ```
 
-Die Coverage ist an die **Baseline-ID** gebunden, nicht an den Service. Die Property-Maske gehört zu jedem gespeicherten Entity-State und zu jedem Snapshot. Lokale Writes ändern die Herkunftsevidenz nicht.
+Die Coverage ist an die **Baseline-ID** gebunden, nicht an den Service.
+Die Property-Maske gehört zu jedem gespeicherten Entity-State und zu jedem Snapshot.
+Lokale Writes ändern die Herkunftsevidenz nicht.
 
 ### 4.8 LH-FA-02 / LH-FA-14 — Capture ohne Klartext-Spool
 
@@ -483,7 +523,10 @@ sequenceDiagram
     end
 ```
 
-Redaction und Capture-Pipeline gehören zum Record-Service (`src/hexagon/services/record/capture`, Regeln in `src/hexagon/model/redaction`); der Blob-Adapter sieht nur redigierte Bytes. Rohbytes werden **nie** als unredigierte Temp- oder Blob-Dateien geschrieben. Unsichere Capture-Pfade scheitern geschlossen, ohne den laufenden Proxy unnötig zu blockieren. Replay nutzt die Matrix aus `SPEC-045`.
+Redaction und Capture-Pipeline gehören zum Record-Service (`src/hexagon/services/record/capture`, Regeln in `src/hexagon/model/redaction`); der Blob-Adapter sieht nur redigierte Bytes.
+Rohbytes werden **nie** als unredigierte Temp- oder Blob-Dateien geschrieben.
+Unsichere Capture-Pfade scheitern geschlossen, ohne den laufenden Proxy unnötig zu blockieren.
+Replay nutzt die Matrix aus `SPEC-045`.
 
 ### 4.9 LH-FA-02 / LH-FA-03 — Session beenden und Wiederherstellung
 
@@ -528,21 +571,35 @@ sequenceDiagram
 | Prozess-Signal | `ARC-006`/`ARC-012` | Graceful Shutdown nach `LH-FA-02.c` |
 | Offene Session nach Absturz | `ARC-012` → `ARC-002` | Beim Start `incomplete`, bevor Requests angenommen werden |
 
-**Concurrency:** Gleichzeitige HTTP-Verbindungen sind zulässig. Replay-Cursor und Workspace-Schreibtransaktionen werden jeweils separat synchronisiert; Tests beeinflussen andere Workspaces nicht. SQLite wird mit kurzer Transaktionsdauer und Busy-Timeout betrieben.
+**Concurrency:** Gleichzeitige HTTP-Verbindungen sind zulässig.
+Replay-Cursor und Workspace-Schreibtransaktionen werden jeweils separat synchronisiert; Tests beeinflussen andere Workspaces nicht.
+SQLite wird mit kurzer Transaktionsdauer und Busy-Timeout betrieben.
 
-**Import-Konsistenz:** Importiert wird in einen temporären Zustand. Ein Key-Konflikt, eine Metadatenabweichung oder ein defekter Blob verhindert die Publikation der gesamten Baseline. Provenienz und Coverage-Evidenz sind Teil des Manifests.
+**Import-Konsistenz:** Importiert wird in einen temporären Zustand.
+Ein Key-Konflikt, eine Metadatenabweichung oder ein defekter Blob verhindert die Publikation der gesamten Baseline.
+Provenienz und Coverage-Evidenz sind Teil des Manifests.
 
-**Migration und Recovery:** Die initiale SQLite-Migration definiert die FK-Beziehungen einschließlich `workspaces.baseline_snapshot_id`; Recovery prüft DB/FK/Blob-Integrität und unterscheidet verwaiste redigierte Blobs von fehlenden referenzierten Blobs. Die Fault-Injection-Matrix steht in `SPEC-048`.
+**Migration und Recovery:** Die initiale SQLite-Migration definiert die FK-Beziehungen einschließlich `workspaces.baseline_snapshot_id`;
+Recovery prüft DB/FK/Blob-Integrität und unterscheidet verwaiste redigierte Blobs von fehlenden referenzierten Blobs.
+Die Fault-Injection-Matrix steht in `SPEC-048`.
 
-**Crash-Konsistenz:** SQLite-Commit und Blob-Rename sind nicht eine einzige globale Transaktion. Der Blob wird zuerst sicher geschrieben; erst danach referenziert ihn eine DB-Transaktion. Verwaiste Blobs sind tolerierbar und werden später bereinigt; fehlende referenzierte Blobs sind Integritätsfehler.
+**Crash-Konsistenz:** SQLite-Commit und Blob-Rename sind nicht eine einzige globale Transaktion.
+Der Blob wird zuerst sicher geschrieben; erst danach referenziert ihn eine DB-Transaktion.
+Verwaiste Blobs sind tolerierbar und werden später bereinigt; fehlende referenzierte Blobs sind Integritätsfehler.
 
 **Graceful Shutdown:** Ablauf und Frist legt `LH-FA-02.c` fest; Bootstrap und CLI orchestrieren, die Services finalisieren offene Captures.
 
-**Sicherheit:** Redaction vor Persistenz; Admin-Zugriff nur mit Token (`LH-FA-13.a`), Listener standardmäßig loopback; kein produktiver Auth-Proxy oder generischer Internet-Proxy; TLS-Zertifikate werden geprüft. Im Hybrid-Modus verhindern Allowlists ungewollte Mutationen.
+**Sicherheit:** Redaction vor Persistenz;
+Admin-Zugriff nur mit Token (`LH-FA-13.a`), Listener standardmäßig loopback;
+kein produktiver Auth-Proxy oder generischer Internet-Proxy;
+TLS-Zertifikate werden geprüft.
+Im Hybrid-Modus verhindern Allowlists ungewollte Mutationen.
 
 ---
 
-**Mock-Integrität:** Coverage wird je unveränderlicher Baseline gespeichert; der Workspace verweist per Fremdschlüssel auf seine Baseline. Partielle Entity-Projektionen tragen eine Property-Maske. Unbekannte Werte sind nicht gleich `null`; partielle Entity-Updates werden entsprechend `SPEC-044` beschränkt.
+**Mock-Integrität:** Coverage wird je unveränderlicher Baseline gespeichert; der Workspace verweist per Fremdschlüssel auf seine Baseline.
+Partielle Entity-Projektionen tragen eine Property-Maske.
+Unbekannte Werte sind nicht gleich `null`; partielle Entity-Updates werden entsprechend `SPEC-044` beschränkt.
 
 ## 6. Qualitätssicherung der Architektur
 
@@ -556,9 +613,15 @@ sequenceDiagram
 - **Concurrency-Tests:** parallele Workspaces, Replay-Cursor-Isolation, atomare Mutationen und Resets.
 - **Determinismus-Tests:** gleicher Ausgangszustand und gleiche Requests ergeben gleiche normalisierte Antworten und State-Hashes.
 
-**Zusätzliche Contract-Gates:** Zwei Replay-Sessions in einem Workspace; zwei Baselines eines Services mit unterschiedlicher Coverage; `$select`-Teilentity bei GET/PATCH/PUT; komprimierte und fragmentierte Redaction; Crash zwischen Blob-Rename und DB-Commit; idempotenter Import.
+**Zusätzliche Contract-Gates:** Zwei Replay-Sessions in einem Workspace;
+zwei Baselines eines Services mit unterschiedlicher Coverage;
+`$select`-Teilentity bei GET/PATCH/PUT;
+komprimierte und fragmentierte Redaction;
+Crash zwischen Blob-Rename und DB-Commit;
+idempotenter Import.
 
-**Architektur-Gate:** Importgraph für `src/hexagon/{model,ports,services}`, `src/adapters/{driving,driven}` und `src/bootstrap` prüfen. Erlaubte Kanten:
+**Architektur-Gate:** Importgraph für `src/hexagon/{model,ports,services}`, `src/adapters/{driving,driven}` und `src/bootstrap` prüfen.
+Erlaubte Kanten:
 
 ```text
 model            → (keine inneren Pakete)
@@ -573,7 +636,8 @@ bootstrap        → alle
 
 Pakete innerhalb eines Service (etwa `services/record/capture`) gehören zur Gruppe `services`; die Regel „Services importieren einander nicht" gilt zwischen Services, nicht innerhalb eines Service.
 
-Die konkreten Imports werden im Gate geprüft, nicht nur durch Konvention behauptet. Integrationstest-Hilfen dürfen Adapter verwenden, sind aber nicht Bestandteil des ausgelieferten Programms.
+Die konkreten Imports werden im Gate geprüft, nicht nur durch Konvention behauptet.
+Integrationstest-Hilfen dürfen Adapter verwenden, sind aber nicht Bestandteil des ausgelieferten Programms.
 
 ---
 
