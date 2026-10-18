@@ -90,7 +90,7 @@ Aussagen-Berührung steht hier gar nicht.
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): [slice-go-skelett-build-test](../next/slice-go-skelett-build-test.md) liegt in `done/`.
+**Start** (`next` → `in-progress`): [slice-go-skelett-build-test](../in-progress/slice-go-skelett-build-test.md) liegt in `done/`.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
