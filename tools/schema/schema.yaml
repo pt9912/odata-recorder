@@ -1,6 +1,6 @@
 schema_format: '1.0'
 name: odata-recorder-storage
-version: 0.7.0
+version: 0.8.0
 description: Normatives neutrales Persistenzschema fuer d-migrate 1.7.1 (SQLite-Ziel); keine parallel
   gepflegte DDL.
 encoding: utf-8
@@ -80,7 +80,7 @@ tables:
         required: true
       match_key:
         type: text
-        required: true
+        required: false
       started_at:
         type: text
         required: true
@@ -158,6 +158,9 @@ tables:
     - name: ck_response_blob_state
       type: check
       expression: (response_body_state = 'present' AND response_blob IS NOT NULL) OR (response_body_state <> 'present' AND response_blob IS NULL)
+    - name: ck_match_key_null_failed
+      type: check
+      expression: match_key IS NOT NULL OR capture_status = 'failed'
     - name: ck_sequence_no
       type: check
       expression: sequence_no >= 1
