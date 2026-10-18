@@ -1,8 +1,8 @@
-# Reviewer-Skill — <Repo-Name>
+# Reviewer-Skill — odata-recorder
 
 * Status: Accepted
-* Bezug: <ADR-NNNN, AGENTS.md §"Review-Regeln"> · <!-- d-check:ignore (Kurs-/ADR-Referenzen; Anker gelten im Ziel-Repo) -->
-* Gilt für: `<agent-review-Make-Target>`
+* Bezug: AGENTS.md §3 (Harte Regeln), `harness/README.md` §Source precedence
+* Gilt für: die Review-Rolle (Agent-Typ `reviewer`)
 
 ## Kontext-Eingang (Pflicht)
 
@@ -25,7 +25,7 @@ bewusst kurz (Ergänzungs-Kanal, nicht Hauptkanal).
 **HIGH** — eines der folgenden:
 - ADR-Verstoß (Layer, Tool, Hard Rule)
 - Sicherheits-Anti-Pattern (Injection, fehlende Auth-Prüfung)
-- Korrektheitsfehler im *kritischen* Pfad (<z. B. Index-Schreiben, Auth>)
+- Korrektheitsfehler im *kritischen* Pfad (Capture und Redaction vor der Persistenz, Replay-Cursor, Workspace-State-Mutation, Admin-Authentisierung)
 - Suppression eines Gates (`#noqa`, `//nolint`, `[SuppressMessage]`) ohne ADR
 - **Norm nur im Template-Kommentar** — eine Regel steht im `<!-- -->`-Block
   eines `.template.md` und nirgends sonst. Sie ist beim Adopter weg, sobald er
@@ -42,9 +42,19 @@ bewusst kurz (Ergänzungs-Kanal, nicht Hauptkanal).
   Schließungen und erreichte Meilensteine. Kein Gate fängt das (siehe
   Baseline-Regelwerk `grundlagen-harness-dateien.md` §Was ein Kommentar trägt,
   *Dieselbe Regel für Zustandsfelder*)
-- <**repo-spezifisch #1** — eine Regel, die ein generischer Skill nicht abdeckt,
-  z. B. „git mv + Inhalt = zwei Commits" oder „Accepted-ADRs immutable">
-- <**repo-spezifisch #2** — eine zweite solche Regel>
+- **Spec-Straten widersprechen sich** — eine Aussage in `spec/spezifikation.md` oder
+  `spec/architecture.md` weicht von `spec/lastenheft.md` ab, oder dieselbe
+  normative Aussage steht in zwei Straten mit verschiedenem Inhalt (Beispiel: Cursor-Wirkung
+  von Snapshot-Restore). Bei Konflikt gewinnt das höhere Stratum (Source Precedence);
+  die Architektur-Sicht führt keine neue Anforderung und keine Wellen, Slices, ADR-Bezüge
+  oder Sprachbezüge (AGENTS.md §3.4)
+- **Geheimnis erreicht eine persistente oder diagnostische Senke** — Rohbytes, unredigierte
+  Header oder Bodies, Tokens oder Query-Werte gelangen in Recording, Blob, Log, Span-Attribut
+  oder Fehlerantwort; oder ein Admin-Endpunkt außer `GET /healthz` ist ohne Token erreichbar
+  (`LH-FA-14`, `LH-FA-13`, `LH-QA-04`)
+- **Zustandsmodell verletzt** — ein Reset oder Restore ändert Cursor oder Entity-State anders als
+  `LH-FA-09`/`LH-FA-10` festlegen, oder `complete`-Coverage entsteht ohne Vollständigkeitsbeweis
+  (`LH-FA-11`, `LH-FA-18`)
 
 **MEDIUM** — eines der folgenden:
 - unklare Fehlerbehandlung am Rand des Spec-Bereichs

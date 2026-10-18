@@ -75,9 +75,8 @@ Diese Datei dupliziert sie nicht.
 
 | Target | Tut was | Bindung |
 |---|---|---|
-| `make <mover>` | bewegt <…>, prüft nichts | kein Gate |
-| `make <messung>` | misst <…> gegen <Schwelle> | kein Gate, ADR-<NNNN> |
-| `make <vorschau>` | sagt, was <schreibender Lauf> täte; Ausgänge und Sperren in der verlinkten Datei | kein Gate |
+| `make schema-validate` | prüft `tools/schema/schema.yaml` mit d-migrate (netzlos, ohne Mount) | kein Gate |
+| `make schema-generate` | erzeugt SQLite-DDL und Report aus dem Schema als Tar-Strom auf stdout (netzlos, ohne Mount) | kein Gate |
 
 **Aktueller Lauf-Status:** CI-Badge bzw. lokal `make help` / `make gates`.
 **Rote Gates:** Begründung im verlinkten `CO-<NNN>` (siehe Bindung-Spalte), Modul 7.

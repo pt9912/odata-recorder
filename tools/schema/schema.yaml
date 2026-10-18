@@ -1,6 +1,6 @@
 schema_format: '1.0'
 name: odata-recorder-storage
-version: 0.5.0
+version: 0.6.0
 description: Normatives neutrales Persistenzschema fuer d-migrate 1.7.1 (SQLite-Ziel); keine parallel
   gepflegte DDL.
 encoding: utf-8
@@ -51,6 +51,9 @@ tables:
       columns:
       - id
       - service_id
+    - name: ck_session_status
+      type: check
+      expression: status IN ('open','complete','incomplete')
   exchanges:
     description: Exchanges
     columns:
@@ -78,8 +81,20 @@ tables:
       match_key:
         type: text
         required: true
+      started_at:
+        type: text
+        required: true
+      finished_at:
+        type: text
+        required: false
+      key_redacted:
+        type: integer
+        required: true
       request_headers_json:
         type: json
+        required: true
+      request_body_state:
+        type: text
         required: true
       request_blob:
         type: text
@@ -90,13 +105,19 @@ tables:
       response_headers_json:
         type: json
         required: false
+      response_body_state:
+        type: text
+        required: true
       response_blob:
         type: text
         required: false
       capture_status:
         type: text
         required: true
-      redaction_status:
+      request_redaction_status:
+        type: text
+        required: true
+      response_redaction_status:
         type: text
         required: true
       body_integrity:
@@ -116,9 +137,27 @@ tables:
     - name: ck_capture_status
       type: check
       expression: capture_status IN ('complete','incomplete','failed')
-    - name: ck_redaction_status
+    - name: ck_request_redaction_status
       type: check
-      expression: redaction_status IN ('none','applied','unsafe')
+      expression: request_redaction_status IN ('none','applied','unsafe')
+    - name: ck_response_redaction_status
+      type: check
+      expression: response_redaction_status IN ('none','applied','unsafe')
+    - name: ck_key_redacted
+      type: check
+      expression: key_redacted IN (0,1)
+    - name: ck_request_body_state
+      type: check
+      expression: request_body_state IN ('absent','present','discarded')
+    - name: ck_response_body_state
+      type: check
+      expression: response_body_state IN ('absent','present','discarded')
+    - name: ck_request_blob_state
+      type: check
+      expression: (request_body_state = 'present' AND request_blob IS NOT NULL) OR (request_body_state <> 'present' AND request_blob IS NULL)
+    - name: ck_response_blob_state
+      type: check
+      expression: (response_body_state = 'present' AND response_blob IS NOT NULL) OR (response_body_state <> 'present' AND response_blob IS NULL)
     - name: ck_body_integrity
       type: check
       expression: body_integrity IN ('verified','absent','invalid')
@@ -158,6 +197,12 @@ tables:
       snapshot_kind:
         type: text
         required: true
+      name:
+        type: text
+        required: false
+      workspace_id:
+        type: text
+        required: false
     primary_key:
     - id
     constraints:
@@ -166,9 +211,23 @@ tables:
       columns:
       - id
       - service_id
+    - name: uq_snapshots_id_service_kind
+      type: unique
+      columns:
+      - id
+      - service_id
+      - snapshot_kind
+    - name: uq_snapshots_workspace_name
+      type: unique
+      columns:
+      - workspace_id
+      - name
     - name: ck_snapshot_kind
       type: check
       expression: snapshot_kind IN ('baseline','workspace')
+    - name: ck_snapshot_scope
+      type: check
+      expression: (snapshot_kind = 'baseline' AND workspace_id IS NULL) OR (snapshot_kind = 'workspace' AND workspace_id IS NOT NULL AND name IS NOT NULL)
   workspaces:
     description: Workspaces
     columns:
@@ -187,8 +246,14 @@ tables:
         references:
           table: snapshots
           column: id
+      baseline_kind:
+        type: text
+        required: true
       revision:
         type: integer
+        required: true
+      created_at:
+        type: text
         required: true
     primary_key:
     - id
@@ -198,12 +263,17 @@ tables:
       columns:
       - baseline_snapshot_id
       - service_id
+      - baseline_kind
       references:
         table: snapshots
         columns:
         - id
         - service_id
+        - snapshot_kind
         on_delete: restrict
+    - name: ck_workspace_baseline_kind
+      type: check
+      expression: baseline_kind = 'baseline'
     - name: ck_workspace_revision
       type: check
       expression: revision >= 0
@@ -276,8 +346,15 @@ tables:
         references:
           table: sessions
           column: id
+          on_delete: cascade
+      strategy:
+        type: text
+        required: true
       position:
         type: integer
+        required: true
+      consumed_json:
+        type: json
         required: true
       service_id:
         type: text
@@ -290,6 +367,9 @@ tables:
     - name: ck_replay_position
       type: check
       expression: position >= 0
+    - name: ck_replay_strategy
+      type: check
+      expression: strategy IN ('sequential','strict','first','last')
     - name: fk_cursor_workspace_service
       type: foreign_key
       columns:
@@ -311,7 +391,27 @@ tables:
         columns:
         - id
         - service_id
-        on_delete: restrict
+        on_delete: cascade
+  baseline_sources:
+    description: Sessions, aus denen eine Baseline importiert wurde
+    columns:
+      baseline_snapshot_id:
+        type: text
+        required: true
+        references:
+          table: snapshots
+          column: id
+          on_delete: cascade
+      session_id:
+        type: text
+        required: true
+        references:
+          table: sessions
+          column: id
+          on_delete: restrict
+    primary_key:
+    - baseline_snapshot_id
+    - session_id
   coverage:
     description: Coverage
     columns:
@@ -349,7 +449,7 @@ tables:
         required: true
       baseline_snapshot_id:
         type: text
-        required: false
+        required: true
         references:
           table: snapshots
           column: id
@@ -360,9 +460,6 @@ tables:
           table: services
           column: id
       created_at:
-        type: text
-        required: true
-      status:
         type: text
         required: true
       report_json:

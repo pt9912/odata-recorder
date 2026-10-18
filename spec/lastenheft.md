@@ -1,9 +1,9 @@
 # Lastenheft — OData Recorder
 
-**Version:** 0.5.0  
+**Version:** 0.6.0  
 **Status:** Draft  
 **Autor:** Projektentwurf  
-**Datum:** 2026-10-17
+**Datum:** 2026-10-18
 
 ---
 
@@ -374,4 +374,5 @@ Ab Status `Accepted` sind inhaltliche Änderungen nur über einen dokumentierten
 | 0.2.0 | 2026-10-17 | Mock-Import, Coverage und Replay präzisiert | — |
 | 0.3.0 | 2026-10-17 | Session-Isolation, partielle Entities und sichere Capture-Pfade | — |
 | 0.4.0 | 2026-10-17 | Neutrales d-migrate-Schema eingeführt | — |
-| 0.5.0 | 2026-10-17 | d-migrate 1.7.1, zusammengesetzte FK-Integrität, Freigabekriterien | — |
+| 0.5.0 | 2026-10-17 | Integritätsanforderungen an die Persistenz, Freigabekriterien | — |
+| 0.6.0 | 2026-10-18 | Entwurf vor Accepted: Tatsachenberichtigung der Historie (technische Lösungsdetails gehören in die Spezifikation); keine Änderung des Anforderungsumfangs | — |
