@@ -1,0 +1,235 @@
+# Doku-Referenz-Gate — emittiert von ai-harness-init (Adopter-Baseline).
+# Startgeruest: `d-check --print-config`. Waechst mit den Artefakten:
+# ein Modul erst aktivieren, wenn seine Targets/roots existieren — sonst
+# Config-Fehler bzw. ein behaupteter, aber leerer Gate (Modul 13).
+scan:
+  roots: ["."]
+  # **/*.template.md: Ausfuell-Vorlagen tragen Platzhalter, die erst im ausgefuellten Artefakt
+  # aufloesen. Der Bootstrap legt seine Vorlagen unter .harness/baseline/ ab; das Muster nimmt
+  # eine Vorlage in jedem anderen Baum ebenso aus.
+  # .tmp/**: Arbeitsablage der Laeufe, kein Artefakt.
+  # .harness/**: was der Bootstrap unter .harness/ ablegt. Markdown liegt dort in zwei Baeumen:
+  # .harness/baseline/ (der vendored Kurs-Stand, Regelwerk und Vorlagen — fremder Text, den
+  # dieses Repo nicht schreibt) und .harness/skills/ (die Reviewer-Skills; sie gehoeren nach dem
+  # Bootstrap dem Repo und bleiben trotzdem ungeprueft, ein Verweis darin faellt keinem Modul
+  # auf). Daneben liegen dort das Sprachskelett-Staging und der Zustands-Bereich .harness/state/.
+  ignore: ["**/*.template.md", ".tmp/**", ".harness/**"]
+modules: [links, anchors, ids, matrix, codepaths, spans, planning, structure, targets]
+ids:
+  patterns:
+    - {regex: 'ADR-([A-Z]+-)?\d{4}', target: docs/plan/adr/, link-policy: always}
+    # Requirement-Praefix gehoert dem Adopter (er ist in einem frischen Ziel nicht
+    # bekannt) — Muster setzen und aktivieren, sobald spec/lastenheft.md eigene
+    # Kennungen fuehrt: {regex: '<PREFIX>-[A-Z]{2}-\d{2}', target: spec/lastenheft.md, link-policy: always}
+# codepaths: ein Pfad in Inline-Code, der mit einer der roots beginnt, muss im Repo
+# existieren (codepath-missing). Ein Pfad mit vorangestelltem ./ oder ../ wird vom Ort
+# der Datei aus aufgeloest und ebenso geprueft. Eine erst geplante Datei traegt den
+# Inline-Marker d-check:ignore mit Grund in derselben Zeile. Still bleiben am Pin
+# v0.86.1: ein Pfad ohne root am Anfang (src/..., /docs/...), ein Glob unter einer root
+# und ein Pfad in einem umzaeunten Code-Block. exempt-paths nimmt die Review-Reports aus:
+# ein Pfad darin nennt den Stand seines Laufs, nicht den heutigen Baum.
+codepaths:
+  roots: [spec, docs, harness]
+  exempt-paths: ["docs/reviews/**"]
+# reviews bleibt aus. Das Modul (hermetisch, kein git) haelt die Review-Zusagen der
+# Slice-Plaene unter done-dir gegen die Reports unter reviews-dir: eine Zusage ohne Report,
+# der den Slice deckt, meldet es als review-missing. done-dir ist der Aktivierungs-Schalter —
+# ohne ihn oeffnet das Modul keine Datei. Am Pin v0.86.1 erkennt es die Review-Zeile der
+# Slice-Vorlage ("Review durchgeführt, …") als Zusage, ebenso die Wortfolge "unabhängiger
+# Review". Den Report ordnet es ohne match: ueber eine Kennung in Ziffern-Form (slice-<NNN>)
+# im Dateinamen zu; einen Slice-Plan mit Kennung in Namens-Form (slice-<name>) meldet es dann
+# als review-missing, auch wenn sein Report vorliegt. match: name ordnet ueber den Basisnamen
+# des Slice-Plans ohne .md im Report-Namen zu und traegt beide Formen; darum steht der
+# Schluessel im Block. Traegt ein Report-Name auch den laengeren Basisnamen eines zweiten
+# Slice-Plans unter done-dir, deckt er nur den laengeren: der Report zu slice-<name>-<mehr>
+# deckt slice-<name> nicht. require-promises meldet den Leerlauf: Slice-Plaene unter
+# done-dir, unter denen keine einzige Zusage erkannt wird. recursive nimmt die Stubs unter
+# done/<welle-id>/ in die Menge, skip-pattern nimmt einen archivierten Stub an seiner
+# Marker-Zeile wieder heraus — der Stub, den das Archivieren aus der Vorlage
+# archiv-stub-slice.template.md schreibt, traegt sie; ein lebender Plan, der die Marker-Zeile
+# woertlich zitiert, faellt ebenso heraus. skip-allows-empty laesst die Menge leer, wenn alle
+# Plaene archiviert sind. Die vier Schluessel stehen in der Baseline-Vorlage; ohne die drei
+# letzten wird das Modul nach dem Archivieren rot, obwohl nichts fehlt. Aus bleibt das Modul,
+# weil ein frisches Ziel damit rot startet: Liegt unter done-dir kein Slice-Plan, meldet es
+# die leere Pruefmenge fail-closed als review-missing. skip-allows-empty aendert das nicht:
+# der Schluessel gilt nur neben skip-pattern und nur fuer eine Menge, aus der skip-pattern
+# mindestens einen Plan genommen hat.
+# Trigger: aktivieren — reviews in modules: aufnehmen und den Block ohne # uebernehmen,
+# alle fuenf Schluessel ab match: name eingeschlossen —, sobald unter done-dir ein Slice-Plan
+# liegt und jeder Plan mit Review-Zeile seinen Report unter reviews-dir hat.
+# reviews:
+#   done-dir: docs/plan/planning/done
+#   reviews-dir: docs/reviews
+#   match: name
+#   require-promises: true
+#   recursive: true
+#   skip-pattern: '(?m)^> \*\*ARCHIVIERT\*\* — Volltext:'
+#   skip-allows-empty: true
+# Herkunft der Positionen in diesem Block, gemessen gegen die Baseline-Vorlage
+# (.harness/baseline/<tag>/templates/.d-check.yml) und gegen die Matrix-Tabelle in
+# grundlagen-referenz-richtung.md. order:/direction: auf spec-straten und die Regel
+# {from: adr, to: slice} stehen dort im auskommentierten matrix-Block und gehen mit.
+# Die Baseline-Vorlage fuehrt fuer die slice-Klasse ein token: in der Ziffern-Form;
+# hier steht das Praefix slice-, weil grundlagen-source-precedence.md §Vergabe Slice-
+# und Welle-Kennungen als Namen setzt: das Praefix faengt den Namen und die Nummer.
+# Acht Positionen gehen darueber hinaus:
+# Die welle-Klasse samt dem Praefix welle- und die Regeln {from: adr, to: welle} und
+# {from: spec-straten, to: welle}: Die Matrix-Tabelle setzt die Spalte Welle in der
+# ADR-Zeile und in allen drei Straten-Zeilen; die Klasse steht vor aussen, also faengt
+# aussen eine Welle-Datei nicht, und die Regel aus spec-straten ist die einzige Deckung.
+# Das Praefix welle- ist die Setzung dieser Vorlage aus der Spalte Welle; der Gate-Text
+# des Regelwerks nennt nur ADR- und slice-. exclude-sections traegt nur Geschichte,
+# nicht Historie/"7. Historie"/"8. Historie": Die ADR-Vorlage fuehrt in ihrem Geschichte-Abschnitt
+# eine Verweis-Spalte, deren erste Zeile eine Slice-Datei nennt — legitime
+# rueckwaertige Provenance, die {from: adr, to: slice} sonst faelschlich faengt. Die
+# Historie-Abschnitte der Spec-Straten-Vorlagen tragen keine solche Ausnahme: ihre
+# eigene Decken-Regel verbietet dort jeden ADR-/Slice-Verweis ebenso wie ausserhalb der
+# Historie, die Spalte "Verweis" fuehrt nur den externen Change Request.
+# exclude-sections gilt in d-check fuer alle Klassen zugleich; je Klasse oder je Regel
+# ist es nicht setzbar. Ein Abschnitt Geschichte in einer Spec-Datei nimmt dort Slice-
+# und Welle-Token aus, was das Regelwerk fuer die Spec-Straten nicht vorsieht. Die
+# emittierten Spec-Vorlagen fuehren keinen solchen Abschnitt (ihre Ueberschriften sind
+# 7. Historie im Lastenheft und 8. Historie in der Spezifikation); wo ein Adopter ihn
+# anlegt, faengt ihn nur der Reviewer.
+# Die blosse Zeichenfolge ADR- ohne Nummer faengt keine Regel: sie steht als Wort in den
+# emittierten Spec-Vorlagen, und das ids-Muster verlangt vier Ziffern.
+# Die dritte ist die Klasse aussen als letzte Klasse samt der Regel aus spec-straten
+# und dem exempt-paths-Block darunter: Sie schliesst die Referenz-Richtung nach
+# aussen statt nur nach unten — ein Spec-Stratum nennt kein Artefakt ausserhalb der
+# Spec. Die vierte ist die Klasse adaptionsblock samt token: 'MR-\d{3}' und ihrer
+# Regel aus spec-straten: Sie faengt die Kennung des Adaptions-Blocks auch dort, wo
+# sie blank im Fliesstext steht statt als Link. Die fuenfte ist die Bereichs-Form der
+# ADR-Kennung: das ids-Muster nimmt ein optionales Segment (ADR-IDX-0004, so nennt
+# §Vergabe die Form), und die adr-Klasse nimmt neben [0-9]*.md die Dateien mit
+# Bereichs-Praefix auf; README.md traegt kein Segment und bleibt draussen.
+# Das Praefix ist ein Fehlalarm fuer jedes Wort dieser Form (slice-mv, slice-lokal):
+# die Vorlage nimmt ihn in Kauf. Der Ausweg ist je Klasse verschieden. In einer ADR
+# nimmt der Zeilen-Marker <!-- d-check:status-provenance --> die Zeile aus. Der Marker
+# ist nicht Ziel-spezifisch: er nimmt die Zeile fuer Slice und Welle zugleich aus. In
+# einem Spec-Stratum hilft Umformulieren, denn das Regelwerk kennt dort keine
+# ausgenommene Sektion; der Marker wirkt dort mechanisch ebenfalls und ist dann ein
+# Umgehen, das nur der Reviewer faengt.
+# Die sechste Position ist das Modul structure, das die Baseline-Vorlage nur als Wort der
+# Modul-Liste fuehrt, mit einer Zellenregel auf harness/README.md
+# (Block am Ende der Datei): Die Zellen der Spalten Vertrag und Tut was unter
+# "## Sensors (Feedback-Gates)" tragen hoechstens 200 Zeichen; laengere Prosa gehoert nach
+# harness/sensors/<target>.md. Der Selektor ist der Abschnitt der Vorlage
+# harness/README.template.md, der beide Tabellen traegt. Die Schwelle 200 liegt ueber dem laengsten
+# Zellsatz der Vorlage (80 Zeichen), damit ein Rot aus Adopter-Inhalt kommt und nicht aus
+# der emittierten Prosa; die Spalte Bindung traegt keine Grenze, Kennungs-Listen wachsen
+# mit den Bindungen. Kein exempt-paths: ein Eintrag dort ist eine Senkung.
+# Die siebte Position ist das Modul targets samt Block (vor dem structure-Block), das die
+# Baseline-Vorlage nur als Wort der Modul-Liste fuehrt: Target und Tabellenzeile in beiden
+# Richtungen (gate-undocumented, gate-phantom) gegen einen Gate-Index aus zwei Teilen, wie
+# ihn die Kurs-Fassung v6.16.0 setzt (grundlagen-harness-dateien.md §harness/README.md als
+# Einstiegspunkt): harness/README.md gehoert dem Repo, harness/mk/ai-harness-init.md dem
+# Werkzeug — jeder Lauf schreibt ihn neu, eine Aenderung von Hand geht dabei verloren.
+# authority nimmt ab d-check v0.82.0 eine Liste und misst gegen die Vereinigung. makefiles
+# traegt den Glob "*.mk" statt der Einzeldatei repo.mk: am Pin v0.82.0 endet eine fehlende
+# Einzeldatei mit Exit 2, und repo.mk darf fehlen, ohne make zu brechen; der
+# Glob trifft immer d-check.mk und daneben repo.mk und a-check.mk, wo sie liegen, aber keine
+# Datei unter harness/mk/. Kein exempt-targets: der Werkzeug-Teil fuehrt jedes Target der
+# Werkzeug-Dateien. authority-disjoint (ab d-check v0.83.0, nur mit authority als Liste) meldet ein
+# Target, das in beiden Teilen eine Zeile hat, als gate-declared-twice. Grenzen: eine Doppelung sieht
+# der Sensor erst, wenn das Repo sie angelegt hat;
+# jede andere .mk-Datei an der Wurzel liest der Glob mit,
+# ihre Targets brauchen eine Zeile in harness/README.md, auch wenn kein Makefile sie einbindet;
+# eine .mk-Datei in einem Unterverzeichnis ausser harness/mk/ liest er nicht, auch wenn repo.mk
+# sie per include einbindet — ihre Targets laufen mit make und bleiben ungeprueft. Ein
+# rekursiver Glob schliesst die Luecke nicht: makefiles: folgt scan.ignore nicht und liest dann
+# auch .mk-Dateien unter test/ und .harness/.
+# Die achte Position ist das Modul planning samt Block (vor dem targets-Block), das die
+# Baseline-Vorlage nur als Make-Target doc-planning fuehrt: Der Ruhe-Marker unter
+# "## Offene Wellen" der Roadmap steht genau dann, wenn in-progress/ keinen slice-*.md
+# traegt (Baseline-Regelwerk modul-06-roadmap.md §Roadmap-Struktur, Bullet Offene Wellen;
+# Grund-Code planning-drift in beide Richtungen). Die Vorlage fuehrt den Marker-Wortlaut
+# nicht; die emittierte Roadmap traegt ihn, weil ein frisches Ziel keinen Slice in
+# in-progress/ hat. Nur die Marker-Haelfte ist aktiv: closure und waves desselben Moduls
+# stehen nicht im Block. Grenze: beim Uebergang eines Slice nach in-progress/ und zurueck
+# zieht make slice-mv den Marker nicht nach — das bleibt Handarbeit, und docs-check meldet
+# den vergessenen Nachzug.
+# Diese Datei wird nur an einem freien Pfad geschrieben: ein Ziel mit vorhandener
+# .d-check.yml behaelt seine Fassung und bekommt keine dieser Positionen. Der Nachzug
+# ist Handarbeit nach dieser Liste — die Praefix-Token slice- und welle-, die Regel
+# {from: spec-straten, to: welle}, das segment-tolerante ids-Muster fuer ADR, der
+# Bereichs-Praefix-Glob der adr-Klasse, der planning-Block samt Marker-Zeile in der
+# Roadmap, der structure-Block und der targets-Block samt
+# Werkzeug-Teil (er entsteht mit dem naechsten Lauf, die Zeile in harness/README.md
+# darauf nicht); die Regeln mit dem Adaptions-Block als Quelle
+# fuehrt die Vorlage nicht.
+# Eine Position bleibt bewusst hinter der Vorlage zurueck:
+# token: 'ADR-\d{4}' auf der adr-Klasse geht NICHT mit — das
+# ids-Modul deckt die blosse Kennung bereits ueber link-policy: always ab
+# (id-unlinked), ein zweiter Fang ueber matrix waere redundant; fuer slice
+# gibt es keine solche ids-Regel, darum bleibt dessen token: aktiv. Fuer MR ebenso
+# wenig: ein ids-Muster darauf faerbt ein frisches Ziel rot, weil die emittierte
+# harness/conventions.md ihre eigenen Kennungen blank nennt — der Fang laeuft darum
+# ueber matrix, wo ihn die Regel aus spec-straten auf die Spec-Straten begrenzt.
+matrix:
+  classes:
+    - {name: spec-straten, paths: [spec/lastenheft.md, spec/spezifikation.md, spec/architecture.md], order: [spec/lastenheft.md, spec/spezifikation.md, spec/architecture.md], direction: no-downward}
+    - {name: adr, paths: ["docs/plan/adr/[0-9]*.md", "docs/plan/adr/[A-Z]*-[0-9]*.md"]}
+    - {name: slice, paths: ["docs/plan/planning/**/slice-*.md"], token: 'slice-'}
+    - {name: welle, paths: ["docs/plan/planning/**/welle-*.md"], token: 'welle-'}
+    # Das Kennungs-Muster faengt die blosse MR-Kennung im Fliesstext, die kein
+    # Link-Sensor sieht. Begrenzend ist die Regel darunter, nicht die Klassifikation:
+    # Gefangen wird die Kennung nur in einer Quelle der Klasse spec-straten. Die
+    # Index-Datei dieses Blocks nennt ihre eigenen Kennungen blank, und das bleibt
+    # erlaubt.
+    - {name: adaptionsblock, paths: ["harness/conventions.md", "harness/conventions/**"], token: 'MR-\d{3}'}
+    # Letzte Klasse, First-Match: was keine fruehere faengt, ist aussen. Ein
+    # Spec-Stratum nennt damit kein Artefakt ausserhalb der Spec, nicht nur keines
+    # unterhalb. Die ** der slice- und der welle-Klasse bleiben stehen: Das Ziel
+    # bekommt denselben Planning-Lifecycle, baut seinen Register-Bestand aber selbst
+    # auf — eine engere Pfad-Liste waere hier eine Zusage ueber einen Dateibestand,
+    # den an dieser Stelle niemand messen kann.
+    - {name: aussen, paths: ["**"]}
+  rules:
+    - {from: spec-straten, to: adr, allow: false}
+    - {from: spec-straten, to: slice, allow: false}
+    - {from: spec-straten, to: welle, allow: false}
+    - {from: spec-straten, to: adaptionsblock, allow: false}
+    - {from: spec-straten, to: aussen, allow: false}
+    # Eine Accepted-ADR nennt eine Slice-/Welle-Kennung nur als deklarierte Provenance
+    # (Baseline-Regelwerk grundlagen-referenz-richtung.md §Referenz-Richtung): der
+    # Zeilen-Marker <!-- d-check:status-provenance --> nimmt die Zeile aus. Er ist der
+    # vorgesehene Ausweg.
+    - {from: adr, to: slice, allow: false}
+    - {from: adr, to: welle, allow: false}
+  status: {forbidden: [superseded, deprecated]}
+  # Die Status-Pruefung trifft jede klassifizierte Quelle unabhaengig von den Regeln;
+  # mit aussen: ["**"] ist das jede Datei. Ausgenommen sind zwei Pfade, die einen zum
+  # Schreibzeitpunkt aktiven Stand dauerhaft nennen und einer spaeteren Supersession
+  # nicht folgen koennen: der ADR-Index (er fuehrt superseded ADRs, das ist seine
+  # Aufgabe) und die Review-Reports.
+  # Die Welle-Dateien in done/ stehen hier bewusst NICHT: In einem frischen Ziel hat
+  # eine solche Ausnahme keinen Gegenstand, und ab dem ersten geschlossenen Buendel
+  # naehme sie der Klasse welle oben ihre Status-Deckung — unsichtbar, weil diese Datei
+  # nur an einem freien Pfad geschrieben wird. Wer die Ausnahme braucht, setzt sie in
+  # seiner eigenen Kopie; bis dahin ist die Deckung die strengere Vorgabe.
+  exempt-paths: ["docs/plan/adr/README.md", "docs/reviews/**"]
+  exclude-sections: [Geschichte]
+# planning (hermetisch, kein git): Ruhe-Marker der Roadmap gegen in-progress/; Herkunft und
+# Grenze im Kopfkommentar oben.
+planning:
+  roadmap: docs/plan/planning/in-progress/roadmap.md
+  heading: "## Offene Wellen"
+  marker: "Nichts in Arbeit."
+# targets (hermetisch, kein git): jedes Make-Target hat eine Tabellenzeile im Gate-Index und
+# jede Zeile ein Target; Herkunft und Grenzen im Kopfkommentar oben.
+targets:
+  makefiles: [Makefile, "harness/mk/*.mk", "*.mk"]
+  doc-tables: [harness/README.md, harness/mk/ai-harness-init.md]
+  authority: [harness/README.md, harness/mk/ai-harness-init.md]
+  authority-disjoint: true
+# structure (hermetisch, kein git, opt-in): die Zellen der zwei Spalten begrenzen die Prosa
+# der Gate- und Werkzeug-Tabelle; Herkunft und Schwelle stehen im Kopfkommentar oben.
+structure:
+  - files: "harness/README.md"
+    section: "## Sensors (Feedback-Gates)"
+    table:
+      column:
+        - name: "Vertrag"
+          cell-max-chars: 200
+        - name: "Tut was"
+          cell-max-chars: 200

@@ -1,0 +1,4 @@
+# Zeilenenden dieses Verzeichnisses: die Dateien hier liest ein Interpreter oder die
+# Byte-Pruefung des vendored Baums, und ein CR am Zeilenende bricht sie. Die Zeile legt LF
+# fest, unabhaengig von core.autocrlf und von einer .gitattributes in der Wurzel des Repos.
+* text=auto eol=lf

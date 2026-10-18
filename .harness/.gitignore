@@ -1,0 +1,6 @@
+# Harness-Laufzustand (lokal) — der Gate-Nachweis-Stempel von record-gates.
+# Ein genesteter .gitignore: git und `git ls-files --exclude-standard`
+# respektieren ihn, damit der Stempel den Working-Tree-Hash NICHT veraendert.
+# Fehlte dieser Ignore, zaehlte der Stempel selbst in den Hash und der Stop-Hook
+# blockte sich selbst (jeder Gate-Lauf aenderte den Tree, den er gerade stempelte).
+state/

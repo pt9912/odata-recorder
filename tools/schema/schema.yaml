@@ -1,0 +1,388 @@
+schema_format: '1.0'
+name: odata-recorder-storage
+version: 0.5.0
+description: Normatives neutrales Persistenzschema fuer d-migrate 1.7.1 (SQLite-Ziel); keine parallel
+  gepflegte DDL.
+encoding: utf-8
+tables:
+  services:
+    description: Services
+    columns:
+      id:
+        type: text
+        required: true
+      service_root:
+        type: text
+        required: true
+      odata_version:
+        type: text
+        required: true
+      metadata_blob:
+        type: text
+        required: false
+      metadata_hash:
+        type: text
+        required: false
+    primary_key:
+    - id
+  sessions:
+    description: Sessions
+    columns:
+      id:
+        type: text
+        required: true
+      service_id:
+        type: text
+        required: true
+        references:
+          table: services
+          column: id
+      created_at:
+        type: text
+        required: true
+      status:
+        type: text
+        required: true
+    primary_key:
+    - id
+    constraints:
+    - name: uq_sessions_id_service
+      type: unique
+      columns:
+      - id
+      - service_id
+  exchanges:
+    description: Exchanges
+    columns:
+      id:
+        type: text
+        required: true
+      session_id:
+        type: text
+        required: true
+        references:
+          table: sessions
+          column: id
+      sequence_no:
+        type: integer
+        required: true
+      method:
+        type: text
+        required: true
+      path:
+        type: text
+        required: true
+      raw_query:
+        type: text
+        required: true
+      match_key:
+        type: text
+        required: true
+      request_headers_json:
+        type: json
+        required: true
+      request_blob:
+        type: text
+        required: false
+      response_status:
+        type: integer
+        required: false
+      response_headers_json:
+        type: json
+        required: false
+      response_blob:
+        type: text
+        required: false
+      capture_status:
+        type: text
+        required: true
+      redaction_status:
+        type: text
+        required: true
+      body_integrity:
+        type: text
+        required: true
+      replay_equivalence:
+        type: text
+        required: true
+    primary_key:
+    - id
+    constraints:
+    - name: uq_exchanges_session_seq
+      type: unique
+      columns:
+      - session_id
+      - sequence_no
+    - name: ck_capture_status
+      type: check
+      expression: capture_status IN ('complete','incomplete','failed')
+    - name: ck_redaction_status
+      type: check
+      expression: redaction_status IN ('none','applied','unsafe')
+    - name: ck_body_integrity
+      type: check
+      expression: body_integrity IN ('verified','absent','invalid')
+    - name: ck_replay_equivalence
+      type: check
+      expression: replay_equivalence IN ('byte','semantic_or_limited','none')
+    indices:
+    - name: idx_exchange_match
+      columns:
+      - session_id
+      - match_key
+      type: btree
+  snapshots:
+    description: Snapshots
+    columns:
+      id:
+        type: text
+        required: true
+      service_id:
+        type: text
+        required: true
+        references:
+          table: services
+          column: id
+      created_at:
+        type: text
+        required: true
+      state_blob:
+        type: text
+        required: true
+      state_hash:
+        type: text
+        required: true
+      metadata_hash:
+        type: text
+        required: true
+      snapshot_kind:
+        type: text
+        required: true
+    primary_key:
+    - id
+    constraints:
+    - name: uq_snapshots_id_service
+      type: unique
+      columns:
+      - id
+      - service_id
+    - name: ck_snapshot_kind
+      type: check
+      expression: snapshot_kind IN ('baseline','workspace')
+  workspaces:
+    description: Workspaces
+    columns:
+      id:
+        type: text
+        required: true
+      service_id:
+        type: text
+        required: true
+        references:
+          table: services
+          column: id
+      baseline_snapshot_id:
+        type: text
+        required: true
+        references:
+          table: snapshots
+          column: id
+      revision:
+        type: integer
+        required: true
+    primary_key:
+    - id
+    constraints:
+    - name: fk_workspace_baseline_service
+      type: foreign_key
+      columns:
+      - baseline_snapshot_id
+      - service_id
+      references:
+        table: snapshots
+        columns:
+        - id
+        - service_id
+        on_delete: restrict
+    - name: ck_workspace_revision
+      type: check
+      expression: revision >= 0
+    - name: uq_workspaces_id_service
+      type: unique
+      columns:
+      - id
+      - service_id
+  entities:
+    description: Entities
+    columns:
+      workspace_id:
+        type: text
+        required: true
+        references:
+          table: workspaces
+          column: id
+          on_delete: cascade
+      entity_set:
+        type: text
+        required: true
+      entity_key:
+        type: text
+        required: true
+      payload_json:
+        type: json
+        required: true
+      known_properties_json:
+        type: json
+        required: true
+      entity_completeness:
+        type: text
+        required: true
+      entity_version:
+        type: integer
+        required: true
+      deleted:
+        type: integer
+        required: true
+    primary_key:
+    - workspace_id
+    - entity_set
+    - entity_key
+    constraints:
+    - name: ck_entity_completeness
+      type: check
+      expression: entity_completeness IN ('complete','partial')
+    - name: ck_entity_version
+      type: check
+      expression: entity_version >= 0
+    - name: ck_entity_deleted
+      type: check
+      expression: deleted IN (0,1)
+  replay_cursors:
+    description: Replay cursors
+    columns:
+      workspace_id:
+        type: text
+        required: true
+        references:
+          table: workspaces
+          column: id
+          on_delete: cascade
+      replay_session_id:
+        type: text
+        required: true
+      recording_session_id:
+        type: text
+        required: true
+        references:
+          table: sessions
+          column: id
+      position:
+        type: integer
+        required: true
+      service_id:
+        type: text
+        required: true
+    primary_key:
+    - workspace_id
+    - replay_session_id
+    - recording_session_id
+    constraints:
+    - name: ck_replay_position
+      type: check
+      expression: position >= 0
+    - name: fk_cursor_workspace_service
+      type: foreign_key
+      columns:
+      - workspace_id
+      - service_id
+      references:
+        table: workspaces
+        columns:
+        - id
+        - service_id
+        on_delete: cascade
+    - name: fk_cursor_recording_service
+      type: foreign_key
+      columns:
+      - recording_session_id
+      - service_id
+      references:
+        table: sessions
+        columns:
+        - id
+        - service_id
+        on_delete: restrict
+  coverage:
+    description: Coverage
+    columns:
+      baseline_snapshot_id:
+        type: text
+        required: true
+        references:
+          table: snapshots
+          column: id
+          on_delete: cascade
+      entity_set:
+        type: text
+        required: true
+      status:
+        type: text
+        required: true
+      evidence_json:
+        type: json
+        required: true
+    primary_key:
+    - baseline_snapshot_id
+    - entity_set
+    constraints:
+    - name: ck_coverage_status
+      type: check
+      expression: status IN ('complete','partial','unknown')
+  imports:
+    description: Imports
+    columns:
+      id:
+        type: text
+        required: true
+      request_hash:
+        type: text
+        required: true
+      baseline_snapshot_id:
+        type: text
+        required: false
+        references:
+          table: snapshots
+          column: id
+      service_id:
+        type: text
+        required: true
+        references:
+          table: services
+          column: id
+      created_at:
+        type: text
+        required: true
+      status:
+        type: text
+        required: true
+      report_json:
+        type: json
+        required: true
+    primary_key:
+    - id
+    constraints:
+    - name: fk_import_baseline_service
+      type: foreign_key
+      columns:
+      - baseline_snapshot_id
+      - service_id
+      references:
+        table: snapshots
+        columns:
+        - id
+        - service_id
+        on_delete: restrict
+    - name: uq_import_baseline
+      type: unique
+      columns:
+      - baseline_snapshot_id
