@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-- <welle-id>
+- [welle-fundament](../welle-fundament.md)
 
 Nichts in Arbeit.
 
@@ -31,8 +31,8 @@ und geschätzter Aufwand (S/M/L, kein Termin).
 
 | Welle | Trigger | Wichtigste Slices | Geschätzter Aufwand |
 |---|---|---|---|
-| <welle-id-a> | <Vorgänger-Welle> done | <…> | S/M/L |
-| <welle-id-b> | <welle-id-a> done + ADR-<NNNN> accepted | <…> | S/M/L |
+| welle-persistenz | welle-fundament done + ADR zum SQLite-Treiber accepted | SQLite-Treiber, Migration aus `tools/schema/schema.yaml`, Repositories hinter den Outbound Ports | M |
+| welle-record-replay | welle-persistenz done | Record-Service mit Capture und Redaction, Replay mit Matching und Cursor | L |
 
 ## Meilensteine
 
@@ -43,7 +43,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 
 | Meilenstein | Welle(n) | Trigger | Status |
 |---|---|---|---|
-| M1 | <welle-id> | <…> | erreicht / offen |
+| M1 | welle-fundament | `make gates` fährt Build, Test, Lint und `a-check` auf Go-Code, jedes durch eine Gegenprobe belegt | offen |
+| M2 | welle-record-replay | Ein Test zeichnet gegen einen Referenzdienst auf und spielt ohne Upstream wieder ab | offen |
 
 ## Abhängigkeitsgraph
 
@@ -55,15 +56,12 @@ eine Phantom-Welle.
 
 ```mermaid
 flowchart LR
-    W1[Welle 1]
-    W2[Welle 2]
-    W3[Welle 3]
-    W4[Welle 4]
-    
-    W1 --> W2
-    W1 --> W3
-    W2 --> W4
-    W3 --> W4
+    F[welle-fundament]
+    P[welle-persistenz]
+    R[welle-record-replay]
+
+    F --> P
+    P --> R
 ```
 
 ## Abgeschlossene Wellen
@@ -73,7 +71,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 
 | Welle | Abschluss | Closure-Notiz |
 |---|---|---|
-| <welle-id> | YYYY-MM-DD | `<welle-id>-results.md` |
+| — | — | — |
 
 ## Historische Trigger-Verschiebungen
 
@@ -86,4 +84,4 @@ Roadmap, jede Zeile voll heißt treibende.
 
 | Datum | Was wurde geändert? | Warum? |
 |---|---|---|
-| YYYY-MM-DD | <…> | <…> |
+| — | — | — |
