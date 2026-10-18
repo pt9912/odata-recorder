@@ -39,10 +39,12 @@ flowchart TB
   Svc --> Out[Outbound Ports]
   Out --> Upstream[HTTP Upstream Adapter]
   Out --> Store[SQLite / Blob Adapter]
-  Out --> Clock[Clock / ID Adapter]
   Out --> Codec[OData Codec Adapter]
-  Svc --> Sup[Support Ports]
+  Svc --> Sup[Support Ports: Audit, Telemetry, Clock, ID]
+  HTTP --> Sup
+  Admin --> Sup
   Sup --> Obs[Audit / Telemetry Adapter]
+  Sup --> Clock[Clock / ID Adapter]
   Upstream --> Remote[Real OData Service]
   Store --> Disk[Persistent Storage]
   Boot[Composition Root] -. wires .-> HTTP
