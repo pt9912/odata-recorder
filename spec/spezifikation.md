@@ -887,6 +887,7 @@ Vorhanden ist heute nur `make docs-check` (`SPEC-040`); die übrigen entstehen m
 | `SPEC-037` | `make test-integration` | Record → Upstream stoppen → Replay; Mock CRUD → Reset |
 | `SPEC-038` | `make test-determinism` | 100 Wiederholungen identischer Inputs; identische normalisierte Outputs und Cursor-Stände |
 | `SPEC-039` | `make a-check` | Hexagonale Importregeln gemäß `.a-check.yml`; keine Adapter-Imports im Core |
+| `SPEC-101` | `make lint-profil` | Lint-Profil `.golangci.yml`: Schema-Prüfung mit golangci-lint v2; Unterdrückungen nur im Profil mit `# Why:`; die Prüfung des Codes entsteht mit dem ersten Code-Slice |
 | `SPEC-040` | `make docs-check` | Kennungen, Links und Dokumentkonventionen prüfen |
 | `SPEC-041` | `make test-security` | Redaction, Admin-Bindings, Fallback-Verbote, Credential-Leak-Checks |
 | `SPEC-042` | `make test-contract` | OData-V4-JSON, Metadata, Fehlerfälle und HTTP-Semantik |

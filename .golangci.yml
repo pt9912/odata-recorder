@@ -1,0 +1,196 @@
+# .golangci.yml — Lint-Profil des OData Recorder (ADR-0003, SPEC-101).
+#
+# Ausnahmen stehen nur hier: als Einstellung unter `settings` oder als Regel unter
+# `exclusions.rules`, jede Regel mit einem Kommentarblock, dessen erste Zeile mit
+# `# Why:` beginnt. Eine Direktive `//nolint` im Code ist verboten (AGENTS.md §3.2);
+# `nolintlint` meldet eine Direktive ohne Begründung, ohne benannten Linter oder ohne
+# Wirkung als Befund. Architektur-Regeln prüft `a-check` (ADR-0002), nicht `depguard`.
+
+version: "2"
+
+run:
+  # Pfade in diesem Profil gelten relativ zu dieser Datei und beginnen mit `^`.
+  relative-path-mode: cfg
+  # Integrationstests tragen den Build-Tag `integration`.
+  build-tags:
+    - integration
+
+output:
+  formats:
+    text:
+      path: stdout
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - containedctx
+    - contextcheck
+    - cyclop
+    - dupl
+    - fatcontext
+    - forbidigo
+    - funlen
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - gocyclo
+    - gomodguard_v2
+    - iface
+    - inamedparam
+    - interfacebloat
+    - ireturn
+    - maintidx
+    - nestif
+    - nolintlint
+    - noctx
+    - reassign
+    - revive
+    - testpackage
+    - unparam
+
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+
+    cyclop:
+      max-complexity: 15
+
+    dupl:
+      threshold: 150
+
+    forbidigo:
+      forbid:
+        - pattern: ^fmt\.Print(f|ln)?$
+          msg: schreibe über einen übergebenen io.Writer
+        - pattern: ^print(ln)?$
+          msg: schreibe über einen übergebenen io.Writer
+        - pattern: ^os\.Std(out|err)$
+          msg: nur der Composition Root und test/ greifen auf os.Stdout und os.Stderr zu
+
+    funlen:
+      lines: 100
+      statements: 60
+
+    gocognit:
+      min-complexity: 20
+
+    gocyclo:
+      min-complexity: 15
+
+    interfacebloat:
+      max: 10
+
+    ireturn:
+      allow:
+        - error
+        - empty
+        - anon
+        - stdlib
+        - generic
+        - ^github\.com/pt9912/odata-recorder/src/hexagon/ports(/[^.]+)?\.
+
+    maintidx:
+      under: 20
+
+    nestif:
+      min-complexity: 5
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+
+    gomodguard_v2:
+      # Importe aus der Standardbibliothek und aus diesem Modul meldet der Linter
+      # ohne Eintrag nicht; jedes andere Modul aus go.mod braucht einen Eintrag hier
+      # und eine ADR. Noch ist keines zugelassen.
+      allowed: []
+
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: empty-block
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: unused-parameter
+        - name: var-declaration
+        - name: var-naming
+        - name: unused-receiver
+
+    testpackage:
+      skip-regexp: (^|/)export_test\.go$
+
+  exclusions:
+    warn-unused: true
+    rules:
+      # Why: Tabellengetriebene Tests haben höhere Komplexität ohne Entwurfsmangel.
+      - linters:
+          - cyclop
+          - gocognit
+          - gocyclo
+          - nestif
+          - funlen
+        path: ^.+_test\.go$
+
+      # Why: Tests brauchen weder Kontext-Weitergabe noch ausgeschöpfte Parameter.
+      - linters:
+          - noctx
+          - unparam
+        path: ^.+_test\.go$
+
+      # Why: Fakes in Testdateien erfüllen ein Interface mit Parametern, die sie
+      # nicht brauchen.
+      - linters:
+          - revive
+        path: ^.+_test\.go$
+        text: ^unused-parameter
+
+      # Why: Fakes in Testdateien erfüllen ein Interface ohne Zustand und tragen
+      # einen ungenutzten Receiver.
+      - linters:
+          - revive
+        path: ^.+_test\.go$
+        text: ^unused-receiver
+
+      # Why: Die Fehlertexte sind deutsch und beginnen mit einem Substantiv, also
+      # mit einem Großbuchstaben.
+      - linters:
+          - staticcheck
+        text: ^ST1005
+
+      # Why: Der Composition Root und die Integrationstests sind die Stellen, die
+      # den Prozess mit seinen Standard-Strömen verbinden.
+      - linters:
+          - forbidigo
+        path: ^(src/bootstrap|test)/
+        text: os\.Std(out|err)

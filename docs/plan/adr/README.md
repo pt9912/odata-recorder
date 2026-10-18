@@ -7,6 +7,7 @@
 |---|---|---|---|
 | [ADR-0001](0001-implementierungssprache-go.md) | Go als Implementierungssprache | Accepted | `LH-QA-06`, `LH-RB-03` |
 | [ADR-0002](0002-architektur-gate-a-check.md) | Architektur-Gate mit a-check | Accepted | `LH-QA-06` |
+| [ADR-0003](0003-lint-profil-golangci.md) | Lint-Profil mit golangci-lint | Accepted | — |
 
 ## Konventionen
 

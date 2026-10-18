@@ -89,11 +89,12 @@ mounten das Repo schreibgeschützt (`:ro`). Host braucht nur Docker und GNU `mak
 
 ### 3.2 Suppression-Verbot
 
-Eine Prüfung wird nicht durch Unterdrücken im geprüften Text umgangen. Heute gibt es
-genau eine Unterdrückung, die Doku-Ausnahme `<!-- d-check:ignore (Grund) -->`; sie
-trägt ihre Begründung in der Klammer, und eine ohne Begründung ist ein Befund. Ein
-Code-Linter-Gate existiert noch nicht; kommt eines, leben seine Ausnahmen in dessen
-zentraler Konfigurationsdatei mit Begründung, nicht inline im Code.
+Eine Prüfung wird nicht durch Unterdrücken im geprüften Text umgangen.
+Im Code ist eine Direktive `//nolint` verboten; Ausnahmen leben in `.golangci.yml` unter
+`exclusions.rules`, jede mit einem Kommentarblock, dessen erste Zeile mit `# Why:` beginnt
+([ADR-0003](docs/plan/adr/0003-lint-profil-golangci.md)).
+`nolintlint` meldet eine Direktive ohne Begründung, ohne benannten Linter oder ohne Wirkung.
+In der Doku gibt es die Ausnahme `<!-- d-check:ignore (Grund) -->`; sie trägt ihre Begründung in der Klammer, und eine ohne Begründung ist ein Befund.
 
 ### 3.3 git mv + Inhaltsänderung = zwei Commits
 
