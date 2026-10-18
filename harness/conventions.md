@@ -183,7 +183,7 @@ sie gilt für jeden Lauf.
 
 | MR | Titel | Geltungsbereich | Ersetzt-Baseline-Regel |
 |---|---|---|---|
-| — | keine aktiven Adaptionen | — | — |
+| <a id="mr-001"></a>[MR-001](conventions/MR-001-harness-vertraege-ausserhalb-der-spezifikation.md) | Verträge der Harness-Werkzeuge im Ordner `harness`, nicht in der Produktspezifikation ([ADR-0004](../docs/plan/adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md)) | `harness/vertraege/`, `spec/spezifikation.md`, Source Precedence | [`grundlagen-referenz-richtung.md` §Spec-Straten](../.harness/baseline/v6.18.1/regelwerk/grundlagen-referenz-richtung.md#spec-straten-mehr-als-ein-spec-dokument) |
 
 ### Aufgelöste Adaptionen
 

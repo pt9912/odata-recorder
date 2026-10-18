@@ -63,6 +63,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 §Roadmap-Struktur: fünf Abschnitte.
 
 - Blockiert: Welle welle-persistenz (braucht die Container-Stufen für Build, Test und Lint, bevor Repositories entstehen).
+- Blockiert: Welle welle-dev-container (braucht `make gates` und `make gegenproben` als Gegenstand).
 - Wird blockiert von: —.
 
 ## 6. Out-of-Scope für diese Welle
@@ -75,6 +76,7 @@ der Closure-Trigger unerreichbar wird.
 - Fachlogik (Record, Replay, Mock, Import) — gehört in die Wellen nach der Persistenz; das Skelett trägt nur Composition Root und Version.
 - SQLite-Treiber, Migration und Repositories — eigene ADR und Welle welle-persistenz; vorher gibt es keine zugelassene Fremdbibliothek.
 - Coverage-Schwelle und Integrationstests — eine Schwelle über einem Skelett misst nichts und wäre Zeremonie; sie kommen mit der ersten Fachlogik.
+- Arbeitscontainer, in dem Gates und Gegenproben laufen, ohne den Hauptzweig zu blockieren — eigene Welle welle-dev-container, weil sie `make gates` samt Gegenproben schon voraussetzt.
 - Produkt-Image und Release — erst sinnvoll, wenn der Prozess etwas tut.
 
 ## 7. Closure-Notiz

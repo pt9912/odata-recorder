@@ -8,7 +8,7 @@
 
 **Bezug:** [`LH-QA-06`](../../../spec/lastenheft.md#lh-qa-06--portabilität-und-reproduzierbarkeit), [ADR-0001](0001-implementierungssprache-go.md)
 
-**Schärft:** [`SPEC-039`](../../../spec/spezifikation.md#7-festlegungen-der-harness-werkzeuge)
+**Schärft:** [`SPEC-039`](../../../harness/vertraege/SPEC-039-architektur-gate.md)
 
 **Regeln:** Baseline-Regelwerk `modul-04-adrs.md` §Ziel-Form: ADR (MADR).
 

@@ -98,7 +98,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): die Stufen `deps`/`build`/`test` brauchen mehr als das Dockerfile, `go.mod` und den Test.
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 400 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen).
 - `in-progress` → `open` (blockiert): kein per Digest pinnbares Go-Image ist verfügbar.
 
 ## 5. Closure-Trigger

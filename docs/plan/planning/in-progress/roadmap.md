@@ -31,6 +31,7 @@ und geschätzter Aufwand (S/M/L, kein Termin).
 
 | Welle | Trigger | Wichtigste Slices | Geschätzter Aufwand |
 |---|---|---|---|
+| welle-dev-container | welle-fundament done | Arbeitscontainer mit eigenem Klon, in dem `make gates` und `make gegenproben` laufen, während der Hauptzweig frei bleibt; Einlieferung per Zweig | L |
 | welle-persistenz | welle-fundament done + ADR zum SQLite-Treiber accepted | SQLite-Treiber, Migration aus `tools/schema/schema.yaml`, Repositories hinter den Outbound Ports | M |
 | welle-record-replay | welle-persistenz done | Record-Service mit Capture und Redaction, Replay mit Matching und Cursor | L |
 
@@ -57,9 +58,11 @@ eine Phantom-Welle.
 ```mermaid
 flowchart LR
     F[welle-fundament]
+    D[welle-dev-container]
     P[welle-persistenz]
     R[welle-record-replay]
 
+    F --> D
     F --> P
     P --> R
 ```

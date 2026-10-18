@@ -80,8 +80,9 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|---|
 | `tools/harness/a-check-negativ.sh` | neu | Kopie des Baums, Verstoß einfügen, Exit prüfen — nach dem Muster von `pgwire-recorder` |
 | `tools/harness/lint-gegenprobe.sh` | neu | Kopie des Baums, `//nolint` und `# Why:`-Lücke einfügen, Exit prüfen |
+| harness/vertraege/SPEC-102-gegenproben.md | neu | Vertrag der Gegenproben: Namensregel, Liste, Kopie, Verstoßformen, Exit-Codes |
 | harness/mk/gegenproben.mk | neu | `a-check-negativ`, `lint-gegenprobe`, `gegenproben`; nicht in `GATE_CHECKS` |
-| docs/plan/adr/0004-gegenproben-ausserhalb-der-gate-kette.md (neu), `docs/plan/adr/README.md` | neu / update | Entscheidung mit drei Alternativen; Index mitziehen |
+| docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md (neu), `docs/plan/adr/README.md` | neu / update | Entscheidung mit drei Alternativen; Index mitziehen |
 | `harness/README.md` | update | Sensors-Zeilen für die Gegenproben |
 
 - Die Gegenproben arbeiten in einer Kopie des Arbeitsbaums (Wegwerfverzeichnis, `docker cp`), nie im Arbeitsbaum selbst.
@@ -95,7 +96,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): die Gegenproben brauchen eine eigene Kopier-Infrastruktur über das Wegwerfverzeichnis hinaus.
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 600 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen) (Gegenprobe-Code zählt etwa doppelt).
 - `in-progress` → `open` (blockiert): das Skelett bietet keinen Ort, an dem ein Verstoß ohne Fremdpaket einzufügen ist.
 
 ## 5. Closure-Trigger
@@ -113,8 +114,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
+- Randformen der Gegenproben (`AGENTS.md` §3.12): die Kopie des Baums scheitert, Docker fehlt, die einzufügende Datei fehlt, ein Verstoß wird nicht gefunden — **Ausgang:** entfallen: entschieden in SPEC-102 vor dem ersten Code-Commit.
 - Eine Gegenprobe prüft nur die eingefügten Verstoßformen — **Ausgang:** weiter offen: weitere Formen kommen mit den Bibliotheks-Grenzen (`tech`) in welle-persistenz.
-- Die Gegenproben laufen nicht in `make gates` und altern unbemerkt — **Ausgang:** entfallen: die ADR legt den Lauf am Ende jeder Welle und vor dem Release fest.
+- Die Gegenproben laufen nicht in `make gates` und altern unbemerkt — **Ausgang:** entfallen: die ADR legt den Lauf am Ende jeder Welle und vor dem Release fest, und welle-dev-container fährt ihn automatisch in einem eigenen Container.
 
 ## 7. Closure-Notiz
 

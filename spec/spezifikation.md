@@ -874,32 +874,15 @@ Keine sensiblen Query-Literale oder Request-Bodies als Trace-Attribute.
 Protokollversionen werden beim Start und pro Service validiert.
 Herstellerspezifische OData-Erweiterungen sind nicht automatisch Bestandteil des Mock-Vertrags.
 
----
-
-## 7. Festlegungen der Harness-Werkzeuge
-
-Die Targets sind Festlegungen der Spezifikation.
-Vorhanden ist heute nur `make docs-check` (`SPEC-040`); die übrigen entstehen mit dem Slice, der sie liefert, und gehören dann in `make help` und `harness/README.md` §Sensors.
-
-| ID | Werkzeug | Festlegung |
-|---|---|---|
-| `SPEC-036` | `make test` | Unit-Tests für Domain, Matching, Query-Interpreter, CRUD |
-| `SPEC-037` | `make test-integration` | Record → Upstream stoppen → Replay; Mock CRUD → Reset |
-| `SPEC-038` | `make test-determinism` | 100 Wiederholungen identischer Inputs; identische normalisierte Outputs und Cursor-Stände |
-| `SPEC-039` | `make a-check` | Hexagonale Importregeln gemäß `.a-check.yml`; keine Adapter-Imports im Core |
-| `SPEC-101` | `make lint-profil` | Lint-Profil `.golangci.yml`: Schema-Prüfung mit golangci-lint v2; Unterdrückungen nur im Profil mit `# Why:`; die Prüfung des Codes entsteht mit dem ersten Code-Slice |
-| `SPEC-040` | `make docs-check` | Kennungen, Links und Dokumentkonventionen prüfen |
-| `SPEC-041` | `make test-security` | Redaction, Admin-Bindings, Fallback-Verbote, Credential-Leak-Checks |
-| `SPEC-042` | `make test-contract` | OData-V4-JSON, Metadata, Fehlerfälle und HTTP-Semantik |
-
 Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH-QA-03.a`; der Messaufbau muss reproduzierbar im Test-Harness hinterlegt sein.
 
 ---
 
-## 8. Historie
+## 7. Historie
 
 | Datum | Änderung |
 |---|---|
+| 2026-10-18 | Verträge der Werkzeuge liegen in `harness/vertraege/`; der Abschnitt entfällt |
 | 2026-10-18 | Review-Findings eingearbeitet: Admin-Authentisierung, Snapshot-Restore ohne Cursor-Änderung, Weg zu `complete`, Header-Redaction ohne Replay-Einschränkung, Adressierung, Fehlercodes, Konkretisierung von `LH-QA-*`/`LH-RB-*` |
 | 2026-10-17 | d-migrate 1.7.1, Integritätsconstraints, Replay-/Capture-Verträge, SPEC-ID-Korrektur |
 | 2026-10-17 | Initiale technische Spezifikation auf Basis des Lastenhefts und der Kursvorlage |

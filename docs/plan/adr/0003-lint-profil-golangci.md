@@ -8,7 +8,7 @@
 
 **Bezug:** [ADR-0001](0001-implementierungssprache-go.md), [ADR-0002](0002-architektur-gate-a-check.md)
 
-**Schärft:** [`SPEC-101`](../../../spec/spezifikation.md#7-festlegungen-der-harness-werkzeuge)
+**Schärft:** [`SPEC-101`](../../../harness/vertraege/SPEC-101-lint-profil.md)
 
 **Regeln:** Baseline-Regelwerk `modul-04-adrs.md` §Ziel-Form: ADR (MADR).
 

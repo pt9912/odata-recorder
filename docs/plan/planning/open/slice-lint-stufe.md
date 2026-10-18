@@ -81,7 +81,7 @@ Aussagen-Berührung steht hier gar nicht.
 | `Dockerfile` | update | Stufe `lint` aus `source`, Image per Build-Argument |
 | `tools/harness/lint.sh` | neu | eigene Prüfungen nach [ADR-0003](../../adr/0003-lint-profil-golangci.md) und `AGENTS.md` §3.2 |
 | `harness/mk/lint-profil.mk` | update | Target `lint` neben `lint-profil`, beide in `GATE_CHECKS` |
-| `harness/README.md`, `spec/spezifikation.md` | update | Sensors-Zeile; `SPEC-101` nennt die Code-Prüfung |
+| `harness/README.md`, `harness/vertraege/SPEC-101-lint-profil.md` | update | Sensors-Zeile; `SPEC-101` nennt die Code-Prüfung |
 
 - Das Profil verlangt `go.mod` und Pakete; der Slice läuft deshalb erst nach `slice-go-skelett-build-test`.
 
@@ -94,7 +94,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): `lint.sh` braucht mehr als die drei benannten Prüfungen.
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 500 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen).
 - `in-progress` → `open` (blockiert): das Profil lässt sich im Container nicht gegen das Skelett fahren, ohne ein Fremdpaket zuzulassen.
 
 ## 5. Closure-Trigger
@@ -112,6 +112,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
+- Randformen des Profils und der eigenen Prüfungen (`AGENTS.md` §3.12): `.golangci.yml` fehlt oder ist nicht lesbar, das Profil weicht von der gelesenen Form ab, eine Direktive `//nolint` steht in einer Testdatei, ein Verzeichnis enthält keine Go-Dateien — **Ausgang:** entfallen: entschieden in `harness/vertraege/SPEC-101-lint-profil.md` vor dem ersten Code-Commit.
 - Die Schwellen des Profils (Komplexität 15, Funktionslänge 100) beißen am Skelett nicht — **Ausgang:** weiter offen: wird mit der ersten Fachlogik sichtbar und dann als Beobachtung geführt.
 - `lint.sh` liest das Profil in fester Form; eine Umformatierung bricht es — **Ausgang:** entfallen: die Form steht im Kopfkommentar des Profils und die Gegenprobe in [slice-gegenproben](slice-gegenproben.md) hält sie.
 

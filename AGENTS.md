@@ -59,7 +59,7 @@ statt frei zu formulieren.
 In dieser Reihenfolge:
 
 1. [`spec/lastenheft.md`](spec/lastenheft.md) — vertraglich abnahmebindend.
-2. [`spec/spezifikation.md`](spec/spezifikation.md) — technisch verbindlich, fortschreibbar.
+2. [`spec/spezifikation.md`](spec/spezifikation.md) für das Produkt und [`harness/vertraege/`](harness/vertraege/README.md) für die Werkzeuge — technisch verbindlich, fortschreibbar.
 3. [`spec/architecture.md`](spec/architecture.md) — Komponenten- und Sequenzsicht.
 4. [`docs/plan/adr/`](docs/plan/adr/) — ADR-Verzeichnis und -Index.
 5. [`docs/plan/planning/in-progress/roadmap.md`](docs/plan/planning/in-progress/roadmap.md) — Wellen-Sequenz.
@@ -164,6 +164,63 @@ Was daneben steht, liest jeder Lauf mit und bezahlt es mit Kontext.
 
 
 
+
+### 3.8 Eine ADR trägt Entscheidung und Gründe, keine Regeldetails
+
+Eine ADR hält fest, was entschieden wurde und warum.
+Die Regeln im Einzelnen (Fälle, Ausnahmen, Codes, Rangfolgen) stehen in der Spezifikation oder in `harness/vertraege/`; die ADR zeigt über `Schärft:` auf sie und wiederholt sie nicht.
+
+**Falsch:** die Fallunterscheidungen einer Spezifikationsstelle in der ADR nacherzählen.
+**Richtig:** die Entscheidung, die Alternativen und die Gründe nennen und für die Einzelregeln auf die Stelle zeigen.
+
+### 3.9 Der Slice-Plan folgt jeder Korrektur
+
+Wer im Slice Code, Gates, Tests, die Spezifikation oder Harness-Artefakte (`.claude/commands/`, `.harness/skills/`, Hooks) ändert, zieht im selben Commit §1 (Ziel und Abgrenzung), §3 (Plan) und §6 (Risiken) des Slice-Plans nach, dazu den Kopf (`Bezug`, `Berührte Spec-Stellen`) und betroffene Folge-Slices.
+
+**Falsch:** Ein Gate bekommt eine zweite Prüfung, und die Sensors-Tabelle und §3 nennen weiter die erste.
+**Richtig:** Dieselbe Änderung trägt die Tabellen- und Plan-Zeile mit.
+
+### 3.10 Jede Zusage eines neuen Vertrags fängt eine Mutation
+
+Wer einen neuen Vertrag liefert (Format, Fehlercode, Leser, Gate, Option), schreibt zu jeder seiner Zusagen einen Test, der rot wird, wenn der Code die Zusage bricht, und fährt diese Mutation vor der Übergabe selbst.
+Der Bericht nennt je Zusage: Zusage · Mutation · roter Test.
+Ein Test zählt nur, wenn er aus dem benannten Grund rot wird, nicht weil der Aufbau bricht.
+
+**Falsch:** Die Tests decken den Gutfall; dass eine Mutation grün bleibt, findet erst das Review.
+**Richtig:** Je Zusage eine Mutation, vom Implementer selbst rot gesehen.
+
+### 3.11 Ein Kommentar sagt nur zu, was ein Test prüft
+
+Schärft §3.7 für Zusagen: Ein Kopf- oder Hilfetext, der ein Verhalten zusagt („beide Adapter", „jede Randform"), nennt nur, was die Prüfung tatsächlich fängt.
+
+**Falsch:** Der Kopf der Gegenprobe sagt „prüft beide Adapter", sie prüft einen.
+**Richtig:** Der Kopf nennt den einen und sagt, was offen bleibt.
+
+### 3.12 Randformen eines neuen Vertrags sind vor dem Code entschieden
+
+Ein Slice, der einen neuen Vertrag liefert (§3.10), nennt in §6 des Plans dessen Randformen — fehlender, leerer oder unbekannter Wert, Abbruch, Herunterfahren, Verhalten je Upstream — und je Randform, wo sie entschieden ist.
+Entschieden ist jede vor dem ersten Code-Commit, in der Spezifikation (Produkt) oder in `harness/vertraege/` (Werkzeug).
+Bemerkt der Implementer eine Randform, die dort nicht steht, hält er an und gibt sie an den Architect zurück; er entscheidet sie nicht im Code.
+
+**Falsch:** Der Leser entscheidet `null` und den leeren Wert still, das Review findet es.
+**Richtig:** Beide Formen stehen vor dem Code in der Spezifikation.
+
+### 3.13 Eine Adresse nimmt an, bevor sie genannt wird
+
+Wer einem anderen Slice etwas zuweist (Folge-Slice, Risiko-Ausgang *eingetreten*, Abgrenzung), liest vorher dessen §1 *Ausdrücklich NICHT* und dessen DoD.
+Im selben Commit trägt er die Sendung in §1 oder die DoD des Nehmers ein, mit der Kennung des Gebers.
+Trifft ein Ausschluss des Nehmers die Sendung oder liegt der Nehmer in `done/`, ist er keine Adresse; der Punkt geht an den Planner.
+
+**Falsch:** §6 weist einen Punkt `slice-x` zu, dessen §1 ihn ausschließt.
+**Richtig:** Der Nehmer führt den Punkt in §1 oder seiner DoD, bevor der Geber ihn nennt.
+
+### 3.14 Eine Rückführungs-Marke nennt ihre Metrik
+
+Jede Marke in §4 eines Plans („zu groß, über N Zeilen") nennt ihre Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade, die der Plan nennt, Tests eingeschlossen.
+Schätzungen werden in dieser Metrik angegeben; für Test- und Gegenprobe-Code gilt etwa das Doppelte des Produktcodes.
+
+**Falsch:** „über 700 Zeilen", ohne zu sagen, ob netto, Einfügungen oder Summe.
+**Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)".
 
 ## 4. Quality Gates
 
