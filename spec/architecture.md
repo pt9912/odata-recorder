@@ -57,7 +57,7 @@ flowchart TB
 | `ARC-008` | HTTP Upstream Driven Adapter (`internal/adapters/driven/httpupstream`) | HTTP/TLS-Verbindung zum echten OData-Service |
 | `ARC-009` | Recording/State Driven Adapter (`internal/adapters/driven/sqlite`) | Transaktionale Speicherung und Abfrage der Records und Workspace-Daten |
 | `ARC-010` | Blob Driven Adapter (`internal/adapters/driven/blobs`) | Bytegetreue, content-adressierte Body-Ablage und Integritätsprüfung |
-| `ARC-011` | OData Codec Driven Adapter (`internal/adapters/odata`) | Implementiert den Port `ODataCodec`: CSDL-Parsing, OData-URL-Parsing, JSON-Serialisierung, externe Protokollrepräsentation |
+| `ARC-011` | OData Codec Driven Adapter (`internal/adapters/driven/odata`) | Implementiert den Port `ODataCodec`: CSDL-Parsing, OData-URL-Parsing, JSON-Serialisierung, externe Protokollrepräsentation |
 | `ARC-012` | Bootstrap / Composition Root (`cmd/odata-recorder`, `internal/bootstrap`) | Verdrahtung aller Ports, Services und Adapter; Lifecycle |
 
 **Baseline-Import:** `ImportUseCase` in `ARC-002` liest Exchanges über `RecordingRepository`, interpretiert OData-V4-JSON über den Port `ODataCodec` (`ARC-011`), validiert Schlüssel und Typen gegen `MetadataRepository`, schreibt ein unveränderliches Snapshot-Manifest über `SnapshotRepository`/`BlobRepository`, führt Import-Eintrag und Baseline-Quellen über `ImportRepository` und veröffentlicht die Baseline atomar. Kein HTTP-Adapter und kein SQLite-Adapter entscheidet selbst über Deduplizierung oder Coverage.
@@ -117,15 +117,15 @@ internal/
 │   │   ├── httpodata/
 │   │   ├── admin/
 │   │   └── cli/
-│   ├── driven/
-│   │   ├── httpupstream/
-│   │   ├── sqlite/
-│   │   ├── blobs/
-│   │   └── clock/
-│   └── odata/
-│       ├── csdl/
-│       ├── urlparser/
-│       └── jsoncodec/
+│   └── driven/
+│       ├── httpupstream/
+│       ├── sqlite/
+│       ├── blobs/
+│       ├── clock/
+│       └── odata/
+│           ├── csdl/
+│           ├── urlparser/
+│           └── jsoncodec/
 └── bootstrap/
 migrations/
 tests/
@@ -475,7 +475,7 @@ Rohbytes werden **nie** als unredigierte Temp- oder Blob-Dateien geschrieben. Un
 
 **Zusätzliche Contract-Gates:** Zwei Replay-Sessions in einem Workspace; zwei Baselines eines Services mit unterschiedlicher Coverage; `$select`-Teilentity bei GET/PATCH/PUT; komprimierte und fragmentierte Redaction; Crash zwischen Blob-Rename und DB-Commit; idempotenter Import.
 
-**Architektur-Gate:** Importgraph für `internal/hexagon/{model,ports,services}`, `internal/adapters/{driving,driven,odata}` und `internal/bootstrap` prüfen. Erlaubte Kanten:
+**Architektur-Gate:** Importgraph für `internal/hexagon/{model,ports,services}`, `internal/adapters/{driving,driven}` und `internal/bootstrap` prüfen. Erlaubte Kanten:
 
 ```text
 model            → (keine inneren Pakete)
@@ -484,7 +484,6 @@ ports/outbound   → model
 services         → model, ports/outbound
 adapters/driving → model, ports/inbound
 adapters/driven  → model, ports/outbound
-adapters/odata   → model, ports/outbound
 bootstrap        → alle
 ```
 
