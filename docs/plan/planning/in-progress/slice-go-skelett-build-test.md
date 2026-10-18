@@ -80,11 +80,12 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | `go.mod` | neu | Modul `github.com/pt9912/odata-recorder` ([ADR-0001](../../adr/0001-implementierungssprache-go.md)); keine Fremdabhängigkeit |
-| `src/bootstrap/bootstrap.go` | neu | Composition Root: `Run(args, stdout, stderr) int` gibt die Version aus; kein Fremdpaket |
+| `src/bootstrap/bootstrap.go` | neu | Composition Root: `Run(args, version, stdout, stderr) int` gibt die Version aus oder meldet ein unbekanntes Kommando; ein nil-Writer verwirft die Ausgabe; kein Fremdpaket |
 | `src/bootstrap/main/main.go` | neu | Startpunkt, ruft `bootstrap.Run` und ist die einzige Stelle mit `os.Exit` |
 | `src/bootstrap/bootstrap_test.go` | neu | Test der Version und der Fehlerausgabe (Happy, Negative) nach `LH-QA-06` |
 | `Dockerfile`, `.dockerignore` | neu | Stufen `deps`, `source`, `test`, `build` nach dem Muster von `pgwire-recorder` |
-| harness/mk/go-gates.mk | neu | `build` und `test`, beide in `GATE_CHECKS` |
+| `harness/mk/go-gates.mk` | neu | `build` (mit `VERSION`, Prüfung von Version und `-trimpath` am gebauten Binary) und `test`, beide in `GATE_CHECKS` |
+| `docs/plan/planning/in-progress/roadmap.md` | update | Der Ruhe-Marker „Nichts in Arbeit." entfällt, solange ein Slice in `in-progress/` liegt |
 | `.dockerignore` | neu | Allowlist des Build-Kontexts: `go.mod`, `go.sum`, `src/` |
 | `harness/vertraege/SPEC-036-test.md`, `harness/vertraege/README.md` | update | Vertrag nennt `make build` und `make test` mit dem, was sie zusagen |
 | `harness/README.md` | update | Sensors-Zeilen für `make build` und `make test` |
@@ -118,6 +119,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
+- Randformen von `Run` (`AGENTS.md` §3.12): leere Argumente, `version` mit Zusatzargument, unbekanntes Kommando, leeres Argument, Flag wie `--help`, nil-Writer — **Ausgang:** entfallen: entschieden in `harness/vertraege/SPEC-036-test.md` (Randformen von `bootstrap.Run`) und je Randform getestet.
 - Das Go-Toolchain-Image altert still — **Ausgang:** weiter offen: wird mit der Pin-Hebung des Dockerfiles als Beobachtung geführt (kein Slice nötig).
 - `src/bootstrap/main` weicht von der Baum-Skizze der Architektur-Sicht ab — **Ausgang:** entfallen: die Sicht nennt `src/bootstrap` als Composition Root, ein Unterverzeichnis davon bleibt innerhalb des Globs.
 
