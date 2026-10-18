@@ -1,6 +1,6 @@
 schema_format: '1.0'
 name: odata-recorder-storage
-version: 0.6.0
+version: 0.7.0
 description: Normatives neutrales Persistenzschema fuer d-migrate 1.7.1 (SQLite-Ziel); keine parallel
   gepflegte DDL.
 encoding: utf-8
@@ -158,6 +158,21 @@ tables:
     - name: ck_response_blob_state
       type: check
       expression: (response_body_state = 'present' AND response_blob IS NOT NULL) OR (response_body_state <> 'present' AND response_blob IS NULL)
+    - name: ck_sequence_no
+      type: check
+      expression: sequence_no >= 1
+    - name: ck_request_discarded_incomplete
+      type: check
+      expression: request_body_state <> 'discarded' OR capture_status <> 'complete'
+    - name: ck_response_discarded_incomplete
+      type: check
+      expression: response_body_state <> 'discarded' OR capture_status <> 'complete'
+    - name: ck_request_unsafe_failed
+      type: check
+      expression: request_redaction_status <> 'unsafe' OR (capture_status = 'failed' AND request_body_state = 'discarded')
+    - name: ck_response_unsafe_discarded
+      type: check
+      expression: response_redaction_status <> 'unsafe' OR (response_body_state = 'discarded' AND replay_equivalence = 'none')
     - name: ck_body_integrity
       type: check
       expression: body_integrity IN ('verified','absent','invalid')
@@ -222,6 +237,11 @@ tables:
       columns:
       - workspace_id
       - name
+    - name: uq_snapshots_id_kind
+      type: unique
+      columns:
+      - id
+      - snapshot_kind
     - name: ck_snapshot_kind
       type: check
       expression: snapshot_kind IN ('baseline','workspace')
@@ -402,6 +422,9 @@ tables:
           table: snapshots
           column: id
           on_delete: cascade
+      baseline_kind:
+        type: text
+        required: true
       session_id:
         type: text
         required: true
@@ -412,6 +435,21 @@ tables:
     primary_key:
     - baseline_snapshot_id
     - session_id
+    constraints:
+    - name: ck_baseline_sources_kind
+      type: check
+      expression: baseline_kind = 'baseline'
+    - name: fk_baseline_sources_kind
+      type: foreign_key
+      columns:
+      - baseline_snapshot_id
+      - baseline_kind
+      references:
+        table: snapshots
+        columns:
+        - id
+        - snapshot_kind
+        on_delete: cascade
   coverage:
     description: Coverage
     columns:
@@ -422,6 +460,9 @@ tables:
           table: snapshots
           column: id
           on_delete: cascade
+      baseline_kind:
+        type: text
+        required: true
       entity_set:
         type: text
         required: true
@@ -438,6 +479,20 @@ tables:
     - name: ck_coverage_status
       type: check
       expression: status IN ('complete','partial','unknown')
+    - name: ck_coverage_kind
+      type: check
+      expression: baseline_kind = 'baseline'
+    - name: fk_coverage_kind
+      type: foreign_key
+      columns:
+      - baseline_snapshot_id
+      - baseline_kind
+      references:
+        table: snapshots
+        columns:
+        - id
+        - snapshot_kind
+        on_delete: cascade
   imports:
     description: Imports
     columns:

@@ -50,7 +50,7 @@ flowchart TB
 | `ARC-001` | Domain Model (`internal/hexagon/model`) | Session, Exchange, Request, Response, OData Service Model, Query AST, Entity, Workspace, Snapshot, Coverage, fachliche Invarianten |
 | `ARC-002` | Application Services (`internal/hexagon/services`) | Record, Replay, Mock, **Baseline-Import**, Workspace, Snapshot, Coverage, Fallback-Policy; Use-Case-Orchestrierung |
 | `ARC-003` | Driving Ports (`internal/hexagon/ports/driving`) | Anwendungsfälle für Request-Verarbeitung, Recording, Replay, Mock und Administration |
-| `ARC-004` | Driven Ports (`internal/hexagon/ports/driven`) | Upstream HTTP, RecordingRepository, BlobRepository, CursorRepository, WorkspaceRepository, EntityRepository, SnapshotRepository, MetadataRepository, CoverageRepository, ODataCodec, Uhr, ID-Quelle |
+| `ARC-004` | Driven Ports (`internal/hexagon/ports/driven`) | Upstream HTTP, RecordingRepository, BlobRepository, CursorRepository, WorkspaceRepository, EntityRepository, SnapshotRepository, MetadataRepository, CoverageRepository, ImportRepository, ODataCodec, Uhr, ID-Quelle |
 | `ARC-005` | HTTP/OData Driving Adapter (`internal/adapters/driving/httpodata`) | HTTP-Eingang, Header-/Body-Streaming, Mapping von Request und Response auf Domain-DTOs; OData-Parsing und -Serialisierung laufen über den Codec-Port im Core |
 | `ARC-006` | CLI Driving Adapter (`internal/adapters/driving/cli`) | Konfiguration, Kommandoauswahl, Start-/Exit-Verhalten |
 | `ARC-007` | Admin API Driving Adapter (`internal/adapters/driving/admin`) | Workspaces, Snapshots, Sessions, Coverage, Diagnose |
@@ -60,7 +60,7 @@ flowchart TB
 | `ARC-011` | OData Codec Driven Adapter (`internal/adapters/odata`) | Implementiert den Port `ODataCodec`: CSDL-Parsing, OData-URL-Parsing, JSON-Serialisierung, externe Protokollrepräsentation |
 | `ARC-012` | Bootstrap / Composition Root (`cmd/odata-recorder`, `internal/bootstrap`) | Verdrahtung aller Ports, Services und Adapter; Lifecycle |
 
-**Baseline-Import:** `ImportUseCase` in `ARC-002` liest Exchanges über `RecordingRepository`, interpretiert OData-V4-JSON über den Port `ODataCodec` (`ARC-011`), validiert Schlüssel und Typen gegen `MetadataRepository`, schreibt ein unveränderliches Snapshot-Manifest über `SnapshotRepository`/`BlobRepository` und veröffentlicht die Baseline atomar. Kein HTTP-Adapter und kein SQLite-Adapter entscheidet selbst über Deduplizierung oder Coverage.
+**Baseline-Import:** `ImportUseCase` in `ARC-002` liest Exchanges über `RecordingRepository`, interpretiert OData-V4-JSON über den Port `ODataCodec` (`ARC-011`), validiert Schlüssel und Typen gegen `MetadataRepository`, schreibt ein unveränderliches Snapshot-Manifest über `SnapshotRepository`/`BlobRepository`, führt Import-Eintrag und Baseline-Quellen über `ImportRepository` und veröffentlicht die Baseline atomar. Kein HTTP-Adapter und kein SQLite-Adapter entscheidet selbst über Deduplizierung oder Coverage.
 
 **Abgrenzung:** Die OData-Query-Semantik (Filter, Sortierung, Paging, Typregeln) gehört zum Core; das Parsen konkreter HTTP-/CSDL-/JSON-Darstellungen liegt im Codec-Adapter. Der Core verwendet einen technologieunabhängigen AST.
 
@@ -137,7 +137,7 @@ tests/
 
 | Port | Aufgabe | Rückgabe |
 |---|---|---|
-| `ImportUseCase` | Aufgezeichnete Entities explizit in eine neue Mock-Baseline überführen | Snapshot-ID, Import-Report, Coverage-Evidenz |
+| `ImportUseCase` | Aufgezeichnete Entities explizit in eine neue Mock-Baseline überführen; Import-Report und Provenienz lesen; Wiederholung mit gleicher `import_id` idempotent behandeln | Snapshot-ID, Import-Report, Coverage-Evidenz |
 | `RecordUseCase` | HTTP-Austausch an Upstream weiterleiten und erfassen | Response, Capture-Status |
 | `ReplayUseCase` | Recording zu explizitem Workspace, Recording-Session und Replay-Session matchen | aufgezeichnete Response oder Mismatch |
 | `MockUseCase` | OData-Request auf Workspace-State ausführen | OData-Response |
@@ -160,6 +160,7 @@ Der HTTP-Adapter entscheidet **nicht** über Replay-Cursor, Match-Key, Coverage 
 | `EntityRepository` | Transaktionale Entity-Reads und -Writes pro Workspace |
 | `SnapshotRepository` | Unveränderliche Snapshots, versionierte Manifeste und Restore |
 | `CoverageRepository` | Coverage-Status mit Evidenz je Baseline speichern |
+| `ImportRepository` | Import-Einträge (`import_id`, Anfrage-Hash, Report) und die Baseline-Quellen einer Baseline in der Transaktion der Baseline schreiben und lesen |
 | `CursorRepository` | Veränderlichen Replay-Cursor-Zustand je `(workspace, replay_session, recording_session)` atomar lesen und fortschreiben; getrennt vom append-only `RecordingRepository` |
 | `ODataCodec` | CSDL-, OData-URL- und OData-JSON-Darstellung in Domain-Modell und AST überführen und zurück |
 | `Clock` / `IDGenerator` | Deterministische Zeit und IDs in Tests |
@@ -176,7 +177,7 @@ Der HTTP-Adapter entscheidet **nicht** über Replay-Cursor, Match-Key, Coverage 
 
 **Recording:** `OPEN → CAPTURING → COMPLETE`, bei Abbruch `INCOMPLETE` oder `FAILED`. Nur `COMPLETE`-Exchanges sind regulär replayfähig.
 
-**Replay:** `UNASSIGNED → READY → MATCHING → RESPONDING → READY`, bei Mismatch `FAILED`, bei Sessionende `EXHAUSTED`. Der Cursor gehört zur Application Session / zum Workspace, nicht zum HTTP-Adapter.
+**Replay:** `UNASSIGNED → READY → MATCHING → RESPONDING → READY`. Ein Mismatch, ein nicht replayfähiger Treffer und ein Strict-Mismatch beenden die Anfrage mit einem Fehler und lassen den Cursor unverändert in `READY`. `EXHAUSTED` gilt je Match-Key (im Modus `strict` am Ende der Folge) und sperrt weitere Anfragen mit anderem Key nicht. Der Cursor gehört zur Application Session / zum Workspace, nicht zum HTTP-Adapter.
 
 **Mock:** `READY → VALIDATING → READING|MUTATING → SERIALIZING → READY`. Mutationen werden erst nach erfolgreicher Validierung committed.
 
