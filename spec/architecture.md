@@ -22,6 +22,7 @@ Composition Root verdrahtet konkrete Implementierungen.
 Der Application Core kennt weder HTTP-Server- oder -Client-Bibliotheken, SQLite-Treiber, OData-XML-/JSON-Bibliotheken, Dateisystem noch CLI-Frameworks. Die Transport- und Persistenztechnologie bleibt an den Adaptern.
 
 ```mermaid
+%%{init: {'themeVariables': {'lineColor': '#8b949e', 'signalColor': '#8b949e', 'actorLineColor': '#8b949e', 'edgeLabelBackground': '#d0d7de'}}}%%
 flowchart TB
   Client[OData Client] --> HTTP[HTTP/OData Driving Adapter]
   Operator[Operator / CI] --> CLI[CLI Driving Adapter]
@@ -218,6 +219,7 @@ Die Bibliothekswahl ist keine Eigenschaft des Domain Models. Ein Austausch des H
 ### 4.1 LH-FA-01 / LH-FA-02 — Record
 
 ```mermaid
+%%{init: {'themeVariables': {'lineColor': '#8b949e', 'signalColor': '#8b949e', 'actorLineColor': '#8b949e', 'edgeLabelBackground': '#d0d7de'}}}%%
 sequenceDiagram
     participant C as OData Client
     participant H as HTTP Adapter
@@ -241,6 +243,7 @@ Die technische Streaming-Implementierung darf Weitergabe und Persistenz überlap
 ### 4.2 LH-FA-18 — Recording-Import
 
 ```mermaid
+%%{init: {'themeVariables': {'lineColor': '#8b949e', 'signalColor': '#8b949e', 'actorLineColor': '#8b949e', 'edgeLabelBackground': '#d0d7de'}}}%%
 sequenceDiagram
     participant O as Operator
     participant A as Admin Adapter
@@ -264,6 +267,7 @@ sequenceDiagram
 ### 4.3 LH-FA-04 / LH-FA-05 — Replay
 
 ```mermaid
+%%{init: {'themeVariables': {'lineColor': '#8b949e', 'signalColor': '#8b949e', 'actorLineColor': '#8b949e', 'edgeLabelBackground': '#d0d7de'}}}%%
 sequenceDiagram
     participant C as Client
     participant H as HTTP Adapter
@@ -291,6 +295,7 @@ Der Replay-Service besitzt keine Upstream-Abhängigkeit; eine Netzwerkverbindung
 ### 4.4 LH-FA-07 / LH-FA-08 — Stateful Mock
 
 ```mermaid
+%%{init: {'themeVariables': {'lineColor': '#8b949e', 'signalColor': '#8b949e', 'actorLineColor': '#8b949e', 'edgeLabelBackground': '#d0d7de'}}}%%
 sequenceDiagram
     participant C as Client
     participant H as HTTP/OData Adapter
@@ -309,6 +314,7 @@ sequenceDiagram
 ### 4.5 LH-FA-09 / LH-FA-10 — Reset und Snapshot
 
 ```mermaid
+%%{init: {'themeVariables': {'lineColor': '#8b949e', 'signalColor': '#8b949e', 'actorLineColor': '#8b949e', 'edgeLabelBackground': '#d0d7de'}}}%%
 sequenceDiagram
     participant T as Test Runner
     participant A as Admin Adapter
@@ -331,6 +337,7 @@ sequenceDiagram
 Restore verwendet denselben Weg ohne den Schritt zum `CursorRepository`:
 
 ```mermaid
+%%{init: {'themeVariables': {'lineColor': '#8b949e', 'signalColor': '#8b949e', 'actorLineColor': '#8b949e', 'edgeLabelBackground': '#d0d7de'}}}%%
 sequenceDiagram
     participant T as Test Runner
     participant A as Admin Adapter
@@ -349,6 +356,7 @@ sequenceDiagram
 ### 4.6 LH-FA-11 / LH-FA-12 — Coverage und Hybrid-Fallback
 
 ```mermaid
+%%{init: {'themeVariables': {'lineColor': '#8b949e', 'signalColor': '#8b949e', 'actorLineColor': '#8b949e', 'edgeLabelBackground': '#d0d7de'}}}%%
 sequenceDiagram
     participant C as Client
     participant G as Fallback Policy Service
@@ -385,6 +393,7 @@ Fallback ist eine eigene Policy-Entscheidung und kein automatisch erzwungener Te
 ### 4.7 LH-FA-11 / LH-FA-18 — Baseline-Provenienz und Property-Masken
 
 ```mermaid
+%%{init: {'themeVariables': {'lineColor': '#8b949e', 'signalColor': '#8b949e', 'actorLineColor': '#8b949e', 'edgeLabelBackground': '#d0d7de'}}}%%
 sequenceDiagram
     participant C as Mock Client
     participant H as OData Adapter
@@ -412,6 +421,7 @@ Die Coverage ist an die **Baseline-ID** gebunden, nicht an den Service. Die Prop
 ### 4.8 LH-FA-02 / LH-FA-14 — Capture ohne Klartext-Spool
 
 ```mermaid
+%%{init: {'themeVariables': {'lineColor': '#8b949e', 'signalColor': '#8b949e', 'actorLineColor': '#8b949e', 'edgeLabelBackground': '#d0d7de'}}}%%
 sequenceDiagram
     participant U as Upstream
     participant P as HTTP Proxy
