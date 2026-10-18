@@ -78,8 +78,9 @@ In dieser Reihenfolge:
 
 Kein lokaler Toolchain-Install (Compiler, Python, SQLite, Java). Alles läuft über
 `make`, das Docker nutzt; Images sind per Digest gepinnt, die Prüfläufe netzlos
-(`--network none`) und ohne Bind-Mount — Eingaben gehen per `docker cp` hinein,
-Ergebnisse als Tar-Strom heraus. Host braucht nur Docker und GNU `make`.
+(`--network none`) und ohne schreibbaren Mount. Die `schema-*`-Targets arbeiten ganz
+ohne Mount (Eingaben per `docker cp`, Ergebnisse als Tar-Strom); die Doku-Gates
+mounten das Repo schreibgeschützt (`:ro`). Host braucht nur Docker und GNU `make`.
 
 **Falsch:** `sqlite3 :memory: < schema.sql`, `python tools/schema/check.py`
 **Richtig:** `make schema-check`
@@ -141,12 +142,12 @@ Rang-Zeiger · Grenze** — und schreibt an den, der die Stelle *ändert*, nicht
 Entscheidung *trifft*. Regeln dieser Sektion: Baseline-Regelwerk
 `grundlagen-harness-dateien.md` §Was ein Kommentar trägt.
 
-**Falsch:** <z.B. „Ohne dieses Feld behauptete die Ausgabe eine Verteilung,
-die nicht stattgefunden hat"> — Konjunktiv über die verworfene Alternative.
-**Richtig:** <z.B. „Verteilt ist wahr, wenn die Splitting-Regel angewendet
-werden konnte"> — Indikativ über den Zustand.
+**Falsch:** „Ohne diese Prüfung hätte Replay einen abgebrochenen Exchange
+ausgeliefert" — Konjunktiv über die verworfene Alternative.
+**Richtig:** „Nur `capture_status=complete` ist replayfähig" — Indikativ über den
+Zustand.
 
-**Falsch:** <z.B. „die frühere Fassung prüfte nur die Länge"> — beschreibt
+**Falsch:** „die frühere Fassung zählte `position` statt `consumed`" — beschreibt
 abwesenden Text.
 **Richtig:** die geltende Zusage nennen; die vorige hält `git`.
 

@@ -71,9 +71,9 @@ Diese Datei dupliziert sie nicht.
 | `make schema-validate` | prüft `tools/schema/schema.yaml` mit d-migrate (netzlos, ohne Mount) | kein Gate |
 | `make schema-generate` | erzeugt SQLite-DDL und Report aus dem Schema als Tar-Strom auf stdout (netzlos, ohne Mount) | kein Gate |
 
-**Aktueller Lauf-Status:** CI-Badge bzw. lokal `make help` / `make gates`.
+**Aktueller Lauf-Status:** lokal `make help` / `make gates`; eine CI gibt es noch nicht.
 **Rote Gates:** keine; ein rotes Gate bekommt einen `CO-<NNN>` und verweist in der Bindung-Spalte darauf (Modul 7).
-**Nicht behauptet:** Build-, Test-, Lint- und Coverage-Gates sowie der Lasttest zu `LH-QA-01` — es gibt noch keinen Code. Ebenso fehlt die Migrationskette des Schemas; sie braucht eine zweite Schemaversion.
+**Nicht behauptet:** Build-, Test-, Lint- und Coverage-Gates sowie der Lasttest zu `LH-QA-01` — es gibt noch keinen Anwendungscode. Ebenso fehlt die Migrationskette des Schemas; sie braucht eine zweite Schemaversion.
 
 **Targets der Werkzeug-Fragmente:** [`mk/ai-harness-init.md`](mk/ai-harness-init.md) — der Teil dieses Index, den `ai-harness-init` bei jedem Lauf neu schreibt; was das Repo über eines dieser Targets entscheidet, steht in dieser Zeile.
 
@@ -88,7 +88,7 @@ Diese Datei dupliziert sie nicht.
 
 
 
-- Kein Code, kein Geheimnis und kein echter Upstream-Zugang im Repo: Prüfläufe sind netzlos und laufen ohne Bind-Mount (`AGENTS.md` §3.1).
+- Kein Anwendungscode, kein Geheimnis und kein echter Upstream-Zugang im Repo: Prüfläufe sind netzlos und laufen ohne schreibbaren Mount (`AGENTS.md` §3.1).
 - Änderungen am Lastenheft folgen seiner Historie-Regel (`spec/lastenheft.md` §Historie); Tatsachenberichtigungen werden als solche gekennzeichnet.
 - Die vendorte Baseline unter `.harness/baseline/` wird nicht bearbeitet; ein Stand-Wechsel ist ein eigener Commit samt `make baseline-verify`.
 - Ein Gate wird nicht gelockert (`AGENTS.md` §3.6); neue Gates sind erlaubt.
