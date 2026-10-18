@@ -61,13 +61,13 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 - [x] `Dockerfile` mit den Stufen `deps`, `source`, `test` (`gofmt`, `go vet`, `go test`) und `build` (reproduzierbar, `-trimpath`); Eingangs-Image per Digest gepinnt, Stufen nach `deps` ohne Netz.
 - [x] `make build` und `make test` laufen über das `Dockerfile` und hängen an `GATE_CHECKS`; Zeilen in `harness/README.md` §Sensors.
 - [x] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review.
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; kein Zähler wird gesetzt. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; kein Zähler wird gesetzt. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
 - [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
@@ -120,7 +120,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Randformen von `Run` (`AGENTS.md` §3.12): leere Argumente, `version` mit Zusatzargument, unbekanntes Kommando, leeres Argument, Flag wie `--help`, nil-Writer — **Ausgang:** entfallen: entschieden in `harness/vertraege/SPEC-036-test.md` (Randformen von `bootstrap.Run`) und je Randform getestet.
-- Das Go-Toolchain-Image altert still — **Ausgang:** weiter offen: wird mit der Pin-Hebung des Dockerfiles als Beobachtung geführt (kein Slice nötig).
+- Das Go-Toolchain-Image altert still — **Ausgang:** entfallen: Die Hebung des Pins ist ein bewusster Commit (Kopf des `Dockerfile`); der Slice liefert und verspricht keinen Alterungs-Sensor.
 - `src/bootstrap/main` weicht von der Baum-Skizze der Architektur-Sicht ab — **Ausgang:** entfallen: die Sicht nennt `src/bootstrap` als Composition Root, ein Unterverzeichnis davon bleibt innerhalb des Globs.
 
 ## 7. Closure-Notiz
@@ -137,7 +137,13 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-Wird bei der Closure geschrieben.
+- **Was hat funktioniert:** Skelett, Dockerfile-Stufen und beide Gates entstanden in einem Zug; je Zusage wurde eine Mutation rot gesehen (Exit-Code, Versionsausgabe, Zusatzargument, `gofmt`, `go vet`), und der unabhängige Review und die Verifikation fanden jeweils nur Lücken am Rand.
+- **Was ging anders als geplant:** Die Randformen von `Run` standen nicht vor dem Code in §6 oder `SPEC-036` (Review F1), und die Zusagen zu `VERSION` und `-trimpath` hatten keine fangende Prüfung (F2, F3); beides ist im Slice nachgezogen, `make build` prüft jetzt Version und `-trimpath` am gebauten Binary.
+- **Steering-Loop-Eintrag:** Nichts verkörpert; gezählt, nicht verkörpert: `BEO-REPO/randform-erst-im-review-entschieden` und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft`.
+- **Beobachtungs-Register (`../observations/`):** `BEO-REPO/randform-erst-im-review-entschieden/` und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft/` neu angelegt, je Beleg `evidence/slice-go-skelett-build-test.md` — Zähler steht damit bei 1×.
+- **Folge-Slices:** `slice-lint-stufe` (Lint-Stufe für den Code) und `slice-gegenproben` (Gegenproben außerhalb der Kette) — beide Dateien in `open/`.
+- **Risiken aus §6:** alle drei mit dem Ausgang *entfallen* und Begründung, siehe §6.
+- **Drei Paarungen:** von der Closure der Welle welle-fundament geprüft.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 

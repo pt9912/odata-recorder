@@ -214,7 +214,7 @@ streicht sie. Regel: Baseline-Regelwerk `grundlagen-harness-dateien.md`
 
 | Sub-Area (Pfad / Modul) | Kürzel | Modus | Begründung | Graduation-Bedingung / Folge-Slice |
 |---|---|---|---|---|
-| `*` (Default für gesamtes Repo) | — | Greenfield | Neues Repo ohne Bestandscode; die Spec führt, der Code folgt. | n/a (GF) |
+| `*` (Default für gesamtes Repo) | `REPO` | Greenfield | Neues Repo ohne Bestandscode; die Spec führt, der Code folgt. | n/a (GF) |
 
 ## Glossar (optional)
 
