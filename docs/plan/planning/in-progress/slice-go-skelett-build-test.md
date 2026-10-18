@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-036` (`make test`) · `ARC-012` (Composition Root).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912
 
 **Autor:** pt9912. **Datum:** 2026-10-18.
 
@@ -57,10 +57,10 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Go-Modul `github.com/pt9912/odata-recorder` mit Composition Root unter `src/bootstrap` (Paket und Startpunkt, Version über `-ldflags`) und einem Test (Paket `bootstrap_test`).
-- [ ] `Dockerfile` mit den Stufen `deps`, `source`, `test` (`gofmt`, `go vet`, `go test`) und `build` (reproduzierbar, `-trimpath`); Eingangs-Image per Digest gepinnt, Stufen nach `deps` ohne Netz.
-- [ ] `make build` und `make test` laufen über das `Dockerfile` und hängen an `GATE_CHECKS`; Zeilen in `harness/README.md` §Sensors.
-- [ ] `make gates` grün.
+- [x] Go-Modul `github.com/pt9912/odata-recorder` mit Composition Root unter `src/bootstrap` (Paket und Startpunkt, Version über `-ldflags`) und einem Test (Paket `bootstrap_test`).
+- [x] `Dockerfile` mit den Stufen `deps`, `source`, `test` (`gofmt`, `go vet`, `go test`) und `build` (reproduzierbar, `-trimpath`); Eingangs-Image per Digest gepinnt, Stufen nach `deps` ohne Netz.
+- [x] `make build` und `make test` laufen über das `Dockerfile` und hängen an `GATE_CHECKS`; Zeilen in `harness/README.md` §Sensors.
+- [x] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review.
@@ -85,6 +85,8 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/bootstrap/bootstrap_test.go` | neu | Test der Version und der Fehlerausgabe (Happy, Negative) nach `LH-QA-06` |
 | `Dockerfile`, `.dockerignore` | neu | Stufen `deps`, `source`, `test`, `build` nach dem Muster von `pgwire-recorder` |
 | harness/mk/go-gates.mk | neu | `build` und `test`, beide in `GATE_CHECKS` |
+| `.dockerignore` | neu | Allowlist des Build-Kontexts: `go.mod`, `go.sum`, `src/` |
+| `harness/vertraege/SPEC-036-test.md`, `harness/vertraege/README.md` | update | Vertrag nennt `make build` und `make test` mit dem, was sie zusagen |
 | `harness/README.md` | update | Sensors-Zeilen für `make build` und `make test` |
 
 - Der Startpunkt liegt unter `src/bootstrap/main`, weil Go ein `main`-Paket braucht und `src/bootstrap` das Composition-Root-Glob von `.a-check.yml` ist.

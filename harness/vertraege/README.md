@@ -19,7 +19,7 @@ Die Reihe der Kennungen zählt über beide Orte fortlaufend: Die nächste freie 
 
 | Kennung | Werkzeug | Datei |
 |---|---|---|
-| `SPEC-036` | `make test` | [`SPEC-036-test.md`](SPEC-036-test.md) |
+| `SPEC-036` | `make build`, `make test` | [`SPEC-036-test.md`](SPEC-036-test.md) |
 | `SPEC-037` | `make test-integration` | [`SPEC-037-test-integration.md`](SPEC-037-test-integration.md) |
 | `SPEC-038` | `make test-determinism` | [`SPEC-038-test-determinism.md`](SPEC-038-test-determinism.md) |
 | `SPEC-039` | `make a-check` | [`SPEC-039-architektur-gate.md`](SPEC-039-architektur-gate.md) |

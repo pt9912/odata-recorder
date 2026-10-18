@@ -63,6 +63,8 @@ Diese Datei dupliziert sie nicht.
 |---|---|---|
 | `make docs-check` | Doku-Referenzen und Spec-Straten-Richtung (d-check) | — |
 | `make schema-check` | Persistenzschema: d-migrate validate und generate, DDL in SQLite, Negativtests der Constraints, `foreign_key_check`/`integrity_check` (netzlos, ohne Mount) | — |
+| `make build` | Binary aus `src/` über das `Dockerfile` (Stufe `build`, reproduzierbar, netzlos außer der Stufe `deps`) | [ADR-0001](../docs/plan/adr/0001-implementierungssprache-go.md) |
+| `make test` | `gofmt` (nennt nicht formatierte Dateien), `go vet` und Unit-Tests über das `Dockerfile` (Stufe `test`, netzlos außer der Stufe `deps`) | [ADR-0001](../docs/plan/adr/0001-implementierungssprache-go.md) |
 | `make a-check` | Architektur-Regeln des Hexagons gemäß `.a-check.yml` (a-check, netzlos, schreibgeschützt): Import-Richtungen der Schichten; prüft heute einen leeren Baum, bis Code existiert | [ADR-0002](../docs/plan/adr/0002-architektur-gate-a-check.md) |
 | `make lint-profil` | Lint-Profil `.golangci.yml` gegen das Schema von golangci-lint (netzlos, ohne Mount); prüft kein Code | [ADR-0003](../docs/plan/adr/0003-lint-profil-golangci.md) |
 | `make gates` | alle inneren Gates | — |
@@ -77,7 +79,7 @@ Diese Datei dupliziert sie nicht.
 
 **Aktueller Lauf-Status:** lokal `make help` / `make gates`; eine CI gibt es noch nicht.
 **Rote Gates:** keine; ein rotes Gate bekommt einen `CO-<NNN>` und verweist in der Bindung-Spalte darauf (Modul 7).
-**Nicht behauptet:** Build-, Test-, Code-Lint- und Coverage-Gates, die Gegenprobe zu `make a-check` sowie der Lasttest zu `LH-QA-01` — es gibt noch keinen Anwendungscode; `make a-check` belegt bis dahin nur die Konfiguration. Ebenso fehlt die Migrationskette des Schemas; sie braucht eine zweite Schemaversion.
+**Nicht behauptet:** Code-Lint- und Coverage-Gates, die Gegenprobe zu `make a-check` sowie der Lasttest zu `LH-QA-01` — der Code ist ein Skelett aus Composition Root und Version; `make a-check` prüft damit erst eine Schicht. Ebenso fehlt die Migrationskette des Schemas; sie braucht eine zweite Schemaversion.
 
 **Targets der Werkzeug-Fragmente:** [`mk/ai-harness-init.md`](mk/ai-harness-init.md) — der Teil dieses Index, den `ai-harness-init` bei jedem Lauf neu schreibt; was das Repo über eines dieser Targets entscheidet, steht in dieser Zeile.
 

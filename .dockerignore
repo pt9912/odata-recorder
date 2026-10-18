@@ -1,0 +1,6 @@
+# Build-Kontext als Allowlist: nur was der Go-Build braucht. Doku, Spec und der
+# übrige Harness bleiben draußen und brechen den Build-Cache nicht.
+*
+!go.mod
+!go.sum
+!src/
