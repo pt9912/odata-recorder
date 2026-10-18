@@ -18,6 +18,8 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 - [welle-fundament](../welle-fundament.md)
 
+Nichts in Arbeit.
+
 
 
 
