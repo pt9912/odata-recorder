@@ -44,6 +44,8 @@ flowchart TB
   Boot -. wires .-> Svc
   Boot -. wires .-> Upstream
   Boot -. wires .-> Store
+  classDef box color:#1f2328
+  class Client,HTTP,Operator,CLI,Admin,In,Svc,Domain,Out,Upstream,Store,Clock,Remote,Disk,Boot box
 ```
 
 | ID | Komponente | Rolle |
