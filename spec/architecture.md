@@ -13,9 +13,9 @@
 **Abhängigkeitsrichtung:**
 
 ```text
-Inbound Actor → Inbound Adapter → Inbound Port ← Application Service
+Inbound Actor → Driving Adapter → Inbound Port ← Application Service
 Application Service → Domain Model
-Application Service → Outbound Port ← Outbound Adapter → Outbound Actor
+Application Service → Outbound Port ← Driven Adapter → Outbound Actor
 Composition Root verdrahtet konkrete Implementierungen.
 ```
 
@@ -23,9 +23,9 @@ Der Application Core kennt weder HTTP-Server- oder -Client-Bibliotheken, SQLite-
 
 ```mermaid
 flowchart TB
-  Client[OData Client] --> HTTP[HTTP/OData Inbound Adapter]
-  Operator[Operator / CI] --> CLI[CLI Inbound Adapter]
-  Operator --> Admin[Admin API Inbound Adapter]
+  Client[OData Client] --> HTTP[HTTP/OData Driving Adapter]
+  Operator[Operator / CI] --> CLI[CLI Driving Adapter]
+  Operator --> Admin[Admin API Driving Adapter]
   HTTP --> In[Inbound Ports]
   CLI --> In
   Admin --> In
@@ -51,13 +51,13 @@ flowchart TB
 | `ARC-002` | Application Services (`internal/hexagon/services`) | Record, Replay, Mock, **Baseline-Import**, Workspace, Snapshot, Coverage, Fallback-Policy; Use-Case-Orchestrierung |
 | `ARC-003` | Inbound Ports (`internal/hexagon/ports/inbound`) | Anwendungsfälle für Request-Verarbeitung, Recording, Replay, Mock und Administration |
 | `ARC-004` | Outbound Ports (`internal/hexagon/ports/outbound`) | Upstream HTTP, RecordingRepository, BlobRepository, CursorRepository, WorkspaceRepository, EntityRepository, SnapshotRepository, MetadataRepository, CoverageRepository, ImportRepository, ODataCodec, Uhr, ID-Quelle |
-| `ARC-005` | HTTP/OData Inbound Adapter (`internal/adapters/inbound/httpodata`) | HTTP-Eingang, Header-/Body-Streaming, Mapping von Request und Response auf Domain-DTOs; OData-Parsing und -Serialisierung laufen über den Codec-Port im Core |
-| `ARC-006` | CLI Inbound Adapter (`internal/adapters/inbound/cli`) | Konfiguration, Kommandoauswahl, Start-/Exit-Verhalten |
-| `ARC-007` | Admin API Inbound Adapter (`internal/adapters/inbound/admin`) | Workspaces, Snapshots, Sessions, Coverage, Diagnose |
-| `ARC-008` | HTTP Upstream Outbound Adapter (`internal/adapters/outbound/httpupstream`) | HTTP/TLS-Verbindung zum echten OData-Service |
-| `ARC-009` | Recording/State Outbound Adapter (`internal/adapters/outbound/sqlite`) | Transaktionale Speicherung und Abfrage der Records und Workspace-Daten |
-| `ARC-010` | Blob Outbound Adapter (`internal/adapters/outbound/blobs`) | Bytegetreue, content-adressierte Body-Ablage und Integritätsprüfung |
-| `ARC-011` | OData Codec Outbound Adapter (`internal/adapters/odata`) | Implementiert den Port `ODataCodec`: CSDL-Parsing, OData-URL-Parsing, JSON-Serialisierung, externe Protokollrepräsentation |
+| `ARC-005` | HTTP/OData Driving Adapter (`internal/adapters/driving/httpodata`) | HTTP-Eingang, Header-/Body-Streaming, Mapping von Request und Response auf Domain-DTOs; OData-Parsing und -Serialisierung laufen über den Codec-Port im Core |
+| `ARC-006` | CLI Driving Adapter (`internal/adapters/driving/cli`) | Konfiguration, Kommandoauswahl, Start-/Exit-Verhalten |
+| `ARC-007` | Admin API Driving Adapter (`internal/adapters/driving/admin`) | Workspaces, Snapshots, Sessions, Coverage, Diagnose |
+| `ARC-008` | HTTP Upstream Driven Adapter (`internal/adapters/driven/httpupstream`) | HTTP/TLS-Verbindung zum echten OData-Service |
+| `ARC-009` | Recording/State Driven Adapter (`internal/adapters/driven/sqlite`) | Transaktionale Speicherung und Abfrage der Records und Workspace-Daten |
+| `ARC-010` | Blob Driven Adapter (`internal/adapters/driven/blobs`) | Bytegetreue, content-adressierte Body-Ablage und Integritätsprüfung |
+| `ARC-011` | OData Codec Driven Adapter (`internal/adapters/odata`) | Implementiert den Port `ODataCodec`: CSDL-Parsing, OData-URL-Parsing, JSON-Serialisierung, externe Protokollrepräsentation |
 | `ARC-012` | Bootstrap / Composition Root (`cmd/odata-recorder`, `internal/bootstrap`) | Verdrahtung aller Ports, Services und Adapter; Lifecycle |
 
 **Baseline-Import:** `ImportUseCase` in `ARC-002` liest Exchanges über `RecordingRepository`, interpretiert OData-V4-JSON über den Port `ODataCodec` (`ARC-011`), validiert Schlüssel und Typen gegen `MetadataRepository`, schreibt ein unveränderliches Snapshot-Manifest über `SnapshotRepository`/`BlobRepository`, führt Import-Eintrag und Baseline-Quellen über `ImportRepository` und veröffentlicht die Baseline atomar. Kein HTTP-Adapter und kein SQLite-Adapter entscheidet selbst über Deduplizierung oder Coverage.
@@ -72,9 +72,9 @@ flowchart TB
 |---|---|---|---|---|
 | `ARC-001` | Domain | Fachliche Werte, Invarianten, AST | Standardbibliothek ohne I/O | Services, Ports, Adapter, SQL/HTTP-Bibliotheken |
 | `ARC-003`, `ARC-004` | Ports | Fachliche Schnittstellen | Domain | Adapter, CLI, SQLite, HTTP-Server |
-| `ARC-002` | Application | Use Cases, State- und Matching-Logik | Domain, Outbound Ports | Inbound Adapter, SQLite, konkrete HTTP-Clients |
-| `ARC-005`–`ARC-007` | Inbound Adapters | Transport- und Bedienoberfläche | Inbound Ports, Domain | Outbound Adapter, andere Inbound Adapter, Application Services |
-| `ARC-008`–`ARC-011` | Outbound Adapters (einschließlich Codec) | Upstream, Persistenz, Serialisierung | Domain, passende Outbound Ports | Inbound Adapter, Application Services |
+| `ARC-002` | Application | Use Cases, State- und Matching-Logik | Domain, Outbound Ports | Driving Adapter, SQLite, konkrete HTTP-Clients |
+| `ARC-005`–`ARC-007` | Driving Adapters | Transport- und Bedienoberfläche | Inbound Ports, Domain | Driven Adapter, andere Driving Adapter, Application Services |
+| `ARC-008`–`ARC-011` | Driven Adapters (einschließlich Codec) | Upstream, Persistenz, Serialisierung | Domain, passende Outbound Ports | Driving Adapter, Application Services |
 | `ARC-012` | Composition Root | Dependency Injection, Konfiguration, Lifecycle | alle | — |
 
 **Zusätzliche Hard Rules:**
@@ -113,11 +113,11 @@ internal/
 │       ├── snapshot/
 │       └── workspace/
 ├── adapters/
-│   ├── inbound/
+│   ├── driving/
 │   │   ├── httpodata/
 │   │   ├── admin/
 │   │   └── cli/
-│   ├── outbound/
+│   ├── driven/
 │   │   ├── httpupstream/
 │   │   ├── sqlite/
 │   │   ├── blobs/
@@ -475,15 +475,15 @@ Rohbytes werden **nie** als unredigierte Temp- oder Blob-Dateien geschrieben. Un
 
 **Zusätzliche Contract-Gates:** Zwei Replay-Sessions in einem Workspace; zwei Baselines eines Services mit unterschiedlicher Coverage; `$select`-Teilentity bei GET/PATCH/PUT; komprimierte und fragmentierte Redaction; Crash zwischen Blob-Rename und DB-Commit; idempotenter Import.
 
-**Architektur-Gate:** Importgraph für `internal/hexagon/{model,ports,services}`, `internal/adapters/{inbound,outbound,odata}` und `internal/bootstrap` prüfen. Erlaubte Kanten:
+**Architektur-Gate:** Importgraph für `internal/hexagon/{model,ports,services}`, `internal/adapters/{driving,driven,odata}` und `internal/bootstrap` prüfen. Erlaubte Kanten:
 
 ```text
 model            → (keine inneren Pakete)
 ports/inbound    → model
-ports/outbound     → model
+ports/outbound   → model
 services         → model, ports/outbound
-adapters/inbound → model, ports/inbound
-adapters/outbound  → model, ports/outbound
+adapters/driving → model, ports/inbound
+adapters/driven  → model, ports/outbound
 adapters/odata   → model, ports/outbound
 bootstrap        → alle
 ```
@@ -498,7 +498,7 @@ Die konkreten Imports werden im Gate geprüft, nicht nur durch Konvention behaup
 - **`$expand`, `$batch`, Actions, Functions:** separate AST-Knoten, Validatoren und Executors; nicht unterstützte Operationen bleiben im Replay nutzbar.
 - **Weitere Storage-Backends:** Repository-Ports statt direkter SQLite-Kopplung.
 - **Semantisches Matching:** optionaler OData-AST-Matcher neben konservativem HTTP-Matching.
-- **Weitere Inbound Adapter:** Testframework-Integration oder eingebetteter Server über Inbound Ports.
+- **Weitere Driving Adapter:** Testframework-Integration oder eingebetteter Server über Inbound Ports.
 - **Coverage-Import:** explizite, paginierte Vollerfassung von EntitySets; getrennt von passivem Recording.
 
 ---
