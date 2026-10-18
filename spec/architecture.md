@@ -73,7 +73,7 @@ flowchart TB
 | `ARC-009` | Recording/State Driven Adapter (`src/adapters/driven/sqlite`) | Transaktionale Speicherung und Abfrage der Sessions, Records und Workspace-Daten; SQLite-SQL und Migrationen |
 | `ARC-010` | Blob Driven Adapter (`src/adapters/driven/blobs`) | Bytegetreue, content-adressierte Body-Ablage und Integritätsprüfung |
 | `ARC-011` | OData Codec Driven Adapter (`src/adapters/driven/odata`) | Implementiert den Port `ODataCodec`: CSDL-Parsing, OData-URL-Parsing, JSON-Serialisierung, externe Protokollrepräsentation |
-| `ARC-012` | Bootstrap / Composition Root (`src/bootstrap`) | Verdrahtung aller Ports, Services und Adapter; Lifecycle; stößt beim Start vor dem Öffnen der Listener `MaintenanceUseCase` an und wählt je Betriebsmodus den Use Case, den der OData-Listener bedient |
+| `ARC-012` | Bootstrap / Composition Root (`src/bootstrap`) | Verdrahtung aller Ports, Services und Adapter; Lifecycle; stößt beim Start vor dem Öffnen der Listener `MaintenanceUseCase` an, legt danach im Modus `record` für jeden konfigurierten Service die erste Recording-Session an (`SessionUseCase.OpenInitialSession`), beendet beim geordneten Shutdown alle offenen Sessions (`SessionUseCase.CloseAll`) und wählt je Betriebsmodus den Use Case, den der OData-Listener bedient |
 | `ARC-019` | Clock/ID Driven Adapter (`src/adapters/driven/clock`) | Systemzeit und ID-Vergabe hinter `Clock` und `IDGenerator`; in Tests ersetzbar |
 | `ARC-021` | Querschnitts-Ports (`src/hexagon/ports/support`) | `AuditLog`, `Telemetry`, `Clock`, `IDGenerator`; jede Schicht darf sie nutzen, damit Adapter ohne Use Case Audit-Einträge, Korrelations-IDs und Spans erzeugen können |
 | `ARC-020` | Audit/Telemetry Driven Adapter (`src/adapters/driven/audit`, `src/adapters/driven/telemetry`) | Audit-Log, strukturierte Logs, Metriken und Spans hinter `AuditLog` und `Telemetry` |
@@ -178,8 +178,8 @@ tests/
 | `HybridUseCase` | Request im Modus `hybrid` an `MockUseCase` geben und nach Fallback-Policy an `ReplayUseCase` oder den Upstream weiterreichen | OData-Response oder Fallback-Fehler |
 | `WorkspaceUseCase` | Workspace erstellen, auflisten, lesen, löschen, resetten, mutieren; Snapshot wiederherstellen | Workspace-Revision bzw. Verwaltungsdaten |
 | `SnapshotUseCase` | Snapshot erzeugen und auflisten | Snapshot-ID bzw. Verwaltungsdaten |
-| `SessionUseCase` | Recording-Sessions anlegen, beenden, auflisten, lesen, löschen | Verwaltungsdaten bzw. Löschbericht |
-| `MaintenanceUseCase` | Startwartung vor dem Öffnen der Listener: offene Sessions auf `incomplete` setzen, im Modus `record` die erste Recording-Session über `SessionUseCase` anlegen, Aufbewahrung anwenden, Integritätsprüfung, Blob-Bereinigung; löschende Use Cases rufen die Blob-Bereinigung nach dem Commit hier auf | Wartungsbericht |
+| `SessionUseCase` | Recording-Sessions anlegen (auch die erste Session je Service beim Start), beenden (auch alle beim geordneten Shutdown), auflisten, lesen, löschen | Verwaltungsdaten bzw. Löschbericht |
+| `MaintenanceUseCase` | Startwartung vor dem Öffnen der Listener: offene Sessions auf `incomplete` setzen, Aufbewahrung anwenden (über `SessionRepository` und `ImportRepository`, nicht über `SessionUseCase`), Integritätsprüfung, Blob-Bereinigung; löschende Use Cases (`SessionUseCase`, `WorkspaceUseCase`) rufen die Blob-Bereinigung nach dem Commit hier auf; `MaintenanceUseCase` ruft selbst keinen anderen Use Case auf, der Aufrufweg ist damit zyklenfrei | Wartungsbericht |
 | `InspectionUseCase` | Exchanges, Coverage und Diagnose lesen | paginierte Verwaltungsdaten |
 
 Der HTTP-Adapter entscheidet **nicht** über Replay-Cursor, Match-Key, Coverage oder CRUD-Semantik.
@@ -215,8 +215,7 @@ Redigierte Bodies sind als eingeschränkt replayfähig gekennzeichnet.
 **Replay-Zuordnung:** Die Zuordnung wird an der HTTP-Grenze entgegengenommen und im Replay-Service gegen die Spezifikation validiert (`LH-FA-04.b`, `SPEC-052`).
 Der Cursor gehört zum Tupel `(workspace, replay_session, recording_session)` und liegt hinter `CursorRepository`.
 
-**Reset vs.
-Restore:** Die Wirkung auf Entity-State und Cursor legen `LH-FA-09` und `LH-FA-10` fest; Reset greift auf `EntityRepository` und `CursorRepository` zu, Restore nur auf `EntityRepository`.
+**Reset vs. Restore:** Die Wirkung auf Entity-State und Cursor legen `LH-FA-09` und `LH-FA-10` fest; Reset greift auf `EntityRepository` und `CursorRepository` zu, Restore nur auf `EntityRepository`.
 
 **Port-Design:** Die Transaktionsgrenze ist fachlich (`WithWorkspaceTransaction` oder äquivalentes Unit-of-Work-Konzept), nicht als offene SQL-Connection exponiert.
 Reset (Entity-State und Cursor) und Löschen eines Workspace laufen in einer solchen Transaktion über `WorkspaceRepository`, `EntityRepository`, `CursorRepository` und `SnapshotRepository`;
@@ -256,6 +255,7 @@ Mutationen werden erst nach erfolgreicher Validierung committed.
 Fachliche `404`, `409`, `412` und ungültige Requests lösen keinen Fallback aus.
 Der Betriebsmodus wird beim Prozessstart festgelegt und nicht über die Admin API gewechselt;
 der Composition Root bindet je Modus genau einen Use Case (`RecordUseCase`, `ReplayUseCase`, `MockUseCase` oder `HybridUseCase`) an den OData-Listener, der HTTP-Adapter kennt den Modus nicht.
+Der Use Case des Modus ermittelt Service und Recording-Session aus Pfad und Headern des Rohrequests (`ODR-E5005`, `ODR-E5003`, `ODR-E5009`); der HTTP-Adapter reicht Methode, Pfad, Query, Header und Body unverändert weiter und vergibt nur die Korrelations-ID und den Span `odata.gateway.request`.
 Unbekannte Operationen im Mock dürfen nicht in einen unkontrollierten Upstream-Fallback münden.
 Die Fallback-Policy wird vor dem Senden an den Upstream geprüft.
 `HybridUseCase` ruft `MockUseCase` und `ReplayUseCase` über deren Inbound Ports auf, nie über deren Pakete.
@@ -290,9 +290,12 @@ sequenceDiagram
     participant R as Record Service
     participant U as Upstream Port
     participant B as Blob/Recording Ports
+    participant Q as Session Repository
     participant S as OData Server
     C->>H: GET /Products?$top=10
-    H->>R: Record(request)
+    H->>R: Record(raw request)
+    R->>R: Resolve service from path, correlation id
+    R->>Q: Select open session of service (ODR-E5009 if none)
     R->>U: Forward(request)
     U->>S: HTTP Request
     S-->>U: HTTP Response
@@ -555,7 +558,7 @@ sequenceDiagram
     Note over B,R: Start nach Absturz, vor den Listenern
     B->>M: Startup()
     M->>R: Find open sessions, set incomplete
-    M->>S: Create first recording session (mode record)
+    B->>S: OpenInitialSession per service (mode record)
 ```
 
 ## 5. Fehlermodelle und Resilienz

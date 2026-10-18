@@ -16,9 +16,9 @@ Technische Defaults und Schwellenwerte sind bis zur Freigabe Vorschläge.
 
 **Eingabe:** HTTP-Request an konfigurierten Service-Root; **Ausgabe:** HTTP-Response des Upstreams.
 
-1. Gateway ermittelt den Service aus dem Service-Root-Pfad (`SPEC-054`), die Betriebsart aus der Startkonfiguration, validiert die Zielkonfiguration und erstellt eine Korrelations-ID.
+1. Der Use Case des Betriebsmodus (`ARC-002`) ermittelt den Service aus dem Service-Root-Pfad (`SPEC-054`) und validiert die Zielkonfiguration; die Betriebsart steht in der Startkonfiguration, die Korrelations-ID vergibt der HTTP-Adapter.
    Ein Pfad ohne konfigurierten Service-Root ergibt `ODR-E5005` (HTTP 404).
-   Im Modus `record` wählt das Gateway außerdem die offene Recording-Session des Service; gibt es keine, ergibt das `ODR-E5009` (HTTP 409), und der Request wird nicht weitergeleitet.
+   Im Modus `record` wählt der Use Case außerdem die offene Recording-Session des Service; gibt es keine, ergibt das `ODR-E5009` (HTTP 409), und der Request wird nicht weitergeleitet.
 2. Proxy leitet Methode, Pfad, Query, Body und End-to-End-Header weiter; Hop-by-Hop-Header werden nach HTTP-Regeln behandelt.
 3. Upstream-Response wird an den Client gestreamt.
    Weiterleitungen (`Location`) und absolute OData-Links im Body werden in der ersten Version nicht umgeschrieben (`LINK_REWRITE=off`, `SPEC-092`): Record liefert und speichert sie unverändert, Replay liefert sie byteidentisch aus.
@@ -324,13 +324,13 @@ In Kubernetes ist ein gemountetes Secret ein Symlink auf eine reguläre Datei; e
 nur `ADMIN_ALLOW_PLAINTEXT=true` (`SPEC-090`) erlaubt unverschlüsselten Zugriff, mit einer Warnung im Log.
 Die Token-Datei liegt im Datenvolumen und ist Teil von dessen Sicherungen; das Betriebsprofil nennt sie als schützenswert.
 **Status:** Eine Session hat den Status `open`, `complete` oder `incomplete`.
-Eine Recording-Session entsteht im Modus `record` beim Start des Prozesses (ID serverseitig vergeben) oder durch `POST /__admin/sessions` (`id` optional;
+Eine Recording-Session entsteht im Modus `record` beim Start des Prozesses für jeden konfigurierten Service (ID serverseitig vergeben) oder durch `POST /__admin/sessions` (`id` optional;
 eine noch offene Session desselben Prozesses bleibt offen).
 Record-Requests schreiben in die offene Session ihres Service; gibt es mehrere offene, wählt der Header `X-Recorder-Recording-Session`, fehlt er dort, ergibt das `ODR-E5003`.
 Das Beenden der Aufzeichnung ist `POST /__admin/sessions/{id}/close` (unbekannte ID `ODR-E7003`; auf einer bereits beendeten Session wirkungslos) oder der geordnete Shutdown (`LH-FA-02.c`).
 Läuft beim Beenden noch ein Exchange der Session, wartet `close` auf dessen Abschluss, höchstens `SHUTDOWN_TIMEOUT` (`SPEC-059`);
 danach noch laufende Exchanges werden als `incomplete` geschrieben und die Session wird `incomplete`.
-Mit dem Beginn von `close` nimmt die Session keine neuen Exchanges an.
+Mit dem Beginn von `close` nimmt die Session keine neuen Exchanges an; ein neuer Record-Request ergibt dann `ODR-E5009`.
 Ein Record-Request, für den der Service keine offene Session hat, wird nicht weitergeleitet und ergibt `ODR-E5009` (HTTP 409).
 Eine doppelte Session-`id` bei `POST /__admin/sessions` ergibt `ODR-E7010` (HTTP 409); der Endpunkt steht in allen Modi zur Verfügung.
 Eine Session ist `open`, solange ihre Aufzeichnung läuft.
@@ -838,7 +838,7 @@ Für HTTP-Antworten des Mock-OData-Dienstes gilt das OData-V4-Fehlerformat; Admi
 | `SPEC-094` | `ODR-E7006` | Snapshot-Name im Workspace bereits vergeben | HTTP 409 (Admin) |
 | `SPEC-095` | `ODR-E7007` | Workspace-ID bereits vergeben | HTTP 409 (Admin) |
 | `SPEC-096` | `ODR-E7008` | Snapshot-Art passt nicht zur Operation (Workspace-Snapshot als Baseline, Restore einer Baseline) | HTTP 422 (Admin), nichts wird geändert |
-| `SPEC-099` | `ODR-E5009` | Record ohne offene Session des Services | HTTP 409, Request wird nicht weitergeleitet |
+| `SPEC-099` | `ODR-E5009` | Record ohne annehmende Session des Services (keine offene, oder sie wird gerade beendet) | HTTP 409, Request wird nicht weitergeleitet |
 | `SPEC-100` | `ODR-E7010` | Session-ID bereits vergeben | HTTP 409 (Admin) |
 | `SPEC-097` | `ODR-E7009` | Session ist `open`: Replay, Import und Löschen abgewiesen | HTTP 409 |
 
