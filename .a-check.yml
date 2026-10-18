@@ -1,0 +1,61 @@
+# Architektur-Regeln des Hexagons für a-check (spec/architecture.md §2, Importgraph).
+# Rollen und Richtungen folgen der Sicht: Driving Adapter → Inbound Port, Outbound Port → Driven Adapter.
+version: 1
+
+languages:
+  go: ["**/*.go"]
+
+layers:
+  model:
+    globs: ["src/hexagon/model/**"]
+    role: domain
+
+  services:
+    globs: ["src/hexagon/services/**"]
+    role: app
+
+  ports-inbound:
+    globs: ["src/hexagon/ports/inbound/**"]
+    role: port
+    direction: inbound
+
+  ports-outbound:
+    globs: ["src/hexagon/ports/outbound/**"]
+    role: port
+    direction: outbound
+
+  ports-support:
+    globs: ["src/hexagon/ports/support/**"]
+    role: port
+    direction: outbound
+
+  adapters-driving:
+    globs: ["src/adapters/driving/**"]
+    role: adapter
+    direction: driving
+
+  adapters-driven:
+    globs: ["src/adapters/driven/**"]
+    role: adapter
+    direction: driven
+
+edges:
+  - {from: services,         to: model}
+  - {from: services,         to: ports-inbound}
+  - {from: services,         to: ports-outbound}
+  - {from: services,         to: ports-support}
+  - {from: ports-inbound,    to: model}
+  - {from: ports-outbound,   to: model}
+  - {from: ports-support,    to: model}
+  - {from: adapters-driving, to: model}
+  - {from: adapters-driving, to: ports-inbound}
+  - {from: adapters-driving, to: ports-support}
+  - {from: adapters-driven,  to: model}
+  - {from: adapters-driven,  to: ports-outbound}
+  - {from: adapters-driven,  to: ports-support}
+
+composition_root:
+  - "src/bootstrap/**"
+
+markers:
+  ignore_symbols: []

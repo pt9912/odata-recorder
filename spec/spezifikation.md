@@ -886,7 +886,7 @@ Vorhanden ist heute nur `make docs-check` (`SPEC-040`); die übrigen entstehen m
 | `SPEC-036` | `make test` | Unit-Tests für Domain, Matching, Query-Interpreter, CRUD |
 | `SPEC-037` | `make test-integration` | Record → Upstream stoppen → Replay; Mock CRUD → Reset |
 | `SPEC-038` | `make test-determinism` | 100 Wiederholungen identischer Inputs; identische normalisierte Outputs und Cursor-Stände |
-| `SPEC-039` | `make arch-check` | Hexagonale Importregeln; keine Adapter-Imports im Core |
+| `SPEC-039` | `make a-check` | Hexagonale Importregeln gemäß `.a-check.yml`; keine Adapter-Imports im Core |
 | `SPEC-040` | `make docs-check` | Kennungen, Links und Dokumentkonventionen prüfen |
 | `SPEC-041` | `make test-security` | Redaction, Admin-Bindings, Fallback-Verbote, Credential-Leak-Checks |
 | `SPEC-042` | `make test-contract` | OData-V4-JSON, Metadata, Fehlerfälle und HTTP-Semantik |

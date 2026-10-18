@@ -62,6 +62,7 @@ Diese Datei dupliziert sie nicht.
 |---|---|---|
 | `make docs-check` | Doku-Referenzen und Spec-Straten-Richtung (d-check) | — |
 | `make schema-check` | Persistenzschema: d-migrate validate und generate, DDL in SQLite, Negativtests der Constraints, `foreign_key_check`/`integrity_check` (netzlos, ohne Mount) | — |
+| `make a-check` | Architektur-Regeln des Hexagons gemäß `.a-check.yml` (a-check, netzlos, schreibgeschützt): Import-Richtungen der Schichten; prüft heute einen leeren Baum, bis Code existiert | [ADR-0002](../docs/plan/adr/0002-architektur-gate-a-check.md) |
 | `make gates` | alle inneren Gates | — |
 
 **Werkzeuge — genannt, weil der Lauf sie braucht, aber kein Gate:**
@@ -70,10 +71,11 @@ Diese Datei dupliziert sie nicht.
 |---|---|---|
 | `make schema-validate` | prüft `tools/schema/schema.yaml` mit d-migrate (netzlos, ohne Mount) | kein Gate |
 | `make schema-generate` | erzeugt SQLite-DDL und Report aus dem Schema als Tar-Strom auf stdout (netzlos, ohne Mount) | kein Gate |
+| `make a-check-graph` | gibt den Architektur-Graphen (Mermaid) aus `.a-check.yml` aus, prüft nichts (netzlos, schreibgeschützt) | kein Gate |
 
 **Aktueller Lauf-Status:** lokal `make help` / `make gates`; eine CI gibt es noch nicht.
 **Rote Gates:** keine; ein rotes Gate bekommt einen `CO-<NNN>` und verweist in der Bindung-Spalte darauf (Modul 7).
-**Nicht behauptet:** Build-, Test-, Lint- und Coverage-Gates sowie der Lasttest zu `LH-QA-01` — es gibt noch keinen Anwendungscode. Ebenso fehlt die Migrationskette des Schemas; sie braucht eine zweite Schemaversion.
+**Nicht behauptet:** Build-, Test-, Lint- und Coverage-Gates, die Gegenprobe zu `make a-check` sowie der Lasttest zu `LH-QA-01` — es gibt noch keinen Anwendungscode; `make a-check` belegt bis dahin nur die Konfiguration. Ebenso fehlt die Migrationskette des Schemas; sie braucht eine zweite Schemaversion.
 
 **Targets der Werkzeug-Fragmente:** [`mk/ai-harness-init.md`](mk/ai-harness-init.md) — der Teil dieses Index, den `ai-harness-init` bei jedem Lauf neu schreibt; was das Repo über eines dieser Targets entscheidet, steht in dieser Zeile.
 
