@@ -28,6 +28,13 @@ func (s SessionStatus) KannWechselnNach(ziel SessionStatus) bool {
 	return s == SessionOpen && (ziel == SessionComplete || ziel == SessionIncomplete)
 }
 
+// zeitGueltig sagt, ob t gesetzt ist und in den Jahren 1 bis 9999 liegt, die das
+// Speicherformat darstellt (SPEC-105).
+func zeitGueltig(t time.Time) bool {
+	j := t.UTC().Year()
+	return !t.IsZero() && j >= 1 && j <= 9999
+}
+
 // Session ist eine Aufzeichnungssitzung eines Service.
 type Session struct {
 	ID        string
@@ -47,8 +54,8 @@ func (s Session) Validate() error {
 		return errors.Join(ErrUngueltig, errors.New("Session ohne Kennung"))
 	case s.ServiceID == "":
 		return errors.Join(ErrUngueltig, errors.New("Session ohne Service"))
-	case s.CreatedAt.IsZero():
-		return errors.Join(ErrUngueltig, errors.New("Session ohne Erzeugungszeit"))
+	case !zeitGueltig(s.CreatedAt):
+		return errors.Join(ErrUngueltig, errors.New("Session ohne gültige Erzeugungszeit"))
 	case s.Status != SessionOpen:
 		return errors.Join(ErrUngueltig, errors.New("neue Session muss open sein"))
 	}

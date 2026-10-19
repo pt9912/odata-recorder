@@ -119,31 +119,31 @@ func (r *RecordingRepository) Get(ctx context.Context, id string) (model.Exchang
 
 // ListBySession liefert die Exchanges einer Session nach sequence_no.
 func (r *RecordingRepository) ListBySession(ctx context.Context, sessionID string) ([]model.Exchange, error) {
-	out := []model.Exchange{}
-	err := r.db.lesend(ctx, func(c *sql.Conn) error {
-		var n int
-		if err := c.QueryRowContext(ctx, "SELECT count(*) FROM sessions WHERE id = ?", sessionID).Scan(&n); err != nil {
-			return klassifiziere(err)
-		}
-		if n == 0 {
-			return fmt.Errorf("%w: Session %s", outbound.ErrNichtGefunden, sessionID)
-		}
-		rows, err := c.QueryContext(ctx, "SELECT "+exchangeSpalten+" FROM exchanges WHERE session_id = ? ORDER BY sequence_no", sessionID)
-		if err != nil {
-			return klassifiziere(err)
-		}
-		defer func() { _ = rows.Close() }()
-		for rows.Next() {
-			e, err := leseExchange(rows)
-			if err != nil {
-				return err
-			}
-			out = append(out, e)
-		}
-		return klassifiziere(rows.Err())
-	})
+	rows, err := r.db.sql.QueryContext(ctx, "SELECT "+exchangeSpalten+" FROM exchanges WHERE session_id = ? ORDER BY sequence_no", sessionID)
 	if err != nil {
-		return nil, err
+		return nil, klassifiziere(err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := []model.Exchange{}
+	for rows.Next() {
+		e, err := leseExchange(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, klassifiziere(err)
+	}
+	if len(out) > 0 {
+		return out, nil
+	}
+	var n int
+	if err := r.db.sql.QueryRowContext(ctx, "SELECT count(*) FROM sessions WHERE id = ?", sessionID).Scan(&n); err != nil {
+		return nil, klassifiziere(err)
+	}
+	if n == 0 {
+		return nil, fmt.Errorf("%w: Session %s", outbound.ErrNichtGefunden, sessionID)
 	}
 	return out, nil
 }
@@ -178,9 +178,6 @@ func leseExchange(row zeile) (model.Exchange, error) {
 	}
 	if err = json.Unmarshal([]byte(reqHeaders), &e.RequestHeaders); err != nil {
 		return model.Exchange{}, fmt.Errorf("sqlite: Request-Header von %s: %w", e.ID, err)
-	}
-	if e.RequestHeaders == nil {
-		e.RequestHeaders = map[string][]string{}
 	}
 	if respHeaders.Valid {
 		if err = json.Unmarshal([]byte(respHeaders.String), &e.ResponseHeaders); err != nil {

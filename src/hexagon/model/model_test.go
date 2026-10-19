@@ -44,6 +44,7 @@ func TestSessionValidate(t *testing.T) {
 		"ohne Service": func(s *model.Session) { s.ServiceID = "" },
 		"ohne Zeit":    func(s *model.Session) { s.CreatedAt = time.Time{} },
 		"nicht open":   func(s *model.Session) { s.Status = model.SessionComplete },
+		"Jahr 10000":   func(s *model.Session) { s.CreatedAt = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC) },
 	} {
 		s := gut
 		mut(&s)
@@ -58,19 +59,31 @@ func TestExchangeValidate(t *testing.T) {
 		t.Fatal(err)
 	}
 	fehlerhaft := map[string]func(*model.Exchange){
-		"ohne Session":                  func(e *model.Exchange) { e.SessionID = "" },
-		"sequence_no 0":                 func(e *model.Exchange) { e.SequenceNo = 0 },
-		"ohne Pfad":                     func(e *model.Exchange) { e.Path = "" },
-		"unbekannter Request-Body":      func(e *model.Exchange) { e.RequestBody = "x" },
-		"unbekannte Redaction":          func(e *model.Exchange) { e.ResponseRedact = "x" },
-		"unbekannte Integrität":         func(e *model.Exchange) { e.Integrity = "x" },
-		"unbekannte Gleichwertigkeit":   func(e *model.Exchange) { e.Equivalence = "x" },
-		"present ohne Blob":             func(e *model.Exchange) { e.ResponseBlob = "" },
-		"Request-Blob ohne present":     func(e *model.Exchange) { e.RequestBlob = "sha256:x" },
-		"match_key leer bei incomplete": func(e *model.Exchange) { e.MatchKey, e.Capture = "", model.CaptureIncomplete },
-		"verworfen bei complete":        func(e *model.Exchange) { e.RequestBody = model.BodyDiscarded },
-		"unsafe Request ohne failed":    func(e *model.Exchange) { e.RequestRedact = model.RedactionUnsafe },
-		"unsafe Response mit Body":      func(e *model.Exchange) { e.ResponseRedact = model.RedactionUnsafe },
+		"ohne Session":                   func(e *model.Exchange) { e.SessionID = "" },
+		"sequence_no 0":                  func(e *model.Exchange) { e.SequenceNo = 0 },
+		"ohne Pfad":                      func(e *model.Exchange) { e.Path = "" },
+		"unbekannter Request-Body":       func(e *model.Exchange) { e.RequestBody = "x" },
+		"unbekannte Redaction":           func(e *model.Exchange) { e.ResponseRedact = "x" },
+		"unbekannte Integrität":          func(e *model.Exchange) { e.Integrity = "x" },
+		"unbekannte Gleichwertigkeit":    func(e *model.Exchange) { e.Equivalence = "x" },
+		"present ohne Blob":              func(e *model.Exchange) { e.ResponseBlob = "" },
+		"Request-Blob ohne present":      func(e *model.Exchange) { e.RequestBlob = "sha256:x" },
+		"match_key leer bei incomplete":  func(e *model.Exchange) { e.MatchKey, e.Capture = "", model.CaptureIncomplete },
+		"verworfen bei complete":         func(e *model.Exchange) { e.RequestBody = model.BodyDiscarded },
+		"Startzeit nach Jahr 9999":       func(e *model.Exchange) { e.StartedAt = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC) },
+		"finished_at vor started_at":     func(e *model.Exchange) { e.FinishedAt = e.StartedAt.Add(-time.Second) },
+		"Status 99":                      func(e *model.Exchange) { e.ResponseStatus = 99 },
+		"Status 600":                     func(e *model.Exchange) { e.ResponseStatus = 600 },
+		"Request-Header kein UTF-8":      func(e *model.Exchange) { e.RequestHeaders = map[string][]string{"X": {"\xff"}} },
+		"Response-Headername kein UTF-8": func(e *model.Exchange) { e.ResponseHeaders = map[string][]string{"\xff": {"a"}} },
+		"unsafe Request ohne failed, Body verworfen": func(e *model.Exchange) {
+			e.RequestBody, e.RequestRedact, e.Capture = model.BodyDiscarded, model.RedactionUnsafe, model.CaptureIncomplete
+		},
+		"unsafe Request mit Body": func(e *model.Exchange) {
+			e.MatchKey, e.Capture, e.RequestRedact = "", model.CaptureFailed, model.RedactionUnsafe
+		},
+		"unsafe Request ohne failed": func(e *model.Exchange) { e.RequestRedact = model.RedactionUnsafe },
+		"unsafe Response mit Body":   func(e *model.Exchange) { e.ResponseRedact = model.RedactionUnsafe },
 		"unsafe Response ohne none": func(e *model.Exchange) {
 			e.ResponseRedact, e.ResponseBody, e.ResponseBlob, e.Capture = model.RedactionUnsafe, model.BodyDiscarded, "", model.CaptureIncomplete
 		},

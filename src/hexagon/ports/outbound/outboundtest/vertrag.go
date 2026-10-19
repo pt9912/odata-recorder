@@ -72,6 +72,12 @@ func RunSessionVertrag(t *testing.T, neu Neu) {
 		{"SetStatus erlaubt nur open nach complete oder incomplete", sessionFall4},
 		{"List und FindOpen ordnen nach Zeit und Kennung", sessionFall5},
 		{"Delete nimmt Exchanges mit und achtet Baseline-Quellen", sessionFall6},
+		{"List ordnet nach Zeit, nicht nach Text", sessionFall7},
+		{"Zeiten außerhalb der Jahre 1 bis 9999 sind ungültig", sessionFall8},
+		{"abgebrochener Kontext beendet jede Operation ohne Änderung", sessionFall9},
+		{"List ordnet nach Zeit, nicht nach Text", sessionFall7},
+		{"Zeiten außerhalb der Jahre 1 bis 9999 sind ungültig", sessionFall8},
+		{"abgebrochener Kontext beendet jede Operation ohne Änderung", sessionFall9},
 	} {
 		t.Run(f.name, func(t *testing.T) { f.lauf(t, neu) })
 	}
@@ -99,8 +105,9 @@ func sessionFall2(t *testing.T, neu Neu) {
 		"ohne Kennung": {ServiceID: "d", CreatedAt: t0(), Status: model.SessionOpen},
 		"ohne Service": {ID: "x", CreatedAt: t0(), Status: model.SessionOpen},
 	} {
-		erwarte(t, v.Sessions.Create(ctx, s), model.ErrUngueltig)
-		_ = name
+		if err := v.Sessions.Create(ctx, s); !errors.Is(err, model.ErrUngueltig) {
+			t.Fatalf("%s: Fehler %v", name, err)
+		}
 	}
 	ok(t, v.Sessions.Create(ctx, session("s1", "d", 0)))
 	erwarte(t, v.Sessions.Create(ctx, session("s1", "d", 1)), outbound.ErrBereitsVorhanden)
@@ -213,6 +220,8 @@ func RunRecordingVertrag(t *testing.T, neu Neu) {
 		{"ungültige Exchanges werden abgelehnt", recordingFall6},
 		{"Get und ListBySession bei Unbekanntem und Leerem", recordingFall7},
 		{"Header-Randformen", recordingFall8},
+		{"abgebrochener Kontext beendet jede Operation ohne Änderung", recordingFall9},
+		{"ListBySession ordnet nach sequence_no, nicht nach Kennung", recordingFall10},
 	} {
 		t.Run(f.name, func(t *testing.T) { f.lauf(t, neu) })
 	}
@@ -325,6 +334,18 @@ func recordingFall6(t *testing.T, neu Neu) {
 		"unsafe Request ohne failed":  func(e *model.Exchange) { e.RequestRedact = model.RedactionUnsafe },
 		"unsafe Response ohne none":   func(e *model.Exchange) { e.ResponseRedact = model.RedactionUnsafe },
 		"ohne Startzeit":              func(e *model.Exchange) { e.StartedAt = time.Time{} },
+		"Startzeit nach Jahr 9999":    func(e *model.Exchange) { e.StartedAt = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC) },
+		"finished_at vor started_at":  func(e *model.Exchange) { e.FinishedAt = e.StartedAt.Add(-time.Second) },
+		"Status unter 100":            func(e *model.Exchange) { e.ResponseStatus = 99 },
+		"Status über 599":             func(e *model.Exchange) { e.ResponseStatus = 600 },
+		"negativer Status":            func(e *model.Exchange) { e.ResponseStatus = -1 },
+		"Header kein UTF-8":           func(e *model.Exchange) { e.RequestHeaders = map[string][]string{"X": {"\xff"}} },
+		"unsafe Request ohne failed, Body verworfen": func(e *model.Exchange) {
+			e.RequestBody, e.RequestRedact, e.Capture = model.BodyDiscarded, model.RedactionUnsafe, model.CaptureIncomplete
+		},
+		"unsafe Request mit Body": func(e *model.Exchange) {
+			e.MatchKey, e.Capture, e.RequestRedact = "", model.CaptureFailed, model.RedactionUnsafe
+		},
 	}
 	for name, mut := range fehlerhaft {
 		e := exchange("s", "x", 1)
@@ -377,5 +398,114 @@ func recordingFall8(t *testing.T, neu Neu) {
 	}
 	if gb.ResponseHeaders == nil || len(gb.ResponseHeaders) != 0 {
 		t.Fatalf("leere Response-Header: %#v", gb.ResponseHeaders)
+	}
+}
+
+func sessionFall7(t *testing.T, neu Neu) {
+	ctx := context.Background()
+	v := neu(t)
+	v.FuegeDienstHinzu(t, "d")
+	ganz := time.Date(2026, 10, 19, 10, 0, 0, 0, time.UTC)
+	zeiten := []struct {
+		id string
+		t  time.Time
+	}{
+		{"b-halb", ganz.Add(500 * time.Millisecond)},
+		{"a-ganz", ganz},
+		{"c-12", ganz.Add(120 * time.Millisecond)},
+		{"d-1", ganz.Add(100 * time.Millisecond)},
+		// 09:00 in UTC-5 sind 14:00 UTC: die Uhrzeit des Texts läge vor 10:00, die Zeit danach.
+		{"e-zone", time.Date(2026, 10, 19, 9, 0, 0, 0, time.FixedZone("m5", -5*3600))},
+	}
+	for _, z := range zeiten {
+		s := session(z.id, "d", 0)
+		s.CreatedAt = z.t
+		ok(t, v.Sessions.Create(ctx, s))
+	}
+	l, err := v.Sessions.List(ctx, "d")
+	ok(t, err)
+	var ids []string
+	for _, s := range l {
+		ids = append(ids, s.ID)
+	}
+	if want := []string{"a-ganz", "d-1", "c-12", "b-halb", "e-zone"}; !reflect.DeepEqual(ids, want) {
+		t.Fatalf("Reihenfolge %v, erwartet %v", ids, want)
+	}
+}
+
+func sessionFall8(t *testing.T, neu Neu) {
+	ctx := context.Background()
+	v := neu(t)
+	v.FuegeDienstHinzu(t, "d")
+	for name, z := range map[string]time.Time{
+		"Jahr 10000": time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC),
+		"Jahr 0":     time.Date(0, 1, 1, 0, 0, 0, 0, time.UTC),
+	} {
+		s := session("s", "d", 0)
+		s.CreatedAt = z
+		if err := v.Sessions.Create(ctx, s); !errors.Is(err, model.ErrUngueltig) {
+			t.Fatalf("%s: Fehler %v", name, err)
+		}
+	}
+	ok(t, v.Sessions.Create(ctx, session("s", "d", 0)))
+	if l, err := v.Sessions.List(ctx, "d"); err != nil || len(l) != 1 {
+		t.Fatalf("List nach ungültigen Zeiten: %v %v", l, err)
+	}
+}
+
+func sessionFall9(t *testing.T, neu Neu) {
+	bg := context.Background()
+	v := neu(t)
+	v.FuegeDienstHinzu(t, "d")
+	ok(t, v.Sessions.Create(bg, session("s", "d", 0)))
+	ok(t, v.Recording.Append(bg, exchange("s", "e", 1)))
+	ctx, abbruch := context.WithCancel(bg)
+	abbruch()
+	erwarte(t, v.Sessions.Create(ctx, session("neu", "d", 1)), context.Canceled)
+	_, err := v.Sessions.Get(ctx, "s")
+	erwarte(t, err, context.Canceled)
+	erwarte(t, v.Sessions.SetStatus(ctx, "s", model.SessionComplete), context.Canceled)
+	_, err = v.Sessions.List(ctx, "d")
+	erwarte(t, err, context.Canceled)
+	_, err = v.Sessions.FindOpen(ctx)
+	erwarte(t, err, context.Canceled)
+	erwarte(t, v.Sessions.Delete(ctx, "s"), context.Canceled)
+	if _, err := v.Sessions.Get(bg, "neu"); !errors.Is(err, outbound.ErrNichtGefunden) {
+		t.Fatalf("Create trotz Abbruch: %v", err)
+	}
+	if got, err := v.Sessions.Get(bg, "s"); err != nil || got.Status != model.SessionOpen {
+		t.Fatalf("SetStatus trotz Abbruch: %v %v", got, err)
+	}
+	if _, err := v.Recording.Get(bg, "e"); err != nil {
+		t.Fatalf("Delete trotz Abbruch: %v", err)
+	}
+}
+
+func recordingFall9(t *testing.T, neu Neu) {
+	v := offeneSession(t, neu)
+	bg := context.Background()
+	ok(t, v.Recording.Append(bg, exchange("s", "e1", 1)))
+	ctx, abbruch := context.WithCancel(bg)
+	abbruch()
+	erwarte(t, v.Recording.Append(ctx, exchange("s", "e2", 2)), context.Canceled)
+	_, err := v.Recording.Get(ctx, "e1")
+	erwarte(t, err, context.Canceled)
+	_, err = v.Recording.ListBySession(ctx, "s")
+	erwarte(t, err, context.Canceled)
+	if l, err := v.Recording.ListBySession(bg, "s"); err != nil || len(l) != 1 {
+		t.Fatalf("Append trotz Abbruch: %v %v", l, err)
+	}
+}
+
+func recordingFall10(t *testing.T, neu Neu) {
+	v := offeneSession(t, neu)
+	ctx := context.Background()
+	for i, id := range []string{"z", "m", "a"} {
+		ok(t, v.Recording.Append(ctx, exchange("s", id, i+1)))
+	}
+	l, err := v.Recording.ListBySession(ctx, "s")
+	ok(t, err)
+	if len(l) != 3 || l[0].ID != "z" || l[1].ID != "m" || l[2].ID != "a" {
+		t.Fatalf("Reihenfolge: %v", l)
 	}
 }

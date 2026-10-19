@@ -70,22 +70,3 @@ func (d *DB) inTx(ctx context.Context, f func(*sql.Conn) error) (err error) {
 	fertig = true
 	return nil
 }
-
-// lesend führt f auf einer Verbindung aus; mehrere Abfragen sehen denselben Stand nur,
-// wenn f sie in einer Lesetransaktion ausführt, das übernimmt BEGIN (aufgeschoben).
-func (d *DB) lesend(ctx context.Context, f func(*sql.Conn) error) (err error) {
-	conn, err := d.sql.Conn(ctx)
-	if err != nil {
-		return klassifiziere(err)
-	}
-	defer func() {
-		if cerr := conn.Close(); err == nil {
-			err = cerr
-		}
-	}()
-	if _, err = conn.ExecContext(ctx, "BEGIN"); err != nil {
-		return klassifiziere(err)
-	}
-	defer func() { _, _ = conn.ExecContext(context.WithoutCancel(ctx), "ROLLBACK") }()
-	return f(conn)
-}

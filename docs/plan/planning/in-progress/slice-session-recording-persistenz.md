@@ -90,17 +90,18 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Zusage | Fänger |
 |---|---|
-| Nr. 1: `Create` prüft Gültigkeit, Doppeltes, Service | `Create lehnt Ungültiges, Doppeltes und unbekannten Service ab`, `TestSessionValidate`; Mutation: Service-Zweig entfernt |
+| Nr. 1: `Create` prüft Gültigkeit, Kennung, Service (in dieser Reihenfolge) | `Create lehnt Ungültiges, Doppeltes und unbekannten Service ab`, `TestSessionValidate`; Mutation: Service-Zweig entfernt |
 | Nr. 2/11: Unbekanntes ist `ErrNichtGefunden` | `Get einer unbekannten Kennung`, `Get und ListBySession bei Unbekanntem und Leerem` |
 | Nr. 3: nur `open` → `complete`/`incomplete` | `SetStatus erlaubt nur …`, `TestSessionStatusWechsel`; Mutationen: Übergang immer erlaubt, unbekannte Kennung ohne Fehler |
-| Nr. 4/5: Ordnung, leere Liste, `FindOpen` | `List und FindOpen ordnen …`; Mutationen: ohne `ORDER BY`, Filter umgekehrt |
-| Nr. 6: `Delete` nimmt Exchanges mit, achtet Baseline-Quellen | `Delete nimmt Exchanges mit …`; Mutationen: Exchanges nicht gelöscht, `ErrReferenziert` entfernt, kein Rollback |
+| Nr. 4/5: Ordnung nach Zeit, leere Liste, `FindOpen` | `List und FindOpen ordnen …`, `List ordnet nach Zeit, nicht nach Text`; Mutationen: ohne `ORDER BY`, Filter umgekehrt, Zeitformat mit variabler Nachkommastelle, Zeit ohne UTC |
+| Nr. 6: `Delete` nimmt Exchanges mit, achtet Baseline-Quellen | `Delete nimmt Exchanges mit …`; Mutationen: Exchanges nicht gelöscht, `ErrReferenziert` entfernt, kein Rollback; Cursors löscht der Fremdschlüssel `CASCADE` (`make schema-check`, Fall „Session löschen nimmt ihre Cursor mit“) |
 | Nr. 7: `Append` nur an offene, bekannte Session | `Append prüft Session und Zustand`; Mutation: Zustandsprüfung entfernt |
 | Nr. 8: `sequence_no` lückenlos, auch gleichzeitig | `sequence_no ist lückenlos`, `gleichzeitige Anhänge ordnen sich`; Mutation: Sequenzprüfung entfernt |
-| Nr. 9: append-only, doppelte Kennung ändert nichts | `doppelte Kennung ändert nichts`; Mutation: `INSERT OR REPLACE`; es gibt keine ändernde Operation am Port (`RecordingRepository`) |
-| Nr. 10: ungültige Exchanges | `ungültige Exchanges werden abgelehnt`, `TestExchangeValidate`; Mutationen: je eine Regel von `Validate` entfernt |
-| Nr. 12: Header-Randformen | `Header-Randformen`; Mutation: `nil`-Normalisierung entfernt |
-| Nr. 13: abgebrochener Kontext ändert nichts | beide Tests `abgebrochener Kontext ändert nichts` (die Prüfung leistet `database/sql`; keine eigene Prüfung im Adapter, daher keine Mutation) |
+| Nr. 9: append-only, doppelte Kennung ändert nichts | `doppelte Kennung ändert nichts`; es gibt keine ändernde Operation am Port; die Kennungsprüfung und der Primärschlüssel decken sich, `INSERT OR REPLACE` allein ist äquivalent und keine Mutation |
+| Nr. 10: Gültigkeit von Exchange und Session (Pflichtfelder, Aufzählungen, Bodies, Zustände, Jahre 1 bis 9999, `finished_at`, Status, UTF-8) | `ungültige Exchanges werden abgelehnt`, `Zeiten außerhalb der Jahre 1 bis 9999 sind ungültig`, `TestExchangeValidate`, `TestSessionValidate`; Mutationen: je eine Regel von `Validate` entfernt oder abgeschwächt |
+| Nr. 11: `ListBySession` nach `sequence_no` | `ListBySession ordnet nach sequence_no, nicht nach Kennung`; Mutation: Ordnung nach Kennung |
+| Nr. 12: Header-Randformen | `Header-Randformen`; Mutation: `nil`-Normalisierung im Schreiber entfernt |
+| Nr. 13: abgebrochener Kontext beendet jede Operation ohne Änderung | beide Tests `abgebrochener Kontext beendet jede Operation ohne Änderung` (alle neun Operationen); die Prüfung leistet `database/sql`, eine eigene im Adapter gibt es nicht und ist keine Mutation |
 | Jede Operation ist atomar | Mutation „ohne Rollback“ färbt `TestSessionVertrag` rot |
 
 ## 4. Trigger

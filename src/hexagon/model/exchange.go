@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode/utf8"
 )
 
 // BodyState beschreibt je Richtung, was mit dem Body eines Exchange geschah (SPEC-001).
@@ -91,12 +92,26 @@ func ungueltig(format string, a ...any) error {
 
 // Validate prüft die Invarianten aus SPEC-001 und SPEC-004.
 func (e Exchange) Validate() error {
-	for _, pruefung := range []func() error{e.pruefeKopf, e.pruefeAufzaehlungen, e.pruefeBodies, e.pruefeZustand} {
+	for _, pruefung := range []func() error{e.pruefeKopf, e.pruefeWerte, e.pruefeAufzaehlungen, e.pruefeBodies, e.pruefeZustand} {
 		if err := pruefung(); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func headerGueltig(h map[string][]string) bool {
+	for name, werte := range h {
+		if !utf8.ValidString(name) {
+			return false
+		}
+		for _, w := range werte {
+			if !utf8.ValidString(w) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func (e Exchange) pruefeKopf() error {
@@ -107,8 +122,20 @@ func (e Exchange) pruefeKopf() error {
 		return ungueltig("sequence_no %d unter 1", e.SequenceNo)
 	case e.Method == "" || e.Path == "":
 		return ungueltig("Exchange ohne Methode oder Pfad")
-	case e.StartedAt.IsZero():
-		return ungueltig("Exchange ohne Startzeit")
+	case !zeitGueltig(e.StartedAt):
+		return ungueltig("Exchange ohne gültige Startzeit")
+	}
+	return nil
+}
+
+func (e Exchange) pruefeWerte() error {
+	switch {
+	case !e.FinishedAt.IsZero() && (!zeitGueltig(e.FinishedAt) || e.FinishedAt.Before(e.StartedAt)):
+		return ungueltig("finished_at ungültig oder vor started_at")
+	case e.ResponseStatus != 0 && (e.ResponseStatus < 100 || e.ResponseStatus > 599):
+		return ungueltig("Response-Status %d außerhalb von 100 bis 599", e.ResponseStatus)
+	case !headerGueltig(e.RequestHeaders) || !headerGueltig(e.ResponseHeaders):
+		return ungueltig("Header sind kein gültiges UTF-8")
 	}
 	return nil
 }

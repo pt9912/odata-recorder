@@ -21,19 +21,12 @@ func neueVerbindung(t *testing.T) outboundtest.Verbindung {
 		},
 		MacheZurBaselineQuelle: func(t *testing.T, sessionID string) {
 			t.Helper()
-			stmts := []string{
-				`INSERT INTO snapshots(id, service_id, created_at, state_blob, state_hash, metadata_hash, snapshot_kind)
-				 SELECT 'b-' || id, service_id, created_at, 'x', 'h', 'm', 'baseline' FROM sessions WHERE id = ?`,
-				`INSERT INTO baseline_sources(baseline_snapshot_id, baseline_kind, session_id) VALUES ('b-' || ?, 'baseline', ?)`,
+			if _, err := d.SQL().Exec(`INSERT INTO snapshots(id, service_id, created_at, state_blob, state_hash, metadata_hash, snapshot_kind)
+				SELECT 'b-' || id, service_id, created_at, 'x', 'h', 'm', 'baseline' FROM sessions WHERE id = ?`, sessionID); err != nil {
+				t.Fatal(err)
 			}
-			for _, s := range stmts {
-				args := []any{sessionID}
-				if s[:27] == stmts[1][:27] {
-					args = []any{sessionID, sessionID}
-				}
-				if _, err := d.SQL().Exec(s, args...); err != nil {
-					t.Fatal(err)
-				}
+			if _, err := d.SQL().Exec(`INSERT INTO baseline_sources(baseline_snapshot_id, baseline_kind, session_id) VALUES ('b-' || ?, 'baseline', ?)`, sessionID, sessionID); err != nil {
+				t.Fatal(err)
 			}
 		},
 	}

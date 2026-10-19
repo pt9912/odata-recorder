@@ -21,7 +21,10 @@ var _ outbound.SessionRepository = (*SessionRepository)(nil)
 // Sessions liefert das Repository für Sessions.
 func (d *DB) Sessions() *SessionRepository { return &SessionRepository{db: d} }
 
-func zeitText(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
+// zeitFormat hat immer neun Nachkommastellen, damit die Textordnung die Zeitordnung ist.
+const zeitFormat = "2006-01-02T15:04:05.000000000Z"
+
+func zeitText(t time.Time) string { return t.UTC().Format(zeitFormat) }
 
 func zeitAus(s string) (time.Time, error) { return time.Parse(time.RFC3339Nano, s) }
 
