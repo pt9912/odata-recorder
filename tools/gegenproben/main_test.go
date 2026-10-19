@@ -150,3 +150,48 @@ func TestStarteBeendetDieProzessgruppeBeiFristablauf(t *testing.T) {
 		t.Fatalf("Rückkehr nach %v, der Kindprozess hält die Ausgabe offen", d)
 	}
 }
+
+func TestJederFallHatEigenesTmpdir(t *testing.T) {
+	sammel := filepath.Join(t.TempDir(), "tmpdirs")
+	mitBefehl(t, func(string, Gate) string { return `echo "$TMPDIR" >> ` + sammel }, "sh")
+	fs := []Fall{{Name: "a"}, {Name: "b"}, {Name: "c"}}
+	var out, errb bytes.Buffer
+	if got := run(&out, &errb, wurzelMitEingaben(t), fs); got != exitOK {
+		t.Fatalf("Exit %d: %s%s", got, out.String(), errb.String())
+	}
+	b, err := os.ReadFile(sammel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, z := range strings.Fields(string(b)) {
+		if z == os.Getenv("TMPDIR") {
+			t.Fatalf("Fall teilt das TMPDIR des Prozesses: %s", z)
+		}
+		seen[z] = true
+	}
+	if len(seen) != len(fs) {
+		t.Fatalf("%d verschiedene TMPDIR bei %d Fällen: %v", len(seen), len(fs), seen)
+	}
+}
+
+func TestHashEingabenGoSumIstOptional(t *testing.T) {
+	w := wurzelMitEingaben(t)
+	ohne, err := hashEingaben(w)
+	if err != nil {
+		t.Fatalf("ohne go.sum: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(w, "go.sum"), []byte("s\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mit, err := hashEingaben(w)
+	if err != nil || mit == ohne {
+		t.Fatalf("go.sum geht nicht in die Prüfsumme ein: %v", err)
+	}
+	if err := os.Remove(filepath.Join(w, "go.mod")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := hashEingaben(w); err == nil {
+		t.Fatal("fehlendes go.mod bleibt unbemerkt")
+	}
+}

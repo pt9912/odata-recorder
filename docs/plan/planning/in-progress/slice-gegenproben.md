@@ -83,7 +83,8 @@ Aussagen-Berührung steht hier gar nicht.
 | `tools/gegenproben/` (eigenes Go-Modul mit `go.mod`) | neu | ein Programm, das je Fall eine Kopie des Baums in einem Wegwerfverzeichnis anlegt, den Verstoß einfügt und `a-check` bzw. `lint.sh` und `golangci-lint` als Prozess ruft; die Fälle laufen nebenläufig, die Kopie ist ein Dateikopieren im Speicherdateisystem, kein `docker cp`; ein eigenes Modul, damit `go test ./...` und `make lint` des Produkts es nicht mitnehmen |
 | `Dockerfile` | update | Stufe `gegenproben` auf dem golangci-lint-Image mit dem `a-check`-Binary aus dessen Image (`COPY --from`), baut das Programm einmal und führt es aus; ohne Netz, die Stufe kopiert nur die Eingaben der Gegenproben; `--no-cache-filter` lässt sie bei geänderter Eingabe immer laufen, damit ihre Ausgabe erscheint |
 | `tools/harness/gegenproben-eingabe.sh`, `harness/gegenproben.stempel` | neu | Prüfsumme der Eingaben und Pins; der Stempel ist versioniert und trägt die Prüfsumme des letzten grünen Laufs |
-| `.dockerignore` | update | lässt `.a-check.yml` und `tools/gegenproben` in den Kontext |
+| `.dockerignore` | update | lässt `.a-check.yml` und `tools/gegenproben` in den Kontext (`go.sum` steht schon dort) |
+| `tools/harness/lint.sh`, `.golangci.yml`, `harness/vertraege/SPEC-101-lint-profil.md` | update | der `# Why:`-Block der Regel ist wie sie eingerückt (Review-Befund F-6 aus dem Folge-Slice-Eintrag) |
 | harness/vertraege/SPEC-102-gegenproben.md | neu | Vertrag der Gegenproben: Namensregel, Liste, Kopie, Verstoßformen, Exit-Codes |
 | harness/mk/gegenproben.mk | neu | Ziel `gegenproben` (ein `docker build --target gegenproben`); nicht in `GATE_CHECKS` |
 | docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md (neu), `docs/plan/adr/README.md` | neu / update | Entscheidung mit drei Alternativen; Index mitziehen |
