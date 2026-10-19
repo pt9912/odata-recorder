@@ -79,8 +79,8 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/model/` | neu | `Session`, `Exchange` und ihre Zustände; Standardbibliothek ohne I/O |
-| `src/hexagon/ports/outbound/` | neu | `SessionRepository`, `RecordingRepository` |
+| `src/hexagon/model/` | neu | `Session`, `Exchange` und ihre Zustände mit `Validate`; Standardbibliothek ohne I/O |
+| `src/hexagon/ports/outbound/`, `outboundtest/` | neu | `SessionRepository`, `RecordingRepository`, ihre Fehler; Vertragstests, die gegen jeden Adapter laufen |
 | `src/adapters/driven/sqlite/` | update | Implementierung beider Ports |
 | `spec/spezifikation.md` | update | Randformen der Repositories (doppelte `sequence_no`, Anhängen an eine geschlossene Session, Statusübergang rückwärts) |
 
@@ -90,10 +90,18 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Zusage | Fänger |
 |---|---|
-| Exchanges sind append-only | Test: Überschreiben und Löschen einzelner Exchanges nicht möglich; Mutation: `UPDATE` zugelassen |
-| Statusübergang nur `open` → `complete`/`incomplete` | Test: Rückwärts- und Doppelübergang abgelehnt |
-| Offene Sessions werden gefunden | Test mit mehreren Sessions; Mutation: Filter entfernt |
-| Anhängen ist atomar | Test: Abbruch zwischen Exchange und Sequenz hinterlässt nichts |
+| Nr. 1: `Create` prüft Gültigkeit, Doppeltes, Service | `Create lehnt Ungültiges, Doppeltes und unbekannten Service ab`, `TestSessionValidate`; Mutation: Service-Zweig entfernt |
+| Nr. 2/11: Unbekanntes ist `ErrNichtGefunden` | `Get einer unbekannten Kennung`, `Get und ListBySession bei Unbekanntem und Leerem` |
+| Nr. 3: nur `open` → `complete`/`incomplete` | `SetStatus erlaubt nur …`, `TestSessionStatusWechsel`; Mutationen: Übergang immer erlaubt, unbekannte Kennung ohne Fehler |
+| Nr. 4/5: Ordnung, leere Liste, `FindOpen` | `List und FindOpen ordnen …`; Mutationen: ohne `ORDER BY`, Filter umgekehrt |
+| Nr. 6: `Delete` nimmt Exchanges mit, achtet Baseline-Quellen | `Delete nimmt Exchanges mit …`; Mutationen: Exchanges nicht gelöscht, `ErrReferenziert` entfernt, kein Rollback |
+| Nr. 7: `Append` nur an offene, bekannte Session | `Append prüft Session und Zustand`; Mutation: Zustandsprüfung entfernt |
+| Nr. 8: `sequence_no` lückenlos, auch gleichzeitig | `sequence_no ist lückenlos`, `gleichzeitige Anhänge ordnen sich`; Mutation: Sequenzprüfung entfernt |
+| Nr. 9: append-only, doppelte Kennung ändert nichts | `doppelte Kennung ändert nichts`; Mutation: `INSERT OR REPLACE`; es gibt keine ändernde Operation am Port (`RecordingRepository`) |
+| Nr. 10: ungültige Exchanges | `ungültige Exchanges werden abgelehnt`, `TestExchangeValidate`; Mutationen: je eine Regel von `Validate` entfernt |
+| Nr. 12: Header-Randformen | `Header-Randformen`; Mutation: `nil`-Normalisierung entfernt |
+| Nr. 13: abgebrochener Kontext ändert nichts | beide Tests `abgebrochener Kontext ändert nichts` (die Prüfung leistet `database/sql`; keine eigene Prüfung im Adapter, daher keine Mutation) |
+| Jede Operation ist atomar | Mutation „ohne Rollback“ färbt `TestSessionVertrag` rot |
 
 ## 4. Trigger
 
