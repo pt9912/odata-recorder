@@ -23,6 +23,18 @@ type Verbindung struct {
 	Snapshots outbound.SnapshotRepository
 	Imports   outbound.ImportRepository
 	Coverage  outbound.CoverageRepository
+	// Workspaces, Entities, Cursors, Wartung und Transaktion tragen SPEC-108.
+	Workspaces  outbound.WorkspaceRepository
+	Entities    outbound.EntityRepository
+	Cursors     outbound.CursorRepository
+	Wartung     outbound.StorageMaintenance
+	Transaktion outbound.WorkspaceTransactor
+	// Zeilen zählt die Zeilen einer Tabelle, auch die, die kein Port mehr erreicht.
+	Zeilen func(t *testing.T, tabelle string) int
+	// VerletzeFremdschluessel legt eine Zeile ohne Elternzeile an, an der kein Port etwas merkt.
+	VerletzeFremdschluessel func(t *testing.T)
+	// VerletzeCheck legt eine Zeile an, die ein CHECK-Constraint des Schemas verletzt.
+	VerletzeCheck func(t *testing.T)
 	// FuegeDienstHinzu legt einen Service an, den Sessions referenzieren dürfen.
 	FuegeDienstHinzu func(t *testing.T, id string)
 	// MacheZurBaselineQuelle trägt die Session als Quelle einer Baseline ein.
@@ -30,6 +42,9 @@ type Verbindung struct {
 	// FuegeWorkspaceSnapshotHinzu legt einen Snapshot der Art workspace an, den kein Port der
 	// Baselines sehen darf.
 	FuegeWorkspaceSnapshotHinzu func(t *testing.T, id, serviceID string)
+	// BrichNachLoeschenAb ruft abbruch, sobald die nächste Operation Zeilen aus der Tabelle
+	// gelöscht hat und noch nicht fertig ist.
+	BrichNachLoeschenAb func(t *testing.T, tabelle string, abbruch context.CancelFunc)
 	// BrichNachImportAb ruft abbruch, sobald die nächste Publikation den Import-Eintrag
 	// geschrieben hat und noch nicht fertig ist.
 	BrichNachImportAb func(t *testing.T, abbruch context.CancelFunc)

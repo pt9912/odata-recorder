@@ -24,3 +24,10 @@ var (
 	ErrZuGross         = errors.New("Body überschreitet die Grenze")
 	ErrAbgeschlossen   = errors.New("Writer ist abgeschlossen")
 )
+
+// Fehler der Workspace-Repositories (SPEC-108).
+var (
+	ErrRevisionVeraltet = errors.New("Revision ist veraltet")
+	ErrFremderService   = errors.New("gehört zu einem anderen Service")
+	ErrFalscheArt       = errors.New("Snapshot hat die falsche Art")
+)

@@ -235,3 +235,151 @@ func TestImportValidate(t *testing.T) {
 		}
 	}
 }
+
+func gueltigerWorkspace() model.Workspace {
+	return model.Workspace{ID: "w", ServiceID: "d", BaselineSnapshotID: "b", CreatedAt: jetzt()}
+}
+
+func TestWorkspaceValidate(t *testing.T) {
+	if err := gueltigerWorkspace().Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, mut := range map[string]func(*model.Workspace){
+		"ohne Kennung":      func(w *model.Workspace) { w.ID = "" },
+		"ohne Service":      func(w *model.Workspace) { w.ServiceID = "" },
+		"ohne Baseline":     func(w *model.Workspace) { w.BaselineSnapshotID = "" },
+		"ohne Zeit":         func(w *model.Workspace) { w.CreatedAt = time.Time{} },
+		"Jahr 10000":        func(w *model.Workspace) { w.CreatedAt = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC) },
+		"Revision 1":        func(w *model.Workspace) { w.Revision = 1 },
+		"negative Revision": func(w *model.Workspace) { w.Revision = -1 },
+	} {
+		w := gueltigerWorkspace()
+		mut(&w)
+		if err := w.Validate(); !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+func gueltigerEintrag() model.EntityState {
+	return model.EntityState{WorkspaceID: "w", EntitySet: "P", EntityKey: "1", Payload: `{}`,
+		KnownProperties: []string{"a", "b"}, Completeness: model.EntityPartial}
+}
+
+func TestEntityStateValidate(t *testing.T) {
+	if err := gueltigerEintrag().Validate(); err != nil {
+		t.Fatal(err)
+	}
+	vollstaendig := gueltigerEintrag()
+	vollstaendig.Completeness, vollstaendig.KnownProperties, vollstaendig.Version = model.EntityComplete, nil, 0
+	if err := vollstaendig.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, mut := range map[string]func(*model.EntityState){
+		"ohne Workspace":      func(e *model.EntityState) { e.WorkspaceID = "" },
+		"ohne entity_set":     func(e *model.EntityState) { e.EntitySet = "" },
+		"ohne entity_key":     func(e *model.EntityState) { e.EntityKey = "" },
+		"Payload leer":        func(e *model.EntityState) { e.Payload = "" },
+		"Payload kein UTF-8":  func(e *model.EntityState) { e.Payload = "\"\xff\"" },
+		"Vollständigkeit":     func(e *model.EntityState) { e.Completeness = "x" },
+		"negative Version":    func(e *model.EntityState) { e.Version = -1 },
+		"leere Property":      func(e *model.EntityState) { e.KnownProperties = []string{""} },
+		"Property kein UTF-8": func(e *model.EntityState) { e.KnownProperties = []string{"\xff"} },
+		"doppelte Property":   func(e *model.EntityState) { e.KnownProperties = []string{"a", "a"} },
+	} {
+		e := gueltigerEintrag()
+		mut(&e)
+		if err := e.Validate(); !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+func TestKnownPropertiesJSON(t *testing.T) {
+	e := gueltigerEintrag()
+	e.KnownProperties = []string{"b", "ä", "a"}
+	if got := e.KnownPropertiesJSON(); got != `["a","b","ä"]` {
+		t.Errorf("sortiert: %s", got)
+	}
+	if e.KnownProperties[0] != "b" {
+		t.Errorf("die Eingabe wurde umgeordnet: %v", e.KnownProperties)
+	}
+	e.KnownProperties = nil
+	if got := e.KnownPropertiesJSON(); got != `[]` {
+		t.Errorf("ohne Properties: %s", got)
+	}
+}
+
+func gueltigerCursor() model.ReplayCursor {
+	return model.ReplayCursor{WorkspaceID: "w", ReplaySessionID: "r", RecordingSessionID: "s", ServiceID: "d",
+		Strategy: model.StrategyStrict, Position: 2, Consumed: []int64{4, 1}}
+}
+
+func TestReplayCursorValidate(t *testing.T) {
+	if err := gueltigerCursor().Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []model.ReplayStrategy{model.StrategySequential, model.StrategyStrict, model.StrategyFirst, model.StrategyLast} {
+		c := gueltigerCursor()
+		c.Strategy = s
+		if err := c.Validate(); err != nil {
+			t.Errorf("Strategie %s: %v", s, err)
+		}
+	}
+	for name, mut := range map[string]func(*model.ReplayCursor){
+		"ohne Workspace":         func(c *model.ReplayCursor) { c.WorkspaceID = "" },
+		"ohne Replay-Session":    func(c *model.ReplayCursor) { c.ReplaySessionID = "" },
+		"ohne Recording-Session": func(c *model.ReplayCursor) { c.RecordingSessionID = "" },
+		"ohne Service":           func(c *model.ReplayCursor) { c.ServiceID = "" },
+		"Strategie unbekannt":    func(c *model.ReplayCursor) { c.Strategy = "x" },
+		"Position zu klein":      func(c *model.ReplayCursor) { c.Position = 1 },
+		"Position zu groß":       func(c *model.ReplayCursor) { c.Position = 3 },
+		"consumed mit 0":         func(c *model.ReplayCursor) { c.Consumed = []int64{0, 1} },
+		"consumed negativ":       func(c *model.ReplayCursor) { c.Consumed = []int64{-1, 1} },
+		"consumed doppelt":       func(c *model.ReplayCursor) { c.Consumed = []int64{1, 1} },
+	} {
+		c := gueltigerCursor()
+		mut(&c)
+		if err := c.Validate(); !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+func TestConsumedJSON(t *testing.T) {
+	c := gueltigerCursor()
+	if got := c.ConsumedJSON(); got != `[1,4]` {
+		t.Errorf("sortiert: %s", got)
+	}
+	if c.Consumed[0] != 4 {
+		t.Errorf("die Eingabe wurde umgeordnet: %v", c.Consumed)
+	}
+	c.Consumed = nil
+	if got := c.ConsumedJSON(); got != `[]` {
+		t.Errorf("ohne Einträge: %s", got)
+	}
+}
+
+func TestWorkspaceSnapshotValidate(t *testing.T) {
+	gut := model.WorkspaceSnapshot{ID: "s", ServiceID: "d", WorkspaceID: "w", Name: "n", CreatedAt: jetzt(),
+		StateBlob: "sha256:" + strings.Repeat("a", 64), StateHash: "h", MetadataHash: "m"}
+	if err := gut.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, mut := range map[string]func(*model.WorkspaceSnapshot){
+		"ohne Kennung":       func(s *model.WorkspaceSnapshot) { s.ID = "" },
+		"ohne Service":       func(s *model.WorkspaceSnapshot) { s.ServiceID = "" },
+		"ohne Workspace":     func(s *model.WorkspaceSnapshot) { s.WorkspaceID = "" },
+		"ohne Name":          func(s *model.WorkspaceSnapshot) { s.Name = "" },
+		"ohne Zeit":          func(s *model.WorkspaceSnapshot) { s.CreatedAt = time.Time{} },
+		"Blob ungültig":      func(s *model.WorkspaceSnapshot) { s.StateBlob = "sha256:a" },
+		"ohne state_hash":    func(s *model.WorkspaceSnapshot) { s.StateHash = "" },
+		"ohne metadata_hash": func(s *model.WorkspaceSnapshot) { s.MetadataHash = "" },
+	} {
+		s := gut
+		mut(&s)
+		if err := s.Validate(); !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}

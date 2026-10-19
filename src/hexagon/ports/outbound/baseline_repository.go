@@ -6,13 +6,20 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// SnapshotRepository liest Baselines, die Snapshots der Art baseline (SPEC-107). Es
-// schreibt nicht: Baselines entstehen über ImportRepository.Publish.
+// SnapshotRepository liest Baselines, die Snapshots der Art baseline (SPEC-107), und
+// verwaltet Workspace-Snapshots (SPEC-108). Baselines entstehen über
+// ImportRepository.Publish.
 type SnapshotRepository interface {
 	// Get liest eine Baseline.
 	Get(ctx context.Context, id string) (model.BaselineSnapshot, error)
 	// List liefert die Baselines eines Service nach Erzeugungszeit und Kennung.
 	List(ctx context.Context, serviceID string) ([]model.BaselineSnapshot, error)
+	// CreateWorkspace legt einen Snapshot der Art workspace an.
+	CreateWorkspace(ctx context.Context, s model.WorkspaceSnapshot) error
+	// GetWorkspace liest einen Workspace-Snapshot des Workspace.
+	GetWorkspace(ctx context.Context, workspaceID, id string) (model.WorkspaceSnapshot, error)
+	// ListWorkspace liefert die Snapshots eines Workspace nach Erzeugungszeit und Kennung.
+	ListWorkspace(ctx context.Context, workspaceID string) ([]model.WorkspaceSnapshot, error)
 }
 
 // ImportRepository veröffentlicht Imports und liest ihre Provenienz (SPEC-107).

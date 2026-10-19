@@ -24,16 +24,17 @@ func gibtEs(ctx context.Context, a abfrager, query string, args ...any) (bool, e
 	return n > 0, nil
 }
 
-// SnapshotRepository erfüllt outbound.SnapshotRepository auf SQLite (SPEC-107); es
-// sieht nur Snapshots der Art baseline.
+// SnapshotRepository erfüllt outbound.SnapshotRepository auf SQLite (SPEC-107, SPEC-108);
+// Get und List sehen nur Snapshots der Art baseline, die Workspace-Operationen nur die der
+// Art workspace.
 type SnapshotRepository struct {
-	db *DB
+	z zugriff
 }
 
 var _ outbound.SnapshotRepository = (*SnapshotRepository)(nil)
 
 // Snapshots liefert das Repository für Baselines.
-func (d *DB) Snapshots() *SnapshotRepository { return &SnapshotRepository{db: d} }
+func (d *DB) Snapshots() *SnapshotRepository { return &SnapshotRepository{z: zugriff{db: d}} }
 
 const snapshotSpalten = "id, service_id, created_at, state_blob, state_hash, metadata_hash"
 
@@ -53,7 +54,7 @@ func leseSnapshot(row zeile) (model.BaselineSnapshot, error) {
 
 // Get liest eine Baseline.
 func (r *SnapshotRepository) Get(ctx context.Context, id string) (model.BaselineSnapshot, error) {
-	row := r.db.sql.QueryRowContext(ctx,
+	row := r.z.QueryRowContext(ctx,
 		"SELECT "+snapshotSpalten+" FROM snapshots WHERE id = ? AND snapshot_kind = 'baseline'", id)
 	b, err := leseSnapshot(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -67,7 +68,7 @@ func (r *SnapshotRepository) List(ctx context.Context, serviceID string) ([]mode
 	if serviceID == "" {
 		return nil, errors.Join(model.ErrUngueltig, errors.New("leerer service_id"))
 	}
-	rows, err := r.db.sql.QueryContext(ctx, "SELECT "+snapshotSpalten+
+	rows, err := r.z.QueryContext(ctx, "SELECT "+snapshotSpalten+
 		" FROM snapshots WHERE service_id = ? AND snapshot_kind = 'baseline' ORDER BY created_at, id", serviceID)
 	if err != nil {
 		return nil, klassifiziere(err)

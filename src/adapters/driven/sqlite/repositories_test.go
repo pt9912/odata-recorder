@@ -11,6 +11,7 @@ import (
 
 	sqlitedriver "modernc.org/sqlite"
 
+	"github.com/pt9912/odata-recorder/src/adapters/driven/sqlite"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound/outboundtest"
 )
 
@@ -28,12 +29,35 @@ func neueVerbindung(t *testing.T) outboundtest.Verbindung {
 	})
 	d := open(t, filepath.Join(t.TempDir(), "r.db"))
 	return outboundtest.Verbindung{
-		Sessions:  d.Sessions(),
-		Recording: d.Recording(),
-		Metadata:  d.Metadata(),
-		Snapshots: d.Snapshots(),
-		Imports:   d.Imports(),
-		Coverage:  d.Coverage(),
+		Sessions:    d.Sessions(),
+		Recording:   d.Recording(),
+		Metadata:    d.Metadata(),
+		Snapshots:   d.Snapshots(),
+		Imports:     d.Imports(),
+		Coverage:    d.Coverage(),
+		Workspaces:  d.Workspaces(),
+		Entities:    d.Entities(),
+		Cursors:     d.Cursors(),
+		Wartung:     d.Maintenance(),
+		Transaktion: d,
+		Zeilen: func(t *testing.T, tabelle string) int {
+			t.Helper()
+			var n int
+			if err := d.SQL().QueryRow("SELECT count(*) FROM " + tabelle).Scan(&n); err != nil {
+				t.Fatal(err)
+			}
+			return n
+		},
+		VerletzeFremdschluessel: func(t *testing.T) {
+			t.Helper()
+			ohneSchutz(t, d, "PRAGMA foreign_keys = OFF", "PRAGMA foreign_keys = ON",
+				`INSERT INTO sessions(id, service_id, created_at, status) VALUES ('waise', 'gibt-es-nicht', '2026-10-19T10:00:00.000000000Z', 'open')`)
+		},
+		VerletzeCheck: func(t *testing.T) {
+			t.Helper()
+			ohneSchutz(t, d, "PRAGMA ignore_check_constraints = ON", "PRAGMA ignore_check_constraints = OFF",
+				`INSERT INTO sessions(id, service_id, created_at, status) VALUES ('kaputt', 'd', '2026-10-19T10:00:00.000000000Z', 'unbekannt')`)
+		},
 		FuegeDienstHinzu: func(t *testing.T, id string) {
 			t.Helper()
 			if _, err := d.SQL().Exec(`INSERT INTO services(id, service_root, odata_version) VALUES (?, '/', '4.0')`, id); err != nil {
@@ -57,6 +81,13 @@ func neueVerbindung(t *testing.T) outboundtest.Verbindung {
 				t.Fatal(err)
 			}
 		},
+		BrichNachLoeschenAb: func(t *testing.T, tabelle string, stop context.CancelFunc) {
+			t.Helper()
+			abbruch.Store(&stop)
+			if _, err := d.SQL().Exec(`CREATE TRIGGER nach_loeschen AFTER DELETE ON ` + tabelle + ` BEGIN SELECT ` + name + `(); END`); err != nil {
+				t.Fatal(err)
+			}
+		},
 		BrichNachImportAb: func(t *testing.T, stop context.CancelFunc) {
 			t.Helper()
 			abbruch.Store(&stop)
@@ -67,7 +98,52 @@ func neueVerbindung(t *testing.T) outboundtest.Verbindung {
 	}
 }
 
+// ohneSchutz führt anweisung auf einer eigenen Verbindung nach dem Pragma aus, das ein
+// Constraint abschaltet, und stellt es danach wieder her: die Verbindung kehrt in den Pool zurück.
+// Der Service d muss vorhanden sein, wenn nur ein CHECK verletzt wird.
+func ohneSchutz(t *testing.T, d *sqlite.DB, pragma, zurueck, anweisung string) {
+	t.Helper()
+	ctx := context.Background()
+	c, err := d.SQL().Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	for _, q := range []string{pragma, anweisung, zurueck} {
+		if _, err := c.ExecContext(ctx, q); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func neueVerbindungInTransaktion(t *testing.T) outboundtest.Verbindung {
+	t.Helper()
+	return outboundtest.InTransaktion(neueVerbindung(t))
+}
+
 func TestSessionVertrag(t *testing.T)   { outboundtest.RunSessionVertrag(t, neueVerbindung) }
 func TestRecordingVertrag(t *testing.T) { outboundtest.RunRecordingVertrag(t, neueVerbindung) }
 func TestServiceVertrag(t *testing.T)   { outboundtest.RunServiceVertrag(t, neueVerbindung) }
 func TestBaselineVertrag(t *testing.T)  { outboundtest.RunBaselineVertrag(t, neueVerbindung) }
+
+func TestWorkspaceVertrag(t *testing.T) { outboundtest.RunWorkspaceVertrag(t, neueVerbindung) }
+func TestEntityVertrag(t *testing.T)    { outboundtest.RunEntityVertrag(t, neueVerbindung) }
+func TestCursorVertrag(t *testing.T)    { outboundtest.RunCursorVertrag(t, neueVerbindung) }
+func TestWorkspaceSnapshotVertrag(t *testing.T) {
+	outboundtest.RunWorkspaceSnapshotVertrag(t, neueVerbindung)
+}
+func TestWartungVertrag(t *testing.T)     { outboundtest.RunWartungVertrag(t, neueVerbindung) }
+func TestTransaktionVertrag(t *testing.T) { outboundtest.RunTransaktionVertrag(t, neueVerbindung) }
+
+func TestWorkspaceVertragInTransaktion(t *testing.T) {
+	outboundtest.RunWorkspaceVertrag(t, neueVerbindungInTransaktion)
+}
+func TestEntityVertragInTransaktion(t *testing.T) {
+	outboundtest.RunEntityVertrag(t, neueVerbindungInTransaktion)
+}
+func TestCursorVertragInTransaktion(t *testing.T) {
+	outboundtest.RunCursorVertrag(t, neueVerbindungInTransaktion)
+}
+func TestWorkspaceSnapshotVertragInTransaktion(t *testing.T) {
+	outboundtest.RunWorkspaceSnapshotVertrag(t, neueVerbindungInTransaktion)
+}
