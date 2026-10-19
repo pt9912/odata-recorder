@@ -36,7 +36,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Neue Linter oder gelockerte Schwellen — das Profil bleibt, wie es mit [ADR-0003](../../adr/0003-lint-profil-golangci.md) beschlossen ist; der Code passt sich an (`AGENTS.md` §3.6).
-- Weitere Gegenproben oder Fälle — [slice-gegenproben](../done/slice-gegenproben.md) liegt in `done/`; dieser Slice ändert Fälle nur, soweit der Umbau des Programms es verlangt.
+- Weitere Gegenproben für andere Gates — [slice-gegenproben](../done/slice-gegenproben.md) liegt in `done/`; dieser Slice fügt nur Fälle zu `lint.sh` hinzu, soweit seine Zusagen (Modul-Schleife, Prüfung 4) eine fangende Mutation brauchen.
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
 einer mit vier erfundenen; die vier Klassen sind ein Suchraster, keine
 Ausfüll-Liste. Suchreihenfolge: Was übernimmt ein **Folge-Slice** (mit
@@ -79,7 +79,7 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|---|
 | `tools/gegenproben/main.go`, `faelle.go`, `main_test.go` | refactor | Umgebung statt Globals, `RemoveAll` geprüft, `greife` zerlegt, Bedingung zu `go.sum` ausgelagert, Zeichenkette `//nolint` aus zwei Teilen |
 | `tools/harness/lint.sh` | update | `golangci-lint` je Modul (Wurzel und `tools/gegenproben`) |
-| `Dockerfile`, `.dockerignore` | update | Stufe `lint` bekommt `tools/gegenproben` |
+| `Dockerfile` | update | Stufe `lint` bekommt `tools/gegenproben` |
 | `.golangci.yml` | update | Ausnahme für `os.Stdout` und `os.Stderr` in `tools/gegenproben/main.go` mit `# Why:` |
 | `harness/vertraege/SPEC-101-lint-profil.md`, `harness/vertraege/SPEC-102-gegenproben.md`, `harness/README.md` | update | Grenze „außerhalb von `make lint`" entfällt |
 

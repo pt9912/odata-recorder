@@ -44,7 +44,7 @@ Wann sie gefahren wird, und die Einzelheiten, stehen in `SPEC-102`.
 
 | Tooling | Regel | Make-Target |
 |---|---|---|
-| `tools/gegenproben` | elf Fälle für `a-check` und `lint.sh` | `make gegenproben` |
+| `tools/gegenproben` | die Fälle für `a-check` und `lint.sh` | `make gegenproben` |
 
 ## Re-Evaluierungs-Trigger
 

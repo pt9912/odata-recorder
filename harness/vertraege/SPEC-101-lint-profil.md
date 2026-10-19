@@ -19,7 +19,7 @@ Das Ziel schlägt fehl, wenn einer der beiden Teile einen Befund meldet.
    Eine Leerzeile zwischen Block und Regel oder eine andere Einrückung löst den Block von der Regel.
 3. Das Profil setzt `linters.exclusions.warn-unused: true`.
    Meldet golangci-lint daraufhin eine Regel ohne Wirkung, steht die Warnung in der Ausgabe und führt nicht zum Fehlschlag: eine Regel darf dem Code vorauseilen.
-4. Jedes Modul trägt mindestens eine Datei `*.go`.
+4. Das Wurzelmodul trägt mindestens eine Datei `*.go` außerhalb von `tools/`, jedes Modul unter `tools/` mindestens eine in seinem Verzeichnis.
 
 **Randformen:**
 1. `.golangci.yml` fehlt oder ist nicht lesbar: Meldung `lint.sh: Profil .golangci.yml fehlt oder ist nicht lesbar`, Exit-Code 2; golangci-lint läuft nicht.
@@ -34,5 +34,6 @@ Das Ziel schlägt fehl, wenn einer der beiden Teile einen Befund meldet.
 
 **Stand:** vorhanden für die Schema-Prüfung des Profils und die Prüfung des Codes.
 
-**Grenze:** Die Schwellen des Profils (Komplexität 15, Funktionslänge 100) beißen am heutigen Skelett nicht.
+**Grenze:** Module tiefer als `tools/<Name>` prüft das Ziel nicht.
+Die Schwellen des Profils (Komplexität 15, Funktionslänge 100) beißen am heutigen Skelett nicht.
 Die Gegenprobe zu `make lint` liefert `SPEC-102`.

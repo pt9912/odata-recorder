@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,8 +69,9 @@ func wurzelMitEingaben(t *testing.T) string {
 // umgebungMit liefert eine Umgebung, deren Gate-Aufruf das Skript ist.
 func umgebungMit(skript func(dir string, g Gate) string, prog ...string) Umgebung {
 	return Umgebung{
-		Eingaben:  standard().Eingaben,
-		Programme: prog,
+		Eingaben:   standard().Eingaben,
+		Programme:  prog,
+		Aufraeumen: os.RemoveAll,
 		Befehl: func(dir string, g Gate) (string, []string, string) {
 			return "sh", []string{"-c", skript(dir, g)}, ""
 		},
@@ -193,5 +195,17 @@ func TestHashEingabenGoSumIstOptional(t *testing.T) {
 	}
 	if _, err := hashEingaben(standard().Eingaben, w); err == nil {
 		t.Fatal("fehlendes go.mod bleibt unbemerkt")
+	}
+}
+
+func TestRunMeldetEntfernenFehlerNachDenErgebnissen(t *testing.T) {
+	u := umgebungMit(func(string, Gate) string { return "exit 0" }, "sh")
+	u.Aufraeumen = func(string) error { return errors.New("nicht entfernbar") }
+	var out, errb bytes.Buffer
+	if got := run(u, &out, &errb, wurzelMitEingaben(t), []Fall{{Name: "a"}}); got != exitSetup {
+		t.Fatalf("Exit %d, erwartet %d", got, exitSetup)
+	}
+	if !strings.Contains(out.String(), "ok   a") || !strings.Contains(errb.String(), "nicht entfernbar") {
+		t.Fatalf("Ergebnisse und Meldung erwartet:\n%s%s", out.String(), errb.String())
 	}
 }

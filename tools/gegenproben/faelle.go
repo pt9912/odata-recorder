@@ -43,6 +43,14 @@ func goDatei(paket string, importe ...string) string {
 	return b.String()
 }
 
+// zweitesModul liefert die Dateien eines Moduls tools/probe mit eigener go.mod.
+func zweitesModul(zusatz string) map[string]string {
+	return map[string]string{
+		"tools/probe/go.mod":   "module probe\n\ngo 1.27\n",
+		"tools/probe/probe.go": goDatei("probe") + zusatz,
+	}
+}
+
 const regelnKopf = "\n    rules:\n"
 
 func faelle() []Fall {
@@ -103,6 +111,21 @@ func faelle() []Fall {
 			Name: "lint/why-falsch-eingerueckt", Gate: gateLint,
 			Ersetze:  []Ersetzung{{".golangci.yml", regelnKopf, regelnKopf + "        # Why: Probe, falsch eingerückt.\n      - linters:\n          - forbidigo\n        path: ^probe/\n"}},
 			WantExit: 1, WantText: []string{"# Why:"},
+		},
+		{
+			Name: "lint/zweites-modul-sauber", Gate: gateLint,
+			Neu:      zweitesModul(""),
+			WantText: []string{"0 issues"},
+		},
+		{
+			Name: "lint/befund-im-zweiten-modul", Gate: gateLint,
+			Neu:      zweitesModul("\nfunc unbenutzt() {}\n"),
+			WantExit: 1, WantText: []string{"unused"},
+		},
+		{
+			Name: "lint/ohne-go-datei", Gate: gateLint,
+			Entferne: []string{"src/bootstrap/bootstrap.go", "src/bootstrap/bootstrap_test.go", "src/bootstrap/main/main.go"},
+			WantExit: 1, WantText: []string{"keine Datei *.go"},
 		},
 	}
 }

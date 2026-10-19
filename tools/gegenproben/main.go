@@ -35,6 +35,8 @@ const (
 type Umgebung struct {
 	Eingaben  []string
 	Programme []string
+	// Aufraeumen entfernt das Wegwerfverzeichnis eines Laufs.
+	Aufraeumen func(string) error
 	// Befehl liefert Programm, Argumente und Arbeitsverzeichnis, mit denen ein Fall sein
 	// Gate in dir ruft.
 	Befehl func(dir string, g Gate) (string, []string, string)
@@ -42,8 +44,9 @@ type Umgebung struct {
 
 func standard() Umgebung {
 	return Umgebung{
-		Eingaben:  []string{"src", "go.mod", "go.sum", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh"},
-		Programme: []string{"a-check", "golangci-lint", "sh"},
+		Eingaben:   []string{"src", "go.mod", "go.sum", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh"},
+		Programme:  []string{"a-check", "golangci-lint", "sh"},
+		Aufraeumen: os.RemoveAll,
 		Befehl: func(dir string, g Gate) (string, []string, string) {
 			if g == gateACheck {
 				return "a-check", []string{dir}, ""
@@ -75,9 +78,9 @@ func run(u Umgebung, stdout, stderr io.Writer, wurzel string, fs []Fall) int {
 		_, _ = fmt.Fprintf(stderr, "gegenproben: %v\n", err)
 		return exitSetup
 	}
-	ergebnisse, err := fahre(u, fs, wurzel)
-	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "gegenproben: %v\n", err)
+	ergebnisse, fehler := fahre(u, fs, wurzel)
+	if ergebnisse == nil && fehler != nil {
+		_, _ = fmt.Fprintf(stderr, "gegenproben: %v\n", fehler)
 		return exitSetup
 	}
 	nachher, err := hashEingaben(u.Eingaben, wurzel)
@@ -95,6 +98,10 @@ func run(u Umgebung, stdout, stderr io.Writer, wurzel string, fs []Fall) int {
 		_, _ = fmt.Fprintf(stdout, "ROT  %s: %s\n", e.Name, e.Rot)
 	}
 	_, _ = fmt.Fprintf(stdout, "gegenproben: %d Fälle, %d rot\n", len(ergebnisse), rot)
+	if fehler != nil {
+		_, _ = fmt.Fprintf(stderr, "gegenproben: %v\n", fehler)
+		return exitSetup
+	}
 	if rot > 0 {
 		return exitRot
 	}
@@ -116,7 +123,7 @@ func fahre(u Umgebung, fs []Fall, wurzel string) (erg []Ergebnis, err error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = errors.Join(err, os.RemoveAll(basis)) }()
+	defer func() { err = errors.Join(err, u.Aufraeumen(basis)) }()
 	dirs := make([]string, len(fs))
 	for i, f := range fs {
 		dirs[i] = filepath.Join(basis, fmt.Sprintf("%02d", i))

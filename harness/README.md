@@ -77,7 +77,7 @@ Diese Datei dupliziert sie nicht.
 | `make schema-validate` | prüft `tools/schema/schema.yaml` mit d-migrate (netzlos, ohne Mount) | kein Gate |
 | `make schema-generate` | erzeugt SQLite-DDL und Report aus dem Schema als Tar-Strom auf stdout (netzlos, ohne Mount) | kein Gate |
 | `make a-check-graph` | gibt den Architektur-Graphen (Mermaid) aus `.a-check.yml` aus, prüft nichts (netzlos, schreibgeschützt) | kein Gate |
-| `make gegenproben` | Gegenproben zu `a-check` und `lint.sh`: elf Fälle in Kopien der Eingaben, ein Go-Programm, nur bei geänderter Eingabe (Prüfsumme in `harness/gegenproben.stempel`) | [ADR-0005](../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) |
+| `make gegenproben` | Gegenproben zu `a-check` und `lint.sh`: Fälle in Kopien der Eingaben, ein Go-Programm, nur bei geänderter Eingabe (Prüfsumme in `harness/gegenproben.stempel`) | [ADR-0005](../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) |
 
 **Aktueller Lauf-Status:** lokal `make help` / `make gates`; eine CI gibt es noch nicht.
 **Rote Gates:** keine; ein rotes Gate bekommt einen `CO-<NNN>` und verweist in der Bindung-Spalte darauf (Modul 7).

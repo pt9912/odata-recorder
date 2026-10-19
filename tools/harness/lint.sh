@@ -16,7 +16,7 @@ d=$(grep -rnE --include='*.go' '//[[:space:]]*(nolint|lint:ignore)' . | sed 's/^
 [ -z "$d" ] || { echo "$d"; rc=1; }
 
 # Das Wurzelmodul trägt mindestens eine Go-Datei.
-[ -n "$(find . -name '*.go' -print -quit)" ] || { echo "lint.sh: ./: keine Datei *.go im Modul"; rc=1; }
+[ -n "$(find . -path ./tools -prune -o -name '*.go' -print -quit)" ] || { echo "lint.sh: ./: keine Datei *.go im Modul"; rc=1; }
 
 # Jede Regel unter exclusions.rules steht unter einem Kommentarblock (sechs Leerzeichen eingerückt),
 # dessen erste Zeile `# Why:` ist;
