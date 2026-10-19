@@ -110,6 +110,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): [slice-sqlite-adapter-migration](../done/slice-sqlite-adapter-migration.md) liegt in `done/`.
 
+**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei 1248 Zeilen, getragen von den Vertragstests (`outboundtest`, rund 450 Zeilen), den Modelltests und dem Adapter mit Tests. Der Slice bleibt ungeteilt, weil Modell, Ports und Adapter einzeln nichts liefern.
+
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 700 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen).
