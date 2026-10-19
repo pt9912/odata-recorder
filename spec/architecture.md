@@ -197,7 +197,7 @@ Der Core entscheidet **nicht** über TLS, Socket-Lifecycle oder HTTP-Chunking.
 | `WorkspaceRepository` | Workspaces mit Revision und Baseline-Bezug persistieren, auflisten und löschen |
 | `EntityRepository` | Transaktionale Entity-Reads und -Writes pro Workspace |
 | `SnapshotRepository` | Unveränderliche Snapshots, versionierte Manifeste und Restore |
-| `StorageMaintenance` | Datenbank-Integritätsprüfung (`foreign_key_check`, `integrity_check`) ausführen und die Menge aller von Exchanges und Snapshots referenzierten Blob-Hashes liefern |
+| `StorageMaintenance` | Datenbank-Integritätsprüfung (`foreign_key_check`, `integrity_check`) ausführen und die Menge aller von Exchanges, Snapshots und Service-Metadaten referenzierten Blob-Hashes liefern |
 | `CoverageRepository` | Coverage-Status mit Evidenz je Baseline speichern |
 | `ImportRepository` | Import-Einträge (`import_id`, Anfrage-Hash, Report) und die Baseline-Quellen einer Baseline in der Transaktion der Baseline schreiben und lesen; zu einer Session die Baselines abfragen, deren Quelle sie ist |
 | `CursorRepository` | Veränderlichen Replay-Cursor-Zustand je `(workspace, replay_session, recording_session)` atomar lesen und fortschreiben; getrennt vom append-only `RecordingRepository` |

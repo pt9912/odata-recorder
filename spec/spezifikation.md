@@ -701,6 +701,45 @@ Eine Baseline ist unveränderlich: kein Port ändert oder löscht sie, ein zweit
 
 Ungeprüft bleibt: dass `MetadataHash` der Baseline zum Hash des Service passt und dass `StateHash` zum Inhalt des Blobs passt (Fachlogik des Imports), das Löschen von Services und Baselines, die Form der Evidenz, dass eine `complete`-Coverage einen Beweis trägt, Kennungen mit NUL-Byte oder nur aus Leerzeichen, und ein Wettlauf zwischen einem Leser, der Kennung und Inhalt in zwei Abfragen liest (`Sources`, `BaselinesOf`, `Coverage.List`), und dem Löschen einer Baseline (das keine Operation bietet).
 
+### SPEC-108 — Workspace, Entity, Cursor und Workspace-Snapshot: Vertrag der Repositories
+
+`WorkspaceRepository`, `EntityRepository`, `CursorRepository`, die Workspace-Operationen des `SnapshotRepository`, `StorageMaintenance` und `WithWorkspaceTransaction` sind die Outbound Ports für den veränderlichen Zustand (`ARC-004`); die Tabellen sind die aus `SPEC-004`, Modell und Begriffe die aus `SPEC-003`.
+Sie legen nur ab: Anlage-, Reset- und Restore-Ablauf sind Fachlogik, die diese Operationen in einer Transaktion zusammensetzt.
+Kennungen vergibt der Aufrufer; Zeit, Atomarität und die Reihenfolge der Prüfungen (Argument vor Kontext) gelten wie in `SPEC-105`.
+Ein Workspace-Snapshot ist unveränderlich; kein Port ändert oder löscht ihn einzeln, nur das Löschen seines Workspace entfernt ihn.
+
+**Transaktion:**
+1. `WithWorkspaceTransaction(ctx, f)` ruft `f` mit Repositories für Workspace, Entity, Cursor und Snapshot, die auf einer Transaktion arbeiten. Liefert `f` `nil`, wird bestätigt, sonst zurückgerollt und der Fehler von `f` unverändert geliefert; dasselbe gilt für eine Panik in `f` (sie wird weitergereicht) und für einen abgebrochenen Kontext (dessen Fehler). Transaktionen laufen nacheinander; der Schreiber hält sie für die Dauer von `f`.
+   Nicht unterstützt: die Repositories nach dem Ende von `f` zu benutzen und eine Transaktion in `f` zu öffnen.
+
+**Workspace** (`revision` zählt ab `0`):
+2. `Create` legt einen Workspace mit `revision=0` an. Eine leere Kennung, ein leerer `service_id` oder `baseline_snapshot_id`, eine Zeit außerhalb der Jahre 1 bis 9999 oder eine Revision außer `0` ist `ErrUngueltig`. Danach folgen: bekannte Kennung `ErrBereitsVorhanden`, unbekannter Service `ErrDienstUnbekannt`, unbekannte Baseline `ErrNichtGefunden`, ein Snapshot der Art `workspace` als Baseline `ErrFalscheArt`, eine Baseline eines anderen Service `ErrFremderService`; der erste Verstoß bestimmt den Fehler. Der Entity-State entsteht nicht mit.
+3. `Get` einer unbekannten Kennung ist `ErrNichtGefunden`; `List(service_id)` liefert die Workspaces eines Service nach `created_at` (als Zeit), dann Kennung, ein unbekannter Service eine leere Liste, ein leerer `service_id` ist `ErrUngueltig`.
+4. `Advance(id, erwartet)` erhöht die Revision von `erwartet` auf `erwartet+1` und liefert die neue; ist die gespeicherte Revision eine andere, ist es `ErrRevisionVeraltet` und nichts ändert sich; eine unbekannte Kennung ist `ErrNichtGefunden`, ein negatives `erwartet` `ErrUngueltig`. Zwei gleichzeitige `Advance` mit derselben Revision: genau eines gelingt.
+5. `Delete` löscht den Workspace mit seinem Entity-State, seinen Cursors und seinen Workspace-Snapshots in einer Transaktion; Cursors sind dabei kein Hindernis. Eine unbekannte Kennung ist `ErrNichtGefunden`, andere Workspaces, Baselines und Recording-Sessions bleiben unberührt.
+
+**Entity** (vollständiger Zustand eines Workspace, mit Tombstones):
+6. `EntityState` ist gültig, wenn `workspace_id`, `entity_set` und `entity_key` nicht leer sind, `payload` und `known_properties` gültiges JSON in gültigem UTF-8 (`known_properties` ein Array nichtleerer, verschiedener Zeichenketten), `completeness` `complete` oder `partial` und `version` nicht negativ ist; sonst `ErrUngueltig`. Der Schlüssel ist ein vom Aufrufer kanonisch gebildeter Text, den die Ablage nicht deutet.
+7. `Put` schreibt einen Eintrag, ersetzt einen vorhandenen mit gleichem `(workspace, entity_set, entity_key)`; ein unbekannter Workspace ist `ErrNichtGefunden`. `Get` liefert den Eintrag, auch einen Tombstone (`deleted=true`); ein unbekannter ist `ErrNichtGefunden`. Payload wird byte-gleich gelesen, `known_properties` aufsteigend sortiert.
+8. `List(workspace)` liefert alle Einträge einschließlich Tombstones nach `entity_set`, dann `entity_key` aufsteigend, `ListSet(workspace, entity_set)` die einer Menge; ein unbekannter Workspace ist `ErrNichtGefunden`, ein leerer State eine leere Liste, ein leeres `entity_set` `ErrUngueltig`.
+9. `ReplaceAll(workspace, einträge)` ersetzt den gesamten State: danach enthält er genau diese Einträge, ganz oder gar nicht. Ein Eintrag mit anderem Workspace, ein ungültiger oder ein doppelter `(entity_set, entity_key)` ist `ErrUngueltig` und ändert nichts; eine leere Liste leert den State.
+
+**Cursor** (`(workspace, replay_session, recording_session)`):
+10. `ReplayCursor` ist gültig, wenn die drei Kennungen und `service_id` nicht leer sind, `strategy` eine von `sequential`, `strict`, `first`, `last` ist, `consumed` aus Zahlen größer 0 ohne Doppelte besteht und `position` ihre Anzahl ist; sonst `ErrUngueltig`. `consumed` wird aufsteigend sortiert gelesen.
+11. `Put` schreibt oder ersetzt einen Cursor. Prüfung nach der Gültigkeit: unbekannter Workspace `ErrNichtGefunden`, unbekannte Recording-Session `ErrNichtGefunden`, ein `service_id`, der nicht der des Workspace und der Session ist, `ErrFremderService`. `Get` eines unbekannten Cursors ist `ErrNichtGefunden`; `List(workspace)` liefert die Cursors nach `replay_session_id`, dann `recording_session_id`, ein unbekannter Workspace ist `ErrNichtGefunden`.
+12. `ResetAll(workspace)` setzt alle Cursors des Workspace auf `position=0` und leeres `consumed`, `strategy` und Kennungen bleiben; ohne Cursors ist es kein Fehler, ein unbekannter Workspace `ErrNichtGefunden`. Das Löschen einer Recording-Session löscht ihre Cursors (`SPEC-105`).
+
+**Workspace-Snapshot** (Operationen des `SnapshotRepository`, nur Art `workspace`):
+13. `CreateWorkspace` legt einen Snapshot mit `workspace_id` und `name` an. Gültig sind: nichtleere Kennung, `service_id`, `workspace_id`, `name`, `state_hash` und `metadata_hash`, eine gültige Blob-Referenz (`SPEC-106`) als `state_blob`, eine gültige Zeit; sonst `ErrUngueltig`. Danach: unbekannter Workspace `ErrNichtGefunden`, ein `service_id` außer dem des Workspace `ErrFremderService`, eine bekannte Kennung oder ein Name, den der Workspace schon trägt, `ErrBereitsVorhanden`.
+14. `GetWorkspace(workspace, id)`: ein unbekannter Snapshot oder einer eines anderen Workspace ist `ErrNichtGefunden`, ein Snapshot der Art `baseline` `ErrFalscheArt`. `ListWorkspace(workspace)` liefert die Snapshots des Workspace nach `created_at`, dann Kennung; ein unbekannter Workspace ist `ErrNichtGefunden`. Die Operationen der Baselines (`SPEC-107`) liefern nie einen Workspace-Snapshot.
+
+**StorageMaintenance:**
+15. `Check` führt `PRAGMA foreign_key_check` und `PRAGMA integrity_check` aus und liefert die Befunde als Liste von Texten; eine Datenbank ohne Verletzung liefert eine leere Liste.
+16. `ReferencedBlobs` liefert die Menge der Blob-Referenzen, die ein Exchange (Request oder Response), ein Snapshot jeder Art oder die Metadaten eines Service tragen, ohne Doppelte aufsteigend sortiert.
+17. Ein abgebrochener Kontext beendet jede Operation mit dem Fehler des Kontexts, ohne eine Änderung.
+
+Ungeprüft bleibt: dass `entity_key` kanonisch ist, dass `state_hash` zum Blob passt und dass `position` bei einem Fortschreiben des Cursors nur wächst (Fachlogik des Replay); dass eine Baseline eines anderen Service beim Restore `ErrFremderService` statt `ErrNichtGefunden` liefert (sie ist über den Workspace gebunden); dass ein Aufrufer außerhalb von `WithWorkspaceTransaction` Reset und Restore ohne Transaktion zusammensetzt.
+
 ### SPEC-043 — Import- und Provenienz-Schema
 
 `ImportManifest{import_id, service_id, metadata_hash, source_session_ids[], created_at, entity_count, baseline_snapshot_id, coverage[]}`;

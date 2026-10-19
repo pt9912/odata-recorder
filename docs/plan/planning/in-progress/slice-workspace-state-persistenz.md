@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-04`, `LH-FA-07`, `LH-FA-09`, `LH-FA-10`, [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md)
 
-**Berührte Spec-Stellen:** `SPEC-003` (Workspace und Entity) · `SPEC-004` · `ARC-004` · `ARC-009`.
+**Berührte Spec-Stellen:** `SPEC-108` (Vertrag der Repositories) · `SPEC-003` (Workspace und Entity) · `SPEC-004` · `ARC-004` · `ARC-009`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -82,7 +82,8 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/hexagon/model/` | update | Workspace, Entity, Cursor, Snapshot (workspace) |
 | `src/hexagon/ports/outbound/` | update | fünf Ports und `WithWorkspaceTransaction` |
 | `src/adapters/driven/sqlite/` | update | Implementierungen auf `workspaces`, `entities`, `replay_cursors`, `snapshots` |
-| `spec/spezifikation.md` | update | Randformen: Revision veraltet (Konflikt), Löschen mit offenen Cursors, Restore auf unbekannten Snapshot, leerer Workspace |
+| `spec/spezifikation.md` | update | `SPEC-108`: Randformen Revision veraltet (Konflikt), Löschen mit offenen Cursors, Snapshot unbekannt oder fremd, leerer Workspace, Panik und Abbruch in der Transaktion |
+| `spec/architecture.md` | update | `StorageMaintenance` liefert auch die Blob-Referenzen der Service-Metadaten |
 
 - Der Rundlauftest ist das *Mehr* der Welle gegenüber den Slice-DoDs: er fährt alle Repositories auf derselben Datei, über ein Schließen und Wiederöffnen hinweg.
 
