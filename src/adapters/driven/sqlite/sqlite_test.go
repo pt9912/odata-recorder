@@ -483,3 +483,43 @@ func TestWalUmstellenWiederholtNurBeiBelegt(t *testing.T) {
 		t.Fatalf("Versuche %d, Fehler %v", n, err)
 	}
 }
+
+func TestWalUmstellenEndetBeiKontextabbruch(t *testing.T) {
+	d := open(t, filepath.Join(t.TempDir(), "r.db"))
+	belegt := belegtFehler(t)
+	ctx, abbruch := context.WithCancel(context.Background())
+	n := 0
+	err := d.StelleWalSicherMit(ctx, 10*time.Second, func(context.Context) error {
+		n++
+		abbruch()
+		return belegt
+	})
+	if !errors.Is(err, context.Canceled) || n != 1 {
+		t.Fatalf("Versuche %d, Fehler %v", n, err)
+	}
+}
+
+func TestFehlerAusserBusyWerdenNichtWiederholt(t *testing.T) {
+	d := open(t, filepath.Join(t.TempDir(), "r.db"))
+	nichtOeffnen := func() error {
+		db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "gibt-es-nicht", "x.db"))
+		if err != nil {
+			return err
+		}
+		defer func() { _ = db.Close() }()
+		return db.Ping()
+	}()
+	if nichtOeffnen == nil {
+		t.Fatal("Öffnen einer Datei in fehlendem Verzeichnis gelang")
+	}
+	if got := sqlite.Klassifiziere(nichtOeffnen); errors.Is(got, sqlite.ErrBeschaedigt) {
+		t.Fatalf("CANTOPEN wurde als beschädigt klassifiziert: %v", got)
+	}
+	for name, fehler := range map[string]error{"CANTOPEN": nichtOeffnen, "Standardfehler": errors.New("x")} {
+		n := 0
+		err := d.StelleWalSicherMit(context.Background(), 2*time.Second, func(context.Context) error { n++; return fehler })
+		if !errors.Is(err, fehler) || n != 1 {
+			t.Fatalf("%s: Versuche %d, Fehler %v", name, n, err)
+		}
+	}
+}

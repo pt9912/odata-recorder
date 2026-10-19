@@ -40,6 +40,7 @@ Ein roter Lauf lässt den Stempel unverändert, ein fehlender Stempel erzwingt d
 21. `migration/migration-fehlt` · `migration-check.sh` · `0001_init.sql` ist aus der Kopie gelöscht · Exit 2, Ausgabe nennt die Migration als fehlend und nicht das erzeugte DDL.
 22. `migration/erzeugtes-ddl-fehlt` · `migration-check.sh` · die Datei mit dem erzeugten DDL fehlt · Exit 2, Ausgabe nennt das erzeugte DDL als fehlend und nicht die Migration.
 23. `migration/falsche-aufrufform` · `migration-check.sh` · ein Argument statt zwei · Exit 2, Ausgabe nennt `Aufruf`.
+24. `migration/zu-viele-argumente` · `migration-check.sh` · drei Argumente statt zwei · Exit 2, Ausgabe nennt `Aufruf`.
 Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
 
 **Randformen:**

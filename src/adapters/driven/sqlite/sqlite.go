@@ -106,9 +106,8 @@ func istBelegt(err error) bool {
 	if !errors.As(err, &se) {
 		return false
 	}
-	const busy, locked = 5, 6
-	c := se.Code() & 0xff
-	return c == busy || c == locked
+	const busy = 5
+	return se.Code() == busy
 }
 
 // Close schließt die Datenbank; ein zweites Close ist kein Fehler.

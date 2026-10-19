@@ -193,6 +193,11 @@ func migrationFaelle() []Fall {
 			Argumente: []string{"nur-eins"},
 			WantExit:  2, WantText: []string{"Aufruf"},
 		},
+		{
+			Name: "migration/zu-viele-argumente", Gate: gateMigration, Kopiere: migrationKopie(),
+			Argumente: []string{"eins", "zwei", "drei"},
+			WantExit:  2, WantText: []string{"Aufruf"},
+		},
 	}
 }
 

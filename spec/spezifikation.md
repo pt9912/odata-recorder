@@ -598,7 +598,8 @@ Die Schemaversion der Datei steht in `PRAGMA user_version`; das Programm kennt h
 
 1. Jede Verbindung der Datei setzt `foreign_keys=ON` und `busy_timeout` aus `SQLITE_BUSY_TIMEOUT` (`SPEC-014`, ohne Angabe 5000 ms).
    Jedes erfolgreiche Öffnen stellt zuletzt `journal_mode=WAL` sicher; der Modus bleibt in der Datei, jede Verbindung sieht ihn, und eine Datei im Modus `delete` wird dabei umgestellt.
-   Das Umstellen wiederholt sich bei `SQLITE_BUSY` und `SQLITE_LOCKED` bis zum Ablauf des `busy_timeout`; danach scheitert Öffnen mit dem Fehler der Datenbank, die Migration bleibt bestehen, und ein späteres Öffnen stellt den Modus erneut sicher.
+   Das Umstellen wiederholt sich bei `SQLITE_BUSY` (Code 5) bis zum Ablauf des `busy_timeout`, bei jedem anderen Fehler nicht; danach scheitert Öffnen mit dem Fehler der Datenbank, die Migration bleibt bestehen, und ein späteres Öffnen stellt den Modus erneut sicher.
+   Bricht der Kontext während der Wiederholung ab, endet Öffnen mit dem Fehler des Kontexts.
    Eine abgelehnte Datei bleibt byte-gleich: vor der Prüfung der Version schreibt Öffnen nichts in sie.
 2. `user_version` `0` und keine Tabelle: die Datei ist leer oder neu; das DDL der Version `1` wird in einer Transaktion angewendet und `user_version` auf `1` gesetzt.
 3. `user_version` `1`: nichts geschieht; ein zweites Öffnen verändert die Datei nicht.

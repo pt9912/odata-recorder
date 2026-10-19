@@ -37,6 +37,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 - Repositories und Ports — folgen in [slice-session-recording-persistenz](../open/slice-session-recording-persistenz.md) und den weiteren Slices der Welle; dieser Slice liefert nur Öffnen, Migration und Integritätsprüfung.
 - Migrationskette für eine zweite Schemaversion — das Schema hat eine Version, die Kette braucht eine zweite (`harness/README.md`, *Nicht behauptet*).
+- Die Abbildung von `ErrBeschaedigt` auf `ODR-E3001` — sie gehört der Schicht, die Fehler dem Nutzer meldet (Services und Adapter der Folgewellen); es gibt dafür noch keinen Slice, der Punkt geht an den Planner und wird beim Planen von welle-record-replay vergeben (`AGENTS.md` §3.13).
 - Entscheidung über den Treiber — [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md) ist angenommen; dieser Slice setzt sie um.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
@@ -57,18 +58,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Treiber `modernc.org/sqlite` in `go.mod` und `go.sum` gepinnt, `tech`-Regel in `.a-check.yml` und Eintrag in `gomodguard_v2`; `sqlite.Open` setzt `foreign_keys`, `busy_timeout` und den Journal-Modus und wendet die Migration an.
-- [ ] Gate `migration-check` (an `GATE_CHECKS`): die eingebettete `0001_init.sql` ist byte-gleich dem DDL aus `make schema-generate`; ein Unterschied färbt das Gate rot.
-- [ ] Tests am Adapter: leere Datei wird migriert, `foreign_key_check` und `integrity_check` sind leer, ein zweites Öffnen ändert nichts, die Randformen aus §6 sind getestet.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Treiber `modernc.org/sqlite` in `go.mod` und `go.sum` gepinnt, `tech`-Regel in `.a-check.yml` und Eintrag in `gomodguard_v2`; `sqlite.Open` setzt `foreign_keys`, `busy_timeout` und den Journal-Modus und wendet die Migration an.
+- [x] Gate `migration-check` (an `GATE_CHECKS`): die eingebettete `0001_init.sql` ist byte-gleich dem DDL aus `make schema-generate`; ein Unterschied färbt das Gate rot.
+- [x] Tests am Adapter: leere Datei wird migriert, `foreign_key_check` und `integrity_check` sind leer, ein zweites Öffnen ändert nichts, die Randformen aus §6 sind getestet.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -83,11 +84,11 @@ Aussagen-Berührung steht hier gar nicht.
 | `.a-check.yml`, `.golangci.yml` | update | `tech`-Regel und `gomodguard_v2`-Eintrag für `modernc.org/sqlite` ([ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md)) |
 | `src/adapters/driven/sqlite/` | neu | `Open`, `Migrate`, eingebettete `migrations/0001_init.sql` |
 | `harness/mk/schema.mk`, `tools/harness/migration-check.sh`, `harness/vertraege/SPEC-104-migration-check.md` | update / neu | Gate `migration-check` und sein Vertrag (Randformen vor dem Code) |
-| `tools/gegenproben/`, `Dockerfile`, `.dockerignore`, `tools/harness/gegenproben-eingabe.sh`, `harness/vertraege/SPEC-102-gegenproben.md`, `harness/README.md` | update | Fälle 17 bis 23 für `migration-check.sh` und die Bibliotheksgrenze; Modulcache und das Skript gehören in die Stufe `gegenproben`, die neuen Dateien in die Eingaben |
+| `tools/gegenproben/`, `Dockerfile`, `.dockerignore`, `tools/harness/gegenproben-eingabe.sh`, `harness/vertraege/SPEC-102-gegenproben.md`, `harness/README.md` | update | Fälle 17 bis 24 für `migration-check.sh` und die Bibliotheksgrenze; Modulcache und das Skript gehören in die Stufe `gegenproben`, die neuen Dateien in die Eingaben |
 | `spec/spezifikation.md` | update | `SPEC-103`: Öffnen und Migrieren mit den Randformen (leerer Pfad, Verzeichnis, fremde Datenbank, höhere Schemaversion, beschädigte Datei, gleichzeitiges Öffnen) |
 
 - Die Migration ist das DDL aus dem Schema, kein Handtext: `make schema-generate` liefert es, das gewählte Verfahren zum Einbetten steht im Vertrag des Gates.
-- `ODR-E3001` (Recording beschädigt) gilt für eine beschädigte Datei.
+- Eine beschädigte Datei liefert `ErrBeschaedigt`; die Abbildung auf `ODR-E3001` (Recording beschädigt) gehört der meldenden Schicht (siehe §1).
 
 **Zusage · Fänger** (`AGENTS.md` §3.15):
 
@@ -98,13 +99,16 @@ Aussagen-Berührung steht hier gar nicht.
 | Höhere Schemaversion wird verweigert | `TestNeuereSchemaversionWirdVerweigert`; Mutation: Zweig entfernt |
 | `busy_timeout` und `journal_mode` auf jeder Verbindung | `TestPragmasJederVerbindung`, `TestBusyTimeoutAusDerOption`; Mutation: Wert fest |
 | Fremde Datenbank wird verweigert | `TestFremdeDatenbankWirdVerweigert`; Mutation: Prüfung abgeschaltet |
-| Keine SQLite-Datei ist `ODR-E3001` | `TestKeineSQLiteDateiIstBeschaedigt`; Mutation: Klassifizierung abgeschaltet |
+| Keine SQLite-Datei und abgeschnittener Rumpf sind `ErrBeschaedigt` | `TestKeineSQLiteDateiIstBeschaedigt`; Mutation: Klassifizierung abgeschaltet |
 | Ungültige Pfade, kein Anlegen von Verzeichnissen | `TestUngueltigePfade` |
 | Gleichzeitiges Öffnen migriert einmal | `TestGleichzeitigesOeffnenMigrierteinmal`; Mutation: ohne Transaktion |
 | Migration ist atomar | `TestMigrationLaeuftInEinerTransaktion`; Mutation: ohne `BEGIN` |
 | Zweites `Close` ist kein Fehler | `TestCloseIstIdempotent` |
 | Jedes Öffnen stellt WAL sicher (auch bei Modus `delete`) | `TestOeffnenStelltWalWiederHer`; Mutation: Aufruf entfernt |
 | Das Umstellen wiederholt sich bei `SQLITE_BUSY` bis zur Frist, nur dann | `TestWalUmstellenWiederholtBeiBelegt`, `TestWalUmstellenGibtNachDerFristAuf`, `TestWalUmstellenWiederholtNurBeiBelegt`; Mutationen: keine Wiederholung, falsche Codes, jeder Fehler als belegt |
+| Umstellen nach der Frist scheitert, ein späteres Öffnen holt nach | `TestWalUmstellenScheitertNachDerFristUndWirdNachgeholt`; Mutation: Aufruf entfernt |
+| Kontextabbruch beendet die Wiederholung | `TestWalUmstellenEndetBeiKontextabbruch`; Mutation: Abbruch liefert `nil` |
+| `migration-check.sh` lehnt jede falsche Argumentzahl ab | Fälle `migration/falsche-aufrufform`, `migration/zu-viele-argumente`; Mutation: `-eq` zu `-ge` |
 | Gleichzeitiges Öffnen gelingt dauerhaft | 500 Wiederholungen von `TestGleichzeitigesOeffnenMigrierteinmal` einmalig grün (347 s), statistisch, keine Mutation |
 | Andere Fehler bleiben unklassifiziert | `TestAndereFehlerBleibenUnklassifiziert`; Mutation: jeder Fehler beschädigt |
 | Abgelehnte Datei bleibt byte-gleich | `zustand`-Prüfung in `TestNeuereSchemaversionWirdVerweigert`, `TestFremdeDatenbankWirdVerweigert`, `TestKeineSQLiteDateiIstBeschaedigt`, `TestAbgeschnittenerRumpfIstBeschaedigt` |
@@ -119,7 +123,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md) ist `Accepted` und `welle-fundament` liegt in `done/`.
 
-**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei 987 Zeilen (alle Pfade aus §3, go.sum eingeschlossen); getragen von der erzeugten Migration (163 Zeilen), den Tests des Adapters und den Fällen der Gegenproben. Der Slice bleibt ungeteilt, weil Adapter, Gate und Gegenprobe einzeln nichts liefern.
+**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei 1202 Zeilen (alle Pfade aus §3, go.sum eingeschlossen); getragen von der erzeugten Migration (163 Zeilen), den Tests des Adapters und den Fällen der Gegenproben. Der Slice bleibt ungeteilt, weil Adapter, Gate und Gegenprobe einzeln nichts liefern.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -159,7 +163,13 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-Wird bei der Closure geschrieben.
+- **Was hat funktioniert:** Der Adapter öffnet und migriert die Datei nach `SPEC-103`, das Gate `migration-check` hält die Migration gleich dem DDL aus dem Schema, und die Fälle 17 bis 24 belegen es; je Zusage wurden mindestens zwei Mutationen rot gesehen, die Gleichzeitigkeit mit 2000 grünen Wiederholungen.
+- **Was ging anders als geplant:** Das Review fand zwei HIGH (WAL vor der Versionsprüfung, flackernde Gleichzeitigkeit), die erste Verifikation fiel durch, weil das Umstellen auf WAL unter Last mit `SQLITE_BUSY` scheiterte; die Lösung ist das Sicherstellen von WAL bei jedem erfolgreichen Öffnen mit Wiederholung bis zur Frist. `SPEC-103` bekam dafür eine Randform (Wiederholung, Kontextabbruch), `SPEC-104` Fänger für Meldung und `diff`. Die Rückführungs-Marke ist überschritten und in §4 benannt.
+- **Steering-Loop-Eintrag:** Nichts verkörpert; gezählt, nicht verkörpert: `BEO-REPO/randform-erst-im-review-entschieden` steht jetzt bei 3× (der Eintrag geht in die Steering-Loop-Einträge der Closure von welle-persistenz), `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` bei 2× und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` bei 5× (verkörpert in `AGENTS.md` §3.15).
+- **Beobachtungs-Register (`../observations/`):** je eine weitere Datei `evidence/slice-sqlite-adapter-migration.md` in den drei Einträgen.
+- **Folge-Slices:** keine; die Abbildung von `ErrBeschaedigt` auf `ODR-E3001` steht in der Roadmap bei welle-record-replay, die Bibliotheksgrenze für die Composition Root bleibt offen (a-check nimmt sie aus), und die Zusage zur Gleichzeitigkeit ist statistisch belegt.
+- **Risiken aus §6:** Randformen und Treiber *entfallen*, Migrations-Einbettung *entfallen*, siehe §6.
+- **Drei Paarungen:** von der Closure der Welle welle-persistenz geprüft.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
