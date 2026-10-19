@@ -57,18 +57,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Domain-Modell `Session` und `Exchange` mit den Zuständen aus `SPEC-001` und Outbound Ports `SessionRepository`, `RecordingRepository` mit ihren Fehlern; die Transaktionsgrenze über mehrere Ports entsteht mit der ersten Operation über mehrere Repositories in `slice-baseline-persistenz`, hier ist jede Operation atomar.
-- [ ] SQLite-Repositories: Session anlegen, Status `open` → `complete`/`incomplete`, offene Sessions finden, Exchanges append-only anhängen und lesen, Session samt Exchanges löschen.
-- [ ] Vertragstest-Suite am Port, gefahren gegen den SQLite-Adapter; die Randformen aus §6 sind getestet.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Domain-Modell `Session` und `Exchange` mit den Zuständen aus `SPEC-001` und Outbound Ports `SessionRepository`, `RecordingRepository` mit ihren Fehlern; die Transaktionsgrenze über mehrere Ports entsteht mit der ersten Operation über mehrere Repositories in `slice-baseline-persistenz`, hier ist jede Operation atomar.
+- [x] SQLite-Repositories: Session anlegen, Status `open` → `complete`/`incomplete`, offene Sessions finden, Exchanges append-only anhängen und lesen, Session samt Exchanges löschen.
+- [x] Vertragstest-Suite am Port, gefahren gegen den SQLite-Adapter; die Randformen aus §6 sind getestet.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -134,7 +134,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Randformen der Repositories (`AGENTS.md` §3.12): leerer, fehlender oder unbekannter Wert, doppelter Schlüssel, Abbruch mitten in der Transaktion, gleichzeitiger Zugriff — **Ausgang:** entfallen: entschieden in `spezifikation.md` (Produkt) vor dem ersten Code-Commit.
-- Das Modell von `Exchange` ist breit (Redaction-, Integritäts- und Replay-Status) und wächst mit der Fachlogik — **Ausgang:** weiter offen: wird mit welle-record-replay sichtbar und dann als Beobachtung geführt.
+- Das Modell von `Exchange` ist breit (Redaction-, Integritäts- und Replay-Status) und wächst mit der Fachlogik — **Ausgang:** weiter offen: das Modell wächst mit der Fachlogik von welle-record-replay und wird dort beobachtet.
 - Der Port legt eine SQL-Eigenheit offen — **Ausgang:** entfallen: `a-check` hält SQL im Adapter, die Architektur verlangt eine fachliche Transaktionsgrenze.
 
 ## 7. Closure-Notiz
@@ -151,7 +151,13 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-Wird bei der Closure geschrieben.
+- **Was hat funktioniert:** Modell, Ports und SQLite-Repositories erfüllen `SPEC-105` Nr. 1–13; die Vertragstest-Suite am Port läuft gegen SQLite, die Gleichzeitigkeit hielt in 200 Wiederholungen des Verifiers, und jede Zusage der Tabelle *Zusage · Fänger* hat eine selbst rot gesehene Mutation.
+- **Was ging anders als geplant:** Das Review fand 2 HIGH (ein Fänger, den es nicht gab, und eine Ordnung über Zeittext variabler Breite) und 2 MEDIUM; die Verifikation bestand mit Auflagen (3 MEDIUM, Lücken der Fänger bei Prüfreihenfolge, Jahresbereich und fremden Exchanges). `SPEC-105` wuchs um Randformen (Nullzeit, Prüfreihenfolge, Zeitformat, Jahresbereich, Status, UTF-8). Die Marke ist überschritten und in §4 benannt.
+- **Steering-Loop-Eintrag:** Nichts verkörpert; gezählt, nicht verkörpert: `BEO-REPO/randform-erst-im-review-entschieden` steht jetzt bei 4× (der Eintrag geht in die Closure von welle-persistenz) und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` bei 6× (verkörpert in `AGENTS.md` §3.15).
+- **Beobachtungs-Register (`../observations/`):** je eine weitere Datei `evidence/slice-session-recording-persistenz.md` in den beiden Einträgen; `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` blieb ohne neues Auftreten.
+- **Folge-Slices:** keine; die Transaktionsgrenze über mehrere Ports entsteht in [slice-baseline-persistenz](../open/slice-baseline-persistenz.md).
+- **Risiken aus §6:** Randformen *entfallen*, Breite des Modells *weiter offen*, SQL-Eigenheit am Port *entfallen*, siehe §6.
+- **Drei Paarungen:** von der Closure der Welle welle-persistenz geprüft.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
