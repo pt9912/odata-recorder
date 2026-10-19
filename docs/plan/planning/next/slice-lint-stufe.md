@@ -35,7 +35,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Gegenprobe des Lint-Gates — eigener Slice [slice-gegenproben](slice-gegenproben.md); sie braucht dieses Gate als Gegenstand.
+- Gegenprobe des Lint-Gates — eigener Slice [slice-gegenproben](../open/slice-gegenproben.md); sie braucht dieses Gate als Gegenstand.
 - Neue Linter oder gelockerte Schwellen — das Profil ist mit [ADR-0003](../../adr/0003-lint-profil-golangci.md) beschlossen; eine Änderung ist eine neue ADR (`AGENTS.md` §3.6).
 - Zulassung von Fremdbibliotheken in `gomodguard_v2` — jede Bibliothek bekommt ihre ADR in welle-persistenz.
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
@@ -114,7 +114,7 @@ dasteht.
 
 - Randformen des Profils und der eigenen Prüfungen (`AGENTS.md` §3.12): `.golangci.yml` fehlt oder ist nicht lesbar, das Profil weicht von der gelesenen Form ab, eine Direktive `//nolint` steht in einer Testdatei, ein Verzeichnis enthält keine Go-Dateien — **Ausgang:** entfallen: entschieden in `harness/vertraege/SPEC-101-lint-profil.md` vor dem ersten Code-Commit.
 - Die Schwellen des Profils (Komplexität 15, Funktionslänge 100) beißen am Skelett nicht — **Ausgang:** weiter offen: wird mit der ersten Fachlogik sichtbar und dann als Beobachtung geführt.
-- `lint.sh` liest das Profil in fester Form; eine Umformatierung bricht es — **Ausgang:** entfallen: die Form steht im Kopfkommentar des Profils und die Gegenprobe in [slice-gegenproben](slice-gegenproben.md) hält sie.
+- `lint.sh` liest das Profil in fester Form; eine Umformatierung bricht es — **Ausgang:** entfallen: die Form steht im Kopfkommentar des Profils und die Gegenprobe in [slice-gegenproben](../open/slice-gegenproben.md) hält sie.
 
 ## 7. Closure-Notiz
 
