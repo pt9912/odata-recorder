@@ -2,6 +2,7 @@ package model_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -120,5 +121,95 @@ func TestExchangeValidate(t *testing.T) {
 	erlaubt.RequestRedact, erlaubt.RequestBody = model.RedactionUnsafe, model.BodyDiscarded
 	if err := erlaubt.Validate(); err != nil {
 		t.Errorf("failed ohne match_key mit unsafe Request: %v", err)
+	}
+}
+
+func TestBlobReferenzGueltig(t *testing.T) {
+	hex := strings.Repeat("0123456789abcdef", 4)
+	for ref, soll := range map[string]bool{
+		"sha256:" + hex:                  true,
+		"sha256:" + hex[:63]:             false,
+		"sha256:" + hex + "0":            false,
+		"sha256:" + strings.ToUpper(hex): false,
+		"sha256:" + hex[:63] + "g":       false,
+		"sha1:" + hex:                    false,
+		hex:                              false,
+		"":                               false,
+		"sha256:../" + hex[:61]:          false,
+	} {
+		if got := model.BlobReferenzGueltig(ref); got != soll {
+			t.Errorf("%q: %v, erwartet %v", ref, got, soll)
+		}
+	}
+}
+
+func gueltigePublikation() model.Publication {
+	blob := "sha256:" + strings.Repeat("a", 64)
+	return model.Publication{
+		Import:           model.Import{ID: "i", RequestHash: "r", BaselineSnapshotID: "b", ServiceID: "d", CreatedAt: jetzt(), ReportJSON: "{}"},
+		Snapshot:         model.BaselineSnapshot{ID: "b", ServiceID: "d", CreatedAt: jetzt(), StateBlob: blob, StateHash: "h", MetadataHash: "m"},
+		SourceSessionIDs: []string{"s"},
+		Coverage:         []model.Coverage{{EntitySet: "P", Status: model.CoveragePartial, EvidenceJSON: "null"}},
+	}
+}
+
+func TestPublicationValidate(t *testing.T) {
+	if err := gueltigePublikation().Validate(); err != nil {
+		t.Fatal(err)
+	}
+	ohne := gueltigePublikation()
+	ohne.Coverage = nil
+	if err := ohne.Validate(); err != nil {
+		t.Fatalf("leere Coverage: %v", err)
+	}
+	for name, mut := range map[string]func(*model.Publication){
+		"keine Quelle":         func(p *model.Publication) { p.SourceSessionIDs = nil },
+		"doppelte Quelle":      func(p *model.Publication) { p.SourceSessionIDs = []string{"s", "s"} },
+		"Import ohne Zeit":     func(p *model.Publication) { p.Import.CreatedAt = time.Time{} },
+		"andere Baseline":      func(p *model.Publication) { p.Import.BaselineSnapshotID = "x" },
+		"anderer Service":      func(p *model.Publication) { p.Import.ServiceID = "x" },
+		"Evidenz kein JSON":    func(p *model.Publication) { p.Coverage[0].EvidenceJSON = "{" },
+		"unbekannter Status":   func(p *model.Publication) { p.Coverage[0].Status = "voll" },
+		"doppeltes entity_set": func(p *model.Publication) { p.Coverage = append(p.Coverage, p.Coverage[0]) },
+	} {
+		p := gueltigePublikation()
+		mut(&p)
+		if err := p.Validate(); !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+func TestServiceValidate(t *testing.T) {
+	blob := "sha256:" + strings.Repeat("a", 64)
+	gut := model.Service{ID: "d", ServiceRoot: "/", ODataVersion: "4.0"}
+	if err := gut.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	gut.MetadataBlob, gut.MetadataHash = blob, "h"
+	if err := gut.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, ungueltig := range []model.Service{{}, {ID: "d"}, {ID: "d", ServiceRoot: "/"}, {ID: "d", ServiceRoot: "/", ODataVersion: "4", MetadataBlob: blob}} {
+		if err := ungueltig.Validate(); !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%+v: %v", ungueltig, err)
+		}
+	}
+}
+
+func TestBaselineSnapshotValidate(t *testing.T) {
+	gut := gueltigePublikation().Snapshot
+	if err := gut.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, mut := range map[string]func(*model.BaselineSnapshot){
+		"ohne Kennung": func(b *model.BaselineSnapshot) { b.ID = "" },
+		"ohne Service": func(b *model.BaselineSnapshot) { b.ServiceID = "" },
+	} {
+		b := gut
+		mut(&b)
+		if err := b.Validate(); !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%s: %v", name, err)
+		}
 	}
 }

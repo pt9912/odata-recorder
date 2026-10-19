@@ -19,10 +19,20 @@ import (
 type Verbindung struct {
 	Sessions  outbound.SessionRepository
 	Recording outbound.RecordingRepository
+	Metadata  outbound.MetadataRepository
+	Snapshots outbound.SnapshotRepository
+	Imports   outbound.ImportRepository
+	Coverage  outbound.CoverageRepository
 	// FuegeDienstHinzu legt einen Service an, den Sessions referenzieren dürfen.
 	FuegeDienstHinzu func(t *testing.T, id string)
 	// MacheZurBaselineQuelle trägt die Session als Quelle einer Baseline ein.
 	MacheZurBaselineQuelle func(t *testing.T, sessionID string)
+	// FuegeWorkspaceSnapshotHinzu legt einen Snapshot der Art workspace an, den kein Port der
+	// Baselines sehen darf.
+	FuegeWorkspaceSnapshotHinzu func(t *testing.T, id, serviceID string)
+	// BrichNachImportAb ruft abbruch, sobald die nächste Publikation den Import-Eintrag
+	// geschrieben hat und noch nicht fertig ist.
+	BrichNachImportAb func(t *testing.T, abbruch context.CancelFunc)
 }
 
 // Neu liefert je Aufruf eine frische Verbindung.

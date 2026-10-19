@@ -79,28 +79,31 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/model/` | update | Service, Snapshot (baseline), Import, Coverage |
-| `src/hexagon/ports/outbound/` | update | vier Ports und die Transaktionsgrenze der Import-Publikation |
-| `src/adapters/driven/sqlite/` | update | Implementierungen auf den Tabellen `services`, `snapshots`, `imports`, `baseline_sources`, `coverage` |
+| `src/hexagon/model/` | update | Service, Snapshot (baseline), Import, Publication, Coverage mit `Validate`; Modelltests |
+| `src/hexagon/ports/outbound/` | update | vier Ports (`MetadataRepository`, `SnapshotRepository`, `ImportRepository`, `CoverageRepository`); `Publish` ist die Transaktionsgrenze der Import-Publikation |
+| `src/hexagon/ports/outbound/outboundtest/` | update | Vertragstests `RunServiceVertrag`, `RunBaselineVertrag` und zwei Hooks in `Verbindung` |
+| `src/adapters/driven/sqlite/` | update | Implementierungen auf den Tabellen `services`, `snapshots`, `imports`, `baseline_sources`, `coverage`; Adapter-Tests |
 | `spec/spezifikation.md` | update | `SPEC-107`: Randformen leerer Import, doppelter Anfrage-Hash mit anderem Inhalt, Quelle nicht vorhanden oder eines anderen Service, Abbruch mitten in der Publikation |
 
 - Der Vertrag ist `SPEC-107`; Löschen von Services und Baselines liefert dieser Slice nicht (kein Konsument in der Welle).
 - Die Fremdschlüssel des Schemas (`baseline_kind`, `uq_import_baseline`, `fk_baseline_sources_kind`) sind der Rückhalt; die Tests belegen sie über den Port, nicht über rohes SQL.
 
-**Zusage · Fänger** (`AGENTS.md` §3.15):
+**Zusage · Fänger** (`AGENTS.md` §3.15). Die Tests liegen als Vertrag in `outboundtest` (`TestServiceVertrag`, `TestBaselineVertrag`, gegen SQLite in `repositories_test.go`), die Hooks `FuegeWorkspaceSnapshotHinzu` und `BrichNachImportAb` setzen der Adapter die Zustände, die kein Port erzeugt:
 
-| Zusage | Fänger |
+| Zusage | Fänger (Test) · Mutation |
 |---|---|
-| Publikation ist atomar (SPEC-107 Nr. 5) | Test: unbekannte Quell-Session nach dem Schreiben von Snapshot und Import lässt keine Zeile zurück; Abbruch des Kontexts ebenso; Mutation: Transaktion entfernt |
-| Gleicher Anfrage-Hash, gleicher Import, auch bei abweichendem Inhalt (Nr. 7) | Test: zweiter Aufruf liefert den ersten Eintrag, „nicht neu“, keine zweite Baseline; Mutation: Prüfung entfernt; gleichzeitig; anderer Service ist eigene Anfrage |
-| Gültigkeit der Publikation (Nr. 6), leerer Import | Tabellentest je Verstoß; Mutation je Prüfung |
-| Prüfreihenfolge (Nr. 8) | Test je Paar von Verstößen |
-| Baseline-Quellen verhindern das Löschen der Session, `BaselinesOf`, `Sources` (Nr. 9) | Test über `SessionRepository.Delete` und beide Leser |
-| Nur Snapshots der Art `baseline` sichtbar (Nr. 4) | Adapter-Test: ein per SQL eingefügter `workspace`-Snapshot erscheint weder in `Get` noch in `List`; Mutation: Filter entfernt |
-| Baseline unveränderlich (Kopf) | Test: zweites `Publish` mit bekannter Snapshot-Kennung ist `ErrBereitsVorhanden`, Stand unverändert |
-| Service und Metadaten (Nr. 1–3) | Tests je Zusage, Mutation je Prüfung |
-| Coverage lesen, Evidenz byte-gleich (Nr. 11) | Test mit Evidenz mit Leerzeichen und Schlüsselfolge |
-| Kontext (Nr. 12) | Test je Operation |
+| Publikation ist atomar, auch beim Abbruch mitten im Schreiben (SPEC-107 Nr. 5) | `Publish ist atomar` (Quelle nach Snapshot und Import unbekannt oder fremd, Kontextabbruch nach dem Import-Eintrag über den Hook) · `BEGIN`, `COMMIT`, `ROLLBACK` in `inTx` entfernt; `ROLLBACK` mit dem abgebrochenen Kontext |
+| Gleicher Anfrage-Hash, gleicher Import, auch bei abweichendem Inhalt; anderer Service ist eigene Anfrage; gleichzeitig (Nr. 7) | `gleicher Anfrage-Hash ist idempotent`, `gleichzeitige Publish mit gleichem Hash ordnen sich` · Hash-Abfrage unwirksam; Hash über Services; Treffer als neu gemeldet; `BEGIN` statt `BEGIN IMMEDIATE` |
+| Gültigkeit der Publikation, leerer Import, leere Coverage zulässig (Nr. 6) | `ungültige Publikationen werden abgelehnt und schreiben nichts` (26 Verstöße) und `TestPublicationValidate` · je `case` in `baseline.go` durch `false` ersetzt, je Prüfung der Liste in `Publication.Validate` entfernt, Duplikat-Prüfungen entfernt, `Validate` in `Publish` entfernt |
+| Prüfreihenfolge (Nr. 8) | `Prüfreihenfolge von Publish` (ein Fall je Paar) · Kennungen vor Hash; Service-Prüfung entfernt; Quelle vor Kennungen; Quellen rückwärts; Kontext vor Gültigkeit |
+| Baseline unveränderlich, auch gegen einen `workspace`-Snapshot gleicher Kennung (Kopf) | `Baselines sind unveränderlich` · Kennungsprüfung entfernt; zusätzlich `INSERT OR REPLACE` |
+| Quellen verhindern das Löschen der Session, `BaselinesOf`, `Sources`, `Get` des Imports (Nr. 9, 10) | `Baseline-Quellen: BaselinesOf, Sources, Löschen der Session` · Quelle nicht geschrieben; Sortierung absteigend; Prüfung der Session und der Baseline entfernt; Fehler des Imports vertauscht |
+| Quelle eines anderen Service ist `ErrUngueltig` (Nr. 8) | `Publish ist atomar`, `Prüfreihenfolge von Publish` · Prüfung des Service der Quelle entfernt |
+| Nur Snapshots der Art `baseline` sichtbar (Nr. 4) | `nur Baselines sind sichtbar, geordnet nach Zeit`, `Coverage lesen`, `Baseline-Quellen` (Hook legt einen `workspace`-Snapshot an) · Filter in `Get`, `List` und `baselineBekannt` einzeln entfernt |
+| Ordnung nach Zeit, nicht nach Text; Zeiten als UTC (Nr. 4, SPEC-105) | `nur Baselines sind sichtbar, geordnet nach Zeit` (Zone `UTC-5`, gleiche Zeit), `Publish schreibt alles` (Import-Zeit in `UTC+5`), `TestPublishSchreibtArtZeitformatUndHaeltDieSchluessel` · Kennung vor Zeit; Zeit ohne Umrechnung in UTC bei Snapshot und Import |
+| Service und Metadaten (Nr. 1–3) | `TestServiceVertrag` (fünf Fälle) · `Validate` und Prüfung in `SetMetadata` entfernt; doppeltes `Create`; `List` absteigend; Fehler von `Get` und `SetMetadata`; Blob-Format in `BlobReferenzGueltig` (Präfix, Länge, Kleinbuchstaben) |
+| Coverage lesen, Evidenz byte-gleich, leere Argumente, unbekannte Baseline (Nr. 11) | `Coverage lesen, Evidenz byte-gleich` (Leerzeichen, Zeilenumbruch, Umlaut, Schlüsselfolge) · Evidenz mit `json()` minifiziert; Sortierung absteigend; Prüfung leerer Argumente und der Baseline entfernt |
+| Kontext (Nr. 12), Argument vor Kontext | `abgebrochener Kontext beendet jede Operation ohne Änderung` (Service und Baseline) · Kontext in `Publish`, in den Lesern und in `Metadata` ignoriert |
 
 ## 4. Trigger
 
@@ -108,6 +111,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
 **Start** (`next` → `in-progress`): [slice-session-recording-persistenz](../done/slice-session-recording-persistenz.md) liegt in `done/`.
+
+**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei 1507 Zeilen, getragen von den Vertragstests (`outboundtest`, 645 Zeilen), den Modell- und Adapter-Tests (182 Zeilen), dem Adapter (430 Zeilen) sowie Modell und Ports (250 Zeilen). Der Slice bleibt ungeteilt, weil Modell, Ports und Adapter einzeln nichts liefern und die Publikation nur mit ihren Lesern prüfbar ist.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -130,6 +135,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Randformen der Repositories (`AGENTS.md` §3.12): leerer, fehlender oder unbekannter Wert, doppelter Schlüssel, Abbruch mitten in der Transaktion, gleichzeitiger Zugriff — **Ausgang:** entfallen: entschieden in `spezifikation.md` (Produkt) vor dem ersten Code-Commit.
+- Randformen, die `SPEC-107` nicht nennt und der Code so setzt (an den Architect, `AGENTS.md` §3.12): `SetMetadata` prüft die Argumente vor der Kennung (wie `Create` in `SPEC-105` Nr. 1), ein Test deckt nur je einen Verstoß ab; die Coverage-Einträge der `Publication` tragen keine Baseline-Kennung, `Publish` schreibt sie unter `Snapshot.ID`; eine leere Quell-Session-Kennung ist eine unbekannte Session (`ErrNichtGefunden`); `Sources` und `BaselinesOf` prüfen Baseline und Session in einer eigenen Abfrage vor dem Lesen, nicht in einer Transaktion — **Ausgang:** weiter offen, bis der Architect sie in `spezifikation.md` entscheidet.
 - Die Evidenz der Coverage (`evidence_json`) ist frei geformt und kann mit der Fachlogik wachsen — **Ausgang:** weiter offen: wird mit welle-record-replay sichtbar und dann als Beobachtung geführt.
 
 ## 7. Closure-Notiz
