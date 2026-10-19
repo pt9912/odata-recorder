@@ -9,7 +9,7 @@
 **Festlegung `make lint`:** Baut die Stufe `lint` des `Dockerfile` (golangci-lint-Image per Digest aus `harness/mk/lint-profil.mk`, ohne Netz) und führt `tools/harness/lint.sh` aus.
 `lint.sh` läuft an der Wurzel des Moduls und hat zwei Teile, die beide laufen, auch wenn der erste einen Befund meldet:
 1. Eigene Prüfungen (siehe unten).
-2. `golangci-lint run -c .golangci.yml ./...`.
+2. `golangci-lint run -c <Profil> ./...`, einmal je Modul: das Wurzelmodul und jedes Verzeichnis `tools/<Name>` mit eigener `go.mod`; das Profil ist in beiden Fällen die `.golangci.yml` der Wurzel.
 Das Ziel schlägt fehl, wenn einer der beiden Teile einen Befund meldet.
 
 **Eigene Prüfungen** (Befund je Verstoß, Form `lint.sh: <Datei>:<Zeile>: <Text>`):
@@ -19,17 +19,18 @@ Das Ziel schlägt fehl, wenn einer der beiden Teile einen Befund meldet.
    Eine Leerzeile zwischen Block und Regel oder eine andere Einrückung löst den Block von der Regel.
 3. Das Profil setzt `linters.exclusions.warn-unused: true`.
    Meldet golangci-lint daraufhin eine Regel ohne Wirkung, steht die Warnung in der Ausgabe und führt nicht zum Fehlschlag: eine Regel darf dem Code vorauseilen.
-4. Es gibt mindestens eine Datei `*.go`.
+4. Jedes Modul trägt mindestens eine Datei `*.go`.
 
 **Randformen:**
 1. `.golangci.yml` fehlt oder ist nicht lesbar: Meldung `lint.sh: Profil .golangci.yml fehlt oder ist nicht lesbar`, Exit-Code 2; golangci-lint läuft nicht.
 2. Das Profil weicht von der Form ab, die `lint.sh` liest: `linters.exclusions` fehlt, trägt kein `warn-unused: true`, oder eine Regel unter `rules` beginnt nicht mit `      - ` (sechs Leerzeichen): Befund der Prüfung 3 bzw. 2, Exit-Code 1.
    Die gelesene Form steht im Kopfkommentar des Profils.
 3. `exclusions.rules` fehlt oder ist `[]`: kein Befund der Prüfung 2.
-4. Ein Verzeichnis ohne Go-Dateien: kein Befund, golangci-lint übergeht es. Fehlt jede Go-Datei im Modul, meldet Prüfung 4 einen Befund.
+4. Ein Verzeichnis ohne Go-Dateien: kein Befund, golangci-lint übergeht es. Fehlt jede Go-Datei in einem Modul, meldet Prüfung 4 einen Befund mit dem Pfad des Moduls.
 5. Eine Direktive in `*_test.go`: derselbe Befund wie im Produktcode.
 6. Abbruch und Herunterfahren: `lint.sh` hält keinen Zustand; ein Abbruch des Builds lässt nichts zurück.
-7. Exit-Codes: 0 kein Befund, 1 mindestens ein Befund der eigenen Prüfungen oder von golangci-lint, 2 Profil fehlt oder ist nicht lesbar.
+7. Ein Befund im Modul unter `tools/` färbt das Ziel wie einer im Wurzelmodul; gibt es kein Verzeichnis `tools/<Name>` mit `go.mod`, läuft nur das Wurzelmodul.
+8. Exit-Codes: 0 kein Befund, 1 mindestens ein Befund der eigenen Prüfungen oder von golangci-lint, 2 Profil fehlt oder ist nicht lesbar.
 
 **Stand:** vorhanden für die Schema-Prüfung des Profils und die Prüfung des Codes.
 
