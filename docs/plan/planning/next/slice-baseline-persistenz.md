@@ -36,7 +36,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Die Import-Logik (OData-Interpretation, Coverage-Berechnung) — Fachlogik der Welle welle-record-replay; hier liegt nur die Ablage.
-- Workspaces, Entities und Snapshots der Art `workspace` — [slice-workspace-state-persistenz](slice-workspace-state-persistenz.md).
+- Workspaces, Entities und Snapshots der Art `workspace` — [slice-workspace-state-persistenz](../open/slice-workspace-state-persistenz.md).
 - Admin-API und Löschen von Sessions als Use Case — Services und Adapter der Folgewellen.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
