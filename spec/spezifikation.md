@@ -615,14 +615,14 @@ Die Schemaversion der Datei steht in `PRAGMA user_version`; das Programm kennt h
 ### SPEC-105 — Sessions und Exchanges: Vertrag der Repositories
 
 `SessionRepository` und `RecordingRepository` sind die Outbound Ports für Sessions und ihre Exchanges (`ARC-004`).
-Kennungen vergibt der Aufrufer; die Zeitstempel sind UTC und werden als RFC 3339 mit Nanosekunden gespeichert und gelesen.
+Kennungen vergibt der Aufrufer; die Zeitstempel sind UTC, liegen in den Jahren 1 bis 9999 und werden als RFC 3339 mit genau neun Nachkommastellen gespeichert, damit die Textordnung die Zeitordnung ist, und gelesen.
 Jede Operation ist atomar: sie geschieht ganz oder gar nicht.
 
 **Session** (`open` → `complete` oder `incomplete`; ein Zustand außer `open` ist endgültig):
-1. `Create` legt eine Session im Zustand `open` an. Ein anderer Zustand, eine leere Kennung oder ein leerer `service_id` ist `ErrUngueltig`; eine bekannte Kennung ist `ErrBereitsVorhanden`; ein unbekannter Service ist `ErrDienstUnbekannt`.
+1. `Create` legt eine Session im Zustand `open` an. Ein anderer Zustand, eine leere Kennung, ein leerer `service_id` oder eine Zeit außerhalb der Jahre 1 bis 9999 ist `ErrUngueltig`; danach folgt die Prüfung der Kennung (`ErrBereitsVorhanden`) und die des Service (`ErrDienstUnbekannt`).
 2. `Get` einer unbekannten Kennung ist `ErrNichtGefunden`.
 3. `SetStatus` erlaubt nur `open` → `complete` und `open` → `incomplete`. Jede andere Folge (auch auf `open`, auch aus einem geschlossenen Zustand, auch derselbe Zustand noch einmal) ist `ErrUngueltigerUebergang` und ändert nichts; eine unbekannte Kennung ist `ErrNichtGefunden`.
-4. `List` liefert die Sessions eines Service nach `created_at`, dann nach Kennung aufsteigend; ein Service ohne Sessions oder ein unbekannter Service liefert eine leere Liste, ein leerer `service_id` ist `ErrUngueltig`.
+4. `List` liefert die Sessions eines Service nach der Zeit `created_at` (nicht nach ihrem Text, Zeitzonen eingeschlossen), dann nach Kennung aufsteigend; ein Service ohne Sessions oder ein unbekannter Service liefert eine leere Liste, ein leerer `service_id` ist `ErrUngueltig`.
 5. `FindOpen` liefert alle Sessions im Zustand `open` in derselben Reihenfolge, über alle Services.
 6. `Delete` löscht die Session mit ihren Exchanges und Cursors in einer Transaktion. Ist die Session Quelle einer Baseline (`baseline_sources`), ist es `ErrReferenziert` und nichts wird gelöscht; eine unbekannte Kennung ist `ErrNichtGefunden`.
 
@@ -631,10 +631,10 @@ Jede Operation ist atomar: sie geschieht ganz oder gar nicht.
 8. `sequence_no` ist lückenlos: der erste Exchange einer Session trägt `1`, jeder weitere den Vorgänger plus eins; jede andere Zahl ist `ErrUngueltigeSequenz` und ändert nichts. Gleichzeitige Anhänge an dieselbe Session ordnen sich; genau einer erhält jede Nummer, der andere `ErrUngueltigeSequenz`.
    Die Prüfung von `Append` folgt dieser Reihenfolge: Gültigkeit des Exchange, Session (Nr. 7), Kennung (Nr. 9), Sequenz (Nr. 8); der erste Verstoß bestimmt den Fehler.
 9. Eine bekannte Exchange-Kennung ist `ErrBereitsVorhanden`; der gespeicherte Exchange bleibt unverändert. Es gibt keine Operation, die einen Exchange ändert oder einzeln löscht.
-10. Ein Exchange, der die Invarianten von `SPEC-001` und `SPEC-004` verletzt, ist `ErrUngueltig` (Prüfung `Validate` im Modell): Pflichtfelder gesetzt, Aufzählungswerte bekannt, `body_state=present` genau mit Blob, `match_key` nur bei `capture_status=failed` leer, ein verworfener Body nie bei `capture_status=complete`, `redaction.request=unsafe` nur bei `failed` und verworfenem Request-Body, `redaction.response=unsafe` nur bei verworfenem Response-Body und `replay_equivalence=none`.
+10. Ein Exchange, der die Invarianten von `SPEC-001` und `SPEC-004` verletzt, ist `ErrUngueltig` (Prüfung `Validate` im Modell): Pflichtfelder gesetzt, Zeiten in den Jahren 1 bis 9999, `finished_at` nicht vor `started_at`, Response-Status `0` oder `100` bis `599`, Header als gültiges UTF-8, Aufzählungswerte bekannt, `body_state=present` genau mit Blob, `match_key` nur bei `capture_status=failed` leer, ein verworfener Body nie bei `capture_status=complete`, `redaction.request=unsafe` nur bei `failed` und verworfenem Request-Body, `redaction.response=unsafe` nur bei verworfenem Response-Body und `replay_equivalence=none`.
 11. `Get` einer unbekannten Kennung ist `ErrNichtGefunden`; `ListBySession` liefert die Exchanges nach `sequence_no` aufsteigend, eine unbekannte Session ist `ErrNichtGefunden`, eine Session ohne Exchanges eine leere Liste.
 12. Request-Header werden nie als `nil` gelesen (leer ist eine leere Abbildung); Response-Header sind `nil`, wenn keine gespeichert sind, und eine leere Abbildung, wenn eine leere gespeichert wurde. Ein Response-Status `0` heißt: keiner.
-13. Ein abgebrochener Kontext beendet die Operation mit dem Fehler des Kontexts, ohne eine Änderung zu hinterlassen.
+13. Ein abgebrochener Kontext beendet jede Operation beider Repositories mit dem Fehler des Kontexts, ohne eine Änderung zu hinterlassen.
 
 Ungeprüft bleibt: Seitenweises Lesen großer Sessions (`InspectionUseCase`) und die Blob-Ablage (Blobs sind hier nur Verweise).
 
