@@ -36,7 +36,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Redaction der Bodies — Fachlogik der Welle welle-record-replay; die Ablage speichert Bytes, die sie bekommt.
-- Abgleich der Blobs gegen die Referenzmenge — `StorageMaintenance` und `MaintenanceUseCase` kommen mit [slice-workspace-state-persistenz](../open/slice-workspace-state-persistenz.md) und den Services.
+- Abgleich der Blobs gegen die Referenzmenge — `MaintenanceUseCase` kommt mit den Services, `StorageMaintenance` mit [slice-workspace-state-persistenz](../open/slice-workspace-state-persistenz.md).
 - Verschlüsselung ruhender Daten — nicht zugesagt.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
@@ -57,18 +57,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Outbound Port `BlobRepository` mit `CaptureWriter` und der Adapter: schreiben über temporäre Datei und atomares Umbenennen, Rechte `0600`, Hash und Länge beim Abschluss.
-- [ ] Lesen prüft den Hash (`ODR-E3001` bei Abweichung); Auflisten und Entfernen; gleiche Inhalte teilen eine Datei.
-- [ ] Tests der Randformen aus §6 gegen ein temporäres Verzeichnis.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Outbound Port `BlobRepository` mit `CaptureWriter` und der Adapter: schreiben über temporäre Datei und atomares Umbenennen, Rechte `0600`, Hash und Länge beim Abschluss.
+- [x] Lesen prüft den Hash (`ODR-E3001` bei Abweichung); Auflisten und Entfernen; gleiche Inhalte teilen eine Datei.
+- [x] Tests der Randformen aus §6 gegen ein temporäres Verzeichnis.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -141,7 +141,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Randformen der Ablage (`AGENTS.md` §3.12): leere und überlange Bodies, doppelter und gleichzeitiger `Commit`, `Write` und `Abort` nach dem Abschluss, Abbruch des Kontexts, Absturz vor dem Umbenennen, fehlende, veränderte und gekürzte Datei, ungültige Referenz, Verzeichnis nicht beschreibbar — **Ausgang:** entfallen, bis auf zwei: `Remove` gegen `Commit` gleicher Bytes und die Nutzung eines Writers aus mehreren Goroutinen bleiben unentschieden und gehen an den Architect (Verifikations-Befund V-3); entschieden in `SPEC-106` ist alles übrige, darunter die Nicht-Datei an einer Referenz, die Reihenfolge beim Erzeugen und der Fehler des Verzeichnis-`fsync` fanden Review und Verifikation und stehen jetzt dort.
-- Dateisystem-Eigenheiten des Containers (Rechte, Umbenennen über Mountgrenzen) — **Ausgang:** weiter offen: wird im ersten Lauf im Container sichtbar und dann als Beobachtung geführt.
+- Dateisystem-Eigenheiten des Containers (Rechte, Umbenennen über Mountgrenzen) — **Ausgang:** entfallen: Rechte `0600` unter `umask 0` und `0277` und das Umbenennen im Testverzeichnis des Containers laufen grün; temporäre Dateien liegen im selben Verzeichnisbaum wie die Blobs.
 
 ## 7. Closure-Notiz
 
@@ -157,7 +157,13 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-Wird bei der Closure geschrieben.
+- **Was hat funktioniert:** Port, Adapter und Vertragstest erfüllen `SPEC-106`; die Gleichzeitigkeit gleicher Inhalte hält, und die Fänger der Tabelle *Zusage · Fänger* wurden mit rund 70 Mutationen rot gesehen (Implementer 30, Reviewer, Verifier 56).
+- **Was ging anders als geplant:** Das Review fand 6 MEDIUM (vier Lücken der Fänger, zwei offene Randformen), die Verifikation bestand mit Auflagen (Verweise ohne Fänger, vier LOW). `SPEC-106` wuchs um die Nicht-Datei an einer Referenz, die Reihenfolge beim Erzeugen und den `fsync`-Fehler; `fsync` und „derselbe Leser“ sind als ungeprüft geführt, weil kein Test sie erzwingt. Die Marke ist überschritten und in §4 benannt.
+- **Steering-Loop-Eintrag:** Nichts verkörpert; gezählt, nicht verkörpert: `BEO-REPO/randform-erst-im-review-entschieden` steht jetzt bei 5× (der Eintrag geht in die Closure von welle-persistenz) und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` bei 7× (verkörpert in `AGENTS.md` §3.15).
+- **Beobachtungs-Register (`../observations/`):** je eine weitere Datei `evidence/slice-blob-ablage.md` in den beiden Einträgen; `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` blieb ohne neues Auftreten.
+- **Folge-Slices:** keine; zwei Randformen (`Remove` gegen `Commit` gleicher Bytes, ein Writer aus mehreren Goroutinen) gehen an den Architect und sind in `SPEC-106` als unentschieden geführt, der Abgleich der Blobs gegen die Referenzmenge gehört zum `MaintenanceUseCase` der Services, dem noch kein Slice zugewiesen ist (`slice-workspace-state-persistenz` liefert nur `StorageMaintenance`).
+- **Risiken aus §6:** Randformen *entfallen* bis auf zwei, Dateisystem-Eigenheiten *entfallen*, siehe §6.
+- **Drei Paarungen:** von der Closure der Welle welle-persistenz geprüft.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
