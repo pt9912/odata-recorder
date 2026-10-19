@@ -20,7 +20,7 @@ type Fall struct {
 	Ersetze  []Ersetzung
 	Entferne []string // Dateien, aus der Kopie gelöscht
 	WantExit int
-	WantText string // muss in der Ausgabe stehen; leer: keine Bedingung
+	WantText []string // jeder Text muss in der Ausgabe stehen
 }
 
 // Ersetzung tauscht in einer Datei der Kopie genau eine Stelle.
@@ -54,7 +54,7 @@ func faelle() []Fall {
 				"src/adapters/driven/ziel/ziel.go": goDatei("ziel"),
 				"src/hexagon/model/kern/kern.go":   goDatei("kern", "src/adapters/driven/ziel"),
 			},
-			WantExit: 1, WantText: "core-impurity",
+			WantExit: 1, WantText: []string{"core-impurity"},
 		},
 		{
 			Name: "a-check/adapter-auf-adapter", Gate: gateACheck,
@@ -62,7 +62,7 @@ func faelle() []Fall {
 				"src/adapters/driven/ziel/ziel.go": goDatei("ziel"),
 				"src/adapters/driving/quelle/q.go": goDatei("quelle", "src/adapters/driven/ziel"),
 			},
-			WantExit: 1, WantText: "lateral-adapter",
+			WantExit: 1, WantText: []string{"lateral-adapter"},
 		},
 		{
 			Name: "a-check/erlaubter-weg-ueber-port", Gate: gateACheck,
@@ -73,35 +73,36 @@ func faelle() []Fall {
 				"src/hexagon/services/dienst/dienst.go":   goDatei("dienst", "src/hexagon/ports/outbound/port", "src/hexagon/model/kern"),
 			},
 		},
-		{Name: "lint/basis", Gate: gateLint},
+		{Name: "lint/basis", Gate: gateLint, WantText: []string{"0 issues"}},
 		{
 			Name: "lint/direktive-nolint", Gate: gateLint,
 			Anhang:   map[string]string{"src/bootstrap/bootstrap.go": "\n//nolint:unused // Probe\n"},
-			WantExit: 1, WantText: "Direktive",
+			WantExit: 1, WantText: []string{"Direktive", "nolintlint"},
 		},
 		{
 			Name: "lint/ausnahme-ohne-why", Gate: gateLint,
 			Ersetze:  []Ersetzung{{".golangci.yml", regelnKopf, regelnKopf + "      - linters:\n          - forbidigo\n        path: ^probe/\n"}},
-			WantExit: 1, WantText: "# Why:",
+			WantExit: 1, WantText: []string{"# Why:"},
 		},
 		{
 			Name: "lint/ausnahme-mit-why", Gate: gateLint,
-			Ersetze: []Ersetzung{{".golangci.yml", regelnKopf, regelnKopf + "      # Why: Probe einer begründeten Ausnahme.\n      - linters:\n          - forbidigo\n        path: ^probe/\n"}},
+			Ersetze:  []Ersetzung{{".golangci.yml", regelnKopf, regelnKopf + "      # Why: Probe einer begründeten Ausnahme.\n      - linters:\n          - forbidigo\n        path: ^probe/\n"}},
+			WantText: []string{"0 issues"},
 		},
 		{
 			Name: "lint/direktive-mit-leerzeichen", Gate: gateLint,
 			Anhang:   map[string]string{"src/bootstrap/bootstrap.go": "\n//  nolint:unused // Probe\n"},
-			WantExit: 1, WantText: "Direktive",
+			WantExit: 1, WantText: []string{"Direktive", "nolintlint"},
 		},
 		{
 			Name: "lint/profil-fehlt", Gate: gateLint,
 			Entferne: []string{".golangci.yml"},
-			WantExit: 2, WantText: "fehlt oder ist nicht lesbar",
+			WantExit: 2, WantText: []string{"fehlt oder ist nicht lesbar"},
 		},
 		{
 			Name: "lint/why-falsch-eingerueckt", Gate: gateLint,
 			Ersetze:  []Ersetzung{{".golangci.yml", regelnKopf, regelnKopf + "        # Why: Probe, falsch eingerückt.\n      - linters:\n          - forbidigo\n        path: ^probe/\n"}},
-			WantExit: 1, WantText: "# Why:",
+			WantExit: 1, WantText: []string{"# Why:"},
 		},
 	}
 }

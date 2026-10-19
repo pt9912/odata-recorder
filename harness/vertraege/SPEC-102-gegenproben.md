@@ -21,11 +21,11 @@ Ein roter Lauf lässt den Stempel unverändert, ein fehlender Stempel erzwingt d
 2. `a-check/kern-auf-driven-adapter` · `a-check` · ein Paket in `src/hexagon/model` importiert ein Paket aus `src/adapters/driven` · Exit 1, Ausgabe nennt `core-impurity`.
 3. `a-check/adapter-auf-adapter` · `a-check` · ein Paket in `src/adapters/driving` importiert ein Paket aus `src/adapters/driven` · Exit 1, Ausgabe nennt `lateral-adapter`.
 4. `a-check/erlaubter-weg-ueber-port` · `a-check` · ein Driven Adapter importiert einen Outbound Port, ein Service importiert Port und Modell · Exit 0.
-5. `lint/basis` · `lint.sh` · keiner · Exit 0.
-6. `lint/direktive-nolint` · `lint.sh` · `//nolint:unused // x` in einer Datei von `src/` · Exit 1, Ausgabe nennt `Direktive`.
+5. `lint/basis` · `lint.sh` · keiner · Exit 0, Ausgabe nennt `0 issues` (golangci-lint lief).
+6. `lint/direktive-nolint` · `lint.sh` · `//nolint:unused // x` in einer Datei von `src/` · Exit 1, Ausgabe nennt `Direktive` (eigene Prüfung) und `nolintlint` (golangci-lint).
 7. `lint/ausnahme-ohne-why` · `lint.sh` · eine Regel unter `exclusions.rules` ohne `# Why:` · Exit 1, Ausgabe nennt `# Why:`.
-8. `lint/ausnahme-mit-why` · `lint.sh` · eine Regel unter `exclusions.rules` mit `# Why:` und Text · Exit 0.
-9. `lint/direktive-mit-leerzeichen` · `lint.sh` · `//  nolint:unused // x` (zwei Leerzeichen) in einer Datei von `src/` · Exit 1, Ausgabe nennt `Direktive`.
+8. `lint/ausnahme-mit-why` · `lint.sh` · eine Regel unter `exclusions.rules` mit `# Why:` und Text · Exit 0, Ausgabe nennt `0 issues`.
+9. `lint/direktive-mit-leerzeichen` · `lint.sh` · `//  nolint:unused // x` (zwei Leerzeichen) in einer Datei von `src/` · Exit 1, Ausgabe nennt `Direktive` und `nolintlint`.
 10. `lint/profil-fehlt` · `lint.sh` · `.golangci.yml` ist aus der Kopie gelöscht · Exit 2, Ausgabe nennt `fehlt oder ist nicht lesbar`.
 11. `lint/why-falsch-eingerueckt` · `lint.sh` · ein `# Why:`-Block über der Regel ist nicht mit sechs Leerzeichen eingerückt · Exit 1, Ausgabe nennt `# Why:`.
 Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
@@ -40,7 +40,8 @@ Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
 7. Alle Fälle laufen auch bei einem roten Fall zu Ende; das Programm meldet erst danach, Exit 0 genau dann, wenn kein Fall rot ist.
 8. Wegwerfverzeichnisse werden am Ende entfernt, auch bei roten Fällen; ein Abbruch des Builds lässt nichts zurück, weil der Container verworfen wird.
 9. Die Eingabe ist unverändert: nach dem Lauf sind die Dateien der Eingaben bytegleich; ändert ein Fall sie, endet das Programm mit Meldung und Exit-Code 2.
-10. Ohne Git-Arbeitsbaum oder bei einer Eingabedatei, die fehlt, meldet `gegenproben-eingabe.sh` den Fehler und endet ungleich 0; `make gegenproben` bricht dann ab, ohne den Stempel zu ändern.
+10. Ohne Git-Arbeitsbaum oder bei einem Eingabepfad, der fehlt (`go.sum` ausgenommen), meldet `gegenproben-eingabe.sh` den Fehler und endet ungleich 0; `make gegenproben` bricht dann ab, ohne den Stempel zu ändern.
+11. Die Fälle teilen den Cache von golangci-lint, nicht dessen Sperre: jeder Fall hat ein eigenes `TMPDIR`, weil golangci-lint dort eine Sperre gegen parallele Läufe ablegt; ohne das bricht ein nebenläufiger Lauf mit `parallel golangci-lint is running` ab.
 
 **Zeitbudget** (Wanduhr, `time make gegenproben`): bei geänderten Eingaben und kaltem Docker-Build-Cache höchstens 30 s, bei unveränderten Eingaben höchstens 1 s (gemessen am Stand der Lieferung: 13,5 s und 0,04 s, Images lokal vorhanden).
 

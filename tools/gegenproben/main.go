@@ -119,6 +119,13 @@ func fahre(fs []Fall, wurzel string) ([]Ergebnis, error) {
 			return nil, fmt.Errorf("Eingriff für %s: %w", f.Name, err)
 		}
 	}
+	tmps := make([]string, len(fs))
+	for i := range fs {
+		tmps[i] = dirs[i] + ".tmp"
+		if err := os.MkdirAll(tmps[i], 0o755); err != nil {
+			return nil, err
+		}
+	}
 	erg := make([]Ergebnis, len(fs))
 	sem := make(chan struct{}, runtime.NumCPU())
 	var wg sync.WaitGroup
@@ -129,7 +136,8 @@ func fahre(fs []Fall, wurzel string) ([]Ergebnis, error) {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			name, args, wd := befehl(dirs[i], fs[i].Gate)
-			code, out, abgelaufen := starte(fallFrist, wd, name, args...)
+			// golangci-lint sperrt eine Datei in TMPDIR gegen parallele Läufe; jeder Fall hat sein eigenes.
+			code, out, abgelaufen := starte(fallFrist, wd, []string{"TMPDIR=" + tmps[i]}, name, args...)
 			erg[i] = Ergebnis{Name: fs[i].Name, Rot: bewerte(fs[i], code, out, abgelaufen)}
 		}()
 	}
@@ -148,8 +156,11 @@ func bewerte(f Fall, code int, out string, abgelaufen bool) string {
 		return "Verstoß nicht gemeldet"
 	case code != f.WantExit:
 		return fmt.Sprintf("erwartet Exit %d, war %d\n%s", f.WantExit, code, letzte(out, 8))
-	case f.WantText != "" && !strings.Contains(out, f.WantText):
-		return fmt.Sprintf("Ausgabe nennt %q nicht\n%s", f.WantText, letzte(out, 8))
+	}
+	for _, w := range f.WantText {
+		if !strings.Contains(out, w) {
+			return fmt.Sprintf("Ausgabe nennt %q nicht\n%s", w, letzte(out, 8))
+		}
 	}
 	return ""
 }
@@ -165,11 +176,12 @@ func letzte(s string, n int) string {
 // starte führt das Programm aus und liefert Exit-Code, Ausgabe und ob die Frist ablief.
 // Bei Ablauf endet die ganze Prozessgruppe, damit auch ein Kindprozess die Ausgabe nicht
 // offen hält.
-func starte(frist time.Duration, dir, name string, args ...string) (int, string, bool) {
+func starte(frist time.Duration, dir string, env []string, name string, args ...string) (int, string, bool) {
 	ctx, stop := context.WithTimeout(context.Background(), frist)
 	defer stop()
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), env...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = 5 * time.Second

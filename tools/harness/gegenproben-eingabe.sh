@@ -5,6 +5,10 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
+for f in src go.mod .a-check.yml .golangci.yml tools/harness/lint.sh tools/gegenproben Dockerfile .dockerignore; do
+  [ -e "$f" ] || { echo "gegenproben-eingabe: Eingabe $f fehlt" >&2; exit 1; }
+done
+
 {
   printf 'PIN %s\n' "$@"
   git ls-files -z --cached --others --exclude-standard -- \

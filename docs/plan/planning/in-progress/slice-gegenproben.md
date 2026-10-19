@@ -101,6 +101,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Zeitbudget:** `time make gegenproben` bei geänderten Eingaben und kaltem Docker-Build-Cache höchstens 30 s, bei unveränderten Eingaben höchstens 1 s (Wanduhr, Entwicklungsrechner; gemessen 13,5 s und 0,04 s); `SPEC-102` trägt die Zahlen.
 
+**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt am Ende bei mehr als 600 Zeilen, getragen von Test- und Gegenprobe-Code; der Slice bleibt ungeteilt, weil Programm, Fälle, Stempel und Vertrag einzeln nichts liefern.
+
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 600 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen) (Gegenprobe-Code zählt etwa doppelt).
@@ -124,7 +126,7 @@ dasteht.
 - Randformen der Gegenproben (`AGENTS.md` §3.12): die Kopie des Baums scheitert, Docker fehlt, die einzufügende Datei fehlt, ein Verstoß wird nicht gefunden — **Ausgang:** entfallen: entschieden in SPEC-102 vor dem ersten Code-Commit.
 - Der Docker-Cache fehlt (neuer Klon, `docker builder prune`) — **Ausgang:** entfallen: die Prüfsumme im versionierten Stempel entscheidet, nicht der Cache; der kalte Lauf hält das Budget.
 - Der versionierte Stempel kann von Hand geschrieben werden und belegt dann nichts — **Ausgang:** weiter offen: kein Gate liest ihn (`SPEC-102`, Grenze); die Pflicht zum Fahren steht in `SPEC-102`.
-- Das Zeitbudget hält nicht, weil `golangci-lint` je Fall seinen Cache neu füllt — **Ausgang:** entfallen: gemessen 13,5 s bei geänderter Eingabe, die Fälle teilen den Cache des Prozesses.
+- Das Zeitbudget hält nicht, weil `golangci-lint` je Fall seinen Cache neu füllt — **Ausgang:** entfallen: gemessen 13,5 s bei geänderter Eingabe; die Fälle teilen den Cache, aber nicht die Sperre von `golangci-lint` (eigenes `TMPDIR` je Fall, `SPEC-102` Randform 11), sonst brechen erlaubte Fälle nebenläufig ab.
 - Eine Gegenprobe prüft nur die eingefügten Verstoßformen — **Ausgang:** weiter offen: weitere Formen kommen mit den Bibliotheks-Grenzen (`tech`) in welle-persistenz.
 - Die Gegenproben laufen nicht in `make gates` und altern unbemerkt — **Ausgang:** entfallen: `SPEC-102` legt den Lauf am Ende jeder Welle und vor dem Release fest, und welle-dev-container fährt ihn automatisch in einem eigenen Container.
 

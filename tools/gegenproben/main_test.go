@@ -10,7 +10,7 @@ import (
 )
 
 func TestBewerte(t *testing.T) {
-	verstoss := Fall{Name: "v", WantExit: 1, WantText: "regel"}
+	verstoss := Fall{Name: "v", WantExit: 1, WantText: []string{"regel"}}
 	erlaubt := Fall{Name: "e"}
 	tests := []struct {
 		name       string
@@ -24,6 +24,7 @@ func TestBewerte(t *testing.T) {
 		{"Verstoß nicht gemeldet", verstoss, 0, "", false, "Verstoß nicht gemeldet"},
 		{"anderer Code", verstoss, 2, "regel", false, "erwartet Exit 1, war 2"},
 		{"falsches Wort", verstoss, 1, "anderes", false, `nennt "regel" nicht`},
+		{"zweiter Text fehlt", Fall{Name: "w", WantExit: 1, WantText: []string{"a", "b"}}, 1, "a", false, `nennt "b" nicht`},
 		{"Erlaubt grün", erlaubt, 0, "", false, ""},
 		{"Erlaubt abgelehnt", erlaubt, 1, "boese", false, "erlaubter Fall abgelehnt"},
 		{"Frist", verstoss, -1, "", true, "Zeit überschritten"},
@@ -141,7 +142,7 @@ func TestRunErkenntVeraenderteEingabe(t *testing.T) {
 
 func TestStarteBeendetDieProzessgruppeBeiFristablauf(t *testing.T) {
 	start := time.Now()
-	_, _, abgelaufen := starte(200*time.Millisecond, "", "sh", "-c", "sleep 30 & wait")
+	_, _, abgelaufen := starte(200*time.Millisecond, "", nil, "sh", "-c", "sleep 30 & wait")
 	if !abgelaufen {
 		t.Fatal("Frist nicht erkannt")
 	}
