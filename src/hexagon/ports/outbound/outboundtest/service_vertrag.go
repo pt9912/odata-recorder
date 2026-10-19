@@ -23,7 +23,8 @@ func abgebrochen() context.Context {
 	return ctx
 }
 
-// RunServiceVertrag prüft SPEC-107 Nr. 1 bis 3 und Nr. 12 für MetadataRepository.
+// RunServiceVertrag prüft für MetadataRepository SPEC-107 Nr. 1 bis 3 (einschließlich der Prüfung der
+// Argumente vor der Kennung), Nr. 12 und die leere Kennung aus Nr. 13.
 func RunServiceVertrag(t *testing.T, neu Neu) {
 	for _, f := range []struct {
 		name string

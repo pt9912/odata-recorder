@@ -95,7 +95,7 @@ Aussagen-Berührung steht hier gar nicht.
 | Publikation ist atomar, auch beim Abbruch mitten im Schreiben (SPEC-107 Nr. 5) | `Publish ist atomar` (Quelle nach Snapshot und Import unbekannt oder fremd, Kontextabbruch nach dem Import-Eintrag über den Hook) · `ROLLBACK` in `inTx` durch `COMMIT` ersetzt; Fehler von `schreibePublikation` verschluckt; `ROLLBACK` mit dem abgebrochenen Kontext |
 | Gleicher Anfrage-Hash, gleicher Import, auch bei abweichendem Inhalt; anderer Service ist eigene Anfrage; gleichzeitig (Nr. 7) | `gleicher Anfrage-Hash ist idempotent`, `gleichzeitige Publish mit gleichem Hash ordnen sich` · Hash-Abfrage unwirksam; Hash über Services; Treffer als neu gemeldet; `BEGIN` statt `BEGIN IMMEDIATE` |
 | Gültigkeit der Publikation, leerer Import, leere Coverage zulässig (Nr. 6) | `ungültige Publikationen werden abgelehnt und schreiben nichts` (28 Verstöße, darunter Evidenz und `report_json` ohne gültiges UTF-8), `TestPublicationValidate` und `TestImportValidate` · je `case` in `baseline.go` durch `false` ersetzt, je Prüfung der Liste in `Publication.Validate` entfernt, Duplikat-Prüfungen entfernt, `Validate` in `Publish` entfernt |
-| Prüfreihenfolge (Nr. 8) | `Prüfreihenfolge von Publish` (ein Fall je Paar) · Kennungen vor Hash; Service-Prüfung entfernt; Quelle vor Kennungen; Quellen rückwärts; Kontext vor Gültigkeit |
+| Prüfreihenfolge (Nr. 8), eine leere Quell-Session ist unbekannt | `Prüfreihenfolge von Publish` (ein Fall je Paar), `Publish ist atomar` (Quellen `s1` und leere Kennung) · Leere Quelle in `schreibeQuelle` übersprungen; Kennungen vor Hash; Service-Prüfung entfernt; Quelle vor Kennungen; Quellen rückwärts; Kontext vor Gültigkeit |
 | Baseline unveränderlich, auch gegen einen `workspace`-Snapshot gleicher Kennung (Kopf) | `Baselines sind unveränderlich` · Kennungsprüfung entfernt; zusätzlich `INSERT OR REPLACE` |
 | Quellen verhindern das Löschen der Session, `BaselinesOf`, `Sources`, `Get` des Imports (Nr. 9, 10) | `Baseline-Quellen: BaselinesOf, Sources, Löschen der Session` · Quelle nicht geschrieben; Sortierung absteigend; Prüfung der Session und der Baseline entfernt; Fehler des Imports vertauscht |
 | Quelle eines anderen Service ist `ErrUngueltig` (Nr. 8) | `Publish ist atomar`, `Prüfreihenfolge von Publish` · Prüfung des Service der Quelle entfernt |
@@ -113,7 +113,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): [slice-session-recording-persistenz](../done/slice-session-recording-persistenz.md) liegt in `done/`.
 
-**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei 1551 Zeilen, getragen von den Vertragstests (`outboundtest`, 661 Zeilen), den Modell- und Adapter-Tests (205 Zeilen), dem Adapter (430 Zeilen) sowie Modell und Ports (255 Zeilen). Der Slice bleibt ungeteilt, weil Modell, Ports und Adapter einzeln nichts liefern und die Publikation nur mit ihren Lesern prüfbar ist.
+**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei 1567 Zeilen über alle Pfade aus §3 einschließlich `spec/spezifikation.md` (11 Zeilen), 1556 über `src/`. Sie tragen die Vertragstests (`outboundtest`, 666 Zeilen), die Modell- und Adapter-Tests (205 Zeilen), der Adapter (430 Zeilen) sowie Modell und Ports (255 Zeilen). Der Slice bleibt ungeteilt, weil Modell, Ports und Adapter einzeln nichts liefern und die Publikation nur mit ihren Lesern prüfbar ist.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 

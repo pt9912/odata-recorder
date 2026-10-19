@@ -14,8 +14,8 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
 
-// RunBaselineVertrag prüft SPEC-107 Nr. 4 bis 12 für SnapshotRepository, ImportRepository
-// und CoverageRepository.
+// RunBaselineVertrag prüft für SnapshotRepository, ImportRepository und CoverageRepository
+// SPEC-107 Nr. 4 bis 13 und die Unveränderlichkeit der Baseline aus dem Kopf.
 func RunBaselineVertrag(t *testing.T, neu Neu) {
 	for _, f := range []struct {
 		name string
@@ -193,6 +193,10 @@ func publikationFall3(t *testing.T, neu Neu) {
 	_, _, err := v.Imports.Publish(ctx, unbekannt)
 	erwarte(t, err, outbound.ErrNichtGefunden)
 	nichtsGeschrieben(t, v, unbekannt)
+	leer := publikation("d", "0", "s1", "")
+	_, _, err = v.Imports.Publish(ctx, leer)
+	erwarte(t, err, outbound.ErrNichtGefunden)
+	nichtsGeschrieben(t, v, leer)
 	fremd := publikation("d", "2", "s1", "x1")
 	_, _, err = v.Imports.Publish(ctx, fremd)
 	erwarte(t, err, model.ErrUngueltig)
