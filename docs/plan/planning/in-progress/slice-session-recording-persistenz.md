@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-02`, `LH-FA-03`, [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md)
 
-**Berührte Spec-Stellen:** `SPEC-001` (Fachliche Recording-Struktur) · `SPEC-048` (Crash-Recovery) · `ARC-001` · `ARC-004` · `ARC-009`.
+**Berührte Spec-Stellen:** `SPEC-001` (Fachliche Recording-Struktur) · `SPEC-105` (Vertrag der Repositories) · `SPEC-048` (Crash-Recovery) · `ARC-001` · `ARC-004` · `ARC-009`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -57,7 +57,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Domain-Modell `Session` und `Exchange` mit den Zuständen aus `SPEC-001` und Outbound Ports `SessionRepository`, `RecordingRepository` und der fachlichen Transaktionsgrenze.
+- [ ] Domain-Modell `Session` und `Exchange` mit den Zuständen aus `SPEC-001` und Outbound Ports `SessionRepository`, `RecordingRepository` mit ihren Fehlern; die Transaktionsgrenze über mehrere Ports entsteht mit der ersten Operation über mehrere Repositories in `slice-baseline-persistenz`, hier ist jede Operation atomar.
 - [ ] SQLite-Repositories: Session anlegen, Status `open` → `complete`/`incomplete`, offene Sessions finden, Exchanges append-only anhängen und lesen, Session samt Exchanges löschen.
 - [ ] Vertragstest-Suite am Port, gefahren gegen den SQLite-Adapter; die Randformen aus §6 sind getestet.
 - [ ] `make gates` grün.
@@ -80,7 +80,7 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | `src/hexagon/model/` | neu | `Session`, `Exchange` und ihre Zustände; Standardbibliothek ohne I/O |
-| `src/hexagon/ports/outbound/` | neu | `SessionRepository`, `RecordingRepository`, Transaktionsgrenze |
+| `src/hexagon/ports/outbound/` | neu | `SessionRepository`, `RecordingRepository` |
 | `src/adapters/driven/sqlite/` | update | Implementierung beider Ports |
 | `spec/spezifikation.md` | update | Randformen der Repositories (doppelte `sequence_no`, Anhängen an eine geschlossene Session, Statusübergang rückwärts) |
 
