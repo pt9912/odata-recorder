@@ -9,7 +9,8 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// RunWartungVertrag prüft StorageMaintenance, SPEC-108 Nr. 15 bis 17.
+// RunWartungVertrag prüft StorageMaintenance, SPEC-108 Nr. 15 bis 17, und dass die Listen nie
+// nil sind.
 func RunWartungVertrag(t *testing.T, neu Neu) {
 	for _, f := range []struct {
 		name string

@@ -10,7 +10,8 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
 
-// RunEntityVertrag prüft für EntityRepository SPEC-108 Nr. 6 bis 9 und Nr. 17.
+// RunEntityVertrag prüft für EntityRepository SPEC-108 Nr. 6 bis 9 und Nr. 17 und die Kopfzusagen:
+// Argument vor Kontext, leere Kennung und leerer Schlüssel, Listen nie nil.
 func RunEntityVertrag(t *testing.T, neu Neu) {
 	for _, f := range []struct {
 		name string

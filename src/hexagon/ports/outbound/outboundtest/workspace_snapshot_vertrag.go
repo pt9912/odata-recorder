@@ -12,7 +12,8 @@ import (
 )
 
 // RunWorkspaceSnapshotVertrag prüft die Workspace-Operationen des SnapshotRepository, SPEC-108
-// Nr. 13, 14 und 17.
+// Nr. 13, 14 und 17, und die Kopfzusagen: Argument vor Kontext, leere Kennung, Zeiten in UTC,
+// Listen nie nil.
 func RunWorkspaceSnapshotVertrag(t *testing.T, neu Neu) {
 	for _, f := range []struct {
 		name string

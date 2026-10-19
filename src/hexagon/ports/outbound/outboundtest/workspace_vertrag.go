@@ -12,7 +12,8 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
 
-// RunWorkspaceVertrag prüft für WorkspaceRepository SPEC-108 Nr. 2 bis 5 und Nr. 17.
+// RunWorkspaceVertrag prüft für WorkspaceRepository SPEC-108 Nr. 2 bis 5 und Nr. 17 und die
+// Kopfzusagen: Argument vor Kontext, leere Kennung, Zeiten in UTC, Listen nie nil.
 func RunWorkspaceVertrag(t *testing.T, neu Neu) {
 	for _, f := range []struct {
 		name string
