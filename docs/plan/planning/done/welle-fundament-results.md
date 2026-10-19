@@ -85,4 +85,4 @@ Anker (Hash, Lauf, Zahl).
 - `make gegenproben` grün: 16 Fälle, 0 rot; Prüfsumme der Eingaben `466a62674a09e2f7af0e9d65`… im Stempel `harness/gegenproben.stempel`.
 - Zeitbudget der Gegenproben: 11,4 bis 11,7 s bei erzwungenem Lauf, 0,04 s bei unveränderter Eingabe (Budget 30 s und 1 s).
 - Trigger-Audit: Carveouts 0 offen (das Verzeichnis `docs/plan/carveouts/` trägt keinen); bootstrap-aware Gates 0 (keine Reifestufe); Re-Evaluierungs-Trigger von [ADR-0001](../../adr/0001-implementierungssprache-go.md) bis [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) bestätigt, keiner eingetreten.
-- Archivierung: `make archive-welle WELLE=welle-fundament` nach dieser Notiz.
+- Archivierung: `make archive-welle WELLE=welle-fundament` lief; `done/welle-fundament/archiv.zip` trägt die vier Slices, den Welle-Plan und neun Review-Reports, Stubs liegen daneben.
