@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -57,10 +58,17 @@ func neueAblage(t *testing.T) outboundtest.BlobAblage {
 			if err := os.Mkdir(pfad(ref), 0o700); err != nil {
 				t.Fatal(err)
 			}
+			if err := os.WriteFile(filepath.Join(pfad(ref), "inhalt"), []byte("x"), 0o600); err != nil {
+				t.Fatal(err)
+			}
 		},
 		LegeFremdesAb: func(t *testing.T) {
 			t.Helper()
 			if err := os.WriteFile(filepath.Join(dir, "sha256", "fremd.txt"), []byte("x"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			// Ein Verzeichnis mit dem Namen einer Referenz zählt nicht.
+			if err := os.Mkdir(filepath.Join(dir, "sha256", strings.Repeat("a", 64)), 0o700); err != nil {
 				t.Fatal(err)
 			}
 		},
@@ -70,37 +78,41 @@ func neueAblage(t *testing.T) outboundtest.BlobAblage {
 func TestBlobVertrag(t *testing.T) { outboundtest.RunBlobVertrag(t, neueAblage) }
 
 func TestRechteUnabhaengigVonUmask(t *testing.T) {
-	alt := syscall.Umask(0)
-	defer syscall.Umask(alt)
-	dir := t.TempDir()
-	s, err := blobs.New(filepath.Join(dir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	w, err := s.Begin(context.Background(), 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, _ = w.Write([]byte("a"))
-	// Der offene Writer liegt als temporäre Datei vor.
-	tmp := dateienUnter(t, filepath.Join(dir, "tmp"))
-	if len(tmp) != 1 {
-		t.Fatalf("temporäre Dateien %v", tmp)
-	}
-	if m := modus(t, filepath.Join(dir, "tmp", tmp[0])); m != 0o600 {
-		t.Fatalf("temporäre Datei %o", m)
-	}
-	ref, _, err := w.Commit()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if m := modus(t, filepath.Join(dir, "sha256", ref[len("sha256:"):])); m != 0o600 {
-		t.Fatalf("Blob %o", m)
-	}
-	for _, d := range []string{"sha256", "tmp"} {
-		if m := modus(t, filepath.Join(dir, d)); m != 0o700 {
-			t.Fatalf("Verzeichnis %s %o", d, m)
-		}
+	for _, maske := range []int{0, 0o277} {
+		func() {
+			alt := syscall.Umask(maske)
+			defer syscall.Umask(alt)
+			dir := t.TempDir()
+			s, err := blobs.New(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			w, err := s.Begin(context.Background(), 10)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, _ = w.Write([]byte("a"))
+			// Der offene Writer liegt als temporäre Datei vor.
+			tmp := dateienUnter(t, filepath.Join(dir, "tmp"))
+			if len(tmp) != 1 {
+				t.Fatalf("umask %o: temporäre Dateien %v", maske, tmp)
+			}
+			if m := modus(t, filepath.Join(dir, "tmp", tmp[0])); m != 0o600 {
+				t.Fatalf("umask %o: temporäre Datei %o", maske, m)
+			}
+			ref, _, err := w.Commit()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if m := modus(t, filepath.Join(dir, "sha256", ref[len("sha256:"):])); m != 0o600 {
+				t.Fatalf("umask %o: Blob %o", maske, m)
+			}
+			for _, d := range []string{"sha256", "tmp"} {
+				if m := modus(t, filepath.Join(dir, d)); m != 0o700 {
+					t.Fatalf("umask %o: Verzeichnis %s %o", maske, d, m)
+				}
+			}
+		}()
 	}
 }
 
@@ -143,8 +155,15 @@ func TestErzeugenMitUngueltigemVerzeichnis(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(blockiert, "sha256"), []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	blockiertTmp := filepath.Join(dir, "blockiert-tmp")
+	if err := os.Mkdir(blockiertTmp, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(blockiertTmp, "tmp"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	for name, pfad := range map[string]string{
-		"leer": "", "fehlt": filepath.Join(dir, "gibt-es-nicht"), "Datei": datei, "Unterverzeichnis blockiert": blockiert,
+		"leer": "", "fehlt": filepath.Join(dir, "gibt-es-nicht"), "Datei": datei, "Unterverzeichnis blockiert": blockiert, "tmp blockiert": blockiertTmp,
 	} {
 		if _, err := blobs.New(pfad); err == nil {
 			t.Fatalf("%s: New gelang", name)
@@ -153,7 +172,9 @@ func TestErzeugenMitUngueltigemVerzeichnis(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "gibt-es-nicht")); err == nil {
 		t.Fatal("New legte das Verzeichnis an")
 	}
-	if d := dateienUnter(t, blockiert); len(d) != 1 {
-		t.Fatalf("Dateien %v", d)
+	for _, p := range []string{blockiert, blockiertTmp} {
+		if d := dateienUnter(t, p); len(d) != 1 {
+			t.Fatalf("Dateien %v", d)
+		}
 	}
 }

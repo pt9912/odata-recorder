@@ -9,7 +9,6 @@ import (
 	"hash"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
@@ -24,8 +23,7 @@ const (
 
 // writer schreibt in eine temporäre Datei und macht sie mit Commit unter dem Hash sichtbar.
 type writer struct {
-	mu sync.Mutex
-	s  *Store
+	s *Store
 	// ctxFehler fragt den Kontext von Begin ab, an den der Writer gebunden ist (SPEC-106 Nr. 1).
 	ctxFehler func() error
 	f         *os.File
@@ -52,7 +50,7 @@ func (s *Store) neuerWriter(ctx context.Context, grenze int64) (*writer, error) 
 	return &writer{s: s, ctxFehler: ctx.Err, f: f, h: sha256.New(), grenze: grenze}, nil
 }
 
-// verwerfe schließt und löscht die temporäre Datei; der Aufrufer hält mu.
+// verwerfe schließt und löscht die temporäre Datei.
 func (w *writer) verwerfe() {
 	w.z = abgebrochen
 	_ = w.f.Close()
@@ -60,8 +58,6 @@ func (w *writer) verwerfe() {
 }
 
 func (w *writer) Write(p []byte) (int, error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
 	if w.z != offen {
 		return 0, outbound.ErrAbgeschlossen
 	}
@@ -84,8 +80,6 @@ func (w *writer) Write(p []byte) (int, error) {
 }
 
 func (w *writer) Commit() (string, int64, error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
 	if w.z != offen {
 		return "", 0, outbound.ErrAbgeschlossen
 	}
@@ -111,6 +105,11 @@ func (w *writer) sichere(ziel string) error {
 	if err := w.f.Close(); err != nil {
 		return err
 	}
+	if i, err := os.Lstat(ziel); err == nil && !i.Mode().IsRegular() {
+		if err := os.RemoveAll(ziel); err != nil {
+			return err
+		}
+	}
 	if err := os.Rename(w.f.Name(), ziel); err != nil {
 		return err
 	}
@@ -122,8 +121,6 @@ func (w *writer) sichere(ziel string) error {
 }
 
 func (w *writer) Abort() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
 	if w.z == offen {
 		w.verwerfe()
 	}

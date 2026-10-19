@@ -88,26 +88,27 @@ Aussagen-Berührung steht hier gar nicht.
 
 **Zusage · Fänger** (`AGENTS.md` §3.15):
 
-| Zusage | Fänger |
+| Zusage | Fänger (Teiltest von `TestBlobVertrag`, sonst benannt) |
 |---|---|
-| Referenzform: nur `sha256:` und 64 Kleinbuchstaben-Hexziffern, vor dem Kontext geprüft | Test `ungültige Referenzen` (Großbuchstaben, `../`, kurz, lang, leer, anderer Hash) bei `Open`, `Verify`, `Remove`; Mutationen: Längenprüfung entfernt, Großbuchstaben zugelassen, Kontext zuerst |
-| `Begin`: `grenze` ≥ 1, vor dem Kontext geprüft | Test `Begin mit Grenze 0 und -1` (auch bei abgebrochenem Kontext); Mutationen: Grenze 0 zugelassen, Kontext zuerst |
-| `Write` über der Grenze ist `ErrZuGross`, Datei gelöscht, genau `grenze` zulässig | Tests `Grenze genau erreicht`, `Grenze um eins überschritten` (Verzeichnis leer); Mutationen: `>` zu `>=`, Datei bleibt (jeweils rot in `Grenze genau erreicht …`) |
-| `Commit` liefert Referenz und Länge, leerer Body zulässig | Test `Commit liefert Hash und Länge`, `leerer Body`; Mutation: Länge falsch |
-| Gleicher Inhalt, eine Datei, auch gleichzeitig | Tests `gleicher Inhalt teilt eine Datei`, `gleichzeitige Commits`; Mutation: Zähler im Dateinamen |
-| `Commit` heilt eine beschädigte Datei | Test `Commit ersetzt beschädigte Datei`; Mutation: vorhandene Datei bleibt |
-| Genau ein Abschluss | Tests `Write nach Commit`, `Commit nach Commit`, `Commit nach Abort`, `Write nach Abort` (`ErrAbgeschlossen`); Mutation: Zustandsprüfung entfernt |
-| `Abort` hinterlässt keine Datei, ist wiederholbar, lässt einen Commit bestehen | Tests `Abort räumt auf`, `Abort nach Abort`, `Abort nach Commit`; Mutationen: temporäre Datei bleibt, `Abort` löscht den Blob |
-| Writer ist an den Kontext gebunden | Test `Abbruch des Kontexts beendet Write und Commit` (Verzeichnis leer); Mutation: Kontext ignoriert |
-| Datei erst nach `Commit` sichtbar (temporäre Datei, Umbenennen) | Test `List sieht keinen offenen Writer`; Mutation: Schreiben direkt auf den Zielnamen |
-| Rechte `0600` und `0700` unabhängig von der `umask` | Test `Rechte` mit `umask 0`; Mutation: Rechte `0644` |
-| `Open` prüft den Hash vor dem Leser, fehlend ist `ErrBlobFehlt`, beschädigt `ErrBlobBeschaedigt` | Tests `Open fehlend`, `Open verändert`, `Open gekürzt`, `Open ist Verzeichnis`; Mutationen: Hashprüfung entfernt, Fehler vertauscht |
-| `Verify` wie `Open` | Test `Verify` gleiche Fälle; Mutation: `Verify` prüft nur Existenz |
-| `List` sortiert, ignoriert temporäre und fremde Dateien | Test `List sortiert und ignoriert Fremdes`; Mutationen: Reihenfolge umgekehrt (die Ordnung leistet `os.ReadDir`, eine eigene Sortierung gibt es nicht), Fremdes gelistet |
-| `Remove` löscht, unbekannt ist kein Fehler | Tests `Remove`, `Remove unbekannt`; Mutation: Fehler bei unbekannt |
-| Erzeugen räumt temporäre Dateien früherer Läufe | Test `Erzeugen löscht Reste`; Mutation: Aufräumen entfernt |
-| Verzeichnis fehlt, ist kein Verzeichnis, Unterverzeichnis nicht anlegbar, leerer Pfad | Test `Erzeugen mit ungültigem Verzeichnis` (nichts angelegt); Mutation: `New` legt das Verzeichnis an; leerer Pfad und Nicht-Verzeichnis scheitern an `os.Stat` und `MkdirAll` und haben keine eigene Prüfung |
-| Kontext abgebrochen beendet jede Operation ohne Änderung | Test `abgebrochener Kontext`, alle Operationen; Mutation: Prüfung in `Commit`, `Remove` entfernt |
+| Referenzform: `sha256:` und 64 Kleinbuchstaben-Hexziffern, vor dem Kontext geprüft | `ungültige Referenzen` (Großbuchstaben, `../`, kurz, lang, leer, anderer Hash, Präfix `sha257:` gleicher Länge) bei `Open`, `Verify`, `Remove`; Mutationen: Längenprüfung entfernt, Präfixprüfung entfernt, Großbuchstaben zugelassen, Kontext zuerst |
+| `Begin`: `grenze` ≥ 1, vor dem Kontext geprüft | `Begin mit Grenze 0 und -1` (auch bei abgebrochenem Kontext); Mutationen: Grenze 0 zugelassen, Kontext zuerst |
+| `Write` über der Grenze ist `ErrZuGross`, Datei gelöscht, genau `grenze` zulässig | `Grenze genau erreicht und um eins überschritten`; Mutationen: `>` zu `>=`, temporäre Datei bleibt |
+| `Commit` liefert Referenz und Länge, leerer Body zulässig | `Commit liefert Hash und Länge, leerer Body`; Mutation: Länge falsch |
+| Gleicher Inhalt, eine Datei, auch gleichzeitig | `gleicher Inhalt teilt eine Datei, auch gleichzeitig`; Mutation: Umbenennen als `Link` (scheitert an der vorhandenen Datei); der Mutex je Writer entfällt, ein Writer gehört einer Goroutine |
+| `Commit` heilt eine beschädigte Datei und entfernt eine Nicht-Datei | `Commit ersetzt eine beschädigte Datei`, `Open und Verify prüfen den Hash` (Verzeichnis); Mutationen: vorhandene Datei bleibt, Entfernen der Nicht-Datei entfernt |
+| Genau ein Abschluss | `genau ein Abschluss`, `Grenze genau erreicht …` (`Write`/`Commit` nach `ErrZuGross`); Mutationen: Zustandsprüfung in `Write` und `Commit` entfernt |
+| `Abort` hinterlässt keine Datei, ist wiederholbar, lässt einen Commit bestehen | `Abort räumt auf und ist wiederholbar`, `genau ein Abschluss`; Mutation: `Abort` meldet Fehler beim zweiten Aufruf |
+| Writer ist an den Kontext gebunden | `Abbruch des Kontexts beendet Write und Commit` (Verzeichnis leer); Mutationen: Kontext in `Write`, in `Commit` ignoriert |
+| Datei erst nach `Commit` sichtbar (temporäre Datei, Umbenennen) | `Datei erst nach Commit sichtbar`; Mutation: temporäre Datei mit hexförmigem Namen im Blob-Verzeichnis |
+| Rechte `0600`, Verzeichnisse `0700` unabhängig von der `umask` | `TestRechteUnabhaengigVonUmask` mit `umask 0` und `0277`; Mutationen: Rechte `0644`/`0755`, `Chmod` der Datei und des Verzeichnisses entfernt |
+| `Open` prüft den Hash vor dem Leser; fehlend `ErrBlobFehlt`, beschädigt `ErrBlobBeschaedigt` | `Open und Verify prüfen den Hash` (fehlend, verändert, gekürzt, leer, verlängert, Verzeichnis); Mutationen: Hashprüfung entfernt, Dateiprüfung entfernt, Fehler vertauscht |
+| `Verify` wie `Open` | `Open und Verify prüfen den Hash`; Mutation: `Verify` ignoriert `ErrBlobBeschaedigt` |
+| `List` sortiert, ignoriert temporäre, fremde Dateien und Verzeichnisse | `List sortiert und ignoriert Fremdes`; Mutationen: Reihenfolge umgekehrt (die Ordnung leistet `os.ReadDir`), Fremdes gelistet, Filter `IsRegular` entfernt |
+| `Remove` löscht auch eine Nicht-Datei, unbekannt ist kein Fehler | `Remove, unbekannt ist kein Fehler`, `Open und Verify prüfen den Hash` (gefülltes Verzeichnis); Mutationen: Fehler bei unbekannt, `Remove` ohne `RemoveAll` |
+| Erzeugen räumt temporäre Dateien früherer Läufe | `TestErzeugenLoeschtReste`; Mutation: Aufräumen entfernt |
+| Verzeichnis fehlt, ist kein Verzeichnis, Unterverzeichnis nicht anlegbar (`sha256`, `tmp`), leerer Pfad: keine Datei angelegt | `TestErzeugenMitUngueltigemVerzeichnis`; Mutation: `New` legt das Verzeichnis an; leerer Pfad und Nicht-Verzeichnis scheitern an `os.Stat` und `MkdirAll` und haben keine eigene Prüfung |
+| Abgebrochener Kontext beendet jede Operation ohne Änderung | `abgebrochener Kontext beendet jede Operation ohne Änderung`; Mutationen: Prüfung in `Begin`, `List`, der gemeinsamen Referenzprüfung entfernt |
+| `fsync` der Datei und des Verzeichnisses | kein Fänger: ob der Aufruf geschieht und hält, ist von außen nicht zu beobachten; `SPEC-106` führt es unter *Ungeprüft* |
 
 ## 4. Trigger
 
@@ -115,6 +116,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
 **Start** (`next` → `in-progress`): [slice-sqlite-adapter-migration](../done/slice-sqlite-adapter-migration.md) liegt in `done/`.
+
+**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei rund 980 Zeilen, getragen von den Vertragstests (`outboundtest`) und den Adapter-Tests. Der Slice bleibt ungeteilt, weil Port, Adapter und Vertragstest einzeln nichts liefern.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -136,7 +139,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Randformen der Ablage (`AGENTS.md` §3.12): leere und überlange Bodies, doppelter und gleichzeitiger `Commit`, `Write` und `Abort` nach dem Abschluss, Abbruch des Kontexts, Absturz vor dem Umbenennen, fehlende, veränderte und gekürzte Datei, ungültige Referenz, Verzeichnis nicht beschreibbar — **Ausgang:** entfallen: entschieden in `SPEC-106` vor dem ersten Code-Commit.
+- Randformen der Ablage (`AGENTS.md` §3.12): leere und überlange Bodies, doppelter und gleichzeitiger `Commit`, `Write` und `Abort` nach dem Abschluss, Abbruch des Kontexts, Absturz vor dem Umbenennen, fehlende, veränderte und gekürzte Datei, ungültige Referenz, Verzeichnis nicht beschreibbar — **Ausgang:** entfallen: entschieden in `SPEC-106`; die Nicht-Datei an einer Referenz, die Reihenfolge beim Erzeugen und der Fehler des Verzeichnis-`fsync` fanden Review und Verifikation und stehen jetzt dort.
 - Dateisystem-Eigenheiten des Containers (Rechte, Umbenennen über Mountgrenzen) — **Ausgang:** weiter offen: wird im ersten Lauf im Container sichtbar und dann als Beobachtung geführt.
 
 ## 7. Closure-Notiz

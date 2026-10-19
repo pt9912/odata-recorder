@@ -86,13 +86,14 @@ func blobFall1(t *testing.T, neu NeueAblage) {
 	a := neu(t)
 	gut := refVon([]byte("x"))
 	for _, ref := range map[string]string{
-		"leer":          "",
-		"ohne Präfix":   gut[len("sha256:"):],
-		"Großbuchstabe": "sha256:" + gut[len("sha256:"):len("sha256:")+63] + "A",
-		"Pfadteil":      "sha256:../" + gut[len("sha256:")+3:],
-		"kurz":          gut[:len(gut)-1],
-		"lang":          gut + "0",
-		"anderer Hash":  "sha1:" + gut[len("sha256:"):],
+		"leer":                          "",
+		"ohne Präfix":                   gut[len("sha256:"):],
+		"Großbuchstabe":                 "sha256:" + gut[len("sha256:"):len("sha256:")+63] + "A",
+		"Pfadteil":                      "sha256:../" + gut[len("sha256:")+3:],
+		"kurz":                          gut[:len(gut)-1],
+		"lang":                          gut + "0",
+		"anderer Hash":                  "sha1:" + gut[len("sha256:"):],
+		"anderes Präfix gleicher Länge": "sha257:" + gut[len("sha256:"):],
 	} {
 		_, err := a.Blobs.Open(ctx, ref)
 		erwarte(t, err, model.ErrUngueltig)
@@ -309,6 +310,14 @@ func blobFall11(t *testing.T, neu NeueAblage) {
 	a.ErsetzeDurchVerzeichnis(t, ref2)
 	_, err = a.Blobs.Open(ctx, ref2)
 	erwarte(t, err, outbound.ErrBlobBeschaedigt)
+	// Commit ersetzt die Nicht-Datei durch die geprüften Bytes.
+	lege(t, a, []byte("zwei"))
+	ok(t, a.Blobs.Verify(ctx, ref2))
+	// Remove löscht eine gefüllte Nicht-Datei.
+	a.ErsetzeDurchVerzeichnis(t, ref2)
+	ok(t, a.Blobs.Remove(ctx, ref2))
+	_, err = a.Blobs.Open(ctx, ref2)
+	erwarte(t, err, outbound.ErrBlobFehlt)
 }
 
 func blobFall12(t *testing.T, neu NeueAblage) {

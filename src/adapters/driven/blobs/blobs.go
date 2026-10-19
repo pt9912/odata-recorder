@@ -185,8 +185,6 @@ func (s *Store) Remove(ctx context.Context, ref string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.Remove(pfad); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	return nil
+	// RemoveAll löscht auch eine Nicht-Datei an der Referenz, einen Verweis selbst und nie sein Ziel.
+	return os.RemoveAll(pfad)
 }

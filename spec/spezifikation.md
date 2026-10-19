@@ -646,27 +646,30 @@ Ungeprüft bleibt: Seitenweises Lesen großer Sessions (`InspectionUseCase`) und
 Eine Blob-Referenz ist `sha256:` und 64 Kleinbuchstaben-Hexziffern des SHA-256 der Bytes; so steht sie in `body.blob` (`SPEC-001`).
 Jede andere Zeichenfolge ist als Referenz `ErrUngueltig`, auch eine mit Großbuchstaben, Pfadteilen oder falscher Länge.
 Das Verzeichnis legt der Aufrufer an (`DATA_DIR`, `SPEC-077`); der Adapter legt darin nur seine Unterverzeichnisse an.
-Ein leerer Pfad, ein fehlender, kein Verzeichnis oder ein nicht beschreibbares Verzeichnis lässt das Erzeugen des Adapters scheitern, ohne etwas anzulegen.
-Eine Datei ist nie sichtbar, bevor ihr Inhalt vollständig und auf dem Datenträger gesichert ist: geschrieben wird in eine temporäre Datei im selben Dateisystem, `fsync`, dann atomares Umbenennen auf den Namen der Referenz, dann `fsync` des Verzeichnisses.
+Ein leerer Pfad, ein fehlender, kein Verzeichnis oder ein nicht beschreibbares Verzeichnis lässt das Erzeugen des Adapters scheitern, ohne eine Datei anzulegen; ein davor angelegtes leeres Unterverzeichnis bleibt.
+Eine Datei ist nie sichtbar, bevor ihr Inhalt vollständig ist: geschrieben wird in eine temporäre Datei im selben Dateisystem, `fsync`, dann atomares Umbenennen auf den Namen der Referenz, dann `fsync` des Verzeichnisses.
+Schlägt das Sichern des Verzeichnisses nach dem Umbenennen fehl, ist `Commit` ein Fehler und der Blob kann bestehen bleiben; er ist dann nicht referenziert und die Bereinigung entfernt ihn (`SPEC-043`).
 Dateien haben die Rechte `0600`, Verzeichnisse `0700`, unabhängig von der `umask` des Prozesses.
 Die Prüfung der Gültigkeit eines Arguments geht der Prüfung des Kontexts voraus; ein abgebrochener Kontext beendet jede Operation mit dem Fehler des Kontexts und ohne Änderung.
 
 1. `Begin(ctx, grenze)` liefert einen `CaptureWriter` für höchstens `grenze` Bytes (`MAX_CAPTURE_BODY`, `SPEC-013`); eine `grenze` kleiner als `1` ist `ErrUngueltig`.
-   Der Writer ist an den Kontext von `Begin` gebunden: nach dessen Abbruch enden `Write` und `Commit` mit dem Fehler des Kontexts, und der Writer gilt als abgebrochen.
+   Der Writer ist an den Kontext von `Begin` gebunden: nach dessen Abbruch enden `Write` und `Commit` mit dem Fehler des Kontexts, und der Writer gilt als abgebrochen; ohne einen weiteren Aufruf bleibt seine temporäre Datei bis zu `Abort` oder bis zum nächsten Erzeugen des Adapters bestehen.
 2. `Write` hängt Bytes an. Überschreitet die Summe die `grenze`, ist es `ErrZuGross`; der Writer gilt als abgebrochen und seine Datei ist gelöscht. Genau `grenze` Bytes sind zulässig.
 3. `Commit` schließt den Writer und liefert die Referenz und die Länge. Ein leerer Body ist zulässig (Referenz des leeren Inhalts).
    Gleiche Bytes haben dieselbe Referenz und dieselbe Datei: ein weiterer `Commit` mit gleichen Bytes legt keine zweite Datei an, auch gleichzeitig.
-   Ist die Datei zur Referenz vorhanden, aber beschädigt, ersetzt der `Commit` sie durch die geprüften Bytes.
+   Ist die Datei zur Referenz vorhanden, aber beschädigt, ersetzt der `Commit` sie durch die geprüften Bytes; liegt dort eine Nicht-Datei (ein Verzeichnis, ein Verweis), entfernt der `Commit` sie zuvor, einen Verweis selbst und nie sein Ziel.
 4. Ein Writer hat genau einen Abschluss. `Write` und `Commit` nach `Commit` oder `Abort` sind `ErrAbgeschlossen`; ein zweiter `Commit` ist `ErrAbgeschlossen` und ändert nichts.
    `Abort` löscht die temporäre Datei und hinterlässt nichts; `Abort` nach `Abort` und `Abort` nach `Commit` sind kein Fehler, das zweite lässt den abgeschlossenen Blob bestehen.
 5. `Open` liest die Datei einer Referenz vollständig gegen ihren Hash, bevor es den Leser liefert, und liefert Leser derselben geöffneten Datei. Eine fehlende Datei ist `ErrBlobFehlt`, eine Datei mit anderem Hash oder eine Nicht-Datei (Verzeichnis, Verweis) ist `ErrBlobBeschaedigt`; beide meldet die Schicht darüber als `ODR-E3001` (`SPEC-018`), ein Ersatz durch leere Bytes findet nie statt.
 6. `Verify` prüft wie `Open` ohne Leser und liefert dieselben Fehler.
 7. `List` liefert die Referenzen aller vorhandenen Blob-Dateien aufsteigend sortiert; temporäre Dateien und fremde Dateien im Verzeichnis zählen nicht.
-8. `Remove` löscht die Datei einer Referenz; eine unbekannte Referenz ist kein Fehler (die Bereinigung ist wiederholbar).
-9. Beim Erzeugen des Adapters werden übrig gebliebene temporäre Dateien früherer Läufe gelöscht (Absturz vor `Commit`); ein Verzeichnis gehört zu einem Adapter zur Zeit.
+8. `Remove` löscht die Datei einer Referenz; liegt dort eine Nicht-Datei, löscht es sie (einen Verweis selbst, ein Verzeichnis samt Inhalt); eine unbekannte Referenz ist kein Fehler (die Bereinigung ist wiederholbar).
+9. Beim Erzeugen des Adapters werden übrig gebliebene temporäre Dateien früherer Läufe gelöscht (Absturz vor `Commit`).
 10. Der Adapter prüft die Bytes nicht auf Redaction (`SPEC-053`): er speichert, was er bekommt.
 
-Ungeprüft bleibt: die Haltbarkeit von `fsync` auf dem Datenträger (das Betriebssystem sichert sie zu) und Blob-Dateien auf Dateisystemen ohne `0600` (kein Teil von Linux-Dateisystemen des Containers).
+Ungeprüft bleibt: dass der Adapter `fsync` aufruft und die Haltbarkeit auf dem Datenträger (das Betriebssystem sichert sie zu), und Blob-Dateien auf Dateisystemen ohne `0600` (kein Teil von Linux-Dateisystemen des Containers).
+Nicht unterstützt: zwei Adapter auf einem Verzeichnis zugleich; das zweite Erzeugen löscht die temporären Dateien offener Writer des ersten, deren `Commit` dann mit einem Fehler endet.
+Unentschieden bleibt ein `Remove` gegen einen `Commit` gleicher Bytes zugleich: der Blob besteht danach oder nicht; die Bereinigung prüft die Referenzen vor dem Löschen (`SPEC-043`).
 
 ### SPEC-043 — Import- und Provenienz-Schema
 
