@@ -90,9 +90,9 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Zusage | Fänger |
 |---|---|
-| Referenzform: nur `sha256:` und 64 Kleinbuchstaben-Hexziffern | Test `ungültige Referenzen` (Großbuchstaben, `../`, kurz, lang, leer) bei `Open`, `Verify`, `Remove`; Mutation: Prüfung entfernt |
-| `Begin`: `grenze` ≥ 1 | Test `Begin mit Grenze 0 und -1`; Mutation: Prüfung entfernt |
-| `Write` über der Grenze ist `ErrZuGross`, Datei gelöscht, genau `grenze` zulässig | Tests `Grenze genau erreicht`, `Grenze um eins überschritten` (Verzeichnis leer); Mutationen: `>` zu `>=`, Datei bleibt |
+| Referenzform: nur `sha256:` und 64 Kleinbuchstaben-Hexziffern, vor dem Kontext geprüft | Test `ungültige Referenzen` (Großbuchstaben, `../`, kurz, lang, leer, anderer Hash) bei `Open`, `Verify`, `Remove`; Mutationen: Längenprüfung entfernt, Großbuchstaben zugelassen, Kontext zuerst |
+| `Begin`: `grenze` ≥ 1, vor dem Kontext geprüft | Test `Begin mit Grenze 0 und -1` (auch bei abgebrochenem Kontext); Mutationen: Grenze 0 zugelassen, Kontext zuerst |
+| `Write` über der Grenze ist `ErrZuGross`, Datei gelöscht, genau `grenze` zulässig | Tests `Grenze genau erreicht`, `Grenze um eins überschritten` (Verzeichnis leer); Mutationen: `>` zu `>=`, Datei bleibt (jeweils rot in `Grenze genau erreicht …`) |
 | `Commit` liefert Referenz und Länge, leerer Body zulässig | Test `Commit liefert Hash und Länge`, `leerer Body`; Mutation: Länge falsch |
 | Gleicher Inhalt, eine Datei, auch gleichzeitig | Tests `gleicher Inhalt teilt eine Datei`, `gleichzeitige Commits`; Mutation: Zähler im Dateinamen |
 | `Commit` heilt eine beschädigte Datei | Test `Commit ersetzt beschädigte Datei`; Mutation: vorhandene Datei bleibt |
@@ -103,10 +103,10 @@ Aussagen-Berührung steht hier gar nicht.
 | Rechte `0600` und `0700` unabhängig von der `umask` | Test `Rechte` mit `umask 0`; Mutation: Rechte `0644` |
 | `Open` prüft den Hash vor dem Leser, fehlend ist `ErrBlobFehlt`, beschädigt `ErrBlobBeschaedigt` | Tests `Open fehlend`, `Open verändert`, `Open gekürzt`, `Open ist Verzeichnis`; Mutationen: Hashprüfung entfernt, Fehler vertauscht |
 | `Verify` wie `Open` | Test `Verify` gleiche Fälle; Mutation: `Verify` prüft nur Existenz |
-| `List` sortiert, ignoriert temporäre und fremde Dateien | Test `List sortiert und ignoriert Fremdes`; Mutation: ohne Sortierung, Fremdes gelistet |
+| `List` sortiert, ignoriert temporäre und fremde Dateien | Test `List sortiert und ignoriert Fremdes`; Mutationen: Reihenfolge umgekehrt (die Ordnung leistet `os.ReadDir`, eine eigene Sortierung gibt es nicht), Fremdes gelistet |
 | `Remove` löscht, unbekannt ist kein Fehler | Tests `Remove`, `Remove unbekannt`; Mutation: Fehler bei unbekannt |
 | Erzeugen räumt temporäre Dateien früherer Läufe | Test `Erzeugen löscht Reste`; Mutation: Aufräumen entfernt |
-| Verzeichnis fehlt, ist kein Verzeichnis oder nicht beschreibbar, leerer Pfad | Test `Erzeugen mit ungültigem Verzeichnis` (nichts angelegt); Mutation: Prüfung entfernt |
+| Verzeichnis fehlt, ist kein Verzeichnis, Unterverzeichnis nicht anlegbar, leerer Pfad | Test `Erzeugen mit ungültigem Verzeichnis` (nichts angelegt); Mutation: `New` legt das Verzeichnis an; leerer Pfad und Nicht-Verzeichnis scheitern an `os.Stat` und `MkdirAll` und haben keine eigene Prüfung |
 | Kontext abgebrochen beendet jede Operation ohne Änderung | Test `abgebrochener Kontext`, alle Operationen; Mutation: Prüfung in `Commit`, `Remove` entfernt |
 
 ## 4. Trigger

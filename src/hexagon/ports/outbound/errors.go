@@ -15,3 +15,12 @@ var (
 	ErrUngueltigeSequenz    = errors.New("sequence_no passt nicht zur Folge")
 	ErrReferenziert         = errors.New("wird noch referenziert")
 )
+
+// Fehler des BlobRepository (SPEC-106). Die Schicht darüber meldet ErrBlobFehlt und
+// ErrBlobBeschaedigt als ODR-E3001.
+var (
+	ErrBlobFehlt       = errors.New("Blob fehlt")
+	ErrBlobBeschaedigt = errors.New("Blob beschädigt")
+	ErrZuGross         = errors.New("Body überschreitet die Grenze")
+	ErrAbgeschlossen   = errors.New("Writer ist abgeschlossen")
+)
