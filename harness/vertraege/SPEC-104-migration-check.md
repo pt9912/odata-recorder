@@ -8,7 +8,7 @@ Die Kopfzeilen des erzeugten DDL (Version des Schemas) gehören zum Vergleich: e
 
 **Randformen von `migration-check.sh`:**
 1. Gleich: Exit-Code 0, keine Ausgabe außer einer Zeile `migration-check: ok`.
-2. Ungleich: Exit-Code 1, Meldung `migration-check: 0001_init.sql weicht vom erzeugten DDL ab` und die ersten 20 Zeilen von `diff`.
+2. Ungleich: Exit-Code 1, Meldung `migration-check: 0001_init.sql weicht vom erzeugten DDL ab` und die ersten Zeilen von `diff`.
 3. Die Migration fehlt oder das erzeugte DDL fehlt: Exit-Code 2 mit Meldung, welche Datei fehlt.
 4. Im Migrationsverzeichnis liegt eine weitere Datei `*.sql` neben `0001_init.sql`: Exit-Code 1 mit Meldung `migration-check: <Datei> ist ungeprüft`; die Kette über mehrere Versionen prüft das Ziel nicht.
 5. Die Aufrufform stimmt nicht (weniger oder mehr als zwei Argumente): Exit-Code 2 mit Aufrufhilfe.
