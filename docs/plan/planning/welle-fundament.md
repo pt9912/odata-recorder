@@ -56,6 +56,7 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-go-skelett-build-test | Go-Skelett mit Build und Test in Containern | `LH-QA-06` |
 | slice-lint-stufe | Lint-Stufe für den Code samt eigener Prüfungen | `LH-QA-06` |
 | slice-gegenproben | Gegenproben für `a-check` und Lint, außerhalb der Gate-Kette | `LH-QA-06` |
+| slice-lint-gegenproben-modul | `tools/gegenproben` unter dem Lint-Gate | `LH-QA-06` |
 
 ## 5. Abhängigkeiten
 
