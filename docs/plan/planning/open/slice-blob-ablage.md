@@ -99,7 +99,7 @@ Aussagen-Berührung steht hier gar nicht.
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): [slice-sqlite-adapter-migration](slice-sqlite-adapter-migration.md) liegt in `done/`.
+**Start** (`next` → `in-progress`): [slice-sqlite-adapter-migration](../next/slice-sqlite-adapter-migration.md) liegt in `done/`.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
