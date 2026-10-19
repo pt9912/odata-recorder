@@ -35,7 +35,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Bodies und Blobs — der Exchange trägt nur Verweise; die Ablage liefert [slice-blob-ablage](slice-blob-ablage.md).
+- Bodies und Blobs — der Exchange trägt nur Verweise; die Ablage liefert [slice-blob-ablage](../open/slice-blob-ablage.md).
 - Match-Key-Bildung, Redaction und Capture-Pipeline — Fachlogik der Welle welle-record-replay.
 - Aufbewahrung und Startwartung als Use Case — `MaintenanceUseCase` kommt mit den Services; hier gibt es nur die Repository-Operationen.
 
