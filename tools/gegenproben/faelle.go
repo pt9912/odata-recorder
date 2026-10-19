@@ -123,6 +123,17 @@ func faelle() []Fall {
 			WantExit: 1, WantText: []string{"unused"},
 		},
 		{
+			Name: "lint/modul-ohne-go-datei", Gate: gateLint,
+			Neu:      map[string]string{"tools/leer/go.mod": "module leer\n\ngo 1.27\n"},
+			WantExit: 1, WantText: []string{"tools/leer: keine Datei *.go"},
+		},
+		{
+			Name: "lint/go-nur-unter-tools", Gate: gateLint,
+			Neu:      zweitesModul(""),
+			Entferne: []string{"src/bootstrap/bootstrap.go", "src/bootstrap/bootstrap_test.go", "src/bootstrap/main/main.go"},
+			WantExit: 1, WantText: []string{"./: keine Datei *.go"},
+		},
+		{
 			Name: "lint/ohne-go-datei", Gate: gateLint,
 			Entferne: []string{"src/bootstrap/bootstrap.go", "src/bootstrap/bootstrap_test.go", "src/bootstrap/main/main.go"},
 			WantExit: 1, WantText: []string{"keine Datei *.go"},

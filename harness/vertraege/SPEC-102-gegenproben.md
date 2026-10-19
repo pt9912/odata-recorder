@@ -31,6 +31,8 @@ Ein roter Lauf lässt den Stempel unverändert, ein fehlender Stempel erzwingt d
 12. `lint/zweites-modul-sauber` · `lint.sh` · ein Modul `tools/probe` mit `go.mod` und einer Go-Datei ohne Befund · Exit 0, Ausgabe nennt `0 issues`.
 13. `lint/befund-im-zweiten-modul` · `lint.sh` · dasselbe Modul mit einer ungenutzten Funktion · Exit 1, Ausgabe nennt `unused`.
 14. `lint/ohne-go-datei` · `lint.sh` · alle Go-Dateien von `src/` sind aus der Kopie gelöscht · Exit 1, Ausgabe nennt `keine Datei *.go`.
+15. `lint/modul-ohne-go-datei` · `lint.sh` · ein Modul `tools/leer` mit `go.mod` und ohne Go-Datei · Exit 1, Ausgabe nennt `tools/leer: keine Datei *.go`.
+16. `lint/go-nur-unter-tools` · `lint.sh` · alle Go-Dateien von `src/` sind gelöscht, ein Modul `tools/probe` trägt eine · Exit 1, Ausgabe nennt `./: keine Datei *.go`.
 Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
 
 **Randformen:**
