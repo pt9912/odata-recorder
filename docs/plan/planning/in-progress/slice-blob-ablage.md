@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-02`, `LH-FA-14`, `LH-QA-04`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `SPEC-046` (Sicheres Streaming-Capture) · `SPEC-013` (`MAX_CAPTURE_BODY`) · `ARC-010`.
+**Berührte Spec-Stellen:** `SPEC-106` (Vertrag der Blob-Ablage) · `SPEC-046` (Sicheres Streaming-Capture) · `SPEC-013` (`MAX_CAPTURE_BODY`) · `ARC-010`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -81,7 +81,8 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|---|
 | `src/hexagon/ports/outbound/` | update | `BlobRepository`, `CaptureWriter` |
 | `src/adapters/driven/blobs/` | neu | Dateisystem-Ablage, content-adressiert |
-| `spec/spezifikation.md` | update | Randformen: `Write` nach `Commit`, doppelter `Commit`, `Abort` nach `Commit`, Überschreiten von `MAX_CAPTURE_BODY`, Verzeichnis nicht beschreibbar, Datei fehlt |
+| `spec/spezifikation.md` | update | `SPEC-106` mit den Randformen: `Write` nach `Commit`, doppelter `Commit`, `Abort` nach `Commit`, Überschreiten der Grenze, Verzeichnis nicht beschreibbar, Datei fehlt oder beschädigt |
+| `src/hexagon/ports/outbound/outboundtest/` | update | Vertragstest `BlobVertrag` am Port, gefahren gegen den Adapter |
 
 - Der Adapter nutzt nur die Standardbibliothek; Dateisystemzugriff gehört in diesen Adapter und nirgends sonst hin.
 
@@ -89,10 +90,24 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Zusage | Fänger |
 |---|---|
-| `Abort` hinterlässt keine Datei | Test: Verzeichnis leer nach `Abort`; Mutation: temporäre Datei bleibt |
-| Genau ein Abschluss | Test: zweiter `Commit` und `Write` nach `Commit` sind Fehler |
-| Lesen prüft den Hash | Test: veränderte Datei liefert `ODR-E3001`; Mutation: Prüfung entfernt |
-| Gleicher Inhalt, eine Datei | Test: zwei `Commit` mit gleichen Bytes, ein Eintrag |
+| Referenzform: nur `sha256:` und 64 Kleinbuchstaben-Hexziffern | Test `ungültige Referenzen` (Großbuchstaben, `../`, kurz, lang, leer) bei `Open`, `Verify`, `Remove`; Mutation: Prüfung entfernt |
+| `Begin`: `grenze` ≥ 1 | Test `Begin mit Grenze 0 und -1`; Mutation: Prüfung entfernt |
+| `Write` über der Grenze ist `ErrZuGross`, Datei gelöscht, genau `grenze` zulässig | Tests `Grenze genau erreicht`, `Grenze um eins überschritten` (Verzeichnis leer); Mutationen: `>` zu `>=`, Datei bleibt |
+| `Commit` liefert Referenz und Länge, leerer Body zulässig | Test `Commit liefert Hash und Länge`, `leerer Body`; Mutation: Länge falsch |
+| Gleicher Inhalt, eine Datei, auch gleichzeitig | Tests `gleicher Inhalt teilt eine Datei`, `gleichzeitige Commits`; Mutation: Zähler im Dateinamen |
+| `Commit` heilt eine beschädigte Datei | Test `Commit ersetzt beschädigte Datei`; Mutation: vorhandene Datei bleibt |
+| Genau ein Abschluss | Tests `Write nach Commit`, `Commit nach Commit`, `Commit nach Abort`, `Write nach Abort` (`ErrAbgeschlossen`); Mutation: Zustandsprüfung entfernt |
+| `Abort` hinterlässt keine Datei, ist wiederholbar, lässt einen Commit bestehen | Tests `Abort räumt auf`, `Abort nach Abort`, `Abort nach Commit`; Mutationen: temporäre Datei bleibt, `Abort` löscht den Blob |
+| Writer ist an den Kontext gebunden | Test `Abbruch des Kontexts beendet Write und Commit` (Verzeichnis leer); Mutation: Kontext ignoriert |
+| Datei erst nach `Commit` sichtbar (temporäre Datei, Umbenennen) | Test `List sieht keinen offenen Writer`; Mutation: Schreiben direkt auf den Zielnamen |
+| Rechte `0600` und `0700` unabhängig von der `umask` | Test `Rechte` mit `umask 0`; Mutation: Rechte `0644` |
+| `Open` prüft den Hash vor dem Leser, fehlend ist `ErrBlobFehlt`, beschädigt `ErrBlobBeschaedigt` | Tests `Open fehlend`, `Open verändert`, `Open gekürzt`, `Open ist Verzeichnis`; Mutationen: Hashprüfung entfernt, Fehler vertauscht |
+| `Verify` wie `Open` | Test `Verify` gleiche Fälle; Mutation: `Verify` prüft nur Existenz |
+| `List` sortiert, ignoriert temporäre und fremde Dateien | Test `List sortiert und ignoriert Fremdes`; Mutation: ohne Sortierung, Fremdes gelistet |
+| `Remove` löscht, unbekannt ist kein Fehler | Tests `Remove`, `Remove unbekannt`; Mutation: Fehler bei unbekannt |
+| Erzeugen räumt temporäre Dateien früherer Läufe | Test `Erzeugen löscht Reste`; Mutation: Aufräumen entfernt |
+| Verzeichnis fehlt, ist kein Verzeichnis oder nicht beschreibbar, leerer Pfad | Test `Erzeugen mit ungültigem Verzeichnis` (nichts angelegt); Mutation: Prüfung entfernt |
+| Kontext abgebrochen beendet jede Operation ohne Änderung | Test `abgebrochener Kontext`, alle Operationen; Mutation: Prüfung in `Commit`, `Remove` entfernt |
 
 ## 4. Trigger
 
@@ -121,7 +136,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Randformen der Repositories (`AGENTS.md` §3.12): leerer, fehlender oder unbekannter Wert, doppelter Schlüssel, Abbruch mitten in der Transaktion, gleichzeitiger Zugriff — **Ausgang:** entfallen: entschieden in `spezifikation.md` (Produkt) vor dem ersten Code-Commit.
+- Randformen der Ablage (`AGENTS.md` §3.12): leere und überlange Bodies, doppelter und gleichzeitiger `Commit`, `Write` und `Abort` nach dem Abschluss, Abbruch des Kontexts, Absturz vor dem Umbenennen, fehlende, veränderte und gekürzte Datei, ungültige Referenz, Verzeichnis nicht beschreibbar — **Ausgang:** entfallen: entschieden in `SPEC-106` vor dem ersten Code-Commit.
 - Dateisystem-Eigenheiten des Containers (Rechte, Umbenennen über Mountgrenzen) — **Ausgang:** weiter offen: wird im ersten Lauf im Container sichtbar und dann als Beobachtung geführt.
 
 ## 7. Closure-Notiz
