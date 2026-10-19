@@ -6,3 +6,5 @@
 !src/
 !.golangci.yml
 !tools/harness/lint.sh
+!.a-check.yml
+!tools/gegenproben

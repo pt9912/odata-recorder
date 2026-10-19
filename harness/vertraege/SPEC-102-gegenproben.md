@@ -10,14 +10,16 @@ Je Fall legt es eine Kopie der Eingaben in einem Wegwerfverzeichnis an, schreibt
 Alle Fälle laufen nebenläufig (höchstens so viele wie Prozessorkerne); ein Docker-Build, -Lauf oder `docker cp` je Fall gibt es nicht.
 Der Arbeitsbaum wird nie verändert.
 
-**Eingaben:** `src/`, `go.mod`, `.a-check.yml`, `.golangci.yml`, `tools/harness/lint.sh` und `tools/gegenproben/`; dazu die Pins beider Images.
-Nur eine Änderung daran lässt die Stufe neu laufen, ein roter Lauf wird nicht zwischengespeichert.
-Bei unveränderten Eingaben meldet `make gegenproben`, dass der letzte Lauf grün war und nichts neu läuft.
+**Eingaben:** `src/`, `go.mod`, `.a-check.yml`, `.golangci.yml`, `tools/harness/lint.sh`, `tools/gegenproben/`, `Dockerfile` und `.dockerignore`; dazu die Pins beider Images.
+`tools/harness/gegenproben-eingabe.sh` bildet daraus eine Prüfsumme (SHA-256 über die Dateien und die Pins).
+Stimmt sie mit dem Stempel `harness/gegenproben.stempel` überein, meldet `make gegenproben` den unveränderten Stand und fährt nichts; sonst fährt es die Stufe, ohne den Build-Cache für sie, und schreibt den Stempel nur nach einem grünen Lauf.
+Der Stempel ist versioniert und reist mit dem Commit in andere Klone und Container; die Prüfsumme bindet ihn an die Eingaben, ein veralteter Stempel stimmt nicht mehr überein und erzwingt den Lauf.
+Ein roter Lauf lässt den Stempel unverändert, ein fehlender Stempel erzwingt den Lauf; Änderungen an Doku, Plan und Reports berühren die Prüfsumme nicht.
 
 **Fälle** (Name · Gate · Eingriff in der Kopie · Erwartung):
 1. `a-check/basis` · `a-check` · keiner · Exit 0.
 2. `a-check/kern-auf-driven-adapter` · `a-check` · ein Paket in `src/hexagon/model` importiert ein Paket aus `src/adapters/driven` · Exit 1, Ausgabe nennt `core-impurity`.
-3. `a-check/adapter-auf-adapter` · `a-check` · ein Paket in `src/adapters/driving` importiert ein Paket aus `src/adapters/driven` · Exit 1.
+3. `a-check/adapter-auf-adapter` · `a-check` · ein Paket in `src/adapters/driving` importiert ein Paket aus `src/adapters/driven` · Exit 1, Ausgabe nennt `lateral-adapter`.
 4. `a-check/erlaubter-weg-ueber-port` · `a-check` · ein Driven Adapter importiert einen Outbound Port, ein Service importiert Port und Modell · Exit 0.
 5. `lint/basis` · `lint.sh` · keiner · Exit 0.
 6. `lint/direktive-nolint` · `lint.sh` · `//nolint:unused // x` in einer Datei von `src/` · Exit 1, Ausgabe nennt `Direktive`.
@@ -36,9 +38,11 @@ Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
 8. Wegwerfverzeichnisse werden am Ende entfernt, auch bei roten Fällen; ein Abbruch des Builds lässt nichts zurück, weil der Container verworfen wird.
 9. Die Eingabe ist unverändert: nach dem Lauf sind die Dateien der Eingaben bytegleich.
 
-**Zeitbudget** (Wanduhr, `time make gegenproben`): bei kaltem Docker-Build-Cache höchstens 60 s, bei unveränderten Eingaben höchstens 5 s.
+**Zeitbudget** (Wanduhr, `time make gegenproben`): bei geänderten Eingaben und kaltem Docker-Build-Cache höchstens 30 s, bei unveränderten Eingaben höchstens 1 s (gemessen am Stand der Lieferung: 13,5 s und 0,04 s, Images lokal vorhanden).
 
 **Stand:** vorgesehen für `make a-check` und `make lint`.
 
-**Grenze:** Die Fälle prüfen die Importrichtungen `core-impurity` und Adapter auf Adapter sowie die Direktiv- und `# Why:`-Regeln; weitere Verstoßformen kommen mit den Bibliotheksgrenzen.
+**Grenze:** Kein Gate und kein Hook liest den Stempel; er belegt nur, dass ein Lauf zu dieser Prüfsumme grün war, und wer ihn von Hand schreibt, belegt nichts.
+Die Fälle prüfen die Importrichtungen `core-impurity` und Adapter auf Adapter sowie die Direktiv- und `# Why:`-Regeln; weitere Verstoßformen kommen mit den Bibliotheksgrenzen.
+Das Programm selbst prüft die Stufe mit `gofmt`, `go vet` und `go test`; `make lint` übergeht es, weil es ein eigenes Modul ist.
 Die Gegenproben von `docs-check`, `schema-check` und `baseline-verify` fehlen.

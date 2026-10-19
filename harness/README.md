@@ -77,10 +77,11 @@ Diese Datei dupliziert sie nicht.
 | `make schema-validate` | prüft `tools/schema/schema.yaml` mit d-migrate (netzlos, ohne Mount) | kein Gate |
 | `make schema-generate` | erzeugt SQLite-DDL und Report aus dem Schema als Tar-Strom auf stdout (netzlos, ohne Mount) | kein Gate |
 | `make a-check-graph` | gibt den Architektur-Graphen (Mermaid) aus `.a-check.yml` aus, prüft nichts (netzlos, schreibgeschützt) | kein Gate |
+| `make gegenproben` | Gegenproben zu `a-check` und `lint.sh`: acht Fälle in Kopien der Eingaben, ein Go-Programm, nur bei geänderter Eingabe (Prüfsumme in `harness/gegenproben.stempel`) | [ADR-0005](../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) |
 
 **Aktueller Lauf-Status:** lokal `make help` / `make gates`; eine CI gibt es noch nicht.
 **Rote Gates:** keine; ein rotes Gate bekommt einen `CO-<NNN>` und verweist in der Bindung-Spalte darauf (Modul 7).
-**Nicht behauptet:** ein Coverage-Gate, die Gegenproben zu `make a-check` und `make lint` sowie der Lasttest zu `LH-QA-01` — der Code ist ein Skelett aus Composition Root und Version; `make a-check` prüft damit erst eine Schicht. Ebenso fehlt die Migrationskette des Schemas; sie braucht eine zweite Schemaversion.
+**Nicht behauptet:** ein Coverage-Gate, die Gegenproben anderer Gates sowie der Lasttest zu `LH-QA-01` — der Code ist ein Skelett aus Composition Root und Version; `make a-check` prüft damit erst eine Schicht. Ebenso fehlt die Migrationskette des Schemas; sie braucht eine zweite Schemaversion.
 
 **Targets der Werkzeug-Fragmente:** [`mk/ai-harness-init.md`](mk/ai-harness-init.md) — der Teil dieses Index, den `ai-harness-init` bei jedem Lauf neu schreibt; was das Repo über eines dieser Targets entscheidet, steht in dieser Zeile.
 
