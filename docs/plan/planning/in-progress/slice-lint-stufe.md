@@ -56,18 +56,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] `Dockerfile`-Stufe `lint`: golangci-lint nach `.golangci.yml` auf den Modulen der Stufe `deps`, ohne Netz; das Image kommt per Build-Argument aus `harness/mk/lint-profil.mk`, damit der Pin an einer Stelle steht.
-- [ ] `tools/harness/lint.sh` mit den eigenen Prüfungen: keine Direktive `//nolint` und `//lint:ignore` im Code, jede Regel unter `exclusions.rules` mit `# Why:`, `warn-unused` für eine Regel ohne Wirkung.
-- [ ] `make lint` hängt an `GATE_CHECKS`; Zeile in `harness/README.md` §Sensors. `make lint-profil` bleibt als Schema-Prüfung bestehen.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] `Dockerfile`-Stufe `lint`: golangci-lint nach `.golangci.yml` auf den Modulen der Stufe `deps`, ohne Netz; das Image kommt per Build-Argument aus `harness/mk/lint-profil.mk`, damit der Pin an einer Stelle steht.
+- [x] `tools/harness/lint.sh` mit den eigenen Prüfungen: keine Direktive `//nolint` und `//lint:ignore` im Code, jede Regel unter `exclusions.rules` mit `# Why:`, `warn-unused` für eine Regel ohne Wirkung.
+- [x] `make lint` hängt an `GATE_CHECKS`; Zeile in `harness/README.md` §Sensors. `make lint-profil` bleibt als Schema-Prüfung bestehen.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review.
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; kein Zähler wird gesetzt. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; kein Zähler wird gesetzt. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -116,7 +116,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Randformen des Profils und der eigenen Prüfungen (`AGENTS.md` §3.12): `.golangci.yml` fehlt oder ist nicht lesbar, das Profil weicht von der gelesenen Form ab, eine Direktive `//nolint` steht in einer Testdatei, ein Verzeichnis enthält keine Go-Dateien — **Ausgang:** entfallen: entschieden in `harness/vertraege/SPEC-101-lint-profil.md` vor dem ersten Code-Commit.
-- Die Schwellen des Profils (Komplexität 15, Funktionslänge 100) beißen am Skelett nicht — **Ausgang:** weiter offen: wird mit der ersten Fachlogik sichtbar und dann als Beobachtung geführt.
+- Die Schwellen des Profils (Komplexität 15, Funktionslänge 100) beißen am Skelett nicht — **Ausgang:** weiter offen: wird mit der ersten Fachlogik sichtbar; bis dahin steht es als Grenze in `SPEC-101`.
 - `lint.sh` liest das Profil in fester Form; eine Umformatierung bricht es — **Ausgang:** entfallen: die Form steht im Kopfkommentar des Profils und die Gegenprobe in [slice-gegenproben](../open/slice-gegenproben.md) hält sie.
 
 ## 7. Closure-Notiz
@@ -133,7 +133,13 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-Wird bei der Closure geschrieben.
+- **Was hat funktioniert:** Die Randformen standen vor dem ersten Code-Commit in `SPEC-101`; je Zusage wurde eine Mutation rot gesehen (Direktive in Produkt- und Testcode, `# Why:` fehlt, leer oder durch Leerzeile gelöst, `warn-unused` fehlt, Regeln im Fließstil und mit vier Leerzeichen, keine Go-Datei, Profil fehlt, Fund von golangci-lint); der Probe-Befund aus §5 macht `make lint` rot.
+- **Was ging anders als geplant:** Der Review fand eine Randform, die der Vertrag entschieden und der Code anders umgesetzt hatte (F-1: `rules: []`), dazu eine Zusage im Kommentar von `.dockerignore` (F-2) und eine Schreibweise der Direktive (F-4); alle drei sind behoben. Die Mutationen stehen im Review-Report, ein eigener Bericht je Zusage fehlte (Verifikation).
+- **Steering-Loop-Eintrag:** Nichts verkörpert; gezählt, nicht verkörpert: `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft`, jetzt 2×.
+- **Beobachtungs-Register (`../observations/`):** `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft/` fortgeschrieben, Beleg `evidence/slice-lint-stufe.md`; `BEO-REPO/randform-erst-im-review-entschieden` trat nicht auf (die Randformen standen vor dem Code).
+- **Folge-Slices:** [slice-gegenproben](slice-gegenproben.md) übernimmt die Gegenprobe zu `make lint` mit F-4 (Direktive mit zwei Leerzeichen), F-5 (Profil fehlt über `make lint` nicht erreichbar) und F-6 (Einrückung des `# Why:`-Blocks); F-3 (Vorgabewert `scratch` des Build-Arguments) bleibt ohne Folge, weil `make lint` es immer setzt.
+- **Risiken aus §6:** Randformen *entfallen*; schwellen *weiter offen* (steht als Grenze in `SPEC-101`); feste Form des Profils *entfallen*, siehe §6.
+- **Drei Paarungen:** von der Closure der Welle welle-fundament geprüft.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 

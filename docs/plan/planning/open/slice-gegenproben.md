@@ -32,6 +32,7 @@ Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** `make gegenproben` weist in Kopien des Arbeitsbaums nach, dass `a-check` und `make lint` einen Verstoß rot melden und einen erlaubten Fall nicht.
+Zu den Fällen für `make lint` gehören die Randformen aus `SPEC-101`, die über das Gate nicht erreichbar sind oder nur ein zweiter Linter deckt: ein fehlendes Profil, eine Direktive mit zwei Leerzeichen nach `//` und die Einrückung des `# Why:`-Blocks (aus [slice-lint-stufe](../done/slice-lint-stufe.md), Review-Befunde F-4 bis F-6).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
