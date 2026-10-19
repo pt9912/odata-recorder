@@ -597,13 +597,14 @@ Der Driven Adapter für die Persistenz öffnet genau eine Datei und bringt sie a
 Die Schemaversion der Datei steht in `PRAGMA user_version`; das Programm kennt heute die Version `1`, ihr DDL ist das aus `tools/schema/schema.yaml` erzeugte (`SPEC-004`).
 
 1. Jede Verbindung der Datei setzt `foreign_keys=ON` und `busy_timeout` aus `SQLITE_BUSY_TIMEOUT` (`SPEC-014`, ohne Angabe 5000 ms).
-   Eine neu migrierte Datei wechselt nach der Migration in `journal_mode=WAL`; der Modus bleibt in der Datei, jede Verbindung sieht ihn.
+   Jedes erfolgreiche Öffnen stellt zuletzt `journal_mode=WAL` sicher; der Modus bleibt in der Datei, jede Verbindung sieht ihn, und eine Datei im Modus `delete` wird dabei umgestellt.
+   Das Umstellen wiederholt sich bei `SQLITE_BUSY` und `SQLITE_LOCKED` bis zum Ablauf des `busy_timeout`; danach scheitert Öffnen mit dem Fehler der Datenbank, die Migration bleibt bestehen, und ein späteres Öffnen stellt den Modus erneut sicher.
    Eine abgelehnte Datei bleibt byte-gleich: vor der Prüfung der Version schreibt Öffnen nichts in sie.
 2. `user_version` `0` und keine Tabelle: die Datei ist leer oder neu; das DDL der Version `1` wird in einer Transaktion angewendet und `user_version` auf `1` gesetzt.
 3. `user_version` `1`: nichts geschieht; ein zweites Öffnen verändert die Datei nicht.
 4. `user_version` größer als die bekannte Version: Öffnen scheitert mit einem Fehler, der die gefundene und die bekannte Version nennt; die Datei bleibt unverändert.
 5. `user_version` `0` mit vorhandenen Tabellen (eine fremde Datenbank): Öffnen scheitert, die Datei bleibt unverändert.
-6. Eine Datei, die keine SQLite-Datenbank ist oder deren Aufbau SQLite als beschädigt meldet (Fehlercodes `SQLITE_NOTADB` und `SQLITE_CORRUPT`): Öffnen scheitert mit `ODR-E3001` (`SPEC-018`), die Datei bleibt unverändert.
+6. Eine Datei, die keine SQLite-Datenbank ist oder deren Aufbau SQLite als beschädigt meldet (Fehlercodes `SQLITE_NOTADB` und `SQLITE_CORRUPT`): Öffnen scheitert mit dem Fehler `ErrBeschaedigt`, den die meldende Schicht als `ODR-E3001` (`SPEC-018`) ausgibt; die Datei bleibt unverändert.
    Andere Fehler der Datei (etwa `SQLITE_CANTOPEN`, `SQLITE_IOERR`) gibt Öffnen unverändert weiter; eine `integrity_check`-Prüfung beim Öffnen gehört nicht dazu (`StorageMaintenance`).
 7. Ein leerer Pfad, ein Pfad auf ein Verzeichnis oder ein Verzeichnis, das nicht existiert: Öffnen scheitert; der Adapter legt kein Verzeichnis an (`DATA_DIR` legt der Composition Root an, `SPEC-077`).
 8. Zwei gleichzeitige Öffnungen einer neuen Datei: genau eine wendet die Migration an, beide enden mit Erfolg.
