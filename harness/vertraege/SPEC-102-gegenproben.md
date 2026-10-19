@@ -3,14 +3,14 @@
 **Werkzeug:** `make gegenproben`; Quelle `tools/gegenproben/` (eigenes Go-Modul), Stufe `gegenproben` des `Dockerfile`.
 
 **Festlegung:** Eine Gegenprobe weist an einem Gate nach, dass es einen Verstoß rot meldet und einen erlaubten Fall nicht.
-`make gegenproben` fährt die Gegenproben von `make a-check` und `make lint`; sie gehören nicht zu `GATE_CHECKS`.
+`make gegenproben` fährt die Gegenproben von `make a-check`, `make lint` und `make migration-check`; sie gehören nicht zu `GATE_CHECKS`.
 
 **Aufbau:** Ein Go-Programm läuft in einem Docker-Build ohne Netz, auf dem golangci-lint-Image mit dem `a-check`-Binary aus dessen Image.
 Je Fall legt es eine Kopie der Eingaben in einem Wegwerfverzeichnis an, schreibt oder ändert dort Dateien, ruft das Gate als Prozess und vergleicht Exit-Code und Ausgabe.
 Alle Fälle laufen nebenläufig (höchstens so viele wie Prozessorkerne); ein Docker-Build, -Lauf oder `docker cp` je Fall gibt es nicht.
 Der Arbeitsbaum wird nie verändert.
 
-**Eingaben:** `src/`, `go.mod`, `go.sum`, `.a-check.yml`, `.golangci.yml`, `tools/harness/lint.sh`, `tools/gegenproben/`, `Dockerfile` und `.dockerignore`; dazu die Pins beider Images.
+**Eingaben:** `src/`, `go.mod`, `go.sum`, `.a-check.yml`, `.golangci.yml`, `tools/harness/lint.sh`, `tools/harness/migration-check.sh`, `tools/gegenproben/`, `Dockerfile` und `.dockerignore`; dazu die Pins beider Images.
 `tools/harness/gegenproben-eingabe.sh` bildet daraus eine Prüfsumme (SHA-256 über die Dateien und die Pins).
 Stimmt sie mit dem Stempel `harness/gegenproben.stempel` überein, meldet `make gegenproben` den unveränderten Stand und fährt nichts; sonst fährt es die Stufe, ohne den Build-Cache für sie, und schreibt den Stempel nur nach einem grünen Lauf.
 Der Stempel ist versioniert und reist mit dem Commit in andere Klone und Container; die Prüfsumme bindet ihn an die Eingaben, ein veralteter Stempel stimmt nicht mehr überein und erzwingt den Lauf.
@@ -33,6 +33,9 @@ Ein roter Lauf lässt den Stempel unverändert, ein fehlender Stempel erzwingt d
 14. `lint/ohne-go-datei` · `lint.sh` · alle Go-Dateien von `src/` sind aus der Kopie gelöscht · Exit 1, Ausgabe nennt `keine Datei *.go`.
 15. `lint/modul-ohne-go-datei` · `lint.sh` · ein Modul `tools/leer` mit `go.mod` und ohne Go-Datei · Exit 1, Ausgabe nennt `tools/leer: keine Datei *.go`.
 16. `lint/go-nur-unter-tools` · `lint.sh` · alle Go-Dateien von `src/` sind gelöscht, ein Modul `tools/probe` trägt eine · Exit 1, Ausgabe nennt `./: keine Datei *.go`.
+17. `migration/gleich` · `migration-check.sh` · das erzeugte DDL ist eine Kopie der Migration · Exit 0, Ausgabe nennt `migration-check: ok`.
+18. `migration/abweichung` · `migration-check.sh` · das erzeugte DDL trägt eine zusätzliche Zeile · Exit 1, Ausgabe nennt `weicht vom erzeugten DDL ab`.
+19. `migration/weitere-datei` · `migration-check.sh` · neben `0001_init.sql` liegt eine Datei `0002_x.sql` · Exit 1, Ausgabe nennt `ungeprüft`.
 Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
 
 **Randformen:**

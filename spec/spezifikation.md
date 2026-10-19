@@ -591,6 +591,22 @@ Canonical JSON und SHA-256 sichern die Integrität.
 Unveränderliche Baselines dürfen nicht überschrieben werden.
 Snapshot-Promotion ist ein eigener validierter Vorgang; Coverage wird nie implizit auf `complete` gesetzt.
 
+### SPEC-103 — Öffnen und Migrieren der SQLite-Datei
+
+Der Driven Adapter für die Persistenz öffnet genau eine Datei und bringt sie auf die Schemaversion des Programms.
+Die Schemaversion der Datei steht in `PRAGMA user_version`; das Programm kennt heute die Version `1`, ihr DDL ist das aus `tools/schema/schema.yaml` erzeugte (`SPEC-004`).
+
+1. Jede Verbindung der Datei setzt `foreign_keys=ON`, `busy_timeout` aus `SQLITE_BUSY_TIMEOUT` (`SPEC-014`, ohne Angabe 5000 ms) und `journal_mode=WAL`.
+2. `user_version` `0` und keine Tabelle: die Datei ist leer oder neu; das DDL der Version `1` wird in einer Transaktion angewendet und `user_version` auf `1` gesetzt.
+3. `user_version` `1`: nichts geschieht; ein zweites Öffnen verändert die Datei nicht.
+4. `user_version` größer als die bekannte Version: Öffnen scheitert mit einem Fehler, der die gefundene und die bekannte Version nennt; die Datei bleibt unverändert.
+5. `user_version` `0` mit vorhandenen Tabellen (eine fremde Datenbank): Öffnen scheitert, die Datei bleibt unverändert.
+6. Eine Datei, die keine SQLite-Datenbank ist oder deren Integrität nicht lesbar ist: Öffnen scheitert mit `ODR-E3001` (`SPEC-018`), die Datei bleibt unverändert.
+7. Ein leerer Pfad, ein Pfad auf ein Verzeichnis oder ein Verzeichnis, das nicht existiert: Öffnen scheitert; der Adapter legt kein Verzeichnis an (`DATA_DIR` legt der Composition Root an, `SPEC-077`).
+8. Zwei gleichzeitige Öffnungen einer neuen Datei: genau eine wendet die Migration an, beide enden mit Erfolg.
+9. Ein Schließen ist idempotent: ein zweites `Close` ist kein Fehler.
+10. Der Pfad `:memory:` ist nicht zugelassen; Tests nutzen eine Datei in einem temporären Verzeichnis.
+
 ### SPEC-043 — Import- und Provenienz-Schema
 
 `ImportManifest{import_id, service_id, metadata_hash, source_session_ids[], created_at, entity_count, baseline_snapshot_id, coverage[]}`;
