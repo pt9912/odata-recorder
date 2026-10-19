@@ -37,13 +37,14 @@ RUN --network=none GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -buildvc
       -o /out/odata-recorder ./src/bootstrap/main
 
 # --- lint: golangci-lint nach .golangci.yml und die eigenen Prüfungen von tools/harness/lint.sh
-# auf dem Quellstand; die Module kommen aus deps.
+# auf dem Quellstand und auf tools/gegenproben; die Module kommen aus deps.
 FROM ${LINT_IMAGE} AS lint
 WORKDIR /src
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY --from=source /src ./
 COPY .golangci.yml ./
+COPY tools/gegenproben tools/gegenproben
 COPY tools/harness/lint.sh /usr/local/bin/lint.sh
 RUN --network=none sh /usr/local/bin/lint.sh
 

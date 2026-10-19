@@ -76,7 +76,7 @@ func faelle() []Fall {
 		{Name: "lint/basis", Gate: gateLint, WantText: []string{"0 issues"}},
 		{
 			Name: "lint/direktive-nolint", Gate: gateLint,
-			Anhang:   map[string]string{"src/bootstrap/bootstrap.go": "\n//nolint:unused // Probe\n"},
+			Anhang:   map[string]string{"src/bootstrap/bootstrap.go": "\n//" + "nolint:unused // Probe\n"},
 			WantExit: 1, WantText: []string{"Direktive", "nolintlint"},
 		},
 		{
@@ -91,7 +91,7 @@ func faelle() []Fall {
 		},
 		{
 			Name: "lint/direktive-mit-leerzeichen", Gate: gateLint,
-			Anhang:   map[string]string{"src/bootstrap/bootstrap.go": "\n//  nolint:unused // Probe\n"},
+			Anhang:   map[string]string{"src/bootstrap/bootstrap.go": "\n//  " + "nolint:unused // Probe\n"},
 			WantExit: 1, WantText: []string{"Direktive", "nolintlint"},
 		},
 		{

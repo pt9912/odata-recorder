@@ -1,6 +1,6 @@
 #!/bin/sh
 # tools/harness/lint.sh — Prüfungen des Gates `make lint` (SPEC-101), im Modul-Wurzelverzeichnis.
-# Eigene Prüfungen, dann golangci-lint; beide laufen, der Exit-Code ist 1 bei einem Befund
+# Eigene Prüfungen, dann golangci-lint je Modul (Wurzel und tools/<Name> mit go.mod); beide laufen, der Exit-Code ist 1 bei einem Befund
 # in einem von ihnen und 2, wenn das Profil fehlt.
 # Gelesene Form des Profils: unter `linters:` der Block `  exclusions:` mit
 # `    warn-unused: true` und `    rules:`, jede Regel als `      - ` (sechs Leerzeichen), ihr `# Why:`-Block mit derselben Einrückung.
@@ -15,7 +15,7 @@ rc=0
 d=$(grep -rnE --include='*.go' '//[[:space:]]*(nolint|lint:ignore)' . | sed 's/^\([^:]*:[0-9]*\):.*/lint.sh: \1: Direktive nolint oder lint:ignore/')
 [ -z "$d" ] || { echo "$d"; rc=1; }
 
-# Das Modul trägt mindestens eine Go-Datei.
+# Das Wurzelmodul trägt mindestens eine Go-Datei.
 [ -n "$(find . -name '*.go' -print -quit)" ] || { echo "lint.sh: ./: keine Datei *.go im Modul"; rc=1; }
 
 # Jede Regel unter exclusions.rules steht unter einem Kommentarblock (sechs Leerzeichen eingerückt),
@@ -46,5 +46,13 @@ END {
 }' "$profil" || rc=1
 
 golangci-lint run -c "$profil" ./... || rc=1
+
+# Jedes Verzeichnis tools/<Name> mit eigener go.mod ist ein weiteres Modul.
+for m in tools/*/go.mod; do
+  [ -e "$m" ] || continue
+  d=$(dirname "$m")
+  [ -n "$(find "$d" -name '*.go' -print -quit)" ] || { echo "lint.sh: $d: keine Datei *.go im Modul"; rc=1; continue; }
+  (cd "$d" && golangci-lint run -c "../../$profil" ./...) || rc=1
+done
 
 exit "$rc"

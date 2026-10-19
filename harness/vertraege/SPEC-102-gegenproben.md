@@ -51,5 +51,5 @@ Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
 
 **Grenze:** Kein Gate und kein Hook liest den Stempel; er belegt nur, dass ein Lauf zu dieser Prüfsumme grün war, und wer ihn von Hand schreibt, belegt nichts.
 Die Fälle prüfen die Importrichtungen `core-impurity` und Adapter auf Adapter sowie die Direktiv- und `# Why:`-Regeln; weitere Verstoßformen kommen mit den Bibliotheksgrenzen.
-Das Programm selbst prüft die Stufe mit `gofmt`, `go vet` und `go test`; `make lint` übergeht es, weil es ein eigenes Modul ist.
+Das Programm selbst prüft die Stufe mit `gofmt`, `go vet` und `go test`; `make lint` prüft es als zweites Modul (`SPEC-101`).
 Die Gegenproben von `docs-check`, `schema-check` und `baseline-verify` fehlen.

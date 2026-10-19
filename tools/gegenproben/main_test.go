@@ -65,21 +65,21 @@ func wurzelMitEingaben(t *testing.T) string {
 	return w
 }
 
-// mitBefehl ersetzt befehl und programme für die Dauer des Tests.
-func mitBefehl(t *testing.T, skript func(dir string, g Gate) string, prog ...string) {
-	t.Helper()
-	ob, op := befehl, programme
-	t.Cleanup(func() { befehl, programme = ob, op })
-	programme = prog
-	befehl = func(dir string, g Gate) (string, []string, string) {
-		return "sh", []string{"-c", skript(dir, g)}, ""
+// umgebungMit liefert eine Umgebung, deren Gate-Aufruf das Skript ist.
+func umgebungMit(skript func(dir string, g Gate) string, prog ...string) Umgebung {
+	return Umgebung{
+		Eingaben:  standard().Eingaben,
+		Programme: prog,
+		Befehl: func(dir string, g Gate) (string, []string, string) {
+			return "sh", []string{"-c", skript(dir, g)}, ""
+		},
 	}
 }
 
 func TestRunEingabeFehlt(t *testing.T) {
-	mitBefehl(t, func(string, Gate) string { return "exit 0" }, "sh")
+	u := umgebungMit(func(string, Gate) string { return "exit 0" }, "sh")
 	var out, errb bytes.Buffer
-	if got := run(&out, &errb, t.TempDir(), []Fall{{Name: "a"}}); got != exitSetup {
+	if got := run(u, &out, &errb, t.TempDir(), []Fall{{Name: "a"}}); got != exitSetup {
 		t.Fatalf("Exit %d, erwartet %d", got, exitSetup)
 	}
 	if out.Len() != 0 {
@@ -88,9 +88,9 @@ func TestRunEingabeFehlt(t *testing.T) {
 }
 
 func TestRunProgrammFehlt(t *testing.T) {
-	mitBefehl(t, func(string, Gate) string { return "exit 0" }, "gibt-es-nicht-gegenproben")
+	u := umgebungMit(func(string, Gate) string { return "exit 0" }, "gibt-es-nicht-gegenproben")
 	var out, errb bytes.Buffer
-	if got := run(&out, &errb, wurzelMitEingaben(t), []Fall{{Name: "a"}}); got != exitSetup {
+	if got := run(u, &out, &errb, wurzelMitEingaben(t), []Fall{{Name: "a"}}); got != exitSetup {
 		t.Fatalf("Exit %d, erwartet %d", got, exitSetup)
 	}
 	if !strings.Contains(errb.String(), "nicht aufrufbar") {
@@ -99,14 +99,14 @@ func TestRunProgrammFehlt(t *testing.T) {
 }
 
 func TestRunAlleFaelleLaufenZuEnde(t *testing.T) {
-	mitBefehl(t, func(dir string, g Gate) string { return "exit 0" }, "sh")
+	u := umgebungMit(func(dir string, g Gate) string { return "exit 0" }, "sh")
 	fs := []Fall{
 		{Name: "verstoss-nicht-gemeldet", WantExit: 1},
 		{Name: "erlaubt-a"},
 		{Name: "erlaubt-b"},
 	}
 	var out, errb bytes.Buffer
-	if got := run(&out, &errb, wurzelMitEingaben(t), fs); got != exitRot {
+	if got := run(u, &out, &errb, wurzelMitEingaben(t), fs); got != exitRot {
 		t.Fatalf("Exit %d, erwartet %d", got, exitRot)
 	}
 	for _, n := range []string{"ROT  verstoss-nicht-gemeldet", "ok   erlaubt-a", "ok   erlaubt-b", "3 Fälle, 1 rot"} {
@@ -119,9 +119,9 @@ func TestRunAlleFaelleLaufenZuEnde(t *testing.T) {
 func TestRunRaeumtWegwerfverzeichnisseAuf(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("TMPDIR", tmp)
-	mitBefehl(t, func(string, Gate) string { return "exit 1" }, "sh")
+	u := umgebungMit(func(string, Gate) string { return "exit 1" }, "sh")
 	var out, errb bytes.Buffer
-	run(&out, &errb, wurzelMitEingaben(t), []Fall{{Name: "rot"}})
+	run(u, &out, &errb, wurzelMitEingaben(t), []Fall{{Name: "rot"}})
 	rest, err := os.ReadDir(tmp)
 	if err != nil || len(rest) != 0 {
 		t.Fatalf("Wegwerfverzeichnisse bleiben: %v %v", rest, err)
@@ -130,9 +130,9 @@ func TestRunRaeumtWegwerfverzeichnisseAuf(t *testing.T) {
 
 func TestRunErkenntVeraenderteEingabe(t *testing.T) {
 	w := wurzelMitEingaben(t)
-	mitBefehl(t, func(string, Gate) string { return "echo x >> " + filepath.Join(w, "go.mod") }, "sh")
+	u := umgebungMit(func(string, Gate) string { return "echo x >> " + filepath.Join(w, "go.mod") }, "sh")
 	var out, errb bytes.Buffer
-	if got := run(&out, &errb, w, []Fall{{Name: "a"}}); got != exitSetup {
+	if got := run(u, &out, &errb, w, []Fall{{Name: "a"}}); got != exitSetup {
 		t.Fatalf("Exit %d, erwartet %d", got, exitSetup)
 	}
 	if !strings.Contains(errb.String(), "verändert") {
@@ -153,10 +153,10 @@ func TestStarteBeendetDieProzessgruppeBeiFristablauf(t *testing.T) {
 
 func TestJederFallHatEigenesTmpdir(t *testing.T) {
 	sammel := filepath.Join(t.TempDir(), "tmpdirs")
-	mitBefehl(t, func(string, Gate) string { return `echo "$TMPDIR" >> ` + sammel }, "sh")
+	u := umgebungMit(func(string, Gate) string { return `echo "$TMPDIR" >> ` + sammel }, "sh")
 	fs := []Fall{{Name: "a"}, {Name: "b"}, {Name: "c"}}
 	var out, errb bytes.Buffer
-	if got := run(&out, &errb, wurzelMitEingaben(t), fs); got != exitOK {
+	if got := run(u, &out, &errb, wurzelMitEingaben(t), fs); got != exitOK {
 		t.Fatalf("Exit %d: %s%s", got, out.String(), errb.String())
 	}
 	b, err := os.ReadFile(sammel)
@@ -177,21 +177,21 @@ func TestJederFallHatEigenesTmpdir(t *testing.T) {
 
 func TestHashEingabenGoSumIstOptional(t *testing.T) {
 	w := wurzelMitEingaben(t)
-	ohne, err := hashEingaben(w)
+	ohne, err := hashEingaben(standard().Eingaben, w)
 	if err != nil {
 		t.Fatalf("ohne go.sum: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(w, "go.sum"), []byte("s\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	mit, err := hashEingaben(w)
+	mit, err := hashEingaben(standard().Eingaben, w)
 	if err != nil || mit == ohne {
 		t.Fatalf("go.sum geht nicht in die Prüfsumme ein: %v", err)
 	}
 	if err := os.Remove(filepath.Join(w, "go.mod")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := hashEingaben(w); err == nil {
+	if _, err := hashEingaben(standard().Eingaben, w); err == nil {
 		t.Fatal("fehlendes go.mod bleibt unbemerkt")
 	}
 }

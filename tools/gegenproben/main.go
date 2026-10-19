@@ -29,20 +29,28 @@ const (
 	fallFrist = 120 * time.Second
 )
 
-// eingaben sind die Pfade, die jede Kopie enthält; go.sum ist nur da, wenn das Modul
-// Abhängigkeiten hat.
-var eingaben = []string{"src", "go.mod", "go.sum", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh"}
+// Umgebung bündelt, was ein Lauf von außen braucht: die Pfade, die jede Kopie enthält
+// (go.sum nur, wenn das Modul Abhängigkeiten hat), die Programme, die aufrufbar sein
+// müssen, und den Aufruf des Gates eines Falls.
+type Umgebung struct {
+	Eingaben  []string
+	Programme []string
+	// Befehl liefert Programm, Argumente und Arbeitsverzeichnis, mit denen ein Fall sein
+	// Gate in dir ruft.
+	Befehl func(dir string, g Gate) (string, []string, string)
+}
 
-// programme müssen aufrufbar sein, bevor ein Fall läuft.
-var programme = []string{"a-check", "golangci-lint", "sh"}
-
-// befehl liefert Programm, Argumente und Arbeitsverzeichnis, mit denen ein Fall sein Gate
-// in dir ruft.
-var befehl = func(dir string, g Gate) (string, []string, string) {
-	if g == gateACheck {
-		return "a-check", []string{dir}, ""
+func standard() Umgebung {
+	return Umgebung{
+		Eingaben:  []string{"src", "go.mod", "go.sum", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh"},
+		Programme: []string{"a-check", "golangci-lint", "sh"},
+		Befehl: func(dir string, g Gate) (string, []string, string) {
+			if g == gateACheck {
+				return "a-check", []string{dir}, ""
+			}
+			return "sh", []string{"tools/harness/lint.sh"}, dir
+		},
 	}
-	return "sh", []string{"tools/harness/lint.sh"}, dir
 }
 
 // Ergebnis ist der Befund eines Falls; Rot leer heißt grün.
@@ -52,27 +60,27 @@ type Ergebnis struct {
 }
 
 func main() {
-	os.Exit(run(os.Stdout, os.Stderr, ".", faelle()))
+	os.Exit(run(standard(), os.Stdout, os.Stderr, ".", faelle()))
 }
 
-func run(stdout, stderr io.Writer, wurzel string, fs []Fall) int {
-	for _, p := range programme {
+func run(u Umgebung, stdout, stderr io.Writer, wurzel string, fs []Fall) int {
+	for _, p := range u.Programme {
 		if _, err := exec.LookPath(p); err != nil {
 			_, _ = fmt.Fprintf(stderr, "gegenproben: %s nicht aufrufbar\n", p)
 			return exitSetup
 		}
 	}
-	vorher, err := hashEingaben(wurzel)
+	vorher, err := hashEingaben(u.Eingaben, wurzel)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "gegenproben: %v\n", err)
 		return exitSetup
 	}
-	ergebnisse, err := fahre(fs, wurzel)
+	ergebnisse, err := fahre(u, fs, wurzel)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "gegenproben: %v\n", err)
 		return exitSetup
 	}
-	nachher, err := hashEingaben(wurzel)
+	nachher, err := hashEingaben(u.Eingaben, wurzel)
 	if err != nil || nachher != vorher {
 		_, _ = fmt.Fprintln(stderr, "gegenproben: die Eingaben haben sich im Lauf verändert")
 		return exitSetup
@@ -95,7 +103,7 @@ func run(stdout, stderr io.Writer, wurzel string, fs []Fall) int {
 
 // fahre legt je Fall eine Kopie von wurzel an und fährt alle Fälle nebenläufig; ein
 // roter Fall hält die übrigen nicht an. Die Reihenfolge der Ergebnisse ist die der Fälle.
-func fahre(fs []Fall, wurzel string) ([]Ergebnis, error) {
+func fahre(u Umgebung, fs []Fall, wurzel string) (erg []Ergebnis, err error) {
 	namen := map[string]bool{}
 	for _, f := range fs {
 		if namen[f.Name] {
@@ -108,11 +116,11 @@ func fahre(fs []Fall, wurzel string) ([]Ergebnis, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(basis)
+	defer func() { err = errors.Join(err, os.RemoveAll(basis)) }()
 	dirs := make([]string, len(fs))
 	for i, f := range fs {
 		dirs[i] = filepath.Join(basis, fmt.Sprintf("%02d", i))
-		if err := kopiere(wurzel, dirs[i]); err != nil {
+		if err := kopiere(u.Eingaben, wurzel, dirs[i]); err != nil {
 			return nil, fmt.Errorf("Kopie für %s: %w", f.Name, err)
 		}
 		if err := greife(dirs[i], f); err != nil {
@@ -126,7 +134,7 @@ func fahre(fs []Fall, wurzel string) ([]Ergebnis, error) {
 			return nil, err
 		}
 	}
-	erg := make([]Ergebnis, len(fs))
+	erg = make([]Ergebnis, len(fs))
 	sem := make(chan struct{}, runtime.NumCPU())
 	var wg sync.WaitGroup
 	for i := range fs {
@@ -135,7 +143,7 @@ func fahre(fs []Fall, wurzel string) ([]Ergebnis, error) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			name, args, wd := befehl(dirs[i], fs[i].Gate)
+			name, args, wd := u.Befehl(dirs[i], fs[i].Gate)
 			// golangci-lint sperrt eine Datei in TMPDIR gegen parallele Läufe; jeder Fall hat sein eigenes.
 			code, out, abgelaufen := starte(fallFrist, wd, []string{"TMPDIR=" + tmps[i]}, name, args...)
 			erg[i] = Ergebnis{Name: fs[i].Name, Rot: bewerte(fs[i], code, out, abgelaufen)}
@@ -202,7 +210,15 @@ func starte(frist time.Duration, dir string, env []string, name string, args ...
 	}
 }
 
-func kopiere(von, nach string) error {
+// ohneFehlendesGoSum lässt das Fehlen von go.sum durch; jeden anderen Fehler gibt es zurück.
+func ohneFehlendesGoSum(pfad string, err error) error {
+	if pfad == "go.sum" && errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	return err
+}
+
+func kopiere(eingaben []string, von, nach string) error {
 	for _, p := range eingaben {
 		err := filepath.WalkDir(filepath.Join(von, p), func(pfad string, d fs.DirEntry, err error) error {
 			if err != nil {
@@ -225,7 +241,7 @@ func kopiere(von, nach string) error {
 			}
 			return os.WriteFile(ziel, b, 0o644)
 		})
-		if err != nil && !(p == "go.sum" && errors.Is(err, fs.ErrNotExist)) {
+		if err = ohneFehlendesGoSum(p, err); err != nil {
 			return err
 		}
 	}
@@ -233,6 +249,15 @@ func kopiere(von, nach string) error {
 }
 
 func greife(dir string, f Fall) error {
+	for _, schritt := range []func(string, Fall) error{legeAn, haengeAn, entferne, ersetze} {
+		if err := schritt(dir, f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func legeAn(dir string, f Fall) error {
 	for d, inhalt := range f.Neu {
 		p := filepath.Join(dir, d)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
@@ -242,6 +267,10 @@ func greife(dir string, f Fall) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func haengeAn(dir string, f Fall) error {
 	for d, text := range f.Anhang {
 		h, err := os.OpenFile(filepath.Join(dir, d), os.O_APPEND|os.O_WRONLY, 0)
 		if err != nil {
@@ -255,11 +284,19 @@ func greife(dir string, f Fall) error {
 			return werr
 		}
 	}
+	return nil
+}
+
+func entferne(dir string, f Fall) error {
 	for _, d := range f.Entferne {
 		if err := os.Remove(filepath.Join(dir, d)); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+func ersetze(dir string, f Fall) error {
 	for _, e := range f.Ersetze {
 		p := filepath.Join(dir, e.Datei)
 		b, err := os.ReadFile(p)
@@ -276,7 +313,7 @@ func greife(dir string, f Fall) error {
 	return nil
 }
 
-func hashEingaben(wurzel string) (string, error) {
+func hashEingaben(eingaben []string, wurzel string) (string, error) {
 	var pfade []string
 	for _, p := range eingaben {
 		err := filepath.WalkDir(filepath.Join(wurzel, p), func(pfad string, d fs.DirEntry, err error) error {
@@ -285,7 +322,7 @@ func hashEingaben(wurzel string) (string, error) {
 			}
 			return err
 		})
-		if err != nil && !(p == "go.sum" && errors.Is(err, fs.ErrNotExist)) {
+		if err = ohneFehlendesGoSum(p, err); err != nil {
 			return "", err
 		}
 	}

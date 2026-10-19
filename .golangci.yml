@@ -199,3 +199,10 @@ linters:
           - forbidigo
         path: ^(src/bootstrap|test)/
         text: os\.Std(out|err)
+
+      # Why: Das Programm der Gegenproben hat einen eigenen Einstieg und verbindet dort
+      # den Prozess mit seinen Standard-Strömen.
+      - linters:
+          - forbidigo
+        path: ^tools/gegenproben/main\.go$
+        text: os\.Std(out|err)
