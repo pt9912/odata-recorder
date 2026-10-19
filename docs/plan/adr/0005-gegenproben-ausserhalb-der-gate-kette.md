@@ -1,6 +1,6 @@
 # ADR-0005: Die Gegenproben verlassen die Gate-Kette und laufen nur bei geänderter Eingabe
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Datum:** 2026-10-19
 
@@ -54,4 +54,4 @@ Wenn der Lauf bei geänderter Eingabe 30 s überschreitet oder ein Fall hinzukom
 
 | Datum | Ereignis | Verweis |
 |---|---|---|
-| 2026-10-19 | Proposed | Vorschlag zur Entscheidung des Owners |
+| 2026-10-19 | Accepted | Entscheidung des Owners im Gespräch |

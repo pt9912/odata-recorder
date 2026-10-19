@@ -41,6 +41,6 @@ Kommentare an `starte` (Prozessgruppe), `eingaben` (`go.sum`) und `lint.sh` (sec
 
 - `tools/gegenproben/`: geprüft, Befunde oben, sonst ohne Befund (Aufräumen der `.tmp`-Verzeichnisse liegt unter `basis`, Frist-Auswertung über `ctx.Err()` korrekt).
 - `tools/harness/` (`lint.sh`, `gegenproben-eingabe.sh`): geprüft, ohne Befund über die genannten hinaus.
-- `harness/mk/`, `harness/README.md`, `harness/vertraege/`: geprüft, ohne Befund (elf Fälle konsistent in SPEC-102, ADR-0005, README).
+- `harness/mk/`, `harness/README.md`, `harness/vertraege/`: geprüft, ohne Befund (elf Fälle konsistent in SPEC-102, [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md), README).
 - `docs/plan/adr/` (Index-Doppelzeile entfernt): geprüft, ohne Befund.
 - `Dockerfile`, `.dockerignore`, `.golangci.yml`: geprüft, ohne Befund.

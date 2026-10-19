@@ -58,18 +58,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Gegenprobe `a-check-negativ` (Go-Programm `tools/gegenproben`, ein Prozess, Fälle nebenläufig): In einer Kopie des Arbeitsbaums lehnt `a-check` einen Import des Domain-Kerns auf einen Driven Adapter und einen Import zwischen zwei Adaptern ab und lässt den erlaubten Weg über einen Port zu.
-- [ ] Gegenprobe `lint-gegenprobe`: In einer Kopie lehnt `make lint` eine `//nolint`-Direktive und eine Ausnahme ohne `# Why:` ab und lässt eine begründete Ausnahme zu.
-- [ ] `make gegenproben` läuft nur bei geänderter Eingabe (Prüfsumme gegen den versionierten Stempel; Änderung an Doku, Plan oder Reports löst keinen Lauf aus, ein roter Lauf lässt den Stempel stehen) und fährt beide außerhalb von `GATE_CHECKS` in einem Docker-Build der Stufe `gegenproben` und bleibt im Zeitbudget aus §4; die Entscheidung steht als ADR (Gegenproben verlassen die Gate-Kette), Zeilen in `harness/README.md` §Sensors.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Gegenprobe `a-check-negativ` (Go-Programm `tools/gegenproben`, ein Prozess, Fälle nebenläufig): In einer Kopie des Arbeitsbaums lehnt `a-check` einen Import des Domain-Kerns auf einen Driven Adapter und einen Import zwischen zwei Adaptern ab und lässt den erlaubten Weg über einen Port zu.
+- [x] Gegenprobe `lint-gegenprobe`: In einer Kopie lehnt `make lint` eine `//nolint`-Direktive und eine Ausnahme ohne `# Why:` ab und lässt eine begründete Ausnahme zu.
+- [x] `make gegenproben` läuft nur bei geänderter Eingabe (Prüfsumme gegen den versionierten Stempel; Änderung an Doku, Plan oder Reports löst keinen Lauf aus, ein roter Lauf lässt den Stempel stehen) und fährt beide außerhalb von `GATE_CHECKS` in einem Docker-Build der Stufe `gegenproben` und bleibt im Zeitbudget aus §4; die Entscheidung steht als ADR (Gegenproben verlassen die Gate-Kette), Zeilen in `harness/README.md` §Sensors.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review.
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; kein Zähler wird gesetzt. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; kein Zähler wird gesetzt. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -145,7 +145,13 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-Wird bei der Closure geschrieben.
+- **Was hat funktioniert:** Die Fälle und Randformen standen vor dem Code in `SPEC-102`; ein Go-Programm fährt elf Fälle nebenläufig in einem Docker-Build (13,5 s bei geänderter, 0,04 s bei unveränderter Eingabe), und je Zusage wurde eine Mutation rot gesehen (Kern-Rolle, Adapter-Glob, Port-Kante, jede Prüfung von `lint.sh`, Prozessgruppen-Kill, Aufräumen, veränderte Eingabe, `TMPDIR` je Fall).
+- **Was ging anders als geplant:** Das Review fand drei zugewiesene Lint-Fälle ohne Entsprechung im Vertrag (F-1) und eine wirkungslose Frist (F-2); die Verifikation fand die Sperre von golangci-lint, die nebenläufige Fälle abbrechen ließ (V-1, HIGH); alles ist behoben, ein Nachreview fand 0 HIGH. Die Rückführungs-Marke von 600 Zeilen ist überschritten und im Plan benannt.
+- **Steering-Loop-Eintrag:** Nichts verkörpert; gezählt, nicht verkörpert: `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` steht jetzt bei 3× und geht in die Steering-Loop-Einträge der Closure von welle-fundament; `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` 1×.
+- **Beobachtungs-Register (`../observations/`):** `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft/` fortgeschrieben (`evidence/slice-gegenproben.md`), `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen/` neu angelegt; `BEO-REPO/randform-erst-im-review-entschieden` trat nicht auf.
+- **Folge-Slices:** keine; offen bleiben Randform 10 (fehlende Eingabe im Prüfsummen-Skript, nur im Handlauf belegt), `tools/gegenproben` außerhalb von `make lint` (Review F-8) und die Gegenproben von `docs-check`, `schema-check` und `baseline-verify` (§1).
+- **Risiken aus §6:** Randformen *entfallen*; Verstoßformen *weiter offen*; Altern der Gegenproben *entfallen*; Docker-Cache *entfallen*; Stempel von Hand *weiter offen*; Zeitbudget *entfallen*, siehe §6.
+- **Drei Paarungen:** von der Closure der Welle welle-fundament geprüft.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 

@@ -9,7 +9,7 @@
 | [ADR-0002](0002-architektur-gate-a-check.md) | Architektur-Gate mit a-check | Accepted | `LH-QA-06` |
 | [ADR-0003](0003-lint-profil-golangci.md) | Lint-Profil mit golangci-lint | Accepted | — |
 | [ADR-0004](0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md) | Verträge der Harness-Werkzeuge im Ordner harness | Accepted | `LH-QA-06` |
-| [ADR-0005](0005-gegenproben-ausserhalb-der-gate-kette.md) | Gegenproben außerhalb der Gate-Kette, nur bei geänderter Eingabe | Proposed | — |
+| [ADR-0005](0005-gegenproben-ausserhalb-der-gate-kette.md) | Gegenproben außerhalb der Gate-Kette, nur bei geänderter Eingabe | Accepted | — |
 
 ## Konventionen
 
