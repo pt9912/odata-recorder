@@ -155,7 +155,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 - **Was ging anders als geplant:** Das Review fand 2 HIGH (ein Fänger, den es nicht gab, und eine Ordnung über Zeittext variabler Breite) und 2 MEDIUM; die Verifikation bestand mit Auflagen (3 MEDIUM, Lücken der Fänger bei Prüfreihenfolge, Jahresbereich und fremden Exchanges). `SPEC-105` wuchs um Randformen (Nullzeit, Prüfreihenfolge, Zeitformat, Jahresbereich, Status, UTF-8). Die Marke ist überschritten und in §4 benannt.
 - **Steering-Loop-Eintrag:** Nichts verkörpert; gezählt, nicht verkörpert: `BEO-REPO/randform-erst-im-review-entschieden` steht jetzt bei 4× (der Eintrag geht in die Closure von welle-persistenz) und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` bei 6× (verkörpert in `AGENTS.md` §3.15).
 - **Beobachtungs-Register (`../observations/`):** je eine weitere Datei `evidence/slice-session-recording-persistenz.md` in den beiden Einträgen; `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` blieb ohne neues Auftreten.
-- **Folge-Slices:** keine; die Transaktionsgrenze über mehrere Ports entsteht in [slice-baseline-persistenz](../next/slice-baseline-persistenz.md).
+- **Folge-Slices:** keine; die Transaktionsgrenze über mehrere Ports entsteht in [slice-baseline-persistenz](../in-progress/slice-baseline-persistenz.md).
 - **Risiken aus §6:** Randformen *entfallen*, Breite des Modells *weiter offen*, SQL-Eigenheit am Port *entfallen*, siehe §6.
 - **Drei Paarungen:** von der Closure der Welle welle-persistenz geprüft.
 
