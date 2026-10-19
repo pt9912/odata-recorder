@@ -59,18 +59,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Domain-Modell und Ports für Workspace (Revision, Baseline-Bezug), Entity (Version, Vollständigkeit, gelöscht), Cursor und Workspace-Snapshots; die Adapter-Implementierung auf den Tabellen aus `SPEC-004`, mit `WithWorkspaceTransaction`.
-- [ ] Reset und Löschen eines Workspace laufen in einer Transaktion über Workspace, Entity, Cursor und Snapshot; `StorageMaintenance` liefert `foreign_key_check`, `integrity_check` und die Menge der referenzierten Blob-Hashes.
-- [ ] Rundlauftest: alle Repositories schreiben in eine Datei, die Datenbank wird geschlossen und wieder geöffnet, alles liest sich zurück, `foreign_key_check` und `integrity_check` sind leer.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Domain-Modell und Ports für Workspace (Revision, Baseline-Bezug), Entity (Version, Vollständigkeit, gelöscht), Cursor und Workspace-Snapshots; die Adapter-Implementierung auf den Tabellen aus `SPEC-004`, mit `WithWorkspaceTransaction`.
+- [x] Reset und Löschen eines Workspace laufen in einer Transaktion über Workspace, Entity, Cursor und Snapshot; `StorageMaintenance` liefert `foreign_key_check`, `integrity_check` und die Menge der referenzierten Blob-Hashes.
+- [x] Rundlauftest: alle Repositories schreiben in eine Datei, die Datenbank wird geschlossen und wieder geöffnet, alles liest sich zurück, `foreign_key_check` und `integrity_check` sind leer.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -171,7 +171,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Randformen der Repositories (`AGENTS.md` §3.12): leerer, fehlender oder unbekannter Wert, doppelter Schlüssel, Abbruch mitten in der Transaktion, gleichzeitiger Zugriff — **Ausgang:** entfallen: entschieden in `spezifikation.md` (Produkt) vor dem ersten Code-Commit; zwei Lücken (leere Kennung bei Lesern und Mutatoren, `ReplaceAll` auf unbekanntem Workspace) fand der Implementer beim Lesen von `SPEC-108` und gab sie vor dem Code an den Architect zurück; drei weitere fand das Review (Atomarität der Operation in `f`, `f == nil`, Wartezeit auf die Sperre) und `SPEC-108` Nr. 1 führt sie jetzt.
-- Der Slice ist der größte der Welle und kann die Marke überschreiten — **Ausgang:** weiter offen: wird bei der Rückführung in §4 benannt und dann als Beobachtung geführt.
+- Der Slice ist der größte der Welle und kann die Marke überschreiten — **Ausgang:** eingetreten: 3278 Zeilen gegen 900, benannt in §4; der Slice blieb ungeteilt, weil die Teile einzeln nichts liefern (siehe §7).
 - Die Ordnung von `List` und `ListSet` der Entities, von `Cursors.List` und von `ReferencedBlobs` ruht auf dem Primärschlüssel-Index beziehungsweise auf der Ordnung von `UNION`; die `ORDER BY`-Klausel nennt sie, ein Test kann ihr Weglassen von dieser Ordnung nicht unterscheiden — **Ausgang:** weiter offen: wird als Beobachtung geführt, solange kein zweiter Adapter die Ordnung selbst erzeugen muss.
 - Die Befunde von `Check` sind Texte ohne festes Format; die Wartung der Folgewelle liest sie vermutlich nur als Meldung — **Ausgang:** weiter offen: wird mit dem `MaintenanceUseCase` sichtbar.
 - Der Cursor-Zustand (`consumed_json`) ist frei geformt und wächst mit dem Replay — **Ausgang:** weiter offen: wird mit welle-record-replay sichtbar.
@@ -190,7 +190,13 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-Wird bei der Closure geschrieben.
+- **Was hat funktioniert:** Modell, vier Repositories, `StorageMaintenance` und `WithWorkspaceTransaction` erfüllen `SPEC-108`; jede schreibende Operation ist auch in der Transaktion atomar (Savepoint), und der Rundlauf bestätigt nach dem Wiederöffnen alle Repositories zusammen. Die Fänger der Tabelle *Zusage · Fänger* wurden mit rund 850 Mutationen rot gesehen (Implementer 209, Reviewer 308, Verifier 330).
+- **Was ging anders als geplant:** Der Implementer hielt vor dem Code an, weil `SPEC-108` zwei Randformen offenließ (leere Kennung, `ReplaceAll` auf unbekanntem Workspace); sie sind vor dem ersten Code-Commit entschieden worden (`AGENTS.md` §3.12 hat gegriffen). Das Review fand 3 MEDIUM (Prüfreihenfolge von `ReplaceAll`, die Gegenrichtung von `Put`, eine Operation in `f`, deren Teilwirkung bei verschlucktem Fehler bestätigt wurde), die Verifikation bestand mit Auflagen (ein zusammengesetzter Test, ein Fänger für den Abschluss unter Abbruch, vier Plan- und Kopfkorrekturen). `SPEC-108` wuchs um Savepoint-Atomarität, `f == nil` und die Grenzen verschachtelter Transaktionen. Die Marke ist weit überschritten (3278 Zeilen, davon rund zwei Drittel Tests) und in §4 benannt.
+- **Steering-Loop-Eintrag:** Nichts verkörpert; gezählt, nicht verkörpert: `BEO-REPO/randform-erst-im-review-entschieden` steht jetzt bei 7× (der Eintrag geht in die Closure von welle-persistenz) und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` bei 9× (verkörpert in `AGENTS.md` §3.15).
+- **Beobachtungs-Register (`../observations/`):** je eine weitere Datei `evidence/slice-workspace-state-persistenz.md` in den beiden Einträgen; `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` blieb ohne neues Auftreten.
+- **Folge-Slices:** keine. Die drei Ausschlüsse aus §1 (CRUD-Fachlogik, `MaintenanceUseCase`, Aufbewahrung) haben keinen Nehmer; sie stehen im Roadmap-Eintrag von welle-record-replay beziehungsweise gehen an den Planner (`AGENTS.md` §3.13), ebenso die Durchsetzung von `LH-FA-11` aus `slice-baseline-persistenz`.
+- **Risiken aus §6:** Randformen *entfallen*, die Marke *eingetreten*, die übrigen drei *weiter offen*, siehe §6.
+- **Drei Paarungen:** von der Closure der Welle welle-persistenz geprüft.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
