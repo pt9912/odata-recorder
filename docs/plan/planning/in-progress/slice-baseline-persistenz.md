@@ -57,18 +57,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Domain-Modell und Ports für Service-Metadaten, Baseline-Snapshots, Import-Einträge, Baseline-Quellen und Coverage; die Adapter-Implementierung auf den Tabellen aus `SPEC-004`.
-- [ ] Import-Publikation in einer Transaktion: Snapshot, Import-Eintrag, Baseline-Quellen und Coverage werden ganz oder gar nicht geschrieben; ein zweiter Import mit demselben Anfrage-Hash ist idempotent.
-- [ ] Vertragstests am Port gegen SQLite einschließlich der Randformen aus §6.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Domain-Modell und Ports für Service-Metadaten, Baseline-Snapshots, Import-Einträge, Baseline-Quellen und Coverage; die Adapter-Implementierung auf den Tabellen aus `SPEC-004`.
+- [x] Import-Publikation in einer Transaktion: Snapshot, Import-Eintrag, Baseline-Quellen und Coverage werden ganz oder gar nicht geschrieben; ein zweiter Import mit demselben Anfrage-Hash ist idempotent.
+- [x] Vertragstests am Port gegen SQLite einschließlich der Randformen aus §6.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -155,7 +155,13 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-Wird bei der Closure geschrieben.
+- **Was hat funktioniert:** Modell, vier Ports und SQLite-Adapter erfüllen `SPEC-107`; die Publikation ist atomar, idempotent über den Anfrage-Hash und unter Gleichzeitigkeit geordnet (`BEGIN IMMEDIATE`). Die Fänger der Tabelle *Zusage · Fänger* wurden mit rund 190 Mutationen rot gesehen (Implementer, Reviewer 105, Verifier 53).
+- **Was ging anders als geplant:** Das Review fand 7 MEDIUM (vier Zusagen ohne rot werdende Mutation, drei Randformen im Code statt vor dem Code entschieden), die Verifikation bestand mit Auflagen (leere Quell-Session ohne Fänger, Köpfe der Vertragsläufe, Marke ohne Spec). `SPEC-107` wuchs um die Reihenfolge in `SetMetadata`, die leere Kennung je Leser, gültiges UTF-8 und die Quelle ohne Kennung; NUL-Kennungen, `complete` ohne Beweis und der Lese-Wettlauf stehen unter *Ungeprüft*. Die Marke ist überschritten und in §4 benannt (1567 Zeilen).
+- **Steering-Loop-Eintrag:** Nichts verkörpert; gezählt, nicht verkörpert: `BEO-REPO/randform-erst-im-review-entschieden` steht jetzt bei 6× (der Eintrag geht in die Closure von welle-persistenz) und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` bei 8× (verkörpert in `AGENTS.md` §3.15).
+- **Beobachtungs-Register (`../observations/`):** je eine weitere Datei `evidence/slice-baseline-persistenz.md` in den beiden Einträgen; `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` blieb ohne neues Auftreten.
+- **Folge-Slices:** keine. Drei Punkte bleiben ohne Adresse beim Planner (`AGENTS.md` §3.13, kein Nehmer in der Welle): wo `LH-FA-11` (`complete` nur mit Beweis) durchgesetzt wird, das Löschen von Baselines samt Transaktion der Leser, und die Form der Evidenz.
+- **Risiken aus §6:** Randformen *entfallen*, die drei übrigen *weiter offen*, siehe §6.
+- **Drei Paarungen:** von der Closure der Welle welle-persistenz geprüft.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
