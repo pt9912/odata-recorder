@@ -71,7 +71,8 @@ func TestWorkspaceZustandSchreibtArtZeitformatUndHaeltDieSchluessel(t *testing.T
 }
 
 // TestRundlauf schreibt alle Repositories in eine Datei, schließt sie, öffnet sie wieder und
-// liest alles zurück.
+// liest zurück: Service, Session, Exchange (Header, Response-Blob), Baseline, Import, Coverage,
+// Workspace, Entities, Cursor und Workspace-Snapshot samt Hashes; dazu Check und ReferencedBlobs.
 func TestRundlauf(t *testing.T) {
 	ctx := context.Background()
 	pfad := filepath.Join(t.TempDir(), "r.db")
@@ -167,7 +168,7 @@ func pruefeWorkspaceRundlauf(t *testing.T, d *sqlite.DB, w model.Workspace, e []
 		t.Errorf("Cursor %+v %v", got, err)
 	}
 	got, err := d.Snapshots().GetWorkspace(ctx, "w", "ws")
-	if err != nil || !got.CreatedAt.Equal(sn.CreatedAt) || got.Name != "vorher" || got.StateBlob != sn.StateBlob {
+	if err != nil || !got.CreatedAt.Equal(sn.CreatedAt) || got.Name != "vorher" || got.StateBlob != sn.StateBlob || got.StateHash != sn.StateHash || got.MetadataHash != sn.MetadataHash {
 		t.Errorf("Workspace-Snapshot %+v %v", got, err)
 	}
 }

@@ -25,6 +25,8 @@ func RunEntityVertrag(t *testing.T, neu Neu) {
 		{"ReplaceAll ist ganz oder gar nicht", entityFall7},
 		{"ReplaceAll prüft in der Reihenfolge der Spezifikation", entityFall8},
 		{"ReplaceAll ist atomar", entityReplaceAtomar},
+		{"ReplaceAll prüft jede Art von ungültig vor Kontext und Workspace", entityFall9},
+		{"Put ersetzt auch einen Tombstone und senkt die Version", entityFall10},
 		{"abgebrochener Kontext beendet jede Operation ohne Änderung", entityKontextFall},
 	} {
 		t.Run(f.name, func(t *testing.T) { f.lauf(t, neu) })
@@ -311,5 +313,41 @@ func entityKontextFall(t *testing.T, neu Neu) {
 	l, err := v.Entities.List(bg, "w")
 	if err != nil || !reflect.DeepEqual(entityKeys(l), []string{"Products/1"}) {
 		t.Fatalf("Änderung trotz Abbruch: %v %v", entityKeys(l), err)
+	}
+}
+
+func entityFall9(t *testing.T, neu Neu) {
+	ctx := context.Background()
+	v := entityBasis(t, neu)
+	gut := entity("gibt-es-nicht", "P", "1")
+	ungueltig := entity("gibt-es-nicht", "P", "2")
+	ungueltig.Version = -1
+	for name, liste := range map[string][]model.EntityState{
+		"Eintrag eines anderen Workspace": {gut, entity("w", "P", "9")},
+		"doppelter Schlüssel":             {gut, gut},
+		"ungültiger Eintrag":              {gut, ungueltig},
+	} {
+		for kontext, c := range map[string]context.Context{"abgebrochen": abgebrochen(), "unbekannter Workspace": ctx} {
+			if err := v.Entities.ReplaceAll(c, "gibt-es-nicht", liste); !errors.Is(err, model.ErrUngueltig) || errors.Is(err, context.Canceled) {
+				t.Fatalf("%s bei %s: Fehler %v", name, kontext, err)
+			}
+		}
+	}
+}
+
+func entityFall10(t *testing.T, neu Neu) {
+	ctx := context.Background()
+	v := entityBasis(t, neu)
+	tomb := entity("w", "Products", "1")
+	tomb.Deleted, tomb.Version, tomb.Completeness = true, 7, model.EntityPartial
+	ok(t, v.Entities.Put(ctx, tomb))
+	lebend := entity("w", "Products", "1")
+	lebend.Version, lebend.KnownProperties, lebend.Payload = 1, nil, `{"neu":1}`
+	ok(t, v.Entities.Put(ctx, lebend))
+	got, err := v.Entities.Get(ctx, "w", "Products", "1")
+	ok(t, err)
+	lebend.KnownProperties = []string{}
+	if !reflect.DeepEqual(got, lebend) {
+		t.Fatalf("wiederbelebter Eintrag %+v, erwartet %+v", got, lebend)
 	}
 }

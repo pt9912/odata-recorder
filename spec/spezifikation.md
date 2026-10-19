@@ -711,8 +711,9 @@ Eine leere Kennung oder ein leerer Schlüssel ist bei jeder Operation, die einen
 Gelesene Listen (`known_properties`, `consumed`, Ergebnislisten) sind bei leerem Inhalt eine leere Liste, nie `nil`.
 
 **Transaktion:**
-1. `WithWorkspaceTransaction(ctx, f)` ruft `f` mit Repositories für Workspace, Entity, Cursor und Snapshot, die auf einer Transaktion arbeiten. Liefert `f` `nil`, wird bestätigt, sonst zurückgerollt und der Fehler von `f` unverändert geliefert; dasselbe gilt für eine Panik in `f` (sie wird weitergereicht) und für einen abgebrochenen Kontext (dessen Fehler). Transaktionen laufen nacheinander; der Schreiber hält sie für die Dauer von `f`.
-   Nicht unterstützt: die Repositories nach dem Ende von `f` zu benutzen und eine Transaktion in `f` zu öffnen.
+1. `WithWorkspaceTransaction(ctx, f)` ruft `f` mit Repositories für Workspace, Entity, Cursor und Snapshot, die auf einer Transaktion arbeiten. Liefert `f` `nil`, wird bestätigt, sonst zurückgerollt und der Fehler von `f` unverändert geliefert; dasselbe gilt für eine Panik in `f` (sie wird weitergereicht) und für einen abgebrochenen Kontext (dessen Fehler). Transaktionen laufen nacheinander; der Schreiber hält sie für die Dauer von `f`. Ein `f` ohne Wert (`nil`) ist `ErrUngueltig`; das Argument geht dem Kontext voraus.
+   Jede Operation der Repositories bleibt auch in `f` atomar: scheitert sie, nimmt sie ihre eigene Teilwirkung zurück, auch wenn `f` den Fehler verschluckt und `nil` liefert; die Wirkung der übrigen, gelungenen Operationen bestätigt die Transaktion dann.
+   Nicht unterstützt: die Repositories nach dem Ende von `f` zu benutzen, eine Transaktion in `f` zu öffnen und in `f` über Repositories außerhalb der Transaktion zu schreiben. Die beiden letzten Fälle warten auf die Sperre des Schreibers und enden nach `busy_timeout` mit dem Fehler der Datenbank (kein Hängen); ein Abbruch des Kontexts wirkt beim Warten erst danach.
 
 **Workspace** (`revision` zählt ab `0`):
 2. `Create` legt einen Workspace mit `revision=0` an. Eine leere Kennung, ein leerer `service_id` oder `baseline_snapshot_id`, eine Zeit außerhalb der Jahre 1 bis 9999 oder eine Revision außer `0` ist `ErrUngueltig`. Danach folgen: bekannte Kennung `ErrBereitsVorhanden`, unbekannter Service `ErrDienstUnbekannt`, unbekannte Baseline `ErrNichtGefunden`, ein Snapshot der Art `workspace` als Baseline `ErrFalscheArt`, eine Baseline eines anderen Service `ErrFremderService`; der erste Verstoß bestimmt den Fehler. Der Entity-State entsteht nicht mit.
@@ -740,7 +741,7 @@ Gelesene Listen (`known_properties`, `consumed`, Ergebnislisten) sind bei leerem
 16. `ReferencedBlobs` liefert die Menge der Blob-Referenzen, die ein Exchange (Request oder Response), ein Snapshot jeder Art oder die Metadaten eines Service tragen, ohne Doppelte aufsteigend sortiert.
 17. Ein abgebrochener Kontext beendet jede Operation mit dem Fehler des Kontexts, ohne eine Änderung.
 
-Ungeprüft bleibt: dass `entity_key` kanonisch ist, dass `state_hash` zum Blob passt und dass `position` bei einem Fortschreiben des Cursors nur wächst (Fachlogik des Replay); dass eine Baseline eines anderen Service beim Restore `ErrFremderService` statt `ErrNichtGefunden` liefert (sie ist über den Workspace gebunden); dass ein Aufrufer außerhalb von `WithWorkspaceTransaction` Reset und Restore ohne Transaktion zusammensetzt.
+Ungeprüft bleibt: Kennungen, Namen und Schlüssel mit NUL-Byte oder ungültigem UTF-8 (die Ablage speichert und liest sie byte-gleich), dass `entity_key` kanonisch ist, dass `state_hash` zum Blob passt und dass `position` bei einem Fortschreiben des Cursors nur wächst (Fachlogik des Replay); dass eine Baseline eines anderen Service beim Restore `ErrFremderService` statt `ErrNichtGefunden` liefert (sie ist über den Workspace gebunden); dass ein Aufrufer außerhalb von `WithWorkspaceTransaction` Reset und Restore ohne Transaktion zusammensetzt.
 
 ### SPEC-043 — Import- und Provenienz-Schema
 

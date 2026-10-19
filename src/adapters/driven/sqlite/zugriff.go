@@ -54,12 +54,24 @@ func (z zugriff) QueryRowContext(ctx context.Context, query string, args ...any)
 	return z.db.sql.QueryRowContext(ctx, query, args...)
 }
 
-// schreibe führt f atomar aus: in einer eigenen Transaktion oder in der laufenden.
+// schreibe führt f atomar aus: in einer eigenen Transaktion oder, in der laufenden, in einem
+// Savepoint, den ein Fehler von f zurücknimmt; die Transaktion bestätigt danach nur, was
+// gelang.
 func (z zugriff) schreibe(ctx context.Context, f func(querier) error) error {
-	if z.conn != nil {
-		return f(z.conn)
+	if z.conn == nil {
+		return z.db.inTx(ctx, func(c *sql.Conn) error { return f(c) })
 	}
-	return z.db.inTx(ctx, func(c *sql.Conn) error { return f(c) })
+	if _, err := z.conn.ExecContext(ctx, "SAVEPOINT operation"); err != nil {
+		return klassifiziere(err)
+	}
+	ohneAbbruch := context.WithoutCancel(ctx)
+	if err := f(z.conn); err != nil {
+		_, _ = z.conn.ExecContext(ohneAbbruch, "ROLLBACK TO operation")
+		_, _ = z.conn.ExecContext(ohneAbbruch, "RELEASE operation")
+		return err
+	}
+	_, err := z.conn.ExecContext(ohneAbbruch, "RELEASE operation")
+	return klassifiziere(err)
 }
 
 // sammle liest alle Zeilen; das Ergebnis ist nie nil.

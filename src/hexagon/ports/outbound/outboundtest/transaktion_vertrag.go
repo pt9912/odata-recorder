@@ -23,6 +23,8 @@ func RunTransaktionVertrag(t *testing.T, neu Neu) {
 		{"eine Panik rollt zurück und wird weitergereicht", transaktionFall3},
 		{"ein abgebrochener Kontext rollt zurück", transaktionFall4},
 		{"Transaktionen laufen nacheinander", transaktionNebenlaeufig},
+		{"eine gescheiterte Operation nimmt ihre Teilwirkung zurück, auch wenn f den Fehler verschluckt", transaktionTeilwirkung},
+		{"f ohne Wert ist ungültig", transaktionOhneF},
 		{"Reset: ReplaceAll, ResetAll und Advance in einer Transaktion", transaktionResetFall},
 		{"Restore: Entity-State ersetzen, Cursors bleiben", transaktionRestoreFall},
 	} {
@@ -282,4 +284,49 @@ func transaktionRestoreFall(t *testing.T, neu Neu) {
 	if !reflect.DeepEqual(got.Cursors, cursorsVorher) {
 		t.Fatalf("Restore änderte die Cursors:\n%+v\n%+v", got.Cursors, cursorsVorher)
 	}
+}
+
+func transaktionTeilwirkung(t *testing.T, neu Neu) {
+	for _, f := range []struct {
+		name, tabelle string
+		op            func(context.Context, outbound.WorkspaceStores) error
+	}{
+		{"Delete", "snapshots", func(ctx context.Context, s outbound.WorkspaceStores) error { return s.Workspaces.Delete(ctx, "w") }},
+		{"ReplaceAll", "entities", func(ctx context.Context, s outbound.WorkspaceStores) error {
+			return s.Entities.ReplaceAll(ctx, "w", []model.EntityState{entity("w", "Products", "neu")})
+		}},
+	} {
+		t.Run(f.name, func(t *testing.T) {
+			bg := context.Background()
+			v := wsBasis(t, neu)
+			legeArbeitsraeumeAn(t, v, "w")
+			ok(t, v.Entities.Put(bg, entity("w", "Products", "alt")))
+			ok(t, v.Snapshots.CreateWorkspace(bg, arbeitsraumSnapshot("sn", "d", "w", "n", 0)))
+			ctx, stop := context.WithCancel(bg)
+			v.BrichNachLoeschenAb(t, f.tabelle, stop)
+			err := v.Transaktion.WithWorkspaceTransaction(bg, func(s outbound.WorkspaceStores) error {
+				ok(t, s.Workspaces.Create(bg, arbeitsraum("w2", 1)))
+				erwarte(t, f.op(ctx, s), context.Canceled)
+				return nil
+			})
+			ok(t, err)
+			if _, err := v.Snapshots.GetWorkspace(bg, "w", "sn"); err != nil {
+				t.Fatalf("Snapshot nach verschlucktem Fehler: %v", err)
+			}
+			if l, err := v.Entities.List(bg, "w"); err != nil || !reflect.DeepEqual(entityKeys(l), []string{"Products/alt"}) {
+				t.Fatalf("State nach verschlucktem Fehler: %v %v", entityKeys(l), err)
+			}
+			if _, err := v.Workspaces.Get(bg, "w2"); err != nil {
+				t.Fatalf("die gelungene Operation ging verloren: %v", err)
+			}
+		})
+	}
+}
+
+func transaktionOhneF(t *testing.T, neu Neu) {
+	v := wsBasis(t, neu)
+	erwarte(t, v.Transaktion.WithWorkspaceTransaction(context.Background(), nil), model.ErrUngueltig)
+	// Das Argument geht dem Kontext voraus.
+	erwarte(t, v.Transaktion.WithWorkspaceTransaction(abgebrochen(), nil), model.ErrUngueltig)
+	ok(t, v.Transaktion.WithWorkspaceTransaction(context.Background(), func(outbound.WorkspaceStores) error { return nil }))
 }
