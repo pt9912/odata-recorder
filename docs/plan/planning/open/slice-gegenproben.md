@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-QA-06`, [ADR-0002](../../adr/0002-architektur-gate-a-check.md), [ADR-0003](../../adr/0003-lint-profil-golangci.md)
 
-**Berührte Spec-Stellen:** `SPEC-039` (`make a-check`) · `SPEC-101` (Lint-Profil).
+**Berührte Spec-Stellen:** `SPEC-039` (`make a-check`) · `SPEC-101` (Lint-Profil) · `SPEC-102` (Gegenproben).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -31,11 +31,12 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** `make gegenproben` weist in Kopien des Arbeitsbaums nach, dass `a-check` und `make lint` einen Verstoß rot melden und einen erlaubten Fall nicht.
+**Ziel:** `make gegenproben` weist in Kopien des Arbeitsbaums nach, dass `a-check` und `make lint` einen Verstoß rot melden und einen erlaubten Fall nicht, und ist schnell: ein Go-Programm fährt alle Fälle nebenläufig in einem Container, ohne je Fall einen Docker-Build oder -Lauf.
 Zu den Fällen für `make lint` gehören die Randformen aus `SPEC-101`, die über das Gate nicht erreichbar sind oder nur ein zweiter Linter deckt: ein fehlendes Profil, eine Direktive mit zwei Leerzeichen nach `//` und die Einrückung des `# Why:`-Blocks (aus [slice-lint-stufe](../done/slice-lint-stufe.md), Review-Befunde F-4 bis F-6).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
+- Gegenproben anderer Gates, die ein Docker-Image je Fall brauchen — eine Gegenprobe ohne Zeitbudget ist in `pgwire-recorder` aus der Gate-Kette gefallen; dieser Slice setzt das Budget (§4) und liefert nur die zwei Gegenproben.
 - Gegenproben für `docs-check`, `schema-check` und `baseline-verify` — sie haben ihre Gegenprobe zum Teil in den Gates selbst, und kein neuer Verstoß ist offen; sie folgen bei Bedarf als eigener Slice.
 - Aufnahme der Gegenproben in `make gates` — sie laufen länger und prüfen die Gates, nicht den Stand; die Entscheidung hält die ADR in diesem Slice fest.
 - Neue Gate-Regeln — die Gegenprobe prüft die vorhandenen Regeln und fügt keine hinzu.
@@ -57,9 +58,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Gegenprobe `a-check-negativ`: In einer Kopie des Arbeitsbaums lehnt `a-check` einen Import des Domain-Kerns auf einen Driven Adapter und einen Import zwischen zwei Adaptern ab und lässt den erlaubten Weg über einen Port zu.
+- [ ] Gegenprobe `a-check-negativ` (Go-Programm `tools/gegenproben`, ein Prozess, Fälle nebenläufig): In einer Kopie des Arbeitsbaums lehnt `a-check` einen Import des Domain-Kerns auf einen Driven Adapter und einen Import zwischen zwei Adaptern ab und lässt den erlaubten Weg über einen Port zu.
 - [ ] Gegenprobe `lint-gegenprobe`: In einer Kopie lehnt `make lint` eine `//nolint`-Direktive und eine Ausnahme ohne `# Why:` ab und lässt eine begründete Ausnahme zu.
-- [ ] `make gegenproben` fährt beide außerhalb von `GATE_CHECKS`; die Entscheidung steht als ADR (Gegenproben verlassen die Gate-Kette), Zeilen in `harness/README.md` §Sensors.
+- [ ] `make gegenproben` fährt beide außerhalb von `GATE_CHECKS` in einem Docker-Build der Stufe `gegenproben` und bleibt im Zeitbudget aus §4; die Entscheidung steht als ADR (Gegenproben verlassen die Gate-Kette), Zeilen in `harness/README.md` §Sensors.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -79,14 +80,15 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `tools/harness/a-check-negativ.sh` | neu | Kopie des Baums, Verstoß einfügen, Exit prüfen — nach dem Muster von `pgwire-recorder` |
-| `tools/harness/lint-gegenprobe.sh` | neu | Kopie des Baums, `//nolint` und `# Why:`-Lücke einfügen, Exit prüfen |
+| `tools/gegenproben/` (eigenes Go-Modul mit `go.mod`) | neu | ein Programm, das je Fall eine Kopie des Baums in einem Wegwerfverzeichnis anlegt, den Verstoß einfügt und `a-check` bzw. `lint.sh` und `golangci-lint` als Prozess ruft; die Fälle laufen nebenläufig, die Kopie ist ein Dateikopieren im Speicherdateisystem, kein `docker cp`; ein eigenes Modul, damit `go test ./...` und `make lint` des Produkts es nicht mitnehmen |
+| `Dockerfile` | update | Stufe `gegenproben` auf dem golangci-lint-Image mit dem `a-check`-Binary aus dessen Image (`COPY --from`), baut das Programm einmal und führt es aus; ohne Netz, ein Build-Cache-Treffer macht den Lauf zu einer Cache-Abfrage |
 | harness/vertraege/SPEC-102-gegenproben.md | neu | Vertrag der Gegenproben: Namensregel, Liste, Kopie, Verstoßformen, Exit-Codes |
-| harness/mk/gegenproben.mk | neu | `a-check-negativ`, `lint-gegenprobe`, `gegenproben`; nicht in `GATE_CHECKS` |
+| harness/mk/gegenproben.mk | neu | Ziel `gegenproben` (ein `docker build --target gegenproben`); nicht in `GATE_CHECKS` |
 | docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md (neu), `docs/plan/adr/README.md` | neu / update | Entscheidung mit drei Alternativen; Index mitziehen |
 | `harness/README.md` | update | Sensors-Zeilen für die Gegenproben |
 
-- Die Gegenproben arbeiten in einer Kopie des Arbeitsbaums (Wegwerfverzeichnis, `docker cp`), nie im Arbeitsbaum selbst.
+- Die Gegenproben arbeiten in einer Kopie des Arbeitsbaums (Wegwerfverzeichnis im Container), nie im Arbeitsbaum selbst.
+- Geschwindigkeit ist Teil des Vertrags: kein Docker-Build und kein Container je Fall, ein gemeinsamer Go-Build-Cache für die Fälle, und die Fälle laufen nebenläufig.
 
 ## 4. Trigger
 
@@ -94,6 +96,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
 **Start** (`next` → `in-progress`): [slice-go-skelett-build-test](../done/slice-go-skelett-build-test.md) und [slice-lint-stufe](../done/slice-lint-stufe.md) liegen in `done/`.
+
+**Zeitbudget:** `time make gegenproben` bei kaltem Docker-Build-Cache höchstens 60 s, bei warmem Cache und unverändertem Stand höchstens 5 s (Wanduhr, gemessen auf dem Entwicklungsrechner); die Zahlen setzt die erste Messung des Prototyps fest, bevor die Fälle wachsen, und `SPEC-102` trägt sie.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -116,6 +120,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Randformen der Gegenproben (`AGENTS.md` §3.12): die Kopie des Baums scheitert, Docker fehlt, die einzufügende Datei fehlt, ein Verstoß wird nicht gefunden — **Ausgang:** entfallen: entschieden in SPEC-102 vor dem ersten Code-Commit.
+- Das Zeitbudget hält nicht, weil `golangci-lint` je Fall seinen Cache neu füllt — **Ausgang:** weiter offen: die Messung des Prototyps entscheidet, ob die Fälle einen gemeinsamen `GOCACHE` und `GOLANGCI_LINT_CACHE` teilen; eine Verfehlung geht als Beobachtung ins Register.
 - Eine Gegenprobe prüft nur die eingefügten Verstoßformen — **Ausgang:** weiter offen: weitere Formen kommen mit den Bibliotheks-Grenzen (`tech`) in welle-persistenz.
 - Die Gegenproben laufen nicht in `make gates` und altern unbemerkt — **Ausgang:** entfallen: die ADR legt den Lauf am Ende jeder Welle und vor dem Release fest, und welle-dev-container fährt ihn automatisch in einem eigenen Container.
 
