@@ -222,6 +222,16 @@ Schätzungen werden in dieser Metrik angegeben; für Test- und Gegenprobe-Code g
 **Falsch:** „über 700 Zeilen", ohne zu sagen, ob netto, Einfügungen oder Summe.
 **Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)".
 
+### 3.15 Zusage und Fänger stehen als Paar im Plan   (seit welle-fundament)
+
+Ein Slice, der einen Vertrag liefert, führt in §3 seines Plans die Tabelle *Zusage · Fänger*, bevor er an den Reviewer übergeht.
+Jede Zusage, Randform und jeder Fall des Vertrags hat eine Zeile; der Fänger ist ein Test, ein Fall der Gegenprobe oder eine benannte Ausgabe des Gates.
+Der Reviewer löst jede Zeile mit einer Mutation auf, der Verifier prüft die Tabelle gegen den Vertrag.
+Eine Zusage ohne Fänger ist ein MEDIUM.
+
+**Falsch:** Der Vertrag nennt eine Prüfung, und sie lässt sich entfernen, ohne dass etwas rot wird.
+**Richtig:** Die Tabelle nennt zur Prüfung den Fall, der ohne sie rot wird.
+
 ## 4. Quality Gates
 
 Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-harness-dateien.md`

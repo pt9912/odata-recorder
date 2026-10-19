@@ -16,8 +16,6 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-- [welle-fundament](../welle-fundament.md)
-
 Nichts in Arbeit.
 
 
@@ -45,7 +43,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 
 | Meilenstein | Welle(n) | Trigger | Status |
 |---|---|---|---|
-| M1 | welle-fundament | `make gates` fährt Build, Test, Lint und `a-check` auf Go-Code, jedes durch eine Gegenprobe belegt | offen |
+| M1 | welle-fundament | `make gates` fährt Build, Test, Lint und `a-check` auf Go-Code, jedes durch eine Gegenprobe belegt | offen — Gegenproben zu `make build` und `make test` fehlen ([welle-fundament-results](../done/welle-fundament-results.md)) |
 | M2 | welle-record-replay | Ein Test zeichnet gegen einen Referenzdienst auf und spielt ohne Upstream wieder ab | offen |
 
 ## Abhängigkeitsgraph
@@ -75,7 +73,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 
 | Welle | Abschluss | Closure-Notiz |
 |---|---|---|
-| — | — | — |
+| welle-fundament | 2026-10-19 | [welle-fundament-results](../done/welle-fundament-results.md) |
 
 ## Historische Trigger-Verschiebungen
 
