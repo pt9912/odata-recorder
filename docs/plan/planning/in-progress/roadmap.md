@@ -16,6 +16,8 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
+- [welle-persistenz](../welle-persistenz.md)
+
 Nichts in Arbeit.
 
 
@@ -31,7 +33,6 @@ und geschätzter Aufwand (S/M/L, kein Termin).
 | Welle | Trigger | Wichtigste Slices | Geschätzter Aufwand |
 |---|---|---|---|
 | welle-dev-container | welle-fundament done | Gerüst des Arbeitscontainers mit `u-boot` am Host (privilegierter Container mit eigenem Docker-Daemon, SSH-Zugang, Schlüsselpaar), Start mit Bereitschaftsprobe, Bare-Repo und Klon samt Einlieferung per Zweig, Lauf von `make gates` und `make gegenproben` im Container, Dokument für Entwickler | L |
-| welle-persistenz | welle-fundament done + ADR zum SQLite-Treiber accepted | SQLite-Treiber, Migration aus `tools/schema/schema.yaml`, Repositories hinter den Outbound Ports | M |
 | welle-record-replay | welle-persistenz done | Record-Service mit Capture und Redaction, Replay mit Matching und Cursor | L |
 
 ## Meilensteine
