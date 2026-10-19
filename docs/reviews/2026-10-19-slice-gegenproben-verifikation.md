@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier (Modul 11) · **Modell:** claude-sonnet-5-5 · **Datum:** 2026-10-19
 
-**Gegenstand:** `docs/plan/planning/in-progress/slice-gegenproben.md`, DoD-Punkte 1 bis 4 und Closure-Trigger aus §5; Plan-vs-Code-Diff `3117b17` (Move nach `in-progress/`) bis `646a369` (HEAD).
+**Gegenstand:** `docs/plan/planning/done/slice-gegenproben.md`, DoD-Punkte 1 bis 4 und Closure-Trigger aus §5; Plan-vs-Code-Diff `3117b17` (Move nach `in-progress/`) bis `646a369` (HEAD).
 
 **Quellen:** [SPEC-102](../../harness/vertraege/SPEC-102-gegenproben.md), [SPEC-101](../../harness/vertraege/SPEC-101-lint-profil.md), [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md), [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Proposed), [LH-QA-06](../../spec/lastenheft.md), Review `2026-10-19-slice-gegenproben-review.md`.
 
