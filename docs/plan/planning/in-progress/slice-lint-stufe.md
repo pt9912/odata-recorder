@@ -78,11 +78,14 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `Dockerfile` | update | Stufe `lint` aus `source`, Image per Build-Argument |
+| `Dockerfile` | update | Stufe `lint` auf dem Quellstand und den Modulen aus `deps`, Image per Build-Argument `LINT_IMAGE`; `source` kopiert nur `src/`, damit eine Profil-Änderung `test` und `build` nicht neu baut; `deps` legt `/go/pkg/mod` auch ohne Abhängigkeit an |
+| `.dockerignore` | update | lässt `.golangci.yml` und `tools/harness/lint.sh` in den Kontext |
+| `.golangci.yml` | update | Kopfkommentar nennt die Form, die `lint.sh` liest |
 | `tools/harness/lint.sh` | neu | eigene Prüfungen nach [ADR-0003](../../adr/0003-lint-profil-golangci.md) und `AGENTS.md` §3.2 |
 | `harness/mk/lint-profil.mk` | update | Target `lint` neben `lint-profil`, beide in `GATE_CHECKS` |
 | `harness/README.md`, `harness/vertraege/SPEC-101-lint-profil.md` | update | Sensors-Zeile; `SPEC-101` nennt die Code-Prüfung |
 
+- `warn-unused` ist ein Pflichtfeld des Profils; die Warnung einer Regel ohne Wirkung steht in der Ausgabe und lässt das Gate nicht fehlschlagen, weil eine Regel dem Code vorauseilen darf (`SPEC-101`).
 - Das Profil verlangt `go.mod` und Pakete; der Slice läuft deshalb erst nach `slice-go-skelett-build-test`.
 
 ## 4. Trigger

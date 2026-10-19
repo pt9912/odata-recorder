@@ -4,3 +4,5 @@
 !go.mod
 !go.sum
 !src/
+!.golangci.yml
+!tools/harness/lint.sh

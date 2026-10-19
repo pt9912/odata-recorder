@@ -4,7 +4,12 @@
 # `exclusions.rules`, jede Regel mit einem Kommentarblock, dessen erste Zeile mit
 # `# Why:` beginnt. Eine Direktive `//nolint` im Code ist verboten (AGENTS.md §3.2);
 # `nolintlint` meldet eine Direktive ohne Begründung, ohne benannten Linter oder ohne
-# Wirkung als Befund. Architektur-Regeln prüft `a-check` (ADR-0002), nicht `depguard`.
+# Wirkung als Befund.
+#
+# Form, die tools/harness/lint.sh liest: unter `linters:` der Block `  exclusions:` mit
+# `    warn-unused: true` und `    rules:`, jede Regel als `      - ` (sechs Leerzeichen).
+#
+# Architektur-Regeln prüft `a-check` (ADR-0002), nicht `depguard`.
 
 version: "2"
 
