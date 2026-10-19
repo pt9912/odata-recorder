@@ -23,6 +23,9 @@ type BlobAblage struct {
 	Ueberschreibe func(t *testing.T, ref string, inhalt []byte)
 	// ErsetzeDurchVerzeichnis ersetzt die Datei einer Referenz durch ein Verzeichnis.
 	ErsetzeDurchVerzeichnis func(t *testing.T, ref string)
+	// ErsetzeDurchVerweis ersetzt die Datei einer Referenz durch einen Verweis auf eine Datei
+	// mit dem Inhalt; die Funktion liefert den Inhalt, den das Ziel des Verweises jetzt trägt.
+	ErsetzeDurchVerweis func(t *testing.T, ref string, inhalt []byte) (ziel func() []byte)
 	// LegeFremdesAb legt eine Datei ab, die keine Referenz ist.
 	LegeFremdesAb func(t *testing.T)
 }
@@ -56,7 +59,8 @@ func leer(t *testing.T, a BlobAblage) {
 	}
 }
 
-// RunBlobVertrag prüft SPEC-106 Nr. 1 bis 8 und den Kopf des Vertrags.
+// RunBlobVertrag prüft SPEC-106 Nr. 1 bis 8, die Referenzform und die Nicht-Datei an einer
+// Referenz; Rechte, Reste und Verzeichnis des Erzeugens prüft der Adapter (SPEC-106 Kopf, Nr. 9).
 func RunBlobVertrag(t *testing.T, neu NeueAblage) {
 	for _, f := range []struct {
 		name string
@@ -76,6 +80,7 @@ func RunBlobVertrag(t *testing.T, neu NeueAblage) {
 		{"List sortiert und ignoriert Fremdes", blobFall12},
 		{"Remove, unbekannt ist kein Fehler", blobFall13},
 		{"abgebrochener Kontext beendet jede Operation ohne Änderung", blobFall14},
+		{"Verweis an einer Referenz ist eine Nicht-Datei", blobFall15},
 	} {
 		t.Run(f.name, func(t *testing.T) { f.lauf(t, neu) })
 	}
@@ -380,4 +385,34 @@ func blobFall14(t *testing.T, neu NeueAblage) {
 		t.Fatalf("Dateien %v, vorher %v", nachher, vorher)
 	}
 	ok(t, a.Blobs.Verify(context.Background(), ref))
+}
+
+func blobFall15(t *testing.T, neu NeueAblage) {
+	ctx := context.Background()
+	a := neu(t)
+	ref := lege(t, a, []byte("ziel"))
+	andere := lege(t, a, []byte("andere"))
+	ziel := a.ErsetzeDurchVerweis(t, ref, []byte("ziel"))
+	_, err := a.Blobs.Open(ctx, ref)
+	erwarte(t, err, outbound.ErrBlobBeschaedigt)
+	erwarte(t, a.Blobs.Verify(ctx, ref), outbound.ErrBlobBeschaedigt)
+	refs, err := a.Blobs.List(ctx)
+	ok(t, err)
+	if len(refs) != 1 || refs[0] != andere {
+		t.Fatalf("List %v, erwartet nur %s", refs, andere)
+	}
+	// Remove löscht den Verweis und nie sein Ziel.
+	ok(t, a.Blobs.Remove(ctx, ref))
+	_, err = a.Blobs.Open(ctx, ref)
+	erwarte(t, err, outbound.ErrBlobFehlt)
+	if !bytes.Equal(ziel(), []byte("ziel")) {
+		t.Fatalf("Ziel des Verweises trägt %q", ziel())
+	}
+	// Commit ersetzt den Verweis durch die geprüften Bytes; das Ziel bleibt.
+	a.ErsetzeDurchVerweis(t, ref, []byte("ziel"))
+	lege(t, a, []byte("ziel"))
+	ok(t, a.Blobs.Verify(ctx, ref))
+	if !bytes.Equal(ziel(), []byte("ziel")) {
+		t.Fatalf("Ziel des Verweises trägt %q", ziel())
+	}
 }

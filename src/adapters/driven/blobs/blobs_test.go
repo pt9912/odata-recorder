@@ -62,6 +62,26 @@ func neueAblage(t *testing.T) outboundtest.BlobAblage {
 				t.Fatal(err)
 			}
 		},
+		ErsetzeDurchVerweis: func(t *testing.T, ref string, inhalt []byte) func() []byte {
+			t.Helper()
+			ziel := filepath.Join(t.TempDir(), "ziel")
+			if err := os.WriteFile(ziel, inhalt, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Remove(pfad(ref)); err != nil && !os.IsNotExist(err) {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(ziel, pfad(ref)); err != nil {
+				t.Fatal(err)
+			}
+			return func() []byte {
+				b, err := os.ReadFile(ziel)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return b
+			}
+		},
 		LegeFremdesAb: func(t *testing.T) {
 			t.Helper()
 			if err := os.WriteFile(filepath.Join(dir, "sha256", "fremd.txt"), []byte("x"), 0o600); err != nil {

@@ -104,6 +104,7 @@ Aussagen-Berührung steht hier gar nicht.
 | `Open` prüft den Hash vor dem Leser; fehlend `ErrBlobFehlt`, beschädigt `ErrBlobBeschaedigt` | `Open und Verify prüfen den Hash` (fehlend, verändert, gekürzt, leer, verlängert, Verzeichnis); Mutationen: Hashprüfung entfernt, Dateiprüfung entfernt, Fehler vertauscht |
 | `Verify` wie `Open` | `Open und Verify prüfen den Hash`; Mutation: `Verify` ignoriert `ErrBlobBeschaedigt` |
 | `List` sortiert, ignoriert temporäre, fremde Dateien und Verzeichnisse | `List sortiert und ignoriert Fremdes`; Mutationen: Reihenfolge umgekehrt (die Ordnung leistet `os.ReadDir`), Fremdes gelistet, Filter `IsRegular` entfernt |
+| Verweis an einer Referenz ist eine Nicht-Datei (`Open`, `Verify`, `List`, `Remove`, `Commit`) | `Verweis an einer Referenz ist eine Nicht-Datei`; Mutationen: `Lstat` zu `Stat` in `Open`, Verweise in `List` gezählt; `Commit` ersetzt den Verweis durch das Umbenennen selbst, ein `Lstat` zu `Stat` dort ist äquivalent |
 | `Remove` löscht auch eine Nicht-Datei, unbekannt ist kein Fehler | `Remove, unbekannt ist kein Fehler`, `Open und Verify prüfen den Hash` (gefülltes Verzeichnis); Mutationen: Fehler bei unbekannt, `Remove` ohne `RemoveAll` |
 | Erzeugen räumt temporäre Dateien früherer Läufe | `TestErzeugenLoeschtReste`; Mutation: Aufräumen entfernt |
 | Verzeichnis fehlt, ist kein Verzeichnis, Unterverzeichnis nicht anlegbar (`sha256`, `tmp`), leerer Pfad: keine Datei angelegt | `TestErzeugenMitUngueltigemVerzeichnis`; Mutation: `New` legt das Verzeichnis an; leerer Pfad und Nicht-Verzeichnis scheitern an `os.Stat` und `MkdirAll` und haben keine eigene Prüfung |
@@ -139,7 +140,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Randformen der Ablage (`AGENTS.md` §3.12): leere und überlange Bodies, doppelter und gleichzeitiger `Commit`, `Write` und `Abort` nach dem Abschluss, Abbruch des Kontexts, Absturz vor dem Umbenennen, fehlende, veränderte und gekürzte Datei, ungültige Referenz, Verzeichnis nicht beschreibbar — **Ausgang:** entfallen: entschieden in `SPEC-106`; die Nicht-Datei an einer Referenz, die Reihenfolge beim Erzeugen und der Fehler des Verzeichnis-`fsync` fanden Review und Verifikation und stehen jetzt dort.
+- Randformen der Ablage (`AGENTS.md` §3.12): leere und überlange Bodies, doppelter und gleichzeitiger `Commit`, `Write` und `Abort` nach dem Abschluss, Abbruch des Kontexts, Absturz vor dem Umbenennen, fehlende, veränderte und gekürzte Datei, ungültige Referenz, Verzeichnis nicht beschreibbar — **Ausgang:** entfallen, bis auf zwei: `Remove` gegen `Commit` gleicher Bytes und die Nutzung eines Writers aus mehreren Goroutinen bleiben unentschieden und gehen an den Architect (Verifikations-Befund V-3); entschieden in `SPEC-106` ist alles übrige, darunter die Nicht-Datei an einer Referenz, die Reihenfolge beim Erzeugen und der Fehler des Verzeichnis-`fsync` fanden Review und Verifikation und stehen jetzt dort.
 - Dateisystem-Eigenheiten des Containers (Rechte, Umbenennen über Mountgrenzen) — **Ausgang:** weiter offen: wird im ersten Lauf im Container sichtbar und dann als Beobachtung geführt.
 
 ## 7. Closure-Notiz
