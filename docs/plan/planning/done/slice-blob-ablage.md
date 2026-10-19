@@ -36,7 +36,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Redaction der Bodies — Fachlogik der Welle welle-record-replay; die Ablage speichert Bytes, die sie bekommt.
-- Abgleich der Blobs gegen die Referenzmenge — `MaintenanceUseCase` kommt mit den Services, `StorageMaintenance` mit [slice-workspace-state-persistenz](../open/slice-workspace-state-persistenz.md).
+- Abgleich der Blobs gegen die Referenzmenge — `MaintenanceUseCase` kommt mit den Services, `StorageMaintenance` mit [slice-workspace-state-persistenz](../next/slice-workspace-state-persistenz.md).
 - Verschlüsselung ruhender Daten — nicht zugesagt.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
