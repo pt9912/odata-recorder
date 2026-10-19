@@ -1,7 +1,7 @@
 # Verifikation slice-lint-gegenproben-modul
 
 * Rolle: Verifier (Modul 11), frischer Kontext; berichtet, repariert nichts.
-* Plan: [slice-lint-gegenproben-modul](../plan/planning/in-progress/slice-lint-gegenproben-modul.md)
+* Plan: [slice-lint-gegenproben-modul](../plan/planning/done/slice-lint-gegenproben-modul.md)
 * Diff: `66de972` (Move nach `in-progress/`) bis `HEAD` = `6b702f9`.
 * Bezug: [LH-QA-06](../../spec/lastenheft.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md), [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md); Verträge [SPEC-101](../../harness/vertraege/SPEC-101-lint-profil.md), [SPEC-102](../../harness/vertraege/SPEC-102-gegenproben.md)
 * Vorgänger: [Review](2026-10-19-slice-lint-gegenproben-modul-review.md); F-1 bis F-5 daraus im Stand `6b702f9` behoben, F-6 INFO.
