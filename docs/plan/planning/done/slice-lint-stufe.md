@@ -35,7 +35,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Gegenprobe des Lint-Gates — eigener Slice [slice-gegenproben](../next/slice-gegenproben.md); sie braucht dieses Gate als Gegenstand.
+- Gegenprobe des Lint-Gates — eigener Slice [slice-gegenproben](../in-progress/slice-gegenproben.md); sie braucht dieses Gate als Gegenstand.
 - Neue Linter oder gelockerte Schwellen — das Profil ist mit [ADR-0003](../../adr/0003-lint-profil-golangci.md) beschlossen; eine Änderung ist eine neue ADR (`AGENTS.md` §3.6).
 - Zulassung von Fremdbibliotheken in `gomodguard_v2` — jede Bibliothek bekommt ihre ADR in welle-persistenz.
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
@@ -117,7 +117,7 @@ dasteht.
 
 - Randformen des Profils und der eigenen Prüfungen (`AGENTS.md` §3.12): `.golangci.yml` fehlt oder ist nicht lesbar, das Profil weicht von der gelesenen Form ab, eine Direktive `//nolint` steht in einer Testdatei, ein Verzeichnis enthält keine Go-Dateien — **Ausgang:** entfallen: entschieden in `harness/vertraege/SPEC-101-lint-profil.md` vor dem ersten Code-Commit.
 - Die Schwellen des Profils (Komplexität 15, Funktionslänge 100) beißen am Skelett nicht — **Ausgang:** weiter offen: wird mit der ersten Fachlogik sichtbar; bis dahin steht es als Grenze in `SPEC-101`.
-- `lint.sh` liest das Profil in fester Form; eine Umformatierung bricht es — **Ausgang:** entfallen: die Form steht im Kopfkommentar des Profils und die Gegenprobe in [slice-gegenproben](../next/slice-gegenproben.md) hält sie.
+- `lint.sh` liest das Profil in fester Form; eine Umformatierung bricht es — **Ausgang:** entfallen: die Form steht im Kopfkommentar des Profils und die Gegenprobe in [slice-gegenproben](../in-progress/slice-gegenproben.md) hält sie.
 
 ## 7. Closure-Notiz
 
@@ -137,7 +137,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 - **Was ging anders als geplant:** Der Review fand eine Randform, die der Vertrag entschieden und der Code anders umgesetzt hatte (F-1: `rules: []`), dazu eine Zusage im Kommentar von `.dockerignore` (F-2) und eine Schreibweise der Direktive (F-4); alle drei sind behoben. Die Mutationen stehen im Review-Report, ein eigener Bericht je Zusage fehlte (Verifikation).
 - **Steering-Loop-Eintrag:** Nichts verkörpert; gezählt, nicht verkörpert: `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft`, jetzt 2×.
 - **Beobachtungs-Register (`../observations/`):** `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft/` fortgeschrieben, Beleg `evidence/slice-lint-stufe.md`; `BEO-REPO/randform-erst-im-review-entschieden` trat nicht auf (die Randformen standen vor dem Code).
-- **Folge-Slices:** [slice-gegenproben](../next/slice-gegenproben.md) übernimmt die Gegenprobe zu `make lint` mit F-4 (Direktive mit zwei Leerzeichen), F-5 (Profil fehlt über `make lint` nicht erreichbar) und F-6 (Einrückung des `# Why:`-Blocks); F-3 (Vorgabewert `scratch` des Build-Arguments) bleibt ohne Folge, weil `make lint` es immer setzt.
+- **Folge-Slices:** [slice-gegenproben](../in-progress/slice-gegenproben.md) übernimmt die Gegenprobe zu `make lint` mit F-4 (Direktive mit zwei Leerzeichen), F-5 (Profil fehlt über `make lint` nicht erreichbar) und F-6 (Einrückung des `# Why:`-Blocks); F-3 (Vorgabewert `scratch` des Build-Arguments) bleibt ohne Folge, weil `make lint` es immer setzt.
 - **Risiken aus §6:** Randformen *entfallen*; schwellen *weiter offen* (steht als Grenze in `SPEC-101`); feste Form des Profils *entfallen*, siehe §6.
 - **Drei Paarungen:** von der Closure der Welle welle-fundament geprüft.
 
