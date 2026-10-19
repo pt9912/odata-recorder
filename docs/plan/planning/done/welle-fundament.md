@@ -7,7 +7,7 @@ Verzeichnis-Position — kein Status-Feld. **Geplante Wellen bekommen noch keine
 Datei:** Sie stehen in der Roadmap unter *Nächste Wellen* und nirgends sonst —
 zwei Positionen, nicht drei.
 
-**Zielmeilenstein:** M1 (siehe [Roadmap](in-progress/roadmap.md)).
+**Zielmeilenstein:** M1 (siehe [Roadmap](../in-progress/roadmap.md)).
 
 **Verantwortlich:** pt9912. **Datum:** 2026-10-18.
 
@@ -30,9 +30,9 @@ Mensch ohne Rückfrage sagen kann, ob er eingetreten ist; ein Datum darf erwähn
 werden, aber nie Trigger sein. Und der **Start**-Trigger ist **kein Ergebnis
 dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
-- [ADR-0001](../adr/0001-implementierungssprache-go.md) accepted (Sprache).
-- [ADR-0002](../adr/0002-architektur-gate-a-check.md) accepted (`a-check`).
-- [ADR-0003](../adr/0003-lint-profil-golangci.md) accepted (Lint-Profil).
+- [ADR-0001](../../adr/0001-implementierungssprache-go.md) accepted (Sprache).
+- [ADR-0002](../../adr/0002-architektur-gate-a-check.md) accepted (`a-check`).
+- [ADR-0003](../../adr/0003-lint-profil-golangci.md) accepted (Lint-Profil).
 
 ## 3. Closure-Trigger (Welle schließt)
 
