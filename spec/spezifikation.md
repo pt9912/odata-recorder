@@ -698,7 +698,7 @@ Eine Baseline ist unveränderlich: kein Port ändert oder löscht sie, ein zweit
 11. `Get(baseline_id, entity_set)` liefert den Eintrag, ein unbekannter ist `ErrNichtGefunden`. `List(baseline_id)` liefert alle Einträge nach `entity_set` aufsteigend, eine Baseline ohne Einträge eine leere Liste, eine unbekannte `ErrNichtGefunden`. Die Evidenz wird byte-gleich gelesen, wie sie geschrieben wurde. Ein leeres `entity_set` oder eine leere Kennung ist `ErrUngueltig`.
 12. Ein abgebrochener Kontext beendet jede Operation der vier Repositories mit dem Fehler des Kontexts, ohne eine Änderung.
 
-Ungeprüft bleibt: dass `MetadataHash` der Baseline zum Hash des Service passt und dass `StateHash` zum Inhalt des Blobs passt (Fachlogik des Imports, welle-record-replay), das Löschen von Services und Baselines, und die Form der Evidenz.
+Ungeprüft bleibt: dass `MetadataHash` der Baseline zum Hash des Service passt und dass `StateHash` zum Inhalt des Blobs passt (Fachlogik des Imports), das Löschen von Services und Baselines, und die Form der Evidenz.
 
 ### SPEC-043 — Import- und Provenienz-Schema
 
