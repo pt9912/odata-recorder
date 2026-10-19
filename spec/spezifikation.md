@@ -671,6 +671,35 @@ Ungeprüft bleibt: dass der Leser von `Open` dieselbe geöffnete Datei trägt, d
 Nicht unterstützt: zwei Adapter auf einem Verzeichnis zugleich; das zweite Erzeugen löscht die temporären Dateien offener Writer des ersten, deren `Commit` dann mit einem Fehler endet.
 Unentschieden bleibt ein `Remove` gegen einen `Commit` gleicher Bytes zugleich: der Blob besteht danach oder nicht; die Bereinigung prüft die Referenzen vor dem Löschen (`SPEC-043`).
 
+### SPEC-107 — Service, Baseline und Import: Vertrag der Repositories
+
+`MetadataRepository`, `SnapshotRepository`, `ImportRepository` und `CoverageRepository` sind die Outbound Ports für Services, Baselines (Snapshots der Art `baseline`), Imports und Coverage (`ARC-004`); die Tabellen sind die aus `SPEC-004`.
+Kennungen vergibt der Aufrufer; Zeitstempel, Jahresbereich, Nullzeit, Atomarität und die Reihenfolge der Prüfungen (Argument vor Kontext) gelten wie in `SPEC-105`.
+Eine Blob-Referenz ist eine nach `SPEC-106` gültige; die Repositories prüfen ihr Format, nicht das Vorhandensein der Datei.
+Eine Baseline ist unveränderlich: kein Port ändert oder löscht sie, ein zweites Schreiben unter ihrer Kennung ist `ErrBereitsVorhanden` und lässt die gespeicherte unverändert (`SPEC-004`).
+
+**Service** (`MetadataRepository`):
+1. `Create` legt einen Service an. Eine leere Kennung, ein leerer `service_root` oder eine leere `odata_version` ist `ErrUngueltig`; `metadata_blob` und `metadata_hash` sind beide gesetzt oder beide leer, sonst `ErrUngueltig`; eine bekannte Kennung ist `ErrBereitsVorhanden`.
+2. `Get` einer unbekannten Kennung ist `ErrNichtGefunden`; `List` liefert alle Services nach Kennung aufsteigend, ohne Services eine leere Liste.
+3. `SetMetadata(id, blob, hash)` ersetzt beide Felder; beide leer löscht sie, nur eines gesetzt oder eine ungültige Referenz ist `ErrUngueltig`, eine unbekannte Kennung `ErrNichtGefunden`.
+
+**Baseline lesen** (`SnapshotRepository`, nur Art `baseline`):
+4. `Get` einer unbekannten Kennung oder der Kennung eines Snapshots anderer Art ist `ErrNichtGefunden`. `List(service_id)` liefert die Baselines eines Service nach `created_at` (als Zeit), dann Kennung; ein leerer `service_id` ist `ErrUngueltig`, ein unbekannter Service oder einer ohne Baselines liefert eine leere Liste. Snapshots anderer Art erscheinen nie.
+
+**Import veröffentlichen** (`ImportRepository.Publish`):
+5. `Publish(Publication{Import, Snapshot, SourceSessionIDs, Coverage})` schreibt den Snapshot, den Import-Eintrag, die Baseline-Quellen und die Coverage in einer Transaktion: ganz oder gar nicht; jeder Fehler, auch ein Abbruch des Kontexts mitten im Schreiben, hinterlässt keine Zeile in einer der vier Tabellen. Es liefert den Import und ob er neu ist.
+6. `Publication` ist gültig, wenn: Kennungen von Import und Snapshot gesetzt; `Import.ServiceID` gleich `Snapshot.ServiceID` und `Import.BaselineSnapshotID` gleich `Snapshot.ID`; `RequestHash`, `StateHash` und `MetadataHash` nicht leer; `StateBlob` eine gültige Referenz; `ReportJSON` gültiges JSON; mindestens eine Quell-Session (ein leerer Import ist ungültig), keine doppelt; Coverage-Einträge mit nichtleerem `entity_set`, Status `complete`, `partial` oder `unknown`, gültigem JSON als Evidenz, ohne doppelten `entity_set`; Zeiten gültig. Sonst ist es `ErrUngueltig`. Eine leere Coverage ist zulässig.
+7. Gleicher `RequestHash` im selben Service ist idempotent: `Publish` liefert den gespeicherten Import mit „nicht neu“ und schreibt nichts, auch wenn Kennungen, Quellen oder Coverage der neuen Anfrage abweichen. Derselbe Hash in einem anderen Service ist eine eigene Anfrage. Zwei gleichzeitige `Publish` mit demselben Hash ordnen sich: genau einer schreibt, der andere liefert dessen Import.
+8. Die Prüfung von `Publish` folgt dieser Reihenfolge: Gültigkeit (Nr. 6), Kontext, Hash (Nr. 7), Service (`ErrDienstUnbekannt`), Kennung des Snapshots oder des Imports (`ErrBereitsVorhanden`), Quell-Sessions: eine unbekannte ist `ErrNichtGefunden`, eine eines anderen Service `ErrUngueltig`; der erste Verstoß bestimmt den Fehler.
+9. Eine Session in `baseline_sources` ist nicht löschbar (`ErrReferenziert`, `SPEC-105`). `BaselinesOf(session_id)` liefert die Kennungen der Baselines, die aus ihr hervorgingen, aufsteigend; eine unbekannte Session ist `ErrNichtGefunden`, eine ohne Baselines liefert eine leere Liste. `Sources(baseline_id)` liefert ihre Quell-Sessions aufsteigend; eine unbekannte Baseline ist `ErrNichtGefunden`.
+10. `Get(import_id)` liest den Import-Eintrag, unbekannt ist `ErrNichtGefunden`.
+
+**Coverage lesen** (`CoverageRepository`, schreibt nur über `Publish`):
+11. `Get(baseline_id, entity_set)` liefert den Eintrag, ein unbekannter ist `ErrNichtGefunden`. `List(baseline_id)` liefert alle Einträge nach `entity_set` aufsteigend, eine Baseline ohne Einträge eine leere Liste, eine unbekannte `ErrNichtGefunden`. Die Evidenz wird byte-gleich gelesen, wie sie geschrieben wurde. Ein leeres `entity_set` oder eine leere Kennung ist `ErrUngueltig`.
+12. Ein abgebrochener Kontext beendet jede Operation der vier Repositories mit dem Fehler des Kontexts, ohne eine Änderung.
+
+Ungeprüft bleibt: dass `MetadataHash` der Baseline zum Hash des Service passt und dass `StateHash` zum Inhalt des Blobs passt (Fachlogik des Imports, welle-record-replay), das Löschen von Services und Baselines, und die Form der Evidenz.
+
 ### SPEC-043 — Import- und Provenienz-Schema
 
 `ImportManifest{import_id, service_id, metadata_hash, source_session_ids[], created_at, entity_count, baseline_snapshot_id, coverage[]}`;

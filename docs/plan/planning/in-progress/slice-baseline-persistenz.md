@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-10`, `LH-FA-11`, `LH-FA-18`, [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md)
 
-**Berührte Spec-Stellen:** `SPEC-043` (Import- und Provenienz-Schema) · `SPEC-044` (Baseline-Coverage) · `SPEC-004` · `ARC-004` · `ARC-009`.
+**Berührte Spec-Stellen:** `SPEC-107` (Vertrag der Repositories) · `SPEC-043` (Import- und Provenienz-Schema) · `SPEC-044` (Baseline-Coverage) · `SPEC-004` · `ARC-004` · `ARC-009`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -82,18 +82,25 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/hexagon/model/` | update | Service, Snapshot (baseline), Import, Coverage |
 | `src/hexagon/ports/outbound/` | update | vier Ports und die Transaktionsgrenze der Import-Publikation |
 | `src/adapters/driven/sqlite/` | update | Implementierungen auf den Tabellen `services`, `snapshots`, `imports`, `baseline_sources`, `coverage` |
-| `spec/spezifikation.md` | update | Randformen: leerer Import, doppelter Anfrage-Hash mit anderem Inhalt, Quelle nicht vorhanden, Abbruch mitten in der Publikation |
+| `spec/spezifikation.md` | update | `SPEC-107`: Randformen leerer Import, doppelter Anfrage-Hash mit anderem Inhalt, Quelle nicht vorhanden oder eines anderen Service, Abbruch mitten in der Publikation |
 
+- Der Vertrag ist `SPEC-107`; Löschen von Services und Baselines liefert dieser Slice nicht (kein Konsument in der Welle).
 - Die Fremdschlüssel des Schemas (`baseline_kind`, `uq_import_baseline`, `fk_baseline_sources_kind`) sind der Rückhalt; die Tests belegen sie über den Port, nicht über rohes SQL.
 
 **Zusage · Fänger** (`AGENTS.md` §3.15):
 
 | Zusage | Fänger |
 |---|---|
-| Publikation ist atomar | Test: Fehler beim Coverage-Schreiben lässt keinen Snapshot zurück; Mutation: Transaktion entfernt |
-| Gleicher Anfrage-Hash, gleicher Import | Test: zweiter Aufruf liefert denselben Eintrag; Mutation: Prüfung entfernt |
-| Baseline-Quellen verhindern das Löschen der Session | Test: `ImportRepository` meldet die Baselines einer Session |
-| Snapshot der Art `baseline` hat keinen Workspace | Test: Verstoß gegen `ck_snapshot_scope` kommt als Fehler des Ports an |
+| Publikation ist atomar (SPEC-107 Nr. 5) | Test: unbekannte Quell-Session nach dem Schreiben von Snapshot und Import lässt keine Zeile zurück; Abbruch des Kontexts ebenso; Mutation: Transaktion entfernt |
+| Gleicher Anfrage-Hash, gleicher Import, auch bei abweichendem Inhalt (Nr. 7) | Test: zweiter Aufruf liefert den ersten Eintrag, „nicht neu“, keine zweite Baseline; Mutation: Prüfung entfernt; gleichzeitig; anderer Service ist eigene Anfrage |
+| Gültigkeit der Publikation (Nr. 6), leerer Import | Tabellentest je Verstoß; Mutation je Prüfung |
+| Prüfreihenfolge (Nr. 8) | Test je Paar von Verstößen |
+| Baseline-Quellen verhindern das Löschen der Session, `BaselinesOf`, `Sources` (Nr. 9) | Test über `SessionRepository.Delete` und beide Leser |
+| Nur Snapshots der Art `baseline` sichtbar (Nr. 4) | Adapter-Test: ein per SQL eingefügter `workspace`-Snapshot erscheint weder in `Get` noch in `List`; Mutation: Filter entfernt |
+| Baseline unveränderlich (Kopf) | Test: zweites `Publish` mit bekannter Snapshot-Kennung ist `ErrBereitsVorhanden`, Stand unverändert |
+| Service und Metadaten (Nr. 1–3) | Tests je Zusage, Mutation je Prüfung |
+| Coverage lesen, Evidenz byte-gleich (Nr. 11) | Test mit Evidenz mit Leerzeichen und Schlüsselfolge |
+| Kontext (Nr. 12) | Test je Operation |
 
 ## 4. Trigger
 
