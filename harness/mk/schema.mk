@@ -32,4 +32,13 @@ schema-check: ## Gate: Schema validieren, DDL generieren, in SQLite laden, Negat
 	docker cp "$(CURDIR)/tools/schema/check.py" $$c:/tmp/check.py && \
 	docker start -a $$c
 
-GATE_CHECKS += schema-check
+# Die eingebettete Migration des SQLite-Adapters ist das erzeugte DDL (SPEC-104).
+MIGRATIONEN ?= src/adapters/driven/sqlite/migrations
+
+.PHONY: migration-check
+migration-check: ## Gate: eingebettete Migration gleich dem DDL aus dem Schema (SPEC-104)
+	@d=$$(mktemp -d) && trap 'rm -rf "$$d"' EXIT && \
+	$(MAKE) --no-print-directory schema-generate | tar -x -C "$$d" && \
+	sh tools/harness/migration-check.sh "$$d/out/schema.sql" "$(MIGRATIONEN)"
+
+GATE_CHECKS += schema-check migration-check

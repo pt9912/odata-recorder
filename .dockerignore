@@ -8,3 +8,4 @@
 !tools/harness/lint.sh
 !.a-check.yml
 !tools/gegenproben
+!tools/harness/migration-check.sh

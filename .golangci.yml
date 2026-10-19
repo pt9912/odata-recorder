@@ -121,8 +121,9 @@ linters:
     gomodguard_v2:
       # Importe aus der Standardbibliothek und aus diesem Modul meldet der Linter
       # ohne Eintrag nicht; jedes andere Modul aus go.mod braucht einen Eintrag hier
-      # und eine ADR. Noch ist keines zugelassen.
-      allowed: []
+      # und eine ADR.
+      allowed:
+        - module: modernc.org/sqlite
 
     revive:
       rules:

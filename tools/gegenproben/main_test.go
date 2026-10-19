@@ -54,7 +54,7 @@ func TestFaelleHabenEindeutigeNamen(t *testing.T) {
 func wurzelMitEingaben(t *testing.T) string {
 	t.Helper()
 	w := t.TempDir()
-	for _, d := range []string{"src/a.go", "go.mod", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh"} {
+	for _, d := range []string{"src/a.go", "go.mod", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh", "tools/harness/migration-check.sh"} {
 		p := filepath.Join(w, d)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			t.Fatal(err)

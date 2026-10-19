@@ -82,8 +82,9 @@ Aussagen-Berührung steht hier gar nicht.
 | `go.mod`, `go.sum`, `Dockerfile` | update | Treiber in der Stufe `deps`; Netz bleibt auf diese Stufe beschränkt |
 | `.a-check.yml`, `.golangci.yml` | update | `tech`-Regel und `gomodguard_v2`-Eintrag für `modernc.org/sqlite` ([ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md)) |
 | `src/adapters/driven/sqlite/` | neu | `Open`, `Migrate`, eingebettete `migrations/0001_init.sql` |
-| `harness/mk/schema.mk`, `harness/vertraege/` (neuer Vertrag) | update / neu | Gate `migration-check` und sein Vertrag (Name und Randformen vor dem Code) |
-| `spec/spezifikation.md` | update | Randformen des Öffnens (Datei fehlt, nicht beschreibbar, höhere Schemaversion, beschädigte Datei) |
+| `harness/mk/schema.mk`, `tools/harness/migration-check.sh`, `harness/vertraege/SPEC-104-migration-check.md` | update / neu | Gate `migration-check` und sein Vertrag (Randformen vor dem Code) |
+| `tools/gegenproben/`, `Dockerfile`, `.dockerignore`, `tools/harness/gegenproben-eingabe.sh`, `harness/vertraege/SPEC-102-gegenproben.md`, `harness/README.md` | update | Fälle 17 bis 19 für `migration-check.sh`; Modulcache und das Skript gehören in die Stufe `gegenproben`, die neuen Dateien in die Eingaben |
+| `spec/spezifikation.md` | update | `SPEC-103`: Öffnen und Migrieren mit den Randformen (leerer Pfad, Verzeichnis, fremde Datenbank, höhere Schemaversion, beschädigte Datei, gleichzeitiges Öffnen) |
 
 - Die Migration ist das DDL aus dem Schema, kein Handtext: `make schema-generate` liefert es, das gewählte Verfahren zum Einbetten steht im Vertrag des Gates.
 - `ODR-E3001` (Recording beschädigt) gilt für eine beschädigte Datei.
@@ -94,8 +95,15 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|
 | `Open` setzt `foreign_keys=ON` | Test: Fremdschlüsselverletzung wird abgelehnt; Mutation: Pragma entfernt |
 | Die Migration läuft genau einmal | Test: zweites Öffnen, `user_version` bleibt; Mutation: Migration bei jedem Öffnen |
-| `migration-check` meldet Abweichung | Gegenprobe-Fall in `tools/gegenproben`: geänderte Migration färbt das Gate rot |
-| Höhere Schemaversion wird verweigert | Test: Datei mit höherer `user_version` |
+| Höhere Schemaversion wird verweigert | `TestNeuereSchemaversionWirdVerweigert`; Mutation: Zweig entfernt |
+| `busy_timeout` und `journal_mode` auf jeder Verbindung | `TestPragmasJederVerbindung`, `TestBusyTimeoutAusDerOption`; Mutation: Wert fest |
+| Fremde Datenbank wird verweigert | `TestFremdeDatenbankWirdVerweigert`; Mutation: Prüfung abgeschaltet |
+| Keine SQLite-Datei ist `ODR-E3001` | `TestKeineSQLiteDateiIstBeschaedigt`; Mutation: Klassifizierung abgeschaltet |
+| Ungültige Pfade, kein Anlegen von Verzeichnissen | `TestUngueltigePfade` |
+| Gleichzeitiges Öffnen migriert einmal | `TestGleichzeitigesOeffnenMigrierteinmal`; Mutation: ohne Transaktion |
+| Migration ist atomar | `TestMigrationLaeuftInEinerTransaktion`; Mutation: ohne `BEGIN` |
+| Zweites `Close` ist kein Fehler | `TestCloseIstIdempotent` |
+| `migration-check` meldet Abweichung und weitere Dateien | Fälle `migration/abweichung`, `migration/weitere-datei`; Mutationen: `cmp` und Dateischleife entfernt |
 
 ## 4. Trigger
 

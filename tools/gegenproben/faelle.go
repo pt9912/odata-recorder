@@ -8,19 +8,22 @@ type Gate int
 const (
 	gateACheck Gate = iota
 	gateLint
+	gateMigration
 )
 
 // Fall ist eine Gegenprobe: ein Eingriff in die Kopie der Eingaben und die
 // Erwartung an das Gate.
 type Fall struct {
-	Name     string
-	Gate     Gate
-	Neu      map[string]string // Datei -> Inhalt, angelegt in der Kopie
-	Anhang   map[string]string // Datei -> Text, an die Datei der Kopie gehängt
-	Ersetze  []Ersetzung
-	Entferne []string // Dateien, aus der Kopie gelöscht
-	WantExit int
-	WantText []string // jeder Text muss in der Ausgabe stehen
+	Name               string
+	Gate               Gate
+	Neu                map[string]string // Datei -> Inhalt, angelegt in der Kopie
+	Anhang             map[string]string // Datei -> Text, an die Datei der Kopie gehängt
+	Ersetze            []Ersetzung
+	Entferne           []string          // Dateien, aus der Kopie gelöscht
+	Kopiere            map[string]string // Ziel -> Quelle, beide in der Kopie
+	OhneGoDateienInSrc bool              // löscht jede Datei *.go unter src/ der Kopie
+	WantExit           int
+	WantText           []string // jeder Text muss in der Ausgabe stehen
 }
 
 // Ersetzung tauscht in einer Datei der Kopie genau eine Stelle.
@@ -49,6 +52,16 @@ func zweitesModul(zusatz string) map[string]string {
 		"tools/probe/go.mod":   "module probe\n\ngo 1.27\n",
 		"tools/probe/probe.go": goDatei("probe") + zusatz,
 	}
+}
+
+const (
+	erzeugtesDDL = "erzeugt.sql"
+	migrationen  = "src/adapters/driven/sqlite/migrations"
+)
+
+// migrationKopie legt die Migration als „erzeugtes DDL" neben die Kopie.
+func migrationKopie() map[string]string {
+	return map[string]string{erzeugtesDDL: migrationen + "/0001_init.sql"}
 }
 
 const regelnKopf = "\n    rules:\n"
@@ -129,14 +142,25 @@ func faelle() []Fall {
 		},
 		{
 			Name: "lint/go-nur-unter-tools", Gate: gateLint,
-			Neu:      zweitesModul(""),
-			Entferne: []string{"src/bootstrap/bootstrap.go", "src/bootstrap/bootstrap_test.go", "src/bootstrap/main/main.go"},
-			WantExit: 1, WantText: []string{"./: keine Datei *.go"},
+			Neu:                zweitesModul(""),
+			OhneGoDateienInSrc: true,
+			WantExit:           1, WantText: []string{"./: keine Datei *.go"},
 		},
 		{
 			Name: "lint/ohne-go-datei", Gate: gateLint,
-			Entferne: []string{"src/bootstrap/bootstrap.go", "src/bootstrap/bootstrap_test.go", "src/bootstrap/main/main.go"},
-			WantExit: 1, WantText: []string{"keine Datei *.go"},
+			OhneGoDateienInSrc: true,
+			WantExit:           1, WantText: []string{"keine Datei *.go"},
+		},
+		{Name: "migration/gleich", Gate: gateMigration, Kopiere: migrationKopie(), WantText: []string{"migration-check: ok"}},
+		{
+			Name: "migration/abweichung", Gate: gateMigration, Kopiere: migrationKopie(),
+			Anhang:   map[string]string{erzeugtesDDL: "-- zusätzliche Zeile\n"},
+			WantExit: 1, WantText: []string{"weicht vom erzeugten DDL ab"},
+		},
+		{
+			Name: "migration/weitere-datei", Gate: gateMigration, Kopiere: migrationKopie(),
+			Neu:      map[string]string{migrationen + "/0002_x.sql": "-- x\n"},
+			WantExit: 1, WantText: []string{"ungeprüft"},
 		},
 	}
 }

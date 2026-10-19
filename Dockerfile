@@ -62,7 +62,8 @@ COPY tools/gegenproben ./
 RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-formatiert:"; echo "$f"; exit 1; }; } \
  && go vet ./... && go test ./... && go build -trimpath -o /usr/local/bin/gegenproben .
 WORKDIR /src
+COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY go.mod go.sum* .a-check.yml .golangci.yml ./
 COPY src ./src
-COPY tools/harness/lint.sh tools/harness/lint.sh
+COPY tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/
 RUN --network=none gegenproben

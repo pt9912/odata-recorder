@@ -44,12 +44,15 @@ type Umgebung struct {
 
 func standard() Umgebung {
 	return Umgebung{
-		Eingaben:   []string{"src", "go.mod", "go.sum", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh"},
+		Eingaben:   []string{"src", "go.mod", "go.sum", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh", "tools/harness/migration-check.sh"},
 		Programme:  []string{"a-check", "golangci-lint", "sh"},
 		Aufraeumen: os.RemoveAll,
 		Befehl: func(dir string, g Gate) (string, []string, string) {
-			if g == gateACheck {
+			switch g {
+			case gateACheck:
 				return "a-check", []string{dir}, ""
+			case gateMigration:
+				return "sh", []string{"tools/harness/migration-check.sh", filepath.Join(dir, erzeugtesDDL), filepath.Join(dir, migrationen)}, dir
 			}
 			return "sh", []string{"tools/harness/lint.sh"}, dir
 		},
@@ -256,8 +259,21 @@ func kopiere(eingaben []string, von, nach string) error {
 }
 
 func greife(dir string, f Fall) error {
-	for _, schritt := range []func(string, Fall) error{legeAn, haengeAn, entferne, ersetze} {
+	for _, schritt := range []func(string, Fall) error{kopiereDateien, legeAn, haengeAn, entferne, ersetze} {
 		if err := schritt(dir, f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func kopiereDateien(dir string, f Fall) error {
+	for ziel, quelle := range f.Kopiere {
+		b, err := os.ReadFile(filepath.Join(dir, quelle))
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(dir, ziel), b, 0o644); err != nil {
 			return err
 		}
 	}
@@ -295,6 +311,17 @@ func haengeAn(dir string, f Fall) error {
 }
 
 func entferne(dir string, f Fall) error {
+	if f.OhneGoDateienInSrc {
+		err := filepath.WalkDir(filepath.Join(dir, "src"), func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() || !strings.HasSuffix(p, ".go") {
+				return err
+			}
+			return os.Remove(p)
+		})
+		if err != nil {
+			return err
+		}
+	}
 	for _, d := range f.Entferne {
 		if err := os.Remove(filepath.Join(dir, d)); err != nil {
 			return err

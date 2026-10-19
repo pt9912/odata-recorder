@@ -57,5 +57,8 @@ edges:
 composition_root:
   - "src/bootstrap/**"
 
+tech:
+  - {pattern: "modernc.org/sqlite", adapter: "src/adapters/driven/sqlite"}
+
 markers:
   ignore_symbols: []
