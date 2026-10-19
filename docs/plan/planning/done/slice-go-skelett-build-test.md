@@ -37,7 +37,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 - Fachlogik, Ports und Adapter — das Skelett trägt nur Composition Root und Version; die Schichten entstehen mit ihren Wellen, sonst prüfte `a-check` leere Verzeichnisse.
 - Coverage-Schwelle und Integrationstests — eine Schwelle über einem Skelett misst nichts; sie kommen mit der ersten Fachlogik (Folge: welle-persistenz).
-- Lint — eigener Slice [slice-lint-stufe](../in-progress/slice-lint-stufe.md), weil er ein zweites Werkzeug samt eigener Prüfungen einführt.
+- Lint — eigener Slice [slice-lint-stufe](../done/slice-lint-stufe.md), weil er ein zweites Werkzeug samt eigener Prüfungen einführt.
 - Produkt-Image und Release — erst sinnvoll, wenn der Prozess etwas tut.
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
 einer mit vier erfundenen; die vier Klassen sind ein Suchraster, keine

@@ -2,7 +2,7 @@
 
 **Frage:** Bauen wir es richtig? Gegen DoD 1–4 und die Closure-Trigger (§5) des Plans, [SPEC-101](../../harness/vertraege/SPEC-101-lint-profil.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), `LH-QA-06`.
 
-**Gegenstand:** `git diff 7f425d3..HEAD` (Stand `862961e`), Plan `docs/plan/planning/in-progress/slice-lint-stufe.md`. Eingang: Review `docs/reviews/2026-10-19-slice-lint-stufe-review.md`; F-1, F-2, F-4 im letzten Commit behoben, F-3, F-5, F-6 bewusst offen.
+**Gegenstand:** `git diff 7f425d3..HEAD` (Stand `862961e`), Plan `docs/plan/planning/done/slice-lint-stufe.md`. Eingang: Review `docs/reviews/2026-10-19-slice-lint-stufe-review.md`; F-1, F-2, F-4 im letzten Commit behoben, F-3, F-5, F-6 bewusst offen.
 
 **Rolle/Datum:** Verifier · 2026-10-19. Das Repo blieb unverändert (`git status` sauber nach der Mutation).
 
