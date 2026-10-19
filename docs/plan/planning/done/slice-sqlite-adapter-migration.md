@@ -35,7 +35,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Repositories und Ports — folgen in [slice-session-recording-persistenz](../in-progress/slice-session-recording-persistenz.md) und den weiteren Slices der Welle; dieser Slice liefert nur Öffnen, Migration und Integritätsprüfung.
+- Repositories und Ports — folgen in [slice-session-recording-persistenz](../done/slice-session-recording-persistenz.md) und den weiteren Slices der Welle; dieser Slice liefert nur Öffnen, Migration und Integritätsprüfung.
 - Migrationskette für eine zweite Schemaversion — das Schema hat eine Version, die Kette braucht eine zweite (`harness/README.md`, *Nicht behauptet*).
 - Die Abbildung von `ErrBeschaedigt` auf `ODR-E3001` — sie gehört der Schicht, die Fehler dem Nutzer meldet (Services und Adapter der Folgewellen); es gibt dafür noch keinen Slice, der Punkt geht an den Planner und wird beim Planen von welle-record-replay vergeben (`AGENTS.md` §3.13).
 - Entscheidung über den Treiber — [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md) ist angenommen; dieser Slice setzt sie um.
