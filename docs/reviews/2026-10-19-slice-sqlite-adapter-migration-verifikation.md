@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (Modul 11) — gegen DoD, Closure-Trigger, Spezifikation und Entscheidungen. Nicht Review, nicht Validierung.
 
-**Gegenstand:** [slice-sqlite-adapter-migration](../plan/planning/in-progress/slice-sqlite-adapter-migration.md), Diff `0355957` (Move nach `in-progress/`) bis `d015e82` (HEAD).
+**Gegenstand:** [slice-sqlite-adapter-migration](../plan/planning/done/slice-sqlite-adapter-migration.md), Diff `0355957` (Move nach `in-progress/`) bis `d015e82` (HEAD).
 Bezug: [LH-FA-03](../../spec/lastenheft.md), [LH-QA-06](../../spec/lastenheft.md), [ADR-0006](../plan/adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md).
 Vorgänger: [Review-Report](2026-10-19-slice-sqlite-adapter-migration-review.md) (2 HIGH, 3 MEDIUM, 3 LOW).
 

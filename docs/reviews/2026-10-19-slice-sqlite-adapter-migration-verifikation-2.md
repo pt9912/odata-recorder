@@ -2,7 +2,7 @@
 
 **Art:** Zweite Verifikation (Modul 11, frischer Kontext) — gegen DoD, Closure-Trigger, Spezifikation und Entscheidungen. Nicht Review, nicht Validierung.
 
-**Gegenstand:** [slice-sqlite-adapter-migration](../plan/planning/in-progress/slice-sqlite-adapter-migration.md), HEAD `4caee05` (davor `234ec86`, Vertrag zuerst).
+**Gegenstand:** [slice-sqlite-adapter-migration](../plan/planning/done/slice-sqlite-adapter-migration.md), HEAD `4caee05` (davor `234ec86`, Vertrag zuerst).
 Bezug: [LH-FA-03](../../spec/lastenheft.md), [LH-QA-06](../../spec/lastenheft.md), [ADR-0006](../plan/adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md).
 Vorgänger: [Verifikation 1](2026-10-19-slice-sqlite-adapter-migration-verifikation.md) (NICHT BESTANDEN: V-H1, V-M1 bis V-M3, V-L1 bis V-L3).
 
@@ -59,7 +59,7 @@ Keine.
   2. §3 (Zeile 91) sagt weiter "`ODR-E3001` (Recording beschädigt) gilt für eine beschädigte Datei", und die Zusage-Zeile "Keine SQLite-Datei ist `ODR-E3001`" nennt den Code als Zusage des Adapters.
      Geliefert wird `ErrBeschaedigt`; die Abbildung ist nirgends gebaut oder getestet. §3 ist damit nicht nachgezogen (§3.9) und widerspricht §1.
   3. Der Punkt steht an keiner Stelle, die der Planner beim Planen von `welle-record-replay` liest (`welle-persistenz.md`, Roadmap, Register): Wandert der Slice nach `done/`, bleibt die Zusage ohne Adresse.
-- `verifizierbar`: ja — `git diff HEAD -- docs/plan/planning/in-progress/slice-sqlite-adapter-migration.md`; `grep -rn E3001 src docs/plan`.
+- `verifizierbar`: ja — `git diff HEAD -- docs/plan/planning/done/slice-sqlite-adapter-migration.md`; `grep -rn E3001 src docs/plan`.
 
 ### LOW
 

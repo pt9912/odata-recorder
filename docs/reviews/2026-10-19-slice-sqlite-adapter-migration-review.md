@@ -3,7 +3,7 @@
 **Review-Art:** Code — gegen Plan, Entscheidungen und Hard Rules.
 
 **Gegenstand:** `slice-sqlite-adapter-migration`, Diff `0355957..ab2671d` (Verträge `SPEC-103` und `SPEC-104` in `4e75712`, Umsetzung `bb6b8ad`, Plan-Nachzug `ab2671d`).
-Plan: [slice-sqlite-adapter-migration](../plan/planning/in-progress/slice-sqlite-adapter-migration.md).
+Plan: [slice-sqlite-adapter-migration](../plan/planning/done/slice-sqlite-adapter-migration.md).
 Bezug: [LH-FA-03](../../spec/lastenheft.md), [ADR-0006](../plan/adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md).
 
 **Skill:** `.harness/skills/reviewer.md` · **Modell:** claude-sonnet-5-5 · **Datum:** 2026-10-19
