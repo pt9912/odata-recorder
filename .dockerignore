@@ -1,4 +1,4 @@
-# Build-Kontext als Allowlist: nur was Build, Test und Lint brauchen. Doku, Spec und der
+# Build-Kontext als Allowlist: nur was Build, Test, Lint und die Gegenproben brauchen. Doku, Spec und der
 # übrige Harness bleiben draußen und brechen den Build-Cache nicht.
 *
 !go.mod

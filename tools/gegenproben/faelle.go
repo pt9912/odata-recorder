@@ -18,6 +18,7 @@ type Fall struct {
 	Neu      map[string]string // Datei -> Inhalt, angelegt in der Kopie
 	Anhang   map[string]string // Datei -> Text, an die Datei der Kopie gehängt
 	Ersetze  []Ersetzung
+	Entferne []string // Dateien, aus der Kopie gelöscht
 	WantExit int
 	WantText string // muss in der Ausgabe stehen; leer: keine Bedingung
 }
@@ -86,6 +87,21 @@ func faelle() []Fall {
 		{
 			Name: "lint/ausnahme-mit-why", Gate: gateLint,
 			Ersetze: []Ersetzung{{".golangci.yml", regelnKopf, regelnKopf + "      # Why: Probe einer begründeten Ausnahme.\n      - linters:\n          - forbidigo\n        path: ^probe/\n"}},
+		},
+		{
+			Name: "lint/direktive-mit-leerzeichen", Gate: gateLint,
+			Anhang:   map[string]string{"src/bootstrap/bootstrap.go": "\n//  nolint:unused // Probe\n"},
+			WantExit: 1, WantText: "Direktive",
+		},
+		{
+			Name: "lint/profil-fehlt", Gate: gateLint,
+			Entferne: []string{".golangci.yml"},
+			WantExit: 2, WantText: "fehlt oder ist nicht lesbar",
+		},
+		{
+			Name: "lint/why-falsch-eingerueckt", Gate: gateLint,
+			Ersetze:  []Ersetzung{{".golangci.yml", regelnKopf, regelnKopf + "        # Why: Probe, falsch eingerückt.\n      - linters:\n          - forbidigo\n        path: ^probe/\n"}},
+			WantExit: 1, WantText: "# Why:",
 		},
 	}
 }

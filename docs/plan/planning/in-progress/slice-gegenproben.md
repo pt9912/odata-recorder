@@ -123,10 +123,10 @@ dasteht.
 
 - Randformen der Gegenproben (`AGENTS.md` §3.12): die Kopie des Baums scheitert, Docker fehlt, die einzufügende Datei fehlt, ein Verstoß wird nicht gefunden — **Ausgang:** entfallen: entschieden in SPEC-102 vor dem ersten Code-Commit.
 - Der Docker-Cache fehlt (neuer Klon, `docker builder prune`) — **Ausgang:** entfallen: die Prüfsumme im versionierten Stempel entscheidet, nicht der Cache; der kalte Lauf hält das Budget.
-- Der versionierte Stempel kann von Hand geschrieben werden und belegt dann nichts — **Ausgang:** weiter offen: kein Gate liest ihn (`SPEC-102`, Grenze); die Pflicht zum Fahren steht in der ADR.
+- Der versionierte Stempel kann von Hand geschrieben werden und belegt dann nichts — **Ausgang:** weiter offen: kein Gate liest ihn (`SPEC-102`, Grenze); die Pflicht zum Fahren steht in `SPEC-102`.
 - Das Zeitbudget hält nicht, weil `golangci-lint` je Fall seinen Cache neu füllt — **Ausgang:** entfallen: gemessen 13,5 s bei geänderter Eingabe, die Fälle teilen den Cache des Prozesses.
 - Eine Gegenprobe prüft nur die eingefügten Verstoßformen — **Ausgang:** weiter offen: weitere Formen kommen mit den Bibliotheks-Grenzen (`tech`) in welle-persistenz.
-- Die Gegenproben laufen nicht in `make gates` und altern unbemerkt — **Ausgang:** entfallen: die ADR legt den Lauf am Ende jeder Welle und vor dem Release fest, und welle-dev-container fährt ihn automatisch in einem eigenen Container.
+- Die Gegenproben laufen nicht in `make gates` und altern unbemerkt — **Ausgang:** entfallen: `SPEC-102` legt den Lauf am Ende jeder Welle und vor dem Release fest, und welle-dev-container fährt ihn automatisch in einem eigenen Container.
 
 ## 7. Closure-Notiz
 

@@ -8,9 +8,9 @@ cd "$(git rev-parse --show-toplevel)"
 {
   printf 'PIN %s\n' "$@"
   git ls-files -z --cached --others --exclude-standard -- \
-      src go.mod .a-check.yml .golangci.yml tools/harness/lint.sh tools/gegenproben Dockerfile .dockerignore \
+      src go.mod go.sum .a-check.yml .golangci.yml tools/harness/lint.sh tools/gegenproben Dockerfile .dockerignore \
     | sort -zu \
     | while IFS= read -r -d '' f; do
-        [ -f "$f" ] && sha256sum -- "$f"
+        if [ -f "$f" ]; then sha256sum -- "$f"; fi
       done
 } | sha256sum | awk '{print $1}'

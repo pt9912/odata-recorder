@@ -7,7 +7,7 @@
 # Wirkung als Befund.
 #
 # Form, die tools/harness/lint.sh liest: unter `linters:` der Block `  exclusions:` mit
-# `    warn-unused: true` und `    rules:`, jede Regel als `      - ` (sechs Leerzeichen).
+# `    warn-unused: true` und `    rules:`, jede Regel als `      - ` (sechs Leerzeichen), ihr `# Why:`-Block mit derselben Einrückung.
 #
 # Architektur-Regeln prüft `a-check` (ADR-0002), nicht `depguard`.
 

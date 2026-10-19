@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -28,8 +29,21 @@ const (
 	fallFrist = 120 * time.Second
 )
 
-// eingaben sind die Pfade, die jede Kopie enthält.
-var eingaben = []string{"src", "go.mod", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh"}
+// eingaben sind die Pfade, die jede Kopie enthält; go.sum ist nur da, wenn das Modul
+// Abhängigkeiten hat.
+var eingaben = []string{"src", "go.mod", "go.sum", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh"}
+
+// programme müssen aufrufbar sein, bevor ein Fall läuft.
+var programme = []string{"a-check", "golangci-lint", "sh"}
+
+// befehl liefert Programm, Argumente und Arbeitsverzeichnis, mit denen ein Fall sein Gate
+// in dir ruft.
+var befehl = func(dir string, g Gate) (string, []string, string) {
+	if g == gateACheck {
+		return "a-check", []string{dir}, ""
+	}
+	return "sh", []string{"tools/harness/lint.sh"}, dir
+}
 
 // Ergebnis ist der Befund eines Falls; Rot leer heißt grün.
 type Ergebnis struct {
@@ -38,28 +52,27 @@ type Ergebnis struct {
 }
 
 func main() {
-	os.Exit(run(os.Stdout, os.Stderr))
+	os.Exit(run(os.Stdout, os.Stderr, ".", faelle()))
 }
 
-func run(stdout, stderr io.Writer) int {
-	for _, p := range []string{"a-check", "golangci-lint", "sh"} {
+func run(stdout, stderr io.Writer, wurzel string, fs []Fall) int {
+	for _, p := range programme {
 		if _, err := exec.LookPath(p); err != nil {
 			_, _ = fmt.Fprintf(stderr, "gegenproben: %s nicht aufrufbar\n", p)
 			return exitSetup
 		}
 	}
-	vorher, err := hashEingaben(".")
+	vorher, err := hashEingaben(wurzel)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "gegenproben: %v\n", err)
 		return exitSetup
 	}
-	fs := faelle()
-	ergebnisse, err := fahre(fs, ".")
+	ergebnisse, err := fahre(fs, wurzel)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "gegenproben: %v\n", err)
 		return exitSetup
 	}
-	nachher, err := hashEingaben(".")
+	nachher, err := hashEingaben(wurzel)
 	if err != nil || nachher != vorher {
 		_, _ = fmt.Fprintln(stderr, "gegenproben: die Eingaben haben sich im Lauf verändert")
 		return exitSetup
@@ -115,7 +128,8 @@ func fahre(fs []Fall, wurzel string) ([]Ergebnis, error) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			code, out, abgelaufen := rufe(dirs[i], fs[i].Gate)
+			name, args, wd := befehl(dirs[i], fs[i].Gate)
+			code, out, abgelaufen := starte(fallFrist, wd, name, args...)
 			erg[i] = Ergebnis{Name: fs[i].Name, Rot: bewerte(fs[i], code, out, abgelaufen)}
 		}()
 	}
@@ -148,17 +162,17 @@ func letzte(s string, n int) string {
 	return strings.Join(z, "\n")
 }
 
-// rufe führt das Gate in dir aus und liefert Exit-Code, Ausgabe und ob die Frist ablief.
-func rufe(dir string, g Gate) (int, string, bool) {
-	ctx, stop := context.WithTimeout(context.Background(), fallFrist)
+// starte führt das Programm aus und liefert Exit-Code, Ausgabe und ob die Frist ablief.
+// Bei Ablauf endet die ganze Prozessgruppe, damit auch ein Kindprozess die Ausgabe nicht
+// offen hält.
+func starte(frist time.Duration, dir, name string, args ...string) (int, string, bool) {
+	ctx, stop := context.WithTimeout(context.Background(), frist)
 	defer stop()
-	var cmd *exec.Cmd
-	if g == gateACheck {
-		cmd = exec.CommandContext(ctx, "a-check", dir)
-	} else {
-		cmd = exec.CommandContext(ctx, "sh", "tools/harness/lint.sh")
-		cmd.Dir = dir
-	}
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	cmd.WaitDelay = 5 * time.Second
 	var buf bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &buf, &buf
 	err := cmd.Run()
@@ -199,7 +213,7 @@ func kopiere(von, nach string) error {
 			}
 			return os.WriteFile(ziel, b, 0o644)
 		})
-		if err != nil {
+		if err != nil && !(p == "go.sum" && errors.Is(err, fs.ErrNotExist)) {
 			return err
 		}
 	}
@@ -229,6 +243,11 @@ func greife(dir string, f Fall) error {
 			return werr
 		}
 	}
+	for _, d := range f.Entferne {
+		if err := os.Remove(filepath.Join(dir, d)); err != nil {
+			return err
+		}
+	}
 	for _, e := range f.Ersetze {
 		p := filepath.Join(dir, e.Datei)
 		b, err := os.ReadFile(p)
@@ -254,7 +273,7 @@ func hashEingaben(wurzel string) (string, error) {
 			}
 			return err
 		})
-		if err != nil {
+		if err != nil && !(p == "go.sum" && errors.Is(err, fs.ErrNotExist)) {
 			return "", err
 		}
 	}

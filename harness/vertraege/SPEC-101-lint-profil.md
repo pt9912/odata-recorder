@@ -15,8 +15,8 @@ Das Ziel schlägt fehl, wenn einer der beiden Teile einen Befund meldet.
 **Eigene Prüfungen** (Befund je Verstoß, Form `lint.sh: <Datei>:<Zeile>: <Text>`):
 1. Keine Direktive `//nolint`, `//lint:ignore` oder eine dieser Direktiven mit Leerzeichen nach `//` in einer Datei `*.go`.
    Gesucht wird der Text, an jeder Stelle einer Zeile, auch in Testdateien und in Zeichenketten.
-2. Jede Regel unter `linters.exclusions.rules` im Profil steht unmittelbar unter einem Kommentarblock, dessen erste Zeile mit `# Why:` beginnt und danach Text trägt.
-   Eine Leerzeile zwischen Block und Regel löst den Block von der Regel.
+2. Jede Regel unter `linters.exclusions.rules` im Profil steht unmittelbar unter einem Kommentarblock mit sechs Leerzeichen Einrückung wie die Regel, dessen erste Zeile mit `# Why:` beginnt und danach Text trägt.
+   Eine Leerzeile zwischen Block und Regel oder eine andere Einrückung löst den Block von der Regel.
 3. Das Profil setzt `linters.exclusions.warn-unused: true`.
    Meldet golangci-lint daraufhin eine Regel ohne Wirkung, steht die Warnung in der Ausgabe und führt nicht zum Fehlschlag: eine Regel darf dem Code vorauseilen.
 4. Es gibt mindestens eine Datei `*.go`.
@@ -34,4 +34,4 @@ Das Ziel schlägt fehl, wenn einer der beiden Teile einen Befund meldet.
 **Stand:** vorhanden für die Schema-Prüfung des Profils und die Prüfung des Codes.
 
 **Grenze:** Die Schwellen des Profils (Komplexität 15, Funktionslänge 100) beißen am heutigen Skelett nicht.
-Die Gegenprobe zu `make lint` fehlt; sie liefert `SPEC-102`.
+Die Gegenprobe zu `make lint` liefert `SPEC-102`.
