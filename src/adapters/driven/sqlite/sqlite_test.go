@@ -325,3 +325,161 @@ func TestMigrationLaeuftInEinerTransaktion(t *testing.T) {
 		t.Fatalf("user_version %s", v)
 	}
 }
+
+func TestAndereFehlerBleibenUnklassifiziert(t *testing.T) {
+	d := open(t, filepath.Join(t.TempDir(), "r.db"))
+	_, err := d.SQL().Exec(`INSERT INTO sessions(id, service_id, created_at, status) VALUES ('x', 'unbekannt', 't', 'open')`)
+	if err == nil {
+		t.Fatal("Fremdschlüsselverletzung wurde angenommen")
+	}
+	if got := sqlite.Klassifiziere(err); errors.Is(got, sqlite.ErrBeschaedigt) || got != err {
+		t.Fatalf("Fehler wurde verändert: %v", got)
+	}
+	if got := sqlite.Klassifiziere(errors.New("anderer Fehler")); errors.Is(got, sqlite.ErrBeschaedigt) {
+		t.Fatal("fremder Fehler wurde klassifiziert")
+	}
+}
+
+func journalMode(t *testing.T, pfad string) string {
+	t.Helper()
+	db, err := sql.Open("sqlite", pfad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+	return skalar(t, db, "PRAGMA journal_mode")
+}
+
+func TestOeffnenStelltWalWiederHer(t *testing.T) {
+	pfad := filepath.Join(t.TempDir(), "r.db")
+	d := open(t, pfad)
+	if _, err := d.SQL().Exec("PRAGMA journal_mode = delete"); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if got := journalMode(t, pfad); got != "delete" {
+		t.Fatalf("Aufbau: Modus %s", got)
+	}
+	d2 := open(t, pfad)
+	if err := d2.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if got := journalMode(t, pfad); got != "wal" {
+		t.Fatalf("Modus nach dem Öffnen: %s", got)
+	}
+}
+
+func TestWalUmstellenScheitertNachDerFristUndWirdNachgeholt(t *testing.T) {
+	pfad := filepath.Join(t.TempDir(), "r.db")
+	d := open(t, pfad)
+	if _, err := d.SQL().Exec("PRAGMA journal_mode = delete"); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Close(); err != nil {
+		t.Fatal(err)
+	}
+	leser, err := sql.Open("sqlite", pfad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = leser.Close() }()
+	tx, err := leser.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := tx.QueryRow("SELECT count(*) FROM services").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	_, err = sqlite.Open(context.Background(), pfad, sqlite.Options{BusyTimeout: 150 * time.Millisecond})
+	if err == nil {
+		t.Fatal("Öffnen gelang trotz gehaltener Lesesperre")
+	}
+	if d := time.Since(start); d < 100*time.Millisecond || d > 3*time.Second {
+		t.Fatalf("Dauer %v passt nicht zur Frist von 150 ms", d)
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+	d2 := open(t, pfad)
+	if err := d2.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if got := journalMode(t, pfad); got != "wal" {
+		t.Fatalf("Modus nach dem zweiten Öffnen: %s", got)
+	}
+}
+
+// belegtFehler liefert einen echten SQLITE_BUSY-Fehler: zwei Verbindungen ohne Wartezeit.
+func belegtFehler(t *testing.T) error {
+	t.Helper()
+	pfad := filepath.Join(t.TempDir(), "b.db")
+	a, err := sql.Open("sqlite", pfad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = a.Close() }()
+	ca, err := a.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ca.Close() }()
+	if _, err := ca.ExecContext(context.Background(), "CREATE TABLE t (x); BEGIN IMMEDIATE"); err != nil {
+		t.Fatal(err)
+	}
+	b, err := sql.Open("sqlite", pfad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = b.Close() }()
+	_, err = b.Exec("BEGIN IMMEDIATE")
+	if err == nil {
+		t.Fatal("zweite Schreibsperre gelang")
+	}
+	return err
+}
+
+func TestWalUmstellenWiederholtBeiBelegt(t *testing.T) {
+	d := open(t, filepath.Join(t.TempDir(), "r.db"))
+	belegt := belegtFehler(t)
+	n := 0
+	err := d.StelleWalSicherMit(context.Background(), 2*time.Second, func(context.Context) error {
+		n++
+		if n < 4 {
+			return belegt
+		}
+		return nil
+	})
+	if err != nil || n != 4 {
+		t.Fatalf("Versuche %d, Fehler %v", n, err)
+	}
+}
+
+func TestWalUmstellenGibtNachDerFristAuf(t *testing.T) {
+	d := open(t, filepath.Join(t.TempDir(), "r.db"))
+	belegt := belegtFehler(t)
+	start := time.Now()
+	err := d.StelleWalSicherMit(context.Background(), 60*time.Millisecond, func(context.Context) error { return belegt })
+	if !errors.Is(err, belegt) {
+		t.Fatalf("Fehler %v", err)
+	}
+	if dauer := time.Since(start); dauer < 50*time.Millisecond || dauer > 2*time.Second {
+		t.Fatalf("Dauer %v", dauer)
+	}
+}
+
+func TestWalUmstellenWiederholtNurBeiBelegt(t *testing.T) {
+	d := open(t, filepath.Join(t.TempDir(), "r.db"))
+	n := 0
+	_, fehler := d.SQL().Exec(`INSERT INTO sessions(id, service_id, created_at, status) VALUES ('x', 'unbekannt', 't', 'open')`)
+	if fehler == nil {
+		t.Fatal("Fremdschlüsselverletzung wurde angenommen")
+	}
+	err := d.StelleWalSicherMit(context.Background(), 2*time.Second, func(context.Context) error { n++; return fehler })
+	if !errors.Is(err, fehler) || n != 1 {
+		t.Fatalf("Versuche %d, Fehler %v", n, err)
+	}
+}

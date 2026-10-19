@@ -25,6 +25,7 @@ type Fall struct {
 	OhneGoDateienInSrc bool              // löscht jede Datei *.go unter src/ der Kopie
 	WantExit           int
 	WantText           []string // jeder Text muss in der Ausgabe stehen
+	Verboten           []string // keiner dieser Texte darf in der Ausgabe stehen
 }
 
 // Ersetzung tauscht in einer Datei der Kopie genau eine Stelle.
@@ -171,7 +172,7 @@ func migrationFaelle() []Fall {
 		{
 			Name: "migration/abweichung", Gate: gateMigration, Kopiere: migrationKopie(),
 			Anhang:   map[string]string{erzeugtesDDL: "-- zusätzliche Zeile\n"},
-			WantExit: 1, WantText: []string{"weicht vom erzeugten DDL ab"},
+			WantExit: 1, WantText: []string{"weicht vom erzeugten DDL ab", "< -- zusätzliche Zeile"}, Verboten: []string{"migration-check: ok"},
 		},
 		{
 			Name: "migration/weitere-datei", Gate: gateMigration, Kopiere: migrationKopie(),
@@ -181,11 +182,11 @@ func migrationFaelle() []Fall {
 		{
 			Name: "migration/migration-fehlt", Gate: gateMigration, Kopiere: migrationKopie(),
 			Entferne: []string{migrationen + "/0001_init.sql"},
-			WantExit: 2, WantText: []string{"fehlt"},
+			WantExit: 2, WantText: []string{"Migration", "fehlt"}, Verboten: []string{"erzeugtes DDL"},
 		},
 		{
 			Name: "migration/erzeugtes-ddl-fehlt", Gate: gateMigration,
-			WantExit: 2, WantText: []string{"fehlt"},
+			WantExit: 2, WantText: []string{"erzeugtes DDL", "fehlt"}, Verboten: []string{"Migration src"},
 		},
 		{
 			Name: "migration/falsche-aufrufform", Gate: gateMigration, Kopiere: migrationKopie(),

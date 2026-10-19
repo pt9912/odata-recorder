@@ -172,21 +172,27 @@ func bewerte(f Fall, code int, out string, abgelaufen bool) string {
 	case abgelaufen:
 		return "Zeit überschritten"
 	case f.WantExit == 0 && code != 0:
-		return fmt.Sprintf("erlaubter Fall abgelehnt (Exit %d)\n%s", code, letzte(out, 8))
+		return fmt.Sprintf("erlaubter Fall abgelehnt (Exit %d)\n%s", code, letzte(out))
 	case f.WantExit != 0 && code == 0:
 		return "Verstoß nicht gemeldet"
 	case code != f.WantExit:
-		return fmt.Sprintf("erwartet Exit %d, war %d\n%s", f.WantExit, code, letzte(out, 8))
+		return fmt.Sprintf("erwartet Exit %d, war %d\n%s", f.WantExit, code, letzte(out))
 	}
 	for _, w := range f.WantText {
 		if !strings.Contains(out, w) {
-			return fmt.Sprintf("Ausgabe nennt %q nicht\n%s", w, letzte(out, 8))
+			return fmt.Sprintf("Ausgabe nennt %q nicht\n%s", w, letzte(out))
+		}
+	}
+	for _, v := range f.Verboten {
+		if strings.Contains(out, v) {
+			return fmt.Sprintf("Ausgabe nennt %q\n%s", v, letzte(out))
 		}
 	}
 	return ""
 }
 
-func letzte(s string, n int) string {
+func letzte(s string) string {
+	const n = 8
 	z := strings.Split(strings.TrimRight(s, "\n"), "\n")
 	if len(z) > n {
 		z = z[len(z)-n:]

@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-03`, `LH-QA-06`, [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md), [ADR-0003](../../adr/0003-lint-profil-golangci.md)
 
-**Berührte Spec-Stellen:** `SPEC-004` (Normatives Schema) · `SPEC-014` (`SQLITE_BUSY_TIMEOUT`) · `ARC-009`.
+**Berührte Spec-Stellen:** `SPEC-004` (Normatives Schema) · `SPEC-014` (`SQLITE_BUSY_TIMEOUT`) · `SPEC-103` (Öffnen und Migrieren) · `SPEC-104` (Migrations-Gate) · `SPEC-102` (Gegenproben) · `ARC-009`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -83,7 +83,7 @@ Aussagen-Berührung steht hier gar nicht.
 | `.a-check.yml`, `.golangci.yml` | update | `tech`-Regel und `gomodguard_v2`-Eintrag für `modernc.org/sqlite` ([ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md)) |
 | `src/adapters/driven/sqlite/` | neu | `Open`, `Migrate`, eingebettete `migrations/0001_init.sql` |
 | `harness/mk/schema.mk`, `tools/harness/migration-check.sh`, `harness/vertraege/SPEC-104-migration-check.md` | update / neu | Gate `migration-check` und sein Vertrag (Randformen vor dem Code) |
-| `tools/gegenproben/`, `Dockerfile`, `.dockerignore`, `tools/harness/gegenproben-eingabe.sh`, `harness/vertraege/SPEC-102-gegenproben.md`, `harness/README.md` | update | Fälle 17 bis 19 für `migration-check.sh`; Modulcache und das Skript gehören in die Stufe `gegenproben`, die neuen Dateien in die Eingaben |
+| `tools/gegenproben/`, `Dockerfile`, `.dockerignore`, `tools/harness/gegenproben-eingabe.sh`, `harness/vertraege/SPEC-102-gegenproben.md`, `harness/README.md` | update | Fälle 17 bis 23 für `migration-check.sh` und die Bibliotheksgrenze; Modulcache und das Skript gehören in die Stufe `gegenproben`, die neuen Dateien in die Eingaben |
 | `spec/spezifikation.md` | update | `SPEC-103`: Öffnen und Migrieren mit den Randformen (leerer Pfad, Verzeichnis, fremde Datenbank, höhere Schemaversion, beschädigte Datei, gleichzeitiges Öffnen) |
 
 - Die Migration ist das DDL aus dem Schema, kein Handtext: `make schema-generate` liefert es, das gewählte Verfahren zum Einbetten steht im Vertrag des Gates.
@@ -103,6 +103,10 @@ Aussagen-Berührung steht hier gar nicht.
 | Gleichzeitiges Öffnen migriert einmal | `TestGleichzeitigesOeffnenMigrierteinmal`; Mutation: ohne Transaktion |
 | Migration ist atomar | `TestMigrationLaeuftInEinerTransaktion`; Mutation: ohne `BEGIN` |
 | Zweites `Close` ist kein Fehler | `TestCloseIstIdempotent` |
+| Jedes Öffnen stellt WAL sicher (auch bei Modus `delete`) | `TestOeffnenStelltWalWiederHer`; Mutation: Aufruf entfernt |
+| Das Umstellen wiederholt sich bei `SQLITE_BUSY` bis zur Frist, nur dann | `TestWalUmstellenWiederholtBeiBelegt`, `TestWalUmstellenGibtNachDerFristAuf`, `TestWalUmstellenWiederholtNurBeiBelegt`; Mutationen: keine Wiederholung, falsche Codes, jeder Fehler als belegt |
+| Gleichzeitiges Öffnen gelingt dauerhaft | 500 Wiederholungen von `TestGleichzeitigesOeffnenMigrierteinmal` einmalig grün (347 s), statistisch, keine Mutation |
+| Andere Fehler bleiben unklassifiziert | `TestAndereFehlerBleibenUnklassifiziert`; Mutation: jeder Fehler beschädigt |
 | Abgelehnte Datei bleibt byte-gleich | `zustand`-Prüfung in `TestNeuereSchemaversionWirdVerweigert`, `TestFremdeDatenbankWirdVerweigert`, `TestKeineSQLiteDateiIstBeschaedigt`, `TestAbgeschnittenerRumpfIstBeschaedigt` |
 | Die Bibliothek bleibt im Adapter | Fall `a-check/bibliothek-in-fremdem-adapter` (`tech-leak`) |
 | `migration-check.sh` meldet fehlende Dateien und falschen Aufruf | Fälle `migration/migration-fehlt`, `migration/erzeugtes-ddl-fehlt`, `migration/falsche-aufrufform` |
@@ -115,7 +119,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md) ist `Accepted` und `welle-fundament` liegt in `done/`.
 
-**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei 875 Zeilen (alle Pfade aus §3, go.sum eingeschlossen); getragen von der erzeugten Migration (163 Zeilen), den Tests des Adapters und den Fällen der Gegenproben. Der Slice bleibt ungeteilt, weil Adapter, Gate und Gegenprobe einzeln nichts liefern.
+**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei 987 Zeilen (alle Pfade aus §3, go.sum eingeschlossen); getragen von der erzeugten Migration (163 Zeilen), den Tests des Adapters und den Fällen der Gegenproben. Der Slice bleibt ungeteilt, weil Adapter, Gate und Gegenprobe einzeln nichts liefern.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -138,7 +142,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Randformen des Öffnens und des Gates (`AGENTS.md` §3.12): fremde Datei, neuere Schemaversion, beschädigte Datei, gleichzeitiges Öffnen, fehlende Migration — **Ausgang:** entfallen: entschieden in `SPEC-103` und `SPEC-104` vor dem ersten Code-Commit; das Review fand dennoch zwei Abweichungen von `SPEC-103` (WAL vor der Versionsprüfung, flackernde Gleichzeitigkeit), beide behoben.
-- Der Treiber zieht Abhängigkeiten, die `go mod verify` oder das netzlose Bauen stören — **Ausgang:** weiter offen: wird beim Bauen der Stufe `deps` sichtbar und dann als Beobachtung geführt.
+- Der Treiber zieht Abhängigkeiten, die `go mod verify` oder das netzlose Bauen stören — **Ausgang:** entfallen: `make test`, `make lint`, `make gegenproben` und `make gates` laufen mit dem Treiber; nur die Stufe `deps` braucht Netz.
 - Das Einbetten der Migration weicht vom erzeugten DDL ab, ohne dass jemand es merkt — **Ausgang:** entfallen: `migration-check` und sein Gegenprobe-Fall.
 
 ## 7. Closure-Notiz

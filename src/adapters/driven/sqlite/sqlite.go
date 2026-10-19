@@ -71,7 +71,44 @@ func Open(ctx context.Context, path string, opt Options) (*DB, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if err := stelleWalSicher(ctx, busy, d.setzeWal); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	return d, nil
+}
+
+// stelleWalSicher stellt journal_mode=WAL her. SQLite meldet SQLITE_BUSY beim Umstellen
+// auch dann sofort, wenn der busy_timeout läuft, sobald ein anderer Öffner dieselbe
+// Sperre hält; deshalb wiederholt sich das Umstellen bis zum Ablauf der Frist.
+func stelleWalSicher(ctx context.Context, frist time.Duration, versuch func(context.Context) error) error {
+	ende := time.Now().Add(frist)
+	for {
+		err := versuch(ctx)
+		if err == nil || !istBelegt(err) || time.Now().After(ende) {
+			return klassifiziere(err)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
+}
+
+func (d *DB) setzeWal(ctx context.Context) error {
+	var modus string
+	return d.sql.QueryRowContext(ctx, "PRAGMA journal_mode = wal").Scan(&modus)
+}
+
+func istBelegt(err error) bool {
+	var se *sqlitedriver.Error
+	if !errors.As(err, &se) {
+		return false
+	}
+	const busy, locked = 5, 6
+	c := se.Code() & 0xff
+	return c == busy || c == locked
 }
 
 // Close schließt die Datenbank; ein zweites Close ist kein Fehler.

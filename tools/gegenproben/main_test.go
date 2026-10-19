@@ -26,6 +26,7 @@ func TestBewerte(t *testing.T) {
 		{"anderer Code", verstoss, 2, "regel", false, "erwartet Exit 1, war 2"},
 		{"falsches Wort", verstoss, 1, "anderes", false, `nennt "regel" nicht`},
 		{"zweiter Text fehlt", Fall{Name: "w", WantExit: 1, WantText: []string{"a", "b"}}, 1, "a", false, `nennt "b" nicht`},
+		{"verbotener Text", Fall{Name: "v", WantExit: 1, Verboten: []string{"ok"}}, 1, "alles ok", false, `nennt "ok"`},
 		{"Erlaubt grün", erlaubt, 0, "", false, ""},
 		{"Erlaubt abgelehnt", erlaubt, 1, "boese", false, "erlaubter Fall abgelehnt"},
 		{"Frist", verstoss, -1, "", true, "Zeit überschritten"},
