@@ -12,7 +12,7 @@ profil=.golangci.yml
 rc=0
 
 # Keine Unterdrückungs-Direktive im Code (AGENTS.md §3.2), auch nicht in Testdateien.
-d=$(grep -rnE --include='*.go' '//[[:space:]]?(nolint|lint:ignore)' . | sed 's/^\([^:]*:[0-9]*\):.*/lint.sh: \1: Direktive nolint oder lint:ignore/')
+d=$(grep -rnE --include='*.go' '//[[:space:]]*(nolint|lint:ignore)' . | sed 's/^\([^:]*:[0-9]*\):.*/lint.sh: \1: Direktive nolint oder lint:ignore/')
 [ -z "$d" ] || { echo "$d"; rc=1; }
 
 # Das Modul trägt mindestens eine Go-Datei.
@@ -25,6 +25,7 @@ function befund(n, t) { printf "lint.sh: %s:%d: %s\n", p, n, t; bad = 1 }
 /^[^ #]/ || /^  [^ #]/ { inx = 0; inr = 0 }
 /^  exclusions:/ { inx = 1; first = ""; prev = 0; next }
 inx && /^    warn-unused: true[ ]*(#.*)?$/ { wu = 1 }
+inx && /^    rules:[ ]*\[\][ ]*(#.*)?$/ { inr = 0; next }
 inx && /^    rules:[ ]*[^ #]/ { befund(NR, "rules nicht als Block-Liste"); next }
 inx && /^    rules:/ { inr = 1; first = ""; prev = 0; next }
 inx && /^    [^ #-]/ { inr = 0 }

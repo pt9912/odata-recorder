@@ -13,7 +13,7 @@
 Das Ziel schlägt fehl, wenn einer der beiden Teile einen Befund meldet.
 
 **Eigene Prüfungen** (Befund je Verstoß, Form `lint.sh: <Datei>:<Zeile>: <Text>`):
-1. Keine Direktive `//nolint`, `// nolint`, `//lint:ignore` oder `// lint:ignore` in einer Datei `*.go`.
+1. Keine Direktive `//nolint`, `//lint:ignore` oder eine dieser Direktiven mit Leerzeichen nach `//` in einer Datei `*.go`.
    Gesucht wird der Text, an jeder Stelle einer Zeile, auch in Testdateien und in Zeichenketten.
 2. Jede Regel unter `linters.exclusions.rules` im Profil steht unmittelbar unter einem Kommentarblock, dessen erste Zeile mit `# Why:` beginnt und danach Text trägt.
    Eine Leerzeile zwischen Block und Regel löst den Block von der Regel.
@@ -25,7 +25,7 @@ Das Ziel schlägt fehl, wenn einer der beiden Teile einen Befund meldet.
 1. `.golangci.yml` fehlt oder ist nicht lesbar: Meldung `lint.sh: Profil .golangci.yml fehlt oder ist nicht lesbar`, Exit-Code 2; golangci-lint läuft nicht.
 2. Das Profil weicht von der Form ab, die `lint.sh` liest: `linters.exclusions` fehlt, trägt kein `warn-unused: true`, oder eine Regel unter `rules` beginnt nicht mit `      - ` (sechs Leerzeichen): Befund der Prüfung 3 bzw. 2, Exit-Code 1.
    Die gelesene Form steht im Kopfkommentar des Profils.
-3. `exclusions.rules` fehlt oder ist leer: kein Befund der Prüfung 2.
+3. `exclusions.rules` fehlt oder ist `[]`: kein Befund der Prüfung 2.
 4. Ein Verzeichnis ohne Go-Dateien: kein Befund, golangci-lint übergeht es. Fehlt jede Go-Datei im Modul, meldet Prüfung 4 einen Befund.
 5. Eine Direktive in `*_test.go`: derselbe Befund wie im Produktcode.
 6. Abbruch und Herunterfahren: `lint.sh` hält keinen Zustand; ein Abbruch des Builds lässt nichts zurück.
