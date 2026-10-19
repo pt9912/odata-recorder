@@ -160,6 +160,10 @@ func publikationFall2(t *testing.T, neu Neu) {
 			cov(p, model.Coverage{EntitySet: "P", Status: model.CoverageUnknown, EvidenceJSON: "x"})
 		},
 		"Evidenz leer": func(p *model.Publication) { cov(p, model.Coverage{EntitySet: "P", Status: model.CoverageUnknown}) },
+		"Evidenz kein UTF-8": func(p *model.Publication) {
+			cov(p, model.Coverage{EntitySet: "P", Status: model.CoverageUnknown, EvidenceJSON: "\"\xff\""})
+		},
+		"report_json kein UTF-8": func(p *model.Publication) { p.Import.ReportJSON = "\"\xff\"" },
 		"doppeltes entity_set": func(p *model.Publication) {
 			c := model.Coverage{EntitySet: "P", Status: model.CoveragePartial, EvidenceJSON: `{}`}
 			p.Coverage = []model.Coverage{c, c}
@@ -347,6 +351,12 @@ func provenienzFall(t *testing.T, neu Neu) {
 	erwarte(t, err, outbound.ErrNichtGefunden)
 	_, err = v.Imports.Get(ctx, "gibt-es-nicht")
 	erwarte(t, err, outbound.ErrNichtGefunden)
+	_, err = v.Imports.Get(ctx, "")
+	erwarte(t, err, outbound.ErrNichtGefunden)
+	_, err = v.Imports.Sources(ctx, "")
+	erwarte(t, err, outbound.ErrNichtGefunden)
+	_, err = v.Imports.BaselinesOf(ctx, "")
+	erwarte(t, err, outbound.ErrNichtGefunden)
 	erwarte(t, v.Sessions.Delete(ctx, "s1"), outbound.ErrReferenziert)
 	erwarte(t, v.Sessions.Delete(ctx, "s2"), outbound.ErrReferenziert)
 	ok(t, v.Sessions.Delete(ctx, "x1"))
@@ -389,6 +399,8 @@ func snapshotFall(t *testing.T, neu Neu) {
 	erwarte(t, err, outbound.ErrNichtGefunden)
 	_, err = v.Snapshots.Get(ctx, "gibt-es-nicht")
 	erwarte(t, err, outbound.ErrNichtGefunden)
+	_, err = v.Snapshots.Get(ctx, "")
+	erwarte(t, err, outbound.ErrNichtGefunden)
 	l, err = v.Snapshots.List(ctx, "unbekannt")
 	if err != nil || l == nil || len(l) != 0 {
 		t.Fatalf("unbekannter Service: %v %v", l, err)
@@ -417,12 +429,8 @@ func coverageFall(t *testing.T, neu Neu) {
 	}
 	l, err := v.Coverage.List(ctx, "snap-1")
 	ok(t, err)
-	var namen []string
-	for _, c := range l {
-		namen = append(namen, c.EntitySet)
-	}
-	if !reflect.DeepEqual(namen, []string{"Alpha", "Mid", "Zeta"}) {
-		t.Fatalf("Reihenfolge %v", namen)
+	if want := []model.Coverage{p.Coverage[1], p.Coverage[2], p.Coverage[0]}; !reflect.DeepEqual(l, want) {
+		t.Fatalf("List %q, erwartet %q", l, want)
 	}
 	if l, err := v.Coverage.List(ctx, "snap-2"); err != nil || len(l) != 1 || l[0].EntitySet != "Products" {
 		t.Fatalf("Coverage einer anderen Baseline: %v %v", l, err)
@@ -476,6 +484,8 @@ func baselineKontextFall(t *testing.T, neu Neu) {
 	_, err = v.Snapshots.List(ctx, "")
 	erwarte(t, err, model.ErrUngueltig)
 	_, err = v.Coverage.Get(ctx, "", "")
+	erwarte(t, err, model.ErrUngueltig)
+	_, err = v.Coverage.List(ctx, "")
 	erwarte(t, err, model.ErrUngueltig)
 	if _, err := v.Snapshots.Get(bg, "snap-1"); err != nil {
 		t.Fatalf("Baseline fehlt: %v", err)

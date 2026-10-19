@@ -132,6 +132,7 @@ func TestBlobReferenzGueltig(t *testing.T) {
 		"sha256:" + hex + "0":            false,
 		"sha256:" + strings.ToUpper(hex): false,
 		"sha256:" + hex[:63] + "g":       false,
+		"abcdefg" + hex:                  false,
 		"sha1:" + hex:                    false,
 		hex:                              false,
 		"":                               false,
@@ -209,6 +210,27 @@ func TestBaselineSnapshotValidate(t *testing.T) {
 		b := gut
 		mut(&b)
 		if err := b.Validate(); !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+func TestImportValidate(t *testing.T) {
+	gut := gueltigePublikation().Import
+	if err := gut.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, mut := range map[string]func(*model.Import){
+		"ohne Kennung":      func(i *model.Import) { i.ID = "" },
+		"ohne Service":      func(i *model.Import) { i.ServiceID = "" },
+		"ohne Baseline":     func(i *model.Import) { i.BaselineSnapshotID = "" },
+		"ohne request_hash": func(i *model.Import) { i.RequestHash = "" },
+		"JSON kein UTF-8":   func(i *model.Import) { i.ReportJSON = "\"\xff\"" },
+		"ohne Zeit":         func(i *model.Import) { i.CreatedAt = time.Time{} },
+	} {
+		i := gut
+		mut(&i)
+		if err := i.Validate(); !errors.Is(err, model.ErrUngueltig) {
 			t.Errorf("%s: %v", name, err)
 		}
 	}

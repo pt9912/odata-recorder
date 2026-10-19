@@ -130,6 +130,11 @@ func serviceFall4(t *testing.T, neu Neu) {
 		t.Fatalf("nach Löschen: %+v", got)
 	}
 	erwarte(t, v.Metadata.SetMetadata(ctx, "gibt-es-nicht", ref("b"), "h"), outbound.ErrNichtGefunden)
+	// Die Argumente werden vor der Kennung geprüft.
+	erwarte(t, v.Metadata.SetMetadata(ctx, "gibt-es-nicht", ref("b"), ""), model.ErrUngueltig)
+	erwarte(t, v.Metadata.SetMetadata(ctx, "", ref("b"), "h"), outbound.ErrNichtGefunden)
+	_, err := v.Metadata.Get(ctx, "")
+	erwarte(t, err, outbound.ErrNichtGefunden)
 }
 
 func serviceFall5(t *testing.T, neu Neu) {
@@ -143,6 +148,7 @@ func serviceFall5(t *testing.T, neu Neu) {
 	erwarte(t, err, context.Canceled)
 	erwarte(t, v.Metadata.SetMetadata(ctx, "d", "", ""), context.Canceled)
 	erwarte(t, v.Metadata.Create(ctx, model.Service{}), model.ErrUngueltig)
+	erwarte(t, v.Metadata.SetMetadata(ctx, "d", ref("b"), ""), model.ErrUngueltig)
 	if _, err := v.Metadata.Get(bg, "neu"); !errors.Is(err, outbound.ErrNichtGefunden) {
 		t.Fatalf("Create trotz Abbruch: %v", err)
 	}

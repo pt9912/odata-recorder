@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
+	"math/rand/v2"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	sqlitedriver "modernc.org/sqlite"
 
@@ -19,7 +19,7 @@ func neueVerbindung(t *testing.T) outboundtest.Verbindung {
 	// Eine Funktion gilt nur für Verbindungen, die nach ihrer Anmeldung öffnen; sie ruft den
 	// Abbruch, den BrichNachImportAb setzt.
 	var abbruch atomic.Pointer[context.CancelFunc]
-	name := fmt.Sprintf("odr_abbruch_%d", time.Now().UnixNano())
+	name := fmt.Sprintf("odr_abbruch_%x", rand.Uint64())
 	sqlitedriver.MustRegisterScalarFunction(name, 0, func(*sqlitedriver.FunctionContext, []driver.Value) (driver.Value, error) {
 		if f := abbruch.Load(); f != nil {
 			(*f)()

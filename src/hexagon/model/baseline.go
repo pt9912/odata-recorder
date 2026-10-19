@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Service ist ein beobachteter OData-Dienst. MetadataBlob und MetadataHash sind beide
@@ -92,6 +93,10 @@ type Import struct {
 	ReportJSON         string
 }
 
+// jsonGueltig sagt, ob s gültiges JSON in gültigem UTF-8 ist; json.Valid lässt ungültiges
+// UTF-8 in Zeichenketten zu.
+func jsonGueltig(s string) bool { return utf8.ValidString(s) && json.Valid([]byte(s)) }
+
 // Validate prüft die Invarianten eines Import-Eintrags.
 func (i Import) Validate() error {
 	switch {
@@ -99,8 +104,8 @@ func (i Import) Validate() error {
 		return ungueltig("Import ohne Kennung, Service oder Baseline")
 	case i.RequestHash == "":
 		return ungueltig("Import ohne request_hash")
-	case !json.Valid([]byte(i.ReportJSON)):
-		return ungueltig("report_json ist kein gültiges JSON")
+	case !jsonGueltig(i.ReportJSON):
+		return ungueltig("report_json ist kein gültiges JSON in UTF-8")
 	case !zeitGueltig(i.CreatedAt):
 		return ungueltig("Import ohne gültige Erzeugungszeit")
 	}
@@ -132,8 +137,8 @@ func (c Coverage) Validate() error {
 		return ungueltig("Coverage ohne entity_set")
 	case !eines(c.Status, CoverageComplete, CoveragePartial, CoverageUnknown):
 		return ungueltig("unbekannter Coverage-Status %q", c.Status)
-	case !json.Valid([]byte(c.EvidenceJSON)):
-		return ungueltig("Evidenz von %s ist kein gültiges JSON", c.EntitySet)
+	case !jsonGueltig(c.EvidenceJSON):
+		return ungueltig("Evidenz von %s ist kein gültiges JSON in UTF-8", c.EntitySet)
 	}
 	return nil
 }

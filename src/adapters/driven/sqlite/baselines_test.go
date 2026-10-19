@@ -17,13 +17,14 @@ func TestPublishSchreibtArtZeitformatUndHaeltDieSchluessel(t *testing.T) {
 		t.Fatal(err)
 	}
 	zeit := time.Date(2026, 10, 19, 10, 0, 0, 5, time.UTC)
+	versetzt := zeit.In(time.FixedZone("p5", 5*3600))
 	if err := d.Sessions().Create(ctx, model.Session{ID: "s", ServiceID: "d", CreatedAt: zeit, Status: model.SessionOpen}); err != nil {
 		t.Fatal(err)
 	}
 	blob := "sha256:" + strings.Repeat("a", 64)
 	_, neu, err := d.Imports().Publish(ctx, model.Publication{
-		Import:           model.Import{ID: "i", RequestHash: "r", BaselineSnapshotID: "b", ServiceID: "d", CreatedAt: zeit, ReportJSON: "{}"},
-		Snapshot:         model.BaselineSnapshot{ID: "b", ServiceID: "d", CreatedAt: zeit, StateBlob: blob, StateHash: "h", MetadataHash: "m"},
+		Import:           model.Import{ID: "i", RequestHash: "r", BaselineSnapshotID: "b", ServiceID: "d", CreatedAt: versetzt, ReportJSON: "{}"},
+		Snapshot:         model.BaselineSnapshot{ID: "b", ServiceID: "d", CreatedAt: versetzt, StateBlob: blob, StateHash: "h", MetadataHash: "m"},
 		SourceSessionIDs: []string{"s"},
 		Coverage:         []model.Coverage{{EntitySet: "P", Status: model.CoverageComplete, EvidenceJSON: "{}"}},
 	})
