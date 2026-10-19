@@ -42,7 +42,7 @@ Gegen SPEC-101 geprüft:
 | Randform 3: `rules: []` kein Befund | Gegenprobe oben | konform (F-1 behoben) |
 | Zwei Teile laufen beide, Exit 1 bei jedem Befund | `rc=1` und `golangci-lint … \|\| rc=1` | konform |
 
-- ADR-0003 / `AGENTS.md` §3.2: das Profil ist nicht gelockert (Diff berührt `.golangci.yml` nur im Kopfkommentar).
+- [ADR-0003](../plan/adr/0003-lint-profil-golangci.md) / `AGENTS.md` §3.2: das Profil ist nicht gelockert (Diff berührt `.golangci.yml` nur im Kopfkommentar).
 - Hinweis (F-6, offen, INFO): Einrückung des Why-Blocks nicht entschieden; kein Bruch einer Zusage.
 
 ### DoD 3 — `make lint` an `GATE_CHECKS`, Sensors-Zeile — erfüllt

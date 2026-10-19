@@ -137,7 +137,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 - **Was ging anders als geplant:** Der Review fand eine Randform, die der Vertrag entschieden und der Code anders umgesetzt hatte (F-1: `rules: []`), dazu eine Zusage im Kommentar von `.dockerignore` (F-2) und eine Schreibweise der Direktive (F-4); alle drei sind behoben. Die Mutationen stehen im Review-Report, ein eigener Bericht je Zusage fehlte (Verifikation).
 - **Steering-Loop-Eintrag:** Nichts verkörpert; gezählt, nicht verkörpert: `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft`, jetzt 2×.
 - **Beobachtungs-Register (`../observations/`):** `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft/` fortgeschrieben, Beleg `evidence/slice-lint-stufe.md`; `BEO-REPO/randform-erst-im-review-entschieden` trat nicht auf (die Randformen standen vor dem Code).
-- **Folge-Slices:** [slice-gegenproben](slice-gegenproben.md) übernimmt die Gegenprobe zu `make lint` mit F-4 (Direktive mit zwei Leerzeichen), F-5 (Profil fehlt über `make lint` nicht erreichbar) und F-6 (Einrückung des `# Why:`-Blocks); F-3 (Vorgabewert `scratch` des Build-Arguments) bleibt ohne Folge, weil `make lint` es immer setzt.
+- **Folge-Slices:** [slice-gegenproben](../open/slice-gegenproben.md) übernimmt die Gegenprobe zu `make lint` mit F-4 (Direktive mit zwei Leerzeichen), F-5 (Profil fehlt über `make lint` nicht erreichbar) und F-6 (Einrückung des `# Why:`-Blocks); F-3 (Vorgabewert `scratch` des Build-Arguments) bleibt ohne Folge, weil `make lint` es immer setzt.
 - **Risiken aus §6:** Randformen *entfallen*; schwellen *weiter offen* (steht als Grenze in `SPEC-101`); feste Form des Profils *entfallen*, siehe §6.
 - **Drei Paarungen:** von der Closure der Welle welle-fundament geprüft.
 
