@@ -100,7 +100,7 @@ Aussagen-Berührung steht hier gar nicht.
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): [slice-session-recording-persistenz](../next/slice-session-recording-persistenz.md) liegt in `done/`.
+**Start** (`next` → `in-progress`): [slice-session-recording-persistenz](../in-progress/slice-session-recording-persistenz.md) liegt in `done/`.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
