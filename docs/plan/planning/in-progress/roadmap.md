@@ -18,6 +18,8 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 - [welle-persistenz](../welle-persistenz.md)
 
+Nichts in Arbeit.
+
 
 
 
