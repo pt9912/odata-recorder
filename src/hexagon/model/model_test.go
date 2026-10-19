@@ -76,6 +76,14 @@ func TestExchangeValidate(t *testing.T) {
 		"Status 600":                     func(e *model.Exchange) { e.ResponseStatus = 600 },
 		"Request-Header kein UTF-8":      func(e *model.Exchange) { e.RequestHeaders = map[string][]string{"X": {"\xff"}} },
 		"Response-Headername kein UTF-8": func(e *model.Exchange) { e.ResponseHeaders = map[string][]string{"\xff": {"a"}} },
+		"unbekannter Response-Body":      func(e *model.Exchange) { e.ResponseBody, e.ResponseBlob = "x", "" },
+		"unbekannte Request-Redaction":   func(e *model.Exchange) { e.RequestRedact = "x" },
+		"Request-Body present ohne Blob": func(e *model.Exchange) { e.RequestBody = model.BodyPresent },
+		"Response-Blob ohne present":     func(e *model.Exchange) { e.ResponseBody = model.BodyAbsent },
+		"finished_at nach Jahr 9999":     func(e *model.Exchange) { e.FinishedAt = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC) },
+		"UTC-Jahr 10000 in Zone": func(e *model.Exchange) {
+			e.StartedAt = time.Date(9999, 12, 31, 23, 0, 0, 0, time.FixedZone("m2", -2*3600))
+		},
 		"unsafe Request ohne failed, Body verworfen": func(e *model.Exchange) {
 			e.RequestBody, e.RequestRedact, e.Capture = model.BodyDiscarded, model.RedactionUnsafe, model.CaptureIncomplete
 		},
@@ -94,6 +102,18 @@ func TestExchangeValidate(t *testing.T) {
 		if err := e.Validate(); !errors.Is(err, model.ErrUngueltig) {
 			t.Errorf("%s: %v", name, err)
 		}
+	}
+	for _, status := range []int{0, 100, 599} {
+		e := gueltigerExchange()
+		e.ResponseStatus = status
+		if err := e.Validate(); err != nil {
+			t.Errorf("Status %d: %v", status, err)
+		}
+	}
+	zone := gueltigerExchange()
+	zone.StartedAt = time.Date(10000, 1, 1, 1, 0, 0, 0, time.FixedZone("p2", 2*3600))
+	if err := zone.Validate(); err != nil {
+		t.Errorf("UTC-Jahr 9999 in Zone: %v", err)
 	}
 	erlaubt := gueltigerExchange()
 	erlaubt.MatchKey, erlaubt.Capture = "", model.CaptureFailed

@@ -94,11 +94,11 @@ Aussagen-Berührung steht hier gar nicht.
 | Nr. 2/11: Unbekanntes ist `ErrNichtGefunden` | `Get einer unbekannten Kennung`, `Get und ListBySession bei Unbekanntem und Leerem` |
 | Nr. 3: nur `open` → `complete`/`incomplete` | `SetStatus erlaubt nur …`, `TestSessionStatusWechsel`; Mutationen: Übergang immer erlaubt, unbekannte Kennung ohne Fehler |
 | Nr. 4/5: Ordnung nach Zeit, leere Liste, `FindOpen` | `List und FindOpen ordnen …`, `List ordnet nach Zeit, nicht nach Text`; Mutationen: ohne `ORDER BY`, Filter umgekehrt, Zeitformat mit variabler Nachkommastelle, Zeit ohne UTC |
-| Nr. 6: `Delete` nimmt Exchanges mit, achtet Baseline-Quellen | `Delete nimmt Exchanges mit …`; Mutationen: Exchanges nicht gelöscht, `ErrReferenziert` entfernt, kein Rollback; Cursors löscht der Fremdschlüssel `CASCADE` (`make schema-check`, Fall „Session löschen nimmt ihre Cursor mit“) |
-| Nr. 7: `Append` nur an offene, bekannte Session | `Append prüft Session und Zustand`; Mutation: Zustandsprüfung entfernt |
+| Nr. 6: `Delete` nimmt Exchanges mit, achtet Baseline-Quellen | `Delete nimmt Exchanges mit …`; Mutationen: Exchanges nicht gelöscht, alle Exchanges gelöscht, `ErrReferenziert` entfernt, kein Rollback; Cursors löscht der Fremdschlüssel `CASCADE` (`make schema-check`, Fall „Session löschen nimmt ihre Cursor mit“) |
+| Nr. 7: `Append` nur an offene, bekannte Session | `Append prüft Session und Zustand`; Mutationen: Zustandsprüfung entfernt, `incomplete` als offen behandelt |
 | Nr. 8: `sequence_no` lückenlos, auch gleichzeitig | `sequence_no ist lückenlos`, `gleichzeitige Anhänge ordnen sich`; Mutation: Sequenzprüfung entfernt |
 | Nr. 9: append-only, doppelte Kennung ändert nichts | `doppelte Kennung ändert nichts`; es gibt keine ändernde Operation am Port; die Kennungsprüfung und der Primärschlüssel decken sich, `INSERT OR REPLACE` allein ist äquivalent und keine Mutation |
-| Nr. 10: Gültigkeit von Exchange und Session (Pflichtfelder, Aufzählungen, Bodies, Zustände, Jahre 1 bis 9999, `finished_at`, Status, UTF-8) | `ungültige Exchanges werden abgelehnt`, `Zeiten außerhalb der Jahre 1 bis 9999 sind ungültig`, `TestExchangeValidate`, `TestSessionValidate`; Mutationen: je eine Regel von `Validate` entfernt oder abgeschwächt |
+| Nr. 10: Gültigkeit von Exchange und Session (Pflichtfelder, Aufzählungen, Bodies, Zustände, Jahre 1 bis 9999, `finished_at`, Status, UTF-8) | `ungültige Exchanges werden abgelehnt`, `Zeiten außerhalb der Jahre 1 bis 9999 sind ungültig`, `TestExchangeValidate`, `TestSessionValidate`; Mutationen, je rot im benannten Test: Kennungsprüfung aus, Zeit ohne UTC, Jahresprüfung von `finished_at` entfernt, Status 100 und 599 als Grenze, Aufzählung von Response-Body und Request-Redaction, Blob-Regel je Richtung |
 | Nr. 11: `ListBySession` nach `sequence_no` | `ListBySession ordnet nach sequence_no, nicht nach Kennung`; Mutation: Ordnung nach Kennung |
 | Nr. 12: Header-Randformen | `Header-Randformen`; Mutation: `nil`-Normalisierung im Schreiber entfernt |
 | Nr. 13: abgebrochener Kontext beendet jede Operation ohne Änderung | beide Tests `abgebrochener Kontext beendet jede Operation ohne Änderung` (alle neun Operationen); die Prüfung leistet `database/sql`, eine eigene im Adapter gibt es nicht und ist keine Mutation |
@@ -111,7 +111,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): [slice-sqlite-adapter-migration](../done/slice-sqlite-adapter-migration.md) liegt in `done/`.
 
-**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei 1248 Zeilen, getragen von den Vertragstests (`outboundtest`, rund 450 Zeilen), den Modelltests und dem Adapter mit Tests. Der Slice bleibt ungeteilt, weil Modell, Ports und Adapter einzeln nichts liefern.
+**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei rund 1430 Zeilen, getragen von den Vertragstests (`outboundtest`, rund 450 Zeilen), den Modelltests und dem Adapter mit Tests. Der Slice bleibt ungeteilt, weil Modell, Ports und Adapter einzeln nichts liefern.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 

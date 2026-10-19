@@ -41,7 +41,7 @@ func istFremdschluessel(err error) bool {
 }
 
 // inTx führt f in einer Schreibtransaktion auf einer Verbindung aus: Erfolg bestätigt,
-// jeder Fehler rollt zurück; ein abgebrochener Kontext beendet jeden Schritt mit seinem Fehler.
+// jeder Fehler rollt zurück.
 func (d *DB) inTx(ctx context.Context, f func(*sql.Conn) error) (err error) {
 	conn, err := d.sql.Conn(ctx)
 	if err != nil {

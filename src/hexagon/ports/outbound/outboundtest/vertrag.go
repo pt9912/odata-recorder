@@ -75,9 +75,6 @@ func RunSessionVertrag(t *testing.T, neu Neu) {
 		{"List ordnet nach Zeit, nicht nach Text", sessionFall7},
 		{"Zeiten außerhalb der Jahre 1 bis 9999 sind ungültig", sessionFall8},
 		{"abgebrochener Kontext beendet jede Operation ohne Änderung", sessionFall9},
-		{"List ordnet nach Zeit, nicht nach Text", sessionFall7},
-		{"Zeiten außerhalb der Jahre 1 bis 9999 sind ungültig", sessionFall8},
-		{"abgebrochener Kontext beendet jede Operation ohne Änderung", sessionFall9},
 	} {
 		t.Run(f.name, func(t *testing.T) { f.lauf(t, neu) })
 	}
@@ -112,6 +109,8 @@ func sessionFall2(t *testing.T, neu Neu) {
 	ok(t, v.Sessions.Create(ctx, session("s1", "d", 0)))
 	erwarte(t, v.Sessions.Create(ctx, session("s1", "d", 1)), outbound.ErrBereitsVorhanden)
 	erwarte(t, v.Sessions.Create(ctx, session("s2", "fremd", 1)), outbound.ErrDienstUnbekannt)
+	// Reihenfolge: Kennung vor Service.
+	erwarte(t, v.Sessions.Create(ctx, session("s1", "fremd", 2)), outbound.ErrBereitsVorhanden)
 	if _, err := v.Sessions.Get(ctx, "s2"); !errors.Is(err, outbound.ErrNichtGefunden) {
 		t.Fatalf("Session mit unbekanntem Service wurde angelegt: %v", err)
 	}
@@ -201,6 +200,9 @@ func sessionFall6(t *testing.T, neu Neu) {
 	ok(t, v.Sessions.Delete(ctx, "s"))
 	_, err := v.Recording.Get(ctx, "e1")
 	erwarte(t, err, outbound.ErrNichtGefunden)
+	if _, err := v.Recording.Get(ctx, "e2"); err != nil {
+		t.Fatalf("Delete nahm den Exchange einer anderen Session mit: %v", err)
+	}
 	_, err = v.Sessions.Get(ctx, "s")
 	erwarte(t, err, outbound.ErrNichtGefunden)
 	erwarte(t, v.Sessions.Delete(ctx, "s"), outbound.ErrNichtGefunden)
@@ -257,6 +259,9 @@ func recordingFall2(t *testing.T, neu Neu) {
 	erwarte(t, v.Recording.Append(ctx, exchange("fremd", "e1", 1)), outbound.ErrNichtGefunden)
 	ok(t, v.Sessions.SetStatus(ctx, "s", model.SessionComplete))
 	erwarte(t, v.Recording.Append(ctx, exchange("s", "e1", 1)), outbound.ErrSessionGeschlossen)
+	ok(t, v.Sessions.Create(ctx, session("i", "d", 1)))
+	ok(t, v.Sessions.SetStatus(ctx, "i", model.SessionIncomplete))
+	erwarte(t, v.Recording.Append(ctx, exchange("i", "e2", 1)), outbound.ErrSessionGeschlossen)
 	if _, err := v.Recording.Get(ctx, "e1"); !errors.Is(err, outbound.ErrNichtGefunden) {
 		t.Fatalf("Exchange an geschlossene Session angehängt: %v", err)
 	}
@@ -310,9 +315,11 @@ func recordingFall5(t *testing.T, neu Neu) {
 	ctx := context.Background()
 	v := offeneSession(t, neu)
 	ok(t, v.Recording.Append(ctx, exchange("s", "e1", 1)))
-	anders := exchange("s", "e1", 2)
+	anders := exchange("s", "e1", 5)
 	anders.Path = "/Anders"
 	erwarte(t, v.Recording.Append(ctx, anders), outbound.ErrBereitsVorhanden)
+	// Reihenfolge: Session vor Kennung, Kennung vor Sequenz.
+	erwarte(t, v.Recording.Append(ctx, exchange("fremd", "e1", 1)), outbound.ErrNichtGefunden)
 	got, err := v.Recording.Get(ctx, "e1")
 	ok(t, err)
 	if got.Path != "/Products" || got.SequenceNo != 1 {
@@ -336,6 +343,7 @@ func recordingFall6(t *testing.T, neu Neu) {
 		"ohne Startzeit":              func(e *model.Exchange) { e.StartedAt = time.Time{} },
 		"Startzeit nach Jahr 9999":    func(e *model.Exchange) { e.StartedAt = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC) },
 		"finished_at vor started_at":  func(e *model.Exchange) { e.FinishedAt = e.StartedAt.Add(-time.Second) },
+		"finished_at nach Jahr 9999":  func(e *model.Exchange) { e.FinishedAt = time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC) },
 		"Status unter 100":            func(e *model.Exchange) { e.ResponseStatus = 99 },
 		"Status über 599":             func(e *model.Exchange) { e.ResponseStatus = 600 },
 		"negativer Status":            func(e *model.Exchange) { e.ResponseStatus = -1 },

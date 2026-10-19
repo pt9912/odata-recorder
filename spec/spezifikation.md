@@ -617,6 +617,8 @@ Die Schemaversion der Datei steht in `PRAGMA user_version`; das Programm kennt h
 `SessionRepository` und `RecordingRepository` sind die Outbound Ports für Sessions und ihre Exchanges (`ARC-004`).
 Kennungen vergibt der Aufrufer; die Zeitstempel sind UTC, liegen in den Jahren 1 bis 9999 und werden als RFC 3339 mit genau neun Nachkommastellen gespeichert, damit die Textordnung die Zeitordnung ist, und gelesen.
 Jede Operation ist atomar: sie geschieht ganz oder gar nicht.
+Die Nullzeit `0001-01-01T00:00:00Z` gilt als nicht gesetzt.
+Die Prüfung der Gültigkeit eines Arguments geht der Prüfung des Kontexts voraus: ein ungültiges Argument ist `ErrUngueltig`, auch bei abgebrochenem Kontext.
 
 **Session** (`open` → `complete` oder `incomplete`; ein Zustand außer `open` ist endgültig):
 1. `Create` legt eine Session im Zustand `open` an. Ein anderer Zustand, eine leere Kennung, ein leerer `service_id` oder eine Zeit außerhalb der Jahre 1 bis 9999 ist `ErrUngueltig`; danach folgt die Prüfung der Kennung (`ErrBereitsVorhanden`) und die des Service (`ErrDienstUnbekannt`).
