@@ -21,6 +21,7 @@ type Fall struct {
 	Ersetze            []Ersetzung
 	Entferne           []string          // Dateien, aus der Kopie gelöscht
 	Kopiere            map[string]string // Ziel -> Quelle, beide in der Kopie
+	Argumente          []string          // ersetzt die Argumente des Aufrufs von migration-check.sh
 	OhneGoDateienInSrc bool              // löscht jede Datei *.go unter src/ der Kopie
 	WantExit           int
 	WantText           []string // jeder Text muss in der Ausgabe stehen
@@ -66,7 +67,7 @@ func migrationKopie() map[string]string {
 
 const regelnKopf = "\n    rules:\n"
 
-func faelle() []Fall {
+func aCheckFaelle() []Fall {
 	return []Fall{
 		{Name: "a-check/basis", Gate: gateACheck},
 		{
@@ -94,6 +95,16 @@ func faelle() []Fall {
 				"src/hexagon/services/dienst/dienst.go":   goDatei("dienst", "src/hexagon/ports/outbound/port", "src/hexagon/model/kern"),
 			},
 		},
+		{
+			Name: "a-check/bibliothek-in-fremdem-adapter", Gate: gateACheck,
+			Neu:      map[string]string{"src/adapters/driven/andere/andere.go": "// Package andere importiert die SQLite-Bibliothek.\npackage andere\n\nimport _ \"modernc.org/sqlite\"\n"},
+			WantExit: 1, WantText: []string{"tech-leak"},
+		},
+	}
+}
+
+func lintFaelle() []Fall {
+	return []Fall{
 		{Name: "lint/basis", Gate: gateLint, WantText: []string{"0 issues"}},
 		{
 			Name: "lint/direktive-nolint", Gate: gateLint,
@@ -151,6 +162,11 @@ func faelle() []Fall {
 			OhneGoDateienInSrc: true,
 			WantExit:           1, WantText: []string{"keine Datei *.go"},
 		},
+	}
+}
+
+func migrationFaelle() []Fall {
+	return []Fall{
 		{Name: "migration/gleich", Gate: gateMigration, Kopiere: migrationKopie(), WantText: []string{"migration-check: ok"}},
 		{
 			Name: "migration/abweichung", Gate: gateMigration, Kopiere: migrationKopie(),
@@ -162,5 +178,25 @@ func faelle() []Fall {
 			Neu:      map[string]string{migrationen + "/0002_x.sql": "-- x\n"},
 			WantExit: 1, WantText: []string{"ungeprüft"},
 		},
+		{
+			Name: "migration/migration-fehlt", Gate: gateMigration, Kopiere: migrationKopie(),
+			Entferne: []string{migrationen + "/0001_init.sql"},
+			WantExit: 2, WantText: []string{"fehlt"},
+		},
+		{
+			Name: "migration/erzeugtes-ddl-fehlt", Gate: gateMigration,
+			WantExit: 2, WantText: []string{"fehlt"},
+		},
+		{
+			Name: "migration/falsche-aufrufform", Gate: gateMigration, Kopiere: migrationKopie(),
+			Argumente: []string{"nur-eins"},
+			WantExit:  2, WantText: []string{"Aufruf"},
+		},
 	}
+}
+
+func faelle() []Fall {
+	alle := aCheckFaelle()
+	alle = append(alle, lintFaelle()...)
+	return append(alle, migrationFaelle()...)
 }

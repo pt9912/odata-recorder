@@ -2,6 +2,7 @@ package sqlite_test
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"os"
@@ -151,9 +152,35 @@ func roh(t *testing.T, pfad, stmt string) {
 	}
 }
 
+// zustand liefert den Hash der Datei und die Namen aller Dateien neben ihr.
+func zustand(t *testing.T, pfad string) (string, []string) {
+	t.Helper()
+	b, err := os.ReadFile(pfad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eintraege, err := os.ReadDir(filepath.Dir(pfad))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var namen []string
+	for _, e := range eintraege {
+		namen = append(namen, e.Name())
+	}
+	h := sha256.Sum256(b)
+	return string(h[:]), namen
+}
+
 func TestNeuereSchemaversionWirdVerweigert(t *testing.T) {
 	pfad := filepath.Join(t.TempDir(), "r.db")
 	roh(t, pfad, "PRAGMA user_version = 2")
+	vorher, dateienVorher := zustand(t, pfad)
+	defer func() {
+		nachher, dateien := zustand(t, pfad)
+		if nachher != vorher || strings.Join(dateien, ",") != strings.Join(dateienVorher, ",") {
+			t.Error("die abgelehnte Datei wurde verändert")
+		}
+	}()
 	_, err := sqlite.Open(context.Background(), pfad, sqlite.Options{})
 	if !errors.Is(err, sqlite.ErrSchemaNeuer) || !strings.Contains(err.Error(), "2") || !strings.Contains(err.Error(), "1") {
 		t.Fatalf("Fehler %v", err)
@@ -172,6 +199,13 @@ func TestNeuereSchemaversionWirdVerweigert(t *testing.T) {
 func TestFremdeDatenbankWirdVerweigert(t *testing.T) {
 	pfad := filepath.Join(t.TempDir(), "r.db")
 	roh(t, pfad, "CREATE TABLE fremd (a INTEGER)")
+	vorher, dateienVorher := zustand(t, pfad)
+	defer func() {
+		nachher, dateien := zustand(t, pfad)
+		if nachher != vorher || strings.Join(dateien, ",") != strings.Join(dateienVorher, ",") {
+			t.Error("die abgelehnte Datei wurde verändert")
+		}
+	}()
 	_, err := sqlite.Open(context.Background(), pfad, sqlite.Options{})
 	if !errors.Is(err, sqlite.ErrFremdeDatenbank) {
 		t.Fatalf("Fehler %v", err)
@@ -196,6 +230,33 @@ func TestKeineSQLiteDateiIstBeschaedigt(t *testing.T) {
 	got, rerr := os.ReadFile(pfad)
 	if rerr != nil || string(got) != string(inhalt) {
 		t.Fatal("Datei wurde verändert")
+	}
+	if _, dateien := zustand(t, pfad); len(dateien) != 1 {
+		t.Fatalf("Dateien neben der abgelehnten: %v", dateien)
+	}
+}
+
+func TestAbgeschnittenerRumpfIstBeschaedigt(t *testing.T) {
+	pfad := filepath.Join(t.TempDir(), "r.db")
+	d := open(t, pfad)
+	if err := d.Close(); err != nil {
+		t.Fatal(err)
+	}
+	voll, err := os.ReadFile(pfad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(pfad, voll[:100], 0o600); err != nil {
+		t.Fatal(err)
+	}
+	vorher, dateienVorher := zustand(t, pfad)
+	_, err = sqlite.Open(context.Background(), pfad, sqlite.Options{})
+	if !errors.Is(err, sqlite.ErrBeschaedigt) {
+		t.Fatalf("Fehler %v", err)
+	}
+	nachher, dateien := zustand(t, pfad)
+	if nachher != vorher || strings.Join(dateien, ",") != strings.Join(dateienVorher, ",") {
+		t.Fatal("die abgelehnte Datei wurde verändert")
 	}
 }
 

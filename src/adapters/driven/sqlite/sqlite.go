@@ -1,6 +1,7 @@
 // Package sqlite ist der Driven Adapter der Persistenz: Er öffnet die SQLite-Datei und
-// bringt sie auf die Schemaversion des Programms (SPEC-103). Nur dieses Paket bindet
-// die SQLite-Bibliothek ein.
+// bringt sie auf die Schemaversion des Programms (SPEC-103). Dieses Paket bindet die
+// SQLite-Bibliothek ein; die tech-Regel in .a-check.yml hält sie aus den übrigen
+// Adaptern und dem Kern, die Composition Root nimmt a-check aus.
 package sqlite
 
 import (
@@ -60,7 +61,6 @@ func Open(ctx context.Context, path string, opt Options) (*DB, error) {
 	q := url.Values{}
 	q.Add("_pragma", "foreign_keys(1)")
 	q.Add("_pragma", fmt.Sprintf("busy_timeout(%d)", busy.Milliseconds()))
-	q.Add("_pragma", "journal_mode(wal)")
 	dsn := (&url.URL{Scheme: "file", Path: abs, RawQuery: q.Encode()}).String()
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {

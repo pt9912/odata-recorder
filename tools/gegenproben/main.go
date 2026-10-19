@@ -154,6 +154,9 @@ func fahre(u Umgebung, fs []Fall, wurzel string) (erg []Ergebnis, err error) {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			name, args, wd := u.Befehl(dirs[i], fs[i].Gate)
+			if fs[i].Argumente != nil {
+				args = append([]string{"tools/harness/migration-check.sh"}, fs[i].Argumente...)
+			}
 			// golangci-lint sperrt eine Datei in TMPDIR gegen parallele Läufe; jeder Fall hat sein eigenes.
 			code, out, abgelaufen := starte(fallFrist, wd, []string{"TMPDIR=" + tmps[i]}, name, args...)
 			erg[i] = Ergebnis{Name: fs[i].Name, Rot: bewerte(fs[i], code, out, abgelaufen)}

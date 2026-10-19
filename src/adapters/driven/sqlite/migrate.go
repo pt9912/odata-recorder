@@ -54,6 +54,11 @@ func (d *DB) migrate(ctx context.Context, ddl string) (err error) {
 		return klassifiziere(err)
 	}
 	done = true
+	// Der Modus bleibt in der Datei; nur der Öffner, der migriert hat, schaltet ihn um.
+	var modus string
+	if err = conn.QueryRowContext(ctx, "PRAGMA journal_mode = wal").Scan(&modus); err != nil {
+		return klassifiziere(err)
+	}
 	return nil
 }
 

@@ -103,6 +103,9 @@ Aussagen-Berührung steht hier gar nicht.
 | Gleichzeitiges Öffnen migriert einmal | `TestGleichzeitigesOeffnenMigrierteinmal`; Mutation: ohne Transaktion |
 | Migration ist atomar | `TestMigrationLaeuftInEinerTransaktion`; Mutation: ohne `BEGIN` |
 | Zweites `Close` ist kein Fehler | `TestCloseIstIdempotent` |
+| Abgelehnte Datei bleibt byte-gleich | `zustand`-Prüfung in `TestNeuereSchemaversionWirdVerweigert`, `TestFremdeDatenbankWirdVerweigert`, `TestKeineSQLiteDateiIstBeschaedigt`, `TestAbgeschnittenerRumpfIstBeschaedigt` |
+| Die Bibliothek bleibt im Adapter | Fall `a-check/bibliothek-in-fremdem-adapter` (`tech-leak`) |
+| `migration-check.sh` meldet fehlende Dateien und falschen Aufruf | Fälle `migration/migration-fehlt`, `migration/erzeugtes-ddl-fehlt`, `migration/falsche-aufrufform` |
 | `migration-check` meldet Abweichung und weitere Dateien | Fälle `migration/abweichung`, `migration/weitere-datei`; Mutationen: `cmp` und Dateischleife entfernt |
 
 ## 4. Trigger
@@ -112,7 +115,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md) ist `Accepted` und `welle-fundament` liegt in `done/`.
 
-**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei 783 Zeilen; getragen von der erzeugten Migration (163 Zeilen), den Tests des Adapters und den Fällen der Gegenproben. Der Slice bleibt ungeteilt, weil Adapter, Gate und Gegenprobe einzeln nichts liefern.
+**Marke überschritten:** Die Summe aus `git diff --numstat` über die Pfade aus §3 liegt bei 875 Zeilen (alle Pfade aus §3, go.sum eingeschlossen); getragen von der erzeugten Migration (163 Zeilen), den Tests des Adapters und den Fällen der Gegenproben. Der Slice bleibt ungeteilt, weil Adapter, Gate und Gegenprobe einzeln nichts liefern.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -134,7 +137,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Randformen der Repositories (`AGENTS.md` §3.12): leerer, fehlender oder unbekannter Wert, doppelter Schlüssel, Abbruch mitten in der Transaktion, gleichzeitiger Zugriff — **Ausgang:** entfallen: entschieden in `spezifikation.md` (Produkt) vor dem ersten Code-Commit.
+- Randformen des Öffnens und des Gates (`AGENTS.md` §3.12): fremde Datei, neuere Schemaversion, beschädigte Datei, gleichzeitiges Öffnen, fehlende Migration — **Ausgang:** entfallen: entschieden in `SPEC-103` und `SPEC-104` vor dem ersten Code-Commit; das Review fand dennoch zwei Abweichungen von `SPEC-103` (WAL vor der Versionsprüfung, flackernde Gleichzeitigkeit), beide behoben.
 - Der Treiber zieht Abhängigkeiten, die `go mod verify` oder das netzlose Bauen stören — **Ausgang:** weiter offen: wird beim Bauen der Stufe `deps` sichtbar und dann als Beobachtung geführt.
 - Das Einbetten der Migration weicht vom erzeugten DDL ab, ohne dass jemand es merkt — **Ausgang:** entfallen: `migration-check` und sein Gegenprobe-Fall.
 
