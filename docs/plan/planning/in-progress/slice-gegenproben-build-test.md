@@ -80,9 +80,10 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | `tools/pruefung/` | neu | Go-Modul ohne Abhängigkeiten: die Prüfungen aus `Dockerfile` und `harness/mk/go-gates.mk` als `pruefung test` und `pruefung build` |
-| `Dockerfile`, `harness/mk/go-gates.mk`, `.dockerignore` | update | Stufe für `pruefung`, Aufruf in den Stufen `test` und `build`, die Zeilen der Prüfung in `go-gates.mk` entfallen; Lint-Stufe prüft auch dieses Modul |
+| `Dockerfile`, `harness/mk/go-gates.mk`, `.dockerignore` | update | Stufe `pruefung` (gofmt, vet, Test, Bau), Aufruf `pruefung test /src` in der Stufe `test` und `pruefung build /out/odata-recorder "$VERSION"` in der Stufe `build`; die zwei Prüfzeilen nach dem `docker build` in `go-gates.mk` entfallen; die Lint-Stufe kopiert `tools/pruefung` und prüft es als zweites Modul; die Stufe `gegenproben` bekommt `pruefung` |
+| `.golangci.yml` | update | Die Ausnahme für `os.Stdout` und `os.Stderr` im Einstieg gilt auch für `tools/pruefung/main.go` (mit `# Why:`); keine Schwelle sinkt |
 | `tools/harness/gegenproben-eingabe.sh` | update | `tools/pruefung` gehört zu den Eingaben |
-| `tools/gegenproben/` | update | Fälle 25 bis 33 und ihre Befehle; die Stufe `gegenproben` bekommt `pruefung` aus der eigenen Stufe |
+| `tools/gegenproben/` | update | Fälle 25 bis 33 und ihre Befehle; Fälle mit `Bau` erzeugen das Binary mit `go build` in der Kopie; `Umgebung.Programme` nennt `pruefung`, `go` und `gofmt`; die Eingabenliste des Programms bleibt (`pruefung` ist das Programm, keine Eingabe der Kopie), die Prüfsumme in `gegenproben-eingabe.sh` nennt `tools/pruefung` |
 | `harness/vertraege/SPEC-102-gegenproben.md`, `SPEC-036-test.md`, `harness/README.md` | update | Fälle, Prüfprogramm und Randformen stehen vor dem Code im Vertrag; `harness/README.md` nennt `pruefung` bei den Sensors |
 
 **Randform-Raster** (`AGENTS.md` §3.16; Ort in `SPEC-036`, Randformen von `pruefung`):
@@ -106,6 +107,7 @@ Aussagen-Berührung steht hier gar nicht.
 | `pruefung` meldet falschen Aufruf mit Exit 2 | Fall `test/aufruf`; Mutation: Prüfung der Argumentzahl entfernt |
 | `pruefung build` ohne Befund endet mit Exit 0 | Fall `build/basis` |
 | Version mit Zusatztext, Binary startet nicht, kein Go-Binary, Wurzel fehlt (Randformen Nr. 2, 4, 5, 6) | Tests in `tools/pruefung`; Mutation: jeweilige Prüfung entfernt |
+| Falscher Aufruf, `Binary` fehlt, Programm nicht aufrufbar, Verzeichnis ohne Go-Dateien, kein Zustand (Randformen Nr. 1, 3, 7, 8, 10) | Tests in `tools/pruefung`; Mutation: jeweilige Prüfung entfernt, bei Nr. 8 eine eigene Prüfung auf Go-Dateien hinzugefügt, bei Nr. 10 eine Datei in `Wurzel` geschrieben |
 | Die Stufen `test` und `build` rufen `pruefung` | Gate: ein roter Verstoß im Quellstand lässt `make test` bzw. `make build` rot werden — Beleg im Bericht des Implementers, kein Fall (Grenze in `SPEC-102`) |
 
 ## 4. Trigger
@@ -139,6 +141,8 @@ dasteht.
 - Die Fälle verlangen ein Binary, das nur im Image der Stufe `build` entsteht — **Ausgang:** weiter offen: der Slice baut es im Prozess mit `go build` in der Kopie; weicht das vom Image ab, steht es als Beobachtung im Register.
 - `pruefung` ändert das Verhalten der Gates unbemerkt — **Ausgang:** wird bei der Closure eingetragen; Beleg: `make gates` grün, die Mutation je Zusage und ein roter Verstoß im Quellstand je Ziel.
 - Zeitbudget: neun Fälle mit `go`-Aufrufen können die 30 s aus `SPEC-102` sprengen — **Ausgang:** wird bei der Closure eingetragen; reißt der Lauf das Budget, geht der Punkt an den Planner, kein Lockern im Code.
+  Messung bei Last (Lastmittel 12 bis 83 auf 20 Kernen, `time make gegenproben`, Images lokal): 38,5 s in der Stufe, 51 s gesamt mit den neun Fällen; die 24 früheren Fälle allein brauchen im Container 33 bis 55 s Wanduhr und 7,3 bis 7,8 Minuten CPU, die neun Fälle fügen 1,3 bis 1,7 Minuten CPU hinzu. Die 30 s sind auf dieser Maschine auch ohne die neun Fälle nicht zu halten; der Punkt geht an den Planner.
+- `<Binary> version` endet mit Exit ungleich 0 und gibt die erwartete Version aus: `SPEC-036` entscheidet es nicht (§3.12). `pruefung` meldet es als Befund `Binary startet nicht:` (Exit 1), wie das bisherige Gate; der Test `TestBuildBinaryStartetNicht` fängt es — **Ausgang:** weiter offen, geht an den Architect, der die Randform in `SPEC-036` einträgt oder anders entscheidet.
 
 ## 7. Closure-Notiz
 
