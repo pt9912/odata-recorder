@@ -154,7 +154,8 @@ func leseBegrenzt(pfad string) ([]byte, string) {
 	return roh, ""
 }
 
-// dateiEintrag prüft ein Objekt der Datei; ein fehlerhaftes Feld bleibt leer und ist gemeldet.
+// dateiEintrag prüft ein Objekt der Datei; ein fehlerhaftes Feld bleibt leer und ist gemeldet,
+// ein Feld falschen Typs mit genau einer Zeile (SPEC-110 Nr. 9).
 func (p *pruefer) dateiEintrag(i int, roh json.RawMessage, record bool) Dienst {
 	eintrag := fmt.Sprintf("SERVICES_FILE[%d]", i)
 	var felder map[string]json.RawMessage
@@ -167,24 +168,32 @@ func (p *pruefer) dateiEintrag(i int, roh json.RawMessage, record bool) Dienst {
 			p.melde(eintrag, "unbekanntes Feld")
 		}
 	}
-	text := func(feld string) string {
-		var s *string
-		if _, da := felder[feld]; !da {
-			return ""
+	// text liefert den getrimmten Wert; ok ist false, wenn das Feld den falschen Typ hat und gemeldet ist.
+	text := func(feld string) (wert string, ok bool) {
+		roh, da := felder[feld]
+		if !da {
+			return "", true
 		}
-		if err := json.Unmarshal(felder[feld], &s); err != nil {
+		var s *string
+		if err := json.Unmarshal(roh, &s); err != nil {
 			p.melde(eintrag+"."+feld, "muss eine Zeichenkette sein")
-			return ""
+			return "", false
 		}
 		if s == nil {
-			return ""
+			return "", true
 		}
-		return strings.TrimSpace(*s)
+		return strings.TrimSpace(*s), true
 	}
 	var d Dienst
-	d.ID = p.pflichtfeld(eintrag+".id", text("id"), istDienstID, "1 bis 64 Zeichen aus Buchstaben, Ziffern, ., _ und -")
-	d.Root = p.pflichtfeld(eintrag+".service_root", text("service_root"), istRoot, "muss / sein oder Segmente /a/b ohne abschließenden Schrägstrich")
-	d.UpstreamURL = p.upstreamURL(eintrag+".upstream_url", text("upstream_url"), record)
+	if w, ok := text("id"); ok {
+		d.ID = p.pflichtfeld(eintrag+".id", w, istDienstID, "1 bis 64 Zeichen aus Buchstaben, Ziffern, ., _ und -")
+	}
+	if w, ok := text("service_root"); ok {
+		d.Root = p.pflichtfeld(eintrag+".service_root", w, istRoot, "muss / sein oder Segmente /a/b ohne abschließenden Schrägstrich")
+	}
+	if w, ok := text("upstream_url"); ok {
+		d.UpstreamURL = p.upstreamURL(eintrag+".upstream_url", w, record)
+	}
 	return d
 }
 

@@ -745,10 +745,26 @@ func TestKonfigMeldungSortierung(t *testing.T) {
 	if len(zeilen) != 1 {
 		t.Errorf("gleiche Zeilen nicht zusammengefasst: %v", zeilen)
 	}
-	// bei gleichem Schlüssel nach Grund: ein Feld des falschen Typs meldet den Typ und den fehlenden Wert
-	_, zeilen = lade(t, "MODE=replay", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, `[{"id":1,"service_root":"/a"}]`))
-	soll = []string{"ODR-E2001 SERVICES_FILE[0].id: Pflichtfeld fehlt", "ODR-E2001 SERVICES_FILE[0].id: muss eine Zeichenkette sein"}
+	// dritte gleiche id: „doppelte id“ für [2] genau einmal, obwohl [2] mit [0] und [1] kollidiert
+	_, zeilen = lade(t, "MODE=replay", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, `[{"id":"a","service_root":"/a"},{"id":"a","service_root":"/b"},{"id":"a","service_root":"/c"}]`))
+	soll = []string{"ODR-E2001 SERVICES_FILE[1].id: doppelte id", "ODR-E2001 SERVICES_FILE[2].id: doppelte id"}
 	if !slices.Equal(zeilen, soll) {
-		t.Errorf("Grund-Folge %v, erwartet %v", zeilen, soll)
+		t.Errorf("dritte gleiche id %v, erwartet %v", zeilen, soll)
+	}
+}
+
+// TestKonfigDienstefeldTyp: ein Feld falschen Typs meldet nur den Typ, weder „Pflichtfeld fehlt“ noch die Form noch „im Modus record erforderlich“ (SPEC-110 Nr. 9, Nr. 12).
+func TestKonfigDienstefeldTyp(t *testing.T) {
+	for name, tc := range map[string]struct{ inhalt, zeile string }{
+		"id":           {`[{"id":1,"service_root":"/a","upstream_url":"https://h"}]`, "ODR-E2001 SERVICES_FILE[0].id: muss eine Zeichenkette sein"},
+		"service_root": {`[{"id":"a","service_root":1,"upstream_url":"https://h"}]`, "ODR-E2001 SERVICES_FILE[0].service_root: muss eine Zeichenkette sein"},
+		"upstream_url": {`[{"id":"a","service_root":"/a","upstream_url":1}]`, "ODR-E2001 SERVICES_FILE[0].upstream_url: muss eine Zeichenkette sein"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, zeilen := lade(t, "MODE=record", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, tc.inhalt))
+			if !slices.Equal(zeilen, []string{tc.zeile}) {
+				t.Errorf("Zeilen %v, erwartet [%s]", zeilen, tc.zeile)
+			}
+		})
 	}
 }
