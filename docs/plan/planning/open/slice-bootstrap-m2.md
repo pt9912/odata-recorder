@@ -31,7 +31,7 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Der Composition Root verdrahtet Konfiguration, Adapter, Services und Listener je Betriebsmodus (`record`, `replay`), fährt Startwartung, erste Session und geordnetes Herunterfahren, und der M2-Test zeichnet über den Recorder gegen einen Referenzdienst auf und spielt ohne Upstream byte-gleich ab.
+**Ziel:** Der Composition Root verdrahtet Konfiguration, Adapter, Services und Listener je Betriebsmodus (`record`, `replay`), fährt Startwartung, erste Session und geordnetes Herunterfahren, der Start-Befehl lädt die Konfiguration über `LadeOderMelde` (Exit-Code 1 und Meldung nach `SPEC-110` bei Verstoß; `mock` und `hybrid` scheitern mit `ODR-E2001`; übernommen von `slice-fehlermodell-konfiguration`, das Laden selbst liegt dort), und der M2-Test zeichnet über den Recorder gegen einen Referenzdienst auf und spielt ohne Upstream byte-gleich ab.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -57,7 +57,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Verdrahtung und Lebenszyklus: Reihenfolge `MaintenanceUseCase` → erste Session → Listener; ein Use Case je Modus am Listener; Herunterfahren mit `CloseAll`; ein Handle `Build`, über den Tests die Use Cases erreichen.
+- [ ] Verdrahtung und Lebenszyklus: der Start-Befehl ruft `LadeOderMelde` (Exit-Code 1, Meldung nach `SPEC-110`, `mock`/`hybrid` scheitern mit `ODR-E2001`; Zusage von `slice-fehlermodell-konfiguration`); Reihenfolge `MaintenanceUseCase` → erste Session → Listener; ein Use Case je Modus am Listener; Herunterfahren mit `CloseAll`; ein Handle `Build`, über den Tests die Use Cases erreichen.
 - [ ] Referenzdienst als Fixture (`httptest`, OData V4, eigenes CSDL, Collection mit zwei Entities, Einzel-Entity, wiederholter Request mit verschiedenen Antworten, ein Header mit Geheimnis) und der M2-Test: aufzeichnen, Session beenden, importieren, Workspace anlegen, Upstream beenden, abspielen; Status, Header und Body byte-gleich nach `SPEC-045`; Zähler am Referenzdienst im Replay gleich 0.
 - [ ] Mutationen des M2-Tests: Replay kontaktiert den Upstream, ein Geheimnis erreicht die SQLite-Datei oder den Blob-Ordner, die Reihenfolge wiederholter Requests kippt — jede färbt den Test rot.
 - [ ] `make gates` grün.
@@ -80,7 +80,7 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | `src/bootstrap/` | update | Verdrahtung, Startsequenz, Herunterfahren, `Build` |
-| `src/bootstrap/main/` | update | Kommando zum Start; Exit-Codes |
+| `src/bootstrap/main/` | update | Kommando zum Start; ruft `LadeOderMelde`, Exit-Codes (Zusage von `slice-fehlermodell-konfiguration`) |
 | `tests/integration/` | neu | Referenzdienst und M2-Test |
 | `spec/spezifikation.md` | update | Startsequenz und Exit-Codes, falls dort offen |
 
