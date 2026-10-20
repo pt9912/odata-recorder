@@ -82,9 +82,10 @@ Aussagen-Berührung steht hier gar nicht.
 | `tools/pruefung/` | neu | Go-Modul ohne Abhängigkeiten: die Prüfungen aus `Dockerfile` und `harness/mk/go-gates.mk` als `pruefung test` und `pruefung build` |
 | `Dockerfile`, `harness/mk/go-gates.mk`, `.dockerignore` | update | Stufe `pruefung` (gofmt, vet, Test, Bau), Aufruf `pruefung test /src` in der Stufe `test` und `pruefung build /out/odata-recorder "$VERSION"` in der Stufe `build`; die zwei Prüfzeilen nach dem `docker build` in `go-gates.mk` entfallen; die Lint-Stufe kopiert `tools/pruefung` und prüft es als zweites Modul; die Stufe `gegenproben` bekommt `pruefung` |
 | `.golangci.yml` | update | Die Ausnahme für `os.Stdout` und `os.Stderr` im Einstieg gilt auch für `tools/pruefung/main.go` (mit `# Why:`); keine Schwelle sinkt |
-| `tools/harness/gegenproben-eingabe.sh` | update | `tools/pruefung` gehört zu den Eingaben |
+| `tools/harness/gegenproben-eingabe.sh` | update | `tools/pruefung` gehört zu den Eingaben; die Pfadliste steht einmal (Bash-Array) und dient der Existenzprüfung und `git ls-files` |
 | `tools/gegenproben/` | update | Fälle 25 bis 33 und ihre Befehle; Fälle mit `Bau` erzeugen das Binary mit `go build` in der Kopie; `Umgebung.Programme` nennt `pruefung`, `go` und `gofmt`; die Eingabenliste des Programms bleibt (`pruefung` ist das Programm, keine Eingabe der Kopie), die Prüfsumme in `gegenproben-eingabe.sh` nennt `tools/pruefung` |
 | `harness/vertraege/SPEC-102-gegenproben.md`, `SPEC-036-test.md`, `harness/README.md` | update | Fälle, Prüfprogramm und Randformen stehen vor dem Code im Vertrag; `harness/README.md` nennt `pruefung` bei den Sensors |
+| `harness/mk/gegenproben.mk` | update | Kopf und `make help`-Text nennen `pruefung` (test, build) |
 
 **Randform-Raster** (`AGENTS.md` §3.16; Ort in `SPEC-036`, Randformen von `pruefung`):
 
@@ -104,10 +105,15 @@ Aussagen-Berührung steht hier gar nicht.
 | `pruefung build` meldet fehlendes `-trimpath` | Fall `build/ohne-trimpath`; Mutation: Prüfung entfernt |
 | `pruefung build` meldet falsche Version | Fall `build/falsche-version`; Mutation: Prüfung entfernt |
 | `pruefung build` meldet ein fehlendes Binary mit Exit 2 | Fall `build/binary-fehlt`; Mutation: Prüfung entfernt |
-| `pruefung` meldet falschen Aufruf mit Exit 2 | Fall `test/aufruf`; Mutation: Prüfung der Argumentzahl entfernt |
+| `pruefung` meldet falschen Aufruf mit Exit 2 | Fall `test/aufruf` fängt nur den Aufruf ohne Argumente (Mutation: der Zweig für null Argumente entfernt); die falsche Argumentzahl von `test` und `build`, ein unbekanntes und ein leeres Argument fängt `TestAufrufFehlerStartenNichts` in `tools/pruefung` (Mutation: `len(args) >= 2` bzw. `len(args) == 3` durch `true` ersetzt) |
 | `pruefung build` ohne Befund endet mit Exit 0 | Fall `build/basis` |
 | Version mit Zusatztext, Binary startet nicht, kein Go-Binary, Wurzel fehlt (Randformen Nr. 2, 4, 5, 6) | Tests in `tools/pruefung`; Mutation: jeweilige Prüfung entfernt |
+| Version mit abschließendem oder führendem Leerzeichen und mit `\r\n` (Randform Nr. 6) | `TestBuildVersionBefund`; Mutation: `strings.TrimRight(…, "\n")` durch `strings.TrimSpace(…)` ersetzt |
+| Befunde und Fehler nach stderr, `ok` nach stdout (Randform Nr. 11) | `TestStroeme`; Mutation: `ok`-Zeile nach stderr, Befundtext nach stdout |
+| Argumente mit führendem `-` gehen unverändert an `go` (Randform Nr. 13) | `TestTestMusterMitStrichGehenUnveraendertAnGo`; Mutation: Argument mit Strich verworfen |
+| Exit-Codes 0, 1, 2 (Randform Nr. 14) | Gegenproben: Exit 2 bei `test/aufruf` und `build/binary-fehlt`, Exit 1 bei den Verstoß-Fällen; die Unit-Tests vergleichen gegen die Konstanten und pinnen die Zahlen nicht |
 | Falscher Aufruf, `Binary` fehlt, Programm nicht aufrufbar, Verzeichnis ohne Go-Dateien, kein Zustand (Randformen Nr. 1, 3, 7, 8, 10) | Tests in `tools/pruefung`; Mutation: jeweilige Prüfung entfernt, bei Nr. 8 eine eigene Prüfung auf Go-Dateien hinzugefügt, bei Nr. 10 eine Datei in `Wurzel` geschrieben |
+| Die Eingabenliste nennt `tools/pruefung` (Existenz) | `gegenproben-eingabe.sh` endet mit Exit 1, wenn `tools/pruefung` fehlt (in einer Wegwerfkopie gesehen); dass die Prüfsumme die Dateien darin erfasst, fängt nichts (`SPEC-102` §Grenze) |
 | Die Stufen `test` und `build` rufen `pruefung` | Gate: ein roter Verstoß im Quellstand lässt `make test` bzw. `make build` rot werden — Beleg im Bericht des Implementers, kein Fall (Grenze in `SPEC-102`) |
 
 ## 4. Trigger

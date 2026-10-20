@@ -165,6 +165,18 @@ func TestTestMusterWerdenWeitergegeben(t *testing.T) {
 	}
 }
 
+// Ein Argument mit führendem Strich ist ein Muster und geht unverändert an go.
+func TestTestMusterMitStrichGehenUnveraendertAnGo(t *testing.T) {
+	w := neueWerkzeuge(t, "", "")
+	if code, _, errText := fuehre(w.u, "test", t.TempDir(), "-run=X", "./a"); code != exitOK {
+		t.Fatalf("Exit %d: %s", code, errText)
+	}
+	want := []string{"gofmt -l .", "go vet -run=X ./a", "go test -trimpath -buildvcs=false -run=X ./a"}
+	if got := w.aufrufe(t); strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("Aufrufe %v, erwartet %v", got, want)
+	}
+}
+
 func TestTestBefundHaeltAnDerStelle(t *testing.T) {
 	tests := []struct {
 		name           string
