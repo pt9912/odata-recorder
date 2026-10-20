@@ -16,6 +16,8 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
+- [welle-record-replay](../welle-record-replay.md)
+
 Nichts in Arbeit.
 
 
@@ -34,7 +36,6 @@ und geschätzter Aufwand (S/M/L, kein Termin).
 | Welle | Trigger | Wichtigste Slices | Geschätzter Aufwand |
 |---|---|---|---|
 | welle-dev-container | welle-fundament done | Gerüst des Arbeitscontainers mit `u-boot` am Host (privilegierter Container mit eigenem Docker-Daemon, SSH-Zugang, Schlüsselpaar), Start mit Bereitschaftsprobe, Bare-Repo und Klon samt Einlieferung per Zweig, Lauf von `make gates` und `make gegenproben` im Container, Dokument für Entwickler | L |
-| welle-record-replay | welle-persistenz done | Record-Service mit Capture und Redaction, Replay mit Matching und Cursor; Abbildung des Fehlers `ErrBeschaedigt` auf `ODR-E3001` (Übergabe aus `slice-sqlite-adapter-migration`); CRUD-Fachlogik der Workspaces, `MaintenanceUseCase` samt Blob-Abgleich, Aufbewahrung nach Alter und die Durchsetzung von `LH-FA-11` (`complete` nur mit Beweis) — Übergaben aus welle-persistenz, noch ohne Slice | L |
 
 ## Meilensteine
 

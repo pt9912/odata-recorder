@@ -1,0 +1,105 @@
+# Welle welle-record-replay: Aufzeichnen und Wiederabspielen
+
+**Lifecycle:** Diese Datei entsteht bei der **Eröffnung** der Welle und liegt
+flach unter `docs/plan/planning/`; bei Closure wandert sie per `git mv` nach
+`done/` (neben ihre `welle-<Kennung>-results.md`). Der Zustand ist die
+Verzeichnis-Position — kein Status-Feld. **Geplante Wellen bekommen noch keine
+Datei:** Sie stehen in der Roadmap unter *Nächste Wellen* und nirgends sonst —
+zwei Positionen, nicht drei.
+
+**Zielmeilenstein:** M2 (siehe [Roadmap](in-progress/roadmap.md)).
+
+**Verantwortlich:** pt9912. **Datum:** 2026-10-20.
+
+---
+
+## 1. Welle-Ziel
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
+§Wann Arbeit eine Welle braucht.
+
+Ein Test zeichnet über den Recorder gegen einen Referenzdienst auf und spielt dieselben Antworten danach ohne Upstream byte-gleich wieder ab (`LH-FA-01`, `LH-FA-02`, `LH-FA-04`, `LH-FA-05`, `LH-FA-14`).
+Der Weg dahin ist der vollständige Pfad der Spezifikation: Record mit Capture und Redaction, Session beenden, Import der Aufzeichnung in eine Baseline (`LH-FA-18`, `LH-FA-11`), Workspace aus der Baseline (`LH-FA-09`), Replay mit Zuordnung, Match-Key und Cursor.
+Ein Replay ohne Workspace gibt es nicht (`SPEC-052`), ein Workspace ohne Baseline auch nicht (`SPEC-003`, `SPEC-108`), und eine Baseline entsteht nur durch den Import; deshalb gehören OData-Codec und Import in diese Welle.
+Eine Welle, weil der Closure-Trigger mehr beobachtet als die DoDs der Slices: den Rundlauf durch alle Schichten, vom HTTP-Eingang über Services und Ports bis in die SQLite-Datei und zurück.
+
+## 2. Trigger (Welle startet)
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
+§Roadmap-Regeln — ein Trigger ist **beobachtbar** dann, wenn ein *anderer*
+Mensch ohne Rückfrage sagen kann, ob er eingetreten ist; ein Datum darf erwähnt
+werden, aber nie Trigger sein. Und der **Start**-Trigger ist **kein Ergebnis
+dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
+
+- `welle-persistenz` liegt in `done/` (Repositories, Blob-Ablage und Rundlauftest hinter den Outbound Ports).
+- M1 ist erreicht: `make gates` fährt Build, Test, Lint und `a-check` auf Go-Code, jedes durch eine Gegenprobe belegt.
+
+## 3. Closure-Trigger (Welle schließt)
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
+§Wann Arbeit eine Welle braucht — der Trigger muss das *Mehr* gegenüber den
+einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
+
+- Alle Slices der Welle liegen in `done/`.
+- `make gates` ist grün und `make gegenproben` ist grün.
+- Der M2-Test aus `slice-bootstrap-m2` ist grün und Teil von `make test`: Er startet den Recorder im Modus `record` gegen einen Referenzdienst, zeichnet `$metadata` und Collection- und Entity-Abfragen auf, beendet die Session, importiert sie in eine Baseline, legt einen Workspace an und spielt die Abfragen im Modus `replay` ab, nachdem der Referenzdienst beendet ist; Status, Header (soweit nach `SPEC-045` auszuliefern) und Body sind byte-gleich, und der Referenzdienst hat im Replay keine Verbindung gesehen.
+- Die Closure-Notiz liegt als `welle-record-replay-results.md` im Ruheort `done/`.
+
+## 4. Slices in dieser Welle
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
+§Lifecycle als State Machine — der Zustand eines Slice ist sein
+Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
+
+| Slice | Titel | Bezug |
+|---|---|---|
+| slice-fehlermodell-konfiguration | Fehlermodell mit `ODR`-Codes und Startkonfiguration | `LH-QA-05`, `LH-FA-12`, `LH-FA-04` |
+| slice-clock-idgenerator | Zeit und Kennungen hinter Querschnitts-Ports | `LH-QA-02` |
+| slice-redaction-match-key | Redaction von Headern und Query, Match-Key, Replayfähigkeit | `LH-FA-05`, `LH-FA-14`, `LH-QA-02` |
+| slice-streaming-redaction | Streaming-Redaction von JSON-Bodies, fail-closed | `LH-FA-14`, `LH-FA-02`, `LH-QA-04` |
+| slice-capture-pipeline | Capture-Pipeline: Tee, Grenzen, Dekompression, Abschluss | `LH-FA-02`, `LH-FA-14`, `LH-QA-04` |
+| slice-record-service | `RecordUseCase` und Upstream-Adapter | `LH-FA-01`, `LH-FA-02`, `LH-RB-02` |
+| slice-session-wartung | `SessionUseCase` und `MaintenanceUseCase` samt Aufbewahrung | `LH-FA-02`, `LH-FA-03`, `LH-RB-04` |
+| slice-odata-codec-csdl | OData-Codec, Teil Metadaten (CSDL) | `LH-FA-06`, `LH-RB-01` |
+| slice-odata-codec-json | OData-Codec, Teil Entities und Collections (JSON) | `LH-FA-18`, `LH-RB-01` |
+| slice-baseline-import | `ImportUseCase` mit Coverage-Beweis | `LH-FA-18`, `LH-FA-11`, `LH-FA-14` |
+| slice-workspace-use-case | `WorkspaceUseCase`: Anlegen, Lesen, Löschen, Reset | `LH-FA-09`, `LH-FA-04` |
+| slice-replay-service | `ReplayUseCase`: Zuordnung, Strategien, Cursor | `LH-FA-04`, `LH-FA-05`, `LH-FA-14` |
+| slice-http-adapter | HTTP-Driving-Adapter für Record und Replay | `LH-FA-01`, `LH-FA-04`, `LH-FA-02` |
+| slice-bootstrap-m2 | Composition Root, Referenzdienst und M2-Test | `LH-FA-12`, `LH-FA-04`, `LH-QA-02` |
+
+## 5. Abhängigkeiten
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
+§Roadmap-Struktur: fünf Abschnitte.
+
+- Blockiert: Folgewellen für Mock, Hybrid und Admin-API (wegen der Services, Ports und des Codecs); sie stehen noch nicht in der Roadmap.
+- Wird blockiert von: — (`welle-persistenz` ist geschlossen).
+- Unabhängig: Welle welle-dev-container.
+- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-fehlermodell-konfiguration` und `slice-clock-idgenerator` zuerst; `slice-redaction-match-key` → `slice-streaming-redaction` → `slice-capture-pipeline` → `slice-record-service` → `slice-session-wartung`; `slice-odata-codec-csdl` → `slice-odata-codec-json` → `slice-baseline-import` (braucht zusätzlich `slice-redaction-match-key`) → `slice-workspace-use-case` → `slice-replay-service` (braucht zusätzlich `slice-redaction-match-key` und `slice-streaming-redaction`); `slice-http-adapter` braucht `slice-record-service` und `slice-replay-service`; `slice-bootstrap-m2` zuletzt. Der Ast Record und der Ast Codec und Import hängen erst im Replay und im Bootstrap zusammen und lassen sich in dieser Reihenfolge einzeln liefern.
+
+## 6. Out-of-Scope für diese Welle
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
+§Wellen-Closure-Prozedur, Eröffnung Schritt 1 — Out-of-Scope gehört zur
+Zielsetzung: Was nicht ausdrücklich ausgeschlossen ist, dehnt die Welle, bis
+der Closure-Trigger unerreichbar wird.
+
+- Mock-Modus (zustandsbehaftetes CRUD, Query-Interpreter, `$metadata`-Auslieferung, Serialisierung zurück ins OData-JSON) und Hybrid-Modus mit Fallback — Folgewellen; der Codec liefert hier nur das Lesen.
+- Admin-API (Sessions, Imports, Workspaces, Snapshots, Diagnose, Authentisierung) und CLI-Kommandos über Start und Version hinaus — Folgewelle; Session beenden, Import und Workspace erreicht der M2-Test über den Composition Root, nicht über HTTP.
+- Snapshot erzeugen und wiederherstellen (`LH-FA-10`) — gehört zum Mock, der Zustand ändert; `WorkspaceUseCase` liefert Anlegen, Lesen, Löschen und Reset.
+- Telemetrie, Audit-Log und Metriken (`AuditLog`, `Telemetry`, Spans) — Folgewelle; ohne sie ist der Lasttest zu `LH-QA-01` nicht messbar, er bleibt ausdrücklich ungeprüft.
+- TLS des Listeners (`LISTEN_TLS_CERT`, `LISTEN_TLS_KEY`) und des Admin-Listeners — Folgewelle; der Upstream-Client trägt die TLS-Optionen des Upstreams (`LH-RB-02`).
+- Umschreiben von Links und Weiterleitungen (`LINK_REWRITE`) — nach Spezifikation in der ersten Version nur `off`.
+- Optimistische Concurrency und ETags (`LH-FA-15`), erweiterte OData-Funktionen (`LH-FA-16`), OData V2 (`LH-FA-17`) — Soll und Kann, nicht Teil des Muss-Umfangs.
+- Coverage-Schwelle als Gate — kommt mit mehr Code; hier entstehen die Tests der Verträge, nicht eine Schwelle.
+
+## 7. Closure-Notiz
+
+Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-traceability.md`
+§Herkunfts-Anker für Steering-Loop-Regeln — dort die **Ruheort-Regel**: Die
+beiden Zeiger unten sind so zu schreiben, wie sie vom Ruheort `done/` auflösen,
+nicht vom Schreibort.
+
+Ergebnis: `welle-record-replay-results.md` (Geschwister im Ruheort `done/`).
+Zähler: das Beobachtungs-Register eine Ebene über dem Ruheort (das Verzeichnis observations/).
