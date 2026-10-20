@@ -2,7 +2,7 @@
 
 * Datum: 2026-10-20
 * Rolle: verifier (frischer Kontext), kein Code geändert, kein Commit
-* Gegenstand: HEAD 2baecef, Plan `docs/plan/planning/in-progress/slice-fehlermodell-konfiguration.md`
+* Gegenstand: HEAD 2baecef, Plan `docs/plan/planning/done/slice-fehlermodell-konfiguration.md`
 * Eingang: `...-review.md` (F-1..F-9), `...-verifikation.md` (V-1), `...-review-re-review.md` (N-1..N-6)
 * Sensor selbst gefahren: `make gates`, Exit 0 (Ausgabe bis `migration-check: ok`). Arbeitsbaum danach sauber bis auf diesen Bericht.
 * Nicht selbst gefahren: die im Plan genannten Mutationen (N-1, N-2). Mutieren hieße Code ändern; ihr Rot-Sehen bleibt Beleg des Implementers bzw. eines Reviewer-Laufs.

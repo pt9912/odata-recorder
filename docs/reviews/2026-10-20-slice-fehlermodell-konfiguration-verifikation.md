@@ -3,7 +3,7 @@
 * Datum: 2026-10-20
 * Rolle: verifier (frischer Kontext)
 * Frage: Bauen wir es richtig? (DoD, SPEC-109/SPEC-110, LH-QA-05, LH-FA-12, LH-FA-04)
-* Gegenstand: `git diff 89db02c..HEAD` (HEAD bf8e9bd), Plan `docs/plan/planning/in-progress/slice-fehlermodell-konfiguration.md`
+* Gegenstand: `git diff 89db02c..HEAD` (HEAD bf8e9bd), Plan `docs/plan/planning/done/slice-fehlermodell-konfiguration.md`
 * Eingang: Reviewer-Report `2026-10-20-slice-fehlermodell-konfiguration-review.md`
 * Sensor selbst gefahren: `make gates`, Exit 0 (gofmt, vet, Tests, a-check, lint, schema-check, migration-check, docs-check). Arbeitsbaum danach sauber.
 
