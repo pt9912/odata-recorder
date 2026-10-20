@@ -5,8 +5,8 @@
 * Review-Art: Code gegen Plan + Konventionen
 * Gegenstand: `git diff fe372f7..HEAD` (e8d5972 Code, 7e97c49 Spec-Entscheidung Nr. 10, 5576700 Test-Nachzug)
 * Plan: `docs/plan/planning/in-progress/slice-clock-idgenerator.md`
-* Verträge: `SPEC-114` (`spec/spezifikation.md`), `LH-QA-02`, `LH-FA-13`, ADR-0001
-* Maßstab: Plan, SPEC-114, ADR-0001, AGENTS.md §3.7, §3.9 bis §3.16, Reviewer-Skill. Nicht geprüft: DoD (Verifier).
+* Verträge: `SPEC-114` (`spec/spezifikation.md`), `LH-QA-02`, `LH-FA-13`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md)
+* Maßstab: Plan, SPEC-114, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), AGENTS.md §3.7, §3.9 bis §3.16, Reviewer-Skill. Nicht geprüft: DoD (Verifier).
 * Methode: Wegwerfkopie von `src/`, `go.mod` im Scratchpad, Image `odata-recorder:test` (`--network none`, Kopie nur lesend gemountet); rund 45 Mutationen (je Zeile der Tabelle Zusage·Fänger und je Rasterzelle). Die `a-check`-Mutation lief im Arbeitsbaum und wurde per `git checkout` zurückgenommen; der Arbeitsbaum ist sauber. Kein `-race` möglich (Image: "requires cgo").
 
 ## Zusammenfassung
@@ -75,7 +75,7 @@ Keine HIGH. Zwei MEDIUM, drei LOW, drei INFO. Die Tabelle ist überwiegend schar
 
 ### F8 INFO — Schichten und Zeitquelle
 * kategorie: INFO
-* quelle: `.a-check.yml`, ADR-0001
+* quelle: `.a-check.yml`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md)
 * pfad: `src/adapters/driven/clock/clock.go` · Importe
 * befund: `make a-check` in der Mutation (Import `adapters/driven/sqlite`) rot mit `lateral-adapter`; `clock` importiert sonst nur `ports/support`. Der gleiche Lauf listet Dateien unter `tools/` als ungeschichtet; das gilt unabhängig vom Diff.
 * verifizierbar: ja
