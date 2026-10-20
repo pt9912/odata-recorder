@@ -114,6 +114,13 @@ Aussagen-Berührung steht hier gar nicht.
 | Exit-Codes 0, 1, 2 (Randform Nr. 14) | Gegenproben: Exit 2 bei `test/aufruf` und `build/binary-fehlt`, Exit 1 bei den Verstoß-Fällen; die Unit-Tests vergleichen gegen die Konstanten und pinnen die Zahlen nicht |
 | Falscher Aufruf, `Binary` fehlt, Programm nicht aufrufbar, Verzeichnis ohne Go-Dateien, kein Zustand (Randformen Nr. 1, 3, 7, 8, 10) | Tests in `tools/pruefung`; Mutation: jeweilige Prüfung entfernt, bei Nr. 8 eine eigene Prüfung auf Go-Dateien hinzugefügt, bei Nr. 10 eine Datei in `Wurzel` geschrieben |
 | Die Eingabenliste nennt `tools/pruefung` (Existenz) | `gegenproben-eingabe.sh` endet mit Exit 1, wenn `tools/pruefung` fehlt (in einer Wegwerfkopie gesehen); dass die Prüfsumme die Dateien darin erfasst, fängt nichts (`SPEC-102` §Grenze) |
+| `standard().Programme` nennt `a-check`, `golangci-lint`, `sh`, `pruefung`, `go`, `gofmt` (`SPEC-102` Randform 2) | `TestStandardNenntDieSechsProgramme` in `tools/gegenproben`; Mutation: `gofmt` bzw. `golangci-lint` aus der Liste gestrichen, rot gesehen |
+| Ein Fall mit Bau meldet das Scheitern des Baus und führt das Gate nicht aus (`SPEC-102` Randform 2a) | `TestFallMitBauMeldetScheiternDesBaus` in `tools/gegenproben`; Mutation: Bau-Fehler ignoriert |
+| `pruefung test` hält beim ersten Befund an | `TestTestBefundHaeltAnDerStelle` in `tools/pruefung` (zählt die gestarteten Programme); Mutation: Abbruch nach dem Befund entfernt |
+| `pruefung test` meldet einen Fehler von `gofmt` mit dem Befund `gofmt:` | Fall `gofmt scheitert` in `TestTestBefundHaeltAnDerStelle`; Mutation: Zweig für gofmt-Exit ungleich 0 entfernt |
+| `pruefung test` ohne Muster prüft `./...` | `TestTestOhneBefund` (erwartet `go vet ./...` und `go test … ./...`); Mutation: Standardmuster geändert |
+| Eine nicht lesbare Datei (`SPEC-036` Randform 9) | kein Fänger, Nicht-Zusage (`SPEC-036` Randform 9) |
+| Kein Zeitlimit von `pruefung` (`SPEC-036` Randform 12) | kein Fänger, Nicht-Zusage (`SPEC-036` Randform 12) |
 | Die Stufen `test` und `build` rufen `pruefung` | Gate: ein roter Verstoß im Quellstand lässt `make test` bzw. `make build` rot werden — Beleg im Bericht des Implementers, kein Fall (Grenze in `SPEC-102`) |
 
 ## 4. Trigger
