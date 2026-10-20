@@ -123,6 +123,8 @@ Match-Key = SHA-256 über eine eindeutig kodierte Tupelfolge:
   als Vary-Header gelten die Header aus `MATCH_VARY_HEADERS` (`SPEC-061`, Default `Accept`, `OData-Version`, `Content-Type`, `If-Match`, `Prefer`).
 - Eine semantische Gleichsetzung von `$filter`-ASTs ist **nicht** Bestandteil des Muss-Umfangs.
 
+Kodierung der Tupelfolge, `normalized_path`, Randformen von Query, Vary-Header und Body: `SPEC-116`.
+
 ### LH-FA-06.a — OData-V4-Metadatenmodell
 
 1. `$metadata` im Record-Modus als HTTP-Austausch erfassen.
@@ -372,6 +374,7 @@ Reguläre Logs enthalten weder Query-Strings noch Bodies noch Header-Werte.
 **Geltungsbereich der Redaction:** Sie erfasst Header, `raw_query` und die konfigurierten JSON-Pfade des Bodys.
 Query-Werte in `Location` und `Content-Location` werden wie `raw_query` behandelt (`REDACT_QUERY_PARAMS`); Link-Annotationen im Body (`@odata.nextLink`, `@odata.id`) nur über `REDACT_JSON_PATHS`.
 Der Pfad (`exchanges.path`) wird nicht redigiert: Geheimnisse im Pfad sind nicht unterstützt und gehören nicht in aufgezeichnete URLs.
+Randformen der Redaction von Headern, Query und `Location` sowie die Syntax der Pfadmuster: `SPEC-115`; die Replayfähigkeit als Funktion: `SPEC-117`.
 
 **Redaction und Match-Key:** Der Match-Key (LH-FA-05.a) wird ausschließlich über die redigierte Darstellung gebildet.
 Dieselbe Redaction-Funktion läuft beim Record und beim Replay über den eingehenden Request, bevor der Key berechnet wird;
@@ -861,6 +864,80 @@ Die Ports haben weder Argumente noch Kontext noch Fehlerrückgabe und sind für 
 
 Ungeprüft bleibt: die Genauigkeit der Plattformuhr und der Abgleich ihrer Zeit (NTP), die kryptografische Güte der Zufallsquelle (kein Test kann sie beobachten), das Verhalten bei Ausfall der Zufallsquelle (Nr. 7; es liegt bei der Go-Laufzeit, ein Test brauchte einen Unterprozess) sowie das Ausbleiben von Datenrennen über das Verhalten hinaus, das die Tests unter Last zeigen; das Gate fährt nicht mit dem Race-Detektor.
 
+### SPEC-115 — Redaction von Headern, Query und `Location`, Pfadmuster: Vertrag der Funktionen
+
+Die Funktionen sind rein: ohne Ein-/Ausgabe, ohne Kontext, ohne Uhr und Zufall, und sie lassen ihre Eingaben unverändert (das Ergebnis ist eine Kopie).
+Die Mengen der Namen sind die wirksamen (Default plus Konfiguration, `SPEC-110` Nr. 1 und 6) und kommen als Argument.
+Kein Fehler dieser Funktionen enthält einen Wert aus der Eingabe, nur den Namen des Feldes.
+
+1. **Marker.** `[REDACTED]` (ASCII, zehn Zeichen, unkodiert) ist der einzige Platzhalter eines Header-, Query- und JSON-String-Wertes (`LH-FA-14.a`).
+2. **Header.** `RedigiereHeader(Header, Namen, Parameter)` liefert eine neue Map, nie `nil`; eine leere oder `nil`-Eingabe ergibt eine leere Map.
+   Ein Name zählt als redigiert, wenn er ohne Beachtung der ASCII-Schreibweise einem Namen aus `Namen` gleicht (`REDACT_HEADERS` samt Default, `SPEC-060`).
+   Die Namen des Ergebnisses stehen in kanonischer Schreibweise (`SPEC-110` Nr. 6), sofern der Name ein HTTP-Token ist; ein anderer Name bleibt unverändert und wird nur nach seiner ASCII-Schreibweise verglichen.
+   Namen, die sich nur in der Schreibweise unterscheiden (`cookie`, `Cookie`), werden zu einem Eintrag: die Werte folgen einander in der Bytefolge der Eingabenamen, danach in ihrer Reihenfolge.
+   Ein redigierter Header trägt im Ergebnis genau einen Wert, den Marker, gleich ob die Eingabe keinen, einen leeren, einen oder mehrere Werte hatte.
+   Ein nicht redigierter Header behält Werte und Reihenfolge, auch eine leere Liste und leere Werte.
+3. **`Location` und `Content-Location`.** Für diese beiden Header (Name ohne Beachtung der ASCII-Schreibweise, in Request und Response gleich), die nicht nach Nr. 2 ganz redigiert sind, gilt je Wert: der Teil nach dem ersten `?` bis zum ersten `#` (oder zum Ende) ist ein `raw_query` und wird nach Nr. 4 mit `Parameter` (`REDACT_QUERY_PARAMS`, `SPEC-084`) redigiert, der Rest bleibt unverändert; ohne `?` bleibt der Wert unverändert.
+   Ein so veränderter Header ist **nicht** „redigiert“ im Sinn von Nr. 5: er wird im Replay mit dem Marker im Query-Wert ausgeliefert, weil der Header selbst ausgeliefert werden muss (eine Weiterleitung oder `201 Created` ohne `Location` ist keine Wiederholung) und das Geheimnis nicht wiederhergestellt wird.
+   Andere Header mit URL-Inhalt (`Referer`, `Link`, `Origin`) werden nicht untersucht (`LH-FA-14.a` Geltungsbereich).
+4. **Query.** `RedigiereQuery(RawQuery, Parameter)` liefert den redigierten `raw_query` und ob sich dabei ein Wert änderte.
+   - `raw_query` trägt kein führendes `?`; ein führendes `?` ist Teil des ersten Schlüssels. Zerlegt wird nur an `&` (nicht an `;`) in Segmente, auch leere; die Segmente bleiben in ihrer Reihenfolge und werden mit `&` verbunden, ein leerer Eingabetext ergibt `""`.
+   - Ein Segment ohne `=` hat keinen Wert und bleibt unverändert, auch wenn sein Text ein Name aus `Parameter` ist. Sonst ist der Text bis zum ersten `=` der Schlüssel, der Rest der Wert.
+   - Der Schlüssel wird `%XX`-dekodiert (`+` bleibt `+`, Hex-Schreibweise gleich) und ohne Beachtung der ASCII-Schreibweise mit `Parameter` verglichen; ist die Kodierung ungültig (`SPEC-116` Nr. 4), wird der Schlüsseltext unverändert verglichen.
+   - Bei einem Treffer lautet das Segment `<Schlüsseltext unverändert>=[REDACTED]`, auch bei leerem Wert; jedes Vorkommen eines Parameters wird ersetzt. Die Änderung ist „ein Wert änderte sich“, wenn der Wert vorher nicht schon der Marker war.
+   - Die Redaction hängt nicht von `MATCH_INVALID_ENCODING` ab und scheitert nie.
+   - Wiederholung: `RedigiereQuery` und `RedigiereHeader` auf ihr eigenes Ergebnis ergeben dasselbe Ergebnis, und die zweite Anwendung meldet keine Änderung.
+5. **Ausgelieferte Header.** `OhneRedigierte(Header)` liefert die Map ohne jeden Header, der mindestens einen Wert hat und dessen Werte alle der Marker sind (`SPEC-045`: redigierte Header werden weggelassen, nie mit Marker ausgeliefert). Ein Header mit leerer Wertliste, mit einem leeren Wert oder mit dem Marker als Teil eines längeren Wertes bleibt.
+6. **Pfadmuster.** `ParseJSONPfad(Text)` nimmt die Form `$..name` an, mit `name` aus einem oder mehr ASCII-Buchstaben, Ziffern, `_` und `-` (`SPEC-110` Nr. 6); jede andere Form, auch mit Leerraum am Rand, ohne Namen, mit weiterem Segment (`$..a.b`), mit Index oder Platzhalter, ist `ErrUngueltig`. Dieselbe Funktion prüft `REDACT_JSON_PATHS` beim Start.
+   Bedeutung: ein Mitglied eines Objekts, dessen Name dem `name` ohne Beachtung der ASCII-Schreibweise gleicht, in beliebiger Tiefe; ein String-Wert wird durch den Marker ersetzt, die Behandlung anderer Wertarten und des Stroms regelt `SPEC-046`.
+7. **`key_redacted`** (`SPEC-001`) ist wahr, wenn die Query-Redaction einen Wert änderte oder `redaction.request=applied` ist (`SPEC-116` Nr. 7). Header und `Location` verändern keinen Eingang des Match-Keys.
+
+Ungeprüft bleibt: Geheimnisse an Stellen, die keine Liste nennt (Pfad, `$filter`-Werte, nicht gelistete Parameter, andere Header); Unicode-Gleichheit über die ASCII-Schreibweise hinaus (`Ä` und `ä` sind verschiedene Namen).
+
+### SPEC-116 — Match-Key: Kodierung und Randformen
+
+`BildeSchluessel(Eingabe, Regeln)` ist die einzige Stelle, die einen Match-Key bildet (Record, Replay und Import rufen sie; `LH-FA-14.a`).
+Sie nimmt den Request **unredigiert** und redigiert selbst nach `SPEC-115`; so ist die Darstellung, aus der der Key entsteht, die, die persistiert wird, und ein Aufrufer kann den Key nicht aus einer unredigierten Form bilden.
+Eingabe: `Method`, `ServiceID`, `Path` (der OData-Pfad nach dem Service-Root wie in `exchanges.path`, `LH-FA-04.c`), `RawQuery`, `Header` des Requests, `Body` (die Bytes des **bereits redigierten** Request-Bodys) und `RequestRedaction` (`none` oder `applied`).
+Regeln: `MATCH_VARY_HEADERS`, `VOLATILE_HEADERS`, `REDACT_HEADERS`, `REDACT_QUERY_PARAMS`, `MATCH_INVALID_ENCODING`, `MATCH_BODY_MODE` (`SPEC-061`, `SPEC-063`, `SPEC-060`, `SPEC-084`, `SPEC-081`, `SPEC-082`); ein anderer Wert der beiden Aufzählungen, auch der leere, ist `ErrUngueltig`.
+Ergebnis: `MatchKey`, `KeyRedacted`, der redigierte `RawQuery` und die redigierten `Header`.
+Die Kodierung ist Teil des Aufzeichnungsformats (`SPEC-015`): eine Änderung ist eine neue Format-Version.
+
+1. **Kodierung.** Der Key ist `sha256:` und die 64 Kleinbuchstaben-Hex-Ziffern des SHA-256 über die Bytefolge: die Marke `odr-match-v1`, `Method`, `ServiceID`, der normalisierte Pfad (Nr. 3), die Paare (Nr. 4), die Vary-Header (Nr. 5), der Body (Nr. 6).
+   Eine Zeichenfolge steht als Länge (4 Byte, Big Endian) und ihre Bytes, eine Anzahl als 4 Byte Big Endian; so ist die Folge eindeutig lesbar und zwei verschiedene Tupel ergeben nie dieselbe Folge.
+2. **Methode und Service.** `Method` und `ServiceID` gehen unverändert ein, die Schreibweise zählt (`get` ≠ `GET`); leer ist `ErrUngueltig`. Weitere Formprüfungen gibt es hier nicht: die Konfiguration prüft die Kennung, der Adapter die Methode (`SPEC-110` Nr. 7).
+3. **Pfad.** `Path` ist nichtleer, beginnt mit `/` und enthält weder `?` noch `#` noch ein Steuerzeichen (U+0000 bis U+001F, U+007F); sonst `ErrUngueltig`. Der Service-Root ist nicht Teil des Pfades; der Aufruf des Roots selbst hat den Pfad `/`.
+   Normalisiert werden allein `%XX`-Folgen: die Hex-Ziffern werden groß geschrieben, und ein Escape eines ASCII-Zeichens aus `A-Z a-z 0-9 - . _ ~` wird durch das Zeichen ersetzt; jeder andere Escape bleibt (`%2F` bleibt ein Escape und wird nie zur Segmentgrenze, `%27` bleibt ungleich `'`, `%20` ungleich `+`).
+   Alles Übrige bleibt byteweise: Groß-/Kleinschreibung, doppelte und abschließende Schrägstriche, die Segmente `.` und `..` (es wird nichts aufgelöst), Nicht-ASCII-Bytes und OData-Literale.
+   Ein `%`, dem keine zwei Hex-Ziffern folgen, ist eine ungültige Kodierung (Nr. 4): bei `literal` bleibt das Zeichen `%` stehen, bei `reject` ist das Ergebnis `ErrKodierung`.
+4. **Query-Paare** aus dem **redigierten** `raw_query` (Nr. 8). Leere Segmente (`a=1&&b`, Anfang, Ende, ein `raw_query` aus `""`) ergeben kein Paar. Ein Segment ohne `=` ist ein Paar der Art 0 (Schlüssel); mit `=` eines der Art 1 (Schlüssel und Wert, geteilt am ersten `=`, so ist `a=b=c` der Wert `b=c`, und `=v` der leere Schlüssel); `a` und `a=` sind verschieden, `;` trennt nichts.
+   Schlüssel und Wert werden getrennt dekodiert: `%XX` wird zu Bytes (Hex-Schreibweise gleich), `+` bleibt `+`; ungültig ist die Kodierung, wenn ein `%` nicht von zwei Hex-Ziffern gefolgt wird oder das Ergebnis (oder ein Roh-Byte) kein gültiges UTF-8 ist.
+   Ein ungültiges Paar ist bei `literal` ein Paar der Art 2 mit dem Segmenttext unverändert, bei `reject` ist das Ergebnis `ErrKodierung`; die Prüfung gilt für die redigierte Darstellung, ein ungültiger Wert unter einem redigierten Parameter ist damit weg (`token=%zz` ist `token=[REDACTED]`).
+   Die Paare werden aufsteigend nach (Art, Schlüsselbytes, Wertbytes), die Art 2 nach dem Text, sortiert; gleiche Paare bleiben beide (Multimenge). Kodiert: Anzahl, je Paar ein Byte Art (0, 1, 2), dann Schlüssel und bei Art 1 Wert als Zeichenfolge bzw. bei Art 2 der Text.
+5. **Vary-Header.** Die Menge ist `MATCH_VARY_HEADERS` ohne die Namen aus `VOLATILE_HEADERS` und aus `REDACT_HEADERS`: Authentisierung und flüchtige Header gehen nie in den Key ein (`LH-FA-05.a`, `LH-QA-02.a`); ein Name in beiden Mengen ist kein Fehler, die Ausnahme gewinnt.
+   Kodiert werden die Namen der Menge in kanonischer Schreibweise (Bytefolge aufsteigend), die der Request mit mindestens einem Wert trägt: Name, Anzahl der Werte, jeder Wert in der Reihenfolge der Eingabe, Leerzeichen und Tabulatoren an den Rändern eines Wertes entfernt. Schreibweisen desselben Namens werden wie in `SPEC-115` Nr. 2 zusammengeführt.
+   Ein fehlender Header (kein Eintrag oder leere Wertliste) steht nicht im Tupel; ein leerer Wert steht darin, ist also vom fehlenden verschieden. Zwei Wertzeilen (`a`, `b`) sind vom Wert `a, b` verschieden. Alle anderen Header gehen nicht ein. Eine leere Menge (`none`) ergibt die Anzahl 0.
+6. **Body.** Ein leerer oder `nil`-Body hat die Art 0 und keine Digest-Bytes. Sonst steht ein Byte Art und der SHA-256-Wert (32 Byte):
+   - `bytes`: Art 1, SHA-256 der Bytes.
+   - `json-canonical`: ist der Body genau ein gültiger JSON-Wert (RFC 8259, Leerraum außen erlaubt, kein BOM, nichts danach, Verschachtelung höchstens 512, Strings gültiges UTF-8 und ohne einzelne Surrogat-Escapes), Art 3 und SHA-256 der Kanonform; sonst Art 2 und SHA-256 der Bytes (kein Fehler: konservativer Rückfall, `LH-FA-05`).
+   - Kanonform: ohne Leerraum; Objektmitglieder aufsteigend nach den dekodierten Namensbytes, bei gleichem Namen in Eingabereihenfolge (doppelte Namen bleiben beide); Arrays in Reihenfolge; Strings als dekodierter Wert, mit `\"`, `\\` und `\u00XX` für Zeichen unter U+0020, sonst als UTF-8; Zahlen als Literal unverändert (`1`, `1.0`, `1e0` und `-0` sind verschieden); `true`, `false`, `null`.
+   Der Modus gehört wie `ServiceID` zur Aufzeichnung: ein anderer Modus beim Replay ergibt andere Keys.
+7. **`KeyRedacted`** und `RequestRedaction`: `applied` oder eine geänderte Query ergibt `true` (`SPEC-115` Nr. 7); `unsafe` ergibt `ErrUngueltig` ohne Key (`SPEC-001`: der Exchange ist `failed` mit `null`-Key), ebenso jeder andere Wert, auch der leere.
+8. **Redigierte Darstellung.** Header und `raw_query` des Ergebnisses sind die nach `SPEC-115` redigierten; Pfad und Body sind nicht redigiert (`LH-FA-14.a`). Der Key eines bereits redigierten Requests ist der Key des unredigierten (Idempotenz): Record und Replay finden denselben Key, und ein anderes Geheimnis ergibt denselben Key.
+9. **Fehler.** `ErrUngueltig` (Nr. 2, 3, 7 und die Aufzählungen der Regeln) ist ein Programmfehler des Aufrufers (`ODR-E9001`, `SPEC-109` Nr. 5). `ErrKodierung` (neu im Modell) tritt nur bei `reject` auf; der Dienst, der den Key bildet, antwortet `ODR-E5006` (HTTP 400, `SPEC-067`), im Record **vor** jeder Weiterleitung, ohne Exchange anzuhängen. Beide Fehler tragen keinen Wert des Requests.
+10. **Gleichwertigkeit.** Die Reihenfolge der Query-Paare, die Schreibweise der Hex-Ziffern und der Header-Namen, die Reihenfolge der Einträge der Header-Map und die Hex-Schreibweise im Pfad ändern den Key nicht; Methode, Service, Schreibweise des Pfades, Segmentgrenzen, `+` gegen `%20`, die Werte und Wiederholungen eines Parameters, ein Vary-Header und der Body tun es.
+
+Ungeprüft bleibt: Unicode-Normalisierung (`é` zusammengesetzt und zerlegt sind verschieden, konservativ), semantisch gleiche `$filter`-Ausdrücke (`LH-FA-05.a`), die Größe des Bodys (der Aufrufer begrenzt ihn: `MAX_CAPTURE_BODY` im Record; die Grenze im Replay legt der Dienst fest, der den Request liest) und die Laufzeit der Kanonform (zwei Durchläufe über höchstens diese Größe).
+
+### SPEC-117 — Replayfähigkeit: Funktion über die Fähigkeitsmatrix
+
+`Replayfaehig(Exchange, RedigierteBodies)` setzt die Matrix aus `SPEC-045` um; `RedigierteBodies` ist `REPLAY_REDACTED_BODIES` (`SPEC-083`). Die Matrix bleibt die Quelle; diese Nummer legt fest, wie die Funktion mit ihren Rändern umgeht.
+
+1. Das Ergebnis ist wahr genau dann, wenn `capture_status=complete`, die Integrität `verified` oder `absent` ist und die Response-Body-Redaction `none` ist, oder `applied` bei `RedigierteBodies=true`. Alles andere ist falsch: `incomplete`, `failed`, `invalid`, `unsafe`, `applied` bei `false`, und jeder unbekannte oder leere Wert einer der drei Spalten (die Funktion schließt im Zweifel aus).
+2. Nicht befragt werden: die Redaction des Request-Bodys, `key_redacted`, die Header, die Body-Zustände, `replay_equivalence`, `match_key` und die Zeiten; keines dieser Felder ändert das Ergebnis (`SPEC-045`: Request-, Query- und Header-Redaction schränken die Replayfähigkeit nicht ein).
+3. Die Funktion prüft den Exchange nicht (`Exchange.Validate` ist eine eigene Frage), liefert nie einen Fehler und ist auch für den Nullwert definiert (falsch). Sie verändert nichts und liefert für dieselbe Eingabe dasselbe.
+4. Wahl und Fehlercodes (`ODR-E5001`, `ODR-E5007`, `ODR-E5008`) und Cursor sind nicht Teil der Funktion: sie ist das Prädikat, das der Dienst über die Kandidaten legt (`SPEC-045`, `LH-FA-04.a`).
+
 ### SPEC-043 — Import- und Provenienz-Schema
 
 `ImportManifest{import_id, service_id, metadata_hash, source_session_ids[], created_at, entity_count, baseline_snapshot_id, coverage[]}`;
@@ -1157,6 +1234,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-10-20 | Redaction von Headern, Query und `Location`, Pfadmuster (`SPEC-115`), Kodierung des Match-Keys samt `normalized_path`, Query-Paaren, Vary-Headern und Body-Hash (`SPEC-116`), Replayfähigkeit als Funktion (`SPEC-117`) |
 | 2026-10-20 | `SPEC-114` *Ungeprüft*: der Ausfall der Zufallsquelle (Nr. 7) ist als nicht getestet benannt |
 | 2026-10-20 | `SPEC-114` Nr. 10: der Zähler von `FestIDs` wird dezimal geschrieben (auf `…09` folgt `…10`) |
 | 2026-10-20 | Vertrag von `Clock` und `IDGenerator` (`SPEC-114`): UTC ohne Rundung, nicht fallende Uhr, Bereich der Systemzeit, Form und Herkunft der Kennungen, Kollision, Client-Kennungen, Test-Implementierungen |
