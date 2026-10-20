@@ -33,6 +33,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Ein Redaktor im Domain-Modell liest einen JSON-Body als Strom, ersetzt String-Werte unter den konfigurierten Pfaden durch den Marker, erkennt Token über Chunk-Grenzen und meldet `none`, `applied` oder `unsafe`; unbekannte Typen und unvollständiges JSON enden fail-closed.
 
+**Übernimmt (Pfadmuster und Marker):** Grammatik und Bedeutung der Pfadmuster liefert `ParseJSONPfad` des Modells (`SPEC-115` Nr. 6: `$..name`, Name ohne Beachtung der ASCII-Schreibweise, Objektmitglieder in beliebiger Tiefe) und den Marker `[REDACTED]` (`SPEC-115` Nr. 1); der Redaktor ruft sie und führt keine zweite Grammatik (Sendung von `slice-redaction-match-key`).
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Tee, Puffergrenzen, Backpressure, Dekompression und das Schreiben des Blobs — `slice-capture-pipeline`; der Redaktor kennt nur einen Eingabestrom und einen Ausgabestrom.

@@ -37,6 +37,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Zeit und Kennungen):** Die Snapshot-Kennung der Baseline kommt aus `IDGenerator.SnapshotID()`, `created_at` aus `Clock.Now()` (`SPEC-114`); die `import_id` vergibt der Client und der Generator berührt sie nicht (`SPEC-114` Nr. 9; Sendung von `slice-clock-idgenerator`).
 
+**Übernimmt (Match-Key):** Die Auflösung von `@odata.nextLink` bildet den Key mit `BildeSchluessel` (`SPEC-116`); bei `ErrKodierung` gilt der Link als nicht auflösbar (die Kette bricht ab, die Coverage ist nicht `complete`), und `key_redacted` verhindert `complete` (Sendung von `slice-redaction-match-key`).
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Der Endpunkt `POST /__admin/imports` samt Authentisierung — Folgewelle (Welle §6); `SPEC-047` bindet den Use Case, der Adapter kommt später.

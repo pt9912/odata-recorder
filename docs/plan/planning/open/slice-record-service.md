@@ -35,6 +35,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt:** Zeit (`started_at`, `finished_at`) kommt aus `Clock.Now()`, die Exchange-Kennung aus `IDGenerator.ExchangeID()` (`SPEC-114`); die Tests setzen `supporttest.FestUhr` und `FestIDs` (Sendung von `slice-clock-idgenerator`).
 
+**Übernimmt (Redaction und Match-Key):** Der Dienst ruft `BildeSchluessel` (`SPEC-116`) mit dem unredigierten Request und dem bereits redigierten Request-Body, persistiert `RawQuery` und `Header` des Ergebnisses und `KeyRedacted`, redigiert die Response-Header mit `RedigiereHeader` (`SPEC-115` Nr. 2, 3) und übergibt als `Path` den Pfad nach dem Service-Root; bei `ErrKodierung` (`MATCH_INVALID_ENCODING=reject`) antwortet er `ODR-E5006` vor jeder Weiterleitung und hängt keinen Exchange an, bei `redaction.request=unsafe` bleibt der Key `null` (`SPEC-116` Nr. 7, 9; Sendung von `slice-redaction-match-key`).
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - HTTP-Server, Header-Mapping des Eingangs und Listener-Lebenszyklus — `slice-http-adapter`; der Use Case erhält Methode, Pfad, `raw_query`, Header und einen Body-Strom.
