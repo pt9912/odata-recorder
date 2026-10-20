@@ -57,17 +57,27 @@ func (p *pruefer) aufzaehlung(schluessel, standard string, erlaubt ...string) st
 }
 
 func (p *pruefer) wahrheitswert(schluessel string, standard bool) bool {
+	w, gesetzt, gueltig := p.optionalerWahrheitswert(schluessel)
+	if !gesetzt || !gueltig {
+		return standard
+	}
+	return w
+}
+
+// optionalerWahrheitswert liest einen Wahrheitswert; gesetzt meldet einen vorhandenen Wert,
+// gueltig seine Form. Ein ungültiger Wert ist gemeldet und liefert wert=false.
+func (p *pruefer) optionalerWahrheitswert(schluessel string) (wert, gesetzt, gueltig bool) {
 	w, ok := p.wert(schluessel)
 	switch {
 	case !ok:
-		return standard
+		return false, false, true
 	case w == "true":
-		return true
+		return true, true, true
 	case w == "false":
-		return false
+		return false, true, true
 	}
 	p.melde(schluessel, "Wahrheitswert muss true oder false sein")
-	return standard
+	return false, true, false
 }
 
 func (p *pruefer) liesEinfache(k *Konfiguration) {

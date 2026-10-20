@@ -19,23 +19,19 @@ const maxServicesFile = 1 << 20
 // felderDienst sind die Felder eines Eintrags der SERVICES_FILE.
 func felderDienst() []string { return []string{"id", "service_root", "upstream_url"} }
 
-// optionalerWahrheitswert liest einen Wahrheitswert und meldet, ob er gesetzt ist.
-func (p *pruefer) optionalerWahrheitswert(schluessel string) (wert, gesetzt bool) {
-	if _, ok := p.wert(schluessel); !ok {
-		return false, false
-	}
-	return p.wahrheitswert(schluessel, false), true
-}
-
-// liesTLS prüft die Widersprüche der Zertifikatsprüfung (SPEC-110 Nr. 10).
+// liesTLS prüft die Widersprüche der Zertifikatsprüfung (SPEC-110 Nr. 10); ein formal ungültiger
+// Wert meldet nur seine Form und nimmt am Zusammenhang nicht teil.
 func (p *pruefer) liesTLS(k *Konfiguration) {
-	verify, verifyGesetzt := p.optionalerWahrheitswert("UPSTREAM_TLS_VERIFY")
-	skip := p.wahrheitswert("UPSTREAM_TLS_INSECURE_SKIP_VERIFY", false)
-	switch {
-	case verifyGesetzt && !verify && !skip:
-		p.melde("UPSTREAM_TLS_VERIFY", "false braucht UPSTREAM_TLS_INSECURE_SKIP_VERIFY=true")
-	case verifyGesetzt && verify && skip:
-		p.melde("UPSTREAM_TLS_INSECURE_SKIP_VERIFY", "widerspricht UPSTREAM_TLS_VERIFY=true")
+	verify, verifyGesetzt, verifyGueltig := p.optionalerWahrheitswert("UPSTREAM_TLS_VERIFY")
+	skip, _, skipGueltig := p.optionalerWahrheitswert("UPSTREAM_TLS_INSECURE_SKIP_VERIFY")
+	verifyGesetzt = verifyGesetzt && verifyGueltig
+	if verifyGueltig && skipGueltig {
+		switch {
+		case verifyGesetzt && !verify && !skip:
+			p.melde("UPSTREAM_TLS_VERIFY", "false braucht UPSTREAM_TLS_INSECURE_SKIP_VERIFY=true")
+		case verifyGesetzt && verify && skip:
+			p.melde("UPSTREAM_TLS_INSECURE_SKIP_VERIFY", "widerspricht UPSTREAM_TLS_VERIFY=true")
+		}
 	}
 	k.UpstreamTLSVerify = !skip && (!verifyGesetzt || verify)
 }

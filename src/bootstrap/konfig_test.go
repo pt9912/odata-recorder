@@ -719,7 +719,7 @@ func TestKonfigUpstreamModus(t *testing.T) {
 
 // TestKonfigMeldungSortierung: die Meldung folgt der Bytefolge des Schlüssels, dann dem Grund; gleiche Zeilen stehen einmal (SPEC-110 Nr. 12).
 func TestKonfigMeldungSortierung(t *testing.T) {
-	// SERVICES_FILE[0] (unbekanntes Feld) geht SERVICES_FILE[0].id voraus, obwohl '.' < ':' die ganze Zeile umordnen würde.
+	// Die Folge richtet sich nach dem Schlüssel allein: SERVICES_FILE[0] geht SERVICES_FILE[0].id voraus.
 	datei := schreibe(t, `[{"extra":1,"service_root":"/a"}]`)
 	_, zeilen := lade(t, "MODE=replay", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+datei)
 	if s := schluessel(t, zeilen); !slices.Equal(s, []string{"SERVICES_FILE[0]", "SERVICES_FILE[0].id"}) {
@@ -754,6 +754,7 @@ func TestKonfigMeldungSortierung(t *testing.T) {
 }
 
 // TestKonfigDienstefeldTyp: ein Feld falschen Typs meldet nur den Typ, weder „Pflichtfeld fehlt“ noch die Form noch „im Modus record erforderlich“ (SPEC-110 Nr. 9, Nr. 12).
+// Geprüft sind id, service_root und upstream_url in record sowie upstream_url in replay und mock; hybrid ist nicht geprüft.
 func TestKonfigDienstefeldTyp(t *testing.T) {
 	for name, tc := range map[string]struct{ inhalt, zeile string }{
 		"id":           {`[{"id":1,"service_root":"/a","upstream_url":"https://h"}]`, "ODR-E2001 SERVICES_FILE[0].id: muss eine Zeichenkette sein"},
@@ -766,5 +767,50 @@ func TestKonfigDienstefeldTyp(t *testing.T) {
 				t.Errorf("Zeilen %v, erwartet [%s]", zeilen, tc.zeile)
 			}
 		})
+	}
+	const eintrag = `[{"id":"a","service_root":"/a","upstream_url":1}]`
+	const typ = "ODR-E2001 SERVICES_FILE[0].upstream_url: muss eine Zeichenkette sein"
+	for modus, soll := range map[string][]string{
+		"replay": {typ},
+		"mock":   {"ODR-E2001 MODE: Modus nicht unterstützt; lieferbar sind record und replay", typ},
+	} {
+		t.Run("upstream_url_"+modus, func(t *testing.T) {
+			_, zeilen := lade(t, "MODE="+modus, "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, eintrag))
+			if !slices.Equal(zeilen, soll) {
+				t.Errorf("Zeilen %v, erwartet %v", zeilen, soll)
+			}
+		})
+	}
+}
+
+// TestKonfigTLSUngueltig: ein formal ungültiger Wahrheitswert meldet nur seine Form; der Widerspruch wird nur bei zwei gültigen Werten geprüft (SPEC-110 Nr. 10, Nr. 12).
+func TestKonfigTLSUngueltig(t *testing.T) {
+	const v = "ODR-E2001 UPSTREAM_TLS_VERIFY: Wahrheitswert muss true oder false sein"
+	const s = "ODR-E2001 UPSTREAM_TLS_INSECURE_SKIP_VERIFY: Wahrheitswert muss true oder false sein"
+	tests := []struct {
+		verify, skip string
+		soll         []string
+	}{
+		{"yes", "", []string{v}}, {"yes", "true", []string{v}}, {"1", "", []string{v}}, {"1", "true", []string{v}},
+		{"false", "yes", []string{s}}, {"true", "yes", []string{s}}, {"", "TRUE", []string{s}},
+		{"yes", "yes", []string{s, v}},
+	}
+	for _, tc := range tests {
+		env := basis(t)
+		if tc.verify != "" {
+			env = append(env, "UPSTREAM_TLS_VERIFY="+tc.verify)
+		}
+		if tc.skip != "" {
+			env = append(env, "UPSTREAM_TLS_INSECURE_SKIP_VERIFY="+tc.skip)
+		}
+		_, zeilen := lade(t, env...)
+		if !slices.Equal(zeilen, tc.soll) {
+			t.Errorf("verify=%q skip=%q: Zeilen %v, erwartet %v", tc.verify, tc.skip, zeilen, tc.soll)
+		}
+		for _, z := range zeilen {
+			if strings.Contains(z, "braucht") || strings.Contains(z, "widerspricht") {
+				t.Errorf("verify=%q skip=%q: Widerspruch gemeldet: %s", tc.verify, tc.skip, z)
+			}
+		}
 	}
 }
