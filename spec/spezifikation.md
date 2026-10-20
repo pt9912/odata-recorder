@@ -859,7 +859,7 @@ Die Ports haben weder Argumente noch Kontext noch Fehlerrückgabe und sind für 
 9. Kennungen, die der Client vergibt (Replay-Session-ID, `import_id`, eine mitgegebene Workspace- oder Session-`id`), erzeugt, prüft und ändert der Generator nicht; ihre Form (Länge, Alphabet) legt der Vertrag des Use Case fest, der sie annimmt.
 10. `FestIDs`: dieselbe Form (Nr. 6), die 32 Zeichen sind ein Zähler je Operation, der je Instanz bei 1 beginnt und um 1 steigt (`ses-00000000000000000000000000000001`, `ses-…02`). Der Zähler steht **dezimal** mit führenden Nullen auf 32 Stellen (`%032d`): auf `…09` folgt `…10`, nicht `…0a`; so bleibt die Kennung lesbar und die Folge im Test vorhersagbar, und die Form von Nr. 6 bleibt erfüllt. Zwei Instanzen zählen unabhängig; bei gleichzeitigem Aufruf erhält jeder Aufruf genau eine Nummer, ohne Lücke und ohne Doppelung.
 
-Ungeprüft bleibt: die Genauigkeit der Plattformuhr und der Abgleich ihrer Zeit (NTP), die kryptografische Güte der Zufallsquelle (kein Test kann sie beobachten) sowie das Ausbleiben von Datenrennen über das Verhalten hinaus, das die Tests unter Last zeigen; das Gate fährt nicht mit dem Race-Detektor.
+Ungeprüft bleibt: die Genauigkeit der Plattformuhr und der Abgleich ihrer Zeit (NTP), die kryptografische Güte der Zufallsquelle (kein Test kann sie beobachten), das Verhalten bei Ausfall der Zufallsquelle (Nr. 7; es liegt bei der Go-Laufzeit, ein Test brauchte einen Unterprozess) sowie das Ausbleiben von Datenrennen über das Verhalten hinaus, das die Tests unter Last zeigen; das Gate fährt nicht mit dem Race-Detektor.
 
 ### SPEC-043 — Import- und Provenienz-Schema
 
@@ -1157,6 +1157,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-10-20 | `SPEC-114` *Ungeprüft*: der Ausfall der Zufallsquelle (Nr. 7) ist als nicht getestet benannt |
 | 2026-10-20 | `SPEC-114` Nr. 10: der Zähler von `FestIDs` wird dezimal geschrieben (auf `…09` folgt `…10`) |
 | 2026-10-20 | Vertrag von `Clock` und `IDGenerator` (`SPEC-114`): UTC ohne Rundung, nicht fallende Uhr, Bereich der Systemzeit, Form und Herkunft der Kennungen, Kollision, Client-Kennungen, Test-Implementierungen |
 | 2026-10-20 | Randformen von `SPEC-109` und `SPEC-110` entschieden: `none` in Listen, kanonische Schreibweise der Header-Mengen, Werte der Dienste-Datei (doppelt, `null`, leer), Form von `UPSTREAM_URL` in jedem Modus, Hostname und Port, Sortierung der Meldung, Kontextfehler im `errors.Join` |
