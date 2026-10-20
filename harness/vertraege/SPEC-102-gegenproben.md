@@ -41,7 +41,7 @@ Ein roter Lauf lässt den Stempel unverändert, ein fehlender Stempel erzwingt d
 22. `migration/erzeugtes-ddl-fehlt` · `migration-check.sh` · die Datei mit dem erzeugten DDL fehlt · Exit 2, Ausgabe nennt das erzeugte DDL als fehlend und nicht die Migration.
 23. `migration/falsche-aufrufform` · `migration-check.sh` · ein Argument statt zwei · Exit 2, Ausgabe nennt `Aufruf`.
 24. `migration/zu-viele-argumente` · `migration-check.sh` · drei Argumente statt zwei · Exit 2, Ausgabe nennt `Aufruf`.
-25. `test/basis` · `pruefung test` mit dem Muster `./src/bootstrap/...` · keiner · Exit 0, Ausgabe nennt `pruefung test: ok`.
+25. `test/basis` · `pruefung test` mit einem Go-Muster, das nur die Pakete unter `src/bootstrap` einschließt · keiner · Exit 0, Ausgabe nennt `pruefung test: ok`.
 26. `test/nicht-formatiert` · `pruefung test` · eine Datei in `src/bootstrap/` mit ungleichmäßigen Leerzeichen · Exit 1, Ausgabe nennt `nicht gofmt-formatiert` und den Dateinamen.
 27. `test/vet-befund` · `pruefung test` · eine Datei in `src/bootstrap/` mit einem `Printf`, dessen Verb nicht zum Argument passt · Exit 1, Ausgabe nennt `go vet:`.
 28. `test/roter-test` · `pruefung test` · eine Testdatei in `src/bootstrap/` mit einem Test, der `t.Fatal` ruft · Exit 1, Ausgabe nennt `go test:`.
