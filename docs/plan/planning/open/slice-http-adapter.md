@@ -33,6 +33,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der Driving Adapter `src/adapters/driving/httpodata` nimmt HTTP-Requests des OData-Listeners an, bildet Methode, Pfad, `raw_query`, Header und Body-Strom unverändert auf Domain-DTOs ab, ruft den Inbound Port des Betriebsmodus, streamt die Antwort, schließt die Ströme, vergibt die Korrelations-ID und schreibt Fehler als Fehlerobjekt.
 
+**Übernimmt:** Die Korrelations-ID kommt aus `IDGenerator.KorrelationsID()` (`SPEC-114` Nr. 6), nicht aus eigenem Code des Adapters; die Tests setzen `supporttest.FestIDs` (Sendung von `slice-clock-idgenerator`).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Entscheidungen über Cursor, Match-Key, Coverage oder CRUD — der Adapter entscheidet sie nicht (`architecture.md` §2.2).

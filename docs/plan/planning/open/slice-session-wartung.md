@@ -35,6 +35,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt:** Die Übergaben aus `welle-persistenz`: `MaintenanceUseCase` samt Blob-Abgleich und die Aufbewahrung nach Alter (beide standen als „noch ohne Slice“ in der Roadmap).
 
+**Übernimmt (Zeit und Kennungen):** Die Session-Kennung kommt aus `IDGenerator.SessionID()`, Zeit und Aufbewahrungsgrenze aus `Clock.Now()` (`SPEC-114`); die Form einer vom Aufrufer gelieferten `id` (leer, überlang, Zeichen) legt dieser Slice mit dem Architect **vor dem Code** fest (`SPEC-114` Nr. 9; Sendung von `slice-clock-idgenerator`).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Admin-Endpunkte für Sessions (`POST /__admin/sessions`, `close`, `DELETE`) — Folgewelle (Welle §6); die Use Cases sind der Vertrag, den der Admin-Adapter später ruft.

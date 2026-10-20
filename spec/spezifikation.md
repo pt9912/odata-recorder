@@ -419,7 +419,7 @@ Der Zielwert p95 ≤ 100 ms ist vorläufig; die Bestätigung durch den fachliche
 - **Volatile Header** (`VOLATILE_HEADERS`, `SPEC-063`) werden im Vergleich der normalisierten Antworten ignoriert und gehen nicht in den Match-Key ein; alle übrigen Header sind relevant.
 - Der Mock vergibt keine Schlüssel und erzeugt keine Zeitstempel in Entity-Daten (`LH-FA-07.a`); ETags (Soll) leiten sich aus dem Versionszähler der Entity ab.
 - Stabile Sortierung bei Gleichstand nach Entity-Key (`LH-FA-08.a`); Collections ohne `$orderby` werden nach Entity-Key geliefert.
-- Zeit und serverseitig erzeugte IDs (Korrelations-ID, Session-ID, Exchange-ID, Workspace-ID, Snapshot-ID) kommen aus `Clock`/`IDGenerator` und sind in Tests ersetzbar;
+- Zeit und serverseitig erzeugte IDs (Korrelations-ID, Session-ID, Exchange-ID, Workspace-ID, Snapshot-ID) kommen aus `Clock`/`IDGenerator` (Vertrag `SPEC-114`) und sind in Tests ersetzbar;
   Replay-Session-IDs und `import_id` vergibt der Client.
 
 ### LH-QA-03.a — Isolation und Konsistenz
@@ -840,6 +840,27 @@ Jede Verletzung ist `ODR-E2001` (`SPEC-016`) und verhindert den Start.
 
 Ungeprüft bleibt: ob `LISTEN` frei ist, ob ein Hostname aufgelöst wird und ob `UPSTREAM_URL` erreichbar ist; das trifft der Start der Listener bzw. die erste Anfrage. Ebenso die Größe von `UPSTREAM_CA_FILE`: die Datei liegt in der Hand des Betreibers, wird einmal beim Start gelesen, und ein zu großer oder endloser Inhalt ist ein Betreiberfehler, der den Start nicht übersteht.
 
+### SPEC-114 — Zeit und Kennungen: Vertrag von `Clock` und `IDGenerator`
+
+`Clock` und `IDGenerator` (`ARC-019`, `ARC-021`) liefern jede Zeit und jede vom Server vergebene Kennung (`LH-QA-02.a`); kein Modell, Service oder Adapter liest die Systemuhr oder eine Zufallsquelle selbst.
+Die Ports haben weder Argumente noch Kontext noch Fehlerrückgabe und sind für gleichzeitigen Aufruf sicher; ihre Test-Implementierungen `FestUhr` und `FestIDs` (Paket `supporttest`) erfüllen denselben Vertrag, soweit unten nichts anderes steht.
+
+**Uhr** (`Now() time.Time`):
+1. `Now()` liefert die aktuelle Zeit in UTC (Ort `time.UTC`), ohne monotone Uhrablesung und ohne Rundung: die Auflösung ist die der Plattform, bis zu Nanosekunden. Die Speicherung behält sie (`SPEC-105`: neun Nachkommastellen).
+2. Eine Uhr liefert nie weniger als ein Aufruf derselben Uhr, der vorher zurückkehrte. Springt die Systemzeit zurück, bleibt `Now()` auf dem bisherigen Höchstwert stehen, bis die Systemzeit ihn wieder erreicht; so liegt `finished_at` nie vor `started_at` (`SPEC-105` Nr. 10). Zwei Aufrufe dürfen denselben Wert liefern: die Zeit ordnet keine Exchanges, das tut `sequence_no` (`SPEC-105` Nr. 8).
+3. Die Systemzeit wird nicht auf Bereich geprüft. Die Nullzeit und eine Zeit außerhalb der Jahre 1 bis 9999 kann nur eine verstellte Systemuhr liefern; `Now()` reicht sie (in UTC) unverändert weiter, und der aufnehmende Port weist sie als `ErrUngueltig` ab (`SPEC-105` Nr. 1), statt dass ein Ersatzwert sie versteckt. Nr. 2 gilt auch dann; ein Neustart des Prozesses beendet das Stehenbleiben auf einem solchen Höchstwert.
+4. `Clock` kennt weder Warten noch Timer; Fristen laufen über den Kontext.
+5. `FestUhr`: `NewFestUhr(start)` rechnet `start` nach UTC um. Die Nullzeit und ein Jahr außerhalb 1 bis 9999 **nach** der Umrechnung sind ein Programmfehler des Tests und lösen eine Panik aus (zuerst die Nullzeit, dann der Bereich). `Now()` liefert den Stand und ändert ihn nicht; `Advance(d)` rückt ihn um `d` vor. `d == 0` ist erlaubt; `d < 0` oder ein Ergebnis nach dem Jahr 9999 ist eine Panik und ändert den Stand nicht. Gleichzeitige `Advance` summieren sich.
+
+**Kennungen** (`IDGenerator`):
+6. Fünf Operationen ohne Argument, jede liefert eine Zeichenkette: `SessionID` (`ses`), `ExchangeID` (`exc`), `KorrelationsID` (`cor`), `WorkspaceID` (`wsp`), `SnapshotID` (`snp`); `SnapshotID` dient Baseline- und Workspace-Snapshots. Die Form ist `<Präfix>-<32 Zeichen aus 0-9a-f>`, genau 36 Zeichen aus `[a-z0-9-]`, damit sie ohne Maskierung in URL-Pfad, Header, Dateiname und Logzeile steht. Eine Kennung ordnet nichts: geordnet wird nach Zeit bzw. `sequence_no`, dann nach Kennung (`SPEC-105` Nr. 4, 11).
+7. Die Zeichen sind 128 Bit aus `crypto/rand`, ohne Seed und ohne Konfiguration. Fällt die Quelle aus, beendet die Laufzeit den Prozess (seit Go 1.24 gibt es keinen Fehlerwert); deshalb hat der Port keine Fehlerrückgabe.
+8. Zwei Kennungen derselben Operation stimmen mit vernachlässigbarer Wahrscheinlichkeit überein (bei 128 Zufallsbits wird eine Kollision erst bei rund 2^64 Kennungen wahrscheinlich); Kennungen verschiedener Operationen unterscheiden sich durch das Präfix. Der Generator prüft nicht gegen den Speicher, und die Verbraucher wiederholen nicht; trifft ein Port dennoch `ErrBereitsVorhanden` auf eine erzeugte Kennung, gilt `SPEC-109` wie für jede andere.
+9. Kennungen, die der Client vergibt (Replay-Session-ID, `import_id`, eine mitgegebene Workspace- oder Session-`id`), erzeugt, prüft und ändert der Generator nicht; ihre Form (Länge, Alphabet) legt der Vertrag des Use Case fest, der sie annimmt.
+10. `FestIDs`: dieselbe Form (Nr. 6), die 32 Zeichen sind ein Zähler je Operation, der je Instanz bei 1 beginnt und um 1 steigt (`ses-00000000000000000000000000000001`, `ses-…02`). Zwei Instanzen zählen unabhängig; bei gleichzeitigem Aufruf erhält jeder Aufruf genau eine Nummer, ohne Lücke und ohne Doppelung.
+
+Ungeprüft bleibt: die Genauigkeit der Plattformuhr und der Abgleich ihrer Zeit (NTP), die kryptografische Güte der Zufallsquelle (kein Test kann sie beobachten) sowie das Ausbleiben von Datenrennen über das Verhalten hinaus, das die Tests unter Last zeigen; das Gate fährt nicht mit dem Race-Detektor.
+
 ### SPEC-043 — Import- und Provenienz-Schema
 
 `ImportManifest{import_id, service_id, metadata_hash, source_session_ids[], created_at, entity_count, baseline_snapshot_id, coverage[]}`;
@@ -1136,6 +1157,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-10-20 | Vertrag von `Clock` und `IDGenerator` (`SPEC-114`): UTC ohne Rundung, nicht fallende Uhr, Bereich der Systemzeit, Form und Herkunft der Kennungen, Kollision, Client-Kennungen, Test-Implementierungen |
 | 2026-10-20 | Randformen von `SPEC-109` und `SPEC-110` entschieden: `none` in Listen, kanonische Schreibweise der Header-Mengen, Werte der Dienste-Datei (doppelt, `null`, leer), Form von `UPSTREAM_URL` in jedem Modus, Hostname und Port, Sortierung der Meldung, Kontextfehler im `errors.Join` |
 | 2026-10-20 | `SPEC-110` Nr. 9 und 12: ein Feld des falschen Typs in `SERVICES_FILE` meldet nur den Typ (eine Zeile je Schlüssel); die Sortierung nach Grund bleibt als Totalordnung ohne beobachtbaren Fall |
 | 2026-10-20 | `SPEC-110` Nr. 10 und 12: ein formal ungültiger Wahrheitswert von `UPSTREAM_TLS_VERIFY` oder `UPSTREAM_TLS_INSECURE_SKIP_VERIFY` meldet nur die Form, der Widerspruch wird nur bei zwei gültigen Werten geprüft; je Schlüssel höchstens ein Grund |

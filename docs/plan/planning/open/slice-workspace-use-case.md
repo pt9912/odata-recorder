@@ -35,6 +35,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt:** Die Übergabe aus `welle-persistenz`: die CRUD-Fachlogik der Workspaces (Anlage-, Reset- und Löschablauf setzt `SPEC-108` als Fachlogik voraus).
 
+**Übernimmt (Zeit und Kennungen):** Die Workspace-Kennung kommt aus `IDGenerator.WorkspaceID()`, wenn der Aufrufer keine `id` mitgibt, die Zeit (`created_at`) aus `Clock.Now()` (`SPEC-114`); die Form einer mitgegebenen `id` ist das offene Risiko in §6 und gehört diesem Slice (Sendung von `slice-clock-idgenerator`).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Mutation des Entity-State und Fortschreiben der Revision durch Schreibzugriffe — Mock-Modus, nicht in der Welle; hier erhöht nur der Reset die Revision.

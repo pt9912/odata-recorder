@@ -33,6 +33,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** `RecordUseCase` bestimmt Service und offene Session aus dem Rohrequest, leitet über den Outbound Port `UpstreamClient` und dessen Adapter `httpupstream` an den Upstream weiter, zeichnet über die Capture-Pipeline auf, hängt den Exchange mit `sequence_no` atomar an und kann eine Session anhalten (`Drain`).
 
+**Übernimmt:** Zeit (`started_at`, `finished_at`) kommt aus `Clock.Now()`, die Exchange-Kennung aus `IDGenerator.ExchangeID()` (`SPEC-114`); die Tests setzen `supporttest.FestUhr` und `FestIDs` (Sendung von `slice-clock-idgenerator`).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - HTTP-Server, Header-Mapping des Eingangs und Listener-Lebenszyklus — `slice-http-adapter`; der Use Case erhält Methode, Pfad, `raw_query`, Header und einen Body-Strom.

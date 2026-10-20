@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-QA-02`, `LH-FA-13`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `LH-QA-02.a` (Zeit und IDs aus `Clock`/`IDGenerator`) · `ARC-019` · `ARC-021`.
+**Berührte Spec-Stellen:** `LH-QA-02.a` (Zeit und IDs aus `Clock`/`IDGenerator`) · `SPEC-114` (Vertrag, mit diesem Plan geschrieben) · `SPEC-105` (Zeit und Speicherung) · `ARC-019` · `ARC-021`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -31,12 +31,16 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Die Querschnitts-Ports `Clock` und `IDGenerator` und ihr Driven Adapter `src/adapters/driven/clock` liefern Systemzeit und Kennungen (Session, Exchange, Korrelation), und die Tests der Services ersetzen sie durch feste Werte.
+**Ziel:** Die Querschnitts-Ports `Clock` und `IDGenerator`, ihr Driven Adapter `src/adapters/driven/clock` (`Systemuhr`, `ZufallsIDs`) und die Test-Implementierungen `FestUhr` und `FestIDs` samt Vertragstests in `src/hexagon/ports/support/supporttest/` liefern Zeit und Kennungen (Session, Exchange, Korrelation, Workspace, Snapshot) nach `SPEC-114`, und die Tests der Services ersetzen sie durch feste Werte.
+
+**Übergibt** (jeder Nehmer führt die Sendung mit der Kennung dieses Slice in seinem §1; `AGENTS.md` §3.13): `slice-http-adapter` (Korrelations-ID), `slice-record-service` (Exchange-Kennung, Zeit), `slice-session-wartung` (Session-Kennung, Zeit, Form einer vom Aufrufer gelieferten `id`), `slice-workspace-use-case` (Workspace-Kennung, Zeit), `slice-baseline-import` (Snapshot-Kennung, Zeit), `slice-bootstrap-m2` (Verdrahtung, eine Instanz je Prozess).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - `AuditLog` und `Telemetry` als Querschnitts-Ports — Folgewelle (Welle §6); ohne Audit-Endpunkte und Spans gibt es keinen Aufrufer.
-- Kennungen, die der Client vergibt (Replay-Session-ID, `import_id`, Workspace-ID bei der Anlage) — `LH-QA-02.a` legt sie beim Client; der Port liefert nur serverseitige.
+- Kennungen, die der Client vergibt (Replay-Session-ID, `import_id`, mitgegebene Workspace- oder Session-`id`) — `LH-QA-02.a` legt sie beim Client, der Port liefert nur serverseitige (`SPEC-114` Nr. 9); ihre Form legt der Use Case fest, der sie annimmt (`slice-workspace-use-case` §6, `slice-session-wartung`).
+- Aufrufe der Ports in den Services und die Verdrahtung im Composition Root — die Slices der Zeile *Übergibt*; hier entstehen Ports, Adapter und Fakes, kein Aufrufer.
+- Dauer messen (`duration_ms`) und Timer — `Clock` kennt nur `Now()` (`SPEC-114` Nr. 4); Messung gehört zu `Telemetry` (Folgewelle, Welle §6).
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
 einer mit vier erfundenen; die vier Klassen sind ein Suchraster, keine
@@ -56,8 +60,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Ports `Clock` und `IDGenerator` unter `src/hexagon/ports/support/` und der Adapter mit UTC-Zeit und kollisionsresistenten Kennungen.
-- [ ] Feste Test-Implementierungen, die die Services der folgenden Slices nutzen; Test der Eindeutigkeit unter gleichzeitigem Aufruf.
+- [ ] Ports `Clock` und `IDGenerator` unter `src/hexagon/ports/support/` und der Adapter `Systemuhr`/`ZufallsIDs`: UTC-Zeit, nicht fallend, Kennungen der Form `SPEC-114` Nr. 6.
+- [ ] `FestUhr`, `FestIDs` und die Vertragstests `UhrVertrag`, `IDVertrag` in `supporttest`, die gegen echte und feste Implementierung laufen; Test der Eindeutigkeit unter gleichzeitigem Aufruf.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -77,12 +81,37 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/ports/support/` | neu | `Clock`, `IDGenerator` |
-| `src/adapters/driven/clock/` | neu | Systemzeit (UTC) und Kennungen |
-| `spec/spezifikation.md` | update | Form der serverseitigen Kennungen (Länge, Alphabet) und Auflösung der Zeit |
-| Tests der Pakete | neu | Eindeutigkeit, Monotonie der Fake-Uhr, gleichzeitiger Aufruf |
+| `src/hexagon/ports/support/` | neu | `Clock` (`Now() time.Time`), `IDGenerator` (`SessionID`, `ExchangeID`, `KorrelationsID`, `WorkspaceID`, `SnapshotID`, je `func() string`), ohne Argument, Kontext und Fehler (`SPEC-114`) |
+| `src/hexagon/ports/support/supporttest/` | neu | `FestUhr` (`NewFestUhr`, `Now`, `Advance`), `FestIDs` (`NewFestIDs`), die Vertragsfunktionen `UhrVertrag(t, uhr)` und `IDVertrag(t, gen)` nach dem Muster von `outboundtest`; die Vertragsfunktionen zählen die Methoden der Ports mit `reflect` auf |
+| `src/adapters/driven/clock/` | neu | `Systemuhr` (`NewSystemuhr`, unexportiert `neuMit(quelle)` für die Tests der Rücksprünge) und `ZufallsIDs` (`NewZufallsIDs`, 16 Byte aus `crypto/rand`, hex); je eine Zusicherung `var _ support.Clock = …` |
+| `spec/spezifikation.md` | update | **vor dem Code geschrieben:** `SPEC-114` samt Historie-Zeile; `LH-QA-02.a` verweist darauf |
+| Tests der Pakete | neu | Tabellen- und Vertragstests nach der Tabelle unten |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation oder in `harness/vertraege/` **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen, die sie tragen müssen, nennt §6.
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) steht unten, das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16); beide gehören zum Vertrag `SPEC-114`, der vor dem ersten Code-Commit in der Spezifikation steht (`AGENTS.md` §3.12). Die Fänger sind Namen geplanter Tests; der Implementer legt sie unter diesem Namen an oder nennt den Namen, den er stattdessen vergibt, im Bericht. Der Race-Detektor gehört nicht zum Gate (`pruefung test` fährt `go test` ohne `-race`); wo ein Fänger davon abhängt, steht das in der Zeile.
+
+**Zusage · Fänger** (jede Zeile löst der Reviewer mit einer Mutation auf):
+
+| Zusage | Fänger |
+|---|---|
+| `Now()` liefert UTC (Ort `time.UTC`), `SPEC-114` Nr. 1 | `UhrVertrag` für `Systemuhr` und `FestUhr`: `Location() == time.UTC`; für `FestUhr` auch mit Start in `+02:00`. Mutation: `.Local()` statt `.UTC()`: rot |
+| Keine monotone Ablesung, keine Rundung, Nanosekunden bleiben (Nr. 1) | `TestSystemuhrOhneRundung`: Quelle liefert `time.Now()` mit Nanosekunden ≠ 0; Ergebnis hat `t == t.Round(0)` und dieselben Nanosekunden. Mutation: `Truncate(time.Second)`: rot; ohne `Round(0)`: rot. Dass der Speicher die Nanosekunden hält, trägt `outboundtest` (`123456789`, `SPEC-105`) — hier nicht doppelt geprüft |
+| Nicht fallend; Rücksprung bleibt auf dem Höchstwert; gleicher Wert erlaubt (Nr. 2) | `TestSystemuhrRuecksprung`: Quelle `t, t-1h, t-1h, t+1s, t` ergibt `t, t, t, t+1s, t+1s`. Mutation: Klammer entfernen: rot |
+| Dieselbe Zusage bei gleichzeitigem Aufruf (Nr. 2, Einleitung) | `TestSystemuhrNebenlaeufig`: 64 Goroutinen, Quelle fällt mit jedem Aufruf (atomarer Zähler); die Folge jeder einzelnen Goroutine ist nicht fallend. Mutation: Klammer entfernen: **sicher** rot. Mutation: Klammer ohne Sperre: nur wahrscheinlich rot, ohne Race-Detektor nicht sicher — **akzeptiertes Negativ**, Grund: das Gate fährt kein `-race`, und ein Datenrennen lässt sich im Test nicht erzwingen; der Implementer fährt `-count=20` vor der Übergabe und `-race`, wenn das Image es kann |
+| Keine Bereichsprüfung, aber Nr. 2 gilt: Nullzeit und Jahr 10000 gehen unverändert durch; Nullzeit nach gültigem Wert bleibt auf dem Höchstwert; ein Wert hinter Jahr 9999 wird Höchstwert (Nr. 3) | `TestSystemuhrBereichUngeprueft`: frische Uhr mit Quelle `0001-01-01T00:00:00Z` liefert sie; Quelle `t, Null` liefert `t, t`; Quelle `t, 10000-01-01, t` liefert `t, 10000-01-01, 10000-01-01`. Mutation: Ersatzwert für Null: rot |
+| `Clock` kennt weder Warten noch Timer; Port ohne Argument, Kontext, Fehler (Einleitung, Nr. 4) | `TestPortSignaturen`: `reflect` auf `Clock` und `IDGenerator`: `Now` ist `func() time.Time`, jede Methode von `IDGenerator` ist `func() string`, `Clock` hat genau eine Methode. Mutation: Parameter `ctx` oder eine zweite Methode: rot |
+| `NewFestUhr`: Nullzeit und Jahr außerhalb 1 bis 9999 nach Umrechnung sind Panik, die Grenzen selbst gültig (Nr. 5) | `TestFestUhrStart`: gültig `0001-01-01T00:00:00.000000001Z`, `9999-12-31T23:59:59.999999999Z`, `2026-10-20T10:00:00+02:00` (ergibt 08:00 UTC); Panik bei `time.Time{}`, `time.Time{}.In(+02:00)`, `10000-01-01T00:00:00Z`, `9999-12-31T23:00:00-02:00` (Jahr 10000 in UTC), `0001-01-01T01:00:00+02:00` (Jahr 0 in UTC). Mutation: Jahr der Ortszeit prüfen: rot |
+| `FestUhr.Now` ändert den Stand nicht; `Advance` rückt vor, `0` erlaubt, negativ und Ergebnis nach Jahr 9999 sind Panik ohne Änderung (Nr. 5) | `TestFestUhrAdvance`: zweimal `Now` gleich; `Advance(1ns)` plus 1 ns; `Advance(0)` unverändert; `Advance(-1)` und `Advance` über `9999-12-31T23:59:59.999999999Z` Panik, danach unveränderter Stand. Mutation: negatives `Advance` zulassen: rot; Stand vor der Panik ändern: rot |
+| Gleichzeitige `Advance` summieren sich (Nr. 5) | `TestFestUhrNebenlaeufig`: 64 Goroutinen je 1000 × `Advance(1ns)` ergeben Start + 64000 ns. Mutation: Sperre entfernen: wahrscheinlich rot, nicht sicher — **akzeptiertes Negativ**, Grund wie oben |
+| Jede Operation von `IDGenerator` liefert `<Präfix>-<32 × 0-9a-f>`, die Präfixe sind `ses`, `exc`, `cor`, `wsp`, `snp` und verschieden (Nr. 6) — **Allaussage über alle Operationen** | `IDVertrag` für `ZufallsIDs` und `FestIDs`: zählt die Methoden von `IDGenerator` mit `reflect` auf, ruft jede, prüft den regulären Ausdruck und das Präfix aus einer Tabelle im Test; die Tabelle und die Methodenmenge müssen sich in beiden Richtungen decken (eine neue Methode ohne Zeile ist rot, eine Zeile ohne Methode ebenso). Mutation: Präfix einer Operation ändern: rot; eine sechste Methode mit falscher Form: rot |
+| Kennungen kommen aus unabhängiger Zufallsquelle, keine feste Folge (Nr. 7) | `TestZufallsIDsUnabhaengig`: zwei Instanzen liefern verschiedene erste Kennungen je Operation. Mutation: `math/rand` mit festem Seed: rot. Dass die Quelle `crypto/rand` ist und nicht ein anderer zufälliger Seed, beobachtet kein Test (`SPEC-114` *Ungeprüft*) — **akzeptiertes Negativ**, Grund: die kryptografische Güte ist von außen nicht messbar, und die Kennung ist keine Geheimhaltung |
+| Kollision bei 128 Bit vernachlässigbar, gleichzeitig sicher (Nr. 8, Einleitung); **gesagt ist kein „kollisionsfrei“** | `TestZufallsIDsEindeutig` (in `IDVertrag`): 64 Goroutinen × 500 Aufrufe je Operation, alle Kennungen paarweise verschieden. Mutation: nur 1 Byte Zufall: rot; feste Kennung: rot |
+| Erzeugte Kennung trifft `ErrBereitsVorhanden`: `SPEC-109` wie jede andere, kein Wiederholen (Nr. 8) | kein Fänger in diesem Slice — **akzeptiertes Negativ**, Grund: eine Aussage über den Verbraucher, den es hier nicht gibt; die Verbraucher-Slices führen die Zelle nicht, weil der Fall bei 128 Bit nicht eintritt |
+| Client-Kennungen berührt der Generator nicht (Nr. 9) | `TestPortSignaturen`: kein Parameter, also keine Eingabe, die er berühren könnte; die Form legt der Use Case der Nehmer fest (§1 *Übergibt*) |
+| `FestIDs`: Zähler je Operation ab 1, Instanzen unabhängig, gleichzeitig lückenlos und ohne Doppelung (Nr. 10) | `TestFestIDsFolge`: erste drei Kennungen je Operation enden auf `01`, `02`, `03`; eine zweite Instanz beginnt bei `01`; `TestFestIDsNebenlaeufig`: 64 × 500 Aufrufe einer Operation ergeben genau die Nummern 1 bis 32000. Mutation: ein Zähler für alle Operationen oder globaler Zähler: rot; Sperre entfernen: wahrscheinlich rot, nicht sicher — **akzeptiertes Negativ**, Grund wie oben |
+| `FestUhr`/`FestIDs` erfüllen `UhrVertrag`/`IDVertrag` wie die echten (Einleitung) | derselbe Aufruf von `UhrVertrag(t, …)` und `IDVertrag(t, …)` für beide Implementierungen im Test des Pakets `clock` bzw. `supporttest`. Mutation: Fake mit anderer Form: rot |
+| Schichten: Adapter und Fakes importieren nur Modell und `ports/support` | `make a-check`: Kante `adapters-driven` → `ports-support` ist erlaubt, `adapters-driven` → `adapters-driven` nicht. Mutation: Import von `adapters/driven/sqlite` in `clock`: `a-check` rot |
+
+Diese Aussagen stehen in `SPEC-114` und haben bewusst keinen Fänger hier, weil sie nur Verbraucher binden: eine Kennung ordnet nichts (Nr. 6, die Ordnung tragen `SPEC-105` Nr. 4, 11), `finished_at` liegt nie vor `started_at` (Folge von Nr. 2; die Prüfung trägt `SPEC-105` Nr. 10 im Modell).
 
 ## 4. Trigger
 
@@ -93,8 +122,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 400 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen); die Schätzung liegt bei rund 250 Zeilen in derselben Metrik.
-- `in-progress` → `open` (blockiert): `a-check` kennt `src/hexagon/ports/support/` nicht als Schicht für diesen Port; die Regel wird in `.a-check.yml` ergänzt, nicht umgangen (`AGENTS.md` §3.6).
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 1000 Zeilen (Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3 einschließlich `spec/spezifikation.md`, Tests und `supporttest` eingeschlossen; Basis ist der Commit vor dem ersten Code-Commit). Die Schätzung liegt bei rund 700 Zeilen in derselben Metrik: Produktcode etwa 130 (Ports 40, Adapter 90), `supporttest` etwa 250, Tests der Pakete etwa 250, Spezifikation etwa 25 (der Plan selbst liegt nicht unter den Pfaden). Der Vorgänger lag beim Dreifachen seiner Schätzung (2369 gegen 600); die Marke trägt das ein.
+- `in-progress` → `open` (blockiert): `a-check` meldet für `src/hexagon/ports/support/`, `supporttest` oder `src/adapters/driven/clock/` eine Kante, die `.a-check.yml` heute nicht kennt (die Schicht `ports-support` und ihre Kanten liegen vor); die Regel wird dort ergänzt, nicht umgangen (`AGENTS.md` §3.6), und der Plan zieht nach.
 
 ## 5. Closure-Trigger
 
@@ -111,9 +140,29 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Die Form der Kennungen ist nicht festgelegt (Präfix, Länge, Alphabet); sie erscheinen in Logs, Headern und Admin-Antworten — **Ausgang:** offen; geht an den Architect.
-- Zeit mit Auflösung unter einer Sekunde gegen die Speicherung in SQLite (`SPEC-105`: Jahresbereich, Nullzeit) — **Ausgang:** offen; Raster-Zelle.
-- Randformen (`AGENTS.md` §3.12, §3.16): Das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
+- Die Form der Kennungen ist nicht festgelegt (Präfix, Länge, Alphabet) — **Ausgang:** entfallen; entschieden in `SPEC-114` Nr. 6 (`<Präfix>-<32 × 0-9a-f>`, 36 Zeichen) und Nr. 7 (128 Bit `crypto/rand`).
+- Zeit mit Auflösung unter einer Sekunde gegen die Speicherung in SQLite (`SPEC-105`: Jahresbereich, Nullzeit) — **Ausgang:** entfallen; entschieden in `SPEC-114` Nr. 1 bis 3: Nanosekunden ohne Rundung (der Speicher hält neun Stellen, `outboundtest` belegt es), Bereich und Nullzeit der Systemuhr werden nicht ersetzt, sondern vom Port abgewiesen.
+- Rücksprung der Systemzeit lässt `finished_at` vor `started_at` fallen (`SPEC-105` Nr. 10) — **Ausgang:** entfallen; `SPEC-114` Nr. 2: die Uhr ist nicht fallend, `TestSystemuhrRuecksprung`.
+- Nebenläufige Tests laufen nur im Glück grün (`BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen`, 2×) — **Ausgang:** weiter offen bis zur Closure; die Zeilen der Tabelle in §3 trennen sichere von wahrscheinlichen Fängern, die wahrscheinlichen stehen als akzeptiertes Negativ mit Grund; ein drittes Auftreten (ein Test, der ohne `-race` mal grün, mal rot ist) wäre ein eigener Slice.
+- Das Gate fährt kein `-race`; Datenrennen in `FestUhr`, `FestIDs`, `Systemuhr` sind nur über ihre Wirkung sichtbar — **Ausgang:** weiter offen; der Implementer meldet, ob das Image `-race` kann; ein Gate dafür wäre ein eigener Vorschlag, keine Lockerung (`AGENTS.md` §3.6), und gehört nicht in diesen Slice.
+- Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** entfallen; das Raster unten steht vor dem ersten Code-Commit, jede Zelle nennt ihren Ort. Bemerkt der Implementer eine Zelle ohne Ort, hält er an und gibt sie an den Architect zurück.
+- Die Form von Client-Kennungen (leer, überlang, fremde Zeichen) ist in `SPEC-114` Nr. 9 an die Use Cases der Nehmer gegeben, nicht entschieden — **Ausgang:** weiter offen, Träger `slice-workspace-use-case` (§6) und `slice-session-wartung` (§1 *Übernimmt*); sie berühren diesen Slice nicht, weil der Generator keine Eingabe sieht.
+
+**Raster Operation × Argumentart** (`AGENTS.md` §3.16). Jede Zelle nennt Nummer der Spezifikation (`SPEC-114`) oder „gilt nicht“ mit Grund. Die Operationen haben kein Argument; die Zeilen je Modus (echt, fest) und die Paare stehen trotzdem einzeln.
+
+| Operation | fehlender Wert | leerer Wert | unbekannter Wert | fremder / ungültiger Wert | Abbruch | Wiederholung |
+|---|---|---|---|---|---|---|
+| `Systemuhr.Now` | gilt nicht: kein Argument (Einleitung) | gilt nicht: kein Argument | gilt nicht: kein Argument | Systemzeit springt zurück: bleibt auf dem Höchstwert (Nr. 2); Nullzeit oder Jahr außerhalb 1 bis 9999: unverändert durchgereicht, der Port weist ab (Nr. 3) | gilt nicht: kein Kontext, blockiert nie (Einleitung, Nr. 4) | nicht fallend, gleicher Wert erlaubt (Nr. 2); gleichzeitig sicher (Einleitung) |
+| `Systemuhr.Now`, Paar Rücksprung und Bereich | gilt nicht | gilt nicht | gilt nicht | Nullzeit nach gültigem Wert: bleibt auf dem Höchstwert; Wert hinter Jahr 9999 nach gültigem Wert: wird Höchstwert und bleibt es bis zum Neustart (Nr. 3) | gilt nicht | wie oben |
+| `FestUhr.Now` | gilt nicht: kein Argument | gilt nicht | gilt nicht | gilt nicht: der Stand ist gültig, sonst entsteht die Uhr nicht (Nr. 5) | gilt nicht: kein Kontext | gleicher Wert bis `Advance` (Nr. 5) |
+| `NewFestUhr(start)` | Nullzeit `time.Time{}`: Panik (Nr. 5) | wie fehlend: die Nullzeit ist der leere Wert (Nr. 5) | gilt nicht: kein Katalog | andere Zone: nach UTC umgerechnet; Jahr außerhalb 1 bis 9999 nach der Umrechnung: Panik (Nr. 5) | gilt nicht: synchron, kein Kontext | jede Instanz hat ihren eigenen Stand (Nr. 5) |
+| `NewFestUhr`, Paar Nullzeit und Bereich | gilt nicht: die Nullzeit liegt im Jahr 1 und im Bereich, beide Verstöße schließen sich aus; die Reihenfolge Nullzeit, dann Bereich ist gesetzt (Nr. 5) | gilt nicht | gilt nicht | gilt nicht | gilt nicht | gilt nicht |
+| `FestUhr.Advance(d)` | gilt nicht: Pflichtargument vom Typ `Duration` | `d == 0`: erlaubt, Stand unverändert (Nr. 5) | gilt nicht: kein Katalog | `d < 0`: Panik, Stand unverändert; Ergebnis nach Jahr 9999: Panik, Stand unverändert (Nr. 5); beide Verstöße gleichzeitig sind ausgeschlossen, ein negatives `d` führt nie über 9999 | gilt nicht: kein Kontext | Wiederholung und gleichzeitiger Aufruf summieren sich (Nr. 5) |
+| `ZufallsIDs.SessionID`, `ExchangeID`, `KorrelationsID`, `WorkspaceID`, `SnapshotID` | gilt nicht: kein Argument | gilt nicht: kein Argument | gilt nicht: kein Argument | Zufallsquelle fällt aus: Prozess endet, kein Fehlerwert (Nr. 7) | gilt nicht: kein Kontext, blockiert nie | jede Kennung neu, Kollision vernachlässigbar (Nr. 8); gleichzeitig sicher (Einleitung) |
+| Verbraucher: erzeugte Kennung trifft `ErrBereitsVorhanden` | gilt nicht | gilt nicht | gilt nicht | `SPEC-109` wie jede Kennung, kein Wiederholen (Nr. 8) | gilt nicht | gilt nicht: tritt bei 128 Bit nicht ein |
+| `FestIDs.SessionID`, `ExchangeID`, `KorrelationsID`, `WorkspaceID`, `SnapshotID` | gilt nicht: kein Argument | gilt nicht | gilt nicht | gilt nicht: der Zähler hat keine Fehlerform | gilt nicht: kein Kontext | Zähler je Operation +1 ab 1 (Nr. 10); zwei Instanzen unabhängig; gleichzeitig lückenlos (Nr. 10) |
+| `FestIDs`, Paar zweier Operationen | gilt nicht | gilt nicht | gilt nicht | gilt nicht | gilt nicht | jede Operation zählt für sich, `ses-…01` und `exc-…01` stören sich nicht (Nr. 10) |
+| Client-Kennung (Replay-Session, `import_id`, mitgegebene `id`) | Generator sieht sie nicht (Nr. 9) | wie fehlend; die Form legt der Use Case der Nehmer fest (Nr. 9) | wie fehlend | wie fehlend | gilt nicht | gilt nicht |
 
 ## 7. Closure-Notiz
 

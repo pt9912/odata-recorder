@@ -33,6 +33,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der Composition Root verdrahtet Konfiguration, Adapter, Services und Listener je Betriebsmodus (`record`, `replay`), fährt Startwartung, erste Session und geordnetes Herunterfahren, der Start-Befehl lädt die Konfiguration über `LadeOderMelde` (Exit-Code 1 und Meldung nach `SPEC-110` bei Verstoß; `mock` und `hybrid` scheitern mit `ODR-E2001`; übernommen von `slice-fehlermodell-konfiguration`, das Laden selbst liegt dort), und der M2-Test zeichnet über den Recorder gegen einen Referenzdienst auf und spielt ohne Upstream byte-gleich ab.
 
+**Übernimmt:** Der Composition Root erzeugt genau eine `clock.NewSystemuhr()` und eine `clock.NewZufallsIDs()` je Prozess und reicht sie an alle Verbraucher; zwei Uhren wären zwei nicht aufeinander abgestimmte Höchstwerte (`SPEC-114` Nr. 2; Sendung von `slice-clock-idgenerator`).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Start im Modus `mock` oder `hybrid` — scheitert mit `ODR-E2001`, bis die Folgewellen die Use Cases liefern (Entscheidung steht in `slice-fehlermodell-konfiguration`).
