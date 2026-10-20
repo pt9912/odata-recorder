@@ -81,10 +81,10 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/model/` | update | Fehlermodell: Code, Status, Zielbereich, Fehlerobjekt |
-| `src/hexagon/ports/outbound/` | update | Abbildung der Port-Fehler auf Codes (`SPEC-109` Nr. 5), neue Fehler `ErrBeschaedigt` und `ErrPfad` des Pakets (Nr. 7) |
-| `src/adapters/driven/sqlite/` | update | `ErrBeschaedigt`, `ErrSchemaNeuer`, `ErrFremdeDatenbank` und `ErrPfad` verpacken die Fehler des Pakets `outbound` (`SPEC-109` Nr. 7); Namen und Meldungen bleiben, nur `errors.Is` kommt hinzu |
-| `src/bootstrap/` | update | Konfiguration aus Umgebung und `SERVICES_FILE`, Defaults, Validierung |
+| `src/hexagon/model/` | update | Fehlermodell: `Code` (Aufzählung, Nullwert ist kein Code), Status je Code (`Stati`, `StatusErlaubt`), `Zielbereich`, feste `Message`, `Fehlerobjekt` mit `NeuesFehlerobjekt` |
+| `src/hexagon/ports/outbound/` | update | Abbildung der Port-Fehler auf Codes (`SPEC-109` Nr. 5), neue Fehler `ErrBeschaedigt` und `ErrPfad` des Pakets (Nr. 7); `Abbilden(err, Gegenstand)` als reine Funktion über eine Tabelle in der Reihenfolge der Spezifikation, `EintraegeAbbildung` nennt die Namen der Tabelle für den Vollständigkeitstest |
+| `src/adapters/driven/sqlite/` | update | `ErrBeschaedigt`, `ErrSchemaNeuer`, `ErrFremdeDatenbank` und `ErrPfad` verpacken die Fehler des Pakets `outbound` (`SPEC-109` Nr. 7); Namen und Meldungen bleiben, nur `errors.Is` kommt hinzu; der unexportierte Typ `verpackt` (`Error`, `Unwrap`) trägt Text und Ziel, jede Variable `Err…` des Adapters ist `verpacke(Text, outbound.Err…)` |
+| `src/bootstrap/` | update | Konfiguration aus Umgebung und `SERVICES_FILE`, Defaults, Validierung: `LadeKonfiguration(environ)` liefert `Konfiguration` oder `*KonfigFehler`, `LadeOderMelde` schreibt die Meldung nach stderr und liefert `ExitKonfiguration`; Dateien `konfig.go`, `konfig_werte.go`, `konfig_dienste.go`; der Start-Befehl ruft sie in diesem Slice nicht auf (§1) |
 | `spec/spezifikation.md` | update | **vor dem Code geschrieben:** `SPEC-109` (Fehlermodell, Abbildungstabelle), `SPEC-110` (Syntax der Werte, Verhalten bei `mock` und `hybrid`), Codes `SPEC-111` bis `SPEC-113` |
 | Tests der Pakete | neu | Tabellentests je Schlüssel und je Fehler nach `LH-QA-05.a` |
 
@@ -96,12 +96,13 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) steht unten, das Raster *Op
 |---|---|
 | Fehlerobjekt hat genau `code`, `message`, `target`, kein Status-Feld (`SPEC-109` Nr. 1) | `TestFehlerobjektJSON`: Vergleich der Schlüsselmenge des serialisierten Objekts |
 | Status und Zielbereich je Code, `ODR-E4001` nur 502 oder 504, jeder Code aus §4 ist abgedeckt (Nr. 2) | `TestCodeTabelle`: Tabelle im Test gegen das Modell; dass die Tabelle im Test der Spezifikation entspricht, prüft die Test-Stufe nicht (sie sieht `spec/` nicht) — akzeptiertes Negativ, der Reviewer gleicht ab |
-| `message` ist je Code fest, nichtleer und enthält keinen Wert aus dem Fehler (Nr. 3) | `TestMessageFest`: gleicher Code mit verschiedenen Ursachen, gleiche `message` |
+| `message` ist je Code fest, nichtleer und enthält keinen Wert aus dem Fehler (Nr. 3) | `TestMessageFest`: gleiche `message` bei jeder Bildung, je Code ein eigener nichtleerer Text ohne Platzhalter; dass kein Wert aus dem Fehler eingeht, folgt aus der Signatur (`NeuesFehlerobjekt` nimmt nur den Code) und ist kein Testfall |
+| Ein Code außerhalb von §4 ist nicht darstellbar (Nr. 2) | `TestFehlerobjektUngueltigerCode`: `0`, `-1`, `999` liefern `ErrUngueltig` und tragen keine Eigenschaft |
 | Abbildung je Zeile und Gegenstand der Tabelle in Nr. 5, Fall `Sonstiges` → `ODR-E9001` | `TestAbbildungTabelle`: eine Zeile je Paar Fehler × Gegenstand |
 | Abbildung durch Verpacken und `errors.Join`, erster Treffer gewinnt (Nr. 5) | `TestAbbildungVerpackt`: `fmt.Errorf("%w")`, `errors.Join(ErrUngueltig, ErrBlobFehlt)` |
 | `nil` und Kontextfehler: „kein Code“ (Nr. 6) | `TestAbbildungKeinCode` |
 | Fehler des SQLite-Adapters verpacken die Fehler des Pakets (Nr. 7) | `TestSqliteFehlerAbbildung` im Adapter: `Open` auf Nicht-Datenbank, neuere Version, fremde Datenbank, leeren Pfad, dann `Abbilden` → `ODR-E3001` bzw. `ODR-E2001` |
-| Jede Variable `Err…` hat einen Eintrag (Nr. 8) | `TestAbbildungVollstaendig`: durchsucht die Quelltexte mit `go/parser`; eine neue Variable ohne Zeile macht ihn rot |
+| Jede Variable `Err…` hat einen Eintrag (Nr. 8) | `TestAbbildungVollstaendig` (Paket `outbound`) und `TestSqliteFehlerVollstaendig` (Adapter): durchsuchen die Quelltexte mit `go/parser`; eine neue Variable ohne Zeile macht sie rot, im Adapter verlangt der Test `verpacke(…, outbound.Err…)` mit einem Namen aus der Tabelle |
 | Leer gilt als ungesetzt, Leerraum am Rand wird entfernt (`SPEC-110` Nr. 1) | `TestKonfigLeer`: Tabelle je Schlüssel mit `""`, `"  "`, `" 8 MiB "` |
 | `REDACT_*` ergänzen den Default und ersetzen ihn nie; `none` nur bei `MATCH_VARY_HEADERS` und `VOLATILE_HEADERS` (Nr. 1) | `TestKonfigListenErgaenzen`, `TestKonfigNone` |
 | Defaults aus §3 für jeden Schlüssel der Nr. 2 | `TestKonfigDefaults`: leere Umgebung mit `MODE=record` und `UPSTREAM_URL`, alle Werte gegen §3 |
@@ -111,7 +112,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) steht unten, das Raster *Op
 | Größe: Einheiten, Leerzeichen, Grenzen (Nr. 5) | `TestKonfigGroesse`: `8 MiB`, `8MiB`, `8388608`, `1GiB` gültig; `0`, `8 MB`, `8  MiB`, `1025MiB`, `-1`, `8.5MiB` ungültig |
 | Liste: leerer Eintrag, Token, Pfadform (Nr. 6) | `TestKonfigListe`: `a,,b`, `a,`, `Bad Header`, `$.a`, `$..a.b` ungültig |
 | Weitere Schlüssel: `LISTEN`, `SERVICE_ID`, Root, URL (Nr. 7) | `TestKonfigLISTEN`, `TestKonfigServiceID`, `TestKonfigRoot`, `TestKonfigURL` mit Randformen (Port 0, 65536, leerer Host, `user:pass@`, Query, `ftp:`) |
-| `mock` und `hybrid` gültig, Start scheitert; Default `mock` scheitert ebenso (Nr. 8) | `TestKonfigModus`: vier Werte, leerer `MODE`; die Meldung nennt `MODE` |
+| `mock` und `hybrid` gültig, Start scheitert; Default `mock` scheitert ebenso (Nr. 8) | `TestKonfigModus`: vier Werte, leerer `MODE`; die Meldung nennt `MODE` und beide lieferbaren Werte; `TestKonfigModusUngueltig`: ein ungültiger Wert wird einmal gemeldet |
 | Doppelkonfiguration, Dateiformat, Pflichtfelder, doppelte `id` (Nr. 9) | `TestKonfigServicesFile`: Tabelle über die Fälle der Nr. 9 |
 | Überlappende Roots an der Segmentgrenze (Nr. 9) | `TestKonfigRootUeberlappung`: `/` und `/a` ja, `/a` und `/ab` nein, `/a` und `/a/b` ja, gleiche ja |
 | `UPSTREAM_URL` Pflicht in `record` je Service (Nr. 9) | `TestKonfigRecordOhneUpstream` |
@@ -153,9 +154,10 @@ dasteht.
 - Was ein Prozess mit `MODE=mock` oder `MODE=hybrid` tut — **Ausgang:** entfallen; entschieden in `SPEC-110` Nr. 8: gültiger Wert, Start scheitert mit `ODR-E2001`; das gilt auch für den Default `mock` ohne gesetzten `MODE`.
 - Leere Werte (gesetzt-aber-leer gegen ungesetzt, leere Liste gegen Default) — **Ausgang:** entfallen; entschieden in `SPEC-110` Nr. 1: leer ist ungesetzt, eine leere Liste der Default, `none` nur für die zwei Mengen, deren Default nicht leer ist.
 - Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** entfallen; das Raster unten steht vor dem ersten Code-Commit, jede Zelle nennt ihren Ort.
-- Die Abbildung der Port-Fehler braucht zwei neue Fehler im Paket `outbound` und eine Änderung des SQLite-Adapters (`errors.Is`, keine Verhaltensänderung) — **Ausgang:** weiter offen; der Implementer weist beim Übergang an den Reviewer nach, dass `make test` des Adapters unverändert grün ist.
-- Das Format von `SERVICES_FILE` (JSON statt YAML, um keine Abhängigkeit hinzuzufügen) und die Obergrenze 1 GiB für `MAX_CAPTURE_BODY` sind Setzungen dieses Vertrags, nicht des Lastenhefts — **Ausgang:** weiter offen bis zur Bestätigung durch den Nutzer; ein Wechsel ist eine Änderung von `SPEC-110`.
+- Die Abbildung der Port-Fehler braucht zwei neue Fehler im Paket `outbound` und eine Änderung des SQLite-Adapters (`errors.Is`, keine Verhaltensänderung) — **Ausgang:** weiter offen; Beleg des Implementers: die vorhandenen Testdateien des Adapters sind unverändert (`git diff` über `sqlite_test.go`, `repositories_test.go`, `baselines_test.go`, `workspaces_test.go` ist leer) und `make test` ist grün; neu ist allein `fehler_test.go`.
+- Das Format von `SERVICES_FILE` (JSON statt YAML, um keine Abhängigkeit hinzuzufügen) und die Obergrenze 1 GiB für `MAX_CAPTURE_BODY` sind Setzungen dieses Vertrags, nicht des Lastenhefts — **Ausgang:** weiter offen bis zur Closure; der Nutzer hat beide Setzungen bestätigt, ein Wechsel wäre eine Änderung von `SPEC-110`.
 - Das Modell kennt `ErrRevisionVeraltet` und `Sonstiges`-Fehler nur als `ODR-E9001` (`SPEC-109` Nr. 5); der Mock gehört nicht zur Welle — **Ausgang:** weiter offen; akzeptiertes Negativ, ein Vertrag, der den Fehler auswertet, nennt seinen Code.
+- Randformen, die `SPEC-110` und `SPEC-109` nicht nennen und die der Code mit der Standardbibliothek so beantwortet, wie hier steht (`AGENTS.md` §3.12): zwei gleiche Schlüssel in einem Objekt der `SERVICES_FILE` (der letzte gilt, kein Verstoß) · `null` und der leere Text als Wert von `id`, `service_root`, `upstream_url` (wie fehlend) · `none` zusammen mit weiteren Einträgen oder in anderer Schreibweise bei `MATCH_VARY_HEADERS` und `VOLATILE_HEADERS` (ein Header-Name) · Hostname-Zeichen von `LISTEN` (Buchstaben, Ziffern, `.`, `-`, `_`) und Portbereich in `UPSTREAM_URL` (nur was `net/url` prüft) · Sortierung der Meldungszeilen mit Index (Zeichenfolge, `[10]` vor `[2]`) · Kontextfehler zusammen mit einem Port-Fehler in einem `errors.Join` (kein Code, der Kontext zuerst) · Größe von `UPSTREAM_CA_FILE` · Header-Mengen in kanonischer Schreibweise (`X-Api-Key`). — **Ausgang:** weiter offen; an den Architect zurückgegeben, jede Antwort ist eine Änderung von `SPEC-110` bzw. `SPEC-109` und eine Zeile im Raster; kein Test legt eine dieser Antworten fest.
 
 **Raster Operation × Argumentart** (`AGENTS.md` §3.16). Jede Zelle nennt Nummer der Spezifikation oder „gilt nicht“ mit Grund.
 
