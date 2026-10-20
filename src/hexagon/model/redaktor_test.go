@@ -101,6 +101,7 @@ type abbruchReader struct {
 	k        int
 	err      error
 	zusammen bool // die letzten Bytes kommen zusammen mit dem Fehler
+	teil     int  // höchstens so viele Bytes je Read; 0 heißt alle
 	pos      int
 	reads    int
 }
@@ -110,6 +111,9 @@ func (r *abbruchReader) Read(p []byte) (int, error) {
 	rest := r.daten[r.pos:r.k]
 	if rest == "" {
 		return 0, r.err
+	}
+	if r.teil > 0 && len(rest) > r.teil {
+		rest = rest[:r.teil]
 	}
 	n := copy(p, rest)
 	r.pos += n
@@ -365,6 +369,10 @@ func bodyFaelle() []bodyFall {
 		gut("marker-abgeschnitten", `{"password":"[REDACTE"}`, `{"password":"[REDACTED]"}`, model.RedactionApplied),
 		gut("marker-ohne-klammer", `{"password":"[REDACTED"}`, `{"password":"[REDACTED]"}`, model.RedactionApplied),
 		gut("marker-mit-vorsatz", `{"password":"x[REDACTED]"}`, `{"password":"[REDACTED]"}`, model.RedactionApplied),
+		gut("marker-gleiche-laenge", `{"password":"S3CR3T-7fX"}`, `{"password":"[REDACTED]"}`, model.RedactionApplied).mitGeheimnis("string"),
+		gut("marker-gleiche-laenge-letztes-byte", `{"password":"[REDACTEX]"}`, `{"password":"[REDACTED]"}`, model.RedactionApplied),
+		gut("name-ueber-musterlaenge", `{"AAAAAAAAAAAAAAAAAAAApassword":"x","password":"S3CR3T-7f"}`,
+			`{"AAAAAAAAAAAAAAAAAAAApassword":"x","password":"[REDACTED]"}`, model.RedactionApplied).mitGeheimnis("string"),
 		gut("ohne-treffer", `{"a":1,"b":[true,false,null,"x"]}`, `{"a":1,"b":[true,false,null,"x"]}`, model.RedactionNone),
 		gut("ohne-pfade", `{"password":"S3CR3T-7f"}`, `{"password":"S3CR3T-7f"}`, model.RedactionNone).mitPfade(),
 		gut("eigenes-muster", `{"foo":"x","password":"S3CR3T-7f"}`, `{"foo":"[REDACTED]","password":"S3CR3T-7f"}`, model.RedactionApplied).mitPfade("$..foo"),
@@ -401,6 +409,7 @@ func bodyFaelle() []bodyFall {
 		schlecht("edmx-bom-falsch", "\xEF\xBB<", "\xEF\xBB", model.GrundMismatch).edmx(),
 		schlecht("edmx-bom-nach-leerraum", " \xEF\xBB\xBF<a/>", " ", model.GrundMismatch).edmx(),
 		schlecht("edmx-bom-doppelt", "\xEF\xBB\xBF\xEF\xBB\xBF<a/>", "\xEF\xBB\xBF", model.GrundMismatch).edmx(),
+		schlecht("edmx-bom-zweites-byte", "\xEF\x41\xBF<a/>", "\xEF", model.GrundMismatch).edmx(),
 		schlecht("edmx-utf16", "\xFF\xFE<\x00", ``, model.GrundMismatch).edmx(),
 		schlecht("syntax-komma-hinten", `{"a":1,}`, `{"a":1,`, model.GrundSyntax),
 		schlecht("syntax-wert-fehlt-treffer", `{"password":}`, `{"password":`, model.GrundSyntax),
@@ -512,7 +521,7 @@ func TestBodyLeer(t *testing.T) {
 	edmx.pruefe(t)
 	g := redigiere(t, &abbruchReader{err: errTest}, jsonEingang(), bodyRegeln(t))
 	var uf *model.UnsicherFehler
-	if !errors.As(g.err, &uf) || uf.Grund != model.GrundEingabe || !errors.Is(g.err, errTest) || g.status != model.RedactionUnsafe {
+	if !errors.As(g.err, &uf) || uf.Grund != model.GrundEingabe || !errors.Is(g.err, errTest) || g.status != model.RedactionUnsafe || g.aus != "" {
 		t.Errorf("Fehler des ersten Reads: %+v", g)
 	}
 }
@@ -531,6 +540,9 @@ func TestBodyTyp(t *testing.T) {
 		{"text/json"}, {"text/plain"}, {"text/xml"}, {"multipart/mixed; boundary=b"}, {"application/xjson"},
 		{"application/jsonx"}, {"application/json-seq"}, {"application/+json"}, {"application/x-www-form-urlencoded"},
 		{"application/octet-stream"}, {"*/*"}, {"application/xml"}, {"json"}, {"application/ json"},
+		// Am Rand fallen nur Leerzeichen und Tabulator weg, kein anderer Leerraum.
+		{"application/json\r"}, {"application/json\n"}, {"\rapplication/json"}, {"\napplication/json"}, {"application/json\r\n"},
+		{"application/json\r;charset=utf-8"}, {"\fapplication/json"}, {"application/json\v"}, {"\u00a0application/json"}, {"application/json\u00a0"},
 	}
 	for _, ct := range ungueltig {
 		schlecht("typ "+strings.Join(ct, "|"), `{}`, ``, model.GrundTyp).typ(ct...).pruefe(t)
@@ -545,7 +557,7 @@ func TestBodyEdmx(t *testing.T) {
 	for _, n := range []string{
 		"edmx", "edmx-bom-leerraum", "edmx-element-passwort", "json-bei-metadata", "typ-xml-ohne-metadata", "edmx-json-body",
 		"edmx-x-vor-klammer", "edmx-bom-allein", "edmx-leerraum-allein", "edmx-bom-rest", "edmx-bom-falsch",
-		"edmx-bom-nach-leerraum", "edmx-bom-doppelt", "edmx-utf16",
+		"edmx-bom-nach-leerraum", "edmx-bom-doppelt", "edmx-bom-zweites-byte", "edmx-utf16",
 	} {
 		fall(t, n).pruefe(t)
 	}
@@ -650,6 +662,7 @@ func TestBodyMarkerIdempotent(t *testing.T) {
 	for _, n := range []string{
 		"marker-schon-da", "marker-beide", "marker-escape", "marker-mit-rest", "marker-mit-leerzeichen",
 		"marker-abgeschnitten", "marker-ohne-klammer", "marker-mit-vorsatz", "leerer-string-ersetzt",
+		"marker-gleiche-laenge", "marker-gleiche-laenge-letztes-byte",
 	} {
 		fall(t, n).pruefe(t)
 	}
@@ -718,6 +731,7 @@ func TestBodySyntax(t *testing.T) {
 		{"\xFF\xFE{\x00}\x00", ""}, {`{"a":1 "b":2}`, `{"a":1 `}, {`[1 2]`, `[1 `}, {`{"a":1]`, `{"a":1`}, {`[1}`, `[1`},
 		{`{"a":1,,}`, `{"a":1,`}, {`]`, ``}, {`}`, ``}, {`:`, ``}, {`,`, ``}, {`{"a":}`, `{"a":`}, {`{"a"}`, `{"a"`},
 		{`[,1]`, `[`}, {`{"a":1,"b"}`, `{"a":1,"b"`}, {`{"a":{}}x`, `{"a":{}}`},
+		{`{"a":-01}`, `{"a":-0`}, {`{"a":1.5.}`, `{"a":1.5`}, {`{"a":1e5e5}`, `{"a":1e5`}, {`[}`, `[`}, {`{]`, `{`},
 	}
 	for _, d := range dokumente {
 		schlecht("syntax-dokument "+kurz(d.ein), d.ein, d.aus, model.GrundSyntax).pruefe(t)
@@ -728,6 +742,10 @@ func TestBodySyntax(t *testing.T) {
 		gut("nul-escape", `{"a":"\u0000"}`, `{"a":"\u0000"}`, model.RedactionNone),
 		gut("einzelnes-surrogat", `{"\ud800":"\ud800"}`, `{"\ud800":"\ud800"}`, model.RedactionNone),
 		gut("einzelnes-surrogat-ersetzt", `{"password":"\ud800"}`, `{"password":"[REDACTED]"}`, model.RedactionApplied),
+		gut("null-punkt-fuenf", `{"a":0.5}`, `{"a":0.5}`, model.RedactionNone),
+		gut("minus-null-punkt-fuenf", `{"a":-0.5}`, `{"a":-0.5}`, model.RedactionNone),
+		gut("null-exponent", `{"a":0e5}`, `{"a":0e5}`, model.RedactionNone),
+		gut("exponent-minus", `{"a":1e-5}`, `{"a":1e-5}`, model.RedactionNone),
 		gut("alle-escapes", `["\"","\\","\/","\b","\f","\n","\r","\t","\u00E9"]`, `["\"","\\","\/","\b","\f","\n","\r","\t","\u00E9"]`, model.RedactionNone),
 	}
 	for _, f := range gutFaelle {
@@ -749,6 +767,8 @@ func TestBodyUTF8(t *testing.T) {
 		"FF": {"\xFF", ""}, "E2 82 vor Anführungszeichen": {"\xE2\x82", "\xE2\x82"}, "F5": {"\xF5\x80\x80\x80", ""},
 		"F0 80 80 80": {"\xF0\x80\x80\x80", "\xF0"}, "F0 8F BF BF": {"\xF0\x8F\xBF\xBF", "\xF0"}, "E2 28 A1": {"\xE2\x28\xA1", "\xE2"},
 		"C2 vor ASCII": {"\xC2x", "\xC2"}, "DF 7F": {"\xDF\x7F", "\xDF"}, "EF BF 7F": {"\xEF\xBF\x7F", "\xEF\xBF"},
+		"C2 C0": {"\xC2\xC0", "\xC2"}, "C2 FF": {"\xC2\xFF", "\xC2"}, "E1 C0": {"\xE1\xC0", "\xE1"},
+		"E1 80 C0": {"\xE1\x80\xC0", "\xE1\x80"}, "F1 80 80 C0": {"\xF1\x80\x80\xC0", "\xF1\x80\x80"},
 	}
 	for n, u := range ungueltig {
 		schlecht("name "+n, `{"`+u.v+`":1}`, `{"`+u.bis, model.GrundUTF8).pruefe(t)
@@ -828,7 +848,7 @@ func TestBodyZerlegung(t *testing.T) {
 	// Fälle der Zustände, die an einer Chunk-Grenze enden können.
 	for _, n := range []string{
 		"name-escape", "escape-im-wert", "unicode-escape-im-wert", "mehrbyte-ueberall", "escape-und-surrogat", "literale-und-zahlen",
-		"marker-schon-da", "marker-escape", "layout-bleibt", "utf8-name", "utf8-anderer-wert", "edmx-bom-leerraum", "zahlen-durchgereicht",
+		"marker-schon-da", "marker-escape", "name-ueber-musterlaenge", "layout-bleibt", "utf8-name", "utf8-anderer-wert", "edmx-bom-leerraum", "zahlen-durchgereicht",
 		"nichtstring-objekt", "syntax-hex-im-ersetzten", "typ-text", "unvollstaendig-wert-geheim",
 	} {
 		if !geprueft[n] {
@@ -858,6 +878,11 @@ func TestBodyGrenze(t *testing.T) {
 		gut("EDMX 16 Bytes", "<a>"+wiederhole("x", 9)+"</a>", "<a>"+wiederhole("x", 9)+"</a>", model.RedactionNone).edmx(),
 		schlecht("EDMX 17 Bytes", "<a>"+wiederhole("x", 10)+"</a>", "<a>"+wiederhole("x", 10)+"</a", model.GrundZuGross).edmx(),
 		schlecht("EDMX nur Leerraum über der Grenze", wiederhole(" ", 17), wiederhole(" ", 16), model.GrundZuGross).edmx(),
+		// Ein Verstoß vor Byte MaxBytes gewinnt gegen zu_gross, auch wenn derselbe Read die Grenze überschreitet.
+		schlecht("Syntaxfehler vor der Grenze, Strom darüber", `{"a":x,"b":"cccccccccccc"}`, `{"a":`, model.GrundSyntax),
+		schlecht("utf8 vor der Grenze, Strom darüber", "{\"a\":\"\xFF\",\"b\":\"cccccccc\"}", `{"a":"`, model.GrundUTF8),
+		schlecht("nichtstring vor der Grenze, Strom darüber", `{"password":12,"b":"cc"}`, `{"password":`, model.GrundNichtstring),
+		schlecht("mismatch vor der Grenze, Strom darüber", "x"+wiederhole("y", 30), ``, model.GrundMismatch).edmx(),
 	}
 	for _, f := range faelle {
 		f = f.mitMax(16)
@@ -866,6 +891,8 @@ func TestBodyGrenze(t *testing.T) {
 			f.vergleiche(t, f.fuehre(t, z.leser()), z.name)
 		}
 	}
+	auf := wiederhole("[", 513) + wiederhole(" ", 200)
+	schlecht("Tiefe vor der Grenze, Strom darüber", auf, wiederhole("[", 512), model.GrundTiefe).mitMax(600).pruefe(t)
 	gut("MaxBytes 1, ein Byte", `1`, `1`, model.RedactionNone).mitMax(1).pruefe(t)
 	schlecht("MaxBytes 1, unvollständig", `{`, `{`, model.GrundUnvollstaendig).mitMax(1).pruefe(t)
 	schlecht("MaxBytes 1, zwei Bytes", `{}`, `{`, model.GrundZuGross).mitMax(1).pruefe(t)
@@ -1106,8 +1133,9 @@ func TestBodyAusgabeFehler(t *testing.T) {
 			t.Errorf("kurzer Write %d: %v, %d Writes", bei, err, w.writes)
 		}
 	}
-	// Ein großer Body in einem Read füllt den Ausgabepuffer mehrfach; der Fehler des zweiten
-	// Writes beendet den Lauf, bevor der Rest gelesen oder geschrieben wird.
+	// Ein Body über der Größe eines Chunks wird in mehreren Reads gelesen; der Fehler des zweiten
+	// Writes (am Ende des zweiten Chunks) beendet den Lauf, bevor der Rest gelesen oder geschrieben
+	// wird. Den Fehler bei vollem Puffer mitten im Chunk fängt TestBodyAusgabeVoll.
 	gross := "[" + wiederhole(`"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",`, 3000) + `"z"]`
 	ref = &zaehlWriter{}
 	if _, err := model.RedigiereBody(ref, einmal(gross), jsonEingang(), bodyRegeln(t)); err != nil || ref.writes < 3 {
@@ -1183,5 +1211,239 @@ func TestBodyFixturesSPEC053(t *testing.T) {
 			}
 			f.pruefe(t)
 		}
+	}
+}
+
+// --- Fänger zu den Findings des Reviews --------------------------------------------------------
+
+func grundVon(err error) model.UnsicherGrund {
+	var uf *model.UnsicherFehler
+	if errors.As(err, &uf) {
+		return uf.Grund
+	}
+	return ""
+}
+
+// TestBodyZahlAnfang: unter einem treffenden Namen ist jede Zahl `nichtstring`, entschieden am
+// ersten Byte (SPEC-118 Nr. 5), für jede Ziffer und für `-`; unter einem nicht treffenden Namen
+// geht dieselbe Zahl durch.
+func TestBodyZahlAnfang(t *testing.T) {
+	for _, v := range []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "-1"} {
+		schlecht("Zahl "+v+" unter password", `{"password":`+v+`}`, `{"password":`, model.GrundNichtstring).pruefe(t)
+		schlecht("Zahl "+v+"46 unter password", `{"password":`+v+`46}`, `{"password":`, model.GrundNichtstring).pruefe(t)
+		gut("Zahl "+v+" unter p", `{"p":`+v+`}`, `{"p":`+v+`}`, model.RedactionNone).pruefe(t)
+	}
+}
+
+// TestBodyNamenEscapes: der Name wird vor dem Vergleich dekodiert. Ein kurzer Escape (`\b \f \n
+// \r \t`) ist ein Steuerzeichen und nicht der Buchstabe hinter dem Backslash; ein `\u` ist der
+// ganze Codepunkt und nicht eines seiner Bytes. Die Muster stehen so, dass der falsch
+// dekodierte Name träfe.
+func TestBodyNamenEscapes(t *testing.T) {
+	pfade := []string{"$..ab", "$..af", "$..an", "$..ar", "$..at", "$..password"}
+	keine := []string{`a\b`, `a\f`, `a\n`, `a\r`, `a\t`, `pass\"word`, `pass\\word`, `pass\/word`, `\u0170assword`, `\u7000assword`, `\u0170\u0061ssword`}
+	for _, n := range keine {
+		doc := `{"` + n + `":"x"}`
+		gut("kein treffer "+n, doc, doc, model.RedactionNone).mitPfade(pfade...).pruefe(t)
+	}
+	treffer := []string{`a\u0062`, `a\u0066`, `a\u006e`, `a\u0072`, `a\u0074`, `\u0070assword`}
+	for _, n := range treffer {
+		gut("treffer "+n, `{"`+n+`":"x"}`, `{"`+n+`":"[REDACTED]"}`, model.RedactionApplied).mitPfade(pfade...).pruefe(t)
+	}
+}
+
+// TestBodyFehlertext: Error() nennt den Code und den Grund, nie den Text der Ursache und nie
+// ein Byte der Eingabe (SPEC-118 Nr. 7).
+func TestBodyFehlertext(t *testing.T) {
+	pruefe := func(wie string, err error, grund model.UnsicherGrund, verboten ...string) {
+		t.Helper()
+		if grundVon(err) != grund {
+			t.Errorf("%s: Grund %q, erwartet %q", wie, grundVon(err), grund)
+			return
+		}
+		txt := err.Error()
+		for _, soll := range []string{"ODR-E2401", string(grund)} {
+			if !strings.Contains(txt, soll) {
+				t.Errorf("%s: Text %q nennt %q nicht", wie, txt, soll)
+			}
+		}
+		for _, v := range append([]string{"S3CR3T", "QXZJ"}, verboten...) {
+			if strings.Contains(txt, v) {
+				t.Errorf("%s: Text %q enthält %q", wie, txt, v)
+			}
+		}
+	}
+	for _, f := range bodyFaelle() {
+		if f.grund != "" {
+			pruefe(f.name, f.fuehre(t, einmal(f.ein)).err, f.grund)
+		}
+	}
+	for doc, grund := range map[string]model.UnsicherGrund{
+		`{"QXZJ":x}`:          model.GrundSyntax,
+		"{\"QXZJ\":\"\xFF\"}": model.GrundUTF8,
+		`{"password":QXZJ}`:   model.GrundSyntax,
+		`{"password":1QXZJ}`:  model.GrundNichtstring,
+		`{"password":"QXZJ`:   model.GrundUnvollstaendig,
+	} {
+		pruefe(kurz(doc), redigiere(t, einmal(doc), jsonEingang(), bodyRegeln(t)).err, grund)
+	}
+	quelle, senke := errors.New("ursache-quelle-kaputt"), errors.New("ursache-senke-kaputt")
+	g := redigiere(t, &abbruchReader{daten: `{"a":`, k: 5, err: quelle}, jsonEingang(), bodyRegeln(t))
+	pruefe("eingabe", g.err, model.GrundEingabe, "ursache", "kaputt")
+	if !errors.Is(g.err, quelle) {
+		t.Errorf("eingabe: Ursache nicht erreichbar")
+	}
+	_, err := model.RedigiereBody(&scheiterWriter{bei: 1, err: senke}, einmal(`{"a":1}`), jsonEingang(), bodyRegeln(t))
+	pruefe("ausgabe", err, model.GrundAusgabe, "ursache", "kaputt")
+	if !errors.Is(err, senke) {
+		t.Errorf("ausgabe: Ursache nicht erreichbar")
+	}
+}
+
+// TestBodyRangfolge: entschieden ist, was der Ablauf zuerst trifft (SPEC-118 Nr. 7, Rangfolge
+// der Ursachen): ein Read, seine Daten, das Leeren nach dst, erst danach ein mit den Daten
+// gelieferter Lesefehler.
+func TestBodyRangfolge(t *testing.T) {
+	quelle, senke := errors.New("quelle kaputt"), errors.New("senke kaputt")
+	for _, zusammen := range []bool{false, true} {
+		// dst scheitert beim Leeren der Daten: ausgabe, der Lesefehler wird nicht ausgewertet.
+		w := &scheiterWriter{bei: 1, err: senke}
+		_, err := model.RedigiereBody(w, &abbruchReader{daten: `{"a":1,`, k: 7, err: quelle, zusammen: zusammen}, jsonEingang(), bodyRegeln(t))
+		if grundVon(err) != model.GrundAusgabe || !errors.Is(err, senke) || errors.Is(err, quelle) || w.writes != 1 {
+			t.Errorf("Lesefehler und dst-Fehler (zusammen %v): %v, %d Writes", zusammen, err, w.writes)
+		}
+		// Ohne Fehler von dst gilt der Lesefehler.
+		g := redigiere(t, &abbruchReader{daten: `{"a":1,`, k: 7, err: quelle, zusammen: zusammen}, jsonEingang(), bodyRegeln(t))
+		if grundVon(g.err) != model.GrundEingabe || !errors.Is(g.err, quelle) || g.aus != `{"a":1,` {
+			t.Errorf("Lesefehler allein (zusammen %v): %+v", zusammen, g)
+		}
+		// Ein Verstoß in den Daten schlägt den Lesefehler und den Fehler von dst beim Leeren;
+		// der gepufferte Teil geht ein letztes Mal an dst (Nr. 9).
+		w = &scheiterWriter{bei: 1, err: senke}
+		_, err = model.RedigiereBody(w, &abbruchReader{daten: `{"a":x}`, k: 7, err: quelle, zusammen: zusammen}, jsonEingang(), bodyRegeln(t))
+		if grundVon(err) != model.GrundSyntax || errors.Is(err, senke) || errors.Is(err, quelle) || w.writes != 1 {
+			t.Errorf("Verstoß, Lesefehler und dst-Fehler (zusammen %v): %v, %d Writes", zusammen, err, w.writes)
+		}
+	}
+	// zu_gross kommt nach den MaxBytes Bytes und vor dem Leeren.
+	zuLang := "[" + wiederhole("1,", 20)
+	w := &scheiterWriter{bei: 1, err: senke}
+	_, err := model.RedigiereBody(w, einmal(zuLang), jsonEingang(), model.BodyRegeln{Pfade: standardPfade(t), MaxBytes: 16})
+	if grundVon(err) != model.GrundZuGross || errors.Is(err, senke) || w.writes != 1 {
+		t.Errorf("zu_gross und dst-Fehler: %v, %d Writes", err, w.writes)
+	}
+	// Ist der Puffer voll, bevor das Verstoßbyte kommt, ist der Fehler von dst der erste Verstoß.
+	regeln := model.BodyRegeln{Pfade: pfadeAus(t, "$..a"), MaxBytes: 1 << 20}
+	r := einmal("{" + wiederhole(`"a":"",`, 3000) + "x}")
+	w = &scheiterWriter{bei: 1, err: senke, leser: r}
+	_, err = model.RedigiereBody(w, r, jsonEingang(), regeln)
+	if grundVon(err) != model.GrundAusgabe || !errors.Is(err, senke) || w.writes != 1 || r.reads != 1 {
+		t.Errorf("voller Puffer vor dem Verstoßbyte: %v, %d Writes, %d Reads", err, w.writes, r.reads)
+	}
+	// Mit einem dst ohne Fehler gewinnt derselbe Verstoß.
+	g := redigiere(t, einmal("{"+wiederhole(`"a":"",`, 3000)+"x}"), jsonEingang(), regeln)
+	if grundVon(g.err) != model.GrundSyntax || !strings.HasPrefix(g.aus, `{"a":"[REDACTED]",`) || !strings.HasSuffix(g.aus, `"a":"[REDACTED]",`) {
+		t.Errorf("voller Puffer, dst ohne Fehler: Grund %q, Ausgabe %q", grundVon(g.err), kurz(g.aus))
+	}
+}
+
+// TestBodyPraefixBeiFehler: bei einem Fehler von src steht in dst die Ausgabe für alle gelieferten
+// Bytes, auch für die, die zusammen mit dem Fehler kamen; ein offener ersetzter String trägt
+// nichts, ein Literal oder eine Mehrbyte-Folge kann halb stehen; vor dem ersten Byte steht nichts
+// (SPEC-118 Nr. 9).
+func TestBodyPraefixBeiFehler(t *testing.T) {
+	faelle := []struct{ daten, aus string }{
+		{`{"password":"S3CR3T-7f","a":1,"b"`, `{"password":"[REDACTED]","a":1,"b"`},
+		{`{"password":"S3CR3T-7`, `{"password":`},
+		{`{"password":"S3CR3T-7f"`, `{"password":"[REDACTED]"`},
+		{"{\"a\":\"\xE2\x82", "{\"a\":\"\xE2\x82"},
+		{`{"a":nu`, `{"a":nu`},
+		{`{"a":-1.5e`, `{"a":-1.5e`},
+		{"", ""},
+	}
+	for _, f := range faelle {
+		for _, zusammen := range []bool{false, true} {
+			// teil 3: die letzten Bytes kommen in einem späteren Read, nicht im ersten.
+			for _, teil := range []int{0, 3} {
+				g := redigiere(t, &abbruchReader{daten: f.daten, k: len(f.daten), err: errTest, zusammen: zusammen, teil: teil}, jsonEingang(), bodyRegeln(t))
+				if g.aus != f.aus || grundVon(g.err) != model.GrundEingabe || !errors.Is(g.err, errTest) {
+					t.Errorf("%q (zusammen %v, teil %d): Ausgabe %q, Grund %q, erwartet %q", f.daten, zusammen, teil, g.aus, grundVon(g.err), f.aus)
+				}
+			}
+		}
+	}
+}
+
+// langWriter nimmt alles an und merkt sich die Länge des längsten Writes.
+type langWriter struct {
+	bytes.Buffer
+	writes, max int
+}
+
+func (w *langWriter) Write(p []byte) (int, error) {
+	w.writes++
+	w.max = max(w.max, len(p))
+	return w.Buffer.Write(p)
+}
+
+// messLeser merkt sich die größte Länge, die ein Read anbietet.
+type messLeser struct {
+	r   io.Reader
+	max int
+}
+
+func (m *messLeser) Read(p []byte) (int, error) {
+	m.max = max(m.max, len(p))
+	return m.r.Read(p)
+}
+
+func erweiterungEin(n int) string { return "{" + wiederhole(`"a":"",`, n) + `"z":1}` }
+func erweiterungAus(n int) string { return "{" + wiederhole(`"a":"[REDACTED]",`, n) + `"z":1}` }
+
+// TestBodyPuffer hält die heutigen Größen der festen Puffer aus SPEC-118 Nr. 6 für JSON: ein Read
+// bietet höchstens 32 KiB an, ein Write an dst ist höchstens 32 KiB plus die Reserve eines
+// Eingabebytes lang. Der Ausgabepuffer wird auch mitten in einem Chunk geleert: ein Chunk von 28 KB,
+// dessen Ausgabe 68 KB lang ist, kommt in mehreren Writes an. Die Zusage der Spezifikation, die
+// Unabhängigkeit von der Länge des Stroms, fängt TestBodySpeicher.
+func TestBodyPuffer(t *testing.T) {
+	const grenze = 32<<10 + 16
+	regeln := model.BodyRegeln{Pfade: pfadeAus(t, "$..a"), MaxBytes: 1 << 20}
+	w := &langWriter{}
+	st, err := model.RedigiereBody(w, einmal(erweiterungEin(4000)), jsonEingang(), regeln)
+	if err != nil || st != model.RedactionApplied || w.String() != erweiterungAus(4000) {
+		t.Fatalf("Erweiterung: Status %q, Fehler %v, Ausgabe gleich Erwartung: %v", st, err, w.String() == erweiterungAus(4000))
+	}
+	if w.max > grenze || w.writes < 3 {
+		t.Errorf("Erweiterung: längster Write %d Bytes, %d Writes; erwartet höchstens %d und mindestens 3 Writes", w.max, w.writes, grenze)
+	}
+	for _, grenzeBytes := range []int64{1 << 20, 1 << 30} {
+		m := &messLeser{r: &genReader{kopf: `{"p":"`, muster: "a", n: 256 << 10, schluss: `"}`}}
+		w = &langWriter{}
+		st, err = model.RedigiereBody(w, m, jsonEingang(), model.BodyRegeln{Pfade: regeln.Pfade, MaxBytes: grenzeBytes})
+		if err != nil || st != model.RedactionNone {
+			t.Fatalf("Durchreichen: Status %q, Fehler %v", st, err)
+		}
+		if m.max < 1 || m.max > 32<<10 || w.max > grenze {
+			t.Errorf("MaxBytes %d: größter Read %d, größter Write %d; erwartet höchstens %d und %d", grenzeBytes, m.max, w.max, 32<<10, grenze)
+		}
+	}
+}
+
+// TestBodyAusgabeVoll: scheitert dst, wenn der Ausgabepuffer mitten in einem Chunk voll ist,
+// endet der Lauf in diesem Chunk: ein Read, zwei Writes, und dst bekommt nach dem fehlgeschlagenen
+// Write nichts mehr (SPEC-118 Nr. 7, 9).
+func TestBodyAusgabeVoll(t *testing.T) {
+	regeln := model.BodyRegeln{Pfade: pfadeAus(t, "$..a"), MaxBytes: 1 << 20}
+	r := einmal(erweiterungEin(4000))
+	w := &scheiterWriter{bei: 2, err: errVoll, leser: r}
+	st, err := model.RedigiereBody(w, r, jsonEingang(), regeln)
+	if st != model.RedactionUnsafe || grundVon(err) != model.GrundAusgabe || !errors.Is(err, errVoll) {
+		t.Fatalf("Status %q, Fehler %v", st, err)
+	}
+	if w.writes != 2 || r.reads != 1 || w.readsBeiFehler != 1 {
+		t.Errorf("%d Writes, %d Reads (bei dem Fehler %d)", w.writes, r.reads, w.readsBeiFehler)
+	}
+	if got := w.buf.String(); len(got) == 0 || len(got) > 32<<10+16 || got != erweiterungAus(4000)[:len(got)] {
+		t.Errorf("dst trägt %d Bytes, die kein redigiertes Präfix von höchstens 32 KiB sind", len(got))
 	}
 }

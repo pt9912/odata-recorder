@@ -70,12 +70,16 @@ type BodyRegeln struct {
 	MaxBytes int64
 }
 
-// Größe der festen Puffer je Richtung (SPEC-118 Nr. 6: höchstens 64 KiB).
+// Größe der festen Puffer je Richtung (SPEC-118 Nr. 6): sie hängen nicht vom Strom ab. Der
+// Eingabepuffer ist bodyEinPuffer groß und jeder Read bietet höchstens so viel an; der
+// Ausgabepuffer wird geleert, sobald er bodyAusSchwelle erreicht, und jeder Write an dst ist
+// höchstens bodyAusSchwelle + bodyAusReserve lang. TestBodyPuffer hält beide Größen für JSON.
 const (
 	bodyEinPuffer   = 32 << 10
 	bodyAusSchwelle = 32 << 10
 	// bodyAusReserve ist die längste Ausgabe eines einzelnen Eingabebytes (der Marker samt
-	// Anführungszeichen) und liegt über der Schwelle, bei der der Puffer geleert wird.
+	// Anführungszeichen); der Ausgabepuffer hat diesen Spielraum über der Schwelle, weil er erst
+	// nach dem Byte geleert wird, das sie erreicht.
 	bodyAusReserve = len(Marker) + 2
 )
 
