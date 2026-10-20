@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-01`, `LH-FA-02`, `LH-RB-02`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `LH-FA-01.a` (Proxy) · `LH-FA-02.a`, `LH-FA-02.b`, `LH-FA-02.c` · `LH-FA-04.c` (Service-Root) · `SPEC-012`, `SPEC-054`, `SPEC-057`, `SPEC-086`, `SPEC-087`, `SPEC-092` · `SPEC-048` · `ARC-002`, `ARC-003`, `ARC-004`, `ARC-008` · `architecture.md` §4.1.
+**Berührte Spec-Stellen:** `LH-FA-01.a` (Proxy) · `LH-FA-02.a`, `LH-FA-02.b`, `LH-FA-02.c` · `LH-FA-04.c` (Service-Root) · `SPEC-012`, `SPEC-054`, `SPEC-057`, `SPEC-086`, `SPEC-087`, `SPEC-092` · `SPEC-048` · `ARC-002` · `SPEC-118`, `ARC-003`, `ARC-004`, `ARC-008` · `architecture.md` §4.1.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -36,6 +36,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Übernimmt:** Zeit (`started_at`, `finished_at`) kommt aus `Clock.Now()`, die Exchange-Kennung aus `IDGenerator.ExchangeID()` (`SPEC-114`); die Tests setzen `supporttest.FestUhr` und `FestIDs` (Sendung von `slice-clock-idgenerator`).
 
 **Übernimmt (Redaction und Match-Key):** Der Dienst ruft `BildeSchluessel` (`SPEC-116`) mit dem unredigierten Request und dem bereits redigierten Request-Body, persistiert `RawQuery` und `Header` des Ergebnisses und `KeyRedacted`, redigiert die Response-Header mit `RedigiereHeader` (`SPEC-115` Nr. 2, 3) und übergibt als `Path` den Pfad nach dem Service-Root; bei `ErrKodierung` (`MATCH_INVALID_ENCODING=reject`) antwortet er `ODR-E5006` vor jeder Weiterleitung und hängt keinen Exchange an, bei `redaction.request=unsafe` bleibt der Key `null` (`SPEC-116` Nr. 7, 9); ein Body, der als JSON ungültig ist, ergibt im Modus `json-canonical` den Byte-Hash (Art 2) und keinen Fehler, auch bei `reject` (`SPEC-116` Nr. 6; Sendung von `slice-redaction-match-key`).
+**Übernimmt (Redaktor):** Der Request-Body geht durch `RedigiereBody` (über die Capture-Pipeline, `SPEC-118`), und der Key wird aus dessen Ausgabe gebildet, nie aus den Eingabebytes (`SPEC-118` Nr. 10, `SPEC-116` Einleitung); bei einem Fehler des Redaktors ist `redaction.request=unsafe`, der Key `null` und der Exchange `failed` (`SPEC-001`); die Aufzeichnung des Response-Bodys und die Weiterleitung laufen weiter (Sendung von `slice-streaming-redaction`).
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - HTTP-Server, Header-Mapping des Eingangs und Listener-Lebenszyklus — `slice-http-adapter`; der Use Case erhält Methode, Pfad, `raw_query`, Header und einen Body-Strom.

@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-02`, `LH-FA-14`, `LH-QA-04`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `LH-FA-02.a`, `LH-FA-02.b` · `SPEC-046` · `SPEC-053` · `SPEC-013` (`MAX_CAPTURE_BODY`) · `SPEC-048` (Fault Injection, Capture-Seite) · `SPEC-106` (`CaptureWriter`) · `SPEC-001` (Body-Zustände) · `ARC-002` · `ARC-010`.
+**Berührte Spec-Stellen:** `LH-FA-02.a`, `LH-FA-02.b` · `SPEC-046` · `SPEC-053` · `SPEC-118` · `SPEC-013` (`MAX_CAPTURE_BODY`) · `SPEC-048` (Fault Injection, Capture-Seite) · `SPEC-106` (`CaptureWriter`) · `SPEC-001` (Body-Zustände) · `ARC-002` · `ARC-010`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -33,6 +33,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Das interne Paket `capture` des Record-Service entkoppelt den Proxy-Strom von der Aufzeichnung durch einen begrenzten Puffer, wendet Größenlimit und begrenzte Dekompression an, führt den Redaktor und den `CaptureWriter` und liefert je Austausch Capture-Status, Redaction-Status, Body-Zustand und Integrität; der Proxy-Strom läuft bei jedem Capture-Fehler weiter.
 
+**Übernimmt (Redaktor):** Die Pipeline ruft `RedigiereBody(dst, src, BodyEingang, BodyRegeln)` (`SPEC-118`) für jeden Body, Request wie Response, mit dem entpackten Strom (`Content-Encoding` löst sie vorher auf, `SPEC-046` Nr. 2), `Metadata=true` nur für die Antwort auf `<service_root>/$metadata`, `MaxBytes = MAX_CAPTURE_BODY` und den wirksamen `Pfade`. Bei jedem Fehler verwirft sie `dst` (`Abort`) und setzt Body `discarded`, Redaction `unsafe`, `replay_equivalence=none`; `capture_status` wählt sie nach Art des Fehlers (`eingabe` ist Abbruch, die übrigen Gründe sind Verstöße, `SPEC-118` Nr. 9). Ein Blob entsteht nur aus einem Aufruf ohne Fehler. Die redigierten Bytes des Request-Bodys stellt sie dem Dienst für `BildeSchluessel` bereit (der Key wird aus der Ausgabe gebildet, `SPEC-118` Nr. 10); wie das geschieht, entscheidet ihr Vertrag vor dem Code (Sendung von `slice-streaming-redaction`).
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Der Upstream-Aufruf, die Wahl der Session und das Anhängen des Exchange — `slice-record-service`; die Pipeline kennt Ströme und `CaptureWriter`, kein Repository.

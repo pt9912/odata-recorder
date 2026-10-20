@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-04`, `LH-FA-05`, `LH-FA-14`, `LH-QA-02`, `LH-QA-03`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `LH-FA-04.a`, `LH-FA-04.b`, `LH-FA-04.c` · `SPEC-052` · `SPEC-045` · `LH-FA-14.a` (Redaction und Match-Key) · `SPEC-009`, `SPEC-078`, `SPEC-083` · `SPEC-020`, `SPEC-021`, `SPEC-050`, `SPEC-065`, `SPEC-070`, `SPEC-071`, `SPEC-074`, `SPEC-093`, `SPEC-097` · `ARC-002`, `ARC-003` · `architecture.md` §4.3.
+**Berührte Spec-Stellen:** `LH-FA-04.a`, `LH-FA-04.b`, `LH-FA-04.c` · `SPEC-052` · `SPEC-045` · `LH-FA-14.a` (Redaction und Match-Key) · `SPEC-118` · `SPEC-009`, `SPEC-078`, `SPEC-083` · `SPEC-020`, `SPEC-021`, `SPEC-050`, `SPEC-065`, `SPEC-070`, `SPEC-071`, `SPEC-074`, `SPEC-093`, `SPEC-097` · `ARC-002`, `ARC-003` · `architecture.md` §4.3.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -36,6 +36,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Übernimmt:** Die Übergabe aus `welle-persistenz`: die Abbildung von `ErrBeschaedigt` und `ErrBlob*` auf `ODR-E3001` beim Ausliefern eines beschädigten Blobs (die Tabelle liefert `slice-fehlermodell-konfiguration`).
 
 **Übernimmt (Redaction, Match-Key, Replayfähigkeit):** Der Dienst ruft `BildeSchluessel` (`SPEC-116`) mit dem eingehenden Request, dem durch den Redaktor geleiteten Request-Body (die Funktion redigiert ihn nicht, `SPEC-116` Einleitung) und der Konfiguration des Records, lässt bei `ErrKodierung` (`reject`) `ODR-E5006` ohne Cursor-Fortschritt folgen, wendet `Replayfaehig` (`SPEC-117`) als Prädikat über die Kandidaten an und liefert Header über `OhneRedigierte` (`SPEC-115` Nr. 5); `Location` mit Marker im Query-Wert wird ausgeliefert (`SPEC-115` Nr. 3; Auslegung von `SPEC-045`, Fachfrage des Owners offen, ein Wechsel ändert `SPEC-115` Nr. 3 und `SPEC-045`); der Key eines Bodys, der als JSON ungültig ist, folgt im Modus `json-canonical` dem Byte-Hash (Art 2), kein Fehler (`SPEC-116` Nr. 6) (Sendung von `slice-redaction-match-key`).
+**Übernimmt (Redaktor):** Der eingehende Request-Body geht durch `RedigiereBody` (`SPEC-118`) mit `MaxBytes = MAX_CAPTURE_BODY`, `Metadata=false` und den wirksamen `Pfade`, der Key wird aus der Ausgabe gebildet, nie aus den Eingabebytes (`SPEC-118` Nr. 10, `SPEC-116` Einleitung); jeder Fehler des Redaktors (auch ein Body über der Grenze oder mit unbekanntem Typ) lässt `ODR-E5001` ohne Cursor-Fortschritt folgen, denn der Key lässt sich nicht bilden und ein `null`-Key passt nie (`SPEC-001`); ein Request ohne Body (0 Bytes) ist kein Fehler (Sendung von `slice-streaming-redaction`).
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - HTTP-Eingang, Lesen der Steuerheader aus dem Request und Entfernen der `X-Recorder-*`-Header — `slice-http-adapter` reicht die Header unverändert, der Use Case entnimmt die Zuordnung (`SPEC-052`).
