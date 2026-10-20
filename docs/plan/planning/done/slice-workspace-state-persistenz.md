@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-persistenz](../welle-persistenz.md).
+**Welle:** [welle-persistenz](welle-persistenz.md).
 
 **Bezug:** `LH-FA-04`, `LH-FA-07`, `LH-FA-09`, `LH-FA-10`, [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md)
 

@@ -7,7 +7,7 @@ Verzeichnis-Position — kein Status-Feld. **Geplante Wellen bekommen noch keine
 Datei:** Sie stehen in der Roadmap unter *Nächste Wellen* und nirgends sonst —
 zwei Positionen, nicht drei.
 
-**Zielmeilenstein:** kein Meilenstein-Bezug; sie ist Vorbedingung von M2 (siehe [Roadmap](in-progress/roadmap.md)).
+**Zielmeilenstein:** kein Meilenstein-Bezug; sie ist Vorbedingung von M2 (siehe [Roadmap](../in-progress/roadmap.md)).
 
 **Verantwortlich:** pt9912. **Datum:** 2026-10-19.
 
@@ -30,7 +30,7 @@ werden, aber nie Trigger sein. Und der **Start**-Trigger ist **kein Ergebnis
 dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 - `welle-fundament` liegt in `done/` (Gates für Build, Test, Lint und `a-check`, dazu die Gegenproben).
-- [ADR-0006](../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md) ist `Accepted` (SQLite-Bibliothek).
+- [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md) ist `Accepted` (SQLite-Bibliothek).
 
 ## 3. Closure-Trigger (Welle schließt)
 
