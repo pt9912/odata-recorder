@@ -59,17 +59,17 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Fehlermodell im Domain-Modell: jeder Code aus §4 der Spezifikation mit HTTP-Status und Zielbereich, Fehlerobjekt nach `SPEC-006`, Abbildung der Fehler der Outbound Ports auf Codes (Tabelle in der Spezifikation, Test über alle Fehler des Pakets `outbound` und des SQLite-Adapters).
-- [ ] Konfiguration der Schlüssel `MODE`, `LISTEN`, `DATA_DIR`, `SERVICE_ID`, `SERVICE_ROOT_PATH`, `UPSTREAM_URL`, `SERVICES_FILE`, `REPLAY_*`, `MATCH_*`, `REDACT_*`, `MAX_CAPTURE_BODY`, `UPSTREAM_*`, `SHUTDOWN_TIMEOUT`, `RETENTION_MAX_AGE`, `SQLITE_BUSY_TIMEOUT`, `VOLATILE_HEADERS`, `LINK_REWRITE` mit den Defaults aus §3 der Spezifikation; `ODR-E2001` bei ungültigem Wert, Doppelkonfiguration (Datei und Einzelschlüssel), überlappenden Roots und fehlendem Pflichtwert.
-- [ ] Tests der Randformen aus §6 gegen die Spezifikation.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Fehlermodell im Domain-Modell: jeder Code aus §4 der Spezifikation mit HTTP-Status und Zielbereich, Fehlerobjekt nach `SPEC-006`, Abbildung der Fehler der Outbound Ports auf Codes (Tabelle in der Spezifikation, Test über alle Fehler des Pakets `outbound` und des SQLite-Adapters).
+- [x] Konfiguration der Schlüssel `MODE`, `LISTEN`, `DATA_DIR`, `SERVICE_ID`, `SERVICE_ROOT_PATH`, `UPSTREAM_URL`, `SERVICES_FILE`, `REPLAY_*`, `MATCH_*`, `REDACT_*`, `MAX_CAPTURE_BODY`, `UPSTREAM_*`, `SHUTDOWN_TIMEOUT`, `RETENTION_MAX_AGE`, `SQLITE_BUSY_TIMEOUT`, `VOLATILE_HEADERS`, `LINK_REWRITE` mit den Defaults aus §3 der Spezifikation; `ODR-E2001` bei ungültigem Wert, Doppelkonfiguration (Datei und Einzelschlüssel), überlappenden Roots und fehlendem Pflichtwert.
+- [x] Tests der Randformen aus §6 gegen die Spezifikation.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
 - [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
