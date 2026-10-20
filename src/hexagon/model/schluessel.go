@@ -28,7 +28,8 @@ const (
 )
 
 // SchluesselEingabe ist der unredigierte Request, aus dem BildeSchluessel den Key bildet
-// (SPEC-116). Body trägt die Bytes des bereits redigierten Request-Bodys.
+// (SPEC-116). Header und RawQuery redigiert BildeSchluessel selbst; Body redigiert der Aufrufer,
+// die Funktion kann nicht prüfen, ob die Bytes redigiert sind (Grenze in SPEC-116, Einleitung).
 type SchluesselEingabe struct {
 	Method           string
 	ServiceID        string
@@ -89,20 +90,21 @@ func BildeSchluessel(in SchluesselEingabe, regeln SchluesselRegeln) (Schluessel,
 	if !queryOK && reject {
 		return Schluessel{}, ErrKodierung
 	}
+	header := RedigiereHeader(in.Header, regeln.RedactHeaders, regeln.RedactQueryParams)
 	var b tupel
 	b.text(schluesselMarke)
 	b.text(in.Method)
 	b.text(in.ServiceID)
 	b.text(pfad)
 	b.paare(paare)
-	b.vary(in.Header, regeln)
+	b.vary(header, regeln)
 	b.body(in.Body, regeln.BodyMode)
 	sum := sha256.Sum256(b.buf.Bytes())
 	return Schluessel{
 		MatchKey:    "sha256:" + hex.EncodeToString(sum[:]),
 		KeyRedacted: geaendert || in.RequestRedaction == RedactionApplied,
 		RawQuery:    rq,
-		Header:      RedigiereHeader(in.Header, regeln.RedactHeaders, regeln.RedactQueryParams),
+		Header:      header,
 	}, nil
 }
 
@@ -232,7 +234,7 @@ func (t *tupel) paare(ps []paar) {
 }
 
 // vary kodiert die Namen aus MATCH_VARY_HEADERS ohne die flüchtigen und die redigierten, die
-// der Request mit mindestens einem Wert trägt (SPEC-116 Nr. 5).
+// der Request mit mindestens einem Wert trägt (SPEC-116 Nr. 5); h ist die redigierte Darstellung.
 func (t *tupel) vary(h map[string][]string, regeln SchluesselRegeln) {
 	ausgenommen := mengeKlein(append(slices.Clone(regeln.VolatileHeaders), regeln.RedactHeaders...))
 	var namen []string

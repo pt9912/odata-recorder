@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -330,6 +331,34 @@ func TestKeyVary(t *testing.T) {
 	}
 }
 
+func TestKeyVaryRedigiert(t *testing.T) {
+	for _, name := range []string{"Location", "Content-Location"} {
+		mitVary := func(r *model.SchluesselRegeln) { r.VaryHeaders = []string{name} }
+		laufe(t, []paarFall{
+			{name: name + " anderes Geheimnis", a: vary(hmap{name: {"/p?token=eins"}}), b: vary(hmap{name: {"/p?token=zwei"}}), gleich: true, regeln: mitVary},
+			{name: name + " anderer Pfad", a: vary(hmap{name: {"/p?token=eins"}}), b: vary(hmap{name: {"/q"}}), gleich: false, regeln: mitVary},
+			{name: name + " zwei Parameter", a: vary(hmap{name: {"/p?token=eins&api_key=a"}}), b: vary(hmap{name: {"/p?token=zwei&api_key=b"}}), gleich: true, regeln: mitVary},
+		})
+	}
+}
+
+func TestKeyVaryMengeReihenfolge(t *testing.T) {
+	h := hmap{"Accept": {"a"}, "X-Tenant": {"t"}, "Accept-Language": {"de"}, "X-Zeta": {"z"}}
+	namen := []string{"X-Tenant", "Accept", "X-Zeta", "Accept-Language"}
+	a, b := schluesselRegeln(), schluesselRegeln()
+	a.VaryHeaders = namen
+	b.VaryHeaders = []string{namen[3], namen[2], namen[1], namen[0]}
+	if ka, kb := key(t, vary(h), a).MatchKey, key(t, vary(h), b).MatchKey; ka != kb {
+		t.Errorf("Reihenfolge der Konfiguration ändert den Key: %s / %s", ka, kb)
+	}
+	// Schreibweise und Wiederholung der Namen in der Konfiguration ändern den Key ebenso nicht.
+	c := schluesselRegeln()
+	c.VaryHeaders = []string{"x-zeta", "ACCEPT", "Accept-Language", "x-tenant", "Accept"}
+	if kc, ka := key(t, vary(h), c).MatchKey, key(t, vary(h), a).MatchKey; kc != ka {
+		t.Errorf("Schreibweise oder Wiederholung ändert den Key: %s / %s", kc, ka)
+	}
+}
+
 func TestKeyVaryAusnahme(t *testing.T) {
 	laufe(t, []paarFall{
 		{name: "Date", a: vary(hmap{"Date": {"a"}}), b: vary(hmap{"Date": {"b"}}), gleich: true},
@@ -369,6 +398,25 @@ func TestKeyBodyKanonisch(t *testing.T) {
 		{name: "512 kanonisch", a: body(strings.Repeat("[", 512) + strings.Repeat("]", 512)), b: body(" " + strings.Repeat("[", 512) + strings.Repeat("]", 512)), gleich: true, regeln: kanonisch},
 		{name: "Name nach Bytes", a: body(`{"é":1,"z":2}`), b: body(`{"z":2,"é":1}`), gleich: true, regeln: kanonisch},
 	})
+}
+
+func TestKeyBodyGleicheNamenReihenfolge(t *testing.T) {
+	// 40 Mitglieder je Name, abwechselnd b und a eingegeben: über zwölf Elementen sortiert ein
+	// nicht stabiles Verfahren gleiche Namen um.
+	var roh, a, b []string
+	for i := 0; i < 40; i++ {
+		w := strconv.Itoa(i)
+		roh = append(roh, `"b":`+w, `"a":`+w)
+		a = append(a, `"a":`+w)
+		b = append(b, `"b":`+w)
+	}
+	want := "{" + strings.Join(append(a, b...), ",") + "}"
+	r := schluesselRegeln()
+	r.BodyMode = model.BodyJSONCanonical
+	hand := handKey(zeichenfolge("odr-match-v1"), zeichenfolge("GET"), zeichenfolge("svc"), zeichenfolge("/Products"), zahl(0), zahl(0), []byte{3}, sha([]byte(want)))
+	if got := key(t, body("{"+strings.Join(roh, ",")+"}"), r).MatchKey; got != hand {
+		t.Errorf("Mitglieder gleichen Namens nicht in Eingabereihenfolge: %s, erwartet %s", got, hand)
+	}
 }
 
 func TestKeyBodyRueckfall(t *testing.T) {
@@ -482,6 +530,10 @@ func TestKeyReihenfolgeVerstoesse(t *testing.T) {
 	_, err = model.BildeSchluessel(model.SchluesselEingabe{Method: "GET", ServiceID: "s", Path: "/a%zz", RawQuery: "b=%zz", RequestRedaction: model.RedactionNone}, reject)
 	if !errors.Is(err, model.ErrKodierung) {
 		t.Errorf("Pfad und Query: %v", err)
+	}
+	_, err = model.BildeSchluessel(model.SchluesselEingabe{Method: "GET", ServiceID: "s", Path: "/a%zz#", RequestRedaction: model.RedactionNone}, reject)
+	if !errors.Is(err, model.ErrUngueltig) || errors.Is(err, model.ErrKodierung) {
+		t.Errorf("Form des Pfades vor Kodierung des Pfades: %v", err)
 	}
 	_, err = model.BildeSchluessel(model.SchluesselEingabe{Method: "GET", ServiceID: "s", Path: "/a", RawQuery: "b=%zz", RequestRedaction: model.RedactionUnsafe}, reject)
 	if !errors.Is(err, model.ErrUngueltig) || errors.Is(err, model.ErrKodierung) {

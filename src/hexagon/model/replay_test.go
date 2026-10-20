@@ -13,26 +13,32 @@ func replayExchange(c model.CaptureStatus, r model.RedactionStatus, i model.Body
 	return e
 }
 
-// matrix schreibt die Erwartung aus: nur complete mit verified/absent und none, oder applied bei true.
+// Die Erwartung ist je (Capture, Redaction, Integrität) für RedigierteBodies=false bzw. true
+// ausgeschrieben (SPEC-117 Nr. 1); die Indizes zählen in der Reihenfolge der Slices cs, rs, is.
 func TestReplayfaehigMatrix(t *testing.T) {
 	cs := []model.CaptureStatus{model.CaptureComplete, model.CaptureIncomplete, model.CaptureFailed}
 	rs := []model.RedactionStatus{model.RedactionNone, model.RedactionApplied, model.RedactionUnsafe}
 	is := []model.BodyIntegrity{model.IntegrityVerified, model.IntegrityAbsent, model.IntegrityInvalid}
-	// Erwartung je (Capture, Redaction, Integrität) für RedigierteBodies=false bzw. true.
 	erwartung := map[[3]int][2]bool{
 		{0, 0, 0}: {true, true}, {0, 0, 1}: {true, true}, {0, 0, 2}: {false, false},
 		{0, 1, 0}: {false, true}, {0, 1, 1}: {false, true}, {0, 1, 2}: {false, false},
 		{0, 2, 0}: {false, false}, {0, 2, 1}: {false, false}, {0, 2, 2}: {false, false},
+		{1, 0, 0}: {false, false}, {1, 0, 1}: {false, false}, {1, 0, 2}: {false, false},
+		{1, 1, 0}: {false, false}, {1, 1, 1}: {false, false}, {1, 1, 2}: {false, false},
+		{1, 2, 0}: {false, false}, {1, 2, 1}: {false, false}, {1, 2, 2}: {false, false},
+		{2, 0, 0}: {false, false}, {2, 0, 1}: {false, false}, {2, 0, 2}: {false, false},
+		{2, 1, 0}: {false, false}, {2, 1, 1}: {false, false}, {2, 1, 2}: {false, false},
+		{2, 2, 0}: {false, false}, {2, 2, 1}: {false, false}, {2, 2, 2}: {false, false},
+	}
+	if len(erwartung) != 27 {
+		t.Fatalf("%d Zeilen der Erwartung", len(erwartung))
 	}
 	n := 0
 	for ci, c := range cs {
 		for ri, r := range rs {
 			for ii, i := range is {
 				for bi, rb := range []bool{false, true} {
-					want := erwartung[[3]int{0, ri, ii}][bi]
-					if ci != 0 {
-						want = false
-					}
+					want := erwartung[[3]int{ci, ri, ii}][bi]
 					n++
 					if got := model.Replayfaehig(replayExchange(c, r, i), rb); got != want {
 						t.Errorf("%s %s %s redigierteBodies=%v: %v, erwartet %v", c, r, i, rb, got, want)

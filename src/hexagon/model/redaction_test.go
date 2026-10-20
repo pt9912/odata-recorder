@@ -48,9 +48,10 @@ func TestRedigiereHeaderNamen(t *testing.T) {
 	if !reflect.DeepEqual(got, hmap{"Authorisation": {"x"}, "X-Extra": {"[REDACTED]"}}) {
 		t.Errorf("Ergänzung oder ähnlicher Name: %v", got)
 	}
-	// Kelvin-Zeichen U+212A ist kein ASCII-k und gleicht dem Namen nicht.
-	if got := model.RedigiereHeader(hmap{"CooKie": {"x"}}, []string{"Cooxie"}, nil); got["CooKie"][0] != "x" {
-		t.Errorf("Unicode-Faltung: %v", got)
+	// Das Kelvin-Zeichen U+212A in einem Header-Namen gleicht dem k von Cookie nicht.
+	kelvin := "Coo\u212Aie"
+	if got := model.RedigiereHeader(hmap{kelvin: {"x"}}, []string{"Cookie"}, nil); !reflect.DeepEqual(got, hmap{kelvin: {"x"}}) {
+		t.Errorf("Kelvin-Name redigiert: %v", got)
 	}
 }
 
@@ -110,8 +111,10 @@ func TestRedigiereHeaderKopie(t *testing.T) {
 	}
 }
 
-func TestRedigiereLocation(t *testing.T) {
-	for _, tc := range []struct{ in, want string }{
+type locationFall struct{ in, want string }
+
+func locationFaelle() []locationFall {
+	return []locationFall{
 		{"/p?token=1&a=2", "/p?token=[REDACTED]&a=2"},
 		{"/p", "/p"},
 		{"", ""},
@@ -121,7 +124,11 @@ func TestRedigiereLocation(t *testing.T) {
 		{"/p?token=1#f", "/p?token=[REDACTED]#f"},
 		{"/p#token=1", "/p#token=1"},
 		{"/p#f?token=1", "/p#f?token=[REDACTED]"},
-	} {
+	}
+}
+
+func TestRedigiereLocation(t *testing.T) {
+	for _, tc := range locationFaelle() {
 		for _, name := range []string{"Location", "Content-Location", "location"} {
 			got := model.RedigiereHeader(hmap{name: {tc.in}}, nil, standardParameter())
 			if w := (hmap{http.CanonicalHeaderKey(name): {tc.want}}); !reflect.DeepEqual(got, w) {
@@ -190,7 +197,11 @@ func TestRedigiereIdempotent(t *testing.T) {
 			t.Errorf("%q: %q dann %q (geändert %v)", tc.in, eins, zwei, geaendert)
 		}
 	}
-	for _, in := range headerFaelle() {
+	faelle := headerFaelle()
+	for _, tc := range locationFaelle() {
+		faelle = append(faelle, hmap{"Location": {tc.in}}, hmap{"Content-Location": {tc.in}})
+	}
+	for _, in := range faelle {
 		eins := model.RedigiereHeader(in, standardNamen(), standardParameter())
 		if zwei := model.RedigiereHeader(eins, standardNamen(), standardParameter()); !reflect.DeepEqual(eins, zwei) {
 			t.Errorf("%v: %v dann %v", in, eins, zwei)
