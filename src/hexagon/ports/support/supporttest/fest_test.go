@@ -109,9 +109,9 @@ func TestFestIDsFolge(t *testing.T) {
 		"wsp": g.WorkspaceID, "snp": g.SnapshotID,
 	}
 	for praefix, op := range ops {
-		for i := 1; i <= 3; i++ {
-			if got, want := op(), fmt.Sprintf("%s-%032d", praefix, i); got != want {
-				t.Errorf("%s Aufruf %d: %q, erwartet %q", praefix, i, got, want)
+		for i, ende := range []string{"01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"} {
+			if got, want := op(), praefix+"-000000000000000000000000000000"+ende; got != want {
+				t.Errorf("%s Aufruf %d: %q, erwartet %q", praefix, i+1, got, want)
 			}
 		}
 	}
