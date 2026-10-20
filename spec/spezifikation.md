@@ -857,7 +857,7 @@ Die Ports haben weder Argumente noch Kontext noch Fehlerrückgabe und sind für 
 7. Die Zeichen sind 128 Bit aus `crypto/rand`, ohne Seed und ohne Konfiguration. Fällt die Quelle aus, beendet die Laufzeit den Prozess (seit Go 1.24 gibt es keinen Fehlerwert); deshalb hat der Port keine Fehlerrückgabe.
 8. Zwei Kennungen derselben Operation stimmen mit vernachlässigbarer Wahrscheinlichkeit überein (bei 128 Zufallsbits wird eine Kollision erst bei rund 2^64 Kennungen wahrscheinlich); Kennungen verschiedener Operationen unterscheiden sich durch das Präfix. Der Generator prüft nicht gegen den Speicher, und die Verbraucher wiederholen nicht; trifft ein Port dennoch `ErrBereitsVorhanden` auf eine erzeugte Kennung, gilt `SPEC-109` wie für jede andere.
 9. Kennungen, die der Client vergibt (Replay-Session-ID, `import_id`, eine mitgegebene Workspace- oder Session-`id`), erzeugt, prüft und ändert der Generator nicht; ihre Form (Länge, Alphabet) legt der Vertrag des Use Case fest, der sie annimmt.
-10. `FestIDs`: dieselbe Form (Nr. 6), die 32 Zeichen sind ein Zähler je Operation, der je Instanz bei 1 beginnt und um 1 steigt (`ses-00000000000000000000000000000001`, `ses-…02`). Zwei Instanzen zählen unabhängig; bei gleichzeitigem Aufruf erhält jeder Aufruf genau eine Nummer, ohne Lücke und ohne Doppelung.
+10. `FestIDs`: dieselbe Form (Nr. 6), die 32 Zeichen sind ein Zähler je Operation, der je Instanz bei 1 beginnt und um 1 steigt (`ses-00000000000000000000000000000001`, `ses-…02`). Der Zähler steht **dezimal** mit führenden Nullen auf 32 Stellen (`%032d`): auf `…09` folgt `…10`, nicht `…0a`; so bleibt die Kennung lesbar und die Folge im Test vorhersagbar, und die Form von Nr. 6 bleibt erfüllt. Zwei Instanzen zählen unabhängig; bei gleichzeitigem Aufruf erhält jeder Aufruf genau eine Nummer, ohne Lücke und ohne Doppelung.
 
 Ungeprüft bleibt: die Genauigkeit der Plattformuhr und der Abgleich ihrer Zeit (NTP), die kryptografische Güte der Zufallsquelle (kein Test kann sie beobachten) sowie das Ausbleiben von Datenrennen über das Verhalten hinaus, das die Tests unter Last zeigen; das Gate fährt nicht mit dem Race-Detektor.
 
@@ -1157,6 +1157,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-10-20 | `SPEC-114` Nr. 10: der Zähler von `FestIDs` wird dezimal geschrieben (auf `…09` folgt `…10`) |
 | 2026-10-20 | Vertrag von `Clock` und `IDGenerator` (`SPEC-114`): UTC ohne Rundung, nicht fallende Uhr, Bereich der Systemzeit, Form und Herkunft der Kennungen, Kollision, Client-Kennungen, Test-Implementierungen |
 | 2026-10-20 | Randformen von `SPEC-109` und `SPEC-110` entschieden: `none` in Listen, kanonische Schreibweise der Header-Mengen, Werte der Dienste-Datei (doppelt, `null`, leer), Form von `UPSTREAM_URL` in jedem Modus, Hostname und Port, Sortierung der Meldung, Kontextfehler im `errors.Join` |
 | 2026-10-20 | `SPEC-110` Nr. 9 und 12: ein Feld des falschen Typs in `SERVICES_FILE` meldet nur den Typ (eine Zeile je Schlüssel); die Sortierung nach Grund bleibt als Totalordnung ohne beobachtbaren Fall |
