@@ -193,8 +193,25 @@ func (p *pruefer) liste(schluessel string) (eintraege []string, gesetzt bool) {
 		}
 		eintraege = append(eintraege, e)
 	}
-	return eintraege, true
+	return p.pruefeNone(schluessel, eintraege), true
 }
+
+// pruefeNone lässt `none` nur als einzigen, klein geschriebenen Eintrag von MATCH_VARY_HEADERS und
+// VOLATILE_HEADERS zu; jeder Eintrag, der ohne Beachtung der Schreibweise `none` lautet, ist sonst
+// ein Verstoß (SPEC-110 Nr. 1). Bei einem Verstoß liefert sie keine Einträge.
+func (p *pruefer) pruefeNone(schluessel string, eintraege []string) []string {
+	if !slices.ContainsFunc(eintraege, func(e string) bool { return strings.EqualFold(e, "none") }) {
+		return eintraege
+	}
+	if len(eintraege) == 1 && eintraege[0] == "none" && slices.Contains(ersetzendeListen(), schluessel) {
+		return eintraege
+	}
+	p.melde(schluessel, "none ist nur als einziger, klein geschriebener Eintrag von MATCH_VARY_HEADERS und VOLATILE_HEADERS gültig")
+	return nil
+}
+
+// ersetzendeListen sind die Listen, deren gesetzter Wert den Default ersetzt (SPEC-110 Nr. 1).
+func ersetzendeListen() []string { return []string{"MATCH_VARY_HEADERS", "VOLATILE_HEADERS"} }
 
 func menge(eintraege []string) []string {
 	out := slices.Clone(eintraege)
@@ -335,8 +352,21 @@ func istRoot(s string) bool {
 func normalisiereURL(s string) (string, bool) {
 	u, err := url.Parse(s)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Opaque != "" || u.Hostname() == "" ||
-		u.User != nil || u.RawQuery != "" || u.ForceQuery || strings.Contains(s, "#") {
+		u.User != nil || u.RawQuery != "" || u.ForceQuery || strings.Contains(s, "#") || !portGueltig(u) {
 		return "", false
 	}
 	return strings.TrimSuffix(s, "/"), true
+}
+
+// portGueltig verlangt für einen genannten Port 1 bis 65535; `host:` ohne Ziffern ist ungültig.
+func portGueltig(u *url.URL) bool {
+	if strings.HasSuffix(u.Host, ":") {
+		return false
+	}
+	port := u.Port()
+	if port == "" {
+		return true
+	}
+	n, err := strconv.Atoi(port)
+	return err == nil && n >= 1 && n <= 65535
 }

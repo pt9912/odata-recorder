@@ -179,7 +179,7 @@ func (p *pruefer) dateiEintrag(i int, roh json.RawMessage, record bool) Dienst {
 		if s == nil {
 			return ""
 		}
-		return *s
+		return strings.TrimSpace(*s)
 	}
 	var d Dienst
 	d.ID = p.pflichtfeld(eintrag+".id", text("id"), istDienstID, "1 bis 64 Zeichen aus Buchstaben, Ziffern, ., _ und -")

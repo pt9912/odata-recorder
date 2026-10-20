@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"os"
@@ -49,7 +50,7 @@ type Konfiguration struct {
 }
 
 // KonfigFehler sammelt alle Verstöße der Startkonfiguration, je Zeile
-// `ODR-E2001 <Schlüssel>: <Grund>`, sortiert; sie nennt nie einen Wert (SPEC-110 Nr. 12).
+// `ODR-E2001 <Schlüssel>: <Grund>`, nach Schlüssel (Bytefolge), dann Grund sortiert, gleiche Zeilen einmal; sie nennt nie einen Wert (SPEC-110 Nr. 12).
 type KonfigFehler struct {
 	Zeilen []string
 }
@@ -92,12 +93,16 @@ func (p *pruefer) fehler() error {
 	if len(p.verstoesse) == 0 {
 		return nil
 	}
-	zeilen := make([]string, 0, len(p.verstoesse))
-	for _, v := range p.verstoesse {
-		zeilen = append(zeilen, fmt.Sprintf("%s %s: %s", model.CodeE2001, v.schluessel, v.grund))
+	sortiert := slices.Clone(p.verstoesse)
+	slices.SortFunc(sortiert, func(a, b verstoss) int {
+		return cmp.Or(strings.Compare(a.schluessel, b.schluessel), strings.Compare(a.grund, b.grund))
+	})
+	sortiert = slices.Compact(sortiert)
+	zeilen := make([]string, len(sortiert))
+	for i, v := range sortiert {
+		zeilen[i] = fmt.Sprintf("%s %s: %s", model.CodeE2001, v.schluessel, v.grund)
 	}
-	slices.Sort(zeilen)
-	return &KonfigFehler{Zeilen: slices.Compact(zeilen)}
+	return &KonfigFehler{Zeilen: zeilen}
 }
 
 // LadeKonfiguration liest die Startkonfiguration aus environ (Einträge `NAME=Wert`) und aus

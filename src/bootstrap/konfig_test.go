@@ -10,10 +10,12 @@ import (
 	"encoding/pem"
 	"errors"
 	"math/big"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -73,6 +75,18 @@ func erwarteVerstoss(t *testing.T, key string, env ...string) {
 	}
 }
 
+// erwarteGrund verlangt eine Zeile für den Schlüssel, deren Grund den Text enthält.
+func erwarteGrund(t *testing.T, key, grund string, env ...string) {
+	t.Helper()
+	_, zeilen := lade(t, env...)
+	for _, z := range zeilen {
+		if strings.HasPrefix(z, "ODR-E2001 "+key+": ") && strings.Contains(z, grund) {
+			return
+		}
+	}
+	t.Errorf("keine Zeile %s mit Grund %q in %v", key, grund, zeilen)
+}
+
 func TestKonfigLeer(t *testing.T) {
 	standard := erwarteGueltig(t, basis(t)...)
 	for _, key := range []string{
@@ -100,6 +114,7 @@ func TestKonfigLeer(t *testing.T) {
 }
 
 func TestKonfigDefaults(t *testing.T) {
+	t.Chdir(t.TempDir())
 	k := erwarteGueltig(t, basis(t)...)
 	soll := bootstrap.Konfiguration{
 		Modus: "record", Listen: "127.0.0.1:8080", DataDir: k.DataDir,
@@ -118,7 +133,6 @@ func TestKonfigDefaults(t *testing.T) {
 	if !reflect.DeepEqual(k, soll) {
 		t.Errorf("Defaults weichen ab:\n got %+v\nwant %+v", k, soll)
 	}
-	// Ohne DATA_DIR gilt `data`, relativ zum Arbeitsverzeichnis (nur der Wert, nichts wird angelegt: Modus replay genügt nicht, daher Verstoß erzwingen).
 	_, zeilen := lade(t, "MODE=record")
 	if len(zeilen) != 1 || !strings.HasPrefix(zeilen[0], "ODR-E2001 UPSTREAM_URL: ") {
 		t.Errorf("record ohne UPSTREAM_URL: %v", zeilen)
@@ -126,6 +140,14 @@ func TestKonfigDefaults(t *testing.T) {
 	r := erwarteGueltig(t, "MODE=replay", "DATA_DIR="+filepath.Join(t.TempDir(), "r"))
 	if r.Dienste[0].UpstreamURL != "" || r.Modus != "replay" {
 		t.Errorf("replay: %+v", r)
+	}
+	// DATA_DIR ungesetzt: der Default ist `data`, relativ zum Arbeitsverzeichnis, und wird dort angelegt.
+	d := erwarteGueltig(t, "MODE=replay")
+	if d.DataDir != "data" {
+		t.Errorf("DataDir %q", d.DataDir)
+	}
+	if fi, err := os.Stat("data"); err != nil || !fi.IsDir() {
+		t.Errorf("data liegt nicht im Arbeitsverzeichnis: %v", err)
 	}
 }
 
@@ -152,12 +174,44 @@ func TestKonfigNone(t *testing.T) {
 	if k.MatchVaryHeaders == nil || len(k.MatchVaryHeaders) != 0 || len(k.VolatileHeaders) != 0 {
 		t.Errorf("none: %v %v", k.MatchVaryHeaders, k.VolatileHeaders)
 	}
-	// bei REDACT_* ist `none` keine leere Menge: der Default bleibt, und der Pfad `none` ist ungültig
-	r := erwarteGueltig(t, append(basis(t), "REDACT_HEADERS=none")...)
-	if !slices.Contains(r.RedactHeaders, "Authorization") {
-		t.Error("REDACT_HEADERS=none hat den Default entfernt")
+	for _, key := range []string{"MATCH_VARY_HEADERS", "VOLATILE_HEADERS"} {
+		for _, w := range []string{"None", "NONE", "nOne", "none,Accept", "Accept,none", "none,none", " Accept , none "} {
+			_, zeilen := lade(t, append(basis(t), key+"="+w)...)
+			if len(zeilen) != 1 || !strings.HasPrefix(zeilen[0], "ODR-E2001 "+key+": none ist nur") {
+				t.Errorf("%s=%q: %v", key, w, zeilen)
+			}
+		}
 	}
-	erwarteVerstoss(t, "REDACT_JSON_PATHS", append(basis(t), "REDACT_JSON_PATHS=none")...)
+	for _, key := range []string{"REDACT_HEADERS", "REDACT_QUERY_PARAMS", "REDACT_JSON_PATHS"} {
+		for _, w := range []string{"none", "None", "none,x"} {
+			_, zeilen := lade(t, append(basis(t), key+"="+w)...)
+			if len(zeilen) != 1 || !strings.HasPrefix(zeilen[0], "ODR-E2001 "+key+": none ist nur") {
+				t.Errorf("%s=%q: %v", key, w, zeilen)
+			}
+		}
+	}
+}
+
+// TestKonfigHeaderSchreibweise: Header-Mengen kommen in kanonischer Schreibweise (SPEC-110 Nr. 6).
+func TestKonfigHeaderSchreibweise(t *testing.T) {
+	k := erwarteGueltig(t, append(basis(t), "MATCH_VARY_HEADERS=odata-version,X-API-KEY,etag", "VOLATILE_HEADERS=x-request-id", "REDACT_HEADERS=x-api-key,ETAG")...)
+	if want := []string{"Etag", "Odata-Version", "X-Api-Key"}; !slices.Equal(k.MatchVaryHeaders, want) {
+		t.Errorf("MatchVaryHeaders %v", k.MatchVaryHeaders)
+	}
+	if !slices.Equal(k.VolatileHeaders, []string{"X-Request-Id"}) {
+		t.Errorf("VolatileHeaders %v", k.VolatileHeaders)
+	}
+	if !slices.Contains(k.RedactHeaders, "X-Api-Key") || !slices.Contains(k.RedactHeaders, "Etag") || len(k.RedactHeaders) != 8 {
+		t.Errorf("RedactHeaders %v", k.RedactHeaders)
+	}
+	d := erwarteGueltig(t, basis(t)...)
+	for _, menge := range [][]string{d.MatchVaryHeaders, d.VolatileHeaders, d.RedactHeaders} {
+		for _, h := range menge {
+			if h != http.CanonicalHeaderKey(h) {
+				t.Errorf("Default %q nicht kanonisch", h)
+			}
+		}
+	}
 }
 
 func TestKonfigNichtGeliefert(t *testing.T) {
@@ -262,12 +316,12 @@ func TestKonfigListe(t *testing.T) {
 }
 
 func TestKonfigLISTEN(t *testing.T) {
-	for _, w := range []string{"127.0.0.1:1", "0.0.0.0:65535", "localhost:8080", "[::1]:8080", "host.example:80"} {
+	for _, w := range []string{"127.0.0.1:1", "0.0.0.0:65535", "localhost:8080", "[::1]:8080", "host.example:80", "a_b.c-d:80"} {
 		if k := erwarteGueltig(t, append(basis(t), "LISTEN="+w)...); k.Listen != w {
 			t.Errorf("LISTEN=%s: %q", w, k.Listen)
 		}
 	}
-	for _, w := range []string{"127.0.0.1:0", "127.0.0.1:65536", ":8080", "[]:80", "127.0.0.1", "127.0.0.1:", "127.0.0.1:+80", "127.0.0.1:-1", "::1:80", "[abc]:80", "a b:80", "127.0.0.1:80x", "http://h:80", "host:99999999999999999999"} {
+	for _, w := range []string{"127.0.0.1:0", "127.0.0.1:65536", ":8080", "[]:80", "127.0.0.1", "127.0.0.1:", "127.0.0.1:+80", "127.0.0.1:-1", "::1:80", "[abc]:80", "a b:80", "a/b:80", "a_b/c:80", "[::1%eth0]:80", "[a b]:80", "ä:80", "127.0.0.1:80x", "http://h:80", "host:99999999999999999999"} {
 		erwarteVerstoss(t, "LISTEN", append(basis(t), "LISTEN="+w)...)
 	}
 }
@@ -297,12 +351,14 @@ func TestKonfigRoot(t *testing.T) {
 func TestKonfigURL(t *testing.T) {
 	for w, soll := range map[string]string{
 		"http://h": "http://h", "https://h:8443/odata": "https://h:8443/odata", "https://h/odata/": "https://h/odata", "https://h/": "https://h", "http://[::1]:80/x": "http://[::1]:80/x",
+		"http://h:1": "http://h:1", "https://h:65535/x": "https://h:65535/x",
 	} {
 		if k := erwarteGueltig(t, append(basis(t), "UPSTREAM_URL="+w)...); k.Dienste[0].UpstreamURL != soll {
 			t.Errorf("UPSTREAM_URL=%s: %q", w, k.Dienste[0].UpstreamURL)
 		}
 	}
-	for _, w := range []string{"ftp://h/x", "h/x", "/x", "http://", "http:///x", "http://:80/x", "http://u:p@h/x", "http://u@h/x", "https://h/x?a=1", "https://h/x?", "https://h/x#f", "https://h/x#", "mailto:a@b", "http:h", "https://h x/", "HTTPS-nicht://h"} {
+	for _, w := range []string{"ftp://h/x", "h/x", "/x", "http://", "http:///x", "http://:80/x", "http://u:p@h/x", "http://u@h/x", "https://h/x?a=1", "https://h/x?", "https://h/x#f", "https://h/x#", "mailto:a@b", "http:h", "https://h x/", "HTTPS-nicht://h",
+		"http://h:0", "http://h:65536", "http://h:99999", "http://h:", "http://h:/x", "http://[::1]:", "http://h:99999999999999999999/x"} {
 		erwarteVerstoss(t, "UPSTREAM_URL", append(basis(t), "UPSTREAM_URL="+w)...)
 	}
 }
@@ -418,6 +474,48 @@ func TestKonfigServicesFile(t *testing.T) {
 			key, _, _ := strings.Cut(einzel, "=")
 			erwarteVerstoss(t, key, append(slices.Clone(env), datei, einzel)...)
 		}
+	})
+	dienstenv := func(inhalt string) []string {
+		return append(slices.Clone(env), "SERVICES_FILE="+schreibe(t, inhalt))
+	}
+	t.Run("Feld doppelt: der letzte Wert gilt", func(t *testing.T) {
+		k := erwarteGueltig(t, dienstenv(`[{"id":"a","id":"b","service_root":"/x","service_root":"/a"}]`)...)
+		if !reflect.DeepEqual(k.Dienste, []bootstrap.Dienst{{ID: "b", Root: "/a"}}) {
+			t.Errorf("Dienste %+v", k.Dienste)
+		}
+		erwarteGrund(t, "SERVICES_FILE[0].id", "Pflichtfeld fehlt", dienstenv(`[{"id":"a","id":null,"service_root":"/a"}]`)...)
+		erwarteGueltig(t, dienstenv(`[{"id":null,"id":"a","service_root":"/a"}]`)...)
+	})
+	t.Run("null, leer und Leerraum sind fehlend", func(t *testing.T) {
+		for _, w := range []string{`null`, `""`, `" "`, `"\t \n"`} {
+			erwarteGrund(t, "SERVICES_FILE[0].id", "Pflichtfeld fehlt", dienstenv(`[{"id":`+w+`,"service_root":"/a"}]`)...)
+			erwarteGrund(t, "SERVICES_FILE[0].service_root", "Pflichtfeld fehlt", dienstenv(`[{"id":"a","service_root":`+w+`}]`)...)
+		}
+	})
+	t.Run("upstream_url null, leer und Leerraum", func(t *testing.T) {
+		for _, w := range []string{`null`, `""`, `" "`} {
+			inhalt := `[{"id":"a","service_root":"/a","upstream_url":` + w + `}]`
+			erwarteGrund(t, "SERVICES_FILE[0].upstream_url", "im Modus record erforderlich",
+				"MODE=record", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, inhalt))
+			erwarteGueltig(t, dienstenv(inhalt)...) // replay: kein Verstoß
+		}
+	})
+	t.Run("Leerraum am Rand wird entfernt", func(t *testing.T) {
+		k := erwarteGueltig(t, dienstenv(`[{"id":" x ","service_root":" /a ","upstream_url":" https://h/ "}]`)...)
+		if !reflect.DeepEqual(k.Dienste, []bootstrap.Dienst{{ID: "x", Root: "/a", UpstreamURL: "https://h"}}) {
+			t.Errorf("Dienste %+v", k.Dienste)
+		}
+	})
+	t.Run("Element null ist kein Objekt", func(t *testing.T) {
+		erwarteGrund(t, "SERVICES_FILE[0]", "kein Objekt", dienstenv(`[null]`)...)
+		erwarteGrund(t, "SERVICES_FILE[1]", "kein Objekt", dienstenv(`[{"id":"a","service_root":"/a"},null]`)...)
+	})
+	t.Run("Gründe", func(t *testing.T) {
+		erwarteGrund(t, "SERVICES_FILE[0].id", "Pflichtfeld fehlt", dienstenv(`[{"service_root":"/a"}]`)...)
+		erwarteGrund(t, "SERVICES_FILE[0]", "unbekanntes Feld", dienstenv(`[{"id":"a","service_root":"/a","extra":1}]`)...)
+		erwarteGrund(t, "SERVICES_FILE[0].id", "muss eine Zeichenkette sein", dienstenv(`[{"id":1,"service_root":"/a"}]`)...)
+		erwarteGrund(t, "SERVICES_FILE[1].id", "doppelte id", dienstenv(`[{"id":"a","service_root":"/a"},{"id":"a","service_root":"/b"}]`)...)
+		erwarteGrund(t, "SERVICES_FILE", "größer als 1 MiB", dienstenv(`[{"id":"a","service_root":"/a"}`+strings.Repeat(" ", 1<<20)+`]`)...)
 	})
 	t.Run("upstream_url Pflicht in record", func(t *testing.T) {
 		erwarteVerstoss(t, "SERVICES_FILE[1].upstream_url", "MODE=record", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, gut))
@@ -560,8 +658,8 @@ func TestKonfigMeldung(t *testing.T) {
 	if len(zeilen) < 8 {
 		t.Fatalf("zu wenige Zeilen (alle Verstöße, nicht nur der erste): %v", zeilen)
 	}
-	if !slices.IsSorted(zeilen) {
-		t.Errorf("Zeilen nicht sortiert: %v", zeilen)
+	if s := schluessel(t, zeilen); !slices.IsSorted(s) {
+		t.Errorf("Zeilen nicht nach Schlüssel sortiert: %v", zeilen)
 	}
 	for _, z := range zeilen {
 		if !strings.HasPrefix(z, "ODR-E2001 ") {
@@ -600,5 +698,57 @@ func TestKonfigModusUngueltig(t *testing.T) {
 	_, zeilen := lade(t, "MODE=Record", "DATA_DIR="+filepath.Join(t.TempDir(), "d"))
 	if s := schluessel(t, zeilen); !slices.Equal(s, []string{"MODE"}) {
 		t.Errorf("Zeilen %v", zeilen)
+	}
+}
+
+// TestKonfigUpstreamModus: die Pflicht von UPSTREAM_URL hängt am gültigen Modus, die Form wird in jedem Modus geprüft (SPEC-110 Nr. 9).
+func TestKonfigUpstreamModus(t *testing.T) {
+	d := func() string { return "DATA_DIR=" + filepath.Join(t.TempDir(), "d") }
+	erwarteGueltig(t, "MODE=replay", d())
+	erwarteGrund(t, "UPSTREAM_URL", "keine absolute http- oder https-URL", "MODE=replay", "UPSTREAM_URL=ftp://x", d())
+	erwarteGrund(t, "UPSTREAM_URL", "im Modus record erforderlich", "MODE=record", d())
+	_, zeilen := lade(t, "MODE=Record", d())
+	if len(zeilen) != 1 || !strings.HasPrefix(zeilen[0], "ODR-E2001 MODE: ") {
+		t.Errorf("MODE=Record ohne URL: %v", zeilen)
+	}
+	_, zeilen = lade(t, "MODE=Record", "UPSTREAM_URL=ftp://x", d())
+	if s := schluessel(t, zeilen); !slices.Equal(s, []string{"MODE", "UPSTREAM_URL"}) {
+		t.Errorf("MODE=Record mit ftp: %v", zeilen)
+	}
+}
+
+// TestKonfigMeldungSortierung: die Meldung folgt der Bytefolge des Schlüssels, dann dem Grund; gleiche Zeilen stehen einmal (SPEC-110 Nr. 12).
+func TestKonfigMeldungSortierung(t *testing.T) {
+	// SERVICES_FILE[0] (unbekanntes Feld) geht SERVICES_FILE[0].id voraus, obwohl '.' < ':' die ganze Zeile umordnen würde.
+	datei := schreibe(t, `[{"extra":1,"service_root":"/a"}]`)
+	_, zeilen := lade(t, "MODE=replay", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+datei)
+	if s := schluessel(t, zeilen); !slices.Equal(s, []string{"SERVICES_FILE[0]", "SERVICES_FILE[0].id"}) {
+		t.Errorf("Reihenfolge %v", zeilen)
+	}
+	// Index als Text: [10] vor [2]
+	var b strings.Builder
+	b.WriteString("[")
+	for i := 0; i < 12; i++ {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString(`{"service_root":"/r` + strconv.Itoa(i) + `"}`)
+	}
+	b.WriteString("]")
+	_, zeilen = lade(t, "MODE=replay", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, b.String()))
+	soll := schluessel(t, zeilen)
+	if len(soll) != 12 || slices.Index(soll, "SERVICES_FILE[10].id") > slices.Index(soll, "SERVICES_FILE[2].id") || !slices.IsSorted(soll) {
+		t.Errorf("Index als Text: %v", soll)
+	}
+	// bei gleichem Schlüssel nach Grund, gleiche Zeilen einmal: ein Eintrag mit zwei unbekannten Feldern
+	_, zeilen = lade(t, "MODE=replay", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, `[{"id":"a","service_root":"/a","x":1,"y":2}]`))
+	if len(zeilen) != 1 {
+		t.Errorf("gleiche Zeilen nicht zusammengefasst: %v", zeilen)
+	}
+	// bei gleichem Schlüssel nach Grund: ein Feld des falschen Typs meldet den Typ und den fehlenden Wert
+	_, zeilen = lade(t, "MODE=replay", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, `[{"id":1,"service_root":"/a"}]`))
+	soll = []string{"ODR-E2001 SERVICES_FILE[0].id: Pflichtfeld fehlt", "ODR-E2001 SERVICES_FILE[0].id: muss eine Zeichenkette sein"}
+	if !slices.Equal(zeilen, soll) {
+		t.Errorf("Grund-Folge %v, erwartet %v", zeilen, soll)
 	}
 }

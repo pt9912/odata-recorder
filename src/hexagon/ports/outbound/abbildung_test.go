@@ -110,7 +110,10 @@ func TestAbbildungVerpackt(t *testing.T) {
 func TestAbbildungKeinCode(t *testing.T) {
 	for name, err := range map[string]error{
 		"nil": nil, "Canceled": context.Canceled, "Deadline": context.DeadlineExceeded,
-		"verpackt": fmt.Errorf("x: %w", context.Canceled), "Join mit Blob": errors.Join(outbound.ErrBlobFehlt, context.Canceled),
+		"verpackt": fmt.Errorf("x: %w", context.Canceled), "Errorf mit %w": fmt.Errorf("%w", context.Canceled),
+		"Join mit Blob": errors.Join(outbound.ErrBlobFehlt, context.Canceled), "Join Canceled zuerst": errors.Join(context.Canceled, outbound.ErrBlobFehlt),
+		"Join Blob und Deadline": errors.Join(outbound.ErrBlobFehlt, context.DeadlineExceeded),
+		"Wrap um Join":           fmt.Errorf("x: %w", errors.Join(outbound.ErrNichtGefunden, context.DeadlineExceeded)),
 	} {
 		if c, ok := outbound.Abbilden(err, gSonst); ok || c != 0 {
 			t.Errorf("%s: %v %v", name, c, ok)
