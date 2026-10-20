@@ -76,6 +76,17 @@ func TestRedigiereHeaderSchreibweise(t *testing.T) {
 	}
 }
 
+func TestRedigiereHeaderNichtToken(t *testing.T) {
+	got := model.RedigiereHeader(hmap{"bad name": {"a"}, "BAD NAME": {"b"}, "": {"c"}}, nil, nil)
+	if want := (hmap{"bad name": {"a"}, "BAD NAME": {"b"}, "": {"c"}}); !reflect.DeepEqual(got, want) {
+		t.Errorf("nicht zusammengeführt: %v, erwartet %v", got, want)
+	}
+	got = model.RedigiereHeader(hmap{"bad name": {"a"}, "BAD NAME": {"b"}, "": {"c"}}, []string{"bad name"}, nil)
+	if want := (hmap{"bad name": {"[REDACTED]"}, "BAD NAME": {"[REDACTED]"}, "": {"c"}}); !reflect.DeepEqual(got, want) {
+		t.Errorf("einzeln verglichen: %v, erwartet %v", got, want)
+	}
+}
+
 func TestRedigiereHeaderKopie(t *testing.T) {
 	for _, in := range []hmap{nil, {}} {
 		if got := model.RedigiereHeader(in, standardNamen(), nil); got == nil || len(got) != 0 {
@@ -109,6 +120,7 @@ func TestRedigiereLocation(t *testing.T) {
 		{"http://x/p?a=1&api_key=k#frag?token=1", "http://x/p?a=1&api_key=[REDACTED]#frag?token=1"},
 		{"/p?token=1#f", "/p?token=[REDACTED]#f"},
 		{"/p#token=1", "/p#token=1"},
+		{"/p#f?token=1", "/p#f?token=[REDACTED]"},
 	} {
 		for _, name := range []string{"Location", "Content-Location", "location"} {
 			got := model.RedigiereHeader(hmap{name: {tc.in}}, nil, standardParameter())

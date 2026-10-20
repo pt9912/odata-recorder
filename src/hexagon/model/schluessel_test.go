@@ -162,6 +162,17 @@ func TestKeyKodierungHandgebaut(t *testing.T) {
 	if got := key(t, in2, r).MatchKey; got != want5 {
 		t.Errorf("Steuerzeichen als \\u00xx klein: %s, erwartet %s", got, want5)
 	}
+	kopf := func(art byte, nutz []byte) string {
+		return handKey(zeichenfolge("odr-match-v1"), zeichenfolge("POST"), zeichenfolge("s"), zeichenfolge("/"), zahl(0), zahl(0), []byte{art}, nutz)
+	}
+	in2.Body = []byte(`"\n"`)
+	if got, want := key(t, in2, r).MatchKey, kopf(3, sha([]byte("\"\\u000a\""))); got != want {
+		t.Errorf("LF als \\u000a klein: %s, erwartet %s", got, want)
+	}
+	in2.Body = []byte("\"\x7f\"")
+	if got, want := key(t, in2, r).MatchKey, kopf(3, sha([]byte("\"\x7f\""))); got != want {
+		t.Errorf("U+007F unverändert: %s, erwartet %s", got, want)
+	}
 	in2.Body = nil
 	want4 := handKey(zeichenfolge("odr-match-v1"), zeichenfolge("POST"), zeichenfolge("s"), zeichenfolge("/"), zahl(0), zahl(0), []byte{0})
 	if got := key(t, in2, r).MatchKey; got != want4 {
@@ -198,6 +209,8 @@ func TestKeyPfad(t *testing.T) {
 		{name: "Punktsegment", a: pfad("/a/./b"), b: pfad("/a/b"), gleich: false},
 		{name: "Nicht-ASCII", a: pfad("/é"), b: pfad("/%C3%A9"), gleich: false},
 		{name: "Root", a: pfad("/"), b: pfad("//"), gleich: false},
+		{name: "%ff/%FF", a: pfad("/a%ff"), b: pfad("/a%FF"), gleich: true},
+		{name: "%ff/%FF reject", a: pfad("/a%ff"), b: pfad("/a%FF"), gleich: true, regeln: func(r *model.SchluesselRegeln) { r.InvalidEncoding = model.KodierungReject }},
 	})
 	for _, p := range []string{"", "a", "/a?b", "/a#b", "/a\x00", "/a\x1f", "/a\x7f", "/a\n"} {
 		if _, err := model.BildeSchluessel(pfad(p), schluesselRegeln()); !errors.Is(err, model.ErrUngueltig) {
@@ -279,6 +292,7 @@ func TestKeyUngueltigeKodierung(t *testing.T) {
 		{name: "%zz / %25zz", a: q("a=%zz"), b: q("a=%25zz"), gleich: false},
 		{name: "%zz / %yy", a: q("a=%zz"), b: q("a=%yy"), gleich: false},
 		{name: "Art 2 neben gültigen", a: q("a=%zz&b=1"), b: q("b=1&a=%zz"), gleich: true},
+		{name: "Art 2 Hex-Schreibweise", a: q("a=%2f%zz"), b: q("a=%2F%zz"), gleich: false},
 		{name: "Art 2 ohne gültige", a: q("a=%zz&b=1"), b: q("b=1"), gleich: false},
 	})
 }
