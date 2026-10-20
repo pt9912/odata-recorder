@@ -57,18 +57,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Die Prüfungen von `make test` und `make build` liegen als Go-Programm `tools/pruefung` (`pruefung test`, `pruefung build`, Vertrag in `SPEC-036`); das `Dockerfile` ruft es, `go-gates.mk` bleibt ohne eigene Prüfung, und die Wirkung der Gates bleibt unverändert.
-- [ ] Fälle 25 bis 33 in `tools/gegenproben` und `SPEC-102`: Basis, nicht formatierte Datei, `go vet`-Befund, roter Unit-Test, Binary ohne `-trimpath`, Binary mit falscher Version, fehlendes Binary, falscher Aufruf; jeder Verstoß-Fall nennt den Grund in der Ausgabe. Alles in Go, kein neues Shell-Skript.
-- [ ] `make gegenproben` ist grün im Zeitbudget aus `SPEC-102` (60 s); M1 steht in der Roadmap auf *erreicht*.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Die Prüfungen von `make test` und `make build` liegen als Go-Programm `tools/pruefung` (`pruefung test`, `pruefung build`, Vertrag in `SPEC-036`); das `Dockerfile` ruft es, `go-gates.mk` bleibt ohne eigene Prüfung, und die Wirkung der Gates bleibt unverändert.
+- [x] Fälle 25 bis 33 in `tools/gegenproben` und `SPEC-102`: Basis, nicht formatierte Datei, `go vet`-Befund, roter Unit-Test, Binary ohne `-trimpath`, Binary mit falscher Version, fehlendes Binary, falscher Aufruf; jeder Verstoß-Fall nennt den Grund in der Ausgabe. Alles in Go, kein neues Shell-Skript.
+- [x] `make gegenproben` ist grün im Zeitbudget aus `SPEC-102` (60 s); M1 steht in der Roadmap auf *erreicht*.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -152,9 +152,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Randformen von `pruefung` (`AGENTS.md` §3.12, §3.16): Raster in §3, entschieden in `SPEC-036` und `SPEC-102` vor dem ersten Code-Commit — **Ausgang:** wird bei der Closure eingetragen.
+- Randformen von `pruefung` (`AGENTS.md` §3.12, §3.16): Raster in §3, entschieden in `SPEC-036` und `SPEC-102` vor dem ersten Code-Commit — **Ausgang:** eingetreten: fünf Randformen standen erst nach den Code-Commits im Vertrag (SPEC-036 Nr. 4 um Exit ungleich 0 bei `version`, Nr. 6 für `\r\n`, Nr. 11 bis 13, SPEC-102 Nr. 2a); sie sind nachgezogen und von Tests gefangen.
 - Die Fälle verlangen ein Binary, das nur im Image der Stufe `build` entsteht — **Ausgang:** weiter offen: der Slice baut es im Prozess mit `go build` in der Kopie; weicht das vom Image ab, steht es als Beobachtung im Register.
-- `pruefung` ändert das Verhalten der Gates unbemerkt — **Ausgang:** wird bei der Closure eingetragen; Beleg: `make gates` grün, die Mutation je Zusage und ein roter Verstoß im Quellstand je Ziel.
+- `pruefung` ändert das Verhalten der Gates unbemerkt — **Ausgang:** weiter offen: `make gates` grün, Mutation je Zusage rot gesehen, ein roter Verstoß im Quellstand je Ziel zeigt die gleiche Wirkung wie vorher; offen bleibt die Verdrahtung der Stufen `test`, `build` und `pruefung` im `Dockerfile`, die kein dauerhafter Fänger prüft (`SPEC-036` Grenze).
 - Zeitbudget: neun Fälle mit `go`-Aufrufen sprengen die 30 s aus `SPEC-102` — **Ausgang:** eingetreten: unter Last 34,6 bis 49,1 s in der Stufe; die 30 s waren schon für die 24 früheren Fälle unter Last nicht zu halten. Der Planner hat das Budget in `SPEC-102` auf 60 s bei geänderten Eingaben gesetzt (1 s bei unveränderten bleibt); eine Messung aller 33 Fälle auf ruhiger Maschine steht aus. Die Lockerung ist eine Entscheidung des Nutzers wert, nicht des Codes: kein Gate liest das Budget.
 - `<Binary> version` endet mit Exit ungleich 0 und gibt die erwartete Version aus: `pruefung` meldet es als Befund `Binary startet nicht:` (Exit 1); der Test `TestBuildBinaryStartetNicht` fängt es — **Ausgang:** entfallen: vom Planner entschieden und in `SPEC-036` Randform Nr. 4 eingetragen.
 
@@ -172,7 +172,13 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-Wird bei der Closure geschrieben.
+- **Was hat funktioniert:** Die Prüfungen von `make test` und `make build` liegen in Go (`tools/pruefung`, `SPEC-036`), die Gegenproben fahren neun weitere Fälle (33 insgesamt, 0 rot) ohne neues Shell-Skript. Der Implementer sah zu jeder Zeile der Tabelle *Zusage · Fänger* die Mutation rot, Review (rund 40 Mutationen) und Verifikation (über 30) fanden die Lücken am Rand und in der Verdrahtung.
+- **Was ging anders als geplant:** Der Plan sah zwei Shell-Skripte vor; auf Wunsch des Nutzers wurde es ein Go-Programm. Fünf Randformen standen trotz Raster (`AGENTS.md` §3.16) erst nach dem Code im Vertrag. Die Marke ist überschritten (978 Zeilen, in §4 benannt), und das Zeitbudget der Gegenproben stieg von 30 auf 60 s, weil die 33 Fälle unter Last 34,6 bis 49,1 s brauchten; eine Messung auf ruhiger Maschine fehlt. Die Verdrahtung der Dockerfile-Stufen und der Eintrag `tools/pruefung` in der Prüfsumme haben keinen dauerhaften Fänger (`SPEC-036` und `SPEC-102`, Grenze); das Review stufte beides als MEDIUM ein, die Lücke blieb offen benannt.
+- **Steering-Loop-Eintrag:** Nichts verkörpert. Gezählt: `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16; das Raster stand im Plan, der Vertrag deckte es erst nach dem Code vollständig — der Retirement-Check bleibt offen) und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15; Verdrahtung ohne Fänger).
+- **Beobachtungs-Register (`../observations/`):** je eine weitere Datei `evidence/slice-gegenproben-build-test.md` in den beiden genannten Einträgen; `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` blieb ohne neues Auftreten.
+- **Folge-Slices:** keine. Gegenproben zu `docs-check`, `schema-check`, `lint-profil` und `baseline-verify` fehlen weiter (§1, ohne Nehmer, Planner).
+- **Risiken aus §6:** Randformen *eingetreten*, Binary-Bau *weiter offen*, Gates-Verhalten *weiter offen* (Verdrahtung), Zeitbudget *eingetreten*, Exit bei `version` *entfallen*.
+- **Drei Paarungen:** von der nächsten Closure geprüft.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
