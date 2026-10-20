@@ -743,6 +743,97 @@ Gelesene Listen (`known_properties`, `consumed`, Ergebnislisten) sind bei leerem
 
 Ungeprüft bleibt: Kennungen, Namen und Schlüssel mit NUL-Byte oder ungültigem UTF-8 (die Ablage speichert und liest sie byte-gleich), dass `entity_key` kanonisch ist, dass `state_hash` zum Blob passt und dass `position` bei einem Fortschreiben des Cursors nur wächst (Fachlogik des Replay); dass eine Baseline eines anderen Service beim Restore `ErrFremderService` statt `ErrNichtGefunden` liefert (sie ist über den Workspace gebunden); dass ein Aufrufer außerhalb von `WithWorkspaceTransaction` Reset und Restore ohne Transaktion zusammensetzt.
 
+### SPEC-109 — Fehlermodell: Codes, Fehlerobjekt und Abbildung der Port-Fehler
+
+Das Modell trägt zu jedem Code aus §4 einen HTTP-Status und einen Zielbereich; einen Code außerhalb von §4 gibt es nicht.
+Die Abbildung ordnet den Fehlern der Outbound Ports (`SPEC-105` bis `SPEC-108`, `SPEC-103`) einen Code zu; sie ist eine reine Funktion ohne Seiteneffekt.
+
+1. **Fehlerobjekt** (`SPEC-006`): `{"error":{"code","message","target"}}` mit genau diesen drei Feldern, alle Zeichenketten. Der Status ist der der HTTP-Antwort und steht nicht im Body. Korrelationsfelder (`LH-QA-05.a`) trägt der HTTP-Adapter, nicht das Modell.
+2. **Status und Zielbereich je Code.** `Target` ist einer von `config`, `admin`, `record`, `storage`, `upstream`, `replay`, `service`, `mock`, `import`, `workspace`, `session`, `internal`. `–` heißt: der Code wird nie als HTTP-Antwort ausgeliefert (Status `0` im Modell).
+
+   | Code | Status | Target | Code | Status | Target |
+   |---|---|---|---|---|---|
+   | `ODR-E2001` | – | `config` | `ODR-E6004` | 422 | `import` |
+   | `ODR-E2101` | 401 | `admin` | `ODR-E6101` | 422 | `import` |
+   | `ODR-E2401` | – | `record` | `ODR-E6102` | 409 | `import` |
+   | `ODR-E3001` | 500 | `storage` | `ODR-E7001` | 404 | `workspace` |
+   | `ODR-E4001` | 502 oder 504 | `upstream` | `ODR-E7002` | 404 | `workspace` |
+   | `ODR-E5001` | 404 | `replay` | `ODR-E7003` | 404 | `session` |
+   | `ODR-E5002` | 410 | `replay` | `ODR-E7004` | 409 | `session` |
+   | `ODR-E5003` | 400 | `replay` | `ODR-E7005` | 404 | `import` |
+   | `ODR-E5004` | 409 | `replay` | `ODR-E7006` | 409 | `workspace` |
+   | `ODR-E5005` | 404 | `service` | `ODR-E7007` | 409 | `workspace` |
+   | `ODR-E5006` | 400 | `replay` | `ODR-E7008` | 422 | `workspace` |
+   | `ODR-E5007` | 409 | `replay` | `ODR-E7009` | 409 | `session` |
+   | `ODR-E5008` | 422 | `replay` | `ODR-E7010` | 409 | `session` |
+   | `ODR-E5009` | 409 | `record` | `ODR-E7011` | 409 | `session` |
+   | `ODR-E6001` | 501 | `mock` | `ODR-E7012` | 404 | `session` |
+   | `ODR-E6002` | 501 | `mock` | `ODR-E9001` | 500 | `internal` |
+   | `ODR-E6003` | 422 | `mock` | | | |
+
+   `ODR-E4001` trägt 502 (nicht erreichbar, Zertifikatsfehler) oder 504 (Zeitüberschreitung); den Status wählt der Aufrufer, jeder andere ist ungültig.
+   `ODR-E6004` trägt 422 nur als Antwort auf einen Import; beim Start ist er ohne Status.
+3. **`message`** ist ein kurzer fester Text je Code, nie ein Wert aus Request, Daten oder Konfiguration; sein Wortlaut ist kein Vertrag, Clients entscheiden am Code. Die Ursache steht im Log (`error_code`, §4), nie im Body.
+4. **Gegenstand.** Die Abbildung erhält den Fehler und den Gegenstand, auf den sich die Operation bezog: `Session`, `Workspace`, `Snapshot` (auch eine Baseline), `Snapshotname`, `Import`, `Exchange`, `Dienst` oder keinen (`Sonstiges`). Den Gegenstand kennt der Aufrufer, nicht das Repository.
+5. **Abbildung.** Der erste zutreffende Eintrag der Tabelle bestimmt den Code (Prüfung mit `errors.Is`, auch durch Verpacken und `errors.Join`); ein Gegenstand, den die Zeile nicht nennt, fällt auf `ODR-E9001`.
+
+   | Fehler | Gegenstand → Code |
+   |---|---|
+   | `ErrBlobFehlt`, `ErrBlobBeschaedigt`, `ErrBeschaedigt` | jeder → `ODR-E3001` |
+   | `ErrPfad` | jeder → `ODR-E2001` |
+   | `ErrZuGross` | jeder → `ODR-E2401` |
+   | `ErrFremderService` | jeder → `ODR-E5004` |
+   | `ErrDienstUnbekannt` | jeder → `ODR-E5005` |
+   | `ErrFalscheArt` | jeder → `ODR-E7008` |
+   | `ErrReferenziert` | jeder → `ODR-E7004` |
+   | `ErrSessionGeschlossen` | jeder → `ODR-E5009` |
+   | `ErrUngueltigerUebergang` | jeder → `ODR-E7011` |
+   | `ErrNichtGefunden` | `Session` → `ODR-E7003`; `Workspace` → `ODR-E7001`; `Snapshot` → `ODR-E7002`; `Import` → `ODR-E7005`; `Exchange` → `ODR-E7012`; `Dienst` → `ODR-E5005` |
+   | `ErrBereitsVorhanden` | `Session` → `ODR-E7010`; `Workspace` → `ODR-E7007`; `Snapshotname` → `ODR-E7006`; `Import` → `ODR-E6102` |
+   | `ErrUngueltig` (Modell) | `Import` → `ODR-E6101` |
+   | `ErrUngueltigeSequenz`, `ErrAbgeschlossen`, `ErrRevisionVeraltet` | jeder → `ODR-E9001` |
+   | jeder andere Fehler | jeder → `ODR-E9001` |
+
+   `ErrNichtGefunden` für `Sonstiges` (Cursor, Coverage, Entity) und `ErrUngueltig` außerhalb des Imports sind Zustände, die der Service fachlich deutet (fehlender Cursor, `ODR-E6003`, Antwort des Mock) oder Programmfehler; die Abbildung macht daraus `ODR-E9001`, bis ein Vertrag es anders bestimmt.
+   `ErrUngueltigeSequenz` ist ein Programmfehler des Aufrufers, der die Folge zu ordnen hat (`SPEC-105` Nr. 8); `ErrRevisionVeraltet` bekommt einen Code mit dem Vertrag, der es auswertet.
+6. **Kein Code:** `nil` ist kein Fehler; ein abgebrochener oder abgelaufener Kontext (`context.Canceled`, `context.DeadlineExceeded`) ist der Abbruch des Aufrufers und bekommt keinen `ODR-`-Code; die Abbildung meldet in beiden Fällen „kein Code“ und gibt keinen Fehlerwert zurück.
+7. **Adapter.** Ein Fehler eines Adapters bildet nur ab, wenn er einen Fehler des Port-Pakets verpackt; das Paket führt dafür `ErrBeschaedigt` und `ErrPfad`. Die Fehler des SQLite-Adapters verpacken sie: `ErrBeschaedigt`, `ErrSchemaNeuer` und `ErrFremdeDatenbank` den Fehler `ErrBeschaedigt` (`SPEC-103` Nr. 4 bis 6, Datei nicht ladbar), `ErrPfad` den Fehler `ErrPfad` (`SPEC-103` Nr. 7). Der Name des Adapters bleibt, `errors.Is` trifft beide.
+8. **Vollständigkeit.** Jede Variable `Err…` des Port-Pakets und des SQLite-Adapters hat einen Eintrag in Nr. 5, oder die Tests schlagen fehl; der Test findet die Variablen im Quelltext und braucht keine Liste von Hand.
+
+Ungeprüft bleibt: der Code der Fehler eines Ports, den es noch nicht gibt (Upstream-Transport): er bekommt seine Zeile in Nr. 5 mit dem Port.
+
+### SPEC-110 — Startkonfiguration: Syntax der Werte und Prüfung
+
+Der Composition Root liest die Startkonfiguration aus der Umgebung des Prozesses (Variablen mit dem Namen des Schlüssels aus §3) und aus `SERVICES_FILE`; es gibt keine Kommandozeilen-Optionen und keine `.env`-Datei.
+Die Services erhalten typisierte Werte, nie die Umgebung.
+Jede Verletzung ist `ODR-E2001` (`SPEC-016`) und verhindert den Start.
+
+1. **Leer.** Leerraum am Rand eines Wertes wird entfernt. Ein danach leerer Wert gilt als ungesetzt (`FOO=` und fehlendes `FOO` sind gleich): es gilt der Default aus §3, und fehlt ein Pflichtwert, ist das `ODR-E2001`. Eine leere Liste ist daher der Default; bei `REDACT_HEADERS`, `REDACT_QUERY_PARAMS` und `REDACT_JSON_PATHS` ergänzt eine gesetzte Liste den Default und ersetzt ihn nie (`LH-FA-14.a`). Eine Menge ohne Einträge drücken nur `MATCH_VARY_HEADERS=none` und `VOLATILE_HEADERS=none` aus.
+2. **Schlüssel dieser Version.** Geprüft werden `MODE`, `LISTEN`, `DATA_DIR`, `SERVICE_ID`, `SERVICE_ROOT_PATH`, `UPSTREAM_URL`, `SERVICES_FILE`, `REPLAY_STRATEGY`, `REPLAY_ASSIGNMENT`, `REPLAY_REDACTED_BODIES`, `MATCH_VARY_HEADERS`, `MATCH_INVALID_ENCODING`, `MATCH_BODY_MODE`, `REDACT_HEADERS`, `REDACT_QUERY_PARAMS`, `REDACT_JSON_PATHS`, `MAX_CAPTURE_BODY`, `UPSTREAM_TIMEOUT`, `UPSTREAM_CA_FILE`, `UPSTREAM_TLS_VERIFY`, `UPSTREAM_TLS_INSECURE_SKIP_VERIFY`, `SHUTDOWN_TIMEOUT`, `RETENTION_MAX_AGE`, `SQLITE_BUSY_TIMEOUT`, `VOLATILE_HEADERS`, `LINK_REWRITE`, und zwar unabhängig vom Modus.
+   Gesetzt (nichtleer) und nicht geliefert sind `ADMIN_*`, `HYBRID_*`, `FALLBACK_*`, `LISTEN_TLS_*`, `STRICT_COVERAGE` und `PUBLIC_BASE_URL`: das ist `ODR-E2001` („nicht unterstützt“), damit keine Sicherheitseinstellung still wirkungslos bleibt. Jede andere Variable der Umgebung wird ignoriert.
+3. **Aufzählung und Wahrheitswert.** Genau die Schreibweise aus §3, Groß- und Kleinschreibung zählt (`Record` ist ungültig). Ein Wahrheitswert ist `true` oder `false`, sonst nichts (`1`, `yes` sind ungültig). `LINK_REWRITE` kennt nur `off` (`SPEC-092`).
+4. **Dauer** (`UPSTREAM_TIMEOUT`, `SHUTDOWN_TIMEOUT`, `RETENTION_MAX_AGE`, `SQLITE_BUSY_TIMEOUT`): eine Ganzzahl aus Dezimalziffern, ohne Leerraum direkt gefolgt von `ms`, `s`, `m`, `h` oder `d` (`d` sind 24 Stunden); `30s`, `5000ms`, `30d` und `720h` sind gültig. Ohne Einheit, mit Vorzeichen, Bruch (`1.5h`), Verkettung (`1h30m`) oder anderer Einheit ist ungültig. Der Wert liegt bei `UPSTREAM_TIMEOUT`, `SHUTDOWN_TIMEOUT` und `SQLITE_BUSY_TIMEOUT` bei mindestens 1 ms, und das Ergebnis passt in 63 Bit Nanosekunden; `SQLITE_BUSY_TIMEOUT` ist höchstens 2147483647 ms. `RETENTION_MAX_AGE` lässt `0` zu (aus, `SPEC-058`), mit oder ohne Einheit.
+5. **Größe** (`MAX_CAPTURE_BODY`): eine Ganzzahl aus Dezimalziffern, optional nach höchstens einem Leerzeichen `B`, `KiB`, `MiB` oder `GiB` (Faktor 1024); `8 MiB`, `8MiB` und `8388608` (Bytes) sind gleich gültig. Der Wert liegt zwischen 1 Byte und 1 GiB; `0`, Vorzeichen, Bruch und Einheiten wie `MB` sind ungültig.
+6. **Liste** (`MATCH_VARY_HEADERS`, `REDACT_*`, `VOLATILE_HEADERS`): Einträge durch Komma getrennt, Leerraum um einen Eintrag wird entfernt; ein leerer Eintrag (`a,,b`, Komma am Ende) ist ungültig. Es sind Mengen: Reihenfolge und Doppelte (bei Headern ohne Beachtung der Schreibweise) haben keine Wirkung. Header-Namen sind HTTP-Token (RFC 9110); ein Query-Parameter-Name enthält weder Leerraum noch `=`, `&`, `#` oder `,`; ein JSON-Pfad hat die Form `$..name` mit `name` aus Buchstaben, Ziffern, `_` und `-` (jede andere Form ist in dieser Version ungültig).
+7. **Weitere Schlüssel.**
+   `LISTEN` ist `host:port` mit nichtleerem Host (Name, IPv4 oder `[IPv6]`) und Port 1 bis 65535; der Name wird nicht aufgelöst.
+   `DATA_DIR` ist ein nichtleerer Pfad ohne NUL-Zeichen, absolut oder relativ zum Arbeitsverzeichnis.
+   `SERVICE_ID` und `id` sind 1 bis 64 Zeichen aus Buchstaben, Ziffern, `.`, `_` und `-`.
+   `SERVICE_ROOT_PATH` und `service_root` sind `/` oder Segmente `/a/b` ohne abschließenden Schrägstrich; ein Segment ist nichtleer, besteht aus Buchstaben, Ziffern, `.`, `_`, `~` und `-` und ist weder `.` noch `..`.
+   `UPSTREAM_URL` und `upstream_url` sind absolute `http`- oder `https`-URLs mit nichtleerem Host, ohne Zugangsdaten (`user:pass@`), Query und Fragment; ein abschließender `/` des Pfads wird entfernt.
+   `SERVICES_FILE`, `UPSTREAM_CA_FILE`: nichtleerer Pfad.
+8. **Modus** (`SPEC-075`). `record` und `replay` sind lieferbar. `mock` und `hybrid` sind gültige Werte, aber diese Version liefert den Betrieb nicht: der Start scheitert mit `ODR-E2001` und der Begründung „Modus nicht unterstützt“. Das gilt auch für den Default `mock` ohne gesetzten `MODE`; die Meldung nennt `MODE` und die lieferbaren Werte. Die Syntax aller Schlüssel wird davor geprüft und mitgemeldet.
+9. **Services** (`LH-FA-04.c`). Ohne `SERVICES_FILE` gilt genau ein Service aus `SERVICE_ID`, `SERVICE_ROOT_PATH` (Default `/`) und `UPSTREAM_URL`. Ist `SERVICES_FILE` gesetzt, ist jeder nichtleere der drei Einzelschlüssel Doppelkonfiguration und `ODR-E2001`.
+   Die Datei ist ein JSON-Array von Objekten mit den Feldern `id`, `service_root` und `upstream_url` (höchstens 1 MiB, UTF-8, nach dem Array nichts als Leerraum). `id` und `service_root` sind Pflicht, auch bei einem einzigen Eintrag; `upstream_url` ist Pflicht im Modus `record`; ein unbekanntes Feld, ein Feld des falschen Typs, ein leeres Array, ein doppeltes `id` oder eine nicht lesbare Datei ist `ODR-E2001`.
+   Zwei Roots überlappen, wenn einer dem anderen an einer Segmentgrenze vorausgeht oder beide gleich sind (`/` neben `/a` ja, `/a` neben `/ab` nein); jede Überlappung ist `ODR-E2001`.
+   Im Modus `record` braucht jeder Service eine `UPSTREAM_URL`; im Modus `replay` ist sie zulässig und ohne Wirkung.
+10. **Zusammenhang.** `UPSTREAM_TLS_VERIFY=false` ohne `UPSTREAM_TLS_INSECURE_SKIP_VERIFY=true` und `UPSTREAM_TLS_VERIFY=true` zugleich mit `UPSTREAM_TLS_INSECURE_SKIP_VERIFY=true` sind Widersprüche (`SPEC-057`, `SPEC-087`) und `ODR-E2001`; ohne `UPSTREAM_TLS_VERIFY` schaltet `UPSTREAM_TLS_INSECURE_SKIP_VERIFY=true` die Prüfung ab.
+11. **Dateien und Reihenfolge.** Zuerst die reinen Prüfungen (Nr. 1 bis 10), dann die Dateien: `SERVICES_FILE` wird gelesen (Nr. 9), `UPSTREAM_CA_FILE` muss lesbar sein und mindestens ein PEM-Zertifikat enthalten. `DATA_DIR` legt der Composition Root erst an, wenn alle anderen Prüfungen bestanden sind (Rechte `0700`, mit Elternverzeichnissen, idempotent); ein vorhandener Nicht-Ordner oder ein nicht anlegbarer Pfad ist `ODR-E2001`. Bei einem Verstoß wird nichts angelegt.
+12. **Meldung.** Alle Verstöße werden gemeldet, nicht nur der erste, nach Schlüsselname sortiert (Einträge der Datei als `SERVICES_FILE[<index>].<feld>`), einer je Zeile `ODR-E2001 <Schlüssel>: <Grund>` auf stderr; der Prozess endet mit Exit-Code 1. Die Meldung nennt Schlüssel und Grund, nie den Wert.
+13. **Wiederholung.** Dieselbe Umgebung und Datei ergeben dasselbe Ergebnis; das Laden ist synchron ohne Kontext, einen Abbruch durch ein Signal behandelt der Prozess (`LH-FA-02.c`), `DATA_DIR` kann dann angelegt sein.
+
+Ungeprüft bleibt: ob `LISTEN` frei ist, ob ein Hostname aufgelöst wird und ob `UPSTREAM_URL` erreichbar ist; das trifft der Start der Listener bzw. die erste Anfrage.
+
 ### SPEC-043 — Import- und Provenienz-Schema
 
 `ImportManifest{import_id, service_id, metadata_hash, source_session_ids[], created_at, entity_count, baseline_snapshot_id, coverage[]}`;
@@ -957,6 +1048,8 @@ Für HTTP-Antworten des Mock-OData-Dienstes gilt das OData-V4-Fehlerformat; Admi
 | `SPEC-098` | `SERVICE_ID` | `default` | Kennung des einzigen Services; Teil des Match-Keys, bei Änderung nach einer Aufzeichnung passen vorhandene Recordings nicht mehr |
 | `SPEC-092` | `LINK_REWRITE` | `off` | Umschreiben absoluter Upstream-Links und Weiterleitungen; nur `off` ist in der ersten Version zulässig, jeder andere Wert verhindert den Start (`ODR-E2001`) |
 
+Syntax der Werte (Dauern, Größen, Listen, leere Werte), Prüfung und Verhalten bei `mock` und `hybrid`: `SPEC-110`.
+
 ---
 
 ## 4. Fehler-Codes und Logging-Felder
@@ -966,7 +1059,7 @@ Für HTTP-Antworten des Mock-OData-Dienstes gilt das OData-V4-Fehlerformat; Admi
 | `SPEC-016` | `ODR-E2001` | Ungültige Konfiguration | Start verhindern |
 | `SPEC-064` | `ODR-E2101` | Admin-Authentisierung fehlt oder ungültig | HTTP 401, kein Zustandswechsel |
 | `SPEC-017` | `ODR-E2401` | Capture/Redaction fehlgeschlagen | Body nicht persistieren, Diagnose |
-| `SPEC-018` | `ODR-E3001` | Recording/Blob beschädigt | Laden verweigern |
+| `SPEC-018` | `ODR-E3001` | Recording/Blob beschädigt oder nicht ladbar (Datei fremd oder von neuerer Schemaversion) | Laden verweigern |
 | `SPEC-019` | `ODR-E4001` | Upstream nicht erreichbar | HTTP 502/504 je Ursache |
 | `SPEC-020` | `ODR-E5001` | Replay-Mismatch (kein Exchange mit diesem Match-Key) | HTTP 404 |
 | `SPEC-021` | `ODR-E5002` | Replay erschöpft | HTTP 410 |
@@ -993,6 +1086,9 @@ Für HTTP-Antworten des Mock-OData-Dienstes gilt das OData-V4-Fehlerformat; Admi
 | `SPEC-099` | `ODR-E5009` | Record ohne annehmende Session des Services (keine offene, oder sie wird gerade beendet) | HTTP 409, Request wird nicht weitergeleitet |
 | `SPEC-100` | `ODR-E7010` | Session-ID bereits vergeben | HTTP 409 (Admin) |
 | `SPEC-097` | `ODR-E7009` | Session ist `open`: Replay, Import und Löschen abgewiesen | HTTP 409 |
+| `SPEC-111` | `ODR-E7011` | Session ist nicht `open`: Beenden abgewiesen (Übergang aus einem geschlossenen Zustand) | HTTP 409 (Admin), nichts wird geändert |
+| `SPEC-112` | `ODR-E7012` | Exchange unbekannt | HTTP 404 (Admin) |
+| `SPEC-113` | `ODR-E9001` | Interner Fehler (ein Fehler, den die Abbildung keinem Code zuordnet, `SPEC-109`) | HTTP 500, Ursache nur im Log |
 
 Fallback-Entscheidungen (`LH-FA-12.b`) hängen am `ODR-`-Code, nie am HTTP-Status.
 Logs enthalten `timestamp`, `level`, `mode`, `service_id`, `session_id`, `exchange_id`, `workspace_id`, `correlation_id`, `error_code`, `duration_ms`; keine Credentials oder unredigierten Bodies.
@@ -1034,6 +1130,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-10-20 | Fehlermodell und Abbildung der Port-Fehler (`SPEC-109`), Startkonfiguration (`SPEC-110`), Codes `ODR-E7011`, `ODR-E7012`, `ODR-E9001` |
 | 2026-10-18 | Verträge der Werkzeuge liegen in `harness/vertraege/`; der Abschnitt entfällt |
 | 2026-10-18 | Review-Findings eingearbeitet: Admin-Authentisierung, Snapshot-Restore ohne Cursor-Änderung, Weg zu `complete`, Header-Redaction ohne Replay-Einschränkung, Adressierung, Fehlercodes, Konkretisierung von `LH-QA-*`/`LH-RB-*` |
 | 2026-10-17 | d-migrate 1.7.1, Integritätsconstraints, Replay-/Capture-Verträge, SPEC-ID-Korrektur |

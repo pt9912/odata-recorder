@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-QA-05`, `LH-FA-12`, `LH-FA-04`, `LH-RB-02`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `SPEC-006` (Fehlerobjekt) · `SPEC-016` bis `SPEC-100` (Fehler-Codes, §4 der Spezifikation) · `SPEC-007` bis `SPEC-098` (Defaults, §3) · `LH-FA-04.c` (Adressierung) · `LH-QA-05.a` · `ARC-012`.
+**Berührte Spec-Stellen:** `SPEC-109` (Fehlermodell, Abbildung) · `SPEC-110` (Startkonfiguration) · `SPEC-006` (Fehlerobjekt) · `SPEC-016` bis `SPEC-113` (Fehler-Codes, §4 der Spezifikation, darunter die neuen `SPEC-111` bis `SPEC-113`) · `SPEC-007` bis `SPEC-098` (Defaults, §3) · `SPEC-103` (Fehler des SQLite-Adapters) · `LH-FA-04.c` (Adressierung) · `LH-QA-05.a` · `ARC-012`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -31,12 +31,14 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Das Domain-Modell trägt ein Fehlermodell (Code, HTTP-Status, Zielbereich, Fehlerobjekt nach `SPEC-006`), die Fehler der Outbound Ports und des SQLite-Adapters bilden auf diese Codes ab (darunter `ErrBeschaedigt`, `ErrBlobFehlt` und `ErrBlobBeschaedigt` auf `ODR-E3001`), und der Composition Root lädt die Startkonfiguration der Welle aus Umgebung und `SERVICES_FILE` und lehnt Ungültiges mit `ODR-E2001` ab.
+**Ziel:** Das Domain-Modell trägt ein Fehlermodell (Code, HTTP-Status, Zielbereich, Fehlerobjekt nach `SPEC-006`, Vertrag `SPEC-109`), die Fehler der Outbound Ports und des SQLite-Adapters bilden auf diese Codes ab (darunter `ErrBeschaedigt`, `ErrBlobFehlt` und `ErrBlobBeschaedigt` auf `ODR-E3001`; Fehler ohne Zeile auf `ODR-E9001`), und der Composition Root lädt die Startkonfiguration der Welle aus Umgebung und `SERVICES_FILE` nach `SPEC-110` und lehnt Ungültiges mit `ODR-E2001` ab, darunter `MODE=mock` und `MODE=hybrid`, die diese Version nicht liefert.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Die Verwendung der Codes in den Services und im HTTP-Adapter — jeder Slice, der einen Code auslöst (`slice-record-service`, `slice-replay-service`, `slice-baseline-import`, `slice-http-adapter`), bildet ihn über dieses Fehlermodell ab; hier entsteht nur die Tabelle und die Abbildung.
-- Schlüssel von Admin-API, Hybrid-Fallback und Listener-TLS (`ADMIN_*`, `HYBRID_*`, `FALLBACK_*`, `LISTEN_TLS_*`) — diese Bereiche liefert die Welle nicht (Welle §6); die Konfiguration kennt nur, was `record`, `replay` und der Import brauchen.
+- Schlüssel von Admin-API, Hybrid-Fallback und Listener-TLS (`ADMIN_*`, `HYBRID_*`, `FALLBACK_*`, `LISTEN_TLS_*`, dazu `STRICT_COVERAGE` und `PUBLIC_BASE_URL`) — diese Bereiche liefert die Welle nicht (Welle §6); die Konfiguration kennt nur, was `record`, `replay` und der Import brauchen, und lehnt einen gesetzten, nicht gelieferten Schlüssel mit `ODR-E2001` ab (`SPEC-110` Nr. 2), statt ihn still zu ignorieren.
+- Die Zeile für einen Port, den es noch nicht gibt (Upstream-Transport): sie entsteht mit dem Port in der Abbildung (`SPEC-109`, Ungeprüft); hier gibt es nur die Fehler des Pakets `outbound` und des SQLite-Adapters.
+- Der Start-Befehl und sein Verdrahten der Listener: die Konfiguration liefert typisierte Werte und die Meldung (`SPEC-110` Nr. 12); das Kommando, das sie aufruft, gehört nicht hierher.
 - Das OData-V4-Fehlerformat des Mock-Dienstes — gehört zum Mock, der nicht in der Welle liegt; hier gilt das Fehlerobjekt `SPEC-006`.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
@@ -80,12 +82,43 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | `src/hexagon/model/` | update | Fehlermodell: Code, Status, Zielbereich, Fehlerobjekt |
-| `src/hexagon/ports/outbound/` | update | Abbildung der Port-Fehler auf Codes (`ErrBeschaedigt`, `ErrBlob*` auf `ODR-E3001`) |
+| `src/hexagon/ports/outbound/` | update | Abbildung der Port-Fehler auf Codes (`SPEC-109` Nr. 5), neue Fehler `ErrBeschaedigt` und `ErrPfad` des Pakets (Nr. 7) |
+| `src/adapters/driven/sqlite/` | update | `ErrBeschaedigt`, `ErrSchemaNeuer`, `ErrFremdeDatenbank` und `ErrPfad` verpacken die Fehler des Pakets `outbound` (`SPEC-109` Nr. 7); Namen und Meldungen bleiben, nur `errors.Is` kommt hinzu |
 | `src/bootstrap/` | update | Konfiguration aus Umgebung und `SERVICES_FILE`, Defaults, Validierung |
-| `spec/spezifikation.md` | update | Syntax der Werte (Dauern, Größen, Listen), Abbildungstabelle der Fehler, Verhalten bei `mock` und `hybrid` in dieser Version |
+| `spec/spezifikation.md` | update | **vor dem Code geschrieben:** `SPEC-109` (Fehlermodell, Abbildungstabelle), `SPEC-110` (Syntax der Werte, Verhalten bei `mock` und `hybrid`), Codes `SPEC-111` bis `SPEC-113` |
 | Tests der Pakete | neu | Tabellentests je Schlüssel und je Fehler nach `LH-QA-05.a` |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation oder in `harness/vertraege/` **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen, die sie tragen müssen, nennt §6.
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) steht unten, das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16); beide gehören zum Vertrag `SPEC-109` und `SPEC-110`, der vor dem ersten Code-Commit in der Spezifikation steht (`AGENTS.md` §3.12). Die Fänger sind Namen geplanter Tests; der Implementer legt sie unter diesem Namen an oder nennt den Namen, den er stattdessen vergibt, im Bericht.
+
+**Zusage · Fänger** (jede Zeile löst der Reviewer mit einer Mutation auf):
+
+| Zusage | Fänger |
+|---|---|
+| Fehlerobjekt hat genau `code`, `message`, `target`, kein Status-Feld (`SPEC-109` Nr. 1) | `TestFehlerobjektJSON`: Vergleich der Schlüsselmenge des serialisierten Objekts |
+| Status und Zielbereich je Code, `ODR-E4001` nur 502 oder 504, jeder Code aus §4 ist abgedeckt (Nr. 2) | `TestCodeTabelle`: Tabelle im Test gegen das Modell; dass die Tabelle im Test der Spezifikation entspricht, prüft die Test-Stufe nicht (sie sieht `spec/` nicht) — akzeptiertes Negativ, der Reviewer gleicht ab |
+| `message` ist je Code fest, nichtleer und enthält keinen Wert aus dem Fehler (Nr. 3) | `TestMessageFest`: gleicher Code mit verschiedenen Ursachen, gleiche `message` |
+| Abbildung je Zeile und Gegenstand der Tabelle in Nr. 5, Fall `Sonstiges` → `ODR-E9001` | `TestAbbildungTabelle`: eine Zeile je Paar Fehler × Gegenstand |
+| Abbildung durch Verpacken und `errors.Join`, erster Treffer gewinnt (Nr. 5) | `TestAbbildungVerpackt`: `fmt.Errorf("%w")`, `errors.Join(ErrUngueltig, ErrBlobFehlt)` |
+| `nil` und Kontextfehler: „kein Code“ (Nr. 6) | `TestAbbildungKeinCode` |
+| Fehler des SQLite-Adapters verpacken die Fehler des Pakets (Nr. 7) | `TestSqliteFehlerAbbildung` im Adapter: `Open` auf Nicht-Datenbank, neuere Version, fremde Datenbank, leeren Pfad, dann `Abbilden` → `ODR-E3001` bzw. `ODR-E2001` |
+| Jede Variable `Err…` hat einen Eintrag (Nr. 8) | `TestAbbildungVollstaendig`: durchsucht die Quelltexte mit `go/parser`; eine neue Variable ohne Zeile macht ihn rot |
+| Leer gilt als ungesetzt, Leerraum am Rand wird entfernt (`SPEC-110` Nr. 1) | `TestKonfigLeer`: Tabelle je Schlüssel mit `""`, `"  "`, `" 8 MiB "` |
+| `REDACT_*` ergänzen den Default und ersetzen ihn nie; `none` nur bei `MATCH_VARY_HEADERS` und `VOLATILE_HEADERS` (Nr. 1) | `TestKonfigListenErgaenzen`, `TestKonfigNone` |
+| Defaults aus §3 für jeden Schlüssel der Nr. 2 | `TestKonfigDefaults`: leere Umgebung mit `MODE=record` und `UPSTREAM_URL`, alle Werte gegen §3 |
+| Gesetzter, nicht gelieferter Schlüssel ist `ODR-E2001`; fremde Variablen werden ignoriert (Nr. 2) | `TestKonfigNichtGeliefert`, `TestKonfigFremdeVariable` |
+| Aufzählung und Wahrheitswert: nur die Schreibweise aus §3 (Nr. 3) | `TestKonfigEnum`, `TestKonfigBool` mit `Record`, `1`, `yes`, `TRUE` |
+| Dauer: Einheiten, Grenzen, Überlauf, `RETENTION_MAX_AGE=0` (Nr. 4) | `TestKonfigDauer`: `30s`, `5000ms`, `30d`, `720h` gültig; `30`, `-1s`, `1.5h`, `1h30m`, `1w`, `0s` bei `UPSTREAM_TIMEOUT`, `106752d`, `2147483648ms` bei `SQLITE_BUSY_TIMEOUT` ungültig |
+| Größe: Einheiten, Leerzeichen, Grenzen (Nr. 5) | `TestKonfigGroesse`: `8 MiB`, `8MiB`, `8388608`, `1GiB` gültig; `0`, `8 MB`, `8  MiB`, `1025MiB`, `-1`, `8.5MiB` ungültig |
+| Liste: leerer Eintrag, Token, Pfadform (Nr. 6) | `TestKonfigListe`: `a,,b`, `a,`, `Bad Header`, `$.a`, `$..a.b` ungültig |
+| Weitere Schlüssel: `LISTEN`, `SERVICE_ID`, Root, URL (Nr. 7) | `TestKonfigLISTEN`, `TestKonfigServiceID`, `TestKonfigRoot`, `TestKonfigURL` mit Randformen (Port 0, 65536, leerer Host, `user:pass@`, Query, `ftp:`) |
+| `mock` und `hybrid` gültig, Start scheitert; Default `mock` scheitert ebenso (Nr. 8) | `TestKonfigModus`: vier Werte, leerer `MODE`; die Meldung nennt `MODE` |
+| Doppelkonfiguration, Dateiformat, Pflichtfelder, doppelte `id` (Nr. 9) | `TestKonfigServicesFile`: Tabelle über die Fälle der Nr. 9 |
+| Überlappende Roots an der Segmentgrenze (Nr. 9) | `TestKonfigRootUeberlappung`: `/` und `/a` ja, `/a` und `/ab` nein, `/a` und `/a/b` ja, gleiche ja |
+| `UPSTREAM_URL` Pflicht in `record` je Service (Nr. 9) | `TestKonfigRecordOhneUpstream` |
+| TLS-Widersprüche (Nr. 10) | `TestKonfigTLSWiderspruch`: vier Kombinationen |
+| Reihenfolge: reine Prüfung vor Dateien, `DATA_DIR` erst danach angelegt, bei Verstoß nichts angelegt; `UPSTREAM_CA_FILE` lesbar mit Zertifikat (Nr. 11) | `TestKonfigDatenverzeichnis`, `TestKonfigCADatei` mit `t.TempDir()` |
+| Meldung: alle Verstöße, sortiert, ohne Wert, Exit-Code 1 (Nr. 12) | `TestKonfigMeldung`: Wert `geheim-123` kommt in keiner Zeile vor |
+| Wiederholung liefert dasselbe (Nr. 13) | `TestKonfigWiederholung`: zweimal laden, gleiche Werte, gleiche Meldung |
 
 - Die Konfiguration liegt im Composition Root, weil nur er alle Pakete kennen darf; die Services erhalten typisierte Werte über ihre Konstruktoren, nie die Umgebung.
 
@@ -99,7 +132,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 800 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen); die Schätzung liegt bei rund 600 Zeilen in derselben Metrik.
-- `in-progress` → `open` (blockiert): die Abbildung der Port-Fehler lässt sich unter den Kanten von `a-check` nicht an der geplanten Stelle ablegen; sie wandert dann in die Schicht, die beide Seiten kennen, und der Plan wird nachgezogen.
+- `in-progress` → `open` (blockiert): die Abbildung der Port-Fehler lässt sich unter den Kanten von `a-check` nicht an der geplanten Stelle ablegen (Abbildung im Paket `outbound`, Fehlerobjekt im Modell, die Adapter verpacken nur Fehler des Pakets `outbound`, `SPEC-109` Nr. 7); sie wandert dann in die Schicht, die beide Seiten kennen, und der Plan wird nachgezogen.
 
 ## 5. Closure-Trigger
 
@@ -116,10 +149,28 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Die Syntax der Werte ist nicht festgelegt: `MAX_CAPTURE_BODY` heißt `8 MiB`, `SHUTDOWN_TIMEOUT` `10s`, `RETENTION_MAX_AGE` `30d` oder `720h` — ob `d` auch für andere Dauern gilt, ob `8MiB` ohne Leerzeichen und `8388608` zulässig sind, steht nicht da — **Ausgang:** offen; geht vor dem ersten Code-Commit an den Architect (`AGENTS.md` §3.12).
-- Was ein Prozess mit `MODE=mock` oder `MODE=hybrid` tut, solange die Welle diese Modi nicht liefert: Die Spezifikation nennt beide gültig, der Composition Root hat keinen Use Case dafür — **Ausgang:** offen; Entscheidung des Architect (Vorschlag: gültiger Wert, Start scheitert mit `ODR-E2001` und Begründung).
-- Leere Werte: ein gesetzter, aber leerer Schlüssel gegen einen ungesetzten, eine leere Liste gegen den Default — **Ausgang:** offen; Raster-Zelle in der Spezifikation.
-- Randformen (`AGENTS.md` §3.12, §3.16): Das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
+- Die Syntax der Werte (`8 MiB`, `8MiB`, `8388608`, `d` bei Dauern) — **Ausgang:** entfallen; entschieden in `SPEC-110` Nr. 4 bis 6: Dauern mit Pflicht-Einheit `ms`/`s`/`m`/`h`/`d`, Größen mit oder ohne ein Leerzeichen und auch als Bytes, Grenzen 1 ms bzw. 1 Byte bis 1 GiB.
+- Was ein Prozess mit `MODE=mock` oder `MODE=hybrid` tut — **Ausgang:** entfallen; entschieden in `SPEC-110` Nr. 8: gültiger Wert, Start scheitert mit `ODR-E2001`; das gilt auch für den Default `mock` ohne gesetzten `MODE`.
+- Leere Werte (gesetzt-aber-leer gegen ungesetzt, leere Liste gegen Default) — **Ausgang:** entfallen; entschieden in `SPEC-110` Nr. 1: leer ist ungesetzt, eine leere Liste der Default, `none` nur für die zwei Mengen, deren Default nicht leer ist.
+- Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** entfallen; das Raster unten steht vor dem ersten Code-Commit, jede Zelle nennt ihren Ort.
+- Die Abbildung der Port-Fehler braucht zwei neue Fehler im Paket `outbound` und eine Änderung des SQLite-Adapters (`errors.Is`, keine Verhaltensänderung) — **Ausgang:** weiter offen; der Implementer weist beim Übergang an den Reviewer nach, dass `make test` des Adapters unverändert grün ist.
+- Das Format von `SERVICES_FILE` (JSON statt YAML, um keine Abhängigkeit hinzuzufügen) und die Obergrenze 1 GiB für `MAX_CAPTURE_BODY` sind Setzungen dieses Vertrags, nicht des Lastenhefts — **Ausgang:** weiter offen bis zur Bestätigung durch den Nutzer; ein Wechsel ist eine Änderung von `SPEC-110`.
+- Das Modell kennt `ErrRevisionVeraltet` und `Sonstiges`-Fehler nur als `ODR-E9001` (`SPEC-109` Nr. 5); der Mock gehört nicht zur Welle — **Ausgang:** weiter offen; akzeptiertes Negativ, ein Vertrag, der den Fehler auswertet, nennt seinen Code.
+
+**Raster Operation × Argumentart** (`AGENTS.md` §3.16). Jede Zelle nennt Nummer der Spezifikation oder „gilt nicht“ mit Grund.
+
+| Operation | fehlender Wert | leerer Wert | unbekannter Wert | fremder / ungültiger Wert | Abbruch | Wiederholung |
+|---|---|---|---|---|---|---|
+| Konfiguration laden, Aufzählung und Wahrheitswert | Default (`SPEC-110` Nr. 1) | wie fehlend (Nr. 1) | nicht in der Aufzählung: `ODR-E2001` (Nr. 3) | falsche Schreibweise, `1`, `yes`: `ODR-E2001` (Nr. 3) | gilt nicht: synchron ohne Kontext, Signal beendet den Prozess (Nr. 13) | gleiches Ergebnis (Nr. 13) |
+| Konfiguration laden, Dauer und Größe | Default (Nr. 1) | wie fehlend (Nr. 1) | unbekannte Einheit: `ODR-E2001` (Nr. 4, 5) | Vorzeichen, Bruch, Verkettung, 0, Überlauf, Grenzen: `ODR-E2001` (Nr. 4, 5) | gilt nicht (Nr. 13) | gleiches Ergebnis (Nr. 13) |
+| Konfiguration laden, Liste | Default (Nr. 1) | Default bzw. keine Ergänzung (Nr. 1); leerer Eintrag: `ODR-E2001` (Nr. 6) | `none` nur bei den zwei Mengen (Nr. 1), sonst Eintrag | Token, Pfadform, Doppelte (ohne Wirkung): Nr. 6 | gilt nicht (Nr. 13) | gleiches Ergebnis (Nr. 13) |
+| Konfiguration laden, `LISTEN`, Roots, URL, `SERVICE_ID` | Default bzw. Pflichtwert fehlt: `ODR-E2001` (Nr. 1, 9) | wie fehlend (Nr. 1) | nicht aufgelöst, nicht erreichbar: ungeprüft, Ende von `SPEC-110` | Form verletzt: `ODR-E2001` (Nr. 7) | gilt nicht (Nr. 13) | gleiches Ergebnis (Nr. 13) |
+| Konfiguration laden, Schlüssel, die die Version nicht liefert | ungesetzt: kein Fehler (Nr. 2) | wie ungesetzt (Nr. 1, 2) | fremde Variable: ignoriert (Nr. 2) | gesetzt: `ODR-E2001` (Nr. 2) | gilt nicht (Nr. 13) | gleiches Ergebnis (Nr. 13) |
+| `MODE` prüfen | Default `mock`, Start scheitert (Nr. 8) | wie fehlend (Nr. 1, 8) | `ODR-E2001` (Nr. 3) | `mock`, `hybrid`: `ODR-E2001` (Nr. 8) | gilt nicht (Nr. 13) | gleiches Ergebnis (Nr. 13) |
+| `SERVICES_FILE` lesen | ohne Datei ein Service (Nr. 9) | wie fehlend (Nr. 1) | unbekanntes Feld, doppelte `id`: `ODR-E2001` (Nr. 9) | falscher Typ, leeres Array, Nicht-JSON, Anhang nach dem Array, über 1 MiB, Überlappung, Doppelkonfiguration: `ODR-E2001` (Nr. 9) | gilt nicht (Nr. 13) | gleiches Ergebnis (Nr. 13) |
+| Dateien prüfen (`UPSTREAM_CA_FILE`, `DATA_DIR`) | ungesetzt: kein Zugriff (Nr. 11) | wie ungesetzt (Nr. 1) | Datei fehlt, nicht lesbar, ohne Zertifikat, Nicht-Ordner: `ODR-E2001` (Nr. 11) | wie unbekannt (Nr. 11) | Signal während des Anlegens: Verzeichnis kann bestehen (Nr. 13) | `DATA_DIR` anlegen ist idempotent (Nr. 11) |
+| Fehler abbilden (`Abbilden(err, Gegenstand)`) | `nil`: kein Code (`SPEC-109` Nr. 6) | gilt nicht: ein Fehlerwert ist nie leer | Fehler ohne Zeile: `ODR-E9001` (Nr. 5) | Gegenstand passt nicht zur Zeile: `ODR-E9001` (Nr. 5); mehrere Treffer: erster (Nr. 5) | Kontextfehler: kein Code (Nr. 6) | gilt nicht: reine Funktion ohne Zustand |
+| Fehlerobjekt bilden und serialisieren | gilt nicht: der Code ist Pflichtargument, ein Code außerhalb von §4 ist nicht darstellbar (Nr. 2) | `message` leer: ausgeschlossen (Nr. 3) | `ODR-E4001` mit anderem Status als 502/504: ungültig (Nr. 2) | Wert aus Request oder Daten in `message`: ausgeschlossen (Nr. 3) | gilt nicht: reine Funktion | gleiche Bytes (`SPEC-109` Nr. 1) |
 
 ## 7. Closure-Notiz
 
