@@ -17,17 +17,33 @@ import (
 	"time"
 
 	sqlitedriver "modernc.org/sqlite"
+
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
 
 // Schemaversion ist die Version, auf die Open eine Datei bringt.
 const Schemaversion = 1
 
-// Fehler von Open. ErrBeschaedigt ist der Fall von ODR-E3001 (SPEC-018).
+// verpackt ist ein Fehler dieses Pakets, der einen Fehler des Port-Pakets verpackt (SPEC-109
+// Nr. 7): errors.Is trifft ihn selbst und sein Ziel.
+type verpackt struct {
+	text string
+	ziel error
+}
+
+func (v *verpackt) Error() string { return v.text }
+func (v *verpackt) Unwrap() error { return v.ziel }
+
+// verpacke bildet einen Fehler mit dem Text text, der ziel verpackt.
+func verpacke(text string, ziel error) error { return &verpackt{text: text, ziel: ziel} }
+
+// Fehler von Open. Jeder verpackt einen Fehler des Pakets outbound, den die Abbildung auf einen
+// Code kennt (SPEC-109): ErrPfad den Fehler ErrPfad, die übrigen drei ErrBeschaedigt (ODR-E3001, SPEC-018).
 var (
-	ErrPfad            = errors.New("sqlite: ungültiger Pfad")
-	ErrBeschaedigt     = errors.New("sqlite: Datei ist keine lesbare SQLite-Datenbank")
-	ErrSchemaNeuer     = errors.New("sqlite: Schemaversion der Datei ist neuer als bekannt")
-	ErrFremdeDatenbank = errors.New("sqlite: Datei enthält eine fremde Datenbank")
+	ErrPfad            = verpacke("sqlite: ungültiger Pfad", outbound.ErrPfad)
+	ErrBeschaedigt     = verpacke("sqlite: Datei ist keine lesbare SQLite-Datenbank", outbound.ErrBeschaedigt)
+	ErrSchemaNeuer     = verpacke("sqlite: Schemaversion der Datei ist neuer als bekannt", outbound.ErrBeschaedigt)
+	ErrFremdeDatenbank = verpacke("sqlite: Datei enthält eine fremde Datenbank", outbound.ErrBeschaedigt)
 )
 
 //go:embed migrations/0001_init.sql

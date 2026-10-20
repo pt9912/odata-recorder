@@ -31,3 +31,10 @@ var (
 	ErrFremderService   = errors.New("gehört zu einem anderen Service")
 	ErrFalscheArt       = errors.New("Snapshot hat die falsche Art")
 )
+
+// Fehler der Adapter, die ein Port-Paket-Fehler verpackt (SPEC-109 Nr. 7): die Datei oder der
+// Blob ist nicht ladbar, der Pfad ist ungültig.
+var (
+	ErrBeschaedigt = errors.New("Speicher beschädigt oder nicht ladbar")
+	ErrPfad        = errors.New("ungültiger Pfad")
+)
