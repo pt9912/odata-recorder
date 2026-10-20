@@ -28,12 +28,15 @@ Aufrufe:
 3. `Binary` fehlt: Text `Binary fehlt: <Pfad>`, Exit 2.
 4. `Binary` ist keine ausführbare Datei, startet nicht oder endet bei `version` mit Exit-Code ungleich 0 (auch bei richtiger Ausgabe): Text `Binary startet nicht:` und der Grund, Exit 1.
 5. `Binary` ist kein Go-Binary (`go version -m` endet ungleich 0): Text `Build-Information des Binary nicht lesbar:` und die Ausgabe, Exit 1.
-6. `Binary` gibt die Version mit Zusatztext oder auf stderr statt stdout aus: Befund der Versionsprüfung; nur stdout zählt.
+6. `Binary` gibt die Version mit Zusatztext oder auf stderr statt stdout aus: Befund der Versionsprüfung; nur stdout zählt. Entfernt werden nur abschließende `\n`; `odata-recorder <Version>\r\n` ist ein Befund.
 7. Ein Programm (`gofmt`, `go`) ist nicht aufrufbar: Text `<Programm> nicht aufrufbar`, Exit 2.
 8. Ein Verzeichnis ohne Go-Dateien: kein Befund von `pruefung`, solange `go vet` und `go test` Exit 0 melden.
 9. Eine nicht lesbare Datei in `Wurzel` ist ein Befund von `gofmt` (Randform 1 der Befunde); sie wird nicht von einer Gegenprobe gefangen, weil der Prüflauf mit Administratorrechten läuft.
 10. Abbruch und Herunterfahren: `pruefung` hält keinen Zustand und schreibt keine Datei; ein Abbruch des Builds lässt nichts zurück.
-11. Exit-Codes: 0 kein Befund, 1 mindestens ein Befund, 2 Aufruf, `Wurzel` oder `Binary` fehlt oder ein Programm ist nicht aufrufbar.
+11. Streams: Befunde und Fehler gehen nach stderr, die Zeile `pruefung <Kommando>: ok` nach stdout.
+12. Zeit: `pruefung` setzt kein Zeitlimit; ein hängendes `go test`, `go vet` oder `<Binary> version` hält den Lauf, bis der Aufrufer ihn abbricht.
+13. Argumente, die mit `-` beginnen, gelten als Muster und gehen unverändert an `go`; `pruefung` prüft sie nicht selbst.
+14. Exit-Codes: 0 kein Befund, 1 mindestens ein Befund, 2 Aufruf, `Wurzel` oder `Binary` fehlt oder ein Programm ist nicht aufrufbar.
 
 **Randformen von `bootstrap.Run`:**
 1. Keine Argumente oder genau `version`: Ausgabe `odata-recorder <Version>` nach stdout, Exit-Code 0.
