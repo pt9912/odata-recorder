@@ -3,7 +3,7 @@
 * Datum: 2026-10-20
 * Rolle: verifier (frischer Kontext; kein Code, keine Spec, kein Plan geändert)
 * Gegenstand: `git diff 749a5d4..HEAD`, Stand `f984c1f` (Commits `c9c20ae`, `760f1be`, `5e188dd`, `b16cb1e`, `aa5fe58`, `f984c1f`)
-* Plan: `docs/plan/planning/in-progress/slice-redaction-match-key.md` (Welle `welle-record-replay`)
+* Plan: `docs/plan/planning/done/slice-redaction-match-key.md` (Welle `welle-record-replay`)
 * Maßstab: DoD (§2), `SPEC-115`, `SPEC-116`, `SPEC-117`, `SPEC-045`, Tabelle Zusage·Fänger (§3), Raster (§6), `AGENTS.md` §3.7, §3.9 bis §3.16, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md); Bezug [LH-FA-05](../../spec/lastenheft.md), [LH-FA-14](../../spec/lastenheft.md), [LH-QA-02](../../spec/lastenheft.md)
 * Eingang: Review `docs/reviews/2026-10-20-slice-redaction-match-key-review.md` (F-1 bis F-13), Nachlauf in `aa5fe58` (Architect) und `f984c1f` (Implementer)
 * Belege selbst gefahren: `make test` (Basis grün, Exit 0); 14 Mutationen über `make test` im Docker (netzlos), jede mit `git checkout -- src` zurückgenommen, Arbeitsbaum danach sauber; eine Wegwerf-Testdatei (gelöscht); `git diff --numstat`; `make docs-check` und `make gates` (siehe Abschnitt 8).
