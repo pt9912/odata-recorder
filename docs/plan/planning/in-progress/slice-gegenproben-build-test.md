@@ -125,6 +125,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
+*Marke überschritten:* 974 Zeilen (Summe aus `git diff --numstat 2091ba6..HEAD` über die Pfade aus §3 plus `.golangci.yml`), davon der größere Teil Tests von `pruefung` und der Gegenproben sowie der Nachzug nach dem Review. Der Slice bleibt ungeteilt: ein Schnitt hätte `pruefung` von seinen Fällen getrennt, und keine Hälfte wäre einzeln lieferbar.
+
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 900 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen; Schätzung 600, weil `pruefung` ein Programm mit eigenen Tests ist).
 - `in-progress` → `open` (blockiert): `pruefung` lässt sich im Image der Stufe `gegenproben` nicht fahren, ohne ein weiteres Image zu pinnen.
 
