@@ -16,8 +16,6 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-- [welle-persistenz](../welle-persistenz.md)
-
 Nichts in Arbeit.
 
 
@@ -77,6 +75,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 | Welle | Abschluss | Closure-Notiz |
 |---|---|---|
 | welle-fundament | 2026-10-19 | [welle-fundament-results](../done/welle-fundament-results.md) |
+| welle-persistenz | 2026-10-20 | [welle-persistenz-results](../done/welle-persistenz-results.md) |
 
 ## Historische Trigger-Verschiebungen
 

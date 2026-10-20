@@ -232,6 +232,15 @@ Eine Zusage ohne Fänger ist ein MEDIUM.
 **Falsch:** Der Vertrag nennt eine Prüfung, und sie lässt sich entfernen, ohne dass etwas rot wird.
 **Richtig:** Die Tabelle nennt zur Prüfung den Fall, der ohne sie rot wird.
 
+### 3.16 Randformen stehen als Raster im Plan, nicht als Aufzählung   (seit welle-persistenz)
+
+Schärft §3.12: §6 des Plans führt die Randformen als Raster *Operation × Argumentart* (fehlender, leerer, unbekannter oder fremder Wert; Abbruch; Wiederholung), nicht als Liste der Fälle, die dem Planner einfielen.
+Jede Zelle nennt ihren Ort in der Spezifikation oder in `harness/vertraege/`, oder sie nennt ausdrücklich „gilt nicht" mit Grund; eine leere Zelle ist ein Fehler des Plans.
+Der Implementer hält an einer Zelle ohne Ort an (§3.12); der Reviewer löst das Raster mit je einer Mutation auf, und eine im Code entschiedene Zelle ist ein MEDIUM.
+
+**Falsch:** Der Vertrag nennt die leere ID für `Get`; für `Delete` und `Advance` entscheidet der Code.
+**Richtig:** Das Raster hat für jede Operation eine Zeile, und jede Zelle verweist auf eine Nummer des Vertrags.
+
 ## 4. Quality Gates
 
 Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-harness-dateien.md`
