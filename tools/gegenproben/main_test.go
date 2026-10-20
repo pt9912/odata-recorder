@@ -284,3 +284,16 @@ func TestFaelleDerPruefungHabenDieNamenAusDemVertrag(t *testing.T) {
 		}
 	}
 }
+
+// Die Programmliste von standard() nennt die sechs Programme aus SPEC-102 Randform 2.
+func TestStandardNenntDieSechsProgramme(t *testing.T) {
+	have := map[string]bool{}
+	for _, p := range standard().Programme {
+		have[p] = true
+	}
+	for _, n := range []string{"a-check", "golangci-lint", "sh", "pruefung", "go", "gofmt"} {
+		if !have[n] {
+			t.Errorf("Programm %s fehlt in standard().Programme", n)
+		}
+	}
+}
