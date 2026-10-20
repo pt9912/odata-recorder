@@ -26,7 +26,7 @@ Aufrufe:
 1. Keine Argumente, ein unbekanntes Kommando, ein leeres Argument oder die falsche Argumentzahl (`test` ohne `Wurzel`, `build` mit anderem als genau `Binary` und `Version`): Text `Aufruf:` und die beiden Formen, Exit 2, nichts wird gestartet.
 2. `Wurzel` fehlt oder ist kein Verzeichnis: Text `Wurzel fehlt: <Pfad>`, Exit 2.
 3. `Binary` fehlt: Text `Binary fehlt: <Pfad>`, Exit 2.
-4. `Binary` ist keine ausführbare Datei oder startet nicht: Text `Binary startet nicht:` und der Grund, Exit 1.
+4. `Binary` ist keine ausführbare Datei, startet nicht oder endet bei `version` mit Exit-Code ungleich 0 (auch bei richtiger Ausgabe): Text `Binary startet nicht:` und der Grund, Exit 1.
 5. `Binary` ist kein Go-Binary (`go version -m` endet ungleich 0): Text `Build-Information des Binary nicht lesbar:` und die Ausgabe, Exit 1.
 6. `Binary` gibt die Version mit Zusatztext oder auf stderr statt stdout aus: Befund der Versionsprüfung; nur stdout zählt.
 7. Ein Programm (`gofmt`, `go`) ist nicht aufrufbar: Text `<Programm> nicht aufrufbar`, Exit 2.
