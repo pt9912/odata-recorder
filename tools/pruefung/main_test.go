@@ -248,6 +248,9 @@ func TestBuildVersionBefund(t *testing.T) {
 		{"Zusatzzeile", `echo "odata-recorder 1.2.3"; echo "mehr"`, "erwartet 'odata-recorder 1.2.3'"},
 		{"nur stderr", `echo "odata-recorder 1.2.3" >&2`, "Version des Binary ist '', erwartet"},
 		{"ohne Namen", `echo "1.2.3"`, "Version des Binary ist '1.2.3'"},
+		{"abschließendes Leerzeichen", `echo "odata-recorder 1.2.3 "`, "erwartet 'odata-recorder 1.2.3'"},
+		{"führendes Leerzeichen", `echo " odata-recorder 1.2.3"`, "erwartet 'odata-recorder 1.2.3'"},
+		{"CRLF", `printf 'odata-recorder 1.2.3\r\n'`, "erwartet 'odata-recorder 1.2.3'"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -357,5 +360,44 @@ func TestSchreibtNichts(t *testing.T) {
 	// Das Log der Fake-Programme liegt außerhalb; Wurzel und Binary-Verzeichnis bleiben unverändert.
 	if nachher := verzeichnisstand(t, wurzel) + verzeichnisstand(t, filepath.Dir(bin)); nachher != vorher {
 		t.Fatalf("pruefung hat Dateien verändert:\nvorher\n%s\nnachher\n%s", vorher, nachher)
+	}
+}
+
+// Befunde und Fehler gehen nach stderr, die Zeile `ok` nach stdout; nie beides zugleich.
+func TestStroeme(t *testing.T) {
+	d := t.TempDir()
+	gut := neueWerkzeuge(t, "", trimpathOK)
+	bin := fake(t, d, "odata-recorder", `echo "odata-recorder 1"`)
+	falscheVersion := fake(t, d, "falsch", `echo "odata-recorder 9"`)
+	tests := []struct {
+		name     string
+		u        Umgebung
+		args     []string
+		wantCode int
+		wantOut  string // erwarteter stdout; leer: stdout bleibt leer und stderr trägt den Text
+	}{
+		{"test ok", gut.u, []string{"test", d}, exitOK, "pruefung test: ok"},
+		{"build ok", gut.u, []string{"build", bin, "1"}, exitOK, "pruefung build: ok"},
+		{"test Befund", neueWerkzeuge(t, "echo a.go", "").u, []string{"test", d}, exitBefund, ""},
+		{"build Befund", gut.u, []string{"build", falscheVersion, "1"}, exitBefund, ""},
+		{"Aufruf", gut.u, []string{"test"}, exitAufruf, ""},
+		{"Wurzel fehlt", gut.u, []string{"test", filepath.Join(d, "gibt-es-nicht")}, exitAufruf, ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			code, out, errText := fuehre(tc.u, tc.args...)
+			if code != tc.wantCode {
+				t.Fatalf("Exit %d, erwartet %d (stdout %q, stderr %q)", code, tc.wantCode, out, errText)
+			}
+			if tc.wantOut != "" {
+				if !strings.Contains(out, tc.wantOut) || errText != "" {
+					t.Fatalf("stdout %q (erwartet %q), stderr %q (erwartet leer)", out, tc.wantOut, errText)
+				}
+				return
+			}
+			if out != "" || errText == "" {
+				t.Fatalf("stdout %q (erwartet leer), stderr %q (erwartet Text)", out, errText)
+			}
+		})
 	}
 }
