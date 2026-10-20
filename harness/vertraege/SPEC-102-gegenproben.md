@@ -69,7 +69,8 @@ Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
 Die Fälle 25 bis 28 rufen `go` im Wegwerfverzeichnis auf und teilen den Cache von `go` (`GOCACHE`) wie den von golangci-lint; die Fälle 29 bis 32 bauen das Binary mit `go build` in der Kopie, nicht im Image der Stufe `build`.
 Weicht dieser Bau vom Bau des Image ab (Zielplattform, Flags), fängt die Gegenprobe die Abweichung nicht.
 
-**Zeitbudget** (Wanduhr, `time make gegenproben`): bei geänderten Eingaben und kaltem Docker-Build-Cache höchstens 30 s, bei unveränderten Eingaben höchstens 1 s (gemessen mit den 24 Fällen 1 bis 24: 13,5 s und 0,04 s, Images lokal vorhanden; mit allen 33 Fällen liegt nur eine Messung unter hoher Last vor, 38,5 s in der Stufe, und keine auf ruhiger Maschine — die Einhaltung des Budgets ist für 33 Fälle nicht belegt).
+**Zeitbudget** (Wanduhr, `time make gegenproben`): bei geänderten Eingaben und kaltem Docker-Build-Cache höchstens 60 s, bei unveränderten Eingaben höchstens 1 s.
+Gemessen: die Fälle 1 bis 24 auf ruhiger Maschine 13,5 s und 0,04 s (Images lokal vorhanden); alle 33 Fälle unter fremder Last (Lastmittel 20 bis 83 auf 20 Kernen) 34,6 bis 49,1 s in der Stufe. Eine Messung aller 33 Fälle auf ruhiger Maschine liegt nicht vor; die `go`-Aufrufe der Fälle 25 bis 28 kosten bei kaltem `GOCACHE` bis zu 27 s je Fall.
 
 **Pflicht zum Fahren:** `make gegenproben` läuft bei jeder Änderung am geprüften Gate, am Profil, an der Architektur-Regel, an der Gegenprobe oder an diesem Vertrag, am Ende jeder Welle und vor dem Release.
 

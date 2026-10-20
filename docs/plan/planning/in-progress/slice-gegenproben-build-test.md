@@ -36,7 +36,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Gegenproben für `docs-check`, `schema-check` und `baseline-verify` — sie haben ihre Gegenprobe zum Teil in den Gates selbst; sie folgen bei Bedarf als eigener Slice.
-- Änderungen am Verhalten von `make build` und `make test` — der Umbau verschiebt die Prüfungen in ein Go-Programm (`pruefung`), ändert aber ihre Wirkung nicht (`AGENTS.md` §3.6); die Meldungstexte dürfen sich ändern.
+- Änderungen am Verhalten von `make build` und `make test` — der Umbau verschiebt die Prüfungen in ein Go-Programm (`pruefung`), ändert aber ihre Wirkung nicht (`AGENTS.md` §3.6); die Meldungstexte dürfen sich ändern. Eine Ausnahme ist entschieden: eine leere `VERSION` lässt `make build` jetzt mit Exit 2 enden, vorher war sie grün; das ist strenger, nicht schwächer.
 - Ein Docker-Build je Fall — die Fälle laufen wie die übrigen in einem Prozess ([ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md), `SPEC-102`).
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
@@ -59,7 +59,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Die Prüfungen von `make test` und `make build` liegen als Go-Programm `tools/pruefung` (`pruefung test`, `pruefung build`, Vertrag in `SPEC-036`); das `Dockerfile` ruft es, `go-gates.mk` bleibt ohne eigene Prüfung, und die Wirkung der Gates bleibt unverändert.
 - [ ] Fälle 25 bis 33 in `tools/gegenproben` und `SPEC-102`: Basis, nicht formatierte Datei, `go vet`-Befund, roter Unit-Test, Binary ohne `-trimpath`, Binary mit falscher Version, fehlendes Binary, falscher Aufruf; jeder Verstoß-Fall nennt den Grund in der Ausgabe. Alles in Go, kein neues Shell-Skript.
-- [ ] `make gegenproben` ist grün im Zeitbudget aus `SPEC-102`; M1 steht in der Roadmap auf *erreicht*.
+- [ ] `make gegenproben` ist grün im Zeitbudget aus `SPEC-102` (60 s); M1 steht in der Roadmap auf *erreicht*.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -125,7 +125,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-*Marke überschritten:* 974 Zeilen (Summe aus `git diff --numstat 2091ba6..HEAD` über die Pfade aus §3 plus `.golangci.yml`), davon der größere Teil Tests von `pruefung` und der Gegenproben sowie der Nachzug nach dem Review. Der Slice bleibt ungeteilt: ein Schnitt hätte `pruefung` von seinen Fällen getrennt, und keine Hälfte wäre einzeln lieferbar.
+*Marke überschritten:* 978 Zeilen (Summe aus `git diff --numstat 2091ba6..HEAD` über die Pfade aus §3 plus `.golangci.yml`), davon der größere Teil Tests von `pruefung` und der Gegenproben sowie der Nachzug nach dem Review. Der Slice bleibt ungeteilt: ein Schnitt hätte `pruefung` von seinen Fällen getrennt, und keine Hälfte wäre einzeln lieferbar.
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 900 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen; Schätzung 600, weil `pruefung` ein Programm mit eigenen Tests ist).
 - `in-progress` → `open` (blockiert): `pruefung` lässt sich im Image der Stufe `gegenproben` nicht fahren, ohne ein weiteres Image zu pinnen.
@@ -148,8 +148,7 @@ dasteht.
 - Randformen von `pruefung` (`AGENTS.md` §3.12, §3.16): Raster in §3, entschieden in `SPEC-036` und `SPEC-102` vor dem ersten Code-Commit — **Ausgang:** wird bei der Closure eingetragen.
 - Die Fälle verlangen ein Binary, das nur im Image der Stufe `build` entsteht — **Ausgang:** weiter offen: der Slice baut es im Prozess mit `go build` in der Kopie; weicht das vom Image ab, steht es als Beobachtung im Register.
 - `pruefung` ändert das Verhalten der Gates unbemerkt — **Ausgang:** wird bei der Closure eingetragen; Beleg: `make gates` grün, die Mutation je Zusage und ein roter Verstoß im Quellstand je Ziel.
-- Zeitbudget: neun Fälle mit `go`-Aufrufen können die 30 s aus `SPEC-102` sprengen — **Ausgang:** weiter offen: Budget für 33 Fälle unbelegt (Messung unten), kein Lockern im Code.
-  Messung bei Last (Lastmittel 12 bis 83 auf 20 Kernen, `time make gegenproben`, Images lokal): 38,5 s in der Stufe, 51 s gesamt mit den neun Fällen; die 24 früheren Fälle allein brauchen im Container 33 bis 55 s Wanduhr und 7,3 bis 7,8 Minuten CPU, die neun Fälle fügen 1,3 bis 1,7 Minuten CPU hinzu. Die 30 s sind auf dieser Maschine auch ohne die neun Fälle nicht zu halten; der Punkt ist beim Planner: `SPEC-102` nennt jetzt, dass das Budget für 33 Fälle nicht belegt ist; eine Messung auf ruhiger Maschine steht aus.
+- Zeitbudget: neun Fälle mit `go`-Aufrufen sprengen die 30 s aus `SPEC-102` — **Ausgang:** eingetreten: unter Last 34,6 bis 49,1 s in der Stufe; die 30 s waren schon für die 24 früheren Fälle unter Last nicht zu halten. Der Planner hat das Budget in `SPEC-102` auf 60 s bei geänderten Eingaben gesetzt (1 s bei unveränderten bleibt); eine Messung aller 33 Fälle auf ruhiger Maschine steht aus. Die Lockerung ist eine Entscheidung des Nutzers wert, nicht des Codes: kein Gate liest das Budget.
 - `<Binary> version` endet mit Exit ungleich 0 und gibt die erwartete Version aus: `pruefung` meldet es als Befund `Binary startet nicht:` (Exit 1); der Test `TestBuildBinaryStartetNicht` fängt es — **Ausgang:** entfallen: vom Planner entschieden und in `SPEC-036` Randform Nr. 4 eingetragen.
 
 ## 7. Closure-Notiz
