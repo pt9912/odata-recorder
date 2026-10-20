@@ -64,7 +64,7 @@ func (*ZufallsIDs) WorkspaceID() string { return zufall("wsp") }
 // SnapshotID liefert eine Kennung mit dem Präfix snp.
 func (*ZufallsIDs) SnapshotID() string { return zufall("snp") }
 
-// zufall hängt 16 Zufallsbyte als Hex an; rand.Read endet bei Ausfall der Quelle den Prozess.
+// zufall hängt 16 Zufallsbyte als Hex an; rand.Read füllt den Puffer vollständig, gibt keinen Fehler zurück und beendet bei einem Fehler der Quelle das Programm.
 func zufall(praefix string) string {
 	var b [16]byte
 	_, _ = rand.Read(b[:])

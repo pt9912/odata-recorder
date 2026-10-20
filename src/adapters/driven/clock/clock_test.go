@@ -1,6 +1,8 @@
 package clock_test
 
 import (
+	"crypto/rand"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -95,6 +97,37 @@ func TestSystemuhrNebenlaeufig(t *testing.T) {
 	wg.Wait()
 }
 
+// TestSystemuhrQuelleSerialisiert zählt die gleichzeitig laufenden Aufrufe der Quelle: Now liest
+// sie nur unter der Sperre.
+func TestSystemuhrQuelleSerialisiert(t *testing.T) {
+	var aktiv, hoechst atomic.Int64
+	basis := zeit("2026-10-20T10:00:00Z")
+	u := clock.NeuMit(func() time.Time {
+		h := aktiv.Add(1)
+		for {
+			alt := hoechst.Load()
+			if h <= alt || hoechst.CompareAndSwap(alt, h) {
+				break
+			}
+		}
+		time.Sleep(time.Millisecond)
+		aktiv.Add(-1)
+		return basis
+	})
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			for range 20 {
+				u.Now()
+			}
+		})
+	}
+	wg.Wait()
+	if h := hoechst.Load(); h != 1 {
+		t.Errorf("Quelle lief mit %d gleichzeitigen Aufrufen, erwartet 1", h)
+	}
+}
+
 func TestSystemuhrBereichUngeprueft(t *testing.T) {
 	t0 := zeit("2026-10-20T10:00:00Z")
 	null, jahr10000 := time.Time{}, time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -116,6 +149,41 @@ func TestZufallsIDsUnabhaengig(t *testing.T) {
 	} {
 		if p[0] == p[1] {
 			t.Errorf("%s: zwei Instanzen liefern %q", name, p[0])
+		}
+	}
+}
+
+// zaehlerLeser liefert die Bytes 0x00, 0x01, … aufsteigend.
+type zaehlerLeser struct{ n byte }
+
+func (z *zaehlerLeser) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = z.n
+		z.n++
+	}
+	return len(p), nil
+}
+
+// TestZufallsIDsLiestCryptoRand ersetzt crypto/rand.Reader; kein t.Parallel, der Reader ist paketweit.
+func TestZufallsIDsLiestCryptoRand(t *testing.T) {
+	alt := rand.Reader
+	t.Cleanup(func() { rand.Reader = alt })
+	rand.Reader = &zaehlerLeser{}
+	g := clock.NewZufallsIDs()
+	ops := []struct {
+		praefix string
+		ruf     func() string
+	}{
+		{"ses", g.SessionID}, {"exc", g.ExchangeID}, {"cor", g.KorrelationsID},
+		{"wsp", g.WorkspaceID}, {"snp", g.SnapshotID},
+	}
+	for i, op := range ops {
+		var hex string
+		for b := range 16 {
+			hex += fmt.Sprintf("%02x", i*16+b)
+		}
+		if got, want := op.ruf(), op.praefix+"-"+hex; got != want {
+			t.Errorf("%s: %q, erwartet %q", op.praefix, got, want)
 		}
 	}
 }
