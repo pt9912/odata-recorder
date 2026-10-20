@@ -73,8 +73,11 @@ func umgebungMit(skript func(dir string, g Gate) string, prog ...string) Umgebun
 		Eingaben:   standard().Eingaben,
 		Programme:  prog,
 		Aufraeumen: os.RemoveAll,
-		Befehl: func(dir string, g Gate) (string, []string, string) {
-			return "sh", []string{"-c", skript(dir, g)}, ""
+		Befehl: func(dir string, f Fall) (string, []string, string) {
+			return "sh", []string{"-c", skript(dir, f.Gate)}, ""
+		},
+		Bauen: func(dir string, b Bau) (string, []string) {
+			return "sh", []string{"-c", "echo '" + b.Version + "' > " + filepath.Join(dir, binaerName)}
 		},
 	}
 }
@@ -208,5 +211,76 @@ func TestRunMeldetEntfernenFehlerNachDenErgebnissen(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "ok   a") || !strings.Contains(errb.String(), "nicht entfernbar") {
 		t.Fatalf("Ergebnisse und Meldung erwartet:\n%s%s", out.String(), errb.String())
+	}
+}
+
+func TestErsetzeOrte(t *testing.T) {
+	f := Fall{Argumente: []string{"build", "{binary}", "v", "{dir}/x"}}
+	got := f.ersetzeOrte("/k")
+	want := []string{"build", "/k/" + binaerName, "v", "/k/x"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("ersetzeOrte = %v, erwartet %v", got, want)
+	}
+	if len(Fall{}.ersetzeOrte("/k")) != 0 {
+		t.Fatal("ohne Argumente bleibt die Liste leer")
+	}
+}
+
+func TestBauenTrimpathUndVersion(t *testing.T) {
+	_, mit := bauen("/k", Bau{Version: "1.2"})
+	_, ohne := bauen("/k", Bau{Version: "1.2", OhneTrimpath: true})
+	if !strings.Contains(strings.Join(mit, " "), "-trimpath") {
+		t.Fatalf("Bau ohne -trimpath: %v", mit)
+	}
+	if strings.Contains(strings.Join(ohne, " "), "-trimpath") {
+		t.Fatalf("Bau mit -trimpath trotz OhneTrimpath: %v", ohne)
+	}
+	if !strings.Contains(strings.Join(mit, " "), "main.version=1.2") {
+		t.Fatalf("Version fehlt im Bau: %v", mit)
+	}
+}
+
+func TestBefehlPruefungGibtArgumenteMitOrtenAus(t *testing.T) {
+	f := Fall{Gate: gatePruefung, Argumente: []string{"test", "{dir}"}}
+	name, args, wd := befehl("/k", f)
+	if name != "pruefung" || strings.Join(args, "|") != "test|/k" || wd != "" {
+		t.Fatalf("befehl = %q %v %q", name, args, wd)
+	}
+}
+
+func TestFallMitBauBautVorDemGate(t *testing.T) {
+	u := umgebungMit(func(dir string, g Gate) string { return "test -f " + filepath.Join(dir, binaerName) }, "sh")
+	var out, errb bytes.Buffer
+	if got := run(u, &out, &errb, wurzelMitEingaben(t), []Fall{{Name: "b", Bau: &Bau{Version: "v"}}}); got != exitOK {
+		t.Fatalf("Exit %d: %s%s", got, out.String(), errb.String())
+	}
+}
+
+func TestFallMitBauMeldetScheiternDesBaus(t *testing.T) {
+	u := umgebungMit(func(dir string, g Gate) string { return "echo gate-lief; exit 1" }, "sh")
+	u.Bauen = func(string, Bau) (string, []string) { return "sh", []string{"-c", "echo bau-kaputt; exit 3"} }
+	var out, errb bytes.Buffer
+	got := run(u, &out, &errb, wurzelMitEingaben(t), []Fall{{Name: "b", WantExit: 1, Bau: &Bau{Version: "v"}}})
+	if got != exitRot || !strings.Contains(out.String(), "Bau des Binary scheitert") || !strings.Contains(out.String(), "bau-kaputt") {
+		t.Fatalf("Exit %d, Ausgabe %q", got, out.String())
+	}
+	if strings.Contains(out.String(), "gate-lief") {
+		t.Fatalf("das Gate lief trotz gescheitertem Bau: %q", out.String())
+	}
+}
+
+func TestFaelleDerPruefungHabenDieNamenAusDemVertrag(t *testing.T) {
+	want := []string{
+		"test/basis", "test/nicht-formatiert", "test/vet-befund", "test/roter-test",
+		"build/basis", "build/ohne-trimpath", "build/falsche-version", "build/binary-fehlt", "test/aufruf",
+	}
+	have := map[string]bool{}
+	for _, f := range faelle() {
+		have[f.Name] = true
+	}
+	for _, n := range want {
+		if !have[n] {
+			t.Errorf("Fall %s fehlt", n)
+		}
 	}
 }

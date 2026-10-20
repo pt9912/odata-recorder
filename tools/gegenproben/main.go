@@ -39,24 +39,48 @@ type Umgebung struct {
 	Aufraeumen func(string) error
 	// Befehl liefert Programm, Argumente und Arbeitsverzeichnis, mit denen ein Fall sein
 	// Gate in dir ruft.
-	Befehl func(dir string, g Gate) (string, []string, string)
+	Befehl func(dir string, f Fall) (string, []string, string)
+	// Bauen liefert Programm und Argumente, mit denen ein Fall mit Bau sein Binary in dir
+	// erzeugt (Arbeitsverzeichnis dir).
+	Bauen func(dir string, b Bau) (string, []string)
 }
 
 func standard() Umgebung {
 	return Umgebung{
 		Eingaben:   []string{"src", "go.mod", "go.sum", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh", "tools/harness/migration-check.sh"},
-		Programme:  []string{"a-check", "golangci-lint", "sh"},
+		Programme:  []string{"a-check", "golangci-lint", "sh", "pruefung", "go", "gofmt"},
 		Aufraeumen: os.RemoveAll,
-		Befehl: func(dir string, g Gate) (string, []string, string) {
-			switch g {
-			case gateACheck:
-				return "a-check", []string{dir}, ""
-			case gateMigration:
-				return "sh", []string{"tools/harness/migration-check.sh", filepath.Join(dir, erzeugtesDDL), filepath.Join(dir, migrationen)}, dir
-			}
-			return "sh", []string{"tools/harness/lint.sh"}, dir
-		},
+		Befehl:     befehl,
+		Bauen:      bauen,
 	}
+}
+
+// befehl ruft das Gate des Falls f in der Kopie dir.
+func befehl(dir string, f Fall) (string, []string, string) {
+	switch f.Gate {
+	case gateACheck:
+		return "a-check", []string{dir}, ""
+	case gateMigration:
+		args := []string{filepath.Join(dir, erzeugtesDDL), filepath.Join(dir, migrationen)}
+		if f.Argumente != nil {
+			args = f.Argumente
+		}
+		return "sh", append([]string{"tools/harness/migration-check.sh"}, args...), dir
+	case gatePruefung:
+		return "pruefung", f.ersetzeOrte(dir), ""
+	}
+	return "sh", []string{"tools/harness/lint.sh"}, dir
+}
+
+// bauen erzeugt das Binary eines Falls mit go build in der Kopie: Flags des Dockerfile, Stufe
+// build, ohne Zielplattform.
+func bauen(dir string, b Bau) (string, []string) {
+	args := []string{"build", "-buildvcs=false"}
+	if !b.OhneTrimpath {
+		args = append(args, "-trimpath")
+	}
+	args = append(args, "-ldflags=-s -w -X main.version="+b.Version, "-o", filepath.Join(dir, binaerName), "./src/bootstrap/main")
+	return "go", args
 }
 
 // Ergebnis ist der Befund eines Falls; Rot leer heißt grün.
@@ -153,17 +177,28 @@ func fahre(u Umgebung, fs []Fall, wurzel string) (erg []Ergebnis, err error) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			name, args, wd := u.Befehl(dirs[i], fs[i].Gate)
-			if fs[i].Argumente != nil {
-				args = append([]string{"tools/harness/migration-check.sh"}, fs[i].Argumente...)
-			}
-			// golangci-lint sperrt eine Datei in TMPDIR gegen parallele Läufe; jeder Fall hat sein eigenes.
-			code, out, abgelaufen := starte(fallFrist, wd, []string{"TMPDIR=" + tmps[i]}, name, args...)
-			erg[i] = Ergebnis{Name: fs[i].Name, Rot: bewerte(fs[i], code, out, abgelaufen)}
+			erg[i] = fuehreFall(u, fs[i], dirs[i], tmps[i])
 		}()
 	}
 	wg.Wait()
 	return erg, nil
+}
+
+// fuehreFall erzeugt bei einem Fall mit Bau das Binary, ruft das Gate in der Kopie dir und
+// bewertet das Ergebnis.
+func fuehreFall(u Umgebung, f Fall, dir, tmp string) Ergebnis {
+	// golangci-lint sperrt eine Datei in TMPDIR gegen parallele Läufe; jeder Fall hat sein eigenes.
+	env := []string{"TMPDIR=" + tmp}
+	if f.Bau != nil {
+		name, args := u.Bauen(dir, *f.Bau)
+		code, out, abgelaufen := starte(fallFrist, dir, env, name, args...)
+		if abgelaufen || code != 0 {
+			return Ergebnis{Name: f.Name, Rot: "Bau des Binary scheitert\n" + letzte(out)}
+		}
+	}
+	name, args, wd := u.Befehl(dir, f)
+	code, out, abgelaufen := starte(fallFrist, wd, env, name, args...)
+	return Ergebnis{Name: f.Name, Rot: bewerte(f, code, out, abgelaufen)}
 }
 
 // bewerte gibt den Grund zurück, aus dem ein Fall rot ist, oder "".

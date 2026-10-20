@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"path/filepath"
+	"strings"
+)
 
 // Gate benennt das Programm, das ein Fall in der Kopie aufruft.
 type Gate int
@@ -9,23 +12,44 @@ const (
 	gateACheck Gate = iota
 	gateLint
 	gateMigration
+	gatePruefung
 )
 
 // Fall ist eine Gegenprobe: ein Eingriff in die Kopie der Eingaben und die
 // Erwartung an das Gate.
 type Fall struct {
-	Name               string
-	Gate               Gate
-	Neu                map[string]string // Datei -> Inhalt, angelegt in der Kopie
-	Anhang             map[string]string // Datei -> Text, an die Datei der Kopie gehängt
-	Ersetze            []Ersetzung
-	Entferne           []string          // Dateien, aus der Kopie gelöscht
-	Kopiere            map[string]string // Ziel -> Quelle, beide in der Kopie
-	Argumente          []string          // ersetzt die Argumente des Aufrufs von migration-check.sh
-	OhneGoDateienInSrc bool              // löscht jede Datei *.go unter src/ der Kopie
+	Name     string
+	Gate     Gate
+	Neu      map[string]string // Datei -> Inhalt, angelegt in der Kopie
+	Anhang   map[string]string // Datei -> Text, an die Datei der Kopie gehängt
+	Ersetze  []Ersetzung
+	Entferne []string          // Dateien, aus der Kopie gelöscht
+	Kopiere  map[string]string // Ziel -> Quelle, beide in der Kopie
+	// Argumente ersetzen die Argumente von migration-check.sh (nil: die Vorgabe) und sind bei
+	// gatePruefung die Argumente von pruefung; dort steht {dir} für die Kopie und {binary} für
+	// das Binary des Baus.
+	Argumente          []string
+	Bau                *Bau // erzeugt vor dem Aufruf das Binary in der Kopie
+	OhneGoDateienInSrc bool // löscht jede Datei *.go unter src/ der Kopie
 	WantExit           int
 	WantText           []string // jeder Text muss in der Ausgabe stehen
 	Verboten           []string // keiner dieser Texte darf in der Ausgabe stehen
+}
+
+// Bau beschreibt das Binary, das ein Fall vor dem Aufruf von pruefung build in der Kopie erzeugt.
+type Bau struct {
+	Version      string
+	OhneTrimpath bool
+}
+
+// ersetzeOrte setzt dir und das Binary in die Argumente des Falls ein.
+func (f Fall) ersetzeOrte(dir string) []string {
+	r := strings.NewReplacer("{dir}", dir, "{binary}", filepath.Join(dir, binaerName))
+	args := make([]string, len(f.Argumente))
+	for i, a := range f.Argumente {
+		args[i] = r.Replace(a)
+	}
+	return args
 }
 
 // Ersetzung tauscht in einer Datei der Kopie genau eine Stelle.
@@ -57,6 +81,8 @@ func zweitesModul(zusatz string) map[string]string {
 }
 
 const (
+	binaerName   = "odata-recorder"
+	probeVersion = "gegenprobe"
 	erzeugtesDDL = "erzeugt.sql"
 	migrationen  = "src/adapters/driven/sqlite/migrations"
 )
@@ -201,8 +227,66 @@ func migrationFaelle() []Fall {
 	}
 }
 
+// testFaelle sind die Fälle von `pruefung test`; das Muster schließt nur die Pakete unter
+// src/bootstrap ein, und die Eingriffe liegen dort.
+func testFaelle() []Fall {
+	aufruf := []string{"test", "{dir}", "./src/bootstrap/..."}
+	return []Fall{
+		{Name: "test/basis", Gate: gatePruefung, Argumente: aufruf, WantText: []string{"pruefung test: ok"}},
+		{
+			Name: "test/nicht-formatiert", Gate: gatePruefung, Argumente: aufruf,
+			Neu:      map[string]string{"src/bootstrap/unformatiert.go": "package bootstrap\n\nvar   unformatiert   =   1\n"},
+			WantExit: 1, WantText: []string{"nicht gofmt-formatiert", "unformatiert.go"},
+		},
+		{
+			Name: "test/vet-befund", Gate: gatePruefung, Argumente: aufruf,
+			Neu: map[string]string{"src/bootstrap/vet.go": "package bootstrap\n\nimport \"fmt\"\n\n" +
+				"func vetBefund() string { return fmt.Sprintf(\"%d\", \"text\") }\n"},
+			WantExit: 1, WantText: []string{"go vet:"},
+		},
+		{
+			Name: "test/roter-test", Gate: gatePruefung, Argumente: aufruf,
+			Neu: map[string]string{"src/bootstrap/rot_test.go": "package bootstrap\n\nimport \"testing\"\n\n" +
+				"func TestRot(t *testing.T) { t.Fatal(\"rot\") }\n"},
+			WantExit: 1, WantText: []string{"go test:"},
+		},
+		{
+			Name: "test/aufruf", Gate: gatePruefung,
+			WantExit: 2, WantText: []string{"Aufruf:"},
+		},
+	}
+}
+
+// buildFaelle sind die Fälle von `pruefung build`; das Binary entsteht in der Kopie.
+func buildFaelle() []Fall {
+	aufruf := []string{"build", "{binary}", probeVersion}
+	return []Fall{
+		{
+			Name: "build/basis", Gate: gatePruefung, Argumente: aufruf, Bau: &Bau{Version: probeVersion},
+			WantText: []string{"pruefung build: ok"},
+		},
+		{
+			Name: "build/ohne-trimpath", Gate: gatePruefung, Argumente: aufruf,
+			Bau:      &Bau{Version: probeVersion, OhneTrimpath: true},
+			WantExit: 1, WantText: []string{"nicht mit -trimpath gebaut"},
+		},
+		{
+			Name: "build/falsche-version", Gate: gatePruefung, Argumente: aufruf,
+			Bau:      &Bau{Version: "andere"},
+			WantExit: 1, WantText: []string{"Version des Binary", "andere", probeVersion},
+		},
+		{
+			Name: "build/binary-fehlt", Gate: gatePruefung,
+			Argumente: []string{"build", "{dir}/gibt-es-nicht", probeVersion},
+			WantExit:  2, WantText: []string{"Binary fehlt"},
+		},
+	}
+}
+
 func faelle() []Fall {
 	alle := aCheckFaelle()
 	alle = append(alle, lintFaelle()...)
-	return append(alle, migrationFaelle()...)
+	alle = append(alle, migrationFaelle()...)
+	alle = append(alle, testFaelle()...)
+	return append(alle, buildFaelle()...)
 }
