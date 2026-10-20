@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
 // nichtGelieferte sind die Schlüssel und Präfixe, die diese Version nicht liefert (SPEC-110 Nr. 2).
@@ -288,10 +290,10 @@ func istQueryName(s string) bool {
 	return s != "" && !strings.ContainsAny(s, " \t\r\n=&#,")
 }
 
-// istJSONPfad erkennt allein die Form `$..name` (SPEC-110 Nr. 6).
+// istJSONPfad prüft mit dem Parser des Modells (SPEC-115 Nr. 6, SPEC-110 Nr. 6).
 func istJSONPfad(s string) bool {
-	name, ok := strings.CutPrefix(s, "$..")
-	return ok && name != "" && zeichenAus(name, "_-")
+	_, err := model.ParseJSONPfad(s)
+	return err == nil
 }
 
 // zeichenAus meldet, ob s nur aus Buchstaben, Ziffern und den Zeichen extra besteht.

@@ -814,3 +814,22 @@ func TestKonfigTLSUngueltig(t *testing.T) {
 		}
 	}
 }
+
+// TestKonfigJSONPfadWieModell: der Start prüft REDACT_JSON_PATHS mit dem Parser des Modells;
+// jede Form, die der Parser ablehnt, lehnt auch LadeKonfiguration ab, und umgekehrt.
+func TestKonfigJSONPfadWieModell(t *testing.T) {
+	gueltig := []string{"$..password", "$..api_key", "$..A-b_1"}
+	ungueltig := []string{"$", "$..", "$.a", "$...a", "..a", "$..a.b", "$..a b", "$..*", "$..[0]", "$..a[0]", "$..ä", "$..a;b"}
+	for _, w := range gueltig {
+		if _, err := model.ParseJSONPfad(w); err != nil {
+			t.Fatalf("Modell lehnt %q ab: %v", w, err)
+		}
+		erwarteGueltig(t, append(basis(t), "REDACT_JSON_PATHS="+w)...)
+	}
+	for _, w := range ungueltig {
+		if _, err := model.ParseJSONPfad(w); err == nil {
+			t.Fatalf("Modell nimmt %q an", w)
+		}
+		erwarteVerstoss(t, "REDACT_JSON_PATHS", append(basis(t), "REDACT_JSON_PATHS="+w)...)
+	}
+}
