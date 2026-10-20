@@ -5,7 +5,7 @@
 * Gegenstand: `git diff 2091ba6^..HEAD` (Commits a7ad164 bis bd98a06)
 * Plan: `docs/plan/planning/in-progress/slice-gegenproben-build-test.md`
 * Verträge: `harness/vertraege/SPEC-036-test.md`, `harness/vertraege/SPEC-102-gegenproben.md`
-* Maßstab: Plan, ADR-0001, ADR-0003, ADR-0005, AGENTS.md §3.1 bis §3.16, Reviewer-Skill. Nicht geprüft: DoD (Verifier).
+* Maßstab: Plan, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md), [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md), AGENTS.md §3.1 bis §3.16, Reviewer-Skill. Nicht geprüft: DoD (Verifier).
 * Methode: Wegwerfkopien von `git archive HEAD` im Scratchpad, Docker `golang:1.27-alpine` (`--network none`), nie im Arbeitsbaum. Je Mutation liefen die Unit-Tests von `tools/pruefung` und die zehn Fälle 25 bis 33 gegen das mutierte `pruefung`-Binary (Treiber: eine zusätzliche Testdatei nur in der Kopie). Dockerfile-Mutationen mit echtem `docker build --target test|build`.
 
 ## Zusammenfassung
