@@ -1,0 +1,2 @@
+**Vorgang:** slice-fehlermodell-konfiguration
+**Fund:** `SPEC-110` Nr. 12 sagte „kein Fall meldet zwei verschiedene Gründe für einen Schlüssel“; `UPSTREAM_TLS_VERIFY=yes` meldete zwei, die zweite führte in die Irre (Re-Review N-2). Behoben durch Code und Spezifikation (Widerspruch nur bei zwei gültigen Werten); die Allaussage prüfte die Verifikation per Lektüre aller Meldestellen, ein Test dafür fehlt (kein Fuzz).

@@ -232,10 +232,11 @@ Eine Zusage ohne Fänger ist ein MEDIUM.
 **Falsch:** Der Vertrag nennt eine Prüfung, und sie lässt sich entfernen, ohne dass etwas rot wird.
 **Richtig:** Die Tabelle nennt zur Prüfung den Fall, der ohne sie rot wird.
 
-### 3.16 Randformen stehen als Raster im Plan, nicht als Aufzählung   (seit welle-persistenz)
+### 3.16 Randformen stehen als Raster im Plan, nicht als Aufzählung   (seit welle-persistenz, geschärft seit slice-fehlermodell-konfiguration)
 
 Schärft §3.12: §6 des Plans führt die Randformen als Raster *Operation × Argumentart* (fehlender, leerer, unbekannter oder fremder Wert; Abbruch; Wiederholung), nicht als Liste der Fälle, die dem Planner einfielen.
 Jede Zelle nennt ihren Ort in der Spezifikation oder in `harness/vertraege/`, oder sie nennt ausdrücklich „gilt nicht" mit Grund; eine leere Zelle ist ein Fehler des Plans.
+Meldet die Operation mehrere Verstöße oder hängt eine Zusage vom Modus ab, führt das Raster zusätzlich je Paar von Verstößen am selben Schlüssel und je Modus eine Zeile; eine Allaussage des Vertrags („kein Fall …“) nennt ihren Fänger über alle Fälle, sonst ist sie eine Zusage ohne Fänger (§3.15).
 Der Implementer hält an einer Zelle ohne Ort an (§3.12); der Reviewer löst das Raster mit je einer Mutation auf, und eine im Code entschiedene Zelle ist ein MEDIUM.
 
 **Falsch:** Der Vertrag nennt die leere ID für `Get`; für `Delete` und `Advance` entscheidet der Code.
