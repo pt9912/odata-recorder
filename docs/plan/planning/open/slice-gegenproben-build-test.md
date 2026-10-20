@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-QA-06`, [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md), [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `SPEC-036` (Build und Unit-Tests) · `SPEC-102` (Gegenproben).
+**Berührte Spec-Stellen:** `SPEC-036` (Build und Unit-Tests, jetzt mit dem Prüfprogramm `pruefung`) · `SPEC-102` (Gegenproben).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -36,7 +36,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Gegenproben für `docs-check`, `schema-check` und `baseline-verify` — sie haben ihre Gegenprobe zum Teil in den Gates selbst; sie folgen bei Bedarf als eigener Slice.
-- Änderungen am Verhalten von `make build` und `make test` — der Umbau verschiebt die Prüfungen in Skripte, ändert aber ihre Wirkung nicht (`AGENTS.md` §3.6).
+- Änderungen am Verhalten von `make build` und `make test` — der Umbau verschiebt die Prüfungen in ein Go-Programm (`pruefung`), ändert aber ihre Wirkung nicht (`AGENTS.md` §3.6); die Meldungstexte dürfen sich ändern.
 - Ein Docker-Build je Fall — die Fälle laufen wie die übrigen in einem Prozess ([ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md), `SPEC-102`).
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
@@ -57,8 +57,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Die Prüfungen von `make test` und `make build` liegen als Skripte `tools/harness/test.sh` und `tools/harness/build-check.sh`; das `Dockerfile` und `go-gates.mk` rufen sie, und ihr Verhalten bleibt unverändert.
-- [ ] Fälle in `tools/gegenproben` und `SPEC-102`: Basis, nicht formatierte Datei, `go vet`-Befund, roter Unit-Test, Binary ohne `-trimpath`, Binary mit falscher Version; jeder Verstoß-Fall nennt den Grund in der Ausgabe.
+- [ ] Die Prüfungen von `make test` und `make build` liegen als Go-Programm `tools/pruefung` (`pruefung test`, `pruefung build`, Vertrag in `SPEC-036`); das `Dockerfile` ruft es, `go-gates.mk` bleibt ohne eigene Prüfung, und die Wirkung der Gates bleibt unverändert.
+- [ ] Fälle 25 bis 33 in `tools/gegenproben` und `SPEC-102`: Basis, nicht formatierte Datei, `go vet`-Befund, roter Unit-Test, Binary ohne `-trimpath`, Binary mit falscher Version, fehlendes Binary, falscher Aufruf; jeder Verstoß-Fall nennt den Grund in der Ausgabe. Alles in Go, kein neues Shell-Skript.
 - [ ] `make gegenproben` ist grün im Zeitbudget aus `SPEC-102`; M1 steht in der Roadmap auf *erreicht*.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
@@ -79,22 +79,34 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `tools/harness/test.sh`, `tools/harness/build-check.sh` | neu | die Prüfungen aus `Dockerfile` und `harness/mk/go-gates.mk`, als Skripte |
-| `Dockerfile`, `harness/mk/go-gates.mk` | update | rufen die Skripte; Build-Kontext und Eingaben der Gegenproben ziehen mit |
-| `tools/gegenproben/` | update | Fälle und Befehle für Test und Build; die Stufe `gegenproben` bekommt die Go-Toolchain schon vom Image |
-| `harness/vertraege/SPEC-102-gegenproben.md`, `SPEC-036-test.md`, `harness/README.md` | update | neue Fälle und Randformen, Grenze entfällt |
+| `tools/pruefung/` | neu | Go-Modul ohne Abhängigkeiten: die Prüfungen aus `Dockerfile` und `harness/mk/go-gates.mk` als `pruefung test` und `pruefung build` |
+| `Dockerfile`, `harness/mk/go-gates.mk`, `.dockerignore` | update | Stufe für `pruefung`, Aufruf in den Stufen `test` und `build`, die Zeilen der Prüfung in `go-gates.mk` entfallen; Lint-Stufe prüft auch dieses Modul |
+| `tools/harness/gegenproben-eingabe.sh` | update | `tools/pruefung` gehört zu den Eingaben |
+| `tools/gegenproben/` | update | Fälle 25 bis 33 und ihre Befehle; die Stufe `gegenproben` bekommt `pruefung` aus der eigenen Stufe |
+| `harness/vertraege/SPEC-102-gegenproben.md`, `SPEC-036-test.md`, `harness/README.md` | update | Fälle, Prüfprogramm und Randformen stehen vor dem Code im Vertrag; `harness/README.md` nennt `pruefung` bei den Sensors |
 
-- Randformen, die vor dem Code im Vertrag stehen: Binary fehlt, Binary startet nicht, Ausgabe der Version mit Zusatztext, `go vet` ohne Go-Dateien, `gofmt` mit Datei ohne Leseberechtigung.
+**Randform-Raster** (`AGENTS.md` §3.16; Ort in `SPEC-036`, Randformen von `pruefung`):
+
+| Operation | fehlend | leer | unbekannt | Abbruch | Wiederholung |
+|---|---|---|---|---|---|
+| `pruefung test` | Wurzel fehlt: Nr. 2; Argument fehlt: Nr. 1 | leeres Argument: Nr. 1; ohne Go-Dateien: Nr. 8 | unbekanntes Kommando: Nr. 1; Programm nicht aufrufbar: Nr. 7 | Nr. 10 | gilt nicht: ohne Zustand, jeder Lauf ist neu (Nr. 10) |
+| `pruefung build` | Binary fehlt: Nr. 3 | leere Version: Nr. 1 | kein Go-Binary: Nr. 5; startet nicht: Nr. 4; Version mit Zusatztext: Nr. 6 | Nr. 10 | gilt nicht: ohne Zustand (Nr. 10) |
 
 **Zusage · Fänger** (`AGENTS.md` §3.15):
 
 | Zusage | Fänger |
 |---|---|
-| `test.sh` meldet eine nicht formatierte Datei | Fall `test/nicht-formatiert`; Mutation: `gofmt`-Prüfung entfernt |
-| `test.sh` meldet einen `go vet`-Befund | Fall `test/vet-befund`; Mutation: `go vet` entfernt |
-| `test.sh` meldet einen roten Unit-Test | Fall `test/roter-test`; Mutation: `go test` entfernt |
-| `build-check.sh` meldet fehlendes `-trimpath` | Fall `build/ohne-trimpath`; Mutation: Prüfung entfernt |
-| `build-check.sh` meldet falsche Version | Fall `build/falsche-version`; Mutation: Prüfung entfernt |
+| `pruefung test` meldet eine nicht formatierte Datei | Fall `test/nicht-formatiert`; Mutation: `gofmt`-Prüfung entfernt |
+| `pruefung test` meldet einen `go vet`-Befund | Fall `test/vet-befund`; Mutation: `go vet` entfernt |
+| `pruefung test` meldet einen roten Unit-Test | Fall `test/roter-test`; Mutation: `go test` entfernt |
+| `pruefung test` ohne Befund endet mit Exit 0 | Fall `test/basis` |
+| `pruefung build` meldet fehlendes `-trimpath` | Fall `build/ohne-trimpath`; Mutation: Prüfung entfernt |
+| `pruefung build` meldet falsche Version | Fall `build/falsche-version`; Mutation: Prüfung entfernt |
+| `pruefung build` meldet ein fehlendes Binary mit Exit 2 | Fall `build/binary-fehlt`; Mutation: Prüfung entfernt |
+| `pruefung` meldet falschen Aufruf mit Exit 2 | Fall `test/aufruf`; Mutation: Prüfung der Argumentzahl entfernt |
+| `pruefung build` ohne Befund endet mit Exit 0 | Fall `build/basis` |
+| Version mit Zusatztext, Binary startet nicht, kein Go-Binary, Wurzel fehlt (Randformen Nr. 2, 4, 5, 6) | Tests in `tools/pruefung`; Mutation: jeweilige Prüfung entfernt |
+| Die Stufen `test` und `build` rufen `pruefung` | Gate: ein roter Verstoß im Quellstand lässt `make test` bzw. `make build` rot werden — Beleg im Bericht des Implementers, kein Fall (Grenze in `SPEC-102`) |
 
 ## 4. Trigger
 
@@ -105,8 +117,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 500 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen).
-- `in-progress` → `open` (blockiert): die Prüfungen lassen sich nicht als Skript im Image der Stufe `gegenproben` fahren, ohne ein weiteres Image zu pinnen.
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 900 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen; Schätzung 600, weil `pruefung` ein Programm mit eigenen Tests ist).
+- `in-progress` → `open` (blockiert): `pruefung` lässt sich im Image der Stufe `gegenproben` nicht fahren, ohne ein weiteres Image zu pinnen.
 
 ## 5. Closure-Trigger
 
@@ -123,9 +135,10 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Randformen der Skripte (`AGENTS.md` §3.12): fehlende Datei, leere Ausgabe, Binary ohne Build-Information — **Ausgang:** entfallen: entschieden in `SPEC-102` und `SPEC-036` vor dem ersten Code-Commit.
+- Randformen von `pruefung` (`AGENTS.md` §3.12, §3.16): Raster in §3, entschieden in `SPEC-036` und `SPEC-102` vor dem ersten Code-Commit — **Ausgang:** wird bei der Closure eingetragen.
 - Die Fälle verlangen ein Binary, das nur im Image der Stufe `build` entsteht — **Ausgang:** weiter offen: der Slice baut es im Prozess mit `go build` in der Kopie; weicht das vom Image ab, steht es als Beobachtung im Register.
-- Die Skripte ändern das Verhalten der Gates unbemerkt — **Ausgang:** entfallen: `make gates` bleibt grün, und die Mutation je Zusage bestätigt die Wirkung.
+- `pruefung` ändert das Verhalten der Gates unbemerkt — **Ausgang:** wird bei der Closure eingetragen; Beleg: `make gates` grün, die Mutation je Zusage und ein roter Verstoß im Quellstand je Ziel.
+- Zeitbudget: neun Fälle mit `go`-Aufrufen können die 30 s aus `SPEC-102` sprengen — **Ausgang:** wird bei der Closure eingetragen; reißt der Lauf das Budget, geht der Punkt an den Planner, kein Lockern im Code.
 
 ## 7. Closure-Notiz
 
@@ -159,7 +172,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register trägt `BEO-REPO/randform-erst-im-review-entschieden` (2×) und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15); beides fließt in §3 und §6 ein.
+**Vorgelagert — offene Beobachtungen sichten:** Im Beobachtungs-Register sind `BEO-REPO/randform-erst-im-review-entschieden` und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` verkörpert (`AGENTS.md` §3.16 und §3.15); beides fließt als Raster und Tabelle in §3 ein. `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (2×) betrifft die nebenläufigen Fälle.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der
