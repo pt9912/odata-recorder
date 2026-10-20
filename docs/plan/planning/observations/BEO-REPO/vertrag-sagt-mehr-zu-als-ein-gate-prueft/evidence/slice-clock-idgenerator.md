@@ -1,0 +1,2 @@
+**Vorgang:** slice-clock-idgenerator
+**Fund:** Der Plan sagte zwei Dinge zu, die kein Test fing: „die Quelle wird unter der Sperre gelesen“ (Review-Befund F1: die Mutation, die Quelle vor der Sperre zu lesen, blieb grün) und „keine feste Folge“ (F2: ein paketweiter `math/rand`-Generator mit festem Seed blieb grün); dazu eine Raster-Zelle ohne Fänger und ohne benanntes Negativ (F5, Ausfall der Zufallsquelle). Im Slice behoben durch `TestSystemuhrQuelleSerialisiert` und `TestZufallsIDsLiestCryptoRand` sowie ein benanntes Negativ mit Eintrag unter *Ungeprüft* in `SPEC-114`.
