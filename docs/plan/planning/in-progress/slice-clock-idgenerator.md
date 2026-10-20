@@ -60,13 +60,13 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Ports `Clock` und `IDGenerator` unter `src/hexagon/ports/support/` und der Adapter `Systemuhr`/`ZufallsIDs`: UTC-Zeit, nicht fallend, Kennungen der Form `SPEC-114` Nr. 6.
-- [ ] `FestUhr`, `FestIDs` und die Vertragstests `UhrVertrag`, `IDVertrag` in `supporttest`, die gegen echte und feste Implementierung laufen; Test der Eindeutigkeit unter gleichzeitigem Aufruf.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Ports `Clock` und `IDGenerator` unter `src/hexagon/ports/support/` und der Adapter `Systemuhr`/`ZufallsIDs`: UTC-Zeit, nicht fallend, Kennungen der Form `SPEC-114` Nr. 6.
+- [x] `FestUhr`, `FestIDs` und die Vertragstests `UhrVertrag`, `IDVertrag` in `supporttest`, die gegen echte und feste Implementierung laufen; Test der Eindeutigkeit unter gleichzeitigem Aufruf.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
 - [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
 - [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
