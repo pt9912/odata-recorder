@@ -19,25 +19,34 @@ RUN go mod download && go mod verify && mkdir -p /go/pkg/mod
 FROM deps AS source
 COPY src ./src
 
-# --- test: Formatierung (gofmt nennt die nicht formatierten Dateien), vet und
-# Unit-Tests.
-FROM source AS test
+# --- pruefung: das Programm aus tools/pruefung trägt die Prüfungen der Stufen test und build
+# (SPEC-036). Es wird geprüft (gofmt, vet, Test) und gebaut.
+FROM deps AS pruefung
+WORKDIR /pf
+COPY tools/pruefung ./
 RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-formatiert:"; echo "$f"; exit 1; }; } \
- && go vet ./... \
- && go test -trimpath -buildvcs=false ./...
+ && go vet ./... && go test ./... && go build -trimpath -buildvcs=false -o /out/pruefung .
+
+# --- test: Formatierung (gofmt nennt die nicht formatierten Dateien), vet und
+# Unit-Tests, gefahren von pruefung.
+FROM source AS test
+COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
+RUN --network=none pruefung test /src
 
 # --- build: das Binary für die Zielplattform, reproduzierbar (-trimpath, ohne
-# VCS-Stempel).
+# VCS-Stempel); pruefung prüft Version und -trimpath.
 FROM source AS build
+COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev
 RUN --network=none GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -buildvcs=false \
       -ldflags="-s -w -X main.version=$VERSION" \
       -o /out/odata-recorder ./src/bootstrap/main
+RUN --network=none pruefung build /out/odata-recorder "$VERSION"
 
 # --- lint: golangci-lint nach .golangci.yml und die eigenen Prüfungen von tools/harness/lint.sh
-# auf dem Quellstand und auf tools/gegenproben; die Module kommen aus deps.
+# auf dem Quellstand und auf tools/gegenproben und tools/pruefung; die Module kommen aus deps.
 FROM ${LINT_IMAGE} AS lint
 WORKDIR /src
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
@@ -45,18 +54,20 @@ COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY --from=source /src ./
 COPY .golangci.yml ./
 COPY tools/gegenproben tools/gegenproben
+COPY tools/pruefung tools/pruefung
 COPY tools/harness/lint.sh /usr/local/bin/lint.sh
 RUN --network=none sh /usr/local/bin/lint.sh
 
 # --- a-check-bin: das Binary von a-check, wird in die Stufe gegenproben kopiert.
 FROM ${A_CHECK_IMAGE} AS a-check-bin
 
-# --- gegenproben: das Programm aus tools/gegenproben prüft, dass a-check und lint.sh einen
-# Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
+# --- gegenproben: das Programm aus tools/gegenproben prüft, dass a-check, lint.sh,
+# migration-check.sh und pruefung einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
 # Eingaben gefahren.
 FROM ${LINT_IMAGE} AS gegenproben
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY --from=a-check-bin /a-check /usr/local/bin/a-check
+COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
 WORKDIR /gp
 COPY tools/gegenproben ./
 RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-formatiert:"; echo "$f"; exit 1; }; } \
