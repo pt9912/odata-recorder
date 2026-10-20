@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -314,5 +315,47 @@ func TestBuildRelativerPfad(t *testing.T) {
 	code, out, errText := fuehre(w.u, "build", "odata-recorder", "1.2.3")
 	if code != exitOK {
 		t.Fatalf("Exit %d, stdout %q, stderr %q", code, out, errText)
+	}
+}
+
+// verzeichnisstand liefert Pfad, Größe und Änderungszeit aller Einträge unter dir.
+func verzeichnisstand(t *testing.T, dir string) string {
+	t.Helper()
+	var b strings.Builder
+	err := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		fi, err := d.Info()
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(&b, "%s %d %s\n", p, fi.Size(), fi.ModTime())
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b.String()
+}
+
+// pruefung hält keinen Zustand und schreibt keine Datei, auch nicht bei einem Befund.
+func TestSchreibtNichts(t *testing.T) {
+	wurzel := t.TempDir()
+	if err := os.WriteFile(filepath.Join(wurzel, "a.go"), []byte("package a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	bin := fake(t, t.TempDir(), "odata-recorder", `echo "odata-recorder 1"`)
+	vorher := verzeichnisstand(t, wurzel) + verzeichnisstand(t, filepath.Dir(bin))
+	gut := neueWerkzeuge(t, "", trimpathOK)
+	schlecht := neueWerkzeuge(t, "echo a.go", "exit 1")
+	for _, u := range []Umgebung{gut.u, schlecht.u} {
+		fuehre(u, "test", wurzel)
+		fuehre(u, "build", bin, "1")
+		fuehre(u, "build", bin, "2")
+	}
+	// Das Log der Fake-Programme liegt außerhalb; Wurzel und Binary-Verzeichnis bleiben unverändert.
+	if nachher := verzeichnisstand(t, wurzel) + verzeichnisstand(t, filepath.Dir(bin)); nachher != vorher {
+		t.Fatalf("pruefung hat Dateien verändert:\nvorher\n%s\nnachher\n%s", vorher, nachher)
 	}
 }
