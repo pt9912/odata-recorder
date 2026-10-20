@@ -4,7 +4,7 @@
 * Rolle: reviewer (frischer Kontext, kein Self-Review)
 * Review-Art: Code gegen Plan + Konventionen
 * Gegenstand: `git diff fe372f7..HEAD` (e8d5972 Code, 7e97c49 Spec-Entscheidung Nr. 10, 5576700 Test-Nachzug)
-* Plan: `docs/plan/planning/in-progress/slice-clock-idgenerator.md`
+* Plan: `docs/plan/planning/done/slice-clock-idgenerator.md`
 * Verträge: `SPEC-114` (`spec/spezifikation.md`), `LH-QA-02`, `LH-FA-13`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md)
 * Maßstab: Plan, SPEC-114, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), AGENTS.md §3.7, §3.9 bis §3.16, Reviewer-Skill. Nicht geprüft: DoD (Verifier).
 * Methode: Wegwerfkopie von `src/`, `go.mod` im Scratchpad, Image `odata-recorder:test` (`--network none`, Kopie nur lesend gemountet); rund 45 Mutationen (je Zeile der Tabelle Zusage·Fänger und je Rasterzelle). Die `a-check`-Mutation lief im Arbeitsbaum und wurde per `git checkout` zurückgenommen; der Arbeitsbaum ist sauber. Kein `-race` möglich (Image: "requires cgo").
@@ -18,7 +18,7 @@ Keine HIGH. Zwei MEDIUM, drei LOW, drei INFO. Die Tabelle ist überwiegend schar
 ### F1 MEDIUM — "Quelle wird unter der Sperre gelesen" hat keinen Fänger
 * kategorie: MEDIUM
 * quelle: AGENTS.md §3.15 (Zusage ohne Fänger), §3.11
-* pfad: `docs/plan/planning/in-progress/slice-clock-idgenerator.md` · "die Quelle wird unter der Sperre gelesen"; Code `src/adapters/driven/clock/clock.go` · `t := u.quelle().UTC()`
+* pfad: `docs/plan/planning/done/slice-clock-idgenerator.md` · "die Quelle wird unter der Sperre gelesen"; Code `src/adapters/driven/clock/clock.go` · `t := u.quelle().UTC()`
 * befund: Der Plan sagt, `TestSystemuhrNebenlaeufig` fange das Lesen der Quelle unter der Sperre. Mutation gefahren: `t := u.quelle().UTC()` vor `u.mu.Lock()` verschoben: alle Tests grün (Gate-Test-Set der drei Pakete). Die Klammer bleibt dabei monoton; die Aussage ist weder beobachtbar noch im Code oder der Spec zugesagt, steht aber als Fänger im Plan.
 * Fehlerfall: Plan und Test weichen auseinander; wer die Zeile liest, hält die Lesereihenfolge für gefangen.
 * verifizierbar: ja (Mutation im Scratch)
@@ -27,7 +27,7 @@ Keine HIGH. Zwei MEDIUM, drei LOW, drei INFO. Die Tabelle ist überwiegend schar
 ### F2 MEDIUM — "keine feste Folge" (Nr. 7): Mutation "math/rand mit festem Seed" ist nur in einer Form rot
 * kategorie: MEDIUM
 * quelle: AGENTS.md §3.15, SPEC-114 Nr. 7
-* pfad: `docs/plan/planning/in-progress/slice-clock-idgenerator.md` · "Mutation: `math/rand` mit festem Seed: rot"; Test `src/adapters/driven/clock/clock_test.go` · `TestZufallsIDsUnabhaengig`
+* pfad: `docs/plan/planning/done/slice-clock-idgenerator.md` · "Mutation: `math/rand` mit festem Seed: rot"; Test `src/adapters/driven/clock/clock_test.go` · `TestZufallsIDsUnabhaengig`
 * befund: Mutation A (neue Quelle `rand.NewSource(1)` bei jedem Aufruf) ist rot. Mutation B (ein paketweiter, mutexgeschützter `math/rand`-Generator mit festem Seed) ist grün: zwei Instanzen und 64 × 500 Aufrufe liefern verschiedene Kennungen, nur die Folge ist über Prozessstarts gleich. Der Plan nennt als akzeptiertes Negativ nur "anderer zufälliger Seed", nicht den festen Seed in der paketweiten Form.
 * Fehlerfall: nach einem Neustart vergibt der Dienst dieselbe Kennungsfolge; `ErrBereitsVorhanden` trifft erzeugte Kennungen, obwohl Nr. 8 es als nicht eintretend zusagt.
 * verifizierbar: ja

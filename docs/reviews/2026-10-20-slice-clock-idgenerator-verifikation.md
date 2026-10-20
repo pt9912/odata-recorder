@@ -3,7 +3,7 @@
 * Datum: 2026-10-20
 * Rolle: verifier (frischer Kontext; kein Code geändert, kein Commit)
 * Gegenstand: `git diff fe372f7..HEAD`, Stand 72f2b12
-* Plan: `docs/plan/planning/in-progress/slice-clock-idgenerator.md`
+* Plan: `docs/plan/planning/done/slice-clock-idgenerator.md`
 * Maßstab: DoD (§2), `SPEC-114`, Tabelle Zusage·Fänger (§3), Raster (§6), `AGENTS.md` §3.7, §3.11, §3.13 bis §3.16, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md); Bezug `LH-QA-02`, `LH-FA-13`
 * Eingang: Review `docs/reviews/2026-10-20-slice-clock-idgenerator-review.md` (F1 bis F8)
 * Belege selbst gefahren: `make gates` (Exit 0, Arbeitsbaum danach sauber); zwei Mutationen in Wegwerfkopie im Image `odata-recorder:test`, netzlos, Kopie nur lesend gemountet; `git diff --numstat`.
