@@ -241,6 +241,9 @@ func TestKeyQueryReihenfolge(t *testing.T) {
 		{name: "Multimenge", a: q("a=1&a=1"), b: q("a=1"), gleich: false},
 		{name: "Wiederholung", a: q("a=1&a=1&b"), b: q("a=1&b"), gleich: false},
 		{name: "Wert", a: q("a=1"), b: q("a=2"), gleich: false},
+		{name: "Reihenfolge gleicher Wert (Art 1)", a: q("a=1&b=1"), b: q("b=1&a=1"), gleich: true},
+		{name: "Reihenfolge ohne Wert (Art 0)", a: q("a&b"), b: q("b&a"), gleich: true},
+		{name: "Reihenfolge Art 2", a: q("a=%zz&b=%zz"), b: q("b=%zz&a=%zz"), gleich: true},
 	})
 }
 

@@ -117,7 +117,7 @@ Der Vertrag steht in `SPEC-115` bis `SPEC-117` **vor** dem ersten Code-Commit (`
 | `Method` und `ServiceID`: Schreibweise zählt, leer ist `ErrUngueltig` (Nr. 2) | `TestKeyKopf` |
 | Pfad: Escape ohne UTF-8 (`%FF`, `%ff`) ist gültig, bleibt als `%FF`, auch bei `reject` (Nr. 3) | `TestKeyPfad` (Fälle `%ff` gleich `%FF`, kein `ErrKodierung`) |
 | Pfad: erlaubte Gleichheiten (`%7e`/`~`, `%2f`/`%2F`, `%41`/`A`), erhaltene Unterschiede (`%2F`/`/`, `%27`/`'`, `%20`/`+`, `/a`/`/a/`, `//a`, `/A`, `/a/./b`, `é`/`%C3%A9`), ungültige Formen (`""`, `a`, `/a?b`, `/a#b`, Steuerzeichen), ungültiges `%` bei `literal` und `reject` (Nr. 3) | `TestKeyPfad` |
-| Query-Paare: Reihenfolge ohne Wirkung, Wiederholung bleibt (Multimenge), `a=1&a=2` gleich `a=2&a=1`, `a=1&a=1` verschieden von `a=1` (Nr. 4) | `TestKeyQueryReihenfolge`. Mutation: Paare nicht sortieren oder Doppelte entfernen: rot |
+| Query-Paare: Reihenfolge ohne Wirkung, Wiederholung bleibt (Multimenge), `a=1&a=2` gleich `a=2&a=1`, `a=1&a=1` verschieden von `a=1` (Nr. 4) | `TestKeyQueryReihenfolge`, auch mit gleichem Wert je Paar (`a=1&b=1` gegen `b=1&a=1`), ohne Wert (`a&b` gegen `b&a`) und bei Paaren der Art 2. Mutationen: Paare nicht sortieren, Doppelte entfernen oder den Schlüssel aus dem Vergleich der Sortierung nehmen: rot |
 | Zerlegung: `a` verschieden von `a=`, `a=&` gleich `a=`, `&&`/`?`/`""` ohne Paar, `=v`, `=`, `a=b=c`, `;` trennt nicht (Nr. 4) | `TestKeyQueryZerlegung` |
 | Paar der Art 2: Text byteweise, auch in der Schreibweise der Hex-Ziffern (`a=%2f%zz` gegen `a=%2F%zz`) (Nr. 4, 10) | `TestKeyUngueltigeKodierung`. Mutation: Hex-Ziffern im Text der Art 2 normalisieren: rot |
 | Dekodierung: `+` bleibt `+` (`a+b` ≠ `a%20b`), Hex-Schreibweise gleich, `%2B` gleich `+` (beide ergeben das Zeichen `+`), `%41` gleich `A` (Nr. 4) | `TestKeyQueryDekodierung` |
@@ -154,7 +154,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 3500 Zeilen (Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests und `spec/spezifikation.md` eingeschlossen); gemessen nach den Review-Findings: 1954 über `src` und `spec/spezifikation.md` ab `749a5d4`; die Schätzung liegt bei rund 2400 in derselben Metrik (Produktcode rund 700, Tests rund 1400, Spezifikation rund 300; der Vorgänger lag mit 600 geschätzt bei 2369).
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 3500 Zeilen (Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests und `spec/spezifikation.md` eingeschlossen); gemessen nach der Verifikation: 1957 über `src` und `spec/spezifikation.md` ab `749a5d4`; die Schätzung liegt bei rund 2400 in derselben Metrik (Produktcode rund 700, Tests rund 1400, Spezifikation rund 300; der Vorgänger lag mit 600 geschätzt bei 2369).
 - `in-progress` → `open` (blockiert): der Implementer findet eine Randform ohne Ort in `SPEC-115` bis `SPEC-117` oder im Raster in §6 und muss sie an den Architect geben (`AGENTS.md` §3.12).
 
 ## 5. Closure-Trigger
