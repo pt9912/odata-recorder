@@ -3,7 +3,7 @@
 * Datum: 2026-10-20
 * Rolle: verifier (frischer Kontext, kein Self-Review, kein Produktcode geändert)
 * Gegenstand: `git diff f6a1431^..HEAD` (Stand `a1aafd8`); Basis der Verhaltensgleichheit `2091ba6`
-* Plan: `docs/plan/planning/in-progress/slice-gegenproben-build-test.md`
+* Plan: `docs/plan/planning/done/slice-gegenproben-build-test.md`
 * Verträge: `harness/vertraege/SPEC-036-test.md`, `harness/vertraege/SPEC-102-gegenproben.md`
 * Eingang: Review `docs/reviews/2026-10-20-slice-gegenproben-build-test-review.md`; ein Bericht des Implementers mit Sensor-Belegen lag nicht vor, deshalb sind alle Belege unten selbst gefahren.
 * Maßstab: DoD (Plan §2), Zusage · Fänger (Plan §3, `AGENTS.md` §3.15), Verträge, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md), [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md), Baseline-Regelwerk Modul 11 (Bewusstes Brechen).
