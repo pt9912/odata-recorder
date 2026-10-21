@@ -1,0 +1,2 @@
+**Vorgang:** slice-record-service
+**Fund:** Das Review übergab die Frage, ob die Messmethode von `LH-QA-07` die Verengung des Vergleichstests auf Clients mit `gzip`, `deflate` und `identity` trägt, an den Validator (I-4); weder der Plan noch die Welle noch ein anderes Artefakt führten sie, bis die Verifikation nach ihr suchte (V6). Bei der Closure als Risiko mit dem Ausgang „weiter offen, Owner“ in §6 des Plans eingetragen.
