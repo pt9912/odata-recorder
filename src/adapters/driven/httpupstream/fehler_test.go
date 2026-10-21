@@ -8,8 +8,8 @@ import (
 
 // fehlerFall ist ein Fall, in dem Senden mit einem Fehler endet. lauf baut Server und Client,
 // prüft, was der Fall außer der Art zusagt, und liefert den Fehler; art ist der Fehler, den
-// errors.Is erreichen muss. Die Tests A2, A5, A8, A9, A10, A12, A13, A16 und A18 fahren ihre Fälle
-// aus dieser Tabelle, A14 alle.
+// errors.Is erreichen muss. Die Tests A2, A5, A8, A9, A12, A13, A16 und A18 fahren ihre Fälle aus
+// dieser Tabelle, A14 alle.
 type fehlerFall struct {
 	name string
 	art  error
@@ -18,8 +18,7 @@ type fehlerFall struct {
 
 func alleFehlerFaelle() []fehlerFall {
 	return slices.Concat(argumentFaelle(), argumentGrenzFaelle(), rahmungFehlerFaelle(), fristFehlerFaelle(),
-		nichtErreichbarFaelle(), kontextFehlerFaelle(), bodyFehlerFaelle(), rangfolgeFaelle(), blockiertFehlerFaelle(),
-		tlsFehlerFaelle())
+		nichtErreichbarFaelle(), kontextFehlerFaelle(), bodyFehlerFaelle(), rangfolgeFaelle(), blockiertFehlerFaelle())
 }
 
 // fahre fährt die Fälle und prüft je die Art des Fehlers.

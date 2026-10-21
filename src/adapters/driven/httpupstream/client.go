@@ -37,9 +37,8 @@ type Client struct {
 	neueFrist func(d time.Duration, f func()) (stop func() bool)
 }
 
-// New liefert einen Client; eine Frist unter 1 ns und ein CAPEM ohne lesbares Zertifikat sind
-// model.ErrUngueltig (SPEC-120 Nr. 1). Der Transport nutzt keinen Proxy und fordert keine
-// Kompression an; TLS und Protokoll setzt tlsTransport.
+// New liefert einen Client; eine Frist unter 1 ns ist model.ErrUngueltig (SPEC-120 Nr. 1). Der
+// Transport nutzt keinen Proxy und fordert keine Kompression an.
 func New(k Konfig) (*Client, error) {
 	if k.Frist < time.Nanosecond {
 		return nil, ungueltig("Frist")
@@ -47,9 +46,6 @@ func New(k Konfig) (*Client, error) {
 	tr := &http.Transport{
 		Proxy:              nil,
 		DisableCompression: true,
-	}
-	if err := tlsTransport(tr, k.Pruefen, k.CAPEM); err != nil {
-		return nil, err
 	}
 	return &Client{frist: k.Frist, transport: tr}, nil
 }
