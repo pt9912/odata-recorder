@@ -214,21 +214,25 @@ Trifft ein Ausschluss des Nehmers die Sendung oder liegt der Nehmer in `done/`, 
 **Falsch:** §6 weist einen Punkt `slice-x` zu, dessen §1 ihn ausschließt.
 **Richtig:** Der Nehmer führt den Punkt in §1 oder seiner DoD, bevor der Geber ihn nennt.
 
-### 3.14 Die Größenmarke schneidet vor dem Code und nennt ihre Metrik   (geschärft seit welle-record-replay)
+### 3.14 Die Größenmarke schneidet vor dem Code oder am vorab benannten Teil und nennt ihre Metrik   (geschärft seit welle-record-replay)
 
 Jede Marke in §4 eines Plans („zu groß, über N Zeilen") nennt ihre Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade, die der Plan nennt, Tests eingeschlossen.
 Schätzungen werden in dieser Metrik angegeben: Zeilen der Tabelle *Zusage · Fänger* (§3.15) × 85 (nebenläufig) bzw. × 40 (reine Funktionen), plus 200 je Port-Fake oder Test-Server.
-Die Marke löst den Schnitt nur vor dem Code aus: liegt die Schätzung über ihr, wird vor dem ersten Code-Commit geschnitten.
-Nach dem Code wird gemessen und mit Grund berichtet.
+Nebenläufig zählt eine Zeile, wenn der Code oder sein Fänger nebenläufig ist.
+Die Formel schätzt den Stand beim Handoff; gegen die Marke, die den Stand nach dem Review misst, wird die Schätzung × 1,25 gehalten, denn das Ende lag nachgemessen 17 bis 25 % über dem Handoff.
+Die Marke löst den Schnitt vor dem Code aus: liegt die Schätzung × 1,25 über ihr, wird vor dem ersten Code-Commit geschnitten.
+Daneben ist ein vorab benannter Schnitt beim Handoff erlaubt: der Teil ist vor dem Code in §4 benannt, zuletzt in eigenem Commit geschrieben und davor gemessen, und er teilt keinen Mechanismus mit dem Rest.
+Sonst wird nach dem Code gemessen und mit Grund berichtet.
 
-**Falsch:** „über 700 Zeilen", ohne Metrik; oder eine Marke, die nach dem fertigen Code eine Rückführung verspricht.
-**Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)", vor dem ersten Code-Commit gegen die Schätzung aus der Tabelle gehalten; nach dem Code steht die Messung mit Grund im Plan.
+**Falsch:** „über 700 Zeilen", ohne Metrik; eine Marke, die nach dem fertigen Code eine Rückführung verspricht; ein Schnitt beim Handoff an einem Teil, den erst die Messung benennt.
+**Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)", vor dem ersten Code-Commit gegen die Schätzung × 1,25 gehalten; beim Handoff wird nur der Teil geschnitten, den §4 vor dem Code benannt hat; sonst steht nach dem Code die Messung mit Grund im Plan.
 
 ### 3.15 Zusage und Fänger stehen als Paar im Plan   (seit welle-fundament, geschärft seit welle-record-replay)
 
 Ein Slice, der einen Vertrag liefert, führt in §3 seines Plans die Tabelle *Zusage · Fänger*, bevor er an den Reviewer übergeht.
 Jede Zusage, Randform und jeder Fall des Vertrags hat eine Zeile; der Fänger ist ein Test, ein Fall der Gegenprobe oder eine benannte Ausgabe des Gates.
-Ein Fänger führt jede Form der Eingabe, die der Code verschieden behandelt: ein Fall je Element einer Menge, beide Seiten jeder Grenze, Gleichwerte.
+Ein Fänger führt jede Form der Eingabe, die der Code verschieden behandelt: ein Fall je Element einer Menge, beide Seiten jeder Grenze und der Fall, in dem zwei verglichene Werte gleich sind.
+Eine Fixture gleicht nie dem Wert der Mutation.
 Der Reviewer löst jede Zeile mit einer Mutation auf, der Verifier prüft die Tabelle gegen den Vertrag.
 Eine Zusage ohne Fänger ist ein MEDIUM.
 
