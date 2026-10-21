@@ -352,13 +352,18 @@ func TestKonfigURL(t *testing.T) {
 	for w, soll := range map[string]string{
 		"http://h": "http://h", "https://h:8443/odata": "https://h:8443/odata", "https://h/odata/": "https://h/odata", "https://h/": "https://h", "http://[::1]:80/x": "http://[::1]:80/x",
 		"http://h:1": "http://h:1", "https://h:65535/x": "https://h:65535/x",
+		"http://[fe80::1%25x]": "http://[fe80::1%25x]", "http://09azAZ-._~!$&'()*+,;=%C3%A4": "http://09azAZ-._~!$&'()*+,;=%C3%A4",
+		"http://a\x80\xc3\xa4b": "http://a\x80\xc3\xa4b",
 	} {
-		if k := erwarteGueltig(t, append(basis(t), "UPSTREAM_URL="+w)...); k.Dienste[0].UpstreamURL != soll {
-			t.Errorf("UPSTREAM_URL=%s: %q", w, k.Dienste[0].UpstreamURL)
-		}
+		t.Run("gültig "+strconv.Quote(w), func(t *testing.T) {
+			if k := erwarteGueltig(t, append(basis(t), "UPSTREAM_URL="+w)...); k.Dienste[0].UpstreamURL != soll {
+				t.Errorf("UPSTREAM_URL=%s: %q", w, k.Dienste[0].UpstreamURL)
+			}
+		})
 	}
 	for _, w := range []string{"ftp://h/x", "h/x", "/x", "http://", "http:///x", "http://:80/x", "http://u:p@h/x", "http://u@h/x", "https://h/x?a=1", "https://h/x?", "https://h/x#f", "https://h/x#", "mailto:a@b", "http:h", "https://h x/", "HTTPS-nicht://h",
-		"http://h:0", "http://h:65536", "http://h:99999", "http://h:", "http://h:/x", "http://[::1]:", "http://h:99999999999999999999/x"} {
+		"http://h:0", "http://h:65536", "http://h:99999", "http://h:", "http://h:/x", "http://[::1]:", "http://h:99999999999999999999/x",
+		`http://a"b`, "http://a<b", "http://a>b", "http://a]b", "http://[fe80::1%25%3C]"} {
 		erwarteVerstoss(t, "UPSTREAM_URL", append(basis(t), "UPSTREAM_URL="+w)...)
 	}
 }

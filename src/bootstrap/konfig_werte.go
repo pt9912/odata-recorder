@@ -361,9 +361,12 @@ func istRoot(s string) bool {
 }
 
 // normalisiereURL prüft eine Upstream-URL (SPEC-110 Nr. 7) und entfernt einen abschließenden `/`.
+// Der Name des Hosts (Hostname: ohne Port und Klammern, die Prozent-Kodierung aufgelöst) enthält
+// keines der Bytes `"`, `<`, `>` und `]`, die url.Parse dort annimmt.
 func normalisiereURL(s string) (string, bool) {
 	u, err := url.Parse(s)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Opaque != "" || u.Hostname() == "" ||
+		strings.ContainsAny(u.Hostname(), `"<>]`) ||
 		u.User != nil || u.RawQuery != "" || u.ForceQuery || strings.Contains(s, "#") || !portGueltig(u) {
 		return "", false
 	}

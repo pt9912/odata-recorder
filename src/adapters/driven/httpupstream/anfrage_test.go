@@ -83,7 +83,8 @@ func argumentFaelle() []fehlerFall {
 	for _, z := range []string{"", "/x", "ftp://127.0.0.1:{p}", "http://", "http://u:" + geheim + "-z@127.0.0.1:{p}",
 		"http://127.0.0.1:{p}?q", "http://127.0.0.1:{p}#f", "http://127.0.0.1:{p}?", "http://127.0.0.1:{p}#",
 		"http://@127.0.0.1:{p}", "http://127.0.0.1:", "http://127.0.0.1:0",
-		"http://127.0.0.1:65536", "http://127.0.0.1:{p}/a b", "http://127.0.0.1:{p}/%zz"} {
+		"http://127.0.0.1:65536", "http://127.0.0.1:{p}/a b", "http://127.0.0.1:{p}/%zz",
+		`http://a"b:1`, "http://a<b:1", "http://a>b:1", "http://a]b:1", "http://[fe80::1%25%3C]:1"} {
 		f = append(f, argumentFall(bg, "Ziel "+z, setzeZiel(z)))
 	}
 	for _, m := range []string{"", "GE T", "GET\n", "GE(T", "CONNECT"} {
@@ -105,13 +106,17 @@ func argumentFaelle() []fehlerFall {
 // Buchstaben an beiden Enden ihrer Bereiche.
 const tokenZeichen = "!#$%&'*+-.^_`|~09azAZ"
 
-// argumentGrenzFaelle sind die Ports an der gültigen Seite der Grenze; dort lauscht niemand.
+// argumentGrenzFaelle sind Ziele an der gültigen Seite einer Grenze: die Ports 1 und 65535; im Namen
+// des Hosts das `]` einer IP-Adresse, eine Zone, jedes Sonderzeichen von reg-name mit Ziffern und
+// Buchstaben an den Enden ihrer Bereiche, eine Prozent-Kodierung und Bytes ab 0x80 samt 0x80. Dort
+// lauscht niemand, und ohne Netz scheitern Auflösung oder Verbindung sofort.
 func argumentGrenzFaelle() []fehlerFall {
 	var f []fehlerFall
-	for _, port := range []string{"1", "65535"} {
-		f = append(f, fehlerFall{name: "Port " + port, art: outbound.ErrUpstreamNichtErreichbar, lauf: func(t *testing.T) error {
+	for _, z := range []string{"http://127.0.0.1:1", "http://127.0.0.1:65535", "http://[::1]:1", "http://[fe80::1%25x]:1",
+		"http://09azAZ-._~!$&'()*+,;=%C3%A4:1", "http://a\x80\xc3\xa4b:1"} {
+		f = append(f, fehlerFall{name: fmt.Sprintf("gültiges Ziel %q", z), art: outbound.ErrUpstreamNichtErreichbar, lauf: func(t *testing.T) error {
 			c := neuerClient(t, zeitgrenze)
-			_, err := sende(context.Background(), t, c, mitGeheim(anfrage("http://127.0.0.1:"+port, "GET", "")))
+			_, err := sende(context.Background(), t, c, mitGeheim(anfrage(z, "GET", "")))
 			return err
 		}})
 	}
@@ -119,7 +124,7 @@ func argumentGrenzFaelle() []fehlerFall {
 }
 
 // TestSendenArgumente: ungültige Argumente sind model.ErrUngueltig ohne Verbindung und ohne Lesen
-// aus Body; Argument vor Kontext; die Ports an der Grenze sind gültig (A2, SPEC-120 Nr. 2).
+// aus Body; Argument vor Kontext; die Ziele an der Grenze sind gültig (A2, A19, SPEC-120 Nr. 2).
 func TestSendenArgumente(t *testing.T) {
 	fahre(t, slices.Concat(argumentFaelle(), argumentGrenzFaelle()))
 }

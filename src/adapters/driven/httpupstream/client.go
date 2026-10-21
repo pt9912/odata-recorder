@@ -17,8 +17,7 @@ import (
 
 var _ outbound.UpstreamClient = (*Client)(nil)
 
-// Konfig ist die Konfiguration des Clients (SPEC-120 Nr. 1): Frist bis zum Kopf der Antwort,
-// Zertifikatsprüfung und zusätzliche Vertrauensanker als PEM.
+// Konfig trägt die Werte aus SPEC-120 Nr. 1; welche davon New anwendet, nennt der Kommentar von New.
 type Konfig struct {
 	Frist   time.Duration
 	Pruefen bool
@@ -104,12 +103,14 @@ func pruefe(ctx context.Context, a outbound.UpstreamAnfrage) (ziel, error) {
 }
 
 // leseZiel nimmt eine absolute http- oder https-URL mit Host, ohne Zugangsdaten, Query und Fragment,
-// mit einem Port von 1 bis 65535, falls einer steht, und ohne Byte unter 0x21 oder 0x7F im Pfad.
-// Der Pfad wird aus dem Text geschnitten, nicht aus url.URL: dort steht er unescaped oder neu
-// escaped.
+// mit einem Port von 1 bis 65535, falls einer steht, ohne `"`, `<`, `>` und `]` im Namen des Hosts
+// (Hostname: ohne Port und Klammern, die Prozent-Kodierung aufgelöst; SPEC-120 Nr. 2 wie SPEC-110
+// Nr. 7) und ohne Byte unter 0x21 oder 0x7F im Pfad. Der Pfad wird aus dem Text geschnitten, nicht
+// aus url.URL: dort steht er unescaped oder neu escaped.
 func leseZiel(s string) (ziel, bool) {
 	u, err := url.Parse(s)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" ||
+		strings.ContainsAny(u.Hostname(), `"<>]`) ||
 		u.User != nil || strings.ContainsAny(s, "?#") || !portGueltig(u) {
 		return ziel{}, false
 	}
