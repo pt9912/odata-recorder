@@ -3,7 +3,7 @@
 * Datum: 2026-10-21
 * Rolle: verifier (frischer Kontext; kein Code, keine Spec, kein Plan geändert)
 * Gegenstand: `git diff 401fa86..HEAD`, Stand `ce2240f` (Commits `95156b5` Implementierung, `2618bc7` Review, `ac11962` Architect-Entscheid, `ce2240f` Fänger zu den Findings)
-* Plan: `docs/plan/planning/in-progress/slice-streaming-redaction.md` (Welle `welle-record-replay`)
+* Plan: `docs/plan/planning/done/slice-streaming-redaction.md` (Welle `welle-record-replay`)
 * Maßstab: DoD (§2), `SPEC-118`, `SPEC-046`, `SPEC-115`, Tabelle Zusage·Fänger (§3), Raster (§6), `AGENTS.md` §3.7, §3.9 bis §3.16, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md); Bezug [LH-FA-05](../../spec/lastenheft.md), [LH-FA-14](../../spec/lastenheft.md), [LH-QA-02](../../spec/lastenheft.md)
 * Eingang: Review `docs/reviews/2026-10-21-slice-streaming-redaction-review.md` (F-1 bis F-16, I-1 bis I-3), Nachlauf in `ac11962` (Architect) und `ce2240f` (Implementer)
 * Belege selbst gefahren: `make test` (Basis grün); 37 Mutationen über `make test` im Docker (netzlos), siehe Abschnitt 4; `make gegenproben` (einmal, Stempel danach mit `git checkout` zurückgesetzt); `git diff --numstat`; `grep`-Läufe über den Diff der Tests; `make docs-check` und `make gates` (Abschnitt 8).
