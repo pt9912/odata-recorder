@@ -316,3 +316,26 @@ func TestEntpacktGrenze(t *testing.T) {
 		}
 	})
 }
+
+// TestLeereRohbytesJeKette hält fest, dass ein Body ohne Rohbyte bei jeder bekannten Kette leer
+// ist und nur eine unbekannte Kette oder ein Byte ohne gültigen Kopf ein Verstoß ist (SPEC-119 Nr. 6, 8).
+func TestLeereRohbytesJeKette(t *testing.T) {
+	for _, enc := range []string{"gzip", "deflate", "gzip,deflate", "identity"} {
+		t.Run(enc, func(t *testing.T) {
+			u := neu(t)
+			e := u.lauf(quelle(), mitEncoding(antwort(), enc))
+			ohneBody(t, e)
+			if st := u.blobs.stand(); st.begins != 0 {
+				t.Errorf("Begin %d-mal gerufen, erwartet 0", st.begins)
+			}
+		})
+	}
+	t.Run("br", func(t *testing.T) {
+		e := neu(t).lauf(quelle(), mitEncoding(antwort(), "br"))
+		verworfen(t, e, capture.Response, capture.Verstoss, capture.GrundEncoding)
+	})
+	t.Run("ein Byte 0x00 bei gzip", func(t *testing.T) {
+		e := neu(t).lauf(quelle("\x00"), mitEncoding(antwort(), "gzip"))
+		verworfen(t, e, capture.Response, capture.Verstoss, capture.GrundDekodierung)
+	})
+}

@@ -387,3 +387,46 @@ func TestRohgroesse(t *testing.T) {
 		})
 	}
 }
+
+// TestUeberlaufGegenRohgroesse hält fest, dass der Überlauf die eingelegten Bytes misst, also
+// die auf MaxBytes gekürzten, und dass ein Read ohne eingelegtes Byte nie überläuft (SPEC-119 Nr. 4, 5).
+func TestUeberlaufGegenRohgroesse(t *testing.T) {
+	faelle := []struct {
+		name  string
+		queue int64
+		reads []int
+		grund capture.Grund
+	}{
+		{"ein Read, eingelegt 10 gleich Queue", 10, []int{12}, capture.GrundZuGross},
+		{"ein Read, eingelegt 10 über Queue", 9, []int{12}, capture.GrundUeberlauf},
+		{"zwei Reads, Summe 10 gleich Queue", 10, []int{6, 8}, capture.GrundZuGross},
+		{"zwei Reads, Summe 10 über Queue", 9, []int{6, 8}, capture.GrundUeberlauf},
+		{"zweiter Read ohne eingelegtes Byte", 10, []int{10, 5}, capture.GrundZuGross},
+	}
+	for _, f := range faelle {
+		t.Run(f.name, func(t *testing.T) {
+			u := neu(t, mitMax(10), mitQueue(f.queue))
+			frei := u.pipe().AnhaltenAmStart()
+			gesamt := 0
+			for _, n := range f.reads {
+				gesamt += n
+			}
+			rest := "[" + wiederholt(" ", gesamt-1)
+			s := &skript{}
+			for _, n := range f.reads {
+				s.schritte = append(s.schritte, schritt{daten: rest[:n]})
+				rest = rest[n:]
+			}
+			a := u.tee(s, antwort())
+			p := make([]byte, 64)
+			for range f.reads {
+				if _, err := a.Read(p); err != nil {
+					t.Fatalf("Read: %v", err)
+				}
+			}
+			_, _ = a.Read(p)
+			frei()
+			verworfen(t, abwarten(t, a), capture.Response, capture.Verstoss, f.grund)
+		})
+	}
+}

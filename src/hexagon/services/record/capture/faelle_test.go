@@ -2,6 +2,7 @@ package capture_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"testing"
 	"time"
@@ -34,6 +35,9 @@ type fall struct {
 	redaction model.RedactionStatus
 	blob      string
 }
+
+// errCtxUrsache ist die Ursache, mit der die Zeile `abbruch ctx` den Kontext des Aufrufers beendet.
+var errCtxUrsache = errors.New("kontext des aufrufers beendet")
 
 // beliebig als writer heißt: die Zahl der Writer hängt vom Tempo der Goroutine ab und wird nicht geprüft.
 const beliebig = -1
@@ -112,7 +116,7 @@ func captureFaelle() []fall {
 		{name: "abbruch Abbrechen", ein: antwort(), roh: mitGeheim(`"a":`), treibe: treibeAbbrechen, ausgang: capture.Abbruch,
 			grund: capture.GrundAbbruch, ursache: context.Canceled},
 		{name: "abbruch ctx", ein: antwort(), roh: mitGeheim(`"a":`), treibe: treibeCtx, ausgang: capture.Abbruch,
-			grund: capture.GrundAbbruch, ursache: context.Canceled},
+			grund: capture.GrundAbbruch, ursache: errCtxUrsache},
 	}
 }
 
@@ -145,8 +149,8 @@ func treibeAbbrechen(t *testing.T, u *umg, f fall) capture.Ergebnis {
 
 func treibeCtx(t *testing.T, u *umg, f fall) capture.Ergebnis {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	ctx, cancel := context.WithCancelCause(context.Background())
+	cancel(errCtxUrsache)
 	a, err := u.pipe().Tee(ctx, quelle(), f.ein)
 	if err != nil {
 		t.Fatal(err)
