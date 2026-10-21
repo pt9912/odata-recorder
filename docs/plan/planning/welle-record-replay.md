@@ -45,7 +45,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - `make gates` ist grün und fährt das Ziel mit `go test -race` aus `slice-race-gate`; `make gegenproben` ist grün.
 - Der M2-Test aus `slice-bootstrap-m2` ist grün und Teil von `make test`: Er startet den Recorder im Modus `record` gegen einen Referenzdienst, zeichnet `$metadata` und Collection- und Entity-Abfragen auf, beendet die Session, importiert sie in eine Baseline, legt einen Workspace an und spielt die Abfragen im Modus `replay` ab, nachdem der Referenzdienst beendet ist; Status, Header (soweit nach `SPEC-045` auszuliefern) und Body sind byte-gleich, und der Referenzdienst hat im Replay keine Verbindung gesehen.
 - Der Vergleichstest aus `slice-protokolltreue` ist grün und Teil von `make test`: Direktzugriff und Zugriff über den Recorder im Modus `record` ergeben am Referenzdienst dieselbe entpackte Darstellung nach `LH-QA-07.a` der Spezifikation.
-- Die Closure-Notiz liegt als `welle-record-replay-results.md` im Ruheort `done/`; ihre *Steering-Loop-Einträge* tragen je Regel mit dem Anker `seit welle-record-replay` das Feld `liegt in` (`AGENTS.md` §3.14, §3.15, §3.16, `.harness/skills/reviewer.md`, die Zielorte von `slice-race-gate`) und den Eintrag zu `BEO-REPO/universalaussage-im-vertrag-ungeprueft` (`AGENTS.md` §3.16).
+- Die Closure-Notiz liegt als `welle-record-replay-results.md` im Ruheort `done/`; ihre *Steering-Loop-Einträge* tragen je Regel mit dem Anker `seit welle-record-replay` das Feld `liegt in` (`AGENTS.md` §3.14 und §3.15, beide samt der Schärfung vom 2026-10-21 — Schnitt beim Handoff, Faktor 1,25, Klasse nebenläufig, gleiche verglichene Werte —, `AGENTS.md` §3.16, `.harness/skills/reviewer.md`, die Zielorte von `slice-race-gate`) und den Eintrag zu `BEO-REPO/universalaussage-im-vertrag-ungeprueft` (`AGENTS.md` §3.16).
 
 ## 4. Slices in dieser Welle
 
@@ -73,6 +73,13 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-http-adapter | HTTP-Driving-Adapter für Record und Replay | `LH-FA-01`, `LH-FA-04`, `LH-FA-02` |
 | slice-bootstrap-m2 | Composition Root, Referenzdienst und M2-Test | `LH-FA-12`, `LH-FA-04`, `LH-QA-02` |
 | slice-protokolltreue | Vergleichstest der Protokolltreue (Direktzugriff gegen Proxy) | `LH-QA-07`, `LH-FA-01` |
+
+**Auftrag beim Start eines Slice aus `open/`** (Entscheidung des Users vom 2026-10-21): Die Pläne in `open/` bleiben, wie sie sind, bis der jeweilige Slice vor dem Code steht. Vor seinem ersten Code-Commit zieht der Planner zwei Stellen nach:
+
+1. §4 nach der Form von `AGENTS.md` §3.14: Marke mit Metrik; Schätzung aus der Tabelle *Zusage · Fänger* für den Stand beim Handoff, nebenläufig, wenn der Code oder sein Fänger nebenläufig ist; gegen die Marke die Schätzung × 1,25; ein Schnitt beim Handoff nur an einem Teil, den §4 vor dem Code benennt. Eine Marke mit freier Schätzung tragen `slice-session-wartung`, `slice-odata-codec-csdl`, `slice-odata-codec-json`, `slice-baseline-import`, `slice-workspace-use-case`, `slice-replay-service`, `slice-http-adapter` und `slice-bootstrap-m2`; ohne den Faktor 1,25 rechnet `slice-protokolltreue`, und `slice-upstream-tls` schätzt aus dem Ist des TLS-Commits mit dem Zuwachs im Review statt mit dem Faktor.
+2. Die Sichtung in §8 mit den Ausgängen aus `d143752`: `BEO-REPO/groessenmarke-ueberschritten-ohne-rueckfuehrung` verkörpert in `AGENTS.md` §3.14, `BEO-REPO/universalaussage-im-vertrag-ungeprueft` verkörpert in `AGENTS.md` §3.16, `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` geplant in `slice-race-gate`, `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` verkörpert in `AGENTS.md` §3.15 und `BEO-REPO/randform-erst-im-review-entschieden` verkörpert in `AGENTS.md` §3.16, beide geschärft; der Stand jedes Eintrags steht in seiner `state.md` im Register.
+
+`slice-race-gate` ist nach dieser Form schon nachgezogen (§4 dort); seine Sichtung in §8 trägt die Ausgänge aus `d143752`.
 
 ## 5. Abhängigkeiten
 
