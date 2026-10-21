@@ -35,6 +35,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt:** Die Korrelations-ID kommt aus `IDGenerator.KorrelationsID()` (`SPEC-114` Nr. 6), nicht aus eigenem Code des Adapters; die Tests setzen `supporttest.FestIDs` (Sendung von `slice-clock-idgenerator`).
 
+**Übernimmt (Record):** Der Adapter füllt `inbound.Anfrage` unverändert (`SPEC-121` Kopf): `Pfad` mit den Escapes des Clients ohne Query, `RawQuery` ohne `?`, alle Header außer `Host`, `Body` (nil ohne Body), `Laenge` (`-1`, `0` oder die angekündigte Länge) und `KorrelationsID`. Er schreibt `Antwort.Status` und `Antwort.Header`, kopiert `Antwort.Body` und ruft `Antwort.Body.Close` genau einmal, auch nach einem Fehler beim Schreiben an den Client und nach dessen Abbruch (`SPEC-121` Nr. 7). Einen `*inbound.Fehler` schreibt er mit dessen `Code` und `Status` als Fehlerobjekt (`SPEC-109` Nr. 1, `SPEC-121` Nr. 14); ein Kontextfehler ohne Code bekommt keine Antwort, `model.ErrUngueltig` ist `ODR-E9001` (Sendung von `slice-record-service`).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Entscheidungen über Cursor, Match-Key, Coverage oder CRUD — der Adapter entscheidet sie nicht (`architecture.md` §2.2).

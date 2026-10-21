@@ -37,6 +37,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Zeit und Kennungen):** Die Session-Kennung kommt aus `IDGenerator.SessionID()`, Zeit und Aufbewahrungsgrenze aus `Clock.Now()` (`SPEC-114`); die Form einer vom Aufrufer gelieferten `id` (leer, überlang, Zeichen) legt dieser Slice mit dem Architect **vor dem Code** fest (`SPEC-114` Nr. 9; Sendung von `slice-clock-idgenerator`).
 
+**Übernimmt (Drain und Session-Regel):** `SessionUseCase` beendet eine Session mit `RecordUseCase.Drain(ctx, id, SHUTDOWN_TIMEOUT)` über den Inbound Port (`SPEC-121` Nr. 13). `Drain` liest und ändert die Session in der Ablage nicht: unbekannt (`ODR-E7003`) und nicht `open` (`ODR-E7011`) prüft dieser Slice vorher, den Status setzt er danach. `Drain` liefert den Bericht `Abgebrochen` und `NichtAngehaengt` und kehrt erst zurück, wenn kein Exchange der Session mehr läuft und keiner mehr beginnt; die Session wird `complete` genau dann, wenn jeder angehängte Exchange `capture_status=complete` trägt und `NichtAngehaengt` `0` ist, sonst `incomplete` (`LH-FA-13.a`). `CloseAll` darf `Drain` für mehrere Sessions zugleich rufen (Sendung von `slice-record-service`).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Admin-Endpunkte für Sessions (`POST /__admin/sessions`, `close`, `DELETE`) — Folgewelle (Welle §6); die Use Cases sind der Vertrag, den der Admin-Adapter später ruft.
@@ -122,7 +124,7 @@ dasteht.
 
 - Bezugszeitpunkt des Alters: Beginn der Session, Ende oder letzter Exchange — `LH-RB-04.a` sagt „Sessions, die älter sind“ — **Ausgang:** offen; Architect entscheidet vor dem Code.
 - Blob-Bereinigung gegen gleichzeitiges `Commit` desselben Inhalts (offene Randform aus `slice-blob-ablage`: `Remove` gegen `Commit` gleicher Bytes) — **Ausgang:** offen; der Abgleich läuft beim Start vor der Annahme von Requests, nach dem Löschen einer Session aber im laufenden Betrieb; Architect legt die Regel fest.
-- `complete` setzt voraus, dass alle Exchanges der Session `complete` sind; ein Exchange, der nach `Drain` abgeschlossen wird, gegen den Statuswechsel — **Ausgang:** offen; das Gate fährt kein `-race` (`CGO_ENABLED=0`): die nebenläufigen Fänger ordnen mit Kanälen, und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50`.
+- `complete` setzt voraus, dass alle Exchanges der Session `complete` sind und keiner unangehängt blieb (`SPEC-121` Nr. 13, Sendung in §1); ein Exchange, der nach `Drain` abgeschlossen wird, gegen den Statuswechsel (nach der Rückkehr von `Drain` läuft und beginnt keiner mehr, `SPEC-121` Nr. 13) — **Ausgang:** offen; das Gate fährt kein `-race` (`CGO_ENABLED=0`): die nebenläufigen Fänger ordnen mit Kanälen, und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50`.
 - Startwartung findet Datenbank oder Blob beschädigt (`ODR-E3001`): Start scheitert oder läuft weiter — `SPEC-048` nennt die Prüfung, nicht die Folge — **Ausgang:** offen; Architect.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
 

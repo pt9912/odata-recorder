@@ -172,7 +172,7 @@ tests/
 | Port | Aufgabe | Rückgabe |
 |---|---|---|
 | `ImportUseCase` | Aufgezeichnete Entities explizit in eine neue Mock-Baseline überführen; Import-Report und Provenienz lesen; Wiederholung mit gleicher `import_id` idempotent behandeln | Snapshot-ID, Import-Report, Coverage-Evidenz |
-| `RecordUseCase` | HTTP-Austausch an Upstream weiterleiten und erfassen; die Aufzeichnung einer Session anhalten (`Drain`: neue Exchanges abweisen, laufende bis zur Frist abwarten, überfällige abbrechen und mit dem Capture-Status nach `SPEC-119` Nr. 12 schreiben, `incomplete` oder `failed`) | Response, Capture-Status bzw. Zahl der abgebrochenen Exchanges |
+| `RecordUseCase` | HTTP-Austausch an Upstream weiterleiten und erfassen; die Aufzeichnung einer Session anhalten (`Drain`: neue Exchanges abweisen, laufende bis zur Frist abwarten, überfällige abbrechen und mit dem Capture-Status schreiben, den ihre Ergebnisse ergeben, `SPEC-121` Nr. 13) | Response mit Body-Strom, dessen Schließen den Exchange anhängt, bzw. Zahl der abgebrochenen und der nicht angehängten Exchanges |
 | `ReplayUseCase` | Recording zu explizitem Workspace, Recording-Session und Replay-Session matchen | aufgezeichnete Response oder Mismatch |
 | `MockUseCase` | OData-Request auf Workspace-State ausführen | OData-Response |
 | `HybridUseCase` | Request im Modus `hybrid` an `MockUseCase` geben und nach Fallback-Policy an `ReplayUseCase` oder den Upstream weiterreichen | OData-Response oder Fallback-Fehler |
@@ -301,7 +301,7 @@ sequenceDiagram
     S-->>U: HTTP Response
     U-->>R: Status, Header, Body Stream
     R->>B: Persist redacted body + exchange
-    R-->>H: Response + capture status
+    R-->>H: Response with body stream (closing it appends the exchange)
     H-->>C: HTTP Response
 ```
 
@@ -549,10 +549,10 @@ sequenceDiagram
     O->>A: POST /__admin/sessions/{id}/close
     A->>S: Close(session)
     S->>P: Drain(session, SHUTDOWN_TIMEOUT)
-    P-->>S: In-flight exchanges finished, or aborted as incomplete or failed
+    P-->>S: In-flight exchanges finished or aborted (status from their results), counts aborted and not appended
     S->>X: Read exchanges' capture status
     X-->>S: All complete? / any incomplete or failed
-    S->>R: Set status complete or incomplete
+    S->>R: Set status complete (all complete, none not appended) or incomplete
     S-->>A: Session status
     A-->>O: 200 + status
     Note over B,R: Start nach Absturz, vor den Listenern

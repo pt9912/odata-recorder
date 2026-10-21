@@ -35,6 +35,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt:** Der Composition Root erzeugt genau eine `clock.NewSystemuhr()` und eine `clock.NewZufallsIDs()` je Prozess und reicht sie an alle Verbraucher; zwei Uhren wären zwei nicht aufeinander abgestimmte Höchstwerte (`SPEC-114` Nr. 2; Sendung von `slice-clock-idgenerator`).
 
+**Übernimmt (Record):** Der Composition Root verdrahtet `record.New` (`SPEC-121` Nr. 1) aus der Startkonfiguration (Dienste mit Root und `UpstreamURL`, `SchluesselRegeln`, `capture.Standard` mit `MAX_CAPTURE_BODY` und `REDACT_JSON_PATHS`) und `httpupstream.New` (`SPEC-120` Nr. 1: `Frist` aus `UPSTREAM_TIMEOUT`, `Pruefen` aus `UPSTREAM_TLS_VERIFY`, `CAPEM` als Inhalt von `UPSTREAM_CA_FILE`) und gibt dem Dienst genau einen `*slog.Logger` (`SPEC-121` Nr. 12; einen Port `Telemetry` gibt es in dieser Welle nicht). `CloseAll` beendet Sessions über `SessionUseCase`, das `Drain` ruft (Sendung von `slice-record-service`).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Start im Modus `mock` oder `hybrid` — scheitert mit `ODR-E2001`, bis die Folgewellen die Use Cases liefern (Entscheidung steht in `slice-fehlermodell-konfiguration`).
