@@ -60,6 +60,15 @@ bewusst kurz (Ergänzungs-Kanal, nicht Hauptkanal).
 - unklare Fehlerbehandlung am Rand des Spec-Bereichs
 - fehlende Negativtests bei neuem öffentlichem Vertrag
 - Wiederholung eines Musters, das schon zweimal LOW war
+- **Paar von Ursachen ohne Fänger** — zwei Ursachen, die zusammentreffen können
+  (Verstöße am selben Schlüssel, Abbruch und Frist), haben keinen Fall, der sie
+  trennt (`AGENTS.md` §3.16)  (seit welle-record-replay)
+- **Fänger führt nur eine Form der Eingabe** — der Code behandelt Formen der
+  Eingabe verschieden, der Fänger führt nur eine davon (`AGENTS.md` §3.15)
+  (seit welle-record-replay)
+- **Fänger nur mit Wahrscheinlichkeit, Rate nicht benannt** — der Fänger wird mit
+  seiner Mutation nur in einem Teil der Läufe rot, und Plan oder Test nennen die
+  Rate nicht (`AGENTS.md` §3.10)  (seit welle-record-replay)
 
 **LOW** — *mit Konventions-Anker* (ADR, Hard Rule, Linter-Regel, Eintrag im
 Reviewer-Skill): stilistisch unschön ohne semantische Auswirkung, einmalige

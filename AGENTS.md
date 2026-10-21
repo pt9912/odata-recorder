@@ -214,29 +214,33 @@ Trifft ein Ausschluss des Nehmers die Sendung oder liegt der Nehmer in `done/`, 
 **Falsch:** §6 weist einen Punkt `slice-x` zu, dessen §1 ihn ausschließt.
 **Richtig:** Der Nehmer führt den Punkt in §1 oder seiner DoD, bevor der Geber ihn nennt.
 
-### 3.14 Eine Rückführungs-Marke nennt ihre Metrik
+### 3.14 Die Größenmarke schneidet vor dem Code und nennt ihre Metrik   (geschärft seit welle-record-replay)
 
 Jede Marke in §4 eines Plans („zu groß, über N Zeilen") nennt ihre Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade, die der Plan nennt, Tests eingeschlossen.
-Schätzungen werden in dieser Metrik angegeben; für Test- und Gegenprobe-Code gilt etwa das Doppelte des Produktcodes.
+Schätzungen werden in dieser Metrik angegeben: Zeilen der Tabelle *Zusage · Fänger* (§3.15) × 85 (nebenläufig) bzw. × 40 (reine Funktionen), plus 200 je Port-Fake oder Test-Server.
+Die Marke löst den Schnitt nur vor dem Code aus: liegt die Schätzung über ihr, wird vor dem ersten Code-Commit geschnitten.
+Nach dem Code wird gemessen und mit Grund berichtet.
 
-**Falsch:** „über 700 Zeilen", ohne zu sagen, ob netto, Einfügungen oder Summe.
-**Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)".
+**Falsch:** „über 700 Zeilen", ohne Metrik; oder eine Marke, die nach dem fertigen Code eine Rückführung verspricht.
+**Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)", vor dem ersten Code-Commit gegen die Schätzung aus der Tabelle gehalten; nach dem Code steht die Messung mit Grund im Plan.
 
-### 3.15 Zusage und Fänger stehen als Paar im Plan   (seit welle-fundament)
+### 3.15 Zusage und Fänger stehen als Paar im Plan   (seit welle-fundament, geschärft seit welle-record-replay)
 
 Ein Slice, der einen Vertrag liefert, führt in §3 seines Plans die Tabelle *Zusage · Fänger*, bevor er an den Reviewer übergeht.
 Jede Zusage, Randform und jeder Fall des Vertrags hat eine Zeile; der Fänger ist ein Test, ein Fall der Gegenprobe oder eine benannte Ausgabe des Gates.
+Ein Fänger führt jede Form der Eingabe, die der Code verschieden behandelt: ein Fall je Element einer Menge, beide Seiten jeder Grenze, Gleichwerte.
 Der Reviewer löst jede Zeile mit einer Mutation auf, der Verifier prüft die Tabelle gegen den Vertrag.
 Eine Zusage ohne Fänger ist ein MEDIUM.
 
 **Falsch:** Der Vertrag nennt eine Prüfung, und sie lässt sich entfernen, ohne dass etwas rot wird.
 **Richtig:** Die Tabelle nennt zur Prüfung den Fall, der ohne sie rot wird.
 
-### 3.16 Randformen stehen als Raster im Plan, nicht als Aufzählung   (seit welle-persistenz, geschärft seit slice-fehlermodell-konfiguration)
+### 3.16 Randformen stehen als Raster im Plan, nicht als Aufzählung   (seit welle-persistenz, geschärft seit slice-fehlermodell-konfiguration und seit welle-record-replay)
 
 Schärft §3.12: §6 des Plans führt die Randformen als Raster *Operation × Argumentart* (fehlender, leerer, unbekannter oder fremder Wert; Abbruch; Wiederholung), nicht als Liste der Fälle, die dem Planner einfielen.
 Jede Zelle nennt ihren Ort in der Spezifikation oder in `harness/vertraege/`, oder sie nennt ausdrücklich „gilt nicht" mit Grund; eine leere Zelle ist ein Fehler des Plans.
-Meldet die Operation mehrere Verstöße oder hängt eine Zusage vom Modus ab, führt das Raster zusätzlich je Paar von Verstößen am selben Schlüssel und je Modus eine Zeile; eine Allaussage des Vertrags („kein Fall …“) nennt ihren Fänger über alle Fälle, sonst ist sie eine Zusage ohne Fänger (§3.15).
+Eine Zelle nennt nur einen Ort, dessen Wortlaut die Entscheidung trägt.
+Meldet die Operation mehrere Verstöße oder hängt eine Zusage vom Modus ab, führt das Raster zusätzlich eine Zusatztabelle mit der Spalte *Fänger*, darin je Paar von Verstößen am selben Schlüssel und je Modus eine Zeile; eine Allaussage des Vertrags („kein Fall …“) nennt ihren Fänger über alle Fälle, sonst ist sie eine Zusage ohne Fänger (§3.15).
 Der Implementer hält an einer Zelle ohne Ort an (§3.12); der Reviewer löst das Raster mit je einer Mutation auf, und eine im Code entschiedene Zelle ist ein MEDIUM.
 
 **Falsch:** Der Vertrag nennt die leere ID für `Get`; für `Delete` und `Advance` entscheidet der Code.
