@@ -11,9 +11,9 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Welle:** [welle-record-replay](../welle-record-replay.md).
 
-**Bezug:** `LH-FA-12`, `LH-FA-04`, `LH-FA-02`, `LH-FA-18`, `LH-QA-02`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
+**Bezug:** `LH-FA-12`, `LH-FA-04`, `LH-FA-02`, `LH-FA-18`, `LH-QA-02`, `LH-RB-02`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `ARC-012` (Composition Root) · `LH-FA-12.a` · `LH-FA-02.c` · `SPEC-048` · `architecture.md` §2.5 (Modus-Routing), §4.9 · `SPEC-049` (Fixture-Rahmen des Referenzdienstes).
+**Berührte Spec-Stellen:** `ARC-012` (Composition Root) · `LH-FA-12.a` · `LH-FA-02.c` · `SPEC-048` · `architecture.md` §2.5 (Modus-Routing), §4.9 · `SPEC-049` (Fixture-Rahmen des Referenzdienstes) · `SPEC-120` Nr. 1, `SPEC-110` Nr. 10, `LH-RB-02.a` (Verdrahtung des Upstream-Adapters, Warnung beim Start).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -35,7 +35,9 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt:** Der Composition Root erzeugt genau eine `clock.NewSystemuhr()` und eine `clock.NewZufallsIDs()` je Prozess und reicht sie an alle Verbraucher; zwei Uhren wären zwei nicht aufeinander abgestimmte Höchstwerte (`SPEC-114` Nr. 2; Sendung von `slice-clock-idgenerator`).
 
-**Übernimmt (Record):** Der Composition Root verdrahtet `record.New` (`SPEC-121` Nr. 1) aus der Startkonfiguration (Dienste mit Root und `UpstreamURL`, `SchluesselRegeln`, `capture.Standard` mit `MAX_CAPTURE_BODY` und `REDACT_JSON_PATHS`) und `httpupstream.New` (`SPEC-120` Nr. 1: `Frist` aus `UPSTREAM_TIMEOUT`, `Pruefen` aus `UPSTREAM_TLS_VERIFY`, `CAPEM` als Inhalt von `UPSTREAM_CA_FILE`) und gibt dem Dienst genau einen `*slog.Logger` (`SPEC-121` Nr. 12; einen Port `Telemetry` gibt es in dieser Welle nicht). `CloseAll` beendet Sessions über `SessionUseCase`, das `Drain` ruft (Sendung von `slice-record-service`).
+**Übernimmt (Record):** Der Composition Root verdrahtet `record.New` (`SPEC-121` Nr. 1) aus der Startkonfiguration (Dienste mit Root und `UpstreamURL`, `SchluesselRegeln`, `capture.Standard` mit `MAX_CAPTURE_BODY` und `REDACT_JSON_PATHS`) mit dem Client aus `httpupstream.New` als `UpstreamClient` und gibt dem Dienst genau einen `*slog.Logger` (`SPEC-121` Nr. 12; einen Port `Telemetry` gibt es in dieser Welle nicht). `CloseAll` beendet Sessions über `SessionUseCase`, das `Drain` ruft (Sendung von `slice-record-service`).
+
+**Übernimmt (Upstream):** Der Composition Root verdrahtet `httpupstream.New` (`SPEC-120` Nr. 1): `Frist` aus `UPSTREAM_TIMEOUT`, `Pruefen` die wirksame Zertifikatsprüfung nach `SPEC-110` Nr. 10 (falsch genau bei `UPSTREAM_TLS_INSECURE_SKIP_VERIFY=true`), `CAPEM` der Inhalt von `UPSTREAM_CA_FILE` (leer ohne Datei); ist die Prüfung abgeschaltet, schreibt der Start eine Warnung ins Log (`LH-RB-02.a`). Der M2-Test ist der erste Lauf von Record-Dienst und Adapter zusammen (Sendung von `slice-upstream-adapter`).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -61,7 +63,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Verdrahtung und Lebenszyklus: der Start-Befehl ruft `LadeOderMelde` (Exit-Code 1, Meldung nach `SPEC-110`, `mock`/`hybrid` scheitern mit `ODR-E2001`; Zusage von `slice-fehlermodell-konfiguration`); Reihenfolge `MaintenanceUseCase` → erste Session → Listener; ein Use Case je Modus am Listener; Herunterfahren mit `CloseAll`; ein Handle `Build`, über den Tests die Use Cases erreichen.
+- [ ] Verdrahtung und Lebenszyklus: der Start-Befehl ruft `LadeOderMelde` (Exit-Code 1, Meldung nach `SPEC-110`, `mock`/`hybrid` scheitern mit `ODR-E2001`; Zusage von `slice-fehlermodell-konfiguration`); Reihenfolge `MaintenanceUseCase` → erste Session → Listener; ein Use Case je Modus am Listener; Herunterfahren mit `CloseAll`; ein Handle `Build`, über den Tests die Use Cases erreichen; Warnung beim Start bei abgeschalteter Zertifikatsprüfung zum Upstream (`LH-RB-02.a`, Sendung von `slice-upstream-adapter`).
 - [ ] Referenzdienst als Fixture (`httptest`, OData V4, eigenes CSDL, Collection mit zwei Entities, Einzel-Entity, wiederholter Request mit verschiedenen Antworten, ein Header mit Geheimnis) und der M2-Test: aufzeichnen, Session beenden, importieren, Workspace anlegen, Upstream beenden, abspielen; Status, Header und Body byte-gleich nach `SPEC-045`; Zähler am Referenzdienst im Replay gleich 0.
 - [ ] Mutationen des M2-Tests: Replay kontaktiert den Upstream, ein Geheimnis erreicht die SQLite-Datei oder den Blob-Ordner, die Reihenfolge wiederholter Requests kippt — jede färbt den Test rot.
 - [ ] `make gates` grün.
@@ -97,7 +99,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-http-adapter` und `slice-baseline-import` und `slice-workspace-use-case` und `slice-session-wartung` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-http-adapter` und `slice-baseline-import` und `slice-workspace-use-case` und `slice-session-wartung` und `slice-upstream-adapter` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 

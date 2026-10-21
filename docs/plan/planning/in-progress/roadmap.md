@@ -88,4 +88,4 @@ Roadmap, jede Zeile voll heißt treibende.
 
 | Datum | Was wurde geändert? | Warum? |
 |---|---|---|
-| — | — | — |
+| 2026-10-21 | [welle-record-replay](../welle-record-replay.md): [slice-record-service](slice-record-service.md) vor dem ersten Code-Commit geschnitten; der Adapter `httpupstream` ist [slice-upstream-adapter](../open/slice-upstream-adapter.md), nach `slice-record-service` und vor `slice-bootstrap-m2`; die Welle führt 15 Slices statt 14 | Schätzung rund 4700 Zeilen und drei Schichten (Outbound Port, Dienst, Driven Adapter) in einem Slice; ein Schnitt vor dem Code statt einer Rückführung danach, die bei zehn Überschreitungen keinmal genommen wurde (`BEO-REPO/groessenmarke-ueberschritten-ohne-rueckfuehrung`) |
