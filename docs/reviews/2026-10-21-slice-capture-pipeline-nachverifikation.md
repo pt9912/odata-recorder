@@ -3,7 +3,7 @@
 * Datum: 2026-10-21
 * Rolle: verifier (frischer Kontext; kein Code, keine Spec, kein Plan, kein Lastenheft, keine `AGENTS.md` geändert)
 * Gegenstand: `69e0f56` (Architect) und `10b281e` (Implementer) gegen die Befunde V1 bis V15 der Verifikation `docs/reviews/2026-10-21-slice-capture-pipeline-verifikation.md` (`11071b1`)
-* Plan: `docs/plan/planning/in-progress/slice-capture-pipeline.md`
+* Plan: `docs/plan/planning/done/slice-capture-pipeline.md`
 * Maßstab: `SPEC-119` Nr. 4, 8, 9, 12, 14, 15 und *Ungeprüft*; `SPEC-053`, `SPEC-001`, `LH-FA-02.b`, `LH-FA-02.c`, `LH-FA-13.a` (Abschnitte der Spezifikation); `spec/architecture.md`; Lastenheft [LH-FA-02](../../spec/lastenheft.md) und [LH-FA-14](../../spec/lastenheft.md) (nur gelesen); `AGENTS.md` §3.4, §3.9, §3.11, §3.15, §3.16; [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md)
 * Belege selbst gefahren: 15 Mutationen auf Kopien von `src/` (Abschnitt 2), zwei Wegwerf-Proben; sieben Zeitläufe (Abschnitt 3); `make gegenproben` zweimal, einmal mit dem Stempel im Scratchpad (Abschnitt 6); `git diff --numstat` (Abschnitt 7); `make gates` auf `10b281e` vor diesem Bericht (Abschnitt 8). Alle `go test` im Image der Stufe `deps` des Dockerfiles (Go-Image per Digest gepinnt), `--network none`, Quelle schreibgeschützt eingehängt. Der Arbeitsbaum des Repos blieb bis auf diesen Bericht unberührt.
 
