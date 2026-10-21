@@ -61,6 +61,8 @@ func TestAbbildungTabelle(t *testing.T) {
 		{outbound.ErrBeschaedigt, jeder(model.CodeE3001)},
 		{outbound.ErrPfad, jeder(model.CodeE2001)},
 		{outbound.ErrZuGross, jeder(model.CodeE2401)},
+		{outbound.ErrUpstreamNichtErreichbar, jeder(model.CodeE4001)},
+		{outbound.ErrUpstreamZeit, jeder(model.CodeE4001)},
 		{outbound.ErrFremderService, jeder(model.CodeE5004)},
 		{outbound.ErrDienstUnbekannt, jeder(model.CodeE5005)},
 		{outbound.ErrFalscheArt, jeder(model.CodeE7008)},

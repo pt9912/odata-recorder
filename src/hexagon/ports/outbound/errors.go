@@ -25,6 +25,13 @@ var (
 	ErrAbgeschlossen   = errors.New("Writer ist abgeschlossen")
 )
 
+// Fehler des UpstreamClient (SPEC-120 Nr. 8). Den Status von ODR-E4001 setzt der Aufrufer:
+// 504 bei ErrUpstreamZeit, 502 bei ErrUpstreamNichtErreichbar (SPEC-109 Nr. 5).
+var (
+	ErrUpstreamNichtErreichbar = errors.New("Upstream nicht erreichbar")
+	ErrUpstreamZeit            = errors.New("Upstream antwortet nicht in der Frist")
+)
+
 // Fehler der Workspace-Repositories (SPEC-108).
 var (
 	ErrRevisionVeraltet = errors.New("Revision ist veraltet")

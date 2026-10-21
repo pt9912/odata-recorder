@@ -42,6 +42,7 @@ func tabelle() []zeile {
 		{fehler: []benannt{{"ErrBlobFehlt", ErrBlobFehlt}, {"ErrBlobBeschaedigt", ErrBlobBeschaedigt}, {"ErrBeschaedigt", ErrBeschaedigt}}, jeder: model.CodeE3001},
 		{fehler: []benannt{{"ErrPfad", ErrPfad}}, jeder: model.CodeE2001},
 		{fehler: []benannt{{"ErrZuGross", ErrZuGross}}, jeder: model.CodeE2401},
+		{fehler: []benannt{{"ErrUpstreamNichtErreichbar", ErrUpstreamNichtErreichbar}, {"ErrUpstreamZeit", ErrUpstreamZeit}}, jeder: model.CodeE4001},
 		{fehler: []benannt{{"ErrFremderService", ErrFremderService}}, jeder: model.CodeE5004},
 		{fehler: []benannt{{"ErrDienstUnbekannt", ErrDienstUnbekannt}}, jeder: model.CodeE5005},
 		{fehler: []benannt{{"ErrFalscheArt", ErrFalscheArt}}, jeder: model.CodeE7008},
