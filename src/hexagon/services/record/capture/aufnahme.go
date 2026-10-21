@@ -36,6 +36,7 @@ type Aufnahme struct {
 	// fertig ist geschlossen, sobald ergebnis und entpackt gesetzt sind.
 	fertig   chan struct{}
 	ergebnis Ergebnis
+	// entpackt zählt die Bytes am Eingang des Redaktors; nur die Tests lesen es (Entpackt in export_test.go).
 	entpackt int64
 }
 
@@ -164,8 +165,8 @@ func befundAusserhalb(ctx context.Context) befund {
 }
 
 // befundRedaktor ordnet einen Fehler von RedigiereBody zu (SPEC-119 Nr. 10). Ein Fehler, der
-// kein *model.UnsicherFehler ist, ist ein Fehler des Aufrufs und kommt nicht vor: New
-// prüft, was RedigiereBody an Argumenten verlangt.
+// kein *model.UnsicherFehler ist, wird als ablage gemeldet; kein Test fängt diesen Zweig
+// (SPEC-119 Ungeprüft).
 func befundRedaktor(ctx context.Context, err error) befund {
 	var uf *model.UnsicherFehler
 	switch {

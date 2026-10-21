@@ -33,9 +33,10 @@ const (
 // queue ist die begrenzte Warteschlange zwischen Tee und Goroutine der Aufnahme (SPEC-119
 // Nr. 4, 5). Einlegen blockiert nie; die Queue hält höchstens limit Rohbytes.
 type queue struct {
-	mu          sync.Mutex
-	stuecke     [][]byte
-	ausstehend  int64
+	mu         sync.Mutex
+	stuecke    [][]byte
+	ausstehend int64
+	// hoechst ist der größte Wasserstand; nur die Tests lesen ihn (Hoechststand in export_test.go).
 	hoechst     int64
 	roh         int64
 	limit       int64
@@ -148,7 +149,8 @@ func (q *queue) entnimm(p []byte) (n int, warte bool, err error) {
 	return 0, true, nil
 }
 
-// zustand liefert Wasserstand und Höchststand der Queue.
+// zustand liefert Wasserstand und Höchststand der Queue; nur die Tests rufen es (Ausstehend und
+// Hoechststand in export_test.go).
 func (q *queue) zustand() (ausstehend, hoechst int64) {
 	q.mu.Lock()
 	defer q.mu.Unlock()

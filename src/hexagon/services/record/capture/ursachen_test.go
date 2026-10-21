@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -129,6 +131,12 @@ func TestFehlerNachVollstaendigemBody(t *testing.T) {
 func TestVerstossVorFehler(t *testing.T) {
 	verworfen(t, neu(t).lauf(quelleMit(errQuelle, `{"a":x`), antwort()), capture.Response, capture.Verstoss, capture.GrundSyntax)
 	verworfen(t, neu(t).lauf(quelleMit(errQuelle, `{"a":1,`), antwort()), capture.Response, capture.Abbruch, capture.GrundAbbruch)
+	// Daten und Fehler kommen im selben Read: die Daten gehen vor (SPEC-119 Nr. 9).
+	zusammen := func(daten string) *skript {
+		return &skript{schritte: []schritt{{daten: daten, err: errQuelle}}}
+	}
+	verworfen(t, neu(t).lauf(zusammen(`{"a":x`), antwort()), capture.Response, capture.Verstoss, capture.GrundSyntax)
+	verworfen(t, neu(t).lauf(zusammen(`{"a":1,`), antwort()), capture.Response, capture.Abbruch, capture.GrundAbbruch)
 }
 
 func TestUeberlaufVorVerstoss(t *testing.T) {
@@ -165,6 +173,18 @@ func TestFrist(t *testing.T) {
 			leseInGoroutine(a)
 			return a
 		}},
+		{"Begin wartet auf den Kontext", func(t *testing.T, u *umg) *capture.Aufnahme {
+			u.blobs.warteBegin = true
+			a := u.tee(quelle(gutBody), antwort())
+			leseInGoroutine(a)
+			return a
+		}},
+		{"Commit wartet auf den Kontext", func(t *testing.T, u *umg) *capture.Aufnahme {
+			u.blobs.warteCommit = true
+			a := u.tee(quelle(gutBody), antwort())
+			leseInGoroutine(a)
+			return a
+		}},
 	}
 	for _, f := range faelle {
 		t.Run(f.name, func(t *testing.T) {
@@ -180,8 +200,8 @@ func TestFrist(t *testing.T) {
 				t.Errorf("Abschluss = %+v, %v; erwartet failed", z, err)
 			}
 			st := u.blobs.stand()
-			if st.commits != 0 || st.aborts != st.writer {
-				t.Errorf("Writer: %+v", st)
+			if len(u.blobs.inhalte()) != 0 || st.aborts != st.writer {
+				t.Errorf("Writer: %+v, Blobs %v", st, u.blobs.inhalte())
 			}
 		})
 	}
@@ -221,29 +241,147 @@ func TestErsteUrsacheGewinnt(t *testing.T) {
 			t.Errorf("Ergebnis änderte sich: %+v -> %+v", erst, nach)
 		}
 	})
-	t.Run("Abbrechen vor Ablauf der Frist", func(t *testing.T) {
-		u := neu(t, mitFrist(5*time.Millisecond))
+	// Die Frist ist so lang, dass sie in keinem Lauf vor Abbrechen abläuft; der Test wartet auf keine Zeit.
+	t.Run("Abbrechen bei angehaltener Goroutine", func(t *testing.T) {
+		u := neu(t, mitFrist(time.Hour))
 		frei := u.pipe().AnhaltenAmStart()
 		a := u.tee(quelle(), antwort())
 		a.Abbrechen()
-		time.Sleep(100 * time.Millisecond)
 		frei()
 		verworfen(t, abwarten(t, a), capture.Response, capture.Abbruch, capture.GrundAbbruch)
 	})
+	// Der Writer meldet das Ende des Kontexts auf ctxEnde und hält an: Abbrechen und cancel()
+	// kommen nach der Frist und vor der Auswertung, ihre Ordnung bestimmt ein Kanal. Die Frist
+	// ist 250 ms; der Test setzt voraus, dass die Goroutine in dieser Zeit den Writer erreicht.
 	t.Run("Frist vor Abbrechen und Abbruch von ctx", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		u := neu(t, mitFrist(5*time.Millisecond))
-		frei := u.pipe().AnhaltenAmStart()
-		a, err := u.pipe().Tee(ctx, quelle(), antwort())
+		u := neu(t, mitFrist(250*time.Millisecond))
+		u.blobs.warteAufCtx, u.blobs.nachCtx = true, make(chan struct{})
+		a, err := u.pipe().Tee(ctx, quelle(gutBody), antwort())
 		if err != nil {
 			t.Fatal(err)
 		}
-		time.Sleep(100 * time.Millisecond)
+		leseInGoroutine(a)
+		warteAufAnkunft(t, u.blobs.ctxEnde)
 		a.Abbrechen()
 		cancel()
-		frei()
-		verworfen(t, abwarten(t, a), capture.Response, capture.Verstoss, capture.GrundFrist)
+		close(u.blobs.nachCtx)
+		e := abwarten(t, a)
+		verworfen(t, e, capture.Response, capture.Verstoss, capture.GrundFrist)
+		if !errors.Is(e.Fehler, context.DeadlineExceeded) {
+			t.Errorf("Ursache %v ist nicht context.DeadlineExceeded", e.Fehler)
+		}
 	})
+}
+
+// TestFehlerBleibtNachUrsache hält fest, dass ein Fehler des Redaktors, der Nr. 7 und des
+// Writers bleibt, was er ist, wenn danach eine Ursache außerhalb des Stroms eintritt (SPEC-119
+// Nr. 9): der Writer hält an, nachdem der Fehler entschieden ist, die Ursache kommt, dann läuft er weiter.
+func TestFehlerBleibtNachUrsache(t *testing.T) {
+	ursachen := []struct {
+		name string
+		los  func(a *capture.Aufnahme, cancel func())
+	}{
+		{"Abbrechen", func(a *capture.Aufnahme, _ func()) { a.Abbrechen() }},
+		{"cancel des ctx", func(_ *capture.Aufnahme, cancel func()) { cancel() }},
+	}
+	faelle := []struct {
+		name    string
+		enc     string
+		roh     []byte
+		aufbau  func(b *fakeBlobs)
+		commit  bool
+		grund   capture.Grund
+		ursache error
+	}{
+		{name: "Verstoß des Redaktors", roh: []byte(`{"a":1,"b":x`), aufbau: func(b *fakeBlobs) { b.haltWrite = 1 },
+			grund: capture.GrundSyntax, ursache: model.ErrUnsicher},
+		{name: "Nachlauf", enc: "deflate", roh: append(zl([]byte(gutBody)), 'x'), aufbau: func(b *fakeBlobs) { b.haltWrite = 1 },
+			grund: capture.GrundDekodierung},
+		{name: "Fehler des Writers im Write", roh: []byte(gutBody), grund: capture.GrundAblage, ursache: errDisk,
+			aufbau: func(b *fakeBlobs) { b.haltWrite, b.fehlerNachHalt, b.writeFehler[1] = 1, true, errDisk }},
+		{name: "Fehler des Writers im Commit", roh: []byte(gutBody), commit: true, grund: capture.GrundAblage, ursache: errDisk,
+			aufbau: func(b *fakeBlobs) { b.haltCommit, b.commitFehler = true, errDisk }},
+	}
+	for _, f := range faelle {
+		for _, ur := range ursachen {
+			t.Run(f.name+" und "+ur.name, func(t *testing.T) {
+				u := neu(t)
+				f.aufbau(u.blobs)
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				ein := antwort()
+				if f.enc != "" {
+					ein = mitEncoding(ein, f.enc)
+				}
+				a, err := u.pipe().Tee(ctx, quelleBytes(f.roh), ein)
+				if err != nil {
+					t.Fatal(err)
+				}
+				leseInGoroutine(a)
+				im, frei := u.blobs.imWrite, u.blobs.freiWrite
+				if f.commit {
+					im, frei = u.blobs.imCommit, u.blobs.freiCommit
+				}
+				warteAufAnkunft(t, im)
+				ur.los(a, cancel)
+				close(frei)
+				e := abwarten(t, a)
+				verworfen(t, e, capture.Response, capture.Verstoss, f.grund)
+				if f.ursache != nil && !errors.Is(e.Fehler, f.ursache) {
+					t.Errorf("Ursache %v erreicht %v nicht", e.Fehler, f.ursache)
+				}
+			})
+		}
+	}
+}
+
+// aufnahmeGoroutinen zählt die Goroutinen, die Tee gestartet hat und die noch laufen.
+func aufnahmeGoroutinen() int {
+	buf := make([]byte, 1<<20)
+	for {
+		n := runtime.Stack(buf, true)
+		if n < len(buf) {
+			buf = buf[:n]
+			break
+		}
+		buf = make([]byte, 2*len(buf))
+	}
+	return strings.Count(string(buf), "created by github.com/pt9912/odata-recorder/src/hexagon/services/record/capture.(*Pipeline).Tee")
+}
+
+// TestGoroutineEndetImmer hält fest, dass die Goroutine jeder Aufnahme endet und dass der Kontext,
+// den der Writer bekam, mit dem Ergebnis beendet ist (SPEC-119 Nr. 14), für jede Zeile der Tabelle.
+func TestGoroutineEndetImmer(t *testing.T) {
+	t.Run("Gegenprobe: die Zählung sieht eine laufende Aufnahme", func(t *testing.T) {
+		u := neu(t)
+		vorher := aufnahmeGoroutinen()
+		frei := u.pipe().AnhaltenAmStart()
+		a := u.tee(quelle(), antwort())
+		if n := aufnahmeGoroutinen(); n != vorher+1 {
+			t.Errorf("Goroutinen der Aufnahmen %d -> %d, erwartet +1", vorher, n)
+		}
+		a.Abbrechen()
+		frei()
+		_ = abwarten(t, a)
+		wartetBis(t, "die Goroutine der Aufnahme endet", func() bool { return aufnahmeGoroutinen() <= vorher })
+	})
+	gesamt := t
+	for _, f := range captureFaelle() {
+		t.Run(f.name, func(t *testing.T) {
+			if gesamt.Failed() {
+				t.Skip("ein früherer Fall ist rot; die Wartezeit je Fall ist die Zeitgrenze")
+			}
+			vorher := aufnahmeGoroutinen()
+			u, _ := fuehreAus(t, f)
+			wartetBis(t, "die Goroutine der Aufnahme endet", func() bool { return aufnahmeGoroutinen() <= vorher })
+			for i, ctx := range u.blobs.kontexte() {
+				if ctx.Err() == nil {
+					t.Errorf("der Kontext von Begin %d ist nach dem Ergebnis nicht beendet", i+1)
+				}
+			}
+		})
+	}
 }
 
 func TestErgebnisStabil(t *testing.T) {
@@ -448,6 +586,13 @@ func TestWriterEinerGoroutine(t *testing.T) {
 }
 
 func TestAufnahmenUnabhaengig(t *testing.T) {
+	t.Run("Überlauf der einen", aufnahmenUeberlauf)
+	t.Run("beide halten Bytes zugleich", aufnahmenHaltenZugleich)
+	t.Run("zwei Pipelines mit denselben Blobs und Pfaden", zweiPipelines)
+	t.Run("derselbe ctx, Abbrechen trifft nur die eine", derselbeCtx)
+}
+
+func aufnahmenUeberlauf(t *testing.T) {
 	u := neu(t, mitQueue(100))
 	frei := u.pipe().AnhaltenAmStart()
 	a := u.tee(quelle(wiederholt("x", 200)), antwort())
@@ -466,4 +611,82 @@ func TestAufnahmenUnabhaengig(t *testing.T) {
 	}
 	c := u.lauf(quelle(gutBody), antwort())
 	vollstaendig(t, u, c, model.RedactionNone)
+}
+
+// aufnahmenHaltenZugleich: jede Aufnahme zählt ihr Wasser allein (SPEC-119 Nr. 14); zusammen
+// liegen 180 Bytes in den Queues, QueueBytes ist 100.
+func aufnahmenHaltenZugleich(t *testing.T) {
+	u := neu(t, mitQueue(100))
+	frei := u.pipe().AnhaltenAmStart()
+	a := u.tee(quelle(jsonString(90)), antwort())
+	b := u.tee(quelle(jsonString(90)), antwort())
+	_, _ = io.Copy(io.Discard, a)
+	_, _ = io.Copy(io.Discard, b)
+	if a.Ausstehend() != 90 || b.Ausstehend() != 90 {
+		t.Errorf("Ausstehend A %d, B %d; erwartet 90 und 90", a.Ausstehend(), b.Ausstehend())
+	}
+	frei()
+	for _, x := range []*capture.Aufnahme{a, b} {
+		if got := vollstaendig(t, u, abwarten(t, x), model.RedactionNone); got != jsonString(90) {
+			t.Errorf("Blob = %q", got)
+		}
+	}
+}
+
+// zweiPipelines: zwei Pipelines mit denselben Blobs und denselben Pfaden teilen nichts; derselbe
+// Body ergibt dasselbe Ergebnis, und die Queues beider halten zugleich je 90 Bytes bei QueueBytes 100.
+func zweiPipelines(t *testing.T) {
+	u := neu(t, mitQueue(100))
+	var ps [2]*capture.Pipeline
+	var frei [2]func()
+	for i := range ps {
+		p, err := capture.New(u.k)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ps[i], frei[i] = p, p.AnhaltenAmStart()
+	}
+	body := `{"password":"` + geheim + `","a":"` + wiederholt("y", 50) + `"}`
+	var as [2]*capture.Aufnahme
+	for i, p := range ps {
+		a, err := p.Tee(context.Background(), quelle(body), anfrage())
+		if err != nil {
+			t.Fatal(err)
+		}
+		as[i] = a
+		_, _ = io.Copy(io.Discard, a)
+	}
+	if as[0].Ausstehend() != int64(len(body)) || as[1].Ausstehend() != int64(len(body)) {
+		t.Errorf("Ausstehend %d und %d; erwartet je %d", as[0].Ausstehend(), as[1].Ausstehend(), len(body))
+	}
+	frei[0]()
+	frei[1]()
+	e0, e1 := abwarten(t, as[0]), abwarten(t, as[1])
+	want := `{"password":"[REDACTED]","a":"` + wiederholt("y", 50) + `"}`
+	if got := vollstaendig(t, u, e0, model.RedactionApplied); got != want {
+		t.Errorf("Blob der ersten = %q", got)
+	}
+	if !reflect.DeepEqual(e0, e1) {
+		t.Errorf("gleicher Body, verschiedene Ergebnisse: %+v und %+v", e0, e1)
+	}
+}
+
+// derselbeCtx: Request und Response eines Austauschs teilen den ctx des Aufrufers und sonst nichts.
+func derselbeCtx(t *testing.T) {
+	u := neu(t)
+	ctx := context.Background()
+	frei := u.pipe().AnhaltenAmStart()
+	req, err := u.pipe().Tee(ctx, quelle(gutBody), anfrage())
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := u.pipe().Tee(ctx, quelle(gutBody), antwort())
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Abbrechen()
+	_, _ = io.Copy(io.Discard, resp)
+	frei()
+	verworfen(t, abwarten(t, req), capture.Request, capture.Abbruch, capture.GrundAbbruch)
+	vollstaendig(t, u, abwarten(t, resp), model.RedactionNone)
 }

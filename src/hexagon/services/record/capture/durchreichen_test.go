@@ -430,3 +430,26 @@ func TestUeberlaufGegenRohgroesse(t *testing.T) {
 		})
 	}
 }
+
+// TestReadLaengeNull: ein Read mit leerem p geht unverändert an src, auch sein Fehler (SPEC-119
+// Nr. 3, 4: es wird nichts eingelegt, die Bytes danach kommen unberührt).
+func TestReadLaengeNull(t *testing.T) {
+	for name, p := range map[string][]byte{"nil": nil, "leer": {}} {
+		t.Run(name, func(t *testing.T) {
+			s := quelle(gutBody)
+			a := neu(t).tee(s, antwort())
+			if n, err := a.Read(p); n != 0 || err != nil || s.anzahlReads() != 1 {
+				t.Errorf("Read = %d, %v bei %d src.Read; erwartet 0, nil und 1", n, err, s.anzahlReads())
+			}
+			if got, err := io.ReadAll(a); err != nil || string(got) != gutBody {
+				t.Errorf("Rest = %q, %v", got, err)
+			}
+			_ = abwarten(t, a)
+			e := &skript{schritte: []schritt{{err: errQuelle}}}
+			b := neu(t).tee(e, antwort())
+			if n, err := b.Read(p); n != 0 || err != errQuelle || e.anzahlReads() != 1 {
+				t.Errorf("Read = %d, %v bei %d src.Read; erwartet 0, errQuelle und 1", n, err, e.anzahlReads())
+			}
+		})
+	}
+}

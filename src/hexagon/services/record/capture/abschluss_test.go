@@ -148,6 +148,25 @@ func TestAbschlussArgumente(t *testing.T) {
 			}
 		})
 	}
+	// Ein Ergebnis fremder Herkunft prüft Abschluss nur auf die Richtung (SPEC-119 Nr. 12).
+	t.Run("fremde Ergebnisse", func(t *testing.T) {
+		fremd := []struct {
+			name      string
+			req, resp capture.Ergebnis
+			capture   model.CaptureStatus
+			key       bool
+		}{
+			{"present ohne Blob", capture.Ergebnis{Richtung: capture.Request, Ausgang: capture.Vollstaendig, Body: model.BodyPresent}, resp, model.CaptureComplete, true},
+			{"Request ohne Ausgang", capture.Ergebnis{Richtung: capture.Request}, resp, model.CaptureFailed, false},
+			{"Response ohne Ausgang", req, capture.Ergebnis{Richtung: capture.Response}, model.CaptureComplete, true},
+		}
+		for _, f := range fremd {
+			z, err := capture.Abschluss(f.req, f.resp)
+			if err != nil || z.Capture != f.capture || z.KeyMoeglich != f.key {
+				t.Errorf("%s: Abschluss = %+v, %v; erwartet kein Fehler, %v und Key %v", f.name, z, err, f.capture, f.key)
+			}
+		}
+	})
 	t.Run("rein", func(t *testing.T) {
 		req2, resp2 := req, resp
 		a, _ := capture.Abschluss(req, resp)

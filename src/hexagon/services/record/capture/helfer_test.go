@@ -54,8 +54,24 @@ type fakeBlobs struct {
 	haltCommit bool
 	imCommit   chan struct{}
 	freiCommit chan struct{}
-	// warteAufCtx lässt jeden Write auf das Ende seines Kontexts warten.
+	// haltBegin hält Begin an: er meldet sich auf imBegin und wartet auf freiBegin; danach gilt
+	// beginFehler.
+	haltBegin bool
+	imBegin   chan struct{}
+	freiBegin chan struct{}
+	// warteAufCtx lässt jeden Write, warteBegin jedes Begin und warteCommit jedes Commit auf das
+	// Ende des Kontexts warten, den Begin bekam, und dessen Fehler zurückgeben; die Aufrufe melden
+	// sich vorher auf imWrite, imBegin und imCommit.
 	warteAufCtx bool
+	warteBegin  bool
+	warteCommit bool
+	// nachCtx hält einen auf den Kontext wartenden Write an, nachdem der Kontext endete: er
+	// meldet das auf ctxEnde und wartet auf nachCtx.
+	nachCtx chan struct{}
+	ctxEnde chan struct{}
+	// fehlerNachHalt gibt den Fehler von writeFehler erst zurück, nachdem ein angehaltener Write
+	// freigegeben ist.
+	fehlerNachHalt bool
 
 	begins, commits, aborts, writeNr int
 	grenzen                          []int64
@@ -74,6 +90,9 @@ func neueBlobs() *fakeBlobs {
 		freiWrite:   make(chan struct{}),
 		imCommit:    make(chan struct{}, 64),
 		freiCommit:  make(chan struct{}),
+		imBegin:     make(chan struct{}, 64),
+		freiBegin:   make(chan struct{}),
+		ctxEnde:     make(chan struct{}, 64),
 	}
 }
 
@@ -103,13 +122,25 @@ func (b *fakeBlobs) melde(format string) {
 
 func (b *fakeBlobs) Begin(ctx context.Context, grenze int64) (outbound.CaptureWriter, error) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	b.begins++
 	b.grenzen = append(b.grenzen, grenze)
 	b.ctxs = append(b.ctxs, ctx)
-	if b.beginFehler != nil {
-		return nil, b.beginFehler
+	fehler, halt, warte := b.beginFehler, b.haltBegin, b.warteBegin
+	b.mu.Unlock()
+	switch {
+	case warte:
+		b.imBegin <- struct{}{}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	case halt:
+		b.imBegin <- struct{}{}
+		<-b.freiBegin
 	}
+	if fehler != nil {
+		return nil, fehler
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.nWriter++
 	return &fakeWriter{b: b, done: ctx.Done(), cerr: ctx.Err, grenze: grenze}, nil
 }
@@ -152,23 +183,35 @@ func (w *fakeWriter) Write(p []byte) (int, error) {
 	b.writeNr++
 	nr := b.writeNr
 	err := b.writeFehler[nr]
-	halt, warte := b.haltWrite == nr, b.warteAufCtx
+	halt, warte, spaet := b.haltWrite == nr, b.warteAufCtx, b.fehlerNachHalt && b.haltWrite == nr
+	nachCtx := b.nachCtx
 	b.angeboten = append(b.angeboten, p...)
 	b.mu.Unlock()
-	if err != nil {
+	if err != nil && !spaet {
 		return 0, err
 	}
 	if cerr := w.cerr(); cerr != nil {
+		if warte && nachCtx != nil {
+			b.ctxEnde <- struct{}{}
+			<-nachCtx
+		}
 		return 0, cerr
 	}
 	if warte {
 		b.imWrite <- struct{}{}
 		<-w.done
+		if nachCtx != nil {
+			b.ctxEnde <- struct{}{}
+			<-nachCtx
+		}
 		return 0, w.cerr()
 	}
 	if halt {
 		b.imWrite <- struct{}{}
 		<-b.freiWrite
+	}
+	if err != nil {
+		return 0, err
 	}
 	if w.abgebrochen {
 		return 0, outbound.ErrAbgeschlossen
@@ -186,10 +229,15 @@ func (w *fakeWriter) Commit() (string, int64, error) {
 	b := w.b
 	b.mu.Lock()
 	b.commits++
-	fehler, halt, delta := b.commitFehler, b.haltCommit, b.laengeDelta
+	fehler, halt, delta, warte := b.commitFehler, b.haltCommit, b.laengeDelta, b.warteCommit
 	b.mu.Unlock()
 	if cerr := w.cerr(); cerr != nil {
 		return "", 0, cerr
+	}
+	if warte {
+		b.imCommit <- struct{}{}
+		<-w.done
+		return "", 0, w.cerr()
 	}
 	if halt {
 		b.imCommit <- struct{}{}
@@ -503,6 +551,10 @@ func verworfen(t *testing.T, e capture.Ergebnis, r capture.Richtung, aus capture
 	if e.Fehler.Grund != g || e.Fehler.Code() != model.CodeE2401 || e.Fehler.Code().String() != "ODR-E2401" {
 		t.Errorf("Fehler = %q/%v, erwartet %q/ODR-E2401", e.Fehler.Grund, e.Fehler.Code(), g)
 	}
+	// Der Text nennt Code und Grund und sonst nichts (SPEC-119 Nr. 11).
+	if want := "ODR-E2401: Capture fehlgeschlagen: " + string(g); e.Fehler.Error() != want {
+		t.Errorf("Error() = %q, erwartet %q", e.Fehler.Error(), want)
+	}
 }
 
 // vollstaendig prüft ein Ergebnis mit Ausgang Vollstaendig und Body present und liefert den Inhalt des Blobs.
@@ -539,3 +591,39 @@ func wiederholt(s string, n int) string {
 }
 
 func errorsIsUngueltig(err error) bool { return errors.Is(err, model.ErrUngueltig) }
+
+// writes liefert die Zahl der Write-Aufrufe über alle Writer.
+func (b *fakeBlobs) writes() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.writeNr
+}
+
+// gzMitRoh liefert einen gzip-Strom von s, der genau roh Bytes lang ist: ein Kommentar im Kopf
+// füllt auf (länger als der Strom ohne Kommentar plus 2 Bytes: Zeichen und Abschluss).
+func gzMitRoh(t *testing.T, s string, roh int) []byte {
+	t.Helper()
+	basis := gz(s)
+	if roh == len(basis) {
+		return basis
+	}
+	if roh < len(basis)+2 {
+		t.Fatalf("gzMitRoh: %d Bytes sind zu kurz, der Strom ohne Kommentar hat %d", roh, len(basis))
+	}
+	var b bytes.Buffer
+	w := gzip.NewWriter(&b)
+	w.Comment = wiederholt("c", roh-len(basis)-1)
+	_, _ = w.Write([]byte(s))
+	_ = w.Close()
+	if b.Len() != roh {
+		t.Fatalf("gzMitRoh: %d Bytes statt %d", b.Len(), roh)
+	}
+	return b.Bytes()
+}
+
+// kontexte liefert die Kontexte aller Begin-Aufrufe.
+func (b *fakeBlobs) kontexte() []context.Context {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return append([]context.Context(nil), b.ctxs...)
+}

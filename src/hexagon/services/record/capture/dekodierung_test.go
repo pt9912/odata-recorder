@@ -29,6 +29,8 @@ func TestKette(t *testing.T) {
 		{"gzip, identity", []string{"gzip, identity"}, gz(gutBody)},
 		{"deflate, gzip in einer Zeile", []string{"deflate, gzip"}, gz(string(zl([]byte(gutBody))))},
 		{"deflate, gzip in zwei Zeilen", []string{"deflate", "gzip"}, gz(string(zl([]byte(gutBody))))},
+		{"gzip, gzip", []string{"gzip, gzip"}, gz(string(gz(gutBody)))},
+		{"identity, identity", []string{"identity, identity"}, []byte(gutBody)},
 	}
 	for _, f := range gutFaelle {
 		t.Run(f.name, func(t *testing.T) {
@@ -57,6 +59,13 @@ func TestKette(t *testing.T) {
 		{"gzip,gzip,gzip", []string{"gzip,gzip,gzip"}},
 		{"drei Glieder in drei Zeilen", []string{"gzip", "gzip", "gzip"}},
 		{"gzip, br", []string{"gzip, br"}},
+		{"leerer Teil in der Mitte", []string{"gzip,,identity"}},
+		{"Zeilenumbruch am Rand", []string{"gzip\n"}},
+		{"Wagenrücklauf am Rand", []string{"\rgzip"}},
+		{"vertikaler Tabulator am Rand", []string{"gzip\v"}},
+		{"Seitenvorschub am Rand", []string{"\fgzip"}},
+		{"geschütztes Leerzeichen am Rand", []string{"\u00a0gzip"}},
+		{"I mit Punkt (U+0130) statt i", []string{"\u0130dentity"}},
 	}
 	for _, f := range schlecht {
 		t.Run(f.name, func(t *testing.T) {
@@ -338,4 +347,73 @@ func TestLeereRohbytesJeKette(t *testing.T) {
 		e := neu(t).lauf(quelle("\x00"), mitEncoding(antwort(), "gzip"))
 		verworfen(t, e, capture.Response, capture.Verstoss, capture.GrundDekodierung)
 	})
+}
+
+// TestVerhaeltnisAmAufruf hält die Grenze 20:1 an beiden Seiten am Aufruf der Pipeline: 2000
+// entpackte Bytes, der gzip-Strom wird mit einem Kopfkommentar auf genau 100, 99 und 101 Bytes aufgefüllt.
+func TestVerhaeltnisAmAufruf(t *testing.T) {
+	koerper := jsonString(2000)
+	faelle := []struct {
+		name string
+		roh  int
+		ok   bool
+	}{
+		{"genau 20:1", 100, true},
+		{"knapp darüber", 99, false},
+		{"knapp darunter", 101, true},
+	}
+	for _, f := range faelle {
+		t.Run(f.name, func(t *testing.T) {
+			u := neu(t, mitMax(8<<20), mitVerh(20))
+			e := u.lauf(quelleBytes(gzMitRoh(t, koerper, f.roh)), mitEncoding(antwort(), "gzip"))
+			if f.ok {
+				vollstaendig(t, u, e, model.RedactionNone)
+				return
+			}
+			verworfen(t, e, capture.Response, capture.Verstoss, capture.GrundBombe)
+		})
+	}
+}
+
+// TestVerstossVorVerhaeltnis: ein Verstoß des Redaktors geht dem Verhältnis vor (SPEC-119 Nr. 7).
+// Das Zeichen hinter dem Dokument ist ein Verstoß, nachdem 1 MiB entpackt gelesen sind, rund 1000:1.
+func TestVerstossVorVerhaeltnis(t *testing.T) {
+	koerper := jsonString(1<<20) + "x"
+	faelle := []struct {
+		enc string
+		roh []byte
+	}{
+		{"gzip", gz(koerper)},
+		{"deflate", zl([]byte(koerper))},
+	}
+	for _, f := range faelle {
+		t.Run(f.enc, func(t *testing.T) {
+			u := neu(t, mitMax(8<<20), mitVerh(20))
+			e := u.lauf(quelleBytes(f.roh), mitEncoding(antwort(), f.enc))
+			verworfen(t, e, capture.Response, capture.Verstoss, capture.GrundSyntax)
+		})
+	}
+}
+
+// TestRohgroesseUndNachlauf: ein vollständiger Strom mit genau MaxBytes Rohbytes ist gut; ein
+// Rohbyte mehr ist zu_gross, auch wenn die Erschöpfungsprüfung hinter dem Strom die Rohgröße als
+// Ursache sieht und nicht einen Nachlauf (SPEC-119 Nr. 5, 7).
+func TestRohgroesseUndNachlauf(t *testing.T) {
+	faelle := []struct {
+		enc   string
+		strom []byte
+	}{
+		{"deflate", zl([]byte(gutBody))},
+		{"gzip", gz(gutBody)},
+	}
+	for _, f := range faelle {
+		t.Run(f.enc, func(t *testing.T) {
+			grenze := mitMax(int64(len(f.strom)))
+			u := neu(t, grenze)
+			vollstaendig(t, u, u.lauf(quelleBytes(f.strom), mitEncoding(antwort(), f.enc)), model.RedactionNone)
+			roh := append(append([]byte(nil), f.strom...), 'x')
+			e := neu(t, grenze).lauf(quelleBytes(roh), mitEncoding(antwort(), f.enc))
+			verworfen(t, e, capture.Response, capture.Verstoss, capture.GrundZuGross)
+		})
+	}
 }

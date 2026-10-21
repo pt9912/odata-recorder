@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
-	"io"
 	"os"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
@@ -47,6 +48,12 @@ func TestRedaktorAnbindung(t *testing.T) {
 	})
 	t.Run("ContentType fehlt", func(t *testing.T) {
 		verworfen(t, neu(t).lauf(quelle(`{}`), capture.Eingang{Richtung: capture.Response}), capture.Response, capture.Verstoss, capture.GrundTyp)
+	})
+	t.Run("mehrere Werte von Content-Type", func(t *testing.T) {
+		for _, werte := range [][]string{{"application/json", "text/plain"}, {"text/plain", "application/json"}} {
+			ein := capture.Eingang{Richtung: capture.Response, ContentType: werte}
+			verworfen(t, neu(t).lauf(quelle(`{}`), ein), capture.Response, capture.Verstoss, capture.GrundTyp)
+		}
 	})
 	t.Run("MaxBytes entpackt", func(t *testing.T) {
 		for _, f := range []struct {
@@ -202,6 +209,44 @@ func TestAusgabeZuGross(t *testing.T) {
 			t.Errorf("Blob = %q", got)
 		}
 	})
+	// ErrZuGross aus Begin oder Commit ist wie aus Write ausgabe_zu_gross, auch bei beendetem
+	// Kontext (SPEC-119 Nr. 9, 10); ein Writer, den Begin nicht lieferte, bekommt kein Abort.
+	for _, f := range []struct {
+		aufruf  string
+		beendet bool
+	}{{"Begin", false}, {"Begin", true}, {"Commit", false}, {"Commit", true}} {
+		t.Run(fmt.Sprintf("aus %s, Kontext beendet: %v", f.aufruf, f.beendet), func(t *testing.T) {
+			u := neu(t)
+			var im <-chan struct{}
+			var frei chan struct{}
+			if f.aufruf == "Begin" {
+				u.blobs.beginFehler, u.blobs.haltBegin = outbound.ErrZuGross, f.beendet
+				im, frei = u.blobs.imBegin, u.blobs.freiBegin
+			} else {
+				u.blobs.commitFehler, u.blobs.haltCommit = outbound.ErrZuGross, f.beendet
+				im, frei = u.blobs.imCommit, u.blobs.freiCommit
+			}
+			a := u.tee(quelle(gutBody), antwort())
+			leseInGoroutine(a)
+			if f.beendet {
+				warteAufAnkunft(t, im)
+				a.Abbrechen()
+				close(frei)
+			}
+			e := abwarten(t, a)
+			verworfen(t, e, capture.Response, capture.Verstoss, capture.GrundAusgabeZuGross)
+			if !errors.Is(e.Fehler, outbound.ErrZuGross) {
+				t.Errorf("Ursache %v erreicht outbound.ErrZuGross nicht", e.Fehler)
+			}
+			want := stand{begins: 1, writer: 1, commits: 1, aborts: 1}
+			if f.aufruf == "Begin" {
+				want = stand{begins: 1}
+			}
+			if st := u.blobs.stand(); st != want {
+				t.Errorf("Writer: %+v; erwartet %+v", st, want)
+			}
+		})
+	}
 }
 
 func TestWriterFehler(t *testing.T) {
@@ -237,19 +282,70 @@ func TestWriterFehler(t *testing.T) {
 			}
 		})
 	}
-	t.Run("Kontextfehler des Writers ist abbruch", func(t *testing.T) {
-		u := neu(t)
-		u.blobs.warteAufCtx = true
-		a := u.tee(quelle(gutBody), antwort())
-		leseInGoroutine(a)
-		warteAufAnkunft(t, u.blobs.imWrite)
-		a.Abbrechen()
-		e := abwarten(t, a)
-		verworfen(t, e, capture.Response, capture.Abbruch, capture.GrundAbbruch)
-		if !errors.Is(e.Fehler, context.Canceled) {
-			t.Errorf("Ursache %v ist nicht context.Canceled", e.Fehler)
+	// Ein Kontextfehler des Writers bei lebendem Kontext der Aufnahme ist ein Fehler des Writers
+	// wie jeder andere (SPEC-119 Nr. 9, 10).
+	for _, cerr := range []error{context.Canceled, context.DeadlineExceeded} {
+		for _, aufruf := range []string{"Begin", "Write", "Commit"} {
+			t.Run(fmt.Sprintf("%v aus %s bei lebendem Kontext", cerr, aufruf), func(t *testing.T) {
+				u := neu(t)
+				switch aufruf {
+				case "Begin":
+					u.blobs.beginFehler = cerr
+				case "Write":
+					u.blobs.writeFehler[1] = cerr
+				default:
+					u.blobs.commitFehler = cerr
+				}
+				e := u.lauf(quelle(gutBody), antwort())
+				verworfen(t, e, capture.Response, capture.Verstoss, capture.GrundAblage)
+				if !errors.Is(e.Fehler, cerr) {
+					t.Errorf("Ursache %v erreicht %v nicht", e.Fehler, cerr)
+				}
+			})
 		}
-	})
+	}
+	// Ist der Kontext beendet, zählt der Kontextfehler des Writers als die Ursache, die ihn beendete.
+	for _, aufruf := range []string{"Begin", "Write", "Commit"} {
+		for _, frist := range []bool{false, true} {
+			t.Run(fmt.Sprintf("Kontextfehler aus %s bei beendetem Kontext, Frist: %v", aufruf, frist), func(t *testing.T) {
+				var opt []func(*capture.Konfig)
+				if frist {
+					opt = append(opt, mitFrist(30*time.Millisecond))
+				}
+				u := neu(t, opt...)
+				im := u.blobs.imWrite
+				switch aufruf {
+				case "Begin":
+					u.blobs.warteBegin, im = true, u.blobs.imBegin
+				case "Write":
+					u.blobs.warteAufCtx = true
+				default:
+					u.blobs.warteCommit, im = true, u.blobs.imCommit
+				}
+				a := u.tee(quelle(gutBody), antwort())
+				leseInGoroutine(a)
+				if !frist {
+					warteAufAnkunft(t, im)
+					a.Abbrechen()
+				}
+				e := abwarten(t, a)
+				if frist {
+					verworfen(t, e, capture.Response, capture.Verstoss, capture.GrundFrist)
+					if !errors.Is(e.Fehler, context.DeadlineExceeded) {
+						t.Errorf("Ursache %v ist nicht context.DeadlineExceeded", e.Fehler)
+					}
+				} else {
+					verworfen(t, e, capture.Response, capture.Abbruch, capture.GrundAbbruch)
+					if !errors.Is(e.Fehler, context.Canceled) {
+						t.Errorf("Ursache %v ist nicht context.Canceled", e.Fehler)
+					}
+				}
+				if st := u.blobs.stand(); st.commits != 0 && aufruf != "Commit" || st.aborts != st.writer {
+					t.Errorf("Writer: %+v", st)
+				}
+			})
+		}
+	}
 }
 
 func TestKeinGeheimnis(t *testing.T) {
@@ -319,8 +415,77 @@ func TestKeinGeheimnis(t *testing.T) {
 	})
 }
 
+// erlaubteImporte liefert die Importe der Nicht-Test-Dateien des Pakets; ein weiterer ist ein Befund
+// von TestKeineDateiUndKeinLog und braucht hier eine Begründung.
+func erlaubteImporte() []string {
+	return []string{
+		"bufio", "bytes", "compress/gzip", "compress/zlib", "context", "errors", "fmt", "io", "slices", "strings", "sync", "time",
+		"github.com/pt9912/odata-recorder/src/hexagon/model",
+		"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound",
+	}
+}
+
+// schreibwege nennt, was eine Quelldatei gegen "kein Rohbyte in einer Datei, kein Log" verstößt:
+// ein Import außerhalb von erlaubteImporte(), ein Aufruf von print, println oder panic und ein
+// Aufruf von fmt.Print* oder fmt.Fprint*. src nil liest die Datei name.
+func schreibwege(t *testing.T, name string, src any) []string {
+	t.Helper()
+	f, err := parser.ParseFile(token.NewFileSet(), name, src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, imp := range f.Imports {
+		if p := strings.Trim(imp.Path.Value, `"`); !slices.Contains(erlaubteImporte(), p) {
+			out = append(out, "Import "+p)
+		}
+	}
+	ast.Inspect(f, func(n ast.Node) bool {
+		c, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		switch fn := c.Fun.(type) {
+		case *ast.Ident:
+			if slices.Contains([]string{"print", "println", "panic"}, fn.Name) {
+				out = append(out, "Aufruf "+fn.Name)
+			}
+		case *ast.SelectorExpr:
+			if x, ok := fn.X.(*ast.Ident); ok && x.Name == "fmt" &&
+				(strings.HasPrefix(fn.Sel.Name, "Print") || strings.HasPrefix(fn.Sel.Name, "Fprint")) {
+				out = append(out, "Aufruf fmt."+fn.Sel.Name)
+			}
+		}
+		return true
+	})
+	return out
+}
+
+// TestKeineDateiUndKeinLog hält fest, dass die Nicht-Test-Dateien des Pakets keinen Import
+// außerhalb der Liste haben und weder print, println, panic noch fmt.Print* oder fmt.Fprint*
+// aufrufen. Grenze: der Test sieht Importe und diese Aufrufe, keine Schreibwege über Ports
+// (dafür steht TestKeinGeheimnis) und keine Umwege über einen Funktionswert.
 func TestKeineDateiUndKeinLog(t *testing.T) {
-	verboten := []string{"os", "io/ioutil", "path/filepath", "syscall", "log", "log/slog"}
+	t.Run("Gegenprobe: die Prüfung erkennt jeden Weg", func(t *testing.T) {
+		faelle := []struct{ name, src, want string }{
+			{"os", "package p\nimport \"os\"\n", "Import os"},
+			{"net/http", "package p\nimport \"net/http\"\n", "Import net/http"},
+			{"log", "package p\nimport \"log/slog\"\n", "Import log/slog"},
+			{"println", "package p\nfunc f(b []byte) { println(string(b)) }\n", "Aufruf println"},
+			{"print", "package p\nfunc f(b []byte) { print(string(b)) }\n", "Aufruf print"},
+			{"panic", "package p\nfunc f(b []byte) { panic(string(b)) }\n", "Aufruf panic"},
+			{"fmt.Println", "package p\nimport \"fmt\"\nfunc f(b []byte) { fmt.Println(b) }\n", "Aufruf fmt.Println"},
+			{"fmt.Fprintf", "package p\nimport \"fmt\"\nfunc f(w fmt.Stringer) { fmt.Fprintf(nil, \"%s\", w) }\n", "Aufruf fmt.Fprintf"},
+		}
+		for _, f := range faelle {
+			if got := schreibwege(t, f.name+".go", f.src); !slices.Equal(got, []string{f.want}) {
+				t.Errorf("%s: %v, erwartet [%s]", f.name, got, f.want)
+			}
+		}
+		if got := schreibwege(t, "gut.go", "package p\nimport \"fmt\"\nfunc f(b []byte) error { return fmt.Errorf(\"%d\", len(b)) }\n"); len(got) != 0 {
+			t.Errorf("fmt.Errorf ist erlaubt: %v", got)
+		}
+	})
 	eintraege, err := os.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
@@ -332,14 +497,8 @@ func TestKeineDateiUndKeinLog(t *testing.T) {
 			continue
 		}
 		geprueft++
-		f, err := parser.ParseFile(token.NewFileSet(), name, nil, parser.ImportsOnly)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, imp := range f.Imports {
-			if p := strings.Trim(imp.Path.Value, `"`); slices.Contains(verboten, p) {
-				t.Errorf("%s importiert %s", name, p)
-			}
+		for _, v := range schreibwege(t, name, nil) {
+			t.Errorf("%s: %s", name, v)
 		}
 	}
 	if geprueft < 6 {
@@ -384,6 +543,19 @@ func TestRedigiertUndKey(t *testing.T) {
 		}
 		if e := neu(t).lauf(quelle(`{"a":x`), anfrage()); e.Redigiert != nil || e.Body != model.BodyDiscarded {
 			t.Errorf("Redigiert bei discarded: %+v", e)
+		}
+	})
+	t.Run("Request über 32 KiB hat mehrere Writes", func(t *testing.T) {
+		u := neu(t)
+		roh := `{"a":"` + wiederholt("x", 100<<10) + `","password":"` + geheim + `"}`
+		want := `{"a":"` + wiederholt("x", 100<<10) + `","password":"[REDACTED]"}`
+		e := u.lauf(quelle(roh), anfrage())
+		blob := vollstaendig(t, u, e, model.RedactionApplied)
+		if n := u.blobs.writes(); n < 3 {
+			t.Fatalf("%d Writes; der Fall braucht mehrere", n)
+		}
+		if blob != want || string(e.Redigiert) != want {
+			t.Errorf("Blob und Redigiert sind nicht gleich der ganzen Ausgabe (Längen %d und %d, erwartet %d)", len(blob), len(e.Redigiert), len(want))
 		}
 	})
 	t.Run("Ausgabe bis genau MaxBytes", func(t *testing.T) {
@@ -454,5 +626,3 @@ func zerlege(b []byte, n int) [][]byte {
 	}
 	return out
 }
-
-var _ = io.EOF
