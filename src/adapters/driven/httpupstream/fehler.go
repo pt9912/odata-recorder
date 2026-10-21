@@ -14,7 +14,7 @@ import (
 // und Port, und keiner trägt den Text eines Fehlers der Bibliothek oder des Request-Bodys (SPEC-120
 // Nr. 8).
 
-// ungueltig ist model.ErrUngueltig mit dem Namen des Felds (SPEC-120 Nr. 2).
+// ungueltig ist model.ErrUngueltig (SPEC-120 Nr. 2); der Text trägt keinen Wert der Anfrage (Nr. 8).
 func ungueltig(feld string) error {
 	return fmt.Errorf("httpupstream: %w: %s", model.ErrUngueltig, feld)
 }

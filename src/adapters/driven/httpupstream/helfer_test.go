@@ -407,15 +407,19 @@ func (m *merkBody) Close() error {
 	return nil
 }
 
-// fakeKopf ist der Kopf 200 des Fakes; Status-Text und Header-Wert tragen den Marker (A14).
+// fakeKopf ist der Kopf 200 des Fakes; Status-Text, Header-Wert und der Name eines zweiten Headers
+// tragen den Marker (A14).
 func fakeKopf(b *merkBody) *http.Response { return fakeKopfMit(b, http.StatusOK) }
 
-// fakeKopfMit ist der Kopf des Fakes mit dem Status status; Status-Text und Header-Wert tragen den
-// Marker, bei 101 auch der Wert von Upgrade (A14).
+// fakeKopfMit ist der Kopf des Fakes mit dem Status status; Status-Text, Header-Wert und der Name
+// eines zweiten Headers (ohne Marker im Wert) tragen den Marker, bei 101 auch der Wert von Upgrade
+// (A14). Der Name steht als Schlüssel der Map, nicht über Header.Set: der Fake liefert ihn unkanonisch,
+// und er trägt den Marker; was die Bibliothek aus einem Kopf liest, ist kanonisch (`X-K-S3cr3t`) und
+// trägt ihn nicht.
 func fakeKopfMit(b *merkBody, status int) *http.Response {
 	res := &http.Response{
 		StatusCode: status, Status: fmt.Sprintf("%d %s-s", status, geheim),
-		Header: http.Header{"X-K": {geheim + "-h"}}, Body: b,
+		Header: http.Header{"X-K": {geheim + "-h"}, "X-K-" + geheim: {"v"}}, Body: b,
 	}
 	if status == http.StatusSwitchingProtocols {
 		res.Header.Set("Upgrade", geheim+"-u")

@@ -166,10 +166,15 @@ func TestFrist(t *testing.T) {
 	t.Run("e Kopf 1 ns vor dem Ablauf", func(t *testing.T) {
 		antwortVorAblauf(t, time.Second, time.Second-time.Nanosecond)
 	})
-	// Die Frist hat keine Obergrenze (SPEC-120 Nr. 1): `UPSTREAM_TIMEOUT=30d` ist gültig, und die
-	// Frist math.MaxInt64 ns läuft nicht vor einem Kopf nach 30 Tagen ab.
+	// Die Frist hat keine Obergrenze (SPEC-120 Nr. 1): jeder Wert bis math.MaxInt64 ns ist gültig
+	// (`UPSTREAM_TIMEOUT`, SPEC-110 Nr. 4). Die Frist math.MaxInt64 ns läuft nicht vor dem spätesten
+	// Kopf ab, den die Blase trägt: ihre Uhr beginnt am 2000-01-01 und endet bei math.MaxInt64 ns ab
+	// 1970 (rund 262,4 Jahre später); ein Kopf zu diesem Zeitpunkt fällt mit dem Ablauf zusammen,
+	// gesendet wird der Kopf eine Nanosekunde davor. Eine Klemme der Frist auf höchstens diese Dauer
+	// macht den Fall rot; eine größere ist in der Blase nicht von der unbegrenzten Frist zu unterscheiden.
 	t.Run("f Frist ohne Obergrenze", func(t *testing.T) {
-		antwortVorAblauf(t, time.Duration(math.MaxInt64), 30*24*time.Hour)
+		beginn := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+		antwortVorAblauf(t, time.Duration(math.MaxInt64), time.Duration(math.MaxInt64-beginn.UnixNano()-1))
 	})
 	t.Run("e Body 2 s nach dem Kopf", func(t *testing.T) {
 		blase(t, time.Second, func(c net.Conn) {

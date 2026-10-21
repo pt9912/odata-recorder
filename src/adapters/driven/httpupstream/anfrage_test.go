@@ -94,8 +94,9 @@ func argumentFaelle() []fehlerFall {
 		argumentFall(bg, "Header-Name leer", setzeHeader("", "v")),
 		argumentFall(bg, "Header-Name mit Klammer", setzeHeader("Bad("+geheim, "v")),
 	}
+	// Zugangsdaten mit dem Marker im Passwort und, ohne Passwort, im Benutzernamen (A14).
 	for _, z := range []string{"", "/x", "ftp://127.0.0.1:{p}", "http://", "http://u:" + geheim + "-z@127.0.0.1:{p}",
-		"http://127.0.0.1:{p}?q", "http://127.0.0.1:{p}#f", "http://127.0.0.1:{p}?", "http://127.0.0.1:{p}#",
+		"http://" + geheim + "-n@127.0.0.1:{p}", "http://127.0.0.1:{p}?q", "http://127.0.0.1:{p}#f", "http://127.0.0.1:{p}?", "http://127.0.0.1:{p}#",
 		"http://@127.0.0.1:{p}", "http://127.0.0.1:", "http://127.0.0.1:0",
 		"http://127.0.0.1:65536", "http://127.0.0.1:{p}/a b", "http://127.0.0.1:{p}/a\x7fb", "http://127.0.0.1:{p}/%zz",
 		`http://a"b:1`, "http://a<b:1", "http://a>b:1", "http://a]b:1", "http://[fe80::1%25%3C]:1",
@@ -501,8 +502,7 @@ func pruefeBisEOF(t *testing.T, body *protokollBody) {
 }
 
 // rahmungFehlerFaelle: weicht die Länge von Laenge ab, ist das ErrUpstreamNichtErreichbar; der
-// Server liest Kopf und drei Bytes und antwortet nie. Die Methoden PUT und POST sind Methoden der
-// Rahmung und tragen den Marker nicht (A14).
+// Server liest Kopf und drei Bytes und antwortet nie.
 func rahmungFehlerFaelle() []fehlerFall {
 	var f []fehlerFall
 	for _, body := range []string{"ab", "abcd"} {
@@ -515,7 +515,6 @@ func rahmungFehlerFaelle() []fehlerFall {
 			})
 			c := neuerClient(t, zeitgrenze)
 			a := mitGeheim(anfrage(s.ziel(), "", ""))
-			a.Methode = "PUT"
 			a.Body, a.Laenge = strings.NewReader(body), 3
 			_, err := sende(context.Background(), t, c, a)
 			return err
@@ -539,7 +538,6 @@ func laengeMaxFall() fehlerFall {
 		})
 		c := neuerClient(t, zeitgrenze)
 		a := mitGeheim(anfrage(s.ziel(), "", ""))
-		a.Methode = "POST"
 		a.Body, a.Laenge = strings.NewReader("ab"), math.MaxInt64
 		_, err := sende(context.Background(), t, c, a)
 		if !errors.Is(err, outbound.ErrUpstreamNichtErreichbar) {

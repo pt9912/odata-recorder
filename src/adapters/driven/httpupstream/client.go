@@ -78,8 +78,8 @@ type ziel struct {
 }
 
 // pruefe weist ungültige Argumente ab, bevor eine Verbindung entsteht oder Body gelesen wird
-// (SPEC-120 Nr. 2); der Fehler nennt das Feld; der Wert von `Ziel`, `Methode`, `Pfad`, `RawQuery` und
-// der Header steht in keinem Fehlertext (Nr. 8).
+// (SPEC-120 Nr. 2); der Wert von `Ziel`, `Methode`, `Pfad`, `RawQuery` und der Header steht in keinem
+// Fehlertext (Nr. 8).
 func pruefe(ctx context.Context, a outbound.UpstreamAnfrage) (ziel, error) {
 	z, zielOK := leseZiel(a.Ziel)
 	switch {
