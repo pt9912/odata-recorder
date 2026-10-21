@@ -1,0 +1,2 @@
+**Vorgang:** slice-capture-pipeline
+**Fund:** 4620 Zeilen gegen die Marke 3600 und die Schätzung 2200 vor dem Review (Produktcode 872, Tests 3713, das 4,3-Fache); schon der erste Code-Commit lag mit 3690 über der Marke, die Fänger aus Review, Verifikation und Nachverifikation brachten 930 dazu, davon Produktcode 4 Zeilen Kommentar. Der Slice blieb ungeteilt; der Schnitt nach Lieferwert (Dekompression als eigener Slice) hätte vor dem Code bestanden (Plan §6, Risiko *Größe*).

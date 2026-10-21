@@ -1,0 +1,2 @@
+**Vorgang:** slice-capture-pipeline
+**Fund:** `TestErsteUrsacheGewinnt` (Fall `Abbrechen` vor Ablauf der Frist) setzte eine Frist von 5 ms und rief `Abbrechen()` direkt nach `Tee`; eine Pause von 6 ms dazwischen färbte ihn rot, ohne dass der Code fehlte, und in keinem Lauf wurde er rot, auch nicht bei `-count=200` mit `--cpus=0.05` (Review F-13). Behoben durch Kanal-Ordnung; es bleiben zwei benannte Fenster von 250 ms, rot nur mit eingesetzter Pause (Verifikation V14, Nachverifikation V19). Das Gate fährt kein `-race` (`CGO_ENABLED=0`).

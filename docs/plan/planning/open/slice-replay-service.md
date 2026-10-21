@@ -120,7 +120,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Welche aufgezeichneten Header ausgeliefert werden: `LH-FA-04.a` sagt „ausgewählte End-to-End-Header“, „zeit- oder hostabhängige Header nur nach expliziter Policy“; die Policy ist nicht festgelegt (`Content-Length`, `Transfer-Encoding`, `Content-Encoding`, `Date`, `Server`, `Location`) — **Ausgang:** offen; Architect entscheidet vor dem Code.
-- Cursor fortschreiben ist Lesen, Ändern, Schreiben auf `CursorRepository`; „pro Cursor serialisieren“ verlangt eine Transaktion oder Sperre — `SPEC-108` Nr. 11 nennt nur `Put` — **Ausgang:** offen; Architect legt die Regel fest, Wiederholungsläufe mit `-race` und `-count` vor der Übergabe.
+- Cursor fortschreiben ist Lesen, Ändern, Schreiben auf `CursorRepository`; „pro Cursor serialisieren“ verlangt eine Transaktion oder Sperre — `SPEC-108` Nr. 11 nennt nur `Put` — **Ausgang:** offen; Architect legt die Regel fest; das Gate fährt kein `-race` (`CGO_ENABLED=0`): die nebenläufigen Fänger ordnen mit Kanälen, und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50`.
 - Request-Body im Replay: Größe, Kodierung, nicht redigierbar (`unsafe`) — der Key lässt sich nicht bilden (`SPEC-001`); welche Antwort — **Ausgang:** offen; Raster-Zelle.
 - Antwort ohne Body (`204`, `HEAD`), Antwort mit `Content-Encoding`, Antwort mit Redaction und `REPLAY_REDACTED_BODIES=true` — **Ausgang:** offen; Raster *Antwortart × Auslieferung*.
 - Abbruch des Clients mitten in der Auslieferung: Cursor ist schon fortgeschrieben (`LH-FA-04.a` Nr. 4: „erst nach erfolgreicher Auswahl“) — **Ausgang:** offen; Architect entscheidet, ob „Auswahl“ die Auslieferung einschließt.
@@ -158,7 +158,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register trägt `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (2×); der Slice ist nebenläufig (parallele Replay-Sessions, Cursor). Der Slice ist nebenläufig: Wiederholungsläufe (`-race`, `-count`) gehören vor die Übergabe, und ein drittes Auftreten dieser Beobachtung in dieser Welle ist kein Befund mehr, sondern ein eigener Slice.
+**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register trägt `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (über der Schwelle, ohne Ausgang); der Slice ist nebenläufig (parallele Replay-Sessions, Cursor). Der Slice ist nebenläufig: das Gate fährt kein `-race` (`CGO_ENABLED=0`), die nebenläufigen Fänger ordnen mit Kanälen, jeder nebenläufige Test läuft vor der Übergabe mit `-count=50` (wie in `slice-capture-pipeline` §3), und ein drittes Auftreten dieser Beobachtung in dieser Welle ist kein Befund mehr, sondern ein eigener Slice.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der

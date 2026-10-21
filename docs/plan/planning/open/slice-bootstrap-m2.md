@@ -120,7 +120,7 @@ dasteht.
 - Aufrufweg zu Session-Ende, Import und Workspace ohne Admin-API: der Handle des Composition Root ist eine Entscheidung zwischen Architektur und Test — **Ausgang:** offen; Architect entscheidet vor dem Code, ob `Build` exportiert wird oder ein internes Test-Paket den Root baut.
 - Der Test deckt alle Schichten und bricht, wo ein Vorgänger-Slice eine Randform offen ließ — **Ausgang:** offen; jeder Fund geht als Befund an den Slice, der ihn verantwortet, nicht in den Test.
 - Loopback und Ports im Testcontainer (`--network none`): `httptest` bindet auf Loopback — **Ausgang:** offen; wird vor dem Code in `make test` erprobt.
-- Zeitabhängigkeit: Herunterfahren, Fristen, parallele Clients — **Ausgang:** offen; Wiederholungsläufe mit `-race` und `-count` vor der Übergabe.
+- Zeitabhängigkeit: Herunterfahren, Fristen, parallele Clients — **Ausgang:** offen; das Gate fährt kein `-race` (`CGO_ENABLED=0`): die nebenläufigen Fänger ordnen mit Kanälen, und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50`.
 - M2 ist ein Meilenstein, kein Slice-Ziel: Die Roadmap setzt ihn erst nach der Closure der Welle auf *erreicht* — **Ausgang:** offen; der Slice liefert den Beleg, die Welle-Closure setzt die Zelle.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
 
@@ -156,7 +156,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register trägt `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (2×); der Test ist nebenläufig. Der Slice ist nebenläufig: Wiederholungsläufe (`-race`, `-count`) gehören vor die Übergabe, und ein drittes Auftreten dieser Beobachtung in dieser Welle ist kein Befund mehr, sondern ein eigener Slice.
+**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register trägt `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (über der Schwelle, ohne Ausgang); der Test ist nebenläufig. Der Slice ist nebenläufig: das Gate fährt kein `-race` (`CGO_ENABLED=0`), die nebenläufigen Fänger ordnen mit Kanälen, jeder nebenläufige Test läuft vor der Übergabe mit `-count=50` (wie in `slice-capture-pipeline` §3), und ein drittes Auftreten dieser Beobachtung in dieser Welle ist kein Befund mehr, sondern ein eigener Slice.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der

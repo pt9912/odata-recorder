@@ -1,0 +1,2 @@
+**Vorgang:** slice-capture-pipeline
+**Fund:** *Ungeprüft* von `SPEC-119` nahm Panic eines Ports und Typed-nil hin „wie bei `SPEC-118`“; dort läuft der Aufruf in der Goroutine des Aufrufers, hier in der eigenen Goroutine der Aufnahme, und ein Panic dort beendet den Prozess und alle Sessions (Review F-3, per Probe gezeigt). Die nachgetragene Begründung deckte `src.Read` nicht, das in der Goroutine des Aufrufers läuft (Verifikation V15). Behoben in *Ungeprüft*: die Folge je Ort ist benannt, kein Code ändert sich.

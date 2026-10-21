@@ -122,7 +122,7 @@ dasteht.
 
 - Bezugszeitpunkt des Alters: Beginn der Session, Ende oder letzter Exchange — `LH-RB-04.a` sagt „Sessions, die älter sind“ — **Ausgang:** offen; Architect entscheidet vor dem Code.
 - Blob-Bereinigung gegen gleichzeitiges `Commit` desselben Inhalts (offene Randform aus `slice-blob-ablage`: `Remove` gegen `Commit` gleicher Bytes) — **Ausgang:** offen; der Abgleich läuft beim Start vor der Annahme von Requests, nach dem Löschen einer Session aber im laufenden Betrieb; Architect legt die Regel fest.
-- `complete` setzt voraus, dass alle Exchanges der Session `complete` sind; ein Exchange, der nach `Drain` abgeschlossen wird, gegen den Statuswechsel — **Ausgang:** offen; Wiederholungsläufe mit `-race`.
+- `complete` setzt voraus, dass alle Exchanges der Session `complete` sind; ein Exchange, der nach `Drain` abgeschlossen wird, gegen den Statuswechsel — **Ausgang:** offen; das Gate fährt kein `-race` (`CGO_ENABLED=0`): die nebenläufigen Fänger ordnen mit Kanälen, und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50`.
 - Startwartung findet Datenbank oder Blob beschädigt (`ODR-E3001`): Start scheitert oder läuft weiter — `SPEC-048` nennt die Prüfung, nicht die Folge — **Ausgang:** offen; Architect.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
 
@@ -158,7 +158,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register trägt `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (2×); der Slice ist nebenläufig (Statuswechsel gegen laufende Exchanges, Bereinigung gegen Commit). Der Slice ist nebenläufig: Wiederholungsläufe (`-race`, `-count`) gehören vor die Übergabe, und ein drittes Auftreten dieser Beobachtung in dieser Welle ist kein Befund mehr, sondern ein eigener Slice.
+**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register trägt `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (über der Schwelle, ohne Ausgang); der Slice ist nebenläufig (Statuswechsel gegen laufende Exchanges, Bereinigung gegen Commit). Der Slice ist nebenläufig: das Gate fährt kein `-race` (`CGO_ENABLED=0`), die nebenläufigen Fänger ordnen mit Kanälen, jeder nebenläufige Test läuft vor der Übergabe mit `-count=50` (wie in `slice-capture-pipeline` §3), und ein drittes Auftreten dieser Beobachtung in dieser Welle ist kein Befund mehr, sondern ein eigener Slice.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der
