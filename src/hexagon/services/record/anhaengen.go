@@ -49,9 +49,10 @@ func (r *Recorder) zustand(id string) *sessionZustand {
 	return sz
 }
 
-// haengeAn hängt den Exchange mit der Zahl der Session plus eins an (SPEC-121 Nr. 10). Die Zahl
-// liest ListBySession beim ersten Anhängen und nach ErrUngueltigeSequenz; sie steigt nur, wenn
-// Append gelingt.
+// haengeAn hängt den Exchange mit der Zahl der Session plus eins an (SPEC-121 Nr. 10). Hat der
+// Dienst keine Zahl für die Session, liest er sie mit ListBySession, sonst nicht. Keine Zahl hat
+// er, bis ein Lesen gelingt, und nach ErrUngueltigeSequenz aus Append, das sie verwirft; nach
+// jedem anderen Fehler von Append bleibt sie. Sie steigt nur, wenn Append gelingt.
 func (r *Recorder) haengeAn(ctx context.Context, sz *sessionZustand, e model.Exchange) error {
 	sz.anhaengen.Lock()
 	defer sz.anhaengen.Unlock()
