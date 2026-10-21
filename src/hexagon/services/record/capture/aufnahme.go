@@ -62,7 +62,8 @@ func (a *Aufnahme) Ergebnis() Ergebnis {
 }
 
 // arbeite ist die Goroutine der Aufnahme; sie ist die einzige, die Dekompressor, Redaktor und
-// Writer benutzt, und endet in jedem Fall.
+// Writer benutzt. Sie endet mit dem Ergebnis; ein Aufruf des Writers, der nie zurückkehrt, hält
+// sie auf (SPEC-119 Nr. 14, Ungeprüft).
 func (a *Aufnahme) arbeite(ctx context.Context) {
 	if a.p.start != nil {
 		<-a.p.start

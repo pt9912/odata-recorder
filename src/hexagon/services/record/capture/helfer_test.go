@@ -404,6 +404,16 @@ type umg struct {
 	blobs *fakeBlobs
 	k     capture.Konfig
 	p     *capture.Pipeline
+	// huelle umhüllt jedes src, das tee und die Treiber von captureFaelle an Tee geben; nil lässt es.
+	huelle func(io.Reader) io.Reader
+}
+
+// umhuellt gibt src an huelle, falls gesetzt.
+func (u *umg) umhuellt(src io.Reader) io.Reader {
+	if u.huelle == nil {
+		return src
+	}
+	return u.huelle(src)
 }
 
 func pfad(t *testing.T, text string) model.JSONPfad {
@@ -455,7 +465,7 @@ func (u *umg) pipe() *capture.Pipeline {
 
 func (u *umg) tee(src io.Reader, ein capture.Eingang) *capture.Aufnahme {
 	u.t.Helper()
-	a, err := u.pipe().Tee(context.Background(), src, ein)
+	a, err := u.pipe().Tee(context.Background(), u.umhuellt(src), ein)
 	if err != nil {
 		u.t.Fatalf("Tee: %v", err)
 	}

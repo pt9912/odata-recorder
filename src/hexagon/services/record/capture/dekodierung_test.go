@@ -350,22 +350,23 @@ func TestLeereRohbytesJeKette(t *testing.T) {
 }
 
 // TestVerhaeltnisAmAufruf hält die Grenze 20:1 an beiden Seiten am Aufruf der Pipeline: 2000
-// entpackte Bytes, der gzip-Strom wird mit einem Kopfkommentar auf genau 100, 99 und 101 Bytes aufgefüllt.
+// entpackte Bytes, der gzip-Strom wird mit einem Kopfkommentar auf genau 100, 99 und 101 Bytes
+// aufgefüllt; dazu 2001 entpackte Bytes bei 100 Rohbytes, ein entpacktes Byte über der Grenze.
 func TestVerhaeltnisAmAufruf(t *testing.T) {
-	koerper := jsonString(2000)
 	faelle := []struct {
-		name string
-		roh  int
-		ok   bool
+		name          string
+		entpackt, roh int
+		ok            bool
 	}{
-		{"genau 20:1", 100, true},
-		{"knapp darüber", 99, false},
-		{"knapp darunter", 101, true},
+		{"genau 20:1", 2000, 100, true},
+		{"knapp darüber", 2000, 99, false},
+		{"knapp darunter", 2000, 101, true},
+		{"ein entpacktes Byte über 20:1", 2001, 100, false},
 	}
 	for _, f := range faelle {
 		t.Run(f.name, func(t *testing.T) {
 			u := neu(t, mitMax(8<<20), mitVerh(20))
-			e := u.lauf(quelleBytes(gzMitRoh(t, koerper, f.roh)), mitEncoding(antwort(), "gzip"))
+			e := u.lauf(quelleBytes(gzMitRoh(t, jsonString(f.entpackt), f.roh)), mitEncoding(antwort(), "gzip"))
 			if f.ok {
 				vollstaendig(t, u, e, model.RedactionNone)
 				return

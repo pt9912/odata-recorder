@@ -148,6 +148,67 @@ func TestUeberlaufVorVerstoss(t *testing.T) {
 	verworfen(t, abwarten(t, a), capture.Response, capture.Verstoss, capture.GrundUeberlauf)
 }
 
+// TestUrsacheVorVerstossInDerQueue: Frist, Abbrechen und Abbruch von ctx wirken sofort, auch wenn
+// in der Queue noch ein Verstoß samt io.EOF steht; die Bytes darin verfallen (SPEC-119 Nr. 9). Die
+// Goroutine hält im ersten Write an, während der Verstoß in die Queue kommt und die Ursache
+// eintritt. Im Fall Frist wartet der Test auf das Ende des Kontexts, den Begin bekam; die Frist ist
+// 250 ms, und der Test setzt voraus, dass die Goroutine in dieser Zeit den ersten Write erreicht.
+func TestUrsacheVorVerstossInDerQueue(t *testing.T) {
+	faelle := []struct {
+		name    string
+		frist   time.Duration
+		los     func(t *testing.T, a *capture.Aufnahme, cancel context.CancelCauseFunc, writer context.Context)
+		ausgang capture.Ausgang
+		grund   capture.Grund
+		ursache error
+	}{
+		{"Frist", 250 * time.Millisecond, func(t *testing.T, _ *capture.Aufnahme, _ context.CancelCauseFunc, w context.Context) {
+			select {
+			case <-w.Done():
+			case <-time.After(zeitgrenze):
+				t.Fatal("die Frist beendet den Kontext des Writers nicht")
+			}
+		}, capture.Verstoss, capture.GrundFrist, context.DeadlineExceeded},
+		{"Abbrechen", time.Hour, func(_ *testing.T, a *capture.Aufnahme, _ context.CancelCauseFunc, _ context.Context) {
+			a.Abbrechen()
+		}, capture.Abbruch, capture.GrundAbbruch, context.Canceled},
+		{"Abbruch von ctx", time.Hour, func(_ *testing.T, _ *capture.Aufnahme, cancel context.CancelCauseFunc, _ context.Context) {
+			cancel(errCtxUrsache)
+		}, capture.Abbruch, capture.GrundAbbruch, errCtxUrsache},
+	}
+	for _, f := range faelle {
+		t.Run(f.name, func(t *testing.T) {
+			u := neu(t, mitFrist(f.frist))
+			u.blobs.haltWrite = 1
+			ctx, cancel := context.WithCancelCause(context.Background())
+			defer cancel(nil)
+			a, err := u.pipe().Tee(ctx, quelle(`{"a":1,`, `"b":x`), antwort())
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := make([]byte, 64)
+			_, _ = a.Read(p)
+			warteAufAnkunft(t, u.blobs.imWrite)
+			for range 2 {
+				_, _ = a.Read(p)
+			}
+			if n := a.Ausstehend(); n != 5 {
+				t.Fatalf("Ausstehend = %d, erwartet 5: der Verstoß steht in der Queue", n)
+			}
+			f.los(t, a, cancel, u.blobs.kontexte()[0])
+			close(u.blobs.freiWrite)
+			e := abwarten(t, a)
+			verworfen(t, e, capture.Response, f.ausgang, f.grund)
+			if !errors.Is(e.Fehler, f.ursache) {
+				t.Errorf("Ursache %v erreicht %v nicht", e.Fehler, f.ursache)
+			}
+			if st := u.blobs.stand(); st.commits != 0 || st.aborts != 1 {
+				t.Errorf("Writer: %+v; erwartet Commit 0 und Abort 1", st)
+			}
+		})
+	}
+}
+
 func TestFrist(t *testing.T) {
 	faelle := []struct {
 		name  string

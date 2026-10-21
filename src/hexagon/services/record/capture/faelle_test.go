@@ -151,19 +151,23 @@ func treibeCtx(t *testing.T, u *umg, f fall) capture.Ergebnis {
 	t.Helper()
 	ctx, cancel := context.WithCancelCause(context.Background())
 	cancel(errCtxUrsache)
-	a, err := u.pipe().Tee(ctx, quelle(), f.ein)
+	a, err := u.pipe().Tee(ctx, u.umhuellt(quelle()), f.ein)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return abwarten(t, a)
 }
 
-// fuehreAus fährt eine Zeile und liefert die Umgebung und das Ergebnis.
-func fuehreAus(t *testing.T, f fall) (*umg, capture.Ergebnis) {
+// fuehreAus fährt eine Zeile und liefert die Umgebung und das Ergebnis; aufbau richtet die
+// Umgebung vor dem Lauf zusätzlich ein.
+func fuehreAus(t *testing.T, f fall, aufbau ...func(*umg)) (*umg, capture.Ergebnis) {
 	t.Helper()
 	u := neu(t, f.opt...)
 	if f.blobs != nil {
 		f.blobs(u.blobs)
+	}
+	for _, a := range aufbau {
+		a(u)
 	}
 	if f.treibe != nil {
 		return u, f.treibe(t, u, f)

@@ -3,8 +3,10 @@ package capture_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -235,24 +237,83 @@ func TestQueueHoechststand(t *testing.T) {
 	}
 }
 
+// TestKeinUeberlaufBeiSchnellemKonsument: Reads zu 1000 Bytes entnimmt der Leser ganz, Reads zu
+// 40000 in Teilen, solange der Eingabepuffer des Redaktors kleiner ist (heute 32 KiB; SPEC-118
+// Nr. 6 sagt die Zahl nicht zu). Die Entnahme in Teilen hält TestAusstehendBeiEntnahmeInTeilen fest.
 func TestKeinUeberlaufBeiSchnellemKonsument(t *testing.T) {
-	u := neu(t, mitQueue(4096), mitMax(4<<20))
-	body := jsonString(1 << 20)
-	a := u.tee(zerlegt([]byte(body), 1000), antwort())
-	p := make([]byte, 1000)
-	for {
-		n, err := a.Read(p)
-		wartetBis(t, "Ausstehend == 0", func() bool { return a.Ausstehend() == 0 })
-		if err != nil || n == 0 {
-			break
+	for _, groesse := range []int{1000, 40000} {
+		t.Run(fmt.Sprintf("Reads zu %d", groesse), func(t *testing.T) {
+			u := neu(t, mitQueue(max(4096, int64(groesse))), mitMax(4<<20))
+			body := jsonString(1 << 20)
+			a := u.tee(zerlegt([]byte(body), groesse), antwort())
+			p := make([]byte, groesse)
+			for {
+				n, err := a.Read(p)
+				wartetBis(t, "Ausstehend == 0", func() bool { return a.Ausstehend() == 0 })
+				if err != nil || n == 0 {
+					break
+				}
+			}
+			e := abwarten(t, a)
+			if got := vollstaendig(t, u, e, model.RedactionNone); got != body {
+				t.Errorf("Blob weicht vom Body ab (Länge %d, erwartet %d)", len(got), len(body))
+			}
+			if h := a.Hoechststand(); h > int64(groesse) {
+				t.Errorf("Hoechststand = %d, erwartet höchstens %d", h, groesse)
+			}
+		})
+	}
+}
+
+// TestAusstehendBeiEntnahmeInTeilen: ausstehend sinkt um jedes entnommene Byte, auch wenn der
+// Leser ein Stück in Teilen entnimmt: ein Byte, ungleiche Teile, ein Teil größer als der Rest des
+// Stücks, genau ein Stück; danach gilt die Grenze an beiden Seiten (SPEC-119 Nr. 4).
+func TestAusstehendBeiEntnahmeInTeilen(t *testing.T) {
+	stueckA, stueckB := wiederholt("0123456789", 6), wiederholt("abc", 10)
+	q := capture.NeueQueueAllein(100)
+	schritte := []struct {
+		name     string
+		lege     string
+		entnimm  int
+		erwartet string
+		bleibt   int64
+	}{
+		{name: "60 eingelegt", lege: stueckA, bleibt: 60},
+		{name: "ein Byte", entnimm: 1, erwartet: "0", bleibt: 59},
+		{name: "sieben Bytes", entnimm: 7, erwartet: "1234567", bleibt: 52},
+		{name: "30 eingelegt", lege: stueckB, bleibt: 82},
+		{name: "Teil größer als der Rest des Stücks", entnimm: 100, erwartet: stueckA[8:], bleibt: 30},
+		{name: "genau das Stück", entnimm: 30, erwartet: stueckB, bleibt: 0},
+	}
+	for _, s := range schritte {
+		if s.lege != "" && q.Lege([]byte(s.lege)) {
+			t.Fatalf("%s: Überlauf", s.name)
+		}
+		if s.entnimm > 0 {
+			if got := string(q.Entnimm(s.entnimm)); got != s.erwartet {
+				t.Errorf("%s: entnommen %q, erwartet %q", s.name, got, s.erwartet)
+			}
+		}
+		if got := q.Ausstehend(); got != s.bleibt {
+			t.Errorf("%s: Ausstehend = %d, erwartet %d", s.name, got, s.bleibt)
 		}
 	}
-	e := abwarten(t, a)
-	if got := vollstaendig(t, u, e, model.RedactionNone); got != body {
-		t.Errorf("Blob weicht vom Body ab (Länge %d, erwartet %d)", len(got), len(body))
-	}
-	if h := a.Hoechststand(); h > 1000 {
-		t.Errorf("Hoechststand = %d, erwartet höchstens 1000", h)
+	for _, f := range []struct {
+		name   string
+		zweite int
+		ueber  bool
+	}{
+		{"nach Teil-Entnahme genau QueueBytes", 50, false},
+		{"nach Teil-Entnahme ein Byte mehr", 51, true},
+	} {
+		t.Run(f.name, func(t *testing.T) {
+			q := capture.NeueQueueAllein(100)
+			_ = q.Lege(make([]byte, 70))
+			_ = q.Entnimm(20)
+			if got := q.Lege(make([]byte, f.zweite)); got != f.ueber {
+				t.Errorf("Überlauf = %v bei 50 ausstehend und %d eingelegt, erwartet %v", got, f.zweite, f.ueber)
+			}
+		})
 	}
 }
 
@@ -449,6 +510,42 @@ func TestReadLaengeNull(t *testing.T) {
 			b := neu(t).tee(e, antwort())
 			if n, err := b.Read(p); n != 0 || err != errQuelle || e.anzahlReads() != 1 {
 				t.Errorf("Read = %d, %v bei %d src.Read; erwartet 0, errQuelle und 1", n, err, e.anzahlReads())
+			}
+		})
+	}
+}
+
+// schliessbar ist ein src, das zugleich io.Closer ist und jeden Aufruf von Close zählt.
+type schliessbar struct {
+	io.Reader
+	closes atomic.Int32
+}
+
+func (s *schliessbar) Close() error {
+	s.closes.Add(1)
+	return nil
+}
+
+// TestSrcNieGeschlossen: die Pipeline schließt src nie, auch wenn es ein io.Closer ist, in keiner
+// Zeile von captureFaelle (SPEC-119 Nr. 3). Geprüft wird, nachdem die Goroutine der Aufnahme endete.
+func TestSrcNieGeschlossen(t *testing.T) {
+	for _, f := range captureFaelle() {
+		t.Run(f.name, func(t *testing.T) {
+			var srcs []*schliessbar
+			vorher := aufnahmeGoroutinen()
+			_, _ = fuehreAus(t, f, func(u *umg) {
+				u.huelle = func(r io.Reader) io.Reader {
+					s := &schliessbar{Reader: r}
+					srcs = append(srcs, s)
+					return s
+				}
+			})
+			wartetBis(t, "die Goroutine der Aufnahme endet", func() bool { return aufnahmeGoroutinen() <= vorher })
+			if len(srcs) != 1 {
+				t.Fatalf("%d Ströme umhüllt, erwartet 1", len(srcs))
+			}
+			if n := srcs[0].closes.Load(); n != 0 {
+				t.Errorf("src.Close %d-mal gerufen, erwartet 0", n)
 			}
 		})
 	}
