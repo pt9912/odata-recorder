@@ -22,6 +22,7 @@ Ein Test zeichnet über den Recorder gegen einen Referenzdienst auf und spielt d
 Der Weg dahin ist der vollständige Pfad der Spezifikation: Record mit Capture und Redaction, Session beenden, Import der Aufzeichnung in eine Baseline (`LH-FA-18`, `LH-FA-11`), Workspace aus der Baseline (`LH-FA-09`), Replay mit Zuordnung, Match-Key und Cursor.
 Ein Replay ohne Workspace gibt es nicht (`SPEC-052`), ein Workspace ohne Baseline auch nicht (`SPEC-003`, `SPEC-108`), und eine Baseline entsteht nur durch den Import; deshalb gehören OData-Codec und Import in diese Welle.
 Eine Welle, weil der Closure-Trigger mehr beobachtet als die DoDs der Slices: den Rundlauf durch alle Schichten, vom HTTP-Eingang über Services und Ports bis in die SQLite-Datei und zurück.
+Zwei Slices kommen aus dem Steering Loop und der Messmethode dazu: `slice-race-gate` bringt den Race-Detektor ins Gate, bevor der HTTP-Adapter entsteht (`BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen`), und `slice-protokolltreue` den Vergleichstest zu `LH-QA-07` am Referenzdienst des M2-Tests.
 
 ## 2. Trigger (Welle startet)
 
@@ -41,9 +42,10 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 
 - Alle Slices der Welle liegen in `done/`.
-- `make gates` ist grün und `make gegenproben` ist grün.
+- `make gates` ist grün und fährt das Ziel mit `go test -race` aus `slice-race-gate`; `make gegenproben` ist grün.
 - Der M2-Test aus `slice-bootstrap-m2` ist grün und Teil von `make test`: Er startet den Recorder im Modus `record` gegen einen Referenzdienst, zeichnet `$metadata` und Collection- und Entity-Abfragen auf, beendet die Session, importiert sie in eine Baseline, legt einen Workspace an und spielt die Abfragen im Modus `replay` ab, nachdem der Referenzdienst beendet ist; Status, Header (soweit nach `SPEC-045` auszuliefern) und Body sind byte-gleich, und der Referenzdienst hat im Replay keine Verbindung gesehen.
-- Die Closure-Notiz liegt als `welle-record-replay-results.md` im Ruheort `done/`.
+- Der Vergleichstest aus `slice-protokolltreue` ist grün und Teil von `make test`: Direktzugriff und Zugriff über den Recorder im Modus `record` ergeben am Referenzdienst dieselbe entpackte Darstellung nach `LH-QA-07.a` der Spezifikation.
+- Die Closure-Notiz liegt als `welle-record-replay-results.md` im Ruheort `done/`; ihre *Steering-Loop-Einträge* tragen je Regel mit dem Anker `seit welle-record-replay` das Feld `liegt in` (`AGENTS.md` §3.14, §3.15, §3.16, `.harness/skills/reviewer.md`, die Zielorte von `slice-race-gate`) und den Eintrag zu `BEO-REPO/universalaussage-im-vertrag-ungeprueft` (`AGENTS.md` §3.16).
 
 ## 4. Slices in dieser Welle
 
@@ -67,8 +69,10 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-baseline-import | `ImportUseCase` mit Coverage-Beweis | `LH-FA-18`, `LH-FA-11`, `LH-FA-14` |
 | slice-workspace-use-case | `WorkspaceUseCase`: Anlegen, Lesen, Löschen, Reset | `LH-FA-09`, `LH-FA-04` |
 | slice-replay-service | `ReplayUseCase`: Zuordnung, Strategien, Cursor | `LH-FA-04`, `LH-FA-05`, `LH-FA-14` |
+| slice-race-gate | Race-Detektor im Gate | `LH-QA-03`, `LH-QA-06` |
 | slice-http-adapter | HTTP-Driving-Adapter für Record und Replay | `LH-FA-01`, `LH-FA-04`, `LH-FA-02` |
 | slice-bootstrap-m2 | Composition Root, Referenzdienst und M2-Test | `LH-FA-12`, `LH-FA-04`, `LH-QA-02` |
+| slice-protokolltreue | Vergleichstest der Protokolltreue (Direktzugriff gegen Proxy) | `LH-QA-07`, `LH-FA-01` |
 
 ## 5. Abhängigkeiten
 
@@ -78,7 +82,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 - Blockiert: Folgewellen für Mock, Hybrid und Admin-API (wegen der Services, Ports und des Codecs); sie stehen noch nicht in der Roadmap.
 - Wird blockiert von: — (`welle-persistenz` ist geschlossen).
 - Unabhängig: Welle welle-dev-container.
-- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-fehlermodell-konfiguration` und `slice-clock-idgenerator` zuerst; `slice-redaction-match-key` → `slice-streaming-redaction` → `slice-capture-pipeline` → `slice-record-service` → `slice-session-wartung`; `slice-record-service` → `slice-upstream-adapter` (der Adapter braucht den Port `UpstreamClient` im Code; der Dienst ist gegen einen Fake des Ports geprüft und braucht den Adapter nicht) → `slice-upstream-tls` (TLS-Konfiguration des Adapters, beim Handoff von `slice-upstream-adapter` geschnitten; braucht dessen Code in `done/`); `slice-odata-codec-csdl` → `slice-odata-codec-json` → `slice-baseline-import` (braucht zusätzlich `slice-redaction-match-key`) → `slice-workspace-use-case` → `slice-replay-service` (braucht zusätzlich `slice-redaction-match-key` und `slice-streaming-redaction`); `slice-http-adapter` braucht `slice-record-service` und `slice-replay-service`; `slice-bootstrap-m2` zuletzt (braucht zusätzlich `slice-upstream-adapter` und `slice-upstream-tls`). Der Ast Record und der Ast Codec und Import hängen erst im Replay und im Bootstrap zusammen und lassen sich in dieser Reihenfolge einzeln liefern.
+- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-fehlermodell-konfiguration` und `slice-clock-idgenerator` zuerst; `slice-redaction-match-key` → `slice-streaming-redaction` → `slice-capture-pipeline` → `slice-record-service` → `slice-session-wartung`; `slice-record-service` → `slice-upstream-adapter` (der Adapter braucht den Port `UpstreamClient` im Code; der Dienst ist gegen einen Fake des Ports geprüft und braucht den Adapter nicht) → `slice-upstream-tls` (TLS-Konfiguration des Adapters, beim Handoff von `slice-upstream-adapter` geschnitten; braucht dessen Code in `done/`); `slice-odata-codec-csdl` → `slice-odata-codec-json` → `slice-baseline-import` (braucht zusätzlich `slice-redaction-match-key`) → `slice-workspace-use-case` → `slice-replay-service` (braucht zusätzlich `slice-redaction-match-key` und `slice-streaming-redaction`); `slice-race-gate` braucht keinen Slice der Welle (er ändert `Dockerfile`, Gate-Kette und Gegenproben, nicht den Code der Pakete) und liegt vor `slice-http-adapter`; `slice-http-adapter` braucht `slice-record-service`, `slice-replay-service` und `slice-race-gate`; `slice-bootstrap-m2` nach den übrigen (braucht zusätzlich `slice-upstream-adapter` und `slice-upstream-tls`); `slice-protokolltreue` zuletzt (braucht `slice-bootstrap-m2`: Referenzdienst und Composition Root). Der Ast Record und der Ast Codec und Import hängen erst im Replay und im Bootstrap zusammen und lassen sich in dieser Reihenfolge einzeln liefern.
 
 ## 6. Out-of-Scope für diese Welle
 

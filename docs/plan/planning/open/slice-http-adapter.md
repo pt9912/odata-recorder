@@ -37,6 +37,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Record):** Der Adapter füllt `inbound.Anfrage` unverändert (`SPEC-121` Kopf): `Pfad` mit den Escapes des Clients ohne Query, `RawQuery` ohne `?`, alle Header außer `Host`, `Body` (nil ohne Body), `Laenge` (`-1`, `0` oder die angekündigte Länge) und `KorrelationsID`. Er schreibt `Antwort.Status` und `Antwort.Header`, kopiert `Antwort.Body` und ruft `Antwort.Body.Close` genau einmal, auch nach einem Fehler beim Schreiben an den Client und nach dessen Abbruch (`SPEC-121` Nr. 7). Vom Aufruf von `Record` bis zur Rückkehr von `Close` (ohne `Antwort`: bis zur Rückkehr von `Record`) ändert er weder `Anfrage.Header` noch eine seiner Wertlisten und liest `Body` nicht (`SPEC-121` Kopf). Einen `*inbound.Fehler` schreibt er mit dessen `Code` und `Status` als Fehlerobjekt (`SPEC-109` Nr. 1, `SPEC-121` Nr. 14); ein Kontextfehler ohne Code bekommt keine Antwort, `model.ErrUngueltig` ist `ODR-E9001` (Sendung von `slice-record-service`).
 
+**Übernimmt (Race-Detektor):** Die nebenläufigen Tests des Pakets laufen im Ziel mit `go test -race`, das `slice-race-gate` an `make gates` hängt; führt dessen Vertrag eine Liste der Pakete, nimmt dieser Slice `httpodata` darin auf (Sendung von `slice-race-gate`).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Entscheidungen über Cursor, Match-Key, Coverage oder CRUD — der Adapter entscheidet sie nicht (`architecture.md` §2.2).
@@ -64,7 +66,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Abbildung und Streaming: Request und Response ohne Veränderung der Bytes, geliehene kontextgebundene Ströme, Schließen durch den Adapter; Fehlerobjekt nach `SPEC-006` mit Code, Status und Korrelations-ID aus der Tabelle der Codes.
 - [ ] Lebenszyklus: Listener öffnen und schließen, bei SIGTERM-Ablauf neue Requests mit 503 abweisen, laufende bis `SHUTDOWN_TIMEOUT` abwarten; Transportfehler vor dem ersten Byte als Gateway-Status, danach keine Änderung des Status (`LH-FA-02.b`).
-- [ ] Tests über `httptest` gegen Fakes der Inbound Ports, ohne SQLite.
+- [ ] Tests über `httptest` gegen Fakes der Inbound Ports, ohne SQLite; die nebenläufigen laufen im Ziel mit `-race` aus `slice-race-gate` (Sendung von `slice-race-gate`).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -97,7 +99,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-record-service` und `slice-replay-service` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-record-service` und `slice-replay-service` und `slice-race-gate` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -120,7 +122,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Header-Behandlung: mehrfach vorkommende Header, Groß-/Kleinschreibung, `Host`, `Connection`-Liste, `Transfer-Encoding` — **Ausgang:** offen; Raster *Header-Art × Behandlung*, Entscheidung in der Spezifikation.
-- Client bricht ab, bevor der Use Case antwortet; Antwort bricht ab nach dem ersten Byte — **Ausgang:** offen; das Gate fährt kein `-race` (`CGO_ENABLED=0`): die nebenläufigen Fänger ordnen mit Kanälen, und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50`.
+- Client bricht ab, bevor der Use Case antwortet; Antwort bricht ab nach dem ersten Byte — **Ausgang:** offen; die nebenläufigen Fänger ordnen mit Kanälen und laufen im Ziel mit `-race` aus `slice-race-gate`, und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50`.
 - Pfad ohne Service-Root, Pfad mit Prozent-Kodierung, `raw_query` mit ungültiger Kodierung — **Ausgang:** offen; Raster-Zelle, der Adapter reicht unverändert, der Use Case entscheidet (`ODR-E5005`).
 - Request-Größe und Zeitgrenzen des Servers (`ReadHeaderTimeout`, Idle) — **Ausgang:** offen; die Spezifikation nennt nur `UPSTREAM_TIMEOUT` und `SHUTDOWN_TIMEOUT`; Architect.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
@@ -157,7 +159,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register trägt `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (über der Schwelle, ohne Ausgang); der Slice ist nebenläufig (Abbrüche, Herunterfahren). Der Slice ist nebenläufig: das Gate fährt kein `-race` (`CGO_ENABLED=0`), die nebenläufigen Fänger ordnen mit Kanälen, jeder nebenläufige Test läuft vor der Übergabe mit `-count=50` (wie in `slice-capture-pipeline` §3), und ein drittes Auftreten dieser Beobachtung in dieser Welle ist kein Befund mehr, sondern ein eigener Slice.
+**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register trägt `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (5×, Ausgang `geplant` in `slice-race-gate`, der vor diesem Slice liegt); der Slice ist nebenläufig (Abbrüche, Herunterfahren): die nebenläufigen Fänger ordnen mit Kanälen und laufen im Ziel mit `-race` aus `slice-race-gate`, und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50` (wie in `slice-capture-pipeline` §3).
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der
