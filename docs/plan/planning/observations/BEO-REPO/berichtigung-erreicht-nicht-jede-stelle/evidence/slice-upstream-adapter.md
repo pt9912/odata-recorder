@@ -1,0 +1,2 @@
+**Vorgang:** slice-upstream-adapter
+**Fund:** Nach dem Handoff bekam die Regel zum Namen des Hosts einen zweiten Leser und die Fänger A19; der Plan des Gebers nannte Suchbegriffe für die Berichtigung (`Hostname`, `url.Parse`, `RFC 3986`), und die Stelle im Plan des Nehmers fand keiner von ihnen: `slice-upstream-tls` §1 *Ausdrücklich NICHT* zählte für den übrigen Adapter die Fänger „A12 bis A18“, eine Aufzählung von Kennungen (Verifikation V10). Nachgezogen bei der Closure.
