@@ -78,13 +78,15 @@ func argumentFaelle() []fehlerFall {
 		argumentFall(bg, "Body nil bei Laenge -1", func(a *outbound.UpstreamAnfrage, _ *roherServer) { a.Body, a.Laenge = nil, -1 }),
 		argumentFall(bg, "Header-Name mit Leerzeichen", setzeHeader("Bad "+geheim, "v")),
 		argumentFall(bg, "Header-Name leer", setzeHeader("", "v")),
+		argumentFall(bg, "Header-Name mit Klammer", setzeHeader("Bad("+geheim, "v")),
 	}
 	for _, z := range []string{"", "/x", "ftp://127.0.0.1:{p}", "http://", "http://u:" + geheim + "-z@127.0.0.1:{p}",
-		"http://127.0.0.1:{p}?q", "http://127.0.0.1:{p}#f", "http://127.0.0.1:", "http://127.0.0.1:0",
+		"http://127.0.0.1:{p}?q", "http://127.0.0.1:{p}#f", "http://127.0.0.1:{p}?", "http://127.0.0.1:{p}#",
+		"http://@127.0.0.1:{p}", "http://127.0.0.1:", "http://127.0.0.1:0",
 		"http://127.0.0.1:65536", "http://127.0.0.1:{p}/a b", "http://127.0.0.1:{p}/%zz"} {
 		f = append(f, argumentFall(bg, "Ziel "+z, setzeZiel(z)))
 	}
-	for _, m := range []string{"", "GE T", "GET\n", "CONNECT"} {
+	for _, m := range []string{"", "GE T", "GET\n", "GE(T", "CONNECT"} {
 		f = append(f, argumentFall(bg, fmt.Sprintf("Methode %q", m), setzeMethode(m)))
 	}
 	for _, p := range []string{"", geheim + "-x", "/" + geheim + "?b", "/" + geheim + "#b", "/" + geheim + " b", "/" + geheim + "\x7f"} {
@@ -98,6 +100,10 @@ func argumentFaelle() []fehlerFall {
 	}
 	return f
 }
+
+// tokenZeichen enthält jedes Sonderzeichen eines HTTP-Tokens (RFC 9110 §5.6.2), Ziffern und
+// Buchstaben an beiden Enden ihrer Bereiche.
+const tokenZeichen = "!#$%&'*+-.^_`|~09azAZ"
 
 // argumentGrenzFaelle sind die Ports an der gültigen Seite der Grenze; dort lauscht niemand.
 func argumentGrenzFaelle() []fehlerFall {
@@ -138,6 +144,18 @@ func TestSendenArgumenteGegenseite(t *testing.T) {
 			}
 		}},
 		{"Pfad /", func(a *outbound.UpstreamAnfrage) { a.Pfad = "/" }, nil},
+		{"Methode aus allen Token-Zeichen", func(a *outbound.UpstreamAnfrage) { a.Methode = tokenZeichen }, func(t *testing.T, e empfangen) {
+			if !strings.HasPrefix(e.zeile, tokenZeichen+" / ") {
+				t.Errorf("Zeile %q", e.zeile)
+			}
+		}},
+		{"Header-Name aus allen Token-Zeichen", func(a *outbound.UpstreamAnfrage) {
+			a.Header = map[string][]string{tokenZeichen: {"v"}}
+		}, func(t *testing.T, e empfangen) {
+			if w := e.werte(tokenZeichen); !slices.Equal(w, []string{"v"}) {
+				t.Errorf("%s %q", tokenZeichen, w)
+			}
+		}},
 	}
 	for _, b := range []byte{0x09, 0x20, 0x7E, 0x80} {
 		wert := "a" + string([]byte{b}) + "b"
