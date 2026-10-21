@@ -46,7 +46,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Port `UpstreamClient`, seine Fehler und deren Abbildung auf `ODR-E4001` (`SPEC-109` Nr. 5) — `slice-record-service`; der Adapter implementiert den Port, er definiert ihn nicht.
 - Welche Header weitergehen (`X-Recorder-*`, Hop-by-Hop, `Expect`, `Accept-Encoding`), Wahl von Service und Session, Aufzeichnung — `slice-record-service` (`SPEC-121` Nr. 2, 4, 5); der Adapter sendet, was er bekommt (`SPEC-120` Kopf).
 - Verdrahtung, Lesen von `UPSTREAM_CA_FILE` und die Warnung beim Start bei abgeschalteter Prüfung — `slice-bootstrap-m2` (Composition Root); der Adapter erhält Bytes und Schalter, keine Datei und keinen Logger.
-- Trailer und HTTP/2 zum Upstream — akzeptiertes Negativ in `SPEC-120` *Ungeprüft* mit Folge (Trailer gehen am Recorder verloren, OData nutzt sie nicht); kein Nehmer, weil kein Fänger und keine Abnahme sie verlangt.
+- Trailer und HTTP/2 zum Upstream — akzeptiertes Negativ in `SPEC-120` *Ungeprüft* mit Folge (Trailer gehen am Recorder verloren, OData nutzt sie nicht; ein Upstream, der HTTP/1.1 ablehnt, ist nicht erreichbar); kein Nehmer, weil kein Fänger und keine Abnahme sie verlangt.
 - Upstream-Fallback und Allowlist (`FALLBACK_*`) — Hybrid, nicht in der Welle (Welle §6).
 - Span und Metriken des Upstream-Aufrufs — Folgewelle (Welle §6); der Adapter protokolliert nichts, jeder Fehler geht als Wert an den Aufrufer.
 
@@ -123,8 +123,8 @@ Der Vertrag steht in `SPEC-120` **vor** dem ersten Code-Commit (`AGENTS.md` §3.
 
 Nicht gefangen und als akzeptiertes Negativ benannt, je mit Grund und Folge:
 
-- Datenrennen zwischen gleichzeitigen `Senden` und dem `Read` des Bodys — das Gate fährt kein `-race` (`CGO_ENABLED=0`); Folge: ein Rennen kann unentdeckt bleiben; die Tests ordnen mit Kanälen, A15 fängt seine Mutation nur mit hoher Wahrscheinlichkeit, `-count=50` vor jeder Übergabe.
-- Der Inhalt der Vertrauensanker des Systems, HTTP/2, Trailer, ein Upstream, der nach dem Kopf hängt — `SPEC-120` *Ungeprüft*, Folge dort benannt, soweit sie dort steht (§6, offener Punkt zu den Folgen).
+- Datenrennen zwischen gleichzeitigen `Senden` und dem `Read` des Bodys — das Gate fährt kein `-race` (`CGO_ENABLED=0`); die Tests ordnen mit Kanälen, A15 fängt seine Mutation nur mit hoher Wahrscheinlichkeit, `-count=50` vor jeder Übergabe; Folge im Betrieb (`SPEC-120` *Ungeprüft*): eine Anfrage mit Werten einer anderen oder ein Panic.
+- Der Inhalt der Vertrauensanker des Systems, HTTP/2, Trailer, ein Upstream, der nach dem Kopf hängt, die Wiederverwendung von Verbindungen, eine Länge des Bodys, die ohne Fehler von `Laenge` abweicht — `SPEC-120` *Ungeprüft*, Grund und Folge je Fall dort; die Folge ist meist `ErrUpstreamNichtErreichbar` (eine Stelle, die weder das Image noch `CAPEM` kennt; ein Upstream, der HTTP/1.1 ablehnt; eine ruhende Verbindung, die der Upstream schloss).
 
 ## 4. Trigger
 
@@ -192,7 +192,7 @@ Der Vertrag ist entschieden in `SPEC-120` (*U*); *R* Nr. n ist `SPEC-121` Nr. n.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster steht oben vor dem Code, mit Zusatztabelle und Fänger-Spalte; eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen bis zur Closure.
 - Loopback, `localhost` und Namensauflösung in der Stufe `test` (`RUN --network=none`): roher Listener auf `127.0.0.1:0`, TLS-Server, `https://localhost:p` (A10) und `host.invalid` (A9); dieser Slice fährt als erster Tests über Loopback im Gate — **Ausgang:** offen; der Implementer erprobt je Form einen Fall in `make test`, bevor er die übrigen schreibt; scheitert eine Form an der Umgebung statt am Code, geht sie an den Architect (die Zeile der Tabelle wird geändert, nicht still übersprungen).
 - Der Record-Dienst ist gegen einen Fake des Ports geprüft, der Adapter gegen `SPEC-120`; zusammen laufen sie erst im M2-Test von `slice-bootstrap-m2` — **Ausgang:** offen; A1 bis A15 halten den Adapter an `SPEC-120`, der Fake in `slice-record-service` folgt denselben Nummern; eine Abweichung, die der M2-Test findet, geht als Befund an den Slice, der sie verantwortet (`slice-bootstrap-m2` §6).
-- Akzeptierte Negative ohne benannte Folge in `SPEC-120` *Ungeprüft*: der Inhalt der Vertrauensanker des Systems, HTTP/2 (ein Upstream, der nur HTTP/2 spricht), die Wiederverwendung von Verbindungen, das Ausbleiben von Datenrennen — **Ausgang:** offen; der Architect nennt je Fall die Folge vor dem ersten Code-Commit (`BEO-REPO/akzeptiertes-negativ-ohne-folge`).
+- Akzeptierte Negative ohne benannte Folge in `SPEC-120` *Ungeprüft*: der Inhalt der Vertrauensanker des Systems, HTTP/2 (ein Upstream, der nur HTTP/2 spricht), die Wiederverwendung von Verbindungen, das Ausbleiben von Datenrennen — **Ausgang:** entfallen; je Fall Grund und Folge in `SPEC-120` *Ungeprüft*, vor dem ersten Code-Commit nachgetragen (`BEO-REPO/akzeptiertes-negativ-ohne-folge`). Dort ausdrücklich: ein fehlender oder nicht lesbarer Bestand an Vertrauensankern des Systems gilt als leer; das folgt aus Nr. 1 (`New` scheitert nur an `Frist` und `CAPEM`) und hat keinen Fänger.
 - **Größe:** 15 Zeilen in der Tabelle *Zusage · Fänger*, Schätzung rund 1600, Marke 1900 (§4) — **Ausgang:** offen; gemessen beim Handoff des Implementers und nach dem Review, der Schnitt einer Rückführung ist in §4 vorab benannt.
 
 ## 7. Closure-Notiz
@@ -234,7 +234,7 @@ Hälften.
 - `nebenlaeufiger-lauf-nur-im-glueck-gruen` (über der Schwelle, ohne Ausgang): der Slice ist nebenläufig; kein `-race` im Gate, Kanal-Ordnung, Fristen nur in der sicheren Richtung, `-count=50`, A15 als nicht mathematisch sicher benannt (§3).
 - `groessenmarke-ueberschritten-ohne-rueckfuehrung` (10×, ohne Ausgang): dieser Slice ist der Schnitt vor dem ersten Code-Commit von `slice-record-service`; Marke, Messpunkt beim Handoff und der Schnitt einer Rückführung stehen in §4.
 - `berichtigung-erreicht-nicht-jede-stelle` (1×): ändert eine Prüfrunde `SPEC-120`, trägt dieselbe Aussage auch `LH-FA-01.a` (Fehlermodi), `LH-RB-02.a` (Zertifikatsfehler), `SPEC-012` (Frist bis zum Kopf), `SPEC-109` Nr. 5 und `SPEC-121` Nr. 9, 11; die Berichtigung sucht dort mit.
-- `akzeptiertes-negativ-ohne-folge` (1×): §3 nennt je akzeptiertes Negativ Grund und Folge; `SPEC-120` *Ungeprüft* nennt sie nicht bei jedem Fall (offener Punkt in §6).
+- `akzeptiertes-negativ-ohne-folge` (1×): §3 nennt je akzeptiertes Negativ Grund und Folge, `SPEC-120` *Ungeprüft* je Fall ebenso (vor dem Code nachgetragen, §6).
 - `werkzeug-eingabe-setzt-escape-in-zeichen-um`: die Fixtures mit Steuerbytes stehen als Go-Escapes, geprüft mit `grep` nach dem Schreiben (§3).
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
