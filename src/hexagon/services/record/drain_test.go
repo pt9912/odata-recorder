@@ -207,6 +207,29 @@ func TestDrainBericht(t *testing.T) {
 	if b := empfange(t, "Drain", dr); b.err != nil || b.b.Abgebrochen != 1 || b.b.NichtAngehaengt != 1 {
 		t.Errorf("Drain und Fehler beim Anhängen: %+v", b)
 	}
+
+	// Je Session: Abbruch und Verlust in s2 stehen nur im Bericht von s2, nicht in dem von s1 und
+	// nicht in dem einer Kennung ohne Exchange (SPEC-121 Nr. 13).
+	j := neu(t)
+	j.sessions.setze("s2", "svc-a", model.SessionOpen)
+	j.rundlauf(mitSession(anfrage("GET", "/a/x"), sessionHeader, "s1"))
+	j.exchanges.appendFehler[1] = errDisk
+	j.upstream.plane(jsonAntwort(koerper(`{"a":`).dann(make(chan struct{}), `1}`, nil)))
+	ant, err = j.record(context.Background(), mitSession(anfrage("GET", "/a/y"), sessionHeader, "s2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dr = j.drainNebenbei(context.Background(), "s2", 0)
+	empfange(t, "Ende des Kontexts", j.upstream.gesehen()[1].done)
+	schliesse(t, ant.Body)
+	if b := empfange(t, "Drain s2", dr); b.err != nil || b.b.Abgebrochen != 1 || b.b.NichtAngehaengt != 1 {
+		t.Errorf("Drain s2: %+v", b)
+	}
+	for _, id := range []string{"s1", "unbekannt"} {
+		if b := j.bericht(id); b.Abgebrochen != 0 || b.NichtAngehaengt != 0 {
+			t.Errorf("Bericht %s trägt %+v aus s2", id, b)
+		}
+	}
 }
 
 // TestDrainWiederholt: ein zweiter Drain kehrt mit demselben Bericht zurück; zwei gleichzeitige

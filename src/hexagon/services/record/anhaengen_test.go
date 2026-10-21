@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -116,37 +117,82 @@ func TestSequenzGleichzeitig(t *testing.T) {
 	}
 }
 
+// TestAnhaengeUnabhaengig: Anhänge an verschiedene Sessions laufen unabhängig: während Append eines
+// Exchange von s1 angehalten ist, nimmt der Dienst einen Exchange von s2 an, und dessen Close kehrt
+// angehängt zurück; erst danach endet der von s1 (B19; SPEC-121 Nr. 10, 15). Ein Warten an einer
+// Sperre endet an der Zeitgrenze.
+func TestAnhaengeUnabhaengig(t *testing.T) {
+	u := neu(t)
+	u.sessions.setze("s2", "svc-a", model.SessionOpen)
+	frei := make(chan struct{})
+	u.exchanges.haltAppend, u.exchanges.imAppend, u.exchanges.haltNur = frei, make(chan struct{}, 1), "s1"
+	ant, err := u.record(context.Background(), mitSession(anfrage("GET", "/a/x"), sessionHeader, "s1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s1 := nebenbei(func() error {
+		_, _ = io.ReadAll(ant.Body)
+		return ant.Body.Close()
+	})
+	empfange(t, "Append von s1", u.exchanges.imAppend)
+	s2 := nebenbei(func() error {
+		a2, err := u.r.Record(context.Background(), mitSession(anfrage("GET", "/a/y"), sessionHeader, "s2"))
+		if err != nil {
+			return err
+		}
+		_, _ = io.ReadAll(a2.Body)
+		return a2.Body.Close()
+	})
+	if err := empfange(t, "Exchange von s2, während Append von s1 hält,", s2); err != nil {
+		t.Fatal(err)
+	}
+	if l := u.exchanges.angehaengt(); len(l) != 1 || l[0].SessionID != "s2" || l[0].SequenceNo != 1 {
+		t.Fatalf("während Append von s1 hält: %d angehängt, erwartet s2 mit 1", len(l))
+	}
+	close(frei)
+	if err := empfange(t, "Close von s1", s1); err != nil {
+		t.Fatal(err)
+	}
+	if l := u.exchanges.angehaengt(); len(l) != 2 || l[1].SessionID != "s1" || l[1].SequenceNo != 1 {
+		t.Errorf("nach der Freigabe: %d angehängt, erwartet s1 mit 1 an zweiter Stelle", len(l))
+	}
+}
+
 // TestNichtAngehaengt: jeder Fehler von Append und vom Lesen der Zahl, auch Validate: Close nil,
 // Client las alles, Eintrag ablage mit dem Code zum Gegenstand Sonstiges, Bericht, Zahl und Blob
-// bleiben; nach ErrUngueltigeSequenz wird die Zahl neu gelesen (B20).
+// bleiben; nach ErrUngueltigeSequenz und nach einem Fehler von ListBySession wird die Zahl neu
+// gelesen (B20). Die Session trägt drei vorhandene Exchanges, ListBySession einmal keinen.
 func TestNichtAngehaengt(t *testing.T) {
 	json := map[string][]string{"Content-Type": {"application/json"}}
 	ungueltigerWert := string([]byte{'a', 0xff})
 	faelle := []struct {
-		name    string
-		vorher  func(u *umgebung)
-		code    string
-		capture bool
+		name      string
+		vorher    func(u *umgebung)
+		code      string
+		capture   bool
+		vorhanden int
 	}{
-		{"errDisk", func(u *umgebung) { u.exchanges.appendFehler[0] = errDisk }, "ODR-E9001", false},
-		{"ErrSessionGeschlossen", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrSessionGeschlossen }, "ODR-E5009", false},
-		{"ErrUngueltigeSequenz", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrUngueltigeSequenz }, "ODR-E9001", false},
+		{"errDisk", func(u *umgebung) { u.exchanges.appendFehler[0] = errDisk }, "ODR-E9001", false, 3},
+		{"ErrSessionGeschlossen", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrSessionGeschlossen }, "ODR-E5009", false, 3},
+		{"ErrUngueltigeSequenz", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrUngueltigeSequenz }, "ODR-E9001", false, 3},
 		// Beim Gegenstand Sonstiges tragen beide ODR-E9001, beim Gegenstand Session ODR-E7003 und
 		// ODR-E7010 (SPEC-109 Nr. 5).
-		{"ErrNichtGefunden", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrNichtGefunden }, "ODR-E9001", false},
-		{"ErrBereitsVorhanden", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrBereitsVorhanden }, "ODR-E9001", false},
-		{"ListBySession", func(u *umgebung) { u.exchanges.listFehler = errDisk }, "ODR-E9001", false},
+		{"ErrNichtGefunden", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrNichtGefunden }, "ODR-E9001", false, 3},
+		{"ErrBereitsVorhanden", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrBereitsVorhanden }, "ODR-E9001", false, 3},
+		{"ListBySession", func(u *umgebung) { u.exchanges.listFehler = errDisk }, "ODR-E9001", false, 3},
+		{"ListBySession, keiner vorhanden", func(u *umgebung) { u.exchanges.listFehler = errDisk }, "ODR-E9001", false, 0},
 		{"Header 0xFF", func(u *umgebung) {
 			u.upstream.plane(antwort(200, map[string][]string{"Content-Type": {"application/json"}, "X-Wert": {ungueltigerWert}}, koerper(`{"a":1}`)))
-		}, "ODR-E9001", false},
-		{"Status 600", func(u *umgebung) { u.upstream.plane(antwort(600, json, koerper(`{"a":1}`))) }, "ODR-E9001", false},
+		}, "ODR-E9001", false, 3},
+		{"Status 600", func(u *umgebung) { u.upstream.plane(antwort(600, json, koerper(`{"a":1}`))) }, "ODR-E9001", false, 3},
 		{"typ und errDisk", func(u *umgebung) {
 			u.upstream.plane(antwort(200, map[string][]string{"Content-Type": {"text/plain"}}, koerper(`{"a":1}`)))
 			u.exchanges.appendFehler[0] = errDisk
-		}, "ODR-E9001", true},
+		}, "ODR-E9001", true, 3},
 	}
 	for _, f := range faelle {
 		u := neu(t)
+		u.exchanges.vorhanden["s1"] = make([]model.Exchange, f.vorhanden)
 		f.vorher(u)
 		_, gelesen := u.rundlauf(anfrage("GET", "/a/x"))
 		u.exchanges.mu.Lock()
@@ -176,11 +222,15 @@ func TestNichtAngehaengt(t *testing.T) {
 			}
 		}
 		u.rundlauf(anfrage("GET", "/a/x"))
-		if e := u.letzter(); e.SequenceNo != 1 {
-			t.Errorf("%s: nächster Exchange trägt %d", f.name, e.SequenceNo)
+		if l := u.exchanges.angehaengt(); len(l) != 1 || l[0].SequenceNo != f.vorhanden+1 {
+			t.Errorf("%s: danach %d angehängt, erwartet einer mit der Nummer %d", f.name, len(l), f.vorhanden+1)
 		}
-		if f.name == "ErrUngueltigeSequenz" && u.exchanges.listAufrufe != 2 {
-			t.Errorf("%s: ListBySession %d-mal", f.name, u.exchanges.listAufrufe)
+		lesungen := 1
+		if f.name == "ErrUngueltigeSequenz" || strings.HasPrefix(f.name, "ListBySession") {
+			lesungen = 2
+		}
+		if u.exchanges.listAufrufe != lesungen {
+			t.Errorf("%s: ListBySession %d-mal, erwartet %d", f.name, u.exchanges.listAufrufe, lesungen)
 		}
 		if b := u.bericht("s1"); b.NichtAngehaengt != 1 {
 			t.Errorf("%s: Bericht %+v", f.name, b)

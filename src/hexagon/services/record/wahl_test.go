@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -312,6 +314,90 @@ func TestAnnahmeGegenDrain(t *testing.T) {
 	}
 }
 
+// haltCtx ist ein Kontext, der nie endet, ohne Frist und ohne Werte. Der erste Aufruf von Done
+// meldet den Stapel der rufenden Goroutine auf stapel und hält an, bis frei schließt.
+type haltCtx struct {
+	einmal sync.Once
+	stapel chan string
+	frei   chan struct{}
+	nie    chan struct{}
+}
+
+func neuerHaltCtx() *haltCtx {
+	return &haltCtx{stapel: make(chan string, 1), frei: make(chan struct{}), nie: make(chan struct{})}
+}
+
+func (*haltCtx) Deadline() (time.Time, bool) { return time.Time{}, false }
+func (*haltCtx) Err() error                  { return nil }
+func (*haltCtx) Value(any) any               { return nil }
+
+func (c *haltCtx) Done() <-chan struct{} {
+	c.einmal.Do(func() {
+		puffer := make([]byte, 1<<16)
+		c.stapel <- string(puffer[:runtime.Stack(puffer, false)])
+		<-c.frei
+	})
+	return c.nie
+}
+
+// gerufenAus meldet, ob im Stapel der Rahmen, dessen Zeile mit funktion beginnt, direkt aus einem
+// Rahmen gerufen wurde, dessen Zeile rufer enthält.
+func gerufenAus(stapel, funktion, rufer string) bool {
+	var rahmen []string
+	for _, z := range strings.Split(stapel, "\n") {
+		if z != "" && !strings.HasPrefix(z, "\t") && !strings.HasPrefix(z, "goroutine ") {
+			rahmen = append(rahmen, z)
+		}
+	}
+	for i := 0; i+1 < len(rahmen); i++ {
+		if strings.HasPrefix(rahmen[i], funktion) {
+			return strings.Contains(rahmen[i+1], rufer)
+		}
+	}
+	return false
+}
+
+// TestAnnahmeGegenDrainNachLesen: ein Drain, der nach der Rückkehr des Lesens der Session und vor
+// der Ableitung des Kontexts des Exchange beginnt und zurückkehrt, ergibt ODR-E5009 ohne
+// Weiterleitung, Kennung und Exchange (B8; SPEC-121 Nr. 2e). Record hält am ersten Done seines ctx
+// an. Der Halt hängt an zwei Kopplungen, die kein Vertrag zusagt: an der Reihenfolge der
+// Anweisungen in Record (Lesen der Session, Ableitung des Kontexts, Annahme) und daran, dass
+// context.WithCancelCause Done des Eltern-Kontexts synchron ruft. Beide prüft der Test: der Stapel
+// im Halt zeigt context.WithCancelCause, direkt gerufen aus Record, und der Session-Fake wurde
+// genau einmal gelesen; ruft die Ableitung Done nicht, kommt kein Halt, und liegt sie nach der
+// Annahme, wartet Drain im Halt: beide Male endet der Test an der Zeitgrenze. Eine Lücke nach der
+// Ableitung (in nimmAn) sieht er nicht.
+func TestAnnahmeGegenDrainNachLesen(t *testing.T) {
+	u := neu(t)
+	c := neuerHaltCtx()
+	res := u.recordNebenbei(c, anfrage("GET", "/a/x"))
+	stapel := empfange(t, "erstes Done", c.stapel)
+	if !gerufenAus(stapel, "context.WithCancelCause(", "/services/record.(*Recorder).Record(") {
+		t.Fatalf("Halt nicht in context.WithCancelCause, gerufen aus Record:\n%s", stapel)
+	}
+	if n := u.sessions.anzahlAufrufe(); n != 1 {
+		t.Fatalf("im Halt %d-mal gelesen, erwartet 1", n)
+	}
+	var (
+		b   inbound.DrainBericht
+		err error
+	)
+	mitZeitgrenze(t, "Drain im Halt", func() { b, err = u.r.Drain(context.Background(), "s1", time.Hour) })
+	if err != nil || b != (inbound.DrainBericht{}) {
+		t.Errorf("Drain im Halt: %+v %v", b, err)
+	}
+	close(c.frei)
+	r := empfange(t, "Record", res)
+	if r.err == nil {
+		liesUndSchliesse(t, r.ant.Body)
+		t.Fatal("nach der Rückkehr von Drain angenommen")
+	}
+	pruefeCode(t, r.err, model.CodeE5009, 409)
+	if len(u.upstream.gesehen()) != 0 || u.ids.ExchangeID() != kennung("exc", 1) || len(u.exchanges.angehaengt()) != 0 {
+		t.Error("weitergeleitet, Kennung bezogen oder angehängt")
+	}
+}
+
 // stand ist, was ein Test bei der Rückkehr von Drain sieht: die Zahl der Senden am Upstream-Fake
 // und die Zahl der beendeten Exchanges (angehängt und nicht angehängt).
 type stand struct {
@@ -324,9 +410,11 @@ type stand struct {
 // Session-Fake hält die 16 Aufrufe von List an und gibt sie zugleich mit dem Beginn von Drain frei;
 // die 16 teilen einen Kontext, von dem jeder Exchange seinen ableitet. Nach der Rückkehr von Drain
 // erreicht kein Senden für s1 mehr den Upstream-Fake, und die Zahl der Senden gleicht der Zahl der
-// angehängten Exchanges plus NichtAngehaengt (B8). Ein Freigeben der Sperre zwischen der Prüfung auf
-// Drain und der Annahme fängt der Test mit hoher Wahrscheinlichkeit, nicht mathematisch sicher: im
-// Fenster liegt kein Aufruf eines Ports, an dem er anhalten könnte.
+// angehängten Exchanges plus NichtAngehaengt (B8). Ein Freigeben der Sperre aus SPEC-121 Nr. 2e
+// nach der Ableitung des Kontexts des Exchange (in nimmAn zwischen Prüfung und Annahme) und auf der
+// Seite von Drain (in sperre zwischen dem Setzen des Drain und dem Blick auf die laufenden) fängt
+// der Test mit Wahrscheinlichkeit, nicht mathematisch sicher: dort liegt kein Aufruf, an dem er
+// anhalten könnte. Den Teil vor der Ableitung fängt TestAnnahmeGegenDrainNachLesen deterministisch.
 func TestAnnahmeGegenDrainGleichzeitig(t *testing.T) {
 	const goroutinen, runden = 16, 200
 	for runde := range runden {

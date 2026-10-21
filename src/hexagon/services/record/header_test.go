@@ -91,6 +91,17 @@ func TestAcceptEncoding(t *testing.T) {
 		{ae("br, gzip, Identity;q=0.5"), "gzip", true},
 		{ae("gzip, ;q=1, identity;q=0"), "gzip, identity;q=0", true},
 		{ae("gzip;q=0, br"), "gzip;q=0", true},
+		// Jedes entfallende Glied mit nichtleerem Coding löst das aus, auch *, ein unbekanntes Coding
+		// und eines mit q=0, über alle Werte aller Schreibweisen des Namens.
+		{ae("zstd, identity;q=0"), "identity", true},
+		{ae("compress, identity;q=0"), "identity", true},
+		{ae("x-gzip, gzip, identity;q=0"), "gzip", true},
+		{ae("*, identity;q=0"), "identity", true},
+		{ae("x-foo, identity;q=0"), "identity", true},
+		{ae("sdch, IDENTITY"), "identity", true},
+		{ae("br;q=0, identity;q=0"), "identity", true},
+		{ae("br", "identity;q=0"), "identity", true},
+		{map[string][]string{"Accept-Encoding": {"identity;q=0"}, "accept-encoding": {"x-foo"}}, "identity", true},
 	}
 	for _, allein := range []string{"br", "zstd", "compress", "x-gzip", "*", "", ",,"} {
 		faelle = append(faelle, struct {

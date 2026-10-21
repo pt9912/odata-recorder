@@ -261,9 +261,11 @@ type fakeExchanges struct {
 	pause        bool
 	aktiv, hoch  int
 	unerwartet   []string
-	// haltAppend hält jedes Append an: es meldet sich auf imAppend und wartet, bis haltAppend schließt.
+	// haltAppend hält jedes Append an, mit haltNur nur die der Session haltNur: es meldet sich auf
+	// imAppend und wartet, bis haltAppend schließt.
 	haltAppend chan struct{}
 	imAppend   chan struct{}
+	haltNur    string
 }
 
 func (f *fakeExchanges) Append(ctx context.Context, e model.Exchange) error {
@@ -275,6 +277,9 @@ func (f *fakeExchanges) Append(ctx context.Context, e model.Exchange) error {
 	f.aktiv++
 	f.hoch = max(f.hoch, f.aktiv)
 	pause, halt := f.pause, f.haltAppend
+	if f.haltNur != "" && e.SessionID != f.haltNur {
+		halt = nil
+	}
 	f.mu.Unlock()
 	f.prot.melde("Append " + e.ID)
 	defer func() { f.mu.Lock(); f.aktiv--; f.mu.Unlock() }()
