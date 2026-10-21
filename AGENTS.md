@@ -180,11 +180,12 @@ Wer im Slice Code, Gates, Tests, die Spezifikation oder Harness-Artefakte (`.cla
 **Falsch:** Ein Gate bekommt eine zweite Prüfung, und die Sensors-Tabelle und §3 nennen weiter die erste.
 **Richtig:** Dieselbe Änderung trägt die Tabellen- und Plan-Zeile mit.
 
-### 3.10 Jede Zusage eines neuen Vertrags fängt eine Mutation
+### 3.10 Jede Zusage eines neuen Vertrags fängt eine Mutation   (geschärft seit welle-record-replay)
 
 Wer einen neuen Vertrag liefert (Format, Fehlercode, Leser, Gate, Option), schreibt zu jeder seiner Zusagen einen Test, der rot wird, wenn der Code die Zusage bricht, und fährt diese Mutation vor der Übergabe selbst.
 Der Bericht nennt je Zusage: Zusage · Mutation · roter Test.
 Ein Test zählt nur, wenn er aus dem benannten Grund rot wird, nicht weil der Aufbau bricht.
+Wird ein Fänger nur mit Wahrscheinlichkeit rot, nennt der Bericht seine Rate je Mutation und je Lauf von `go test`; „hoch“ steht nur mit Zahl.
 
 **Falsch:** Die Tests decken den Gutfall; dass eine Mutation grün bleibt, findet erst das Review.
 **Richtig:** Je Zusage eine Mutation, vom Implementer selbst rot gesehen.
@@ -217,15 +218,17 @@ Trifft ein Ausschluss des Nehmers die Sendung oder liegt der Nehmer in `done/`, 
 ### 3.14 Die Größenmarke schneidet vor dem Code oder am vorab benannten Teil und nennt ihre Metrik   (geschärft seit welle-record-replay)
 
 Jede Marke in §4 eines Plans („zu groß, über N Zeilen") nennt ihre Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade, die der Plan nennt, Tests eingeschlossen.
-Schätzungen werden in dieser Metrik angegeben: Zeilen der Tabelle *Zusage · Fänger* (§3.15) × 85 (nebenläufig) bzw. × 40 (reine Funktionen), plus 200 je Port-Fake oder Test-Server.
+Schätzungen werden in dieser Metrik angegeben: Zeilen der Tabelle *Zusage · Fänger* (§3.15) × 85 (nebenläufig) bzw. × 40 (jede andere Zeile), plus 200 je Port-Fake oder Test-Server.
 Nebenläufig zählt eine Zeile, wenn der Code oder sein Fänger nebenläufig ist.
-Die Formel schätzt den Stand beim Handoff; gegen die Marke, die den Stand nach dem Review misst, wird die Schätzung × 1,25 gehalten, denn das Ende lag nachgemessen 17 bis 25 % über dem Handoff.
-Die Marke löst den Schnitt vor dem Code aus: liegt die Schätzung × 1,25 über ihr, wird vor dem ersten Code-Commit geschnitten.
+Der erste Slice mit Zeilen, die keine reinen Funktionen sind, nennt den gemessenen Wert in §4.
+Die Formel schätzt den Stand beim Handoff; die Marke misst den Stand nach dem Review, und dafür wird die ganze Schätzung, feste Anteile eingeschlossen, × 1,25 gehalten, denn das Ende lag nachgemessen 17 bis 25 % über dem Handoff.
+Die Marke setzt der Planner vor dem ersten Code-Commit auf die Schätzung × 1,25, aufgerundet auf volle Hundert; eine ältere Marke ersetzt er dabei mit Grund in §4.
+Liegt die Schätzung × 1,25 über 3000, wird vor dem ersten Code-Commit geschnitten; lässt sich kein Teil ohne geteilten Mechanismus abtrennen, steht der Grund in §4.
 Daneben ist ein vorab benannter Schnitt beim Handoff erlaubt: der Teil ist vor dem Code in §4 benannt, zuletzt in eigenem Commit geschrieben und davor gemessen, und er teilt keinen Mechanismus mit dem Rest.
 Sonst wird nach dem Code gemessen und mit Grund berichtet.
 
-**Falsch:** „über 700 Zeilen", ohne Metrik; eine Marke, die nach dem fertigen Code eine Rückführung verspricht; ein Schnitt beim Handoff an einem Teil, den erst die Messung benennt.
-**Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)", vor dem ersten Code-Commit gegen die Schätzung × 1,25 gehalten; beim Handoff wird nur der Teil geschnitten, den §4 vor dem Code benannt hat; sonst steht nach dem Code die Messung mit Grund im Plan.
+**Falsch:** „über 700 Zeilen", ohne Metrik; eine Marke unter der Schätzung × 1,25, die der Planner vor dem ersten Code-Commit nicht neu gesetzt hat; eine Marke, die nach dem fertigen Code eine Rückführung verspricht; ein Schnitt beim Handoff an einem Teil, den erst die Messung benennt.
+**Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)", vor dem ersten Code-Commit vom Planner auf die Schätzung × 1,25, aufgerundet auf volle Hundert, gesetzt; vor dem Code wird nur über 3000 geschnitten, beim Handoff nur der Teil, den §4 vor dem Code benannt hat; sonst steht nach dem Code die Messung mit Grund im Plan.
 
 ### 3.15 Zusage und Fänger stehen als Paar im Plan   (seit welle-fundament, geschärft seit welle-record-replay)
 
