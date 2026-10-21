@@ -45,8 +45,17 @@ func gzipt(t *testing.T, s string) []byte {
 	return b.Bytes()
 }
 
-// TestAntwort: Status, Header und Body kommen, wie der Upstream sie sendet, nach SPEC-120 Nr. 5
-// (A7).
+// pruefeHeader verlangt genau die Einträge aus soll, keinen weiteren; ohne Einträge gleichen sich
+// eine leere Map und nil.
+func pruefeHeader(t *testing.T, ist, soll map[string][]string) {
+	t.Helper()
+	if len(ist) != len(soll) || (len(soll) > 0 && !reflect.DeepEqual(ist, soll)) {
+		t.Errorf("Header %q, erwartet genau %q", ist, soll)
+	}
+}
+
+// TestAntwort: Status, Header und Body kommen, wie der Upstream sie sendet, nach SPEC-120 Nr. 5;
+// Header trägt genau die Namen des Kopfs (A7).
 func TestAntwort(t *testing.T) {
 	t.Run("a Header und gzip", func(t *testing.T) {
 		gz := gzipt(t, "hallo")
@@ -60,13 +69,10 @@ func TestAntwort(t *testing.T) {
 		if ant.Status != 201 || err != nil || !bytes.Equal(body, gz) {
 			t.Errorf("Status %d, Body %s, %v", ant.Status, text(body), err)
 		}
-		for name, soll := range map[string][]string{
+		pruefeHeader(t, ant.Header, map[string][]string{
 			"Set-Cookie": {"a=1", "b=2"}, "bad name": {"x"}, "X-Rand": {"r"}, "X-Fold": {"a b"}, "Content-Encoding": {"gzip"},
-		} {
-			if w := ant.Header[name]; !reflect.DeepEqual(w, soll) {
-				t.Errorf("%s: %q, erwartet %q", name, w, soll)
-			}
-		}
+			"Content-Length": {fmt.Sprint(len(gz))},
+		})
 	})
 	t.Run("b 302", func(t *testing.T) {
 		an := make(chan empfangen, 16)
@@ -79,6 +85,7 @@ func TestAntwort(t *testing.T) {
 		if ant.Status != 302 || len(an) != 1 {
 			t.Errorf("Status %d, %d Requests", ant.Status, len(an))
 		}
+		pruefeHeader(t, ant.Header, map[string][]string{"Location": {"/x"}, "Content-Length": {"0"}})
 	})
 	t.Run("c Zwischenantworten", func(t *testing.T) {
 		s := antwortServer(t, "HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 103 Early Hints\r\nLink: </a>\r\n\r\n"+
@@ -90,6 +97,18 @@ func TestAntwort(t *testing.T) {
 		if body, err := liesAlles(t, ant.Body); ant.Status != 200 || err != nil || string(body) != "ok" {
 			t.Errorf("Status %d, Body %q, %v", ant.Status, body, err)
 		}
+		pruefeHeader(t, ant.Header, map[string][]string{"Content-Length": {"2"}})
+	})
+	t.Run("f Kopf ohne Header-Zeile", func(t *testing.T) {
+		s := antwortServer(t, "HTTP/1.1 200 OK\r\n\r\nab", nil)
+		ant, err := sende(context.Background(), t, neuerClient(t, zeitgrenze), anfrage(s.ziel(), "GET", "/"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if body, err := liesAlles(t, ant.Body); ant.Status != 200 || err != nil || string(body) != "ab" {
+			t.Errorf("Status %d, Body %q, %v", ant.Status, body, err)
+		}
+		pruefeHeader(t, ant.Header, map[string][]string{})
 	})
 	for _, f := range []struct{ methode, antwort string }{
 		{"GET", "HTTP/1.1 204 No Content\r\nContent-Length: 3\r\n\r\n"},

@@ -20,8 +20,8 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
 
-// geheim steht in jedem Wert einer Anfrage und jeder Antwort, den ein Fehlertext nicht nennen darf
-// (SPEC-120 Nr. 8, A14).
+// geheim ist der Marker, den kein Fehlertext nennen darf (SPEC-120 Nr. 8, A14); welche Werte eines
+// Falls ihn tragen, sagen mitGeheim und der Fall.
 const geheim = "S3CR3T"
 
 // zeitgrenze begrenzt jedes Warten eines Tests auf ein Ereignis; sie ist die Grenze des
@@ -280,8 +280,10 @@ func anfrage(ziel, methode, pfad string) outbound.UpstreamAnfrage {
 	return outbound.UpstreamAnfrage{Ziel: ziel, Methode: methode, Pfad: pfad}
 }
 
-// mitGeheim setzt Pfad, Query und einen Header, die jeder Fehlertext verschweigen muss (A14).
+// mitGeheim hängt an den Pfad von Ziel ein Segment mit dem Marker und setzt Pfad, Query und einen
+// Header-Namen und -Wert mit ihm (A14).
 func mitGeheim(a outbound.UpstreamAnfrage) outbound.UpstreamAnfrage {
+	a.Ziel += "/" + geheim + "-ziel"
 	a.Pfad = "/" + geheim + "-pfad"
 	a.RawQuery = "token=" + geheim + "-q"
 	a.Header = map[string][]string{"X-" + geheim + "-n": {geheim + "-h"}}

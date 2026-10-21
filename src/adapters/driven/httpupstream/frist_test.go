@@ -185,6 +185,15 @@ func TestFrist(t *testing.T) {
 
 func kontextFehlerFaelle() []fehlerFall {
 	return []fehlerFall{
+		{name: "schon beendet, gültige Argumente", art: context.Canceled, lauf: func(t *testing.T) error {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			s := haltServer(t, nil)
+			a := mitGeheim(anfrage(s.ziel(), "POST", ""))
+			a.Body, a.Laenge = strings.NewReader(geheim+"-b"), int64(len(geheim+"-b"))
+			_, err := sende(ctx, t, neuerClient(t, time.Hour), a)
+			return err
+		}},
 		{name: "Abbruch vor dem Kopf", art: context.Canceled, lauf: func(t *testing.T) error {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -347,13 +356,50 @@ func rangfolgeFaelle() []fehlerFall {
 			uhr.ausloesen()
 			return nil, errVerbindung
 		}),
+		rangFall("h ctx, Kopf 101", context.Canceled, true, func(_ *http.Request, cancel func(), _ *testUhr, b *merkBody) (*http.Response, error) {
+			cancel()
+			return fakeKopfMit(b, http.StatusSwitchingProtocols), nil
+		}),
+		rangFall("i Frist, Kopf 101", outbound.ErrUpstreamZeit, true, func(_ *http.Request, _ func(), uhr *testUhr, b *merkBody) (*http.Response, error) {
+			uhr.ausloesen()
+			return fakeKopfMit(b, http.StatusSwitchingProtocols), nil
+		}),
 	}
 }
 
+// fakeKopfMit ist der Kopf des Fakes mit dem Status status.
+func fakeKopfMit(b *merkBody, status int) *http.Response {
+	res := fakeKopf(b)
+	res.StatusCode = status
+	return res
+}
+
 // TestRangfolge: die Paare gleichzeitiger Ursachen in der Rangfolge aus SPEC-120 Nr. 8; der Fake
-// bestimmt die Folge (A16).
+// bestimmt die Folge. Ein Fehler von Body zählt nur vor dem Kopf: mit dem Kopf kommt die Antwort
+// (A16, SPEC-120 Nr. 4, 5).
 func TestRangfolge(t *testing.T) {
 	fahre(t, rangfolgeFaelle())
+	t.Run("j Body, Kopf 401", func(t *testing.T) {
+		c := neuerClient(t, time.Hour)
+		body := &merkBody{Reader: strings.NewReader("abgelehnt")}
+		httpupstream.SetzeTransport(c, fakeTransport(func(req *http.Request) (*http.Response, error) {
+			if _, err := io.ReadAll(req.Body); !errors.Is(err, errBody) {
+				t.Errorf("Lesen des Request-Bodys: %v, erwartet errBody", err)
+			}
+			return fakeKopfMit(body, http.StatusUnauthorized), nil
+		}))
+		a := anfrage(zielBlase, "POST", "/")
+		a.Body, a.Laenge = bodyMitFehler(), -1
+		ant, err := c.Senden(context.Background(), a)
+		if err != nil {
+			t.Fatalf("Fehler %v, erwartet die Antwort 401", err)
+		}
+		b, err := io.ReadAll(ant.Body)
+		_ = ant.Body.Close()
+		if ant.Status != http.StatusUnauthorized || err != nil || string(b) != "abgelehnt" {
+			t.Errorf("Status %d, Body %q, %v", ant.Status, b, err)
+		}
+	})
 }
 
 // --- A18: blockiertes Read des Request-Bodys -----------------------------------------------------

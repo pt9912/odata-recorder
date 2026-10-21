@@ -31,9 +31,9 @@ func fahre(t *testing.T, faelle []fehlerFall) {
 	}
 }
 
-// TestFehlerOhneWerte: kein Fehler von Senden nennt Pfad, Query, einen Header-Namen oder -Wert, ein
-// Byte eines Bodys oder der Antwort; jeder Fall trägt den Marker in diesen Werten, wo er es zulässt,
-// und in dem Wert, dessen Verstoß ihn ausmacht (A14, SPEC-120 Nr. 8).
+// TestFehlerOhneWerte: kein Fehlertext von Senden nennt den Marker. mitGeheim setzt ihn in den Pfad
+// von Ziel, Pfad, Query und einen Header, einzelne Fälle in weitere Werte der Anfrage, Bytes der
+// Antwort oder den Text eines Fehlers von Body oder des Fakes (A14, SPEC-120 Nr. 8).
 func TestFehlerOhneWerte(t *testing.T) {
 	for _, f := range alleFehlerFaelle() {
 		t.Run(f.name, func(t *testing.T) {

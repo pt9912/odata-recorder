@@ -83,17 +83,23 @@ func argumentFaelle() []fehlerFall {
 	for _, z := range []string{"", "/x", "ftp://127.0.0.1:{p}", "http://", "http://u:" + geheim + "-z@127.0.0.1:{p}",
 		"http://127.0.0.1:{p}?q", "http://127.0.0.1:{p}#f", "http://127.0.0.1:{p}?", "http://127.0.0.1:{p}#",
 		"http://@127.0.0.1:{p}", "http://127.0.0.1:", "http://127.0.0.1:0",
-		"http://127.0.0.1:65536", "http://127.0.0.1:{p}/a b", "http://127.0.0.1:{p}/%zz",
+		"http://127.0.0.1:65536", "http://127.0.0.1:{p}/a b", "http://127.0.0.1:{p}/a\x7fb", "http://127.0.0.1:{p}/%zz",
 		`http://a"b:1`, "http://a<b:1", "http://a>b:1", "http://a]b:1", "http://[fe80::1%25%3C]:1"} {
 		f = append(f, argumentFall(bg, "Ziel "+z, setzeZiel(z)))
 	}
 	for _, m := range []string{"", "GE T", "GET\n", "GE(T", "CONNECT"} {
 		f = append(f, argumentFall(bg, fmt.Sprintf("Methode %q", m), setzeMethode(m)))
 	}
+	// Die Nachbarn der Bereiche 0-9, A-Z und a-z nach außen, soweit sie keine Token-Zeichen sind
+	// (der Backtick vor a ist eines und steht in tokenZeichen).
+	for _, z := range []string{"/", ":", "@", "[", "{"} {
+		f = append(f, argumentFall(bg, fmt.Sprintf("Methode %q", "G"+z+"T"), setzeMethode("G"+z+"T")),
+			argumentFall(bg, fmt.Sprintf("Header-Name mit %q", z), setzeHeader("X"+z+geheim, "v")))
+	}
 	for _, p := range []string{"", geheim + "-x", "/" + geheim + "?b", "/" + geheim + "#b", "/" + geheim + " b", "/" + geheim + "\x7f"} {
 		f = append(f, argumentFall(bg, fmt.Sprintf("Pfad %q", p), setzePfad(p)))
 	}
-	for _, q := range []string{geheim + " b", geheim + "#b", geheim + "\x00"} {
+	for _, q := range []string{geheim + " b", geheim + "#b", geheim + "\x00", geheim + "\x7f"} {
 		f = append(f, argumentFall(bg, fmt.Sprintf("RawQuery %q", q), setzeQuery(q)))
 	}
 	for _, b := range []byte{0x00, 0x01, 0x08, 0x0A, 0x0B, 0x0D, 0x1F, 0x7F} {
@@ -106,13 +112,14 @@ func argumentFaelle() []fehlerFall {
 // Buchstaben an beiden Enden ihrer Bereiche.
 const tokenZeichen = "!#$%&'*+-.^_`|~09azAZ"
 
-// argumentGrenzFaelle sind Ziele an der gültigen Seite einer Grenze: die Ports 1 und 65535; im Namen
-// des Hosts das `]` einer IP-Adresse, eine Zone, jedes Sonderzeichen von reg-name mit Ziffern und
-// Buchstaben an den Enden ihrer Bereiche, eine Prozent-Kodierung und Bytes ab 0x80 samt 0x80. Dort
-// lauscht niemand, und ohne Netz scheitern Auflösung oder Verbindung sofort.
+// argumentGrenzFaelle sind Ziele an der gültigen Seite einer Grenze: die Ports 1 und 65535; das Schema
+// https, dessen Verbindung vor TLS scheitert; im Namen des Hosts das `]` einer IP-Adresse, eine Zone,
+// jedes Sonderzeichen von reg-name mit Ziffern und Buchstaben an den Enden ihrer Bereiche, eine
+// Prozent-Kodierung und Bytes ab 0x80 samt 0x80. Dort lauscht niemand, und ohne Netz scheitern
+// Auflösung oder Verbindung sofort.
 func argumentGrenzFaelle() []fehlerFall {
 	var f []fehlerFall
-	for _, z := range []string{"http://127.0.0.1:1", "http://127.0.0.1:65535", "http://[::1]:1", "http://[fe80::1%25x]:1",
+	for _, z := range []string{"http://127.0.0.1:1", "http://127.0.0.1:65535", "https://127.0.0.1:1", "http://[::1]:1", "http://[fe80::1%25x]:1",
 		"http://09azAZ-._~!$&'()*+,;=%C3%A4:1", "http://a\x80\xc3\xa4b:1"} {
 		f = append(f, fehlerFall{name: fmt.Sprintf("gültiges Ziel %q", z), art: outbound.ErrUpstreamNichtErreichbar, lauf: func(t *testing.T) error {
 			c := neuerClient(t, zeitgrenze)
@@ -198,14 +205,27 @@ func TestSendenArgumenteGegenseite(t *testing.T) {
 // --- A3: Request-Zeile ---------------------------------------------------------------------------
 
 // TestRequestZeile: Methode, Pfad aus Ziel, Pfad und Query byte-gleich, `?` nur bei Query, absolute
-// Form bei `//`; die erwartete Zeile steht je Fall ausgeschrieben, {p} ist der Port (A3, SPEC-120
-// Nr. 3).
+// Form bei `//`; die erwartete Zeile steht je Fall ausgeschrieben, {p} ist der Port. Pfad aus Ziel,
+// Pfad und Query tragen je die Bytes 0x21, 0x7E, 0x80 und 0xFF, die gültige Seite der Grenzen ihrer
+// Byte-Prüfung (A3, A2, SPEC-120 Nr. 2, 3).
 func TestRequestZeile(t *testing.T) {
 	faelle := []struct{ zielPfad, methode, pfad, query, soll string }{
 		{"", "GET", "/", "", "GET / HTTP/1.1"},
 		{"/svc/v1", "GET", "/Products(1)", "", "GET /svc/v1/Products(1) HTTP/1.1"},
 		{"/a%2fb", "GET", "/x", "", "GET /a%2fb/x HTTP/1.1"},
 		{"/a{b", "GET", "/x", "", "GET /a{b/x HTTP/1.1"},
+		{"/a!b", "GET", "/x", "", "GET /a!b/x HTTP/1.1"},
+		{"/a~b", "GET", "/x", "", "GET /a~b/x HTTP/1.1"},
+		{"/a\x80b", "GET", "/x", "", "GET /a\x80b/x HTTP/1.1"},
+		{"/a\xffb", "GET", "/x", "", "GET /a\xffb/x HTTP/1.1"},
+		{"", "GET", "/a!b", "", "GET /a!b HTTP/1.1"},
+		{"", "GET", "/a~b", "", "GET /a~b HTTP/1.1"},
+		{"", "GET", "/a\x80b", "", "GET /a\x80b HTTP/1.1"},
+		{"", "GET", "/a\xffb", "", "GET /a\xffb HTTP/1.1"},
+		{"", "GET", "/x", "a!b", "GET /x?a!b HTTP/1.1"},
+		{"", "GET", "/x", "a~b", "GET /x?a~b HTTP/1.1"},
+		{"", "GET", "/x", "a\x80b", "GET /x?a\x80b HTTP/1.1"},
+		{"", "GET", "/x", "a\xffb", "GET /x?a\xffb HTTP/1.1"},
 		{"", "GET", "/a%2Fb", "", "GET /a%2Fb HTTP/1.1"},
 		{"", "GET", "/a%2fb", "", "GET /a%2fb HTTP/1.1"},
 		{"", "GET", "/%24metadata", "", "GET /%24metadata HTTP/1.1"},

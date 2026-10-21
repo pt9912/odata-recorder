@@ -353,7 +353,7 @@ func TestKonfigURL(t *testing.T) {
 		"http://h": "http://h", "https://h:8443/odata": "https://h:8443/odata", "https://h/odata/": "https://h/odata", "https://h/": "https://h", "http://[::1]:80/x": "http://[::1]:80/x",
 		"http://h:1": "http://h:1", "https://h:65535/x": "https://h:65535/x",
 		"http://[fe80::1%25x]": "http://[fe80::1%25x]", "http://09azAZ-._~!$&'()*+,;=%C3%A4": "http://09azAZ-._~!$&'()*+,;=%C3%A4",
-		"http://a\x80\xc3\xa4b": "http://a\x80\xc3\xa4b",
+		"http://a\x80\xc3\xa4b": "http://a\x80\xc3\xa4b", "http://a%25b": "http://a%25b", "http://a%80b": "http://a%80b",
 	} {
 		t.Run("gültig "+strconv.Quote(w), func(t *testing.T) {
 			if k := erwarteGueltig(t, append(basis(t), "UPSTREAM_URL="+w)...); k.Dienste[0].UpstreamURL != soll {
@@ -363,7 +363,8 @@ func TestKonfigURL(t *testing.T) {
 	}
 	for _, w := range []string{"ftp://h/x", "h/x", "/x", "http://", "http:///x", "http://:80/x", "http://u:p@h/x", "http://u@h/x", "https://h/x?a=1", "https://h/x?", "https://h/x#f", "https://h/x#", "mailto:a@b", "http:h", "https://h x/", "HTTPS-nicht://h",
 		"http://h:0", "http://h:65536", "http://h:99999", "http://h:", "http://h:/x", "http://[::1]:", "http://h:99999999999999999999/x",
-		`http://a"b`, "http://a<b", "http://a>b", "http://a]b", "http://[fe80::1%25%3C]"} {
+		`http://a"b`, "http://a<b", "http://a>b", "http://a]b", "http://[fe80::1%25%3C]",
+		"http://a%41b", "http://a%24b", "http://a%26b", "http://a%7Fb", "http://a%00b", "http://[v1.x]", "http://[127.0.0.1]"} {
 		erwarteVerstoss(t, "UPSTREAM_URL", append(basis(t), "UPSTREAM_URL="+w)...)
 	}
 }
