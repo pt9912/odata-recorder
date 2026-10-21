@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"strings"
@@ -110,6 +111,22 @@ func kopfNach(t *testing.T, warten time.Duration) error {
 	return err
 }
 
+// antwortVorAblauf sendet in der Blase mit Frist frist; der Server sendet den Kopf nach warten, vor
+// dem Ablauf: Senden liefert die Antwort mit ihrem Body.
+func antwortVorAblauf(t *testing.T, frist, warten time.Duration) {
+	t.Helper()
+	blase(t, frist, pipeServer(warten, antwortOK), func(t *testing.T, c *httpupstream.Client) {
+		ant, err := c.Senden(context.Background(), anfrage(zielBlase, "GET", "/"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if b, err := io.ReadAll(ant.Body); err != nil || string(b) != "ok" {
+			t.Errorf("Body %q, %v", b, err)
+		}
+		_ = ant.Body.Close()
+	})
+}
+
 // fehlerVon liefert den Fehler eines Ergebnisses; kam stattdessen eine Antwort, schließt es ihren
 // Body, damit die Blase ohne wartende Goroutine endet.
 func fehlerVon(e ergebnis) error {
@@ -147,16 +164,12 @@ func TestFrist(t *testing.T) {
 		}
 	})
 	t.Run("e Kopf 1 ns vor dem Ablauf", func(t *testing.T) {
-		blase(t, time.Second, pipeServer(time.Second-time.Nanosecond, antwortOK), func(t *testing.T, c *httpupstream.Client) {
-			ant, err := c.Senden(context.Background(), anfrage(zielBlase, "GET", "/"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if b, err := io.ReadAll(ant.Body); err != nil || string(b) != "ok" {
-				t.Errorf("Body %q, %v", b, err)
-			}
-			_ = ant.Body.Close()
-		})
+		antwortVorAblauf(t, time.Second, time.Second-time.Nanosecond)
+	})
+	// Die Frist hat keine Obergrenze (SPEC-120 Nr. 1): `UPSTREAM_TIMEOUT=30d` ist gültig, und die
+	// Frist math.MaxInt64 ns läuft nicht vor einem Kopf nach 30 Tagen ab.
+	t.Run("f Frist ohne Obergrenze", func(t *testing.T) {
+		antwortVorAblauf(t, time.Duration(math.MaxInt64), 30*24*time.Hour)
 	})
 	t.Run("e Body 2 s nach dem Kopf", func(t *testing.T) {
 		blase(t, time.Second, func(c net.Conn) {
@@ -367,13 +380,6 @@ func rangfolgeFaelle() []fehlerFall {
 	}
 }
 
-// fakeKopfMit ist der Kopf des Fakes mit dem Status status.
-func fakeKopfMit(b *merkBody, status int) *http.Response {
-	res := fakeKopf(b)
-	res.StatusCode = status
-	return res
-}
-
 // TestRangfolge: die Paare gleichzeitiger Ursachen in der Rangfolge aus SPEC-120 Nr. 8; der Fake
 // bestimmt die Folge. Ein Fehler von Body zählt nur vor dem Kopf: mit dem Kopf kommt die Antwort
 // (A16, SPEC-120 Nr. 4, 5).
@@ -511,7 +517,7 @@ func blockiertFehlerFaelle() []fehlerFall {
 			func(_ func(), _ *testUhr, frei func()) { frei() }, sofort),
 		nachFehlerFall("f Fehler der Verbindung", func() (*http.Response, error) { return nil, errVerbindung }),
 		nachFehlerFall("g Antwort 101", func() (*http.Response, error) {
-			return &http.Response{StatusCode: http.StatusSwitchingProtocols, Header: http.Header{}, Body: &merkBody{Reader: strings.NewReader("")}}, nil
+			return fakeKopfMit(&merkBody{Reader: strings.NewReader("")}, http.StatusSwitchingProtocols), nil
 		}),
 		verworfenFall(),
 	}

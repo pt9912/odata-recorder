@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"math"
 	"net"
 	"net/http"
 	"reflect"
@@ -25,7 +26,8 @@ import (
 // --- A2: Argumente -------------------------------------------------------------------------------
 
 // argumentFall baut einen Fall, dessen Anfrage aendere ungültig macht: model.ErrUngueltig, der
-// Server nahm keine Verbindung an, der Body wurde nicht gelesen (SPEC-120 Nr. 2).
+// Server nahm keine Verbindung an, der Body wurde nicht gelesen, und der Text des Fehlers nennt die
+// Methode nicht, auch nicht die, die selbst der Verstoß ist (SPEC-120 Nr. 2, 8).
 func argumentFall(ctx context.Context, name string, aendere func(a *outbound.UpstreamAnfrage, s *roherServer)) fehlerFall {
 	return fehlerFall{name: name, art: model.ErrUngueltig, lauf: func(t *testing.T) error {
 		s := starteServer(t, beantworte(nil, antwortOK))
@@ -39,13 +41,25 @@ func argumentFall(ctx context.Context, name string, aendere func(a *outbound.Ups
 		if n := body.n.Load(); n != 0 {
 			t.Errorf("Body %d-mal gelesen", n)
 		}
+		if err != nil && a.Methode != "" && strings.Contains(err.Error(), a.Methode) {
+			t.Errorf("Fehlertext nennt die Methode %q: %q", a.Methode, err.Error())
+		}
 		return err
 	}}
 }
 
+// setzeZiel setzt Ziel auf z, {p} ist der Port des Servers. Der Pfad von z trägt zielGeheim, vor `?`
+// und `#`, damit auch der Verstoß, der Ziel selbst abweist, den Marker im Pfad hat (A14); das leere
+// Ziel hat keinen Pfad.
 func setzeZiel(z string) func(*outbound.UpstreamAnfrage, *roherServer) {
 	return func(a *outbound.UpstreamAnfrage, s *roherServer) {
-		a.Ziel = strings.ReplaceAll(z, "{p}", fmt.Sprint(s.port()))
+		z := strings.ReplaceAll(z, "{p}", fmt.Sprint(s.port()))
+		if i := strings.IndexAny(z, "?#"); i >= 0 {
+			z = z[:i] + zielGeheim + z[i:]
+		} else if z != "" {
+			z += zielGeheim
+		}
+		a.Ziel = z
 	}
 }
 
@@ -84,10 +98,14 @@ func argumentFaelle() []fehlerFall {
 		"http://127.0.0.1:{p}?q", "http://127.0.0.1:{p}#f", "http://127.0.0.1:{p}?", "http://127.0.0.1:{p}#",
 		"http://@127.0.0.1:{p}", "http://127.0.0.1:", "http://127.0.0.1:0",
 		"http://127.0.0.1:65536", "http://127.0.0.1:{p}/a b", "http://127.0.0.1:{p}/a\x7fb", "http://127.0.0.1:{p}/%zz",
-		`http://a"b:1`, "http://a<b:1", "http://a>b:1", "http://a]b:1", "http://[fe80::1%25%3C]:1"} {
+		`http://a"b:1`, "http://a<b:1", "http://a>b:1", "http://a]b:1", "http://[fe80::1%25%3C]:1",
+		// Die Formen, die url.Parse im Host abweist: die Prozent-Kodierung eines ASCII-Bytes außer %25
+		// (die Nachbarn von %25 und die Enden der Bytes) und eine Adresse in Klammern ohne IPv6.
+		"http://a%41b:1", "http://a%24b:1", "http://a%26b:1", "http://a%00b:1", "http://a%7Fb:1",
+		"http://[v1.x]:1", "http://[127.0.0.1]:1"} {
 		f = append(f, argumentFall(bg, "Ziel "+z, setzeZiel(z)))
 	}
-	for _, m := range []string{"", "GE T", "GET\n", "GE(T", "CONNECT"} {
+	for _, m := range []string{"", "GE T", "GET\n", "GE(T", "CONNECT", geheim + " m", geheim + "(m", geheim + "\n"} {
 		f = append(f, argumentFall(bg, fmt.Sprintf("Methode %q", m), setzeMethode(m)))
 	}
 	// Die Nachbarn der Bereiche 0-9, A-Z und a-z nach außen, soweit sie keine Token-Zeichen sind
@@ -115,12 +133,12 @@ const tokenZeichen = "!#$%&'*+-.^_`|~09azAZ"
 // argumentGrenzFaelle sind Ziele an der gültigen Seite einer Grenze: die Ports 1 und 65535; das Schema
 // https, dessen Verbindung vor TLS scheitert; im Namen des Hosts das `]` einer IP-Adresse, eine Zone,
 // jedes Sonderzeichen von reg-name mit Ziffern und Buchstaben an den Enden ihrer Bereiche, eine
-// Prozent-Kodierung und Bytes ab 0x80 samt 0x80. Dort lauscht niemand, und ohne Netz scheitern
-// Auflösung oder Verbindung sofort.
+// Prozent-Kodierung, `%25` und `%80` (die gültige Seite der Prozent-Kodierung) und Bytes ab 0x80
+// samt 0x80. Dort lauscht niemand, und ohne Netz scheitern Auflösung oder Verbindung sofort.
 func argumentGrenzFaelle() []fehlerFall {
 	var f []fehlerFall
 	for _, z := range []string{"http://127.0.0.1:1", "http://127.0.0.1:65535", "https://127.0.0.1:1", "http://[::1]:1", "http://[fe80::1%25x]:1",
-		"http://09azAZ-._~!$&'()*+,;=%C3%A4:1", "http://a\x80\xc3\xa4b:1"} {
+		"http://09azAZ-._~!$&'()*+,;=%C3%A4:1", "http://a\x80\xc3\xa4b:1", "http://a%25b:1", "http://a%80b:1"} {
 		f = append(f, fehlerFall{name: fmt.Sprintf("gültiges Ziel %q", z), art: outbound.ErrUpstreamNichtErreichbar, lauf: func(t *testing.T) error {
 			c := neuerClient(t, zeitgrenze)
 			_, err := sende(context.Background(), t, c, mitGeheim(anfrage(z, "GET", "")))
@@ -199,6 +217,36 @@ func TestSendenArgumenteGegenseite(t *testing.T) {
 				f.pruefe(t, e)
 			}
 		})
+	}
+}
+
+// tokenAlle sind die 77 Token-Zeichen nach RFC 9110 §5.6.2: 15 Sonderzeichen, Ziffern und Buchstaben.
+const tokenAlle = "!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+// TestTokenZeichen: jedes der 256 Bytes steht in der Mitte von Methode und von Header-Name. Ungültig,
+// model.ErrUngueltig, sind genau die Bytes, die kein Token-Zeichen sind; gültig heißt hier, dass
+// Senden den Upstream sucht, an dem niemand lauscht (A2, SPEC-120 Nr. 2).
+func TestTokenZeichen(t *testing.T) {
+	c := neuerClient(t, zeitgrenze)
+	for i := range 256 {
+		b := byte(i)
+		art := error(model.ErrUngueltig)
+		if strings.IndexByte(tokenAlle, b) >= 0 {
+			art = outbound.ErrUpstreamNichtErreichbar
+		}
+		mitte := string([]byte{'G', b, 'T'})
+		for _, feld := range []string{"Methode", "Header-Name"} {
+			t.Run(fmt.Sprintf("%s 0x%02X", feld, b), func(t *testing.T) {
+				a := anfrage("http://127.0.0.1:1", "GET", "/")
+				if feld == "Methode" {
+					a.Methode = mitte
+				} else {
+					a.Header = map[string][]string{mitte: {"v"}}
+				}
+				_, err := sende(context.Background(), t, c, a)
+				pruefeArt(t, err, art)
+			})
+		}
 	}
 }
 
@@ -453,7 +501,8 @@ func pruefeBisEOF(t *testing.T, body *protokollBody) {
 }
 
 // rahmungFehlerFaelle: weicht die Länge von Laenge ab, ist das ErrUpstreamNichtErreichbar; der
-// Server liest Kopf und drei Bytes und antwortet nie.
+// Server liest Kopf und drei Bytes und antwortet nie. Die Methoden PUT und POST sind Methoden der
+// Rahmung und tragen den Marker nicht (A14).
 func rahmungFehlerFaelle() []fehlerFall {
 	var f []fehlerFall
 	for _, body := range []string{"ab", "abcd"} {
@@ -465,13 +514,42 @@ func rahmungFehlerFaelle() []fehlerFall {
 				}
 			})
 			c := neuerClient(t, zeitgrenze)
-			a := mitGeheim(anfrage(s.ziel(), "PUT", ""))
+			a := mitGeheim(anfrage(s.ziel(), "", ""))
+			a.Methode = "PUT"
 			a.Body, a.Laenge = strings.NewReader(body), 3
 			_, err := sende(context.Background(), t, c, a)
 			return err
 		}})
 	}
-	return f
+	return append(f, laengeMaxFall())
+}
+
+// laengeMaxFall: Laenge math.MaxInt64 ist ohne Obergrenze gültig (SPEC-120 Nr. 4). Liefert Body
+// weniger, ist das ErrUpstreamNichtErreichbar, nicht model.ErrUngueltig, und der Kopf trägt genau
+// `Content-Length: 9223372036854775807`. Der Server liest nur den Kopf; der Fall prüft zuerst den
+// Fehler und wartet erst dann auf den Kopf, damit ein Verstoß sofort fällt statt an der Zeitgrenze.
+func laengeMaxFall() fehlerFall {
+	return fehlerFall{name: "Laenge math.MaxInt64 mit ab", art: outbound.ErrUpstreamNichtErreichbar, lauf: func(t *testing.T) error {
+		kopf := make(chan empfangen, 1)
+		s := starteServer(t, func(_ net.Conn, r *bufio.Reader) {
+			if e, err := leseKopf(r); err == nil {
+				kopf <- e
+				_, _ = io.Copy(io.Discard, r)
+			}
+		})
+		c := neuerClient(t, zeitgrenze)
+		a := mitGeheim(anfrage(s.ziel(), "", ""))
+		a.Methode = "POST"
+		a.Body, a.Laenge = strings.NewReader("ab"), math.MaxInt64
+		_, err := sende(context.Background(), t, c, a)
+		if !errors.Is(err, outbound.ErrUpstreamNichtErreichbar) {
+			return err
+		}
+		if r := rahmenNamen(warte(t, kopf)); !slices.Equal(r, []string{"Content-Length: 9223372036854775807"}) {
+			t.Errorf("Rahmung %q", r)
+		}
+		return err
+	}}
 }
 
 // --- A6: Strom -----------------------------------------------------------------------------------

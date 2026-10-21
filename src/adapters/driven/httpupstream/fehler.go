@@ -9,10 +9,12 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
 
-// Kein Fehler dieses Pakets nennt einen Wert der Anfrage oder ein Byte der Antwort, und keiner trägt
-// den Text eines Fehlers der Bibliothek oder des Request-Bodys (SPEC-120 Nr. 8).
+// Kein Fehler dieses Pakets nennt `Methode`, `Pfad`, `RawQuery`, einen Header-Namen oder -Wert, ein
+// Byte eines Bodys oder der Antwort (Status-Text, Header-Werte, Body) oder von `Ziel` mehr als Host
+// und Port, und keiner trägt den Text eines Fehlers der Bibliothek oder des Request-Bodys (SPEC-120
+// Nr. 8).
 
-// ungueltig ist model.ErrUngueltig mit dem Namen des Felds, nicht seinem Wert (SPEC-120 Nr. 2).
+// ungueltig ist model.ErrUngueltig mit dem Namen des Felds (SPEC-120 Nr. 2).
 func ungueltig(feld string) error {
 	return fmt.Errorf("httpupstream: %w: %s", model.ErrUngueltig, feld)
 }

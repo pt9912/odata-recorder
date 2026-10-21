@@ -280,10 +280,15 @@ func anfrage(ziel, methode, pfad string) outbound.UpstreamAnfrage {
 	return outbound.UpstreamAnfrage{Ziel: ziel, Methode: methode, Pfad: pfad}
 }
 
-// mitGeheim hängt an den Pfad von Ziel ein Segment mit dem Marker und setzt Pfad, Query und einen
-// Header-Namen und -Wert mit ihm (A14).
+// zielGeheim ist das Segment mit dem Marker, das im Pfad von Ziel steht (A14).
+const zielGeheim = "/" + geheim + "-ziel"
+
+// mitGeheim hängt zielGeheim an den Pfad von Ziel und setzt Methode (ein Token, die übergebene gilt
+// nicht), Pfad, Query und einen Header-Namen und -Wert mit dem Marker (A14); ein Fall, dessen Merkmal
+// einer dieser Werte ist, setzt ihn danach.
 func mitGeheim(a outbound.UpstreamAnfrage) outbound.UpstreamAnfrage {
-	a.Ziel += "/" + geheim + "-ziel"
+	a.Ziel += zielGeheim
+	a.Methode = geheim + "-m"
 	a.Pfad = "/" + geheim + "-pfad"
 	a.RawQuery = "token=" + geheim + "-q"
 	a.Header = map[string][]string{"X-" + geheim + "-n": {geheim + "-h"}}
@@ -402,8 +407,20 @@ func (m *merkBody) Close() error {
 	return nil
 }
 
-func fakeKopf(b *merkBody) *http.Response {
-	return &http.Response{StatusCode: 200, Header: http.Header{}, Body: b}
+// fakeKopf ist der Kopf 200 des Fakes; Status-Text und Header-Wert tragen den Marker (A14).
+func fakeKopf(b *merkBody) *http.Response { return fakeKopfMit(b, http.StatusOK) }
+
+// fakeKopfMit ist der Kopf des Fakes mit dem Status status; Status-Text und Header-Wert tragen den
+// Marker, bei 101 auch der Wert von Upgrade (A14).
+func fakeKopfMit(b *merkBody, status int) *http.Response {
+	res := &http.Response{
+		StatusCode: status, Status: fmt.Sprintf("%d %s-s", status, geheim),
+		Header: http.Header{"X-K": {geheim + "-h"}}, Body: b,
+	}
+	if status == http.StatusSwitchingProtocols {
+		res.Header.Set("Upgrade", geheim+"-u")
+	}
+	return res
 }
 
 // testUhr ersetzt time.AfterFunc für die Frist: ausloesen ruft die Funktion des letzten Timers

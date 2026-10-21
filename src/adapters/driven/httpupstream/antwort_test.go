@@ -196,7 +196,9 @@ func nichtErreichbarFaelle() []fehlerFall {
 			if _, err := leseAnfrage(r); err != nil {
 				return
 			}
-			_, _ = io.WriteString(c, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: x\r\nConnection: Upgrade\r\n\r\n"+geheim+"-u")
+			// Status-Text, Header-Wert und Wert von Upgrade tragen den Marker, dazu die Bytes nach dem Kopf.
+			_, _ = io.WriteString(c, "HTTP/1.1 101 "+geheim+"-s\r\nUpgrade: "+geheim+"-u\r\nConnection: Upgrade\r\nX-K: "+
+				geheim+"-h\r\n\r\n"+geheim+"-t")
 			_, _ = io.Copy(io.Discard, r)
 			close(zu)
 		})

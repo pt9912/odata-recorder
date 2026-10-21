@@ -78,7 +78,8 @@ type ziel struct {
 }
 
 // pruefe weist ungültige Argumente ab, bevor eine Verbindung entsteht oder Body gelesen wird
-// (SPEC-120 Nr. 2); der Fehler nennt das Feld, nie seinen Wert.
+// (SPEC-120 Nr. 2); der Fehler nennt das Feld; der Wert von `Ziel`, `Methode`, `Pfad`, `RawQuery` und
+// der Header steht in keinem Fehlertext (Nr. 8).
 func pruefe(ctx context.Context, a outbound.UpstreamAnfrage) (ziel, error) {
 	z, zielOK := leseZiel(a.Ziel)
 	switch {
@@ -105,8 +106,10 @@ func pruefe(ctx context.Context, a outbound.UpstreamAnfrage) (ziel, error) {
 // leseZiel nimmt eine absolute http- oder https-URL mit Host, ohne Zugangsdaten, Query und Fragment,
 // mit einem Port von 1 bis 65535, falls einer steht, ohne `"`, `<`, `>` und `]` im Namen des Hosts
 // (Hostname: ohne Port und Klammern, die Prozent-Kodierung aufgelöst; SPEC-120 Nr. 2 wie SPEC-110
-// Nr. 7) und ohne Byte unter 0x21 oder 0x7F im Pfad. Der Pfad wird aus dem Text geschnitten, nicht
-// aus url.URL: dort steht er unescaped oder neu escaped.
+// Nr. 7) und ohne Byte unter 0x21 oder 0x7F im Pfad. Die Prozent-Kodierung eines ASCII-Bytes außer
+// `%25` im Host und eine Adresse in eckigen Klammern, die keine IPv6-Adresse ist, weist url.Parse
+// selbst ab. Der Pfad wird aus dem Text geschnitten, nicht aus url.URL: dort steht er unescaped oder
+// neu escaped.
 func leseZiel(s string) (ziel, bool) {
 	u, err := url.Parse(s)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" ||

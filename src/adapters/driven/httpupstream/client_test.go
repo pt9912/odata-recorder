@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"strings"
 	"testing"
@@ -15,16 +16,18 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// TestNewArgumente: eine Frist unter 1 ns ist model.ErrUngueltig ohne Client; 1 ns ist gültig (A1,
-// SPEC-120 Nr. 1).
+// TestNewArgumente: eine Frist unter 1 ns ist model.ErrUngueltig ohne Client; 1 ns ist gültig, und
+// ohne Obergrenze auch math.MaxInt64 ns (A1, SPEC-120 Nr. 1).
 func TestNewArgumente(t *testing.T) {
 	for _, frist := range []time.Duration{0, -time.Nanosecond} {
 		if c, err := httpupstream.New(httpupstream.Konfig{Frist: frist, Pruefen: true}); !errors.Is(err, model.ErrUngueltig) || c != nil {
 			t.Errorf("Frist %v: %v, Client %v", frist, err, c != nil)
 		}
 	}
-	if c, err := httpupstream.New(httpupstream.Konfig{Frist: time.Nanosecond, Pruefen: true}); err != nil || c == nil {
-		t.Errorf("Frist 1 ns: %v", err)
+	for _, frist := range []time.Duration{time.Nanosecond, time.Duration(math.MaxInt64)} {
+		if c, err := httpupstream.New(httpupstream.Konfig{Frist: frist, Pruefen: true}); err != nil || c == nil {
+			t.Errorf("Frist %v: %v, Client %v", frist, err, c != nil)
+		}
 	}
 }
 
