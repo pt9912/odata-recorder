@@ -266,8 +266,9 @@ func TestKeinUeberlaufBeiSchnellemKonsument(t *testing.T) {
 }
 
 // TestAusstehendBeiEntnahmeInTeilen: ausstehend sinkt um jedes entnommene Byte, auch wenn der
-// Leser ein Stück in Teilen entnimmt: ein Byte, ungleiche Teile, ein Teil größer als der Rest des
-// Stücks, genau ein Stück; danach gilt die Grenze an beiden Seiten (SPEC-119 Nr. 4).
+// Leser ein Stück in Teilen entnimmt: ein Byte, ungleiche Teile, ein Byte, während ein zweites
+// Stück wartet, ein Teil größer als der Rest des Stücks, genau ein Stück; danach gilt die Grenze
+// an beiden Seiten, mit einem Stück und mit zweien in der Queue (SPEC-119 Nr. 4).
 func TestAusstehendBeiEntnahmeInTeilen(t *testing.T) {
 	stueckA, stueckB := wiederholt("0123456789", 6), wiederholt("abc", 10)
 	q := capture.NeueQueueAllein(100)
@@ -282,7 +283,8 @@ func TestAusstehendBeiEntnahmeInTeilen(t *testing.T) {
 		{name: "ein Byte", entnimm: 1, erwartet: "0", bleibt: 59},
 		{name: "sieben Bytes", entnimm: 7, erwartet: "1234567", bleibt: 52},
 		{name: "30 eingelegt", lege: stueckB, bleibt: 82},
-		{name: "Teil größer als der Rest des Stücks", entnimm: 100, erwartet: stueckA[8:], bleibt: 30},
+		{name: "ein Byte, während ein zweites Stück wartet", entnimm: 1, erwartet: "8", bleibt: 81},
+		{name: "Teil größer als der Rest des Stücks", entnimm: 100, erwartet: stueckA[9:], bleibt: 30},
 		{name: "genau das Stück", entnimm: 30, erwartet: stueckB, bleibt: 0},
 	}
 	for _, s := range schritte {
@@ -299,19 +301,28 @@ func TestAusstehendBeiEntnahmeInTeilen(t *testing.T) {
 		}
 	}
 	for _, f := range []struct {
-		name   string
-		zweite int
-		ueber  bool
+		name    string
+		stuecke []int
+		entnimm int
+		bleibt  int64
+		zweite  int
+		ueber   bool
 	}{
-		{"nach Teil-Entnahme genau QueueBytes", 50, false},
-		{"nach Teil-Entnahme ein Byte mehr", 51, true},
+		{"ein Stück, nach Teil-Entnahme genau QueueBytes", []int{70}, 20, 50, 50, false},
+		{"ein Stück, nach Teil-Entnahme ein Byte mehr", []int{70}, 20, 50, 51, true},
+		{"zwei Stücke, nach Teil-Entnahme genau QueueBytes", []int{60, 30}, 1, 89, 11, false},
+		{"zwei Stücke, nach Teil-Entnahme ein Byte mehr", []int{60, 30}, 1, 89, 12, true},
 	} {
 		t.Run(f.name, func(t *testing.T) {
 			q := capture.NeueQueueAllein(100)
-			_ = q.Lege(make([]byte, 70))
-			_ = q.Entnimm(20)
+			for _, n := range f.stuecke {
+				if q.Lege(make([]byte, n)) {
+					t.Fatalf("Überlauf beim Einlegen von %d", n)
+				}
+			}
+			_ = q.Entnimm(f.entnimm)
 			if got := q.Lege(make([]byte, f.zweite)); got != f.ueber {
-				t.Errorf("Überlauf = %v bei 50 ausstehend und %d eingelegt, erwartet %v", got, f.zweite, f.ueber)
+				t.Errorf("Überlauf = %v bei %d ausstehend und %d eingelegt, erwartet %v", got, f.bleibt, f.zweite, f.ueber)
 			}
 		})
 	}
