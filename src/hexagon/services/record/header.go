@@ -95,24 +95,53 @@ func weiterzuleiten(h map[string][]string) map[string][]string {
 
 // acceptEncoding liefert den Wert von Accept-Encoding zum Upstream und ob der Header mit
 // mindestens einem Wert steht (SPEC-121 Nr. 4): ein Glied bleibt mit Text und Parametern, wenn
-// sein Coding gzip, deflate oder identity ist; bleibt keines, ist der Wert identity.
+// sein Coding gzip, deflate oder identity ist; entfällt ein Glied mit nichtleerem Coding,
+// entfallen auch die Glieder identity. Parameter, auch q, wertet sie nicht aus; bleibt keines,
+// ist der Wert identity.
 func acceptEncoding(h map[string][]string) (string, bool) {
 	werte := werteVon(h, "accept-encoding")
 	if len(werte) == 0 {
 		return "", false
 	}
-	var glieder []string
+	glieder, entfiel := entpackbareGlieder(werte)
+	var bleiben []string
+	for _, g := range glieder {
+		if !entfiel || g.coding != "identity" {
+			bleiben = append(bleiben, g.text)
+		}
+	}
+	if len(bleiben) == 0 {
+		return "identity", true
+	}
+	return strings.Join(bleiben, ", "), true
+}
+
+// glied ist ein Glied von Accept-Encoding: sein Text samt Parametern und sein Coding in
+// Kleinbuchstaben.
+type glied struct {
+	text, coding string
+}
+
+// entpackbareGlieder liefert die Glieder der Werte mit dem Coding gzip, deflate oder identity in
+// ihrer Reihenfolge und ob ein Glied mit nichtleerem anderem Coding entfiel; ein Glied mit leerem
+// Coding entfällt ohne Wirkung (SPEC-121 Nr. 4).
+func entpackbareGlieder(werte []string) ([]glied, bool) {
+	var (
+		glieder []glied
+		entfiel bool
+	)
 	for _, w := range werte {
 		for _, g := range teile(w) {
 			coding, _, _ := strings.Cut(g, ";")
-			switch asciiKlein(strings.Trim(coding, " \t")) {
+			switch c := asciiKlein(strings.Trim(coding, " \t")); c {
 			case "gzip", "deflate", "identity":
-				glieder = append(glieder, g)
+				glieder = append(glieder, glied{text: g, coding: c})
+			case "":
+				// Ein leeres Coding entfällt und lässt die Glieder identity stehen.
+			default:
+				entfiel = true
 			}
 		}
 	}
-	if len(glieder) == 0 {
-		return "identity", true
-	}
-	return strings.Join(glieder, ", "), true
+	return glieder, entfiel
 }

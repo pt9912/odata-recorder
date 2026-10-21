@@ -167,6 +167,48 @@ func TestDrainAbbruch(t *testing.T) {
 	}
 }
 
+// TestDrainBericht: Abgebrochen zählt nur einen Exchange, dessen Kontext ein Drain beendete, nicht
+// einen, den der Client schon beendet hatte; ein abgebrochener, nicht angehängter Exchange zählt in
+// beiden Feldern (B28, B20; SPEC-121 Nr. 10, 13).
+func TestDrainBericht(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		u := neu(t)
+		u.upstream.plane(jsonAntwort(koerper(`{"a":`).dann(make(chan struct{}), `1}`, nil)))
+		ctx, abbrechen := context.WithCancel(context.Background())
+		defer abbrechen()
+		ant, err := u.record(ctx, anfrage("GET", "/a/x"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		abbrechen()
+		d := u.drainNebenbei(context.Background(), "s1", 0)
+		synctest.Wait()
+		if err := ant.Body.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if b := <-d; b.err != nil || b.b.Abgebrochen != 0 || b.b.NichtAngehaengt != 0 {
+			t.Errorf("Client-Abbruch vor Drain: %+v", b)
+		}
+		if e := u.letzter(); e.Capture != model.CaptureIncomplete {
+			t.Errorf("Client-Abbruch vor Drain: %s", e.Capture)
+		}
+	})
+
+	n := neu(t)
+	n.exchanges.appendFehler[0] = errDisk
+	n.upstream.plane(jsonAntwort(koerper(`{"a":`).dann(make(chan struct{}), `1}`, nil)))
+	ant, err := n.record(context.Background(), anfrage("GET", "/a/x"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dr := n.drainNebenbei(context.Background(), "s1", 0)
+	empfange(t, "Ende des Kontexts", n.upstream.gesehen()[0].done)
+	schliesse(t, ant.Body)
+	if b := empfange(t, "Drain", dr); b.err != nil || b.b.Abgebrochen != 1 || b.b.NichtAngehaengt != 1 {
+		t.Errorf("Drain und Fehler beim Anhängen: %+v", b)
+	}
+}
+
 // TestDrainWiederholt: ein zweiter Drain kehrt mit demselben Bericht zurück; zwei gleichzeitige
 // warten beide und zählen den Exchange einmal (B29).
 func TestDrainWiederholt(t *testing.T) {

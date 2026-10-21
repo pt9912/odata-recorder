@@ -215,8 +215,8 @@ func (x *austausch) ohneTee(actx context.Context, err error) error {
 
 // schliesseAb bildet den Match-Key und hängt an, ist err nil; sonst und bei jedem Fehler dabei ist
 // der Exchange nicht angehängt (SPEC-121 Nr. 6, 10). Danach läuft er nicht mehr. Die Tests erreichen
-// von diesen Fehlern die des Anhängens; ein err aus Abschluss und ein Fehler des zweiten
-// BildeSchluessel sind nicht erreichbar (SPEC-121 Nr. 6).
+// von diesen Fehlern die des Anhängens; ein err aus Abschluss ist nicht erreichbar (SPEC-121 Nr. 8),
+// ein Fehler des zweiten BildeSchluessel ebenso nicht (SPEC-121 Nr. 6).
 func (x *austausch) schliesseAb(actx context.Context, z capture.Zustand, redigiert []byte, err error) {
 	if err == nil {
 		x.setzeZustand(z)

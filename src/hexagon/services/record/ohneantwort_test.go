@@ -3,7 +3,9 @@ package record_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
@@ -61,7 +63,7 @@ func TestOhneAntwortZustand(t *testing.T) {
 }
 
 // TestOhneAntwort: Rangfolge Kontext, Drain, Zeit, nicht erreichbar, andere; der Exchange ist
-// angehängt, die Antwort ist der Nullwert (B22).
+// angehängt, die Antwort ist der Nullwert, FinishedAt liegt nach dem Ergebnis des Requests (B22).
 func TestOhneAntwort(t *testing.T) {
 	for _, f := range []struct {
 		err    error
@@ -75,7 +77,7 @@ func TestOhneAntwort(t *testing.T) {
 	} {
 		for _, post := range []bool{false, true} {
 			u := neu(t)
-			p := &plan{lies: 0, fehler: f.err}
+			p := &plan{lies: 0, fehler: f.err, vorAntwort: func() { u.uhr.Advance(3 * time.Second) }}
 			a := anfrage("GET", "/a/x")
 			soll := model.CaptureIncomplete
 			if post {
@@ -89,8 +91,17 @@ func TestOhneAntwort(t *testing.T) {
 				t.Errorf("%v: Ursache fehlt oder Antwort %+v", f.err, ant)
 			}
 			pruefeOhneAntwort(t, u, soll)
+			if e := u.letzter(); !e.StartedAt.Equal(t0()) || !e.FinishedAt.Equal(t0().Add(3*time.Second)) {
+				t.Errorf("%v: StartedAt %v, FinishedAt %v, erwartet t0 und t0 + 3 s", f.err, e.StartedAt, e.FinishedAt)
+			}
 		}
 	}
+	z := neu(t)
+	z.upstream.plane(&plan{lies: -1, fehler: errors.Join(outbound.ErrUpstreamNichtErreichbar, outbound.ErrUpstreamZeit)})
+	_, err := z.record(context.Background(), anfrage("GET", "/a/x"))
+	pruefeCode(t, err, model.CodeE4001, 504)
+	pruefeEintraege(t, "Zeit und nicht erreichbar", z.log.alle(),
+		[]map[string]string{{"ereignis": "upstream", "error_code": "ODR-E4001", "grund": "zeit"}})
 
 	u := neu(t)
 	u.upstream.plane(&plan{lies: -1, warteAufCtx: true})
@@ -112,21 +123,60 @@ func TestOhneAntwort(t *testing.T) {
 	empfange(t, "Drain", dr)
 	pruefeOhneAntwort(t, d, model.CaptureIncomplete)
 
-	z := neu(t)
+	b := neu(t)
 	nach := make(chan struct{})
-	z.upstream.plane(&plan{lies: -1, warteAufCtx: true, nachCtx: nach})
+	b.upstream.plane(&plan{lies: -1, warteAufCtx: true, nachCtx: nach})
 	ctx, abbrechen = context.WithCancel(context.Background())
 	defer abbrechen()
-	res = z.recordNebenbei(ctx, anfrage("GET", "/a/x"))
-	empfange(t, "Senden", z.upstream.imSenden)
-	dr = z.drainNebenbei(context.Background(), "s1", 0)
-	empfange(t, "Ende des Kontexts", z.upstream.ctxEnde)
+	res = b.recordNebenbei(ctx, anfrage("GET", "/a/x"))
+	empfange(t, "Senden", b.upstream.imSenden)
+	dr = b.drainNebenbei(context.Background(), "s1", 0)
+	empfange(t, "Ende des Kontexts", b.upstream.ctxEnde)
 	abbrechen()
 	close(nach)
 	if r := empfange(t, "Record", res); r.err != context.Canceled {
 		t.Errorf("Drain und Client zugleich: %v", r.err)
 	}
 	empfange(t, "Drain", dr)
+}
+
+// TestOhneAntwortRangfolge: endet der Kontext des Clients oder bricht Drain den Exchange ab,
+// während der Dienst ihn ohne Antwort anhängt, gilt die Rangfolge beim Liefern: Kontext vor Drain
+// vor jedem Fehler des Ports (B22). Der Recording-Fake hält Append an.
+func TestOhneAntwortRangfolge(t *testing.T) {
+	for _, portFehler := range []error{outbound.ErrUpstreamZeit, outbound.ErrUpstreamNichtErreichbar, errAnders} {
+		for _, ursache := range []string{"Client", "Drain"} {
+			u := neu(t)
+			u.exchanges.imAppend, u.exchanges.haltAppend = make(chan struct{}, 1), make(chan struct{})
+			u.upstream.plane(&plan{lies: -1, fehler: portFehler})
+			ctx, abbrechen := context.WithCancel(context.Background())
+			res := u.recordNebenbei(ctx, anfrage("GET", "/a/x"))
+			empfange(t, "Append", u.exchanges.imAppend)
+			var dr <-chan drainErgebnis
+			if ursache == "Client" {
+				abbrechen()
+			} else {
+				dr = u.drainNebenbei(context.Background(), "s1", 0)
+				empfange(t, "Ende des Kontexts", u.upstream.gesehen()[0].done)
+			}
+			close(u.exchanges.haltAppend)
+			r := empfange(t, "Record", res)
+			abbrechen()
+			pruefeOhneAntwort(t, u, model.CaptureIncomplete)
+			if ursache == "Client" {
+				if r.err != context.Canceled || len(u.log.alle()) != 0 {
+					t.Errorf("%v, Client: %v, Einträge %v", portFehler, r.err, u.log.alle())
+				}
+				continue
+			}
+			pruefeCode(t, r.err, model.CodeE4001, 504)
+			pruefeEintraege(t, fmt.Sprintf("%v, Drain", portFehler), u.log.alle(),
+				[]map[string]string{{"ereignis": "upstream", "error_code": "ODR-E4001", "grund": "drain"}})
+			if b := empfange(t, "Drain", dr); b.b.Abgebrochen != 1 {
+				t.Errorf("%v, Drain: Bericht %+v", portFehler, b.b)
+			}
+		}
+	}
 }
 
 func pruefeOhneAntwort(t *testing.T, u *umgebung, soll model.CaptureStatus) {

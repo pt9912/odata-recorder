@@ -31,10 +31,19 @@ func TestWeitergeleitet(t *testing.T) {
 		"Content-Type": {"application/json"}, "Content-Encoding": {"gzip"}, "X-Recorderx": {"1"}, "": {"leer"},
 	}
 	ein := maps.Clone(bleiben)
-	ein["Connection"] = []string{"X-A, x-b ,,"}
+	ein["Connection"] = []string{"X-A,\tx-b ,,"}
 	ein["X-A"], ein["x-B"] = []string{"1"}, []string{"2"}
 	if out := record.Weiterzuleiten(ein); !reflect.DeepEqual(out, bleiben) {
 		t.Errorf("weitergeleitet %v, erwartet %v", out, bleiben)
+	}
+	// Connection in kleiner Schreibweise nennt Header; nennt sie Accept-Encoding, entfällt er.
+	for _, h := range []map[string][]string{
+		{"connection": {"X-C"}, "X-C": {"1"}, "X-Bleibt": {"1"}},
+		{"Connection": {"accept-encoding"}, "Accept-Encoding": {"gzip"}, "X-Bleibt": {"1"}},
+	} {
+		if out := record.Weiterzuleiten(h); !reflect.DeepEqual(out, map[string][]string{"X-Bleibt": {"1"}}) {
+			t.Errorf("%v: weitergeleitet %v", h, out)
+		}
 	}
 
 	u := neu(t)
@@ -51,33 +60,44 @@ func TestWeitergeleitet(t *testing.T) {
 	}
 }
 
-// TestAcceptEncoding: ein Fall je Glied; keines ergibt identity, fehlend bleibt fehlend; Exchange
-// und Key tragen den Wert des Clients (B10).
+// TestAcceptEncoding: ein Fall je Glied; entfällt ein Glied mit nichtleerem Coding, entfallen die
+// Glieder identity; keines ergibt identity, fehlend bleibt fehlend; Exchange und Key tragen den
+// Wert des Clients (B10).
 func TestAcceptEncoding(t *testing.T) {
+	ae := func(werte ...string) map[string][]string { return map[string][]string{"Accept-Encoding": werte} }
 	faelle := []struct {
 		werte map[string][]string
 		soll  string
 		da    bool
 	}{
-		{map[string][]string{"Accept-Encoding": {"gzip"}}, "gzip", true},
-		{map[string][]string{"Accept-Encoding": {"deflate"}}, "deflate", true},
-		{map[string][]string{"Accept-Encoding": {"identity"}}, "identity", true},
-		{map[string][]string{"Accept-Encoding": {"GZIP"}}, "GZIP", true},
-		{map[string][]string{"Accept-Encoding": {"gzip;q=0.5"}}, "gzip;q=0.5", true},
-		{map[string][]string{"Accept-Encoding": {" \tgzip ; q=1\t "}}, "gzip ; q=1", true},
-		{map[string][]string{"Accept-Encoding": {"br, gzip"}}, "gzip", true},
-		{map[string][]string{"Accept-Encoding": {"gzip, br, deflate;q=0.1"}}, "gzip, deflate;q=0.1", true},
-		{map[string][]string{"Accept-Encoding": {"br", "gzip"}}, "gzip", true},
+		{ae("gzip"), "gzip", true},
+		{ae("deflate"), "deflate", true},
+		{ae("identity"), "identity", true},
+		{ae("GZIP"), "GZIP", true},
+		{ae("gzip;q=0.5"), "gzip;q=0.5", true},
+		{ae(" \tgzip ; q=1\t "), "gzip ; q=1", true},
+		{ae("gzip\t;q=1"), "gzip\t;q=1", true},
+		{ae("br, gzip"), "gzip", true},
+		{ae("gzip, br, deflate;q=0.1"), "gzip, deflate;q=0.1", true},
+		{ae("br", "gzip"), "gzip", true},
 		{map[string][]string{"accept-encoding": {"br, deflate"}, "Accept-Encoding": {"gzip"}}, "gzip, deflate", true},
 		{map[string][]string{"Accept-Encoding": {}}, "", false},
 		{map[string][]string{}, "", false},
+		// Glieder identity: sie entfallen, wenn ein Glied mit nichtleerem Coding entfällt.
+		{ae("gzip, identity;q=0"), "gzip, identity;q=0", true},
+		{ae("gzip, IDENTITY"), "gzip, IDENTITY", true},
+		{ae("br, identity;q=0"), "identity", true},
+		{ae("identity;q=0, br"), "identity", true},
+		{ae("br, gzip, Identity;q=0.5"), "gzip", true},
+		{ae("gzip, ;q=1, identity;q=0"), "gzip, identity;q=0", true},
+		{ae("gzip;q=0, br"), "gzip;q=0", true},
 	}
 	for _, allein := range []string{"br", "zstd", "compress", "x-gzip", "*", "", ",,"} {
 		faelle = append(faelle, struct {
 			werte map[string][]string
 			soll  string
 			da    bool
-		}{map[string][]string{"Accept-Encoding": {allein}}, "identity", true})
+		}{ae(allein), "identity", true})
 	}
 	for _, f := range faelle {
 		got, da := record.AcceptEncoding(f.werte)
@@ -104,8 +124,8 @@ func TestAcceptEncoding(t *testing.T) {
 	}
 }
 
-// TestAntwortAnAdapter: Status und Header ohne Hop-by-Hop, unredigiert; Bytes und Lesefehler
-// unverändert, auch bei Capture-Fehler; gespeichert redigiert (B13).
+// TestAntwortAnAdapter: Status je Wert und Header ohne Hop-by-Hop, unredigiert; Bytes und
+// Lesefehler unverändert, auch bei Capture-Fehler und bei leerem p; gespeichert redigiert (B13).
 func TestAntwortAnAdapter(t *testing.T) {
 	u := neu(t)
 	h := map[string][]string{"Set-Cookie": {"sid=S3CR3T"}, "Connection": {"X-Z"}, "X-Z": {"1"},
@@ -141,5 +161,28 @@ func TestAntwortAnAdapter(t *testing.T) {
 	schliesse(t, ant.Body)
 	if e := v.letzter(); e.Capture != model.CaptureIncomplete {
 		t.Errorf("Capture %s nach Lesefehler", e.Capture)
+	}
+
+	for _, status := range []int{201, 304, 404, 502} {
+		s := neu(t)
+		s.upstream.plane(antwort(status, map[string][]string{"Content-Type": {"application/json"}}, koerper()))
+		ant, _ := s.rundlauf(anfrage("GET", "/a/x"))
+		if e := s.letzter(); ant.Status != status || e.ResponseStatus != status {
+			t.Errorf("Status %d: an den Adapter %d, im Exchange %d", status, ant.Status, e.ResponseStatus)
+		}
+	}
+
+	// Ein Read mit leerem p geht an den Body des Upstreams: dessen Fehler kommt zurück (SPEC-119 Nr. 3).
+	for _, p := range [][]byte{nil, {}} {
+		w := neu(t)
+		w.upstream.plane(jsonAntwort((&fakeBody{}).dann(nil, "", errVerbindung)))
+		ant, err := w.record(context.Background(), anfrage("GET", "/a/x"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n, err := ant.Body.Read(p); n != 0 || err != errVerbindung {
+			t.Errorf("Read mit p %v: %d %v, erwartet errVerbindung vom Upstream", p == nil, n, err)
+		}
+		schliesse(t, ant.Body)
 	}
 }

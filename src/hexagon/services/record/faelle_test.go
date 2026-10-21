@@ -84,15 +84,17 @@ func ohneKopf(t *testing.T, u *umgebung, lies int, beende func(abbrechen func())
 }
 
 // drainNachKopf beendet einen Exchange mit Antwort über Drain(s1, 0); vorher liest der Test, was
-// lies vorsieht, nach dem Commit des Requests.
-func drainNachKopf(t *testing.T, u *umgebung, b *fakeBody, lies func(io.Reader)) {
+// lies vorsieht, beim JSON-Request nach dem Commit des Requests.
+func drainNachKopf(t *testing.T, u *umgebung, typ, body string, b *fakeBody, lies func(io.Reader)) {
 	t.Helper()
 	u.upstream.plane(geheimeAntwort(b))
-	ant, err := u.record(context.Background(), geheimeAnfrage("application/json", reqJSON))
+	ant, err := u.record(context.Background(), geheimeAnfrage(typ, body))
 	if err != nil {
 		t.Fatal(err)
 	}
-	empfange(t, "Commit des Requests", u.blobs.commits)
+	if typ == "application/json" {
+		empfange(t, "Commit des Requests", u.blobs.commits)
+	}
 	lies(ant.Body)
 	d := u.drainNebenbei(context.Background(), "s1", 0)
 	empfange(t, "Ende des Kontexts", u.upstream.gesehen()[0].done)
@@ -179,14 +181,19 @@ func dienstFaelle() []dienstFall {
 			ohneKopf(t, u, 5, func(func()) { u.drainNebenbei(context.Background(), "s1", 0) })
 		}, ohneAntwortSoll(model.CaptureFailed)},
 		{"Drain, Response läuft", func(t *testing.T, u *umgebung) {
-			drainNachKopf(t, u, halb(), lies5)
+			drainNachKopf(t, u, "application/json", reqJSON, halb(), lies5)
 		}, responseAbbruch},
 		{"Drain, beide Ergebnisse", func(t *testing.T, u *umgebung) {
-			drainNachKopf(t, u, koerper(resJSON), func(r io.Reader) {
+			drainNachKopf(t, u, "application/json", reqJSON, koerper(resJSON), func(r io.Reader) {
 				_, _ = io.ReadAll(r)
 				empfange(t, "Commit der Response", u.blobs.commits)
 			})
 		}, gut},
+		{"Drain, Request verworfen, Response läuft", func(t *testing.T, u *umgebung) {
+			drainNachKopf(t, u, "text/plain", "password="+geheim, halb(), lies5)
+		}, &soll{capture: model.CaptureFailed, reqBody: model.BodyDiscarded, resBody: model.BodyDiscarded,
+			reqRedact: model.RedactionUnsafe, resRedact: model.RedactionUnsafe, integrity: model.IntegrityAbsent,
+			equivalence: model.EquivalenceNone, status: 200}},
 		{"nicht angehängt", func(t *testing.T, u *umgebung) {
 			u.exchanges.appendFehler[0] = errDisk
 			u.upstream.plane(geheimeAntwort(koerper(resJSON)))
@@ -245,7 +252,8 @@ func TestAnhaengenNachCommit(t *testing.T) {
 }
 
 // TestKeinGeheimnis: in keinem Fall erreicht ein Geheimnis an redigierter Stelle Blob, Exchange
-// oder Protokoll, und das Protokoll trägt nie Pfad, Query oder Header (B24).
+// oder Protokoll, und das Protokoll trägt nie Pfad, Query, Header oder einen Fehlertext: jeder
+// Eintrag hält die geschlossenen Mengen von pruefeWerte (B24).
 func TestKeinGeheimnis(t *testing.T) {
 	for _, f := range dienstFaelle() {
 		u := neu(t)
@@ -266,6 +274,7 @@ func TestKeinGeheimnis(t *testing.T) {
 				}
 			}
 		}
+		pruefeWerte(t, f.name, u.log.alle())
 		if g := u.upstream.gesehen(); len(g) > 0 && !strings.Contains(fmt.Sprint(g[0].a.Header, g[0].a.RawQuery, g[0].body), geheim) {
 			t.Errorf("%s: Gegenprobe, der Upstream sah das Geheimnis nicht", f.name)
 		}

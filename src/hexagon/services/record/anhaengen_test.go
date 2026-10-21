@@ -117,8 +117,8 @@ func TestSequenzGleichzeitig(t *testing.T) {
 }
 
 // TestNichtAngehaengt: jeder Fehler von Append und vom Lesen der Zahl, auch Validate: Close nil,
-// Client las alles, Eintrag ablage, Bericht, Zahl und Blob bleiben; nach ErrUngueltigeSequenz
-// wird die Zahl neu gelesen (B20).
+// Client las alles, Eintrag ablage mit dem Code zum Gegenstand Sonstiges, Bericht, Zahl und Blob
+// bleiben; nach ErrUngueltigeSequenz wird die Zahl neu gelesen (B20).
 func TestNichtAngehaengt(t *testing.T) {
 	json := map[string][]string{"Content-Type": {"application/json"}}
 	ungueltigerWert := string([]byte{'a', 0xff})
@@ -131,6 +131,10 @@ func TestNichtAngehaengt(t *testing.T) {
 		{"errDisk", func(u *umgebung) { u.exchanges.appendFehler[0] = errDisk }, "ODR-E9001", false},
 		{"ErrSessionGeschlossen", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrSessionGeschlossen }, "ODR-E5009", false},
 		{"ErrUngueltigeSequenz", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrUngueltigeSequenz }, "ODR-E9001", false},
+		// Beim Gegenstand Sonstiges tragen beide ODR-E9001, beim Gegenstand Session ODR-E7003 und
+		// ODR-E7010 (SPEC-109 Nr. 5).
+		{"ErrNichtGefunden", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrNichtGefunden }, "ODR-E9001", false},
+		{"ErrBereitsVorhanden", func(u *umgebung) { u.exchanges.appendFehler[0] = outbound.ErrBereitsVorhanden }, "ODR-E9001", false},
 		{"ListBySession", func(u *umgebung) { u.exchanges.listFehler = errDisk }, "ODR-E9001", false},
 		{"Header 0xFF", func(u *umgebung) {
 			u.upstream.plane(antwort(200, map[string][]string{"Content-Type": {"application/json"}, "X-Wert": {ungueltigerWert}}, koerper(`{"a":1}`)))

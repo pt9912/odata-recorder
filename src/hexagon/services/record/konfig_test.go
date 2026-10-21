@@ -17,7 +17,8 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record"
 )
 
-// TestNewArgumente: jede Prüfung von SPEC-121 Nr. 1 je für sich; überlappende Roots sind gültig (B1).
+// TestNewArgumente: jede Prüfung von SPEC-121 Nr. 1 je für sich; überlappende Roots und leere
+// Listen der Regeln sind gültig (B1).
 func TestNewArgumente(t *testing.T) {
 	u := neu(t)
 	faelle := map[string]func(*record.Konfig){
@@ -52,6 +53,14 @@ func TestNewArgumente(t *testing.T) {
 	gut.Regeln.InvalidEncoding, gut.Regeln.BodyMode = model.KodierungReject, model.BodyJSONCanonical
 	if r, err := record.New(gut); err != nil || r == nil {
 		t.Errorf("überlappende Roots: %v", err)
+	}
+	// Leere Listen der Regeln sind gültig (SPEC-116 Nr. 5), fehlend und leer.
+	for _, liste := range [][]string{nil, {}} {
+		k := u.konfig
+		k.Regeln.VaryHeaders, k.Regeln.VolatileHeaders, k.Regeln.RedactHeaders, k.Regeln.RedactQueryParams = liste, liste, liste, liste
+		if r, err := record.New(k); err != nil || r == nil {
+			t.Errorf("leere Listen %v: %v", liste == nil, err)
+		}
 	}
 }
 
@@ -138,10 +147,11 @@ func verboteneImporte(t *testing.T, dateien map[string]string) []string {
 	return verboten
 }
 
-// TestImporte: record und inbound importieren keine HTTP-Bibliothek und keinen Adapter (B31).
+// TestImporte: record, inbound und outbound (ohne Unterpakete, dort der Port UpstreamClient)
+// importieren keine HTTP-Bibliothek und keinen Adapter (B31).
 func TestImporte(t *testing.T) {
 	dateien := map[string]string{}
-	for _, dir := range []string{".", "../../ports/inbound"} {
+	for _, dir := range []string{".", "../../ports/inbound", "../../ports/outbound"} {
 		eintraege, err := os.ReadDir(dir)
 		if err != nil {
 			t.Fatal(err)
@@ -156,7 +166,7 @@ func TestImporte(t *testing.T) {
 			}
 		}
 	}
-	if len(dateien) < 9 {
+	if len(dateien) < 18 {
 		t.Fatalf("nur %d Dateien gelesen", len(dateien))
 	}
 	if v := verboteneImporte(t, dateien); len(v) > 0 {

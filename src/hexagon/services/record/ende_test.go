@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"testing"
+	"testing/synctest"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
@@ -15,23 +16,43 @@ func jsonAntwort(b *fakeBody) *plan {
 // TestEnde: Close beendet den Exchange; io.EOF mit n > 0 zählt; der Request ohne io.EOF ist
 // Abbruch; Upstream-Body einmal geschlossen; zweites Close wirkungslos; Read nach Close (B16).
 func TestEnde(t *testing.T) {
-	a := neu(t)
-	ba := (&fakeBody{}).dann(nil, `{"a":1}`, io.EOF)
-	a.upstream.plane(jsonAntwort(ba))
-	ant, gelesen := a.rundlauf(anfrage("GET", "/a/x"))
-	if e := a.letzter(); gelesen != `{"a":1}` || e.Capture != model.CaptureComplete {
-		t.Errorf("(a) io.EOF mit n > 0: %q, %s", gelesen, e.Capture)
-	}
-	if n := ba.closes.Load(); n != 1 {
-		t.Errorf("(f) Upstream-Body %d-mal geschlossen", n)
-	}
-	schliesse(t, ant.Body)
-	if n := len(a.exchanges.angehaengt()); n != 1 || ba.closes.Load() != 1 {
-		t.Errorf("(d) zweites Close: %d Exchanges, %d-mal geschlossen", n, ba.closes.Load())
-	}
-	if n, err := ant.Body.Read(make([]byte, 4)); n != 0 || err != io.ErrClosedPipe {
-		t.Errorf("(e) Read nach Close: %d %v", n, err)
-	}
+	// (a) Der Commit der Response wartet, bis Close auf ihr Ergebnis wartet (synctest.Wait): ein
+	// Abbrechen bei Close kommt so immer vor dem Commit.
+	synctest.Test(t, func(t *testing.T) {
+		a := neu(t)
+		a.blobs.haltCommit = make(chan struct{})
+		ba := (&fakeBody{}).dann(nil, `{"a":1}`, io.EOF)
+		a.upstream.plane(jsonAntwort(ba))
+		ant, err := a.record(context.Background(), anfrage("GET", "/a/x"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		gelesen, err := io.ReadAll(ant.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		zu := nebenbei(ant.Body.Close)
+		synctest.Wait()
+		close(a.blobs.haltCommit)
+		if err := <-zu; err != nil {
+			t.Fatal(err)
+		}
+		if e := a.letzter(); string(gelesen) != `{"a":1}` || e.Capture != model.CaptureComplete {
+			t.Errorf("(a) io.EOF mit n > 0: %q, %s", gelesen, e.Capture)
+		}
+		if n := ba.closes.Load(); n != 1 {
+			t.Errorf("(f) Upstream-Body %d-mal geschlossen", n)
+		}
+		if err := ant.Body.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if n := len(a.exchanges.angehaengt()); n != 1 || ba.closes.Load() != 1 {
+			t.Errorf("(d) zweites Close: %d Exchanges, %d-mal geschlossen", n, ba.closes.Load())
+		}
+		if n, err := ant.Body.Read(make([]byte, 4)); n != 0 || err != io.ErrClosedPipe {
+			t.Errorf("(e) Read nach Close: %d %v", n, err)
+		}
+	})
 
 	b := neu(t)
 	b.upstream.plane(jsonAntwort(koerper(`{"a":`, `1}`)))

@@ -4,15 +4,30 @@ import (
 	"context"
 	"log/slog"
 	"maps"
+	"regexp"
 	"slices"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/record/capture"
 )
 
-// pruefeEintraege hält die Einträge gegen die erwarteten: je Eintrag Stufe ERROR, die festen
-// Attribute und genau die zusätzlichen (SPEC-121 Nr. 12).
+// festerText ist der feste Text eines Eintrags je Ereignis (SPEC-121 Nr. 12).
+func festerText(ereignis string) string {
+	switch ereignis {
+	case "capture":
+		return "record: Aufzeichnung eines Bodys verworfen"
+	case "upstream":
+		return "record: Upstream ohne Antwort"
+	case "ablage":
+		return "record: Exchange nicht angehängt"
+	}
+	return ""
+}
+
+// pruefeEintraege hält die Einträge gegen die erwarteten: je Eintrag Stufe ERROR, der feste Text,
+// die festen Attribute und genau die zusätzlichen (SPEC-121 Nr. 12).
 func pruefeEintraege(t *testing.T, name string, got []eintrag, soll []map[string]string) {
 	t.Helper()
 	if len(got) != len(soll) {
@@ -23,14 +38,54 @@ func pruefeEintraege(t *testing.T, name string, got []eintrag, soll []map[string
 		w := map[string]string{"mode": "record", "service_id": "svc-a", "session_id": "s1",
 			"exchange_id": kennung("exc", 1), "correlation_id": "cor-1"}
 		maps.Copy(w, soll[i])
-		if e.stufe != slog.LevelError || !maps.Equal(e.attrs, w) {
-			t.Errorf("%s: Eintrag %d %v %v, erwartet %v", name, i, e.stufe, e.attrs, w)
+		if e.stufe != slog.LevelError || e.text != festerText(w["ereignis"]) || !maps.Equal(e.attrs, w) {
+			t.Errorf("%s: Eintrag %d %v %q %v, erwartet %v", name, i, e.stufe, e.text, e.attrs, w)
 		}
 	}
 }
 
-// TestProtokoll: je Ereignis ein Eintrag mit genau den Attributen; keiner für Prüfungen aus Nr. 2
-// und für einen Client-Abbruch vor dem Kopf (B23).
+func einer(werte ...string) func(string) bool {
+	return func(v string) bool { return slices.Contains(werte, v) }
+}
+
+// pruefeWerte hält jeden Eintrag gegen geschlossene Mengen: den festen Text seines Ereignisses, nur
+// die Attribute aus SPEC-121 Nr. 12 und je Attribut einen Wert aus seiner Menge. Ein Fehlertext,
+// ein Pfad, eine Query, ein Header oder ein Byte eines Bodys steht so in keinem Eintrag, auch ohne
+// Marker (Allaussage von Nr. 12).
+func pruefeWerte(t *testing.T, name string, eintraege []eintrag) {
+	t.Helper()
+	gruende := []string{"drain", "zeit", "nicht_erreichbar", "intern"}
+	for _, g := range []capture.Grund{capture.GrundTyp, capture.GrundMismatch, capture.GrundSyntax, capture.GrundUTF8,
+		capture.GrundTiefe, capture.GrundNichtstring, capture.GrundUnvollstaendig, capture.GrundZuGross,
+		capture.GrundEncoding, capture.GrundDekodierung, capture.GrundBombe, capture.GrundUeberlauf, capture.GrundFrist,
+		capture.GrundAusgabeZuGross, capture.GrundAblage, capture.GrundAbbruch} {
+		gruende = append(gruende, string(g))
+	}
+	erlaubt := map[string]func(string) bool{
+		"mode": einer("record"), "ereignis": einer("capture", "upstream", "ablage"),
+		"error_code":     regexp.MustCompile(`^ODR-E[0-9]{4}$`).MatchString,
+		"service_id":     einer("svc-a"),
+		"session_id":     einer("s1"),
+		"exchange_id":    regexp.MustCompile(`^exc-[0-9]{32}$`).MatchString,
+		"correlation_id": einer("cor-1"),
+		"richtung":       einer("request", "response"),
+		"grund":          einer(gruende...),
+	}
+	for _, e := range eintraege {
+		if e.text != festerText(e.attrs["ereignis"]) {
+			t.Errorf("%s: Text %q zum Ereignis %q", name, e.text, e.attrs["ereignis"])
+		}
+		for k, v := range e.attrs {
+			if pruefe, ok := erlaubt[k]; !ok || !pruefe(v) {
+				t.Errorf("%s: Attribut %s=%q außerhalb der Menge", name, k, v)
+			}
+		}
+	}
+}
+
+// TestProtokoll: je Ereignis ein Eintrag mit festem Text und genau den Attributen, auch der Eintrag
+// capture eines Exchange ohne Antwort; keiner für Prüfungen aus Nr. 2 und für einen Client-Abbruch
+// vor dem Kopf (B23).
 func TestProtokoll(t *testing.T) {
 	u := neu(t)
 	ant, err := u.record(context.Background(), mitBody(anfrage("POST", "/a/x"), "text/plain", "x"))
@@ -57,6 +112,16 @@ func TestProtokoll(t *testing.T) {
 		}
 		pruefeEintraege(t, grund, v.log.alle(), []map[string]string{{"ereignis": "upstream", "error_code": code, "grund": grund}})
 	}
+	o := neu(t)
+	o.upstream.plane(&plan{lies: -1, fehler: outbound.ErrUpstreamNichtErreichbar})
+	if _, err := o.record(context.Background(), mitBody(anfrage("POST", "/a/x"), "text/plain", "x")); err == nil {
+		t.Fatal("kein Fehler")
+	}
+	pruefeEintraege(t, "ohne Antwort mit Capture-Fehler", o.log.alle(), []map[string]string{
+		{"ereignis": "capture", "error_code": "ODR-E2401", "richtung": "request", "grund": "typ"},
+		{"ereignis": "upstream", "error_code": "ODR-E4001", "grund": "nicht_erreichbar"},
+	})
+
 	d := neu(t)
 	d.upstream.plane(&plan{lies: -1, warteAufCtx: true})
 	res := d.recordNebenbei(context.Background(), anfrage("GET", "/a/x"))

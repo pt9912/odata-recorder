@@ -3,6 +3,8 @@ package record_test
 import (
 	"context"
 	"errors"
+	"io"
+	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -206,7 +208,8 @@ func TestSessionOhneHeader(t *testing.T) {
 	}
 }
 
-// TestSessionFehler: Fehler der Ablage als Code mit Gegenstand Session, Kontextfehler unverändert (B7).
+// TestSessionFehler: Fehler der Ablage als Code mit Gegenstand Session, Kontextfehler unverändert,
+// auch bei schon beendetem ctx (B7).
 func TestSessionFehler(t *testing.T) {
 	for _, mitHeader := range []bool{true, false} {
 		for _, f := range []struct {
@@ -233,6 +236,19 @@ func TestSessionFehler(t *testing.T) {
 			if !errors.Is(err, f.err) {
 				t.Errorf("Header %v: Ursache fehlt in %v", mitHeader, err)
 			}
+		}
+		// ctx schon beendet: der Kontextfehler kommt aus dem Lesen der Session, ohne Code.
+		u := neu(t)
+		a := anfrage("GET", "/a/x")
+		if mitHeader {
+			a = mitSession(a, sessionHeader, "s1")
+		}
+		ctx, abbrechen := context.WithCancel(context.Background())
+		abbrechen()
+		_, err := u.record(ctx, a)
+		var fe *inbound.Fehler
+		if err != context.Canceled || errors.As(err, &fe) || u.sessions.anzahlAufrufe() != 1 || len(u.upstream.gesehen()) != 0 {
+			t.Errorf("Header %v, ctx beendet: %v, Session-Fake %d Aufrufe", mitHeader, err, u.sessions.anzahlAufrufe())
 		}
 	}
 }
@@ -293,5 +309,69 @@ func TestAnnahmeGegenDrain(t *testing.T) {
 	e := k.letzter()
 	if e.ID != kennung("exc", 1) || !e.StartedAt.Equal(t0().Add(3*time.Second)) {
 		t.Errorf("Kennung %s, StartedAt %v", e.ID, e.StartedAt)
+	}
+}
+
+// stand ist, was ein Test bei der Rückkehr von Drain sieht: die Zahl der Senden am Upstream-Fake
+// und die Zahl der beendeten Exchanges (angehängt und nicht angehängt).
+type stand struct {
+	senden, beendet int
+	err             error
+}
+
+// TestAnnahmeGegenDrainGleichzeitig: 16 Goroutinen rufen Record für s1, während Drain(s1, 1 h)
+// beginnt, 200 Runden; jeder angenommene Exchange wird zu Ende gelesen und geschlossen. Der
+// Session-Fake hält die 16 Aufrufe von List an und gibt sie zugleich mit dem Beginn von Drain frei;
+// die 16 teilen einen Kontext, von dem jeder Exchange seinen ableitet. Nach der Rückkehr von Drain
+// erreicht kein Senden für s1 mehr den Upstream-Fake, und die Zahl der Senden gleicht der Zahl der
+// angehängten Exchanges plus NichtAngehaengt (B8). Ein Freigeben der Sperre zwischen der Prüfung auf
+// Drain und der Annahme fängt der Test mit hoher Wahrscheinlichkeit, nicht mathematisch sicher: im
+// Fenster liegt kein Aufruf eines Ports, an dem er anhalten könnte.
+func TestAnnahmeGegenDrainGleichzeitig(t *testing.T) {
+	const goroutinen, runden = 16, 200
+	for runde := range runden {
+		u := neu(t)
+		u.sessions.haltList, u.sessions.imList = true, make(chan struct{}, goroutinen)
+		basis, ende := context.WithCancel(context.Background())
+		var wg sync.WaitGroup
+		for range goroutinen {
+			wg.Go(func() {
+				ant, err := u.r.Record(basis, anfrage("GET", "/a/x"))
+				if err != nil {
+					if f := (*inbound.Fehler)(nil); !errors.As(err, &f) || f.Code != model.CodeE5009 {
+						t.Errorf("Runde %d: %v", runde, err)
+					}
+					return
+				}
+				_, _ = io.ReadAll(ant.Body)
+				_ = ant.Body.Close()
+			})
+		}
+		for range goroutinen {
+			empfange(t, "List", u.sessions.imList)
+		}
+		los := make(chan struct{})
+		d := nebenbei(func() stand {
+			<-los
+			b, err := u.r.Drain(context.Background(), "s1", time.Hour)
+			return stand{len(u.upstream.gesehen()), len(u.exchanges.angehaengt()) + b.NichtAngehaengt, err}
+		})
+		// Die Reihenfolge der Freigaben wechselt mit der Runde.
+		if runde%2 == 0 {
+			close(los)
+			close(u.sessions.freiList)
+		} else {
+			close(u.sessions.freiList)
+			close(los)
+		}
+		mitZeitgrenze(t, "Record der Goroutinen", wg.Wait)
+		s := empfange(t, "Drain", d)
+		ende()
+		b := u.bericht("s1")
+		senden, beendet := len(u.upstream.gesehen()), len(u.exchanges.angehaengt())+b.NichtAngehaengt
+		if s.err != nil || s.senden != senden || s.beendet != s.senden || beendet != senden {
+			t.Fatalf("Runde %d: bei der Rückkehr von Drain %d Senden und %d beendet, danach %d Senden und %d beendet (%v)",
+				runde, s.senden, s.beendet, senden, beendet, s.err)
+		}
 	}
 }

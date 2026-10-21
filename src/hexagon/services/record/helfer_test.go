@@ -60,14 +60,16 @@ func (p *ereignisse) liste() []string {
 // --- Blob-Fake nach SPEC-106 Nr. 1 bis 4 --------------------------------------------------
 
 // fakeBlobs hält jedes je angebotene Byte und jeden committeten Blob und meldet jeden Commit
-// auf commits und im Ereignisprotokoll.
+// auf commits und im Ereignisprotokoll. Ist haltCommit gesetzt, wartet jeder Commit vor seiner
+// Prüfung des Kontexts, bis haltCommit schließt.
 type fakeBlobs struct {
-	mu        sync.Mutex
-	prot      *ereignisse
-	angeboten []byte
-	committed map[string][]byte
-	begins    int
-	commits   chan string
+	mu         sync.Mutex
+	prot       *ereignisse
+	angeboten  []byte
+	committed  map[string][]byte
+	begins     int
+	commits    chan string
+	haltCommit chan struct{}
 }
 
 type fakeWriter struct {
@@ -104,6 +106,9 @@ func (w *fakeWriter) Write(p []byte) (int, error) {
 }
 
 func (w *fakeWriter) Commit() (string, int64, error) {
+	if w.b.haltCommit != nil {
+		<-w.b.haltCommit
+	}
 	if err := w.cerr(); err != nil {
 		return "", 0, err
 	}
@@ -256,6 +261,9 @@ type fakeExchanges struct {
 	pause        bool
 	aktiv, hoch  int
 	unerwartet   []string
+	// haltAppend hält jedes Append an: es meldet sich auf imAppend und wartet, bis haltAppend schließt.
+	haltAppend chan struct{}
+	imAppend   chan struct{}
 }
 
 func (f *fakeExchanges) Append(ctx context.Context, e model.Exchange) error {
@@ -266,10 +274,14 @@ func (f *fakeExchanges) Append(ctx context.Context, e model.Exchange) error {
 	f.ctxFehler = append(f.ctxFehler, ctx.Err())
 	f.aktiv++
 	f.hoch = max(f.hoch, f.aktiv)
-	pause := f.pause
+	pause, halt := f.pause, f.haltAppend
 	f.mu.Unlock()
 	f.prot.melde("Append " + e.ID)
 	defer func() { f.mu.Lock(); f.aktiv--; f.mu.Unlock() }()
+	if halt != nil {
+		f.imAppend <- struct{}{}
+		<-halt
+	}
 	if pause {
 		time.Sleep(time.Millisecond)
 	}
@@ -419,8 +431,9 @@ type plan struct {
 	warteAufCtx bool
 	nachCtx     chan struct{}
 	// halt hält den Kopf bis zu seinem Schließen oder bis ctx endet.
-	halt       chan struct{}
-	fehler     error
+	halt   chan struct{}
+	fehler error
+	// vorAntwort läuft, bevor der Fake antwortet oder mit fehler endet.
 	vorAntwort func()
 	status     int
 	header     map[string][]string
@@ -501,11 +514,11 @@ func (u *fakeUpstream) antworte(ctx context.Context, p *plan) (outbound.Upstream
 	if ctx.Err() != nil {
 		return outbound.UpstreamAntwort{}, fmt.Errorf("upstream-fake: %w", ctx.Err())
 	}
-	if p.fehler != nil {
-		return outbound.UpstreamAntwort{}, p.fehler
-	}
 	if p.vorAntwort != nil {
 		p.vorAntwort()
+	}
+	if p.fehler != nil {
+		return outbound.UpstreamAntwort{}, p.fehler
 	}
 	p.body.done, p.body.cerr = ctx.Done(), ctx.Err
 	return outbound.UpstreamAntwort{Status: p.status, Header: p.header, Body: p.body}, nil
