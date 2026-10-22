@@ -49,8 +49,9 @@ RUN --network=none pruefung build /out/odata-recorder "$VERSION"
 
 # --- race: go test -race mit cgo über den Quellstand der Stufe source, gefahren von pruefung
 # (SPEC-122). RACE_IMAGE bringt den C-Compiler mit; die Stufe bricht ab, wenn seine Go-Version
-# von der der Stufe deps abweicht. Umgebung und Netz wie bei deps und lint: cgo schaltet allein
-# `pruefung race` für seinen Aufruf ein, die übrigen Stufen bleiben bei CGO_ENABLED=0.
+# von der der Stufe deps abweicht. Die Umgebung ist die von deps und lint, jeder RUN läuft ohne
+# Netz; cgo schaltet allein `pruefung race` für seinen Aufruf ein, die Stufen deps bis build
+# bleiben bei CGO_ENABLED=0.
 FROM --platform=$BUILDPLATFORM ${RACE_IMAGE} AS race
 WORKDIR /src
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
