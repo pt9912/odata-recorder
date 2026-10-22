@@ -18,9 +18,14 @@
 # Commit-Messages via `git commit -F <datei>`.
 # Sub-Shell-Strings (`bash -c "…"`, auch in Flag-Buendeln wie -lc/-ec/-cx)
 # werden rekursiv geprueft (Tiefe <= 3, darueber fail-closed).
-# Bewusst NICHT geprueft: andere Interpreter (`python -c`, `find -exec`, …)
-# — der Guard ist ein Stolperdraht gegen versehentliche Host-Toolchain-
-# Nutzung, KEINE Sandbox; Vollstaendigkeit ist nicht das Ziel.
+# python und python3 blocken ueber tools/harness/blocked/python, an der
+# Befehlsposition wie jedes Wort der Sperrliste; kein Gate und keine Gegenprobe
+# prueft diese Sperre.
+# Bewusst NICHT geprueft: versionierte Namen (`python2`, `python3.12`), Wrapper
+# mit Pfad (`/usr/bin/env python3`) oder ausserhalb von PREFIXES (`nohup`,
+# `timeout`), andere Interpreter (`perl -e`), `find -exec`, … — der Guard ist
+# ein Stolperdraht gegen versehentliche Host-Toolchain-Nutzung, KEINE Sandbox;
+# Vollstaendigkeit ist nicht das Ziel.
 #
 # Im Pass-Fall: KEINE Ausgabe — "approve" wuerde das Permission-System
 # ueberspringen; ohne Ausgabe laeuft die normale Permission-Entscheidung.
