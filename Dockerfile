@@ -55,7 +55,7 @@ FROM --platform=$BUILDPLATFORM ${RACE_IMAGE} AS race
 WORKDIR /src
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY --from=deps /usr/local/go/VERSION /deps-go-version
-RUN r="$(head -n 1 /usr/local/go/VERSION)" && d="$(head -n 1 /deps-go-version)" \
+RUN --network=none r="$(head -n 1 /usr/local/go/VERSION)" && d="$(head -n 1 /deps-go-version)" \
  && { [ "$r" = "$d" ] || { echo "Go-Version von race ($r) weicht von deps ($d) ab"; exit 1; }; }
 COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY --from=source /src ./
