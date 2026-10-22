@@ -57,7 +57,7 @@ func standard() Umgebung {
 	}
 }
 
-// befehl ruft das Gate des Falls f in der Kopie dir.
+// befehl ruft das Gate des Falls f im Verzeichnis dir des Falls.
 func befehl(dir string, f Fall) (string, []string, string) {
 	switch f.Gate {
 	case gateACheck:
@@ -137,8 +137,9 @@ func run(u Umgebung, stdout, stderr io.Writer, wurzel string, fs []Fall) int {
 	return exitOK
 }
 
-// fahre legt je Fall eine Kopie von wurzel an und fährt alle Fälle nebenläufig; ein
-// roter Fall hält die übrigen nicht an. Die Reihenfolge der Ergebnisse ist die der Fälle.
+// fahre legt je Fall sein Verzeichnis an (eine Kopie von wurzel, bei einem Wegwerfmodul ein leeres
+// Verzeichnis) und fährt alle Fälle nebenläufig; ein roter Fall hält die übrigen nicht an. Die
+// Reihenfolge der Ergebnisse ist die der Fälle.
 func fahre(u Umgebung, fs []Fall, wurzel string) (erg []Ergebnis, err error) {
 	namen := map[string]bool{}
 	for _, f := range fs {
@@ -147,7 +148,7 @@ func fahre(u Umgebung, fs []Fall, wurzel string) (erg []Ergebnis, err error) {
 		}
 		namen[f.Name] = true
 	}
-	// Die Kopien entstehen vor dem ersten Gate-Aufruf, damit ein Fehler dort alle Fälle hält.
+	// Die Verzeichnisse entstehen vor dem ersten Gate-Aufruf, damit ein Fehler dort alle Fälle hält.
 	basis, err := os.MkdirTemp("", "gegenproben-")
 	if err != nil {
 		return nil, err
@@ -195,8 +196,8 @@ func legeVerzeichnisAn(u Umgebung, f Fall, wurzel, dir string) error {
 	return kopiere(u.Eingaben, wurzel, dir)
 }
 
-// fuehreFall erzeugt bei einem Fall mit Bau das Binary, ruft das Gate in der Kopie dir und
-// bewertet das Ergebnis.
+// fuehreFall erzeugt bei einem Fall mit Bau das Binary, ruft das Gate im Verzeichnis dir des Falls
+// und bewertet das Ergebnis.
 func fuehreFall(u Umgebung, f Fall, dir, tmp string) Ergebnis {
 	// golangci-lint sperrt eine Datei in TMPDIR gegen parallele Läufe; jeder Fall hat sein eigenes.
 	env := []string{"TMPDIR=" + tmp}
@@ -208,7 +209,7 @@ func fuehreFall(u Umgebung, f Fall, dir, tmp string) Ergebnis {
 		}
 	}
 	name, args, wd := u.Befehl(dir, f)
-	code, out, abgelaufen := starte(fallFrist, wd, append(env, f.Env...), name, args...)
+	code, out, abgelaufen := starte(fallFrist, wd, env, name, args...)
 	return Ergebnis{Name: f.Name, Rot: bewerte(f, code, out, abgelaufen)}
 }
 

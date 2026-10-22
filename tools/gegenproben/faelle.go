@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Gate benennt das Programm, das ein Fall in der Kopie aufruft.
+// Gate benennt das Programm, das ein Fall im Verzeichnis des Falls aufruft.
 type Gate int
 
 const (
@@ -15,26 +15,25 @@ const (
 	gatePruefung
 )
 
-// Fall ist eine Gegenprobe: ein Eingriff in die Kopie der Eingaben und die
-// Erwartung an das Gate.
+// Fall ist eine Gegenprobe: ein Eingriff in das Verzeichnis des Falls (die Kopie der Eingaben, bei
+// einem Wegwerfmodul ein leeres Verzeichnis, das der Fall selbst füllt) und die Erwartung an das Gate.
 type Fall struct {
 	Name     string
 	Gate     Gate
-	Neu      map[string]string // Datei -> Inhalt, angelegt in der Kopie
+	Neu      map[string]string // Datei -> Inhalt, angelegt im Verzeichnis des Falls
 	Anhang   map[string]string // Datei -> Text, an die Datei der Kopie gehängt
 	Ersetze  []Ersetzung
 	Entferne []string          // Dateien, aus der Kopie gelöscht
 	Kopiere  map[string]string // Ziel -> Quelle, beide in der Kopie
 	// Argumente ersetzen die Argumente von migration-check.sh (nil: die Vorgabe) und sind bei
-	// gatePruefung die Argumente von pruefung; dort steht {dir} für die Kopie und {binary} für
-	// das Binary des Baus.
+	// gatePruefung die Argumente von pruefung; dort steht {dir} für das Verzeichnis des Falls und
+	// {binary} für das Binary des Baus.
 	Argumente          []string
 	Bau                *Bau // erzeugt vor dem Aufruf das Binary in der Kopie
 	OhneGoDateienInSrc bool // löscht jede Datei *.go unter src/ der Kopie
 	// Wegwerfmodul legt statt der Kopie der Eingaben ein leeres Verzeichnis an; der Fall schreibt
 	// go.mod und die Pakete selbst (Neu).
 	Wegwerfmodul bool
-	Env          []string // ergänzt die Umgebung des Aufrufs des Gates, nicht die des Baus
 	WantExit     int
 	WantText     []string // jeder Text muss in der Ausgabe stehen
 	Verboten     []string // keiner dieser Texte darf in der Ausgabe stehen
@@ -370,15 +369,18 @@ func rennenUndBlockade(dir string) map[string]string {
 	}
 }
 
-// raceFaelle sind die Fälle von `pruefung race`; jeder schreibt sein Wegwerfmodul selbst (SPEC-102).
+// raceFaelle sind die Fälle 34 bis 36 (SPEC-102), die Fälle von `pruefung race`. Jeder legt ein
+// Wegwerfmodul an (Feld Wegwerfmodul, TestRaceFaelleLegenEinWegwerfmodulAn) und schreibt dessen
+// Pakete selbst. Sie setzen CGO_ENABLED nicht selbst und erben 0 von der Stufe gegenproben; dass die
+// Stufe es setzt, fängt kein Test (SPEC-102, Aufbau).
 func raceFaelle() []Fall {
 	wurzel := []string{"race", "{dir}"}
 	return []Fall{
 		{
 			Name: "race/ohne-rennen", Gate: gatePruefung, Argumente: wurzel,
-			Wegwerfmodul: true, Env: []string{"CGO_ENABLED=0"},
-			Neu:      wegwerfModul(saubererZaehler("src/hexagon/sauber")),
-			WantText: []string{"pruefung race: ok"},
+			Wegwerfmodul: true,
+			Neu:          wegwerfModul(saubererZaehler("src/hexagon/sauber")),
+			WantText:     []string{"pruefung race: ok"},
 		},
 		{
 			Name: "race/rennen-in-jedem-teilbaum", Gate: gatePruefung, Argumente: wurzel,

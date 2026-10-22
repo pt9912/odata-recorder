@@ -304,6 +304,21 @@ func TestRaceBefund(t *testing.T) {
 	}
 }
 
+// Endet go durch ein Signal, hat es keinen Exit-Code; das ist ein Befund wie jeder andere, mit der
+// Ausgabe bis dahin und Exit 1 (SPEC-122 Nr. 3).
+func TestRaceBefundDurchSignal(t *testing.T) {
+	w := neueWerkzeuge(t, "", `echo "FAIL x"; echo "WARNING: DATA RACE" >&2; kill -KILL $$`)
+	code, out, errText := fuehre(w.u, "race", t.TempDir())
+	if code != exitBefund || out != "" {
+		t.Fatalf("Exit %d (erwartet %d), stdout %q", code, exitBefund, out)
+	}
+	for _, text := range []string{"go test -race:", "FAIL x", "WARNING: DATA RACE"} {
+		if !strings.Contains(errText, text) {
+			t.Fatalf("Befund nennt %q nicht: %q", text, errText)
+		}
+	}
+}
+
 // binaerWerkzeuge liefert ein Binary, das `version` mit dem Rumpf beantwortet, und ein go,
 // das auf `version -m` mit dem Rumpf antwortet.
 func binaerWerkzeuge(t *testing.T, binRumpf, goRumpf string) (werkzeuge, string) {

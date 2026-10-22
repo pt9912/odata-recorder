@@ -286,15 +286,6 @@ func TestFaelleDerPruefungHabenDieNamenAusDemVertrag(t *testing.T) {
 	}
 }
 
-// Die Umgebung eines Falls erreicht das Gate.
-func TestFallEnvErreichtDasGate(t *testing.T) {
-	u := umgebungMit(func(string, Gate) string { return `test "$PROBE_ENV" = gesetzt` }, "sh")
-	var out, errb bytes.Buffer
-	if got := run(u, &out, &errb, wurzelMitEingaben(t), []Fall{{Name: "e", Env: []string{"PROBE_ENV=gesetzt"}}}); got != exitOK {
-		t.Fatalf("Exit %d: %s%s", got, out.String(), errb.String())
-	}
-}
-
 // Ein Wegwerfmodul trägt nur, was der Fall schreibt; die Kopie der Eingaben trägt src/.
 func TestWegwerfmodulKopiertDieEingabenNicht(t *testing.T) {
 	skript := func(dir string, _ Gate) string {
@@ -311,6 +302,16 @@ func TestWegwerfmodulKopiertDieEingabenNicht(t *testing.T) {
 	out.Reset()
 	if got := run(u, &out, &errb, wurzelMitEingaben(t), []Fall{kopie}); got != exitRot {
 		t.Fatalf("Kopie der Eingaben: Exit %d (erwartet %d, src/ gehört dazu): %s", got, exitRot, out.String())
+	}
+}
+
+// Jeder Fall von pruefung race legt ein Wegwerfmodul an (SPEC-102, Aufbau): das Feld steht in den
+// Fällen 34 bis 36, nicht nur in einem Fall, den ein Test eigens baut.
+func TestRaceFaelleLegenEinWegwerfmodulAn(t *testing.T) {
+	for _, f := range raceFaelle() {
+		if !f.Wegwerfmodul {
+			t.Errorf("%s: Wegwerfmodul nicht gesetzt, der Fall kopiert die Eingaben", f.Name)
+		}
 	}
 }
 
