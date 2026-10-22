@@ -10,6 +10,7 @@ Je Fall legt es eine Kopie der Eingaben in einem Wegwerfverzeichnis an, schreibt
 Alle Fälle laufen nebenläufig (höchstens so viele wie Prozessorkerne); ein Docker-Build, -Lauf oder `docker cp` je Fall gibt es nicht.
 Der Arbeitsbaum wird nie verändert.
 Die Fälle 34 bis 36 (`make test-race`, `SPEC-122`) legen statt der Kopie der Eingaben ein Wegwerfmodul ohne Abhängigkeiten an und schreiben die Pakete selbst: ein Lauf über `src/` unter `-race` wäre das Ziel und nicht seine Gegenprobe.
+Der Inhalt der Dateien, die sie schreiben, führt kein Zeichen über ASCII, damit ein Fixture nicht davon abhängt, ob das Werkzeug des Schreibers eine Escape-Folge in das Zeichen umsetzt.
 Sie laufen in dieser Stufe auf dem golangci-lint-Image, das Go 1.27.1 und gcc 14.2.0 trägt (gemessen am 2026-10-22), nicht auf dem Image der Stufe `race`; `pruefung race` setzt `CGO_ENABLED=1` für seinen Aufruf selbst, die Umgebung der Stufe (`CGO_ENABLED=0`) bleibt.
 
 **Eingaben:** `src/`, `go.mod`, `go.sum`, `.a-check.yml`, `.golangci.yml`, `tools/harness/lint.sh`, `tools/harness/migration-check.sh`, `tools/gegenproben/`, `tools/pruefung/`, `Dockerfile` und `.dockerignore`; dazu die Pins beider Images.
@@ -52,7 +53,7 @@ Ein roter Lauf lässt den Stempel unverändert, ein fehlender Stempel erzwingt d
 31. `build/falsche-version` · `pruefung build` · das Binary trägt eine andere Version als der Aufruf nennt · Exit 1, Ausgabe nennt `Version des Binary` und beide Versionen.
 32. `build/binary-fehlt` · `pruefung build` · der Pfad des Binary zeigt auf keine Datei · Exit 2, Ausgabe nennt `Binary fehlt`.
 33. `test/aufruf` · `pruefung` · ohne Argumente · Exit 2, Ausgabe nennt `Aufruf:`.
-34. `race/ohne-rennen` · `pruefung race` · Umgebung `CGO_ENABLED=0`; Wegwerfmodul mit einem Paket unter `src/hexagon/`, dessen Test zwei Goroutinen einen Zähler unter einer Sperre erhöhen lässt und auf beide wartet · Exit 0, Ausgabe nennt `pruefung race: ok`.
+34. `race/ohne-rennen` · `pruefung race` · Umgebung des Aufrufs `CGO_ENABLED=0`; Wegwerfmodul mit einem Paket unter `src/hexagon/`, dessen Test zwei Goroutinen einen Zähler unter einer Sperre erhöhen lässt und auf beide wartet · Exit 0, Ausgabe nennt `pruefung race: ok`.
 35. `race/rennen-in-jedem-teilbaum` · `pruefung race` ohne Muster · Wegwerfmodul mit je einem Paket unter `src/hexagon/` (Rennen nur im Testcode), `src/adapters/` und `src/bootstrap/` (Rennen im Code des Pakets, vom Test aufgerufen) und einem vierten Paket unter `src/hexagon/` mit einem Test, der `t.Fatal` ruft, ohne Rennen; in den drei Paketen mit Rennen starten zwei Goroutinen ohne Kante zwischen ihnen und ändern denselben Zähler, der Test wartet erst danach auf beide · Exit 1, Ausgabe nennt `WARNING: DATA RACE` und für alle vier Pakete eine Zeile `FAIL` mit dem Importpfad.
 36. `race/rennen-und-zeitgrenze` · `pruefung race` mit den Argumenten `-timeout=5s ./...` · Wegwerfmodul mit einem Paket, dessen Test ein Rennen wie in Fall 35 erzeugt, auf beide Goroutinen wartet und danach blockiert (`select {}`) · Exit 1, Ausgabe nennt `WARNING: DATA RACE` und `test timed out`.
 Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
@@ -85,7 +86,7 @@ Das Budget von 60 s bleibt, bis der Implementer die Fälle 1 bis 36 misst; liegt
 
 **Pflicht zum Fahren:** `make gegenproben` läuft bei jeder Änderung am geprüften Gate, am Profil, an der Architektur-Regel, an der Gegenprobe oder an diesem Vertrag, am Ende jeder Welle und vor dem Release.
 
-**Stand:** vorhanden für `make a-check`, `make lint`, `make migration-check`, `make test` und `make build`; die Fälle 34 bis 36 zu `make test-race` entstehen mit dem Slice, der den Code liefert.
+**Stand:** vorhanden für `make a-check`, `make lint`, `make migration-check`, `make test`, `make build` und `make test-race`.
 
 **Grenze:** Kein Gate und kein Hook liest den Stempel; er belegt nur, dass ein Lauf zu dieser Prüfsumme grün war, und wer ihn von Hand schreibt, belegt nichts.
 Die Fälle prüfen die Importrichtungen `core-impurity` und Adapter auf Adapter sowie die Direktiv- und `# Why:`-Regeln; weitere Verstoßformen kommen mit den Bibliotheksgrenzen.

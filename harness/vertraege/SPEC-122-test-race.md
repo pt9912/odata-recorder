@@ -28,10 +28,12 @@ Die Stufe liefert ein Urteil und kein Artefakt; das Binary entsteht in der Stufe
 4. **Image und Go-Version.** Die Stufe `race` läuft auf `golang:1.27.1-trixie@sha256:8f58fd67ea075142d947a60e0caa4317746a55118d312f027793d382c7741734` (Debian 13, Go 1.27.1, gcc 14.2.0).
    Herkunft: am 2026-10-22 mit `docker buildx imagetools inspect` aus dem Tag `1.27.1-trixie` des offiziellen Images `golang` aufgelöst; der Digest ist der des Index über alle Plattformen, nicht der einer einzelnen.
    Der Pin steht als `RACE_IMAGE` in `harness/mk/go-gates.mk` und geht der Stufe als Build-Argument zu; ein fehlendes oder leeres `RACE_IMAGE` lässt den Bau scheitern, ein Image ohne Compiler lässt `go` mit `C compiler "gcc" not found` enden.
-   Die Go-Version stimmt mit der von `deps` überein (`golang:1.27-alpine`, Go 1.27.1; `/usr/local/go/VERSION` beider Images war am 2026-10-22 gleich): die Stufe vergleicht sie mit der von `deps` und bricht bei einem Unterschied ab, Text `Go-Version von race … weicht von deps … ab`.
+   Die Go-Version stimmt mit der von `deps` überein (`golang:1.27-alpine`, Go 1.27.1): die Stufe vergleicht die erste Zeile von `/usr/local/go/VERSION` beider Images (`go1.27.1`) und bricht bei einem Unterschied ab, Text `Go-Version von race … weicht von deps … ab`.
+   Die zweite Zeile der Datei (`time …`) ist ein Zeitstempel und keine Version und geht nicht in den Vergleich ein; fehlt die Datei, etwa in einem Image ohne Go, scheitert der Bau an der Meldung von `head`.
    `deps` und `RACE_IMAGE` werden gemeinsam angehoben, eine Anhebung ist ein bewusster Commit.
    Die Module kommen aus `deps` (`/go/pkg/mod`).
-   Die Stufe setzt `CGO_ENABLED=0`, `GOTOOLCHAIN=local` und `GOFLAGS=-mod=readonly` selbst, wie `deps` und `lint` (sie erbt aus `FROM <RACE_IMAGE>` nichts aus `deps`), und läuft mit `RUN --network=none`; ein Modul, das in `deps` fehlt, lässt den Lauf mit der Meldung von `go` scheitern, das Ziel ist rot.
+   Die Stufe setzt `CGO_ENABLED=0`, `GOTOOLCHAIN=local` und `GOFLAGS=-mod=readonly` selbst, wie `deps` und `lint` (sie erbt aus `FROM <RACE_IMAGE>` nichts aus `deps`); jeder `RUN` der Stufe läuft mit `--network=none`, auch der Vergleich der Version.
+   Ein Modul, das in `deps` fehlt, lässt den Lauf mit der Meldung von `go` scheitern, das Ziel ist rot.
    Dass diese Umgebung, das Netz und der Digest so in der Stufe stehen, fängt kein Fall (Nr. 9).
    Die Stufen `deps`, `source`, `pruefung`, `test` und `build` bleiben ohne Compiler und mit `CGO_ENABLED=0`: ein `CGO_ENABLED=1` dort lässt `go` mit `cgo: C compiler "gcc" not found` enden, `make build` und `make test` würden rot (gemessen am 2026-10-22 in den Images von `build` und `test`).
    Die Stufen `lint` und `gegenproben` laufen auf dem Image von golangci-lint, das einen Compiler trägt; ein `CGO_ENABLED=1` dort bliebe grün.
@@ -39,7 +41,9 @@ Die Stufe liefert ein Urteil und kein Artefakt; das Binary entsteht in der Stufe
 5. **Zeitgrenze, Speicher, Abbruch.** `pruefung race` setzt kein `-timeout`; es gilt die Standardgrenze von `go test`, 10 Minuten je Paket.
    Überschreitet ein Test sie, bricht `go test` das Paket ab (`panic: test timed out after …` mit den Goroutinen), und das ist ein Befund (Nr. 3).
    Ein Muster `-timeout=<Dauer>` stellt die Grenze für einen Aufruf um; nur die Gegenprobe tut es (Fall 36 von `SPEC-102`).
-   Unter `-race` laufen Tests langsamer und brauchen mehr Speicher (der Faktor ist nicht gemessen; der Implementer misst ihn in der Stufe).
+   Unter `-race` laufen Tests langsamer und brauchen mehr Speicher.
+   Gemessen am 2026-10-22 auf einem Host mit 20 Kernen, beide Stufen bei kaltem Build-Cache: die Stufe `race` brauchte das 1,1- bis 1,3-fache der Stufe `test`; je Paket weicht der Faktor stark vom Faktor der Stufe ab, und für einen Test mit Zeitgrenze zählt der seines Pakets.
+   Der Speicherbedarf ist nicht gemessen; keiner dieser Läufe endete durch den Speicher.
    Kippt ein Test mit einer Zeitgrenze seines Codes (eine Frist von 20 ms, ein Fenster von 250 ms) nur unter dem Detektor und ohne Rennen, ist das ein Befund an den Planner und keine Lockerung der Grenze im Gate.
    Bricht der Aufrufer den Bau ab, endet die Stufe ohne Ergebnis; `pruefung race` hält keinen Zustand und schreibt keine Datei (`SPEC-036` Randform 10).
 6. **Wiederholung und Cache.** Bei unveränderter Eingabe der Stufe (der Quellstand der Stufe `source`, `go.mod`, `go.sum`, das Programm `pruefung`, der Pin des Images, das `Dockerfile`) fährt Docker sie nicht erneut, und `make test-race` meldet das Ergebnis des letzten Laufs, wie `make test`.
@@ -66,13 +70,14 @@ Die Stufe liefert ein Urteil und kein Artefakt; das Binary entsteht in der Stufe
      Grund (Gleichwertigkeit) für `GOFLAGS`, `GOTOOLCHAIN` und `CGO_ENABLED`: ohne die Zeilen läuft derselbe Aufruf mit demselben Urteil. Folge im Betrieb: keine.
      Grund für `--network=none`: das Urteil über Rennen hängt nicht am Netz, verloren wäre die Netzlosigkeit des Laufs. Folge im Betrieb: ein fehlendes Modul oder eine andere Toolchain würde geholt, statt den Lauf scheitern zu lassen, und der Lauf bliebe grün; es fiele erst beim Lesen des `Dockerfile` auf, wie bei den Stufen `test`, `build`, `lint` und `gegenproben`, deren `RUN --network=none` kein Gate prüft.
      Grund für den Digest: das Urteil hängt am Detektor von `go`, dessen Version der Vergleich mit `deps` bindet (Nr. 4). Folge im Betrieb: fehlte der Digest, zöge Docker den beweglichen Tag `1.27.1-trixie`, Debian und gcc könnten sich ohne Commit verschieben, und der Pin trüge die Reproduzierbarkeit des Images nicht mehr; die Digests von `deps` und `lint` prüft ebenfalls kein Gate.
+   - Die zweite Zeile von `/usr/local/go/VERSION` (Nr. 4): dass der Vergleich nur die erste Zeile nimmt, fängt kein Fall; ob zwei Images derselben Version in der zweiten Zeile abweichen, ist nicht geprüft, und kein Lauf stellt es her. Grund (Gleichwertigkeit): der Zeitstempel sagt nichts über den Detektor, die Version bindet ihn. Folge im Betrieb: keine für das Urteil über Rennen; ein Vergleich der ganzen Datei machte den Bau bei einem Unterschied allein im Zeitstempel rot.
 10. **Randformen von `pruefung race`.** Die Randformen 1, 2, 7, 10, 11 und 14 von `pruefung test` (`SPEC-036`) gelten für `race` wörtlich, mit `race` an der Stelle von `test`: ein Aufruf ohne `Wurzel`, mit leerem Argument oder mit falscher Zahl von Argumenten ist `Aufruf:` mit den drei Formen und Exit 2; `go` ist das einzige Programm, das `race` aufruft.
     Randform 8 (kein Befund bei einem Verzeichnis ohne Go-Dateien) gilt für `race` nicht: dort endet `go test` mit 1 (Nr. 2), und das ist der Befund.
 
 **Gegenprobe:** Die Fälle 34 bis 36 von `SPEC-102` fahren `pruefung race` in einem Wegwerfmodul: ein sauberer nebenläufiger Fall, Datenrennen in je einem Paket unter `src/hexagon/`, `src/adapters/` und `src/bootstrap/` samt einem roten Test ohne Rennen, und ein Test, der ein Rennen erzeugt und danach blockiert, bis die Zeitgrenze abläuft.
 Das Rennen dieser Fälle ist nicht zeitabhängig (Nr. 8): zwei Goroutinen ändern denselben Zähler ohne Kante zwischen ihnen, und der Test wartet erst danach auf beide.
 
-**Stand:** entsteht mit dem Slice, der den Code liefert.
+**Stand:** vorhanden: `pruefung race` (`tools/pruefung/`), die Stufe `race` des `Dockerfile`, das Ziel in `GATE_CHECKS` und die Fälle 34 bis 36 von `SPEC-102`.
 
 **Grenze:** Das Ziel belegt, dass `go test` unter dem Detektor in den Paketen des Quellstands keinen Befund meldet; was es nicht sieht, steht in Nr. 8 und Nr. 9.
 Es senkt keine Schwelle der übrigen Gates und ersetzt keinen Test: ein Wirkungs-Fänger bleibt dort, wo die Wirkung benennbar ist, und ein Rennen ohne ungeordneten Zugriff fängt nur er.

@@ -44,7 +44,7 @@ Aufrufe:
 2. Jedes andere Aufrufmuster — unbekanntes Kommando, leeres Argument, Flag wie `--help`, `version` mit Zusatzargument: `Unbekanntes Kommando: <erstes Argument>` nach stderr, Exit-Code 2.
 3. Ein nil-Writer verwirft die Ausgabe; der Exit-Code bleibt unverändert.
 
-**Stand:** vorhanden für das Skelett aus Composition Root und Version; `pruefung` trägt die Prüfungen beider Ziele, ihre Gegenproben liefert `SPEC-102`.
+**Stand:** vorhanden für das Skelett aus Composition Root und Version; `pruefung` trägt die Prüfungen von `make test`, `make build` und `make test-race` (`SPEC-122`), ihre Gegenproben liefert `SPEC-102`.
 
-**Grenze:** Dass die Stufen `test` und `build` des `Dockerfile` `pruefung` rufen und dass die Stufe `pruefung` sich selbst mit `gofmt`, `go vet` und `go test` prüft, fängt kein Fall und kein Test; die Verdrahtung ist im `Dockerfile` und wird nur beim Lesen geprüft.
+**Grenze:** Dass die Stufen `test`, `build` und `race` des `Dockerfile` `pruefung` rufen und dass die Stufe `pruefung` sich selbst mit `gofmt`, `go vet` und `go test` prüft, fängt kein Fall und kein Test; die Verdrahtung ist im `Dockerfile` und wird nur beim Lesen geprüft.
 Prüft kein Zusammenspiel mit Upstream oder Datenbank; das tun `make test-integration` und die Verträge `SPEC-037` und `SPEC-042`.
