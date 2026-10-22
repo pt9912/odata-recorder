@@ -66,6 +66,7 @@ Diese Datei dupliziert sie nicht.
 | `make migration-check` | Eingebettete Migration des SQLite-Adapters byte-gleich dem DDL aus `schema.yaml`, keine ungeprüfte weitere Migration (netzlos, ohne Mount) | [ADR-0006](../docs/plan/adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md) |
 | `make build` | Binary aus `src/` über das `Dockerfile` (Stufe `build`, reproduzierbar, netzlos außer `deps`); `pruefung build` prüft Version und `-trimpath` | [ADR-0001](../docs/plan/adr/0001-implementierungssprache-go.md) |
 | `make test` | `pruefung test`: `gofmt` (nennt nicht formatierte Dateien), `go vet` und Unit-Tests über das `Dockerfile` (Stufe `test`, netzlos außer `deps`) | [ADR-0001](../docs/plan/adr/0001-implementierungssprache-go.md) |
+| `make test-race` | `pruefung race`: `go test -race` mit cgo über alle Pakete der Stufe `source` (Dockerfile, Stufe `race`, Go-Image mit C-Compiler, netzlos außer `deps`); meldet Datenrennen, rote Tests, Zeitgrenze | [ADR-0007](../docs/plan/adr/0007-race-detektor-im-gate.md) |
 | `make a-check` | Architektur-Regeln des Hexagons gemäß `.a-check.yml` (a-check, netzlos, schreibgeschützt): Import-Richtungen der Schichten; prüft heute einen leeren Baum, bis Code existiert | [ADR-0002](../docs/plan/adr/0002-architektur-gate-a-check.md) |
 | `make lint-profil` | Lint-Profil `.golangci.yml` gegen das Schema von golangci-lint (netzlos, ohne Mount); prüft kein Code | [ADR-0003](../docs/plan/adr/0003-lint-profil-golangci.md) |
 | `make lint` | Go-Code nach `.golangci.yml` und eigene Prüfungen (keine `//nolint`-Direktive, `# Why:` je Ausnahme, `warn-unused`); Dockerfile, Stufe `lint`, netzlos außer `deps` | [ADR-0003](../docs/plan/adr/0003-lint-profil-golangci.md) |
@@ -78,11 +79,11 @@ Diese Datei dupliziert sie nicht.
 | `make schema-validate` | prüft `tools/schema/schema.yaml` mit d-migrate (netzlos, ohne Mount) | kein Gate |
 | `make schema-generate` | erzeugt SQLite-DDL und Report aus dem Schema als Tar-Strom auf stdout (netzlos, ohne Mount) | kein Gate |
 | `make a-check-graph` | gibt den Architektur-Graphen (Mermaid) aus `.a-check.yml` aus, prüft nichts (netzlos, schreibgeschützt) | kein Gate |
-| `make gegenproben` | Gegenproben zu `a-check`, `lint.sh`, `migration-check.sh` und `pruefung`: Fälle in Kopien der Eingaben, ein Go-Programm, nur bei geänderter Eingabe (Stempel `harness/gegenproben.stempel`) | [ADR-0005](../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) |
+| `make gegenproben` | Gegenproben zu `a-check`, `lint.sh`, `migration-check.sh` und `pruefung`: Fälle in Kopien oder Wegwerfmodulen, ein Go-Programm, nur bei geänderter Eingabe (Stempel `harness/gegenproben.stempel`) | [ADR-0005](../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) |
 
 **Aktueller Lauf-Status:** lokal `make help` / `make gates`; eine CI gibt es noch nicht.
 **Rote Gates:** keine; ein rotes Gate bekommt einen `CO-<NNN>` und verweist in der Bindung-Spalte darauf (Modul 7).
-**Nicht behauptet:** ein Coverage-Gate, die Gegenproben zu `make docs-check`, `make schema-check`, `make lint-profil` und `make baseline-verify`, dass die Stufen `test` und `build` des `Dockerfile` `pruefung` rufen (kein Fall der Gegenproben fängt es) sowie der Lasttest zu `LH-QA-01` — der Code ist ein Skelett aus Composition Root und Version; `make a-check` prüft damit erst eine Schicht. Ebenso fehlt die Migrationskette des Schemas; sie braucht eine zweite Schemaversion.
+**Nicht behauptet:** ein Coverage-Gate, die Gegenproben zu `make docs-check`, `make schema-check`, `make lint-profil` und `make baseline-verify`, dass die Stufen `test`, `build` und `race` des `Dockerfile` `pruefung` rufen und `test-race` an `GATE_CHECKS` hängt (kein Fall der Gegenproben fängt es), ein Datenrennen, das kein Lauf auslöst, eines ohne ungeordneten Zugriff und eines in den Modulen unter `tools/` (`make test-race` meldet sie nicht, `SPEC-122` Nr. 8 und 9) sowie der Lasttest zu `LH-QA-01` — der Code ist ein Skelett aus Composition Root und Version; `make a-check` prüft damit erst eine Schicht. Ebenso fehlt die Migrationskette des Schemas; sie braucht eine zweite Schemaversion.
 
 **Targets der Werkzeug-Fragmente:** [`mk/ai-harness-init.md`](mk/ai-harness-init.md) — der Teil dieses Index, den `ai-harness-init` bei jedem Lauf neu schreibt; was das Repo über eines dieser Targets entscheidet, steht in dieser Zeile.
 

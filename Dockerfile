@@ -2,9 +2,11 @@
 # Das Eingangs-Image ist per Digest gepinnt; eine Anhebung ist ein bewusster Commit.
 # Netz braucht nur die Stufe deps; alle Stufen danach laufen mit `RUN --network=none`.
 
-# Das Image der Stufe lint kommt aus harness/mk/lint-profil.mk (Build-Argument LINT_IMAGE).
+# Das Image der Stufe lint kommt aus harness/mk/lint-profil.mk (Build-Argument LINT_IMAGE), das
+# der Stufe race aus harness/mk/go-gates.mk (RACE_IMAGE).
 ARG LINT_IMAGE=scratch
 ARG A_CHECK_IMAGE=scratch
+ARG RACE_IMAGE=scratch
 
 # --- deps: Module aus go.mod und go.sum (go.sum entsteht mit der ersten Abhängigkeit),
 # `go mod verify` prüft sie dagegen; /go/pkg/mod liegt auch ohne Abhängigkeit. Die Stufe und alle von ihr abgeleiteten laufen auf der Plattform
@@ -44,6 +46,21 @@ RUN --network=none GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -buildvc
       -ldflags="-s -w -X main.version=$VERSION" \
       -o /out/odata-recorder ./src/bootstrap/main
 RUN --network=none pruefung build /out/odata-recorder "$VERSION"
+
+# --- race: go test -race mit cgo über den Quellstand der Stufe source, gefahren von pruefung
+# (SPEC-122). RACE_IMAGE bringt den C-Compiler mit; die Stufe bricht ab, wenn seine Go-Version
+# von der der Stufe deps abweicht. Umgebung und Netz wie bei deps und lint: cgo schaltet allein
+# `pruefung race` für seinen Aufruf ein, die übrigen Stufen bleiben bei CGO_ENABLED=0.
+FROM --platform=$BUILDPLATFORM ${RACE_IMAGE} AS race
+WORKDIR /src
+ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
+COPY --from=deps /usr/local/go/VERSION /deps-go-version
+RUN r="$(head -n 1 /usr/local/go/VERSION)" && d="$(head -n 1 /deps-go-version)" \
+ && { [ "$r" = "$d" ] || { echo "Go-Version von race ($r) weicht von deps ($d) ab"; exit 1; }; }
+COPY --from=deps /go/pkg/mod /go/pkg/mod
+COPY --from=source /src ./
+COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
+RUN --network=none pruefung race /src
 
 # --- lint: golangci-lint nach .golangci.yml und die eigenen Prüfungen von tools/harness/lint.sh
 # auf dem Quellstand und auf tools/gegenproben und tools/pruefung; die Module kommen aus deps.
