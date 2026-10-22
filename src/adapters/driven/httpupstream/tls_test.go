@@ -198,13 +198,24 @@ func TestTLS(t *testing.T) {
 	}
 }
 
-// TestTransportTLS: der Client spricht HTTP/1.1 auch mit einem Server, der HTTP/2 anbietet (A11,
-// SPEC-120 Nr. 7).
+// TestTransportTLS: der Client spricht HTTP/1.1 auch mit einem Server, der HTTP/2 anbietet, mit und
+// ohne Prüfung (A11, SPEC-120 Nr. 7).
 func TestTransportTLS(t *testing.T) {
 	s := tlsServer(t, nil, true)
-	proto, err := tlsAbruf(t, s, "127.0.0.1", true, pemVon(s.Certificate()))
-	if err != nil || proto != "HTTP/1.1" {
-		t.Errorf("Protokoll %q, %v", proto, err)
+	for _, f := range []struct {
+		name    string
+		pruefen bool
+		capem   []byte
+	}{
+		{"mit Prüfung", true, pemVon(s.Certificate())},
+		{"ohne Prüfung", false, nil},
+	} {
+		t.Run(f.name, func(t *testing.T) {
+			proto, err := tlsAbruf(t, s, "127.0.0.1", f.pruefen, f.capem)
+			if err != nil || proto != "HTTP/1.1" {
+				t.Errorf("Protokoll %q, %v", proto, err)
+			}
+		})
 	}
 }
 
