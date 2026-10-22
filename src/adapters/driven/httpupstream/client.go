@@ -18,7 +18,8 @@ import (
 var _ outbound.UpstreamClient = (*Client)(nil)
 
 // Konfig trägt die Werte aus SPEC-120 Nr. 1; welche davon New anwendet, nennt der Kommentar von New.
-// Der Nullwert von Pruefen (falsch) prüft kein Zertifikat (Nr. 7); der Aufrufer setzt Pruefen immer.
+// Der Nullwert von Pruefen (falsch) prüft kein Zertifikat (Nr. 7), und New kann ihn von einer
+// ausdrücklichen Abschaltung nicht unterscheiden; den Wert übergibt der Aufrufer nach Nr. 1.
 type Konfig struct {
 	Frist   time.Duration
 	Pruefen bool

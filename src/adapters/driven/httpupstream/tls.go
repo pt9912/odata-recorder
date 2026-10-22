@@ -24,8 +24,8 @@ func tlsTransport(tr *http.Transport, pruefen bool, capem []byte) error {
 // leseAnker liest CAPEM: leer heißt die Anker des Systems allein (nil); sonst die Anker des Systems
 // und jedes lesbare Zertifikat aus CAPEM, mindestens eines, nach der Regel von x509, die auch der Start
 // an UPSTREAM_CA_FILE anwendet. Grenze: meldet die Bibliothek beim Laden der Anker des Systems einen
-// Fehler (eine vorhandene, nicht lesbare Datei in SSL_CERT_FILE), beginnt der Pool leer statt nil
-// (SPEC-120 Ungeprüft); kein Test fängt diesen Zweig.
+// Fehler, beginnt der Pool leer statt nil (Bedingung und Folge: SPEC-120 Ungeprüft); kein Test fängt
+// diesen Zweig.
 func leseAnker(capem []byte) (*x509.CertPool, error) {
 	if len(capem) == 0 {
 		return nil, nil
