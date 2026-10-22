@@ -273,6 +273,7 @@ func TestFaelleDerPruefungHabenDieNamenAusDemVertrag(t *testing.T) {
 	want := []string{
 		"test/basis", "test/nicht-formatiert", "test/vet-befund", "test/roter-test",
 		"build/basis", "build/ohne-trimpath", "build/falsche-version", "build/binary-fehlt", "test/aufruf",
+		"race/ohne-rennen", "race/rennen-in-jedem-teilbaum", "race/rennen-und-zeitgrenze",
 	}
 	have := map[string]bool{}
 	for _, f := range faelle() {
@@ -281,6 +282,48 @@ func TestFaelleDerPruefungHabenDieNamenAusDemVertrag(t *testing.T) {
 	for _, n := range want {
 		if !have[n] {
 			t.Errorf("Fall %s fehlt", n)
+		}
+	}
+}
+
+// Die Umgebung eines Falls erreicht das Gate.
+func TestFallEnvErreichtDasGate(t *testing.T) {
+	u := umgebungMit(func(string, Gate) string { return `test "$PROBE_ENV" = gesetzt` }, "sh")
+	var out, errb bytes.Buffer
+	if got := run(u, &out, &errb, wurzelMitEingaben(t), []Fall{{Name: "e", Env: []string{"PROBE_ENV=gesetzt"}}}); got != exitOK {
+		t.Fatalf("Exit %d: %s%s", got, out.String(), errb.String())
+	}
+}
+
+// Ein Wegwerfmodul trägt nur, was der Fall schreibt; die Kopie der Eingaben trägt src/.
+func TestWegwerfmodulKopiertDieEingabenNicht(t *testing.T) {
+	skript := func(dir string, _ Gate) string {
+		return "test -f " + filepath.Join(dir, "go.mod") + " && test ! -e " + filepath.Join(dir, "src") +
+			" && test ! -e " + filepath.Join(dir, ".golangci.yml")
+	}
+	u := umgebungMit(skript, "sh")
+	wegwerf := Fall{Name: "w", Wegwerfmodul: true, Neu: map[string]string{"go.mod": "module w\n"}}
+	var out, errb bytes.Buffer
+	if got := run(u, &out, &errb, wurzelMitEingaben(t), []Fall{wegwerf}); got != exitOK {
+		t.Fatalf("Wegwerfmodul: Exit %d: %s%s", got, out.String(), errb.String())
+	}
+	kopie := Fall{Name: "k", Neu: map[string]string{"go.mod": "module w\n"}}
+	out.Reset()
+	if got := run(u, &out, &errb, wurzelMitEingaben(t), []Fall{kopie}); got != exitRot {
+		t.Fatalf("Kopie der Eingaben: Exit %d (erwartet %d, src/ gehört dazu): %s", got, exitRot, out.String())
+	}
+}
+
+// Die Quellen der Fälle von pruefung race führen kein Zeichen über ASCII.
+func TestRaceFaelleFuehrenNurASCII(t *testing.T) {
+	for _, f := range raceFaelle() {
+		for datei, inhalt := range f.Neu {
+			for i := range len(inhalt) {
+				if inhalt[i] > 0x7F {
+					t.Errorf("%s: %s trägt ein Zeichen über ASCII bei Byte %d", f.Name, datei, i)
+					break
+				}
+			}
 		}
 	}
 }

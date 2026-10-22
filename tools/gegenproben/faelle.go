@@ -31,9 +31,13 @@ type Fall struct {
 	Argumente          []string
 	Bau                *Bau // erzeugt vor dem Aufruf das Binary in der Kopie
 	OhneGoDateienInSrc bool // löscht jede Datei *.go unter src/ der Kopie
-	WantExit           int
-	WantText           []string // jeder Text muss in der Ausgabe stehen
-	Verboten           []string // keiner dieser Texte darf in der Ausgabe stehen
+	// Wegwerfmodul legt statt der Kopie der Eingaben ein leeres Verzeichnis an; der Fall schreibt
+	// go.mod und die Pakete selbst (Neu).
+	Wegwerfmodul bool
+	Env          []string // ergänzt die Umgebung des Aufrufs des Gates, nicht die des Baus
+	WantExit     int
+	WantText     []string // jeder Text muss in der Ausgabe stehen
+	Verboten     []string // keiner dieser Texte darf in der Ausgabe stehen
 }
 
 // Bau beschreibt das Binary, das ein Fall vor dem Aufruf von pruefung build in der Kopie erzeugt.
@@ -283,10 +287,126 @@ func buildFaelle() []Fall {
 	}
 }
 
+// wegwerfName ist der Name des Moduls, das die Fälle von `pruefung race` schreiben; Importpfade
+// der Pakete beginnen mit ihm.
+const wegwerfName = "wegwerf"
+
+// leeresPaket ist eine Go-Datei, die nur ihr Paket nennt.
+func leeresPaket(name string) string {
+	return "package " + name + "\n"
+}
+
+// wegwerfModul liefert go.mod eines Moduls ohne Abhängigkeiten samt den Dateien der Pakete.
+func wegwerfModul(pakete ...map[string]string) map[string]string {
+	m := map[string]string{"go.mod": "module " + wegwerfName + "\n\ngo 1.27\n"}
+	for _, p := range pakete {
+		for datei, inhalt := range p {
+			m[datei] = inhalt
+		}
+	}
+	return m
+}
+
+// zaehleOhneKante ändert denselben Zähler aus zwei Goroutinen, zwischen denen keine Kante liegt;
+// erst danach wartet der Aufrufer auf beide. Der Detektor meldet es aus der Ordnung der Zugriffe
+// (SPEC-122 Nr. 8).
+const zaehleOhneKante = `	var n int
+	var wg sync.WaitGroup
+	wg.Add(2)
+	for range 2 {
+		go func() {
+			defer wg.Done()
+			n++
+		}()
+	}
+	wg.Wait()
+`
+
+// saubererZaehler ist ein Paket, dessen Test zwei Goroutinen einen Zähler unter einer Sperre
+// erhöhen lässt und auf beide wartet.
+func saubererZaehler(dir string) map[string]string {
+	return map[string]string{
+		dir + "/sauber.go": leeresPaket("sauber"),
+		dir + "/sauber_test.go": "package sauber\n\nimport (\n\t\"sync\"\n\t\"testing\"\n)\n\n" +
+			"func TestZaehlerUnterSperre(t *testing.T) {\n\tvar mu sync.Mutex\n\tvar wg sync.WaitGroup\n\tn := 0\n" +
+			"\twg.Add(2)\n\tfor range 2 {\n\t\tgo func() {\n\t\t\tdefer wg.Done()\n\t\t\tmu.Lock()\n\t\t\tn++\n\t\t\tmu.Unlock()\n\t\t}()\n\t}\n" +
+			"\twg.Wait()\n\tif n != 2 {\n\t\tt.Fatalf(\"Zaehler %d\", n)\n\t}\n}\n",
+	}
+}
+
+// rennenImTest ist ein Paket, dessen Rennen allein im Code seines Tests liegt.
+func rennenImTest(dir string) map[string]string {
+	return map[string]string{
+		dir + "/rennen.go": leeresPaket("rennen"),
+		dir + "/rennen_test.go": "package rennen\n\nimport (\n\t\"sync\"\n\t\"testing\"\n)\n\n" +
+			"func TestRennen(t *testing.T) {\n" + zaehleOhneKante + "\tt.Log(n)\n}\n",
+	}
+}
+
+// rennenImCode ist ein Paket, dessen Rennen im Code des Pakets liegt und das sein Test aufruft.
+func rennenImCode(dir string) map[string]string {
+	return map[string]string{
+		dir + "/zaehle.go": "package rennen\n\nimport \"sync\"\n\n" +
+			"// Zaehle liefert den Zaehler nach dem Rennen.\nfunc Zaehle() int {\n" + zaehleOhneKante + "\treturn n\n}\n",
+		dir + "/zaehle_test.go": "package rennen\n\nimport \"testing\"\n\nfunc TestZaehle(t *testing.T) {\n\tZaehle()\n}\n",
+	}
+}
+
+// roterTest ist ein Paket, dessen Test ohne Rennen rot ist.
+func roterTest(dir string) map[string]string {
+	return map[string]string{
+		dir + "/rot.go":      leeresPaket("rot"),
+		dir + "/rot_test.go": "package rot\n\nimport \"testing\"\n\nfunc TestRot(t *testing.T) {\n\tt.Fatal(\"rot\")\n}\n",
+	}
+}
+
+// rennenUndBlockade ist ein Paket, dessen Test ein Rennen erzeugt, auf beide Goroutinen wartet und
+// danach blockiert.
+func rennenUndBlockade(dir string) map[string]string {
+	return map[string]string{
+		dir + "/zeit.go": leeresPaket("zeit"),
+		dir + "/zeit_test.go": "package zeit\n\nimport (\n\t\"sync\"\n\t\"testing\"\n)\n\n" +
+			"func TestRennenUndBlockade(t *testing.T) {\n" + zaehleOhneKante + "\tt.Log(n)\n\tselect {}\n}\n",
+	}
+}
+
+// raceFaelle sind die Fälle von `pruefung race`; jeder schreibt sein Wegwerfmodul selbst (SPEC-102).
+func raceFaelle() []Fall {
+	wurzel := []string{"race", "{dir}"}
+	return []Fall{
+		{
+			Name: "race/ohne-rennen", Gate: gatePruefung, Argumente: wurzel,
+			Wegwerfmodul: true, Env: []string{"CGO_ENABLED=0"},
+			Neu:      wegwerfModul(saubererZaehler("src/hexagon/sauber")),
+			WantText: []string{"pruefung race: ok"},
+		},
+		{
+			Name: "race/rennen-in-jedem-teilbaum", Gate: gatePruefung, Argumente: wurzel,
+			Wegwerfmodul: true,
+			Neu: wegwerfModul(rennenImTest("src/hexagon/rennen"), rennenImCode("src/adapters/rennen"),
+				rennenImCode("src/bootstrap/rennen"), roterTest("src/hexagon/rot")),
+			WantExit: 1,
+			WantText: []string{
+				"WARNING: DATA RACE",
+				"FAIL\t" + wegwerfName + "/src/hexagon/rennen", "FAIL\t" + wegwerfName + "/src/adapters/rennen",
+				"FAIL\t" + wegwerfName + "/src/bootstrap/rennen", "FAIL\t" + wegwerfName + "/src/hexagon/rot",
+			},
+		},
+		{
+			Name: "race/rennen-und-zeitgrenze", Gate: gatePruefung,
+			Argumente:    []string{"race", "{dir}", "-timeout=5s", "./..."},
+			Wegwerfmodul: true,
+			Neu:          wegwerfModul(rennenUndBlockade("src/hexagon/zeit")),
+			WantExit:     1, WantText: []string{"WARNING: DATA RACE", "test timed out"},
+		},
+	}
+}
+
 func faelle() []Fall {
 	alle := aCheckFaelle()
 	alle = append(alle, lintFaelle()...)
 	alle = append(alle, migrationFaelle()...)
 	alle = append(alle, testFaelle()...)
-	return append(alle, buildFaelle()...)
+	alle = append(alle, buildFaelle()...)
+	return append(alle, raceFaelle()...)
 }

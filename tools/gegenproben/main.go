@@ -1,6 +1,6 @@
 // Command gegenproben weist an a-check, golangci-lint (tools/harness/lint.sh),
-// tools/harness/migration-check.sh und pruefung (test, build) nach, dass sie einen Verstoß rot
-// und einen erlaubten Fall nicht rot melden (SPEC-102). Die Verdrahtung von pruefung im
+// tools/harness/migration-check.sh und pruefung (test, build, race) nach, dass sie einen Verstoß
+// rot und einen erlaubten Fall nicht rot melden (SPEC-102). Die Verdrahtung von pruefung im
 // Dockerfile prüft es nicht.
 package main
 
@@ -156,7 +156,7 @@ func fahre(u Umgebung, fs []Fall, wurzel string) (erg []Ergebnis, err error) {
 	dirs := make([]string, len(fs))
 	for i, f := range fs {
 		dirs[i] = filepath.Join(basis, fmt.Sprintf("%02d", i))
-		if err := kopiere(u.Eingaben, wurzel, dirs[i]); err != nil {
+		if err := legeVerzeichnisAn(u, f, wurzel, dirs[i]); err != nil {
 			return nil, fmt.Errorf("Kopie für %s: %w", f.Name, err)
 		}
 		if err := greife(dirs[i], f); err != nil {
@@ -186,6 +186,15 @@ func fahre(u Umgebung, fs []Fall, wurzel string) (erg []Ergebnis, err error) {
 	return erg, nil
 }
 
+// legeVerzeichnisAn legt dir an: die Kopie der Eingaben, bei einem Wegwerfmodul ein leeres
+// Verzeichnis.
+func legeVerzeichnisAn(u Umgebung, f Fall, wurzel, dir string) error {
+	if f.Wegwerfmodul {
+		return os.MkdirAll(dir, 0o755)
+	}
+	return kopiere(u.Eingaben, wurzel, dir)
+}
+
 // fuehreFall erzeugt bei einem Fall mit Bau das Binary, ruft das Gate in der Kopie dir und
 // bewertet das Ergebnis.
 func fuehreFall(u Umgebung, f Fall, dir, tmp string) Ergebnis {
@@ -199,7 +208,7 @@ func fuehreFall(u Umgebung, f Fall, dir, tmp string) Ergebnis {
 		}
 	}
 	name, args, wd := u.Befehl(dir, f)
-	code, out, abgelaufen := starte(fallFrist, wd, env, name, args...)
+	code, out, abgelaufen := starte(fallFrist, wd, append(env, f.Env...), name, args...)
 	return Ergebnis{Name: f.Name, Rot: bewerte(f, code, out, abgelaufen)}
 }
 
