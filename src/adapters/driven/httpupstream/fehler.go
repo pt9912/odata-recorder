@@ -10,9 +10,12 @@ import (
 )
 
 // Kein Fehler dieses Pakets nennt `Methode`, `Pfad`, `RawQuery`, einen Header-Namen oder -Wert, ein
-// Byte eines Bodys oder der Antwort (Status-Text, Header-Werte, Body) oder von `Ziel` mehr als Host
-// und Port, und keiner trägt den Text eines Fehlers der Bibliothek oder des Request-Bodys (SPEC-120
-// Nr. 8).
+// Byte eines Bodys oder der Antwort (Status-Text, Header und Body, auch einer Antwort, die kein HTTP
+// ist; nicht das Zertifikat des Upstreams im Handshake) oder von `Ziel` mehr als Host und Port, und
+// keiner trägt den Text eines Fehlers des Request-Bodys (SPEC-120 Nr. 8). Den Text der Bibliothek zu
+// Verbindung, Namensauflösung und TLS lässt Nr. 8 zu; dieses Paket trägt ihn nicht, ein Test hält das
+// nur für den Marker im Text des Fehlers der Verbindung im Fake des Transports (A14) fest, nicht für
+// einen Text der Bibliothek (SPEC-120 Ungeprüft).
 
 // ungueltig ist model.ErrUngueltig (SPEC-120 Nr. 2); der Text trägt keinen Wert der Anfrage (Nr. 8).
 func ungueltig(feld string) error {
