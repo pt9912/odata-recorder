@@ -40,10 +40,12 @@ func TestTransport(t *testing.T) {
 }
 
 // TestGleichzeitig: 20 Aufrufe zugleich mit je eigenem Pfad, Header und Body; jede Antwort trägt
-// ihre Werte (A15, SPEC-120 Nr. 9). Ein geteiltes Feld meldet der Detektor von make test-race als
-// Datenrennen, ohne dass eine Antwort falsch sein muss (rot in 200 von 200 Läufen, Mutation: eine
-// http.Header-Map am Client für alle Aufrufe); ohne den Detektor fängt der Test es nur mit der Rate
-// aus §3 des Plans von slice-upstream-adapter.
+// ihre Werte (A15, SPEC-120 Nr. 9). Gemessen je Prozess (-test.count=1, 200 Läufe) für zwei
+// Mutationen, mit dem Detektor von make test-race und ohne ihn: eine http.Header-Map am Client,
+// die jeder Aufruf als seine Header benutzt, ist rot in 200 und in 197 von 200 Läufen (ohne den
+// Detektor über falsche Antworten); eine solche Map, die jeder Aufruf nur beschreibt, ist rot in
+// 200 von 200 Läufen mit dem Detektor (Datenrennen, keine falsche Antwort) und in 14 von 200
+// ohne ihn.
 func TestGleichzeitig(t *testing.T) {
 	s := starteServer(t, func(c net.Conn, r *bufio.Reader) {
 		for {

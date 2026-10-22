@@ -410,13 +410,16 @@ type stand struct {
 // Session-Fake hält die 16 Aufrufe von List an und gibt sie zugleich mit dem Beginn von Drain frei;
 // die 16 teilen einen Kontext, von dem jeder Exchange seinen ableitet. Nach der Rückkehr von Drain
 // erreicht kein Senden für s1 mehr den Upstream-Fake, und die Zahl der Senden gleicht der Zahl der
-// angehängten Exchanges plus NichtAngehaengt (B8). Ein Freigeben der Sperre aus SPEC-121 Nr. 2e
-// nach der Ableitung des Kontexts des Exchange (in nimmAn zwischen Prüfung und Annahme) und auf der
-// Seite von Drain (in sperre zwischen dem Setzen des Drain und dem Blick auf die laufenden) fängt
-// der Test mit Wahrscheinlichkeit, nicht mathematisch sicher; der Detektor von make test-race meldet
-// es nicht, weil jeder Zugriff weiter unter der Sperre liegt (SPEC-122 Nr. 8b). Im Fenster liegt kein
-// Aufruf, an dem der Test anhalten könnte. Den Teil vor der Ableitung fängt
-// TestAnnahmeGegenDrainNachLesen deterministisch.
+// angehängten Exchanges plus NichtAngehaengt (B8). Mutation: die Sperre in nimmAn nach der
+// Ableitung des Kontexts des Exchange zwischen Prüfung und Annahme freigeben und neu nehmen
+// (SPEC-121 Nr. 2e). Gemessen in zwei Reihen zu je 30 Läufen, je Lauf ein Prozess: rot in 22 und
+// 26 Läufen mit dem Detektor von make test-race, in 2 und 5 ohne ihn, nie als Datenrennen, denn
+// jeder Zugriff liegt weiter unter der Sperre (SPEC-122 Nr. 8b); die Läufe werden an der Wirkung
+// rot. Im Fenster liegt kein Aufruf, an dem der Test anhalten könnte. Die Sperre in sperre
+// zwischen dem Setzen des Drain und dem Blick auf die laufenden freizugeben ändert nichts, denn
+// nimmAn nimmt danach keinen Exchange mehr an (0 von 60 Läufen mit und ohne den Detektor); der
+// Test fängt es nicht. Den Teil vor der Ableitung fängt TestAnnahmeGegenDrainNachLesen
+// deterministisch.
 func TestAnnahmeGegenDrainGleichzeitig(t *testing.T) {
 	const goroutinen, runden = 16, 200
 	for runde := range runden {

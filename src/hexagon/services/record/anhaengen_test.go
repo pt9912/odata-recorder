@@ -77,8 +77,9 @@ func TestSequenz(t *testing.T) {
 }
 
 // TestSequenzGleichzeitig: 20 Exchanges einer Session enden zugleich; die Anhänge laufen
-// nacheinander (B19). Das Fehlen der Sperre meldet make test-race als Datenrennen; ohne den
-// Detektor fängt der Test es mit hoher Wahrscheinlichkeit, nicht sicher.
+// nacheinander (B19). Mutation: die Sperre der Folge entfernt (Lock und Unlock in haengeAn);
+// gemessen je Prozess in 100 Läufen ist der Test rot in 100, mit dem Detektor von make test-race
+// (Datenrennen) wie ohne ihn (zwei Append zugleich).
 func TestSequenzGleichzeitig(t *testing.T) {
 	u := neu(t)
 	u.exchanges.pause = true
