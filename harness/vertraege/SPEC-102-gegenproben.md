@@ -3,12 +3,14 @@
 **Werkzeug:** `make gegenproben`; Quelle `tools/gegenproben/` (eigenes Go-Modul), Stufe `gegenproben` des `Dockerfile`.
 
 **Festlegung:** Eine Gegenprobe weist an einem Gate nach, dass es einen Verstoß rot meldet und einen erlaubten Fall nicht.
-`make gegenproben` fährt die Gegenproben von `make a-check`, `make lint`, `make migration-check`, `make test` und `make build`; sie gehören nicht zu `GATE_CHECKS`.
+`make gegenproben` fährt die Gegenproben von `make a-check`, `make lint`, `make migration-check`, `make test`, `make build` und `make test-race`; sie gehören nicht zu `GATE_CHECKS`.
 
 **Aufbau:** Ein Go-Programm läuft in einem Docker-Build ohne Netz, auf dem golangci-lint-Image mit dem `a-check`-Binary aus dessen Image und dem Programm `pruefung` aus `SPEC-036`.
 Je Fall legt es eine Kopie der Eingaben in einem Wegwerfverzeichnis an, schreibt oder ändert dort Dateien, ruft das Gate als Prozess und vergleicht Exit-Code und Ausgabe.
 Alle Fälle laufen nebenläufig (höchstens so viele wie Prozessorkerne); ein Docker-Build, -Lauf oder `docker cp` je Fall gibt es nicht.
 Der Arbeitsbaum wird nie verändert.
+Die Fälle 34 bis 36 (`make test-race`, `SPEC-122`) legen statt der Kopie der Eingaben ein Wegwerfmodul ohne Abhängigkeiten an und schreiben die Pakete selbst: ein Lauf über `src/` unter `-race` wäre das Ziel und nicht seine Gegenprobe.
+Sie laufen in dieser Stufe auf dem golangci-lint-Image, das Go 1.27.1 und gcc 14.2.0 trägt (gemessen am 2026-10-22), nicht auf dem Image der Stufe `race`; `pruefung race` setzt `CGO_ENABLED=1` für seinen Aufruf selbst, die Umgebung der Stufe (`CGO_ENABLED=0`) bleibt.
 
 **Eingaben:** `src/`, `go.mod`, `go.sum`, `.a-check.yml`, `.golangci.yml`, `tools/harness/lint.sh`, `tools/harness/migration-check.sh`, `tools/gegenproben/`, `tools/pruefung/`, `Dockerfile` und `.dockerignore`; dazu die Pins beider Images.
 `tools/harness/gegenproben-eingabe.sh` bildet daraus eine Prüfsumme (SHA-256 über die Dateien und die Pins).
@@ -50,7 +52,11 @@ Ein roter Lauf lässt den Stempel unverändert, ein fehlender Stempel erzwingt d
 31. `build/falsche-version` · `pruefung build` · das Binary trägt eine andere Version als der Aufruf nennt · Exit 1, Ausgabe nennt `Version des Binary` und beide Versionen.
 32. `build/binary-fehlt` · `pruefung build` · der Pfad des Binary zeigt auf keine Datei · Exit 2, Ausgabe nennt `Binary fehlt`.
 33. `test/aufruf` · `pruefung` · ohne Argumente · Exit 2, Ausgabe nennt `Aufruf:`.
+34. `race/ohne-rennen` · `pruefung race` · Umgebung `CGO_ENABLED=0`; Wegwerfmodul mit einem Paket unter `src/hexagon/`, dessen Test zwei Goroutinen einen Zähler unter einer Sperre erhöhen lässt und auf beide wartet · Exit 0, Ausgabe nennt `pruefung race: ok`.
+35. `race/rennen-in-jedem-teilbaum` · `pruefung race` ohne Muster · Wegwerfmodul mit je einem Paket unter `src/hexagon/` (Rennen nur im Testcode), `src/adapters/` und `src/bootstrap/` (Rennen im Code des Pakets, vom Test aufgerufen) und einem vierten Paket unter `src/hexagon/` mit einem Test, der `t.Fatal` ruft, ohne Rennen; in den drei Paketen mit Rennen starten zwei Goroutinen ohne Kante zwischen ihnen und ändern denselben Zähler, der Test wartet erst danach auf beide · Exit 1, Ausgabe nennt `WARNING: DATA RACE` und für alle vier Pakete eine Zeile `FAIL` mit dem Importpfad.
+36. `race/rennen-und-zeitgrenze` · `pruefung race` mit den Argumenten `-timeout=5s ./...` · Wegwerfmodul mit einem Paket, dessen Test ein Rennen wie in Fall 35 erzeugt, auf beide Goroutinen wartet und danach blockiert (`select {}`) · Exit 1, Ausgabe nennt `WARNING: DATA RACE` und `test timed out`.
 Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
+Das Rennen der Fälle 35 und 36 ist nicht zeitabhängig (`SPEC-122` Nr. 8); der Implementer baut das Testbinary der Fixtures mit `-race` und fährt es vor der Übergabe 200-mal als eigenen Prozess mit `-test.count=1`, die Zahl der roten Läufe steht in seinem Bericht (Architect-Probe am 2026-10-22: 100 von 100).
 
 **Randformen:**
 1. Eine Eingabe fehlt in der Eingabekopie (etwa `.a-check.yml`) oder die Kopie scheitert: Meldung `gegenproben: <Grund>`, Exit-Code 2, kein Fall läuft.
@@ -68,13 +74,18 @@ Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
 
 Die Fälle 25 bis 28 rufen `go` im Wegwerfverzeichnis auf und teilen den Cache von `go` (`GOCACHE`) wie den von golangci-lint; die Fälle 29 bis 32 bauen das Binary mit `go build` in der Kopie, nicht im Image der Stufe `build`.
 Weicht dieser Bau vom Bau des Image ab (Zielplattform, Flags), fängt die Gegenprobe die Abweichung nicht.
+Die Fälle 34 bis 36 rufen `pruefung race`, das `go` mit cgo ruft; unter `-race` baut `go` die Standardbibliothek mit Instrumentierung neu, im kalten `GOCACHE` der Stufe und geteilt von den Fällen.
+Weichen Compiler oder Go-Version des Images der Stufe `gegenproben` von denen des Images `RACE_IMAGE` ab, fängt die Gegenprobe die Abweichung nicht; trägt das Image keinen Compiler mehr (das golangci-lint-Image sagt ihn nicht zu), sind die Fälle rot, mit der Meldung von `go` im Bericht, und der Wechsel des Pins ändert die Prüfsumme und erzwingt den Lauf.
+Dass das Ziel `src/` ganz und den Quellstand der Stufe `source` fährt, belegt `make gates`, nicht die Gegenprobe.
 
 **Zeitbudget** (Wanduhr, `time make gegenproben`): bei geänderten Eingaben und kaltem Docker-Build-Cache höchstens 60 s, bei unveränderten Eingaben höchstens 1 s.
 Gemessen: die Fälle 1 bis 24 auf ruhiger Maschine 13,5 s und 0,04 s (Images lokal vorhanden); alle 33 Fälle unter fremder Last (Lastmittel 20 bis 83 auf 20 Kernen) 34,6 bis 49,1 s in der Stufe. Eine Messung aller 33 Fälle auf ruhiger Maschine liegt nicht vor; die `go`-Aufrufe der Fälle 25 bis 28 kosten bei kaltem `GOCACHE` bis zu 27 s je Fall.
+Die Fälle 34 bis 36 sind nicht gemessen; die Architect-Probe am 2026-10-22 (Image von `RACE_IMAGE`, kaltes Wegwerfmodul mit einem Paket mit Rennen, ein Fall allein) brauchte 7 s, ein Lauf mit `-timeout=5s` bis zur Zeitgrenze 5 s.
+Das Budget von 60 s bleibt, bis der Implementer die Fälle 1 bis 36 misst; liegt der Lauf darüber, trägt er den gemessenen Wert mit Grund ein.
 
 **Pflicht zum Fahren:** `make gegenproben` läuft bei jeder Änderung am geprüften Gate, am Profil, an der Architektur-Regel, an der Gegenprobe oder an diesem Vertrag, am Ende jeder Welle und vor dem Release.
 
-**Stand:** vorhanden für `make a-check`, `make lint`, `make migration-check`, `make test` und `make build`.
+**Stand:** vorhanden für `make a-check`, `make lint`, `make migration-check`, `make test` und `make build`; die Fälle 34 bis 36 zu `make test-race` entstehen mit dem Slice, der den Code liefert.
 
 **Grenze:** Kein Gate und kein Hook liest den Stempel; er belegt nur, dass ein Lauf zu dieser Prüfsumme grün war, und wer ihn von Hand schreibt, belegt nichts.
 Die Fälle prüfen die Importrichtungen `core-impurity` und Adapter auf Adapter sowie die Direktiv- und `# Why:`-Regeln; weitere Verstoßformen kommen mit den Bibliotheksgrenzen.

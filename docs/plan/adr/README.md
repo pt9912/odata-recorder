@@ -11,6 +11,7 @@
 | [ADR-0004](0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md) | Verträge der Harness-Werkzeuge im Ordner harness | Accepted | `LH-QA-06` |
 | [ADR-0005](0005-gegenproben-ausserhalb-der-gate-kette.md) | Gegenproben außerhalb der Gate-Kette, nur bei geänderter Eingabe | Accepted | — |
 | [ADR-0006](0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md) | SQLite-Bibliothek ohne native Abhängigkeit | Accepted | — |
+| [ADR-0007](0007-race-detektor-im-gate.md) | Race-Detektor im Gate | Proposed | `LH-QA-03`, `LH-QA-06` |
 
 ## Konventionen
 

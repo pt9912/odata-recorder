@@ -11,7 +11,7 @@ Die Prüfung läuft in der Stufe `build` des `Dockerfile`, unmittelbar nach `go 
 Die Prüfung läuft in der Stufe `test` des `Dockerfile`.
 Der Fachumfang (Domain, Matching, Query-Interpreter, CRUD) wächst mit dem Code.
 
-**Prüfprogramm `pruefung`** (Quelle `tools/pruefung/`, eigenes Go-Modul ohne Abhängigkeiten; das `Dockerfile` baut es in einer eigenen Stufe, prüft es mit `gofmt`, `go vet` und `go test` und gibt es an die Stufen `test`, `build` und `gegenproben`).
+**Prüfprogramm `pruefung`** (Quelle `tools/pruefung/`, eigenes Go-Modul ohne Abhängigkeiten; das `Dockerfile` baut es in einer eigenen Stufe, prüft es mit `gofmt`, `go vet` und `go test` und gibt es an die Stufen `test`, `build`, `race` und `gegenproben`).
 Aufrufe:
 - `pruefung test <Wurzel> [Muster...]`: arbeitet im Verzeichnis `Wurzel`; ohne Muster gilt `./...`.
   Es führt der Reihe nach `gofmt -l .`, `go vet <Muster>` und `go test -trimpath -buildvcs=false <Muster>` aus und hält beim ersten Befund an.
@@ -21,10 +21,11 @@ Aufrufe:
   Es ruft `<Binary> version`; gibt das nach Entfernen der abschließenden Zeilenumbrüche nicht genau `odata-recorder <Version>` aus, ist das ein Befund (Exit 1), Text `Version des Binary ist '<Ausgabe>', erwartet 'odata-recorder <Version>'`.
   Es ruft `go version -m <Binary>`; trägt die Ausgabe keine Zeile mit `-trimpath=true`, ist das ein Befund (Exit 1), Text `das Binary ist nicht mit -trimpath gebaut`.
   Ohne Befund: Text `pruefung build: ok`, Exit 0.
+- `pruefung race <Wurzel> [Muster...]`: fährt `go test -race` mit cgo; Vertrag und Randformen in `SPEC-122`.
 
 **Randformen von `pruefung`:**
-1. Keine Argumente, ein unbekanntes Kommando, ein leeres Argument oder die falsche Argumentzahl (`test` ohne `Wurzel`, `build` mit anderem als genau `Binary` und `Version`): Text `Aufruf:` und die beiden Formen, Exit 2, nichts wird gestartet.
-2. `Wurzel` fehlt oder ist kein Verzeichnis: Text `Wurzel fehlt: <Pfad>`, Exit 2.
+1. Keine Argumente, ein unbekanntes Kommando, ein leeres Argument oder die falsche Argumentzahl (`test` oder `race` ohne `Wurzel`, `build` mit anderem als genau `Binary` und `Version`): Text `Aufruf:` und die drei Formen, Exit 2, nichts wird gestartet.
+2. `Wurzel` fehlt oder ist kein Verzeichnis (`test`, `race`): Text `Wurzel fehlt: <Pfad>`, Exit 2.
 3. `Binary` fehlt: Text `Binary fehlt: <Pfad>`, Exit 2.
 4. `Binary` ist keine ausführbare Datei, startet nicht oder endet bei `version` mit Exit-Code ungleich 0 (auch bei richtiger Ausgabe): Text `Binary startet nicht:` und der Grund, Exit 1.
 5. `Binary` ist kein Go-Binary (`go version -m` endet ungleich 0): Text `Build-Information des Binary nicht lesbar:` und die Ausgabe, Exit 1.
