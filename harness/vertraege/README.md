@@ -26,6 +26,7 @@ Die Reihe der Kennungen zählt über beide Orte fortlaufend: Die nächste freie 
 | `SPEC-040` | `make docs-check` | [`SPEC-040-docs-check.md`](SPEC-040-docs-check.md) |
 | `SPEC-041` | `make test-security` | [`SPEC-041-test-security.md`](SPEC-041-test-security.md) |
 | `SPEC-042` | `make test-contract` | [`SPEC-042-test-contract.md`](SPEC-042-test-contract.md) |
+| `SPEC-102` | `make gegenproben` | [`SPEC-102-gegenproben.md`](SPEC-102-gegenproben.md) |
 | `SPEC-104` | `make migration-check` | [`SPEC-104-migration-check.md`](SPEC-104-migration-check.md) |
 | `SPEC-101` | `make lint-profil` | [`SPEC-101-lint-profil.md`](SPEC-101-lint-profil.md) |
 | `SPEC-122` | `make test-race` | [`SPEC-122-test-race.md`](SPEC-122-test-race.md) |
