@@ -632,7 +632,13 @@ func TestKonfigCADatei(t *testing.T) {
 	if k := erwarteGueltig(t, append(basis(t), "UPSTREAM_CA_FILE="+gut)...); k.UpstreamCAFile != gut {
 		t.Errorf("UpstreamCAFile %q", k.UpstreamCAFile)
 	}
-	for name, pfad := range map[string]string{"ohne Zertifikat": ohne, "fehlt": filepath.Join(dir, "fehlt.pem"), "Verzeichnis": dir} {
+	block, _ := pem.Decode(zertifikat(t))
+	block.Headers = map[string]string{"Comment": "x"}
+	mitHeader := filepath.Join(dir, "header.pem")
+	if err := os.WriteFile(mitHeader, pem.EncodeToMemory(block), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for name, pfad := range map[string]string{"ohne Zertifikat": ohne, "fehlt": filepath.Join(dir, "fehlt.pem"), "Verzeichnis": dir, "Block mit PEM-Headern": mitHeader} {
 		t.Run(name, func(t *testing.T) {
 			erwarteVerstoss(t, "UPSTREAM_CA_FILE", append(basis(t), "UPSTREAM_CA_FILE="+pfad)...)
 		})
