@@ -210,8 +210,8 @@ func TestTransportTLS(t *testing.T) {
 
 // TestNewCAPEM: CAPEM braucht mindestens einen Block CERTIFICATE mit gültigem Inhalt, auch bei
 // Pruefen=false; jedes lesbare Zertifikat ist Anker, auch eines vor einem Block ohne Wirkung; Text
-// und andere Blöcke daneben bleiben ohne Wirkung, ein Block mit PEM-Headern auch bei gültigem
-// Inhalt (A1, SPEC-120 Nr. 1).
+// und andere Blöcke daneben bleiben ohne Wirkung, ein Block mit PEM-Headern und ein Block anderer
+// Art auch bei gültigem Inhalt (A1, SPEC-120 Nr. 1).
 func TestNewCAPEM(t *testing.T) {
 	a := tlsServer(t, nil, false)
 	pemA := pemVon(a.Certificate())
@@ -266,6 +266,11 @@ func TestNewCAPEM(t *testing.T) {
 	t.Run("Block mit Headern (A) vor E", func(t *testing.T) {
 		_, pemE := zertifikat(time.Now().Add(-time.Hour), "127.0.0.1")
 		_, err := tlsAbruf(t, a, "127.0.0.1", true, append(append([]byte{}, mitHeader...), pemE...))
+		pruefeArt(t, err, outbound.ErrUpstreamNichtErreichbar)
+	})
+	t.Run("Block anderer Art (A) vor E", func(t *testing.T) {
+		_, pemE := zertifikat(time.Now().Add(-time.Hour), "127.0.0.1")
+		_, err := tlsAbruf(t, a, "127.0.0.1", true, append(append([]byte{}, fremd...), pemE...))
 		pruefeArt(t, err, outbound.ErrUpstreamNichtErreichbar)
 	})
 	for _, capem := range [][]byte{nil, {}} {
