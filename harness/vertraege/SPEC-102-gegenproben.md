@@ -79,10 +79,13 @@ Die Fälle 34 bis 36 rufen `pruefung race`, das `go` mit cgo ruft; unter `-race`
 Weichen Compiler oder Go-Version des Images der Stufe `gegenproben` von denen des Images `RACE_IMAGE` ab, fängt die Gegenprobe die Abweichung nicht; trägt das Image keinen Compiler mehr (das golangci-lint-Image sagt ihn nicht zu), sind die Fälle rot, mit der Meldung von `go` im Bericht, und der Wechsel des Pins ändert die Prüfsumme und erzwingt den Lauf.
 Dass das Ziel `src/` ganz und den Quellstand der Stufe `source` fährt, belegt `make gates`, nicht die Gegenprobe.
 
-**Zeitbudget** (Wanduhr, `time make gegenproben`): bei geänderten Eingaben und kaltem Docker-Build-Cache höchstens 60 s, bei unveränderten Eingaben höchstens 1 s.
-Gemessen: die Fälle 1 bis 24 auf ruhiger Maschine 13,5 s und 0,04 s (Images lokal vorhanden); alle 33 Fälle unter fremder Last (Lastmittel 20 bis 83 auf 20 Kernen) 34,6 bis 49,1 s in der Stufe. Eine Messung aller 33 Fälle auf ruhiger Maschine liegt nicht vor; die `go`-Aufrufe der Fälle 25 bis 28 kosten bei kaltem `GOCACHE` bis zu 27 s je Fall.
-Die Fälle 34 bis 36 sind nicht gemessen; die Architect-Probe am 2026-10-22 (Image von `RACE_IMAGE`, kaltes Wegwerfmodul mit einem Paket mit Rennen, ein Fall allein) brauchte 7 s, ein Lauf mit `-timeout=5s` bis zur Zeitgrenze 5 s.
-Das Budget von 60 s bleibt, bis der Implementer die Fälle 1 bis 36 misst; liegt der Lauf darüber, trägt er den gemessenen Wert mit Grund ein.
+**Zeitbudget** (Wanduhr, `time make gegenproben`): bei geänderten Eingaben und kaltem Docker-Build-Cache höchstens 120 s, bei unveränderten Eingaben höchstens 1 s.
+Gemessen am 2026-10-22 mit allen 36 Fällen auf einem Host mit 20 Kernen und schwankender Last, Images lokal vorhanden: 80,5 bis 93,8 s im Ganzen (`time make gegenproben`).
+Davon laufen die Fälle (Schritt `RUN gegenproben` der Stufe) 54,3 bis 67 s, das Prüfen und Bauen des Programms rund 7 s und der Export des Images der Stufe 16,8 bis 18 s.
+Bei unveränderten Eingaben dauert der Aufruf 0,3 s.
+Die `go`-Aufrufe der Fälle 25 bis 28 kosten bei kaltem `GOCACHE` bis zu 27 s je Fall.
+Das Budget liegt rund 28 % über dem höchsten gemessenen Wert, 93,8 s; kein Gate und kein Hook prüft es.
+Liegt ein Lauf darüber, misst der Implementer neu und trägt den Wert mit Grund ein.
 
 **Pflicht zum Fahren:** `make gegenproben` läuft bei jeder Änderung am geprüften Gate, am Profil, an der Architektur-Regel, an der Gegenprobe oder an diesem Vertrag, am Ende jeder Welle und vor dem Release.
 
