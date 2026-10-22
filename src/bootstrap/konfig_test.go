@@ -622,7 +622,8 @@ func zertifikat(t *testing.T) []byte {
 func TestKonfigCADatei(t *testing.T) {
 	dir := t.TempDir()
 	gut := filepath.Join(dir, "ca.pem")
-	if err := os.WriteFile(gut, zertifikat(t), 0o600); err != nil {
+	z := zertifikat(t)
+	if err := os.WriteFile(gut, z, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	ohne := filepath.Join(dir, "leer.pem")
@@ -632,7 +633,7 @@ func TestKonfigCADatei(t *testing.T) {
 	if k := erwarteGueltig(t, append(basis(t), "UPSTREAM_CA_FILE="+gut)...); k.UpstreamCAFile != gut {
 		t.Errorf("UpstreamCAFile %q", k.UpstreamCAFile)
 	}
-	block, _ := pem.Decode(zertifikat(t))
+	block, _ := pem.Decode(z)
 	block.Headers = map[string]string{"Comment": "x"}
 	mitHeader := filepath.Join(dir, "header.pem")
 	if err := os.WriteFile(mitHeader, pem.EncodeToMemory(block), 0o600); err != nil {
