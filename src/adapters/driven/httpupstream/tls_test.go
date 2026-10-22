@@ -16,6 +16,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -203,8 +204,9 @@ func TestTransportTLS(t *testing.T) {
 }
 
 // TestNewCAPEM: CAPEM braucht mindestens einen Block CERTIFICATE mit gültigem Inhalt, auch bei
-// Pruefen=false; Text und andere Blöcke daneben bleiben ohne Wirkung, ein Block mit PEM-Headern
-// auch bei gültigem Inhalt (A1, SPEC-120 Nr. 1).
+// Pruefen=false; jedes lesbare Zertifikat ist Anker, auch eines vor einem Block ohne Wirkung; Text
+// und andere Blöcke daneben bleiben ohne Wirkung, ein Block mit PEM-Headern auch bei gültigem
+// Inhalt (A1, SPEC-120 Nr. 1).
 func TestNewCAPEM(t *testing.T) {
 	a := tlsServer(t, nil, false)
 	pemA := pemVon(a.Certificate())
@@ -228,6 +230,8 @@ func TestNewCAPEM(t *testing.T) {
 		{"zwischen Text", append(append([]byte("vorher\n"), pemA...), "nachher\n"...)},
 		{"Schlüssel davor", append(append([]byte{}, schluessel...), pemA...)},
 		{"ungültiger Block davor", append(append([]byte{}, kaputt...), pemA...)},
+		{"ungültiger Block danach", append(append([]byte{}, pemA...), kaputt...)},
+		{"Schlüssel danach", append(append([]byte{}, pemA...), schluessel...)},
 	} {
 		t.Run(f.name, func(t *testing.T) {
 			if _, err := tlsAbruf(t, a, "127.0.0.1", true, f.capem); err != nil {
@@ -235,6 +239,25 @@ func TestNewCAPEM(t *testing.T) {
 			}
 		})
 	}
+	t.Run("drei Zertifikate", func(t *testing.T) {
+		zertB, pemB := zertifikat(time.Now().Add(time.Hour), "127.0.0.1")
+		zertC, pemC := zertifikat(time.Now().Add(time.Hour), "127.0.0.1")
+		capem := slices.Concat(pemA, pemB, pemC)
+		for _, f := range []struct {
+			name   string
+			server *httptest.Server
+		}{
+			{"A, B, C gegen A", a},
+			{"A, B, C gegen B", tlsServer(t, &zertB, false)},
+			{"A, B, C gegen C", tlsServer(t, &zertC, false)},
+		} {
+			t.Run(f.name, func(t *testing.T) {
+				if _, err := tlsAbruf(t, f.server, "127.0.0.1", true, capem); err != nil {
+					t.Fatal(err)
+				}
+			})
+		}
+	})
 	t.Run("Block mit Headern (A) vor E", func(t *testing.T) {
 		_, pemE := zertifikat(time.Now().Add(-time.Hour), "127.0.0.1")
 		_, err := tlsAbruf(t, a, "127.0.0.1", true, append(append([]byte{}, mitHeader...), pemE...))
