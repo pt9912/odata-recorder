@@ -1,6 +1,6 @@
 # ADR-0007: Race-Detektor im Gate
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Datum:** 2026-10-22
 
@@ -64,3 +64,4 @@ Wenn ein Paket unter dem Detektor die Standardgrenze von `go test` (10 Minuten) 
 | Datum | Ereignis | Verweis |
 |---|---|---|
 | 2026-10-22 | Proposed | Entwurf des Architect; die Annahme steht beim Nutzer aus |
+| 2026-10-22 | Accepted | Entscheidung des Owners im Gespräch |
