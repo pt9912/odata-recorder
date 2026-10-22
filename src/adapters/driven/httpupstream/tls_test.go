@@ -210,7 +210,8 @@ func TestNewCAPEM(t *testing.T) {
 	schluessel := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte{1, 2, 3}})
 	kaputt := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte{1, 2, 3}})
 	mitHeader := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Headers: map[string]string{"Comment": "x"}, Bytes: a.Certificate().Raw})
-	for _, capem := range [][]byte{[]byte("kein PEM"), schluessel, kaputt, mitHeader} {
+	fremd := pem.EncodeToMemory(&pem.Block{Type: "X509 CERTIFICATE", Bytes: a.Certificate().Raw})
+	for _, capem := range [][]byte{[]byte("kein PEM"), schluessel, kaputt, mitHeader, fremd} {
 		for _, pruefen := range []bool{true, false} {
 			c, err := httpupstream.New(httpupstream.Konfig{Frist: time.Second, Pruefen: pruefen, CAPEM: capem})
 			if !errors.Is(err, model.ErrUngueltig) || c != nil {
