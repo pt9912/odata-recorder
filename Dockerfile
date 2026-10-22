@@ -21,8 +21,8 @@ RUN go mod download && go mod verify && mkdir -p /go/pkg/mod
 FROM deps AS source
 COPY src ./src
 
-# --- pruefung: das Programm aus tools/pruefung trägt die Prüfungen der Stufen test und build
-# (SPEC-036). Es wird geprüft (gofmt, vet, Test) und gebaut.
+# --- pruefung: das Programm aus tools/pruefung trägt die Prüfungen der Stufen test, build und race
+# (SPEC-036, SPEC-122). Es wird geprüft (gofmt, vet, Test) und gebaut.
 FROM deps AS pruefung
 WORKDIR /pf
 COPY tools/pruefung ./
@@ -81,7 +81,7 @@ FROM ${A_CHECK_IMAGE} AS a-check-bin
 
 # --- gegenproben: das Programm aus tools/gegenproben prüft, dass a-check, lint.sh,
 # migration-check.sh und pruefung einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
-# Eingaben gefahren.
+# Eingaben gefahren, die Fälle zu `pruefung race` gegen ein Wegwerfmodul statt der Eingaben.
 FROM ${LINT_IMAGE} AS gegenproben
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY --from=a-check-bin /a-check /usr/local/bin/a-check
