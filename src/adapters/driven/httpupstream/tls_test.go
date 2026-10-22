@@ -153,6 +153,10 @@ func tlsFehlerFaelle() []fehlerFall {
 			_, err := tlsAbruf(t, a, "localhost", true, pemVon(a.Certificate()))
 			return err
 		}},
+		{name: "TLS Hostname gegen Anker des Systems", art: nicht, lauf: func(t *testing.T) error {
+			_, err := tlsAbruf(t, tlsServer(t, systemAnker(t), false), "localhost", true, nil)
+			return err
+		}},
 		{name: "TLS abgelaufen", art: nicht, lauf: func(t *testing.T) error {
 			e, pemE := zertifikat(time.Now().Add(-time.Hour), "127.0.0.1")
 			_, err := tlsAbruf(t, tlsServer(t, &e, false), "127.0.0.1", true, pemE)
@@ -182,6 +186,7 @@ func TestTLS(t *testing.T) {
 		{"A als CAPEM gegen S", s, "127.0.0.1", true, pemA},
 		{"ohne Prüfung gegen A", a, "127.0.0.1", false, nil},
 		{"ohne Prüfung über localhost", a, "localhost", false, nil},
+		{"ohne Prüfung über localhost, A als CAPEM", a, "localhost", false, pemA},
 		{"ohne Prüfung gegen E", abgelaufen, "127.0.0.1", false, nil},
 		{"ohne Prüfung, A als CAPEM, gegen E", abgelaufen, "127.0.0.1", false, pemA},
 	} {
