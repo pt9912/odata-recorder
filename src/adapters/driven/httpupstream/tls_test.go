@@ -28,8 +28,8 @@ import (
 
 // TestMain setzt vor jedem Test ein erzeugtes Zertifikat S für 127.0.0.1 als einzigen Anker des
 // Systems: SSL_CERT_FILE zeigt auf S, SSL_CERT_DIR auf ein leeres Verzeichnis. Die Bibliothek liest
-// die Anker je Prozess einmal, beim ersten Gebrauch. Der Schlüssel von S liegt neben S
-// (systemAnker).
+// die Anker beim ersten Gebrauch und behält sie, wenn das gelingt. Der Schlüssel von S liegt neben
+// S (systemAnker).
 func TestMain(m *testing.M) {
 	os.Exit(mitSystemAnker(m))
 }
