@@ -413,8 +413,10 @@ type stand struct {
 // angehängten Exchanges plus NichtAngehaengt (B8). Ein Freigeben der Sperre aus SPEC-121 Nr. 2e
 // nach der Ableitung des Kontexts des Exchange (in nimmAn zwischen Prüfung und Annahme) und auf der
 // Seite von Drain (in sperre zwischen dem Setzen des Drain und dem Blick auf die laufenden) fängt
-// der Test mit Wahrscheinlichkeit, nicht mathematisch sicher: dort liegt kein Aufruf, an dem er
-// anhalten könnte. Den Teil vor der Ableitung fängt TestAnnahmeGegenDrainNachLesen deterministisch.
+// der Test mit Wahrscheinlichkeit, nicht mathematisch sicher; der Detektor von make test-race meldet
+// es nicht, weil jeder Zugriff weiter unter der Sperre liegt (SPEC-122 Nr. 8b). Im Fenster liegt kein
+// Aufruf, an dem der Test anhalten könnte. Den Teil vor der Ableitung fängt
+// TestAnnahmeGegenDrainNachLesen deterministisch.
 func TestAnnahmeGegenDrainGleichzeitig(t *testing.T) {
 	const goroutinen, runden = 16, 200
 	for runde := range runden {

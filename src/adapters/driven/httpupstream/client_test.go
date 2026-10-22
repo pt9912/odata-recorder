@@ -40,8 +40,10 @@ func TestTransport(t *testing.T) {
 }
 
 // TestGleichzeitig: 20 Aufrufe zugleich mit je eigenem Pfad, Header und Body; jede Antwort trägt
-// ihre Werte. Ohne Race-Detektor fängt der Test ein geteiltes Feld nur mit der Rate aus §3 des Plans
-// (A15, SPEC-120 Nr. 9).
+// ihre Werte (A15, SPEC-120 Nr. 9). Ein geteiltes Feld meldet der Detektor von make test-race als
+// Datenrennen, ohne dass eine Antwort falsch sein muss (rot in 200 von 200 Läufen, Mutation: eine
+// http.Header-Map am Client für alle Aufrufe); ohne den Detektor fängt der Test es nur mit der Rate
+// aus §3 des Plans von slice-upstream-adapter.
 func TestGleichzeitig(t *testing.T) {
 	s := starteServer(t, func(c net.Conn, r *bufio.Reader) {
 		for {

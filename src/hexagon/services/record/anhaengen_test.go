@@ -77,7 +77,8 @@ func TestSequenz(t *testing.T) {
 }
 
 // TestSequenzGleichzeitig: 20 Exchanges einer Session enden zugleich; die Anhänge laufen
-// nacheinander (B19, fängt das Fehlen der Sperre mit hoher Wahrscheinlichkeit, nicht sicher).
+// nacheinander (B19). Das Fehlen der Sperre meldet make test-race als Datenrennen; ohne den
+// Detektor fängt der Test es mit hoher Wahrscheinlichkeit, nicht sicher.
 func TestSequenzGleichzeitig(t *testing.T) {
 	u := neu(t)
 	u.exchanges.pause = true
