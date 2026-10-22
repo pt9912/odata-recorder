@@ -40,6 +40,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Übernimmt (Upstream):** Der Composition Root verdrahtet `httpupstream.New` (`SPEC-120` Nr. 1): `Frist` aus `UPSTREAM_TIMEOUT`, `Pruefen` die wirksame Zertifikatsprüfung nach `SPEC-110` Nr. 10 (falsch genau bei `UPSTREAM_TLS_INSECURE_SKIP_VERIFY=true`), `CAPEM` der Inhalt von `UPSTREAM_CA_FILE` (leer ohne Datei); ist die Prüfung abgeschaltet, schreibt der Start eine Warnung ins Log (`LH-RB-02.a`). Der M2-Test ist der erste Lauf von Record-Dienst und Adapter zusammen (Sendung von `slice-upstream-adapter`). Die Wirkung von `Pruefen` und `CAPEM` im Adapter, nach der die Warnung fragt, liefert `slice-upstream-tls` (beim Handoff von `slice-upstream-adapter` geschnitten); die Sendung bleibt dieselbe, der Start verlangt beide Slices in `done/` (§4).
 Dazu der Fänger, dass der Root `Pruefen` aus dem Wert des Starts übergibt und den Nullwert (falsch, keine Prüfung) nicht stehen lässt (Sendung von `slice-upstream-tls`, Befund I-1 seines Reviews, Entscheidung des Architect in `SPEC-120` Nr. 1): an dem Client, den der Root baut, prüft ohne beide Schlüssel (`UPSTREAM_TLS_VERIFY`, `UPSTREAM_TLS_INSECURE_SKIP_VERIFY`) der Austausch mit einem Upstream unbekannter Stelle (`ODR-E4001`, 502), und mit `UPSTREAM_TLS_INSECURE_SKIP_VERIFY=true` nicht (200). Mutationen: der Root übergibt immer falsch, der Root übergibt immer wahr; je eine färbt einen der beiden Fälle rot. Die Zeile gehört in die Tabelle *Zusage · Fänger* (§3), die vor dem Übergang `next` → `in-progress` entsteht; der Wert des Starts selbst ist in `src/bootstrap/konfig_test.go` gehalten (`TestKonfigDefaults`, `TestKonfigTLSWiderspruch`).
 
+**Übernimmt (Quellstand):** Die Pakete unter `tests/` (Referenzdienst, M2-Test) liegen im Quellstand der Stufe `source` des `Dockerfile` und im Build-Kontext (`.dockerignore`), nicht erst in der Stufe `test`: `make test-race` fährt alle Pakete der Stufe `source` (`SPEC-122` Nr. 2), und der M2-Test ist der erste Lauf von Record-Dienst und Adapter zusammen, in dem ein Datenrennen zwischen Proxy, Referenzdienst und Client auftreten kann (Sendung von `slice-race-gate`).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Start im Modus `mock` oder `hybrid` — scheitert mit `ODR-E2001`, bis die Folgewellen die Use Cases liefern (Entscheidung steht in `slice-fehlermodell-konfiguration`).
@@ -66,7 +68,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Verdrahtung und Lebenszyklus: der Start-Befehl ruft `LadeOderMelde` (Exit-Code 1, Meldung nach `SPEC-110`, `mock`/`hybrid` scheitern mit `ODR-E2001`; Zusage von `slice-fehlermodell-konfiguration`); Reihenfolge `MaintenanceUseCase` → erste Session → Listener; ein Use Case je Modus am Listener; Herunterfahren mit `CloseAll`; ein Handle `Build`, über den Tests die Use Cases erreichen; Warnung beim Start bei abgeschalteter Zertifikatsprüfung zum Upstream (`LH-RB-02.a`, Sendung von `slice-upstream-adapter`); der Root übergibt `Pruefen` aus dem Wert des Starts, Fänger und Mutationen in §1 (Sendung von `slice-upstream-tls`).
-- [ ] Referenzdienst als Fixture (`httptest`, OData V4, eigenes CSDL, Collection mit zwei Entities, Einzel-Entity, wiederholter Request mit verschiedenen Antworten, ein Header mit Geheimnis) und der M2-Test: aufzeichnen, Session beenden, importieren, Workspace anlegen, Upstream beenden, abspielen; Status, Header und Body byte-gleich nach `SPEC-045`; Zähler am Referenzdienst im Replay gleich 0.
+- [ ] Referenzdienst als Fixture (`httptest`, OData V4, eigenes CSDL, Collection mit zwei Entities, Einzel-Entity, wiederholter Request mit verschiedenen Antworten, ein Header mit Geheimnis) und der M2-Test: aufzeichnen, Session beenden, importieren, Workspace anlegen, Upstream beenden, abspielen; Status, Header und Body byte-gleich nach `SPEC-045`; Zähler am Referenzdienst im Replay gleich 0. Der Test läuft in `make test` und in `make test-race`: `tests/` liegt im Quellstand der Stufe `source` (Sendung von `slice-race-gate`, §1).
 - [ ] Mutationen des M2-Tests: Replay kontaktiert den Upstream, ein Geheimnis erreicht die SQLite-Datei oder den Blob-Ordner, die Reihenfolge wiederholter Requests kippt — jede färbt den Test rot.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
@@ -90,11 +92,12 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/bootstrap/` | update | Verdrahtung, Startsequenz, Herunterfahren, `Build` |
 | `src/bootstrap/main/` | update | Kommando zum Start; ruft `LadeOderMelde`, Exit-Codes (Zusage von `slice-fehlermodell-konfiguration`) |
 | `tests/integration/` | neu | Referenzdienst und M2-Test |
+| `Dockerfile`, `.dockerignore` | update | `tests/` im Quellstand der Stufe `source` und im Build-Kontext, damit `make test` und `make test-race` dieselben Pakete fahren (Sendung von `slice-race-gate`, `SPEC-122` Nr. 2) |
 | `spec/spezifikation.md` | update | Startsequenz und Exit-Codes, falls dort offen |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation oder in `harness/vertraege/` **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen, die sie tragen müssen, nennt §6.
 
-- Der Test läuft in der Stufe `test` des `Dockerfile` (netzlos, nur Loopback) und ist damit Teil von `make test`.
+- Der Test läuft in der Stufe `test` des `Dockerfile` (netzlos, nur Loopback) und ist damit Teil von `make test`; `tests/` kommt dafür in die Stufe `source`, nicht erst in `test`, so dass `make test-race` ihn ebenfalls fährt (§1, Sendung von `slice-race-gate`).
 
 ## 4. Trigger
 
@@ -126,7 +129,7 @@ dasteht.
 - Aufrufweg zu Session-Ende, Import und Workspace ohne Admin-API: der Handle des Composition Root ist eine Entscheidung zwischen Architektur und Test — **Ausgang:** offen; Architect entscheidet vor dem Code, ob `Build` exportiert wird oder ein internes Test-Paket den Root baut.
 - Der Test deckt alle Schichten und bricht, wo ein Vorgänger-Slice eine Randform offen ließ — **Ausgang:** offen; jeder Fund geht als Befund an den Slice, der ihn verantwortet, nicht in den Test.
 - Loopback und Ports im Testcontainer (`--network none`): `httptest` bindet auf Loopback — **Ausgang:** offen; wird vor dem Code in `make test` erprobt.
-- Zeitabhängigkeit: Herunterfahren, Fristen, parallele Clients — **Ausgang:** offen; das Gate fährt kein `-race` (`CGO_ENABLED=0`): die nebenläufigen Fänger ordnen mit Kanälen, und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50`.
+- Zeitabhängigkeit: Herunterfahren, Fristen, parallele Clients — **Ausgang:** offen; das Gate fährt `-race` (`make test-race`, `SPEC-122` aus `slice-race-gate`) und damit auch den M2-Test, sobald `tests/` im Quellstand der Stufe `source` liegt (Sendung von `slice-race-gate`, §1): ein Datenrennen macht es rot; die nebenläufigen Fänger ordnen weiter mit Kanälen, weil der Detektor ein Rennen ohne ungeordneten Zugriff nicht meldet (`SPEC-122` Nr. 8b), und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50`.
 - M2 ist ein Meilenstein, kein Slice-Ziel: Die Roadmap setzt ihn erst nach der Closure der Welle auf *erreicht* — **Ausgang:** offen; der Slice liefert den Beleg, die Welle-Closure setzt die Zelle.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
 
@@ -162,7 +165,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register trägt `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (über der Schwelle, ohne Ausgang); der Test ist nebenläufig. Der Slice ist nebenläufig: das Gate fährt kein `-race` (`CGO_ENABLED=0`), die nebenläufigen Fänger ordnen mit Kanälen, jeder nebenläufige Test läuft vor der Übergabe mit `-count=50` (wie in `slice-capture-pipeline` §3), und ein drittes Auftreten dieser Beobachtung in dieser Welle ist kein Befund mehr, sondern ein eigener Slice.
+**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register trägt `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (5×, Ausgang `geplant` in `slice-race-gate`); der Test ist nebenläufig: das Gate fährt `-race` (`make test-race`, `SPEC-122`), auch über `tests/`, sobald die Stufe `source` es aufnimmt (§1), die nebenläufigen Fänger ordnen weiter mit Kanälen, weil der Detektor ein Rennen ohne ungeordneten Zugriff nicht meldet (`SPEC-122` Nr. 8b), und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50` (wie in `slice-capture-pipeline` §3).
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der
