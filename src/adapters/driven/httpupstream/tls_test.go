@@ -202,13 +202,15 @@ func TestTransportTLS(t *testing.T) {
 }
 
 // TestNewCAPEM: CAPEM braucht mindestens einen Block CERTIFICATE mit gültigem Inhalt, auch bei
-// Pruefen=false; Text und andere Blöcke daneben bleiben ohne Wirkung (A1, SPEC-120 Nr. 1).
+// Pruefen=false; Text und andere Blöcke daneben bleiben ohne Wirkung, ein Block mit PEM-Headern
+// auch bei gültigem Inhalt (A1, SPEC-120 Nr. 1).
 func TestNewCAPEM(t *testing.T) {
 	a := tlsServer(t, nil, false)
 	pemA := pemVon(a.Certificate())
 	schluessel := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte{1, 2, 3}})
 	kaputt := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte{1, 2, 3}})
-	for _, capem := range [][]byte{[]byte("kein PEM"), schluessel, kaputt} {
+	mitHeader := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Headers: map[string]string{"Comment": "x"}, Bytes: a.Certificate().Raw})
+	for _, capem := range [][]byte{[]byte("kein PEM"), schluessel, kaputt, mitHeader} {
 		for _, pruefen := range []bool{true, false} {
 			c, err := httpupstream.New(httpupstream.Konfig{Frist: time.Second, Pruefen: pruefen, CAPEM: capem})
 			if !errors.Is(err, model.ErrUngueltig) || c != nil {
@@ -231,6 +233,11 @@ func TestNewCAPEM(t *testing.T) {
 			}
 		})
 	}
+	t.Run("Block mit Headern (A) vor E", func(t *testing.T) {
+		_, pemE := zertifikat(time.Now().Add(-time.Hour), "127.0.0.1")
+		_, err := tlsAbruf(t, a, "127.0.0.1", true, append(append([]byte{}, mitHeader...), pemE...))
+		pruefeArt(t, err, outbound.ErrUpstreamNichtErreichbar)
+	})
 	for _, capem := range [][]byte{nil, {}} {
 		t.Run(fmt.Sprintf("CAPEM %#v", capem), func(t *testing.T) {
 			if _, err := tlsAbruf(t, tlsServer(t, systemAnker(t), false), "127.0.0.1", true, capem); err != nil {
