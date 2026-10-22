@@ -77,6 +77,9 @@ func TestAufrufFehlerStartenNichts(t *testing.T) {
 		{"build", "b", "v", "x"},
 		{"build", "", "v"},
 		{"build", "b", ""},
+		{"race"},
+		{"race", ""},
+		{"race", ".", ""},
 		{""},
 	}
 	for _, args := range faelle {
@@ -84,8 +87,10 @@ func TestAufrufFehlerStartenNichts(t *testing.T) {
 			w := neueWerkzeuge(t, "", "")
 			code, _, errText := fuehre(w.u, args...)
 			erwarte(t, code, errText, exitAufruf, "Aufruf: pruefung test")
-			if !strings.Contains(errText, "pruefung build <Binary> <Version>") {
-				t.Fatalf("Aufruf nennt die Form build nicht: %q", errText)
+			for _, form := range []string{"pruefung build <Binary> <Version>", "pruefung race <Wurzel> [Muster...]"} {
+				if !strings.Contains(errText, form) {
+					t.Fatalf("Aufruf nennt die Form %q nicht: %q", form, errText)
+				}
 			}
 			if got := w.aufrufe(t); got != nil {
 				t.Fatalf("es wurde gestartet: %v", got)
@@ -99,12 +104,14 @@ func TestWurzelFehlt(t *testing.T) {
 	if err := os.WriteFile(datei, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, wurzel := range []string{filepath.Join(t.TempDir(), "gibt-es-nicht"), datei} {
-		w := neueWerkzeuge(t, "", "")
-		code, _, errText := fuehre(w.u, "test", wurzel)
-		erwarte(t, code, errText, exitAufruf, "Wurzel fehlt: "+wurzel)
-		if got := w.aufrufe(t); got != nil {
-			t.Fatalf("es wurde gestartet: %v", got)
+	for _, kommando := range []string{"test", "race"} {
+		for _, wurzel := range []string{filepath.Join(t.TempDir(), "gibt-es-nicht"), datei} {
+			w := neueWerkzeuge(t, "", "")
+			code, _, errText := fuehre(w.u, kommando, wurzel)
+			erwarte(t, code, errText, exitAufruf, "Wurzel fehlt: "+wurzel)
+			if got := w.aufrufe(t); got != nil {
+				t.Fatalf("%s: es wurde gestartet: %v", kommando, got)
+			}
 		}
 	}
 }
@@ -121,6 +128,7 @@ func TestProgrammNichtAufrufbar(t *testing.T) {
 	}{
 		{"test ohne gofmt", false, []string{"test", d}, "gofmt"},
 		{"test ohne go", true, []string{"test", d}, "go"},
+		{"race ohne go", true, []string{"race", d}, "go"},
 		{"build ohne go", true, []string{"build", bin, "v"}, "go"},
 	}
 	for _, tc := range tests {
@@ -216,6 +224,84 @@ func TestTestOhneGoDateienEntscheidenDieProgramme(t *testing.T) {
 	w = neueWerkzeuge(t, "", `echo "no packages to vet"; exit 1`)
 	code, _, errText = fuehre(w.u, "test", wurzel)
 	erwarte(t, code, errText, exitBefund, "go vet:\nno packages to vet")
+}
+
+// race ruft allein go test; gofmt und go vet laufen nicht (SPEC-122 Nr. 1). Verglichen wird die
+// ganze Liste der Aufrufe beider Werkzeuge, die dasselbe Log schreiben.
+func TestRaceOhneBefund(t *testing.T) {
+	w := neueWerkzeuge(t, "", "")
+	code, out, errText := fuehre(w.u, "race", t.TempDir())
+	if code != exitOK || !strings.Contains(out, "pruefung race: ok") || errText != "" {
+		t.Fatalf("Exit %d, stdout %q, stderr %q", code, out, errText)
+	}
+	want := []string{"go test -race -count=1 -trimpath -buildvcs=false ./..."}
+	if got := w.aufrufe(t); strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("Aufrufe %v, erwartet %v", got, want)
+	}
+}
+
+// Muster gehen hinter die festen Argumente, auch ein Argument mit führendem Strich, das die
+// Zeitgrenze umstellt; ein Muster ersetzt das Standardmuster.
+func TestRaceMuster(t *testing.T) {
+	const fest = "go test -race -count=1 -trimpath -buildvcs=false"
+	tests := []struct {
+		muster []string
+		want   string
+	}{
+		{[]string{"-timeout=5s", "./x"}, fest + " -timeout=5s ./x"},
+		{[]string{"./a/...", "./b"}, fest + " ./a/... ./b"},
+	}
+	for _, tc := range tests {
+		w := neueWerkzeuge(t, "", "")
+		if code, _, errText := fuehre(w.u, append([]string{"race", t.TempDir()}, tc.muster...)...); code != exitOK {
+			t.Fatalf("Exit %d: %s", code, errText)
+		}
+		if got := w.aufrufe(t); strings.Join(got, "|") != tc.want {
+			t.Fatalf("Aufrufe %v, erwartet [%s]", got, tc.want)
+		}
+	}
+}
+
+// Das Kind läuft mit CGO_ENABLED=1, ob der Aufrufer 0 trägt oder den Wert leer setzt, und erbt
+// den Rest der Umgebung.
+func TestRaceSetztCgo(t *testing.T) {
+	t.Setenv("PRUEFUNG_PROBE", "durchgereicht")
+	for _, vorher := range []string{"0", ""} {
+		t.Run("vorher '"+vorher+"'", func(t *testing.T) {
+			t.Setenv("CGO_ENABLED", vorher)
+			umgebung := filepath.Join(t.TempDir(), "umgebung")
+			w := neueWerkzeuge(t, "", `echo "$CGO_ENABLED $PRUEFUNG_PROBE" > `+umgebung)
+			if code, _, errText := fuehre(w.u, "race", t.TempDir()); code != exitOK {
+				t.Fatalf("Exit %d: %s", code, errText)
+			}
+			b, err := os.ReadFile(umgebung)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := string(b); got != "1 durchgereicht\n" {
+				t.Fatalf("Umgebung des Kindes %q, erwartet %q", got, "1 durchgereicht\n")
+			}
+		})
+	}
+}
+
+// Jeder Exit-Code von go test ungleich 0 ist ein Befund mit Exit 1; stdout und stderr von go test
+// stehen beide im Befund, und nichts geht nach stdout.
+func TestRaceBefund(t *testing.T) {
+	for _, exit := range []string{"1", "2"} {
+		t.Run("Exit "+exit, func(t *testing.T) {
+			w := neueWerkzeuge(t, "", `echo "FAIL x"; echo "WARNING: DATA RACE" >&2; exit `+exit)
+			code, out, errText := fuehre(w.u, "race", t.TempDir())
+			if code != exitBefund || out != "" {
+				t.Fatalf("Exit %d (erwartet %d), stdout %q", code, exitBefund, out)
+			}
+			for _, text := range []string{"go test -race:", "FAIL x", "WARNING: DATA RACE"} {
+				if !strings.Contains(errText, text) {
+					t.Fatalf("Befund nennt %q nicht: %q", text, errText)
+				}
+			}
+		})
+	}
 }
 
 // binaerWerkzeuge liefert ein Binary, das `version` mit dem Rumpf beantwortet, und ein go,
@@ -366,6 +452,7 @@ func TestSchreibtNichts(t *testing.T) {
 	schlecht := neueWerkzeuge(t, "echo a.go", "exit 1")
 	for _, u := range []Umgebung{gut.u, schlecht.u} {
 		fuehre(u, "test", wurzel)
+		fuehre(u, "race", wurzel)
 		fuehre(u, "build", bin, "1")
 		fuehre(u, "build", bin, "2")
 	}
@@ -390,7 +477,9 @@ func TestStroeme(t *testing.T) {
 	}{
 		{"test ok", gut.u, []string{"test", d}, exitOK, "pruefung test: ok"},
 		{"build ok", gut.u, []string{"build", bin, "1"}, exitOK, "pruefung build: ok"},
+		{"race ok", gut.u, []string{"race", d}, exitOK, "pruefung race: ok"},
 		{"test Befund", neueWerkzeuge(t, "echo a.go", "").u, []string{"test", d}, exitBefund, ""},
+		{"race Befund", neueWerkzeuge(t, "", "echo FAIL; exit 1").u, []string{"race", d}, exitBefund, ""},
 		{"build Befund", gut.u, []string{"build", falscheVersion, "1"}, exitBefund, ""},
 		{"Aufruf", gut.u, []string{"test"}, exitAufruf, ""},
 		{"Wurzel fehlt", gut.u, []string{"test", filepath.Join(d, "gibt-es-nicht")}, exitAufruf, ""},

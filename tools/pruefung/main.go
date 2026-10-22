@@ -1,5 +1,6 @@
-// Command pruefung führt die Prüfungen von make test und make build aus (SPEC-036):
-// `pruefung test <Wurzel> [Muster...]` und `pruefung build <Binary> <Version>`.
+// Command pruefung führt die Prüfungen von make test, make build und make test-race aus
+// (SPEC-036, SPEC-122): `pruefung test <Wurzel> [Muster...]`, `pruefung build <Binary> <Version>`
+// und `pruefung race <Wurzel> [Muster...]`.
 package main
 
 import (
@@ -19,8 +20,9 @@ const (
 	exitBefund = 1
 	exitAufruf = 2
 
-	aufrufText = "Aufruf: pruefung test <Wurzel> [Muster...]\n       pruefung build <Binary> <Version>\n"
-	kommando   = "odata-recorder"
+	aufrufText = "Aufruf: pruefung test <Wurzel> [Muster...]\n       pruefung build <Binary> <Version>\n" +
+		"       pruefung race <Wurzel> [Muster...]\n"
+	kommando = "odata-recorder"
 )
 
 // Umgebung nennt die Programme, die eine Prüfung aufruft, als Name oder Pfad.
@@ -49,12 +51,15 @@ func (l lauf) alles() string {
 	return l.stdout + l.stderr
 }
 
-// starte führt prog in dir aus (dir leer: im Arbeitsverzeichnis des Prozesses). Der Fehler
-// ist gesetzt, wenn das Programm nicht gestartet werden konnte; ein Exit-Code ungleich 0
-// ist keiner.
-func starte(dir, prog string, args ...string) (lauf, error) {
+// starte führt prog in dir aus (dir leer: im Arbeitsverzeichnis des Prozesses), in der Umgebung
+// des Prozesses und mit den Einträgen env davor überschrieben. Der Fehler ist gesetzt, wenn das
+// Programm nicht gestartet werden konnte; ein Exit-Code ungleich 0 ist keiner.
+func starte(dir string, env []string, prog string, args ...string) (lauf, error) {
 	cmd := exec.CommandContext(context.Background(), prog, args...)
 	cmd.Dir = dir
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err := cmd.Run()
@@ -74,14 +79,17 @@ func run(u Umgebung, args []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprint(stderr, aufrufText)
 		return exitAufruf
 	}
-	if args[0] == "test" {
+	switch args[0] {
+	case "test":
 		return pruefeTest(u, args[1], args[2:], stdout, stderr)
+	case "race":
+		return pruefeRace(u, args[1], args[2:], stdout, stderr)
 	}
 	return pruefeBuild(u, args[1], args[2], stdout, stderr)
 }
 
-// aufrufGueltig ist wahr für `test <Wurzel> [Muster...]` und `build <Binary> <Version>`
-// ohne leeres Argument.
+// aufrufGueltig ist wahr für `test <Wurzel> [Muster...]`, `race <Wurzel> [Muster...]` und
+// `build <Binary> <Version>` ohne leeres Argument.
 func aufrufGueltig(args []string) bool {
 	if len(args) == 0 {
 		return false
@@ -92,7 +100,7 @@ func aufrufGueltig(args []string) bool {
 		}
 	}
 	switch args[0] {
-	case "test":
+	case "test", "race":
 		return len(args) >= 2
 	case "build":
 		return len(args) == 3
@@ -137,7 +145,7 @@ func pruefeTest(u Umgebung, wurzel string, muster []string, stdout, stderr io.Wr
 		{u.Go, append([]string{"test", "-trimpath", "-buildvcs=false"}, muster...), "go test:"},
 	}
 	for _, s := range folge {
-		l, err := starte(wurzel, s.prog, s.args...)
+		l, err := starte(wurzel, nil, s.prog, s.args...)
 		if err != nil {
 			_, _ = fmt.Fprintf(stderr, "%s nicht aufrufbar\n", s.prog)
 			return exitAufruf
@@ -151,9 +159,36 @@ func pruefeTest(u Umgebung, wurzel string, muster []string, stdout, stderr io.Wr
 	return exitOK
 }
 
+// pruefeRace fährt `go test -race` über die Muster in wurzel (SPEC-122 Nr. 1): cgo ist nur für
+// diesen Aufruf eingeschaltet, kein -timeout und kein -failfast steht in den festen Argumenten,
+// und gofmt und go vet laufen nicht. Ein Exit-Code von go test ungleich 0 ist der Befund, ohne
+// Unterscheidung der Ursache; beide Ströme stehen vollständig im Befund, ohne zugesagte
+// Reihenfolge.
+func pruefeRace(u Umgebung, wurzel string, muster []string, stdout, stderr io.Writer) int {
+	if fi, err := os.Stat(wurzel); err != nil || !fi.IsDir() {
+		_, _ = fmt.Fprintf(stderr, "Wurzel fehlt: %s\n", wurzel)
+		return exitAufruf
+	}
+	if len(muster) == 0 {
+		muster = []string{"./..."}
+	}
+	args := append([]string{"test", "-race", "-count=1", "-trimpath", "-buildvcs=false"}, muster...)
+	l, err := starte(wurzel, []string{"CGO_ENABLED=1"}, u.Go, args...)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "%s nicht aufrufbar\n", u.Go)
+		return exitAufruf
+	}
+	if l.code != 0 {
+		_, _ = fmt.Fprintf(stderr, "go test -race:\n%s", l.alles())
+		return exitBefund
+	}
+	_, _ = fmt.Fprintln(stdout, "pruefung race: ok")
+	return exitOK
+}
+
 // gofmtPruefen meldet nicht formatierte Dateien und einen Fehler von gofmt selbst.
 func gofmtPruefen(u Umgebung, wurzel string, stderr io.Writer) int {
-	l, err := starte(wurzel, u.Gofmt, "-l", ".")
+	l, err := starte(wurzel, nil, u.Gofmt, "-l", ".")
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "%s nicht aufrufbar\n", u.Gofmt)
 		return exitAufruf
@@ -185,7 +220,7 @@ func pruefeBuild(u Umgebung, binary, version string, stdout, stderr io.Writer) i
 	if code := versionPruefen(abs, version, stderr); code != exitOK {
 		return code
 	}
-	l, err := starte("", u.Go, "version", "-m", abs)
+	l, err := starte("", nil, u.Go, "version", "-m", abs)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "%s nicht aufrufbar\n", u.Go)
 		return exitAufruf
@@ -205,7 +240,7 @@ func pruefeBuild(u Umgebung, binary, version string, stdout, stderr io.Writer) i
 // versionPruefen ruft `<Binary> version`; nur stdout zählt, abschließende Zeilenumbrüche
 // nicht.
 func versionPruefen(binary, version string, stderr io.Writer) int {
-	l, err := starte("", binary, "version")
+	l, err := starte("", nil, binary, "version")
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "Binary startet nicht: %v\n", err)
 		return exitBefund
