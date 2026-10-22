@@ -182,6 +182,7 @@ func TestTLS(t *testing.T) {
 		{"ohne Prüfung gegen A", a, "127.0.0.1", false, nil},
 		{"ohne Prüfung über localhost", a, "localhost", false, nil},
 		{"ohne Prüfung gegen E", abgelaufen, "127.0.0.1", false, nil},
+		{"ohne Prüfung, A als CAPEM, gegen E", abgelaufen, "127.0.0.1", false, pemA},
 	} {
 		t.Run(f.name, func(t *testing.T) {
 			if _, err := tlsAbruf(t, f.server, f.host, f.pruefen, f.capem); err != nil {
