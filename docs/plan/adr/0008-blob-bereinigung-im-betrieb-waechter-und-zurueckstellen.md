@@ -1,6 +1,6 @@
 # ADR-0008: Blob-Bereinigung im laufenden Betrieb mit Wächter und Zurückstellen
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Datum:** 2026-10-23
 
@@ -65,3 +65,4 @@ Wenn der Record-Dienst die Blobs zwischen `Commit` und `Append` melden kann (Opt
 | Datum | Ereignis | Verweis |
 |---|---|---|
 | 2026-10-23 | Proposed | Entwurf des Architect; die Annahme steht beim Nutzer aus |
+| 2026-10-23 | Accepted | Entscheidung des Owners im Gespräch: angenommen wie vorgelegt, Karenz fest zehn Minuten |
