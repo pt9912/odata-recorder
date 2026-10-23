@@ -95,6 +95,7 @@ Aussagen-Berührung steht hier gar nicht.
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation oder in `harness/vertraege/` **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen, die sie tragen müssen, nennt §6.
 
 - Der Adapter importiert nur Inbound Ports, Querschnitts-Ports und Domain (`a-check`); die Ports `RecordUseCase` und `ReplayUseCase` liefern die beiden Slices davor.
+- Auftrag an den Architect dieses Slice beim Start (Sendung von `slice-session-beenden`, `AGENTS.md` §3.13): die Reihenfolge des Herunterfahrens (Listener nimmt nichts mehr an, `SessionUseCase.CloseAll`, Verbindungen schließen) gegen `LH-FA-02.c`, `SPEC-059` und `SPEC-124` Nr. 14 lesen und den Vertrag der beiden Schritte des Listeners samt Fänger (Tabelle *Zusage · Fänger*, Raster in §6) schreiben, bevor der erste Code-Commit entsteht; die Dauer insgesamt bleibt bei einer Frist (`SPEC-124` *Ungeprüft*, Dauer).
 
 ## 4. Trigger
 
@@ -127,6 +128,7 @@ dasteht.
 - Client bricht ab, bevor der Use Case antwortet; Antwort bricht ab nach dem ersten Byte — **Ausgang:** offen; die nebenläufigen Fänger ordnen mit Kanälen und laufen im Ziel mit `-race` aus `slice-race-gate`, und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50`.
 - Pfad ohne Service-Root, Pfad mit Prozent-Kodierung, `raw_query` mit ungültiger Kodierung — **Ausgang:** offen; Raster-Zelle, der Adapter reicht unverändert, der Use Case entscheidet (`ODR-E5005`).
 - Request-Größe und Zeitgrenzen des Servers (`ReadHeaderTimeout`, Idle) — **Ausgang:** offen; die Spezifikation nennt nur `UPSTREAM_TIMEOUT` und `SHUTDOWN_TIMEOUT`; Architect.
+- Herunterfahren in zwei Schritten (Sendung von `slice-session-beenden`): ein Listener, der im ersten Schritt auf laufende Requests wartet oder im zweiten noch einmal `SHUTDOWN_TIMEOUT` abwartet, verdoppelt die Dauer des Herunterfahrens; `CloseAll` zwischen den Schritten hängt an der Reihenfolge im Composition Root (`slice-bootstrap-m2`) — **Ausgang:** offen; der Architect liest die Reihenfolge beim Start gegen (§3), der Fänger der Schritte steht in der Tabelle *Zusage · Fänger*.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
 
 ## 7. Closure-Notiz
