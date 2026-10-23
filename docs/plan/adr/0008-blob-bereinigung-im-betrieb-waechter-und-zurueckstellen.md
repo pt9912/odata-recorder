@@ -28,7 +28,7 @@ Kippt eine der beiden, kippt die Entscheidung.
 ## Entscheidung
 
 Wir stellen einen **Wächter** vor das `BlobRepository`, den jeder Schreiber von Blobs und die Wartung teilen, und wir **stellen die Bereinigung im Betrieb zurück, solange eine Session offen ist**.
-Der Wächter ordnet `Commit` (Lesersperre) und den Abgleich der Wartung (Schreibersperre) und merkt die Zeit jedes gelungenen `Commit`; die Bereinigung im Betrieb entfernt keinen Blob, dessen `Commit` noch nicht eine feste Karenz zurückliegt.
+Der Wächter ordnet `Commit` (Lesersperre) und den Abgleich der Wartung (Schreibersperre) und merkt die Zeit jedes gelungenen `Commit`; die Bereinigung im Betrieb entfernt keinen Blob, dessen `Commit` noch nicht eine feste Karenz von zehn Minuten zurückliegt; die Karenz ist ein fester Wert und kein Konfigurationsschlüssel (Option F).
 Bei einer offenen Session entfernt sie nichts und überlässt es dem nächsten Start, der in jedem Fall bereinigt.
 Beim Start gilt weder das Zurückstellen noch die Karenz.
 Was die Wartung im Einzelnen prüft, in welcher Reihenfolge und mit welchen Folgen, steht in `SPEC-123`.
@@ -41,6 +41,7 @@ Was die Wartung im Einzelnen prüft, in welcher Reihenfolge und mit welchen Folg
 | B — nur nach dem Lesen der Referenzmenge erneut prüfen (Referenz vor dem Entfernen) | kein neuer Baustein, wie `SPEC-048` es nennt | schließt das Fenster zwischen `Commit` und `Append` nicht: es dauert, bis der Client den Strom ganz liest; ein `Commit` gleicher Bytes gegen `Remove` bleibt offen |
 | C — Zeit seit der letzten Änderung der Datei als Karenz (Zeit des Dateisystems) | braucht keinen Wächter vor dem Port | der Port liefert keine Zeit (Änderung von `BlobRepository`); Dateizeit und `Clock` sind zwei Uhren; die Karenz trägt keinen Exchange ohne Obergrenze |
 | D — Schutz je Blob durch Zählen (der Schreiber meldet `Commit` und Referenz, der Wächter zählt) | genau, kein Zeitwert, deckt auch den Exchange | jeder Schreiber muss das Freigeben rufen, auch der Record-Dienst (andere Slices, einer abgeschlossen); ein vergessenes Freigeben hält den Blob bis zum Start; ein Port mehr |
+| F — Karenz als Konfigurationsschlüssel (abgelehnt) | der Betrieb könnte die Karenz an einen langsamen Datenträger anpassen | die Karenz ist nur sicher, solange sie über der Dauer eines Schreiber-Aufrufs liegt (`SQLITE_BUSY_TIMEOUT`, Default 5 s); diesen Zusammenhang zweier Schlüssel prüft die Konfiguration nicht, und ein zu kleiner Wert öffnet das Fenster still; der feste Wert liegt beim Hundertfachen des Defaults und ein Schlüssel mehr trägt keinen Fall, den das Lastenheft verlangt |
 | **E — Wächter mit Karenz und Zurückstellen bei offener Session (gewählt)** | deckt den Exchange ohne Mitwirkung des Record-Dienstes (offene Session) und die kurzen Fenster der übrigen Schreiber (Karenz); ordnet `Commit` und `Remove` gleicher Bytes; beim Start gilt alles | im Modus `record` bleiben die Blobs gelöschter Sessions bis zum nächsten Start liegen, solange die erste Session offen ist; die Karenz ist eine Annahme über die Dauer eines Aufrufs; jeder Schreiber muss durch den Wächter laufen |
 
 ## Konsequenzen
@@ -58,3 +59,9 @@ Was die Wartung im Einzelnen prüft, in welcher Reihenfolge und mit welchen Folg
 ## Re-Evaluierungs-Trigger
 
 Wenn der Record-Dienst die Blobs zwischen `Commit` und `Append` melden kann (Option D wird billig), wenn ein Betrieb im Modus `record` die Entfernung im Betrieb braucht, oder wenn ein Schreiber von Blobs mit einem Aufruf zwischen `Commit` und Referenz länger als die Karenz hinzukommt.
+
+## Geschichte
+
+| Datum | Ereignis | Verweis |
+|---|---|---|
+| 2026-10-23 | Proposed | Entwurf des Architect; die Annahme steht beim Nutzer aus |
