@@ -78,6 +78,52 @@ func TestCtxNil(t *testing.T) {
 	}
 }
 
+// portsDerFakes nennt jede Operation der Fakes unter dem Namen, unter dem sie gezählt wird.
+func portsDerFakes() []string {
+	return []string{
+		"Dienste.List", "Dienste.Get", "Dienste.Create", "Dienste.SetMetadata",
+		"Sessions.Create", "Sessions.Get", "SetStatus", "Sessions.List", "FindOpen", "Sessions.Delete",
+		"CleanupBlobs", "Startup",
+	}
+}
+
+// TestDienstDientAllein: jede Operation ruft genau die Ports, die ihr Vertrag nennt, und sonst
+// keine Operation eines Fakes; Dienste dient allein List und nur der Auflistung (V22). Im Gutfall
+// zählt jede Operation genau, wenn alle Ports scheitern, höchstens.
+func TestDienstDientAllein(t *testing.T) {
+	scheitern := func(u *welt) {
+		for _, p := range []string{"Sessions.Create", "Sessions.Get", "Sessions.List", "Sessions.Delete", "Dienste.List"} {
+			u.st.scheitere(p, 0, errDisk)
+		}
+	}
+	for i, op := range operationen() {
+		erlaubt := map[string]int{}
+		for _, s := range portStellen()[i] {
+			erlaubt[s.port] = s.n
+		}
+		for _, fall := range []struct {
+			name  string
+			setup func(*welt)
+		}{{"Gutfall", nil}, {"Ports scheitern", scheitern}} {
+			u := neu(t)
+			u.bestand()
+			if fall.setup != nil {
+				fall.setup(u)
+			}
+			_, err := op.f(context.Background(), u)
+			if (err != nil) != (fall.setup != nil) {
+				t.Errorf("%s, %s: %v", op.name, fall.name, err)
+			}
+			for _, p := range portsDerFakes() {
+				got := u.st.anzahl(p)
+				if got > erlaubt[p] || (fall.setup == nil && got != erlaubt[p]) {
+					t.Errorf("%s, %s: %s %d-mal, erlaubt %d", op.name, fall.name, p, got, erlaubt[p])
+				}
+			}
+		}
+	}
+}
+
 // verboteneImporte liefert die Importe, die session nicht haben darf: die Standardbibliothek
 // ohne net, os und crypto/tls, Domain und Ports; kein Adapter und kein Paket unter services.
 func verboteneImporte(t *testing.T, dateien map[string]string) []string {
@@ -129,13 +175,28 @@ func TestImporte(t *testing.T) {
 	if v := verboteneImporte(t, dateien); len(v) > 0 {
 		t.Errorf("verbotene Importe: %v", v)
 	}
+	// Gegenprobe: ein Fall je Element des Matchers (net genau, net/ als Präfix, os genau, os/ als
+	// Präfix, crypto/tls, Pfad mit Punkt außerhalb der erlaubten Ports) und die erlaubten Importe.
+	pfad := "github.com/pt9912/odata-recorder/src/"
 	gegen := map[string]string{
 		"a.go": "package a\nimport \"net/http\"\n",
-		"b.go": "package a\nimport \"github.com/pt9912/odata-recorder/src/adapters/driven/sqlite\"\n",
+		"b.go": "package a\nimport \"" + pfad + "adapters/driven/sqlite\"\n",
 		"c.go": "package a\nimport \"os\"\n",
-		"d.go": "package a\nimport \"github.com/pt9912/odata-recorder/src/hexagon/services/maintenance\"\n",
+		"d.go": "package a\nimport \"" + pfad + "hexagon/services/maintenance\"\n",
+		"e.go": "package a\nimport \"net\"\n",
+		"f.go": "package a\nimport \"crypto/tls\"\n",
+		"g.go": "package a\nimport \"os/exec\"\n",
 	}
-	if v := verboteneImporte(t, gegen); len(v) != 4 {
-		t.Errorf("Gegenprobe meldet %v", v)
+	soll := []string{"crypto/tls", "net", "net/http", "os", "os/exec", pfad + "adapters/driven/sqlite", pfad + "hexagon/services/maintenance"}
+	v := verboteneImporte(t, gegen)
+	slices.Sort(v)
+	slices.Sort(soll)
+	if !slices.Equal(v, soll) {
+		t.Errorf("Gegenprobe meldet %v, erwartet %v", v, soll)
+	}
+	erlaubt := map[string]string{"h.go": "package a\nimport (\n\t\"context\"\n\t\"crypto/sha256\"\n\t\"log/slog\"\n\t\"" + pfad +
+		"hexagon/model\"\n\t\"" + pfad + "hexagon/ports/inbound\"\n\t\"" + pfad + "hexagon/ports/outbound\"\n\t\"" + pfad + "hexagon/ports/support\"\n)\n"}
+	if v := verboteneImporte(t, erlaubt); len(v) != 0 {
+		t.Errorf("Gegenprobe meldet erlaubte Importe: %v", v)
 	}
 }

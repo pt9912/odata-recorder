@@ -38,7 +38,7 @@ func TestBereinigungNachCommit(t *testing.T) {
 	fertig := make(chan struct{})
 	go func() {
 		defer close(fertig)
-		_, _ = u.v.Delete(context.Background(), "s1")
+		_, _ = u.del(context.Background(), "s1")
 	}()
 	warte(t, h.erreicht, "Sessions.Delete betreten")
 	if n := u.st.anzahl("CleanupBlobs"); n != 0 {
@@ -68,7 +68,7 @@ func TestBereinigungNachCommit(t *testing.T) {
 		u := neu(t)
 		u.sessions.fuege("s1", dienstA, t0(), model.SessionComplete)
 		setup(u)
-		if _, err := u.v.Delete(context.Background(), "s1"); err == nil {
+		if _, err := u.del(context.Background(), "s1"); err == nil {
 			t.Errorf("(c) %s: kein Fehler", name)
 		}
 		if n := u.st.anzahl("CleanupBlobs"); n != 0 {
@@ -126,7 +126,7 @@ func TestBereinigungKontext(t *testing.T) {
 		fertig := make(chan struct{})
 		go func() {
 			defer close(fertig)
-			_, _ = u.v.Delete(grund, "s1")
+			_, _ = u.del(grund, "s1")
 		}()
 		<-h.erreicht
 		synctest.Wait()
@@ -161,7 +161,7 @@ func TestAnlegenGleichzeitig(t *testing.T) {
 	b := neueBarriere(2)
 	u.st.bei("Sessions.Create", 0, b.an)
 	fehler := make([]error, 2)
-	parallel(2, func(i int) { _, fehler[i] = u.v.Create(context.Background(), dienstA, "x1") })
+	parallel(2, func(i int) { _, fehler[i] = u.create(context.Background(), dienstA, "x1") })
 	if b.lief() {
 		t.Fatal("die Barriere lief ab: ein Aufruf erreichte Sessions.Create nicht")
 	}
@@ -198,7 +198,7 @@ func TestLoeschenGleichzeitig(t *testing.T) {
 	b := neueBarriere(2)
 	u.st.bei("Sessions.Delete", 0, b.an)
 	fehler := make([]error, 2)
-	parallel(2, func(i int) { _, fehler[i] = u.v.Delete(context.Background(), "s1") })
+	parallel(2, func(i int) { _, fehler[i] = u.del(context.Background(), "s1") })
 	if b.lief() {
 		t.Fatal("die Barriere lief ab: ein Aufruf erreichte Sessions.Delete nicht")
 	}
@@ -234,7 +234,7 @@ func TestGleichzeitig(t *testing.T) {
 	ctx := context.Background()
 	parallel(goroutinen, func(int) {
 		for range runden {
-			s, err := u.v.Create(ctx, dienstA, "")
+			s, err := u.create(ctx, dienstA, "")
 			if err != nil {
 				t.Errorf("Create: %v", err)
 				continue
@@ -245,16 +245,16 @@ func TestGleichzeitig(t *testing.T) {
 			}
 			vergeben[s.ID] = true
 			mu.Unlock()
-			if _, err := u.v.Get(ctx, s.ID); err != nil {
+			if _, err := u.get(ctx, s.ID); err != nil {
 				t.Errorf("Get: %v", err)
 			}
-			if _, err := u.v.List(ctx); err != nil {
+			if _, err := u.list(ctx); err != nil {
 				t.Errorf("List: %v", err)
 			}
 			if err := u.sessions.SetStatus(ctx, s.ID, model.SessionComplete); err != nil {
 				t.Errorf("SetStatus: %v", err)
 			}
-			if b, err := u.v.Delete(ctx, s.ID); err != nil || b != (inbound.Loeschbericht{Entfernt: 2}) {
+			if b, err := u.del(ctx, s.ID); err != nil || b != (inbound.Loeschbericht{Entfernt: 2}) {
 				t.Errorf("Delete: %+v, %v", b, err)
 			} else {
 				geloescht.Add(1)

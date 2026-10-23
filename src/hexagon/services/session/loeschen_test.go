@@ -115,6 +115,9 @@ func TestBereinigungErgebnis(t *testing.T) {
 		{"(d) ODR-E9001", inbound.Loeschbericht{Entfernt: 1}, &inbound.Fehler{Code: model.CodeE9001, Status: 500, Ursache: errDisk}},
 		{"(e) ohne Fehlerwert", inbound.Loeschbericht{Entfernt: 4}, errDisk},
 		{"(f) Kontextfehler", inbound.Loeschbericht{Entfernt: 2}, context.Canceled},
+		{"(g) Bericht aus Nullen", inbound.Loeschbericht{}, nil},
+		{"(h) Bericht aus Nullen mit Fehler", inbound.Loeschbericht{}, &inbound.Fehler{Code: model.CodeE3001, Status: 500, Ursache: errDisk}},
+		{"(i) Bericht aus Nullen mit Kontextfehler", inbound.Loeschbericht{}, context.DeadlineExceeded},
 	}
 	for _, f := range faelle {
 		u := neu(t)
@@ -199,6 +202,89 @@ func TestProtokoll(t *testing.T) {
 		}
 		if got := u.log.alle(); len(got) != 0 {
 			t.Errorf("%s: Einträge %+v", code, got)
+		}
+	}
+}
+
+// TestProtokollNurBereinigung: außer dem Fehler und dem Zurückstellen der Bereinigung nach dem
+// Löschen schreibt auf keinem Pfad einer Operation etwas ins Protokoll: Erfolg und jeder Fehler von
+// Create, OpenInitialSession, Get, List und Delete, Argumentfehler, nil-ctx und beendeter ctx (V23,
+// SPEC-124 Nr. 9). Jeder Fall prüft, dass der Pfad lief (gelungen oder gescheitert).
+func TestProtokollNurBereinigung(t *testing.T) {
+	bg := context.Background()
+	ende, cancel := context.WithCancel(bg)
+	cancel()
+	var keinCtx context.Context
+	cr := func(ctx context.Context, d, id string) func(*welt) error {
+		return func(u *welt) error { _, err := u.create(ctx, d, id); return err }
+	}
+	oe := func(ctx context.Context, d string) func(*welt) error {
+		return func(u *welt) error { _, err := u.open(ctx, d); return err }
+	}
+	ge := func(ctx context.Context, id string) func(*welt) error {
+		return func(u *welt) error { _, err := u.get(ctx, id); return err }
+	}
+	li := func(ctx context.Context) func(*welt) error {
+		return func(u *welt) error { _, err := u.list(ctx); return err }
+	}
+	de := func(ctx context.Context, id string) func(*welt) error {
+		return func(u *welt) error { _, err := u.del(ctx, id); return err }
+	}
+	scheitere := func(op string, n int, e error) func(*welt) {
+		return func(u *welt) { u.st.scheitere(op, n, e) }
+	}
+	faelle := []struct {
+		name      string
+		setup     func(*welt)
+		op        func(*welt) error
+		scheitert bool
+	}{
+		{"Create Erfolg, leere id", nil, cr(bg, dienstA, ""), false},
+		{"Create Erfolg, gelieferte id", nil, cr(bg, dienstA, "x1"), false},
+		{"Create: serviceID leer", nil, cr(bg, "", "x1"), true},
+		{"Create: id außerhalb der Form", nil, cr(bg, dienstA, "xAy"), true},
+		{"Create: nil-ctx", nil, cr(keinCtx, dienstA, "x1"), true},
+		{"Create: ctx beendet", nil, cr(ende, dienstA, "x1"), true},
+		{"Create: Doppelung", scheitere("Sessions.Create", 1, verpackt(outbound.ErrBereitsVorhanden)), cr(bg, dienstA, "x1"), true},
+		{"Create: Service unbekannt", scheitere("Sessions.Create", 1, verpackt(outbound.ErrDienstUnbekannt)), cr(bg, dienstA, "x1"), true},
+		{"Create: beschädigt", scheitere("Sessions.Create", 1, verpackt(outbound.ErrBeschaedigt)), cr(bg, dienstA, "x1"), true},
+		{"Create: Platte", scheitere("Sessions.Create", 1, errDisk), cr(bg, dienstA, "x1"), true},
+		{"OpenInitialSession Erfolg", nil, oe(bg, dienstA), false},
+		{"OpenInitialSession: serviceID leer", nil, oe(bg, ""), true},
+		{"OpenInitialSession: nil-ctx", nil, oe(keinCtx, dienstA), true},
+		{"Get Erfolg", nil, ge(bg, "s1"), false},
+		{"Get: unbekannt", nil, ge(bg, "nix"), true},
+		{"Get: beschädigt", scheitere("Sessions.Get", 1, verpackt(outbound.ErrBeschaedigt)), ge(bg, "s1"), true},
+		{"Get: Platte", scheitere("Sessions.Get", 1, errDisk), ge(bg, "s1"), true},
+		{"Get: nil-ctx", nil, ge(keinCtx, "s1"), true},
+		{"Get: ctx beendet", nil, ge(ende, "s1"), true},
+		{"List Erfolg", nil, li(bg), false},
+		{"List Erfolg ohne Service", func(u *welt) { u.dienste.dienste = nil }, li(bg), false},
+		{"List: Dienste.List scheitert", scheitere("Dienste.List", 1, errDisk), li(bg), true},
+		{"List: Sessions.List scheitert", scheitere("Sessions.List", 2, errDisk), li(bg), true},
+		{"List: Sessions.List unbekannt", scheitere("Sessions.List", 1, verpackt(outbound.ErrNichtGefunden)), li(bg), true},
+		{"List: nil-ctx", nil, li(keinCtx), true},
+		{"List: ctx beendet", nil, li(ende), true},
+		{"Delete Erfolg, Bereinigung gelungen", nil, de(bg, "s1"), false},
+		{"Delete: unbekannt", nil, de(bg, "nix"), true},
+		{"Delete: offen", func(u *welt) { u.sessions.fuege("o1", dienstA, t0(), model.SessionOpen) }, de(bg, "o1"), true},
+		{"Delete: referenziert", scheitere("Sessions.Delete", 1, verpackt(outbound.ErrReferenziert)), de(bg, "s1"), true},
+		{"Delete: Get Platte", scheitere("Sessions.Get", 1, errDisk), de(bg, "s1"), true},
+		{"Delete: Delete Platte", scheitere("Sessions.Delete", 1, errDisk), de(bg, "s1"), true},
+		{"Delete: nil-ctx", nil, de(keinCtx, "s1"), true},
+		{"Delete: ctx beendet", nil, de(ende, "s1"), true},
+	}
+	for _, f := range faelle {
+		u := neu(t)
+		u.bestand()
+		if f.setup != nil {
+			f.setup(u)
+		}
+		if err := f.op(u); (err != nil) != f.scheitert {
+			t.Errorf("%s: Fehler %v, erwartet gescheitert: %v", f.name, err, f.scheitert)
+		}
+		if got := u.log.alle(); len(got) != 0 {
+			t.Errorf("%s: Einträge %+v", f.name, got)
 		}
 	}
 }

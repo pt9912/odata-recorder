@@ -268,7 +268,11 @@ func fuehre(t *testing.T, vorbereite func(*welt), op func(*welt) (model.Session,
 	if vorbereite != nil {
 		vorbereite(u)
 	}
-	s, err := op(u)
+	var s model.Session
+	var err error
+	if fange(t, "Operation", func() { s, err = op(u) }) {
+		err = errPanik
+	}
 	pruefeFehlerWert(t, err)
 	fehl := "nil"
 	if err != nil {

@@ -111,6 +111,9 @@ func TestList(t *testing.T) {
 		{"Dienste.List beschädigt", "Dienste.List", 1, verpackt(outbound.ErrBeschaedigt), "ODR-E3001", []string{"Dienste.List"}},
 		{"Sessions.List des zweiten", "Sessions.List", 2, errDisk, "ODR-E9001", []string{"Dienste.List", "Sessions.List(svc-a)", "Sessions.List(svc-b)"}},
 		{"ErrNichtGefunden", "Sessions.List", 1, verpackt(outbound.ErrNichtGefunden), "ODR-E9001", []string{"Dienste.List", "Sessions.List(svc-a)"}},
+		{"Sessions.List ErrBereitsVorhanden", "Sessions.List", 1, verpackt(outbound.ErrBereitsVorhanden), "ODR-E9001", []string{"Dienste.List", "Sessions.List(svc-a)"}},
+		{"Dienste.List ErrNichtGefunden", "Dienste.List", 1, verpackt(outbound.ErrNichtGefunden), "ODR-E9001", []string{"Dienste.List"}},
+		{"Dienste.List ErrBereitsVorhanden", "Dienste.List", 1, verpackt(outbound.ErrBereitsVorhanden), "ODR-E9001", []string{"Dienste.List"}},
 	}
 	for _, f := range faelle {
 		v := neu(t)

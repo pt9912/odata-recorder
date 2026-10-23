@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
@@ -18,27 +19,27 @@ type operation struct {
 func operationen() []operation {
 	return []operation{
 		{"Create mit leerer id", func(ctx context.Context, u *welt) (bool, error) {
-			s, err := u.v.Create(ctx, dienstA, "")
+			s, err := u.create(ctx, dienstA, "")
 			return s == model.Session{}, err
 		}},
 		{"Create mit id", func(ctx context.Context, u *welt) (bool, error) {
-			s, err := u.v.Create(ctx, dienstA, "x1")
+			s, err := u.create(ctx, dienstA, "x1")
 			return s == model.Session{}, err
 		}},
 		{"OpenInitialSession", func(ctx context.Context, u *welt) (bool, error) {
-			s, err := u.v.OpenInitialSession(ctx, dienstA)
+			s, err := u.open(ctx, dienstA)
 			return s == model.Session{}, err
 		}},
 		{"Get", func(ctx context.Context, u *welt) (bool, error) {
-			s, err := u.v.Get(ctx, "s1")
+			s, err := u.get(ctx, "s1")
 			return s == model.Session{}, err
 		}},
 		{"List", func(ctx context.Context, u *welt) (bool, error) {
-			s, err := u.v.List(ctx)
+			s, err := u.list(ctx)
 			return s == nil, err
 		}},
 		{"Delete", func(ctx context.Context, u *welt) (bool, error) {
-			b, err := u.v.Delete(ctx, "s1")
+			b, err := u.del(ctx, "s1")
 			return b.Entfernt == 0 && !b.Zurueckgestellt, err
 		}},
 	}
@@ -102,7 +103,7 @@ func TestKontext(t *testing.T) {
 		u := neu(t)
 		u.bestand()
 		u.st.scheitere("Sessions.Delete", 1, beides)
-		_, err := u.v.Delete(context.Background(), "s1")
+		_, err := u.del(context.Background(), "s1")
 		if err != beides || !ohneCode(err) || !errors.Is(err, ctxErr) {
 			t.Errorf("(c) Delete mit %v: %v", ctxErr, err)
 		}
@@ -112,9 +113,76 @@ func TestKontext(t *testing.T) {
 		doppelt := errors.Join(outbound.ErrBereitsVorhanden, ctxErr)
 		u = neu(t)
 		u.st.scheitere("Sessions.Create", 1, doppelt)
-		_, err = u.v.Create(context.Background(), dienstA, "x1")
+		_, err = u.create(context.Background(), dienstA, "x1")
 		if err != doppelt || !ohneCode(err) || !errors.Is(err, ctxErr) {
 			t.Errorf("(c) Create mit %v: %v", ctxErr, err)
+		}
+	}
+}
+
+// stelle ist ein Aufruf eines Ports, der einen ctx nimmt: sein Name im Fake und wie oft die
+// Operation ihn auf dem Bestand von bestand() ruft.
+type stelle struct {
+	port string
+	n    int
+}
+
+// portStellen nennt je Operation (Index wie in operationen()) die Aufrufe der Ports mit ctx.
+func portStellen() [][]stelle {
+	anlegen := []stelle{{"Sessions.Create", 1}}
+	return [][]stelle{
+		anlegen, anlegen, anlegen,
+		{{"Sessions.Get", 1}},
+		{{"Dienste.List", 1}, {"Sessions.List", 3}},
+		{{"Sessions.Get", 1}, {"Sessions.Delete", 1}, {"CleanupBlobs", 1}},
+	}
+}
+
+// TestCtxWeitergabe: jeder Aufruf eines Ports und die Bereinigung erhalten den ctx des Aufrufs
+// unverändert, der Wert, Frist und Abbruch des Aufrufers trägt (V21). (a) Der Fake hält das Argument
+// fest; es ist der ctx des Aufrufers selbst. (b) Der Haltepunkt am Argument beendet den ctx des
+// Aufrufers im n-ten Aufruf des Ports; der Fake sieht ihn beendet und die Operation endet mit dem
+// Kontextfehler. Die Bereinigung folgt dem Löschen und ändert sein Ergebnis nicht (V13 hält sie).
+func TestCtxWeitergabe(t *testing.T) {
+	type schluessel struct{}
+	ops := operationen()
+	for i, op := range ops {
+		// (a) Wert und Frist des Aufrufers kommen als derselbe ctx an jedem Port an.
+		ctx, abbruch := context.WithTimeout(context.WithValue(context.Background(), schluessel{}, "w1"), time.Hour)
+		u := neu(t)
+		u.bestand()
+		if _, err := op.f(ctx, u); err != nil {
+			t.Errorf("(a) %s: %v", op.name, err)
+		}
+		for _, s := range portStellen()[i] {
+			got := u.st.gesehen(s.port)
+			if len(got) != s.n {
+				t.Errorf("(a) %s: %s %d-mal, erwartet %d", op.name, s.port, len(got), s.n)
+			}
+			for k, c := range got {
+				if c != ctx {
+					t.Errorf("(a) %s: %s, Aufruf %d erhielt nicht den ctx des Aufrufers", op.name, s.port, k+1)
+				}
+			}
+		}
+		abbruch()
+
+		// (b) Der Aufrufer beendet den ctx im n-ten Aufruf; der Fake sieht ihn, die Operation endet.
+		for _, s := range portStellen()[i] {
+			if s.port == "CleanupBlobs" {
+				continue
+			}
+			for k := 1; k <= s.n; k++ {
+				c, beende := context.WithCancel(context.Background())
+				u := neu(t)
+				u.bestand()
+				u.st.bei(s.port, k, beende)
+				leer, err := op.f(c, u)
+				if err != context.Canceled || !leer {
+					t.Errorf("(b) %s: Abbruch im Aufruf %d von %s: %v, Nullwert %v", op.name, k, s.port, err, leer)
+				}
+				beende()
+			}
 		}
 	}
 }

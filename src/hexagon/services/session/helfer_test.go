@@ -66,10 +66,26 @@ type steuerung struct {
 	zaehler map[string]int
 	fehler  map[aufruf]error
 	aktion  map[aufruf]func()
+	ctxs    map[string][]context.Context
 }
 
 func neueSteuerung() *steuerung {
-	return &steuerung{zaehler: map[string]int{}, fehler: map[aufruf]error{}, aktion: map[aufruf]func(){}}
+	return &steuerung{zaehler: map[string]int{}, fehler: map[aufruf]error{}, aktion: map[aufruf]func(){}, ctxs: map[string][]context.Context{}}
+}
+
+// sehe hält den ctx fest, den der Aufruf von op erhielt; ein nil-ctx wird festgehalten, nicht
+// ausgewertet.
+func (s *steuerung) sehe(ctx context.Context, op string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ctxs[op] = append(s.ctxs[op], ctx)
+}
+
+// gesehen liefert die erhaltenen ctx von op in der Folge der Aufrufe.
+func (s *steuerung) gesehen(op string) []context.Context {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.ctxs[op])
 }
 
 // vor zählt den Aufruf, führt die Aktion aus und liefert dann den Fehler des Kontexts, sonst den
@@ -265,6 +281,7 @@ func (s *fakeSessions) anzahl() int {
 
 func (s *fakeSessions) Create(ctx context.Context, x model.Session) error {
 	s.p.melde("Sessions.Create(" + x.ID + ")")
+	s.st.sehe(ctx, "Sessions.Create")
 	if err := s.st.vor("Sessions.Create", ctx.Err); err != nil {
 		return err
 	}
@@ -282,6 +299,7 @@ func (s *fakeSessions) Create(ctx context.Context, x model.Session) error {
 
 func (s *fakeSessions) Get(ctx context.Context, id string) (model.Session, error) {
 	s.p.melde("Sessions.Get(" + id + ")")
+	s.st.sehe(ctx, "Sessions.Get")
 	if err := s.st.vor("Sessions.Get", ctx.Err); err != nil {
 		return model.Session{}, err
 	}
@@ -294,6 +312,7 @@ func (s *fakeSessions) Get(ctx context.Context, id string) (model.Session, error
 
 func (s *fakeSessions) SetStatus(ctx context.Context, id string, status model.SessionStatus) error {
 	s.p.melde("SetStatus(" + id + ")")
+	s.st.sehe(ctx, "SetStatus")
 	if err := s.st.vor("SetStatus", ctx.Err); err != nil {
 		return err
 	}
@@ -314,6 +333,7 @@ func (s *fakeSessions) SetStatus(ctx context.Context, id string, status model.Se
 // List liefert die Sessions eines Service nach Erzeugungszeit, dann Kennung; nie nil.
 func (s *fakeSessions) List(ctx context.Context, serviceID string) ([]model.Session, error) {
 	s.p.melde("Sessions.List(" + serviceID + ")")
+	s.st.sehe(ctx, "Sessions.List")
 	if err := s.st.vor("Sessions.List", ctx.Err); err != nil {
 		return nil, err
 	}
@@ -336,6 +356,7 @@ func (s *fakeSessions) List(ctx context.Context, serviceID string) ([]model.Sess
 
 func (s *fakeSessions) FindOpen(ctx context.Context) ([]model.Session, error) {
 	s.p.melde("FindOpen")
+	s.st.sehe(ctx, "FindOpen")
 	if err := s.st.vor("FindOpen", ctx.Err); err != nil {
 		return nil, err
 	}
@@ -344,6 +365,7 @@ func (s *fakeSessions) FindOpen(ctx context.Context) ([]model.Session, error) {
 
 func (s *fakeSessions) Delete(ctx context.Context, id string) error {
 	s.p.melde("Sessions.Delete(" + id + ")")
+	s.st.sehe(ctx, "Sessions.Delete")
 	if err := s.st.vor("Sessions.Delete", ctx.Err); err != nil {
 		return err
 	}
@@ -360,29 +382,41 @@ func (s *fakeSessions) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// fakeDienste bildet MetadataRepository nach; gebraucht wird nur List, die übrigen Operationen
-// liefern den Nullwert.
+// fakeDienste bildet MetadataRepository nach; gebraucht wird nur List. Create, Get und SetMetadata
+// zählen und melden ein Ereignis wie jede Operation der Fakes und liefern den Nullwert; dass der
+// Dienst sie nie ruft, hält TestDienstDientAllein.
 type fakeDienste struct {
 	st      *steuerung
 	p       *ereignisse
 	dienste []model.Service
 }
 
-func (d *fakeDienste) Create(context.Context, model.Service) error { return nil }
+func (d *fakeDienste) Create(context.Context, model.Service) error {
+	d.p.melde("Dienste.Create")
+	d.st.zaehle("Dienste.Create")
+	return nil
+}
 
-func (d *fakeDienste) Get(context.Context, string) (model.Service, error) {
+func (d *fakeDienste) Get(_ context.Context, id string) (model.Service, error) {
+	d.p.melde("Dienste.Get(" + id + ")")
+	d.st.zaehle("Dienste.Get")
 	return model.Service{}, nil
 }
 
 func (d *fakeDienste) List(ctx context.Context) ([]model.Service, error) {
 	d.p.melde("Dienste.List")
+	d.st.sehe(ctx, "Dienste.List")
 	if err := d.st.vor("Dienste.List", ctx.Err); err != nil {
 		return nil, err
 	}
 	return slices.Clone(d.dienste), nil
 }
 
-func (d *fakeDienste) SetMetadata(context.Context, string, string, string) error { return nil }
+func (d *fakeDienste) SetMetadata(context.Context, string, string, string) error {
+	d.p.melde("Dienste.SetMetadata")
+	d.st.zaehle("Dienste.SetMetadata")
+	return nil
+}
 
 // --- MaintenanceUseCase -----------------------------------------------------------------------
 
@@ -416,6 +450,7 @@ func (w *fakeWartung) Startup(context.Context) (inbound.Wartungsbericht, error) 
 
 func (w *fakeWartung) CleanupBlobs(ctx context.Context) (inbound.Loeschbericht, error) {
 	w.p.melde("CleanupBlobs")
+	w.st.sehe(ctx, "CleanupBlobs")
 	fr, ok := ctx.Deadline()
 	w.mu.Lock()
 	w.sichten = append(w.sichten, sicht{wert: ctx.Value(ctxSchluessel{}), fehler: ctx.Err(), frist: fr, hatFrist: ok})
@@ -525,30 +560,67 @@ func (u *welt) dienst(ids ...string) {
 // folgeID ist die Kennung, die der Generator als nächste vergibt; der Aufruf zählt als Bezug.
 func (u *welt) folgeID() string { return u.ids.SessionID() }
 
-func (u *welt) create(ctx context.Context, dienst, id string) (model.Session, error) {
+// errPanik ist der Fehler, den die Operationen der Umgebung nach einer Panik liefern; die Panik
+// selbst ist als Fehler des Tests gemeldet.
+var errPanik = errors.New("Panik")
+
+// fange führt f aus und meldet eine Panik (ein Fake, der auf einem nil-ctx oder bei Startup
+// panict) als Fehler von t, statt das Testprogramm abzubrechen; so wird der Test rot, der den Aufruf
+// macht, und die übrigen laufen weiter. Es liefert, ob f panict hat.
+func fange(t *testing.T, name string, f func()) (panikte bool) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Helper()
+			t.Errorf("%s: Panik %v", name, r)
+			panikte = true
+		}
+	}()
+	f()
+	return false
+}
+
+func (u *welt) create(ctx context.Context, dienst, id string) (s model.Session, err error) {
 	u.t.Helper()
-	s, err := u.v.Create(ctx, dienst, id)
+	if fange(u.t, "Create", func() { s, err = u.v.Create(ctx, dienst, id) }) {
+		return model.Session{}, errPanik
+	}
 	pruefeFehlerWert(u.t, err)
 	return s, err
 }
 
-func (u *welt) get(ctx context.Context, id string) (model.Session, error) {
+func (u *welt) open(ctx context.Context, dienst string) (s model.Session, err error) {
 	u.t.Helper()
-	s, err := u.v.Get(ctx, id)
+	if fange(u.t, "OpenInitialSession", func() { s, err = u.v.OpenInitialSession(ctx, dienst) }) {
+		return model.Session{}, errPanik
+	}
 	pruefeFehlerWert(u.t, err)
 	return s, err
 }
 
-func (u *welt) list(ctx context.Context) ([]model.Session, error) {
+func (u *welt) get(ctx context.Context, id string) (s model.Session, err error) {
 	u.t.Helper()
-	s, err := u.v.List(ctx)
+	if fange(u.t, "Get", func() { s, err = u.v.Get(ctx, id) }) {
+		return model.Session{}, errPanik
+	}
 	pruefeFehlerWert(u.t, err)
 	return s, err
 }
 
-func (u *welt) del(ctx context.Context, id string) (inbound.Loeschbericht, error) {
+func (u *welt) list(ctx context.Context) (s []model.Session, err error) {
 	u.t.Helper()
-	b, err := u.v.Delete(ctx, id)
+	if fange(u.t, "List", func() { s, err = u.v.List(ctx) }) {
+		return nil, errPanik
+	}
+	pruefeFehlerWert(u.t, err)
+	return s, err
+}
+
+func (u *welt) del(ctx context.Context, id string) (b inbound.Loeschbericht, err error) {
+	u.t.Helper()
+	if fange(u.t, "Delete", func() { b, err = u.v.Delete(ctx, id) }) {
+		return inbound.Loeschbericht{}, errPanik
+	}
 	pruefeFehlerWert(u.t, err)
 	return b, err
 }
