@@ -403,6 +403,25 @@ type fakeBlobs struct {
 	mu      sync.Mutex
 	dateien map[string][]byte
 	kaputt  map[string]bool
+	werte   map[string][]any
+}
+
+// ctxSchluessel ist der Schlüssel des Werts, den ein Test in den ctx legt; ein
+// context.Background() trägt ihn nicht.
+type ctxSchluessel struct{}
+
+// merkeWert hält fest, welchen Wert unter ctxSchluessel der ctx des Aufrufs von op trägt.
+func (b *fakeBlobs) merkeWert(ctx context.Context, op string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.werte[op] = append(b.werte[op], ctx.Value(ctxSchluessel{}))
+}
+
+// ctxWerte liefert die gemerkten Werte des ctx je Aufruf von op.
+func (b *fakeBlobs) ctxWerte(op string) []any {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return slices.Clone(b.werte[op])
 }
 
 type fakeWriter struct {
@@ -447,6 +466,7 @@ func (b *fakeBlobs) refs() []string {
 
 func (b *fakeBlobs) Begin(ctx context.Context, grenze int64) (outbound.CaptureWriter, error) {
 	b.p.melde(fmt.Sprintf("Begin(%d)", grenze))
+	b.merkeWert(ctx, "Begin")
 	if _, err := b.st.vor("Begin", ctx.Err); err != nil {
 		return nil, err
 	}
@@ -513,6 +533,7 @@ func (b *fakeBlobs) pruefe(ref string) error {
 
 func (b *fakeBlobs) Open(ctx context.Context, ref string) (io.ReadCloser, error) {
 	b.p.melde("Open(" + ref + ")")
+	b.merkeWert(ctx, "Open")
 	if _, err := b.st.vor("Open", ctx.Err); err != nil {
 		return nil, err
 	}
@@ -526,6 +547,7 @@ func (b *fakeBlobs) Open(ctx context.Context, ref string) (io.ReadCloser, error)
 
 func (b *fakeBlobs) Verify(ctx context.Context, ref string) error {
 	b.p.melde("Verify(" + ref + ")")
+	b.merkeWert(ctx, "Verify")
 	if _, err := b.st.vor("Verify", ctx.Err); err != nil {
 		return err
 	}
@@ -534,6 +556,7 @@ func (b *fakeBlobs) Verify(ctx context.Context, ref string) error {
 
 func (b *fakeBlobs) List(ctx context.Context) ([]string, error) {
 	b.p.melde("Blobs.List")
+	b.merkeWert(ctx, "List")
 	if _, err := b.st.vor("Blobs.List", ctx.Err); err != nil {
 		return nil, err
 	}
@@ -542,6 +565,7 @@ func (b *fakeBlobs) List(ctx context.Context) ([]string, error) {
 
 func (b *fakeBlobs) Remove(ctx context.Context, ref string) error {
 	b.p.melde("Remove(" + ref + ")")
+	b.merkeWert(ctx, "Remove")
 	if _, err := b.st.vor("Remove", ctx.Err); err != nil {
 		return err
 	}
@@ -627,7 +651,8 @@ func neuAb(t *testing.T, start time.Time, karenz time.Duration, aendere ...func(
 	u.sessions = &fakeSessions{st: st, p: p, alle: map[string]model.Session{}, refs: map[string][]string{}}
 	u.dienste = &fakeDienste{st: st, p: p}
 	u.speicher = &fakeSpeicher{st: st, p: p, sessions: u.sessions, zusatz: map[int][]string{}}
-	u.blobs = &fakeBlobs{st: st, p: p, dateien: map[string][]byte{}, kaputt: map[string]bool{}}
+	u.blobs = &fakeBlobs{st: st, p: p, dateien: map[string][]byte{}, kaputt: map[string]bool{},
+		werte: map[string][]any{}}
 	var err error
 	if u.waechter, err = maintenance.NewBlobWaechter(u.blobs, u.uhr, karenz); err != nil {
 		t.Fatal(err)

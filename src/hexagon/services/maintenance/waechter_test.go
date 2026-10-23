@@ -112,6 +112,46 @@ func TestWaechterDurchgereicht(t *testing.T) {
 			t.Errorf("%s am Fake: %v, erwartet %v", op, got, folge)
 		}
 	}
+	pruefeKontextDurchgereicht(t)
+}
+
+// pruefeKontextDurchgereicht ruft jede Operation des Wächters, die einen ctx trägt, mit beendetem
+// und mit lebendem ctx; der ctx trägt einen Wert unter ctxSchluessel, den ein context.Background()
+// nicht trägt. Der Fake darunter liefert den Fehler des ctx wie ein echter Port und merkt den Wert
+// (W18; Write, Commit und Abort haben keinen ctx).
+func pruefeKontextDurchgereicht(t *testing.T) {
+	t.Helper()
+	ops := []struct {
+		name string
+		ruf  func(ctx context.Context, w outbound.BlobRepository) error
+	}{
+		{"Begin", func(ctx context.Context, w outbound.BlobRepository) error { _, err := w.Begin(ctx, 8); return err }},
+		{"Open", func(ctx context.Context, w outbound.BlobRepository) error { _, err := w.Open(ctx, r("x")); return err }},
+		{"Verify", func(ctx context.Context, w outbound.BlobRepository) error { return w.Verify(ctx, r("x")) }},
+		{"List", func(ctx context.Context, w outbound.BlobRepository) error { _, err := w.List(ctx); return err }},
+		{"Remove", func(ctx context.Context, w outbound.BlobRepository) error { return w.Remove(ctx, r("x")) }},
+	}
+	for _, o := range ops {
+		for _, beendet := range []bool{true, false} {
+			u := neu(t)
+			u.blobs.lege(r("x"))
+			wert := "wert-" + o.name
+			ctx, cancel := context.WithCancel(context.WithValue(context.Background(), ctxSchluessel{}, wert))
+			var soll error
+			if beendet {
+				cancel()
+				soll = context.Canceled
+			}
+			err := o.ruf(ctx, u.waechter)
+			cancel()
+			if err != soll {
+				t.Errorf("%s, ctx beendet %v: %v, erwartet %v", o.name, beendet, err, soll)
+			}
+			if got := u.blobs.ctxWerte(o.name); !slices.Equal(got, []any{wert}) {
+				t.Errorf("%s, ctx beendet %v: der Fake erhielt den Wert %v, erwartet %q", o.name, beendet, got, wert)
+			}
+		}
+	}
 }
 
 // TestWaechterZeit: der Wächter merkt die Zeit jedes gelungenen Commit, die letzte gilt, ein
@@ -201,6 +241,9 @@ func TestCommitMerktUnterSperre(t *testing.T) {
 		u.waechter.Unlock()
 		t.Error("im Halt ist die Schreibersperre frei")
 	}
+	// Zusatzprüfung zur Wirkung, kein Fänger: sie wird bei einer Mutation nur mit einer
+	// Wahrscheinlichkeit rot, denn der Test wartet nicht, bis CleanupBlobs die Sperre erreicht hat.
+	// Fänger der Zusage ist TryLock im Halt.
 	ch := u.cleanupAsync()
 	h.gib()
 	if err := <-fertig; err != nil {
@@ -208,6 +251,44 @@ func TestCommitMerktUnterSperre(t *testing.T) {
 	}
 	if e := <-ch; e.err != nil || e.b.Entfernt != 0 || !u.blobs.hat(rn) {
 		t.Errorf("CleanupBlobs: %v %+v, Datei vorhanden %v", e.err, e.b, u.blobs.hat(rn))
+	}
+}
+
+// TestKarenzUhr: CleanupBlobs bezieht Uhr.Now() genau einmal, nach dem Nehmen der Sperre und nach
+// dem Zurückstellen (W30).
+func TestKarenzUhr(t *testing.T) {
+	// (a) einmal für den Aufruf, nicht je Kandidat: drei Kandidaten, einer davon vom Wächter committet.
+	u := neu(t)
+	ra := u.commit("a")
+	u.blobs.lege(r("b"), r("c"))
+	vor := u.st.anzahl("Now")
+	c, err := u.cleanup(context.Background())
+	if n := u.st.anzahl("Now") - vor; n != 1 || err != nil || c.Entfernt != 2 || !u.blobs.hat(ra) {
+		t.Errorf("(a) %d-mal Now: %v %+v, Datei des Wächters vorhanden %v", n, err, c, u.blobs.hat(ra))
+	}
+
+	// (b) Now hält an: die Sperre ist genommen und FindOpen schon gerufen.
+	v := neu(t)
+	v.blobs.lege(r("b"))
+	h := v.st.halte("Now", 1)
+	t.Cleanup(h.gib)
+	ch := v.cleanupAsync()
+	warte(t, h.erreicht, "Now in CleanupBlobs")
+	sperreHalten(t, v, "Now in CleanupBlobs")
+	if got := v.p.mit("FindOpen"); len(got) != 1 {
+		t.Errorf("(b) im Halt von Now steht FindOpen nicht im Protokoll: %v", v.p.liste())
+	}
+	h.gib()
+	if e := <-ch; e.err != nil || e.b.Entfernt != 1 {
+		t.Errorf("(b) %v %+v", e.err, e.b)
+	}
+
+	// (c) Zurückgestellt: Now wird nicht gerufen.
+	x := neu(t)
+	x.blobs.lege(r("b"))
+	x.sessions.fuege("s1", dienstA, t0().Add(-time.Hour), model.SessionOpen)
+	if c, err := x.cleanup(context.Background()); err != nil || !c.Zurueckgestellt || x.st.anzahl("Now") != 0 {
+		t.Errorf("(c) %v %+v, Now %d-mal", err, c, x.st.anzahl("Now"))
 	}
 }
 
