@@ -72,21 +72,38 @@ func TestFehlerJeStufe(t *testing.T) {
 		{"zweite Lesung des Abgleichs", "ReferencedBlobs", 3, 16, berichtMit(3, 3, 0)},
 		{"Remove zweiter Kandidat", "Remove", 2, 18, berichtMit(3, 3, 1)},
 	}
-	for _, f := range faelle {
-		v := neu(t, mitMaxAge(30*tag))
-		grosserBestand(v)
-		v.st.scheitere(f.op, f.n, errDisk)
-		b, err := v.startup(context.Background())
-		code, status := codeVon(t, err)
-		if code != "ODR-E9001" || status != 500 || !errors.Is(err, errDisk) {
-			t.Errorf("%s: %v", f.name, err)
+	// Jeder Fall zweimal: mit errDisk (ODR-E9001) und mit einem Kontextfehler aus dem Fake (der ctx
+	// des Aufrufs bleibt unbeendet): unverändert, ohne Code, an derselben Stelle (W3 (g)).
+	for _, fehl := range []error{errDisk, context.Canceled} {
+		for _, f := range faelle {
+			v := neu(t, mitMaxAge(30*tag))
+			grosserBestand(v)
+			v.st.scheitere(f.op, f.n, fehl)
+			b, err := v.startup(context.Background())
+			pruefeFehlerArt(t, f.name, err, fehl)
+			if got := v.p.liste(); !slices.Equal(got, basis[:f.bis+1]) {
+				t.Errorf("%s, %v: Aufrufe\n%v\nerwartet\n%v", f.name, fehl, got, basis[:f.bis+1])
+			}
+			if !reflect.DeepEqual(b, f.bericht) {
+				t.Errorf("%s, %v: Bericht %+v, erwartet %+v", f.name, fehl, b, f.bericht)
+			}
 		}
-		if got := v.p.liste(); !slices.Equal(got, basis[:f.bis+1]) {
-			t.Errorf("%s: Aufrufe\n%v\nerwartet\n%v", f.name, got, basis[:f.bis+1])
+	}
+}
+
+// pruefeFehlerArt hält den Fehler einer Wartung gegen den Fehler, den der Fake lieferte: errDisk
+// wird ein *Fehler ODR-E9001 mit Status 500, ein Kontextfehler kehrt mit == zurück, ohne *Fehler.
+func pruefeFehlerArt(t *testing.T, name string, err, fehl error) {
+	t.Helper()
+	if fehl == context.Canceled {
+		if err != context.Canceled || errors.As(err, new(*inbound.Fehler)) {
+			t.Errorf("%s, Kontextfehler: %v", name, err)
 		}
-		if !reflect.DeepEqual(b, f.bericht) {
-			t.Errorf("%s: Bericht %+v, erwartet %+v", f.name, b, f.bericht)
-		}
+		return
+	}
+	code, status := codeVon(t, err)
+	if code != "ODR-E9001" || status != 500 || !errors.Is(err, fehl) {
+		t.Errorf("%s, %v: %v", name, fehl, err)
 	}
 }
 
@@ -118,20 +135,19 @@ func TestFehlerJeStufeBereinigung(t *testing.T) {
 		{"zweite Lesung", "ReferencedBlobs", 2, 3, 0},
 		{"Remove zweiter Kandidat", "Remove", 2, 5, 1},
 	}
-	for _, f := range faelle {
-		v := neu(t)
-		bestandBereinigung(v)
-		v.st.scheitere(f.op, f.n, errDisk)
-		b, err := v.cleanup(context.Background())
-		code, status := codeVon(t, err)
-		if code != "ODR-E9001" || status != 500 || !errors.Is(err, errDisk) {
-			t.Errorf("%s: %v", f.name, err)
-		}
-		if got := v.p.liste(); !slices.Equal(got, basis[:f.bis+1]) {
-			t.Errorf("%s: Aufrufe\n%v\nerwartet\n%v", f.name, got, basis[:f.bis+1])
-		}
-		if b != (inbound.Loeschbericht{Entfernt: f.entfernt}) {
-			t.Errorf("%s: Bericht %+v", f.name, b)
+	for _, fehl := range []error{errDisk, context.Canceled} {
+		for _, f := range faelle {
+			v := neu(t)
+			bestandBereinigung(v)
+			v.st.scheitere(f.op, f.n, fehl)
+			b, err := v.cleanup(context.Background())
+			pruefeFehlerArt(t, f.name, err, fehl)
+			if got := v.p.liste(); !slices.Equal(got, basis[:f.bis+1]) {
+				t.Errorf("%s, %v: Aufrufe\n%v\nerwartet\n%v", f.name, fehl, got, basis[:f.bis+1])
+			}
+			if b != (inbound.Loeschbericht{Entfernt: f.entfernt}) {
+				t.Errorf("%s, %v: Bericht %+v", f.name, fehl, b)
+			}
 		}
 	}
 }
