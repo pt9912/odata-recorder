@@ -641,6 +641,13 @@ func (r *fakeRecord) Drain(ctx context.Context, id string, frist time.Duration) 
 	return b, nil
 }
 
+// setzeBericht legt den Bericht fest, den Drain für id liefert.
+func (r *fakeRecord) setzeBericht(id string, b inbound.DrainBericht) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.berichte[id] = b
+}
+
 func (r *fakeRecord) aufrufe() []drainArg {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -723,6 +730,59 @@ func (c *verfallCtx) Err() error {
 }
 
 func (c *verfallCtx) verfalle() { c.verfallen.Store(true) }
+
+// endCtx ist ein Kontext, dessen Err und Done die ersten nOK Aufrufe (beide Methoden zählen zusammen)
+// als nicht beendet melden, Err mit nil und Done mit nil, und jeden weiteren als beendet, Err mit err
+// und Done mit einem geschlossenen Kanal: er endet zwischen zwei Aufrufen der Fakes, an der Stelle, die
+// nOK wählt, ohne dass eine Zeit vergeht. aufrufe zählt Err und Done; WithoutCancel davon behält den
+// Wert und liefert Err nil und Done nil, ohne ihn zu rufen.
+type endCtx struct {
+	wert    any
+	nOK     int
+	err     error
+	mu      sync.Mutex
+	gerufen int
+}
+
+func (*endCtx) Deadline() (time.Time, bool) { return time.Time{}, false }
+
+// beendet zählt einen Aufruf und sagt, ob der Kontext bei ihm beendet ist.
+func (c *endCtx) beendet() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.gerufen++
+	return c.gerufen > c.nOK
+}
+
+func (c *endCtx) Done() <-chan struct{} {
+	if !c.beendet() {
+		return nil
+	}
+	ch := make(chan struct{})
+	close(ch)
+	return ch
+}
+
+func (c *endCtx) Value(key any) any {
+	if key == (ctxSchluessel{}) {
+		return c.wert
+	}
+	return nil
+}
+
+func (c *endCtx) Err() error {
+	if c.beendet() {
+		return c.err
+	}
+	return nil
+}
+
+// aufrufe ist die Zahl der Aufrufe von Err und Done bisher.
+func (c *endCtx) aufrufe() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.gerufen
+}
 
 // --- Fang-Handler für slog ------------------------------------------------------------------
 

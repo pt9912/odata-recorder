@@ -254,13 +254,17 @@ func abwartenClose(t *testing.T, ch <-chan closeErgebnis, was string) closeErgeb
 	}
 }
 
-// TestCloseAllZugleich: CloseAll ruft Drain für alle Sessions zugleich mit derselben Frist, auch für
-// mehr, als eine plausible Begrenzung der Gleichzeitigkeit zuließe, und kehrt erst zurück, wenn jedes
-// SetStatus geschehen ist (B19, SPEC-124 Nr. 14 c). Die Barriere des ersten Falls läuft in Echtzeit ab
-// und nicht unter synctest, so dass auch eine Sperre mit sync.Mutex an der Barriere rot wird (siehe
-// TestBeendenGleichzeitig); ihr Ablaufen ist Rot.
+// zugleichGroessen sind die Zahlen offener Sessions von TestCloseAllZugleich; 1000 ist die größte.
+func zugleichGroessen() []int { return []int{3, 16, 64, 300, 1000} }
+
+// TestCloseAllZugleich: CloseAll ruft Drain für alle Sessions zugleich mit derselben Frist, für 3, 16,
+// 64, 300 und 1000 Sessions (zugleichGroessen), und kehrt erst zurück, wenn jedes SetStatus geschehen
+// ist (B19, SPEC-124 Nr. 14 c). Eine Begrenzung der Gleichzeitigkeit bis unter 1000 fängt der Test; eine
+// ab 1000 nicht (akzeptiertes Negativ, Plan §3 Zeile B19). Die Barriere des ersten Falls läuft in
+// Echtzeit ab und nicht unter synctest, so dass auch eine Sperre mit sync.Mutex an der Barriere rot wird
+// (siehe TestBeendenGleichzeitig); ihr Ablaufen ist Rot.
 func TestCloseAllZugleich(t *testing.T) {
-	for _, n := range []int{3, 16, 64} {
+	for _, n := range zugleichGroessen() {
 		t.Run(fmt.Sprintf("Drain zugleich, %d Sessions", n), func(t *testing.T) {
 			u := neuMehrere(t, n)
 			b := neueBarriere(n)
@@ -672,6 +676,47 @@ func TestCloseAllKontext(t *testing.T) {
 	})
 }
 
+// TestCtxEndetZwischenCloseAll: der Dienst prüft den Kontext nicht selbst; endet der Kontext zwischen zwei
+// Aufrufen von Err oder Done (nach dem n-ten, n = 1 bis 4), entscheidet allein der Fake, an dessen
+// Aufruf er endet (B25, SPEC-124 Nr. 2, 14 b, c). Eine Session: Err wird von FindOpen, Get und Drain je
+// einmal gerufen. Endet er nach FindOpen (n = 1), scheitert Get mit dem Kontextfehler unverändert:
+// Bericht {0, 1}, kein Eintrag, die Session open, kein Drain. Endet er später, ist die Session beendet:
+// Bericht {1, 0}. Jeder Aufruf von Err oder Done im Dienst ist rot (Zahl der Aufrufe). Schleife über
+// die Art des Kontextfehlers × n.
+func TestCtxEndetZwischenCloseAll(t *testing.T) {
+	for _, art := range []error{context.Canceled, context.DeadlineExceeded} {
+		for n := 1; n <= 4; n++ {
+			name := fmt.Sprintf("%v nach %d Aufrufen von Err", art, n)
+			ctx := &endCtx{wert: "w1", nOK: n, err: art}
+			u := neuMehrere(t, 1)
+			b, err := u.closeAll(ctx)
+			soll, gerufen, drains := inbound.CloseBericht{Beendet: 1}, 3, 1
+			var sollErr error
+			if n == 1 {
+				soll, gerufen, drains, sollErr = inbound.CloseBericht{Fehlgeschlagen: 1}, 2, 0, art
+			}
+			if err != sollErr || b != soll {
+				t.Errorf("%s: Bericht %+v, %v, erwartet %+v, %v", name, b, err, soll, sollErr)
+			}
+			if z := ctx.aufrufe(); z != gerufen {
+				t.Errorf("%s: Err und Done %d-mal gerufen, erwartet %d", name, z, gerufen)
+			}
+			if z := u.st.anzahl("Drain"); z != drains {
+				t.Errorf("%s: Drain %d-mal, erwartet %d", name, z, drains)
+			}
+			if z := u.st.anzahl("FindOpen"); z != 1 {
+				t.Errorf("%s: FindOpen %d-mal", name, z)
+			}
+			if z := len(u.log.alle()); z != 0 {
+				t.Errorf("%s: %d Einträge im Protokoll", name, z)
+			}
+			if s, want := u.sessions.statusVon(oid(1)), sollStatus(1); (n == 1 && s != model.SessionOpen) || (n > 1 && s != want) {
+				t.Errorf("%s: Status %q", name, s)
+			}
+		}
+	}
+}
+
 // pruefeEintrag hält einen Eintrag gegen SPEC-124 Nr. 9: Stufe, Text und genau die vier Attribute.
 func pruefeEintrag(t *testing.T, name string, e eintrag, service, session, code string) {
 	t.Helper()
@@ -1015,14 +1060,37 @@ func raceFehlsessions() []raceFehlsession {
 	}
 }
 
+// raceErfolg ist eine Form des Erfolgs von Beenden: die Exchanges einer Session, der Bericht von Drain und
+// der Status, den die Statusregel daraus bildet. Die Formen führen jeden Zweig der Statusregel aus
+// (SPEC-124 Nr. 12), den der Gutfall (lauter complete, Bericht aus Nullen) nicht ausführt.
+type raceErfolg struct {
+	vor       string
+	exchanges []model.CaptureStatus
+	bericht   inbound.DrainBericht
+	soll      model.SessionStatus
+}
+
+func raceErfolge() []raceErfolg {
+	c, i := model.CaptureComplete, model.CaptureIncomplete
+	return []raceErfolg{
+		{"inc", []model.CaptureStatus{c, i}, inbound.DrainBericht{}, model.SessionIncomplete},
+		{"nan", []model.CaptureStatus{c}, inbound.DrainBericht{NichtAngehaengt: 1}, model.SessionIncomplete},
+		{"abg", []model.CaptureStatus{c}, inbound.DrainBericht{Abgebrochen: 2}, model.SessionComplete},
+		{"mix", []model.CaptureStatus{i}, inbound.DrainBericht{Abgebrochen: 1, NichtAngehaengt: 2}, model.SessionIncomplete},
+		{"leer", nil, inbound.DrainBericht{}, model.SessionComplete},
+	}
+}
+
 // TestBeendenRace: der Dienst hält nach New keinen veränderlichen Zustand, auch nicht in Beenden und
 // CloseAll; unter -race meldet der Detektor jedes ungeordnete Paar auf den Pfaden, die der Test ausführt
-// (B30, SPEC-124 Nr. 10, 13): der Gutfall, die Verlierer gleichzeitiger Aufrufe, an jeder Aufrufstelle
-// (Get, Drain, ListBySession, SetStatus) ein Fehler mit Code und ein Kontextfehler, ODR-E7011 im
+// (B30, SPEC-124 Nr. 10, 13): der Gutfall und die Formen des Erfolgs von raceErfolge (Ergebnis
+// incomplete durch einen unvollständigen Exchange, durch NichtAngehaengt, Abgebrochen größer 0 mit
+// Ergebnis complete, keine Exchanges), die Verlierer gleichzeitiger Aufrufe, an jeder Aufrufstelle (Get,
+// Drain, ListBySession, SetStatus) ein Fehler mit Code und ein Kontextfehler, ODR-E7011 im
 // Statuswechsel und bei einer nicht offenen Session, die unbekannte Kennung und der nil-Kontext, in
-// Beenden wie in CloseAll. Jede Session endet mit genau einem gelungenen SetStatus, jedes ODR-E7011
-// gehört einem Verlierer. Was dieser Test nicht ausführt, meldet der Detektor nicht: Create mit Fehler
-// und Delete.
+// Beenden wie in CloseAll; CloseAll ohne offene Session führt TestCloseAllRaceLeer aus. Jede Session
+// endet mit genau einem gelungenen SetStatus, jedes ODR-E7011 gehört einem Verlierer. Was dieser Test
+// nicht ausführt, meldet der Detektor nicht: Create mit Fehler und Delete.
 func TestBeendenRace(t *testing.T) {
 	const gor, runden = 16, 50
 	u := neu(t)
@@ -1064,6 +1132,7 @@ func TestBeendenRace(t *testing.T) {
 	}
 	ctx := context.Background()
 	var keinCtx context.Context
+	erfolge := raceErfolge()
 	parallel(gor, func(g int) {
 		for j := 0; j < runden; j++ {
 			id := fmt.Sprintf("s-%d-%d", g, j)
@@ -1074,6 +1143,22 @@ func TestBeendenRace(t *testing.T) {
 			}
 			_, err := u.v.Beenden(ctx, id)
 			melde(id, err)
+			for _, e := range erfolge {
+				eid := fmt.Sprintf("%s-%d-%d", e.vor, g, j)
+				for _, c := range e.exchanges {
+					u.exchange.haenge(eid, c)
+				}
+				u.record.setzeBericht(eid, e.bericht)
+				if _, err := u.v.Create(ctx, dienstB, eid); err != nil {
+					t.Errorf("Create %s: %v", eid, err)
+					return
+				}
+				s, err := u.v.Beenden(ctx, eid)
+				melde(eid, err)
+				if err == nil && s.Status != e.soll {
+					t.Errorf("Beenden %s: Status %q, erwartet %q", eid, s.Status, e.soll)
+				}
+			}
 			gem := fmt.Sprintf("gem-%d-%d", g/2, j)
 			_, err = u.v.Beenden(ctx, gem)
 			melde(gem, err)
@@ -1142,7 +1227,35 @@ func TestBeendenRace(t *testing.T) {
 			if s := u.sessions.statusVon(fmt.Sprintf("s-%d-%d", g, j)); s == model.SessionOpen {
 				t.Errorf("s-%d-%d bleibt open", g, j)
 			}
+			for _, e := range erfolge {
+				if s := u.sessions.statusVon(fmt.Sprintf("%s-%d-%d", e.vor, g, j)); s != e.soll {
+					t.Errorf("%s-%d-%d: Status %q, erwartet %q", e.vor, g, j, s, e.soll)
+				}
+			}
 		}
+	}
+}
+
+// TestCloseAllRaceLeer: CloseAll gegen einen Bestand ohne offene Session, in gleichzeitigen Aufrufen;
+// unter -race meldet der Detektor einen Zustand des Dienstes im Zweig ohne Session (B30, SPEC-124
+// Nr. 10, 14 b). Der Bestand führt nicht offene Sessions, FindOpen liefert die leere Liste.
+func TestCloseAllRaceLeer(t *testing.T) {
+	u := neu(t)
+	u.dienst(dienstA)
+	u.sessions.fuege("c1", dienstA, erzeugt(1), model.SessionComplete)
+	u.sessions.fuege("i1", dienstA, erzeugt(2), model.SessionIncomplete)
+	parallel(16, func(int) {
+		for j := 0; j < 50; j++ {
+			if b, err := u.v.CloseAll(context.Background()); b != (inbound.CloseBericht{}) || err != nil {
+				t.Errorf("CloseAll: %+v, %v", b, err)
+			}
+		}
+	})
+	if n := u.st.anzahl("Drain"); n != 0 {
+		t.Errorf("Drain %d-mal", n)
+	}
+	if n := len(u.log.alle()); n != 0 {
+		t.Errorf("%d Einträge im Protokoll", n)
 	}
 }
 
@@ -1210,7 +1323,8 @@ func TestCloseAllVerschwunden(t *testing.T) {
 
 // TestCloseAllKennungen: CloseAll reicht die Kennung jeder offenen Session unverändert an Get, Drain,
 // ListBySession und SetStatus, ob sie in der Form liegt oder nicht; der Bestand trägt die Nachbarn jeder
-// Kennung offen (B18, SPEC-124 Nr. 4, 14 b). Schleife über Kennungsform × Aufrufstelle.
+// Kennung offen (B18, SPEC-124 Nr. 4, 14 b). Schleife über Kennungsform (kennungsformen: jede Form von
+// Nr. 4 und die Grenzen der Länge) × Aufrufstelle.
 func TestCloseAllKennungen(t *testing.T) {
 	ids := kennungsformen()
 	u := neu(t)
@@ -1240,10 +1354,24 @@ func TestCloseAllKennungen(t *testing.T) {
 }
 
 // TestCloseAllKontextNeben: ein Kontextfehler neben jeder Zeile der Tabelle von SPEC-109 Nr. 5 kehrt
-// aus jeder Aufrufstelle unverändert als Fehler von CloseAll zurück, ohne Code und ohne Eintrag, und die
-// übrigen Sessions werden beendet (B20, B26, SPEC-124 Nr. 2, 9, 14 d). Schleife über Stelle × Zeile ×
-// Form des Kontextfehlers.
+// aus jeder der fünf Aufrufstellen von CloseAll (FindOpen und die vier von Beenden: Get, Drain,
+// ListBySession, SetStatus) unverändert als Fehler von CloseAll zurück, ohne Code und ohne Eintrag; bei
+// den vier Stellen von Beenden werden die übrigen Sessions beendet, bei FindOpen folgt kein Port (B20,
+// B24, B26, SPEC-124 Nr. 2, 9, 14 b, d). Schleife über Stelle × Zeile × Form des Kontextfehlers.
 func TestCloseAllKontextNeben(t *testing.T) {
+	for _, z := range tabellenzeilen() {
+		for _, komb := range kontextKombinationen(z) {
+			name := fmt.Sprintf("FindOpen, %s, %s", z.name, komb.name)
+			u := neuMehrere(t, 3)
+			u.st.scheitere("FindOpen", 1, komb.err)
+			ctx := ctxMitWert()
+			b, err := u.closeAll(ctx)
+			if err != komb.err || b != (inbound.CloseBericht{}) {
+				t.Errorf("%s: Bericht %+v, Fehler %v, erwartet den Fehler unverändert", name, b, err)
+			}
+			pruefeNichtsDanach(ctx, t, name, u)
+		}
+	}
 	for _, st := range stellenBeenden() {
 		for _, z := range tabellenzeilen() {
 			for _, komb := range kontextKombinationen(z) {

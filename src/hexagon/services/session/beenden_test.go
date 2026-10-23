@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -343,8 +344,9 @@ func TestLesenNachDrain(t *testing.T) {
 	}
 }
 
-// TestStatusregel: ein Fall je Element der Menge und je Position (B8, SPEC-124 Nr. 12). Der Fake von
-// SetStatus bricht den Test bei einem Status außer complete und incomplete ab.
+// TestStatusregel: ein Fall je Element der Menge und je Position bei Mengen bis zu drei Exchanges (B8,
+// SPEC-124 Nr. 12); größere Mengen führt TestStatusregelMenge. Der Fake von SetStatus bricht den Test
+// bei einem Status außer complete und incomplete ab.
 func TestStatusregel(t *testing.T) {
 	c, i, f := model.CaptureComplete, model.CaptureIncomplete, model.CaptureFailed
 	faelle := []struct {
@@ -374,11 +376,65 @@ func TestStatusregel(t *testing.T) {
 		{"Abgebrochen 3 mit failed", []model.CaptureStatus{c, f, c}, inbound.DrainBericht{Abgebrochen: 3}, model.SessionIncomplete},
 	}
 	for _, fall := range faelle {
-		u := neuBeenden(t, fall.exchanges...)
-		u.record.bericht = fall.bericht
-		s, err := u.beenden(context.Background(), sid)
-		if err != nil || s.Status != fall.soll || u.sessions.statusVon(sid) != fall.soll {
-			t.Errorf("%s: Ergebnis %+v, %v, Ablage %q, erwartet %q", fall.name, s, err, u.sessions.statusVon(sid), fall.soll)
+		pruefeStatus(t, fall.name, fall.exchanges, fall.bericht, fall.soll)
+	}
+}
+
+// pruefeStatus beendet die Session sid mit den Exchanges und dem Bericht von Drain und prüft Ergebnis
+// und Ablage gegen den erwarteten Status.
+func pruefeStatus(t *testing.T, name string, exchanges []model.CaptureStatus, bericht inbound.DrainBericht, soll model.SessionStatus) {
+	t.Helper()
+	u := neuBeenden(t, exchanges...)
+	u.record.bericht = bericht
+	s, err := u.beenden(context.Background(), sid)
+	if err != nil || s.Status != soll || u.sessions.statusVon(sid) != soll {
+		t.Errorf("%s: Ergebnis %+v, %v, Ablage %q, erwartet %q", name, s, err, u.sessions.statusVon(sid), soll)
+	}
+}
+
+// mengenGroessen sind die Größen der Mengen von TestStatusregelMenge; 10000 ist die größte.
+func mengenGroessen() []int {
+	return []int{1, 2, 3, 4, 5, 8, 9, 16, 63, 64, 65, 100, 127, 128, 129, 150, 1000, 10000}
+}
+
+// positionen nennt die Stellen einer Menge der Größe n, an die TestStatusregelMenge den abweichenden
+// Exchange setzt: bis 16 Elemente jede Stelle, darüber die ersten beiden, die Mitte mit ihren Nachbarn
+// und die letzten beiden.
+func positionen(n int) []int {
+	if n <= 16 {
+		alle := make([]int, n)
+		for i := range alle {
+			alle[i] = i
+		}
+		return alle
+	}
+	return []int{0, 1, n/2 - 1, n / 2, n/2 + 1, n - 2, n - 1}
+}
+
+// TestStatusregelMenge: die Regel gilt für jeden gelieferten Exchange, gleich wie groß die Menge ist
+// und an welcher Stelle der abweichende steht (B8, SPEC-124 Nr. 12). Schleife über Größe × Stelle × Art
+// des abweichenden Exchanges (incomplete, failed, leerer und unbekannter Wert); Größen 1 bis 10000
+// (mengenGroessen), Stellen nach positionen. Eine Obergrenze der geprüften Exchanges bis unter 10000
+// fängt der Test; eine ab 10000 nicht (akzeptiertes Negativ, Plan §3 Zeile B8). Dazu je Größe: lauter
+// complete ergibt complete, NichtAngehaengt 1 incomplete, Abgebrochen 3 complete.
+func TestStatusregelMenge(t *testing.T) {
+	c := model.CaptureComplete
+	abweichend := []model.CaptureStatus{model.CaptureIncomplete, model.CaptureFailed, "", "x"}
+	for _, n := range mengenGroessen() {
+		lauter := make([]model.CaptureStatus, n)
+		for i := range lauter {
+			lauter[i] = c
+		}
+		name := fmt.Sprintf("%d Exchanges", n)
+		pruefeStatus(t, name+", lauter complete", lauter, inbound.DrainBericht{}, model.SessionComplete)
+		pruefeStatus(t, name+", NichtAngehaengt 1", lauter, inbound.DrainBericht{NichtAngehaengt: 1}, model.SessionIncomplete)
+		pruefeStatus(t, name+", Abgebrochen 3", lauter, inbound.DrainBericht{Abgebrochen: 3}, model.SessionComplete)
+		for _, pos := range positionen(n) {
+			for _, abw := range abweichend {
+				cs := slices.Clone(lauter)
+				cs[pos] = abw
+				pruefeStatus(t, fmt.Sprintf("%s, %q an Stelle %d", name, abw, pos), cs, inbound.DrainBericht{}, model.SessionIncomplete)
+			}
 		}
 	}
 }
@@ -697,6 +753,34 @@ func TestCtxBeenden(t *testing.T) {
 	})
 }
 
+// TestCtxEndetZwischen: der Dienst prüft den Kontext nicht selbst; endet der Kontext zwischen zwei
+// Aufrufen (Err und Done melden ihn nach dem n-ten Aufruf als beendet, n = 1 bis 4: zwischen Get und
+// Drain, in Drain, danach), ist Beenden gelungen und trägt den Status (B12, SPEC-124 Nr. 2, 11 d).
+// Schleife über die Art des Kontextfehlers × n. Den Kontext wertet allein der Fake aus: Err und Done
+// werden zusammen genau zweimal gerufen, von Get und von Drain; jeder weitere Aufruf von Err oder
+// Done im Dienst, wo auch immer, ist rot.
+func TestCtxEndetZwischen(t *testing.T) {
+	for _, art := range []error{context.Canceled, context.DeadlineExceeded} {
+		for n := 1; n <= 4; n++ {
+			name := fmt.Sprintf("%v nach %d Aufrufen von Err", art, n)
+			ctx := &endCtx{wert: "w1", nOK: n, err: art}
+			u := neuBeenden(t, model.CaptureComplete)
+			s, err := u.beenden(ctx, sid)
+			if err != nil || s.Status != model.SessionComplete || u.sessions.statusVon(sid) != model.SessionComplete {
+				t.Errorf("%s: Ergebnis %+v, %v, Ablage %q", name, s, err, u.sessions.statusVon(sid))
+			}
+			for _, st := range stellenBeenden() {
+				if z := u.st.anzahl(st.op); z != 1 {
+					t.Errorf("%s: %s %d-mal", name, st.name, z)
+				}
+			}
+			if z := ctx.aufrufe(); z != 2 {
+				t.Errorf("%s: Err und Done %d-mal gerufen, erwartet 2 (Get und Drain)", name, z)
+			}
+		}
+	}
+}
+
 // TestFristBeenden: die frist jedes Drain ist Frist der Konfig unverändert, die id die der Session,
 // genau ein Aufruf (B13, SPEC-124 Nr. 1, 11 d).
 func TestFristBeenden(t *testing.T) {
@@ -797,12 +881,27 @@ func TestBeendenProtokollLeer(t *testing.T) {
 	}
 }
 
-// kennungsformen nennt Kennungen außerhalb der Form von SPEC-124 Nr. 4 mit ihren Nachbarn: Groß- und
-// Kleinschreibung, Leerzeichen am Rand, eine Kennung als Präfix einer anderen. Der Bestand der Tests
-// führt jede offen; "Ab c" und "ab c", "r1", "R1" und die Formen von " r1 " gehen durch Klein- oder
-// Großschreibung und Entfernen der Leerzeichen ineinander über.
+// kennungsformen nennt jede Form einer Kennung, die SPEC-124 Nr. 4 als außerhalb der Form bezeichnet
+// (Großbuchstaben, _ . / :, Leerzeichen, Steuerzeichen, NUL, jedes Byte ab 0x80 als gültiges und als
+// ungültiges UTF-8, mehr als 64 Bytes), dazu die Grenzen der Länge (63, 64, 65 und 70 Bytes) und je
+// Form die Nachbarn, in die eine Umschreibung sie überführen würde (Schreibweise, Entfernen oder
+// Ersetzen des Zeichens, Kürzen, Trimmen von - am Rand, Abschneiden am NUL). Der Bestand der Tests führt
+// jede offen. Die leere Kennung steht nicht darin: kein Bestand führt sie, TestBeendenPruefung führt
+// sie als unbekannt.
 func kennungsformen() []string {
-	return []string{"r1", "R1", " r1 ", " r1", "r1 ", "R1 ", "Ab c", "ab c", "r1x", "r"}
+	return []string{
+		// Schreibweise, Leerzeichen am Rand, Präfix
+		"r1", "R1", " r1 ", " r1", "r1 ", "R1 ", "Ab c", "ab c", "r1x", "r",
+		// Zeichen außerhalb von 0-9a-z- und ihre Nachbarn
+		"a", "ab", "a-b", "a_b", "a.b", "a/b", "a:b", "A", "%41", "a%2fb",
+		"a\tb", "a\nb", "a\x00b", "a\x7f", "a\x00",
+		// Bytes ab 0x80: gültiges UTF-8 (auch zwei Schreibweisen desselben Zeichens), ungültiges
+		"1", "ä1", "Ä1", "é", "é", "a\xffb", "\xff1",
+		// - am Rand
+		"-a", "a-", "-a-", "--",
+		// Länge: 63, 64 (die Grenze der Form), 65 und 70 Bytes
+		strings.Repeat("a", 63), strings.Repeat("a", 64), strings.Repeat("a", 65), strings.Repeat("a", 70),
+	}
 }
 
 // bestandKennungen legt jede Kennung als offene Session des Dienstes mit einem vollständigen
@@ -816,8 +915,9 @@ func (u *welt) bestandKennungen(ids []string) {
 }
 
 // TestKennungenBeenden: jede Aufrufstelle von Beenden (Get, Drain, ListBySession, SetStatus) erhält die
-// Kennung unverändert, ob sie in der Form liegt oder nicht; der Bestand trägt die Nachbarn jeder
-// Kennung offen (B4, SPEC-124 Nr. 4, 11 b). Schleife über Kennungsform × Aufrufstelle.
+// Kennung unverändert, ob sie in der Form liegt oder nicht, und beendet allein diese Session; der
+// Bestand trägt die Nachbarn jeder Kennung offen (B4, SPEC-124 Nr. 4, 11 b). Schleife über Kennungsform
+// (kennungsformen: jede Form von Nr. 4 und die Grenzen der Länge) × Aufrufstelle.
 func TestKennungenBeenden(t *testing.T) {
 	ids := kennungsformen()
 	for _, k := range ids {
