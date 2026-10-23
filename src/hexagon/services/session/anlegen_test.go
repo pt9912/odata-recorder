@@ -301,12 +301,15 @@ func ctxVon(ohne bool) context.Context {
 // TestOpenInitialSession: OpenInitialSession ist Create mit leerer id: dieselbe Session, dieselben
 // Ereignisse und Zähler, dieselben Fehler (V8).
 func TestOpenInitialSession(t *testing.T) {
+	// Das erste Now() trägt einen Bruchteil einer Sekunde und gleicht keinem gekürzten Wert.
+	const bruchteil = 123456789 * time.Nanosecond
+	nachkomma := func(u *welt) { u.uhr.Advance(bruchteil) }
 	faelle := map[string]struct {
 		vorbereite func(*welt)
 		dienst     string
 		ohneCtx    bool
 	}{
-		"Gutfall":           {nil, dienstA, false},
+		"Gutfall":           {nachkomma, dienstA, false},
 		"serviceID leer":    {nil, "", false},
 		"Service unbekannt": {func(u *welt) { u.st.scheitere("Sessions.Create", 1, verpackt(outbound.ErrDienstUnbekannt)) }, dienstA, false},
 		"Kennung vergeben":  {func(u *welt) { u.sessions.fuege(sesID(1), dienstB, t0(), model.SessionComplete) }, dienstA, false},
@@ -325,8 +328,8 @@ func TestOpenInitialSession(t *testing.T) {
 		}
 	}
 	// Die Werte selbst, damit Gleichheit zweier gleich falscher Läufe nicht genügt.
-	g := fuehre(t, nil, func(u *welt) (model.Session, error) { return u.v.OpenInitialSession(context.Background(), dienstA) })
-	if soll := (model.Session{ID: sesID(1), ServiceID: dienstA, CreatedAt: t0(), Status: model.SessionOpen}); g.s != soll || g.fehl != "nil" {
+	g := fuehre(t, nachkomma, func(u *welt) (model.Session, error) { return u.v.OpenInitialSession(context.Background(), dienstA) })
+	if soll := (model.Session{ID: sesID(1), ServiceID: dienstA, CreatedAt: t0().Add(bruchteil), Status: model.SessionOpen}); g.s != soll || g.fehl != "nil" {
 		t.Errorf("Gutfall: %+v %s", g.s, g.fehl)
 	}
 	for name, soll := range map[string]string{"Service unbekannt": "ODR-E5005 404", "Kennung vergeben": "ODR-E7010 409"} {

@@ -39,6 +39,8 @@ func TestDelete(t *testing.T) {
 		{name: "unbekannter Status", status: "zz", ev: []string{get, del, bereinige}},
 		{name: "Kennung mit Leerzeichen", id: "Ab c", status: model.SessionComplete,
 			ev: []string{"Sessions.Get(Ab c)", "Sessions.Delete(Ab c)", bereinige}},
+		{name: "Kennung mit Leerzeichen am Rand", id: " r1 ", status: model.SessionComplete,
+			ev: []string{"Sessions.Get( r1 )", "Sessions.Delete( r1 )", bereinige}},
 		{name: "referenziert", status: model.SessionComplete, ev: []string{get, del}, code: "ODR-E7004", http: 409,
 			setup: func(u *welt) { u.st.scheitere("Sessions.Delete", 1, verpackt(outbound.ErrReferenziert)) }},
 		{name: "Delete: nicht gefunden", status: model.SessionComplete, ev: []string{get, del}, code: "ODR-E7003", http: 404,
@@ -215,6 +217,8 @@ func TestProtokollNurBereinigung(t *testing.T) {
 	ende, cancel := context.WithCancel(bg)
 	cancel()
 	var keinCtx context.Context
+	spaet, beendeSpaet := context.WithCancel(bg)
+	defer beendeSpaet()
 	cr := func(ctx context.Context, d, id string) func(*welt) error {
 		return func(u *welt) error { _, err := u.create(ctx, d, id); return err }
 	}
@@ -265,6 +269,11 @@ func TestProtokollNurBereinigung(t *testing.T) {
 		{"List: Sessions.List unbekannt", scheitere("Sessions.List", 1, verpackt(outbound.ErrNichtGefunden)), li(bg), true},
 		{"List: nil-ctx", nil, li(keinCtx), true},
 		{"List: ctx beendet", nil, li(ende), true},
+		{"List: ctx endet im zweiten Sessions.List", func(u *welt) { u.st.bei("Sessions.List", 2, beendeSpaet) }, li(spaet), true},
+		{"List: Canceled aus dem zweiten Sessions.List", scheitere("Sessions.List", 2, context.Canceled), li(bg), true},
+		{"List: DeadlineExceeded aus dem zweiten Sessions.List", scheitere("Sessions.List", 2, context.DeadlineExceeded), li(bg), true},
+		{"Delete: Canceled aus Sessions.Delete", scheitere("Sessions.Delete", 1, context.Canceled), de(bg, "s1"), true},
+		{"Delete: DeadlineExceeded aus Sessions.Delete", scheitere("Sessions.Delete", 1, context.DeadlineExceeded), de(bg, "s1"), true},
 		{"Delete Erfolg, Bereinigung gelungen", nil, de(bg, "s1"), false},
 		{"Delete: unbekannt", nil, de(bg, "nix"), true},
 		{"Delete: offen", func(u *welt) { u.sessions.fuege("o1", dienstA, t0(), model.SessionOpen) }, de(bg, "o1"), true},

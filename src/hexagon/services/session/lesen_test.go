@@ -23,6 +23,11 @@ func TestGet(t *testing.T) {
 	}
 	u.sessions.fuege("Ab c", dienstB, t0().Add(7*time.Hour), model.SessionComplete)
 	soll["Ab c"] = model.Session{ID: "Ab c", ServiceID: dienstB, CreatedAt: t0().Add(7 * time.Hour), Status: model.SessionComplete}
+	// Leerzeichen am Rand gehören zur Kennung: neben " r1 " besteht "r1" als andere Session.
+	u.sessions.fuege(" r1 ", dienstB, t0().Add(8*time.Hour), model.SessionComplete)
+	soll[" r1 "] = model.Session{ID: " r1 ", ServiceID: dienstB, CreatedAt: t0().Add(8 * time.Hour), Status: model.SessionComplete}
+	u.sessions.fuege("r1", dienstC, t0().Add(9*time.Hour), model.SessionIncomplete)
+	soll["r1"] = model.Session{ID: "r1", ServiceID: dienstC, CreatedAt: t0().Add(9 * time.Hour), Status: model.SessionIncomplete}
 	var erwartet []string
 	for id, s := range soll {
 		got, err := u.get(context.Background(), id)
