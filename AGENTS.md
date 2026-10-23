@@ -187,6 +187,7 @@ Wer einen neuen Vertrag liefert (Format, Fehlercode, Leser, Gate, Option), schre
 Der Bericht nennt je Zusage: Zusage · Mutation · roter Test.
 Ein Test zählt nur, wenn er aus dem benannten Grund rot wird, nicht weil der Aufbau bricht.
 Wird ein Fänger nur mit Wahrscheinlichkeit rot, nennt der Bericht seine Rate je Mutation und je Lauf von `go test`; „hoch“ steht nur mit Zahl.
+Der Implementer trägt dieselbe Tabelle und die Raten mit Zahl der Prozesse und Messendem in einen Absatz von §3 des Plans ein, denn der Bericht allein genügt nicht: Reviewer und Verifier haben ihn nicht, und sie messen weiter selbst.
 Wo ein Vertrag eine Zusage über Nebenläufigkeit macht (Sperre, Zähler, Reihenfolge), gilt sie nur als gefangen, wenn die Mutation in jedem Lauf rot wird.
 Ein Datenrennen zählt der Detektor von `make test-race` je Prozess (`-test.count=1`; er meldet dasselbe Rennen in einem Prozess nur einmal, ein `-count=20` zeigt es nicht), jede andere Wirkung eine Wiederholung (`-count=20`).
 Sonst bekommt die Zusage einen Wirkungs-Fänger, der die Wirkung zählt statt auf ein Datenrennen zu warten, oder steht als akzeptiertes Negativ mit Grund im Plan; das trifft, was der Detektor nicht meldet: einen Zugriff, den kein Lauf ausführt, Prüfen und Handeln in getrennten Abschnitten bei lauter geordneten Zugriffen und ein Modul unter `tools/`.
