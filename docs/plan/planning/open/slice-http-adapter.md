@@ -39,6 +39,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Race-Detektor):** Die nebenläufigen Tests des Pakets laufen im Ziel mit `go test -race`, das `slice-race-gate` als `make test-race` an `make gates` hängt (Sendung von `slice-race-gate`); dessen Vertrag führt keine Liste der Pakete, sondern fährt alle Pakete der Stufe `source` (`SPEC-122` Nr. 2), so dass `httpodata` ohne Eintrag darunter fällt und dieser Slice dafür nichts ändert.
 
+**Übernimmt (Herunterfahren):** Der Listener schließt in zwei Schritten, die der Aufrufer getrennt ruft: erstens keine neuen Requests mehr annehmen (neue Requests auf bestehenden Verbindungen 503), zweitens laufende Requests höchstens eine Frist abwarten, die der Aufrufer übergibt, und die Verbindungen schließen. Der Composition Root ruft zwischen beiden `SessionUseCase.CloseAll` (`SPEC-124` Nr. 14, `LH-FA-02.c`), das im Modus `record` die laufenden Exchanges bis `SHUTDOWN_TIMEOUT` abwartet und die überfälligen abbricht; der Adapter wartet im ersten Schritt nicht auf laufende Requests und im zweiten nicht noch einmal `SHUTDOWN_TIMEOUT`, sonst dauert das Herunterfahren die Summe beider Fristen (Sendung von `slice-session-beenden`, `AGENTS.md` §3.13; der Fänger gehört in die Tabelle *Zusage · Fänger* dieses Slice).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Entscheidungen über Cursor, Match-Key, Coverage oder CRUD — der Adapter entscheidet sie nicht (`architecture.md` §2.2).
@@ -65,7 +67,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Abbildung und Streaming: Request und Response ohne Veränderung der Bytes, geliehene kontextgebundene Ströme, Schließen durch den Adapter; Fehlerobjekt nach `SPEC-006` mit Code, Status und Korrelations-ID aus der Tabelle der Codes.
-- [ ] Lebenszyklus: Listener öffnen und schließen, bei SIGTERM-Ablauf neue Requests mit 503 abweisen, laufende bis `SHUTDOWN_TIMEOUT` abwarten; Transportfehler vor dem ersten Byte als Gateway-Status, danach keine Änderung des Status (`LH-FA-02.b`).
+- [ ] Lebenszyklus: Listener öffnen und schließen, bei SIGTERM-Ablauf neue Requests mit 503 abweisen, laufende bis `SHUTDOWN_TIMEOUT` abwarten, und zwar in zwei getrennten Schritten (Annahme beenden, dann Verbindungen mit der Frist des Aufrufers schließen), zwischen denen der Composition Root `CloseAll` ruft (Sendung von `slice-session-beenden`, `SPEC-124` Nr. 14); Transportfehler vor dem ersten Byte als Gateway-Status, danach keine Änderung des Status (`LH-FA-02.b`).
 - [ ] Tests über `httptest` gegen Fakes der Inbound Ports, ohne SQLite; die nebenläufigen laufen im Ziel mit `-race` aus `slice-race-gate` (Sendung von `slice-race-gate`).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
