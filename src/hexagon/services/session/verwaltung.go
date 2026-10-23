@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
@@ -18,17 +19,22 @@ import (
 const MaxIDLaenge = 64
 
 // Konfig ist die Konfiguration des Dienstes (SPEC-124 Nr. 1). Dienste dient allein List, Wartung
-// allein der Bereinigung nach dem Löschen.
+// allein der Bereinigung nach dem Löschen. Record, Exchanges und Frist dienen allein dem Beenden:
+// Record ist der RecordUseCase, den auch der HTTP-Adapter ruft, Frist der Wert von
+// SHUTDOWN_TIMEOUT und die frist jedes Aufrufs von Drain.
 type Konfig struct {
-	Sessions outbound.SessionRepository
-	Dienste  outbound.MetadataRepository
-	Wartung  inbound.MaintenanceUseCase
-	Uhr      support.Clock
-	IDs      support.IDGenerator
-	Log      *slog.Logger
+	Sessions  outbound.SessionRepository
+	Dienste   outbound.MetadataRepository
+	Wartung   inbound.MaintenanceUseCase
+	Uhr       support.Clock
+	IDs       support.IDGenerator
+	Log       *slog.Logger
+	Record    inbound.RecordUseCase
+	Exchanges outbound.RecordingRepository
+	Frist     time.Duration
 }
 
-// Verwaltung setzt die Operationen der Verwaltung um. Sie hält keinen Zustand außer ihrer
+// Verwaltung setzt die Operationen von SessionUseCase um. Sie hält keinen Zustand außer ihrer
 // Konfiguration (SPEC-124 Nr. 10).
 type Verwaltung struct {
 	k Konfig
@@ -38,6 +44,12 @@ type Verwaltung struct {
 func New(k Konfig) (*Verwaltung, error) {
 	if k.Sessions == nil || k.Dienste == nil || k.Wartung == nil || k.Uhr == nil || k.IDs == nil || k.Log == nil {
 		return nil, errors.Join(model.ErrUngueltig, errors.New("Port, Uhr, Generator oder Log fehlt"))
+	}
+	if k.Record == nil || k.Exchanges == nil {
+		return nil, errors.Join(model.ErrUngueltig, errors.New("Record oder Exchanges fehlt"))
+	}
+	if k.Frist < 0 {
+		return nil, errors.Join(model.ErrUngueltig, errors.New("Frist ist negativ"))
 	}
 	return &Verwaltung{k: k}, nil
 }

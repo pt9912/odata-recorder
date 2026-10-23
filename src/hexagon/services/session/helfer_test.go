@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -62,15 +63,44 @@ type aufruf struct {
 // steuerung zählt die Aufrufe je Operation und lässt den n-ten Aufruf scheitern oder eine Aktion
 // ausführen; n 0 gilt für jeden Aufruf.
 type steuerung struct {
-	mu      sync.Mutex
-	zaehler map[string]int
-	fehler  map[aufruf]error
-	aktion  map[aufruf]func()
-	ctxs    map[string][]context.Context
+	mu       sync.Mutex
+	zaehler  map[string]int
+	fehler   map[aufruf]error
+	aktion   map[aufruf]func()
+	ctxs     map[string][]context.Context
+	fehlerID map[[2]string]error
+	aktionID map[[2]string]func()
 }
 
 func neueSteuerung() *steuerung {
-	return &steuerung{zaehler: map[string]int{}, fehler: map[aufruf]error{}, aktion: map[aufruf]func(){}, ctxs: map[string][]context.Context{}}
+	return &steuerung{
+		zaehler: map[string]int{}, fehler: map[aufruf]error{}, aktion: map[aufruf]func(){}, ctxs: map[string][]context.Context{},
+		fehlerID: map[[2]string]error{}, aktionID: map[[2]string]func(){},
+	}
+}
+
+// scheitereFuer lässt jeden Aufruf von op mit der Kennung id scheitern, unabhängig von der Reihenfolge der Aufrufe.
+func (s *steuerung) scheitereFuer(op, id string, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.fehlerID[[2]string{op, id}] = err
+}
+
+// beiFuer führt f in jedem Aufruf von op mit der Kennung id aus.
+func (s *steuerung) beiFuer(op, id string, f func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.aktionID[[2]string{op, id}] = f
+}
+
+// halteFuer hält jeden Aufruf von op mit der Kennung id an.
+func (s *steuerung) halteFuer(op, id string) *halt {
+	h := &halt{erreicht: make(chan struct{}), frei: make(chan struct{})}
+	s.beiFuer(op, id, func() {
+		close(h.erreicht)
+		<-h.frei
+	})
+	return h
 }
 
 // sehe hält den ctx fest, den der Aufruf von op erhielt; ein nil-ctx wird festgehalten, nicht
@@ -91,6 +121,12 @@ func (s *steuerung) gesehen(op string) []context.Context {
 // vor zählt den Aufruf, führt die Aktion aus und liefert dann den Fehler des Kontexts, sonst den
 // eingestellten Fehler. Ein nil-ctx panict beim Auswerten von cerr, vor dem Zählen.
 func (s *steuerung) vor(op string, cerr func() error) error {
+	return s.vorMit(op, "", cerr)
+}
+
+// vorMit ist vor für einen Aufruf mit der Kennung id: nach der Aktion des n-ten Aufrufs läuft die
+// Aktion der Kennung, nach dem Fehler des n-ten Aufrufs gilt der Fehler der Kennung.
+func (s *steuerung) vorMit(op, id string, cerr func() error) error {
 	s.mu.Lock()
 	s.zaehler[op]++
 	n := s.zaehler[op]
@@ -102,16 +138,27 @@ func (s *steuerung) vor(op string, cerr func() error) error {
 	if !ok {
 		f = s.fehler[aufruf{op, 0}]
 	}
+	var aID func()
+	var fID error
+	if id != "" {
+		aID, fID = s.aktionID[[2]string{op, id}], s.fehlerID[[2]string{op, id}]
+	}
 	s.mu.Unlock()
 	if a != nil {
 		a()
+	}
+	if aID != nil {
+		aID()
 	}
 	if cerr != nil {
 		if err := cerr(); err != nil {
 			return err
 		}
 	}
-	return f
+	if f != nil {
+		return f
+	}
+	return fID
 }
 
 func (s *steuerung) scheitere(op string, n int, err error) {
@@ -258,6 +305,33 @@ type fakeSessions struct {
 	mu         sync.Mutex
 	alle       map[string]model.Session
 	nachDelete func()
+	// beiSetStatus läuft vor dem Statuswechsel mit dem erhaltenen ctx und der Kennung.
+	beiSetStatus func(ctx context.Context, id string)
+	// gesetzt hält den Status jedes Aufrufs von SetStatus je Kennung fest, erfolge die gelungenen.
+	gesetzt map[string][]model.SessionStatus
+	erfolge map[string]int
+	// feste Liste von FindOpen; nil heißt: die offenen Sessions des Bestands.
+	feste *[]model.Session
+}
+
+// setzeOffene legt fest, was FindOpen liefert, auch nil.
+func (s *fakeSessions) setzeOffene(liste []model.Session) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.feste = &liste
+}
+
+// statusVon liefert den Status der Session im Bestand.
+func (s *fakeSessions) statusVon(id string) model.SessionStatus {
+	x, _ := s.hat(id)
+	return x.Status
+}
+
+// versuche liefert die Zahl der Aufrufe von SetStatus für id, die Zahl der gelungenen und die Status.
+func (s *fakeSessions) versuche(id string) (int, int, []model.SessionStatus) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.gesetzt[id]), s.erfolge[id], slices.Clone(s.gesetzt[id])
 }
 
 func (s *fakeSessions) fuege(id, dienst string, erzeugt time.Time, status model.SessionStatus) {
@@ -300,7 +374,7 @@ func (s *fakeSessions) Create(ctx context.Context, x model.Session) error {
 func (s *fakeSessions) Get(ctx context.Context, id string) (model.Session, error) {
 	s.p.melde("Sessions.Get(" + id + ")")
 	s.st.sehe(ctx, "Sessions.Get")
-	if err := s.st.vor("Sessions.Get", ctx.Err); err != nil {
+	if err := s.st.vorMit("Sessions.Get", id, ctx.Err); err != nil {
 		return model.Session{}, err
 	}
 	x, ok := s.hat(id)
@@ -313,7 +387,17 @@ func (s *fakeSessions) Get(ctx context.Context, id string) (model.Session, error
 func (s *fakeSessions) SetStatus(ctx context.Context, id string, status model.SessionStatus) error {
 	s.p.melde("SetStatus(" + id + ")")
 	s.st.sehe(ctx, "SetStatus")
-	if err := s.st.vor("SetStatus", ctx.Err); err != nil {
+	if status != model.SessionComplete && status != model.SessionIncomplete {
+		panic(fmt.Sprintf("SetStatus mit dem Status %q: der Dienst setzt nur complete oder incomplete", status))
+	}
+	s.mu.Lock()
+	hak := s.beiSetStatus
+	s.mu.Unlock()
+	if hak != nil {
+		hak(ctx, id)
+	}
+	if err := s.st.vorMit("SetStatus", id, ctx.Err); err != nil {
+		s.vermerke(id, status, false)
 		return err
 	}
 	s.mu.Lock()
@@ -321,13 +405,32 @@ func (s *fakeSessions) SetStatus(ctx context.Context, id string, status model.Se
 	x, ok := s.alle[id]
 	switch {
 	case !ok:
+		s.vermerkeGesperrt(id, status, false)
 		return outbound.ErrNichtGefunden
 	case !x.Status.KannWechselnNach(status):
+		s.vermerkeGesperrt(id, status, false)
 		return outbound.ErrUngueltigerUebergang
 	}
 	x.Status = status
 	s.alle[id] = x
+	s.vermerkeGesperrt(id, status, true)
 	return nil
+}
+
+func (s *fakeSessions) vermerke(id string, status model.SessionStatus, ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.vermerkeGesperrt(id, status, ok)
+}
+
+func (s *fakeSessions) vermerkeGesperrt(id string, status model.SessionStatus, ok bool) {
+	if s.gesetzt == nil {
+		s.gesetzt, s.erfolge = map[string][]model.SessionStatus{}, map[string]int{}
+	}
+	s.gesetzt[id] = append(s.gesetzt[id], status)
+	if ok {
+		s.erfolge[id]++
+	}
 }
 
 // List liefert die Sessions eines Service nach Erzeugungszeit, dann Kennung; nie nil.
@@ -360,7 +463,24 @@ func (s *fakeSessions) FindOpen(ctx context.Context) ([]model.Session, error) {
 	if err := s.st.vor("FindOpen", ctx.Err); err != nil {
 		return nil, err
 	}
-	return []model.Session{}, nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.feste != nil {
+		return slices.Clone(*s.feste), nil
+	}
+	out := []model.Session{}
+	for _, x := range s.alle {
+		if x.Status == model.SessionOpen {
+			out = append(out, x)
+		}
+	}
+	slices.SortFunc(out, func(a, b model.Session) int {
+		if c := a.CreatedAt.Compare(b.CreatedAt); c != 0 {
+			return c
+		}
+		return strings.Compare(a.ID, b.ID)
+	})
+	return out, nil
 }
 
 func (s *fakeSessions) Delete(ctx context.Context, id string) error {
@@ -466,6 +586,127 @@ func (w *fakeWartung) gesehen() []sicht {
 	return slices.Clone(w.sichten)
 }
 
+// --- RecordUseCase und RecordingRepository (SPEC-121 Nr. 13, SPEC-105 Nr. 11) ----------------
+
+// drainArg hält Kennung und Frist eines Aufrufs von Drain fest; den ctx hält steuerung.gesehen("Drain").
+type drainArg struct {
+	id    string
+	frist time.Duration
+}
+
+// fakeRecord bildet RecordUseCase nach: Drain zählt, hält jedes Argument fest, hält und scheitert
+// auf Wunsch (steuerung) und liefert den eingestellten Bericht, auch bei beendetem ctx; Record
+// bricht den Test ab.
+type fakeRecord struct {
+	st       *steuerung
+	p        *ereignisse
+	mu       sync.Mutex
+	bericht  inbound.DrainBericht
+	berichte map[string]inbound.DrainBericht
+	args     []drainArg
+}
+
+func (r *fakeRecord) Record(context.Context, inbound.Anfrage) (inbound.Antwort, error) {
+	r.st.zaehle("Record.Record")
+	panic("Record gerufen: der Sessiondienst ruft nur Drain")
+}
+
+func (r *fakeRecord) Drain(ctx context.Context, id string, frist time.Duration) (inbound.DrainBericht, error) {
+	_ = ctx.Err() // ein nil-ctx panict hier, vor dem Zählen
+	r.p.melde("Drain(" + id + ")")
+	r.st.sehe(ctx, "Drain")
+	r.mu.Lock()
+	r.args = append(r.args, drainArg{id, frist})
+	b, ok := r.berichte[id]
+	if !ok {
+		b = r.bericht
+	}
+	r.mu.Unlock()
+	if err := r.st.vorMit("Drain", id, nil); err != nil {
+		return inbound.DrainBericht{}, err
+	}
+	return b, nil
+}
+
+func (r *fakeRecord) aufrufe() []drainArg {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.args)
+}
+
+// fakeExchanges bildet RecordingRepository nach: ListBySession liefert die Exchanges einer
+// bekannten Session nach sequence_no, eine leere Liste ohne Exchange und ErrNichtGefunden für eine
+// unbekannte Session; Append und Get brechen den Test ab.
+type fakeExchanges struct {
+	st       *steuerung
+	p        *ereignisse
+	sessions *fakeSessions
+	mu       sync.Mutex
+	alle     map[string][]model.Exchange
+}
+
+// haenge fügt der Session einen Exchange mit dem Capture-Status c an.
+func (x *fakeExchanges) haenge(sessionID string, c model.CaptureStatus) {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	n := len(x.alle[sessionID]) + 1
+	x.alle[sessionID] = append(x.alle[sessionID], model.Exchange{
+		ID: fmt.Sprintf("%s-x%d", sessionID, n), SessionID: sessionID, SequenceNo: n, Capture: c,
+	})
+}
+
+func (x *fakeExchanges) Append(context.Context, model.Exchange) error {
+	x.st.zaehle("Append")
+	panic("Append gerufen: der Sessiondienst liest nur")
+}
+
+func (x *fakeExchanges) Get(context.Context, string) (model.Exchange, error) {
+	x.st.zaehle("Exchanges.Get")
+	panic("Exchanges.Get gerufen: der Sessiondienst ruft nur ListBySession")
+}
+
+func (x *fakeExchanges) ListBySession(ctx context.Context, id string) ([]model.Exchange, error) {
+	x.p.melde("ListBySession(" + id + ")")
+	x.st.sehe(ctx, "ListBySession")
+	if err := x.st.vorMit("ListBySession", id, ctx.Err); err != nil {
+		return nil, err
+	}
+	if _, ok := x.sessions.hat(id); !ok {
+		return nil, verpackt(outbound.ErrNichtGefunden)
+	}
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	return append([]model.Exchange{}, x.alle[id]...), nil
+}
+
+// verfallCtx ist ein Kontext, dessen Err nach verfalle context.DeadlineExceeded liefert, ohne
+// dass eine Zeit vergeht; er trägt unter ctxSchluessel den Wert wert, WithoutCancel davon
+// behält den Wert und liefert Err nil.
+type verfallCtx struct {
+	wert      any
+	verfallen atomic.Bool
+}
+
+func (*verfallCtx) Deadline() (time.Time, bool) { return time.Time{}, false }
+
+func (*verfallCtx) Done() <-chan struct{} { return nil }
+
+func (c *verfallCtx) Value(key any) any {
+	if key == (ctxSchluessel{}) {
+		return c.wert
+	}
+	return nil
+}
+
+func (c *verfallCtx) Err() error {
+	if c.verfallen.Load() {
+		return context.DeadlineExceeded
+	}
+	return nil
+}
+
+func (c *verfallCtx) verfalle() { c.verfallen.Store(true) }
+
 // --- Fang-Handler für slog ------------------------------------------------------------------
 
 type eintrag struct {
@@ -516,10 +757,15 @@ type welt struct {
 	sessions *fakeSessions
 	dienste  *fakeDienste
 	wartung  *fakeWartung
+	record   *fakeRecord
+	exchange *fakeExchanges
 	log      *fang
 	konfig   session.Konfig
 	v        *session.Verwaltung
 }
+
+// fristTest ist die Frist der Konfig in den Tests: weder 0 noch 10 s.
+const fristTest = 7 * time.Second
 
 // neu liefert eine Umgebung mit leeren Fakes und der Uhr bei t0; aendere ändert die Konfiguration
 // vor New. Am Ende des Tests steht fest, dass Startup nie gerufen wurde.
@@ -532,8 +778,11 @@ func neu(t *testing.T, aendere ...func(*session.Konfig)) *welt {
 	u.sessions = &fakeSessions{st: st, p: p, alle: map[string]model.Session{}}
 	u.dienste = &fakeDienste{st: st, p: p}
 	u.wartung = &fakeWartung{st: st, p: p, bericht: inbound.Loeschbericht{Entfernt: 2}}
+	u.record = &fakeRecord{st: st, p: p, berichte: map[string]inbound.DrainBericht{}}
+	u.exchange = &fakeExchanges{st: st, p: p, sessions: u.sessions, alle: map[string][]model.Exchange{}}
 	u.konfig = session.Konfig{
 		Sessions: u.sessions, Dienste: u.dienste, Wartung: u.wartung, Uhr: u.uhr, IDs: u.ids, Log: slog.New(u.log),
+		Record: u.record, Exchanges: u.exchange, Frist: fristTest,
 	}
 	for _, f := range aendere {
 		f(&u.konfig)
@@ -625,8 +874,37 @@ func (u *welt) del(ctx context.Context, id string) (b inbound.Loeschbericht, err
 	return b, err
 }
 
+func (u *welt) beenden(ctx context.Context, id string) (s model.Session, err error) {
+	u.t.Helper()
+	if fange(u.t, "Beenden", func() { s, err = u.v.Beenden(ctx, id) }) {
+		return model.Session{}, errPanik
+	}
+	pruefeFehlerWert(u.t, err)
+	return s, err
+}
+
+func (u *welt) closeAll(ctx context.Context) (b inbound.CloseBericht, err error) {
+	u.t.Helper()
+	if fange(u.t, "CloseAll", func() { b, err = u.v.CloseAll(ctx) }) {
+		return inbound.CloseBericht{}, errPanik
+	}
+	pruefeFehlerWert(u.t, err)
+	return b, err
+}
+
+// erzeugt ist die Erzeugungszeit der n-ten Session der Tests: mit Bruchteil einer Sekunde.
+func erzeugt(n int) time.Time {
+	return t0().Add(123456789*time.Nanosecond + time.Duration(n)*time.Second)
+}
+
+// offene legt eine offene Session des Dienstes an, deren Kennung von der des Dienstes abweicht.
+func (u *welt) offene(id, dienst string, n int) {
+	u.sessions.fuege(id, dienst, erzeugt(n), model.SessionOpen)
+}
+
 // pruefeFehlerWert hält einen *Fehler gegen SPEC-124 Nr. 8: erlaubter Status, Text aus Code und
-// message ohne den Text der Ursache, Ursache über Unwrap (ODR-E7009 hat keine).
+// message ohne den Text der Ursache, Ursache über Unwrap (ODR-E7009 und ODR-E7011 aus dem Status
+// haben keine).
 func pruefeFehlerWert(t *testing.T, err error) {
 	t.Helper()
 	var f *inbound.Fehler
@@ -639,11 +917,14 @@ func pruefeFehlerWert(t *testing.T, err error) {
 	if soll := f.Code.String() + ": " + f.Code.Message(); f.Error() != soll {
 		t.Errorf("Error() = %q, erwartet %q", f.Error(), soll)
 	}
-	if f.Code != model.CodeE7009 && (f.Ursache == nil || !errors.Is(err, f.Ursache)) {
-		t.Errorf("Ursache %v bei %v", f.Ursache, f.Code)
+	if f.Ursache != nil && !errors.Is(err, f.Ursache) {
+		t.Errorf("Ursache %v bei %v nicht über Unwrap erreichbar", f.Ursache, f.Code)
 	}
-	if f.Code == model.CodeE7009 && errors.Unwrap(err) != nil {
-		t.Errorf("ODR-E7009 trägt die Ursache %v", errors.Unwrap(err))
+	if f.Ursache == nil && f.Code != model.CodeE7009 && f.Code != model.CodeE7011 {
+		t.Errorf("keine Ursache bei %v", f.Code)
+	}
+	if f.Ursache == nil && errors.Unwrap(err) != nil {
+		t.Errorf("%v trägt die Ursache %v", f.Code, errors.Unwrap(err))
 	}
 	if strings.Contains(f.Error(), marker) {
 		t.Errorf("Text %q trägt den Marker", f.Error())
