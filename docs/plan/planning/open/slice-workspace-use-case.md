@@ -37,7 +37,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Zeit und Kennungen):** Die Workspace-Kennung kommt aus `IDGenerator.WorkspaceID()`, wenn der Aufrufer keine `id` mitgibt, die Zeit (`created_at`) aus `Clock.Now()` (`SPEC-114`); die Form einer mitgegebenen `id` ist das offene Risiko in §6 und gehört diesem Slice (Sendung von `slice-clock-idgenerator`).
 
-**Übernimmt (Bereinigung):** `WorkspaceUseCase` ruft nach dem Löschen eines Workspace (mit seinen Snapshots) die Blob-Bereinigung von `MaintenanceUseCase` über den Inbound Port, den `slice-session-wartung` liefert (`ARC-002`: löschende Use Cases rufen sie nach dem Commit; `LH-RB-04.a`: best effort); Sendung von `slice-session-wartung`, dessen Start `slice-baseline-import` und damit `slice-session-wartung` in `done/` voraussetzt.
+**Übernimmt (Bereinigung):** `WorkspaceUseCase` ruft nach dem Löschen eines Workspace (mit seinen Snapshots) die Blob-Bereinigung von `MaintenanceUseCase` über den Inbound Port, den `slice-session-wartung` liefert (`ARC-002`: löschende Use Cases rufen sie nach dem Commit; `LH-RB-04.a`: best effort); Sendung von `slice-session-wartung`, dessen Start `slice-baseline-import` und damit `slice-session-wartung` in `done/` voraussetzt. Die Operation heißt `CleanupBlobs(ctx) (Loeschbericht, error)` (`SPEC-123`); ein Fehler von ihr und `Zurueckgestellt` ändern das Ergebnis des Löschens nicht, der Aufrufer protokolliert den Fehler (`SPEC-123` Nr. 8, Pflicht des Aufrufers; Sendung von `slice-session-wartung`).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -64,7 +64,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Anlegen: Prüfung der Baseline (`ODR-E7002`, `ODR-E7008`, `ODR-E5004`), Materialisieren des Entity-State aus dem Manifest in einer Transaktion über `WithWorkspaceTransaction`, `ODR-E7007` bei Doppelung.
-- [ ] Lesen, Auflisten, Löschen (`ODR-E7001` bei Unbekanntem; Cursors und Snapshots entfallen mit), danach die Blob-Bereinigung über den Inbound Port von `MaintenanceUseCase` rufen (Sendung von `slice-session-wartung`).
+- [ ] Lesen, Auflisten, Löschen (`ODR-E7001` bei Unbekanntem; Cursors und Snapshots entfallen mit), danach die Blob-Bereinigung über den Inbound Port von `MaintenanceUseCase` rufen; ihr Fehler und `Zurueckgestellt` ändern das Ergebnis des Löschens nicht (Sendung von `slice-session-wartung`, `SPEC-123` Nr. 8).
 - [ ] Reset in einer Transaktion: State, Cursors, Revision; auch ohne Mutationen definiert und im sichtbaren Ergebnis idempotent.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
