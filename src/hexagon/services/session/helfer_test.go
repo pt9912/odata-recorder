@@ -215,7 +215,7 @@ func (s *steuerung) halte(op string, n int) *halt {
 }
 
 // barriere lässt n Aufrufe warten, bis alle angekommen sind; wer länger als zeitgrenze wartet,
-// läuft weiter und vermerkt es in abgelaufen.
+// läuft weiter und vermerkt es in abgelaufen, und wer danach ankommt, läuft ohne zu warten weiter.
 type barriere struct {
 	mu         sync.Mutex
 	da, n      int
@@ -227,6 +227,10 @@ func neueBarriere(n int) *barriere { return &barriere{n: n, frei: make(chan stru
 
 func (b *barriere) an() {
 	b.mu.Lock()
+	if b.abgelaufen {
+		b.mu.Unlock()
+		return
+	}
 	b.da++
 	if b.da == b.n {
 		close(b.frei)
@@ -300,6 +304,7 @@ func (g *zaehlIDs) SessionID() string {
 // fakeSessions bildet SessionRepository nach: Create meldet die Doppelung, Delete löscht jede
 // Session unabhängig vom Status, Get und Delete einer unbekannten Kennung ErrNichtGefunden.
 type fakeSessions struct {
+	t          *testing.T
 	st         *steuerung
 	p          *ereignisse
 	mu         sync.Mutex
@@ -307,7 +312,7 @@ type fakeSessions struct {
 	nachDelete func()
 	// beiSetStatus läuft vor dem Statuswechsel mit dem erhaltenen ctx und der Kennung.
 	beiSetStatus func(ctx context.Context, id string)
-	// gesetzt hält den Status jedes Aufrufs von SetStatus je Kennung fest, erfolge die gelungenen.
+	// gesetzt hält den Status jedes Aufrufs von SetStatus je Kennung fest, erfolge zählt davon die gelungenen.
 	gesetzt map[string][]model.SessionStatus
 	erfolge map[string]int
 	// feste Liste von FindOpen; nil heißt: die offenen Sessions des Bestands.
@@ -372,6 +377,7 @@ func (s *fakeSessions) Create(ctx context.Context, x model.Session) error {
 }
 
 func (s *fakeSessions) Get(ctx context.Context, id string) (model.Session, error) {
+	defer faengtPanik(s.t, "Sessions.Get")
 	s.p.melde("Sessions.Get(" + id + ")")
 	s.st.sehe(ctx, "Sessions.Get")
 	if err := s.st.vorMit("Sessions.Get", id, ctx.Err); err != nil {
@@ -385,10 +391,12 @@ func (s *fakeSessions) Get(ctx context.Context, id string) (model.Session, error
 }
 
 func (s *fakeSessions) SetStatus(ctx context.Context, id string, status model.SessionStatus) error {
+	defer faengtPanik(s.t, "SetStatus")
 	s.p.melde("SetStatus(" + id + ")")
 	s.st.sehe(ctx, "SetStatus")
 	if status != model.SessionComplete && status != model.SessionIncomplete {
-		panic(fmt.Sprintf("SetStatus mit dem Status %q: der Dienst setzt nur complete oder incomplete", status))
+		verstoss(s.t, fmt.Sprintf("SetStatus mit dem Status %q: der Dienst setzt nur complete oder incomplete", status))
+		return nil
 	}
 	s.mu.Lock()
 	hak := s.beiSetStatus
@@ -555,6 +563,7 @@ type sicht struct {
 // fakeWartung bildet MaintenanceUseCase nach: CleanupBlobs zählt, hält auf Wunsch, meldet den
 // erhaltenen ctx und liefert den eingestellten Bericht und Fehler; Startup bricht den Test ab.
 type fakeWartung struct {
+	t       *testing.T
 	st      *steuerung
 	p       *ereignisse
 	mu      sync.Mutex
@@ -565,7 +574,8 @@ type fakeWartung struct {
 
 func (w *fakeWartung) Startup(context.Context) (inbound.Wartungsbericht, error) {
 	w.st.zaehle("Startup")
-	panic("Startup gerufen: der Sessiondienst ruft es nie")
+	verstoss(w.t, "Startup gerufen: der Sessiondienst ruft es nie")
+	return inbound.Wartungsbericht{}, nil
 }
 
 func (w *fakeWartung) CleanupBlobs(ctx context.Context) (inbound.Loeschbericht, error) {
@@ -596,8 +606,9 @@ type drainArg struct {
 
 // fakeRecord bildet RecordUseCase nach: Drain zählt, hält jedes Argument fest, hält und scheitert
 // auf Wunsch (steuerung) und liefert den eingestellten Bericht, auch bei beendetem ctx; Record
-// bricht den Test ab.
+// meldet einen Fehler des Tests (verstoss).
 type fakeRecord struct {
+	t        *testing.T
 	st       *steuerung
 	p        *ereignisse
 	mu       sync.Mutex
@@ -608,10 +619,12 @@ type fakeRecord struct {
 
 func (r *fakeRecord) Record(context.Context, inbound.Anfrage) (inbound.Antwort, error) {
 	r.st.zaehle("Record.Record")
-	panic("Record gerufen: der Sessiondienst ruft nur Drain")
+	verstoss(r.t, "Record gerufen: der Sessiondienst ruft nur Drain")
+	return inbound.Antwort{}, nil
 }
 
 func (r *fakeRecord) Drain(ctx context.Context, id string, frist time.Duration) (inbound.DrainBericht, error) {
+	defer faengtPanik(r.t, "Drain")
 	_ = ctx.Err() // ein nil-ctx panict hier, vor dem Zählen
 	r.p.melde("Drain(" + id + ")")
 	r.st.sehe(ctx, "Drain")
@@ -636,8 +649,9 @@ func (r *fakeRecord) aufrufe() []drainArg {
 
 // fakeExchanges bildet RecordingRepository nach: ListBySession liefert die Exchanges einer
 // bekannten Session nach sequence_no, eine leere Liste ohne Exchange und ErrNichtGefunden für eine
-// unbekannte Session; Append und Get brechen den Test ab.
+// unbekannte Session; Append und Get melden einen Fehler des Tests (verstoss).
 type fakeExchanges struct {
+	t        *testing.T
 	st       *steuerung
 	p        *ereignisse
 	sessions *fakeSessions
@@ -657,15 +671,18 @@ func (x *fakeExchanges) haenge(sessionID string, c model.CaptureStatus) {
 
 func (x *fakeExchanges) Append(context.Context, model.Exchange) error {
 	x.st.zaehle("Append")
-	panic("Append gerufen: der Sessiondienst liest nur")
+	verstoss(x.t, "Append gerufen: der Sessiondienst liest nur")
+	return nil
 }
 
 func (x *fakeExchanges) Get(context.Context, string) (model.Exchange, error) {
 	x.st.zaehle("Exchanges.Get")
-	panic("Exchanges.Get gerufen: der Sessiondienst ruft nur ListBySession")
+	verstoss(x.t, "Exchanges.Get gerufen: der Sessiondienst ruft nur ListBySession")
+	return model.Exchange{}, nil
 }
 
 func (x *fakeExchanges) ListBySession(ctx context.Context, id string) ([]model.Exchange, error) {
+	defer faengtPanik(x.t, "ListBySession")
 	x.p.melde("ListBySession(" + id + ")")
 	x.st.sehe(ctx, "ListBySession")
 	if err := x.st.vorMit("ListBySession", id, ctx.Err); err != nil {
@@ -775,11 +792,11 @@ func neu(t *testing.T, aendere ...func(*session.Konfig)) *welt {
 	u := &welt{t: t, p: p, st: st, log: &fang{}}
 	u.uhr = &zaehlUhr{FestUhr: supporttest.NewFestUhr(t0()), st: st, p: p}
 	u.ids = &zaehlIDs{FestIDs: supporttest.NewFestIDs(), st: st, p: p}
-	u.sessions = &fakeSessions{st: st, p: p, alle: map[string]model.Session{}}
+	u.sessions = &fakeSessions{t: t, st: st, p: p, alle: map[string]model.Session{}}
 	u.dienste = &fakeDienste{st: st, p: p}
-	u.wartung = &fakeWartung{st: st, p: p, bericht: inbound.Loeschbericht{Entfernt: 2}}
-	u.record = &fakeRecord{st: st, p: p, berichte: map[string]inbound.DrainBericht{}}
-	u.exchange = &fakeExchanges{st: st, p: p, sessions: u.sessions, alle: map[string][]model.Exchange{}}
+	u.wartung = &fakeWartung{t: t, st: st, p: p, bericht: inbound.Loeschbericht{Entfernt: 2}}
+	u.record = &fakeRecord{t: t, st: st, p: p, berichte: map[string]inbound.DrainBericht{}}
+	u.exchange = &fakeExchanges{t: t, st: st, p: p, sessions: u.sessions, alle: map[string][]model.Exchange{}}
 	u.konfig = session.Konfig{
 		Sessions: u.sessions, Dienste: u.dienste, Wartung: u.wartung, Uhr: u.uhr, IDs: u.ids, Log: slog.New(u.log),
 		Record: u.record, Exchanges: u.exchange, Frist: fristTest,
@@ -808,6 +825,23 @@ func (u *welt) dienst(ids ...string) {
 
 // folgeID ist die Kennung, die der Generator als nächste vergibt; der Aufruf zählt als Bezug.
 func (u *welt) folgeID() string { return u.ids.SessionID() }
+
+// verstoss meldet den Aufruf einer Operation, die der Dienst nicht rufen darf, als Fehler des Tests.
+// Die Fakes kehren danach mit Nullwerten zurück, statt zu panicken: eine Panik in einer Goroutine von
+// CloseAll kann kein Test auffangen und beendet das Testprogramm ohne den Namen des Tests.
+func verstoss(t *testing.T, was string) {
+	t.Helper()
+	t.Errorf("%s", was)
+}
+
+// faengtPanik meldet eine Panik der Operation op eines Fakes als Fehler des Tests, statt das
+// Testprogramm abzubrechen; die Operation kehrt dann mit den Nullwerten zurück. Der Fake ruft es
+// als defer, denn recover wirkt nur im aufgeschobenen Aufruf selbst.
+func faengtPanik(t *testing.T, op string) {
+	if r := recover(); r != nil {
+		t.Errorf("%s: Panik %v", op, r)
+	}
+}
 
 // errPanik ist der Fehler, den die Operationen der Umgebung nach einer Panik liefern; die Panik
 // selbst ist als Fehler des Tests gemeldet.

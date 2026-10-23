@@ -81,52 +81,46 @@ type closeErgebnis struct {
 
 // TestBeendenGleichzeitig: zwei gleichzeitige Beenden derselben Session rufen beide Drain, genau eines
 // gelingt, das andere ist ODR-E7011 mit der Ursache, ohne Sperre im Dienst (B16, SPEC-124 Nr. 13).
-// Drain und SetStatus halten jeden Aufruf, bis beide ihn betreten haben; synctest lässt die Frist der
-// Barriere ohne Wartezeit ablaufen.
+// Drain und SetStatus halten jeden Aufruf, bis beide ihn betreten haben. Die Barriere läuft in Echtzeit
+// ab (zeitgrenze) und nicht unter synctest: ein Aufruf, der auf sync.Mutex wartet, blockiert unter
+// synctest nicht dauerhaft, die Uhr des Bubbles steht still und die Frist der Barriere läuft nie ab.
+// In Echtzeit läuft sie ab, und eine Sperre im Dienst macht den Test an ihr rot.
 func TestBeendenGleichzeitig(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		u := neuBeenden(t, model.CaptureComplete)
-		drain, setze := neueBarriere(2), neueBarriere(2)
-		u.st.bei("Drain", 0, drain.an)
-		u.sessions.beiSetStatus = func(context.Context, string) { setze.an() }
-		var res [2]ergebnis
-		var wg sync.WaitGroup
-		for i := range res {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				s, err := u.beenden(context.Background(), sid)
-				res[i] = ergebnis{s, err}
-			}()
-		}
-		wg.Wait()
-		if drain.lief() || setze.lief() {
-			t.Errorf("die Barriere lief ab: Drain %v, SetStatus %v", drain.lief(), setze.lief())
-		}
-		gewinner, verlierer := res[0], res[1]
-		if gewinner.err != nil {
-			gewinner, verlierer = verlierer, gewinner
-		}
-		if gewinner.err != nil || gewinner.s.Status != model.SessionComplete || gewinner.s.ID != sid {
-			t.Errorf("Gewinner: %+v, %v", gewinner.s, gewinner.err)
-		}
-		code, status := codeVon(t, verlierer.err)
-		if code != "ODR-E7011" || status != 409 || !errors.Is(verlierer.err, outbound.ErrUngueltigerUebergang) || verlierer.s != (model.Session{}) {
-			t.Errorf("Verlierer: %s, %d, %v, %+v", code, status, verlierer.err, verlierer.s)
-		}
-		if u.st.anzahl("Drain") != 2 || u.st.anzahl("ListBySession") != 2 {
-			t.Errorf("Drain %d-mal, ListBySession %d-mal", u.st.anzahl("Drain"), u.st.anzahl("ListBySession"))
-		}
-		if n, ok, st := u.sessions.versuche(sid); n != 2 || ok != 1 || st[0] != st[1] || st[0] != model.SessionComplete {
-			t.Errorf("SetStatus %d-mal, %d gelungen, %v", n, ok, st)
-		}
-		if s := u.sessions.statusVon(sid); s != model.SessionComplete {
-			t.Errorf("Status %q", s)
-		}
-		if n := len(u.log.alle()); n != 0 {
-			t.Errorf("%d Einträge im Protokoll", n)
-		}
+	u := neuBeenden(t, model.CaptureComplete)
+	drain, setze := neueBarriere(2), neueBarriere(2)
+	u.st.bei("Drain", 0, drain.an)
+	u.sessions.beiSetStatus = func(context.Context, string) { setze.an() }
+	var res [2]ergebnis
+	parallel(2, func(i int) {
+		s, err := u.beenden(context.Background(), sid)
+		res[i] = ergebnis{s, err}
 	})
+	if drain.lief() || setze.lief() {
+		t.Errorf("die Barriere lief ab: Drain %v, SetStatus %v", drain.lief(), setze.lief())
+	}
+	gewinner, verlierer := res[0], res[1]
+	if gewinner.err != nil {
+		gewinner, verlierer = verlierer, gewinner
+	}
+	if gewinner.err != nil || gewinner.s.Status != model.SessionComplete || gewinner.s.ID != sid {
+		t.Errorf("Gewinner: %+v, %v", gewinner.s, gewinner.err)
+	}
+	code, status := codeVon(t, verlierer.err)
+	if code != "ODR-E7011" || status != 409 || !errors.Is(verlierer.err, outbound.ErrUngueltigerUebergang) || verlierer.s != (model.Session{}) {
+		t.Errorf("Verlierer: %s, %d, %v, %+v", code, status, verlierer.err, verlierer.s)
+	}
+	if u.st.anzahl("Drain") != 2 || u.st.anzahl("ListBySession") != 2 {
+		t.Errorf("Drain %d-mal, ListBySession %d-mal", u.st.anzahl("Drain"), u.st.anzahl("ListBySession"))
+	}
+	if n, ok, st := u.sessions.versuche(sid); n != 2 || ok != 1 || st[0] != st[1] || st[0] != model.SessionComplete {
+		t.Errorf("SetStatus %d-mal, %d gelungen, %v", n, ok, st)
+	}
+	if s := u.sessions.statusVon(sid); s != model.SessionComplete {
+		t.Errorf("Status %q", s)
+	}
+	if n := len(u.log.alle()); n != 0 {
+		t.Errorf("%d Einträge im Protokoll", n)
+	}
 }
 
 // TestBeendenGegenBeenden: ein Beenden, das open las, während ein anderes die Session beendet, liefert
@@ -231,24 +225,55 @@ func TestCloseAllJede(t *testing.T) {
 	}
 }
 
-// TestCloseAllZugleich: CloseAll ruft Drain für mehrere Sessions zugleich mit derselben Frist und
-// kehrt erst zurück, wenn jedes SetStatus geschehen ist (B19, SPEC-124 Nr. 14 c). Die Barriere läuft
-// unter synctest ohne Wartezeit ab; ihr Ablaufen ist Rot.
+// ueberspringeMitSperre überspringt einen Fall, der unter synctest auf Goroutinen von CloseAll wartet,
+// wenn CloseAll zwei Sessions nicht zugleich durch Drain und SetStatus führt: eine Sperre im Dienst hält
+// eine Goroutine auf sync.Mutex, auf die synctest.Wait ohne Ende wartet. Die Prüfung ist dieselbe
+// Barriere wie in B16 und B19, deren Ablaufen in TestBeendenGleichzeitig und TestCloseAllZugleich
+// schon Rot ist; ohne Sperre kostet sie keine Wartezeit.
+func ueberspringeMitSperre(t *testing.T) {
+	t.Helper()
+	u := neuMehrere(t, 2)
+	drain, setze := neueBarriere(2), neueBarriere(2)
+	u.st.bei("Drain", 0, drain.an)
+	u.sessions.beiSetStatus = func(context.Context, string) { setze.an() }
+	_, _ = u.closeAll(context.Background())
+	if drain.lief() || setze.lief() {
+		t.Skip("CloseAll führt zwei Sessions nicht zugleich durch Drain und SetStatus: B16 und B19 sind rot")
+	}
+}
+
+// abwartenClose wartet höchstens zeitgrenze auf das Ergebnis von CloseAll.
+func abwartenClose(t *testing.T, ch <-chan closeErgebnis, was string) closeErgebnis {
+	t.Helper()
+	select {
+	case r := <-ch:
+		return r
+	case <-time.After(zeitgrenze):
+		t.Fatalf("%s: nach %v kein Ergebnis", was, zeitgrenze)
+		return closeErgebnis{}
+	}
+}
+
+// TestCloseAllZugleich: CloseAll ruft Drain für alle Sessions zugleich mit derselben Frist, auch für
+// mehr, als eine plausible Begrenzung der Gleichzeitigkeit zuließe, und kehrt erst zurück, wenn jedes
+// SetStatus geschehen ist (B19, SPEC-124 Nr. 14 c). Die Barriere des ersten Falls läuft in Echtzeit ab
+// und nicht unter synctest, so dass auch eine Sperre mit sync.Mutex an der Barriere rot wird (siehe
+// TestBeendenGleichzeitig); ihr Ablaufen ist Rot.
 func TestCloseAllZugleich(t *testing.T) {
-	t.Run("Drain zugleich", func(t *testing.T) {
-		synctest.Test(t, func(t *testing.T) {
-			u := neuMehrere(t, 3)
-			b := neueBarriere(3)
+	for _, n := range []int{3, 16, 64} {
+		t.Run(fmt.Sprintf("Drain zugleich, %d Sessions", n), func(t *testing.T) {
+			u := neuMehrere(t, n)
+			b := neueBarriere(n)
 			u.st.bei("Drain", 0, b.an)
 			bericht, err := u.closeAll(context.Background())
 			if b.lief() {
 				t.Error("die Barriere lief ab: Drain nicht zugleich")
 			}
-			if err != nil || bericht != (inbound.CloseBericht{Beendet: 3}) {
+			if err != nil || bericht != (inbound.CloseBericht{Beendet: n}) {
 				t.Errorf("Bericht %+v, %v", bericht, err)
 			}
 			a := u.record.aufrufe()
-			if len(a) != 3 {
+			if len(a) != n {
 				t.Fatalf("Drain %d-mal", len(a))
 			}
 			for _, x := range a {
@@ -257,13 +282,15 @@ func TestCloseAllZugleich(t *testing.T) {
 				}
 			}
 		})
-	})
+	}
 	t.Run("kehrt erst nach dem letzten SetStatus zurück", func(t *testing.T) {
+		ueberspringeMitSperre(t)
 		synctest.Test(t, func(t *testing.T) {
 			u := neuMehrere(t, 3)
 			h := u.st.halteFuer("SetStatus", "o3")
+			defer h.gib()
 			fertig := u.startCloseAll(context.Background())
-			<-h.erreicht
+			warte(t, h.erreicht, "SetStatus von o3 betreten")
 			synctest.Wait()
 			select {
 			case r := <-fertig:
@@ -272,7 +299,7 @@ func TestCloseAllZugleich(t *testing.T) {
 			default:
 			}
 			h.gib()
-			r := <-fertig
+			r := abwartenClose(t, fertig, "Rückkehr von CloseAll")
 			if r.err != nil || r.b != (inbound.CloseBericht{Beendet: 3}) {
 				t.Errorf("Bericht %+v, %v", r.b, r.err)
 			}
@@ -284,12 +311,17 @@ func TestCloseAllZugleich(t *testing.T) {
 }
 
 // TestCloseAllFehler: der Fehler einer Session hält die übrigen nicht auf und beendet sie nicht; die
-// gescheiterte bleibt open (B20, SPEC-124 Nr. 14 d, e). Schleife über Position × Stelle × Art.
+// gescheiterte bleibt open (B20, SPEC-124 Nr. 14 d, e). Schleife über Position × Stelle × Art; zu den
+// Arten gehört ODR-E7003, die Session, die zwischen FindOpen und Get oder danach verschwand: sie ist
+// ein Fehler und gezählt, anders als ODR-E7011 (SPEC-124 Nr. 14 d).
 func TestCloseAllFehler(t *testing.T) {
 	arten := []struct {
 		art  error
 		code string
-	}{{verpackt(outbound.ErrBeschaedigt), "ODR-E3001"}, {errDisk, "ODR-E9001"}, {context.Canceled, ""}}
+	}{
+		{verpackt(outbound.ErrBeschaedigt), "ODR-E3001"}, {errDisk, "ODR-E9001"}, {context.Canceled, ""},
+		{verpackt(outbound.ErrNichtGefunden), "ODR-E7003"},
+	}
 	for pos := 1; pos <= 3; pos++ {
 		for i, st := range stellenBeenden() {
 			for _, a := range arten {
@@ -359,32 +391,97 @@ func TestCloseAllFehler(t *testing.T) {
 	}
 }
 
+// fehlerart ist eine Art, in der eine Session in CloseAll scheitert: die Stelle, ein frischer Fehler
+// mit Kennzeichen, der Code im Eintrag und im Fehler von CloseAll ("" bei einem Kontextfehler) und ob der
+// Fehler unverändert zurückkehrt (Kontextfehler und Fehler von Drain) oder mit Code (Abbildung).
+type fehlerart struct {
+	name         string
+	op           string
+	neu          func(kennzeichen string) error
+	code         string
+	unveraendert bool
+}
+
+func fehlerarten() []fehlerart {
+	mit := func(basis error) func(string) error {
+		return func(k string) error { return fmt.Errorf("%w: %s", basis, k) }
+	}
+	return []fehlerart{
+		{"Canceled in Get", "Sessions.Get", mit(context.Canceled), "", true},
+		{"DeadlineExceeded in SetStatus", "SetStatus", mit(context.DeadlineExceeded), "", true},
+		{"E3001 in ListBySession", "ListBySession", mit(outbound.ErrBeschaedigt), "ODR-E3001", false},
+		{"E9001 in Get", "Sessions.Get", mit(errDisk), "ODR-E9001", false},
+		{"E7003 in Get", "Sessions.Get", mit(outbound.ErrNichtGefunden), "ODR-E7003", false},
+		{"E4001 in Drain", "Drain", func(k string) error {
+			f := e4001()
+			f.Ursache = fmt.Errorf("%w: %s", f.Ursache, k)
+			return f
+		}, "ODR-E4001", true},
+	}
+}
+
 // TestCloseAllErsterFehler: der Fehler von CloseAll ist der der ersten gescheiterten Session in der
-// Reihenfolge von FindOpen, nicht der zuerst zurückgekehrten (B21, SPEC-124 Nr. 14 e). Der Haltepunkt
-// am Get der niedrigeren Position lässt die höhere zuerst zurückkehren.
+// Reihenfolge von FindOpen, nicht der zuerst zurückgekehrten, nicht der mit dem kleineren oder größeren
+// Code und nicht ein Kontextfehler vor einem Fehler mit Code oder umgekehrt (B21, SPEC-124 Nr. 14 e).
+// Die Matrix läuft über jedes geordnete Paar von Arten (auch dieselbe Art mit zwei Kennzeichen), jedes
+// Paar von Positionen und beide Reihenfolgen der Rückkehr; der Haltepunkt am Get der einen Position
+// lässt die andere zuerst zurückkehren. Die Einträge folgen der Reihenfolge der Sessions.
 func TestCloseAllErsterFehler(t *testing.T) {
-	for _, p := range [][2]int{{1, 3}, {1, 2}, {2, 3}} {
-		t.Run(fmt.Sprintf("Positionen %d und %d", p[0], p[1]), func(t *testing.T) {
-			synctest.Test(t, func(t *testing.T) {
-				u := neuMehrere(t, 3)
-				niedrig, hoch := verpackt(outbound.ErrBeschaedigt), errDisk
-				u.st.scheitereFuer("Sessions.Get", oid(p[0]), niedrig)
-				u.st.scheitereFuer("Sessions.Get", oid(p[1]), hoch)
-				h := u.st.halteFuer("Sessions.Get", oid(p[0]))
-				fertig := u.startCloseAll(context.Background())
-				<-h.erreicht
-				synctest.Wait()
-				h.gib()
-				r := <-fertig
-				f, ok := r.err.(*inbound.Fehler)
-				if !ok || f.Code != model.CodeE3001 || !errors.Is(r.err, niedrig) || errors.Is(r.err, hoch) {
-					t.Errorf("Fehler %v", r.err)
+	ueberspringeMitSperre(t)
+	arten := fehlerarten()
+	for _, a := range arten {
+		for _, b := range arten {
+			for _, p := range [][2]int{{1, 3}, {1, 2}, {2, 3}} {
+				for _, haltFrueh := range []bool{true, false} {
+					name := fmt.Sprintf("%s vor %s, Positionen %d und %d, früh gehalten %v", a.name, b.name, p[0], p[1], haltFrueh)
+					t.Run(name, func(t *testing.T) {
+						synctest.Test(t, func(t *testing.T) {
+							u := neuMehrere(t, 3)
+							ea, eb := a.neu("A"), b.neu("B")
+							u.st.scheitereFuer(a.op, oid(p[0]), ea)
+							u.st.scheitereFuer(b.op, oid(p[1]), eb)
+							gehalten := oid(p[1])
+							if haltFrueh {
+								gehalten = oid(p[0])
+							}
+							h := u.st.halteFuer("Sessions.Get", gehalten)
+							defer h.gib()
+							fertig := u.startCloseAll(context.Background())
+							warte(t, h.erreicht, "Get der gehaltenen Session betreten")
+							synctest.Wait()
+							h.gib()
+							r := abwartenClose(t, fertig, "Rückkehr von CloseAll")
+							if a.unveraendert {
+								if r.err != ea {
+									t.Errorf("Fehler %v, erwartet den ersten unverändert", r.err)
+								}
+							} else {
+								f, ok := r.err.(*inbound.Fehler)
+								if !ok || f.Code.String() != a.code || !errors.Is(r.err, ea) || errors.Is(r.err, eb) {
+									t.Errorf("Fehler %v, erwartet den ersten mit %s", r.err, a.code)
+								}
+							}
+							if r.b != (inbound.CloseBericht{Beendet: 1, Fehlgeschlagen: 2}) {
+								t.Errorf("Bericht %+v", r.b)
+							}
+							var soll []string
+							for i, x := range []fehlerart{a, b} {
+								if x.code != "" {
+									soll = append(soll, fmt.Sprintf("%s:%s", oid(p[i]), x.code))
+								}
+							}
+							var ist []string
+							for _, e := range u.log.alle() {
+								ist = append(ist, e.attrs["session_id"]+":"+e.attrs["error_code"])
+							}
+							if !slices.Equal(ist, soll) {
+								t.Errorf("Einträge %v, erwartet %v", ist, soll)
+							}
+						})
+					})
 				}
-				if r.b != (inbound.CloseBericht{Beendet: 1, Fehlgeschlagen: 2}) {
-					t.Errorf("Bericht %+v", r.b)
-				}
-			})
-		})
+			}
+		}
 	}
 }
 
@@ -551,31 +648,27 @@ func TestCloseAllKontext(t *testing.T) {
 		}
 	}
 	t.Run("Canceled in Drain", func(t *testing.T) {
-		synctest.Test(t, func(t *testing.T) {
-			u := neuMehrere(t, 3)
-			ctx, stopp := context.WithCancel(ctxMitWert())
-			defer stopp()
-			b := neueBarriere(3)
-			u.st.bei("Drain", 0, func() { b.an(); stopp() })
-			bericht, err := u.closeAll(ctx)
-			if b.lief() || ctx.Err() == nil {
-				t.Errorf("Barriere abgelaufen %v, ctx.Err %v", b.lief(), ctx.Err())
-			}
-			nachher(t, u, bericht, err)
-		})
+		u := neuMehrere(t, 3)
+		ctx, stopp := context.WithCancel(ctxMitWert())
+		defer stopp()
+		b := neueBarriere(3)
+		u.st.bei("Drain", 0, func() { b.an(); stopp() })
+		bericht, err := u.closeAll(ctx)
+		if b.lief() || ctx.Err() == nil {
+			t.Errorf("Barriere abgelaufen %v, ctx.Err %v", b.lief(), ctx.Err())
+		}
+		nachher(t, u, bericht, err)
 	})
 	t.Run("DeadlineExceeded in Drain", func(t *testing.T) {
-		synctest.Test(t, func(t *testing.T) {
-			u := neuMehrere(t, 3)
-			ctx := &verfallCtx{wert: "w1"}
-			b := neueBarriere(3)
-			u.st.bei("Drain", 0, func() { b.an(); ctx.verfalle() })
-			bericht, err := u.closeAll(ctx)
-			if b.lief() || ctx.Err() != context.DeadlineExceeded {
-				t.Errorf("Barriere abgelaufen %v, ctx.Err %v", b.lief(), ctx.Err())
-			}
-			nachher(t, u, bericht, err)
-		})
+		u := neuMehrere(t, 3)
+		ctx := &verfallCtx{wert: "w1"}
+		b := neueBarriere(3)
+		u.st.bei("Drain", 0, func() { b.an(); ctx.verfalle() })
+		bericht, err := u.closeAll(ctx)
+		if b.lief() || ctx.Err() != context.DeadlineExceeded {
+			t.Errorf("Barriere abgelaufen %v, ctx.Err %v", b.lief(), ctx.Err())
+		}
+		nachher(t, u, bericht, err)
 	})
 }
 
@@ -608,17 +701,19 @@ func pruefeEintrag(t *testing.T, name string, e eintrag, service, session, code 
 // und den Attributen aus SPEC-124 Nr. 9, in der Reihenfolge der Sessions (B26).
 func TestCloseAllProtokoll(t *testing.T) {
 	t.Run("Reihenfolge der Sessions, nicht der Rückkehr", func(t *testing.T) {
+		ueberspringeMitSperre(t)
 		synctest.Test(t, func(t *testing.T) {
 			u := neuMehrere(t, 3)
 			u.offene("o3", dienstB, 3)
 			u.st.scheitereFuer("Sessions.Get", "o1", verpackt(outbound.ErrBeschaedigt))
 			u.st.scheitereFuer("Sessions.Get", "o3", errDisk)
 			h := u.st.halteFuer("Sessions.Get", "o1")
+			defer h.gib()
 			fertig := u.startCloseAll(context.Background())
-			<-h.erreicht
+			warte(t, h.erreicht, "Get von o1 betreten")
 			synctest.Wait()
 			h.gib()
-			r := <-fertig
+			r := abwartenClose(t, fertig, "Rückkehr von CloseAll")
 			if r.b != (inbound.CloseBericht{Beendet: 1, Fehlgeschlagen: 2}) {
 				t.Errorf("Bericht %+v", r.b)
 			}
@@ -652,6 +747,10 @@ func TestCloseAllProtokoll(t *testing.T) {
 		{"Platte in Drain", "Drain", errDisk, []string{"ODR-E9001"}},
 		{"ErrBeschaedigt in ListBySession", "ListBySession", verpackt(outbound.ErrBeschaedigt), []string{"ODR-E3001"}},
 		{"Platte in SetStatus", "SetStatus", errDisk, []string{"ODR-E9001"}},
+		{"ErrNichtGefunden in Get", "Sessions.Get", verpackt(outbound.ErrNichtGefunden), []string{"ODR-E7003"}},
+		{"ErrNichtGefunden in ListBySession", "ListBySession", verpackt(outbound.ErrNichtGefunden), []string{"ODR-E7003"}},
+		{"ErrNichtGefunden in SetStatus", "SetStatus", verpackt(outbound.ErrNichtGefunden), []string{"ODR-E7003"}},
+		{"ErrNichtGefunden in Drain, unverändert ohne Code", "Drain", verpackt(outbound.ErrNichtGefunden), []string{"ODR-E9001"}},
 		{"Canceled", "Sessions.Get", context.Canceled, nil},
 		{"DeadlineExceeded", "Sessions.Get", context.DeadlineExceeded, nil},
 		{"Canceled in Drain", "Drain", context.Canceled, nil},
@@ -759,8 +858,8 @@ func TestCloseAllGegenBeenden(t *testing.T) {
 		defer h.gib()
 		fertig := u.startCloseAll(context.Background())
 		warte(t, h.erreicht, "Get von CloseAll betreten")
-		if s, err := u.beenden(context.Background(), "o1"); err != nil || s.Status != model.SessionComplete {
-			t.Fatalf("einzeln: %+v, %v", s, err)
+		if r := abwarten(t, u.startBeenden(context.Background(), "o1"), "einzelnes Beenden"); r.err != nil || r.s.Status != model.SessionComplete {
+			t.Fatalf("einzeln: %+v, %v", r.s, r.err)
 		}
 		h.gib()
 		select {
@@ -882,9 +981,48 @@ func TestCloseAllGegenAnlegen(t *testing.T) {
 	}
 }
 
+// raceFehlsession ist eine Session, deren Operation op immer scheitert; erwartet prüft den Fehler, den
+// Beenden liefert, und gezaehlt sagt, ob CloseAll sie als Fehlgeschlagen zählt und einen Eintrag schreibt
+// (eintrag), ob sie als bereits beendet gilt (weder noch) oder nur gezählt wird (Kontextfehler).
+type raceFehlsession struct {
+	id, op   string
+	art      error
+	erwartet func(error) bool
+	eintrag  bool
+	gezaehlt bool
+}
+
+func raceFehlsessions() []raceFehlsession {
+	code := func(c string) func(error) bool {
+		return func(err error) bool {
+			var f *inbound.Fehler
+			return errors.As(err, &f) && f.Code.String() == c
+		}
+	}
+	ist := func(soll error) func(error) bool { return func(err error) bool { return err == soll } }
+	kontext := func(err error) bool { return errors.Is(err, context.Canceled) && ohneCode(err) }
+	drainFehler := e4001()
+	return []raceFehlsession{
+		{"fehl-1-get-platte", "Sessions.Get", errDisk, code("ODR-E9001"), true, true},
+		{"fehl-2-get-kontext", "Sessions.Get", context.Canceled, kontext, false, true},
+		{"fehl-3-drain-code", "Drain", drainFehler, ist(drainFehler), true, true},
+		{"fehl-4-drain-kontext", "Drain", context.Canceled, kontext, false, true},
+		{"fehl-5-list-code", "ListBySession", verpackt(outbound.ErrBeschaedigt), code("ODR-E3001"), true, true},
+		{"fehl-6-list-kontext", "ListBySession", context.Canceled, kontext, false, true},
+		{"fehl-7-set-platte", "SetStatus", errDisk, code("ODR-E9001"), true, true},
+		{"fehl-8-set-kontext", "SetStatus", context.Canceled, kontext, false, true},
+		{"fehl-9-set-uebergang", "SetStatus", verpackt(outbound.ErrUngueltigerUebergang), code("ODR-E7011"), false, false},
+	}
+}
+
 // TestBeendenRace: der Dienst hält nach New keinen veränderlichen Zustand, auch nicht in Beenden und
-// CloseAll; unter -race meldet der Detektor jedes ungeordnete Paar (B30, SPEC-124 Nr. 10, 13). Jede
-// Session endet mit genau einem gelungenen SetStatus, jedes ODR-E7011 gehört einem Verlierer.
+// CloseAll; unter -race meldet der Detektor jedes ungeordnete Paar auf den Pfaden, die der Test ausführt
+// (B30, SPEC-124 Nr. 10, 13): der Gutfall, die Verlierer gleichzeitiger Aufrufe, an jeder Aufrufstelle
+// (Get, Drain, ListBySession, SetStatus) ein Fehler mit Code und ein Kontextfehler, ODR-E7011 im
+// Statuswechsel und bei einer nicht offenen Session, die unbekannte Kennung und der nil-Kontext, in
+// Beenden wie in CloseAll. Jede Session endet mit genau einem gelungenen SetStatus, jedes ODR-E7011
+// gehört einem Verlierer. Was dieser Test nicht ausführt, meldet der Detektor nicht: Create mit Fehler
+// und Delete.
 func TestBeendenRace(t *testing.T) {
 	const gor, runden = 16, 50
 	u := neu(t)
@@ -894,6 +1032,20 @@ func TestBeendenRace(t *testing.T) {
 			u.offene(fmt.Sprintf("gem-%d-%d", g, j), dienstA, j)
 		}
 	}
+	fehlsessions := raceFehlsessions()
+	nGezaehlt, nEintrag := 0, 0
+	for i, f := range fehlsessions {
+		u.sessions.fuege(f.id, dienstA, erzeugt(-100+i), model.SessionOpen)
+		u.exchange.haenge(f.id, model.CaptureComplete)
+		u.st.scheitereFuer(f.op, f.id, f.art)
+		if f.gezaehlt {
+			nGezaehlt++
+		}
+		if f.eintrag {
+			nEintrag++
+		}
+	}
+	u.sessions.fuege("fertig", dienstA, erzeugt(-1), model.SessionComplete)
 	var mu sync.Mutex
 	var fehlerTexte []string
 	var gewinne = map[string]int{}
@@ -911,6 +1063,7 @@ func TestBeendenRace(t *testing.T) {
 		}
 	}
 	ctx := context.Background()
+	var keinCtx context.Context
 	parallel(gor, func(g int) {
 		for j := 0; j < runden; j++ {
 			id := fmt.Sprintf("s-%d-%d", g, j)
@@ -924,17 +1077,43 @@ func TestBeendenRace(t *testing.T) {
 			gem := fmt.Sprintf("gem-%d-%d", g/2, j)
 			_, err = u.v.Beenden(ctx, gem)
 			melde(gem, err)
+			for _, f := range fehlsessions {
+				if _, err := u.v.Beenden(ctx, f.id); !f.erwartet(err) {
+					t.Errorf("Beenden %s: %v", f.id, err)
+				}
+			}
+			if _, err := u.v.Beenden(ctx, "fertig"); !raceCode(err, "ODR-E7011") {
+				t.Errorf("Beenden einer beendeten Session: %v", err)
+			}
+			if _, err := u.v.Beenden(ctx, "ohne-session"); !raceCode(err, "ODR-E7003") {
+				t.Errorf("Beenden einer unbekannten Kennung: %v", err)
+			}
+			if _, err := u.v.Beenden(keinCtx, id); !errors.Is(err, model.ErrUngueltig) {
+				t.Errorf("Beenden mit nil-Kontext: %v", err)
+			}
+			if _, err := u.v.CloseAll(keinCtx); !errors.Is(err, model.ErrUngueltig) {
+				t.Errorf("CloseAll mit nil-Kontext: %v", err)
+			}
 			if _, err := u.v.Get(ctx, id); err != nil {
 				t.Errorf("Get %s: %v", id, err)
 			}
 			if _, err := u.v.List(ctx); err != nil {
 				t.Errorf("List: %v", err)
 			}
-			if b, err := u.v.CloseAll(ctx); err != nil || b.Fehlgeschlagen != 0 {
-				t.Errorf("CloseAll: %+v, %v", b, err)
+			b, err := u.v.CloseAll(ctx)
+			if b.Fehlgeschlagen != nGezaehlt || !raceCode(err, "ODR-E9001") || !errors.Is(err, errDisk) {
+				t.Errorf("CloseAll: %+v, %v, erwartet %d Fehlgeschlagen und den Fehler der ersten Session", b, err, nGezaehlt)
 			}
 		}
 	})
+	if n := len(u.log.alle()); n != nEintrag*gor*runden {
+		t.Errorf("%d Einträge im Protokoll, erwartet %d", n, nEintrag*gor*runden)
+	}
+	for _, f := range fehlsessions {
+		if s := u.sessions.statusVon(f.id); s != model.SessionOpen {
+			t.Errorf("%s: Status %q", f.id, s)
+		}
+	}
 	if len(fehlerTexte) != 0 {
 		t.Fatalf("Fehler außer ODR-E7011: %v", fehlerTexte)
 	}
@@ -962,6 +1141,125 @@ func TestBeendenRace(t *testing.T) {
 		for j := 0; j < runden; j++ {
 			if s := u.sessions.statusVon(fmt.Sprintf("s-%d-%d", g, j)); s == model.SessionOpen {
 				t.Errorf("s-%d-%d bleibt open", g, j)
+			}
+		}
+	}
+}
+
+// raceCode sagt, ob err ein Fehler mit dem Code code ist.
+func raceCode(err error, code string) bool {
+	var f *inbound.Fehler
+	return errors.As(err, &f) && f.Code.String() == code
+}
+
+// TestCloseAllRaceFindOpen: der Fehler von FindOpen, mit Code und als Kontextfehler, in gleichzeitigen
+// Aufrufen von CloseAll; unter -race meldet der Detektor einen Zustand des Dienstes in diesem Zweig
+// (B30, SPEC-124 Nr. 10, 14 b).
+func TestCloseAllRaceFindOpen(t *testing.T) {
+	for name, art := range map[string]error{"Platte": errDisk, "Canceled": context.Canceled} {
+		t.Run(name, func(t *testing.T) {
+			u := neuMehrere(t, 2)
+			u.st.scheitere("FindOpen", 0, art)
+			parallel(16, func(int) {
+				for j := 0; j < 50; j++ {
+					b, err := u.v.CloseAll(context.Background())
+					if b != (inbound.CloseBericht{}) || err == nil || !errors.Is(err, art) {
+						t.Errorf("CloseAll: %+v, %v", b, err)
+					}
+				}
+			})
+			if n := len(u.log.alle()); n != 0 {
+				t.Errorf("%d Einträge im Protokoll", n)
+			}
+		})
+	}
+}
+
+// TestCloseAllVerschwunden: eine Session, die FindOpen liefert und die bei Get nicht mehr da ist, ist
+// ein Fehler (ODR-E7003) und gezählt, mit einem Eintrag, anders als ODR-E7011; die übrigen werden
+// beendet (B22, SPEC-124 Nr. 9, 14 d).
+func TestCloseAllVerschwunden(t *testing.T) {
+	u := neuMehrere(t, 3)
+	u.sessions.setzeOffene([]model.Session{
+		{ID: "o1", ServiceID: dienstA, Status: model.SessionOpen, CreatedAt: erzeugt(1)},
+		{ID: "weg", ServiceID: dienstB, Status: model.SessionOpen, CreatedAt: erzeugt(2)},
+		{ID: "o3", ServiceID: dienstA, Status: model.SessionOpen, CreatedAt: erzeugt(3)},
+	})
+	b, err := u.closeAll(context.Background())
+	if b != (inbound.CloseBericht{Beendet: 2, Fehlgeschlagen: 1}) {
+		t.Errorf("Bericht %+v", b)
+	}
+	code, status := codeVon(t, err)
+	if code != "ODR-E7003" || status != model.CodeE7003.Stati()[0] || !errors.Is(err, outbound.ErrNichtGefunden) {
+		t.Errorf("Fehler %v, Status %d", err, status)
+	}
+	e := u.log.alle()
+	if len(e) != 1 {
+		t.Fatalf("%d Einträge: %+v", len(e), e)
+	}
+	pruefeEintrag(t, "weg", e[0], dienstB, "weg", "ODR-E7003")
+	for _, i := range []int{1, 3} {
+		if s := u.sessions.statusVon(oid(i)); s != sollStatus(i) {
+			t.Errorf("%s: Status %q", oid(i), s)
+		}
+	}
+	if n := u.st.anzahl("Drain"); n != 2 {
+		t.Errorf("Drain %d-mal", n)
+	}
+}
+
+// TestCloseAllKennungen: CloseAll reicht die Kennung jeder offenen Session unverändert an Get, Drain,
+// ListBySession und SetStatus, ob sie in der Form liegt oder nicht; der Bestand trägt die Nachbarn jeder
+// Kennung offen (B18, SPEC-124 Nr. 4, 14 b). Schleife über Kennungsform × Aufrufstelle.
+func TestCloseAllKennungen(t *testing.T) {
+	ids := kennungsformen()
+	u := neu(t)
+	u.bestandKennungen(ids)
+	b, err := u.closeAll(context.Background())
+	if err != nil || b != (inbound.CloseBericht{Beendet: len(ids)}) {
+		t.Errorf("Bericht %+v, %v", b, err)
+	}
+	for _, k := range ids {
+		for _, st := range stellenBeenden() {
+			if z := u.zahl(st.op, k); z != 1 {
+				t.Errorf("Kennung %q: %s mit dieser Kennung %d-mal", k, st.name, z)
+			}
+		}
+		if s := u.sessions.statusVon(k); s != model.SessionComplete {
+			t.Errorf("Kennung %q: Status %q", k, s)
+		}
+	}
+	for _, st := range stellenBeenden() {
+		if n := u.st.anzahl(st.op); n != len(ids) {
+			t.Errorf("%s %d-mal, erwartet %d", st.name, n, len(ids))
+		}
+	}
+	if n := len(u.log.alle()); n != 0 {
+		t.Errorf("%d Einträge im Protokoll", n)
+	}
+}
+
+// TestCloseAllKontextNeben: ein Kontextfehler neben jeder Zeile der Tabelle von SPEC-109 Nr. 5 kehrt
+// aus jeder Aufrufstelle unverändert als Fehler von CloseAll zurück, ohne Code und ohne Eintrag, und die
+// übrigen Sessions werden beendet (B20, B26, SPEC-124 Nr. 2, 9, 14 d). Schleife über Stelle × Zeile ×
+// Form des Kontextfehlers.
+func TestCloseAllKontextNeben(t *testing.T) {
+	for _, st := range stellenBeenden() {
+		for _, z := range tabellenzeilen() {
+			for _, komb := range kontextKombinationen(z) {
+				name := fmt.Sprintf("%s, %s, %s", st.name, z.name, komb.name)
+				u := neuMehrere(t, 3)
+				u.st.scheitereFuer(st.op, "o2", komb.err)
+				b, err := u.closeAll(context.Background())
+				if err != komb.err || b != (inbound.CloseBericht{Beendet: 2, Fehlgeschlagen: 1}) {
+					t.Errorf("%s: Bericht %+v, Fehler %v, erwartet den Fehler unverändert", name, b, err)
+				}
+				if n := len(u.log.alle()); n != 0 {
+					t.Errorf("%s: %d Einträge im Protokoll", name, n)
+				}
+				if s := u.sessions.statusVon("o2"); s != model.SessionOpen {
+					t.Errorf("%s: o2 hat den Status %q", name, s)
+				}
 			}
 		}
 	}

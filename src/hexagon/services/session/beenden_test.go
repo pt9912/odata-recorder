@@ -399,51 +399,112 @@ func stellenBeenden() []aufrufStelle {
 	}
 }
 
-// kontextArten nennt die Arten, in denen ein Kontextfehler ankommt: unverpackt, verpackt und neben
-// einem Fehler der Tabelle.
-func kontextArten(tabelle error) []error {
-	var out []error
-	for _, c := range []error{context.Canceled, context.DeadlineExceeded} {
-		out = append(out, c, fmt.Errorf("%w: %s", c, marker), errors.Join(c, tabelle))
+// tabellenzeile ist ein Fehler, den die Abbildung von SPEC-109 Nr. 5 benennt, oder einer ohne Zeile.
+type tabellenzeile struct {
+	name string
+	err  error
+}
+
+// tabellenzeilen nennt jeden Fehler, den die Tabelle der Abbildung benennt, und die Platte als einen
+// ohne Zeile; TestTabellenzeilenVollstaendig hält die Liste gegen die Tabelle.
+func tabellenzeilen() []tabellenzeile {
+	return []tabellenzeile{
+		{"ErrBlobFehlt", outbound.ErrBlobFehlt}, {"ErrBlobBeschaedigt", outbound.ErrBlobBeschaedigt},
+		{"ErrBeschaedigt", outbound.ErrBeschaedigt}, {"ErrPfad", outbound.ErrPfad}, {"ErrZuGross", outbound.ErrZuGross},
+		{"ErrUpstreamNichtErreichbar", outbound.ErrUpstreamNichtErreichbar}, {"ErrUpstreamZeit", outbound.ErrUpstreamZeit},
+		{"ErrFremderService", outbound.ErrFremderService}, {"ErrDienstUnbekannt", outbound.ErrDienstUnbekannt},
+		{"ErrFalscheArt", outbound.ErrFalscheArt}, {"ErrReferenziert", outbound.ErrReferenziert},
+		{"ErrSessionGeschlossen", outbound.ErrSessionGeschlossen}, {"ErrUngueltigerUebergang", outbound.ErrUngueltigerUebergang},
+		{"ErrNichtGefunden", outbound.ErrNichtGefunden}, {"ErrBereitsVorhanden", outbound.ErrBereitsVorhanden},
+		{"ErrUngueltig", model.ErrUngueltig}, {"ErrUngueltigeSequenz", outbound.ErrUngueltigeSequenz},
+		{"ErrAbgeschlossen", outbound.ErrAbgeschlossen}, {"ErrRevisionVeraltet", outbound.ErrRevisionVeraltet},
+		{"Platte (ohne Zeile)", errDisk},
 	}
-	return append(out, errors.Join(context.Canceled, context.DeadlineExceeded, tabelle))
+}
+
+// TestTabellenzeilenVollstaendig: die Liste der Tests nennt jede Zeile der Tabelle, sonst deckt die
+// Matrix Kontext neben Tabellenfehler nicht jede.
+func TestTabellenzeilenVollstaendig(t *testing.T) {
+	zeilen := tabellenzeilen()
+	namen := outbound.EintraegeAbbildung()
+	if len(zeilen) != len(namen)+1 {
+		t.Fatalf("%d Fehler in der Liste, %d in der Tabelle (+ einer ohne Zeile)", len(zeilen), len(namen))
+	}
+	hat := map[string]bool{}
+	for _, z := range zeilen {
+		hat[z.name] = true
+	}
+	for _, n := range namen {
+		if !hat[n] {
+			t.Errorf("%s fehlt in der Liste", n)
+		}
+	}
+}
+
+// kontextNeben nennt die Formen, in denen der Kontextfehler c neben dem Fehler tab ankommt: allein,
+// verpackt, in beiden Reihenfolgen verbunden (Join und %w mit %w).
+func kontextNeben(c, tab error) []tabellenzeile {
+	return []tabellenzeile{
+		{"allein", c},
+		{"verpackt", fmt.Errorf("%w: %s", c, marker)},
+		{"Join(c, tab)", errors.Join(c, tab)},
+		{"Join(tab, c)", errors.Join(tab, c)},
+		{"%w c, %w tab", fmt.Errorf("%w: %w", c, tab)},
+		{"%w tab, %w c", fmt.Errorf("%w: %w", tab, c)},
+	}
 }
 
 func istKontext(err error) bool {
 	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
-// TestKontextBeenden: ein Kontextfehler kehrt unverändert und ohne Code zurück und beendet Beenden
-// an der Stelle, an jeder Stelle und in jeder Art, auch neben einem Fehler der Tabelle (B9, SPEC-124
-// Nr. 2, 11).
+// kontextKombinationen ist die Menge der Kontextfehler neben jeder Zeile der Tabelle: beide Kontextfehler
+// in allen Formen von kontextNeben und beide zugleich neben der Zeile.
+func kontextKombinationen(z tabellenzeile) []tabellenzeile {
+	var out []tabellenzeile
+	for _, c := range []error{context.Canceled, context.DeadlineExceeded} {
+		for _, f := range kontextNeben(c, z.err) {
+			out = append(out, tabellenzeile{fmt.Sprintf("%v %s", c, f.name), f.err})
+		}
+	}
+	return append(out, tabellenzeile{"beide Kontextfehler", errors.Join(context.Canceled, context.DeadlineExceeded, z.err)})
+}
+
+// TestKontextBeenden: ein Kontextfehler kehrt unverändert und ohne Code zurück und beendet Beenden an
+// jeder Stelle, neben jeder Zeile der Tabelle von SPEC-109 Nr. 5 und in den Formen von kontextNeben
+// und kontextKombinationen; die Matrix ist die Schleife über Stelle × Zeile × Form, und ein vorab
+// beendeter Kontext beendet Beenden an Get (B9, SPEC-124 Nr. 2, 11).
 func TestKontextBeenden(t *testing.T) {
 	stellen := stellenBeenden()
 	for i, st := range stellen {
-		for j, art := range kontextArten(st.tabelle) {
-			name := fmt.Sprintf("%s, Art %d", st.name, j)
-			u := neuBeenden(t, model.CaptureComplete)
-			u.st.scheitere(st.op, 1, art)
-			s, err := u.beenden(context.Background(), sid)
-			if err != art || s != (model.Session{}) || !istKontext(err) {
-				t.Errorf("%s: %v, Session %v, erwartet den Fehler unverändert", name, err, s)
-			}
-			if st.name != "Drain" && !ohneCode(err) {
-				t.Errorf("%s: Fehler mit Code: %v", name, err)
-			}
-			for k, spaeter := range stellen {
-				want := 0
-				if k <= i {
-					want = 1
+		for _, z := range tabellenzeilen() {
+			for _, komb := range kontextKombinationen(z) {
+				art := komb.err
+				name := fmt.Sprintf("%s, %s, %s", st.name, z.name, komb.name)
+				u := neuBeenden(t, model.CaptureComplete)
+				u.st.scheitere(st.op, 1, art)
+				s, err := u.beenden(context.Background(), sid)
+				if err != art || s != (model.Session{}) || !istKontext(err) {
+					t.Errorf("%s: %v, Session %v, erwartet den Fehler unverändert", name, err, s)
 				}
-				if n := u.st.anzahl(spaeter.op); n != want {
-					t.Errorf("%s: %s %d-mal, erwartet %d", name, spaeter.op, n, want)
+				if st.name != "Drain" && !ohneCode(err) {
+					t.Errorf("%s: Fehler mit Code: %v", name, err)
 				}
-			}
-			if n := len(u.log.alle()); n != 0 {
-				t.Errorf("%s: %d Einträge im Protokoll", name, n)
-			}
-			if s := u.sessions.statusVon(sid); s != model.SessionOpen {
-				t.Errorf("%s: Status %q", name, s)
+				for k, spaeter := range stellen {
+					want := 0
+					if k <= i {
+						want = 1
+					}
+					if n := u.st.anzahl(spaeter.op); n != want {
+						t.Errorf("%s: %s %d-mal, erwartet %d", name, spaeter.op, n, want)
+					}
+				}
+				if n := len(u.log.alle()); n != 0 {
+					t.Errorf("%s: %d Einträge im Protokoll", name, n)
+				}
+				if s := u.sessions.statusVon(sid); s != model.SessionOpen {
+					t.Errorf("%s: Status %q", name, s)
+				}
 			}
 		}
 	}
@@ -732,6 +793,59 @@ func TestBeendenProtokollLeer(t *testing.T) {
 		u := laufPfad(t, p)
 		if e := u.log.alle(); len(e) != 0 {
 			t.Errorf("%s: %d Einträge im Protokoll: %+v", p.name, len(e), e)
+		}
+	}
+}
+
+// kennungsformen nennt Kennungen außerhalb der Form von SPEC-124 Nr. 4 mit ihren Nachbarn: Groß- und
+// Kleinschreibung, Leerzeichen am Rand, eine Kennung als Präfix einer anderen. Der Bestand der Tests
+// führt jede offen; "Ab c" und "ab c", "r1", "R1" und die Formen von " r1 " gehen durch Klein- oder
+// Großschreibung und Entfernen der Leerzeichen ineinander über.
+func kennungsformen() []string {
+	return []string{"r1", "R1", " r1 ", " r1", "r1 ", "R1 ", "Ab c", "ab c", "r1x", "r"}
+}
+
+// bestandKennungen legt jede Kennung als offene Session des Dienstes mit einem vollständigen
+// Exchange an.
+func (u *welt) bestandKennungen(ids []string) {
+	u.dienst(dienstA)
+	for i, id := range ids {
+		u.offene(id, dienstA, i+1)
+		u.exchange.haenge(id, model.CaptureComplete)
+	}
+}
+
+// TestKennungenBeenden: jede Aufrufstelle von Beenden (Get, Drain, ListBySession, SetStatus) erhält die
+// Kennung unverändert, ob sie in der Form liegt oder nicht; der Bestand trägt die Nachbarn jeder
+// Kennung offen (B4, SPEC-124 Nr. 4, 11 b). Schleife über Kennungsform × Aufrufstelle.
+func TestKennungenBeenden(t *testing.T) {
+	ids := kennungsformen()
+	for _, k := range ids {
+		u := neu(t)
+		u.bestandKennungen(ids)
+		s, err := u.beenden(context.Background(), k)
+		if err != nil || s.ID != k || s.Status != model.SessionComplete {
+			t.Errorf("Kennung %q: Ergebnis %+v, %v", k, s, err)
+		}
+		for _, st := range stellenBeenden() {
+			if z := u.zahl(st.op, k); z != 1 {
+				t.Errorf("Kennung %q: %s mit dieser Kennung %d-mal", k, st.name, z)
+			}
+			if n := u.st.anzahl(st.op); n != 1 {
+				t.Errorf("Kennung %q: %s %d-mal", k, st.name, n)
+			}
+		}
+		if a := u.record.aufrufe(); len(a) != 1 || a[0].id != k {
+			t.Errorf("Kennung %q: Drain %+v", k, a)
+		}
+		for _, andere := range ids {
+			want := model.SessionOpen
+			if andere == k {
+				want = model.SessionComplete
+			}
+			if got := u.sessions.statusVon(andere); got != want {
+				t.Errorf("Kennung %q: Session %q hat den Status %q, erwartet %q", k, andere, got, want)
+			}
 		}
 	}
 }
