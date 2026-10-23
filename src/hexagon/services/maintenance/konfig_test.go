@@ -78,7 +78,9 @@ func TestNewWaechterArgumente(t *testing.T) {
 	}
 }
 
-// TestCtxNil: ctx nil ist ErrUngueltig ohne *Fehler und ohne Aufruf eines Ports (W2).
+// TestCtxNil: ctx nil ist ErrUngueltig ohne *Fehler und ohne Aufruf eines Ports (W2). Fänger eines
+// Port-Aufrufs ist die Panik des Fakes: jeder Fake wertet den ctx aus, bevor er zählt, und ein nil
+// als ctx löst sie aus; der Zähler gesamt() wird für sich nie rot.
 func TestCtxNil(t *testing.T) {
 	var keinCtx context.Context
 	u := neu(t, mitMaxAge(30*tag))
