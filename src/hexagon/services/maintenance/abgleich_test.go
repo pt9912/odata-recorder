@@ -52,6 +52,16 @@ func TestAbgleich(t *testing.T) {
 		if err != nil || n != 2 || !slices.Equal(v.p.mit("Remove"), soll) || !v.blobs.hat(r("c")) {
 			t.Errorf("%s, letzte Lesung mit rc: %v, %d entfernt, %v", f.name, err, n, v.p.mit("Remove"))
 		}
+
+		// Die Menge schrumpft: die erste Lesung des Abgleichs nennt rc, die letzte nicht (W12).
+		s := neu(t)
+		bestand(s)
+		s.speicher.zusatz[f.lesungen-1] = []string{r("c")}
+		n, err = f.ruf(s)
+		soll = []string{ev("Remove", r("a")), ev("Remove", r("e"))}
+		if err != nil || n != 2 || !slices.Equal(s.p.mit("Remove"), soll) || !s.blobs.hat(r("c")) {
+			t.Errorf("%s, erste Lesung mit rc: %v, %d entfernt, %v", f.name, err, n, s.p.mit("Remove"))
+		}
 	}
 }
 
