@@ -73,7 +73,7 @@ flowchart TB
 | `ARC-009` | Recording/State Driven Adapter (`src/adapters/driven/sqlite`) | Transaktionale Speicherung und Abfrage der Sessions, Records und Workspace-Daten; SQLite-SQL und Migrationen |
 | `ARC-010` | Blob Driven Adapter (`src/adapters/driven/blobs`) | Bytegetreue, content-adressierte Body-Ablage und Integritätsprüfung |
 | `ARC-011` | OData Codec Driven Adapter (`src/adapters/driven/odata`) | Implementiert den Port `ODataCodec`: CSDL-Parsing, OData-URL-Parsing, JSON-Serialisierung, externe Protokollrepräsentation |
-| `ARC-012` | Bootstrap / Composition Root (`src/bootstrap`) | Verdrahtung aller Ports, Services und Adapter; Lifecycle; stößt beim Start vor dem Öffnen der Listener `MaintenanceUseCase` an, legt danach im Modus `record` für jeden konfigurierten Service die erste Recording-Session an (`SessionUseCase.OpenInitialSession`), beendet beim geordneten Shutdown alle offenen Sessions (`SessionUseCase.CloseAll`) und wählt je Betriebsmodus den Use Case, den der OData-Listener bedient |
+| `ARC-012` | Bootstrap / Composition Root (`src/bootstrap`) | Verdrahtung aller Ports, Services und Adapter; Lifecycle; erzeugt den Wächter vor dem Blob-Port einmal je Prozess und gibt ihn jedem Schreiber von Blobs und der Wartung; stößt beim Start vor dem Öffnen der Listener `MaintenanceUseCase` an (scheitert die Wartung, öffnet er keinen Listener), legt danach im Modus `record` für jeden konfigurierten Service die erste Recording-Session an (`SessionUseCase.OpenInitialSession`), beendet beim geordneten Shutdown alle offenen Sessions (`SessionUseCase.CloseAll`) und wählt je Betriebsmodus den Use Case, den der OData-Listener bedient |
 | `ARC-019` | Clock/ID Driven Adapter (`src/adapters/driven/clock`) | Systemzeit und ID-Vergabe hinter `Clock` und `IDGenerator`; in Tests ersetzbar |
 | `ARC-021` | Querschnitts-Ports (`src/hexagon/ports/support`) | `AuditLog`, `Telemetry`, `Clock`, `IDGenerator`; jede Schicht darf sie nutzen, damit Adapter ohne Use Case Audit-Einträge, Korrelations-IDs und Spans erzeugen können |
 | `ARC-020` | Audit/Telemetry Driven Adapter (`src/adapters/driven/audit`, `src/adapters/driven/telemetry`) | Audit-Log, strukturierte Logs, Metriken und Spans hinter `AuditLog` und `Telemetry` |
@@ -179,7 +179,7 @@ tests/
 | `WorkspaceUseCase` | Workspace erstellen, auflisten, lesen, löschen, resetten, mutieren; Snapshot wiederherstellen | Workspace-Revision bzw. Verwaltungsdaten |
 | `SnapshotUseCase` | Snapshot erzeugen und auflisten | Snapshot-ID bzw. Verwaltungsdaten |
 | `SessionUseCase` | Recording-Sessions anlegen (auch die erste Session je Service beim Start), beenden (auch alle beim geordneten Shutdown), auflisten, lesen, löschen | Verwaltungsdaten bzw. Löschbericht |
-| `MaintenanceUseCase` | Startwartung vor dem Öffnen der Listener: offene Sessions auf `incomplete` setzen, Aufbewahrung anwenden (über `SessionRepository` und `ImportRepository`, nicht über `SessionUseCase`), Integritätsprüfung, Blob-Bereinigung; löschende Use Cases (`SessionUseCase`, `WorkspaceUseCase`) rufen die Blob-Bereinigung nach dem Commit hier auf; `MaintenanceUseCase` ruft selbst keinen anderen Use Case auf, der Aufrufweg ist damit zyklenfrei | Wartungsbericht |
+| `MaintenanceUseCase` | Startwartung vor dem Öffnen der Listener: Integritätsprüfung (ein Befund verhindert den Start), offene Sessions auf `incomplete` setzen, Aufbewahrung anwenden (über `SessionRepository`, nicht über `SessionUseCase`; eine Session als Quelle einer Baseline bleibt stehen), Blobs gegen die Referenzmenge abgleichen (fehlende und beschädigte werden gemeldet, nicht referenzierte entfernt); löschende Use Cases (`SessionUseCase`, `WorkspaceUseCase`) rufen die Blob-Bereinigung nach dem Commit hier auf, sie wird bei offener Session zurückgestellt; `MaintenanceUseCase` ruft selbst keinen anderen Use Case auf, der Aufrufweg ist damit zyklenfrei | Wartungsbericht, Löschbericht |
 | `InspectionUseCase` | Exchanges, Coverage und Diagnose lesen | paginierte Verwaltungsdaten |
 
 Der HTTP-Adapter entscheidet **nicht** über Replay-Cursor, Match-Key, Coverage oder CRUD-Semantik.
@@ -220,7 +220,7 @@ Der Cursor gehört zum Tupel `(workspace, replay_session, recording_session)` un
 **Port-Design:** Die Transaktionsgrenze ist fachlich (`WithWorkspaceTransaction` oder äquivalentes Unit-of-Work-Konzept), nicht als offene SQL-Connection exponiert.
 Reset (Entity-State und Cursor) und Löschen eines Workspace laufen in einer solchen Transaktion über `WorkspaceRepository`, `EntityRepository`, `CursorRepository` und `SnapshotRepository`;
 ebenso die Import-Publikation (Snapshot, Import-Eintrag, Baseline-Quellen, Coverage über `SnapshotRepository`, `ImportRepository`, `CoverageRepository`) und das Löschen einer Session (Prüfung der Baseline-Quellen über `ImportRepository`, Exchanges und Cursor über `SessionRepository`);
-die Blob-Bereinigung folgt dem Commit über `MaintenanceUseCase`.
+die Blob-Bereinigung folgt dem Commit über `MaintenanceUseCase`; ein Wächter vor dem `BlobRepository`, den jeder Schreiber von Blobs und die Wartung teilen, ordnet `Commit` und Entfernen gleicher Bytes und schützt einen eben committeten, noch nicht referenzierten Blob.
 Für große Bodies existiert ein Streaming-Port mit begrenztem Puffer und explizitem Abschluss.
 
 ### 2.4 Fachliche Zustände
@@ -230,7 +230,7 @@ Er wird mit `capture_status` `complete`, `incomplete` oder `failed` abgeschlosse
 Nur `complete`-Exchanges sind regulär replayfähig.
 
 **Session:** `open → complete` oder `open → incomplete` (Werte `sessions.status`);
-`SessionUseCase` setzt den Status beim Beenden der Aufzeichnung, `MaintenanceUseCase` beim Start (offene Sessions werden `incomplete`);
+`SessionUseCase` setzt den Status beim Beenden der Aufzeichnung, `MaintenanceUseCase` beim Start (offene Sessions werden `incomplete`, nach der Integritätsprüfung und bevor der Dienst Requests annimmt); `MaintenanceUseCase` löscht auch Sessions nach Alter, gerechnet ab ihrem Beginn;
 Replay und Import weisen `open`-Sessions ab.
 
 **Replay:** `UNASSIGNED → READY → MATCHING → RESPONDING → READY`.
@@ -555,7 +555,7 @@ sequenceDiagram
     S->>R: Set status complete (all complete, none not appended) or incomplete
     S-->>A: Session status
     A-->>O: 200 + status
-    Note over B,R: Start nach Absturz, vor den Listenern
+    Note over B,R: Start nach Absturz, vor den Listenern: Integritätsprüfung, offene Sessions, Aufbewahrung, Blob-Abgleich
     B->>M: Startup()
     M->>R: Find open sessions, set incomplete
     B->>S: OpenInitialSession per service (mode record)
@@ -568,6 +568,7 @@ sequenceDiagram
 | Upstream-TLS/Timeout | `ARC-008` → `ARC-002` | Klassifizierter Transportfehler, HTTP 502/504 soweit möglich |
 | Replay-Mismatch | `ARC-002` | `ODR-E5001`, Session/Exchange/Match-Strategie |
 | Defektes Recording/Blob | `ARC-009`/`ARC-010` | `ODR-E3001`, keine Ersatzdaten |
+| Befund der Integritätsprüfung beim Start | `ARC-002` (Maintenance) → `ARC-012` | `ODR-E3001`, der Prozess startet nicht; ein fehlender oder beschädigter Blob wird gemeldet, der Start läuft weiter |
 | Unbekannte OData-Funktion | `ARC-011` → `ARC-002` | Expliziter 501-Pfad |
 | Ungenügende Coverage | `ARC-002` | `ODR-E6003`, keine irreführende leere Collection |
 | Concurrency-Konflikt | `ARC-002`/`ARC-009` | Atomarer Rollback, 409 oder 412 je Vertragsfall |
@@ -590,7 +591,7 @@ Die Fault-Injection-Matrix steht in `SPEC-048`.
 
 **Crash-Konsistenz:** SQLite-Commit und Blob-Rename sind nicht eine einzige globale Transaktion.
 Der Blob wird zuerst sicher geschrieben; erst danach referenziert ihn eine DB-Transaktion.
-Verwaiste Blobs sind tolerierbar und werden später bereinigt; fehlende referenzierte Blobs sind Integritätsfehler.
+Verwaiste Blobs sind tolerierbar und werden später bereinigt; fehlende referenzierte Blobs sind Integritätsfehler: der Start meldet sie und läuft weiter, das Lesen ergibt `ODR-E3001`.
 
 **Graceful Shutdown:** Ablauf und Frist legt `LH-FA-02.c` fest; Bootstrap und CLI orchestrieren, die Services finalisieren offene Captures.
 
