@@ -1,0 +1,2 @@
+**Vorgang:** slice-gegenproben-build-test
+**Fund:** Die Verifikation (`docs/reviews/2026-10-20-slice-gegenproben-build-test-verifikation.md`, Kopf, Zeile *Eingang*) sagt: „ein Bericht des Implementers mit Sensor-Belegen lag nicht vor, deshalb sind alle Belege unten selbst gefahren“. Die Mutationen und Läufe des Implementers standen in keinem Artefakt des Repos, der Verifier fuhr sie vollständig neu und konnte seine Zahlen nicht gegen die der Vorgängerin halten. Nachgetragen bei der Closure von `slice-race-gate`, wo dieselbe Lage im Review auftrat (I-1).
