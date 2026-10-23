@@ -136,9 +136,11 @@ func TestFehlerJeStufeBereinigung(t *testing.T) {
 	}
 }
 
-// TestFehlerCodes: die Abbildung der Fehler eines Ports (SPEC-123 Nr. 10): beschädigt ist
-// ODR-E3001, jeder andere Fehler ODR-E9001 mit Status 500, auch ErrNichtGefunden und
-// ErrUngueltigerUebergang aus SetStatus (W5).
+// TestFehlerCodes: die Abbildung der Fehler eines Ports (SPEC-123 Nr. 10): ErrBeschaedigt aus
+// Check und Blobs.List sowie ErrBlobFehlt und ErrBlobBeschaedigt aus Remove sind ODR-E3001, jeder
+// andere Fehler ODR-E9001 mit Status 500, auch ErrNichtGefunden und ErrUngueltigerUebergang aus
+// SetStatus und ErrSessionGeschlossen aus Delete (W5). Der Test fährt Startup; CleanupBlobs
+// prüft er nur für ErrBeschaedigt.
 func TestFehlerCodes(t *testing.T) {
 	beschaedigt := fmt.Errorf("Datei: %w", outbound.ErrBeschaedigt)
 	faelle := []struct {
@@ -149,6 +151,8 @@ func TestFehlerCodes(t *testing.T) {
 	}{
 		{"Check beschädigt", "Check", beschaedigt, "ODR-E3001"},
 		{"Blobs.List beschädigt", "Blobs.List", beschaedigt, "ODR-E3001"},
+		{"Remove Blob fehlt", "Remove", fmt.Errorf("Datei: %w", outbound.ErrBlobFehlt), "ODR-E3001"},
+		{"Remove Blob beschädigt", "Remove", fmt.Errorf("Datei: %w", outbound.ErrBlobBeschaedigt), "ODR-E3001"},
 		{"Verify weder fehlt noch beschädigt", "Verify", errDisk, "ODR-E9001"},
 		{"SetStatus nicht gefunden", "SetStatus", outbound.ErrNichtGefunden, "ODR-E9001"},
 		{"SetStatus ungültiger Übergang", "SetStatus", outbound.ErrUngueltigerUebergang, "ODR-E9001"},
