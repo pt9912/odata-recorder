@@ -69,6 +69,9 @@ bewusst kurz (Ergänzungs-Kanal, nicht Hauptkanal).
 - **Fänger nur mit Wahrscheinlichkeit, Rate nicht benannt** — der Fänger wird mit
   seiner Mutation nur in einem Teil der Läufe rot, und Plan oder Test nennen die
   Rate nicht (`AGENTS.md` §3.10)  (seit welle-record-replay)
+- **Akzeptiertes Negativ ohne Grund und Folge** — ein Plan oder Vertrag nimmt einen
+  Fall als akzeptiertes Negativ hin und nennt Grund oder Folge nicht; es zählt als
+  Zusage ohne Fänger (`AGENTS.md` §3.15)  (seit welle-record-replay)
 
 **LOW** — *mit Konventions-Anker* (ADR, Hard Rule, Linter-Regel, Eintrag im
 Reviewer-Skill): stilistisch unschön ohne semantische Auswirkung, einmalige

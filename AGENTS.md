@@ -173,9 +173,10 @@ Die Regeln im Einzelnen (Fälle, Ausnahmen, Codes, Rangfolgen) stehen in der Spe
 **Falsch:** die Fallunterscheidungen einer Spezifikationsstelle in der ADR nacherzählen.
 **Richtig:** die Entscheidung, die Alternativen und die Gründe nennen und für die Einzelregeln auf die Stelle zeigen.
 
-### 3.9 Der Slice-Plan folgt jeder Korrektur
+### 3.9 Der Slice-Plan folgt jeder Korrektur   (geschärft seit welle-record-replay)
 
 Wer im Slice Code, Gates, Tests, die Spezifikation oder Harness-Artefakte (`.claude/commands/`, `.harness/skills/`, Hooks) ändert, zieht im selben Commit §1 (Ziel und Abgrenzung), §3 (Plan) und §6 (Risiken) des Slice-Plans nach, dazu den Kopf (`Bezug`, `Berührte Spec-Stellen`) und betroffene Folge-Slices.
+Wer eine Aussage berichtigt, sucht alle Stellen, die sie tragen, und zieht jede im selben Commit nach.
 
 **Falsch:** Ein Gate bekommt eine zweite Prüfung, und die Sensors-Tabelle und §3 nennen weiter die erste.
 **Richtig:** Dieselbe Änderung trägt die Tabellen- und Plan-Zeile mit.
@@ -186,9 +187,18 @@ Wer einen neuen Vertrag liefert (Format, Fehlercode, Leser, Gate, Option), schre
 Der Bericht nennt je Zusage: Zusage · Mutation · roter Test.
 Ein Test zählt nur, wenn er aus dem benannten Grund rot wird, nicht weil der Aufbau bricht.
 Wird ein Fänger nur mit Wahrscheinlichkeit rot, nennt der Bericht seine Rate je Mutation und je Lauf von `go test`; „hoch“ steht nur mit Zahl.
+Wo ein Vertrag eine Zusage über Nebenläufigkeit macht (Sperre, Zähler, Reihenfolge), gilt sie nur als gefangen, wenn die Mutation in jedem Lauf rot wird.
+Ein Datenrennen zählt der Detektor von `make test-race` je Prozess (`-test.count=1`; er meldet dasselbe Rennen in einem Prozess nur einmal, ein `-count=20` zeigt es nicht), jede andere Wirkung eine Wiederholung (`-count=20`).
+Sonst bekommt die Zusage einen Wirkungs-Fänger, der die Wirkung zählt statt auf ein Datenrennen zu warten, oder steht als akzeptiertes Negativ mit Grund im Plan; das trifft, was der Detektor nicht meldet: einen Zugriff, den kein Lauf ausführt, Prüfen und Handeln in getrennten Abschnitten bei lauter geordneten Zugriffen und ein Modul unter `tools/`.
+Eine Zusage der Form „unter einer Sperre, ohne sie dazwischen freizugeben“ bekommt im Raster je Fenster der Sperre (zwischen welchen Schritten, auf welcher Seite) eine Zeile mit Fänger oder benanntem Negativ.
+Vor einem Test-Haken oder einem Negativ sucht der Plan einen Haltepunkt an einem Argument, das der Test übergibt (`ctx`, Strom, Fake).
+Der Plan nennt keinen Lauf, den das Image nicht fährt.
 
 **Falsch:** Die Tests decken den Gutfall; dass eine Mutation grün bleibt, findet erst das Review.
 **Richtig:** Je Zusage eine Mutation, vom Implementer selbst rot gesehen.
+
+**Falsch:** Die Zeile für das Fenster zwischen Prüfen und Handeln nennt `make test-race` als Fänger; jeder Zugriff liegt unter der Sperre, der Detektor sieht nichts.
+**Richtig:** Die Zeile nennt einen Wirkungs-Fänger, der zählt, was das Fenster zuließe, oder ein Negativ mit Grund; das Fehlen der Sperre fängt der Detektor, rot in <N> von <N> Prozessläufen.
 
 ### 3.11 Ein Kommentar sagt nur zu, was ein Test prüft
 
@@ -237,6 +247,7 @@ Jede Zusage, Randform und jeder Fall des Vertrags hat eine Zeile; der Fänger is
 Ein Fänger führt jede Form der Eingabe, die der Code verschieden behandelt: ein Fall je Element einer Menge, beide Seiten jeder Grenze und der Fall, in dem zwei verglichene Werte gleich sind.
 Eine Fixture gleicht nie dem Wert der Mutation.
 Der Reviewer löst jede Zeile mit einer Mutation auf, der Verifier prüft die Tabelle gegen den Vertrag.
+Jedes akzeptierte Negativ nennt Grund und Folge, sonst ist es eine Zusage ohne Fänger.
 Eine Zusage ohne Fänger ist ein MEDIUM.
 
 **Falsch:** Der Vertrag nennt eine Prüfung, und sie lässt sich entfernen, ohne dass etwas rot wird.
