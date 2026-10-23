@@ -18,8 +18,6 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 - [welle-record-replay](../welle-record-replay.md)
 
-Nichts in Arbeit.
-
 
 
 

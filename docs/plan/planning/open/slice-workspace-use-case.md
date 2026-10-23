@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-09`, `LH-FA-04`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md)
 
-**Berührte Spec-Stellen:** `LH-FA-09.a`, `LH-FA-09.b` · `SPEC-003` · `SPEC-108` · `SPEC-043` (Prüfung der Baseline vor der Anlage) · `SPEC-070`, `SPEC-025`, `SPEC-095`, `SPEC-096` · `ARC-002`, `ARC-003`.
+**Berührte Spec-Stellen:** `LH-FA-09.a`, `LH-FA-09.b` · `SPEC-003` · `SPEC-108` · `SPEC-043` (Prüfung der Baseline vor der Anlage) · `SPEC-070`, `SPEC-025`, `SPEC-095`, `SPEC-096` · `LH-RB-04.a` (Bereinigung nach dem Löschen) · `ARC-002`, `ARC-003`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -36,6 +36,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Übernimmt:** Die Übergabe aus `welle-persistenz`: die CRUD-Fachlogik der Workspaces (Anlage-, Reset- und Löschablauf setzt `SPEC-108` als Fachlogik voraus).
 
 **Übernimmt (Zeit und Kennungen):** Die Workspace-Kennung kommt aus `IDGenerator.WorkspaceID()`, wenn der Aufrufer keine `id` mitgibt, die Zeit (`created_at`) aus `Clock.Now()` (`SPEC-114`); die Form einer mitgegebenen `id` ist das offene Risiko in §6 und gehört diesem Slice (Sendung von `slice-clock-idgenerator`).
+
+**Übernimmt (Bereinigung):** `WorkspaceUseCase` ruft nach dem Löschen eines Workspace (mit seinen Snapshots) die Blob-Bereinigung von `MaintenanceUseCase` über den Inbound Port, den `slice-session-wartung` liefert (`ARC-002`: löschende Use Cases rufen sie nach dem Commit; `LH-RB-04.a`: best effort); Sendung von `slice-session-wartung`, dessen Start `slice-baseline-import` und damit `slice-session-wartung` in `done/` voraussetzt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -62,7 +64,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Anlegen: Prüfung der Baseline (`ODR-E7002`, `ODR-E7008`, `ODR-E5004`), Materialisieren des Entity-State aus dem Manifest in einer Transaktion über `WithWorkspaceTransaction`, `ODR-E7007` bei Doppelung.
-- [ ] Lesen, Auflisten, Löschen (`ODR-E7001` bei Unbekanntem; Cursors und Snapshots entfallen mit).
+- [ ] Lesen, Auflisten, Löschen (`ODR-E7001` bei Unbekanntem; Cursors und Snapshots entfallen mit), danach die Blob-Bereinigung über den Inbound Port von `MaintenanceUseCase` rufen (Sendung von `slice-session-wartung`).
 - [ ] Reset in einer Transaktion: State, Cursors, Revision; auch ohne Mutationen definiert und im sichtbaren Ergebnis idempotent.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
@@ -84,7 +86,7 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | `src/hexagon/ports/inbound/` | update | `WorkspaceUseCase` |
-| `src/hexagon/services/workspace/` | neu | Anlage, Reset, Löschen |
+| `src/hexagon/services/workspace/` | neu | Anlage, Reset, Löschen mit Aufruf der Blob-Bereinigung (Port aus `slice-session-wartung`) |
 | `spec/spezifikation.md` | update | Vertrag mit Randformen, Verhalten bei beschädigtem Manifest |
 | Tests | neu | gegen die SQLite-Datei und die Baseline aus `slice-baseline-import`; Fälle von `LH-FA-09` (Isolation zweier Workspaces, Reset ohne Änderung, unbekannte ID) |
 
