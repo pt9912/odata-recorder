@@ -185,7 +185,7 @@ Mit F-8 sind es 4 MEDIUM, 4 LOW; die Zählung in der Summary folgt dieser Tabell
 | Sicherheit und Geheimnisse (HIGH-Liste) | geprüft, ohne Befund: die Einträge tragen `service_id`, `session_id`, `error_code` und `ereignis`, nie einen Fehlertext, nie einen Wert aus der Eingabe außer der Kennung der gelöschten Session |
 | Spec-Straten | geprüft, ohne Befund (`SPEC-124`, `SPEC-109` Nr. 5, `SPEC-123` Nr. 8 und 10 sagen dasselbe; der Diff ändert keine Spezifikation) |
 | Kommentare (`AGENTS.md` §3.7, §3.11) | geprüft, ohne Befund bis auf die zwei Zusagen in F-2 |
-| `docs/plan/planning/in-progress/slice-session-use-case.md` §3-Absatz | geprüft, Zahlen und Namen stimmen (20 Fänger-Namen, Raten bestätigt); F-6, I-2 |
+| `docs/plan/planning/done/slice-session-use-case.md` §3-Absatz | geprüft, Zahlen und Namen stimmen (20 Fänger-Namen, Raten bestätigt); F-6, I-2 |
 | Importe (`.a-check.yml`) | geprüft, ohne Befund (V20) |
 
 ## Summary
