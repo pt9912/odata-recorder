@@ -209,6 +209,8 @@ Alle fünf Fänger laufen unmutiert in je einem Prozess mit `-test.count=50` gr�
 
 **Raten nach den Fixes zum Review** (Implementer, Messender und Verfahren wie oben, Host mit 20 CPUs, `RACE_IMAGE`; die nebenläufigen Tests rufen die Operationen seitdem über die Umgebung, daher neu gemessen; Quelle: der Stand der Fixes, die Mutationen dieselben fünf): jede Zelle der Tabelle ergibt dieselbe Zahl wie oben — ungedrosselt 3 Läufe zu je 50 Prozessen (150 je Zelle), gedrosselt mit `--cpus=0.05` 3 Läufe zu je 20 Prozessen (60 je Zelle): V12, V13, V17, V18 unmutiert 0 rot, mutiert ohne und mit Detektor 150 von 150 und gedrosselt 60 von 60; V19 unmutiert 0 rot, mutiert ohne Detektor 0 von 150 und gedrosselt 0 von 60, mit Detektor 150 von 150 und gedrosselt 60 von 60. Spanne zwischen den drei Läufen: 0. Unmutiert laufen alle fünf Fänger in je einem Prozess mit `-test.count=50` grün, ohne und mit Detektor (Exit-Code 0); die V19-Mutation meldet unter `-test.count=50` ein einziges `WARNING: DATA RACE` in einem Prozess. Die Fänger V21 bis V23 sind nicht nebenläufig und ohne Rate.
 
+**Zuordnung der Fixes zu den Zeilen** (Planner, nach V-6 der Verifikation; die Mutationen je Fix stehen in der Zeile der Tabelle und im Absatz *Zusage · Mutation · roter Test*, nicht im Absatz der Raten): F-1 → V21; F-2 → V22; F-3 → V14 (g) bis (i); F-4 → V23; F-5 → V20 (Gegenprobe mit sieben Quelltexten); F-6 → V10 (Zeile und Fixture); F-7 → V2 (Aufrufe über `fange`); F-8 → V10 (Fälle für `Dienste.List`); V-1 → V23; V-3 → V9 und V11; V-4 → V8.
+
 ## 4. Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
@@ -300,7 +302,7 @@ Der Vertrag ist entschieden in `SPEC-124` (*V*). Jede Zelle ist gegen den Wortla
 | Allaussage: kein Fehlertext im Protokoll, kein Wert der `id` im Text des Fehlers | *V* Nr. 9: „Kein Eintrag enthält einen Fehlertext“; Nr. 3: „im Text ohne den Wert“ | V15 (h), V4 |
 | Allaussage: jeder `*Fehler` mit erlaubtem Status | *V* Nr. 8 | V16 (über alle Fälle) |
 | Allaussage: der Dienst hält keinen Zustand | *V* Nr. 10: „keinen veränderlichen Zustand und keine Sperre“ | V19 (`-race`); V17 hält die fehlende Sperre mit einer Barriere |
-| Konfig wächst für das Beenden additiv | *V* Nr. 1: „kein Feld oben wird umbenannt oder entfernt, und `New` behält seine Signatur“ | kein Fänger hier; Träger `slice-session-beenden` (DoD: die Tests dieses Slice laufen bis auf das Füllen der neuen Felder im Helfer unverändert) |
+| Konfig wächst für das Beenden additiv | *V* Nr. 1: „kein Feld oben wird umbenannt oder entfernt, und `New` behält seine Signatur“ | kein Fänger hier; Träger `slice-session-beenden` (Sendung in §1 *Übernimmt (Konfig)* und im dritten Punkt der DoD dort: die Tests dieses Slice laufen bis auf das Füllen der neuen Felder im Helfer unverändert) |
 
 **Risiken:**
 

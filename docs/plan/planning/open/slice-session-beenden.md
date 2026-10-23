@@ -74,7 +74,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Beenden: prüfen (`ODR-E7003`, `ODR-E7011`), `RecordUseCase.Drain` mit `SHUTDOWN_TIMEOUT` bei noch offener Session, danach erst der Status `complete` oder `incomplete` nach der Regel von `SPEC-121` Nr. 13, auf jedem Rückkehrpfad von `Drain` (Fänger: beim Aufruf von `Drain` ist die Session `open`, `SPEC-123` Nr. 8a).
 - [ ] `CloseAll` beendet jede offene Session, mehrere zugleich, mit der Regel für Fehler einer Session und für die Frist, die der Vertrag festlegt.
-- [ ] Die Fenster der Abfolge aus Prüfen und Handeln (Session lesen und `open` prüfen, `Drain`, Exchanges lesen, Status setzen; zwei Beenden derselben Session) tragen je eine Zeile in der Tabelle *Zusage · Fänger* mit Haltepunkt, Wirkungs-Fänger oder benanntem Negativ (`AGENTS.md` §3.10).
+- [ ] Die Fenster der Abfolge aus Prüfen und Handeln (Session lesen und `open` prüfen, `Drain`, Exchanges lesen, Status setzen; zwei Beenden derselben Session) tragen je eine Zeile in der Tabelle *Zusage · Fänger* mit Haltepunkt, Wirkungs-Fänger oder benanntem Negativ (`AGENTS.md` §3.10). Eine weitere Zeile trägt die Sendung von [slice-session-use-case](../in-progress/slice-session-use-case.md) (`AGENTS.md` §3.13): die Konfig wächst additiv (kein Feld wird umbenannt oder entfernt, `New` behält die Signatur), und die Tests der Verwaltung laufen bis auf das Füllen der neuen Felder im Helfer unverändert (Prüfung: die Testdateien von `slice-session-use-case` bleiben bis auf `helfer_test.go` im Diff dieses Slice unberührt).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
