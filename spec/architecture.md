@@ -178,7 +178,7 @@ tests/
 | `HybridUseCase` | Request im Modus `hybrid` an `MockUseCase` geben und nach Fallback-Policy an `ReplayUseCase` oder den Upstream weiterreichen | OData-Response oder Fallback-Fehler |
 | `WorkspaceUseCase` | Workspace erstellen, auflisten, lesen, löschen, resetten, mutieren; Snapshot wiederherstellen | Workspace-Revision bzw. Verwaltungsdaten |
 | `SnapshotUseCase` | Snapshot erzeugen und auflisten | Snapshot-ID bzw. Verwaltungsdaten |
-| `SessionUseCase` | Recording-Sessions anlegen (auch die erste Session je Service beim Start; der Composition Root ruft sie nur im Modus `record`), beenden (auch alle beim geordneten Shutdown), auflisten (über alle Services), lesen, löschen (eine offene Session weist er ab, nach dem Commit ruft er die Blob-Bereinigung von `MaintenanceUseCase` und protokolliert deren Fehler, ohne dass er das Ergebnis des Löschens ändert) | Verwaltungsdaten bzw. Löschbericht der Bereinigung |
+| `SessionUseCase` | Recording-Sessions anlegen (auch die erste Session je Service beim Start; der Composition Root ruft sie nur im Modus `record`), beenden (eine Session: erst `RecordUseCase.Drain` bei noch offener Session, danach der Status aus den Exchanges und der Zahl der nicht angehängten; alle beim geordneten Shutdown zugleich, ein Fehler an einer Session hält die übrigen nicht auf), auflisten (über alle Services), lesen, löschen (eine offene Session weist er ab, nach dem Commit ruft er die Blob-Bereinigung von `MaintenanceUseCase` und protokolliert deren Fehler, ohne dass er das Ergebnis des Löschens ändert) | Verwaltungsdaten, Löschbericht der Bereinigung, die beendete Session bzw. Zahl der beendeten und der gescheiterten Sessions |
 | `MaintenanceUseCase` | Startwartung vor dem Öffnen der Listener: Integritätsprüfung (ein Befund verhindert den Start), offene Sessions auf `incomplete` setzen, Aufbewahrung anwenden (über `SessionRepository`, nicht über `SessionUseCase`; eine Session als Quelle einer Baseline bleibt stehen), Blobs gegen die Referenzmenge abgleichen (fehlende und beschädigte werden gemeldet, nicht referenzierte entfernt); löschende Use Cases (`SessionUseCase`, `WorkspaceUseCase`) rufen die Blob-Bereinigung nach dem Commit hier auf, sie wird bei offener Session zurückgestellt; `MaintenanceUseCase` ruft selbst keinen anderen Use Case auf, der Aufrufweg ist damit zyklenfrei | Wartungsbericht, Löschbericht |
 | `InspectionUseCase` | Exchanges, Coverage und Diagnose lesen | paginierte Verwaltungsdaten |
 
@@ -230,7 +230,7 @@ Er wird mit `capture_status` `complete`, `incomplete` oder `failed` abgeschlosse
 Nur `complete`-Exchanges sind regulär replayfähig.
 
 **Session:** `open → complete` oder `open → incomplete` (Werte `sessions.status`);
-`SessionUseCase` setzt den Status beim Beenden der Aufzeichnung, `MaintenanceUseCase` beim Start (offene Sessions werden `incomplete`, nach der Integritätsprüfung und bevor der Dienst Requests annimmt); `MaintenanceUseCase` löscht auch Sessions nach Alter, gerechnet ab ihrem Beginn;
+`SessionUseCase` setzt den Status beim Beenden der Aufzeichnung, erst nachdem `RecordUseCase.Drain` zurückgekehrt ist (scheitert `Drain` oder der Statuswechsel, bleibt die Session `open`, und `MaintenanceUseCase` setzt sie beim nächsten Start auf `incomplete`), `MaintenanceUseCase` beim Start (offene Sessions werden `incomplete`, nach der Integritätsprüfung und bevor der Dienst Requests annimmt); `MaintenanceUseCase` löscht auch Sessions nach Alter, gerechnet ab ihrem Beginn;
 Replay und Import weisen `open`-Sessions ab.
 
 **Replay:** `UNASSIGNED → READY → MATCHING → RESPONDING → READY`.
@@ -547,14 +547,22 @@ sequenceDiagram
     participant B as Bootstrap
     participant M as Maintenance Service
     O->>A: POST /__admin/sessions/{id}/close
-    A->>S: Close(session)
-    S->>P: Drain(session, SHUTDOWN_TIMEOUT)
+    A->>S: Beenden(session)
+    S->>R: Get session
+    R-->>S: Session (unknown: ODR-E7003, not open: ODR-E7011)
+    S->>P: Drain(session, SHUTDOWN_TIMEOUT), the session is still open
     P-->>S: In-flight exchanges finished or aborted (status from their results), counts aborted and not appended
     S->>X: Read exchanges' capture status
     X-->>S: All complete? / any incomplete or failed
     S->>R: Set status complete (all complete, none not appended) or incomplete
-    S-->>A: Session status
+    S-->>A: Session with status
     A-->>O: 200 + status
+    Note over B,S: Geordneter Shutdown: Listener nehmen keinen neuen Request an, dann CloseAll, dann Verbindungen und Repositories schließen
+    B->>S: CloseAll()
+    S->>R: Find open sessions
+    R-->>S: Open sessions of all services
+    Note over S,P: Beenden je Session zugleich: Drain mit gemeinsamer Frist, danach Status je Session; ein Fehler hält die übrigen nicht auf
+    S-->>B: Counts ended and failed
     Note over B,R: Start nach Absturz, vor den Listenern: Integritätsprüfung, offene Sessions, Aufbewahrung, Blob-Abgleich
     B->>M: Startup()
     M->>R: Find open sessions, set incomplete
