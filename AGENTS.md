@@ -247,6 +247,8 @@ Ein Slice, der einen Vertrag liefert, führt in §3 seines Plans die Tabelle *Zu
 Jede Zusage, Randform und jeder Fall des Vertrags hat eine Zeile; der Fänger ist ein Test, ein Fall der Gegenprobe oder eine benannte Ausgabe des Gates.
 Ein Fänger führt jede Form der Eingabe, die der Code verschieden behandelt: ein Fall je Element einer Menge, beide Seiten jeder Grenze und der Fall, in dem zwei verglichene Werte gleich sind.
 Eine Fixture gleicht nie dem Wert der Mutation.
+Die Aufrufstellen der Ports sind eine solche Menge: Was der Vertrag je Aufruf zusagt (der `ctx` des Aufrufs, der Gegenstand der Fehlerabbildung, der Kontextfehler), hat einen Fall je Aufrufstelle und nicht einen am ersten Port der Kette; der Fake eines Ports hält jedes Argument fest und zählt jede seiner Operationen, auch die, die der Dienst nie rufen darf, sonst lässt sich „unverändert weitergereicht“ und „sonst kein Aufruf“ nicht fangen.
+Eine Allaussage über Stellen und Arten (an jeder Stelle, jede Art von Fehler) schreibt der Test als Schleife über beide Mengen, nicht als Liste der Fälle, die einfielen.
 Der Reviewer löst jede Zeile mit einer Mutation auf, der Verifier prüft die Tabelle gegen den Vertrag.
 Jedes akzeptierte Negativ nennt Grund und Folge, sonst ist es eine Zusage ohne Fänger.
 Eine Zusage ohne Fänger ist ein MEDIUM.
