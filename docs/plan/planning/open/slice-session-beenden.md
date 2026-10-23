@@ -43,9 +43,11 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Zeit):** Die Zeit kommt aus `Clock.Now()` (`SPEC-114` Nr. 2), soweit das Beenden eine braucht.
 
+**Übernimmt (Konfig):** `session.Konfig` und `session.New` aus [slice-session-use-case](../in-progress/slice-session-use-case.md) (`SPEC-124` Nr. 1) tragen die Ports des Beenden **nicht**; dieser Slice ergänzt die Felder für `RecordUseCase`, `RecordingRepository` und, wenn der Vertrag es so bestimmt, die Frist (Namen und Quelle der Frist legt der Vertrag des Beenden fest), prüft sie in `New` (`model.ErrUngueltig` bei nil) und füllt sie im Helfer der Tests. Kein Feld der Konfig und keine Signatur aus `slice-session-use-case` wird umbenannt oder entfernt, `New` behält seine Signatur, und die Tests der Verwaltung laufen bis auf das Füllen der neuen Felder im Helfer unverändert (Sendung von `slice-session-use-case`, `AGENTS.md` §3.13).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Anlegen, `OpenInitialSession`, Lesen, Auflisten, Löschen mit Bereinigung, Form einer Client-`id`, Konstruktor, Konfig, Fehlerabbildung und Protokoll des Pakets — [slice-session-use-case](../in-progress/slice-session-use-case.md), in `done/` vor dem Start dieses Slice; hier werden sie benutzt, nicht geändert.
+- Anlegen, `OpenInitialSession`, Lesen, Auflisten, Löschen mit Bereinigung, Form einer Client-`id`, Konstruktor, Konfig, Fehlerabbildung und Protokoll des Pakets — [slice-session-use-case](../in-progress/slice-session-use-case.md), in `done/` vor dem Start dieses Slice; hier werden sie benutzt, nicht geändert. Ausgenommen davon ist die Konfig: sie trägt die Ports des Beenden nicht, dieser Slice ergänzt sie additiv (siehe *Übernimmt (Konfig)*).
 - `MaintenanceUseCase` — `slice-session-wartung`, in `done/`; dieser Slice ruft `Startup` und `CleanupBlobs` nie.
 - Die Verdrahtung im Composition Root (Reihenfolge Wartung, erste Session, `CloseAll` beim Herunterfahren; derselbe `RecordUseCase` für `SessionUseCase` und HTTP-Adapter) — `slice-bootstrap-m2`, das die Sendung in §1 und DoD mit der Kennung dieses Slice führt.
 - Der Endpunkt `POST /__admin/sessions/{id}/close` — Folgewelle (Welle §6); der Use Case ist der Vertrag, den der Admin-Adapter später ruft.
@@ -103,7 +105,7 @@ Der Vertrag, die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster
 - Die Abhängigkeiten laufen über Inbound Ports, nie über das Paket (`architecture.md` §2): `SessionUseCase` → `RecordUseCase.Drain`.
 - Importe: wie `slice-session-use-case`; `.a-check.yml` bleibt.
 
-**Auftrag an den Architect vor dem ersten Code-Commit** (Suchliste des Planner, kein Vertrag; die Verträge schreibt der Architect; Vertrag, Konfig, Fehlerabbildung und Protokoll des Pakets liegen aus `slice-session-use-case` vor):
+**Auftrag an den Architect vor dem ersten Code-Commit** (Suchliste des Planner, kein Vertrag; die Verträge schreibt der Architect; der Vertrag der Verwaltung `SPEC-124`, Fehlerabbildung (Nr. 8) und Protokoll (Nr. 9) des Pakets liegen aus `slice-session-use-case` vor, die Konfig wächst hier additiv):
 
 1. Vertrag von Beenden und `CloseAll`: Signaturen (Rückgabe, Fehler `*inbound.Fehler`, `ctx` nil und beendet), Quelle von `SHUTDOWN_TIMEOUT` (Feld der Konfig oder Argument von `CloseAll`), Fehler `ODR-E7003`, `ODR-E7011` und ihre Reihenfolge, Protokoll bei Fehlern in `CloseAll`.
 2. Randformen als Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16), jede Zelle mit Ort oder „gilt nicht“ mit Grund; darin mindestens: Beenden einer unbekannten und einer nicht offenen Session und die Reihenfolge der Verstöße (eine Kennung, die `Drain` nie sah, ist dort kein Fehler, `SPEC-121` Nr. 13); Beenden zum zweiten Mal nacheinander (`ODR-E7011`, nichts geändert, `SPEC-111`); Fehler von `Drain`, von `ListBySession` und des Statuswechsels; zwei gleichzeitige Beenden derselben Session (der zweite `SetStatus` ist `ErrUngueltigerUebergang`: welchen Code und welchen Status trägt der Verlierer?); `CloseAll` mit mehreren Sessions, mit einem Fehler (an der ersten, einer mittleren und der letzten), ohne offene Session und gleichzeitig mit Anlegen und mit Beenden einer einzelnen Session; `ctx` nil und beendet je Operation und je Stelle der Abfolge.

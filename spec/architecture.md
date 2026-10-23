@@ -178,7 +178,7 @@ tests/
 | `HybridUseCase` | Request im Modus `hybrid` an `MockUseCase` geben und nach Fallback-Policy an `ReplayUseCase` oder den Upstream weiterreichen | OData-Response oder Fallback-Fehler |
 | `WorkspaceUseCase` | Workspace erstellen, auflisten, lesen, löschen, resetten, mutieren; Snapshot wiederherstellen | Workspace-Revision bzw. Verwaltungsdaten |
 | `SnapshotUseCase` | Snapshot erzeugen und auflisten | Snapshot-ID bzw. Verwaltungsdaten |
-| `SessionUseCase` | Recording-Sessions anlegen (auch die erste Session je Service beim Start), beenden (auch alle beim geordneten Shutdown), auflisten, lesen, löschen | Verwaltungsdaten bzw. Löschbericht |
+| `SessionUseCase` | Recording-Sessions anlegen (auch die erste Session je Service beim Start; der Composition Root ruft sie nur im Modus `record`), beenden (auch alle beim geordneten Shutdown), auflisten (über alle Services), lesen, löschen (eine offene Session weist er ab, nach dem Commit ruft er die Blob-Bereinigung von `MaintenanceUseCase` und protokolliert deren Fehler, ohne dass er das Ergebnis des Löschens ändert) | Verwaltungsdaten bzw. Löschbericht der Bereinigung |
 | `MaintenanceUseCase` | Startwartung vor dem Öffnen der Listener: Integritätsprüfung (ein Befund verhindert den Start), offene Sessions auf `incomplete` setzen, Aufbewahrung anwenden (über `SessionRepository`, nicht über `SessionUseCase`; eine Session als Quelle einer Baseline bleibt stehen), Blobs gegen die Referenzmenge abgleichen (fehlende und beschädigte werden gemeldet, nicht referenzierte entfernt); löschende Use Cases (`SessionUseCase`, `WorkspaceUseCase`) rufen die Blob-Bereinigung nach dem Commit hier auf, sie wird bei offener Session zurückgestellt; `MaintenanceUseCase` ruft selbst keinen anderen Use Case auf, der Aufrufweg ist damit zyklenfrei | Wartungsbericht, Löschbericht |
 | `InspectionUseCase` | Exchanges, Coverage und Diagnose lesen | paginierte Verwaltungsdaten |
 
@@ -219,7 +219,7 @@ Der Cursor gehört zum Tupel `(workspace, replay_session, recording_session)` un
 
 **Port-Design:** Die Transaktionsgrenze ist fachlich (`WithWorkspaceTransaction` oder äquivalentes Unit-of-Work-Konzept), nicht als offene SQL-Connection exponiert.
 Reset (Entity-State und Cursor) und Löschen eines Workspace laufen in einer solchen Transaktion über `WorkspaceRepository`, `EntityRepository`, `CursorRepository` und `SnapshotRepository`;
-ebenso die Import-Publikation (Snapshot, Import-Eintrag, Baseline-Quellen, Coverage über `SnapshotRepository`, `ImportRepository`, `CoverageRepository`) und das Löschen einer Session (Prüfung der Baseline-Quellen über `ImportRepository`, Exchanges und Cursor über `SessionRepository`);
+ebenso die Import-Publikation (Snapshot, Import-Eintrag, Baseline-Quellen, Coverage über `SnapshotRepository`, `ImportRepository`, `CoverageRepository`) und das Löschen einer Session (Prüfung der Baseline-Quellen, Exchanges und Cursor in einer Transaktion allein von `SessionRepository`; den Status `open` prüft `SessionUseCase` vorher);
 die Blob-Bereinigung folgt dem Commit über `MaintenanceUseCase`; ein Wächter vor dem `BlobRepository`, den jeder Schreiber von Blobs und die Wartung teilen, ordnet `Commit` und Entfernen gleicher Bytes und schützt einen eben committeten, noch nicht referenzierten Blob.
 Für große Bodies existiert ein Streaming-Port mit begrenztem Puffer und explizitem Abschluss.
 
