@@ -2,6 +2,8 @@ package maintenance_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math"
 	"slices"
 	"sync"
@@ -247,5 +249,136 @@ func TestAbgleicheNacheinander(t *testing.T) {
 	wg.Wait()
 	if hoechst.Load() != 1 || summe.Load() != 3 {
 		t.Errorf("höchstens %d gleichzeitige List, %d Entfernte; erwartet 1 und 3", hoechst.Load(), summe.Load())
+	}
+}
+
+// sperreFrei prüft, dass nach der Rückkehr einer Operation die Schreiber- und die Lesersperre des
+// Wächters zu nehmen sind: eine behaltene Schreibersperre macht beide falsch, eine behaltene
+// Lesersperre die Schreibersperre.
+func sperreFrei(t *testing.T, u *welt, wo string) {
+	t.Helper()
+	if u.waechter.TryLock() {
+		u.waechter.Unlock()
+	} else {
+		t.Errorf("%s: die Schreibersperre des Wächters ist nach der Rückkehr nicht zu nehmen", wo)
+	}
+	if u.waechter.TryRLock() {
+		u.waechter.RUnlock()
+	} else {
+		t.Errorf("%s: die Lesersperre des Wächters ist nach der Rückkehr nicht zu nehmen", wo)
+	}
+}
+
+// TestSperreFrei: jeder Rückkehrpfad einer Operation, die die Sperre des Wächters nimmt, gibt sie
+// frei; die Aufrufe laufen nacheinander und ohne Haltepunkt (W28). Je Fall steht der Ausgang, damit
+// der Fall den Pfad nimmt, den sein Name nennt.
+func TestSperreFrei(t *testing.T) {
+	cleanup := func(u *welt) (string, error) {
+		b, err := u.w.CleanupBlobs(context.Background())
+		return fmt.Sprintf("entfernt %d, zurückgestellt %v", b.Entfernt, b.Zurueckgestellt), err
+	}
+	startup := func(u *welt) (string, error) {
+		b, err := u.w.Startup(context.Background())
+		return fmt.Sprintf("entfernt %d", b.BlobsEntfernt), err
+	}
+	commit := func(u *welt) (string, error) {
+		w, err := u.waechter.Begin(context.Background(), 16)
+		if err != nil {
+			return "Begin", err
+		}
+		if _, err := w.Write([]byte("K")); err != nil {
+			return "Write", err
+		}
+		ref, _, err := w.Commit()
+		return fmt.Sprintf("Referenz von K %v", ref == refVon([]byte("K"))), err
+	}
+	mitBestand := func(u *welt) { bestandBereinigung(u) }
+	faelle := []struct {
+		name    string
+		setze   func(u *welt)
+		ruf     func(u *welt) (string, error)
+		ausgang string
+		fehler  error
+	}{
+		{"CleanupBlobs gelungen, zwei Kandidaten", mitBestand, cleanup, "entfernt 2, zurückgestellt false", nil},
+		{"CleanupBlobs zurückgestellt", func(u *welt) {
+			mitBestand(u)
+			u.sessions.fuege("s1", dienstA, t0().Add(-time.Hour), model.SessionOpen)
+		}, cleanup, "entfernt 0, zurückgestellt true", nil},
+		{"CleanupBlobs, FindOpen scheitert", func(u *welt) {
+			mitBestand(u)
+			u.st.scheitere("FindOpen", 1, errDisk)
+		}, cleanup, "entfernt 0, zurückgestellt false", errDisk},
+		{"CleanupBlobs, erste Lesung scheitert", func(u *welt) {
+			mitBestand(u)
+			u.st.scheitere("ReferencedBlobs", 1, errDisk)
+		}, cleanup, "entfernt 0, zurückgestellt false", errDisk},
+		{"CleanupBlobs, Remove des zweiten Kandidaten scheitert", func(u *welt) {
+			mitBestand(u)
+			u.st.scheitere("Remove", 2, errDisk)
+		}, cleanup, "entfernt 1, zurückgestellt false", errDisk},
+		{"Startup gelungen", mitBestand, startup, "entfernt 2", nil},
+		{"Startup, Verify der Prüfstufe scheitert", func(u *welt) {
+			mitBestand(u)
+			u.st.scheitere("Verify", 1, errDisk)
+		}, startup, "entfernt 0", errDisk},
+		{"Startup, Lesung der Prüfstufe scheitert", func(u *welt) {
+			mitBestand(u)
+			u.st.scheitere("ReferencedBlobs", 1, errDisk)
+		}, startup, "entfernt 0", errDisk},
+		{"Startup, Remove des zweiten Kandidaten scheitert", func(u *welt) {
+			mitBestand(u)
+			u.st.scheitere("Remove", 2, errDisk)
+		}, startup, "entfernt 1", errDisk},
+		{"Commit gelungen", func(*welt) {}, commit, "Referenz von K true", nil},
+		{"Commit, der Writer darunter scheitert", func(u *welt) {
+			u.st.scheitere("Commit", 1, errDisk)
+		}, commit, "Referenz von K false", errDisk},
+	}
+	for _, f := range faelle {
+		u := neu(t)
+		f.setze(u)
+		ausgang, err := f.ruf(u)
+		if ausgang != f.ausgang || (f.fehler == nil && err != nil) || (f.fehler != nil && !errors.Is(err, f.fehler)) {
+			t.Errorf("%s: Ausgang %q (%v), erwartet %q (%v)", f.name, ausgang, err, f.ausgang, f.fehler)
+		}
+		sperreFrei(t, u, f.name)
+	}
+}
+
+// startupAsync ruft Startup in einer Goroutine.
+func (u *welt) startupAsync() <-chan error {
+	ch := make(chan error, 1)
+	go func() {
+		_, err := u.w.Startup(context.Background())
+		ch <- err
+	}()
+	return ch
+}
+
+// TestSperreStartup: die Stufe 4 von Startup hält die Sperre des Wächters von ihrem Beginn bis zu
+// ihrem Ende, im Prüfen und im Abgleich: in jedem Halt ist die Lesersperre nicht zu nehmen (W29).
+func TestSperreStartup(t *testing.T) {
+	for _, f := range []struct {
+		name string
+		op   string
+	}{
+		{"Lesung der Prüfstufe", "ReferencedBlobs"},
+		{"Verify der ersten Referenz", "Verify"},
+		{"Blobs.List", "Blobs.List"},
+		{"Remove des ersten Kandidaten", "Remove"},
+	} {
+		u := neu(t)
+		u.speicher.fest = []string{r("v1")}
+		u.blobs.lege(r("v1"), r("u1"))
+		h := u.st.halte(f.op, 1)
+		t.Cleanup(h.gib)
+		ch := u.startupAsync()
+		warte(t, h.erreicht, f.name)
+		sperreHalten(t, u, f.name)
+		h.gib()
+		if err := <-ch; err != nil {
+			t.Errorf("%s: %v", f.name, err)
+		}
 	}
 }
