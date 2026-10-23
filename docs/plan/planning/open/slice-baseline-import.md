@@ -98,7 +98,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-odata-codec-json` und `slice-redaction-match-key` und `slice-session-wartung` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-odata-codec-json` und `slice-redaction-match-key` und `slice-session-wartung` und `slice-session-use-case` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 

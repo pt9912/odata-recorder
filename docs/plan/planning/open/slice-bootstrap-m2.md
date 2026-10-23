@@ -35,7 +35,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt:** Der Composition Root erzeugt genau eine `clock.NewSystemuhr()` und eine `clock.NewZufallsIDs()` je Prozess und reicht sie an alle Verbraucher; zwei Uhren wären zwei nicht aufeinander abgestimmte Höchstwerte (`SPEC-114` Nr. 2; Sendung von `slice-clock-idgenerator`).
 
-**Übernimmt (Session und Wartung):** Der Composition Root verdrahtet `MaintenanceUseCase` und `SessionUseCase` (Konstruktoren und Ports nach dem Vertrag aus `slice-session-wartung`): beim Start zuerst die Startwartung, danach im Modus `record` `OpenInitialSession` je konfiguriertem Service, beim Herunterfahren `CloseAll` mit `SHUTDOWN_TIMEOUT` (`ARC-012`; Sendung von `slice-session-wartung`, Start dort in `done/`, §4 unten).
+**Übernimmt (Session und Wartung):** Der Composition Root verdrahtet `MaintenanceUseCase` und `SessionUseCase` (Konstruktoren und Ports nach den Verträgen aus `slice-session-wartung` und `slice-session-use-case`): beim Start zuerst die Startwartung (`MaintenanceUseCase`, Sendung von `slice-session-wartung`), danach im Modus `record` `OpenInitialSession` je konfiguriertem Service, beim Herunterfahren `CloseAll` mit `SHUTDOWN_TIMEOUT` (`SessionUseCase`, `ARC-012`; Sendung von `slice-session-use-case`); beide Slices müssen in `done/` liegen (§4 unten).
 
 **Übernimmt (Record):** Der Composition Root verdrahtet `record.New` (`SPEC-121` Nr. 1) aus der Startkonfiguration (Dienste mit Root und `UpstreamURL`, `SchluesselRegeln`, `capture.Standard` mit `MAX_CAPTURE_BODY` und `REDACT_JSON_PATHS`) mit dem Client aus `httpupstream.New` als `UpstreamClient` und gibt dem Dienst genau einen `*slog.Logger` (`SPEC-121` Nr. 12; einen Port `Telemetry` gibt es in dieser Welle nicht). `CloseAll` beendet Sessions über `SessionUseCase`, das `Drain` ruft (Sendung von `slice-record-service`).
 
@@ -106,7 +106,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-http-adapter` und `slice-baseline-import` und `slice-workspace-use-case` und `slice-session-wartung` und `slice-upstream-adapter` und `slice-upstream-tls` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-http-adapter` und `slice-baseline-import` und `slice-workspace-use-case` und `slice-session-wartung` und `slice-session-use-case` und `slice-upstream-adapter` und `slice-upstream-tls` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
