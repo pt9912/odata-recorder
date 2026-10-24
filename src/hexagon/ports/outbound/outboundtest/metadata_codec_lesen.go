@@ -64,12 +64,15 @@ func faelleB2(t *testing.T) []fall {
 		schlecht("UTF-16LE mit BOM", []byte("\xFF\xFE<\x00a\x00/\x00>\x00"), model.UrsacheKodierung, ""),
 		schlecht("UTF-16BE mit BOM", []byte("\xFE\xFF\x00<\x00a\x00/\x00>"), model.UrsacheKodierung, ""),
 		schlecht("UTF-16LE ohne BOM", []byte("<\x00a\x00/\x00>\x00"), model.UrsacheSyntax, ""),
+		schlecht("0xFF am Anfang", []byte("\xFF\xFF"+body), model.UrsacheSyntax, ""),
+		schlecht("UTF-8-Zeichen am Ende abgeschnitten", []byte(body+"\xC3"), model.UrsacheSyntax, ""),
 	)
 	for _, f := range []struct{ name, bytes string }{
 		{"Byte 0xE4 ohne Deklaration", "\xE4"}, {"Byte 0x01", "\x01"}, {"überlanger UTF-8-Code", "\xC0\xAF"},
 		{"Surrogat", "\xED\xA0\x80"}, {"U+FFFE", "\xEF\xBF\xBE"}, {"NUL", "\x00"},
 	} {
-		out = append(out, schlecht(f.name, []byte(mit(body, "", `Version="4.0"`, `Version="4.0" x="`+f.bytes+`"`)), model.UrsacheSyntax, ""))
+		out = append(out, schlecht(f.name, []byte(mit(body, "", `Version="4.0"`, `Version="4.0" x="`+f.bytes+`"`)), model.UrsacheSyntax, ""),
+			schlecht(f.name+" im Kommentar", []byte(mit(body, "", "<edmx:DataServices>", "<!--"+f.bytes+"--><edmx:DataServices>")), model.UrsacheSyntax, ""))
 	}
 	for _, f := range []struct{ name, kopf string }{
 		{"version 1.1", `<?xml version="1.1"?>`}, {"Leerraum vor der Deklaration", " " + erklaert},
@@ -133,6 +136,8 @@ const refTerm = `<Annotation Term="%s"/>`
 func faelleB4() []fall {
 	mitTerm := func(term string) []byte { return eins(typ("T", fmt.Sprintf(refTerm, term))) }
 	out := []fall{
+		gut("U+FFFD als Zeichen", mitTerm("�")), gut("U+FFFD und Referenz mit führenden Nullen", mitTerm("�&#0000000065;")),
+		schlecht("Ersatzzeichen mit führenden Nullen", mitTerm("&#0000055296;"), model.UrsacheSyntax, ""),
 		gut("fünf Entitäten und Zeichenreferenzen", mitTerm("a&amp;b&lt;c&gt;d&quot;e&apos;f&#65;g&#x41;h")),
 		gut("Grenze unterhalb der Ersatzzeichen", mitTerm("&#xD7FF;")), gut("Grenze oberhalb der Ersatzzeichen", mitTerm("&#xE000;")),
 	}
@@ -146,13 +151,13 @@ func faelleB4() []fall {
 func zeileB4(t *testing.T, neu CodecNeu) {
 	faelle := faelleB4()
 	pruefeFaelle(t, neu, faelle)
-	_, b, _ := lies(neu, faelle[0])
+	_, b, _ := lies(neu, faelle[3])
 	if soll := []model.Fund{{Art: model.FundAnnotation, Ort: "Ns.T", Name: "a&b<c>d\"e'fAgAh"}}; fmt.Sprint(b.Funde) != fmt.Sprint(soll) {
 		t.Errorf("Funde %v, erwartet %v", b.Funde, soll)
 	}
 }
 
-// ref ändert R an einer Stelle.
+// aender ersetzt das erste Vorkommen von wo in r durch was.
 func aender(r []byte, wo, was string) []byte { return []byte(strings.Replace(string(r), wo, was, 1)) }
 
 const ersteWurzel = "<edmx:Edmx"
@@ -171,7 +176,7 @@ func faelleB5(t *testing.T) []fall {
 		{"Kommentar nach der Wurzel", append(bytes.Clone(r), "<!-- c -->"...)},
 		{"PI vor der Wurzel", aender(r, ersteWurzel, "<?foo bar?>"+ersteWurzel)}, {"PI nach der Wurzel", append(bytes.Clone(r), "<?foo?>"...)},
 		{"PI in einem Element", aender(r, "<Key>", "<Key><?foo?>")}, {"xml-stylesheet", aender(r, ersteWurzel, `<?xml-stylesheet href="a"?>`+ersteWurzel)},
-		{"CDATA", aender(r, "<Key>", "<Key><![CDATA[a<b&#xD800;]]>")}, {"Text zwischen Elementen", aender(r, "<Key>", "<Key>text")},
+		{"CDATA", aender(r, "<Key>", "<Key><![CDATA[a<b�&#xD800;]]>")}, {"Text zwischen Elementen", aender(r, "<Key>", "<Key>text")},
 		{"Leerraum um die Wurzel", append(aender(r, ersteWurzel, "\n\t"+ersteWurzel), " \n\t"...)},
 	} {
 		out = append(out, gut(f.name, f.doc))

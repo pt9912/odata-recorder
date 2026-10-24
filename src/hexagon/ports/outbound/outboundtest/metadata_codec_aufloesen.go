@@ -72,6 +72,10 @@ func faelleD2() []fall {
 			out = append(out, schlecht(a.name+" "+r, d2doc(a.inhalt(r)), model.UrsacheNichtAufloesbar, a.ort))
 		}
 	}
+	for _, r := range []string{"Self.Nope/S", "Zzz.C/S", "Self.C2/S", "Ns.C/Nope"} {
+		out = append(out, schlecht("Target mit Container "+r, d2doc(binding(r)), model.UrsacheNichtAufloesbar, "Ns.C/S@Target"))
+	}
+	out = append(out, gut("Target mit Container über Alias", d2doc(binding("Self.C/S"))))
 	for _, r := range []string{"Nope", "Zzz", "N"} {
 		doc := `<EntityType Name="T"><Key><PropertyRef Name="` + r + `"/></Key>` + prop("Id", "Edm.Int32") + `<NavigationProperty Name="N" Type="Ns.T"/></EntityType>`
 		out = append(out, schlecht("Name einer PropertyRef "+r, d2doc(doc), model.UrsacheNichtAufloesbar, "Ns.T/"+r+"@Name"))

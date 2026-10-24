@@ -23,14 +23,8 @@ type stromFehler struct {
 	err error
 }
 
-func (e *stromFehler) Error() string {
-	if e.err != nil {
-		return "csdl: Strom: " + e.err.Error()
-	}
-	return "csdl: Strom"
-}
-
-func (e *stromFehler) Unwrap() error { return e.err }
+// Error erfüllt error; der Fehler verlässt den Leser nie, tokenFehler macht aus ihm den Fehler des Aufrufs.
+func (*stromFehler) Error() string { return "csdl: Strom" }
 
 const bomUTF8 = "\xEF\xBB\xBF"
 
@@ -104,9 +98,6 @@ func (s *strom) Read(p []byte) (int, error) {
 		return 0, s.ende
 	}
 	k := len(s.halde)
-	if len(p) <= k {
-		return 0, io.ErrShortBuffer
-	}
 	copy(p, s.halde)
 	s.halde = s.halde[:0]
 	want := len(p) - k

@@ -381,8 +381,8 @@ func ergebnis(m model.ServiceModel, b model.ValidierungsBericht, err error) stri
 	return fmt.Sprintf("%q|%q|%+v|%+v|%+v|%+v|%+v|%v", m.Version(), m.Namespaces(), m.EntityTypes(), m.EntitySets(), m.NavigationBindings(), b.Funde, b.Funde == nil, err)
 }
 
-// zeileA4: das Ergebnis hängt nicht von der Zerlegung in Reads ab (Nr. 2); längere Dokumente nur
-// ganz und in einzelnen Bytes.
+// zeileA4: das Ergebnis hängt nicht von der Zerlegung in Reads ab (Nr. 2), abgetastet nach zerlegungen;
+// Dokumente über 5000 Bytes und die großen von E3 fehlen in der Menge.
 func zeileA4(t *testing.T, neu CodecNeu) {
 	for _, f := range alleFaelle(t) {
 		if f.gross || len(f.doc) > 5000 {

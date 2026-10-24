@@ -141,12 +141,9 @@ func hatErsatzRef(roh []byte) bool {
 		if i < 0 {
 			return false
 		}
-		roh = roh[i+2:]
-		j := bytes.IndexByte(roh, ';')
-		if j < 0 || j > 8 {
-			continue
-		}
-		z, basis := string(roh[:j]), 10
+		zahl, rest, _ := bytes.Cut(roh[i+2:], []byte(";"))
+		roh = rest
+		z, basis := string(zahl), 10
 		if strings.HasPrefix(z, "x") {
 			z, basis = z[1:], 16
 		}
@@ -179,12 +176,12 @@ func (l *lauf) start(se xml.StartElement) error {
 }
 
 func doppelt(attr []xml.Attr) bool {
-	for i, a := range attr {
-		for _, b := range attr[:i] {
-			if a.Name == b.Name {
-				return true
-			}
+	gesehen := make(map[xml.Name]bool, len(attr))
+	for _, a := range attr {
+		if gesehen[a.Name] {
+			return true
 		}
+		gesehen[a.Name] = true
 	}
 	return false
 }

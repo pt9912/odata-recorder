@@ -193,6 +193,7 @@ func (l *lauf) schema(se xml.StartElement) error {
 	if ns == "Edm" {
 		return struktur(ns + "@Namespace")
 	}
+	bekannt := l.d.abbild[ns] == ns
 	if err := l.d.zuordnen(ns, ns, "@Namespace", ns); err != nil {
 		return err
 	}
@@ -204,7 +205,7 @@ func (l *lauf) schema(se xml.StartElement) error {
 			return err
 		}
 	}
-	if !slices.Contains(l.d.namespaces, ns) {
+	if !bekannt {
 		l.d.namespaces = append(l.d.namespaces, ns)
 	}
 	l.push(rahmen{art: kSchema, ort: ns})

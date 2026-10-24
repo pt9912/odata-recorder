@@ -68,9 +68,8 @@ func g1Faelle() []g1Fall {
 			if e == "Reference" {
 				ns = edmxNs
 			}
-			ort, mitName := p.ort, ""
+			ort, mitName := p.ort, ` Name="Nm"`
 			if p.name == "Schema" || p.name == "EntityContainer" {
-				mitName = ` Name="Nm"`
 				ort += map[string]string{"Schema": ".Nm", "EntityContainer": "/Nm"}[p.name]
 			}
 			add(e+" in "+p.name, p.doc(`<`+e+` xmlns="`+ns+`"`+mitName+`/>`), model.Fund{Art: model.FundKonstrukt, Ort: ort, Name: e})
@@ -176,7 +175,7 @@ func zeileG4(t *testing.T, neu CodecNeu) {
 	})
 }
 
-// zeileG5: nicht Unterstütztes erscheint nie als unterstützt, über alle gültigen Fälle (Nr. 10, 12).
+// zeileG5: nicht Unterstütztes erscheint nie als unterstützt, über alle gültigen Fälle außer den großen von E3 (Nr. 10, 12).
 func zeileG5(t *testing.T, neu CodecNeu) {
 	for _, f := range alleFaelle(t) {
 		if f.ursache != "" || f.gross {
@@ -285,8 +284,8 @@ func parallel(n int, arbeit func(i int) []string) []string {
 	return fehler
 }
 
-// zeileI2: gleichzeitige Aufrufe über alle Fälle, Ursachen und Fund-Arten, Abbruch des Kontexts und Fehler von src; der
-// Detektor von make test-race meldet jeden ungeordneten Zugriff.
+// zeileI2: gleichzeitige Aufrufe über alle Fälle außer den großen von E3, dazu Abbruch des Kontexts und Fehler von
+// src; der Detektor von make test-race meldet einen ungeordneten Zugriff, den ein Lauf ausführt.
 func zeileI2(t *testing.T, neu CodecNeu) {
 	var faelle []fall
 	var soll []string
