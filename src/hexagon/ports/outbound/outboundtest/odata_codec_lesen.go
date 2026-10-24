@@ -550,9 +550,109 @@ func (s *jsuite) pruefeB5P(t *testing.T, leerraum []byte, l b5PLauf) {
 	}
 }
 
+// b6Deckel ist die Zahl der Bytes über grenze+1, nach denen erzeugerStrom io.EOF liefert, wenn der Body länger als die
+// Grenze ist: ein Leser, der die Grenze nicht durchsetzt, fordert mehr als grenze+1 Bytes an und fällt am Zähler auf.
+const b6Deckel = 4096
+
+// erzeugerStrom erzeugt einen Body der Länge laenge beim Lesen, ohne ihn im Speicher zu halten: den Anfang kopf und danach
+// Leerzeichen. Er zählt die gelieferten Bytes.
+type erzeugerStrom struct {
+	kopf      string
+	laenge    int64
+	geliefert int64
+}
+
+func (r *erzeugerStrom) Read(p []byte) (int, error) {
+	n := int(min(int64(len(p)), r.laenge-r.geliefert))
+	if n <= 0 {
+		return 0, io.EOF
+	}
+	for i := range n {
+		if pos := r.geliefert + int64(i); pos < int64(len(r.kopf)) {
+			p[i] = r.kopf[pos]
+		} else {
+			p[i] = ' '
+		}
+	}
+	r.geliefert += int64(n)
+	return n, nil
+}
+
+// b6Lauf ist ein Lauf der Menge P6: der Exponent k, der Abstand d, ob der Body die Grenze überschreitet (Länge grenze+1) oder
+// nicht (Länge grenze) und die Methode.
+type b6Lauf struct {
+	k, d   int
+	ueber  bool
+	einzel bool
+}
+
+func (l b6Lauf) grenze() int64 { return int64(1)<<l.k + int64(l.d) }
+
+// b6Laeufe sind die Läufe der Menge P6 (SPEC-126 Nr. 5, große Grenzen): grenze = 2^k + d für k = 19 bis 24 (unter dem
+// Detektor k = 19 und 20) und d in {−1, 0, +1}, die Länge grenze und grenze+1, je Methode.
+func b6Laeufe() []b6Lauf {
+	hoechstK := 24
+	if unterDetektor {
+		hoechstK = 20
+	}
+	var out []b6Lauf
+	for k := 19; k <= hoechstK; k++ {
+		for d := -1; d <= 1; d++ {
+			for _, ueber := range []bool{false, true} {
+				for _, einzel := range []bool{true, false} {
+					out = append(out, b6Lauf{k, d, ueber, einzel})
+				}
+			}
+		}
+	}
+	return out
+}
+
+// jB5P6 fährt die Menge P6 (SPEC-126 Nr. 5: für jeden Wert von grenze): erwartet sind gültig bei der Länge grenze und
+// `zu_gross` bei grenze+1; geliefert werden höchstens grenze+1 Bytes. Der Strom erzeugt den Body (der Leser verwirft Leerraum,
+// sein Speicher wächst nicht); bei grenze+1 reicht er b6Deckel Bytes weiter, so fällt ein Leser, der die Grenze nicht durchsetzt,
+// am Zähler auf.
+func jB5P6(t *testing.T, s *jsuite) {
+	laeufe := b6Laeufe()
+	erwartet := 72
+	if unterDetektor {
+		erwartet = 24
+	}
+	for _, l := range laeufe {
+		basis := b5Leer
+		if l.einzel {
+			basis = jEinzelR
+		}
+		laenge := l.grenze()
+		if l.ueber {
+			laenge++
+		}
+		rd := &erzeugerStrom{kopf: basis, laenge: laenge}
+		if l.ueber {
+			rd.laenge += b6Deckel
+		}
+		r := s.aufruf(context.Background(), l.einzel, rd, s.modelle["R"], "Products", l.grenze())
+		name := fmt.Sprintf("B5 P6 %s k=%d d=%d Länge %d grenze %d", methodeName(l.einzel), l.k, l.d, laenge, l.grenze())
+		if l.ueber {
+			datenFehler(t, name, r.err, model.DatenZuGross, "")
+			r.nullwerte(t, name)
+		} else if r.err != nil {
+			t.Errorf("%s: Fehler %v bei gültigem Body", name, r.err)
+		}
+		if rd.geliefert > l.grenze()+1 {
+			t.Errorf("%s: %d Bytes geliefert, höchstens grenze+1 = %d", name, rd.geliefert, l.grenze()+1)
+		}
+	}
+	if len(laeufe) != erwartet {
+		t.Errorf("B5 P6: %d Läufe, erwartet %d", len(laeufe), erwartet)
+	}
+	t.Logf("B5 P6: %d Läufe", len(laeufe))
+}
+
 func jB5(t *testing.T, s *jsuite) {
 	s.pruefeAlle(t, jfB5())
 	jB5P5(t, s)
+	jB5P6(t, s)
 }
 
 // b6Paare sind die Schreibweisen zweier Mitglieder desselben Namens `a`: gleich, mit Escape, mit verschiedenen Escapes,

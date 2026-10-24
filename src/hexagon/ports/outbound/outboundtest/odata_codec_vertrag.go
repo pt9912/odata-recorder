@@ -27,6 +27,9 @@ type jsuite struct {
 	modelle map[string]model.ServiceModel
 	faelle  []jfall
 	rufe    atomic.Uint64 // Zahl der Aufrufe des Lesers, für drossel
+	// optional zählt die Aufrufe des Lesers, in denen er eine Methode der Menge O von src gerufen hat; ODataCodecVertrag macht
+	// jeden Anstieg während einer Zeile zum Fehler der Zeile, auch wo die Zeile den Fehler des Aufrufs nicht ansieht.
+	optional atomic.Uint64
 }
 
 // Der Leser legt je Aufruf einen Puffer von 32 KiB an. Die Zeilen mit vielen Aufrufen auf vielen Goroutinen (A4, J1, die
@@ -82,7 +85,13 @@ func ODataCodecVertrag(t *testing.T, neu ODataCodecNeu, meta outbound.MetadataCo
 		{"L1 Speicher des Ergebnisses", jL1},
 	} {
 		zeile(z.name)
-		t.Run(z.name, func(t *testing.T) { z.lauf(t, s) })
+		t.Run(z.name, func(t *testing.T) {
+			vor := s.optional.Load()
+			z.lauf(t, s)
+			if n := s.optional.Load() - vor; n != 0 {
+				t.Errorf("%s: %d Aufrufe, in denen der Leser eine optionale Schnittstelle von src ruft (Menge O)", z.name, n)
+			}
+		})
 	}
 }
 
@@ -158,14 +167,22 @@ func (s *jsuite) ruf(ctx context.Context, src io.Reader, f jfall) jergebnis {
 
 // aufruf ruft einen frischen Leser über die Schnittstelle.
 func (s *jsuite) aufruf(ctx context.Context, einzel bool, src io.Reader, m model.ServiceModel, set string, grenze int64) (r jergebnis) {
+	var w *fortschrittWaechter
 	defer func() {
 		if p := recover(); p != nil {
 			r.err = fmt.Errorf("Panik im Leser: %v", p)
 		}
+		if w != nil {
+			if name := w.gerufen(); name != "" {
+				s.optional.Add(1)
+				r.err = fmt.Errorf("%w: der Leser ruft %s von src", errOptionaleSchnittstelle, name)
+			}
+		}
 	}()
 	s.drossel()
 	if src != nil {
-		src = &fortschrittWaechter{inner: src}
+		w = &fortschrittWaechter{inner: src}
+		src = w
 	}
 	c := s.neu()
 	if einzel {
@@ -176,12 +193,41 @@ func (s *jsuite) aufruf(ctx context.Context, einzel bool, src io.Reader, m model
 	return r
 }
 
+// errOptionaleSchnittstelle ist der Fehler eines Falls, dessen Leser von src mehr als Read ruft (SPEC-126 Nr. 2, Menge O).
+var errOptionaleSchnittstelle = errors.New("optionale Schnittstelle von src gerufen")
+
+// Die Methoden der Menge O (SPEC-126 Nr. 2): die optionalen Schnittstellen von io, die ein io.Reader haben kann.
+const (
+	oClose = iota
+	oWriteTo
+	oReadByte
+	oUnreadByte
+	oReadRune
+	oUnreadRune
+	oSeek
+	oReadAt
+	oZahl
+)
+
+// oName ist der Name der Methode i von O.
+func oName(i int) string {
+	return [oZahl]string{"Close", "WriteTo", "ReadByte", "UnreadByte", "ReadRune", "UnreadRune", "Seek", "ReadAt"}[i]
+}
+
+// errO ist die Antwort der Methoden von O, die nicht Close sind: der Leser, der sie ruft, bekommt einen Fehler und der Fall
+// meldet den Aufruf.
+var errO = errors.New("der Strom trägt diese Methode nicht")
+
 // fortschrittWaechter reicht Reads an inner weiter und liefert nach a5MaxReads Reads mit leerem Puffer einen Fehler: ein
 // Leser, der ohne Größengrenze einen leeren Puffer anfordert, ruft Read ohne Fortschritt und endet damit im Fall, nicht an der
 // Zeitgrenze des Tests. Zugesagt wird das nur für diesen Wächter: Reads mit leerem Puffer zählt A5 über a5Strom.
+// Er trägt außerdem alle 8 Methoden der Menge O, zählt jeden Aufruf je Methode in seinem eigenen Zustand (kein Zustand des
+// Pakets) und lässt aufruf ihn als Fehler des Falls melden, damit die Hülle keine Eigenschaft von inner verdeckt; Close
+// reicht er an inner weiter, wenn es ein io.Closer ist.
 type fortschrittWaechter struct {
-	inner io.Reader
-	leer  int
+	inner   io.Reader
+	leer    int
+	aufrufe [oZahl]int
 }
 
 func (w *fortschrittWaechter) Read(p []byte) (int, error) {
@@ -191,6 +237,98 @@ func (w *fortschrittWaechter) Read(p []byte) (int, error) {
 		}
 	}
 	return w.inner.Read(p)
+}
+
+// Die Hülle trägt alle 8 Schnittstellen der Menge O.
+var _ interface {
+	io.Reader
+	io.Closer
+	io.WriterTo
+	io.ByteScanner
+	io.RuneScanner
+	io.Seeker
+	io.ReaderAt
+} = (*fortschrittWaechter)(nil)
+
+// pruefeHuelle prüft die Hülle selbst: jeder Aufruf einer Methode von O zählt genau diese Methode, und Close erreicht inner.
+func pruefeHuelle(t *testing.T) {
+	t.Helper()
+	aufrufe := [oZahl]func(*fortschrittWaechter){
+		oClose:      func(w *fortschrittWaechter) { _ = w.Close() },
+		oWriteTo:    func(w *fortschrittWaechter) { _, _ = w.WriteTo(io.Discard) },
+		oReadByte:   func(w *fortschrittWaechter) { _, _ = w.ReadByte() },
+		oUnreadByte: func(w *fortschrittWaechter) { _ = w.UnreadByte() },
+		oReadRune:   func(w *fortschrittWaechter) { _, _, _ = w.ReadRune() },
+		oUnreadRune: func(w *fortschrittWaechter) { _ = w.UnreadRune() },
+		oSeek:       func(w *fortschrittWaechter) { _, _ = w.Seek(0, io.SeekStart) },
+		oReadAt:     func(w *fortschrittWaechter) { _, _ = w.ReadAt(make([]byte, 1), 0) },
+	}
+	for i, rufe := range aufrufe {
+		e := &deckelStrom{}
+		w := &fortschrittWaechter{inner: e}
+		rufe(w)
+		for j, n := range w.aufrufe {
+			if soll := map[bool]int{true: 1, false: 0}[i == j]; n != soll {
+				t.Errorf("Hülle: Aufruf von %s zählt %s %d-mal, erwartet %d", oName(i), oName(j), n, soll)
+			}
+		}
+		if w.gerufen() != oName(i) || (e.closes != 0) != (i == oClose) {
+			t.Errorf("Hülle: Aufruf von %s meldet %q, inner sah %d-mal Close", oName(i), w.gerufen(), e.closes)
+		}
+	}
+}
+
+// gerufen liefert den Namen der ersten Methode von O mit einem Aufruf, sonst "".
+func (w *fortschrittWaechter) gerufen() string {
+	for i, n := range w.aufrufe {
+		if n != 0 {
+			return oName(i)
+		}
+	}
+	return ""
+}
+
+func (w *fortschrittWaechter) Close() error {
+	w.aufrufe[oClose]++
+	if c, ok := w.inner.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
+}
+
+func (w *fortschrittWaechter) WriteTo(io.Writer) (int64, error) {
+	w.aufrufe[oWriteTo]++
+	return 0, errO
+}
+
+func (w *fortschrittWaechter) ReadByte() (byte, error) {
+	w.aufrufe[oReadByte]++
+	return 0, errO
+}
+
+func (w *fortschrittWaechter) UnreadByte() error {
+	w.aufrufe[oUnreadByte]++
+	return errO
+}
+
+func (w *fortschrittWaechter) ReadRune() (rune, int, error) {
+	w.aufrufe[oReadRune]++
+	return 0, 0, errO
+}
+
+func (w *fortschrittWaechter) UnreadRune() error {
+	w.aufrufe[oUnreadRune]++
+	return errO
+}
+
+func (w *fortschrittWaechter) Seek(int64, int) (int64, error) {
+	w.aufrufe[oSeek]++
+	return 0, errO
+}
+
+func (w *fortschrittWaechter) ReadAt([]byte, int64) (int, error) {
+	w.aufrufe[oReadAt]++
+	return 0, errO
 }
 
 func (s *jsuite) lauf(f jfall) jergebnis {

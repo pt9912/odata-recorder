@@ -315,6 +315,24 @@ func TestRaceFaelleLegenEinWegwerfmodulAn(t *testing.T) {
 	}
 }
 
+// Jeder Fall 25 bis 28 von pruefung test legt ein Wegwerfmodul an (SPEC-102, Aufbau) und fährt damit kein Paket von
+// src/; der Fall test/aufruf ruft ohne Wurzel und gehört nicht dazu.
+func TestTestFaelleLegenEinWegwerfmodulAn(t *testing.T) {
+	var geprueft int
+	for _, f := range testFaelle() {
+		if f.Name == "test/aufruf" {
+			continue
+		}
+		geprueft++
+		if !f.Wegwerfmodul {
+			t.Errorf("%s: Wegwerfmodul nicht gesetzt, der Fall kopiert die Eingaben", f.Name)
+		}
+	}
+	if geprueft != 4 {
+		t.Errorf("%d Fälle geprüft, erwartet 4 (Fälle 25 bis 28)", geprueft)
+	}
+}
+
 // Die Quellen der Fälle von pruefung race führen kein Zeichen über ASCII.
 func TestRaceFaelleFuehrenNurASCII(t *testing.T) {
 	for _, f := range raceFaelle() {

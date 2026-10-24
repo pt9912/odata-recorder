@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"reflect"
 	"runtime"
 	"sync"
@@ -249,8 +250,9 @@ func jA3(t *testing.T, s *jsuite) {
 	jA3M2(t, s)
 }
 
-// a3M2Zahl ist die Zahl der Läufe der Menge M2: 5 Fehlerarten × (2L + 3) Zeitpunkte für E1 (L = 138, 279) und C1 (L = 257, 517).
-const a3M2Zahl = 5*279 + 5*517
+// a3M2Zahl ist die Zahl der Läufe der Menge M2: 12 Fehlerarten × (2L + 3) Zeitpunkte für E1 (L = 138, 279) und C1 (L = 257, 517):
+// 12 × 796 = 9552; der Test zählt die Läufe und hält bei einer anderen Zahl an.
+const a3M2Zahl = 9552
 
 // a3MaxReads ist die Zahl der Reads nach dem Fehler, nach der fehlerStrom io.EOF liefert: ein Leser, der nach dem Fehler
 // weiterliest, endet damit im Fall und nicht an der Zeitgrenze des Tests.
@@ -298,10 +300,30 @@ func (r *fehlerStrom) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-// a3Fehlerarten sind die Fehler von src der Menge M2: jeder Fehler außer dem Wert io.EOF zählt (SPEC-126 Nr. 2), auch der
-// umhüllte io.EOF, ein Kontextfehler von src bei lebendem ctx und io.ErrUnexpectedEOF.
+// zeitFehler ist ein Fehler eines Zeigertyps mit Timeout() und Temporary(), die Form von net.Error.
+type zeitFehler struct{ text string }
+
+func (e *zeitFehler) Error() string { return e.text }
+
+func (*zeitFehler) Timeout() bool { return true }
+
+func (*zeitFehler) Temporary() bool { return true }
+
+// a3FehlerZahl ist die Zahl der Fehlerarten der Menge M2.
+const a3FehlerZahl = 12
+
+// a3Fehlerarten sind die Fehler von src der Menge M2 (12): jeder Fehler außer dem Wert io.EOF zählt (SPEC-126 Nr. 2), also
+// errQuelle, die 5 Fehlervariablen von io außer io.EOF, ein Kontextfehler von src bei lebendem ctx (2), zwei Fehler von os,
+// der umhüllte io.EOF und ein Fehler eines Zeigertyps mit Timeout() und Temporary().
 func a3Fehlerarten() []error {
-	return []error{errQuelle, io.ErrUnexpectedEOF, context.Canceled, context.DeadlineExceeded, fmt.Errorf("x: %w", io.EOF)}
+	return []error{
+		errQuelle,
+		io.ErrUnexpectedEOF, io.ErrNoProgress, io.ErrClosedPipe, io.ErrShortBuffer, io.ErrShortWrite,
+		context.Canceled, context.DeadlineExceeded,
+		os.ErrDeadlineExceeded, os.ErrClosed,
+		fmt.Errorf("x: %w", io.EOF),
+		&zeitFehler{text: "zeit"},
+	}
 }
 
 // a3Zeitpunkte sind die Zeitpunkte des Fehlers in der Zerlegung eines Bodys der Länge L (2L + 3): ein Byte je Read und der
@@ -348,8 +370,9 @@ func jA3M2(t *testing.T, s *jsuite) {
 			}
 		}
 	}
-	if laeufe != a3M2Zahl {
-		t.Errorf("A3 M2: %d Läufe, erwartet %d (E1 hat %d Bytes, C1 %d)", laeufe, a3M2Zahl, len(jEinzelR), len(jKollR))
+	if n := len(a3Fehlerarten()); n != a3FehlerZahl || laeufe != a3M2Zahl {
+		t.Errorf("A3 M2: %d Fehlerarten (erwartet %d), %d Läufe (erwartet %d); E1 hat %d Bytes, C1 %d", n, a3FehlerZahl, laeufe, a3M2Zahl,
+			len(jEinzelR), len(jKollR))
 	}
 	t.Logf("A3 M2: %d Läufe", laeufe)
 }
@@ -473,10 +496,15 @@ func (s *jsuite) zerlegt(t *testing.T, f jfall) (zweiteilungen int64) {
 	return zweiteilungen
 }
 
-// jA5: der Leser schließt src nie, liest nach dem Ende nicht weiter und höchstens grenze+1 Bytes (SPEC-126 Nr. 2, 5).
+// jA5: der Leser nutzt von src allein Read: er schließt src nie, ruft keine andere der 8 optionalen Methoden von io (Menge O),
+// liest nach dem Ende nicht weiter und höchstens grenze+1 Bytes (SPEC-126 Nr. 2, 5).
 func jA5(t *testing.T, s *jsuite) {
+	if oZahl != 8 {
+		t.Errorf("A5: Menge O hat %d Methoden, erwartet 8", oZahl)
+	}
+	pruefeHuelle(t)
 	var faelle int
-	defer func() { t.Logf("A5: %d Fälle der Suite und 2 Fälle mit Deckel", faelle) }()
+	defer func() { t.Logf("A5: %d Fälle der Suite und 2 Fälle mit Deckel; Menge O: %d Methoden", faelle, oZahl) }()
 	for _, f := range s.alleFaelle(t) {
 		if f.gross {
 			continue
@@ -484,7 +512,9 @@ func jA5(t *testing.T, s *jsuite) {
 		faelle++
 		rd := teile(f.body)
 		w := &a5Strom{inner: rd}
-		s.ruf(context.Background(), w, f)
+		if r := s.ruf(context.Background(), w, f); errors.Is(r.err, errOptionaleSchnittstelle) {
+			t.Errorf("%s: %v", f.name, r.err)
+		}
 		if rd.closes != 0 || rd.nachEnde != 0 || w.leer != 0 || int64(w.geliefert)-1 > f.grenzeOderStandard() {
 			t.Errorf("%s: Close %d, Reads nach dem Ende %d, Reads mit leerem Puffer %d, geliefert %d Bytes bei grenze %d", f.name,
 				rd.closes, rd.nachEnde, w.leer, w.geliefert, f.grenzeOderStandard())
@@ -494,6 +524,9 @@ func jA5(t *testing.T, s *jsuite) {
 		e := &deckelStrom{deckel: 1000 + a5Deckel}
 		w := &a5Strom{inner: e}
 		r := s.aufruf(context.Background(), einzel, w, s.modelle["R"], "Products", 1000)
+		if errors.Is(r.err, errOptionaleSchnittstelle) {
+			t.Errorf("%s endloser Strom: %v", methodeName(einzel), r.err)
+		}
 		datenFehler(t, methodeName(einzel)+" endloser Strom", r.err, model.DatenZuGross, "")
 		if e.geliefert != 1001 || e.closes != 0 || w.leer != 0 {
 			t.Errorf("%s: geliefert %d Bytes, Close %d, Reads mit leerem Puffer %d; erwartet 1001, 0 und 0", methodeName(einzel), e.geliefert, e.closes, w.leer)

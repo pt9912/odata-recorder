@@ -414,28 +414,38 @@ func k1Auswahl(r rune) bool {
 	return r <= 0xFF || (r-0x80)%97 == 0
 }
 
-// k1Oben liefert die Körper der Menge ab U+0080: eine Entity von R, deren unbekannte Property das Zeichen als Namen trägt.
-func k1Oben() iter.Seq[[]byte] {
+// k1Oben liefert die Körper der Menge ab U+0080 für die Methode: eine Entity von R bzw. das erste Element von `value`, dessen
+// unbekannte Property das Zeichen als Namen trägt.
+func k1Oben(einzel bool) iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
 		for r := rune(0x80); r <= 0x10FFFF; r++ {
 			if istSurrogat(r) || !k1Auswahl(r) {
 				continue
 			}
-			if !yield(jEin("Products", `"ID":1,"`+string(r)+`":1`)) {
+			mitglieder := `"ID":1,"` + string(r) + `":1`
+			body := jEin("Products", mitglieder)
+			if !einzel {
+				body = jKol("Products", "{"+mitglieder+"}")
+			}
+			if !yield(body) {
 				return
 			}
 		}
 	}
 }
 
-// k1OrtPruefer prüft einen Körper von k1Oben, ein Mitglied einer Entity von R: `unbekannte_property`, Ort `/` und der Name
-// (RFC 6901, Orakel k1Orakel).
-func (s *jsuite) k1OrtPruefer(kopf, fuss string) gPruefer {
+// k1OrtPruefer prüft einen Körper von k1Oben für die Methode, ein Mitglied einer Entity von R: `unbekannte_property`, Ort der
+// Name (RFC 6901, Orakel k1Orakel), bei der Collection hinter `/value/0`.
+func (s *jsuite) k1OrtPruefer(einzel bool, kopf, fuss string) gPruefer {
+	vor := ""
+	if !einzel {
+		vor = "/value/0"
+	}
 	return func(b []byte, _ int64) (klasse, abweichung string) {
 		name := string(b[len(kopf) : len(b)-len(fuss)])
-		r := s.aufruf(context.Background(), true, bytes.NewReader(b), s.modelle["R"], "Products", 1<<30)
+		r := s.aufruf(context.Background(), einzel, bytes.NewReader(b), s.modelle["R"], "Products", 1<<30)
 		var df *model.DatenFehler
-		if ort := k1Orakel(name); !errors.As(r.err, &df) || df.Ursache != model.DatenUnbekannteProperty || df.Ort != ort {
+		if ort := vor + k1Orakel(name); !errors.As(r.err, &df) || df.Ursache != model.DatenUnbekannteProperty || df.Ort != ort {
 			return "unbekannte_property", fmt.Sprintf("Zeichen %U: Ergebnis %v, erwartet Ort %q", []rune(name)[0], r.err, ort)
 		}
 		return "unbekannte_property", ""
@@ -494,12 +504,11 @@ func jfK1Zeichen() []jfall {
 // istSurrogat sagt, ob die Zahl ein Surrogat U+D800 bis U+DFFF ist, das als Name kein gültiges UTF-8 ist.
 func istSurrogat(r rune) bool { return r >= 0xD800 && r <= 0xDFFF }
 
-// jK1Oben fährt die Menge ab U+0080: jedes Zeichen bis U+10FFFF ohne Surrogate als Name; zusammen mit den 384 Namen aus U+0000
-// bis U+007F sind es 1 112 320 (SPEC-126 Nr. 14: kein anderes Zeichen als `~` und `/` wird ersetzt). Unter dem Detektor läuft
-// die Probe von k1Auswahl, und die Zahl ist die der gewählten Zeichen.
+// jK1Oben fährt die Menge ab U+0080 in beiden Methoden: jedes Zeichen bis U+10FFFF ohne Surrogate als Name; zusammen mit den
+// 384 Namen aus U+0000 bis U+007F sind es 1 112 320 Namen je Methode und 2 223 872 Läufe der Menge ab U+0080 (SPEC-126
+// Nr. 14: kein anderes Zeichen als `~` und `/` wird ersetzt). Unter dem Detektor läuft die Probe von k1Auswahl je Methode, und
+// die Zahl ist die der gewählten Zeichen.
 func jK1Oben(t *testing.T, s *jsuite) {
-	kopf := `{` + kontextAn("Products", true) + `,"ID":1,"`
-	fuss := `":1}`
 	erwartet := int64(k1ZahlOben)
 	if unterDetektor {
 		erwartet = 0
@@ -509,10 +518,28 @@ func jK1Oben(t *testing.T, s *jsuite) {
 			}
 		}
 	}
-	gZaehle(t, "K1 Zeichen ab U+0080", gFahre(t, "K1 oben", k1Oben(), s.k1OrtPruefer(kopf, fuss)), erwartet)
-	if !unterDetektor && k1ZahlASCII+erwartet != 1112320 {
-		t.Errorf("K1: %d Namen der Menge, erwartet 1 112 320", k1ZahlASCII+erwartet)
+	var laeufe int64
+	for _, einzel := range []bool{true, false} {
+		kopf := `{` + kontextAn("Products", einzel) + `,"ID":1,"`
+		fuss := `":1}`
+		if !einzel {
+			kopf = `{` + kontextAn("Products", false) + `,"value":[{"ID":1,"`
+			fuss = `":1}]}`
+		}
+		name := "K1 Zeichen ab U+0080 (" + methodeName(einzel) + ")"
+		klassen := gFahre(t, "K1 oben "+methodeName(einzel), k1Oben(einzel), s.k1OrtPruefer(einzel, kopf, fuss))
+		gZaehle(t, name, klassen, erwartet)
+		for _, v := range klassen {
+			laeufe += v
+		}
+		if !unterDetektor && k1ZahlASCII+erwartet != 1112320 {
+			t.Errorf("K1: %d Namen der Menge je Methode, erwartet 1 112 320", k1ZahlASCII+erwartet)
+		}
 	}
+	if !unterDetektor && laeufe != 2223872 {
+		t.Errorf("K1: %d Läufe der Menge ab U+0080, erwartet 2 223 872 (2 × 1 111 936)", laeufe)
+	}
+	t.Logf("K1 ab U+0080: %d Läufe in beiden Methoden", laeufe)
 }
 
 func jK1(t *testing.T, s *jsuite) {

@@ -235,27 +235,42 @@ func migrationFaelle() []Fall {
 	}
 }
 
-// testFaelle sind die Fälle von `pruefung test`; das Muster schließt nur die Pakete unter
-// src/bootstrap ein, und die Eingriffe liegen dort.
+// basisPaket ist das Paket basis/ ohne Befund mit einem bestandenen Test.
+func basisPaket() map[string]string {
+	return map[string]string{
+		"basis/basis.go": leeresPaket("basis"),
+		"basis/basis_test.go": "package basis\n\nimport \"testing\"\n\n" +
+			"func TestBasis(t *testing.T) {\n\tif 1+1 != 2 {\n\t\tt.Fatal(\"rechnen\")\n\t}\n}\n",
+	}
+}
+
+// testFaelle sind die Fälle 25 bis 28 und 33 (SPEC-102), die Fälle von `pruefung test`. Die Fälle 25 bis 28
+// legen ein Wegwerfmodul an (Feld Wegwerfmodul, TestTestFaelleLegenEinWegwerfmodulAn) und fahren kein
+// Paket von src/; der Fall test/aufruf ruft ohne Wurzel.
 func testFaelle() []Fall {
-	aufruf := []string{"test", "{dir}", "./src/bootstrap/..."}
+	aufruf := []string{"test", "{dir}"}
 	return []Fall{
-		{Name: "test/basis", Gate: gatePruefung, Argumente: aufruf, WantText: []string{"pruefung test: ok"}},
 		{
-			Name: "test/nicht-formatiert", Gate: gatePruefung, Argumente: aufruf,
-			Neu:      map[string]string{"src/bootstrap/unformatiert.go": "package bootstrap\n\nvar   unformatiert   =   1\n"},
+			Name: "test/basis", Gate: gatePruefung, Argumente: aufruf, Wegwerfmodul: true,
+			Neu:      wegwerfModul(basisPaket()),
+			WantText: []string{"pruefung test: ok"},
+		},
+		{
+			Name: "test/nicht-formatiert", Gate: gatePruefung, Argumente: aufruf, Wegwerfmodul: true,
+			Neu: wegwerfModul(basisPaket(),
+				map[string]string{"basis/unformatiert.go": "package basis\n\nvar   unformatiert   =   1\n"}),
 			WantExit: 1, WantText: []string{"nicht gofmt-formatiert", "unformatiert.go"},
 		},
 		{
-			Name: "test/vet-befund", Gate: gatePruefung, Argumente: aufruf,
-			Neu: map[string]string{"src/bootstrap/vet.go": "package bootstrap\n\nimport \"fmt\"\n\n" +
-				"func vetBefund() string { return fmt.Sprintf(\"%d\", \"text\") }\n"},
+			Name: "test/vet-befund", Gate: gatePruefung, Argumente: aufruf, Wegwerfmodul: true,
+			Neu: wegwerfModul(basisPaket(), map[string]string{"basis/vet.go": "package basis\n\nimport \"fmt\"\n\n" +
+				"func vetBefund() string { return fmt.Sprintf(\"%d\", \"text\") }\n"}),
 			WantExit: 1, WantText: []string{"go vet:"},
 		},
 		{
-			Name: "test/roter-test", Gate: gatePruefung, Argumente: aufruf,
-			Neu: map[string]string{"src/bootstrap/rot_test.go": "package bootstrap\n\nimport \"testing\"\n\n" +
-				"func TestRot(t *testing.T) { t.Fatal(\"rot\") }\n"},
+			Name: "test/roter-test", Gate: gatePruefung, Argumente: aufruf, Wegwerfmodul: true,
+			Neu: wegwerfModul(basisPaket(), map[string]string{"basis/rot_test.go": "package basis\n\nimport \"testing\"\n\n" +
+				"func TestRot(t *testing.T) { t.Fatal(\"rot\") }\n"}),
 			WantExit: 1, WantText: []string{"go test:"},
 		},
 		{
