@@ -38,6 +38,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Übernimmt (Zeit und Kennungen):** Die Snapshot-Kennung der Baseline kommt aus `IDGenerator.SnapshotID()`, `created_at` aus `Clock.Now()` (`SPEC-114`); die `import_id` vergibt der Client und der Generator berührt sie nicht (`SPEC-114` Nr. 9; Sendung von `slice-clock-idgenerator`).
 
 **Übernimmt (Match-Key):** Die Auflösung von `@odata.nextLink` bildet den Key mit `BildeSchluessel` (`SPEC-116`); bei `ErrKodierung` gilt der Link als nicht auflösbar (die Kette bricht ab, die Coverage ist nicht `complete`), und `key_redacted` verhindert `complete` (Sendung von `slice-redaction-match-key`).
+**Übernimmt (Metadaten):** Der Import liest das `$metadata` der Session mit `MetadataCodec` (`SPEC-125`) in das Modell, gegen das er die Entities prüft, und ein `ODR-E6004` endet ihn, bevor etwas geschrieben ist; nach jedem erfolgreichen `Publish`, auch dem idempotenten ohne neuen Import, ruft er `MetadataRepository.SetMetadata(service_id, ref, ref)` mit der Blob-Referenz des Dokuments als Wert und Hash, und ein Fehler von `SetMetadata` ist der Fehler des Imports bei bestehender Baseline (`SPEC-107` Nr. 15; Sendung von `slice-odata-codec-csdl`, `AGENTS.md` §3.13). Offen für den Vertrag dieses Slice, ausdrücklich nicht dort entschieden: welche Antwort der Session das `$metadata` ist (mehrere, keine, nicht `complete`, nicht 200) und was bei einem `metadata_hash` der Anfrage ungleich der Referenz gilt. Der Fake des Ports `MetadataCodec` (Zählung jeder Operation, jedes Argument festgehalten, Modell, Bericht und Fehler als Vorgabe) liefert dieser Slice mit seinen Tests; `slice-odata-codec-csdl` liefert die Vertragssuite des Ports, aber keinen Fake.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Der Endpunkt `POST /__admin/imports` samt Authentisierung — Folgewelle (Welle §6); `SPEC-047` bindet den Use Case, der Adapter kommt später.
@@ -64,7 +66,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Lesen, Interpretieren und Zusammenführen: nur `complete`-Exchanges mit Status 200 und passender Metadatenversion, Deduplizierung identischer Payloads, Teilprojektionen nur widerspruchsfrei, Konflikte stoppen mit `ODR-E6101`, redigierte Nicht-Key-Properties als `unknown` maskiert, redigierte Key-Felder `ODR-E6101`; Provenienz je Entity.
 - [ ] Coverage: `complete` nur nach Vollständigkeitsbeweis (ungefilterte Collection-Abfrage, geschlossene `@odata.nextLink`-Kette mit Auflösung über den Match-Key, kein `key_redacted`), sonst `partial` oder `unknown`; Form der Evidenz in der Spezifikation; ein leerer Import ist kein Beweis einer leeren Collection.
-- [ ] Manifest (`manifest_version=1`) als Blob, atomares Veröffentlichen über `ImportRepository.Publish`, Idempotenz über den Hash der Anfrage, Fehlercodes `ODR-E7003`, `ODR-E7009`, `ODR-E6004`, `ODR-E6101`, `ODR-E6102`.
+- [ ] Manifest (`manifest_version=1`) als Blob, atomares Veröffentlichen über `ImportRepository.Publish`, Idempotenz über den Hash der Anfrage, Fehlercodes `ODR-E7003`, `ODR-E7009`, `ODR-E6004`, `ODR-E6101`, `ODR-E6102`; das `$metadata` der Session mit `MetadataCodec` vor dem ersten Schreiben lesen und nach jedem erfolgreichen `Publish` `SetMetadata` rufen (Sendung von `slice-odata-codec-csdl`, §1).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -98,7 +100,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-odata-codec-json` und `slice-redaction-match-key` und `slice-session-wartung` und `slice-session-use-case` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-odata-codec-csdl` und `slice-odata-codec-json` und `slice-redaction-match-key` und `slice-session-wartung` und `slice-session-use-case` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -124,7 +126,7 @@ dasteht.
 - Form der Evidenz (`evidence_json`) und des Reports: nicht festgelegt, beide fließen später in den Mock und in die Admin-Antworten — **Ausgang:** offen; Architect legt sie vor dem Code in der Spezifikation fest.
 - Gleichzeitige Imports derselben Session und derselben `import_id`; Session wird beim Import gelöscht — **Ausgang:** offen; Raster-Zelle, Wiederholungsläufe.
 - Der Beweis für `complete` setzt `key_redacted=false` für jede Seite voraus; Replay-Requests mit zusammenfallendem Key sind gewollt (`LH-FA-14.a`) — **Ausgang:** offen; Fänger in der Tabelle *Zusage · Fänger*.
-- Metadaten des Service (`metadata_hash`) zum Zeitpunkt des Imports: wer sie gesetzt hat, ist offen (siehe `slice-odata-codec-csdl`) — **Ausgang:** offen; hängt an derselben Entscheidung.
+- Metadaten des Service (`metadata_hash`) zum Zeitpunkt des Imports: wer sie setzt und was der Hash ist, ist entschieden (`SPEC-107` Nr. 15: der Import, nach `Publish`, die Blob-Referenz); offen bleiben die Wahl der Antwort der Session und die Abweichung des Hashes der Anfrage (§1) — **Ausgang:** offen; Architect legt beides vor dem Code im Vertrag des Imports fest.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
 
 ## 7. Closure-Notiz

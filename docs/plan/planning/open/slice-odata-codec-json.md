@@ -33,6 +33,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der Codec liest OData-V4-JSON-Antworten auf Einzel-Entity- und Collection-Abfragen gegen das Modell in typisierte Entities mit kanonischem Schlüssel, ausgewählten Properties und Nachweis, ob `@odata.nextLink` die Kette fortsetzt, und unterscheidet `null` von nicht selektiert.
 
+**Übernimmt (Port):** Der Port `ODataCodec` entsteht in diesem Slice als eigene Schnittstelle neben `MetadataCodec` und ändert `MetadataCodec` nicht (Entscheidung des Architect von `slice-odata-codec-csdl`: je Darstellung eine Schnittstelle, `SPEC-125`; `AGENTS.md` §3.13). Sein Modell ist `model.ServiceModel` aus `SPEC-125` Nr. 11 (wirksame Schlüssel und Properties, qualifizierte Namen nach Auflösung der Aliase, Zugriffe als Kopien, unbekannter Name `false`); die Erweiterung des Modells um Wertetypen dieses Slice ist eine Änderung der Spezifikation, kein Implementer-Entscheid.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Serialisierung zurück ins OData-JSON und Query-AST — Mock-Modus, nicht in der Welle.
@@ -57,7 +59,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Port `ODataCodec` (Entities): Antwort, Modell und Entity-Set rein, typisierte Entities raus; EDM-Typen `Edm.String`, `Boolean`, `Int32`, `Int64`, `Decimal`, `Guid`, `Date`, `DateTimeOffset`.
+- [ ] Port `ODataCodec` (Entities), eigene Schnittstelle neben `MetadataCodec` (Sendung von `slice-odata-codec-csdl`): Antwort, Modell und Entity-Set rein, typisierte Entities raus; EDM-Typen `Edm.String`, `Boolean`, `Int32`, `Int64`, `Decimal`, `Guid`, `Date`, `DateTimeOffset`.
 - [ ] Kanonischer, typisierter Schlüssel (einfach und zusammengesetzt) mit Normalisierung der Literale; ungültiger Schlüssel, Typfehler und widersprüchlicher Inhalt als `ODR-E6101`.
 - [ ] `@odata.context`-Prüfung gegen das Modell, `@odata.nextLink`, `@odata.count`; `null` gegen fehlend.
 - [ ] `make gates` grün.
