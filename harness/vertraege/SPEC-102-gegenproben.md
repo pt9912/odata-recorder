@@ -9,7 +9,10 @@
 Je Fall legt es eine Kopie der Eingaben in einem Wegwerfverzeichnis an, schreibt oder ändert dort Dateien, ruft das Gate als Prozess und vergleicht Exit-Code und Ausgabe.
 Alle Fälle laufen nebenläufig (höchstens so viele wie Prozessorkerne); ein Docker-Build, -Lauf oder `docker cp` je Fall gibt es nicht.
 Der Arbeitsbaum wird nie verändert.
-Die Fälle 34 bis 36 (`make test-race`, `SPEC-122`) legen statt der Kopie der Eingaben ein Wegwerfmodul ohne Abhängigkeiten an und schreiben die Pakete selbst: ein Lauf über `src/` unter `-race` wäre das Ziel und nicht seine Gegenprobe.
+Die Fälle 25 bis 28 (`make test`) und 34 bis 36 (`make test-race`, `SPEC-122`) legen statt der Kopie der Eingaben ein Wegwerfmodul ohne Abhängigkeiten an und schreiben die Pakete selbst: ein Lauf über `src/` wäre das Ziel und nicht seine Gegenprobe.
+Die Fälle 25 bis 28 fahren damit kein Paket von `src/`: die Tests des Produkts wachsen mit jedem Slice, und ein Fall, der sie mitfährt, braucht neben den übrigen Fällen (bis zu so viele wie Kerne, Randform 6) die Frist von 120 s auf, ohne dass das Gate fehlt (gemessen am 2026-10-24: `test/basis` und `test/roter-test` in zwei von drei Läufen bei 120,6 s rot, mit der Vertragssuite von `ODataCodec` in `src/bootstrap`).
+Die Parallelität bleibt, wie sie ist; die Last, die einen Fall an die Frist bringt, erzeugen die Fälle selbst, und kein Fall hängt von der Laufzeit des Produkts ab.
+Dass jeder dieser Fälle ein Wegwerfmodul anlegt, fängt der Test `TestTestFaelleLegenEinWegwerfmodulAn` in `tools/gegenproben/main_test.go` (Muster: `TestRaceFaelleLegenEinWegwerfmodulAn`).
 Der Inhalt der Dateien, die sie schreiben, führt kein Zeichen über ASCII, damit ein Fixture nicht davon abhängt, ob das Werkzeug des Schreibers eine Escape-Folge in das Zeichen umsetzt.
 Sie laufen in dieser Stufe auf dem golangci-lint-Image, das Go 1.27.1 und gcc 14.2.0 trägt (gemessen am 2026-10-22), nicht auf dem Image der Stufe `race`; `pruefung race` setzt `CGO_ENABLED=1` für seinen Aufruf selbst, die Umgebung der Stufe (`CGO_ENABLED=0`) bleibt.
 Die Fälle setzen `CGO_ENABLED` nicht selbst, sie erben `0` von der Stufe; dass die Stufe es setzt, fängt kein Fall. Die Mutation „`pruefung race` setzt cgo nicht“ fangen die Fälle 34 bis 36 nur, solange die Umgebung der Stufe cgo nicht einschaltet; der Test von `pruefung` fängt sie in jeder Umgebung (`SPEC-122` Nr. 1).
@@ -45,10 +48,10 @@ Ein roter Lauf lässt den Stempel unverändert, ein fehlender Stempel erzwingt d
 22. `migration/erzeugtes-ddl-fehlt` · `migration-check.sh` · die Datei mit dem erzeugten DDL fehlt · Exit 2, Ausgabe nennt das erzeugte DDL als fehlend und nicht die Migration.
 23. `migration/falsche-aufrufform` · `migration-check.sh` · ein Argument statt zwei · Exit 2, Ausgabe nennt `Aufruf`.
 24. `migration/zu-viele-argumente` · `migration-check.sh` · drei Argumente statt zwei · Exit 2, Ausgabe nennt `Aufruf`.
-25. `test/basis` · `pruefung test` mit einem Go-Muster, das nur die Pakete unter `src/bootstrap` einschließt · keiner · Exit 0, Ausgabe nennt `pruefung test: ok`.
-26. `test/nicht-formatiert` · `pruefung test` · eine Datei in `src/bootstrap/` mit ungleichmäßigen Leerzeichen · Exit 1, Ausgabe nennt `nicht gofmt-formatiert` und den Dateinamen.
-27. `test/vet-befund` · `pruefung test` · eine Datei in `src/bootstrap/` mit einem `Printf`, dessen Verb nicht zum Argument passt · Exit 1, Ausgabe nennt `go vet:`.
-28. `test/roter-test` · `pruefung test` · eine Testdatei in `src/bootstrap/` mit einem Test, der `t.Fatal` ruft · Exit 1, Ausgabe nennt `go test:`.
+25. `test/basis` · `pruefung test` mit dem Wegwerfmodul als Wurzel und ohne Muster · Wegwerfmodul (`go.mod`, ein Paket ohne Befund mit einem bestandenen Test) · Exit 0, Ausgabe nennt `pruefung test: ok`.
+26. `test/nicht-formatiert` · `pruefung test` · im Wegwerfmodul eine Datei mit ungleichmäßigen Leerzeichen · Exit 1, Ausgabe nennt `nicht gofmt-formatiert` und den Dateinamen.
+27. `test/vet-befund` · `pruefung test` · im Wegwerfmodul eine Datei mit einem `Printf`, dessen Verb nicht zum Argument passt · Exit 1, Ausgabe nennt `go vet:`.
+28. `test/roter-test` · `pruefung test` · im Wegwerfmodul ein Paket mit einem Test, der `t.Fatal` ruft · Exit 1, Ausgabe nennt `go test:`.
 29. `build/basis` · `pruefung build` · das Binary entsteht in der Kopie mit `-trimpath` und der Version, die der Aufruf nennt · Exit 0, Ausgabe nennt `pruefung build: ok`.
 30. `build/ohne-trimpath` · `pruefung build` · das Binary entsteht ohne `-trimpath` · Exit 1, Ausgabe nennt `nicht mit -trimpath gebaut`.
 31. `build/falsche-version` · `pruefung build` · das Binary trägt eine andere Version als der Aufruf nennt · Exit 1, Ausgabe nennt `Version des Binary` und beide Versionen.
