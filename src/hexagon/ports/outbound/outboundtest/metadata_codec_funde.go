@@ -324,9 +324,10 @@ func zeileI2(t *testing.T, neu CodecNeu) {
 // Kontext, der vor dem Aufruf oder im letzten Read endet, und BOM und UTF-16-Marke in einzelnen Reads.
 func i2Zusatz(neu CodecNeu, r []byte) []string {
 	var fehler []string
-	var keinCtx context.Context
 	var keinSrc io.Reader
+	kein, hin := func() context.Context { return nil }, context.Background
 	ctxEnde, abbruch := context.WithCancel(context.Background())
+	ende := func() context.Context { return ctxEnde }
 	letzter := &teilReader{teile: [][]byte{r}, mitEnde: true, nach: func(int) { abbruch() }}
 	ursache := func(u model.MetadatenUrsache) func(error) bool {
 		return func(err error) bool {
@@ -336,20 +337,20 @@ func i2Zusatz(neu CodecNeu, r []byte) []string {
 	}
 	for _, f := range []struct {
 		name  string
-		ctx   context.Context
+		ctx   func() context.Context
 		src   io.Reader
 		max   int64
 		passt func(error) bool
 	}{
-		{"ctx nil", keinCtx, teile(r), 1 << 20, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
-		{"src nil", context.Background(), keinSrc, 1 << 20, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
-		{"max 0", context.Background(), teile(r), 0, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
-		{"Kontext beendet", abgebrochen(), teile(r), 1 << 20, func(err error) bool { return err == context.Canceled }},
-		{"Kontext endet im letzten Read", ctxEnde, letzter, 1 << 20, func(err error) bool { return err == context.Canceled }},
-		{"BOM in einzelnen Reads", context.Background(), teile(append([]byte(bom), r...), 1, 2), 1 << 20, func(err error) bool { return err == nil }},
-		{"UTF-16-Marke in einzelnen Reads", context.Background(), teile([]byte("\xFF\xFE<a/>"), 1), 1 << 20, ursache(model.UrsacheKodierung)},
+		{"ctx nil", kein, teile(r), 1 << 20, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
+		{"src nil", hin, keinSrc, 1 << 20, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
+		{"max 0", hin, teile(r), 0, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
+		{"Kontext beendet", abgebrochen, teile(r), 1 << 20, func(err error) bool { return err == context.Canceled }},
+		{"Kontext endet im letzten Read", ende, letzter, 1 << 20, func(err error) bool { return err == context.Canceled }},
+		{"BOM in einzelnen Reads", hin, teile(append([]byte(bom), r...), 1, 2), 1 << 20, func(err error) bool { return err == nil }},
+		{"UTF-16-Marke in einzelnen Reads", hin, teile([]byte("\xFF\xFE<a/>"), 1), 1 << 20, ursache(model.UrsacheKodierung)},
 	} {
-		if _, _, err := neu.aufruf(f.ctx, f.src, f.max); !f.passt(err) {
+		if _, _, err := neu.aufruf(f.ctx(), f.src, f.max); !f.passt(err) {
 			fehler = append(fehler, fmt.Sprint(f.name, ": ", err))
 		}
 	}
