@@ -882,12 +882,12 @@ func TestBeendenProtokollLeer(t *testing.T) {
 }
 
 // kennungsformen nennt jede Form einer Kennung, die SPEC-124 Nr. 4 als außerhalb der Form bezeichnet
-// (Großbuchstaben, _ . / :, Leerzeichen, Steuerzeichen, NUL, jedes Byte ab 0x80 als gültiges und als
-// ungültiges UTF-8, mehr als 64 Bytes), dazu die Grenzen der Länge (63, 64, 65 und 70 Bytes) und je
-// Form die Nachbarn, in die eine Umschreibung sie überführen würde (Schreibweise, Entfernen oder
-// Ersetzen des Zeichens, Kürzen, Trimmen von - am Rand, Abschneiden am NUL). Der Bestand der Tests führt
-// jede offen. Die leere Kennung steht nicht darin: kein Bestand führt sie, TestBeendenPruefung führt
-// sie als unbekannt.
+// (Großbuchstaben, _ . / : \, Leerzeichen, Steuerzeichen, NUL, DEL, jedes Byte ab 0x80 als gültiges und
+// als ungültiges UTF-8, mehr als 64 Bytes). Die Zeichen _ . / : Tabulator, Zeilenvorschub, Wagenrücklauf,
+// NUL und DEL stehen in der Mitte, am linken und am rechten Rand; . / - stehen auch doppelt. Dazu die
+// Längen 63, 64, 65, 70, 71, 80, 100, 128, 255, 256 und 1000 Bytes und je Form der Nachbar, der durch
+// Schreibweise, Entfernen oder Ersetzen des Zeichens, Kürzen, Trimmen oder Abschneiden entsteht. Der
+// Bestand führt jede offen; die leere Kennung führt TestBeendenPruefung.
 func kennungsformen() []string {
 	return []string{
 		// Schreibweise, Leerzeichen am Rand, Präfix
@@ -899,8 +899,12 @@ func kennungsformen() []string {
 		"1", "ä1", "Ä1", "é", "é", "a\xffb", "\xff1",
 		// - am Rand
 		"-a", "a-", "-a-", "--",
-		// Länge: 63, 64 (die Grenze der Form), 65 und 70 Bytes
+		"/a", "a/", ".a", "a.", "_a", "a_", ":a", "a:", "\ta", "a\t", "\na", "a\n", "\ra", "a\r", "a\r\n",
+		"\x00a", "\x7fa", "a\rb", "a\x7fb", "1ä", "a\xff", "0a", "a0", "a..b", "a//b", "a---b", "a\\b",
+		// Länge: 63, 64 (die Grenze der Form), 65 und 70 Bytes, darüber bis 1000
 		strings.Repeat("a", 63), strings.Repeat("a", 64), strings.Repeat("a", 65), strings.Repeat("a", 70),
+		strings.Repeat("a", 71), strings.Repeat("a", 80), strings.Repeat("a", 100), strings.Repeat("a", 128),
+		strings.Repeat("a", 255), strings.Repeat("a", 256), strings.Repeat("a", 1000),
 	}
 }
 

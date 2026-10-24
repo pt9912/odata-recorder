@@ -609,8 +609,8 @@ func pruefeNichtsDanach(ctx context.Context, t *testing.T, name string, u *welt)
 }
 
 // TestCloseAllKontext: ein vorab beendeter ctx lässt CloseAll nichts beenden; endet er in Drain, setzt
-// CloseAll alle Status, denn ListBySession und SetStatus laufen ohne seinen Abbruch (B25, SPEC-124
-// Nr. 11 e, 14 b, c).
+// CloseAll alle Status, denn ListBySession und SetStatus laufen ohne seinen Abbruch; scheitert dann ein
+// Statuswechsel an der Platte, steht der Eintrag trotz beendetem ctx im Protokoll (B25, SPEC-124 Nr. 9, 11 e, 14).
 func TestCloseAllKontext(t *testing.T) {
 	ende, abbruch := context.WithCancel(context.Background())
 	abbruch()
@@ -674,6 +674,36 @@ func TestCloseAllKontext(t *testing.T) {
 		}
 		nachher(t, u, bericht, err)
 	})
+	for _, art := range []string{"Canceled", "DeadlineExceeded"} {
+		t.Run("Platte in SetStatus, "+art+" in Drain", func(t *testing.T) {
+			u := neuMehrere(t, 3)
+			u.st.scheitereFuer("SetStatus", "o2", errDisk)
+			var ctx context.Context
+			var beende func()
+			if art == "Canceled" {
+				c, stopp := context.WithCancel(ctxMitWert())
+				defer stopp()
+				ctx, beende = c, stopp
+			} else {
+				c := &verfallCtx{wert: "w1"}
+				ctx, beende = c, c.verfalle
+			}
+			b := neueBarriere(3)
+			u.st.bei("Drain", 0, func() { b.an(); beende() })
+			bericht, err := u.closeAll(ctx)
+			if code, _ := codeVon(t, err); b.lief() || ctx.Err() == nil || code != "ODR-E9001" || !errors.Is(err, errDisk) || bericht != (inbound.CloseBericht{Beendet: 2, Fehlgeschlagen: 1}) {
+				t.Errorf("Barriere abgelaufen %v, ctx.Err %v, Bericht %+v, Fehler %v", b.lief(), ctx.Err(), bericht, err)
+			}
+			e := u.log.alle()
+			if len(e) != 1 {
+				t.Fatalf("%d Einträge: %+v", len(e), e)
+			}
+			pruefeEintrag(t, "o2", e[0], dienstB, "o2", "ODR-E9001")
+			if s := u.sessions.statusVon("o2"); s != model.SessionOpen {
+				t.Errorf("o2: Status %q", s)
+			}
+		})
+	}
 }
 
 // TestCtxEndetZwischenCloseAll: der Dienst prüft den Kontext nicht selbst; endet der Kontext zwischen zwei
@@ -1057,6 +1087,8 @@ func raceFehlsessions() []raceFehlsession {
 		{"fehl-7-set-platte", "SetStatus", errDisk, code("ODR-E9001"), true, true},
 		{"fehl-8-set-kontext", "SetStatus", context.Canceled, kontext, false, true},
 		{"fehl-9-set-uebergang", "SetStatus", verpackt(outbound.ErrUngueltigerUebergang), code("ODR-E7011"), false, false},
+		{"fehl-10-drain-platte", "Drain", errDisk, ist(errDisk), true, true},
+		{"fehl-11-drain-ungueltig", "Drain", model.ErrUngueltig, ist(model.ErrUngueltig), true, true},
 	}
 }
 
@@ -1088,9 +1120,11 @@ func raceErfolge() []raceErfolg {
 // Ergebnis complete, keine Exchanges), die Verlierer gleichzeitiger Aufrufe, an jeder Aufrufstelle (Get,
 // Drain, ListBySession, SetStatus) ein Fehler mit Code und ein Kontextfehler, ODR-E7011 im
 // Statuswechsel und bei einer nicht offenen Session, die unbekannte Kennung und der nil-Kontext, in
-// Beenden wie in CloseAll; CloseAll ohne offene Session führt TestCloseAllRaceLeer aus. Jede Session
-// endet mit genau einem gelungenen SetStatus, jedes ODR-E7011 gehört einem Verlierer. Was dieser Test
-// nicht ausführt, meldet der Detektor nicht: Create mit Fehler und Delete.
+// Beenden wie in CloseAll; ein Fehler von Drain ohne Code (Platte, ErrUngueltig) führt den Zweig
+// ODR-E9001 von fehlerCode aus, raceVerwaltung die Zweige von Create, Get und List; CloseAll ohne offene
+// Session führt TestCloseAllRaceLeer aus. Jede Session endet mit genau einem gelungenen SetStatus, jedes
+// ODR-E7011 gehört einem Verlierer. Nicht ausgeführt, also vom Detektor nicht gemeldet: List mit Fehler,
+// Create mit leerer Kennung (OpenInitialSession) und Delete samt dem Protokoll der Bereinigung.
 func TestBeendenRace(t *testing.T) {
 	const gor, runden = 16, 50
 	u := neu(t)
@@ -1182,6 +1216,7 @@ func TestBeendenRace(t *testing.T) {
 			if _, err := u.v.Get(ctx, id); err != nil {
 				t.Errorf("Get %s: %v", id, err)
 			}
+			raceVerwaltung(ctx, keinCtx, t, u, id)
 			if _, err := u.v.List(ctx); err != nil {
 				t.Errorf("List: %v", err)
 			}
@@ -1233,6 +1268,26 @@ func TestBeendenRace(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func raceVerwaltung(ctx, keinCtx context.Context, t *testing.T, u *welt, id string) {
+	if _, err := u.v.Get(ctx, "ohne-session"); !raceCode(err, "ODR-E7003") {
+		t.Errorf("Get einer unbekannten Kennung: %v", err)
+	}
+	_, errGet := u.v.Get(keinCtx, id)
+	_, errList := u.v.List(keinCtx)
+	_, errCtx := u.v.Create(keinCtx, dienstB, id)
+	_, errDienst := u.v.Create(ctx, "", id)
+	_, errForm := u.v.Create(ctx, dienstB, "Ab c")
+	_, errLang := u.v.Create(ctx, dienstB, strings.Repeat("a", 65))
+	for name, err := range map[string]error{"Get": errGet, "List": errList, "Create ohne Kontext": errCtx, "Create ohne Dienst": errDienst, "Create mit Form": errForm, "Create mit Länge": errLang} {
+		if !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%s ohne gültige Argumente: %v", name, err)
+		}
+	}
+	if _, err := u.v.Create(ctx, dienstB, id); !raceCode(err, "ODR-E7010") {
+		t.Errorf("Create einer vorhandenen Kennung: %v", err)
 	}
 }
 
