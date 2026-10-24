@@ -45,7 +45,109 @@ func positionen() []position {
 			return []byte(`<edmx:Edmx xmlns:edmx="` + edmxNs + `" Version="4.0">` + c + `<edmx:DataServices/></edmx:Edmx>`)
 		}},
 		{"DataServices", "", func(c string) []byte { return []byte(edmx(c)) }},
+		{"PropertyRef", "Ns.T", func(c string) []byte {
+			return eins(`<EntityType Name="T"><Key><PropertyRef Name="Id">` + c + `</PropertyRef></Key>` + prop("Id", "Edm.Int32") + `</EntityType>`)
+		}},
+		{"Annotations", "Ns.T", func(c string) []byte { return eins(`<Annotations Target="Ns.T">` + c + `</Annotations>`) }},
 	}
+}
+
+// attributOrt ist eine der vierzehn Stellen, an denen ein Attribut mit Namensraum gemeldet wird (Nr. 7): doc setzt attr
+// in das Start-Tag des Elements, eigene sind die Funde des Elements selbst, ort ist sein Ort. standard sagt, ob das
+// Start-Tag eine Deklaration des Standard-Namensraums zusätzlich tragen darf.
+type attributOrt struct {
+	name     string
+	ort      string
+	eigene   []model.Fund
+	standard bool
+	doc      func(attr string) []byte
+}
+
+func attributOrte() []attributOrt {
+	kons := func(ort string) []model.Fund {
+		return []model.Fund{{Art: model.FundKonstrukt, Ort: ort, Name: "Function"}}
+	}
+	return []attributOrt{
+		{"Edmx", "", nil, true, func(a string) []byte {
+			return []byte(`<edmx:Edmx xmlns:edmx="` + edmxNs + `" Version="4.0" ` + a + `><edmx:DataServices/></edmx:Edmx>`)
+		}},
+		{"DataServices", "", nil, true, func(a string) []byte {
+			return []byte(`<edmx:Edmx xmlns:edmx="` + edmxNs + `" Version="4.0"><edmx:DataServices ` + a + `/></edmx:Edmx>`)
+		}},
+		{"Schema", "Ns", nil, false, func(a string) []byte {
+			return []byte(edmx(`<Schema xmlns="` + edmNs + `" Namespace="Ns" ` + a + `/>`))
+		}},
+		{"Annotations", "Ns.T", nil, true, func(a string) []byte { return eins(`<Annotations Target="Ns.T" ` + a + `/>`) }},
+		{"EntityType", "Ns.T", nil, true, func(a string) []byte { return eins(`<EntityType Name="T" ` + a + `>` + schluesselID + `</EntityType>`) }},
+		{"Key", "Ns.T", nil, true, func(a string) []byte {
+			return eins(`<EntityType Name="T"><Key ` + a + `><PropertyRef Name="Id"/></Key>` + prop("Id", "Edm.Int32") + `</EntityType>`)
+		}},
+		{"PropertyRef", "Ns.T", nil, true, func(a string) []byte {
+			return eins(`<EntityType Name="T"><Key><PropertyRef Name="Id" ` + a + `/></Key>` + prop("Id", "Edm.Int32") + `</EntityType>`)
+		}},
+		{"Property", "Ns.T/P", nil, true, func(a string) []byte { return eins(typ("T", `<Property Name="P" Type="Edm.String" `+a+`/>`)) }},
+		{"NavigationProperty", "Ns.T/N", nil, true, func(a string) []byte {
+			return eins(typ("T", `<NavigationProperty Name="N" Type="Ns.T" `+a+`/>`))
+		}},
+		{"EntityContainer", "Ns.C", nil, true, func(a string) []byte { return eins(`<EntityContainer Name="C" ` + a + `/>`) }},
+		{"EntitySet", "Ns.C/S", nil, true, func(a string) []byte {
+			return eins(typ("T", "") + `<EntityContainer Name="C"><EntitySet Name="S" EntityType="Ns.T" ` + a + `/></EntityContainer>`)
+		}},
+		{"Binding", "Ns.C/S", nil, true, func(a string) []byte {
+			return eins(typ("T", "") + `<EntityContainer Name="C"><EntitySet Name="S" EntityType="Ns.T"><NavigationPropertyBinding Path="P" Target="S" ` + a + `/></EntitySet></EntityContainer>`)
+		}},
+		{"Annotation", "Ns.T", []model.Fund{{Art: model.FundAnnotation, Ort: "Ns.T", Name: "t"}}, true, func(a string) []byte {
+			return eins(typ("T", `<Annotation Term="t" `+a+`/>`))
+		}},
+		{"konstrukt-Element", "Ns.Fn", kons("Ns.Fn"), true, func(a string) []byte { return eins(`<Function Name="Fn" ` + a + `/>`) }},
+	}
+}
+
+// g1Attribute führt an jeder der vierzehn Stellen das Attribut mit Namensraum (ein Fund am Ort des Elements, nach den
+// eigenen Funden des Elements) und die Attribute, die nie ein Fund sind (Deklarationen, Präfix xml).
+func g1Attribute() []g1Fall {
+	var out []g1Fall
+	for _, o := range attributOrte() {
+		fund := append(slices.Clone(o.eigene), model.Fund{Art: model.FundErweiterung, Ort: o.ort, Name: "{urn:x}a"})
+		out = append(out, g1Fall{fall: gut("Attribut mit Namensraum an "+o.name, o.doc(`xmlns:f="urn:x" f:a="1"`)), funde: fund})
+		for _, n := range []string{`xmlns:p="urn:p"`, `xmlns:p="urn:p" xmlns:q="urn:q"`, `xml:lang="de" xml:space="preserve"`, `xmlns:f="urn:x"`} {
+			out = append(out, g1Fall{fall: gut("Nicht-Fund "+n+" an "+o.name, o.doc(n)), funde: o.eigene})
+		}
+		if o.standard {
+			out = append(out, g1Fall{fall: gut("Nicht-Fund xmlns an "+o.name, o.doc(`xmlns="`+edmNs+`"`)), funde: o.eigene})
+		}
+	}
+	return out
+}
+
+// g1Fremde sind fremde Elemente mit Attribut Name an jeder Position (Ort nach ortKind) und mit Attributen, die kein
+// Fund sind, solange das Element selbst der Fund ist, dazu Annotationen im Inhalt eines konstrukt, eines fremden
+// Elements und einer Annotation.
+func g1Fremde() []g1Fall {
+	var out []g1Fall
+	for _, p := range positionen() {
+		ort := p.ort
+		switch p.name {
+		case "Schema":
+			ort += ".Nm"
+		case "EntityContainer":
+			ort += "/Nm"
+		}
+		fremd := model.Fund{Art: model.FundErweiterung, Ort: ort, Name: "{urn:x}Foo"}
+		out = append(out, g1Fall{fall: gut("Element fremder Namensraum mit Name in "+p.name, p.doc(`<f:Foo xmlns:f="urn:x" Name="Nm"/>`)), funde: []model.Fund{fremd}},
+			g1Fall{fall: gut("Element fremder Namensraum mit Attributen in "+p.name, p.doc(`<f:Foo xmlns:f="urn:x" f:a="1" g:b="2" xml:lang="de"/>`)), funde: []model.Fund{{Art: model.FundErweiterung, Ort: p.ort, Name: "{urn:x}Foo"}}})
+	}
+	im := func(name, inhalt string, funde ...model.Fund) g1Fall {
+		return g1Fall{fall: gut(name, eins(inhalt)), funde: funde}
+	}
+	ann := `<Annotation Term="inner"/>`
+	return append(out,
+		im("Annotation im Inhalt eines konstrukt", `<Function Name="Fn">`+ann+`</Function>`, model.Fund{Art: model.FundKonstrukt, Ort: "Ns.Fn", Name: "Function"}),
+		im("Annotation im Inhalt eines fremden Elements", `<f:Foo xmlns:f="urn:x">`+ann+`</f:Foo>`, model.Fund{Art: model.FundErweiterung, Ort: "Ns", Name: "{urn:x}Foo"}),
+		im("fremdes Element im Inhalt einer Annotation", `<Annotation Term="t"><f:Foo xmlns:f="urn:x"/></Annotation>`, model.Fund{Art: model.FundAnnotation, Ort: "Ns", Name: "t"}),
+		im("Annotation mit Term und Target", `<Annotation Term="t" Target="x"/>`, model.Fund{Art: model.FundAnnotation, Ort: "Ns", Name: "t"}),
+		im("Annotation mit Name", `<Annotation Name="Nm" Term="t"/>`, model.Fund{Art: model.FundAnnotation, Ort: "Ns", Name: "t"}),
+		im("Annotation mit Namen im Container", `<EntityContainer Name="C"><Annotation Name="Nm" Term="t"/></EntityContainer>`, model.Fund{Art: model.FundAnnotation, Ort: "Ns.C", Name: "t"}))
 }
 
 // g1Fall ist ein Dokument mit den Funden, die es genau meldet.
@@ -96,14 +198,7 @@ func g1Faelle() []g1Fall {
 			add(a.attr+" "+w, doc, funde...)
 		}
 	}
-	for _, a := range []struct{ el, ort string }{
-		{"Schema", "Ns"}, {"EntityType", "Ns.T"}, {"Property", "Ns.T/Id"}, {"NavigationProperty", "Ns.T/N"}, {"EntitySet", "Ns.C/S"},
-		{"EntityContainer", "Ns.C"}, {"PropertyRef", "Ns.T"},
-	} {
-		doc := strings.Replace(string(volldgut(nil)), "<"+a.el+" ", "<"+a.el+` xmlns:f="urn:x" f:a="1" `, 1)
-		add("Attribut mit Namensraum an "+a.el, []byte(doc), model.Fund{Art: model.FundErweiterung, Ort: a.ort, Name: "{urn:x}a"})
-	}
-	return out
+	return append(append(out, g1Attribute()...), g1Fremde()...)
 }
 
 func faelleG(t *testing.T) []fall {
@@ -117,6 +212,9 @@ func faelleG(t *testing.T) []fall {
 
 // zeileG1: jedes Konstrukt der Mengen erscheint genau einmal mit Art, Ort und Name (Nr. 7).
 func zeileG1(t *testing.T, neu CodecNeu) {
+	if n, o := len(positionen()), len(attributOrte()); n != 12 || o != 14 {
+		t.Errorf("%d Positionen für Annotationen und %d Orte für Attribute, erwartet 12 und 14", n, o)
+	}
 	for _, g := range g1Faelle() {
 		_, b := pruefeFall(t, neu, g.fall)
 		want := g.funde
