@@ -101,7 +101,7 @@ func zeileF1(t *testing.T, neu CodecNeu) {
 	}
 	gleich(t, "EntitySets", m.EntitySets(), []model.EntitySet{{Name: "Products", EntityType: "Demo.Product"}, {Name: "Categories", EntityType: "Demo.Category"}})
 	gleich(t, "NavigationBindings", m.NavigationBindings(), []model.NavigationBinding{
-		{Set: "Products", Path: "Category", Target: "Categories"}, {Set: "Categories", Path: "Products", Target: "Demo.Container/Products"}})
+		{Set: "Products", Path: "Category", Target: "Demo.Container/Categories"}, {Set: "Categories", Path: "Products", Target: "Demo.Container/Products"}})
 	gleich(t, "Funde", b.Funde, []model.Fund{{Art: model.FundPropertyTyp, Ort: "Demo.Product/Weight", Name: "Edm.Double"}})
 	if _, ok := m.EntityType("Self.Product"); ok {
 		t.Error("EntityType löst einen Alias auf")
@@ -176,7 +176,7 @@ func f4Doc(alias [7]bool) []byte {
 	holder := `<EntityType Name="Holder">` + schluesselID + prop("P2", pick(2, "A.T", "NsA.T")) + prop("P6", "Collection("+pick(6, "B.T", "NsB.T")+")") +
 		`<NavigationProperty Name="N3" Type="` + pick(3, "B.T", "NsB.T") + `"/></EntityType>`
 	sets := `<EntityContainer Name="Container"><EntitySet Name="S1" EntityType="` + pick(4, "A.T", "NsA.T") + `"><NavigationPropertyBinding Path="P" Target="` +
-		pick(5, "A.Container", "NsA.Container") + `/S1"/></EntitySet></EntityContainer>`
+		pick(5, "A.Container", "NsA.Container") + `/S1"/><NavigationPropertyBinding Path="Q" Target="S1"/></EntitySet></EntityContainer>`
 	a := schemaAlias("NsA", "A", typ("T", prop("X", "Edm.String"))+ableitung("D1", pick(1, "A.T", "NsA.T"), "")+holder+sets)
 	b := schemaAlias("NsB", "B", typ("T", prop("Y", "Edm.Int32")))
 	return []byte(edmx(a + b + schemaAlias("NsA", "A2", typ("V", ""))))
@@ -196,7 +196,7 @@ func zeileF4(t *testing.T, neu CodecNeu) {
 	gleich(t, "Properties", h.Properties, []model.Property{{Name: "Id", EdmType: "Edm.Int32", Nullable: true}, {Name: "P2", EdmType: "NsA.T", Nullable: true}, {Name: "P6", EdmType: "Collection(NsB.T)", Nullable: true}})
 	gleich(t, "Navigation", h.NavigationProperties, []model.NavigationProperty{{Name: "N3", Target: "NsB.T"}})
 	gleich(t, "Set", m0.EntitySets(), []model.EntitySet{{Name: "S1", EntityType: "NsA.T"}})
-	gleich(t, "Binding", m0.NavigationBindings(), []model.NavigationBinding{{Set: "S1", Path: "P", Target: "NsA.Container/S1"}})
+	gleich(t, "Binding", m0.NavigationBindings(), []model.NavigationBinding{{Set: "S1", Path: "P", Target: "NsA.Container/S1"}, {Set: "S1", Path: "Q", Target: "NsA.Container/S1"}})
 	gleich(t, "Funde", b0.Funde, []model.Fund{{Art: model.FundPropertyTyp, Ort: "NsA.Holder/P2", Name: "NsA.T"}, {Art: model.FundPropertyTyp, Ort: "NsA.Holder/P6", Name: "Collection(NsB.T)"}})
 	varianten := [][7]bool{{true, true, true, true, true, true, true}}
 	for i := 1; i <= 6; i++ {
@@ -220,13 +220,28 @@ func f6Doc() []byte {
 		`<NavigationPropertyBinding Path="N2" Target="Ns.C/Me"/></EntitySet></EntityContainer>`)
 }
 
+// zielFall hat in einem Dokument das Ziel eines Bindings in den drei Schreibweisen (nur der Name, mit dem
+// Namensraum, mit dem Alias im Container-Teil) und je einen Pfad, der wie geschrieben bleibt (Nr. 11).
+func zielFall(t *testing.T, neu CodecNeu) {
+	t.Helper()
+	doc := []byte(edmx(schemaAlias("Demo", "Self", typ("T", "")+`<EntityContainer Name="Container"><EntitySet Name="Categories" EntityType="Self.T"/>`+
+		`<EntitySet Name="S" EntityType="Demo.T"><NavigationPropertyBinding Path="P1" Target="Categories"/>`+
+		`<NavigationPropertyBinding Path="P2" Target="Demo.Container/Categories"/>`+
+		`<NavigationPropertyBinding Path="Self.Container/Categories" Target="Self.Container/Categories"/></EntitySet></EntityContainer>`)))
+	m, _ := pruefeFall(t, neu, gut("Ziel in drei Schreibweisen", doc))
+	z := "Demo.Container/Categories"
+	gleich(t, "Ziel in drei Schreibweisen", m.NavigationBindings(), []model.NavigationBinding{
+		{Set: "S", Path: "P1", Target: z}, {Set: "S", Path: "P2", Target: z}, {Set: "S", Path: "Self.Container/Categories", Target: z}})
+}
+
 func zeileF6(t *testing.T, neu CodecNeu) {
 	m, _ := pruefeFall(t, neu, gut("F6", f6Doc()))
 	e, _ := m.EntityType("Ns.T")
 	gleich(t, "Properties", e.Properties, []model.Property{{Name: "Id", EdmType: "Edm.Int32", Nullable: true}, {Name: "B", EdmType: "Edm.String"}, {Name: "C", EdmType: "Edm.String", Nullable: true}})
 	gleich(t, "Navigation", e.NavigationProperties, []model.NavigationProperty{{Name: "N1", Target: "Ns.T"}, {Name: "N2", Target: "Ns.T", Collection: true}})
-	gleich(t, "Bindings", m.NavigationBindings(), []model.NavigationBinding{{Set: "S", Path: "Nope", Target: "S"}, {Set: "S", Path: "N1", Target: "Me"}, {Set: "S", Path: "N2", Target: "Ns.C/Me"}})
+	gleich(t, "Bindings", m.NavigationBindings(), []model.NavigationBinding{{Set: "S", Path: "Nope", Target: "Ns.C/S"}, {Set: "S", Path: "N1", Target: "Ns.C/Me"}, {Set: "S", Path: "N2", Target: "Ns.C/Me"}})
 	gleich(t, "Sets", m.EntitySets(), []model.EntitySet{{Name: "S", EntityType: "Ns.T"}})
+	zielFall(t, neu)
 	m, _ = pruefeFall(t, neu, gut("ohne EntityContainer", eins(typ("T", ""))))
 	if len(m.EntitySets()) != 0 || len(m.NavigationBindings()) != 0 || len(m.EntityTypes()) != 1 {
 		t.Errorf("ohne EntityContainer: %v %v", m.EntitySets(), m.NavigationBindings())

@@ -195,18 +195,19 @@ func (d *dokument) setsAufloesen() error {
 	return nil
 }
 
-// bindingZiel löst den Namen eines Sets oder Singletons des Containers auf, auch als `<Container>/<Name>`.
+// bindingZiel löst den Namen eines Sets oder Singletons des Containers auf, auch als `<Container>/<Name>`;
+// das Ergebnis ist immer `<qualifizierter Container>/<Name>` (SPEC-125 Nr. 11).
 func (d *dokument) bindingZiel(raw string) (string, bool) {
 	c := d.container
-	name, qn := raw, ""
+	name := raw
 	if i := strings.LastIndex(raw, "/"); i >= 0 {
 		q, ok := d.qualify(raw[:i])
 		if !ok || q != c.qn {
 			return "", false
 		}
-		name, qn = raw[i+1:], q+"/"
+		name = raw[i+1:]
 	}
-	return qn + name, c.setNamen[name] || c.singletons[name]
+	return c.qn + "/" + name, c.setNamen[name] || c.singletons[name]
 }
 
 // wirksameProperties liefert die Properties von t und seiner Basistypen nach Namen.

@@ -3,6 +3,7 @@ package csdl
 import (
 	"encoding/xml"
 	"slices"
+	"strings"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
@@ -190,7 +191,7 @@ func (l *lauf) schema(se xml.StartElement) error {
 	if !namensraumGueltig(ns) {
 		return struktur("@Namespace")
 	}
-	if ns == "Edm" {
+	if ns == "Edm" || strings.HasPrefix(ns, "Edm.") {
 		return struktur(ns + "@Namespace")
 	}
 	bekannt := l.d.abbild[ns] == ns
