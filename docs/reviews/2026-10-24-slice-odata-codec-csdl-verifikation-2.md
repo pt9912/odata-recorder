@@ -3,7 +3,7 @@
 * Datum: 2026-10-24
 * Rolle: verifier (frischer Kontext, nicht der Verifier der ersten Runde; kein Produktcode, kein Test, keine Spezifikation, kein Plan geändert; `.claude/agents/architect.md` ist eine fremde, uncommittete Änderung und blieb unberührt)
 * Gegenstand: Spitze `dfc5822`. Seit der ersten Verifikation (`16999b9`): Architect `83b6b8b`; Implementer `4c7019d` (Code und Fänger), `58d7de3` (Gegenprobe Fall 37 und Stempel), `dfc5822` (Plan §3).
-* Plan: [`slice-odata-codec-csdl.md`](../plan/planning/in-progress/slice-odata-codec-csdl.md); erste Verifikation: [`2026-10-24-slice-odata-codec-csdl-verifikation.md`](2026-10-24-slice-odata-codec-csdl-verifikation.md)
+* Plan: [`slice-odata-codec-csdl.md`](../plan/planning/done/slice-odata-codec-csdl.md); erste Verifikation: [`2026-10-24-slice-odata-codec-csdl-verifikation.md`](2026-10-24-slice-odata-codec-csdl-verifikation.md)
 * Maßstab: die zehn Befunde V-1 bis V-10 **für ihre Klasse**, nicht für die genannte Mutation; `SPEC-125` Nr. 4 b und d, 6, 8 f, 9, 10, 11; `SPEC-102` Fall 37; `AGENTS.md` §3.9 bis §3.16.
 * Belege selbst gefahren: `make gegenproben` mit eigenem Stempel (37 Fälle, 0 rot) und in einer Wegwerfkopie ohne die Zeile `encoding/xml` (37 Fälle, 1 rot); die Suite des Slice ohne und mit Detektor; rund 100 eigene Mutationen als Wegwerfkopien von `git archive HEAD` unter dem Scratchpad (Quelle `:ro`, `--network none`, `--memory` 2 bis 4 GiB, höchstens drei Container zugleich, Ersetzung mit einem eigenen Perl-Skript, nie im Repo); ein eigenes Probe-Paket (rund 4000 Dokumente aus Generatoren nach `SPEC-125`, im Wegwerf-Baum als Test neben dem Leser); Raten als Testbinary mit N Prozessen zu `-test.count=1`. `git status --short` zeigt vor und nach dem Lauf nur `.claude/agents/architect.md`.
 

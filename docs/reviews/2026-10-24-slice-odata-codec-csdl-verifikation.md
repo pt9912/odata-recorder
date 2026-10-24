@@ -3,7 +3,7 @@
 * Datum: 2026-10-24
 * Rolle: verifier (frischer Kontext; kein Produktcode, kein Test, keine Spezifikation, kein Plan geändert; `.claude/agents/architect.md` ist eine fremde, uncommittete Änderung und blieb ungelesen und unberührt)
 * Gegenstand: Spitze `cf3131d`. Basis der Größenmarke `3b6b3b8`; Reviewer `0e11658`; Architect `f7639b9`, `684602d`; Implementer `867e878`, `f0256eb`, `d3a8baa`, `f54cec7`, `d2c566e`, `ed57fcb`, `f6986cf`, `ad8732b`, `7e08438`, `cf3131d`.
-* Plan: [`slice-odata-codec-csdl.md`](../plan/planning/in-progress/slice-odata-codec-csdl.md); Review: [`2026-10-24-slice-odata-codec-csdl-review.md`](2026-10-24-slice-odata-codec-csdl-review.md)
+* Plan: [`slice-odata-codec-csdl.md`](../plan/planning/done/slice-odata-codec-csdl.md); Review: [`2026-10-24-slice-odata-codec-csdl-review.md`](2026-10-24-slice-odata-codec-csdl-review.md)
 * Maßstab: DoD (§2), Tabelle *Zusage · Fänger* A1 bis J2 (§3) und Raster samt Zusatztabelle (§6) gegen `SPEC-125` Nr. 1 bis 14 und *Ungeprüft*; `SPEC-109` Nr. 5; `SPEC-049`; `LH-FA-06.a`, `LH-RB-01`, `LH-QA-07.a`; `AGENTS.md` §3.1 bis §3.16.
 * Hinweis zum Skill: `.harness/skills/closure-note-reviewer.md` gilt für Slices in `done/`; dieser Slice liegt in `in-progress/`, der Skill wurde nicht angewandt.
 * Belege selbst gefahren: `make gates` (Rückgabecode 0), die Suite des Slice ohne und mit Detektor, rund 250 eigene Mutationen als Wegwerfkopien von `git archive HEAD` unter dem Scratchpad (Quelle `:ro`, `--network none`, `--memory` 2 bis 4 GiB, höchstens drei Container zugleich, Ersetzung mit einem eigenen Perl-Skript, nie im Repo), Probe-Dokumente gegen den Leser, Raten als Testbinary mit N Prozessen zu `-test.count=1`. `git status --short` zeigt vor und nach dem Lauf nur `.claude/agents/architect.md`.
