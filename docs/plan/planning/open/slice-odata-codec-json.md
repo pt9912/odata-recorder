@@ -96,6 +96,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): `slice-odata-codec-csdl` liegt in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
+*Hinweis, keine Änderung der Regel:* Der erste Leser fremder Bytes, `slice-odata-codec-csdl`, hat die Formel von `AGENTS.md` §3.14 weit überschritten: Schätzung 1850, Handoff 3628, Ende 4333 Zeilen (Marke 2400); Produktcode 1506, Tests und Fixtures 2827 (64 je Zeile der Tabelle statt 40). Die Formel zählt Fänger, nicht den Code, den sie fangen. Der Planner setzt die Marke beim Start mit diesem Messpunkt vor Augen, die Closure dieses Slice liefert den zweiten gemessenen Wert; über eine Regel entscheidet der User danach (Entscheidung des Users: kein Zuschlag mit einem Messpunkt). Praxis für den Auftrag an den Implementer (Regel `AGENTS.md` §3.9 unverändert): der Handoff ist ein Commit für Code und Plan; Gegenprobe und Stempel dürfen folgen.
+
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 1400 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen); die Schätzung liegt bei rund 1000 Zeilen in derselben Metrik.
