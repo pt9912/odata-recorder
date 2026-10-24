@@ -223,7 +223,7 @@ Quelle `AGENTS.md` ist die Hard Rule (§) im Namen; jede Mutation ist in der Weg
 | Zustandsmodell (HIGH-Liste: Reset, Restore, `complete`-Coverage) | geprüft, ohne Befund: `complete` nur bei `NichtAngehaengt` `0` und jedem Exchange `complete`; ein Exchange, der nach `Drain` noch angenommen wird, ist das akzeptierte Negativ mit Grund und Folge im Plan und in `SPEC-124` *Ungeprüft* |
 | Spec-Straten | geprüft, ohne Befund (`SPEC-124`, `LH-FA-13.a`, `LH-FA-02.c`, `SPEC-121` Nr. 13, `SPEC-123` Nr. 8a sagen dasselbe; der Diff ändert keine Spezifikation) |
 | Kommentare (`AGENTS.md` §3.7, §3.11) | geprüft, ohne Befund bis auf die zwei Zusagen in F-5, F-6 und den abgebrochenen Satz L-3 |
-| `docs/plan/planning/in-progress/slice-session-beenden.md` §3-Absatz | geprüft, Namen der 30 Tests stimmen; Zahlen und Raten bestätigt; I-4, I-5 |
+| `docs/plan/planning/done/slice-session-beenden.md` §3-Absatz | geprüft, Namen der 30 Tests stimmen; Zahlen und Raten bestätigt; I-4, I-5 |
 | Importe (`.a-check.yml`) | geprüft, ohne Befund (`beenden.go`: `context`, `errors`, `sync`, `model`, `inbound`, `outbound`) |
 
 ## Summary
