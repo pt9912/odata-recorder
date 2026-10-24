@@ -267,6 +267,17 @@ Der Implementer hält an einer Zelle ohne Ort an (§3.12); der Reviewer löst da
 **Falsch:** Der Vertrag nennt die leere ID für `Get`; für `Delete` und `Advance` entscheidet der Code.
 **Richtig:** Das Raster hat für jede Operation eine Zeile, und jede Zelle verweist auf eine Nummer des Vertrags.
 
+### 3.17 Ein Fix deckt die Klasse der Zusage, nicht die genannte Mutation   (seit welle-record-replay)
+
+Schärft §3.15 für Fixes: Ein Befund nennt Mutationen als Belege; der Fix zählt erst, wenn er die Klasse deckt, zu der sie gehören — die Menge, die die Zusage meint (jede Referenzart, jede Position, jeder Rest hinter der Klammer, jede Aufrufstelle), nicht die Elemente, die der Befund nannte.
+Der Implementer bildet die Menge aus dem Wortlaut der Zusage in der Spezifikation oder im Plan, nicht aus dem Befund, und schreibt den Fänger als Schleife über alle ihre Elemente (§3.15).
+Sein Bericht nennt je Befund die Menge, die Zahl ihrer Elemente und mindestens eine Mutation an einem Element, das der Befund nicht nannte, rot gesehen.
+Ist die Menge unbeschränkt, nennt der Bericht die Prüfgrenze mit Grund und Folge im Betrieb (akzeptiertes Negativ, §3.15), nicht eine Auswahl, die dem Fix einfiel.
+Reviewer und Verifier lösen den Fix gegen die Klasse auf, nicht gegen die genannten Mutationen; ein Probe-Paket aus Generatoren über die Klasse ist dafür ein zulässiges Mittel.
+
+**Falsch:** Der Befund nennt `Collection(Edm.String` ohne Klammer; der Fix macht die Mutation „Suffix `)` nicht geprüft“ rot und führt dafür genau diese Form. `Collection(Edm.StringX`, `…)X` und `…))` bleiben ungefangen, die nächste Runde findet sie.
+**Richtig:** Der Fix nennt die Menge „Rest hinter und in der Klammer“ mit ihren Elementen, der Fänger läuft als Schleife darüber, und der Bericht nennt eine Mutation an einem Element, das der Befund nicht nannte.
+
 ## 4. Quality Gates
 
 Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-harness-dateien.md`
