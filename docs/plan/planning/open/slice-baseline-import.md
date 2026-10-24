@@ -104,7 +104,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 2100 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen); die Schätzung liegt bei rund 1500 Zeilen in derselben Metrik.
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 2100 Zeilen (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen); die Schätzung liegt bei rund 1500 Zeilen in derselben Metrik (vorläufig, vor Vertrag und Tabelle; der Planner setzt die Marke beim Start nach der Tabelle des Architect neu, `AGENTS.md` §3.14, und ersetzt diese mit Grund).
 - `in-progress` → `open` (blockiert): die Form des Manifests oder der Evidenz bleibt ohne Entscheidung des Architect offen.
 
 ## 5. Closure-Trigger
