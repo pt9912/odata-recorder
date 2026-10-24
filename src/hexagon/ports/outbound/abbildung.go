@@ -58,6 +58,7 @@ func tabelle() []zeile {
 			GegenstandSnapshotname: model.CodeE7006, GegenstandImport: model.CodeE6102,
 		}},
 		{fehler: []benannt{{"ErrUngueltig", model.ErrUngueltig}}, je: map[Gegenstand]model.Code{GegenstandImport: model.CodeE6101}},
+		{fehler: []benannt{{"ErrMetadatenUngueltig", model.ErrMetadatenUngueltig}}, jeder: model.CodeE6004},
 		{fehler: []benannt{{"ErrUngueltigeSequenz", ErrUngueltigeSequenz}, {"ErrAbgeschlossen", ErrAbgeschlossen}, {"ErrRevisionVeraltet", ErrRevisionVeraltet}}, jeder: model.CodeE9001},
 	}
 }

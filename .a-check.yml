@@ -59,6 +59,7 @@ composition_root:
 
 tech:
   - {pattern: "modernc.org/sqlite", adapter: "src/adapters/driven/sqlite"}
+  - {pattern: "encoding/xml", adapter: "src/adapters/driven/odata"}
 
 markers:
   ignore_symbols: []

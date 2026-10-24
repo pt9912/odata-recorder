@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+    <Schema Namespace="Shop" Alias="S" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityType Name="OrderLine">
+        <Key><PropertyRef Name="OrderID"/><PropertyRef Name="LineNo"/></Key>
+        <Property Name="LineNo" Type="Edm.Int32" Nullable="false"/>
+        <Property Name="OrderID" Type="Edm.Guid" Nullable="false"/>
+        <Property Name="Note" Type="Edm.String"/>
+        <Property Name="Shipped" Type="Edm.Date"/>
+        <Property Name="At" Type="Edm.DateTimeOffset"/>
+        <Property Name="Flag" Type="Edm.Boolean"/>
+        <Property Name="Total" Type="Edm.Int64"/>
+        <Property Name="Amount" Type="Edm.Decimal"/>
+      </EntityType>
+      <EntityType Name="Gift" BaseType="S.OrderLine"/>
+      <EntityContainer Name="Container">
+        <EntitySet Name="Lines" EntityType="S.OrderLine"/>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+    <Schema Namespace="Demo" Alias="Self" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityType Name="Product">
+        <Key><PropertyRef Name="ID"/></Key>
+        <Property Name="ID" Type="Edm.Int32" Nullable="false"/>
+        <Property Name="Name" Type="Edm.String"/>
+        <Property Name="Price" Type="Edm.Decimal" Nullable="false"/>
+        <Property Name="Weight" Type="Edm.Double"/>
+        <NavigationProperty Name="Category" Type="Self.Category"/>
+      </EntityType>
+      <EntityType Name="Category">
+        <Key><PropertyRef Name="ID"/></Key>
+        <Property Name="ID" Type="Edm.Guid" Nullable="false"/>
+        <Property Name="Title" Type="Edm.String"/>
+        <NavigationProperty Name="Products" Type="Collection(Demo.Product)"/>
+      </EntityType>
+      <EntityContainer Name="Container">
+        <EntitySet Name="Products" EntityType="Self.Product">
+          <NavigationPropertyBinding Path="Category" Target="Categories"/>
+        </EntitySet>
+        <EntitySet Name="Categories" EntityType="Demo.Category">
+          <NavigationPropertyBinding Path="Products" Target="Demo.Container/Products"/>
+        </EntitySet>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

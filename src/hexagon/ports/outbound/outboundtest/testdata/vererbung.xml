@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+    <Schema Namespace="Zoo" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityType Name="Animal" Abstract="true">
+        <Key><PropertyRef Name="Id"/></Key>
+        <Property Name="Id" Type="Edm.Int64" Nullable="false"/>
+        <Property Name="Name" Type="Edm.String"/>
+      </EntityType>
+      <EntityType Name="Mammal" BaseType="Zoo.Animal" OpenType="true">
+        <Property Name="Fur" Type="Edm.Boolean"/>
+        <NavigationProperty Name="Keeper" Type="Zoo.Keeper"/>
+      </EntityType>
+      <EntityType Name="Dog" BaseType="Zoo.Mammal">
+        <Property Name="Breed" Type="Edm.String"/>
+      </EntityType>
+      <EntityType Name="Puppy" BaseType="Zoo.Dog"/>
+      <EntityType Name="Keeper">
+        <Key><PropertyRef Name="Id"/></Key>
+        <Property Name="Id" Type="Edm.Int32" Nullable="false"/>
+      </EntityType>
+      <EntityContainer Name="Park">
+        <EntitySet Name="Animals" EntityType="Zoo.Animal"/>
+        <EntitySet Name="Keepers" EntityType="Zoo.Keeper"/>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

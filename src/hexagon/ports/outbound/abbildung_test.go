@@ -172,8 +172,27 @@ func TestAbbildungVollstaendig(t *testing.T) {
 		}
 	}
 	for _, n := range eintraege {
-		if n != "ErrUngueltig" && !slices.Contains(vorhanden, n) {
+		if n != "ErrUngueltig" && n != "ErrMetadatenUngueltig" && !slices.Contains(vorhanden, n) {
 			t.Errorf("Eintrag %s ohne Variable im Paket", n)
 		}
+	}
+}
+
+// TestAbbildungMetadaten (Zeile H2): der Fehler des Metadatenlesers bildet bei jedem Gegenstand auf ODR-E6004 ab.
+func TestAbbildungMetadaten(t *testing.T) {
+	e := &model.MetadatenFehler{Ursache: model.UrsacheKette, Ort: "Ns.T"}
+	formen := map[string]error{"Fehler": e, "Errorf": fmt.Errorf("lesen: %w", e), "Join": errors.Join(errors.New("x"), e)}
+	for name, err := range formen {
+		for _, g := range alleGegenstaende() {
+			if got, ok := outbound.Abbilden(err, g); !ok || got != model.CodeE6004 {
+				t.Errorf("%s / Gegenstand %d: %v %v", name, g, got, ok)
+			}
+		}
+	}
+	if !slices.Contains(outbound.EintraegeAbbildung(), "ErrMetadatenUngueltig") {
+		t.Error("die Tabelle nennt ErrMetadatenUngueltig nicht")
+	}
+	if _, ok := outbound.Abbilden(errors.Join(e, context.Canceled), gImp); ok {
+		t.Error("ein Kontextfehler neben dem Fehler bekommt einen Code")
 	}
 }
