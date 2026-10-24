@@ -3,6 +3,7 @@ package outboundtest
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -15,6 +16,7 @@ type wertFall struct {
 	art     model.WertArt
 	text    string
 	ursache model.DatenUrsache
+	name    string // Name des Falls, wenn der Anfang des JSON ihn nicht unterscheidet
 }
 
 func gutW(json string, art model.WertArt, text string) wertFall {
@@ -30,6 +32,9 @@ func wertFaelle(prefix, edm string, werte []wertFall, nurKol bool) []jfall {
 	var out []jfall
 	for _, w := range werte {
 		name := fmt.Sprintf("%s %.40s", prefix, w.json)
+		if w.name != "" {
+			name = prefix + " " + w.name
+		}
 		members := `"Id":1,"` + prop + `":` + w.json
 		var fs []jfall
 		if w.ursache != "" {
@@ -199,7 +204,8 @@ func jfF4() []jfall {
 
 func jF4(t *testing.T, s *jsuite) { s.pruefeAlle(t, jfF4()) }
 
-// dezimalLaenge liefert die Fälle an der Grenze von 1024 Zeichen in vier Formen: ganzer Teil, Bruchteil, Exponent, Vorzeichen.
+// dezimalLaenge liefert Einzelfälle an der Grenze von 1024 Zeichen: ganzer Teil, reiner Bruchteil, Exponent, Vorzeichen. Die
+// Menge über alle Stellen des Dezimalpunkts ist dezimalStellen.
 func dezimalLaenge() []wertFall {
 	eins := func(n int) string { return "1" + strings.Repeat("0", n) }
 	return []wertFall{
@@ -215,6 +221,99 @@ func dezimalLaenge() []wertFall {
 		gutW(`12345e-1022`, model.ArtDecimal, "0."+strings.Repeat("0", 1017)+"12345"), schlechtW(`12345e-1023`, model.DatenZahlZuLang),
 	}
 }
+
+// Stellen des Dezimalpunkts in der kanonischen Schreibweise einer Dezimalzahl: kein Punkt, ganzer Teil 0, ganzer Teil eine Ziffer
+// ungleich 0, Punkt in der Mitte der Ziffern, Bruchteil eine Ziffer.
+const (
+	dzKeinPunkt = iota
+	dzGanzNull
+	dzGanzEins
+	dzMitte
+	dzBruchEins
+	dzStellen
+)
+
+// dzZiffern liefert n Ziffern ohne Null: 1 bis 9, dann wieder 1.
+func dzZiffern(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = byte('1' + i%9)
+	}
+	return string(b)
+}
+
+// dzTeile liefert den ganzen Teil und den Bruchteil der kanonischen Schreibweise aus z Zeichen (ohne Vorzeichen) an der Stelle
+// des Punkts. nullen setzt in den Bruchteil von `0,xxx` Nullen vor die letzte Ziffer, sonst steht dort keine Null (der Bruchteil
+// beginnt dann mit einer Ziffer ungleich 0).
+func dzTeile(stelle, z int, nullen bool) (ganz, bruch string) {
+	switch stelle {
+	case dzKeinPunkt:
+		return "1" + strings.Repeat("0", z-1), ""
+	case dzGanzNull:
+		if nullen {
+			return "0", strings.Repeat("0", z-3) + "1"
+		}
+		return "0", dzZiffern(z - 2)
+	case dzGanzEins:
+		return "7", dzZiffern(z - 2)
+	case dzMitte:
+		a := (z - 1) / 2
+		return dzZiffern(a), dzZiffern(z - 1 - a)
+	}
+	return dzZiffern(z - 2), "1"
+}
+
+// dzSchreibweise schreibt den Wert vz + ganz + "." + bruch als JSON: 0 in Dezimalschreibweise, 1 als ganzzahlige Mantisse mit
+// Exponent (ohne Punkt `1e<n>` mit positivem, mit Punkt `<Ziffern>e-<Stellen des Bruchteils>`), 2 als String.
+func dzSchreibweise(schreib int, vz, ganz, bruch string) string {
+	kanon := vz + ganz
+	if bruch != "" {
+		kanon += "." + bruch
+	}
+	switch {
+	case schreib == 2:
+		return `"` + kanon + `"`
+	case schreib == 1 && bruch == "":
+		return vz + "1e" + strconv.Itoa(len(ganz)-1)
+	case schreib == 1:
+		return vz + strings.TrimLeft(ganz+bruch, "0") + "e-" + strconv.Itoa(len(bruch))
+	}
+	return kanon
+}
+
+// dezimalStellen ist die Menge der Länge 1024 je Stelle des Punkts (F5, Entscheidung des Architect zu F-4): Stelle des Punkts (5)
+// × Vorzeichen (2) × Länge des kanonischen Textes 1023, 1024, 1025 (3) × Schreibweise (3: Dezimalschreibweise, Mantisse mit
+// Exponent, String) = 90 Fälle. Die Länge zählt Vorzeichen, Ziffern und Punkt. Die Mantisse mit Exponent hat bei `0,xxx` Nullen
+// vor der letzten Ziffer, die anderen Schreibweisen eine Ziffer ungleich 0 an der ersten Stelle des Bruchteils: beide Zweige der
+// Länge des reinen Bruchteils sind in der Menge.
+func dezimalStellen() []wertFall {
+	var out []wertFall
+	for stelle := range dzStellen {
+		for _, vz := range []string{"", "-"} {
+			for _, n := range []int{1023, 1024, 1025} {
+				for schreib := range 3 {
+					z := n - len(vz)
+					ganz, bruch := dzTeile(stelle, z, schreib == 1)
+					kanon := vz + ganz
+					if bruch != "" {
+						kanon += "." + bruch
+					}
+					json := dzSchreibweise(schreib, vz, ganz, bruch)
+					w := gutW(json, model.ArtDecimal, kanon)
+					if n > maxDezimalLaengeSuite {
+						w = schlechtW(json, model.DatenZahlZuLang)
+					}
+					w.name = fmt.Sprintf("Stelle %d Vorzeichen %q Länge %d Schreibweise %d", stelle, vz, n, schreib)
+					out = append(out, w)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// maxDezimalLaengeSuite ist die Länge, die SPEC-126 Nr. 5 einer kanonischen Dezimalzahl erlaubt.
+const maxDezimalLaengeSuite = 1024
 
 func jfF5() []jfall {
 	w := []wertFall{
@@ -233,10 +332,14 @@ func jfF5() []jfall {
 		schlechtW(`true`, model.DatenTyp), gutW(`0.000001`, model.ArtDecimal, "0.000001"), gutW(`123e-2`, model.ArtDecimal, "1.23"),
 	}
 	return verbinde(wertFaelle("F5", "Edm.Decimal", w, false), wertFaelle("F5 Länge", "Edm.Decimal", dezimalLaenge(), false),
+		wertFaelle("F5 Stelle des Punkts", "Edm.Decimal", dezimalStellen(), false),
 		wertFaelle("F5 Generator", "Edm.Decimal", generierteZahlen("Edm.Decimal"), true))
 }
 
 func jF5(t *testing.T, s *jsuite) {
+	if n := len(dezimalStellen()); n != 5*2*3*3 {
+		t.Errorf("F5: %d Fälle der Länge je Stelle des Punkts, erwartet 90 (5 Stellen × 2 Vorzeichen × 3 Längen × 3 Schreibweisen)", n)
+	}
 	s.pruefeAlle(t, jfF5())
 	// Äquivalenzklassen: gleiche Werte gleicher Text, verschiedene Werte verschiedene Texte.
 	r := s.lauf(jfall{m: "W", set: "Ws", body: jKol("Ws", `{"Id":1,"RDecimal":1}`, `{"Id":2,"RDecimal":"1.0"}`, `{"Id":3,"RDecimal":10e-1}`, `{"Id":4,"RDecimal":1.01}`)})

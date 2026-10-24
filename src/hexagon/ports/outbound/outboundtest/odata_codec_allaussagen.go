@@ -373,10 +373,77 @@ func jfK1() []jfall {
 		out = append(out, jfall{name: fmt.Sprintf("K1 Index %d", i), m: "R", set: "Products", body: jKol("Products", elems...),
 			ursache: model.DatenUnbekannteProperty, ort: fmt.Sprintf("/value/%d/Nope", i)})
 	}
+	return append(out, jfK1Zeichen()...)
+}
+
+// k1Namen sind die Namen der Menge von K1 (SPEC-126 Nr. 14: kein anderes Zeichen als `~` und `/` wird ersetzt): jedes Zeichen c
+// von U+0000 bis U+007F als `c`, `~c` und `/c` (3 × 128) und je ein Zeichen aus U+0080, U+07FF, U+0800, U+FFFF, U+10000 und
+// U+10FFFF (6): 390 Namen.
+func k1Namen() []string {
+	var out []string
+	for c := range 0x80 {
+		z := string(rune(c))
+		out = append(out, z, "~"+z, "/"+z)
+	}
+	for _, r := range []rune{0x80, 0x7FF, 0x800, 0xFFFF, 0x10000, 0x10FFFF} {
+		out = append(out, string(r))
+	}
+	return out
+}
+
+// k1Orakel bildet den Ort eines Mitglieds zeichenweise nach RFC 6901: `~` wird `~0`, `/` wird `~1`, jedes andere Zeichen bleibt.
+func k1Orakel(name string) string {
+	var b strings.Builder
+	b.WriteByte('/')
+	for _, r := range name {
+		switch r {
+		case '~':
+			b.WriteString("~0")
+		case '/':
+			b.WriteString("~1")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// k1JSON schreibt den Namen als JSON-String: ein Steuerzeichen als Escape, `"` und `\` mit Backslash, jedes andere Zeichen roh.
+func k1JSON(name string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range name {
+		switch {
+		case r < 0x20:
+			b.WriteString(esc(fmt.Sprintf("%04x", r)))
+		case r == '"' || r == '\\':
+			b.WriteString("\\" + string(r))
+		default:
+			b.WriteRune(r)
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
+}
+
+// jfK1Zeichen sind die Fälle der Menge k1Namen je Methode: ein Name mit `@` ist `struktur`, sonst eine unbekannte Property, der
+// Ort ist der Name nach dem Orakel.
+func jfK1Zeichen() []jfall {
+	var out []jfall
+	for _, n := range k1Namen() {
+		u := model.DatenUnbekannteProperty
+		if strings.Contains(n, "@") {
+			u = model.DatenStruktur
+		}
+		out = append(out, beide("K1 Zeichen "+strconv.QuoteToASCII(n), "R", "Products", `"ID":1,`+k1JSON(n)+`:1`, u, k1Orakel(n))...)
+	}
 	return out
 }
 
 func jK1(t *testing.T, s *jsuite) {
+	if n := len(k1Namen()); n != 3*128+6 {
+		t.Errorf("K1: %d Namen der Zeichenmenge, erwartet 390 (3 × 128 für c, ~c, /c und 6 Zeichen ab U+0080)", n)
+	}
 	s.pruefeAlle(t, jfK1())
 	for _, p := range []struct {
 		e    *model.DatenFehler

@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"runtime"
 	"runtime/debug"
+	"runtime/metrics"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -23,6 +26,30 @@ type jsuite struct {
 	neu     ODataCodecNeu
 	modelle map[string]model.ServiceModel
 	faelle  []jfall
+	rufe    atomic.Uint64 // Zahl der Aufrufe des Lesers, für drossel
+}
+
+// Der Leser legt je Aufruf einen Puffer von 32 KiB an. Die Zeilen mit vielen Aufrufen auf vielen Goroutinen (A4, J1, die
+// Generatoren von B2 und B3) erzeugen damit Müll schneller, als eine Müllsammlung auf einem ausgelasteten Host nachkommt, und
+// der Speicherwächter (512 MiB) schlägt vor ihr an. drossel wartet deshalb ab gHeapGrenze Heap eine Müllsammlung ab; geprüft
+// wird jeder gHeapTakt-te Aufruf des Lesers.
+const (
+	gHeapGrenze = 128 << 20
+	gHeapTakt   = 128
+)
+
+// gHeap ist der Stand des Heaps (lebende Objekte und noch nicht gesammelter Müll) in Bytes.
+func gHeap() uint64 {
+	s := []metrics.Sample{{Name: "/memory/classes/heap/objects:bytes"}}
+	metrics.Read(s)
+	return s[0].Value.Uint64()
+}
+
+// drossel zählt einen Aufruf des Lesers und wartet bei hohem Stand des Heaps eine Müllsammlung ab.
+func (s *jsuite) drossel() {
+	if s.rufe.Add(1)%gHeapTakt == 0 && gHeap() > gHeapGrenze {
+		runtime.GC()
+	}
 }
 
 // ODataCodecVertrag prüft die Zusagen von SPEC-126 (Zeilen A1 bis L1 der Tabelle Zusage · Fänger) gegen jeden
@@ -136,6 +163,7 @@ func (s *jsuite) aufruf(ctx context.Context, einzel bool, src io.Reader, m model
 			r.err = fmt.Errorf("Panik im Leser: %v", p)
 		}
 	}()
+	s.drossel()
 	c := s.neu()
 	if einzel {
 		r.entity, r.err = c.ParseEntity(ctx, src, m, set, grenze)

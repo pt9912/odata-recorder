@@ -155,7 +155,10 @@ func jfB2() []jfall {
 	return verbinde(jfB2Bytes(), jfB2Verstoesse(), jfB2Gueltig())
 }
 
-func jB2(t *testing.T, s *jsuite) { s.pruefeAlle(t, jfB2()) }
+func jB2(t *testing.T, s *jsuite) {
+	s.pruefeAlle(t, jfB2())
+	jB2Generatoren(t, s)
+}
 
 // b3Orte sind die Orte, an denen ein Byte oder eine Folge in Strings des Bodys steht: der Wert einer Property, der Name
 // eines Mitglieds, der Wert einer Annotation, der Inhalt einer Navigation.
@@ -206,6 +209,8 @@ func jfB3() []jfall {
 		out = append(out, beideGut(fmt.Sprintf("B3 gültig %U", []rune(seq)[0]), "R", "Products", b3Orte(seq)["Wert"],
 			pw("ID", model.ArtInt32, "1"), pw("Name", model.ArtString, seq))...)
 	}
+	out = append(out, b3A2()...)
+	out = append(out, b3GZFaelle()...)
 	return append(out, jfB3Escapes()...)
 }
 
@@ -234,7 +239,10 @@ func jfB3Escapes() []jfall {
 	return out
 }
 
-func jB3(t *testing.T, s *jsuite) { s.pruefeAlle(t, jfB3()) }
+func jB3(t *testing.T, s *jsuite) {
+	s.pruefeAlle(t, jfB3())
+	jB3Mengen(t, s)
+}
 
 // b4Wrapper sind die Orte, an denen B4 geschachtelte Klammern einsetzt; basis ist die Zahl der Klammern über dem Ort
 // (Wurzel, `value`, Element).

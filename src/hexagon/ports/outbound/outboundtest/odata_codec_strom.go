@@ -77,14 +77,13 @@ func a1Faelle() []a1Fall {
 }
 
 // pruefeA1 fährt einen Fall von A1 für die Methode: der Ausgang, kein Read und die Nullwerte.
-func (s *jsuite) pruefeA1(t *testing.T, einzel bool, f a1Fall) {
+func (s *jsuite) pruefeA1(t *testing.T, einzel bool, f a1Fall, m model.ServiceModel) {
 	t.Helper()
 	rd := &teilReader{teile: [][]byte{[]byte("{")}}
 	var src io.Reader = rd
 	if !f.src {
 		src = nil
 	}
-	m := s.modelle["R"]
 	if f.leer {
 		m = model.ServiceModel{}
 	}
@@ -110,12 +109,20 @@ func (s *jsuite) pruefeA1(t *testing.T, einzel bool, f a1Fall) {
 	r.nullwerte(t, name)
 }
 
+// a1OhneTyp ist das Modell von Hand mit einem Set, dessen Typ das Modell nicht auflöst (SPEC-126 Nr. 1 f).
+func a1OhneTyp() model.ServiceModel {
+	return model.NeuesServiceModel("4.0", nil, nil, []model.EntitySet{{Name: "X", EntityType: "T.Fehlt"}}, nil)
+}
+
 // jA1: die Argumente und das Set in ihrer Reihenfolge (SPEC-126 Nr. 1 a bis f).
 func jA1(t *testing.T, s *jsuite) {
+	hin := context.Background
 	for _, einzel := range []bool{true, false} {
 		for _, f := range a1Faelle() {
-			s.pruefeA1(t, einzel, f)
+			s.pruefeA1(t, einzel, f, s.modelle["R"])
 		}
+		// Ein Set, dessen Typ das Modell nicht auflöst: dieselbe Fehlerart wie ein unbekanntes Set, ohne Read.
+		s.pruefeA1(t, einzel, a1Fall{name: "Set mit nicht aufgelöstem Typ", ctx: hin, src: true, grenze: 1000, set: "X", soll: a1SetFehler}, a1OhneTyp())
 		// grenze 1 ist gültig: der Body `{` ist unvollständig, kein ungültiges Argument.
 		r := s.aufruf(context.Background(), einzel, &teilReader{teile: [][]byte{[]byte("{")}}, s.modelle["R"], "Products", 1)
 		datenFehler(t, methodeName(einzel)+" grenze 1", r.err, model.DatenSyntax, "")
@@ -361,22 +368,86 @@ func (s *jsuite) zerlegt(t *testing.T, f jfall) (zweiteilungen int64) {
 
 // jA5: der Leser schließt src nie, liest nach dem Ende nicht weiter und höchstens grenze+1 Bytes (SPEC-126 Nr. 2, 5).
 func jA5(t *testing.T, s *jsuite) {
+	var faelle int
+	defer func() { t.Logf("A5: %d Fälle der Suite und 2 Fälle mit Deckel", faelle) }()
 	for _, f := range s.alleFaelle(t) {
 		if f.gross {
 			continue
 		}
+		faelle++
 		rd := teile(f.body)
-		s.ruf(context.Background(), rd, f)
-		if rd.closes != 0 || rd.nachEnde != 0 {
-			t.Errorf("%s: Close %d, Reads nach dem Ende %d", f.name, rd.closes, rd.nachEnde)
+		w := &a5Strom{inner: rd}
+		s.ruf(context.Background(), w, f)
+		if rd.closes != 0 || rd.nachEnde != 0 || w.leer != 0 || int64(w.geliefert)-1 > f.grenzeOderStandard() {
+			t.Errorf("%s: Close %d, Reads nach dem Ende %d, Reads mit leerem Puffer %d, geliefert %d Bytes bei grenze %d", f.name,
+				rd.closes, rd.nachEnde, w.leer, w.geliefert, f.grenzeOderStandard())
 		}
 	}
 	for _, einzel := range []bool{true, false} {
-		e := &endlos{}
-		r := s.aufruf(context.Background(), einzel, e, s.modelle["R"], "Products", 1000)
+		e := &deckelStrom{deckel: 1000 + a5Deckel}
+		w := &a5Strom{inner: e}
+		r := s.aufruf(context.Background(), einzel, w, s.modelle["R"], "Products", 1000)
 		datenFehler(t, methodeName(einzel)+" endloser Strom", r.err, model.DatenZuGross, "")
-		if e.geliefert != 1001 || e.closes != 0 {
-			t.Errorf("%s: geliefert %d Bytes, Close %d; erwartet 1001 und 0", methodeName(einzel), e.geliefert, e.closes)
+		if e.geliefert != 1001 || e.closes != 0 || w.leer != 0 {
+			t.Errorf("%s: geliefert %d Bytes, Close %d, Reads mit leerem Puffer %d; erwartet 1001, 0 und 0", methodeName(einzel), e.geliefert, e.closes, w.leer)
 		}
 	}
 }
+
+// a5Deckel ist die Zahl der Bytes über grenze, nach denen der Strom von A5 io.EOF liefert.
+const a5Deckel = 4096
+
+// a5MaxReads ist die Zahl der Reads, nach der a5Strom einen Fehler liefert: ein Leser, der Reads mit leerem Puffer wiederholt,
+// endet damit im Fall und nicht an der Zeitgrenze des Tests.
+const a5MaxReads = 10000
+
+// errA5Ohnefortschritt beendet einen Leser, der a5MaxReads Reads macht.
+var errA5Ohnefortschritt = errors.New("A5: der Leser liest ohne Fortschritt")
+
+// a5Strom reicht Reads an inner weiter und zählt, was der Leser verlangt: einen Read mit leerem Puffer (er kennt dann keine
+// Größengrenze mehr; der Strom liefert dafür nichts) und die gelieferten Bytes.
+type a5Strom struct {
+	inner interface {
+		io.Reader
+		io.Closer
+	}
+	reads, leer, geliefert int
+}
+
+func (w *a5Strom) Read(p []byte) (int, error) {
+	if w.reads++; w.reads > a5MaxReads {
+		return 0, errA5Ohnefortschritt
+	}
+	if len(p) == 0 {
+		w.leer++
+		return 0, nil
+	}
+	n, err := w.inner.Read(p)
+	w.geliefert += n
+	return n, err
+}
+
+func (w *a5Strom) Close() error { return w.inner.Close() }
+
+// deckelStrom liefert Leerzeichen und nach deckel Bytes io.EOF. Der Leser verwirft Leerraum, sein Speicher wächst dabei nicht;
+// der Deckel beendet den Strom auch für einen Leser, der die Größengrenze nicht durchsetzt. Der Fall wird dann aus dem
+// benannten Grund rot: am Zähler der gelieferten Bytes (mehr als grenze + 1) und an `syntax` (leere Eingabe statt `zu_gross`).
+type deckelStrom struct {
+	deckel    int
+	geliefert int
+	closes    int
+}
+
+func (e *deckelStrom) Read(p []byte) (int, error) {
+	n := min(len(p), e.deckel-e.geliefert)
+	if n <= 0 {
+		return 0, io.EOF
+	}
+	for i := range n {
+		p[i] = ' '
+	}
+	e.geliefert += n
+	return n, nil
+}
+
+func (e *deckelStrom) Close() error { e.closes++; return nil }
