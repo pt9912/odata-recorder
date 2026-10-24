@@ -8,6 +8,11 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
+	"runtime"
+	"runtime/debug"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -27,9 +32,38 @@ const (
 	edmxV3 = "http://schemas.microsoft.com/ado/2007/06/edmx"
 )
 
+// speicherLimit ist die Obergrenze des Heaps der Suite. Eine Schleife des Lesers, die ohne Ende wächst (eine Mutation der
+// Reihenfolge der Durchläufe, ein Wegfall der Kettengrenze), endet damit nach Sekunden mit einem Fehler statt mit dem
+// Speicher des Hosts; ein gesunder Lauf bleibt weit darunter.
+const speicherLimit = 1024 << 20
+
+// speicherwaechter bricht den Prozess ab, sobald der Heap speicherLimit überschreitet; stop beendet ihn.
+func speicherwaechter() (stop func()) {
+	ende := make(chan struct{})
+	go func() {
+		tick := time.NewTicker(20 * time.Millisecond)
+		defer tick.Stop()
+		var ms runtime.MemStats
+		for {
+			select {
+			case <-ende:
+				return
+			case <-tick.C:
+			}
+			if runtime.ReadMemStats(&ms); ms.HeapAlloc > speicherLimit {
+				debug.SetTraceback("all")
+				panic(fmt.Sprintf("Speicherwächter: Heap %d MiB über %d MiB, eine Schleife des Lesers wächst ohne Ende; die Stapel aller Goroutinen folgen",
+					ms.HeapAlloc>>20, speicherLimit>>20))
+			}
+		}
+	}()
+	return func() { close(ende) }
+}
+
 // MetadataCodecVertrag prüft die Zusagen von SPEC-125 (Zeilen A1 bis I3 der Tabelle Zusage · Fänger)
 // gegen jeden Adapter von outbound.MetadataCodec.
 func MetadataCodecVertrag(t *testing.T, neu CodecNeu) {
+	defer speicherwaechter()()
 	for _, z := range []struct {
 		name string
 		lauf func(*testing.T, CodecNeu)
@@ -190,8 +224,6 @@ type teilReader struct {
 	nach      func(read int)
 	ende      error
 	mitEnde   bool
-	leerVor   bool
-	leerGetan bool
 	zuEnde    bool
 }
 
@@ -213,11 +245,6 @@ func (r *teilReader) Read(p []byte) (int, error) {
 		r.zuEnde = true
 		return 0, r.endeFehler()
 	}
-	if r.leerVor && !r.leerGetan {
-		r.leerGetan = true
-		return 0, nil
-	}
-	r.leerGetan = false
 	n := copy(p, r.teile[0])
 	r.teile[0] = r.teile[0][n:]
 	if len(r.teile[0]) == 0 {
@@ -258,6 +285,8 @@ func zeileA1(t *testing.T, neu CodecNeu) {
 		{"ctx nil", kein, true, 1000}, {"max 0", hin, true, 0}, {"max -1", hin, true, -1},
 		{"max 0 und beendeter ctx", abgebrochen, true, 0}, {"src nil", hin, false, 1000},
 		{"ctx nil und src nil", kein, false, 1000}, {"src nil und max 0", hin, false, 0},
+		{"max MinInt64", hin, true, math.MinInt64}, {"ctx nil und max 0", kein, true, 0}, {"ctx nil, src nil und max 0", kein, false, 0},
+		{"src nil und beendeter ctx", abgebrochen, false, 1000}, {"src nil, max 0 und beendeter ctx", abgebrochen, false, 0},
 	} {
 		src := io.Reader(&teilReader{teile: [][]byte{[]byte("<")}})
 		if !f.src {
@@ -276,61 +305,90 @@ func zeileA1(t *testing.T, neu CodecNeu) {
 	pruefeFall(t, neu, fall{name: "max 1 ist gültig", doc: []byte("<"), max: 1, ursache: model.UrsacheSyntax})
 }
 
-// zeileA2: der Kontext wird vor jedem Read und einmal vor dem Auflösen geprüft (Nr. 1 d).
+// beendbar ist ein Kontext, dessen Err() erst nach beende einen Fehler liefert; so endet er mit jedem Kontextfehler an
+// einer vorgegebenen Stelle des Aufrufs. Der Leser ruft ihn aus der Goroutine des Aufrufs, ein Schutz ist nicht nötig.
+type beendbar struct {
+	done chan struct{}
+	err  error
+}
+
+func neuBeendbar(err error) *beendbar {
+	c := &beendbar{done: make(chan struct{})}
+	if err != nil {
+		c.beende(err)
+	}
+	return c
+}
+
+func (c *beendbar) beende(err error) { c.err = err; close(c.done) }
+
+func (*beendbar) Deadline() (time.Time, bool) { return time.Time{}, false }
+func (c *beendbar) Done() <-chan struct{}     { return c.done }
+func (c *beendbar) Err() error                { return c.err }
+func (*beendbar) Value(any) any               { return nil }
+
+// kontextFehler sind die beiden Fehler eines beendeten Kontexts (Nr. 1 d).
+func kontextFehler() []error { return []error{context.Canceled, context.DeadlineExceeded} }
+
+// zeileA2: der Kontext wird vor jedem Read und einmal vor dem Auflösen geprüft (Nr. 1 d), und der Fehler des Kontexts
+// kommt unverändert zurück: Schleife über die Kontextfehler und die Stellen, an denen der Kontext endet.
 func zeileA2(t *testing.T, neu CodecNeu) {
 	r := festes(t, "referenz.xml")
 	nichtLoesbar := eins(typ("T", prop("P", "Ns.Nope")))
 	syntaxFehler := []byte("<a b>")
-	abbruchBei := func(doc []byte, stuecke []int, bei int, mitEnde bool) (*teilReader, error) {
-		ctx, abbruch := context.WithCancel(context.Background())
+	abbruchBei := func(ce error, doc []byte, stuecke []int, bei int, mitEnde bool) (*teilReader, error) {
+		ctx := neuBeendbar(nil)
 		rd := teile(doc, stuecke...)
 		rd.mitEnde = mitEnde
 		rd.nach = func(n int) {
 			if n == bei {
-				abbruch()
+				ctx.beende(ce)
 			}
 		}
 		_, _, err := neu.aufruf(ctx, rd, math.MaxInt64)
 		return rd, err
 	}
-	for _, f := range []struct {
-		name    string
-		doc     []byte
-		stuecke []int
-		bei     int
-		mitEnde bool
-		reads   int
-	}{
-		{"Abbruch im ersten Read", r, []int{100, 900}, 1, false, 1},
-		{"Abbruch im mittleren Read", r, []int{100, 900}, 2, false, 2},
-		{"Abbruch im letzten Read, der io.EOF liefert", r, []int{100, 900}, 3, true, 3},
-		{"Abbruch im letzten Read, Auflösungsfehler dahinter", nichtLoesbar, []int{50}, 2, true, 2},
-	} {
-		rd, err := abbruchBei(f.doc, f.stuecke, f.bei, f.mitEnde)
-		if err != context.Canceled {
-			t.Errorf("%s: Fehler %v, erwartet den Fehler des Kontexts", f.name, err)
+	for _, ce := range kontextFehler() {
+		for _, f := range []struct {
+			name    string
+			doc     []byte
+			stuecke []int
+			bei     int
+			mitEnde bool
+			reads   int
+		}{
+			{"Abbruch im ersten Read", r, []int{100, 900}, 1, false, 1},
+			{"Abbruch im mittleren Read", r, []int{100, 900}, 2, false, 2},
+			{"Abbruch im letzten Read, der io.EOF liefert", r, []int{100, 900}, 3, true, 3},
+			{"Abbruch im letzten Read, Auflösungsfehler dahinter", nichtLoesbar, []int{50}, 2, true, 2},
+		} {
+			rd, err := abbruchBei(ce, f.doc, f.stuecke, f.bei, f.mitEnde)
+			if err != ce {
+				t.Errorf("%s (%v): Fehler %v, erwartet den Fehler des Kontexts", f.name, ce, err)
+			}
+			if rd.reads != f.reads {
+				t.Errorf("%s (%v): %d Reads, erwartet %d", f.name, ce, rd.reads, f.reads)
+			}
+			if _, ok := outbound.Abbilden(err, outbound.GegenstandImport); ok {
+				t.Errorf("%s (%v): der Fehler des Kontexts bekommt einen Code", f.name, ce)
+			}
 		}
-		if rd.reads != f.reads {
-			t.Errorf("%s: %d Reads, erwartet %d", f.name, rd.reads, f.reads)
+		_, err := abbruchBei(ce, syntaxFehler, nil, 1, false)
+		erwarteFehler(t, err, model.UrsacheSyntax, "")
+		rd := teile(r)
+		m, b, err := neu.aufruf(neuBeendbar(ce), rd, 1<<20)
+		if err != ce || rd.reads != 0 {
+			t.Errorf("beendet vor dem Aufruf (%v): %v, %d Reads", ce, err, rd.reads)
 		}
-		if _, ok := outbound.Abbilden(err, outbound.GegenstandImport); ok {
-			t.Errorf("%s: der Fehler des Kontexts bekommt einen Code", f.name)
-		}
+		nullwerte(t, m, b)
 	}
-	_, err := abbruchBei(syntaxFehler, nil, 1, false)
-	erwarteFehler(t, err, model.UrsacheSyntax, "")
 	ctx, abbruch := context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
 	defer abbruch()
-	rd := teile(r)
-	m, b, err := neu.aufruf(ctx, rd, 1<<20)
-	if err != context.DeadlineExceeded || rd.reads != 0 {
-		t.Errorf("abgelaufen: %v, %d Reads", err, rd.reads)
+	if _, _, err := neu.aufruf(ctx, teile(r), 1<<20); err != context.DeadlineExceeded {
+		t.Errorf("abgelaufene Frist: %v", err)
 	}
-	nullwerte(t, m, b)
-	rd = teile(r)
-	_, _, err = neu.aufruf(abgebrochen(), rd, 1<<20)
-	if err != context.Canceled || rd.reads != 0 {
-		t.Errorf("beendet vor dem Aufruf: %v, %d Reads", err, rd.reads)
+	if _, _, err := neu.aufruf(abgebrochen(), teile(r), 1<<20); err != context.Canceled {
+		t.Errorf("beendet über CancelFunc: %v", err)
 	}
 }
 
@@ -364,13 +422,22 @@ func zeileA3(t *testing.T, neu CodecNeu) {
 	}
 }
 
+// nurFaelle liefert die Dokumente der Fälle mit erwarteten Funden.
+func nurFaelle(gs []g1Fall) []fall {
+	out := make([]fall, len(gs))
+	for i, g := range gs {
+		out[i] = g.fall
+	}
+	return out
+}
+
 func alleFaelle(t *testing.T) []fall {
 	t.Helper()
 	var out []fall
 	for _, p := range [][]fall{
 		faelleB1(t), faelleB2(t), faelleB3(t), faelleB4(), faelleB5(t), faelleB6(), faelleC1(), faelleC2(),
 		faelleD1(), faelleD2(), faelleD3(), faelleD4(), faelleD5(), faelleD6(), faelleD7(), faelleD8(t),
-		faelleE1(t), faelleE2(), faelleE3(), faelleF(t), faelleG(t),
+		faelleE1(t), faelleE2(), faelleE3(), faelleF(t), faelleG(t), nurFaelle(faelleB5Attribute()),
 	} {
 		out = append(out, p...)
 	}
@@ -381,51 +448,151 @@ func ergebnis(m model.ServiceModel, b model.ValidierungsBericht, err error) stri
 	return fmt.Sprintf("%q|%q|%+v|%+v|%+v|%+v|%+v|%v", m.Version(), m.Namespaces(), m.EntityTypes(), m.EntitySets(), m.NavigationBindings(), b.Funde, b.Funde == nil, err)
 }
 
-// zeileA4: das Ergebnis hängt nicht von der Zerlegung in Reads ab (Nr. 2), abgetastet nach zerlegungen;
-// Dokumente über 5000 Bytes und die großen von E3 fehlen in der Menge.
-func zeileA4(t *testing.T, neu CodecNeu) {
-	for _, f := range alleFaelle(t) {
-		if f.gross || len(f.doc) > 5000 {
-			continue
+// Grenzen der Menge von A4: bis a4Voll Bytes ist jede Zweiteilung ein Lauf, bis a4Probe Bytes sind es die ersten und die
+// letzten a4Rand Positionen und a4Streu verteilte, darüber nur ganz und Byte für Byte.
+const (
+	a4Voll  = 5000
+	a4Probe = 100000
+	a4Rand  = 64
+	a4Streu = 16
+)
+
+// zerlegtReader liefert doc in Reads: schnitt 0 ganz, schnitt -1 Byte für Byte, sonst in zwei Teilen, geteilt vor dem
+// Byte an der Stelle schnitt; mit leerVor liefert er vor jedem Read einmal `0, nil`. Das Ende kommt als eigener Read.
+type zerlegtReader struct {
+	doc       []byte
+	schnitt   int
+	leerVor   bool
+	pos       int
+	leerGetan bool
+}
+
+func (r *zerlegtReader) Read(p []byte) (int, error) {
+	if r.pos >= len(r.doc) {
+		return 0, io.EOF
+	}
+	if r.leerVor && !r.leerGetan {
+		r.leerGetan = true
+		return 0, nil
+	}
+	r.leerGetan = false
+	ende := len(r.doc)
+	switch {
+	case r.schnitt == -1:
+		ende = r.pos + 1
+	case r.schnitt > r.pos:
+		ende = r.schnitt
+	}
+	n := copy(p, r.doc[r.pos:ende])
+	r.pos += n
+	return n, nil
+}
+
+// a4RandDetektor ist die Zahl der Positionen am Anfang und am Ende, die A4 unter dem Detektor prüft: die Zweiteilung
+// einer Zerlegung hat keinen Zustand, den der Detektor sehen könnte, und die Allaussage über alle Zweiteilungen fährt
+// `make test`.
+const a4RandDetektor = 8
+
+// a4Zweiteilungen sind die Stellen, an denen A4 ein Dokument der Länge l in zwei Reads teilt: alle bis a4Voll Bytes,
+// sonst eine Probe; unter dem Detektor immer die Probe.
+func a4Zweiteilungen(l int) []int {
+	var out []int
+	rand := a4Rand
+	if unterDetektor {
+		rand = a4RandDetektor
+	}
+	switch {
+	case l <= a4Voll && !unterDetektor:
+		for s := 1; s < l; s++ {
+			out = append(out, s)
 		}
-		lauf := func(rd *teilReader) string {
-			m, b, err := neu.aufruf(context.Background(), rd, f.grenze())
-			return ergebnis(m, b, err)
+	case l <= a4Probe:
+		stellen := map[int]bool{}
+		for i := 1; i <= rand; i++ {
+			stellen[i], stellen[l-i] = true, true
 		}
-		soll := lauf(teile(f.doc))
-		for _, s := range zerlegungen(f.doc) {
-			for _, leer := range []bool{false, true} {
-				rd := teile(f.doc, s...)
-				rd.leerVor = leer
-				if got := lauf(rd); got != soll {
-					t.Fatalf("%s zerlegt in %v (leere Reads %v): %s, ganz: %s", f.name, s[:min(len(s), 3)], leer, got, soll)
-				}
+		for i := 1; i <= a4Streu; i++ {
+			stellen[l*i/(a4Streu+1)] = true
+		}
+		for s := 1; s < l; s++ {
+			if stellen[s] {
+				out = append(out, s)
 			}
 		}
 	}
+	return out
 }
 
-// zerlegungen sind die Schnitte, an denen A4 das Dokument teilt: ganz, jedes Byte einzeln und die
-// Zweiteilungen an den ersten und letzten fünf Stellen und an 16 gleichmäßig verteilten (abgetastet).
-func zerlegungen(doc []byte) [][]int {
-	einzeln := make([]int, len(doc))
-	for i := range doc {
-		einzeln[i] = i
+// zeileA4: das Ergebnis hängt nicht von der Zerlegung in Reads ab (Nr. 2): Schleife über alle Fälle der Suite
+// (gültige und fehlerhafte, auch die großen) und die Zerlegungen ganz, Byte für Byte, jede Zweiteilung bis a4Voll
+// Bytes und darüber bis a4Probe Bytes eine Probe (akzeptiertes Negativ im Plan); die Zweiteilungen mit und ohne leere
+// Reads. Der Test zählt die Läufe der Dokumente bis a4Voll Bytes gegen Dokumente × (L−1) × 2; unter dem Detektor
+// (unterDetektor) sind auch diese Dokumente nur eine Probe (a4RandDetektor), und die Zählung entfällt.
+func zeileA4(t *testing.T, neu CodecNeu) {
+	var dokumente, laeufe, erwartet atomic.Int64
+	arbeit := make(chan fall)
+	var wg sync.WaitGroup
+	for range min(runtime.GOMAXPROCS(0), 8) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for f := range arbeit {
+				if len(f.doc) <= a4Voll {
+					dokumente.Add(1)
+					erwartet.Add(int64(max(len(f.doc)-1, 0) * 2))
+				}
+				laeufe.Add(a4Fall(t, neu, f))
+			}
+		}()
 	}
-	out := [][]int{nil, einzeln}
-	stellen := map[int]bool{}
-	for i := 1; i <= 5; i++ {
-		stellen[i], stellen[len(doc)-i] = true, true
+	for _, f := range alleFaelle(t) {
+		arbeit <- f
 	}
-	for i := 1; i <= 16; i++ {
-		stellen[len(doc)*i/17] = true
+	close(arbeit)
+	wg.Wait()
+	if (laeufe.Load() != erwartet.Load() && !unterDetektor) || dokumente.Load() < 400 {
+		t.Errorf("%d Dokumente bis %d Bytes, %d Läufe der Zweiteilungen, erwartet %d und mindestens 400 Dokumente",
+			dokumente.Load(), a4Voll, laeufe.Load(), erwartet.Load())
 	}
-	for s := range stellen {
-		if s > 0 && s < len(doc) {
-			out = append(out, []int{s})
+	t.Logf("%d Dokumente bis %d Bytes, %d Zweiteilungen", dokumente.Load(), a4Voll, laeufe.Load())
+}
+
+// a4Fall fährt ein Dokument in allen Zerlegungen von A4 gegen den Lauf ganz und liefert die Zahl der Läufe der
+// Zweiteilungen, die es für ein Dokument bis a4Voll Bytes ausgeführt hat (sonst 0). Der erste Unterschied endet es.
+func a4Fall(t *testing.T, neu CodecNeu, f fall) (zweiteilungen int64) {
+	type ergebnisWert struct {
+		m   model.ServiceModel
+		b   model.ValidierungsBericht
+		err error
+	}
+	lauf := func(schnitt int, leer bool) ergebnisWert {
+		m, b, err := neu.aufruf(context.Background(), &zerlegtReader{doc: f.doc, schnitt: schnitt, leerVor: leer}, f.grenze())
+		return ergebnisWert{m, b, err}
+	}
+	soll := lauf(0, false)
+	stimmt := func(schnitt int, leer bool) bool {
+		got := lauf(schnitt, leer)
+		if reflect.DeepEqual(got, soll) {
+			return true
+		}
+		t.Errorf("%s (%d Bytes) zerlegt bei %d (leere Reads %v): %s, ganz: %s", f.name, len(f.doc), schnitt, leer,
+			ergebnis(got.m, got.b, got.err), ergebnis(soll.m, soll.b, soll.err))
+		return false
+	}
+	if !stimmt(-1, false) || (len(f.doc) <= a4Probe && !stimmt(-1, true)) {
+		return 0
+	}
+	for _, s := range a4Zweiteilungen(len(f.doc)) {
+		for _, leer := range []bool{false, true} {
+			if !stimmt(s, leer) {
+				return 0
+			}
+			if len(f.doc) <= a4Voll {
+				zweiteilungen++
+			}
 		}
 	}
-	return out
+	return zweiteilungen
 }
 
 // endlos liefert Leerzeichen ohne Ende und zählt sie.
