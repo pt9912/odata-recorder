@@ -130,6 +130,11 @@ func aCheckFaelle() []Fall {
 			Neu:      map[string]string{"src/adapters/driven/andere/andere.go": "// Package andere importiert die SQLite-Bibliothek.\npackage andere\n\nimport _ \"modernc.org/sqlite\"\n"},
 			WantExit: 1, WantText: []string{"tech-leak"},
 		},
+		{
+			Name: "a-check/xml-im-kern", Gate: gateACheck,
+			Neu:      map[string]string{"src/hexagon/model/kern/kern.go": "// Package kern importiert die XML-Bibliothek der Standardbibliothek.\npackage kern\n\nimport _ \"encoding/xml\"\n"},
+			WantExit: 1, WantText: []string{"core-impurity"},
+		},
 	}
 }
 
