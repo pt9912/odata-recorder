@@ -32,10 +32,11 @@ const (
 	edmxV3 = "http://schemas.microsoft.com/ado/2007/06/edmx"
 )
 
-// speicherLimit ist die Obergrenze des Heaps der Suite. Eine Schleife des Lesers, die ohne Ende wächst (eine Mutation der
-// Reihenfolge der Durchläufe, ein Wegfall der Kettengrenze), endet damit nach Sekunden mit einem Fehler statt mit dem
-// Speicher des Hosts; ein gesunder Lauf bleibt weit darunter.
-const speicherLimit = 1024 << 20
+// speicherLimit ist die Obergrenze des Heaps der Suite. Eine Schleife des Lesers, die ohne Ende wächst (etwa nach dem
+// Vertauschen von Basistypen und Ketten beim Auflösen, dessen Zyklus sonst nie endet), endet damit nach Sekunden mit einem
+// Fehler statt mit dem Speicher des Hosts; ein gesunder Lauf bleibt weit darunter. Die Grenze liegt bei einem Viertel von
+// 2 GiB, denn eine wachsende Liste hält beim Umkopieren das Alte und das Neue.
+const speicherLimit = 512 << 20
 
 // speicherwaechter bricht den Prozess ab, sobald der Heap speicherLimit überschreitet; stop beendet ihn.
 func speicherwaechter() (stop func()) {
@@ -545,11 +546,19 @@ func zeileA4(t *testing.T, neu CodecNeu) {
 			}
 		}()
 	}
+	var gross []fall
 	for _, f := range alleFaelle(t) {
+		if len(f.doc) > a4Probe {
+			gross = append(gross, f)
+			continue
+		}
 		arbeit <- f
 	}
 	close(arbeit)
 	wg.Wait()
+	for _, f := range gross {
+		a4Fall(t, neu, f)
+	}
 	if (laeufe.Load() != erwartet.Load() && !unterDetektor) || dokumente.Load() < 400 {
 		t.Errorf("%d Dokumente bis %d Bytes, %d Läufe der Zweiteilungen, erwartet %d und mindestens 400 Dokumente",
 			dokumente.Load(), a4Voll, laeufe.Load(), erwartet.Load())

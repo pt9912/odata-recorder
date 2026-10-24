@@ -431,8 +431,8 @@ func faelleD8(t *testing.T) []fall {
 		schlecht("P13", eins(ableitung("A", "Ns.Nope", prop("P", "Ns.Nope2"))), nA, "Ns.A@BaseType"),
 		schlecht("P14", eins(doubleKey("A")+typ("B", prop("P", "Ns.Nope"))), nA, "Ns.B/P@Type"),
 		schlecht("P15", eins(typOhne("A", "")+doubleKey("B")), model.UrsacheSchluesseltyp, "Ns.B/K"),
-		schlecht("P16", eins(typ("T", props(65535)+prop("bad", "Ns.Nope"))), model.UrsacheZuVieleMembers, "Ns.T"),
-		schlecht("P17", eins(ableitung("A", "Ns.Nope", schluesselID+props(65535)+prop("x", "Edm.String"))), nA, "Ns.A@BaseType"),
+		gross(schlecht("P16", eins(typ("T", props(65535)+prop("bad", "Ns.Nope"))), model.UrsacheZuVieleMembers, "Ns.T")),
+		gross(schlecht("P17", eins(ableitung("A", "Ns.Nope", schluesselID+props(65535)+prop("x", "Edm.String"))), nA, "Ns.A@BaseType")),
 		schlecht("P18", eins(ableitung("A", "Ns.N1", "")+ableitung("B", "Ns.N2", "")), nA, "Ns.A@BaseType"),
 		schlecht("P19", eins(kettenTypen(65, true)+ableitung("X", "Ns.Y", "")+ableitung("Y", "Ns.X", "")), model.UrsacheKette, "Ns.T65"),
 	}

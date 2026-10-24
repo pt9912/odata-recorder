@@ -419,7 +419,8 @@ func zeileI2(t *testing.T, neu CodecNeu) {
 }
 
 // i2Zusatz führt in jeder Goroutine die Zweige aus, die kein Dokument der Menge erreicht: ungültige Argumente, einen
-// Kontext, der vor dem Aufruf oder im letzten Read endet, und BOM und UTF-16-Marke in einzelnen Reads.
+// Kontext, der vor dem Aufruf oder im letzten Read endet, BOM und UTF-16-Marke in einzelnen Reads und die Summe der
+// Members über der Grenze.
 func i2Zusatz(neu CodecNeu, r []byte) []string {
 	var fehler []string
 	var keinSrc io.Reader
@@ -447,6 +448,7 @@ func i2Zusatz(neu CodecNeu, r []byte) []string {
 		{"Kontext endet im letzten Read", ende, letzter, 1 << 20, func(err error) bool { return err == context.Canceled }},
 		{"BOM in einzelnen Reads", hin, teile(append([]byte(bom), r...), 1, 2), 1 << 20, func(err error) bool { return err == nil }},
 		{"UTF-16-Marke in einzelnen Reads", hin, teile([]byte("\xFF\xFE<a/>"), 1), 1 << 20, ursache(model.UrsacheKodierung)},
+		{"Summe der Members über der Grenze", hin, teile(eins(typ("B", props(255)) + ableitungen(256))), 1 << 20, ursache(model.UrsacheZuVieleMembers)},
 	} {
 		if _, _, err := neu.aufruf(f.ctx(), f.src, f.max); !f.passt(err) {
 			fehler = append(fehler, fmt.Sprint(f.name, ": ", err))
