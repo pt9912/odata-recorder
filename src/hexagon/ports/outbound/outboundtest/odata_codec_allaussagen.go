@@ -1,11 +1,13 @@
 package outboundtest
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"reflect"
 	"strconv"
 	"strings"
@@ -312,7 +314,7 @@ func jJ1(t *testing.T, s *jsuite) {
 				}
 				if i%25 == 0 {
 					s.ruf(abgebrochen(), strings.NewReader(string(f.body)), f)
-					s.ruf(context.Background(), &teilReader{teile: [][]byte{f.body[:len(f.body)/2]}, ende: errQuelle}, f)
+					s.ruf(context.Background(), &endlichStrom{inner: &teilReader{teile: [][]byte{f.body[:len(f.body)/2]}, ende: errQuelle}}, f)
 				}
 			}
 		}()
@@ -376,9 +378,9 @@ func jfK1() []jfall {
 	return append(out, jfK1Zeichen()...)
 }
 
-// k1Namen sind die Namen der Menge von K1 (SPEC-126 Nr. 14: kein anderes Zeichen als `~` und `/` wird ersetzt): jedes Zeichen c
-// von U+0000 bis U+007F als `c`, `~c` und `/c` (3 × 128) und je ein Zeichen aus U+0080, U+07FF, U+0800, U+FFFF, U+10000 und
-// U+10FFFF (6): 390 Namen.
+// k1Namen sind die Namen der Menge von K1 als Fälle der Suite (SPEC-126 Nr. 14: kein anderes Zeichen als `~` und `/` wird
+// ersetzt): jedes Zeichen c von U+0000 bis U+007F als `c`, `~c` und `/c` (3 × 128 = 384) und je ein Zeichen aus U+0080,
+// U+07FF, U+0800, U+FFFF, U+10000 und U+10FFFF (6) als Vertreter der Menge ab U+0080 für A4, A5, H3, H4 und J1: 390 Namen.
 func k1Namen() []string {
 	var out []string
 	for c := range 0x80 {
@@ -389,6 +391,55 @@ func k1Namen() []string {
 		out = append(out, string(r))
 	}
 	return out
+}
+
+// k1ZahlASCII ist die Zahl der Namen aus U+0000 bis U+007F in k1Namen; k1ZahlOben die Zahl der Zeichen von U+0080 bis
+// U+10FFFF ohne die Surrogate U+D800 bis U+DFFF, die k1Oben fährt; beide zusammen 1 112 320.
+const (
+	k1ZahlASCII = 3 * 128
+	k1ZahlOben  = 0x110000 - 0x80 - (0xE000 - 0xD800)
+	k1ZahlAlle  = k1ZahlASCII + k1ZahlOben
+)
+
+// k1Auswahl sagt, welche Zeichen ab U+0080 der Lauf fährt: alle; unter dem Detektor eine Probe (U+0080 bis U+00FF, die Ränder
+// jeder UTF-8-Länge, U+07FF, U+0800, U+D7FF, U+E000, U+FFFF, U+10000 und U+10FFFF, und jedes 97. Zeichen).
+func k1Auswahl(r rune) bool {
+	if !unterDetektor {
+		return true
+	}
+	switch r {
+	case 0x7FF, 0x800, 0xD7FF, 0xE000, 0xFFFF, 0x10000, 0x10FFFF:
+		return true
+	}
+	return r <= 0xFF || (r-0x80)%97 == 0
+}
+
+// k1Oben liefert die Körper der Menge ab U+0080: eine Entity von R, deren unbekannte Property das Zeichen als Namen trägt.
+func k1Oben() iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		for r := rune(0x80); r <= 0x10FFFF; r++ {
+			if istSurrogat(r) || !k1Auswahl(r) {
+				continue
+			}
+			if !yield(jEin("Products", `"ID":1,"`+string(r)+`":1`)) {
+				return
+			}
+		}
+	}
+}
+
+// k1OrtPruefer prüft einen Körper von k1Oben, ein Mitglied einer Entity von R: `unbekannte_property`, Ort `/` und der Name
+// (RFC 6901, Orakel k1Orakel).
+func (s *jsuite) k1OrtPruefer(kopf, fuss string) gPruefer {
+	return func(b []byte, _ int64) (klasse, abweichung string) {
+		name := string(b[len(kopf) : len(b)-len(fuss)])
+		r := s.aufruf(context.Background(), true, bytes.NewReader(b), s.modelle["R"], "Products", 1<<30)
+		var df *model.DatenFehler
+		if ort := k1Orakel(name); !errors.As(r.err, &df) || df.Ursache != model.DatenUnbekannteProperty || df.Ort != ort {
+			return "unbekannte_property", fmt.Sprintf("Zeichen %U: Ergebnis %v, erwartet Ort %q", []rune(name)[0], r.err, ort)
+		}
+		return "unbekannte_property", ""
+	}
 }
 
 // k1Orakel bildet den Ort eines Mitglieds zeichenweise nach RFC 6901: `~` wird `~0`, `/` wird `~1`, jedes andere Zeichen bleibt.
@@ -440,11 +491,36 @@ func jfK1Zeichen() []jfall {
 	return out
 }
 
+// istSurrogat sagt, ob die Zahl ein Surrogat U+D800 bis U+DFFF ist, das als Name kein gültiges UTF-8 ist.
+func istSurrogat(r rune) bool { return r >= 0xD800 && r <= 0xDFFF }
+
+// jK1Oben fährt die Menge ab U+0080: jedes Zeichen bis U+10FFFF ohne Surrogate als Name; zusammen mit den 384 Namen aus U+0000
+// bis U+007F sind es 1 112 320 (SPEC-126 Nr. 14: kein anderes Zeichen als `~` und `/` wird ersetzt). Unter dem Detektor läuft
+// die Probe von k1Auswahl, und die Zahl ist die der gewählten Zeichen.
+func jK1Oben(t *testing.T, s *jsuite) {
+	kopf := `{` + kontextAn("Products", true) + `,"ID":1,"`
+	fuss := `":1}`
+	erwartet := int64(k1ZahlOben)
+	if unterDetektor {
+		erwartet = 0
+		for r := rune(0x80); r <= 0x10FFFF; r++ {
+			if !istSurrogat(r) && k1Auswahl(r) {
+				erwartet++
+			}
+		}
+	}
+	gZaehle(t, "K1 Zeichen ab U+0080", gFahre(t, "K1 oben", k1Oben(), s.k1OrtPruefer(kopf, fuss)), erwartet)
+	if !unterDetektor && k1ZahlASCII+erwartet != 1112320 {
+		t.Errorf("K1: %d Namen der Menge, erwartet 1 112 320", k1ZahlASCII+erwartet)
+	}
+}
+
 func jK1(t *testing.T, s *jsuite) {
-	if n := len(k1Namen()); n != 3*128+6 {
-		t.Errorf("K1: %d Namen der Zeichenmenge, erwartet 390 (3 × 128 für c, ~c, /c und 6 Zeichen ab U+0080)", n)
+	if n := len(k1Namen()); n != k1ZahlASCII+6 {
+		t.Errorf("K1: %d Namen unter den Fällen, erwartet %d (3 × 128 für c, ~c, /c und 6 Zeichen ab U+0080)", n, k1ZahlASCII+6)
 	}
 	s.pruefeAlle(t, jfK1())
+	jK1Oben(t, s)
 	for _, p := range []struct {
 		e    *model.DatenFehler
 		soll string

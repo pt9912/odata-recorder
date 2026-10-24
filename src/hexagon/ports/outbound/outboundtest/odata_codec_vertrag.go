@@ -164,6 +164,9 @@ func (s *jsuite) aufruf(ctx context.Context, einzel bool, src io.Reader, m model
 		}
 	}()
 	s.drossel()
+	if src != nil {
+		src = &fortschrittWaechter{inner: src}
+	}
 	c := s.neu()
 	if einzel {
 		r.entity, r.err = c.ParseEntity(ctx, src, m, set, grenze)
@@ -171,6 +174,23 @@ func (s *jsuite) aufruf(ctx context.Context, einzel bool, src io.Reader, m model
 		r.seite, r.err = c.ParseCollection(ctx, src, m, set, grenze)
 	}
 	return r
+}
+
+// fortschrittWaechter reicht Reads an inner weiter und liefert nach a5MaxReads Reads mit leerem Puffer einen Fehler: ein
+// Leser, der ohne Größengrenze einen leeren Puffer anfordert, ruft Read ohne Fortschritt und endet damit im Fall, nicht an der
+// Zeitgrenze des Tests. Zugesagt wird das nur für diesen Wächter: Reads mit leerem Puffer zählt A5 über a5Strom.
+type fortschrittWaechter struct {
+	inner io.Reader
+	leer  int
+}
+
+func (w *fortschrittWaechter) Read(p []byte) (int, error) {
+	if len(p) == 0 {
+		if w.leer++; w.leer > a5MaxReads {
+			return 0, errA5Ohnefortschritt
+		}
+	}
+	return w.inner.Read(p)
 }
 
 func (s *jsuite) lauf(f jfall) jergebnis {

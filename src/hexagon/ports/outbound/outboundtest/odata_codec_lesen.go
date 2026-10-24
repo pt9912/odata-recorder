@@ -1,7 +1,11 @@
 package outboundtest
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -46,10 +50,90 @@ func jfB1() []jfall {
 	}
 	out := rohAlle("B1", menge)
 	out = append(out, rohAlle("B1 Präfix E1", praefixe(jEinzelR))...)
-	return append(out, rohAlle("B1 Präfix C1", praefixe(jKollR))...)
+	out = append(out, rohAlle("B1 Präfix C1", praefixe(jKollR))...)
+	return append(out, rohAlle("B1 E", b1EKoerper())...)
 }
 
-func jB1(t *testing.T, s *jsuite) { s.pruefeAlle(t, jfB1()) }
+// b1EGruppe sind die Wurzeldokumente einer Art und die Zahl ihrer Präfixe, die kein gültiger Wert sind.
+type b1EGruppe struct {
+	name        string
+	dokumente   []string
+	praefixe    int
+	leerzeichen bool // auch mit angehängtem Leerzeichen; im String ist ein Leerzeichen ein Zeichen des Strings
+}
+
+// b1EGruppen sind die Wurzeldokumente D der Menge E (SPEC-126 Nr. 4: der Strom endet vor dem Ende des Wertes, in jedem Zustand
+// des Wertes, auch wenn der Wert allein den Body bildet): die 40 Zahlen aus Vorzeichen × Ganzteil × Bruch × Exponent, die drei
+// Literale, ein String mit Zeichen, Escape, `\u`, zwei- und vierbyteigem Zeichen, ein Objekt und ein Array.
+func b1EGruppen() []b1EGruppe {
+	var zahlen []string
+	for _, vz := range []string{"", "-"} {
+		for _, ganz := range []string{"0", "12"} {
+			for _, bruch := range []string{"", ".5"} {
+				for _, exp := range []string{"", "e+3", "E-3", "e-3", "E+3"} {
+					zahlen = append(zahlen, vz+ganz+bruch+exp)
+				}
+			}
+		}
+	}
+	text := `"a\n` + esc("00e9") + string(rune(0xe9)) + string(rune(0x1f600)) + `"`
+	return []b1EGruppe{
+		{"Zahlen", zahlen, 53, true},
+		{"Literale", []string{"true", "false", "null"}, 10, true},
+		{"String", []string{text}, 16, false},
+		{"Objekt", []string{`{"a":[1,{}],"b":2}`}, 17, true},
+		{"Array", []string{`[1,[],{}]`}, 8, true},
+	}
+}
+
+// b1EPraefixe sind die echten Präfixe der Dokumente der Gruppe (Länge 1 bis |d|−1), die selbst kein gültiger JSON-Wert sind,
+// ohne Wiederholung; Orakel ist encoding/json, nie der Leser.
+func b1EPraefixe(g b1EGruppe) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, d := range g.dokumente {
+		for i := 1; i < len(d); i++ {
+			if p := d[:i]; !seen[p] && !json.Valid([]byte(p)) {
+				seen[p] = true
+				out = append(out, p)
+			}
+		}
+	}
+	return out
+}
+
+// b1EKoerper sind die Körper der Menge E je Methode: jedes Präfix als ganzer Body und, außer bei den Präfixen des Strings,
+// mit einem angehängten Leerzeichen.
+func b1EKoerper() []string {
+	var out []string
+	for _, g := range b1EGruppen() {
+		for _, p := range b1EPraefixe(g) {
+			out = append(out, p)
+			if g.leerzeichen {
+				out = append(out, p+" ")
+			}
+		}
+	}
+	return out
+}
+
+// b1EZahl ist die Zahl der Körper von E je Methode: 104 Präfixe, davon 88 auch mit Leerzeichen.
+const b1EZahl = 104 + 88
+
+func jB1(t *testing.T, s *jsuite) {
+	var summe int
+	for _, g := range b1EGruppen() {
+		n := len(b1EPraefixe(g))
+		summe += n
+		if n != g.praefixe {
+			t.Errorf("B1 E %s: %d Präfixe, erwartet %d", g.name, n, g.praefixe)
+		}
+	}
+	if n := len(b1EKoerper()); summe != 104 || n != b1EZahl {
+		t.Errorf("B1 E: %d Präfixe und %d Körper je Methode, erwartet 104 und %d", summe, n, b1EZahl)
+	}
+	s.pruefeAlle(t, jfB1())
+}
 
 // Schablonen für B2: die Marken @@1 bis @@6 stehen an den Orten, an denen ein Byte eingesetzt wird.
 const (
@@ -365,7 +449,111 @@ func jfB5() []jfall {
 	return out
 }
 
-func jB5(t *testing.T, s *jsuite) { s.pruefeAlle(t, jfB5()) }
+// b5Leer ist die leere Collection von R, der Body der Menge P5 für ParseCollection.
+const b5Leer = `{"@odata.context":"$metadata#Products","value":[]}`
+
+// b5PZahl ist die Zahl der Läufe der Menge P5: 10 Zweierpotenzen × 3 Vielfache × 3 Abstände (90 Werte von grenze) × 3 Längen
+// des Bodys × 2 Zerlegungen × 2 Methoden.
+const b5PZahl = 10 * 3 * 3 * 3 * 2 * 2
+
+// stueckStrom liefert doc in Reads von höchstens stueck Bytes (0: so viel, wie angefordert wird) und zählt die gelieferten Bytes.
+type stueckStrom struct {
+	doc       []byte
+	stueck    int
+	geliefert int
+}
+
+func (r *stueckStrom) Read(p []byte) (int, error) {
+	if r.geliefert >= len(r.doc) {
+		return 0, io.EOF
+	}
+	n := len(p)
+	if r.stueck > 0 {
+		n = min(n, r.stueck)
+	}
+	n = copy(p[:n], r.doc[r.geliefert:])
+	r.geliefert += n
+	return n, nil
+}
+
+// jB5P5 fährt die Menge P5 (SPEC-126 Nr. 5): die Größe des Puffers ist Sache des Adapters, die Suite nimmt jede Zweierpotenz P
+// von 256 Bytes bis 128 KiB, grenze = m·P + d für m in {1, 2, 3} und d in {−1, 0, +1}, den Body der Länge grenze−1, grenze
+// und grenze+1, ganz und in Reads zu je P Bytes, je Methode. Erwartet sind gültig, gültig und `zu_gross`; geliefert werden
+// höchstens grenze+1 Bytes.
+func jB5P5(t *testing.T, s *jsuite) {
+	const hoechst = 3<<17 + 1 // die längste Länge: grenze+1 für P = 2^17, m = 3, d = +1
+	leerraum := bytes.Repeat([]byte(" "), hoechst)
+	laeufe := b5PLaeufe()
+	for _, l := range laeufe {
+		s.pruefeB5P(t, leerraum, l)
+	}
+	if len(laeufe) != b5PZahl {
+		t.Errorf("B5 P5: %d Läufe, erwartet %d", len(laeufe), b5PZahl)
+	}
+	t.Logf("B5 P5: %d Läufe", len(laeufe))
+}
+
+// b5PLauf ist ein Lauf der Menge P5: die Zweierpotenz p, das Vielfache m, der Abstand d, die Länge des Bodys, das Stück eines
+// Reads (0: so viel, wie angefordert wird) und die Methode.
+type b5PLauf struct {
+	p, m, d int
+	laenge  int64
+	stueck  int
+	einzel  bool
+}
+
+func (l b5PLauf) grenze() int64 { return int64(l.m*l.p + l.d) }
+
+func b5PLaeufe() []b5PLauf {
+	var out []b5PLauf
+	for k := 8; k <= 17; k++ {
+		for m := 1; m <= 3; m++ {
+			for d := -1; d <= 1; d++ {
+				out = append(out, b5PLaengen(1<<k, m, d)...)
+			}
+		}
+	}
+	return out
+}
+
+// b5PLaengen sind die Läufe zu einer grenze: die Länge grenze−1, grenze und grenze+1, ganz und in Stücken zu p, je Methode.
+func b5PLaengen(p, m, d int) []b5PLauf {
+	var out []b5PLauf
+	g := int64(m*p + d)
+	for _, laenge := range []int64{g - 1, g, g + 1} {
+		for _, stueck := range []int{0, p} {
+			for _, einzel := range []bool{true, false} {
+				out = append(out, b5PLauf{p, m, d, laenge, stueck, einzel})
+			}
+		}
+	}
+	return out
+}
+
+// pruefeB5P fährt einen Lauf von P5: Body der Länge laenge (der Body von R, mit Leerraum aufgefüllt), grenze = m·P + d.
+func (s *jsuite) pruefeB5P(t *testing.T, leerraum []byte, l b5PLauf) {
+	basis := b5Leer
+	if l.einzel {
+		basis = jEinzelR
+	}
+	rd := &stueckStrom{doc: append([]byte(basis), leerraum[:l.laenge-int64(len(basis))]...), stueck: l.stueck}
+	r := s.aufruf(context.Background(), l.einzel, rd, s.modelle["R"], "Products", l.grenze())
+	name := fmt.Sprintf("B5 P5 %s P=%d m=%d d=%d Länge %d grenze %d Stück %d", methodeName(l.einzel), l.p, l.m, l.d, l.laenge, l.grenze(), l.stueck)
+	if l.laenge > l.grenze() {
+		datenFehler(t, name, r.err, model.DatenZuGross, "")
+		r.nullwerte(t, name)
+	} else if r.err != nil {
+		t.Errorf("%s: Fehler %v bei gültigem Body", name, r.err)
+	}
+	if int64(rd.geliefert) > l.grenze()+1 {
+		t.Errorf("%s: %d Bytes geliefert, höchstens grenze+1 = %d", name, rd.geliefert, l.grenze()+1)
+	}
+}
+
+func jB5(t *testing.T, s *jsuite) {
+	s.pruefeAlle(t, jfB5())
+	jB5P5(t, s)
+}
 
 // b6Paare sind die Schreibweisen zweier Mitglieder desselben Namens `a`: gleich, mit Escape, mit verschiedenen Escapes,
 // mit gleichem und verschiedenem Wert, mit `null`, dreimal.

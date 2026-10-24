@@ -3,6 +3,7 @@ package outboundtest
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"reflect"
@@ -228,7 +229,7 @@ func jA3(t *testing.T, s *jsuite) {
 			{"Daten mit Verstoß des Lesens und Fehler im selben Read", teile([]byte(`{"a" 1}`)), true, true},
 		} {
 			f.rd.ende, f.rd.mitEnde = errQuelle, f.mitEnde
-			r := s.ruf(context.Background(), f.rd, basis)
+			r := s.ruf(context.Background(), &endlichStrom{inner: f.rd}, basis)
 			name := methodeName(einzel) + " " + f.name
 			if f.syntax {
 				datenFehler(t, name, r.err, model.DatenSyntax, "")
@@ -245,6 +246,112 @@ func jA3(t *testing.T, s *jsuite) {
 			t.Errorf("%s Daten mit io.EOF im letzten Read: %v", methodeName(einzel), r.err)
 		}
 	}
+	jA3M2(t, s)
+}
+
+// a3M2Zahl ist die Zahl der Läufe der Menge M2: 5 Fehlerarten × (2L + 3) Zeitpunkte für E1 (L = 138, 279) und C1 (L = 257, 517).
+const a3M2Zahl = 5*279 + 5*517
+
+// a3MaxReads ist die Zahl der Reads nach dem Fehler, nach der fehlerStrom io.EOF liefert: ein Leser, der nach dem Fehler
+// weiterliest, endet damit im Fall und nicht an der Zeitgrenze des Tests.
+const a3MaxReads = 10000
+
+// endlichStrom reicht Reads an inner weiter und liefert nach a3MaxReads Reads io.EOF: ein Leser, der den wiederholten Fehler
+// von inner übergeht, endet damit im Fall und nicht an der Zeitgrenze des Tests.
+type endlichStrom struct {
+	inner io.Reader
+	reads int
+}
+
+func (w *endlichStrom) Read(p []byte) (int, error) {
+	if w.reads++; w.reads > a3MaxReads {
+		return 0, io.EOF
+	}
+	return w.inner.Read(p)
+}
+
+// fsLese ist ein geplanter Read von fehlerStrom: die Bytes und der Fehler, mit dem er endet.
+type fsLese struct {
+	daten []byte
+	err   error
+}
+
+// fehlerStrom liefert die geplanten Reads, der letzte trägt den Fehler. Ein Read danach zählt als nachFehler und liefert den
+// Rest des Bodys, ein Byte je Read, dann io.EOF; nach a3MaxReads solchen Reads liefert er io.EOF.
+type fehlerStrom struct {
+	plan       []fsLese
+	rest       []byte
+	nachFehler int
+}
+
+func (r *fehlerStrom) Read(p []byte) (int, error) {
+	if len(r.plan) > 0 {
+		l := r.plan[0]
+		r.plan = r.plan[1:]
+		return copy(p, l.daten), l.err
+	}
+	if r.nachFehler++; r.nachFehler > a3MaxReads || len(r.rest) == 0 {
+		return 0, io.EOF
+	}
+	n := copy(p[:1], r.rest)
+	r.rest = r.rest[n:]
+	return n, nil
+}
+
+// a3Fehlerarten sind die Fehler von src der Menge M2: jeder Fehler außer dem Wert io.EOF zählt (SPEC-126 Nr. 2), auch der
+// umhüllte io.EOF, ein Kontextfehler von src bei lebendem ctx und io.ErrUnexpectedEOF.
+func a3Fehlerarten() []error {
+	return []error{errQuelle, io.ErrUnexpectedEOF, context.Canceled, context.DeadlineExceeded, fmt.Errorf("x: %w", io.EOF)}
+}
+
+// a3Zeitpunkte sind die Zeitpunkte des Fehlers in der Zerlegung eines Bodys der Länge L (2L + 3): ein Byte je Read und der
+// Fehler allein nach k Bytes (k = 0 bis L), ein Byte je Read und der Fehler im Read des Bytes k + 1 (k = 0 bis L − 1), der
+// ganze Body in einem Read mit dem Fehler, der ganze Body in einem Read und der Fehler im nächsten.
+func a3Zeitpunkte(doc []byte, fehler error) []*fehlerStrom {
+	bytewei := func(k int) []fsLese {
+		var plan []fsLese
+		for i := range k {
+			plan = append(plan, fsLese{daten: doc[i : i+1]})
+		}
+		return plan
+	}
+	var out []*fehlerStrom
+	for k := 0; k <= len(doc); k++ {
+		out = append(out, &fehlerStrom{plan: append(bytewei(k), fsLese{err: fehler}), rest: doc[k:]})
+	}
+	for k := 0; k < len(doc); k++ {
+		out = append(out, &fehlerStrom{plan: append(bytewei(k), fsLese{daten: doc[k : k+1], err: fehler}), rest: doc[k+1:]})
+	}
+	out = append(out, &fehlerStrom{plan: []fsLese{{daten: doc, err: fehler}}})
+	return append(out, &fehlerStrom{plan: []fsLese{{daten: doc}, {err: fehler}}})
+}
+
+// jA3M2: jeder Fehler von src zu jedem Zeitpunkt endet das Lesen mit ihm, ohne DatenFehler, mit Nullwerten, und danach liest
+// der Leser nicht weiter (SPEC-126 Nr. 2): Schleife über die Fehlerarten, die Zeitpunkte und beide Methoden.
+func jA3M2(t *testing.T, s *jsuite) {
+	var laeufe int
+	for _, einzel := range []bool{true, false} {
+		basis := basisR(einzel)
+		for _, fehler := range a3Fehlerarten() {
+			for i, rd := range a3Zeitpunkte(basis.body, fehler) {
+				r := s.ruf(context.Background(), rd, basis)
+				name := fmt.Sprintf("%s M2 Fehler %v Zeitpunkt %d", methodeName(einzel), fehler, i)
+				var df *model.DatenFehler
+				if !errors.Is(r.err, fehler) || errors.As(r.err, &df) {
+					t.Errorf("%s: Fehler %v, erwartet den Fehler von src ohne DatenFehler", name, r.err)
+				}
+				if rd.nachFehler != 0 {
+					t.Errorf("%s: %d Reads nach dem Fehler, erwartet 0", name, rd.nachFehler)
+				}
+				r.nullwerte(t, name)
+				laeufe++
+			}
+		}
+	}
+	if laeufe != a3M2Zahl {
+		t.Errorf("A3 M2: %d Läufe, erwartet %d (E1 hat %d Bytes, C1 %d)", laeufe, a3M2Zahl, len(jEinzelR), len(jKollR))
+	}
+	t.Logf("A3 M2: %d Läufe", laeufe)
 }
 
 func bytesIndex(doc []byte, teil string) int {

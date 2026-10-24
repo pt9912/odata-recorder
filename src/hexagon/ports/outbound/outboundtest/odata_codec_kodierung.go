@@ -16,20 +16,59 @@ import (
 // und die Einzelverstöße der UTF-8-Folgen (U), Orakel utf8: alle Ein- und Zwei-Byte-Folgen, jedes Lead-Byte mit jedem
 // Steuerzeichen, Drei- und Vier-Byte-Folgen nur über 24 Grenzbytes (Prüfgrenze und Folge im Plan, Zeile B3).
 
-// b3A2Zahl ist die Zahl der Körper von A2: 4 Präfixe der BOM am Ende des Stroms, 4 × 255 Folgebytes, die das BOM nicht
-// fortsetzen, und 3 vollständige BOM hinter einem Leerzeichen.
-const b3A2Zahl = 4 + 4*255 + 3
+// b3A2Zahl ist die Zahl der Körper von A2 je Methode: 4 Präfixe der BOM am Ende des Stroms, 4 × 255 Folgebytes, die das BOM
+// nicht fortsetzen, am Ende des Stroms und 3 vollständige BOM hinter einem Leerzeichen (b3A2); dahinter jedes Byte und das
+// Ende des Stroms, also 4 × 255 × 256 weitere Körper (b3A2Hinten): 262 147 zusammen.
+const b3A2Zahl = 4 + 4*255 + 3 + 4*255*256
+
+// b3A2Probe ist die Zahl der Körper von A2 je Methode unter dem Detektor: die ersten 1027 ohne das Byte dahinter.
+const b3A2Probe = 4 + 4*255 + 3
 
 // b3GZZahl ist die Zahl der Folgen von GZ: 2 + 6 + 4 + 12 + 4 + 8 + 8 + 24 + 8 über die neun Intervalle der Tabelle von UTF-8.
 const b3GZZahl = 76
 
+// b3BomPraefix ist ein echtes Präfix eines der drei BOM (`EF BB BF`, `FF FE`, `FE FF`) mit dem Byte, das es zum BOM fortsetzt.
+type b3BomPraefix struct {
+	praefix string
+	fort    byte
+}
+
+func b3Bom() []b3BomPraefix {
+	return []b3BomPraefix{{"\xEF", 0xBB}, {"\xEF\xBB", 0xBF}, {"\xFF", 0xFE}, {"\xFE", 0xFF}}
+}
+
+// b3A2Hinten sind die Körper von A2 mit einem Folgebyte, das das BOM nicht fortsetzt, und danach jedem Byte 0x00 bis 0xFF
+// (4 × 255 × 256 = 261 120); das Ende des Stroms hinter dem Folgebyte steht in b3A2.
+func b3A2Hinten() iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		for _, p := range b3Bom() {
+			for c := range 256 {
+				for d := range 256 {
+					if byte(c) != p.fort && !yield([]byte(p.praefix+string([]byte{byte(c), byte(d)}))) {
+						return
+					}
+				}
+			}
+		}
+	}
+}
+
+// b3A2Pruefer prüft einen Körper von b3A2Hinten: `syntax` ohne Ort, gleich welches Byte folgt, in beiden Methoden.
+func (s *jsuite) b3A2Pruefer(b []byte, _ int64) (klasse, abweichung string) {
+	for _, einzel := range []bool{true, false} {
+		r := s.aufruf(context.Background(), einzel, bytes.NewReader(b), s.modelle["R"], "Products", 1<<30)
+		var df *model.DatenFehler
+		if !errors.As(r.err, &df) || df.Ursache != model.DatenSyntax || df.Ort != "" {
+			return "syntax", fmt.Sprintf("%s, Körper %x: Ergebnis %v, erwartet syntax", methodeName(einzel), b, r.err)
+		}
+	}
+	return "syntax", ""
+}
+
 // b3A2 ist die Menge A2 je Methode: ein unvollständiges oder abweichendes BOM ist kein BOM, sondern `syntax`.
 func b3A2() []jfall {
 	var out []jfall
-	for _, p := range []struct {
-		praefix string
-		fort    byte
-	}{{"\xEF", 0xBB}, {"\xEF\xBB", 0xBF}, {"\xFF", 0xFE}, {"\xFE", 0xFF}} {
+	for _, p := range b3Bom() {
 		out = append(out, roh(fmt.Sprintf("B3 A2 Präfix %x am Ende", p.praefix), []byte(p.praefix), model.DatenSyntax)...)
 		for c := range 256 {
 			if byte(c) != p.fort {
@@ -167,8 +206,16 @@ func b3LeadSteuer() iter.Seq[[]byte] {
 // jB3Mengen fährt die Mengen von B3: GZ und A2 stehen als Fälle in jfB3, hier die Zahlen und die Menge U. Unter dem Detektor
 // läuft von U die Probe (Ein- und Zwei-Byte-Folgen, Drei-Byte-Folgen aus acht Grenzbytes); `make test` fährt die ganze Menge.
 func jB3Mengen(t *testing.T, s *jsuite) {
-	if n := len(b3A2()); n != 2*b3A2Zahl {
-		t.Errorf("B3 A2: %d Fälle, erwartet %d (%d Körper je Methode)", n, 2*b3A2Zahl, b3A2Zahl)
+	if n := len(b3A2()); n != 2*b3A2Probe {
+		t.Errorf("B3 A2: %d Fälle, erwartet %d (%d Körper je Methode)", n, 2*b3A2Probe, b3A2Probe)
+	}
+	if !unterDetektor {
+		klassen := gFahre(t, "B3 A2 hinten", b3A2Hinten(), s.b3A2Pruefer)
+		var hinten int64
+		for _, v := range klassen {
+			hinten += v
+		}
+		gZaehle(t, "B3 A2", map[string]int64{"syntax": int64(len(b3A2())/2) + hinten}, b3A2Zahl)
 	}
 	if n := len(b3GZ()); n != b3GZZahl {
 		t.Errorf("B3 GZ: %d Folgen, erwartet %d", n, b3GZZahl)
