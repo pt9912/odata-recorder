@@ -1,0 +1,2 @@
+**Vorgang:** slice-odata-codec-json
+**Fund:** Review (`64b7cc9`, F-5): Ein Entity-Set, dessen Typ das Modell nicht kennt, lieferte der Leser als `entity_set` (Ort der Name). `SPEC-126` Nr. 1 f nannte nur das Set, das das Modell nicht führt, das Raster hatte für den Fall keine Zelle, und der Bericht des Implementers setzte die Zelle auf „gilt nicht“ mit der Begründung, die Fixture sei nicht zu bauen (sie war es). Entschieden hat der Architect (`58cc559`, `SPEC-126` Nr. 1 f um den nicht aufgelösten Typ ergänzt).

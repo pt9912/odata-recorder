@@ -1,0 +1,2 @@
+**Vorgang:** slice-odata-codec-json
+**Fund:** Review (`64b7cc9`, F-1): die Allaussage „jeder Verstoß der Grammatik ist `syntax`“ (`SPEC-126` Nr. 4) hatte keinen Fänger über die Klasse, acht Mutationen blieben in der ganzen Suite grün. Erste Verifikation (`2b50f3d`, V-1): dieselbe Allaussage am Ende des Stroms. Zweite Verifikation (`2d40873`): „jeder andere Fehler“ (E-1) und „für jeden Wert von `grenze`“ (P-1) sind unbeschränkt und trugen keine Prüfgrenze mit Grund und Folge.

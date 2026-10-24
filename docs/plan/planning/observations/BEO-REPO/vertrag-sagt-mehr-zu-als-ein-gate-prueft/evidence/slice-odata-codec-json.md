@@ -1,0 +1,2 @@
+**Vorgang:** slice-odata-codec-json
+**Fund:** Review (`64b7cc9`): Zusagen von `SPEC-126` ohne Fänger, der aus dem benannten Grund rot wird, in fünf Klassen mit 14 Überlebenden (Grammatik Nr. 4, Kodierung und BOM Nr. 3, Länge der Dezimalzahl, Pointer Nr. 14; F-1 bis F-4, F-6), dazu F-7: die Mutation „Größengrenze entfernt“ endete an der Zeitgrenze statt in A5. Zweite Verifikation (`2d40873`, W-1): die Zusage „der Leser ruft `Close` nie“ verlor ihren Fänger durch die Hülle des Wächters, und die Zeile A5 nannte die rote Mutation weiter.
