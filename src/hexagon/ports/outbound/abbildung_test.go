@@ -172,7 +172,7 @@ func TestAbbildungVollstaendig(t *testing.T) {
 		}
 	}
 	for _, n := range eintraege {
-		if n != "ErrUngueltig" && n != "ErrMetadatenUngueltig" && !slices.Contains(vorhanden, n) {
+		if n != "ErrUngueltig" && n != "ErrMetadatenUngueltig" && n != "ErrDatenUngueltig" && !slices.Contains(vorhanden, n) {
 			t.Errorf("Eintrag %s ohne Variable im Paket", n)
 		}
 	}
@@ -191,6 +191,26 @@ func TestAbbildungMetadaten(t *testing.T) {
 	}
 	if !slices.Contains(outbound.EintraegeAbbildung(), "ErrMetadatenUngueltig") {
 		t.Error("die Tabelle nennt ErrMetadatenUngueltig nicht")
+	}
+	if _, ok := outbound.Abbilden(errors.Join(e, context.Canceled), gImp); ok {
+		t.Error("ein Kontextfehler neben dem Fehler bekommt einen Code")
+	}
+}
+
+// TestAbbildungDaten (Zeile K2): der Fehler des Lesers der JSON-Antworten bildet bei jedem Gegenstand auf
+// ODR-E6101 ab, auch verpackt und verbunden; ein Kontextfehler daneben bekommt keinen Code.
+func TestAbbildungDaten(t *testing.T) {
+	e := &model.DatenFehler{Ursache: model.DatenSchluessel, Ort: "/value/0/Id"}
+	formen := map[string]error{"Fehler": e, "Errorf": fmt.Errorf("lesen: %w", e), "Join": errors.Join(errors.New("x"), e)}
+	for name, err := range formen {
+		for _, g := range alleGegenstaende() {
+			if got, ok := outbound.Abbilden(err, g); !ok || got != model.CodeE6101 {
+				t.Errorf("%s / Gegenstand %d: %v %v", name, g, got, ok)
+			}
+		}
+	}
+	if !slices.Contains(outbound.EintraegeAbbildung(), "ErrDatenUngueltig") {
+		t.Error("die Tabelle nennt ErrDatenUngueltig nicht")
 	}
 	if _, ok := outbound.Abbilden(errors.Join(e, context.Canceled), gImp); ok {
 		t.Error("ein Kontextfehler neben dem Fehler bekommt einen Code")
