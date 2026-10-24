@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 	"sync"
@@ -313,10 +314,46 @@ func zeileI2(t *testing.T, neu CodecNeu) {
 		if _, _, err := neu.aufruf(context.Background(), &teilReader{teile: [][]byte{r[:50]}, ende: errQuelle}, 1<<20); !errors.Is(err, errQuelle) {
 			fehler = append(fehler, fmt.Sprint("Fehler von src: ", err))
 		}
-		return fehler
+		return append(fehler, i2Zusatz(neu, r)...)
 	}) {
 		t.Errorf("Ergebnis weicht vom einzelnen Aufruf ab: %s", e)
 	}
+}
+
+// i2Zusatz führt in jeder Goroutine die Zweige aus, die kein Dokument der Menge erreicht: ungültige Argumente, einen
+// Kontext, der vor dem Aufruf oder im letzten Read endet, und BOM und UTF-16-Marke in einzelnen Reads.
+func i2Zusatz(neu CodecNeu, r []byte) []string {
+	var fehler []string
+	var keinCtx context.Context
+	var keinSrc io.Reader
+	ctxEnde, abbruch := context.WithCancel(context.Background())
+	letzter := &teilReader{teile: [][]byte{r}, mitEnde: true, nach: func(int) { abbruch() }}
+	ursache := func(u model.MetadatenUrsache) func(error) bool {
+		return func(err error) bool {
+			var mf *model.MetadatenFehler
+			return errors.As(err, &mf) && mf.Ursache == u
+		}
+	}
+	for _, f := range []struct {
+		name  string
+		ctx   context.Context
+		src   io.Reader
+		max   int64
+		passt func(error) bool
+	}{
+		{"ctx nil", keinCtx, teile(r), 1 << 20, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
+		{"src nil", context.Background(), keinSrc, 1 << 20, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
+		{"max 0", context.Background(), teile(r), 0, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
+		{"Kontext beendet", abgebrochen(), teile(r), 1 << 20, func(err error) bool { return err == context.Canceled }},
+		{"Kontext endet im letzten Read", ctxEnde, letzter, 1 << 20, func(err error) bool { return err == context.Canceled }},
+		{"BOM in einzelnen Reads", context.Background(), teile(append([]byte(bom), r...), 1, 2), 1 << 20, func(err error) bool { return err == nil }},
+		{"UTF-16-Marke in einzelnen Reads", context.Background(), teile([]byte("\xFF\xFE<a/>"), 1), 1 << 20, ursache(model.UrsacheKodierung)},
+	} {
+		if _, _, err := neu.aufruf(f.ctx, f.src, f.max); !f.passt(err) {
+			fehler = append(fehler, fmt.Sprint(f.name, ": ", err))
+		}
+	}
+	return fehler
 }
 
 // zeileI3: gleichzeitige Aufrufe mit verschiedenen Dokumenten beeinflussen sich nicht: jedes Ergebnis gleicht dem einzelnen.
