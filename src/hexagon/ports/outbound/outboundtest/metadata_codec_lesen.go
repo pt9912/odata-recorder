@@ -203,6 +203,26 @@ func faelleB4Ersatz() []fall {
 	} {
 		out = append(out, schlecht("Ersatzreferenz "+x.name, text(x.inhalt), model.UrsacheSyntax, ""))
 	}
+	for _, ref := range []struct {
+		ref     string
+		gueltig bool
+	}{{"&#xD7FF;", true}, {"&#xE000;", true}, {"&#xFFFD;", true}, {"&#xD800;", false}, {"&#xDFFF;", false}} {
+		for _, o := range []struct {
+			name string
+			doc  []byte
+		}{
+			{"allein im Wert", annotation(`Term="` + ref.ref + `"`)},
+			{"neben U+FFFD im Wert", annotation("Term=\"�" + ref.ref + "\"")},
+			{"im Text neben U+FFFD", text("�" + ref.ref)},
+		} {
+			name := "Grenze der Ersatzzeichen " + ref.ref + " " + o.name
+			if ref.gueltig {
+				out = append(out, gut(name, o.doc))
+			} else {
+				out = append(out, schlecht(name, o.doc, model.UrsacheSyntax, ""))
+			}
+		}
+	}
 	out = append(out,
 		gut("U+FFFD als Zeichen und als Referenz in drei Attributen", annotation("A=\"�\" Term=\"&#xFFFD;&#65;\" Qualifier=\"&#x41;�\"")),
 		gut("U+FFFD und Referenzen im Text neben CDATA", text("�&#xFFFD;<![CDATA[&#xD800;�]]>&#65;")))
@@ -259,6 +279,11 @@ func faelleB5(t *testing.T) []fall {
 		{"Direktive <!FOO>", aender(r, "<Key>", "<!FOO><Key>")}, {"End-Tag der Wurzel fehlt", bytes.TrimSuffix(r, []byte(ende))},
 	} {
 		out = append(out, schlecht(f.name, f.doc, model.UrsacheSyntax, ""))
+	}
+	for _, c := range []struct{ name, inhalt string }{{"leer", "<![CDATA[]]>"}, {"nur Leerraum", "<![CDATA[ ]]>"}, {"mit Text", "<![CDATA[x]]>"}} {
+		out = append(out, schlecht("CDATA "+c.name+" nach der Wurzel", append(bytes.Clone(r), c.inhalt...), model.UrsacheSyntax, ""),
+			schlecht("CDATA "+c.name+" vor der Wurzel hinter der Deklaration", aender(r, ersteWurzel, c.inhalt+ersteWurzel), model.UrsacheSyntax, ""),
+			schlecht("CDATA "+c.name+" hinter einem Kommentar vor der Wurzel", aender(r, ersteWurzel, "<!-- c -->"+c.inhalt+ersteWurzel), model.UrsacheSyntax, ""))
 	}
 	for _, ref := range []string{"&#32;", "&#9;", "&#xA;", "&#xD;", "&#xA0;", "&amp;", "&lt;"} {
 		out = append(out, schlecht("Referenz "+ref+" nach der Wurzel", append(bytes.Clone(r), ref...), model.UrsacheSyntax, ""),
@@ -425,12 +450,12 @@ func faelleE1(t *testing.T) []fall {
 	voll := auffuellen(r, int(l))
 	mitBom := append([]byte(bom), voll...)
 	return []fall{
-		{name: "max gleich L-1", doc: voll, max: l - 1, ursache: model.UrsacheZuGross},
-		{name: "max gleich L", doc: voll, max: l}, {name: "max gleich L+1", doc: voll, max: l + 1},
-		{name: "max 1, Dokument von 2 Bytes", doc: []byte("<a"), max: 1, ursache: model.UrsacheZuGross},
-		{name: "max MaxInt64", doc: r, max: math.MaxInt64},
-		{name: "Syntaxfehler in Byte 5 vor max+1", doc: auffuellen([]byte("<a b>"), 15+10), max: 15, ursache: model.UrsacheSyntax},
-		{name: "gültiges Präfix von max Bytes, danach Müll", doc: append(bytes.Clone(r), 'x'), max: int64(len(r)), ursache: model.UrsacheZuGross},
+		{name: "grenze gleich L-1", doc: voll, max: l - 1, ursache: model.UrsacheZuGross},
+		{name: "grenze gleich L", doc: voll, max: l}, {name: "grenze gleich L+1", doc: voll, max: l + 1},
+		{name: "grenze 1, Dokument von 2 Bytes", doc: []byte("<a"), max: 1, ursache: model.UrsacheZuGross},
+		{name: "grenze MaxInt64", doc: r, max: math.MaxInt64},
+		{name: "Syntaxfehler in Byte 5 vor grenze+1", doc: auffuellen([]byte("<a b>"), 15+10), max: 15, ursache: model.UrsacheSyntax},
+		{name: "gültiges Präfix von grenze Bytes, danach Müll", doc: append(bytes.Clone(r), 'x'), max: int64(len(r)), ursache: model.UrsacheZuGross},
 		{name: "das BOM zählt mit", doc: mitBom, max: l + 2, ursache: model.UrsacheZuGross},
 		{name: "mit BOM an der Grenze", doc: mitBom, max: l + 3},
 	}

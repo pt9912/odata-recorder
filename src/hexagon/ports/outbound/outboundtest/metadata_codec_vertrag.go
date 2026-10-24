@@ -10,7 +10,6 @@ import (
 	"math"
 	"reflect"
 	"runtime"
-	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -38,8 +37,11 @@ const (
 // 2 GiB, denn eine wachsende Liste hält beim Umkopieren das Alte und das Neue.
 const speicherLimit = 512 << 20
 
-// speicherwaechter bricht den Prozess ab, sobald der Heap speicherLimit überschreitet; stop beendet ihn.
-func speicherwaechter() (stop func()) {
+// speicherwaechter bricht den Prozess ab, sobald der Heap speicherLimit überschreitet, und nennt in der Meldung die Zeile,
+// die zuletzt zeile gesetzt hat; stop beendet ihn. Die Zeilen laufen nacheinander, der Fall in der Zeile bleibt offen.
+func speicherwaechter() (zeile func(name string), stop func()) {
+	var laufend atomic.Value
+	laufend.Store("")
 	ende := make(chan struct{})
 	go func() {
 		tick := time.NewTicker(20 * time.Millisecond)
@@ -52,19 +54,19 @@ func speicherwaechter() (stop func()) {
 			case <-tick.C:
 			}
 			if runtime.ReadMemStats(&ms); ms.HeapAlloc > speicherLimit {
-				debug.SetTraceback("all")
-				panic(fmt.Sprintf("Speicherwächter: Heap %d MiB über %d MiB, eine Schleife des Lesers wächst ohne Ende; die Stapel aller Goroutinen folgen",
-					ms.HeapAlloc>>20, speicherLimit>>20))
+				panic(fmt.Sprintf("Speicherwächter: Heap %d MiB über %d MiB in der Zeile %q, eine Schleife des Lesers wächst ohne Ende",
+					ms.HeapAlloc>>20, speicherLimit>>20, laufend.Load()))
 			}
 		}
 	}()
-	return func() { close(ende) }
+	return func(name string) { laufend.Store(name) }, func() { close(ende) }
 }
 
 // MetadataCodecVertrag prüft die Zusagen von SPEC-125 (Zeilen A1 bis I3 der Tabelle Zusage · Fänger)
 // gegen jeden Adapter von outbound.MetadataCodec.
 func MetadataCodecVertrag(t *testing.T, neu CodecNeu) {
-	defer speicherwaechter()()
+	zeile, stop := speicherwaechter()
+	defer stop()
 	for _, z := range []struct {
 		name string
 		lauf func(*testing.T, CodecNeu)
@@ -86,6 +88,7 @@ func MetadataCodecVertrag(t *testing.T, neu CodecNeu) {
 		{"H1 Fehlerform", zeileH1},
 		{"I1 Wiederholung", zeileI1}, {"I2 gleichzeitig, geordnet", zeileI2}, {"I3 gleichzeitig, unabhängig", zeileI3},
 	} {
+		zeile(z.name)
 		t.Run(z.name, func(t *testing.T) { z.lauf(t, neu) })
 	}
 }
@@ -153,7 +156,7 @@ func (neu CodecNeu) aufruf(ctx context.Context, src io.Reader, grenze int64) (m 
 	return neu().ParseMetadata(ctx, src, grenze)
 }
 
-// grenze ist das max des Aufrufs; 0 heißt: ein Gibibyte, weit über jedem Dokument der Fälle.
+// grenze ist die Obergrenze des Aufrufs; 0 heißt: ein Gibibyte, weit über jedem Dokument der Fälle.
 func (f fall) grenze() int64 {
 	if f.max == 0 {
 		return 1 << 30
@@ -283,11 +286,11 @@ func zeileA1(t *testing.T, neu CodecNeu) {
 		src  bool
 		max  int64
 	}{
-		{"ctx nil", kein, true, 1000}, {"max 0", hin, true, 0}, {"max -1", hin, true, -1},
-		{"max 0 und beendeter ctx", abgebrochen, true, 0}, {"src nil", hin, false, 1000},
-		{"ctx nil und src nil", kein, false, 1000}, {"src nil und max 0", hin, false, 0},
-		{"max MinInt64", hin, true, math.MinInt64}, {"ctx nil und max 0", kein, true, 0}, {"ctx nil, src nil und max 0", kein, false, 0},
-		{"src nil und beendeter ctx", abgebrochen, false, 1000}, {"src nil, max 0 und beendeter ctx", abgebrochen, false, 0},
+		{"ctx nil", kein, true, 1000}, {"grenze 0", hin, true, 0}, {"grenze -1", hin, true, -1},
+		{"grenze 0 und beendeter ctx", abgebrochen, true, 0}, {"src nil", hin, false, 1000},
+		{"ctx nil und src nil", kein, false, 1000}, {"src nil und grenze 0", hin, false, 0},
+		{"grenze MinInt64", hin, true, math.MinInt64}, {"ctx nil und grenze 0", kein, true, 0}, {"ctx nil, src nil und grenze 0", kein, false, 0},
+		{"src nil und beendeter ctx", abgebrochen, false, 1000}, {"src nil, grenze 0 und beendeter ctx", abgebrochen, false, 0},
 	} {
 		src := io.Reader(&teilReader{teile: [][]byte{[]byte("<")}})
 		if !f.src {
@@ -303,7 +306,7 @@ func zeileA1(t *testing.T, neu CodecNeu) {
 		}
 		nullwerte(t, m, b)
 	}
-	pruefeFall(t, neu, fall{name: "max 1 ist gültig", doc: []byte("<"), max: 1, ursache: model.UrsacheSyntax})
+	pruefeFall(t, neu, fall{name: "grenze 1 ist gültig", doc: []byte("<"), max: 1, ursache: model.UrsacheSyntax})
 }
 
 // beendbar ist ein Kontext, dessen Err() erst nach beende einen Fehler liefert; so endet er mit jedem Kontextfehler an
@@ -620,7 +623,7 @@ func (e *endlos) Read(p []byte) (int, error) {
 
 func (e *endlos) Close() error { e.closes++; return nil }
 
-// zeileA5: der Leser schließt src nie, liest nach dem Ende nicht weiter und höchstens max+1 Bytes (Nr. 2, 5).
+// zeileA5: der Leser schließt src nie, liest nach dem Ende nicht weiter und höchstens grenze+1 Bytes (Nr. 2, 5).
 func zeileA5(t *testing.T, neu CodecNeu) {
 	alle := append(alleFaelle(t), gut("Referenzdienst", festes(t, "referenz.xml")))
 	for _, f := range alle {

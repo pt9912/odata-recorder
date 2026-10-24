@@ -9,7 +9,7 @@ import (
 
 // MetadataCodec liest ein EDMX/CSDL-Dokument in das Modell des OData-Dienstes (SPEC-125).
 type MetadataCodec interface {
-	// ParseMetadata liest src bis io.EOF, höchstens grenze+1 Bytes (grenze ist `max` in SPEC-125),
+	// ParseMetadata liest src bis io.EOF, höchstens grenze+1 Bytes (SPEC-125 Nr. 5),
 	// und liefert Modell und Bericht.
 	// Ein Verstoß ist ein *model.MetadatenFehler (ODR-E6004) mit Nullwerten für Modell und Bericht;
 	// ein ungültiges Argument ist model.ErrUngueltig, ein beendeter Kontext und ein Fehler von src

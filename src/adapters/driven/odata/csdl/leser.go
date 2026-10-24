@@ -16,7 +16,7 @@ type Leser struct{}
 // New liefert den Leser.
 func New() *Leser { return &Leser{} }
 
-// ParseMetadata liest src bis io.EOF, höchstens grenze+1 Bytes (SPEC-125 Nr. 1 bis 14, grenze ist `max`).
+// ParseMetadata liest src bis io.EOF, höchstens grenze+1 Bytes (SPEC-125 Nr. 1 bis 14).
 func (*Leser) ParseMetadata(ctx context.Context, src io.Reader, grenze int64) (model.ServiceModel, model.ValidierungsBericht, error) {
 	var leer model.ServiceModel
 	switch {
@@ -25,7 +25,7 @@ func (*Leser) ParseMetadata(ctx context.Context, src io.Reader, grenze int64) (m
 	case src == nil:
 		return leer, model.ValidierungsBericht{}, errors.Join(model.ErrUngueltig, errors.New("src fehlt"))
 	case grenze < 1:
-		return leer, model.ValidierungsBericht{}, errors.Join(model.ErrUngueltig, errors.New("max kleiner 1"))
+		return leer, model.ValidierungsBericht{}, errors.Join(model.ErrUngueltig, errors.New("grenze kleiner 1"))
 	}
 	if err := ctx.Err(); err != nil {
 		return leer, model.ValidierungsBericht{}, err

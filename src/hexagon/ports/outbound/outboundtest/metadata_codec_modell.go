@@ -3,6 +3,7 @@ package outboundtest
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -140,6 +141,21 @@ func zeileF2(t *testing.T, neu CodecNeu) {
 	if edmTypVon(e.Properties, 1) != edmTypVon(e.Properties, 3) {
 		t.Errorf("Name und Breed sind beide Edm.String: %+v", e.Properties)
 	}
+	zeileF2Randformen(t, neu)
+}
+
+// zeileF2Randformen: ein leerer Key der Ableitung lässt die Keys der Basis, HasStream macht den Typ nicht offen (Nr. 11).
+func zeileF2Randformen(t *testing.T, neu CodecNeu) {
+	leer, _ := pruefeFall(t, neu, gut("Ableitung mit leerem Key", eins(typ("B", "")+ableitung("D", "Ns.B", "<Key/>"))))
+	for _, n := range []string{"Ns.B", "Ns.D"} {
+		if got, _ := leer.EntityType(n); !slices.Equal(got.Keys, []string{"Id"}) {
+			t.Errorf("%s mit leerem Key in der Ableitung: Keys %v, erwartet [Id]", n, got.Keys)
+		}
+	}
+	hs, b := pruefeFall(t, neu, gut("HasStream ohne OpenType", eins(`<EntityType Name="T" HasStream="true">`+schluesselID+`</EntityType>`)))
+	if got, _ := hs.EntityType("Ns.T"); got.Open || !slices.Equal(b.Funde, []model.Fund{{Art: model.FundKonstrukt, Ort: "Ns.T", Name: "HasStream"}}) {
+		t.Errorf("HasStream ohne OpenType: Open %v, Funde %v", got.Open, b.Funde)
+	}
 }
 
 func zeileF3(t *testing.T, neu CodecNeu) {
@@ -182,7 +198,47 @@ func f4Doc(alias [7]bool) []byte {
 	return []byte(edmx(a + b + schemaAlias("NsA", "A2", typ("V", ""))))
 }
 
+// f4Punkte ist ein Schema mit einem Namensraum von vier Gliedern (mit oder ohne Alias `Trip`) und den sechs Verweisen
+// (BaseType, Typ einer Property, Typ einer Navigation-Property, EntityType, Target, Collection), jeder mit ref gebildet.
+func f4Punkte(alias bool, ref string) []byte {
+	const ns = "Microsoft.OData.Models.TripPin"
+	a := ""
+	if alias {
+		a = ` Alias="Trip"`
+	}
+	t := ref + ".T"
+	return []byte(edmx(`<Schema xmlns="` + edmNs + `" Namespace="` + ns + `"` + a + `>` + typ("T", "") + ableitung("D1", t, "") +
+		`<EntityType Name="Holder">` + schluesselID + prop("P2", t) + prop("P6", "Collection("+t+")") + `<NavigationProperty Name="N3" Type="` + t + `"/></EntityType>` +
+		`<EntityContainer Name="Container"><EntitySet Name="S1" EntityType="` + t + `"><NavigationPropertyBinding Path="P" Target="` + ref + `.Container/S1"/></EntitySet></EntityContainer></Schema>`))
+}
+
+// zeileF4Punkte: eine Referenz über einen Namensraum mit Punkten, mit dem Namensraum oder dem Alias, ergibt in allen
+// sechs Positionen den qualifizierten Namen (Nr. 9: der Namensraum ist der Name vor dem letzten Punkt).
+func zeileF4Punkte(t *testing.T, neu CodecNeu) {
+	const ns = "Microsoft.OData.Models.TripPin"
+	var soll string
+	for i, v := range []struct {
+		alias bool
+		ref   string
+	}{{false, ns}, {true, ns}, {true, "Trip"}} {
+		m, b := pruefeFall(t, neu, gut(fmt.Sprintf("Namensraum mit Punkten %d", i), f4Punkte(v.alias, v.ref)))
+		d, _ := m.EntityType(ns + ".D1")
+		h, _ := m.EntityType(ns + ".Holder")
+		if d.BaseType != ns+".T" || edmTypVon(h.Properties, 1) != ns+".T" || edmTypVon(h.Properties, 2) != "Collection("+ns+".T)" ||
+			len(h.NavigationProperties) != 1 || h.NavigationProperties[0].Target != ns+".T" || len(m.EntitySets()) != 1 || m.EntitySets()[0].EntityType != ns+".T" ||
+			len(m.NavigationBindings()) != 1 || m.NavigationBindings()[0].Target != ns+".Container/S1" {
+			t.Errorf("Namensraum mit Punkten %d: %+v %+v %v %v", i, d, h, m.EntitySets(), m.NavigationBindings())
+		}
+		if i == 0 {
+			soll = ergebnis(m, b, nil)
+		} else if ergebnis(m, b, nil) != soll {
+			t.Errorf("Namensraum mit Punkten %d ergibt ein anderes Modell als über den Namensraum", i)
+		}
+	}
+}
+
 func zeileF4(t *testing.T, neu CodecNeu) {
+	zeileF4Punkte(t, neu)
 	m0, b0 := pruefeFall(t, neu, gut("alle über Namensraum", f4Doc([7]bool{})))
 	ergebnis0 := ergebnis(m0, b0, nil)
 	gleich(t, "Namespaces", m0.Namespaces(), []string{"NsA", "NsB"})
@@ -242,6 +298,9 @@ func zeileF6(t *testing.T, neu CodecNeu) {
 	gleich(t, "Bindings", m.NavigationBindings(), []model.NavigationBinding{{Set: "S", Path: "Nope", Target: "Ns.C/S"}, {Set: "S", Path: "N1", Target: "Ns.C/Me"}, {Set: "S", Path: "N2", Target: "Ns.C/Me"}})
 	gleich(t, "Sets", m.EntitySets(), []model.EntitySet{{Name: "S", EntityType: "Ns.T"}})
 	zielFall(t, neu)
+	p, _ := pruefeFall(t, neu, gut("Path mit Leerraum", eins(typ("T", "")+
+		`<EntityContainer Name="C"><EntitySet Name="S" EntityType="Ns.T"><NavigationPropertyBinding Path=" a/b " Target="S"/></EntitySet></EntityContainer>`)))
+	gleich(t, "Path mit Leerraum", p.NavigationBindings(), []model.NavigationBinding{{Set: "S", Path: " a/b ", Target: "Ns.C/S"}})
 	m, _ = pruefeFall(t, neu, gut("ohne EntityContainer", eins(typ("T", ""))))
 	if len(m.EntitySets()) != 0 || len(m.NavigationBindings()) != 0 || len(m.EntityTypes()) != 1 {
 		t.Errorf("ohne EntityContainer: %v %v", m.EntitySets(), m.NavigationBindings())

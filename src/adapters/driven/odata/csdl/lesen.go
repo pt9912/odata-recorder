@@ -96,7 +96,8 @@ func (l *lauf) token(tok xml.Token, von, bis int64) error {
 	case xml.EndElement:
 		return l.ende()
 	case xml.CharData:
-		if len(l.stack) == 0 && (len(bytes.Trim(t, " \t\r\n")) > 0 || bytes.IndexByte(l.st.alles[von:bis], '&') >= 0) {
+		if len(l.stack) == 0 && (len(bytes.Trim(t, " \t\r\n")) > 0 || bytes.IndexByte(l.st.alles[von:bis], '&') >= 0 ||
+			bytes.HasPrefix(l.st.alles[von:bis], []byte("<![CDATA["))) {
 			return fehler(model.UrsacheSyntax, "")
 		}
 		return l.refs(von, bis, t)
@@ -157,12 +158,12 @@ func (l *lauf) start(se xml.StartElement) error {
 	if l.fertig {
 		return fehler(model.UrsacheSyntax, "")
 	}
+	if doppelt(se.Attr) {
+		return fehler(model.UrsacheSyntax, "")
+	}
 	l.tiefe++
 	if l.tiefe > maxTiefe {
 		return fehler(model.UrsacheTiefe, "")
-	}
-	if doppelt(se.Attr) {
-		return fehler(model.UrsacheSyntax, "")
 	}
 	if len(l.stack) == 0 {
 		return l.wurzel(se)

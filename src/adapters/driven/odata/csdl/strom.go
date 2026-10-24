@@ -28,7 +28,7 @@ func (*stromFehler) Error() string { return "csdl: Strom" }
 
 const bomUTF8 = "\xEF\xBB\xBF"
 
-// strom liest src für den Decoder: höchstens max+1 Bytes, ein BOM übergangen, jedes Byte als
+// strom liest src für den Decoder: höchstens grenze+1 Bytes, ein BOM übergangen, jedes Byte als
 // XML-1.0-Zeichen in UTF-8 geprüft, vor jedem Read der Kontext. Ein Fehler wird erst geliefert,
 // nachdem die davor liegenden Bytes ausgeliefert sind; so entscheidet die Reihenfolge der Bytes.
 type strom struct {

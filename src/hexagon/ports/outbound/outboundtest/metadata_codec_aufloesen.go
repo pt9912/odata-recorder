@@ -2,6 +2,7 @@ package outboundtest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -68,18 +69,18 @@ func faelleD2() []fall {
 	}
 	var out []fall
 	for _, a := range arten {
-		for _, r := range []string{"Self.Nope", "Ns.Nope", "Zzz.T", "T", "Ext.Thing", "Self.Cx"} {
+		for _, r := range []string{"Self.Nope", "Ns.Nope", "Zzz.T", "T", "Ext.Thing", "Self.Cx", " Ns.T", "Ns.T ", " Self.T", "Self.T "} {
 			if r == "Self.Cx" && (a.name == "Typ einer Property" || a.name == "Target eines Bindings") {
 				continue
 			}
 			out = append(out, schlecht(a.name+" "+r, d2doc(a.inhalt(r)), model.UrsacheNichtAufloesbar, a.ort))
 		}
 	}
-	for _, r := range []string{"Self.Nope/S", "Zzz.C/S", "Self.C2/S", "Ns.C/Nope"} {
+	for _, r := range []string{"Self.Nope/S", "Zzz.C/S", "Self.C2/S", "Ns.C/Nope", " S", "S ", " Ns.C/S", "Ns.C/S ", " Self.C/S", "Self.C/S "} {
 		out = append(out, schlecht("Target mit Container "+r, d2doc(binding(r)), model.UrsacheNichtAufloesbar, "Ns.C/S@Target"))
 	}
 	out = append(out, gut("Target mit Container über Alias", d2doc(binding("Self.C/S"))))
-	for _, r := range []string{"Nope", "Zzz", "N"} {
+	for _, r := range []string{"Nope", "Zzz", "N", " Id", "Id "} {
 		doc := `<EntityType Name="T"><Key><PropertyRef Name="` + r + `"/></Key>` + prop("Id", "Edm.Int32") + `<NavigationProperty Name="N" Type="Ns.T"/></EntityType>`
 		out = append(out, schlecht("Name einer PropertyRef "+r, d2doc(doc), model.UrsacheNichtAufloesbar, "Ns.T/"+r+"@Name"))
 	}
@@ -237,8 +238,15 @@ func faelleD5() []fall {
 	}
 	out := []fall{gut("Collection(Edm.String)", doc("Collection(Edm.String)")), gut("Collection(Ns.Cx)", doc("Collection(Ns.Cx)")),
 		gut("EnumType über Alias", doc("Self.Color")), gut("Entity-Typ als Property-Typ", doc("Ns.Other"))}
-	for _, ty := range []string{"Collection(Collection(Edm.String))", "Collection(Self.Nope)", "Collection()", "Collection(Edm.String", "Edm.Foo", "Edm.", "Edm", "edm.string", " Edm.String", "Edm.String "} {
+	for _, ty := range []string{"Collection(Collection(Edm.String))", "Collection(Self.Nope)", "Collection()", "Collection(Edm.String", "Collection(Edm.StringX", "Collection(Edm.String)X", "Collection(Edm.String) ", "Edm.Foo", "Edm.", "Edm", "edm.string", " Edm.String", "Edm.String "} {
 		out = append(out, schlecht("Typ "+ty, doc(ty), model.UrsacheNichtAufloesbar, "Ns.T/P@Type"))
+	}
+	nav := func(ty string) []byte {
+		return []byte(edmx(schemaAlias("Ns", "Self", typ("T", `<NavigationProperty Name="P" Type="`+ty+`"/>`))))
+	}
+	out = append(out, gut("Navigation-Property Collection(Ns.T)", nav("Collection(Ns.T)")))
+	for _, ty := range []string{"Collection(Ns.T", "Collection(Ns.TX", "Collection(Ns.T)X", "Collection(Ns.T) ", "Collection(Collection(Ns.T))"} {
+		out = append(out, schlecht("Navigation-Property Typ "+ty, nav(ty), model.UrsacheNichtAufloesbar, "Ns.T/P@Type"))
 	}
 	return out
 }
@@ -445,7 +453,19 @@ const keyAbleitung = `<Key><PropertyRef Name="Id"/></Key>`
 func faelleD8Aufloesen() []fall {
 	nA, struk := model.UrsacheNichtAufloesbar, model.UrsacheStruktur
 	doubleKey := `<EntityType Name="A"><Key><PropertyRef Name="K"/></Key>` + prop("K", "Edm.Double") + `</EntityType>`
+	// tief ist ein Dokument, dessen 62. verschachteltes Element in Tiefe 65 liegt und das Start-Tag attr trägt.
+	tief := func(attr string) []byte {
+		return eins(repeat(`<x:W xmlns:x="urn:x">`, 61) + `<x:W xmlns:x="urn:x" ` + attr + `/>` + repeat(`</x:W>`, 61))
+	}
+	v4 := func(kinder string) []byte { return wurzel(edmxNs, "Edmx", "4.0", kinder) }
 	return []fall{
+		schlecht("P28", tief(`a="1" a="2"`), model.UrsacheSyntax, ""),
+		schlecht("P29", tief(`a="&#xD800;"`), model.UrsacheSyntax, ""),
+		schlecht("P30", []byte(`<edmx:Edmx xmlns:edmx="`+edmxNs+`" Version="3.0" Version="4.0"><edmx:DataServices/></edmx:Edmx>`), model.UrsacheSyntax, ""),
+		schlecht("P31", []byte(`<edmx:Edmx xmlns:edmx="`+edmxV3+`" Version="4.0" Version="4.0"><edmx:DataServices/></edmx:Edmx>`), model.UrsacheSyntax, ""),
+		schlecht("P32", eins(typ("T", `<Property Name="1" Name="x" Type="Edm.String"/>`)), model.UrsacheSyntax, ""),
+		schlecht("P33", v4(dsElement+`<d:DataServices xmlns:d="`+edmxNs+`" a="1" a="2"/>`), model.UrsacheSyntax, ""),
+		schlecht("P34", wurzel(edmxNs, "Foo", "3.0", dsElement), model.UrsacheWurzel, ""),
 		gross(schlecht("P23", eins(typ("B1", "")+ableitung("B2", "Ns.B1", keyAbleitung)+typ("Big", props(65536))), model.UrsacheZuVieleMembers, "Ns.Big")),
 		schlecht("P24", eins(typ("A", prop("P", "Ns.Nope"))+typ("B", prop("Q", "Edm.String"))+ableitung("D", "Ns.B", prop("Q", "Edm.Int32"))), struk, "Ns.D/Q"),
 		schlecht("P25", eins(`<EntityContainer Name="C"><EntitySet Name="S" EntityType="Ns.Nope"/></EntityContainer>`+typ("B", "")+ableitung("D", "Ns.B", keyAbleitung)), struk, "Ns.D"),
@@ -526,6 +546,32 @@ func zeileD8(t *testing.T, neu CodecNeu) {
 	_, _, err = neu.aufruf(context.Background(), &teilReader{teile: [][]byte{[]byte("<edmx:Edmx xmlns:edmx=")}, ende: errQuelle}, 1<<20)
 	if err != errQuelle {
 		t.Errorf("P22: %v", err)
+	}
+	zeileD8Mehrere(t, neu)
+}
+
+// zeileD8Mehrere ist P35: mehrere struktur-Verstöße in einem Element melden struktur mit dem Ort eines der Verstöße;
+// welcher, ist nicht zugesagt (Nr. 8 f). Schleife über die Menge der Dokumente.
+func zeileD8Mehrere(t *testing.T, neu CodecNeu) {
+	const edmElem = `<Schema xmlns="` + edmNs + `" `
+	for _, f := range []struct {
+		name string
+		doc  []byte
+		orte []string
+	}{
+		{"Property mit Nullable x und ohne Type", eins(typ("T", `<Property Name="p" Nullable="x"/>`)), []string{"Ns.T/p@Nullable", "Ns.T/p@Type"}},
+		{"Property mit doppeltem Namen und Nullable x", eins(typ("T", prop("p", "Edm.String")+`<Property Name="p" Type="Edm.String" Nullable="x"/>`)), []string{"Ns.T/p@Nullable", "Ns.T/p"}},
+		{"NavigationProperty mit ContainsTarget x und ohne Type", eins(typ("T", `<NavigationProperty Name="n" ContainsTarget="x"/>`)), []string{"Ns.T/n@ContainsTarget", "Ns.T/n@Type"}},
+		{"Entity-Typ doppelt und Abstract x", eins(typ("T", "") + `<EntityType Name="T" Abstract="x">` + schluesselID + `</EntityType>`), []string{"Ns.T", "Ns.T@Abstract"}},
+		{"Schema im Widerspruch zu einem früheren Alias und ungültiger Alias", []byte(edmx(schemaAlias("N1", "N2", "") + edmElem + `Namespace="N2" Alias="1x"/>`)), []string{"N2@Namespace", "N2@Alias"}},
+		{"EntitySet ohne EntityType und mit doppeltem Namen", eins(typ("T", "") + `<EntityContainer Name="C"><EntitySet Name="S" EntityType="Ns.T"/><EntitySet Name="S"/></EntityContainer>`), []string{"Ns.C/S@EntityType", "Ns.C/S"}},
+		{"Binding ohne Path und ohne Target", eins(typ("T", "") + `<EntityContainer Name="C"><EntitySet Name="S" EntityType="Ns.T"><NavigationPropertyBinding/></EntitySet></EntityContainer>`), []string{"Ns.C/S@Path", "Ns.C/S@Target"}},
+	} {
+		_, _, err := lies(neu, gut(f.name, f.doc))
+		var mf *model.MetadatenFehler
+		if !errors.As(err, &mf) || mf.Ursache != model.UrsacheStruktur || !slices.Contains(f.orte, mf.Ort) {
+			t.Errorf("P35 %s: %v, erwartet struktur mit einem der Orte %q", f.name, err, f.orte)
+		}
 	}
 }
 

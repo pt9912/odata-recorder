@@ -443,7 +443,7 @@ func i2Zusatz(neu CodecNeu, r []byte) []string {
 	}{
 		{"ctx nil", kein, teile(r), 1 << 20, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
 		{"src nil", hin, keinSrc, 1 << 20, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
-		{"max 0", hin, teile(r), 0, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
+		{"grenze 0", hin, teile(r), 0, func(err error) bool { return errors.Is(err, model.ErrUngueltig) }},
 		{"Kontext beendet", abgebrochen, teile(r), 1 << 20, func(err error) bool { return err == context.Canceled }},
 		{"Kontext endet im letzten Read", ende, letzter, 1 << 20, func(err error) bool { return err == context.Canceled }},
 		{"BOM in einzelnen Reads", hin, teile(append([]byte(bom), r...), 1, 2), 1 << 20, func(err error) bool { return err == nil }},
