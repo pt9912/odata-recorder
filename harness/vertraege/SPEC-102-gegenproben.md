@@ -89,7 +89,6 @@ Dass das Ziel `src/` ganz und den Quellstand der Stufe `source` fährt, belegt `
 Gemessen am 2026-10-22 mit den Fällen 1 bis 36 auf einem Host mit 20 Kernen und schwankender Last, Images lokal vorhanden: 80,5 bis 93,8 s im Ganzen (`time make gegenproben`).
 Davon laufen die Fälle (Schritt `RUN gegenproben` der Stufe) 54,3 bis 67 s, das Prüfen und Bauen des Programms rund 7 s und der Export des Images der Stufe 16,8 bis 18 s.
 Bei unveränderten Eingaben dauert der Aufruf 0,3 s.
-Die `go`-Aufrufe der Fälle 25 bis 28 kosten bei kaltem `GOCACHE` bis zu 27 s je Fall.
 Das Budget liegt rund 28 % über dem höchsten gemessenen Wert, 93,8 s; kein Gate und kein Hook prüft es.
 Liegt ein Lauf darüber, misst der Implementer neu und trägt den Wert mit Grund ein.
 
