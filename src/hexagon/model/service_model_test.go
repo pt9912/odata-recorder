@@ -9,15 +9,26 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-func leseSicht() (model.ServiceModel, []model.EntityType) {
-	typen := []model.EntityType{
-		{Name: "N.A", Keys: []string{"Id", "Part"}, Properties: []model.Property{{Name: "Id", EdmType: "Edm.Int32"}, {Name: "Part", EdmType: "Edm.String"}},
-			NavigationProperties: []model.NavigationProperty{{Name: "Next", Target: "N.B"}}},
-		{Name: "N.B", BaseType: "N.A", Keys: []string{"Id"}, Properties: []model.Property{{Name: "Id", EdmType: "Edm.Int32"}}},
+// eingaben sind die vier Eingaben des Konstruktors; ein Test verändert sie nach der Übergabe.
+type eingaben struct {
+	namespaces []string
+	typen      []model.EntityType
+	sets       []model.EntitySet
+	bindings   []model.NavigationBinding
+}
+
+func leseSicht() (model.ServiceModel, eingaben) {
+	e := eingaben{
+		namespaces: []string{"N", "M"},
+		typen: []model.EntityType{
+			{Name: "N.A", Keys: []string{"Id", "Part"}, Properties: []model.Property{{Name: "Id", EdmType: "Edm.Int32"}, {Name: "Part", EdmType: "Edm.String"}},
+				NavigationProperties: []model.NavigationProperty{{Name: "Next", Target: "N.B"}}},
+			{Name: "N.B", BaseType: "N.A", Keys: []string{"Id"}, Properties: []model.Property{{Name: "Id", EdmType: "Edm.Int32"}}},
+		},
+		sets:     []model.EntitySet{{Name: "As", EntityType: "N.A"}},
+		bindings: []model.NavigationBinding{{Set: "As", Path: "Next", Target: "Bs"}},
 	}
-	m := model.NeuesServiceModel("4.0", []string{"N", "M"}, typen, []model.EntitySet{{Name: "As", EntityType: "N.A"}},
-		[]model.NavigationBinding{{Set: "As", Path: "Next", Target: "Bs"}})
-	return m, typen
+	return model.NeuesServiceModel("4.0", e.namespaces, e.typen, e.sets, e.bindings), e
 }
 
 func ansicht(m model.ServiceModel) string {
@@ -30,26 +41,29 @@ func ansicht(m model.ServiceModel) string {
 func TestServiceModelLeseSicht(t *testing.T) {
 	aendere := []struct {
 		name string
-		f    func(m model.ServiceModel, eingabe []model.EntityType)
+		f    func(m model.ServiceModel, e eingaben)
 	}{
-		{"Namespaces", func(m model.ServiceModel, _ []model.EntityType) { m.Namespaces()[0] = "X" }},
-		{"EntityTypes", func(m model.ServiceModel, _ []model.EntityType) {
+		{"Namespaces", func(m model.ServiceModel, _ eingaben) { m.Namespaces()[0] = "X" }},
+		{"EntityTypes", func(m model.ServiceModel, _ eingaben) {
 			e := m.EntityTypes()
 			e[0].Name, e[0].Keys[0], e[0].Properties[0].Name = "X", "X", "X"
 		}},
-		{"EntityTypes Nav", func(m model.ServiceModel, _ []model.EntityType) {
+		{"EntityTypes Nav", func(m model.ServiceModel, _ eingaben) {
 			m.EntityTypes()[0].NavigationProperties[0].Name = "X"
 		}},
-		{"EntityType", func(m model.ServiceModel, _ []model.EntityType) {
+		{"EntityType", func(m model.ServiceModel, _ eingaben) {
 			e, _ := m.EntityType("N.A")
 			e.Keys[0], e.Properties[0].Name, e.NavigationProperties[0].Name = "X", "X", "X"
 		}},
-		{"EntitySets", func(m model.ServiceModel, _ []model.EntityType) { m.EntitySets()[0].Name = "X" }},
-		{"NavigationBindings", func(m model.ServiceModel, _ []model.EntityType) { m.NavigationBindings()[0].Path = "X" }},
-		{"UnterstuetzteEDMTypen", func(model.ServiceModel, []model.EntityType) { model.UnterstuetzteEDMTypen()[0] = "X" }},
-		{"Eingabe des Konstruktors", func(_ model.ServiceModel, e []model.EntityType) {
-			e[0].Keys[0], e[0].Properties[0].Name, e[1].Name = "X", "X", "X"
+		{"EntitySets", func(m model.ServiceModel, _ eingaben) { m.EntitySets()[0].Name = "X" }},
+		{"NavigationBindings", func(m model.ServiceModel, _ eingaben) { m.NavigationBindings()[0].Path = "X" }},
+		{"UnterstuetzteEDMTypen", func(model.ServiceModel, eingaben) { model.UnterstuetzteEDMTypen()[0] = "X" }},
+		{"Eingabe Namespaces", func(_ model.ServiceModel, e eingaben) { e.namespaces[0] = "X" }},
+		{"Eingabe EntityTypes", func(_ model.ServiceModel, e eingaben) {
+			e.typen[0].Keys[0], e.typen[0].Properties[0].Name, e.typen[0].NavigationProperties[0].Name, e.typen[1].Name = "X", "X", "X", "X"
 		}},
+		{"Eingabe EntitySets", func(_ model.ServiceModel, e eingaben) { e.sets[0].Name, e.sets[0].EntityType = "X", "X" }},
+		{"Eingabe NavigationBindings", func(_ model.ServiceModel, e eingaben) { e.bindings[0].Path, e.bindings[0].Target = "X", "X" }},
 	}
 	for _, a := range aendere {
 		m, eingabe := leseSicht()
