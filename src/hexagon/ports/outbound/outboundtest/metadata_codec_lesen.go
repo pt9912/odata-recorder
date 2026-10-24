@@ -46,6 +46,32 @@ func mit(body, vor, wo, was string) string {
 	return vor + strings.Replace(body, wo, was, 1)
 }
 
+// zeichen ist die Menge der Zeichen von Nr. 3, aus Bytewerten: beide Seiten jeder Grenze des Bereichs von XML 1.0 und
+// die Bytefolgen, die kein UTF-8 sind. gueltig sagt, ob das Zeichen erlaubt ist.
+func zeichen() []zeichenArt {
+	var out []zeichenArt
+	for _, z := range []struct{ name, bytes string }{
+		{"NUL", "\x00"}, {"0x01", "\x01"}, {"0x08", "\x08"}, {"0x0B", "\x0B"}, {"0x0C", "\x0C"}, {"0x0E", "\x0E"}, {"0x1F", "\x1F"},
+		{"U+FFFE", "\xEF\xBF\xBE"}, {"U+FFFF", "\xEF\xBF\xBF"}, {"Byte 0xE4 einzeln", "\xE4"}, {"Byte 0xFF", "\xFF"},
+		{"überlanger Code", "\xC0\xAF"}, {"Surrogat D800", "\xED\xA0\x80"}, {"Surrogat DFFF", "\xED\xBF\xBF"}, {"U+110000", "\xF4\x90\x80\x80"},
+	} {
+		out = append(out, zeichenArt{z.name, z.bytes, false})
+	}
+	for _, z := range []struct{ name, bytes string }{
+		{"U+0009", "\t"}, {"U+000A", "\n"}, {"U+000D", "\r"}, {"U+0020", " "}, {"DEL", "\x7F"}, {"U+0080", "\xC2\x80"}, {"U+009F", "\xC2\x9F"},
+		{"U+00A0", "\xC2\xA0"}, {"U+D7FF", "\xED\x9F\xBF"}, {"U+E000", "\xEE\x80\x80"}, {"U+FFFD", "\xEF\xBF\xBD"}, {"U+10000", "\xF0\x90\x80\x80"},
+		{"U+10FFFF", "\xF4\x8F\xBF\xBF"},
+	} {
+		out = append(out, zeichenArt{z.name, z.bytes, true})
+	}
+	return out
+}
+
+type zeichenArt struct {
+	name, bytes string
+	gueltig     bool
+}
+
 func faelleB2(t *testing.T) []fall {
 	t.Helper()
 	body := koerper()
@@ -67,12 +93,19 @@ func faelleB2(t *testing.T) []fall {
 		schlecht("0xFF am Anfang", []byte("\xFF\xFF"+body), model.UrsacheSyntax, ""),
 		schlecht("UTF-8-Zeichen am Ende abgeschnitten", []byte(body+"\xC3"), model.UrsacheSyntax, ""),
 	)
-	for _, f := range []struct{ name, bytes string }{
-		{"Byte 0xE4 ohne Deklaration", "\xE4"}, {"Byte 0x01", "\x01"}, {"überlanger UTF-8-Code", "\xC0\xAF"},
-		{"Surrogat", "\xED\xA0\x80"}, {"U+FFFE", "\xEF\xBF\xBE"}, {"NUL", "\x00"},
-	} {
-		out = append(out, schlecht(f.name, []byte(mit(body, "", `Version="4.0"`, `Version="4.0" x="`+f.bytes+`"`)), model.UrsacheSyntax, ""),
-			schlecht(f.name+" im Kommentar", []byte(mit(body, "", "<edmx:DataServices>", "<!--"+f.bytes+"--><edmx:DataServices>")), model.UrsacheSyntax, ""))
+	for _, z := range zeichen() {
+		for _, o := range []struct{ name, wo, was string }{
+			{"im Attribut", `Version="4.0"`, `Version="4.0" x="` + z.bytes + `"`},
+			{"im Kommentar", "<edmx:DataServices>", "<!--" + z.bytes + "--><edmx:DataServices>"},
+			{"im Text", "<edmx:DataServices>", "<edmx:DataServices>" + z.bytes},
+		} {
+			doc := []byte(mit(body, "", o.wo, o.was))
+			if z.gueltig {
+				out = append(out, gut("Zeichen "+z.name+" "+o.name, doc))
+			} else {
+				out = append(out, schlecht("Zeichen "+z.name+" "+o.name, doc, model.UrsacheSyntax, ""))
+			}
+		}
 	}
 	for _, f := range []struct{ name, kopf string }{
 		{"version 1.1", `<?xml version="1.1"?>`}, {"Leerraum vor der Deklaration", " " + erklaert},
@@ -144,7 +177,36 @@ func faelleB4() []fall {
 	for _, r := range []string{"&foo;", "&amp", "&#;", "&#0;", "&#1;", "&#xD800;", "&#xDFFF;", "&#55296;", "&#x110000;", "&#X41;"} {
 		out = append(out, schlecht("Referenz "+r, mitTerm("x"+r+"y"), model.UrsacheSyntax, ""))
 	}
-	return append(out, schlecht("Ersatzzeichen im Text", eins(typOhne("T", schluesselID+"&#xD800;")), model.UrsacheSyntax, ""))
+	out = append(out, schlecht("Ersatzzeichen im Text", eins(typOhne("T", schluesselID+"&#xD800;")), model.UrsacheSyntax, ""))
+	return append(out, faelleB4Ersatz()...)
+}
+
+// faelleB4Ersatz sind die Ersatzreferenzen (Nr. 4 b: jede Referenz in jedem Attributwert und Text) nach einer anderen
+// Referenz, in jedem Attribut eines Elements und im Text neben Kommentar und CDATA, dazu gültige Nachbarn.
+func faelleB4Ersatz() []fall {
+	annotation := func(attrs string) []byte { return eins(typ("T", "<Annotation "+attrs+"/>")) }
+	text := func(inhalt string) []byte { return eins(typOhne("T", schluesselID+inhalt)) }
+	var out []fall
+	for _, a := range []struct{ name, attrs string }{
+		{"nach einer Zeichenreferenz", `Term="a&#65;&#xD800;"`}, {"in der Mitte dreier Referenzen", `Term="&#65;&#xD800;&#66;"`},
+		{"vor einer Zeichenreferenz", `Term="&#xD800;&#65;"`}, {"nach einer vordefinierten Entität", `Term="&amp;&#xD800;"`},
+		{"nach vier gültigen Referenzen", `Term="&#65;&#66;&#x43;&lt;&#xD800;"`},
+		{"im ersten von zwei Attributen", `Term="a&#xD800;" Qualifier="q"`}, {"im letzten von zwei Attributen", `Qualifier="q" Term="a&#xD800;"`},
+		{"im mittleren von drei Attributen", `A="1" Term="&#xD800;" Qualifier="q"`},
+		{"im letzten von drei Attributen nach U+FFFD", "A=\"�\" B=\"&#xFFFD;\" Term=\"&#xDFFF;\""},
+	} {
+		out = append(out, schlecht("Ersatzreferenz "+a.name, annotation(a.attrs), model.UrsacheSyntax, ""))
+	}
+	for _, x := range []struct{ name, inhalt string }{
+		{"nach einer Zeichenreferenz im Text", "a&#65;&#xD800;"}, {"nach CDATA", "<![CDATA[x]]>&#xD800;"}, {"vor CDATA", "&#xD800;<![CDATA[x]]>"},
+		{"nach CDATA und Referenz", "<![CDATA[�]]>&#65;&#xD800;"}, {"nach einem Kommentar", "&#65;<!-- c -->&#xD800;"},
+	} {
+		out = append(out, schlecht("Ersatzreferenz "+x.name, text(x.inhalt), model.UrsacheSyntax, ""))
+	}
+	out = append(out,
+		gut("U+FFFD als Zeichen und als Referenz in drei Attributen", annotation("A=\"�\" Term=\"&#xFFFD;&#65;\" Qualifier=\"&#x41;�\"")),
+		gut("U+FFFD und Referenzen im Text neben CDATA", text("�&#xFFFD;<![CDATA[&#xD800;�]]>&#65;")))
+	return out
 }
 
 // zeileB4: die fünf Entitäten und Zeichenreferenzen im Bereich von XML 1.0, jede andere Referenz ist syntax (Nr. 4 b).
@@ -178,8 +240,12 @@ func faelleB5(t *testing.T) []fall {
 		{"PI in einem Element", aender(r, "<Key>", "<Key><?foo?>")}, {"xml-stylesheet", aender(r, ersteWurzel, `<?xml-stylesheet href="a"?>`+ersteWurzel)},
 		{"CDATA", aender(r, "<Key>", "<Key><![CDATA[a<b�&#xD800;]]>")}, {"Text zwischen Elementen", aender(r, "<Key>", "<Key>text")},
 		{"Leerraum um die Wurzel", append(aender(r, ersteWurzel, "\n\t"+ersteWurzel), " \n\t"...)},
+		{"CR um die Wurzel", append(aender(r, ersteWurzel, "\r"+ersteWurzel), "\r"...)}, {"CR LF um die Wurzel", append(aender(r, ersteWurzel, "\r\n"+ersteWurzel), "\r\n"...)},
 	} {
 		out = append(out, gut(f.name, f.doc))
+	}
+	for _, w := range []struct{ name, zeichen string }{{"Leerzeichen", " "}, {"Tabulator", "\t"}, {"CR", "\r"}, {"LF", "\n"}} {
+		out = append(out, gut(w.name+" nach der Wurzel", append(bytes.Clone(r), w.zeichen...)), gut(w.name+" vor der Wurzel", aender(r, ersteWurzel, w.zeichen+ersteWurzel)))
 	}
 	zweite := `<edmx:Edmx xmlns:edmx="` + edmxNs + `" Version="4.0"/>`
 	for _, f := range []struct {
@@ -193,6 +259,11 @@ func faelleB5(t *testing.T) []fall {
 		{"Direktive <!FOO>", aender(r, "<Key>", "<!FOO><Key>")}, {"End-Tag der Wurzel fehlt", bytes.TrimSuffix(r, []byte(ende))},
 	} {
 		out = append(out, schlecht(f.name, f.doc, model.UrsacheSyntax, ""))
+	}
+	for _, w := range []struct{ name, zeichen string }{{"U+00A0", "\xC2\xA0"}, {"U+0085", "\xC2\x85"}, {"U+2003", "\xE2\x80\x83"}, {"U+000C", "\x0C"}} {
+		out = append(out, schlecht(w.name+" nach der Wurzel", append(bytes.Clone(r), w.zeichen...), model.UrsacheSyntax, ""),
+			schlecht(w.name+" vor der Wurzel", aender(r, ersteWurzel, w.zeichen+ersteWurzel), model.UrsacheSyntax, ""),
+			schlecht(w.name+" nach Leerraum nach der Wurzel", append(bytes.Clone(r), " \n"+w.zeichen...), model.UrsacheSyntax, ""))
 	}
 	return out
 }
@@ -211,6 +282,43 @@ func zeileB5(t *testing.T, neu CodecNeu) {
 			t.Errorf("%s: Ergebnis weicht von R ab", f.name)
 		}
 	}
+	for _, g := range faelleB5Attribute() {
+		_, b := pruefeFall(t, neu, g.fall)
+		if g.ursache == "" && fmt.Sprint(b.Funde) != fmt.Sprint(g.funde) {
+			t.Errorf("%s: Funde %v, erwartet %v", g.name, b.Funde, g.funde)
+		}
+	}
+}
+
+// faelleB5Attribute sind doppelte Attribute (Nr. 4: gleicher Namensraum und gleicher lokaler Name, auch über zwei
+// Präfixe derselben URI) und ihre gültigen Nachbarn (gleicher lokaler Name in zwei Namensräumen, mit und ohne Namensraum).
+func faelleB5Attribute() []g1Fall {
+	prop := func(attrs string) []byte { return eins(typ("T", "<Property "+attrs+"/>")) }
+	erw := func(name string) model.Fund { return model.Fund{Art: model.FundErweiterung, Ort: "Ns.T/P", Name: name} }
+	const kopf = `Name="P" Type="Edm.String"`
+	var out []g1Fall
+	for _, d := range []struct{ name, attrs string }{
+		{"zwei Präfixe derselben URI", `xmlns:a="urn:x" xmlns:b="urn:x" ` + kopf + ` a:k="1" b:k="2"`},
+		{"dasselbe Präfix zweimal", `xmlns:a="urn:x" ` + kopf + ` a:k="1" a:k="2"`},
+		{"zwei Präfixe derselben URI, getrennt durch ein anderes Attribut", `xmlns:a="urn:x" xmlns:b="urn:x" a:k="1" ` + kopf + ` b:k="2"`},
+		{"dasselbe nicht deklarierte Präfix zweimal", kopf + ` p:k="1" p:k="2"`},
+		{"xmlns-Deklaration zweimal", `xmlns:a="urn:x" xmlns:a="urn:y" ` + kopf},
+		{"xml:lang zweimal", kopf + ` xml:lang="de" xml:lang="en"`},
+	} {
+		out = append(out, g1Fall{fall: schlecht("doppeltes Attribut mit Namensraum: "+d.name, prop(d.attrs), model.UrsacheSyntax, "")})
+	}
+	for _, d := range []struct {
+		name, attrs string
+		funde       []model.Fund
+	}{
+		{"gleicher lokaler Name in zwei Namensräumen", `xmlns:a="urn:x" xmlns:b="urn:y" ` + kopf + ` a:k="1" b:k="2"`, []model.Fund{erw("{urn:x}k"), erw("{urn:y}k")}},
+		{"gleicher lokaler Name mit und ohne Namensraum", `xmlns:a="urn:x" ` + kopf + ` a:Name="1"`, []model.Fund{erw("{urn:x}Name")}},
+		{"zwei nicht deklarierte Präfixe", kopf + ` p:k="1" q:k="2"`, []model.Fund{erw("{p}k"), erw("{q}k")}},
+		{"zwei Präfixe derselben URI mit verschiedenen lokalen Namen", `xmlns:a="urn:x" xmlns:b="urn:x" ` + kopf + ` a:k="1" b:l="2"`, []model.Fund{erw("{urn:x}k"), erw("{urn:x}l")}},
+	} {
+		out = append(out, g1Fall{fall: gut("Attribute mit Namensraum: "+d.name, prop(d.attrs)), funde: d.funde})
+	}
+	return out
 }
 
 func faelleB6() []fall {
@@ -266,7 +374,8 @@ func faelleC1() []fall {
 		doc  []byte
 	}{
 		{"Edmx ohne Namensraum", []byte(`<Edmx Version="4.0">` + ds + `</Edmx>`)}, {"Foo im V4-Namensraum", wurzel(edmxNs, "Foo", "4.0", ds)},
-		{"edmx klein", wurzel(edmxNs, "edmx", "4.0", ds)}, {"Edmx in example.com", wurzel("http://example.com/", "Edmx", "4.0", ds)},
+		{"edmx klein", wurzel(edmxNs, "edmx", "4.0", ds)}, {"Foo im V3-Namensraum, Version 3.0", wurzel(edmxV3, "Foo", "3.0", ds)},
+		{"Foo im V3-Namensraum, Version 4.0", wurzel(edmxV3, "Foo", "4.0", ds)}, {"edmx klein im V3-Namensraum", wurzel(edmxV3, "edmx", "-", ds)}, {"Edmx in example.com", wurzel("http://example.com/", "Edmx", "4.0", ds)},
 		{"ohne DataServices", wurzel(edmxNs, "Edmx", "4.0", "")}, {"zwei DataServices", wurzel(edmxNs, "Edmx", "4.0", ds+ds)},
 		{"DataServices im fremden Namensraum", wurzel(edmxNs, "Edmx", "4.0", fremd)},
 	} {
