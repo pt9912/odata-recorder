@@ -57,6 +57,7 @@ Ein roter Lauf lässt den Stempel unverändert, ein fehlender Stempel erzwingt d
 34. `race/ohne-rennen` · `pruefung race` · Wegwerfmodul mit einem Paket unter `src/hexagon/`, dessen Test zwei Goroutinen einen Zähler unter einer Sperre erhöhen lässt und auf beide wartet · Exit 0, Ausgabe nennt `pruefung race: ok`.
 35. `race/rennen-in-jedem-teilbaum` · `pruefung race` ohne Muster · Wegwerfmodul mit je einem Paket unter `src/hexagon/` (Rennen nur im Testcode), `src/adapters/` und `src/bootstrap/` (Rennen im Code des Pakets, vom Test aufgerufen) und einem vierten Paket unter `src/hexagon/` mit einem Test, der `t.Fatal` ruft, ohne Rennen; in den drei Paketen mit Rennen starten zwei Goroutinen ohne Kante zwischen ihnen und ändern denselben Zähler, der Test wartet erst danach auf beide · Exit 1, Ausgabe nennt `WARNING: DATA RACE` und für alle vier Pakete eine Zeile `FAIL` mit dem Importpfad.
 36. `race/rennen-und-zeitgrenze` · `pruefung race` mit den Argumenten `-timeout=5s ./...` · Wegwerfmodul mit einem Paket, dessen Test ein Rennen wie in Fall 35 erzeugt, auf beide Goroutinen wartet und danach blockiert (`select {}`) · Exit 1, Ausgabe nennt `WARNING: DATA RACE` und `test timed out`.
+37. `a-check/xml-im-kern` · `a-check` · ein Paket in `src/hexagon/model` importiert `encoding/xml` · Exit 1, Ausgabe nennt `core-impurity`.
 Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
 Das Rennen der Fälle 35 und 36 ist nicht zeitabhängig (`SPEC-122` Nr. 8).
 Gemessen am 2026-10-22 mit dem Testbinary der Fixtures unter `-race`, je Lauf ein eigener Prozess mit `-test.count=1`: das Rennen jedes der drei Teilbäume von Fall 35 wurde in 200 von 200 Läufen gemeldet, die Fixture von Fall 34 blieb in 200 von 200 Läufen ohne Meldung, Fall 36 mit beiden Meldungen (`WARNING: DATA RACE` und `test timed out`) in 100 von 100.
@@ -82,7 +83,7 @@ Weichen Compiler oder Go-Version des Images der Stufe `gegenproben` von denen de
 Dass das Ziel `src/` ganz und den Quellstand der Stufe `source` fährt, belegt `make gates`, nicht die Gegenprobe.
 
 **Zeitbudget** (Wanduhr, `time make gegenproben`): bei geänderten Eingaben und kaltem Docker-Build-Cache höchstens 120 s, bei unveränderten Eingaben höchstens 1 s.
-Gemessen am 2026-10-22 mit allen 36 Fällen auf einem Host mit 20 Kernen und schwankender Last, Images lokal vorhanden: 80,5 bis 93,8 s im Ganzen (`time make gegenproben`).
+Gemessen am 2026-10-22 mit den Fällen 1 bis 36 auf einem Host mit 20 Kernen und schwankender Last, Images lokal vorhanden: 80,5 bis 93,8 s im Ganzen (`time make gegenproben`).
 Davon laufen die Fälle (Schritt `RUN gegenproben` der Stufe) 54,3 bis 67 s, das Prüfen und Bauen des Programms rund 7 s und der Export des Images der Stufe 16,8 bis 18 s.
 Bei unveränderten Eingaben dauert der Aufruf 0,3 s.
 Die `go`-Aufrufe der Fälle 25 bis 28 kosten bei kaltem `GOCACHE` bis zu 27 s je Fall.
@@ -94,7 +95,7 @@ Liegt ein Lauf darüber, misst der Implementer neu und trägt den Wert mit Grund
 **Stand:** vorhanden für `make a-check`, `make lint`, `make migration-check`, `make test`, `make build` und `make test-race`.
 
 **Grenze:** Kein Gate und kein Hook liest den Stempel; er belegt nur, dass ein Lauf zu dieser Prüfsumme grün war, und wer ihn von Hand schreibt, belegt nichts.
-Die Fälle prüfen die Importrichtungen `core-impurity` und Adapter auf Adapter sowie die Direktiv- und `# Why:`-Regeln; weitere Verstoßformen kommen mit den Bibliotheksgrenzen.
+Die Fälle prüfen die Importrichtungen `core-impurity` und Adapter auf Adapter sowie die Direktiv- und `# Why:`-Regeln; die Bibliotheksgrenzen halten Fall 20 (`modernc.org/sqlite` in einem fremden Adapter) und Fall 37 (`encoding/xml` im Kern, die Regel der `tech`-Liste von `.a-check.yml`); die Seite „erlaubt“ von `encoding/xml` im Paket `src/adapters/driven/odata/csdl` hält Fall 1, der den Baum von `src/` fährt; weitere Verstoßformen kommen mit weiteren Bibliotheksgrenzen.
 Das Programm selbst prüft die Stufe mit `gofmt`, `go vet` und `go test`; `make lint` prüft es als zweites Modul (`SPEC-101`).
 Die Liste der Eingaben in `tools/harness/gegenproben-eingabe.sh` steht einmal im Skript; dass sie `tools/pruefung` nennt, fängt kein Fall — wer den Eintrag entfernt, lässt die Prüfsumme bei einer Änderung an `pruefung` gleich.
 Die Fälle zu `make test` und `make build` prüfen `pruefung` mit den Verstoßformen aus der Liste; sie fangen nicht, dass ein Ziel `pruefung` nicht ruft (das Gate ist im `Dockerfile` verdrahtet).
