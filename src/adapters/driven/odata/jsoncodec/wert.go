@@ -21,6 +21,12 @@ func lesWert(p model.Property, k *knoten) (model.Wert, model.DatenUrsache) {
 		return lesGanz(k, 64, model.ArtInt64, true)
 	case "Edm.Decimal":
 		return lesDezimal(k)
+	case "Edm.Guid":
+		return lesText(k, model.ArtGUID, guidText)
+	case "Edm.Date":
+		return lesText(k, model.ArtDate, datumText)
+	case "Edm.DateTimeOffset":
+		return lesText(k, model.ArtDateTimeOffset, zeitpunktText)
 	}
 	return model.Wert{}, model.DatenTyp
 }

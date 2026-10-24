@@ -8,7 +8,7 @@ import (
 
 // edmTypenJSON sind die EDM-Typen, die der Leser liest (SPEC-126 Nr. 10) und die die Literalmodelle T und W führen.
 func edmTypenJSON() []string {
-	return []string{"Edm.String", "Edm.Boolean", "Edm.Int32", "Edm.Int64", "Edm.Decimal"}
+	return []string{"Edm.String", "Edm.Boolean", "Edm.Int32", "Edm.Int64", "Edm.Decimal", "Edm.Guid", "Edm.Date", "Edm.DateTimeOffset"}
 }
 
 // kurz ist der Name des EDM-Typs ohne `Edm.`.
@@ -64,8 +64,8 @@ func modellW() model.ServiceModel {
 	return model.NeuesServiceModel("4.0", []string{"T"}, typen, sets, nil)
 }
 
-// paarTypen sind die EDM-Typen der Properties des Modells P, die je nach Stand der Typen wechseln.
-func paarTypen() (part, shipped string) { return "Edm.Int64", "Edm.Int64" }
+// paarTypen sind die EDM-Typen des Schlüsselteils Part und der Property Shipped des Modells P.
+func paarTypen() (part, shipped string) { return "Edm.Guid", "Edm.Date" }
 
 // modellP hat den Typ `T.P` mit dem Schlüssel `Part`, `Seq`, einem String, einem Datum, einer nicht nullbaren
 // Ganzzahl und einer Dezimalzahl (Set `Ps`), die Properties der Stellen S1 bis S15 der Paare.

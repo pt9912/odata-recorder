@@ -44,6 +44,7 @@ func ODataCodecVertrag(t *testing.T, neu ODataCodecNeu, meta outbound.MetadataCo
 		{"D1 Kontext gültig", jD1}, {"D2 Kontext ungültig", jD2},
 		{"E1 nextLink", jE1}, {"E2 count", jE2}, {"E3 odata.type", jE3}, {"E4 Annotationen", jE4}, {"E5 Mitglieder", jE5},
 		{"F1 String", jF1}, {"F2 Boolean", jF2}, {"F3 Int32", jF3}, {"F4 Int64", jF4}, {"F5 Decimal", jF5},
+		{"F6 Guid", jF6}, {"F7 Date", jF7}, {"F8 DateTimeOffset", jF8}, {"Z1 Composite-Schlüssel mit Guid", jZ1},
 		{"F9 null gegen nicht selektiert", jF9}, {"F10 JSON-Typ gegen EDM-Typ", jF10}, {"F11 Marker", jF11},
 		{"G1 Schlüssel eines Typs", jG1}, {"G2 zusammengesetzter Schlüssel", jG2}, {"G3 Verletzungen des Schlüssels", jG3},
 		{"H1 Rangfolge im Lesen", jH1}, {"H2 Rangfolge im Deuten", jH2}, {"H3 jeder Verstoß ist ODR-E6101", jH3},
@@ -71,6 +72,7 @@ func neueJSuite(t *testing.T, neu ODataCodecNeu, meta outbound.MetadataCodec) *j
 	s.modelle["R"] = lade(festes(t, "referenz.xml"))
 	s.modelle["Z"] = lade(festes(t, "vererbung.xml"))
 	s.modelle["K"] = lade([]byte(compositeOhneZ))
+	s.modelle["KZ"] = lade(festes(t, "composite.xml"))
 	return s
 }
 

@@ -37,7 +37,7 @@ func (s *jsuite) alleFaelle(*testing.T) []jfall {
 	if s.faelle == nil {
 		s.faelle = verbinde(jfGrund(), jfB1(), jfB2(), jfB3(), jfB4(), jfB5(), jfB6(), jfC1(), jfC2(), jfC3(),
 			jfD1(), jfD2(), jfE1(), jfE2(), jfE3(), jfE4(), jfE5(), jfF1(), jfF2(), jfF3(), jfF4(),
-			jfF5(), jfF9(), jfF10(), jfF11(), jfG1(), jfG2(), jfG3(), h1Faelle(), h2Faelle(), jfI3(), jfK1())
+			jfF5(), jfF6(), jfF7(), jfF8(), jfZ1(), jfF9(), jfF10(), jfF11(), jfG1(), jfG2(), jfG3(), h1Faelle(), h2Faelle(), jfI3(), jfK1())
 	}
 	return s.faelle
 }

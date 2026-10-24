@@ -29,6 +29,9 @@ func typDaten() []typDatum {
 		{"Edm.Int32", model.ArtInt32, `7`, "7", "", "", "", false, false},
 		{"Edm.Int64", model.ArtInt64, `7`, "7", `"7"`, "7", `"x"`, false, true},
 		{"Edm.Decimal", model.ArtDecimal, `1.50`, "1.5", `"1.50"`, "1.5", `"x"`, false, true},
+		{"Edm.Guid", model.ArtGUID, "", "", `"0F8FAD5B-D9CB-469F-A165-70867728950E"`, guidKlein, `"{` + guidKlein + `}"`, false, true},
+		{"Edm.Date", model.ArtDate, "", "", `"2020-01-01"`, "2020-01-01", `"2023-02-29"`, false, true},
+		{"Edm.DateTimeOffset", model.ArtDateTimeOffset, "", "", `"2020-01-01T01:00:00+01:00"`, "2020-01-01T00:00:00Z", `"2020-01-01"`, false, true},
 	}
 }
 
@@ -133,6 +136,18 @@ func schluesselWerte(edm string) []schluesselWert {
 		return []schluesselWert{
 			{"9007199254740993", []string{`9007199254740993`, `"9007199254740993"`, `9007199254740993.0`}},
 			{"9007199254740992", []string{`9007199254740992`, `"9007199254740992"`}}, {"-1", []string{`-1`, `"-1"`}},
+		}
+	case "Edm.Guid":
+		return []schluesselWert{
+			{guidKlein, []string{`"` + guidKlein + `"`, `"` + strings.ToUpper(guidKlein) + `"`}},
+			{"00000000-0000-0000-0000-000000000000", []string{`"00000000-0000-0000-0000-000000000000"`}},
+		}
+	case "Edm.Date":
+		return []schluesselWert{{"2020-01-01", []string{`"2020-01-01"`}}, {"2024-02-29", []string{`"2024-02-29"`}}, {"0001-01-01", []string{`"0001-01-01"`}}}
+	case "Edm.DateTimeOffset":
+		return []schluesselWert{
+			{"2020-01-01T00:00:00Z", []string{`"2020-01-01T00:00:00Z"`, `"2020-01-01T01:00:00+01:00"`, `"2020-01-01T00:00Z"`, `"2019-12-31T19:00:00-05:00"`, `"2020-01-01T00:00:00.000Z"`}},
+			{"2020-01-01T00:00:00.5Z", []string{`"2020-01-01T00:00:00.5Z"`, `"2020-01-01T00:00:00.50Z"`, `"2020-01-01T01:00:00.5+01:00"`}},
 		}
 	}
 	return []schluesselWert{{"1.5", []string{`1.5`, `15e-1`, `"1.50"`}}, {"1", []string{`1`, `1.0`, `"1"`, `10e-1`}}, {"0.1", []string{`0.1`, `1e-1`}}, {"-2.5", []string{`-2.5`, `-25e-1`}}}

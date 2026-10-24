@@ -40,9 +40,9 @@ func hStellen() []hStelle {
 	}
 }
 
-// paarWerte sind die JSON-Werte des Modells P, die je nach Stand der Typen wechseln: ein gültiger Teil Part des Schlüssels
-// und ein ungültiger Wert für Shipped.
-func paarWerte() (partGut, shippedSchlecht string) { return `1`, `"x"` }
+// paarWerte sind die JSON-Werte des Modells P: ein gültiger Teil Part des Schlüssels (ein Guid) und ein ungültiger Wert für
+// Shipped (ein Datum, das der Kalender nicht kennt).
+func paarWerte() (partGut, shippedSchlecht string) { return `"` + guidKlein + `"`, `"2023-02-29"` }
 
 // hItem ist ein Mitglied eines Objekts im Body; stelle ist die Stelle, deren Verstoß es trägt (0: keiner).
 type hItem struct {
