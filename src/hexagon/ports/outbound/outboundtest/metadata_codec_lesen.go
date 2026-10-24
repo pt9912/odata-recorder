@@ -260,6 +260,10 @@ func faelleB5(t *testing.T) []fall {
 	} {
 		out = append(out, schlecht(f.name, f.doc, model.UrsacheSyntax, ""))
 	}
+	for _, ref := range []string{"&#32;", "&#9;", "&#xA;", "&#xD;", "&#xA0;", "&amp;", "&lt;"} {
+		out = append(out, schlecht("Referenz "+ref+" nach der Wurzel", append(bytes.Clone(r), ref...), model.UrsacheSyntax, ""),
+			schlecht("Referenz "+ref+" vor der Wurzel hinter der Deklaration", aender(r, ersteWurzel, ref+ersteWurzel), model.UrsacheSyntax, ""))
+	}
 	for _, w := range []struct{ name, zeichen string }{{"U+00A0", "\xC2\xA0"}, {"U+0085", "\xC2\x85"}, {"U+2003", "\xE2\x80\x83"}, {"U+000C", "\x0C"}} {
 		out = append(out, schlecht(w.name+" nach der Wurzel", append(bytes.Clone(r), w.zeichen...), model.UrsacheSyntax, ""),
 			schlecht(w.name+" vor der Wurzel", aender(r, ersteWurzel, w.zeichen+ersteWurzel), model.UrsacheSyntax, ""),

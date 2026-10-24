@@ -96,7 +96,7 @@ func (l *lauf) token(tok xml.Token, von, bis int64) error {
 	case xml.EndElement:
 		return l.ende()
 	case xml.CharData:
-		if len(l.stack) == 0 && len(bytes.Trim(t, " \t\r\n")) > 0 {
+		if len(l.stack) == 0 && (len(bytes.Trim(t, " \t\r\n")) > 0 || bytes.IndexByte(l.st.alles[von:bis], '&') >= 0) {
 			return fehler(model.UrsacheSyntax, "")
 		}
 		return l.refs(von, bis, t)
