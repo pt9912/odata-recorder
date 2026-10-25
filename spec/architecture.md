@@ -78,7 +78,7 @@ flowchart TB
 | `ARC-021` | Querschnitts-Ports (`src/hexagon/ports/support`) | `AuditLog`, `Telemetry`, `Clock`, `IDGenerator`; jede Schicht darf sie nutzen, damit Adapter ohne Use Case Audit-Einträge, Korrelations-IDs und Spans erzeugen können |
 | `ARC-020` | Audit/Telemetry Driven Adapter (`src/adapters/driven/audit`, `src/adapters/driven/telemetry`) | Audit-Log, strukturierte Logs, Metriken und Spans hinter `AuditLog` und `Telemetry` |
 
-**Baseline-Import:** `ImportUseCase` in `ARC-002` liest Exchanges über `RecordingRepository`, liest das `$metadata` der Session über den Port `MetadataCodec` (`ARC-011`) in das Modell des Dienstes (ein Fehler `ODR-E6004` endet den Import, bevor etwas geschrieben ist), liest die OData-V4-JSON-Antworten (Einzel-Entity und Collection) über den Port `ODataCodec` (`ARC-011`) gegen dieses Modell in typisierte Entities mit kanonischem Schlüssel, geprüften Typen und den Nachweisen `@odata.nextLink` und `@odata.count` (ein Fehler `ODR-E6101` endet den Import), schreibt ein unveränderliches Snapshot-Manifest über `SnapshotRepository`/`BlobRepository`, führt Import-Eintrag und Baseline-Quellen über `ImportRepository`, veröffentlicht die Baseline atomar und legt danach die Metadaten des Service über `MetadataRepository` ab.
+**Baseline-Import:** `ImportUseCase` in `ARC-002` prüft die Session über `SessionRepository` (unbekannt, anderer Service, noch offen), liest ihre Exchanges über `RecordingRepository` und die Bodies über `BlobRepository`, liest das `$metadata` der Session über den Port `MetadataCodec` (`ARC-011`) in das Modell des Dienstes (ein Fehler `ODR-E6004` endet den Import, bevor etwas geschrieben ist), wählt die Antworten, die der Codec lesen kann, liest die OData-V4-JSON-Antworten (Einzel-Entity und Collection) über den Port `ODataCodec` (`ARC-011`) gegen dieses Modell in typisierte Entities mit kanonischem Schlüssel, geprüften Typen und den Nachweisen `@odata.nextLink` und `@odata.count` (ein Fehler `ODR-E6101` endet den Import), führt die Beobachtungen je Entity zusammen oder weist einen Widerspruch ab (`ODR-E6101`), belegt die Coverage je Entity-Set allein durch den Vollständigkeitsbeweis (die Kette der `@odata.nextLink` löst er mit dem Match-Key auf, den auch Record und Replay bilden), schreibt ein unveränderliches Snapshot-Manifest über `BlobRepository`, veröffentlicht Snapshot, Import-Eintrag, Baseline-Quellen und Coverage atomar über `ImportRepository` und legt danach die Metadaten des Service über `MetadataRepository` ab; eine Wiederholung mit gleicher `import_id` und gleicher Anfrage erkennt er über `ImportRepository`, bevor er die Session liest.
 Kein HTTP-Adapter und kein SQLite-Adapter entscheidet selbst über Deduplizierung oder Coverage.
 
 **Abgrenzung:** Die OData-Query-Semantik (Filter, Sortierung, Paging, Typregeln) gehört zum Core; das Parsen konkreter HTTP-/CSDL-/JSON-Darstellungen liegt im Codec-Adapter.
@@ -171,7 +171,7 @@ tests/
 
 | Port | Aufgabe | Rückgabe |
 |---|---|---|
-| `ImportUseCase` | Aufgezeichnete Entities explizit in eine neue Mock-Baseline überführen; Import-Report und Provenienz lesen; Wiederholung mit gleicher `import_id` idempotent behandeln | Snapshot-ID, Import-Report, Coverage-Evidenz |
+| `ImportUseCase` | Die Antworten einer beendeten Session explizit in eine neue Mock-Baseline überführen (Entities zusammenführen oder Widerspruch abweisen, Coverage durch Beweis belegen, Manifest veröffentlichen, Metadaten des Service setzen); den Import-Report mit den Quellen lesen; Wiederholung mit gleicher `import_id` und gleicher Anfrage idempotent behandeln | Import-Eintrag mit Snapshot-ID, Coverage-Evidenz und Report (derselbe Report bei einer Wiederholung) |
 | `RecordUseCase` | HTTP-Austausch an Upstream weiterleiten und erfassen; die Aufzeichnung einer Session anhalten (`Drain`: neue Exchanges abweisen, laufende bis zur Frist abwarten, überfällige abbrechen und mit dem Capture-Status schreiben, den ihre Ergebnisse ergeben, `SPEC-121` Nr. 13) | Response mit Body-Strom, dessen Schließen den Exchange anhängt, bzw. Zahl der abgebrochenen und der nicht angehängten Exchanges |
 | `ReplayUseCase` | Recording zu explizitem Workspace, Recording-Session und Replay-Session matchen | aufgezeichnete Response oder Mismatch |
 | `MockUseCase` | OData-Request auf Workspace-State ausführen | OData-Response |
@@ -316,24 +316,32 @@ sequenceDiagram
     participant O as Operator (Driving Actor)
     participant A as Admin Adapter
     participant I as Import Service
+    participant X as Session Repository
     participant R as Recording Repository
     participant K as Metadata Codec Port
     participant C as OData Codec Port
-    participant S as Snapshot Repository
+    participant B as Blob Repository
+    participant P as Import Repository
     participant D as Metadata Repository
     O->>A: POST /__admin/imports
-    A->>I: Import(session IDs, service)
-    I->>R: Read completed exchanges
-    R-->>I: Recorded bodies + provenance
+    A->>I: Import(import ID, service, session, metadata hash)
+    I->>P: Look up the import ID
+    P-->>I: Unknown (a repeat with the same request ends here: stored report, service metadata set again)
+    I->>X: Read the session (known, same service, not open)
+    I->>R: Read the session's exchanges
+    R-->>I: Exchanges with their blobs
     I->>K: Read the session's $metadata (CSDL)
     K-->>I: Service model + validation report, or ODR-E6004 before anything is written
-    I->>C: Parse and validate against the model
-    C-->>I: Typed entities, nextLink and count per response, or ODR-E6101
-    I->>I: Merge/deduplicate or reject conflicts
-    I->>S: Write manifest and publish atomically
-    S-->>I: Immutable baseline ID
+    loop each readable response, in sequence order
+        I->>C: Parse and validate against the model
+        C-->>I: Typed entities, nextLink and count, or ODR-E6101
+    end
+    I->>I: Merge observations or reject conflicts; derive coverage and its evidence (completeness proof over the nextLink chain)
+    I->>B: Write the manifest
+    I->>P: Publish snapshot, import, sources and coverage atomically
+    P-->>I: Import (new, or the stored one of a concurrent repeat)
     I->>D: Set the service's metadata (blob reference = hash), also on an idempotent repeat
-    I-->>A: Import report
+    I-->>A: Import with report
     A-->>O: Baseline ID + coverage
 ```
 
@@ -510,6 +518,7 @@ sequenceDiagram
 
 Die Coverage ist an die **Baseline-ID** gebunden, nicht an den Service.
 Die Property-Maske gehört zu jedem gespeicherten Entity-State und zu jedem Snapshot.
+Der Import legt sie fest: bekannt ist, was mindestens eine aufgezeichnete Antwort nannte und nicht redigiert war (auch `null`); eine redigierte oder nie genannte Property ist unbekannt.
 Lokale Writes ändern die Herkunftsevidenz nicht.
 
 ### 4.8 LH-FA-02 / LH-FA-14 — Capture ohne Klartext-Spool

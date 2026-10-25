@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-09`, `LH-FA-04`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md)
 
-**Berührte Spec-Stellen:** `LH-FA-09.a`, `LH-FA-09.b` · `SPEC-003` · `SPEC-108` · `SPEC-043` (Prüfung der Baseline vor der Anlage) · `SPEC-070`, `SPEC-025`, `SPEC-095`, `SPEC-096` · `LH-RB-04.a` (Bereinigung nach dem Löschen) · `ARC-002`, `ARC-003`.
+**Berührte Spec-Stellen:** `LH-FA-09.a`, `LH-FA-09.b` · `SPEC-003` · `SPEC-108` · `SPEC-043` (Prüfung der Baseline vor der Anlage) · `SPEC-127` Nr. 11, 14 (Form des Manifests) · `SPEC-070`, `SPEC-025`, `SPEC-095`, `SPEC-096` · `LH-RB-04.a` (Bereinigung nach dem Löschen) · `ARC-002`, `ARC-003`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -39,6 +39,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Bereinigung):** `WorkspaceUseCase` ruft nach dem Löschen eines Workspace (mit seinen Snapshots) die Blob-Bereinigung von `MaintenanceUseCase` über den Inbound Port, den `slice-session-wartung` liefert (`ARC-002`: löschende Use Cases rufen sie nach dem Commit; `LH-RB-04.a`: best effort); Sendung von `slice-session-wartung`, dessen Start `slice-baseline-import` und damit `slice-session-wartung` in `done/` voraussetzt. Die Operation heißt `CleanupBlobs(ctx) (Loeschbericht, error)` (`SPEC-123`); ein Fehler von ihr und `Zurueckgestellt` ändern das Ergebnis des Löschens nicht, der Aufrufer protokolliert den Fehler (`SPEC-123` Nr. 8, Pflicht des Aufrufers; Sendung von `slice-session-wartung`). Die Operation wartet auf die Sperre des Wächters und ist dabei nicht durch `ctx` abbrechbar (`SPEC-123` Nr. 2, *Ungeprüft*): wartet der Aufrufer unter einer Frist, überschreitet er sie höchstens um die Dauer eines Abgleichs, und wer nicht warten will, ruft sie in einer eigenen Goroutine (Sendung von `slice-session-wartung`).
 
+**Übernimmt (Manifest):** Das Anlegen liest die Baseline aus ihrem Manifest, dem Blob `StateBlob` des Snapshots (Kanonform, `SPEC-127` Nr. 14; Sendung von `slice-baseline-import`, `AGENTS.md` §3.13), und legt je Eintrag von `entities` einen `EntityState` an: `entity_set`; `entity_key` gleich `typed_key`; `payload_json` gleich `payload` (ein Objekt der bekannten Properties, bei einem Typ, der vom Typ des Sets abweicht, mit `"@odata.type"`; `int64` und `decimal` stehen als JSON-String, `SPEC-127` Nr. 11 a); `known_properties` gleich `selected_properties`; `entity_completeness` gleich `completeness`; `deleted` falsch. `StateHash` des Snapshots ist die Referenz von `StateBlob` (der SHA-256 der Bytes, `Blobs.Open` prüft ihn). Die Coverage der Baseline liegt in `CoverageRepository`, der Workspace kopiert sie nicht (`SPEC-044`); das Manifest kann so groß sein wie die Summe der Entities einer Session (`SPEC-127` *Ungeprüft*), das Lesen hält es im Speicher.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Mutation des Entity-State und Fortschreiben der Revision durch Schreibzugriffe — Mock-Modus, nicht in der Welle; hier erhöht nur der Reset die Revision.
@@ -63,7 +65,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Anlegen: Prüfung der Baseline (`ODR-E7002`, `ODR-E7008`, `ODR-E5004`), Materialisieren des Entity-State aus dem Manifest in einer Transaktion über `WithWorkspaceTransaction`, `ODR-E7007` bei Doppelung.
+- [ ] Anlegen: Prüfung der Baseline (`ODR-E7002`, `ODR-E7008`, `ODR-E5004`), Materialisieren des Entity-State aus dem Manifest (Form: `SPEC-127` Nr. 11 und 14, §1 *Übernimmt (Manifest)*) in einer Transaktion über `WithWorkspaceTransaction`, `ODR-E7007` bei Doppelung.
 - [ ] Lesen, Auflisten, Löschen (`ODR-E7001` bei Unbekanntem; Cursors und Snapshots entfallen mit), danach die Blob-Bereinigung über den Inbound Port von `MaintenanceUseCase` rufen; ihr Fehler und `Zurueckgestellt` ändern das Ergebnis des Löschens nicht (Sendung von `slice-session-wartung`, `SPEC-123` Nr. 8).
 - [ ] Reset in einer Transaktion: State, Cursors, Revision; auch ohne Mutationen definiert und im sichtbaren Ergebnis idempotent.
 - [ ] `make gates` grün.
