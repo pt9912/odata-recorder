@@ -2,7 +2,9 @@ package baselineimport_test
 
 import (
 	"fmt"
+	"math"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -408,42 +410,220 @@ func TestZeileH9Anzahl(t *testing.T) {
 	}
 }
 
-// TestZeileH10MehrereKetten: alle belegt und gleiche Schlüsselmenge (Menge 10).
-func TestZeileH10MehrereKetten(t *testing.T) {
-	gleich := func(b *bauer, q string) { b.collection("Products", q, seite(produkteVon([]int{1, 2})...)) }
-	anders := func(b *bauer, q string) { b.collection("Products", q, seite(produkteVon([]int{1, 3})...)) }
-	gebrochen := func(b *bauer, q string) {
-		b.collection("Products", q, mitLink(seite(produkteVon([]int{1, 2})...), "Products?$skiptoken=99"))
+// startQuery ist die i-te von vier Queries ungefilterter Abfragen, die verschiedene Keys haben.
+func startQuery(i int) string { return []string{"", "$format=json", "$count=true", "$orderby=Id"}[i] }
+
+// start legt eine ungefilterte Abfrage von Products mit den Schlüsseln ids an; gebrochen trägt einen
+// Link auf eine Seite, die die Session nicht hat.
+func (b *bauer) start(q string, ids []int, gebrochen bool) {
+	s := seite(produkteVon(ids)...)
+	if gebrochen {
+		s = mitLink(s, "Products?$skiptoken=99")
 	}
-	typen := map[string]func(*bauer, string){"gleich": gleich, "anders": anders, "gebrochen": gebrochen}
-	faelle := []struct {
+	b.collection("Products", q, s)
+}
+
+// h10Fall ist ein Fall der Menge von H10: eine Session, ihr Status und der Grund.
+type h10Fall struct {
+	name   string
+	bau    func(b *bauer)
+	status string
+	grund  string
+}
+
+// TestZeileH10MehrereKetten: alle Ketten belegt, gleiche Schlüsselmenge K und der Bestand des Sets ist K
+// (Menge 49: 10 Starts, 8 Beziehungen, 22 Quellen des Bestands, 7 Teilmengen der Gründe, 2 Randfälle).
+func TestZeileH10MehrereKetten(t *testing.T) {
+	var faelle []h10Fall
+	// (a) Paare und Tripel von Starts (10).
+	gleich, anders, gebrochen := "gleich", "anders", "gebrochen"
+	art := map[string]func(b *bauer, q string){
+		gleich:    func(b *bauer, q string) { b.start(q, []int{1, 2}, false) },
+		anders:    func(b *bauer, q string) { b.start(q, []int{1, 3}, false) },
+		gebrochen: func(b *bauer, q string) { b.start(q, []int{1, 2}, true) },
+	}
+	for _, f := range []struct {
 		starts []string
 		grund  string
 		status string
 	}{
-		{[]string{"gleich", "gleich"}, "kette_belegt", "complete"}, {[]string{"gleich", "gleich"}, "kette_belegt", "complete"},
-		{[]string{"gleich", "anders"}, "ketten_abweichend", "partial"}, {[]string{"anders", "gleich"}, "ketten_abweichend", "partial"},
-		{[]string{"gleich", "gebrochen"}, "kette_nicht_belegt", "partial"}, {[]string{"gebrochen", "gleich"}, "kette_nicht_belegt", "partial"},
-		{[]string{"gebrochen", "gebrochen"}, "kette_nicht_belegt", "partial"},
-		{[]string{"gleich", "gleich", "anders"}, "ketten_abweichend", "partial"}, {[]string{"gleich", "anders", "gleich"}, "ketten_abweichend", "partial"},
-		{[]string{"anders", "gleich", "gleich"}, "ketten_abweichend", "partial"},
+		{[]string{gleich, gleich}, "kette_belegt", "complete"}, {[]string{gleich, anders}, "ketten_abweichend", "partial"},
+		{[]string{anders, gleich}, "ketten_abweichend", "partial"}, {[]string{gleich, gebrochen}, "kette_nicht_belegt", "partial"},
+		{[]string{gebrochen, gleich}, "kette_nicht_belegt", "partial"}, {[]string{anders, gebrochen}, "kette_nicht_belegt", "partial"},
+		{[]string{gebrochen, gebrochen}, "kette_nicht_belegt", "partial"},
+		{[]string{gleich, gleich, anders}, "ketten_abweichend", "partial"}, {[]string{gleich, anders, gleich}, "ketten_abweichend", "partial"},
+		{[]string{anders, gleich, gleich}, "ketten_abweichend", "partial"},
+	} {
+		starts := f.starts
+		faelle = append(faelle, h10Fall{fmt.Sprint("Starts ", starts), func(b *bauer) {
+			for i, s := range starts {
+				art[s](b, startQuery(i))
+			}
+		}, f.status, f.grund})
 	}
-	queries := []string{"", "$format=json", "$count=true"}
-	n := 0
+	// (b) Die acht geordneten Beziehungen zweier belegter Ketten.
+	for _, f := range []struct {
+		name   string
+		k1, k2 []int
+	}{
+		{"gleich", []int{1, 2}, []int{1, 2}}, {"K1 echt in K2", []int{1, 2}, []int{1, 2, 3}}, {"K2 echt in K1", []int{1, 2, 3}, []int{1, 2}},
+		{"gleiche Größe, ein Element getauscht", []int{1, 2}, []int{1, 3}}, {"ungleiche Größe, überlappend", []int{1, 2}, []int{2, 3, 4}},
+		{"disjunkt", []int{1, 2}, []int{3, 4}}, {"K1 leer", nil, []int{1, 2}}, {"K2 leer", []int{1, 2}, nil},
+	} {
+		k1, k2 := f.k1, f.k2
+		status, grund := "partial", "ketten_abweichend"
+		if f.name == "gleich" {
+			status, grund = "complete", "kette_belegt"
+		}
+		faelle = append(faelle, h10Fall{"Beziehung " + f.name, func(b *bauer) {
+			b.start(startQuery(0), k1, false)
+			b.start(startQuery(1), k2, false)
+		}, status, grund})
+	}
+	// (c) Quellen des Bestands: elf Quellen mal Lage des Schlüssels in K oder außerhalb (22).
+	quellen := []struct {
+		name string
+		bau  func(b *bauer, id int)
+	}{
+		{"Entity", func(b *bauer, id int) { b.entity("Products", fmt.Sprint(id), produkteVon([]int{id})[0]) }},
+	}
+	for _, q := range []string{"$filter=Id%20eq%203", "$top=10", "$skip=1", "$skiptoken=7", "$search=x", "$expand=Category", "sap-client=100", "@a=1", "x", "=v"} {
+		quellen = append(quellen, struct {
+			name string
+			bau  func(b *bauer, id int)
+		}{"Query " + q, func(b *bauer, id int) { b.collection("Products", q, seite(produkteVon([]int{id})...)) }})
+	}
+	for _, q := range quellen {
+		for _, lage := range []struct {
+			name   string
+			id     int
+			status string
+			grund  string
+		}{{"in K", 1, "complete", "kette_belegt"}, {"außerhalb von K", 3, "partial", "bestand_ausserhalb_kette"}} {
+			faelle = append(faelle, h10Fall{q.name + ", " + lage.name, func(b *bauer) {
+				b.start(startQuery(0), []int{1, 2}, false)
+				q.bau(b, lage.id)
+			}, lage.status, lage.grund})
+		}
+	}
+	// (d) Die sieben nichtleeren Teilmengen der Bedingungen {nicht belegt, abweichend, außerhalb}: der Grund der ersten.
+	for teil := 1; teil < 8; teil++ {
+		nb, ab, aus := teil&1 != 0, teil&2 != 0, teil&4 != 0
+		grund := "bestand_ausserhalb_kette"
+		switch {
+		case nb:
+			grund = "kette_nicht_belegt"
+		case ab:
+			grund = "ketten_abweichend"
+		}
+		faelle = append(faelle, h10Fall{fmt.Sprintf("Bedingungen nicht_belegt=%v abweichend=%v außerhalb=%v", nb, ab, aus), func(b *bauer) {
+			b.start(startQuery(0), []int{1, 2}, false)
+			if ab {
+				b.start(startQuery(1), []int{1, 3}, false)
+			}
+			if nb {
+				b.start(startQuery(2), []int{1, 2}, true)
+			}
+			if aus {
+				b.entity("Products", "9", produkteVon([]int{9})[0])
+			}
+		}, "partial", grund})
+	}
+	// (e) Randfälle: K leer mit einer Einzel-Entity; derselbe Schlüssel in einem anderen Set.
+	faelle = append(faelle,
+		h10Fall{"K leer und eine Einzel-Entity", func(b *bauer) {
+			b.start(startQuery(0), nil, false)
+			b.entity("Products", "1", produkteVon([]int{1})[0])
+		}, "partial", "bestand_ausserhalb_kette"},
+		h10Fall{"derselbe Schlüssel in einem anderen Set", func(b *bauer) {
+			b.start(startQuery(0), []int{1, 2}, false)
+			b.entity("Orders", "OrderID=1,LineNo=2", ent(typBestell, "3", pw("OrderID", model.ArtInt32, "1")))
+		}, "complete", "kette_belegt"},
+	)
+	if len(faelle) != 49 {
+		t.Fatalf("Menge %d, erwartet 49", len(faelle))
+	}
 	for _, f := range faelle {
-		n++
 		w := neu(t)
-		b := w.standard()
-		for i, s := range f.starts {
-			typen[s](b, queries[i])
-		}
+		f.bau(w.standard())
 		mustImport(t, w, anfrage())
-		status, grund, ketten := ketteVon(t, w)
-		if status != f.status || grund != f.grund || len(ketten) != len(f.starts) {
-			t.Errorf("%v: %s/%s mit %d Ketten", f.starts, status, grund, len(ketten))
+		status, ev := eintrag(t, w, "Products")
+		if status != f.status || grundVon(ev) != f.grund {
+			t.Errorf("%s: %s/%s, erwartet %s/%s", f.name, status, grundVon(ev), f.status, f.grund)
 		}
 	}
-	if n != 10 {
-		t.Errorf("Menge %d", n)
+}
+
+// evidenzVon liefert den Text der Evidenz des Sets aus der Veröffentlichung.
+func evidenzVon(t *testing.T, w *welt, set string) string {
+	t.Helper()
+	for _, c := range w.imports.pubs[0].Coverage {
+		if c.EntitySet == set {
+			return c.EvidenceJSON
+		}
 	}
+	t.Fatalf("kein Eintrag für %s", set)
+	return ""
+}
+
+// TestZeileH9AnzahlKlasse: @odata.count der ersten Seite gegen die verschiedenen Schlüssel d (SPEC-127 Nr. 12 d, 13).
+// Die Menge: d {0, 1, 3, 3 aus 5 Elementen} mal declared {fehlt, 0, d-1, d, d+1, Zahl der Elemente, 2^31-1, 2^31, 2^32+d,
+// MaxInt64} mal Ende {proven, schleife, seite_fehlt}, höchstens 120 nach dem Entdoppeln. count steht bei jeder Kette,
+// deren erste Seite eine Anzahl nannte, mit observed der verschiedenen Schlüssel der erreichten Seiten;
+// anzahl_abweichend steht nur bei einer Kette, die sonst proven endete.
+func TestZeileH9AnzahlKlasse(t *testing.T) {
+	const fehlt = int64(-1)
+	elemente := [][]int{nil, {1}, {1, 2, 3}, {1, 2, 3, 1, 2}}
+	gesehen := map[string]bool{}
+	n, mitCount := 0, 0
+	for _, ids := range elemente {
+		verschieden := map[int]bool{}
+		for _, id := range ids {
+			verschieden[id] = true
+		}
+		d, zahl := int64(len(verschieden)), int64(len(ids))
+		for _, deklariert := range []int64{fehlt, 0, d - 1, d, d + 1, zahl, math.MaxInt32, math.MaxInt32 + 1, 1<<32 + d, math.MaxInt64} {
+			for _, ende := range []string{"proven", "schleife", "seite_fehlt"} {
+				schluessel := fmt.Sprint(ids, deklariert, ende)
+				if gesehen[schluessel] {
+					continue
+				}
+				gesehen[schluessel] = true
+				n++
+				spec := seitenSpec{ids: ids}
+				switch ende {
+				case "schleife":
+					spec.link = "Products"
+				case "seite_fehlt":
+					spec.link = "Products?$skiptoken=99"
+				}
+				if deklariert >= 0 {
+					spec.anzahl = int64p(deklariert)
+				}
+				w := neu(t)
+				w.standard().kette(spec)
+				mustImport(t, w, anfrage())
+				status, _, ketten := ketteVon(t, w)
+				soll := ende
+				if ende == "proven" && deklariert >= 0 && deklariert != d {
+					soll = "anzahl_abweichend"
+				}
+				if got := endeVon(ketten[0]); got != soll || (soll == "proven") != (status == "complete") {
+					t.Errorf("Elemente %v, declared %d, Ende %s: Ende %s, Status %s, erwartet %s", ids, deklariert, ende, got, status, soll)
+				}
+				ev := evidenzVon(t, w, "Products")
+				count := fmt.Sprintf(`"count":{"declared":%d,"observed":%d}`, deklariert, d)
+				if hat := strings.Contains(ev, `"count":`); hat != (deklariert >= 0) || (hat && !strings.Contains(ev, count)) {
+					t.Errorf("Elemente %v, declared %d, Ende %s: Evidenz %s, erwartet %s", ids, deklariert, ende, ev, count)
+				}
+				if deklariert >= 0 {
+					mitCount++
+				}
+			}
+		}
+	}
+	if n > 120 || n < 100 || mitCount < 90 {
+		t.Errorf("Menge %d (mit count %d), erwartet höchstens 120 nach dem Entdoppeln", n, mitCount)
+	}
+	t.Logf("H9: %d Fälle nach dem Entdoppeln, davon %d mit declared", n, mitCount)
 }

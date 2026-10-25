@@ -13,6 +13,7 @@ const (
 	grundKeineUngefilterte = "keine_ungefilterte_abfrage"
 	grundKetteNichtBelegt  = "kette_nicht_belegt"
 	grundKettenAbweichend  = "ketten_abweichend"
+	grundBestandAusserhalb = "bestand_ausserhalb_kette"
 	grundKetteBelegt       = "kette_belegt"
 	endeBelegt             = "proven"
 	evidenzVersion         = 1
@@ -51,8 +52,10 @@ type kette struct {
 	schluessel map[string]struct{}
 }
 
-// coverageStatus bildet Status und Grund aus dem Nachweis (Nr. 12 g).
-func coverageStatus(gelesen int, hatStart bool, ketten []kette) (model.CoverageStatus, string) {
+// coverageStatus bildet Status und Grund aus dem Nachweis (Nr. 12 g); entities ist die Zahl der
+// verschiedenen Schlüssel des Sets in der Baseline. Die Schlüssel der Ketten liegen im Bestand, so
+// dass Gleichheit von Bestand und Menge der Ketten die Gleichheit der Zahlen ist.
+func coverageStatus(gelesen int, hatStart bool, ketten []kette, entities int) (model.CoverageStatus, string) {
 	switch {
 	case gelesen == 0:
 		return model.CoverageUnknown, grundKeineBeobachtung
@@ -62,6 +65,8 @@ func coverageStatus(gelesen int, hatStart bool, ketten []kette) (model.CoverageS
 		return model.CoveragePartial, grundKetteNichtBelegt
 	case slices.ContainsFunc(ketten, func(k kette) bool { return !gleicheMenge(k.schluessel, ketten[0].schluessel) }):
 		return model.CoveragePartial, grundKettenAbweichend
+	case entities > len(ketten[0].schluessel):
+		return model.CoveragePartial, grundBestandAusserhalb
 	}
 	return model.CoverageComplete, grundKetteBelegt
 }
@@ -106,7 +111,7 @@ func bewerteSet(k kettenlauf, set string, gelesen []*antwort, entities int) (mod
 		}
 		hatStart = hatStart || a.ungefiltert
 	}
-	status, grund := coverageStatus(len(gelesen), hatStart, ketten)
+	status, grund := coverageStatus(len(gelesen), hatStart, ketten, entities)
 	return status, objekt{
 		"version":   evidenzVersion,
 		"reason":    grund,

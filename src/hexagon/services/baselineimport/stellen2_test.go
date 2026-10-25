@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -223,4 +224,115 @@ func phase(op string) int {
 		return 99
 	}
 	return 0
+}
+
+// closeLauf ist ein Lauf von F4: der Import auf der Session R, dessen n-te Operation op mit fehler scheitert, und alle
+// Streams scheitern beim Schließen mit closeFehler.
+type closeLauf struct {
+	r       inbound.ImportErgebnis
+	err     error
+	zaehler map[string]int
+	w       *welt
+}
+
+func laufeMitClose(t *testing.T, op string, fehler, closeFehler error) closeLauf {
+	t.Helper()
+	w := neu(t)
+	w.sessionR()
+	if fehler != nil {
+		w.p.scheitere(op, 1, fehler)
+	}
+	if closeFehler != nil {
+		w.p.scheitere("Close", 0, closeFehler)
+	}
+	r, err := w.importiere(anfrage())
+	w.p.mu.Lock()
+	z := maps.Clone(w.p.zaehler)
+	w.p.mu.Unlock()
+	return closeLauf{r, err, z, w}
+}
+
+// TestZeileF4CloseFehler: ein Fehler von Close eines gelesenen Stroms wird nicht ausgewertet (SPEC-127 Nr. 7 f, 9):
+// drei Stellen {$metadata, Collection, Entity} mal fünf Ausgänge {gelungen, Fehler des Lesers, Kontextfehler, Fehler von
+// src, ErrUngueltig} mal vier Formen von Close {gelingt, scheitert mit einem fremden Fehler, mit einem Kontextfehler,
+// mit einem Fehler der Tabelle (ErrBlobFehlt)} (60): Close gleich Open gleich 1 je Strom und vor dem nächsten Open,
+// dieselbe Rückgabe (der Fehler per Wert, das Ergebnis byte-gleich) und dieselben Zähler aller Ports wie mit gelingendem Close.
+func TestZeileF4CloseFehler(t *testing.T) {
+	stellenOps := []struct{ name, op string }{{"$metadata", "ParseMetadata"}, {"Collection", "ParseCollection"}, {"Entity", "ParseEntity"}}
+	ausgaenge := []struct {
+		name string
+		err  error
+	}{
+		{"gelungen", nil}, {"Fehler des Lesers", nil}, {"Kontextfehler", context.Canceled},
+		{"Fehler von src", outbound.ErrBlobBeschaedigt}, {"ErrUngueltig", model.ErrUngueltig},
+	}
+	closeFormen := []struct {
+		name string
+		err  error
+	}{
+		{"gelingt", nil}, {"fremder Fehler", errPlatte}, {"Kontextfehler", context.DeadlineExceeded}, {"Fehler der Tabelle", outbound.ErrBlobFehlt},
+	}
+	n := 0
+	for _, s := range stellenOps {
+		for _, a := range ausgaenge {
+			err := a.err
+			if a.name == "Fehler des Lesers" {
+				err = &model.DatenFehler{Ursache: model.DatenWert}
+				if s.op == "ParseMetadata" {
+					err = &model.MetadatenFehler{Ursache: model.UrsacheStruktur}
+				}
+			}
+			ref := laufeMitClose(t, s.op, err, nil)
+			for _, c := range closeFormen {
+				n++
+				name := s.name + " / " + a.name + " / Close " + c.name
+				got := laufeMitClose(t, s.op, err, c.err)
+				// Close gleich Open gleich 1 je Strom, vor dem nächsten Open.
+				strome := got.w.blobs.strome()
+				if len(strome) == 0 || got.zaehler["Close"] != got.zaehler["Blobs.Open"] {
+					t.Errorf("%s: Close %d, Open %d", name, got.zaehler["Close"], got.zaehler["Blobs.Open"])
+				}
+				for i, st := range strome {
+					if st.geschlossen() != 1 {
+						t.Errorf("%s: Strom %d %d-mal geschlossen", name, i, st.geschlossen())
+					}
+				}
+				offen := false
+				for _, e := range got.w.p.folge() {
+					switch e {
+					case "Blobs.Open":
+						if offen {
+							t.Errorf("%s: Open vor Close", name)
+						}
+						offen = true
+					case "Close":
+						offen = false
+					}
+				}
+				// Dieselbe Rückgabe wie mit gelingendem Close.
+				switch {
+				case err == nil:
+					if got.err != nil || got.r.Import.ReportJSON != ref.r.Import.ReportJSON || got.r.Neu != ref.r.Neu {
+						t.Errorf("%s: Fehler %v oder anderes Ergebnis", name, got.err)
+					}
+				case a.name == "Kontextfehler":
+					if got.err != err {
+						t.Errorf("%s: Fehler %v, erwartet derselbe Kontextfehler", name, got.err)
+					}
+				default:
+					var f, rf *inbound.Fehler
+					if !errors.As(got.err, &f) || !errors.As(ref.err, &rf) || f.Code != rf.Code || f.Status != rf.Status || !errors.Is(got.err, err) {
+						t.Errorf("%s: Fehler %v, erwartet wie ohne Fehler von Close: %v", name, got.err, ref.err)
+					}
+				}
+				// Dieselben Zähler aller Ports.
+				if !maps.Equal(got.zaehler, ref.zaehler) {
+					t.Errorf("%s: Zähler %v, erwartet %v", name, got.zaehler, ref.zaehler)
+				}
+			}
+		}
+	}
+	if n != 60 {
+		t.Errorf("Menge %d, erwartet 60", n)
+	}
 }

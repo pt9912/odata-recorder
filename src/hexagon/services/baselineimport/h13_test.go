@@ -44,6 +44,10 @@ func TestZeileH13EvidenzMitKette(t *testing.T) {
 			ev(`{"end":"seite_fehlt","pages":[`+seite1+`],`+start, "1", "kette_nicht_belegt", "1"), "partial"},
 		{"anzahl_abweichend", kette(seitenSpec{ids: []int{1}, anzahl: int64p(5)}),
 			ev(`{"count":{"declared":5,"observed":1},"end":"anzahl_abweichend","pages":[`+seite1+`],`+start, "1", "kette_nicht_belegt", "1"), "partial"},
+		{"bestand_ausserhalb_kette", func(b *bauer) {
+			b.kette(seitenSpec{ids: []int{1}})
+			b.entity("Products", "2", produkteVon([]int{2})[0])
+		}, `{"chains":[{"end":"proven","pages":[` + seite1 + `],` + start + `],"entities":2,"reason":"bestand_ausserhalb_kette","responses":{"collection":1,"entity":1},"version":1}`, "partial"},
 		{"ketten_abweichend", func(b *bauer) {
 			b.collection("Products", "", seite(produkteVon([]int{1, 2})...))
 			b.collection("Products", "$format=json", seite(produkteVon([]int{1, 3})...))

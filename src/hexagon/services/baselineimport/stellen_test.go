@@ -129,13 +129,31 @@ func kontextFehler() []error {
 	return []error{c, context.DeadlineExceeded, errors.Join(c, outbound.ErrBlobFehlt), fmt.Errorf("%w", c)}
 }
 
-// TestZeileF2Kontextfehler: an jeder der 16 Stellen und für jede der vier Formen (Menge 64) kehrt
-// derselbe Fehlerwert ohne Code zurück, danach geschieht nichts außer Close und Abort.
+// kontextNebenFehler sind die Kontextfehler neben einem Fehler der Tabelle: zwei Kontextfehler mal drei
+// Anordnungen mal die zehn Fehler von portFehler (60 Fehlerwerte, SPEC-127 Nr. 2: „auch neben einem Fehler der Tabelle“).
+func kontextNebenFehler() []error {
+	var out []error
+	for _, c := range []error{context.Canceled, context.DeadlineExceeded} {
+		for _, f := range portFehler() {
+			out = append(out, errors.Join(c, f.err), errors.Join(f.err, c), fmt.Errorf("%w: %w", c, f.err))
+		}
+	}
+	return out
+}
+
+// TestZeileF2Kontextfehler: an jeder der 16 Stellen kehrt derselbe Fehlerwert ohne Code zurück, danach
+// geschieht nichts außer Close und Abort. Menge 1024: (A) vier Formen allein (64) und (B) neben jedem
+// der zehn Fehler eines Ports in drei Anordnungen, für beide Kontextfehler (960).
 func TestZeileF2Kontextfehler(t *testing.T) {
-	n := 0
+	n, a, b := 0, 0, 0
 	for _, s := range stellen() {
-		for _, k := range kontextFehler() {
+		for i, k := range slices.Concat(kontextFehler(), kontextNebenFehler()) {
 			n++
+			if i < 4 {
+				a++
+			} else {
+				b++
+			}
 			_, nachher, err := s.lauf(t, k)
 			if err != k {
 				t.Errorf("%s mit %v: Fehler %v ist nicht derselbe Wert", s.name, k, err)
@@ -148,8 +166,8 @@ func TestZeileF2Kontextfehler(t *testing.T) {
 			}
 		}
 	}
-	if n != 64 {
-		t.Errorf("Menge %d, erwartet 64", n)
+	if n != 1024 || a != 64 || b != 960 {
+		t.Errorf("Menge %d (A %d, B %d), erwartet 1024 (64, 960)", n, a, b)
 	}
 }
 

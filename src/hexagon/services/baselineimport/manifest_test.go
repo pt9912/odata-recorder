@@ -2,6 +2,8 @@ package baselineimport_test
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"math"
 	"slices"
@@ -91,7 +93,99 @@ func TestZeileI1Manifest(t *testing.T) {
 	}
 }
 
-// TestZeileI2Kanonform: Strings, Zahlen, Schlüssel und die leere Liste mit Sollbytes von Hand (Menge 48).
+// TestZeileI1TypedKeyAufsteigend: typed_key steigt nach den Bytes (SPEC-127 Nr. 14 a), nicht nach der Länge.
+// Acht Schlüssel, alle 28 Paare in beiden Reihenfolgen (56); Orakel die Ordnung der Bytes.
+func TestZeileI1TypedKeyAufsteigend(t *testing.T) {
+	keys := []string{"1", "9", "10", "100", "2", "'a'", "'B'", "'ab'"}
+	n := 0
+	for i := range keys {
+		for j := range keys {
+			if i == j {
+				continue
+			}
+			n++
+			w := neu(t)
+			w.standard().collection("Products", "", seite(ent(typProdukt, keys[i], pw("Id", model.ArtInt32, "1")), ent(typProdukt, keys[j], pw("Id", model.ArtInt32, "1"))))
+			mustImport(t, w, anfrage())
+			soll := []string{"Products|" + keys[i], "Products|" + keys[j]}
+			if keys[j] < keys[i] {
+				soll[0], soll[1] = soll[1], soll[0]
+			}
+			if got := schluessel(entitaeten(manifest(t, w))); !slices.Equal(got, soll) {
+				t.Errorf("%q und %q: %v, erwartet %v", keys[i], keys[j], got, soll)
+			}
+		}
+	}
+	if len(keys) != 8 || n != 56 {
+		t.Errorf("Schlüssel %d, Paare in beiden Reihenfolgen %d, erwartet 8 und 56", len(keys), n)
+	}
+}
+
+// TestZeileI1ProvenienzHashMitTyp: der Hash der Provenienz ist der SHA-256 der Kanonform des Objekts aus den
+// Werten der Projektion, mit @odata.type, wenn der Typ vom Typ des Sets abweicht (SPEC-127 Nr. 11 d). Typ der
+// Entity {Typ des Sets, abgeleiteter Typ} mal Quelle {Collection, Entity} (4); Orakel encoding/json.
+func TestZeileI1ProvenienzHashMitTyp(t *testing.T) {
+	n := 0
+	for _, typ := range []string{typProdukt, typGeschenk} {
+		for _, collection := range []bool{true, false} {
+			n++
+			w := neu(t)
+			e := ent(typ, "1", pw("Id", model.ArtInt32, "1"), pw("Name", model.ArtString, "Milch"))
+			w.standard().beobachtung("Products", collection, e)
+			mustImport(t, w, anfrage())
+			objekt := map[string]any{"Id": 1, "Name": "Milch"}
+			if typ != typProdukt {
+				objekt["@odata.type"] = "#" + typ
+			}
+			roh, err := json.Marshal(objekt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			summe := sha256.Sum256(roh)
+			soll := "sha256:" + hex.EncodeToString(summe[:])
+			prov := entitaeten(manifest(t, w))[0]["provenance"].([]any)
+			if len(prov) != 1 || prov[0].(map[string]any)["hash"] != soll {
+				t.Errorf("Typ %s, Collection %v: %v, erwartet %s über %s", typ, collection, prov, soll, roh)
+			}
+		}
+	}
+	if n != 4 {
+		t.Errorf("Menge %d, erwartet 4", n)
+	}
+}
+
+// TestZeileI1ElementsJeArt: elements einer Quelle ist die Zahl der Beobachtungen, die der Exchange lieferte
+// (SPEC-127 Nr. 14 a): metadata 0, collection mit 0, 1 und 3 Elementen, entity 1 (Menge 5).
+func TestZeileI1ElementsJeArt(t *testing.T) {
+	faelle := []struct {
+		name  string
+		bau   func(b *bauer)
+		art   string
+		soll  float64
+		index int // Position der Quelle im Manifest
+	}{
+		{"metadata", func(b *bauer) {}, "metadata", 0, 0},
+		{"collection mit 0", func(b *bauer) { b.collection("Products", "", seite()) }, "collection", 0, 1},
+		{"collection mit 1", func(b *bauer) { b.collection("Products", "", seite(produkteVon([]int{1})...)) }, "collection", 1, 1},
+		{"collection mit 3", func(b *bauer) { b.collection("Products", "", seite(produkteVon([]int{1, 2, 3})...)) }, "collection", 3, 1},
+		{"entity", func(b *bauer) { b.entity("Products", "1", produkteVon([]int{1})[0]) }, "entity", 1, 1},
+	}
+	for _, f := range faelle {
+		w := neu(t)
+		f.bau(w.standard())
+		mustImport(t, w, anfrage())
+		quellen := manifest(t, w)["provenance"].([]any)
+		q := quellen[f.index].(map[string]any)
+		if q["kind"] != f.art || q["elements"] != f.soll {
+			t.Errorf("%s: %v, erwartet kind %s mit %v Elementen", f.name, q, f.art, f.soll)
+		}
+	}
+	if len(faelle) != 5 {
+		t.Errorf("Menge %d, erwartet 5", len(faelle))
+	}
+}
+
+// TestZeileI2Kanonform: Strings, Zahlen, Schlüssel und die leere Liste mit Sollbytes von Hand (Menge 51).
 func TestZeileI2Kanonform(t *testing.T) {
 	n := 0
 	pruefe := func(name string, v any, soll string) {
@@ -113,6 +207,10 @@ func TestZeileI2Kanonform(t *testing.T) {
 	for c := 0; c < 0x20; c++ {
 		pruefe("Zeichen unter 0x20", string([]byte{byte(c)}), `"\u00`+string(hex[c>>4])+string(hex[c&15])+`"`)
 	}
+	// Beide Seiten der Grenze 0x20: das Leerzeichen und die Zeichen über ihr bleiben, wie sie sind.
+	for _, c := range []byte{0x20, 0x21, 0x7e} {
+		pruefe("Zeichen ab 0x20", string([]byte{c}), "\""+string([]byte{c})+"\"")
+	}
 	for name, p := range map[string][2]string{
 		"Anführungszeichen": {"\"", `"\""`}, "Backslash": {"\\", `"\\"`}, "Schrägstrich": {"/", `"/"`}, "DEL": {"\x7f", "\"\x7f\""},
 		"U+0080": {"\xc2\x80", "\"\xc2\x80\""}, "U+2028": {"\xe2\x80\xa8", "\"\xe2\x80\xa8\""}, "U+2029": {"\xe2\x80\xa9", "\"\xe2\x80\xa9\""},
@@ -127,14 +225,18 @@ func TestZeileI2Kanonform(t *testing.T) {
 	pruefe("-1", -1, "-1")
 	pruefe("MaxInt64", int64(math.MaxInt64), "9223372036854775807")
 	pruefe("Schlüssel nach Bytes", map[string]any{"ab": 1, "é": 1, "Z": 1, "a": 1}, "{\"Z\":1,\"a\":1,\"ab\":1,\"\xc3\xa9\":1}")
+	// Ergänzung außerhalb der Menge: der Name eines Mitglieds ist ein String wie jeder andere (Anführungszeichen, Zeilenvorschub);
+	// das Zeichen für u000a entsteht aus einem einzelnen Backslash, damit der Quelltext keine Escape-Folge trägt (AGENTS.md §3.18).
+	pruefe("Name mit Sonderzeichen", map[string]any{"a\"b\n": 1}, "{\"a\\\"b"+string('\\')+"u000a\":1}")
+	n--
 	pruefe("leere Liste", []any{}, "[]")
 	pruefe("Liste nil", []any(nil), "[]") // Ergänzung: eine Liste ohne Wert ist ebenfalls []
 	n--
 	// Ergänzung: Bytefolge, nicht UTF-16 oder Rune (U+FF61 vor U+10000).
 	pruefe("Schlüssel U+FF61 und U+10000", map[string]any{"\xf0\x90\x80\x80": 1, "\xef\xbd\xa1": 1}, "{\"\xef\xbd\xa1\":1,\"\xf0\x90\x80\x80\":1}")
 	n--
-	if n != 48 {
-		t.Errorf("Menge %d, erwartet 48", n)
+	if n != 51 {
+		t.Errorf("Menge %d, erwartet 51", n)
 	}
 }
 

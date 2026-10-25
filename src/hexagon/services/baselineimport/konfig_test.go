@@ -2,6 +2,7 @@ package baselineimport_test
 
 import (
 	"errors"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"math"
@@ -43,12 +44,9 @@ func TestZeileA1KonfigUngueltig(t *testing.T) {
 		"Dienst doppelt": func(k *baselineimport.Konfig) {
 			k.Dienste = []baselineimport.Dienst{{ID: "a", UpstreamURL: upstream}, {ID: "a", UpstreamURL: upstream}}
 		},
-		"URL leer":        func(k *baselineimport.Konfig) { k.Dienste = []baselineimport.Dienst{{ID: "a"}} },
-		"URL ohne Schema": func(k *baselineimport.Konfig) { k.Dienste = []baselineimport.Dienst{{ID: "a", UpstreamURL: "/x"}} },
-		"URL ftp":         func(k *baselineimport.Konfig) { k.Dienste = []baselineimport.Dienst{{ID: "a", UpstreamURL: "ftp://h"}} },
-		"URL ohne Host": func(k *baselineimport.Konfig) {
-			k.Dienste = []baselineimport.Dienst{{ID: "a", UpstreamURL: "http:///x"}}
-		},
+		"URL leer":             func(k *baselineimport.Konfig) { k.Dienste = []baselineimport.Dienst{{ID: "a"}} },
+		"URL ohne Schema":      func(k *baselineimport.Konfig) { k.Dienste = []baselineimport.Dienst{{ID: "a", UpstreamURL: "/x"}} },
+		"URL ftp":              func(k *baselineimport.Konfig) { k.Dienste = []baselineimport.Dienst{{ID: "a", UpstreamURL: "ftp://h"}} },
 		"MaxCaptureBody 0":     func(k *baselineimport.Konfig) { k.MaxCaptureBody = 0 },
 		"MaxCaptureBody -1":    func(k *baselineimport.Konfig) { k.MaxCaptureBody = -1 },
 		"InvalidEncoding leer": func(k *baselineimport.Konfig) { k.Regeln.InvalidEncoding = "" },
@@ -56,8 +54,14 @@ func TestZeileA1KonfigUngueltig(t *testing.T) {
 		"BodyMode leer":        func(k *baselineimport.Konfig) { k.Regeln.BodyMode = "" },
 		"BodyMode x":           func(k *baselineimport.Konfig) { k.Regeln.BodyMode = "x" },
 	}
-	if len(faelle) != 23 {
-		t.Fatalf("Menge %d, erwartet 23", len(faelle))
+	// Eine URL ohne Namen des Hosts (SPEC-127 Nr. 1): ohne Autorität, nur Port, nur Zugangsdaten, nur Port mit Schema, leerer Port, leere Klammern.
+	for _, u := range []string{"http:///x", "http://:8080/x", "http://u@/x", "https://:443", "http://:/x", "http://[]/x"} {
+		faelle["URL ohne Namen des Hosts "+u] = func(k *baselineimport.Konfig) {
+			k.Dienste = []baselineimport.Dienst{{ID: "a", UpstreamURL: u}}
+		}
+	}
+	if len(faelle) != 28 {
+		t.Fatalf("Menge %d, erwartet 28", len(faelle))
 	}
 	for name, aendere := range faelle {
 		k := w.konfig
@@ -88,6 +92,38 @@ func TestZeileA1KonfigUngueltig(t *testing.T) {
 		if imp, err := baselineimport.New(k); err != nil || imp == nil {
 			t.Errorf("MaxCaptureBody %d: %v", grenze, err)
 		}
+	}
+}
+
+// TestZeileA1UpstreamNormiert: die UpstreamURL gilt ohne einen abschließenden `/` ihres Pfades, auch bei einem Pfad
+// mit `%2F` (SPEC-127 Nr. 1). Sechs Pfade; beobachtet an der Auflösung des Links: der absolute Link mit dem
+// Pfad ohne den Schrägstrich ist die nächste Seite, ein Link, der das `%2F` dekodiert, nicht.
+func TestZeileA1UpstreamNormiert(t *testing.T) {
+	n := 0
+	for _, pfad := range []string{"/a%2Fb/", "/a%2Fb", "/a/", "/", "", "/a%2F/"} {
+		n++
+		up := "https://up.example" + pfad
+		norm := strings.TrimSuffix(pfad, "/")
+		for _, f := range []struct {
+			link string
+			end  string
+		}{
+			{"https://up.example" + norm + "/Products?$skiptoken=1", "proven"},
+			{"https://up.example" + strings.ReplaceAll(norm, "%2F", "/") + "/Products?$skiptoken=1", map[bool]string{true: "link_nicht_aufloesbar", false: "proven"}[strings.Contains(norm, "%2F")]},
+		} {
+			w := neu(t)
+			w.konfig.Dienste = []baselineimport.Dienst{{ID: dienstID, UpstreamURL: up}}
+			b := w.standard()
+			b.collection("Products", "", mitLink(seite(produkt(1, "A", "1")), f.link))
+			b.collection("Products", "$skiptoken=1", seite(produkt(2, "A", "1")))
+			mustImport(t, w, anfrage())
+			if _, _, ketten := ketteVon(t, w); endeVon(ketten[0]) != f.end {
+				t.Errorf("Upstream %q, Link %q: Ende %s, erwartet %s", up, f.link, endeVon(ketten[0]), f.end)
+			}
+		}
+	}
+	if n != 6 {
+		t.Errorf("Menge %d, erwartet 6", n)
 	}
 }
 
@@ -122,20 +158,7 @@ func verboteneImporte(t *testing.T, dateien map[string]string) []string {
 // TestZeileI10Importe: das Paket importiert keinen Adapter, keinen Dienst, kein net, net/http,
 // os, os/exec, crypto/tls und database/sql; die Gegenprobe führt ein Element je Eintrag der Menge (8).
 func TestZeileI10Importe(t *testing.T) {
-	dateien := map[string]string{}
-	eintraege, err := os.ReadDir(".")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range eintraege {
-		if strings.HasSuffix(e.Name(), ".go") && !strings.HasSuffix(e.Name(), "_test.go") {
-			b, err := os.ReadFile(filepath.Join(".", e.Name()))
-			if err != nil {
-				t.Fatal(err)
-			}
-			dateien[e.Name()] = string(b)
-		}
-	}
+	dateien := dienstDateien(t)
 	if len(dateien) < 8 {
 		t.Fatalf("nur %d Dateien gelesen", len(dateien))
 	}
@@ -159,6 +182,106 @@ func TestZeileI10Importe(t *testing.T) {
 	erlaubt := map[string]string{"i.go": "package a\nimport (\n\t\"net/url\"\n\t\"" + pfad + "hexagon/model\"\n\t\"" + pfad + "hexagon/ports/inbound\"\n)\n"}
 	if v := verboteneImporte(t, erlaubt); len(v) != 0 {
 		t.Errorf("Gegenprobe meldet erlaubte Importe: %v", v)
+	}
+}
+
+// goroutinenIn liefert die Stellen in text, an denen Code eine Goroutine startet: die Anweisung go und die Aufrufe
+// von WaitGroup.Go (jeder Aufruf einer Methode Go), time.AfterFunc und context.AfterFunc (SPEC-127 Nr. 18).
+func goroutinenIn(t *testing.T, name, text string) []string {
+	t.Helper()
+	f, err := parser.ParseFile(token.NewFileSet(), name, text, 0)
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	pakete := map[string]string{}
+	for _, imp := range f.Imports {
+		p, _ := strconv.Unquote(imp.Path.Value)
+		lokal := p[strings.LastIndex(p, "/")+1:]
+		if imp.Name != nil {
+			lokal = imp.Name.Name
+		}
+		pakete[lokal] = p
+	}
+	var funde []string
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.GoStmt:
+			funde = append(funde, "go")
+		case *ast.CallExpr:
+			sel, ok := x.Fun.(*ast.SelectorExpr)
+			if !ok {
+				break
+			}
+			if sel.Sel.Name == "Go" {
+				funde = append(funde, "WaitGroup.Go")
+			}
+			if id, ok := sel.X.(*ast.Ident); ok && sel.Sel.Name == "AfterFunc" {
+				p := pakete[id.Name]
+				if p == "" {
+					p = id.Name
+				}
+				if p == "time" || p == "context" {
+					funde = append(funde, p+".AfterFunc")
+				}
+			}
+		}
+		return true
+	})
+	return funde
+}
+
+// dienstDateien liest die Quelltexte des Pakets ohne die Tests.
+func dienstDateien(t *testing.T) map[string]string {
+	t.Helper()
+	dateien := map[string]string{}
+	eintraege, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range eintraege {
+		if strings.HasSuffix(e.Name(), ".go") && !strings.HasSuffix(e.Name(), "_test.go") {
+			b, err := os.ReadFile(filepath.Join(".", e.Name()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			dateien[e.Name()] = string(b)
+		}
+	}
+	return dateien
+}
+
+// TestZeileI10Goroutinen: der Dienst startet keine Goroutine (SPEC-127 Nr. 18): in keiner Datei des Pakets steht die
+// Anweisung go oder ein Aufruf von WaitGroup.Go, time.AfterFunc oder context.AfterFunc. Die Prüfung ist
+// deterministisch; die Gegenprobe fügt jede der vier Formen in jede Datei ein (Menge: Dateien mal 4).
+func TestZeileI10Goroutinen(t *testing.T) {
+	dateien := dienstDateien(t)
+	if len(dateien) < 11 {
+		t.Fatalf("nur %d Dateien gelesen, erwartet mindestens 11", len(dateien))
+	}
+	formen := []struct{ name, code string }{
+		{"go", "func zzEingefuegt() { go func() {}() }"},
+		{"WaitGroup.Go", "func zzEingefuegt() { var wg sync.WaitGroup; wg.Go(func() {}) }"},
+		{"time.AfterFunc", "func zzEingefuegt() { time.AfterFunc(0, func() {}) }"},
+		{"context.AfterFunc", "func zzEingefuegt() { context.AfterFunc(nil, func() {}) }"},
+	}
+	n := 0
+	for name, text := range dateien {
+		if funde := goroutinenIn(t, name, text); len(funde) > 0 {
+			t.Errorf("%s startet eine Goroutine: %v", name, funde)
+		}
+		for _, f := range formen {
+			n++
+			if funde := goroutinenIn(t, name, text+"\n"+f.code+"\n"); !slices.Equal(funde, []string{f.name}) {
+				t.Errorf("%s mit eingefügtem %s: Funde %v", name, f.name, funde)
+			}
+		}
+	}
+	if n != 4*len(dateien) {
+		t.Errorf("Menge %d", n)
+	}
+	// Ein umbenannter Import von time zählt.
+	if funde := goroutinenIn(t, "a.go", "package a\nimport z \"time\"\nfunc f() { z.AfterFunc(0, nil) }\n"); !slices.Equal(funde, []string{"time.AfterFunc"}) {
+		t.Errorf("umbenannter Import: %v", funde)
 	}
 }
 

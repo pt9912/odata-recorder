@@ -25,7 +25,7 @@ func grundVon(ev map[string]any) string { return ev["reason"].(string) }
 // beginntKette sagt, ob die Evidenz eine ungefilterte Abfrage als Beginn einer Kette ausweist.
 func beginntKette(ev map[string]any) bool {
 	g := grundVon(ev)
-	return g == "kette_nicht_belegt" || g == "kette_belegt" || g == "ketten_abweichend"
+	return g == "kette_nicht_belegt" || g == "kette_belegt" || g == "ketten_abweichend" || g == "bestand_ausserhalb_kette"
 }
 
 // TestZeileH2Positivliste: eine Query ist ungefiltert genau dann, wenn jede Option $format, $count,

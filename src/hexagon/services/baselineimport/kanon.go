@@ -87,7 +87,7 @@ func schreibeText(b *bytes.Buffer, s string) {
 	b.WriteByte('"')
 }
 
-// liste bildet die Liste aus xs; die Liste ist nie nil.
+// liste bildet die Liste aus xs.
 func liste[T any](xs []T, f func(T) any) []any {
 	out := make([]any, 0, len(xs))
 	for _, x := range xs {

@@ -3,9 +3,12 @@ package baselineimport_test
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
@@ -91,43 +94,150 @@ func TestFakesZaehlenJedeOperation(t *testing.T) {
 	w.meta.fremd, w.daten.fremd = 0, 0
 }
 
-// TestFakesHaltenJedesArgument: Kontext und Argumente jeder Operation stehen im Protokoll.
-func TestFakesHaltenJedesArgument(t *testing.T) {
-	w := neu(t)
-	ctx := context.WithValue(context.Background(), ctxSchluessel{}, 1)
-	_, _ = w.sessions.Get(ctx, "s")
-	_, _ = w.exchanges.ListBySession(ctx, "s")
-	_, _ = w.blobs.Begin(ctx, 7)
-	_ = w.metadaten.SetMetadata(ctx, "d", "b", "h")
-	_, _ = w.snapshots.Get(ctx, "x")
-	_, _ = w.imports.Get(ctx, "i")
-	_, _, _ = w.imports.Publish(ctx, model.Publication{})
-	_, _, _ = w.meta.ParseMetadata(ctx, nil, 5)
-	_, _ = w.daten.ParseCollection(ctx, nil, model.ServiceModel{}, "Set", 6)
-	_, _ = w.daten.ParseEntity(ctx, nil, model.ServiceModel{}, "Set", 6)
-	soll := map[string][]any{
-		"Sessions.Get": {"s"}, "Exchanges.ListBySession": {"s"}, "Blobs.Begin": {int64(7)}, "Metadaten.SetMetadata": {"d", "b", "h"},
-		"Snapshots.Get": {"x"}, "Imports.Get": {"i"}, "ParseMetadata": {nil, int64(5)}, "ParseCollection": {nil, model.ServiceModel{}, "Set", int64(6)},
+// nichtLeer baut einen Wert des Typs typ, der nirgends dem Nullwert gleicht (jedes Feld, das ein Test setzen
+// kann, trägt den Text tag), damit ein Fake, der ein Argument verwirft oder nullt, auffällt.
+func nichtLeer(t *testing.T, w *welt, typ reflect.Type, tag string) reflect.Value {
+	t.Helper()
+	switch typ {
+	case reflect.TypeOf((*io.Reader)(nil)).Elem():
+		return reflect.ValueOf(&strom{Reader: bytes.NewReader([]byte("abc")), ref: "r-" + tag, p: w.p})
+	case reflect.TypeOf(model.ServiceModel{}):
+		return reflect.ValueOf(modellR())
+	case reflect.TypeOf(time.Time{}):
+		return reflect.ValueOf(t0())
 	}
-	for op, args := range soll {
-		got := w.p.argsVon(op)
-		if len(got) != 1 || len(got[0]) != len(args) {
-			t.Errorf("%s: %v", op, got)
-			continue
+	v := reflect.New(typ).Elem()
+	switch typ.Kind() {
+	case reflect.String:
+		v.SetString(tag)
+	case reflect.Int64, reflect.Int:
+		v.SetInt(1000 + int64(len(tag)))
+	case reflect.Bool:
+		v.SetBool(true)
+	case reflect.Slice:
+		if typ.Elem().Kind() == reflect.String {
+			v.Set(reflect.ValueOf([]string{tag}).Convert(typ))
 		}
-		for i, a := range args {
-			if !reflect.DeepEqual(got[0][i], a) {
-				t.Errorf("%s Argument %d: %v, erwartet %v", op, i, got[0][i], a)
+	case reflect.Struct:
+		for i := 0; i < typ.NumField(); i++ {
+			if typ.Field(i).IsExported() {
+				v.Field(i).Set(nichtLeer(t, w, typ.Field(i).Type, tag+"."+typ.Field(i).Name))
 			}
 		}
-		if c := w.p.ctxVon(op); len(c) != 1 || c[0] != ctx {
-			t.Errorf("%s: Kontext", op)
+	}
+	return v
+}
+
+// TestFakesHaltenJedesArgument: Kontext und jedes Argument jeder Methode der acht Schnittstellen stehen im Protokoll
+// (30 Methoden, die Zahl der Argumente zählt der Test per Reflexion); die Werte sind nirgends der Nullwert.
+func TestFakesHaltenJedesArgument(t *testing.T) {
+	w := neu(t)
+	ports := []struct {
+		praefix string
+		port    any
+		iface   reflect.Type
+	}{
+		{"Sessions", w.sessions, reflect.TypeOf((*outbound.SessionRepository)(nil)).Elem()},
+		{"Exchanges", w.exchanges, reflect.TypeOf((*outbound.RecordingRepository)(nil)).Elem()},
+		{"Blobs", w.blobs, reflect.TypeOf((*outbound.BlobRepository)(nil)).Elem()},
+		{"Metadaten", w.metadaten, reflect.TypeOf((*outbound.MetadataRepository)(nil)).Elem()},
+		{"Snapshots", w.snapshots, reflect.TypeOf((*outbound.SnapshotRepository)(nil)).Elem()},
+		{"Imports", w.imports, reflect.TypeOf((*outbound.ImportRepository)(nil)).Elem()},
+		{"", w.meta, reflect.TypeOf((*outbound.MetadataCodec)(nil)).Elem()},
+		{"", w.daten, reflect.TypeOf((*outbound.ODataCodec)(nil)).Elem()},
+	}
+	methoden, argumente := 0, 0
+	for _, p := range ports {
+		for i := 0; i < p.iface.NumMethod(); i++ {
+			m := p.iface.Method(i)
+			op := m.Name
+			if p.praefix != "" {
+				op = p.praefix + "." + m.Name
+			}
+			ctx := context.WithValue(context.Background(), ctxSchluessel{}, op)
+			args := []reflect.Value{reflect.ValueOf(ctx)}
+			var soll []any
+			for j := 1; j < m.Type.NumIn(); j++ {
+				v := nichtLeer(t, w, m.Type.In(j), fmt.Sprint(op, "-", j))
+				if v.IsZero() {
+					t.Fatalf("%s Argument %d: kein Wert ungleich dem Nullwert für %v", op, j, m.Type.In(j))
+				}
+				args = append(args, v)
+				soll = append(soll, v.Interface())
+				argumente++
+			}
+			reflect.ValueOf(p.port).MethodByName(m.Name).Call(args)
+			methoden++
+			got := w.p.argsVon(op)
+			if len(got) != 1 || len(got[0]) != len(soll) {
+				t.Errorf("%s: %d Aufrufe mit %v, erwartet ein Aufruf mit %d Argumenten", op, len(got), got, len(soll))
+				continue
+			}
+			for j, a := range soll {
+				if !reflect.DeepEqual(got[0][j], a) {
+					t.Errorf("%s Argument %d: %v, erwartet %v", op, j+1, got[0][j], a)
+				}
+			}
+			if c := w.p.ctxVon(op); len(c) != 1 || c[0] != ctx {
+				t.Errorf("%s: Kontext", op)
+			}
 		}
 	}
-	if len(w.p.argsVon("Imports.Publish")) != 1 || len(w.daten.aufrufe["ParseEntity"]) != 1 {
-		t.Error("Publish oder ParseEntity nicht festgehalten")
+	if methoden != 30 || argumente != 38 {
+		t.Errorf("Methoden %d, Argumente %d, erwartet 30 und 38", methoden, argumente)
 	}
-	w.meta.fremd, w.daten.fremd = 0, 0
+	// Die Schreibseite des Blobs: Write hält die Bytes fest, Commit und Abort zählen.
+	wr, err := w.blobs.Begin(context.Background(), 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = wr.Write([]byte("bytes"))
+	if a := w.p.argsVon("Write"); len(a) != 1 || !bytes.Equal(a[0][0].([]byte), []byte("bytes")) {
+		t.Errorf("Write: %v", a)
+	}
+	w.meta.fremd, w.daten.fremd, w.daten.fehlt = 0, 0, 0
+}
+
+// TestFakeCodecsPruefenStrom: die Fakes der Codecs erkennen einen Strom, der nicht am Anfang steht (die Hülle ist
+// geprüft, bevor ein Test auf sie baut): an allen drei Stellen, ParseMetadata, ParseCollection und ParseEntity,
+// meldet der Fake einen gelesenen Strom, einen fremden Strom und zählt beide; ein unberührter Strom geht durch.
+func TestFakeCodecsPruefenStrom(t *testing.T) {
+	ctx := context.Background()
+	rufe := map[string]func(w *welt, src io.Reader) error{
+		"ParseMetadata": func(w *welt, src io.Reader) error { _, _, err := w.meta.ParseMetadata(ctx, src, 1); return err },
+		"ParseCollection": func(w *welt, src io.Reader) error {
+			_, err := w.daten.ParseCollection(ctx, src, model.ServiceModel{}, "Products", 1)
+			return err
+		},
+		"ParseEntity": func(w *welt, src io.Reader) error {
+			_, err := w.daten.ParseEntity(ctx, src, model.ServiceModel{}, "Products", 1)
+			return err
+		},
+	}
+	if len(rufe) != 3 {
+		t.Fatalf("Stellen %d", len(rufe))
+	}
+	for name, f := range rufe {
+		w := neu(t)
+		w.blobs.inhalt["sha256:a"] = []byte("abc")
+		w.daten.nachRef["sha256:a"] = datenVorgabe{}
+		unberuehrt, _ := w.blobs.Open(ctx, "sha256:a")
+		if err := f(w, unberuehrt); err != nil {
+			t.Errorf("%s mit unberührtem Strom: %v", name, err)
+		}
+		gelesen, _ := w.blobs.Open(ctx, "sha256:a")
+		_, _ = gelesen.Read(make([]byte, 1))
+		if err := f(w, gelesen); !errors.Is(err, errStromVerbraucht) {
+			t.Errorf("%s mit gelesenem Strom: %v", name, err)
+		}
+		if err := f(w, bytes.NewReader([]byte("abc"))); !errors.Is(err, errFremderStrom) {
+			t.Errorf("%s mit fremdem Strom: %v", name, err)
+		}
+		if w.meta.verbraucht+w.daten.verbraucht != 1 || w.meta.fremd+w.daten.fremd != 1 {
+			t.Errorf("%s: verbraucht %d, fremd %d", name, w.meta.verbraucht+w.daten.verbraucht, w.meta.fremd+w.daten.fremd)
+		}
+		w.meta.verbraucht, w.daten.verbraucht, w.meta.fremd, w.daten.fremd = 0, 0, 0, 0
+	}
 }
 
 // TestFakeStromHuelle: der Strom von Open trägt jede Schnittstelle des Lesers, den er umhüllt, und

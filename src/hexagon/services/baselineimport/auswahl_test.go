@@ -82,26 +82,28 @@ func TestZeileE1Spur(t *testing.T) {
 			t.Errorf("%s: %+v", p, g)
 		}
 	}
-	// Ergänzung außerhalb der Handmenge: Namen, die einem Set nur ähneln (Präfix, Anhang, Navigation vor der Klammer).
-	ergaenzung := []string{"/ProductsX", "/Product", "/Prod(1)", "/ProductsX(1)", "/Orde(1)", "/Products/Ns.Special(1)", "/Products/Orders('b')", "/Products(1)x", "/Products(1)(", "/Products(1))"}
+	// Ergänzung außerhalb der Handmenge: Namen, die einem Set nur ähneln (Präfix, Anhang, Navigation vor der Klammer),
+	// und Pfade ohne führenden Schrägstrich.
+	ergaenzung := []string{"/ProductsX", "/Product", "/Prod(1)", "/ProductsX(1)", "/Orde(1)", "/Products/Ns.Special(1)", "/Products/Orders('b')", "/Products(1)x", "/Products(1)(", "/Products(1))",
+		"", "Products", "Products(1)", "Orders"}
 	for _, p := range slices.Concat(pfad, ergaenzung) {
 		if g := probe(t, p, ""); g.grund != "pfad" {
 			t.Errorf("%s: %+v", p, g)
 		}
 	}
+	// Der Generator: vier Namen mal 14 Prädikate (darunter Klammern und Anführungszeichen im Text) mal fünf Anhänge (280).
+	praedikate := []string{"", "(1)", "('a')", "('a(b')", "('a)b')", "('a''b')", "('(')", "('')", "(Id=1)", "(A=1,B='x(y')", "(1)(2)", "()", "(", "('a)"}
 	n := 0
 	for _, set := range []string{"Products", "Orders", "Unknown", "products"} {
-		for _, praed := range []string{"", "(1)", "('a')", "(", "()", "(1)(2)"} {
+		for _, praed := range praedikate {
 			for _, suffix := range []string{"", "/", "/x", "/$count", "/$ref"} {
 				n++
 				got := probe(t, "/"+set+praed+suffix, "")
-				// Orakel: eine zweite, von der Implementierung unabhängige Regelfunktion.
-				bekannt := set == "Products" || set == "Orders"
 				want := probeErgebnis{grund: "pfad"}
-				switch {
-				case bekannt && praed == "" && suffix == "":
+				switch orakelSpur("/"+set+praed+suffix, []string{"Products", "Orders"}) {
+				case "collection":
 					want = probeErgebnis{gelesen: true, art: "collection"}
-				case bekannt && (praed == "(1)" || praed == "('a')") && suffix == "":
+				case "entity":
 					want = probeErgebnis{gelesen: true, art: "entity"}
 				}
 				if got != want {
@@ -110,9 +112,42 @@ func TestZeileE1Spur(t *testing.T) {
 			}
 		}
 	}
-	if n != 120 {
-		t.Errorf("Generator %d, erwartet 120", n)
+	if n != 280 {
+		t.Errorf("Generator %d, erwartet 280", n)
 	}
+}
+
+// orakelSpur ist eine zweite, von der Implementierung unabhängige Regelfunktion für SPEC-127 Nr. 8 j: sie liefert
+// collection, entity oder pfad. Der Name des Sets reicht bis zur ersten Klammer; das Prädikat ist nichtleer, ein
+// String beginnt und endet mit `'` (ein verdoppeltes `'` bleibt darin), das erste `)` außerhalb eines Strings
+// schließt es, und danach folgt nichts mehr.
+func orakelSpur(pfad string, sets []string) string {
+	rest, ok := strings.CutPrefix(pfad, "/")
+	if !ok {
+		return "pfad"
+	}
+	name, nach, klammer := strings.Cut(rest, "(")
+	if !slices.Contains(sets, name) {
+		return "pfad"
+	}
+	if !klammer {
+		return "collection"
+	}
+	imString := false
+	for i := 0; i < len(nach); i++ {
+		switch {
+		case imString && nach[i] == '\'' && i+1 < len(nach) && nach[i+1] == '\'':
+			i++
+		case nach[i] == '\'':
+			imString = !imString
+		case !imString && nach[i] == ')':
+			if i == 0 || i+1 != len(nach) {
+				return "pfad"
+			}
+			return "entity"
+		}
+	}
+	return "pfad"
 }
 
 type spurFall struct {

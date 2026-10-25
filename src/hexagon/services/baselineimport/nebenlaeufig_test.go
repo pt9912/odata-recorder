@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,26 +15,45 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 )
 
-// schranke hält n Goroutinen an, bis die letzte sie erreicht, höchstens zehn Sekunden (Grenze).
+// fristSchranke ist die Frist, in der alle Goroutinen die Schranke erreichen müssen; ein Aufruf, der die
+// anderen aufhält (eine Sperre um den ganzen Aufruf), lässt sie ablaufen.
+const fristSchranke = 5 * time.Second
+
+// schranke hält n Goroutinen an, bis die letzte sie erreicht. Läuft die Frist ab, gibt sie alle Wartenden auf
+// einmal frei und meldet den Ablauf; der Test macht daraus einen Fehler (pruefe).
 type schranke struct {
-	mu   sync.Mutex
-	n    int
-	ziel int
-	tor  chan struct{}
+	mu     sync.Mutex
+	n      int
+	ziel   int
+	tor    chan struct{}
+	zu     sync.Once
+	ablauf atomic.Bool
 }
 
 func neueSchranke(ziel int) *schranke { return &schranke{ziel: ziel, tor: make(chan struct{})} }
+
+func (s *schranke) oeffne() { s.zu.Do(func() { close(s.tor) }) }
 
 func (s *schranke) warte() {
 	s.mu.Lock()
 	s.n++
 	if s.n == s.ziel {
-		close(s.tor)
+		s.oeffne()
 	}
 	s.mu.Unlock()
 	select {
 	case <-s.tor:
-	case <-time.After(10 * time.Second):
+	case <-time.After(fristSchranke):
+		s.ablauf.Store(true)
+		s.oeffne()
+	}
+}
+
+// pruefe macht den Ablauf der Frist zu einem Fehler des Tests: nicht alle Aufrufe erreichten die Schranke.
+func (s *schranke) pruefe(t *testing.T, name string) {
+	t.Helper()
+	if s.ablauf.Load() {
+		t.Errorf("%s: nicht alle %d Aufrufe erreichten die Schranke innerhalb von %v (ein Aufruf hält die anderen auf)", name, s.ziel, fristSchranke)
 	}
 }
 
@@ -57,6 +77,7 @@ func parallel(w *welt, as []inbound.ImportAnfrage) []lauf {
 		}()
 	}
 	wg.Wait()
+	start.pruefe(w.t, "Start")
 	return out
 }
 
@@ -73,6 +94,7 @@ func TestZeileB5GleicheAnfrage(t *testing.T) {
 		as[i] = anfrage()
 	}
 	out := parallel(w, as)
+	tor.pruefe(t, "Imports.Get")
 	neuZahl := 0
 	for i, l := range out {
 		if l.err != nil {
@@ -111,6 +133,7 @@ func TestZeileB6GleicheIDAndereAnfrage(t *testing.T) {
 		as = append(as, a)
 	}
 	out := parallel(w, as)
+	tor.pruefe(t, "Imports.Get")
 	var fehlerGruppe [2]int
 	var neuZahl int
 	for i, l := range out {
@@ -157,7 +180,10 @@ func TestZeileB7VerschiedeneIDs(t *testing.T) {
 		a.ImportID = fmt.Sprintf("imp-%d", i%8+1)
 		as = append(as, a)
 	}
+	tor := neueSchranke(len(as))
+	w.p.setzeHaken("Imports.Get", func(int) { tor.warte() })
 	out := parallel(w, as)
+	tor.pruefe(t, "Imports.Get")
 	neuZahl := 0
 	for i, l := range out {
 		if l.err != nil {

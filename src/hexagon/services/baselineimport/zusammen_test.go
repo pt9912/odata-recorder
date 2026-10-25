@@ -197,6 +197,44 @@ func TestZeileG3Gleichheit(t *testing.T) {
 	}
 }
 
+// TestZeileG3GleichheitAehnlicheWerte: Gleichheit ist gleiche Art und byteweise gleicher Text (SPEC-127
+// Nr. 10 b). Die Elemente sind 41: die acht Arten ohne null mal fünf ähnliche Texte {x, X, "x " mit
+// Leerzeichen am Ende, xy, leer} und null mit leerem Text; alle 1681 geordneten Paare (41 mal 41), darunter
+// null gegen string mit leerem Text.
+func TestZeileG3GleichheitAehnlicheWerte(t *testing.T) {
+	var elemente []model.Wert
+	for _, a := range arten() {
+		if a == model.ArtNull {
+			continue
+		}
+		for _, text := range []string{"x", "X", "x ", "xy", ""} {
+			elemente = append(elemente, wert(a, text))
+		}
+	}
+	elemente = append(elemente, wert(model.ArtNull, ""))
+	n, gleich := 0, 0
+	for _, a := range elemente {
+		for _, b := range elemente {
+			n++
+			konflikt := a != b
+			if !konflikt {
+				gleich++
+			}
+			_, err := zweiBeobachtungen(t, eP(model.PropertyWert{Name: "P", Wert: a}), eP(model.PropertyWert{Name: "P", Wert: b}))
+			var k *model.KonfliktFehler
+			if konflikt != errors.As(err, &k) || (!konflikt && err != nil) {
+				t.Errorf("%v gegen %v: %v, erwartet Konflikt %v", a, b, err, konflikt)
+			}
+			if konflikt && k != nil && (k.Ursache != model.KonfliktWert || k.Property != "P") {
+				t.Errorf("%v gegen %v: %+v", a, b, k)
+			}
+		}
+	}
+	if len(elemente) != 41 || n != 1681 || gleich != 41 {
+		t.Errorf("Elemente %d, Paare %d, gleiche Paare %d, erwartet 41, 1681, 41", len(elemente), n, gleich)
+	}
+}
+
 // TestZeileG4Zustaende: die 16 Paare der Zustände einer Property und 256 Paare von Teilmengen (Menge 272).
 func TestZeileG4Zustaende(t *testing.T) {
 	zustaende := []string{"nicht genannt", "null", "Wert", "redigiert"}

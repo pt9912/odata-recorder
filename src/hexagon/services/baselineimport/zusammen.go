@@ -197,10 +197,23 @@ func (z *zusammen) maskierte() int {
 	return n
 }
 
+// zeile ist ein Eintrag von unsupported_features.entities: Set, Name des Mitglieds und Grund.
+type zeile struct{ set, name, grund string }
+
+// vergleicheZeilen ordnet die Einträge aufsteigend nach (entity_set, name, reason), byteweise (Nr. 14 b).
+func vergleicheZeilen(a, b zeile) int {
+	if c := strings.Compare(a.set, b.set); c != 0 {
+		return c
+	}
+	if c := strings.Compare(a.name, b.name); c != 0 {
+		return c
+	}
+	return strings.Compare(a.grund, b.grund)
+}
+
 // nichtUnterstuetzt zählt je (Set, Name, Grund) die verschiedenen Entities, die das Mitglied
 // übersprangen, aufsteigend (Nr. 14 b).
 func (z *zusammen) nichtUnterstuetzt() []any {
-	type zeile struct{ set, name, grund string }
 	zaehler := map[zeile]int{}
 	for k, ent := range z.entities {
 		for u := range ent.uebersprungen {
@@ -211,15 +224,7 @@ func (z *zusammen) nichtUnterstuetzt() []any {
 	for ze := range zaehler {
 		zeilen = append(zeilen, ze)
 	}
-	slices.SortFunc(zeilen, func(a, b zeile) int {
-		if c := strings.Compare(a.set, b.set); c != 0 {
-			return c
-		}
-		if c := strings.Compare(a.name, b.name); c != 0 {
-			return c
-		}
-		return strings.Compare(a.grund, b.grund)
-	})
+	slices.SortFunc(zeilen, vergleicheZeilen)
 	return liste(zeilen, func(ze zeile) any {
 		return objekt{"entities": zaehler[ze], "entity_set": ze.set, "name": ze.name, "reason": ze.grund}
 	})

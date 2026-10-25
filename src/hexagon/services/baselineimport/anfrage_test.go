@@ -3,6 +3,7 @@ package baselineimport_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -221,5 +222,84 @@ func TestZeileC1Session(t *testing.T) {
 		if a := w.p.argsVon("Sessions.Get"); len(a) != 1 || a[0][0] != sitzungID {
 			t.Errorf("%s: Sessions.Get %v", f.name, a)
 		}
+	}
+}
+
+// schreibweisen sind zehn Schreibweisen einer Kennung, die ein Dienst weder kürzen noch umschreiben darf
+// (SPEC-127 Nr. 3): Klein- und Großschreibung, Leerraum am Anfang und am Ende, ein Tabulator, ein Zeichen
+// mit Akzent, das große I mit Punkt (U+0130), das Kelvin-Zeichen (U+212A) und das lange s (U+017F). Die
+// Zeichen stehen als Bytes (AGENTS.md §3.18).
+func schreibweisen() []string {
+	return []string{"a", "A", "aB", " a", "a ", "\ta", "\xc3\xa9", "\xc4\xb0", "\xe2\x84\xaa", "\xc5\xbf"}
+}
+
+// TestZeileC1Schreibweisen: die Kennung der Session geht unverändert an Sessions.Get und ListBySession, die
+// ServiceID unverändert an Dienste und SetMetadata (SPEC-127 Nr. 3 c, 6): zehn Schreibweisen mal die zwei Orte (20).
+func TestZeileC1Schreibweisen(t *testing.T) {
+	n := 0
+	for _, s := range schreibweisen() {
+		for _, ort := range []string{"Session", "Service"} {
+			n++
+			w := neu(t)
+			ses, svc := sitzungID, dienstID
+			if ort == "Session" {
+				ses = s
+			} else {
+				svc = s
+				w.konfig.Dienste = []baselineimport.Dienst{{ID: s, UpstreamURL: upstream}}
+			}
+			w.sessions.loesche(sitzungID)
+			w.sessions.m[ses] = model.Session{ID: ses, ServiceID: svc, CreatedAt: t0(), Status: model.SessionComplete}
+			(&bauer{w: w, ses: ses}).metadaten("<edmx 1/>")
+			if _, err := w.importiere(inbound.ImportAnfrage{ImportID: "imp-1", ServiceID: svc, SourceSessionIDs: []string{ses}}); err != nil {
+				t.Errorf("%s %q: %v", ort, s, err)
+				continue
+			}
+			if a := w.p.argsVon("Sessions.Get"); len(a) != 1 || a[0][0] != ses {
+				t.Errorf("%s %q: Sessions.Get %v", ort, s, a)
+			}
+			if a := w.p.argsVon("Exchanges.ListBySession"); len(a) != 1 || a[0][0] != ses {
+				t.Errorf("%s %q: ListBySession %v", ort, s, a)
+			}
+			if a := w.p.argsVon("Metadaten.SetMetadata"); len(a) != 1 || a[0][0] != svc {
+				t.Errorf("%s %q: SetMetadata %v", ort, s, a)
+			}
+		}
+	}
+	if n != 20 {
+		t.Errorf("Menge %d, erwartet 20", n)
+	}
+	// Ergänzung außerhalb der Menge: zwei verschiedene Schreibweisen sind zwei Kennungen (90 geordnete Paare je Ort);
+	// eine Kennung, die der Dienst kürzt, in der Schreibweise ändert oder vergleicht, ohne sie zu unterscheiden, fällt auf.
+	for _, s1 := range schreibweisen() {
+		for _, s2 := range schreibweisen() {
+			if s1 == s2 {
+				continue
+			}
+			w := neu(t)
+			w.konfig.Dienste = []baselineimport.Dienst{{ID: s1, UpstreamURL: upstream}}
+			w.sessions.m[sitzungID] = model.Session{ID: sitzungID, ServiceID: s1, CreatedAt: t0(), Status: model.SessionComplete}
+			_, err := w.importiere(inbound.ImportAnfrage{ImportID: "imp-1", ServiceID: s2, SourceSessionIDs: []string{sitzungID}})
+			erwarteFehler(t, fmt.Sprintf("Service %q gegen %q", s2, s1), err, model.CodeE5005, 404)
+			w = neu(t)
+			w.sessions.m[s1] = model.Session{ID: s1, ServiceID: dienstID, CreatedAt: t0(), Status: model.SessionComplete}
+			_, err = w.importiere(inbound.ImportAnfrage{ImportID: "imp-1", ServiceID: dienstID, SourceSessionIDs: []string{s2}})
+			erwarteFehler(t, fmt.Sprintf("Session %q gegen %q", s2, s1), err, model.CodeE7003, 404)
+		}
+	}
+}
+
+// TestZeileI9GetSchreibweisen: die Kennung von Get geht unverändert an Imports.Get (zehn Schreibweisen).
+func TestZeileI9GetSchreibweisen(t *testing.T) {
+	for _, id := range schreibweisen() {
+		w := neu(t).start()
+		_, err := w.imp.Get(context.Background(), id)
+		erwarteFehler(t, "Get "+id, err, model.CodeE7005, 404)
+		if a := w.p.argsVon("Imports.Get"); len(a) != 1 || a[0][0] != id {
+			t.Errorf("Get %q: Argumente %v", id, a)
+		}
+	}
+	if len(schreibweisen()) != 10 {
+		t.Errorf("Menge %d, erwartet 10", len(schreibweisen()))
 	}
 }

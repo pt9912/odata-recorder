@@ -537,7 +537,13 @@ func (f *fakeImports) veroeffentlichungen() []model.Publication {
 
 // --- Codecs ------------------------------------------------------------------------------
 
-var errFremderStrom = errors.New("src ist nicht der Strom von Open")
+var (
+	errFremderStrom    = errors.New("src ist nicht der Strom von Open")
+	errStromVerbraucht = errors.New("src ist nicht mehr am Anfang: der Dienst hat den Strom vor dem Aufruf gelesen")
+)
+
+// unverbraucht sagt, ob der Strom noch am Anfang steht: kein Byte gelesen (Len gleich Size des Lesers).
+func (s *strom) unverbraucht() bool { return int64(s.Len()) == s.Size() }
 
 type metaVorgabe struct {
 	modell  model.ServiceModel
@@ -556,7 +562,9 @@ type fakeMetaCodec struct {
 	vorgabe metaVorgabe
 	nachRef map[string]metaVorgabe
 	fremd   int
-	aufrufe []metaAufruf
+	// verbraucht zählt die Aufrufe mit einem Strom, den der Dienst vorher gelesen hat.
+	verbraucht int
+	aufrufe    []metaAufruf
 }
 
 func (c *fakeMetaCodec) ParseMetadata(ctx context.Context, src io.Reader, grenze int64) (model.ServiceModel, model.ValidierungsBericht, error) {
@@ -570,6 +578,11 @@ func (c *fakeMetaCodec) ParseMetadata(ctx context.Context, src io.Reader, grenze
 		c.fremd++
 		c.mu.Unlock()
 		return model.ServiceModel{}, model.ValidierungsBericht{}, errFremderStrom
+	}
+	if !s.unverbraucht() {
+		c.verbraucht++
+		c.mu.Unlock()
+		return model.ServiceModel{}, model.ValidierungsBericht{}, errStromVerbraucht
 	}
 	if x, ok := c.nachRef[s.ref]; ok {
 		v = x
@@ -603,7 +616,9 @@ type fakeDatenCodec struct {
 	nachRef map[string]datenVorgabe
 	fremd   int
 	fehlt   int
-	aufrufe map[string][]datenAufruf
+	// verbraucht zählt die Aufrufe mit einem Strom, den der Dienst vorher gelesen hat.
+	verbraucht int
+	aufrufe    map[string][]datenAufruf
 }
 
 func (c *fakeDatenCodec) hole(op string, src io.Reader, m model.ServiceModel, set string, grenze int64) (datenVorgabe, error) {
@@ -614,6 +629,10 @@ func (c *fakeDatenCodec) hole(op string, src io.Reader, m model.ServiceModel, se
 	if !ok {
 		c.fremd++
 		return datenVorgabe{}, errFremderStrom
+	}
+	if !s.unverbraucht() {
+		c.verbraucht++
+		return datenVorgabe{}, errStromVerbraucht
 	}
 	v, ok := c.nachRef[s.ref]
 	if !ok {
@@ -743,6 +762,9 @@ func neu(t *testing.T) *welt {
 	t.Cleanup(func() {
 		if w.meta.fremd+w.daten.fremd > 0 {
 			t.Errorf("ein Codec erhielt einen Strom, der nicht der von Open ist (Hülle): %d", w.meta.fremd+w.daten.fremd)
+		}
+		if w.meta.verbraucht+w.daten.verbraucht > 0 {
+			t.Errorf("ein Codec erhielt einen Strom, den der Dienst vorher gelesen hat: %d", w.meta.verbraucht+w.daten.verbraucht)
 		}
 		if w.daten.fehlt > 0 {
 			t.Errorf("der Fake des Daten-Codecs hatte für %d Aufrufe keine Vorgabe", w.daten.fehlt)

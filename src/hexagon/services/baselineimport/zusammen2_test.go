@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/baselineimport"
 )
 
 func eMarker(a, b, c string) model.Entity {
@@ -105,6 +106,44 @@ func TestZeileG6KonfliktTyp(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestZeileG6TypnamenAehnlich: zwei Typnamen sind gleich genau bei gleichen Bytes (SPEC-127 Nr. 10 f). Sieben
+// Namen, die einander ähneln, alle 49 geordneten Paare mal Werte {gleich, verschieden} (98): typ genau bei
+// verschiedenem Namen, sonst wert oder kein Fehler.
+func TestZeileG6TypnamenAehnlich(t *testing.T) {
+	namen := []string{typProdukt, "Shop.ProductEx", "Shop.Produc", "shop.product", typProdukt + " ", "Other.Product", typGeschenk}
+	n := 0
+	for _, t1 := range namen {
+		for _, t2 := range namen {
+			for _, verschieden := range []bool{false, true} {
+				n++
+				e1, e2 := eP(pw("Name", model.ArtString, "Milch")), eP(pw("Name", model.ArtString, "Milch"))
+				e1.Typ, e2.Typ = t1, t2
+				if verschieden {
+					e2 = eP(pw("Name", model.ArtString, "Brot"))
+					e2.Typ = t2
+				}
+				_, err := zweiBeobachtungen(t, e1, e2)
+				var k *model.KonfliktFehler
+				switch {
+				case t1 != t2:
+					if !errors.As(err, &k) || k.Ursache != model.KonfliktTyp {
+						t.Errorf("%q gegen %q (verschieden=%v): %v", t1, t2, verschieden, err)
+					}
+				case verschieden:
+					if !errors.As(err, &k) || k.Ursache != model.KonfliktWert {
+						t.Errorf("%q gegen %q (verschieden=%v): %v", t1, t2, verschieden, err)
+					}
+				case err != nil:
+					t.Errorf("%q gegen %q (verschieden=%v): %v", t1, t2, verschieden, err)
+				}
+			}
+		}
+	}
+	if n != 98 {
+		t.Errorf("Menge %d, erwartet 98", n)
 	}
 }
 
@@ -310,5 +349,80 @@ func TestZeileG9NichtUnterstuetzt(t *testing.T) {
 	}
 	if n != 14 {
 		t.Errorf("Menge %d", n)
+	}
+}
+
+// TestZeileG9OrdnungDerZeilen: die Ordnung von unsupported_features.entities nach (entity_set, name, reason) in
+// Bytes (SPEC-127 Nr. 14 b), an der Ordnungsfunktion: 12 Einträge {2 Sets mal 2 Namen mal 3 Gründe}, jedes der 66
+// Paare in beiden Reihenfolgen (132 Aufrufe); Orakel die Ordnung der Zeichenketten (Set, dann Name, dann Grund).
+func TestZeileG9OrdnungDerZeilen(t *testing.T) {
+	var tupel [][3]string
+	for _, set := range []string{"Products", "Orders"} {
+		for _, name := range []string{"Beta", "Alpha"} {
+			for _, grund := range []string{string(model.UebersprungTyp), string(model.UebersprungNavigation), string(model.UebersprungOffen)} {
+				tupel = append(tupel, [3]string{set, name, grund})
+			}
+		}
+	}
+	if len(tupel) != 12 {
+		t.Fatalf("Einträge %d", len(tupel))
+	}
+	vorzeichen := func(n int) int {
+		switch {
+		case n < 0:
+			return -1
+		case n > 0:
+			return 1
+		}
+		return 0
+	}
+	soll := func(a, b [3]string) int {
+		for i := range a {
+			if c := strings.Compare(a[i], b[i]); c != 0 {
+				return c
+			}
+		}
+		return 0
+	}
+	aufrufe := 0
+	for i := range tupel {
+		for j := range tupel {
+			if i == j {
+				continue
+			}
+			aufrufe++
+			if got, want := vorzeichen(baselineimport.VergleicheZeilen(tupel[i], tupel[j])), vorzeichen(soll(tupel[i], tupel[j])); got != want {
+				t.Errorf("%v gegen %v: Vorzeichen %d, erwartet %d", tupel[i], tupel[j], got, want)
+			}
+		}
+	}
+	if aufrufe != 132 {
+		t.Errorf("Aufrufe %d, erwartet 132", aufrufe)
+	}
+	if baselineimport.VergleicheZeilen(tupel[0], tupel[0]) != 0 {
+		t.Error("derselbe Eintrag ist nicht gleich")
+	}
+	// Dieselben zwölf Einträge durch den Import: die Folge im Antwortobjekt ist die der Ordnung, in jedem von 20 Läufen.
+	for lauf := 0; lauf < 20; lauf++ {
+		w := neu(t)
+		b := w.standard()
+		for _, set := range []string{"Products", "Tags"} {
+			e := ent(typProdukt, "1", pw("Id", model.ArtInt32, "1"))
+			for _, name := range []string{"Beta", "Alpha"} {
+				for _, g := range []model.UebersprungGrund{model.UebersprungTyp, model.UebersprungNavigation, model.UebersprungOffen} {
+					e.Uebersprungen = append(e.Uebersprungen, model.Uebersprungen{Name: name, Grund: g})
+				}
+			}
+			b.collection(set, "", seite(e))
+		}
+		r := mustImport(t, w, anfrage())
+		var got []string
+		for _, z := range bericht(t, r)["report"].(map[string]any)["unsupported_features"].(map[string]any)["entities"].([]any) {
+			m := z.(map[string]any)
+			got = append(got, fmt.Sprint(m["entity_set"], "|", m["name"], "|", m["reason"]))
+		}
+		if len(got) != 12 || !slices.IsSorted(got) {
+			t.Fatalf("Lauf %d: %v", lauf, got)
+		}
 	}
 }
