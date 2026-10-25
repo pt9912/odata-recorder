@@ -64,9 +64,20 @@ func (p *inhaltstypPruefer) pruefe(klasse string, h map[string][]string, medium 
 	}
 }
 
+// nichtBefreit sind die 36 Zeichen, die an keinem Rand gekürzt werden: 0x00 bis 0x20 außer Leerzeichen und Tabulator (31),
+// 0x7F, U+0085, U+00A0 (34; die Zeichen, die strings.TrimSpace zusätzlich kürzte) und die Anführungszeichen `"` und `'` (2).
+func nichtBefreit() []string {
+	var out []string
+	for c := 0; c <= 0x20; c++ {
+		if c != ' ' && c != '\t' {
+			out = append(out, string([]byte{byte(c)}))
+		}
+	}
+	return append(out, "\x7f", string(rune(0x85)), string(rune(0xa0)), `"`, `'`)
+}
+
 // klasseRand: (a) der Rand des Medientyps, sieben Folgen links mal sieben rechts mal drei Medientypen, alle gelesen (147);
-// (b) Zeichen am Rand, die nicht befreit werden: 0x00 bis 0x20 außer Leerzeichen und Tabulator (31), 0x7F, U+0085, U+00A0,
-// links und rechts, drei Medientypen, keines gelesen (204).
+// (b) Zeichen am Rand, die nicht befreit werden (36), links und rechts, drei Medientypen, keines gelesen (216).
 func (p *inhaltstypPruefer) klasseRand() {
 	raender := randFolgen()
 	if len(raender) != 7 {
@@ -80,15 +91,9 @@ func (p *inhaltstypPruefer) klasseRand() {
 			}
 		}
 	}
-	var fremd []string
-	for c := 0; c <= 0x20; c++ {
-		if c != ' ' && c != '\t' {
-			fremd = append(fremd, string([]byte{byte(c)}))
-		}
-	}
-	fremd = append(fremd, "\x7f", string(rune(0x85)), string(rune(0xa0)))
-	if len(fremd) != 34 {
-		p.t.Fatalf("Zeichen %d, erwartet 34", len(fremd))
+	fremd := nichtBefreit()
+	if len(fremd) != 36 {
+		p.t.Fatalf("Zeichen %d, erwartet 36", len(fremd))
 	}
 	for _, c := range fremd {
 		for _, m := range medien {
@@ -99,8 +104,8 @@ func (p *inhaltstypPruefer) klasseRand() {
 }
 
 // klasseName: (c) der Name des Headers ohne Beachtung der ASCII-Schreibweise: jede der 2048 Schreibweisen allein ist gelesen, neben
-// einer zweiten, abweichenden Schreibweise sind es zwei Werte; dazu sechs Namen, die nur ähneln, der Eintrag ohne Wert und
-// drei Werte (4104).
+// einer zweiten, abweichenden Schreibweise sind es zwei Werte; dazu zehn Namen, die nur ähneln, der Eintrag ohne Wert und
+// drei Werte (4108).
 func (p *inhaltstypPruefer) klasseName() {
 	namen := schreibweisenContentType()
 	verschieden := map[string]bool{}
@@ -118,7 +123,15 @@ func (p *inhaltstypPruefer) klasseName() {
 		}
 		p.pruefe("c", map[string][]string{n: {typJSON}, andere: {typJSON}}, typJSON, false, false)
 	}
-	for _, n := range []string{" content-type", "content-type ", "content_type", "content-types", "xcontent-type", "content-typ"} {
+	nbsp := string(rune(0xa0))
+	aehnlich := []string{
+		" content-type", "content-type ", "\tcontent-type", "content-type\t", nbsp + "content-type", "content-type" + nbsp,
+		"content_type", "content-types", "xcontent-type", "content-typ",
+	}
+	if len(aehnlich) != 10 {
+		p.t.Fatalf("ähnliche Namen %d, erwartet 10", len(aehnlich))
+	}
+	for _, n := range aehnlich {
 		p.pruefe("c", map[string][]string{n: {typJSON}}, typJSON, false, false)
 	}
 	p.pruefe("c", map[string][]string{"Content-Type": nil}, typJSON, false, false)
@@ -205,6 +218,42 @@ func (p *inhaltstypPruefer) klasseParameter() {
 	}
 }
 
+// klasseParameterRand: (k) die 36 nicht befreiten Zeichen links und rechts von Name und Wert eines Parameters, mal die zwei
+// Parameter (288): am Namen ist der Name ein anderer und der Parameter ohne Wirkung, die Fixture trägt den Wert, bei dem er die
+// Antwort abwiese oder ohne Kontext ließe (`charset` mit iso-8859-1, `odata.metadata` mit none), erwartet ist gelesen; am Wert
+// ist der Wert ein anderer, die Fixture trägt den Wert, der bei Befreiung gelesen würde (`charset=utf-8`: nicht gelesen,
+// `odata.metadata=none`: gelesen ohne ohne_kontext); (l) Namen, die nur ähneln: ein `x` davor, ein `x` dahinter, ein Zeichen
+// weniger am Ende, für die zwei Parameter mit ihren wirksamen Werten, alle gelesen (6); (m) Anführungszeichen ohne Paar mit
+// Anhängsel: vier Formen je Parameter (8).
+func (p *inhaltstypPruefer) klasseParameterRand() {
+	fremd := nichtBefreit()
+	if len(fremd) != 36 {
+		p.t.Fatalf("Zeichen %d, erwartet 36", len(fremd))
+	}
+	for _, par := range []struct {
+		name, amName, amWert string
+		okAmWert             bool
+	}{{"charset", "iso-8859-1", "utf-8", false}, {"odata.metadata", "none", "none", true}} {
+		for _, c := range fremd {
+			p.pruefe("k", kopfCT(typJSON+";"+c+par.name+"="+par.amName), typJSON, true, false)
+			p.pruefe("k", kopfCT(typJSON+";"+par.name+c+"="+par.amName), typJSON, true, false)
+			p.pruefe("k", kopfCT(typJSON+";"+par.name+"="+c+par.amWert), typJSON, par.okAmWert, false)
+			p.pruefe("k", kopfCT(typJSON+";"+par.name+"="+par.amWert+c), typJSON, par.okAmWert, false)
+		}
+	}
+	for _, par := range []struct{ name, wert string }{{"charset", "iso-8859-1"}, {"odata.metadata", "none"}} {
+		for _, n := range []string{"x" + par.name, par.name + "x", par.name[:len(par.name)-1]} {
+			p.pruefe("l", kopfCT(typJSON+";"+n+"="+par.wert), typJSON, true, false)
+		}
+	}
+	for _, w := range []string{`"utf-8x`, `xutf-8"`, `"utf-8x"`, `x"utf-8"`} {
+		p.pruefe("m", kopfCT(typJSON+";charset="+w), typJSON, false, false)
+	}
+	for _, w := range []string{`"nonex`, `xnone"`, `"nonex"`, `x"none"`} {
+		p.pruefe("m", kopfCT(typJSON+";odata.metadata="+w), typJSON, true, false)
+	}
+}
+
 // klasseMetadaten: (j) bei Metadaten hat odata.metadata=none keine Wirkung, das Dokument bleibt der Kandidat (1).
 func (p *inhaltstypPruefer) klasseMetadaten() {
 	p.zaehl["j"]++
@@ -216,10 +265,11 @@ func (p *inhaltstypPruefer) klasseMetadaten() {
 }
 
 // TestZeileE3InhaltstypKlassen: der Wortlaut von SPEC-127 Nr. 8 g in allen seinen Teilen als Schleifen über die reine Funktion
-// inhaltstypOK, zusammen 4844 Elemente: (a) Rand des Medientyps 147, (b) Zeichen am Rand, die nicht befreit werden 204, (c) Name
-// des Headers 4104, (d) ASCII-klein 266, (e) Leerraum um Name und Wert eines Parameters 100, (f) Leerraum und Anführungszeichen 4,
+// inhaltstypOK, zusammen 5162 Elemente: (a) Rand des Medientyps 147, (b) Zeichen am Rand, die nicht befreit werden 216, (c) Name
+// des Headers 4108, (d) ASCII-klein 266, (e) Leerraum um Name und Wert eines Parameters 100, (f) Leerraum und Anführungszeichen 4,
 // (g) `;` in Anführungszeichen 3, (h) Randformen der Parameter 9, (i) Werte von `charset` 6, (j) Metadaten mit
-// odata.metadata=none 1. Jedes Element nennt, ob die Antwort gelesen wird (ok) und ob sie keinen Kontext trägt (ohne_kontext); ein
+// odata.metadata=none 1, (k) nicht befreite Zeichen am Rand von Name und Wert eines Parameters 288, (l) Namen, die nur ähneln 6,
+// (m) Anführungszeichen ohne Paar mit Anhängsel 8. Jedes Element nennt, ob die Antwort gelesen wird (ok) und ob sie keinen Kontext trägt (ohne_kontext); ein
 // nicht gelesener Inhalt trägt nie ohne_kontext.
 func TestZeileE3InhaltstypKlassen(t *testing.T) {
 	p := &inhaltstypPruefer{t: t, zaehl: map[string]int{}}
@@ -228,14 +278,15 @@ func TestZeileE3InhaltstypKlassen(t *testing.T) {
 	p.klasseASCII()
 	p.klasseLeerraum()
 	p.klasseParameter()
+	p.klasseParameterRand()
 	p.klasseMetadaten()
-	soll := map[string]int{"a": 147, "b": 204, "c": 4104, "d": 266, "e": 100, "f": 4, "g": 3, "h": 9, "i": 6, "j": 1}
+	soll := map[string]int{"a": 147, "b": 216, "c": 4108, "d": 266, "e": 100, "f": 4, "g": 3, "h": 9, "i": 6, "j": 1, "k": 288, "l": 6, "m": 8}
 	gesamt := 0
 	for _, n := range p.zaehl {
 		gesamt += n
 	}
-	if fmt.Sprint(p.zaehl) != fmt.Sprint(soll) || gesamt != 4844 {
-		t.Errorf("Mengen %v, erwartet %v (gesamt 4844)", p.zaehl, soll)
+	if fmt.Sprint(p.zaehl) != fmt.Sprint(soll) || gesamt != 5162 {
+		t.Errorf("Mengen %v, erwartet %v (gesamt 5162)", p.zaehl, soll)
 	}
 }
 
