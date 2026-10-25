@@ -1,1 +1,1 @@
-**Stand:** geplant — `welle-record-replay`; Zielorte `.claude/commands/implement-slice.md`, `.claude/agents/implementer.md` und die MEDIUM-Liste von `.harness/skills/reviewer.md`, noch nicht geschrieben (Diff-Vorschlag beim User)
+**Stand:** verkörpert in `.claude/commands/implement-slice.md` (Schritt 14), `.claude/agents/implementer.md`, `.harness/skills/reviewer.md` seit welle-record-replay
