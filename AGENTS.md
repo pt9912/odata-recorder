@@ -217,22 +217,27 @@ Bemerkt der Implementer eine Randform, die dort nicht steht, hält er an und gib
 **Falsch:** Der Leser entscheidet `null` und den leeren Wert still, das Review findet es.
 **Richtig:** Beide Formen stehen vor dem Code in der Spezifikation.
 
-### 3.13 Eine Adresse nimmt an, bevor sie genannt wird
+### 3.13 Eine Adresse nimmt an, bevor sie genannt wird   (geschärft seit welle-record-replay)
 
 Wer einem anderen Slice etwas zuweist (Folge-Slice, Risiko-Ausgang *eingetreten*, Abgrenzung), liest vorher dessen §1 *Ausdrücklich NICHT* und dessen DoD.
 Im selben Commit trägt er die Sendung in §1 oder die DoD des Nehmers ein, mit der Kennung des Gebers.
 Trifft ein Ausschluss des Nehmers die Sendung oder liegt der Nehmer in `done/`, ist er keine Adresse; der Punkt geht an den Planner.
+Eine offene Entscheidung, die der Implementer oder eine Prüfrunde an den Architect oder den Planner zurückgibt (Abweichung vom Plan, Randform ohne Ort, Frage), steht im selben Commit wie ihr Bericht in §6 des Plans mit Ausgang *offen* und der Adresse; ein Bericht allein ist keine Adresse.
 
 **Falsch:** §6 weist einen Punkt `slice-x` zu, dessen §1 ihn ausschließt.
 **Richtig:** Der Nehmer führt den Punkt in §1 oder seiner DoD, bevor der Geber ihn nennt.
+
+**Falsch:** Die Abweichung steht im Bericht des Implementers, §6 nennt sie nicht, und die nächste Prüfrunde findet sie.
+**Richtig:** §6 trägt die Zeile mit Ausgang *offen* und Adresse, bevor der Bericht übergeht.
 
 ### 3.14 Die Größenmarke schneidet vor dem Code oder am vorab benannten Teil und nennt ihre Metrik   (geschärft seit welle-record-replay)
 
 Jede Marke in §4 eines Plans („zu groß, über N Zeilen") nennt ihre Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade, die der Plan nennt, Tests eingeschlossen.
 Schätzungen werden in dieser Metrik angegeben: Zeilen der Tabelle *Zusage · Fänger* (§3.15) × 85 (nebenläufig) bzw. × 40 (jede andere Zeile), plus 200 je Port-Fake oder Test-Server.
+Liefert der Slice einen Leser fremder Bytes (einen Parser für ein Format, das nicht dieses Repo schreibt), zählt jede andere Zeile × 65 statt × 40, und die Produktcode-Größe, die der Architect erwartet, kommt als fester Anteil hinzu.
 Nebenläufig zählt eine Zeile, wenn der Code oder sein Fänger nebenläufig ist.
 Der erste Slice mit Zeilen, die keine reinen Funktionen sind, nennt den gemessenen Wert in §4.
-Die Formel schätzt den Stand beim Handoff; die Marke misst den Stand nach dem Review, und dafür wird die ganze Schätzung, feste Anteile eingeschlossen, × 1,25 gehalten, denn das Ende lag nachgemessen 17 bis 25 % über dem Handoff.
+Die Formel schätzt den Stand beim Handoff; die Marke misst den Stand nach dem Review, und dafür wird die ganze Schätzung, feste Anteile eingeschlossen, × 1,25 gehalten, denn das Ende lag nachgemessen 17 bis 29 % über dem Handoff.
 Die Marke setzt der Planner vor dem ersten Code-Commit auf die Schätzung × 1,25, aufgerundet auf volle Hundert; eine ältere Marke ersetzt er dabei mit Grund in §4.
 Liegt die Schätzung × 1,25 über 3000, wird vor dem ersten Code-Commit geschnitten; lässt sich kein Teil ohne geteilten Mechanismus abtrennen, steht der Grund in §4.
 Daneben ist ein vorab benannter Schnitt beim Handoff erlaubt: der Teil ist vor dem Code in §4 benannt, zuletzt in eigenem Commit geschrieben und davor gemessen, und er teilt keinen Mechanismus mit dem Rest.
@@ -240,6 +245,9 @@ Sonst wird nach dem Code gemessen und mit Grund berichtet.
 
 **Falsch:** „über 700 Zeilen", ohne Metrik; eine Marke unter der Schätzung × 1,25, die der Planner vor dem ersten Code-Commit nicht neu gesetzt hat; eine Marke, die nach dem fertigen Code eine Rückführung verspricht; ein Schnitt beim Handoff an einem Teil, den erst die Messung benennt.
 **Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)", vor dem ersten Code-Commit vom Planner auf die Schätzung × 1,25, aufgerundet auf volle Hundert, gesetzt; vor dem Code wird nur über 3000 geschnitten, beim Handoff nur der Teil, den §4 vor dem Code benannt hat; sonst steht nach dem Code die Messung mit Grund im Plan.
+
+**Falsch:** Die Marke eines Slice mit einem Leser fremder Bytes zählt nur die Fänger (Formel 1850 und 2050 bei Enden von 4333 und 7236).
+**Richtig:** Zeilen × 65 plus die Produktcode-Größe des Architect, × 1,25.
 
 ### 3.15 Zusage und Fänger stehen als Paar im Plan   (seit welle-fundament, geschärft seit welle-record-replay)
 
@@ -277,6 +285,15 @@ Reviewer und Verifier lösen den Fix gegen die Klasse auf, nicht gegen die genan
 
 **Falsch:** Der Befund nennt `Collection(Edm.String` ohne Klammer; der Fix macht die Mutation „Suffix `)` nicht geprüft“ rot und führt dafür genau diese Form. `Collection(Edm.StringX`, `…)X` und `…))` bleiben ungefangen, die nächste Runde findet sie.
 **Richtig:** Der Fix nennt die Menge „Rest hinter und in der Klammer“ mit ihren Elementen, der Fänger läuft als Schleife darüber, und der Bericht nennt eine Mutation an einem Element, das der Befund nicht nannte.
+
+### 3.18 Ein Wert mit Escape-Folge oder Rohbytes wird aus Bytewerten gebaut und nach dem Schreiben gegengelesen   (seit welle-record-replay)
+
+Das Werkzeug, mit dem ein Agent eine Datei oder einen Bericht schreibt (Heredoc, `Write`, `Edit`), setzt eine Folge aus Backslash, `u` und vier Hex-Ziffern still in das Zeichen um.
+Ein Fixture, ein Plan oder ein Bericht, dessen Inhalt eine solche Folge, ein BOM, ein NBSP oder ein anderes Zeichen jenseits von ASCII ist, bildet den Wert deshalb aus Bytewerten (`esc("…")`, `[]byte{…}`, ein Raw-String mit geprüftem Inhalt) und liest die geschriebene Datei auf Rohbytes zurück (`LC_ALL=C grep -P`).
+Der Bericht nennt, welche Datei gegengelesen wurde.
+
+**Falsch:** Ein Fixture soll den Text `\u005B` prüfen; das Werkzeug schreibt `[`, und der Fänger prüft das Zeichen, ohne dass Aufbau oder Gate es melden.
+**Richtig:** Der Wert entsteht aus Bytewerten, und die geschriebene Datei ist auf Rohbytes gegengelesen.
 
 ## 4. Quality Gates
 
