@@ -37,7 +37,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Register):** Den Ausgang `geplant` von `BEO-REPO/groessenmarke-ueberschritten-ohne-rueckfuehrung` (16×; Entscheidung des Users in der Closure von `slice-baseline-import`: Sensor statt Prosa). Der Eintrag stand auf `verkörpert` in `AGENTS.md` §3.14; die Prosa-Regel hat 16 Überschreitungen nicht verhindert und die Messung des dritten Punkts (`slice-baseline-import`) widerlegt ihren Leser-Zuschlag. Diese Closure setzt den Ausgang auf `verkörpert` mit dem Ziel des Werkzeugs als Zielort.
 
-**Übernimmt (Messpunkte):** Drei gemessene Slices als Ausgangsmaterial für die Entscheidung des Architect über Formel und Faktoren (Quellen: §4 von [slice-odata-codec-csdl](../done/slice-odata-codec-csdl.md), [slice-odata-codec-json](../done/slice-odata-codec-json.md) und [slice-baseline-import](../in-progress/slice-baseline-import.md)):
+**Übernimmt (Messpunkte):** Drei gemessene Slices als Ausgangsmaterial für die Entscheidung des Architect über Formel und Faktoren (Quellen: §4 von [slice-odata-codec-csdl](../done/slice-odata-codec-csdl.md), [slice-odata-codec-json](../done/slice-odata-codec-json.md) und [slice-baseline-import](../done/slice-baseline-import.md)):
 
 | | csdl | json | import |
 |---|---|---|---|
