@@ -65,7 +65,9 @@ func (p *inhaltstypPruefer) pruefe(klasse string, h map[string][]string, medium 
 }
 
 // nichtBefreit sind die 36 Zeichen, die an keinem Rand gekürzt werden: 0x00 bis 0x20 außer Leerzeichen und Tabulator (31),
-// 0x7F, U+0085, U+00A0 (34; die Zeichen, die strings.TrimSpace zusätzlich kürzte) und die Anführungszeichen `"` und `'` (2).
+// 0x7F, U+0085, U+00A0 (34; Zeichen, die ein Trim oder TrimSpace anders behandelt als Trim(" \t")) und die Anführungszeichen
+// `"` und `'` (2). Nicht geführt sind die 17 weiteren Zeichen, die strings.TrimSpace kürzt (U+1680, U+2000 bis U+200A, U+2028,
+// U+2029, U+202F, U+205F, U+3000); eine Änderung, die nur sie kürzt, bleibt grün (akzeptiertes Negativ im Plan, E3).
 func nichtBefreit() []string {
 	var out []string
 	for c := 0; c <= 0x20; c++ {
