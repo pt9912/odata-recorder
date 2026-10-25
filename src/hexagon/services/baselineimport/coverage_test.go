@@ -144,14 +144,15 @@ func TestZeileH12EintragJeSet(t *testing.T) {
 	}
 }
 
-// TestZeileH13FormDerEvidenz: die Evidenz in der Kanonform für die Gründe ohne Kette.
+// TestZeileH13FormDerEvidenz: die Evidenz in der Kanonform für die drei Sets des Referenzfalls: kein Beleg,
+// keine ungefilterte Abfrage und eine belegte Kette.
 func TestZeileH13FormDerEvidenz(t *testing.T) {
 	w := weltI1(t)
 	mustImport(t, w, anfrage())
 	soll := map[string]string{
 		"Tags":     `{"chains":[],"entities":0,"reason":"keine_beobachtung","responses":{"collection":0,"entity":0},"version":1}`,
 		"Orders":   `{"chains":[],"entities":1,"reason":"keine_ungefilterte_abfrage","responses":{"collection":0,"entity":1},"version":1}`,
-		"Products": `{"chains":[],"entities":2,"reason":"kette_nicht_belegt","responses":{"collection":1,"entity":0},"version":1}`,
+		"Products": `{"chains":[{"end":"proven","pages":[{"elements":2,"exchange_id":"exc-002","sequence_no":2}],"start":{"exchange_id":"exc-002","sequence_no":2}}],"entities":2,"reason":"kette_belegt","responses":{"collection":1,"entity":0},"version":1}`,
 	}
 	for _, c := range w.imports.pubs[0].Coverage {
 		if c.EvidenceJSON != soll[c.EntitySet] {

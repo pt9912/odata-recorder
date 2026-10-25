@@ -34,7 +34,7 @@ const (
 // teileI1 sind die Stücke der Goldens, in der Reihenfolge der Kanonform.
 func coverageI1() string {
 	return `[{"entity_set":"Orders","evidence":{"chains":[],"entities":1,"reason":"keine_ungefilterte_abfrage","responses":{"collection":0,"entity":1},"version":1},"status":"partial"},` +
-		`{"entity_set":"Products","evidence":{"chains":[],"entities":2,"reason":"kette_nicht_belegt","responses":{"collection":1,"entity":0},"version":1},"status":"partial"},` +
+		`{"entity_set":"Products","evidence":{"chains":[{"end":"proven","pages":[{"elements":2,"exchange_id":"exc-002","sequence_no":2}],"start":{"exchange_id":"exc-002","sequence_no":2}}],"entities":2,"reason":"kette_belegt","responses":{"collection":1,"entity":0},"version":1},"status":"complete"},` +
 		`{"entity_set":"Tags","evidence":{"chains":[],"entities":0,"reason":"keine_beobachtung","responses":{"collection":0,"entity":0},"version":1},"status":"unknown"}]`
 }
 

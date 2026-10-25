@@ -884,7 +884,7 @@ func (b *bauer) roh(pfad, query string, as ...aenderung) model.Exchange {
 			Method: e.Method, ServiceID: dienstID, Path: e.Path, RawQuery: e.RawQuery, Header: e.RequestHeaders, RequestRedaction: model.RedactionNone,
 		}, regeln())
 		if err == nil {
-			e.MatchKey, e.KeyRedacted = k.MatchKey, k.KeyRedacted
+			e.MatchKey, e.KeyRedacted = k.MatchKey, e.KeyRedacted || k.KeyRedacted
 		} else {
 			e.MatchKey = "sha256:" + strings.Repeat("0", 64)
 		}

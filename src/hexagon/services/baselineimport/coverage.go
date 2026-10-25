@@ -94,8 +94,8 @@ func kettenObjekt(k kette) any {
 
 // bewerteSet bildet Status und Evidenz eines Sets aus seinen gelesenen Antworten und der Zahl
 // seiner verschiedenen Schlüssel (Nr. 12, 13).
-func bewerteSet(gelesen []*antwort, entities int) (model.CoverageStatus, objekt) {
-	var ketten []kette
+func bewerteSet(k kettenlauf, set string, gelesen []*antwort, entities int) (model.CoverageStatus, objekt) {
+	ketten := k.laufeKetten(set, gelesen)
 	collection, entity := 0, 0
 	hatStart := false
 	for _, a := range gelesen {
@@ -117,7 +117,7 @@ func bewerteSet(gelesen []*antwort, entities int) (model.CoverageStatus, objekt)
 }
 
 // coverageEintraege bildet je Set des Modells einen Eintrag, aufsteigend nach entity_set (Nr. 12).
-func coverageEintraege(m model.ServiceModel, gelesen []*antwort, z *zusammen) []model.Coverage {
+func coverageEintraege(m model.ServiceModel, ketten kettenlauf, gelesen []*antwort, z *zusammen) []model.Coverage {
 	nachSet := map[string][]*antwort{}
 	for _, a := range gelesen {
 		nachSet[a.set] = append(nachSet[a.set], a)
@@ -130,7 +130,7 @@ func coverageEintraege(m model.ServiceModel, gelesen []*antwort, z *zusammen) []
 	slices.SortFunc(sets, func(a, b model.EntitySet) int { return strings.Compare(a.Name, b.Name) })
 	out := make([]model.Coverage, 0, len(sets))
 	for _, s := range sets {
-		status, evidenz := bewerteSet(nachSet[s.Name], zahl[s.Name])
+		status, evidenz := bewerteSet(ketten, s.Name, nachSet[s.Name], zahl[s.Name])
 		out = append(out, model.Coverage{EntitySet: s.Name, Status: status, EvidenceJSON: string(kanon(evidenz))})
 	}
 	return out

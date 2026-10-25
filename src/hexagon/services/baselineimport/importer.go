@@ -214,6 +214,7 @@ func (i *Importer) verarbeite(ctx context.Context, a inbound.ImportAnfrage, exs 
 	r.quellen = append(r.quellen, quelle{art: "metadata", exchangeID: doc.ex.ID, seq: doc.ex.SequenceNo})
 	z := neuZusammen()
 	var gelesen []*antwort
+	ketten := kettenlauf{exchanges: exs, gelesen: map[string]*antwort{}, dienst: i.dienstVon(a.ServiceID), regeln: i.k.Regeln}
 	for _, e := range exs {
 		u := klassifiziere(e, &doc.modell)
 		if e.ID == doc.ex.ID {
@@ -239,6 +240,7 @@ func (i *Importer) verarbeite(ctx context.Context, a inbound.ImportAnfrage, exs 
 			}
 		}
 		gelesen = append(gelesen, an)
+		ketten.gelesen[e.ID] = an
 		art := "entity"
 		if u.spur == spurCollection {
 			art = "collection"
@@ -247,11 +249,16 @@ func (i *Importer) verarbeite(ctx context.Context, a inbound.ImportAnfrage, exs 
 	}
 	sortiereQuellen(r.quellen)
 	r.entities = z.fertige(doc.modell, r.sessionID)
-	r.coverage = coverageEintraege(doc.modell, gelesen, z)
+	r.coverage = coverageEintraege(doc.modell, ketten, gelesen, z)
 	r.beobachtungen = z.beobachtungen
 	r.maskiert = z.maskierte()
 	r.nichtUnterst = z.nichtUnterstuetzt()
 	return r, nil
+}
+
+// dienstVon liefert den Dienst der Konfiguration; die Kennung steht in Dienste (Nr. 4 b).
+func (i *Importer) dienstVon(id string) Dienst {
+	return i.k.Dienste[slices.IndexFunc(i.k.Dienste, func(d Dienst) bool { return d.ID == id })]
 }
 
 // liesAntwort öffnet den Body, ruft den Leser der Spur und schließt den Strom (Nr. 9).
