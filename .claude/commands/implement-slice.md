@@ -120,6 +120,12 @@ emittierten Durchsetzungsschicht):
 ## Implementieren und gaten (Modul 9, Schritte 5–6)
 
 14. Die kleinste sinnvolle Änderung implementieren.
+    **Nennt die Tabelle *Zusage · Fänger* des Plans eine Klasse generierbar** (ein Generator
+    erzeugt die Eingaben aus der Grammatik der Klasse, ein Orakel nennt die Erwartung unabhängig
+    vom Code), führt schon der Handoff den Generator oder die Schleife mit diesem Orakel und eine
+    Zählprüfung der Menge; handgeschriebene Fälle bleiben als Goldens daneben. Der Bericht nennt
+    je Klasse Generator, Orakel und die Zahl der Elemente, die der Test zählt  (seit
+    welle-record-replay).
 15. Zuerst den engsten nützlichen Gate laufen lassen (z. B. eine Testdatei / ein Gate).
 16. `make gates` laufen lassen.
 
@@ -150,6 +156,11 @@ ist eine Lifecycle-Rücksprungkante (11).
     ist, gehört sie in den Mutations-Sensor deines Repos (falls vorhanden); wo sie einmalig ist, in
     den Bericht. **Keine Antwort ist ein Befund**, kein Formfehler — die Klasse „Zusage greift
     weiter als Abdeckung" ist in der Praxis teuer erkauft.
+    **Bei einem Befund aus Review oder Verifikation** bildest du die Menge aus dem Satz des
+    Wortlauts, nicht aus der Stelle des Befunds: gilt der Satz an mehreren Stellen (der Rand des
+    Medientyps, Name und Wert eines Parameters; jede Aufrufstelle), ist jede Stelle ein Faktor der
+    Schleife, und der Bericht nennt die Stellen, die der Satz trägt, und die Elemente je Stelle
+    (`AGENTS.md` §3.17)  (seit welle-record-replay).
 20. **Jeden in diesem Lauf neu geschriebenen oder geänderten Kommentar gegen `AGENTS.md` §3.7
     prüfen** (Code, Konfiguration, Skripte). Die Probe: beschreibt der Satz den **Ist-Zustand**
     (indikativ, auflösbar), oder trägt er eine Slice-Nummer als Begründung, ein „(… , entschieden)"

@@ -24,6 +24,10 @@ gelaufen. Prüfe die **Belege**, nicht die Behauptung — und fahre die Sensoren
 nicht siehst, selbst. Eine DoD-Verletzung ist eine **Verifier-only-Klasse**: unsichtbar für Tests
 und für das Review.
 
+**Einen Fix löst du gegen die Klasse auf, nicht gegen die genannte Mutation** (`AGENTS.md` §3.17):
+Gilt ein Satz des Wortlauts an mehreren Stellen, ist jede Stelle ein Faktor der Menge; du
+mutierst an einer Stelle, die der Befund nicht nannte (seit welle-record-replay).
+
 **Was du NICHT bist:** der Reviewer. Er sieht den Diff, du siehst die Zusage. Und du bist nicht
 der Implementer: du reparierst nichts, du berichtest.
 

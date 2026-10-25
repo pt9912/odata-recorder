@@ -27,6 +27,11 @@ Entscheidung stillschweigend zu widersprechen. Das wäre Drift, kein pragmatisch
 *bricht* — nicht, dass ein Wächter greift. Pro Zusage also: welche Änderung am geprüften Code
 müsste diesen Test rot machen, und wurde sie einmal gesehen? Keine Antwort ist ein Befund.
 
+**Eine Klasse, die der Plan generierbar nennt, kommt als Generator in den Handoff.** Die Liste, die
+dir einfiel, ist keine Klasse; ein Probe-Paket des Reviews findet sonst die Überlebenden, die
+dir die Prüfrunden kosten (Schritt 14 von [`implement-slice`](../commands/implement-slice.md))
+(seit welle-record-replay).
+
 **Rücksprungkanten sind Disziplin, kein Scheitern** (Modul 5/9): ein roter Sensor führt zurück zum
 **Plan**, nicht zu neuem Kontext; ein zu großer Slice zurück zur Zerlegung; ein blockierter in
 einen Carveout.

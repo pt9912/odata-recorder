@@ -66,6 +66,10 @@ bewusst kurz (Ergänzungs-Kanal, nicht Hauptkanal).
 - **Fänger führt nur eine Form der Eingabe** — der Code behandelt Formen der
   Eingabe verschieden, der Fänger führt nur eine davon (`AGENTS.md` §3.15)
   (seit welle-record-replay)
+- **Klasse generierbar benannt, im Handoff nur als Liste** — die Tabelle nennt die
+  Klasse generierbar, die Suite führt Fälle von Hand, und eine Mutation an einem
+  Element der Klasse bleibt grün (`.claude/commands/implement-slice.md` Schritt 14)
+  (seit welle-record-replay)
 - **Fänger nur mit Wahrscheinlichkeit, Rate nicht benannt** — der Fänger wird mit
   seiner Mutation nur in einem Teil der Läufe rot, und Plan oder Test nennen die
   Rate nicht (`AGENTS.md` §3.10)  (seit welle-record-replay)
