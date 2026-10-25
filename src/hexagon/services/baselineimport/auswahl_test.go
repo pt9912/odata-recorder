@@ -84,9 +84,12 @@ func TestZeileE1Spur(t *testing.T) {
 	}
 	// Ergänzung außerhalb der Handmenge: Namen, die einem Set nur ähneln (Präfix, Anhang, Navigation vor der Klammer),
 	// und Pfade ohne führenden Schrägstrich.
-	ergaenzung := []string{"/ProductsX", "/Product", "/Prod(1)", "/ProductsX(1)", "/Orde(1)", "/Products/Ns.Special(1)", "/Products/Orders('b')", "/Products(1)x", "/Products(1)(", "/Products(1))",
-		"", "Products", "Products(1)", "Orders"}
-	for _, p := range slices.Concat(pfad, ergaenzung) {
+	aehnlich := []string{"/ProductsX", "/Product", "/Prod(1)", "/ProductsX(1)", "/Orde(1)", "/Products/Ns.Special(1)", "/Products/Orders('b')", "/Products(1)x", "/Products(1)(", "/Products(1))"}
+	ohneSchraegstrich := []string{"", "Products", "Products(1)", "Orders"}
+	if len(aehnlich) != 10 || len(ohneSchraegstrich) != 4 {
+		t.Fatalf("Ergänzung %d und %d, erwartet 10 und 4", len(aehnlich), len(ohneSchraegstrich))
+	}
+	for _, p := range slices.Concat(pfad, aehnlich, ohneSchraegstrich) {
 		if g := probe(t, p, ""); g.grund != "pfad" {
 			t.Errorf("%s: %+v", p, g)
 		}

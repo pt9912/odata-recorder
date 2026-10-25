@@ -20,17 +20,21 @@ import (
 const fristSchranke = 5 * time.Second
 
 // schranke hält n Goroutinen an, bis die letzte sie erreicht. Läuft die Frist ab, gibt sie alle Wartenden auf
-// einmal frei und meldet den Ablauf; der Test macht daraus einen Fehler (pruefe).
+// einmal frei und meldet den Ablauf; der Test macht daraus einen Fehler (pruefe). Die Frist ist ein Feld, das
+// der Selbsttest (TestZeileB7SchrankeSelbsttest) vor dem ersten Aufruf von warte setzt.
 type schranke struct {
 	mu     sync.Mutex
 	n      int
 	ziel   int
+	frist  time.Duration
 	tor    chan struct{}
 	zu     sync.Once
 	ablauf atomic.Bool
 }
 
-func neueSchranke(ziel int) *schranke { return &schranke{ziel: ziel, tor: make(chan struct{})} }
+func neueSchranke(ziel int) *schranke {
+	return &schranke{ziel: ziel, frist: fristSchranke, tor: make(chan struct{})}
+}
 
 func (s *schranke) oeffne() { s.zu.Do(func() { close(s.tor) }) }
 
@@ -43,17 +47,99 @@ func (s *schranke) warte() {
 	s.mu.Unlock()
 	select {
 	case <-s.tor:
-	case <-time.After(fristSchranke):
+	case <-time.After(s.frist):
 		s.ablauf.Store(true)
 		s.oeffne()
 	}
 }
 
+// berichter ist, was pruefe von *testing.T braucht; der Selbsttest der Schranke reicht einen Sammler.
+type berichter interface {
+	Helper()
+	Errorf(format string, args ...any)
+}
+
 // pruefe macht den Ablauf der Frist zu einem Fehler des Tests: nicht alle Aufrufe erreichten die Schranke.
-func (s *schranke) pruefe(t *testing.T, name string) {
+func (s *schranke) pruefe(t berichter, name string) {
 	t.Helper()
 	if s.ablauf.Load() {
-		t.Errorf("%s: nicht alle %d Aufrufe erreichten die Schranke innerhalb von %v (ein Aufruf hält die anderen auf)", name, s.ziel, fristSchranke)
+		t.Errorf("%s: nicht alle %d Aufrufe erreichten die Schranke innerhalb von %v (ein Aufruf hält die anderen auf)", name, s.ziel, s.frist)
+	}
+}
+
+// sammler hält die Meldungen von pruefe fest.
+type sammler struct{ meldungen []string }
+
+func (s *sammler) Helper() {}
+
+func (s *sammler) Errorf(format string, args ...any) {
+	s.meldungen = append(s.meldungen, fmt.Sprintf(format, args...))
+}
+
+// warteMit lässt n Goroutinen an s warten; der Kanal schließt, wenn alle zurückgekehrt sind.
+func warteMit(s *schranke, n int) <-chan struct{} {
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.warte()
+		}()
+	}
+	fertig := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(fertig)
+	}()
+	return fertig
+}
+
+// TestZeileB7SchrankeSelbsttest: die Schranke trägt die Mutation „Mutex um den ganzen Aufruf“ von B5 bis B7 und prüft sich selbst
+// (Menge 3, Frist als Feld): (1) erreichen alle ziel Aufrufe sie, gibt es keinen Ablauf und pruefe schweigt; (2) fehlt einer,
+// wird der Ablauf gemeldet, die Wartenden sind frei und auch ein späterer Aufruf, der nicht der letzte ist, kommt durch; (3) fehlt
+// einer, meldet pruefe genau einen Fehler. Jede Prüfung wartet höchstens 5 Sekunden auf das Ende der Wartenden.
+func TestZeileB7SchrankeSelbsttest(t *testing.T) {
+	frei := func(fall string, fertig <-chan struct{}) {
+		t.Helper()
+		select {
+		case <-fertig:
+		case <-time.After(5 * time.Second):
+			t.Errorf("%s: die Wartenden sind nach 5 Sekunden nicht frei", fall)
+		}
+	}
+	n := 0
+
+	n++
+	s := neueSchranke(3)
+	s.frist = time.Minute
+	frei("(1) alle erreichen die Schranke", warteMit(s, 3))
+	var r1 sammler
+	s.pruefe(&r1, "(1)")
+	if s.ablauf.Load() || len(r1.meldungen) != 0 {
+		t.Errorf("(1) alle erreichen die Schranke: Ablauf %v, Meldungen %v", s.ablauf.Load(), r1.meldungen)
+	}
+
+	n++
+	s = neueSchranke(4)
+	s.frist = 50 * time.Millisecond
+	frei("(2) einer fehlt", warteMit(s, 2))
+	if !s.ablauf.Load() {
+		t.Error("(2) einer fehlt: der Ablauf der Frist wird nicht gemeldet")
+	}
+	s.frist = time.Hour
+	frei("(2) späterer Aufruf nach dem Ablauf", warteMit(s, 1))
+
+	n++
+	s = neueSchranke(3)
+	s.frist = 50 * time.Millisecond
+	frei("(3) einer fehlt", warteMit(s, 2))
+	var r3 sammler
+	s.pruefe(&r3, "(3)")
+	if len(r3.meldungen) != 1 {
+		t.Errorf("(3) einer fehlt: pruefe meldet %d Fehler, erwartet 1: %v", len(r3.meldungen), r3.meldungen)
+	}
+	if n != 3 {
+		t.Errorf("Menge %d, erwartet 3", n)
 	}
 }
 

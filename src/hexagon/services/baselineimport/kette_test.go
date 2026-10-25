@@ -461,6 +461,9 @@ func TestZeileH10MehrereKetten(t *testing.T) {
 			}
 		}, f.status, f.grund})
 	}
+	if len(faelle) != 10 {
+		t.Fatalf("Menge (a) %d, erwartet 10", len(faelle))
+	}
 	// (b) Die acht geordneten Beziehungen zweier belegter Ketten.
 	for _, f := range []struct {
 		name   string

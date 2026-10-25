@@ -2,8 +2,8 @@ package baselineimport
 
 import "github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 
-// Hilfen für die externen Tests: die reinen Funktionen des Hashes der Anfrage, der Kanonform und der
-// Ordnung von unsupported_features.entities.
+// Hilfen für die externen Tests: die reinen Funktionen des Hashes der Anfrage, der Kanonform, der Ordnung von
+// unsupported_features.entities, des Content-Type und der ASCII-Kleinschreibung.
 
 // AnfrageHash ist anfrageHash (SPEC-127 Nr. 3 f).
 func AnfrageHash(a inbound.ImportAnfrage) string { return anfrageHash(a) }
@@ -16,3 +16,11 @@ func Kanon(v any) []byte { return kanon(v) }
 func VergleicheZeilen(a, b [3]string) int {
 	return vergleicheZeilen(zeile{a[0], a[1], a[2]}, zeile{b[0], b[1], b[2]})
 }
+
+// Inhaltstyp ist inhaltstypOK (SPEC-127 Nr. 8 g): h sind die Header der Antwort, medien die zulässigen Medientypen.
+func Inhaltstyp(h map[string][]string, medien ...string) (ok, ohneKontext bool) {
+	return inhaltstypOK(h, medien...)
+}
+
+// ASCIIKlein ist asciiKlein (SPEC-127 Nr. 8 g, ASCII-klein).
+func ASCIIKlein(s string) string { return asciiKlein(s) }

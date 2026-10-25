@@ -271,6 +271,7 @@ func TestZeileC1Schreibweisen(t *testing.T) {
 	}
 	// Ergänzung außerhalb der Menge: zwei verschiedene Schreibweisen sind zwei Kennungen (90 geordnete Paare je Ort);
 	// eine Kennung, die der Dienst kürzt, in der Schreibweise ändert oder vergleicht, ohne sie zu unterscheiden, fällt auf.
+	paare := 0
 	for _, s1 := range schreibweisen() {
 		for _, s2 := range schreibweisen() {
 			if s1 == s2 {
@@ -285,7 +286,11 @@ func TestZeileC1Schreibweisen(t *testing.T) {
 			w.sessions.m[s1] = model.Session{ID: s1, ServiceID: dienstID, CreatedAt: t0(), Status: model.SessionComplete}
 			_, err = w.importiere(inbound.ImportAnfrage{ImportID: "imp-1", ServiceID: dienstID, SourceSessionIDs: []string{s2}})
 			erwarteFehler(t, fmt.Sprintf("Session %q gegen %q", s2, s1), err, model.CodeE7003, 404)
+			paare += 2
 		}
+	}
+	if paare != 180 {
+		t.Errorf("Paare %d, erwartet 180 (10 mal 9 mal 2 Orte)", paare)
 	}
 }
 

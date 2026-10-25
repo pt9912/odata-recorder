@@ -271,6 +271,34 @@ func TestZeileH6Linkformen(t *testing.T) {
 	t.Logf("H6 Linkformen: %v", enden)
 }
 
+// TestZeileH6Zugangsdaten: Zugangsdaten enden am letzten `@` der Autorität (SPEC-127 Nr. 12 e), außerhalb der 4531 Elemente (82):
+// Folgen über {`u`, `:`, `@`} der Länge 0 bis 3 (40), gefolgt vom trennenden `@`, vor dem Host `up.example`, als absoluter Link
+// und als Netzpfad (80), dazu zwei täuschende Hosts (`up.example@other.example` fremd, `other.example@up.example` aufgelöst).
+// Orakel: linkOrakel (net/url).
+func TestZeileH6Zugangsdaten(t *testing.T) {
+	const up = "https://up.example/odata/v4"
+	const ziel = "up.example/odata/v4/Products?$skiptoken=1"
+	var elemente []linkElem
+	fs := folgen("u", ":", "@")
+	if len(fs) != 40 {
+		t.Fatalf("Folgen %d, erwartet 40", len(fs))
+	}
+	for _, f := range fs {
+		z := strings.Join(f, "") + "@"
+		elemente = append(elemente, linkElem{"E absolut", up, "https://" + z + ziel}, linkElem{"E Netzpfad", up, "//" + z + ziel})
+	}
+	elemente = append(elemente,
+		linkElem{"E Host fremd", up, "https://up.example@other.example/odata/v4/Products?$skiptoken=1"},
+		linkElem{"E Host aufgelöst", up, "https://other.example@up.example/" + strings.TrimPrefix(ziel, "up.example/")})
+	enden := map[string]int{}
+	for _, e := range elemente {
+		enden[pruefeLink(t, e)]++
+	}
+	if len(elemente) != 82 || enden["proven"] == 0 || enden["link_nicht_aufloesbar"] == 0 {
+		t.Errorf("Menge %d, Ausgänge %v, erwartet 82 mit aufgelösten und nicht aufgelösten Links", len(elemente), enden)
+	}
+}
+
 // TestZeileH6PortGrenze: beide Seiten der Grenze des Ports (SPEC-127 Nr. 12 e: Dezimalzahl von 0 bis 65535), außerhalb der
 // 4531 Elemente: Upstream-Port {keiner, 443, 65535, 0} mal Port des Links {keiner, 443, 65535, 65536, 0, 00, 0065535} (28),
 // Orakel linkOrakel.

@@ -55,7 +55,9 @@ func TestZeileH13EvidenzMitKette(t *testing.T) {
 			`,{"end":"proven","pages":[{"elements":2,"exchange_id":"exc-003","sequence_no":3}],"start":{"exchange_id":"exc-003","sequence_no":3}}`,
 			"3", "ketten_abweichend", "2"), "partial"},
 	}
+	n := 0
 	for _, f := range faelle {
+		n++
 		w := neu(t)
 		f.bau(w.standard())
 		mustImport(t, w, anfrage())
@@ -69,5 +71,8 @@ func TestZeileH13EvidenzMitKette(t *testing.T) {
 		if got != f.soll || string(status) != f.status {
 			t.Errorf("%s: %s\nerwartet: %s (%s)", f.name, got, f.soll, f.status)
 		}
+	}
+	if n != 12 {
+		t.Errorf("Menge %d, erwartet 12 (mit den drei Goldens von H13FormDerEvidenz 15)", n)
 	}
 }

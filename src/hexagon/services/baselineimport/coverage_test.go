@@ -154,9 +154,14 @@ func TestZeileH13FormDerEvidenz(t *testing.T) {
 		"Orders":   `{"chains":[],"entities":1,"reason":"keine_ungefilterte_abfrage","responses":{"collection":0,"entity":1},"version":1}`,
 		"Products": `{"chains":[{"end":"proven","pages":[{"elements":2,"exchange_id":"exc-002","sequence_no":2}],"start":{"exchange_id":"exc-002","sequence_no":2}}],"entities":2,"reason":"kette_belegt","responses":{"collection":1,"entity":0},"version":1}`,
 	}
+	n := 0
 	for _, c := range w.imports.pubs[0].Coverage {
+		n++
 		if c.EvidenceJSON != soll[c.EntitySet] {
 			t.Errorf("%s: %s", c.EntitySet, c.EvidenceJSON)
 		}
+	}
+	if n != 3 {
+		t.Errorf("Menge %d, erwartet 3", n)
 	}
 }

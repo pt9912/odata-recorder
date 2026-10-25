@@ -185,8 +185,9 @@ func TestZeileI10Importe(t *testing.T) {
 	}
 }
 
-// goroutinenIn liefert die Stellen in text, an denen Code eine Goroutine startet: die Anweisung go und die Aufrufe
-// von WaitGroup.Go (jeder Aufruf einer Methode Go), time.AfterFunc und context.AfterFunc (SPEC-127 Nr. 18).
+// goroutinenIn liefert die Stellen in text, an denen Code eine Goroutine startet oder nennt: die Anweisung go und die Selektoren
+// WaitGroup.Go (jeder Selektor Go), time.AfterFunc und context.AfterFunc, ob als Aufruf, Variable, Methodenwert oder
+// Argument (SPEC-127 Nr. 18).
 func goroutinenIn(t *testing.T, name, text string) []string {
 	t.Helper()
 	f, err := parser.ParseFile(token.NewFileSet(), name, text, 0)
@@ -207,11 +208,8 @@ func goroutinenIn(t *testing.T, name, text string) []string {
 		switch x := n.(type) {
 		case *ast.GoStmt:
 			funde = append(funde, "go")
-		case *ast.CallExpr:
-			sel, ok := x.Fun.(*ast.SelectorExpr)
-			if !ok {
-				break
-			}
+		case *ast.SelectorExpr:
+			sel := x
 			if sel.Sel.Name == "Go" {
 				funde = append(funde, "WaitGroup.Go")
 			}
@@ -251,8 +249,8 @@ func dienstDateien(t *testing.T) map[string]string {
 }
 
 // TestZeileI10Goroutinen: der Dienst startet keine Goroutine (SPEC-127 Nr. 18): in keiner Datei des Pakets steht die
-// Anweisung go oder ein Aufruf von WaitGroup.Go, time.AfterFunc oder context.AfterFunc. Die Prüfung ist
-// deterministisch; die Gegenprobe fügt jede der vier Formen in jede Datei ein (Menge: Dateien mal 4).
+// Anweisung go und kein Selektor WaitGroup.Go, time.AfterFunc oder context.AfterFunc, auch nicht als Wert. Die Prüfung ist
+// deterministisch; die Gegenprobe fügt jede der sieben Formen in jede Datei ein (Menge: Dateien mal 7).
 func TestZeileI10Goroutinen(t *testing.T) {
 	dateien := dienstDateien(t)
 	if len(dateien) < 11 {
@@ -263,6 +261,9 @@ func TestZeileI10Goroutinen(t *testing.T) {
 		{"WaitGroup.Go", "func zzEingefuegt() { var wg sync.WaitGroup; wg.Go(func() {}) }"},
 		{"time.AfterFunc", "func zzEingefuegt() { time.AfterFunc(0, func() {}) }"},
 		{"context.AfterFunc", "func zzEingefuegt() { context.AfterFunc(nil, func() {}) }"},
+		{"WaitGroup.Go", "func zzEingefuegt() { var wg sync.WaitGroup; f := wg.Go; _ = f }"},
+		{"time.AfterFunc", "var zzAf = time.AfterFunc"},
+		{"context.AfterFunc", "func zzEingefuegt() { zzRufe(context.AfterFunc) }"},
 	}
 	n := 0
 	for name, text := range dateien {
@@ -276,8 +277,8 @@ func TestZeileI10Goroutinen(t *testing.T) {
 			}
 		}
 	}
-	if n != 4*len(dateien) {
-		t.Errorf("Menge %d", n)
+	if len(formen) != 7 || n != 7*len(dateien) {
+		t.Errorf("Menge %d mit %d Formen und %d Dateien, erwartet 7 Formen mal Dateien", n, len(formen), len(dateien))
 	}
 	// Ein umbenannter Import von time zählt.
 	if funde := goroutinenIn(t, "a.go", "package a\nimport z \"time\"\nfunc f() { z.AfterFunc(0, nil) }\n"); !slices.Equal(funde, []string{"time.AfterFunc"}) {
