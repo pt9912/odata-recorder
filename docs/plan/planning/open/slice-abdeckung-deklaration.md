@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-sensoren](../welle-sensoren.md) — dritter Slice der Folge; Start, wenn `slice-guide-groessen-gate` in `done/` liegt.
+**Welle:** [welle-sensoren](../welle-sensoren.md) — dritter Slice der Folge, erster von Teil 2; Start, wenn `welle-record-replay` und `slice-guide-groessen-gate` in `done/` liegen.
 
 **Bezug:** `LH-QA-06` (Reproduzierbarkeit der Prüfläufe; das Lastenheft führt keine Anforderung an Gates), die Anforderungen des Lastenhefts als Gegenstand der Deklaration (`LH-FA-01` bis `LH-FA-18` mit den Akzeptanzkriterien *Happy Path*, *Boundary*, *Negative*; `LH-QA-*` und `LH-RB-*` mit *Messmethode*), `AGENTS.md` §3.15 und §3.16 (Tabelle *Zusage · Fänger*, Raster), Register-Einträge `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (25×), `BEO-REPO/akzeptiertes-negativ-ohne-folge` (10×), `BEO-REPO/randform-erst-im-review-entschieden` (20×), `BEO-REPO/universalaussage-im-vertrag-ungeprueft` (9×), Retirement-Check `docs/reviews/2026-10-25-retirement-check-hard-rules.md` §5 (Vorschlag `slice-plan-form-sensor`) und §6, [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md), [ADR-0004](../../adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md).
 
@@ -135,7 +135,7 @@ Der Planner schneidet; der Architect entscheidet (Aufträge unten), der Implemen
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-guide-groessen-gate` liegt in `done/` (Reihenfolge der Welle: beide ändern `.d-check.yml`, `harness/README.md`, die Gegenproben und den Stempel), und der Architect hat den Vertrag, die Entscheidungen zu den Aufträgen 1 bis 8 und die Antwort zu `slice-plan-form-sensor` geliefert, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `welle-record-replay` liegt in `done/` (der Backfill über die Bestandstests berührt sonst die Dateien, die M2 schreibt; [welle-sensoren](../welle-sensoren.md) §2) und `slice-guide-groessen-gate` liegt in `done/` (Reihenfolge der Welle: beide ändern `.d-check.yml`, `harness/README.md`, die Gegenproben und den Stempel), und der Architect hat den Vertrag, die Entscheidungen zu den Aufträgen 1 bis 8 und die Antwort zu `slice-plan-form-sensor` geliefert, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Größenmarke** (`AGENTS.md` §3.14): noch nicht gesetzt. Der Planner schreibt nach dem Architect den Block `groessenmarke` ([SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md) Nr. 3) in diese Sektion und setzt die Marke mit `make groessenmarke` im eigenen Commit vor dem ersten Code-Commit. Aufwand nach Einschätzung des Planners: M, bei Backfill über alle Tests eher L; das Werkzeug entscheidet nach der Tabelle des Architect.
 

@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-sensoren](../welle-sensoren.md) — zweiter Slice der Folge; Start, wenn `slice-unsichtbare-zeichen` in `done/` liegt.
+**Welle:** [welle-sensoren](../welle-sensoren.md) — zweiter Slice der Folge, zweiter von Teil 1; Start, wenn `slice-unsichtbare-zeichen` in `done/` liegt. Er liegt vor `slice-workspace-use-case` (Reihenfolge, kein Blocker, [welle-sensoren](../welle-sensoren.md) §5).
 
 **Bezug:** `LH-QA-06` (Reproduzierbarkeit der Prüfläufe; das Lastenheft führt keine Anforderung an Gates), Retirement-Check `docs/reviews/2026-10-25-retirement-check-hard-rules.md` §5 und §7 (Vorschlag `slice-guide-groessen-gate`, Aufwand S), Baseline-Regelwerk `grundlagen-klassifikation.md` §Guide-Datei-Wildwuchs (Obergrenze `file.max-lines`/`max-bytes`), [ADR-0002](../../adr/0002-architektur-gate-a-check.md) und [ADR-0003](../../adr/0003-lint-profil-golangci.md) (Muster: ein Gate mit Bindung an eine ADR), `AGENTS.md` §3.6 (Gates werden nicht ohne ADR gelockert).
 

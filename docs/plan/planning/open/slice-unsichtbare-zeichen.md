@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-sensoren](../welle-sensoren.md) — erster Slice der Folge; Start, wenn `slice-groessenmarke-werkzeug` in `done/` liegt (Trigger der Welle).
+**Welle:** [welle-sensoren](../welle-sensoren.md) — erster Slice der Folge, erster von Teil 1; Start, wenn `slice-groessenmarke-werkzeug` in `done/` liegt (Trigger von Teil 1). Er liegt vor `slice-workspace-use-case` (Reihenfolge, kein Blocker, [welle-sensoren](../welle-sensoren.md) §5).
 
 **Bezug:** `LH-QA-06` (Reproduzierbarkeit der Prüfläufe: Container, netzlos; das Lastenheft führt keine Anforderung an Gates), `AGENTS.md` §3.18 (die Regel, deren Teil das Gate trägt), Register-Eintrag `BEO-REPO/werkzeug-eingabe-setzt-escape-in-zeichen-um` (4×, verkörpert in `AGENTS.md` §3.18), Retirement-Check `docs/reviews/2026-10-25-retirement-check-hard-rules.md` §5, [ADR-0003](../../adr/0003-lint-profil-golangci.md) (Lint-Profil; eigene Prüfungen in `tools/harness/lint.sh`), [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Gegenproben außerhalb der Gate-Kette).
 

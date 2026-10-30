@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-sensoren](../welle-sensoren.md) — vierter und letzter Slice der Folge; Start, wenn `slice-abdeckung-deklaration` in `done/` liegt.
+**Welle:** [welle-sensoren](../welle-sensoren.md) — vierter und letzter Slice der Folge, zweiter von Teil 2; Start, wenn `slice-abdeckung-deklaration` in `done/` liegt (und damit `welle-record-replay`, [welle-sensoren](../welle-sensoren.md) §2).
 
 **Bezug:** `LH-QA-06` (Reproduzierbarkeit der Prüfläufe; das Lastenheft führt keine Anforderung an die Prüfbarkeit des Quellcodes), [ADR-0001](../../adr/0001-implementierungssprache-go.md) (Go, Tests in der Stufe `test`), [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Gegenproben außerhalb der Gate-Kette; Laufzeit), [ADR-0007](../../adr/0007-race-detektor-im-gate.md) (Muster: ein zweiter Lauf der Suite mit eigener Stufe), `AGENTS.md` §3.6 (Schwellen werden nicht ohne ADR gesenkt), Register-Eintrag `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×: ein Zweig, den kein Test ausführt, bleibt von jedem Detektor unbemerkt), Retirement-Check `docs/reviews/2026-10-25-retirement-check-hard-rules.md`, Vorbild im Nachbar-Repo `pgwire-recorder` (nur gelesen): Vertrag `SPEC-056` (Schwelle in einer Zeile `**Schwelle:** …`), dort die ADR Nr. 44.
 
