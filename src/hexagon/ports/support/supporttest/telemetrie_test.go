@@ -253,6 +253,61 @@ func TestFakeNullwert(t *testing.T) {
 	}
 }
 
+// P16: SetzeStand und Snapshot gleichzeitig; 8 Schreiber setzen je 500 Stände (Errors und Dropped
+// tragen denselben Zähler n, Spans und Counts sind gefüllt), 8 Leser lesen je 500 Stände und
+// prüfen, dass jeder ganz ist (beide Zähler gleich, Counts und Spans in der Länge von n).
+func TestFakeSnapshotGleichzeitig(t *testing.T) {
+	const schreiber, leser, runden = 8, 8, 500
+	f := supporttest.NewFakeTelemetry()
+	start := make(chan struct{})
+	fehler := make(chan string, leser*runden)
+	var wg sync.WaitGroup
+	for g := range schreiber {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for i := range runden {
+				n := uint64(g*runden + i)
+				f.SetzeStand(support.Snapshot{
+					Errors:    map[model.Code]uint64{model.CodeE2001: n},
+					Durations: map[support.SpanName]support.Verteilung{support.SpanMockQuery: {Count: n, Counts: []uint64{n, n}}},
+					Dropped:   map[support.Verwurf]uint64{support.VerwurfWert: n},
+					Spans:     []support.SpanRecord{{ID: "x", Attrs: []support.Attr{support.Int("n", int64(n))}}},
+				})
+			}
+		}()
+	}
+	for range leser {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for range runden {
+				s := f.Snapshot()
+				if len(s.Errors) == 0 {
+					continue
+				}
+				n := s.Errors[model.CodeE2001]
+				d := s.Durations[support.SpanMockQuery]
+				if s.Dropped[support.VerwurfWert] != n || d.Count != n || len(d.Counts) != 2 || d.Counts[0] != n ||
+					len(s.Spans) != 1 || len(s.Spans[0].Attrs) != 1 || s.Spans[0].Attrs[0].Ganz != int64(n) {
+					fehler <- "ein Stand ist nicht ganz"
+				}
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(fehler)
+	for m := range fehler {
+		t.Error(m)
+	}
+	if f.Anzahl(supporttest.OpSnapshot) != leser*runden {
+		t.Errorf("Snapshot %d-mal gezählt, erwartet %d", f.Anzahl(supporttest.OpSnapshot), leser*runden)
+	}
+}
+
 // P16: gleichzeitiger Aufruf; 64 Goroutinen mit je 500 Aufrufen, reihum über die sechs Operationen.
 func TestFakeGleichzeitig(t *testing.T) {
 	const goroutinen, aufrufe = 64, 500

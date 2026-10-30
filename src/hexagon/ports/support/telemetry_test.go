@@ -2,6 +2,7 @@ package support_test
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math"
 	"reflect"
@@ -148,7 +149,7 @@ func TestTelemetrySignaturen(t *testing.T) {
 	)
 }
 
-func TestSnapshotKopie(t *testing.T) {
+func TestSnapshotKopieBeispiel(t *testing.T) {
 	s := support.Snapshot{
 		Errors:    map[model.Code]uint64{model.CodeE2001: 1},
 		Durations: map[support.SpanName]support.Verteilung{support.SpanMockQuery: {Count: 1, Counts: []uint64{1, 0}}},
@@ -179,5 +180,124 @@ func TestSnapshotKopie(t *testing.T) {
 	}
 	if z := (support.Snapshot{}).Kopie(); z.Errors != nil || z.Durations != nil || z.Dropped != nil || z.Spans != nil {
 		t.Errorf("Kopie des leeren Stands ist nicht leer: %+v", z)
+	}
+}
+
+// Zustand einer Sammlung: nil, leer (nicht nil) oder gefüllt.
+const (
+	zNil = iota
+	zLeer
+	zGefuellt
+)
+
+// kopieStand baut denselben Stand bei jedem Aufruf neu: je Sammlung der obersten Ebene ein Zustand;
+// ist sie gefüllt, tragen sechs Einträge die Zustände nil, leer, gefüllt reihum für Counts bzw.
+// Attrs, so dass jede Position beider Zustände mehrfach vorkommt.
+func kopieStand(zErrors, zDurations, zDropped, zSpans int) support.Snapshot {
+	var s support.Snapshot
+	switch zErrors {
+	case zLeer:
+		s.Errors = map[model.Code]uint64{}
+	case zGefuellt:
+		s.Errors = map[model.Code]uint64{model.CodeE2001: 1, model.CodeE2101: 2}
+	}
+	switch zDropped {
+	case zLeer:
+		s.Dropped = map[support.Verwurf]uint64{}
+	case zGefuellt:
+		s.Dropped = map[support.Verwurf]uint64{support.VerwurfWert: 1, support.VerwurfSenke: 2}
+	}
+	switch zDurations {
+	case zLeer:
+		s.Durations = map[support.SpanName]support.Verteilung{}
+	case zGefuellt:
+		s.Durations = map[support.SpanName]support.Verteilung{}
+		for i := range 6 {
+			v := support.Verteilung{Count: uint64(i + 1)}
+			switch i % 3 {
+			case zLeer:
+				v.Counts = []uint64{}
+			case zGefuellt:
+				v.Counts = []uint64{uint64(i), uint64(i) + 10}
+			}
+			s.Durations[support.SpanName(fmt.Sprintf("span.%d", i))] = v
+		}
+	}
+	switch zSpans {
+	case zLeer:
+		s.Spans = []support.SpanRecord{}
+	case zGefuellt:
+		s.Spans = []support.SpanRecord{}
+		for i := range 6 {
+			r := support.SpanRecord{ID: fmt.Sprintf("spn-%d", i)}
+			switch i % 3 {
+			case zLeer:
+				r.Attrs = []support.Attr{}
+			case zGefuellt:
+				r.Attrs = []support.Attr{support.Str("k", "v"), support.Int("n", int64(i))}
+			}
+			s.Spans = append(s.Spans, r)
+		}
+	}
+	return s
+}
+
+// kopieAendern ändert jedes Element jeder Sammlung auf jeder Ebene.
+func kopieAendern(s *support.Snapshot) {
+	for k := range s.Errors {
+		s.Errors[k]++
+	}
+	for k := range s.Dropped {
+		s.Dropped[k]++
+	}
+	for k, v := range s.Durations {
+		for j := range v.Counts {
+			v.Counts[j]++
+		}
+		v.Count++
+		s.Durations[k] = v
+	}
+	for i := range s.Spans {
+		s.Spans[i].ID += "x"
+		for j := range s.Spans[i].Attrs {
+			s.Spans[i].Attrs[j].Text += "x"
+			s.Spans[i].Attrs[j].Ganz++
+		}
+	}
+}
+
+// Snapshot.Kopie ist tief und erhält nil und leer (SPEC-230 Nr. 9): 3 Zustände je Sammlung der
+// obersten Ebene (4 Sammlungen, 81 Stände), in den gefüllten Durations 6 Verteilungen und in den
+// gefüllten Spans 6 Einträge mit je einem der 3 Zustände von Counts bzw. Attrs; beide Richtungen.
+func TestSnapshotKopie(t *testing.T) {
+	staende := 0
+	for zE := zNil; zE <= zGefuellt; zE++ {
+		for zD := zNil; zD <= zGefuellt; zD++ {
+			for zR := zNil; zR <= zGefuellt; zR++ {
+				for zS := zNil; zS <= zGefuellt; zS++ {
+					staende++
+					ref := kopieStand(zE, zD, zR, zS)
+					s := kopieStand(zE, zD, zR, zS)
+					k := s.Kopie()
+					if !reflect.DeepEqual(k, ref) {
+						t.Errorf("Zustände %d %d %d %d: Kopie %+v weicht von %+v ab", zE, zD, zR, zS, k, ref)
+					}
+					kopieAendern(&k)
+					if !reflect.DeepEqual(s, ref) {
+						t.Errorf("Zustände %d %d %d %d: Änderung an der Kopie wirkt auf das Original", zE, zD, zR, zS)
+					}
+					s2 := kopieStand(zE, zD, zR, zS)
+					k2 := s2.Kopie()
+					kopieAendern(&s2)
+					if !reflect.DeepEqual(k2, ref) {
+						t.Errorf("Zustände %d %d %d %d: Änderung am Original wirkt auf die Kopie", zE, zD, zR, zS)
+					}
+				}
+			}
+		}
+	}
+	voll := kopieStand(zGefuellt, zGefuellt, zGefuellt, zGefuellt)
+	if staende != 81 || len(voll.Durations) != 6 || len(voll.Spans) != 6 {
+		t.Errorf("Zählprüfung: %d Stände, %d Verteilungen, %d Spans; erwartet 81, 6, 6", staende, len(voll.Durations), len(voll.Spans))
 	}
 }

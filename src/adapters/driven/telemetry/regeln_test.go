@@ -258,7 +258,7 @@ func TestWertformGrenzen(t *testing.T) {
 				faelle = append(faelle, support.Int(z.key, v))
 			}
 		case "dauer":
-			for _, v := range []float64{math.Copysign(0, -1), -1e-6, 0, 1e-6, 12.345, math.MaxFloat64, math.NaN(), math.Inf(1), math.Inf(-1), -1} {
+			for _, v := range []float64{math.Copysign(0, -1), -math.SmallestNonzeroFloat64, math.SmallestNonzeroFloat64, 1e-300, -1e-6, 0, 1e-6, 12.345, math.MaxFloat64, math.NaN(), math.Inf(1), math.Inf(-1), -1} {
 				faelle = append(faelle, attrZuArt(z, support.ArtFloat, "", 0, v))
 			}
 			faelle = append(faelle, support.Millis(z.key, -time.Nanosecond), support.Millis(z.key, 0), support.Millis(z.key, time.Nanosecond))
@@ -307,6 +307,9 @@ func TestWertformGrenzenVonHand(t *testing.T) {
 		{"dauer", support.Millis("", -time.Nanosecond), false}, {"dauer", support.Millis("", 0), true},
 		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: math.Copysign(0, -1)}, false},
 		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: 0}, true},
+		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: math.SmallestNonzeroFloat64}, true},
+		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: 1e-300}, true},
+		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: -math.SmallestNonzeroFloat64}, false},
 		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: math.NaN()}, false},
 		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: math.Inf(1)}, false},
 		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: math.Inf(-1)}, false},
@@ -356,6 +359,32 @@ func TestWertformZeichen(t *testing.T) {
 	// 6 Formen × 256 Bytes × (Länge des Grundwerts + 2 Stellen): 4+7+6+3+9+71 = 100, + 12.
 	if len(basis) != 6 || werte != 256*(100+12) || abgewiesen == 0 || angenommen == 0 {
 		t.Errorf("Zählprüfung: %d Formen, %d Werte (%d angenommen, %d abgewiesen); erwartet 6 und %d Werte", len(basis), werte, angenommen, abgewiesen, 256*(100+12))
+	}
+}
+
+// P04: jede Stelle eines Werts der größten Länge, mit jedem der 256 Bytewerte belegt: Token (32),
+// Kennung (64), Name (128), Methode (16) = 240 Stellen × 256 Bytes (61440 Werte); das Orakel ist der
+// reguläre Ausdruck der Form. Die Grundwerte von TestWertformZeichen sind kürzer als die Grenze.
+func TestWertformStellen(t *testing.T) {
+	langste := map[string]string{
+		"token": strings.Repeat("a", 32), "kennung": strings.Repeat("A", 64),
+		"name": strings.Repeat("a", 128), "methode": strings.Repeat("G", 16),
+	}
+	stellen, werte := 0, 0
+	for form, b := range langste {
+		z := schluesselZuForm(t, form)
+		pruefeFall(t, z, support.Str(z.key, b), true, "Grundwert")
+		for i := range len(b) {
+			stellen++
+			for v := range 256 {
+				w := b[:i] + string([]byte{byte(v)}) + b[i+1:]
+				werte++
+				pruefeFall(t, z, support.Str(z.key, w), orakel(z, support.Str(z.key, w)), "Stelle")
+			}
+		}
+	}
+	if len(langste) != 4 || stellen != 240 || werte != 240*256 {
+		t.Errorf("Zählprüfung: %d Formen, %d Stellen, %d Werte; erwartet 4, 240, %d", len(langste), stellen, werte, 240*256)
 	}
 }
 

@@ -27,7 +27,7 @@
 | R-6 | INFO | Die Raten des Plans für „Wirkung ohne Detektor“ (50 von 50) sind in drei Zellen nicht zu reproduzieren: gemessen (30 Prozesse) 29 von 30 für `CountError` unbekannter Zweig ohne Sperre, bekannter Zweig ohne Sperre und bekannter Zweig mit Fenster; der gate-relevante Detektor-Lauf ist in allen Zellen 30 von 30. Kein Handlungsbedarf, weil `make test-race` die Zusage trägt; die Zahl im Plan ist ein Messwert unter anderer Last. | `AGENTS.md` §3.10 (Raten mit Zahl) | `docs/plan/planning/in-progress/slice-telemetry-port.md` · `Raten der Fix-Runde` | ja — Wiederholung der Raten | Rate unter anderer Last |
 | R-7 | INFO | Die IDs des Fakes sind unter gleichzeitigem `StartSpan` nicht pünktlich eindeutig, wenn eine Mutation die Zählung in zwei Abschnitte teilt (`f.naechste` gelesen, entsperrt, wieder gesperrt, Zuweisung): grün in jedem Lauf (Detektor 0 von 30). `SPEC-230` Nr. 10 und `SPEC-232` Nr. 5 e sagen die Eindeutigkeit nur für den Adapter zu; der Kopf des Fakes sagt „zählt je Fake ab 1“. Kein Handlungsbedarf, solange kein Test des Fakes Eindeutigkeit voraussetzt. | `AGENTS.md` §3.11 | `src/hexagon/ports/support/supporttest/telemetrie.go` · `ID zählt je Fake ab 1` | ja — Mutation | Eindeutigkeit der Fake-IDs unter Nebenläufigkeit nicht zugesagt |
 
-Offene Punkte, die der Auftrag ausnahm und die hier nicht doppelt stehen: F-10 (`TestKernSchreibtNichts`, Adresse Planner), Zeitbudget der Gegenproben (ADR-0005), Stempel.
+Offene Punkte, die der Auftrag ausnahm und die hier nicht doppelt stehen: F-10 (`TestKernSchreibtNichts`, Adresse Planner), Zeitbudget der Gegenproben ([ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md)), Stempel.
 
 ## Auflösung der Fixes F-1 bis F-11 gegen die Klasse
 

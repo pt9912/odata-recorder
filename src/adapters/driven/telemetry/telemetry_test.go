@@ -421,10 +421,12 @@ func TestNewUnabhaengig(t *testing.T) {
 
 // P14: der Adapter importiert nur model, ports/support und die Standardbibliothek. a-check prüft
 // die Richtung der Schichten und erlaubt dem Adapter auch ports/outbound; dieser Test prüft die
-// Menge der Importe jeder Datei des Pakets.
+// Menge der Importe jeder Datei des Verzeichnisses, auch der Dateien _test.go (a-check scannt sie
+// ebenso): in den Dateien _test.go sind zusätzlich der Adapter selbst und supporttest erlaubt.
 func TestAdapterImporte(t *testing.T) {
 	const modul = "github.com/pt9912/odata-recorder/src/hexagon/"
 	erlaubt := []string{modul + "model", modul + "ports/support"}
+	nurTests := []string{modul + "ports/support/supporttest", "github.com/pt9912/odata-recorder/src/adapters/driven/telemetry"}
 	dateien, err := filepath.Glob("*.go")
 	if err != nil || len(dateien) < 2 {
 		t.Fatalf("Dateien des Pakets: %v, %v", dateien, err)
@@ -442,7 +444,7 @@ func TestAdapterImporte(t *testing.T) {
 			}
 			gesehen++
 			stdlib := !strings.Contains(strings.SplitN(pfad, "/", 2)[0], ".")
-			if strings.HasSuffix(d, "_test.go") {
+			if strings.HasSuffix(d, "_test.go") && slices.Contains(nurTests, pfad) {
 				continue
 			}
 			if !stdlib && !slices.Contains(erlaubt, pfad) {
