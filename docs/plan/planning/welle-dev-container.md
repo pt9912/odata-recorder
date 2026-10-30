@@ -33,7 +33,9 @@ werden, aber nie Trigger sein. Und der **Start**-Trigger ist **kein Ergebnis
 dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 - `welle-fundament` liegt in `done/` ([Closure-Notiz](done/welle-fundament-results.md)): `make gates` und `make gegenproben` bestehen und sind das, was der Container fährt.
-- Die Welle ist unabhängig von `welle-record-replay` und läuft neben ihr; sie ändert weder `src/` noch die Verträge des Produkts.
+- `welle-record-replay` liegt in `done/` (M2 erreicht; Entscheidung des Users, 2026-10-30): Die Gate-Kette ist dann stabil, wenn der Container sie fährt. Die Welle ist inhaltlich unabhängig von `welle-record-replay` (sie ändert weder `src/` noch die Verträge des Produkts), die Reihenfolge ist eine Wahl wegen der Dateien der Gate-Kette, die die Slices davor ändern.
+
+**Option für den User: Gerüst und Lauf vorziehen.** Wird Parallelität der Rollen wichtiger als der Zeitpunkt von M2 (Speichermangel des Hosts, Tag-Konflikt der Arbeitsbäume), entscheidet der User, `slice-dev-container-geruest` bis `slice-dev-container-lauf` vor M2 zu starten. Das ändert den Trigger dieser Welle, die Kante `welle-record-replay` → `welle-dev-container` im Abhängigkeitsgraphen und die Zeile *Nächste Wellen* der Roadmap und ist ein Eintrag im Drift-Log (Umplanung). Die vorgezogenen Slices berühren dieselben Dateien der Gate-Kette wie die Sensor-Slices und laufen nacheinander, nie parallel zu ihnen (`welle-sensoren` §5).
 
 ## 3. Closure-Trigger (Welle schließt)
 
@@ -66,9 +68,9 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 §Roadmap-Struktur: fünf Abschnitte.
 
-- Blockiert: nichts in der Roadmap. Sie macht die parallele Arbeit mehrerer Rollen in getrennten Arbeitsbäumen tragfähig, ist aber für keine Welle Trigger.
-- Wird blockiert von: — (`welle-fundament` ist geschlossen).
-- Unabhängig: [welle-record-replay](welle-record-replay.md). Berührungspunkte sind Dateien, nicht Verträge: `Dockerfile`, `Makefile`/`harness/mk/`, `harness/README.md` (Sensors-Tabelle), `tools/gegenproben/` und `SPEC-102`, die auch Slices von `welle-record-replay` ändern (zuletzt `slice-groessenmarke-werkzeug`); wer zuerst merged, hält die Zeilen des anderen im selben Commit nach (`AGENTS.md` §3.9).
+- Blockiert: `slice-container-image` der Welle [welle-betrieb](welle-betrieb.md) (Reihenfolge-Kante `welle-dev-container` → `slice-container-image`, nicht die ganze Welle): Der Neustarttest im Container braucht einen Docker-Daemon im Testlauf, und den liefert der Arbeitscontainer mit eigenem Daemon; der Slice startet erst, wenn diese Welle in `done/` liegt. Sonst keine Welle: Sie macht die parallele Arbeit mehrerer Rollen in getrennten Arbeitsbäumen tragfähig, ist aber für keine andere Welle Trigger.
+- Wird blockiert von: [welle-record-replay](welle-record-replay.md) (Trigger, §2; Reihenfolge, keine Abhängigkeit im Inhalt). Davor, als Empfehlung des Planners ohne Trigger: Teil 2 von [welle-sensoren](welle-sensoren.md) (Gate-Kette samt Schwelle ist dann stabil, `welle-sensoren` §5); die Reihenfolge der beiden entscheidet der User. `welle-fundament` ist geschlossen.
+- Unabhängig im Inhalt: [welle-record-replay](welle-record-replay.md). Berührungspunkte sind Dateien, nicht Verträge: `Dockerfile`, `Makefile`/`harness/mk/`, `harness/README.md` (Sensors-Tabelle), `tools/gegenproben/` und `SPEC-102`, die auch Slices von `welle-record-replay` ändern (zuletzt `slice-groessenmarke-werkzeug`); mit der Reihenfolge nach M2 entsteht der Konflikt nicht mehr, und wer dennoch vorzieht (Option in §2), hält die Zeilen des anderen im selben Commit nach (`AGENTS.md` §3.9).
 - Reihenfolge der Slices (Pfeil heißt: braucht): `slice-dev-container-geruest` → `slice-dev-container-zugang` → `slice-dev-container-einlieferung` → `slice-dev-container-lauf` → `slice-dev-container-dokument`. Jeder braucht den Code des Vorgängers in `done/`: der Zugang sitzt im Container des Gerüsts, die Einlieferung braucht den Zugang, der Lauf braucht einen eingelieferten Stand, das Dokument beschreibt den ganzen Weg.
 
 ## 6. Out-of-Scope für diese Welle
