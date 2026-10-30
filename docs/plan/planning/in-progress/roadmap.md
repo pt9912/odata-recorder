@@ -35,6 +35,7 @@ und geschätzter Aufwand (S/M/L, kein Termin).
 |---|---|---|---|
 | welle-sensoren | `slice-groessenmarke-werkzeug` (Welle record-replay) liegt in `done/` | Prüfung auf unsichtbare Zeichen, Größe der Guide-Dateien als Gate (d-check-Modul `file`), Abdeckungs-Deklaration über den Tests mit erzeugten Tabellen, Schwelle der Anweisungsabdeckung; Plan: [welle-sensoren](../welle-sensoren.md) | M |
 | welle-dev-container | welle-fundament done | Gerüst des Arbeitscontainers mit `u-boot` am Host (privilegierter Container mit eigenem Docker-Daemon, SSH-Zugang, Schlüsselpaar), Start mit Bereitschaftsprobe, Bare-Repo und Klon samt Einlieferung per Zweig, Lauf von `make gates` und `make gegenproben` im Container, Dokument für Entwickler | L |
+| [welle-benutzerhandbuch](../welle-benutzerhandbuch.md) | `slice-groessenmarke-werkzeug` in `done/`; der Abgleich und die Kapitel über Aufzeichnen und Wiedergeben warten auf `slice-bootstrap-m2` in `done/` | Gerüst von docs/user/benutzerhandbuch.md samt Anpassung des Standards, Abgleich der Kataloge (Fehlercodes `ODR-E…`, Konfigurationsschlüssel, Kommandos) zwischen Binary, Spezifikation und Handbuch, Kapitel Aufzeichnen und Wiedergeben mit belegten Beispielen, Probelauf durch eine Rolle ohne Vorwissen | L |
 
 ## Meilensteine
 
@@ -63,11 +64,13 @@ flowchart LR
     P[welle-persistenz]
     R[welle-record-replay]
     S[welle-sensoren]
+    B[welle-benutzerhandbuch]
 
     F --> D
     F --> P
     P --> R
     R -. "slice-groessenmarke-werkzeug done" .-> S
+    R --> B
 ```
 
 ## Abgeschlossene Wellen
