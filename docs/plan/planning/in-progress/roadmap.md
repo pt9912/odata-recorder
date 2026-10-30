@@ -89,8 +89,9 @@ flowchart LR
     F --> P
     P --> R
     R -. "slice-groessenmarke-werkzeug done" .-> S
-    R --> HB
+    R -. "slice-groessenmarke-werkzeug done; Katalog- und Aufzeichnen-Slices nach slice-bootstrap-m2 done" .-> HB
     R --> M
+    HB -. "slice-handbuch-meldungskatalog done" .-> M
     M --> H
     M --> B
     B --> A
