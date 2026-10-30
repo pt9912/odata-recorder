@@ -13,6 +13,7 @@
 | [ADR-0006](0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md) | SQLite-Bibliothek ohne native Abhängigkeit | Accepted | — |
 | [ADR-0007](0007-race-detektor-im-gate.md) | Race-Detektor im Gate | Accepted | `LH-QA-03`, `LH-QA-06` |
 | [ADR-0008](0008-blob-bereinigung-im-betrieb-waechter-und-zurueckstellen.md) | Blob-Bereinigung im laufenden Betrieb mit Wächter und Zurückstellen | Accepted | `LH-RB-04`, `LH-FA-03`, `LH-QA-03` |
+| [ADR-0009](0009-groessenmarke-als-gate-mit-messung-durch-den-host.md) | Größenmarke als Gate, der Host misst, ein Programm im Container urteilt | Proposed | `LH-QA-06` |
 
 ## Konventionen
 

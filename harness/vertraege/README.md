@@ -30,3 +30,4 @@ Die Reihe der Kennungen zählt über beide Orte fortlaufend: Die nächste freie 
 | `SPEC-104` | `make migration-check` | [`SPEC-104-migration-check.md`](SPEC-104-migration-check.md) |
 | `SPEC-101` | `make lint-profil` | [`SPEC-101-lint-profil.md`](SPEC-101-lint-profil.md) |
 | `SPEC-122` | `make test-race` | [`SPEC-122-test-race.md`](SPEC-122-test-race.md) |
+| `SPEC-128` | `make groessenmarke` | [`SPEC-128-groessenmarke.md`](SPEC-128-groessenmarke.md) |

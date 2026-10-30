@@ -16,8 +16,12 @@ Dass jeder dieser Fälle ein Wegwerfmodul anlegt, fängt der Test `TestTestFaell
 Der Inhalt der Dateien, die sie schreiben, führt kein Zeichen über ASCII, damit ein Fixture nicht davon abhängt, ob das Werkzeug des Schreibers eine Escape-Folge in das Zeichen umsetzt.
 Sie laufen in dieser Stufe auf dem golangci-lint-Image, das Go 1.27.1 und gcc 14.2.0 trägt (gemessen am 2026-10-22), nicht auf dem Image der Stufe `race`; `pruefung race` setzt `CGO_ENABLED=1` für seinen Aufruf selbst, die Umgebung der Stufe (`CGO_ENABLED=0`) bleibt.
 Die Fälle setzen `CGO_ENABLED` nicht selbst, sie erben `0` von der Stufe; dass die Stufe es setzt, fängt kein Fall. Die Mutation „`pruefung race` setzt cgo nicht“ fangen die Fälle 34 bis 36 nur, solange die Umgebung der Stufe cgo nicht einschaltet; der Test von `pruefung` fängt sie in jeder Umgebung (`SPEC-122` Nr. 1).
+Die Fälle 38 bis 102 (`make groessenmarke`, `SPEC-128`) legen ein Wegwerfverzeichnis an, schreiben den Plan und die Messung als Dateien hinein und rufen das Programm `groessenmarke`, das die Stufe `groessenmarke` des `Dockerfile` baut und die Stufe `gegenproben` übernimmt; sie rufen weder `go` noch ein Gate.
+Die Fälle 103 bis 114 rufen `tools/harness/groessenmarke.sh` im Wegwerfverzeichnis mit zwei Ersatz-Skripten, die jeden Aufruf mit allen Argumenten in eine Datei schreiben und zählen: einem Ersatz für `git`, der am Anfang von `PATH` steht, und einem für das Programm.
+Die Fälle 115 bis 120 rufen denselben Treiber mit dem echten `git` des Images (2.47.3, gemessen am 2026-10-30) auf einem Repo, das der Fall im Wegwerfverzeichnis anlegt (`git init`, zwei Commits; Konfiguration allein über `-c` und `GIT_CONFIG_GLOBAL=/dev/null`).
+Diese Fälle tragen Zeichen jenseits von ASCII nur dort, wo `SPEC-128` sie verlangt (`nebenläufig`, Pfade mit Umlaut), und bilden sie aus Bytewerten.
 
-**Eingaben:** `src/`, `go.mod`, `go.sum`, `.a-check.yml`, `.golangci.yml`, `tools/harness/lint.sh`, `tools/harness/migration-check.sh`, `tools/gegenproben/`, `tools/pruefung/`, `Dockerfile` und `.dockerignore`; dazu die Pins beider Images.
+**Eingaben:** `src/`, `go.mod`, `go.sum`, `.a-check.yml`, `.golangci.yml`, `tools/harness/lint.sh`, `tools/harness/migration-check.sh`, `tools/harness/groessenmarke.sh`, `tools/gegenproben/`, `tools/pruefung/`, `tools/groessenmarke/`, `Dockerfile` und `.dockerignore`; dazu die Pins beider Images.
 `tools/harness/gegenproben-eingabe.sh` bildet daraus eine Prüfsumme (SHA-256 über die Dateien und die Pins).
 Stimmt sie mit dem Stempel `harness/gegenproben.stempel` überein, meldet `make gegenproben` den unveränderten Stand und fährt nichts; sonst fährt es die Stufe, ohne den Build-Cache für sie, und schreibt den Stempel nur nach einem grünen Lauf.
 Der Stempel ist versioniert und reist mit dem Commit in andere Klone und Container; die Prüfsumme bindet ihn an die Eingaben, ein veralteter Stempel stimmt nicht mehr überein und erzwingt den Lauf.
@@ -61,13 +65,76 @@ Ein roter Lauf lässt den Stempel unverändert, ein fehlender Stempel erzwingt d
 35. `race/rennen-in-jedem-teilbaum` · `pruefung race` ohne Muster · Wegwerfmodul mit je einem Paket unter `src/hexagon/` (Rennen nur im Testcode), `src/adapters/` und `src/bootstrap/` (Rennen im Code des Pakets, vom Test aufgerufen) und einem vierten Paket unter `src/hexagon/` mit einem Test, der `t.Fatal` ruft, ohne Rennen; in den drei Paketen mit Rennen starten zwei Goroutinen ohne Kante zwischen ihnen und ändern denselben Zähler, der Test wartet erst danach auf beide · Exit 1, Ausgabe nennt `WARNING: DATA RACE` und für alle vier Pakete eine Zeile `FAIL` mit dem Importpfad.
 36. `race/rennen-und-zeitgrenze` · `pruefung race` mit den Argumenten `-timeout=5s ./...` · Wegwerfmodul mit einem Paket, dessen Test ein Rennen wie in Fall 35 erzeugt, auf beide Goroutinen wartet und danach blockiert (`select {}`) · Exit 1, Ausgabe nennt `WARNING: DATA RACE` und `test timed out`.
 37. `a-check/xml-im-kern` · `a-check` · ein Paket in `src/hexagon/model` importiert `encoding/xml` · Exit 1, Ausgabe nennt `core-impurity`.
+
+Die Fälle 38 bis 120 gehören zu `make groessenmarke` (`SPEC-128`). *Plan* heißt ein Plan mit einer Tabelle *Zusage · Fänger* von *a* nebenläufigen und *b* anderen Zeilen und einem Block (`SPEC-128` Nr. 3); *Fixture B* ist der Plan mit *a* = 0, *b* = 10, `fakes` 0, `produktcode` 0, also *S* = 800 und der Marke 1100, mit `schaetzung: 800`, `marke: 1100` und einer Messung ohne Datensatz, soweit ein Fall nichts anderes sagt. Aufruf ist `groessenmarke pruefen <Plan> <Messung>`, wo nichts anderes steht.
+38. bis 40. `groessenmarke/messpunkt-csdl`, `-json`, `-import` · Plan mit 44 (davon 2), 49 (2) und 70 (3) Zeilen, `fakes` 0, 0 und 8, `produktcode` 1506, 1500 und 2000, `schaetzung` 5036, 5430 und 9215, `marke` 6800, 7400 und 12500, Messung 4333, 7236 und 10027 · Exit 0, Ausgabe nennt `ok, Messung <Messung> von Marke <Marke>`.
+41. bis 43. `groessenmarke/marke-der-platte-csdl`, `-json`, `-import` · derselbe Plan mit der Marke, die die Formel vor `SPEC-128` ergab (5600, 6000 und 8200), Messung 0 · Exit 1, Ausgabe nennt `weicht von der Formel ab` und die erwartete Marke 6800, 7400 bzw. 12500.
+44. `groessenmarke/marke-eine-stufe-zu-niedrig` · Fixture B mit `marke: 1000` · Exit 1, Ausgabe nennt `weicht von der Formel ab` und `erwartet 1100`.
+45. `groessenmarke/marke-eine-stufe-zu-hoch` · Fixture B mit `marke: 1200` · Exit 1, wie Fall 44.
+46. `groessenmarke/schaetzung-um-eins-zu-niedrig` · Fixture B mit `schaetzung: 799` und der Marke 1100 (die Formel zu 799) · Exit 1, Ausgabe nennt `weicht von der Tabelle ab` und `Tabelle ergibt 800`, aber nicht `weicht von der Formel ab`.
+47. `groessenmarke/schaetzung-um-eins-zu-hoch` · wie Fall 46 mit `schaetzung: 801` · Exit 1, wie Fall 46.
+48. `groessenmarke/tabelle-gewachsen-im-code` · wie Fall 46, Messung 1 · Exit 0, Ausgabe nennt `Hinweis` und `Tabelle ergibt 800, Schätzung 799`.
+49. `groessenmarke/messung-gleich-marke` · Fixture B, Messung 1100 · Exit 0, Ausgabe nennt `ok, Messung 1100 von Marke 1100`.
+50. `groessenmarke/messung-ueber-marke-ohne-eintrag` · Fixture B, Messung 1101 · Exit 1, Ausgabe nennt `ohne Eintrag` und die Zeile `ueberschreitung: 1200 |`.
+51. `groessenmarke/eintrag-deckt` · Fixture B, Messung 1101, Eintrag `ueberschreitung: 1101 | Grund` · Exit 0.
+52. `groessenmarke/eintrag-reicht-nicht` · Fixture B, Messung 1101, Eintrag `ueberschreitung: 1100 | Grund` · Exit 1, Ausgabe nennt `Eintrag reicht nicht` und `größtes N 1100`.
+53. `groessenmarke/eintrag-ohne-grund` · Fixture B, Messung 1101, Eintrag `ueberschreitung: 1200 |` · Exit 1, Ausgabe nennt `ohne Grund`, aber nicht `ohne Eintrag`.
+54. `groessenmarke/eintrag-ohne-ueberschreitung` · Fixture B, Messung 1100, Eintrag `ueberschreitung: 1200 | Grund` · Exit 0, Ausgabe nennt `Eintrag ohne Überschreitung`.
+55. `groessenmarke/paar-marke-unter-formel-und-messung-ueber-marke` · Fixture B mit `schaetzung: 800`, `marke: 1000`, Messung 1001 · Exit 1, Ausgabe nennt `weicht von der Formel ab` und `ohne Eintrag`.
+56. `groessenmarke/paar-eintrag-und-marke-unter-formel` · wie Fall 55 mit dem Eintrag `ueberschreitung: 1100 | Grund` · Exit 1, Ausgabe nennt `weicht von der Formel ab`, aber nicht `ohne Eintrag`.
+57. `groessenmarke/schnitt-ohne-grund` · Plan mit 27 Zeilen `andere`, `produktcode` 63 (*S* = 2223), `marke` 3100, ohne `schnitt-grund`, Messung 0 · Exit 1, Ausgabe nennt `Schnittfrage ohne Grund`.
+58. `groessenmarke/schnitt-mit-grund` · wie Fall 57 mit `schnitt-grund: Grund` · Exit 0.
+59. `groessenmarke/schnitt-genau-darunter` · wie Fall 57 mit `produktcode` 62 (*S* = 2222), `marke` 3000, ohne `schnitt-grund` · Exit 0.
+60. `groessenmarke/kein-block` · Plan ohne Block und ohne Zeile `**Größenmarke**` · Aufruf `abfrage <Plan>`: Exit 0, stdout `keine-messung`, stderr nennt `kein Block`.
+61. `groessenmarke/prosa-form` · Plan ohne Block mit der Zeile `**Größenmarke** (…): über 2400 Zeilen …` (die Form der älteren Pläne) · `abfrage`: Exit 0, stdout `keine-messung`, stderr nennt `Prosa-Form`.
+62. `groessenmarke/marke-steht-aus` · Fixture B mit Block ohne `basis`, `schaetzung`, `marke` · `abfrage`: Exit 0, stdout `keine-messung`, stderr nennt `Marke steht aus: Schätzung 800, Marke 1100`.
+63. `groessenmarke/paar-marke-und-basis-fehlen` · Fixture B mit `schaetzung`, ohne `marke` und `basis` · `abfrage`: Exit 2, stderr nennt `Block unvollständig` sowie `marke` und `basis`.
+64. `groessenmarke/block-unbekannter-schluessel` · Fixture B mit der Zeile `marken: 1100` · Exit 2, stderr nennt `Schlüssel marken unbekannt`.
+65. bis 70. `groessenmarke/zahl-tausender-leerzeichen`, `-tausender-punkt`, `-minus`, `-fuehrende-null`, `-leer`, `-zehn-stellen` · Fixture B mit `produktcode:` auf `1 500`, `1.500`, `-1`, `01`, leer und `1234567890` · Exit 2, stderr nennt `Zahl ungültig: produktcode`.
+71. bis 78. `groessenmarke/pfad-leer`, `-absolut`, `-punktpunkt`, `-magie`, `-doppelt`, `-in-spec`, `-in-docs`, `-in-vertraegen` · Fixture B mit einem `pfad:` auf leer, `/src`, `a/../b`, `:(top)src`, zweimal `src/`, `spec/lastenheft.md`, `docs/plan` und `harness/vertraege/README.md` · Exit 2, stderr nennt `Pfad ungültig` (bei `-doppelt` `Pfad doppelt`) und den Pfad.
+79. `groessenmarke/tabelle-fehlt` · Plan, dessen einzige Tabelle den Kopf `Zeile · Zusage · Mutation · roter Test` trägt · Exit 2, stderr nennt `Tabelle fehlt`.
+80. `groessenmarke/tabelle-ohne-zeilen` · Kopf und Trennzeile, keine Datenzeile · Exit 2, stderr nennt `Tabelle ohne Zeilen`.
+81. `groessenmarke/tabelle-mehrdeutig` · zwei Tabellen mit dem Kopf der Tabelle · Exit 2, stderr nennt `Tabelle mehrdeutig`.
+82. `groessenmarke/tabelle-zellenzahl` · eine Zeile mit einem ungeschützten `|` in einem Code-Span (sechs Zellen) · Exit 2, stderr nennt `Zeile 1: 6 Zellen statt 5`.
+83. `groessenmarke/tabelle-nr-doppelt` · zwei Zeilen mit derselben `Nr.` · Exit 2, stderr nennt `doppelt`.
+84. bis 88. `groessenmarke/klasse-leer`, `-ascii-ae`, `-grossbuchstabe`, `-zaehlt-nicht`, `-fett` · eine Zeile mit der Klasse leer, `nebenlaeufig`, `Nebenläufig`, `zählt nicht` und `**andere**` · Exit 2, stderr nennt `Klasse`, `unbekannt` und die Zelle.
+89. `groessenmarke/messung-binaer` · Fixture B, Messung mit den Datensätzen `-`/`-`/`x.bin` und `3`/`2`/`y.go` · Exit 0, Ausgabe nennt `Messung 5 von Marke 1100` und `1 Binärdatei(en) nicht gezählt`.
+90. `groessenmarke/messung-umbenennung` · Messung mit einem Datensatz, dessen Pfadfeld leer ist (Form einer Umbenennung) · Exit 2, stderr nennt `Umbenennung in der Messung`.
+91. `groessenmarke/messung-leer` · Fixture B, Messung nur mit Kopf · Exit 0, Ausgabe nennt `Messung 0 von Marke 1100`.
+92. `groessenmarke/messung-fremde-basis` · Kopf mit einer anderen `basis` als der Block · Exit 2, stderr nennt `gehört nicht zu diesem Plan`.
+93. bis 95. `groessenmarke/messung-pfad-fehlt`, `-pfad-zusaetzlich`, `-pfade-vertauscht` · Kopf mit einer `pfad`-Zeile weniger, mehr und in anderer Reihenfolge als der Block (zwei Pfade im Block) · Exit 2, wie Fall 92.
+96. `groessenmarke/messung-kopf-fehlt` · Messung ohne Kopf, nur Datensätze · Exit 2, stderr nennt `Messung nicht lesbar`.
+97. `groessenmarke/messung-ohne-numstat-zeile` · Kopf ohne Zeile `numstat` · Exit 2, wie Fall 96.
+98. `groessenmarke/messung-datensatz-ohne-nul` · letzter Datensatz ohne abschließendes NUL · Exit 2, wie Fall 96.
+99. `groessenmarke/messung-datensatz-ohne-tab` · Datensatz ohne Tab · Exit 2, wie Fall 96.
+100. `groessenmarke/aufruf` · ohne Argumente · Exit 2, stderr nennt `Aufruf:`.
+101. `groessenmarke/plan-fehlt` · `pruefen` mit einem Pfad, der nicht existiert · Exit 2, stderr nennt `Plan fehlt`.
+102. `groessenmarke/messung-fehlt` · `pruefen` mit vorhandenem Plan und fehlender Messung · Exit 2, stderr nennt `Messung fehlt`.
+103. `groessenmarke/treiber-aufrufe-von-git` · Treiber mit beiden Ersatz-Skripten; Plan mit vollständigem Block und den Pfaden `src/a` und `src/b` · die Datei des Ersatzes für `git` zeigt genau drei Aufrufe in dieser Reihenfolge: `rev-parse --verify HEAD`, `merge-base --is-ancestor <basis> HEAD`, `diff --numstat -z --no-renames <basis>..HEAD -- :(literal)src/a :(literal)src/b :(exclude,literal)harness/vertraege`; der Ersatz des Programms zeigt `abfrage` und `pruefen` je einmal · Exit 0.
+104. `groessenmarke/treiber-pfad-argumente` · Pfade mit Leerzeichen, `*`, `"`, `[x]` und einem Umlaut im Block · der Ersatz für `git` zeigt je Pfad ein Argument `:(literal)<Pfad>`, byte-gleich.
+105. `groessenmarke/treiber-basis-kein-vorfahr` · Ersatz für `git` beendet `merge-base` mit Exit 1 · Exit 2, Ausgabe nennt `ist kein Vorfahr von HEAD`; der Ersatz des Programms zeigt keinen Aufruf von `pruefen`, der Ersatz für `git` keinen von `diff`.
+106. `groessenmarke/treiber-basis-unbekannt` · `merge-base` mit Exit 128 · Exit 2, Ausgabe nennt `unbekannt oder git scheitert`; sonst wie Fall 105.
+107. `groessenmarke/treiber-head-nicht-lesbar` · `rev-parse` mit Exit 128 · Exit 2, Ausgabe nennt `HEAD nicht lesbar`; kein `merge-base`, kein `diff`, kein `pruefen`.
+108. `groessenmarke/treiber-git-diff-scheitert` · `diff` mit Exit 128 und einer Meldung · Exit 2, Ausgabe nennt `git diff scheitert` und die Meldung; kein Aufruf von `pruefen`.
+109. `groessenmarke/treiber-git-nicht-aufrufbar` · `PATH` ohne `git` · Exit 2, Ausgabe nennt `git nicht aufrufbar`; kein Aufruf von `pruefen`.
+110. `groessenmarke/treiber-keine-plaene` · leeres Planverzeichnis · Exit 0, Ausgabe nennt `kein Slice in Arbeit`; der Ersatz des Programms und der für `git` zeigen keinen Aufruf. Ein Planverzeichnis, das fehlt: Exit 2.
+111. `groessenmarke/treiber-plan-suche` · Planverzeichnis mit `slice-b.md`, `slice-a.md`, `roadmap.md`, `README.md`, `slice-c.txt` und einem Unterverzeichnis mit `slice-d.md` · der Ersatz des Programms zeigt `abfrage` genau für `slice-a.md`, dann `slice-b.md`.
+112. `groessenmarke/treiber-exit-aggregation` · drei Pläne, deren Ersatz-Programm 0, 1 und 2 liefert, und die Paare 0/1 und 0/0 · Exit 2 bei einer 2, 1 bei einer 1 und keiner 2, sonst 0; der Ersatz zeigt für jede Kombination alle Pläne gefahren.
+113. `groessenmarke/treiber-ohne-block-kein-git` · Pläne ohne Block, mit Prosa-Form und mit ausstehender Marke · Exit 0, der Ersatz für `git` zeigt keinen Aufruf, die Ausgabe trägt die Hinweise.
+114. `groessenmarke/treiber-aufraeumen` · eigenes `TMPDIR`; ein Lauf mit Exit 0, einer mit Fehler von `git diff` · danach ist das Verzeichnis leer.
+115. `groessenmarke/treiber-git-ausschluesse` · echtes `git`, Pfade des Blocks `tools/x/` und `harness/`; der zweite Commit ändert je eine Datei mit 3 Einfügungen in `tools/x/`, `harness/mk/`, `harness/vertraege/`, `spec/`, `docs/` und `src/` · Ausgabe nennt `Messung 6`.
+116. `groessenmarke/treiber-git-sonderzeichen` · echtes `git`, Dateien `a b.txt`, `a*`, `ab`, `[x].txt`, `ä.txt` und `q"r.txt` mit je 2 Einfügungen, Pfade des Blocks `a*`, `a b.txt`, `[x].txt`, `ä.txt` und `q"r.txt` · Ausgabe nennt `Messung 10` (`ab` zählt nicht: `a*` ist ein Name, kein Muster).
+117. `groessenmarke/treiber-git-umbenennung` · echtes `git`, `diff.renames=true` in der Konfiguration des Repos, eine Datei mit 10 Zeilen im Pfad wird umbenannt, ohne Änderung · Ausgabe nennt `Messung 20` (Löschung und Einfügung).
+118. `groessenmarke/treiber-git-binaer` · echtes `git`, eine Binärdatei (Bytes mit NUL) und eine Textdatei mit 4 Einfügungen im Pfad · Ausgabe nennt `Messung 4` und `1 Binärdatei(en) nicht gezählt`.
+119. `groessenmarke/treiber-git-basis-kein-vorfahr` · echtes `git`, `basis` ist ein Commit eines anderen Zweigs · Exit 2, Ausgabe nennt `ist kein Vorfahr von HEAD`.
+120. `groessenmarke/treiber-git-basis-gleich-spitze` · echtes `git`, `basis` ist `HEAD` (als Kurzform des Hashs), Marke gleich Formel · Exit 0, Ausgabe nennt `Messung 0`.
 Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
 Das Rennen der Fälle 35 und 36 ist nicht zeitabhängig (`SPEC-122` Nr. 8).
 Gemessen am 2026-10-22 mit dem Testbinary der Fixtures unter `-race`, je Lauf ein eigener Prozess mit `-test.count=1`: das Rennen jedes der drei Teilbäume von Fall 35 wurde in 200 von 200 Läufen gemeldet, die Fixture von Fall 34 blieb in 200 von 200 Läufen ohne Meldung, Fall 36 mit beiden Meldungen (`WARNING: DATA RACE` und `test timed out`) in 100 von 100.
 
 **Randformen:**
 1. Eine Eingabe fehlt in der Eingabekopie (etwa `.a-check.yml`) oder die Kopie scheitert: Meldung `gegenproben: <Grund>`, Exit-Code 2, kein Fall läuft.
-2. Ein Programm (`a-check`, `golangci-lint`, `sh`, `pruefung`, `go`, `gofmt`) ist nicht aufrufbar: Meldung `gegenproben: <Programm> nicht aufrufbar`, Exit-Code 2.
+2. Ein Programm (`a-check`, `golangci-lint`, `sh`, `pruefung`, `go`, `gofmt`, `groessenmarke`, `git`) ist nicht aufrufbar: Meldung `gegenproben: <Programm> nicht aufrufbar`, Exit-Code 2. Für `git` gilt das nur, solange die Fälle 115 bis 120 es verlangen; Fall 109 entfernt `git` aus `PATH` selbst.
 2a. Der Bau des Binary eines Falls (Fälle 29 bis 31) scheitert: der Fall ist rot, Text `Bau des Binary scheitert` und die letzten Zeilen der Ausgabe von `go build`; das Gate wird nicht gerufen.
 3. Ein Verstoß-Fall endet mit Exit 0: der Fall ist rot, Text `Verstoß nicht gemeldet`, Exit-Code 1 des Programms.
 4. Ein Verstoß-Fall endet mit einem anderen Code als der erwarteten 1 (etwa 2 bei einem Aufruffehler des Gates) oder die Ausgabe nennt das erwartete Wort nicht: der Fall ist rot mit erwartetem und tatsächlichem Wert, Exit-Code 1.
@@ -78,6 +145,7 @@ Gemessen am 2026-10-22 mit dem Testbinary der Fixtures unter `-race`, je Lauf ei
 9. Die Eingabe ist unverändert: nach dem Lauf sind die Dateien der Eingaben bytegleich; ändert ein Fall sie, endet das Programm mit Meldung und Exit-Code 2.
 10. Ohne Git-Arbeitsbaum oder bei einem Eingabepfad, der fehlt (`go.sum` ausgenommen), meldet `gegenproben-eingabe.sh` den Fehler und endet ungleich 0; `make gegenproben` bricht dann ab, ohne den Stempel zu ändern.
 11. Die Fälle teilen den Cache von golangci-lint, nicht dessen Sperre: jeder Fall hat ein eigenes `TMPDIR`, weil golangci-lint dort eine Sperre gegen parallele Läufe ablegt; ohne das bricht ein nebenläufiger Lauf mit `parallel golangci-lint is running` ab.
+12. Die Fälle 103 bis 120 setzen `TMPDIR` auf ein eigenes Verzeichnis und lesen das Protokoll der Ersatz-Skripte nach dem Lauf; ein Fall, dessen Protokoll fehlt, ist rot. Die Ersatz-Skripte halten jedes Argument fest und zählen jeden Aufruf, auch die Operationen, die der Treiber nie rufen darf (`diff` nach einem Fehler von `merge-base`, `pruefen` nach einem Fehler von `git`).
 
 Die Fälle 25 bis 28 rufen `go` im Wegwerfverzeichnis auf und teilen den Cache von `go` (`GOCACHE`) wie den von golangci-lint; die Fälle 29 bis 32 bauen das Binary mit `go build` in der Kopie, nicht im Image der Stufe `build`.
 Weicht dieser Bau vom Bau des Image ab (Zielplattform, Flags), fängt die Gegenprobe die Abweichung nicht.
@@ -91,14 +159,16 @@ Davon laufen die Fälle (Schritt `RUN gegenproben` der Stufe) 54,3 bis 67 s, das
 Bei unveränderten Eingaben dauert der Aufruf 0,3 s.
 Das Budget liegt rund 28 % über dem höchsten gemessenen Wert, 93,8 s; kein Gate und kein Hook prüft es.
 Liegt ein Lauf darüber, misst der Implementer neu und trägt den Wert mit Grund ein.
+Die Fälle 38 bis 120 starten je einen Prozess ohne Compiler (das Programm, `sh`, die Ersatz-Skripte, in den Fällen 115 bis 120 `git`); die Zusatzzeit im Schritt `RUN gegenproben` ist auf unter 3 s geschätzt und nicht gemessen, weil die Fälle noch nicht laufen; der Implementer misst vor der Übergabe und trägt den Wert hier ein. Dazu kommt der Bau des Programms der Stufe `groessenmarke` (`gofmt`, `go vet`, `go test`, Bau), der wie bei `pruefung` rund 7 s braucht und parallel zu den übrigen Stufen läuft.
 
-**Pflicht zum Fahren:** `make gegenproben` läuft bei jeder Änderung am geprüften Gate, am Profil, an der Architektur-Regel, an der Gegenprobe oder an diesem Vertrag, am Ende jeder Welle und vor dem Release.
+**Pflicht zum Fahren:** `make gegenproben` läuft bei jeder Änderung am geprüften Gate, am Profil, an der Architektur-Regel, an der Gegenprobe, am Programm `groessenmarke` oder seinem Treiber, an diesem Vertrag oder an `SPEC-128`, am Ende jeder Welle und vor dem Release.
 
-**Stand:** vorhanden für `make a-check`, `make lint`, `make migration-check`, `make test`, `make build` und `make test-race`.
+**Stand:** vorhanden für `make a-check`, `make lint`, `make migration-check`, `make test`, `make build` und `make test-race`; die Fälle 38 bis 120 zu `make groessenmarke` sind festgelegt und noch nicht vorhanden.
 
 **Grenze:** Kein Gate und kein Hook liest den Stempel; er belegt nur, dass ein Lauf zu dieser Prüfsumme grün war, und wer ihn von Hand schreibt, belegt nichts.
 Die Fälle prüfen die Importrichtungen `core-impurity` und Adapter auf Adapter sowie die Direktiv- und `# Why:`-Regeln; die Bibliotheksgrenzen halten Fall 20 (`modernc.org/sqlite` in einem fremden Adapter) und Fall 37 (`encoding/xml` im Kern, die Regel der `tech`-Liste von `.a-check.yml`); die Seite „erlaubt“ von `encoding/xml` im Paket `src/adapters/driven/odata/csdl` hält Fall 1, der den Baum von `src/` fährt; weitere Verstoßformen kommen mit weiteren Bibliotheksgrenzen.
 Das Programm selbst prüft die Stufe mit `gofmt`, `go vet` und `go test`; `make lint` prüft es als zweites Modul (`SPEC-101`).
-Die Liste der Eingaben in `tools/harness/gegenproben-eingabe.sh` steht einmal im Skript; dass sie `tools/pruefung` nennt, fängt kein Fall — wer den Eintrag entfernt, lässt die Prüfsumme bei einer Änderung an `pruefung` gleich.
+Die Liste der Eingaben in `tools/harness/gegenproben-eingabe.sh` steht einmal im Skript; dass sie `tools/pruefung` nennt, fängt kein Fall — wer den Eintrag entfernt, lässt die Prüfsumme bei einer Änderung an `pruefung` gleich; dasselbe gilt für `tools/groessenmarke` und `tools/harness/groessenmarke.sh`.
 Die Fälle zu `make test` und `make build` prüfen `pruefung` mit den Verstoßformen aus der Liste; sie fangen nicht, dass ein Ziel `pruefung` nicht ruft (das Gate ist im `Dockerfile` verdrahtet).
+Die Fälle 38 bis 120 fangen weder den Aufruf von `docker` in `tools/harness/groessenmarke-docker.sh` noch die Verdrahtung von Stufe und Ziel (`SPEC-128` Nr. 10 h); die Argumente von `git` nach `SPEC-128` Nr. 4 b fängt der Ersatz in den Fällen 103 und 104, die Lesart dieser Argumente durch das echte `git` die Fälle 115 bis 120. Weicht das `git` des Hosts vom Image ab (2.47.3), fängt keine Gegenprobe die Abweichung.
 Die Gegenproben von `docs-check`, `schema-check` und `baseline-verify` fehlen.
