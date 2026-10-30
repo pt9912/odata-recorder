@@ -5,8 +5,8 @@ flach unter `docs/plan/planning/`; bei Closure wandert sie per `git mv` nach
 `done/` (neben ihre `welle-<Kennung>-results.md`). Der Zustand ist die
 Verzeichnis-Position — kein Status-Feld. Diese Welle ist vor ihrem Start angelegt
 (Entscheidung des Users vom 2026-10-30); bis ihr Trigger eintritt steht sie in der
-Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien legt `plan-welle` (Schritt 6)
-beim Start an, weil ein Slice-Plan vor seinem Start veraltet.
+Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien liegen seit
+2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten.
 
 **Zielmeilenstein:** kein Meilenstein-Bezug (Soll-Umfang, nicht Teil der Erstabnahme nach dem Lastenheft).
 
@@ -34,6 +34,12 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 - `welle-mock` liegt in `done/`: `$expand` erweitert den Query-Interpreter und `$batch` führt Changesets in der Workspace-Transaktion des Mock aus.
 - Die Reihenfolge nach den Muss-Wellen ist Priorisierung, keine Abhängigkeit; sie steht deshalb nicht im Trigger.
 
+**Trigger je Slice (Code-Abhängigkeit, Zusatz zum Trigger):** Der Trigger der Welle bleibt formal und gilt für den Abschluss.
+- `slice-batch-parser` hängt an keinem Code aus `welle-mock` (der Leser braucht Fehlermodell, Konvention der Codec-Ports und Modell, alle in `done/`); der Welle-Trigger ist für ihn Priorisierung, ein Start davor ist eine Entscheidung des Users.
+- `slice-expand-parser` braucht `slice-odata-url-pfad` aus `welle-mock` (Teil 1, reine Funktion), nicht `welle-mock` ganz; nennt der Architect `$filter` in verschachtelten Optionen, auch `slice-odata-url-filter` und `slice-edm-ausdruecke`.
+- `slice-expand-ausfuehrung` braucht `welle-mock` und `slice-expand-parser`, dazu die Entscheidung des Architect zur Datenbasis der Navigationen (§6) in der Spezifikation und, falls sie Verträge in `done/` ändert (Reader, Import, Schema), den Slice dafür; ihn legt der Planner dann vor diesem an.
+- `slice-batch-changesets` braucht `welle-mock` (Workspace-Transaktion) und `slice-batch-parser`.
+
 ## 3. Closure-Trigger (Welle schließt)
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
@@ -60,9 +66,9 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-batch-parser | Parser für `$batch`-Requests (Leser fremder Bytes), leerer Batch | `LH-FA-16`; `LH-FA-16.a` |
 | slice-batch-changesets | Ausführung der Einzelrequests und atomare Changesets in einer Workspace-Transaktion, Antwort des Batch | `LH-FA-16`, `LH-QA-03`; `LH-FA-16.a`, `LH-FA-07.a` |
 
-Die Slice-Dateien legt `plan-welle` (Schritt 6) beim Start der Welle an: Ein Slice-Plan altert vor seinem Start, und diese Welle beginnt erst nach `welle-mock`.
+Die Slice-Dateien liegen seit 2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten, und `plan-welle` gleicht sie beim Start gegen den Ist-Stand ab. Marken und Betriebsregeln setzt der Planner beim Start (`SPEC-128`).
 
-**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. `plan-welle` (Schritt 6) übernimmt ihn in jede Slice-Datei; in dieser Welle betrifft er `slice-expand-ausfuehrung` und `slice-batch-changesets` (sichtbar am Binary), die Parser-Slices nur, soweit sie einen Fehlercode einführen.
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. In dieser Welle betrifft er `slice-expand-ausfuehrung` und `slice-batch-changesets` (sichtbar am Binary), die Parser-Slices nur, soweit sie einen Fehlercode einführen.
 
 ## 5. Abhängigkeiten
 
@@ -70,7 +76,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 §Roadmap-Struktur: fünf Abschnitte.
 
 - Blockiert: keine Welle. Eine Berührung ohne Kante: ein `PATCH` mit `If-Match` in einem Changeset (`welle-etag`); wer von beiden später liegt, ergänzt den Fall in seinem Test.
-- Wird blockiert von: `welle-mock` (Query-Interpreter, Workspace-Transaktion, Codec zum Schreiben).
+- Wird blockiert von: `welle-mock` (Query-Interpreter, Workspace-Transaktion, Codec zum Schreiben); die beiden Parser-Slices hängen nur an Teil 1 beziehungsweise an keinem Code daraus (Trigger je Slice in §2).
 - Unabhängig: `welle-hybrid`, `welle-betrieb`, `welle-admin-api`, `welle-etag`, `welle-odata-v2`.
 - Reihenfolge der Slices (Pfeil heißt: braucht): `slice-expand-parser` → `slice-expand-ausfuehrung`; `slice-batch-parser` → `slice-batch-changesets`; die beiden Äste sind unabhängig.
 - **Register-Sichtung (Eröffnung Schritt 2):** `observations/` gesichtet, Stand dieses Plans. Treffer, beim Start in den Slice-Plänen (§8) mit dem dann aktuellen Zähler als Risiko zu führen: `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×) und `BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last` (2×) für die Atomarität der Changesets; `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×); `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×). Kein offener Eintrag erreicht mit dieser Welle 3×.

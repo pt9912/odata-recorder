@@ -5,8 +5,8 @@ flach unter `docs/plan/planning/`; bei Closure wandert sie per `git mv` nach
 `done/` (neben ihre `welle-<Kennung>-results.md`). Der Zustand ist die
 Verzeichnis-Position — kein Status-Feld. Diese Welle ist vor ihrem Start angelegt
 (Entscheidung des Users vom 2026-10-30); bis ihr Trigger eintritt steht sie in der
-Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien legt `plan-welle` (Schritt 6)
-beim Start an, weil ein Slice-Plan vor seinem Start veraltet.
+Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien liegen seit
+2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten.
 
 **Zielmeilenstein:** M6 (siehe [Roadmap](in-progress/roadmap.md)).
 
@@ -33,6 +33,8 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 - `welle-betrieb` liegt in `done/`: `AuditLog` (jeder Schreibendpunkt wird auditiert, `SPEC-005`), `Telemetry` (Zähler je Fehlercode für `/__admin/diagnostics`) und der TLS-Baustein des Listeners sind die Grundlage des Admin-Listeners.
 - M5 ist erreicht: der Lasttest nach `LH-QA-01.a` läuft reproduzierbar und weist p95 aus dem Gesamtspan aus.
+
+**Der Trigger ist Priorisierung, keine Code-Abhängigkeit** (Entscheidung des Users zu Betrieb vor Admin, [Abgleichsbericht](../../reviews/2026-10-30-lastenheft-wellen-abgleich.md) §10 Nr. 1): `slice-lasttest` und M5 liefern dem Code der Admin-API nichts. Code-Abhängigkeiten von `welle-betrieb` haben nur vier Slices: `slice-audit-log`, `slice-telemetry-port`, `slice-telemetry-einbau-gateway` und `slice-listener-tls`; die Pläne tragen sie als Start-Trigger (§5).
 
 ## 3. Closure-Trigger (Welle schließt)
 
@@ -65,9 +67,9 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-test-security | Sicherheitsnachweis: Canary-Secrets in allen Artefakten, Netzwerkzugriff auf Admin-Endpunkte | `LH-QA-04`, `LH-RB-04`; `LH-QA-04.a` |
 | slice-bootstrap-m6 | Composition Root für den Admin-Listener und M6-Test (Rundlauf über HTTP) | `LH-FA-13`, `LH-FA-18`; `SPEC-110` |
 
-Die Slice-Dateien legt `plan-welle` (Schritt 6) beim Start der Welle an: Ein Slice-Plan altert vor seinem Start, und die Pläne dieser Welle hängen an den Verträgen von `welle-betrieb` (Audit, Telemetry, TLS).
+Die Slice-Dateien liegen seit 2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten, und `plan-welle` gleicht sie beim Start gegen den Ist-Stand ab. Marken und Betriebsregeln setzt der Planner beim Start (`SPEC-128`).
 
-**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. `plan-welle` (Schritt 6) übernimmt ihn in jede Slice-Datei; in dieser Welle betrifft er fast alle Slices (Endpunkte, `ADMIN_*`, Token, `ODR-E2101`). Kommandos über Start und Version hinaus liefert die Welle nicht (§6), also auch keinen Eintrag im Kommando-Katalog.
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. Das Binary ändert sich in dieser Welle erst mit `slice-bootstrap-m6` (der Admin-Listener erreicht es vorher nicht): verbindlich trägt den Punkt dieser Slice (Endpunkte, `ADMIN_*`, Token, `ODR-E2101`), die übrigen Slices tragen ihn bedingt, nämlich nur, wenn sie einen Fehlercode, Schlüssel oder ein Kommando in den Katalog bringen. Kommandos über Start und Version hinaus liefert die Welle nicht (§6), also auch keinen Eintrag im Kommando-Katalog.
 
 ## 5. Abhängigkeiten
 
@@ -75,9 +77,14 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 §Roadmap-Struktur: fünf Abschnitte.
 
 - Blockiert: keine Welle; sie schließt die Muss-Anforderungen für M7 (Erstabnahme).
-- Wird blockiert von: `welle-betrieb` (`AuditLog`, `Telemetry`, TLS-Baustein), mittelbar `welle-mock` und `welle-record-replay`.
+- Wird blockiert von: `welle-betrieb`, konkret von `slice-audit-log` (`AuditLog`), `slice-telemetry-port` (`Telemetry`, Zähler der Diagnose), `slice-telemetry-einbau-gateway` (Voraussetzung von `slice-test-security`) und `slice-listener-tls` (TLS-Baustein, nur `slice-admin-tls`); der Trigger „M5 erreicht“ (§2) ist Priorisierung. Mittelbar von `welle-mock` (`slice-snapshot-use-case`, `slice-bootstrap-m3`) und `welle-record-replay` (`slice-workspace-use-case`, `slice-bootstrap-m2`).
 - Unabhängig: `welle-hybrid`, `welle-etag`, `welle-expand-batch`, `welle-odata-v2`.
-- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-admin-listener-token` → `slice-admin-tls`; `slice-inspection-use-case` unabhängig davon; `slice-admin-sessions`, `slice-admin-imports` und `slice-admin-workspaces` brauchen `slice-admin-listener-token` und `slice-inspection-use-case` (Sessions), je ihren Use Case aus `welle-record-replay` und `welle-mock`; `slice-test-security` braucht Listener, Token und TLS; `slice-bootstrap-m6` zuletzt.
+- Reihenfolge der Slices (Pfeil heißt: braucht; `slice-audit-log` aus `welle-betrieb`):
+  - `slice-admin-listener-token` braucht `slice-audit-log`; `slice-admin-tls` braucht `slice-admin-listener-token` und `slice-listener-tls`.
+  - `slice-inspection-use-case` braucht `slice-telemetry-port` und sonst keinen Slice dieser Welle.
+  - Die drei Endpunkt-Slices brauchen alle `slice-admin-listener-token` und `slice-audit-log`; `slice-admin-sessions` zusätzlich `slice-inspection-use-case`; `slice-admin-imports` hat keine weitere Kante (Rahmen und `AuditLog` genügen, `slice-inspection-use-case` nicht); `slice-admin-workspaces` zusätzlich `slice-workspace-use-case` und `slice-snapshot-use-case`.
+  - `slice-test-security` braucht die drei Endpunkt-Slices, `slice-admin-listener-token`, `slice-admin-tls`, `slice-bootstrap-m2`, `slice-audit-log` und `slice-telemetry-einbau-gateway`.
+  - `slice-bootstrap-m6` braucht `slice-bootstrap-m2`, `slice-bootstrap-m3`, `slice-telemetry-port`, `slice-audit-log`, `slice-handbuch-meldungskatalog` und alle übrigen Slices der Welle; er ändert `src/bootstrap/` und `SPEC-110` Nr. 2 wie `slice-bootstrap-m4` von `welle-hybrid` und läuft nicht zugleich mit ihm.
 - **Register-Sichtung (Eröffnung Schritt 2):** `observations/` gesichtet, Stand dieses Plans. Treffer, beim Start in den Slice-Plänen (§8) mit dem dann aktuellen Zähler als Risiko zu führen: `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` (2×) für die Fakes der Use Cases hinter dem Admin-Adapter; `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×) für die Zweige der Authentisierung und der Startprüfung; `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×). Ein Risiko des Vertrags: „der Vergleich erfolgt zeitkonstant“ (`LH-FA-13.a`) hat keinen Fänger, der aus dem benannten Grund rot wird; der Plan führt es als akzeptiertes Negativ mit Grund und Folge oder lässt den Architect einen Fänger nennen (`AGENTS.md` §3.15). Kein offener Eintrag erreicht mit dieser Welle 3×.
 
 ## 6. Out-of-Scope für diese Welle
