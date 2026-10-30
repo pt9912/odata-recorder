@@ -1,5 +1,6 @@
 // Package support enthält die Querschnitts-Ports Clock und IDGenerator (SPEC-114): Zeit und
-// serverseitig vergebene Kennungen kommen nur über sie in den Kern.
+// serverseitig vergebene Kennungen kommen nur über sie in den Kern; dazu Telemetry und
+// TelemetryReader (SPEC-230).
 package support
 
 import "time"
