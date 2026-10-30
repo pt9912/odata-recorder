@@ -1,4 +1,4 @@
-# SPEC-129 — Benutzerhandbuch (`make handbuch-check`)
+# SPEC-200 — Benutzerhandbuch (`make handbuch-check`)
 
 **Werkzeug:** `make handbuch-check`; die Prüfung ist `pruefung handbuch` aus `tools/pruefung/` (`SPEC-036`, eigenes Go-Modul ohne Abhängigkeiten), gefahren in der Stufe `handbuch` des `Dockerfile` (abgeleitet von der Stufe `build`, jeder `RUN` ohne Netz).
 Das Ziel hängt an `GATE_CHECKS`; `make gates` fährt es.

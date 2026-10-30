@@ -31,4 +31,4 @@ Die Reihe der Kennungen zählt über beide Orte fortlaufend: Die nächste freie 
 | `SPEC-101` | `make lint-profil` | [`SPEC-101-lint-profil.md`](SPEC-101-lint-profil.md) |
 | `SPEC-122` | `make test-race` | [`SPEC-122-test-race.md`](SPEC-122-test-race.md) |
 | `SPEC-128` | `make groessenmarke` | [`SPEC-128-groessenmarke.md`](SPEC-128-groessenmarke.md) |
-| `SPEC-129` | `make handbuch-check` | [`SPEC-129-handbuch.md`](SPEC-129-handbuch.md) |
+| `SPEC-200` | `make handbuch-check` | [`SPEC-200-handbuch.md`](SPEC-200-handbuch.md) |
