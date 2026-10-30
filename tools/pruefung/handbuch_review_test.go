@@ -59,18 +59,34 @@ func TestHandbuchKopfLeererSchluessel(t *testing.T) {
 	}
 }
 
-// Z47: ein Span, der bis auf Leerraum `make` ist, ist kein Aufruf (die Spans stehen als Raw-String).
+// Z47: ein Span, der bis auf Leerraum `make` ist, ist kein Aufruf; Leerraum ist die Menge der 19 Zeichen (Nr. 3 b)
+// und das Leerzeichen. Ein Span `make` und ein anderes Trennzeichen als U+0020 ist kein Aufruf (Nr. 14 d), `make nix`
+// ist einer. Elemente: 3 Spans mit Leerzeichen + `makefile x`, `make-x` + 19 × 3 (`make`+Zeichen, `make `+Zeichen,
+// Zeichen als Trenner vor `nix`) + `make nix` = 63.
 func TestHandbuchMakeSpanOhneZweitesWort(t *testing.T) {
 	m := ohneBeispiele(t)
-	for _, prosa := range []string{"Siehe `make` hier.\n", "Siehe `make ` hier.\n", "Siehe `make  ` hier.\n"} {
-		m.handbuch(rumpf(prosa))
+	zielDateien(m)
+	keinBefund := []string{"make", "make ", "make  ", "makefile x", "make-x"}
+	for _, c := range leerraum19() {
+		keinBefund = append(keinBefund, "make"+c, "make "+c, "make"+c+"nix")
+	}
+	n := 0
+	for _, text := range keinBefund {
+		m.handbuch(rumpf("Siehe `" + text + "` hier.\n"))
 		if code, _, errText := m.lauf(); code != exitOK {
-			t.Fatalf("%q: Exit %d %q", prosa, code, errText)
+			t.Fatalf("%q: Exit %d %q", text, code, errText)
 		}
+		n++
+	}
+	m.handbuch(rumpf("Siehe `make nix` hier.\n"))
+	code, _, errText := m.lauf()
+	erwarte(t, code, errText, exitBefund, "make-Ziel nix unbekannt")
+	if n+1 != 63 {
+		t.Fatalf("%d Elemente, erwartet 63", n+1)
 	}
 }
 
-// Z21 (Rand): eine Ziffernfolge, deren Wert in einer 64-Bit-Zahl überläuft, ist kein Ausgangswert (2^64 rechnete zu 0).
+// Z21 (Rand): eine Ziffernfolge, deren Wert in einer 64-Bit-Zahl überläuft, ist kein Ausgangswert (2^64 ist kein Ausgangswert).
 func TestHandbuchAusgangswertUeberlauf(t *testing.T) {
 	folgen := []string{"18446744073709551616", "18446744073709551621", "99999999999999999999", "4294967296", "1000", "100000"}
 	for _, z := range folgen {
@@ -151,12 +167,11 @@ func TestHandbuchBloeckeJeDatei(t *testing.T) {
 }
 
 // Z50: „getrimmt“ (Nr. 3 b) gilt an sechs Stellen: Wert und Schlüssel des Kopfes, leere Zeile des Kopfes, Absatzgrenze,
-// Schluss-Zaun und Info-Zeichenkette, jede mit vier Leerraum-Zeichen (NBSP, U+2003, Tabulator, U+3000; 24 Elemente);
-// die Zeichen entstehen aus Bytewerten.
+// Schluss-Zaun und Info-Zeichenkette, jede mit allen 19 Leerraum-Zeichen (leerraum19; 114 Elemente).
 func TestHandbuchGetrimmtAnSechsStellen(t *testing.T) {
 	m := neuesUmfeld(t, standardAntworten())
 	n := 0
-	for _, c := range []string{nbsp, "\xe2\x80\x83", "\t", "\xe3\x80\x80"} {
+	for _, c := range leerraum19() {
 		faelle := map[string]string{
 			"Kopf-Wert":       strings.Replace(sauber(), "Stand: 2026-10-30", "Stand:"+c+"2026-10-30"+c, 1),
 			"Kopf-Schlüssel":  strings.Replace(sauber(), "Stand: 2026-10-30", "Stand"+c+": 2026-10-30", 1),
@@ -176,8 +191,8 @@ func TestHandbuchGetrimmtAnSechsStellen(t *testing.T) {
 			n++
 		}
 	}
-	if n != 24 {
-		t.Fatalf("%d Elemente, erwartet 24", n)
+	if n != 114 {
+		t.Fatalf("%d Elemente, erwartet 114", n)
 	}
 }
 
@@ -203,18 +218,29 @@ func TestHandbuchReihenfolgeInnerhalbEinerNummer(t *testing.T) {
 	}
 }
 
-// Z49: ein Kindprozess, der die Ströme nach dem Ende des Binary offen hält, hält den Lauf höchstens WaitDelay
-// (1 s) auf; die Ausgabe bis dahin und der Ausgangswert gelten. Beide Aufrufstellen.
+// Z49 (Nr. 7 e): ein Kindprozess von 6 s, der die Ströme nach dem Ende des Binary offen hält, hält den Lauf höchstens
+// eine Sekunde auf; der Test fängt eine Wartezeit ab 2,5 s je Lauf (ein WaitDelay zwischen 1 s und 2,5 s bleibt grün, weil
+// die Last des Prüfhosts keine engere Grenze trägt). Ausgabe und Ausgangswert gelten. Jede Aufrufstelle für sich.
 func TestHandbuchKindprozessHaeltDenStrom(t *testing.T) {
-	ok := antwort{out: "odata-recorder dev\n", kind: "6"}
-	m := neuesUmfeld(t, map[string]antwort{"version": ok, "": ok})
-	t0 := time.Now()
-	code, _, errText := m.lauf()
-	if dauer := time.Since(t0); dauer > 5*time.Second {
-		t.Fatalf("Dauer %v bei zwei Läufen mit Kindprozess von 6 s", dauer)
-	}
-	if code != exitOK {
-		t.Fatalf("Exit %d %q", code, errText)
+	ok := antwort{out: "odata-recorder dev\n"}
+	mitKind := ok
+	mitKind.kind = "6"
+	for _, stelle := range []string{"version", "Beispiel"} {
+		a := map[string]antwort{"version": ok, "": ok}
+		if stelle == "version" {
+			a["version"] = mitKind
+		} else {
+			a[""] = mitKind
+		}
+		m := neuesUmfeld(t, a)
+		t0 := time.Now()
+		code, _, errText := m.lauf()
+		if dauer := time.Since(t0); dauer > 2500*time.Millisecond {
+			t.Fatalf("%s: Dauer %v mit Kindprozess von 6 s", stelle, dauer)
+		}
+		if code != exitOK {
+			t.Fatalf("%s: Exit %d %q", stelle, code, errText)
+		}
 	}
 }
 
