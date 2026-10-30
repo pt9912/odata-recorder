@@ -97,7 +97,7 @@ der Closure-Trigger unerreichbar wird.
 - ETags, `If-Match` (`LH-FA-15`) und `Prefer: return=…` — `welle-etag`; bis dahin gilt das Muss-Verhalten der Vertragsmatrix (`LH-FA-07.b`: POST `201`, PATCH und PUT `204`).
 - `$expand`, `$batch` (`LH-FA-16`), `$apply`, `$search`, Actions, Functions, Deep Insert — `welle-expand-batch` bzw. nicht im ersten Abnahmeumfang (Lastenheft §5); der Mock antwortet mit `501` (`ODR-E6001`, `ODR-E6002`).
 - OData V2 (`LH-FA-17`) — `welle-odata-v2`.
-- Das Service-Dokument (`GET` auf den Service-Root): kein Vertrag in der Spezifikation; Frage an den Architect vor dem Start von `slice-mock-lesen`, bis zur Antwort nicht Teil der Welle.
+- Das Service-Dokument (`GET` auf den Service-Root): nicht im Muss-Umfang (Entscheidung des Users, 2026-10-30), kein Vertrag in der Spezifikation, der Mock antwortet mit `501`. Der Architect von `slice-mock-lesen` prüft vor dem ersten Code-Commit am Referenz-Client des M3-Tests, ob eine Mindestfassung mit eigenem Vertrag nötig ist (Auftrag dort in §1); nur dann gehört sie zur Welle.
 - Umschreiben von Links (`LINK_REWRITE` über `off`): kein Eintrag im Lastenheft, keine Welle.
 - Coverage-Schwelle als Gate — gehört zu `welle-sensoren`.
 

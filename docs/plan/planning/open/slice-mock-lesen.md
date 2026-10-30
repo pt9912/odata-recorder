@@ -38,7 +38,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Mutationen — `slice-mock-schreiben`; Konstruktor, Routing und Zuordnung sind gemeinsam, die Zustandsänderung nicht.
 - Fallback auf Replay oder Upstream — `welle-hybrid`; `MockUseCase` kennt weder `ReplayUseCase` noch `UpstreamClient`.
 - Spans und Metriken (`SPEC-029`) — `welle-betrieb`; es gibt noch keinen Port `Telemetry`.
-- Das Service-Dokument (`GET` auf den Service-Root) — kein Vertrag in der Spezifikation; Entscheidung des Architect vor dem Start, bis dahin `501`.
+- Das Service-Dokument (`GET` auf den Service-Root) — nicht im Muss-Umfang von `welle-mock` (Entscheidung des Users, 2026-10-30); kein Vertrag in der Spezifikation, es bleibt `501`. **Auftrag an den Architect vor dem ersten Code-Commit:** Er prüft am Referenz-Client des M3-Tests (`slice-bootstrap-m3`), ob dieser das Service-Dokument anfordert, und hält den Beleg (den Request oder sein Fehlen) in §6 fest. Fordert der Client es an, schreibt der Architect eine Mindestfassung mit eigenem Vertrag in die Spezifikation, vor dem ersten Code-Commit (`AGENTS.md` §3.12), und gibt den Slice an den Planner zurück (DoD, Marke, Handbuch-Kapitel); sonst bleibt es bei `501`.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
 einer mit vier erfundenen; die vier Klassen sind ein Suchraster, keine
@@ -100,7 +100,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner beim Start vor dem ersten Code-Commit nach `AGENTS.md` §3.14 mit dem Werkzeug aus `slice-groessenmarke-werkzeug` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Eine Zahl steht hier erst, wenn die Tabelle *Zusage · Fänger* vorliegt.
-- `in-progress` → `open` (blockiert — Carveout?): die Zuordnung von Service und Workspace im Modus `mock` (welche Header, welcher Fehler) oder das Service-Dokument sind nicht entschieden (siehe §6).
+- `in-progress` → `open` (blockiert — Carveout?): die Zuordnung von Service und Workspace im Modus `mock` (welche Header, welcher Fehler) sind nicht entschieden, oder der Referenz-Client des M3-Tests fordert das Service-Dokument an und dessen Mindestfassung steht nicht in der Spezifikation (siehe §6).
 
 ## 5. Closure-Trigger
 
@@ -118,7 +118,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Zuordnung im Modus `mock` (Header fehlt, leer, mehrfach, gehört zu einem anderen Service): `LH-FA-04.c` regelt sie für Service und Workspace, das Raster prüft jede Zelle — **Ausgang:** offen; Zelle ohne Ort geht an den Architect.
-- Das Service-Dokument (`GET` auf den Service-Root) hat in der Spezifikation keinen Vertrag — **Ausgang:** offen; Architect oder Owner entscheidet vor dem ersten Code-Commit, ob es zum Muss-Umfang gehört.
+- Das Service-Dokument (`GET` auf den Service-Root) hat in der Spezifikation keinen Vertrag und gehört nicht zum Muss-Umfang (Entscheidung des Users, 2026-10-30) — **Ausgang:** offen; Adresse: Architect (Auftrag in §1): Beleg am Referenz-Client des M3-Tests vor dem ersten Code-Commit; fordert er es an, Mindestfassung mit eigenem Vertrag und Rückgabe an den Planner, sonst `501`.
 - Lesesicht bei gleichzeitiger Mutation („Workspace-Snapshot plus lokale Änderungen“, `LH-FA-07.a`): welcher Zustand ein Lesezugriff sieht — **Ausgang:** offen; Architect, Wirkungs-Fänger.
 - Einzel-Lookup auf einem EntitySet mit Coverage `partial`: `404` oder `ODR-E6003` (`SPEC-044`, `LH-FA-07.b`) — **Ausgang:** offen; Raster, eine Zelle je Coverage-Zustand und Methode.
 
