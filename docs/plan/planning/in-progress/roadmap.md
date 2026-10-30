@@ -33,6 +33,7 @@ und geschätzter Aufwand (S/M/L, kein Termin).
 
 | Welle | Trigger | Wichtigste Slices | Geschätzter Aufwand |
 |---|---|---|---|
+| welle-sensoren | `slice-groessenmarke-werkzeug` (Welle record-replay) liegt in `done/` | Prüfung auf unsichtbare Zeichen, Größe der Guide-Dateien als Gate (d-check-Modul `file`), Abdeckungs-Deklaration über den Tests mit erzeugten Tabellen, Schwelle der Anweisungsabdeckung; Plan: [welle-sensoren](../welle-sensoren.md) | M |
 | welle-dev-container | welle-fundament done | Gerüst des Arbeitscontainers mit `u-boot` am Host (privilegierter Container mit eigenem Docker-Daemon, SSH-Zugang, Schlüsselpaar), Start mit Bereitschaftsprobe, Bare-Repo und Klon samt Einlieferung per Zweig, Lauf von `make gates` und `make gegenproben` im Container, Dokument für Entwickler | L |
 
 ## Meilensteine
@@ -61,10 +62,12 @@ flowchart LR
     D[welle-dev-container]
     P[welle-persistenz]
     R[welle-record-replay]
+    S[welle-sensoren]
 
     F --> D
     F --> P
     P --> R
+    R -. "slice-groessenmarke-werkzeug done" .-> S
 ```
 
 ## Abgeschlossene Wellen
