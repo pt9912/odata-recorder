@@ -56,11 +56,9 @@ odata-recorder dev
 
 Meldung: `Unbekanntes Kommando: <Argument>`
 
-Die Meldung nennt das erste Argument des Aufrufs; der Ausgangswert ist 2, und die Standardausgabe bleibt leer.
-
 Lösung: Rufe das Binary ohne Argument oder nur mit `version` auf.
 
-Das erste Beispiel zeigt ein Argument, das kein Kommando ist, das zweite `version` mit einem weiteren Argument.
+Das erste Beispiel zeigt ein Argument, das kein Kommando ist, das zweite `version` mit einem weiteren Argument; `<Argument>` in der Meldung steht im ersten Beispiel für `foo`, im zweiten für `version`.
 
 Datei: [beispiele/fehler-unbekanntes-kommando.txt](beispiele/fehler-unbekanntes-kommando.txt)
 ```
