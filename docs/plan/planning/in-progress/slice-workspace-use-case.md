@@ -218,10 +218,78 @@ Aussagen-Berührung steht hier gar nicht.
 
 **Raten und Messung** (`AGENTS.md` §3.10, §8 dieses Plans): *Sollwert* je Mutation der Zeilen Z46 bis Z57 und Z61: rot in jedem Lauf; der Implementer trägt die gemessenen Raten mit Zahl der Prozesse und dem Messenden (`-count=50` je Fänger; `make test-race` je Prozess mit `-test.count=1`) in einen Absatz dieses Abschnitts ein. Wird ein Fänger nur mit Wahrscheinlichkeit rot, bekommt die Zusage einen Wirkungs-Fänger (die Fenster Z51 bis Z54 sind Wirkungs-Fänger) oder steht als Negativ.
 
+**Bericht des Implementers, Rest** (erster Commit des Handoffs; der Teil *Löschen* folgt im zweiten). Messender aller Zahlen ist der Implementer im Zweig `slice-workspace-use-case`. Mutationen laufen auf Kopien der Quellen mit `go test` im Image `odata-recorder:deps`, die Raten mit `go test -race` im Image `odata-recorder:race` (ein Test-Binary, 50 Prozesse mit `-test.count=1`, dazu ein Prozess mit `-test.count=50`). Die Zeilen der Tabelle *Zusage · Fänger* gelten unverändert; der Fänger heißt im Code:
+
+| Zeile | Test (`src/hexagon/services/workspace/`, Z58 bis Z61 in `src/bootstrap/workspace_sqlite_test.go`) | Mutation, rot gesehen |
+|---|---|---|
+| Z01 | `TestNewNilFeld` (`konfig_test.go`; 9 einzelne Felder und 36 Paare, 45 Fälle) | `X == nil` durch `false`, je Feld (9 von 9) |
+| Z02 | `TestNewRuftKeinenPort`, `TestNurBenannteOperationen` (Weißliste der Operationen je Operation statt Reflexion über Zähler) | `Get` ruft `Uhr.Now`; `Create` ruft `Snapshots.List`; `Reset` ruft `Wartung.Startup`; `Reset` ruft `Cursors.Put` statt `ResetAll`; `New` ruft `Wartung.Startup` (5 von 5) |
+| Z03 | `TestPortUndKonfigFestgeschrieben` | zwei Felder vertauscht; `MaxIDLaenge` 63; `List` ohne `error`; `Reset` mit `bool` (4 von 4) |
+| Z04 | `TestVerwaltungOhneZustand` | zusätzliches Feld im Dienst |
+| Z05 | `TestKontextNilJedeOperation` | Prüfung entfernt, je Operation (4 von 4) |
+| Z06 | `TestKontextUnveraendertAnJedemPort` (Hülle `kontext` mit Wert, Identität je Aufruf; 16 Paare aus Operation und Aufruf) | `context.WithoutCancel(ctx)` oder `context.Background()` an jeder der 13 Stellen (13 von 13) |
+| Z07 | `TestKontextfehlerDesPorts` (18 Stellen mal 4 Formen, 72 Fälle) | Kontextfehler wird `ODR-E9001` (Klasse, alle Stellen); Kontextfehler in einem `errors.Join` abgebildet |
+| Z09 | `TestFehlerAbbildungJedeStelle` (18 Stellen mal 22 Fehler, 396 Fälle), `TestTabellenFehlerVollstaendig` | Gegenstand vertauscht an S3, S4, S5, S7, S8 (beide Zweige), S9, S10 (zwei Stellen), S11 bis S15; `Status` 500; `Ursache` nil (18 von 18) |
+| Z10 | `TestAnlageAbbildungAnCreate` | beide Zweige mit dem Gegenstand `Workspace`; Gegenstand `Sonstiges` |
+| Z11 | `TestRevisionVeraltetIstProgrammfehler` | `ErrRevisionVeraltet` als Erfolg |
+| Z12 | `TestPanikWirdWeitergereicht` (18 Stellen) | `recover` im Dienst |
+| Z13 | `TestFormDerID` (786 Kennungen: 18 Längen und 768 Bytewerte an drei Stellen; 123 gültig; Orakel `^[0-9a-z-]{1,64}$`) | Grenze 64 zu 65 und 63; `-`, `0`, `9`, `a`, `z` an beiden Rändern; `_`, `.`, `A-Z`, Byte ab 0x80 aufgenommen (14 von 14) |
+| Z14 | `TestLeereIDVergibt` | Kennung immer vergeben; zusätzliche Kennung verbraucht; leere `id` abgewiesen |
+| Z15 | `TestBaselineIDLeerUndFormen` (789 Formen) | leere `baselineID` angenommen; Form wie die der `id` geprüft |
+| Z16 | `TestVerstossVerbrauchtWederZeitNochKennung`, `TestZeitGenauEinmal` | Zeit oder Kennung am Anfang bezogen; `Uhr.Now()` zweimal |
+| Z17 | `TestBaselineGetEinmalVorOpen` | Fehler von `Snapshots.Get` ignoriert; `ErrFalscheArt` statt `ErrNichtGefunden` |
+| Z18 | `TestStateHashGegenStateBlob` (6 Abweichungen und die Gleichheit), `TestRangfolgeCreate` | Vergleich entfernt; nur die Länge verglichen |
+| Z19 | `TestOpenLesenSchliessen` (10 Wege), `TestHuellen` | `Close` fehlt; `Close` nur nach dem Lesen; `Close` zweimal; Fehler von `Close` wird Ergebnis; nur ein Teilergebnis gelesen |
+| Z20 bis Z23 | `TestManifestVerstoesse` (1061 Verstöße: Syntax 816, Kopf 47, Einträge 195, Doppelte 3; je bei `Create` und `Reset`), `TestManifestGueltigeFormen` (10 Formen), `TestFehlerOhneWert` | UTF-8-Prüfung entfernt; jedes Glied des Kopfes entfernt oder gelockert; `entity_count` nicht geprüft; jedes Glied der Einträge (Menge, Schlüssel, Vollständigkeit, Payload, Properties) entfernt; nur das erste Element geprüft; Eindeutigkeit nur über Schlüssel, nur über Menge, nicht, mit Schreibweise |
+| Z24 | `TestVerstossVerbrauchtWederZeitNochKennung`, `TestManifestVerstoesse` (Zustand verglichen) | Transaktion vor der Prüfung geöffnet (`Create`, `Reset`) |
+| Z25 | `TestAbbildungGenerator` (7 Zellen aus 0, 1, 2, 17 Einträgen in 1 bis 3 Mengen, 56 Einträge, 11 Wertarten; Orakel: eigener Schreiber und eigener Decoder), `TestPayloadByteGleich` | Payload verändert; Payload über `float64` neu kodiert; `KnownProperties` weggelassen; `Version` 1; `Deleted` wahr; Menge und Schlüssel vertauscht; `Completeness` vertauscht; falsche `WorkspaceID` (8 von 8) |
+| Z26 | `TestZeichenketten` (Werte aus Bytewerten, `esc`) | Payload dekodiert und neu kodiert |
+| Z27 | `TestLeereUndTeilweiseBaseline` | leere Liste überspringt `ReplaceAll`; `partial` abgewiesen |
+| Z28 | `TestErgebnisVonCreate` | je Feld des Ergebnisses (5 von 5) |
+| Z29 | `TestTransaktionDerAnlage` | zweite Transaktion; `Put` statt `ReplaceAll` |
+| Z30 | `TestFehlerInDerAnlage` | Fehler von `ReplaceAll` verschluckt |
+| Z31 | `TestVergebeneIDNachDerBaseline` | Vorab-Lesen (zwei Formen) |
+| Z32 | `TestRangfolgeCreate` (54 Paare) | Prüfung der Schritte nach vorn oder hinten gezogen (Z16, Z18, Z24) |
+| Z33 | `TestGetReichtIDDurch` (9 Formen) | Form geprüft; `id` gekürzt |
+| Z34 | `TestListeJederService` (9 Zellen), `TestListeErsterFehlerBeendet` (4 Aufrufe) | neu geordnet (zwei Formen); `nil` bei leerer Liste; Teilliste; Fehler ignoriert |
+| Z39 | `TestResetLiestZuerstDenWorkspace` (9 Formen) | Baseline-Kennung aus dem Argument |
+| Z40 | `TestTransaktionDesReset` (Revision 0, 1, 7; fremder `Advance` zwischen Lesen und Transaktion) | `Advance(revision+1)`; Revision aus dem Lesen außerhalb; jeder der vier Schritte ausgelassen; Folge vertauscht; Snapshot geschrieben |
+| Z41 | `TestFehlerInDerTransaktionDesReset` (4 Schritte mal 27 Fehler und Abbrüche, 108 Fälle) | Fehler von `ResetAll` und von `ReplaceAll` verschluckt |
+| Z42 | `TestWirkungDesReset` (Revision 0, 1, 7 mal unverändert und verändert; ein zweiter Workspace) | `ReplaceAll` oder `ResetAll` mit falscher `id`; State mit falscher `id` abgebildet; Schritte ausgelassen |
+| Z43 | `TestZweiResetHintereinander` | `Advance` nur bei gerader Revision |
+| Z44 | `TestErgebnisVonReset` | alte Revision; je Feld ID, Service, Baseline, `CreatedAt` (5 von 5) |
+| Z45 | `TestRangfolgeReset` (65 Paare) | Folge der Schritte vertauscht |
+| Z46 | `TestGleichzeitigesCreateGleicheID` (n = 2 bis 8) | `ReplaceAll` in zweiter Transaktion; Fehler von `Create` ignoriert |
+| Z47 | `TestGleichzeitigesCreateGetrennterSpeicher` | Einträge in einer Paketvariablen |
+| Z48 | `TestGleichzeitigeReset` | Revision für `Advance` außerhalb der Transaktion |
+| Z49 | `TestResetGegenLoeschen` (beide Reihenfolgen) | `Get` außerhalb der Transaktion |
+| Z50 | `TestResetGegenFortschreibenDesCursors` (beide Reihenfolgen) | `Reset` ohne `ResetAll` |
+| Z51 bis Z54 | `TestFensterDerTransaktionen` (Eindringling in der FIFO nach Schritt k) | Z51: zweite Transaktion für `ReplaceAll`; Z52: `Get` in eigener Transaktion; Z53: `ResetAll` und `Advance` in zweiter; Z54: `Advance` in zweiter |
+| Z57 | die Fänger Z46 bis Z50 unter `go test -race`; `TestVerwaltungOhneZustand` | Paketvariable mit Zähler ohne Sperre in `Create` und in `Reset` |
+| Z58 bis Z61 | `TestWorkspaceZweiAusDerselbenBaseline`, `TestWorkspaceResetAufDerDatei`, `TestWorkspaceResetUnbekannt`, `TestWorkspaceGleichzeitigesCreate` (20 Durchläufe) | siehe unten |
+| Z63 | `TestFakesZaehlenJedeOperation` (37 Methoden, 10 Fakes), `TestFakesInDerTransaktion` (19 Methoden), `TestFakeTransaktion` | siehe unten |
+| Z64 | `TestHuellen` | siehe unten |
+| Z65 | `make a-check` | Import von `adapters/driven/sqlite` im Paket und in einer Testdatei des Pakets |
+
+*Raten* (Messender: der Implementer; Image `odata-recorder:race`; 50 Prozesse mit `-test.count=1`, dazu ein Prozess mit `-test.count=50`, dessen Zahl die roten Läufe von 50 nennt). Normalstand ohne Mutation: 0 von 50 Prozessen rot, 0 rote Läufe. Mutation, rote Prozesse, rote Läufe: Z46 *`ReplaceAll` in zweiter Transaktion* 50 von 50, 50 von 50; Z46 *Fehler von `Create` ignoriert* 50 von 50, 50 von 50; Z51 *zweite Transaktion* 50 von 50, 50 von 50; Z47 *Paketvariable* 50 von 50, 50 von 50; Z48 50 von 50, 50 von 50; Z49 50 von 50, 50 von 50; Z50 50 von 50, 50 von 50; Z52, Z53 und Z54 je 50 von 50, 50 von 50; Z57 *Paketvariable ohne Sperre* in `Reset` 50 von 50 Prozessen (der Detektor meldet dasselbe Rennen je Prozess einmal, `-test.count=50` zeigt 1 von 50), in `Create` 50 von 50 (2 von 50). Die Reihenfolgen bestimmen Kanal, Haltepunkt und FIFO des Stores, keine Zeit: kein Fänger ist wahrscheinlichkeitsabhängig.
+
+*Z58 bis Z61, Z63 bis Z65.* Z58 (`Create` schreibt den State unter der falschen `WorkspaceID`) rot in `TestWorkspaceZweiAusDerselbenBaseline` und den übrigen Läufen auf der Datei; Z59 (`ResetAll`, dann `ReplaceAll` ausgelassen, je einmal) rot in `TestWorkspaceResetAufDerDatei`; Z60 (Reset ohne Prüfung des Workspace) rot in `TestWorkspaceResetUnbekannt`; Z61 (der Verlierer ersetzt den State) rot in `TestWorkspaceGleichzeitigesCreate`, Rate 50 von 50 Prozessen und 50 von 50 Läufen unter dem Detektor (Normalstand 0 von 50). Z63: Haltepunkt entfernt, `Blobs.Verify` und `Dienste.Get` zählen nicht, Rollback fehlt, Panik gefangen, Kontextabbruch nach `f` nicht geprüft, Kontext vor dem eingespeisten Fehler nicht geprüft (7 von 7 rot). Z64: `WriteTo` der Hülle verdeckt, `Err` der Kontext-Hülle zählt nicht, `Close` zählt nicht, Lesefehler am Offset nicht begrenzt (4 von 4 rot). Z65: ein Import von `adapters/driven/sqlite` in `src/hexagon/services/workspace/` und in einer Testdatei dort färbt `make a-check` rot (`app-impurity`, Exit 2), der unveränderte Baum nicht.
+
+*Äquivalente Mutationen und akzeptierte Negative* (jedes mit Grund und Folge). (1) `json.Valid(b)` allein entfernt: `json.Unmarshal` in `objekt` prüft dieselbe Syntax und den Rest; beide Prüfungen zusammen durch einen Decoder ersetzt ist rot (Z20). Folge: keine, die Syntax wird doppelt geprüft. (2) Die führende Null in `ganzzahl` und der Überlauf von `Atoi`: `json.Valid` weist `03` ab, ein überlaufender Wert ist nie die Länge von `entities`; grün, gleichwertig. (3) `objekt` ohne Prüfung des ersten Bytes: `null`, Array und Skalar ergeben keine Glieder und damit einen Verstoß am nächsten Glied, derselbe Code `ODR-E3001`; grün, gleichwertig. (4) Z09, Gegenstand an der Stelle des Manifests: `ErrBeschaedigt` hat für jeden Gegenstand `ODR-E3001`; gleichwertig. (5) Z03 *Parameter vertauscht*: `baselineID` und `id` sind beide `string`, die Namen der Parameter sind zur Laufzeit nicht sichtbar. Folge: die Reihenfolge der Argumente fangen allein Z14 und Z15 über das Verhalten; die Reflexion von Z03 fängt Typen, Zahl und Reihenfolge der Typen. (6) Z61, *`ReplaceAll` in einer zweiten Transaktion* auf der Datei: der Verlierer scheitert an `Create` der ersten Transaktion, der Gewinner schreibt in der zweiten, das Ergebnis gleicht dem richtigen; die Mutation fängt Z46 (Zahl der Transaktionen) und Z51 (Fenster). Folge: der Beleg dieser Mutation liegt im Fake, nicht auf der Datei.
+
+*Abdeckung* der Anweisungen von `src/hexagon/services/workspace/`: 100,0 % im Lauf von `go test` und 100,0 % unter dem Detektor (`go test -race -cover`).
+
+*Abweichungen vom Plan, keine ohne Ort im Vertrag:* (a) Z02 prüft eine Weißliste der Operationen je Operation (Namen der Fakes) statt einer Reflexion über Zähler; zusätzlich zählt Z63 per Reflexion jede Methode von zehn Schnittstellen. (b) Der Rest hat 16 Paare aus Operation und Aufruf mit `ctx` (Z06), 18 Stellen mit Fehlerrückgabe (Z07, Z09, Z12); die Paare des Löschens (S16, S17) kommen mit dem zweiten Commit auf 18 und 19 (S17 steht in Z36 und Z37, weil `Delete` ihren Fehler nicht zurückgibt). (c) Die Fakes halten den `ctx` als `ctxMethoden` (Methodenmenge von `context.Context`), weil das Lint-Profil `containedctx` und `context-as-argument` an Feldern und Parametern des Typs `context.Context` in Testdateien meldet; die Hülle `kontext` trägt alle vier Methoden und zählt (Z64). (d) Die Zwischenmessung vor dem Reset ist nicht an der Stelle gemessen (Anlegen, Leser und Reset entstanden im selben Lauf); die Dateien ohne `reset.go`, `reset_test.go`, `nebenlaeufig_test.go` und `workspace_sqlite_test.go` summieren sich auf rund 3600 Zeilen, unter 5500.
+
+*Größe des Rests* (Metrik des Blocks: Summe aus Einfügungen und Löschungen von `git diff --numstat 6cf9202..HEAD` über die Pfade des Blocks, Tests eingeschlossen): 4602 Zeilen, davon Produktcode rund 490 (`workspace.go` 26, `verwaltung.go` 114, `anlegen.go` 74, `reset.go` 50, `manifest.go` rund 180, `fehler.go` 23) und die Fakes und Tests mit rund 4100; die Messpunkte aus §4: Zwischenmessung unter 5500 (siehe Abweichung d), Rest unter 9000 und unter der Marke 10600. Der Produktcode des Rests liegt unter der Erwartung des Architect für den ganzen Slice (950, Spanne 800 bis 1100); der Teil *Löschen* kommt im zweiten Commit.
+
+*Laufzeiten* (Host mit anderen Läufen auf der Sperre, nicht ruhig): `make gates` auf dem Stand `a6514a6` ohne Code des Slice 279 s, mit dem Rest 254 s; der Unterschied liegt im Rauschen des Hosts und trennt die Zusatzzeit des Rests nicht von der Last der anderen Linien. Die Tests des Pakets laufen in 0,2 s (`go test`) und 2,4 s (`go test -race`); `make gegenproben` auf `a6514a6` mit entferntem Stempel 168 s.
+
 ## 4. Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
+
 
 **Start** (`open` → `in-progress`; der Plan sah `next` vor, der Lauf springt wie `slice-baseline-import` und `slice-groessenmarke-werkzeug` direkt): `slice-baseline-import` liegt in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
