@@ -33,7 +33,7 @@ func TestBewerte(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := bewerte(tc.f, tc.code, tc.out, tc.abgelaufen)
+			got := bewerte(tc.f, tc.code, tc.out, "", tc.abgelaufen)
 			if tc.rot == "" && got != "" || !strings.Contains(got, tc.rot) {
 				t.Fatalf("bewerte = %q, erwartet %q", got, tc.rot)
 			}
@@ -411,11 +411,12 @@ func TestFaelleDerGroessenmarkeHabenDieNamenAusDemVertrag(t *testing.T) {
 	}
 }
 
-// ersatzLauf legt die Ersatz-Skripte eines Treiber-Falls an und ruft eines mit den Argumenten.
-func ersatzLauf(t *testing.T, dir, skript string, args ...string) (int, string) {
+// ersatzLauf ruft ein Ersatz-Skript eines Treiber-Falls mit den Argumenten und liefert Exit-Code,
+// stdout und stderr getrennt.
+func ersatzLauf(t *testing.T, dir, skript string, args ...string) (int, string, string) {
 	t.Helper()
-	code, out, _ := starte(10*time.Second, dir, nil, "sh", append([]string{filepath.Join(dir, "bin", skript)}, args...)...)
-	return code, out
+	code, out, errOut, _ := starteStroeme(10*time.Second, dir, nil, true, "sh", append([]string{filepath.Join(dir, "bin", skript)}, args...)...)
+	return code, out, errOut
 }
 
 // Die Ersatz-Skripte halten jedes Argument fest und zählen jeden Aufruf, auch die Operationen, die der
@@ -439,12 +440,12 @@ func TestErsatzSkripteProtokollierenJedenAufruf(t *testing.T) {
 	}
 	wantRc := []int{0, 1, 128, 0, 0, 0}
 	for i, a := range gitAufrufe {
-		if code, _ := ersatzLauf(t, dir, "git", a...); code != wantRc[i] {
+		if code, _, _ := ersatzLauf(t, dir, "git", a...); code != wantRc[i] {
 			t.Errorf("git %q: Exit %d statt %d", a, code, wantRc[i])
 		}
 	}
-	if code, out := ersatzLauf(t, dir, "git", "diff"); code != 128 || out != "3\t4\tx\x00fatal: boese\n" && out != "fatal: boese\n3\t4\tx\x00" {
-		t.Errorf("git diff: Exit %d, Ausgabe %q", code, out)
+	if code, out, errOut := ersatzLauf(t, dir, "git", "diff"); code != 128 || out != "3\t4\tx\x00" || errOut != "fatal: boese\n" {
+		t.Errorf("git diff: Exit %d, stdout %q, stderr %q", code, out, errOut)
 	}
 	l := Lauf{Dir: dir}
 	wantGit := append(append([][]string(nil), gitAufrufe...), []string{"diff"})
@@ -452,14 +453,17 @@ func TestErsatzSkripteProtokollierenJedenAufruf(t *testing.T) {
 		t.Errorf("Protokoll von git: %s", r)
 	}
 	pa := "plaene/slice-a.md"
-	if code, out := ersatzLauf(t, dir, "programm", "abfrage", pa); code != 0 || out != "Hinweis\nmessen\n" {
-		t.Errorf("abfrage: Exit %d, Ausgabe %q", code, out)
+	// Der Ersatz schreibt je Kommando einen Text auf stdout und einen auf stderr.
+	if code, out, errOut := ersatzLauf(t, dir, "programm", "abfrage", pa); code != 0 ||
+		out != gmAbfrageOut+"\nmessen\n" || errOut != gmAbfrageErr+"\nHinweis\n" {
+		t.Errorf("abfrage: Exit %d, stdout %q, stderr %q", code, out, errOut)
 	}
-	if code, _ := ersatzLauf(t, dir, "programm", "pruefen", pa, messung); code != 2 {
-		t.Errorf("pruefen: Exit %d statt 2", code)
+	if code, out, errOut := ersatzLauf(t, dir, "programm", "pruefen", pa, messung); code != 2 ||
+		out != gmPruefenOut+"\n" || errOut != gmPruefenErr+"\n" {
+		t.Errorf("pruefen: Exit %d, stdout %q, stderr %q", code, out, errOut)
 	}
-	if code, _ := ersatzLauf(t, dir, "programm", "unbekannt", "x"); code != 99 {
-		t.Errorf("unbekannte Operation: Exit %d statt 99", code)
+	if code, out, errOut := ersatzLauf(t, dir, "programm", "unbekannt", "x"); code != 99 || out != "" || errOut != "" {
+		t.Errorf("unbekannte Operation: Exit %d, stdout %q, stderr %q", code, out, errOut)
 	}
 	wantProgramm := [][]string{{"abfrage", pa}, {"pruefen", pa, messung}, {"unbekannt", "x"}}
 	if r := gmErwartet(l, "programm.log", wantProgramm); r != "" {
