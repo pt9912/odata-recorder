@@ -34,6 +34,13 @@ und geschätzter Aufwand (S/M/L, kein Termin).
 | Welle | Trigger | Wichtigste Slices | Geschätzter Aufwand |
 |---|---|---|---|
 | welle-dev-container | welle-fundament done | Gerüst des Arbeitscontainers mit `u-boot` am Host (privilegierter Container mit eigenem Docker-Daemon, SSH-Zugang, Schlüsselpaar), Start mit Bereitschaftsprobe, Bare-Repo und Klon samt Einlieferung per Zweig, Lauf von `make gates` und `make gegenproben` im Container, Dokument für Entwickler | L |
+| [welle-mock](../welle-mock.md) | welle-record-replay done (M2 erreicht) | Parser der OData-URL (Pfad, `$filter`), EDM-Ausdrücke und Interpreter, Codec zum Schreiben und zum Lesen von Client-Bodies, `MockUseCase` (Lesen, Schreiben), Snapshots, Abnahmetests, Modus `mock` im Composition Root | L |
+| [welle-hybrid](../welle-hybrid.md) | welle-mock done (M3 erreicht) | Fallback-Policy, `HybridUseCase`, Modus `hybrid` im Composition Root | M |
+| [welle-betrieb](../welle-betrieb.md) | welle-mock done (M3 erreicht) | Port `Telemetry` und Einbau in alle Pfade, `AuditLog`, TLS des Listeners, Container-Image mit Neustarttest, Lasttest zu `LH-QA-01` | L |
+| [welle-admin-api](../welle-admin-api.md) | welle-betrieb done (M5 erreicht) | `InspectionUseCase`, Admin-Listener mit Token und Transportschutz, Endpunkte für Sessions, Imports, Workspaces und Snapshots, CLI-Kommandos, Sicherheitsnachweis | L |
+| [welle-etag](../welle-etag.md) | welle-mock done (M3 erreicht) | ETag, `If-Match` mit `412`, `Prefer` (Soll) | S |
+| [welle-expand-batch](../welle-expand-batch.md) | welle-mock done (M3 erreicht) | `$expand`, `$batch` mit atomaren Changesets (Soll) | M |
+| [welle-odata-v2](../welle-odata-v2.md) | welle-mock done (M3 erreicht), ADR zum versionierten Adapter `Accepted` | Metadaten, Payload und Query für V2, Wahl des Adapters je Service (Kann) | L |
 
 ## Meilensteine
 
@@ -46,6 +53,11 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 |---|---|---|---|
 | M1 | welle-fundament | `make gates` fährt Build, Test, Lint und `a-check` auf Go-Code, jedes durch eine Gegenprobe belegt | erreicht — [slice-gegenproben-build-test](../done/slice-gegenproben-build-test.md) |
 | M2 | welle-record-replay | Ein Test zeichnet gegen einen Referenzdienst auf und spielt ohne Upstream wieder ab | offen |
+| M3 | welle-mock | Ein Test beantwortet aus einer importierten Baseline `$metadata` und Abfragen mit Optionen, ändert und löscht Entities mit sichtbaren Zustandsübergängen, stellt einen Snapshot wieder her und setzt zurück, ohne Upstream | offen |
+| M4 | welle-hybrid | Ein Test belegt am Verbindungszähler eines Referenzdienstes, dass im Modus `hybrid` nur freigegebene lesende Anfragen den Upstream erreichen und ein POST ohne Freigabe nie | offen |
+| M5 | welle-betrieb | Der Lasttest nach `LH-QA-01.a` läuft reproduzierbar und weist p95 aus dem Gesamtspan für Replay und Mock aus | offen |
+| M6 | welle-admin-api | Ein Test steuert Aufzeichnung, Import, Workspace, Snapshot und Reset ausschließlich über den Admin-Listener mit Token und weist Anfragen ohne Token ab | offen |
+| M7 | welle-record-replay, welle-mock, welle-hybrid, welle-betrieb, welle-admin-api, welle-dev-container | Erstabnahme: alle Muss-Anforderungen des Lastenhefts haben einen Beleg, der fachliche Owner hat den Zielwert von `LH-QA-01` bestätigt, und das Lastenheft trägt den Status `Accepted` | offen |
 
 ## Abhängigkeitsgraph
 
@@ -61,10 +73,24 @@ flowchart LR
     D[welle-dev-container]
     P[welle-persistenz]
     R[welle-record-replay]
+    M[welle-mock]
+    H[welle-hybrid]
+    B[welle-betrieb]
+    A[welle-admin-api]
+    E[welle-etag]
+    X[welle-expand-batch]
+    V[welle-odata-v2]
 
     F --> D
     F --> P
     P --> R
+    R --> M
+    M --> H
+    M --> B
+    B --> A
+    M --> E
+    M --> X
+    M --> V
 ```
 
 ## Abgeschlossene Wellen
