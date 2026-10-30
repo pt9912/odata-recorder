@@ -112,20 +112,27 @@ type zaun struct {
 	block   bool
 }
 
-// zaunBeginn erkennt eine Zeile ab drei Backticks oder drei Tilden; die Info-Zeichenkette ist der
-// getrimmte Rest hinter dem Zaun und gleich `groessenmarke` für den Block.
+// maxEinrueckung ist die größte Zahl Leerzeichen vor einem Zaun (SPEC-128 Nr. 3 q); vier
+// Leerzeichen oder ein Tab davor machen die Zeile zu Text.
+const maxEinrueckung = 3
+
+// zaunBeginn erkennt eine Zeile ab drei Backticks oder drei Tilden nach null bis drei Leerzeichen;
+// die Info-Zeichenkette ist der getrimmte Rest hinter dem Zaun und gleich `groessenmarke` für den
+// Block. Bei Backticks darf der Rest keinen Backtick tragen, sonst ist die Zeile Text.
 func zaunBeginn(l string) (zaun, bool) {
-	if len(l) < 3 || (l[0] != '`' && l[0] != '~') {
+	s := strings.TrimLeft(l, " ")
+	if len(l)-len(s) > maxEinrueckung || len(s) < 3 || (s[0] != '`' && s[0] != '~') {
 		return zaun{}, false
 	}
 	n := 0
-	for n < len(l) && l[n] == l[0] {
+	for n < len(s) && s[n] == s[0] {
 		n++
 	}
-	if n < 3 {
+	rest := s[n:]
+	if n < 3 || (s[0] == '`' && strings.Contains(rest, "`")) {
 		return zaun{}, false
 	}
-	return zaun{zeichen: l[0], laenge: n, block: strings.TrimSpace(l[n:]) == blockInfo}, true
+	return zaun{zeichen: s[0], laenge: n, block: strings.TrimSpace(rest) == blockInfo}, true
 }
 
 // schliessendDurch ist wahr für eine Zeile, die nur aus dem Zeichen des Zauns besteht, mindestens
@@ -215,17 +222,20 @@ func istKopf(l string) bool {
 	return true
 }
 
-// istTrennzeile ist wahr, wenn jede Zelle aus Strichen besteht, mit einem Doppelpunkt an einem
-// oder an beiden Enden.
+// istTrennzeile ist wahr, wenn die Zeile genau fünf Zellen hat und jede aus Strichen besteht, mit
+// einem Doppelpunkt an einem oder an beiden Enden.
 func istTrennzeile(l string) bool {
 	c := zellen(l)
+	if len(c) != anzahlZellen {
+		return false
+	}
 	for _, z := range c {
 		t := strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(z), ":"), ":")
 		if t == "" || strings.Trim(t, "-") != "" {
 			return false
 		}
 	}
-	return len(c) > 0
+	return true
 }
 
 // leseTabelle sucht außerhalb der Zäune die Tabelle mit dem Kopf der fünf Zellen (Nr. 3 a bis g).
