@@ -151,14 +151,18 @@ func liesHandbuch(pfad string) ([]string, string) {
 	return zeilenVon(string(b)), ""
 }
 
-// zeilenVon trennt an \n; ein \r unmittelbar davor gehört nicht zur Zeile.
+// zeilenVon trennt an \n; ein \r unmittelbar davor gehört nicht zur Zeile. Die letzte Zeile ohne
+// folgendes \n behält ein \r am Ende (SPEC-200 Nr. 3 b).
 func zeilenVon(s string) []string {
 	if s == "" {
 		return nil
 	}
+	abgeschlossen := strings.HasSuffix(s, "\n")
 	z := strings.Split(strings.TrimSuffix(s, "\n"), "\n")
 	for i := range z {
-		z[i] = strings.TrimSuffix(z[i], "\r")
+		if i < len(z)-1 || abgeschlossen {
+			z[i] = strings.TrimSuffix(z[i], "\r")
+		}
 	}
 	return z
 }
