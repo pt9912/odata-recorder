@@ -186,4 +186,104 @@ func TestM5KopfDerMessung(t *testing.T) {
 			t.Errorf("%s: %q (Summe %d) statt %q", e.name, m.fehler, m.summe, e.fehler)
 		}
 	}
+
+	// Syntax der Kopfzeilen (Nr. 4 c): jede der sechs Zeilen (`basis`, `spitze`, drei `pfad`,
+	// `numstat`) in jeder Form, die vom Wortlaut `<Name> <Wert>` bzw. `numstat` abweicht. Eine
+	// Abweichung im Wert von `basis` oder `pfad` ist `Messung gehört nicht zu diesem Plan`, jede
+	// andere `Messung nicht lesbar`.
+	zeilenK := []kopfZeile{{"basis", basisB, true}, {"spitze", spitzeB, true}, {"pfad", "src/", true}, {"pfad", "tools/", true}, {"pfad", "Dockerfile", true}, {"numstat", "", false}}
+	messungAus := func(ersatz func(i int, z kopfZeile) (string, bool)) messung {
+		var sb strings.Builder
+		for i, z := range zeilenK {
+			l := z.text()
+			if neu, ok := ersatz(i, z); ok {
+				l = neu
+			}
+			if l != "" {
+				sb.WriteString(l + "\n")
+			}
+		}
+		return leseMessung([]byte(sb.String()+d), b)
+	}
+	formen := []struct {
+		name       string
+		nurWert    bool // gilt nur für Zeilen mit Wert
+		wertAnders bool // ändert den Wert (nach dem Namen), nicht den Namen
+		bau        func(z kopfZeile) string
+	}{
+		{"Name mit Großbuchstaben vorn", false, false, func(z kopfZeile) string { return strings.ToUpper(z.name[:1]) + z.name[1:] + z.rest() }},
+		{"Name ganz groß", false, false, func(z kopfZeile) string { return strings.ToUpper(z.name) + z.rest() }},
+		{"Präfix am Namen", false, false, func(z kopfZeile) string { return "x" + z.text() }},
+		{"Suffix am Namen", false, false, func(z kopfZeile) string { return z.name + "x" + z.rest() }},
+		{"Leerzeichen vor dem Namen", false, false, func(z kopfZeile) string { return " " + z.text() }},
+		{"Name um ein Zeichen gekürzt", false, false, func(z kopfZeile) string { return z.name[:len(z.name)-1] + z.rest() }},
+		{"Leerzeichen am Ende", false, true, func(z kopfZeile) string { return z.text() + " " }},
+		{"CR am Ende", false, true, func(z kopfZeile) string { return z.text() + "\r" }},
+		{"zwei Leerzeichen", true, true, func(z kopfZeile) string { return z.name + "  " + z.wert }},
+		{"Tabulator statt Leerzeichen", true, false, func(z kopfZeile) string { return z.name + "\t" + z.wert }},
+		{"ohne Trennzeichen", true, false, func(z kopfZeile) string { return z.name + z.wert }},
+	}
+	pruefeKopf := func(was string, m messung, soll string) {
+		if !strings.HasPrefix(m.fehler, soll) {
+			t.Errorf("Kopfzeile %s: %q (Summe %d) statt %q", was, m.fehler, m.summe, soll)
+		}
+	}
+	k := 0
+	for i, z := range zeilenK {
+		for _, f := range formen {
+			if f.nurWert && !z.hatWert {
+				continue
+			}
+			k++
+			soll := nichtLesbar
+			if f.wertAnders && (z.name == "basis" || z.name == "pfad") {
+				soll = fremdePlan
+			}
+			m := messungAus(func(j int, _ kopfZeile) (string, bool) { return f.bau(z), j == i })
+			pruefeKopf(fmt.Sprintf("%d (%s) %s", i, z.name, f.name), m, soll)
+		}
+	}
+	if k != 5*11+8 {
+		t.Errorf("Kopfzeilen-Formen: %d Elemente statt %d", k, 5*11+8)
+	}
+	// Jede der sechs Zeilen fehlt; basis und spitze vertauscht.
+	for i, z := range zeilenK {
+		k++
+		soll := nichtLesbar
+		if z.name == "pfad" {
+			soll = fremdePlan
+		}
+		m := messungAus(func(j int, _ kopfZeile) (string, bool) { return "", j == i })
+		pruefeKopf(fmt.Sprintf("%d (%s) fehlt", i, z.name), m, soll)
+	}
+	k++
+	m := messungAus(func(j int, _ kopfZeile) (string, bool) {
+		if j > 1 {
+			return "", false
+		}
+		return zeilenK[1-j].text(), true
+	})
+	pruefeKopf("basis und spitze vertauscht", m, nichtLesbar)
+	if k != 70 {
+		t.Errorf("Kopfzeilen: %d Elemente statt 70", k)
+	}
+}
+
+// kopfZeile ist eine Zeile des Kopfs der Messung: `<name> <wert>`, oder `numstat` ohne Wert.
+type kopfZeile struct {
+	name, wert string
+	hatWert    bool
+}
+
+// text ist die Zeile, wie der Treiber sie schreibt (ohne Zeilenumbruch).
+func (z kopfZeile) text() string {
+	return z.name + z.rest()
+}
+
+// rest ist das Stück hinter dem Namen: ` <wert>` oder nichts.
+func (z kopfZeile) rest() string {
+	if z.hatWert {
+		return " " + z.wert
+	}
+	return ""
 }

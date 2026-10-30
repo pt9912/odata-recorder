@@ -7,7 +7,7 @@ DOCKER_BUILD ?= $(DOCKER) build --progress=plain
 GROESSENMARKE_PLAENE ?= docs/plan/planning/in-progress
 
 .PHONY: groessenmarke
-groessenmarke: ## Gate: Größenmarke der Pläne unter in-progress/ mit Block (Marke gleich Formel, Messung auf oder unter der Marke); grün ohne Slice in Arbeit (SPEC-128)
+groessenmarke: ## Gate: Größenmarke der Pläne unter in-progress/ mit Block (Marke gleich Formel, Messung auf oder unter der Marke); grün ohne Slice in Arbeit (SPEC-128) · seit welle-record-replay
 	$(DOCKER_BUILD) --target groessenmarke -t odata-recorder:groessenmarke .
 	sh tools/harness/groessenmarke.sh "$(CURDIR)/tools/harness/groessenmarke-docker.sh" $(GROESSENMARKE_PLAENE)
 

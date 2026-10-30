@@ -5,8 +5,8 @@ flach unter `docs/plan/planning/`; bei Closure wandert sie per `git mv` nach
 `done/` (neben ihre `welle-<Kennung>-results.md`). Der Zustand ist die
 Verzeichnis-Position — kein Status-Feld. Diese Welle ist vor ihrem Start angelegt
 (Entscheidung des Users vom 2026-10-30); bis ihr Trigger eintritt steht sie in der
-Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien legt `plan-welle` (Schritt 6)
-beim Start an, weil ein Slice-Plan vor seinem Start veraltet.
+Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien liegen seit
+2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten.
 
 **Zielmeilenstein:** M4 (siehe [Roadmap](in-progress/roadmap.md)).
 
@@ -34,6 +34,8 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 - `welle-mock` liegt in `done/`: `HybridUseCase` ruft `MockUseCase` über dessen Inbound Port, und `ReplayUseCase` liegt seit `welle-record-replay` vor.
 - M3 ist erreicht: der M3-Test aus `slice-bootstrap-m3` ist grün und Teil von `make test`.
 
+**Ausnahme je Slice (Code-Unabhängigkeit):** `slice-fallback-policy` hat keine Code-Abhängigkeit von `welle-mock`, `welle-record-replay` und M2 (reine Entscheidung ohne `MockUseCase`, `ReplayUseCase` und `UpstreamClient`); der Trigger der Welle hält sie formal zurück. Ein Start davor ist eine Umplanung des Planners mit Eintrag im Drift-Log der Roadmap und bleibt, solange sie nicht vorliegt, ausgeschlossen. `slice-hybrid-service` und `slice-bootstrap-m4` hängen an `welle-mock` (§5).
+
 ## 3. Closure-Trigger (Welle schließt)
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
@@ -58,9 +60,9 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-hybrid-service | `HybridUseCase`: Mock zuerst, Entscheidungsmatrix nach `ODR`-Code (nie nach HTTP-Status), Replay-Fallback nur bei `ODR-E5001`, Weiterleitung über `UpstreamClient` nur nach Policy | `LH-FA-12`, `LH-FA-04`, `LH-FA-11`; `LH-FA-12.b`, `SPEC-020`, `SPEC-024` |
 | slice-bootstrap-m4 | Modus `hybrid` im Composition Root, Konfiguration (`HYBRID_*`, `FALLBACK_*`), M4-Test mit Verbindungszähler am Referenzdienst | `LH-FA-12`, `LH-QA-02`; `SPEC-110`, `SPEC-075` |
 
-Die Slice-Dateien legt `plan-welle` (Schritt 6) beim Start der Welle an: Ein Slice-Plan altert vor seinem Start, und die Pläne dieser Welle hängen an Zahlen und Verträgen von `welle-mock`.
+Die Slice-Dateien liegen seit 2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten, und `plan-welle` gleicht sie beim Start gegen den Ist-Stand ab. Marken und Betriebsregeln setzt der Planner beim Start (`SPEC-128`).
 
-**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. `plan-welle` (Schritt 6) übernimmt ihn in jede Slice-Datei; in dieser Welle trägt ihn `slice-bootstrap-m4` (Modus `hybrid`, Schlüssel `HYBRID_*` und `FALLBACK_*`), `slice-fallback-policy` und `slice-hybrid-service` nur, soweit sie einen Fehlercode in den Katalog bringen.
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. In dieser Welle trägt ihn `slice-bootstrap-m4` (Modus `hybrid`, Schlüssel `HYBRID_*` und `FALLBACK_*`), `slice-fallback-policy` und `slice-hybrid-service` nur, soweit sie einen Fehlercode in den Katalog bringen.
 
 ## 5. Abhängigkeiten
 
@@ -68,9 +70,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 §Roadmap-Struktur: fünf Abschnitte.
 
 - Blockiert: keine Welle (`welle-admin-api` zeigt den Modus in der Diagnose an, braucht den Hybrid-Betrieb aber nicht).
-- Wird blockiert von: `welle-mock` (`MockUseCase`), mittelbar `welle-record-replay` (`ReplayUseCase`, `UpstreamClient`).
+- Wird blockiert von: `welle-mock` (`MockUseCase`), mittelbar `welle-record-replay` (`ReplayUseCase`, `UpstreamClient`); `slice-fallback-policy` ausgenommen (keine Code-Abhängigkeit, §2).
 - Unabhängig: `welle-betrieb`, `welle-admin-api`, `welle-etag`, `welle-expand-batch`, `welle-odata-v2`; die Reihenfolge nach `welle-mock` ist Priorisierung.
-- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-fallback-policy` → `slice-hybrid-service` → `slice-bootstrap-m4`.
+- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-fallback-policy` → `slice-hybrid-service` → `slice-bootstrap-m4`. Kanten nach außen: `slice-fallback-policy` hat keine; `slice-hybrid-service` braucht zusätzlich `slice-mock-lesen`, `slice-mock-schreiben` und `slice-replay-service`; `slice-bootstrap-m4` braucht zusätzlich `slice-bootstrap-m3`. `slice-bootstrap-m4` und `slice-bootstrap-m6` (`welle-admin-api`) ändern beide `src/bootstrap/` und `SPEC-110` Nr. 2 und laufen nacheinander, nie zugleich; welcher zuerst läuft, ist Priorisierung, und der zweite zieht den Stand des ersten nach.
 - **Register-Sichtung (Eröffnung Schritt 2):** `observations/` gesichtet, Stand dieses Plans. Treffer, beim Start in den Slice-Plänen (§8) mit dem dann aktuellen Zähler als Risiko zu führen: `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` (2×) für die Fakes von `UpstreamClient`, `MockUseCase` und `ReplayUseCase` (jede Operation zählen, jedes Argument festhalten, `AGENTS.md` §3.15); `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×), weil die Matrix viele Zweige hat und der Dienst keinen Zustand halten soll; `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×). Kein offener Eintrag erreicht mit dieser Welle 3×.
 
 ## 6. Out-of-Scope für diese Welle
