@@ -1,4 +1,4 @@
-# Slice slice-handbuch-meldungskatalog: Abgleich der Fehlercodes zwischen Code, Spezifikation und Handbuch
+# Slice slice-handbuch-meldungskatalog: Abgleich der Kataloge (Fehlercodes, Konfigurationsschlüssel, Kommandos) zwischen Binary, Spezifikation und Handbuch
 
 **Lifecycle:** Der Zustand dieses Slice ist das Verzeichnis, in dem diese
 Datei liegt — eines von `open/`, `next/`, `in-progress/`, `done/`. Er
@@ -11,9 +11,9 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Welle:** [welle-benutzerhandbuch](../welle-benutzerhandbuch.md).
 
-**Bezug:** `LH-QA-05` (stabile Fehlerklassen, unterscheidbar für den Anwender), [ADR-0004](../../adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md) (der Vertrag des Abgleichs liegt in `harness/vertraege/`), [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Gegenproben außerhalb der Gate-Kette; Trigger der Laufzeit), [ADR-0009](../../adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md) (Vorbild für ein Programm im Gate mit Eingaben vom Host).
+**Bezug:** `LH-QA-05` (stabile Fehlerklassen, unterscheidbar für den Anwender), `LH-RB-01` (nicht unterstützte Funktionen dürfen nicht stillschweigend als unterstützt erscheinen; der Katalog der Schlüssel und Kommandos hält das Handbuch an das, was das Binary kennt), [ADR-0004](../../adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md) (der Vertrag des Abgleichs liegt in `harness/vertraege/`), [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Gegenproben außerhalb der Gate-Kette; Trigger der Laufzeit), [ADR-0009](../../adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md) (Vorbild für ein Programm im Gate mit Eingaben vom Host).
 
-**Berührte Spec-Stellen:** `spezifikation.md §4` (Katalog der Fehler-Codes, Spalte *Code*) · `SPEC-109` (Abbildung auf Codes) · `SPEC-113` (Rückfall `ODR-E9001`) · `SPEC-102` (Gegenproben) · `SPEC-128` (Vorbild eines Werkzeug-Vertrags mit Treiber und Gate-Anschluss) · der neue Vertrag in `harness/vertraege/`, dessen Kennung der Architect vergibt.
+**Berührte Spec-Stellen:** `SPEC-110` (Startkonfiguration: Schlüssel, Nr. 2 die nicht gelieferten) · `spezifikation.md §3` (Defaults und Konstanten, Spalte *Name*) · `spezifikation.md §4` (Katalog der Fehler-Codes, Spalte *Code*) · `SPEC-109` (Abbildung auf Codes) · `SPEC-113` (Rückfall `ODR-E9001`) · `SPEC-102` (Gegenproben) · `SPEC-128` (Vorbild eines Werkzeug-Vertrags mit Treiber und Gate-Anschluss) · der neue Vertrag in `harness/vertraege/`, dessen Kennung der Architect vergibt.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie
 (Baseline-Regelwerk `grundlagen-referenz-richtung.md`
 §Referenz-Richtung (SDP), `grundlagen-source-precedence.md` §ID-Schema als Klammer).
@@ -33,21 +33,27 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Ein Gate gleicht die Fehlercodes `ODR-E…` dreier Quellen ab — die Code-Tabelle in `src/hexagon/model/fehler.go` (C), den Katalog in `spezifikation.md §4` (K) und die Tabellen des Benutzerhandbuchs (H) — und wird rot, wenn sie auseinanderlaufen; das Handbuch trägt dafür einen Abschnitt mit der Tabelle der Fehlercodes. Vorbild ist der Abgleich `meldungskatalog-check` des Nachbar-Repos pgwire-recorder (Vertrag SPEC-054 dort), nicht übernommen, sondern auf dieses Repo geschnitten.
+**Namensentscheidung:** Der Name `slice-handbuch-meldungskatalog` bleibt, §1 benennt die drei Kataloge ausdrücklich. Grund: Alle drei sind Kataloge im Sinn des Vorbilds (eine geschlossene Menge von Namen, die Code, Spezifikation und Handbuch gleichlautend führen müssen); eine Umbenennung in `slice-handbuch-abgleich` kostete einen reinen `git mv` als eigenen Commit (`AGENTS.md` §3.3) und den Nachzug jedes Verweises (`AGENTS.md` §3.9), ohne dass ein Leser den Gegenstand besser fände. Eine Zeile „Kataloge“ in Titel und Ziel genügt.
+
+**Ziel:** Ein Gate hält drei Kataloge gegen das Handbuch: (1) die Fehlercodes `ODR-E…` (Code-Tabelle in `src/hexagon/model/fehler.go`, Katalog in `spezifikation.md §4`, Handbuch), (2) die Schlüssel der Startkonfiguration (`SPEC-110`; Quelle im Code: die Schlüssel, die `src/bootstrap/konfig*.go` liest, Spezifikation, Handbuch) und (3) die Kommandos und Optionen des Binary (Quelle: der Aufruf-Zweig in `src/bootstrap/bootstrap.go`, heute `version` und der Aufruf ohne Argument; Handbuch). Regel (Ist-Zustand, Entscheidung des Users, Welle §1): Jeder Fehlercode, jeder Konfigurationsschlüssel und jedes Kommando, das das Binary kennt, kommt im Handbuch vor, und das Handbuch nennt nichts, was das Binary nicht kennt; sonst ist das Gate rot. Das Handbuch trägt dafür je Katalog einen Abschnitt mit einer Tabelle. Vorbild ist der Abgleich `meldungskatalog-check` des Nachbar-Repos pgwire-recorder (Vertrag SPEC-054 dort), nicht übernommen, sondern auf dieses Repo geschnitten.
 
 **Auftrag an den Architect** (vor dem ersten Code-Commit, im neuen Vertrag unter `harness/vertraege/`; `AGENTS.md` §3.12, §3.15, §3.16):
 
 1. **Vertrag und Form der Quellen.** C ist eine Struktur-Tabelle (`{CodeE2001, "ODR-E2001", []int{0}, ZielConfig, "…"}`, 34 Einträge), keine Liste von Konstanten wie im Vorbild; K hat als erste Zelle die Kennung `SPEC-nnn` und als zweite den Code. Der Architect legt die Leseregeln fest (welche Zeile ist ein Code, Form `^ODR-E[0-9]{4}$`, doppelt, Sperren bei fehlender Quelle, Ausgabe und Ausgang) und die Grenze (was nicht geprüft ist: Spalten Bedingung, Aktion, Bedeutung).
-2. **Die Menge H — die eigentliche Entscheidung.** Das Handbuch sagt nur zu, was das Binary zeigt (Slice `slice-handbuch-geruest`, Auftrag Nr. 3). Der Katalog führt aber Codes, die erst mit Folgewellen erreichbar sind (Admin-API: `ODR-E7005`, `ODR-E7006`, `ODR-E7012` …; Mock: `ODR-E6001` …). Optionen: (a) H führt alle Codes von C und sagt zu jedem nur die Bedeutung nach dem Katalog, ohne Zusage über den Weg dorthin; (b) H führt genau die Codes, die das gebaute Binary erzeugen kann, und C trägt ein Merkmal dafür (die Spalte *Ziel* in `fehler.go` ist ein Anfang); (c) H führt Codes nach Klassen und der Abgleich prüft nur die Klassen. Der Planner neigt zu (b) wegen des Ist-Zustands, sieht aber, dass (b) ein neues Merkmal in der Code-Tabelle verlangt, das sich bei jeder Welle ändert; der Architect entscheidet mit Grund und nennt die Folge für die Folgewellen (deren Kapitel erweitern H).
+2. **Die Menge H — die eigentliche Entscheidung, je Katalog.** Das Handbuch sagt nur zu, was das Binary zeigt (Entscheidung des Users, Welle §1). Der Katalog der Fehlercodes führt aber Codes, die erst mit Folgewellen erreichbar sind (Admin-API: `ODR-E7005`, `ODR-E7006`, `ODR-E7012` …; Mock: `ODR-E6001` …); die Spezifikation führt Schlüssel, die das Binary ausdrücklich ablehnt (`ADMIN_*`, `HYBRID_*`, `FALLBACK_*`, `LISTEN_TLS_*`, `STRICT_COVERAGE`, `PUBLIC_BASE_URL`: `nichtGelieferte` in `konfig_werte.go`). Optionen: (a) H führt alle Einträge der Quelle des Codes und sagt nur die Bedeutung nach dem Katalog — nach der Entscheidung des Users ausgeschlossen, soweit der Eintrag im Binary nicht erreichbar ist; (b) H führt genau die Einträge, die das gebaute Binary kennt, und der Code trägt ein Merkmal dafür (Fehlercodes: die Spalte *Ziel* in `fehler.go` ist ein Anfang; Schlüssel: die Menge, die `LadeKonfiguration` liest, minus `nichtGelieferte`); (c) Klassen statt Einträge, mit dem Verlust, dass ein einzelner Eintrag ungeprüft bleibt. Der Planner neigt zu (b) wegen des Ist-Zustands, sieht aber, dass (b) ein Merkmal im Code verlangt, das sich mit jeder Welle ändert, und dass die Schlüssel heute als Literale an vielen Stellen von `konfig*.go` stehen (keine Tabelle). Der Architect entscheidet mit Grund und nennt die Folge: ein Code-Umbau zu einer Schlüssel-Tabelle (dann Folge-Slice mit Kennung, `AGENTS.md` §3.13) oder eine Leseregel über die Literale (mit Grenze und Fänger über alle Stellen, an denen `p.wert`, `p.aufzaehlung`, `p.dauer` und die übrigen Leser einen Schlüssel nennen). Dasselbe für die Kommandos: Quelle ist der Aufruf-Zweig in `Run`; der Architect entscheidet, ob er maschinell lesbar ist oder eine Tabelle im Code verlangt. Folge für die Folgewellen: Jede Welle, die ein Kommando, einen Schlüssel oder einen Fehlercode erreichbar macht, zieht das Handbuch im selben Slice nach, sonst ist das Gate rot (das ist die Folge der Regel, und der Planner trägt sie als Hinweis an die Planer der Folgewellen).
 3. **Code außerhalb der Tabelle.** Literale `"ODR-…"` stehen heute auch in `src/hexagon/model/konflikt.go`, `daten_fehler.go`, `redaktor.go` und `src/bootstrap/konfig.go`; das Vorbild verbietet sie außerhalb der Tabelle. Der Architect entscheidet, ob der Abgleich sie als Befund meldet (dann ist das ein Code-Umbau und gehört nicht in diesen Slice, sondern als Folge-Slice benannt) oder sie ausdrücklich zulässt (Grenze).
 4. **Ort in der Kette und Laufzeit.** Docker-only (`AGENTS.md` §3.1): ein Programm in Go unter `tools/` in einer Stufe des `Dockerfile` oder ein Treiber mit Eingaben vom Host wie bei `SPEC-128`; der Architect wählt die Form, nennt Eingaben (Pfade von C, K, H) und was in den Kontext der Stufe kopiert wird. Hängt das Ziel an `GATE_CHECKS` und die Gegenprobe an die Liste der Gegenproben, wie `SPEC-102` es für andere Werkzeuge hält? Die Stufung folgt dem Vertrag der Gegenproben und [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md).
-5. **Gegenproben.** Ein Fall je Punkt des Vertrags (Fehlform in einem Wegwerf-Baum): fehlender Code in K, fehlender in H, Code nur in H, Form, doppelt, Sperren, Ausgang. Die Aufrufstellen sind eine Menge (`AGENTS.md` §3.15): ein Fall je Quelle und je Richtung der Differenz.
+5. **Gegenproben.** Ein Fall je Punkt des Vertrags (Fehlform in einem Wegwerf-Baum): fehlender Eintrag in K, fehlender in H, Eintrag nur in H, Form, doppelt, Sperren, Ausgang — und das je Katalog (Fehlercodes, Schlüssel, Kommandos), denn die Kataloge sind eine Menge (`AGENTS.md` §3.15): ein Fall je Katalog, je Quelle und je Richtung der Differenz.
 6. **Zeit.** Der Planner verlangt die Messung der Zusatzzeit von Gate und Gegenproben (Schritt `make gates` und `make gegenproben`, vorher und nachher, Zahlen im Plan). Die Frage, ob [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Trigger „Lauf über 30 s bei geänderter Eingabe“; gemessen 56,9 s im Schritt) neu zu fassen ist, entscheidet dieser Slice nicht (siehe §6).
-7. **Nachzüge.** `harness/README.md` (Sensors-Zeile samt Bindung, höchstens 200 Zeichen in den Zellen, `structure` in `.d-check.yml`), `AGENTS.md` nur als Diff-Vorschlag an den User; Tabelle *Zusage · Fänger* (§3), Raster (§6), Größe.
+7. **Form je Katalog.** Je Katalog Leseregeln und Befunde nach Nr. 1 (Zeile, Form des Namens, doppelt, Sperren): Fehlercodes `^ODR-E[0-9]{4}$`; Schlüssel in Großbuchstaben, Ziffern und Unterstrich; Kommandos als Wort. Die Richtungen der Mengen (Code ohne Handbuch, Handbuch ohne Code) gelten je Katalog, die Quelle K (Spezifikation) nur dort, wo sie führt (Fehlercodes `§4`, Schlüssel `§3` und `SPEC-110`); für Kommandos gibt es keine Spezifikation, der Architect nennt die zweite Quelle oder erklärt den Abgleich zweiseitig (Binary und Handbuch).
+8. **Wo die Optionen des Binary stehen.** Optionen (Flags) kennt das Binary heute nicht (`Run` wertet nur das erste Argument aus); der Katalog der Kommandos führt, was `Run` kennt, und die Optionen, sobald eine Welle sie liefert, nicht vorher. Der Architect hält fest, wie das Gate mit einem Kommando umgeht, das Optionen trägt (Zeile je Kommando und Option).
+9. **Fänger für „Geplantes“ und „Chronik“.** Liegt er nach `slice-handbuch-geruest` Auftrag Nr. 10 in diesem Slice, ist er Teil des Programms (ein Lauf über das Handbuch); die Sendung nimmt dieser Slice mit der Kennung des Gebers an, wenn der Architect dort so entscheidet (`AGENTS.md` §3.13).
+10. **Nachzüge.** `harness/README.md` (Sensors-Zeile samt Bindung, höchstens 200 Zeichen in den Zellen, `structure` in `.d-check.yml`), `AGENTS.md` nur als Diff-Vorschlag an den User; Tabelle *Zusage · Fänger* (§3), Raster (§6), Größe.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Der Inhalt der Tabelle im Handbuch über Codes, die das Binary erst nach M2 erzeugt — `slice-handbuch-record-replay` erweitert H um die Fehlerbilder, die M2 erreichbar macht; dieser Slice bringt Abschnitt, Form und Gate.
+- Die Texte um die Tabellen (Aufgaben, Fehlerbilder mit Ursache und Lösung, Beispiele) — `slice-handbuch-record-replay`; dieser Slice bringt Abschnitte, Tabellen, Form und Gate und füllt die Tabellen mit den Einträgen, die das Binary nach M2 kennt, mit der Bedeutung nach dem Katalog.
+- Kapitel zu Verhalten, das das Binary nicht kennt, und Hinweise „folgt“ — Entscheidung des Users (Welle §1); das Gate macht sie rot, statt sie zu dulden.
 - Umbau von Code, der Literale `"ODR-…"` außerhalb der Tabelle trägt — andere Schicht; Folge-Slice nur, wenn der Architect in Nr. 3 sie verbietet (dann Befund an den Planner mit Kennung des Nehmers, `AGENTS.md` §3.13).
 - Prüfung von Bedeutung, Maßnahme und Klasse einer Zeile gegen den Text — der Abgleich liest Mengen, er urteilt nicht über Inhalt (Grenze des Vorbilds); Inhalt prüft der Probelauf in `slice-handbuch-abnahme`.
 - Änderung von [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) oder des Triggers der Gegenproben — Entscheidung des Users (§6).
@@ -70,7 +76,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Vertrag des Abgleichs in `harness/vertraege/` und das Programm samt Treiber und Ziel in `GATE_CHECKS`; Abschnitt mit Tabelle im Handbuch; jede Zusage des Vertrags hat einen Fänger, vom Implementer rot gesehen (`LH-QA-05`).
+- [ ] Vertrag des Abgleichs in `harness/vertraege/` und das Programm samt Treiber und Ziel in `GATE_CHECKS`, für alle drei Kataloge (Fehlercodes, Konfigurationsschlüssel, Kommandos); je Katalog ein Abschnitt mit Tabelle im Handbuch; jede Zusage des Vertrags hat einen Fänger, vom Implementer rot gesehen (`LH-QA-05`, `LH-RB-01`).
+- [ ] Die Regel „Jeder Fehlercode, jeder Konfigurationsschlüssel und jedes Kommando des Binary kommt im Handbuch vor, und das Handbuch nennt nichts, was das Binary nicht kennt“ ist durch Fänger über beide Richtungen und alle Elemente der drei Mengen gefangen (Schleife über die Mengen, `AGENTS.md` §3.15, §3.17).
 - [ ] Gegenproben zu allen Punkten des Vertrags laufen in `make gegenproben`.
 - [ ] Zusatzzeit gemessen (Gate und Gegenproben, Zahlen im Plan); die ADR-Frage ist nicht entschieden, sondern dem User vorgelegt.
 - [ ] `make gates` grün.
@@ -93,7 +100,8 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | Vertrag unter `harness/vertraege/` | neu | Leseregeln, Mengen, Sperren, Ausgabe, Grenze (Auftrag Nr. 1 bis 3) |
-| Programm unter `tools/`, Treiber, Stufe im `Dockerfile` | neu | Ort und Form nach Nr. 4 |
+| Programm unter `tools/`, Treiber, Stufe im `Dockerfile` | neu | Ort und Form nach Nr. 4; drei Kataloge (Fehlercodes, Schlüssel, Kommandos) |
+| `src/bootstrap/` (Schlüssel- oder Kommando-Tabelle) | update, nur falls der Architect in Nr. 2 die Tabelle im Code verlangt | sonst Folge-Slice mit Kennung |
 | Fragment unter `harness/mk/` | neu | Ziel und Anbindung an `GATE_CHECKS` und die Gegenproben |
 | Tests des Programms | neu | ein Fänger je Zusage, Mutationen vom Implementer rot gesehen |
 | Gegenproben (`tools/gegenproben/`) | update | ein Fall je Punkt des Vertrags (Nr. 5) |
@@ -104,7 +112,10 @@ Der Architect füllt die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und er
 
 | Zusage | Fänger |
 |---|---|
-| — | — (Architect) |
+| Jeder Fehlercode des Binary steht im Handbuch, und das Handbuch nennt keinen anderen | — (Architect; Schleife über C und H) |
+| Jeder Konfigurationsschlüssel des Binary steht im Handbuch, und das Handbuch nennt keinen anderen | — (Architect; Schleife über die Schlüssel und H) |
+| Jedes Kommando des Binary steht im Handbuch, und das Handbuch nennt keines, das `Run` nicht kennt | — (Architect; Schleife über die Kommandos und H) |
+| Das Gate ist grün auf dem Stand des Binary und rot, wenn ein Eintrag fehlt oder überzählig ist | — (Architect; Gegenprobe je Katalog) |
 
 **Betriebsregeln für die Rollen dieses Slice:** Dateien des Repos nur mit `Edit` und `Write`, kein `sed -i`, kein Heredoc auf Repo-Dateien (`BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt`). Fixtures mit Backslash-u-Folge, BOM, NBSP oder Zeichen jenseits von ASCII entstehen aus Bytewerten, die geschriebene Datei wird auf Rohbytes gegengelesen (`AGENTS.md` §3.18). Der Handoff ist ein Commit. Docker-Läufe mit `--memory` und wenige parallel. Änderungen an `AGENTS.md`, Commands, Rollen-Typen und Skills gehen als Diff-Vorschlag an den User.
 
@@ -115,7 +126,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): `slice-handbuch-geruest` und `slice-bootstrap-m2` liegen in `done/` (das Gerüst trägt den Ort der Abschnitte; erst nach M2 liest das Binary Schlüssel und erzeugt Fehlercodes, `Run` ruft heute weder `LadeKonfiguration` noch `LadeOderMelde`); der Architect hat die Aufträge aus §1 beantwortet, die Tabelle in §3 und das Raster in §6 gefüllt, bevor der erste Code-Commit entsteht.
 
-**Größenmarke** (`AGENTS.md` §3.14): noch nicht gesetzt. Der Planner setzt sie nach dem Architect mit `make groessenmarke` (`SPEC-128`) aus der Tabelle in §3, Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen. Der Slice liefert einen Leser fremder Bytes (Quelltext-Tabelle, Spezifikation und Handbuch als Texte, die ein anderer schreibt): Zeilen der Tabelle × 65 statt × 40, dazu die Produktcode-Größe des Architect, × 1,25.
+**Größenmarke** (`AGENTS.md` §3.14): noch nicht gesetzt. Der Planner setzt sie nach dem Architect mit `make groessenmarke` (`SPEC-128`) aus der Tabelle in §3, Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen. Der Slice liefert einen Leser fremder Bytes (Quelltext-Tabelle, Spezifikation und Handbuch als Texte, die ein anderer schreibt): Zeilen der Tabelle × 65 statt × 40, dazu die Produktcode-Größe des Architect, × 1,25. Mit drei Katalogen statt einem wächst die Tabelle *Zusage · Fänger* ungefähr um das Doppelte bis Dreifache (je Katalog eigene Quelle, eigene Leseregel, eigene Gegenprobe); der Planner schätzt den Aufwand der Welle-Zeile daher von M auf L, die Marke folgt der Messung mit `make groessenmarke`, und über 3000 nach der Formel wird vor dem Code geschnitten (naheliegender Schnitt: Kommandos und Schlüssel als zweiter Slice nach dem Fehlercode-Abgleich, wenn sie keinen Mechanismus mit ihm teilen; der Architect nennt den Schnitt oder den Grund dagegen).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -138,6 +149,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Laufzeit: Der Abgleich und seine Gegenproben verlängern `make gates` und `make gegenproben`; [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) setzt den Trigger bei einem Lauf über 30 s bei geänderter Eingabe, gemessen waren 56,9 s im Schritt, und die Entscheidung des Users dazu ist offen — **Ausgang:** offen; Adresse: der User. Der Slice misst die Zusatzzeit (DoD) und entscheidet die ADR-Frage nicht; eine neue oder geänderte ADR ist ein Vorschlag an den User.
+- Die Schlüssel stehen als Literale an vielen Stellen von `konfig*.go`, nicht in einer Tabelle; ein Leser des Quelltexts übersieht einen Schlüssel, den ein neuer Leser einführt — **Ausgang:** offen; Auftrag Nr. 2 (Tabelle im Code als Folge-Slice oder Leseregel mit Grenze und Fänger über alle Leser).
+- Das Binary kennt heute nur `version`; Schlüssel und Fehlercodes werden erst durch `slice-bootstrap-m2` im Binary erreichbar (Start-Trigger) — **Ausgang:** offen; entfällt, sobald der Slice in `done/` liegt und der Architect den Stand am Binary geprüft hat.
+- Die Regel des Gates („nichts im Handbuch, was das Binary nicht kennt“) fängt Namen, nicht die Aussage über sie; ein falsch beschriebener Schlüssel bleibt grün — **Ausgang:** weiter offen; Prüfung von Bedeutung und Beispiel tragen die belegten Beispiele (`slice-handbuch-record-replay`) und der Probelauf (`slice-handbuch-abnahme`); akzeptiertes Negativ mit Grund und Folge im Vertrag (Grenze).
 - Die Menge H (Auftrag Nr. 2) kollidiert mit dem Ist-Zustand, wenn H Codes führt, die das Binary noch nicht erzeugt — **Ausgang:** offen; Entscheidung des Architect vor dem Code.
 - Literale `"ODR-…"` außerhalb der Tabelle (Auftrag Nr. 3) — **Ausgang:** offen; Entscheidung des Architect, bei Verbot ein Folge-Slice mit Kennung, den der Planner anlegt.
 - Der Abgleich liest Texte, die andere schreiben (Quelltext, Spezifikation, Handbuch): Eine Randform, die der Vertrag nicht nennt, wird im Review gefunden (`BEO-REPO/randform-erst-im-review-entschieden`, 20×, `verkörpert` in `AGENTS.md` §3.16) — **Ausgang:** offen; das Raster unten ist das Gerüst, die Zellen füllt der Architect vor dem ersten Code-Commit.
@@ -148,7 +162,9 @@ dasteht.
 | Quelle C lesen | Architect | Architect | Architect | Architect | Architect |
 | Quelle K lesen | Architect | Architect | Architect | Architect | Architect |
 | Quelle H lesen | Architect | Architect | Architect | Architect | Architect |
-| Mengen vergleichen | Architect | Architect | Architect | gilt nicht: reiner Lesevorgang, Architect bestätigt | Architect |
+| Schlüssel aus `konfig*.go` lesen (Katalog 2) | Architect | Architect | Architect | Architect | Architect |
+| Kommandos aus `Run` lesen (Katalog 3) | Architect | Architect | Architect | Architect | Architect |
+| Mengen vergleichen (je Katalog) | Architect | Architect | Architect | gilt nicht: reiner Lesevorgang, Architect bestätigt | Architect |
 | Befunde ausgeben | Architect | Architect | Architect | Architect | Architect |
 
 Zusatztabelle (`AGENTS.md` §3.16), Paare von Verstößen am selben Code:
@@ -158,6 +174,9 @@ Zusatztabelle (`AGENTS.md` §3.16), Paare von Verstößen am selben Code:
 | Code fehlt in K und in H | Architect | Architect |
 | Code doppelt in H und fehlt in C | Architect | Architect |
 | Form verletzt und Code doppelt | Architect | Architect |
+| Schlüssel im Handbuch, den das Binary ablehnt (`nichtGelieferte`) und der in K steht | Architect | Architect |
+| Kommando im Handbuch, das `Run` nicht kennt, und Kommando in `Run` ohne Handbuch | Architect | Architect |
+| Eintrag in zwei Katalogen mit gleichem Namen (ein Wort als Kommando und als Schlüssel) | Architect | Architect |
 
 ## 7. Closure-Notiz
 

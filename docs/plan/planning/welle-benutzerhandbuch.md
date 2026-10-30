@@ -48,7 +48,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 
 - Alle Slices der Welle liegen in `done/`.
-- `make gates` ist grün und fährt den Abgleich der Fehlercodes aus `slice-handbuch-meldungskatalog`; `make gegenproben` ist grün.
+- Jeder Fehlercode, jeder Konfigurationsschlüssel und jedes Kommando des gebauten Binary kommt im Handbuch vor, und das Handbuch nennt nichts, was das Binary nicht kennt; das Gate dafür (`slice-handbuch-meldungskatalog`) ist grün.
+- `make gates` ist grün und fährt den Abgleich der Kataloge; `make gegenproben` ist grün.
 - Der Probelauf aus `slice-handbuch-abnahme` ist gefahren: Eine Rolle ohne Vorwissen hat jede Aufgabe des Handbuchs allein nach dem Handbuch am gebauten Binary ausgeführt; jeder Befund ist behoben oder trägt einen Ausgang in §6 des Slice-Plans.
 - Der Fänger für „Geplantes“ und „Chronik“ im Handbuch (Auftrag in `slice-handbuch-geruest`) läuft und ist grün; je Element seiner Menge ist eine Mutation (ein verbotenes Wort oder eine Kennung im Handbuch) rot gesehen.
 - Jedes Beispiel und jede Konfiguration im Handbuch, die als Datei vorliegt, läuft gegen das gebaute Binary in der Stufe `test` (Beleg-Form: Entscheidung des Architect in `slice-handbuch-geruest`).
@@ -63,7 +64,7 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | Slice | Titel | Bezug |
 |---|---|---|
 | slice-handbuch-geruest | Gerüst von docs/user/benutzerhandbuch.md, Anpassung des Standards, Kapitel über Belegtes | `LH-RB-01`, `LH-RB-03`, `LH-QA-06` |
-| slice-handbuch-meldungskatalog | Abgleich der Fehlercodes `ODR-E…` zwischen Code, Spezifikation und Handbuch | `LH-QA-05` |
+| slice-handbuch-meldungskatalog | Abgleich der Kataloge (Fehlercodes `ODR-E…`, Konfigurationsschlüssel, Kommandos) zwischen Binary, Spezifikation und Handbuch | `LH-QA-05`, `LH-RB-01` |
 | slice-handbuch-record-replay | Kapitel Aufzeichnen und Wiedergeben mit belegten Beispielen | `LH-FA-02`, `LH-FA-04`, `LH-FA-14`, `LH-RB-04` |
 | slice-handbuch-abnahme | Probelauf durch eine Rolle ohne Vorwissen, Befunde, Abgleich von Kopf und gebautem Binary | `LH-QA-05` |
 
@@ -77,7 +78,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 - Blockiert: nichts. Die Folgewellen für Mock, Hybrid und Admin-API liefern ihre Kapitel selbst (§6).
 - Wird blockiert von: `slice-groessenmarke-werkzeug` (Start der Welle, §2); `slice-bootstrap-m2` blockiert nur `slice-handbuch-record-replay`, nicht die Welle.
 - Unabhängig von: welle-dev-container (deren „Dokument für Entwickler“ ist ein anderes Dokument mit anderer Zielgruppe) und der Welle der Sensoren.
-- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-handbuch-geruest` → `slice-handbuch-meldungskatalog` (das Gate liest die Abschnitte, die das Gerüst anlegt) → `slice-handbuch-record-replay` (braucht zusätzlich `slice-bootstrap-m2` in `done/`) → `slice-handbuch-abnahme` zuletzt.
+- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-handbuch-geruest` → `slice-handbuch-meldungskatalog` (das Gate liest die Abschnitte, die das Gerüst anlegt; braucht zusätzlich `slice-bootstrap-m2` in `done/`, weil das Binary vorher weder Schlüssel liest noch Fehlercodes erzeugt) → `slice-handbuch-record-replay` (braucht zusätzlich `slice-bootstrap-m2` in `done/`) → `slice-handbuch-abnahme` zuletzt.
 
 ## 6. Out-of-Scope für diese Welle
 
@@ -86,7 +87,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 Zielsetzung: Was nicht ausdrücklich ausgeschlossen ist, dehnt die Welle, bis
 der Closure-Trigger unerreichbar wird.
 
-- Kapitel über Mock-Modus, Hybrid-Modus und Fallback, Admin-API, Snapshots, Telemetrie, TLS des Listeners — Folgewellen; das Kapitel entsteht in der Welle, die das Verhalten liefert, und steht bis dahin gar nicht im Handbuch, auch nicht als Hinweis „folgt“ oder „nicht verfügbar“. Ein Kapitel oder Satz über Verhalten, das das Binary nicht zeigt, widerspricht dem Ist-Zustand. Die Pflicht für jene Wellen (ihr Kapitel im selben Slice nachziehen, wenn das Verhalten existiert) trägt die Closure dieser Welle als Vorschlag an den User.
+- Kapitel über Mock-Modus, Hybrid-Modus und Fallback, Admin-API, Snapshots, Telemetrie, TLS des Listeners — Folgewellen; das Kapitel entsteht in der Welle, die das Verhalten liefert, und steht bis dahin gar nicht im Handbuch, auch nicht als Hinweis „folgt“ oder „nicht verfügbar“. Ein Kapitel oder Satz über Verhalten, das das Binary nicht zeigt, widerspricht dem Ist-Zustand. Die Pflicht für jene Wellen (ihr Kapitel im selben Slice nachziehen, wenn das Verhalten existiert, als DoD-Punkt; sonst ist das Gate der Kataloge rot) trägt die Closure dieser Welle als Vorschlag an den User; die Planer jener Wellen bekommen den Hinweis schon jetzt.
 - Ein Dokument für Entwickler des Recorders (Architektur, Bauen für die Weiterentwicklung, Arbeitscontainer) — andere Zielgruppe; `AGENTS.md`, `spec/` und die Welle welle-dev-container tragen es.
 - Betriebs- und Sicherheitsdetails, die einem Angreifer helfen (genaue Sicherheitskonfiguration, Token-Verwaltung der Admin-API) — erst mit der Admin-API; der Standard (Abschnitt 10) verlangt Zurückhaltung.
 - Screenshots, PDF-Export, Suchfunktion, Übersetzung — der Recorder hat keine Oberfläche; die Abschnitte 6, 7, 11 und 12 des Standards gelten nur, soweit `slice-handbuch-geruest` sie übernimmt.
