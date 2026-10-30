@@ -23,6 +23,7 @@ func operationen() []operation {
 		{"Create", func(*welt) {}, func(w *welt, ctx context.Context) error { _, err := w.v.Create(ctx, "bsl-1", ""); return err }},
 		{"Get", mitWorkspace, func(w *welt, ctx context.Context) error { _, err := w.v.Get(ctx, "ws-1"); return err }},
 		{"List", mitWorkspace, func(w *welt, ctx context.Context) error { _, err := w.v.List(ctx); return err }},
+		{"Delete", mitWorkspace, func(w *welt, ctx context.Context) error { _, err := w.v.Delete(ctx, "ws-1"); return err }},
 		{"Reset", func(w *welt) { w.vorbelegen("ws-1", 0); w.veraendern("ws-1") }, func(w *welt, ctx context.Context) error { _, err := w.v.Reset(ctx, "ws-1"); return err }},
 	}
 }
@@ -47,8 +48,7 @@ const (
 	lblTx = "Transaktion.WithWorkspaceTransaction"
 )
 
-// stellen sind die Paare aus Stelle und Operation mit Fehlerrückgabe, die der Rest des Vertrags trägt (S3
-// bis S5, S7 bis S15); 18 Paare, mit S16 und S17 des Löschens die 20 aus Nr. 15.
+// stellen sind die Paare aus Stelle und Operation mit Fehlerrückgabe (S3 bis S5, S7 bis S16); 19 Paare, mit S17 (die Bereinigung gibt ihren Fehler nicht zurück, Z36 und Z37) die 20 aus Nr. 15.
 func stellen() []stelle {
 	return []stelle{
 		{"S3", "Create", "Snapshots.Get", outbound.GegenstandSnapshot},
@@ -69,6 +69,7 @@ func stellen() []stelle {
 		{"S10", "Get", "Workspaces.Get", outbound.GegenstandWorkspace},
 		{"S14", "List", "Dienste.List", outbound.GegenstandSonstiges},
 		{"S15", "List", "Workspaces.List", outbound.GegenstandSonstiges},
+		{"S16", "Delete", "Workspaces.Delete", outbound.GegenstandWorkspace},
 	}
 }
 
@@ -93,7 +94,7 @@ func (s stelle) vorbereitet(t *testing.T) (*welt, operation) {
 
 func TestStellenMenge(t *testing.T) {
 	st := stellen()
-	if len(st) != 18 {
+	if len(st) != 19 {
 		t.Errorf("Stellen %d", len(st))
 	}
 	paare := map[string]bool{}

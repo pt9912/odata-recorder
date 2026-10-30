@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -356,4 +357,75 @@ func TestWorkspaceGleichzeitigesCreate(t *testing.T) {
 		}
 	}
 	t.Logf("Gewinner: %v", gewinner)
+}
+
+// snapshot legt einen Workspace-Snapshot mit eigenem Blob an und liefert die Referenz des Blobs.
+func (d *wsDatei) snapshot(id, workspaceID, inhalt string) string {
+	d.t.Helper()
+	ref := d.blob([]byte(inhalt))
+	err := d.db.Snapshots().CreateWorkspace(context.Background(), model.WorkspaceSnapshot{ID: id, ServiceID: "svc", WorkspaceID: workspaceID,
+		Name: "n-" + id, CreatedAt: wsT0(), StateBlob: ref, StateHash: ref, MetadataHash: ref})
+	if err != nil {
+		d.t.Fatal(err)
+	}
+	return ref
+}
+
+// blobListe liefert die Referenzen aller Blobs der Ablage.
+func (d *wsDatei) blobListe() []string {
+	d.t.Helper()
+	l, err := d.store.List(context.Background())
+	if err != nil {
+		d.t.Fatal(err)
+	}
+	return l
+}
+
+// TestWorkspaceLoeschenAufDerDatei (Z62): Delete entfernt Workspace, State, Cursors und Workspace-Snapshots, andere
+// Workspaces bleiben; der Blob des gelöschten Workspace-Snapshots wird bereinigt, die Blobs der übrigen bleiben.
+func TestWorkspaceLoeschenAufDerDatei(t *testing.T) {
+	ctx := context.Background()
+	d := wsNeueDatei(t)
+	d.baseline("bsl-1", wsStandard())
+	for _, id := range []string{"ws-a", "ws-b"} {
+		if _, err := d.dienst.Create(ctx, "bsl-1", id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	d.veraendere("ws-a")
+	refA := d.snapshot("snp-a", "ws-a", "Inhalt des Snapshots von ws-a")
+	refB := d.snapshot("snp-b", "ws-b", "Inhalt des Snapshots von ws-b")
+	vorher := d.blobListe()
+	if !slices.Contains(vorher, refA) || !slices.Contains(vorher, refB) {
+		t.Fatalf("die Blobs der Snapshots fehlen vor dem Löschen: %v", vorher)
+	}
+	zustandB := d.state("ws-b")
+	bericht, err := d.dienst.Delete(ctx, "ws-a")
+	if err != nil || bericht.Entfernt != 1 || bericht.Zurueckgestellt {
+		t.Fatalf("Delete: %+v, %v", bericht, err)
+	}
+	if _, err := d.dienst.Get(ctx, "ws-a"); err == nil {
+		t.Error("ws-a besteht noch")
+	}
+	if _, err := d.db.Entities().List(ctx, "ws-a"); !errors.Is(err, outbound.ErrNichtGefunden) {
+		t.Errorf("State von ws-a: %v", err)
+	}
+	if _, err := d.db.Cursors().List(ctx, "ws-a"); !errors.Is(err, outbound.ErrNichtGefunden) {
+		t.Errorf("Cursors von ws-a: %v", err)
+	}
+	if _, err := d.db.Snapshots().GetWorkspace(ctx, "ws-a", "snp-a"); err == nil {
+		t.Error("der Workspace-Snapshot besteht noch")
+	}
+	if !reflect.DeepEqual(d.state("ws-b"), zustandB) {
+		t.Error("ws-b änderte sich")
+	}
+	if _, err := d.db.Snapshots().GetWorkspace(ctx, "ws-b", "snp-b"); err != nil {
+		t.Errorf("Snapshot von ws-b: %v", err)
+	}
+	nachher := d.blobListe()
+	if slices.Contains(nachher, refA) || !slices.Contains(nachher, refB) || len(nachher) != len(vorher)-1 {
+		t.Errorf("Blobs vorher %v, nachher %v", vorher, nachher)
+	}
+	_, err = d.dienst.Delete(ctx, "ws-a")
+	wsCode(t, err, model.CodeE7001)
 }

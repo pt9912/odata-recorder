@@ -714,15 +714,33 @@ func (d *dienste) SetMetadata(ctx context.Context, id, blob, hash string) error 
 	return d.p.beginn("Dienste.SetMetadata", ctx, id, blob, hash)
 }
 
-// wartung ist der Fake von MaintenanceUseCase.
-type wartung struct{ p *prot }
+// wartung ist der Fake von MaintenanceUseCase (F4): CleanupBlobs hält den ctx fest, liefert den programmierten
+// Bericht und Fehler und zählt; Startup zählt.
+type wartung struct {
+	p       *prot
+	mu      sync.Mutex
+	bericht inbound.Loeschbericht
+	fehler  error
+}
+
+func (w *wartung) setze(b inbound.Loeschbericht, err error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.bericht, w.fehler = b, err
+}
 
 func (w *wartung) Startup(ctx context.Context) (inbound.Wartungsbericht, error) {
 	return inbound.Wartungsbericht{}, w.p.beginn("Wartung.Startup", ctx)
 }
 
 func (w *wartung) CleanupBlobs(ctx context.Context) (inbound.Loeschbericht, error) {
-	return inbound.Loeschbericht{}, w.p.beginn("Wartung.CleanupBlobs", ctx)
+	w.mu.Lock()
+	b, err := w.bericht, w.fehler
+	w.mu.Unlock()
+	if e := w.p.beginn("Wartung.CleanupBlobs", ctx); e != nil {
+		return b, e
+	}
+	return b, err
 }
 
 // zaehlUhr und zaehlIDs sind FestUhr und FestIDs, deren Aufrufe das Protokoll zählt.

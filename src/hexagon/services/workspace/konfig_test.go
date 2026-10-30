@@ -60,6 +60,7 @@ func erlaubt() map[string][]string {
 		"Create": append([]string{"Uhr.Now", "IDs.WorkspaceID", lblTx, "tx Workspaces.Create", "tx Entities.ReplaceAll"}, baseline...),
 		"Get":    {"Workspaces.Get"},
 		"List":   {"Dienste.List", "Workspaces.List"},
+		"Delete": {"Workspaces.Delete", "Wartung.CleanupBlobs"},
 		"Reset": append([]string{"Workspaces.Get", lblTx, "tx Workspaces.Get", "tx Entities.ReplaceAll", "tx Cursors.ResetAll",
 			"tx Workspaces.Advance"}, baseline...),
 	}

@@ -12,13 +12,13 @@ import (
 
 type ctxSchluessel struct{}
 
-// paareMitCtx sind die Paare aus Operation und Aufruf, die ein ctx erhalten (SPEC-129 Nr. 15, ohne
-// das Löschen).
+// paareMitCtx sind die Paare aus Operation und Aufruf, die ein ctx erhalten (SPEC-129 Nr. 15).
 func paareMitCtx() map[string][]string {
 	return map[string][]string{
 		"Create": {"Snapshots.Get", "Blobs.Open", lblTx, "tx Workspaces.Create", "tx Entities.ReplaceAll"},
 		"Get":    {"Workspaces.Get"},
 		"List":   {"Dienste.List", "Workspaces.List"},
+		"Delete": {"Workspaces.Delete", "Wartung.CleanupBlobs"},
 		"Reset": {"Workspaces.Get", "Snapshots.Get", "Blobs.Open", lblTx, "tx Workspaces.Get", "tx Entities.ReplaceAll",
 			"tx Cursors.ResetAll", "tx Workspaces.Advance"},
 	}
@@ -54,8 +54,8 @@ func TestKontextUnveraendertAnJedemPort(t *testing.T) {
 		}
 		paare += len(got)
 	}
-	if paare != 16 {
-		t.Errorf("Paare mit ctx %d, erwartet 16 (Rest des Vertrags)", paare)
+	if paare != 18 {
+		t.Errorf("Paare mit ctx %d, erwartet 18", paare)
 	}
 }
 
@@ -89,7 +89,7 @@ func TestKontextfehlerDesPorts(t *testing.T) {
 			faelle++
 		}
 	}
-	if faelle != 18*4 {
+	if faelle != 19*4 {
 		t.Errorf("Fälle %d", faelle)
 	}
 }
@@ -112,7 +112,7 @@ func TestFehlerAbbildungJedeStelle(t *testing.T) {
 			faelle++
 		}
 	}
-	if faelle != 18*22 {
+	if faelle != 19*22 {
 		t.Errorf("Fälle %d", faelle)
 	}
 }
