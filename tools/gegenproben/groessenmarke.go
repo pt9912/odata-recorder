@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -100,15 +101,14 @@ func gmMessungB(n int) string {
 
 // gmFall baut einen Fall der Gruppe; ein Text mit `!` davor darf nicht in der Ausgabe stehen.
 func gmFall(name string, gate Gate, neu map[string]string, args []string, exit int, want ...string) Fall {
-	f := Fall{Name: "groessenmarke/" + name, Gate: gate, Wegwerfmodul: true, Neu: neu, Argumente: args, WantExit: exit}
+	f := Fall{Name: "groessenmarke/" + name, Gate: gate, Wegwerfmodul: true, Neu: neu, Argumente: args, WantExit: exit, Getrennt: true}
 	for _, w := range want {
-		if w == "" {
-			continue
-		}
 		if v, nicht := strings.CutPrefix(w, "!"); nicht {
 			f.Verboten = append(f.Verboten, v)
-		} else {
-			f.WantText = append(f.WantText, w)
+		} else if v, out := strings.CutPrefix(w, "1>"); out {
+			f.WantOut = append(f.WantOut, v)
+		} else if w != "" {
+			f.WantErr = append(f.WantErr, w)
 		}
 	}
 	return f
@@ -159,11 +159,11 @@ func gmMesspunktFaelle() []Fall {
 	var fs []Fall
 	for _, p := range gmPunkte() {
 		fs = append(fs, gmPruefen("messpunkt-"+p.name, p.plan(p.marke), gmMessungB(p.ende), 0,
-			fmt.Sprintf("ok, Messung %d von Marke %d", p.ende, p.marke), p.messpunktZeile(p.marke, p.ende), "!Hinweis"))
+			fmt.Sprintf("1>ok, Messung %d von Marke %d", p.ende, p.marke), "1>"+p.messpunktZeile(p.marke, p.ende), "!Hinweis"))
 	}
 	for _, p := range gmPunkte() {
 		fs = append(fs, gmPruefen("marke-der-platte-"+p.name, p.plan(p.platte), gmMessungB(0), 1,
-			"weicht von der Formel ab", fmt.Sprintf("erwartet %d", p.marke), p.messpunktZeile(p.platte, 0), "!weicht von der Tabelle ab"))
+			"weicht von der Formel ab", fmt.Sprintf("erwartet %d", p.marke), "1>"+p.messpunktZeile(p.platte, 0), "!weicht von der Tabelle ab"))
 	}
 	return fs
 }
@@ -185,15 +185,15 @@ func gmGrenzFaelle() []Fall {
 	return []Fall{
 		gmPruefen("marke-eine-stufe-zu-niedrig", gmPlanB("marke: 1000"), gmMessungB(0), 1, formel, "erwartet 1100"),
 		gmPruefen("marke-eine-stufe-zu-hoch", gmPlanB("marke: 1200"), gmMessungB(0), 1, formel, "erwartet 1100"),
-		gmPruefen("schaetzung-um-eins-zu-niedrig", gmPlanB("schaetzung: 799"), gmMessungB(0), 1, tabelle, "Tabelle ergibt 800", "schaetzung=800 marke=1100", "!"+formel),
+		gmPruefen("schaetzung-um-eins-zu-niedrig", gmPlanB("schaetzung: 799"), gmMessungB(0), 1, tabelle, "Tabelle ergibt 800", "1>schaetzung=800 marke=1100", "!"+formel),
 		gmPruefen("schaetzung-um-eins-zu-hoch", gmPlanB("schaetzung: 801"), gmMessungB(0), 1, tabelle, "Tabelle ergibt 800", "!"+formel),
-		gmPruefen("tabelle-gewachsen-im-code", gmPlanB("schaetzung: 799"), gmMessungB(1), 0, "Hinweis", hinweisTabelle, "schaetzung=800 marke=1100"),
-		gmPruefen("messung-gleich-marke", gmPlanB(), gmMessungB(1100), 0, "ok, Messung 1100 von Marke 1100"),
+		gmPruefen("tabelle-gewachsen-im-code", gmPlanB("schaetzung: 799"), gmMessungB(1), 0, "1>Hinweis", "1>"+hinweisTabelle, "1>schaetzung=800 marke=1100"),
+		gmPruefen("messung-gleich-marke", gmPlanB(), gmMessungB(1100), 0, "1>ok, Messung 1100 von Marke 1100"),
 		gmPruefen("messung-ueber-marke-ohne-eintrag", gmPlanB(), gmMessungB(1101), 1, "ohne Eintrag", "ueberschreitung: 1200 |"),
 		gmPruefen("eintrag-deckt", gmPlanB("ueberschreitung: 1101 | Grund"), gmMessungB(1101), 0),
 		gmPruefen("eintrag-reicht-nicht", gmPlanB("ueberschreitung: 1100 | Grund"), gmMessungB(1101), 1, "Eintrag reicht nicht", groesstes),
 		gmPruefen("eintrag-ohne-grund", gmPlanB("ueberschreitung: 1200 |"), gmMessungB(1101), 1, "ohne Grund", "!ohne Eintrag"),
-		gmPruefen("eintrag-ohne-ueberschreitung", gmPlanB("ueberschreitung: 1200 | Grund"), gmMessungB(1100), 0, "Eintrag ohne "+ueberschreitung),
+		gmPruefen("eintrag-ohne-ueberschreitung", gmPlanB("ueberschreitung: 1200 | Grund"), gmMessungB(1100), 0, "1>Eintrag ohne "+ueberschreitung),
 		gmPruefen("paar-marke-unter-formel-und-messung-ueber-marke", gmPlanB("marke: 1000"), gmMessungB(1001), 1, formel, "ohne Eintrag"),
 		gmPruefen("paar-eintrag-und-marke-unter-formel", gmPlanB("marke: 1000", "ueberschreitung: 1100 | Grund"), gmMessungB(1001), 1, formel, "!ohne Eintrag"),
 		gmPruefen("schnitt-ohne-grund", schnitt(63, 2223, 3100), gmMessungB(0), 1, "Schnittfrage ohne Grund"),
@@ -206,9 +206,9 @@ func gmGrenzFaelle() []Fall {
 func gmFormFaelle() []Fall {
 	prosa := "# Slice\n\n**Gr\xc3\xb6\xc3\x9fenmarke** (`AGENTS.md` \xc2\xa73.14): \xc3\xbcber 2400 Zeilen (Summe)\n"
 	fs := []Fall{
-		gmAbfrage("kein-block", "# Slice\n\nText ohne Block.\n", 0, "keine-messung", "kein Block"),
-		gmAbfrage("prosa-form", prosa, 0, "keine-messung", "Prosa-Form"),
-		gmAbfrage("marke-steht-aus", gmPlanB("-basis", "-schaetzung", "-marke"), 0, "keine-messung", "Marke steht aus: Sch\xc3\xa4tzung 800, Marke 1100"),
+		gmAbfrage("kein-block", "# Slice\n\nText ohne Block.\n", 0, "1>keine-messung", "kein Block"),
+		gmAbfrage("prosa-form", prosa, 0, "1>keine-messung", "Prosa-Form"),
+		gmAbfrage("marke-steht-aus", gmPlanB("-basis", "-schaetzung", "-marke"), 0, "1>keine-messung", "Marke steht aus: Sch\xc3\xa4tzung 800, Marke 1100"),
 		gmAbfrage("paar-marke-und-basis-fehlen", gmPlanB("-basis", "-marke"), 2, "Block unvollst\xc3\xa4ndig: es fehlen basis, marke"),
 		gmPruefen("block-unbekannter-schluessel", gmPlanB("marken: 1100"), gmMessungB(0), 2, "Schl\xc3\xbcssel marken unbekannt"),
 	}
@@ -258,9 +258,9 @@ func gmMessungFaelle() []Fall {
 	lesbar := "Messung nicht lesbar"
 	return []Fall{
 		gmPruefen("messung-binaer", gmPlanB(), kopf+gmSatz("-", "-", "x.bin")+gmSatz("3", "2", "y.go"), 0,
-			"Messung 5 von Marke 1100", "1 Bin\xc3\xa4rdatei(en) nicht gez\xc3\xa4hlt"),
+			"1>Messung 5 von Marke 1100", "1>1 Bin\xc3\xa4rdatei(en) nicht gez\xc3\xa4hlt"),
 		gmPruefen("messung-umbenennung", gmPlanB(), kopf+"1\t2\t\x00", 2, "Umbenennung in der Messung"),
-		gmPruefen("messung-leer", gmPlanB(), kopf, 0, "Messung 0 von Marke 1100"),
+		gmPruefen("messung-leer", gmPlanB(), kopf, 0, "1>Messung 0 von Marke 1100"),
 		gmPruefen("messung-fremde-basis", gmPlanB(), gmKopf("abcdef0123", "src/"), 2, fremd),
 		gmPruefen("messung-pfad-fehlt", zwei, gmKopf(gmBasis, "src/"), 2, fremd),
 		gmPruefen("messung-pfad-zusaetzlich", zwei, gmKopf(gmBasis, "src/", "tools/", "x/"), 2, fremd),
@@ -279,8 +279,15 @@ func gmMessungFaelle() []Fall {
 
 // Die Ersatz-Skripte schreiben jeden Aufruf mit allen Argumenten in ihr Protokoll (log/git.log,
 // log/programm.log: je Aufruf eine Zeile AUFRUF und je Argument eine Zeile ARG), auch für Operationen,
-// die der Treiber nie rufen darf. Ausgabe und Exit-Code bestimmen die Dateien unter ersatz/.
+// die der Treiber nie rufen darf. Ausgabe und Exit-Code bestimmen die Dateien unter ersatz/; der
+// Ersatz des Programms schreibt je Kommando einen Text auf stdout und einen auf stderr. Eine Datei
+// `<Operation>.signal` lässt den Ersatz dem Treiber (seinem Elternprozess) das genannte Signal senden.
 const (
+	gmAbfrageOut = "ABFRAGE-STDOUT"
+	gmAbfrageErr = "ABFRAGE-STDERR"
+	gmPruefenOut = "PRUEFEN-STDOUT"
+	gmPruefenErr = "PRUEFEN-STDERR"
+
 	ersatzGit = `#!/bin/sh
 { echo AUFRUF; for a in "$@"; do printf 'ARG %s\n' "$a"; done; } >> log/git.log
 sub=$1
@@ -288,6 +295,7 @@ rc=0
 [ -f "ersatz/git.$sub.rc" ] && read -r rc < "ersatz/git.$sub.rc"
 [ -f "ersatz/git.$sub.err" ] && cat "ersatz/git.$sub.err" >&2
 [ -f "ersatz/git.$sub.out" ] && cat "ersatz/git.$sub.out"
+[ -f "ersatz/git.$sub.signal" ] && { read -r sig < "ersatz/git.$sub.signal"; kill -"$sig" "$PPID"; }
 exit "$rc"
 `
 	ersatzProgramm = `#!/bin/sh
@@ -296,12 +304,18 @@ name=${2##*/}
 rc=0
 case $1 in
 abfrage)
+	echo ` + gmAbfrageOut + `
+	echo ` + gmAbfrageErr + ` >&2
 	[ -f "ersatz/$2.abfrage.err" ] && cat "ersatz/$2.abfrage.err" >&2
 	[ -f "ersatz/$2.abfrage" ] && cat "ersatz/$2.abfrage"
+	[ -f "ersatz/$2.abfrage.signal" ] && { read -r sig < "ersatz/$2.abfrage.signal"; kill -"$sig" "$PPID"; }
 	[ -f "ersatz/$2.abfrage.rc" ] && read -r rc < "ersatz/$2.abfrage.rc"
 	exit "$rc" ;;
 pruefen)
+	echo ` + gmPruefenOut + `
+	echo ` + gmPruefenErr + ` >&2
 	cat "$3" > "log/messung-$name"
+	[ -f "ersatz/$2.pruefen.signal" ] && { read -r sig < "ersatz/$2.pruefen.signal"; kill -"$sig" "$PPID"; }
 	[ -f "ersatz/$2.pruefen.rc" ] && read -r rc < "ersatz/$2.pruefen.rc"
 	exit "$rc" ;;
 esac
@@ -344,6 +358,9 @@ func gmErsatz(extra map[string]string, plaene ...gmEintrag) map[string]string {
 // Planverzeichnis plaene/.
 func gmTreiber(name string, neu map[string]string, exit int, nachher func(Lauf) string, want ...string) Fall {
 	f := gmFall(name, gateTreiber, neu, []string{"{dir}/bin/programm", "plaene"}, exit, want...)
+	if !slices.Contains(f.WantOut, gmKeinSlice) {
+		f.Verboten = append(f.Verboten, gmKeinSlice)
+	}
 	f.Ausfuehrbar = []string{"bin/git", "bin/programm"}
 	f.Env = []string{"PATH={dir}/bin:{PATH}", "GIT_CONFIG_GLOBAL=/dev/null"}
 	f.Nachher = nachher
@@ -449,7 +466,8 @@ func gmTreiberGitFaelle() []Fall {
 	}
 	return []Fall{
 		gmTreiber("treiber-aufrufe-von-git", gmErsatz(map[string]string{"ersatz/git.diff.out": gmSatz("3", "4", "src/a/x.go")},
-			gmEintrag{pfad: gmPlanA, abfrage: "messen\nbasis " + gmBasis + "\npfad src/a\npfad src/b\n"}), 0, gmPruefeAufrufe),
+			gmEintrag{pfad: gmPlanA, abfrage: "messen\nbasis " + gmBasis + "\npfad src/a\npfad src/b\n"}), 0, gmPruefeAufrufe,
+			"1>"+gmPruefenOut, gmPruefenErr, gmAbfrageErr, "!"+gmAbfrageOut),
 		gmTreiber("treiber-pfad-argumente", gmErsatz(nil, gmEintrag{pfad: gmPlanA, abfrage: "messen\nbasis " + gmBasis +
 			"\npfad a b\npfad a*\npfad a\"b\npfad [x]\npfad \xc3\xa4\n"}), 0, func(l Lauf) string {
 			return gmErwartet(l, "git.log", [][]string{gmRevParse(), gmMergeBase(), gmDiff("a b", "a*", "a\"b", "[x]", "\xc3\xa4")})

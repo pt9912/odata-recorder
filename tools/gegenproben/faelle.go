@@ -39,8 +39,14 @@ type Fall struct {
 	// go.mod und die Pakete selbst (Neu).
 	Wegwerfmodul bool
 	WantExit     int
-	WantText     []string // jeder Text muss in der Ausgabe stehen
-	Verboten     []string // keiner dieser Texte darf in der Ausgabe stehen
+	WantText     []string // jeder Text muss in der Ausgabe stehen (stdout und stderr gemeinsam)
+	Verboten     []string // keiner dieser Texte darf in der Ausgabe stehen (in keinem Strom)
+	// Getrennt lässt die Hülle stdout und stderr getrennt liefern (SPEC-102 Randform 13, Fälle 38 bis
+	// 120); WantOut steht dann auf stdout und nicht auf stderr, WantErr umgekehrt, und WantText
+	// bleibt leer.
+	Getrennt bool
+	WantOut  []string
+	WantErr  []string
 	// Ausfuehrbar nennt Dateien aus Neu, die ausführbar werden (Ersatz-Skripte).
 	Ausfuehrbar []string
 	// Env sind zusätzliche Einträge der Umgebung des Aufrufs; {dir} steht für das Verzeichnis des
@@ -55,20 +61,28 @@ type Fall struct {
 }
 
 // Lauf ist, was Nachher vom Aufruf eines Falls sieht: das Verzeichnis und das TMPDIR des Falls,
-// die Umgebung des Aufrufs, die Umgebung des Programms und die Ausgabe.
+// die Umgebung des Aufrufs, die Umgebung des Programms und die Ausgabe (Err ist stderr eines Falls
+// mit getrennten Strömen).
 type Lauf struct {
 	U   Umgebung
 	Dir string
 	Tmp string
 	Env []string
 	Out string
+	Err string
 }
 
 // treiber ruft den Treiber groessenmarke.sh im Verzeichnis des Falls mit denselben Umgebungswerten
-// und liefert Exit-Code und Ausgabe.
+// und liefert Exit-Code und Ausgabe (stdout und stderr gemeinsam).
 func (l Lauf) treiber(args ...string) (int, string) {
 	code, out, _ := starte(fallFrist, l.Dir, l.Env, "sh", append([]string{l.U.Treiber}, args...)...)
 	return code, out
+}
+
+// treiberStroeme ruft den Treiber wie treiber und liefert stdout und stderr getrennt.
+func (l Lauf) treiberStroeme(args ...string) (code int, out, errOut string) {
+	code, out, errOut, _ = starteStroeme(fallFrist, l.Dir, l.Env, true, "sh", append([]string{l.U.Treiber}, args...)...)
+	return code, out, errOut
 }
 
 // Bau beschreibt das Binary, das ein Fall vor dem Aufruf von pruefung build in der Kopie erzeugt.

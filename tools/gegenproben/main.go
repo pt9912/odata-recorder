@@ -231,37 +231,78 @@ func fuehreFall(u Umgebung, f Fall, dir, tmp string) Ergebnis {
 		}
 	}
 	name, args, wd := u.Befehl(dir, f)
-	code, out, abgelaufen := starte(fallFrist, wd, env, name, args...)
-	rot := bewerte(f, code, out, abgelaufen)
+	code, out, errOut, abgelaufen := starteStroeme(fallFrist, wd, env, f.Getrennt, name, args...)
+	rot := bewerte(f, code, out, errOut, abgelaufen)
 	if rot == "" && f.Nachher != nil {
-		rot = f.Nachher(Lauf{U: u, Dir: dir, Tmp: tmp, Env: env, Out: out})
+		rot = f.Nachher(Lauf{U: u, Dir: dir, Tmp: tmp, Env: env, Out: out, Err: errOut})
 	}
 	return Ergebnis{Name: f.Name, Rot: rot}
 }
 
-// bewerte gibt den Grund zurück, aus dem ein Fall rot ist, oder "".
-func bewerte(f Fall, code int, out string, abgelaufen bool) string {
+// bewerte gibt den Grund zurück, aus dem ein Fall rot ist, oder "". Bei einem Fall mit getrennten
+// Strömen ist errOut der Inhalt von stderr, sonst ist die Ausgabe in out und errOut leer
+// (SPEC-102 Randform 13).
+func bewerte(f Fall, code int, out, errOut string, abgelaufen bool) string {
+	alles := out + errOut
 	switch {
 	case abgelaufen:
 		return "Zeit überschritten"
 	case f.WantExit == 0 && code != 0:
-		return fmt.Sprintf("erlaubter Fall abgelehnt (Exit %d)\n%s", code, letzte(out))
+		return fmt.Sprintf("erlaubter Fall abgelehnt (Exit %d)\n%s", code, bericht(f, out, errOut))
 	case f.WantExit != 0 && code == 0:
 		return "Verstoß nicht gemeldet"
 	case code != f.WantExit:
-		return fmt.Sprintf("erwartet Exit %d, war %d\n%s", f.WantExit, code, letzte(out))
+		return fmt.Sprintf("erwartet Exit %d, war %d\n%s", f.WantExit, code, bericht(f, out, errOut))
+	}
+	if r := bewerteStroeme(f, out, errOut); r != "" {
+		return r
 	}
 	for _, w := range f.WantText {
-		if !strings.Contains(out, w) {
-			return fmt.Sprintf("Ausgabe nennt %q nicht\n%s", w, letzte(out))
+		if !strings.Contains(alles, w) {
+			return fmt.Sprintf("Ausgabe nennt %q nicht\n%s", w, bericht(f, out, errOut))
 		}
 	}
 	for _, v := range f.Verboten {
-		if strings.Contains(out, v) {
-			return fmt.Sprintf("Ausgabe nennt %q\n%s", v, letzte(out))
+		if strings.Contains(alles, v) {
+			return fmt.Sprintf("Ausgabe nennt %q\n%s", v, bericht(f, out, errOut))
 		}
 	}
 	return ""
+}
+
+// bewerteStroeme prüft die Erwartungen an einen Strom: ein Text in WantOut steht auf stdout und
+// nicht auf stderr, einer in WantErr umgekehrt. Ein Fall mit gemeinsamer Ausgabe darf keinen Strom
+// nennen, ein Fall mit getrennten Strömen keinen Text ohne Strom.
+func bewerteStroeme(f Fall, out, errOut string) string {
+	switch {
+	case !f.Getrennt && (len(f.WantOut) > 0 || len(f.WantErr) > 0):
+		return "Fall nennt einen Strom, die Hülle liefert beide gemeinsam"
+	case f.Getrennt && len(f.WantText) > 0:
+		return fmt.Sprintf("Fall nennt %q ohne Strom, die Hülle liefert beide getrennt", f.WantText[0])
+	}
+	for _, s := range []struct {
+		name         string
+		want         []string
+		richtig, aus string
+	}{{"stdout", f.WantOut, out, errOut}, {"stderr", f.WantErr, errOut, out}} {
+		for _, w := range s.want {
+			if !strings.Contains(s.richtig, w) {
+				return fmt.Sprintf("%s nennt %q nicht\n%s", s.name, w, bericht(f, out, errOut))
+			}
+			if strings.Contains(s.aus, w) {
+				return fmt.Sprintf("%q steht auch im anderen Strom als %s\n%s", w, s.name, bericht(f, out, errOut))
+			}
+		}
+	}
+	return ""
+}
+
+// bericht zeigt die letzten Zeilen der Ausgabe; bei getrennten Strömen beide mit ihrem Namen.
+func bericht(f Fall, out, errOut string) string {
+	if !f.Getrennt {
+		return letzte(out)
+	}
+	return "stdout:\n" + letzte(out) + "\nstderr:\n" + letzte(errOut)
 }
 
 func letzte(s string) string {
@@ -273,10 +314,18 @@ func letzte(s string) string {
 	return strings.Join(z, "\n")
 }
 
-// starte führt das Programm aus und liefert Exit-Code, Ausgabe und ob die Frist ablief.
-// Bei Ablauf endet die ganze Prozessgruppe, damit auch ein Kindprozess die Ausgabe nicht
-// offen hält.
+// starte führt das Programm aus und liefert Exit-Code, Ausgabe (stdout und stderr gemeinsam) und
+// ob die Frist ablief. Bei Ablauf endet die ganze Prozessgruppe, damit auch ein Kindprozess die
+// Ausgabe nicht offen hält.
 func starte(frist time.Duration, dir string, env []string, name string, args ...string) (int, string, bool) {
+	code, out, _, abgelaufen := starteStroeme(frist, dir, env, false, name, args...)
+	return code, out, abgelaufen
+}
+
+// starteStroeme ist starte mit der Wahl der Hülle (SPEC-102 Randform 13): bei getrennt=false
+// liefert out beide Ströme gemeinsam und errOut ist leer, bei getrennt=true stdout in out und
+// stderr in errOut. Exit-Code, Frist und Prozessgruppe sind in beiden Formen dieselben.
+func starteStroeme(frist time.Duration, dir string, env []string, getrennt bool, name string, args ...string) (code int, out, errOut string, abgelaufen bool) {
 	ctx, stop := context.WithTimeout(context.Background(), frist)
 	defer stop()
 	cmd := exec.CommandContext(ctx, name, args...)
@@ -285,20 +334,23 @@ func starte(frist time.Duration, dir string, env []string, name string, args ...
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = 5 * time.Second
-	var buf bytes.Buffer
+	var buf, bufErr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &buf, &buf
+	if getrennt {
+		cmd.Stderr = &bufErr
+	}
 	err := cmd.Run()
 	if ctx.Err() != nil {
-		return -1, buf.String(), true
+		return -1, buf.String(), bufErr.String(), true
 	}
 	var ee *exec.ExitError
 	switch {
 	case err == nil:
-		return 0, buf.String(), false
+		return 0, buf.String(), bufErr.String(), false
 	case errors.As(err, &ee):
-		return ee.ExitCode(), buf.String(), false
+		return ee.ExitCode(), buf.String(), bufErr.String(), false
 	default:
-		return -1, err.Error(), false
+		return -1, err.Error(), "", false
 	}
 }
 
