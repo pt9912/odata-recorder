@@ -48,9 +48,10 @@ func New(k Konfig) (*Verwaltung, error) {
 	return &Verwaltung{k: k}, nil
 }
 
-// idGueltig sagt, ob id der Form aus SPEC-129 Nr. 3 genügt: 1 bis MaxIDLaenge Bytes aus 0-9, a-z, -.
+// idGueltig sagt, ob die nichtleere id der Form aus SPEC-129 Nr. 3 genügt: höchstens MaxIDLaenge Bytes aus 0-9, a-z, -.
+// Die leere id fragt der Aufrufer nicht; sie heißt „vergeben“.
 func idGueltig(id string) bool {
-	if id == "" || len(id) > MaxIDLaenge {
+	if len(id) > MaxIDLaenge {
 		return false
 	}
 	for i := 0; i < len(id); i++ {
