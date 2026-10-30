@@ -152,11 +152,53 @@ func (p paarLeser) LeseFilter(text string) (interface{ IstFilterAusdruck() }, er
 	return testAusdruck{text}, nil
 }
 
-// TestVerschraenktLeser (Zeile 14, SPEC-160 Nr. 7 und 8): zwei Aufrufe laufen beide durch den FilterLeser, stehen zugleich in ihm
-// und werden in beiden Reihenfolgen freigegeben; jeder Aufruf liefert, was er allein lieferte (Text und Ausdruck seines
-// `$filter`). Menge 2: Freigabe von `a` vor `b` und von `b` vor `a`. Ein Zustand der Instanz, den ein Aufruf vor dem Leser
-// schreibt und danach liest, auch unter einer Sperre, wird in jedem Lauf gefunden; die Wirkung wird gezählt, kein Detektor.
+// pfadErgebnis ist ein Pfad mit der Ressource, die der Parser allein daraus liest (von Hand).
+type pfadErgebnis struct {
+	pfad string
+	res  model.Ressource
+}
+
+// verschraenktPfade sind die Pfade von A (Alpha) und von B (Beta): Menge, Entity, Anzahl und `$metadata`.
+func verschraenktPfade() (a, b []pfadErgebnis) {
+	for _, d := range []struct {
+		name, schluessel string
+		dst              *[]pfadErgebnis
+	}{{"Alpha", "1", &a}, {"Beta", "2", &b}} {
+		*d.dst = []pfadErgebnis{
+			{"/" + d.name, model.Ressource{Art: model.RessourceMenge, EntitySet: d.name}},
+			{"/" + d.name + "(" + d.schluessel + ")", model.Ressource{Art: model.RessourceEntity, EntitySet: d.name, Schluessel: []model.SchluesselTeil{teil("", zahlLit(d.schluessel))}}},
+			{"/" + d.name + "/$count", model.Ressource{Art: model.RessourceAnzahl, EntitySet: d.name}},
+			{"/$metadata", model.Ressource{Art: model.RessourceMetadaten}},
+		}
+	}
+	return a, b
+}
+
+// TestVerschraenktLeser (Zeile 14, SPEC-160 Nr. 7 und 8): zwei Aufrufe mit verschiedenen Pfaden laufen beide durch den
+// FilterLeser, stehen zugleich in ihm und werden in beiden Reihenfolgen freigegeben; der zuerst freigegebene läuft ganz durch,
+// während der andere im Leser steht. Jeder Aufruf liefert, was er allein lieferte: die Ressource seines Pfads (von Hand) sowie
+// Text und Ausdruck seines `$filter`. Menge 16 Paare: Pfad von A (`/Alpha`, `/Alpha(1)`, `/Alpha/$count`, `/$metadata`) × Pfad von B
+// (`/Beta`, `/Beta(2)`, `/Beta/$count`, `/$metadata`), jedes in beiden Reihenfolgen der Freigabe, 32 Läufe; das Paar `/$metadata`
+// gegen `/$metadata` ist der Kontrollfall mit gleicher Ressource. Ein Zustand der Instanz, den ein Aufruf nach dem Pfad schreibt
+// und am Ende liest, auch unter einer Sperre und auch nur bei nichtleerem Set, wird in jedem Lauf gefunden; die Wirkung wird gezählt,
+// kein Detektor.
 func TestVerschraenktLeser(t *testing.T) {
+	pa, pb := verschraenktPfade()
+	paare := 0
+	for _, a := range pa {
+		for _, b := range pb {
+			paare++
+			verschraenktPaar(t, a, b)
+		}
+	}
+	if paare != 16 {
+		t.Fatalf("%d Paare, erwartet 16", paare)
+	}
+}
+
+func verschraenktPaar(t *testing.T, ra, rb pfadErgebnis) {
+	t.Helper()
+	pfade := map[string]pfadErgebnis{"a": ra, "b": rb}
 	for _, zuerst := range []string{"a", "b"} {
 		h := paarLeser{erreicht: make(chan string, 2), frei: map[string]chan struct{}{"a": make(chan struct{}), "b": make(chan struct{})}}
 		p := urlparser.New(urlparser.WithFilter(h))
@@ -167,7 +209,7 @@ func TestVerschraenktLeser(t *testing.T) {
 		fertig := map[string]chan ergebnis{"a": make(chan ergebnis, 1), "b": make(chan ergebnis, 1)}
 		for _, text := range []string{"a", "b"} {
 			go func() {
-				u, err := p.ParseURL("/S", "$filter="+text)
+				u, err := p.ParseURL(pfade[text].pfad, "$filter="+text)
 				fertig[text] <- ergebnis{u, err}
 			}()
 		}
@@ -184,11 +226,11 @@ func TestVerschraenktLeser(t *testing.T) {
 			select {
 			case got := <-fertig[text]:
 				soll := model.ODataURL{
-					Ressource: model.Ressource{Art: model.RessourceMenge, EntitySet: "S"},
+					Ressource: pfade[text].res,
 					Optionen:  model.Optionen{Filter: &model.FilterOption{Text: text, Ausdruck: testAusdruck{text}}},
 				}
 				if got.err != nil || !gleich(got.u, soll) {
-					t.Errorf("Freigabe %q zuerst, Aufruf %q: %+v %v, allein %+v", zuerst, text, got.u, got.err, soll)
+					t.Errorf("Pfade %q und %q, Freigabe %q zuerst, Aufruf %q: %+v %v, allein %+v", ra.pfad, rb.pfad, zuerst, text, got.u, got.err, soll)
 				}
 			case <-time.After(wartegrenze):
 				t.Fatalf("Aufruf %q endet nicht innerhalb von %v", text, wartegrenze)
