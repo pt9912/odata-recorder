@@ -69,10 +69,11 @@ func TestKeyLeerraum(t *testing.T) {
 // ungültigen Kodierung.
 func TestRangImSegment(t *testing.T) {
 	pruefeFaelle(t, []fall{
-		{pfad: "/Set(1%G1", u: kodi, ort: "pfad/1"},    // Kodierung vor der unverschlossenen Klammer
-		{pfad: "/Set%G1x(", u: kodi, ort: "pfad/1"},    // Kodierung vor Name und Klammer
-		{pfad: "/Set-(1,2)", u: segm, ort: "pfad/1"},   // Name und Klammer vor der Struktur
-		{pfad: "/Set(1,2,1x)", u: keyU, ort: "pfad/1"}, // Struktur vor den Literalen
+		{pfad: "/Set(1%G1", u: kodi, ort: "pfad/1"},              // Kodierung vor der unverschlossenen Klammer
+		{pfad: "/S(Id=1e3,Region=null)", u: litU, ort: "pfad/1"}, // 400 gewinnt gegen ein 501 früher im selben Körper
+		{pfad: "/Set%G1x(", u: kodi, ort: "pfad/1"},              // Kodierung vor Name und Klammer
+		{pfad: "/Set-(1,2)", u: segm, ort: "pfad/1"},             // Name und Klammer vor der Struktur
+		{pfad: "/Set(1,2,1x)", u: keyU, ort: "pfad/1"},           // Struktur vor den Literalen
 		{pfad: "/Set(" + wiederhole("1,", 17) + "1x=)", u: model.URLZuViele, ort: "pfad/1"},
 		{pfad: "/Set(A=1x,B=" + wiederhole("a", 513) + ")", u: litU, ort: "pfad/1"}, // Literale von links nach rechts
 	})
@@ -139,7 +140,8 @@ func TestLiteralString(t *testing.T) {
 	}
 }
 
-// TestLiteralBool (Zeile 33): `true` und `false` in jeder ASCII-Schreibweise (16 + 32) und 9 ungültige Formen.
+// TestLiteralBool (Zeile 33): `true` und `false` in jeder ASCII-Schreibweise (16 + 32), 9 ungültige Formen als Wert benannter
+// Teile und 12 nackte Wörter ohne `=`.
 func TestLiteralBool(t *testing.T) {
 	n := 0
 	for _, wort := range []string{"true", "false"} {
@@ -162,9 +164,23 @@ func TestLiteralBool(t *testing.T) {
 		pruefeFall(t, parserNeu(), f)
 		n++
 	}
-	pruefeFaelle(t, []fall{{pfad: "/S(null)", u: litU, ort: "pfad/1"}, {pfad: "/S(nUll)", u: litU, ort: "pfad/1"}})
-	if n != 57 {
-		t.Fatalf("%d Fälle, erwartet 57", n)
+	// 12 nackte Wörter ohne `=` (SPEC-161 Nr. 5 c): sechs Ausnahmen gehören dem Literal, sechs Namen sind `key`.
+	nackt := []struct {
+		wort string
+		u    model.URLUrsache
+		want *model.ODataURL
+	}{
+		{"true", "", entity("S", teil("", model.Literal{Art: model.LiteralWahrheitswert, Text: "true"}))},
+		{"FALSE", "", entity("S", teil("", model.Literal{Art: model.LiteralWahrheitswert, Text: "false"}))},
+		{"null", litU, nil}, {"nUll", litU, nil}, {"INF", typU, nil}, {"NaN", typU, nil},
+		{"t", keyU, nil}, {"tru", keyU, nil}, {"truee", keyU, nil}, {"yes", keyU, nil}, {"inf", keyU, nil}, {"nan", keyU, nil},
+	}
+	for _, w := range nackt {
+		pruefeFall(t, parserNeu(), fall{pfad: "/S(" + w.wort + ")", u: w.u, ort: "pfad/1", want: w.want})
+		n++
+	}
+	if n != 69 {
+		t.Fatalf("%d Fälle, erwartet 69", n)
 	}
 }
 
