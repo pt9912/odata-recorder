@@ -87,12 +87,9 @@ func gmTreiberPlanFaelle() []Fall {
 	ohneGit := func(l Lauf, programm ...[]string) string {
 		return gmErste(gmErwartet(l, "git.log", nil), gmErwartet(l, "programm.log", programm))
 	}
-	keinePlaene := gmTreiber("treiber-keine-plaene", gmErsatz(nil), 0, func(l Lauf) string {
-		if code, out := l.treiber(gmProgramm(l), "fehlt"); code != 2 {
-			return fmt.Sprintf("fehlendes Planverzeichnis: Exit %d statt 2\n%s", code, out)
-		}
-		return ohneGit(l)
-	}, "kein Slice in Arbeit")
+	keinePlaene := gmTreiber("treiber-keine-plaene", gmErsatz(gmNurAndere()), 0, gmKeinePlaene, "1>"+gmKeinSlice)
+	keinePlaene.Argumente = []string{"{dir}/bin/programm", gmOhnePlan()[0]}
+	keinePlaene.Vorbereitung = func(dir string) error { return os.MkdirAll(filepath.Join(dir, gmOhnePlan()[0]), 0o755) }
 	suche := gmTreiber("treiber-plan-suche", gmErsatz(map[string]string{
 		"plaene/roadmap.md": "x\n", "plaene/README.md": "x\n", "plaene/slice-c.txt": "x\n", "plaene/unter/slice-d.md": "x\n",
 	}, gmEintrag{pfad: "plaene/slice-b.md", abfrage: keine}, gmEintrag{pfad: "plaene/slice-a.md", abfrage: keine}), 0, func(l Lauf) string {
@@ -107,7 +104,7 @@ func gmTreiberPlanFaelle() []Fall {
 			{"pruefen", "plaene/slice-b.md", "*messung"}, {"abfrage", "plaene/slice-c.md"}, {"pruefen", "plaene/slice-c.md", "*messung"},
 		})
 		return gmErste(reihenfolge, gmSzenario(l, "p1", []string{"0", "1"}, 1), gmSzenario(l, "p2", []string{"1", "0"}, 1),
-			gmSzenario(l, "p3", []string{"0", "0"}, 0), gmSzenario(l, "p4", []string{"127"}, 2))
+			gmSzenario(l, "p3", []string{"0", "0"}, 0), gmExitSchleife(l))
 	})
 	hinweis := func(plan, text string) string {
 		return "groessenmarke " + plan + ": Hinweis: " + text + "\n"
@@ -121,26 +118,6 @@ func gmTreiberPlanFaelle() []Fall {
 		}, "Hinweis: kein Block", "Hinweis: Prosa-Form", "Hinweis: Marke steht aus")
 	aufraeumen := gmTreiber("treiber-aufraeumen", gmErsatz(nil, gmEintrag{pfad: gmPlanA, abfrage: gmMessen}), 0, gmAufgeraeumt)
 	return []Fall{keinePlaene, suche, aggregation, ohneBlock, aufraeumen}
-}
-
-// gmAufgeraeumt prüft Fall 114: nach dem Lauf mit Exit 0 und nach einem Lauf mit Fehler von git diff
-// ist das TMPDIR des Falls leer.
-func gmAufgeraeumt(l Lauf) string {
-	if r := gmLeer(l.Tmp); r != "" {
-		return "nach Exit 0: " + r
-	}
-	fehler := map[string]string{"ersatz/git.diff.rc": "128\n", "ersatz/git.diff.err": "fatal: boese\n"}
-	if err := gmSchreibe(l.Dir, fehler); err != nil {
-		return err.Error()
-	}
-	code, out := l.treiber(gmProgramm(l), "plaene")
-	if code != 2 || !strings.Contains(out, "git diff scheitert") {
-		return fmt.Sprintf("Fehler von git diff: Exit %d\n%s", code, out)
-	}
-	if r := gmLeer(l.Tmp); r != "" {
-		return "nach dem Fehler von git diff: " + r
-	}
-	return ""
 }
 
 // gmRepo ist ein Git-Repo, das ein Fall der Gegenproben anlegt; Konfiguration allein über -c und
@@ -195,6 +172,7 @@ func (r *gmRepo) plan(basis string, pfade ...string) {
 // gmGitFall ist ein Fall mit dem echten git und dem Programm groessenmarke: vor legt die Commits an.
 func gmGitFall(name string, vor func(r *gmRepo), exit int, want ...string) Fall {
 	f := gmFall(name, gateTreiber, nil, []string{"groessenmarke", "plaene"}, exit, want...)
+	f.Verboten = append(f.Verboten, gmKeinSlice)
 	f.Env = []string{"GIT_CONFIG_GLOBAL=/dev/null"}
 	f.Vorbereitung = func(dir string) error {
 		r := &gmRepo{dir: dir}
@@ -214,7 +192,8 @@ func gmZeilen(n int) string {
 }
 
 // gmGitAusschluesse ist Fall 115: je eine Datei mit 3 Einfügungen in sechs Bereichen, der Block nennt
-// zwei Pfade, harness/vertraege/ zählt trotz harness/ nicht.
+// drei Pfade (tools/x/ und tools/x zählen die Datei einmal), harness/vertraege/ zählt trotz harness/
+// nicht.
 func gmGitAusschluesse() Fall {
 	return gmGitFall("treiber-git-ausschluesse", func(r *gmRepo) {
 		alt, neu := map[string]string{}, map[string]string{}
@@ -223,8 +202,8 @@ func gmGitAusschluesse() Fall {
 		}
 		basis := r.commit(alt)
 		r.commit(neu)
-		r.plan(basis, "tools/x/", "harness/")
-	}, 0, "Messung 6 von Marke 1100")
+		r.plan(basis, "tools/x/", "tools/x", "harness/")
+	}, 0, "1>Messung 6 von Marke 1100")
 }
 
 // gmGitSonderzeichen ist Fall 116: Namen mit Leerzeichen, Stern, Klammern, Umlaut und Anführungszeichen;
@@ -238,7 +217,7 @@ func gmGitSonderzeichen() Fall {
 		}
 		r.commit(neu)
 		r.plan(basis, "a*", "a b.txt", "[x].txt", "\xc3\xa4.txt", "q\"r.txt")
-	}, 0, "Messung 10 von Marke 1100")
+	}, 0, "1>Messung 10 von Marke 1100")
 }
 
 // gmGitUmbenennung ist Fall 117: mit diff.renames=true im Repo zählt die Umbenennung als Löschung
@@ -250,7 +229,7 @@ func gmGitUmbenennung() Fall {
 		r.git("mv", "tools/x/alt.txt", "tools/x/neu.txt")
 		r.abgelegt()
 		r.plan(basis, "tools/x/")
-	}, 0, "Messung 20 von Marke 1100")
+	}, 0, "1>Messung 20 von Marke 1100")
 }
 
 // gmGitBinaer ist Fall 118: eine Binärdatei zählt nicht und steht im Hinweis.
@@ -259,7 +238,7 @@ func gmGitBinaer() Fall {
 		basis := r.commit(map[string]string{"README": "x\n"})
 		r.commit(map[string]string{"tools/x/b.bin": "a\x00b\x00c\n", "tools/x/t.txt": gmZeilen(4)})
 		r.plan(basis, "tools/x/")
-	}, 0, "Messung 4 von Marke 1100", "1 Bin\xc3\xa4rdatei(en) nicht gez\xc3\xa4hlt")
+	}, 0, "1>Messung 4 von Marke 1100", "1>1 Bin\xc3\xa4rdatei(en) nicht gez\xc3\xa4hlt")
 }
 
 // gmGitKeinVorfahr ist Fall 119: die Basis liegt auf einem anderen Zweig.
@@ -279,7 +258,7 @@ func gmGitGleichSpitze() Fall {
 	return gmGitFall("treiber-git-basis-gleich-spitze", func(r *gmRepo) {
 		r.commit(map[string]string{"README": "x\n"})
 		r.plan(r.git("rev-parse", "--short=12", "HEAD"), "tools/x/")
-	}, 0, "Messung 0 von Marke 1100")
+	}, 0, "1>Messung 0 von Marke 1100")
 }
 
 // gmGitFaelle sind die Fälle 115 bis 120.
