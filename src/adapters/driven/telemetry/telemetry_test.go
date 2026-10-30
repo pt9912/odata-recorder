@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -366,7 +367,83 @@ func TestAdapterGleichzeitig(t *testing.T) {
 	}
 }
 
-// P19: Log wendet MinLevel nicht an: bei jeder Stufe des Aufrufs und jedem MinLevel zählt ein
+// P15: Snapshot liefert einen Stand zu einem Zeitpunkt (SPEC-230 Nr. 9). Schreiber zählen je Runde
+// zuerst E2001, dann einen unbekannten Code und dann ein Log mit zwei Verwürfen (schluessel, wert);
+// Leser lesen Stände, solange die Schreiber laufen. In jedem Stand gilt fehlercode <= E2001 <=
+// fehlercode + Zahl der Schreiber und schluessel == wert (ein Log zählt beide unter einer Sperre).
+// Ein Stand, dessen Errors und Dropped oder dessen Einträge von Dropped zu verschiedenen Zeiten
+// entstehen, bricht eine dieser Gleichungen; ein Zähler, dessen Verwürfe ein Log in getrennten
+// Abschnitten zählt, ebenso. Der Detektor meldet das nicht, weil jeder Zugriff unter einer Sperre
+// liegt. Durations und Spans ändert kein Aufruf dieses Teils, ein Fenster um sie sieht der Test nicht.
+func TestSnapshotZeitpunkt(t *testing.T) {
+	const schreiber, leser, runden = 8, 8, 2000
+	a, _ := neu(t)
+	start := make(chan struct{})
+	var schreibend, lesend sync.WaitGroup
+	var fertig atomic.Bool
+	var errorsZuFrueh, dropZuFrueh, getrennt, gelesen atomic.Int64
+	for range schreiber {
+		schreibend.Add(1)
+		go func() {
+			defer schreibend.Done()
+			<-start
+			for range runden {
+				a.CountError(model.CodeE2001)
+				a.CountError(0)
+				a.Log(context.Background(), slog.LevelInfo, "m", support.Str("x", "y"), support.Str("mode", "a b"))
+			}
+		}()
+	}
+	for range leser {
+		lesend.Add(1)
+		go func() {
+			defer lesend.Done()
+			<-start
+			for {
+				s := a.Snapshot()
+				e, f := s.Errors[model.CodeE2001], s.Dropped[support.VerwurfFehlercode]
+				if f > e {
+					errorsZuFrueh.Add(1)
+				}
+				if e > f+schreiber {
+					dropZuFrueh.Add(1)
+				}
+				if s.Dropped[support.VerwurfSchluessel] != s.Dropped[support.VerwurfWert] {
+					getrennt.Add(1)
+				}
+				gelesen.Add(1)
+				if fertig.Load() {
+					return
+				}
+			}
+		}()
+	}
+	close(start)
+	schreibend.Wait()
+	fertig.Store(true)
+	lesend.Wait()
+	if n := errorsZuFrueh.Load(); n != 0 {
+		t.Errorf("%d Stände mit fehlercode über E2001: Errors vor Dropped gelesen", n)
+	}
+	if n := dropZuFrueh.Load(); n != 0 {
+		t.Errorf("%d Stände mit E2001 über fehlercode plus %d Schreiber: Dropped vor Errors gelesen", n, schreiber)
+	}
+	if n := getrennt.Load(); n != 0 {
+		t.Errorf("%d Stände mit schluessel ungleich wert: die Verwürfe eines Log in getrennten Abschnitten gezählt oder gelesen", n)
+	}
+	if gelesen.Load() < leser {
+		t.Errorf("%d Stände gelesen, erwartet mindestens %d", gelesen.Load(), leser)
+	}
+	s := a.Snapshot()
+	const n = schreiber * runden
+	if s.Errors[model.CodeE2001] != n || s.Dropped[support.VerwurfFehlercode] != n ||
+		s.Dropped[support.VerwurfSchluessel] != n || s.Dropped[support.VerwurfWert] != n {
+		t.Errorf("E2001 %d, fehlercode %d, schluessel %d, wert %d; erwartet je %d", s.Errors[model.CodeE2001],
+			s.Dropped[support.VerwurfFehlercode], s.Dropped[support.VerwurfSchluessel], s.Dropped[support.VerwurfWert], n)
+	}
+}
+
+// P17: Log wendet MinLevel nicht an: bei jeder Stufe des Aufrufs und jedem MinLevel zählt ein
 // Verwurf (4 Stufen × 4 MinLevel).
 func TestLogOhneMinLevel(t *testing.T) {
 	stufen := []slog.Level{slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError}

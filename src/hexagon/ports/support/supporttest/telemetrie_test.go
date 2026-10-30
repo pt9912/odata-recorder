@@ -3,8 +3,10 @@ package supporttest_test
 import (
 	"context"
 	"log/slog"
+	"math"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -103,6 +105,193 @@ func TestFakeAufzeichnung(t *testing.T) {
 	}
 }
 
+// P11: jedes Argument jeder Operation mit Argumenten wird ungeprüft und unverändert festgehalten.
+// Mengen: Log 8 Stufen (von MinInt bis MaxInt, darunter eine Stufe unter Debug und eine über Error)
+// × 6 Texte (darunter der leere); StartSpan 9 Namen (darunter der leere und vier fremde) × 7
+// Attributlisten; Set 7 Attributlisten; CountError 9 Codes (darunter Codes mit hohen Bits). Die
+// Zählprüfung liest die Mengen, das Orakel sind die Werte, die der Test übergibt.
+func TestFakeArgumenteUngeprueft(t *testing.T) {
+	stufen := []slog.Level{math.MinInt, slog.LevelDebug - 1, slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError, slog.LevelError + 1, math.MaxInt}
+	texte := []string{"", " ", "a b", "Zeile\nUmbruch", string([]byte{0x80, 0}), "text"}
+	namen := []support.SpanName{"", " ", "unbekannt", "odata.mock.query "}
+	for _, s := range support.Spans() {
+		namen = append(namen, s.Name)
+	}
+	listen := [][]support.Attr{
+		nil,
+		{},
+		{{Key: "", Art: 99}},
+		{support.Str("ausserhalb_der_menge", "mit Leerraum")},
+		{{Key: "k", Art: 0}},
+		{{Key: "k", Art: -1, Gleit: math.Inf(1)}},
+		{support.Str("recorder.mode", "record"), support.Int("n", math.MinInt64)},
+	}
+	codes := []model.Code{0, -1, 1, model.CodeE4001, model.CodeE4001 + math.MaxInt>>1, math.MaxInt, math.MinInt, math.MaxInt - 1, math.MinInt + 1}
+	if len(stufen) != 8 || len(texte) != 6 || len(namen) != 9 || len(listen) != 7 || len(codes) != 9 {
+		t.Fatalf("Mengen %d, %d, %d, %d, %d; erwartet 8, 6, 9, 7, 9", len(stufen), len(texte), len(namen), len(listen), len(codes))
+	}
+
+	type erwartet struct {
+		op    supporttest.Operation
+		level slog.Level
+		msg   string
+		name  support.SpanName
+		attrs []support.Attr
+		code  model.Code
+	}
+	f := supporttest.NewFakeTelemetry()
+	ctx := context.WithValue(context.Background(), ctxSchluessel{}, "wert")
+	_, span := f.StartSpan(ctx, "start")
+	folge := []erwartet{{op: supporttest.OpStartSpan, name: "start"}}
+	for _, stufe := range stufen {
+		for _, text := range texte {
+			f.Log(ctx, stufe, text)
+			folge = append(folge, erwartet{op: supporttest.OpLog, level: stufe, msg: text})
+		}
+	}
+	for _, name := range namen {
+		for _, l := range listen {
+			f.StartSpan(ctx, name, l...)
+			folge = append(folge, erwartet{op: supporttest.OpStartSpan, name: name, attrs: l})
+		}
+	}
+	for _, l := range listen {
+		span.Set(l...)
+		folge = append(folge, erwartet{op: supporttest.OpSet, attrs: l})
+	}
+	for _, c := range codes {
+		f.CountError(c)
+		folge = append(folge, erwartet{op: supporttest.OpCountError, code: c})
+	}
+
+	a := f.Aufrufe()
+	if len(a) != len(folge) || len(folge) != 1+8*6+9*7+7+9 {
+		t.Fatalf("%d Aufrufe, erwartet %d", len(a), len(folge))
+	}
+	je := map[supporttest.Operation]int{}
+	for i, w := range folge {
+		je[w.op]++
+		g := a[i]
+		if g.Op != w.op || g.Level != w.level || g.Msg != w.msg || g.Name != w.name || g.Code != w.code {
+			t.Errorf("Aufruf %d: %+v, erwartet %+v", i, g, w)
+		}
+		if len(g.Attrs) != len(w.attrs) || (len(w.attrs) > 0 && !reflect.DeepEqual(g.Attrs, w.attrs)) {
+			t.Errorf("Aufruf %d: Attribute %+v, erwartet %+v", i, g.Attrs, w.attrs)
+		}
+		if (w.op == supporttest.OpLog || w.op == supporttest.OpStartSpan) && g.Ctx() != ctx {
+			t.Errorf("Aufruf %d: ctx nicht mit seiner Identität festgehalten", i)
+		}
+		if w.op == supporttest.OpSet && g.Span != span {
+			t.Errorf("Aufruf %d: Set am falschen Span", i)
+		}
+	}
+	for op, n := range je {
+		if f.Anzahl(op) != n {
+			t.Errorf("Anzahl(%d) = %d, erwartet %d", op, f.Anzahl(op), n)
+		}
+	}
+	if len(je) != 4 {
+		t.Errorf("%d Operationen geprüft, erwartet 4", len(je))
+	}
+}
+
+// P16: Anzahl und Aufrufe() sind für gleichzeitigen Aufruf sicher, auch gegen laufende Schreiber:
+// 8 Schreiber zeichnen je 300 Runden mit allen sechs Operationen auf; zwei Leser rufen Anzahl für
+// jede der sechs Operationen, zwei rufen Aufrufe(), solange die Schreiber laufen. Die Zähler fallen
+// nie, die Aufzeichnung wird nie kürzer, und jeder Eintrag trägt eine der sechs Operationen. Das
+// Fehlen der Sperre in Anzahl oder in Aufrufe() meldet der Detektor; die Wirkung zeigt der Test
+// nicht in jedem Lauf.
+func TestFakeLesenGleichzeitig(t *testing.T) {
+	const schreiber, runden = 8, 300
+	f := supporttest.NewFakeTelemetry()
+	ops := []supporttest.Operation{
+		supporttest.OpLog, supporttest.OpStartSpan, supporttest.OpCountError,
+		supporttest.OpSet, supporttest.OpEnd, supporttest.OpSnapshot,
+	}
+	start := make(chan struct{})
+	var fertig atomic.Bool
+	var fehler, gelesen atomic.Int64
+	var schreibend, lesend sync.WaitGroup
+	for range schreiber {
+		schreibend.Add(1)
+		go func() {
+			defer schreibend.Done()
+			<-start
+			for range runden {
+				_, sp := f.StartSpan(context.Background(), support.SpanMockQuery)
+				f.Log(context.Background(), slog.LevelInfo, "m")
+				sp.Set()
+				sp.End()
+				f.CountError(model.CodeE2001)
+				f.Snapshot()
+			}
+		}()
+	}
+	for range 2 {
+		lesend.Add(1)
+		go func() {
+			defer lesend.Done()
+			<-start
+			var zuletzt [6]int
+			for {
+				for k, op := range ops {
+					n := f.Anzahl(op)
+					if n < zuletzt[k] {
+						fehler.Add(1)
+					}
+					zuletzt[k] = n
+					gelesen.Add(1)
+				}
+				if fertig.Load() {
+					return
+				}
+			}
+		}()
+	}
+	for range 2 {
+		lesend.Add(1)
+		go func() {
+			defer lesend.Done()
+			<-start
+			zuletzt := 0
+			for {
+				a := f.Aufrufe()
+				if len(a) < zuletzt {
+					fehler.Add(1)
+				}
+				zuletzt = len(a)
+				for _, e := range a {
+					if e.Op < supporttest.OpLog || e.Op > supporttest.OpSnapshot {
+						fehler.Add(1)
+					}
+				}
+				gelesen.Add(1)
+				if fertig.Load() {
+					return
+				}
+			}
+		}()
+	}
+	close(start)
+	schreibend.Wait()
+	fertig.Store(true)
+	lesend.Wait()
+	if n := fehler.Load(); n != 0 {
+		t.Errorf("%d Lesefehler (ein Zähler fiel, die Aufzeichnung wurde kürzer oder ein Eintrag war unvollständig)", n)
+	}
+	if gelesen.Load() < 4 {
+		t.Errorf("%d Lesungen, erwartet mindestens 4", gelesen.Load())
+	}
+	for _, op := range ops {
+		if f.Anzahl(op) != schreiber*runden {
+			t.Errorf("Anzahl(%d) = %d, erwartet %d", op, f.Anzahl(op), schreiber*runden)
+		}
+	}
+	if n := len(f.Aufrufe()); n != 6*schreiber*runden {
+		t.Errorf("%d Einträge, erwartet %d", n, 6*schreiber*runden)
+	}
+}
+
 func TestFakeSnapshotStand(t *testing.T) {
 	f := supporttest.NewFakeTelemetry()
 	leererStand(t, f.Snapshot())
@@ -177,7 +366,7 @@ func TestFakeEltern(t *testing.T) {
 	})
 }
 
-// P18: jede der sechs Operationen hält den Span fest, den sie betrifft, und nur sie: zwei Spans,
+// P11: jede der sechs Operationen hält den Span fest, den sie betrifft, und nur sie: zwei Spans,
 // deren Enden in umgekehrter Reihenfolge stehen.
 func TestFakeSpanJeOperation(t *testing.T) {
 	f := supporttest.NewFakeTelemetry()

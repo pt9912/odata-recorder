@@ -190,10 +190,24 @@ const (
 	zGefuellt
 )
 
+// eintragLaengen sind die Zustände eines Eintrags: Länge von Counts bzw. Attrs als nil (-1), leer
+// (0) und gefüllt mit 1, 2 und 12 Elementen (12 ist die Länge von Counts im Adapter).
+func eintragLaengen() []int { return []int{-1, 0, 1, 2, 12} }
+
+// eintragLaenge ist die Länge an Position i, wenn Position p den Zustand z trägt; die übrigen
+// Positionen tragen reihum die vier anderen Zustände.
+func eintragLaenge(i, p, z int) int {
+	laengen := eintragLaengen()
+	if i == p {
+		return laengen[z]
+	}
+	return laengen[(z+1+i%4)%len(laengen)]
+}
+
 // kopieStand baut denselben Stand bei jedem Aufruf neu: je Sammlung der obersten Ebene ein Zustand;
-// ist sie gefüllt, tragen sechs Einträge die Zustände nil, leer, gefüllt reihum für Counts bzw.
-// Attrs, so dass jede Position beider Zustände mehrfach vorkommt.
-func kopieStand(zErrors, zDurations, zDropped, zSpans int) support.Snapshot {
+// ist sie gefüllt, hat sie sechs Einträge (Positionen 0 bis 5), deren Counts bzw. Attrs an
+// Position p den Zustand z von eintragLaengen tragen und an jeder anderen einen der übrigen.
+func kopieStand(zErrors, zDurations, zDropped, zSpans, p, z int) support.Snapshot {
 	var s support.Snapshot
 	switch zErrors {
 	case zLeer:
@@ -214,11 +228,11 @@ func kopieStand(zErrors, zDurations, zDropped, zSpans int) support.Snapshot {
 		s.Durations = map[support.SpanName]support.Verteilung{}
 		for i := range 6 {
 			v := support.Verteilung{Count: uint64(i + 1)}
-			switch i % 3 {
-			case zLeer:
-				v.Counts = []uint64{}
-			case zGefuellt:
-				v.Counts = []uint64{uint64(i), uint64(i) + 10}
+			if n := eintragLaenge(i, p, z); n >= 0 {
+				v.Counts = make([]uint64, n)
+				for j := range v.Counts {
+					v.Counts[j] = uint64(10*i + j + 1)
+				}
 			}
 			s.Durations[support.SpanName(fmt.Sprintf("span.%d", i))] = v
 		}
@@ -230,11 +244,15 @@ func kopieStand(zErrors, zDurations, zDropped, zSpans int) support.Snapshot {
 		s.Spans = []support.SpanRecord{}
 		for i := range 6 {
 			r := support.SpanRecord{ID: fmt.Sprintf("spn-%d", i)}
-			switch i % 3 {
-			case zLeer:
-				r.Attrs = []support.Attr{}
-			case zGefuellt:
-				r.Attrs = []support.Attr{support.Str("k", "v"), support.Int("n", int64(i))}
+			if n := eintragLaenge(i, p, z); n >= 0 {
+				r.Attrs = make([]support.Attr, n)
+				for j := range r.Attrs {
+					if j%2 == 0 {
+						r.Attrs[j] = support.Str("k", "v")
+					} else {
+						r.Attrs[j] = support.Int("n", int64(10*i+j))
+					}
+				}
 			}
 			s.Spans = append(s.Spans, r)
 		}
@@ -266,9 +284,34 @@ func kopieAendern(s *support.Snapshot) {
 	}
 }
 
-// Snapshot.Kopie ist tief und erhält nil und leer (SPEC-230 Nr. 9): 3 Zustände je Sammlung der
-// obersten Ebene (4 Sammlungen, 81 Stände), in den gefüllten Durations 6 Verteilungen und in den
-// gefüllten Spans 6 Einträge mit je einem der 3 Zustände von Counts bzw. Attrs; beide Richtungen.
+// kopiePruefen prüft einen Stand in beide Richtungen: die Kopie gleicht dem Stand, eine Änderung an
+// der Kopie wirkt nicht auf das Original und eine Änderung am Original nicht auf die Kopie.
+func kopiePruefen(t *testing.T, name string, bau func() support.Snapshot) {
+	t.Helper()
+	ref := bau()
+	s := bau()
+	k := s.Kopie()
+	if !reflect.DeepEqual(k, ref) {
+		t.Errorf("%s: Kopie %+v weicht von %+v ab", name, k, ref)
+	}
+	kopieAendern(&k)
+	if !reflect.DeepEqual(s, ref) {
+		t.Errorf("%s: Änderung an der Kopie wirkt auf das Original", name)
+	}
+	s2 := bau()
+	k2 := s2.Kopie()
+	kopieAendern(&s2)
+	if !reflect.DeepEqual(k2, ref) {
+		t.Errorf("%s: Änderung am Original wirkt auf die Kopie", name)
+	}
+}
+
+// Snapshot.Kopie ist tief und erhält nil und leer (SPEC-230 Nr. 9), beide Richtungen. Zwei Mengen:
+// (1) 3 Zustände je Sammlung der obersten Ebene (4 Sammlungen, 81 Stände); (2) das volle Produkt
+// Position × Zustand der Einträge: in den gefüllten Durations die Counts von 6 Positionen, in den
+// gefüllten Spans die Attrs von 6 Positionen, je Position 5 Zustände (nil, leer, 1, 2 und 12
+// Elemente), 30 Stände, in denen jede Position jeden Zustand trägt. Die Zählprüfung liest die Stände
+// selbst, nicht die Zähler der Schleifen.
 func TestSnapshotKopie(t *testing.T) {
 	staende := 0
 	for zE := zNil; zE <= zGefuellt; zE++ {
@@ -276,28 +319,48 @@ func TestSnapshotKopie(t *testing.T) {
 			for zR := zNil; zR <= zGefuellt; zR++ {
 				for zS := zNil; zS <= zGefuellt; zS++ {
 					staende++
-					ref := kopieStand(zE, zD, zR, zS)
-					s := kopieStand(zE, zD, zR, zS)
-					k := s.Kopie()
-					if !reflect.DeepEqual(k, ref) {
-						t.Errorf("Zustände %d %d %d %d: Kopie %+v weicht von %+v ab", zE, zD, zR, zS, k, ref)
-					}
-					kopieAendern(&k)
-					if !reflect.DeepEqual(s, ref) {
-						t.Errorf("Zustände %d %d %d %d: Änderung an der Kopie wirkt auf das Original", zE, zD, zR, zS)
-					}
-					s2 := kopieStand(zE, zD, zR, zS)
-					k2 := s2.Kopie()
-					kopieAendern(&s2)
-					if !reflect.DeepEqual(k2, ref) {
-						t.Errorf("Zustände %d %d %d %d: Änderung am Original wirkt auf die Kopie", zE, zD, zR, zS)
-					}
+					kopiePruefen(t, fmt.Sprintf("Zustände %d %d %d %d", zE, zD, zR, zS), func() support.Snapshot {
+						return kopieStand(zE, zD, zR, zS, 0, 3)
+					})
 				}
 			}
 		}
 	}
-	voll := kopieStand(zGefuellt, zGefuellt, zGefuellt, zGefuellt)
+	voll := kopieStand(zGefuellt, zGefuellt, zGefuellt, zGefuellt, 0, 3)
 	if staende != 81 || len(voll.Durations) != 6 || len(voll.Spans) != 6 {
 		t.Errorf("Zählprüfung: %d Stände, %d Verteilungen, %d Spans; erwartet 81, 6, 6", staende, len(voll.Durations), len(voll.Spans))
 	}
+
+	if len(eintragLaengen()) != 5 {
+		t.Fatalf("%d Zustände der Einträge, erwartet 5", len(eintragLaengen()))
+	}
+	produkt := 0
+	countsGesehen := map[[2]int]bool{}
+	attrsGesehen := map[[2]int]bool{}
+	for p := range 6 {
+		for z := range eintragLaengen() {
+			produkt++
+			s := kopieStand(zGefuellt, zGefuellt, zGefuellt, zGefuellt, p, z)
+			for i := range 6 {
+				c := s.Durations[support.SpanName(fmt.Sprintf("span.%d", i))].Counts
+				countsGesehen[[2]int{i, laengeVon(c == nil, len(c))}] = true
+				a := s.Spans[i].Attrs
+				attrsGesehen[[2]int{i, laengeVon(a == nil, len(a))}] = true
+			}
+			kopiePruefen(t, fmt.Sprintf("Position %d, Zustand %d", p, z), func() support.Snapshot {
+				return kopieStand(zGefuellt, zGefuellt, zGefuellt, zGefuellt, p, z)
+			})
+		}
+	}
+	if produkt != 30 || len(countsGesehen) != 30 || len(attrsGesehen) != 30 {
+		t.Errorf("Zählprüfung: %d Stände, %d Paare Position × Zustand in Counts, %d in Attrs; erwartet je 30", produkt, len(countsGesehen), len(attrsGesehen))
+	}
+}
+
+// laengeVon ist die Länge eines Slices als eintragLaengen sie führt: nil als -1.
+func laengeVon(istNil bool, n int) int {
+	if istNil {
+		return -1
+	}
+	return n
 }
