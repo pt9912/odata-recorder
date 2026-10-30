@@ -254,7 +254,14 @@ func TestHandbuchVersionGruende(t *testing.T) {
 		}
 		zeilen := befundZeilen(t, errText)
 		soll := "version: Ausgabe nicht lesbar: " + f.soll
-		if len(zeilen) != 1 || (zeilen[0] != soll && !(f.std && !f.err && !f.exit && !f.signal && strings.HasPrefix(zeilen[0], soll))) {
+		if len(zeilen) != 1 {
+			t.Fatalf("%+v: %q, erwartet %q", f, zeilen, soll)
+		}
+		gleich := zeilen[0] == soll
+		if f.soll == std {
+			gleich = strings.HasPrefix(zeilen[0], soll)
+		}
+		if !gleich {
 			t.Fatalf("%+v: %q, erwartet %q", f, zeilen, soll)
 		}
 	}
