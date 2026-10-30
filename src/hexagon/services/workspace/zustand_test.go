@@ -357,13 +357,18 @@ func befundeVon(t *testing.T, name, src string) []string {
 	return dateiBefunde(fset, f)
 }
 
-// TestZustandFormen (Z57): die Regeln fangen die Klasse, nicht die genannten Beispiele. Zwei Schleifen: Schreibform ×
-// Wurzel × Ort (8 × 6 × 10 = 480 Quelltexte, jeder mit mindestens einem Befund) und die übrigen Klassen (Typ, Variable,
-// Import, Aufruf, Kopie des Empfängers); dazu die Gutfälle ohne Befund. Nicht erfasst (akzeptiertes Negativ): eine Sperre
-// über einen Kanal, eine Goroutine aus einer erlaubten Funktion der Standardbibliothek und Zustand in einem Port.
-// Grund: ein Quelltext-Test sieht Schreibweisen im Paket, keine Wirkung. Folge: ein solcher Weg bleibt dem Review.
+// TestZustandFormen (Z57): die Regeln fangen die Klasse, nicht die genannten Beispiele. Drei Schleifen: Schreibform ×
+// Wurzel × Ort am Empfänger (11 × 6 × 10 = 660 Quelltexte, jeder mit mindestens einem Befund), Parametertyp × Wurzel ×
+// Schreibform × Ort am Parameter (4 × 6 × 11 × 2 = 528 Quelltexte; der Empfänger ist dort kein Teil der Menge, sodass
+// allein die Schreibregel greift) und die übrigen Klassen (Typ, Variable, Import, Aufruf, Kopie des Empfängers); dazu die
+// Gutfälle ohne Befund. Nicht erfasst (akzeptiertes Negativ): eine Sperre über einen Kanal, eine Goroutine aus einer
+// erlaubten Funktion der Standardbibliothek und Zustand in einem Port; ebenso ein Schreibzugriff über einen Parameter
+// vom Typ `***Konfig` oder `[]Konfig`. Grund: ein Quelltext-Test sieht Schreibweisen im Paket, keine Wirkung, und die
+// Regel nennt Parameter vom Typ Verwaltung oder Konfig, auch als Zeiger; kein Port und keine Funktion des Pakets nimmt
+// einen Mehrfachzeiger oder Slice davon. Folge: ein solcher Weg bleibt dem Review.
 func TestZustandFormen(t *testing.T) {
-	formen := []string{"%s = nil", "%s += 1", "%s++", "%s--", "_ = &%s", "%s, _ = a, b", "for %s = range s {\n}", "%s[\"m\"] = 1"}
+	formen := []string{"%s = nil", "%s += 1", "%s++", "%s--", "_ = &%s", "%s, _ = a, b", "_, %s = a, b",
+		"for %s = range s {\n}", "for _, %s = range s {\n}", "%s[\"m\"] = 1", "%s[1:2][0] = 1"}
 	wurzeln := []string{"v.k.Uhr", "v.k.Log", "v.k.Workspaces", "v.k", "*v", "v"}
 	orte := []string{"Create", "Reset", "Delete", "Get", "List", "baseline", "transaktion", "protokolliere", "FuncLit", "New"}
 	n := 0
@@ -393,8 +398,33 @@ func TestZustandFormen(t *testing.T) {
 			}
 		}
 	}
-	if n != 8*6*10 {
-		t.Errorf("%d Elemente, erwartet 480", n)
+	if n != 11*6*10 {
+		t.Errorf("%d Elemente, erwartet 660", n)
+	}
+	parameterWurzeln := map[bool][]string{
+		true:  {"p.k", "p.k.Uhr", "*p", "(*p).k", "(p).k.Uhr", "(p.k).Uhr"},
+		false: {"p.Uhr", "p.Workspaces", "*p", "(*p).Uhr", "(p).Uhr", "(p.Uhr)"},
+	}
+	np := 0
+	for _, typ := range []string{"Verwaltung", "*Verwaltung", "Konfig", "*Konfig"} {
+		for _, w := range parameterWurzeln[strings.HasSuffix(typ, "Verwaltung")] {
+			for _, form := range formen {
+				anweisung := fmt.Sprintf(form, w)
+				for _, ort := range []string{"freie Funktion", "Methode"} {
+					kopf := "func f(p " + typ + ") {\n" + anweisung + "\n}"
+					if ort == "Methode" {
+						kopf = "func (v *Verwaltung) M(p " + typ + ") {\n" + anweisung + "\n}"
+					}
+					np++
+					if len(befundeVon(t, typ+"/"+w+"/"+form+"/"+ort, quelle(kopf, "", ""))) == 0 {
+						t.Errorf("kein Befund: %q an %s als Parameter %s in %s", form, w, typ, ort)
+					}
+				}
+			}
+		}
+	}
+	if np != 4*6*11*2 {
+		t.Errorf("%d Parameter-Elemente, erwartet 528", np)
 	}
 	uebrige := map[string]string{
 		"Typ mit Feld":                  quelle("type z struct{ n int }", "", ""),
@@ -447,13 +477,16 @@ func TestZustandFormen(t *testing.T) {
 		"Methode des Dienstes":       quelle("", "", "_ = v.baseline(1)"),
 		"Typ eintrag":                quelle("type eintrag struct{ n int }", "", ""),
 		"Import aus der Liste":       "package p\n\nimport (\n\t\"context\"\n\t\"errors\"\n)\n",
+		"Parameter anderen Typs":     quelle("func f(p Fremd) {\n\tp.n = 1\n\t*p = Fremd{}\n}", "", ""),
+		"bloßer Name Parameter":      quelle("func f(p Konfig) {\n\tp = Konfig{}\n}", "", ""),
+		"Parameter lesen":            quelle("func f(p *Konfig) int {\n\treturn p.Uhr\n}", "", ""),
 	}
 	for name, src := range gut {
 		if b := befundeVon(t, name, src); len(b) != 0 {
 			t.Errorf("Gutfall %s: %v", name, b)
 		}
 	}
-	if len(gut) != 8 {
-		t.Errorf("%d Gutfälle, erwartet 8", len(gut))
+	if len(gut) != 11 {
+		t.Errorf("%d Gutfälle, erwartet 11", len(gut))
 	}
 }
