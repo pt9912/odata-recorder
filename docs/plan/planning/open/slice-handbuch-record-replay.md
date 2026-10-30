@@ -47,7 +47,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Mock-Modus, Hybrid-Modus, Fallback, Admin-API, Snapshots, Telemetrie, TLS des Listeners — Folgewellen (Welle §6); ihre Kapitel entstehen dort.
+- Mock-Modus, Hybrid-Modus, Fallback, Admin-API, Snapshots, Telemetrie, TLS des Listeners — Folgewellen (Welle §6); ihre Kapitel entstehen dort. Was das Binary nach `slice-bootstrap-m2` nicht kann, steht gar nicht im Handbuch, auch nicht als Hinweis „folgt“ oder „nicht verfügbar“ (Welle §1, Entscheidung des Users); Schlüssel, die das Binary ablehnt (`SPEC-110` Nr. 2: `ADMIN_*`, `HYBRID_*`, `FALLBACK_*`, `LISTEN_TLS_*`, `STRICT_COVERAGE`, `PUBLIC_BASE_URL`), erscheinen nicht als Konfiguration, die der Anwender setzen kann. Ob die Fehlermeldung beim Setzen eines solchen Schlüssels (`ODR-E2001`) im Kapitel Fehlerbehebung steht, ist Ist-Zustand und entscheidet der Architect.
+- Kapitel zur Startkonfiguration gehören hierher, nicht ins Gerüst: Erst `slice-bootstrap-m2` verdrahtet `LadeOderMelde` im Binary.
 - Zahlen zur Performance (`LH-QA-01`) — ungeprüft (Lasttest fehlt, `welle-record-replay` §6); das Handbuch sagt nichts zu.
 - Der Probelauf durch eine Rolle ohne Vorwissen — `slice-handbuch-abnahme`; dieser Slice belegt Beispiele durch Tests, nicht die Verständlichkeit.
 - Änderungen am Binary, am Referenzdienst oder am M2-Test — andere Schicht; ein Unterschied zwischen Spezifikation und Binary ist ein Befund an den Planner (die Nehmer liegen in `done/`, `AGENTS.md` §3.13).
@@ -76,7 +77,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update: Handbuch ist das Update; Kopf (Stand, Software-Version) und Änderungsverlauf nachgezogen.
+- [ ] Doku-Update: Handbuch ist das Update; Kopf (Stand, Software-Version) nachgezogen; es entsteht kein Änderungsverlauf (Welle §1).
 - [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
 - [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).

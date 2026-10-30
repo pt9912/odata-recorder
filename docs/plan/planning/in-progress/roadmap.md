@@ -34,7 +34,7 @@ und geschätzter Aufwand (S/M/L, kein Termin).
 | Welle | Trigger | Wichtigste Slices | Geschätzter Aufwand |
 |---|---|---|---|
 | welle-dev-container | welle-fundament done | Gerüst des Arbeitscontainers mit `u-boot` am Host (privilegierter Container mit eigenem Docker-Daemon, SSH-Zugang, Schlüsselpaar), Start mit Bereitschaftsprobe, Bare-Repo und Klon samt Einlieferung per Zweig, Lauf von `make gates` und `make gegenproben` im Container, Dokument für Entwickler | L |
-| [welle-benutzerhandbuch](../welle-benutzerhandbuch.md) | `slice-groessenmarke-werkzeug` in `done/`; die Kapitel über Aufzeichnen und Wiedergeben warten auf `slice-bootstrap-m2` in `done/` | Gerüst von docs/user/benutzerhandbuch.md samt Anpassung des Standards, Abgleich der Fehlercodes `ODR-E…` zwischen Code, Spezifikation und Handbuch, Kapitel Aufzeichnen und Wiedergeben mit belegten Beispielen, Probelauf durch eine Rolle ohne Vorwissen | M |
+| [welle-benutzerhandbuch](../welle-benutzerhandbuch.md) | `slice-groessenmarke-werkzeug` in `done/`; der Abgleich und die Kapitel über Aufzeichnen und Wiedergeben warten auf `slice-bootstrap-m2` in `done/` | Gerüst von docs/user/benutzerhandbuch.md samt Anpassung des Standards, Abgleich der Fehlercodes `ODR-E…` zwischen Code, Spezifikation und Handbuch, Kapitel Aufzeichnen und Wiedergeben mit belegten Beispielen, Probelauf durch eine Rolle ohne Vorwissen | M |
 
 ## Meilensteine
 

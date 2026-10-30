@@ -35,14 +35,15 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Eine Rolle ohne Vorwissen führt jede Aufgabe des Handbuchs allein nach dem Handbuch am gebauten Binary aus; die Befunde sind behoben oder tragen einen Ausgang, und Kopf (Handbuch-Version, Software-Version, Stand) und Änderungsverlauf stimmen mit dem gebauten Binary überein.
+**Ziel:** Eine Rolle ohne Vorwissen führt jede Aufgabe des Handbuchs allein nach dem Handbuch am gebauten Binary aus; die Befunde sind behoben oder tragen einen Ausgang, und Kopf (Handbuch-Version, Software-Version, Stand, Gültigkeitsbereich) stimmt mit dem gebauten Binary überein; das Handbuch enthält nichts Geplantes und keine Chronik (Welle §1).
 
 **Auftrag an den Architect** (vor dem Lauf; `AGENTS.md` §3.12, §3.16):
 
 1. **Form des Probelaufs.** Eingabe der Rolle: nur das Handbuch und das gebaute Binary samt Docker (kein Quelltext, keine Spezifikation, kein Plan, kein Zugriff auf `spec/`, `src/`, `docs/plan/`); Ausgabe: ein Bericht je Aufgabe (ausgeführt ohne Rückfrage ja oder nein, Schritt der ersten Rückfrage, Abweichung zwischen Handbuch und Binary). Der Architect legt das Schema des Berichts und den Ablageort fest und nennt, wie der Lauf die Eingabe begrenzt (ein Rollenlauf mit eigenem Arbeitsverzeichnis, der nur das Handbuch enthält, ist der Vorschlag des Planners).
 2. **Prüfliste.** Standard Abschnitt 13 als Liste von Prüfpunkten, je Punkt Quelle des Urteils (Gate, Probelauf oder Mensch): beschriebene Funktionen vorhanden, Befehle und Ausgaben stimmen, Fehlermeldungen richtig beschrieben, tote Links (Gate), sensible Daten entfernt, Sprache einheitlich. Punkte, die der Standard für eine Oberfläche nennt (Button-Namen, Screenshots, PDF, Suche), entfallen mit Grund nach der Anpassung aus `slice-handbuch-geruest`.
 3. **Behandlung der Befunde.** Ein Befund über das Handbuch behebt der Implementer in diesem Slice; ein Befund über das Binary (das Handbuch ist richtig, das Binary weicht von der Spezifikation ab) ist ein Befund an den Planner mit der Kennung des Nehmers in `done/` (`AGENTS.md` §3.13), kein Code in diesem Slice.
-4. **Pflege von Kopf und Verlauf.** Wer Version und Stand setzt, und woran ein Nachzug scheitert, wenn das Binary eine andere Version meldet (Beleg: Ausgabe von `version`).
+4. **Abgleich des Kopfs.** Wer Software-Version und Stand setzt, und woran ein Nachzug scheitert, wenn das Binary eine andere Version meldet (Beleg: Ausgabe von `version`); das `Stand`-Datum ist Zustand (Tag der Prüfung), kein Verlauf. Einen Änderungsverlauf gibt es nicht (Entscheidung des Users, Welle §1).
+5a. **Prüfpunkt „Geplantes und Chronik“.** Der Probelauf und die Prüfliste (Nr. 2) lesen das Handbuch auf Ausblick und Verlauf ohne Stichwort, den der Fänger aus `slice-handbuch-geruest` (Auftrag Nr. 10) nicht findet; jeder Fund ist ein Befund, und er geht, wenn er ein Muster zeigt, als Erweiterung der Menge an den Fänger zurück.
 5. Raster *Operation × Argumentart* (§6) und Tabelle *Zusage · Fänger* (§3) füllen, Größe angeben.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
@@ -71,7 +72,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Probelauf nach Auftrag Nr. 1 gefahren, Bericht je Aufgabe liegt im Repo (Ablage nach Architect); jeder Befund ist im Handbuch behoben oder trägt einen Ausgang in §6 (`LH-QA-05`).
-- [ ] Prüfliste nach Nr. 2 abgearbeitet; Kopf und Änderungsverlauf stimmen mit der Ausgabe von `version` überein.
+- [ ] Prüfliste nach Nr. 2 abgearbeitet; Kopf stimmt mit der Ausgabe von `version` überein; kein Fund zu Geplantem oder Chronik (Nr. 5a).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -92,7 +93,7 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | Bericht des Probelaufs | neu | Ablage und Schema nach Auftrag Nr. 1 |
-| docs/user/benutzerhandbuch.md | update | Behebung der Befunde, Kopf und Änderungsverlauf |
+| docs/user/benutzerhandbuch.md | update | Behebung der Befunde, Kopf |
 
 Der Architect füllt die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und ergänzt die Zeilen oben; sie ist beim Start leer.
 

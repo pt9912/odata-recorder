@@ -113,7 +113,7 @@ Der Architect füllt die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und er
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-handbuch-geruest` liegt in `done/` (der Abschnitt der Fehlercodes hat dort seinen Platz im Kapitel Fehlerbehebung); der Architect hat die Aufträge aus §1 beantwortet, die Tabelle in §3 und das Raster in §6 gefüllt, bevor der erste Code-Commit entsteht.
+**Start** (`next` → `in-progress`): `slice-handbuch-geruest` und `slice-bootstrap-m2` liegen in `done/` (das Gerüst trägt den Ort der Abschnitte; erst nach M2 liest das Binary Schlüssel und erzeugt Fehlercodes, `Run` ruft heute weder `LadeKonfiguration` noch `LadeOderMelde`); der Architect hat die Aufträge aus §1 beantwortet, die Tabelle in §3 und das Raster in §6 gefüllt, bevor der erste Code-Commit entsteht.
 
 **Größenmarke** (`AGENTS.md` §3.14): noch nicht gesetzt. Der Planner setzt sie nach dem Architect mit `make groessenmarke` (`SPEC-128`) aus der Tabelle in §3, Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen. Der Slice liefert einen Leser fremder Bytes (Quelltext-Tabelle, Spezifikation und Handbuch als Texte, die ein anderer schreibt): Zeilen der Tabelle × 65 statt × 40, dazu die Produktcode-Größe des Architect, × 1,25.
 
