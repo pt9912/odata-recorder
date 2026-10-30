@@ -201,9 +201,9 @@ linters:
         path: ^(src/bootstrap|test)/
         text: os\.Std(out|err)
 
-      # Why: Die Programme der Gegenproben und der Prüfung haben je einen eigenen Einstieg
-      # und verbinden dort den Prozess mit seinen Standard-Strömen.
+      # Why: Die Programme der Gegenproben, der Größenmarke und der Prüfung haben je einen eigenen
+      # Einstieg und verbinden dort den Prozess mit seinen Standard-Strömen.
       - linters:
           - forbidigo
-        path: ^tools/(gegenproben|pruefung)/main\.go$
+        path: ^tools/(gegenproben|groessenmarke|pruefung)/main\.go$
         text: os\.Std(out|err)

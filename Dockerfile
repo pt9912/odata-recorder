@@ -29,6 +29,17 @@ COPY tools/pruefung ./
 RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-formatiert:"; echo "$f"; exit 1; }; } \
  && go vet ./... && go test ./... && go build -trimpath -buildvcs=false -o /out/pruefung .
 
+# --- groessenmarke: das Programm aus tools/groessenmarke rechnet und prüft die Größenmarke eines
+# Slice-Plans (SPEC-128). Es wird geprüft (gofmt, vet, Test) und gebaut; das Ziel `make groessenmarke`
+# führt es aus dieser Stufe aus, ohne Netz und ohne Mount.
+FROM deps AS groessenmarke
+WORKDIR /gm
+COPY tools/groessenmarke ./
+RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-formatiert:"; echo "$f"; exit 1; }; } \
+ && go vet ./... && go test ./... && go build -trimpath -buildvcs=false -o /usr/local/bin/groessenmarke .
+WORKDIR /work
+ENTRYPOINT ["/usr/local/bin/groessenmarke"]
+
 # --- test: Formatierung (gofmt nennt die nicht formatierten Dateien), vet und
 # Unit-Tests, gefahren von pruefung.
 FROM source AS test
@@ -64,7 +75,8 @@ COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
 RUN --network=none pruefung race /src
 
 # --- lint: golangci-lint nach .golangci.yml und die eigenen Prüfungen von tools/harness/lint.sh
-# auf dem Quellstand und auf tools/gegenproben und tools/pruefung; die Module kommen aus deps.
+# auf dem Quellstand und auf tools/gegenproben, tools/groessenmarke und tools/pruefung; die Module
+# kommen aus deps.
 FROM ${LINT_IMAGE} AS lint
 WORKDIR /src
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
@@ -72,6 +84,7 @@ COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY --from=source /src ./
 COPY .golangci.yml ./
 COPY tools/gegenproben tools/gegenproben
+COPY tools/groessenmarke tools/groessenmarke
 COPY tools/pruefung tools/pruefung
 COPY tools/harness/lint.sh /usr/local/bin/lint.sh
 RUN --network=none sh /usr/local/bin/lint.sh

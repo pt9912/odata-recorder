@@ -124,6 +124,6 @@ Pläne in `docs/plan/planning/in-progress/`, die keinen vollständigen Block tra
 
 **Gegenprobe:** Die Fälle 38 bis 120 von `SPEC-102` fahren das Programm in Wegwerfverzeichnissen (die drei Messpunkte, die Grenzen der Marke und der Messung, die Einträge und Paare, die Formen der Tabelle, des Blocks und der Messung) und den Treiber mit Ersatz-Skripten für `git` und für das Programm, die jeden Aufruf zählen, sowie mit dem echten `git` des Images.
 
-**Stand:** festgelegt; Programm, Treiber, Stufe, Ziel und Fälle sind noch nicht geliefert, und die Zeile des Ziels steht noch nicht in `harness/README.md`.
+**Stand:** geliefert sind das Programm `groessenmarke`, die Treiber, die Stufe `groessenmarke` des `Dockerfile`, das Ziel in `GATE_CHECKS` und die Zeile des Ziels in `harness/README.md`; die Fälle 38 bis 120 von `SPEC-102` sind noch nicht geliefert.
 
 **Grenze:** Das Ziel belegt, dass die Marke jedes Plans mit vollständigem Block die Formel dieses Vertrags ist und dass die gemessene Größe auf ihr liegt oder einen Eintrag mit Grund hat. Was es nicht sieht, steht in Nr. 10; es beurteilt weder die Faktoren noch die Zählung noch die Rückführung.

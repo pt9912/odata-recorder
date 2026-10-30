@@ -9,4 +9,6 @@
 !.a-check.yml
 !tools/gegenproben
 !tools/pruefung
+!tools/groessenmarke
+!tools/harness/groessenmarke.sh
 !tools/harness/migration-check.sh
