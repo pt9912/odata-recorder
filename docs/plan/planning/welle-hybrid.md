@@ -43,6 +43,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - Alle Slices der Welle liegen in `done/`.
 - `make gates` ist grün; `make gegenproben` ist grün.
 - Der M4-Test aus `slice-bootstrap-m4` ist grün und Teil von `make test`; der Referenzdienst zählt seine Verbindungen und Methoden: ein Treffer des Mock ergibt 0 Verbindungen; eine lesende Anfrage bei unvollständiger Coverage mit `HYBRID_FALLBACK=enabled` und freigegebenem Host genau eine lesende Verbindung, dieselbe Anfrage ohne Freigabe `ODR-E6003` und 0; ein POST auf eine nicht unterstützte Operation ohne Eintrag in `FALLBACK_WRITE_ALLOW` 0, mit passendem Eintrag eine; ein Replay-Miss `ODR-E5001` mit Opt-in nur für GET und HEAD zum freigegebenen Host, ein erschöpfter Key `ODR-E5002` und fachliche `404` und `409` 0.
+- Das Handbuch deckt alles ab, was das Binary dieser Welle kann (Modus `hybrid`, Schlüssel, Fehlercodes); das Kataloge-Gate aus `slice-handbuch-meldungskatalog` ist grün.
 - Die Closure-Notiz liegt als `welle-hybrid-results.md` im Ruheort `done/`; ihre *Steering-Loop-Einträge* tragen je verkörperter Regel mit dem Anker `seit welle-hybrid` das Feld `liegt in`.
 
 ## 4. Slices in dieser Welle
@@ -58,6 +59,8 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-bootstrap-m4 | Modus `hybrid` im Composition Root, Konfiguration (`HYBRID_*`, `FALLBACK_*`), M4-Test mit Verbindungszähler am Referenzdienst | `LH-FA-12`, `LH-QA-02`; `SPEC-110`, `SPEC-075` |
 
 Die Slice-Dateien legt `plan-welle` (Schritt 6) beim Start der Welle an: Ein Slice-Plan altert vor seinem Start, und die Pläne dieser Welle hängen an Zahlen und Verträgen von `welle-mock`.
+
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. `plan-welle` (Schritt 6) übernimmt ihn in jede Slice-Datei; in dieser Welle trägt ihn `slice-bootstrap-m4` (Modus `hybrid`, Schlüssel `HYBRID_*` und `FALLBACK_*`), `slice-fallback-policy` und `slice-hybrid-service` nur, soweit sie einen Fehlercode in den Katalog bringen.
 
 ## 5. Abhängigkeiten
 

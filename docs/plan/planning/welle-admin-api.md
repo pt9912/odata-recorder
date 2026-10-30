@@ -45,6 +45,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - Der M6-Test aus `slice-bootstrap-m6` ist grün und Teil von `make test`: der Rundlauf aus §1 ausschließlich über Admin-Listener und OData-Listener, jeder Schreibendpunkt hinterlässt einen Audit-Eintrag, und `GET /healthz` antwortet ohne Token.
 - Der Sicherheitsnachweis aus `slice-test-security` ist grün und Teil der Gate-Kette: Canary-Secrets in Headern, Query-Parametern und Body-Feldern erscheinen in keinem Speicher- und Log-Artefakt, jeder Admin-Endpunkt außer `GET /healthz` weist ohne Token mit `ODR-E2101` ab, und der Admin-Listener ist nur über Loopback oder mit TLS erreichbar (`LH-QA-04.a`).
 - Ein nicht autorisierter Client, der einen Import anfordert, wird ohne Änderung abgewiesen (`LH-FA-18`).
+- Das Handbuch deckt alles ab, was das Binary dieser Welle kann (Admin-Listener, Token, Schlüssel `ADMIN_*`, Endpunkte, Kommandos, Fehlercodes); das Kataloge-Gate aus `slice-handbuch-meldungskatalog` ist grün.
 - Die Closure-Notiz liegt als `welle-admin-api-results.md` im Ruheort `done/`; ihre *Steering-Loop-Einträge* tragen je verkörperter Regel mit dem Anker `seit welle-admin-api` das Feld `liegt in`.
 
 ## 4. Slices in dieser Welle
@@ -66,6 +67,8 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-bootstrap-m6 | Composition Root für den Admin-Listener und M6-Test (Rundlauf über HTTP) | `LH-FA-13`, `LH-FA-18`; `SPEC-110` |
 
 Die Slice-Dateien legt `plan-welle` (Schritt 6) beim Start der Welle an: Ein Slice-Plan altert vor seinem Start, und die Pläne dieser Welle hängen an den Verträgen von `welle-betrieb` (Audit, Telemetry, TLS).
+
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. `plan-welle` (Schritt 6) übernimmt ihn in jede Slice-Datei; in dieser Welle betrifft er fast alle Slices (Endpunkte, `ADMIN_*`, Token, `ODR-E2101`). Für `slice-cli-kommandos` gilt: Ein Kommando steht im Katalog nur mit Anforderung und Vertrag; fehlen sie (siehe Bericht, Frage 3), entsteht weder Kommando noch Handbuch-Eintrag.
 
 ## 5. Abhängigkeiten
 

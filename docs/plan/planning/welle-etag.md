@@ -44,6 +44,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - `make gates` ist grün; `make gegenproben` ist grün.
 - Ein Test im Modus `mock` liest eine Entity zweimal mit gleichem ETag, ändert sie mit aktuellem `If-Match` (neues ETag sichtbar), weist dieselbe Änderung mit dem alten ETag mit `412` ab (Zustand unverändert) und führt `Prefer: return=minimal` und `return=representation` für POST, PATCH und PUT aus; die als Soll geführten Zeilen der Matrix `SPEC-049` (Header und Fehler) sind grün.
 - Liegt `welle-hybrid` in `done/`, deckt der Test auch den Fall, dass ein `412` im Modus `hybrid` keinen Fallback auslöst (`LH-FA-12.b`).
+- Das Handbuch deckt alles ab, was das Binary dieser Welle kann (ETag, `If-Match`, `Prefer`, Fehlercode für `412`); das Kataloge-Gate aus `slice-handbuch-meldungskatalog` ist grün.
 - Die Closure-Notiz liegt als `welle-etag-results.md` im Ruheort `done/`.
 
 ## 4. Slices in dieser Welle
@@ -59,6 +60,8 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-prefer-return | `Prefer: return=minimal` und `return=representation` für mutierende Requests | `LH-FA-07`; `LH-FA-07.b`, `SPEC-049` |
 
 Die Slice-Dateien legt `plan-welle` (Schritt 6) beim Start der Welle an: Ein Slice-Plan altert vor seinem Start, und diese Welle beginnt erst nach `welle-mock`.
+
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. `plan-welle` (Schritt 6) übernimmt ihn in jede Slice-Datei; in dieser Welle betrifft er alle drei Slices (ETag-Header, `412`, `Prefer`).
 
 ## 5. Abhängigkeiten
 

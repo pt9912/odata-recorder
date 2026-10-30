@@ -47,6 +47,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - Der HTTPS-Test am OData-Listener ist grün: gültiges Zertifikat wird bedient, ein Client mit unbekannter CA lehnt ab, ein Start mit nur einem der beiden Schlüssel `LISTEN_TLS_CERT` und `LISTEN_TLS_KEY` scheitert mit `ODR-E2001`.
 - Der Neustarttest im Container ist grün: leeres Datenvolumen, Aufzeichnung, Neustart des Containers, Recordings lesbar (`LH-QA-06.a`).
 - Der Lasttest nach `LH-QA-01.a` läuft reproduzierbar mit 2 vCPU und 4 GiB und gibt p95 des Gesamtspans für Replay und Mock aus; die Zahlen stehen in der Closure-Notiz. Die Bestätigung des Zielwerts durch den fachlichen Owner (`LH-QA-01`) ist kein Closure-Kriterium dieser Welle; sie ist Teil von M7.
+- Das Handbuch deckt alles ab, was das Binary dieser Welle kann (TLS-Schlüssel des Listeners, Container-Image, Fehlercodes); das Kataloge-Gate aus `slice-handbuch-meldungskatalog` ist grün.
 - Die Closure-Notiz liegt als `welle-betrieb-results.md` im Ruheort `done/`; ihre *Steering-Loop-Einträge* tragen je verkörperter Regel mit dem Anker `seit welle-betrieb` das Feld `liegt in`.
 
 ## 4. Slices in dieser Welle
@@ -66,6 +67,8 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-lasttest | Lasttest nach `LH-QA-01.a` mit Messpunkt am Gesamtspan für Replay und Mock | `LH-QA-01`; `LH-QA-01.a`, `SPEC-026` |
 
 Die Slice-Dateien legt `plan-welle` (Schritt 6) beim Start der Welle an: Ein Slice-Plan altert vor seinem Start, und die Pläne dieser Welle hängen an den Schnitten von `welle-mock` (Einbau der Spans).
+
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. `plan-welle` (Schritt 6) übernimmt ihn in jede Slice-Datei; in dieser Welle betrifft er `slice-listener-tls` (Schlüssel `LISTEN_TLS_*`), `slice-container-image` (Start und Datenvolumen) und `slice-telemetry-port`, soweit Logfelder oder Codes sichtbar werden; `slice-audit-log` und `slice-lasttest` nur, wenn sie ein sichtbares Verhalten des Binary einführen.
 
 ## 5. Abhängigkeiten
 

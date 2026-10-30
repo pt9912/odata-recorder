@@ -44,6 +44,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - `make gates` ist grün; `make gegenproben` ist grün.
 - Ein Test im Modus `mock` liest eine Entity mit `$expand` über eine Navigation (verknüpfte Daten sichtbar, leere Navigation leer), führt einen gültigen Batch mit Einzelergebnissen aus, beantwortet einen leeren Batch gültig und übernimmt aus einem fehlerhaften Changeset keine Teiländerung (Zustand vor und nach dem Changeset gleich).
 - Je Funktion (`$expand`, `$batch`) liegt ein Parser-, Validator-, Executor- und Serializer-Contract-Test vor (`LH-FA-16.a`); `$apply`, Actions und Functions ergeben weiter `501`.
+- Das Handbuch deckt alles ab, was das Binary dieser Welle kann (`$expand`, `$batch`, Fehlercodes); das Kataloge-Gate aus `slice-handbuch-meldungskatalog` ist grün.
 - Die Closure-Notiz liegt als `welle-expand-batch-results.md` im Ruheort `done/`.
 
 ## 4. Slices in dieser Welle
@@ -60,6 +61,8 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-batch-changesets | Ausführung der Einzelrequests und atomare Changesets in einer Workspace-Transaktion, Antwort des Batch | `LH-FA-16`, `LH-QA-03`; `LH-FA-16.a`, `LH-FA-07.a` |
 
 Die Slice-Dateien legt `plan-welle` (Schritt 6) beim Start der Welle an: Ein Slice-Plan altert vor seinem Start, und diese Welle beginnt erst nach `welle-mock`.
+
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. `plan-welle` (Schritt 6) übernimmt ihn in jede Slice-Datei; in dieser Welle betrifft er `slice-expand-ausfuehrung` und `slice-batch-changesets` (sichtbar am Binary), die Parser-Slices nur, soweit sie einen Fehlercode einführen.
 
 ## 5. Abhängigkeiten
 

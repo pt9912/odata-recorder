@@ -44,6 +44,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - `make gates` ist grün; `make gegenproben` ist grün.
 - Ein Test zeichnet einen Referenzdienst mit V2-Antworten auf, importiert die Session, legt einen Workspace an und beantwortet im Modus `mock` die Metadaten und eine Standardabfrage nach dem dokumentierten V2-Umfang; ein leeres Ergebnis bleibt im V2-Format, eine nicht unterstützte V2-Eigenschaft ergibt einen expliziten Kompatibilitätsfehler.
 - Ein Dienst der Version V4 verhält sich nach dem Slice-Satz wie vorher: die Tests von `welle-mock` laufen unverändert grün.
+- Das Handbuch deckt alles ab, was das Binary dieser Welle kann (V2-Umfang, Kompatibilitätsfehler); das Kataloge-Gate aus `slice-handbuch-meldungskatalog` ist grün.
 - Die Closure-Notiz liegt als `welle-odata-v2-results.md` im Ruheort `done/`.
 
 ## 4. Slices in dieser Welle
@@ -60,6 +61,8 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-v2-bootstrap | Wahl des Adapters je Service-Version im Composition Root und Rundlauftest | `LH-FA-17`, `LH-FA-12`; `LH-FA-17.a`, `SPEC-054` |
 
 Die Slice-Dateien legt `plan-welle` (Schritt 6) beim Start der Welle an: Ein Slice-Plan altert vor seinem Start, und diese Welle beginnt erst nach `welle-mock` und der ADR des Architect.
+
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. `plan-welle` (Schritt 6) übernimmt ihn in jede Slice-Datei; in dieser Welle betrifft er `slice-v2-bootstrap` (Wahl der Version je Service, Kompatibilitätsfehler) und die übrigen Slices nur, soweit sie einen Fehlercode einführen.
 
 ## 5. Abhängigkeiten
 

@@ -34,7 +34,7 @@ und geschätzter Aufwand (S/M/L, kein Termin).
 | Welle | Trigger | Wichtigste Slices | Geschätzter Aufwand |
 |---|---|---|---|
 | welle-dev-container | welle-fundament done | Gerüst des Arbeitscontainers mit `u-boot` am Host (privilegierter Container mit eigenem Docker-Daemon, SSH-Zugang, Schlüsselpaar), Start mit Bereitschaftsprobe, Bare-Repo und Klon samt Einlieferung per Zweig, Lauf von `make gates` und `make gegenproben` im Container, Dokument für Entwickler | L |
-| [welle-mock](../welle-mock.md) | welle-record-replay done (M2 erreicht) | Parser der OData-URL (Pfad, `$filter`), EDM-Ausdrücke und Interpreter, Codec zum Schreiben und zum Lesen von Client-Bodies, `MockUseCase` (Lesen, Schreiben), Snapshots, Abnahmetests, Modus `mock` im Composition Root | L |
+| [welle-mock](../welle-mock.md) | welle-record-replay done (M2 erreicht), `slice-handbuch-meldungskatalog` in `done/` | Parser der OData-URL (Pfad, `$filter`), EDM-Ausdrücke und Interpreter, Codec zum Schreiben und zum Lesen von Client-Bodies, `MockUseCase` (Lesen, Schreiben), Snapshots, Abnahmetests, Modus `mock` im Composition Root | L |
 | [welle-hybrid](../welle-hybrid.md) | welle-mock done (M3 erreicht) | Fallback-Policy, `HybridUseCase`, Modus `hybrid` im Composition Root | M |
 | [welle-betrieb](../welle-betrieb.md) | welle-mock done (M3 erreicht) | Port `Telemetry` und Einbau in alle Pfade, `AuditLog`, TLS des Listeners, Container-Image mit Neustarttest, Lasttest zu `LH-QA-01` | L |
 | [welle-admin-api](../welle-admin-api.md) | welle-betrieb done (M5 erreicht) | `InspectionUseCase`, Admin-Listener mit Token und Transportschutz, Endpunkte für Sessions, Imports, Workspaces und Snapshots, CLI-Kommandos, Sicherheitsnachweis | L |
