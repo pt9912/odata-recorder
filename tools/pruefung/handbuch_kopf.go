@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 )
 
-// kopf ist das Ergebnis der Prüfung des Kopfes (SPEC-129 Nr. 4 a, b, d); version ist der Wert von
+// kopf ist das Ergebnis der Prüfung des Kopfes (SPEC-200 Nr. 4 a, b, d); version ist der Wert von
 // Software-Version, vergleich wahr, wenn der Schlüssel genau einmal und nicht leer steht.
 type kopf struct {
 	befunde   []befund
@@ -94,7 +95,7 @@ func enthaelt(liste []string, s string) bool {
 }
 
 // schluesselBefunde meldet je Schlüssel höchstens einen Befund in der Rangfolge fehlt, doppelt,
-// leer (SPEC-129 Nr. 4 b); der Wert von Stand wird auf die Form geprüft (Nr. 4 d).
+// leer (SPEC-200 Nr. 4 b); der Wert von Stand wird auf die Form geprüft (Nr. 4 d).
 func schluesselBefunde(s string, werte []string, zeile int) []befund {
 	switch {
 	case len(werte) == 0:
@@ -143,7 +144,7 @@ func tageImMonat(jahr, monat int) int {
 	return 31
 }
 
-// versionBefunde vergleicht die Ausgabe von `version` mit dem Kopf (SPEC-129 Nr. 4 c); eine
+// versionBefunde vergleicht die Ausgabe von `version` mit dem Kopf (SPEC-200 Nr. 4 c); eine
 // überschrittene Zeitgrenze ist ein Befund der Nummer 7 c.
 func versionBefunde(l ergebnis, k kopf) []befund {
 	if l.zeit {
@@ -172,7 +173,7 @@ func versionAusgabe(l ergebnis) (string, string) {
 	rest, ok := strings.CutPrefix(l.stdout, kommando+" ")
 	v, ok2 := strings.CutSuffix(rest, "\n")
 	if !ok || !ok2 || v == "" || strings.ContainsFunc(v, unicode.IsSpace) {
-		return "", fmt.Sprintf("Standardausgabe %q", l.stdout)
+		return "", "Standardausgabe " + kuerze(strconv.Quote(l.stdout))
 	}
 	return v, ""
 }

@@ -19,7 +19,7 @@ import (
 )
 
 // ergebnis ist der Lauf des Binary: beide Ströme getrennt, der Ausgangswert, ob ein Signal den
-// Prozess beendete, und ob die Zeitgrenze ihn beendete (SPEC-129 Nr. 7).
+// Prozess beendete, und ob die Zeitgrenze ihn beendete (SPEC-200 Nr. 7).
 type ergebnis struct {
 	stdout, stderr string
 	code           int
@@ -28,7 +28,7 @@ type ergebnis struct {
 
 // fahre startet bin mit args ohne Shell, in leerer Umgebung, in einem leeren Verzeichnis unter
 // arbeit und mit leerer Standardeingabe. Der Fehler ist gesetzt, wenn der Prozess nicht gestartet
-// werden konnte (SPEC-129 Nr. 7 a, b).
+// werden konnte (SPEC-200 Nr. 7 a, b).
 func fahre(bin string, args []string, arbeit string, grenze time.Duration) (ergebnis, error) {
 	dir, err := os.MkdirTemp(arbeit, "lauf-")
 	if err != nil {
@@ -69,7 +69,7 @@ func regexpName() *regexp.Regexp {
 	return regexp.MustCompile(`^` + beispielName + `$`)
 }
 
-// beispiel ist der Inhalt einer Beispiel-Datei (SPEC-129 Nr. 6).
+// beispiel ist der Inhalt einer Beispiel-Datei (SPEC-200 Nr. 6).
 type beispiel struct {
 	args           []string
 	stdout, stderr string
@@ -111,7 +111,7 @@ func leseBeispiel(b []byte) (beispiel, string) {
 	return bsp, ""
 }
 
-// kopfzeile liest das wörtliche Präfix und die Argumente (SPEC-129 Nr. 6 a).
+// kopfzeile liest das wörtliche Präfix und die Argumente (SPEC-200 Nr. 6 a).
 func kopfzeile(z string) ([]string, string) {
 	rest, ok := strings.CutPrefix(z, aufrufPraefix)
 	if !ok || (rest != "" && rest[0] != ' ') {
@@ -134,14 +134,14 @@ func kopfzeile(z string) ([]string, string) {
 	return args, ""
 }
 
-// argumentZeichen: A-Z a-z 0-9 . _ = - (SPEC-129 Nr. 6 a).
+// argumentZeichen: A-Z a-z 0-9 . _ = - (SPEC-200 Nr. 6 a).
 func argumentZeichen(c byte) bool {
 	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || strings.IndexByte("._=-", c) >= 0
 }
 
 // schneide trennt die Zeilen nach der Kopfzeile in die Zeilen der drei Abschnitte; die drei
 // Trennzeilen stehen je einmal in der Reihenfolge Standardausgabe, Fehlerausgabe, Ausgangswert,
-// die erste unmittelbar nach der Kopfzeile (SPEC-129 Nr. 6 b).
+// die erste unmittelbar nach der Kopfzeile (SPEC-200 Nr. 6 b).
 func schneide(zeilen []string) ([3][]string, string) {
 	var pos [3]int
 	for k, t := range trennzeilen() {
@@ -191,7 +191,7 @@ func ausgangswert(zeilen []string) (int, string) {
 }
 
 // pruefeBeispiele fährt jede Datei, auf die eine gültige Bindung zeigt und die vorhanden und
-// formgültig ist, einmal und vergleicht beide Ströme und den Ausgangswert (SPEC-129 Nr. 6, 7).
+// formgültig ist, einmal und vergleicht beide Ströme und den Ausgangswert (SPEC-200 Nr. 6, 7).
 func pruefeBeispiele(u Umgebung, bin, wurzel, arbeit string, bindungen []string) ([]befund, error) {
 	namen := map[string]bool{}
 	for _, p := range bindungen {
@@ -222,7 +222,7 @@ func pruefeBeispiele(u Umgebung, bin, wurzel, arbeit string, bindungen []string)
 	return bf, nil
 }
 
-// vergleiche hält beide Ströme und den Ausgangswert je für sich gegen die Datei (SPEC-129 Nr. 7 c, d).
+// vergleiche hält beide Ströme und den Ausgangswert je für sich gegen die Datei (SPEC-200 Nr. 7 c, d).
 func vergleiche(name string, bsp beispiel, l ergebnis) []befund {
 	if l.zeit {
 		return []befund{{nr: nrLauf, name: name, text: name + ": Zeitgrenze überschritten"}}

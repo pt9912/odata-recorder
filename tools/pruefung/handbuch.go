@@ -21,7 +21,7 @@ const (
 	ausgabeKopf  = "pruefung handbuch: "
 )
 
-// Nummern des Vertrags (SPEC-129), nach denen die Befunde geordnet werden.
+// Nummern des Vertrags (SPEC-200), nach denen die Befunde geordnet werden.
 const (
 	nrZeichen  = 3
 	nrKopf     = 4
@@ -36,14 +36,14 @@ const (
 )
 
 // befund ist eine Zeile der Ausgabe von `pruefung handbuch`. Die Ausgabe ordnet nach nr, dann
-// nach zeile, dann nach name (SPEC-129 Nr. 2 d).
+// nach zeile, dann nach name (SPEC-200 Nr. 2 d).
 type befund struct {
 	nr, zeile int
 	name      string
 	text      string
 }
 
-// pruefeHandbuch prüft das Handbuch unter wurzel gegen das Binary (SPEC-129): Eingabefehler
+// pruefeHandbuch prüft das Handbuch unter wurzel gegen das Binary (SPEC-200): Eingabefehler
 // (Exit 2) schließen jeden Befund aus und gehen dem ersten Start des Binary voraus.
 func pruefeHandbuch(u Umgebung, binary, wurzel string, stdout, stderr io.Writer) int {
 	var eingabe []string
@@ -67,15 +67,15 @@ func pruefeHandbuch(u Umgebung, binary, wurzel string, stdout, stderr io.Writer)
 	return meldeBefunde(befunde, stdout, stderr)
 }
 
-// pruefeMitArbeit legt das Arbeitsverzeichnis an und entfernt es am Ende (SPEC-129 Nr. 2 e).
+// pruefeMitArbeit legt das Arbeitsverzeichnis an und entfernt es am Ende (SPEC-200 Nr. 2 e).
 func pruefeMitArbeit(u Umgebung, binary, wurzel string, zeilen []string) ([]befund, []string) {
 	bin, err := filepath.Abs(binary)
 	if err != nil {
-		return nil, []string{"Binary fehlt: " + binary}
+		return nil, []string{"Binary nicht startbar: " + err.Error()}
 	}
 	arbeit, err := os.MkdirTemp("", "pruefung-handbuch-")
 	if err != nil {
-		return nil, []string{"Arbeitsverzeichnis: " + err.Error()}
+		return nil, []string{"Arbeitsverzeichnis nicht anlegbar: " + err.Error()}
 	}
 	defer func() { _ = os.RemoveAll(arbeit) }()
 	return pruefeDokument(u, bin, wurzel, arbeit, zeilen)
@@ -129,7 +129,7 @@ func meldeBefunde(befunde []befund, stdout, stderr io.Writer) int {
 	return exitBefund
 }
 
-// liesHandbuch liefert die Zeilen des Handbuchs oder den Text des Eingabefehlers (SPEC-129 Nr. 3 a, b).
+// liesHandbuch liefert die Zeilen des Handbuchs oder den Text des Eingabefehlers (SPEC-200 Nr. 3 a, b).
 func liesHandbuch(pfad string) ([]string, string) {
 	b, err := os.ReadFile(pfad)
 	grund := ""
@@ -164,7 +164,7 @@ func zeilenVon(s string) []string {
 }
 
 // zeichenBefunde meldet je Zeile und Zeichen einmal ein Zeichen der Kategorien Cc (außer Tabulator),
-// Cf, Co, Cs, Mn und Me (SPEC-129 Nr. 3 c).
+// Cf, Co, Cs, Mn und Me (SPEC-200 Nr. 3 c).
 func zeichenBefunde(zeilen []string) []befund {
 	var bf []befund
 	for i, z := range zeilen {
@@ -180,7 +180,7 @@ func zeichenBefunde(zeilen []string) []befund {
 	return bf
 }
 
-// zaun ist ein Zaun des Handbuchs (SPEC-129 Nr. 5 a); offen und schluss sind Zeilenindizes, schluss
+// zaun ist ein Zaun des Handbuchs (SPEC-200 Nr. 5 a); offen und schluss sind Zeilenindizes, schluss
 // ist -1 ohne Schluss.
 type zaun struct {
 	offen, schluss int
@@ -237,7 +237,7 @@ func (d dokument) blockText(z zaun) string {
 	return b.String()
 }
 
-// pruefeZaeune prüft Info-Zeichenkette, Bindungszeile und Block gegen die Datei (SPEC-129 Nr. 5 a bis e)
+// pruefeZaeune prüft Info-Zeichenkette, Bindungszeile und Block gegen die Datei (SPEC-200 Nr. 5 a bis e)
 // und setzt gebunden; es liefert die Namen aller gültigen Bindungen (Pfad P ab beispiele/).
 func pruefeZaeune(d *dokument, wurzel string) ([]string, []befund) {
 	var bf []befund
@@ -296,7 +296,7 @@ func bindung(d dokument, z zaun) (string, *befund) {
 	return m[1], nil
 }
 
-// vergleicheBlock hält den Block gleich der Datei P unter docs/user (SPEC-129 Nr. 5 d).
+// vergleicheBlock hält den Block gleich der Datei P unter docs/user (SPEC-200 Nr. 5 d).
 func vergleicheBlock(d dokument, z zaun, p, wurzel string) *befund {
 	n := z.offen + 1
 	inhalt, err := os.ReadFile(filepath.Join(wurzel, "docs/user", p))
@@ -310,7 +310,7 @@ func vergleicheBlock(d dokument, z zaun, p, wurzel string) *befund {
 }
 
 // verwaiste meldet Einträge des Verzeichnisses der Beispiele, die keine Beispiel-Datei sind oder
-// keine gültige Bindung tragen (SPEC-129 Nr. 5 f).
+// keine gültige Bindung tragen (SPEC-200 Nr. 5 f).
 func verwaiste(wurzel string, bindungen []string) []befund {
 	eintraege, err := os.ReadDir(filepath.Join(wurzel, beispielVerz))
 	if err != nil {
@@ -334,7 +334,7 @@ func verwaiste(wurzel string, bindungen []string) []befund {
 }
 
 // absatz ist eine Folge nicht leerer Zeilen außerhalb gebundener Zäune oder der Inhalt eines
-// gebundenen Zaunes (zitat); zeile ist die erste Zeile, im Zitat die des Zaunes (SPEC-129 Nr. 13 a, c, d).
+// gebundenen Zaunes (zitat); zeile ist die erste Zeile, im Zitat die des Zaunes (SPEC-200 Nr. 13 a, c, d).
 type absatz struct {
 	zeile  int
 	zeilen []string
@@ -372,7 +372,7 @@ func absaetze(d dokument) []absatz {
 	return out
 }
 
-// praefixBefunde prüft, dass der Bau das Aufrufpräfix der Beispiele deckt (SPEC-129 Nr. 8).
+// praefixBefunde prüft, dass der Bau das Aufrufpräfix der Beispiele deckt (SPEC-200 Nr. 8).
 func praefixBefunde(wurzel string) []befund {
 	eintraege, err := os.ReadDir(filepath.Join(wurzel, beispielVerz))
 	if err != nil || len(eintraege) == 0 {

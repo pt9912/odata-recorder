@@ -8,7 +8,7 @@ import (
 	"unicode/utf8"
 )
 
-// muster ist ein Muster der Mengen A, B und C (SPEC-129 Nr. 10 bis 12); der erste Buchstabe der
+// muster ist ein Muster der Mengen A, B und C (SPEC-200 Nr. 10 bis 12); der erste Buchstabe der
 // Kennung nennt die Menge.
 type muster struct {
 	id, ausdruck string
@@ -78,7 +78,7 @@ func mengeVon(id string) (int, string) {
 
 // normalisiere verbindet die Zeilen mit einem Leerzeichen, entfernt `*`, `_` und Backtick, macht
 // aus Tabulator und den Zeichen der Kategorien Zs, Zl, Zp ein Leerzeichen, faltet Folgen von
-// Leerzeichen und schreibt klein (SPEC-129 Nr. 13 a).
+// Leerzeichen und schreibt klein (SPEC-200 Nr. 13 a).
 func normalisiere(zeilen []string) string {
 	s := strings.Join(zeilen, " ")
 	s = strings.Map(func(r rune) rune {
@@ -97,7 +97,7 @@ func normalisiere(zeilen []string) string {
 }
 
 // trifft liefert den ersten Treffer von re in text, der am Anfang oder nach einem Nicht-Buchstaben
-// beginnt und am Ende oder vor einem Nicht-Buchstaben endet (SPEC-129 Nr. 13 b).
+// beginnt und am Ende oder vor einem Nicht-Buchstaben endet (SPEC-200 Nr. 13 b).
 func trifft(re *regexp.Regexp, text string) (string, bool) {
 	for off := 0; off < len(text); {
 		loc := re.FindStringIndex(text[off:])
@@ -117,7 +117,7 @@ func trifft(re *regexp.Regexp, text string) (string, bool) {
 }
 
 // mengenBefunde meldet je Absatz und Muster höchstens einen Treffer; im Zitat gilt nur die Menge C
-// (SPEC-129 Nr. 13 c, d).
+// (SPEC-200 Nr. 13 c, d).
 func mengenBefunde(as []absatz) []befund {
 	var bf []befund
 	ms := mengen()
@@ -141,7 +141,7 @@ func mengenBefunde(as []absatz) []befund {
 }
 
 // zielliste liefert die Namen der Zeilen `^[a-z0-9-]+:.*##` in Makefile, harness/mk/*.mk, d-check.mk
-// und repo.mk unter wurzel, die Regel von `make help` (SPEC-129 Nr. 9 a).
+// und repo.mk unter wurzel, die Regel von `make help` (SPEC-200 Nr. 9 a).
 func zielliste(wurzel string) map[string]bool {
 	re := regexp.MustCompile(`^([a-z0-9-]+):.*##`)
 	ziele := map[string]bool{}
@@ -222,7 +222,7 @@ func spanText(s string) string {
 	return s
 }
 
-// makeBefunde prüft jeden Span der Prosa, dessen Text mit `make ` beginnt (SPEC-129 Nr. 9 b).
+// makeBefunde prüft jeden Span der Prosa, dessen Text mit `make ` beginnt (SPEC-200 Nr. 9 b).
 func makeBefunde(as []absatz, ziele map[string]bool) []befund {
 	var bf []befund
 	for _, a := range as {
