@@ -199,7 +199,12 @@ pfad: src/hexagon/ports/support
 pfad: src/adapters/driven/telemetry
 produktcode: 580
 fakes: 1
+basis: a0396b0cb0769476edaeb5bfaa23dcc5a76c041c
+schaetzung: 2150
+marke: 3000
 ```
+
+`basis` ist der Commit des Schnitts (der Vertrag, die Tabelle und das Raster stehen); gegen `main` mit dem Stand `afd8cf2` und gegen den Architect-Stand `a5fbbc9` ergibt `git diff --numstat` über die beiden Pfade 0 Datensätze, die Messung vor dem Code ist 0, und `make groessenmarke` meldet für den Plan die Marke 3000 ohne Befund. `fakes` zählt `FakeTelemetry`; `FakeSenke` liefert `slice-telemetry-log`.
 
 **Schnitt vor dem Code — Entscheidung des Planners am 2026-10-30 (a: geschnitten).** Der Architect hat die Schnittfrage gestellt: die ungeschnittene Tabelle hat 53 Zeilen, 46 `andere` (*b*) und 7 `nebenläufig` (*a*), dazu *f* = 2 und *p* = 1310, also *S* = 85·7 + 80·46 + 200·2 + 1310 = 5985 und *M* = 8100. Der Planner hat nachgezählt (Zeilen je Präfix: `P` 17, `L` 19, `S` 17; nebenläufig P15, P16, L18, L19, S15, S16, S17; Fakes `FakeTelemetry` in `P`, `FakeSenke` in `L`, keiner in `S`; Produktcode 580 + 380 + 350 = 1310) und das Ergebnis bestätigt: 53 Zeilen, 7 und 46, *S* = 5985. Das liegt über der Schwelle (*S* ≥ 2223, `SPEC-128` Nr. 1), und kein Zuschnitt der Tabelle ohne Verlust von Zusagen senkt *S* unter sie (Bündeln von Zeilen senkte die Schätzung, nicht die Arbeit, `SPEC-128` Nr. 10 b). Geschnitten wird vor dem Code in drei Slices entlang der Abhängigkeitskette; jeder Teil liegt unter der Schwelle, baut auf dem vorigen auf und teilt mit dem nächsten keinen Mechanismus, den er nicht schon geliefert hat. Die Nr. der Tabelle tragen das Präfix des Teils, so dass die Zeilen ohne Umbau auf die Pläne verteilt wurden:
 
