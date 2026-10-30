@@ -34,31 +34,21 @@ type zeileText struct {
 	text  string
 }
 
-// erwarteReihenfolge prüft, dass die Ausgabe genau die Befunde nennt, nach Zeile aufsteigend; bei gleicher Zeile
-// entscheidet der Vertrag hier nicht, die Texte einer Zeile stehen in beliebiger Reihenfolge.
+// erwarteReihenfolge prüft, dass die Ausgabe genau die Befunde nennt, Element für Element: nach Zeile aufsteigend, bei
+// gleicher Zeile in der Reihenfolge von soll (die Reihenfolge der Prüfung, Nr. 2 d), die Reihenfolge von soll bleibt bei
+// Gleichstand erhalten.
 func erwarteReihenfolge(t *testing.T, name, errText string, soll []zeileText) {
 	t.Helper()
+	soll = append([]zeileText{}, soll...)
 	sort.SliceStable(soll, func(i, j int) bool { return soll[i].zeile < soll[j].zeile })
 	ist := befundZeilen(t, errText)
 	if len(ist) != len(soll) {
 		t.Fatalf("%s: %d Befunde, erwartet %d: %q", name, len(ist), len(soll), ist)
 	}
-	for i := 0; i < len(soll); {
-		j := i
-		for j < len(soll) && soll[j].zeile == soll[i].zeile {
-			j++
+	for i := range soll {
+		if ist[i] != soll[i].text {
+			t.Fatalf("%s: Befund %d ist %q, erwartet %q (Ausgabe %q)", name, i, ist[i], soll[i].text, ist)
 		}
-		var a, b []string
-		for k := i; k < j; k++ {
-			a = append(a, soll[k].text)
-			b = append(b, ist[k])
-		}
-		sort.Strings(a)
-		sort.Strings(b)
-		if strings.Join(a, "\n") != strings.Join(b, "\n") {
-			t.Fatalf("%s: Befunde ab Stelle %d: %q, erwartet %q (Ausgabe %q)", name, i, b, a, ist)
-		}
-		i = j
 	}
 }
 
@@ -160,7 +150,7 @@ func TestHandbuchVersionBefundZeile(t *testing.T) {
 		{"einmal, nicht lesbar", []string{eins}, antwort{out: "odata-recorder 1.0\n", code: 1}, []zeileText{{3, nl}}},
 		{"leer, nicht lesbar", []string{"Software-Version:"}, antwort{out: "odata-recorder 1.0\n", code: 1}, []zeileText{{0, nl}, {3, "Kopf: Software-Version leer"}}},
 		{"doppelt, nicht lesbar", []string{eins, eins}, antwort{out: "odata-recorder 1.0\n", code: 1}, []zeileText{{0, nl}, {3, "Kopf: Software-Version doppelt"}}},
-		{"fehlt, nicht lesbar", nil, antwort{out: "odata-recorder 1.0\n", code: 1}, []zeileText{{0, nl}, {0, "Kopf: Software-Version fehlt"}}},
+		{"fehlt, nicht lesbar", nil, antwort{out: "odata-recorder 1.0\n", code: 1}, []zeileText{{0, "Kopf: Software-Version fehlt"}, {0, nl}}},
 	}
 	n := 0
 	for _, e := range elemente {
