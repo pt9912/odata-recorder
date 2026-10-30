@@ -39,7 +39,9 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 - `slice-groessenmarke-werkzeug` liegt in `done/`: Die Marken der Slices dieser Welle setzt der Planner mit `make groessenmarke` (`SPEC-128`), nicht mit der Prosa-Formel.
 - `docs/user/benutzerhandbuch-standard.md` liegt auf `main` (vom User bereitgestellt; im Worktree als eigener Commit vor diesem Plan).
 
-Der Start der Slices ist gestuft: `slice-handbuch-geruest` braucht nur den Start der Welle und liegt nach Teil 1 von [welle-sensoren](welle-sensoren.md) (`slice-unsichtbare-zeichen`, `slice-guide-groessen-gate`; Reihenfolge, kein Blocker: das Gerüst schreibt neue Dokumente, die der Sensor für unsichtbare Zeichen dann schon schützt (§3.18); eine Code-Abhängigkeit gibt es nicht); `slice-handbuch-meldungskatalog` und `slice-handbuch-record-replay` warten auf `slice-bootstrap-m2` in `done/`, weil das Binary vorher weder Schlüssel liest noch Fehlercodes erzeugt (Trigger dort in §4).
+Gestartet ist `slice-handbuch-geruest` (Linie der Gate-Kette, Zweig `slice-handbuch-geruest`, Worktree `odata-recorder-wt-geruest`, Gate `make handbuch-check`), vor Teil 1 von [welle-sensoren](welle-sensoren.md) und vor `slice-groessenmarke-werkzeug` in `done/`; der Zweig trägt das Werkzeug aus `main`, und der erste Code-Commit folgt der Marke.
+
+Der Start der Slices ist gestuft: `slice-handbuch-geruest` braucht nur den Start der Welle und liegt nach Teil 1 von [welle-sensoren](welle-sensoren.md) (`slice-unsichtbare-zeichen`, `slice-guide-groessen-gate`; Reihenfolge, kein Blocker, ein Start davor ist zulässig: das Gerüst schreibt neue Dokumente, die der Sensor für unsichtbare Zeichen dann schon schützt (§3.18); eine Code-Abhängigkeit gibt es nicht); `slice-handbuch-meldungskatalog` und `slice-handbuch-record-replay` warten auf `slice-bootstrap-m2` in `done/`, weil das Binary vorher weder Schlüssel liest noch Fehlercodes erzeugt (Trigger dort in §4).
 
 ## 3. Closure-Trigger (Welle schließt)
 
@@ -52,7 +54,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - `make gates` ist grün und fährt den Abgleich der Kataloge; `make gegenproben` ist grün.
 - Der Probelauf aus `slice-handbuch-abnahme` ist gefahren: Eine Rolle ohne Vorwissen hat jede Aufgabe des Handbuchs allein nach dem Handbuch am gebauten Binary ausgeführt; jeder Befund ist behoben oder trägt einen Ausgang in §6 des Slice-Plans.
 - Der Fänger für „Geplantes“ und „Chronik“ im Handbuch (Auftrag in `slice-handbuch-geruest`) läuft und ist grün; je Element seiner Menge ist eine Mutation (ein verbotenes Wort oder eine Kennung im Handbuch) rot gesehen.
-- Jedes Beispiel und jede Konfiguration im Handbuch, die als Datei vorliegt, läuft gegen das gebaute Binary in der Stufe `test` (Beleg-Form: Entscheidung des Architect in `slice-handbuch-geruest`).
+- Jedes Beispiel und jede Konfiguration im Handbuch, die als Datei vorliegt, läuft gegen das gebaute Binary in der Stufe `handbuch` des `Dockerfile` (Ziel `make handbuch-check`; Beleg-Form und Vertrag sind die Entscheidung des Architect in `slice-handbuch-geruest`, der Vertrag liegt unter `harness/vertraege/`).
 - Die Closure-Notiz liegt als `welle-benutzerhandbuch-results.md` im Ruheort `done/`; ihre *Steering-Loop-Einträge* tragen, falls etwas verkörpert wird, den Anker `seit welle-benutzerhandbuch` mit dem Feld `liegt in`; die Pflicht der Folgewellen aus §6 (Kapitel im Handbuch liefern) steht dort als Vorschlag an den User (Zielort `AGENTS.md` oder `.claude/commands/implement-slice.md`).
 
 ## 4. Slices in dieser Welle
@@ -79,7 +81,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 - Wird blockiert von: `slice-groessenmarke-werkzeug` (Start der Welle, §2); `slice-bootstrap-m2` blockiert nur `slice-handbuch-record-replay`, nicht die Welle.
 - Reihenfolge ohne Blocker: `slice-handbuch-geruest` liegt nach Teil 1 von [welle-sensoren](welle-sensoren.md) (§2); der Katalog-Slice und `slice-handbuch-record-replay` liegen nach `slice-bootstrap-m2`, wie in §2 und in der Reihenfolge der Slices unten.
 - Unabhängig von: welle-dev-container (deren „Dokument für Entwickler“ ist ein anderes Dokument mit anderer Zielgruppe) und Teil 2 der Welle der Sensoren.
-- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-handbuch-geruest` → `slice-handbuch-meldungskatalog` (das Gate liest die Abschnitte, die das Gerüst anlegt; braucht zusätzlich `slice-bootstrap-m2` in `done/`, weil das Binary vorher weder Schlüssel liest noch Fehlercodes erzeugt) → `slice-handbuch-record-replay` (braucht zusätzlich `slice-bootstrap-m2` in `done/`) → `slice-handbuch-abnahme` zuletzt.
+- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-handbuch-geruest` → `slice-handbuch-meldungskatalog` (das Gate liest die Abschnitte *Aufruf und Version* und *Fehlerbehebung*, die das Gerüst anlegt; der Abschnitt der Konfiguration und die Tabellen der Kataloge entstehen in diesem Slice selbst; braucht zusätzlich `slice-bootstrap-m2` in `done/`, weil das Binary vorher weder Schlüssel liest noch Fehlercodes erzeugt) → `slice-handbuch-record-replay` (braucht zusätzlich `slice-bootstrap-m2` in `done/`) → `slice-handbuch-abnahme` zuletzt.
 
 ## 6. Out-of-Scope für diese Welle
 

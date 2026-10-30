@@ -5,8 +5,8 @@ flach unter `docs/plan/planning/`; bei Closure wandert sie per `git mv` nach
 `done/` (neben ihre `welle-<Kennung>-results.md`). Der Zustand ist die
 Verzeichnis-Position — kein Status-Feld. Diese Welle ist vor ihrem Start angelegt
 (Entscheidung des Users vom 2026-10-30); bis ihr Trigger eintritt steht sie in der
-Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien legt `plan-welle` (Schritt 6)
-beim Start an, weil ein Slice-Plan vor seinem Start veraltet.
+Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien liegen seit
+2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten.
 
 **Zielmeilenstein:** kein Meilenstein-Bezug (Kann-Umfang, nicht Teil der Erstabnahme nach dem Lastenheft).
 
@@ -30,9 +30,11 @@ Mensch ohne Rückfrage sagen kann, ob er eingetreten ist; ein Datum darf erwähn
 werden, aber nie Trigger sein. Und der **Start**-Trigger ist **kein Ergebnis
 dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
-- `welle-mock` liegt in `done/`: der V2-Adapter ersetzt Metadaten-Leser, Payload-Codec und Query-Parser hinter den Ports, die der Mock-Kern nutzt.
+- `welle-mock` liegt in `done/`: der V2-Adapter ersetzt Payload-Schreiber und Query-Parser hinter den Ports, die der Mock-Kern nutzt; Query und Rundlauf setzen den Mock-Kern voraus.
 - Eine ADR des Architect zum versionierten Adapter (Aufteilung der Ports je Version, Ort von `odata_version`) ist `Accepted`.
 - Die Reihenfolge nach den Muss-Wellen ist Priorisierung, keine Abhängigkeit; sie steht deshalb nicht im Trigger.
+
+**Trigger je Slice (Code-Abhängigkeit, Zusatz zum Trigger):** `slice-v2-metadaten` und der Lese-Teil von `slice-v2-payload` brauchen nur die ADR (`Accepted`) und den V2-Umfang in der Spezifikation, nicht `welle-mock` (der Metadaten-Leser und der Leser der Antworten stehen hinter den Ports des Codecs aus `welle-record-replay`). Der Schreib-Teil von `slice-v2-payload` braucht `slice-odata-json-schreiben` (Teil 1 von `welle-mock`), `slice-v2-query` zusätzlich `welle-mock`, `slice-v2-bootstrap` `welle-mock` ganz und `slice-v2-query`. Der Trigger der Welle bleibt formal.
 
 ## 3. Closure-Trigger (Welle schließt)
 
@@ -60,9 +62,9 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-v2-query | Query-Semantik des V2-Umfangs und expliziter Kompatibilitätsfehler | `LH-FA-17`, `LH-QA-05`; `LH-FA-17.a` |
 | slice-v2-bootstrap | Wahl des Adapters je Service-Version im Composition Root und Rundlauftest | `LH-FA-17`, `LH-FA-12`; `LH-FA-17.a`, `SPEC-054` |
 
-Die Slice-Dateien legt `plan-welle` (Schritt 6) beim Start der Welle an: Ein Slice-Plan altert vor seinem Start, und diese Welle beginnt erst nach `welle-mock` und der ADR des Architect.
+Die Slice-Dateien liegen seit 2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten, und `plan-welle` gleicht sie beim Start gegen den Ist-Stand ab. Marken und Betriebsregeln setzt der Planner beim Start (`SPEC-128`).
 
-**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. `plan-welle` (Schritt 6) übernimmt ihn in jede Slice-Datei; in dieser Welle betrifft er `slice-v2-bootstrap` (Wahl der Version je Service, Kompatibilitätsfehler) und die übrigen Slices nur, soweit sie einen Fehlercode einführen.
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. In dieser Welle betrifft er `slice-v2-bootstrap` (Wahl der Version je Service, Kompatibilitätsfehler) und die übrigen Slices nur, soweit sie einen Fehlercode einführen.
 
 ## 5. Abhängigkeiten
 
@@ -70,10 +72,11 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 §Roadmap-Struktur: fünf Abschnitte.
 
 - Blockiert: keine Welle.
-- Wird blockiert von: `welle-mock` (die Ports und der Kern, hinter denen der V2-Adapter steht) und einer ADR des Architect zum versionierten Adapter.
+- Wird blockiert von: `welle-mock` (die Ports und der Kern, hinter denen der V2-Adapter steht; `slice-v2-metadaten` und der Lese-Teil von `slice-v2-payload` ausgenommen, §2) und einer ADR des Architect zum versionierten Adapter.
+- **Offene Frage, Import je Version** (Adresse: Architect in der ADR, Planner für einen Slice vor `slice-v2-bootstrap`): `LH-FA-17` verlangt den Rundlauf Import, Workspace, Abfrage für einen V2-Dienst, `LH-FA-18` beschreibt den Import; `baselineimport.New` nimmt genau ein Paar von Codecs, und die Auswahl der Antworten (`SPEC-127` Nr. 8) und die Ketten über Folgelinks (Nr. 12) sind V4-Regeln. Wer den Import je Version anpasst und ob dafür ein Slice vor `slice-v2-bootstrap` nötig ist, steht in keinem Plan der Welle entschieden; `slice-v2-bootstrap` trägt nur die Verdrahtung.
 - Unabhängig: `welle-hybrid`, `welle-betrieb`, `welle-admin-api`, `welle-etag`, `welle-expand-batch`.
 - Reihenfolge der Slices (Pfeil heißt: braucht): `slice-v2-metadaten` → `slice-v2-payload` → `slice-v2-query` → `slice-v2-bootstrap`.
-- **Register-Sichtung (Eröffnung Schritt 2):** `observations/` gesichtet, Stand dieses Plans. Treffer, beim Start in den Slice-Plänen (§8) mit dem dann aktuellen Zähler als Risiko zu führen: `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) für Fakes der Codec-Ports; `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×); die Slices `slice-v2-metadaten` und `slice-v2-payload` sind Leser fremder Bytes (`AGENTS.md` §3.14, Faktor 65). Kein offener Eintrag erreicht mit dieser Welle 3×.
+- **Register-Sichtung (Eröffnung Schritt 2):** `observations/` gesichtet, Stand dieses Plans. Treffer, beim Start in den Slice-Plänen (§8) mit dem dann aktuellen Zähler als Risiko zu führen: `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) für Fakes der Codec-Ports; `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×); die Slices `slice-v2-metadaten`, `slice-v2-payload` (Lesen) und `slice-v2-query` sind Leser fremder Bytes; die Formel nach `SPEC-128` kennt dafür keinen Zuschlag mehr, die Produktcode-Erwartung des Architect ist ein fester Anteil der Schätzung. Kein offener Eintrag erreicht mit dieser Welle 3×.
 
 ## 6. Out-of-Scope für diese Welle
 
