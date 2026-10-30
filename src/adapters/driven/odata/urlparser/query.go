@@ -246,7 +246,7 @@ func (l *lauf) leseFilter(wert, ort string, o *model.Optionen) error {
 	ausdruck, err := l.p.filter.LeseFilter(wert)
 	var uf *model.URLFehler
 	switch {
-	case errors.As(err, &uf) && uf.Ursache.Gueltig():
+	case errors.As(err, &uf) && uf != nil && uf.Ursache.Gueltig():
 		if uf.Ursache.NichtUnterstuetzt() {
 			l.nichtUnterstuetzt(uf.Ursache, ort)
 			return nil

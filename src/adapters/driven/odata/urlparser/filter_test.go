@@ -2,6 +2,7 @@ package urlparser_test
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -20,6 +21,7 @@ type zaehlLeser struct {
 	ausdruck model.FilterAusdruck
 	fehler   error
 	aufrufe  int
+	beides   bool // liefert den Ausdruck auch dann, wenn er einen Fehler liefert
 }
 
 func (z *zaehlLeser) LeseFilter(text string) (interface{ IstFilterAusdruck() }, error) {
@@ -28,9 +30,81 @@ func (z *zaehlLeser) LeseFilter(text string) (interface{ IstFilterAusdruck() }, 
 	z.aufrufe++
 	z.texte = append(z.texte, text)
 	if z.fehler != nil {
+		if z.beides {
+			return z.ausdruck, z.fehler
+		}
 		return nil, z.fehler
 	}
 	return z.ausdruck, nil
+}
+
+// nilAusdruck hat einen Zeiger als Empfänger; ein typisierter nil-Zeiger davon ist ein Ausdruck ungleich nil.
+type nilAusdruck struct{}
+
+func (*nilAusdruck) IstFilterAusdruck() {}
+
+// TestFilterLeserRueckgaben (Zeile 19, Randformen des Lesers, SPEC-160 Nr. 8 b bis e): Form des Fehlers × Verpackung × mit und
+// ohne Ausdruck zugleich. Menge: 3 ungültige Formen (fremder Fehler, `*URLFehler` mit fremder Ursache, `(*URLFehler)(nil)`)
+// und 2 gültige (400, 501) × 2 Verpackungen (unverpackt, `%w`) × 2 (ohne und mit Ausdruck) = 20, dazu `nil` und `nil` und
+// ein Ausdruck mit typisiertem nil-Zeiger, 22 Fälle. Jeder ungültige Fall ist `model.ErrUngueltig` ohne `URLFehler` und der
+// Nullwert, jeder gültige der `URLFehler` mit Ursache und Ort der Option; der Leser wird genau einmal gerufen, keine Panik.
+func TestFilterLeserRueckgaben(t *testing.T) {
+	var nilFehler *model.URLFehler
+	formen := []struct {
+		name    string
+		fehler  error
+		gueltig model.URLUrsache // leer: Fehler des Aufrufers
+	}{
+		{"fremder Fehler", errors.New("kaputt"), ""},
+		{"fremde Ursache", &model.URLFehler{Ursache: "gibt_es_nicht"}, ""},
+		{"typisierter nil-Zeiger", nilFehler, ""},
+		{"400", &model.URLFehler{Ursache: model.URLWert, Ort: "irgendwo"}, model.URLWert},
+		{"501", &model.URLFehler{Ursache: model.URLFilter, Ort: "irgendwo"}, model.URLFilter},
+	}
+	n := 0
+	for _, f := range formen {
+		for _, verpackt := range []bool{false, true} {
+			for _, beides := range []bool{false, true} {
+				fehler := f.fehler
+				if verpackt {
+					fehler = fmt.Errorf("lesen: %w", f.fehler)
+				}
+				l := &zaehlLeser{ausdruck: testAusdruck{"ok"}, fehler: fehler, beides: beides}
+				pruefeLeserFall(t, fmt.Sprintf("%s verpackt=%v beides=%v", f.name, verpackt, beides), l, f.gueltig)
+				n++
+			}
+		}
+	}
+	pruefeLeserFall(t, "nil und nil", &zaehlLeser{}, "")
+	u, err := urlparser.New(urlparser.WithFilter(&zaehlLeser{ausdruck: (*nilAusdruck)(nil)})).ParseURL("/S", "$filter=a")
+	if err != nil || u.Optionen.Filter == nil || u.Optionen.Filter.Ausdruck != model.FilterAusdruck((*nilAusdruck)(nil)) {
+		t.Errorf("typisierter nil-Ausdruck: %+v %v", u.Optionen.Filter, err)
+	}
+	if n != 20 {
+		t.Fatalf("%d Fälle", n)
+	}
+}
+
+func pruefeLeserFall(t *testing.T, name string, l *zaehlLeser, gueltig model.URLUrsache) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("%s: Panik %v", name, r)
+		}
+	}()
+	u, err := urlparser.New(urlparser.WithFilter(l)).ParseURL("/S", "x=1&$filter=a")
+	var uf *model.URLFehler
+	switch {
+	case gueltig == "":
+		if !errors.Is(err, model.ErrUngueltig) || errors.As(err, &uf) {
+			t.Errorf("%s: %v", name, err)
+		}
+	case !errors.As(err, &uf) || uf == nil || uf.Ursache != gueltig || uf.Ort != "query/2":
+		t.Errorf("%s: %v", name, err)
+	}
+	if !gleich(u, model.ODataURL{}) || l.aufrufe != 1 {
+		t.Errorf("%s: Ergebnis %+v, %d Aufrufe", name, u, l.aufrufe)
+	}
 }
 
 func leserOK() *zaehlLeser { return &zaehlLeser{ausdruck: testAusdruck{"ok"}} }

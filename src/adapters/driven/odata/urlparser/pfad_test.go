@@ -100,15 +100,15 @@ func stellen() []struct {
 
 func eingesetzt(vorlage, s string) string { return strings.Replace(vorlage, "%s", s, 1) }
 
-// TestEinmalDekodiert (Zeile 22): `%255F` wird zu `%5F`, nicht zu `_`; fünf Stellen.
+// TestEinmalDekodiert (Zeile 22): `%255F` wird einmal dekodiert und ergibt den Text `%5F`; fünf Stellen.
 func TestEinmalDekodiert(t *testing.T) {
-	// Name des Sets, Name eines Schlüsselteils, Name einer Option: das Ergebnis `%5F` ist kein Name, `_` wäre einer.
+	// Name des Sets, Name eines Schlüsselteils, Name einer Option: der Text `%5F` ist kein Name und wird als solcher abgewiesen.
 	pruefeFaelle(t, []fall{
 		{pfad: "/S%255F", u: segm, ort: "pfad/1"},
 		{pfad: "/S(Id%255F=1)", u: model.URLKey, ort: "pfad/1"},
 		{pfad: "/S", query: "x%255F=1", u: model.URLOptionName, ort: "query/1"},
 	})
-	// Inhalt eines String-Literals und Wert einer Option: der Text `%27` bleibt, ein Apostroph entstünde nicht.
+	// Inhalt eines String-Literals und Wert einer Option: der Text ist `%27`, die Folge bleibt erhalten.
 	if got := gelesen(t, "/S('%2527')", "").Ressource.Schluessel[0].Literal.Text; got != "'%27'" {
 		t.Errorf("Literal: %q", got)
 	}

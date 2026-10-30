@@ -215,6 +215,57 @@ func TestWaechterZuteilung(t *testing.T) {
 	}
 }
 
+// gemischt baut Text aus rohen Zeichen und Escapes (`%41`) der Länge von rund n Bytes in der Stellung: nur roh, nur Escape,
+// Escape am Anfang, in der Mitte, am Ende und abwechselnd.
+func gemischt(zeichen, stellung string, n int) string {
+	roh := wiederhole(zeichen, n/len(zeichen)/2*2)
+	halb := len(roh) / 2
+	switch stellung {
+	case "nur roh":
+		return roh
+	case "nur Escape":
+		return wiederhole("%41", n/3)
+	case "Anfang":
+		return "%41" + roh
+	case "Mitte":
+		return roh[:halb] + "%41" + roh[halb:]
+	case "Ende":
+		return roh + "%41"
+	}
+	return wiederhole(zeichen+"%41", n/(len(zeichen)+3))
+}
+
+// TestWaechterGemischt (Zeile 16, Klasse „Eingabe aus rohen Bytes und Escapes in jedem Verhältnis und jeder Stellung“, SPEC-160
+// Nr. 6 c): die Gesamtzuteilung bleibt unter 64 · n + 65536 Bytes für `pfad` (rund 2000 Bytes) und `rawQuery` (rund 8000 Bytes),
+// jeweils aus einem rohen Zeichen (`a`, `ä` als zwei rohe Bytes) und Escapes in sechs Stellungen. Menge 24.
+func TestWaechterGemischt(t *testing.T) {
+	n := 0
+	for _, zeichen := range []string{"a", "\xc3\xa4"} {
+		for _, stellung := range []string{"nur roh", "nur Escape", "Anfang", "Mitte", "Ende", "abwechselnd"} {
+			for _, arg := range []string{"pfad", "query"} {
+				pfad, query := "/S", ""
+				if arg == "pfad" {
+					pfad += "/" + gemischt(zeichen, stellung, 2000)
+				} else {
+					query = "x=" + gemischt(zeichen, stellung, 8000)
+				}
+				var err error
+				z := gesamtZuteilung(func() { _, err = parse(pfad, query) })
+				if grenze := uint64(64*(len(pfad)+len(query)) + 65536); z > grenze {
+					t.Errorf("%q %s %s: Zuteilung %d über %d", zeichen, stellung, arg, z, grenze)
+				}
+				if err != nil && arg == "query" {
+					t.Errorf("%q %s: %v", zeichen, stellung, err)
+				}
+				n++
+			}
+		}
+	}
+	if n != 24 {
+		t.Fatalf("%d Fälle, erwartet 24", n)
+	}
+}
+
 // TestUeberlangeEingabe (Zeile 17): eine Eingabe über der Grenze endet mit `zu_lang`, ohne gelesen zu werden: höchstens
 // 4096 Bytes Zuteilung für 1 MiB. Menge 4: `pfad` und `rawQuery`, je einmal aus Escapes (kostet die Dekodierung) und einmal aus
 // Segmenten (kostet die Zerlegung).

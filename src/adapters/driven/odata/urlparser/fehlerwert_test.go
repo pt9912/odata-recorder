@@ -86,25 +86,34 @@ func TestFehlerwert(t *testing.T) {
 	pruefeFall(t, parserNeu(), fall{pfad: "/S", query: wiederhole("x=1&", 9) + "$top=-1", u: wertU, ort: "query/10"})
 }
 
-// TestFehlerOhneEingabe (Zeile 5): kein Teil der Eingabe steht in Error() oder Ort; 16 Ursachen × 3 Marker (Name, Wert,
-// Segment) und der Nicht-ASCII-Teil der Marker = 64 Prüfungen.
+// TestFehlerOhneEingabe (Zeile 5): kein Teil der Eingabe steht in Error() oder Ort. Menge: 18 Zellen (Ursache × Marker für
+// Name, Wert und Segment), in denen der Marker in der Eingabe steht (von 48 Zellen aus 16 Ursachen × 3 Marker; in den übrigen
+// 30 trägt die Eingabe diesen Marker nicht), dazu der Nicht-ASCII-Teil der Marker in den 16 Eingaben; für alle anderen Teile der
+// Eingabe gilt die feste Form von Ort und Text über den Korpus (pruefeFehlerform).
 func TestFehlerOhneEingabe(t *testing.T) {
-	n := 0
+	n, mitMarker := 0, 0
 	for _, f := range ursachenFaelle() {
+		eingabe := markiert(f.pfad) + markiert(f.query)
 		_, err := parse(markiert(f.pfad), markiert(f.query))
 		var uf *model.URLFehler
 		if !errors.As(err, &uf) {
 			t.Fatalf("%s: %v", f.u, err)
 		}
-		for _, marker := range []string{"ZnN", "ZwW", "ZsS", "\xc3\xa4"} {
-			if strings.Contains(uf.Error(), marker) || strings.Contains(uf.Ort, marker) {
-				t.Errorf("%s: Marker %q im Fehler %q", f.u, marker, uf.Error())
+		for _, marker := range []string{"ZnN", "ZwW", "ZsS"} {
+			if strings.Contains(eingabe, marker) {
+				mitMarker++
+				if strings.Contains(uf.Error(), marker) || strings.Contains(uf.Ort, marker) {
+					t.Errorf("%s: Marker %q im Fehler %q", f.u, marker, uf.Error())
+				}
 			}
-			n++
 		}
+		if strings.Contains(uf.Error(), "\xc3\xa4") || strings.Contains(uf.Ort, "\xc3\xa4") {
+			t.Errorf("%s: Nicht-ASCII-Marker im Fehler %q", f.u, uf.Error())
+		}
+		n++
 	}
-	if n != 64 {
-		t.Fatalf("%d Prüfungen", n)
+	if n != 16 || mitMarker != 18 {
+		t.Fatalf("%d Ursachen, %d Zellen mit Marker, erwartet 16 und 18", n, mitMarker)
 	}
 	// Auch kein anderer Teil der Eingabe: jeder Fehler des Korpus hat die feste Form von Ort und Text.
 	fehler := 0

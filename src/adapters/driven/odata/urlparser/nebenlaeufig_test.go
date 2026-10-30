@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/urlparser"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -77,6 +78,10 @@ func TestErgebnisTeiltNichts(t *testing.T) {
 	}
 }
 
+// wartegrenze begrenzt jedes Warten auf einen Aufruf: ein Aufruf, der den Leser nicht erreicht oder nicht endet, macht den
+// Test rot und lässt ihn nicht bis zur Zeitgrenze von `go test` hängen.
+const wartegrenze = 10 * time.Second
+
 // haltLeser hält den Aufruf, der ihn erreicht, an, bis der Test ihn weiterlaufen lässt.
 type haltLeser struct{ erreicht, weiter chan struct{} }
 
@@ -104,20 +109,90 @@ func TestVerschraenkt(t *testing.T) {
 			u   model.ODataURL
 			err error
 		}
-		fertig := make(chan ergebnis)
+		fertig := make(chan ergebnis, 1)
 		go func() {
 			u, err := p.ParseURL(f.halt[0], f.halt[1])
 			fertig <- ergebnis{u, err}
 		}()
-		<-h.erreicht
+		var gelassen sync.Once
+		lassen := func() { gelassen.Do(func() { close(h.weiter) }) }
+		defer lassen()
+		select {
+		case <-h.erreicht:
+		case <-time.After(wartegrenze):
+			t.Fatalf("haltender Aufruf %q erreicht den Leser nicht innerhalb von %v", f.halt, wartegrenze)
+		}
 		frei, freiFehler := p.ParseURL(f.frei[0], f.frei[1])
-		close(h.weiter)
-		got := <-fertig
+		lassen()
+		var got ergebnis
+		select {
+		case got = <-fertig:
+		case <-time.After(wartegrenze):
+			t.Fatalf("haltender Aufruf %q endet nicht innerhalb von %v", f.halt, wartegrenze)
+		}
 		if !gleich(got.u, sollHalt) || fmt.Sprint(got.err) != fmt.Sprint(sollHaltFehler) {
 			t.Errorf("haltender Aufruf %q: %+v %v, allein %+v %v", f.halt, got.u, got.err, sollHalt, sollHaltFehler)
 		}
 		if !gleich(frei, sollFrei) || fmt.Sprint(freiFehler) != fmt.Sprint(sollFreiFehler) {
 			t.Errorf("freier Aufruf %q: %+v %v, allein %+v %v", f.frei, frei, freiFehler, sollFrei, sollFreiFehler)
+		}
+	}
+}
+
+// paarLeser lässt zwei Aufrufe gleichzeitig im Leser stehen und gibt sie in der Reihenfolge frei, die der Test wählt; er gibt den
+// Text, den er bekam, als Ausdruck zurück, damit eine Vermischung der Aufrufe im Ergebnis sichtbar wird.
+type paarLeser struct {
+	erreicht chan string
+	frei     map[string]chan struct{}
+}
+
+func (p paarLeser) LeseFilter(text string) (interface{ IstFilterAusdruck() }, error) {
+	p.erreicht <- text
+	<-p.frei[text]
+	return testAusdruck{text}, nil
+}
+
+// TestVerschraenktLeser (Zeile 14, SPEC-160 Nr. 7 und 8): zwei Aufrufe laufen beide durch den FilterLeser, stehen zugleich in ihm
+// und werden in beiden Reihenfolgen freigegeben; jeder Aufruf liefert, was er allein lieferte (Text und Ausdruck seines
+// `$filter`). Menge 2: Freigabe von `a` vor `b` und von `b` vor `a`. Ein Zustand der Instanz, den ein Aufruf vor dem Leser
+// schreibt und danach liest, auch unter einer Sperre, wird in jedem Lauf gefunden; die Wirkung wird gezählt, kein Detektor.
+func TestVerschraenktLeser(t *testing.T) {
+	for _, zuerst := range []string{"a", "b"} {
+		h := paarLeser{erreicht: make(chan string, 2), frei: map[string]chan struct{}{"a": make(chan struct{}), "b": make(chan struct{})}}
+		p := urlparser.New(urlparser.WithFilter(h))
+		type ergebnis struct {
+			u   model.ODataURL
+			err error
+		}
+		fertig := map[string]chan ergebnis{"a": make(chan ergebnis, 1), "b": make(chan ergebnis, 1)}
+		for _, text := range []string{"a", "b"} {
+			go func() {
+				u, err := p.ParseURL("/S", "$filter="+text)
+				fertig[text] <- ergebnis{u, err}
+			}()
+		}
+		for range 2 {
+			select {
+			case <-h.erreicht:
+			case <-time.After(wartegrenze):
+				t.Fatalf("nicht beide Aufrufe erreichen den Leser innerhalb von %v", wartegrenze)
+			}
+		}
+		anderer := map[string]string{"a": "b", "b": "a"}[zuerst]
+		for _, text := range []string{zuerst, anderer} {
+			close(h.frei[text])
+			select {
+			case got := <-fertig[text]:
+				soll := model.ODataURL{
+					Ressource: model.Ressource{Art: model.RessourceMenge, EntitySet: "S"},
+					Optionen:  model.Optionen{Filter: &model.FilterOption{Text: text, Ausdruck: testAusdruck{text}}},
+				}
+				if got.err != nil || !gleich(got.u, soll) {
+					t.Errorf("Freigabe %q zuerst, Aufruf %q: %+v %v, allein %+v", zuerst, text, got.u, got.err, soll)
+				}
+			case <-time.After(wartegrenze):
+				t.Fatalf("Aufruf %q endet nicht innerhalb von %v", text, wartegrenze)
+			}
 		}
 	}
 }

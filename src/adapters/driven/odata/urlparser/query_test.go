@@ -1,6 +1,7 @@
 package urlparser_test
 
 import (
+	"math/big"
 	"strconv"
 	"strings"
 	"testing"
@@ -96,7 +97,6 @@ func TestOptionDoppelt(t *testing.T) {
 // TestTopSkip (Zeile 48): `$top` und `$skip`, 21 Werte je Option, 5 gültige und 16 ungültige.
 func TestTopSkip(t *testing.T) {
 	gueltig := map[string]int{"0": 0, "1": 1, "007": 7, "00": 0, "2147483647": 2147483647}
-	// 2^64 und 2^64 + 5 laufen bei einer Zahl ohne Längenprüfung auf 0 und 5 über
 	ungueltig := []string{"", "-1", "-0", "+1", "1.0", "1e3", "0x10", "%201", "1%20", "\xef\xbc\x91", "\xd9\xa1", "2147483648", "99999999999999999999",
 		"18446744073709551616", "18446744073709551621"}
 	n := 0
@@ -121,6 +121,53 @@ func TestTopSkip(t *testing.T) {
 	}
 	if n != 42 {
 		t.Fatalf("%d Fälle, erwartet 42", n)
+	}
+}
+
+// TestTopSkipBereich (Zeile 48, Klasse „Ziffernfolge über dem Bereich“, SPEC-162 Nr. 4: der Wert liegt von 0 bis 2147483647, alles
+// darüber ist `wert`, gleich wie lang die Ziffernfolge ist). Menge: die Werte 10^(n-1) und 10^n − 1 für n von 1 bis 40, die
+// Grenzen 2^31 − 1, 2^31, 2^63 − 1, 2^63, 2^63 + 5, 2^64 − 1, 2^64, 2^64 + 5 und 9999999999999999999, jeder mit 0 bis 3 führenden
+// Nullen, für `$top` und `$skip`. Das Orakel ist math/big; ein Wert über der Grenze ergibt `wert` und nie ein gesetztes Feld,
+// ein Wert darunter genau seine Zahl.
+func TestTopSkipBereich(t *testing.T) {
+	werte := map[string]bool{}
+	zehn := big.NewInt(10)
+	for n := 1; n <= 40; n++ {
+		p := new(big.Int).Exp(zehn, big.NewInt(int64(n-1)), nil)
+		werte[p.String()] = true
+		werte[new(big.Int).Sub(new(big.Int).Mul(p, zehn), big.NewInt(1)).String()] = true
+	}
+	zwei := func(e uint) *big.Int { return new(big.Int).Lsh(big.NewInt(1), e) }
+	for _, g := range []*big.Int{zwei(31), zwei(63), zwei(64)} {
+		for _, d := range []int64{-1, 0, 5} {
+			werte[new(big.Int).Add(g, big.NewInt(d)).String()] = true
+		}
+	}
+	werte["9999999999999999999"] = true
+	grenze, n := big.NewInt(2147483647), 0
+	for wert := range werte {
+		v, _ := new(big.Int).SetString(wert, 10)
+		for nullen := range 4 {
+			text := strings.Repeat("0", nullen) + wert
+			for _, name := range []string{"$top", "$skip"} {
+				if v.Cmp(grenze) > 0 {
+					qf(t, name+"="+text, wertU)
+				} else {
+					o := q(t, name+"="+text)
+					ist := o.Top
+					if name == "$skip" {
+						ist = o.Skip
+					}
+					if ist != (model.ZahlOption{Gesetzt: true, Wert: int(v.Int64())}) {
+						t.Errorf("%s=%s: %+v", name, text, ist)
+					}
+				}
+				n++
+			}
+		}
+	}
+	if n != len(werte)*8 || len(werte) < 80 {
+		t.Fatalf("%d Fälle, %d Werte", n, len(werte))
 	}
 }
 
