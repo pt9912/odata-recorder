@@ -17,13 +17,8 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 - [welle-record-replay](../welle-record-replay.md)
-- [welle-dev-container](../welle-dev-container.md)
 
-
-
-
-
-
+**Lesart:** Eine Welle steht hier, wenn ihr Trigger eingetreten ist; sonst steht sie unter *Nächste Wellen* mit Link auf ihre Datei. Bei einer Welle mit gestaffeltem Start (`welle-sensoren`) zählt der Trigger ihres ersten Teils.
 
 ## Nächste Wellen
 
@@ -34,12 +29,13 @@ und geschätzter Aufwand (S/M/L, kein Termin).
 
 | Welle | Trigger | Wichtigste Slices | Geschätzter Aufwand |
 |---|---|---|---|
-| welle-sensoren | `slice-groessenmarke-werkzeug` (Welle record-replay) liegt in `done/` | Prüfung auf unsichtbare Zeichen, Größe der Guide-Dateien als Gate (d-check-Modul `file`), Abdeckungs-Deklaration über den Tests mit erzeugten Tabellen, Schwelle der Anweisungsabdeckung; Plan: [welle-sensoren](../welle-sensoren.md) | M |
-| [welle-benutzerhandbuch](../welle-benutzerhandbuch.md) | `slice-groessenmarke-werkzeug` in `done/`; der Abgleich und die Kapitel über Aufzeichnen und Wiedergeben warten auf `slice-bootstrap-m2` in `done/` | Gerüst von docs/user/benutzerhandbuch.md samt Anpassung des Standards, Abgleich der Kataloge (Fehlercodes `ODR-E…`, Konfigurationsschlüssel, Kommandos) zwischen Binary, Spezifikation und Handbuch, Kapitel Aufzeichnen und Wiedergeben mit belegten Beispielen, Probelauf durch eine Rolle ohne Vorwissen | L |
+| [welle-sensoren](../welle-sensoren.md) | Teil 1: `slice-groessenmarke-werkzeug` (Welle record-replay) liegt in `done/`; Teil 2: `welle-record-replay` und `slice-guide-groessen-gate` liegen in `done/` | Teil 1, vor `slice-workspace-use-case`: Prüfung auf unsichtbare Zeichen, Größe der Guide-Dateien als Gate (d-check-Modul `file`); Teil 2: Abdeckungs-Deklaration über den Tests mit erzeugten Tabellen, Schwelle der Anweisungsabdeckung | M (Teil 1: 2 × S; Teil 2: M, mit Backfill L) |
+| [welle-benutzerhandbuch](../welle-benutzerhandbuch.md) | `slice-groessenmarke-werkzeug` in `done/`, `slice-handbuch-geruest` nach Teil 1 von `welle-sensoren` (Reihenfolge); der Abgleich und die Kapitel über Aufzeichnen und Wiedergeben warten auf `slice-bootstrap-m2` in `done/` | Gerüst von docs/user/benutzerhandbuch.md samt Anpassung des Standards, Abgleich der Kataloge (Fehlercodes `ODR-E…`, Konfigurationsschlüssel, Kommandos) zwischen Binary, Spezifikation und Handbuch, Kapitel Aufzeichnen und Wiedergeben mit belegten Beispielen, Probelauf durch eine Rolle ohne Vorwissen | L |
 | [welle-mock](../welle-mock.md) | welle-record-replay done (M2 erreicht), `slice-handbuch-meldungskatalog` in `done/` | Parser der OData-URL (Pfad, `$filter`), EDM-Ausdrücke und Interpreter, Codec zum Schreiben und zum Lesen von Client-Bodies, `MockUseCase` (Lesen, Schreiben), Snapshots, Abnahmetests, Modus `mock` im Composition Root | L |
+| [welle-dev-container](../welle-dev-container.md) | `welle-fundament` und `welle-record-replay` liegen in `done/` (M2 erreicht) | Arbeitscontainer mit eigenem Docker-Daemon und Limits, SSH-Zugang, Einlieferung per Zweig, `make gates` und `make gegenproben` im Container, Dokument für Entwickler | M |
 | [welle-hybrid](../welle-hybrid.md) | welle-mock done (M3 erreicht) | Fallback-Policy, `HybridUseCase`, Modus `hybrid` im Composition Root | M |
-| [welle-betrieb](../welle-betrieb.md) | welle-mock done (M3 erreicht) | Port `Telemetry` und Einbau in alle Pfade, `AuditLog`, TLS des Listeners, Container-Image mit Neustarttest, Lasttest zu `LH-QA-01` | L |
-| [welle-admin-api](../welle-admin-api.md) | welle-betrieb done (M5 erreicht) | `InspectionUseCase`, Admin-Listener mit Token und Transportschutz, Endpunkte für Sessions, Imports, Workspaces und Snapshots, CLI-Kommandos, Sicherheitsnachweis | L |
+| [welle-betrieb](../welle-betrieb.md) | welle-mock done (M3 erreicht); `slice-container-image` zusätzlich nach `welle-dev-container` in `done/` | Port `Telemetry` und Einbau in alle Pfade, `AuditLog`, TLS des Listeners, Container-Image mit Neustarttest, Lasttest zu `LH-QA-01` (Zielwert: Entscheidung des Users offen, Frist vor `slice-lasttest`) | L |
+| [welle-admin-api](../welle-admin-api.md) | welle-betrieb done (M5 erreicht) | `InspectionUseCase`, Admin-Listener mit Token und Transportschutz, Endpunkte für Sessions, Imports, Workspaces und Snapshots, Sicherheitsnachweis | L |
 | [welle-etag](../welle-etag.md) | welle-mock done (M3 erreicht) | ETag, `If-Match` mit `412`, `Prefer` (Soll) | S |
 | [welle-expand-batch](../welle-expand-batch.md) | welle-mock done (M3 erreicht) | `$expand`, `$batch` mit atomaren Changesets (Soll) | M |
 | [welle-odata-v2](../welle-odata-v2.md) | welle-mock done (M3 erreicht), ADR zum versionierten Adapter `Accepted` | Metadaten, Payload und Query für V2, Wahl des Adapters je Service (Kann) | L |
@@ -59,7 +55,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 | M4 | welle-hybrid | Ein Test belegt am Verbindungszähler eines Referenzdienstes, dass im Modus `hybrid` nur freigegebene lesende Anfragen den Upstream erreichen und ein POST ohne Freigabe nie | offen |
 | M5 | welle-betrieb | Der Lasttest nach `LH-QA-01.a` läuft reproduzierbar und weist p95 aus dem Gesamtspan für Replay und Mock aus | offen |
 | M6 | welle-admin-api | Ein Test steuert Aufzeichnung, Import, Workspace, Snapshot und Reset ausschließlich über den Admin-Listener mit Token und weist Anfragen ohne Token ab | offen |
-| M7 | welle-record-replay, welle-mock, welle-hybrid, welle-betrieb, welle-admin-api, welle-dev-container | Erstabnahme: alle Muss-Anforderungen des Lastenhefts haben einen Beleg, der fachliche Owner hat den Zielwert von `LH-QA-01` bestätigt, und das Lastenheft trägt den Status `Accepted` | offen |
+| M7 | welle-record-replay, welle-mock, welle-hybrid, welle-betrieb, welle-admin-api, welle-dev-container | Erstabnahme: alle Muss-Anforderungen des Lastenhefts haben einen Beleg, der fachliche Owner hat den Zielwert von `LH-QA-01` bestätigt, und das Lastenheft trägt den Status `Accepted` | offen; Zielwert `LH-QA-01` ungeklärt, Adresse: User, Frist vor Start von `slice-lasttest` ([Bericht](../../../reviews/2026-10-30-lastenheft-wellen-abgleich.md) §10 Nr. 8) |
 
 ## Abhängigkeitsgraph
 
@@ -88,7 +84,12 @@ flowchart LR
     F --> D
     F --> P
     P --> R
-    R -. "slice-groessenmarke-werkzeug done" .-> S
+    R --> D
+    R -. "Teil 1: slice-groessenmarke-werkzeug done; Teil 1 liegt vor slice-workspace-use-case (Reihenfolge, kein Blocker)" .-> S
+    R -. "Teil 2: welle-record-replay done, nach slice-guide-groessen-gate" .-> S
+    S -. "slice-handbuch-geruest nach Teil 1 (Reihenfolge)" .-> HB
+    D -. "nur slice-container-image: Docker-Daemon im Testlauf" .-> B
+    S -. "Teil 2 vor welle-dev-container (Empfehlung, kein Trigger)" .-> D
     R -. "slice-groessenmarke-werkzeug done; Katalog- und Aufzeichnen-Slices nach slice-bootstrap-m2 done" .-> HB
     R --> M
     HB -. "slice-handbuch-meldungskatalog done" .-> M
@@ -127,3 +128,4 @@ Roadmap, jede Zeile voll heißt treibende.
 | 2026-10-23 | [welle-record-replay](../welle-record-replay.md): [slice-session-wartung](../done/slice-session-wartung.md) beim Start vor dem ersten Code-Commit geschnitten; `SessionUseCase` ist [slice-session-use-case](../done/slice-session-use-case.md), nach `slice-session-wartung` (`MaintenanceUseCase`) und vor `slice-baseline-import` und `slice-bootstrap-m2`; die Welle führt 19 Slices statt 18 | Schätzung beider Use Cases in einem Slice rund 3250 bis 3750 Zeilen (Tabelle × 85 bzw. 40, plus Port-Fakes, × 1,25), über der Grenze 3000 aus `AGENTS.md` §3.14; ein Schnitt vor dem Code statt einer Rückführung danach (`BEO-REPO/groessenmarke-ueberschritten-ohne-rueckfuehrung`); gemeinsam ist nur der Port der Bereinigung |
 | 2026-10-23 | [welle-record-replay](../welle-record-replay.md): [slice-session-use-case](../done/slice-session-use-case.md) beim Start vor dem ersten Code-Commit geschnitten; das Beenden (`Drain`, Statusregel, `CloseAll`) ist [slice-session-beenden](../done/slice-session-beenden.md), nach `slice-session-use-case` und vor `slice-bootstrap-m2`; die Welle führt 20 Slices statt 19 | Schätzung beider Teile in einem Slice rund 3300 Zeilen (30 Zeilen der Tabelle, 9 nebenläufig, 5 Port-Fakes, × 1,25), über der Grenze 3000 aus `AGENTS.md` §3.14; ein Schnitt vor dem Code statt einer Rückführung danach; gemeinsam sind Konstruktor, Konfig, Fehlerabbildung und die Fakes des Pakets |
 | 2026-10-25 | [welle-record-replay](../welle-record-replay.md): [slice-groessenmarke-werkzeug](slice-groessenmarke-werkzeug.md) neu, nach `slice-baseline-import` und vor `slice-workspace-use-case`; die Welle führt 21 Slices statt 20 | Entscheidung des Users zu `BEO-REPO/groessenmarke-ueberschritten-ohne-rueckfuehrung` (16×): Ausgang `geplant` mit einem Werkzeug statt einer Prosa-Regel, denn die Formel der Platte verfehlt zwei von drei Messpunkten; das Werkzeug soll vor der nächsten Marke (`slice-workspace-use-case`) liegen; die Einordnung in die Welle ist vom User bestätigt |
+| 2026-10-30 | Reihenfolge der Wellen: [welle-sensoren](../welle-sensoren.md) startet gestaffelt, Teil 1 (`slice-unsichtbare-zeichen`, `slice-guide-groessen-gate`) nach `slice-groessenmarke-werkzeug` und vor `slice-workspace-use-case` (Reihenfolge, kein Blocker), Teil 2 (`slice-abdeckung-deklaration`, `slice-coverage-gate`) nach `welle-record-replay`; [welle-dev-container](../welle-dev-container.md) startet nach `welle-record-replay` (Trigger vorher nur `welle-fundament`), Kante zu `slice-container-image` von [welle-betrieb](../welle-betrieb.md); `slice-handbuch-geruest` nach Teil 1; `slice-cli-kommandos` entfällt, [welle-admin-api](../welle-admin-api.md) führt 8 Slices statt 9 | Teil 1 schützt jede Datei, die die folgenden Slices schreiben, und friert die Größe der Guide-Dateien ein, ohne `src/` zu berühren; Teil 2 (Backfill über 618 Testfunktionen in 105 Dateien, Schwelle gegen den Code von M2) kollidiert mit den Dateien, die die Slices von M2 schreiben; der Arbeitscontainer fährt eine Gate-Kette, die nach M2 stabil ist, und der Neustarttest von `slice-container-image` braucht dessen Docker-Daemon; kein Anker im Lastenheft für Kommandos über Start und Version hinaus (`LH-FA-13` verlangt eine Verwaltungsschnittstelle). Entscheidungen des Users zum Abgleich [Lastenheft gegen Wellen](../../../reviews/2026-10-30-lastenheft-wellen-abgleich.md) |
