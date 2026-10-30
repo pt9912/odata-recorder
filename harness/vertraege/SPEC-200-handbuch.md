@@ -147,6 +147,6 @@ Grün ist das Ziel nur mit einem Handbuch; ohne Datei ist es rot (Nr. 2 c).
 
 `SPEC-102` nimmt die Fälle bei der Lieferung unter den dann nächsten Fallnummern auf; sie fangen die Verdrahtung in der Stufe und im Ziel nicht (Nr. 14 h).
 
-**Stand:** geliefert: das Programm `pruefung handbuch` (`tools/pruefung/handbuch*.go`), die Stufe `handbuch` im `Dockerfile`, das Ziel `make handbuch-check` (`harness/mk/handbuch.mk`), die Zeile in `harness/README.md`, das Handbuch mit vier Beispiel-Dateien und die Einträge der Allowlist. Nicht geliefert: die Fälle H1 bis H10 der Gegenprobe (zweiter Commit des Slice).
+**Stand:** geliefert: das Programm `pruefung handbuch` (`tools/pruefung/handbuch*.go`), die Stufe `handbuch` im `Dockerfile`, das Ziel `make handbuch-check` (`harness/mk/handbuch.mk`), die Zeile in `harness/README.md`, das Handbuch mit vier Beispiel-Dateien und die Einträge der Allowlist. Die Fälle H1 bis H10 der Gegenprobe liegen in `tools/gegenproben/handbuch.go` (in `SPEC-102` unter den vorläufigen Nummern 121 bis 130).
 
 **Grenze:** Das Ziel belegt, dass das Handbuch einen Kopf mit der Software-Version des gebauten Binary trägt, dass jedes Beispiel gleich seiner Datei ist und gegen das gebaute Binary läuft, dass jedes Ziel von `make` in Inline-Code existiert und dass kein Wort der drei Mengen in der Prosa steht. Es beurteilt weder Verständlichkeit noch Vollständigkeit noch Ausblick ohne Stichwort (Nr. 14).

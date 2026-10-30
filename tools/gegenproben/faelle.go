@@ -488,5 +488,6 @@ func faelle() []Fall {
 	alle = append(alle, testFaelle()...)
 	alle = append(alle, buildFaelle()...)
 	alle = append(alle, raceFaelle()...)
-	return append(alle, groessenmarkeFaelle()...)
+	alle = append(alle, groessenmarkeFaelle()...)
+	return append(alle, handbuchFaelle()...)
 }

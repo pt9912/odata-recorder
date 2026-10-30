@@ -1,4 +1,4 @@
-# harness/mk/gegenproben.mk — Gegenproben zu a-check, lint, migration-check, pruefung (test, build, race) und groessenmarke samt Treiber (SPEC-102). Kein Gate: das Ziel
+# harness/mk/gegenproben.mk — Gegenproben zu a-check, lint, migration-check, pruefung (test, build, race, handbuch) und groessenmarke samt Treiber (SPEC-102). Kein Gate: das Ziel
 # hängt nicht an GATE_CHECKS. Die Verdrahtung von pruefung und groessenmarke in den Stufen des Dockerfile und der Aufruf von docker im
 # Treiber prüfen die Fälle nicht; die zu race laufen auf dem Image der Stufe gegenproben, nicht auf RACE_IMAGE. Eine Prüfsumme der Eingaben (tools/harness/gegenproben-eingabe.sh)
 # entscheidet, ob der Lauf nötig ist; der Stempel ist eine versionierte Datei und reist mit dem Commit, auch
@@ -8,7 +8,7 @@ DOCKER ?= docker
 DOCKER_BUILD ?= $(DOCKER) build --progress=plain
 
 .PHONY: gegenproben
-gegenproben: ## Gegenproben zu a-check, lint, migration-check, pruefung (test, build, race) und groessenmarke, nur bei geänderter Eingabe (Dockerfile, Stufe gegenproben; netzlos) — KEIN Gate
+gegenproben: ## Gegenproben zu a-check, lint, migration-check, pruefung (test, build, race, handbuch) und groessenmarke, nur bei geänderter Eingabe (Dockerfile, Stufe gegenproben; netzlos) — KEIN Gate
 	@h=$$(bash tools/harness/gegenproben-eingabe.sh "$(GOLANGCI_LINT_IMAGE)" "$(A_CHECK_IMAGE)") && \
 	if [ "$$(cat $(GEGENPROBEN_STEMPEL) 2>/dev/null)" = "$$h" ]; then \
 	  echo "gegenproben: Eingaben unverändert seit dem letzten grünen Lauf ($$h) — nichts läuft neu"; exit 0; fi && \
