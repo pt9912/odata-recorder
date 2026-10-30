@@ -409,6 +409,8 @@ schnitt-grund: Das Programm hat einen Leser (Zeilen, Zäune, Absätze, Spans), d
 
 *Messung des Implementers nach den Fixes zum Review*: die Tabelle in §3 hat jetzt 56 Zeilen (Z1 bis Z50, N1 bis N6; 2 nebenläufig: Z26, Z49), Summe aus Einfügungen und Löschungen von `git diff --numstat 975228d..HEAD` über die Pfade des Blocks 3586 (davon 2 Zeilen aus `main`); die Tabelle ergibt 5890, der Lauf meldet den Hinweis nach Nr. 5 c, die Marke bleibt 6900 (Befund F-13 des Reviews, siehe *Marke fest*); Auslastung 52 %.
 
+*Messung des Implementers nach den Fixes zur Verifikation* (V-1, V-2; HEAD `59aa774`): die Tabelle in §3 hat 59 Zeilen (Z1 bis Z53, N1 bis N6; 2 nebenläufig, 57 andere); `make groessenmarke` meldet den Hinweis `Tabelle ergibt 6130, Schätzung 5085` und `ok, Messung 4347 von Marke 6900` (63 %); die Marke bleibt fest (Nr. 5 c), ein Eintrag `ueberschreitung` ist nicht nötig. Die Fixes zur Verifikation tragen 483 Zeilen (`git diff --numstat 959c496..HEAD` über die Pfade des Blocks: nur `tools/pruefung/handbuch_runde4_test.go`); der Code von `tools/pruefung` ist unverändert. Der übrige Zuwachs gegen die Messung nach dem Review (3586) stammt aus den Fixes zum Re-Review.
+
 Die Marke 6900 gilt für das Ganze und ist fest (Nr. 5 c); sie ist die Hülle der Formel (Ende ÷ *S* bis 1,333), keine Prognose. Liegt die Messung beim Handoff über der Marke, wird Teil G in eigenem Commit zuletzt geschrieben und davor gemessen (siehe unten); der Mengen-Schnitt als zweiter Slice bleibt verworfen, solange die Messung vor Teil G unter 6900 liegt. Ein Eintrag `ueberschreitung` setzt der Planner nach der Messung mit Grund (`SPEC-128` Nr. 5 d). Dieser Plan legt keinen neuen Slice an.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
