@@ -130,6 +130,9 @@ func TestNrEindeutig(t *testing.T) {
 		{"leer", kopf5 + zeile("", "z", "f", "m", "andere"), "Nr. leer"},
 		{"doppelt", zw("Z1", "Z1"), "Nr. Z1 doppelt"},
 		{"doppelt bis auf Leerraum", zw("Z1", "  Z1 "), "Nr. Z1 doppelt"},
+		{"nicht doppelt: Groß und klein", zw("Z1", "z1"), ""},
+		{"nicht doppelt: klein und groß", zw("z1", "Z1"), ""},
+		{"nicht doppelt: Leerzeichen innen", zw("Z 1", "Z1"), ""},
 		{"verschieden", zw("Z1", "Z2"), ""},
 	} {
 		p := lesePlan(planMit(c.tab, blockB()))
