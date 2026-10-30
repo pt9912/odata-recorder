@@ -93,12 +93,13 @@ RUN --network=none sh /usr/local/bin/lint.sh
 FROM ${A_CHECK_IMAGE} AS a-check-bin
 
 # --- gegenproben: das Programm aus tools/gegenproben prüft, dass a-check, lint.sh,
-# migration-check.sh und pruefung einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
-# Eingaben gefahren, die Fälle zu `pruefung race` gegen ein Wegwerfmodul statt der Eingaben.
+# migration-check.sh, pruefung und groessenmarke samt Treiber einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
+# Eingaben gefahren, die Fälle zu `pruefung race` und zu `groessenmarke` gegen ein Wegwerfverzeichnis statt der Eingaben.
 FROM ${LINT_IMAGE} AS gegenproben
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY --from=a-check-bin /a-check /usr/local/bin/a-check
 COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
+COPY --from=groessenmarke /usr/local/bin/groessenmarke /usr/local/bin/groessenmarke
 WORKDIR /gp
 COPY tools/gegenproben ./
 RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-formatiert:"; echo "$f"; exit 1; }; } \
@@ -107,5 +108,5 @@ WORKDIR /src
 COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY go.mod go.sum* .a-check.yml .golangci.yml ./
 COPY src ./src
-COPY tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/
+COPY tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/groessenmarke.sh tools/harness/
 RUN --network=none gegenproben

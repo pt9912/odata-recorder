@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -13,6 +14,8 @@ const (
 	gateLint
 	gateMigration
 	gatePruefung
+	gateGroessenmarke
+	gateTreiber
 )
 
 // Fall ist eine Gegenprobe: ein Eingriff in das Verzeichnis des Falls (die Kopie der Eingaben, bei
@@ -27,7 +30,8 @@ type Fall struct {
 	Kopiere  map[string]string // Ziel -> Quelle, beide in der Kopie
 	// Argumente ersetzen die Argumente von migration-check.sh (nil: die Vorgabe) und sind bei
 	// gatePruefung die Argumente von pruefung; dort steht {dir} für das Verzeichnis des Falls und
-	// {binary} für das Binary des Baus.
+	// {binary} für das Binary des Baus. Bei gateGroessenmarke sind es die Argumente von groessenmarke,
+	// bei gateTreiber die von groessenmarke.sh (Programm und Planverzeichnis), beide mit {dir}.
 	Argumente          []string
 	Bau                *Bau // erzeugt vor dem Aufruf das Binary in der Kopie
 	OhneGoDateienInSrc bool // löscht jede Datei *.go unter src/ der Kopie
@@ -37,12 +41,51 @@ type Fall struct {
 	WantExit     int
 	WantText     []string // jeder Text muss in der Ausgabe stehen
 	Verboten     []string // keiner dieser Texte darf in der Ausgabe stehen
+	// Ausfuehrbar nennt Dateien aus Neu, die ausführbar werden (Ersatz-Skripte).
+	Ausfuehrbar []string
+	// Env sind zusätzliche Einträge der Umgebung des Aufrufs; {dir} steht für das Verzeichnis des
+	// Falls und {PATH} für den PATH des Prozesses.
+	Env []string
+	// Vorbereitung läuft nach den Eingriffen und vor dem Aufruf, etwa um ein Git-Repo anzulegen.
+	Vorbereitung func(dir string) error
+	// Nachher prüft nach dem Aufruf das Protokoll der Ersatz-Skripte; sein Ergebnis ist der Grund,
+	// aus dem der Fall rot ist, oder "". Es wird nur gefragt, wenn der Aufruf selbst die
+	// Erwartung erfüllt.
+	Nachher func(l Lauf) string
+}
+
+// Lauf ist, was Nachher vom Aufruf eines Falls sieht: das Verzeichnis und das TMPDIR des Falls,
+// die Umgebung des Aufrufs, die Umgebung des Programms und die Ausgabe.
+type Lauf struct {
+	U   Umgebung
+	Dir string
+	Tmp string
+	Env []string
+	Out string
+}
+
+// treiber ruft den Treiber groessenmarke.sh im Verzeichnis des Falls mit denselben Umgebungswerten
+// und liefert Exit-Code und Ausgabe.
+func (l Lauf) treiber(args ...string) (int, string) {
+	code, out, _ := starte(fallFrist, l.Dir, l.Env, "sh", append([]string{l.U.Treiber}, args...)...)
+	return code, out
 }
 
 // Bau beschreibt das Binary, das ein Fall vor dem Aufruf von pruefung build in der Kopie erzeugt.
 type Bau struct {
 	Version      string
 	OhneTrimpath bool
+}
+
+// umgebung liefert die zusätzliche Umgebung des Aufrufs: das eigene TMPDIR des Falls und die
+// Einträge von Env.
+func (f Fall) umgebung(dir, tmp string) []string {
+	r := strings.NewReplacer("{dir}", dir, "{PATH}", os.Getenv("PATH"))
+	env := []string{"TMPDIR=" + tmp}
+	for _, e := range f.Env {
+		env = append(env, r.Replace(e))
+	}
+	return env
 }
 
 // ersetzeOrte setzt dir und das Binary in die Argumente des Falls ein.
@@ -430,5 +473,6 @@ func faelle() []Fall {
 	alle = append(alle, migrationFaelle()...)
 	alle = append(alle, testFaelle()...)
 	alle = append(alle, buildFaelle()...)
-	return append(alle, raceFaelle()...)
+	alle = append(alle, raceFaelle()...)
+	return append(alle, groessenmarkeFaelle()...)
 }

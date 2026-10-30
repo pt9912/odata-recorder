@@ -45,15 +45,37 @@ type Umgebung struct {
 	// Bauen liefert Programm und Argumente, mit denen ein Fall mit Bau sein Binary in dir
 	// erzeugt (Arbeitsverzeichnis dir).
 	Bauen func(dir string, b Bau) (string, []string)
+	// Treiber ist der Pfad von tools/harness/groessenmarke.sh, den die Fälle 103 bis 120 mit
+	// `sh` rufen.
+	Treiber string
 }
 
 func standard() Umgebung {
+	treiber, err := filepath.Abs("tools/harness/groessenmarke.sh")
+	if err != nil {
+		treiber = "tools/harness/groessenmarke.sh"
+	}
 	return Umgebung{
 		Eingaben:   []string{"src", "go.mod", "go.sum", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh", "tools/harness/migration-check.sh"},
-		Programme:  []string{"a-check", "golangci-lint", "sh", "pruefung", "go", "gofmt"},
+		Programme:  []string{"a-check", "golangci-lint", "sh", "pruefung", "go", "gofmt", "groessenmarke", "git"},
 		Aufraeumen: os.RemoveAll,
-		Befehl:     befehl,
+		Befehl:     befehlMit(treiber),
 		Bauen:      bauen,
+		Treiber:    treiber,
+	}
+}
+
+// befehlMit liefert den Aufruf der Gates; die Fälle zu groessenmarke rufen das Programm bzw. den
+// Treiber unter dem Pfad treiber, jeweils im Verzeichnis des Falls.
+func befehlMit(treiber string) func(dir string, f Fall) (string, []string, string) {
+	return func(dir string, f Fall) (string, []string, string) {
+		switch f.Gate {
+		case gateGroessenmarke:
+			return "groessenmarke", f.ersetzeOrte(dir), dir
+		case gateTreiber:
+			return "sh", append([]string{treiber}, f.ersetzeOrte(dir)...), dir
+		}
+		return befehl(dir, f)
 	}
 }
 
@@ -200,7 +222,7 @@ func legeVerzeichnisAn(u Umgebung, f Fall, wurzel, dir string) error {
 // und bewertet das Ergebnis.
 func fuehreFall(u Umgebung, f Fall, dir, tmp string) Ergebnis {
 	// golangci-lint sperrt eine Datei in TMPDIR gegen parallele Läufe; jeder Fall hat sein eigenes.
-	env := []string{"TMPDIR=" + tmp}
+	env := f.umgebung(dir, tmp)
 	if f.Bau != nil {
 		name, args := u.Bauen(dir, *f.Bau)
 		code, out, abgelaufen := starte(fallFrist, dir, env, name, args...)
@@ -210,7 +232,11 @@ func fuehreFall(u Umgebung, f Fall, dir, tmp string) Ergebnis {
 	}
 	name, args, wd := u.Befehl(dir, f)
 	code, out, abgelaufen := starte(fallFrist, wd, env, name, args...)
-	return Ergebnis{Name: f.Name, Rot: bewerte(f, code, out, abgelaufen)}
+	rot := bewerte(f, code, out, abgelaufen)
+	if rot == "" && f.Nachher != nil {
+		rot = f.Nachher(Lauf{U: u, Dir: dir, Tmp: tmp, Env: env, Out: out})
+	}
+	return Ergebnis{Name: f.Name, Rot: rot}
 }
 
 // bewerte gibt den Grund zurück, aus dem ein Fall rot ist, oder "".
@@ -315,7 +341,7 @@ func kopiere(eingaben []string, von, nach string) error {
 }
 
 func greife(dir string, f Fall) error {
-	for _, schritt := range []func(string, Fall) error{kopiereDateien, legeAn, haengeAn, entferne, ersetze} {
+	for _, schritt := range []func(string, Fall) error{kopiereDateien, legeAn, haengeAn, entferne, ersetze, macheAusfuehrbar, bereite} {
 		if err := schritt(dir, f); err != nil {
 			return err
 		}
@@ -401,6 +427,22 @@ func ersetze(dir string, f Fall) error {
 		}
 	}
 	return nil
+}
+
+func macheAusfuehrbar(dir string, f Fall) error {
+	for _, d := range f.Ausfuehrbar {
+		if err := os.Chmod(filepath.Join(dir, d), 0o755); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func bereite(dir string, f Fall) error {
+	if f.Vorbereitung == nil {
+		return nil
+	}
+	return f.Vorbereitung(dir)
 }
 
 func hashEingaben(eingaben []string, wurzel string) (string, error) {
