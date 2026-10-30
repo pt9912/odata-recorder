@@ -1,0 +1,6 @@
+$ docker run --rm odata-recorder:build /out/odata-recorder foo
+--- Standardausgabe
+--- Fehlerausgabe
+Unbekanntes Kommando: foo
+--- Ausgangswert
+2

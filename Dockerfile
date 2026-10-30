@@ -21,8 +21,8 @@ RUN go mod download && go mod verify && mkdir -p /go/pkg/mod
 FROM deps AS source
 COPY src ./src
 
-# --- pruefung: das Programm aus tools/pruefung trägt die Prüfungen der Stufen test, build und race
-# (SPEC-036, SPEC-122). Es wird geprüft (gofmt, vet, Test) und gebaut.
+# --- pruefung: das Programm aus tools/pruefung trägt die Prüfungen der Stufen test, build, race und
+# handbuch (SPEC-036, SPEC-122, SPEC-200). Es wird geprüft (gofmt, vet, Test) und gebaut.
 FROM deps AS pruefung
 WORKDIR /pf
 COPY tools/pruefung ./
@@ -57,6 +57,16 @@ RUN --network=none GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -buildvc
       -ldflags="-s -w -X main.version=$VERSION" \
       -o /out/odata-recorder ./src/bootstrap/main
 RUN --network=none pruefung build /out/odata-recorder "$VERSION"
+
+# --- handbuch: das Benutzerhandbuch und seine Beispiel-Dateien gegen das gebaute Binary der Stufe
+# build, gefahren von pruefung (SPEC-200); jeder RUN ohne Netz. Die Wurzel trägt docs/user, die
+# Makefiles, das Dockerfile und harness/mk.
+FROM build AS handbuch
+WORKDIR /handbuch
+COPY docs/user docs/user
+COPY Makefile d-check.mk repo.mk Dockerfile ./
+COPY harness/mk harness/mk
+RUN --network=none pruefung handbuch /out/odata-recorder /handbuch
 
 # --- race: go test -race mit cgo über den Quellstand der Stufe source, gefahren von pruefung
 # (SPEC-122). RACE_IMAGE bringt den C-Compiler mit; die Stufe bricht ab, wenn seine Go-Version
