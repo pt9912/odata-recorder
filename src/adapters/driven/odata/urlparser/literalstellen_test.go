@@ -41,12 +41,12 @@ func vereint(teile ...[]int) []int {
 	return r
 }
 
-// ersatzNichtZiffer sind die Ersatzzeichen einer Ziffernstelle (sechs); ersatzTrenn die einer Trennstelle (acht, zwei davon
-// Ziffern, die ein Trennzeichen ersetzen und keine Ziffernstelle füllen).
-var (
-	ersatzNichtZiffer = []string{"x", "-", "+", ":", ".", "_"}
-	ersatzTrenn       = []string{"x", "-", "+", ":", ".", "_", "0", "9"}
-)
+// ersatzNichtZiffer sind die Ersatzzeichen einer Ziffernstelle (sechs).
+func ersatzNichtZiffer() []string { return []string{"x", "-", "+", ":", ".", "_"} }
+
+// ersatzTrenn sind die Ersatzzeichen einer Trennstelle (acht, zwei davon Ziffern, die ein Trennzeichen ersetzen und keine
+// Ziffernstelle füllen).
+func ersatzTrenn() []string { return []string{"x", "-", "+", ":", ".", "_", "0", "9"} }
 
 // stellenBasen sind die Basisformen von TestLiteralStellen: Datum, drei Zeitpunkte (mit Versatz, mit Sekunden, ohne Sekunden),
 // Uhrzeit, ein Typpräfix, eine Guid und ein Zeitpunkt mit Bruchteil. Zählung je Basis aus der Rechnung von Hand (Ziffernstellen ×
@@ -93,12 +93,12 @@ func (b stellenBasis) erzeugeStellen() []stellenElement {
 	els := []stellenElement{{beschreibung: b.name + " Basis", form: b.form, u: b.basisU, art: b.gutArt, text: b.gutText}}
 	ersetze := func(i int, z string) string { return b.form[:i] + z + b.form[i+1:] }
 	for _, i := range b.ziffern {
-		for _, z := range ersatzNichtZiffer {
+		for _, z := range ersatzNichtZiffer() {
 			els = append(els, stellenElement{fmt.Sprintf("%s Stelle %d (Ziffer) -> %q", b.name, i, z), ersetze(i, z), model.URLLiteral, 0, ""})
 		}
 	}
 	for _, i := range b.trenn {
-		for _, z := range ersatzTrenn {
+		for _, z := range ersatzTrenn() {
 			if string(b.form[i]) == z || slices.Contains(b.ohneErsatz[i], z) {
 				continue
 			}
