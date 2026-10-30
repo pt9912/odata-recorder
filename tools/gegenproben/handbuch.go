@@ -74,7 +74,8 @@ func hbAntwort(a string) hbOpt { return func(f *hbFall) { f.ersatz = a } }
 
 func hbBinaryPfad(p string) hbOpt { return func(f *hbFall) { f.binary = p } }
 
-// hbBauen baut einen Fall: Standard ist das saubere Handbuch H1; die Optionen ändern es.
+// hbBauen baut einen Fall: Standard ist das saubere Handbuch H1; die Optionen ändern es. starts ist die Zahl
+// der Starts des Ersatz-Binary, die der Fall prüft (negativ: keine Prüfung).
 func hbBauen(name string, exit, starts int, opts ...hbOpt) Fall {
 	h := hbFall{version: "dev", prosa: "Der Aufruf steht im Beispiel.", datei: hbBeispielDatei(hbAusgabe), ersatz: hbAusgabe, binary: hbBinary}
 	for _, o := range opts {
@@ -83,7 +84,7 @@ func hbBauen(name string, exit, starts int, opts ...hbOpt) Fall {
 	if h.block == "" {
 		h.block = h.datei
 	}
-	return Fall{
+	f := Fall{
 		Name: "handbuch/" + name, Gate: gatePruefung, Wegwerfmodul: true, Getrennt: true, WantExit: exit,
 		Argumente: []string{"handbuch", "{dir}/" + h.binary, "{dir}"},
 		Neu: map[string]string{
@@ -95,8 +96,11 @@ func hbBauen(name string, exit, starts int, opts ...hbOpt) Fall {
 			hbLog:        "",
 		},
 		Ausfuehrbar: []string{hbBinary},
-		Nachher:     hbStarts(starts),
 	}
+	if starts >= 0 {
+		f.Nachher = hbStarts(starts)
+	}
+	return f
 }
 
 // hbMit setzt die Erwartungen an die Ströme: ein Text mit `1>` davor steht auf stdout, sonst auf stderr.
@@ -126,7 +130,7 @@ func handbuchFaelle() []Fall {
 		hbMit(hbBauen("h7-block-weicht-ab", 1, 2, hbBlock(hbBeispielDatei(hbAusgabe)+"x\n")),
 			"Beispiel weicht von beispiele/aufruf.txt ab"),
 		hbMit(hbBauen("h8-make-ziel", 1, 2, hbProsa("Siehe `make nix`.")), "make-Ziel nix unbekannt"),
-		hbMit(hbBauen("h9-binary-fehlt", 2, 0, hbBinaryPfad("bin/gibt-es-nicht")), "Binary fehlt", "!Planung"),
+		hbMit(hbBauen("h9-binary-fehlt", 2, -1, hbBinaryPfad("bin/gibt-es-nicht")), "Binary fehlt", "!Planung"),
 		hbMit(hbBauen("h10-zitat", 0, 2, hbDatei(hbBeispielDatei("geplant")), hbAntwort("geplant")),
 			"1>pruefung handbuch: ok", "!Planung"),
 	}

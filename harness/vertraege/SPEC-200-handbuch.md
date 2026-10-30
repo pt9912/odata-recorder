@@ -142,7 +142,7 @@ Grün ist das Ziel nur mit einem Handbuch; ohne Datei ist es rot (Nr. 2 c).
 - H6 das Ersatz-Binary weicht vom Beispiel ab: Exit 1, `Standardausgabe weicht ab`.
 - H7 der Block weicht von der Datei ab: Exit 1, `Beispiel weicht von`.
 - H8 `make` mit einem Ziel, das die Makefiles nicht führen: Exit 1.
-- H9 das Binary fehlt: Exit 2 und das Ersatz-Binary wurde nicht gestartet.
+- H9 das Binary fehlt (der Pfad zeigt auf keine Datei): Exit 2, die Meldung nennt `Binary fehlt`. Dass ein Eingabefehler das Binary nicht startet, fangen die Tests von `pruefung` (Nr. 2 c), nicht die Gegenprobe.
 - H10 ein Wort aus A im gebundenen Block: Exit 0 (das Zitat gilt nicht als Prosa).
 
 `SPEC-102` nimmt die Fälle bei der Lieferung unter den dann nächsten Fallnummern auf; sie fangen die Verdrahtung in der Stufe und im Ziel nicht (Nr. 14 h).

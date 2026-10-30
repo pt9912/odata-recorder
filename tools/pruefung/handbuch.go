@@ -92,12 +92,12 @@ func pruefeDokument(u Umgebung, bin, wurzel, arbeit string, zeilen []string) ([]
 	befunde = append(befunde, verwaiste(wurzel, bindungen)...)
 	vl, err := fahre(bin, []string{"version"}, arbeit, u.Zeitgrenze)
 	if err != nil {
-		return nil, []string{"Binary nicht startbar: " + err.Error()}
+		return nil, []string{eingabeText(err)}
 	}
 	befunde = append(befunde, versionBefunde(vl, k)...)
-	bb, err := pruefeBeispiele(u, bin, wurzel, arbeit, bindungen)
-	if err != nil {
-		return nil, []string{"Binary nicht startbar: " + err.Error()}
+	bb, eingabe := pruefeBeispiele(u, bin, wurzel, arbeit, bindungen)
+	if len(eingabe) > 0 {
+		return nil, eingabe
 	}
 	befunde = append(befunde, bb...)
 	befunde = append(befunde, praefixBefunde(wurzel)...)

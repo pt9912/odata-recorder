@@ -23,7 +23,7 @@ func TestHandbuchMengenZaehlung(t *testing.T) {
 		muster[o.id[0]]++
 		formen[o.id[0]] += len(o.formen)
 	}
-	want := map[byte][2]int{'A': {16, 36}, 'B': {14, 44}, 'C': {14, 22}}
+	want := map[byte][2]int{'A': {16, 36}, 'B': {14, 44}, 'C': {14, 24}}
 	for k, w := range want {
 		if muster[k] != w[0] || formen[k] != w[1] {
 			t.Fatalf("Menge %c: %d Muster und %d Formen, erwartet %d und %d", k, muster[k], formen[k], w[0], w[1])
@@ -49,8 +49,8 @@ func TestHandbuchMengenFormen(t *testing.T) {
 			}
 		}
 	}
-	if zaehler['A'] != 252 || zaehler['B'] != 308 || zaehler['C'] != 154 {
-		t.Fatalf("Elemente A %d, B %d, C %d, erwartet 252, 308, 154", zaehler['A'], zaehler['B'], zaehler['C'])
+	if zaehler['A'] != 252 || zaehler['B'] != 308 || zaehler['C'] != 168 {
+		t.Fatalf("Elemente A %d, B %d, C %d, erwartet 252, 308, 168", zaehler['A'], zaehler['B'], zaehler['C'])
 	}
 }
 
@@ -78,8 +78,8 @@ func TestHandbuchMengeCImZitat(t *testing.T) {
 			n++
 		}
 	}
-	if n != 22 {
-		t.Fatalf("%d Elemente, erwartet 22", n)
+	if n != 24 {
+		t.Fatalf("%d Elemente, erwartet 24", n)
 	}
 }
 
@@ -109,14 +109,16 @@ func TestHandbuchTrefferGrenze(t *testing.T) {
 			if !strings.Contains(lauf("Das ist x"+k+" und "+k+" hier."), trefferZeile(p.id)) {
 				t.Fatalf("%s: der zweite, gültige Treffer neben dem ersten mit Buchstaben davor fehlt (%q)", p.id, k)
 			}
-			if !hintenOffen && strings.Contains(lauf("Das ist "+k+"x hier."), trefferZeile(p.id)) {
+			// C4 trifft das Wort und die Kennung: ein Buchstabe hinter `adr-0001` steht hinter dem Treffer `adr`.
+			kennung := p.id == "C4" && strings.Contains(k, "-")
+			if !hintenOffen && !kennung && strings.Contains(lauf("Das ist "+k+"x hier."), trefferZeile(p.id)) {
 				t.Fatalf("%s: Buchstabe dahinter %q: Treffer", p.id, k)
 			}
 			n++
 		}
 	}
-	if n != 102 {
-		t.Fatalf("%d Formen, erwartet 102", n)
+	if n != 104 {
+		t.Fatalf("%d Formen, erwartet 104", n)
 	}
 }
 

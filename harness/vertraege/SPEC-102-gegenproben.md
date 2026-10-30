@@ -138,7 +138,7 @@ In diesen Fällen heißt „Ausgabe nennt“ der Strom, den `SPEC-128` der Meldu
     - 126 `h6-binary-weicht-ab`: das Skript antwortet nicht mit der Datei · Exit 1, stderr nennt `aufruf.txt: Standardausgabe weicht ab` und nicht `Beispiel weicht von`.
     - 127 `h7-block-weicht-ab`: der Block ist die Datei mit einer Zeile mehr · Exit 1, stderr nennt `Beispiel weicht von beispiele/aufruf.txt ab`.
     - 128 `h8-make-ziel`: `make nix` in Inline-Code, das `Makefile` führt nur `build` · Exit 1, stderr nennt `make-Ziel nix unbekannt`.
-    - 129 `h9-binary-fehlt`: der Pfad des Binary zeigt auf keine Datei · Exit 2, stderr nennt `Binary fehlt`; das Ersatz-Skript wurde nicht gestartet.
+    - 129 `h9-binary-fehlt`: der Pfad des Binary zeigt auf keine Datei · Exit 2, stderr nennt `Binary fehlt` (der Fall zählt keine Starts; dass ein Eingabefehler das Binary nicht startet, fangen die Tests von `pruefung`, `SPEC-200` Nr. 2 c).
     - 130 `h10-zitat`: die Datei, der Block und die Ausgabe des Skripts tragen das Wort `geplant` · Exit 0, stdout nennt `pruefung handbuch: ok` (das Zitat gilt nicht als Prosa).
     Der Inhalt der Dateien führt kein Zeichen jenseits von ASCII außer dem Umlaut in `Gültigkeitsbereich`, den der Fall aus Bytewerten bildet. Die Fälle fangen die Verdrahtung der Stufe `handbuch` und des Ziels nicht (`SPEC-200` Nr. 14 h).
 Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.

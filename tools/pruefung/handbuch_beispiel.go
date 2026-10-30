@@ -26,13 +26,32 @@ type ergebnis struct {
 	signal, zeit   bool
 }
 
+// arbeitFehler ist der Fehler, das leere Verzeichnis eines Laufs anzulegen (SPEC-200 Nr. 2 c).
+type arbeitFehler struct {
+	err error
+}
+
+func (a *arbeitFehler) Error() string {
+	return a.err.Error()
+}
+
+// eingabeText ist der Eingabefehler zu einem Fehler von fahre: das Verzeichnis des Laufs ist
+// `Arbeitsverzeichnis nicht anlegbar`, jeder andere Fehler `Binary nicht startbar` (SPEC-200 Nr. 2 c, 7 a).
+func eingabeText(err error) string {
+	var a *arbeitFehler
+	if errors.As(err, &a) {
+		return "Arbeitsverzeichnis nicht anlegbar: " + a.Error()
+	}
+	return "Binary nicht startbar: " + err.Error()
+}
+
 // fahre startet bin mit args ohne Shell, in leerer Umgebung, in einem leeren Verzeichnis unter
 // arbeit und mit leerer Standardeingabe. Der Fehler ist gesetzt, wenn der Prozess nicht gestartet
-// werden konnte (SPEC-200 Nr. 7 a, b).
+// werden konnte oder das Verzeichnis des Laufs nicht anzulegen war (arbeitFehler; SPEC-200 Nr. 7 a, b).
 func fahre(bin string, args []string, arbeit string, grenze time.Duration) (ergebnis, error) {
 	dir, err := os.MkdirTemp(arbeit, "lauf-")
 	if err != nil {
-		return ergebnis{}, err
+		return ergebnis{}, &arbeitFehler{err}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), grenze)
 	defer cancel()
@@ -192,7 +211,7 @@ func ausgangswert(zeilen []string) (int, string) {
 
 // pruefeBeispiele fährt jede Datei, auf die eine gültige Bindung zeigt und die vorhanden und
 // formgültig ist, einmal und vergleicht beide Ströme und den Ausgangswert (SPEC-200 Nr. 6, 7).
-func pruefeBeispiele(u Umgebung, bin, wurzel, arbeit string, bindungen []string) ([]befund, error) {
+func pruefeBeispiele(u Umgebung, bin, wurzel, arbeit string, bindungen []string) ([]befund, []string) {
 	namen := map[string]bool{}
 	for _, p := range bindungen {
 		namen[path.Base(p)] = true
@@ -215,7 +234,7 @@ func pruefeBeispiele(u Umgebung, bin, wurzel, arbeit string, bindungen []string)
 		}
 		l, err := fahre(bin, bsp.args, arbeit, u.Zeitgrenze)
 		if err != nil {
-			return nil, err
+			return nil, []string{eingabeText(err)}
 		}
 		bf = append(bf, vergleiche(name, bsp, l)...)
 	}

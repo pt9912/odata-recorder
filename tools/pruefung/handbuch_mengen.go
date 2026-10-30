@@ -51,7 +51,7 @@ func mengen() []muster {
 		{"C1", `roadmap\p{L}*`},
 		{"C2", `welle\p{L}*`},
 		{"C3", `slice\p{L}*`},
-		{"C4", `adr-([a-z]+-)?\d{4}`},
+		{"C4", `adrs?`},
 		{"C5", `lh-[a-z]{2}(-[a-z]+)?-\d+`},
 		{"C6", `spec-\d{3}`},
 		{"C7", `arc-\d{3}`},

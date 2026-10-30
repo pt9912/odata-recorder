@@ -35,6 +35,7 @@ type antwort struct {
 	code     int
 	signal   bool
 	schlaf   string // Sekunden, die das Ersatz-Binary schläft (dann ohne Ausgabe)
+	kind     string // Sekunden, die ein Kindprozess die Ströme offen hält, nachdem das Ersatz-Binary geendet hat
 }
 
 func standardAntworten() map[string]antwort {
@@ -72,6 +73,9 @@ func neuesErsatz(t *testing.T, a map[string]antwort) ersatz {
 		if v.schlaf != "" {
 			dateien["sleep"] = v.schlaf
 		}
+		if v.kind != "" {
+			dateien["kind"] = v.kind
+		}
 		for name, inhalt := range dateien {
 			if err := os.WriteFile(filepath.Join(o, name), []byte(inhalt), 0o644); err != nil {
 				t.Fatal(err)
@@ -94,6 +98,7 @@ case "$*" in
 esac
 o=$d/r$r
 [ -f "$o/sleep" ] && { echo $$ > "$d/pid"; exec sleep "$(cat "$o/sleep")"; }
+[ -f "$o/kind" ] && { sleep "$(cat "$o/kind")" & }
 cat "$o/out"; cat "$o/err" >&2
 [ -f "$o/sig" ] && kill -KILL $$
 exit "$(cat "$o/code")"
@@ -268,7 +273,7 @@ func orakel() []mf {
 		z("C1", `roadmap\p{L}*`, "Roadmap|Roadmaps"),
 		z("C2", `welle\p{L}*`, "Welle|Wellen|welle-benutzerhandbuch"),
 		z("C3", `slice\p{L}*`, "Slice|Slices|slice-handbuch-geruest"),
-		z("C4", `adr-([a-z]+-)?\d{4}`, "adr-0001|adr-idx-0004"),
+		z("C4", `adrs?`, "ADR|ADRs|adr-0001|adr-idx-0004"),
 		z("C5", `lh-[a-z]{2}(-[a-z]+)?-\d+`, "lh-fa-01|lh-qa-sup-002|lh-rb-03"),
 		z("C6", `spec-\d{3}`, "spec-110"),
 		z("C7", `arc-\d{3}`, "arc-004"),
