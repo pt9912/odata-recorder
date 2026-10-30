@@ -60,17 +60,19 @@ func halten(ctx context.Context) func() context.Context {
 
 // FakeTelemetry zeichnet jeden Aufruf auf und zählt jede Operation (SPEC-230 Nr. 10). Er prüft
 // nichts, liefert keinen Fehler und gerät nicht in Panik; er ist für gleichzeitigen Aufruf sicher.
+// Der Nullwert ist ein nutzbarer Fake ohne Aufzeichnung und mit leerem Stand.
 type FakeTelemetry struct {
 	mu       sync.Mutex
 	aufrufe  []Aufruf
-	zaehler  map[Operation]int
+	zaehler  [OpSnapshot + 1]int
 	stand    support.Snapshot
+	gesetzt  bool
 	naechste int
 }
 
 // NewFakeTelemetry liefert einen Fake ohne Aufzeichnung und mit leerem Stand.
 func NewFakeTelemetry() *FakeTelemetry {
-	return &FakeTelemetry{zaehler: map[Operation]int{}}
+	return &FakeTelemetry{}
 }
 
 type spanSchluessel struct{}
@@ -108,11 +110,20 @@ func (f *FakeTelemetry) CountError(code model.Code) {
 	f.aufzeichnen(Aufruf{Op: OpCountError, Code: code})
 }
 
-// Snapshot zählt den Aufruf und liefert eine Kopie des gesetzten Stands, sonst den leeren.
+// Snapshot zählt den Aufruf und liefert eine Kopie des gesetzten Stands (nil oder leer, wie
+// gesetzt), sonst den leeren Stand mit vier nicht-nil Sammlungen (SPEC-230 Nr. 10).
 func (f *FakeTelemetry) Snapshot() support.Snapshot {
 	f.aufzeichnen(Aufruf{Op: OpSnapshot})
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if !f.gesetzt {
+		return support.Snapshot{
+			Errors:    map[model.Code]uint64{},
+			Durations: map[support.SpanName]support.Verteilung{},
+			Dropped:   map[support.Verwurf]uint64{},
+			Spans:     []support.SpanRecord{},
+		}
+	}
 	return f.stand.Kopie()
 }
 
@@ -120,7 +131,7 @@ func (f *FakeTelemetry) Snapshot() support.Snapshot {
 func (f *FakeTelemetry) SetzeStand(s support.Snapshot) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.stand = s.Kopie()
+	f.stand, f.gesetzt = s.Kopie(), true
 }
 
 // Aufrufe liefert die Aufzeichnung in der Reihenfolge der Aufrufe als Kopie.
@@ -138,6 +149,9 @@ func (f *FakeTelemetry) Aufrufe() []Aufruf {
 func (f *FakeTelemetry) Anzahl(op Operation) int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if op < 0 || int(op) >= len(f.zaehler) {
+		return 0
+	}
 	return f.zaehler[op]
 }
 

@@ -4,9 +4,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"go/parser"
+	"go/token"
 	"log/slog"
 	"math"
+	"path/filepath"
 	"reflect"
+	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -264,10 +270,12 @@ func TestKernSchreibtNichts(t *testing.T) {
 
 type ctxSchluessel struct{}
 
-// P15: CountError verliert keinen Zuwachs; 64 Goroutinen mit je 500 Aufrufen, Codes reihum über 33.
+// P15: CountError verliert keinen Zuwachs, in beiden Zweigen; 64 Goroutinen mit je 500 Aufrufen,
+// Codes reihum über die 33 der Tabelle und 4 außerhalb.
 func TestCountErrorGleichzeitig(t *testing.T) {
 	const goroutinen, aufrufe = 64, 500
-	codes := model.AlleCodes()
+	bekannt := model.AlleCodes()
+	codes := append(slices.Clone(bekannt), 0, -1, model.CodeE9001+1, math.MaxInt)
 	a, _ := neu(t)
 	var wg sync.WaitGroup
 	for g := range goroutinen {
@@ -281,39 +289,168 @@ func TestCountErrorGleichzeitig(t *testing.T) {
 	}
 	wg.Wait()
 	erwartet := map[model.Code]uint64{}
+	unbekannt := uint64(0)
 	for g := range goroutinen {
 		for i := range aufrufe {
-			erwartet[codes[(g*aufrufe+i)%len(codes)]]++
+			c := codes[(g*aufrufe+i)%len(codes)]
+			if slices.Contains(bekannt, c) {
+				erwartet[c]++
+			} else {
+				unbekannt++
+			}
 		}
 	}
 	s := a.Snapshot()
-	if len(erwartet) != 33 || summe(s.Errors) != goroutinen*aufrufe {
-		t.Errorf("Summe %d, erwartet %d bei %d Codes", summe(s.Errors), goroutinen*aufrufe, len(erwartet))
+	if len(erwartet) != 33 || len(codes) != 37 || unbekannt == 0 || summe(s.Errors)+s.Dropped[support.VerwurfFehlercode] != goroutinen*aufrufe {
+		t.Errorf("Summe %d plus %d, erwartet %d bei %d Codes", summe(s.Errors), s.Dropped[support.VerwurfFehlercode], goroutinen*aufrufe, len(erwartet))
 	}
 	for c, n := range erwartet {
 		if s.Errors[c] != n {
 			t.Errorf("%s: %d, erwartet %d", c, s.Errors[c], n)
 		}
 	}
+	if s.Dropped[support.VerwurfFehlercode] != unbekannt {
+		t.Errorf("fehlercode %d, erwartet %d", s.Dropped[support.VerwurfFehlercode], unbekannt)
+	}
 }
 
-// Log und CountError gleichzeitig mit Snapshot: kein Datenrennen auf den Zählern der Verwürfe.
-func TestLogGleichzeitig(t *testing.T) {
+// P15: Log, CountError und Snapshot gleichzeitig. 16 Schreiber starten zugleich (je 2000 Runden mit
+// einem bekannten Code, einem unbekannten und einem Log mit zwei Verwürfen), 16 Leser lesen je 400
+// Stände und prüfen, dass kein Zähler fällt; am Ende stehen die genauen Summen.
+func TestAdapterGleichzeitig(t *testing.T) {
+	const schreiber, runden, leser, staende = 16, 2000, 16, 400
 	a, _ := neu(t)
+	start := make(chan struct{})
 	var wg sync.WaitGroup
-	for range 16 {
+	for range schreiber {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for range 100 {
+			<-start
+			for range runden {
+				a.CountError(model.CodeE2001)
+				a.CountError(0)
 				a.Log(context.Background(), slog.LevelInfo, "m", support.Str("x", "y"), support.Str("mode", "a b"))
-				a.Snapshot()
 			}
 		}()
 	}
+	fallend := make(chan string, leser*staende)
+	for range leser {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			var e, k, w, f uint64
+			for range staende {
+				s := a.Snapshot()
+				ne, nk, nw, nf := s.Errors[model.CodeE2001], s.Dropped[support.VerwurfSchluessel], s.Dropped[support.VerwurfWert], s.Dropped[support.VerwurfFehlercode]
+				if ne < e || nk < k || nw < w || nf < f {
+					fallend <- "ein Zähler fiel zwischen zwei Ständen"
+				}
+				e, k, w, f = ne, nk, nw, nf
+			}
+		}()
+	}
+	close(start)
 	wg.Wait()
+	close(fallend)
+	for m := range fallend {
+		t.Error(m)
+	}
 	s := a.Snapshot()
-	if s.Dropped[support.VerwurfSchluessel] != 1600 || s.Dropped[support.VerwurfWert] != 1600 {
-		t.Errorf("schluessel %d, wert %d; erwartet je 1600", s.Dropped[support.VerwurfSchluessel], s.Dropped[support.VerwurfWert])
+	const n = schreiber * runden
+	if s.Errors[model.CodeE2001] != n || s.Dropped[support.VerwurfFehlercode] != n ||
+		s.Dropped[support.VerwurfSchluessel] != n || s.Dropped[support.VerwurfWert] != n {
+		t.Errorf("E2001 %d, fehlercode %d, schluessel %d, wert %d; erwartet je %d", s.Errors[model.CodeE2001],
+			s.Dropped[support.VerwurfFehlercode], s.Dropped[support.VerwurfSchluessel], s.Dropped[support.VerwurfWert], n)
+	}
+}
+
+// P19: Log wendet MinLevel nicht an: bei jeder Stufe des Aufrufs und jedem MinLevel zählt ein
+// Verwurf (4 Stufen × 4 MinLevel).
+func TestLogOhneMinLevel(t *testing.T) {
+	stufen := []slog.Level{slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError}
+	minima := []slog.Level{slog.LevelDebug, slog.LevelInfo, slog.LevelError, slog.LevelError + 1}
+	for _, mindest := range minima {
+		for _, stufe := range stufen {
+			var w bytes.Buffer
+			a, err := telemetry.New(telemetry.Config{Writer: &w, Clock: supporttest.NewFestUhr(time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC)), MinLevel: mindest})
+			if err != nil {
+				t.Fatal(err)
+			}
+			a.Log(context.Background(), stufe, "m", support.Str("x", "y"))
+			if n := a.Snapshot().Dropped[support.VerwurfSchluessel]; n != 1 {
+				t.Errorf("MinLevel %v, Stufe %v: schluessel %d, erwartet 1", mindest, stufe, n)
+			}
+		}
+	}
+}
+
+// P10: jeder Aufruf von New liefert einen eigenen Adapter; dieselbe Config gilt mehrfach.
+func TestNewUnabhaengig(t *testing.T) {
+	var w bytes.Buffer
+	cfg := telemetry.Config{Writer: &w, Clock: supporttest.NewFestUhr(time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC))}
+	a, err := telemetry.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := telemetry.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.CountError(model.CodeE2001)
+	a.CountError(0)
+	a.Log(context.Background(), slog.LevelInfo, "m", support.Str("x", "y"), support.Str("mode", "a b"))
+	sa, sb := a.Snapshot(), b.Snapshot()
+	if sa.Errors[model.CodeE2001] != 1 || sa.Dropped[support.VerwurfFehlercode] != 1 || sa.Dropped[support.VerwurfSchluessel] != 1 || sa.Dropped[support.VerwurfWert] != 1 {
+		t.Errorf("A zeigt die Zuwächse nicht: %+v", sa)
+	}
+	if summe(sb.Errors) != 0 {
+		t.Errorf("B zählt Fehler von A: %+v", sb.Errors)
+	}
+	for g, n := range sb.Dropped {
+		if n != 0 {
+			t.Errorf("B zählt den Grund %s von A: %d", g, n)
+		}
+	}
+	b.CountError(model.CodeE2101)
+	if a.Snapshot().Errors[model.CodeE2101] != 0 {
+		t.Error("A zählt den Fehler von B")
+	}
+}
+
+// P14: der Adapter importiert nur model, ports/support und die Standardbibliothek. a-check prüft
+// die Richtung der Schichten und erlaubt dem Adapter auch ports/outbound; dieser Test prüft die
+// Menge der Importe jeder Datei des Pakets.
+func TestAdapterImporte(t *testing.T) {
+	const modul = "github.com/pt9912/odata-recorder/src/hexagon/"
+	erlaubt := []string{modul + "model", modul + "ports/support"}
+	dateien, err := filepath.Glob("*.go")
+	if err != nil || len(dateien) < 2 {
+		t.Fatalf("Dateien des Pakets: %v, %v", dateien, err)
+	}
+	gesehen := 0
+	for _, d := range dateien {
+		f, err := parser.ParseFile(token.NewFileSet(), d, nil, parser.ImportsOnly)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, imp := range f.Imports {
+			pfad, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			gesehen++
+			stdlib := !strings.Contains(strings.SplitN(pfad, "/", 2)[0], ".")
+			if strings.HasSuffix(d, "_test.go") {
+				continue
+			}
+			if !stdlib && !slices.Contains(erlaubt, pfad) {
+				t.Errorf("%s importiert %s", d, pfad)
+			}
+		}
+	}
+	if gesehen == 0 {
+		t.Error("keine Importe gelesen")
 	}
 }

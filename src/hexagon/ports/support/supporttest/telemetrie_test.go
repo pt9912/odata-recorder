@@ -14,6 +14,15 @@ import (
 
 type ctxSchluessel struct{}
 
+// leererStand prüft SPEC-230 Nr. 10: vier leere, nicht-nil Sammlungen.
+func leererStand(t *testing.T, s support.Snapshot) {
+	t.Helper()
+	if s.Errors == nil || s.Durations == nil || s.Dropped == nil || s.Spans == nil ||
+		len(s.Errors)+len(s.Durations)+len(s.Dropped)+len(s.Spans) != 0 {
+		t.Errorf("Stand %+v, erwartet vier leere, nicht-nil Sammlungen", s)
+	}
+}
+
 // P11: der Fake hält jedes Argument ungeprüft fest und zählt jede der sechs Operationen.
 func TestFakeAufzeichnung(t *testing.T) {
 	f := supporttest.NewFakeTelemetry()
@@ -96,9 +105,16 @@ func TestFakeAufzeichnung(t *testing.T) {
 
 func TestFakeSnapshotStand(t *testing.T) {
 	f := supporttest.NewFakeTelemetry()
-	if got := f.Snapshot(); !reflect.DeepEqual(got, support.Snapshot{}) {
-		t.Errorf("ohne Stand %+v, erwartet den leeren", got)
+	leererStand(t, f.Snapshot())
+	f.SetzeStand(support.Snapshot{})
+	if got := f.Snapshot(); got.Errors != nil || got.Durations != nil || got.Dropped != nil || got.Spans != nil {
+		t.Errorf("gesetzter nil-Stand %+v, erwartet nil wie gesetzt", got)
 	}
+	f.SetzeStand(support.Snapshot{Errors: map[model.Code]uint64{}, Spans: []support.SpanRecord{}})
+	if got := f.Snapshot(); got.Errors == nil || got.Spans == nil || got.Dropped != nil {
+		t.Errorf("gesetzter leerer Stand %+v, erwartet leer wie gesetzt", got)
+	}
+	f = supporttest.NewFakeTelemetry()
 	stand := support.Snapshot{Errors: map[model.Code]uint64{model.CodeE2001: 3}}
 	f.SetzeStand(stand)
 	stand.Errors[model.CodeE2001] = 9
@@ -159,6 +175,82 @@ func TestFakeEltern(t *testing.T) {
 			t.Error("nil-ctx nicht mit seiner Identität festgehalten")
 		}
 	})
+}
+
+// P18: jede der sechs Operationen hält den Span fest, den sie betrifft, und nur sie: zwei Spans,
+// deren Enden in umgekehrter Reihenfolge stehen.
+func TestFakeSpanJeOperation(t *testing.T) {
+	f := supporttest.NewFakeTelemetry()
+	_, s1 := f.StartSpan(context.Background(), support.SpanMockQuery)
+	_, s2 := f.StartSpan(context.Background(), support.SpanReplayMatch)
+	f.Log(context.Background(), slog.LevelInfo, "m")
+	s2.End()
+	s1.Set(support.Str("a", "b"))
+	s1.End()
+	s2.Set(support.Str("a", "b"))
+	f.CountError(model.CodeE2001)
+	f.Snapshot()
+	want := []struct {
+		op   supporttest.Operation
+		span support.Span
+	}{
+		{supporttest.OpStartSpan, s1}, {supporttest.OpStartSpan, s2}, {supporttest.OpLog, nil},
+		{supporttest.OpEnd, s2}, {supporttest.OpSet, s1}, {supporttest.OpEnd, s1}, {supporttest.OpSet, s2},
+		{supporttest.OpCountError, nil}, {supporttest.OpSnapshot, nil},
+	}
+	a := f.Aufrufe()
+	if len(a) != len(want) {
+		t.Fatalf("%d Aufrufe, erwartet %d", len(a), len(want))
+	}
+	ops := map[supporttest.Operation]bool{}
+	for i, w := range want {
+		ops[w.op] = true
+		got := a[i]
+		if got.Op != w.op {
+			t.Errorf("Aufruf %d: Operation %d, erwartet %d", i, got.Op, w.op)
+		}
+		if w.span == nil && got.Span != nil {
+			t.Errorf("Aufruf %d (Operation %d): Span %v, erwartet keiner", i, got.Op, got.Span)
+		}
+		if w.span != nil && (got.Span == nil || support.Span(got.Span) != w.span) {
+			t.Errorf("Aufruf %d (Operation %d): Span %v, erwartet %v", i, got.Op, got.Span, w.span)
+		}
+	}
+	if len(ops) != 6 {
+		t.Errorf("%d Operationen geprüft, erwartet 6", len(ops))
+	}
+}
+
+// Die ID eines Spans zählt je Fake ab 1.
+func TestFakeSpanID(t *testing.T) {
+	for range 2 {
+		f := supporttest.NewFakeTelemetry()
+		for want := 1; want <= 3; want++ {
+			_, s := f.StartSpan(context.Background(), support.SpanMockQuery)
+			if got := s.(*supporttest.FakeSpan).ID; got != want {
+				t.Errorf("ID %d, erwartet %d", got, want)
+			}
+		}
+	}
+}
+
+// Der Nullwert ist nutzbar: jede der sechs Operationen, ohne Panik, und gezählt.
+func TestFakeNullwert(t *testing.T) {
+	f := &supporttest.FakeTelemetry{}
+	ctx, s := f.StartSpan(context.Background(), support.SpanMockQuery)
+	f.Log(ctx, slog.LevelInfo, "m")
+	f.CountError(model.CodeE2001)
+	s.Set()
+	s.End()
+	leererStand(t, f.Snapshot())
+	for op := supporttest.OpLog; op <= supporttest.OpSnapshot; op++ {
+		if f.Anzahl(op) != 1 {
+			t.Errorf("Anzahl(%d) = %d, erwartet 1", op, f.Anzahl(op))
+		}
+	}
+	if f.Anzahl(0) != 0 || f.Anzahl(supporttest.OpSnapshot+1) != 0 {
+		t.Error("Operation außerhalb der sechs gezählt")
+	}
 }
 
 // P16: gleichzeitiger Aufruf; 64 Goroutinen mit je 500 Aufrufen, reihum über die sechs Operationen.

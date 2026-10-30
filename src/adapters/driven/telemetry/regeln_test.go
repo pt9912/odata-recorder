@@ -106,7 +106,7 @@ func orakel(z zeile, a support.Attr) bool {
 	case "zahl":
 		return a.Ganz >= 0
 	case "dauer":
-		return !math.IsNaN(a.Gleit) && !math.IsInf(a.Gleit, 0) && a.Gleit >= 0
+		return !math.IsNaN(a.Gleit) && !math.IsInf(a.Gleit, 0) && a.Gleit >= 0 && !math.Signbit(a.Gleit)
 	case "fehlercode":
 		for _, c := range alleCodes() {
 			if a.Text == c {
@@ -258,7 +258,7 @@ func TestWertformGrenzen(t *testing.T) {
 				faelle = append(faelle, support.Int(z.key, v))
 			}
 		case "dauer":
-			for _, v := range []float64{-1e-6, 0, 1e-6, 12.345, math.MaxFloat64, math.NaN(), math.Inf(1), math.Inf(-1), -1} {
+			for _, v := range []float64{math.Copysign(0, -1), -1e-6, 0, 1e-6, 12.345, math.MaxFloat64, math.NaN(), math.Inf(1), math.Inf(-1), -1} {
 				faelle = append(faelle, attrZuArt(z, support.ArtFloat, "", 0, v))
 			}
 			faelle = append(faelle, support.Millis(z.key, -time.Nanosecond), support.Millis(z.key, 0), support.Millis(z.key, time.Nanosecond))
@@ -305,6 +305,8 @@ func TestWertformGrenzenVonHand(t *testing.T) {
 		{"status", support.Int("", 599), true}, {"status", support.Int("", 600), false},
 		{"zahl", support.Int("", -1), false}, {"zahl", support.Int("", 0), true},
 		{"dauer", support.Millis("", -time.Nanosecond), false}, {"dauer", support.Millis("", 0), true},
+		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: math.Copysign(0, -1)}, false},
+		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: 0}, true},
 		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: math.NaN()}, false},
 		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: math.Inf(1)}, false},
 		{"dauer", support.Attr{Art: support.ArtFloat, Gleit: math.Inf(-1)}, false},
@@ -319,38 +321,41 @@ func TestWertformGrenzenVonHand(t *testing.T) {
 	}
 }
 
-// P04: die sechs Formen mit Text weisen jedes Zeichen außerhalb ab (6 Formen × 12 Zeichen).
+// P04: die sechs Formen mit Text nehmen jedes Byte außerhalb ihrer Zeichen nicht an: Schleife über
+// alle 256 Bytewerte × 6 Formen, je Wert an jeder Stelle eines gültigen Grundwerts ersetzt, dazu
+// vorangestellt und angehängt; das Orakel ist die Beschreibung der Form (regulärer Ausdruck,
+// Menge der Codes), nicht der Code des Adapters.
 func TestWertformZeichen(t *testing.T) {
-	// Zeichen aus Bytewerten: Leerzeichen, ', ", {, =, $, @, /, Zeilenumbruch, NUL, 0x80, :
-	zeichen := []string{
-		string([]byte{0x20}), string([]byte{0x27}), string([]byte{0x22}), string([]byte{0x7b}),
-		string([]byte{0x3d}), string([]byte{0x24}), string([]byte{0x40}), string([]byte{0x2f}),
-		string([]byte{0x0a}), string([]byte{0x00}), string([]byte{0x80}), string([]byte{0x3a}),
-	}
 	basis := map[string]string{
 		"token": "ab12", "kennung": "Ab.1_-9", "name": "Ab.1_x", "methode": "GET",
 		"fehlercode": "ODR-E2001", "blob": "sha256:" + strings.Repeat("a", 64),
 	}
-	paare := 0
+	werte, abgewiesen, angenommen := 0, 0, 0
 	for form, b := range basis {
 		z := schluesselZuForm(t, form)
 		pruefeFall(t, z, support.Str(z.key, b), true, "Grundwert")
-		for _, c := range zeichen {
-			paare++
-			mitte := len(b) / 2
-			// erstes, mittleres und letztes Zeichen ersetzt, angehängt, vorangestellt
-			varianten := []string{c + b[1:], b[:mitte] + c + b[mitte+1:], b[:len(b)-1] + c, b + c, c + b}
+		for v := range 256 {
+			c := string([]byte{byte(v)})
+			varianten := []string{c + b, b + c}
+			for i := range len(b) {
+				varianten = append(varianten, b[:i]+c+b[i+1:])
+			}
 			for _, w := range varianten {
 				a := support.Str(z.key, w)
-				if orakel(z, a) {
-					t.Fatalf("%s: Orakel nimmt %q an", form, w)
+				want := orakel(z, a)
+				werte++
+				if want {
+					angenommen++
+				} else {
+					abgewiesen++
 				}
-				pruefeFall(t, z, a, false, "Zeichen "+strings.ToValidUTF8(c, "?"))
+				pruefeFall(t, z, a, want, "Byte "+strings.ToValidUTF8(c, "?"))
 			}
 		}
 	}
-	if len(zeichen) != 12 || len(basis) != 6 || paare != 72 {
-		t.Errorf("Zählprüfung: %d Zeichen, %d Formen, %d Paare; erwartet 12, 6, 72", len(zeichen), len(basis), paare)
+	// 6 Formen × 256 Bytes × (Länge des Grundwerts + 2 Stellen): 4+7+6+3+9+71 = 100, + 12.
+	if len(basis) != 6 || werte != 256*(100+12) || abgewiesen == 0 || angenommen == 0 {
+		t.Errorf("Zählprüfung: %d Formen, %d Werte (%d angenommen, %d abgewiesen); erwartet 6 und %d Werte", len(basis), werte, angenommen, abgewiesen, 256*(100+12))
 	}
 }
 

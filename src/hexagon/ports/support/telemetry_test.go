@@ -168,6 +168,15 @@ func TestSnapshotKopie(t *testing.T) {
 		s.Dropped[support.VerwurfWert] != 1 || s.Spans[0].Attrs[0].Text != "v" || s.Spans[0].ID != "spn-1" {
 		t.Errorf("Änderung an der Kopie wirkt auf das Original: %+v", s)
 	}
+	leer := support.Snapshot{
+		Errors:    map[model.Code]uint64{},
+		Durations: map[support.SpanName]support.Verteilung{},
+		Dropped:   map[support.Verwurf]uint64{},
+		Spans:     []support.SpanRecord{},
+	}
+	if z := leer.Kopie(); z.Errors == nil || z.Durations == nil || z.Dropped == nil || z.Spans == nil {
+		t.Errorf("Kopie des leeren Stands hat eine nil-Sammlung: %+v", z)
+	}
 	if z := (support.Snapshot{}).Kopie(); z.Errors != nil || z.Durations != nil || z.Dropped != nil || z.Spans != nil {
 		t.Errorf("Kopie des leeren Stands ist nicht leer: %+v", z)
 	}

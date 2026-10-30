@@ -129,7 +129,7 @@ func wertGueltig(r regel, a support.Attr) bool {
 		_, ok := model.ParseCode(a.Text)
 		return ok
 	case formDauer:
-		return a.Gleit >= 0 && !math.IsInf(a.Gleit, 0)
+		return a.Gleit >= 0 && !math.Signbit(a.Gleit) && !math.IsInf(a.Gleit, 0)
 	case formBlob:
 		return blobReferenz(a.Text)
 	}
