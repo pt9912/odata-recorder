@@ -4,7 +4,7 @@
 
 **Gegenstand:** `slice-telemetry-port`, Zweig `slice-telemetry-port`, HEAD `ed3142b` (Basis des Slice `a0396b0`, Marke gesetzt in `8c0aac5`, Marke 3000). Fix-Commits: `a557519` (Entscheidungen des Architect in der Spezifikation), `84a8d7e`, `ed3142b`. Vorgänger-Berichte nur als Eingang: [Review](2026-10-30-slice-telemetry-port-review.md) (F-1 bis F-11, Commit `c728c37`) und [Re-Review](2026-10-30-slice-telemetry-port-review-2.md) (R-1 bis R-7, Commit `876d7a0`).
 
-**Gegen was geprüft:** Plan `docs/plan/planning/in-progress/slice-telemetry-port.md` (DoD, §3 Tabelle P01 bis P17 samt Nachträgen, §4, §6), `SPEC-230` (Nr. 1 bis 4, 8 bis 10), `SPEC-232` (Nr. 1, 5 a; 5 f soweit P) in `spec/spezifikation.md`, `AGENTS.md` §3.7 bis §3.18.
+**Gegen was geprüft:** Plan `docs/plan/planning/done/slice-telemetry-port.md` (DoD, §3 Tabelle P01 bis P17 samt Nachträgen, §4, §6), `SPEC-230` (Nr. 1 bis 4, 8 bis 10), `SPEC-232` (Nr. 1, 5 a; 5 f soweit P) in `spec/spezifikation.md`, `AGENTS.md` §3.7 bis §3.18.
 
 **Modell:** claude-sonnet-5-5 - **Datum:** 2026-10-30 - **Arbeitsweise:** Sensoren selbst gefahren (Container `odata-recorder:race`, `--network none --memory=4g --memory-swap=4g --cpus=4`, jeder Lauf unter flock auf die gemeinsame Sperrdatei der schweren Läufe); Mutationen und Probe-Pakete auf Kopien in einem Wegwerfverzeichnis des Scratchpads, im Repo wurde nichts außer diesem Report geändert.
 

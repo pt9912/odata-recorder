@@ -4,7 +4,7 @@
 
 **Gegenstand:** `slice-telemetry-port`, Zweig `slice-telemetry-port`, HEAD `bb4e065` (Fix-Runde 3 auf `f472d90`). Der Commit ändert nur Tests und den Plan: `git diff ed3142b..bb4e065 --stat` nennt vier Dateien (`telemetry_test.go` des Adapters, `telemetry_test.go` und `supporttest/telemetrie_test.go` des Ports, den Plan), keinen Produktcode. Die Probe-Ergebnisse der ersten Runde zum Produktcode gelten damit unverändert und sind neu gefahren.
 
-**Gegen was geprüft:** Plan `docs/plan/planning/in-progress/slice-telemetry-port.md` (§3 P09, P11, P15, P16, Absatz Fix-Runde 3, Raten, Negativ N-1; §4; §6), `SPEC-230` Nr. 9 und 10 in `spec/spezifikation.md`, `AGENTS.md` §3.7, §3.10, §3.13, §3.15, §3.17; Vorverifikation `docs/reviews/2026-10-30-slice-telemetry-port-verifikation.md` (V-1 bis V-8).
+**Gegen was geprüft:** Plan `docs/plan/planning/done/slice-telemetry-port.md` (§3 P09, P11, P15, P16, Absatz Fix-Runde 3, Raten, Negativ N-1; §4; §6), `SPEC-230` Nr. 9 und 10 in `spec/spezifikation.md`, `AGENTS.md` §3.7, §3.10, §3.13, §3.15, §3.17; Vorverifikation `docs/reviews/2026-10-30-slice-telemetry-port-verifikation.md` (V-1 bis V-8).
 
 **Modell:** claude-sonnet-5-5 - **Datum:** 2026-10-30 - **Arbeitsweise:** Sensoren selbst gefahren (Container `odata-recorder:race`, `--network none --memory=4g --memory-swap=4g --cpus=4`, jeder schwere Lauf unter `flock /tmp/odata-recorder-heavy.lock`, gebündelt: eine Sperre je Gruppe); Mutationen und Probe-Pakete ausschließlich auf Kopien im Scratchpad (`.../scratchpad/verif-telemetrie-2/`), im Repo geändert wurde nur dieser Report. Die Sperre war überlaufen (bis zu 25 Minuten Wartezeit je Gruppe); die Messungen sind deshalb knapper als geplant (§9).
 

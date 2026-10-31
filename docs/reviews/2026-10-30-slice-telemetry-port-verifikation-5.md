@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier (Modul 11), fünfte Runde, frischer Kontext, gezielt auf das Delta `5e422f4..9b3dac7`. Nicht Gegenstand: V-14 (gelöst), V-22 (INFO), die Closure, das Register.
 
-**Gegenstand:** `slice-telemetry-port`, Zweig `slice-telemetry-port`, HEAD `9b3dac7` (Fix-Runde 6). Plan: [slice-telemetry-port](../plan/planning/in-progress/slice-telemetry-port.md); Vorbericht: [Verifikation 4](2026-10-30-slice-telemetry-port-verifikation-4.md).
+**Gegenstand:** `slice-telemetry-port`, Zweig `slice-telemetry-port`, HEAD `9b3dac7` (Fix-Runde 6). Plan: [slice-telemetry-port](../plan/planning/done/slice-telemetry-port.md); Vorbericht: [Verifikation 4](2026-10-30-slice-telemetry-port-verifikation-4.md).
 
 **Gegen was geprüft:** `AGENTS.md` §3.10, §3.11, §3.14, §3.15, §3.17; `SPEC-230` Nr. 9 und 10, `SPEC-232` Nr. 4 in `spec/spezifikation.md`; der Vertrag [SPEC-128](../../harness/vertraege/SPEC-128-groessenmarke.md) (Nr. 3 n, Nr. 5 d, e); der Diff `git diff 5e422f4..9b3dac7` (4 Dateien: 3 Testdateien, der Plan).
 
