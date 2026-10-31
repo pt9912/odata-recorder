@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-service
+**Fund:** F-5 (Review, MEDIUM): die Zusage „der Dienst prüft `ctx` nach der Bestätigung nicht mehr“ hatte nur an einer von zwei Stellen einen Fänger. V-5 (Verifikation 1, LOW): der Fänger führte vom Zustand des `ctx` nur den Grund `Canceled`; mit dem Endegrund {`Canceled`, `DeadlineExceeded`, eigener Grund} (36 Elemente) war die Mutation rot. Beleg: Plan §7 *Was ging anders als geplant* (1) und *Lerneintrag* (1); Reports `docs/reviews/2026-10-31-slice-replay-service-review.md` und `-verifikation.md` (F-5, V-5).

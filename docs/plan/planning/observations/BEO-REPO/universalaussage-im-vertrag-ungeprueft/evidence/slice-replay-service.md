@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-service
+**Fund:** V-1 (Verifikation 1, MEDIUM): die Allaussage „Header-Namen vergleicht der Dienst überall ohne Beachtung der ASCII-Schreibweise“ (`SPEC-135` Kopf) hatte nach der Fix-Runde zu F-2 einen Fänger über vier Schreibweisen fester Namen, nicht über das Alphabet der Klasse (26 Buchstaben, vier ohne Fänger); behoben mit 256 Bytes je Stelle (196 608 Elemente). Beleg: Plan §7 *Was ging anders als geplant* (1) und *Lerneintrag*; Reports `docs/reviews/2026-10-31-slice-replay-service-review.md` und `-verifikation.md` (F-2, V-1).

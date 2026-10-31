@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-service
+**Fund:** V-2 (Verifikation 1, MEDIUM): die sechs nebenläufigen Fänger bauten je Aufruf einen eigenen Dienst; ein Zähler im geteilten `Replayer` blieb in 0 von 50 Prozessen unter dem Detektor rot, derselbe Fänger auf einem Dienst in 50 von 50; ohne Detektor hing die Wirkung von Zustand über geteilte Referenzen am Zufall (6 bis 13 von 50 Prozessen). Beleg: Plan §3 *Mutationen und Raten*, §6 (Z63) und §7 *Lerneintrag* (2); Report `docs/reviews/2026-10-31-slice-replay-service-verifikation.md` (V-2).

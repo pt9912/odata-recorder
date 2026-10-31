@@ -45,6 +45,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 6. **Beleg der Beispiele.** Ort der Beispiel-Dateien, Test (Stufe `test`) und Bindung nach der Entscheidung aus `slice-handbuch-geruest`; ein Beispiel ohne Datei ist kein Beispiel.
 7. Raster *Operation × Argumentart* (§6) und Tabelle *Zusage · Fänger* (§3) füllen, Größe angeben.
 
+**Übernimmt (Start-Befehl):** Aufruf `start` (Kommando, Argumente, Ausgabe je Strom, Ausgangswert), Exit-Codes 0, 1, 2, 130, 143 und das Signalverhalten (SIGTERM, SIGINT; das erste Signal fährt geordnet herunter, das zweite erzwingt das Ende) nach `SPEC-138` Nr. 2 bis 7 (Sendung von `slice-cli-adapter`, `AGENTS.md` §3.13). Ein gebundenes Beispiel für `start` ist ein Lauf, der endet (Konfigurationsfehler, Exit 1, Meldung nach `SPEC-110` Nr. 12).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Mock-Modus, Hybrid-Modus, Fallback, Admin-API, Snapshots, Telemetrie, TLS des Listeners — Folgewellen (Welle §6); ihre Kapitel entstehen dort. Was das Binary nach `slice-bootstrap-m2` nicht kann, steht gar nicht im Handbuch, auch nicht als Hinweis „folgt“ oder „nicht verfügbar“ (Welle §1, Entscheidung des Users); Schlüssel, die das Binary ablehnt (`SPEC-110` Nr. 2: `ADMIN_*`, `HYBRID_*`, `FALLBACK_*`, `LISTEN_TLS_*`, `STRICT_COVERAGE`, `PUBLIC_BASE_URL`), erscheinen nicht als Konfiguration, die der Anwender setzen kann. Ob die Fehlermeldung beim Setzen eines solchen Schlüssels (`ODR-E2001`) im Kapitel Fehlerbehebung steht, ist Ist-Zustand und entscheidet der Architect.
@@ -72,6 +74,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Kapitel Aufzeichnen und Wiedergeben nach Auftrag Nr. 1 bis 5: Aufgaben mit Voraussetzung, Vorgehen und Ergebnis, Schutz der Daten, Teilumfang, Fehlerbilder; jede Aussage über Verhalten hat ihren Beleg (`LH-FA-02`, `LH-FA-04`, `LH-FA-14`, `LH-RB-01`, `LH-RB-04`).
+- [ ] Start-Befehl: Aufruf `start`, Exit-Codes 0, 1, 2, 130, 143 und Signalverhalten stehen im Handbuch nach `SPEC-138` Nr. 2 bis 7 (§1 *Übernimmt (Start-Befehl)*, Sendung von `slice-cli-adapter`); das gebundene Beispiel ist ein endender Lauf (Konfigurationsfehler, Exit 1).
 - [ ] Jedes Beispiel liegt als Datei vor und läuft in der Stufe `test` gegen das gebaute Binary; je Beispiel eine Mutation (Wert im Handbuch geändert), die den Test rot macht.
 - [ ] Der Abgleich der Fehlercodes ist grün; `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
