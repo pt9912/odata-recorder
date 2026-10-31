@@ -39,6 +39,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-telemetry-port`, Klasse *Stand zu einem Zeitpunkt*, `SPEC-230` Nr. 9):** Der Geber misst `TestSnapshotZeitpunkt` (P15) über die 36 Zähler, die sein Teil ändert (33 Codes von `Errors`, die Gründe `fehlercode`, `schluessel`, `wert` von `Dropped`); die Fenster der Sperre um `Durations` und `Spans` und um die Gründe `senke`, `pflicht`, `spanname` und `zustand` von `Dropped` sind in seinem Teil unbeobachtbar (Negativ N-1 dort), weil erst dieser Slice sie ändert. Dieser Slice führt den Fänger für *alle* Lücken zwischen `Errors`, `Durations`, `Dropped` und `Spans`, nicht nur für die zwischen Verteilung und Ring (S16): das Orakel von S16 reicht über die Kette der vier Sammlungen, einschließlich der vier Gründe und der Zählung von `Count`, `Counts`, `Sum` und `Spans` (Geber `slice-telemetry-port`, dort §3 N-1 und §6; `AGENTS.md` §3.13).
 
+**Übernimmt (Sendung von `slice-telemetry-port`, Review F-10):** Ersatz des Teils „`StartSpan`, `Set`, `End` ohne Wirkung“ von `TestKernSchreibtNichts`: sobald die Spans Wirkung haben, hält dieser Teil des Tests im Geber nichts mehr fest, und dieser Slice ersetzt ihn durch die Fänger der Spans.
+
 **Hinweis (Sendung von `slice-telemetry-port`, Verifikation V-8):** `filtern(op, ...)` im Adapter mit `op == ""` ist die Menge `Log` (`opLog = ""`); ein Span mit leerem Namen darf nie bis dorthin kommen.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:

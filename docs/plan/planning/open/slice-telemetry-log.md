@@ -37,6 +37,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-telemetry-port`, Teil `L`):** Zeile, Stufen, `msg`, `Handler`, Abbildung der zehn Ereignisse der Dienste, Ausfall der Senke, Sperre der Zeile und der Canary über die Wege `Log` und `Handler`.
 
+**Übernimmt (Sendung von `slice-telemetry-port`, Review F-10):** Ersatz des Teils „`Log` schreibt keine Zeile“ von `TestKernSchreibtNichts`: sobald `Log` eine Zeile schreibt, hält dieser Teil des Tests im Geber nichts mehr fest, und dieser Slice ersetzt ihn durch die Fänger der Zeile.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Ports, Attribut, Regeln der Schlüssel und Wertformen, Verwurf, `CountError`, `Snapshot`, `New` und `FakeTelemetry` — `slice-telemetry-port` (liegt beim Start dieses Slice in `done/`); dieser Slice baut auf diesem Code auf und ändert seine Regeln nicht.
