@@ -184,9 +184,16 @@ func nacktesWortElement(z unicodeZeichen, st stellung) fall {
 	return fall{pfad: pfad, u: model.URLKey, ort: "pfad/1"}
 }
 
-// unicodeOrte sind die zehn Orte, an denen der Parser einen Namen liest: Typpräfix, Name der Menge, Name eines Schlüsselteils,
+// sonstigerElement: der Name einer herstellerspezifischen Option hat die ASCII-Regel von SPEC-162 Nr. 3 e; jedes Zeichen der Menge
+// Z liegt jenseits von ASCII und macht den Namen zu `option_name`.
+func sonstigerElement(z unicodeZeichen, st stellung) fall {
+	return fall{pfad: "/S", query: st.muster(z.bytes) + "=1", u: model.URLOptionName, ort: "query/1"}
+}
+
+// unicodeOrte sind die elf Orte, an denen der Parser einen Namen liest: Typpräfix, Name der Menge, Name eines Schlüsselteils,
 // Alias, Element von `$select`, Element von `$orderby`, Pfad-Glied in `$select` und in `$orderby` (dieselbe Prüfung, zwei Wege),
-// Glied eines Rest-Segments und nacktes Wort im Schlüssel. Neun Stellen im Code lesen einen Namen; das Pfad-Glied ist eine davon.
+// Glied eines Rest-Segments, nacktes Wort im Schlüssel und der Name einer herstellerspezifischen Option (ASCII-Regel). Elf Stellen
+// im Code lesen einen Namen; das Pfad-Glied ist eine davon.
 func unicodeOrte() []struct {
 	name string
 	bau  func(unicodeZeichen, stellung) fall
@@ -205,14 +212,15 @@ func unicodeOrte() []struct {
 		{"Pfad-Glied in $orderby", pfadGliedElement("$orderby")},
 		{"Glied eines Rest-Segments", restGliedElement},
 		{"nacktes Wort im Schlüssel", nacktesWortElement},
+		{"Name einer herstellerspezifischen Option", sonstigerElement},
 	}
 }
 
-// unicodeElemente bildet die Menge: Zeichen × Ort × Stellung, jeder der zehn Orte in allen vier Stellungen.
-func unicodeElemente() []unicodeElement {
+// unicodeElemente bildet die Menge: Zeichen × Ort × Stellung, jeder der elf Orte in allen vier Stellungen.
+func unicodeElemente(menge []unicodeZeichen) []unicodeElement {
 	var els []unicodeElement
 	for _, o := range unicodeOrte() {
-		for _, z := range unicodeMenge() {
+		for _, z := range menge {
 			for _, st := range []stellung{allein, erste, innere, letzte} {
 				els = append(els, unicodeElement{o.name, z, st, o.bau(z, st)})
 			}
@@ -233,9 +241,9 @@ func pruefeUnicodeElement(t *testing.T, e unicodeElement) {
 
 // TestUnicodeKlassen (Zeile 28, SPEC-161 Nr. 4, 5 c, 6 g, 7, SPEC-162 Nr. 3 d, 6, 7, SPEC-125 Nr. 8 b): ein Buchstabe ist ein
 // Zeichen der Kategorie L, eine Ziffer eines der Kategorie Nd; Nl, No, M und die sonstigen Zeichen sind keines von beiden. Die Klasse
-// gilt an jeder Stelle, die einen Namen liest. Schleife über 29 Zeichen (10 positive, 19 negative) × 10 Orte (neun Stellen im Code,
-// das Pfad-Glied auf zwei Wegen) × 4 Stellungen (je 116), zusammen 1160 Elemente. Die Bytes der Zeichen werden gegen ihren
-// Codepunkt gehalten.
+// gilt an jeder Stelle, die einen Namen liest. Schleife über 29 Zeichen (10 positive, 19 negative) × 11 Orte (elf Stellen im Code,
+// das Pfad-Glied auf zwei Wegen, der Name einer herstellerspezifischen Option mit der ASCII-Regel) × 4 Stellungen (je 116),
+// zusammen 1276 Elemente. Die Bytes der Zeichen werden gegen ihren Codepunkt gehalten.
 func TestUnicodeKlassen(t *testing.T) {
 	zahl := map[zeichenKlasse]int{}
 	for _, z := range unicodeMenge() {
@@ -247,11 +255,11 @@ func TestUnicodeKlassen(t *testing.T) {
 	if zahl[buchstabe] != 6 || zahl[ziffer] != 4 || zahl[keines] != 19 {
 		t.Fatalf("Zeichen: %d Buchstaben, %d Ziffern, %d andere, erwartet 6, 4, 19", zahl[buchstabe], zahl[ziffer], zahl[keines])
 	}
-	els := unicodeElemente()
+	els := unicodeElemente(unicodeMenge())
 	for _, e := range els {
 		pruefeUnicodeElement(t, e)
 	}
-	if len(unicodeOrte()) != 10 || len(els) != 10*29*4 {
-		t.Fatalf("Zählprobe: %d Orte, %d Elemente, erwartet 10 und 1160", len(unicodeOrte()), len(els))
+	if len(unicodeOrte()) != 11 || len(els) != 11*29*4 {
+		t.Fatalf("Zählprobe: %d Orte, %d Elemente, erwartet 11 und 1276", len(unicodeOrte()), len(els))
 	}
 }
