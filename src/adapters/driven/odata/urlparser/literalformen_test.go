@@ -68,8 +68,8 @@ func ohne(liste []string, s string) []string {
 	return r
 }
 
-// uhrzeitFormen ist die Gruppe U (65 Elemente): Anfänge von `12:30:45.123456789012` der Länge 1 bis 21 (21), 13 Ziffern Bruchteil
-// (1), Uhrzeit mit Rest (24), Bereiche (8), Ziffern jenseits von ASCII (7), vier falsche Trennungen (4). In `klassen` steht je
+// uhrzeitFormen ist die Gruppe U (68 Elemente): Anfänge von `12:30:45.123456789012` der Länge 1 bis 21 (21), 13 Ziffern Bruchteil
+// (1), Uhrzeit mit Rest (24), Bereiche (8), Ziffern jenseits von ASCII (10: 7 mit längerer Uhrzeit, 3 mit Länge 8), vier falsche Trennungen (4). In `klassen` steht je
 // Länge von Hand: Z eine Zahl (Länge 1 und 2), L ein `literal` (Länge 3, 4, 6, 7, 9), T ein `literal_typ` (Länge 5, 8, 10 bis 21).
 func uhrzeitFormen() []stellenElement {
 	b := &formenBau{gruppe: "U1"}
@@ -102,6 +102,10 @@ func uhrzeitFormen() []stellenElement {
 		b.lit(uhr[:i] + arabisch + uhr[i+1:])
 	}
 	b.lit("\xef\xbc\x912:30:45")
+	// U+0663 (zwei Bytes) statt zweier ASCII-Ziffern: die Länge 8 bleibt, die Ziffernstelle (Stunde, Minute, Sekunde) wird erreicht
+	b.lit(arabisch + ":30:45")
+	b.lit("12:" + arabisch + ":45")
+	b.lit("12:30:" + arabisch)
 	b.gruppe = "U6"
 	b.lit("12-30", "1:30", "123:30", "12::30")
 	return b.els
@@ -184,11 +188,11 @@ func apostrophFormen() []stellenElement {
 }
 
 // TestLiteralFormen (Zeile 38,SPEC-161 Nr. 6 g, Klasse „jede Form hinter jedem Anfang“): Schleife über die Menge der Uhrzeit, des
-// Exponenten, der Sonderwerte, des Wahrheitswerts und der Apostroph-Anfänge, 230 Elemente (65 + 51 + 43 + 64 und 7). Jede
+// Exponenten, der Sonderwerte, des Wahrheitswerts und der Apostroph-Anfänge, 233 Elemente (68 + 51 + 43 + 64 und 7). Jede
 // Erwartung steht von Hand im Test, das Orakel ist nie der Parser; jedes Element wird einzeln gemeldet, auch eine Panik.
 func TestLiteralFormen(t *testing.T) {
 	gruppen := []formenGruppe{
-		{"Uhrzeit", 65, uhrzeitFormen()},
+		{"Uhrzeit", 68, uhrzeitFormen()},
 		{"Exponent", 51, exponentFormen()},
 		{"Sonderwerte", 43, sonderwerte()},
 		{"Wahrheitswert", 64, wahrheitswerte()},
@@ -204,7 +208,7 @@ func TestLiteralFormen(t *testing.T) {
 		}
 		summe += len(g.els)
 	}
-	if summe != 230 {
-		t.Fatalf("Zählprobe: %d Elemente, erwartet 230", summe)
+	if summe != 233 {
+		t.Fatalf("Zählprobe: %d Elemente, erwartet 233", summe)
 	}
 }
