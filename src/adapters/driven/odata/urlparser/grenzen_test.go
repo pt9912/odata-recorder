@@ -173,9 +173,11 @@ func textsumme(u model.ODataURL) int {
 
 // TestWaechterZuteilung (Zeile 16): sechs Zeichenfamilien in `pfad` und in `rawQuery`, jeweils auf der Grenze: die Gesamtzuteilung
 // bleibt unter 64 · n + 65536 Bytes, die Textsumme des Ergebnisses unter n. Familien ohne Zeitpunkt: kein Zuwachs, darum ohne
-// Zuschlag (SPEC-160 Nr. 6 b). Menge 12, dazu die 8 dichten Formen von `zuteilungDicht` (Menge V-3 B bis D).
+// Zuschlag (SPEC-160 Nr. 6 b). Menge 12, dazu die 8 dichten Formen von `zuteilungDicht` (Menge V-3 B bis D) und die 2 gültigen,
+// dichten `$select` von `zuteilungDichtSelect` (Q5a, Q5b).
 func TestWaechterZuteilung(t *testing.T) {
 	zuteilungDicht(t)
+	zuteilungDichtSelect(t)
 	// vier Teile mit je einem Literal von rund 440 Bytes: der Pfad bleibt unter den Grenzen von Literal und Pfad
 	teile := func(inhalt string) string {
 		return "/S(P1='" + inhalt + "',P2='" + inhalt + "',P3='" + inhalt + "',P4='" + inhalt + "')"

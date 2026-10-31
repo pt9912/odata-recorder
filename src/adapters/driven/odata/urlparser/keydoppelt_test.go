@@ -9,9 +9,10 @@ import (
 )
 
 // TestKeyDoppelt (Zeile 30, SPEC-161 Nr. 5 c und Nr. 8): ein Name ist doppelt, wenn er nach der Dekodierung bytegleich ist; jede
-// Abweichung von der Bytegleichheit ist ein verschiedener Name, auch die Schreibweise und die Unicode-Faltung. Menge 49: 9
-// doppelte Namen (`key`, Ort `pfad/1`) und 40 Körper mit verschiedenen Namen, die gelesen werden, mit den Namen wie geschrieben in
-// der Reihenfolge der URL. Die Zeichen jenseits von ASCII stehen als Bytewerte.
+// Abweichung von der Bytegleichheit ist ein verschiedener Name, auch die Schreibweise und die Unicode-Faltung. Menge 55: 9
+// doppelte Namen (`key`, Ort `pfad/1`) und 46 Körper mit verschiedenen Namen, die gelesen werden, mit den Namen wie geschrieben in
+// der Reihenfolge der URL; darunter sechs Paare, die sich nur an einer inneren Stelle unterscheiden und in Länge, erstem und
+// letztem Byte gleichen (P1 bis P6). Die Zeichen jenseits von ASCII stehen als Bytewerte.
 func TestKeyDoppelt(t *testing.T) {
 	var gleiche []string
 	gleiche = append(gleiche, "Id=1,Id=2", "Id=1,Id=1", "\xc3\xa4=1,\xc3\xa4=2", "\xc3\xa4=1,%C3%A4=2", "%49d=1,Id=2", "Id=1,I%64=2",
@@ -57,8 +58,17 @@ func TestKeyDoppelt(t *testing.T) {
 	verschieden = append(verschieden,
 		[]string{"Id", "Idx"}, []string{"Idx", "Id"}, // gemeinsamer Anfang, verschiedene Länge
 		[]string{"a", "B", "A"}, []string{"Id", "id", "ID", "iD"}) // nicht benachbart
-	if len(verschieden) != 40 {
-		t.Fatalf("%d Körper mit verschiedenen Namen, erwartet 40", len(verschieden))
+	// Paare mit einem inneren Unterschied: P1 Länge 3, Stelle 1; P2 bis P4 Länge 5, Stellen 1, 2, 3; P5 Länge 128, Stelle 64; P6 der
+	// zweite Byte eines Zeichens jenseits von ASCII (ä gegen ö, gleiche Länge, gleiches erstes Byte der Mitte)
+	for _, p := range [][2]string{
+		{"aXb", "aYb"}, {"aXccb", "aYccb"}, {"acXcb", "acYcb"}, {"accXb", "accYb"},
+		{wiederhole("a", 63) + "X" + wiederhole("a", 64), wiederhole("a", 63) + "Y" + wiederhole("a", 64)},
+		{"a\xc3\xa4b", "a\xc3\xb6b"},
+	} {
+		verschieden = append(verschieden, []string{p[0], p[1]})
+	}
+	if len(verschieden) != 46 {
+		t.Fatalf("%d Körper mit verschiedenen Namen, erwartet 46", len(verschieden))
 	}
 	for _, namen := range verschieden {
 		var teile []string

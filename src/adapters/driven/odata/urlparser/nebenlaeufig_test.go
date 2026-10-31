@@ -152,10 +152,21 @@ func (p paarLeser) LeseFilter(text string) (interface{ IstFilterAusdruck() }, er
 	return testAusdruck{text}, nil
 }
 
-// pfadErgebnis ist ein Pfad mit der Ressource, die der Parser allein daraus liest (von Hand).
+// pfadErgebnis ist ein Aufruf des Paares: ein Pfad mit der Ressource, die der Parser allein daraus liest (von Hand), und die
+// Optionen, die in der Query vor `$filter` stehen, mit dem Wert, den sie allein ergeben (von Hand, ohne Filter).
 type pfadErgebnis struct {
-	pfad string
-	res  model.Ressource
+	pfad     string
+	res      model.Ressource
+	optionen string
+	opt      model.Optionen
+}
+
+// query ist die Query des Aufrufs: die Optionen vor `$filter`, dann der eigene Text des Filters.
+func (p pfadErgebnis) query(text string) string {
+	if p.optionen == "" {
+		return "$filter=" + text
+	}
+	return p.optionen + "&$filter=" + text
 }
 
 // verschraenktPfade sind die Pfade von A (Alpha) und von B (Beta): Menge, Entity, Anzahl und `$metadata`.
@@ -165,13 +176,41 @@ func verschraenktPfade() (a, b []pfadErgebnis) {
 		dst              *[]pfadErgebnis
 	}{{"Alpha", "1", &a}, {"Beta", "2", &b}} {
 		*d.dst = []pfadErgebnis{
-			{"/" + d.name, model.Ressource{Art: model.RessourceMenge, EntitySet: d.name}},
-			{"/" + d.name + "(" + d.schluessel + ")", model.Ressource{Art: model.RessourceEntity, EntitySet: d.name, Schluessel: []model.SchluesselTeil{teil("", zahlLit(d.schluessel))}}},
-			{"/" + d.name + "/$count", model.Ressource{Art: model.RessourceAnzahl, EntitySet: d.name}},
-			{"/$metadata", model.Ressource{Art: model.RessourceMetadaten}},
+			{pfad: "/" + d.name, res: model.Ressource{Art: model.RessourceMenge, EntitySet: d.name}},
+			{pfad: "/" + d.name + "(" + d.schluessel + ")", res: model.Ressource{Art: model.RessourceEntity, EntitySet: d.name, Schluessel: []model.SchluesselTeil{teil("", zahlLit(d.schluessel))}}},
+			{pfad: "/" + d.name + "/$count", res: model.Ressource{Art: model.RessourceAnzahl, EntitySet: d.name}},
+			{pfad: "/$metadata", res: model.Ressource{Art: model.RessourceMetadaten}},
 		}
 	}
 	return a, b
+}
+
+// verschraenktOptionen sind die sieben Arten von Option vor `$filter` (SPEC-162 Nr. 3 a, d, e): je Art zwei Aufrufe mit
+// verschiedenem Wert, A auf `/Alpha` und B auf `/Beta`, jeweils mit dem Ergebnis von Hand.
+func verschraenktOptionen() [][2]pfadErgebnis {
+	menge := func(name string) model.Ressource { return model.Ressource{Art: model.RessourceMenge, EntitySet: name} }
+	paar := func(a, b string, oa, ob model.Optionen) [2]pfadErgebnis {
+		return [2]pfadErgebnis{
+			{pfad: "/Alpha", res: menge("Alpha"), optionen: a, opt: oa},
+			{pfad: "/Beta", res: menge("Beta"), optionen: b, opt: ob},
+		}
+	}
+	zahl := func(v int) model.ZahlOption { return model.ZahlOption{Gesetzt: true, Wert: v} }
+	wahr := func(v bool) model.WahrOption { return model.WahrOption{Gesetzt: true, Wert: v} }
+	sonstige := func(name, wert string) model.Optionen {
+		return model.Optionen{Sonstige: []model.SonstigeOption{{Name: name, Wert: wert}}}
+	}
+	return [][2]pfadErgebnis{
+		paar("$select=Id", "$select=Name",
+			model.Optionen{Select: &model.SelectOption{Namen: []string{"Id"}}}, model.Optionen{Select: &model.SelectOption{Namen: []string{"Name"}}}),
+		paar("$orderby=Id", "$orderby=Name desc",
+			model.Optionen{OrderBy: []model.Sortierung{{Name: "Id"}}}, model.Optionen{OrderBy: []model.Sortierung{{Name: "Name", Absteigend: true}}}),
+		paar("$top=1", "$top=2", model.Optionen{Top: zahl(1)}, model.Optionen{Top: zahl(2)}),
+		paar("$skip=3", "$skip=4", model.Optionen{Skip: zahl(3)}, model.Optionen{Skip: zahl(4)}),
+		paar("$count=true", "$count=false", model.Optionen{Count: wahr(true)}, model.Optionen{Count: wahr(false)}),
+		paar("@a=1", "@a=2", sonstige("@a", "1"), sonstige("@a", "2")),
+		paar("x=1", "x=2", sonstige("x", "1"), sonstige("x", "2")),
+	}
 }
 
 // TestVerschraenktLeser (Zeile 14, SPEC-160 Nr. 7 und 8): zwei Aufrufe mit verschiedenen Pfaden laufen beide durch den
@@ -181,25 +220,37 @@ func verschraenktPfade() (a, b []pfadErgebnis) {
 // (`/Beta`, `/Beta(2)`, `/Beta/$count`, `/$metadata`), jedes in beiden Reihenfolgen der Freigabe, 32 Läufe; das Paar `/$metadata`
 // gegen `/$metadata` ist der Kontrollfall mit gleicher Ressource. Ein Zustand der Instanz, den ein Aufruf nach dem Pfad schreibt
 // und am Ende liest, auch unter einer Sperre und auch nur bei nichtleerem Set, wird in jedem Lauf gefunden; die Wirkung wird gezählt,
-// kein Detektor.
+// kein Detektor. Dazu 14 Läufe für das Fenster „Option gelesen, vor dem Leser“: sieben Arten von Option (`$select`, `$orderby`,
+// `$top`, `$skip`, `$count`, Alias, herstellerspezifisch) mit verschiedenem Wert in A und B, die Option steht in der Query vor
+// `$filter`, jede Art in beiden Reihenfolgen der Freigabe; ein Zustand der Instanz, den eine Option vor dem Leser schreibt und
+// am Ende liest, wird in jedem Lauf gefunden.
 func TestVerschraenktLeser(t *testing.T) {
 	pa, pb := verschraenktPfade()
-	paare := 0
+	laeufe := 0
 	for _, a := range pa {
 		for _, b := range pb {
-			paare++
-			verschraenktPaar(t, a, b)
+			laeufe += verschraenktPaar(t, a, b)
 		}
 	}
-	if paare != 16 {
-		t.Fatalf("%d Paare, erwartet 16", paare)
+	if laeufe != 32 {
+		t.Fatalf("%d Läufe der Pfade, erwartet 32 (16 Paare in zwei Reihenfolgen)", laeufe)
+	}
+	laeufe = 0
+	for _, paar := range verschraenktOptionen() {
+		laeufe += verschraenktPaar(t, paar[0], paar[1])
+	}
+	if laeufe != 14 {
+		t.Fatalf("%d Läufe der Optionen, erwartet 14 (7 Arten in zwei Reihenfolgen)", laeufe)
 	}
 }
 
-func verschraenktPaar(t *testing.T, ra, rb pfadErgebnis) {
+// verschraenktPaar fährt das Paar in beiden Reihenfolgen der Freigabe und liefert die Zahl der Läufe.
+func verschraenktPaar(t *testing.T, ra, rb pfadErgebnis) int {
 	t.Helper()
 	pfade := map[string]pfadErgebnis{"a": ra, "b": rb}
+	laeufe := 0
 	for _, zuerst := range []string{"a", "b"} {
+		laeufe++
 		h := paarLeser{erreicht: make(chan string, 2), frei: map[string]chan struct{}{"a": make(chan struct{}), "b": make(chan struct{})}}
 		p := urlparser.New(urlparser.WithFilter(h))
 		type ergebnis struct {
@@ -209,7 +260,7 @@ func verschraenktPaar(t *testing.T, ra, rb pfadErgebnis) {
 		fertig := map[string]chan ergebnis{"a": make(chan ergebnis, 1), "b": make(chan ergebnis, 1)}
 		for _, text := range []string{"a", "b"} {
 			go func() {
-				u, err := p.ParseURL(pfade[text].pfad, "$filter="+text)
+				u, err := p.ParseURL(pfade[text].pfad, pfade[text].query(text))
 				fertig[text] <- ergebnis{u, err}
 			}()
 		}
@@ -225,10 +276,9 @@ func verschraenktPaar(t *testing.T, ra, rb pfadErgebnis) {
 			close(h.frei[text])
 			select {
 			case got := <-fertig[text]:
-				soll := model.ODataURL{
-					Ressource: pfade[text].res,
-					Optionen:  model.Optionen{Filter: &model.FilterOption{Text: text, Ausdruck: testAusdruck{text}}},
-				}
+				optionen := pfade[text].opt
+				optionen.Filter = &model.FilterOption{Text: text, Ausdruck: testAusdruck{text}}
+				soll := model.ODataURL{Ressource: pfade[text].res, Optionen: optionen}
 				if got.err != nil || !gleich(got.u, soll) {
 					t.Errorf("Pfade %q und %q, Freigabe %q zuerst, Aufruf %q: %+v %v, allein %+v", ra.pfad, rb.pfad, zuerst, text, got.u, got.err, soll)
 				}
@@ -237,6 +287,7 @@ func verschraenktPaar(t *testing.T, ra, rb pfadErgebnis) {
 			}
 		}
 	}
+	return laeufe
 }
 
 // TestGleichzeitig (Zeile 14): 16 Goroutinen rufen den Korpus auf einer Instanz; jedes Ergebnis ist das des einzelnen Aufrufs.
