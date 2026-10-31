@@ -73,8 +73,21 @@ func (w *welt) baselineBytes(id, svc string, m []byte) string {
 	sum := sha256.Sum256(m)
 	ref := "sha256:" + hex.EncodeToString(sum[:])
 	w.blobs.inhalt[ref] = m
-	w.snaps.baselines[id] = model.BaselineSnapshot{ID: id, ServiceID: svc, CreatedAt: t0(), StateBlob: ref, StateHash: ref, MetadataHash: ref}
+	w.snaps.baselines[id] = baselineSnapshot(id, svc, ref)
 	return ref
+}
+
+// metadatenHash ist der Hash der Metadaten einer Fixture; er ist nie die Referenz des Zustands, damit ein
+// Aufruf von Blobs.Open mit ihm statt mit StateBlob auffällt.
+func metadatenHash(ref string) string {
+	sum := sha256.Sum256([]byte("metadata:" + ref))
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// baselineSnapshot ist die Baseline der Fixture: StateHash gleich StateBlob (SPEC-129 Nr. 5 b), sonst
+// trägt kein Feld den Wert eines anderen (TestFixtureFelderVerschieden).
+func baselineSnapshot(id, svc, ref string) model.BaselineSnapshot {
+	return model.BaselineSnapshot{ID: id, ServiceID: svc, CreatedAt: t0(), StateBlob: ref, StateHash: ref, MetadataHash: metadatenHash(ref)}
 }
 
 func (w *welt) baseline(id, svc string, es []ent) string {

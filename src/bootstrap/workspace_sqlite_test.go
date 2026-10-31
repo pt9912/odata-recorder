@@ -2,6 +2,7 @@ package bootstrap_test
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -38,6 +40,51 @@ type wsDatei struct {
 }
 
 func wsT0() time.Time { return time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC) }
+
+// wsMetadatenHash ist der Hash der Metadaten einer Fixture; er ist nie die Referenz des Zustands, damit ein
+// Aufruf von Blobs.Open mit ihm statt mit StateBlob auffällt.
+func wsMetadatenHash(ref string) string {
+	sum := sha256.Sum256([]byte("metadata:" + ref))
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// wsBaselineSnapshot und wsWorkspaceSnapshot sind die Snapshots der Fixtures: StateHash gleich StateBlob (SPEC-129
+// Nr. 5 b), sonst trägt kein Feld den Wert eines anderen (TestWsFixtureFelderVerschieden).
+func wsBaselineSnapshot(id, ref string) model.BaselineSnapshot {
+	return model.BaselineSnapshot{ID: id, ServiceID: "svc", CreatedAt: wsT0(), StateBlob: ref, StateHash: ref, MetadataHash: wsMetadatenHash(ref)}
+}
+
+func wsWorkspaceSnapshot(id, workspaceID, ref string) model.WorkspaceSnapshot {
+	return model.WorkspaceSnapshot{ID: id, ServiceID: "svc", WorkspaceID: workspaceID, Name: "n-" + id, CreatedAt: wsT0(),
+		StateBlob: ref, StateHash: ref, MetadataHash: wsMetadatenHash(ref)}
+}
+
+// TestWsFixtureFelderVerschieden: in den Snapshots der Fixtures tragen alle Felder aus Zeichenketten und Zeiten
+// paarweise verschiedene Werte, außer StateBlob und StateHash, die der Vertrag gleich verlangt.
+func TestWsFixtureFelderVerschieden(t *testing.T) {
+	ref := "sha256:" + strings.Repeat("c", 64)
+	for name, v := range map[string]any{"Baseline": wsBaselineSnapshot("bsl-x", ref), "Workspace-Snapshot": wsWorkspaceSnapshot("snp-x", "ws-x", ref)} {
+		rv := reflect.ValueOf(v)
+		var namen, werte []string
+		for i := 0; i < rv.NumField(); i++ {
+			if k := rv.Type().Field(i).Type; k.Kind() == reflect.String || k == reflect.TypeOf(time.Time{}) {
+				namen = append(namen, rv.Type().Field(i).Name)
+				werte = append(werte, fmt.Sprint(rv.Field(i).Interface()))
+			}
+		}
+		gleich := map[string]bool{}
+		for i := range werte {
+			for j := i + 1; j < len(werte); j++ {
+				if werte[i] == werte[j] {
+					gleich[namen[i]+"="+namen[j]] = true
+				}
+			}
+		}
+		if len(gleich) != 1 || !gleich["StateBlob=StateHash"] {
+			t.Errorf("%s: Felder gleichen Wertes %v, erwartet allein StateBlob=StateHash", name, gleich)
+		}
+	}
+}
 
 func wsNeueDatei(t *testing.T) *wsDatei {
 	t.Helper()
@@ -123,7 +170,7 @@ func (d *wsDatei) baseline(id string, es []wsEntity) {
 	ref := d.blob(wsManifest(id, es))
 	_, neu, err := d.db.Imports().Publish(context.Background(), model.Publication{
 		Import:           model.Import{ID: "imp-" + id, RequestHash: "req-" + id, BaselineSnapshotID: id, ServiceID: "svc", CreatedAt: wsT0(), ReportJSON: "{}"},
-		Snapshot:         model.BaselineSnapshot{ID: id, ServiceID: "svc", CreatedAt: wsT0(), StateBlob: ref, StateHash: ref, MetadataHash: ref},
+		Snapshot:         wsBaselineSnapshot(id, ref),
 		SourceSessionIDs: []string{"ses-1"},
 	})
 	if err != nil || !neu {
@@ -363,8 +410,7 @@ func TestWorkspaceGleichzeitigesCreate(t *testing.T) {
 func (d *wsDatei) snapshot(id, workspaceID, inhalt string) string {
 	d.t.Helper()
 	ref := d.blob([]byte(inhalt))
-	err := d.db.Snapshots().CreateWorkspace(context.Background(), model.WorkspaceSnapshot{ID: id, ServiceID: "svc", WorkspaceID: workspaceID,
-		Name: "n-" + id, CreatedAt: wsT0(), StateBlob: ref, StateHash: ref, MetadataHash: ref})
+	err := d.db.Snapshots().CreateWorkspace(context.Background(), wsWorkspaceSnapshot(id, workspaceID, ref))
 	if err != nil {
 		d.t.Fatal(err)
 	}
