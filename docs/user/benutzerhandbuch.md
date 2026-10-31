@@ -9,6 +9,7 @@ Stand: 2026-10-30
 Dieses Handbuch richtet sich an Anwendungsentwickler und die Testautomatisierung (QA), die den OData Recorder aufrufen, und an das Plattform- und CI-Team, das ihn baut.
 
 Voraussetzungen: ein Linux-Rechner mit Docker und GNU `make`.
+
 ## Bauen
 
 Aufgabe: das Binary aus dem Quellstand bauen.
