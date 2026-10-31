@@ -48,32 +48,48 @@ type Umgebung struct {
 	// Treiber ist der Pfad von tools/harness/groessenmarke.sh, den die Fälle 103 bis 120 mit
 	// `sh` rufen.
 	Treiber string
+	// ZeichenTreiber ist der Pfad von tools/harness/zeichen.sh, den die Fälle 151 bis 155 mit
+	// `bash` rufen.
+	ZeichenTreiber string
+}
+
+func absolut(pfad string) string {
+	p, err := filepath.Abs(pfad)
+	if err != nil {
+		return pfad
+	}
+	return p
 }
 
 func standard() Umgebung {
-	treiber, err := filepath.Abs("tools/harness/groessenmarke.sh")
-	if err != nil {
-		treiber = "tools/harness/groessenmarke.sh"
-	}
+	treiber := absolut("tools/harness/groessenmarke.sh")
+	zeichen := absolut("tools/harness/zeichen.sh")
 	return Umgebung{
 		Eingaben:   []string{"src", "go.mod", "go.sum", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh", "tools/harness/migration-check.sh"},
-		Programme:  []string{"a-check", "golangci-lint", "sh", "pruefung", "go", "gofmt", "groessenmarke", "git"},
+		Programme:  []string{"a-check", "golangci-lint", "sh", "pruefung", "go", "gofmt", "groessenmarke", "zeichen", "git", "tar"},
 		Aufraeumen: os.RemoveAll,
-		Befehl:     befehlMit(treiber),
+		Befehl:     befehlMit(treiber, zeichen),
 		Bauen:      bauen,
 		Treiber:    treiber,
+
+		ZeichenTreiber: zeichen,
 	}
 }
 
 // befehlMit liefert den Aufruf der Gates; die Fälle zu groessenmarke rufen das Programm bzw. den
-// Treiber unter dem Pfad treiber, jeweils im Verzeichnis des Falls.
-func befehlMit(treiber string) func(dir string, f Fall) (string, []string, string) {
+// Treiber unter dem Pfad treiber, die zu zeichen das Programm bzw. den Treiber unter dem Pfad
+// zeichen, jeweils im Verzeichnis des Falls.
+func befehlMit(treiber, zeichen string) func(dir string, f Fall) (string, []string, string) {
 	return func(dir string, f Fall) (string, []string, string) {
 		switch f.Gate {
 		case gateGroessenmarke:
 			return "groessenmarke", f.ersetzeOrte(dir), dir
 		case gateTreiber:
 			return "sh", append([]string{treiber}, f.ersetzeOrte(dir)...), dir
+		case gateZeichen:
+			return "zeichen", f.ersetzeOrte(dir), dir
+		case gateZeichenTreiber:
+			return "bash", append([]string{zeichen}, f.ersetzeOrte(dir)...), dir
 		}
 		return befehl(dir, f)
 	}
