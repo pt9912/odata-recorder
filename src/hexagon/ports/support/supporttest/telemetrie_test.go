@@ -105,11 +105,32 @@ func TestFakeAufzeichnung(t *testing.T) {
 	}
 }
 
+// attrGleich vergleicht Attributlisten Feld für Feld; Gleit zählt über die Bits (NaN gleicht NaN,
+// -0 gleicht +0 nicht).
+func attrGleich(a, b []support.Attr) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		x, y := a[i], b[i]
+		if x.Key != y.Key || x.Art != y.Art || x.Text != y.Text || x.Ganz != y.Ganz ||
+			math.Float64bits(x.Gleit) != math.Float64bits(y.Gleit) {
+			return false
+		}
+	}
+	return true
+}
+
 // P11: jedes Argument jeder Operation mit Argumenten wird ungeprüft und unverändert festgehalten.
-// Mengen: Log 8 Stufen (von MinInt bis MaxInt, darunter eine Stufe unter Debug und eine über Error)
-// × 6 Texte (darunter der leere); StartSpan 9 Namen (darunter der leere und vier fremde) × 7
-// Attributlisten; Set 7 Attributlisten; CountError 9 Codes (darunter Codes mit hohen Bits). Die
-// Zählprüfung liest die Mengen, das Orakel sind die Werte, die der Test übergibt.
+// Menge: Operation × Argumentart. Ein Attribut ist ein Grundwert (recorder.mode, String, "record"),
+// dessen Felder einzeln wechseln: Key 6 Werte (leer, gültig, fremd), Art 8 (0, -1, die drei gültigen,
+// 99, ±MaxInt32), Text 7 (darunter Wertform verletzt: "A B", "Record"), Ganz 5, Gleit 7 (darunter
+// NaN, -0, ±Inf), dazu mode und recorder.mode mit "A B" (gültiger Schlüssel, gültige Art, Wertform
+// verletzt) = 35 Attribute. Listen: nil, leer, jedes der 35 Attribute einzeln, dazu je eine Liste
+// mit 2, 3, 5 und 12 Attributen = 41. ctx: der übergebene und nil. Log 8 Stufen × 6 Texte × 2 ctx
+// und 41 Listen × 2 ctx; StartSpan 9 Namen (darunter der leere und vier fremde) × 2 ctx × 41
+// Listen; Set 41 Listen; CountError 9 Codes (darunter Codes mit hohen Bits). Die Zählprüfung liest
+// die Mengen, das Orakel sind die Werte, die der Test übergibt.
 func TestFakeArgumenteUngeprueft(t *testing.T) {
 	stufen := []slog.Level{math.MinInt, slog.LevelDebug - 1, slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError, slog.LevelError + 1, math.MaxInt}
 	texte := []string{"", " ", "a b", "Zeile\nUmbruch", string([]byte{0x80, 0}), "text"}
@@ -117,18 +138,46 @@ func TestFakeArgumenteUngeprueft(t *testing.T) {
 	for _, s := range support.Spans() {
 		namen = append(namen, s.Name)
 	}
-	listen := [][]support.Attr{
-		nil,
-		{},
-		{{Key: "", Art: 99}},
-		{support.Str("ausserhalb_der_menge", "mit Leerraum")},
-		{{Key: "k", Art: 0}},
-		{{Key: "k", Art: -1, Gleit: math.Inf(1)}},
-		{support.Str("recorder.mode", "record"), support.Int("n", math.MinInt64)},
+	grund := support.Str("recorder.mode", "record")
+	var attrs []support.Attr
+	variiere := func(wechsel func(*support.Attr)) {
+		a := grund
+		wechsel(&a)
+		attrs = append(attrs, a)
+	}
+	for _, k := range []string{"", "mode", "recorder.mode", "session_id", "ausserhalb_der_menge", "x y"} {
+		variiere(func(a *support.Attr) { a.Key = k })
+	}
+	for _, art := range []support.Art{0, -1, support.ArtString, support.ArtInt, support.ArtFloat, 99, math.MaxInt32, math.MinInt32} {
+		variiere(func(a *support.Attr) { a.Art = art })
+	}
+	for _, text := range []string{"", " ", "A B", "Record", "Zeile\nUmbruch", string([]byte{0x80, 0}), "record"} {
+		variiere(func(a *support.Attr) { a.Text = text })
+	}
+	for _, ganz := range []int64{0, 1, -1, math.MinInt64, math.MaxInt64} {
+		variiere(func(a *support.Attr) { a.Ganz = ganz })
+	}
+	for _, gleit := range []float64{0, math.NaN(), math.Copysign(0, -1), math.Inf(1), math.Inf(-1), 1.5, math.MaxFloat64} {
+		variiere(func(a *support.Attr) { a.Gleit = gleit })
+	}
+	attrs = append(attrs, support.Str("mode", "A B"), support.Str("recorder.mode", "A B"))
+	listen := [][]support.Attr{nil, {}}
+	for _, a := range attrs {
+		listen = append(listen, []support.Attr{a})
+	}
+	for _, laenge := range []int{2, 3, 5, 12} {
+		var l []support.Attr
+		for j := range laenge {
+			l = append(l, attrs[(j*7+laenge)%len(attrs)])
+		}
+		listen = append(listen, l)
 	}
 	codes := []model.Code{0, -1, 1, model.CodeE4001, model.CodeE4001 + math.MaxInt>>1, math.MaxInt, math.MinInt, math.MaxInt - 1, math.MinInt + 1}
-	if len(stufen) != 8 || len(texte) != 6 || len(namen) != 9 || len(listen) != 7 || len(codes) != 9 {
-		t.Fatalf("Mengen %d, %d, %d, %d, %d; erwartet 8, 6, 9, 7, 9", len(stufen), len(texte), len(namen), len(listen), len(codes))
+	var kein context.Context
+	ctx := context.WithValue(context.Background(), ctxSchluessel{}, "wert")
+	ctxe := []context.Context{ctx, kein}
+	if len(stufen) != 8 || len(texte) != 6 || len(namen) != 9 || len(attrs) != 35 || len(listen) != 41 || len(codes) != 9 || len(ctxe) != 2 {
+		t.Fatalf("Mengen %d, %d, %d, %d, %d, %d, %d; erwartet 8, 6, 9, 35, 41, 9, 2", len(stufen), len(texte), len(namen), len(attrs), len(listen), len(codes), len(ctxe))
 	}
 
 	type erwartet struct {
@@ -138,21 +187,31 @@ func TestFakeArgumenteUngeprueft(t *testing.T) {
 		name  support.SpanName
 		attrs []support.Attr
 		code  model.Code
+		ctxNr int // Index in ctxe
 	}
 	f := supporttest.NewFakeTelemetry()
-	ctx := context.WithValue(context.Background(), ctxSchluessel{}, "wert")
 	_, span := f.StartSpan(ctx, "start")
-	folge := []erwartet{{op: supporttest.OpStartSpan, name: "start"}}
+	folge := []erwartet{{op: supporttest.OpStartSpan, name: "start", ctxNr: 0}}
 	for _, stufe := range stufen {
 		for _, text := range texte {
-			f.Log(ctx, stufe, text)
-			folge = append(folge, erwartet{op: supporttest.OpLog, level: stufe, msg: text})
+			for ci, c := range ctxe {
+				f.Log(c, stufe, text)
+				folge = append(folge, erwartet{op: supporttest.OpLog, level: stufe, msg: text, ctxNr: ci})
+			}
+		}
+	}
+	for _, l := range listen {
+		for ci, c := range ctxe {
+			f.Log(c, slog.LevelInfo, "m", l...)
+			folge = append(folge, erwartet{op: supporttest.OpLog, level: slog.LevelInfo, msg: "m", attrs: l, ctxNr: ci})
 		}
 	}
 	for _, name := range namen {
-		for _, l := range listen {
-			f.StartSpan(ctx, name, l...)
-			folge = append(folge, erwartet{op: supporttest.OpStartSpan, name: name, attrs: l})
+		for ci, c := range ctxe {
+			for _, l := range listen {
+				f.StartSpan(c, name, l...)
+				folge = append(folge, erwartet{op: supporttest.OpStartSpan, name: name, attrs: l, ctxNr: ci})
+			}
 		}
 	}
 	for _, l := range listen {
@@ -165,8 +224,9 @@ func TestFakeArgumenteUngeprueft(t *testing.T) {
 	}
 
 	a := f.Aufrufe()
-	if len(a) != len(folge) || len(folge) != 1+8*6+9*7+7+9 {
-		t.Fatalf("%d Aufrufe, erwartet %d", len(a), len(folge))
+	gezaehlt := 1 + 8*6*2 + 41*2 + 9*2*41 + 41 + 9
+	if len(a) != len(folge) || len(folge) != gezaehlt {
+		t.Fatalf("%d Aufrufe, erwartet %d (gezählt %d)", len(a), len(folge), gezaehlt)
 	}
 	je := map[supporttest.Operation]int{}
 	for i, w := range folge {
@@ -175,11 +235,11 @@ func TestFakeArgumenteUngeprueft(t *testing.T) {
 		if g.Op != w.op || g.Level != w.level || g.Msg != w.msg || g.Name != w.name || g.Code != w.code {
 			t.Errorf("Aufruf %d: %+v, erwartet %+v", i, g, w)
 		}
-		if len(g.Attrs) != len(w.attrs) || (len(w.attrs) > 0 && !reflect.DeepEqual(g.Attrs, w.attrs)) {
+		if !attrGleich(g.Attrs, w.attrs) {
 			t.Errorf("Aufruf %d: Attribute %+v, erwartet %+v", i, g.Attrs, w.attrs)
 		}
-		if (w.op == supporttest.OpLog || w.op == supporttest.OpStartSpan) && g.Ctx() != ctx {
-			t.Errorf("Aufruf %d: ctx nicht mit seiner Identität festgehalten", i)
+		if (w.op == supporttest.OpLog || w.op == supporttest.OpStartSpan) && g.Ctx() != ctxe[w.ctxNr] {
+			t.Errorf("Aufruf %d: ctx nicht mit seiner Identität festgehalten (erwartet nil: %t)", i, ctxe[w.ctxNr] == nil)
 		}
 		if w.op == supporttest.OpSet && g.Span != span {
 			t.Errorf("Aufruf %d: Set am falschen Span", i)

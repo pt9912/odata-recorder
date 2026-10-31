@@ -367,28 +367,68 @@ func TestAdapterGleichzeitig(t *testing.T) {
 	}
 }
 
-// P15: Snapshot liefert einen Stand zu einem Zeitpunkt (SPEC-230 Nr. 9). Schreiber zählen je Runde
-// zuerst E2001, dann einen unbekannten Code und dann ein Log mit zwei Verwürfen (schluessel, wert);
-// Leser lesen Stände, solange die Schreiber laufen. In jedem Stand gilt fehlercode <= E2001 <=
-// fehlercode + Zahl der Schreiber und schluessel == wert (ein Log zählt beide unter einer Sperre).
-// Ein Stand, dessen Errors und Dropped oder dessen Einträge von Dropped zu verschiedenen Zeiten
-// entstehen, bricht eine dieser Gleichungen; ein Zähler, dessen Verwürfe ein Log in getrennten
-// Abschnitten zählt, ebenso. Der Detektor meldet das nicht, weil jeder Zugriff unter einer Sperre
-// liegt. Durations und Spans ändert kein Aufruf dieses Teils, ein Fenster um sie sieht der Test nicht.
+// P15: Snapshot liefert einen Stand zu einem Zeitpunkt (SPEC-230 Nr. 9). Die Menge sind alle
+// Zähler, die ein Aufruf dieses Teils ändert: die 33 Codes von Errors in der Reihenfolge der
+// Tabelle, dann fehlercode, schluessel und wert von Dropped (36 Zähler, 35 Fenster der Sperre
+// zwischen je zwei Nachbarn). Schreiber erhöhen in jeder Runde diese Zähler in genau dieser
+// Reihenfolge: alle 33 Codes nacheinander, CountError(0) und ein Log mit zwei Verwürfen
+// (schluessel, wert). Leser lesen Stände, solange die Schreiber laufen. Das Orakel steht im
+// Test, nicht im Adapter: in jedem Stand gilt für jedes Paar Nachbarn k[i+1] <= k[i] <= k[i+1] +
+// Zahl der Schreiber, für das Paar schluessel und wert die Gleichheit (ein Log zählt beide unter
+// einer Sperre). Liest ein Stand zwei Nachbarn zu verschiedenen Zeiten, bricht das Paar eine der
+// beiden Seiten; ein Log, das seine Verwürfe in getrennten Abschnitten zählt, bricht die
+// Gleichheit. Der Detektor meldet das nicht, weil jeder Zugriff unter einer Sperre liegt. Durations und Spans sowie die Gründe
+// senke, pflicht, spanname und zustand ändert kein Aufruf dieses Teils, ein Fenster um sie sieht
+// der Test nicht (Negativ N-1 im Plan).
 func TestSnapshotZeitpunkt(t *testing.T) {
-	const schreiber, leser, runden = 8, 8, 2000
+	const schreiber, leser, runden = 8, 8, 1000
+	codes := model.AlleCodes()
+	if len(codes) != 33 {
+		t.Fatalf("%d Codes, erwartet 33", len(codes))
+	}
+	kette := func(s support.Snapshot) []uint64 {
+		k := make([]uint64, 0, len(codes)+3)
+		for _, c := range codes {
+			k = append(k, s.Errors[c])
+		}
+		return append(k, s.Dropped[support.VerwurfFehlercode], s.Dropped[support.VerwurfSchluessel], s.Dropped[support.VerwurfWert])
+	}
+	namen := make([]string, 0, len(codes)+3)
+	for _, c := range codes {
+		namen = append(namen, c.String())
+	}
+	namen = append(namen, "fehlercode", "schluessel", "wert")
+	laenge := len(namen)
+	fenster := laenge - 1
+	if laenge != 36 || fenster != 35 {
+		t.Fatalf("%d Zähler und %d Fenster, erwartet 36 und 35", laenge, fenster)
+	}
+
+	// ein Log zählt schluessel und wert unter einer Sperre: dieses Paar ist gleich, die übrigen liegen
+	// um höchstens die Zahl der Schreiber auseinander
+	luft := func(i int) uint64 {
+		if i == fenster-1 {
+			return 0
+		}
+		return schreiber
+	}
+
 	a, _ := neu(t)
 	start := make(chan struct{})
 	var schreibend, lesend sync.WaitGroup
 	var fertig atomic.Bool
-	var errorsZuFrueh, dropZuFrueh, getrennt, gelesen atomic.Int64
+	var gelesen atomic.Int64
+	vorn := make([]atomic.Int64, fenster) // k[i+1] > k[i]: der hintere Zähler zu spät gelesen
+	hinten := make([]atomic.Int64, fenster)
 	for range schreiber {
 		schreibend.Add(1)
 		go func() {
 			defer schreibend.Done()
 			<-start
 			for range runden {
-				a.CountError(model.CodeE2001)
+				for _, c := range codes {
+					a.CountError(c)
+				}
 				a.CountError(0)
 				a.Log(context.Background(), slog.LevelInfo, "m", support.Str("x", "y"), support.Str("mode", "a b"))
 			}
@@ -400,16 +440,14 @@ func TestSnapshotZeitpunkt(t *testing.T) {
 			defer lesend.Done()
 			<-start
 			for {
-				s := a.Snapshot()
-				e, f := s.Errors[model.CodeE2001], s.Dropped[support.VerwurfFehlercode]
-				if f > e {
-					errorsZuFrueh.Add(1)
-				}
-				if e > f+schreiber {
-					dropZuFrueh.Add(1)
-				}
-				if s.Dropped[support.VerwurfSchluessel] != s.Dropped[support.VerwurfWert] {
-					getrennt.Add(1)
+				k := kette(a.Snapshot())
+				for i := range fenster {
+					if k[i+1] > k[i] {
+						vorn[i].Add(1)
+					}
+					if k[i] > k[i+1]+luft(i) {
+						hinten[i].Add(1)
+					}
 				}
 				gelesen.Add(1)
 				if fertig.Load() {
@@ -422,24 +460,22 @@ func TestSnapshotZeitpunkt(t *testing.T) {
 	schreibend.Wait()
 	fertig.Store(true)
 	lesend.Wait()
-	if n := errorsZuFrueh.Load(); n != 0 {
-		t.Errorf("%d Stände mit fehlercode über E2001: Errors vor Dropped gelesen", n)
-	}
-	if n := dropZuFrueh.Load(); n != 0 {
-		t.Errorf("%d Stände mit E2001 über fehlercode plus %d Schreiber: Dropped vor Errors gelesen", n, schreiber)
-	}
-	if n := getrennt.Load(); n != 0 {
-		t.Errorf("%d Stände mit schluessel ungleich wert: die Verwürfe eines Log in getrennten Abschnitten gezählt oder gelesen", n)
+	for i := range fenster {
+		if n := vorn[i].Load(); n != 0 {
+			t.Errorf("Fenster %s | %s: %d Stände mit %s über %s: der hintere Zähler später gelesen", namen[i], namen[i+1], n, namen[i+1], namen[i])
+		}
+		if n := hinten[i].Load(); n != 0 {
+			t.Errorf("Fenster %s | %s: %d Stände mit %s mehr als %d über %s: der vordere Zähler später gelesen", namen[i], namen[i+1], n, namen[i], luft(i), namen[i+1])
+		}
 	}
 	if gelesen.Load() < leser {
 		t.Errorf("%d Stände gelesen, erwartet mindestens %d", gelesen.Load(), leser)
 	}
-	s := a.Snapshot()
 	const n = schreiber * runden
-	if s.Errors[model.CodeE2001] != n || s.Dropped[support.VerwurfFehlercode] != n ||
-		s.Dropped[support.VerwurfSchluessel] != n || s.Dropped[support.VerwurfWert] != n {
-		t.Errorf("E2001 %d, fehlercode %d, schluessel %d, wert %d; erwartet je %d", s.Errors[model.CodeE2001],
-			s.Dropped[support.VerwurfFehlercode], s.Dropped[support.VerwurfSchluessel], s.Dropped[support.VerwurfWert], n)
+	for i, v := range kette(a.Snapshot()) {
+		if v != n {
+			t.Errorf("%s zählt %d, erwartet %d", namen[i], v, n)
+		}
 	}
 }
 
