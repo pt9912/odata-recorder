@@ -473,7 +473,8 @@ func tabellenzeilen() []tabellenzeile {
 		{"ErrSessionGeschlossen", outbound.ErrSessionGeschlossen}, {"ErrUngueltigerUebergang", outbound.ErrUngueltigerUebergang},
 		{"ErrNichtGefunden", outbound.ErrNichtGefunden}, {"ErrBereitsVorhanden", outbound.ErrBereitsVorhanden},
 		{"ErrUngueltig", model.ErrUngueltig}, {"ErrMetadatenUngueltig", model.ErrMetadatenUngueltig},
-		{"ErrDatenUngueltig", model.ErrDatenUngueltig}, {"ErrUngueltigeSequenz", outbound.ErrUngueltigeSequenz},
+		{"ErrDatenUngueltig", model.ErrDatenUngueltig}, {"ErrURLUngueltig", model.ErrURLUngueltig},
+		{"ErrURLNichtUnterstuetzt", model.ErrURLNichtUnterstuetzt}, {"ErrUngueltigeSequenz", outbound.ErrUngueltigeSequenz},
 		{"ErrAbgeschlossen", outbound.ErrAbgeschlossen}, {"ErrRevisionVeraltet", outbound.ErrRevisionVeraltet},
 		{"Platte (ohne Zeile)", errDisk},
 	}

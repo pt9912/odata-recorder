@@ -60,6 +60,8 @@ func tabelle() []zeile {
 		{fehler: []benannt{{"ErrUngueltig", model.ErrUngueltig}}, je: map[Gegenstand]model.Code{GegenstandImport: model.CodeE6101}},
 		{fehler: []benannt{{"ErrMetadatenUngueltig", model.ErrMetadatenUngueltig}}, jeder: model.CodeE6004},
 		{fehler: []benannt{{"ErrDatenUngueltig", model.ErrDatenUngueltig}}, jeder: model.CodeE6101},
+		{fehler: []benannt{{"ErrURLUngueltig", model.ErrURLUngueltig}}, jeder: model.CodeE6005},
+		{fehler: []benannt{{"ErrURLNichtUnterstuetzt", model.ErrURLNichtUnterstuetzt}}, jeder: model.CodeE6001},
 		{fehler: []benannt{{"ErrUngueltigeSequenz", ErrUngueltigeSequenz}, {"ErrAbgeschlossen", ErrAbgeschlossen}, {"ErrRevisionVeraltet", ErrRevisionVeraltet}}, jeder: model.CodeE9001},
 	}
 }

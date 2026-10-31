@@ -69,7 +69,7 @@ func TestCodeTabelle(t *testing.T) {
 		"ODR-E5004": {[]int{409}, "replay"}, "ODR-E5005": {[]int{404}, "service"}, "ODR-E5006": {[]int{400}, "replay"},
 		"ODR-E5007": {[]int{409}, "replay"}, "ODR-E5008": {[]int{422}, "replay"}, "ODR-E5009": {[]int{409}, "record"},
 		"ODR-E6001": {[]int{501}, "mock"}, "ODR-E6002": {[]int{501}, "mock"}, "ODR-E6003": {[]int{422}, "mock"},
-		"ODR-E6004": {[]int{422, 0}, "import"}, "ODR-E6101": {[]int{422}, "import"}, "ODR-E6102": {[]int{409}, "import"},
+		"ODR-E6004": {[]int{422, 0}, "import"}, "ODR-E6005": {[]int{400}, "mock"}, "ODR-E6101": {[]int{422}, "import"}, "ODR-E6102": {[]int{409}, "import"},
 		"ODR-E7001": {[]int{404}, "workspace"}, "ODR-E7002": {[]int{404}, "workspace"}, "ODR-E7003": {[]int{404}, "session"},
 		"ODR-E7004": {[]int{409}, "session"}, "ODR-E7005": {[]int{404}, "import"}, "ODR-E7006": {[]int{409}, "workspace"},
 		"ODR-E7007": {[]int{409}, "workspace"}, "ODR-E7008": {[]int{422}, "workspace"}, "ODR-E7009": {[]int{409}, "session"},
