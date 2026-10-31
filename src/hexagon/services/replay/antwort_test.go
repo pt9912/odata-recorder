@@ -347,43 +347,52 @@ func TestProtokoll(t *testing.T) {
 	}
 }
 
-// TestReplayfaehigkeit hält Z41: Menge 72 (3 × 3 × 4 × 2); geliefert werden sechs, alle anderen sind der einzige
-// Kandidat und ODR-E5008. Das Orakel ist die Matrix von SPEC-045.
+// TestReplayfaehigkeit hält Z41: Menge 576 (4 Strategien × 3 × 3 × 4 × 2 × 2 Body-Zustände); geliefert werden 48,
+// alle anderen sind der einzige Kandidat und ODR-E5008. Das Orakel ist die Matrix von SPEC-045 und hängt weder von
+// der Strategie noch vom Zustand des Bodys ab.
 func TestReplayfaehigkeit(t *testing.T) {
 	n, geliefert := 0, 0
-	for _, capt := range []model.CaptureStatus{model.CaptureComplete, model.CaptureIncomplete, model.CaptureFailed} {
-		for _, integ := range []model.BodyIntegrity{model.IntegrityVerified, model.IntegrityAbsent, model.IntegrityInvalid} {
-			for _, red := range []model.RedactionStatus{model.RedactionNone, model.RedactionApplied, model.RedactionUnsafe, ""} {
-				for _, flag := range []bool{false, true} {
-					n++
-					u := neu(t)
-					u.k.RedigierteBodies = flag
-					e := u.austausch(1, u.keyA(), true)
-					e.Capture, e.Integrity, e.ResponseRedact = capt, integ, red
-					u.lege(e)
-					erlaubt := capt == model.CaptureComplete && (integ == model.IntegrityVerified || integ == model.IntegrityAbsent) &&
-						(red == model.RedactionNone || red == model.RedactionApplied && flag)
-					resp, err := u.replay(context.Background(), anf())
-					was := fmt.Sprintf("%s %s %q %v", capt, integ, red, flag)
-					if erlaubt {
-						geliefert++
-						if err != nil {
-							t.Errorf("%s: %v", was, err)
-						} else {
-							_ = resp.Body.Close()
+	for _, strat := range []model.ReplayStrategy{model.StrategySequential, model.StrategyStrict, model.StrategyFirst, model.StrategyLast} {
+		for _, capt := range []model.CaptureStatus{model.CaptureComplete, model.CaptureIncomplete, model.CaptureFailed} {
+			for _, integ := range []model.BodyIntegrity{model.IntegrityVerified, model.IntegrityAbsent, model.IntegrityInvalid} {
+				for _, red := range []model.RedactionStatus{model.RedactionNone, model.RedactionApplied, model.RedactionUnsafe, ""} {
+					for _, flag := range []bool{false, true} {
+						for _, body := range []string{"present", "absent"} {
+							n++
+							u := neu(t)
+							u.k.Strategie = strat
+							u.k.RedigierteBodies = flag
+							e := u.austausch(1, u.keyA(), true)
+							if body == "absent" {
+								e = ohneBody(e)
+							}
+							e.Capture, e.Integrity, e.ResponseRedact = capt, integ, red
+							u.lege(e)
+							erlaubt := capt == model.CaptureComplete && (integ == model.IntegrityVerified || integ == model.IntegrityAbsent) &&
+								(red == model.RedactionNone || red == model.RedactionApplied && flag)
+							resp, err := u.replay(context.Background(), anf())
+							was := fmt.Sprintf("%s %s %s %q %v %s", strat, capt, integ, red, flag, body)
+							if erlaubt {
+								geliefert++
+								if err != nil {
+									t.Errorf("%s: %v", was, err)
+								} else {
+									_ = resp.Body.Close()
+								}
+								continue
+							}
+							erwarteCode(t, was, err, model.CodeE5008)
+							if u.p.anzahl("tx Cursors.Put") != 0 {
+								t.Errorf("%s: Put", was)
+							}
 						}
-						continue
-					}
-					erwarteCode(t, was, err, model.CodeE5008)
-					if u.p.anzahl("tx Cursors.Put") != 0 {
-						t.Errorf("%s: Put", was)
 					}
 				}
 			}
 		}
 	}
-	if n != 72 || geliefert != 6 {
-		t.Errorf("Menge: %d Elemente, %d geliefert; erwartet 72 und 6", n, geliefert)
+	if n != 576 || geliefert != 48 {
+		t.Errorf("Menge: %d Elemente, %d geliefert; erwartet 576 und 48", n, geliefert)
 	}
 }
 

@@ -187,13 +187,24 @@ func TestArgumente(t *testing.T) {
 	}
 }
 
-// TestKeinUpstream hält Z45: kein Feld der Konfig ist ein Upstream-Port, und der Quelltext des Pakets (auch
+// TestKeinUpstream hält Z45: die elf Felder des Vertrags bestehen mit Namen und Typ, kein Feld der Konfig ist ein
+// Upstream-Port, und der Quelltext des Pakets (auch
 // _test.go) importiert weder Adapter noch net/http noch einen anderen Dienst und nennt kein Symbol
 // UpstreamClient.
 func TestKeinUpstream(t *testing.T) {
 	k := reflect.TypeOf(replay.Konfig{})
-	if k.NumField() != 11 {
-		t.Errorf("Konfig hat %d Felder, erwartet 11", k.NumField())
+	// Die Konfig wächst additiv (SPEC-135 Nr. 1): die elf Felder des Vertrags bleiben mit Namen und Typ, weitere
+	// Felder sind erlaubt und unterliegen derselben Prüfung auf Upstream-Ports.
+	vertrag := map[string]string{
+		"Dienste": "[]replay.Dienst", "Sessions": "outbound.SessionRepository", "Exchanges": "outbound.RecordingRepository",
+		"Blobs": "outbound.BlobRepository", "Transaktion": "outbound.WorkspaceTransactor", "Regeln": "model.SchluesselRegeln",
+		"Pfade": "[]model.JSONPfad", "MaxBytes": "int64", "Strategie": "model.ReplayStrategy", "RedigierteBodies": "bool",
+		"Telemetrie": "support.Telemetry",
+	}
+	for name, typ := range vertrag {
+		if f, da := k.FieldByName(name); !da || f.Type.String() != typ {
+			t.Errorf("Feld %s fehlt oder hat einen anderen Typ (%v)", name, f.Type)
+		}
 	}
 	for i := 0; i < k.NumField(); i++ {
 		if strings.Contains(k.Field(i).Type.String(), "UpstreamClient") {

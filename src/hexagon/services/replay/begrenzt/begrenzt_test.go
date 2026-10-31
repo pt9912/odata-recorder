@@ -8,7 +8,7 @@ import (
 )
 
 // TestGrenze hält die Zusage des Puffers: genau die Grenze wird angenommen, ein Byte mehr ist ErrGrenze und wird
-// nicht angenommen, auch über mehrere Writes; ohne Bytes ist Bytes nil.
+// nicht angenommen, auch über mehrere Writes; Bytes liefert genau die angenommenen.
 func TestGrenze(t *testing.T) {
 	for grenze := int64(1); grenze <= 5; grenze++ {
 		for _, teile := range [][]int{{int(grenze)}, {int(grenze) + 1}, {1, int(grenze)}, {int(grenze), 1}} {
@@ -35,7 +35,7 @@ func TestGrenze(t *testing.T) {
 			}
 		}
 	}
-	if begrenzt.Neu(3).Bytes() != nil {
-		t.Error("leerer Puffer liefert nicht nil")
+	if len(begrenzt.Neu(3).Bytes()) != 0 {
+		t.Error("leerer Puffer liefert Bytes")
 	}
 }

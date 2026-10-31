@@ -29,10 +29,7 @@ func (b *Puffer) Write(p []byte) (int, error) {
 	return n, ErrGrenze
 }
 
-// Bytes liefert die angenommenen Bytes; ohne Bytes ist das Ergebnis nil.
+// Bytes liefert die angenommenen Bytes.
 func (b *Puffer) Bytes() []byte {
-	if b.buf.Len() == 0 {
-		return nil
-	}
 	return b.buf.Bytes()
 }

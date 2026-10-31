@@ -20,39 +20,69 @@ func vierDienste() []replay.Dienst {
 	return []replay.Dienst{{ID: "svc-r", Root: "/"}, {ID: "svc-a", Root: "/a"}, {ID: "svc-ab", Root: "/a/b"}, {ID: "svc-x", Root: "/ab"}}
 }
 
-// TestDienstWahl hält Z8: Menge 16 Pfade über vier Dienste (die 14 des Plans und /A/b, /a/B für die Schreibweise
-// hinter der Segmentgrenze); das Orakel nennt Dienst und OData-Pfad.
+// fuenfDienste sind die vier Dienste und ein fünfter mit einem Root gleicher Länge wie /ab (Gleichstand der Längen,
+// verschiedene Roots).
+func fuenfDienste() []replay.Dienst {
+	return append(vierDienste(), replay.Dienst{ID: "svc-y", Root: "/ac"})
+}
+
+// permutationen liefert jede Reihenfolge von ds.
+func permutationen(ds []replay.Dienst) [][]replay.Dienst {
+	if len(ds) <= 1 {
+		return [][]replay.Dienst{append([]replay.Dienst{}, ds...)}
+	}
+	var r [][]replay.Dienst
+	for i := range ds {
+		rest := append(append([]replay.Dienst{}, ds[:i]...), ds[i+1:]...)
+		for _, p := range permutationen(rest) {
+			r = append(r, append([]replay.Dienst{ds[i]}, p...))
+		}
+	}
+	return r
+}
+
+// TestDienstWahl hält Z8: Menge 2160 = 120 Reihenfolgen der fünf Dienste × 18 Pfade (die 14 des Plans, /A/b und
+// /a/B für die Schreibweise hinter der Segmentgrenze, /ac und /ac/q für den Root gleicher Länge); das Orakel nennt
+// Dienst und OData-Pfad und hängt nicht von der Reihenfolge der Konfig ab.
 func TestDienstWahl(t *testing.T) {
 	orakel := []struct{ pfad, dienst, odata string }{
 		{"/", "svc-r", "/"}, {"/a", "svc-a", "/"}, {"/a/", "svc-a", "/"}, {"/a/b", "svc-ab", "/"}, {"/a/b/c", "svc-ab", "/c"},
 		{"/ab", "svc-x", "/"}, {"/abc", "svc-r", "/abc"}, {"/A", "svc-r", "/A"}, {"/a%2Fb", "svc-r", "/a%2Fb"}, {"/x", "svc-r", "/x"},
 		{"/a/b/", "svc-ab", "/"}, {"/a/bc", "svc-a", "/bc"}, {"", "", ""}, {"x", "", ""},
-		{"/A/b", "svc-r", "/A/b"}, {"/a/B", "svc-a", "/B"},
+		{"/A/b", "svc-r", "/A/b"}, {"/a/B", "svc-a", "/B"}, {"/ac", "svc-y", "/"}, {"/ac/q", "svc-y", "/q"},
 	}
-	if len(orakel) != 16 {
-		t.Fatalf("%d Pfade", len(orakel))
+	reihenfolgen := permutationen(fuenfDienste())
+	if len(orakel) != 18 || len(reihenfolgen) != 120 {
+		t.Fatalf("%d Pfade, %d Reihenfolgen", len(orakel), len(reihenfolgen))
 	}
-	for _, o := range orakel {
-		u := neu(t)
-		u.k.Dienste = vierDienste()
-		a := anf()
-		a.Pfad = o.pfad
-		if o.dienst == "" {
-			_, err := u.replay(context.Background(), a)
-			erwarteCode(t, "Pfad "+strconv.Quote(o.pfad), err, model.CodeE5005)
-			continue
+	n := 0
+	for _, dienste := range reihenfolgen {
+		for _, o := range orakel {
+			n++
+			u := neu(t)
+			u.k.Dienste = dienste
+			a := anf()
+			a.Pfad = o.pfad
+			if o.dienst == "" {
+				_, err := u.replay(context.Background(), a)
+				erwarteCode(t, "Pfad "+strconv.Quote(o.pfad), err, model.CodeE5005)
+				continue
+			}
+			u.sess.setze(model.Session{ID: sesID, ServiceID: o.dienst, CreatedAt: zeit(), Status: model.SessionComplete})
+			z := u.st.stand()
+			z.ws[wsID] = model.Workspace{ID: wsID, ServiceID: o.dienst, BaselineSnapshotID: "snap-a", CreatedAt: zeit()}
+			u.st.setze(z)
+			u.lege(u.austausch(1, u.keyFuer(a, o.dienst, o.odata), true))
+			resp, err := u.replay(context.Background(), a)
+			if err != nil {
+				t.Errorf("Pfad %q, Reihenfolge %v: %v", o.pfad, dienste, err)
+				continue
+			}
+			_ = resp.Body.Close()
 		}
-		u.sess.setze(model.Session{ID: sesID, ServiceID: o.dienst, CreatedAt: zeit(), Status: model.SessionComplete})
-		z := u.st.stand()
-		z.ws[wsID] = model.Workspace{ID: wsID, ServiceID: o.dienst, BaselineSnapshotID: "snap-a", CreatedAt: zeit()}
-		u.st.setze(z)
-		u.lege(u.austausch(1, u.keyFuer(a, o.dienst, o.odata), true))
-		resp, err := u.replay(context.Background(), a)
-		if err != nil {
-			t.Errorf("Pfad %q: %v", o.pfad, err)
-			continue
-		}
-		_ = resp.Body.Close()
+	}
+	if n != 2160 {
+		t.Errorf("Menge: %d Elemente, erwartet 2160", n)
 	}
 }
 

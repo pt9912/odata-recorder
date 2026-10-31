@@ -385,6 +385,8 @@ type store struct {
 	q      []*karte
 	aktiv  atomic.Bool
 	commit error
+	// nachCommit läuft, nachdem die Transaktion bestätigt ist und bevor WithWorkspaceTransaction zurückkehrt.
+	nachCommit func()
 }
 
 func (s *store) einreihen() *karte {
@@ -440,7 +442,11 @@ func (s *store) WithWorkspaceTransaction(ctx context.Context, f func(outbound.Wo
 	if err := s.p.beginn("Transaktion.WithWorkspaceTransaction", ctx, f); err != nil {
 		return err
 	}
-	return s.laufe(ctx, s.einreihen(), f)
+	err := s.laufe(ctx, s.einreihen(), f)
+	if err == nil && s.nachCommit != nil {
+		s.nachCommit()
+	}
+	return err
 }
 
 func (s *store) laufe(ctx context.Context, k *karte, f func(outbound.WorkspaceStores) error) (err error) {
