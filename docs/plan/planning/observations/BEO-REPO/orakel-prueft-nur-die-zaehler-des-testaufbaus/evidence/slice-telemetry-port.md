@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-port
+**Fund:** V-9 (Verifikation 2): `TestSnapshotZeitpunkt` aus Fix-Runde 3 prüfte nur die Zähler, die der Aufbau änderte; drei von zehn Fenster-Mutationen (Z1, Z2, Z6) blieben in jeder Spalte grün, ein Orakel mit zweiter Kette sah sie in 50 von 50 Prozessen rot. Beleg: Plan §3 (Fix-Runde 4, V-9); Report `docs/reviews/2026-10-30-slice-telemetry-port-verifikation-2.md` §Register.

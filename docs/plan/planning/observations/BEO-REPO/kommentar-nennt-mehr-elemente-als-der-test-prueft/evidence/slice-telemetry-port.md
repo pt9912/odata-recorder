@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-port
+**Fund:** V-15 (Verifikation 3): `FakeTelemetry.StartSpan` („Abbruch, Frist und Werte bleiben“): `TestFakeEltern` prüfte zwei der drei Elemente, K6 (Frist verloren) blieb grün; `Spans()` („jeder Aufruf liefert frische Slices“): 6 Slices, der Test prüfte nur einen Teil (S3, Sx1 bis Sx3 grün). Beleg: Plan §3 (Fix-Runde 5, V-15 a und b); Report `docs/reviews/2026-10-30-slice-telemetry-port-verifikation-3.md`.
