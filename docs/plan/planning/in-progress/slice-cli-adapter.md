@@ -191,7 +191,7 @@ marke: 2500
 
 **Marke** (`AGENTS.md` §3.14): gesetzt am 2026-10-31 vom Planner in eigenem Commit vor dem ersten Code-Commit; `basis` ist `4e14497`, der Commit mit `SPEC-138` und Plan (Vertrag `SPEC-128`, Formel *S* = 85·*a* + 80·*b* + 200·*f* + *p*, Marke = 100 · ⌈135·*S* / 10000⌉). Nachgerechnet aus der Tabelle in §3: 14 Zeilen, davon 6 `nebenläufig` (C7 bis C12) und 8 `andere` (C1 bis C6, C13, C14); das stimmt mit der Zählung des Architect überein. Nach dem ersten Code-Commit ist die Marke fest; eine Abweichung der Schätzung von der Tabelle ist dann nur ein Hinweis (`SPEC-128` Nr. 5 c).
 
-**Gemessen** (Implementer, `make groessenmarke` am Commit e03912b, Stand des Handoffs vor dem Review): 1182 Zeilen von der Marke 2500; die Marke bleibt, `ueberschreitung` entfällt. Die Schätzung 1780 lag darüber. Verteilung: `cli.go` 121, `fakes_test.go` 245 (zwei Fakes, Schätzung 400), `kommando_test.go` 340, `signale_test.go` 384, `bootstrap.go` 39, `bootstrap_test.go` 49, `main.go` 4.
+**Gemessen** (Implementer, `make groessenmarke` am Commit c6bd5c4, nach der Fix-Runde des Reviews; beim Handoff am Commit e03912b waren es 1182): 1296 Zeilen von der Marke 2500; die Marke bleibt, `ueberschreitung` entfällt. Die Tabelle hat mit C15 und C16 jetzt 16 Zeilen, das Gate meldet dazu den Hinweis *Tabelle ergibt 1950, Schätzung 1780* (`SPEC-128` Nr. 5 c). Verteilung: `cli.go` 121, `fakes_test.go` 245 (zwei Fakes, Schätzung 400), `kommando_test.go` 368, `signale_test.go` 470, `bootstrap.go` 39, `bootstrap_test.go` 49, `main.go` 4.
 
 ## 5. Closure-Trigger
 
