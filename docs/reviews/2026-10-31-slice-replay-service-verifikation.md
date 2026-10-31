@@ -1,6 +1,6 @@
 # Verifikations-Report: slice-replay-service — 2026-10-31
 
-**Rolle:** Verifier (Modul 11) · **Frage:** Bauen wir es richtig? (gegen Plan, DoD und `SPEC-135`) · **Zweig:** `slice-replay-service`, Stand `2ccbaf5` · **Basis des Diffs:** `b919969` · **Bezug:** [LH-FA-04, LH-FA-14, LH-QA-03](../../spec/lastenheft.md), [SPEC-135](../../spec/spezifikation.md), [Plan](../plan/planning/in-progress/slice-replay-service.md), [ADR-0007](../plan/adr/0007-race-detektor-im-gate.md), [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md), [SPEC-128](../../harness/vertraege/SPEC-128-groessenmarke.md).
+**Rolle:** Verifier (Modul 11) · **Frage:** Bauen wir es richtig? (gegen Plan, DoD und `SPEC-135`) · **Zweig:** `slice-replay-service`, Stand `2ccbaf5` · **Basis des Diffs:** `b919969` · **Bezug:** [LH-FA-04, LH-FA-14, LH-QA-03](../../spec/lastenheft.md), [SPEC-135](../../spec/spezifikation.md), [Plan](../plan/planning/done/slice-replay-service.md), [ADR-0007](../plan/adr/0007-race-detektor-im-gate.md), [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md), [SPEC-128](../../harness/vertraege/SPEC-128-groessenmarke.md).
 Es ist die erste Verifikation (Verifikation 1, frischer Kontext). Geprüft sind der Slice nach der Fix-Runde zu F-1 bis F-8 und F-9 des [Review-Reports](2026-10-31-slice-replay-service-review.md) und die Zusagen des Planners aus §6 des Plans.
 
 ## Verdikt: NICHT BESTANDEN
