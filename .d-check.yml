@@ -14,7 +14,7 @@ scan:
   # Bootstrap dem Repo und bleiben trotzdem ungeprueft, ein Verweis darin faellt keinem Modul
   # auf). Daneben liegen dort das Sprachskelett-Staging und der Zustands-Bereich .harness/state/.
   ignore: ["**/*.template.md", ".tmp/**", ".harness/**"]
-modules: [links, anchors, ids, matrix, codepaths, spans, planning, structure, targets]
+modules: [links, anchors, ids, matrix, codepaths, spans, planning, structure, targets, file]
 ids:
   patterns:
     - {regex: 'ADR-([A-Z]+-)?\d{4}', target: docs/plan/adr/, link-policy: always}
@@ -118,6 +118,7 @@ codepaths:
 # Zellsatz der Vorlage (80 Zeichen), damit ein Rot aus Adopter-Inhalt kommt und nicht aus
 # der emittierten Prosa; die Spalte Bindung traegt keine Grenze, Kennungs-Listen wachsen
 # mit den Bindungen. Kein exempt-paths: ein Eintrag dort ist eine Senkung.
+# Die zweite Regel von structure begrenzt die Hard Rules von AGENTS.md (SPEC-040 Nr. 9).
 # Die siebte Position ist das Modul targets samt Block (vor dem structure-Block), das die
 # Baseline-Vorlage nur als Wort der Modul-Liste fuehrt: Target und Tabellenzeile in beiden
 # Richtungen (gate-undocumented, gate-phantom) gegen einen Gate-Index aus zwei Teilen, wie
@@ -233,3 +234,43 @@ structure:
           cell-max-chars: 200
         - name: "Tut was"
           cell-max-chars: 200
+  # Hard Rules: jeder Abschnitt "### 3.<n> " von AGENTS.md traegt hoechstens max-lines Zeilen
+  # (Zeilenvorschuebe des bereinigten Abschnittstexts; Ueberschrift, Leerzeilen und Text).
+  # Messung 2026-10-31: Maximum ist 3.7 mit 29 Zeilen. Anheben ist eine ADR (SPEC-040 Nr. 9,
+  # ADR-0010), Senken ist frei und steht nach der Kuerzung hier.
+  - files: "AGENTS.md"
+    section-pattern: '^### 3\.\d+ '
+    sections: each
+    max-lines: 29
+# file (hermetisch, kein git, opt-in): Zeilen- und Byte-Obergrenze je Guide-Datei, die jeder
+# Lauf einer Rolle laedt (SPEC-040 Nr. 2); das Modul liest scan.ignore nicht und erreicht
+# .claude/ und .harness/skills/. Jede Grenze ist das Maximum ihrer Dateien am Stand
+# 2026-10-31 (Zeilen wie wc -l, Bytes wie wc -c), kein Spielraum; die Summe der Grenzen ist
+# 976 Zeilen und 68861 Bytes. Senken ist frei, Anheben nur als Verschiebung zwischen Regeln
+# oder per ADR (SPEC-040 Nr. 8, ADR-0010); eine Regel traegt kein hint (SPEC-040 Nr. 4 d).
+# Messung je Regel:
+#   AGENTS.md              337 Zeilen, 24648 Bytes
+#   .claude/commands/*.md  Maximum implement-slice.md 221 Zeilen, 16992 Bytes
+#                          (close-welle.md 142/11369, plan-welle.md 99/6554)
+#   .claude/agents/*.md    Maximum architect.md 53 Zeilen, 3759 Bytes
+#                          (implementer 48/3069, verifier 43/2639, validator 42/2493,
+#                          reviewer 41/2542, planner 36/2166)
+#   .harness/skills/*.md   Maximum reviewer.md 137 Zeilen, 7397 Bytes
+#                          (closure-note-reviewer.md 90/4144)
+#   harness/conventions.md 228 Zeilen, 16065 Bytes
+file:
+  - files: "AGENTS.md"
+    max-lines: 337
+    max-bytes: 24648
+  - files: ".claude/commands/*.md"
+    max-lines: 221
+    max-bytes: 16992
+  - files: ".claude/agents/*.md"
+    max-lines: 53
+    max-bytes: 3759
+  - files: ".harness/skills/*.md"
+    max-lines: 137
+    max-bytes: 7397
+  - files: "harness/conventions.md"
+    max-lines: 228
+    max-bytes: 16065
