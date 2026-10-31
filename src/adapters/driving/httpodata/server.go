@@ -51,8 +51,8 @@ func New(k Konfig) (*Server, error) {
 	s.http = &http.Server{
 		Handler:  http.HandlerFunc(s.bearbeite),
 		ErrorLog: log.New(io.Discard, "", 0),
-		// Jeder Request geht an Verarbeiten, auch `OPTIONS *` (SPEC-136 Nr. 2, 4c); net/http
-		// beantwortete ihn sonst selbst.
+		// Jeder Request geht an Verarbeiten, auch `OPTIONS *` (SPEC-136 Nr. 2, 4c): der Server
+		// ruft dafür den Handler.
 		DisableGeneralOptionsHandler: true,
 	}
 	return s, nil
@@ -71,6 +71,9 @@ func (s *Server) Serve() error {
 // bearbeite ist der Ablauf je Request (SPEC-136 Nr. 3): Korrelations-ID, Anfrage, Dienst, Antwort
 // oder Fehler.
 func (s *Server) bearbeite(w http.ResponseWriter, r *http.Request) {
+	// Der Request-Body bleibt auf jedem Pfad bis Close lesbar (SPEC-136 Nr. 3, 4h); mit Vollduplex
+	// verwirft net/http den ungelesenen Rest beim ersten Schreiben nicht. HTTP/1 kennt keinen Fehlerfall.
+	_ = http.NewResponseController(w).EnableFullDuplex()
 	id := s.ids.KorrelationsID()
 	antwort, err := s.verarbeiten(r.Context(), anfrageAus(r, id))
 	if err != nil {

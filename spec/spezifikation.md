@@ -1786,7 +1786,7 @@ Ungeprüft bleibt, je mit Grund und Folge:
 - Absolute-form, authority-form und `*` (Nr. 4c). Folge: 404 `ODR-E5005`.
 - Ein Header-Wert der Antwort mit CR oder LF: `net/http` ersetzt sie durch Leerzeichen und schreibt keinen Umbruch; ein ungültiger Name entfällt dort. Folge: der Header kommt verändert oder gar nicht an; der Adapter prüft weder Namen noch Werte.
 - Ein ungültiger `Content-Length` in den Headern der Antwort: `net/http` entfernt ihn. Folge: die Rahmung bestimmt die Laufzeit.
-- Ein Typed-nil in `Verarbeiten`, `IDs` oder `Listener` (`New` prüft nur auf nil). Folge: Panik im Handler; `net/http` fängt sie, schreibt eine Meldung und schließt die Verbindung.
+- Ein Typed-nil in `Verarbeiten`, `IDs` oder `Listener` (`New` prüft nur auf nil). Folge: Panik im Handler; `net/http` fängt sie und schließt die Verbindung; die Meldung erscheint in keiner Senke, denn der Adapter verwirft das Log des Servers (nicht entschieden).
 - Ein Dienst, der in `Verarbeiten` nie zurückkehrt, oder ein `Close`, das nie zurückkehrt (`SPEC-121` *Ungeprüft*). Folge: `Schliessen` wartet nach der Frist mit; der harte Abbruch des Prozesses hinterlässt `open`-Sessions, die der nächste Start `incomplete` setzt.
 - Ein zweites `Serve` und derselbe `Listener` in zwei Servern (Aufruferfehler). Folge: der zweite `Accept` konkurriert.
 - Der Aufwand des Flush je Stück (ein Schreiben je gelesenem Stück ohne `Content-Length`). Grund: keine Messung (`LH-QA-01` ungeprüft). Folge: mehr Systemaufrufe bei Replay-Antworten.

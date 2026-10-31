@@ -38,9 +38,6 @@ func schreibeAntwort(w http.ResponseWriter, r *http.Request, id string, a inboun
 		h["Content-Type"] = nil
 	}
 	_, mitLaenge := h["Content-Length"]
-	// Der Request-Body bleibt bis Close lesbar (SPEC-136 Nr. 3, 4h); ohne Vollduplex verwirft
-	// net/http beim ersten Schreiben den ungelesenen Rest. HTTP/1 kennt den Fehlerfall nicht.
-	_ = http.NewResponseController(w).EnableFullDuplex()
 	w.WriteHeader(a.Status)
 	kopiere(w, a.Body, !mitLaenge)
 }
