@@ -328,8 +328,9 @@ func verwaiste(wurzel string, bindungen []string) []befund {
 	var bf []befund
 	for _, e := range eintraege {
 		name := e.Name()
+		fi, statErr := os.Stat(filepath.Join(wurzel, beispielVerz, name))
 		switch {
-		case !e.Type().IsRegular() || !regexpName().MatchString(name):
+		case statErr != nil || !fi.Mode().IsRegular() || !regexpName().MatchString(name):
 			bf = append(bf, befund{nr: nrZaun, name: name, text: fmt.Sprintf("beispiele: %s keine Beispiel-Datei", name)})
 		case !genannt["beispiele/"+name]:
 			bf = append(bf, befund{nr: nrZaun, name: name, text: fmt.Sprintf("beispiele: %s ohne Bindung", name)})
@@ -399,7 +400,7 @@ func makeDateien(wurzel string, allZiele bool) []string {
 	dateien := []string{"Makefile"}
 	eintraege, _ := os.ReadDir(filepath.Join(wurzel, "harness/mk"))
 	for _, e := range eintraege {
-		if e.Type().IsRegular() && strings.HasSuffix(e.Name(), ".mk") {
+		if fi, err := os.Stat(filepath.Join(wurzel, "harness/mk", e.Name())); err == nil && fi.Mode().IsRegular() && strings.HasSuffix(e.Name(), ".mk") {
 			dateien = append(dateien, path.Join("harness/mk", e.Name()))
 		}
 	}
