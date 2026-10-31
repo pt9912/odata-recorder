@@ -291,7 +291,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): `slice-groessenmarke-werkzeug` liegt in `done/` (Trigger der Welle), und der Architect hat den Vertrag, die Entscheidungen zu den Aufträgen 1 bis 8 und die Tabelle *Zusage · Fänger* geliefert, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12). Erster Slice der Welle; kein anderer Slice der Welle läuft gleichzeitig.
 
-**Größenmarke** (`AGENTS.md` §3.14): Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; `harness/vertraege/` zählt nie ([SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md) Nr. 4 a). Der Block unten trägt den Teil des Architect (`pfad`, `produktcode`, `fakes`, `schnitt-grund`); der Teil des Planner (`basis`, `schaetzung`, `marke`) folgt im eigenen Commit vor dem ersten Code-Commit (`SPEC-128` Nr. 3 k), danach ist die Marke fest (`SPEC-128` Nr. 5 c). Aufwand nach Einschätzung des Planners: L.
+**Größenmarke** (`AGENTS.md` §3.14): Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; `harness/vertraege/` zählt nie ([SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md) Nr. 4 a). Der Block unten trägt den Teil des Architect (`pfad`, `produktcode`, `fakes`, `schnitt-grund`) und den des Planner (`basis`, `schaetzung`, `marke`, `SPEC-128` Nr. 3 k): gesetzt vom Planner am 2026-10-31 im eigenen Commit vor dem ersten Code-Commit, `basis` ist der Plan-Commit davor, mit `make groessenmarke` geprüft (Marke gleich Formel, Schätzung gleich Tabelle, Messung 0); a und b hat der Planner in der Tabelle in §3 nachgezählt (36 Zeilen, alle `andere`). Die Marke ist nach dem ersten Code-Commit fest (`SPEC-128` Nr. 5 c). Aufwand nach Einschätzung des Planners: L.
 
 ```groessenmarke
 pfad: tools/zeichen
@@ -306,6 +306,9 @@ pfad: Dockerfile
 pfad: .dockerignore
 produktcode: 480
 fakes: 1
+basis: 3cdbdca1aa699950846957e051156c3860f5986c
+schaetzung: 3560
+marke: 4900
 schnitt-grund: Programm, Treiber, Stufe und Ziel sind ein Gate ohne trennbaren Teil, und ein Gate ohne Gegenprobe widerspricht ADR-0005; vorab benannter Handoff-Schnitt: Teil G (Gegenproben-Fälle 131 bis 155 mit tools/gegenproben, gegenproben-eingabe.sh, gegenproben.mk und Stempel), zuletzt in eigenem Commit, davor gemessen
 ```
 
