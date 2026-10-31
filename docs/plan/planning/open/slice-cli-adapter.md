@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `ARC-006` (CLI Driving Adapter: Konfiguration, Kommandoauswahl, Start-/Exit-Verhalten) · `ARC-012` (Composition Root) · `LH-FA-02.c` (Beenden des Prozesses: SIGTERM/SIGINT) · `LH-RB-03.a` (das Binary ist auch nativ unter Linux startbar) · `SPEC-110` (Startkonfiguration: es gibt keine Kommandozeilen-Optionen, die Konfiguration kommt aus der Umgebung) · `SPEC-059` (`SHUTDOWN_TIMEOUT`) · `architecture.md` §5 (Zeile *Prozess-Signal*).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-cli-adapter)
 
 **Autor:** pt9912. **Datum:** 2026-10-31.
 
