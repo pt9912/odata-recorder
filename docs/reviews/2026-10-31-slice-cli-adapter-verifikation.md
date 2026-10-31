@@ -3,7 +3,7 @@
 * Datum: 2026-10-31
 * Rolle: verifier (frischer Kontext; kein Code geändert)
 * Gegenstand: Stand f905715 (Implementer e03912b, 63f65fb; Review 6205988; Fix-Runde c6bd5c4, f905715), Basis ba5caa1
-* Plan: `docs/plan/planning/in-progress/slice-cli-adapter.md`
+* Plan: `docs/plan/planning/done/slice-cli-adapter.md`
 * Maßstab: DoD (§2), `SPEC-138`, Tabelle Zusage·Fänger (§3), Raster und Zusatztabelle (§6), `AGENTS.md` §3.9 bis §3.18, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0007](../plan/adr/0007-race-detektor-im-gate.md); Bezug `LH-FA-02`, `LH-RB-03`
 * Eingang: Review `docs/reviews/2026-10-31-slice-cli-adapter-review.md` (R-1 bis R-7)
 * Belege selbst gefahren: `make gates` und `make -k gates` (Worktree, Exit aus Datei), 22 Mutationen in Wegwerfkopien im Image `odata-recorder:race` (`--memory=4g --cpus=4 --network none`, Kopie nur lesend gemountet, unter `flock`), `make groessenmarke`.
