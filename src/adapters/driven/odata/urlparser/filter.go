@@ -179,7 +179,8 @@ func (p *filterLauf) gruppe() (interface{ IstFilterAusdruck() }, *model.URLFehle
 	return inneres, nil
 }
 
-// zeichenketteOperand liest `'…'` mit oder ohne Präfix (SPEC-164 Nr. 4 a); die Länge geht vor der Form.
+// zeichenketteOperand liest `'…'` mit oder ohne Präfix. Die Länge der Zeichenkette (bis zum schließenden `'`, ohne ein solches
+// bis zum Textende) geht der Form vor, der Rest dahinter zählt nicht dazu (SPEC-164 Nr. 4 a und Nr. 6; Fänger `TestLaengeVorForm`).
 func zeichenketteOperand(t token) (interface{ IstFilterAusdruck() }, *model.URLFehler) {
 	switch {
 	case len(t.text) > maxLiteral:
@@ -219,10 +220,10 @@ func firstRune(s string) rune {
 	return 0
 }
 
-// literalLauf meldet einen Lauf, der mit einer ASCII-Ziffer, `+` oder `.` beginnt, mit `-` und dann Ziffer oder `.`, oder
-// gleich `-INF` ist.
+// literalLauf meldet einen Lauf, der mit einer ASCII-Ziffer, `+` oder `.` beginnt, mit `-` und dann Ziffer oder `.`, gleich
+// `-INF` ist oder genau die Form einer Guid hat, auch mit einem Hex-Buchstaben am Anfang (SPEC-164 Nr. 4 b).
 func literalLauf(s string) bool {
-	if s == "-INF" {
+	if _, ok := guid(s); ok || s == "-INF" {
 		return true
 	}
 	c := s[0]
@@ -234,7 +235,8 @@ func literalLauf(s string) bool {
 
 func ziffernAnfang(c byte) bool { return c >= '0' && c <= '9' || c == '.' }
 
-// wortLauf beurteilt einen Lauf, der mit einem Buchstaben, `_`, `$` oder `@` beginnt, in der Folge von SPEC-164 Nr. 4 c.
+// wortLauf beurteilt einen Lauf, der mit einem Buchstaben, `_`, `$` oder `@` beginnt, in der Folge von SPEC-164 Nr. 4 c. Der
+// Schritt (4), ein Zeichen außer Buchstabe, Ziffer, `_`, `.` und `/` ist `wert`, liegt in `einfacherName` je Glied und je Name.
 func wortLauf(t token) (interface{ IstFilterAusdruck() }, *model.URLFehler) {
 	s := t.text
 	switch {
@@ -242,8 +244,6 @@ func wortLauf(t token) (interface{ IstFilterAusdruck() }, *model.URLFehler) {
 		return nil, fehler(model.URLFilter, "")
 	case s[0] == '$' || s[0] == '@':
 		return nil, sonderName(s)
-	case !nurNamenzeichen(s):
-		return nil, fehler(model.URLWert, "")
 	case strings.IndexByte(s, '/') >= 0:
 		return nil, pfad(s)
 	case strings.IndexByte(s, '.') >= 0:
@@ -278,16 +278,6 @@ func sonderName(s string) *model.URLFehler {
 		return fehler(model.URLFilter, "")
 	}
 	return fehler(model.URLWert, "")
-}
-
-// nurNamenzeichen meldet, ob s nur Buchstaben, Ziffern (Unicode `L`, `Nd`), `_`, `.` und `/` enthält.
-func nurNamenzeichen(s string) bool {
-	for _, r := range s {
-		if r != '_' && r != '.' && r != '/' && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
-			return false
-		}
-	}
-	return true
 }
 
 // alleGlieder meldet, ob jedes durch sep getrennte Glied von s ein einfacher Name ist.

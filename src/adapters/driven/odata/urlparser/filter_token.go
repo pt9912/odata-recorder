@@ -27,7 +27,8 @@ type token struct {
 	endeOK      bool
 }
 
-// zerleger schneidet den Text von links nach rechts in Token; er liest jedes Byte in einem Durchlauf und geht nie zurück.
+// zerleger schneidet den Text von links nach rechts in Token. Die Zuteilung bleibt linear in der Länge (Fänger
+// `TestFilterWaechter`); eine Laufzeit ohne Zuteilung fängt kein Test (SPEC-164, Ungeprüft).
 type zerleger struct {
 	s    string
 	pos  int

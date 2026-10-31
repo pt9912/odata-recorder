@@ -23,7 +23,10 @@ func flLiteralGruppen() [][]string {
 		"1e3", "1E3", "1.5e-2", "INF", "-INF", "NaN"}
 	guids := []string{flGUID, strings.ToUpper(flGUID), "0a1B2c3D-0000-1111-2222-333344445555", "{" + flGUID + "}", strings.ReplaceAll(flGUID, "-", ""),
 		"0a1b2c3-0000-1111-2222-3333444455556", "0a1b2c3d-0000-1111-2222-33334444555", "0a1b2c3d-0000-1111-2222-33334444555g",
-		"0a1b2c3d-0000-1111-2222", "urn:uuid:" + flGUID, "a" + flGUID[1:], "A" + flGUID[1:], "f" + strings.ToUpper(flGUID)[1:]}
+		"0a1b2c3d-0000-1111-2222", "urn:uuid:" + flGUID}
+	for _, h := range []byte("abcdefABCDEF") { // Hex-Buchstabe am Anfang (SPEC-164 Nr. 4 b)
+		guids = append(guids, flGUIDMit(h))
+	}
 	daten := []string{"0000-01-01", "0001-01-01", "9999-12-31", "10000-01-01", "2020-00-01", "2020-01-01", "2020-12-01", "2020-13-01",
 		"2023-02-28", "2023-02-29", "2024-02-29", "2024-02-30", "1900-02-29", "2000-02-29", "2024-04-30", "2024-04-31", "2024-01-31",
 		"2024-01-32", "2024-01-00", "2024-1-5", "20240105", "+2024-01-05"}
@@ -41,11 +44,10 @@ func flLiteralGruppen() [][]string {
 // flAusnahmen15 sind die Formen, die der Filter anders liest als den Schlüssel, mit dem erwarteten Ergebnis des Filters.
 // Grund je Gruppe: ein nacktes Wort ist im Filter ein Name oder `null`, `-` und `--1` beginnen ein Minus, Zeichen jenseits von
 // ASCII und `{`, `urn:` beginnen einen Lauf ohne Form eines Literals, ein Leerzeichen trennt Token, `(1)` ist eine Gruppe, und
-// ein Lauf mit einem Hex-Buchstaben am Anfang ist ein Wortlauf (SPEC-164 Nr. 4 b, c).
+// ein Lauf mit Zeichen jenseits der Formen ist kein Literal (SPEC-164 Nr. 4). Die Guid mit Hex-Buchstaben am Anfang ist keine Ausnahme.
 func flAusnahmen15() (map[string]model.URLUrsache, map[string]interface{ IstFilterAusdruck() }) {
 	fehler := map[string]model.URLUrsache{"-": model.URLFilter, "--1": model.URLFilter, flRune(0xFF15): model.URLWert,
 		flRune(0x663): model.URLWert, "{" + flGUID + "}": model.URLWert, "urn:uuid:" + flGUID: model.URLWert,
-		"a" + flGUID[1:]: model.URLWert, "A" + flGUID[1:]: model.URLWert, "f" + strings.ToUpper(flGUID)[1:]: model.URLWert,
 		"2020-01-01 10:00:00Z": model.URLWert}
 	baum := map[string]interface{ IstFilterAusdruck() }{"(1)": zahl("1"), "null": flNull(), "NULL": flNull(), "nUll": flNull()}
 	for _, w := range []string{"t", "tru", "truee", "yes", "inf", "nan"} {
@@ -69,8 +71,8 @@ func flSchluessel(t *testing.T, lit string) (model.Literal, model.URLUrsache) {
 }
 
 // TestLiteraleWieSchluessel (Zeile 15): als `Id eq <Literal>` ergibt jede Form dieselbe Art, denselben Text oder dieselbe
-// Ursache wie in `/S(Id=<Literal>)`; die Ausnahmen (20) stehen mit erwartetem Ergebnis in flAusnahmen15. Menge 181 = 21 + 59 +
-// 31 + 13 + 22 + 24 + 11.
+// Ursache wie in `/S(Id=<Literal>)`; die Ausnahmen (17) stehen mit erwartetem Ergebnis in flAusnahmen15. Menge 190 = 21 + 59 +
+// 31 + 22 + 22 + 24 + 11.
 func TestLiteraleWieSchluessel(t *testing.T) {
 	ausFehler, ausBaum := flAusnahmen15()
 	n, ausn := 0, 0
@@ -95,7 +97,7 @@ func TestLiteraleWieSchluessel(t *testing.T) {
 			}
 		}
 	}
-	if n != 181 || ausn != len(ausFehler)+len(ausBaum) {
+	if n != 190 || ausn != len(ausFehler)+len(ausBaum) {
 		t.Fatalf("%d Formen, %d Ausnahmen", n, ausn)
 	}
 }

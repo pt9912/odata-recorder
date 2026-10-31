@@ -2,6 +2,7 @@ package urlparser_test
 
 import (
 	"errors"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -184,6 +185,8 @@ func TestFilterWiederholung(t *testing.T) {
 // verschränkte Ausdrücke (Tiefe 32 gültig, Tiefe 33 `zu_viele`): jeder Aufruf liefert das Ergebnis des einzelnen Aufrufs. Das
 // Rennen fängt `make test-race`; dieser Test zählt die Wirkung, ohne auf den Detektor zu warten.
 func TestFilterGleichzeitig(t *testing.T) {
+	// Die Wirkung braucht mindestens zwei Prozessoren (mit `-test.cpu=1` bliebe ein geteilter Zustand unsichtbar).
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(max(4, runtime.GOMAXPROCS(0))))
 	tiefe := func(n int) string { return strings.Repeat("(", n) + "a" + strings.Repeat(")", n) }
 	texte := append(flWiederholungskorpus(), tiefe(32), tiefe(33))
 	type ergebnis struct {
