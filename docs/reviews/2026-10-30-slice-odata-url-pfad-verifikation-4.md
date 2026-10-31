@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier, frischer Kontext, vierte Runde, gezielt auf das Delta `55781f7..dad40cf` (Frage: „Bauen wir es richtig?“ gegen Plan, DoD, [SPEC-160](../../spec/spezifikation.md), [SPEC-161](../../spec/spezifikation.md), [SPEC-162](../../spec/spezifikation.md), [SPEC-125](../../spec/spezifikation.md) Nr. 8 b und [AGENTS.md](../../AGENTS.md) §3.10, §3.12, §3.15 bis §3.18). Kein Review, keine Validierung, keine Reparatur.
 
-**Gegenstand:** Zweig `slice-odata-url-pfad`, geprüfter Stand `dad40cf` (Fix-Runde nach [Report 3](2026-10-30-slice-odata-url-pfad-verifikation-3.md)), Arbeitsbaum zu Beginn sauber. Plan: [slice-odata-url-pfad.md](../plan/planning/in-progress/slice-odata-url-pfad.md). Basis der Marke `7535bf7`, Marke 9200.
+**Gegenstand:** Zweig `slice-odata-url-pfad`, geprüfter Stand `dad40cf` (Fix-Runde nach [Report 3](2026-10-30-slice-odata-url-pfad-verifikation-3.md)), Arbeitsbaum zu Beginn sauber. Plan: [slice-odata-url-pfad.md](../plan/planning/done/slice-odata-url-pfad.md). Basis der Marke `7535bf7`, Marke 9200.
 
 **Modell:** claude-sonnet-5-5 · **Datum:** 2026-10-31
 

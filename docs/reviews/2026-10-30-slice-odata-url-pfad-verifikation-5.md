@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier, frischer Kontext, fünfte Runde, gezielt auf das Delta `8d97f9d..4db72ef` (Frage: „Bauen wir es richtig?“ gegen Plan, DoD, [SPEC-160](../../spec/spezifikation.md) bis [SPEC-163](../../spec/spezifikation.md), [SPEC-125](../../spec/spezifikation.md) Nr. 8 b, [SPEC-230](../../spec/spezifikation.md) Nr. 8, [SPEC-109](../../spec/spezifikation.md) Nr. 2, 5, 8 und [AGENTS.md](../../AGENTS.md) §3.10, §3.12, §3.15 bis §3.18). Kein Review, keine Validierung, keine Reparatur.
 
-**Gegenstand:** Zweig `slice-odata-url-pfad`, geprüfter Stand `4db72ef` (Fix-Runde `feacb68` nach [Report 4](2026-10-30-slice-odata-url-pfad-verifikation-4.md), Merge von `main` `95eefe3`, Nachzug der Zählungen `a5aaa31`, `4db72ef`), Arbeitsbaum zu Beginn sauber. Plan: [slice-odata-url-pfad.md](../plan/planning/in-progress/slice-odata-url-pfad.md). Basis der Marke `7535bf7`, Marke 9200.
+**Gegenstand:** Zweig `slice-odata-url-pfad`, geprüfter Stand `4db72ef` (Fix-Runde `feacb68` nach [Report 4](2026-10-30-slice-odata-url-pfad-verifikation-4.md), Merge von `main` `95eefe3`, Nachzug der Zählungen `a5aaa31`, `4db72ef`), Arbeitsbaum zu Beginn sauber. Plan: [slice-odata-url-pfad.md](../plan/planning/done/slice-odata-url-pfad.md). Basis der Marke `7535bf7`, Marke 9200.
 
 **Modell:** claude-sonnet-5-5 · **Datum:** 2026-10-31
 
