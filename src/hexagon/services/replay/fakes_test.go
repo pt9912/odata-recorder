@@ -547,7 +547,7 @@ type curRepo struct{ s *store }
 
 func (r curRepo) Put(ctx context.Context, c model.ReplayCursor) error {
 	return r.s.ausf("Cursors.Put", ctx, []any{c}, func() error {
-		if !r.s.sess.da(c.RecordingSessionID) {
+		if _, da := r.s.z.ws[c.WorkspaceID]; !da || !r.s.sess.da(c.RecordingSessionID) {
 			return outbound.ErrNichtGefunden
 		}
 		c.Consumed = slices.Clone(c.Consumed)
@@ -621,4 +621,11 @@ func (s *sessions) weg(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.m, id)
+}
+
+// wartend ist die Zahl der Transaktionen in der Schlange, die laufende eingeschlossen.
+func (s *store) wartend() int {
+	s.qmu.Lock()
+	defer s.qmu.Unlock()
+	return len(s.q)
 }
