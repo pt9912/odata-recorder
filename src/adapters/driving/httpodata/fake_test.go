@@ -27,12 +27,13 @@ var (
 
 // aufruf hält, was der Dienst bei einem Aufruf sah.
 type aufruf struct {
-	ctx    context.Context
 	a      inbound.Anfrage
 	abbild map[string][]string
 }
 
-// dienst ist der Fake von RecordUseCase und ReplayUseCase in einem Typ: er hält jedes Argument
+// dienst ist der Fake von RecordUseCase und ReplayUseCase in einem Typ: er hält die Anfrage und das
+// Abbild ihrer Header fest und zählt jede Operation, auch Drain. Den ctx wertet nur A12 aus, in der
+// Funktion des Tests; containedctx verbietet ihn als Feld.
 // fest und zählt jede Operation, auch Drain.
 type dienst struct {
 	mu      sync.Mutex
@@ -46,7 +47,7 @@ type dienst struct {
 func (d *dienst) los(ctx context.Context, a inbound.Anfrage, zaehler *int) (inbound.Antwort, error) {
 	d.mu.Lock()
 	*zaehler++
-	d.aufrufe = append(d.aufrufe, aufruf{ctx: ctx, a: a, abbild: kopiereMap(a.Header)})
+	d.aufrufe = append(d.aufrufe, aufruf{a: a, abbild: kopiereMap(a.Header)})
 	tu := d.tu
 	d.mu.Unlock()
 	if tu == nil {
@@ -80,15 +81,6 @@ func (d *dienst) alle() []aufruf {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return append([]aufruf(nil), d.aufrufe...)
-}
-
-func (d *dienst) erster(t *testing.T) aufruf {
-	t.Helper()
-	al := d.alle()
-	if len(al) != 1 {
-		t.Fatalf("Aufrufe des Dienstes = %d, erwartet 1", len(al))
-	}
-	return al[0]
 }
 
 func kopiereMap(m map[string][]string) map[string][]string {
@@ -325,4 +317,27 @@ func (u *umgebung) rohOffen(t *testing.T, methode, target string) []byte {
 		}
 	}
 	return out
+}
+
+// schranke gibt alle frei, sobald n Teilnehmer warten (oder nach 5 s).
+type schranke struct {
+	mu   sync.Mutex
+	n    int
+	da   int
+	frei chan struct{}
+}
+
+func neueSchranke(n int) *schranke { return &schranke{n: n, frei: make(chan struct{})} }
+
+func (s *schranke) warte() {
+	s.mu.Lock()
+	s.da++
+	if s.da == s.n {
+		close(s.frei)
+	}
+	s.mu.Unlock()
+	select {
+	case <-s.frei:
+	case <-time.After(5 * time.Second):
+	}
 }

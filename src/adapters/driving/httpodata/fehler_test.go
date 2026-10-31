@@ -12,7 +12,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
@@ -252,23 +251,22 @@ func TestKorrelationsHeader(t *testing.T) {
 // A34: Gleichzeitige Requests teilen nichts.
 func TestGleichzeitig(t *testing.T) {
 	const n = 64
-	var mu sync.Mutex
-	angekommen := 0
-	alle := make(chan struct{})
+	imDienst, imBody := neueSchranke(n), neueSchranke(n)
 	u := neuUmgebung(t, "record", func(_ context.Context, a inbound.Anfrage) (inbound.Antwort, error) {
 		body, _ := io.ReadAll(a.Body)
-		mu.Lock()
-		angekommen++
-		if angekommen == n {
-			close(alle)
-		}
-		mu.Unlock()
-		select {
-		case <-alle:
-		case <-time.After(5 * time.Second):
-		}
+		imDienst.warte()
 		echo := fmt.Sprintf("%s|%s|%s|%s", a.Pfad, a.RawQuery, erster(a.Header["X-N"]), body)
-		return inbound.Antwort{Status: 200, Header: map[string][]string{"X-Echo": {erster(a.Header["X-N"])}}, Body: ausBytes([]byte(echo))}, nil
+		r := bytes.NewReader([]byte(echo))
+		erstes := true
+		k := &koerper{lies: func(p []byte) (int, error) {
+			n, err := r.Read(p)
+			if erstes {
+				erstes = false
+				imBody.warte()
+			}
+			return n, err
+		}}
+		return inbound.Antwort{Status: 200, Header: map[string][]string{"X-Echo": {erster(a.Header["X-N"])}}, Body: k}, nil
 	})
 	var wg sync.WaitGroup
 	var ids []string

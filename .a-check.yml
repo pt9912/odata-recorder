@@ -24,10 +24,10 @@ layers:
     role: port
     direction: outbound
 
+  # Querschnitts-Ports (ARC-021): jede Schicht darf sie nutzen, daher ohne direction.
   ports-support:
     globs: ["src/hexagon/ports/support/**"]
     role: port
-    direction: outbound
 
   adapters-driving:
     globs: ["src/adapters/driving/**"]
