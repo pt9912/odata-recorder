@@ -156,8 +156,9 @@ func zcStrom(log string) (map[string]byte, error) {
 	}
 }
 
-// zcMenge ist Fall 151: acht Arten Pfad (getrackt, ungetrackt, ignoriert, im Arbeitsbaum gelöscht, Name
-// mit Leerzeichen, Name mit Zeilenumbruch, Symlink samt hängendem, mitgelieferte Baseline).
+// zcMenge ist Fall 151: zehn Arten Pfad (getrackt, ungetrackt, ignoriert, im Arbeitsbaum gelöscht, Name
+// mit Leerzeichen, Name mit Zeilenumbruch, Symlink samt hängendem, mitgelieferte Baseline, Gitlink mit
+// Verzeichnis, ungetracktes verschachteltes Repo); die beiden letzten stehen als Verzeichnis ohne Inhalt im Strom.
 func zcMenge() Fall {
 	f := zcTreiberFall("treiber-menge", zcMengeRepo, 0)
 	f.Nachher = func(l Lauf) string {
@@ -165,7 +166,7 @@ func zcMenge() Fall {
 		if err != nil {
 			return err.Error()
 		}
-		soll := []string{".gitignore", ".harness/baseline/v/x.md", "Makefile", "a b.md", "docs/a.md", "docs/neu.md", "h", "l", "n\nm.md", "src/a.go"}
+		soll := []string{".gitignore", ".harness/baseline/v/x.md", "Makefile", "a b.md", "docs/a.md", "docs/neu.md", "gl/", "h", "l", "n\nm.md", "src/a.go", "sub/"}
 		var got []string
 		for n := range strom {
 			got = append(got, n)
@@ -179,13 +180,20 @@ func zcMenge() Fall {
 				return fmt.Sprintf("%s steht nicht als Symlink im Strom (Typ %q)", n, strom[n])
 			}
 		}
+		for _, n := range []string{"gl/", "sub/"} {
+			if strom[n] != tar.TypeDir {
+				return fmt.Sprintf("%s steht nicht als Verzeichnis im Strom (Typ %q)", n, strom[n])
+			}
+		}
 		return ""
 	}
 	return f
 }
 
 // zcMengeRepo legt das Repo von Fall 151 an: getrackte Dateien und Symlinks, danach eine ungetrackte
-// Datei und die Löschung einer getrackten; `ign/` ist ignoriert.
+// Datei und die Löschung einer getrackten; `ign/` ist ignoriert. Dazu ein Gitlink `gl` (Index-Eintrag 160000
+// mit Verzeichnis und `x.md`) und ein verschachteltes Repo `sub/`, das der Fall nicht mit `git add` aufnimmt
+// (`add -A` nähme es als Gitlink auf).
 func zcMengeRepo(dir string) error {
 	r := &gmRepo{dir: dir}
 	r.git("init", "-q")
@@ -205,8 +213,13 @@ func zcMengeRepo(dir string) error {
 	if r.err != nil {
 		return r.err
 	}
-	if err := gmSchreibe(dir, map[string]string{"docs/neu.md": "x\n"}); err != nil {
+	if err := gmSchreibe(dir, map[string]string{"docs/neu.md": "x\n", "gl/x.md": "x\n", "sub/x.md": "x\n"}); err != nil {
 		return err
+	}
+	r.git("update-index", "--add", "--cacheinfo", "160000,"+strings.Repeat("1", 40)+",gl")
+	(&gmRepo{dir: filepath.Join(dir, "sub")}).git("init", "-q")
+	if r.err != nil {
+		return r.err
 	}
 	return os.Remove(filepath.Join(dir, "docs", "weg.md"))
 }
@@ -361,12 +374,30 @@ func zcZweiRepos(tmp string) (leer, voll string, err error) {
 	return leer, voll, zcRepoMit(voll, map[string]string{"a.md": "a\n"})
 }
 
-// zcOhneRepo ist Fall 155: kein Repo (der Lauf des Falls), ein Repo ohne Datei, PATH ohne git und ein
-// Argument; in keinem Lauf ruft der Treiber docker.
+// zcKaputtesRepo legt unter tmp ein Repo mit einem Commit an, dessen Index das eine Byte x ist: `git rev-parse
+// --show-toplevel` gelingt, `git ls-files` endet mit 128.
+func zcKaputtesRepo(tmp string) (string, error) {
+	kaputt := filepath.Join(tmp, "kaputt")
+	if err := os.MkdirAll(kaputt, 0o755); err != nil {
+		return "", err
+	}
+	if err := zcRepoMit(kaputt, map[string]string{"a.md": "a\n"}); err != nil {
+		return "", err
+	}
+	return kaputt, os.WriteFile(filepath.Join(kaputt, ".git", "index"), []byte("x"), 0o644)
+}
+
+// zcOhneRepo ist Fall 155: kein Repo (der Lauf des Falls), ein Repo ohne Datei, PATH ohne git, ein Argument,
+// ein leeres Argument und ein Repo, dessen Index das eine Byte x ist (git ls-files scheitert); in keinem Lauf
+// ruft der Treiber docker.
 func zcOhneRepo() Fall {
 	f := zcTreiberFall("treiber-ohne-repo-und-ohne-dateien", nil, 2, "zeichen.sh: kein Git-Arbeitsbaum")
 	f.Nachher = func(l Lauf) string {
 		leer, voll, err := zcZweiRepos(l.Tmp)
+		if err != nil {
+			return err.Error()
+		}
+		kaputt, err := zcKaputtesRepo(l.Tmp)
 		if err != nil {
 			return err.Error()
 		}
@@ -378,9 +409,11 @@ func zcOhneRepo() Fall {
 			{"leer", zcLauf{dir: leer}, "zeichen.sh: Pr\xc3\xbcfmenge leer"},
 			{"ohne-git", zcLauf{dir: voll, env: []string{"PATH=" + l.Tmp + "/bin:" + l.Tmp + "/ohne-git"}}, "zeichen.sh: git nicht aufrufbar"},
 			{"argument", zcLauf{dir: voll, args: []string{"x"}}, "Aufruf: zeichen.sh"},
+			{"argument-leer", zcLauf{dir: voll, args: []string{""}}, "Aufruf: zeichen.sh"},
+			{"index-kaputt", zcLauf{dir: kaputt}, "zeichen.sh: git ls-files scheitert"},
 		}
-		if len(laeufe) != 3 {
-			return "Läufe: nicht drei neben dem Lauf des Falls"
+		if len(laeufe) != 5 {
+			return "Läufe: nicht fünf neben dem Lauf des Falls"
 		}
 		for _, e := range laeufe {
 			code, _, errOut, log := l.zeichenTreiber(e.name, e.z)

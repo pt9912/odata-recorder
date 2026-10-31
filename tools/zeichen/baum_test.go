@@ -126,6 +126,33 @@ func TestAusschluesse(t *testing.T) {
 			gleich(t, f.pfad, r.err, orakelZeile(f.pfad, 1, 2, 0x00A0)+summe(1, 1))
 		}
 	}
+	// Keine zweite Ausnahme (SPEC-233 Nr. 5 a): 22 Namen mal 3 Stellungen (an der Wurzel, unter x/, unter
+	// .harness/) ohne das Paar .harness/baseline = 65 Dateien, alle ein Befund.
+	namen := strings.Fields(`.git .github .idea .vscode .cache .claude .githooks .harness baseline skills harness docs tools src
+		testdata vendor node_modules tmp build dist bin out`)
+	if len(namen) != 22 {
+		t.Fatalf("%d Namen statt 22", len(namen))
+	}
+	dateien := map[string][]byte{}
+	var pfade []string
+	for _, n := range namen {
+		for _, p := range []string{n + "/f.md", "x/" + n + "/f.md", ".harness/" + n + "/f.md"} {
+			if p == ".harness/baseline/f.md" {
+				continue
+			}
+			dateien[p] = cat(b("a"), zb(0x00A0))
+			pfade = append(pfade, p)
+		}
+	}
+	if len(pfade) != 65 {
+		t.Fatalf("%d Dateien statt 65", len(pfade))
+	}
+	sort.Strings(pfade)
+	soll := ""
+	for _, p := range pfade {
+		soll += orakelZeile(p, 1, 2, 0x00A0)
+	}
+	ersteAbweichung(t, "keine zweite Ausnahme", fahre(baum(t, dateien)).err, soll+summe(65, 65))
 }
 
 func TestSymlinks(t *testing.T) {
@@ -324,10 +351,25 @@ func TestExit(t *testing.T) {
 
 func TestLeereMengeUndWurzel(t *testing.T) {
 	gleich(t, "leere Datei", fahre(baum(t, map[string][]byte{"leer.md": nil})).out, okZeile(1, 0, 0))
+	// Sieben Wurzeln ohne Textdatei (SPEC-233 Nr. 11 b); ein Verzeichnis zählt weder als Datei noch als Eintrag.
+	symlink, pipe, ordner := t.TempDir(), t.TempDir(), t.TempDir()
+	mischung := baum(t, map[string][]byte{"b.bin": {0x00, 0x01}, ".harness/baseline/x.md": cat(b("a"), zb(0x00A0))})
+	link(t, "gibt-es-nicht", symlink+"/l")
+	link(t, "gibt-es-nicht", mischung+"/l")
+	if err := syscall.Mkfifo(pipe+"/p", 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(ordner+"/d", 0o755); err != nil {
+		t.Fatal(err)
+	}
 	wurzeln := map[string]string{
-		"leer":     t.TempDir(),
-		"nur-bin":  baum(t, map[string][]byte{"b.bin": {0x00, 0x01}}),
-		"nur-base": baum(t, map[string][]byte{".harness/baseline/x.md": cat(b("a"), zb(0x00A0))}),
+		"leer":        t.TempDir(),
+		"nur-bin":     baum(t, map[string][]byte{"b.bin": {0x00, 0x01}}),
+		"nur-base":    baum(t, map[string][]byte{".harness/baseline/x.md": cat(b("a"), zb(0x00A0))}),
+		"nur-symlink": symlink, "nur-pipe": pipe, "nur-ordner": ordner, "mischung": mischung,
+	}
+	if len(wurzeln) != 7 {
+		t.Fatalf("%d Wurzeln statt 7", len(wurzeln))
 	}
 	for was, w := range wurzeln {
 		r := fahre(w)
@@ -368,17 +410,18 @@ func TestSauber(t *testing.T) {
 }
 
 func TestReihenfolge(t *testing.T) {
-	namen := []string{"b.md", "a/b.md", "a-b.md", "a.md", "A.md", "\xC3\xA4.md"}
+	namen := []string{"b.md", "a/b.md", "a-b.md", "a.md", "A.md", "a0.md", "a~.md", "a\xC3\xA4.md", "\xC3\xA4.md"}
 	dateien := map[string][]byte{}
 	for _, n := range namen {
 		dateien[n] = cat(b("x"), zb(0x00A0))
 	}
 	dir := baum(t, dateien)
 	soll := ""
-	for _, n := range []string{"A.md", "a-b.md", "a.md", "a/b.md", "b.md"} {
+	for _, n := range []string{"A.md", "a-b.md", "a.md", "a/b.md", "a0.md", "a~.md"} {
 		soll += orakelZeile(n, 1, 2, 0x00A0)
 	}
-	soll += orakelZeile(`\xC3\xA4.md`, 1, 2, 0x00A0) + summe(6, 6)
+	soll += orakelZeile(`a\xC3\xA4.md`, 1, 2, 0x00A0) + orakelZeile("b.md", 1, 2, 0x00A0) +
+		orakelZeile(`\xC3\xA4.md`, 1, 2, 0x00A0) + summe(9, 9)
 	vorher := inhalt(t, dir)
 	r1, r2 := fahre(dir), fahre(dir)
 	gleich(t, "Reihenfolge", r1.err, soll)

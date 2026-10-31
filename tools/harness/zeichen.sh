@@ -4,7 +4,9 @@
 # Wählt die Dateien des Git-Arbeitsbaums (getrackt und ungetrackt, ohne ignorierte, nur was im
 # Arbeitsbaum existiert), übergibt sie als Tar-Strom an einen Container der Stufe zeichen
 # (`docker create`, `cp -`, `start -a`, `rm -f`; kein Mount, kein Netz) und gibt dessen Exit weiter:
-# 0 und 1 bleiben, jeder andere Wert wird 2. Ein Container, der entstanden ist, wird in jedem Fall entfernt.
+# 0 und 1 bleiben, jeder andere Wert wird 2. Ein Container, der entstanden ist, wird nach normalem Ende, nach
+# einem Fehler von cp, tar oder start und nach HUP, INT oder TERM entfernt (Fall 154); SIGKILL und das Fenster
+# zwischen create und trap bleiben ungeprüft (SPEC-233 Nr. 16 g).
 # Umgebung: ZEICHEN_IMAGE (Voreinstellung odata-recorder:zeichen), DOCKER (Voreinstellung docker).
 set -euo pipefail
 shopt -s lastpipe

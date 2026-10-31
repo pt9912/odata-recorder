@@ -267,13 +267,9 @@ func zcWurzeln() []Fall {
 	leer := zcFall("leere-datei", map[string]string{"leer.md": ""}, 0, "1>zeichen: ok, 1 Datei(en) gepr\xc3\xbcft")
 	menge := zcFall("leere-menge", nil, 2, zcKeineTxt)
 	menge.Nachher = func(l Lauf) string {
-		wurzeln := map[string]map[string]string{
-			"nur-bin":  {"b.bin": "\x00\x01"},
-			"nur-base": {".harness/baseline/x.md": "a" + zcNBSP},
-		}
-		for _, name := range []string{"nur-bin", "nur-base"} {
+		for _, name := range []string{"nur-bin", "nur-base", "nur-symlink", "nur-ordner", "mischung"} {
 			w := filepath.Join(l.Tmp, name)
-			if err := gmSchreibe(w, wurzeln[name]); err != nil {
+			if err := zcLegeWurzel(w, name); err != nil {
 				return err.Error()
 			}
 			code, out, errOut := l.programm("pruefen", w)
@@ -300,6 +296,34 @@ func zcWurzeln() []Fall {
 		return ""
 	}
 	return []Fall{leer, menge, fehlt, zcAufrufFall()}
+}
+
+// zcLegeWurzel legt in w eine Wurzel ohne Textdatei an (Fall 143): nur eine Binärdatei, nur den Teilbaum
+// `.harness/baseline`, nur einen hängenden Symlink, nur ein leeres Unterverzeichnis oder die Mischung aus
+// Binärdatei, Symlink und Teilbaum.
+func zcLegeWurzel(w, name string) error {
+	dateien := map[string]string{}
+	if name == "nur-bin" || name == "mischung" {
+		dateien["b.bin"] = "\x00\x01"
+	}
+	if name == "nur-base" || name == "mischung" {
+		dateien[".harness/baseline/x.md"] = "a" + zcNBSP
+	}
+	if err := os.MkdirAll(w, 0o755); err != nil {
+		return err
+	}
+	if err := gmSchreibe(w, dateien); err != nil {
+		return err
+	}
+	if name == "nur-symlink" || name == "mischung" {
+		if err := os.Symlink("gibt-es-nicht", filepath.Join(w, "l")); err != nil {
+			return err
+		}
+	}
+	if name == "nur-ordner" {
+		return os.Mkdir(filepath.Join(w, "d"), 0o755)
+	}
+	return nil
 }
 
 // zcAufrufFall ist Fall 145: acht Aufrufe, der erste ohne Argumente.
@@ -369,14 +393,14 @@ func zcPruefsumme(dir string) (string, error) {
 // unveränderten Baum.
 func zcReihenfolge() Fall {
 	neu := map[string]string{}
-	for _, n := range []string{"b.md", "a/b.md", "a-b.md", "a.md", "A.md", "\xc3\xa4.md"} {
+	for _, n := range []string{"b.md", "a/b.md", "a-b.md", "a.md", "A.md", "a0.md", "a~.md", "\xc3\xa4.md"} {
 		neu[n] = "x" + zcNBSP
 	}
 	soll := ""
-	for _, n := range []string{"A.md", "a-b.md", "a.md", "a/b.md", "b.md", `\xC3\xA4.md`} {
+	for _, n := range []string{"A.md", "a-b.md", "a.md", "a/b.md", "a0.md", "a~.md", "b.md", `\xC3\xA4.md`} {
 		soll += zcNbsp(n, 1, 2)
 	}
-	soll += zcSumme(6, 6)
+	soll += zcSumme(8, 8)
 	var vorher string
 	f := zcFall("reihenfolge-und-wiederholung", neu, 1)
 	f.Vorbereitung = func(dir string) (err error) {
