@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier, frischer Kontext (Frage: "Bauen wir es richtig?" gegen Plan, DoD, `SPEC-233`, `SPEC-102` Fälle 131 bis 155 und `AGENTS.md` §3.9 bis §3.18). Kein Review, keine Reparatur: Code, Plan und Vertrag sind unverändert. Eingang: der [Review-Report](2026-10-31-slice-unsichtbare-zeichen-review.md) (F-1 bis F-12) und der Bericht des Implementers nur als Eingang, nicht als Beweis.
 
-**Gegenstand:** Zweig `slice-unsichtbare-zeichen`, HEAD `5c471f2` (Inhalts-Stand des Implementers `1784a38`, Fix-Commit `5455e8e`, danach der Bestandsfix am Report von slice-baseline-import), Basis des Blocks `3cdbdca`. Plan: `docs/plan/planning/in-progress/slice-unsichtbare-zeichen.md`. Arbeitsbaum vor und nach den Läufen ohne Änderung (`git status` leer).
+**Gegenstand:** Zweig `slice-unsichtbare-zeichen`, HEAD `5c471f2` (Inhalts-Stand des Implementers `1784a38`, Fix-Commit `5455e8e`, danach der Bestandsfix am Report von slice-baseline-import), Basis des Blocks `3cdbdca`. Plan: `docs/plan/planning/done/slice-unsichtbare-zeichen.md`. Arbeitsbaum vor und nach den Läufen ohne Änderung (`git status` leer).
 
 **Modell:** claude-sonnet-5-5 · **Datum:** 2026-10-31
 
