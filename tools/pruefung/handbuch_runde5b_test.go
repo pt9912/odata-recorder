@@ -270,8 +270,9 @@ func TestHandbuchZaunformenRand(t *testing.T) {
 	}
 }
 
-// Z71 (R7, Nr. 5 f): ein Symbolischer Verweis in docs/user/beispiele ist keine Beispiel-Datei, auch wenn er auf eine
-// Datei zeigt: `beispiele: a.txt keine Beispiel-Datei`, nie `ohne Bindung`.
+// Z71 (Nr. 5 f, 2 f): ein Symbolischer Verweis in docs/user/beispiele ist, was sein Ziel ist: auf eine Datei mit
+// gültigem Namen eine Beispiel-Datei, ungebunden also `beispiele: a.txt ohne Bindung`, nie `keine Beispiel-Datei`.
+// Bindung, Gleichheit und Lauf prüft Z95.
 func TestHandbuchBeispielVerweis(t *testing.T) {
 	m := neuesUmfeld(t, standardAntworten())
 	m.entferne("docs/user/beispiele/aufruf.txt")
@@ -281,7 +282,7 @@ func TestHandbuchBeispielVerweis(t *testing.T) {
 	}
 	m.handbuch(rumpf("Text.\n"))
 	code, _, errText := m.lauf()
-	if ist := befundZeilen(t, errText); code != exitBefund || !gleichListe(ist, []string{"beispiele: a.txt keine Beispiel-Datei"}) {
+	if ist := befundZeilen(t, errText); code != exitBefund || !gleichListe(ist, []string{"beispiele: a.txt ohne Bindung"}) {
 		t.Fatalf("Exit %d, %q", code, ist)
 	}
 }
