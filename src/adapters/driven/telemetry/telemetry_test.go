@@ -57,7 +57,8 @@ func reihenFest(t *testing.T, wo string, s support.Snapshot) {
 
 // P07, P17: nach Aufrufen mit Werten, die kein Schlüssel sein dürfen, bleibt die Zahl der Reihen
 // fest, geprüft nach jedem Aufruf. Menge: Aufrufstelle × Wert: CountError mit 7 Codes außerhalb der
-// Tabelle, Log mit den 12 fremden und den 13 gültigen Schlüsseln × 4 Werten (darunter ungültige), und
+// Tabelle und jedem Code von -50 bis 3050 (3101), Log mit den 12 fremden und den 13 gültigen
+// Schlüsseln × 4 Werten (darunter ungültige) in den Arten String, Int und Float, und
 // StartSpan mit 8 Namen (die 5 gültigen, der leere, ein fremder, einer mit Leerzeichen), danach Set
 // und End.
 func TestReihenFest(t *testing.T) {
@@ -78,9 +79,13 @@ func TestReihenFest(t *testing.T) {
 			schluessel = append(schluessel, z.key)
 		}
 	}
+	for c := model.Code(-50); c <= 3050; c++ {
+		a.CountError(c)
+		pruefe("CountError " + strconv.Itoa(int(c)))
+	}
 	for _, k := range schluessel {
 		for _, v := range []string{"", "a b", "ok", "x=y"} {
-			a.Log(ctx, slog.LevelInfo, "m", support.Str(k, v), support.Int(k, 7))
+			a.Log(ctx, slog.LevelInfo, "m", support.Str(k, v), support.Int(k, 7), support.Millis(k, time.Millisecond))
 			pruefe("Log " + k + " " + v)
 		}
 	}
@@ -91,8 +96,8 @@ func TestReihenFest(t *testing.T) {
 		sp.End()
 		pruefe("StartSpan " + n)
 	}
-	if aufrufe != 7+25*4+8 || len(namen) != 8 {
-		t.Errorf("%d Prüfungen, %d Namen; erwartet %d und 8", aufrufe, len(namen), 7+25*4+8)
+	if aufrufe != 7+3101+25*4+8 || len(namen) != 8 {
+		t.Errorf("%d Prüfungen, %d Namen; erwartet %d und 8", aufrufe, len(namen), 7+3101+25*4+8)
 	}
 }
 

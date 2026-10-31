@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -433,84 +434,67 @@ func TestFakeEltern(t *testing.T) {
 type ctxZweiter struct{}
 
 // P12: der ctx von StartSpan leitet den übergebenen ab, Werte, Abbruch und Frist bleiben (SPEC-230
-// Nr. 10). Menge: 6 Eigenschaften (zwei Werte; Abbruch nach dem Aufruf, mit Ursache; Abbruch vor dem
-// Aufruf; Frist als Zeitpunkt; Frist läuft ab; alle drei zugleich) × 2 Aufrufstellen (ohne Span im
-// ctx, mit dem Span des Elternaufrufs im ctx) = 12 Fälle; Orakel sind die Eigenschaften des
-// Eingabe-ctx.
+// Nr. 10). Menge: 4 Eigenschaften (Werte, Fehler, Ursache, Frist) × 5 Zustände des Eingabe-ctx
+// beim Aufruf (aktiv, schon abgebrochen mit Ursache, schon abgelaufen, später abgebrochen, läuft
+// später ab) × 2 Ausstattungen (Werte und Frist, nackt) × 2 Aufrufstellen (ohne Span im ctx, mit dem
+// Span des Elternaufrufs im ctx) = 80 Fälle; bei den späteren Zuständen wird nach dem Ereignis
+// erneut verglichen. Orakel ist der Eingabe-ctx selbst.
 func TestFakeCtx(t *testing.T) {
 	frist, ursache := time.Now().Add(time.Hour), errors.New("ursache")
 	warte := func(c context.Context) string {
 		select {
 		case <-c.Done():
 			return ""
-		case <-time.After(2 * time.Second):
+		case <-time.After(time.Second):
 			return "Done nicht geschlossen"
 		}
 	}
 	werte := func() context.Context {
 		return context.WithValue(context.WithValue(context.Background(), ctxSchluessel{}, "wert"), ctxZweiter{}, "zwei")
 	}
+	zustaende := []string{"aktiv", "schon abgebrochen mit Ursache", "schon abgelaufen", "später abgebrochen", "läuft später ab"}
+	ausstattungen := []string{"Werte und Frist", "nackt"}
 	eigenschaften := []struct {
-		name    string
-		pruefen func(start func(context.Context) context.Context) string
+		name   string
+		gleich func(in, k context.Context) bool
 	}{
-		{"Werte", func(start func(context.Context) context.Context) string {
-			if k := start(werte()); k.Value(ctxSchluessel{}) != "wert" || k.Value(ctxZweiter{}) != "zwei" {
-				return "ein Wert des Eingabe-ctx fehlt"
-			}
-			return ""
+		{"Werte", func(in, k context.Context) bool {
+			return in.Value(ctxSchluessel{}) == k.Value(ctxSchluessel{}) && in.Value(ctxZweiter{}) == k.Value(ctxZweiter{})
 		}},
-		{"Abbruch danach", func(start func(context.Context) context.Context) string {
-			ctx, cancel := context.WithCancelCause(context.Background())
-			defer cancel(nil)
-			k := start(ctx)
-			if k.Err() != nil {
-				return "vor dem Abbruch schon abgebrochen"
-			}
+		{"Fehler", func(in, k context.Context) bool { return in.Err() == k.Err() }},
+		{"Ursache", func(in, k context.Context) bool { return context.Cause(in) == context.Cause(k) }},
+		{"Frist", func(in, k context.Context) bool {
+			d1, ok1 := in.Deadline()
+			d2, ok2 := k.Deadline()
+			return ok1 == ok2 && d1.Equal(d2)
+		}},
+	}
+	// eingabe baut den Eingabe-ctx im Zustand z mit Ausstattung a; ereignis tritt nach dem Aufruf ein.
+	eingabe := func(z, a int) (ctx context.Context, ereignis, ende func()) {
+		ctx = context.Background()
+		if a == 0 {
+			ctx = werte()
+		}
+		var frei context.CancelFunc
+		switch {
+		case z == 2:
+			ctx, frei = context.WithDeadline(ctx, time.Now().Add(-time.Hour))
+		case z == 4:
+			ctx, frei = context.WithTimeout(ctx, 30*time.Millisecond)
+		case a == 0:
+			ctx, frei = context.WithDeadline(ctx, frist)
+		default:
+			frei = func() {}
+		}
+		ctx, cancel := context.WithCancelCause(ctx)
+		ende = func() { cancel(nil); frei() }
+		switch z {
+		case 1:
 			cancel(ursache)
-			if m := warte(k); m != "" || !errors.Is(k.Err(), context.Canceled) || context.Cause(k) != ursache {
-				return "der Abbruch (Fehler, Ursache) erreicht den Rückgabe-ctx nicht: " + m
-			}
-			return ""
-		}},
-		{"Abbruch davor", func(start func(context.Context) context.Context) string {
-			ctx, cancel := context.WithCancel(context.Background())
-			cancel()
-			if start(ctx).Err() == nil {
-				return "der Abbruch vor dem Aufruf geht verloren"
-			}
-			return ""
-		}},
-		{"Frist als Zeitpunkt", func(start func(context.Context) context.Context) string {
-			ctx, cancel := context.WithDeadline(context.Background(), frist)
-			defer cancel()
-			if d, ok := start(ctx).Deadline(); !ok || !d.Equal(frist) {
-				return "die Frist des Eingabe-ctx fehlt oder weicht ab"
-			}
-			return ""
-		}},
-		{"Frist läuft ab", func(start func(context.Context) context.Context) string {
-			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
-			defer cancel()
-			k := start(ctx)
-			if m := warte(k); m != "" || !errors.Is(k.Err(), context.DeadlineExceeded) {
-				return "der Ablauf der Frist erreicht den Rückgabe-ctx nicht: " + m
-			}
-			return ""
-		}},
-		{"alle drei", func(start func(context.Context) context.Context) string {
-			ctx, cancel := context.WithDeadline(werte(), frist)
-			defer cancel()
-			k := start(ctx)
-			if d, ok := k.Deadline(); !ok || !d.Equal(frist) || k.Value(ctxZweiter{}) != "zwei" || k.Err() != nil {
-				return "Frist, Wert oder Zustand weichen ab"
-			}
-			cancel()
-			if k.Err() == nil {
-				return "der Abbruch geht verloren"
-			}
-			return ""
-		}},
+		case 3:
+			return ctx, func() { cancel(ursache) }, ende
+		}
+		return ctx, func() {}, ende
 	}
 	stellen := []struct {
 		name  string
@@ -527,17 +511,32 @@ func TestFakeCtx(t *testing.T) {
 		}},
 	}
 	faelle := 0
-	for _, e := range eigenschaften {
-		for _, s := range stellen {
-			faelle++
-			f := supporttest.NewFakeTelemetry()
-			if m := e.pruefen(func(ctx context.Context) context.Context { return s.start(f, ctx) }); m != "" {
-				t.Errorf("%s, %s: %s", e.name, s.name, m)
+	for z, zustand := range zustaende {
+		for a, ausstattung := range ausstattungen {
+			for _, s := range stellen {
+				in, ereignis, ende := eingabe(z, a)
+				k := s.start(supporttest.NewFakeTelemetry(), in)
+				for _, e := range eigenschaften {
+					faelle++
+					if !e.gleich(in, k) {
+						t.Errorf("%s, %s, %s, %s: weicht beim Aufruf vom Eingabe-ctx ab", zustand, ausstattung, s.name, e.name)
+					}
+				}
+				ereignis()
+				if z >= 3 {
+					warte(k)
+					for _, e := range eigenschaften {
+						if !e.gleich(in, k) {
+							t.Errorf("%s, %s, %s, %s: weicht nach dem Ereignis vom Eingabe-ctx ab", zustand, ausstattung, s.name, e.name)
+						}
+					}
+				}
+				ende()
 			}
 		}
 	}
-	if len(eigenschaften) != 6 || len(stellen) != 2 || faelle != 12 {
-		t.Errorf("%d Eigenschaften, %d Stellen, %d Fälle; erwartet 6, 2, 12", len(eigenschaften), len(stellen), faelle)
+	if len(zustaende) != 5 || len(ausstattungen) != 2 || len(stellen) != 2 || len(eigenschaften) != 4 || faelle != 80 {
+		t.Errorf("%d Zustände, %d Ausstattungen, %d Stellen, %d Eigenschaften, %d Fälle; erwartet 5, 2, 2, 4, 80", len(zustaende), len(ausstattungen), len(stellen), len(eigenschaften), faelle)
 	}
 }
 
@@ -621,6 +620,24 @@ func TestFakeStandKopie(t *testing.T) {
 	if faelle != 12 {
 		t.Errorf("%d Fälle, erwartet 12", faelle)
 	}
+	// ohne gesetzten Stand: eine Änderung am gelesenen leeren Stand erreicht weder den nächsten
+	// Snapshot desselben Fakes noch den eines anderen (3 Maps × 2 Leser = 6 Fälle; ein Slice der
+	// Länge 0 lässt sich nicht beschreiben, Spans ist äquivalent)
+	for i := range 3 {
+		f, g := supporttest.NewFakeTelemetry(), supporttest.NewFakeTelemetry()
+		s := f.Snapshot()
+		switch i {
+		case 0:
+			s.Errors[model.CodeE2001] = 1
+		case 1:
+			s.Durations[support.SpanMockQuery] = support.Verteilung{Count: 1}
+		case 2:
+			s.Dropped[support.VerwurfWert] = 1
+		}
+		leererStand(t, f.Snapshot())
+		leererStand(t, g.Snapshot())
+		leererStand(t, supporttest.NewFakeTelemetry().Snapshot())
+	}
 }
 
 // P11: Attributlisten jeder Länge von 0 bis 64 werden bei Log, StartSpan und Set ungeprüft und
@@ -650,6 +667,38 @@ func TestFakeLaengen(t *testing.T) {
 		for k, op := range []supporttest.Operation{supporttest.OpLog, supporttest.OpStartSpan, supporttest.OpSet} {
 			if g := a[1+3*n+k]; g.Op != op || !attrGleich(g.Attrs, l) {
 				t.Errorf("Länge %d, Operation %d: %d Attribute festgehalten", n, op, len(g.Attrs))
+			}
+		}
+	}
+}
+
+// P11: Zeichenketten jeder Länge werden unverändert festgehalten (SPEC-230 Nr. 10): Msg, Text und
+// Key der Attribute von Log sowie der Name von StartSpan und die Attribute von StartSpan und Set,
+// 13 Längen von 0 bis 70000 (die Grenzen 40, 128 und 4096 mit beiden Nachbarn); darüber Negativ N-2.
+func TestFakeStrings(t *testing.T) {
+	laengen := []int{0, 1, 39, 40, 41, 127, 128, 129, 1000, 4095, 4096, 4097, 70000}
+	f := supporttest.NewFakeTelemetry()
+	ctx := context.Background()
+	for _, n := range laengen {
+		s := strings.Repeat("a", n)
+		f.Log(ctx, slog.LevelInfo, s, support.Str(s, s))
+		f.StartSpan(ctx, support.SpanName(s), support.Str(s, s))
+		_, sp := f.StartSpan(ctx, "start", support.Str(s, s))
+		sp.Set(support.Str(s, s))
+	}
+	a := f.Aufrufe()
+	if len(a) != 4*len(laengen) {
+		t.Fatalf("%d Aufrufe, erwartet %d", len(a), 4*len(laengen))
+	}
+	for i, n := range laengen {
+		s := strings.Repeat("a", n)
+		l, st, st2, set := a[4*i], a[4*i+1], a[4*i+2], a[4*i+3]
+		if l.Msg != s || st.Name != support.SpanName(s) || st2.Name != "start" {
+			t.Errorf("Länge %d: Msg oder Name verändert", n)
+		}
+		for _, g := range []supporttest.Aufruf{l, st, st2, set} {
+			if len(g.Attrs) != 1 || g.Attrs[0].Key != s || g.Attrs[0].Text != s {
+				t.Errorf("Länge %d, Operation %d: Key oder Text verändert", n, g.Op)
 			}
 		}
 	}

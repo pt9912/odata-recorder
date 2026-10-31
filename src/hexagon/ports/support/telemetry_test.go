@@ -373,6 +373,25 @@ func TestSnapshotKopie(t *testing.T) {
 	}
 }
 
+// vieleEintraege baut einen Stand mit n Verteilungen und n Spans (der Ring hält bis 65536), deren
+// Counts bzw. Attrs gefüllt sind.
+func vieleEintraege(n int) support.Snapshot {
+	s := support.Snapshot{Durations: map[support.SpanName]support.Verteilung{}}
+	for i := range n {
+		s.Durations[support.SpanName(fmt.Sprintf("span.%d", i))] = support.Verteilung{Count: uint64(i), Counts: []uint64{1, uint64(i), 3}}
+		s.Spans = append(s.Spans, support.SpanRecord{ID: fmt.Sprint("spn-", i), Attrs: []support.Attr{support.Str("k", "v"), support.Int("n", int64(i))}})
+	}
+	return s
+}
+
+// Die Zahl der Einträge ist unbeschränkt: Stände mit 7, 8, 20 und 1024 Verteilungen und Spans
+// werden tief kopiert, jede Position (Negativ N-2 darüber).
+func TestSnapshotKopieViele(t *testing.T) {
+	for _, n := range []int{7, 8, 20, 1024} {
+		kopiePruefen(t, fmt.Sprintf("%d Einträge", n), func() support.Snapshot { return vieleEintraege(n) })
+	}
+}
+
 // laengeVon ist die Länge eines Slices als eintragLaengen sie führt: nil als -1.
 func laengeVon(istNil bool, n int) int {
 	if istNil {
