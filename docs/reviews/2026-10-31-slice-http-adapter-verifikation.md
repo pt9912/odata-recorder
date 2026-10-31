@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier (Modul 11) — "Bauen wir es richtig?" gegen Plan, DoD, `SPEC-136` und `AGENTS.md`. Kein Review, keine Reparatur.
 
-**Gegenstand:** `slice-http-adapter` (Welle `welle-record-replay`), HEAD `4ca8f2d`; Implementer-Commits `81d4bf5` bis `bea0afc`, Review `1f1bb25` (F-1 bis F-17), Fix-Runde ab `8d9d78b`. Pfade: `src/adapters/driving/httpodata/`, `.a-check.yml`, `spec/spezifikation.md` (`SPEC-136`), Plan `docs/plan/planning/in-progress/slice-http-adapter.md`.
+**Gegenstand:** `slice-http-adapter` (Welle `welle-record-replay`), HEAD `4ca8f2d`; Implementer-Commits `81d4bf5` bis `bea0afc`, Review `1f1bb25` (F-1 bis F-17), Fix-Runde ab `8d9d78b`. Pfade: `src/adapters/driving/httpodata/`, `.a-check.yml`, `spec/spezifikation.md` (`SPEC-136`), Plan `docs/plan/planning/done/slice-http-adapter.md`.
 
 **Modell:** claude-sonnet-5-5. **Messverfahren:** Docker, `--memory=4g --memory-swap=4g --cpus=4 --network none`, unter `flock /tmp/odata-recorder-heavy.lock`; Exit-Codes aus Datei; Mutationen in Kopien (`.../scratchpad/verify-http/m-*`), Worktree-Code unverändert. Gegenprobe-Läufe von `a-check` am gepinnten Digest (`ac*`, `g1` bis `g5`).
 
