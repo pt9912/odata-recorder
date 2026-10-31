@@ -70,9 +70,9 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
 - [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist: `SPEC-164` und `SPEC-165` samt Nachzügen (Architect); eine Handbuch-Pflicht gibt es nicht (§6).
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag (§7, Phase 1).
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
 
 ## 3. Plan (vor Code)
 
@@ -385,7 +385,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 - User: (3) Diff-Vorlage zu `AGENTS.md` §3.14 (nur benannt): die Faktoren (40 je andere Zeile, 65 für Leser fremder Bytes, 1,25) stehen gegen `SPEC-128` Nr. 1 und 2 (80, 85, ohne Zuschlag für Leser fremder Bytes, 1,35); der Planner ändert `AGENTS.md` nicht und empfiehlt keinen Wortlaut.
 - Nehmer-Nachzüge auf `main` (Integration, nicht hier): keine; die Sendungen an `slice-bootstrap-m3` und `slice-edm-ausdruecke` sind auf `main` angenommen (§6).
 
-**Stand der Closure Phase 2:** *wird auf `main` gefüllt* (Integration: Prüfsumme der Eingaben gegen den Stempel, Register, Roadmap, Welle, reines `git mv`).
+**Stand der Closure Phase 2** (Planner, 2026-10-31, Integration auf `main`, Merge `6993ffd`): Der Stempel der Gegenproben ist gültig (die Prüfsumme der Eingaben auf `main` gleich dem Stempel `c5ef5636…`; `main` trug seit dem Zweigschnitt keine Änderung der Eingaben), es lief kein erneuter Lauf. Register: Evidenz `slice-odata-url-filter` zu `randform-erst-im-review-entschieden` (25×), `suite-ohne-generator-fuer-klassen-der-spezifikation` (5×), `unbeschraenkte-menge-ohne-benannte-pruefgrenze` (6×), `vertrag-sagt-mehr-zu-als-ein-gate-prueft` (36×), `nebenlaeufiger-lauf-nur-im-glueck-gruen` (11×) und `stempel-gehoert-zu-keinem-committeten-stand` (4×); neu `redundante-pruefung-ohne-wirkung` (1×, offen). Offen und ab 3×: `unbeschraenkte-menge-ohne-benannte-pruefgrenze` und `stempel-gehoert-zu-keinem-committeten-stand` unter weiteren; die Verkörperung ist Entscheidung des Users. Nehmer-Nachzüge: keine neuen, die Sendungen an `slice-bootstrap-m3` und `slice-edm-ausdruecke` sind angenommen (§6); die Rückgaben (1) und (2) gehen an den Architect, (3) an den User, kein Slice ist Nehmer; §6 trägt sie mit Ausgang *offen*.
 
 **Steering-Loop-Einträge:**
 
