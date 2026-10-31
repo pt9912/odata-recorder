@@ -11,6 +11,8 @@
 !tools/pruefung
 !tools/groessenmarke
 !tools/harness/groessenmarke.sh
+!tools/zeichen
+!tools/harness/zeichen.sh
 !tools/harness/migration-check.sh
 !docs/user
 !Makefile

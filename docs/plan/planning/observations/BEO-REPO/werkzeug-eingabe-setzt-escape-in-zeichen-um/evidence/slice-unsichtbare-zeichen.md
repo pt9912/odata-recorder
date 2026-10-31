@@ -1,0 +1,2 @@
+**Vorgang:** slice-unsichtbare-zeichen
+**Fund:** Weiteres Vorkommen im Gegenstand des Slice: `Edit` und `Write` setzen ein NBSP still in ein Leerzeichen um; die Shell-Funktion `grep` kann bei `-P` mit Rohbytes falsch-negativ sein (Befund des Architect, Gegenlesen mit `env LC_ALL=C grep -aP`). Das Gate `make zeichen-check` (SPEC-233) fängt seither den unsichtbaren Teil; die Umsetzung zu einem sichtbaren Zeichen bleibt Prosa (SPEC-233 Nr. 16 a).

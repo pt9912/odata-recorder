@@ -40,10 +40,7 @@ Aufrufe:
 13. Argumente, die mit `-` beginnen, gelten als Muster und gehen unverändert an `go`; `pruefung` prüft sie nicht selbst.
 14. Exit-Codes: 0 kein Befund, 1 mindestens ein Befund, 2 Aufruf, `Wurzel` oder `Binary` fehlt oder ein Programm ist nicht aufrufbar.
 
-**Randformen von `bootstrap.Run`:**
-1. Keine Argumente oder genau `version`: Ausgabe `odata-recorder <Version>` nach stdout, Exit-Code 0.
-2. Jedes andere Aufrufmuster — unbekanntes Kommando, leeres Argument, Flag wie `--help`, `version` mit Zusatzargument: `Unbekanntes Kommando: <erstes Argument>` nach stderr, Exit-Code 2.
-3. Ein nil-Writer verwirft die Ausgabe; der Exit-Code bleibt unverändert.
+**Randformen des Aufrufs von `odata-recorder`:** gelten nach `SPEC-138` Nr. 2 bis 4 (Version ohne Argument und mit `version`, Exit-Code 2 mit `Unbekanntes Kommando: <erstes Argument>` bei jedem anderen Aufrufmuster, ein nil-Writer verwirft die Ausgabe).
 
 **Stand:** vorhanden für das Skelett aus Composition Root und Version; `pruefung` trägt die Prüfungen von `make test`, `make build`, `make test-race` (`SPEC-122`) und `make handbuch-check` (`SPEC-200`), ihre Gegenproben liefert `SPEC-102`.
 

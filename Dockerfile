@@ -40,6 +40,17 @@ RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-for
 WORKDIR /work
 ENTRYPOINT ["/usr/local/bin/groessenmarke"]
 
+# --- zeichen: das Programm aus tools/zeichen sucht in den Dateien eines Arbeitsbaums nach Zeichen, die dort
+# nicht hingehören (SPEC-233). Es wird geprüft (gofmt, vet, Test) und gebaut; das Ziel `make zeichen-check`
+# führt es aus dieser Stufe aus, ohne Netz und ohne Mount.
+FROM deps AS zeichen
+WORKDIR /zc
+COPY tools/zeichen ./
+RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-formatiert:"; echo "$f"; exit 1; }; } \
+ && go vet ./... && go test ./... && go build -trimpath -buildvcs=false -o /usr/local/bin/zeichen .
+WORKDIR /work
+ENTRYPOINT ["/usr/local/bin/zeichen"]
+
 # --- test: Formatierung (gofmt nennt die nicht formatierten Dateien), vet und
 # Unit-Tests, gefahren von pruefung.
 FROM source AS test
@@ -85,8 +96,8 @@ COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
 RUN --network=none pruefung race /src
 
 # --- lint: golangci-lint nach .golangci.yml und die eigenen Prüfungen von tools/harness/lint.sh
-# auf dem Quellstand und auf tools/gegenproben, tools/groessenmarke und tools/pruefung; die Module
-# kommen aus deps.
+# auf dem Quellstand und auf tools/gegenproben, tools/groessenmarke, tools/pruefung und tools/zeichen;
+# die Module kommen aus deps.
 FROM ${LINT_IMAGE} AS lint
 WORKDIR /src
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
@@ -96,6 +107,7 @@ COPY .golangci.yml ./
 COPY tools/gegenproben tools/gegenproben
 COPY tools/groessenmarke tools/groessenmarke
 COPY tools/pruefung tools/pruefung
+COPY tools/zeichen tools/zeichen
 COPY tools/harness/lint.sh /usr/local/bin/lint.sh
 RUN --network=none sh /usr/local/bin/lint.sh
 
@@ -103,13 +115,14 @@ RUN --network=none sh /usr/local/bin/lint.sh
 FROM ${A_CHECK_IMAGE} AS a-check-bin
 
 # --- gegenproben: das Programm aus tools/gegenproben prüft, dass a-check, lint.sh,
-# migration-check.sh, pruefung und groessenmarke samt Treiber einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
-# Eingaben gefahren, die Fälle zu `pruefung race` und zu `groessenmarke` gegen ein Wegwerfverzeichnis statt der Eingaben.
+# migration-check.sh, pruefung, groessenmarke und zeichen samt Treibern einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
+# Eingaben gefahren, die Fälle zu `pruefung race`, zu `groessenmarke` und zu `zeichen` gegen ein Wegwerfverzeichnis statt der Eingaben.
 FROM ${LINT_IMAGE} AS gegenproben
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY --from=a-check-bin /a-check /usr/local/bin/a-check
 COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
 COPY --from=groessenmarke /usr/local/bin/groessenmarke /usr/local/bin/groessenmarke
+COPY --from=zeichen /usr/local/bin/zeichen /usr/local/bin/zeichen
 WORKDIR /gp
 COPY tools/gegenproben ./
 RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-formatiert:"; echo "$f"; exit 1; }; } \
@@ -118,5 +131,5 @@ WORKDIR /src
 COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY go.mod go.sum* .a-check.yml .golangci.yml ./
 COPY src ./src
-COPY tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/groessenmarke.sh tools/harness/
+COPY tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/groessenmarke.sh tools/harness/zeichen.sh tools/harness/
 RUN --network=none gegenproben
