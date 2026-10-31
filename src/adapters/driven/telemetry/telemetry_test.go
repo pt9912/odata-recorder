@@ -41,6 +41,105 @@ func summe(m map[model.Code]uint64) (n uint64) {
 	return n
 }
 
+// reihenFest prüft SPEC-230 Nr. 8 an einem Stand nach Aufrufen: die Zahl der Reihen ist fest (33
+// Codes, 7 Gründe, 5 Span-Namen mit je 12 Eimern), kein Wert eines Aufrufers bildet einen Schlüssel.
+func reihenFest(t *testing.T, wo string, s support.Snapshot) {
+	t.Helper()
+	if len(s.Errors) != 33 || len(s.Dropped) != 7 || len(s.Durations) != 5 {
+		t.Errorf("%s: Errors %d, Dropped %d, Durations %d; erwartet 33, 7, 5", wo, len(s.Errors), len(s.Dropped), len(s.Durations))
+	}
+	for n, v := range s.Durations {
+		if len(v.Counts) != 12 {
+			t.Errorf("%s: %s hat %d Eimer, erwartet 12", wo, n, len(v.Counts))
+		}
+	}
+}
+
+// P07, P17: nach Aufrufen mit Werten, die kein Schlüssel sein dürfen, bleibt die Zahl der Reihen
+// fest, geprüft nach jedem Aufruf. Menge: Aufrufstelle × Wert: CountError mit 7 Codes außerhalb der
+// Tabelle, Log mit den 12 fremden und den 13 gültigen Schlüsseln × 4 Werten (darunter ungültige), und
+// StartSpan mit 8 Namen (die 5 gültigen, der leere, ein fremder, einer mit Leerzeichen), danach Set
+// und End.
+func TestReihenFest(t *testing.T) {
+	a, _ := neu(t)
+	ctx := context.Background()
+	aufrufe := 0
+	pruefe := func(wo string) {
+		aufrufe++
+		reihenFest(t, wo, a.Snapshot())
+	}
+	for _, c := range []model.Code{0, -1, model.CodeE9001 + 1, math.MaxInt, math.MinInt, 1, 99999} {
+		a.CountError(c)
+		pruefe("CountError " + strconv.Itoa(int(c)))
+	}
+	schluessel := []string{"", "x", "timestamp", "level", "msg", "Mode", "mode ", "a b", "ODR-E2001", "senke", "wert", "fehlercode"}
+	for _, z := range katalog() {
+		if z.menge == "log" {
+			schluessel = append(schluessel, z.key)
+		}
+	}
+	for _, k := range schluessel {
+		for _, v := range []string{"", "a b", "ok", "x=y"} {
+			a.Log(ctx, slog.LevelInfo, "m", support.Str(k, v), support.Int(k, 7))
+			pruefe("Log " + k + " " + v)
+		}
+	}
+	namen := append(spanNamen(), "", "unbekannt", "odata.mock.query ")
+	for _, n := range namen {
+		_, sp := a.StartSpan(ctx, support.SpanName(n), support.Str("x", "y"))
+		sp.Set(support.Str("x", "y"))
+		sp.End()
+		pruefe("StartSpan " + n)
+	}
+	if aufrufe != 7+25*4+8 || len(namen) != 8 {
+		t.Errorf("%d Prüfungen, %d Namen; erwartet %d und 8", aufrufe, len(namen), 7+25*4+8)
+	}
+}
+
+// P17: jedes verletzende Attribut zählt einen Verwurf, nicht nur die ersten (SPEC-230 Nr. 4). Menge:
+// Zahl der Attribute n von 0 bis 40 × 3 Arten (n fremde Schlüssel; n-mal derselbe gültige Schlüssel,
+// davon n-1 doppelt; n ungültige Werte reihum über die 13 gültigen Schlüssel) = 123 Aufrufe. Über 40
+// Attribute ist die Menge unbeschränkt; der Code zählt in einer Schleife ohne Grenze (Negativ im
+// Plan).
+func TestVerwurfJeAttribut(t *testing.T) {
+	var logKeys []string
+	for _, z := range katalog() {
+		if z.menge == "log" {
+			logKeys = append(logKeys, z.key)
+		}
+	}
+	aufrufe := 0
+	for n := 0; n <= 40; n++ {
+		fremd, doppelt, ungueltig := []support.Attr{}, []support.Attr{}, []support.Attr{}
+		for i := range n {
+			fremd = append(fremd, support.Str("fremd"+strconv.Itoa(i), "ok"))
+			doppelt = append(doppelt, support.Str("session_id", "ok"))
+			ungueltig = append(ungueltig, support.Str(logKeys[i%len(logKeys)], "a b"))
+		}
+		faelle := []struct {
+			art              string
+			attrs            []support.Attr
+			schluessel, wert uint64
+		}{
+			{"fremde Schlüssel", fremd, uint64(n), 0},
+			{"derselbe Schlüssel", doppelt, uint64(max(n-1, 0)), 0},
+			{"ungültige Werte", ungueltig, 0, uint64(n)},
+		}
+		for _, f := range faelle {
+			aufrufe++
+			a, _ := neu(t)
+			a.Log(context.Background(), slog.LevelInfo, "m", f.attrs...)
+			s := a.Snapshot()
+			if s.Dropped[support.VerwurfSchluessel] != f.schluessel || s.Dropped[support.VerwurfWert] != f.wert {
+				t.Errorf("n=%d, %s: schluessel %d, wert %d; erwartet %d und %d", n, f.art, s.Dropped[support.VerwurfSchluessel], s.Dropped[support.VerwurfWert], f.schluessel, f.wert)
+			}
+		}
+	}
+	if aufrufe != 41*3 || len(logKeys) != 13 {
+		t.Errorf("%d Aufrufe, %d Schlüssel; erwartet 123 und 13", aufrufe, len(logKeys))
+	}
+}
+
 // P13 (Seite des Adapters): Adapter und Fake erfüllen beide Ports.
 func TestAdapterErfuelltPorts(t *testing.T) {
 	a, _ := neu(t)
@@ -80,6 +179,7 @@ func TestCountErrorUnbekannt(t *testing.T) {
 		a, _ := neu(t)
 		a.CountError(c)
 		s := a.Snapshot()
+		reihenFest(t, "Code "+strconv.Itoa(int(c)), s)
 		if summe(s.Errors) != 0 || s.Dropped[support.VerwurfFehlercode] != 1 {
 			t.Errorf("Code %d: Summe %d, fehlercode %d, erwartet 0 und 1", int(c), summe(s.Errors), s.Dropped[support.VerwurfFehlercode])
 		}
@@ -223,6 +323,7 @@ func TestVerwurfRangfolge(t *testing.T) {
 		a, _ := neu(t)
 		a.Log(context.Background(), slog.LevelInfo, "m", f.attrs...)
 		s := a.Snapshot()
+		reihenFest(t, f.name, s)
 		if s.Dropped[support.VerwurfSchluessel] != f.schluessel || s.Dropped[support.VerwurfWert] != f.wert {
 			t.Errorf("%s: schluessel %d, wert %d; erwartet %d und %d", f.name, s.Dropped[support.VerwurfSchluessel], s.Dropped[support.VerwurfWert], f.schluessel, f.wert)
 		}
@@ -259,6 +360,7 @@ func TestKernSchreibtNichts(t *testing.T) {
 		t.Error("StartSpan liefert nicht den übergebenen ctx und einen Span")
 	}
 	s := a.Snapshot()
+	reihenFest(t, "Kern", s)
 	for g, n := range s.Dropped {
 		if n != 0 {
 			t.Errorf("Grund %s zählt %d", g, n)
@@ -302,6 +404,7 @@ func TestCountErrorGleichzeitig(t *testing.T) {
 		}
 	}
 	s := a.Snapshot()
+	reihenFest(t, "CountError gleichzeitig", s)
 	if len(erwartet) != 33 || len(codes) != 37 || unbekannt == 0 || summe(s.Errors)+s.Dropped[support.VerwurfFehlercode] != goroutinen*aufrufe {
 		t.Errorf("Summe %d plus %d, erwartet %d bei %d Codes", summe(s.Errors), s.Dropped[support.VerwurfFehlercode], goroutinen*aufrufe, len(erwartet))
 	}
@@ -359,6 +462,7 @@ func TestAdapterGleichzeitig(t *testing.T) {
 		t.Error(m)
 	}
 	s := a.Snapshot()
+	reihenFest(t, "Adapter gleichzeitig", s)
 	const n = schreiber * runden
 	if s.Errors[model.CodeE2001] != n || s.Dropped[support.VerwurfFehlercode] != n ||
 		s.Dropped[support.VerwurfSchluessel] != n || s.Dropped[support.VerwurfWert] != n {

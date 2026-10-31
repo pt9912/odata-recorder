@@ -74,9 +74,18 @@ func TestSpansDaten(t *testing.T) {
 			t.Errorf("Konstante %d = %q, erwartet %q", i, k, want[i].Name)
 		}
 	}
-	got[0].Pflicht[0] = "geändert"
-	if support.Spans()[0].Pflicht[0] != "http.request.method" {
-		t.Error("Spans() teilt Speicher zwischen Aufrufen")
+	// jeder Aufruf liefert frische Slices: der äußere und die 5 Pflicht-Slices (6); jedes Element des
+	// ersten Ergebnisses wird geändert, das zweite und ein drittes Ergebnis bleiben wie want
+	frisch := 1 + len(got)
+	a, b := support.Spans(), support.Spans()
+	for i := range a {
+		a[i].Name = "geändert"
+		for j := range a[i].Pflicht {
+			a[i].Pflicht[j] = "geändert"
+		}
+	}
+	if frisch != 6 || !reflect.DeepEqual(b, want) || !reflect.DeepEqual(support.Spans(), want) {
+		t.Errorf("Spans() teilt Speicher zwischen Aufrufen (%d Slices geprüft, erwartet 6)", frisch)
 	}
 }
 
@@ -191,17 +200,24 @@ const (
 )
 
 // eintragLaengen sind die Zustände eines Eintrags: Länge von Counts bzw. Attrs als nil (-1), leer
-// (0) und gefüllt mit 1, 2 und 12 Elementen (12 ist die Länge von Counts im Adapter).
-func eintragLaengen() []int { return []int{-1, 0, 1, 2, 12} }
+// (0) und gefüllt mit 1 bis 14 Elementen. Im Betrieb hat Counts 12 Elemente und der Ring höchstens
+// 3 Attribute je Span (SPEC-232 Nr. 4); über 14 ist die Menge unbeschränkt (Negativ im Plan).
+func eintragLaengen() []int {
+	l := []int{-1}
+	for n := 0; n <= 14; n++ {
+		l = append(l, n)
+	}
+	return l
+}
 
 // eintragLaenge ist die Länge an Position i, wenn Position p den Zustand z trägt; die übrigen
-// Positionen tragen reihum die vier anderen Zustände.
+// Positionen tragen reihum die anderen 15 Zustände.
 func eintragLaenge(i, p, z int) int {
 	laengen := eintragLaengen()
 	if i == p {
 		return laengen[z]
 	}
-	return laengen[(z+1+i%4)%len(laengen)]
+	return laengen[(z+1+i%(len(laengen)-1))%len(laengen)]
 }
 
 // kopieStand baut denselben Stand bei jedem Aufruf neu: je Sammlung der obersten Ebene ein Zustand;
@@ -309,9 +325,9 @@ func kopiePruefen(t *testing.T, name string, bau func() support.Snapshot) {
 // Snapshot.Kopie ist tief und erhält nil und leer (SPEC-230 Nr. 9), beide Richtungen. Zwei Mengen:
 // (1) 3 Zustände je Sammlung der obersten Ebene (4 Sammlungen, 81 Stände); (2) das volle Produkt
 // Position × Zustand der Einträge: in den gefüllten Durations die Counts von 6 Positionen, in den
-// gefüllten Spans die Attrs von 6 Positionen, je Position 5 Zustände (nil, leer, 1, 2 und 12
-// Elemente), 30 Stände, in denen jede Position jeden Zustand trägt. Die Zählprüfung liest die Stände
-// selbst, nicht die Zähler der Schleifen.
+// gefüllten Spans die Attrs von 6 Positionen, je Position 16 Zustände (nil, leer und 1 bis 14
+// Elemente, darunter die 3 des Rings und die 12 von Counts), 96 Stände, in denen jede Position jeden
+// Zustand trägt. Die Zählprüfung liest die Stände selbst, nicht die Zähler der Schleifen.
 func TestSnapshotKopie(t *testing.T) {
 	staende := 0
 	for zE := zNil; zE <= zGefuellt; zE++ {
@@ -331,8 +347,8 @@ func TestSnapshotKopie(t *testing.T) {
 		t.Errorf("Zählprüfung: %d Stände, %d Verteilungen, %d Spans; erwartet 81, 6, 6", staende, len(voll.Durations), len(voll.Spans))
 	}
 
-	if len(eintragLaengen()) != 5 {
-		t.Fatalf("%d Zustände der Einträge, erwartet 5", len(eintragLaengen()))
+	if len(eintragLaengen()) != 16 {
+		t.Fatalf("%d Zustände der Einträge, erwartet 16", len(eintragLaengen()))
 	}
 	produkt := 0
 	countsGesehen := map[[2]int]bool{}
@@ -352,8 +368,8 @@ func TestSnapshotKopie(t *testing.T) {
 			})
 		}
 	}
-	if produkt != 30 || len(countsGesehen) != 30 || len(attrsGesehen) != 30 {
-		t.Errorf("Zählprüfung: %d Stände, %d Paare Position × Zustand in Counts, %d in Attrs; erwartet je 30", produkt, len(countsGesehen), len(attrsGesehen))
+	if produkt != 96 || len(countsGesehen) != 96 || len(attrsGesehen) != 96 {
+		t.Errorf("Zählprüfung: %d Stände, %d Paare Position × Zustand in Counts, %d in Attrs; erwartet je 96", produkt, len(countsGesehen), len(attrsGesehen))
 	}
 }
 

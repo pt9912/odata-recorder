@@ -2,12 +2,15 @@ package supporttest_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"math"
 	"reflect"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
@@ -398,20 +401,21 @@ func TestFakeEltern(t *testing.T) {
 			t.Error("Eltern ohne Eltern-Span im ctx")
 		}
 	})
-	t.Run("Wert und Abbruch bleiben", func(t *testing.T) {
+	t.Run("Kette der Tiefe 1 bis 16", func(t *testing.T) {
 		f := supporttest.NewFakeTelemetry()
-		ctx, cancel := context.WithCancel(context.WithValue(context.Background(), ctxSchluessel{}, "wert"))
-		ctxK, _ := f.StartSpan(ctx, support.SpanMockQuery)
-		if ctxK.Value(ctxSchluessel{}) != "wert" {
-			t.Error("der Wert des Eingabe-ctx fehlt")
+		var kette func(ctx context.Context, vor *supporttest.FakeSpan, tiefe int)
+		kette = func(ctx context.Context, vor *supporttest.FakeSpan, tiefe int) {
+			if tiefe == 16 {
+				return
+			}
+			c, s := f.StartSpan(ctx, support.SpanMockQuery)
+			fs := s.(*supporttest.FakeSpan)
+			if a := f.Aufrufe()[tiefe]; fs.Eltern != vor || a.Eltern != vor || a.Span != fs {
+				t.Errorf("Tiefe %d: Eltern nicht festgehalten", tiefe+1)
+			}
+			kette(c, fs, tiefe+1)
 		}
-		if ctxK.Err() != nil {
-			t.Fatal("ctx vor dem Abbruch schon abgebrochen")
-		}
-		cancel()
-		if ctxK.Err() == nil {
-			t.Error("der Abbruch des Eingabe-ctx erreicht den Rückgabe-ctx nicht")
-		}
+		kette(context.Background(), nil, 0)
 	})
 	t.Run("nil-ctx", func(t *testing.T) {
 		f := supporttest.NewFakeTelemetry()
@@ -424,6 +428,255 @@ func TestFakeEltern(t *testing.T) {
 			t.Error("nil-ctx nicht mit seiner Identität festgehalten")
 		}
 	})
+}
+
+type ctxZweiter struct{}
+
+// P12: der ctx von StartSpan leitet den übergebenen ab, Werte, Abbruch und Frist bleiben (SPEC-230
+// Nr. 10). Menge: 6 Eigenschaften (zwei Werte; Abbruch nach dem Aufruf, mit Ursache; Abbruch vor dem
+// Aufruf; Frist als Zeitpunkt; Frist läuft ab; alle drei zugleich) × 2 Aufrufstellen (ohne Span im
+// ctx, mit dem Span des Elternaufrufs im ctx) = 12 Fälle; Orakel sind die Eigenschaften des
+// Eingabe-ctx.
+func TestFakeCtx(t *testing.T) {
+	frist, ursache := time.Now().Add(time.Hour), errors.New("ursache")
+	warte := func(c context.Context) string {
+		select {
+		case <-c.Done():
+			return ""
+		case <-time.After(2 * time.Second):
+			return "Done nicht geschlossen"
+		}
+	}
+	werte := func() context.Context {
+		return context.WithValue(context.WithValue(context.Background(), ctxSchluessel{}, "wert"), ctxZweiter{}, "zwei")
+	}
+	eigenschaften := []struct {
+		name    string
+		pruefen func(start func(context.Context) context.Context) string
+	}{
+		{"Werte", func(start func(context.Context) context.Context) string {
+			if k := start(werte()); k.Value(ctxSchluessel{}) != "wert" || k.Value(ctxZweiter{}) != "zwei" {
+				return "ein Wert des Eingabe-ctx fehlt"
+			}
+			return ""
+		}},
+		{"Abbruch danach", func(start func(context.Context) context.Context) string {
+			ctx, cancel := context.WithCancelCause(context.Background())
+			defer cancel(nil)
+			k := start(ctx)
+			if k.Err() != nil {
+				return "vor dem Abbruch schon abgebrochen"
+			}
+			cancel(ursache)
+			if m := warte(k); m != "" || !errors.Is(k.Err(), context.Canceled) || context.Cause(k) != ursache {
+				return "der Abbruch (Fehler, Ursache) erreicht den Rückgabe-ctx nicht: " + m
+			}
+			return ""
+		}},
+		{"Abbruch davor", func(start func(context.Context) context.Context) string {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			if start(ctx).Err() == nil {
+				return "der Abbruch vor dem Aufruf geht verloren"
+			}
+			return ""
+		}},
+		{"Frist als Zeitpunkt", func(start func(context.Context) context.Context) string {
+			ctx, cancel := context.WithDeadline(context.Background(), frist)
+			defer cancel()
+			if d, ok := start(ctx).Deadline(); !ok || !d.Equal(frist) {
+				return "die Frist des Eingabe-ctx fehlt oder weicht ab"
+			}
+			return ""
+		}},
+		{"Frist läuft ab", func(start func(context.Context) context.Context) string {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+			defer cancel()
+			k := start(ctx)
+			if m := warte(k); m != "" || !errors.Is(k.Err(), context.DeadlineExceeded) {
+				return "der Ablauf der Frist erreicht den Rückgabe-ctx nicht: " + m
+			}
+			return ""
+		}},
+		{"alle drei", func(start func(context.Context) context.Context) string {
+			ctx, cancel := context.WithDeadline(werte(), frist)
+			defer cancel()
+			k := start(ctx)
+			if d, ok := k.Deadline(); !ok || !d.Equal(frist) || k.Value(ctxZweiter{}) != "zwei" || k.Err() != nil {
+				return "Frist, Wert oder Zustand weichen ab"
+			}
+			cancel()
+			if k.Err() == nil {
+				return "der Abbruch geht verloren"
+			}
+			return ""
+		}},
+	}
+	stellen := []struct {
+		name  string
+		start func(f *supporttest.FakeTelemetry, ctx context.Context) context.Context
+	}{
+		{"ohne Span im ctx", func(f *supporttest.FakeTelemetry, ctx context.Context) context.Context {
+			k, _ := f.StartSpan(ctx, support.SpanMockQuery)
+			return k
+		}},
+		{"mit Span im ctx", func(f *supporttest.FakeTelemetry, ctx context.Context) context.Context {
+			e, _ := f.StartSpan(ctx, support.SpanGatewayRequest)
+			k, _ := f.StartSpan(e, support.SpanReplayMatch)
+			return k
+		}},
+	}
+	faelle := 0
+	for _, e := range eigenschaften {
+		for _, s := range stellen {
+			faelle++
+			f := supporttest.NewFakeTelemetry()
+			if m := e.pruefen(func(ctx context.Context) context.Context { return s.start(f, ctx) }); m != "" {
+				t.Errorf("%s, %s: %s", e.name, s.name, m)
+			}
+		}
+	}
+	if len(eigenschaften) != 6 || len(stellen) != 2 || faelle != 12 {
+		t.Errorf("%d Eigenschaften, %d Stellen, %d Fälle; erwartet 6, 2, 12", len(eigenschaften), len(stellen), faelle)
+	}
+}
+
+// vollerStand baut bei jedem Aufruf denselben Stand, in dem alle sechs Sammlungen gefüllt sind.
+func vollerStand() support.Snapshot {
+	return support.Snapshot{
+		Errors: map[model.Code]uint64{model.CodeE2001: 1, model.CodeE2101: 2},
+		Durations: map[support.SpanName]support.Verteilung{
+			support.SpanMockQuery:   {Count: 3, Sum: 5, Counts: []uint64{1, 2, 0}},
+			support.SpanReplayMatch: {Count: 1, Sum: 2, Counts: []uint64{0, 1, 0}},
+		},
+		Dropped: map[support.Verwurf]uint64{support.VerwurfWert: 1, support.VerwurfSenke: 2},
+		Spans: []support.SpanRecord{
+			{ID: "a", Attrs: []support.Attr{support.Str("k", "v"), support.Int("n", 1)}},
+			{ID: "b", Attrs: []support.Attr{support.Str("k", "w")}},
+		},
+	}
+}
+
+// aendereSammlung ändert jedes Element der Sammlung Nr. i (Errors, Durations, Dropped, Spans,
+// Counts, Attrs) und keine andere.
+func aendereSammlung(s *support.Snapshot, i int) {
+	switch i {
+	case 0:
+		for k := range s.Errors {
+			s.Errors[k]++
+		}
+	case 1:
+		for k, v := range s.Durations {
+			v.Count++
+			v.Sum++
+			s.Durations[k] = v
+		}
+	case 2:
+		for k := range s.Dropped {
+			s.Dropped[k]++
+		}
+	case 3:
+		for j := range s.Spans {
+			s.Spans[j].ID += "x"
+		}
+	case 4:
+		for _, v := range s.Durations {
+			for j := range v.Counts {
+				v.Counts[j]++
+			}
+		}
+	case 5:
+		for j := range s.Spans {
+			for l := range s.Spans[j].Attrs {
+				s.Spans[j].Attrs[l].Ganz++
+				s.Spans[j].Attrs[l].Text += "x"
+			}
+		}
+	}
+}
+
+// P11: SetzeStand und Snapshot kopieren (SPEC-230 Nr. 10). Menge: 6 Sammlungen (Errors, Durations,
+// Dropped, Spans, Counts, Attrs) × 2 Richtungen (die Änderung des Eingabestands nach SetzeStand, die
+// Änderung des gelesenen Stands) = 12 Fälle, je Fall wird nur eine Sammlung geändert; Orakel ist ein
+// frisch gebauter Stand.
+func TestFakeStandKopie(t *testing.T) {
+	faelle := 0
+	for i := range 6 {
+		for _, richtung := range []string{"nach SetzeStand", "nach Snapshot"} {
+			faelle++
+			f := supporttest.NewFakeTelemetry()
+			eingabe := vollerStand()
+			f.SetzeStand(eingabe)
+			if richtung == "nach SetzeStand" {
+				aendereSammlung(&eingabe, i)
+			} else {
+				gelesen := f.Snapshot()
+				aendereSammlung(&gelesen, i)
+			}
+			if got := f.Snapshot(); !reflect.DeepEqual(got, vollerStand()) {
+				t.Errorf("Sammlung %d, Änderung %s: Stand %+v weicht ab", i, richtung, got)
+			}
+		}
+	}
+	if faelle != 12 {
+		t.Errorf("%d Fälle, erwartet 12", faelle)
+	}
+}
+
+// P11: Attributlisten jeder Länge von 0 bis 64 werden bei Log, StartSpan und Set ungeprüft und
+// vollständig festgehalten (3 × 65 Aufrufe). Über 64 Attribute ist die Menge unbeschränkt; der Fake
+// hat keine Grenze im Code (Negativ im Plan).
+func TestFakeLaengen(t *testing.T) {
+	const bis = 64
+	f := supporttest.NewFakeTelemetry()
+	ctx := context.Background()
+	_, span := f.StartSpan(ctx, "start")
+	var listen [][]support.Attr
+	for n := 0; n <= bis; n++ {
+		l := make([]support.Attr, n)
+		for i := range l {
+			l[i] = support.Int(fmt.Sprint("k", i), int64(i))
+		}
+		listen = append(listen, l)
+		f.Log(ctx, slog.LevelInfo, "m", l...)
+		f.StartSpan(ctx, support.SpanMockQuery, l...)
+		span.Set(l...)
+	}
+	a := f.Aufrufe()
+	if len(a) != 1+3*(bis+1) {
+		t.Fatalf("%d Aufrufe, erwartet %d", len(a), 1+3*(bis+1))
+	}
+	for n, l := range listen {
+		for k, op := range []supporttest.Operation{supporttest.OpLog, supporttest.OpStartSpan, supporttest.OpSet} {
+			if g := a[1+3*n+k]; g.Op != op || !attrGleich(g.Attrs, l) {
+				t.Errorf("Länge %d, Operation %d: %d Attribute festgehalten", n, op, len(g.Attrs))
+			}
+		}
+	}
+}
+
+// P11: Anzahl liefert für jede Operation außerhalb der sechs 0, ohne Panik: die Werte unter 0, 0, die
+// Werte über der letzten Operation und die Grenzen von int.
+func TestFakeAnzahl(t *testing.T) {
+	f := supporttest.NewFakeTelemetry()
+	f.CountError(model.CodeE2001)
+	f.Snapshot()
+	aussen := []supporttest.Operation{math.MinInt, -100, -2, -1, 0, supporttest.OpSnapshot + 1, supporttest.OpSnapshot + 2, 100, math.MaxInt}
+	for _, op := range aussen {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("Anzahl(%d) gerät in Panik: %v", op, r)
+				}
+			}()
+			if n := f.Anzahl(op); n != 0 {
+				t.Errorf("Anzahl(%d) = %d, erwartet 0", op, n)
+			}
+		}()
+	}
+	if f.Anzahl(supporttest.OpCountError) != 1 || f.Anzahl(supporttest.OpSnapshot) != 1 {
+		t.Error("Anzahl der Operationen innerhalb falsch")
+	}
 }
 
 // P11: jede der sechs Operationen hält den Span fest, den sie betrifft, und nur sie: zwei Spans,

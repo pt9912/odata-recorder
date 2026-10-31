@@ -250,11 +250,11 @@ func TestWertformGrenzen(t *testing.T) {
 				faelle = append(faelle, support.Str(z.key, s))
 			}
 		case "status":
-			for _, v := range []int64{99, 100, 101, 598, 599, 600, 0, -1, math.MaxInt64, math.MinInt64} {
+			for _, v := range []int64{99, 100, 101, 598, 599, 600, 0, -1, math.MaxInt64, math.MinInt64, 1<<32 + 100, 1<<32 + 599, -1<<32 + 100} {
 				faelle = append(faelle, support.Int(z.key, v))
 			}
 		case "zahl":
-			for _, v := range []int64{-1, 0, 1, math.MaxInt64, math.MinInt64} {
+			for _, v := range []int64{-1, 0, 1, math.MaxInt64, math.MinInt64, 1 << 32, -1<<32 + 5} {
 				faelle = append(faelle, support.Int(z.key, v))
 			}
 		case "dauer":
