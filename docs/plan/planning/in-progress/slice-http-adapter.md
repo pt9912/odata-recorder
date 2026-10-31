@@ -71,10 +71,10 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Abbildung und Streaming: Request und Antwort ohne Veränderung der Bytes, geliehene kontextgebundene Ströme, `Close` genau einmal, Abbruch durch Kontext und Lesefehler; ein Gateway-Status vor dem ersten Byte kommt vom Dienst (`ODR-E4001`, `SPEC-136` Nr. 7c), danach keine Änderung des Status (`LH-FA-02.b`); der Adapter setzt weder Länge noch Coding der Antwort (`SPEC-136` Nr. 5d), `X-Recorder-*` der Anfrage gehen unverändert an den Dienst (Sendung von `slice-replay-service`).
-- [ ] Fehlerobjekt mit Code, Status und `X-Correlation-Id` für jeden Code der Tabelle, `ODR-E9001` für Verträge, die der Dienst bricht (`SPEC-136` Nr. 5a, 7, 8).
-- [ ] Tests über `httptest` und rohen Client gegen Fakes der Inbound Ports, ohne SQLite; die nebenläufigen laufen im Ziel mit `-race` aus `slice-race-gate` (Sendung von `slice-race-gate`) und mit `-count=50`.
-- [ ] `make gates` grün.
+- [x] Abbildung und Streaming: Request und Antwort ohne Veränderung der Bytes, geliehene kontextgebundene Ströme, `Close` genau einmal, Abbruch durch Kontext und Lesefehler; ein Gateway-Status vor dem ersten Byte kommt vom Dienst (`ODR-E4001`, `SPEC-136` Nr. 7c), danach keine Änderung des Status (`LH-FA-02.b`); der Adapter setzt weder Länge noch Coding der Antwort (`SPEC-136` Nr. 5d), `X-Recorder-*` der Anfrage gehen unverändert an den Dienst (Sendung von `slice-replay-service`).
+- [x] Fehlerobjekt mit Code, Status und `X-Correlation-Id` für jeden Code der Tabelle, `ODR-E9001` für Verträge, die der Dienst bricht (`SPEC-136` Nr. 5a, 7, 8).
+- [x] Tests über `httptest` und rohen Client gegen Fakes der Inbound Ports, ohne SQLite; die nebenläufigen laufen im Ziel mit `-race` aus `slice-race-gate` (Sendung von `slice-race-gate`) und mit `-count=50`.
+- [x] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
@@ -221,6 +221,8 @@ ersetzt: 1000 | Die ältere Rückführung über 1000 Zeilen (Erwartung rund 700)
 ```
 
 Messpunkt am Start (`make groessenmarke`, vor dem ersten Code-Commit): `zeilen=34 nebenlaeufig=5 fakes=2 produktcode=380 schaetzung=3525 marke=4800 messung=0`, Tabelle ergibt 3525 gleich der Schätzung des Blocks.
+
+Messpunkt beim Handoff (`make groessenmarke`, nach dem letzten Code-Commit des Implementers): `messung=1754` bei Marke 4800; Produktcode 268 Zeilen (`server.go` 81, `anfrage.go` 26, `antwort.go` 106, `fehler.go` 55) gegen 380 geschätzt, Tests 1486 Zeilen; die Schätzung der Tabelle (3525) lag über der Messung, weil die Mengen als Schleifen über Tabellen laufen und alle Zeilen einen Test-Server und einen Fake des Dienstes teilen.
 - `in-progress` → `open` (blockiert): entfällt — `RequestURI` und `r.Body` genügen, kein Typ von `net/http` erreicht den Port (Vorabentwurf des Architect).
 
 ## 5. Closure-Trigger
