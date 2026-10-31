@@ -90,6 +90,6 @@ Grün ist es nur, wenn mindestens eine Textdatei geprüft wurde (Nr. 11 b).
 
 **Gegenprobe:** Die Fälle 131 bis 155 von `SPEC-102` fahren das Programm in Wegwerfverzeichnissen (die Menge Z, die Randformen der Prüfmenge, der Dekodierung und der Ausgabe) und den Treiber mit einem Ersatz-Skript für `docker`, dem echten `git` und dem echten `tar` des Images.
 
-**Stand:** Der Vertrag ist festgelegt; Programm, Treiber, Stufe, Ziel und die Fälle 131 bis 155 von `SPEC-102` folgen mit der Umsetzung.
+**Stand:** geliefert sind das Programm `zeichen`, der Treiber, die Stufe `zeichen` des `Dockerfile`, das Ziel in `GATE_CHECKS`, die Zeile des Ziels in `harness/README.md` und die Fälle 131 bis 155 von `SPEC-102`.
 
 **Grenze:** Das Ziel belegt, dass keine Textdatei des Arbeitsbaums außerhalb von `.harness/baseline/` ein Zeichen von Z oder ungültiges UTF-8 trägt. Was es nicht sieht, steht in Nr. 16.
