@@ -338,3 +338,31 @@ func TestAblehnungKlasse(t *testing.T) {
 		}
 	}
 }
+
+// C3 als Klasse: Die Version erscheint unverändert, was immer sie enthält. Orakel: stdout gleich
+// "odata-recorder " + Version + Zeilenende. Elemente: jedes Byte 0x00 bis 0xFF allein, davor, dahinter und in
+// der Mitte (4 · 256 = 1024), dazu 5 Mehrbyte-Folgen (é, NBSP, BOM, U+FFFD, abgeschnittene Folge),
+// 3 Längen (100, 1000, 100000 Zeichen) und 3 Formatfolgen (%s, %d, %!): 1035.
+func TestVersionKlasse(t *testing.T) {
+	var versionen []string
+	for b := 0; b < 256; b++ {
+		bs := string([]byte{byte(b)})
+		versionen = append(versionen, bs, "1"+bs, bs+"1", "1"+bs+"2")
+	}
+	versionen = append(versionen,
+		string([]byte{0xC3, 0xA9}), string([]byte{0xC2, 0xA0}), string([]byte{0xEF, 0xBB, 0xBF}),
+		string([]byte{0xEF, 0xBF, 0xBD}), "a"+string([]byte{0xC3}),
+		strings.Repeat("v", 100), strings.Repeat("v", 1000), strings.Repeat("v", 100000),
+		"%s", "%d", "%!",
+	)
+	if len(versionen) != 1035 {
+		t.Fatalf("Klasse hat %d Elemente, erwartet 1035", len(versionen))
+	}
+	for _, v := range versionen {
+		var out, errw bytes.Buffer
+		code := cli.Run([]string{"version"}, konfig(v, nil, nil, &out, &errw))
+		if want := "odata-recorder " + v + "\n"; code != 0 || out.String() != want || errw.Len() != 0 {
+			t.Errorf("Version %q: Code %d, stdout %q, stderr %q; erwartet 0, %q, leer", v, code, out.String(), errw.String(), want)
+		}
+	}
+}

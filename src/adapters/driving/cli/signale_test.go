@@ -2,7 +2,11 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"io"
+	"os"
+	"os/exec"
 	"syscall"
 	"testing"
 	"time"
@@ -380,5 +384,87 @@ func TestZweiAufrufe(t *testing.T) {
 			p.erster(t)
 			p.zweiter(t)
 		})
+	}
+}
+
+// C15 (R-3): Die Abmeldung der Laufzeit-Quelle nimmt die Anmeldung zurück. Wirkung: Nach der Rückkehr
+// von Run trifft ein SIGTERM oder SIGINT die Voreinstellung der Laufzeit und beendet den Prozess durch
+// das Signal. Der Test startet dazu den Testprozess erneut (Menge {SIGTERM, SIGINT} = 2); das Kind ruft
+// Run mit der Quelle nil und einem Start, der sofort zurückkehrt, und sendet danach das Signal an sich.
+func TestLaufzeitAbmeldung(t *testing.T) {
+	const umgebung = "CLI_TEST_LAUFZEIT_ABMELDUNG"
+	if sig := os.Getenv(umgebung); sig != "" {
+		start := func(context.Context, io.Writer, io.Writer) int { return 0 }
+		if code := cli.Run([]string{"start"}, cli.Konfig{Start: start}); code != 0 {
+			os.Exit(90)
+		}
+		g := syscall.SIGTERM
+		if sig == "INT" {
+			g = syscall.SIGINT
+		}
+		if err := syscall.Kill(syscall.Getpid(), g); err != nil {
+			os.Exit(91)
+		}
+		time.Sleep(frist)
+		os.Exit(92)
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatalf("Executable: %v", err)
+	}
+	n := 0
+	for _, g := range zweiSignale() {
+		n++
+		name := "TERM"
+		if g == syscall.SIGINT {
+			name = "INT"
+		}
+		ctx, abbrechen := context.WithTimeout(context.Background(), 2*frist)
+		cmd := exec.CommandContext(ctx, exe, "-test.run=^TestLaufzeitAbmeldung$")
+		cmd.Env = append(os.Environ(), umgebung+"="+name)
+		err := cmd.Run()
+		abbrechen()
+		var ee *exec.ExitError
+		if !errors.As(err, &ee) {
+			t.Errorf("%v: Kind endete ohne Signal (%v), erwartet Ende durch das Signal", g, err)
+			continue
+		}
+		ws, ok := ee.Sys().(syscall.WaitStatus)
+		if !ok || !ws.Signaled() || ws.Signal() != g {
+			t.Errorf("%v: Kind endete mit %v, erwartet Ende durch das Signal", g, ee)
+		}
+	}
+	if n != 2 {
+		t.Fatalf("Menge hat %d Elemente, erwartet 2", n)
+	}
+}
+
+// C16 (R-2): Zwei Signale unmittelbar nacheinander gehen nicht verloren. Wirkung: Der Kanal der Laufzeit
+// hat Platz für ein Signal, das eintrifft, während die Schleife das erste verarbeitet; ohne Puffer verwirft
+// signal.Notify es, und das Erzwingen bleibt aus. Gleiche Signale fasst der Kernel zusammen, und die Reihenfolge verschiedener Signale bestimmt die Laufzeit; der Test erwartet deshalb ein Erzwingen mit 130 oder 143. Menge: (SIGTERM, SIGINT) und (SIGINT, SIGTERM) = 2, echte Quelle.
+func TestSignaleHintereinander(t *testing.T) {
+	n := 0
+	for _, erstes := range zweiSignale() {
+		for _, zweites := range zweiSignale() {
+			if zweites == erstes {
+				continue
+			}
+			n++
+			t.Run(erstes.String()+"/"+zweites.String(), func(t *testing.T) {
+				start := NewFakeStart(t, 0)
+				start.WarteKontext, start.Halten = true, true
+				s := neuesSzenario(t, true, start)
+				s.los()
+				erwarte(t, start.Bereit, "Start bereit")
+				s.senden(erstes)
+				s.senden(zweites)
+				if code := erwarte(t, s.res, "Run erzwingt das Ende"); code != 130 && code != 143 {
+					t.Errorf("Code %d, erwartet 130 oder 143", code)
+				}
+			})
+		}
+	}
+	if n != 2 {
+		t.Fatalf("Menge hat %d Elemente, erwartet 2", n)
 	}
 }
