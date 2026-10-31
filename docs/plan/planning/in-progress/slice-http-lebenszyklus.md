@@ -13,10 +13,10 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-02`, `LH-QA-05`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0007](../../adr/0007-race-detektor-im-gate.md)
 
-**Berührte Spec-Stellen:** `LH-FA-02.c` · `SPEC-059` · `SPEC-109` Nr. 2 · `SPEC-136` Nr. 3b, 11 bis 15 (stehen in der Spezifikation, Commit 083d595 im Zweig von `slice-http-adapter`; der Slice schreibt sie nicht) · `SPEC-137` · `SPEC-230` Nr. 8 · `SPEC-124` Nr. 14.
+**Berührte Spec-Stellen:** `LH-FA-02.c` · `SPEC-059` · `SPEC-109` Nr. 2 · `SPEC-136` Nr. 3b, 11 bis 15 (stehen in der Spezifikation, Commit 083d595, in `main`; der Slice schreibt sie nicht) · `SPEC-137` · `SPEC-230` Nr. 8 · `SPEC-124` Nr. 14.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-http-lebenszyklus)
 
 **Autor:** pt9912. **Datum:** 2026-10-31.
 
@@ -153,6 +153,7 @@ dasteht.
 - Das Fenster der Sperre zwischen Prüfen auf angehalten und Zählen (L16) hat keinen Haltepunkt an einem Argument des Tests, und der Detektor von `make test-race` meldet es nicht (alles unter Sperre bzw. atomar); der Fänger ist ein Wirkungs-Fänger mit Rate je Mutation — **Ausgang:** offen; Adresse Implementer (Zahl der Läufe und Messender im Plan); fällt die Rate unter 50 von 50, steht die Zeile als Negativ mit der Zahl und der Folge „ein Handler beginnt nach der Rückkehr von `Schliessen`“.
 - Der neue Code `ODR-E5010` verändert alle Zählstellen (Tabelle 34 auf 35, Zähler 35, `fremd`-Liste in `fehler_test.go`); die Pläne `slice-handbuch-meldungskatalog`, `slice-handbuch-record-replay` und `slice-telemetry-spans` tragen die Zahl und sind im selben Commit wie dieser Plan nachgezogen — **Ausgang:** offen; Adresse Implementer, sucht den Rest mit `grep` und nennt jeden Fund im Bericht.
 - Die Reihenfolge `Anhalten` → `CloseAll` → `Schliessen(rest)` hängt am Composition Root: ruft er `CloseAll` vor `Anhalten`, erhalten neue Requests `ODR-E5009` statt 503, wartet er mit der vollen Frist, dauert es die Summe — **Ausgang:** weiter offen; Adresse `slice-bootstrap-m2` (Sendung dort in §1 und DoD angenommen, Fänger für den Root dort).
+- Rückgaben aus [slice-http-adapter](../done/slice-http-adapter.md) §6, die den Vorabentwurf dieses Slice berühren: `ErrorLog` auf `io.Discard` (der Server wird in `New` gebaut, die Meldungen von `net/http` beim Abweisen und Schließen erscheinen in keiner Senke), `EnableFullDuplex` (der 503-Pfad liest den Body nicht, `SPEC-136` Nr. 3b, und die Wiederverwendung der Verbindung bei ungelesenem Rest ist dort offen), `DisableGeneralOptionsHandler` (`OPTIONS *` bei angehaltenem Server: 503 oder der Handler von `net/http`) und Typed-nil in `Listener` (`Serve`, `Anhalten`) — **Ausgang:** offen; Adresse Architect, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12, §3.13); die Zeilen stehen mit demselben Ausgang in §6 von `slice-http-adapter`.
 - Randformen (`AGENTS.md` §3.12, §3.16): das Raster *Operation × Argumentart* des Vorabentwurfs für diesen Slice ist die Tabelle unten; jede Zelle nennt ihren Ort in `SPEC-136` oder „gilt nicht“ mit Grund — **Ausgang:** entschieden (Architect), Zeilen unten.
 
 | Operation · Argument | fehlend | leer | fremd | Abbruch | Wiederholung |
