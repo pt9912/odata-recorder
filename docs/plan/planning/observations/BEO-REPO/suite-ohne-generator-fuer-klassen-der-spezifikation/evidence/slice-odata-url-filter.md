@@ -1,0 +1,2 @@
+**Vorgang:** slice-odata-url-filter
+**Fund:** Ein Fänger, der nur die Elemente der Tabelle führte, ließ die Klasse offen: das Review fand es an vier Mengen (F-2 Paare am selben Token, F-3 Lauf-Anfänge vor `(`, F-4 Stellen nach dem Schließen einer Gruppe, F-5 Gestalt aller Knotentypen), die Verifikation an zwei weiteren (Operatorwort vor `'`, Minus-Lauf). Fix: Generatoren `TestOperatorwortVorAnfuehrung`, `TestMinusLaufKlasse`, `TestGeneratorFilter`. Beleg: Plan `slice-odata-url-filter` §3 (Nachzug nach dem Review, Nachzug nach der Verifikation) und §7.

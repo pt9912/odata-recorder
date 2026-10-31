@@ -6,6 +6,7 @@
 # der Stufe race aus harness/mk/go-gates.mk (RACE_IMAGE).
 ARG LINT_IMAGE=scratch
 ARG A_CHECK_IMAGE=scratch
+ARG D_CHECK_IMAGE=scratch
 ARG RACE_IMAGE=scratch
 
 # --- deps: Module aus go.mod und go.sum (go.sum entsteht mit der ersten Abhängigkeit),
@@ -114,12 +115,16 @@ RUN --network=none sh /usr/local/bin/lint.sh
 # --- a-check-bin: das Binary von a-check, wird in die Stufe gegenproben kopiert.
 FROM ${A_CHECK_IMAGE} AS a-check-bin
 
+# --- d-check-bin: das Binary von d-check (statisch gelinkt), wird in die Stufe gegenproben kopiert.
+FROM ${D_CHECK_IMAGE} AS d-check-bin
+
 # --- gegenproben: das Programm aus tools/gegenproben prüft, dass a-check, lint.sh,
-# migration-check.sh, pruefung, groessenmarke und zeichen samt Treibern einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
-# Eingaben gefahren, die Fälle zu `pruefung race`, zu `groessenmarke` und zu `zeichen` gegen ein Wegwerfverzeichnis statt der Eingaben.
+# migration-check.sh, pruefung, groessenmarke und zeichen samt Treibern und die Größengrenzen von docs-check (d-check) einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
+# Eingaben gefahren, die Fälle zu `pruefung race`, zu `groessenmarke`, zu `zeichen` und zu `d-check` gegen ein Wegwerfverzeichnis statt der Eingaben.
 FROM ${LINT_IMAGE} AS gegenproben
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY --from=a-check-bin /a-check /usr/local/bin/a-check
+COPY --from=d-check-bin /d-check /usr/local/bin/d-check
 COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
 COPY --from=groessenmarke /usr/local/bin/groessenmarke /usr/local/bin/groessenmarke
 COPY --from=zeichen /usr/local/bin/zeichen /usr/local/bin/zeichen
@@ -129,7 +134,7 @@ RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-for
  && go vet ./... && go test ./... && go build -trimpath -o /usr/local/bin/gegenproben .
 WORKDIR /src
 COPY --from=deps /go/pkg/mod /go/pkg/mod
-COPY go.mod go.sum* .a-check.yml .golangci.yml ./
+COPY go.mod go.sum* .a-check.yml .d-check.yml .golangci.yml ./
 COPY src ./src
 COPY tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/groessenmarke.sh tools/harness/zeichen.sh tools/harness/
 RUN --network=none gegenproben
