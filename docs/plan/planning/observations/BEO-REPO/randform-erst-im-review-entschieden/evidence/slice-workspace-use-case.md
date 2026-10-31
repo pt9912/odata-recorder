@@ -1,0 +1,2 @@
+**Vorgang:** slice-workspace-use-case
+**Fund:** Das Raster *Operation × Argumentart* stand vor dem Code ohne leere Zelle; der Review fand dennoch eine im Code entschiedene Zelle: F-2, Leerraum vor dem Wert, `Create` × *Baseline-Blob*. Der Architect entschied sie in `SPEC-129` Nr. 6 a nach RFC 8259. Der Verifier fand keine weitere (zwölf Zellen gegen den Wortlaut gelesen). Beleg: Plan §6 *Randformen*; Report `docs/reviews/2026-10-30-slice-workspace-use-case-review.md`.

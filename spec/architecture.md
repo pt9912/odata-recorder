@@ -217,7 +217,7 @@ Redigierte Bodies sind als eingeschränkt replayfähig gekennzeichnet.
 **Replay-Zuordnung:** Die Zuordnung wird an der HTTP-Grenze entgegengenommen und im Replay-Service gegen die Spezifikation validiert (`LH-FA-04.b`, `SPEC-052`).
 Der Cursor gehört zum Tupel `(workspace, replay_session, recording_session)` und liegt hinter `CursorRepository`.
 
-**Reset vs. Restore:** Die Wirkung auf Entity-State und Cursor legen `LH-FA-09` und `LH-FA-10` fest; Reset greift auf `EntityRepository` und `CursorRepository` zu, Restore nur auf `EntityRepository`.
+**Reset vs. Restore:** Die Wirkung auf Entity-State und Cursor legen `LH-FA-09` und `LH-FA-10` fest; Reset greift auf `EntityRepository` und `CursorRepository` zu, Restore nur auf `EntityRepository`. Wer einen Cursor fortschreibt (Replay), liest, wählt und schreibt ihn in derselben Transaktion; ein Reset liegt dann vollständig davor oder danach, und kein Cursor trägt einen Stand, den ein Reset überholt hat.
 
 **Port-Design:** Die Transaktionsgrenze ist fachlich (`WithWorkspaceTransaction` oder äquivalentes Unit-of-Work-Konzept), nicht als offene SQL-Connection exponiert.
 Reset (Entity-State und Cursor) und Löschen eines Workspace laufen in einer solchen Transaktion über `WorkspaceRepository`, `EntityRepository`, `CursorRepository` und `SnapshotRepository`;
@@ -405,17 +405,23 @@ sequenceDiagram
     participant T as Test Runner (Driving Actor)
     participant A as Admin Adapter
     participant W as Workspace Service
+    participant R as Workspace Repository
     participant S as Snapshot Repository
+    participant B as Blob Repository
     participant E as Entity Repository
     participant K as Cursor Repository
     T->>A: POST /__admin/workspaces/{id}/reset
     A->>W: Reset(workspace)
+    W->>R: Read workspace
     W->>S: Read baseline snapshot
-    S-->>W: Immutable state
+    S-->>W: Reference of the immutable state
+    W->>B: Read manifest of the baseline
+    B-->>W: Baseline state
     Note over W,K: one unit of work
     W->>E: Replace state
-    E-->>W: New revision
     W->>K: Reset all cursors of workspace
+    W->>R: Advance revision
+    R-->>W: New revision
     W-->>A: Reset complete
     A-->>T: 200 + revision
 ```

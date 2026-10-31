@@ -22,6 +22,7 @@ type m6Fall struct {
 	schnittGrund   string // Text hinter `schnitt-grund:`; "fehlt" lässt die Zeile weg
 	messung        int64
 	eintraege      []m6Eintrag
+	ersetzt        []m6Eintrag // Zeilen `ersetzt:` hinter den Einträgen `ueberschreitung`
 }
 
 func (f m6Fall) plan() string {
@@ -33,6 +34,9 @@ func (f m6Fall) plan() string {
 	}
 	for _, e := range f.eintraege {
 		aend = append(aend, fmt.Sprintf("ueberschreitung: %d |%s", e.n, e.grund))
+	}
+	for _, e := range f.ersetzt {
+		aend = append(aend, fmt.Sprintf("ersetzt: %d |%s", e.n, e.grund))
 	}
 	return planMit(tabelleText(0, 1), blockB(aend...))
 }
@@ -81,6 +85,11 @@ func (f m6Fall) soll() m6Soll {
 	for _, e := range f.eintraege {
 		if strings.TrimSpace(e.grund) == "" {
 			gruppe(fmt.Sprintf("ueberschreitung bis %d ohne Grund", e.n))
+		}
+	}
+	for _, e := range f.ersetzt {
+		if strings.TrimSpace(e.grund) == "" {
+			gruppe(fmt.Sprintf("ersetzt %d ohne Grund", e.n))
 		}
 	}
 	// f) Eintrag ohne Überschreitung ist ein Hinweis.
@@ -250,6 +259,85 @@ func TestM6MarkenUndMessungen(t *testing.T) {
 	}
 	if n != 9225+8+9 {
 		t.Errorf("M6: %d Läufe statt %d", n, 9225+8+9)
+	}
+}
+
+func TestM6GrundAnJederStelle(t *testing.T) {
+	grund := " Grund"
+	fehlend := 0
+	melde := func(f m6Fall) {
+		if !f.pruefe(t, "M6 (d)") {
+			fehlend++
+			if fehlend >= 10 {
+				t.Fatal("zu viele Abweichungen")
+			}
+		}
+	}
+
+	// (d) Nr. 5 e gilt für jeden Eintrag, jeden der zwei Schlüssel und jede Messung: Position des
+	// leeren Grundes (erster bis dritter von einem bis drei Einträgen `ueberschreitung`, bei
+	// `ersetzt` mit null bis drei Einträgen `ueberschreitung` mit Grund davor) × Form des leeren
+	// Grundes (3) × Messung {0, 1, Marke, Marke + 1}. Die Einträge tragen verschiedene N, sodass die
+	// Meldung ihre Position nennt.
+	var stellen [][2]int // Zahl der Einträge, Position des leeren
+	for k := 1; k <= 3; k++ {
+		for p := 0; p < k; p++ {
+			stellen = append(stellen, [2]int{k, p})
+		}
+	}
+	eintraege := func(k, leer int, g string) []m6Eintrag {
+		var es []m6Eintrag
+		for i := 0; i < k; i++ {
+			e := m6Eintrag{int64(1200 + 100*i), grund}
+			if i == leer {
+				e.grund = g
+			}
+			es = append(es, e)
+		}
+		return es
+	}
+	leerFormen := []string{"", "   ", "\t"}
+	messungen := []int64{0, 1, 1100, 1101}
+	d := 0
+	for _, g := range leerFormen {
+		for _, x := range messungen {
+			for _, st := range stellen {
+				d++
+				melde(m6Fall{tabelleS: 800, marke: 1100, schaetz: 800, schnittGrund: "fehlt", messung: x, eintraege: eintraege(st[0], st[1], g)})
+			}
+			for k := 0; k <= 3; k++ {
+				d++
+				melde(m6Fall{tabelleS: 800, marke: 1100, schaetz: 800, schnittGrund: "fehlt", messung: x,
+					eintraege: eintraege(k, -1, ""), ersetzt: []m6Eintrag{{1000, g}}})
+			}
+		}
+	}
+	if want := 3 * 4 * (len(stellen) + 4); d != 120 || want != 120 {
+		t.Errorf("M6 (d): %d Elemente statt 120 (Formel %d)", d, want)
+	}
+
+	// (e) Beide Schlüssel zugleich leer: beide Befunde stehen da, in beliebiger Reihenfolge (Nr. 5 i
+	// legt sie innerhalb von e nicht fest).
+	e := 0
+	for _, g := range leerFormen {
+		for _, x := range messungen {
+			for _, st := range stellen {
+				e++
+				f := m6Fall{tabelleS: 800, marke: 1100, schaetz: 800, schnittGrund: "fehlt", messung: x,
+					eintraege: eintraege(st[0], st[1], g), ersetzt: []m6Eintrag{{1000, g}}}
+				r := pr(f.plan(), messungB(int(x)))
+				zeilen := nichtLeer(strings.Split(r.err, "\n"))
+				wantA := fmt.Sprintf("groessenmarke p.md: ueberschreitung bis %d ohne Grund", 1200+100*st[1])
+				wantB := "groessenmarke p.md: ersetzt 1000 ohne Grund"
+				beide := len(zeilen) == 2 && (zeilen[0] == wantA && zeilen[1] == wantB || zeilen[0] == wantB && zeilen[1] == wantA)
+				if r.code != 1 || !beide {
+					t.Errorf("M6 (e) Grund %q Messung %d Stelle %v: Exit %d, %q", g, x, st, r.code, zeilen)
+				}
+			}
+		}
+	}
+	if e != 72 {
+		t.Errorf("M6 (e): %d Elemente statt 72", e)
 	}
 }
 

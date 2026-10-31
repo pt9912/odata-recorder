@@ -1,1 +1,1 @@
-**Stand:** geplant — `slice-groessenmarke-werkzeug` (Sensor statt Prosa; bis dahin gilt `AGENTS.md` §3.14)
+**Stand:** verkörpert in `harness/mk/groessenmarke.mk` (Ziel `groessenmarke`) seit welle-record-replay (Vertrag `SPEC-128`; Lage in der Kette [ADR-0009](../../../../adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md), Status `Proposed`); `AGENTS.md` §3.14 gilt in der Prosa-Fassung, bis der User den Zeiger auf das Werkzeug annimmt

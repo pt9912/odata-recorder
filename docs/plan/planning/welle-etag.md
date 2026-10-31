@@ -5,8 +5,8 @@ flach unter `docs/plan/planning/`; bei Closure wandert sie per `git mv` nach
 `done/` (neben ihre `welle-<Kennung>-results.md`). Der Zustand ist die
 Verzeichnis-Position — kein Status-Feld. Diese Welle ist vor ihrem Start angelegt
 (Entscheidung des Users vom 2026-10-30); bis ihr Trigger eintritt steht sie in der
-Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien legt `plan-welle` (Schritt 6)
-beim Start an, weil ein Slice-Plan vor seinem Start veraltet.
+Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien liegen seit
+2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten.
 
 **Zielmeilenstein:** kein Meilenstein-Bezug (Soll-Umfang, nicht Teil der Erstabnahme nach dem Lastenheft).
 
@@ -59,9 +59,9 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-if-match | `If-Match` und `If-None-Match` bei PATCH, PUT und DELETE, `412` ohne Zustandsänderung, atomare Versionserhöhung | `LH-FA-15`; `LH-FA-15.a` |
 | slice-prefer-return | `Prefer: return=minimal` und `return=representation` für mutierende Requests | `LH-FA-07`; `LH-FA-07.b`, `SPEC-049` |
 
-Die Slice-Dateien legt `plan-welle` (Schritt 6) beim Start der Welle an: Ein Slice-Plan altert vor seinem Start, und diese Welle beginnt erst nach `welle-mock`.
+Die Slice-Dateien liegen seit 2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten (alle drei starten nach `welle-mock`), und `plan-welle` gleicht sie beim Start gegen den Ist-Stand ab. Marken und Betriebsregeln setzt der Planner beim Start (`SPEC-128`).
 
-**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. `plan-welle` (Schritt 6) übernimmt ihn in jede Slice-Datei; in dieser Welle betrifft er alle drei Slices (ETag-Header, `412`, `Prefer`).
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. In dieser Welle betrifft er alle drei Slices (ETag-Header, `412`, `Prefer`).
 
 ## 5. Abhängigkeiten
 

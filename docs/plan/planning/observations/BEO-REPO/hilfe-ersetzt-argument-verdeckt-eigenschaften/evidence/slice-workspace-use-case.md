@@ -1,0 +1,2 @@
+**Vorgang:** slice-workspace-use-case
+**Fund:** F-3 des Reviews: der Log-Fake gab bei `WithGroup` sich selbst zurück und verdeckte damit eine Eigenschaft des Originals; die Mutation `v.k.Log.WithGroup(...)` im Protokoll blieb grün. Fix: `WithGroup` und `WithAttrs` führen mit (`TestLogHandlerLeitetAb`, danach `TestLogHandlerKetten` mit 14 Ketten zu F-7). Beleg: Plan §6 *Befunde des Reviews*; Report `docs/reviews/2026-10-30-slice-workspace-use-case-review.md`.

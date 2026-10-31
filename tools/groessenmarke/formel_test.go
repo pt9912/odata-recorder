@@ -265,19 +265,50 @@ func TestEintragDeckt(t *testing.T) {
 }
 
 func TestGrund(t *testing.T) {
+	// Menge: Form des leeren Grundes (3) × Stelle (erster bis dritter von einem bis drei Einträgen
+	// `ueberschreitung`, jeder einzeln leer; ein Eintrag `ersetzt`) × Messung {0, 1, Marke, Marke + 1}.
+	// Die Einträge tragen verschiedene N (1200, 1300, 1400), jedes deckt die Messung 1101.
+	type stelle struct {
+		schluessel string
+		k, leer    int
+	}
+	var stellen []stelle
+	for k := 1; k <= 3; k++ {
+		for p := 0; p < k; p++ {
+			stellen = append(stellen, stelle{"ueberschreitung", k, p})
+		}
+	}
+	stellen = append(stellen, stelle{"ersetzt", 1, 0})
 	n := 0
 	for _, g := range []string{"", "   ", "\t"} {
-		for _, k := range []string{"ueberschreitung", "ersetzt"} {
-			for _, m := range []int{1100, 1101} {
+		for _, st := range stellen {
+			for _, m := range []int{0, 1, 1100, 1101} {
 				n++
-				r := pr(planB(fmt.Sprintf("%s: 1200 |%s", k, g)), messungB(m))
-				was := fmt.Sprintf("Grund %q %s Messung %d", g, k, m)
-				text := "ueberschreitung bis 1200 ohne Grund"
-				if k == "ersetzt" {
-					text = "ersetzt 1200 ohne Grund"
+				var aend []string
+				var erwartet []string
+				for i := 0; i < st.k; i++ {
+					v := 1200 + 100*i
+					grund := "Grund"
+					if st.schluessel == "ueberschreitung" && i == st.leer {
+						grund = g
+						erwartet = append(erwartet, fmt.Sprintf("ueberschreitung bis %d ohne Grund", v))
+					} else if st.schluessel == "ueberschreitung" {
+						erwartet = append(erwartet, fmt.Sprintf("!ueberschreitung bis %d ohne Grund", v))
+					}
+					if st.schluessel == "ueberschreitung" {
+						aend = append(aend, eintragZeile(v, grund))
+					}
 				}
-				r.soll(t, was, 1, text, "!reicht nicht")
-				if k == "ersetzt" && m == 1101 {
+				if st.schluessel == "ersetzt" {
+					aend = append(aend, fmt.Sprintf("ersetzt: 1200 |%s", g))
+					erwartet = append(erwartet, "ersetzt 1200 ohne Grund")
+				} else {
+					erwartet = append(erwartet, "!ersetzt")
+				}
+				r := pr(planB(aend...), messungB(m))
+				was := fmt.Sprintf("Grund %q %s %d Einträge, leer %d, Messung %d", g, st.schluessel, st.k, st.leer, m)
+				r.soll(t, was, 1, append(erwartet, "!reicht nicht")...)
+				if st.schluessel == "ersetzt" && m == 1101 {
 					r.soll(t, was, 1, "ohne Eintrag")
 				} else {
 					r.soll(t, was, 1, "!ohne Eintrag")
@@ -285,8 +316,8 @@ func TestGrund(t *testing.T) {
 			}
 		}
 	}
-	if n != 12 {
-		t.Errorf("%d Elemente statt 12", n)
+	if want := 3 * 7 * 4; n != want {
+		t.Errorf("%d Elemente statt %d", n, want)
 	}
 	pr(planB(eintragZeile(1200, "Grund")), messungB(1100)).soll(t, "Eintrag ohne Überschreitung", 0, "Hinweis: Eintrag ohne Überschreitung")
 	pr(planB("ersetzt: 1200 | Grund"), messungB(1100)).soll(t, "ersetzt ohne Überschreitung", 0, "!Eintrag ohne Überschreitung")

@@ -1,0 +1,2 @@
+**Vorgang:** slice-workspace-use-case
+**Fund:** M-2 (Verifikation, `a37d372`): die Klasse "Anzahl der Einträge, jede Ziffer an jeder Stelle" (`SPEC-129` Nr. 6 b) stand in der Generierbarkeit des Plans, Zeile Z20 nannte die Menge nicht; die Suite führte Anzahlen ohne Schleife über die Ziffern (Fix: `TestEntityCountZiffern`, Z72, 140 Anzahlen). Beleg: Plan §3 Absatz *fünfte Runde* (M-2) und §7 *Beobachtungs-Register*; Report `docs/reviews/2026-10-30-slice-workspace-use-case-verifikation.md`.
