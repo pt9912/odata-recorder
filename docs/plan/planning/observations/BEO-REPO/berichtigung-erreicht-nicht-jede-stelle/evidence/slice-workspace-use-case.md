@@ -1,0 +1,2 @@
+**Vorgang:** slice-workspace-use-case
+**Fund:** Dieselbe Aussage stand an mehreren Stellen, und die Berichtigung erreichte nicht alle: F-4 (Zeilen Z02, Z07, Z09, Z61 der Tabelle), F-8 ("20" statt "19" Stellen) und I-6 des Re-Reviews `485a467` (der Satz zum Detektor stand unberichtigt in *Ungeprüft* von `SPEC-124` und `SPEC-127`). Beleg: Plan §6 *Befunde des Re-Reviews*; Reports `docs/reviews/2026-10-30-slice-workspace-use-case-review.md`, `docs/reviews/2026-10-30-slice-workspace-use-case-review-2.md`.
