@@ -67,7 +67,7 @@ flowchart TB
 | `ARC-003` | Inbound Ports (`src/hexagon/ports/inbound`) | Anwendungsfälle für Request-Verarbeitung, Recording, Replay, Mock und Administration |
 | `ARC-004` | Outbound Ports (`src/hexagon/ports/outbound`) | UpstreamClient, RecordingRepository, SessionRepository, BlobRepository, CursorRepository, WorkspaceRepository, EntityRepository, SnapshotRepository, MetadataRepository, CoverageRepository, ImportRepository, MetadataCodec, ODataCodec, URLCodec, weitere Codec-Schnittstelle je Darstellung (Schreiben von OData-JSON), StorageMaintenance |
 | `ARC-005` | HTTP/OData Driving Adapter (`src/adapters/driving/httpodata`) | HTTP-Eingang, Header-/Body-Streaming, Mapping von Request und Response auf Domain-DTOs; OData-Parsing und -Serialisierung laufen über den Codec-Port im Core |
-| `ARC-006` | CLI Driving Adapter (`src/adapters/driving/cli`) | Konfiguration, Kommandoauswahl, Start-/Exit-Verhalten |
+| `ARC-006` | CLI Driving Adapter (`src/adapters/driving/cli`) | Kommandoauswahl, Signale, Exit-Code; die Startkonfiguration lädt der Composition Root |
 | `ARC-007` | Admin API Driving Adapter (`src/adapters/driving/admin`) | Workspaces, Snapshots, Sessions, Coverage, Diagnose |
 | `ARC-008` | HTTP Upstream Driven Adapter (`src/adapters/driven/httpupstream`) | HTTP/TLS-Verbindung zum echten OData-Service |
 | `ARC-009` | Recording/State Driven Adapter (`src/adapters/driven/sqlite`) | Transaktionale Speicherung und Abfrage der Sessions, Records und Workspace-Daten; SQLite-SQL und Migrationen |
