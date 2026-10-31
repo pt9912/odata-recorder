@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-- [welle-record-replay](../welle-record-replay.md)
+- [welle-record-replay](../welle-record-replay.md) (gestartet: `slice-replay-service` in [in-progress/](slice-replay-service.md), Zweig `slice-replay-service`, Linie A)
 - [welle-mock](../welle-mock.md) (gestaffelt: Trigger von Teil 1, den reinen Funktionen, eingetreten durch [slice-baseline-import](../done/slice-baseline-import.md); Teil 2 wartet auf `welle-record-replay` und `slice-handbuch-meldungskatalog`; gestartet: `slice-odata-url-pfad`, Linie B)
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md) (gestartet: `slice-handbuch-geruest` in [done/](../done/slice-handbuch-geruest.md), Beleg `make handbuch-check`; Katalog-, Aufzeichnen- und Abnahme-Slice warten auf `slice-bootstrap-m2`)
 
