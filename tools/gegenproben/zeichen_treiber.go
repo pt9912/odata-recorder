@@ -93,9 +93,10 @@ func zcRepoMit(dir string, dateien map[string]string) error {
 
 // zcLauf ist ein Aufruf des Treibers mit eigenem Protokollverzeichnis.
 type zcLauf struct {
-	dir  string
-	env  []string
-	args []string
+	dir    string
+	env    []string
+	args   []string
+	skript string // Pfad des Treibers, wie der Lauf ihn nennt; leer: der absolute Pfad der Umgebung
 }
 
 // treiber ruft zeichen.sh wie der Fall und liefert Exit und beide Ströme; das Protokoll liegt in
@@ -111,7 +112,11 @@ func (l Lauf) zeichenTreiber(name string, z zcLauf) (code int, out, errOut, log 
 	}
 	env := append(slices.Clone(l.Env), "ZC_LOG="+log)
 	env = append(env, z.env...)
-	code, out, errOut, _ = starteStroeme(fallFrist, dir, env, true, "bash", append([]string{l.U.ZeichenTreiber}, z.args...)...)
+	skript := l.U.ZeichenTreiber
+	if z.skript != "" {
+		skript = z.skript
+	}
+	code, out, errOut, _ = starteStroeme(fallFrist, dir, env, true, "bash", append([]string{skript}, z.args...)...)
 	return code, out, errOut, log
 }
 
@@ -159,35 +164,76 @@ func zcStrom(log string) (map[string]byte, error) {
 // zcMenge ist Fall 151: zehn Arten Pfad (getrackt, ungetrackt, ignoriert, im Arbeitsbaum gelöscht, Name
 // mit Leerzeichen, Name mit Zeilenumbruch, Symlink samt hängendem, mitgelieferte Baseline, Gitlink mit
 // Verzeichnis, ungetracktes verschachteltes Repo); die beiden letzten stehen als Verzeichnis ohne Inhalt im Strom.
+// Dieselbe Menge nennt der Strom, wenn der Treiber aus einem Unterverzeichnis der Tiefe 0, 1 und 2 des Repos
+// gerufen wird, mit relativem und mit absolutem Pfad des Skripts (SPEC-233 Nr. 2 a: Wechsel in die Wurzel).
 func zcMenge() Fall {
 	f := zcTreiberFall("treiber-menge", zcMengeRepo, 0)
 	f.Nachher = func(l Lauf) string {
-		strom, err := zcStrom(filepath.Join(l.Tmp, "log"))
+		if r := zcPruefeMenge(filepath.Join(l.Tmp, "log")); r != "" {
+			return r
+		}
+		return zcMengeAusUnterverzeichnissen(l)
+	}
+	return f
+}
+
+// zcMengeAusUnterverzeichnissen fährt sechs Läufe des Treibers: aus der Wurzel des Repos, aus `docs` und aus
+// `docs/t` (Tiefe 0, 1, 2), je mit dem relativen und dem absoluten Pfad des Skripts. `docs/t` liegt ungetrackt
+// und leer im Arbeitsbaum: git nennt kein leeres Verzeichnis.
+func zcMengeAusUnterverzeichnissen(l Lauf) string {
+	if err := os.MkdirAll(filepath.Join(l.Dir, "docs", "t"), 0o755); err != nil {
+		return err.Error()
+	}
+	tiefen := []string{".", "docs", "docs/t"}
+	if len(tiefen) != 3 {
+		return "Tiefen: nicht drei"
+	}
+	for i, tiefe := range tiefen {
+		sub := filepath.Join(l.Dir, filepath.FromSlash(tiefe))
+		rel, err := filepath.Rel(sub, l.U.ZeichenTreiber)
 		if err != nil {
 			return err.Error()
 		}
-		soll := []string{".gitignore", ".harness/baseline/v/x.md", "Makefile", "a b.md", "docs/a.md", "docs/neu.md", "gl/", "h", "l", "n\nm.md", "src/a.go", "sub/"}
-		var got []string
-		for n := range strom {
-			got = append(got, n)
-		}
-		slices.Sort(got)
-		if !slices.Equal(got, soll) {
-			return fmt.Sprintf("Tar-Strom nennt %q statt %q", got, soll)
-		}
-		for _, n := range []string{"h", "l"} {
-			if strom[n] != tar.TypeSymlink {
-				return fmt.Sprintf("%s steht nicht als Symlink im Strom (Typ %q)", n, strom[n])
+		for _, e := range []struct{ art, skript string }{{"relativ", rel}, {"absolut", l.U.ZeichenTreiber}} {
+			name := fmt.Sprintf("tiefe%d-%s", i, e.art)
+			code, _, errOut, log := l.zeichenTreiber(name, zcLauf{dir: sub, skript: e.skript})
+			if code != 0 {
+				return fmt.Sprintf("Lauf %s aus %s: Exit %d\n%s", name, tiefe, code, errOut)
+			}
+			if r := zcPruefeMenge(log); r != "" {
+				return fmt.Sprintf("Lauf %s aus %s: %s", name, tiefe, r)
 			}
 		}
-		for _, n := range []string{"gl/", "sub/"} {
-			if strom[n] != tar.TypeDir {
-				return fmt.Sprintf("%s steht nicht als Verzeichnis im Strom (Typ %q)", n, strom[n])
-			}
-		}
-		return ""
 	}
-	return f
+	return ""
+}
+
+// zcPruefeMenge prüft den Tar-Strom in log gegen die Menge von Fall 151 und die Typen der Einträge.
+func zcPruefeMenge(log string) string {
+	strom, err := zcStrom(log)
+	if err != nil {
+		return err.Error()
+	}
+	soll := []string{".gitignore", ".harness/baseline/v/x.md", "Makefile", "a b.md", "docs/a.md", "docs/neu.md", "gl/", "h", "l", "n\nm.md", "src/a.go", "sub/"}
+	var got []string
+	for n := range strom {
+		got = append(got, n)
+	}
+	slices.Sort(got)
+	if !slices.Equal(got, soll) {
+		return fmt.Sprintf("Tar-Strom nennt %q statt %q", got, soll)
+	}
+	for _, n := range []string{"h", "l"} {
+		if strom[n] != tar.TypeSymlink {
+			return fmt.Sprintf("%s steht nicht als Symlink im Strom (Typ %q)", n, strom[n])
+		}
+	}
+	for _, n := range []string{"gl/", "sub/"} {
+		if strom[n] != tar.TypeDir {
+			return fmt.Sprintf("%s steht nicht als Verzeichnis im Strom (Typ %q)", n, strom[n])
+		}
+	}
+	return ""
 }
 
 // zcMengeRepo legt das Repo von Fall 151 an: getrackte Dateien und Symlinks, danach eine ungetrackte
