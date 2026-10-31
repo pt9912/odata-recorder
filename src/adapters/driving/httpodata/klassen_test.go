@@ -70,7 +70,7 @@ func TestAntwortHeaderGleicheWerte(t *testing.T) {
 	for i := range hundert {
 		hundert[i] = []string{"a", "b"}[i%2]
 	}
-	folgen := [][]string{{"a", "a"}, {"a", "b", "a"}, {"a", "a", "a"}, hundert}
+	folgen := [][]string{{"a", "a"}, {"a", "b", "a"}, {"a", "a", "a"}, hundert, {"", ""}, {"a", "", "b"}, {"", "a"}}
 	namen := []string{"X-A", "Set-Cookie", "Vary", "Via"}
 	for _, b := range bindungen() {
 		for _, name := range namen {
@@ -84,23 +84,32 @@ func TestAntwortHeaderGleicheWerte(t *testing.T) {
 }
 
 // A16 über die Klasse: die Connection-Liste in jeder Schreibweise des Namens, jeder Form des Wertes
-// und jeder Schreibweise der genannten Namen (3 × 4 × 2 = 24 je Bindung).
+// (bis zu fünf Zeilen und fünf Namen) und jeder Schreibweise der genannten Namen (3 × 4 × 2 = 24 je
+// Bindung). Prüfgrenze: mehr als fünf Zeilen oder Namen sind nicht geführt.
 func TestAntwortConnectionListe(t *testing.T) {
 	namen := []string{"Connection", "connection", "CONNECTION"}
-	formen := [][]string{{"X-A, X-B"}, {"X-A", "X-B"}, {" x-a ,,\tX-B"}, {"X-A,X-B"}}
-	schreibweisen := [][2]string{{"X-A", "X-B"}, {"x-a", "x-b"}}
+	formen := [][]string{
+		{"X-A, X-B, X-C, X-D, X-E"}, {"X-A", "X-B", "X-C", "X-D", "X-E"},
+		{" x-a ,,\tX-B", "X-C ,", ",X-D", "X-E"}, {"X-A,X-B,X-C,X-D,X-E"},
+	}
+	schreibweisen := [][]string{{"X-A", "X-B", "X-C", "X-D", "X-E"}, {"x-a", "x-b", "x-c", "x-d", "x-e"}}
 	for _, b := range bindungen() {
 		for _, cn := range namen {
 			for _, f := range formen {
 				for _, s := range schreibweisen {
-					h := map[string][]string{cn: f, s[0]: {"1"}, s[1]: {"2"}, "X-Keep": {"3"}}
+					h := map[string][]string{cn: f, "X-Keep": {"3"}}
+					for _, n := range s {
+						h[n] = []string{"1"}
+					}
 					u := neuUmgebung(t, b, liefert(inbound.Antwort{Status: 200, Header: h, Body: ausBytes([]byte("ok"))}))
 					kopf, _ := kopfZeilen(u.rohOffen(t, "GET", "/p"))
 					keep := false
 					for _, k := range kopf {
 						keep = keep || k == "X-Keep"
-						if strings.EqualFold(k, "X-A") || strings.EqualFold(k, "X-B") || strings.EqualFold(k, "Connection") {
-							t.Errorf("%s %s %q %v: %s steht im Kopf %v", b, cn, f, s, k, kopf)
+						for _, n := range append([]string{"Connection"}, s...) {
+							if strings.EqualFold(k, n) {
+								t.Errorf("%s %s %q %v: %s steht im Kopf %v", b, cn, f, s, k, kopf)
+							}
 						}
 					}
 					if !keep {
@@ -124,17 +133,17 @@ func rohBytes(aus ...byte) []byte {
 }
 
 // A4 über die Klasse: jedes Rohbyte und jedes Escape %00 bis %FF (groß und klein) im Pfad bleiben
-// byte-gleich (220 + 512 Formen je Bindung).
+// byte-gleich (Rohbyte innen, am Ende und am Anfang: 3 × 220, dazu 512 Escapes = 1172 Formen je Bindung).
 func TestAnfragePfadKlassen(t *testing.T) {
 	var formen []string
 	for _, c := range rohBytes('%', '?') {
-		formen = append(formen, "/a"+string([]byte{c})+"b")
+		formen = append(formen, "/a"+string([]byte{c})+"b", "/a"+string([]byte{c}), "/"+string([]byte{c})+"b")
 	}
 	for c := 0; c < 256; c++ {
 		formen = append(formen, fmt.Sprintf("/p%%%02X", c), fmt.Sprintf("/p%%%02x", c))
 	}
-	if len(formen) != 220+512 {
-		t.Fatalf("Zahl der Formen = %d, erwartet 732", len(formen))
+	if len(formen) != 220*3+512 {
+		t.Fatalf("Zahl der Formen = %d, erwartet 1172", len(formen))
 	}
 	for _, b := range bindungen() {
 		u := neuUmgebung(t, b, nil)
@@ -153,18 +162,18 @@ func TestAnfragePfadKlassen(t *testing.T) {
 }
 
 // A5 über die Klasse: jedes Rohbyte und jedes Escape in der Query und die Formen mit ? am Ende
-// (222 + 512 + 4 Formen je Bindung).
+// (Rohbyte innen, am Ende und am Anfang: 3 × 222, dazu 512 Escapes und 4 Randformen = 1182 Formen je Bindung).
 func TestAnfrageQueryKlassen(t *testing.T) {
 	var formen []string
 	for _, c := range rohBytes() {
-		formen = append(formen, "a"+string([]byte{c})+"b")
+		formen = append(formen, "a"+string([]byte{c})+"b", "a"+string([]byte{c}), string([]byte{c})+"b")
 	}
 	for c := 0; c < 256; c++ {
 		formen = append(formen, fmt.Sprintf("q=%%%02X", c), fmt.Sprintf("q=%%%02x", c))
 	}
 	formen = append(formen, "a?", "?", "a=1&", "&")
-	if len(formen) != 222+512+4 {
-		t.Fatalf("Zahl der Formen = %d, erwartet 738", len(formen))
+	if len(formen) != 222*3+512+4 {
+		t.Fatalf("Zahl der Formen = %d, erwartet 1182", len(formen))
 	}
 	for _, b := range bindungen() {
 		u := neuUmgebung(t, b, nil)
@@ -182,16 +191,21 @@ func TestAnfrageQueryKlassen(t *testing.T) {
 	}
 }
 
-// A7 über die Klasse: 24 weitergereichte Header-Namen, jeder mit eigenem Wert.
+// A7 über die Klasse: 55 weitergereichte Header-Namen, jeder mit eigenem Wert (Prüfgrenze: die Menge
+// der Namen ist unbeschränkt).
 func TestAnfrageHeaderNamen(t *testing.T) {
 	namen := []string{
 		"Authorization", "Cookie", "Content-Type", "Accept", "Accept-Encoding", "Accept-Language", "User-Agent",
 		"Cache-Control", "If-None-Match", "If-Match", "If-Modified-Since", "Range", "Origin", "Referer",
 		"Content-Encoding", "Content-Language", "Keep-Alive", "Proxy-Authorization", "Proxy-Connection", "TE",
 		"Pragma", "Prefer", "OData-Version", "OData-MaxVersion",
+		"X-Forwarded-For", "X-Forwarded-Proto", "X-Forwarded-Host", "Forwarded", "Via", "If-Range", "If-Unmodified-Since",
+		"Accept-Charset", "Date", "From", "Max-Forwards", "Warning", "DNT", "Sec-Fetch-Mode", "Upgrade-Insecure-Requests",
+		"Content-MD5", "Content-Location", "Slug", "OData-Isolation", "OData-EntityId", "Upgrade", "Allow", "Last-Modified",
+		"ETag", "Expires", "Age", "Retry-After", "Server", "Location", "WWW-Authenticate", "Proxy-Authenticate",
 	}
-	if len(namen) != 24 {
-		t.Fatalf("Zahl der Namen = %d, erwartet 24", len(namen))
+	if len(namen) != 55 {
+		t.Fatalf("Zahl der Namen = %d, erwartet 55", len(namen))
 	}
 	soll := map[string][]string{"Connection": {"close"}}
 	var kopf []string
@@ -206,7 +220,7 @@ func TestAnfrageHeaderNamen(t *testing.T) {
 	}
 }
 
-// A9: der Body kommt als r.Body selbst an (nicht umhüllt) und ungelesen: net/http sendet 100 Continue
+// A9: der Body kommt in fünf Formen (Länge 1, 3, 100000, chunked, chunked leer) als r.Body selbst an (nicht umhüllt) und ungelesen: net/http sendet 100 Continue
 // erst beim ersten Lesen durch den Dienst.
 func TestAnfrageBodyUngelesen(t *testing.T) {
 	t.Run("nicht umhüllt", func(t *testing.T) {
@@ -215,9 +229,18 @@ func TestAnfrageBodyUngelesen(t *testing.T) {
 			typ <- reflect.TypeOf(a.Body).String()
 			return inbound.Antwort{Status: 200, Body: leer()}, nil
 		})
-		u.roh(t, append(zeile("POST", "/p", "Content-Length: 3"), "abc"...))
-		if got := <-typ; got != "*http.body" {
-			t.Errorf("Typ des Bodys = %s, erwartet *http.body", got)
+		formen := [][]byte{
+			append(zeile("POST", "/p", "Content-Length: 1"), "a"...),
+			append(zeile("POST", "/p", "Content-Length: 3"), "abc"...),
+			append(zeile("POST", "/p", "Content-Length: 100000"), muster(100000, 5)...),
+			append(zeile("POST", "/p", "Transfer-Encoding: chunked"), "3\r\nabc\r\n0\r\n\r\n"...),
+			append(zeile("POST", "/p", "Transfer-Encoding: chunked"), "0\r\n\r\n"...),
+		}
+		for i, f := range formen {
+			u.roh(t, f)
+			if got := <-typ; got != "*http.body" {
+				t.Errorf("Form %d: Typ des Bodys = %s, erwartet *http.body", i+1, got)
+			}
 		}
 	})
 	t.Run("ungelesen", func(t *testing.T) {
@@ -309,5 +332,50 @@ func TestLeiheJederPfad(t *testing.T) {
 			t.Errorf("%s: Close wurde nicht gerufen", p.name)
 		}
 		kunde.CloseIdleConnections()
+	}
+}
+
+// A21b (SPEC-136 Nr. 6c): der Fehler von Close bleibt ohne Wirkung, an jeder Stelle, an der Close
+// gerufen wird (7 Pfade): die Beobachtung des Clients ist mit und ohne Fehler von Close dieselbe.
+func TestCloseFehlerOhneWirkung(t *testing.T) {
+	boese := errors.New("Lesefehler")
+	pfade := []struct {
+		name    string
+		methode string
+		status  int
+		k       func() *koerper
+		err     error
+	}{
+		{"Erfolg", "GET", 200, func() *koerper { return ausBytes([]byte("abc")) }, nil},
+		{"Erfolg HEAD", "HEAD", 200, func() *koerper { return ausBytes(nil) }, nil},
+		{"Lesefehler", "GET", 200, func() *koerper { return skript([]schritt{{"ab", nil}, {"", boese}}) }, nil},
+		{"Statusverstoß", "GET", 99, func() *koerper { return ausBytes([]byte("abc")) }, nil},
+		{"204 mit Bytes", "GET", 204, func() *koerper { return ausBytes([]byte("abc")) }, nil},
+		{"Fehler und Antwort", "GET", 200, func() *koerper { return ausBytes([]byte("abc")) }, &inbound.Fehler{Code: model.CodeE5001, Status: 404}},
+		{"Kontextfehler", "GET", 200, func() *koerper { return ausBytes([]byte("abc")) }, context.Canceled},
+	}
+	beobachte := func(p int, closeErr error) string {
+		f := pfade[p]
+		k := f.k()
+		k.closeErr = closeErr
+		u := neuUmgebung(t, "record", func(context.Context, inbound.Anfrage) (inbound.Antwort, error) {
+			return inbound.Antwort{Status: f.status, Body: k}, f.err
+		})
+		req, _ := http.NewRequest(f.methode, "http://"+u.addr+"/p", nil)
+		resp, err := u.client().Do(req)
+		if err != nil {
+			warte(t, f.name+": Close", func() bool { c, _, _, _ := k.stand(); return c == 1 })
+			return "kein Kopf"
+		}
+		body, rerr := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		warte(t, f.name+": Close", func() bool { c, _, _, _ := k.stand(); return c == 1 })
+		return fmt.Sprintf("%d %q %v", resp.StatusCode, body, rerr)
+	}
+	for i := range pfade {
+		ohne, mit := beobachte(i, nil), beobachte(i, errors.New("Close schlägt fehl"))
+		if ohne != mit {
+			t.Errorf("%s: Client sieht ohne Fehler von Close %s, mit Fehler %s", pfade[i].name, ohne, mit)
+		}
 	}
 }

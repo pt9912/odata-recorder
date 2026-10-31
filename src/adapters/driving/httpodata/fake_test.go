@@ -125,6 +125,7 @@ type koerper struct {
 	reads     int
 	ende      bool
 	beiClose  func()
+	closeErr  error
 }
 
 func (k *koerper) Read(p []byte) (int, error) {
@@ -154,7 +155,7 @@ func (k *koerper) Close() error {
 	if f != nil {
 		f()
 	}
-	return nil
+	return k.closeErr
 }
 
 func (k *koerper) stand() (closes, nachClose, nachEnde, reads int) {

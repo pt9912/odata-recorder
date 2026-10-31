@@ -193,7 +193,7 @@ func TestAntwortContentType(t *testing.T) {
 
 // A18: Die Bytes der Antwort gehen unverändert aus, über jede Puffergrenze.
 func TestAntwortBytes(t *testing.T) {
-	groessen := []int{0, 1, 4095, 4096, 4097, 32767, 32768, 32769, 1048577}
+	groessen := []int{0, 1, 4095, 4096, 4097, 32767, 32768, 32769, 1048577, 8*1024*1024 + 1}
 	for _, b := range bindungen() {
 		for i, n := range groessen {
 			soll := muster(n, uint64(100+i))
