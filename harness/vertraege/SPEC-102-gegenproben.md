@@ -174,7 +174,7 @@ Gemessen am 2026-10-22 mit dem Testbinary der Fixtures unter `-race`, je Lauf ei
 
 **Randformen:**
 1. Eine Eingabe fehlt in der Eingabekopie (etwa `.a-check.yml`) oder die Kopie scheitert: Meldung `gegenproben: <Grund>`, Exit-Code 2, kein Fall läuft.
-2. Ein Programm (`a-check`, `golangci-lint`, `sh`, `pruefung`, `go`, `gofmt`, `groessenmarke`, `zeichen`, `git`, `tar`) ist nicht aufrufbar: Meldung `gegenproben: <Programm> nicht aufrufbar`, Exit-Code 2. Für `git` gilt das nur, solange die Fälle 115 bis 120 und 151 bis 155 es verlangen; für `tar`, solange die Fälle 151 bis 155 es verlangen; Fall 109 entfernt `git` aus `PATH` selbst.
+2. Ein Programm (`a-check`, `golangci-lint`, `sh`, `pruefung`, `go`, `gofmt`, `groessenmarke`, `zeichen`, `git`, `tar`) ist nicht aufrufbar: Meldung `gegenproben: <Programm> nicht aufrufbar`, Exit-Code 2. Für `git` gilt das nur, solange die Fälle 115 bis 120 und 151 bis 155 es verlangen; für `tar`, solange die Fälle 151 bis 155 es verlangen; Fall 109 entfernt `git` aus `PATH` selbst. `bash` steht nicht in der Liste: das Image der Stufe trägt es; fehlte es, wären die Fälle 151 bis 155 rot mit Exit 127 statt mit dieser Meldung.
 2a. Der Bau des Binary eines Falls (Fälle 29 bis 31) scheitert: der Fall ist rot, Text `Bau des Binary scheitert` und die letzten Zeilen der Ausgabe von `go build`; das Gate wird nicht gerufen.
 3. Ein Verstoß-Fall endet mit Exit 0: der Fall ist rot, Text `Verstoß nicht gemeldet`, Exit-Code 1 des Programms.
 4. Ein Verstoß-Fall endet mit einem anderen Code als der erwarteten 1 (etwa 2 bei einem Aufruffehler des Gates) oder die Ausgabe nennt das erwartete Wort nicht: der Fall ist rot mit erwartetem und tatsächlichem Wert, Exit-Code 1.
