@@ -31,7 +31,7 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Der Driving Adapter `src/adapters/driving/httpodata` nimmt HTTP-Requests des OData-Listeners an, bildet Methode, Pfad, `raw_query`, Header und Body-Strom unverändert auf `inbound.Anfrage` ab (`SPEC-136` Nr. 4), ruft den Dienst des Betriebsmodus als Funktionswert (`Verarbeiten`, `SPEC-136` Nr. 2), streamt die Antwort (Nr. 5, 6), schließt den Strom genau einmal, vergibt die Korrelations-ID und schreibt Fehler als Fehlerobjekt (Nr. 7, 8); ein Lesefehler oder ein Kontextfehler bricht die Verbindung ab (Nr. 9). `SPEC-136` und `SPEC-137` schreibt der Zweig beim Start des Slice nach dem Vorabentwurf des Architect (Linie A, `SPEC-129` bis `SPEC-159`); der Lebenszyklus (Anhalten, Schließen, 503, Grenzen des Servers) ist vor dem Code in [slice-http-lebenszyklus](slice-http-lebenszyklus.md) geschnitten.
+**Ziel:** Der Driving Adapter `src/adapters/driving/httpodata` nimmt HTTP-Requests des OData-Listeners an, bildet Methode, Pfad, `raw_query`, Header und Body-Strom unverändert auf `inbound.Anfrage` ab (`SPEC-136` Nr. 4), ruft den Dienst des Betriebsmodus als Funktionswert (`Verarbeiten`, `SPEC-136` Nr. 2), streamt die Antwort (Nr. 5, 6), schließt den Strom genau einmal, vergibt die Korrelations-ID und schreibt Fehler als Fehlerobjekt (Nr. 7, 8); ein Lesefehler oder ein Kontextfehler bricht die Verbindung ab (Nr. 9). `SPEC-136` und `SPEC-137` schreibt der Zweig beim Start des Slice nach dem Vorabentwurf des Architect (Linie A, `SPEC-129` bis `SPEC-159`); der Lebenszyklus (Anhalten, Schließen, 503, Grenzen des Servers) ist vor dem Code in [slice-http-lebenszyklus](../open/slice-http-lebenszyklus.md) geschnitten.
 
 **Übernimmt:** Die Korrelations-ID kommt aus `IDGenerator.KorrelationsID()` (`SPEC-114` Nr. 6), nicht aus eigenem Code des Adapters; die Tests setzen `supporttest.FestIDs` (Sendung von `slice-clock-idgenerator`).
 
@@ -41,7 +41,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Race-Detektor):** Die nebenläufigen Tests des Pakets laufen im Ziel mit `go test -race`, das `slice-race-gate` als `make test-race` an `make gates` hängt (Sendung von `slice-race-gate`); dessen Vertrag führt keine Liste der Pakete, sondern fährt alle Pakete der Stufe `source` (`SPEC-122` Nr. 2), so dass `httpodata` ohne Eintrag darunter fällt und dieser Slice dafür nichts ändert.
 
-**Herunterfahren geht weiter:** Die Sendung von `slice-session-beenden` (zwei Schritte des Listeners, 503 auf bestehenden Verbindungen, keine doppelte Frist; `SPEC-124` Nr. 14, `LH-FA-02.c`) und das Risiko „Request-Größe und Zeitgrenzen“ liegen bei [slice-http-lebenszyklus](slice-http-lebenszyklus.md), das sie in seinem §1 annimmt; dieser Slice trägt sie nicht mehr.
+**Herunterfahren geht weiter:** Die Sendung von `slice-session-beenden` (zwei Schritte des Listeners, 503 auf bestehenden Verbindungen, keine doppelte Frist; `SPEC-124` Nr. 14, `LH-FA-02.c`) und das Risiko „Request-Größe und Zeitgrenzen“ liegen bei [slice-http-lebenszyklus](../open/slice-http-lebenszyklus.md), das sie in seinem §1 annimmt; dieser Slice trägt sie nicht mehr.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -49,7 +49,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Die Wahl des Use Case je Modus — Composition Root (`slice-bootstrap-m2`); der Adapter kennt den Modus nicht.
 - Span `odata.gateway.request` und Metriken — es gibt noch keinen `Telemetry`-Port (Welle §6); der Adapter vergibt die Korrelations-ID, die der Port später trägt.
 - TLS des Listeners — Folgewelle.
-- Der Lebenszyklus (Anhalten, Schließen mit Frist, 503 `ODR-E5010` auf bestehenden Verbindungen, feste Grenzen des Servers) — [slice-http-lebenszyklus](slice-http-lebenszyklus.md): der einzige Teil ohne geteilten Mechanismus mit dem Kern, vor dem Code geschnitten (`AGENTS.md` §3.14).
+- Der Lebenszyklus (Anhalten, Schließen mit Frist, 503 `ODR-E5010` auf bestehenden Verbindungen, feste Grenzen des Servers) — [slice-http-lebenszyklus](../open/slice-http-lebenszyklus.md): der einzige Teil ohne geteilten Mechanismus mit dem Kern, vor dem Code geschnitten (`AGENTS.md` §3.14).
 - Spans und Zähler je Fehlercode am Adapter — `slice-telemetry-einbau-gateway` (nimmt an, siehe dessen §1).
 - Absolute-Form-Requests (Entscheidung des Architect in `SPEC-136` Nr. 4c) — der Kern liefert dafür keinen Pfad.
 
@@ -100,7 +100,7 @@ Aussagen-Berührung steht hier gar nicht.
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation oder in `harness/vertraege/` **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen, die sie tragen müssen, nennt §6.
 
 - Der Adapter importiert nur Inbound Ports, Querschnitts-Ports und Domain (`a-check`); die Ports `RecordUseCase` und `ReplayUseCase` liefern die beiden Slices davor.
-- Der Auftrag an den Architect zur Reihenfolge des Herunterfahrens (Sendung von `slice-session-beenden`) ist beim Vorabentwurf erledigt und liegt bei [slice-http-lebenszyklus](slice-http-lebenszyklus.md) (`SPEC-136` Nr. 13 bis 15).
+- Der Auftrag an den Architect zur Reihenfolge des Herunterfahrens (Sendung von `slice-session-beenden`) ist beim Vorabentwurf erledigt und liegt bei [slice-http-lebenszyklus](../open/slice-http-lebenszyklus.md) (`SPEC-136` Nr. 13 bis 15).
 - Modus-Routing: der Adapter kennt den Modus nicht (`architecture.md` §2.5); `Konfig.Verarbeiten` ist ein Funktionswert, den der Composition Root aus `rec.Record` (Modus `record`) oder `rep.Replay` (Modus `replay`) bindet, beide mit der Signatur `func(ctx, inbound.Anfrage) (inbound.Antwort, error)`; Mock und Hybrid binden dieselbe Signatur später (Vorabentwurf des Architect, `SPEC-136` Nr. 2).
 
 ## 4. Trigger
@@ -133,8 +133,8 @@ dasteht.
 - Header-Behandlung: mehrfach vorkommende Header, Groß-/Kleinschreibung, `Host`, `Connection`-Liste, `Transfer-Encoding` — **Ausgang:** offen; Raster *Header-Art × Behandlung*, Entscheidung in der Spezifikation.
 - Client bricht ab, bevor der Use Case antwortet; Antwort bricht ab nach dem ersten Byte — **Ausgang:** offen; die nebenläufigen Fänger ordnen mit Kanälen und laufen im Ziel mit `-race` aus `slice-race-gate`, und jeder nebenläufige Test läuft vor der Übergabe mit `-count=50`.
 - Pfad ohne Service-Root, Pfad mit Prozent-Kodierung, `raw_query` mit ungültiger Kodierung — **Ausgang:** offen; Raster-Zelle, der Adapter reicht unverändert, der Use Case entscheidet (`ODR-E5005`).
-- Request-Größe und Zeitgrenzen des Servers (`ReadHeaderTimeout`, Idle) — **Ausgang:** übergeben an [slice-http-lebenszyklus](slice-http-lebenszyklus.md) (entschieden vom Architect im Vorabentwurf, Fänger L1, L2 dort); der Kern setzt keine Grenze.
-- Herunterfahren in zwei Schritten (Sendung von `slice-session-beenden`) — **Ausgang:** übergeben an [slice-http-lebenszyklus](slice-http-lebenszyklus.md), das die Sendung in seinem §1 annimmt; die Reihenfolge im Composition Root trägt `slice-bootstrap-m2`.
+- Request-Größe und Zeitgrenzen des Servers (`ReadHeaderTimeout`, Idle) — **Ausgang:** übergeben an [slice-http-lebenszyklus](../open/slice-http-lebenszyklus.md) (entschieden vom Architect im Vorabentwurf, Fänger L1, L2 dort); der Kern setzt keine Grenze.
+- Herunterfahren in zwei Schritten (Sendung von `slice-session-beenden`) — **Ausgang:** übergeben an [slice-http-lebenszyklus](../open/slice-http-lebenszyklus.md), das die Sendung in seinem §1 annimmt; die Reihenfolge im Composition Root trägt `slice-bootstrap-m2`.
 - Der Vorabentwurf des Architect nennt fünf Annahmen über `net/http`, die als erste Tests laufen (ungültiger Escape ergibt 400 vor dem Handler, `ErrAbortHandler` schließt ohne Abschluss, `Content-Type` nil unterdrückt das Sniffing, `Flush` sendet sofort, `ctx` bei ungelesenem Body) — **Ausgang:** offen; Adresse Implementer, bei Abweichung die Zelle an den Architect (`AGENTS.md` §3.12).
 - Replay-Antworten gehen chunked (keine `Content-Length`, `Flush` je Stück) — **Ausgang:** akzeptiertes Negativ: `LH-QA-07.a` zählt `Content-Length` nicht zu den relevanten Headern, und `SPEC-135` Nr. 13 b nimmt die Länge bewusst aus; Folge: ein Client sieht `Transfer-Encoding: chunked` statt einer Länge.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
