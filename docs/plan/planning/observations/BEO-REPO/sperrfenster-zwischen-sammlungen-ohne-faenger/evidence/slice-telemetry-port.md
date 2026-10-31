@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-port
+**Fund:** V-1 (Verifikation 1): Fenster zwischen den Sammlungen von `Snapshot` ohne Fänger. V-9 (Verifikation 2): die Fix-Runde deckte die Fenster zwischen Sammlungen und zwischen den Einträgen, die ein Test ändert, nicht die zwischen Einträgen, die der Test nie zählt (Z1, Z2, Z6 grün in 0 von 20 Prozessen; danach 35 Fenster × 2 Leseordnungen = 70 Schnitte). Beleg: Plan §3 (Fix-Runden 3 und 4, P15, N-1); Reports `docs/reviews/2026-10-30-slice-telemetry-port-verifikation.md` §Register und `-2.md` §Register.

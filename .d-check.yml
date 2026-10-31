@@ -25,7 +25,7 @@ ids:
 # existieren (codepath-missing). Ein Pfad mit vorangestelltem ./ oder ../ wird vom Ort
 # der Datei aus aufgeloest und ebenso geprueft. Eine erst geplante Datei traegt den
 # Inline-Marker d-check:ignore mit Grund in derselben Zeile. Still bleiben am Pin
-# v0.86.1: ein Pfad ohne root am Anfang (src/..., /docs/...), ein Glob unter einer root
+# v0.90.0: ein Pfad ohne root am Anfang (src/..., /docs/...), ein Glob unter einer root
 # und ein Pfad in einem umzaeunten Code-Block. exempt-paths nimmt die Review-Reports aus:
 # ein Pfad darin nennt den Stand seines Laufs, nicht den heutigen Baum.
 codepaths:
@@ -34,7 +34,7 @@ codepaths:
 # reviews bleibt aus. Das Modul (hermetisch, kein git) haelt die Review-Zusagen der
 # Slice-Plaene unter done-dir gegen die Reports unter reviews-dir: eine Zusage ohne Report,
 # der den Slice deckt, meldet es als review-missing. done-dir ist der Aktivierungs-Schalter —
-# ohne ihn oeffnet das Modul keine Datei. Am Pin v0.86.1 erkennt es die Review-Zeile der
+# ohne ihn oeffnet das Modul keine Datei. Am Pin v0.90.0 erkennt es die Review-Zeile der
 # Slice-Vorlage ("Review durchgeführt, …") als Zusage, ebenso die Wortfolge "unabhängiger
 # Review". Den Report ordnet es ohne match: ueber eine Kennung in Ziffern-Form (slice-<NNN>)
 # im Dateinamen zu; einen Slice-Plan mit Kennung in Namens-Form (slice-<name>) meldet es dann

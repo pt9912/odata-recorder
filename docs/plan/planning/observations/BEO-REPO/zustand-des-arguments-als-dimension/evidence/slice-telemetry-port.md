@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-port
+**Fund:** V-23 (Verifikation 4): „Abbruch, Frist und Werte bleiben“ × Zustand des Eingabe-`ctx` (5) × Ausstattung (2) × Aufrufstelle (2) × Eigenschaft (4) = 80 Fälle; der Fix der Runde 5 führte die Eigenschaften. V-28 (Verifikation 5, LOW): der Zustand des Eingabe-`ctx` ist für den Rückgabe-`ctx` gefangen, nicht für den aufgezeichneten (akzeptiertes Negativ N-3). Beleg: Plan §3 (Fix-Runde 6, N-3) und §7 *Steering-Loop-Eintrag*; Reports `docs/reviews/2026-10-30-slice-telemetry-port-verifikation-4.md` und `-5.md`.
