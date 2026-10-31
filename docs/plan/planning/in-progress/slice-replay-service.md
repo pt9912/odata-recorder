@@ -247,6 +247,8 @@ schnitt-grund: Nicht vor dem Code geschnitten, vorab benannter Handoff-Schnitt. 
 
 Messpunkte und Abbruchkriterien (Vorschlag für den Planner): (1) Zwischenmessung nach Zuordnung, Key, Auswahl und Fakes, vor der Auslieferung und den nebenläufigen Fängern; liegt sie über 5000, meldet der Implementer es dem Planner mit Zeilen je Datei (Erwartung 3000 bis 5000). (2) Vor dem Commit des Teils Request-Body: liegt der Rest über 8500, wird der Teil nicht mehr geschrieben. (3) Gesamtmessung über der Marke: Eintrag `ueberschreitung` mit Grund. (4) Fixes und Review über 11 000 geben an den Planner zurück. Erwartung aus den Faktoren von `SPEC-128`: Handoff 4900 bis 7000, Ende 5800 bis 9000.
 
+**Messung des Implementers** (Metrik der Marke: `git diff --numstat b919969..<Commit>` über die Pfade des Blocks, Tests eingeschlossen; `make groessenmarke` meldet am Stand `45fc11e`, dem letzten Commit vor dem Teil Request-Body, „ok, Messung 4263 von Marke 9200“): Port, Dienst und Fakes mit den Fängern Z1 bis Z16 2573 · nach der Auswahl (Zwischenmessung (1), Commit `4758e8b`) 3166 · nach der Auslieferung 3642 · nach den nebenläufigen Fängern 4167 · nach dem Key (Z20 bis Z22) 4263, davon Tests 3714 und Produktcode 549. Die Zwischenmessung (1) liegt unter 5000, der Rest unter 8500: der Teil Request-Body (Z17, Z18, Z19, Z23) wird als letzter Commit geschrieben und bleibt im Slice.
+
 ## 5. Closure-Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
