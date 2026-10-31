@@ -26,6 +26,7 @@ const (
 	CodeE5007
 	CodeE5008
 	CodeE5009
+	CodeE5010
 	CodeE6001
 	CodeE6002
 	CodeE6003
@@ -93,6 +94,7 @@ func codeZeilen() []codeZeile {
 		{CodeE5007, "ODR-E5007", []int{409}, ZielReplay, "Next expected exchange has a different match key"},
 		{CodeE5008, "ODR-E5008", []int{422}, ZielReplay, "Matched exchange is not replayable"},
 		{CodeE5009, "ODR-E5009", []int{409}, ZielRecord, "No recording session accepts the request"},
+		{CodeE5010, "ODR-E5010", []int{503}, ZielService, "Service is shutting down"},
 		{CodeE6001, "ODR-E6001", []int{501}, ZielMock, "Unsupported query or read access"},
 		{CodeE6002, "ODR-E6002", []int{501}, ZielMock, "Unsupported mutation or write access"},
 		{CodeE6003, "ODR-E6003", []int{422}, ZielMock, "Incomplete coverage"},
