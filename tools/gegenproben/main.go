@@ -65,7 +65,7 @@ func standard() Umgebung {
 	treiber := absolut("tools/harness/groessenmarke.sh")
 	zeichen := absolut("tools/harness/zeichen.sh")
 	return Umgebung{
-		Eingaben:   []string{"src", "go.mod", "go.sum", ".a-check.yml", ".golangci.yml", "tools/harness/lint.sh", "tools/harness/migration-check.sh"},
+		Eingaben:   []string{"src", "go.mod", "go.sum", ".a-check.yml", ".d-check.yml", ".golangci.yml", "tools/harness/lint.sh", "tools/harness/migration-check.sh"},
 		Programme:  []string{"a-check", "golangci-lint", "sh", "pruefung", "go", "gofmt", "groessenmarke", "zeichen", "git", "tar"},
 		Aufraeumen: os.RemoveAll,
 		Befehl:     befehlMit(treiber, zeichen),
@@ -90,6 +90,8 @@ func befehlMit(treiber, zeichen string) func(dir string, f Fall) (string, []stri
 			return "zeichen", f.ersetzeOrte(dir), dir
 		case gateZeichenTreiber:
 			return "bash", append([]string{zeichen}, f.ersetzeOrte(dir)...), dir
+		case gateDCheck:
+			return "d-check", f.ersetzeOrte(dir), dir
 		}
 		return befehl(dir, f)
 	}
