@@ -18,6 +18,7 @@ const (
 	gateTreiber
 	gateZeichen
 	gateZeichenTreiber
+	gateDCheck
 )
 
 // Fall ist eine Gegenprobe: ein Eingriff in das Verzeichnis des Falls (die Kopie der Eingaben, bei
@@ -499,5 +500,6 @@ func faelle() []Fall {
 	alle = append(alle, raceFaelle()...)
 	alle = append(alle, groessenmarkeFaelle()...)
 	alle = append(alle, handbuchFaelle()...)
-	return append(alle, zeichenFaelle()...)
+	alle = append(alle, zeichenFaelle()...)
+	return append(alle, guideFaelle()...)
 }
