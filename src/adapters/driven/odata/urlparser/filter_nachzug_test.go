@@ -396,3 +396,57 @@ func TestFilterReihenfolge(t *testing.T) {
 		t.Fatalf("%d Fälle", n)
 	}
 }
+
+// TestOperatorwortVorAnfuehrung (SPEC-164 Nr. 4, Schlusssatz): ein Operatorwort unmittelbar vor `'` ist ein Literal mit Präfix und
+// am Platz eines Operators `wert`, nie ein Operator und nie `filter`. Menge 360 = 120 Schreibweisen der 16 Operatorwörter (eq ne gt
+// ge lt le and or: 36; has in add sub mul div divby mod: 84) × 3 Stellungen (nach `Id`, nach `Id eq 1`, nach `(Id)` ohne Leerraum).
+func TestOperatorwortVorAnfuehrung(t *testing.T) {
+	woerter := strings.Fields("eq ne gt ge lt le and or has in add sub mul div divby mod")
+	n := 0
+	for _, w := range woerter {
+		for _, s := range flSchreibweisen(w) {
+			for _, text := range []string{"Id " + s + "'x'", "Id eq 1 " + s + "'x'", "(Id)" + s + "'x'"} {
+				flFehler(t, text, model.URLWert)
+				n++
+			}
+		}
+	}
+	if len(woerter) != 16 || n != 360 {
+		t.Fatalf("%d Wörter, %d Fälle", len(woerter), n)
+	}
+}
+
+// TestMinusLaufKlasse (Zeile 11b, Stichprobe der unbeschränkten Menge): jeder Lauf mit `-` am Anfang, der kein Literal-Lauf ist, ist
+// am Operandenplatz `filter`. Menge 244 = 79 druckbare ASCII-Zeichen (ohne Ziffer, `.`, `'`, `(`, `)`, `,`) + 32 Steuerzeichen + 3
+// Zeichen jenseits von ASCII (2, 3 und NBSP) hinter dem `-`, dazu `-` + `a`, `-` + 3-Byte-Zeichen mit 1 bis 64 Wiederholungen
+// (128) und 600 und 4000 Bytes. Prüfgrenze: Zeichenklassen einzeln, Längen bis 64 und zwei lange; Grund: der Leser prüft nach dem
+// `-` nur das zweite Byte; Folge: eine Regel, die erst bei einer Länge zwischen 65 und 599 oder 601 und 3999 greift, bliebe ungefangen.
+func TestMinusLaufKlasse(t *testing.T) {
+	n := 0
+	pruefe := func(lauf string) {
+		flFehler(t, "Id eq "+lauf, model.URLFilter)
+		n++
+	}
+	for c := byte(0x21); c < 0x7f; c++ {
+		if (c >= '0' && c <= '9') || strings.ContainsRune(".'(),", rune(c)) {
+			continue
+		}
+		pruefe("-" + string([]byte{c}))
+	}
+	for c := byte(1); c < 0x20; c++ {
+		pruefe("-" + string([]byte{c}))
+	}
+	pruefe("-\x7f")
+	for _, z := range []string{"\xc3\xa4", "\xe6\x97\xa5", "\xc2\xa0"} {
+		pruefe("-" + z)
+	}
+	for k := 1; k <= 64; k++ {
+		pruefe("-" + strings.Repeat("a", k))
+		pruefe("-" + strings.Repeat("\xe6\x97\xa5", k))
+	}
+	pruefe("-" + strings.Repeat("a", 599))
+	pruefe("-" + strings.Repeat("a", 3999))
+	if n != 244 {
+		t.Fatalf("%d Fälle", n)
+	}
+}
