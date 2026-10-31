@@ -1,0 +1,2 @@
+**Vorgang:** slice-odata-url-filter
+**Fund:** Der Leser setzte den Wortlaut von `SPEC-164` um oder entschied still; das Review fand drei Randformen ohne Ort: `--` am Operandenplatz (Nr. 2 gegen Nr. 4 b und 5 c, F-6), Reihenfolge von Länge und Form (F-1) und die Guid mit Hex-Buchstaben am Anfang (Rückgabe zu Zeile 15). Der Architect hat sie in `SPEC-164` Nr. 2, 4 a, 4 b, 4 e, 5 c und 6 entschieden. Beleg: Plan `slice-odata-url-filter` §6 und §7 (Steering-Loop-Einträge); Review `docs/reviews/2026-10-31-slice-odata-url-filter-review.md`.
