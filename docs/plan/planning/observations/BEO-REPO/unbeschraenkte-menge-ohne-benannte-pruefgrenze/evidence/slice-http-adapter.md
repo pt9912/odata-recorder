@@ -1,0 +1,2 @@
+**Vorgang:** slice-http-adapter
+**Fund:** Mengen ohne Grenze (Header-Namen, Zeilen je Name, Body-Größe; F-9, F-15) trugen Prüfgrenze ohne Grund und Folge; erst die Verifikation forderte beides, in §3 stehen sie nun je akzeptiertem Negativ (A4/A5, A7, A9, A16). Beleg: Plan `slice-http-adapter` §7 *Akzeptierte Negative* und *Lerneintrag* (2); Report `docs/reviews/2026-10-31-slice-http-adapter-verifikation.md`.
