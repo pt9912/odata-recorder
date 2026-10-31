@@ -177,6 +177,10 @@ func (r *Replayer) imSchreiber(ctx context.Context, st outbound.WorkspaceStores,
 	if err != nil {
 		return model.Exchange{}, nil, err
 	}
+	if e.ResponseBody != model.BodyPresent && e.ResponseBody != model.BodyAbsent {
+		// Ein replayfähiger Exchange ist complete; jeder andere Zustand des Bodys verletzt eine Invariante des Speichers.
+		return model.Exchange{}, nil, mitCode(model.CodeE9001, nil)
+	}
 	strom := leererStrom()
 	if e.ResponseBody == model.BodyPresent {
 		if strom, err = r.k.Blobs.Open(ctx, e.ResponseBlob); err != nil {
