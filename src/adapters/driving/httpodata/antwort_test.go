@@ -123,12 +123,13 @@ func kopfZeilen(roh []byte) (namen []string, alle string) {
 	return namen, strings.Join(zeilen, "\n")
 }
 
-// A16: Hop-by-Hop-Header entfallen samt der Namen, die Connection nennt.
+// A16: Hop-by-Hop-Header entfallen samt der Namen, die Connection nennt; die Anfrage bleibt offen,
+// denn net/http ersetzt Connection selbst, sobald der Client schließt.
 func TestAntwortHopByHop(t *testing.T) {
 	namen := []string{"Connection", "Proxy-Connection", "Keep-Alive", "Proxy-Authenticate", "Proxy-Authorization", "TE", "Trailer", "Transfer-Encoding", "Upgrade"}
 	roh := func(t *testing.T, b bindung, h map[string][]string) ([]string, string) {
 		u := neuUmgebung(t, b, liefert(inbound.Antwort{Status: 200, Header: h, Body: ausBytes([]byte("ok"))}))
-		return kopfZeilen(u.roh(t, zeile("GET", "/p")))
+		return kopfZeilen(u.rohOffen(t, "GET", "/p"))
 	}
 	for _, b := range bindungen() {
 		for _, n := range namen {
@@ -295,38 +296,44 @@ func TestCloseEinmal(t *testing.T) {
 	}
 }
 
-// A22: Ein Schreibfehler beendet das Kopieren, Close einmal.
+// A22: Ein Schreibfehler beendet das Kopieren, Close einmal; mit Content-Length leert der Adapter
+// nicht, dort ist der Schreibfehler der einzige Ausgang.
 func TestSchreibfehler(t *testing.T) {
-	k := &koerper{lies: func(p []byte) (int, error) {
-		n := min(len(p), 1024)
-		for i := 0; i < n; i++ {
-			p[i] = 'x'
+	for _, mitLaenge := range []bool{false, true} {
+		k := &koerper{lies: func(p []byte) (int, error) {
+			n := min(len(p), 1024)
+			for i := 0; i < n; i++ {
+				p[i] = 'x'
+			}
+			return n, nil
+		}}
+		h := map[string][]string{}
+		if mitLaenge {
+			h["Content-Length"] = []string{"1099511627776"}
 		}
-		return n, nil
-	}}
-	u := neuUmgebung(t, "record", liefert(inbound.Antwort{Status: 200, Body: k}))
-	c, err := net.Dial("tcp", u.addr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = c.SetDeadline(time.Now().Add(5 * time.Second))
-	if _, err := c.Write(zeile("GET", "/p")); err != nil {
-		t.Fatal(err)
-	}
-	if n, err := io.ReadAtLeast(c, make([]byte, 512), 512); err != nil {
-		t.Fatalf("erstes Stück: %d Bytes, %v", n, err)
-	}
-	_ = c.Close()
-	warte(t, "Close nach dem Schreibfehler", func() bool { n, _, _, _ := k.stand(); return n == 1 })
-	var a, b int
-	_, _, _, a = k.stand()
-	time.Sleep(200 * time.Millisecond)
-	_, _, _, b = k.stand()
-	if a != b {
-		t.Errorf("Read-Zähler wächst weiter: %d, dann %d", a, b)
-	}
-	if n, nachClose, _, _ := k.stand(); n != 1 || nachClose != 0 {
-		t.Errorf("Close=%d Read-nach-Close=%d, erwartet 1 0", n, nachClose)
+		u := neuUmgebung(t, "record", liefert(inbound.Antwort{Status: 200, Header: h, Body: k}))
+		c, err := net.Dial("tcp", u.addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = c.SetDeadline(time.Now().Add(5 * time.Second))
+		if _, err := c.Write(zeile("GET", "/p")); err != nil {
+			t.Fatal(err)
+		}
+		if n, err := io.ReadAtLeast(c, make([]byte, 512), 512); err != nil {
+			t.Fatalf("mitLaenge=%v: erstes Stück: %d Bytes, %v", mitLaenge, n, err)
+		}
+		_ = c.Close()
+		warte(t, "Close nach dem Schreibfehler", func() bool { n, _, _, _ := k.stand(); return n == 1 })
+		_, _, _, a := k.stand()
+		time.Sleep(200 * time.Millisecond)
+		_, _, _, b := k.stand()
+		if a != b {
+			t.Errorf("mitLaenge=%v: Read-Zähler wächst weiter: %d, dann %d", mitLaenge, a, b)
+		}
+		if n, nachClose, _, _ := k.stand(); n != 1 || nachClose != 0 {
+			t.Errorf("mitLaenge=%v: Close=%d Read-nach-Close=%d, erwartet 1 0", mitLaenge, n, nachClose)
+		}
 	}
 }
 
@@ -356,7 +363,10 @@ func TestLeihe(t *testing.T) {
 	})
 	req, _ := http.NewRequest("POST", "http://"+u.addr+"/p", bytes.NewReader(soll))
 	req.Header.Set("X-Recorder-Workspace", "w")
-	resp, err := u.client().Do(req)
+	// Eine Verbindung mit Keep-Alive: bei Connection: close verwirft net/http den Rest nicht.
+	kunde := &http.Client{Transport: &http.Transport{}, Timeout: 10 * time.Second}
+	defer kunde.CloseIdleConnections()
+	resp, err := kunde.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

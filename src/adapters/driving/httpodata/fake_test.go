@@ -301,3 +301,28 @@ func erster(v []string) string {
 	}
 	return v[0]
 }
+
+// rohOffen sendet eine Request-Zeile ohne Connection: close und liest, bis die Antwort mit dem
+// Abschluss des chunked Bodys endet.
+func (u *umgebung) rohOffen(t *testing.T, methode, target string) []byte {
+	t.Helper()
+	c, err := net.Dial("tcp", u.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	_ = c.SetDeadline(time.Now().Add(10 * time.Second))
+	if _, err := fmt.Fprintf(c, "%s %s HTTP/1.1\r\nHost: h\r\n\r\n", methode, target); err != nil {
+		t.Fatal(err)
+	}
+	var out []byte
+	puffer := make([]byte, 4096)
+	for !bytes.HasSuffix(out, []byte("0\r\n\r\n")) {
+		n, err := c.Read(puffer)
+		out = append(out, puffer[:n]...)
+		if err != nil {
+			t.Fatalf("Antwort endete nicht mit dem chunked Abschluss: %v, gelesen %q", err, out)
+		}
+	}
+	return out
+}
