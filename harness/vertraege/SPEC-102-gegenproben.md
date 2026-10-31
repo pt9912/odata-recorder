@@ -3,7 +3,7 @@
 **Werkzeug:** `make gegenproben`; Quelle `tools/gegenproben/` (eigenes Go-Modul), Stufe `gegenproben` des `Dockerfile`.
 
 **Festlegung:** Eine Gegenprobe weist an einem Gate nach, dass es einen Verstoß rot meldet und einen erlaubten Fall nicht.
-`make gegenproben` fährt die Gegenproben von `make a-check`, `make lint`, `make migration-check`, `make test`, `make build` und `make test-race`; sie gehören nicht zu `GATE_CHECKS`.
+`make gegenproben` fährt die Gegenproben von `make a-check`, `make lint`, `make migration-check`, `make test`, `make build`, `make test-race` und `make handbuch-check`; sie gehören nicht zu `GATE_CHECKS`.
 
 **Aufbau:** Ein Go-Programm läuft in einem Docker-Build ohne Netz, auf dem golangci-lint-Image mit dem `a-check`-Binary aus dessen Image und dem Programm `pruefung` aus `SPEC-036`.
 Je Fall legt es eine Kopie der Eingaben in einem Wegwerfverzeichnis an, schreibt oder ändert dort Dateien, ruft das Gate als Prozess und vergleicht Exit-Code und Ausgabe.
@@ -20,7 +20,8 @@ Die Fälle 38 bis 102 (`make groessenmarke`, `SPEC-128`) legen ein Wegwerfverzei
 Die Fälle 103 bis 114 rufen `tools/harness/groessenmarke.sh` im Wegwerfverzeichnis mit zwei Ersatz-Skripten, die jeden Aufruf mit allen Argumenten in eine Datei schreiben und zählen: einem Ersatz für `git`, der am Anfang von `PATH` steht, und einem für das Programm.
 Die Fälle 115 bis 120 rufen denselben Treiber mit dem echten `git` des Images (2.47.3, gemessen am 2026-10-30) auf einem Repo, das der Fall im Wegwerfverzeichnis anlegt (`git init`, zwei Commits; Konfiguration allein über `-c` und `GIT_CONFIG_GLOBAL=/dev/null`).
 Diese Fälle tragen Zeichen jenseits von ASCII nur dort, wo `SPEC-128` sie verlangt (`nebenläufig`, Pfade mit Umlaut), und bilden sie aus Bytewerten.
-Die Fälle 38 bis 120 lesen stdout und stderr getrennt, die Fälle 1 bis 37 gemeinsam (Randform 13).
+Die Fälle 121 bis 130 (`make handbuch-check`, `SPEC-200`) rufen `pruefung handbuch` im Wegwerfverzeichnis mit einem Ersatz-Skript als Binary und rufen weder `go` noch `docker` noch `git`.
+Die Fälle 38 bis 130 lesen stdout und stderr getrennt, die Fälle 1 bis 37 gemeinsam (Randform 13).
 
 **Eingaben:** `src/`, `go.mod`, `go.sum`, `.a-check.yml`, `.golangci.yml`, `tools/harness/lint.sh`, `tools/harness/migration-check.sh`, `tools/harness/groessenmarke.sh`, `tools/gegenproben/`, `tools/pruefung/`, `tools/groessenmarke/`, `Dockerfile` und `.dockerignore`; dazu die Pins beider Images.
 `tools/harness/gegenproben-eingabe.sh` bildet daraus eine Prüfsumme (SHA-256 über die Dateien und die Pins).
@@ -130,6 +131,16 @@ In diesen Fällen heißt „Ausgabe nennt“ der Strom, den `SPEC-128` der Meldu
 118. `groessenmarke/treiber-git-binaer` · echtes `git`, eine Binärdatei (Bytes mit NUL) und eine Textdatei mit 4 Einfügungen im Pfad · Ausgabe nennt `Messung 4` und `1 Binärdatei(en) nicht gezählt`.
 119. `groessenmarke/treiber-git-basis-kein-vorfahr` · echtes `git`, `basis` ist ein Commit eines anderen Zweigs · Exit 2, Ausgabe nennt `ist kein Vorfahr von HEAD`.
 120. `groessenmarke/treiber-git-basis-gleich-spitze` · echtes `git`, `basis` ist `HEAD` (als Kurzform des Hashs), Marke gleich Formel · Exit 0, Ausgabe nennt `Messung 0`.
+121. bis 130. `handbuch/h1-sauber` bis `handbuch/h10-zitat` (die Fälle H1 bis H10 der Gegenprobe von `SPEC-200`; die Nummern sind vorläufig, der Integrationsschritt vergibt sie beim Zusammenführen) · `pruefung handbuch <Binary> <Wurzel>` im Wegwerfverzeichnis mit Handbuch, Beispiel-Datei, `Makefile`, `Dockerfile` und einem Ersatz-Skript als Binary, das jeden Start in einer Datei zählt, auf `version` mit `odata-recorder dev` und sonst mit seiner Ausgabe antwortet; „nennt“ liest den Strom, den `SPEC-200` Nr. 2 b der Meldung zuweist (stdout: `ok`, stderr: Befunde und Eingabefehler):
+    - 121 `h1-sauber`: sauberes Handbuch, ein gebundenes Beispiel, das Ersatz-Skript liefert die Datei · Exit 0, stdout nennt `pruefung handbuch: ok`; das Skript wurde zweimal gestartet (`version` und die Datei).
+    - 122 `h2-planung`, 123 `h3-chronik`, 124 `h4-kennung`: ein Satz mit `geplant`, `bisher` bzw. `spec-110` in der Prosa · Exit 1, stderr nennt `Planung A1: geplant`, `Chronik B1: bisher` bzw. `Kennung C6: spec-110`.
+    - 125 `h5-version-weicht-ab`: `Software-Version: 1.0` im Kopf, das Skript antwortet `dev` · Exit 1, stderr nennt `Software-Version 1.0 weicht von der Ausgabe von version ab (dev)`.
+    - 126 `h6-binary-weicht-ab`: das Skript antwortet nicht mit der Datei · Exit 1, stderr nennt `aufruf.txt: Standardausgabe weicht ab` und nicht `Beispiel weicht von`.
+    - 127 `h7-block-weicht-ab`: der Block ist die Datei mit einer Zeile mehr · Exit 1, stderr nennt `Beispiel weicht von beispiele/aufruf.txt ab`.
+    - 128 `h8-make-ziel`: `make nix` in Inline-Code, das `Makefile` führt nur `build` · Exit 1, stderr nennt `make-Ziel nix unbekannt`.
+    - 129 `h9-binary-fehlt`: der Pfad des Binary zeigt auf keine Datei · Exit 2, stderr nennt `Binary fehlt` (der Fall zählt keine Starts; dass ein Eingabefehler das Binary nicht startet, fangen die Tests von `pruefung`, `SPEC-200` Nr. 2 c).
+    - 130 `h10-zitat`: die Datei, der Block und die Ausgabe des Skripts tragen das Wort `geplant` · Exit 0, stdout nennt `pruefung handbuch: ok` (das Zitat gilt nicht als Prosa).
+    Der Inhalt der Dateien führt kein Zeichen jenseits von ASCII außer dem Umlaut in `Gültigkeitsbereich`, den der Fall aus Bytewerten bildet. Die Fälle fangen die Verdrahtung der Stufe `handbuch` und des Ziels nicht (`SPEC-200` Nr. 14 h).
 Die erste Spalte ist der Name im Bericht; ein Name kommt genau einmal vor.
 Das Rennen der Fälle 35 und 36 ist nicht zeitabhängig (`SPEC-122` Nr. 8).
 Gemessen am 2026-10-22 mit dem Testbinary der Fixtures unter `-race`, je Lauf ein eigener Prozess mit `-test.count=1`: das Rennen jedes der drei Teilbäume von Fall 35 wurde in 200 von 200 Läufen gemeldet, die Fixture von Fall 34 blieb in 200 von 200 Läufen ohne Meldung, Fall 36 mit beiden Meldungen (`WARNING: DATA RACE` und `test timed out`) in 100 von 100.
@@ -148,7 +159,7 @@ Gemessen am 2026-10-22 mit dem Testbinary der Fixtures unter `-race`, je Lauf ei
 10. Ohne Git-Arbeitsbaum oder bei einem Eingabepfad, der fehlt (`go.sum` ausgenommen), meldet `gegenproben-eingabe.sh` den Fehler und endet ungleich 0; `make gegenproben` bricht dann ab, ohne den Stempel zu ändern.
 11. Die Fälle teilen den Cache von golangci-lint, nicht dessen Sperre: jeder Fall hat ein eigenes `TMPDIR`, weil golangci-lint dort eine Sperre gegen parallele Läufe ablegt; ohne das bricht ein nebenläufiger Lauf mit `parallel golangci-lint is running` ab.
 12. Die Fälle 103 bis 120 setzen `TMPDIR` auf ein eigenes Verzeichnis und lesen das Protokoll der Ersatz-Skripte nach dem Lauf; ein Fall, dessen Protokoll fehlt, ist rot. Die Ersatz-Skripte halten jedes Argument fest und zählen jeden Aufruf, auch die Operationen, die der Treiber nie rufen darf (`diff` nach einem Fehler von `merge-base`, `pruefen` nach einem Fehler von `git`).
-13. Die Hülle, die einen Fall als Prozess startet, liefert den Fällen 1 bis 37 stdout und stderr gemeinsam und den Fällen 38 bis 120 getrennt. Eine Erwartung „nennt“ der Fälle 38 bis 120 prüft den Strom, den `SPEC-128` der Meldung zuweist (Absatz vor Fall 38); steht der Text nur im anderen Strom, ist der Fall rot. „Nennt nicht“ gilt für beide Ströme zusammen. Exit-Code und Zeitgrenze (Randform 6) sind in beiden Formen dieselben. Ein Test der Hülle (Muster: der Test der Ersatz-Skripte, Randform 12) startet einen Prozess, der auf stdout und stderr je einen Text schreibt und mit Exit 3 endet, und prüft die getrennte Lieferung beider Ströme, den Exit-Code und die gemeinsame Lieferung der Fälle 1 bis 37.
+13. Die Hülle, die einen Fall als Prozess startet, liefert den Fällen 1 bis 37 stdout und stderr gemeinsam und den Fällen 38 bis 130 getrennt. Eine Erwartung „nennt“ der Fälle 38 bis 130 prüft den Strom, den `SPEC-128` der Meldung zuweist (Absatz vor Fall 38); steht der Text nur im anderen Strom, ist der Fall rot. „Nennt nicht“ gilt für beide Ströme zusammen. Exit-Code und Zeitgrenze (Randform 6) sind in beiden Formen dieselben. Ein Test der Hülle (Muster: der Test der Ersatz-Skripte, Randform 12) startet einen Prozess, der auf stdout und stderr je einen Text schreibt und mit Exit 3 endet, und prüft die getrennte Lieferung beider Ströme, den Exit-Code und die gemeinsame Lieferung der Fälle 1 bis 37.
 
 Die Fälle 25 bis 28 rufen `go` im Wegwerfverzeichnis auf und teilen den Cache von `go` (`GOCACHE`) wie den von golangci-lint; die Fälle 29 bis 32 bauen das Binary mit `go build` in der Kopie, nicht im Image der Stufe `build`.
 Weicht dieser Bau vom Bau des Image ab (Zielplattform, Flags), fängt die Gegenprobe die Abweichung nicht.
@@ -166,7 +177,7 @@ Die Fälle 38 bis 120 starten je einen Prozess ohne Compiler (das Programm, `sh`
 
 **Pflicht zum Fahren:** `make gegenproben` läuft bei jeder Änderung am geprüften Gate, am Profil, an der Architektur-Regel, an der Gegenprobe, am Programm `groessenmarke` oder seinem Treiber, an diesem Vertrag oder an `SPEC-128`, am Ende jeder Welle und vor dem Release.
 
-**Stand:** vorhanden für `make a-check`, `make lint`, `make migration-check`, `make test`, `make build`, `make test-race` und `make groessenmarke` (die Fälle 38 bis 120).
+**Stand:** vorhanden für `make a-check`, `make lint`, `make migration-check`, `make test`, `make build`, `make test-race`, `make groessenmarke` (die Fälle 38 bis 120) und `make handbuch-check` (die Fälle 121 bis 130).
 
 **Grenze:** Kein Gate und kein Hook liest den Stempel; er belegt nur, dass ein Lauf zu dieser Prüfsumme grün war, und wer ihn von Hand schreibt, belegt nichts.
 Die Fälle prüfen die Importrichtungen `core-impurity` und Adapter auf Adapter sowie die Direktiv- und `# Why:`-Regeln; die Bibliotheksgrenzen halten Fall 20 (`modernc.org/sqlite` in einem fremden Adapter) und Fall 37 (`encoding/xml` im Kern, die Regel der `tech`-Liste von `.a-check.yml`); die Seite „erlaubt“ von `encoding/xml` im Paket `src/adapters/driven/odata/csdl` hält Fall 1, der den Baum von `src/` fährt; weitere Verstoßformen kommen mit weiteren Bibliotheksgrenzen.

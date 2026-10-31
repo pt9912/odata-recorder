@@ -80,6 +80,9 @@ func TestAufrufFehlerStartenNichts(t *testing.T) {
 		{"race"},
 		{"race", ""},
 		{"race", ".", ""},
+		{"handbuch"},
+		{"handbuch", "b"},
+		{"handbuch", "b", "w", "x"},
 		{""},
 	}
 	for _, args := range faelle {
@@ -87,7 +90,7 @@ func TestAufrufFehlerStartenNichts(t *testing.T) {
 			w := neueWerkzeuge(t, "", "")
 			code, _, errText := fuehre(w.u, args...)
 			erwarte(t, code, errText, exitAufruf, "Aufruf: pruefung test")
-			for _, form := range []string{"pruefung build <Binary> <Version>", "pruefung race <Wurzel> [Muster...]"} {
+			for _, form := range []string{"pruefung build <Binary> <Version>", "pruefung race <Wurzel> [Muster...]", "pruefung handbuch <Binary> <Wurzel>"} {
 				if !strings.Contains(errText, form) {
 					t.Fatalf("Aufruf nennt die Form %q nicht: %q", form, errText)
 				}
