@@ -1,6 +1,6 @@
 # Review-Report: slice-http-adapter — 2026-10-31
 
-**Review-Art:** Code — geprüft gegen Plan (`slice-http-adapter` §1, §3 mit der Tabelle *Zusage · Fänger* A1 bis A34, den Mengen, dem Absatz *Raten*, §4 Marke 4800, §6 mit Raster und Ausgängen), `SPEC-136`, `ARC-005`, `ARC-021`, `ADR-0002` und `AGENTS.md` §3.6, §3.7, §3.9 bis §3.18.
+**Review-Art:** Code — geprüft gegen Plan (`slice-http-adapter` §1, §3 mit der Tabelle *Zusage · Fänger* A1 bis A34, den Mengen, dem Absatz *Raten*, §4 Marke 4800, §6 mit Raster und Ausgängen), `SPEC-136`, `ARC-005`, `ARC-021`, [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md) und `AGENTS.md` §3.6, §3.7, §3.9 bis §3.18.
 
 **Gegenstand:** `slice-http-adapter` (Welle `welle-record-replay`), `git diff 4fe4dc0..bea0afc` (HEAD `bea0afc`, Code-Commits `81d4bf5`, `6495d84`, `063d2bf`, `bea0afc`). Pfade: `src/adapters/driving/httpodata/` (Produktcode 268 Zeilen, Tests 1486), `.a-check.yml`, `spec/spezifikation.md` (`SPEC-136`), Plan.
 
@@ -9,7 +9,7 @@
 **Eingangs-Kontext:**
 
 - Plan `slice-http-adapter` (in-progress), `SPEC-136` (Nr. 1 bis 16, *Ungeprüft*), `SPEC-121`, `SPEC-135`
-- `ARC-005`, `ARC-021`, `architecture.md` §2 (Importtabelle) und `ADR-0002` (a-check), `ADR-0001`
+- `ARC-005`, `ARC-021`, `architecture.md` §2 (Importtabelle) und [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md) (a-check), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md)
 - `LH-FA-01`, `LH-FA-02`, `LH-QA-05`, `LH-QA-07`
 - `AGENTS.md` (Hard Rules)
 
@@ -21,7 +21,7 @@
 
 `ports-support` hat `direction: outbound` verloren. Das ist eine **Berichtigung gemäß `ARC-021`**, keine Lockerung nach `AGENTS.md` §3.6, und braucht keine ADR.
 
-- Quelle: `architecture.md` `ARC-021`: „jede Schicht darf sie nutzen“; die Importtabelle nennt die Querschnitts-Ports in den erlaubten Zellen von Application, Driving Adapters und Driven Adapters. Die Konfiguration trug `direction: outbound` und widersprach damit der Sicht, die `ADR-0002` spiegeln lässt („Schichten und Kanten der Datei spiegeln den Importgraph aus `spec/architecture.md` §2“). Eine ADR schärft die Sicht nicht gegen sich selbst; es ist ein Konfigurationsfehler.
+- Quelle: `architecture.md` `ARC-021`: „jede Schicht darf sie nutzen“; die Importtabelle nennt die Querschnitts-Ports in den erlaubten Zellen von Application, Driving Adapters und Driven Adapters. Die Konfiguration trug `direction: outbound` und widersprach damit der Sicht, die [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md) spiegeln lässt („Schichten und Kanten der Datei spiegeln den Importgraph aus `spec/architecture.md` §2“). Eine ADR schärft die Sicht nicht gegen sich selbst; es ist ein Konfigurationsfehler.
 - Die Kantenliste (`edges`) ist unverändert und bleibt die Quelle der Erlaubnis; entfallen ist nur die Richtungsprüfung für diese eine Schicht.
 - Gegenprobe (Kopie des Baums, `a-check` am gepinnten Digest, Grundlauf auf `bea0afc`: 0 Befunde). Verbotene Kanten werden weiter gemeldet: `httpodata` → `ports/outbound`: `port-direction-mismatch`; `httpodata` → `adapters/driven/sqlite`: `lateral-adapter`; `httpodata` → `services`: `wrong-direction`; `ports/support` → `ports/outbound`: `wrong-direction`; `ports/support` → `adapters/driven/clock`: `port-impurity`; `ports/inbound` → `ports/support`: `wrong-direction`. Alle Läufe Exit 1 mit den genannten Meldungen.
 
@@ -31,8 +31,8 @@
 
 | ID | Kategorie | Befund | Quelle | Pfad | Verifizierbar | Klasse |
 |---|---|---|---|---|---|---|
-| F-1 | INFO | Die Änderung an `ports-support` stellt die Konfiguration auf `ARC-021` (jede Schicht darf die Querschnitts-Ports nutzen); alle verbotenen Kanten bleiben gemeldet (Gegenprobe oben). Der Plan führt die Frage in §6 mit Ausgang *offen*, Adresse Architect; dieses Urteil ist der Beleg für dessen Entscheidung. | `ARC-021`, `ADR-0002`, `AGENTS.md` §3.6 | `.a-check.yml` · `# Querschnitts-Ports (ARC-021): jede Schicht darf sie nutzen, daher ohne direction.` | ja — `make a-check` (0 Befunde) und Kopie mit verbotenen Importen | Konfiguration gleicht Sicht an |
-| F-2 | LOW | Kein Fall der Gegenproben in `tools/gegenproben/*.go` nennt `ports-support`; dass die Richtungsprüfung für die Schicht entfallen ist, die Kanten aber halten, fängt nur die Kopie dieses Reviews. | `ADR-0002` (Folgepflicht Gegenprobe), `AGENTS.md` §3.15 | `.a-check.yml` · `ports-support:` (kein Treffer für `ports-support` in `tools/gegenproben`) | ja — `make gegenproben` mit einem Fall `httpodata` → `ports/outbound` | Gate-Änderung ohne Fall der Gegenprobe |
+| F-1 | INFO | Die Änderung an `ports-support` stellt die Konfiguration auf `ARC-021` (jede Schicht darf die Querschnitts-Ports nutzen); alle verbotenen Kanten bleiben gemeldet (Gegenprobe oben). Der Plan führt die Frage in §6 mit Ausgang *offen*, Adresse Architect; dieses Urteil ist der Beleg für dessen Entscheidung. | `ARC-021`, [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md), `AGENTS.md` §3.6 | `.a-check.yml` · `# Querschnitts-Ports (ARC-021): jede Schicht darf sie nutzen, daher ohne direction.` | ja — `make a-check` (0 Befunde) und Kopie mit verbotenen Importen | Konfiguration gleicht Sicht an |
+| F-2 | LOW | Kein Fall der Gegenproben in `tools/gegenproben/*.go` nennt `ports-support`; dass die Richtungsprüfung für die Schicht entfallen ist, die Kanten aber halten, fängt nur die Kopie dieses Reviews. | [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md) (Folgepflicht Gegenprobe), `AGENTS.md` §3.15 | `.a-check.yml` · `ports-support:` (kein Treffer für `ports-support` in `tools/gegenproben`) | ja — `make gegenproben` mit einem Fall `httpodata` → `ports/outbound` | Gate-Änderung ohne Fall der Gegenprobe |
 | F-3 | MEDIUM | A32 prüft bei HEAD Status und `Content-Length`, nicht die übrigen Header. Mutationen „`X-Correlation-Id` nur ohne HEAD“ (`A32-headnocid`) und „`Content-Type` nur ohne HEAD“ (`A32-headnoct`) bleiben grün, obwohl `SPEC-136` Nr. 8 „die Header bleiben“ zusagt; ein HEAD-Client verlöre die Korrelations-ID. | `AGENTS.md` §3.15, `SPEC-136` Nr. 8 | `fehler_test.go` · `func TestFehlerHead` | ja — `go test` mit den beiden Mutationen | Fänger führt nur eine Form (Header-Menge bei HEAD) |
 | F-4 | MEDIUM | A9 nennt als Mutation „Adapter liest 1 Byte vor (`Peek`): jeder Fall rot“; der Plan führt sie als „nicht gefahren“ ohne Grund und Folge. Gefahren (`bufio.NewReader(r.Body)`, `Peek(1)`, `a.Body = br`) bleibt `go test` grün (Exit 0), ebenso die Hülle ohne `Peek`; „ungelesen“ und „nicht umhüllt“ (`SPEC-136` Nr. 4e) haben keinen Fänger, und die Tabelle behauptet einen. | `AGENTS.md` §3.15 (akzeptiertes Negativ nennt Grund und Folge), `SPEC-136` Nr. 4e | `slice-http-adapter.md` · `Adapter liest 1 Byte vor (`Peek`): jeder Fall rot` | ja — Mutation `Peek(1)` in `anfrageAus` | Mutation der Tabelle bleibt grün, Negativ ohne Grund |
 | F-5 | MEDIUM | A15 führt keine zwei gleichen Werte desselben Headernamens; die Mutation „gleiche Werte zusammenfassen“ (`slices.Contains(ziel.Values(name), wert)`, `A15-dedupe`) bleibt grün. `SPEC-136` Nr. 5c sagt „alle Werte in ihrer Reihenfolge“; ein doppelt gesandter Wert (`Set-Cookie`, `Vary`) ginge verändert aus (`LH-QA-07`). | `AGENTS.md` §3.15 (Fall gleicher Werte) | `antwort_test.go` · `func TestAntwortHeader` | ja — Mutation `A15-dedupe` | Fänger führt nur verschiedene Werte |
