@@ -121,7 +121,7 @@ Die Raten des Implementers (20 von 20, unverändert 0 von 10) stimmen für die B
 | `filter_*_test.go` (sieben Dateien) | geprüft; Befunde F-3, F-4, F-8, F-9, F-11, F-13; Generator mit unabhängigem Orakel, keine Abweichung der 3000 Saaten meines Gegen-Generators |
 | Aufruf des Lesers aus `ParseURL` (`query.go`, unverändert) | geprüft ohne Befund (Z25: `R25e` rot) |
 | Composition Root, Gate-Kette, `Makefile`, `harness/` | geprüft, ohne Befund (kein Aufruf von `NewFilterLeser` außerhalb des Pakets, Gate-Kette unberührt) |
-| `docs/plan/planning/in-progress/slice-odata-url-filter.md` (§3 Tabelle, Raten, Marke, §6 Raster) | geprüft ohne Befund außer F-8 (Bedingung der Rate) und F-9 (Prüfgrenze); Messung 1911 nachgemessen; Raster ohne leere Zelle, Rückgabe mit Ausgang *offen* und Adresse |
+| `docs/plan/planning/done/slice-odata-url-filter.md` (§3 Tabelle, Raten, Marke, §6 Raster) | geprüft ohne Befund außer F-8 (Bedingung der Rate) und F-9 (Prüfgrenze); Messung 1911 nachgemessen; Raster ohne leere Zelle, Rückgabe mit Ausgang *offen* und Adresse |
 | Spezifikation (`SPEC-164`, `SPEC-165`) | vom Implementer unverändert (`git diff 65f75c8..84b24a5` ohne `spec/`); der Widerspruch von Nr. 2 und Nr. 4 b/5 c geht als F-6 an den Architect |
 
 ## Summary

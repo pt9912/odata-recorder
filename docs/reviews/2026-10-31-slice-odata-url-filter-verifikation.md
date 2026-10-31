@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier (Modul 11) — "Bauen wir es richtig?" gegen Plan, DoD, `SPEC-164`, `SPEC-165` und `AGENTS.md`. Kein Review, keine Reparatur.
 
-**Gegenstand:** `slice-odata-url-filter` (Welle `welle-mock`), HEAD `7ca6071`; Implementer `84b24a5`, Review `a28412e` (F-1 bis F-13), Spec- und Plan-Nachzug `3ce36c0` und `6ead1a6`, Fix-Runde `7ca6071`. Pfade: `src/adapters/driven/odata/urlparser/`, `src/hexagon/model/filter_ast.go`, `spec/spezifikation.md` (`SPEC-164`, `SPEC-165`), Plan `docs/plan/planning/in-progress/slice-odata-url-filter.md`.
+**Gegenstand:** `slice-odata-url-filter` (Welle `welle-mock`), HEAD `7ca6071`; Implementer `84b24a5`, Review `a28412e` (F-1 bis F-13), Spec- und Plan-Nachzug `3ce36c0` und `6ead1a6`, Fix-Runde `7ca6071`. Pfade: `src/adapters/driven/odata/urlparser/`, `src/hexagon/model/filter_ast.go`, `spec/spezifikation.md` (`SPEC-164`, `SPEC-165`), Plan `docs/plan/planning/done/slice-odata-url-filter.md`.
 
 **Modell:** claude-sonnet-5-5. **Messverfahren:** Docker, `--memory=4g --memory-swap=4g --cpus=4 --network none`, unter `flock /tmp/odata-recorder-heavy.lock`; Exit-Codes aus Datei; Mutationen und Probe-Pakete in Kopien unter `/tmp/claude-1000/-Development-odata-recorder/c59f1e78-ff6f-4a6a-8989-2406d85f058d/scratchpad/verify-urlfilter/` (`mm/<Kennung>`, `new`, `old`, `m29`, `m30`), Worktree-Code unverändert (`git status` leer vor und nach den Läufen).
 
