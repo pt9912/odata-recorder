@@ -158,7 +158,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): `slice-unsichtbare-zeichen` liegt in `done/` (Reihenfolge der Welle: beide berühren `harness/README.md`, die Gegenproben und den Stempel), und der Architect hat die Aufträge 1 bis 7 entschieden, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
-**Größenmarke** (`AGENTS.md` §3.14): Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; `harness/vertraege/` zählt nie ([SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md) Nr. 4 a). Der Block unten trägt den Teil des Architect (`pfad`, `produktcode`, `fakes`): a = 0 Zeilen `nebenläufig`, b = 15 Zeilen `andere` (die zwei akzeptierten Negative, Nr. 14 und 15 der Tabelle in §3, zählen als Zeilen, `SPEC-128` Nr. 3 e), f = 0 (keine Port-Fakes, kein Test-Server), p = 70 (Produktcode des Architect: `.d-check.yml` rund 45 Zeilen samt Kommentar, `Dockerfile` 6, `.dockerignore` 1, `harness/mk/gegenproben.mk` 5, `tools/harness/gegenproben-eingabe.sh` 2, `harness/README.md` 6, Stempel 2; kein Programm; die Fälle in Go, rund 250 Zeilen, deckt die Formel über b). Den Teil des Planner (`basis`, `schaetzung`, `marke`, `SPEC-128` Nr. 3 k) setzt der Planner im eigenen Commit vor dem ersten Code-Commit mit `make groessenmarke`; a und b hat er in der Tabelle in §3 nachgezählt. Aufwand nach Einschätzung des Planners: S.
+**Größenmarke** (`AGENTS.md` §3.14): Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; `harness/vertraege/` zählt nie ([SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md) Nr. 4 a). Der Block unten trägt den Teil des Architect (`pfad`, `produktcode`, `fakes`): a = 0 Zeilen `nebenläufig`, b = 15 Zeilen `andere` (die zwei akzeptierten Negative, Nr. 14 und 15 der Tabelle in §3, zählen als Zeilen, `SPEC-128` Nr. 3 e), f = 0 (keine Port-Fakes, kein Test-Server), p = 70 (Produktcode des Architect: `.d-check.yml` rund 45 Zeilen samt Kommentar, `Dockerfile` 6, `.dockerignore` 1, `harness/mk/gegenproben.mk` 5, `tools/harness/gegenproben-eingabe.sh` 2, `harness/README.md` 6, Stempel 2; kein Programm; die Fälle in Go, rund 250 Zeilen, deckt die Formel über b). Den Teil des Planner (`basis`, `schaetzung`, `marke`, `SPEC-128` Nr. 3 k) hat der Planner am 2026-10-31 im eigenen Commit vor dem ersten Code-Commit gesetzt: `basis` ist der Plan-Commit davor (Spec, ADR und Plan), mit `make groessenmarke` geprüft; a und b hat er in der Tabelle in §3 nachgezählt (0 und 15 Zeilen, wie der Architect): *S* = 85·0 + 80·15 + 200·0 + 70 = 1270, *M* = 100·⌈135·1270 / 10000⌉ = 100·⌈17,145⌉ = 1800; keine Schnittfrage (135·1270 = 171 450 ≤ 300 000). Die Marke ist nach dem ersten Code-Commit fest (`SPEC-128` Nr. 5 c). Aufwand nach Einschätzung des Planners: S.
 
 ```groessenmarke
 pfad: .d-check.yml
@@ -171,6 +171,9 @@ pfad: tools/gegenproben
 pfad: tools/harness/gegenproben-eingabe.sh
 produktcode: 70
 fakes: 0
+basis: 3309cb4e56b5210b6496104c9520b3e91a01c5ee
+schaetzung: 1270
+marke: 1800
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
