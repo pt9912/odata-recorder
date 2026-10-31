@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-- [welle-record-replay](../welle-record-replay.md) (gestartet: `slice-replay-service` in [in-progress/](../done/slice-replay-service.md), Zweig `slice-replay-service`, Linie A; `slice-cli-adapter` in [in-progress/](slice-cli-adapter.md), Zweig `slice-cli-adapter`)
+- [welle-record-replay](../welle-record-replay.md) (geliefert: `slice-replay-service` in [done/](../done/slice-replay-service.md), Linie A; gestartet: `slice-cli-adapter` in [in-progress/](slice-cli-adapter.md), Zweig `slice-cli-adapter`)
 - [welle-mock](../welle-mock.md) (gestaffelt: Trigger von Teil 1, den reinen Funktionen, eingetreten durch [slice-baseline-import](../done/slice-baseline-import.md); Teil 2 wartet auf `welle-record-replay` und `slice-handbuch-meldungskatalog`; geliefert: [slice-odata-url-pfad](../done/slice-odata-url-pfad.md), Linie B)
 - [welle-sensoren](../welle-sensoren.md) (gestaffelt: Trigger von Teil 0 und Teil 1, `slice-groessenmarke-werkzeug`, eingetreten, Beleg [done/](../done/slice-groessenmarke-werkzeug.md); Teil 2 wartet auf `welle-record-replay` und `slice-guide-groessen-gate` in `done/`; gestartet: `slice-unsichtbare-zeichen` in [in-progress/](slice-unsichtbare-zeichen.md), Zweig `slice-unsichtbare-zeichen`)
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md) (gestartet: `slice-handbuch-geruest` in [done/](../done/slice-handbuch-geruest.md), Beleg `make handbuch-check`; Katalog-, Aufzeichnen- und Abnahme-Slice warten auf `slice-bootstrap-m2`)
