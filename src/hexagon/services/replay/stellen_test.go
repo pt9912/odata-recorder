@@ -17,7 +17,7 @@ import (
 type stelle struct {
 	name string
 	op   string
-	// gegenstand ist der Gegenstand der Fehlerabbildung.
+	// gegenstand ist der Gegenstand der Fehlerabbildung; an S8 gilt Session allein bei ErrNichtGefunden.
 	gegenstand outbound.Gegenstand
 }
 
@@ -29,7 +29,7 @@ func stellen() []stelle {
 		{"S5", "tx Workspaces.Get", outbound.GegenstandWorkspace},
 		{"S6", "tx Cursors.Get", outbound.GegenstandSonstiges},
 		{"S7", "Blobs.Open", outbound.GegenstandSonstiges},
-		{"S8", "tx Cursors.Put", outbound.GegenstandSession},
+		{"S8", "tx Cursors.Put", outbound.GegenstandSonstiges},
 	}
 }
 

@@ -194,9 +194,18 @@ func (r *Replayer) imSchreiber(ctx context.Context, st outbound.WorkspaceStores,
 	neu := model.ReplayCursor{WorkspaceID: ws, ReplaySessionID: rep, RecordingSessionID: rec, ServiceID: d.ID,
 		Strategy: strategie, Position: int64(len(consumed)), Consumed: consumed}
 	if err := st.Cursors.Put(ctx, neu); err != nil {
-		return model.Exchange{}, strom, abbilden(err, outbound.GegenstandSession)
+		return model.Exchange{}, strom, abbilden(err, gegenstandPut(err))
 	}
 	return e, strom, nil
+}
+
+// gegenstandPut ist der Gegenstand der Fehlerabbildung von Cursors.Put: Session bei ErrNichtGefunden, sonst
+// Sonstiges (SPEC-135 Nr. 18).
+func gegenstandPut(err error) outbound.Gegenstand {
+	if errors.Is(err, outbound.ErrNichtGefunden) {
+		return outbound.GegenstandSession
+	}
+	return outbound.GegenstandSonstiges
 }
 
 // liesCursor liest den Cursor; ein fehlender ist die neue Replay-Session mit Position 0 (SPEC-135 Nr. 10).
