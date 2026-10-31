@@ -63,6 +63,7 @@ type Server struct {
 	mu            sync.Mutex
 	angehalten    bool
 	durchAnhalten bool
+	acceptFehler  error
 	geschlossen   bool
 	laufend       int
 	leer          chan struct{}
@@ -140,19 +141,40 @@ func (s *Server) markiereHandler(r *http.Request) {
 	}
 }
 
-// Serve bedient den Listener und blockiert. Die Rückgabe ist nil, wenn Anhalten den Listener
-// schloss oder Schliessen den Server schloss, auch wenn sie davor lagen; sonst der Fehler des
-// Accept (SPEC-136 Nr. 12). Ob der Fehler von Anhalten stammt, entscheidet dessen Close: schlug es
-// fehl, weil der Listener schon zu war, ging der Fehler voraus.
-func (s *Server) Serve() error {
-	err := s.http.Serve(s.listener)
-	s.mu.Lock()
-	durch := s.durchAnhalten
-	s.mu.Unlock()
-	if errors.Is(err, http.ErrServerClosed) || durch {
-		return nil
+// merkListener vermerkt das Ergebnis jedes Accept, das der Server vor dem Ende von Serve sieht.
+type merkListener struct {
+	net.Listener
+	s *Server
+}
+
+// Accept reicht den inneren Accept durch. Ein Fehler gilt als vom Schließen verursacht, wenn
+// Anhalten den Listener selbst schloss (dessen Close gelang) und der Fehler net.ErrClosed ist;
+// jeder andere Fehler bleibt vermerkt, auch wenn Anhalten oder Schliessen vor der Rückkehr lief.
+// Der letzte Fehler gilt; auf einen Fehler, den net/http wiederholt, folgt ein weiteres Accept.
+func (l merkListener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err == nil {
+		return c, nil
 	}
-	return err
+	l.s.mu.Lock()
+	defer l.s.mu.Unlock()
+	if l.s.durchAnhalten && errors.Is(err, net.ErrClosed) {
+		l.s.acceptFehler = nil
+	} else {
+		l.s.acceptFehler = err
+	}
+	return c, err
+}
+
+// Serve bedient den Listener und blockiert. Die Rückgabe ist der letzte Fehler des Accept, außer er
+// stammt vom Schließen durch Anhalten oder Schliessen selbst; dann, und wenn Serve erst danach
+// begann, ist sie nil (SPEC-136 Nr. 12). Ob Anhalten den Listener schloss, entscheidet dessen
+// Close: schlug es fehl, weil der Listener schon zu war, ging der Fehler voraus.
+func (s *Server) Serve() error {
+	_ = s.http.Serve(merkListener{Listener: s.listener, s: s})
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.acceptFehler
 }
 
 // Anhalten schließt den Listener und wartet auf keinen Request (SPEC-136 Nr. 13). Der Aufruf ist

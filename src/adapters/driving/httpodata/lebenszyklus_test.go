@@ -651,7 +651,7 @@ func TestZulassungAtomar(t *testing.T) {
 
 // L19: der Adapter schreibt kein Log von net/http; die Panik des Dienstes erscheint weder in
 // log.Default() noch auf stderr. Der Test fährt das Szenario in einem Kindprozess (dieselbe
-// Testbinärdatei) und liest dessen stderr, den Standardlogger unverändert.
+// Testbinärdatei) und liest dessen stderr und stdout, den Standardlogger unverändert.
 func TestKeinLogDerBibliothek(t *testing.T) {
 	if dir := os.Getenv(kindUmgebung); dir != "" {
 		kindL19(t, dir)
@@ -670,8 +670,10 @@ func TestKeinLogDerBibliothek(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "lief")); err != nil {
 		t.Fatalf("der Kindprozess hat das Szenario nicht ausgeführt: %v", err)
 	}
-	if strings.Contains(fehl.String(), "geheim-wert-L19") {
-		t.Errorf("stderr trägt die Panik: %q", fehl.String())
+	for senke, text := range map[string]string{"stderr": fehl.String(), "stdout": aus.String()} {
+		if strings.Contains(text, "geheim-wert-L19") {
+			t.Errorf("%s trägt die Panik: %q", senke, text)
+		}
 	}
 }
 
