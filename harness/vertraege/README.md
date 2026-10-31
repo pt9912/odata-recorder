@@ -32,3 +32,4 @@ Die Reihe der Kennungen zählt über beide Orte fortlaufend: Die nächste freie 
 | `SPEC-122` | `make test-race` | [`SPEC-122-test-race.md`](SPEC-122-test-race.md) |
 | `SPEC-128` | `make groessenmarke` | [`SPEC-128-groessenmarke.md`](SPEC-128-groessenmarke.md) |
 | `SPEC-200` | `make handbuch-check` | [`SPEC-200-handbuch.md`](SPEC-200-handbuch.md) |
+| `SPEC-233` | `make zeichen-check` | [`SPEC-233-unsichtbare-zeichen.md`](SPEC-233-unsichtbare-zeichen.md) |

@@ -16,6 +16,8 @@ const (
 	gatePruefung
 	gateGroessenmarke
 	gateTreiber
+	gateZeichen
+	gateZeichenTreiber
 )
 
 // Fall ist eine Gegenprobe: ein Eingriff in das Verzeichnis des Falls (die Kopie der Eingaben, bei
@@ -77,6 +79,13 @@ type Lauf struct {
 func (l Lauf) treiber(args ...string) (int, string) {
 	code, out, _ := starte(fallFrist, l.Dir, l.Env, "sh", append([]string{l.U.Treiber}, args...)...)
 	return code, out
+}
+
+// programm ruft das Programm zeichen im Verzeichnis des Falls mit denselben Umgebungswerten und
+// liefert Exit-Code, stdout und stderr getrennt.
+func (l Lauf) programm(args ...string) (code int, out, errOut string) {
+	code, out, errOut, _ = starteStroeme(fallFrist, l.Dir, l.Env, true, "zeichen", args...)
+	return code, out, errOut
 }
 
 // treiberStroeme ruft den Treiber wie treiber und liefert stdout und stderr getrennt.
@@ -489,5 +498,6 @@ func faelle() []Fall {
 	alle = append(alle, buildFaelle()...)
 	alle = append(alle, raceFaelle()...)
 	alle = append(alle, groessenmarkeFaelle()...)
-	return append(alle, handbuchFaelle()...)
+	alle = append(alle, handbuchFaelle()...)
+	return append(alle, zeichenFaelle()...)
 }
