@@ -60,14 +60,14 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Lebenszyklus: `Anhalten` und `Schliessen(frist)` in zwei getrennten Schritten, neue Requests auf bestehenden Verbindungen mit 503 `ODR-E5010` und `Connection: close`, `Serve` endet mit `nil`, die Zulassung ist ein Abschnitt, der `ctx` endet mit der Frist auch bei ungelesenem Body (Zeilen L3 bis L16, L18 und L20 der Tabelle in §3; `LH-FA-02.c`, `SPEC-059`, `SPEC-124` Nr. 14).
-- [ ] Feste Grenzen des Servers (`ReadHeaderTimeout`, `IdleTimeout`, `MaxHeaderBytes`, kein `ReadTimeout` und kein `WriteTimeout`) und kein Log der Bibliothek (`ErrorLog` verwirft; Zeilen L1, L2, L19).
-- [ ] Der Code `ODR-E5010` in der Tabelle (503, Ziel `service`, 35 Codes) samt allen Zählstellen aus §3 (Zeile L17; `LH-QA-05.a`).
-- [ ] `make gates` grün.
+- [x] Lebenszyklus: `Anhalten` und `Schliessen(frist)` in zwei getrennten Schritten, neue Requests auf bestehenden Verbindungen mit 503 `ODR-E5010` und `Connection: close`, `Serve` endet mit `nil`, die Zulassung ist ein Abschnitt, der `ctx` endet mit der Frist auch bei ungelesenem Body (Zeilen L3 bis L16, L18 und L20 der Tabelle in §3; `LH-FA-02.c`, `SPEC-059`, `SPEC-124` Nr. 14).
+- [x] Feste Grenzen des Servers (`ReadHeaderTimeout`, `IdleTimeout`, `MaxHeaderBytes`, kein `ReadTimeout` und kein `WriteTimeout`) und kein Log der Bibliothek (`ErrorLog` verwirft; Zeilen L1, L2, L19).
+- [x] Der Code `ODR-E5010` in der Tabelle (503, Ziel `service`, 35 Codes) samt allen Zählstellen aus §3 (Zeile L17; `LH-QA-05.a`).
+- [x] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist (`SPEC-109` Nr. 2, `SPEC-137`, `SPEC-230` Nr. 8, Historie; vom Planner vor dem Code geschrieben, der Implementer prüft den Stand).
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist (`SPEC-109` Nr. 2, `SPEC-137`, `SPEC-230` Nr. 8, Historie; vom Planner vor dem Code geschrieben, der Implementer prüft den Stand).
 - [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
 - [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
@@ -184,6 +184,8 @@ ersetzt: 2100 | der Entwurf zählte a = 8, b = 9, f = 0; drei neue Zeilen (L18, 
 ```
 
 `basis` ist der Commit, der Spezifikation und Plan abschließt; die Marke ist ab dem ersten Code-Commit fest (`SPEC-128` Nr. 5 a).
+
+**Messpunkt beim Handoff (Implementer, `make groessenmarke`):** `Messpunkt slice-http-lebenszyklus.md: zeilen=20 nebenlaeufig=10 fakes=1 produktcode=140 schaetzung=1990 marke=2700 messung=1161`; der Produktcode der Messung ist `server.go` (161 plus 9 gelöschte Zeilen) und `model/fehler.go` (2), von Hand 172 statt der erwarteten 140. Die Messung liegt unter der Schätzung (1161 zu 1990), die Marke ist nicht berührt, es gibt keinen Eintrag `ueberschreitung`; die Auslastung beträgt 0,43. Der Planner trägt den Punkt bei der Closure ein.
 
 **Die ältere Marke 2100 ist ersetzt** (`ersetzt` im Block, vor dem ersten Code-Commit): der Entwurf zählte a = 8, b = 9, f = 0 (S = 1540). Grund: drei neue Zeilen (L18, L19, L20), L16 mit zwei Fällen, die Mengen von `Serve` (6 Elemente) und `Schliessen` (Fristen) sind Zeilen der Tabelle, und der Test-Fake trägt ein *f*.
 
