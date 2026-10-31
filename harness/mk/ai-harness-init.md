@@ -40,6 +40,7 @@ stehen in `repo.mk` und brauchen ihre Zeile in `harness/README.md`.
 | `make doc-doctor` | erklärende Diagnose mit Fix-Kandidaten | kein Gate |
 | `make doc-help` | diese Liste der doc-*-Targets | kein Gate |
 | `make doc-immutable` | Doc-/ADR-Immutabilität via git-Diff (Modul vcs); RANGE=base..head oder STAGED=1 | kein Gate |
+| `make doc-manual` | Handbuch und Spezifikation von d-check lesen; MANUAL=<begriff> | kein Gate |
 | `make doc-planning` | Planning-Lifecycle-Konsistenz (Roadmap <-> in-progress) via Modul planning; hermetisch, ohne Range | kein Gate |
 | `make doc-repair` | Reparatur-Patch (unified diff) auf stdout, git-apply-rein | kein Gate |
 | `make doc-structure` | Struktur-Invarianten innerhalb der Dokumente via Modul structure; hermetisch, ohne Range | kein Gate |
