@@ -158,9 +158,15 @@ pfad: src/adapters/driven/telemetry/telemetry_test.go
 pfad: src/adapters/driven/telemetry/regeln_test.go
 produktcode: 140
 fakes: 1
+basis: 023617994ec0ff202a464b5dbad0f7c4cba213cc
+schaetzung: 1990
+marke: 2700
+ersetzt: 2100 | der Entwurf zählte a = 8, b = 9, f = 0; drei neue Zeilen (L18, L19, L20), L16 mit zwei Fällen, die Mengen von Serve und Schliessen als Zeilen der Tabelle und ein Test-Fake
 ```
 
-**Die ältere Marke 2100 ist ersetzt** (`ersetzt` im Block, sobald der Planner `basis`, `schaetzung` und `marke` setzt): der Entwurf zählte a = 8, b = 9, f = 0 (S = 1540). Grund: drei neue Zeilen (L18, L19, L20), L16 mit zwei Fällen, die Mengen von `Serve` (6 Elemente) und `Schliessen` (Fristen) sind Zeilen der Tabelle, und der Test-Fake trägt ein *f*.
+`basis` ist der Commit, der Spezifikation und Plan abschließt; die Marke ist ab dem ersten Code-Commit fest (`SPEC-128` Nr. 5 a).
+
+**Die ältere Marke 2100 ist ersetzt** (`ersetzt` im Block, vor dem ersten Code-Commit): der Entwurf zählte a = 8, b = 9, f = 0 (S = 1540). Grund: drei neue Zeilen (L18, L19, L20), L16 mit zwei Fällen, die Mengen von `Serve` (6 Elemente) und `Schliessen` (Fristen) sind Zeilen der Tabelle, und der Test-Fake trägt ein *f*.
 
 **Schnittfrage:** keine; S = 1990 liegt unter der Schwelle (`SPEC-128` Nr. 1). Für den Fall, dass ein Reviewer oder der Planner Zeilen hinzufügt und die Schwelle erreicht wird, schlägt der Architect den vorab benannten Teil vor: die Grenzen des Servers (L1, L2; 2 Zeilen, 160 plus 5 Produktzeilen), denn er teilt keinen Mechanismus mit dem Lebenszyklus (andere Felder von `New`, kein Zustand, keine Sperre). L17 (Code und Zählstellen) lässt sich nicht trennen, weil L4 `CodeE5010` braucht. Geschnitten wird vor dem Code; nach dem Code wird gemessen und mit Grund berichtet.
 
