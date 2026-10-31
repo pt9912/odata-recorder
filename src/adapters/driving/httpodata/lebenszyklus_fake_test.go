@@ -259,14 +259,32 @@ func istZeitgrenze(err error) bool {
 
 // langsamListener wartet vor dem Schließen; ein zweiter Aufruf von Anhalten liegt dann im Fenster
 // zwischen dem Setzen des Flags und dem Schließen (W2).
+// Es zählt jeden Aufruf von Close.
 type langsamListener struct {
 	net.Listener
-	verz time.Duration
+	verz   time.Duration
+	closes atomic.Int64
 }
 
-func (l langsamListener) Close() error {
+func (l *langsamListener) Close() error {
+	l.closes.Add(1)
 	time.Sleep(l.verz)
 	return l.Listener.Close()
+}
+
+// haltListener ruft nach einem gescheiterten Accept des inneren Listeners den Haltepunkt, ehe der
+// Fehler zurückkehrt.
+type haltListener struct {
+	net.Listener
+	nachFehler func()
+}
+
+func (l *haltListener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err != nil && l.nachFehler != nil {
+		l.nachFehler()
+	}
+	return c, err
 }
 
 // meldeListener meldet den ersten Aufruf von Accept.
@@ -283,23 +301,4 @@ func neuMeldeListener(l net.Listener) *meldeListener {
 func (l *meldeListener) Accept() (net.Conn, error) {
 	l.erster.Do(func() { close(l.acceptiert) })
 	return l.Listener.Accept()
-}
-
-// sperrPuffer ist ein Schreibziel für log.SetOutput, das gleichzeitige Schreiber verträgt.
-type sperrPuffer struct {
-	mu sync.Mutex
-	b  []byte
-}
-
-func (p *sperrPuffer) Write(b []byte) (int, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.b = append(p.b, b...)
-	return len(b), nil
-}
-
-func (p *sperrPuffer) String() string {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return string(p.b)
 }

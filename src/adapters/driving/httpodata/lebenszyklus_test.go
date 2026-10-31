@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"math"
 	"net"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -89,17 +91,38 @@ type form struct {
 	client        bool // der Client schließt selbst, der Body ist nicht fertig gesendet
 }
 
+// formen ist die Klasse „jede Form des Requests“ (SPEC-136 Nr. 13b): 10 Methoden (darunter `get`
+// und ein Token ohne Bedeutung) mal 4 Body-Formen (keiner, Länge 0, 1 KiB, chunked) in der
+// Origin-Form, dazu je ein Element für die Formen, die der Server anders liest: Body größer als der
+// Rest, den net/http verwirft (1 MiB, weitergesendet), angekündigter und nicht gesendeter Body,
+// Expect, `OPTIONS *`, `CONNECT`, absolute-form (GET, POST) und eine Länge, die nie ankommt.
 func formen() []form {
 	m := muster(1<<20, 3)
-	return []form{
-		{name: "GET", methode: "GET", kopf: "GET /p HTTP/1.1\r\nHost: h\r\n\r\n"},
-		{name: "POST 1 KiB", methode: "POST", kopf: "POST /p HTTP/1.1\r\nHost: h\r\nContent-Length: 1024\r\n\r\n", body: m[:1024]},
-		{name: "POST 1 MiB", methode: "POST", kopf: "POST /p HTTP/1.1\r\nHost: h\r\nContent-Length: 1048576\r\n\r\n", body: m, weiter: true},
-		{name: "POST angekündigt 1 MiB, 10 gesendet", methode: "POST", kopf: "POST /p HTTP/1.1\r\nHost: h\r\nContent-Length: 1048576\r\n\r\n", body: m[:10], client: true},
-		{name: "HEAD", methode: "HEAD", kopf: "HEAD /p HTTP/1.1\r\nHost: h\r\n\r\n"},
-		{name: "OPTIONS *", methode: "OPTIONS", kopf: "OPTIONS * HTTP/1.1\r\nHost: h\r\n\r\n"},
-		{name: "CONNECT", methode: "CONNECT", kopf: "CONNECT h:443 HTTP/1.1\r\nHost: h:443\r\n\r\n"},
+	var out []form
+	methoden := []string{"GET", "HEAD", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "TRACE", "PROPFIND", "get"}
+	bodies := []struct {
+		name, kopf string
+		body       []byte
+	}{
+		{"ohne Body", "", nil},
+		{"Content-Length 0", "Content-Length: 0\r\n", nil},
+		{"Content-Length 1 KiB", "Content-Length: 1024\r\n", m[:1024]},
+		{"chunked", "Transfer-Encoding: chunked\r\n", []byte("5\r\nhello\r\n0\r\n\r\n")},
 	}
+	for _, me := range methoden {
+		for _, b := range bodies {
+			out = append(out, form{name: me + " " + b.name, methode: me, kopf: me + " /p HTTP/1.1\r\nHost: h\r\n" + b.kopf + "\r\n", body: b.body})
+		}
+	}
+	return append(out,
+		form{name: "POST 1 MiB weitergesendet", methode: "POST", kopf: "POST /p HTTP/1.1\r\nHost: h\r\nContent-Length: 1048576\r\n\r\n", body: m, weiter: true},
+		form{name: "POST angekündigt 1 MiB, 10 gesendet", methode: "POST", kopf: "POST /p HTTP/1.1\r\nHost: h\r\nContent-Length: 1048576\r\n\r\n", body: m[:10], client: true},
+		form{name: "POST Expect", methode: "POST", kopf: "POST /p HTTP/1.1\r\nHost: h\r\nExpect: 100-continue\r\nContent-Length: 1024\r\n\r\n", client: true},
+		form{name: "OPTIONS *", methode: "OPTIONS", kopf: "OPTIONS * HTTP/1.1\r\nHost: h\r\n\r\n"},
+		form{name: "CONNECT", methode: "CONNECT", kopf: "CONNECT h:443 HTTP/1.1\r\nHost: h:443\r\n\r\n"},
+		form{name: "GET absolute-form", methode: "GET", kopf: "GET http://h/p?q=1 HTTP/1.1\r\nHost: h\r\n\r\n"},
+		form{name: "POST absolute-form", methode: "POST", kopf: "POST http://h/p HTTP/1.1\r\nHost: h\r\nContent-Length: 0\r\n\r\n"},
+	)
 }
 
 // L4: nach Anhalten ergibt jeder Request auf einer bestehenden Verbindung 503 ODR-E5010 mit
@@ -107,6 +130,7 @@ func formen() []form {
 func TestAngehaltenDreiNullDrei(t *testing.T) {
 	u := neuUmgebung(t, "record", nil)
 	fs := formen()
+	gleich(t, "Zahl der Formen", len(fs), 47)
 	vs := make([]*verbindung, len(fs))
 	for i := range fs {
 		vs[i] = u.verbinde(t)
@@ -137,10 +161,12 @@ func TestAngehaltenDreiNullDrei(t *testing.T) {
 			t.Errorf("%s: Verarbeiten wurde gerufen (%d Aufrufe, erwartet %d)", f.name, gesamt, len(fs))
 		}
 		gleich(t, f.name+": Aufrufe von KorrelationsID", int(u.ids.zahlen()[2]), len(fs)+i+1)
+	}
+	for i, f := range fs {
 		if f.client {
 			continue
 		}
-		if n, err := v.ende(3 * time.Second); n != 0 || err == nil || istZeitgrenze(err) {
+		if n, err := vs[i].ende(3 * time.Second); n != 0 || err == nil || istZeitgrenze(err) {
 			t.Errorf("%s: nach der Antwort %d Bytes und Fehler %v; erwartet kein Byte und eine geschlossene Verbindung", f.name, n, err)
 		}
 	}
@@ -159,6 +185,7 @@ func TestLaufenderRequestEndet(t *testing.T) {
 		t.Errorf("laufender Request: Status %d, %d Bytes, Fehler %v", x.status, len(x.body), x.err)
 	}
 	warte(t, "Close", func() bool { return h.closes.Load() == 1 })
+	gleich(t, "Fehler von ctx: Anhalten beendet ihn nicht", h.ctxFehlerListe(), []error{nil})
 }
 
 // L6: ein weiteres und ein gleichzeitiges Anhalten sind wirkungslos; nach der Rückkehr jedes
@@ -166,7 +193,7 @@ func TestLaufenderRequestEndet(t *testing.T) {
 func TestAnhaltenWiederholt(t *testing.T) {
 	h := neuHaenger(t, wartetFrei, []byte("ok"))
 	u := neuUmgebungMit(t, "record", h.tu, nil, func(l net.Listener) net.Listener {
-		return langsamListener{Listener: l, verz: 30 * time.Millisecond}
+		return &langsamListener{Listener: l, verz: 30 * time.Millisecond}
 	})
 	r := u.async("GET", "/p")
 	h.warteBegonnen(t, 1)
@@ -193,6 +220,26 @@ func TestAnhaltenWiederholt(t *testing.T) {
 	if !dialScheitert(u.addr) {
 		t.Error("nach dem weiteren Anhalten gelingt ein Dial")
 	}
+	// Ohne Serve ruft nur Anhalten Close des Listeners (Serve schließt ihn beim Beenden selbst):
+	// 8 gleichzeitige und ein weiterer Aufruf ergeben genau einen Close.
+	raw, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = raw.Close() })
+	zl := &langsamListener{Listener: raw, verz: 10 * time.Millisecond}
+	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: zl})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg2 sync.WaitGroup
+	for range aufrufer {
+		wg2.Add(1)
+		go func() { defer wg2.Done(); srv.Anhalten() }()
+	}
+	wg2.Wait()
+	srv.Anhalten()
+	gleich(t, "Aufrufe von Close des Listeners nach 9 Aufrufen von Anhalten", zl.closes.Load(), int64(1))
 	h.gibFrei()
 	if x := erwarte(t, r, "Antwort des laufenden Requests"); x.err != nil || x.status != 200 {
 		t.Errorf("laufender Request: %+v", x)
@@ -245,7 +292,7 @@ func TestServeEndetMitNil(t *testing.T) {
 		{"Serve läuft, dann Schliessen(0)", func(srv *httpodata.Server, _ net.Listener, lis *meldeListener) chan error {
 			c := start(srv)
 			<-lis.acceptiert
-			_ = srv.Schliessen(0)
+			_, _ = schliesse(t, srv, 0)
 			return c
 		}, true},
 		{"Anhalten vor Serve", func(srv *httpodata.Server, _ net.Listener, _ *meldeListener) chan error {
@@ -253,7 +300,7 @@ func TestServeEndetMitNil(t *testing.T) {
 			return start(srv)
 		}, true},
 		{"Schliessen(0) vor Serve", func(srv *httpodata.Server, _ net.Listener, _ *meldeListener) chan error {
-			_ = srv.Schliessen(0)
+			_, _ = schliesse(t, srv, 0)
 			return start(srv)
 		}, true},
 		{"Listener von außen geschlossen", func(srv *httpodata.Server, raw net.Listener, lis *meldeListener) chan error {
@@ -311,9 +358,10 @@ func TestSchliessenFrueh(t *testing.T) {
 	time.AfterFunc(100*time.Millisecond, h.gibFrei)
 	start := time.Now()
 	err := u.srv.Schliessen(30 * time.Second)
-	if dauer := time.Since(start); err != nil || dauer >= 5*time.Second {
-		t.Errorf("Schliessen(30 s) = %v nach %v, erwartet nil in unter 5 s", err, dauer)
+	if dauer := time.Since(start); err != nil || dauer < 90*time.Millisecond || dauer >= 5*time.Second {
+		t.Errorf("Schliessen(30 s) = %v nach %v, erwartet nil in [90 ms, 5 s)", err, dauer)
 	}
+	gleich(t, "Close bei der Rückkehr: Schliessen wartete auf den Handler", h.closes.Load(), int64(1))
 	if x := erwarte(t, r, "Antwort"); x.err != nil || x.status != 200 || !bytes.Equal(x.body, body) {
 		t.Errorf("Antwort: Status %d, %d Bytes, Fehler %v", x.status, len(x.body), x.err)
 	}
@@ -368,6 +416,23 @@ func TestSchliessenNull(t *testing.T) {
 		}
 	}
 
+	// Frist 0 und 1 ns ohne Request, 64 frische Server ohne Serve: sind der leere Zähler und der
+	// abgelaufene Timer zugleich bereit, darf die Wahl nicht dem Zufall gehören.
+	for i := range 64 {
+		raw, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = raw.Close() })
+		srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: raw})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := srv.Schliessen(time.Duration(i % 2)); err != nil {
+			t.Fatalf("Schliessen(%d ns) ohne Request im Lauf %d = %v, erwartet nil", i%2, i, err)
+		}
+	}
+
 	// Die größte Frist mit laufendem Request: sie läuft nicht ab, der Request endet von selbst.
 	w, wh := neuHaengUmgebung(t, wartetFrei, []byte("ok"))
 	_ = w.async("GET", "/p")
@@ -390,6 +455,18 @@ func TestSummeDerFristen(t *testing.T) {
 	dauer := time.Since(start)
 	if !errors.Is(err, httpodata.ErrFristAbgelaufen) || dauer < 300*time.Millisecond || dauer >= 550*time.Millisecond {
 		t.Errorf("Anhalten und Schliessen(300 ms) = %v nach %v, erwartet ErrFristAbgelaufen in [300 ms, 550 ms)", err, dauer)
+	}
+
+	// Die Frist läuft ab dem Aufruf von Schliessen, nicht ab Anhalten: 300 ms nach Anhalten dauert
+	// Schliessen(300 ms) noch 300 ms.
+	v, vh := neuHaengUmgebung(t, wartetCtx, []byte("ok"))
+	_ = v.async("GET", "/p")
+	vh.warteBegonnen(t, 1)
+	v.srv.Anhalten()
+	time.Sleep(300 * time.Millisecond)
+	spaet, err := schliesse(t, v.srv, 300*time.Millisecond)
+	if !errors.Is(err, httpodata.ErrFristAbgelaufen) || spaet < 300*time.Millisecond || spaet >= 550*time.Millisecond {
+		t.Errorf("Schliessen(300 ms) 300 ms nach Anhalten = %v nach %v, erwartet ErrFristAbgelaufen in [300 ms, 550 ms)", err, spaet)
 	}
 }
 
@@ -436,6 +513,23 @@ func TestSchliessenOhneAnhalten(t *testing.T) {
 	}
 	if err := serveEnde(t, u.serve, "nach Schliessen"); err != nil {
 		t.Errorf("Serve lieferte %v, erwartet nil", err)
+	}
+
+	// Ohne Serve schließt allein Schliessen den Listener: kein Shutdown, der ihn verfolgte.
+	raw, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = raw.Close() })
+	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: raw})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.Schliessen(time.Second); err != nil {
+		t.Errorf("Schliessen(1 s) ohne Serve = %v, erwartet nil", err)
+	}
+	if !dialScheitert(raw.Addr().String()) {
+		t.Error("ohne Serve gelingt nach Schliessen ein Dial")
 	}
 }
 
@@ -531,15 +625,61 @@ func TestZulassungAtomar(t *testing.T) {
 			}
 		}
 	})
+	// 50 zugelassene Handler enden gleichzeitig: Zähler und Zulassung werden von vielen
+	// Goroutinen geändert, ohne dass Anhalten die meisten abweist (L18).
+	t.Run("Fall 2: 50 zugelassene Handler enden gleichzeitig", func(t *testing.T) {
+		const n = 50
+		u, h := neuHaengUmgebung(t, wartetFrei, []byte("ok"))
+		res := make([]<-chan ergebnis, n)
+		for i := range res {
+			res[i] = u.async("GET", "/p")
+		}
+		h.warteBegonnen(t, n)
+		h.gibFrei()
+		for i, c := range res {
+			if x := erwarte(t, c, "Antwort"); x.err != nil || x.status != 200 {
+				t.Errorf("Request %d: %+v", i, x)
+			}
+		}
+		u.srv.Anhalten()
+		if _, err := schliesse(t, u.srv, time.Second); err != nil {
+			t.Errorf("Schliessen(1 s) = %v, erwartet nil", err)
+		}
+		gleich(t, "laufende Handler nach Schliessen", h.laufend.Load(), int64(0))
+	})
 }
 
-// L19: der Adapter schreibt kein Log von net/http; die Panik des Dienstes erscheint nicht in
-// log.Default().
+// L19: der Adapter schreibt kein Log von net/http; die Panik des Dienstes erscheint weder in
+// log.Default() noch auf stderr. Der Test fährt das Szenario in einem Kindprozess (dieselbe
+// Testbinärdatei) und liest dessen stderr, den Standardlogger unverändert.
 func TestKeinLogDerBibliothek(t *testing.T) {
-	puffer := &sperrPuffer{}
-	vorher := log.Writer()
-	log.SetOutput(puffer)
-	t.Cleanup(func() { log.SetOutput(vorher) })
+	if dir := os.Getenv(kindUmgebung); dir != "" {
+		kindL19(t, dir)
+		return
+	}
+	dir := t.TempDir()
+	ctx, abbruch := context.WithTimeout(context.Background(), 60*time.Second)
+	defer abbruch()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestKeinLogDerBibliothek$", "-test.count=1")
+	cmd.Env = append(os.Environ(), kindUmgebung+"="+dir)
+	var aus, fehl bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &aus, &fehl
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Kindprozess: %v\nstdout: %s\nstderr: %s", err, aus.String(), fehl.String())
+	}
+	if _, err := os.Stat(filepath.Join(dir, "lief")); err != nil {
+		t.Fatalf("der Kindprozess hat das Szenario nicht ausgeführt: %v", err)
+	}
+	if strings.Contains(fehl.String(), "geheim-wert-L19") {
+		t.Errorf("stderr trägt die Panik: %q", fehl.String())
+	}
+}
+
+const kindUmgebung = "ODR_L19_KIND"
+
+// kindL19 ist das Szenario im Kindprozess: der Dienst panikt, der Client sieht den Abbruch.
+func kindL19(t *testing.T, dir string) {
+	t.Helper()
 	u := neuUmgebung(t, "record", func(context.Context, inbound.Anfrage) (inbound.Antwort, error) {
 		panic("geheim-wert-L19")
 	})
@@ -551,8 +691,8 @@ func TestKeinLogDerBibliothek(t *testing.T) {
 		_ = resp.Body.Close()
 		t.Fatalf("der Client sah keinen Abbruch, Status %d", resp.StatusCode)
 	}
-	if s := puffer.String(); strings.Contains(s, "geheim-wert-L19") {
-		t.Errorf("log.Default() trägt die Panik: %q", s)
+	if err := os.WriteFile(filepath.Join(dir, "lief"), []byte("ok"), 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
 
