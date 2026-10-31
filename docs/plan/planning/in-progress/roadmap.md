@@ -18,7 +18,7 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 - [welle-record-replay](../welle-record-replay.md)
 - [welle-mock](../welle-mock.md) (gestaffelt: Trigger von Teil 1, den reinen Funktionen, eingetreten durch [slice-baseline-import](../done/slice-baseline-import.md); Teil 2 wartet auf `welle-record-replay` und `slice-handbuch-meldungskatalog`; gestartet: `slice-odata-url-pfad`, Linie B)
-- [welle-benutzerhandbuch](../welle-benutzerhandbuch.md) (gestartet: `slice-handbuch-geruest`, Zweig `slice-handbuch-geruest`; Katalog-, Aufzeichnen- und Abnahme-Slice warten auf `slice-bootstrap-m2`)
+- [welle-benutzerhandbuch](../welle-benutzerhandbuch.md) (gestartet: `slice-handbuch-geruest` in [done/](../done/slice-handbuch-geruest.md), Beleg `make handbuch-check`; Katalog-, Aufzeichnen- und Abnahme-Slice warten auf `slice-bootstrap-m2`)
 
 **Lesart:** Eine Welle steht hier, wenn ihr Trigger eingetreten ist oder ihr erster Slice gestartet ist; sonst steht sie unter *Nächste Wellen* mit Link auf ihre Datei. Bei einer Welle mit gestaffeltem Start (`welle-sensoren`, `welle-mock`) zählt der Trigger ihres ersten Teils. Ein einzelner Slice, der vor dem Trigger seiner Welle starten darf, weil kein Code der Vorgänger-Welle fehlt, ist eine Ausnahme je Slice (Zusatz in der Welle-Datei, Spalte *Trigger* unten) und verschiebt die Welle nicht; so steht `welle-betrieb` unter *Nächste Wellen*, obwohl `slice-telemetry-port` (Linie D) läuft. `welle-benutzerhandbuch` steht hier, weil mit dem Gerüst ihr erster Slice läuft: Der Trigger der Welle (Werkzeug für die Marke) ist für diesen Zweck erfüllt, weil das Werkzeug in `main` lauffähig ist.
 
