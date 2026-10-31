@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-08`, `LH-QA-02`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `LH-FA-08.b` (Typtabelle, Null-Semantik) · `LH-FA-08.a` · `LH-QA-02.a` · `SPEC-049` · `SPEC-024` · `ARC-001`.
+**Berührte Spec-Stellen:** `LH-FA-08.b` (Typtabelle, Null-Semantik) · `LH-FA-08.a` · `LH-QA-02.a` · `SPEC-049` · `SPEC-024` · `SPEC-164` Nr. 10 · `ARC-001`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -32,6 +32,8 @@ Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Die Typregeln der acht EDM-Typen und die dreiwertige Null-Semantik liegen als reine Funktionen im Domain-Modell: Vergleich und Sortierung je Typ (ordinal, dezimal ohne Binär-Float, Instant für `Edm.DateTimeOffset`), `and`, `or`, `not` mit `null` als unbekannt, und die Typprüfung des Filter-AST gegen das Modell des Dienstes (Property vorhanden, Operanden verträglich, nicht beobachtete Property ergibt `ODR-E6003`).
+
+**Übernimmt (Sendung von `slice-odata-url-filter`, `SPEC-164` Nr. 10; der Leser prüft sie nicht):** (a) Wurzel des Filters nicht boolesch sowie `not`, `and`, `or` mit nicht booleschen Operanden ergibt `400` (`not Price gt 5` ist ein Fall); (b) Literal gegen Literal und `null` gegen einen Typ (Nr. 10 b); (c) Property eines Typs außerhalb der acht im Filter ergibt `501` mit `ODR-E6001` (Nr. 10 d). Die Einzelregeln entscheidet der Architect; der Ausschluss unten zu den Typen außerhalb der acht trifft (c) nicht, er stützt es.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -59,7 +61,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Vergleich und Sortierung je Typ nach der Tabelle in `LH-FA-08.b`, einschließlich `Edm.Int64` jenseits von 2^53 und `Edm.Decimal` ohne Binär-Float.
 - [ ] Null-Semantik: Wahrheitstafeln für `eq`, `ne`, `gt`, `ge`, `lt`, `le`, `and`, `or`, `not` über allen Kombinationen mit `null`.
-- [ ] Typprüfung des Filter-AST: unbekannte Property, unverträgliche Operanden `400`, nicht beobachtete Property `ODR-E6003`.
+- [ ] Typprüfung des Filter-AST: unbekannte Property, unverträgliche Operanden `400`, nicht beobachtete Property `ODR-E6003`; Wurzel und Operanden von `not`/`and`/`or` nur boolesch (`400`), Literal gegen Literal und `null` gegen Typ, Property eines Typs außerhalb der acht `501` (Sendung von `slice-odata-url-filter`, `SPEC-164` Nr. 10).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -79,7 +81,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/model/` | update | Typfunktionen: Vergleich, Sortierung, dreiwertige Verknüpfung, Typprüfung des AST |
+| `src/hexagon/model/` | update | Typfunktionen: Vergleich, Sortierung, dreiwertige Verknüpfung, Typprüfung des AST einschließlich boolescher Wurzel und Operanden, Literal gegen Literal, `null` gegen Typ, Typ außerhalb der acht (`SPEC-164` Nr. 10) |
 | `spec/spezifikation.md` | update | Vertrag mit Randformen (Architect) |
 | Tests | neu | Fälle von `LH-FA-08.b` je Typ und je Operator, Wahrheitstafeln der Null-Semantik |
 
@@ -118,6 +120,7 @@ dasteht.
 - Gleichheit von `Edm.DateTimeOffset` mit verschiedenen Offsets desselben Instants und Vergleich von `Edm.Date` — **Ausgang:** offen; Architect, Fänger mit gleichen verglichenen Werten (`AGENTS.md` §3.15).
 - Die Allaussage der Null-Semantik („alle Kombinationen“) — **Ausgang:** offen; Wahrheitstafeln als Schleife über beide Mengen, nicht als Liste der eingefallenen Fälle (`AGENTS.md` §3.15).
 - Bereichsgrenzen von `Edm.Int32` und `Edm.Int64` bei Literalen außerhalb des Bereichs — **Ausgang:** offen; Raster-Zelle.
+- Randformen der Sendung von `slice-odata-url-filter` (`SPEC-164` Nr. 10): nicht boolesche Wurzel, `not`/`and`/`or` mit nicht booleschem Operanden (je Stelle des Operanden), Literal gegen Literal, `null` gegen Typ, Property eines Typs außerhalb der acht — **Ausgang:** offen; Raster-Zeilen, Einzelregeln entscheidet der Architect.
 
 ## 7. Closure-Notiz
 
