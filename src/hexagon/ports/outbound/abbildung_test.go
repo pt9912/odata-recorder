@@ -77,6 +77,8 @@ func TestAbbildungTabelle(t *testing.T) {
 			gSess: model.CodeE7010, gWork: model.CodeE7007, gName: model.CodeE7006, gImp: model.CodeE6102,
 		})},
 		{model.ErrUngueltig, mit(jeder(0), map[outbound.Gegenstand]model.Code{gImp: model.CodeE6101})},
+		{model.ErrURLUngueltig, jeder(model.CodeE6005)},
+		{model.ErrURLNichtUnterstuetzt, jeder(model.CodeE6001)},
 		{outbound.ErrUngueltigeSequenz, jeder(model.CodeE9001)},
 		{outbound.ErrAbgeschlossen, jeder(model.CodeE9001)},
 		{outbound.ErrRevisionVeraltet, jeder(model.CodeE9001)},
@@ -172,7 +174,8 @@ func TestAbbildungVollstaendig(t *testing.T) {
 		}
 	}
 	for _, n := range eintraege {
-		if n != "ErrUngueltig" && n != "ErrMetadatenUngueltig" && n != "ErrDatenUngueltig" && !slices.Contains(vorhanden, n) {
+		modell := []string{"ErrUngueltig", "ErrMetadatenUngueltig", "ErrDatenUngueltig", "ErrURLUngueltig", "ErrURLNichtUnterstuetzt"}
+		if !slices.Contains(modell, n) && !slices.Contains(vorhanden, n) {
 			t.Errorf("Eintrag %s ohne Variable im Paket", n)
 		}
 	}
@@ -214,5 +217,38 @@ func TestAbbildungDaten(t *testing.T) {
 	}
 	if _, ok := outbound.Abbilden(errors.Join(e, context.Canceled), gImp); ok {
 		t.Error("ein Kontextfehler neben dem Fehler bekommt einen Code")
+	}
+}
+
+// TestAbbildungURL (Zeile 61): der Fehler des Lesers der OData-URL bildet bei jedem der acht Gegenstände auf den Code seiner Klasse
+// ab (ODR-E6005 für `ungueltig`, ODR-E6001 für `nicht_unterstuetzt`), auch verpackt und verbunden; 16 Ursachen × 8 Gegenstände.
+func TestAbbildungURL(t *testing.T) {
+	n := 0
+	for _, u := range model.AlleURLUrsachen() {
+		soll := model.CodeE6005
+		if u.NichtUnterstuetzt() {
+			soll = model.CodeE6001
+		}
+		e := &model.URLFehler{Ursache: u, Ort: "query/1"}
+		formen := map[string]error{"Fehler": e, "Errorf": fmt.Errorf("lesen: %w", e), "Join": errors.Join(errors.New("x"), e)}
+		for name, err := range formen {
+			for _, g := range alleGegenstaende() {
+				if got, ok := outbound.Abbilden(err, g); !ok || got != soll {
+					t.Errorf("%s %s / Gegenstand %d: %v %v, erwartet %v", u, name, g, got, ok, soll)
+				}
+				n++
+			}
+		}
+		if _, ok := outbound.Abbilden(errors.Join(e, context.Canceled), gSonst); ok {
+			t.Error("ein Kontextfehler neben dem Fehler bekommt einen Code")
+		}
+	}
+	if n != 16*3*8 {
+		t.Errorf("%d Fälle", n)
+	}
+	for _, name := range []string{"ErrURLUngueltig", "ErrURLNichtUnterstuetzt"} {
+		if !slices.Contains(outbound.EintraegeAbbildung(), name) {
+			t.Errorf("die Tabelle nennt %s nicht", name)
+		}
 	}
 }

@@ -92,15 +92,12 @@ type option struct {
 	wert string
 }
 
-// optionen teilt die Query an `&`; leere Segmente zählen nicht (SPEC-127 Nr. 8 i).
+// optionen zerlegt die Query mit model.QuerySegmente (SPEC-127 Nr. 8 i, SPEC-162 Nr. 1) und dekodiert den Namen
+// nachsichtig.
 func optionen(raw string) []option {
 	var out []option
-	for _, seg := range strings.Split(raw, "&") {
-		if seg == "" {
-			continue
-		}
-		n, w, _ := strings.Cut(seg, "=")
-		out = append(out, option{name: dekodiere(n), wert: w})
+	for _, s := range model.QuerySegmente(raw) {
+		out = append(out, option{name: dekodiere(s.Name), wert: s.Wert})
 	}
 	return out
 }

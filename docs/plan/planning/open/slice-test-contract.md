@@ -1,4 +1,4 @@
-# Slice slice-odata-url-pfad: Parser der OData-URL, Teil Ressourcenpfad, Key-Syntax und Systemoptionen
+# Slice slice-test-contract: `make test-contract` — Referenzanfragen und Negativfälle am HTTP-Eingang
 
 **Lifecycle:** Der Zustand dieses Slice ist das Verzeichnis, in dem diese
 Datei liegt — eines von `open/`, `next/`, `in-progress/`, `done/`. Er
@@ -11,14 +11,14 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Welle:** [welle-mock](../welle-mock.md).
 
-**Bezug:** `LH-FA-08`, `LH-FA-07`, `LH-RB-01`, `LH-QA-05`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
+**Bezug:** `LH-RB-01`, `LH-QA-05`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)
 
-**Berührte Spec-Stellen:** `LH-FA-08.a` · `LH-FA-08.b` (URL-Key-Syntax) · `LH-FA-07.b` (Adressierung per Key) · `SPEC-049` · `SPEC-022` · `ARC-004`, `ARC-011` · `architecture.md` §1 (Codec-Zugriff), §4.4.
+**Berührte Spec-Stellen:** `SPEC-042` (Vertrag `make test-contract`, `harness/vertraege/SPEC-042-test-contract.md`: *OData-V4-JSON, Metadata, Fehlerfälle und HTTP-Semantik*; Referenzanfragen und Negativfälle) · `SPEC-049` (Abnahmematrix, Fixtures `ODV4-*`) · `LH-RB-01.a` (Nachweis: Referenzanfragen und Negativfälle) · `LH-QA-05.a` (Fehlerklassen) · `SPEC-109` (Tabelle der Codes).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
 
-**Autor:** pt9912. **Datum:** 2026-10-30.
+**Autor:** pt9912. **Datum:** 2026-10-31.
 
 ---
 
@@ -31,13 +31,13 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Der Parser im Paket `src/adapters/driven/odata/urlparser` (hinter einem Port der Codec-Gruppe) überführt Pfad und `raw_query` einer OData-URL in einen technologieunabhängigen Query-AST des Domain-Modells: Ressource (EntitySet, Key einfach oder zusammengesetzt mit typisierten Literalen, `$metadata`, `/$count`) und die Systemoptionen `$select`, `$orderby`, `$top`, `$skip`, `$count`.
+**Ziel:** `make test-contract` (`SPEC-042`) fährt Referenzanfragen und Negativfälle gegen den HTTP-Eingang: die Fixtures der Muss-Zeilen aus `SPEC-049` (`ODV4-*`, geliefert von `slice-mock-abnahme`) und je Fehlerklasse von `LH-QA-05` (fehlender Replay-Treffer, ungültige Metadaten, nicht unterstützte Query-Option, unvollständige Datenabdeckung) einen Negativfall, der Fehlerklasse, Status und diagnostischen Kontext prüft, ohne ein Geheimnis offenzulegen (Messmethode von `LH-QA-05`).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Die Grammatik von `$filter` — `slice-odata-url-filter`; bis dahin ergibt die Option `$filter` den Fehler `ODR-E6001`, nie eine ungefilterte Antwort (`LH-FA-08`, Negative).
-- Die Typverträglichkeit der Literale und die Ausdruckssemantik — `slice-edm-ausdruecke`; der Parser liest die Syntax eines Literals, entscheidet aber nicht, ob es zum Typ der Property passt.
-- `$expand`, `$apply`, `$search`, `$batch`, Actions und Functions — nicht im Muss-Umfang (`SPEC-049`); sie ergeben `501`, der Erweiterungspunkt liegt bei `welle-expand-batch`.
+- Neue Golden-Fixtures — `slice-mock-abnahme` schreibt sie; dieser Slice ruft sie auf und verschiebt sie nicht (ob die Fixtures dort bereits unter `make test` laufen und hier ein zweites Mal, ist §6).
+- Zeilen der Spalte *Soll* und *Nicht in MVP* von `SPEC-049` (ETag, `Prefer`, `$expand`, V2) — die Folgewellen [welle-etag](../welle-etag.md), [welle-expand-batch](../welle-expand-batch.md) und [welle-odata-v2](../welle-odata-v2.md); sie hängen ihre Fälle an dieses Ziel, wenn sie es nutzen wollen (Entscheidung dort).
+- Konformität gegen jede OData-Implementierung — Grenze von `SPEC-042`: geprüft wird gegen Referenzanfragen und Negativfälle.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
 einer mit vier erfundenen; die vier Klassen sind ein Suchraster, keine
@@ -57,18 +57,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Ressourcenpfad: EntitySet, einfacher und benannter zusammengesetzter Key mit typisierten Literalen und Escaping, `$metadata`, `/$count`; ein ungültiger oder unvollständiger Key ergibt `400`.
-- [ ] Systemoptionen: `$select`, `$orderby` (mehrere Schlüssel, Richtung), `$top`, `$skip`, `$count` mit ihren Randformen (`$top=0` gültig, negativ oder nicht ganzzahlig `400`, doppelte und unbekannte Option, `$filter` bis `slice-odata-url-filter` `ODR-E6001`).
-- [ ] Query-AST im Domain-Modell ohne Typ einer Parser-Bibliothek; der Parser liegt hinter einem Port der Codec-Gruppe und wird allein vom Composition Root verdrahtet (`make a-check`).
+- [ ] Das Ziel `make test-contract` und der Vertrag `SPEC-042` (der Stand „entsteht mit dem Slice, der den Code liefert“ wird zum gelieferten Umfang); die Muss-Fixtures `ODV4-*` aus `slice-mock-abnahme` laufen über das Ziel (Aufruf, keine Kopie).
+- [ ] Je Fehlerklasse von `LH-QA-05` ein Negativfall am HTTP-Eingang, der Klasse, Status und diagnostischen Kontext prüft und keine Geheimnisse offenlegt.
+- [ ] Je Zusage eine Mutation, vom Implementer rot gesehen (`AGENTS.md` §3.10): eine Fehlerklasse, die auf eine andere abgebildet wird, färbt den Negativfall rot.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist (`SPEC-042`, Sensors-Tabelle in `harness/README.md`).
 - [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
 - [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -79,27 +79,24 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/model/` | update | Query-AST: Ressource, Key, Optionen |
-| `src/hexagon/ports/outbound/` | update | Port der OData-URL in der Codec-Gruppe |
-| `src/adapters/driven/odata/urlparser/` | neu | Parser von Pfad und `raw_query` |
-| `spec/spezifikation.md` | update | Vertrag mit Randformen (Architect) |
-| Tests | neu | Fälle von `LH-FA-08` und `LH-FA-07.b` je Option und je Key-Form |
+| `Makefile`, `harness/mk/` (neues Fragment) | update / neu | Ziel `make test-contract`; Bindung in der Sensors-Tabelle |
+| `tests/` | neu | Negativfälle je Fehlerklasse von `LH-QA-05`; Aufruf der Fixtures `ODV4-*` (Pfad: Architect) |
+| `harness/vertraege/SPEC-042-test-contract.md` | update | Stand und Umfang |
+| `harness/README.md` | update | Sensors-Tabelle: Ziel, Vertrag, Bindung |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer.
-
-- Der Parser liest fremde Bytes (eine URL, die ein Client schreibt): die Formel der Marke nimmt Faktor 65 und die Produktcode-Größe des Architect als festen Anteil (`AGENTS.md` §3.14); die Allaussagen („jede Option“, „jede Key-Form“) prüft ein Test als Schleife über die Menge (`AGENTS.md` §3.15).
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag unter `harness/vertraege/` **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen, die sie tragen müssen, nennt §6.
 
 ## 4. Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `welle-record-replay` liegt in `done/` (Trigger der Welle, M2 erreicht). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-mock-abnahme` und `slice-bootstrap-m3` liegen in `done/` (die Fixtures `ODV4-*` und der Mock-Betrieb stehen; vier Fehlerklassen von `LH-QA-05` erreichen den Eingang erst dort). Der Vertrag `SPEC-042` trägt Umfang und Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12). Der Slice ändert `Makefile` und `harness/mk/` und startet nur, wenn kein anderer Slice der Gate-Kette in `in-progress/` liegt ([Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln) Nr. 7).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner beim Start vor dem ersten Code-Commit nach `AGENTS.md` §3.14 mit dem Werkzeug aus `slice-groessenmarke-werkzeug` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Eine Zahl steht hier erst, wenn die Tabelle *Zusage · Fänger* vorliegt; sie zu schätzen, bevor der Vertrag steht, wäre die freie Schätzung, die §3.14 ersetzt.
-- `in-progress` → `open` (blockiert — Carveout?): die Randformen der URL (Escapes, Schreibweise der Optionsnamen, Wiederholung einer Option) sind in der Spezifikation nicht entschieden (siehe §6).
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): Die Marke setzt der Planner beim Start nach `AGENTS.md` §3.14 (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen); die Zahl steht erst mit der Tabelle *Zusage · Fänger* des Architect. Der Planner schätzt den Slice als klein.
+- `in-progress` → `open` (blockiert): eine Fehlerklasse von `LH-QA-05` erreicht den HTTP-Eingang nicht (siehe §6).
 
 ## 5. Closure-Trigger
 
@@ -116,9 +113,10 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Randformen der URL (Escapes im Pfad, Schreibweise der Optionsnamen, doppelte oder leere Option, `$top` mit Vorzeichen) — **Ausgang:** offen; das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit, jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund (`AGENTS.md` §3.16); eine Zelle ohne Ort geht an den Architect.
-- Key-Literale: Escaping des Apostrophs, Prozent-Kodierung, Reihenfolge benannter Key-Teile, Name eines Key-Teils, den das Modell nicht kennt (der Parser kennt das Modell nicht) — **Ausgang:** offen; Architect.
-- Allaussagen („jede Option“, „jede Key-Form“) — **Ausgang:** offen; der Fänger läuft als Schleife über die Menge, der Fix deckt die Klasse (`AGENTS.md` §3.15, §3.17).
+- Die Fixtures `ODV4-*` laufen nach dem Plan von `slice-mock-abnahme` unter `make test`; läuft derselbe Satz hier ein zweites Mal, ist das eine Entscheidung über Doppelung gegen ein gemeinsames Ziel — **Ausgang:** offen; Adresse Architect (beide Pläne vor dem Code lesen, `AGENTS.md` §3.13).
+- Die Fehlerklasse „ungültige Metadaten“ ist beim Import sichtbar, nicht an einer Abfrage am Eingang; der Negativfall läuft dort, wo die Klasse den Eingang erreicht (Admin-Weg erst ab `slice-bootstrap-m6`, sonst über den Handle des Composition Root) — **Ausgang:** offen; Adresse Architect.
+- Die Spalten *Soll* und *Nicht in MVP* von `SPEC-049` haben kein Ziel, an das ihre Welle ihre Fälle hängen müsste — **Ausgang:** offen; Entscheidung bei Start der jeweiligen Welle.
+- Randformen (`AGENTS.md` §3.12, §3.16): das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in `SPEC-042` oder „gilt nicht“ mit Grund — **Ausgang:** offen.
 
 ## 7. Closure-Notiz
 
@@ -152,7 +150,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-10-30); der Planner zieht Treffer und Zähler beim Start nach. Der Slice liest fremde Bytes: `BEO-REPO/suite-ohne-generator-fuer-klassen-der-spezifikation` (3×, verkörpert in `.claude/commands/implement-slice.md` Schritt 14, `.claude/agents/implementer.md` und `.harness/skills/reviewer.md`) und `BEO-REPO/fix-deckt-die-genannte-mutation-nicht-die-klasse` (5×, verkörpert in `AGENTS.md` §3.17) gelten für „jede Option“ und „jede Key-Form“; `BEO-REPO/randform-erst-im-review-entschieden` (20×, verkörpert in `AGENTS.md` §3.16) für das Raster. Offen: `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) und `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×); keiner erreicht mit diesem Slice 3×.
+**Vorgelagert — offene Beobachtungen sichten:** Das Beobachtungs-Register (`../observations/`, Stand 2026-10-31) trägt Treffer: `BEO-REPO/randform-erst-im-review-entschieden` (22×, verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (30×, verkörpert in `AGENTS.md` §3.15), `BEO-REPO/berichtigung-erreicht-nicht-jede-stelle` (15×, verkörpert in `AGENTS.md` §3.9) und `BEO-REPO/universalaussage-im-vertrag-ungeprueft` (12×, verkörpert in `AGENTS.md` §3.16; „je Fehlerklasse“ ist eine Allaussage mit Fänger über alle Klassen); der Stand jedes Eintrags steht in seiner `state.md`.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der

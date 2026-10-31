@@ -65,14 +65,14 @@ flowchart TB
 | `ARC-001` | Domain Model (`src/hexagon/model`) | Session, Exchange, Request, Response, OData Service Model, Query AST, Entity, Workspace, Snapshot, Coverage (Auswertung der Coverage-Evidenz), fachliche Invarianten |
 | `ARC-002` | Application Services (`src/hexagon/services`) | Record (mit Capture-Pipeline und Redaction), Replay, Mock, Hybrid (Fallback-Policy), **Baseline-Import**, Workspace, Snapshot, Session, Inspection, Maintenance; Use-Case-Orchestrierung; implementiert die Inbound Ports |
 | `ARC-003` | Inbound Ports (`src/hexagon/ports/inbound`) | Anwendungsfälle für Request-Verarbeitung, Recording, Replay, Mock und Administration |
-| `ARC-004` | Outbound Ports (`src/hexagon/ports/outbound`) | UpstreamClient, RecordingRepository, SessionRepository, BlobRepository, CursorRepository, WorkspaceRepository, EntityRepository, SnapshotRepository, MetadataRepository, CoverageRepository, ImportRepository, MetadataCodec, ODataCodec, weitere Codec-Schnittstellen je Darstellung (OData-URL, Schreiben von OData-JSON), StorageMaintenance |
+| `ARC-004` | Outbound Ports (`src/hexagon/ports/outbound`) | UpstreamClient, RecordingRepository, SessionRepository, BlobRepository, CursorRepository, WorkspaceRepository, EntityRepository, SnapshotRepository, MetadataRepository, CoverageRepository, ImportRepository, MetadataCodec, ODataCodec, URLCodec, weitere Codec-Schnittstelle je Darstellung (Schreiben von OData-JSON), StorageMaintenance |
 | `ARC-005` | HTTP/OData Driving Adapter (`src/adapters/driving/httpodata`) | HTTP-Eingang, Header-/Body-Streaming, Mapping von Request und Response auf Domain-DTOs; OData-Parsing und -Serialisierung laufen über den Codec-Port im Core |
 | `ARC-006` | CLI Driving Adapter (`src/adapters/driving/cli`) | Konfiguration, Kommandoauswahl, Start-/Exit-Verhalten |
 | `ARC-007` | Admin API Driving Adapter (`src/adapters/driving/admin`) | Workspaces, Snapshots, Sessions, Coverage, Diagnose |
 | `ARC-008` | HTTP Upstream Driven Adapter (`src/adapters/driven/httpupstream`) | HTTP/TLS-Verbindung zum echten OData-Service |
 | `ARC-009` | Recording/State Driven Adapter (`src/adapters/driven/sqlite`) | Transaktionale Speicherung und Abfrage der Sessions, Records und Workspace-Daten; SQLite-SQL und Migrationen |
 | `ARC-010` | Blob Driven Adapter (`src/adapters/driven/blobs`) | Bytegetreue, content-adressierte Body-Ablage und Integritätsprüfung |
-| `ARC-011` | OData Codec Driven Adapter (`src/adapters/driven/odata`) | Implementiert die Codec-Ports, je Darstellung ein Paket und eine Schnittstelle: `MetadataCodec` (CSDL lesen, `csdl`), `ODataCodec` (OData-JSON-Antworten auf Einzel-Entity- und Collection-Abfragen lesen, `jsoncodec`) und die Schnittstellen für die OData-URL (`urlparser`) und das Schreiben von OData-JSON (`jsoncodec`); externe Protokollrepräsentation |
+| `ARC-011` | OData Codec Driven Adapter (`src/adapters/driven/odata`) | Implementiert die Codec-Ports, je Darstellung ein Paket und eine Schnittstelle: `MetadataCodec` (CSDL lesen, `csdl`), `ODataCodec` (OData-JSON-Antworten auf Einzel-Entity- und Collection-Abfragen lesen, `jsoncodec`) `URLCodec` (OData-URL lesen, `urlparser`) und die Schnittstelle für das Schreiben von OData-JSON (`jsoncodec`); externe Protokollrepräsentation |
 | `ARC-012` | Bootstrap / Composition Root (`src/bootstrap`) | Verdrahtung aller Ports, Services und Adapter; Lifecycle; erzeugt den Wächter vor dem Blob-Port einmal je Prozess und gibt ihn jedem Schreiber von Blobs und der Wartung; stößt beim Start vor dem Öffnen der Listener `MaintenanceUseCase` an (scheitert die Wartung, öffnet er keinen Listener), legt danach jeden konfigurierten Service an, den der Speicher nicht kennt (`MetadataRepository.Create`; ein gespeicherter Service mit anderem Root oder anderer Version verhindert den Start), legt dann im Modus `record` für jeden konfigurierten Service die erste Recording-Session an (`SessionUseCase.OpenInitialSession`), beendet beim geordneten Shutdown alle offenen Sessions (`SessionUseCase.CloseAll`) und wählt je Betriebsmodus den Use Case, den der OData-Listener bedient |
 | `ARC-019` | Clock/ID Driven Adapter (`src/adapters/driven/clock`) | Systemzeit und ID-Vergabe hinter `Clock` und `IDGenerator`; in Tests ersetzbar |
 | `ARC-021` | Querschnitts-Ports (`src/hexagon/ports/support`) | `AuditLog`, `Telemetry`, `Clock`, `IDGenerator`; jede Schicht darf sie nutzen, damit Adapter ohne Use Case Audit-Einträge, Korrelations-IDs und Spans erzeugen können |
@@ -86,7 +86,7 @@ Der Core verwendet einen technologieunabhängigen AST.
 
 **Codec-Zugriff:** Kein Driving Adapter ruft den Codec auf und importiert `adapters/driven/odata`.
 Der HTTP-Adapter reicht Methode, Pfad, `raw_query`, Header und Body-Strom unverändert als Domain-DTO an einen Inbound Port;
-Parsen und Serialisieren geschieht im Application Service über die Outbound Ports der Codec-Gruppe (`MetadataCodec` für CSDL, `ODataCodec` für das Lesen der OData-JSON-Antworten, je eine weitere Schnittstelle für die OData-URL und das Schreiben von OData-JSON), je Darstellung eine Schnittstelle.
+Parsen und Serialisieren geschieht im Application Service über die Outbound Ports der Codec-Gruppe (`MetadataCodec` für CSDL, `ODataCodec` für das Lesen der OData-JSON-Antworten, `URLCodec` für die OData-URL, eine weitere Schnittstelle für das Schreiben von OData-JSON), je Darstellung eine Schnittstelle.
 Die konkrete Implementierung verdrahtet allein `src/bootstrap` (Composition Root).
 Damit bleibt der Importgraph auf die erlaubten Kanten beschränkt, und der Codec lässt sich im Test durch einen Fake ersetzen.
 
@@ -202,7 +202,8 @@ Der Core entscheidet **nicht** über TLS, Socket-Lifecycle oder HTTP-Chunking.
 | `ImportRepository` | Import-Einträge (`import_id`, Anfrage-Hash, Report) und die Baseline-Quellen einer Baseline in der Transaktion der Baseline schreiben und lesen; zu einer Session die Baselines abfragen, deren Quelle sie ist |
 | `CursorRepository` | Veränderlichen Replay-Cursor-Zustand je `(workspace, replay_session, recording_session)` atomar lesen und fortschreiben; getrennt vom append-only `RecordingRepository` |
 | `MetadataCodec` | EDMX/CSDL-Bytes in das Modell des OData-Dienstes und den Validierungsbericht überführen (nur lesend) |
-| `ODataCodec` | OData-V4-JSON-Antworten auf Einzel-Entity- und Collection-Abfragen in typisierte Entities des Domain-Modells überführen (nur lesend); die OData-URL (in den AST) und das Schreiben von OData-JSON sind weitere Schnittstellen der Codec-Gruppe |
+| `ODataCodec` | OData-V4-JSON-Antworten auf Einzel-Entity- und Collection-Abfragen in typisierte Entities des Domain-Modells überführen (nur lesend); das Schreiben von OData-JSON ist eine weitere Schnittstelle der Codec-Gruppe |
+| `URLCodec` | Pfad und Query einer OData-URL in den technologieunabhängigen Query-AST des Domain-Modells überführen (nur lesend, reine Funktion ohne Kontext); eine nicht lesbare URL ist ein Fehler mit `ODR-E6005`, eine gültige, nicht unterstützte Form ein Fehler mit `ODR-E6001` |
 | `AuditLog` (Querschnitts-Port) | Audit-Einträge der Verwaltungs- und Löschvorgänge ohne Geheimnisse anhängen |
 | `Telemetry` (Querschnitts-Port) | Strukturierte Logs, Metriken und Spans (`SPEC-026`–`SPEC-030`) ausgeben |
 | `TelemetryReader` (Querschnitts-Port) | Zähler je Fehlercode, Verteilung der Span-Dauern und die zuletzt beendeten Spans im Prozess lesen (`SPEC-230`); getrennt von `Telemetry`, damit ein lesender Dienst nichts schreibt |
@@ -386,7 +387,10 @@ sequenceDiagram
     participant V as Coverage Repository
     C->>H: GET /Products?$filter=Price gt 100
     H->>M: Execute(raw request, workspace)
-    M->>M: Parse OData into AST via codec port
+    M->>M: Parse path and query into AST via URL codec port
+    alt URL invalid or unsupported
+        M-->>H: ODR-E6005 or ODR-E6001
+    end
     M->>E: Read entity state
     E-->>M: Typed entities
     M->>V: Read coverage (baseline, entity_set)
@@ -602,6 +606,7 @@ sequenceDiagram
 | Defektes Recording/Blob | `ARC-009`/`ARC-010` | `ODR-E3001`, keine Ersatzdaten |
 | Befund der Integritätsprüfung beim Start | `ARC-002` (Maintenance) → `ARC-012` | `ODR-E3001`, der Prozess startet nicht; ein fehlender oder beschädigter Blob wird gemeldet, der Start läuft weiter |
 | Unbekannte OData-Funktion | `ARC-011` → `ARC-002` | Expliziter 501-Pfad |
+| Nicht lesbare OData-URL (Pfad, Schlüssel, Systemoption) | `ARC-011` → `ARC-002` | `ODR-E6005`, HTTP 400, kein Zugriff auf den Bestand |
 | Ungenügende Coverage | `ARC-002` | `ODR-E6003`, keine irreführende leere Collection |
 | Concurrency-Konflikt | `ARC-002`/`ARC-009` | Atomarer Rollback, 409 oder 412 je Vertragsfall |
 | Redaction-Fehler | `ARC-002` (Record-Service, Capture-Pipeline) | Keine unredigierte Ablage; Capture-Fehler |

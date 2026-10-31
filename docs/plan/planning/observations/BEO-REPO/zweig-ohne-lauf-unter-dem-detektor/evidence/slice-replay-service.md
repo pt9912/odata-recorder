@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-service
+**Fund:** V-2 (Verifikation 1, MEDIUM): `TestPaketOhneZustand` und die sechs Detektor-Tests führten keinen Aufruf auf einem geteilten Dienst aus; ein Feld `n` im `Replayer` mit `r.n++` am Anfang von `Replay` blieb in 0 von 50 Prozessen unter `make test-race` ungemeldet, der Detektor sieht nur, was läuft. Behoben mit `TestGeteilterReplayer` (16 Goroutinen auf einem Dienst, 50 von 50 rot). Beleg: Plan §6 (Z63) und §7 *Lerneintrag* (2); Report `docs/reviews/2026-10-31-slice-replay-service-verifikation.md` (V-2).

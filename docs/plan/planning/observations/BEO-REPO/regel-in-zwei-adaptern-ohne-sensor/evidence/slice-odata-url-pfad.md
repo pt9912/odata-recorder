@@ -1,0 +1,2 @@
+**Vorgang:** slice-odata-url-pfad
+**Fund:** `urlparser/zeit.go` und `jsoncodec/zeit.go` führen dieselben Regeln für Datum, Uhrzeit, Versatz und kanonischen Zeitpunkt (rund 140 Zeilen); die Gleichheit der Texte steht in `SPEC-160` *Ungeprüft*, der Fänger ist der Ende-zu-Ende-Fall in `slice-mock-lesen`. Ausgang offen, Adresse User (ob die Regeln ins Modell wandern, entscheidet der Architect auf Anforderung). Beleg: Plan §6 (j) und §7 *Beobachtungs-Register* (9); Report `docs/reviews/2026-10-30-slice-odata-url-pfad-review.md` (I-5).

@@ -1,0 +1,2 @@
+**Vorgang:** slice-odata-url-pfad
+**Fund:** drei Runden in einem Slice: Negativ (5) nannte `Nl` (V3-4), dann `Nl`, `Mc`, `Me`, `Sc` (V4-7), gemessen waren es 16 von 23 Mutationen (V5-3: als Buchstabe bleiben `Nl`, `Mc`, `Me`, `Sc`, `Pc`, `Cf`, `Co`, `Sm` grün, 8 von 12, als Ziffer dieselben acht); Negativ (3) trug eine Fensterbreite als "weit" und "eng" (V4-6, V5-6). Beleg: Plan §7 *Was ging anders als geplant* (3) und *Lerneintrag* (3); Reports `docs/reviews/2026-10-30-slice-odata-url-pfad-verifikation-4.md` (V4-6, V4-7) und `-5.md` (V5-3, Register-Kandidat 2).

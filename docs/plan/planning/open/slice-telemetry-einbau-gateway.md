@@ -31,7 +31,7 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Der HTTP-Adapter öffnet für jeden Request den Gesamtspan `odata.gateway.request` (`SPEC-026`) vom Request-Eingang bis zum ersten Response-Byte, der Record-Dienst setzt `odata.record.capture` (`SPEC-027`) und der Replay-Dienst `odata.replay.match` (`SPEC-028`), jeweils mit den Pflicht-Attributen; der Record-Dienst schreibt seinen Protokolleintrag (`SPEC-121` Nr. 12) über den Port `Telemetry` statt über einen `*slog.Logger`, ohne dessen Wortlaut zu ändern; der Zähler je Fehlercode steigt für jeden Fehler, den der Adapter als Fehlerobjekt schreibt; der Composition Root verdrahtet den Adapter. Kein Query-Literal und kein Body wird Attribut.
+**Ziel:** Der HTTP-Adapter öffnet für jeden Request den Gesamtspan `odata.gateway.request` (`SPEC-026`) vom Request-Eingang bis zum ersten Response-Byte, der Record-Dienst setzt `odata.record.capture` (`SPEC-027`) und der Replay-Dienst `odata.replay.match` (`SPEC-028`), jeweils mit den Pflicht-Attributen; der Record-Dienst schreibt seinen Protokolleintrag (`SPEC-121` Nr. 12) über den Port `Telemetry` statt über einen `*slog.Logger`, ohne dessen Wortlaut zu ändern; der Zähler je Fehlercode steigt für jeden Fehler, den der Adapter als Fehlerobjekt schreibt, einmal je ausgeliefertem Code (`ODR-E5010` und `ODR-E9001` eingeschlossen, `SPEC-136` Nr. 5a, 7a) und nicht für einen abgebrochenen Kontext; das `Konfig` des Adapters wächst dafür additiv um `Telemetrie` (nil ergibt `model.ErrUngueltig`), und `recorder.mode` kommt als Feld des `Konfig` ohne Auswertung im Adapter (Sendung aus dem Vorabentwurf des Architect zu `slice-http-adapter`); der Composition Root verdrahtet den Adapter. Kein Query-Literal und kein Body wird Attribut.
 
 **Übernimmt (Sendung von `slice-telemetry-port`):** der Einbau in die Pfade `record` und `replay`; der Port selbst und der Fake sind dort geliefert.
 
@@ -124,7 +124,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-telemetry-port`, `slice-http-adapter`, `slice-replay-service` und `slice-bootstrap-m2` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-telemetry-port`, `slice-http-adapter`, `slice-http-lebenszyklus` (`Konfig` und Handler wachsen dort), `slice-replay-service` und `slice-bootstrap-m2` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Abhängigkeiten — Grund je Eintrag:**
 

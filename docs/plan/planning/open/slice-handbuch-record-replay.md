@@ -41,9 +41,11 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 2. **Schnittstellen des Anwenders.** Konfiguration (Umgebungsvariablen, Dateien, `SPEC-110`), Modus-Wahl (`record`, `replay`), Zuordnung im Replay (`SPEC-052`), Ports und Pfade der HTTP-Eingänge, Ausgabe und Logs; je Angabe der Beleg (Test des Binary, Gate), sonst entfällt sie.
 3. **Schutz der Daten.** Was Redaction aus Aufzeichnungen fernhält und was nicht (`LH-FA-14`, `LH-QA-04`): nur Aussagen, die ein Test mit Canary-Werten belegt; Verantwortung des Betreibers für zulässige Testdaten (`LH-RB-04`) als Hinweis im Wortlaut der Spezifikation.
 4. **Unterstützter Teilumfang** (`LH-RB-01`): als Tabelle *unterstützt · nicht unterstützt* aus Spezifikation und Tests des Codec; nicht unterstützte Funktionen erscheinen als nicht unterstützt, nicht als Auslassung.
-5. **Fehlerbilder.** Je Fehlercode, den das Binary im Betrieb von M2 erzeugt, Ursache und Lösung (Standard Abschnitt 8) und die Zeile in der Tabelle der Fehlercodes (`slice-handbuch-meldungskatalog`); der Abgleich bleibt grün.
+5. **Fehlerbilder.** Je Fehlercode, den das Binary im Betrieb von M2 erzeugt, Ursache und Lösung (Standard Abschnitt 8) und die Zeile in der Tabelle der Fehlercodes (`slice-handbuch-meldungskatalog`); der Abgleich bleibt grün. Dazu das Fehlerbild zu `ODR-E5010` (503 beim Herunterfahren, neu mit `slice-http-lebenszyklus`), 404 auf Absolute-Form-Requests, der Header `X-Correlation-Id` auf Fehlerantworten und die Kopfgrenze von 64 KiB (Vorabentwurf des Architect zu `slice-http-adapter`, `SPEC-136`).
 6. **Beleg der Beispiele.** Ort der Beispiel-Dateien, Test (Stufe `test`) und Bindung nach der Entscheidung aus `slice-handbuch-geruest`; ein Beispiel ohne Datei ist kein Beispiel.
 7. Raster *Operation × Argumentart* (§6) und Tabelle *Zusage · Fänger* (§3) füllen, Größe angeben.
+
+**Übernimmt (Start-Befehl):** Aufruf `start` (Kommando, Argumente, Ausgabe je Strom, Ausgangswert), Exit-Codes 0, 1, 2, 130, 143 und das Signalverhalten (SIGTERM, SIGINT; das erste Signal fährt geordnet herunter, das zweite erzwingt das Ende) nach `SPEC-138` Nr. 2 bis 7 (Sendung von `slice-cli-adapter`, `AGENTS.md` §3.13). Ein gebundenes Beispiel für `start` ist ein Lauf, der endet (Konfigurationsfehler, Exit 1, Meldung nach `SPEC-110` Nr. 12).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -72,6 +74,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Kapitel Aufzeichnen und Wiedergeben nach Auftrag Nr. 1 bis 5: Aufgaben mit Voraussetzung, Vorgehen und Ergebnis, Schutz der Daten, Teilumfang, Fehlerbilder; jede Aussage über Verhalten hat ihren Beleg (`LH-FA-02`, `LH-FA-04`, `LH-FA-14`, `LH-RB-01`, `LH-RB-04`).
+- [ ] Start-Befehl: Aufruf `start`, Exit-Codes 0, 1, 2, 130, 143 und Signalverhalten stehen im Handbuch nach `SPEC-138` Nr. 2 bis 7 (§1 *Übernimmt (Start-Befehl)*, Sendung von `slice-cli-adapter`); das gebundene Beispiel ist ein endender Lauf (Konfigurationsfehler, Exit 1).
 - [ ] Jedes Beispiel liegt als Datei vor und läuft in der Stufe `test` gegen das gebaute Binary; je Beispiel eine Mutation (Wert im Handbuch geändert), die den Test rot macht.
 - [ ] Der Abgleich der Fehlercodes ist grün; `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
