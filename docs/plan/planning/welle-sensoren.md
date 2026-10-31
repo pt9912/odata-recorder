@@ -30,7 +30,7 @@ Die Zuordnung der fünf Gegenstände:
 |---|---|---|---|
 | Größenmarke | `AGENTS.md` §3.14 | `make groessenmarke` ([SPEC-128](../../../harness/vertraege/SPEC-128-groessenmarke.md)) | `slice-groessenmarke-werkzeug`, Welle [welle-record-replay](welle-record-replay.md); sein `done/` ist der Trigger (§2) |
 | Unsichtbare Zeichen | `AGENTS.md` §3.18 | Prüfung auf BOM, NBSP, U+2028, U+2029, U+200B und rohe Steuerzeichen | `slice-unsichtbare-zeichen` |
-| Größe der Guide-Dateien | Guide-Datei-Wildwuchs (`grundlagen-klassifikation.md`), alle Hard Rules | d-check-Modul `file` | `slice-guide-groessen-gate` |
+| Größe der Guide-Dateien | Guide-Datei-Wildwuchs (`grundlagen-klassifikation.md`), alle Hard Rules | d-check-Module `file` und `structure` (`make docs-check`) | `slice-guide-groessen-gate`, geliefert, Beleg [done/](done/slice-guide-groessen-gate.md) |
 | Zusage und Fänger, Randformen | `AGENTS.md` §3.15, §3.16 | Abdeckungs-Deklaration über den Tests, erzeugte Tabellen, `trace` | `slice-abdeckung-deklaration` |
 | Code-Abdeckung | (keine Regel; Lücke: „Nicht behauptet“ in `harness/README.md`) | Schwelle der Anweisungsabdeckung in der Stufe `test` | `slice-coverage-gate` |
 

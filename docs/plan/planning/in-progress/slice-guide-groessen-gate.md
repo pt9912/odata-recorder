@@ -73,9 +73,9 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
 - [x] Doku-Update: `SPEC-040`, `SPEC-102` und [ADR-0010](../../adr/0010-groesse-der-guide-dateien-als-gate.md) samt Index-Zeile (vom Architect, vor dem ersten Code-Commit), Zeilen von `make docs-check` und `make gegenproben` und *Nicht behauptet* in `harness/README.md` (Wortlaut `SPEC-040` Nr. 11 und §3 unten); die Closure legt dem User den Satz bei, dass der Zeiger in `AGENTS.md` entfällt und jede Erweiterung einer Guide-Datei eine Verschiebung braucht (`SPEC-040` Nr. 8 b); ein Diff-Vorschlag für `AGENTS.md` entfällt nach der Empfehlung des Architect.
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag (§7).
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
 
 ## 3. Plan (vor Code)
 
@@ -302,6 +302,8 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 - Architect: (1) Stub von `AGENTS.md` mit `### 3.1` und `### 3.2` in den Fällen 166 und 167 gegen den Wortlaut von `SPEC-102` (ein Abschnitt) und dessen „zu 16 Bytes“ in Fall 167 (der Stub hat 799 974 Bytes); (2) Arität der Pins in `SPEC-040` Nr. 10 g/h und `SPEC-102` (Eingaben, Randform 10): eine andere Zahl als drei Pins oder ein leerer Pin ist Exit 1.
 - User: (3) Zeitbudget und Trigger von [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Messwerte im Zeitbudget von `SPEC-102`, `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts`); (4) der Satz zu `AGENTS.md` oben; (5) `harness/README.md` außerhalb der Menge (offener Punkt 3) und `.claude/rules/` (offener Punkt 4) bleiben Vorgänge des Users.
 - Nehmer-Nachzüge auf `main` (Integration, nicht hier): Sendungen (1) und (2) in `SPEC-040` und `SPEC-102` durch den Architect auf `main`; Wiedervorlage der Fallnummern (offener Punkt 6): die Fälle 156 bis 170 sind nach dem Merge ohne Kollision (Gegenproben: 170 Fälle, 0 rot).
+
+**Stand der Closure Phase 2** (Planner, 2026-10-31, Integration auf `main`, Merge `608e804`): Der Stempel der Gegenproben ist gültig (die Prüfsumme der Eingaben auf `main` gleich dem Stempel; `main` trug seit dem Zweigschnitt keine Änderung der Eingaben), es lief kein erneuter Lauf. Register: Evidenz `slice-guide-groessen-gate` zu `vertrag-sagt-mehr-zu-als-ein-gate-prueft` (35×), `gegenprobe-haengt-an-der-laufzeit-des-produkts` (4×) und `stempel-gehoert-zu-keinem-committeten-stand` (3×, neu an der Schwelle); alle drei bleiben *offen*, die Verkörperung ist Entscheidung des Users. Nehmer-Nachzüge: keine, die Rückgaben (1) und (2) gehen an den Architect, nicht an einen Slice; §6 trägt sie mit Ausgang *offen*.
 
 **Steering-Loop-Einträge:**
 
