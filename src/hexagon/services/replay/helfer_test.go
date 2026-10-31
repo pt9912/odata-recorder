@@ -251,3 +251,19 @@ func nurErlaubt(t *testing.T, was string, p *prot) {
 
 func blobFehlt() error       { return outbound.ErrBlobFehlt }
 func blobBeschaedigt() error { return outbound.ErrBlobBeschaedigt }
+
+// mitBody ersetzt den Blob des Exchange durch d; der Blob liegt im Fake.
+func (u *umg) mitBody(e model.Exchange, d []byte) model.Exchange {
+	ref := blobRef(d)
+	u.bl.mu.Lock()
+	u.bl.inhalt[ref] = d
+	u.bl.mu.Unlock()
+	e.ResponseBody, e.ResponseBlob = model.BodyPresent, ref
+	return e
+}
+
+// ohneBody macht den Response-Body des Exchange absent.
+func ohneBody(e model.Exchange) model.Exchange {
+	e.ResponseBody, e.ResponseBlob = model.BodyAbsent, ""
+	return e
+}
