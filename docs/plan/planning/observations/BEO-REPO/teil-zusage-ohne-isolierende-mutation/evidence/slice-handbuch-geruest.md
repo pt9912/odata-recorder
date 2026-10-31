@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-geruest
+**Fund:** X-2 (Verifikation 3): `SPEC-200` Nr. 9 b "nennt als zweites Wort das Ziel"; vier Mutationen an `makeBefunde`, die nur Spans mit zwei oder mehr Leerzeichen hinter `make` treffen, blieben grün, die Teil-Zusage nannte der Planner (Z29, Z47, Z53). Der Fix: Z84 mit 24 Leerraum-Zeichen und 4 Nicht-Leerraum-Zeichen, 50 Fälle `TestProbeMake`. Beleg: Plan §7 *Steering-Loop-Eintrag* (e); Report `docs/reviews/2026-10-30-slice-handbuch-geruest-verifikation-3.md` (X-2).

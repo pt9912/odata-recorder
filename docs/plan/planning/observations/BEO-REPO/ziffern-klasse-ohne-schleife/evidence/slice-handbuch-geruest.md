@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-geruest
+**Fund:** Zwei Formen: F-1 (Review, Ausgangswert über dem Bereich: die Prüfung `len(z) > 3` trennte als einzige Zeile eine Ziffernfolge, deren Wert überläuft; 20 Ziffern) und Y-1 (Verifikation 4, die Folge der Zeichen hinter `--- Ausgangswert`: der Fänger führte einzelne Folgen, die leere Zeile fehlte). Beleg: Plan §3 (Z21, 50 Elemente) und §7; Reports `docs/reviews/2026-10-30-slice-handbuch-geruest-review.md` (F-1) und `docs/reviews/2026-10-30-slice-handbuch-geruest-verifikation-4.md` (Y-1).
