@@ -12,6 +12,7 @@ import (
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/replay"
 )
@@ -247,3 +248,6 @@ func nurErlaubt(t *testing.T, was string, p *prot) {
 		}
 	}
 }
+
+func blobFehlt() error       { return outbound.ErrBlobFehlt }
+func blobBeschaedigt() error { return outbound.ErrBlobBeschaedigt }
