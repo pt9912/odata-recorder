@@ -24,3 +24,12 @@ func Inhaltstyp(h map[string][]string, medien ...string) (ok, ohneKontext bool) 
 
 // ASCIIKlein ist asciiKlein (SPEC-127 Nr. 8 g, ASCII-klein).
 func ASCIIKlein(s string) string { return asciiKlein(s) }
+
+// OptionenPaare ist optionen (SPEC-127 Nr. 8 i, SPEC-162 Nr. 1): je Option der nachsichtig dekodierte Name und der Wert.
+func OptionenPaare(raw string) [][2]string {
+	var out [][2]string
+	for _, o := range optionen(raw) {
+		out = append(out, [2]string{o.name, o.wert})
+	}
+	return out
+}

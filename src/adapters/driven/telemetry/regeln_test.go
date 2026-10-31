@@ -49,12 +49,12 @@ func spanNamen() []string {
 	}
 }
 
-// alleCodes sind die 33 Texte der Tabelle in SPEC-109 Nr. 2.
+// alleCodes sind die 34 Texte der Tabelle in SPEC-109 Nr. 2.
 func alleCodes() []string {
 	return []string{
 		"ODR-E2001", "ODR-E2101", "ODR-E2401", "ODR-E3001", "ODR-E4001",
 		"ODR-E5001", "ODR-E5002", "ODR-E5003", "ODR-E5004", "ODR-E5005", "ODR-E5006", "ODR-E5007", "ODR-E5008", "ODR-E5009",
-		"ODR-E6001", "ODR-E6002", "ODR-E6003", "ODR-E6004", "ODR-E6101", "ODR-E6102",
+		"ODR-E6001", "ODR-E6002", "ODR-E6003", "ODR-E6004", "ODR-E6005", "ODR-E6101", "ODR-E6102",
 		"ODR-E7001", "ODR-E7002", "ODR-E7003", "ODR-E7004", "ODR-E7005", "ODR-E7006",
 		"ODR-E7007", "ODR-E7008", "ODR-E7009", "ODR-E7010", "ODR-E7011", "ODR-E7012", "ODR-E9001",
 	}
@@ -388,12 +388,12 @@ func TestWertformStellen(t *testing.T) {
 	}
 }
 
-// P05: error_code nimmt genau die 33 Texte der Tabelle an.
+// P05: error_code nimmt genau die 34 Texte der Tabelle an.
 func TestFehlercodeForm(t *testing.T) {
 	z := schluesselZuForm(t, "fehlercode")
 	codes := alleCodes()
-	if len(codes) != 33 {
-		t.Fatalf("%d Texte, erwartet 33", len(codes))
+	if len(codes) != 34 {
+		t.Fatalf("%d Texte, erwartet 34", len(codes))
 	}
 	alle := model.AlleCodes()
 	if len(alle) != len(codes) {
