@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 	"unicode"
 	"unicode/utf8"
 )
@@ -134,7 +135,7 @@ func liesHandbuch(pfad string) ([]string, string) {
 	b, err := os.ReadFile(pfad)
 	grund := ""
 	switch {
-	case errors.Is(err, fs.ErrNotExist):
+	case errors.Is(err, fs.ErrNotExist), errors.Is(err, syscall.ENOTDIR):
 		return nil, "Handbuch fehlt: " + pfad
 	case err != nil:
 		grund = err.Error()
