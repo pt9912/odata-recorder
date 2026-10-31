@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-02`, `LH-RB-03`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0007](../../adr/0007-race-detektor-im-gate.md)
 
-**Berührte Spec-Stellen:** `ARC-006` (CLI Driving Adapter: Konfiguration, Kommandoauswahl, Start-/Exit-Verhalten) · `ARC-012` (Composition Root) · `LH-FA-02.c` (Beenden des Prozesses: SIGTERM/SIGINT) · `LH-RB-03.a` (das Binary ist auch nativ unter Linux startbar) · `SPEC-110` (Startkonfiguration: es gibt keine Kommandozeilen-Optionen, die Konfiguration kommt aus der Umgebung) · `SPEC-059` (`SHUTDOWN_TIMEOUT`) · `architecture.md` §5 (Zeile *Prozess-Signal*).
+**Berührte Spec-Stellen:** `SPEC-138` (neu, Vertrag dieses Slice: Kommandos, Signale, Exit-Codes) · `ARC-006` (CLI Driving Adapter: Kommandoauswahl, Signale, Exit-Code) · `ARC-012` (Composition Root) · `LH-FA-02.c` (Beenden des Prozesses: SIGTERM/SIGINT) · `LH-RB-03.a` (das Binary ist auch nativ unter Linux startbar) · `SPEC-110` (Startkonfiguration: es gibt keine Kommandozeilen-Optionen, die Konfiguration kommt aus der Umgebung) · `SPEC-059` (`SHUTDOWN_TIMEOUT`) · `architecture.md` §5 (Zeile *Prozess-Signal*).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** pt9912 (Zweig slice-cli-adapter)
@@ -31,13 +31,14 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Der Driving Adapter `src/adapters/driving/cli` (`ARC-006`) wählt das Kommando aus den Argumenten (heute `version` und der Start; der Bestand liegt in `bootstrap.Run`), übersetzt SIGTERM und SIGINT in den Abbruch eines Kontexts, mit dem der Composition Root den geordneten Shutdown nach `LH-FA-02.c` auslöst, und bildet das Ergebnis auf den Exit-Code des Prozesses ab; `src/bootstrap/main` ruft den Adapter. Der Prozess hat damit seinen Eingang, bevor `slice-bootstrap-m2` Listener und Dienste dahinter hängt.
+**Ziel:** Der Driving Adapter `src/adapters/driving/cli` (`ARC-006`) wählt das Kommando aus den Argumenten (`version` und `start`, `SPEC-138` Nr. 2; der Bestand von `version` liegt in `bootstrap.Run`), übersetzt SIGTERM und SIGINT in den Abbruch eines Kontexts, mit dem der Composition Root den geordneten Shutdown nach `LH-FA-02.c` auslöst, und bildet das Ergebnis auf den Exit-Code des Prozesses ab; `src/bootstrap/main` ruft den Adapter. Der Prozess hat damit seinen Eingang, bevor `slice-bootstrap-m2` Listener und Dienste dahinter hängt. Der Start ist ein Funktionswert `Konfig.Start`, den der Composition Root setzt; `main` setzt ihn in diesem Slice nicht, `start` ist bis `slice-bootstrap-m2` ein unbekanntes Kommando (Exit-Code 2) und kein Kommando ohne Wirkung (`LH-RB-01`).
 
 **Übernimmt:** aus `slice-bootstrap-m2` die Zeile `src/bootstrap/main/` *Kommando zum Start* (Kommandoauswahl, Exit-Codes; Sendung von `slice-fehlermodell-konfiguration`, `AGENTS.md` §3.13); `slice-bootstrap-m2` führt den Punkt in §1 *Übernimmt* und im Start-Trigger nach diesem Slice (im selben Commit wie dieser Plan nachgezogen). Das Laden der Konfiguration (`LadeOderMelde`) bleibt dort.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Kommandos über Start und Version hinaus — entfallen (Entscheidung des Users, 2026-10-30, [welle-record-replay](../welle-record-replay.md) §6): `LH-FA-13` verlangt eine Verwaltungsschnittstelle, keine Kommandos, und die Spezifikation nennt keine Kommandozeilen-Optionen (`SPEC-110`).
+- Hilfetext und Optionen (`--help`, `-h`, `--version`) — entfallen (Entscheidung des Users, 2026-10-30, [welle-record-replay](../welle-record-replay.md) §6; `SPEC-110`: keine Kommandozeilen-Optionen); `--help` ist ein Aufrufverstoß mit Exit-Code 2 (`SPEC-138` Nr. 4).
 - Listener öffnen und schließen, 503 während des Herunterfahrens — `slice-http-adapter` (zwei getrennte Schritte); dieser Slice liefert nur den Auslöser.
 - Verdrahtung von Konfiguration, Diensten und `CloseAll` — `slice-bootstrap-m2`; der Adapter kennt weder Dienste noch Listener (`architecture.md` §2: Driving Adapter importieren nur Modell und Ports).
 - Der Admin-Listener — `slice-admin-listener-token` ([welle-admin-api](../welle-admin-api.md)).
@@ -60,9 +61,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Kommandoauswahl und Exit-Codes im Adapter `src/adapters/driving/cli`: das Bestandsverhalten von `bootstrap.Run` (ohne Argument und mit `version` schreibt es `odata-recorder <version>` und liefert 0, jedes andere Aufrufmuster liefert 2) bleibt, bis der Architect es in der Spezifikation ändert; `src/bootstrap/main` ruft den Adapter.
-- [ ] Signale: SIGTERM und SIGINT brechen den Kontext des Starts ab (`LH-FA-02.c`); die Randformen (Signal vor dem Ende des Starts, zweites Signal, Signal nach einem Konfigurationsfehler) stehen als Raster in §6 und sind vor dem Code in der Spezifikation entschieden (`AGENTS.md` §3.12, §3.16).
-- [ ] `make gates` grün, darunter `make a-check` (der Adapter importiert nur Modell und Ports) und `make test-race` (die Signalbehandlung ist nebenläufig, `AGENTS.md` §3.10).
+- [ ] Kommandoauswahl und Exit-Codes im Adapter `src/adapters/driving/cli` nach `SPEC-138` Nr. 1 bis 5 und 9; `bootstrap.Run` entfällt (`bootstrap.go` behält Paketkommentar und `exitOK`), `src/bootstrap/main` ruft `cli.Run`.
+- [ ] Signale nach `SPEC-138` Nr. 6, 7: Anmeldung vor dem Aufruf, erstes Signal bricht den Kontext, zweites erzwingt mit 130/143, Abmeldung genau einmal; die Randformen stehen als Raster in §6 und sind vor dem Code in der Spezifikation entschieden (`AGENTS.md` §3.12, §3.16).
+- [ ] `make gates` grün, darunter `make a-check` (der Adapter importiert nur die Standardbibliothek, `SPEC-138` Nr. 1) und `make test-race` (die Signalbehandlung ist nebenläufig, `AGENTS.md` §3.10).
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
@@ -83,23 +84,77 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|---|
 | `src/adapters/driving/cli/` | neu | Kommandoauswahl, Signal in Kontextabbruch, Exit-Code (`ARC-006`) |
 | `src/bootstrap/main/` | update | ruft den Adapter statt `bootstrap.Run` |
-| `src/bootstrap/bootstrap.go` | update | `Run` (Bestand: `version`, Exit-Codes) geht im Adapter auf; die Form entscheidet der Architect (§6) |
-| `spec/spezifikation.md` | update | Vertrag zu Aufrufmustern, Exit-Codes und Signalverhalten (Architect, vor dem ersten Code-Commit) |
-| Testdateien neben dem Adapter | neu | Happy Path, Boundary und Negative je Aufrufmuster; Signal-Tests ordnen mit Kanälen (`AGENTS.md` §3.10) |
+| `src/bootstrap/bootstrap.go` | update | `Run`, `exitAufruf`, `kommandoName` und Importe entfallen; Paketkommentar angepasst, `exitOK` bleibt (`konfig.go` nutzt es); die Datei bleibt, weil Fälle der Gegenproben (`lint/direktive-nolint`) Text an sie anhängen und `slice-bootstrap-m2` sie füllt |
+| `src/bootstrap/bootstrap_test.go` | gelöscht | `TestRun`, `TestRunNilWriter` ziehen in den Adapter |
+| `spec/spezifikation.md` | update | `SPEC-138` (Vertrag zu Aufrufmustern, Exit-Codes und Signalverhalten), `SPEC-110` (zwei Zusätze) |
+| `harness/vertraege/SPEC-036-test.md` | update | Randformen des Aufrufs verweisen auf `SPEC-138` Nr. 2 bis 4 |
+| `spec/architecture.md` | update | Zeile von `ARC-006` |
+| Testdateien neben dem Adapter | neu | Happy Path, Boundary und Negative je Aufrufmuster; Signal-Tests ordnen mit Kanälen (`AGENTS.md` §3.10); externes Testpaket `cli_test` (Lint-Regel `testpackage`) |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen, die sie tragen müssen, nennt §6.
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stehen mit dem Vertrag `SPEC-138` **vor** dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen, die sie tragen, nennt §6.
+
+**Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15). Die Tests stehen in `src/adapters/driving/cli/` im externen Testpaket `cli_test`. Fakes: `FakeStart` und `FakeSignale` (siehe unten).
+
+| Nr. | Zusage | Fänger | Mutation | Klasse |
+|---|---|---|---|---|
+| C1 | Nr. 2: kein Argument (`nil`, leere Liste) und `version` geben die Version aus; `start` führt `Start` aus, wenn gesetzt, sonst ist es unbekannt (Menge W: Aufrufmuster {`nil`, leere Liste, `version`, `start`} × Start {gesetzt, `nil`} = 8) | `TestKommandoWahl`: je Fall Exit-Code, stdout, Zahl der Aufrufe von `FakeStart` | ohne Argument ruft `Start`; `start` wird nicht erkannt; `start` bei `nil` ruft `Start` (nil-Aufruf); `version` ruft `Start`: je eine rot | andere |
+| C2 | Nr. 4: jedes andere Aufrufmuster ergibt Exit-Code 2, nichts nach stdout, genau `Unbekanntes Kommando: <args[0]>` und Zeilenende nach stderr, `Start` nicht gerufen, keine Anmeldung. Menge A × P: 24 Formen × 4 Positionen = 96, dazu 4 Sonderfälle = 100. Die 24 Formen A: `foo`, leer, ein Leerzeichen, Tab, `Start`, `START`, `Version`, `VERSION`, `start` plus Leerzeichen, Leerzeichen plus `start`, `version` plus Zeilenvorschub, `starts`, `sta`, `versio`, `versionx`, `--help`, `-h`, `help`, `--version`, `-v`, `--`, `version` plus U+00A0, U+FEFF plus `start`, `version` plus NUL (Rohbytes aus Bytewerten gebaut, `AGENTS.md` §3.18). Die 4 Positionen P: [f], [f, `x`], [`version`, f], [`start`, f] (Start gesetzt). Die 4 Sonderfälle: [`start`] mit Start `nil`, [`start`, `x`] mit Start `nil`, [`version`, `x`, `y`], [`start`, `x`, `y`] | `TestAblehnung`: Schleife über A × P und die Sonderfälle; die erwartete Meldung wird aus `args[0]` gebaut | `strings.EqualFold` (rot bei `Start`, `VERSION`); Leerraum entfernt (rot bei `start ` und `version`+LF); `HasPrefix` (rot bei `starts`, `versionx`); nur `args[0]` geprüft (rot bei P2 bis P4); Meldung nennt `args[1]` (rot); Meldung nach stdout; Exit-Code 1; ohne Zeilenende; `Start` trotz Verstoß gerufen; Anmeldung vor der Prüfung (Zähler 1): je eine rot | andere |
+| C3 | Nr. 3: `odata-recorder <Version>` und Zeilenende auf stdout, `Version` unverändert, nichts auf stderr, Exit-Code 0, keine Anmeldung. Menge: `Version` {`1.2.3`, `dev`, leer, ` x ` mit Randleerzeichen, `a`+Tab+`b`} × {`nil`, `version`} = 10 | `TestVersionAusgabe` | `TrimSpace` der Version (rot bei ` x `); leere Version durch `dev` ersetzt (rot); Ausgabe nach stderr; ohne Zeilenende; ohne Präfix; Anmeldung bei `version`: je eine rot | andere |
+| C4 | Nr. 1: ein nil-Writer verwirft die Ausgabe, `Start` erhält nie `nil`, ein Schreibfehler ändert den Code nicht. Menge Z: Writer {nil, schreibt mit Fehler} × Seite {stdout, stderr, beide} × Kommando {`version`, Verstoß `foo`, `start`} = 18 | `TestWriterRandformen`: Code gleich dem Fall mit gutem Writer (0, 2, 0); `FakeStart` hält die Writer und prüft ungleich nil | nil-Writer nicht ersetzt (Panic); nil an `Start` weitergereicht; Schreibfehler ergibt Exit-Code 1: je eine rot | andere |
+| C5 | Nr. 6: `Start` wird genau einmal gerufen, mit den Writern aus `Konfig` (Identität, zwei verschiedene Puffer) und einem abbrechbaren, noch nicht abgebrochenen Kontext; der Adapter schreibt selbst nichts. Menge: 4 Eigenschaften (Zahl der Aufrufe, Identität stdout/stderr, `ctx.Done()` ungleich nil und `ctx.Err()` gleich nil beim Aufruf, Adapter-Ausgabe leer) | `TestStartAufruf` mit `FakeStart` (hält `ctx` und beide Writer, zählt Aufrufe) | zweimal gerufen; Writer vertauscht; `context.Background()` (`Done()` gleich nil); Kontext schon abgebrochen; Adapter schreibt `gestartet` nach stdout: je eine rot | andere |
+| C6 | Nr. 5: Rückgabe 0 → 0, jede andere → 1. Menge: Rückgaben {0, 1, 2, 3, 255, 256, 257, -1, MaxInt, MinInt} = 10 (ohne Signal) | `TestExitAbbildung` | Durchreichen (rot bei 2, 3, 255, 256, 257); `> 0` statt `!= 0` (rot bei -1, MinInt); `& 0xFF` (rot bei 256); `== 1` (rot bei 2) | andere |
+| C7 | Nr. 7 a: Die Anmeldung geschieht genau einmal je `start`, vor dem Aufruf von `Start`, und sonst nie. Menge: Pfade {`start`, ohne Argument, `version`, Verstoß, `start` bei `nil`} = 5, erwartet Anmeldungen {1, 0, 0, 0, 0}; `FakeStart` liest im Aufruf den Zähler von `FakeSignale` | `TestAnmeldung` | Anmeldung auch bei `version` oder Verstoß; Anmeldung nach dem Aufruf von `Start` (Start sieht 0); zweimal angemeldet: je eine rot | nebenläufig |
+| C8 | Nr. 6, 7 a, b: Das erste Signal bricht den Kontext ab, genau einmal, und nicht davor; `Start` kehrt mit 0 zurück, `Run` liefert 0 (kein Erzwingen). Menge: Quelle {Fake-Kanal, echtes Signal an den Prozess} × Signal {SIGTERM, SIGINT} × Zeitpunkt {vor dem Aufruf von `Start` vorbelegt, im Lauf}: Fake 4, echt nur „im Lauf“ 2 = 6. Echte Signale: Der Test registriert vorher einen eigenen Kanal (`signal.Notify`), damit ein fehlender Fänger den Testprozess nicht beendet | `TestErstesSignal`: `FakeStart` meldet „bereit“, prüft `ctx.Err()` gleich nil, wartet auf `ctx.Done()`, liefert 0; Wartezeiten nur als `select` mit Zeitgrenze | Signal ignoriert (Zeitgrenze, rot); Kontext von Anfang an abgebrochen (`Err()` ungleich nil vor dem Signal); Erzwingen schon beim ersten Signal (Run liefert 143/130); SIGINT nicht angemeldet; SIGTERM nicht angemeldet (nur die zwei echten Fälle fangen die Anmeldung) | nebenläufig |
+| C9 | Nr. 7 b: Nach dem ersten Signal wartet `Run` auf `Start` und liefert dessen Code (Nr. 5). Menge: Rückgabe nach dem Signal {0, 1, 2} × erstes Signal {SIGTERM, SIGINT} = 6; `FakeStart` bleibt nach `ctx.Done()` blockiert, bis der Test es freigibt | `TestWartetAufStart` | `Run` kehrt nach dem Abbruch sofort zurück (rot bei 1, 2: Code ungleich); Ergebnis über eine gemeinsame Variable statt über den Kanal (Datenrennen: `make test-race`, je Prozess) | nebenläufig |
+| C10 | Nr. 5, 7 c: Das zweite Signal vor der Rückkehr von `Start` erzwingt das Ende mit 130 (zweites SIGINT) und sonst 143, ohne Warten, ohne Ausgabe. Menge: erstes Signal {SIGTERM, SIGINT} × zweites {SIGTERM, SIGINT, SIGHUP als fremdes} × Quelle: Fake 6, echt (ohne SIGHUP) 4 = 10; `FakeStart` bleibt blockiert, der Cleanup gibt es frei | `TestZweitesSignal` | Erzwingen fehlt (Zeitgrenze, rot); Code des ersten Signals; immer 143 (rot bei zweitem SIGINT); immer 130 (rot bei zweitem SIGTERM); Erzwingen erst beim dritten Signal; Ausgabe beim Erzwingen: je eine rot | nebenläufig |
+| C11 | Nr. 7 d: Die Abmeldung geschieht genau einmal auf jedem Pfad nach der Anmeldung, auch beim Erzwingen, und nie vor der Rückkehr von `Start`. Menge: Pfade {`Start` liefert 0, 1, 2; erstes Signal dann 0; erstes Signal dann 1; Erzwingen} = 6 mit Abmeldungen gleich 1, dazu {`version`, Verstoß, `start` bei `nil`} = 3 mit Abmeldungen gleich 0; `FakeStart` liest im Lauf den Zähler (muss 0 sein) | `TestAbmeldung` | Abmeldung fehlt; doppelt; vor der Rückkehr von `Start`; nicht auf dem Pfad des Erzwingens: je eine rot | nebenläufig |
+| C12 | Nr. 9: kein Zustand zwischen Aufrufen. Menge: Paare nacheinander im selben Prozess {Erzwingen, dann normales `start`}, {erstes Signal, dann normales `start`}, {normal, dann Signal}, {Erzwingen, dann Erzwingen} = 4 | `TestZweiAufrufe`: Der zweite Aufruf sieht `ctx.Err()` gleich nil, Anmeldung gleich 1, sein eigenes Ergebnis | Kontext, Kanal oder Merker „erzwungen“ auf Paketebene: Der zweite Lauf sieht den abgebrochenen Kontext oder hängt: rot | nebenläufig |
+| C13 | Nr. 1: Das Paket importiert nur die Standardbibliothek (kein Segment mit Punkt im ersten Pfadteil). Menge: alle Importe der Nicht-Test-Dateien (heute etwa 6) | `TestNurStandardbibliothek` (`go/build.ImportDir`, Schleife über `Imports`) | Import von `src/bootstrap` (etwa für `ExitKonfiguration`) oder von `src/hexagon/model`: rot (strenger als `a-check`, das `model` erlaubte) | andere |
+| C14 | Akzeptierte Negative, je mit Grund und Folge in *Ungeprüft* von `SPEC-138`: Fenster vor der Anmeldung und Signal bei `version`/Verstoß; zweites Signal zugleich mit der Rückkehr (auch beide vorbelegt); Panic in `Start`; andere Signale als SIGTERM/SIGINT; Goroutine nach dem Erzwingen; Steuerzeichen am Terminal; Verdrahtung des Start-Pfads in `main` (nur `pruefung build` mit `version` fängt `main`) | benannt, kein Test | nicht anwendbar | andere |
+
+**Fixtures und Mutationen.** Keine Fixture gleicht dem Wert der Mutation:
+- Die Rückgaben von `Start` (C6, C9) liegen außerhalb {143, 130, 1}.
+- Das zweite Signal im Paar (SIGTERM, SIGINT) ergibt 130, im Paar (SIGINT, SIGTERM) 143.
+- `Version` ` x ` hat Randleerzeichen.
+
+**Raten (§3.10).** Alle Mutationen von C7 bis C12 sind durch Kanäle und blockierte Fakes geordnet. Sie müssen **in jedem Lauf** rot werden. Der Implementer misst:
+- je Mutation `-count=50` mit Zahl der Läufe;
+- die Mutation des gemeinsamen Zustands in C9 je Prozess mit `make test-race` (`-test.count=1`, mindestens 20 Prozesse);
+- alles mit Zahl, nicht „hoch“.
+
+Die Zusagen halten keine Sperre; die Zeilen *je Fenster der Sperre* aus §3.10 entfallen.
+
+**Hinweise für den Implementer** (kein Produktionscode):
+
+- **Gerüst von `Run`.** Die Auswahl steht in einer kleinen Funktion; `start` läuft so:
+  - Anmelden. `Start` läuft in einer Goroutine und schreibt sein Ergebnis in einen Kanal der Größe 1, damit sie nach dem Erzwingen nicht blockiert.
+  - Ein `select` über Ergebnis und Signal. Beim ersten Signal bricht `cancel()` den Kontext ab. Danach ein zweites `select` über Ergebnis und Signal, das beim Signal 128 plus Nummer liefert.
+  - Abmelden per `defer`. `cyclop` liegt bei 15 und `funlen` bei 100.
+- **Fakes.** `FakeStart` hält `ctx`, beide Writer und den Zähler der Aufrufe. Es blockiert auf `ctx.Done()` oder auf einen Kanal und liefert einen konfigurierten Wert. `FakeSignale` zählt Anmeldungen und Abmeldungen und liefert den Kanal. Beide zählen jede Operation (§3.15).
+- **Bootstrap.** `exitOK` bleibt in `bootstrap.go`, weil `konfig.go` es nutzt. Der Paketkommentar lautet etwa: *„Package bootstrap ist der Composition Root des OData Recorder: Startkonfiguration (`SPEC-110`) und Verdrahtung.“*
+- **Lint.** `forbidigo` verbietet `os.Stdout`/`os.Stderr` außerhalb von `src/bootstrap`. `main` setzt `Stdout`/`Stderr`; im Paket `cli` steht keiner. `gochecknoglobals` verbietet Variablen auf Paketebene, nur Konstanten sind erlaubt.
+- **Echte Signale.** `syscall.Kill(syscall.Getpid(), sig)` erst nach der Meldung „bereit“ von `FakeStart`. Dann ist die Anmeldung aktiv. Die Tests laufen nicht parallel.
 
 ## 4. Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-fehlermodell-konfiguration` liegt in `done/` (erfüllt: `LadeOderMelde`). Die Spezifikation trägt den Vertrag (Aufrufmuster, Exit-Codes, Signalverhalten) samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12). Reihenfolge: vor `slice-bootstrap-m2`, dessen Start-Trigger diesen Slice nennt; beide ändern `src/bootstrap/main/` und `src/bootstrap/bootstrap.go` und laufen deshalb nacheinander (Linie A, [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln) Nr. 3).
+**Start** (`next` → `in-progress`): `slice-fehlermodell-konfiguration` liegt in `done/` (erfüllt: `LadeOderMelde`). Die Spezifikation trägt den Vertrag (Aufrufmuster, Exit-Codes, Signalverhalten) samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12); Raster (§6), Tabelle (§3) und `SPEC-138` stehen im Commit des Architect. Reihenfolge: vor `slice-bootstrap-m2`, dessen Start-Trigger diesen Slice nennt; beide ändern `src/bootstrap/main/` und `src/bootstrap/bootstrap.go` und laufen deshalb nacheinander (Linie A, [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln) Nr. 3).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): Die Marke setzt der Planner beim Start nach `AGENTS.md` §3.14 (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Eine Zahl steht erst mit der Tabelle *Zusage · Fänger* des Architect; der Planner schätzt den Slice heute als klein, ohne Zeilenzahl.
-- `in-progress` → `open` (blockiert): der Adapter erreicht den Start nicht, ohne `src/bootstrap` zu importieren (siehe §6).
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke aus dem Block unten (Metrik nach `AGENTS.md` §3.14: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die `pfad`-Zeilen des Blocks, Tests eingeschlossen; Formel und Prüfung `SPEC-128`). Die Schätzung steht im Block, nachgerechnet aus der Tabelle in §3 (*Zusage · Fänger*): 6 nebenläufige Zeilen (C7 bis C12) und 8 andere (C1 bis C6, C13, C14), 2 Fakes (`FakeStart`, `FakeSignale`; der Fehler-Writer aus C4 ist ein Hilfstyp von wenigen Zeilen und zählt nicht), Produktcode 230 (`cli.go` etwa 120, `main.go` 10, `bootstrap.go` 30 Löschungen, `bootstrap_test.go` 55 Löschungen, Rest 15). *S* = 85·6 + 80·8 + 200·2 + 230 = 1780, Marke 100 · ⌈135·1780 / 10000⌉ = 2500. Die Schnittfrage entsteht erst ab *S* ≥ 2223; der Slice bleibt ungeschnitten.
+- `in-progress` → `open` (blockiert): der Adapter erreicht den Start nicht ohne Import von `src/bootstrap` (entschieden: `Konfig.Start` ist ein Funktionswert, siehe §6).
+
+```groessenmarke
+pfad: src/adapters/driving/cli
+pfad: src/bootstrap/main
+pfad: src/bootstrap/bootstrap.go
+pfad: src/bootstrap/bootstrap_test.go
+produktcode: 230
+fakes: 2
+```
 
 ## 5. Closure-Trigger
 
@@ -116,11 +171,44 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Wie erreicht der Adapter den Start, ohne `src/bootstrap` zu importieren? `a-check` erlaubt einem Driving Adapter nur Modell, Inbound Ports und Querschnitts-Ports; der Composition Root importiert alle. — **Ausgang:** offen; Adresse Architect, entscheidet vor dem Code (`AGENTS.md` §3.13).
-- Randformen des Signals (Signal vor dem Ende des Starts, zweites Signal, Signal nach einem Konfigurationsfehler, Signal während `CloseAll`) und der Aufrufmuster (leeres Argument, Flag wie `--help`, `version` mit Zusatzargument; Bestand von `bootstrap.Run`): das Raster *Operation × Argumentart* entsteht vor dem ersten Code-Commit, jede Zelle mit Ort in der Spezifikation oder „gilt nicht“ mit Grund (`AGENTS.md` §3.12, §3.16) — **Ausgang:** offen; Adresse Architect.
-- Die Spezifikation hat zu Aufrufmustern und Exit-Codes keinen Vertrag; `SPEC-110` sagt nur „keine Kommandozeilen-Optionen“ und `LH-FA-02.c` das Verhalten bei SIGTERM/SIGINT (benannte Spec-Lücke) — **Ausgang:** offen; Adresse Architect, schreibt den Vertrag vor dem Code.
-- Exit-Codes und Signalverhalten sind am Binary sichtbar; das Handbuch-Kapitel dazu käme aus `slice-handbuch-record-replay`, dessen Plan den Punkt nicht führt (`AGENTS.md` §3.13) — **Ausgang:** offen; Adresse Planner, trägt ihn beim Start von `slice-handbuch-record-replay` ein.
+- Wie erreicht der Adapter den Start, ohne `src/bootstrap` zu importieren? `a-check` erlaubt einem Driving Adapter nur Modell, Inbound Ports und Querschnitts-Ports; der Composition Root importiert alle. — **Ausgang:** entschieden (`SPEC-138` Nr. 1, 6, 8). `Konfig.Start` ist ein Funktionswert des Composition Root; das Paket importiert nur die Standardbibliothek; `.a-check.yml` bleibt.
+- Randformen des Signals (Signal vor dem Ende des Starts, zweites Signal, Signal nach einem Konfigurationsfehler, Signal während `CloseAll`) und der Aufrufmuster (leeres Argument, Flag wie `--help`, `version` mit Zusatzargument; Bestand von `bootstrap.Run`) — **Ausgang:** entschieden, Raster und Zusatztabelle unten (`AGENTS.md` §3.12, §3.16).
+- Die Spezifikation hat zu Aufrufmustern und Exit-Codes keinen Vertrag (benannte Spec-Lücke) — **Ausgang:** entschieden (`SPEC-138`).
+- Exit-Codes und Signalverhalten sind am Binary sichtbar; das Handbuch-Kapitel dazu käme aus `slice-handbuch-record-replay`, dessen Plan den Punkt nicht führt (`AGENTS.md` §3.13) — **Ausgang:** offen; Adresse Planner (Text des Architect: Aufruf `start`, Exit-Codes 0, 1, 2, 130, 143 und Signalverhalten nach `SPEC-138` Nr. 2 bis 7 in §1 *Übernimmt* und DoD des Nehmers; ein gebundenes Beispiel für `start` ist ein Lauf, der endet: Konfigurationsfehler, Exit 1, Meldung nach `SPEC-110` Nr. 12).
 - Dateikollision mit `slice-bootstrap-m2` in `src/bootstrap/main/` und `src/bootstrap/bootstrap.go` — **Ausgang:** offen; durch die Reihenfolge im Start-Trigger gelöst, wenn beide nacheinander laufen.
+- Die Pflichten des Starts (`SPEC-138` Nr. 8: Rückgabe statt `os.Exit`, Herunterfahren unter `context.WithoutCancel(ctx)`, Abbruch in jeder Phase, Konfigurationsfehler 1) trägt `slice-bootstrap-m2`; die Zeilen S1 bis S4 gehören in dessen Tabelle *Zusage · Fänger* — **Ausgang:** offen; Adresse Planner, Nachzug im Plan von `slice-bootstrap-m2` im Commit des Planners auf `main` (`AGENTS.md` §3.13).
+- Quelle der Kommandos für den Katalog: `slice-handbuch-meldungskatalog` nennt den Aufruf-Zweig in `src/bootstrap/bootstrap.go` als Quelle und behauptet, für Kommandos gebe es keine Spezifikation; beides gilt mit `SPEC-138` nicht mehr (Menge: `start` nur mit gesetztem `Start`, und `version`) — **Ausgang:** offen; Adresse Planner, Nachzug im Plan von `slice-handbuch-meldungskatalog` (Zeilen mit `Run`, §1 Ziel, Nr. 7, Nr. 8).
+- Die Pläne `slice-container-image` und `slice-listener-tls` nennen `Run` als Skelett (`heute ist Run ein Skelett …`); der Wortlaut wird zu `heute ruft der Adapter cli (cli.Run) keinen Start`; `CMD ["start"]` ist Sache von `slice-container-image` — **Ausgang:** offen; Adresse Planner, Nachzug im Commit des Planners auf `main`.
+- Der Wortlaut `Unbekanntes Kommando: version` für `version x` ist irreführend, aber vom Handbuch gebunden; eine Änderung braucht die Beispiele unter `docs/user/beispiele/` und `SPEC-138` Nr. 4 — **Ausgang:** akzeptiert, kein Folge-Slice.
+- Der Test mit einem echten SIGTERM am gebauten Binary fehlt (benanntes Negativ C14: `pruefung build` fährt nur `version`; eine falsche Verdrahtung von `Start` und `Signale` in `main` bleibt bis zum Lauf des Binary im Container ungefangen, `main` ist eine Zeile). `slice-test-integration` ist nicht auf Annahme geprüft und nicht zugewiesen (`AGENTS.md` §3.13) — **Ausgang:** akzeptiert; Grund und Folge in *Ungeprüft* von `SPEC-138`.
+- Die Zeile *Nicht behauptet* in `harness/README.md` nennt den Code „ein Skelett aus Composition Root und Version“; das war schon vor diesem Slice veraltet — **Ausgang:** offen; Adresse Planner (berichtigt sie bei Gelegenheit).
+
+### Raster *Operation × Argumentart*
+
+Orte sind Nummern von `SPEC-138`.
+
+| Operation | fehlend | leer | unbekannt oder fremd | Zusatz | Abbruch | Wiederholung |
+|---|---|---|---|---|---|---|
+| Kommandowahl (`args`) | Nr. 2 (`nil` und leere Liste: Version) | Nr. 4 (leeres Element) | Nr. 4 (24 Formen, Fänger C2) | Nr. 4 (hinter `version`, hinter `start`, hinter unbekanntem) | gilt nicht: Die Wahl ist synchron, ohne Kontext und vor jeder Anmeldung; ein Signal dort: *Ungeprüft* | Nr. 9 |
+| Ausgabe (`Stdout`, `Stderr`) | Nr. 1 (nil verwirft, `Start` erhält nie nil) | gilt nicht: Ein Writer ohne Daten ist ein gültiger Writer; eine leere `Version`: Nr. 3 | Nr. 1 (jeder `io.Writer`; ein Schreibfehler ändert den Code nicht) | gilt nicht: Der Adapter schreibt je Strom höchstens eine Zeile | gilt nicht: synchron | Nr. 9 |
+| `Start` (Funktionswert) | Nr. 1, 4 (`nil`: `start` ist unbekannt, Code 2) | gilt nicht: `Start` erhält nur `ctx` und zwei Writer, nie leer oder nil (Nr. 1, 6); die Rückgabe 0 ist Nr. 5 | Nr. 5 (jede Rückgabe außer 0 → 1) | gilt nicht: genau ein Aufruf (Nr. 6) | Nr. 7 b, 8 b bis e | Nr. 9 |
+| Signalquelle (`Signale`, `nil` = System) | Nr. 1, 7 a | gilt nicht: Kein Signal ist kein Ereignis | Nr. 7 a, c (ein anderes Signal als SIGTERM und SIGINT, das die Quelle liefert, zählt als Signal und ergibt als zweites 143; angemeldet werden nur die zwei) | Nr. 7 c (weitere Signale) | Nr. 7 b | Nr. 7 d, 9 |
+
+### Zusatztabelle: Zeitpunkt × Signalnummer, Paare und Verstoß-Paare
+
+| Zeitpunkt oder Paar | erstes Signal | zweites Signal | Fänger |
+|---|---|---|---|
+| vor der Anmeldung (Prozessstart bis `Notify`) | Standardverhalten, Nr. *Ungeprüft* | – | benanntes Negativ C14 |
+| nach der Anmeldung, vor dem Aufruf von `Start` (im Kanal vorbelegt) | Nr. 7 a, 6: `Start` sieht den abgebrochenen Kontext | beide vorbelegt: Nr. *Ungeprüft*, eines von beiden | C8 (Fall vorbelegt); Negativ C14 |
+| vor dem Ende des Starts (Phase) | Nr. 7 b, 8 c | Nr. 7 c | C8; C10; `slice-bootstrap-m2` S2 |
+| im Lauf | Nr. 7 b, 8 c | Nr. 7 c | C8, C9; C10 |
+| während `CloseAll` oder des Herunterfahrens (selbst eingeleitet oder nach dem ersten Signal) | selbst eingeleitet: Nr. 8 e, beschleunigt nichts | Nr. 7 c: 128 plus Nummer, Sessions bleiben `open` | `slice-bootstrap-m2` S1, S4; C10 |
+| nach einem Konfigurationsfehler (`Start` lieferte 1) | während des Ladens: Nr. 8 d, Code 1; danach: Nr. 7 d, nicht beobachtet | – | `slice-bootstrap-m2` S3; C6, C11 |
+| nach der Rückkehr von `Start` | Nr. 7 d | – | C11 (Abmeldung genau einmal) |
+| Paar SIGINT, SIGTERM / SIGTERM, SIGINT / gleiche Art | Nr. 7 b | Nr. 5, 7 c: der Code folgt dem zweiten Signal | C10 (Paare mit verschiedenen Arten in 4 von 10 Fällen) |
+| Verstoß-Paar: unbekanntes erstes Argument mit Zusatz | – | – | Nr. 4: die Meldung nennt das erste Argument; C2 (Position „erstes Argument mit Zusatz“) |
+| Verstoß-Paar: `start` bei `Start` gleich `nil` mit Zusatz | – | – | Nr. 4: Meldung `start`; C2 |
+| Modus (`record`/`replay`) | gilt nicht: Der Adapter kennt den Modus nicht; Wirkung im Start: `slice-bootstrap-m2` S2 | – | – |
 
 ## 7. Closure-Notiz
 
