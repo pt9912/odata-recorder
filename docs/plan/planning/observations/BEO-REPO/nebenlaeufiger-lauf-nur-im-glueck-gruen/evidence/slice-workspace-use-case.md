@@ -1,0 +1,2 @@
+**Vorgang:** slice-workspace-use-case
+**Fund:** Zusagen über Nebenläufigkeit (Reset gegen laufenden Replay, gleichzeitiges `Create`) tragen Raten je Prozess (Plan §3, Absatz *Raten*, D3 bis D5) und Wirkungs-Fänger R1 bis R4, weil der Detektor sie nicht meldet; die Mutationen R1 bis R3 des Verifiers wurden in 20 von 20 Prozessen rot. Beleg: Plan §3 *Raten* und §6 *Reset gegen laufenden Replay-Zugriff*; Report `docs/reviews/2026-10-30-slice-workspace-use-case-verifikation.md` Abschnitt 6.

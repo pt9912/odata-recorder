@@ -5,7 +5,7 @@
 # Benutzerhandbuch (aufgabenorientiert, deutsch):
 #   https://github.com/pt9912/a-check/blob/main/docs/user/benutzerhandbuch.md
 #
-A_CHECK_IMAGE ?= ghcr.io/pt9912/a-check@sha256:e8208764b119c606c92f82722813386277a65b12812d23b6107ea7a14dc25da1
+A_CHECK_IMAGE ?= ghcr.io/pt9912/a-check@sha256:9738c2d0a22a22ace355a2eb029ede15de33ab3f440ad0cb1c827322895a7068
 
 # Container-Runtime ueber eine Indirektion (podman/nerdctl/docker); wer eine
 # eigene Runtime nutzt, definiert sie VOR dem `include`.

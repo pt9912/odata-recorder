@@ -1,0 +1,2 @@
+**Vorgang:** slice-workspace-use-case
+**Fund:** M-2 der Verifikation (`a37d372`): Anzahlen von Einträgen deckten nicht alle Ziffern (`SPEC-129` Nr. 6 b, `entity_count`); Ziffer 9 abgewiesen war ungefangen. Fix: Z72, `TestEntityCountZiffern` mit 140 Anzahlen (0 bis 130, 200 bis 900 in Hundertern, 999), der Test zählt die gedeckten Ziffern; Mutationen an nicht genannten Ziffern (0, 1, 4, 7) 10 von 10 Prozessen rot. Beleg: Plan §3 Absatz *fünfte Runde*; Report `docs/reviews/2026-10-30-slice-workspace-use-case-verifikation.md`.

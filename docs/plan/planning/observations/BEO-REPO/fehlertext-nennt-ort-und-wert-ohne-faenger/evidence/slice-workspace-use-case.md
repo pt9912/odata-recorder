@@ -1,0 +1,2 @@
+**Vorgang:** slice-workspace-use-case
+**Fund:** M-1 der Verifikation (`a37d372`): `SPEC-129` Nr. 6 sagt, der Fehlertext nenne den Ort und nie den Wert; die 13 Aufrufe von `verstoss` in `manifest.go` hatten keinen Fänger über den Text. Fix: Z71, `TestVerstoesseNennenOrtOhneWert` liest die Stellen aus dem Quelltext und hält die Tabelle dagegen (13 Stellen, 175 Fälle); Mutationen an nicht genannten Stellen 10 von 10 Prozessen rot. Beleg: Plan §3 Absatz *fünfte Runde*; Report `docs/reviews/2026-10-30-slice-workspace-use-case-verifikation.md`.
