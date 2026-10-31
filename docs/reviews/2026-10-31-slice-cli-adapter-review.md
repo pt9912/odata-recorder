@@ -9,7 +9,7 @@
 **Eingangs-Kontext:**
 
 - Slice-Plan `slice-cli-adapter` (Tabelle *Zusage · Fänger* C1 bis C14, Raster und Zusatztabelle in §6, Marke 2500, Messung 1182)
-- `SPEC-138`, `SPEC-110` (Zusätze), `ARC-006`, `ADR-0001`, `ADR-0007`
+- `SPEC-138`, `SPEC-110` (Zusätze), `ARC-006`, [`ADR-0001`](../plan/adr/0001-implementierungssprache-go.md), [`ADR-0007`](../plan/adr/0007-race-detektor-im-gate.md)
 - `LH-FA-02` (Buchstabe c), `LH-RB-03`
 - `AGENTS.md` (Hard Rules)
 
