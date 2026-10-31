@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-02`, `LH-QA-05`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0007](../../adr/0007-race-detektor-im-gate.md)
 
-**Berührte Spec-Stellen:** `LH-FA-02.c` · `SPEC-059` · `SPEC-109` Nr. 2 · `SPEC-136` Nr. 11 bis 15 · `SPEC-137` · `SPEC-230` Nr. 8 · `SPEC-124` Nr. 14.
+**Berührte Spec-Stellen:** `LH-FA-02.c` · `SPEC-059` · `SPEC-109` Nr. 2 · `SPEC-136` Nr. 3b, 11 bis 15 (stehen in der Spezifikation, Commit 083d595 im Zweig von `slice-http-adapter`; der Slice schreibt sie nicht) · `SPEC-137` · `SPEC-230` Nr. 8 · `SPEC-124` Nr. 14.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -33,7 +33,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der `Server` des Kerns (`slice-http-adapter`) schließt in zwei Schritten (`Anhalten`, `Schliessen(frist)`), weist neue Requests auf bestehenden Verbindungen mit 503 `ODR-E5010` ab, trägt feste Grenzen (`SPEC-136` Nr. 11), und `ODR-E5010` steht in der Code-Tabelle (35 Codes). Der Schnitt gegen den Kern ist vor dem Code gemacht (`AGENTS.md` §3.14): der Lebenszyklus ist der einzige Teil ohne geteilten Mechanismus mit ihm; er braucht vom Kern nur `Server` und den Eintritt des Handlers (eine Zeile `if angehalten`) und seine eigene Sperre.
 
-**Übernimmt:** die Sendung aus `slice-session-beenden` („Fänger der beiden Schritte“, Zeilen L3 bis L12 und L16 der Tabelle in §3) und das Risiko „Request-Größe und Zeitgrenzen“ aus `slice-http-adapter` (Fänger L1, L2); `slice-http-adapter` führt beide als übergeben (§1 und §6 dort, im selben Commit nachgezogen).
+**Übernimmt:** die Sendung aus `slice-session-beenden` („Fänger der beiden Schritte“, Zeilen L3 bis L12 und L16 der Tabelle in §3) und das Risiko „Request-Größe und Zeitgrenzen“ aus `slice-http-adapter` (Fänger L1, L2); `slice-http-adapter` führt beide als übergeben (§1 und §6 dort, im selben Commit nachgezogen). Der Vertrag `SPEC-136` Nr. 3b, 11 bis 15 steht schon in der Spezifikation (Commit 083d595); dieser Slice schreibt von der Spezifikation nur `SPEC-137`, `SPEC-109` Nr. 2, `SPEC-230` Nr. 8 und die Historie.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -83,7 +83,7 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|---|
 | `src/adapters/driving/httpodata/` | update | Zustand der Zulassung, `Anhalten`, `Schliessen`, 503-Pfad, Grenzen des Servers |
 | `src/hexagon/model/fehler.go` | update | `CodeE5010` nach `CodeE5009`, Zeile in `codeZeilen()` |
-| `spec/spezifikation.md` | update | `SPEC-136` Nr. 11 bis 15 und `SPEC-137` (Vorabentwurf des Architect), `SPEC-109` Nr. 2, `SPEC-230` Nr. 8, Historie |
+| `spec/spezifikation.md` | update | `SPEC-137` (Vorabentwurf des Architect; `SPEC-136` Nr. 3b, 11 bis 15 stehen schon, Commit 083d595), `SPEC-109` Nr. 2, `SPEC-230` Nr. 8, Historie |
 | Tests des Pakets und der Zählstellen | neu / update | die Tabelle unten; Zählstellen siehe die Liste darunter |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stehen mit dem Vorabentwurf des Architect (Vertrag `SPEC-136`) vor dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12):
@@ -106,7 +106,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 | L14 | `Schliessen` ohne vorheriges `Anhalten` hält an, Nr. 14 | `TestSchliessenOhneAnhalten`: `Schliessen(1 s)` ohne `Anhalten`: `Dial` scheitert danach, `Serve` kehrt mit `nil` zurück | `Schliessen` nur wartend: `Dial` gelingt, rot | andere |
 | L15 | Ein weiteres `Schliessen` liefert `nil` und wartet nicht, Nr. 14 | `TestSchliessenZweimal`: zweimal nacheinander; das zweite in unter 1 s mit `nil` | zweites `Schliessen` panikt oder wartet: rot | andere |
 | L16 | Nach der Rückkehr von `Schliessen` läuft kein Handler mehr und keiner beginnt; Prüfung und Zählen der Zulassung sind ein Abschnitt, Nr. 13c, 14 | `TestZulassungAtomar` (Wirkungs-Fänger): 200 Requests gleichzeitig (Goroutinen) gegen `Anhalten` und `Schliessen(2 s)` aus der Hauptgoroutine nach 20 ms; nach der Rückkehr: der Zähler der laufenden Handler im Fake ist 0, der Zähler der Aufrufe von `Verarbeiten` wächst in den nächsten 200 ms nicht, und jeder Request endete mit 200 (zugelassen und beendet) oder mit 503/Verbindungsfehler; mit `-count=50` | Prüfung auf angehalten (`atomic.Bool`) und Zählen getrennt (zwei Abschnitte): ein Handler beginnt nach der Rückkehr; der Fänger wird nur mit Wahrscheinlichkeit rot, die Rate je Mutation (Zahl der Läufe, Messender Implementer) steht im Plan; der Detektor meldet es nicht (alles unter Sperre bzw. atomar) | nebenläufig |
-| L17 | `ODR-E5010` steht in der Tabelle (503, `service`, message „Service is shutting down“), 35 Codes, Nr. 13b | Tests, die der Slice ändert: `model/fehler_test.go` (Zeile für `ODR-E5010`, die `fremd`-Liste `{200, 418, 503}` wird `{200, 418, 507}`), `TestMessageFest` (die message ist eindeutig und ohne `%{}<>`), `adapters/driven/telemetry/telemetry_test.go` und `regeln_test.go` (34 auf 35, 38 auf 39, `alleCodes` um `ODR-E5010`) | Code fehlt in der Tabelle: `AlleCodes` hat 34, rot; Status 502 statt 503: rot | andere |
+| L17 | `ODR-E5010` steht in der Tabelle (503, `service`, message „Service is shutting down“), 35 Codes, Nr. 13b | Tests, die der Slice ändert: `model/fehler_test.go` (Zeile für `ODR-E5010`, die `fremd`-Liste `{200, 418, 503}` wird `{200, 418, 507}`), `TestMessageFest` (die message ist eindeutig und ohne `%{}<>`), `adapters/driven/telemetry/telemetry_test.go` und `regeln_test.go` (34 auf 35, 38 auf 39, `alleCodes` um `ODR-E5010`) | Code fehlt in der Tabelle: `AlleCodes` hat 34, rot (A26 des Kerns: 34 Paare × 2 = 68, siehe Zählstellen); Status 502 statt 503: rot | andere |
 
 Zeilen L1 bis L17: **17**, davon **8 nebenläufig** (L3, L5, L6, L9, L10, L11, L12, L16).
 
@@ -119,6 +119,7 @@ Zeilen L1 bis L17: **17**, davon **8 nebenläufig** (L3, L5, L6, L9, L10, L11, L
 - `src/hexagon/model/fehler_test.go`: Zeile `"ODR-E5010": {[]int{503}, "service"}`; die Liste `fremd` `{200, 418, 503}` wird `{200, 418, 507}` (sonst schlägt `TestCodeTabelle` fehl, weil `ODR-E5010` 503 trägt).
 - `src/adapters/driven/telemetry/telemetry_test.go` (die 34 in den Zeilen 44 bis 49, 162 bis 164, 206 bis 207, 382, 413 mit `len(erwartet) != 35` und `len(codes) != 39`, 480 bis 496) und `regeln_test.go` (Zeilen 52 bis 58, 391 bis 400: `alleCodes` um `ODR-E5010`, 34 auf 35); `telemetry.go` folgt `model.AlleCodes()` und bleibt.
 - `src/hexagon/ports/inbound/fehler_test.go`: keine Änderung (prüft `ODR-E5009`).
+- Die Menge der (Code, Status)-Paare des Fängers A26 aus `slice-http-adapter` (`TestFehlerobjektJeCode`, `TestFehlerHeadAlleCodes`) wächst mit dem neuen Code: vor `ODR-E5010` 33 Paare × 2 Bindungen = 66, danach 34 Paare × 2 = 68 (503 ist ein neuer Status; Korrektur des Planners im Zweig von `slice-http-adapter`). Eine feste Zahl 33 oder 66 in diesen Tests ändert dieser Slice mit; die Schleife über `model.AlleCodes()` folgt von selbst.
 - Der Implementer sucht den Rest mit `grep -rn 'AlleCodes\|\b34\b\|\b33\b' src` und nennt jeden Fund im Bericht.
 - Pläne in `open/`, die 34 Codes zählen (vom Planner im selben Commit wie dieser Plan nachgezogen): `slice-handbuch-meldungskatalog`, `slice-handbuch-record-replay`, `slice-telemetry-spans`. `harness/README.md` nennt die Zahl der Codes nicht.
 
@@ -127,7 +128,7 @@ Zeilen L1 bis L17: **17**, davon **8 nebenläufig** (L3, L5, L6, L9, L10, L11, L
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-http-adapter` liegt in `done/`. Die Spezifikation trägt `SPEC-136` Nr. 11 bis 15 und `SPEC-137` (Vorabentwurf des Architect), bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12). Reihenfolge der Welle: `slice-http-adapter` → `slice-http-lebenszyklus` → `slice-bootstrap-m2`.
+**Start** (`next` → `in-progress`): `slice-http-adapter` liegt in `done/`. Die Spezifikation trägt `SPEC-136` Nr. 3b, 11 bis 15 (aus `slice-http-adapter`, mit dessen Übergang nach `done/` in `main`) und `SPEC-137` (Vorabentwurf des Architect), bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12). Reihenfolge der Welle: `slice-http-adapter` → `slice-http-lebenszyklus` → `slice-bootstrap-m2`.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
