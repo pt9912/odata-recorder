@@ -129,23 +129,91 @@ func aliasElement(z unicodeZeichen, st stellung) fall {
 	}}
 }
 
-// unicodeElemente bildet die Menge: Zeichen × Ort × Stellung. Typpräfix und Name der Menge in vier Stellungen (116 je), Name eines
-// Schlüsselteils und Alias in erster und innerer Stellung (58 je).
-func unicodeElemente() []unicodeElement {
-	orte := []struct {
-		name       string
-		stellungen []stellung
-		bau        func(unicodeZeichen, stellung) fall
-	}{
-		{"Typpräfix", []stellung{allein, erste, innere, letzte}, praefixElement},
-		{"Name der Menge", []stellung{allein, erste, innere, letzte}, setNameElement},
-		{"Name eines Schlüsselteils", []stellung{erste, innere}, schluesselNameElement},
-		{"Alias", []stellung{erste, innere}, aliasElement},
+// mengeMitOptionen ist die Ressource `/S` mit den Optionen o.
+func mengeMitOptionen(o model.Optionen) *model.ODataURL {
+	return &model.ODataURL{Ressource: model.Ressource{Art: model.RessourceMenge, EntitySet: "S"}, Optionen: o}
+}
+
+// selectElement: ein Element von `$select`; ein Name wird gelesen, sonst ist der Wert `wert` (SPEC-162 Nr. 6).
+func selectElement(z unicodeZeichen, st stellung) fall {
+	muster := st.muster(z.bytes)
+	if keinName(z, st) {
+		return fall{pfad: "/S", query: "$select=" + muster, u: model.URLWert, ort: "query/1"}
 	}
+	return fall{pfad: "/S", query: "$select=" + muster, want: mengeMitOptionen(model.Optionen{Select: &model.SelectOption{Namen: []string{muster}}})}
+}
+
+// orderbyElement: ein Element von `$orderby`; ein Name wird gelesen, sonst ist der Wert `wert` (SPEC-162 Nr. 7).
+func orderbyElement(z unicodeZeichen, st stellung) fall {
+	muster := st.muster(z.bytes)
+	if keinName(z, st) {
+		return fall{pfad: "/S", query: "$orderby=" + muster, u: model.URLWert, ort: "query/1"}
+	}
+	return fall{pfad: "/S", query: "$orderby=" + muster, want: mengeMitOptionen(model.Optionen{OrderBy: []model.Sortierung{{Name: muster}}})}
+}
+
+// pfadGliedElement: das zweite Glied eines Pfades `p/<Muster>` in `$select` oder `$orderby`; ein Name macht den Wert zu
+// `wert_nicht_unterstuetzt` (Pfad), sonst ist er `wert` (SPEC-162 Nr. 6, 7).
+func pfadGliedElement(option string) func(unicodeZeichen, stellung) fall {
+	return func(z unicodeZeichen, st stellung) fall {
+		query := option + "=p/" + st.muster(z.bytes)
+		if keinName(z, st) {
+			return fall{pfad: "/S", query: query, u: model.URLWert, ort: "query/1"}
+		}
+		return fall{pfad: "/S", query: query, u: model.URLWertNichtUnterstuetzt, ort: "query/1"}
+	}
+}
+
+// restGliedElement: das zweite Glied eines qualifizierten Rest-Segments `p.<Muster>`; ein Name macht es zu
+// `pfad_nicht_unterstuetzt`, sonst ist es `segment` (SPEC-161 Nr. 7).
+func restGliedElement(z unicodeZeichen, st stellung) fall {
+	pfad := "/S/p." + st.muster(z.bytes)
+	if keinName(z, st) {
+		return fall{pfad: pfad, u: model.URLSegment, ort: "pfad/2"}
+	}
+	return fall{pfad: pfad, u: model.URLPfadNichtUnterstuetzt, ort: "pfad/2"}
+}
+
+// nacktesWortElement: ein unbenannter Teil `(<Muster>)`; ein Name ohne Literal ist `key`, sonst ist es ein Literal in keiner Form,
+// also `literal` (SPEC-161 Nr. 5 c).
+func nacktesWortElement(z unicodeZeichen, st stellung) fall {
+	pfad := "/S(" + st.muster(z.bytes) + ")"
+	if keinName(z, st) {
+		return fall{pfad: pfad, u: model.URLLiteral, ort: "pfad/1"}
+	}
+	return fall{pfad: pfad, u: model.URLKey, ort: "pfad/1"}
+}
+
+// unicodeOrte sind die zehn Orte, an denen der Parser einen Namen liest: Typpräfix, Name der Menge, Name eines Schlüsselteils,
+// Alias, Element von `$select`, Element von `$orderby`, Pfad-Glied in `$select` und in `$orderby` (dieselbe Prüfung, zwei Wege),
+// Glied eines Rest-Segments und nacktes Wort im Schlüssel. Neun Stellen im Code lesen einen Namen; das Pfad-Glied ist eine davon.
+func unicodeOrte() []struct {
+	name string
+	bau  func(unicodeZeichen, stellung) fall
+} {
+	return []struct {
+		name string
+		bau  func(unicodeZeichen, stellung) fall
+	}{
+		{"Typpräfix", praefixElement},
+		{"Name der Menge", setNameElement},
+		{"Name eines Schlüsselteils", schluesselNameElement},
+		{"Alias", aliasElement},
+		{"Element von $select", selectElement},
+		{"Element von $orderby", orderbyElement},
+		{"Pfad-Glied in $select", pfadGliedElement("$select")},
+		{"Pfad-Glied in $orderby", pfadGliedElement("$orderby")},
+		{"Glied eines Rest-Segments", restGliedElement},
+		{"nacktes Wort im Schlüssel", nacktesWortElement},
+	}
+}
+
+// unicodeElemente bildet die Menge: Zeichen × Ort × Stellung, jeder der zehn Orte in allen vier Stellungen.
+func unicodeElemente() []unicodeElement {
 	var els []unicodeElement
-	for _, o := range orte {
+	for _, o := range unicodeOrte() {
 		for _, z := range unicodeMenge() {
-			for _, st := range o.stellungen {
+			for _, st := range []stellung{allein, erste, innere, letzte} {
 				els = append(els, unicodeElement{o.name, z, st, o.bau(z, st)})
 			}
 		}
@@ -163,10 +231,11 @@ func pruefeUnicodeElement(t *testing.T, e unicodeElement) {
 	pruefeFall(t, parserNeu(), e.f)
 }
 
-// TestUnicodeKlassen (Zeile 28,SPEC-161 Nr. 4 und 6 g, SPEC-125 Nr. 8 b): ein Buchstabe ist ein Zeichen der Kategorie L, eine
-// Ziffer eines der Kategorie Nd; Nl, No, M und die sonstigen Zeichen sind keines von beiden. Schleife über 29 Zeichen (10 positive,
-// 19 negative) × Ort × Stellung: Typpräfix und Name der Menge in vier Stellungen (je 116), Name eines Schlüsselteils und Alias in
-// erster und innerer Stellung (je 58), zusammen 348 Elemente. Die Bytes der Zeichen werden gegen ihren Codepunkt gehalten.
+// TestUnicodeKlassen (Zeile 28, SPEC-161 Nr. 4, 5 c, 6 g, 7, SPEC-162 Nr. 3 d, 6, 7, SPEC-125 Nr. 8 b): ein Buchstabe ist ein
+// Zeichen der Kategorie L, eine Ziffer eines der Kategorie Nd; Nl, No, M und die sonstigen Zeichen sind keines von beiden. Die Klasse
+// gilt an jeder Stelle, die einen Namen liest. Schleife über 29 Zeichen (10 positive, 19 negative) × 10 Orte (neun Stellen im Code,
+// das Pfad-Glied auf zwei Wegen) × 4 Stellungen (je 116), zusammen 1160 Elemente. Die Bytes der Zeichen werden gegen ihren
+// Codepunkt gehalten.
 func TestUnicodeKlassen(t *testing.T) {
 	zahl := map[zeichenKlasse]int{}
 	for _, z := range unicodeMenge() {
@@ -182,7 +251,7 @@ func TestUnicodeKlassen(t *testing.T) {
 	for _, e := range els {
 		pruefeUnicodeElement(t, e)
 	}
-	if len(els) != 348 {
-		t.Fatalf("Zählprobe: %d Elemente, erwartet 348", len(els))
+	if len(unicodeOrte()) != 10 || len(els) != 10*29*4 {
+		t.Fatalf("Zählprobe: %d Orte, %d Elemente, erwartet 10 und 1160", len(unicodeOrte()), len(els))
 	}
 }
