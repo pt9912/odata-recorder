@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier, frischer Kontext (Frage: „Bauen wir es richtig?“ gegen Plan, DoD, `SPEC-200` und `AGENTS.md` §3.9 bis §3.18). Kein Review, keine Reparatur; Code, Plan und Vertrag sind unverändert. Eingang: [Review 1](2026-10-30-slice-handbuch-geruest-review.md) (F-1 bis F-15) und [Review 2](2026-10-30-slice-handbuch-geruest-review-2.md) (R-1 bis R-9) nur als Eingang, nicht als Beweis.
 
-**Gegenstand:** Zweig `slice-handbuch-geruest`, HEAD `c7ceefc` (Fix-Commits `ad8b5f0`, `0d90db1`, `6fd6463`, `c7ceefc`; Planner `5867cfb`), Basis des Slice `975228d`, `main` über `c5d0cdd` aufgenommen. Plan: `docs/plan/planning/in-progress/slice-handbuch-geruest.md`. Arbeitsbaum vor und nach den Läufen ohne Änderung (`git status` leer).
+**Gegenstand:** Zweig `slice-handbuch-geruest`, HEAD `c7ceefc` (Fix-Commits `ad8b5f0`, `0d90db1`, `6fd6463`, `c7ceefc`; Planner `5867cfb`), Basis des Slice `975228d`, `main` über `c5d0cdd` aufgenommen. Plan: `docs/plan/planning/done/slice-handbuch-geruest.md`. Arbeitsbaum vor und nach den Läufen ohne Änderung (`git status` leer).
 
 **Modell:** claude-sonnet-5-5 · **Datum:** 2026-10-30
 
