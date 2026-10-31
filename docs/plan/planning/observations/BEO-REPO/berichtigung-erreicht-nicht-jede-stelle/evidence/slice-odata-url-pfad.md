@@ -1,0 +1,2 @@
+**Vorgang:** slice-odata-url-pfad
+**Fund:** der neue Code `ODR-E6005` machte die Tabelle der Codes 34 statt 33 lang; die Zählungen von 33 Codes und 22 Fehlern in fünf Testdateien der Pakete `telemetry` und `workspace`, `SPEC-230` Nr. 8 und eine Zeile in `open/slice-telemetry-spans.md` trugen die alte Zahl, die Berichtigung erreichte zuerst nur einen Teil (`make gates` nach dem Merge `95eefe3` rot). V5-5: die Zählung "elf Stellen" gegen zehn. Beleg: Plan §6 (p) und §7 *Lerneintrag* (4); Report `docs/reviews/2026-10-30-slice-odata-url-pfad-verifikation-5.md` (V5-5).
