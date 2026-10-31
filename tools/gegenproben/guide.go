@@ -299,7 +299,7 @@ const gdReadme = "# Harness\n\n## Sensors (Feedback-Gates)\n\n| Target | Vertrag
 // gdEcht baut einen Fall mit der echten Konfiguration: 13 Stubs je "x" (AGENTS.md mit den Abschnitten
 // ### 3.1 und ### 3.2, ohne Abschnitt, wenn ohneAbschnitt gilt), harness/README.md mit der Tabelle und, je Eintrag von gross,
 // eine Datei mit 50 000 Zeilen zu 16 Bytes unter dem Pfad; steht ein Pfad der Menge darin, ersetzt
-// sie den Stub. Gilt grossAbschnitt, trägt ### 3.1 die 50 000 Zeilen.
+// sie den Stub. Gilt grossAbschnitt, hat AGENTS.md 50 000 Zeilen und 799 974 Bytes, also nicht mehr als 50 000 Zeilen und 800 000 Bytes.
 func gdEcht(pfad, name string, exit int, gross []string, grossAbschnitt, ohneAbschnitt bool, nachher func(Lauf) string, want ...string) Fall {
 	f := gdFall(name, "", nil, exit, want...)
 	f.Neu = nil
@@ -315,7 +315,7 @@ func gdEcht(pfad, name string, exit int, gross []string, grossAbschnitt, ohneAbs
 		}
 		switch {
 		case grossAbschnitt:
-			dateien["AGENTS.md"] = "### 3.1 x\n" + strings.Repeat(gdZeile16, gdGross) + "### 3.2 x\nx\n"
+			dateien["AGENTS.md"] = "### 3.1 x\n" + strings.Repeat(gdZeile16, gdGross-3) + "### 3.2 x\nx\n"
 		case ohneAbschnitt:
 			dateien["AGENTS.md"] = "x\n"
 		default:
