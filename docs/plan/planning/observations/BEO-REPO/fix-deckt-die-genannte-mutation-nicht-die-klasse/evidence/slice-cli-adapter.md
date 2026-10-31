@@ -1,0 +1,2 @@
+**Vorgang:** slice-cli-adapter
+**Fund:** Die Fix-Runde nach dem Review (R-1 bis R-3: Version, Abmeldung, Kanal) deckte die Klassen statt der genannten Mutationen (`AGENTS.md` §3.17 hielt): der Verifier sah vier nicht genannte Mutationen an `Version`, vier an der Abmeldung und zwei an der Anmeldung rot. Beleg: Plan §7 *Was hat funktioniert* (3); Report `docs/reviews/2026-10-31-slice-cli-adapter-verifikation.md`.

@@ -1,6 +1,6 @@
 # ADR-0010: Die Größe der Guide-Dateien ist ein Gate, die Grenze steht auf dem Ist-Stand und wandert nur nach unten
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Datum:** 2026-10-31
 
@@ -62,3 +62,4 @@ Wenn die Verschlankung beendet ist und die Grenzen nicht mehr sinken (zwei Versc
 | Datum | Ereignis | Verweis |
 |---|---|---|
 | 2026-10-31 | Proposed | Entwurf des Architect; die Annahme steht beim Nutzer aus |
+| 2026-10-31 | Accepted | Entscheidung des Owners im Gespräch: angenommen, Anweisung des Users im Hauptgespräch am 2026-10-31 |

@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-12`, `LH-FA-06`, `LH-FA-07`, `LH-FA-08`, `LH-FA-09`, `LH-FA-10`, `LH-FA-11`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `LH-FA-12.a` · `SPEC-110` Nr. 2 und 8 (Schlüssel dieser Version, Modus) · `SPEC-011`, `SPEC-055`, `SPEC-075` · `SPEC-052` (Adressierung) · `ARC-005`, `ARC-012` · `architecture.md` §2.5 (Modus-Routing).
+**Berührte Spec-Stellen:** `LH-FA-12.a` · `SPEC-110` Nr. 2 und 8 (Schlüssel dieser Version, Modus) · `SPEC-011`, `SPEC-055`, `SPEC-075` · `SPEC-052` (Adressierung) · `SPEC-160` Nr. 8 (Einhängestelle `$filter`) · `ARC-005`, `ARC-012` · `architecture.md` §2.5 (Modus-Routing).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -34,6 +34,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Ziel:** Der Composition Root bindet im Modus `mock` genau `MockUseCase` an den OData-Listener, der Start verlangt keinen Upstream, die Startkonfiguration liefert `MODE=mock` (auch als Default), `STRICT_COVERAGE` und `PUBLIC_BASE_URL`, und der M3-Test aus §1 der Welle läuft grün in `make test`.
 
 **Übernimmt:** den Nachzug von `SPEC-110` Nr. 2 und 8, den `slice-bootstrap-m2` für die Modi `record` und `replay` hinterlassen hat (der Modus `mock` ist dort „nicht unterstützt“).
+
+**Übernimmt (Sendung von `slice-odata-url-filter`):** das Einhängen des Filter-Lesers im Composition Root, `urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser()))` (`SPEC-160` Nr. 8); der Geber liefert den Leser, die Verdrahtung liegt hier. Kein Ausschluss dieses Slice trifft sie.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -59,7 +61,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Verdrahtung und Konfiguration: Modus `mock` bindet `MockUseCase`, der Start verlangt keinen Upstream, `STRICT_COVERAGE` und `PUBLIC_BASE_URL` (Pflicht bei nicht-Loopback-Host) kommen aus dem Wert des Starts; Fänger, dass der Root sie weiterreicht und den Nullwert nicht stehen lässt (Muster aus `slice-upstream-tls`).
+- [ ] Verdrahtung und Konfiguration: Modus `mock` bindet `MockUseCase`, der Start verlangt keinen Upstream, `STRICT_COVERAGE` und `PUBLIC_BASE_URL` (Pflicht bei nicht-Loopback-Host) kommen aus dem Wert des Starts; Fänger, dass der Root sie weiterreicht und den Nullwert nicht stehen lässt (Muster aus `slice-upstream-tls`). Dazu hängt der Root den Filter-Leser ein, `urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser()))` (Sendung von `slice-odata-url-filter`); Fänger: `$filter` im Mock ergibt keine Ursache `filter` (`501`) mehr, und `New()` ohne Leser bleibt im Root unerreichbar.
 - [ ] M3-Test aus §3 der Welle, Referenzdienst beendet, keine Verbindung zu ihm (`LH-FA-12`, Happy Path); dazu als Stufe von `make test-integration` am gebauten Binary das Szenario *Mock CRUD → Reset* (`SPEC-037`, Ziel aus [slice-test-integration](slice-test-integration.md)) für die Kriterien, die die [Rückverfolgungs-Matrix](../rueckverfolgung.md) diesem Slice zuweist.
 - [ ] Nicht gelieferte Schlüssel bleiben `ODR-E2001` (`HYBRID_*`, `FALLBACK_*`, `ADMIN_*`, `LISTEN_TLS_*`), und die Spezifikation führt den Nachzug von `SPEC-110`.
 - [ ] `make gates` grün.
@@ -82,7 +84,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/bootstrap/` | update | Wahl des Use Case je Modus, Start im Modus `mock`, Schlüssel `STRICT_COVERAGE` und `PUBLIC_BASE_URL` |
+| `src/bootstrap/` | update | Wahl des Use Case je Modus, Start im Modus `mock`, Schlüssel `STRICT_COVERAGE` und `PUBLIC_BASE_URL`, Einhängen von `urlparser.WithFilter(urlparser.NewFilterLeser())` (von `slice-odata-url-filter`) |
 | `src/adapters/driving/httpodata/` | update | Mock-Anfragen aller Methoden an den Port; der Adapter kennt den Modus nicht |
 | `tests/` | neu | M3-Test mit dem Referenzdienst aus `slice-bootstrap-m2` |
 | `spec/spezifikation.md` | update | Nachzug von `SPEC-110` Nr. 2 und 8 (Architect) |
@@ -96,7 +98,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-mock-abnahme` und `slice-test-integration` liegen in `done/`. Die Spezifikation trägt den Nachzug von `SPEC-110`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-mock-abnahme`, `slice-test-integration` und `slice-odata-url-filter` liegen in `done/` (der Leser, den der Root einhängt, muss existieren). Die Spezifikation trägt den Nachzug von `SPEC-110`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
