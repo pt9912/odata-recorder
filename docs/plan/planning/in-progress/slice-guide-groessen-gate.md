@@ -67,7 +67,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 - [x] Die Module `file` und `structure` sind aktiv in `.d-check.yml` für die Prüfmenge nach `SPEC-040` Nr. 2 (13 Dateien in 5 Regeln) und die Hard Rules von `AGENTS.md` (Nr. 9), mit Grenzen in Zeilen und Bytes je Gruppe auf dem gemessenen Ist-Stand; jede Grenze trägt ihre Messung im Kommentar der Konfiguration (Klasse *Grenze* und *Rang-Zeiger* nach `AGENTS.md` §3.7), und `make docs-check` ist grün.
 - [ ] Die Wirkung ist erprobt und belegt: die Fälle 156 bis 170 von `SPEC-102` zeigen, dass eine um ein Byte und um eine Zeile verlängerte Guide-Datei das Gate rot macht und eine Datei an der Grenze grün bleibt, über das Binary `d-check` aus dem Image des Pins (ohne Docker auf dem Host); die Zusatzzeit der Gegenproben ist gemessen und in §7 berichtet.
 - [x] Die Regel zum Anheben und Senken der Grenze steht in `SPEC-040` Nr. 8 und in [ADR-0010](../../adr/0010-groesse-der-guide-dateien-als-gate.md) (Status Proposed, die Annahme beim Nutzer); die Spalte *Vertrag* der Zeile von `make docs-check` in `harness/README.md` nennt die Module, ohne die 200 Zeichen zu überschreiten.
-- [ ] `make gates` grün.
+- [x] `make gates` grün (Handoff-Stand, Exit 0; `make groessenmarke`: Messung 737 von Marke 1800).
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
