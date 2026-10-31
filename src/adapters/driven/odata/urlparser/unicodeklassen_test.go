@@ -192,8 +192,8 @@ func sonstigerElement(z unicodeZeichen, st stellung) fall {
 
 // unicodeOrte sind die elf Orte, an denen der Parser einen Namen liest: Typpräfix, Name der Menge, Name eines Schlüsselteils,
 // Alias, Element von `$select`, Element von `$orderby`, Pfad-Glied in `$select` und in `$orderby` (dieselbe Prüfung, zwei Wege),
-// Glied eines Rest-Segments, nacktes Wort im Schlüssel und der Name einer herstellerspezifischen Option (ASCII-Regel). Elf Stellen
-// im Code lesen einen Namen; das Pfad-Glied ist eine davon.
+// Glied eines Rest-Segments, nacktes Wort im Schlüssel und der Name einer herstellerspezifischen Option (ASCII-Regel). Zehn Stellen
+// im Code lesen einen Namen; das Pfad-Glied wird auf zwei Wegen erreicht (`$select` und `$orderby`).
 func unicodeOrte() []struct {
 	name string
 	bau  func(unicodeZeichen, stellung) fall
@@ -241,7 +241,7 @@ func pruefeUnicodeElement(t *testing.T, e unicodeElement) {
 
 // TestUnicodeKlassen (Zeile 28, SPEC-161 Nr. 4, 5 c, 6 g, 7, SPEC-162 Nr. 3 d, 6, 7, SPEC-125 Nr. 8 b): ein Buchstabe ist ein
 // Zeichen der Kategorie L, eine Ziffer eines der Kategorie Nd; Nl, No, M und die sonstigen Zeichen sind keines von beiden. Die Klasse
-// gilt an jeder Stelle, die einen Namen liest. Schleife über 29 Zeichen (10 positive, 19 negative) × 11 Orte (elf Stellen im Code,
+// gilt an jeder Stelle, die einen Namen liest. Schleife über 29 Zeichen (10 positive, 19 negative) × 11 Orte (zehn Stellen im Code,
 // das Pfad-Glied auf zwei Wegen, der Name einer herstellerspezifischen Option mit der ASCII-Regel) × 4 Stellungen (je 116),
 // zusammen 1276 Elemente. Die Bytes der Zeichen werden gegen ihren Codepunkt gehalten.
 func TestUnicodeKlassen(t *testing.T) {
