@@ -225,6 +225,8 @@ ersetzt: 1000 | Die ältere Rückführung über 1000 Zeilen (Erwartung rund 700)
 Messpunkt am Start (`make groessenmarke`, vor dem ersten Code-Commit): `zeilen=34 nebenlaeufig=5 fakes=2 produktcode=380 schaetzung=3525 marke=4800 messung=0`, Tabelle ergibt 3525 gleich der Schätzung des Blocks.
 
 Messpunkt beim Handoff (`make groessenmarke`, nach dem letzten Code-Commit des Implementers): `messung=1754` bei Marke 4800; Produktcode 268 Zeilen (`server.go` 81, `anfrage.go` 26, `antwort.go` 106, `fehler.go` 55) gegen 380 geschätzt, Tests 1486 Zeilen; die Schätzung der Tabelle (3525) lag über der Messung, weil die Mengen als Schleifen über Tabellen laufen und alle Zeilen einen Test-Server und einen Fake des Dienstes teilen.
+
+Messpunkt nach der Fix-Runde (`make groessenmarke`, gegen die feste Marke 4800): `messung=2067`; die Klassen-Fänger (`klassen_test.go`) tragen den Zuwachs.
 - `in-progress` → `open` (blockiert): entfällt — `RequestURI` und `r.Body` genügen, kein Typ von `net/http` erreicht den Port (Vorabentwurf des Architect).
 
 ## 5. Closure-Trigger
