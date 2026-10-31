@@ -154,7 +154,12 @@ pfad: src/bootstrap/bootstrap.go
 pfad: src/bootstrap/bootstrap_test.go
 produktcode: 230
 fakes: 2
+basis: 4e14497
+schaetzung: 1780
+marke: 2500
 ```
+
+**Marke** (`AGENTS.md` §3.14): gesetzt am 2026-10-31 vom Planner in eigenem Commit vor dem ersten Code-Commit; `basis` ist `4e14497`, der Commit mit `SPEC-138` und Plan (Vertrag `SPEC-128`, Formel *S* = 85·*a* + 80·*b* + 200·*f* + *p*, Marke = 100 · ⌈135·*S* / 10000⌉). Nachgerechnet aus der Tabelle in §3: 14 Zeilen, davon 6 `nebenläufig` (C7 bis C12) und 8 `andere` (C1 bis C6, C13, C14); das stimmt mit der Zählung des Architect überein. Nach dem ersten Code-Commit ist die Marke fest; eine Abweichung der Schätzung von der Tabelle ist dann nur ein Hinweis (`SPEC-128` Nr. 5 c).
 
 ## 5. Closure-Trigger
 
