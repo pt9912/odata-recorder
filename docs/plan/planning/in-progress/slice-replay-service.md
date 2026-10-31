@@ -232,6 +232,21 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke dieses Abschnitts, die der Planner nach dem Architect setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen); wird sie überschritten, trägt der Slice einen Eintrag mit Grund im Block (`SPEC-128` Nr. 5), eine Rückführung ist daran nicht geknüpft (`SPEC-128` Nr. 10).
 
+**Größenmarke.** Schätzung *S* = 85·9 + 80·55 + 200·4 + 800 = 6765 (Zeilen der Tabelle: 9 nebenläufig, 55 andere; vier Port-Fakes; Produktcode 800 nach dem Architect, Spanne 650 bis 950), Marke 100·⌈135·6765/10000⌉ = 9200 (`SPEC-128` Nr. 1). Gezählt wie im Plan: Z46 bis Z54 nebenläufig, Z1 bis Z45 und Z55 bis Z64 andere. Der Planner setzt die Marke vor dem ersten Code-Commit; danach ist sie fest (`SPEC-128` Nr. 5 c). `basis` ist der Commit mit `SPEC-135` und dem Plan (`b919969`), der letzte Commit vor dem Code.
+
+```groessenmarke
+pfad: src/hexagon/ports/inbound/replay.go
+pfad: src/hexagon/services/replay
+produktcode: 800
+fakes: 4
+basis: b919969b03229c6311556c7fc9a18281c8da4305
+schaetzung: 6765
+marke: 9200
+schnitt-grund: Nicht vor dem Code geschnitten, vorab benannter Handoff-Schnitt. Der Slice liefert eine Operation; Zuordnung, Key, Auswahl, Cursor und Auslieferung bilden eine Kette, die Konfig, Fehlerabbildung (SPEC-135 Nr. 15) und dieselben vier Fakes teilt; kein Teil allein ist ein Lieferwert, und ein Schnitt vor dem Code trennte nur rund 450 Zeilen ab. Abtrennbar ist allein der Teil Request-Body (SPEC-135 Nr. 7 a bis c; Zeilen Z17, Z18, Z19, Z23): er ist eine Funktion ohne Port und ohne Fake und teilt mit dem Rest nur Konfig und Fehlerabbildung. Er wird zuletzt in eigenem Commit geschrieben und davor gemessen. Liegt die Messung beim Handoff über der Marke, geht er als eigener Slice an den Planner; bis dahin lehnt der Rest jeden Request mit Body mit ODR-E5001 ab.
+```
+
+Messpunkte und Abbruchkriterien (Vorschlag für den Planner): (1) Zwischenmessung nach Zuordnung, Key, Auswahl und Fakes, vor der Auslieferung und den nebenläufigen Fängern; liegt sie über 5000, meldet der Implementer es dem Planner mit Zeilen je Datei (Erwartung 3000 bis 5000). (2) Vor dem Commit des Teils Request-Body: liegt der Rest über 8500, wird der Teil nicht mehr geschrieben. (3) Gesamtmessung über der Marke: Eintrag `ueberschreitung` mit Grund. (4) Fixes und Review über 11 000 geben an den Planner zurück. Erwartung aus den Faktoren von `SPEC-128`: Handoff 4900 bis 7000, Ende 5800 bis 9000.
+
 ## 5. Closure-Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
