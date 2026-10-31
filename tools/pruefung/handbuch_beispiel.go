@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unicode/utf8"
@@ -59,11 +60,22 @@ func fahre(bin string, args []string, arbeit string, grenze time.Duration) (erge
 	cmd.Dir = dir
 	cmd.Env = []string{}
 	cmd.WaitDelay = time.Second
+	// Die Zeitgrenze gilt dem Binary, nicht dem Warten auf die Ströme (SPEC-200 Nr. 7 c, 7 e): sie
+	// ist überschritten, wenn das Binary beim Ablauf noch lebte und beendet wurde; Cancel läuft
+	// nur dann, und nur dann ist gekillt gesetzt.
+	var gekillt atomic.Bool
+	cmd.Cancel = func() error {
+		err := cmd.Process.Kill()
+		if err == nil {
+			gekillt.Store(true)
+		}
+		return err
+	}
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err = cmd.Run()
 	r := ergebnis{stdout: out.String(), stderr: errb.String()}
-	if ctx.Err() != nil {
+	if gekillt.Load() {
 		r.zeit = true
 		return r, nil
 	}
