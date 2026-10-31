@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-port
+**Fund:** Drei Allaussagen des Vertrags ohne Fänger über die Klasse: V-1 „ein Stand zu einem Zeitpunkt“ (`SPEC-230` Nr. 9), V-19 „kein Wert eines Aufrufers bildet einen Schlüssel“, V-29 „zählt jede Operation“ (LOW, akzeptiertes Negativ N-3). Beleg: Plan §3 (Fix-Runden 3 und 5, N-3) und §7; Report `docs/reviews/2026-10-30-slice-telemetry-port-verifikation.md` (V-1).

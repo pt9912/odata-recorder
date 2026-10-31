@@ -205,6 +205,7 @@ Der Core entscheidet **nicht** über TLS, Socket-Lifecycle oder HTTP-Chunking.
 | `ODataCodec` | OData-V4-JSON-Antworten auf Einzel-Entity- und Collection-Abfragen in typisierte Entities des Domain-Modells überführen (nur lesend); die OData-URL (in den AST) und das Schreiben von OData-JSON sind weitere Schnittstellen der Codec-Gruppe |
 | `AuditLog` (Querschnitts-Port) | Audit-Einträge der Verwaltungs- und Löschvorgänge ohne Geheimnisse anhängen |
 | `Telemetry` (Querschnitts-Port) | Strukturierte Logs, Metriken und Spans (`SPEC-026`–`SPEC-030`) ausgeben |
+| `TelemetryReader` (Querschnitts-Port) | Zähler je Fehlercode, Verteilung der Span-Dauern und die zuletzt beendeten Spans im Prozess lesen (`SPEC-230`); getrennt von `Telemetry`, damit ein lesender Dienst nichts schreibt |
 | `Clock` / `IDGenerator` (Querschnitts-Ports) | Deterministische Zeit und IDs in Tests |
 
 **Streaming-Port-Lifecycle:** Der HTTP-Adapter besitzt Request-/Response-Streams und schließt sie.

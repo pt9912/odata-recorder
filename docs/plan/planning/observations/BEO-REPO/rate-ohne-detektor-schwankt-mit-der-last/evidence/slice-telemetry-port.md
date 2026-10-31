@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-port
+**Fund:** V-14: die Raten des Fängers `TestSnapshotZeitpunkt` galten für Load Average bis 5,4 (Implementer 3,0 bis 5,4, Verifier 1,9 bis 4,1), für höhere Last gab es keine Zahl; Verifikation 3 maß 50 von 50 bei Load Average 2,0 bis 11,1 (13,0 an einer Zelle). Der Plan führt die Obergrenze der Last bei der Rate (§3); über 13,0 gibt es keine Zahl. R-6 desselben Slice: die Rate der Wirkungs-Spalte ist ein Messwert unter Last. Beleg: Plan §3 (Raten) und §6 (V-14); Report `docs/reviews/2026-10-30-slice-telemetry-port-verifikation-3.md` §2.
