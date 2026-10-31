@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-service
+**Fund:** F-9 (Review, LOW): die Randform „gewählter Exchange mit Response-Body `discarded` oder unbekanntem Zustand“ hatte in `SPEC-135` Nr. 12 keinen Ort, der Code behandelte sie wie `absent`. Der Implementer meldete sie (`AGENTS.md` §3.12), das Review hielt sie als Befund fest; entschieden in `SPEC-135` Nr. 12, 3 (g) und 15 als `ODR-E9001` ohne Fortschritt des Cursors, Fänger Z65. Beleg: Plan §6 (letzte Zeile, *Randform ohne Ort*) und §7 *Was hat funktioniert* (1); Report `docs/reviews/2026-10-31-slice-replay-service-review.md` (F-9).

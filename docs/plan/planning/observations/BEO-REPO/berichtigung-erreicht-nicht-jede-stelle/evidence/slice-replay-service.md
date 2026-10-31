@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-service
+**Fund:** V-6 (Verifikation 1, LOW): nach dem Nachzug zu F-9 widersprach sich `SPEC-135` Nr. 12 („kein Code für den Client“ neben `ODR-E9001`). V-7 b (LOW): der Plan führte `Location` zugleich als „Owner bestätigt“ (§1) und als „Ausgang offen“ (§6). Beleg: Plan §7 *Was ging anders als geplant* (3); Report `docs/reviews/2026-10-31-slice-replay-service-verifikation.md` (V-6, V-7).

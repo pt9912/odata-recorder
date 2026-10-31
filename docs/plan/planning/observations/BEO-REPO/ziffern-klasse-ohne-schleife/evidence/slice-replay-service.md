@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-service
+**Fund:** V-1 (Verifikation 1, MEDIUM) ist die Zeichen-Variante: die Zusage gilt für jedes Zeichen A bis Z an jeder Stelle des Namens, der Fänger führte vier Schreibweisen fester Namen, vier Buchstaben (B, F, J, Z) blieben ohne Fänger; behoben mit einer Schleife über 256 Bytes je Stelle. Beleg: Plan §7 *Was ging anders als geplant* (1) und *Beobachtungs-Register*; Report `docs/reviews/2026-10-31-slice-replay-service-verifikation.md` (V-1).
