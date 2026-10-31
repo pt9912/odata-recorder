@@ -1,7 +1,6 @@
 package replay
 
 import (
-	"context"
 	"errors"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -28,9 +27,4 @@ func abbilden(err error, g outbound.Gegenstand) error {
 		return err
 	}
 	return mitCode(c, err)
-}
-
-// kontextFehler sagt, ob err einen Kontextfehler enthält, auch neben einem anderen Fehler.
-func kontextFehler(err error) bool {
-	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }

@@ -64,13 +64,15 @@ func mitBodyAnfrage(body []byte, ct ...string) inbound.Anfrage {
 
 func wiederhole(s string, n int) string { return strings.Repeat(s, n) }
 
-// TestRequestBodyFormen hält Z17: Menge 16; jede Form der Eingabe wird entschieden, der Key entsteht aus der Ausgabe.
+// TestRequestBodyFormen hält Z17: Menge 18 (die 16 des Plans und die Grenze der Eingabe bei kürzerer Ausgabe);
+// jede Form der Eingabe wird entschieden, der Key entsteht aus der Ausgabe.
 func TestRequestBodyFormen(t *testing.T) {
 	js := []string{"application/json"}
 	passwort := `{"password":"x"}`
 	ausgabe25 := `{"password":"` + model.Marker + `"}`
-	if len(passwort) != 16 || len(ausgabe25) != 25 {
-		t.Fatalf("Fixtures: %d und %d Bytes", len(passwort), len(ausgabe25))
+	lang := `{"password":"` + wiederhole("x", 20) + `"}`
+	if len(passwort) != 16 || len(ausgabe25) != 25 || len(lang) != 35 {
+		t.Fatalf("Fixtures: %d, %d und %d Bytes", len(passwort), len(ausgabe25), len(lang))
 	}
 	type fall struct {
 		name  string
@@ -98,8 +100,10 @@ func TestRequestBodyFormen(t *testing.T) {
 		{"Ausgabe MaxBytes+1", []byte(passwort), js, "", 24, 16, false},
 		{"Ausgabe genau MaxBytes", []byte(passwort), js, "", 25, 16, true},
 		{"Zahl unter treffendem Namen", []byte(`{"password":1}`), js, "", 64, 14, false},
+		{"Eingabe MaxBytes+1 bei kürzerer Ausgabe", []byte(lang), js, "", 34, 35, false},
+		{"Eingabe genau MaxBytes bei kürzerer Ausgabe", []byte(lang), js, "", 35, 35, true},
 	}
-	if len(faelle) != 16 {
+	if len(faelle) != 18 {
 		t.Fatalf("%d Fälle", len(faelle))
 	}
 	for _, f := range faelle {

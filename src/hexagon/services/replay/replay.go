@@ -62,6 +62,12 @@ func pruefeKonfig(k Konfig) error {
 		return ungueltig("Dienst ohne Kennung oder Root")
 	case k.Sessions == nil || k.Exchanges == nil || k.Blobs == nil || k.Transaktion == nil || k.Telemetrie == nil:
 		return ungueltig("Port fehlt")
+	}
+	return pruefeWerte(k)
+}
+
+func pruefeWerte(k Konfig) error {
+	switch {
 	case k.MaxBytes < 1:
 		return ungueltig("MaxBytes ist kleiner als 1")
 	case !slices.Contains([]model.ReplayStrategy{model.StrategySequential, model.StrategyStrict, model.StrategyFirst, model.StrategyLast}, k.Strategie):
@@ -159,7 +165,7 @@ func (r *Replayer) imSchreiber(ctx context.Context, st outbound.WorkspaceStores,
 	case w.ServiceID != d.ID:
 		return model.Exchange{}, nil, mitCode(model.CodeE5004, nil)
 	}
-	c, vorhanden, err := r.liesCursor(ctx, st, ws, rep, rec)
+	c, vorhanden, err := liesCursor(ctx, st, ws, rep, rec)
 	if err != nil {
 		return model.Exchange{}, nil, err
 	}
@@ -191,7 +197,7 @@ func (r *Replayer) imSchreiber(ctx context.Context, st outbound.WorkspaceStores,
 
 // liesCursor liest den Cursor; ein fehlender ist die neue Replay-Session mit Position 0 (SPEC-135 Nr. 10).
 // Fehlend ist, was die Tabelle von SPEC-109 Nr. 5 wie ErrNichtGefunden abbildet.
-func (r *Replayer) liesCursor(ctx context.Context, st outbound.WorkspaceStores, ws, rep, rec string) (model.ReplayCursor, bool, error) {
+func liesCursor(ctx context.Context, st outbound.WorkspaceStores, ws, rep, rec string) (model.ReplayCursor, bool, error) {
 	c, err := st.Cursors.Get(ctx, ws, rep, rec)
 	if err == nil {
 		return c, true, nil

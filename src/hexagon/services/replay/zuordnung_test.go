@@ -20,14 +20,16 @@ func vierDienste() []replay.Dienst {
 	return []replay.Dienst{{ID: "svc-r", Root: "/"}, {ID: "svc-a", Root: "/a"}, {ID: "svc-ab", Root: "/a/b"}, {ID: "svc-x", Root: "/ab"}}
 }
 
-// TestDienstWahl hält Z8: Menge 14 Pfade über vier Dienste; das Orakel nennt Dienst und OData-Pfad.
+// TestDienstWahl hält Z8: Menge 16 Pfade über vier Dienste (die 14 des Plans und /A/b, /a/B für die Schreibweise
+// hinter der Segmentgrenze); das Orakel nennt Dienst und OData-Pfad.
 func TestDienstWahl(t *testing.T) {
 	orakel := []struct{ pfad, dienst, odata string }{
 		{"/", "svc-r", "/"}, {"/a", "svc-a", "/"}, {"/a/", "svc-a", "/"}, {"/a/b", "svc-ab", "/"}, {"/a/b/c", "svc-ab", "/c"},
 		{"/ab", "svc-x", "/"}, {"/abc", "svc-r", "/abc"}, {"/A", "svc-r", "/A"}, {"/a%2Fb", "svc-r", "/a%2Fb"}, {"/x", "svc-r", "/x"},
 		{"/a/b/", "svc-ab", "/"}, {"/a/bc", "svc-a", "/bc"}, {"", "", ""}, {"x", "", ""},
+		{"/A/b", "svc-r", "/A/b"}, {"/a/B", "svc-a", "/B"},
 	}
-	if len(orakel) != 14 {
+	if len(orakel) != 16 {
 		t.Fatalf("%d Pfade", len(orakel))
 	}
 	for _, o := range orakel {

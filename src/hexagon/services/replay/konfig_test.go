@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -199,29 +200,35 @@ func TestKeinUpstream(t *testing.T) {
 			t.Errorf("Feld %s ist ein Upstream-Port", k.Field(i).Name)
 		}
 	}
-	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, ".", nil, parser.SkipObjectResolution)
+	eintraege, err := os.ReadDir(".")
 	if err != nil {
-		t.Fatalf("ParseDir: %v", err)
+		t.Fatalf("ReadDir: %v", err)
 	}
+	fset := token.NewFileSet()
 	dateien := 0
-	for _, p := range pkgs {
-		for name, f := range p.Files {
-			dateien++
-			for _, imp := range f.Imports {
-				pfad, _ := strconv.Unquote(imp.Path.Value)
-				eigen := strings.Contains(pfad, "/services/replay")
-				if strings.Contains(pfad, "/adapters/") || pfad == "net/http" || strings.Contains(pfad, "/services/") && !eigen {
-					t.Errorf("%s importiert %s", name, pfad)
-				}
-			}
-			ast.Inspect(f, func(n ast.Node) bool {
-				if id, ok := n.(*ast.Ident); ok && id.Name == "UpstreamClient" {
-					t.Errorf("%s nennt das Symbol UpstreamClient", name)
-				}
-				return true
-			})
+	for _, e := range eintraege {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".go") {
+			continue
 		}
+		f, err := parser.ParseFile(fset, name, nil, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		dateien++
+		for _, imp := range f.Imports {
+			pfad, _ := strconv.Unquote(imp.Path.Value)
+			eigen := strings.Contains(pfad, "/services/replay")
+			if strings.Contains(pfad, "/adapters/") || pfad == "net/http" || strings.Contains(pfad, "/services/") && !eigen {
+				t.Errorf("%s importiert %s", name, pfad)
+			}
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			if id, ok := n.(*ast.Ident); ok && id.Name == "UpstreamClient" {
+				t.Errorf("%s nennt das Symbol UpstreamClient", name)
+			}
+			return true
+		})
 	}
 	if dateien < 5 {
 		t.Errorf("nur %d Dateien gelesen", dateien)

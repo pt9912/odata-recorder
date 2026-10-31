@@ -10,9 +10,9 @@ import (
 // TestGrenze hält die Zusage des Puffers: genau die Grenze wird angenommen, ein Byte mehr ist ErrGrenze und wird
 // nicht angenommen, auch über mehrere Writes; ohne Bytes ist Bytes nil.
 func TestGrenze(t *testing.T) {
-	for max := int64(1); max <= 5; max++ {
-		for _, teile := range [][]int{{int(max)}, {int(max) + 1}, {1, int(max)}, {int(max), 1}} {
-			p := begrenzt.Neu(max)
+	for grenze := int64(1); grenze <= 5; grenze++ {
+		for _, teile := range [][]int{{int(grenze)}, {int(grenze) + 1}, {1, int(grenze)}, {int(grenze), 1}} {
+			p := begrenzt.Neu(grenze)
 			var summe int64
 			var err error
 			for _, n := range teile {
@@ -27,11 +27,11 @@ func TestGrenze(t *testing.T) {
 			for _, n := range teile {
 				ueber += int64(n)
 			}
-			if ueber <= max && (err != nil || summe != ueber) || ueber > max && (!errors.Is(err, begrenzt.ErrGrenze) || summe != max) {
-				t.Errorf("max %d, Writes %v: angenommen %d, Fehler %v", max, teile, summe, err)
+			if ueber <= grenze && (err != nil || summe != ueber) || ueber > grenze && (!errors.Is(err, begrenzt.ErrGrenze) || summe != grenze) {
+				t.Errorf("Grenze %d, Writes %v: angenommen %d, Fehler %v", grenze, teile, summe, err)
 			}
 			if int64(len(p.Bytes())) != summe {
-				t.Errorf("max %d, Writes %v: Bytes %d, angenommen %d", max, teile, len(p.Bytes()), summe)
+				t.Errorf("Grenze %d, Writes %v: Bytes %d, angenommen %d", grenze, teile, len(p.Bytes()), summe)
 			}
 		}
 	}

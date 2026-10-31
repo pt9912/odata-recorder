@@ -408,7 +408,9 @@ func TestStromSchliessen(t *testing.T) {
 			if err != nil || st[0].geschlossen() != 0 {
 				t.Errorf("%s: Fehler %v, Close durch den Dienst: %d", pfad, err, st[0].geschlossen())
 			}
-			_ = resp.Body.Close()
+			if err == nil {
+				_ = resp.Body.Close()
+			}
 		}
 		if st[0].geschlossen() != 1 {
 			t.Errorf("%s: Strom %d-mal geschlossen, erwartet 1", pfad, st[0].geschlossen())

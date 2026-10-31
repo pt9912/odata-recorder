@@ -13,7 +13,7 @@ import (
 
 // aufrufMitNullwerten ruft die Methode m von impl mit ctx und Nullwerten für die übrigen Parameter und liefert
 // die Zahl der Parameter ohne ctx und den Fehler (den letzten Rückgabewert).
-func aufrufMitNullwerten(t *testing.T, impl any, m string, ctx context.Context) (int, error) {
+func aufrufMitNullwerten(ctx context.Context, t *testing.T, impl any, m string) (int, error) {
 	t.Helper()
 	mv := reflect.ValueOf(impl).MethodByName(m)
 	typ := mv.Type()
@@ -70,7 +70,7 @@ func TestFakesZaehlenJedeOperation(t *testing.T) {
 				gesamt++
 				u.p.leeren()
 				u.p.setzeFehler(name, nil)
-				n, _ := aufrufMitNullwerten(t, pt.impl, pt.typ.Method(i).Name, ctx)
+				n, _ := aufrufMitNullwerten(ctx, t, pt.impl, pt.typ.Method(i).Name)
 				evs := u.p.von(name)
 				if len(evs) != 1 || len(evs[0].args) != n {
 					t.Errorf("%s: %d Ereignisse, Argumente %v (erwartet %d)", name, len(evs), evs, n)
@@ -78,7 +78,7 @@ func TestFakesZaehlenJedeOperation(t *testing.T) {
 				u.p.leeren()
 				fehler := errors.New("eingespeist " + name)
 				u.p.setzeFehler(name, fehler)
-				if _, err := aufrufMitNullwerten(t, pt.impl, pt.typ.Method(i).Name, ctx); !errors.Is(err, fehler) {
+				if _, err := aufrufMitNullwerten(ctx, t, pt.impl, pt.typ.Method(i).Name); !errors.Is(err, fehler) {
 					t.Errorf("%s: eingespeister Fehler nicht geliefert: %v", name, err)
 				}
 				u.p.setzeFehler(name, nil)
@@ -108,6 +108,24 @@ func TestFakeStoreRollbackFifoPanik(t *testing.T) {
 	cursor := model.ReplayCursor{WorkspaceID: wsID, ReplaySessionID: repID, RecordingSessionID: sesID, ServiceID: svcID, Strategy: model.StrategyStrict}
 	schreibe := func(st outbound.WorkspaceStores) error { return st.Cursors.Put(ctx, cursor) }
 	u := neu(t)
+	// Eine eingespeiste Panik einer Operation erreicht den Aufrufer, auch aus der Transaktion, und gibt die Schlange frei.
+	for _, op := range []string{"Sessions.Get", "tx Workspaces.Get"} {
+		up := neu(t)
+		erfolg(up)
+		up.p.setzePanik(op, "paff-"+op)
+		func() {
+			defer func() {
+				if r := recover(); r != "paff-"+op {
+					t.Errorf("%s: Panik %v nicht weitergereicht", op, r)
+				}
+			}()
+			_, _ = up.replay(ctx, anf())
+		}()
+		up.p.setzePanik(op, nil)
+		if err := up.st.WithWorkspaceTransaction(ctx, func(outbound.WorkspaceStores) error { return nil }); err != nil {
+			t.Errorf("%s: Schlange nach der Panik blockiert: %v", op, err)
+		}
+	}
 	// Fehler: zurückgerollt.
 	boom := errors.New("boom")
 	if err := u.st.WithWorkspaceTransaction(ctx, func(st outbound.WorkspaceStores) error { _ = schreibe(st); return boom }); !errors.Is(err, boom) {
@@ -185,7 +203,7 @@ func TestHuellen(t *testing.T) {
 	k := neuerKontext(context.Background())
 	k.Deadline()
 	k.Done()
-	k.Err()
+	_ = k.Err()
 	k.Value(1)
 	if k.deadline.Load() != 1 || k.done.Load() != 1 || k.err.Load() != 1 || k.value.Load() != 1 {
 		t.Error("Zähler der Hülle des ctx")

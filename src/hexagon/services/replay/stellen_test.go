@@ -118,11 +118,8 @@ func TestKontextfehlerJederStelle(t *testing.T) {
 	}
 }
 
-// codeWert ist ein Eintrag der Handtabelle von Z6: der erwartete Code, 0 heißt Erfolg.
-type codeWert = model.Code
-
 // TestAbbildungJederStelle hält Z6: Menge 63 (7 Stellen × 9 Fehler), erwartet aus der Handtabelle von SPEC-109
-// Nr. 5 und SPEC-135 Nr. 15, 18.
+// Nr. 5 und SPEC-135 Nr. 15, 18; ein Eintrag 0 der Tafel heißt Erfolg.
 func TestAbbildungJederStelle(t *testing.T) {
 	ng := outbound.ErrNichtGefunden
 	type fall struct {
@@ -157,15 +154,12 @@ func TestAbbildungJederStelle(t *testing.T) {
 			if want == 0 {
 				if err != nil {
 					t.Errorf("%s %s: Fehler %v, erwartet Erfolg", s.name, f.name, err)
-				} else if st := u.bl.strome(); len(st) == 1 {
+				} else {
 					_ = resp.Body.Close()
 				}
 				continue
 			}
 			erwarteCode(t, s.name+" "+f.name, err, want)
-			if got, _, ok := fehlerCode(err); ok && got != want {
-				continue
-			}
 		}
 	}
 	if n != 63 {

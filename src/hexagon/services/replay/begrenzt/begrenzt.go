@@ -16,8 +16,8 @@ type Puffer struct {
 	max int64
 }
 
-// Neu liefert einen Puffer, der höchstens max Bytes annimmt.
-func Neu(max int64) *Puffer { return &Puffer{max: max} }
+// Neu liefert einen Puffer, der höchstens grenze Bytes annimmt.
+func Neu(grenze int64) *Puffer { return &Puffer{max: grenze} }
 
 // Write nimmt von p so viele Bytes an, wie die Grenze zulässt; bleibt ein Rest, liefert es ErrGrenze.
 func (b *Puffer) Write(p []byte) (int, error) {
