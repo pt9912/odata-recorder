@@ -4,7 +4,7 @@
 
 **Gegenstand:** Zweig `slice-guide-groessen-gate`, HEAD `5404023` (Implementer `3435f3f`, `556007f`, `6d68d6e`; Review `b923d61`; Fix-Runde `3661392`, `4ebdd1e`, `5404023`).
 
-**Quellen:** Plan `docs/plan/planning/in-progress/slice-guide-groessen-gate.md` (DoD, Tabelle Z1 bis Z15, Raster, §6, Marke 1800), [SPEC-040](../../harness/vertraege/SPEC-040-docs-check.md) Nr. 1 bis 11, [SPEC-102](../../harness/vertraege/SPEC-102-gegenproben.md) Fälle 156 bis 170, [ADR-0010](../plan/adr/0010-groesse-der-guide-dateien-als-gate.md) (auf `main` Accepted, im Zweig Proposed: Sache des Planners bei der Closure, kein Finding), [Review-Report](2026-10-31-slice-guide-groessen-gate-review.md), `AGENTS.md` §3.2, §3.6, §3.9 bis §3.18, `LH-QA-06`.
+**Quellen:** Plan `docs/plan/planning/done/slice-guide-groessen-gate.md` (DoD, Tabelle Z1 bis Z15, Raster, §6, Marke 1800), [SPEC-040](../../harness/vertraege/SPEC-040-docs-check.md) Nr. 1 bis 11, [SPEC-102](../../harness/vertraege/SPEC-102-gegenproben.md) Fälle 156 bis 170, [ADR-0010](../plan/adr/0010-groesse-der-guide-dateien-als-gate.md) (auf `main` Accepted, im Zweig Proposed: Sache des Planners bei der Closure, kein Finding), [Review-Report](2026-10-31-slice-guide-groessen-gate-review.md), `AGENTS.md` §3.2, §3.6, §3.9 bis §3.18, `LH-QA-06`.
 
 ## Urteil
 
