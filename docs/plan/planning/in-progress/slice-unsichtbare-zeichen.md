@@ -206,13 +206,13 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register durchgegangen (Sub-Area `*`, Stand 2026-10-30, 19 Einträge; Zahlen aus den Dateien unter `evidence/`). Für diesen Slice zählen:
+**Vorgelagert — offene Beobachtungen sichten:** Register durchgegangen (Sub-Area `*`, Stand 2026-10-31, 35 Einträge; Zahlen aus den Dateien unter `evidence/`). Für diesen Slice zählen:
 - `werkzeug-eingabe-setzt-escape-in-zeichen-um` (4×, verkörpert in `AGENTS.md` §3.18): der Gegenstand; das Gate trägt den unsichtbaren Teil, der Rest bleibt Prosa (§6).
-- `vertrag-sagt-mehr-zu-als-ein-gate-prueft` (25×), `akzeptiertes-negativ-ohne-folge` (10×), `randform-erst-im-review-entschieden` (20×), `universalaussage-im-vertrag-ungeprueft` (9×): Tabelle, Raster und Allaussagen („jedes Zeichen der Liste“) mit Fänger über alle Elemente.
-- `gegenprobe-haengt-an-der-laufzeit-des-produkts` (1×, offen), `stempel-gehoert-zu-keinem-committeten-stand` (1×, offen), `betriebsregel-fuer-repo-dateien-verletzt` (1×, offen), `hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×, offen): Gegenproben ohne Produkt in der Eingabe, Stempel nach dem letzten Commit, Betriebsregeln in §3, Hüllen von Argumenten (falls das Prüfprogramm einen Strom oder Dateisystem-Fake nutzt) tragen jede Schnittstelle des Originals.
-- `rate-ohne-detektor-schwankt-mit-der-last` (2×, offen): trifft zu, falls ein Fänger nur mit Wahrscheinlichkeit rot wird; ein Treffer hier wäre der dritte und macht aus der Notiz eine Lücke (eigener Slice).
-- `berichtigung-erreicht-nicht-jede-stelle` (11×, §3.9): die Zeile in `harness/README.md`, die Zeile im Index der Verträge und die Gegenproben-Eingaben ziehen im selben Commit nach.
-- `fix-deckt-die-genannte-mutation-nicht-die-klasse` (5×, §3.17): die Liste der Zeichen ist eine Menge; der Fix deckt sie ganz.
+- `vertrag-sagt-mehr-zu-als-ein-gate-prueft` (29×), `akzeptiertes-negativ-ohne-folge` (11×), `randform-erst-im-review-entschieden` (22×), `universalaussage-im-vertrag-ungeprueft` (12×): Tabelle, Raster und Allaussagen („jedes Zeichen der Liste“) mit Fänger über alle Elemente.
+- `gegenprobe-haengt-an-der-laufzeit-des-produkts` (2×, offen), `stempel-gehoert-zu-keinem-committeten-stand` (1×, offen), `betriebsregel-fuer-repo-dateien-verletzt` (2×, offen), `hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×, offen): Gegenproben ohne Produkt in der Eingabe, Stempel nach dem letzten Commit, Betriebsregeln in §3, Hüllen von Argumenten (falls das Prüfprogramm einen Strom oder Dateisystem-Fake nutzt) tragen jede Schnittstelle des Originals.
+- `rate-ohne-detektor-schwankt-mit-der-last` (3×, offen): trifft zu, falls ein Fänger nur mit Wahrscheinlichkeit rot wird; ein weiterer Treffer hier wäre der vierte.
+- `berichtigung-erreicht-nicht-jede-stelle` (14×, §3.9): die Zeile in `harness/README.md`, die Zeile im Index der Verträge und die Gegenproben-Eingaben ziehen im selben Commit nach.
+- `fix-deckt-die-genannte-mutation-nicht-die-klasse` (9×, §3.17): die Liste der Zeichen ist eine Menge; der Fix deckt sie ganz.
 Unter der Schwelle ohne Bezug: die übrigen Einträge.
 
 **Modus-Begründungsblock — Umfang.** Alle berührten Sub-Areas GF (Default `*`, Greenfield: Neues Repo ohne Bestandscode; die Spec führt, der Code folgt).

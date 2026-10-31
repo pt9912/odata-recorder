@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-geruest
+**Fund:** Verifikation 1: acht Mutationen an sieben Zusagen von `SPEC-200` ließen die ganze Suite grün (V-1; Form des Stands Nr. 4 d, Reihenfolge der Gründe Nr. 4 c und weitere), dazu im Review F-1 bis F-5 (Überlauf des Ausgangswertes, Bindungszeile, Reihenfolge der Befunde). Der Code hielt den Wortlaut, der Fänger fehlte. Beleg: Plan §3 (Fix-Runden 1 und 2) und §7; Reports `docs/reviews/2026-10-30-slice-handbuch-geruest-review.md` (F-1 bis F-5) und `docs/reviews/2026-10-30-slice-handbuch-geruest-verifikation.md` (V-1).

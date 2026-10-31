@@ -39,7 +39,7 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 - `slice-groessenmarke-werkzeug` liegt in `done/`: Die Marken der Slices dieser Welle setzt der Planner mit `make groessenmarke` (`SPEC-128`), nicht mit der Prosa-Formel.
 - `docs/user/benutzerhandbuch-standard.md` liegt auf `main` (vom User bereitgestellt; im Worktree als eigener Commit vor diesem Plan).
 
-Gestartet ist `slice-handbuch-geruest` (Linie der Gate-Kette, Zweig `slice-handbuch-geruest`, Worktree `odata-recorder-wt-geruest`, Gate `make handbuch-check`), vor Teil 1 von [welle-sensoren](welle-sensoren.md) und vor `slice-groessenmarke-werkzeug` in `done/`; der Zweig trägt das Werkzeug aus `main`, und der erste Code-Commit folgt der Marke.
+`slice-handbuch-geruest` liegt in [done/](done/slice-handbuch-geruest.md) (Linie der Gate-Kette; das Gate `make handbuch-check` läuft in `make gates`).
 
 Der Start der Slices ist gestuft: `slice-handbuch-geruest` braucht nur den Start der Welle und liegt nach Teil 1 von [welle-sensoren](welle-sensoren.md) (`slice-unsichtbare-zeichen`, `slice-guide-groessen-gate`; Reihenfolge, kein Blocker, ein Start davor ist zulässig: das Gerüst schreibt neue Dokumente, die der Sensor für unsichtbare Zeichen dann schon schützt (§3.18); eine Code-Abhängigkeit gibt es nicht); `slice-handbuch-meldungskatalog` und `slice-handbuch-record-replay` warten auf `slice-bootstrap-m2` in `done/`, weil das Binary vorher weder Schlüssel liest noch Fehlercodes erzeugt (Trigger dort in §4).
 

@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-geruest
+**Fund:** Y-1 (Verifikation 4): Z21, eine leere Ausgangswert-Zeile hatte keinen Fänger; die `""` im Fänger war die fehlende Zeile. Die Mutation "Prüfung auf die leere Zeichenkette in `ausgangswert` entfällt" blieb grün; Z21 führt nach dem Fix 50 Elemente. Beleg: Plan §7 *Steering-Loop-Eintrag* (c); Report `docs/reviews/2026-10-30-slice-handbuch-geruest-verifikation-4.md` (Y-1).

@@ -1,5 +1,5 @@
 // Command gegenproben weist an a-check, golangci-lint (tools/harness/lint.sh),
-// tools/harness/migration-check.sh und pruefung (test, build, race) nach, dass sie einen Verstoß
+// tools/harness/migration-check.sh und pruefung (test, build, race, handbuch) nach, dass sie einen Verstoß
 // rot und einen erlaubten Fall nicht rot melden (SPEC-102). Die Verdrahtung von pruefung im
 // Dockerfile prüft es nicht.
 package main

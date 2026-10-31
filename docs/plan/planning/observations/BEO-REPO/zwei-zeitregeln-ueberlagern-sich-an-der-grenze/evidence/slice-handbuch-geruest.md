@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-geruest
+**Fund:** X-1 (Verifikation 3): `fahre` meldete `Zeitgrenze überschritten` mit `ctx.Err() != nil` nach dem Warten auf die Ströme, auch für ein Binary, das bei 1,4 s vor der Grenze endete (`SPEC-200` Nr. 7 c, 7 e, 4 c; Z26, Z49). Der Fix führt 2 × 4 × 2 = 16 Zellen (Z83: 4 von 16 rot im Stand vor dem Fix, 20 von 20 Läufen). Beleg: Plan §6 (Code weicht vom Vertrag ab) und §3 (Mutationen der Runde 6); Report `docs/reviews/2026-10-30-slice-handbuch-geruest-verifikation-3.md` (X-1).

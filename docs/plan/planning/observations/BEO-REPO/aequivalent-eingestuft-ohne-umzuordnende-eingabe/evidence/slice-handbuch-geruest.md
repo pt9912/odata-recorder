@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-geruest
+**Fund:** m123 (`sort.Slice` statt `sort.SliceStable` in `meldeBefunde`) galt in Verifikation 3 als äquivalent (X-8: bei 16 Gleichständen kein Unterschied sichtbar); Verifikation 4 fand die Eingabe (Y-2: mehr als 12 Befunde, deren Erzeugungsfolge von der Ausgabefolge abweicht; Fänger Z93), die Mutation blieb im Bestand grün. Beleg: Plan §7 *Steering-Loop-Eintrag* (b); Reports `docs/reviews/2026-10-30-slice-handbuch-geruest-verifikation-3.md` (X-8) und `docs/reviews/2026-10-30-slice-handbuch-geruest-verifikation-4.md` (Y-2).

@@ -42,7 +42,7 @@ type Fall struct {
 	WantText     []string // jeder Text muss in der Ausgabe stehen (stdout und stderr gemeinsam)
 	Verboten     []string // keiner dieser Texte darf in der Ausgabe stehen (in keinem Strom)
 	// Getrennt lässt die Hülle stdout und stderr getrennt liefern (SPEC-102 Randform 13, Fälle 38 bis
-	// 120); WantOut steht dann auf stdout und nicht auf stderr, WantErr umgekehrt, und WantText
+	// 130); WantOut steht dann auf stdout und nicht auf stderr, WantErr umgekehrt, und WantText
 	// bleibt leer.
 	Getrennt bool
 	WantOut  []string
@@ -488,5 +488,6 @@ func faelle() []Fall {
 	alle = append(alle, testFaelle()...)
 	alle = append(alle, buildFaelle()...)
 	alle = append(alle, raceFaelle()...)
-	return append(alle, groessenmarkeFaelle()...)
+	alle = append(alle, groessenmarkeFaelle()...)
+	return append(alle, handbuchFaelle()...)
 }

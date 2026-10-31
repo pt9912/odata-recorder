@@ -1,6 +1,7 @@
-// Command pruefung führt die Prüfungen von make test, make build und make test-race aus
-// (SPEC-036, SPEC-122): `pruefung test <Wurzel> [Muster...]`, `pruefung build <Binary> <Version>`
-// und `pruefung race <Wurzel> [Muster...]`.
+// Command pruefung führt die Prüfungen von make test, make build, make test-race und make
+// handbuch-check aus (SPEC-036, SPEC-122, SPEC-200): `pruefung test <Wurzel> [Muster...]`,
+// `pruefung build <Binary> <Version>`, `pruefung race <Wurzel> [Muster...]` und
+// `pruefung handbuch <Binary> <Wurzel>`.
 package main
 
 import (
@@ -13,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -21,18 +23,20 @@ const (
 	exitAufruf = 2
 
 	aufrufText = "Aufruf: pruefung test <Wurzel> [Muster...]\n       pruefung build <Binary> <Version>\n" +
-		"       pruefung race <Wurzel> [Muster...]\n"
+		"       pruefung race <Wurzel> [Muster...]\n       pruefung handbuch <Binary> <Wurzel>\n"
 	kommando = "odata-recorder"
 )
 
-// Umgebung nennt die Programme, die eine Prüfung aufruft, als Name oder Pfad.
+// Umgebung nennt die Programme, die eine Prüfung aufruft, als Name oder Pfad, und die Zeitgrenze
+// eines Laufs des Binary in `pruefung handbuch` (SPEC-200 Nr. 7 c).
 type Umgebung struct {
-	Gofmt string
-	Go    string
+	Gofmt      string
+	Go         string
+	Zeitgrenze time.Duration
 }
 
 func standard() Umgebung {
-	return Umgebung{Gofmt: "gofmt", Go: "go"}
+	return Umgebung{Gofmt: "gofmt", Go: "go", Zeitgrenze: 10 * time.Second}
 }
 
 func main() {
@@ -84,12 +88,14 @@ func run(u Umgebung, args []string, stdout, stderr io.Writer) int {
 		return pruefeTest(u, args[1], args[2:], stdout, stderr)
 	case "race":
 		return pruefeRace(u, args[1], args[2:], stdout, stderr)
+	case "handbuch":
+		return pruefeHandbuch(u, args[1], args[2], stdout, stderr)
 	}
 	return pruefeBuild(u, args[1], args[2], stdout, stderr)
 }
 
-// aufrufGueltig ist wahr für `test <Wurzel> [Muster...]`, `race <Wurzel> [Muster...]` und
-// `build <Binary> <Version>` ohne leeres Argument.
+// aufrufGueltig ist wahr für `test <Wurzel> [Muster...]`, `race <Wurzel> [Muster...]`,
+// `build <Binary> <Version>` und `handbuch <Binary> <Wurzel>` ohne leeres Argument.
 func aufrufGueltig(args []string) bool {
 	if len(args) == 0 {
 		return false
@@ -102,7 +108,7 @@ func aufrufGueltig(args []string) bool {
 	switch args[0] {
 	case "test", "race":
 		return len(args) >= 2
-	case "build":
+	case "build", "handbuch":
 		return len(args) == 3
 	}
 	return false
