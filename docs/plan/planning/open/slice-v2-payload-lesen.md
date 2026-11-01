@@ -33,6 +33,11 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der Leser `jsoncodecv2` (Paket `src/adapters/driven/odata/jsoncodecv2`, `SPEC-172`) **liest** die JSON-Antworten eines V2-Dienstes (Hülle `d`) auf Entity- und Collection-Abfragen für den Import in typisierte Entities gegen ein `model.ServiceModel` mit Version `2.0`: Typen in der Schreibweise von V2 (`/Date(…)/`, `Edm.Int64` und `Edm.Decimal` als String), Anzahl `__count`, Folgelink `__next`, nicht gedeutete Konstrukte als übersprungen gemeldet; das leere Ergebnis bleibt eine leere Menge (`LH-FA-17`, Boundary). Das Modell baut der Test mit `model.NeuesServiceModel("2.0", …)`; der V2-Metadatenleser ist keine Voraussetzung. Der Schnitt von Lesen und Schreiben folgt `AGENTS.md` §3.14: beide teilen allein die Tabelle der Typen in der Spezifikation (`SPEC-170` Nr. 4), keinen Mechanismus im Code; der Rundlauf beider ist der Test von `slice-v2-payload-schreiben`.
 
+**Übernommen von `slice-v2-metadaten`** (Geber; `AGENTS.md` §3.13, Sendung vor dem Nehmer eingetragen):
+
+- Eine Fixture mit einer Property, deren `Unterstuetzt()` falsch ist und deren `EdmType` `Edm.DateTimeOffset(V2)` lautet (V2 nennt `Edm.DateTimeOffset` außerhalb der sieben Typen, `SPEC-170` Nr. 4): erwartet ist `Uebersprungen` mit Grund `typ` (`SPEC-172` Nr. 3); der Wert des Modells `Edm.DateTimeOffset`, das der V2-Metadatenleser aus `Edm.DateTime` bildet, bleibt `datetimeoffset` (`SPEC-170` Nr. 4). Beide Fälle gehören zum Lesen und stehen in der DoD (Lesen) und in §3 (Nr. 1 und 2).
+- Der Test `src/adapters/driven/odata/versionstrennung_test.go` (eine Schleife über alle Verzeichnisse unter `src/adapters/driven/odata/`, kein Eintrag je Paket) kommt aus `slice-v2-metadaten`. Fehlt er beim Start dieses Slice, legt dieser Slice ihn nach demselben Wortlaut an; liegt er vor, ändert dieser Slice ihn nicht und die Schleife erfasst `jsoncodecv2` ohne Eintrag.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Das Schreiben der V2-Antworten (Entity, Collection, Anzahl, leeres Ergebnis, Fehlerobjekt, Darstellungskopf; `SPEC-172` Nr. 6 und 7) — `slice-v2-payload-schreiben`; es braucht `slice-odata-json-schreiben` und teilt keinen Mechanismus mit dem Lesen.
@@ -60,7 +65,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Lesen: Antworten auf Entity- und Collection-Abfrage in typisierte Entities gegen das Modell der Version `2.0` (Hülle `d`, Typen in der Schreibweise von V2, `__count`, `__next`, nicht gedeutete Konstrukte als übersprungen gemeldet); kanonische Schreibweise je Typ; ein Modell anderer Version ist `ErrUngueltig`; V4-Leser und V4-Schreiber unberührt (ihre Tests laufen unverändert grün).
+- [ ] Lesen: Antworten auf Entity- und Collection-Abfrage in typisierte Entities gegen das Modell der Version `2.0` (Hülle `d`, Typen in der Schreibweise von V2, `__count`, `__next`, nicht gedeutete Konstrukte als übersprungen gemeldet); kanonische Schreibweise je Typ; ein Modell anderer Version ist `ErrUngueltig`; V4-Leser und V4-Schreiber unberührt (ihre Tests laufen unverändert grün); eine nicht unterstützte Property (`Unterstuetzt()` falsch, `EdmType` `Edm.DateTimeOffset(V2)`) ist `Uebersprungen` mit Grund `typ`, und der Test `versionstrennung_test.go` über alle Verzeichnisse von `src/adapters/driven/odata/` liegt vor (aus `slice-v2-metadaten`, sonst von diesem Slice angelegt).
 - [ ] Randformen des Lesers fremder Bytes (leer, falsche Hülle, V4-Antwort am V2-Leser, Typ-Schreibweisen, Zahlen jenseits von `float64`, doppelte Namen, Größe, Tiefe, Zerlegung des Stroms in Reads): je Zelle des Rasters ein Ort in der Spezifikation und ein Fänger; Generator über die Klasse der Bodies.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
@@ -95,6 +100,9 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 
 | Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|
+| 1 | Eine Property mit `Unterstuetzt()` falsch und `EdmType` `Edm.DateTimeOffset(V2)` ist `Uebersprungen` mit Grund `typ` (`SPEC-172` Nr. 3), nicht `unbekannte_property` und kein Wert; aus `slice-v2-metadaten` | Test mit Fixture, die diese Property trägt (Wert gültig gegen den JSON-Typ, damit nicht `wert` greift) | Prüfung von `Unterstuetzt()` entfernt oder Grund `typ` durch `wert` ersetzt: rot | Sendung |
+| 2 | Der Wert des Modells `Edm.DateTimeOffset` aus `Edm.DateTime` bleibt `datetimeoffset` (`SPEC-170` Nr. 4) | Test: Modell mit dieser Property liest `/Date(…)/` zu `datetimeoffset` | Abbildung auf eine andere Art: rot | Sendung |
+| 3 | Eine Schleife über alle Verzeichnisse von `src/adapters/driven/odata/` hält die Versionstrennung (kein Eintrag je Paket); aus `slice-v2-metadaten` | `versionstrennung_test.go`; legt ihn dieser Slice an, nach dem Wortlaut des Gebers | `jsoncodecv2` importiert ein V4-Paket des Adapters: rot | Sendung |
 
 **Betriebsregeln** (gelten für jede Rolle dieses Slice):
 
@@ -148,6 +156,10 @@ dasteht.
 |---|---|---|---|---|---|---|
 | Lesen einer Entity | leer: `syntax` (`SPEC-172` Nr. 1, `SPEC-126` Nr. 4) | `struktur`, Ort `/d` (`SPEC-172` Nr. 2) | `unbekannte_property` bzw. `Uebersprungen` mit `typ` (`SPEC-172` Nr. 3) | `SPEC-172` Nr. 4 (Tabelle, `/Date(…)/`), `zahl_zu_lang` (`SPEC-172` Nr. 1, `SPEC-126` Nr. 5) | `SPEC-172` Nr. 1 (`SPEC-126` Nr. 4 und 5: `doppelter_name`, `zu_gross`, `tiefe`) | `SPEC-172` Nr. 1 (`SPEC-126` Nr. 1, 2, 15) |
 | Lesen einer Collection | `{"d":{"results":[]}}` und `{"d":[]}` gültig, `Entities` leer, nicht `nil` (`SPEC-172` Nr. 2 a); Body leer: `syntax` | `struktur`, Ort `/d` (`SPEC-172` Nr. 2) | wie Entity (`SPEC-172` Nr. 3) | wie Entity; `__count` als String oder Zahl (`SPEC-172` Nr. 2 a) | wie Entity | wie Entity |
+
+Die Zelle *unbekannte Property, nicht unterstützter Typ* führt auch die Property mit `Unterstuetzt()` falsch und `EdmType` `Edm.DateTimeOffset(V2)`: `Uebersprungen` mit `typ`, Ort `SPEC-172` Nr. 3, Fänger Nr. 1 der Tabelle in §3 (Sendung von `slice-v2-metadaten`). Die Zelle *Typ-Schreibweisen* führt den Wert des Modells `Edm.DateTimeOffset` aus `Edm.DateTime`: `datetimeoffset`, Ort `SPEC-170` Nr. 4, Fänger Nr. 2.
+
+- Die Sendungen von `slice-v2-metadaten` (Fixture `Edm.DateTimeOffset(V2)`, Test `versionstrennung_test.go`) — **Ausgang:** offen; Adresse: dieser Slice, §1 *Übernommen*, DoD (Lesen), §3 Nr. 1 bis 3.
 
 Die Zeilen zum Schreiben des Rasters stehen in `slice-v2-payload-schreiben`.
 

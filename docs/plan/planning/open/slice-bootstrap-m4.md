@@ -33,7 +33,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der Composition Root bindet im Modus `hybrid` genau `HybridUseCase` an den OData-Listener, liest die Schlüssel `HYBRID_FALLBACK`, `HYBRID_REPLAY_FALLBACK`, `FALLBACK_ALLOW_HOSTS` und `FALLBACK_WRITE_ALLOW` (Syntax und Zusammenhänge nach `SPEC-110`), verlangt bei freigegebenem Upstream-Fallback die `UPSTREAM_URL` des Service, und der M4-Test aus §3 der Welle läuft grün in `make test`: ein Referenzdienst zählt Verbindungen und Methoden und belegt die Entscheidungsmatrix.
 
-**Übernimmt:** den Nachzug von `SPEC-110` Nr. 2 und 8 für den Modus `hybrid` und die Schlüssel `HYBRID_*` und `FALLBACK_*`, den `slice-bootstrap-m3` für den Modus `mock` hinterlässt (dessen §1 *Ausdrücklich NICHT* weist beides diesem Slice zu), und das Lesen der Policy-Werte aus der Umgebung (Sendung von `slice-fallback-policy`, dessen §1 *Ausdrücklich NICHT* diesen Slice nennt).
+**Übernimmt:** den Nachzug von `SPEC-110` Nr. 2 und 8 für den Modus `hybrid` und die Schlüssel `HYBRID_*` und `FALLBACK_*`, den `slice-bootstrap-m3` für den Modus `mock` hinterlässt (dessen §1 *Ausdrücklich NICHT* weist beides diesem Slice zu), und das Lesen der Policy-Werte aus der Umgebung (Sendung von `slice-fallback-policy`, dessen §1 *Ausdrücklich NICHT* diesen Slice nennt), und den Zähler des Referenzdienstes nach Methode (Sendung von `slice-m2-referenzdienst`, dessen §1 *Ausdrücklich NICHT* diesen Slice nennt; der Referenzdienst dort zählt Verbindungen und Requests, die Erweiterung ist hier Umfang, Ausgang in §6).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
