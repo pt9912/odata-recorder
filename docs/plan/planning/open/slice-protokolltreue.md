@@ -33,11 +33,11 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Ein Test ruft den Referenzdienst aus [slice-m2-referenzdienst](slice-m2-referenzdienst.md) einmal direkt und einmal über den Recorder im Modus `record` auf und vergleicht die entpackte Darstellung der Antworten nach `LH-QA-07.a` — Status, Body nach dem Entpacken seines `Content-Encoding`, relevante Header ohne `VOLATILE_HEADERS` —; er läuft in der Stufe `test` und ist damit Teil von `make test`. Er ist der Nachweis zur Messmethode von `LH-QA-07`.
+**Ziel:** Ein Test ruft den Referenzdienst aus [slice-m2-referenzdienst](../in-progress/slice-m2-referenzdienst.md) einmal direkt und einmal über den Recorder im Modus `record` auf und vergleicht die entpackte Darstellung der Antworten nach `LH-QA-07.a` — Status, Body nach dem Entpacken seines `Content-Encoding`, relevante Header ohne `VOLATILE_HEADERS` —; er läuft in der Stufe `test` und ist damit Teil von `make test`. Er ist der Nachweis zur Messmethode von `LH-QA-07`.
 
 **Übernimmt:** Den Vergleichstest der Messmethode von `LH-QA-07`, der in der Welle keinen Träger hatte (Closure-Notiz von `slice-record-service`, *Offene Punkte für den User*); Entscheidung des Users vom 2026-10-21: ein eigener Slice am Ende der Welle. Die Messmethode selbst steht in `LH-QA-07.a` der Spezifikation (Architect, nach der Entscheidung des Owners zu `Content-Encoding`); dieser Slice setzt sie um und ändert sie nicht.
 
-**Nutzt:** den Referenzdienst von [slice-m2-referenzdienst](slice-m2-referenzdienst.md) und den Composition Root (`Build`, `Handle`) von `slice-bootstrap-m2`; `slice-m2-referenzdienst` bleibt beim Satz von M2 (Entscheidung des Users). Was der Vergleich am Referenzdienst zusätzlich braucht (Antworten mit `Content-Encoding`, mehrere Werte je Header, die Randform aus §6), bringt dieser Slice selbst mit.
+**Nutzt:** den Referenzdienst von [slice-m2-referenzdienst](../in-progress/slice-m2-referenzdienst.md) und den Composition Root (`Build`, `Handle`) von `slice-bootstrap-m2`; `slice-m2-referenzdienst` bleibt beim Satz von M2 (Entscheidung des Users). Was der Vergleich am Referenzdienst zusätzlich braucht (Antworten mit `Content-Encoding`, mehrere Werte je Header, die Randform aus §6), bringt dieser Slice selbst mit.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
