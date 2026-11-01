@@ -309,7 +309,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 
 **Doku-Update:** `harness/README.md` §Sensors, Absatz *Nicht behauptet*: der Satz „`Konfig.Start` ist in `main` `nil`“ stimmte nicht mehr und nennt jetzt, dass `main` `Start` setzt und kein Gate diese Zeile fängt (`SPEC-138` *Ungeprüft*, Negativ 3). `SPEC-139` und die Historie der Spezifikation lagen vor dem Code.
 
-**Gegenproben:** `src` ist ein Eingabepfad; der Lauf und die Dauer stehen im Bericht der Closure (siehe Commit des Stempels, falls gesetzt).
+**Gegenproben:** `src` ist ein Eingabepfad; `make gegenproben` lief unter der Sperre, Exit 0, Dauer 429 s (Wartezeit auf die Sperre eingeschlossen, über dem Budget von 120 s, weil das Image der Stufe `gegenproben` neu gebaut wurde); der Stempel ist neu gesetzt, eigener Commit. Nach einem Merge von `main` mit weiteren Änderungen an `src` ist er erneut zu prüfen (Integration).
 
 **Rückgaben (nicht entschieden, §6 trägt die Zeile mit Ausgang *offen* oder es besteht keine Zeile mehr):**
 
