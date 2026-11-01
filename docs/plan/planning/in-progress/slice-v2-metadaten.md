@@ -212,6 +212,27 @@ Verglichen mit dem Metrik-Maß von `SPEC-128` (Summe aus Einfügungen und Lösch
 
 Erwartung für das Ende (Stand nach dem Review): die Enden der drei Messpunkte lagen bei 0,86 bis 1,33 mal *S*, also 5200 bis 8100 bei *S* = 6070; die Marke 8200 hält alle drei.
 
+```groessenmarke
+pfad: src/adapters/driven/odata/csdlv2
+pfad: src/adapters/driven/odata/versionstrennung_test.go
+pfad: src/hexagon/ports/outbound/outboundtest/metadata_codec_v2_vertrag.go
+pfad: src/hexagon/ports/outbound/outboundtest/metadata_codec_v2_lesen.go
+pfad: src/hexagon/ports/outbound/outboundtest/metadata_codec_v2_aufloesen.go
+pfad: src/hexagon/ports/outbound/outboundtest/metadata_codec_v2_assoziation.go
+pfad: src/hexagon/ports/outbound/outboundtest/metadata_codec_v2_funde.go
+pfad: src/hexagon/ports/outbound/outboundtest/metadata_codec_v2_modell.go
+pfad: src/hexagon/ports/outbound/outboundtest/testdata/v2_referenz.xml
+pfad: src/hexagon/ports/outbound/outboundtest/testdata/v2_vererbung.xml
+pfad: src/hexagon/ports/outbound/outboundtest/testdata/v2_composite.xml
+produktcode: 1500
+fakes: 0
+basis: b5ac4a5
+schaetzung: 6070
+marke: 8200
+schnitt-grund: Lesen und Auflösen teilen den Baum, Assoziationen teilen Dispatch, Namensräume und Reihenfolge der Auflösungsschritte, der Rahmen steckt im V4-Zustand `lauf` und seine Hebung änderte den V4-Pfad (Verschieben zählt doppelt, Ersparnis höchstens zehn Zeilen der Tabelle); Vorbild `csdl` und `json`, beide ungeschnitten geliefert
+ersetzt: 8300 | Tabelle gezählt: 57 Zeilen, a = 2, p = 1500; S = 6070 statt der vorläufigen 6100
+```
+
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner nach `SPEC-128` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Die Zahl der Marke steht im Block der Größenmarke oben.
