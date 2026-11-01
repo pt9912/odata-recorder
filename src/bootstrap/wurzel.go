@@ -66,7 +66,7 @@ type bauteile struct {
 	NeuerReplay    func(replay.Konfig) (inbound.ReplayUseCase, error)
 	NeuerImport    func(baselineimport.Konfig) (inbound.ImportUseCase, error)
 	NeueWorkspaces func(workspace.Konfig) (inbound.WorkspaceUseCase, error)
-	Listen       func(ctx context.Context, network, addr string) (net.Listener, error)
+	Listen         func(ctx context.Context, network, addr string) (net.Listener, error)
 	NeuerServer    func(httpodata.Konfig) (server, error)
 }
 
