@@ -182,16 +182,25 @@ func muster(n int, start uint64) []byte {
 }
 
 // zaehlIDs zählt jede Operation von FestIDs.
+// vorKorr ist ein Haltepunkt vor der Rückgabe von KorrelationsID; der Test setzt ihn vor dem
+// ersten Request.
 type zaehlIDs struct {
 	*supporttest.FestIDs
-	n [5]atomic.Int64
+	n       [5]atomic.Int64
+	vorKorr func()
 }
 
-func (z *zaehlIDs) SessionID() string      { z.n[0].Add(1); return z.FestIDs.SessionID() }
-func (z *zaehlIDs) ExchangeID() string     { z.n[1].Add(1); return z.FestIDs.ExchangeID() }
-func (z *zaehlIDs) KorrelationsID() string { z.n[2].Add(1); return z.FestIDs.KorrelationsID() }
-func (z *zaehlIDs) WorkspaceID() string    { z.n[3].Add(1); return z.FestIDs.WorkspaceID() }
-func (z *zaehlIDs) SnapshotID() string     { z.n[4].Add(1); return z.FestIDs.SnapshotID() }
+func (z *zaehlIDs) SessionID() string  { z.n[0].Add(1); return z.FestIDs.SessionID() }
+func (z *zaehlIDs) ExchangeID() string { z.n[1].Add(1); return z.FestIDs.ExchangeID() }
+func (z *zaehlIDs) KorrelationsID() string {
+	z.n[2].Add(1)
+	if z.vorKorr != nil {
+		z.vorKorr()
+	}
+	return z.FestIDs.KorrelationsID()
+}
+func (z *zaehlIDs) WorkspaceID() string { z.n[3].Add(1); return z.FestIDs.WorkspaceID() }
+func (z *zaehlIDs) SnapshotID() string  { z.n[4].Add(1); return z.FestIDs.SnapshotID() }
 
 func (z *zaehlIDs) zahlen() [5]int64 {
 	var out [5]int64
@@ -203,27 +212,42 @@ func (z *zaehlIDs) zahlen() [5]int64 {
 
 // umgebung ist ein laufender Server auf 127.0.0.1:0 mit Fake-Dienst und gezählten IDs.
 type umgebung struct {
-	addr string
-	d    *dienst
-	ids  *zaehlIDs
-	lis  net.Listener
+	addr  string
+	d     *dienst
+	ids   *zaehlIDs
+	lis   net.Listener
+	srv   *httpodata.Server
+	serve chan error
 }
 
 func neuUmgebung(t *testing.T, b bindung, tu func(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, error)) *umgebung {
 	t.Helper()
+	return neuUmgebungMit(t, b, tu, nil, nil)
+}
+
+// neuUmgebungMit setzt dazu den Haltepunkt der IDs und umhüllt den Listener; Serve läuft in einer
+// Goroutine, deren Rückgabe der Kanal serve trägt.
+func neuUmgebungMit(t *testing.T, b bindung, tu func(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, error),
+	vorKorr func(), umhuelle func(net.Listener) net.Listener) *umgebung {
+	t.Helper()
 	d := &dienst{tu: tu}
-	ids := &zaehlIDs{FestIDs: supporttest.NewFestIDs()}
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	ids := &zaehlIDs{FestIDs: supporttest.NewFestIDs(), vorKorr: vorKorr}
+	roh, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
+	}
+	lis := roh
+	if umhuelle != nil {
+		lis = umhuelle(roh)
 	}
 	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: d.binde(b), IDs: ids, Listener: lis})
 	if err != nil {
 		t.Fatal(err)
 	}
-	go func() { _ = srv.Serve() }()
-	t.Cleanup(func() { _ = lis.Close() })
-	return &umgebung{addr: lis.Addr().String(), d: d, ids: ids, lis: lis}
+	serve := make(chan error, 1)
+	go func() { serve <- srv.Serve() }()
+	t.Cleanup(func() { _ = roh.Close() })
+	return &umgebung{addr: roh.Addr().String(), d: d, ids: ids, lis: lis, srv: srv, serve: serve}
 }
 
 func (u *umgebung) client() *http.Client {
