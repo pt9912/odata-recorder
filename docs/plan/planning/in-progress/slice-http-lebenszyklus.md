@@ -69,9 +69,9 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
 - [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist (`SPEC-109` Nr. 2, `SPEC-137`, `SPEC-230` Nr. 8, Historie; vom Planner vor dem Code geschrieben, der Implementer prüft den Stand).
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag (§7, Phase 1).
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -312,6 +312,8 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 - Architect: (1) `SPEC-136` Nr. 12, Randform (a): ein Listener, dessen `Close` nach einem äußeren Schließen `nil` liefert (`Anhalten` hält es für das erste, `Serve` liefert `nil`, ein äußerer Fehler bleibt unsichtbar); (2) `SPEC-136` Nr. 12, Randform (b): ein Fehler des Accept ohne Bezug zum Schließen, der auf `Anhalten` oder `Schliessen` folgt (der Code liefert den Fehler, der erste Satz sagt `nil`); (3) Auslastung der Größenmarke 0,64 (0,43 beim Handoff, 0,55 nach dem Review; 0,43 und 0,51 früherer Slices) und die Frage der Faktoren von `SPEC-128` Nr. 1; (4) `.a-check.yml` / `ports-support` (aus `slice-http-adapter`, weiter offen, `ARC-021`).
 - User: (5) Diff-Vorlage zu `AGENTS.md` §3.14 gegen `SPEC-128` Nr. 1 (aus `slice-http-adapter`, weiter offen).
 - Nehmer-Nachzüge auf `main` (Integration, nicht hier): keine offenen. `slice-bootstrap-m2` trägt Reihenfolge `Anhalten` → `CloseAll` → `Schliessen(rest)` und das einmalige `Schliessen` mit Fänger und Mutation (§1 und DoD, seit `ca6bb3f`); die Pläne `slice-handbuch-meldungskatalog`, `slice-handbuch-record-replay` und `slice-telemetry-spans` tragen die Zahl 35 beziehungsweise 38 (auf `main`). Die Rückgaben (1) bis (4) gehen an den Architect, (5) an den User; kein Slice ist Nehmer (`AGENTS.md` §3.13). Vorschlag an die Integration: nach dem Merge `grep -n '34 Codes' docs/plan/planning/open` gegen `main` wiederholen.
+
+**Stand der Closure Phase 2** (Planner, 2026-11-01, Integration auf `main`, Merge `0fbdac7`): Der Stempel der Gegenproben war ungültig (`src` ist Eingabe; die Prüfsumme auf `main` `1999d3d2…` gegen den Stempel `c5ef5636…`); `make gegenproben` lief unter der Sperre, Exit 0, der Stempel ist neu gesetzt und eigener Commit. Register: Evidenz `slice-http-lebenszyklus` zu `randform-erst-im-review-entschieden` (26×), `fix-deckt-die-genannte-mutation-nicht-die-klasse` (15×), `vertrag-sagt-mehr-zu-als-ein-gate-prueft` (37×), `suite-ohne-generator-fuer-klassen-der-spezifikation` (6×), `unbeschraenkte-menge-ohne-benannte-pruefgrenze` (7×), `rate-ohne-detektor-schwankt-mit-der-last` (4×), `nebenlaeufiger-lauf-nur-im-glueck-gruen` (12×), `auslastung-am-handoff-als-endwert-gelesen` (2×) und `befund-an-rolle-ohne-artefakt` (4×); keine neue Beobachtung. Offen und ab 3×: `unbeschraenkte-menge-ohne-benannte-pruefgrenze` und `rate-ohne-detektor-schwankt-mit-der-last`; die Verkörperung ist Entscheidung des Users. Nehmer-Nachzüge: keine neuen (`grep -n '34 Codes' docs/plan/planning/open` auf `main` ohne Fund); die Rückgaben (1) bis (4) gehen an den Architect, (5) an den User, kein Slice ist Nehmer; §6 trägt sie mit Ausgang *offen*.
 
 **Steering-Loop-Einträge:**
 
