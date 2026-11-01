@@ -125,9 +125,9 @@ func xmlZeichenV2(ausgenommen string) []byte {
 	return out
 }
 
-// nichtXmlZeichenV2 sind die Codepunkte unter `U+0020` außer Tab, LF und CR, `U+FFFE`, `U+FFFF` und die 2048 Surrogate
+// nichtXMLZeichenV2 sind die Codepunkte unter `U+0020` außer Tab, LF und CR, `U+FFFE`, `U+FFFF` und die 2048 Surrogate
 // (als je drei Bytes, die kein UTF-8 sind): 31 + 2048 Elemente der Menge der Codepunkte außerhalb von `Char`.
-func nichtXmlZeichenV2() [][]byte {
+func nichtXMLZeichenV2() [][]byte {
 	var out [][]byte
 	for r := rune(0); r < 0x20; r++ {
 		if r != 0x9 && r != 0xA && r != 0xD {
@@ -160,7 +160,7 @@ func zeileV2B2Klasse(t *testing.T, neu CodecNeu) {
 		if _, _, err := lies(neu, gut("Char "+s.name, doc)); err != nil {
 			t.Errorf("alle Zeichen von Char %s: %v", s.name, err)
 		}
-		for _, z := range nichtXmlZeichenV2() {
+		for _, z := range nichtXMLZeichenV2() {
 			doc := []byte(mit(body, "", s.wo, s.davor+string(z)+s.danach))
 			if _, _, err := lies(neu, gut("", doc)); err == nil {
 				t.Errorf("Zeichen % X %s: gelesen, erwartet syntax", z, s.name)
