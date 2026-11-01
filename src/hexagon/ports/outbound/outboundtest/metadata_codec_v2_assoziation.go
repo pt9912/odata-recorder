@@ -379,10 +379,13 @@ func zeileV2N7(t *testing.T, neu CodecNeu) { pruefeFaelle(t, neu, faelleV2N7()) 
 
 // n8Gruppe sind die Navigation-Properties und AssociationSet einer Association `Ns.<name>` des Dokuments von N8: navs
 // Navigationen am Typ `T` und sets AssociationSet; davor und danach stehen AssociationSet vor und hinter den erzeugten.
+// ohneSchluessel macht `T` abstrakt und ohne Schlüssel: alle 65 536 Members, die das Dokument tragen darf (Nr. 9 b), sind
+// dann Navigationen.
 type n8Gruppe struct {
-	name        string
-	sets, navs  int
-	davor, nach string
+	name           string
+	sets, navs     int
+	davor, nach    string
+	ohneSchluessel bool
 }
 
 // n8Dokument ist ein Dokument mit dem Typ `T`, dem EntitySet `S` und je Gruppe einer Association (Rollen F und G, beide
@@ -390,7 +393,11 @@ type n8Gruppe struct {
 // Reihenfolge der Gruppen. Die Gruppe `R<k>` trägt sets mal navs Bindings.
 func n8Dokument(gruppen []n8Gruppe) []byte {
 	var navs, assocs, asets strings.Builder
+	t := typ
 	for _, g := range gruppen {
+		if g.ohneSchluessel {
+			t = func(name, inhalt string) string { return `<EntityType Name="` + name + `" Abstract="true">` + inhalt + `</EntityType>` }
+		}
 		assocs.WriteString(`<Association Name="` + g.name + `"><End Type="Ns.T" Role="F" Multiplicity="*"/><End Type="Ns.T" Role="G" Multiplicity="0..1"/></Association>`)
 		for i := range g.navs {
 			navs.WriteString(`<NavigationProperty Name="n` + g.name + fmt.Sprintf("_%d", i) + `" Relationship="Ns.` + g.name + `" FromRole="F" ToRole="G"/>`)
@@ -401,7 +408,7 @@ func n8Dokument(gruppen []n8Gruppe) []byte {
 		}
 		asets.WriteString(g.nach)
 	}
-	return []byte(edmx2(schema2("Ns", typ("T", navs.String())+assocs.String()+containerV2(setV2("S", "Ns.T")+asets.String()))))
+	return []byte(edmx2(schema2("Ns", t("T", navs.String())+assocs.String()+containerV2(setV2("S", "Ns.T")+asets.String()))))
 }
 
 // n8Fall ist ein Dokument von N8; bindings ist die erwartete Zahl bei einem gültigen Dokument, speicher verlangt, dass
@@ -441,12 +448,15 @@ func faelleV2N8() []n8Fall {
 			n8Gruppe{name: "R1", navs: 1, davor: `<AssociationSet Name="AR1_0" Association="Ns.R1"><End Role="X" EntitySet="S"/><End Role="G" EntitySet="S"/></AssociationSet>`}),
 		gueltig("Summe über zwei Associations genau 65536", 65536, n8Gruppe{name: "R0", sets: 128, navs: 256}, n8Gruppe{name: "R1", sets: 128, navs: 256}),
 		zuViele("Summe über drei Associations 65537", "Ns.C/AR2_0", n8Gruppe{name: "R0", sets: 128, navs: 256}, n8Gruppe{name: "R1", sets: 128, navs: 256}, n8Gruppe{name: "R2", sets: 1, navs: 1}),
+		gueltig("eine AssociationSet allein mit genau 65536 Navigationen", 65536, n8Gruppe{name: "R0", sets: 1, navs: 65536, ohneSchluessel: true}),
+		zuViele("dieselbe Association in einer zweiten Set, Ort die zweite Set", "Ns.C/AR0_1", n8Gruppe{name: "R0", sets: 2, navs: 65536, ohneSchluessel: true}),
 	}
 }
 
 // zeileV2N8: höchstens 65 536 Bindings, die 65 537. ist zu_viele_properties am Ort der überschreitenden AssociationSet,
 // gezählt über alle Associations und vor dem Bauen; je AssociationSet erst ihre Auflösung, dann die Grenze (SPEC-171 Nr. 6,
-// 7): sechs Fälle, die nach der Zahl der Bindings, der Reihenfolge und der Auflösung schneiden (neun Dokumente).
+// 7): sechs Fälle, die nach der Zahl der Bindings, der Reihenfolge und der Auflösung schneiden, dazu eine einzige
+// AssociationSet mit allen 65 536 Navigationen, die ein Dokument tragen darf (gültig), und ihre zweite Set (elf Dokumente).
 func zeileV2N8(t *testing.T, neu CodecNeu) {
 	faelle := faelleV2N8()
 	for _, f := range faelle {

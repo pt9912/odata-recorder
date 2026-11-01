@@ -240,16 +240,44 @@ func faelleV2D5() []fall {
 }
 
 // d5EdmFallV2 ist ein Dokument, dessen Property `P` den ComplexType `Cx` eines Namensraums oder Alias nennt, der mit `Edm`
-// beginnt und nicht `Edm` oder `Edm.…` ist (SPEC-171 Nr. 5, 10 a); ns ist der Namensraum des Typs `T`, ctyp der
+// beginnt oder `Edm` in anderer Schreibweise ist, nicht `Edm` und nicht `Edm.…` (SPEC-171 Nr. 5, 10 a); ns ist der Namensraum des Typs `T`, ctyp der
 // qualifizierte Name des ComplexType.
 type d5EdmFallV2 struct {
 	fall
 	ns, ctyp string
 }
 
-// faelleV2D5Edm sind die Namensräume (Edm2, EdmX, Edmonton, Edm_, EdmX.Inner) und Aliase (die vier ohne Punkt) der Klasse.
+// schreibweisenEdm sind die sieben Schreibweisen von `Edm` in Groß- und Kleinbuchstaben außer `Edm` selbst (`edm`, `EDM`,
+// `eDm`, …): die Schreibweise zählt, reserviert ist allein `Edm` (SPEC-171 Nr. 1 mit SPEC-125 Nr. 8).
+func schreibweisenEdm() []string {
+	var out []string
+	for maske := range 8 {
+		b := []byte("edm")
+		for i := range b {
+			if maske&(1<<i) != 0 {
+				b[i] -= 'a' - 'A'
+			}
+		}
+		if s := string(b); s != "Edm" {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// faelleV2D5Edm sind die Namensräume (Edm2, EdmX, Edmonton, Edm_, EdmX.Inner) und Aliase (die vier ohne Punkt) der Klasse
+// und die sieben anderen Schreibweisen von `Edm`, je als Namensraum, als Namensraum `<Schreibweise>.Sub` und als Alias
+// (21 Fälle).
 func faelleV2D5Edm() []d5EdmFallV2 {
 	var out []d5EdmFallV2
+	for _, s := range schreibweisenEdm() {
+		for _, ns := range []string{s, s + ".Sub"} {
+			doc := edmx2(schema2(ns, `<ComplexType Name="Cx"/>`+typ("T", prop("P", ns+".Cx"))))
+			out = append(out, d5EdmFallV2{gut("Namensraum "+ns, []byte(doc)), ns, ns + ".Cx"})
+		}
+		doc := edmx2(schemaAlias2("Ns", s, `<ComplexType Name="Cx"/>`+typ("T", prop("P", s+".Cx"))))
+		out = append(out, d5EdmFallV2{gut("Alias "+s, []byte(doc)), "Ns", "Ns.Cx"})
+	}
 	for _, ns := range []string{"Edm2", "EdmX", "Edmonton", "Edm_", "EdmX.Inner"} {
 		doc := edmx2(schema2(ns, `<ComplexType Name="Cx"/>`+typ("T", prop("P", ns+".Cx"))))
 		out = append(out, d5EdmFallV2{gut("Namensraum "+ns, []byte(doc)), ns, ns + ".Cx"})
@@ -265,8 +293,8 @@ func faelleV2D5Edm() []d5EdmFallV2 {
 // mit Fund property_typ im Modell.
 func zeileV2D5Edm(t *testing.T, neu CodecNeu) {
 	faelle := faelleV2D5Edm()
-	if len(faelle) != 9 {
-		t.Errorf("%d Fälle, erwartet 9", len(faelle))
+	if len(faelle) != 30 {
+		t.Errorf("%d Fälle, erwartet 30", len(faelle))
 	}
 	for _, f := range faelle {
 		m, b := pruefeFall(t, neu, f.fall)

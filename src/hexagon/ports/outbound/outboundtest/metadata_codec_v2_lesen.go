@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
@@ -103,6 +104,72 @@ func zeileV2B2(t *testing.T, neu CodecNeu) {
 		m, b2, err2 := lies(neu, f)
 		if ergebnis(m, b2, err2) != ergebnis(soll, b, err) {
 			t.Errorf("%s: Ergebnis weicht von dem ohne Deklaration ab", f.name)
+		}
+	}
+	zeileV2B2Klasse(t, neu)
+}
+
+// xmlZeichenV2 sind die Zeichen der Produktion `Char` von XML 1.0 (#x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] |
+// [#x10000-#x10FFFF]) als Bytes aus Codepunkten (kein Zeichen steht als Literal im Quelltext, `AGENTS.md` §3.18); ohne
+// ausgenommen: ein Dokument hängt jedes Zeichen der Menge an, das die Stelle nicht verbietet.
+func xmlZeichenV2(ausgenommen string) []byte {
+	var out []byte
+	for _, bereich := range [][2]rune{{0x9, 0xA}, {0xD, 0xD}, {0x20, 0xD7FF}, {0xE000, 0xFFFD}, {0x10000, 0x10FFFF}} {
+		for r := bereich[0]; r <= bereich[1]; r++ {
+			if r < 0x80 && strings.ContainsRune(ausgenommen, r) {
+				continue
+			}
+			out = utf8.AppendRune(out, r)
+		}
+	}
+	return out
+}
+
+// nichtXmlZeichenV2 sind die Codepunkte unter `U+0020` außer Tab, LF und CR, `U+FFFE`, `U+FFFF` und die 2048 Surrogate
+// (als je drei Bytes, die kein UTF-8 sind): 31 + 2048 Elemente der Menge der Codepunkte außerhalb von `Char`.
+func nichtXmlZeichenV2() [][]byte {
+	var out [][]byte
+	for r := rune(0); r < 0x20; r++ {
+		if r != 0x9 && r != 0xA && r != 0xD {
+			out = append(out, []byte{byte(r)})
+		}
+	}
+	out = append(out, utf8.AppendRune(nil, 0xFFFE), utf8.AppendRune(nil, 0xFFFF))
+	for r := rune(0xD800); r <= 0xDFFF; r++ {
+		out = append(out, []byte{0xE0 | byte(r>>12), 0x80 | byte(r>>6)&0x3F, 0x80 | byte(r)&0x3F})
+	}
+	return out
+}
+
+// zeileV2B2Klasse: die Klasse der Zeichen eines Dokuments (SPEC-125 Nr. 3), nicht ihre Ränder: jedes Zeichen von `Char`
+// steht in einem Dokument je Stelle (Attribut, Kommentar, Text; bis zu 1 112 033 Zeichen je Dokument, drei Dokumente) und
+// wird gelesen; jedes Zeichen außerhalb (2079) ist je Stelle `syntax`. Offen bleibt: ein Byte, das kein UTF-8 ist, in einer
+// anderen Form als dem Surrogat (zeichen() führt die Ränder).
+func zeileV2B2Klasse(t *testing.T, neu CodecNeu) {
+	body := koerperV2()
+	stellen := []struct{ name, wo, davor, danach, ausgenommen string }{
+		{"im Attribut", `Version="1.0"`, `Version="1.0" x="`, `"`, `<&"`},
+		{"im Kommentar", "<edmx:DataServices>", "<!--", "--><edmx:DataServices>", ""},
+		{"im Text", "<edmx:DataServices>", "<edmx:DataServices>", "", `<&`},
+	}
+	if n := len(xmlZeichenV2("")); n < 1<<21 {
+		t.Errorf("%d Bytes der Zeichen von Char, erwartet mindestens %d", n, 1<<21)
+	}
+	for _, s := range stellen {
+		doc := []byte(mit(body, "", s.wo, s.davor+string(xmlZeichenV2(s.ausgenommen))+s.danach))
+		if _, _, err := lies(neu, gut("Char "+s.name, doc)); err != nil {
+			t.Errorf("alle Zeichen von Char %s: %v", s.name, err)
+		}
+		for _, z := range nichtXmlZeichenV2() {
+			doc := []byte(mit(body, "", s.wo, s.davor+string(z)+s.danach))
+			if _, _, err := lies(neu, gut("", doc)); err == nil {
+				t.Errorf("Zeichen % X %s: gelesen, erwartet syntax", z, s.name)
+			} else {
+				var mf *model.MetadatenFehler
+				if !errors.As(err, &mf) || mf.Ursache != model.UrsacheSyntax || mf.Ort != "" {
+					t.Errorf("Zeichen % X %s: %v, erwartet syntax", z, s.name, err)
+				}
+			}
 		}
 	}
 }

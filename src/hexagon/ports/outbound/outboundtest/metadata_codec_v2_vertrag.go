@@ -307,13 +307,13 @@ func zeileV2Z(t *testing.T, _ CodecNeu) {
 		{"C2 Versionen", len(faelleV2C2()), 13}, {"C3 DataServiceVersion", len(faelleV2C3()), 17}, {"C4 Namensräume des Schemas", len(faelleV2C4()), 7},
 		{"C5 Paare", len(faelleV2C5()), 11}, {"D1 Schlüssel mal Abstract mal Kette", len(faelleV2D1()), 26}, {"D2 Referenzart mal Form", len(faelleV2D2()), 50},
 		{"D3 Ringe und Ketten", len(faelleV2D3()), 36}, {"D4 Schlüsseltypen", len(faelleV2D4()), 35}, {"D5 Formen des Property-Typs", len(faelleV2D5()), 62},
-		{"D5 Namensräume und Aliase mit Edm-Anfang", len(faelleV2D5Edm()), 9}, {"D6 Pflichtangaben und Namen", len(faelleV2D6()), 140}, {"D7 Doppelungen", len(faelleV2D7()), 17}, {"D8 Ketten", len(faelleV2D8()), 14},
+		{"D5 Namensräume und Aliase mit Edm-Anfang", len(faelleV2D5Edm()), 30}, {"D6 Pflichtangaben und Namen", len(faelleV2D6()), 140}, {"D7 Doppelungen", len(faelleV2D7()), 17}, {"D8 Ketten", len(faelleV2D8()), 14},
 		{"D9 Paare der Durchläufe", len(faelleV2D9()), 60}, {"D11 Dokumente der Klasse", len(faelleV2D11()), 156}, {"E1 Grenzen", len(faelleV2E1(t)), 33},
 		{"E2 Tiefen", len(faelleV2E2()), 11}, {"E3 Summen", len(faelleV2E3()), 7}, {"G1 Stellen mal Arten", len(g1FaelleV2()), 140},
 		{"N1 Formen mal Stellen", len(faelleV2N1()), 36}, {"N3 benannte Werte", len(faelleV2N3Klein()), 54},
 		{"N3 Zeichenketten bis Länge 4", len(n3Zeichenketten()), 1555}, {"N3 ungültige Werte", len(n3Werte()), 1566},
 		{"N3 Dokumente der Schleife", len(faelleV2N3()), 6264}, {"N6 Verstöße mal End", len(faelleV2N6()), 28},
-		{"N7 Zahl der End", len(faelleV2N7()), 11}, {"N8 Fälle der Grenze der Bindings", len(faelleV2N8()), 9},
+		{"N7 Zahl der End", len(faelleV2N7()), 11}, {"N8 Fälle der Grenze der Bindings", len(faelleV2N8()), 11},
 		{"A6 Dokumente der leeren Reads", len(a6FaelleV2()), 48}, {"alle Dokumente der Suite", len(alleFaelleV2(t)), 1000},
 	} {
 		t.Logf("%s: %d", m.name, m.n)
