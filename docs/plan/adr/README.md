@@ -15,6 +15,7 @@
 | [ADR-0008](0008-blob-bereinigung-im-betrieb-waechter-und-zurueckstellen.md) | Blob-Bereinigung im laufenden Betrieb mit Wächter und Zurückstellen | Accepted | `LH-RB-04`, `LH-FA-03`, `LH-QA-03` |
 | [ADR-0009](0009-groessenmarke-als-gate-mit-messung-durch-den-host.md) | Größenmarke als Gate, der Host misst, ein Programm im Container urteilt | Proposed | `LH-QA-06` |
 | [ADR-0010](0010-groesse-der-guide-dateien-als-gate.md) | Größe der Guide-Dateien als Gate, Grenze auf dem Ist-Stand | Accepted | `LH-QA-06` |
+| [ADR-0011](0011-versionierter-adapter-fuer-odata-v2.md) | Versionierter Adapter für OData V2: versionsneutrale Ports, Implementierung je Version, ein Satz je Service | Proposed | `LH-FA-17`, `LH-RB-01`, `LH-QA-05` |
 
 ## Konventionen
 
