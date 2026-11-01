@@ -182,12 +182,12 @@ func TestKonfigFehlerBeiAbbruch(t *testing.T) {
 
 // TestStartLiestUmgebung fängt, dass Start os.Environ liest und stderr statt stdout beschreibt.
 func TestStartLiestUmgebung(t *testing.T) {
-	t.Setenv("MODE", "mock")
+	t.Setenv("MAX_CAPTURE_BODY", "abc")
 	var stdout, stderr syncPuffer
 	if code := bootstrap.Start(context.Background(), &stdout, &stderr); code != 1 {
 		t.Errorf("Rückgabe %d", code)
 	}
-	if !strings.Contains(stderr.String(), "ODR-E2001 MODE") || stdout.String() != "" {
+	if !strings.Contains(stderr.String(), "ODR-E2001 MAX_CAPTURE_BODY: ") || stdout.String() != "" {
 		t.Errorf("stderr %q, stdout %q", stderr.String(), stdout.String())
 	}
 }
@@ -266,6 +266,29 @@ func TestStartMehrereFehler(t *testing.T) {
 	code, stderr := fahre(ctx, t, cancel, umgebungFuer(t, modusRecord, 1), h)
 	if zeilen := meldungsZeilen(stderr); code != 1 || !slices.Equal(zeilen, []string{"ODR-E9001: Internal error", "ODR-E9001: Internal error"}) {
 		t.Errorf("Rückgabe %d, Meldungen %q", code, zeilen)
+	}
+	if h.p.zaehle(pAblageZu) != 1 || h.p.zaehle(pSchliessen) != 1 {
+		t.Errorf("Ereignisse %v", h.p.liste())
+	}
+}
+
+// TestServeAusfall fängt SPEC-138 Nr. 8 (e): fällt Serve im Lauf aus, fährt Start von sich aus herunter
+// und liefert 1, ohne dass ctx abgebrochen wird.
+func TestServeAusfall(t *testing.T) {
+	h := neuHaken()
+	h.phase, h.wirkung = pServe, scheitere
+	var stderr syncPuffer
+	ergebnis := make(chan int, 1)
+	go func() {
+		ergebnis <- bootstrap.StartMit(context.Background(), umgebungFuer(t, modusRecord, 1), &stderr, h.bauteile())
+	}()
+	select {
+	case code := <-ergebnis:
+		if zeilen := meldungsZeilen(stderr.String()); code != 1 || !slices.Equal(zeilen, []string{"ODR-E9001: Internal error"}) {
+			t.Errorf("Rückgabe %d, Meldungen %q", code, zeilen)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatalf("Start fährt nach dem Ausfall von Serve nicht herunter; stderr:\n%s", stderr.String())
 	}
 	if h.p.zaehle(pAblageZu) != 1 || h.p.zaehle(pSchliessen) != 1 {
 		t.Errorf("Ereignisse %v", h.p.liste())
