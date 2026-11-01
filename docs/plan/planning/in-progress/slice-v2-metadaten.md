@@ -287,6 +287,8 @@ Verglichen mit dem Metrik-Maß von `SPEC-128` (Summe aus Einfügungen und Lösch
 
 **Folge für §4 des Plans.** Die Zeile zur Schnittfrage lautet: *Schnittfrage* (*S* = 6070 ≥ 2223): kein Teil lässt sich ohne geteilten Mechanismus abtrennen — Lesen und Auflösen teilen den Baum, Assoziationen teilen Dispatch, Namensräume und Reihenfolge der Auflösungsschritte, der Rahmen steckt im V4-Zustand `lauf` und seine Hebung änderte den V4-Pfad (Verschieben zählt doppelt, Ersparnis höchstens zehn Zeilen der Tabelle); Vorbild sind `csdl` (*M* 6800) und `json` (*M* 7400), beide ungeschnitten geliefert. Ein vorab benannter Schnitt gilt nicht. Liegt die Messung über der Marke, steht ein Eintrag `ueberschreitung` mit Grund im Block (`SPEC-128` Nr. 5 d), keine Rückführung. Die ältere Marke 8300 (vorläufig, *S* ≈ 6100) ersetzt der Planner durch 8200 mit dem Grund „Tabelle gezählt: 57 Zeilen, *a* = 2, *p* = 1500“.
 
+Stand nach der Fix-Runde des Reviews: die Tabelle zählt 59 Zeilen (A6 und N8 neu; das Gate nennt als Hinweis 6230 gegen die Schätzung 6070 des Blocks), die Messung beträgt 4855 von 8200; die Marke bleibt, die Neuberechnung der Schätzung liegt beim Planner.
+
 Erwartung für das Ende (Stand nach dem Review): die Enden der drei Messpunkte lagen bei 0,86 bis 1,33 mal *S*, also 5200 bis 8100 bei *S* = 6070; die Marke 8200 hält alle drei.
 
 ```groessenmarke
