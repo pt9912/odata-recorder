@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-import-codecs
+**Fund:** F-V1 und F-V3 (Verifikation): der Name des Test-Helfers stand im Plan dreimal als `fakeSatz` (§3 *Fakes (Architect)*, §4 *Größenmarke*, §6 Risiko 5) und einmal als `satzFake` (§3 *Mutationen und Raten*), der Code heißt `satzFake`; die Zeile F-6 der Fix-Runde sagte, ein Ausdruck komme „nicht mehr vor“, und enthielt ihn selbst. Beides in der Closure berichtigt. Beleg: Plan §3 und §6; Report `docs/reviews/2026-11-01-slice-v2-import-codecs-verifikation.md`, Findings F-V1 und F-V3.

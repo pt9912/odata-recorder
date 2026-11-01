@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-import-codecs
+**Fund:** F-7 (Review) und F-V4 (Verifikation): Schätzung 1045 (9 Zeilen, 1 nebenläufig, 1 Fake, Produktcode 120), Messung 695 beim Handoff und 758 nach dem Review, Marke 1500 nie berührt; die Schätzung liegt 38 % über der Messung. Beleg: Plan §4 (*Messung*, Messpunkt) und §6 (Rückgabe 9); Reports `docs/reviews/2026-11-01-slice-v2-import-codecs-review.md`, `docs/reviews/2026-11-01-slice-v2-import-codecs-verifikation.md`.

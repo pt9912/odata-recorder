@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-import-codecs
+**Fund:** F-4 (Review): der Kopf von `TestSatzFehlerJeAufrufstelle` sagte, danach rufe der Dienst „weder `Blobs.Begin` noch `Imports.Publish` noch einen weiteren Codec“; der Test zählte von den Codecs allein die Aufrufstellen des Ziel-Satzes (zugleich F-1, zwei Mutanten blieben grün). Der Kopf nennt jetzt die Zähler, die der Test prüft (alle neun Aufrufstellen). Beleg: Plan §3 (Fix-Runde, Zeile F-4); Report `docs/reviews/2026-11-01-slice-v2-import-codecs-review.md`.

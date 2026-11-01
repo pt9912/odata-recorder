@@ -1,0 +1,16 @@
+package outbound
+
+// CodecSatz ist der Satz der Implementierungen einer OData-Version (SPEC-175 Nr. 3). Der Composition
+// Root hält je Version einen Satz und gibt ihn jedem Dienst, der Codecs braucht; ein Dienst liest allein
+// die Felder, die er braucht, und ein Feld, das er nicht braucht, darf nil sein. Ein Satz hat keinen
+// Zustand und darf von mehreren Diensten geteilt werden.
+type CodecSatz struct {
+	// Version ist die OData-Version des Satzes (`4.0` oder `2.0`); kein Dienst verzweigt danach.
+	Version string
+	// Metadaten liest das $metadata der Version (SPEC-125, SPEC-171).
+	Metadaten MetadataCodec
+	// Daten liest die Antworten der Version (SPEC-126, SPEC-172).
+	Daten ODataCodec
+	// NurLesend sagt, dass der Mock die Version nur liest; der Import liest es nicht.
+	NurLesend bool
+}
