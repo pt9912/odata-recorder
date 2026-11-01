@@ -53,7 +53,7 @@ func (e *KompatFehler) Error() string {
 }
 
 // Code liefert ODR-E6006.
-func (e *KompatFehler) Code() Code { return CodeE6006 }
+func (*KompatFehler) Code() Code { return CodeE6006 }
 
 // Unwrap macht ErrKompatibilitaet erreichbar, keinen Sentinel der URL- oder Eingabefehler.
-func (e *KompatFehler) Unwrap() error { return ErrKompatibilitaet }
+func (*KompatFehler) Unwrap() error { return ErrKompatibilitaet }
