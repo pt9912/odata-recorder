@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-import-codecs
+**Fund:** Der Verifikationsbericht `docs/reviews/2026-11-01-slice-v2-import-codecs-verifikation.md` nannte `ADR-0011` an zwei Stellen (Zeilen 7 und 128) ohne Link; `make docs-check` meldete zwei Befunde `id-unlinked`, `make gates` blieb rot (Exit 2), bis der Planner in der Closure die Links setzte. Der Verifier hatte `make gates` vor dem Schreiben des Berichts gefahren. Beleg: Plan §7 (*Was ging anders*, Punkt 6); Gate-Ausgabe der Closure.

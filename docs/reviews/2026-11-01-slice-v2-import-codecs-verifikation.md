@@ -4,7 +4,7 @@
 
 **Gegenstand:** `slice-v2-import-codecs` (Welle `welle-odata-v2`), Zweig `slice-v2-import-codecs`, geprüfter Stand **HEAD `e1a1de0fe8a611dad71fbcbb9e2199f0012cc1a8`**, Basis `b5ac4a5`. Bezug: `LH-FA-17`, `LH-FA-18`, [ADR-0011](../plan/adr/0011-versionierter-adapter-fuer-odata-v2.md).
 
-**Geprüft gegen:** DoD und §3 (Tabelle Z1 bis Z9, Absatz *Mutationen und Raten*, Fix-Runde), §4 (Block, Marke), §6 (Raster, Zusatztabelle, Risiken) des Plans; `SPEC-127` Nr. 1 (nach L1), `SPEC-175` Nr. 3, 4, 6; ADR-0011; `AGENTS.md` §3.10, §3.12, §3.15 bis §3.17; Review `docs/reviews/2026-11-01-slice-v2-import-codecs-review.md` (F-1 bis F-7).
+**Geprüft gegen:** DoD und §3 (Tabelle Z1 bis Z9, Absatz *Mutationen und Raten*, Fix-Runde), §4 (Block, Marke), §6 (Raster, Zusatztabelle, Risiken) des Plans; `SPEC-127` Nr. 1 (nach L1), `SPEC-175` Nr. 3, 4, 6; [ADR-0011](../plan/adr/0011-versionierter-adapter-fuer-odata-v2.md); `AGENTS.md` §3.10, §3.12, §3.15 bis §3.17; Review `docs/reviews/2026-11-01-slice-v2-import-codecs-review.md` (F-1 bis F-7).
 
 **Methode.** Der Beleg des Implementers (Gates grün, Messung 758, Raten) ist nicht übernommen. Selbst gefahren: `make gates` (alle Gates, ein Lauf), `go test -count=20` über das Paket, 30 Mutanten auf Kopien im Scratchpad (`.../scratchpad/ver/`, Quelle `git archive HEAD`; im Repo liegt nichts außer diesem Bericht), Z7-Raten mit eigenen Bauarten (30 bzw. 20 Prozesse je Zelle, `-test.count=1`). Docker nur mit `--network none --memory=4g --memory-swap=4g --cpus=4` unter `flock /tmp/odata-recorder-heavy.lock`, jeweils ein Container. Die Mutanten sind aus der Klasse der Zusage gebildet (Aufrufstellen mal Dienste mal Argumente, Ausgänge der Rangfolge), nicht aus den Mutationen des Plans oder des Reviews; die Mutanten des Reviews (F-1, F-2) sind mit anderen Elementen der Klasse gegengeprüft.
 
@@ -125,7 +125,7 @@ Alle 24 Zellen der drei Zeilen (`New`, `Import`, `Get`) nennen eine Nummer von `
 | Größenmarke | geprüft, ohne Befund: 758 von 1500, `numstat` und Gate gleich |
 | Rohbytes (§3.18) | geprüft, ohne Befund: `LC_ALL=C grep -P` über die hinzugefügten Zeilen des Diffs `b5ac4a5..HEAD` (Folge Backslash-`u`-vier-Hex, BOM, NBSP, Nullbreiten- und Steuerzeichen): 0 Treffer; die 3 Treffer im Bestand der beiden Pakete liegen in Zeilen, die der Slice nicht berührt; dieser Bericht ist nach dem Schreiben auf Rohbytes zurückgelesen (0 Treffer) |
 | Z7-Raten (stichprobenartig selbst) | geprüft, ohne Befund: Wirkungs-Fänger 100 %, Negativ bestätigt; Abweichung der Zahlen nur als F-V2 |
-| ADR-0011 und `SPEC-175` Nr. 3, 4, 6 | geprüft, ohne Befund: der Dienst verzweigt nicht nach der Version, der Satz ist je Dienst, kein Zustand im Importer |
+| [ADR-0011](../plan/adr/0011-versionierter-adapter-fuer-odata-v2.md) und `SPEC-175` Nr. 3, 4, 6 | geprüft, ohne Befund: der Dienst verzweigt nicht nach der Version, der Satz ist je Dienst, kein Zustand im Importer |
 | Suppression (§3.2) | geprüft, ohne Befund: keine `//nolint`-Direktive im Diff |
 
 ## Ergebnis
