@@ -49,17 +49,19 @@ type server interface {
 // macht den Typ erreichbar, und ein Test setzt einen Haken, der die übergebene Konfig ablegt oder
 // einen Fake liefert. Die Felder tragen große Anfangsbuchstaben, weil nur so das Testpaket sie setzt.
 type bauteile struct {
-	Oeffne        func(ctx context.Context, pfad string, opt sqlite.Options) (*sqlite.DB, error)
-	Schliesser    func(io.Closer) io.Closer
-	Dienste       func(outbound.MetadataRepository) outbound.MetadataRepository
-	NeueWartung   func(maintenance.Konfig) (inbound.MaintenanceUseCase, error)
-	NeuePipeline  func(capture.Konfig) (*capture.Pipeline, error)
-	NeuerUpstream func(httpupstream.Konfig) (outbound.UpstreamClient, error)
-	NeuerRecorder func(record.Konfig) (inbound.RecordUseCase, error)
-	NeueSession   func(session.Konfig) (inbound.SessionUseCase, error)
-	NeuerReplay   func(replay.Konfig) (inbound.ReplayUseCase, error)
-	Listen        func(ctx context.Context, network, addr string) (net.Listener, error)
-	NeuerServer   func(httpodata.Konfig) (server, error)
+	Oeffne         func(ctx context.Context, pfad string, opt sqlite.Options) (*sqlite.DB, error)
+	Schliesser     func(io.Closer) io.Closer
+	Dienste        func(outbound.MetadataRepository) outbound.MetadataRepository
+	NeuerWaechter  func(outbound.BlobRepository, support.Clock, time.Duration) (*maintenance.BlobWaechter, error)
+	NeueTelemetrie func(telemetry.Config) (*telemetry.Adapter, error)
+	NeueWartung    func(maintenance.Konfig) (inbound.MaintenanceUseCase, error)
+	NeuePipeline   func(capture.Konfig) (*capture.Pipeline, error)
+	NeuerUpstream  func(httpupstream.Konfig) (outbound.UpstreamClient, error)
+	NeuerRecorder  func(record.Konfig) (inbound.RecordUseCase, error)
+	NeueSession    func(session.Konfig) (inbound.SessionUseCase, error)
+	NeuerReplay    func(replay.Konfig) (inbound.ReplayUseCase, error)
+	Listen         func(ctx context.Context, network, addr string) (net.Listener, error)
+	NeuerServer    func(httpodata.Konfig) (server, error)
 }
 
 // als macht aus einem Konstruktor einen, der die Schnittstelle I liefert; ein Fehler liefert
@@ -77,15 +79,17 @@ func als[I, K, T any](neu func(K) (T, error)) func(K) (I, error) {
 
 func standardBauteile() bauteile {
 	return bauteile{
-		Oeffne:        sqlite.Open,
-		Schliesser:    func(c io.Closer) io.Closer { return c },
-		Dienste:       func(r outbound.MetadataRepository) outbound.MetadataRepository { return r },
-		NeueWartung:   als[inbound.MaintenanceUseCase](maintenance.New),
-		NeuePipeline:  capture.New,
-		NeuerUpstream: als[outbound.UpstreamClient](httpupstream.New),
-		NeuerRecorder: als[inbound.RecordUseCase](record.New),
-		NeueSession:   als[inbound.SessionUseCase](session.New),
-		NeuerReplay:   als[inbound.ReplayUseCase](replay.New),
+		Oeffne:         sqlite.Open,
+		Schliesser:     func(c io.Closer) io.Closer { return c },
+		Dienste:        func(r outbound.MetadataRepository) outbound.MetadataRepository { return r },
+		NeuerWaechter:  maintenance.NewBlobWaechter,
+		NeueTelemetrie: telemetry.New,
+		NeueWartung:    als[inbound.MaintenanceUseCase](maintenance.New),
+		NeuePipeline:   capture.New,
+		NeuerUpstream:  als[outbound.UpstreamClient](httpupstream.New),
+		NeuerRecorder:  als[inbound.RecordUseCase](record.New),
+		NeueSession:    als[inbound.SessionUseCase](session.New),
+		NeuerReplay:    als[inbound.ReplayUseCase](replay.New),
 		Listen: func(ctx context.Context, network, addr string) (net.Listener, error) {
 			var lc net.ListenConfig
 			return lc.Listen(ctx, network, addr)
@@ -221,7 +225,7 @@ func (h *Handle) verdrahte(db *sqlite.DB, v vorlaeufig) error {
 	if err != nil {
 		return err
 	}
-	waechter, err := maintenance.NewBlobWaechter(store, h.uhr, maintenance.StandardKarenz)
+	waechter, err := b.NeuerWaechter(store, h.uhr, maintenance.StandardKarenz)
 	if err != nil {
 		return err
 	}
@@ -272,7 +276,7 @@ func (h *Handle) verdrahteRecord(db *sqlite.DB, waechter *maintenance.BlobWaecht
 
 func (h *Handle) verdrahteReplay(db *sqlite.DB, waechter *maintenance.BlobWaechter, v vorlaeufig) error {
 	k := h.k
-	tel, err := telemetry.New(telemetry.Config{Writer: io.Discard, Clock: h.uhr})
+	tel, err := h.b.NeueTelemetrie(telemetry.Config{Writer: io.Discard, Clock: h.uhr})
 	if err != nil {
 		return err
 	}

@@ -28,6 +28,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/bootstrap"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/maintenance"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/replay"
@@ -78,14 +79,16 @@ func TestDiensteAnlegen(t *testing.T) {
 		name     string
 		vorab    []model.Service
 		zeile    string
+		logs     int
 		sessions int
 		ids      []string
 	}{
-		{"unbekannt", nil, "", 1, []string{"a"}},
-		{"bekannt gleich", []model.Service{{ID: "a", ServiceRoot: "/a", ODataVersion: "4.0"}}, "", 1, []string{"a"}},
-		{"anderer Root", []model.Service{{ID: "a", ServiceRoot: "/x", ODataVersion: "4.0"}}, wurzel, 0, []string{"a"}},
-		{"andere Version", []model.Service{{ID: "a", ServiceRoot: "/a", ODataVersion: "3.0"}}, version, 0, []string{"a"}},
-		{"nicht genannt", []model.Service{{ID: "zz", ServiceRoot: "/zz", ODataVersion: "4.0"}}, "", 1, []string{"a", "zz"}},
+		{"unbekannt", nil, "", 0, 1, []string{"a"}},
+		{"bekannt gleich", []model.Service{{ID: "a", ServiceRoot: "/a", ODataVersion: "4.0"}}, "", 0, 1, []string{"a"}},
+		{"anderer Root", []model.Service{{ID: "a", ServiceRoot: "/x", ODataVersion: "4.0"}}, wurzel, 1, 0, []string{"a"}},
+		{"andere Version", []model.Service{{ID: "a", ServiceRoot: "/a", ODataVersion: "3.0"}}, version, 1, 0, []string{"a"}},
+		{"beide Felder", []model.Service{{ID: "a", ServiceRoot: "/x", ODataVersion: "3.0"}}, wurzel + "\n" + version, 2, 0, []string{"a"}},
+		{"nicht genannt", []model.Service{{ID: "zz", ServiceRoot: "/zz", ODataVersion: "4.0"}}, "", 0, 1, []string{"a", "zz"}},
 	}
 	for _, f := range faelle {
 		t.Run(f.name, func(t *testing.T) {
@@ -109,11 +112,22 @@ func TestDiensteAnlegen(t *testing.T) {
 				if err == nil || bootstrap.Meldung(err) != f.zeile {
 					t.Fatalf("Hochfahren: %v, erwartet %q", err, f.zeile)
 				}
-				for _, s := range []string{"ereignis=dienst_abweichend", "error_code=ODR-E2001", "service_id=a", "level=ERROR"} {
-					if !strings.Contains(logPuffer.String(), s) {
-						t.Errorf("Log ohne %q:\n%s", s, logPuffer.String())
+			}
+			// Je abweichendem Feld genau ein Logeintrag mit allen vier Teilen (SPEC-139 Nr. 8 c).
+			eintraege := 0
+			for _, l := range strings.Split(logPuffer.String(), "\n") {
+				if !strings.Contains(l, "ereignis=dienst_abweichend") {
+					continue
+				}
+				eintraege++
+				for _, s := range []string{"error_code=ODR-E2001", "service_id=a", "level=ERROR", `msg="start: gespeicherter Service weicht von der Konfiguration ab"`} {
+					if !strings.Contains(l, s) {
+						t.Errorf("Logeintrag ohne %q: %s", s, l)
 					}
 				}
+			}
+			if eintraege != f.logs {
+				t.Errorf("%d Logeinträge, erwartet %d:\n%s", eintraege, f.logs, logPuffer.String())
 			}
 			if err := h.Herunterfahren(ctx); err != nil {
 				t.Fatal(err)
@@ -404,8 +418,20 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		t.Errorf("Tabelle hat %d Zeilen, Konfiguration %d Felder", len(pruefungen), typ.NumField())
 	}
 	// Eine Uhr, eine ID-Quelle, ein Logger in allen Verbrauchern.
-	if r.wartung.Uhr != r.recorder.Uhr || r.wartung.Uhr != r.session.Uhr {
-		t.Error("die Verbraucher teilen nicht eine Uhr")
+	// Menge der Stellen mit einer Uhr (SPEC-139 Nr. 3): record 4, replay 3; replay.Konfig hat keine Uhr.
+	uhren := map[string][]stelleUhr{
+		modusRecord: {{"Wartung", r.wartung.Uhr}, {"Wächter", r.waechter}, {"Session", r.session.Uhr}, {"Recorder", r.recorder.Uhr}},
+		modusReplay: {{"Wartung", p.wartung.Uhr}, {"Wächter", p.waechter}, {"Telemetrie", p.telemetrie.Clock}},
+	}
+	if len(uhren[modusRecord]) != 4 || len(uhren[modusReplay]) != 3 {
+		t.Error("die Menge der Stellen mit einer Uhr hat sich geändert")
+	}
+	for modus, stellen := range uhren {
+		for _, s := range stellen {
+			if s.uhr == nil || s.uhr != stellen[0].uhr {
+				t.Errorf("Modus %s: %s teilt nicht die Uhr von %s", modus, s.name, stellen[0].name)
+			}
+		}
 	}
 	if r.recorder.IDs != r.session.IDs || r.recorder.IDs != r.server.IDs {
 		t.Error("die Verbraucher teilen nicht eine ID-Quelle")
@@ -417,6 +443,12 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 			t.Errorf("%s trägt nicht den übergebenen Logger", name)
 		}
 	}
+}
+
+// stelleUhr ist ein Verbraucher der einen Uhr mit der Uhr, die er erhielt.
+type stelleUhr struct {
+	name string
+	uhr  support.Clock
 }
 
 func istUngueltig(e error) bool { return errors.Is(e, model.ErrUngueltig) }
@@ -504,6 +536,165 @@ func TestModus(t *testing.T) {
 			}
 			if got, soll := h.p.zaehle(pAblage), map[bool]int{false: 0, true: 1}[f.offen]; got != soll || h.p.zaehle(pAblageZu) != soll {
 				t.Errorf("Ablage %d-mal geöffnet, %d-mal geschlossen, erwartet je %d", got, h.p.zaehle(pAblageZu), soll)
+			}
+		})
+	}
+}
+
+// TestCADatei fängt B8 für UPSTREAM_CA_FILE (SPEC-139 Nr. 2): Modus {record, replay} × Pfad {nicht
+// vorhanden, Verzeichnis statt Datei} × Zugang {Build mit Literal, Start mit Umgebung} = 8. Build liest die
+// Datei nur in record; Start meldet sie in jedem Modus, und nichts bleibt geöffnet.
+func TestCADatei(t *testing.T) {
+	const zeile = "ODR-E2001 UPSTREAM_CA_FILE: Datei nicht lesbar"
+	n := 0
+	for _, modus := range modi() {
+		for _, art := range []string{"nicht vorhanden", "Verzeichnis"} {
+			for _, zugang := range []string{"Build", "Start"} {
+				n++
+				t.Run(modus+"/"+art+"/"+zugang, func(t *testing.T) {
+					pfad := t.TempDir()
+					if art == "nicht vorhanden" {
+						pfad = filepath.Join(pfad, "keine-ca.pem")
+					}
+					h := neuHaken()
+					if zugang == "Start" {
+						// Die Frist ist die Testbremse: meldet der Loader nichts, läuft Start bis zu ihr.
+						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						defer cancel()
+						var stderr syncPuffer
+						code := bootstrap.StartMit(ctx, umgebungFuer(t, modus, 1, "UPSTREAM_CA_FILE="+pfad), &stderr, h.bauteile())
+						if zeilen := meldungsZeilen(stderr.String()); code != 1 || !slices.Equal(zeilen, []string{zeile}) {
+							t.Errorf("Rückgabe %d, Meldungen %q", code, zeilen)
+						}
+						if h.p.zaehle(pAblage) != 0 {
+							t.Error("die Ablage wurde geöffnet")
+						}
+						return
+					}
+					k := basisKonfig(t.TempDir(), modus, dienstA("http://127.0.0.1:9/a"))
+					k.UpstreamCAFile = pfad
+					hd, err := bootstrap.BuildMit(context.Background(), k, nil, h.bauteile())
+					if modus == modusReplay {
+						if err != nil {
+							t.Fatalf("Build im Modus replay: %v", err)
+						}
+						if err := hd.Herunterfahren(context.Background()); err != nil {
+							t.Error(err)
+						}
+						return
+					}
+					if err == nil || bootstrap.Meldung(err) != zeile {
+						t.Errorf("Fehler %v", err)
+					}
+					if h.p.zaehle(pAblage) != 0 {
+						t.Error("die Ablage wurde geöffnet")
+					}
+				})
+			}
+		}
+	}
+	if n != 8 {
+		t.Errorf("Menge hat %d Elemente, erwartet 8", n)
+	}
+}
+
+// TestBlobVerzeichnisRechte fängt B9 (SPEC-139 Nr. 2): Modus × Zustand von blobs {fehlt → 0700; vorhanden
+// mit 0755, 0750, 0777 → unverändert}. chmod setzt die Rechte der Fixture unabhängig von der umask.
+func TestBlobVerzeichnisRechte(t *testing.T) {
+	zustaende := []struct {
+		name      string
+		vorhanden bool
+		vorher    os.FileMode
+		soll      os.FileMode
+	}{
+		{"fehlt", false, 0, 0o700},
+		{"vorhanden 0755", true, 0o755, 0o755},
+		{"vorhanden 0750", true, 0o750, 0o750},
+		{"vorhanden 0777", true, 0o777, 0o777},
+	}
+	for _, modus := range modi() {
+		for _, z := range zustaende {
+			t.Run(modus+"/"+z.name, func(t *testing.T) {
+				dir := t.TempDir()
+				blobs := filepath.Join(dir, verzeichnisB)
+				if z.vorhanden {
+					if err := os.Mkdir(blobs, 0o700); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.Chmod(blobs, z.vorher); err != nil {
+						t.Fatal(err)
+					}
+				}
+				hd, err := bootstrap.BuildMit(context.Background(), basisKonfig(dir, modus, dienstA("http://127.0.0.1:9/a")), nil, neuHaken().bauteile())
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = hd.Herunterfahren(context.Background()) })
+				info, err := os.Stat(blobs)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got := info.Mode().Perm(); got != z.soll {
+					t.Errorf("Rechte %04o, erwartet %04o", got, z.soll)
+				}
+			})
+		}
+	}
+}
+
+// ctxMarke ist der Schlüssel, mit dem ein Test den ctx eines Aufrufs wiedererkennt.
+type ctxMarke struct{}
+
+// TestAufrufstellen fängt B11 (SPEC-139 Nr. 6): Modus × Aufrufstelle {Open der Ablage (Build), Startup,
+// Create, Get, OpenInitialSession (nur record), Listen}: der Fake hält den ctx je Aufruf fest; er trägt den
+// Wert der Quelle und folgt ihrem Abbruch (Background und WithoutCancel erfüllen nur eines von beiden).
+// Listen erhält das Netz tcp und die Adresse aus LISTEN. Get wird erreicht, weil der Service vorab liegt.
+func TestAufrufstellen(t *testing.T) {
+	for _, modus := range modi() {
+		t.Run(modus, func(t *testing.T) {
+			dir := t.TempDir()
+			db := oeffneAblage(context.Background(), t, dir)
+			if err := db.Metadata().Create(context.Background(), model.Service{ID: "a", ServiceRoot: "/a", ODataVersion: "4.0"}); err != nil {
+				t.Fatal(err)
+			}
+			_ = db.Close()
+			neu := func(marke string) (context.Context, context.CancelFunc) {
+				ctx, cancel := context.WithCancel(context.WithValue(context.Background(), ctxMarke{}, marke))
+				return ctx, cancel
+			}
+			ctxBuild, cancelBuild := neu("build")
+			defer cancelBuild()
+			ctxHoch, cancelHoch := neu("hochfahren")
+			defer cancelHoch()
+			h := neuHaken()
+			k := basisKonfig(dir, modus, dienstA("http://127.0.0.1:9/a"))
+			hd, err := bootstrap.BuildMit(ctxBuild, k, nil, h.bauteile())
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = hd.Herunterfahren(context.Background()) })
+			if err := hd.Hochfahren(ctxHoch); err != nil {
+				t.Fatal(err)
+			}
+			cancelBuild()
+			cancelHoch()
+			stellen := map[string]string{pAblage: "build", pWartung: "hochfahren", pDienst: "hochfahren", pDienstGet: "hochfahren", pListen: "hochfahren"}
+			if modus == modusRecord {
+				stellen[pSession] = "hochfahren"
+			}
+			for stelle, marke := range stellen {
+				c := h.ctxVon(stelle)
+				switch {
+				case c == nil:
+					t.Errorf("Aufrufstelle %s wurde nicht gerufen", stelle)
+				case c.Value(ctxMarke{}) != marke:
+					t.Errorf("Aufrufstelle %s erhielt nicht den ctx des Aufrufs (Wert %v)", stelle, c.Value(ctxMarke{}))
+				case c.Err() == nil:
+					t.Errorf("Aufrufstelle %s folgt dem Abbruch des ctx nicht", stelle)
+				}
+			}
+			if h.listenNetz != "tcp" || h.listenAdr != k.Listen {
+				t.Errorf("Listen mit Netz %q und Adresse %q, erwartet tcp und %q", h.listenNetz, h.listenAdr, k.Listen)
 			}
 		})
 	}

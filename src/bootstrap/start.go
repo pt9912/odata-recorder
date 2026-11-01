@@ -59,15 +59,28 @@ func betreibe(ctx context.Context, h *Handle, log *slog.Logger) (fehler []error,
 		return []error{err}, nil
 	}
 	log.Info("start: bereit", "mode", h.k.Modus, "listen", h.Adresse())
+	return nil, warte(ctx, h.Fehler())
+}
+
+// errServeBeendet ist der Ausfall, wenn Serve ohne Anhalten und ohne Abbruch von ctx zurückkehrt;
+// start meldet ihn als ODR-E9001 (SPEC-139 Nr. 6, 8).
+var errServeBeendet = errors.New("Serve ist ohne Anhalten zurückgekehrt")
+
+// warte wartet auf den Abbruch von ctx oder das Ende von Serve und liefert den Ausfall: den Wert aus
+// fehler, sonst errServeBeendet, wenn fehler ohne Wert und vor dem Abbruch von ctx geschlossen ist.
+func warte(ctx context.Context, fehler <-chan error) error {
 	select {
 	case <-ctx.Done():
-	case e, offen := <-h.Fehler():
+		return nil
+	case e, offen := <-fehler:
 		if offen {
-			return nil, e
+			return e
 		}
-		<-ctx.Done()
+		if ctx.Err() != nil {
+			return nil
+		}
+		return errServeBeendet
 	}
-	return nil, nil
 }
 
 // ausfallDanach liefert den Fehler von Serve, der erst mit oder nach dem Abbruch von ctx eintrat.

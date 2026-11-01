@@ -13,11 +13,13 @@ import (
 
 	"github.com/pt9912/odata-recorder/src/adapters/driven/httpupstream"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/sqlite"
+	"github.com/pt9912/odata-recorder/src/adapters/driven/telemetry"
 	"github.com/pt9912/odata-recorder/src/adapters/driving/httpodata"
 	"github.com/pt9912/odata-recorder/src/bootstrap"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/maintenance"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record/capture"
@@ -94,6 +96,10 @@ const (
 	brecheAb
 	// scheitereNachAbbruch bricht ctx ab und liefert errPhase.
 	scheitereNachAbbruch
+	// beendeOhneFehler lässt Serve sofort mit nil zurückkehren, ohne dass der Root angehalten hat.
+	beendeOhneFehler
+	// wartetAufAbbruch lässt Serve auf den Abbruch von ctxServe warten und dann mit nil zurückkehren.
+	wartetAufAbbruch
 )
 
 // errPhase ist der Fehler eines Fakes; sein Text steht nie in einer Meldung.
@@ -105,26 +111,58 @@ type haken struct {
 	auch      string
 	wirkung   wirkung
 	abbrechen context.CancelFunc
+	// ctxServe ist der Kontext, auf dessen Abbruch Serve bei wartetAufAbbruch wartet.
+	ctxServe context.Context
 
 	// sessionFehler liefert OpenInitialSession, wenn keine Phase wirkt.
 	sessionFehler error
+	// fehlerIn liefert den Fehler je Phase, unabhängig von phase und wirkung; gesetzt vor dem Start, danach nur gelesen.
+	fehlerIn map[string]error
+	// bericht liefert CloseAll der Sessions.
+	bericht inbound.CloseBericht
+	// vorListen läuft im Haken von Listen, bevor er bindet.
+	vorListen func()
 
-	mu        sync.Mutex
-	sqliteOpt sqlite.Options
-	wartung   maintenance.Konfig
-	pipeline  capture.Konfig
-	upstream  *httpupstream.Konfig
-	recorder  *record.Konfig
-	session   *session.Konfig
-	replay    *replay.Konfig
-	server    httpodata.Konfig
-	listener  []net.Listener
-	listenAdr string
+	mu         sync.Mutex
+	sqliteOpt  sqlite.Options
+	wartung    maintenance.Konfig
+	waechter   support.Clock
+	telemetrie telemetry.Config
+	pipeline   capture.Konfig
+	upstream   *httpupstream.Konfig
+	recorder   *record.Konfig
+	session    *session.Konfig
+	replay     *replay.Konfig
+	server     httpodata.Konfig
+	listener   []net.Listener
+	listenAdr  string
+	listenNetz string
+	ctxs       map[string]context.Context
+}
+
+// merke hält den ctx fest, den eine Aufrufstelle erhielt.
+func (h *haken) merke(ctx context.Context, stelle string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.ctxs == nil {
+		h.ctxs = map[string]context.Context{}
+	}
+	h.ctxs[stelle] = ctx
+}
+
+// ctxVon liefert den ctx des letzten Aufrufs der Stelle, nil ohne Aufruf.
+func (h *haken) ctxVon(stelle string) context.Context {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.ctxs[stelle]
 }
 
 func neuHaken() *haken { return &haken{p: &protokoll{}} }
 
 func (h *haken) wirke(ctx context.Context, phase string) error {
+	if e := h.fehlerIn[phase]; e != nil {
+		return e
+	}
 	if h.phase != phase && h.auch != phase {
 		return nil
 	}
@@ -156,6 +194,7 @@ func (h *haken) bauteile() bootstrap.Bauteile {
 		h.mu.Lock()
 		h.sqliteOpt = opt
 		h.mu.Unlock()
+		h.merke(ctx, pAblage)
 		h.p.add(pAblage)
 		// brecheAb wirkt nach dem Öffnen: ein abgebrochener Kontext öffnet nichts.
 		if h.wirkung != brecheAb {
@@ -172,6 +211,18 @@ func (h *haken) bauteile() bootstrap.Bauteile {
 	b.Schliesser = func(c io.Closer) io.Closer { return &protSchliesser{h: h, c: c} }
 	b.Dienste = func(r outbound.MetadataRepository) outbound.MetadataRepository {
 		return &protDienste{MetadataRepository: r, h: h}
+	}
+	b.NeuerWaechter = func(blobs outbound.BlobRepository, uhr support.Clock, karenz time.Duration) (*maintenance.BlobWaechter, error) {
+		h.mu.Lock()
+		h.waechter = uhr
+		h.mu.Unlock()
+		return echt.NeuerWaechter(blobs, uhr, karenz)
+	}
+	b.NeueTelemetrie = func(k telemetry.Config) (*telemetry.Adapter, error) {
+		h.mu.Lock()
+		h.telemetrie = k
+		h.mu.Unlock()
+		return echt.NeueTelemetrie(k)
 	}
 	b.NeueWartung = func(k maintenance.Konfig) (inbound.MaintenanceUseCase, error) {
 		h.mu.Lock()
@@ -201,7 +252,7 @@ func (h *haken) bauteile() bootstrap.Bauteile {
 		h.mu.Lock()
 		h.session = &k
 		h.mu.Unlock()
-		return &fakeSessions{h: h}, nil
+		return &fakeSessions{h: h, bericht: h.bericht}, nil
 	}
 	b.NeuerReplay = func(k replay.Konfig) (inbound.ReplayUseCase, error) {
 		h.mu.Lock()
@@ -210,10 +261,14 @@ func (h *haken) bauteile() bootstrap.Bauteile {
 		return echt.NeuerReplay(k)
 	}
 	b.Listen = func(ctx context.Context, network, addr string) (net.Listener, error) {
+		h.merke(ctx, pListen)
 		h.p.add(pListen)
 		h.mu.Lock()
-		h.listenAdr = addr
+		h.listenAdr, h.listenNetz = addr, network
 		h.mu.Unlock()
+		if h.vorListen != nil {
+			h.vorListen()
+		}
 		if err := h.wirke(ctx, pListen); err != nil {
 			return nil, err
 		}
@@ -269,6 +324,7 @@ type protDienste struct {
 }
 
 func (d *protDienste) Create(ctx context.Context, s model.Service) error {
+	d.h.merke(ctx, pDienst)
 	d.h.p.add("%s:%s", pDienst, s.ID)
 	// brecheAb wirkt nach dem Anlegen: ein abgebrochener Kontext legt nichts an.
 	if d.h.wirkung != brecheAb {
@@ -284,6 +340,7 @@ func (d *protDienste) Create(ctx context.Context, s model.Service) error {
 }
 
 func (d *protDienste) Get(ctx context.Context, id string) (model.Service, error) {
+	d.h.merke(ctx, pDienstGet)
 	if d.h.phase == pDienstGet {
 		return model.Service{}, errPhase
 	}
@@ -296,6 +353,7 @@ type fakeWartung struct {
 }
 
 func (w *fakeWartung) Startup(ctx context.Context) (inbound.Wartungsbericht, error) {
+	w.h.merke(ctx, pWartung)
 	w.h.p.add(pWartung)
 	return inbound.Wartungsbericht{}, w.h.wirke(ctx, pWartung)
 }
@@ -323,6 +381,7 @@ func (s *fakeSessions) protokoll() *protokoll {
 }
 
 func (s *fakeSessions) OpenInitialSession(ctx context.Context, id string) (model.Session, error) {
+	s.h.merke(ctx, pSession)
 	s.protokoll().add("%s:%s", pSession, id)
 	if err := s.h.wirke(ctx, pSession); err != nil {
 		return model.Session{}, err
@@ -376,8 +435,23 @@ func (s *fakeServer) protokoll() *protokoll {
 
 func (s *fakeServer) Serve() error {
 	s.protokoll().add(pServe)
-	if s.h != nil && s.h.wirke(context.Background(), pServe) != nil {
-		return errPhase
+	if s.h != nil {
+		if e := s.h.fehlerIn[pServe]; e != nil {
+			return e
+		}
+		if s.h.phase == pServe {
+			switch s.h.wirkung {
+			case beendeOhneFehler:
+				return nil
+			case wartetAufAbbruch:
+				<-s.h.ctxServe.Done()
+				return nil
+			case keine, blockiere, scheitere, brecheAb, scheitereNachAbbruch:
+			}
+		}
+		if s.h.wirke(context.Background(), pServe) != nil {
+			return errPhase
+		}
 	}
 	<-s.stop
 	if s.freigabe != nil {

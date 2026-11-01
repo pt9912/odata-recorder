@@ -2,6 +2,7 @@ package bootstrap_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -272,26 +273,141 @@ func TestStartMehrereFehler(t *testing.T) {
 	}
 }
 
-// TestServeAusfall fängt SPEC-138 Nr. 8 (e): fällt Serve im Lauf aus, fährt Start von sich aus herunter
-// und liefert 1, ohne dass ctx abgebrochen wird.
+// TestServeAusfall fängt SPEC-139 Nr. 6, 8 und SPEC-138 Nr. 8 (e): Modus {record, replay} × Ausgang von
+// Serve ohne Anhalten und ohne Abbruch von ctx {Fehler, nil} = 4. Start fährt von sich aus herunter,
+// liefert 1 und schreibt genau ODR-E9001; die Testbremse ist ein ctx mit Frist von 5 s, kein Schlaf.
 func TestServeAusfall(t *testing.T) {
-	h := neuHaken()
-	h.phase, h.wirkung = pServe, scheitere
-	var stderr syncPuffer
-	ergebnis := make(chan int, 1)
-	go func() {
-		ergebnis <- bootstrap.StartMit(context.Background(), umgebungFuer(t, modusRecord, 1), &stderr, h.bauteile())
-	}()
-	select {
-	case code := <-ergebnis:
-		if zeilen := meldungsZeilen(stderr.String()); code != 1 || !slices.Equal(zeilen, []string{"ODR-E9001: Internal error"}) {
+	ausgaenge := []struct {
+		name    string
+		wirkung wirkung
+	}{{"Fehler", scheitere}, {"nil ohne Anhalten", beendeOhneFehler}}
+	n := 0
+	for _, modus := range modi() {
+		for _, a := range ausgaenge {
+			n++
+			t.Run(modus+"/"+a.name, func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				h := neuHaken()
+				h.phase, h.wirkung = pServe, a.wirkung
+				var stderr syncPuffer
+				code := bootstrap.StartMit(ctx, umgebungFuer(t, modus, 1), &stderr, h.bauteile())
+				if ctx.Err() != nil {
+					t.Fatalf("Start fährt nach dem Ausfall von Serve nicht von sich aus herunter; stderr:\n%s", stderr.String())
+				}
+				if zeilen := meldungsZeilen(stderr.String()); code != 1 || !slices.Equal(zeilen, []string{"ODR-E9001: Internal error"}) {
+					t.Errorf("Rückgabe %d, Meldungen %q", code, zeilen)
+				}
+				soll := map[string]int{"anhalten": 1, pSchliessen: 1, pAblageZu: 1, pCloseAll: 0}
+				if modus == modusRecord {
+					soll[pCloseAll] = 1
+				}
+				for name, anzahl := range soll {
+					if got := h.p.zaehle(name); got != anzahl {
+						t.Errorf("Ereignis %s %d-mal, erwartet %d", name, got, anzahl)
+					}
+				}
+				if h.offeneListener() != 0 {
+					t.Error("ein Listener ist offen")
+				}
+			})
+		}
+	}
+	if n != 4 {
+		t.Errorf("Menge hat %d Elemente, erwartet 4", n)
+	}
+	t.Run("ctx vor dem Schließen von Fehler abgebrochen", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		h := neuHaken()
+		h.phase, h.wirkung, h.ctxServe = pServe, wartetAufAbbruch, ctx
+		code, stderr := fahre(ctx, t, cancel, umgebungFuer(t, modusRecord, 1), h)
+		if zeilen := meldungsZeilen(stderr); code != 0 || len(zeilen) != 0 {
 			t.Errorf("Rückgabe %d, Meldungen %q", code, zeilen)
 		}
-	case <-time.After(10 * time.Second):
-		t.Fatalf("Start fährt nach dem Ausfall von Serve nicht herunter; stderr:\n%s", stderr.String())
+	})
+}
+
+// TestWarte fängt den Teil von SPEC-139 Nr. 8, den ein Lauf nicht ordnen kann: sind ctx abgebrochen und
+// Fehler() ohne Wert geschlossen, wählt select zufällig; jede Wahl ergibt dasselbe (Abbruch, 0).
+// Die Schleife von 200 Aufrufen färbt eine Mutation, die nur den Zweig des Schließens trifft.
+func TestWarte(t *testing.T) {
+	zu := func() <-chan error { c := make(chan error); close(c); return c }
+	mitWert := func() <-chan error { c := make(chan error, 1); c <- errPhase; return c }
+	abgebrochen := func() context.Context { c, cancel := context.WithCancel(context.Background()); cancel(); return c }
+	for range 200 {
+		if err := bootstrap.Warte(abgebrochen(), zu()); err != nil {
+			t.Fatalf("ctx abgebrochen, Fehler() ohne Wert geschlossen: %v, erwartet nil", err)
+		}
 	}
-	if h.p.zaehle(pAblageZu) != 1 || h.p.zaehle(pSchliessen) != 1 {
-		t.Errorf("Ereignisse %v", h.p.liste())
+	if err := bootstrap.Warte(context.Background(), zu()); !errors.Is(err, bootstrap.ErrServeBeendet) {
+		t.Errorf("ctx offen, Fehler() ohne Wert geschlossen: %v", err)
+	}
+	if err := bootstrap.Warte(context.Background(), mitWert()); !errors.Is(err, errPhase) {
+		t.Errorf("ctx offen, Fehler() mit Wert: %v", err)
+	}
+	if err := bootstrap.Warte(abgebrochen(), make(chan error)); err != nil {
+		t.Errorf("ctx abgebrochen, Fehler() offen: %v", err)
+	}
+}
+
+// TestStartFehlerPaare fängt SPEC-139 Nr. 7 und 8 (B10): jedes mögliche Paar aus den Quellen {Fehler des
+// Hochfahrens, Ausfall von Serve, CloseAll, Fehlgeschlagen, Schliessen, Ablage schließen}, die Zeilen
+// verschieden je Quelle (Serve und Fehlgeschlagen tragen beide ODR-E9001, das Paar zählt die Zeilen).
+// Hochfahren schlägt am Listener fehl; mit Serve und mit Schliessen ist es nicht kombinierbar, weil
+// dann kein Server gebunden ist. Ohne Serve steht die Reihenfolge der Schritte; die Stelle des Ausfalls
+// von Serve in der Folge der Zeilen ist offen (Plan §6), das Paar mit Serve vergleicht als Menge.
+func TestStartFehlerPaare(t *testing.T) {
+	zeileZu := func(c model.Code) string { return c.String() + ": " + c.Message() }
+	mitCode := func(c model.Code) error { return &inbound.Fehler{Code: c, Status: 500, Ursache: errPhase} }
+	quellen := []struct {
+		name  string
+		setze func(h *haken)
+		zeile string
+	}{
+		{"Hochfahren", func(h *haken) { h.fehlerIn[pListen] = errPhase }, "ODR-E2001 LISTEN: Adresse nicht bindbar"},
+		{"Serve", func(h *haken) { h.fehlerIn[pServe] = errPhase }, "ODR-E9001: Internal error"},
+		{"CloseAll", func(h *haken) { h.fehlerIn[pCloseAll] = mitCode(model.CodeE5005) }, zeileZu(model.CodeE5005)},
+		{"Fehlgeschlagen", func(h *haken) { h.bericht = inbound.CloseBericht{Fehlgeschlagen: 1} }, "ODR-E9001: Internal error"},
+		{"Schliessen", func(h *haken) { h.fehlerIn[pSchliessen] = mitCode(model.CodeE5009) }, zeileZu(model.CodeE5009)},
+		{"Ablage", func(h *haken) { h.fehlerIn[pAblageZu] = mitCode(model.CodeE3001) }, zeileZu(model.CodeE3001)},
+	}
+	nicht := func(a, b string) bool {
+		return (a == "Hochfahren" && (b == "Serve" || b == "Schliessen")) || (b == "Hochfahren" && (a == "Serve" || a == "Schliessen"))
+	}
+	n := 0
+	for i, a := range quellen {
+		for _, b := range quellen[i+1:] {
+			if nicht(a.name, b.name) {
+				continue
+			}
+			n++
+			t.Run(a.name+"+"+b.name, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				h := neuHaken()
+				h.fehlerIn = map[string]error{}
+				h.abbrechen = cancel
+				a.setze(h)
+				b.setze(h)
+				code, stderr := fahre(ctx, t, cancel, umgebungFuer(t, modusRecord, 1), h)
+				erwartet := []string{a.zeile, b.zeile}
+				zeilen := meldungsZeilen(stderr)
+				if a.name == "Serve" || b.name == "Serve" {
+					slices.Sort(erwartet)
+					slices.Sort(zeilen)
+				}
+				if code != 1 || !slices.Equal(zeilen, erwartet) {
+					t.Errorf("Rückgabe %d, Meldungen %q, erwartet %q", code, zeilen, erwartet)
+				}
+				if h.p.zaehle(pAblageZu) != 1 {
+					t.Errorf("Ablage %d-mal geschlossen", h.p.zaehle(pAblageZu))
+				}
+			})
+		}
+	}
+	if n != 13 {
+		t.Errorf("Menge hat %d Paare, erwartet 13", n)
 	}
 }
 

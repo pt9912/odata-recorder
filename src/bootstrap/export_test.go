@@ -32,6 +32,12 @@ func BuildMit(ctx context.Context, k Konfiguration, log *slog.Logger, b Bauteile
 	return build(ctx, k, log, b)
 }
 
+// Warte ist das Warten von Start auf den Abbruch von ctx oder das Ende von Serve.
+func Warte(ctx context.Context, fehler <-chan error) error { return warte(ctx, fehler) }
+
+// ErrServeBeendet ist der Ausfall, wenn Serve ohne Anhalten und ohne Abbruch von ctx zurückkehrt.
+var ErrServeBeendet = errServeBeendet
+
 // Meldung ist die Zeile, die Start zu einem Fehler schreibt.
 func Meldung(err error) string { return meldung(err) }
 

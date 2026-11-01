@@ -58,24 +58,30 @@ func (h *Handle) legeDiensteAn(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if schluessel := abweichung(gespeichert, d); schluessel != "" {
-			h.log.Error("start: gespeicherter Service weicht von der Konfiguration ab",
-				"ereignis", "dienst_abweichend", "error_code", model.CodeE2001.String(), "service_id", d.ID)
-			return konfigFehler(schluessel, "gespeicherter Service gleicher id hat "+artikel(schluessel))
+		if schluessel := abweichungen(gespeichert, d); len(schluessel) > 0 {
+			zeilen := make([]string, len(schluessel))
+			for i, s := range schluessel {
+				h.log.Error("start: gespeicherter Service weicht von der Konfiguration ab",
+					"ereignis", "dienst_abweichend", "error_code", model.CodeE2001.String(), "service_id", d.ID)
+				zeilen[i] = konfigZeile(s, "gespeicherter Service gleicher id hat "+artikel(s))
+			}
+			return &KonfigFehler{Zeilen: zeilen}
 		}
 	}
 	return nil
 }
 
-// abweichung nennt den Schlüssel, in dem der gespeicherte Service von der Konfiguration abweicht.
-func abweichung(gespeichert model.Service, d Dienst) string {
-	switch {
-	case gespeichert.ServiceRoot != d.Root:
-		return "service_root"
-	case gespeichert.ODataVersion != odataVersion:
-		return "odata_version"
+// abweichungen nennt die Schlüssel, in denen der gespeicherte Service von der Konfiguration abweicht,
+// service_root vor odata_version (SPEC-139 Nr. 6).
+func abweichungen(gespeichert model.Service, d Dienst) []string {
+	var schluessel []string
+	if gespeichert.ServiceRoot != d.Root {
+		schluessel = append(schluessel, "service_root")
 	}
-	return ""
+	if gespeichert.ODataVersion != odataVersion {
+		schluessel = append(schluessel, "odata_version")
+	}
+	return schluessel
 }
 
 func artikel(schluessel string) string {
@@ -85,8 +91,12 @@ func artikel(schluessel string) string {
 	return "eine andere odata_version"
 }
 
+func konfigZeile(schluessel, grund string) string {
+	return fmt.Sprintf("%s %s: %s", model.CodeE2001, schluessel, grund)
+}
+
 func konfigFehler(schluessel, grund string) error {
-	return &KonfigFehler{Zeilen: []string{fmt.Sprintf("%s %s: %s", model.CodeE2001, schluessel, grund)}}
+	return &KonfigFehler{Zeilen: []string{konfigZeile(schluessel, grund)}}
 }
 
 func (h *Handle) oeffneErsteSessions(ctx context.Context) error {

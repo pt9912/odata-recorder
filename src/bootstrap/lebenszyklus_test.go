@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -28,8 +30,7 @@ func literal(modus string, frist time.Duration, uhr support.Clock, p *protokoll,
 	return bootstrap.LiteralHandle(modus, frist, uhr, s, srv, &protSchliesser{h: &haken{p: p}, c: nichtsSchliessen{ablage}})
 }
 
-// gibFrei lässt Serve zurückkehren, sobald die Ablage geschlossen ist, spätestens nach 100 ms: ein
-// Root, der nicht auf Serve wartet, schließt die Ablage vor dem Ende von Serve.
+// gibFrei lässt Serve zurückkehren, sobald die Ablage geschlossen ist, spätestens nach 100 ms.
 func gibFrei(p *protokoll, srv *fakeServer) {
 	srv.freigabe = make(chan struct{})
 	go func() {
@@ -126,6 +127,52 @@ func TestHerunterfahrenReihenfolge(t *testing.T) {
 				t.Errorf("Ereignisse %v, erwartet %v", got, erwartet[modusRecord])
 			}
 		})
+	}
+}
+
+// TestZugaengeGleichzeitig fängt B12 (SPEC-139 Nr. 10): Adresse, Fehler, Wartung, Record und Sessions werden
+// von vier Goroutinen gelesen, während Hochfahren läuft; der Haken von Listen hält Hochfahren an, bis
+// die Leser 400 Runden hinter sich haben, die Zugriffe liegen also vor dem Schreiben der Adresse. Fänger
+// ist der Detektor von make test-race (der Wirkungs-Fänger fehlt: die Wirkung eines fehlenden Schutzes
+// ist das Datenrennen selbst); ohne -race prüft der Test nur den Endwert.
+func TestZugaengeGleichzeitig(t *testing.T) {
+	ctx := context.Background()
+	h := neuHaken()
+	hd, err := bootstrap.BuildMit(ctx, basisKonfig(t.TempDir(), modusRecord, dienstA("http://127.0.0.1:9/a")), nil, h.bauteile())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = hd.Herunterfahren(ctx) })
+	const leser, runden = 4, 100
+	var gelesen atomic.Int64
+	var ende atomic.Bool
+	var fertig sync.WaitGroup
+	for range leser {
+		fertig.Go(func() {
+			for !ende.Load() {
+				_ = hd.Adresse()
+				_ = hd.Fehler()
+				_ = hd.Wartung()
+				_ = hd.Record()
+				_ = hd.Sessions()
+				gelesen.Add(1)
+				runtime.Gosched()
+			}
+		})
+	}
+	h.vorListen = func() {
+		for gelesen.Load() < leser*runden {
+			runtime.Gosched()
+		}
+	}
+	err = hd.Hochfahren(ctx)
+	ende.Store(true)
+	fertig.Wait()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hd.Adresse() == "" || hd.Adresse() != h.listener[0].Addr().String() {
+		t.Errorf("Adresse %q", hd.Adresse())
 	}
 }
 
