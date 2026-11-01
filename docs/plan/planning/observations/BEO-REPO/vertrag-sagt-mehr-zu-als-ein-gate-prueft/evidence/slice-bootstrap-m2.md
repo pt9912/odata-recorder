@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m2
+**Fund:** Zusagen von `SPEC-139` und `SPEC-138` Nr. 8 ohne Fänger in einer Dimension, die die Menge der Tabelle nicht führte: Wert des wiederholten `Herunterfahren` nur mit `nil` (V-1), Kontextfehler nur blank (V-2), Fehler der Ablage nur als `ODR-E9001` (V-3), Rechte `0700` (R-5), Uhr an Wächter und Replay (R-1), Paare von Fehlern (R-2), zwei Argumente der Aufrufstellen (R-4), gleichzeitiger Aufruf (R-6), vier Zusagen ohne Wirkung im Betrieb (V-5). Beleg: Review- und Verifikations-Report, Plan §3 und §7.

@@ -33,6 +33,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der Interpreter führt einen geprüften Query-AST auf einer Menge typisierter Entities aus: Filter, stabile Sortierung (bei Gleichstand nach Entity-Key, ohne `$orderby` nach Key), Zählung vor dem Paging, `$skip` und `$top` (`$top=0` ergibt eine leere Liste) und Projektion mit Property-Maske, und liefert Elemente und Count für die Serialisierung.
 
+**Übernimmt (Hinweis, keine Pflicht; Sendung von `slice-bootstrap-m2`, `AGENTS.md` §3.13):** Längen-Differenz zwischen Filter und Schlüssel (`SPEC-161`, `SPEC-164`; 1641 Abweichungen in 167634 Läufen): alle sind `literal` im Filter gegen `zu_lang` im Schlüssel, erklärt durch die Regel „der Rest hinter dem schließenden `'` zählt nicht zur Länge“ (`SPEC-164` Nr. 4 a); entschieden und vertraglich getragen, kein Fehler. Eine Angleichung wäre eine Änderung des Vertrags des Lesers; wer sie will, entscheidet sie in diesem Slice, dessen Lauf beide Pfade verwendet. Ohne Beschluss bleibt die Regel.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Die Coverage-Prüfung vor der Ausführung — `slice-mock-lesen`; der Interpreter bekommt einen Bestand und fragt nicht, wie vollständig er ist.
