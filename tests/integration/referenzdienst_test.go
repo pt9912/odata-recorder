@@ -22,7 +22,7 @@ const (
 
 // Die Werte der Fixture: die Antworten auf /Products/$count in der Reihenfolge der Requests, ungleich
 // Index und Anzahl.
-var zaehlerFolge = []int{7, 11, 13}
+func zaehlerFolge() []int { return []int{7, 11, 13} }
 
 // csdlText ist das Dokument von $metadata; der Hash, den der Import erhält, entsteht aus diesen Bytes.
 const csdlText = `<?xml version="1.0" encoding="utf-8"?>
@@ -107,8 +107,8 @@ func (r *referenzdienst) bediene(w http.ResponseWriter, req *http.Request) {
 	case req.URL.Path == "/odata/Products(1)":
 		json(`W/"e1"`, fmt.Sprintf(`{"@odata.context":%q,"Id":1,"Name":"Anvil"}`, r.srv.URL+"/odata/$metadata#Products/$entity"))
 	case req.URL.Path == "/odata/Products/$count":
-		n := int(r.zaehlerRequests.Add(1)) - 1
-		json("", fmt.Sprintf(`{"count":%d}`, zaehlerFolge[n%len(zaehlerFolge)]))
+		n, folge := int(r.zaehlerRequests.Add(1))-1, zaehlerFolge()
+		json("", fmt.Sprintf(`{"count":%d}`, folge[n%len(folge)]))
 	default:
 		h.Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
@@ -145,7 +145,7 @@ func TestReferenzdienstSelbst(t *testing.T) {
 	if resp.Header.Get("Set-Cookie") != "sid="+geheimB {
 		t.Errorf("Set-Cookie: %q", resp.Header.Get("Set-Cookie"))
 	}
-	for i, soll := range zaehlerFolge {
+	for i, soll := range zaehlerFolge() {
 		_, b := hole("/odata/Products/$count")
 		if b != fmt.Sprintf(`{"count":%d}`, soll) {
 			t.Errorf("$count Nr. %d: %s", i+1, b)

@@ -189,31 +189,52 @@ func durchsuche(t *testing.T, dir string, marker []string) (dateien []string, fu
 	return dateien, funde
 }
 
+// durchstich hält den Zustand des Ablaufs von Schritt 1 bis 10; jede Phase ist eine Methode.
+type durchstich struct {
+	t           *testing.T
+	ref        *referenzdienst
+	dir         string
+	kRec, kRep  bootstrap.Konfiguration
+	sessionID   string
+	anfragen    []anfrage
+	aufgenommen []antwort
+	ws          model.Workspace
+}
+
 // TestDurchstichM2 ist der Ablauf Schritt 1 bis 10: Aufzeichnen gegen den Referenzdienst, Session
 // beenden, importieren, Workspace anlegen, abspielen bei lebendem Referenzdienst, Referenzdienst
 // beenden, noch einmal abspielen (LH-FA-04, LH-FA-05).
 func TestDurchstichM2(t *testing.T) {
 	ctx := context.Background()
-	ref := neuerReferenzdienst(t)
-	dir := t.TempDir()
+	d := &durchstich{t: t, ref: neuerReferenzdienst(t), dir: t.TempDir()}
+	d.kRec = konfig(t, "record", d.dir, d.ref.URL()+"/odata")
+	d.kRep = konfig(t, "replay", d.dir, d.ref.URL()+"/odata")
+	rec := hochgefahren(ctx, t, d.kRec) // Schritt 1
+	d.nimmAuf(rec)                        // Schritt 2
+	d.pruefeAufnahme()
+	d.beendeUndImportiere(rec) // Schritte 3 und 4
+	vorher := d.sucheGeheimnisse(0)
+	if err := rec.Herunterfahren(ctx); err != nil { // Schritt 5
+		t.Fatalf("Herunterfahren(record): %v", err)
+	}
+	d.pruefeMetadataHash()
+	d.sucheGeheimnisseNachHerunterfahren(vorher) // Schritt 6
+	d.spieleAb()                                 // Schritte 7 bis 10
+}
 
-	// 1. Build(record), Hochfahren, erste Session.
-	kRec := konfig(t, "record", dir, ref.URL()+"/odata")
-	rec := hochgefahren(ctx, t, kRec)
-	sessions, err := rec.Sessions().List(ctx)
+// nimmAuf ist Schritt 2: der Client fragt über den Recorder; die erste Session ist offen (Schritt 1).
+func (d *durchstich) nimmAuf(rec *bootstrap.Handle) {
+	t := d.t
+	sessions, err := rec.Sessions().List(context.Background())
 	if err != nil || len(sessions) != 1 || sessions[0].ServiceID != serviceID || sessions[0].Status != model.SessionOpen {
 		t.Fatalf("erste Session: %+v, %v", sessions, err)
 	}
-	sessionID := sessions[0].ID
-
-	// 2. Aufnahme: der Client fragt über den Recorder.
+	d.sessionID = sessions[0].ID
 	rc := neuerClient(t, rec.Adresse())
-	var anfragen []anfrage
-	var aufgenommen []antwort
 	nimm := func(a anfrage) antwort {
 		w := rc.hole(a, nil)
-		anfragen = append(anfragen, a)
-		aufgenommen = append(aufgenommen, w)
+		d.anfragen = append(d.anfragen, a)
+		d.aufgenommen = append(d.aufgenommen, w)
 		return w
 	}
 	nimm(anfrage{"/odata/$metadata", acceptXML})
@@ -225,42 +246,47 @@ func TestDurchstichM2(t *testing.T) {
 		t.Fatalf("Seite 1 ohne nextLink: %s, %v", seite1.body, err)
 	}
 	folge, err := url.Parse(kopf.NextLink)
-	if err != nil || folge.Host != strings.TrimPrefix(ref.URL(), "http://") {
+	if err != nil || folge.Host != strings.TrimPrefix(d.ref.URL(), "http://") {
 		t.Fatalf("nextLink %q zeigt nicht auf den Referenzdienst: %v", kopf.NextLink, err)
 	}
 	nimm(anfrage{folge.RequestURI(), acceptJSON})
 	nimm(anfrage{"/odata/Products(1)", acceptJSON})
-	for range zaehlerFolge {
+	for range zaehlerFolge() {
 		nimm(anfrage{"/odata/Products/$count", acceptJSON})
 	}
+}
 
-	// Gegenprobe der Zähler und der Geheimnisse (M2, M3): jeder Request erreichte den Referenzdienst genau
-	// einmal, GEHEIM-A erreichte ihn, GEHEIM-B erreichte den Client.
-	if got := ref.requests.Load(); got != int64(len(anfragen)) {
-		t.Errorf("Requests am Referenzdienst %d, Requests des Clients %d", got, len(anfragen))
+// pruefeAufnahme ist die Gegenprobe der Zähler und der Geheimnisse (M2, M3): jeder Request erreichte den
+// Referenzdienst genau einmal, GEHEIM-A erreichte ihn, GEHEIM-B erreichte den Client.
+func (d *durchstich) pruefeAufnahme() {
+	t, ref := d.t, d.ref
+	if got := ref.requests.Load(); got != int64(len(d.anfragen)) {
+		t.Errorf("Requests am Referenzdienst %d, Requests des Clients %d", got, len(d.anfragen))
 	}
 	if ref.verbindungen.Load() < 1 {
 		t.Error("der Zähler der Verbindungen zählt nichts")
 	}
-	if got := ref.mitGeheimnis.Load(); got != int64(len(anfragen)) {
-		t.Errorf("Requests mit GEHEIM-A am Referenzdienst %d, erwartet %d", got, len(anfragen))
+	if got := ref.mitGeheimnis.Load(); got != int64(len(d.anfragen)) {
+		t.Errorf("Requests mit GEHEIM-A am Referenzdienst %d, erwartet %d", got, len(d.anfragen))
 	}
-	for i, w := range aufgenommen {
+	for i, w := range d.aufgenommen {
 		if w.status != 200 {
-			t.Errorf("Aufnahme %d (%s): Status %d", i, anfragen[i].pfad, w.status)
+			t.Errorf("Aufnahme %d (%s): Status %d", i, d.anfragen[i].pfad, w.status)
 		}
 		if !strings.Contains(strings.Join(w.header.Values("Set-Cookie"), ";"), geheimB) {
-			t.Errorf("Aufnahme %d (%s): Set-Cookie trägt GEHEIM-B nicht", i, anfragen[i].pfad)
+			t.Errorf("Aufnahme %d (%s): Set-Cookie trägt GEHEIM-B nicht", i, d.anfragen[i].pfad)
 		}
 	}
+}
 
-	// 3. Beenden.
-	beendet, err := rec.Sessions().Beenden(ctx, sessionID)
+// beendeUndImportiere sind die Schritte 3 und 4: Beenden, Workspace aus unbekannter Baseline scheitert (M9),
+// Import, Report, Workspace aus der Baseline.
+func (d *durchstich) beendeUndImportiere(rec *bootstrap.Handle) {
+	t, ctx := d.t, context.Background()
+	beendet, err := rec.Sessions().Beenden(ctx, d.sessionID)
 	if err != nil || beendet.Status != model.SessionComplete {
 		t.Fatalf("Beenden: %+v, %v", beendet, err)
 	}
-
-	// 4. Workspace aus unbekannter Baseline scheitert (M9), Import, Workspace aus der Baseline.
 	if rec.Workspaces() == nil || rec.Import() == nil {
 		t.Fatalf("Zugänge im Modus record: Workspaces %v, Import %v", rec.Workspaces(), rec.Import())
 	}
@@ -270,135 +296,144 @@ func TestDurchstichM2(t *testing.T) {
 		t.Fatalf("Create aus unbekannter Baseline: %v", err)
 	}
 	erg, err := rec.Import().Import(ctx, inbound.ImportAnfrage{
-		ImportID: "m2-import", ServiceID: serviceID, SourceSessionIDs: []string{sessionID}, MetadataHash: csdlHash(),
+		ImportID: "m2-import", ServiceID: serviceID, SourceSessionIDs: []string{d.sessionID}, MetadataHash: csdlHash(),
 	})
 	if err != nil || !erg.Neu || erg.Import.BaselineSnapshotID == "" {
 		t.Fatalf("Import: %+v, %v", erg, err)
 	}
+	d.pruefeCoverage(erg.Import.ReportJSON)
+	d.ws, err = rec.Workspaces().Create(ctx, erg.Import.BaselineSnapshotID, "")
+	if err != nil || d.ws.ID == "" || d.ws.BaselineSnapshotID != erg.Import.BaselineSnapshotID {
+		t.Fatalf("Create aus der Baseline: %+v, %v", d.ws, err)
+	}
+}
+
+// pruefeCoverage liest den Report (M8): genau ein Eintrag, Products, complete.
+func (d *durchstich) pruefeCoverage(reportJSON string) {
 	var report struct {
 		Coverage []struct {
 			EntitySet string `json:"entity_set"`
 			Status    string `json:"status"`
 		} `json:"coverage"`
 	}
-	if err := json.Unmarshal([]byte(erg.Import.ReportJSON), &report); err != nil {
-		t.Fatalf("Report: %v", err)
+	if err := json.Unmarshal([]byte(reportJSON), &report); err != nil {
+		d.t.Fatalf("Report: %v", err)
 	}
 	if len(report.Coverage) != 1 {
-		t.Fatalf("Coverage hat %d Einträge: %s", len(report.Coverage), erg.Import.ReportJSON)
+		d.t.Fatalf("Coverage hat %d Einträge: %s", len(report.Coverage), reportJSON)
 	}
 	for _, e := range report.Coverage {
 		if e.EntitySet != "Products" || e.Status != "complete" {
-			t.Errorf("Coverage %s: %s, erwartet Products complete", e.EntitySet, e.Status)
+			d.t.Errorf("Coverage %s: %s, erwartet Products complete", e.EntitySet, e.Status)
 		}
 	}
-	ws, err := rec.Workspaces().Create(ctx, erg.Import.BaselineSnapshotID, "")
-	if err != nil || ws.ID == "" || ws.BaselineSnapshotID != erg.Import.BaselineSnapshotID {
-		t.Fatalf("Create aus der Baseline: %+v, %v", ws, err)
-	}
+}
 
-	// Suche vor dem Herunterfahren (die Ablage ist offen, das WAL liegt neben der Datenbank) und danach.
-	marker := []string{geheimA, geheimB}
-	vorher, funde := durchsuche(t, dir, marker)
-	if len(funde) > 0 {
-		t.Errorf("Geheimnis vor dem Herunterfahren in %v", funde)
+// sucheGeheimnisse liest DATA_DIR und meldet jedes Geheimnis in einer Datei; es liefert die gelesenen Dateien.
+func (d *durchstich) sucheGeheimnisse(nr int) []string {
+	dateien, funde := durchsuche(d.t, d.dir, []string{geheimA, geheimB})
+	for _, f := range funde {
+		d.t.Errorf("Geheimnis %s in %s (Suche %d)", f.geheimnis, f.datei, nr)
 	}
+	return dateien
+}
 
-	// 5. Herunterfahren(record); MetadataHash gleich dem Orakel (M7).
-	if err := rec.Herunterfahren(ctx); err != nil {
-		t.Fatalf("Herunterfahren(record): %v", err)
-	}
-	db, err := sqlite.Open(ctx, filepath.Join(dir, "odata-recorder.db"), sqlite.Options{})
+// pruefeMetadataHash ist die zweite Hälfte von Schritt 5: die Ablage selbst öffnen, MetadataHash gleich dem Orakel (M7).
+func (d *durchstich) pruefeMetadataHash() {
+	ctx := context.Background()
+	db, err := sqlite.Open(ctx, filepath.Join(d.dir, "odata-recorder.db"), sqlite.Options{})
 	if err != nil {
-		t.Fatalf("Ablage öffnen: %v", err)
+		d.t.Fatalf("Ablage öffnen: %v", err)
 	}
 	svc, err := db.Metadata().Get(ctx, serviceID)
 	_ = db.Close()
 	if err != nil || svc.MetadataHash != csdlHash() {
-		t.Errorf("MetadataHash %q (%v), erwartet %q", svc.MetadataHash, err, csdlHash())
+		d.t.Errorf("MetadataHash %q (%v), erwartet %q", svc.MetadataHash, err, csdlHash())
 	}
+}
 
-	// 6. Kein Geheimnis in einer Datei, und der Sucher findet einen Marker, den es geben muss (M3).
-	nachher, funde := durchsuche(t, dir, append(slices.Clone(marker), "Anvil"))
-	var blobFunde int
+// sucheGeheimnisseNachHerunterfahren ist Schritt 6: kein Geheimnis in einer Datei, und der Sucher findet
+// einen Marker, den es geben muss (M3).
+func (d *durchstich) sucheGeheimnisseNachHerunterfahren(vorher []string) {
+	nachher, funde := durchsuche(d.t, d.dir, []string{geheimA, geheimB, "Anvil"})
+	blobFunde := 0
 	for _, f := range funde {
-		if f.geheimnis == "Anvil" && strings.HasPrefix(f.datei, "blobs"+string(filepath.Separator)) {
+		switch {
+		case f.geheimnis != "Anvil":
+			d.t.Errorf("Geheimnis %s in %s", f.geheimnis, f.datei)
+		case strings.HasPrefix(f.datei, "blobs"+string(filepath.Separator)):
 			blobFunde++
-			continue
-		}
-		if f.geheimnis != "Anvil" {
-			t.Errorf("Geheimnis %s in %s", f.geheimnis, f.datei)
 		}
 	}
 	if blobFunde == 0 {
-		t.Errorf("der Sucher findet den Produktnamen in keinem Blob (Dateien: %v)", nachher)
+		d.t.Errorf("der Sucher findet den Produktnamen in keinem Blob (Dateien: %v)", nachher)
 	}
 	if !slices.Contains(vorher, "odata-recorder.db") || !slices.Contains(nachher, "odata-recorder.db") {
-		t.Errorf("der Sucher sieht die Datenbank nicht: %v, %v", vorher, nachher)
+		d.t.Errorf("der Sucher sieht die Datenbank nicht: %v, %v", vorher, nachher)
 	}
+}
 
-	// 7. Build(replay) auf derselben Ablage; der Workspace ist da. Zähler lesen.
-	kRep := konfig(t, "replay", dir, ref.URL()+"/odata")
-	rep := hochgefahren(ctx, t, kRep)
+// spieleAb sind die Schritte 7 bis 10: Build(replay) auf derselben Ablage, Durchgang A bei lebendem
+// Referenzdienst, Close, Durchgang B.
+func (d *durchstich) spieleAb() {
+	t, ctx := d.t, context.Background()
+	rep := hochgefahren(ctx, t, d.kRep)
 	if rep.Import() != nil {
 		t.Error("Import() im Modus replay ist nicht nil")
 	}
 	if rep.Workspaces() == nil {
 		t.Fatal("Workspaces() im Modus replay ist nil")
 	}
-	if got, err := rep.Workspaces().Get(ctx, ws.ID); err != nil || got.ID != ws.ID || got.BaselineSnapshotID != ws.BaselineSnapshotID {
+	if got, err := rep.Workspaces().Get(ctx, d.ws.ID); err != nil || got.ID != d.ws.ID || got.BaselineSnapshotID != d.ws.BaselineSnapshotID {
 		t.Fatalf("Get im Replay-Handle: %+v, %v", got, err)
 	}
 	pc := neuerClient(t, rep.Adresse())
-	zuordnung := func(replaySession string) map[string]string {
-		return map[string]string{
-			"X-Recorder-Workspace": ws.ID, "X-Recorder-Recording-Session": sessionID, "X-Recorder-Replay-Session": replaySession,
-		}
-	}
-	zaehlerVor := [2]int64{ref.verbindungen.Load(), ref.requests.Load()}
-	durchgang := func(name, replaySession string) {
-		t.Helper()
-		z := zuordnung(replaySession)
-		naechster := 0
-		for i, a := range anfragen {
-			w := pc.hole(a, z)
-			if d := gleich(kRep, aufgenommen[i], w); d != "" {
-				t.Errorf("Durchgang %s, Request %d (%s): Wiedergabe weicht von der Aufnahme ab: %s", name, i, a.pfad, d)
-			}
-			// M4: die Folge von $count nach den Werten der Fixture, unabhängig von der Aufnahme.
-			if strings.HasSuffix(a.pfad, "/$count") {
-				if soll := fmt.Sprintf(`{"count":%d}`, zaehlerFolge[naechster]); string(w.body) != soll {
-					t.Errorf("Durchgang %s: %d. $count %s, erwartet %s", name, naechster+1, w.body, soll)
-				}
-				naechster++
-			}
-		}
-		if naechster != len(zaehlerFolge) {
-			t.Errorf("Durchgang %s: %d Requests auf $count, erwartet %d", name, naechster, len(zaehlerFolge))
-		}
-		// Ein nie aufgezeichneter Request ist 404 ODR-E5001, der vierte $count nach drei verbrauchten 410 ODR-E5002.
-		unbekannt := pc.hole(anfrage{"/odata/Products(99)", acceptJSON}, z)
-		if unbekannt.status != 404 || !bytes.Contains(unbekannt.body, []byte("ODR-E5001")) {
-			t.Errorf("Durchgang %s: Products(99): %d %s", name, unbekannt.status, unbekannt.body)
-		}
-		erschoepft := pc.hole(anfrage{"/odata/Products/$count", acceptJSON}, z)
-		if erschoepft.status != 410 || !bytes.Contains(erschoepft.body, []byte("ODR-E5002")) {
-			t.Errorf("Durchgang %s: vierter $count: %d %s", name, erschoepft.status, erschoepft.body)
-		}
-	}
-	keinKontakt := func(name string) {
-		t.Helper()
-		if got := [2]int64{ref.verbindungen.Load(), ref.requests.Load()}; got != zaehlerVor {
-			t.Errorf("Durchgang %s: Zähler (Verbindungen, Requests) %v, vor dem Replay %v", name, got, zaehlerVor)
-		}
-	}
+	vor := [2]int64{d.ref.verbindungen.Load(), d.ref.requests.Load()}
+	d.durchgang(pc, "A", "rep-a")
+	d.keinKontakt("A", vor)
+	d.ref.srv.Close()
+	d.durchgang(pc, "B", "rep-b")
+	d.keinKontakt("B", vor)
+}
 
-	// 8. Durchgang A: der Referenzdienst lebt, der Replay darf ihn nicht erreichen.
-	durchgang("A", "rep-a")
-	keinKontakt("A")
+func (d *durchstich) keinKontakt(name string, vor [2]int64) {
+	if got := [2]int64{d.ref.verbindungen.Load(), d.ref.requests.Load()}; got != vor {
+		d.t.Errorf("Durchgang %s: Zähler (Verbindungen, Requests) %v, vor dem Replay %v", name, got, vor)
+	}
+}
 
-	// 9. Der Referenzdienst endet; Durchgang B liefert dieselben Antworten.
-	ref.srv.Close()
-	durchgang("B", "rep-b")
-	keinKontakt("B")
+// durchgang spielt jeden aufgenommenen Request mit den drei Headern der Zuordnung ab und vergleicht
+// ihn mit der Aufnahme (M1); die Folge von $count nennt die Fixture (M4).
+func (d *durchstich) durchgang(pc *client, name, replaySession string) {
+	t := d.t
+	t.Helper()
+	z := map[string]string{
+		"X-Recorder-Workspace": d.ws.ID, "X-Recorder-Recording-Session": d.sessionID, "X-Recorder-Replay-Session": replaySession,
+	}
+	folge := zaehlerFolge()
+	naechster := 0
+	for i, a := range d.anfragen {
+		w := pc.hole(a, z)
+		if diff := gleich(d.kRep, d.aufgenommen[i], w); diff != "" {
+			t.Errorf("Durchgang %s, Request %d (%s): Wiedergabe weicht von der Aufnahme ab: %s", name, i, a.pfad, diff)
+		}
+		if strings.HasSuffix(a.pfad, "/$count") && naechster < len(folge) {
+			if soll := fmt.Sprintf(`{"count":%d}`, folge[naechster]); string(w.body) != soll {
+				t.Errorf("Durchgang %s: %d. $count %s, erwartet %s", name, naechster+1, w.body, soll)
+			}
+			naechster++
+		}
+	}
+	if naechster != len(folge) {
+		t.Errorf("Durchgang %s: %d Requests auf $count, erwartet %d", name, naechster, len(folge))
+	}
+	// Ein nie aufgezeichneter Request ist 404 ODR-E5001, der vierte $count nach drei verbrauchten 410 ODR-E5002.
+	unbekannt := pc.hole(anfrage{"/odata/Products(99)", acceptJSON}, z)
+	if unbekannt.status != 404 || !bytes.Contains(unbekannt.body, []byte("ODR-E5001")) {
+		t.Errorf("Durchgang %s: Products(99): %d %s", name, unbekannt.status, unbekannt.body)
+	}
+	erschoepft := pc.hole(anfrage{"/odata/Products/$count", acceptJSON}, z)
+	if erschoepft.status != 410 || !bytes.Contains(erschoepft.body, []byte("ODR-E5002")) {
+		t.Errorf("Durchgang %s: vierter $count: %d %s", name, erschoepft.status, erschoepft.body)
+	}
 }
