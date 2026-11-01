@@ -60,19 +60,19 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Leser und Modell: EDMX/CSDL V2 im Teilumfang des Architect (Wurzel, Schema, Entity-Typen, Schlüssel, Properties, Assoziationen und Navigation-Properties, Container, Entity-Sets) in `model.ServiceModel` mit Version `2.0`; Namen aufgelöst; V4-Modell und V4-Leser unberührt (die Tests des V4-Lesers laufen unverändert grün).
-- [ ] Validierungsbericht: jedes nicht ausgewertete Konstrukt (Funktionsimporte, komplexe Typen soweit nicht im Umfang, herstellerspezifische Annotationen und Attribute, nicht unterstützte Property-Typen) ist ein Fund; nichts Unterstütztes wird verschwiegen und nichts Unterstütztes behauptet (`LH-RB-01`).
-- [ ] Verträge und Randformen eines Lesers fremder Bytes (Kodierung, Größe, Tiefe, ungültiges XML, falsche Wurzel oder Version, Verweise ohne Ziel, Wiederholung, Zerlegung des Stroms in Reads): je Zelle des Rasters ein Ort in der Spezifikation und ein Fänger; Generator über die Klasse der Dokumente.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Leser und Modell: EDMX/CSDL V2 im Teilumfang des Architect (Wurzel, Schema, Entity-Typen, Schlüssel, Properties, Assoziationen und Navigation-Properties, Container, Entity-Sets) in `model.ServiceModel` mit Version `2.0`; Namen aufgelöst; V4-Modell und V4-Leser unberührt (die Tests des V4-Lesers laufen unverändert grün).
+- [x] Validierungsbericht: jedes nicht ausgewertete Konstrukt (Funktionsimporte, komplexe Typen soweit nicht im Umfang, herstellerspezifische Annotationen und Attribute, nicht unterstützte Property-Typen) ist ein Fund; nichts Unterstütztes wird verschwiegen und nichts Unterstütztes behauptet (`LH-RB-01`).
+- [x] Verträge und Randformen eines Lesers fremder Bytes (Kodierung, Größe, Tiefe, ungültiges XML, falsche Wurzel oder Version, Verweise ohne Ziel, Wiederholung, Zerlegung des Stroms in Reads): je Zelle des Rasters ein Ort in der Spezifikation und ein Fänger; Generator über die Klasse der Dokumente.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Bringt der Slice einen Fehlercode, Schlüssel oder ein Kommando in den Katalog des Binary: Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün. Sonst steht in §7, dass das Binary unverändert blieb (ein V2-Dienst erreicht es erst mit `slice-v2-bootstrap`, das auch das Kapitel zu V2 trägt).
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Bringt der Slice einen Fehlercode, Schlüssel oder ein Kommando in den Katalog des Binary: Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün. Sonst steht in §7, dass das Binary unverändert blieb (ein V2-Dienst erreicht es erst mit `slice-v2-bootstrap`, das auch das Kapitel zu V2 trägt).
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
 
 ## 3. Plan (vor Code)
 
@@ -287,7 +287,9 @@ Verglichen mit dem Metrik-Maß von `SPEC-128` (Summe aus Einfügungen und Lösch
 
 **Folge für §4 des Plans.** Die Zeile zur Schnittfrage lautet: *Schnittfrage* (*S* = 6070 ≥ 2223): kein Teil lässt sich ohne geteilten Mechanismus abtrennen — Lesen und Auflösen teilen den Baum, Assoziationen teilen Dispatch, Namensräume und Reihenfolge der Auflösungsschritte, der Rahmen steckt im V4-Zustand `lauf` und seine Hebung änderte den V4-Pfad (Verschieben zählt doppelt, Ersparnis höchstens zehn Zeilen der Tabelle); Vorbild sind `csdl` (*M* 6800) und `json` (*M* 7400), beide ungeschnitten geliefert. Ein vorab benannter Schnitt gilt nicht. Liegt die Messung über der Marke, steht ein Eintrag `ueberschreitung` mit Grund im Block (`SPEC-128` Nr. 5 d), keine Rückführung. Die ältere Marke 8300 (vorläufig, *S* ≈ 6100) ersetzt der Planner durch 8200 mit dem Grund „Tabelle gezählt: 57 Zeilen, *a* = 2, *p* = 1500“.
 
-Stand nach der Fix-Runde des Reviews: die Tabelle zählt 59 Zeilen (A6 und N8 neu; das Gate nennt als Hinweis 6230 gegen die Schätzung 6070 des Blocks), die Messung beträgt nach der Fix-Runde der Verifikation (nur Fänger, kein Produktcode) 4962 von 8200; die Marke bleibt, die Neuberechnung der Schätzung liegt beim Planner.
+Stand nach der Fix-Runde des Reviews: die Tabelle zählt 59 Zeilen (A6 und N8 neu; das Gate nennt als Hinweis 6230 gegen die Schätzung 6070 des Blocks), die Messung beträgt nach der Fix-Runde der Verifikation (nur Fänger, kein Produktcode) 4962 von 8200 (Auslastung 0,61; `git diff --numstat b5ac4a5..HEAD` über die Pfade des Blocks).
+
+**Schätzung 6070 gegen Tabelle 6230 (Planner, Closure):** Die Tabelle zählt 59 Zeilen (*a* = 2, *b* = 57), also *S* = 170 + 4560 + 0 + 1500 = 6230 und nach der Formel *M* = 100 · ⌈135·6230 / 10000⌉ = 8500. Der Block behält `schaetzung: 6070` und `marke: 8200` bewusst: nach dem ersten Code-Commit ist die Marke fest, und der Unterschied zur Tabelle ist nach `SPEC-128` Nr. 5 c im Code ein Hinweis (`Tabelle ergibt 6230, Schätzung 6070`), kein Befund; die Tabelle wächst mit den Korrekturen (A6 und N8 der Fix-Runde). Eine Anhebung auf 8500 wäre eine Marke, die der Messung nachläuft. Sie wäre auch folgenlos: die Messung liegt mit 4962 weit unter beiden Marken, ein Eintrag `ueberschreitung` entfällt. Gemessen an der Tabelle liegt das Ende bei 0,80 · *S* (4962 ÷ 6230), an der Schätzung des Blocks bei 0,82; die Formel überschätzt diesen Slice, wie sie `slice-v2-import-codecs` überschätzte (`BEO-REPO/schaetzformel-ueberschaetzt-den-slice`). Die Faktoren stehen allein in `SPEC-128` Nr. 2; ihre Prüfung an diesem vierten Punkt ist eine Rückgabe an den Architect (§6).
 
 Erwartung für das Ende (Stand nach dem Review): die Enden der drei Messpunkte lagen bei 0,86 bis 1,33 mal *S*, also 5200 bis 8100 bei *S* = 6070; die Marke 8200 hält alle drei.
 
@@ -333,11 +335,11 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Der dokumentierte V2-Umfang war weder im Lastenheft noch in der Spezifikation beschrieben — **Ausgang:** entfallen: er steht in `SPEC-170`.
-- Die Menge der V2-Dokumente ist unbeschränkt (jede Bytefolge, jede Zerlegung) — **Ausgang:** offen; Generator über die Klasse mit Orakel und Zählprüfung oder Prüfgrenze als akzeptiertes Negativ mit Grund und Folge im Betrieb (`AGENTS.md` §3.17).
-- Echte V2-Dienste liefern Konstrukte, die der Umfang nicht kennt (herstellerspezifische Annotationen, Funktionsimporte); sie dürfen den Bericht füllen, nicht das Lesen brechen — **Ausgang:** offen; Fänger je Art des Fundes.
-- Das V4-Modell darf durch den Leser nicht berührt werden (`LH-FA-17.a`): die Tests von `slice-odata-codec-csdl` laufen unverändert, und ein V2-Dokument am V4-Leser bleibt `ODR-E6004` — **Ausgang:** offen; Fänger an beiden Lesern.
-- Fakes der Ports halten jedes Argument fest und zählen jede Operation, auch `Close` und jeden Read (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 2×) — **Ausgang:** offen.
-- Randformen (`AGENTS.md` §3.12, §3.16): Das Raster steht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** eingetreten und entschieden für die sieben offenen Randformen (Tabelle unten); weiter offen: was der Implementer beim Schreiben findet (er hält an, `AGENTS.md` §3.12).
+- Die Menge der V2-Dokumente ist unbeschränkt (jede Bytefolge, jede Zerlegung) — **Ausgang:** offen; Generator über die Klasse mit Orakel und Zählprüfung oder Prüfgrenze als akzeptiertes Negativ mit Grund und Folge im Betrieb (`AGENTS.md` §3.17). **Ausgang:** nicht eingetreten: Generator-Suite über die Klasse und ein eigenes Probe-Paket des Verifiers (108 neue Mutanten, 99 rot, 9 grün, alle neun benannt: LOW-1, INFO-1 bis INFO-3, zwei äquivalent); die Lücken waren Fänger (LOW-1, INFO-1, INFO-2, in der Fix-Runde geschlossen), keine ungedeckte Menge. Die Prüfgrenzen stehen als akzeptierte Negative mit Grund und Folge in §3 (N3). Beleg: `docs/reviews/2026-11-01-slice-v2-metadaten-verifikation.md`.
+- Echte V2-Dienste liefern Konstrukte, die der Umfang nicht kennt (herstellerspezifische Annotationen, Funktionsimporte); sie dürfen den Bericht füllen, nicht das Lesen brechen — **Ausgang:** nicht eingetreten: Fänger je Art des Fundes (Gruppe G, Fixture `v2_referenz.xml`), Review und Verifikation ohne Befund dazu.
+- Das V4-Modell darf durch den Leser nicht berührt werden (`LH-FA-17.a`): die Tests von `slice-odata-codec-csdl` laufen unverändert, und ein V2-Dokument am V4-Leser bleibt `ODR-E6004` — **Ausgang:** nicht eingetreten: Fänger J2 und J4 an beiden Lesern; die Verifikation nennt den V4-Pfad byte-gleich (`git diff b5ac4a5..HEAD` ohne V4-Dateien).
+- Fakes der Ports halten jedes Argument fest und zählen jede Operation, auch `Close` und jeden Read (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 2×) — **Ausgang:** nicht eingetreten: der Slice führt keinen Port-Fake (`fakes: 0`); die Hüllen des Stroms in der Suite zählen Reads und `Close` (Zeilen A und B), Review und Verifikation fanden dazu keinen Befund. Kein neues Auftreten des Eintrags.
+- Randformen (`AGENTS.md` §3.12, §3.16): Das Raster steht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** eingetreten und entschieden für die sieben offenen Randformen (Tabelle unten); was der Implementer beim Schreiben fand, steht in den Rückgaben unten, jede mit Ausgang *entschieden*; nichts bleibt offen.
 
 Das Raster des Plans wird um zwei Operationen (Lesen und Auflösen der Assoziationen) und die Spalte *Aufruf wiederholt oder gleichzeitig* erweitert. „Nr.“ ohne Spec-Zahl heißt `SPEC-171`; „Abschnitt 5 Nr. 10 x“ in den Zellen heißt `SPEC-171` Nr. 10 x, „Abschnitt 5, Änderung 1 bis 4“ sind die Schärfungen von `SPEC-171` Nr. 2 c, 5, 7 und von `SPEC-172` *Ungeprüft*; beide stehen vor dem ersten Code-Commit in `spec/spezifikation.md`. Jede Zelle ist entschieden; „gilt nicht“ trägt den Grund.
 
@@ -366,12 +368,12 @@ Das Raster des Plans wird um zwei Operationen (Lesen und Auflösen der Assoziati
 | Risiko | Ausgang |
 |---|---|
 | Schnittfrage (S ≥ 2223, ungeschnitten) | entfallen: Verdikt oben, Grund in §4; die Marke ist 8200 |
-| Sieben Randformen von `SPEC-171` waren offen oder widersprüchlich (`Edm.DateTimeOffset` im V2-Dokument, `DataServices`, Typ eines Entity-Typs als Property, Pflichtangaben, Assoziationen, Reihenfolge der Schritte, `Multiplicity`) | eingetreten und entschieden: `SPEC-171` Nr. 2 c, 5, 7, 10 und `SPEC-172` *Ungeprüft*; weiter offen: nur, was der Implementer beim Schreiben findet (er hält an und gibt zurück, `AGENTS.md` §3.12) |
-| Das Orakel des Generators teilt Annahmen mit dem Leser | weiter offen: das Orakel liest die Parameter der Erzeugung, nicht das Dokument; der Verifier bildet ein eigenes Probe-Paket über die Klasse (`AGENTS.md` §3.17) |
+| Sieben Randformen von `SPEC-171` waren offen oder widersprüchlich (`Edm.DateTimeOffset` im V2-Dokument, `DataServices`, Typ eines Entity-Typs als Property, Pflichtangaben, Assoziationen, Reihenfolge der Schritte, `Multiplicity`) | eingetreten und entschieden: `SPEC-171` Nr. 2 c, 5, 7, 10 und `SPEC-172` *Ungeprüft*; der Implementer fand weitere Randformen und gab sie zurück (Tabelle *Rückgaben*), alle entschieden |
+| Das Orakel des Generators teilt Annahmen mit dem Leser | nicht eingetreten: das Orakel liest die Parameter der Erzeugung, nicht das Dokument; der Verifier bildete ein eigenes Probe-Paket über die Klasse (`AGENTS.md` §3.17) und fand keinen Fehler des Orakels, nur die Fänger-Lücken LOW-1, INFO-1, INFO-2 |
 | Mehrere `EntityContainer` in einem V2-Dienst (`m:IsDefaultEntityContainer`) sind `struktur` | akzeptiertes Negativ mit Grund und Folge: Abschnitt 5 |
 | Viele herstellerspezifische Attribute (`sap:`) ergeben große Berichte | akzeptiertes Negativ: der Bericht wächst linear mit dem Dokument, höchstens `grenze` (`SPEC-125` Nr. 5, *Keine Grenze*); Folge: ein Dokument mit tausenden Funden ist lesbar, der Bericht lang |
-| Das V4-Modell und der V4-Leser bleiben unberührt (`LH-FA-17.a`) | weiter offen bis zur Closure; Fänger J2 und J4 |
-| Der Test der Versionstrennung (J3) kann von zwei V2-Slices zugleich angelegt werden | weiter offen; Adresse: Planner (die Sendung an `slice-v2-payload-lesen` trägt der Nehmer auf `main` zuerst ein, `AGENTS.md` §3.13); bis dahin legt dieser Slice den Test an |
+| Das V4-Modell und der V4-Leser bleiben unberührt (`LH-FA-17.a`) | nicht eingetreten: Fänger J2 und J4 rot gesehen, V4-Pfad byte-gleich (Verifikation) |
+| Der Test der Versionstrennung (J3) kann von zwei V2-Slices zugleich angelegt werden | nicht eingetreten in diesem Zweig: dieser Slice legt `versionstrennung_test.go` an; der Nehmer `slice-v2-payload-lesen` trägt die Sendung in §1, DoD und §6 (Nr. 3) mit dem Fallback „liegt der Test vor, ändert er ihn nicht“. Ob beim Merge beider Zweige ein Dateikonflikt entsteht, entscheidet sich dort: Adresse Orchestrator beim Merge nach `main` |
 | `Edm.DateTimeOffset(V2)` als Typname im Modell ist ein Sondername | akzeptiertes Negativ mit Grund und Folge: Abschnitt 5 Änderung 2; kein anderer Teil schlägt ihn nach |
 
 **Rückgaben des Implementers** (`AGENTS.md` §3.12, §3.13; der Code folgt der engeren Lesart, der Architect bestätigt oder ändert sie):
@@ -384,6 +386,9 @@ Das Raster des Plans wird um zwei Operationen (Lesen und Auflösen der Assoziati
 | Verifikation LOW-1 (Kleinschreibung des Anfangs `edm.`): die Spezifikation entscheidet sie vor dem Code (`SPEC-171` Nr. 1 mit `SPEC-125` Nr. 8: die Schreibweise zählt, `edm` ist zulässig, reserviert ist `Edm` und der Anfang `Edm.`), der Code ist richtig, der Fänger fehlte; D5 führt die sieben anderen Schreibweisen je als Namensraum, `<Schreibweise>.Sub` und Alias | eingetreten und entschieden: nur Fänger, keine Änderung an Spezifikation oder Produktcode | – |
 | Verifikation INFO-1 (eine Set mit genau 65 536 Navigationen) und INFO-2 (innere Zeichen von B2) | entschieden: INFO-1 als Fall (7) und (8) in N8 und als äquivalente Mutante im akzeptierten Negativ (Zeile N8); INFO-2 als Schleife über die Klasse `Char` in B2 | – |
 | Review F-1 (Bindings wachsen mit dem Produkt aus Sets und Navigationen), F-5 (Menge ungültiger `Multiplicity`) und I-1 (100 leere Reads): die Spezifikation ist nachgezogen (`SPEC-171` Nr. 1, 6, 7; `SPEC-125` Nr. 2 und *Ungeprüft*); die Zelle *Auflösen der Assoziationen* trägt die Grenze | eingetreten und entschieden: die Spezifikation trägt die Grenze der Bindings und `io.ErrNoProgress`; Code (`maxBindings`, Zählung vor dem Bauen), Fänger (Zeile N8, die Schleife von N3 samt Negativ, Zeile A6) und ihre Zeilen in §3 liegen im selben Commit. Der V4-Zweig zu `io.ErrNoProgress` (`csdl/lesen.go`, gleicher Code) bleibt akzeptiertes Negativ ohne Fänger: die V4-Dateien sind in diesem Slice unveränderlich (J4); Folge: eine Änderung am V4-Zweig fällt erst auf, wenn ein Slice V4-Dateien anfasst | – |
+| Faktoren von `SPEC-128` Nr. 2 am vierten Punkt: Schätzung des Blocks 6070, Tabelle 6230, Messung 4962 (Ende ÷ *S* 0,80 bis 0,82, Auslastung 0,61 von 8200); die Formel überschätzt den Slice wie `slice-v2-import-codecs`. Der Plan hält die Marke (§4) | offen: Prüfung der Faktoren und des Zuschlags an vier Punkten, Entscheidung beim Architect | Architect (`SPEC-128` Nr. 2; `BEO-REPO/schaetzformel-ueberschaetzt-den-slice`, 2×) |
+| `AGENTS.md` §3.14 und `SPEC-128` nennen die Formel verschieden (Zuschlag je Leser fremder Bytes dort, Faktoren allein im Vertrag hier) | offen, unverändert aus früheren Slices; hier nur genannt | Architect |
+| F-6 (Review): drei Code-Commits (`a89be28`, `eabb6a9`, `cea5627`) trugen §3 und §6 nicht mit, den Plan zog erst `dd68d95` nach (`AGENTS.md` §3.9) | eingetreten, Plan nachgezogen; die Regel ist schon verkörpert, kein neuer Sensor (`BEO-REPO/berichtigung-erreicht-nicht-jede-stelle`, weiteres Auftreten) | – |
 
 ## 7. Closure-Notiz
 
@@ -399,7 +404,24 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-*Wird bei der Closure gefüllt.*
+**Ergebnis.** Der V2-Metadatenleser (`src/adapters/driven/odata/csdlv2`) liefert `model.ServiceModel` mit Version `2.0` und den Validierungsbericht; Assoziationen, Navigationen und Bindings sind aufgelöst, die Grenze der Bindings (65 536) ist in `SPEC-171` Nr. 6 und 7 geschrieben. Der Test der Versionstrennung (`versionstrennung_test.go`) liegt im Zweig. Review: Report `docs/reviews/2026-11-01-slice-v2-metadaten-review.md`, Fix-Runde gefahren. Verifikation: `docs/reviews/2026-11-01-slice-v2-metadaten-verifikation.md`, kein HIGH, kein MEDIUM, ein LOW, vier INFO; LOW-1, INFO-1 und INFO-2 sind als Fänger geschlossen (Rückgaben in §6), INFO-3 ist das akzeptierte Negativ von N3, INFO-4 sind diese Closure-Nachträge. Messung 4962 von Marke 8200 (§4), kein Eintrag `ueberschreitung`. `make gates` Exit 0 am letzten Commit.
+
+**Binary unverändert.** Der Slice bringt keinen Fehlercode, Schlüssel oder Kommando in den Katalog des Binary (ein V2-Dienst erreicht es erst mit `slice-v2-bootstrap`, das auch das Kapitel zu V2 trägt); kein Handbuch-Kapitel in diesem Slice.
+
+**Was ging anders.**
+- F-6: Drei Code-Commits trugen den Plan nicht mit (§6, Rückgaben); die Handoff-Regel „ein Commit für Code und Plan“ stand im Plan und wurde nicht gehalten, der vierte Commit zog nach.
+- Der Implementer meldete selbst ein `sed -i` auf eine ungetrackte Datei (Betriebsregel „nur `Edit` und `Write`“) und behob es; im Diff nicht zu sehen, kein Wächter erzwingt die Regel.
+- Im Gate-Lauf unter Last war `TestTransaktionVertrag` des SQLite-Adapters einmal rot, die Wiederholung nicht; der Slice berührt `src/adapters/driven/sqlite` nicht.
+- Zwei Mutationen von N8 endeten mit der Panik des Speicherwächters der Suite statt mit einer benannten `--- FAIL`-Zeile (Verifikation, Zeile F-1/N8: `selfref`; Review I-5 und I-3 nennen dieselbe Klasse bei I2 und D9): rot aus dem richtigen Grund, aber nicht in dem Test, den die Tabelle nennt.
+- Schätzung 6070, Tabelle 6230, Messung 4962: die Formel überschätzte um rund 20 % (§4).
+
+**Steering-Loop-Einträge.**
+- Benannte Spec-Lücke: Die Faktoren von `SPEC-128` Nr. 2 sind an drei Punkten gemessen; der vierte (dieser Slice, Leser fremder Bytes) liegt bei Ende ÷ *S* 0,80 bis 0,82 und Auslastung 0,61, nach `slice-v2-import-codecs` (Schätzung 38 % über der Messung) der zweite Slice mit Überschätzung. Die Lücke ist die Prüfung des Zuschlags 1,35 und der Faktoren an vier Punkten; sie liegt beim Architect (Rückgabe in §6), `BEO-REPO/schaetzformel-ueberschaetzt-den-slice`, 2×. Kein `liegt in`: es ist nichts verkörpert, die Spec ist nicht geändert.
+- Gezählt, nicht verkörpert, mit neuem Auftreten (Register unten): `BEO-REPO/sqlite-transaktionsvertrag-rot-unter-last`, `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` haben die Schwelle von 3× schon vor diesem Slice erreicht und stehen weiter *offen*; sie sind Kandidaten für die nächste Verkörperung, hier nur genannt. `BEO-REPO/berichtigung-erreicht-nicht-jede-stelle` ist in `AGENTS.md` §3.9 verkörpert und bekommt ein weiteres Auftreten (F-6).
+
+**Beobachtungs-Register.** Neue Dateien `evidence/slice-v2-metadaten.md` unter `schaetzformel-ueberschaetzt-den-slice` (nun 2×), `sqlite-transaktionsvertrag-rot-unter-last` (4×), `betriebsregel-fuer-repo-dateien-verletzt` (4×), `panik-eines-fakes-verdeckt-den-benannten-test` (4×) und `berichtigung-erreicht-nicht-jede-stelle`; die Zähler folgen aus den Dateien.
+
+**Risiko-Ausgänge.** Jedes Risiko in §6 trägt einen Ausgang; die Rückgaben an den Architect sind mit Adresse eingetragen.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
