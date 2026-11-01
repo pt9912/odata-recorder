@@ -1,6 +1,6 @@
 # ADR-0011: Versionierter Adapter für OData V2 — versionsneutrale Ports, Implementierungen je Version, ein Satz je Service
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Datum:** 2026-11-01
 
@@ -67,3 +67,4 @@ Wenn ein V2-Konstrukt im Umfang ein neues Element des Domain-Modells verlangt (A
 | Datum | Ereignis | Verweis |
 |---|---|---|
 | 2026-11-01 | Proposed | Entwurf des Architect zum Start der Welle für OData V2; die Annahme steht beim Nutzer aus |
+| 2026-11-01 | Accepted | Annahme durch den Nutzer; die offenen Fragen U1 bis U9 sind mit den empfohlenen Optionen entschieden |
