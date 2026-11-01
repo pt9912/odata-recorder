@@ -683,13 +683,13 @@ func TestAufrufstellen(t *testing.T) {
 				stellen[pSession] = "hochfahren"
 			}
 			for stelle, marke := range stellen {
-				c := h.ctxVon(stelle)
+				a, gerufen := h.aufrufVon(stelle)
 				switch {
-				case c == nil:
+				case !gerufen:
 					t.Errorf("Aufrufstelle %s wurde nicht gerufen", stelle)
-				case c.Value(ctxMarke{}) != marke:
-					t.Errorf("Aufrufstelle %s erhielt nicht den ctx des Aufrufs (Wert %v)", stelle, c.Value(ctxMarke{}))
-				case c.Err() == nil:
+				case a.marke != marke:
+					t.Errorf("Aufrufstelle %s erhielt nicht den ctx des Aufrufs (Wert %v)", stelle, a.marke)
+				case !a.abgebrochen():
 					t.Errorf("Aufrufstelle %s folgt dem Abbruch des ctx nicht", stelle)
 				}
 			}

@@ -98,7 +98,7 @@ const (
 	scheitereNachAbbruch
 	// beendeOhneFehler lässt Serve sofort mit nil zurückkehren, ohne dass der Root angehalten hat.
 	beendeOhneFehler
-	// wartetAufAbbruch lässt Serve auf den Abbruch von ctxServe warten und dann mit nil zurückkehren.
+	// wartetAufAbbruch lässt Serve auf abbruchServe warten und dann mit nil zurückkehren.
 	wartetAufAbbruch
 )
 
@@ -111,8 +111,8 @@ type haken struct {
 	auch      string
 	wirkung   wirkung
 	abbrechen context.CancelFunc
-	// ctxServe ist der Kontext, auf dessen Abbruch Serve bei wartetAufAbbruch wartet.
-	ctxServe context.Context
+	// abbruchServe ist der Abbruch, auf den Serve bei wartetAufAbbruch wartet (ctx.Done()).
+	abbruchServe <-chan struct{}
 
 	// sessionFehler liefert OpenInitialSession, wenn keine Phase wirkt.
 	sessionFehler error
@@ -137,24 +137,42 @@ type haken struct {
 	listener   []net.Listener
 	listenAdr  string
 	listenNetz string
-	ctxs       map[string]context.Context
+	aufrufe    map[string]aufruf
 }
 
-// merke hält den ctx fest, den eine Aufrufstelle erhielt.
+// aufruf hält fest, was ein Aufruf vom ctx der Stelle sah: den Wert unter ctxMarke und das Ende
+// (ctx.Done(), nil ohne Abbruch).
+type aufruf struct {
+	marke any
+	ende  <-chan struct{}
+}
+
+// abgebrochen heißt: der ctx des Aufrufs ist inzwischen abgebrochen.
+func (a aufruf) abgebrochen() bool {
+	select {
+	case <-a.ende:
+		return a.ende != nil
+	default:
+		return false
+	}
+}
+
+// merke hält fest, was die Aufrufstelle vom ctx sah.
 func (h *haken) merke(ctx context.Context, stelle string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.ctxs == nil {
-		h.ctxs = map[string]context.Context{}
+	if h.aufrufe == nil {
+		h.aufrufe = map[string]aufruf{}
 	}
-	h.ctxs[stelle] = ctx
+	h.aufrufe[stelle] = aufruf{marke: ctx.Value(ctxMarke{}), ende: ctx.Done()}
 }
 
-// ctxVon liefert den ctx des letzten Aufrufs der Stelle, nil ohne Aufruf.
-func (h *haken) ctxVon(stelle string) context.Context {
+// aufrufVon liefert den letzten Aufruf der Stelle.
+func (h *haken) aufrufVon(stelle string) (aufruf, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.ctxs[stelle]
+	a, ok := h.aufrufe[stelle]
+	return a, ok
 }
 
 func neuHaken() *haken { return &haken{p: &protokoll{}} }
@@ -444,7 +462,7 @@ func (s *fakeServer) Serve() error {
 			case beendeOhneFehler:
 				return nil
 			case wartetAufAbbruch:
-				<-s.h.ctxServe.Done()
+				<-s.h.abbruchServe
 				return nil
 			case keine, blockiere, scheitere, brecheAb, scheitereNachAbbruch:
 			}

@@ -320,7 +320,7 @@ func TestServeAusfall(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		h := neuHaken()
-		h.phase, h.wirkung, h.ctxServe = pServe, wartetAufAbbruch, ctx
+		h.phase, h.wirkung, h.abbruchServe = pServe, wartetAufAbbruch, ctx.Done()
 		code, stderr := fahre(ctx, t, cancel, umgebungFuer(t, modusRecord, 1), h)
 		if zeilen := meldungsZeilen(stderr); code != 0 || len(zeilen) != 0 {
 			t.Errorf("Rückgabe %d, Meldungen %q", code, zeilen)
