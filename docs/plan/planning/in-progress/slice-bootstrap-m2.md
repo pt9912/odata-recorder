@@ -84,11 +84,11 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 - [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist (`SPEC-139` vor dem Code; `harness/README.md` *Nicht behauptet* zu `Konfig.Start` bei der Closure berichtigt).
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag (§7, Phase 1).
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -226,7 +226,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Aufrufweg zu Session-Ende, Import und Workspace ohne Admin-API — **Ausgang:** entschieden (Architect): `Build` und `Handle` sind exportiert (`SPEC-139` Nr. 1), weil `tests/` außerhalb von `src/bootstrap` liegt und die Admin-Adapter der Folgewellen ihre Use Cases am selben `Handle` abholen; Import und Workspace kommen additiv mit `slice-m2-referenzdienst`.
-- Der Test deckt alle Schichten und bricht, wo ein Vorgänger-Slice eine Randform offen ließ — **Ausgang:** weiter offen; der Fund geht als Befund an den Slice, der ihn verantwortet, nicht in den Test; die Nehmer liegen in `done/`, der Befund geht an den Planner (`AGENTS.md` §3.13). Der Durchstich dieses Slice ist klein (ein Upstream im Testcode); den Lauf mit den echten Lesern von Import und Codec trägt `slice-m2-referenzdienst`, dessen §6 den Punkt führt.
+- Der Test deckt alle Schichten und bricht, wo ein Vorgänger-Slice eine Randform offen ließ — **Ausgang:** nicht eingetreten in diesem Slice (Review und Verifikation fanden am Durchstich keinen Fehler eines Vorgängers); der Punkt bleibt als Regel für den Nehmer `slice-m2-referenzdienst`, dessen §6 ihn mit Ausgang *offen* führt. Der Fund geht als Befund an den Slice, der ihn verantwortet, nicht in den Test; die Nehmer liegen in `done/`, der Befund geht an den Planner (`AGENTS.md` §3.13). Der Durchstich dieses Slice ist klein (ein Upstream im Testcode); den Lauf mit den echten Lesern von Import und Codec trägt `slice-m2-referenzdienst`, dessen §6 den Punkt führt.
 - Loopback und Ports im Testcontainer (`--network none`): `httptest` und `net.Listen` auf `127.0.0.1:0` — **Ausgang:** entschieden (Implementer): beides läuft im Container ohne Netz, belegt durch `make test` und `make test-race` am Stand des Handoffs (Gates grün); `slice-m2-referenzdienst` übernimmt es für seinen Test.
 - Zeitabhängigkeit: Herunterfahren, Fristen, parallele Clients — **Ausgang:** entschieden (Implementer): S1 und S2 ordnen mit Kanälen, weil der Detektor ein Rennen ohne ungeordneten Zugriff nicht meldet (`SPEC-122` Nr. 8 b); sie laufen mit `-count=50` unter `-race` grün und färben unter Mutation in 30 von 30 Prozessen rot (Absatz *Raten* oben); `make test-race` fährt `src/bootstrap` (`SPEC-122` Nr. 2). Die Fake-Uhr misst die Frist; `time.Now` im Root ist die Mutation von B6. Die Dauer des Herunterfahrens am gebauten Binary prüft `slice-test-integration`.
 - M2 ist ein Meilenstein, kein Slice-Ziel — **Ausgang:** entfallen für diesen Slice: der Beleg wandert in `slice-m2-referenzdienst`; die Roadmap setzt die Zelle erst nach der Closure der Welle auf *erreicht*.
@@ -244,7 +244,7 @@ dasteht.
 - Zwei Randformen, die der Implementer beim Code fand — **Ausgang:** entschieden (Architect), Ort: (a) `SPEC-139` Nr. 6 (letzter Satz) und Nr. 8, `SPEC-138` Nr. 8 (e): das Schließen von `Fehler()` ohne Wert vor dem Anhalten ist ein Ausfall (Ergebnis 1, `ODR-E9001`), bei bereits abgebrochenem `ctx` ein Abbruch (0); (b) `SPEC-139` Nr. 2: `Build` liest `UPSTREAM_CA_FILE` nur im Modus `record`, `Start` meldet die nicht lesbare Datei in jedem Modus beim Laden (`SPEC-110` Nr. 11). Code umgesetzt: (a) `warte` in `start.go` (Wert in `Fehler()` gewinnt, abgebrochener `ctx` ist Abbruch, sonst `errServeBeendet`, das `start` als `ODR-E9001` meldet), (b) keine Änderung. Fänger: S4 (`TestServeAusfall`, 4 Fälle, dazu `TestWarte`) und B8 (`TestCADatei`, 8 Fälle); der Loader meldet `UPSTREAM_CA_FILE` in `replay` (gelesen in `konfig_dienste.go`, belegt durch `TestCADatei` Zugang `Start`), die Randform (b) ist damit am Code bestätigt.
 - Stelle des Ausfalls von `Serve` in der Folge der Zeilen von `Start` — **Ausgang:** entschieden, Ort: `SPEC-139` Nr. 8: die Zeile des Ausfalls von `Serve` steht zuletzt, hinter allen Zeilen des Herunterfahrens. `TestStartFehlerPaare` pinnt die Folge für jedes Paar mit dem Ausfall (Schleife über die Paare mit `Serve`, Mutant `B10_serve_zuerst` rot).
 - Befunde der Verifikation V-1 bis V-8 (`docs/reviews/2026-11-01-slice-bootstrap-m2-verifikation.md`) — **Ausgang:** entschieden (Implementer, Fix-Runde): V-1 bis V-4 und V-6 mit Fängern über die Klasse (Tabelle *Fix-Runde nach der Verifikation* in §3), V-5 a bis d mit je einem Fänger statt eines akzeptierten Negativs (a `TestLogNilVerwirft`, b `TestStartReihenfolge`, c `TestReplayTelemetrieSchreibtNirgendhin`, d `TestHerunterfahrenReihenfolge`); V-7 ist die Zeile des Ausfalls von `Serve` (V-6); V-8: Haken 4 der DoD gesetzt, die übrigen gehören der Closure. Grenze von V-5 c: der Test pinnt `io.Discard` als Ziel der Telemetrie; ein anderes Ziel (`SPEC-232`) ändert Zusage und Test zugleich.
-- Die Hard Rule `AGENTS.md` §3.14 nennt 40 je andere Zeile, 65 je Leser fremder Bytes und den Faktor 1,25; `SPEC-128` Nr. 1 (Rang 2) nennt 80, 85 und 1,35, und dieser Plan rechnet nach `SPEC-128` (Befund R-8 des Reviews) — **Ausgang:** offen, Adresse: User und Architect (`AGENTS.md` §3.13); die Hard Rule weicht vom höheren Rang ab, hier nicht geändert; der Plan folgt `SPEC-128`.
+- Die Hard Rule `AGENTS.md` §3.14 nennt 40 je andere Zeile, 65 je Leser fremder Bytes und den Faktor 1,25; `SPEC-128` Nr. 1 (Rang 2) nennt 80, 85 und 1,35, und dieser Plan rechnet nach `SPEC-128` (Befund R-8 des Reviews) — **Ausgang:** eingetreten und weiter offen (Rückgabe, Adresse: User und Architect, `AGENTS.md` §3.13; kein Slice ist Nehmer); die Hard Rule weicht vom höheren Rang ab, hier nicht geändert; der Plan folgt `SPEC-128`.
 - Abweichung von der Naht des Architect — **Ausgang:** entschieden (Implementer, Plan nachgezogen): `Listen` der Naht trägt `ctx` als erstes Argument (`net.ListenConfig.Listen`), damit der Haken im Schritt „Listener binden“ den Kontext des Schritts sieht (S2); die Felder von `bauteile` tragen große Anfangsbuchstaben, weil das Profil `testpackage` Tests im Paket selbst nur in `export_test.go` zulässt.
 - `DATA_DIR` in `Build` (`SPEC-139` Nr. 2): `Build` mit Literal-Konfiguration legt das Verzeichnis nicht an, der Start legt es über `SPEC-110` Nr. 11 an — **Ausgang:** entschieden (Architect), stimmig; für die Tests ein Setup-Hinweis: `t.TempDir()` existiert bereits.
 - Wer die konfigurierten Services im `MetadataRepository` anlegt, bevor der Root `OpenInitialSession` ruft (Sendung von [slice-session-use-case](../done/slice-session-use-case.md), `AGENTS.md` §3.13) — **Ausgang:** entschieden: der Root legt sie an, mit allen Randformen in `SPEC-107` Nr. 14 und `SPEC-139` Nr. 6; Fänger B2.
@@ -275,7 +275,60 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-*Wird bei der Closure gefüllt.*
+**Stand der Closure Phase 1** (Planner, 2026-11-01, nach dem Merge von `main` im Zweig, Merge-Commit `764c746`; das reine `git mv` nach `done/`, die Roadmap und die Welle macht die Integration auf `main`). Belege: Review-Report `docs/reviews/2026-11-01-slice-bootstrap-m2-review.md` (0 HIGH, 6 MEDIUM, 3 INFO; Fix-Runde `b7c18ae`), Verifikations-Report `docs/reviews/2026-11-01-slice-bootstrap-m2-verifikation.md` (0 HIGH, 3 MEDIUM, 2 LOW, 2 INFO; Fix-Runde `2a31682`, nicht erneut verifiziert, bewusst: Durchstich vor Härtung); Durchstich am gebauten Binary von Review und Verifier unabhängig belegt (Start, Request durch den Adapter an einen Upstream, `SIGTERM` mit laufendem Request, Session `complete`, Exit 0/1/130/143, Logzeilen ohne Werte); `make gates` nach dem Merge: Exit 0.
+
+**Gegenstand:** geliefert. Das Paket `src/bootstrap` verdrahtet Konfiguration, Adapter, Services und Listener je Betriebsmodus (`record`, `replay`) und fährt Startwartung, Anlegen der Services, erste Session, Listener und das geordnete Herunterfahren (`Anhalten` → `CloseAll` → `Schliessen(rest)` genau einmal → Ablage) unter `context.WithoutCancel`; `main` setzt `Konfig.Start` auf `bootstrap.Start`, der Start-Befehl des Binary läuft (`SPEC-139`, `SPEC-138` Nr. 8). Aufnehmen ist benutzbar; Abspielen ist verdrahtet, aber ohne Import und Workspace nicht erreichbar (§1). Der M2-Beleg gehört `slice-m2-referenzdienst`.
+
+**Größen:** Messung 3075 von Marke 2900 (Auslastung 1,06), Eintrag `ueberschreitung: 3100` mit Grund im Block (§4, `SPEC-128` Nr. 10 c); beim Handoff 0,79 (2280), nach dem Review 0,95 (2759), nach der Fix-Runde der Verifikation 1,06 (3075). Produktcode 642 Zeilen gegen die Erwartung 550 (Spielraum der Schnittfrage 653). Die Marke ist nicht verändert. *Block-Schätzung 2120 gegen Tabelle 2445:* der Block bleibt bei 2120. `SPEC-128` Nr. 5 b verlangt Marke gleich Formel (`schaetzung` 2120 ergibt 2900), Nr. 5 a macht die Marke ab dem ersten Code-Commit fest, und Nr. 5 c prüft Schätzung gleich Tabelle nur vor dem Code (danach ein Hinweis, weil die Tabelle mit den Korrekturen wächst); eine Berichtigung der Schätzung ohne neue Marke bräche Nr. 5 b, mit neuer Marke Nr. 5 a (und die Formel gäbe für 2445 die Marke 3300, über der Schnittgrenze von 3000 aus `AGENTS.md` §3.14). Der Messpunkt trägt den Tabellenwert (Nr. 9 b).
+
+**Mutationen:** Tabelle *Zusage · Fänger* (S1 bis S4, B1 bis B12 und Zeile Handle, 16 Zeilen, 3 nebenläufig) mit Mutationen und Raten in §3, vier Messreihen (Handoff, Fix-Runde des Reviews, B12, Fix-Runde der Verifikation: ungemutiert rot in 0 von 30 Prozessen, die Mutationen mit Detektor 30 von 30). Review (36 Mutanten) und Verifier haben die Zeilen an Kopien aufgelöst; die Fix-Runden decken die Klassen (§3.17: V-1 12 Elemente, V-2 41, V-3 20, V-4 7, V-5 12, V-6 4, je eine Mutation an einem Element, das der Befund nicht nannte). Akzeptierte Negative mit Grund und Folge: zweite ID-Quelle (B7), Reihenfolge der zwei Logeinträge (B2), Folge der zwei Zeilen im Paar `Serve`/`Fehlgeschlagen` (B10), sieben Punkte in §6; äquivalente Mutationen in §3 benannt. Offen als Grenze: die Schwelle `gibFrei` (100 ms) in `TestHerunterfahrenReihenfolge` bei sehr langsamen Hosts (§3).
+
+**Risiko-Ausgänge (§6, Zeile für Zeile):**
+
+| §6-Zeile | Ausgang | Beleg |
+|---|---|---|
+| Aufrufweg ohne Admin-API | nicht eingetreten | `Build` und `Handle` exportiert, `SPEC-139` Nr. 1; Nehmer `slice-m2-referenzdienst` |
+| Test deckt alle Schichten, Randform eines Vorgängers offen | nicht eingetreten | kein Fehler eines Vorgängers in Review und Verifikation; der Punkt steht mit Ausgang *offen* im Nehmer `slice-m2-referenzdienst` §6 |
+| Loopback und Ports im Testcontainer | nicht eingetreten | `make test`, `make test-race` grün |
+| Zeitabhängigkeit | nicht eingetreten; Rest akzeptiert | Raten 0 von 30 ungemutiert; Schwelle `gibFrei` bei langsamen Hosts als Grenze (§3) |
+| M2 ist Meilenstein, kein Slice-Ziel | entfallen | Beleg wandert nach `slice-m2-referenzdienst` |
+| Raster *Operation × Argumentart* | eingetreten | R-2 bis R-6 und V-1 bis V-3: Zellen mit Ort und ohne Fänger, R-3 im Code entschieden; Fix-Runden mit Schleifen |
+| Randformen (§3.12) | nicht eingetreten | `SPEC-139` vor dem Code |
+| Zwei Randformen beim Code | eingetreten | vom Implementer zurückgegeben, vom Architect entschieden, Fänger `TestServeAusfall`, `TestWarte`, `TestCADatei` |
+| Stelle des Ausfalls von `Serve` | eingetreten | V-7; `SPEC-139` Nr. 8 „zuletzt“, Fänger `TestStartFehlerPaare`, Mutant `B10_serve_zuerst` rot |
+| Befunde V-1 bis V-8 | eingetreten | Fix-Runde `2a31682`, Fänger über die Klasse |
+| `AGENTS.md` §3.14 gegen `SPEC-128` Nr. 1 (R-8) | eingetreten, weiter offen | Rückgabe 1 unten |
+| Abweichung von der Naht (`Listen` mit `ctx`) | eingetreten | Plan nachgezogen, S2 |
+| `DATA_DIR` in `Build` | nicht eingetreten | `TestAblageFehler`, `TestBlobVerzeichnisRechte` |
+| Wer legt die Services an | nicht eingetreten | Root legt sie an, B2 |
+| `.a-check.yml` / `ports-support` | akzeptiert | Klarstellung ohne Lockerung (`ARC-021`), Negativ aus `slice-http-adapter` |
+| Längen-Differenz Filter und Schlüssel | nicht eingetreten | der Root liest keine OData-URL |
+| `SPEC-136` Nr. 12, Rückgabe von `Serve` | nicht eingetreten | Code stimmt mit dem Wortlaut; Negativ 6 |
+| *Ungeprüft* von `SPEC-124`, `SPEC-123`, `SPEC-136` | nicht eingetreten | S1, B1, B3, B5, B6 |
+| Akzeptierte Negative 1 bis 7 | akzeptiert | Grund und Folge je Punkt in §6 |
+
+**Doku-Update:** `harness/README.md` §Sensors, Absatz *Nicht behauptet*: der Satz „`Konfig.Start` ist in `main` `nil`“ stimmte nicht mehr und nennt jetzt, dass `main` `Start` setzt und kein Gate diese Zeile fängt (`SPEC-138` *Ungeprüft*, Negativ 3). `SPEC-139` und die Historie der Spezifikation lagen vor dem Code.
+
+**Gegenproben:** `src` ist ein Eingabepfad; der Lauf und die Dauer stehen im Bericht der Closure (siehe Commit des Stempels, falls gesetzt).
+
+**Rückgaben (nicht entschieden, §6 trägt die Zeile mit Ausgang *offen* oder es besteht keine Zeile mehr):**
+
+1. User und Architect: `AGENTS.md` §3.14 (40 je andere Zeile, 65, Faktor 1,25) gegen `SPEC-128` Nr. 1 (80, 85, 1,35; Rang 2); der Plan rechnet nach `SPEC-128`, die Hard Rule ist nicht geändert (R-8; aus `slice-http-adapter` weiter offen, Diff-Vorlage beim User).
+2. Architect: Neukalibrierung der Faktoren von `SPEC-128` Nr. 1 und der Erwartung zum Produktcode. Zahlen dieses Slice: Auslastung 0,79 beim Handoff, 0,95 nach dem Review, 1,06 am Ende (Messung 3075 gegen Marke 2900, `ueberschreitung: 3100`); Produktcode 642 gegen die Erwartung 550 (+17 %); Schätzung des Blocks 2120 gegen Tabelle 2445. Anders als bei `slice-http-lebenszyklus` (0,64) liegt das Ende über der Marke; die Fix-Runden fügen nur Testcode hinzu (316 Zeilen in der letzten). Der Planner ändert die Faktoren nicht.
+3. Architect: die Marke nach der Tabelle (3300) läge über der Schnittgrenze; ob die Schätzung vor dem ersten Code-Commit die Nachträge nach dem Review (B9 bis B12, Erweiterungen von S4, B2, B7, B8) hätte erwarten müssen, ist eine Frage an die Formel, nicht an diesen Plan.
+4. Nehmer-Nachzüge auf `main` (Integration): keine neuen; `slice-m2-referenzdienst` trägt die Punkte aus §1 (Referenzdienst, Import, Workspace, M2-Test) seit dem Schnitt. Kein Slice ist Nehmer von 1 bis 3 (`AGENTS.md` §3.13).
+
+**Steering-Loop-Einträge:**
+
+- Lerneintrag, benannte Spec-Lücke: die Faktoren von `SPEC-128` Nr. 1 (80/85, 1,35) und `AGENTS.md` §3.14 (40/85, 1,25) widersprechen sich, und beide sagen die Größe dieses Slice zu niedrig voraus (Ende 1,06 der Marke). Keine Verkörperung, Rückgabe 1 und 2; zählt für `BEO-REPO/auslastung-am-handoff-als-endwert-gelesen`.
+- Lerneintrag, gezählt: die Auslastung stieg vom Handoff (0,79) über das Review (0,95) auf 1,06 am Ende; der Handoff-Wert war kein Endwert, und diesmal riss die Marke. Evidenz `slice-bootstrap-m2` zu `BEO-REPO/auslastung-am-handoff-als-endwert-gelesen` (dritter Beleg) und zu `BEO-REPO/groessenmarke-ueberschritten-ohne-rueckfuehrung`.
+- Lerneintrag, gezählt: Zusagen des Vertrags ohne Fänger in der Dimension, die die Menge der Tabelle nicht führte: Wert des wiederholten `Herunterfahren` (nur `nil`, V-1), umhüllter Kontextfehler (nur blank, V-2), Code der Ablage (nur `ODR-E9001`, V-3), Rechte `0700` (R-5), Uhr an Wächter und Replay (R-1), Paare von Fehlern (R-2), zwei Argumente der Aufrufstellen (R-4), gleichzeitiger Aufruf (R-6). Evidenz zu `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15; die Regel trifft den Fall, erzwingt die Dimension „Form des Wertes“ aber nicht von selbst) und zu `BEO-REPO/randform-erst-im-review-entschieden` (R-3: die Zelle „beide Felder weichen ab“ stand im Code, nicht im Raster).
+- Lerneintrag, gezählt: eine Fixture glich dem Wert der Mutation (`strings.Contains` auf `ereignis=dienst_abweichend`, V-4). Evidenz zu `BEO-REPO/fixture-gleicht-dem-wert-der-mutation`.
+- Lerneintrag, gezählt: eine Berichtigung erreichte nicht jede Stelle: die Block-Schätzung blieb bei der gewachsenen Tabelle (von `SPEC-128` Nr. 5 c zugelassen, oben begründet), ein Kommentar sagte „offen“ zu einer entschiedenen Stelle (V-6), und der Satz zu `Konfig.Start` in `harness/README.md` stimmte nach dem Slice nicht mehr (vom Planner bei der Closure gefunden). Evidenz zu `BEO-REPO/berichtigung-erreicht-nicht-jede-stelle`.
+- Lerneintrag, gezählt: der Bericht des Implementers lag dem Reviewer nicht vor (Kopf des Review-Reports; die Abweichungen waren aus Plan §6 und Diff zu rekonstruieren). Evidenz zu `BEO-REPO/bericht-der-rolle-liegt-nicht-im-repo`.
+- Sensor: `TestHerunterfahrenOhneAbbruchDesAusloesers`, `TestAbbruchInJederPhase`, `TestKontextFehlerUmhuellt`, `TestStartFehler*`, `TestServeAusfall`, `TestWarte`, `TestHerunterfahrenReihenfolge`, `TestZugaengeGleichzeitig`, `TestAufrufstellen`, `TestAblageFehler`, `TestCADatei` und die weiteren Fänger aus §3 laufen unter `make test` und `make test-race`; `liegt in` ist nicht gesetzt, weil kein Anker `seit welle-<Kennung>` an einem Zielort liegt (Verkörperung erst mit der Welle-Closure, falls überhaupt).
+
+**Register (Phase 1):** Evidenz `slice-bootstrap-m2` zu den sieben Beobachtungen oben; keine neue Beobachtung. Mit dieser Evidenz erreichen `auslastung-am-handoff-als-endwert-gelesen` (3×) und `fixture-gleicht-dem-wert-der-mutation` (3×) die Schwelle; Ausgang und Verkörperung sind Entscheidung der Welle-Closure beziehungsweise des Users, hier nur genannt.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
