@@ -147,7 +147,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 pfad: src/bootstrap/
 produktcode: 550
 fakes: 3
-basis: ff8eaeb
+basis: e8c027c
 schaetzung: 2120
 marke: 2900
 ersetzt: 1100 | die ältere Marke aus der Prosa (über 1100 Zeilen, Schätzung rund 800) galt dem Slice samt M2-Beleg ohne die Formel von SPEC-128; der Schnitt nimmt Referenzdienst, Import, Workspace und M2-Test heraus, die Tabelle wuchs um B1 bis B8, S = 2120 ergibt 2900
