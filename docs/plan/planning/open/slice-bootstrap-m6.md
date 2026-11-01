@@ -109,7 +109,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 2. **Aufbau des Rundlaufs:** der Modus ist Startkonfiguration, der Rundlauf zeichnet aber auf (`record`) und ändert dann im Modus `mock`. Entscheiden: zwei Starts im Testprozess mit demselben `DATA_DIR`, was zwischen ihnen erhalten bleibt (Datenbank, Token-Datei), und dass der zweite Start das Token nicht neu erzeugt.
 3. **Reihenfolge von Start und Herunterfahren beider Listener:** `CloseAll` vor dem Schließen, welcher Listener zuerst schließt, Frist (`SHUTDOWN_TIMEOUT`), Verhalten bei einem Fehler des zweiten Listeners nach dem Öffnen des ersten.
 4. **Verdrahtung der Ports:** `AuditLog`, `Telemetry` und die Zusammenfassung der Konfiguration für die Diagnose (Allowlist aus `slice-inspection-use-case`) aus dem Wert des Starts; der Dienst sieht nie die Umgebung.
-5. **M6-Test:** Quelle der Audit-Einträge (Port oder Ausgabe), Ordnung unter dem Detektor (Kanäle statt Schlaf, Muster aus `slice-bootstrap-m2`), Zusammenspiel mit dem OData-Listener derselben Instanz.
+5. **M6-Test:** Quelle der Audit-Einträge (Port oder Ausgabe), Ordnung unter dem Detektor (Kanäle statt Schlaf, Muster aus `slice-m2-referenzdienst`), Zusammenspiel mit dem OData-Listener derselben Instanz.
 6. Tabelle *Zusage · Fänger*, Raster in §6, Nachzug der Stellen aus der Tabelle oben.
 
 **Prüfung der Sendungen durch den Planner** (`AGENTS.md` §3.13, am 2026-10-30 gelesen: §1 *Ausdrücklich NICHT*, DoD und §4 der Gegenstellen): *an diesen Slice* das Lesen der `ADMIN_*`-Schlüssel aus `slice-admin-listener-token` und `slice-admin-tls` und der Admin-Listener aus `slice-bootstrap-m2`: angenommen, §1 *Übernimmt* trägt sie mit der Kennung des Gebers, kein *Ausdrücklich NICHT* dort trifft sie (`slice-bootstrap-m2` §1 nennt den Admin-Listener als Folgewelle). *Von diesem Slice an:* keine.
@@ -119,7 +119,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-admin-listener-token`, `slice-admin-tls`, `slice-inspection-use-case`, `slice-admin-sessions`, `slice-admin-imports`, `slice-admin-workspaces`, `slice-test-security`, `slice-bootstrap-m2`, `slice-bootstrap-m3`, `slice-audit-log` und `slice-telemetry-port` liegen in `done/`, dazu `slice-handbuch-meldungskatalog` für das Handbuch-Kapitel. Die Spezifikation trägt den Nachzug von `SPEC-110`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-admin-listener-token`, `slice-admin-tls`, `slice-inspection-use-case`, `slice-admin-sessions`, `slice-admin-imports`, `slice-admin-workspaces`, `slice-test-security`, `slice-bootstrap-m2`, `slice-m2-referenzdienst`, `slice-bootstrap-m3`, `slice-audit-log` und `slice-telemetry-port` liegen in `done/`, dazu `slice-handbuch-meldungskatalog` für das Handbuch-Kapitel. Die Spezifikation trägt den Nachzug von `SPEC-110`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Warum:** der Root verdrahtet alle Adapter-Slices der Welle (*Code-Abhängigkeit*), die Ports `AuditLog` und `Telemetry` (*Code-Abhängigkeit*), den Record-Pfad (`slice-bootstrap-m2`) und den Mock-Pfad (`slice-bootstrap-m3`); der Rundlauf braucht beide Modi. `slice-test-security` liegt zuletzt vor diesem Slice (`welle-admin-api` §5; *Reihenfolge*, keine Typ-Abhängigkeit).
 
@@ -158,7 +158,7 @@ dasteht.
 - Der Rundlauf zeichnet auf (`record`) und ändert im Modus `mock`; der Modus ist Startkonfiguration (`LH-FA-13`) — **Ausgang:** offen; Adresse: Architect (Auftrag 2): zwei Starts mit demselben `DATA_DIR`, ohne Laufzeit-Umschalten.
 - `SPEC-110` Nr. 7 schließt Port 0 aus; ein Test auf demselben Host braucht einen freien Port für `ADMIN_LISTEN` und `LISTEN` (Auftrag 1) — **Ausgang:** offen; Adresse: Architect.
 - Die Reihenfolge Startwartung, Token-Datei, Listener und das Herunterfahren beider Listener (Auftrag 3): ein Fehler der Token-Datei öffnet keinen Listener — **Ausgang:** offen; Adresse: Architect.
-- Der M6-Test läuft mit Referenzdienst, Recorder, Admin-Client und OData-Client im selben Prozess unter dem Detektor (`make test-race`) — **Ausgang:** offen; Muster und Ordnung der Fänger wie in `slice-bootstrap-m2` (Kanäle statt Schlaf).
+- Der M6-Test läuft mit Referenzdienst, Recorder, Admin-Client und OData-Client im selben Prozess unter dem Detektor (`make test-race`) — **Ausgang:** offen; Muster und Ordnung der Fänger wie in `slice-m2-referenzdienst` (Kanäle statt Schlaf).
 - `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` (1×): der Admin-Pfad im Composition Root erweitert die Pakete, deren Laufzeit Fälle der Gegenproben mitfahren — **Ausgang:** weiter offen → `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` im Register.
 - Gleichzeitige Änderung von `src/bootstrap/` und `SPEC-110` Nr. 2 durch `slice-bootstrap-m4` — **Ausgang:** offen; Adresse: Planner (Reihenfolge beim Start, keine parallelen Arbeitsbäume auf diesen Dateien).
 - Größe: die Marke steht nicht, bevor die Tabelle *Zusage · Fänger* vorliegt — **Ausgang:** offen; Adresse: Planner beim Start (§4).

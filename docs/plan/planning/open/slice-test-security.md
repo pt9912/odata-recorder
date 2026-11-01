@@ -81,7 +81,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `tests/` | neu | Canary-Test (Prozess im Modus `record` über den Composition Root aus `slice-bootstrap-m2`, Referenzdienst mit den Canary-Werten) und Netzwerkzugriffstest (Admin-Adapter an einem echten Socket) |
+| `tests/` | neu | Canary-Test (Prozess im Modus `record` über den Composition Root aus `slice-bootstrap-m2`, Referenzdienst aus `slice-m2-referenzdienst` mit den Canary-Werten) und Netzwerkzugriffstest (Admin-Adapter an einem echten Socket) |
 | `harness/vertraege/SPEC-041-test-security.md` | update (Architect) | Vertrag statt Platzhalter: Festlegung, Artefaktmenge, Ausgabe, Exit-Codes, *Ungeprüft* |
 | `harness/mk/`, `Dockerfile`, `.dockerignore` | neu, update | Ziel `make test-security` am Ende von `GATE_CHECKS`, Stufe ohne Netz (Muster `pruefung` und `schema.mk`); Form nach dem Vertrag |
 | `harness/README.md` | update | Zeile des Ziels in §Sensors mit Bindung und der Satz in *Nicht behauptet*, im selben Commit wie das Ziel (sonst meldet `make docs-check` ein Target ohne Zeile) |
@@ -120,7 +120,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-admin-listener-token`, `slice-admin-tls`, `slice-admin-sessions`, `slice-admin-imports`, `slice-admin-workspaces`, `slice-bootstrap-m2`, `slice-audit-log` und `slice-telemetry-einbau-gateway` (die beiden letzten `welle-betrieb`) liegen in `done/`. Der Vertrag `SPEC-041` trägt Festlegung und Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-admin-listener-token`, `slice-admin-tls`, `slice-admin-sessions`, `slice-admin-imports`, `slice-admin-workspaces`, `slice-bootstrap-m2`, `slice-m2-referenzdienst`, `slice-audit-log` und `slice-telemetry-einbau-gateway` (die beiden letzten `welle-betrieb`) liegen in `done/`. Der Vertrag `SPEC-041` trägt Festlegung und Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Warum:** der Netzwerkzugriffstest läuft über **jeden** Admin-Endpunkt (`LH-QA-04.a`); die Schleife über die registrierten Routen deckt nur, was existiert, also braucht die Aussage die drei Endpunkt-Slices (*Aussage-Abhängigkeit*; `welle-admin-api` §5 nennt nur Listener, Token und TLS). Listener, Token und TLS sind *Code-Abhängigkeit*. Der Canary-Test fährt den Record-Pfad über den Composition Root (`slice-bootstrap-m2`, *Code-Abhängigkeit*) und sucht in allen Log-Artefakten; Audit-Ablage (`slice-audit-log`) und die Logs des Gateways (`slice-telemetry-einbau-gateway`) müssen bestehen, sonst bliebe ein Artefakt ungesucht (*Aussage-Abhängigkeit*).
 

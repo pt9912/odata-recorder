@@ -97,7 +97,7 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|---|
 | docs/user/benutzerhandbuch.md | update | Kapitel nach Auftrag Nr. 1 bis 5 |
 | Beispiel-Dateien des Handbuchs | neu | Ort nach `slice-handbuch-geruest` |
-| Test der Beispiele | neu oder update | ein Fall je Beispiel gegen das gebaute Binary und den Referenzdienst aus `slice-bootstrap-m2` |
+| Test der Beispiele | neu oder update | ein Fall je Beispiel gegen das gebaute Binary und den Referenzdienst aus `slice-m2-referenzdienst` |
 
 Der Architect füllt die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und ergänzt die Zeilen oben; sie ist beim Start leer.
 
@@ -112,7 +112,7 @@ Der Architect füllt die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und er
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-bootstrap-m2` und `slice-handbuch-meldungskatalog` liegen in `done/` (M2-Test grün, Binary mit Modus `record` und `replay`, Abgleich der Fehlercodes im Gate); der Architect hat die Aufträge aus §1 beantwortet, die Tabelle in §3 und das Raster in §6 gefüllt, bevor der erste Code-Commit entsteht.
+**Start** (`next` → `in-progress`): `slice-bootstrap-m2`, `slice-m2-referenzdienst` und `slice-handbuch-meldungskatalog` liegen in `done/` (M2-Test grün, Binary mit Modus `record` und `replay`, Abgleich der Fehlercodes im Gate); der Architect hat die Aufträge aus §1 beantwortet, die Tabelle in §3 und das Raster in §6 gefüllt, bevor der erste Code-Commit entsteht.
 
 **Größenmarke** (`AGENTS.md` §3.14): noch nicht gesetzt. Der Planner setzt sie nach dem Architect mit `make groessenmarke` (`SPEC-128`) aus der Tabelle in §3, Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen; nebenläufig zählt der Test der Beispiele, wenn er Binary, Referenzdienst und Client in Prozessen startet (× 85 je Zeile).
 

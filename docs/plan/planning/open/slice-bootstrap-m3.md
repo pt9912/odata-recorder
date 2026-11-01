@@ -86,7 +86,7 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|---|
 | `src/bootstrap/` | update | Wahl des Use Case je Modus, Start im Modus `mock`, Schlüssel `STRICT_COVERAGE` und `PUBLIC_BASE_URL`, Einhängen von `urlparser.WithFilter(urlparser.NewFilterLeser())` (von `slice-odata-url-filter`) |
 | `src/adapters/driving/httpodata/` | update | Mock-Anfragen aller Methoden an den Port; der Adapter kennt den Modus nicht |
-| `tests/` | neu | M3-Test mit dem Referenzdienst aus `slice-bootstrap-m2` |
+| `tests/` | neu | M3-Test mit dem Referenzdienst aus `slice-m2-referenzdienst` |
 | `spec/spezifikation.md` | update | Nachzug von `SPEC-110` Nr. 2 und 8 (Architect) |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Nachzug in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer.
@@ -122,7 +122,7 @@ dasteht.
 
 - Der Wechsel des Defaults `MODE=mock` macht aus einem heute abgewiesenen Start einen gültigen; Tests, die den alten Fehler erwarten, sind mit zu ändern — **Ausgang:** offen; Liste der Tests im Vertrag des Architect.
 - `PUBLIC_BASE_URL` ist bei Wildcard-Host (Container) Pflicht und prägt `Location` und `@odata.id` (`SPEC-055`); Randformen (fehlt, leer, mit Pfad, mit abschließendem `/`) — **Ausgang:** offen; Raster, Ort `SPEC-055` und `SPEC-110`.
-- Der M3-Test läuft mit Referenzdienst, Recorder und Client im selben Prozess unter dem Detektor (`make test-race`) — **Ausgang:** offen; Muster und Ordnung der Fänger wie in `slice-bootstrap-m2` (Kanäle statt Schlaf).
+- Der M3-Test läuft mit Referenzdienst, Recorder und Client im selben Prozess unter dem Detektor (`make test-race`) — **Ausgang:** offen; Muster und Ordnung der Fänger wie in `slice-m2-referenzdienst` (Kanäle statt Schlaf).
 - `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` (1×): der Mock-Pfad im Composition Root erweitert die Pakete, die Fälle der Gegenproben mitfahren — **Ausgang:** weiter offen → `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` im Register.
 
 ## 7. Closure-Notiz
