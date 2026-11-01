@@ -78,7 +78,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 §Roadmap-Struktur: fünf Abschnitte.
 
 - Blockiert: nichts. Die Folgewellen für Mock, Hybrid und Admin-API liefern ihre Kapitel selbst (§6).
-- Wird blockiert von: `slice-groessenmarke-werkzeug` (Start der Welle, §2); `slice-bootstrap-m2` blockiert nur `slice-handbuch-record-replay`, nicht die Welle.
+- Wird blockiert von: `slice-groessenmarke-werkzeug` (Start der Welle, §2); `slice-bootstrap-m2` und `slice-m2-referenzdienst` blockieren nur `slice-handbuch-record-replay`, nicht die Welle.
 - Reihenfolge ohne Blocker: `slice-handbuch-geruest` liegt nach Teil 1 von [welle-sensoren](welle-sensoren.md) (§2); der Katalog-Slice und `slice-handbuch-record-replay` liegen nach `slice-bootstrap-m2`, wie in §2 und in der Reihenfolge der Slices unten.
 - Unabhängig von: welle-dev-container (deren „Dokument für Entwickler“ ist ein anderes Dokument mit anderer Zielgruppe) und Teil 2 der Welle der Sensoren.
 - Reihenfolge der Slices (Pfeil heißt: braucht): `slice-handbuch-geruest` → `slice-handbuch-meldungskatalog` (das Gate liest die Abschnitte *Aufruf und Version* und *Fehlerbehebung*, die das Gerüst anlegt; der Abschnitt der Konfiguration und die Tabellen der Kataloge entstehen in diesem Slice selbst; braucht zusätzlich `slice-bootstrap-m2` in `done/`, weil das Binary vorher weder Schlüssel liest noch Fehlercodes erzeugt) → `slice-handbuch-record-replay` (braucht zusätzlich `slice-bootstrap-m2` in `done/`) → `slice-handbuch-abnahme` zuletzt.

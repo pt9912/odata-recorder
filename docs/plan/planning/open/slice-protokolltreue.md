@@ -33,16 +33,16 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Ein Test ruft den Referenzdienst aus `slice-bootstrap-m2` einmal direkt und einmal über den Recorder im Modus `record` auf und vergleicht die entpackte Darstellung der Antworten nach `LH-QA-07.a` — Status, Body nach dem Entpacken seines `Content-Encoding`, relevante Header ohne `VOLATILE_HEADERS` —; er läuft in der Stufe `test` und ist damit Teil von `make test`. Er ist der Nachweis zur Messmethode von `LH-QA-07`.
+**Ziel:** Ein Test ruft den Referenzdienst aus [slice-m2-referenzdienst](slice-m2-referenzdienst.md) einmal direkt und einmal über den Recorder im Modus `record` auf und vergleicht die entpackte Darstellung der Antworten nach `LH-QA-07.a` — Status, Body nach dem Entpacken seines `Content-Encoding`, relevante Header ohne `VOLATILE_HEADERS` —; er läuft in der Stufe `test` und ist damit Teil von `make test`. Er ist der Nachweis zur Messmethode von `LH-QA-07`.
 
 **Übernimmt:** Den Vergleichstest der Messmethode von `LH-QA-07`, der in der Welle keinen Träger hatte (Closure-Notiz von `slice-record-service`, *Offene Punkte für den User*); Entscheidung des Users vom 2026-10-21: ein eigener Slice am Ende der Welle. Die Messmethode selbst steht in `LH-QA-07.a` der Spezifikation (Architect, nach der Entscheidung des Owners zu `Content-Encoding`); dieser Slice setzt sie um und ändert sie nicht.
 
-**Nutzt:** Referenzdienst und Composition Root von `slice-bootstrap-m2`; jener bleibt beim Satz von M2 (Entscheidung des Users). Was der Vergleich am Referenzdienst zusätzlich braucht (Antworten mit `Content-Encoding`, mehrere Werte je Header, die Randform aus §6), bringt dieser Slice selbst mit.
+**Nutzt:** den Referenzdienst von [slice-m2-referenzdienst](slice-m2-referenzdienst.md) und den Composition Root (`Build`, `Handle`) von `slice-bootstrap-m2`; `slice-m2-referenzdienst` bleibt beim Satz von M2 (Entscheidung des Users). Was der Vergleich am Referenzdienst zusätzlich braucht (Antworten mit `Content-Encoding`, mehrere Werte je Header, die Randform aus §6), bringt dieser Slice selbst mit.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Ergänzungen am Referenzdienst oder am M2-Test als Umfang von `slice-bootstrap-m2` — dort bleibt der Satz von M2 (Entscheidung des Users); dieser Slice bringt, was der Vergleich braucht, selbst mit und ändert den M2-Test nicht.
-- Replay — `LH-QA-07` misst den Record-Modus; den byte-gleichen Rundlauf über Replay prüft der M2-Test von `slice-bootstrap-m2`.
+- Ergänzungen am Referenzdienst oder am M2-Test als Umfang von `slice-m2-referenzdienst` — dort bleibt der Satz von M2 (Entscheidung des Users); dieser Slice bringt, was der Vergleich braucht, selbst mit und ändert den M2-Test nicht.
+- Replay — `LH-QA-07` misst den Record-Modus; den byte-gleichen Rundlauf über Replay prüft der M2-Test von `slice-m2-referenzdienst`.
 - Markierung unbekannter OData-Erweiterungen als `unsupported_features` (zweiter Satz von `LH-QA-07.a`, `LH-FA-06.a`) — `slice-odata-codec-csdl` (dort DoD, Validierungsbericht); dieser Slice prüft nur, dass der Proxy eine Antwort unverändert weiterleitet, nicht, was der Import daraus macht.
 - Änderungen an Record-Dienst, Capture-Pipeline oder Upstream-Adapter — Schicht-Abgrenzung: ein Unterschied, den der Vergleich findet, ist ein Befund an den Planner (die Nehmer liegen dann in `done/`, `AGENTS.md` §3.13), kein Code in diesem Slice.
 - Lasttest zu `LH-QA-01` — Welle §6.
@@ -87,7 +87,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `tests/integration/` | update | Vergleichstest und die Antworten des Referenzdienstes, die er zusätzlich braucht; Referenzdienst und Composition Root aus `slice-bootstrap-m2` |
+| `tests/integration/` | update | Vergleichstest und die Antworten des Referenzdienstes, die er zusätzlich braucht; Referenzdienst aus `slice-m2-referenzdienst`, Composition Root aus `slice-bootstrap-m2` |
 | `spec/spezifikation.md` | update | `LH-QA-07.a`: die Randformen aus §6, vor dem Code entschieden vom Architect; im Slice nur Nachzug nach Review und Verifikation |
 | Testdatei des Vergleichs | neu | ein Fall je Antwortart und je Randform des Rasters; Mutationen des Proxys und des Vergleichs nach `LH-QA-07` |
 
@@ -101,7 +101,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-bootstrap-m2` liegt in `done/` (Referenzdienst, Composition Root und M2-Test im Code). Die Spezifikation trägt die Randformen aus §6 in `LH-QA-07.a`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12). Dieser Slice ist der letzte der Welle.
+**Start** (`next` → `in-progress`): `slice-bootstrap-m2` und `slice-m2-referenzdienst` liegen in `done/` (Composition Root im Code; Referenzdienst und M2-Test im Code). Die Spezifikation trägt die Randformen aus §6 in `LH-QA-07.a`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12). Dieser Slice ist der letzte der Welle.
 
 **Größenmarke** (`AGENTS.md` §3.14): über **1400** Zeilen (Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3 unter `tests/`, Tests eingeschlossen; `<Basis>` ist der Commit, der die Randformen vor dem Code abschließt; Text der Spezifikation zählt nicht mit). Grund der Ersetzung (§3.14): Marke neu gesetzt nach §3.14 auf die vorläufige Schätzung × 1,25, aufgerundet auf volle Hundert; die ältere Marke 1100 entstand vor dem Faktor 1,25.
 

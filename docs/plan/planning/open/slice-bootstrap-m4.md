@@ -86,7 +86,7 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|---|
 | `src/bootstrap/` | update | Wahl des Use Case je Modus um `hybrid` erweitert; die vier Schlüssel lesen, prüfen und an die Policy geben; `UPSTREAM_URL` als Pflicht bei freigegebenem Upstream-Fallback |
 | `src/adapters/driving/httpodata/` | — | kein Änderungsbedarf erwartet, der Adapter kennt den Modus nicht; ein Bedarf geht an den Architect (§6) |
-| `tests/` | neu | M4-Test mit dem Referenzdienst aus `slice-bootstrap-m2`, der Verbindungen und Methoden zählt (ob er nach Methode zählt, steht in §6) |
+| `tests/` | neu | M4-Test mit dem Referenzdienst aus `slice-m2-referenzdienst`, der Verbindungen und Methoden zählt (ob er nach Methode zählt, steht in §6) |
 | `spec/spezifikation.md` | update (Architect) | Nachzug von `SPEC-110` Nr. 2 und 8, Syntax und Zusammenhänge der vier Schlüssel |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Nachzug in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer. Die Tabelle ist beim Anlegen des Plans leer:
@@ -110,7 +110,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 1. **Nachzug von `SPEC-110`:** Nr. 2 (die vier Schlüssel wandern aus der Ablehnung in die geprüften), Nr. 8 (`hybrid` lieferbar) und Syntax nach Nr. 3 und 6: `HYBRID_FALLBACK` (`disabled` oder `enabled`), `HYBRID_REPLAY_FALLBACK` (Liste der Kategorien), `FALLBACK_ALLOW_HOSTS` (Liste), `FALLBACK_WRITE_ALLOW` (Liste von Einträgen in der Syntax aus `slice-fallback-policy`); Randformen je Schlüssel (leer, unbekannte Kategorie, Doppelte, ungültiger Eintrag).
 2. **Zusammenhänge:** die Zusammenhänge aus Auftrag 6 von `slice-fallback-policy`; `UPSTREAM_URL` je Service Pflicht bei `HYBRID_FALLBACK=enabled` (`SPEC-076`); gesetzte `HYBRID_*` und `FALLBACK_*` in den Modi `record`, `replay` und `mock`: ignoriert oder `ODR-E2001`.
 3. **`PUBLIC_BASE_URL` und `STRICT_COVERAGE` im Modus `hybrid`** (`SPEC-055`, `SPEC-011`): Pflicht und Default wie im Modus `mock`, oder eigene Regel.
-4. **Aufbau des M4-Tests:** Referenzdienst, der Verbindungen und Methoden zählt; die Fälle aus §3 der Welle als Tabelle; Fixture aus Import (Baseline) und Aufzeichnung (Recording-Session und Header für den Replay-Fallback); Ordnung unter dem Detektor (Kanäle statt Schlaf, Muster aus `slice-bootstrap-m2`).
+4. **Aufbau des M4-Tests:** Referenzdienst, der Verbindungen und Methoden zählt; die Fälle aus §3 der Welle als Tabelle; Fixture aus Import (Baseline) und Aufzeichnung (Recording-Session und Header für den Replay-Fallback); Ordnung unter dem Detektor (Kanäle statt Schlaf, Muster aus `slice-m2-referenzdienst`).
 5. Tabelle *Zusage · Fänger*, Raster in §6, Nachzug der Stellen aus der Tabelle oben.
 
 **Prüfung der Sendungen durch den Planner** (`AGENTS.md` §3.13, am 2026-10-30 gelesen: §1 *Ausdrücklich NICHT*, DoD und §4 der Gegenstellen): *an diesen Slice* aus `slice-bootstrap-m3` (Nachzug für `hybrid`, `HYBRID_*`, `FALLBACK_*`) und `slice-fallback-policy` (Lesen der Schlüssel): angenommen, §1 *Übernimmt* trägt sie mit der Kennung des Gebers, kein *Ausdrücklich NICHT* trifft sie. *Von diesem Slice an:* keine.
@@ -129,7 +129,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner beim Start vor dem ersten Code-Commit nach `AGENTS.md` §3.14 mit dem Werkzeug aus `slice-groessenmarke-werkzeug` setzt (Vertrag [SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md); Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). **Marke: noch nicht gesetzt**; eine Zahl steht hier erst, wenn die Tabelle *Zusage · Fänger* vorliegt, und bis das Werkzeug liegt, gilt die Formel aus `AGENTS.md` §3.14.
-- `in-progress` → `open` (blockiert — Carveout?): der Nachzug von `SPEC-110` für `hybrid` liegt nicht vor, oder der Referenzdienst lässt sich nicht nach Methode zählen, ohne die Fixture aus `slice-bootstrap-m2` zu ändern (siehe §6).
+- `in-progress` → `open` (blockiert — Carveout?): der Nachzug von `SPEC-110` für `hybrid` liegt nicht vor, oder der Referenzdienst lässt sich nicht nach Methode zählen, ohne die Fixture aus `slice-m2-referenzdienst` zu ändern (siehe §6).
 
 ## 5. Closure-Trigger
 
@@ -155,9 +155,9 @@ dasteht.
 | Zusammenhänge der Schlüssel und `UPSTREAM_URL` im Modus `hybrid` | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | gilt nicht: synchron ohne Kontext (`SPEC-110` Nr. 13) | (Vertrag, offen) |
 | Start und Herunterfahren im Modus `hybrid` | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
 
-- Der Referenzdienst aus `slice-bootstrap-m2` zählt Verbindungen, ob er nach Methode zählt, steht nicht in dessen Plan — **Ausgang:** offen; Adresse: Architect (Auftrag 4); die Fixture ist dann in diesem Slice zu erweitern.
+- Der Referenzdienst aus `slice-m2-referenzdienst` zählt Verbindungen und Requests, ob er nach Methode zählt, steht nicht in dessen Plan — **Ausgang:** offen; Adresse: Architect (Auftrag 4); die Fixture ist dann in diesem Slice zu erweitern.
 - Gesetzte `HYBRID_*` und `FALLBACK_*` in den Modi `record`, `replay` und `mock` (Auftrag 2) — **Ausgang:** offen; Adresse: Architect.
-- Der M4-Test läuft mit Referenzdienst, Recorder und Client im selben Prozess unter dem Detektor (`make test-race`) — **Ausgang:** offen; Muster und Ordnung der Fänger wie in `slice-bootstrap-m2` (Kanäle statt Schlaf).
+- Der M4-Test läuft mit Referenzdienst, Recorder und Client im selben Prozess unter dem Detektor (`make test-race`) — **Ausgang:** offen; Muster und Ordnung der Fänger wie in `slice-m2-referenzdienst` (Kanäle statt Schlaf).
 - `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` (1×): der Hybrid-Pfad im Composition Root erweitert die Pakete, deren Laufzeit Fälle der Gegenproben mitfahren — **Ausgang:** weiter offen → `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` im Register.
 - Gleichzeitige Änderung von `src/bootstrap/` und `SPEC-110` Nr. 2 durch `slice-bootstrap-m6` — **Ausgang:** offen; Adresse: Planner (Reihenfolge beim Start, keine parallelen Arbeitsbäume auf diesen Dateien).
 - Größe: die Marke steht nicht, bevor die Tabelle *Zusage · Fänger* vorliegt — **Ausgang:** offen; Adresse: Planner beim Start (§4).
