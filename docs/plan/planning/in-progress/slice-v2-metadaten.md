@@ -121,7 +121,7 @@ Alle Zeilen `andere`, außer I2 und I3 (`nebenläufig`). Mengen sind Schleifen �
 | D2 | Eine Referenz ohne Ziel ist `nicht_aufloesbar` mit Ort `<Typ>@BaseType`, `<Typ>/<Name>@Type`, `<Container>/<Set>@EntityType`, `<Typ>/<Name>@Name`; Schreibweise und Leerraum zählen; ein deklarierter, nicht modellierter Name (`ComplexType`) löst nicht auf (`SPEC-171` Nr. 7, `SPEC-125` Nr. 9) | Schleife Referenzart (4) mal Form (ohne Punkt, unbekannter Namensraum, unbekannter Name, Leerraum vorn und hinten, Schreibweise, `ComplexType`-Name, Name aus fremdem Dokument); Relationship und `End`-Typ siehe N1 | `TrimSpace` auf die Referenz | andere |
 | D3 | Kette der Basistypen: Selbstbezug, Zyklus, Schwanz in einen Zyklus unter 65 Typen `nicht_aufloesbar` (Ort der erste Typ), ab dem 65. verschiedenen Typ `kette` (auch ein Ring); 64 Typen gültig (`SPEC-171` Nr. 7 a) | Schleife Ringgröße 1, 2, 63, 64, 65, 66 mal Schwanz 0 und 1 mal Reihenfolge im Dokument | Grenze 64 zu 65 | andere |
 | D4 | Schlüsseltypen: jeder nicht unterstützte bekannte Typ (Binary, Byte, DateTimeOffset, Double, Int16, SByte, Single, Time), ein deklarierter Typ und ein Name mit `/` ist `schluesseltyp`; die sieben unterstützten (mit `Edm.DateTime`) sind gültig (`SPEC-171` Nr. 5, 7 f) | Schleife über die 8 + 2 + 7 Typen | `Edm.Double` als Schlüssel erlaubt | andere |
-| D5 | Formen des Property-Typs: `Edm.<unbekannt>` (darunter die V4-Namen `Date`, `Duration`, `TimeOfDay`, `Stream`, `Geography…`, `Untyped`), `Collection(…)` in jeder Form und jeder nicht auflösbare Name sind `nicht_aufloesbar`; jeder bekannte nicht unterstützte Name und jeder deklarierte Typ (`ComplexType`, Entity-Typ) lässt die Property im Modell mit `Unterstuetzt()` falsch und erzeugt `property_typ` (`SPEC-171` Nr. 5, Abschnitt 5 Änderung 2) | Schleife über alle Namen der Mengen (V4-Namen 19, `Collection(`-Formen: Klammer fehlt, Rest dahinter, Rest im Namen, verschachtelt) und über die 8 + 2 bekannten und deklarierten | `Edm.Date` als bekannter V2-Typ | andere |
+| D5 | Formen des Property-Typs: `Edm.<unbekannt>` (darunter die V4-Namen `Date`, `Duration`, `TimeOfDay`, `Stream`, `Geography…`, `Untyped`), `Collection(…)` in jeder Form und jeder nicht auflösbare Name sind `nicht_aufloesbar`; jeder bekannte nicht unterstützte Name und jeder deklarierte Typ (`ComplexType`, Entity-Typ) lässt die Property im Modell mit `Unterstuetzt()` falsch und erzeugt `property_typ` (`SPEC-171` Nr. 5, Abschnitt 5 Änderung 2) | Schleife über alle Namen der Mengen (V4-Namen 21: `Date`, `Duration`, `TimeOfDay`, `Stream`, `Untyped` und je acht `Geography…` und `Geometry…`; `Collection(`-Formen: Klammer fehlt, Rest dahinter, Rest im Namen, verschachtelt) und über die 8 + 2 bekannten und deklarierten | `Edm.Date` als bekannter V2-Typ | andere |
 | D6 | Pflichtangaben und Namensform: fehlendes oder leeres Pflichtattribut ist `struktur` (Menge: Abschnitt 5 Nr. 10 a); einfacher Name 1 bis 128 Zeichen, Namensraum 256; `Edm` und `Edm.`-Anfang reserviert; Wahrheitswerte genau `true` oder `false`; Ort wie `SPEC-125` Nr. 8 (`SPEC-171` Nr. 1) | Schleife Attribut (alle der Menge) mal {fehlt, leer, ungültig}; Grenzfälle 127/128/129 und 255/256/257 Zeichen; `edm`, `EdmX`, `Edm2` gültig | `Role` an `End` nicht als Pflicht | andere |
 | D7 | Eindeutigkeit: doppelt sind Entity-Typ (auch über zwei `Schema` eines Namensraums), Member, `EntitySet`, `PropertyRef`, `Key`, zweiter `EntityContainer`, `Association` (auch über Schemas), `AssociationSet`; Alias-Widerspruch; gleiche Namen in verschiedenen Namensräumen gültig (`SPEC-171` Nr. 1, Abschnitt 5 Nr. 10 e) | Schleife über die Menge der Doppelungen (8) und über Alias gleich eigener Namensraum, zwei Schemas mit verschiedenen Aliasen | Association-Namen nicht verglichen | andere |
 | D8 | Ketten: zwei Typen einer Kette mit je einem `Key` ist `struktur` (Ort der abgeleitetere); ein geerbter Name an Property oder Navigation ist `struktur` (`SPEC-171` Nr. 7 c) | Fall je Kombination Property und Navigation, gleicher Typ, Basis, Basis der Basis | Navigation nicht gegen geerbte Namen geprüft | andere |
@@ -160,6 +160,79 @@ Alle Zeilen `andere`, außer I2 und I3 (`nebenläufig`). Mengen sind Schleifen �
 | J4 | Der V4-Pfad bleibt unberührt (`LH-FA-17.a`): keine Änderung an `csdl`, `model`, `ports/outbound` außer den neuen Dateien; die Tests dort laufen unverändert grün | benannte Ausgabe: `git diff --numstat <Basis>..HEAD` über `src/adapters/driven/odata/csdl`, `src/hexagon/model` und die bestehenden Dateien von `ports/outbound` ist leer, im Bericht genannt; `make test` | eine Zeile in `csdl/lesen.go` geändert: Ausgabe nicht leer | andere |
 
 **Nebenläufige Zusagen** (`AGENTS.md` §3.10): I2 und I3 gelten nur als gefangen, wenn die Mutation in jedem Lauf rot wird. Der Implementer fährt je Mutation 30 Prozesse (`-test.count=1`, `make test-race`) und trägt die Rate mit Zahl der Prozesse und Messendem in einen Absatz von §3 ein; die Wirkungs-Fänger (Vermischungen zählen) sind unabhängig vom Detektor. I1 ist eine Wahrscheinlichkeits-Mutation (Map-Reihenfolge): der Bericht nennt die Rate je Lauf von `go test` mit Zahl.
+
+**Mutationen vom Implementer rot gesehen** (`AGENTS.md` §3.10, §3.17; Scratchpad-Kopien des Quellbaums, je Mutation `go test -run 'TestVertrag/^<Zeile>_'`, alle rot; „+“ nennt ein Element der Klasse, das die Tabelle nicht nannte):
+
+| Zeile | Mutation (rot) | roter Test (`TestVertrag/…`) |
+|---|---|---|
+| A1 | `grenze < 1` zu `grenze < 0` | `A1_Argumente` |
+| A2 | Kontextprüfung vor dem Auflösen entfernt; Kontextfehler als `struktur` gewickelt | `A2_Kontext` |
+| A3 | Fehler von `src` durch `syntax` ersetzt | `A3_Fehler_von_src` |
+| A4 | BOM-Randprüfung entfernt; leerer Read als Ende | `A4_Zerlegung_in_Reads` |
+| A5 | `Close` am Ende gerufen | `A5_Strom_gehört_dem_Aufrufer` |
+| B1 | leeres Dokument gültig | `B1_leer_und_unvollständig` |
+| B2 | Grenze 0x20 zu 0x1F; + U+FFFF als gültig | `B2_Kodierung` |
+| B3 | Präfix `DOCTYPE` zu `DOCTYP` | `B3_DOCTYPE` |
+| B4 | nur die erste Referenz je Wert geprüft | `B4_Referenzen` |
+| B5 | Namensraum beim Vergleich der Attribute ignoriert | `B5_Kommentare,_PI,_Nachlauf` |
+| B6 | undeklariertes Präfix `edm` als Namensraum gelesen | `B6_Namensräume` |
+| C1 | Vergleich des Namensraums entfernt; V4-Wurzel als `wurzel` | `C1_Wurzel` |
+| C2 | `1.0` mit Präfixvergleich | `C2_Version` |
+| C3 | `3.0` gültig; zweites `DataServices` ignoriert | `C3_DataServiceVersion` |
+| C4 | Namensraum 2008/09 nicht akzeptiert; + V4-Namensraum nicht `version` | `C4_Namensräume_des_Schemas` |
+| C5 | (a) und (b) vertauscht | `C5_Wurzel_steht_fest` |
+| D1 | `Abstract` nicht beachtet | `D1_ohne_Schlüssel` |
+| D2 | `TrimSpace` auf die Referenz | `D2_nicht_auflösbar` |
+| D3 | Kettengrenze 64 zu 65 | `D3_Zyklus_und_Kette` |
+| D4 | `Edm.Double` als Schlüssel erlaubt; + `Edm.Time` | `D4_Schlüsseltypen` |
+| D5 | `Edm.Date` bekannt; + `Edm.Untyped` bekannt | `D5_Formen_des_Property-Typs` |
+| D6 | `Role` an `End` keine Pflicht | `D6_Pflichtangaben_und_Namen` |
+| D7 | `Association`-Namen nicht verglichen; + doppelte `PropertyRef` | `D7_Eindeutigkeit` |
+| D8 | Navigation nicht gegen geerbte Namen geprüft | `D8_Ketten` |
+| D9 | Schritte (b) und (c) vertauscht; + (f) und (g) | `D9_Rangfolge` |
+| D10 | Teilbericht bei Fehler | `D10_jeder_Verstoß_ist_ODR-E6004`, `G3_leerer_Bericht` |
+| D11 | zweites `Schema` abgelehnt | `D11_alles_andere_ist_gültig` |
+| N1 | `Target` aus dem `End` der Rolle F; + F gleich G zugelassen | `N1_Navigation_löst` |
+| N2 | `Collection` auch bei `0..1` | `N2_Navigation_im_Modell` |
+| N3 | `Multiplicity` nur an referenzierten `End` geprüft | `N3_Multiplicity` |
+| N4 | Navigationen in umgekehrter Reihenfolge; + Bindings der `AssociationSet` umgekehrt | `N4_Bindings` |
+| N5 | Binding mit leerem `Path` | `N5_gültig_ohne_Binding` |
+| N6 | unbekanntes `EntitySet` nicht geprüft; + Rollen nicht gegen die Navigation | `N6_AssociationSet_löst` |
+| N7 | drittes `End` der `Association` ignoriert; + der `AssociationSet`; + zu wenige `End` nur bei 0 | `N7_Zahl_der_End` |
+| E1 | `>` zu `>=` | `E1_Größe` |
+| E2 | Grenze 64 zu 65; + `>` zu `>=` | `E2_Tiefe` |
+| E3 | Navigationen nicht gezählt; + `>` zu `>=` | `E3_Summe_der_Members` |
+| F1 | `Version()` liefert `4.0` | `F1_Modell_Referenzdienst` |
+| F2 | geerbte Navigationen ausgelassen | `F2_Vererbung_im_Modell` |
+| F3 | Schlüssel sortiert statt in Reihenfolge der `PropertyRef` | `F3_Composite-Schlüssel` |
+| F4 | Alias bei `Association` nicht aufgelöst | `F4_Aliase_und_Schemas` |
+| F5 | `Edm.DateTimeOffset` des Dokuments unverändert | `F5_Typabbildung` |
+| F6 | `Open` immer wahr; Zugriff auf `Namespaces()` ohne Kopie (nur im Scratchpad, `model` bleibt unverändert) | `F6_Randformen_des_Modells` |
+| G1 | Ort der `End`-Funde ohne Elternort; + `AssociationSet` ohne Attributfunde | `G1_Funde` |
+| G2 | `m:IsDefaultEntityContainer` als Fund; + `m:MaxDataServiceVersion` | `G2_ohne_Wirkung` |
+| G3 | `nil` bei leerem Bericht | `G3_leerer_Bericht` |
+| G4 | Funde nach Art gruppiert | `G4_Reihenfolge_der_Funde` |
+| G5 | `FunctionImport` als `EntitySet` übernommen | `G5_nie_als_unterstützt` |
+| G6 | `End` ohne Namensraum-Attribut-Prüfung | `G6_Funde_V2-eigener_Stellen` |
+| H1 | Ort ohne `strconv.Quote` (nur im Scratchpad) | `H1_Fehlerform` |
+| J1 | Feld `cache` | `TestLeserOhneZustand` |
+| J2 | V2-Leser nimmt die V4-Wurzel an; V4-Leser nimmt die V2-Wurzel nicht als `version` (Scratchpad) | `TestVersionstrennungDokumente` |
+| J3 | Import von `csdl` in `src/adapters/driven/odata/csdlv2/lesen.go`; Scanner prüft nur eine Richtung | `TestKeinPaketImportiertEineAndereVersion`, `TestImportScannerErkenntVerstoss` |
+| J4 | Ausgabe `git diff --numstat --diff-filter=MDRT b5ac4a5..HEAD` über `csdl`, `model`, `ports/outbound`, `jsoncodec`, `urlparser`: leer (nur Hinzufügungen) | Bericht, `make test` |
+
+**Raten** (Messender: der Implementer, 30 Prozesse je Zeile, `-test.count=1`, Binary mit `go test -c`, Docker `--cpus=4`):
+
+| Mutation | Zeilen | ohne Detektor (rot von 30) | mit `-race` (rot von 30) |
+|---|---|---|---|
+| keine (Basis) | I1, I2, I3 | 0, 0, 0 | I2: 0, I3: 0 |
+| I1: Bindings aus einer Map gelesen | I1, I2, I3 | 30, 30, 30 | I2: 30, I3: 30 |
+| I2: Typenliste des Dokuments als Paketvariable (zu Beginn des Auflösens geschrieben, am Ende gelesen) | I1, I2, I3 | 0, 30, 30 | I2: 30, I3: 30 |
+| I3: gemeinsamer Fehlerwert als Zeiger im Paket (`fehler` setzt Ursache und Ort eines Paketwerts) | I2, I3 | 30, 30 | I2: 30, I3: 30 |
+| I3: Fehlerwert als Paketvariable zugewiesen und sofort zurückgegeben | I1, I2, I3 | 0, 1, 0 | I2: 30, I3: 30 |
+
+Die Rate eines Datenrennens zählt der Detektor je Prozess (`AGENTS.md` §3.10): 30 von 30 für I2 und I3 in allen Zeilen. Der Wirkungs-Fänger (Vergleich jedes Ergebnisses mit dem Einzelaufruf) fängt die Mutationen mit längerem Fenster in 30 von 30 Prozessen, die letzte Mutation (Zuweisung und Rückgabe in aufeinanderfolgenden Anweisungen) nur in 1 von 30 (I2) und 0 von 30 (I3). Das ist ein akzeptiertes Negativ des Wirkungs-Fängers mit Grund und Folge: das Fenster zwischen Zuweisung und Rückgabe ist kürzer als ein Scheduler-Wechsel, die Wirkung tritt in einem Lauf ohne Detektor kaum auf; die Zusage trägt dort allein `make test-race`. I1 (Reihenfolge einer Map) ist eine Wahrscheinlichkeits-Mutation: 30 von 30 Prozessen rot, je Prozess liest der Test 30 Läufe über dasselbe Dokument (zwei `AssociationSet` mit je drei Navigation-Properties: Wahrscheinlichkeit eines gleich geordneten Laufs 1/36 je Lauf).
+
+**Zählprüfung der Mengen** (Zeile `Z_Zählprüfung_der_Mengen` der Suite, `AGENTS.md` §3.15, §3.17; die Zahlen stehen im Protokoll von `go test -v`): A1 30 Läufe (7 Teilmengen mal Kontext mal Grenze), B4 305 Dokumente (14 Stellen mal 20 Referenzen, Text, CDATA), C1 43, D1 26, D2 50, D3 36 (24 Ringe), D4 35, D5 62, D6 142, D9 60 (28 Paare mal beide Reihenfolgen, dazu 4 Fälle), D11 156 Dokumente der Klasse (Orakel aus den Parametern der Erzeugung; jeder Wert jedes Parameters kommt vor), G1 104 (14 Stellen, davon 91 aus dem Generator und 13 feste Fälle von G6), G2 196 (14 mal 14), N1 36, N3 54, N6 29, alle Dokumente der Suite 1521. Die Mengen sind Schleifen und Generatoren über den Wortlaut der Zusage; die Orakel (`wurzelUrsache`, `d11Dokument`, `g1FaelleV2`, `i1DokV2`) lesen die Parameter der Erzeugung und nie den Leser.
 
 **Betriebsregeln** (gelten für jede Rolle dieses Slice):
 
@@ -294,6 +367,14 @@ Das Raster des Plans wird um zwei Operationen (Lesen und Auflösen der Assoziati
 | Das V4-Modell und der V4-Leser bleiben unberührt (`LH-FA-17.a`) | weiter offen bis zur Closure; Fänger J2 und J4 |
 | Der Test der Versionstrennung (J3) kann von zwei V2-Slices zugleich angelegt werden | weiter offen; Adresse: Planner (die Sendung an `slice-v2-payload-lesen` trägt der Nehmer auf `main` zuerst ein, `AGENTS.md` §3.13); bis dahin legt dieser Slice den Test an |
 | `Edm.DateTimeOffset(V2)` als Typname im Modell ist ein Sondername | akzeptiertes Negativ mit Grund und Folge: Abschnitt 5 Änderung 2; kein anderer Teil schlägt ihn nach |
+
+**Rückgaben des Implementers** (`AGENTS.md` §3.12, §3.13; der Code folgt der engeren Lesart, der Architect bestätigt oder ändert sie):
+
+| Rückgabe | Ausgang | Adresse |
+|---|---|---|
+| `Target` eines Bindings: `SPEC-171` Nr. 6 sagt „gleich dem `EntitySet` des `End`“, Nr. 8 nimmt `SPEC-125` Nr. 11 bis auf vier Abweichungen (darunter nicht die Form von `Target`). Der Code bildet die Form von Nr. 11, `<qualifizierter Container>/<Name>` (`Ns.Container/Categories`); F1, F2, N4 und F4 tragen sie. Wäre nur der Name gemeint, ändern sich diese Fänger und `bindings` in `src/adapters/driven/odata/csdlv2/aufloesen.go` | offen | Architect |
+| `AssociationSet` und Rollen: die Zelle N6 des Plans nennt „`End`-Rolle passt nicht zur Association“, `SPEC-171` Nr. 10 f nur „Rollen der Navigation, sobald eine Navigation auf sie verweist“. Der Code prüft die Rollen allein gegen `FromRole` und `ToRole` der verweisenden Navigation; ohne Navigation bleibt eine `AssociationSet` mit fremden Rollen gültig (Fall in N5) | offen | Architect |
+| Die Menge der V4-Namen in D5 ist im Plan mit 19 gezählt, der Wortlaut (`Date`, `Duration`, `TimeOfDay`, `Stream`, `Untyped`, `Geography…`, `Geometry…`) ergibt 21; der Fänger zählt 21 | offen | Planner (Tabelle, im selben Commit nachgezogen) |
 
 ## 7. Closure-Notiz
 

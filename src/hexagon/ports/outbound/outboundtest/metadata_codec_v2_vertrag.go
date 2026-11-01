@@ -54,6 +54,7 @@ func MetadataCodecV2Vertrag(t *testing.T, neu CodecNeu) {
 		{"G4 Reihenfolge der Funde", zeileV2G4}, {"G5 nie als unterstützt", zeileV2G5}, {"G6 Funde V2-eigener Stellen", zeileV2G6},
 		{"H1 Fehlerform", zeileV2H1},
 		{"I1 Wiederholung", zeileV2I1}, {"I2 gleichzeitig, geordnet", zeileV2I2}, {"I3 gleichzeitig, unabhängig", zeileV2I3},
+		{"Z Zählprüfung der Mengen", zeileV2Z},
 	} {
 		zeile(z.name)
 		t.Run(z.name, func(t *testing.T) { z.lauf(t, neu) })
@@ -290,6 +291,32 @@ func zeileV2A4(t *testing.T, neu CodecNeu) {
 			dokumente.Load(), a4Voll, laeufe.Load(), erwartet.Load())
 	}
 	t.Logf("%d Dokumente bis %d Bytes, %d Zweiteilungen", dokumente.Load(), a4Voll, laeufe.Load())
+}
+
+// zeileV2Z ist die Zählprüfung der Mengen der Schleifen und Generatoren: jede Menge hat mindestens die Zahl ihrer
+// Elemente, die der Wortlaut des Vertrags ergibt; die Zahlen stehen im Protokoll.
+func zeileV2Z(t *testing.T, _ CodecNeu) {
+	for _, m := range []struct {
+		name   string
+		n, min int
+	}{
+		{"A1 Teilmengen mal Kontext mal Grenze", len(a1FaelleV2()), 30}, {"B1 Elemente", len(faelleV2B1(t)), 12},
+		{"B2 Kodierungen und Zeichen", len(faelleV2B2(t)), 100}, {"B3 DOCTYPE", len(faelleV2B3(t)), 11},
+		{"B4 Stellen mal Referenzen", len(faelleV2B4()), 305}, {"C1 Name mal Namensraum mal Version", len(faelleV2C1()), 43},
+		{"C2 Versionen", len(faelleV2C2()), 13}, {"C3 DataServiceVersion", len(faelleV2C3()), 17}, {"C4 Namensräume des Schemas", len(faelleV2C4()), 7},
+		{"C5 Paare", len(faelleV2C5()), 11}, {"D1 Schlüssel mal Abstract mal Kette", len(faelleV2D1()), 26}, {"D2 Referenzart mal Form", len(faelleV2D2()), 50},
+		{"D3 Ringe und Ketten", len(faelleV2D3()), 36}, {"D4 Schlüsseltypen", len(faelleV2D4()), 35}, {"D5 Formen des Property-Typs", len(faelleV2D5()), 62},
+		{"D6 Pflichtangaben und Namen", len(faelleV2D6()), 140}, {"D7 Doppelungen", len(faelleV2D7()), 17}, {"D8 Ketten", len(faelleV2D8()), 14},
+		{"D9 Paare der Durchläufe", len(faelleV2D9()), 60}, {"D11 Dokumente der Klasse", len(faelleV2D11()), 156}, {"E1 Grenzen", len(faelleV2E1(t)), 33},
+		{"E2 Tiefen", len(faelleV2E2()), 11}, {"E3 Summen", len(faelleV2E3()), 7}, {"G1 Stellen mal Arten", len(g1FaelleV2()), 104},
+		{"N1 Formen mal Stellen", len(faelleV2N1()), 36}, {"N3 Multiplicity", len(faelleV2N3()), 54}, {"N6 Verstöße mal End", len(faelleV2N6()), 28},
+		{"N7 Zahl der End", len(faelleV2N7()), 11}, {"alle Dokumente der Suite", len(alleFaelleV2(t)), 1000},
+	} {
+		t.Logf("%s: %d", m.name, m.n)
+		if m.n < m.min {
+			t.Errorf("%s: %d Elemente, erwartet mindestens %d", m.name, m.n, m.min)
+		}
+	}
 }
 
 // zeileV2A5: der Leser schließt src nie, liest nach dem Ende nicht weiter und höchstens grenze+1 Bytes (Nr. 2, 5).
