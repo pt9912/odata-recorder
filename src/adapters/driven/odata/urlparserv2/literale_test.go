@@ -162,7 +162,7 @@ func TestDatetime(t *testing.T) {
 func TestLiteralTyp(t *testing.T) {
 	p := urlparserv2.New()
 	n := 0
-	for _, f := range ausserhalbLiterale {
+	for _, f := range ausserhalbLiterale() {
 		for _, pfad := range []string{"/S(" + f + ")", "/S(K=" + f + ")", "/S(A=1,B=" + f + ")"} {
 			pruefe(t, p, pfad, "", kmp(model.KompatLiteralTyp, "pfad/1"))
 			n++

@@ -14,8 +14,8 @@ func TestAllaussageKompat(t *testing.T) {
 	p := urlparserv2.New()
 	n := 0
 	ursachen := map[model.KompatUrsache]int{}
-	// pruefeUrl prüft ein Element in den drei Einbettungen: allein, hinter einem gültigen Pfad und einer gültigen Option, vor einer
-	// zweiten gültigen Option. pfad ist der Pfad des Elements, ort der Ort seiner Ursache, mitte/ort2 die Query hinter einer Option.
+	// query prüft ein Element einer Option in den drei Einbettungen: allein, hinter einem gültigen Pfad und einer gültigen Option,
+	// vor einer zweiten gültigen Option. pfad ist der Pfad des Elements, ort der Ort seiner Ursache.
 	query := func(pfad, element, ort string, k model.KompatUrsache) {
 		for i, q := range []string{element, "$top=1&" + element, element + "&$skip=1"} {
 			pf, o := pfad, ort
@@ -30,10 +30,10 @@ func TestAllaussageKompat(t *testing.T) {
 			n++
 		}
 	}
-	for _, o := range ausserhalbOptionen {
+	for _, o := range ausserhalbOptionen() {
 		query("/S", o+"=x", "query/1", model.KompatOption)
 	}
-	for _, f := range ausserhalbFormate {
+	for _, f := range ausserhalbFormate() {
 		query("/S", "$format="+f, "query/1", model.KompatFormat)
 	}
 	query("/S", "$filter=x", "query/1", model.KompatFilter)
@@ -44,10 +44,10 @@ func TestAllaussageKompat(t *testing.T) {
 			n++
 		}
 	}
-	for _, e := range ausserhalbPfade {
+	for _, e := range ausserhalbPfade() {
 		pfadElement(e.pfad, e.ort, model.KompatPfad)
 	}
-	for _, l := range ausserhalbLiterale {
+	for _, l := range ausserhalbLiterale() {
 		pfadElement("/S("+l+")", "pfad/1", model.KompatLiteralTyp)
 	}
 	if n != 189 || len(ursachen) != 5 {

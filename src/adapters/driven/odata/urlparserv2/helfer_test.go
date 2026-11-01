@@ -102,7 +102,7 @@ type fakeFilterLeser struct {
 	liefert func(text string) (model.FilterAusdruck, error)
 }
 
-func (f *fakeFilterLeser) LeseFilter(text string) (model.FilterAusdruck, error) {
+func (f *fakeFilterLeser) LeseFilter(text string) (interface{ IstFilterAusdruck() }, error) {
 	f.n.Add(1)
 	f.mu.Lock()
 	f.args = append(f.args, text)
@@ -151,29 +151,39 @@ func TestFakeFilterLeser(t *testing.T) {
 
 // Die Mengen außerhalb des Umfangs stehen in SPEC-170 Nr. 3 und SPEC-173 Nr. 4; der Test trägt sie als eigene Listen und zählt
 // sie, nie aus dem Code.
-var (
-	// ausserhalbOptionen sind die zwölf Optionen mit der Kompatibilitätsursache `option` (SPEC-173 Nr. 4).
-	ausserhalbOptionen = []string{"$expand", "$skiptoken", "$callback", "$id", "$count", "$search", "$apply", "$compute",
-		"$deltatoken", "$levels", "$index", "$schemaversion"}
-	// ausserhalbPfade sind die 15 Pfadformen außerhalb mit der Kompatibilitätsursache `pfad` und ihrem Ort.
-	ausserhalbPfade = []struct{ pfad, ort string }{
+
+// ausserhalbOptionen sind die zwölf Optionen mit der Kompatibilitätsursache `option` (SPEC-173 Nr. 4).
+func ausserhalbOptionen() []string {
+	return []string{"$expand", "$skiptoken", "$callback", "$id", "$count", "$search", "$apply", "$compute", "$deltatoken", "$levels",
+		"$index", "$schemaversion"}
+}
+
+// ausserhalbPfade sind die 15 Pfadformen außerhalb mit der Kompatibilitätsursache `pfad` und ihrem Ort.
+func ausserhalbPfade() []struct{ pfad, ort string } {
+	return []struct{ pfad, ort string }{
 		{"/", "pfad"}, {"/$batch", "pfad/1"}, {"/$entity", "pfad/1"}, {"/$all", "pfad/1"}, {"/$crossjoin", "pfad/1"},
 		{"/S()", "pfad/1"}, {"/S(1)/N", "pfad/2"}, {"/S/N", "pfad/2"}, {"/S(1)/$links/N", "pfad/2"}, {"/S(1)/$value", "pfad/2"},
 		{"/S(1)/N/$value", "pfad/2"}, {"/S(1)/$ref", "pfad/2"}, {"/S(1)/N/$count", "pfad/2"}, {"/S(1)/Ns.T", "pfad/2"},
 		{"/S(1)/N(2)", "pfad/2"},
 	}
-	// ausserhalbFormate sind die zehn Werte von `$format` außerhalb (SPEC-170 Nr. 3).
-	ausserhalbFormate = []string{"atom", "xml", "application/atom+xml", "application/xml", "text/plain", "jsonx", "application/jsonx",
+}
+
+// ausserhalbFormate sind die zehn Werte von `$format` außerhalb (SPEC-170 Nr. 3).
+func ausserhalbFormate() []string {
+	return []string{"atom", "xml", "application/atom+xml", "application/xml", "text/plain", "jsonx", "application/jsonx",
 		"application/json-patch+json", "verbose", "ATOM"}
-	// ausserhalbLiterale sind die 25 Formen eines Schlüsselliterals mit der Kompatibilitätsursache `literal_typ` (SPEC-173 Nr. 3).
-	ausserhalbLiterale = []string{"1d", "1D", "1f", "1F", "1.5d", "1.5D", "1.5f", "1.5F", "1e3", "1E3", "1.5e-2", "-1e+3",
+}
+
+// ausserhalbLiterale sind die 25 Formen eines Schlüsselliterals mit der Kompatibilitätsursache `literal_typ` (SPEC-173 Nr. 3).
+func ausserhalbLiterale() []string {
+	return []string{"1d", "1D", "1f", "1F", "1.5d", "1.5D", "1.5f", "1.5F", "1e3", "1E3", "1.5e-2", "-1e+3",
 		"binary'AA'", "X'AB'", "x'AB'", "time'PT1S'", "datetimeoffset'2020-01-01T00:00:00Z'", "geography'POINT(1 2)'", "geometry'x'",
 		"duration'P1D'", "Ns.Typ'v'", "Edm.Foo'v'", zeichen(0xE4) + "x'v'", "guidx'a'", "datetime2'a'"}
-)
+}
 
 func TestMengenGezaehlt(t *testing.T) {
-	if len(ausserhalbOptionen) != 12 || len(ausserhalbPfade) != 15 || len(ausserhalbFormate) != 10 || len(ausserhalbLiterale) != 25 {
-		t.Errorf("Mengen %d, %d, %d, %d; erwartet 12, 15, 10, 25",
-			len(ausserhalbOptionen), len(ausserhalbPfade), len(ausserhalbFormate), len(ausserhalbLiterale))
+	o, p, f, l := ausserhalbOptionen(), ausserhalbPfade(), ausserhalbFormate(), ausserhalbLiterale()
+	if len(o) != 12 || len(p) != 15 || len(f) != 10 || len(l) != 25 {
+		t.Errorf("Mengen %d, %d, %d, %d; erwartet 12, 15, 10, 25", len(o), len(p), len(f), len(l))
 	}
 }

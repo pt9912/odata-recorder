@@ -31,14 +31,17 @@ func schwer(c byte) string { return "x=" + strings.Repeat(fmt.Sprintf("%%%02X", 
 
 // eingaben40 sind 40 Eingaben: 14 Erfolge (sechs mit schwerer Dekodierung), 14 Verstöße der Klasse `ungueltig`, 12
 // Kompatibilitätsfehler, verschränkt gerufen.
-var eingaben40 = [][2]string{
-	{"/S", schwer('A')}, {"/S", ""}, {"/S(1)", ""}, {"/S(A=1,B='x')", ""}, {"/S/$count", ""}, {"/S", "$top=1&$skip=2"},
-	{"/S", schwer('B')}, {"/S", schwer('C')}, {"/S", schwer('D')}, {"/S", schwer('E')}, {"/S", "x=1&y=2"},
-	{"/S(guid'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE')", ""}, {"/S(datetime'2020-01-02T03:04')", ""}, {"/S", schwer('F')},
-	{"/S%", ""}, {"/S", "$top=x"}, {"/S(1,,2)", ""}, {"/S", "$foo=1"}, {"/S", "%FF=1"}, {"/S/", ""}, {"/S(null)", ""},
-	{"/S", "$top=1&$top=2"}, {"/$metadata/x", ""}, {"/S", "$select="}, {"/S", "$inlinecount=ALL"}, {"/S(Id=1,Id=2)", ""}, {"//", ""},
-	{"/", ""}, {"/S/N", ""}, {"/S(1d)", ""}, {"/S", "$expand=1"}, {"/S", "$format=xml"}, {"/S", "$filter=a"}, {"/S(1)/$value", ""},
-	{"/$batch", ""}, {"/S", "$orderby=tolower(N)"}, {"/S", "$select=A/B"}, {"/S", "$count=true"}, {"/S/N", "$top=x"}, {"/S(1e3)", "$top=1"},
+func eingaben40() [][2]string {
+	return [][2]string{
+		{"/S", schwer('A')}, {"/S", ""}, {"/S(1)", ""}, {"/S(A=1,B='x')", ""}, {"/S/$count", ""}, {"/S", "$top=1&$skip=2"},
+		{"/S", schwer('B')}, {"/S", schwer('C')}, {"/S", schwer('D')}, {"/S", schwer('E')}, {"/S", "x=1&y=2"},
+		{"/S(guid'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE')", ""}, {"/S(datetime'2020-01-02T03:04')", ""}, {"/S", schwer('F')},
+		{"/S%", ""}, {"/S", "$top=x"}, {"/S(1,,2)", ""}, {"/S", "$foo=1"}, {"/S", "%FF=1"}, {"/S/", ""}, {"/S(null)", ""},
+		{"/S", "$top=1&$top=2"}, {"/$metadata/x", ""}, {"/S", "$select="}, {"/S", "$inlinecount=ALL"}, {"/S(Id=1,Id=2)", ""}, {"//", ""},
+		{"/", ""}, {"/S/N", ""}, {"/S(1d)", ""}, {"/S", "$expand=1"}, {"/S", "$format=xml"}, {"/S", "$filter=a"}, {"/S(1)/$value", ""},
+		{"/$batch", ""}, {"/S", "$orderby=tolower(N)"}, {"/S", "$select=A/B"}, {"/S", "$count=true"}, {"/S/N", "$top=x"},
+		{"/S(1e3)", "$top=1"},
+	}
 }
 
 // TestGleichzeitig (Zeile 17): gleichzeitige Aufrufe beeinflussen sich nicht, auf einer Instanz und auf zwei; jedes Ergebnis ist
@@ -46,13 +49,14 @@ var eingaben40 = [][2]string{
 // × 40 Eingaben × 10 Runden, auf einer und auf zwei Instanzen. Der Fänger zählt die abweichenden Ergebnisse (Wirkung) und ist vom
 // Detektor unabhängig; `make test-race` meldet das Fehlen einer Sperre.
 func TestGleichzeitig(t *testing.T) {
-	if len(eingaben40) != 40 {
-		t.Fatalf("%d Eingaben, erwartet 40", len(eingaben40))
+	eingaben := eingaben40()
+	if len(eingaben) != 40 {
+		t.Fatalf("%d Eingaben, erwartet 40", len(eingaben))
 	}
 	bezug := urlparserv2.New()
-	soll := make([]ergebnis, len(eingaben40))
+	soll := make([]ergebnis, len(eingaben))
 	arten := map[string]int{}
-	for i, e := range eingaben40 {
+	for i, e := range eingaben {
 		soll[i] = rufe(bezug, e[0], e[1])
 		switch {
 		case soll[i].err == "":
@@ -81,9 +85,9 @@ func TestGleichzeitig(t *testing.T) {
 				p := ps[g%instanzen]
 				<-start
 				for range 10 {
-					for k := range eingaben40 {
-						i := (k + g*7) % len(eingaben40)
-						if got := rufe(p, eingaben40[i][0], eingaben40[i][1]); !reflect.DeepEqual(got, soll[i]) {
+					for k := range eingaben {
+						i := (k + g*7) % len(eingaben)
+						if got := rufe(p, eingaben[i][0], eingaben[i][1]); !reflect.DeepEqual(got, soll[i]) {
 							abweichend.Add(1)
 						}
 					}

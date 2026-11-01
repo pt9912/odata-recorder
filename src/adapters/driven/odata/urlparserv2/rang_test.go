@@ -43,27 +43,36 @@ type posten struct {
 	vds  []vd
 }
 
-var (
-	pfadKompat = []posten{
+func pfadKompat() []posten {
+	return []posten{
 		{"/", []vd{vK(model.KompatPfad, "pfad")}},
 		{"/S/N", []vd{vK(model.KompatPfad, "pfad/2")}},
 		{"/S(1d)", []vd{vK(model.KompatLiteralTyp, "pfad/1")}},
 	}
-	pfadUngueltig = []posten{
+}
+
+func pfadUngueltig() []posten {
+	return []posten{
 		{"/S.", []vd{vU(model.URLSegment, "pfad/1")}},
 		{"/S(1,,2)", []vd{vU(model.URLKey, "pfad/1")}},
 	}
-	queryKompat = []posten{
+}
+
+func queryKompat() []posten {
+	return []posten{
 		{"$expand=x", []vd{vK(model.KompatOption, "")}},
 		{"$format=xml", []vd{vK(model.KompatFormat, "")}},
 		{"$filter=Id%20eq%201", []vd{vK(model.KompatFilter, "")}},
 	}
-	queryUngueltig = []posten{
+}
+
+func queryUngueltig() []posten {
+	return []posten{
 		{"$foo=1", []vd{vU(model.URLOptionName, "")}},
 		{"$top=x", []vd{vU(model.URLWert, "")}},
 		{"%FF=1", []vd{vU(model.URLKodierung, "")}},
 	}
-)
+}
 
 // zusammen setzt eine URL aus einem Pfad und Optionen zusammen: die Verstöße des Pfads, dann die der Optionen mit ihrem Ort.
 func zusammen(p posten, qs ...posten) (pfad, q string, vds []vd) {
@@ -79,15 +88,16 @@ func zusammen(p posten, qs ...posten) (pfad, q string, vds []vd) {
 	return p.text, strings.Join(texte, "&"), vds
 }
 
-var pfadOhne = posten{text: "/S"}
+func pfadOhne() posten { return posten{text: "/S"} }
 
 // TestUngueltigVorKompat (Zeile 7): ODR-E6005 geht jeder Kompatibilität vor, gleich wo sie steht. Menge 38 ausführbare Stellungen
 // von sechs Kompatibilitätsformen mit fünf Verstößen: Service-Dokument × Query-Verstoß 3, Pfad × Pfad 5, Pfad-Form × Query-Verstoß 6,
 // Query-Form × Pfad-Verstoß 6, Query-Form × Query-Verstoß 18 (früher und später).
 func TestUngueltigVorKompat(t *testing.T) {
+	pfadKompat, pfadUngueltig, queryKompat, queryUngueltig, pfadOhne := pfadKompat(), pfadUngueltig(), queryKompat(), queryUngueltig(), pfadOhne()
 	p := urlparserv2.New()
 	n := 0
-	pruefeUrl := func(pf posten, qs ...posten) {
+	pruefeURL := func(pf posten, qs ...posten) {
 		pfad, q, vds := zusammen(pf, qs...)
 		e := ersterFund(vds)
 		if !e.erwartetU() {
@@ -97,7 +107,7 @@ func TestUngueltigVorKompat(t *testing.T) {
 		n++
 	}
 	for _, u := range queryUngueltig {
-		pruefeUrl(pfadKompat[0], u)
+		pruefeURL(pfadKompat[0], u)
 	}
 	for _, pp := range []posten{
 		{"/S./N", []vd{vU(model.URLSegment, "pfad/1"), vK(model.KompatPfad, "pfad/2")}},
@@ -106,22 +116,22 @@ func TestUngueltigVorKompat(t *testing.T) {
 		{"/S(1d)/.", []vd{vK(model.KompatLiteralTyp, "pfad/1"), vU(model.URLSegment, "pfad/2")}},
 		{"/S(1d,,2)", []vd{vU(model.URLKey, "pfad/1"), vK(model.KompatLiteralTyp, "pfad/1")}},
 	} {
-		pruefeUrl(pp)
+		pruefeURL(pp)
 	}
 	for _, k := range pfadKompat[1:] {
 		for _, u := range queryUngueltig {
-			pruefeUrl(k, u)
+			pruefeURL(k, u)
 		}
 	}
 	for _, u := range pfadUngueltig {
 		for _, k := range queryKompat {
-			pruefeUrl(u, k)
+			pruefeURL(u, k)
 		}
 	}
 	for _, k := range queryKompat {
 		for _, u := range queryUngueltig {
-			pruefeUrl(pfadOhne, k, u)
-			pruefeUrl(pfadOhne, u, k)
+			pruefeURL(pfadOhne, k, u)
+			pruefeURL(pfadOhne, u, k)
 		}
 	}
 	if n != 3+5+6+6+18 {
@@ -135,20 +145,21 @@ func (e erw) erwartetU() bool { return e.u != "" }
 // einer Query-Form 3, Literal vor Rest-Segment 1, Pfad-Form (Rest-Segment, Literal) vor einer Query-Form 6, Query-Form vor
 // Query-Form 9 (gleiche Form zweimal eingeschlossen), zwei Rest-Segmente 1, zwei Literale im Schlüssel 1.
 func TestErsteKompat(t *testing.T) {
+	pfadKompat, queryKompat, pfadOhne := pfadKompat(), queryKompat(), pfadOhne()
 	p := urlparserv2.New()
 	n := 0
-	pruefeUrl := func(pf posten, qs ...posten) {
+	pruefeURL := func(pf posten, qs ...posten) {
 		pfad, q, vds := zusammen(pf, qs...)
 		pruefe(t, p, pfad, q, ersterFund(vds))
 		n++
 	}
 	for _, k := range queryKompat {
-		pruefeUrl(pfadKompat[0], k)
+		pruefeURL(pfadKompat[0], k)
 	}
-	pruefeUrl(posten{"/S(1d)/N", []vd{vK(model.KompatLiteralTyp, "pfad/1"), vK(model.KompatPfad, "pfad/2")}})
+	pruefeURL(posten{"/S(1d)/N", []vd{vK(model.KompatLiteralTyp, "pfad/1"), vK(model.KompatPfad, "pfad/2")}})
 	for _, pk := range pfadKompat[1:] {
 		for _, k := range queryKompat {
-			pruefeUrl(pk, k)
+			pruefeURL(pk, k)
 		}
 	}
 	for _, a := range queryKompat {
@@ -162,8 +173,8 @@ func TestErsteKompat(t *testing.T) {
 			n++
 		}
 	}
-	pruefeUrl(posten{"/S/N/M", []vd{vK(model.KompatPfad, "pfad/2"), vK(model.KompatPfad, "pfad/3")}})
-	pruefeUrl(posten{"/S(A=1d,B=2d)", []vd{vK(model.KompatLiteralTyp, "pfad/1"), vK(model.KompatLiteralTyp, "pfad/1")}})
+	pruefeURL(posten{"/S/N/M", []vd{vK(model.KompatPfad, "pfad/2"), vK(model.KompatPfad, "pfad/3")}})
+	pruefeURL(posten{"/S(A=1d,B=2d)", []vd{vK(model.KompatLiteralTyp, "pfad/1"), vK(model.KompatLiteralTyp, "pfad/1")}})
 	if n != 21 {
 		t.Errorf("%d Paare, erwartet 21", n)
 	}
@@ -172,9 +183,10 @@ func TestErsteKompat(t *testing.T) {
 // TestErsterUngueltig (Zeile 9): unter mehreren Verstößen der Klasse `ungueltig` gilt der erste in der Lesefolge. Menge 18 Paare der
 // fünf Repräsentanten in der Reihenfolge der URL: Pfad × Pfad 3, Pfad × Query 6, Query × Query 9.
 func TestErsterUngueltig(t *testing.T) {
+	pfadUngueltig, queryUngueltig, pfadOhne := pfadUngueltig(), queryUngueltig(), pfadOhne()
 	p := urlparserv2.New()
 	n := 0
-	pruefeUrl := func(pf posten, qs ...posten) {
+	pruefeURL := func(pf posten, qs ...posten) {
 		pfad, q, vds := zusammen(pf, qs...)
 		pruefe(t, p, pfad, q, ersterFund(vds))
 		n++
@@ -184,16 +196,16 @@ func TestErsterUngueltig(t *testing.T) {
 		{"/S(1,,2)/.", []vd{vU(model.URLKey, "pfad/1"), vU(model.URLSegment, "pfad/2")}},
 		{"/S(1,,2,,)", []vd{vU(model.URLKey, "pfad/1"), vU(model.URLKey, "pfad/1")}},
 	} {
-		pruefeUrl(pp)
+		pruefeURL(pp)
 	}
 	for _, pu := range pfadUngueltig {
 		for _, qu := range queryUngueltig {
-			pruefeUrl(pu, qu)
+			pruefeURL(pu, qu)
 		}
 	}
 	for _, a := range queryUngueltig {
 		for _, b := range queryUngueltig {
-			pruefeUrl(pfadOhne, a, b)
+			pruefeURL(pfadOhne, a, b)
 		}
 	}
 	if n != 18 {

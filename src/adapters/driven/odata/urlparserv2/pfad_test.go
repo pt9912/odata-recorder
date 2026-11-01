@@ -176,7 +176,7 @@ func TestKoerper(t *testing.T) {
 // Form verfehlt, ist `segment`; Kodierung und Form werden auch hinter einem Kompatibilitätsfehler geprüft. Menge 25.
 func TestRestSegmente(t *testing.T) {
 	var faelle []pfadFall
-	for _, e := range ausserhalbPfade {
+	for _, e := range ausserhalbPfade() {
 		faelle = append(faelle, pfadFall{e.pfad, "", kmp(model.KompatPfad, e.ort)})
 	}
 	faelle = append(faelle,

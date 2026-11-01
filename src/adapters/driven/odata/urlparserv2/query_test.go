@@ -115,7 +115,7 @@ func TestNamenKlassen(t *testing.T) {
 // Menge 79: 12 Namen × 3 Werte (leer, nichtleer, ungültig kodiert) × 2 Anzahlen und 7 Gegenfälle im Umfang.
 func TestOptionenAusserhalb(t *testing.T) {
 	var faelle []pfadFall
-	for _, n := range ausserhalbOptionen {
+	for _, n := range ausserhalbOptionen() {
 		for _, w := range []string{"", "x", "%FF"} {
 			faelle = append(faelle, optFall(n+"="+w, kmp(model.KompatOption, "query/1")),
 				optFall(n+"="+w+"&"+n+"="+w, kmp(model.KompatOption, "query/1")))
@@ -133,7 +133,7 @@ func TestOptionenAusserhalb(t *testing.T) {
 	f := &fakeFilterLeser{}
 	pruefe(t, urlparserv2.New(urlparserv2.WithFilter(f)), "/S", "$filter=x",
 		optOk(model.Optionen{Filter: &model.FilterOption{Text: "x", Ausdruck: model.FilterEigenschaft{Name: "x"}}}))
-	if len(faelle)+len(imUmfang)+1 != 79 || len(ausserhalbOptionen) != 12 {
+	if len(faelle)+len(imUmfang)+1 != 79 || len(ausserhalbOptionen()) != 12 {
 		t.Errorf("%d Fälle, erwartet 79", len(faelle)+len(imUmfang)+1)
 	}
 }
@@ -271,7 +271,7 @@ func TestFormat(t *testing.T) {
 		for _, v := range gueltig {
 			faelle = append(faelle, optFall(namen+"="+v, optOk(model.Optionen{})))
 		}
-		for _, v := range ausserhalbFormate {
+		for _, v := range ausserhalbFormate() {
 			faelle = append(faelle, optFall(namen+"="+v, kmp(model.KompatFormat, "query/1")))
 		}
 	}
