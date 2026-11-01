@@ -16,6 +16,8 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
+Nichts in Arbeit.
+
 - [welle-record-replay](../welle-record-replay.md) (geliefert: `slice-replay-service` in [done/](../done/slice-replay-service.md), Linie A; geliefert: `slice-cli-adapter` in [done/](../done/slice-cli-adapter.md), Linie A; geliefert: `slice-http-adapter` in [done/](../done/slice-http-adapter.md), Linie A; geliefert: `slice-http-lebenszyklus` in [done/](../done/slice-http-lebenszyklus.md), Linie A)
 - [welle-mock](../welle-mock.md) (gestaffelt: Trigger von Teil 1, den reinen Funktionen, eingetreten durch [slice-baseline-import](../done/slice-baseline-import.md); Teil 2 wartet auf `welle-record-replay` und `slice-handbuch-meldungskatalog`; geliefert: [slice-odata-url-pfad](../done/slice-odata-url-pfad.md), Linie B; geliefert: [slice-odata-url-filter](../done/slice-odata-url-filter.md), Linie B)
 - [welle-sensoren](../welle-sensoren.md) (gestaffelt: Trigger von Teil 0 und Teil 1, `slice-groessenmarke-werkzeug`, eingetreten, Beleg [done/](../done/slice-groessenmarke-werkzeug.md); Teil 2 wartet auf `welle-record-replay` in `done/`; geliefert: `slice-unsichtbare-zeichen` in [done/](../done/slice-unsichtbare-zeichen.md), Beleg `make zeichen-check`; geliefert: `slice-guide-groessen-gate` in [done/](../done/slice-guide-groessen-gate.md), Beleg `make docs-check`, Linie C)
