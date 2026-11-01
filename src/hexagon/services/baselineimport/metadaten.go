@@ -55,12 +55,13 @@ func (i *Importer) oeffne(ctx context.Context, ref string, f func(src io.Reader)
 	return nil
 }
 
-// liesDokument liest das $metadata der Session mit dem Leser (Nr. 7 f).
-func (i *Importer) liesDokument(ctx context.Context, ex model.Exchange) (dokument, error) {
+// liesDokument liest das $metadata der Session mit dem Leser des Dienstes (Nr. 7 f).
+func (i *Importer) liesDokument(ctx context.Context, serviceID string, ex model.Exchange) (dokument, error) {
 	d := dokument{ref: ex.ResponseBlob, ex: ex}
+	meta := i.metadatenCodec(serviceID)
 	err := i.oeffne(ctx, d.ref, func(src io.Reader) error {
 		var err error
-		d.modell, d.bericht, err = i.k.MetadatenCodec.ParseMetadata(ctx, src, i.k.MaxCaptureBody)
+		d.modell, d.bericht, err = meta.ParseMetadata(ctx, src, i.k.MaxCaptureBody)
 		return err
 	})
 	return d, err

@@ -21,14 +21,17 @@ import (
 
 var _ inbound.ImportUseCase = (*Importer)(nil)
 
-// Dienst ist ein Service der Konfiguration: Kennung und Upstream (SPEC-127 Nr. 1).
+// Dienst ist ein Service der Konfiguration: Kennung, Upstream und der Satz der Codecs seiner Version
+// (SPEC-127 Nr. 1). Codecs nil heißt: MetadatenCodec und DatenCodec der Konfig gelten.
 type Dienst struct {
 	ID          string
 	UpstreamURL string
+	Codecs      *outbound.CodecSatz
 }
 
 // Konfig ist die Konfiguration des Dienstes (SPEC-127 Nr. 1). Dienste dient der Prüfung von
-// service_id und der Auflösung der Links, Regeln allein der Bildung des Match-Keys.
+// service_id, der Auflösung der Links und der Wahl der Codecs je Service, Regeln allein der Bildung
+// des Match-Keys; MetadatenCodec und DatenCodec gelten für jeden Dienst ohne Satz.
 type Konfig struct {
 	Dienste        []Dienst
 	Sessions       outbound.SessionRepository
@@ -94,13 +97,16 @@ func normiereDienste(in []Dienst) ([]Dienst, error) {
 		if d.ID == "" || slices.ContainsFunc(out, func(v Dienst) bool { return v.ID == d.ID }) {
 			return nil, ungueltig("Dienst ohne Kennung oder mit doppelter Kennung")
 		}
+		if d.Codecs != nil && (d.Codecs.Metadaten == nil || d.Codecs.Daten == nil) {
+			return nil, ungueltig("Satz der Codecs ohne Metadaten- oder Daten-Codec")
+		}
 		u, err := url.Parse(d.UpstreamURL)
 		if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") {
 			return nil, ungueltig("UpstreamURL ist keine absolute http- oder https-URL")
 		}
 		u.Path = strings.TrimSuffix(u.Path, "/")
 		u.RawPath = strings.TrimSuffix(u.RawPath, "/")
-		out = append(out, Dienst{ID: d.ID, UpstreamURL: u.String()})
+		out = append(out, Dienst{ID: d.ID, UpstreamURL: u.String(), Codecs: d.Codecs})
 	}
 	return out, nil
 }
@@ -130,7 +136,7 @@ func (i *Importer) Import(ctx context.Context, a inbound.ImportAnfrage) (inbound
 	if err != nil {
 		return inbound.ImportErgebnis{}, err
 	}
-	doc, err := i.liesDokument(ctx, ex)
+	doc, err := i.liesDokument(ctx, a.ServiceID, ex)
 	if err != nil {
 		return inbound.ImportErgebnis{}, err
 	}
@@ -230,7 +236,7 @@ func (i *Importer) verarbeite(ctx context.Context, a inbound.ImportAnfrage, exs 
 		if u.spur == spurMetadaten {
 			continue
 		}
-		an, err := i.liesAntwort(ctx, e, u, doc.modell)
+		an, err := i.liesAntwort(ctx, a.ServiceID, e, u, doc.modell)
 		if err != nil {
 			return ergebnis{}, err
 		}
@@ -261,16 +267,35 @@ func (i *Importer) dienstVon(id string) Dienst {
 	return i.k.Dienste[slices.IndexFunc(i.k.Dienste, func(d Dienst) bool { return d.ID == id })]
 }
 
-// liesAntwort öffnet den Body, ruft den Leser der Spur und schließt den Strom (Nr. 9).
-func (i *Importer) liesAntwort(ctx context.Context, e model.Exchange, u urteil, m model.ServiceModel) (*antwort, error) {
+// metadatenCodec liefert den Metadatenleser des Dienstes: den des Satzes, ohne Satz den der Konfig
+// (Nr. 1); die Kennung steht in Dienste (Nr. 4 b).
+func (i *Importer) metadatenCodec(serviceID string) outbound.MetadataCodec {
+	if s := i.dienstVon(serviceID).Codecs; s != nil {
+		return s.Metadaten
+	}
+	return i.k.MetadatenCodec
+}
+
+// datenCodec liefert den Leser der Antworten des Dienstes: den des Satzes, ohne Satz den der Konfig
+// (Nr. 1); die Kennung steht in Dienste (Nr. 4 b).
+func (i *Importer) datenCodec(serviceID string) outbound.ODataCodec {
+	if s := i.dienstVon(serviceID).Codecs; s != nil {
+		return s.Daten
+	}
+	return i.k.DatenCodec
+}
+
+// liesAntwort öffnet den Body, ruft den Leser der Spur im Codec des Dienstes und schließt den Strom (Nr. 9).
+func (i *Importer) liesAntwort(ctx context.Context, serviceID string, e model.Exchange, u urteil, m model.ServiceModel) (*antwort, error) {
 	an := &antwort{ex: e, spur: u.spur, set: u.set, ungefiltert: u.ungefiltert}
+	daten := i.datenCodec(serviceID)
 	err := i.oeffne(ctx, e.ResponseBlob, func(src io.Reader) error {
 		if u.spur == spurCollection {
-			s, err := i.k.DatenCodec.ParseCollection(ctx, src, m, u.set, i.k.MaxCaptureBody)
+			s, err := daten.ParseCollection(ctx, src, m, u.set, i.k.MaxCaptureBody)
 			an.seite = s
 			return err
 		}
-		ent, err := i.k.DatenCodec.ParseEntity(ctx, src, m, u.set, i.k.MaxCaptureBody)
+		ent, err := daten.ParseEntity(ctx, src, m, u.set, i.k.MaxCaptureBody)
 		an.seite = model.EntitySeite{Entities: []model.Entity{ent}}
 		return err
 	})
