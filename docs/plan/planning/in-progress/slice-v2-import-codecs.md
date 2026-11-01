@@ -155,6 +155,8 @@ schaetzung: 1045
 marke: 1500
 ```
 
+**Messung beim Handoff:** `make groessenmarke` meldet 695 von Marke 1500 (Schätzung 1045): `codec_satz.go` 16, `importer.go` 43, `metadaten.go` 7, `satz_test.go` 629 Zeilen.
+
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen).
