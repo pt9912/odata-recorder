@@ -238,13 +238,15 @@ func TestSatzWahlJeAufrufstelle(t *testing.T) {
 	}
 }
 
-// TestSatzFehlerJeAufrufstelle (Z2): ein Fehler des Codecs von D1 oder D2 wird an jeder Aufrufstelle (3) nach Nr. 17
-// abgebildet, ein verpackter Kontextfehler kehrt unverändert und ohne Code zurück; jeder Strom ist genau einmal
-// geschlossen, danach ruft der Dienst weder Blobs.Begin noch Imports.Publish noch einen weiteren Codec.
+// TestSatzFehlerJeAufrufstelle (Z2): ein Fehler des Codecs von D0, D1 oder D2 wird an jeder Aufrufstelle (3) nach
+// Nr. 17 abgebildet, ein verpackter Kontextfehler kehrt unverändert und ohne Code zurück; jeder Strom ist genau
+// einmal geschlossen, danach ruft der Dienst weder Blobs.Begin noch Imports.Publish noch einen Codec (die drei
+// Aufrufstellen jedes der drei Dienste, die Codecs der Konfig eingeschlossen); die Zähler stehen nach dem Fehler
+// bei 1 für die bis zur Fehlerstelle erreichten Aufrufstellen des Ziels und sonst bei 0.
 func TestSatzFehlerJeAufrufstelle(t *testing.T) {
 	faelle := 0
 	for i, op := range satzOps() {
-		for _, wahl := range []int{1, 2} {
+		for _, wahl := range []int{0, 1, 2} {
 			for _, art := range []string{"Verstoß", "Kontextfehler"} {
 				faelle++
 				w, alle := satzWelt(t)
@@ -301,24 +303,26 @@ func TestSatzFehlerJeAufrufstelle(t *testing.T) {
 						t.Errorf("%s: %s %d-mal gerufen", name, o, n)
 					}
 				}
-				for k, o := range satzOps() {
-					want := 0
-					if k <= i {
-						want = 1
-					}
-					if got := ziel.p.anzahl(o) - vor[ziel][o]; got != want {
-						t.Errorf("%s: %s %d-mal, erwartet %d", name, o, got, want)
+				for _, s := range alle {
+					for k, o := range satzOps() {
+						want := 0
+						if s == ziel && k <= i {
+							want = 1
+						}
+						if got := s.p.anzahl(o) - vor[s][o]; got != want {
+							t.Errorf("%s: %s von %s %d-mal, erwartet %d", name, o, s.name, got, want)
+						}
 					}
 				}
 			}
 		}
 	}
-	if faelle != 12 {
-		t.Errorf("Menge %d, erwartet 12", faelle)
+	if faelle != 18 {
+		t.Errorf("Menge %d, erwartet 18", faelle)
 	}
 }
 
-// satzDienste baut drei Dienste a, b, c mit je einem Satz der Fakes der Welt; fehler[k] ersetzt den Satz des Dienstes k.
+// satzDienste baut drei Dienste a, b, c mit je einem Satz der Fakes der Welt; ersatz[k] ersetzt den Satz des Dienstes k.
 func satzDienste(w *welt, ersatz map[int]*outbound.CodecSatz) []baselineimport.Dienst {
 	var ds []baselineimport.Dienst
 	for k, id := range []string{"a", "b", "c"} {
@@ -489,8 +493,11 @@ func TestNormierungBehaeltSatz(t *testing.T) {
 
 // TestSatzGleichzeitig (Z7, Wirkungs-Fänger): die Imports von D0, D1 und D2 laufen gleichzeitig; eine Schranke hält
 // jeden in ParseMetadata seines Codecs, bis alle drei dort sind, eine zweite in ParseCollection; die Antwort der
-// Einzel-Entity liest danach jeder, nachdem alle das $metadata gelesen haben. Jeder Codec sieht nur Aufrufe seines
-// Dienstes. Eine Sperre um den ganzen Import lässt die Frist der Schranke ablaufen.
+// Einzel-Entity liest danach jeder, nachdem alle das $metadata gelesen haben. Dazu hält gleichschritt jeden Import
+// nach jedem Aufruf der Ports der Welt mit Haltepunkt an, bis alle drei ihn beendet haben; ein Zustand, der zwischen
+// zwei solchen Aufrufen geschrieben und gelesen wird, sieht so die Schreiber der anderen. Ein Abschnitt ohne Aufruf
+// eines Ports mit Haltepunkt (Schreiben und Lesen hintereinander) bleibt ohne Wirkungs-Fänger. Jeder Codec sieht nur
+// Aufrufe seines Dienstes. Eine Sperre um den ganzen Import lässt die Frist der Schranke ablaufen.
 func TestSatzGleichzeitig(t *testing.T) {
 	w, alle := satzWelt(t)
 	w.start()
@@ -500,6 +507,7 @@ func TestSatzGleichzeitig(t *testing.T) {
 		s.p.setzeHaken("ParseMetadata", func(int) { tor.warte() })
 		s.p.setzeHaken("ParseCollection", func(int) { tor2.warte() })
 	}
+	pruefeGang := gleichschritt(w, len(alle))
 	vor := satzStand(alle)
 	var wg sync.WaitGroup
 	ergebnis := make([]lauf, len(alle))
@@ -513,12 +521,47 @@ func TestSatzGleichzeitig(t *testing.T) {
 	wg.Wait()
 	tor.pruefe(t, "ParseMetadata")
 	tor2.pruefe(t, "ParseCollection")
+	pruefeGang(t)
 	for i, s := range alle {
 		if ergebnis[i].err != nil || ergebnis[i].r.Import.ServiceID != s.id {
 			t.Errorf("Import von %s: %v, Dienst %q", s.name, ergebnis[i].err, ergebnis[i].r.Import.ServiceID)
 		}
 		for _, op := range satzOps() {
 			w.pruefeAufruf(t, alle, s, op, vor, 1)
+		}
+	}
+}
+
+// gleichschritt setzt auf w.p an jedem Port mit Haltepunkt, den ein Import ruft, eine Schranke je Aufruf-Runde: der
+// k-te Aufruf der Operation gehört zur Runde (k-1)/n, und jede Runde hält die n Imports, bis alle n sie erreicht
+// haben. Die Rückgabe prüft die Fristen und zählt die Schranken (9: je einmal Imports.Get, Sessions.Get,
+// Exchanges.ListBySession, Blobs.Begin, Imports.Publish, Metadaten.SetMetadata und dreimal Blobs.Open).
+func gleichschritt(w *welt, n int) func(t *testing.T) {
+	var mu sync.Mutex
+	tore := map[string]*schranke{}
+	ops := []string{"Imports.Get", "Sessions.Get", "Exchanges.ListBySession", "Blobs.Open", "Blobs.Begin", "Imports.Publish", "Metadaten.SetMetadata"}
+	for _, op := range ops {
+		w.p.setzeHaken(op, func(k int) {
+			name := fmt.Sprintf("%s#%d", op, (k-1)/n)
+			mu.Lock()
+			s, ok := tore[name]
+			if !ok {
+				s = neueSchranke(n)
+				tore[name] = s
+			}
+			mu.Unlock()
+			s.warte()
+		})
+	}
+	return func(t *testing.T) {
+		t.Helper()
+		mu.Lock()
+		defer mu.Unlock()
+		for name, s := range tore {
+			s.pruefe(t, name)
+		}
+		if len(tore) != 9 {
+			t.Errorf("%d Schranken im Gleichschritt, erwartet 9", len(tore))
 		}
 	}
 }
@@ -535,7 +578,9 @@ func TestSatzKeinAufrufVorDemLesen(t *testing.T) {
 		code      model.Code
 		http      int
 		ungueltig bool
+		ist       error
 	}
+	errPort := errors.New("Port scheitert vor dem Lesen")
 	ersterImport := func(t *testing.T, w *welt, ziel *satzFake) {
 		if _, err := w.imp.Import(ziel.ctx(), ziel.anfrage()); err != nil {
 			t.Fatalf("erster Import: %v", err)
@@ -564,6 +609,20 @@ func TestSatzKeinAufrufVorDemLesen(t *testing.T) {
 			vorher: func(_ *testing.T, w *welt, z *satzFake) {
 				w.sessions.m[z.ses] = model.Session{ID: z.ses, ServiceID: z.id, CreatedAt: t0(), Status: model.SessionOpen}
 			}},
+		{name: "$metadata fehlt", ist: baselineimport.ErrKeineMetadaten,
+			vorher: func(_ *testing.T, w *welt, z *satzFake) { w.exchanges.m[z.ses] = w.exchanges.m[z.ses][1:] }},
+		{name: "$metadata mehrdeutig", ist: baselineimport.ErrMetadatenAbweichend,
+			vorher: func(_ *testing.T, w *welt, z *satzFake) {
+				(&bauer{w: w, ses: z.ses, seq: 10}).metadaten("<edmx andere " + z.name + "/>")
+			}},
+		{name: "Hash der Anfrage ungleich der Referenz", ist: baselineimport.ErrMetadatenHash,
+			anfrage: func(a *inbound.ImportAnfrage, _ []*satzFake, _ *satzFake) { a.MetadataHash = refVon([]byte("anderes")) }},
+		{name: "Imports.Get scheitert", ist: errPort,
+			vorher: func(_ *testing.T, w *welt, _ *satzFake) { w.p.scheitere("Imports.Get", 0, errPort) }},
+		{name: "Sessions.Get scheitert", ist: errPort,
+			vorher: func(_ *testing.T, w *welt, _ *satzFake) { w.p.scheitere("Sessions.Get", 0, errPort) }},
+		{name: "Exchanges.ListBySession scheitert", ist: errPort,
+			vorher: func(_ *testing.T, w *welt, _ *satzFake) { w.p.scheitere("Exchanges.ListBySession", 0, errPort) }},
 	}
 	n := 0
 	for _, f := range faelle {
@@ -584,6 +643,10 @@ func TestSatzKeinAufrufVorDemLesen(t *testing.T) {
 			switch {
 			case f.code != 0:
 				erwarteFehler(t, f.name+" "+ziel.name, err, f.code, f.http)
+			case f.ist != nil:
+				if !errors.Is(err, f.ist) {
+					t.Errorf("%s %s: %v", f.name, ziel.name, err)
+				}
 			case f.ungueltig:
 				if !errors.Is(err, model.ErrUngueltig) || !ohneCode(err) {
 					t.Errorf("%s %s: %v", f.name, ziel.name, err)
@@ -611,8 +674,8 @@ func TestSatzKeinAufrufVorDemLesen(t *testing.T) {
 		erwarteFehler(t, "Get unbekannt "+ziel.name, err, model.CodeE7005, 404)
 		keinAufruf(t, "Get "+ziel.name, alle, vor)
 	}
-	if n != 24 {
-		t.Errorf("Menge %d, erwartet 24", n)
+	if n != 42 {
+		t.Errorf("Menge %d, erwartet 42", n)
 	}
 }
 
