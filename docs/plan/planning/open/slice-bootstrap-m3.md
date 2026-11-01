@@ -37,6 +37,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-odata-url-filter`):** das Einhängen des Filter-Lesers im Composition Root, `urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser()))` (`SPEC-160` Nr. 8); der Geber liefert den Leser, die Verdrahtung liegt hier. Kein Ausschluss dieses Slice trifft sie.
 
+**Übernimmt (Sendung von `slice-v2-bootstrap`, [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) `Accepted`):** der Root baut den Satz der Version 4 (`outbound.CodecSatz` mit `csdl`, `jsoncodec`, `urlparser`, dem Schreiber der Version 4 und `NurLesend` falsch, `SPEC-175` Nr. 3) und gibt ihn dem Mock; die Tabelle Version → Satz wird erst in `slice-v2-bootstrap` vollständig. Kein Ausschluss dieses Slice trifft sie (Verdrahtung, keine neue Fachlogik).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Die Verdrahtung des Modus `hybrid` und der Schlüssel `HYBRID_*` und `FALLBACK_*` — `slice-bootstrap-m4`; sie bleiben bis dahin `ODR-E2001`, damit keine Sicherheitseinstellung still wirkungslos ist (`SPEC-110` Nr. 2).
