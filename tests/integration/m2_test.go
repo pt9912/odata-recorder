@@ -192,7 +192,7 @@ func durchsuche(t *testing.T, dir string, marker []string) (dateien []string, fu
 // durchstich hält den Zustand des Ablaufs von Schritt 1 bis 10; jede Phase ist eine Methode.
 type durchstich struct {
 	t           *testing.T
-	ref        *referenzdienst
+	ref         *referenzdienst
 	dir         string
 	kRec, kRep  bootstrap.Konfiguration
 	sessionID   string
@@ -210,7 +210,7 @@ func TestDurchstichM2(t *testing.T) {
 	d.kRec = konfig(t, "record", d.dir, d.ref.URL()+"/odata")
 	d.kRep = konfig(t, "replay", d.dir, d.ref.URL()+"/odata")
 	rec := hochgefahren(ctx, t, d.kRec) // Schritt 1
-	d.nimmAuf(rec)                        // Schritt 2
+	d.nimmAuf(rec)                      // Schritt 2
 	d.pruefeAufnahme()
 	d.beendeUndImportiere(rec) // Schritte 3 und 4
 	vorher := d.sucheGeheimnisse(0)
