@@ -1,6 +1,6 @@
 # Verifikations-Report: slice-v2-metadaten — 2026-11-01
 
-**Verifikations-Art:** DoD- und Entscheidungs-Konformität, Plan-vs-Code-Diff — geprüft gegen `docs/plan/planning/in-progress/slice-v2-metadaten.md` (DoD §2, Tabelle *Zusage · Fänger* A1 bis J4 mit 59 Zeilen, Raster §6, Block der Größenmarke §4), `SPEC-171` Nr. 1 bis 10 in der geltenden Fassung (mit der Grenze der Bindings in Nr. 6 und 7), `SPEC-170`, `SPEC-125` Nr. 2 (mit `io.ErrNoProgress`) und *Ungeprüft*, [ADR-0011](../plan/adr/0011-versionierter-adapter-fuer-odata-v2.md), `AGENTS.md` §3.9, §3.10, §3.12, §3.15 bis §3.18.
+**Verifikations-Art:** DoD- und Entscheidungs-Konformität, Plan-vs-Code-Diff — geprüft gegen `docs/plan/planning/done/slice-v2-metadaten.md` (DoD §2, Tabelle *Zusage · Fänger* A1 bis J4 mit 59 Zeilen, Raster §6, Block der Größenmarke §4), `SPEC-171` Nr. 1 bis 10 in der geltenden Fassung (mit der Grenze der Bindings in Nr. 6 und 7), `SPEC-170`, `SPEC-125` Nr. 2 (mit `io.ErrNoProgress`) und *Ungeprüft*, [ADR-0011](../plan/adr/0011-versionierter-adapter-fuer-odata-v2.md), `AGENTS.md` §3.9, §3.10, §3.12, §3.15 bis §3.18.
 
 **Gegenstand:** `slice-v2-metadaten` (Welle `welle-odata-v2`), `git diff b5ac4a5..HEAD`, HEAD `d02d7e1488f929b7194d7c1e1a04408f6ffe01a5` (Zweig `slice-v2-metadaten`, Worktree `/Development/odata-recorder-wt-v2-metadaten`). Bezug: `LH-FA-17`, `LH-RB-01`.
 
