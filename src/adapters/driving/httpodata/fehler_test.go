@@ -79,8 +79,8 @@ func codeStatusPaare() (codes []model.Code, stati []int) {
 // A26: Jeder *Fehler mit gültigem Code und Status geht mit diesem Status und dem Fehlerobjekt aus.
 func TestFehlerobjektJeCode(t *testing.T) {
 	codes, stati := codeStatusPaare()
-	if len(codes) != 34 {
-		t.Fatalf("Zahl der Paare = %d, erwartet 34", len(codes))
+	if len(codes) != 35 {
+		t.Fatalf("Zahl der Paare = %d, erwartet 35", len(codes))
 	}
 	for _, b := range bindungen() {
 		var zaehler atomic.Int64
