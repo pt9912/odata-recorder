@@ -36,6 +36,7 @@ func MetadataCodecV2Vertrag(t *testing.T, neu CodecNeu) {
 	}{
 		{"A1 Argumente", zeileV2A1}, {"A2 Kontext", zeileV2A2}, {"A3 Fehler von src", zeileV2A3},
 		{"A4 Zerlegung in Reads", zeileV2A4}, {"A5 Strom gehört dem Aufrufer", zeileV2A5},
+		{"A6 leere Reads", zeileV2A6},
 		{"B1 leer und unvollständig", zeileV2B1}, {"B2 Kodierung", zeileV2B2}, {"B3 DOCTYPE", zeileV2B3},
 		{"B4 Referenzen", zeileV2B4}, {"B5 Kommentare, PI, Nachlauf", zeileV2B5}, {"B6 Namensräume", zeileV2B6},
 		{"C1 Wurzel", zeileV2C1}, {"C2 Version", zeileV2C2}, {"C3 DataServiceVersion", zeileV2C3},
@@ -46,7 +47,7 @@ func MetadataCodecV2Vertrag(t *testing.T, neu CodecNeu) {
 		{"D10 jeder Verstoß ist ODR-E6004", zeileV2D10}, {"D11 alles andere ist gültig", zeileV2D11},
 		{"N1 Navigation löst", zeileV2N1}, {"N2 Navigation im Modell", zeileV2N2}, {"N3 Multiplicity", zeileV2N3},
 		{"N4 Bindings", zeileV2N4}, {"N5 gültig ohne Binding", zeileV2N5}, {"N6 AssociationSet löst", zeileV2N6},
-		{"N7 Zahl der End", zeileV2N7},
+		{"N7 Zahl der End", zeileV2N7}, {"N8 Grenze der Bindings", zeileV2N8},
 		{"E1 Größe", zeileV2E1}, {"E2 Tiefe", zeileV2E2}, {"E3 Summe der Members", zeileV2E3},
 		{"F1 Modell Referenzdienst", zeileV2F1}, {"F2 Vererbung im Modell", zeileV2F2}, {"F3 Composite-Schlüssel", zeileV2F3},
 		{"F4 Aliase und Schemas", zeileV2F4}, {"F5 Typabbildung", zeileV2F5}, {"F6 Randformen des Modells", zeileV2F6},
@@ -306,11 +307,14 @@ func zeileV2Z(t *testing.T, _ CodecNeu) {
 		{"C2 Versionen", len(faelleV2C2()), 13}, {"C3 DataServiceVersion", len(faelleV2C3()), 17}, {"C4 Namensräume des Schemas", len(faelleV2C4()), 7},
 		{"C5 Paare", len(faelleV2C5()), 11}, {"D1 Schlüssel mal Abstract mal Kette", len(faelleV2D1()), 26}, {"D2 Referenzart mal Form", len(faelleV2D2()), 50},
 		{"D3 Ringe und Ketten", len(faelleV2D3()), 36}, {"D4 Schlüsseltypen", len(faelleV2D4()), 35}, {"D5 Formen des Property-Typs", len(faelleV2D5()), 62},
-		{"D6 Pflichtangaben und Namen", len(faelleV2D6()), 140}, {"D7 Doppelungen", len(faelleV2D7()), 17}, {"D8 Ketten", len(faelleV2D8()), 14},
+		{"D5 Namensräume und Aliase mit Edm-Anfang", len(faelleV2D5Edm()), 9}, {"D6 Pflichtangaben und Namen", len(faelleV2D6()), 140}, {"D7 Doppelungen", len(faelleV2D7()), 17}, {"D8 Ketten", len(faelleV2D8()), 14},
 		{"D9 Paare der Durchläufe", len(faelleV2D9()), 60}, {"D11 Dokumente der Klasse", len(faelleV2D11()), 156}, {"E1 Grenzen", len(faelleV2E1(t)), 33},
-		{"E2 Tiefen", len(faelleV2E2()), 11}, {"E3 Summen", len(faelleV2E3()), 7}, {"G1 Stellen mal Arten", len(g1FaelleV2()), 104},
-		{"N1 Formen mal Stellen", len(faelleV2N1()), 36}, {"N3 Multiplicity", len(faelleV2N3()), 54}, {"N6 Verstöße mal End", len(faelleV2N6()), 28},
-		{"N7 Zahl der End", len(faelleV2N7()), 11}, {"alle Dokumente der Suite", len(alleFaelleV2(t)), 1000},
+		{"E2 Tiefen", len(faelleV2E2()), 11}, {"E3 Summen", len(faelleV2E3()), 7}, {"G1 Stellen mal Arten", len(g1FaelleV2()), 140},
+		{"N1 Formen mal Stellen", len(faelleV2N1()), 36}, {"N3 benannte Werte", len(faelleV2N3Klein()), 54},
+		{"N3 Zeichenketten bis Länge 4", len(n3Zeichenketten()), 1555}, {"N3 ungültige Werte", len(n3Werte()), 1566},
+		{"N3 Dokumente der Schleife", len(faelleV2N3()), 6264}, {"N6 Verstöße mal End", len(faelleV2N6()), 28},
+		{"N7 Zahl der End", len(faelleV2N7()), 11}, {"N8 Fälle der Grenze der Bindings", len(faelleV2N8()), 9},
+		{"A6 Dokumente der leeren Reads", len(a6FaelleV2()), 48}, {"alle Dokumente der Suite", len(alleFaelleV2(t)), 1000},
 	} {
 		t.Logf("%s: %d", m.name, m.n)
 		if m.n < m.min {

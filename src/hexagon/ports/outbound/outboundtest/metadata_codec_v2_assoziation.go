@@ -1,8 +1,11 @@
 package outboundtest
 
 import (
+	"errors"
 	"fmt"
+	"runtime"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -116,28 +119,116 @@ func zeileV2N2(t *testing.T, neu CodecNeu) {
 	}
 }
 
-func faelleV2N3() []fall {
-	var out []fall
-	ends := func(m0, m1 string) string {
-		return `<Association Name="R"><End Type="Ns.A" Role="F" Multiplicity="` + m0 + `"/><End Type="Ns.B" Role="G" Multiplicity="` + m1 + `"/></Association>`
+// multiplicitaetenV2 sind die drei gültigen Werte von Multiplicity (SPEC-171 Nr. 10 d).
+func multiplicitaetenV2() []string { return []string{"0..1", "1", "*"} }
+
+// n3Zeichenketten sind alle Zeichenketten bis zur Länge 4 aus dem Alphabet `0 1 2 * .` und Leerzeichen, die leere
+// eingeschlossen: 1 + 6 + 36 + 216 + 1296 = 1555.
+func n3Zeichenketten() []string {
+	alphabet := []string{"0", "1", "2", "*", ".", " "}
+	out, stufe := []string{""}, []string{""}
+	for range 4 {
+		var naechste []string
+		for _, s := range stufe {
+			for _, a := range alphabet {
+				naechste = append(naechste, s+a)
+			}
+		}
+		out, stufe = append(out, naechste...), naechste
 	}
+	return out
+}
+
+// n3Werte sind die ungültigen Werte von Multiplicity der Schleife von N3: alle Zeichenketten von n3Zeichenketten ohne die
+// drei gültigen (1552), dazu `many`, `0..1..*` und jeder gültige Wert mit Tab oder NBSP (Bytefolge C2 A0) davor oder
+// dahinter (12).
+func n3Werte() []string {
+	out := slices.DeleteFunc(n3Zeichenketten(), func(s string) bool { return slices.Contains(multiplicitaetenV2(), s) })
+	zusatz := []string{"many", "0..1..*"}
+	for _, v := range multiplicitaetenV2() {
+		for _, leer := range []string{"\t", "\xc2\xa0"} {
+			zusatz = append(zusatz, leer+v, v+leer)
+		}
+	}
+	return append(out, zusatz...)
+}
+
+// n3Dokument ist das Dokument mit der Association `R`, deren End die Vielfachheiten m0 und m1 tragen, mit dem Verweis
+// einer Navigation oder ohne.
+func n3Dokument(m0, m1 string, verweis bool) []byte {
+	nav := ""
+	if verweis {
+		nav = navRV2
+	}
+	return baseV2(nav, "", `<Association Name="R"><End Type="Ns.A" Role="F" Multiplicity="`+m0+`"/><End Type="Ns.B" Role="G" Multiplicity="`+m1+`"/></Association>`, "")
+}
+
+// faelleV2N3Klein sind die benannten Werte von N3 und die gültigen; sie laufen in allen Zeilen, die über alle Dokumente
+// der Suite gehen. Die Schleife über n3Werte läuft allein in N3.
+func faelleV2N3Klein() []fall {
+	var out []fall
 	for _, verweis := range []bool{false, true} {
-		nav := ""
-		if verweis {
-			nav = navRV2
-		}
 		for _, v := range []string{"", "0..*", "1..1", "*..1", "* ", "1.", "0..1 ", " 1", "2", "0", "many", "0..1..*"} {
-			out = append(out, schlecht(fmt.Sprintf("erstes End %q, Verweis %v", v, verweis), baseV2(nav, "", ends(v, "1"), ""), model.UrsacheStruktur, "Ns.R@Multiplicity"),
-				schlecht(fmt.Sprintf("zweites End %q, Verweis %v", v, verweis), baseV2(nav, "", ends("1", v), ""), model.UrsacheStruktur, "Ns.R@Multiplicity"))
+			out = append(out, schlecht(fmt.Sprintf("erstes End %q, Verweis %v", v, verweis), n3Dokument(v, "1", verweis), model.UrsacheStruktur, "Ns.R@Multiplicity"),
+				schlecht(fmt.Sprintf("zweites End %q, Verweis %v", v, verweis), n3Dokument("1", v, verweis), model.UrsacheStruktur, "Ns.R@Multiplicity"))
 		}
-		for _, v := range []string{"0..1", "1", "*"} {
-			out = append(out, gut(fmt.Sprintf("Multiplicity %s, Verweis %v", v, verweis), baseV2(nav, "", ends(v, v), "")))
+		for _, v := range multiplicitaetenV2() {
+			out = append(out, gut(fmt.Sprintf("Multiplicity %s, Verweis %v", v, verweis), n3Dokument(v, v, verweis)))
 		}
 	}
 	return out
 }
 
-func zeileV2N3(t *testing.T, neu CodecNeu) { pruefeFaelle(t, neu, faelleV2N3()) }
+// faelleV2N3 sind die Dokumente der Schleife über n3Werte: jeder Wert mal Association (referenziert oder nicht) mal
+// erstes und zweites End.
+func faelleV2N3() []fall {
+	var out []fall
+	for _, v := range n3Werte() {
+		for _, verweis := range []bool{false, true} {
+			out = append(out, schlecht(fmt.Sprintf("erstes End %q, Verweis %v", v, verweis), n3Dokument(v, "1", verweis), model.UrsacheStruktur, "Ns.R@Multiplicity"),
+				schlecht(fmt.Sprintf("zweites End %q, Verweis %v", v, verweis), n3Dokument("1", v, verweis), model.UrsacheStruktur, "Ns.R@Multiplicity"))
+		}
+	}
+	return out
+}
+
+// pruefeKompaktV2 fährt Fälle wie pruefeFall, ohne je Fall einen Unterlauf anzulegen; nach 20 Abweichungen bricht es ab.
+func pruefeKompaktV2(t *testing.T, neu CodecNeu, faelle []fall) {
+	t.Helper()
+	abweichungen := 0
+	for _, f := range faelle {
+		m, b, err := lies(neu, f)
+		var mf *model.MetadatenFehler
+		switch {
+		case f.ursache == "" && err != nil:
+			t.Errorf("%s: Fehler %v bei gültigem Dokument", f.name, err)
+		case f.ursache == "":
+			continue
+		case !errors.As(err, &mf) || mf.Ursache != f.ursache || mf.Ort != f.ort || mf.Code() != model.CodeE6004 || !errors.Is(err, model.ErrMetadatenUngueltig):
+			t.Errorf("%s: Fehler %v, erwartet %s %q", f.name, err, f.ursache, f.ort)
+		case m.Version() != "" || len(m.EntityTypes()) != 0 || b.Funde != nil:
+			t.Errorf("%s: Modell und Bericht sind keine Nullwerte", f.name)
+		default:
+			continue
+		}
+		if abweichungen++; abweichungen >= 20 {
+			t.Fatalf("%d Abweichungen, Abbruch", abweichungen)
+		}
+	}
+}
+
+// zeileV2N3: Multiplicity ist `0..1`, `1` oder `*`, jede andere Zeichenkette ist struktur am Ort der Association (SPEC-171
+// Nr. 10 d): Schleife über alle Zeichenketten bis Länge 4 aus dem Alphabet `0 1 2 * .` und Leerzeichen (1555, ohne die
+// drei gültigen 1552), über die benannten Formen, mal Association referenziert oder nicht, mal erstes und zweites End.
+// Die Regel ist eine Liste mit drei Werten; Zeichenketten ab Länge 5 und andere Zeichen prüft die Schleife nicht
+// (Negativ im Plan).
+func zeileV2N3(t *testing.T, neu CodecNeu) {
+	if n := len(n3Zeichenketten()); n != 1555 {
+		t.Fatalf("%d Zeichenketten bis Länge 4, erwartet 1555", n)
+	}
+	pruefeFaelle(t, neu, faelleV2N3Klein())
+	pruefeKompaktV2(t, neu, faelleV2N3())
+}
 
 // bindungenV2 ist das Dokument von N4: zwei Navigation-Properties an A, eine an B, zwei AssociationSet je Association in
 // gemischter Reihenfolge; erst ist der Typ, der zuerst im Dokument steht.
@@ -286,8 +377,94 @@ func faelleV2N7() []fall {
 // zeileV2N7: eine Association und eine AssociationSet haben genau zwei End mit verschiedener Rolle (SPEC-171 Nr. 10 b, c).
 func zeileV2N7(t *testing.T, neu CodecNeu) { pruefeFaelle(t, neu, faelleV2N7()) }
 
+// n8Gruppe sind die Navigation-Properties und AssociationSet einer Association `Ns.<name>` des Dokuments von N8: navs
+// Navigationen am Typ `T` und sets AssociationSet; davor und danach stehen AssociationSet vor und hinter den erzeugten.
+type n8Gruppe struct {
+	name        string
+	sets, navs  int
+	davor, nach string
+}
+
+// n8Dokument ist ein Dokument mit dem Typ `T`, dem EntitySet `S` und je Gruppe einer Association (Rollen F und G, beide
+// End vom Typ `T`), den Navigationen `n<Gruppe>_<i>` am Typ und den AssociationSet `A<Gruppe>_<i>` im Container, in der
+// Reihenfolge der Gruppen. Die Gruppe `R<k>` trägt sets mal navs Bindings.
+func n8Dokument(gruppen []n8Gruppe) []byte {
+	var navs, assocs, asets strings.Builder
+	for _, g := range gruppen {
+		assocs.WriteString(`<Association Name="` + g.name + `"><End Type="Ns.T" Role="F" Multiplicity="*"/><End Type="Ns.T" Role="G" Multiplicity="0..1"/></Association>`)
+		for i := range g.navs {
+			navs.WriteString(`<NavigationProperty Name="n` + g.name + fmt.Sprintf("_%d", i) + `" Relationship="Ns.` + g.name + `" FromRole="F" ToRole="G"/>`)
+		}
+		asets.WriteString(g.davor)
+		for i := range g.sets {
+			asets.WriteString(asetV2(fmt.Sprintf("A%s_%d", g.name, i), "Ns."+g.name, "S", "S"))
+		}
+		asets.WriteString(g.nach)
+	}
+	return []byte(edmx2(schema2("Ns", typ("T", navs.String())+assocs.String()+containerV2(setV2("S", "Ns.T")+asets.String()))))
+}
+
+// n8Fall ist ein Dokument von N8; bindings ist die erwartete Zahl bei einem gültigen Dokument, speicher verlangt, dass
+// der Aufruf höchstens n8Speicher Bytes zuweist.
+type n8Fall struct {
+	fall
+	bindings int
+	speicher bool
+}
+
+// n8Speicher ist die Obergrenze der Zuweisungen eines Aufrufs mit einem Dokument von rund 450 KiB, das ohne Grenze
+// vier Millionen Bindings (rund 400 MiB) ergäbe.
+const n8Speicher = 64 << 20
+
+// faelleV2N8 sind die Fälle der Grenze der Bindings (SPEC-171 Nr. 6, 7). `unaufloesbar` ist eine AssociationSet ohne Association.
+func faelleV2N8() []n8Fall {
+	unaufloesbar := asetV2("BAD", "Ns.Nope", "S", "S")
+	zuViele := func(name, ort string, gruppen ...n8Gruppe) n8Fall {
+		return n8Fall{fall: schlecht(name, n8Dokument(gruppen), model.UrsacheZuVieleMembers, ort)}
+	}
+	nichtAufl := func(name, ort string, gruppen ...n8Gruppe) n8Fall {
+		return n8Fall{fall: schlecht(name, n8Dokument(gruppen), model.UrsacheNichtAufloesbar, ort)}
+	}
+	gueltig := func(name string, n int, gruppen ...n8Gruppe) n8Fall {
+		return n8Fall{fall: gut(name, n8Dokument(gruppen)), bindings: n}
+	}
+	gross := zuViele("2000 AssociationSet mal 2000 Navigationen", "Ns.C/AR0_32", n8Gruppe{name: "R0", sets: 2000, navs: 2000})
+	gross.speicher = true
+	return []n8Fall{
+		gueltig("genau 65536: 256 AssociationSet mal 256 Navigationen", 65536, n8Gruppe{name: "R0", sets: 256, navs: 256}),
+		zuViele("65537: eine zweite Association zuletzt", "Ns.C/AR1_0", n8Gruppe{name: "R0", sets: 256, navs: 256}, n8Gruppe{name: "R1", sets: 1, navs: 1}),
+		zuViele("65537: die zweite Association zuerst, Ort die überschreitende AssociationSet", "Ns.C/AR1_255", n8Gruppe{name: "R0", sets: 1, navs: 1}, n8Gruppe{name: "R1", sets: 256, navs: 256}),
+		gross,
+		nichtAufl("unaufloesbare AssociationSet vor der überschreitenden", "Ns.C/BAD", n8Gruppe{name: "R0", sets: 256, navs: 256}, n8Gruppe{name: "R1", sets: 1, navs: 1, davor: unaufloesbar}),
+		zuViele("unaufloesbare AssociationSet hinter der überschreitenden", "Ns.C/AR1_0", n8Gruppe{name: "R0", sets: 256, navs: 256}, n8Gruppe{name: "R1", sets: 1, navs: 1, nach: unaufloesbar}),
+		nichtAufl("überschreitende AssociationSet mit Rolle ohne Navigation", "Ns.C/AR1_0", n8Gruppe{name: "R0", sets: 256, navs: 256},
+			n8Gruppe{name: "R1", navs: 1, davor: `<AssociationSet Name="AR1_0" Association="Ns.R1"><End Role="X" EntitySet="S"/><End Role="G" EntitySet="S"/></AssociationSet>`}),
+		gueltig("Summe über zwei Associations genau 65536", 65536, n8Gruppe{name: "R0", sets: 128, navs: 256}, n8Gruppe{name: "R1", sets: 128, navs: 256}),
+		zuViele("Summe über drei Associations 65537", "Ns.C/AR2_0", n8Gruppe{name: "R0", sets: 128, navs: 256}, n8Gruppe{name: "R1", sets: 128, navs: 256}, n8Gruppe{name: "R2", sets: 1, navs: 1}),
+	}
+}
+
+// zeileV2N8: höchstens 65 536 Bindings, die 65 537. ist zu_viele_properties am Ort der überschreitenden AssociationSet,
+// gezählt über alle Associations und vor dem Bauen; je AssociationSet erst ihre Auflösung, dann die Grenze (SPEC-171 Nr. 6,
+// 7): sechs Fälle, die nach der Zahl der Bindings, der Reihenfolge und der Auflösung schneiden (neun Dokumente).
+func zeileV2N8(t *testing.T, neu CodecNeu) {
+	faelle := faelleV2N8()
+	for _, f := range faelle {
+		var vorher, nachher runtime.MemStats
+		runtime.ReadMemStats(&vorher)
+		m, _ := pruefeFall(t, neu, f.fall)
+		runtime.ReadMemStats(&nachher)
+		if f.ursache == "" && len(m.NavigationBindings()) != f.bindings {
+			t.Errorf("%s: %d Bindings, erwartet %d", f.name, len(m.NavigationBindings()), f.bindings)
+		}
+		if zugewiesen := nachher.TotalAlloc - vorher.TotalAlloc; f.speicher && zugewiesen > n8Speicher {
+			t.Errorf("%s: %d MiB zugewiesen, erwartet höchstens %d", f.name, zugewiesen>>20, n8Speicher>>20)
+		}
+	}
+}
+
 // faelleV2N fasst die Fälle der Assoziationen zusammen, die A4, A5 und die Allaussagen mitlaufen.
 func faelleV2N() []fall {
-	out := slices.Concat(faelleV2N1(), faelleV2N2(), faelleV2N3(), faelleV2N5(), faelleV2N6(), faelleV2N7())
+	out := slices.Concat(faelleV2N1(), faelleV2N2(), faelleV2N3Klein(), faelleV2N5(), faelleV2N6(), faelleV2N7())
 	return append(out, gut("Bindings A vor B", bindungenV2(false)), gut("Bindings B vor A", bindungenV2(true)))
 }

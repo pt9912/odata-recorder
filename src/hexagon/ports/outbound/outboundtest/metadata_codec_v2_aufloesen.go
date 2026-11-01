@@ -239,9 +239,49 @@ func faelleV2D5() []fall {
 	return out
 }
 
+// d5EdmFallV2 ist ein Dokument, dessen Property `P` den ComplexType `Cx` eines Namensraums oder Alias nennt, der mit `Edm`
+// beginnt und nicht `Edm` oder `Edm.…` ist (SPEC-171 Nr. 5, 10 a); ns ist der Namensraum des Typs `T`, ctyp der
+// qualifizierte Name des ComplexType.
+type d5EdmFallV2 struct {
+	fall
+	ns, ctyp string
+}
+
+// faelleV2D5Edm sind die Namensräume (Edm2, EdmX, Edmonton, Edm_, EdmX.Inner) und Aliase (die vier ohne Punkt) der Klasse.
+func faelleV2D5Edm() []d5EdmFallV2 {
+	var out []d5EdmFallV2
+	for _, ns := range []string{"Edm2", "EdmX", "Edmonton", "Edm_", "EdmX.Inner"} {
+		doc := edmx2(schema2(ns, `<ComplexType Name="Cx"/>`+typ("T", prop("P", ns+".Cx"))))
+		out = append(out, d5EdmFallV2{gut("Namensraum "+ns, []byte(doc)), ns, ns + ".Cx"})
+	}
+	for _, al := range []string{"Edm2", "EdmX", "Edmonton", "Edm_"} {
+		doc := edmx2(schemaAlias2("Ns", al, `<ComplexType Name="Cx"/>`+typ("T", prop("P", al+".Cx"))))
+		out = append(out, d5EdmFallV2{gut("Alias "+al, []byte(doc)), "Ns", "Ns.Cx"})
+	}
+	return out
+}
+
+// zeileV2D5Edm: ein Typ aus einem Namensraum oder Alias, der mit `Edm` beginnt und nicht `Edm.` ist, löst auf und bleibt
+// mit Fund property_typ im Modell.
+func zeileV2D5Edm(t *testing.T, neu CodecNeu) {
+	faelle := faelleV2D5Edm()
+	if len(faelle) != 9 {
+		t.Errorf("%d Fälle, erwartet 9", len(faelle))
+	}
+	for _, f := range faelle {
+		m, b := pruefeFall(t, neu, f.fall)
+		e, _ := m.EntityType(f.ns + ".T")
+		funde := []model.Fund{{Art: model.FundKonstrukt, Ort: f.ctyp, Name: "ComplexType"}, {Art: model.FundPropertyTyp, Ort: f.ns + ".T/P", Name: f.ctyp}}
+		if len(e.Properties) != 2 || e.Properties[1].EdmType != f.ctyp || e.Properties[1].Unterstuetzt() || !slices.Equal(b.Funde, funde) {
+			t.Errorf("%s: Properties %+v, Funde %v, erwartet %s und %v", f.name, e.Properties, b.Funde, f.ctyp, funde)
+		}
+	}
+}
+
 // zeileV2D5: die Formen des Property-Typs (SPEC-171 Nr. 5): bekannte nicht unterstützte Namen und deklarierte Typen bleiben
 // mit Unterstuetzt() falsch und einem Fund im Modell, alles andere ist nicht_aufloesbar.
 func zeileV2D5(t *testing.T, neu CodecNeu) {
+	zeileV2D5Edm(t, neu)
 	if n := len(strings.Fields(nurV4)); n != 21 {
 		t.Fatalf("%d Namen von V4, erwartet 21", n)
 	}

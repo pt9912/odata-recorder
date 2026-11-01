@@ -78,23 +78,32 @@ func konstrukteV2(key string) []string {
 	return []string{"Foo", "Documentation"}
 }
 
-// elementV2 ist das Kindelement name mit Name `Nm` im Namensraum von EDM (oder, mit Präfix `edmx:`, von EDMX).
-func elementV2(name string) (xml, lokal string) {
+// elementV2 ist das Kindelement name mit Name `Nm` im Namensraum von EDM (oder, mit Präfix `edmx:`, von EDMX) und den
+// Attributen attrs (leer oder mit führendem Leerzeichen).
+func elementV2(name, attrs string) (xml, lokal string) {
 	if l, ok := strings.CutPrefix(name, "edmx:"); ok {
-		return `<` + l + ` xmlns="` + v2EdmxNs + `" Name="Nm"/>`, l
+		return `<` + l + ` xmlns="` + v2EdmxNs + `" Name="Nm"` + attrs + `/>`, l
 	}
-	return `<` + name + ` xmlns="` + v2EdmNs + `" Name="Nm"/>`, name
+	return `<` + name + ` xmlns="` + v2EdmNs + `" Name="Nm"` + attrs + `/>`, name
 }
 
-// g1FaelleV2 ist der Generator über Stelle (14) mal Art (konstrukt, erweiterung als Element, erweiterung als Attribut) mal
-// Name; das Orakel kommt aus den Parametern der Erzeugung (SPEC-171 Nr. 4).
+// attributeKonstruktV2 sind die Attribute, die ein gemeldetes Konstrukt in G1 trägt: zwei mit Namensraum (einer deklariert,
+// einer nicht) und zwei des Präfixes `xml`, die kein Fund sind.
+const attributeKonstruktV2 = ` xmlns:f="urn:x" f:a="1" sap:label="l" xml:lang="de" xml:space="preserve"`
+
+// g1FaelleV2 ist der Generator über Stelle (14) mal Art (konstrukt ohne und mit Attributen, erweiterung als Element,
+// erweiterung als Attribut) mal Name; das Orakel kommt aus den Parametern der Erzeugung (SPEC-171 Nr. 4).
 func g1FaelleV2() []g1Fall {
 	var out []g1Fall
 	for _, s := range stellenV2() {
 		for _, k := range konstrukteV2(s.key) {
-			xml, lokal := elementV2(k)
+			xml, lokal := elementV2(k, "")
 			out = append(out, g1Fall{fall: gut("Konstrukt "+k+" an "+s.name, doc14(map[string]string{s.key: xml}, nil)),
 				funde: []model.Fund{{Art: model.FundKonstrukt, Ort: ortKindV2(s), Name: lokal}}})
+			xml, _ = elementV2(k, attributeKonstruktV2)
+			out = append(out, g1Fall{fall: gut("Konstrukt "+k+" mit Attributen an "+s.name, doc14(map[string]string{s.key: xml}, nil)),
+				funde: []model.Fund{{Art: model.FundKonstrukt, Ort: ortKindV2(s), Name: lokal},
+					{Art: model.FundErweiterung, Ort: ortKindV2(s), Name: "{urn:x}a"}, {Art: model.FundErweiterung, Ort: ortKindV2(s), Name: "{sap}label"}}})
 		}
 		out = append(out,
 			g1Fall{fall: gut("Element fremder Namensraum an "+s.name, doc14(map[string]string{s.key: `<f:Foo xmlns:f="urn:x" Name="Nm" f:a="1" g:b="2" xml:lang="de"/>`}, nil)),
@@ -122,6 +131,8 @@ func g1Eigene() []g1Fall {
 		{gut("Documentation an Association", doc14(map[string]string{"Association": `<Documentation><Summary>s</Summary></Documentation>`}, nil)), k(model.FundKonstrukt, "Ns.R", "Documentation")},
 		{gut("OnDelete an End", doc14(map[string]string{"End": `<OnDelete Action="Cascade"/>`}, nil)), k(model.FundKonstrukt, "Ns.R", "OnDelete")},
 		{gut("FunctionImport am Container", doc14(map[string]string{"EntityContainer": `<FunctionImport Name="F" ReturnType="Edm.String"><Parameter Name="p" Type="Edm.Int32"/></FunctionImport>`}, nil)), k(model.FundKonstrukt, "Ns.C/F", "FunctionImport")},
+		{gut("FunctionImport mit m:HttpMethod am Container", doc14(map[string]string{"EntityContainer": `<FunctionImport xmlns:m="` + v2MetaNs + `" Name="F" ReturnType="Edm.String" m:HttpMethod="GET"><Parameter Name="p" Type="Edm.Int32"/></FunctionImport>`}, nil)),
+			append(k(model.FundKonstrukt, "Ns.C/F", "FunctionImport"), k(model.FundErweiterung, "Ns.C/F", "{"+v2MetaNs+"}HttpMethod")...)},
 		{gut("m:HasStream am Typ", doc14(nil, map[string]string{"EntityType": m + `m:HasStream="true"`})), k(model.FundErweiterung, "Ns.T", mHas)},
 		{gut("m:HasStream an der Property", doc14(nil, map[string]string{"Property": m + `m:HasStream="true"`})), k(model.FundErweiterung, "Ns.T/Id", mHas)},
 		{gut("sap:label an der Association", doc14(nil, map[string]string{"Association": `xmlns:sap="urn:sap" sap:label="l"`})), k(model.FundErweiterung, "Ns.R", "{urn:sap}label")},
@@ -171,7 +182,8 @@ func zeileV2G6(t *testing.T, neu CodecNeu) {
 }
 
 // zeileV2G2: was ohne Wirkung bleibt, ist nie ein Fund (SPEC-171 Nr. 4): Schleife über die acht Attribute ohne Namensraum,
-// die drei Attribute des Namensraums m, Text, Kommentar und Verarbeitungsanweisung, mal vierzehn Stellen.
+// die drei Attribute des Namensraums m, die zwei des Präfixes xml, Text, Kommentar und Verarbeitungsanweisung, mal vierzehn
+// Stellen.
 func zeileV2G2(t *testing.T, neu CodecNeu) {
 	facetten := strings.Fields("MaxLength Precision Scale Unicode FixedLength ConcurrencyMode Collation StoreGeneratedPattern")
 	meta := []string{"DataServiceVersion", "MaxDataServiceVersion", "IsDefaultEntityContainer"}
@@ -188,6 +200,9 @@ func zeileV2G2(t *testing.T, neu CodecNeu) {
 		for _, x := range []struct{ name, inhalt string }{{"Text", "text"}, {"Kommentar", "<!-- c -->"}, {"Verarbeitungsanweisung", "<?pi x?>"}} {
 			faelle = append(faelle, gut(x.name+" an "+s.name, doc14(map[string]string{s.key: x.inhalt}, nil)))
 		}
+		for _, xa := range []string{`xml:lang="de"`, `xml:space="preserve"`} {
+			faelle = append(faelle, gut(xa+" an "+s.name, doc14(nil, map[string]string{s.key: xa})))
+		}
 		for _, f := range faelle {
 			if _, b := pruefeFall(t, neu, f); len(b.Funde) != 0 {
 				t.Errorf("%s: Funde %v, erwartet keine", f.name, b.Funde)
@@ -195,8 +210,8 @@ func zeileV2G2(t *testing.T, neu CodecNeu) {
 			zaehler++
 		}
 	}
-	if zaehler != 14*14 {
-		t.Errorf("%d Fälle, erwartet %d", zaehler, 14*14)
+	if zaehler != 14*16 {
+		t.Errorf("%d Fälle, erwartet %d", zaehler, 14*16)
 	}
 }
 
@@ -218,19 +233,20 @@ func zeileV2G3(t *testing.T, neu CodecNeu) {
 }
 
 func g4DocV2() []byte {
-	return eins2(`<EntityType xmlns:x="urn:x" xmlns:m="` + v2MetaNs + `" Name="B" x:a="1" m:HasStream="true">` + schluesselID + prop("Wide", "Edm.Double") +
-		`<Documentation/><Documentation/></EntityType>` + ableitung("D1", "Ns.B", "") + ableitung("D2", "Ns.B", "") + `<ComplexType Name="Cx"/>` +
+	return eins2(`<EntityType xmlns:x="urn:x" xmlns:m="` + v2MetaNs + `" Name="B" x:a="1" m:HasStream="true">` + schluesselID + `<Property Name="Wide" Type="Edm.Double" x:b="2"/>` +
+		`<Documentation/><Documentation x:c="3"/></EntityType>` + ableitung("D1", "Ns.B", "") + ableitung("D2", "Ns.B", "") + `<ComplexType Name="Cx"/>` +
 		typ("E", prop("P", "Edm.Int64")+`<Documentation/>`))
 }
 
-// zeileV2G4: Reihenfolge des Dokuments, keine Zusammenführung, ein Element vor seinen Attributen, property_typ an der
-// Stelle seiner Property (SPEC-125 Nr. 12).
+// zeileV2G4: Reihenfolge des Dokuments, keine Zusammenführung, ein Element (ein Typ, eine Property, ein gemeldetes
+// Konstrukt) vor seinen Attributen, property_typ an der Stelle seiner Property, vor deren Attributen (SPEC-125 Nr. 12).
 func zeileV2G4(t *testing.T, neu CodecNeu) {
 	_, b := pruefeFall(t, neu, gut("G4", g4DocV2()))
 	gleich(t, "Funde", b.Funde, []model.Fund{
 		{Art: model.FundErweiterung, Ort: "Ns.B", Name: "{urn:x}a"}, {Art: model.FundErweiterung, Ort: "Ns.B", Name: "{" + v2MetaNs + "}HasStream"},
-		{Art: model.FundPropertyTyp, Ort: "Ns.B/Wide", Name: "Edm.Double"}, {Art: model.FundKonstrukt, Ort: "Ns.B", Name: "Documentation"},
-		{Art: model.FundKonstrukt, Ort: "Ns.B", Name: "Documentation"}, {Art: model.FundKonstrukt, Ort: "Ns.Cx", Name: "ComplexType"},
+		{Art: model.FundPropertyTyp, Ort: "Ns.B/Wide", Name: "Edm.Double"}, {Art: model.FundErweiterung, Ort: "Ns.B/Wide", Name: "{urn:x}b"},
+		{Art: model.FundKonstrukt, Ort: "Ns.B", Name: "Documentation"}, {Art: model.FundKonstrukt, Ort: "Ns.B", Name: "Documentation"},
+		{Art: model.FundErweiterung, Ort: "Ns.B", Name: "{urn:x}c"}, {Art: model.FundKonstrukt, Ort: "Ns.Cx", Name: "ComplexType"},
 		{Art: model.FundKonstrukt, Ort: "Ns.E", Name: "Documentation"},
 	})
 }

@@ -2,7 +2,10 @@ package outboundtest
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"slices"
 	"strings"
@@ -577,3 +580,82 @@ func faelleV2E2() []fall {
 }
 
 func zeileV2E2(t *testing.T, neu CodecNeu) { pruefeFaelle(t, neu, faelleV2E2()) }
+
+// leereReadsV2 liefert doc in Stücken von stueck Bytes und davor, zwischen den Stücken und nach dem letzten je eine Zahl
+// aufeinanderfolgender leerer Reads `0, nil`; erst dann kommt io.EOF.
+type leereReadsV2 struct {
+	doc                   []byte
+	stueck                int
+	davor, dazwischen, am int
+	pos                   int
+	luecke                int
+}
+
+func (r *leereReadsV2) Read(p []byte) (int, error) {
+	switch {
+	case r.davor > 0:
+		r.davor--
+		return 0, nil
+	case r.luecke > 0:
+		r.luecke--
+		return 0, nil
+	case r.pos >= len(r.doc) && r.am > 0:
+		r.am--
+		return 0, nil
+	case r.pos >= len(r.doc):
+		return 0, io.EOF
+	}
+	ende := min((r.pos/r.stueck+1)*r.stueck, len(r.doc))
+	n := copy(p, r.doc[r.pos:ende])
+	r.pos += n
+	if r.pos%r.stueck == 0 && r.pos < len(r.doc) {
+		r.luecke = r.dazwischen
+	}
+	if r.pos >= len(r.doc) {
+		r.luecke = 0
+	}
+	return n, nil
+}
+
+// a6FallV2 ist eine Zahl leerer Reads davor, zwischen den Stücken und danach.
+type a6FallV2 struct{ davor, dazwischen, danach int }
+
+// ok sagt, ob der Fall das Modell ergibt: höchstens 99 aufeinanderfolgende leere Reads (SPEC-125 Nr. 2).
+func (f a6FallV2) ok() bool { return f.davor < 100 && f.dazwischen < 100 && f.danach < 100 }
+
+// a6FaelleV2 ist die Menge der Zahlen 0, 1, 99 und 100 leerer Reads davor und zwischen den Stücken, 0, 99 und 100 danach.
+func a6FaelleV2() []a6FallV2 {
+	var out []a6FallV2
+	for _, davor := range []int{0, 1, 99, 100} {
+		for _, dazwischen := range []int{0, 1, 99, 100} {
+			for _, danach := range []int{0, 99, 100} {
+				out = append(out, a6FallV2{davor, dazwischen, danach})
+			}
+		}
+	}
+	return out
+}
+
+// zeileV2A6: einzelne leere Reads ändern nichts, ab 100 aufeinanderfolgenden endet das Lesen mit io.ErrNoProgress, wie ein
+// Fehler von src (SPEC-125 Nr. 2): Schleife über 0, 1, 99 und 100 leere Reads davor und zwischen den Stücken des
+// Dokuments und 0, 99, 100 danach (48 Fälle); bis 99 gleicht das Ergebnis dem Lesen ohne leere Reads, bei 100 ist der Fehler
+// über errors.Is io.ErrNoProgress, kein MetadatenFehler, und Modell und Bericht sind Nullwerte.
+func zeileV2A6(t *testing.T, neu CodecNeu) {
+	doc := festesV2(t, "v2_referenz.xml")
+	soll := ergebnis(lies(neu, gut("ohne leere Reads", doc)))
+	for _, f := range a6FaelleV2() {
+		rd := &leereReadsV2{doc: doc, stueck: 300, davor: f.davor, dazwischen: f.dazwischen, am: f.danach}
+		m, b, err := neu.aufruf(context.Background(), rd, 1<<20)
+		var mf *model.MetadatenFehler
+		switch {
+		case f.ok():
+			if got := ergebnis(m, b, err); got != soll {
+				t.Errorf("%+v: Ergebnis weicht vom Lesen ohne leere Reads ab: %v", f, err)
+			}
+		case !errors.Is(err, io.ErrNoProgress) || errors.As(err, &mf):
+			t.Errorf("%+v: Fehler %v, erwartet io.ErrNoProgress ohne MetadatenFehler", f, err)
+		default:
+			nullwerte(t, m, b)
+		}
+	}
+}

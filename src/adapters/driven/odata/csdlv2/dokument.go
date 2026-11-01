@@ -144,6 +144,10 @@ type dokument struct {
 	assocs     map[string]*rawAssoc
 	deklariert map[string]bool
 	container  *rawContainer
+	// navs sind die Navigation-Properties je Association in der Reihenfolge des Dokuments; bindungen ist die laufende
+	// Zahl der Bindings, die das Auflösen der AssociationSet gezählt hat.
+	navs      map[*rawAssoc][]*member
+	bindungen int
 }
 
 func neuesDokument() dokument {

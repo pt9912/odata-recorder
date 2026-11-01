@@ -22,6 +22,7 @@ const (
 	maxTiefe      = 64
 	maxKette      = 64
 	maxMembers    = 65536
+	maxBindings   = 65536
 	maxName       = 128
 	maxNamensraum = 256
 )

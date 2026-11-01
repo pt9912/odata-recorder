@@ -187,6 +187,7 @@ func (d *dokument) containerAufloesen() error {
 	if c == nil {
 		return nil
 	}
+	d.navs = d.navigationenJeAssociation()
 	for _, k := range c.reihe {
 		if k.aset != nil {
 			if err := d.assocSetAufloesen(k.aset); err != nil {
@@ -204,7 +205,7 @@ func (d *dokument) containerAufloesen() error {
 }
 
 // assocSetAufloesen ist Nr. 10 f: die Association, die EntitySet beider End und, sobald eine Navigation auf die
-// Association verweist, ihre Rollen.
+// Association verweist, ihre Rollen; danach die Grenze der Bindings (Nr. 6), bevor eines gebaut ist.
 func (d *dokument) assocSetAufloesen(s *rawAssocSet) error {
 	a, ok := d.assocRef(s.assoc)
 	if !ok {
@@ -215,24 +216,29 @@ func (d *dokument) assocSetAufloesen(s *rawAssocSet) error {
 			return nichtAufloesbar(s.ort)
 		}
 	}
-	for _, m := range d.navigationen(a) {
+	for _, m := range d.navs[a] {
 		_, hatVon := s.set(m.von)
 		_, hatNach := s.set(m.nach)
 		if !hatVon || !hatNach {
 			return nichtAufloesbar(s.ort)
 		}
 	}
+	d.bindungen += len(d.navs[a])
+	if d.bindungen > maxBindings {
+		return fehler(model.UrsacheZuVieleMembers, s.ort)
+	}
 	s.ziel = a
 	return nil
 }
 
-// navigationen liefert die Navigation-Properties aller Typen, die auf a verweisen, in der Reihenfolge des Dokuments.
-func (d *dokument) navigationen(a *rawAssoc) []*member {
-	var out []*member
+// navigationenJeAssociation sammelt die Navigation-Properties aller Typen nach der Association, auf die sie verweisen,
+// in der Reihenfolge des Dokuments.
+func (d *dokument) navigationenJeAssociation() map[*rawAssoc][]*member {
+	out := map[*rawAssoc][]*member{}
 	for _, t := range d.typen {
 		for _, m := range t.members {
-			if m.nav && m.assoc == a {
-				out = append(out, m)
+			if m.nav {
+				out[m.assoc] = append(out[m.assoc], m)
 			}
 		}
 	}
@@ -313,7 +319,7 @@ func (d *dokument) modell() model.ServiceModel {
 // Set aus dem End der Rolle FromRole, Pfad der Name der Navigation, Ziel aus dem End der Rolle ToRole.
 func (d *dokument) bindings(s *rawAssocSet) []model.NavigationBinding {
 	var out []model.NavigationBinding
-	for _, m := range d.navigationen(s.ziel) {
+	for _, m := range d.navs[s.ziel] {
 		von, _ := s.set(m.von)
 		nach, _ := s.set(m.nach)
 		out = append(out, model.NavigationBinding{Set: von, Path: m.name, Target: d.container.qn + "/" + nach})
