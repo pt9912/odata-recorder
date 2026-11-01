@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -99,12 +100,25 @@ func TestStartReihenfolge(t *testing.T) {
 			if got := nurStart(h.p.liste()); !slices.Equal(got, erwartet[modus]) {
 				t.Errorf("Reihenfolge %v, erwartet %v", got, erwartet[modus])
 			}
+			// Der Eintrag „bereit“ (SPEC-139 Nr. 8) trägt Modus und die Adresse des gebundenen Listeners.
+			soll := map[string]string{"level": "INFO", "msg": "start: bereit", "mode": modus, "listen": h.listener[0].Addr().String()}
+			var bereit []map[string]string
+			for _, z := range logZeilen(t, stderr) {
+				if z["msg"] == "start: bereit" {
+					bereit = append(bereit, z)
+				}
+			}
+			if len(bereit) != 1 || !maps.Equal(bereit[0], soll) {
+				t.Errorf("Logeinträge „bereit“ %v, erwartet %v", bereit, soll)
+			}
 		})
 	}
 }
 
 // TestAbbruchInJederPhase fängt S2: Menge Schritt {Ablage, Wartung, Service anlegen, erste Session, Listener}
-// × Ort {vor dem Schritt, im Schritt} × Modus (erste Session nur in record) = 10 + 8 = 18.
+// × Ort {vor dem Schritt, im Schritt, im Schritt mit umhülltem Kontextfehler} × Modus (erste Session nur
+// in record) = 10 + 8 + 9 = 27; der umhüllte Kontextfehler (errors.Is findet ihn, == nicht) hat nur einen
+// Sinn im Schritt, vor dem Schritt liefert kein Aufruf einen Fehler.
 func TestAbbruchInJederPhase(t *testing.T) {
 	schritte := map[string][]string{
 		modusRecord: {pAblage, pWartung, pDienst, pSession, pListen},
@@ -114,13 +128,14 @@ func TestAbbruchInJederPhase(t *testing.T) {
 	n := 0
 	for _, modus := range modi() {
 		for i, schritt := range schritte[modus] {
-			for _, ort := range []string{"vor", "in"} {
+			for _, ortForm := range []string{"vor", "in", "in/umhuellt"} {
 				n++
-				t.Run(modus+"/"+schritt+"/"+ort, func(t *testing.T) {
+				ort, umhuellt := strings.CutSuffix(ortForm, "/umhuellt")
+				t.Run(modus+"/"+schritt+"/"+ortForm, func(t *testing.T) {
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
 					h := neuHaken()
-					h.abbrechen = cancel
+					h.abbrechen, h.umhuellt = cancel, umhuellt
 					var erwartet []string
 					for j, s := range schritte[modus] {
 						if j < i || (ort == "in" && j == i) {
@@ -156,8 +171,61 @@ func TestAbbruchInJederPhase(t *testing.T) {
 			}
 		}
 	}
-	if n != 18 {
-		t.Errorf("Menge hat %d Elemente, erwartet 18", n)
+	if n != 27 {
+		t.Errorf("Menge hat %d Elemente, erwartet 27", n)
+	}
+}
+
+// TestKontextFehlerUmhuellt fängt SPEC-138 Nr. 8 f an den Stellen, die einen Fehler gegen den Kontextfehler
+// halten und nicht in TestAbbruchInJederPhase liegen. Menge 1: Quelle im Herunterfahren {CloseAll nur in
+// record, Schliessen, Ablage schließen} × Modus × Form {blank, umhüllt}, ctx abgebrochen = 10: Rückgabe 0,
+// keine Meldung (abschluss vergleicht mit errors.Is). Menge 2: Fehler des Listeners {Canceled,
+// DeadlineExceeded} × Form {blank, umhüllt}, ctx offen = 4: der Fehler ist nicht „Adresse nicht bindbar“
+// (kontextFehler vergleicht mit errors.Is und kennt beide), Rückgabe 1 mit der Zeile ohne Abbildung.
+func TestKontextFehlerUmhuellt(t *testing.T) {
+	formen := map[string]func(error) error{
+		"blank":    func(e error) error { return e },
+		"umhuellt": func(e error) error { return fmt.Errorf("schritt: %w", e) },
+	}
+	quellen := map[string][]string{modusRecord: {pCloseAll, pSchliessen, pAblageZu}, modusReplay: {pSchliessen, pAblageZu}}
+	n := 0
+	for _, modus := range modi() {
+		for _, quelle := range quellen[modus] {
+			for form, bilde := range formen {
+				n++
+				t.Run("Herunterfahren/"+modus+"/"+quelle+"/"+form, func(t *testing.T) {
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+					h := neuHaken()
+					h.fehlerIn = map[string]error{quelle: bilde(context.Canceled)}
+					code, stderr := fahre(ctx, t, cancel, umgebungFuer(t, modus, 1), h)
+					if zeilen := meldungsZeilen(stderr); code != 0 || len(zeilen) != 0 {
+						t.Errorf("Rückgabe %d, Meldungen %q", code, zeilen)
+					}
+					if h.p.zaehle(pAblageZu) != 1 {
+						t.Errorf("Ablage %d-mal geschlossen", h.p.zaehle(pAblageZu))
+					}
+				})
+			}
+		}
+	}
+	for name, fehler := range map[string]error{"Canceled": context.Canceled, "DeadlineExceeded": context.DeadlineExceeded} {
+		for form, bilde := range formen {
+			n++
+			t.Run("Listener/"+name+"/"+form, func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				h := neuHaken()
+				h.fehlerIn = map[string]error{pListen: bilde(fehler)}
+				code, stderr := fahre(ctx, t, cancel, umgebungFuer(t, modusRecord, 1), h)
+				if zeilen := meldungsZeilen(stderr); code != 1 || !slices.Equal(zeilen, []string{"ODR-E9001: Internal error"}) {
+					t.Errorf("Rückgabe %d, Meldungen %q", code, zeilen)
+				}
+			})
+		}
+	}
+	if n != 14 {
+		t.Errorf("Menge hat %d Elemente, erwartet 14", n)
 	}
 }
 
@@ -355,8 +423,9 @@ func TestWarte(t *testing.T) {
 // Hochfahrens, Ausfall von Serve, CloseAll, Fehlgeschlagen, Schliessen, Ablage schließen}, die Zeilen
 // verschieden je Quelle (Serve und Fehlgeschlagen tragen beide ODR-E9001, das Paar zählt die Zeilen).
 // Hochfahren schlägt am Listener fehl; mit Serve und mit Schliessen ist es nicht kombinierbar, weil
-// dann kein Server gebunden ist. Ohne Serve steht die Reihenfolge der Schritte; die Stelle des Ausfalls
-// von Serve in der Folge der Zeilen ist offen (Plan §6), das Paar mit Serve vergleicht als Menge.
+// dann kein Server gebunden ist. Die Zeilen stehen in der Reihenfolge der Schritte, die Zeile des Ausfalls
+// von Serve zuletzt, hinter allen Zeilen des Herunterfahrens (SPEC-139 Nr. 8); beim Paar von Serve und
+// Fehlgeschlagen sind beide Zeilen gleich, die Reihenfolge dort nicht zu unterscheiden.
 func TestStartFehlerPaare(t *testing.T) {
 	zeileZu := func(c model.Code) string { return c.String() + ": " + c.Message() }
 	mitCode := func(c model.Code) error { return &inbound.Fehler{Code: c, Status: 500, Ursache: errPhase} }
@@ -392,11 +461,10 @@ func TestStartFehlerPaare(t *testing.T) {
 				b.setze(h)
 				code, stderr := fahre(ctx, t, cancel, umgebungFuer(t, modusRecord, 1), h)
 				erwartet := []string{a.zeile, b.zeile}
-				zeilen := meldungsZeilen(stderr)
-				if a.name == "Serve" || b.name == "Serve" {
-					slices.Sort(erwartet)
-					slices.Sort(zeilen)
+				if a.name == "Serve" {
+					erwartet = []string{b.zeile, a.zeile}
 				}
+				zeilen := meldungsZeilen(stderr)
 				if code != 1 || !slices.Equal(zeilen, erwartet) {
 					t.Errorf("Rückgabe %d, Meldungen %q, erwartet %q", code, zeilen, erwartet)
 				}
@@ -443,19 +511,22 @@ func TestPruefenUndWarnung(t *testing.T) {
 				if (modus == modusRecord) != (h.upstream != nil) || (h.upstream != nil && h.upstream.Pruefen == skip) {
 					t.Errorf("upstream %+v bei skip=%v im Modus %s", h.upstream, skip, modus)
 				}
-				warnungen := 0
-				for _, l := range strings.Split(stderr, "\n") {
-					if strings.Contains(l, "ereignis=tls_pruefung_aus") && strings.Contains(l, "level=WARN") &&
-						strings.Contains(l, `msg="start: Zertifikatsprüfung zum Upstream abgeschaltet"`) {
-						warnungen++
+				// Jeder Eintrag der Stufe WARN und jeder mit einem Ereignis ist genau der feste Eintrag (SPEC-139
+				// Nr. 9), ganz, mit allen Attributen, und er steht nur im einen Fall.
+				var auffaellig []map[string]string
+				for _, z := range logZeilen(t, stderr) {
+					if z["level"] == "WARN" || z["ereignis"] != "" {
+						auffaellig = append(auffaellig, z)
 					}
 				}
-				soll := 0
+				var soll []map[string]string
 				if skip && modus == modusRecord {
-					soll = 1
+					soll = append(soll, map[string]string{
+						"level": "WARN", "msg": "start: Zertifikatsprüfung zum Upstream abgeschaltet", "ereignis": "tls_pruefung_aus",
+					})
 				}
-				if warnungen != soll || strings.Count(stderr, "tls_pruefung_aus") != soll {
-					t.Errorf("%d Warnungen, erwartet %d:\n%s", warnungen, soll, stderr)
+				if !slices.EqualFunc(auffaellig, soll, maps.Equal) {
+					t.Errorf("Einträge %v, erwartet %v:\n%s", auffaellig, soll, stderr)
 				}
 			})
 		}

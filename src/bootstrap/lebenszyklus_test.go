@@ -46,55 +46,98 @@ func ohneServe(ev []string) []string {
 }
 
 // TestHerunterfahrenReihenfolge fängt B5: Modus {record, replay} × Aufruf {einmal, zweimal nacheinander,
-// zweimal gleichzeitig}; dazu jede Quelle eines Fehlers {CloseAll, Fehlgeschlagen, Schliessen, Ablage}.
+// zweimal gleichzeitig} × Wert {nil, Fehler} = 12, jeder Aufruf liefert denselben Wert wie der erste
+// (bei Fehler dieselben Quellen {CloseAll nur in record, Schliessen, Ablage}); dazu jede Quelle eines
+// Fehlers {CloseAll, Fehlgeschlagen, Schliessen, Ablage}.
 func TestHerunterfahrenReihenfolge(t *testing.T) {
 	erwartet := map[string][]string{
 		modusRecord: {"anhalten", pCloseAll, pSchliessen, "serve-ende", pAblageZu},
 		modusReplay: {"anhalten", pSchliessen, "serve-ende", pAblageZu},
 	}
+	n := 0
 	for _, modus := range modi() {
 		for _, aufruf := range []string{"einmal", "nacheinander", "gleichzeitig"} {
-			t.Run(modus+"/"+aufruf, func(t *testing.T) {
-				p := &protokoll{}
-				srv := &fakeServer{stop: make(chan struct{})}
-				s := &fakeSessions{}
-				h := literal(modus, time.Second, supporttest.NewFestUhr(time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)), p, s, srv, nil)
-				gibFrei(p, srv)
-				// ctx ist abgebrochen: das Herunterfahren läuft unabhängig davon (SPEC-138 Nr. 8 b).
-				ctx, cancel := context.WithCancel(context.Background())
-				cancel()
-				ergebnisse := make([]error, 2)
-				switch aufruf {
-				case "einmal":
-					ergebnisse = ergebnisse[:1]
-					ergebnisse[0] = h.Herunterfahren(ctx)
-				case "nacheinander":
-					ergebnisse[0], ergebnisse[1] = h.Herunterfahren(ctx), h.Herunterfahren(ctx)
-				case "gleichzeitig":
-					var wg sync.WaitGroup
-					for i := range ergebnisse {
-						wg.Add(1)
-						go func() {
-							defer wg.Done()
-							ergebnisse[i] = h.Herunterfahren(ctx)
-						}()
-					}
-					wg.Wait()
-				}
-				for _, err := range ergebnisse {
-					if err != nil {
-						t.Errorf("Fehler %v", err)
-					}
-				}
-				if got := ohneServe(p.liste()); !slices.Equal(got, erwartet[modus]) {
-					t.Errorf("Ereignisse %v, erwartet %v", got, erwartet[modus])
-				}
-				if modus == modusRecord && s.ctxBeiCloseAll() != nil {
-					t.Errorf("CloseAll erhielt den abgebrochenen Kontext: %v", s.ctxBeiCloseAll())
-				}
-			})
+			for _, wert := range []string{"nil", "Fehler"} {
+				n++
+				t.Run(modus+"/"+aufruf+"/"+wert, func(t *testing.T) {
+					herunterfahrenAufruf(t, modus, aufruf, wert == "Fehler", erwartet[modus])
+				})
+			}
 		}
 	}
+	if n != 12 {
+		t.Errorf("Menge hat %d Elemente, erwartet 12", n)
+	}
+	herunterfahrenQuellen(t, erwartet[modusRecord])
+}
+
+// herunterfahrenAufruf ruft Herunterfahren so oft, wie aufruf sagt, und hält die Ergebnisse gegen den
+// Wert: nil, oder ein Fehler, der jede Quelle nennt und bei jedem Aufruf derselbe ist.
+func herunterfahrenAufruf(t *testing.T, modus, aufruf string, mitFehler bool, soll []string) {
+	p := &protokoll{}
+	srv := &fakeServer{stop: make(chan struct{})}
+	s := &fakeSessions{}
+	var ablage error
+	quellen := []error(nil)
+	if mitFehler {
+		ablage, srv.fehler = io.ErrClosedPipe, httpodata.ErrFristAbgelaufen
+		quellen = []error{io.ErrClosedPipe, httpodata.ErrFristAbgelaufen}
+		if modus == modusRecord {
+			s.fehler = errPhase
+			quellen = append(quellen, errPhase)
+		}
+	}
+	h := literal(modus, time.Second, supporttest.NewFestUhr(time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)), p, s, srv, ablage)
+	gibFrei(p, srv)
+	// ctx ist abgebrochen und trägt einen Wert: das Herunterfahren läuft unabhängig vom Abbruch (SPEC-138
+	// Nr. 8 b) und behält die Werte des Aufrufers.
+	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), ctxMarke{}, "herunterfahren"))
+	cancel()
+	ergebnisse := make([]error, 2)
+	switch aufruf {
+	case "einmal":
+		ergebnisse = ergebnisse[:1]
+		ergebnisse[0] = h.Herunterfahren(ctx)
+	case "nacheinander":
+		ergebnisse[0], ergebnisse[1] = h.Herunterfahren(ctx), h.Herunterfahren(ctx)
+	case "gleichzeitig":
+		var wg sync.WaitGroup
+		for i := range ergebnisse {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				ergebnisse[i] = h.Herunterfahren(ctx)
+			}()
+		}
+		wg.Wait()
+	}
+	for i, err := range ergebnisse {
+		if !mitFehler && err != nil {
+			t.Errorf("Aufruf %d: Fehler %v", i, err)
+		}
+		for _, q := range quellen {
+			if !errors.Is(err, q) {
+				t.Errorf("Aufruf %d: Ergebnis %v nennt %v nicht", i, err, q)
+			}
+		}
+		if err != ergebnisse[0] {
+			t.Errorf("Aufruf %d liefert %v, der erste %v", i, err, ergebnisse[0])
+		}
+	}
+	if got := ohneServe(p.liste()); !slices.Equal(got, soll) {
+		t.Errorf("Ereignisse %v, erwartet %v", got, soll)
+	}
+	if modus == modusRecord && s.ctxBeiCloseAll() != nil {
+		t.Errorf("CloseAll erhielt den abgebrochenen Kontext: %v", s.ctxBeiCloseAll())
+	}
+	if modus == modusRecord && s.wertBeiCloseAll() != "herunterfahren" {
+		t.Errorf("CloseAll erhielt nicht die Werte des Kontexts (Wert %v)", s.wertBeiCloseAll())
+	}
+}
+
+func herunterfahrenQuellen(t *testing.T, soll []string) {
+	t.Helper()
+	erwartet := map[string][]string{modusRecord: soll}
 
 	quellen := []struct {
 		name   string

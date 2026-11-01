@@ -9,9 +9,11 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -113,21 +115,25 @@ func TestDiensteAnlegen(t *testing.T) {
 					t.Fatalf("Hochfahren: %v, erwartet %q", err, f.zeile)
 				}
 			}
-			// Je abweichendem Feld genau ein Logeintrag mit allen vier Teilen (SPEC-139 Nr. 8 c).
-			eintraege := 0
-			for _, l := range strings.Split(logPuffer.String(), "\n") {
-				if !strings.Contains(l, "ereignis=dienst_abweichend") {
-					continue
-				}
-				eintraege++
-				for _, s := range []string{"error_code=ODR-E2001", "service_id=a", "level=ERROR", `msg="start: gespeicherter Service weicht von der Konfiguration ab"`} {
-					if !strings.Contains(l, s) {
-						t.Errorf("Logeintrag ohne %q: %s", s, l)
-					}
+			// Je abweichendem Feld genau ein Logeintrag mit allen Attributen, ganz und mit den festen Werten
+			// (SPEC-139 Nr. 8 c); jeder Eintrag der Stufe ERROR oder mit einem Ereignis zählt.
+			soll := map[string]string{
+				"level": "ERROR", "msg": "start: gespeicherter Service weicht von der Konfiguration ab",
+				"ereignis": "dienst_abweichend", "error_code": "ODR-E2001", "service_id": "a",
+			}
+			var eintraege []map[string]string
+			for _, z := range logZeilen(t, logPuffer.String()) {
+				if z["level"] == "ERROR" || z["ereignis"] != "" {
+					eintraege = append(eintraege, z)
 				}
 			}
-			if eintraege != f.logs {
-				t.Errorf("%d Logeinträge, erwartet %d:\n%s", eintraege, f.logs, logPuffer.String())
+			if len(eintraege) != f.logs {
+				t.Errorf("%d Logeinträge, erwartet %d:\n%s", len(eintraege), f.logs, logPuffer.String())
+			}
+			for _, e := range eintraege {
+				if !maps.Equal(e, soll) {
+					t.Errorf("Logeintrag %v, erwartet %v", e, soll)
+				}
 			}
 			if err := h.Herunterfahren(ctx); err != nil {
 				t.Fatal(err)
@@ -697,5 +703,139 @@ func TestAufrufstellen(t *testing.T) {
 				t.Errorf("Listen mit Netz %q und Adresse %q, erwartet tcp und %q", h.listenNetz, h.listenAdr, k.Listen)
 			}
 		})
+	}
+}
+
+// TestAblageFehler fängt B8 für den Fehler der Ablage (SPEC-139 Nr. 2, SPEC-109 Nr. 5): Build gibt ihn
+// unverändert zurück (errors.Is findet die Quelle), und die Meldung ist der Code seiner Abbildung, nie
+// ODR-E9001. Menge 1: echte Ablage {DATA_DIR fehlt, DATA_DIR ist eine Datei, odata-recorder.db ist ein
+// Verzeichnis, Datei beschädigt} im Modus record. Menge 2: Fehler der Ablage, den der Haken liefert, {roh,
+// umhüllt} × Quelle {ErrBeschaedigt (ODR-E3001), ErrPfad (ODR-E2001)} × Modus × Zugang {Build, Start}; die
+// Quellen haben nie ODR-E9001 als Abbildung, daher unterscheidet jeder Fall einen verflachten Fehler.
+func TestAblageFehler(t *testing.T) {
+	ctx := context.Background()
+	zeile := func(c model.Code) string { return c.String() + ": " + c.Message() }
+	echte := []struct {
+		name   string
+		richte func(t *testing.T, dir string) string
+		quelle error
+		code   model.Code
+	}{
+		{"DATA_DIR fehlt", func(_ *testing.T, dir string) string { return filepath.Join(dir, "fehlt") }, outbound.ErrPfad, model.CodeE2001},
+		{"DATA_DIR ist eine Datei", func(t *testing.T, dir string) string {
+			p := filepath.Join(dir, "datei")
+			if err := os.WriteFile(p, nil, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			return p
+		}, outbound.ErrPfad, model.CodeE2001},
+		{"db ist ein Verzeichnis", func(t *testing.T, dir string) string {
+			if err := os.Mkdir(filepath.Join(dir, dateiDB), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			return dir
+		}, outbound.ErrPfad, model.CodeE2001},
+		{"Datei beschädigt", func(t *testing.T, dir string) string {
+			if err := os.WriteFile(filepath.Join(dir, dateiDB), []byte("keine SQLite-Datenbank, aber lang genug fuer einen Kopf"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			return dir
+		}, outbound.ErrBeschaedigt, model.CodeE3001},
+	}
+	for _, f := range echte {
+		t.Run("echt/"+f.name, func(t *testing.T) {
+			dir := f.richte(t, t.TempDir())
+			_, err := bootstrap.BuildMit(ctx, basisKonfig(dir, modusRecord, dienstA("http://127.0.0.1:9/a")), nil, bootstrap.StandardBauteile())
+			if !errors.Is(err, f.quelle) || bootstrap.Meldung(err) != zeile(f.code) {
+				t.Errorf("Fehler %v (Meldung %q), erwartet %v und %q", err, bootstrap.Meldung(err), f.quelle, zeile(f.code))
+			}
+		})
+	}
+	quellen := []struct {
+		name   string
+		fehler error
+		code   model.Code
+	}{{"ErrBeschaedigt", outbound.ErrBeschaedigt, model.CodeE3001}, {"ErrPfad", outbound.ErrPfad, model.CodeE2001}}
+	formen := map[string]func(error) error{
+		"roh":      func(e error) error { return e },
+		"umhuellt": func(e error) error { return fmt.Errorf("ablage: %w", e) },
+	}
+	n := 0
+	for _, modus := range modi() {
+		for _, q := range quellen {
+			for form, bilde := range formen {
+				n += 2
+				t.Run("Build/"+modus+"/"+q.name+"/"+form, func(t *testing.T) {
+					h := neuHaken()
+					h.fehlerIn = map[string]error{pAblage: bilde(q.fehler)}
+					_, err := bootstrap.BuildMit(ctx, basisKonfig(t.TempDir(), modus, dienstA("http://127.0.0.1:9/a")), nil, h.bauteile())
+					if !errors.Is(err, q.fehler) || bootstrap.Meldung(err) != zeile(q.code) {
+						t.Errorf("Fehler %v (Meldung %q), erwartet %v und %q", err, bootstrap.Meldung(err), q.fehler, zeile(q.code))
+					}
+				})
+				t.Run("Start/"+modus+"/"+q.name+"/"+form, func(t *testing.T) {
+					h := neuHaken()
+					h.fehlerIn = map[string]error{pAblage: bilde(q.fehler)}
+					var stderr syncPuffer
+					code := bootstrap.StartMit(ctx, umgebungFuer(t, modus, 1), &stderr, h.bauteile())
+					if zeilen := meldungsZeilen(stderr.String()); code != 1 || !slices.Equal(zeilen, []string{zeile(q.code)}) {
+						t.Errorf("Rückgabe %d, Meldungen %q, erwartet %q", code, zeilen, zeile(q.code))
+					}
+				})
+			}
+		}
+	}
+	if n != 16 {
+		t.Errorf("Menge 2 hat %d Elemente, erwartet 16", n)
+	}
+}
+
+// TestLogNilVerwirft fängt SPEC-139 Nr. 1 („log nil verwirft die Einträge“): Build ohne Logger schreibt
+// nirgends hin, auch nicht in den Standard-Logger von slog; derselbe Ablauf mit dem Standard-Logger als
+// übergebenem log schreibt (der Ablauf löst den ERROR-Eintrag des abweichenden Service aus).
+func TestLogNilVerwirft(t *testing.T) {
+	ctx := context.Background()
+	var standard syncPuffer
+	vorher := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&standard, nil)))
+	t.Cleanup(func() { slog.SetDefault(vorher) })
+	abweichend := func(t *testing.T) string {
+		dir := t.TempDir()
+		db := oeffneAblage(ctx, t, dir)
+		if err := db.Metadata().Create(ctx, model.Service{ID: "a", ServiceRoot: "/x", ODataVersion: "4.0"}); err != nil {
+			t.Fatal(err)
+		}
+		_ = db.Close()
+		return dir
+	}
+	for name, log := range map[string]*slog.Logger{"übergeben": slog.Default(), "nil": nil} {
+		standard.reset()
+		_, err := lauf(ctx, t, basisKonfig(abweichend(t), modusRecord, dienstA("http://127.0.0.1:9/a")), log, bootstrap.StandardBauteile())
+		if err == nil {
+			t.Fatalf("%s: Hochfahren gelingt trotz abweichendem Service", name)
+		}
+		if got := standard.String() != ""; got != (name == "übergeben") {
+			t.Errorf("%s: Standard-Logger hat geschrieben: %v (%q)", name, got, standard.String())
+		}
+	}
+}
+
+// TestReplayTelemetrieSchreibtNirgendhin fängt SPEC-139 Nr. 3: im Modus replay erhält die Telemetrie des
+// Replay-Dienstes io.Discard, in record wird keine gebaut. Pinnt den festen Wert; ein anderes Ziel
+// (SPEC-232) ändert Zusage und Test zugleich.
+func TestReplayTelemetrieSchreibtNirgendhin(t *testing.T) {
+	for _, modus := range modi() {
+		h := neuHaken()
+		hd, err := bootstrap.BuildMit(context.Background(), basisKonfig(t.TempDir(), modus, dienstA("http://127.0.0.1:9/a")), nil, h.bauteile())
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = hd.Herunterfahren(context.Background())
+		if gebaut := h.telemetrie.Clock != nil; gebaut != (modus == modusReplay) {
+			t.Errorf("%s: Telemetrie gebaut: %v", modus, gebaut)
+		}
+		if modus == modusReplay && h.telemetrie.Writer != io.Discard {
+			t.Errorf("%s: Writer der Telemetrie %v, erwartet io.Discard", modus, h.telemetrie.Writer)
+		}
 	}
 }

@@ -7,8 +7,10 @@ import (
 	"io"
 	"net"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driven/httpupstream"
@@ -111,6 +113,8 @@ type haken struct {
 	auch      string
 	wirkung   wirkung
 	abbrechen context.CancelFunc
+	// umhuellt lässt blockiere den Kontextfehler des Aufrufs umhüllt liefern (errors.Is findet ihn, == nicht).
+	umhuellt bool
 	// abbruchServe ist der Abbruch, auf den Serve bei wartetAufAbbruch wartet (ctx.Done()).
 	abbruchServe <-chan struct{}
 
@@ -189,6 +193,9 @@ func (h *haken) wirke(ctx context.Context, phase string) error {
 		h.abbrechen()
 		select {
 		case <-ctx.Done():
+			if h.umhuellt {
+				return fmt.Errorf("schritt %s: %w", phase, ctx.Err())
+			}
 			return ctx.Err()
 		case <-time.After(2 * time.Second):
 			return errors.New("ctx des Schritts nicht abgebrochen")
@@ -387,8 +394,9 @@ type fakeSessions struct {
 	beiCloseAll func()
 
 	mu sync.Mutex
-	// ctxFehler ist ctx.Err() beim Aufruf von CloseAll.
+	// ctxFehler ist ctx.Err() und ctxWert der Wert unter ctxMarke beim Aufruf von CloseAll.
 	ctxFehler error
+	ctxWert   any
 }
 
 func (s *fakeSessions) protokoll() *protokoll {
@@ -410,7 +418,7 @@ func (s *fakeSessions) OpenInitialSession(ctx context.Context, id string) (model
 func (s *fakeSessions) CloseAll(ctx context.Context) (inbound.CloseBericht, error) {
 	s.protokoll().add(pCloseAll)
 	s.mu.Lock()
-	s.ctxFehler = ctx.Err()
+	s.ctxFehler, s.ctxWert = ctx.Err(), ctx.Value(ctxMarke{})
 	s.mu.Unlock()
 	if s.beiCloseAll != nil {
 		s.beiCloseAll()
@@ -427,6 +435,12 @@ func (s *fakeSessions) ctxBeiCloseAll() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.ctxFehler
+}
+
+func (s *fakeSessions) wertBeiCloseAll() any {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ctxWert
 }
 
 // fakeServer ist der Listener-Adapter: Serve kehrt nach Anhalten oder Schliessen zurück, bei
@@ -511,6 +525,48 @@ func (s *fakeServer) frist() []time.Duration {
 	return slices.Clone(s.fristen)
 }
 
+// logZeilen zerlegt die Zeilen des Text-Handlers von slog in Attribute (Schlüssel und Wert, Werte in
+// Anführungszeichen entquotet); die Zeit entfällt, damit ein Vergleich die Menge der Attribute
+// ganz erfasst und keine Teilfolge trifft.
+func logZeilen(t *testing.T, text string) []map[string]string {
+	t.Helper()
+	var zeilen []map[string]string
+	for _, l := range strings.Split(text, "\n") {
+		if l == "" {
+			continue
+		}
+		attr := map[string]string{}
+		for rest := l; rest != ""; {
+			i := strings.IndexByte(rest, '=')
+			if i < 0 {
+				t.Fatalf("Logzeile ohne Schlüssel=Wert: %q", l)
+			}
+			schluessel := rest[:i]
+			rest = rest[i+1:]
+			wert := ""
+			if strings.HasPrefix(rest, `"`) {
+				q, err := strconv.QuotedPrefix(rest)
+				if err != nil {
+					t.Fatalf("Logzeile mit offenem Wert: %q", l)
+				}
+				wert, _ = strconv.Unquote(q)
+				rest = rest[len(q):]
+			} else {
+				j := strings.IndexByte(rest, ' ')
+				if j < 0 {
+					j = len(rest)
+				}
+				wert, rest = rest[:j], rest[j:]
+			}
+			rest = strings.TrimPrefix(rest, " ")
+			attr[schluessel] = wert
+		}
+		delete(attr, "time")
+		zeilen = append(zeilen, attr)
+	}
+	return zeilen
+}
+
 // syncPuffer ist ein Writer, den der Test liest, während Start schreibt.
 type syncPuffer struct {
 	mu sync.Mutex
@@ -521,6 +577,12 @@ func (p *syncPuffer) Write(b []byte) (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.b.Write(b)
+}
+
+func (p *syncPuffer) reset() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.b.Reset()
 }
 
 func (p *syncPuffer) String() string {
