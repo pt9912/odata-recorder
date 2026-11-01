@@ -39,6 +39,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Nutzt:** den Referenzdienst von [slice-m2-referenzdienst](../in-progress/slice-m2-referenzdienst.md) und den Composition Root (`Build`, `Handle`) von `slice-bootstrap-m2`; `slice-m2-referenzdienst` bleibt beim Satz von M2 (Entscheidung des Users). Was der Vergleich am Referenzdienst zusätzlich braucht (Antworten mit `Content-Encoding`, mehrere Werte je Header, die Randform aus §6), bringt dieser Slice selbst mit.
 
+**Nutzt außerdem (Sendung von [slice-text-antworten](slice-text-antworten.md), `AGENTS.md` §3.13):** Der Referenzdienst trägt dann `text/plain`-Antworten (`/Products/$count` und `/Products(<Schlüssel>)/<Property>/$value`); die Antwortarten des Vergleichs (§2, ein Fall je Antwortart des Referenzdienstes) schließen sie ein, und der Vergleich entpackt nur das Coding, nicht den Typ. Ein Unterschied zwischen Direktzugriff und Proxy bei diesen Antworten ist ein Befund wie jeder andere (§6). Der Slice liegt nach `slice-text-antworten` (Reihenfolge, kein Code-Blocker).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Ergänzungen am Referenzdienst oder am M2-Test als Umfang von `slice-m2-referenzdienst` — dort bleibt der Satz von M2 (Entscheidung des Users); dieser Slice bringt, was der Vergleich braucht, selbst mit und ändert den M2-Test nicht.
@@ -65,7 +67,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Vergleichstest nach `LH-QA-07.a`: derselbe Request direkt und über den Recorder im Modus `record` an den Referenzdienst; verglichen werden Status, Body nach dem Entpacken (Kette und Codings wie `SPEC-119` Nr. 6) und die relevanten Header (ohne Hop-by-Hop, `Content-Encoding`, `Content-Length` und `VOLATILE_HEADERS`); der Client nennt in `Accept-Encoding` nur `gzip`, `deflate` und `identity`; je Antwortart des Referenzdienstes ein Fall, darunter `$metadata`, Collection, Einzel-Entity, Antwort mit `Content-Encoding`, Fehlerstatus (`LH-QA-07`, `LH-FA-01`).
+- [ ] Vergleichstest nach `LH-QA-07.a`: derselbe Request direkt und über den Recorder im Modus `record` an den Referenzdienst; verglichen werden Status, Body nach dem Entpacken (Kette und Codings wie `SPEC-119` Nr. 6) und die relevanten Header (ohne Hop-by-Hop, `Content-Encoding`, `Content-Length` und `VOLATILE_HEADERS`); der Client nennt in `Accept-Encoding` nur `gzip`, `deflate` und `identity`; je Antwortart des Referenzdienstes ein Fall, darunter `$metadata`, Collection, Einzel-Entity, `$count` und `$value` als `text/plain`, Antwort mit `Content-Encoding`, Fehlerstatus (`LH-QA-07`, `LH-FA-01`).
 - [ ] Mutationen des Vergleichs: der Proxy ändert ein Byte des Bodys, einen relevanten Header oder den Status, der Vergleich übergeht einen relevanten Header — jede färbt den Test rot; ein anderes Coding über den Proxy färbt ihn nicht (`LH-QA-07.a`).
 - [ ] Der Test läuft in der Stufe `test` (netzlos, nur Loopback) und ist damit Teil von `make test`; die Randformen aus §6 sind vor dem Code in der Spezifikation entschieden.
 - [ ] `make gates` grün.
@@ -101,7 +103,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-bootstrap-m2` und `slice-m2-referenzdienst` liegen in `done/` (Composition Root im Code; Referenzdienst und M2-Test im Code). Die Spezifikation trägt die Randformen aus §6 in `LH-QA-07.a`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12). Dieser Slice ist der letzte der Welle.
+**Start** (`next` → `in-progress`): `slice-bootstrap-m2`, `slice-m2-referenzdienst` und `slice-text-antworten` liegen in `done/` (Composition Root im Code; Referenzdienst und M2-Test im Code; Text-Antworten des Referenzdienstes im Code, Reihenfolge der Welle). Die Spezifikation trägt die Randformen aus §6 in `LH-QA-07.a`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12). Dieser Slice ist der letzte der Welle.
 
 **Größenmarke** (`AGENTS.md` §3.14): über **1400** Zeilen (Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3 unter `tests/`, Tests eingeschlossen; `<Basis>` ist der Commit, der die Randformen vor dem Code abschließt; Text der Spezifikation zählt nicht mit). Grund der Ersetzung (§3.14): Marke neu gesetzt nach §3.14 auf die vorläufige Schätzung × 1,25, aufgerundet auf volle Hundert; die ältere Marke 1100 entstand vor dem Faktor 1,25.
 
