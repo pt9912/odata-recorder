@@ -18,9 +18,10 @@ ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY go.mod go.sum* ./
 RUN go mod download && go mod verify && mkdir -p /go/pkg/mod
 
-# --- source: der Quellstand aus src/ (go.mod liegt aus deps schon da).
+# --- source: der Quellstand aus src/ und tests/ (go.mod liegt aus deps schon da).
 FROM deps AS source
 COPY src ./src
+COPY tests ./tests
 
 # --- pruefung: das Programm aus tools/pruefung trägt die Prüfungen der Stufen test, build, race und
 # handbuch (SPEC-036, SPEC-122, SPEC-200). Es wird geprüft (gofmt, vet, Test) und gebaut.
