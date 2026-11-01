@@ -4,7 +4,7 @@
 
 **Gegenstand:** Zweig `slice-http-lebenszyklus`, HEAD `22362d5` (Messpunkt nach der Fix-Runde). Commits: `ef5120a`, `047b1d6`, `8ccf424` (Implementer), `37ae9ce` (Review, F-1 bis F-17), `ac444a9`, `22362d5` (Fix-Runde). Basis des Blocks `023617994ec0`.
 
-**Quellen:** Plan `docs/plan/planning/in-progress/slice-http-lebenszyklus.md` (DoD, Tabelle L1 bis L20, Raten, Fenster W1 bis W6, Raster, §6, Marke 2700 fest); `SPEC-136` (Nr. 2, 4c, 4g, 4h, 8, 10 bis 16 mit Zusätzen und *Ungeprüft*), `SPEC-137`, `SPEC-109` Nr. 2, `SPEC-230` Nr. 8; Review `docs/reviews/2026-10-31-slice-http-lebenszyklus-review.md`; `AGENTS.md` §3.6, §3.7, §3.9 bis §3.18.
+**Quellen:** Plan `docs/plan/planning/done/slice-http-lebenszyklus.md` (DoD, Tabelle L1 bis L20, Raten, Fenster W1 bis W6, Raster, §6, Marke 2700 fest); `SPEC-136` (Nr. 2, 4c, 4g, 4h, 8, 10 bis 16 mit Zusätzen und *Ungeprüft*), `SPEC-137`, `SPEC-109` Nr. 2, `SPEC-230` Nr. 8; Review `docs/reviews/2026-10-31-slice-http-lebenszyklus-review.md`; `AGENTS.md` §3.6, §3.7, §3.9 bis §3.18.
 
 **Methode.** Den Beleg des Implementers (`make gates`) habe ich selbst gefahren, nicht übernommen. Alle weiteren Läufe: Container `odata-recorder:race` (Go 1.27.1, `--memory=4g --memory-swap=4g --cpus=4 --network none`, ein schwerer Lauf zugleich unter `flock`), Quelle als Kopie im Scratchpad `verify-lebenszyklus/` (Probe-Tests dort, nicht im Zweig), der Zweig-Worktree ist unverändert. „x von 50“ ist `go test -count=50` in **einem** Prozess; „Prozesse“ ist je ein Prozess des einmal mit `-race` gebauten Testbinaries mit `-test.count=1`. Messender: Verifier, Host unter Fremdlast.
 

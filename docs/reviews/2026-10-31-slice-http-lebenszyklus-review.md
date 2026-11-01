@@ -111,7 +111,7 @@ Sonden (Tests im Scratchpad, am Code): Sonde 1 (Accept-Fehler, dann `Anhalten`) 
 | `src/hexagon/model/` (`fehler.go`, `fehler_test.go`) | geprüft, ohne Befund (Tabelle, `fremd`, Zählung); F-15 |
 | `src/adapters/driven/telemetry/` (`telemetry_test.go`, `regeln_test.go`) | geprüft, ohne Befund (35, 39, 38 und 37, Kommentare nachgezogen) |
 | `spec/spezifikation.md` (`SPEC-136` Zusätze, `SPEC-137`, `SPEC-109` Nr. 2, `SPEC-230` Nr. 8, Historie) | Code und Wortlaut gelesen; Abweichungen F-1, F-2; F-17 |
-| `docs/plan/planning/in-progress/slice-http-lebenszyklus.md` | §3.9: Code, Tabelle, Raten, Negativ W1, Messpunkt im Commit `8ccf424`; Zahlen der Raten bestätigt bis auf F-7, F-11; Größenmarke 1161 von 2700 bestätigt |
+| `docs/plan/planning/done/slice-http-lebenszyklus.md` | §3.9: Code, Tabelle, Raten, Negativ W1, Messpunkt im Commit `8ccf424`; Zahlen der Raten bestätigt bis auf F-7, F-11; Größenmarke 1161 von 2700 bestätigt |
 | `.golangci.yml`, `.a-check.yml`, `Makefile`, `harness/` | in den Commits des Implementers unverändert; keine `//nolint`-Direktive, keine Lockerung (`AGENTS.md` §3.2, §3.6) |
 
 ## Summary
