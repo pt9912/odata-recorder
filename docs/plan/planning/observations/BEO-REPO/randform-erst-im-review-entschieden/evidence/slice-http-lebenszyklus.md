@@ -1,0 +1,2 @@
+**Vorgang:** slice-http-lebenszyklus
+**Fund:** `SPEC-136` Nr. 12 entschied den Fehler des Accept nur für das äußere Schließen; der Code entschied die Klasse „jeder Fehler des Accept“ am Ergebnis von `Close` (F-1, dann B-1), und F-2 (Verbindungen ohne Request bei `Schliessen`) hatte keinen Ort. Zusätze der Nr. 12 bis 14 sind nachgetragen, die Randformen (a) und (b) der Nr. 12 stehen weiter ohne Wortlaut (Rückgabe an den Architect). Beleg: Plan `slice-http-lebenszyklus` §6 und §7.

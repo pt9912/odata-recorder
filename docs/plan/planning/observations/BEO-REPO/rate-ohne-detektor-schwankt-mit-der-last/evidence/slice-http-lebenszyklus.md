@@ -1,0 +1,2 @@
+**Vorgang:** slice-http-lebenszyklus
+**Fund:** Raten schwanken mit dem Messenden und der Last: L16 Fall 1 47, 48 und 43 von 50; `geschlossen` nach dem Entsperren 25 von 25 laut Review, 0 von 25 beim Implementer, 2 von 25 beim Verifier; `laufend++` in der ganzen Suite 5 von 10 gegen 10 von 10. Eine Rate nannte das Review aus einer anderen Mutationsform als der Plan; der Plan hat die Zahlen mit Messendem und Form berichtigt. Beleg: Plan §3 (Raten) und §7.

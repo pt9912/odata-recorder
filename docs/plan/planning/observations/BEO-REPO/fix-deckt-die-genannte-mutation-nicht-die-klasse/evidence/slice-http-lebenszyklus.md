@@ -1,0 +1,2 @@
+**Vorgang:** slice-http-lebenszyklus
+**Fund:** Der Fix von F-1 deckte die genannte Form (Schließen von außen), nicht die Klasse „jeder Fehler des Accept“; erst die Verifikation fand B-1 (17 von 35 Elementen der Klasse rot an der Fassung vor der Fix-Runde). Die Regel `AGENTS.md` §3.17 trifft den Fix, erzwingt ihn aber nicht von selbst. Beleg: Plan §3 (Raten nach der Verifikation) und §7; Report `docs/reviews/2026-10-31-slice-http-lebenszyklus-verifikation.md`.
