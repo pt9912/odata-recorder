@@ -33,6 +33,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Die Schnittstelle der Codec-Gruppe zum Schreiben von OData-JSON (`ARC-011`, `jsoncodec`) serialisiert eine Entity und eine Collection in die OData-V4-JSON-Darstellung mit `@odata.context`, `@odata.count` und `value`, stellt die acht Typen verlustfrei dar (`Edm.Int64` ohne Float-Rundung, `Edm.Decimal` dezimal), erzeugt `Location` und `@odata.id` aus Service-Root und typisiertem Key und schreibt das Fehlerobjekt im OData-V4-Format.
 
+**Übernimmt (Sendung von `slice-v2-bootstrap`, [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) Proposed; entfällt, wenn die ADR nicht `Accepted` wird):** die Schreib-Schnittstelle liefert mit den Bytes den Darstellungskopf (Content-Type und Versionskennzeichen der Darstellung); der Schreiber der Version 4 liefert `OData-Version: 4.0` (für Version 2 steht das Gegenstück in `SPEC-172` Nr. 6 g). Den Vertrag der Schnittstelle schreibt der Architect vor dem Start dieses Slice in die Spezifikation und nimmt `Codecs` in den Vertrag von `MockUseCase` auf. Kein Ausschluss dieses Slice trifft sie.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Das Lesen von Request-Bodies — `slice-odata-json-eingabe`; sonst teilten beide Richtungen einen Mechanismus, den nur eine braucht.
