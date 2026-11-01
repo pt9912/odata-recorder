@@ -11,9 +11,9 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Welle:** [welle-odata-v2](../welle-odata-v2.md).
 
-**Bezug:** `LH-FA-17`, `LH-RB-01`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
+**Bezug:** `LH-FA-17`, `LH-RB-01`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md)
 
-**Berührte Spec-Stellen:** `LH-FA-17.a` (versionierter Adapter für V2-Metadaten, keine Vermischung von V2 und V4 in einem Service-Modell) · `LH-RB-01` (nicht Unterstütztes erscheint nie als unterstützt) · `SPEC-002` (OData-Modell) · `SPEC-125` (Vertrag des V4-Metadatenlesers als Vorbild; Nr. 6 a: ein EDMX der Versionen 1 bis 3 ist dort `version`) · `SPEC-107` Nr. 14 und 15 (`odata_version` des Service, Metadaten durch den Import) · `ARC-004`, `ARC-011` · `architecture.md` §7 (Erweiterungspunkt OData V2).
+**Berührte Spec-Stellen:** `SPEC-170` · `SPEC-171` · `SPEC-178` · `SPEC-179` · `LH-FA-17.a` (versionierter Adapter für V2-Metadaten, keine Vermischung von V2 und V4 in einem Service-Modell) · `LH-RB-01` (nicht Unterstütztes erscheint nie als unterstützt) · `SPEC-002` (OData-Modell) · `SPEC-125` (Vertrag des V4-Metadatenlesers als Vorbild; Nr. 6 a: ein EDMX der Versionen 1 bis 3 ist dort `version`) · `SPEC-107` Nr. 14 und 15 (`odata_version` des Service, Metadaten durch den Import) · `ARC-004`, `ARC-011` · `architecture.md` §7 (Erweiterungspunkt OData V2).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -31,13 +31,14 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Ein Leser für das EDMX/CSDL einer V2-Quelle (Teilumfang nach dem dokumentierten V2-Umfang des Architect) liefert das Modell des Dienstes in der Form, die die ADR für den versionierten Adapter festlegt, und einen Validierungsbericht: ausgewertet wird der Teilumfang, alles andere erscheint als Fund und nie als unterstützt (`LH-RB-01`). Das Modell trägt die Version des Dienstes (die „Version je Service“ des Slice-Titels: die Version, die das Modell nennt, nicht ihre Deklaration in der Konfiguration), und ein V2-Dokument vermischt sich nicht mit dem V4-Modell. Der V4-Leser (`csdl`) und das Verhalten eines V2-Dokuments an ihm (`ODR-E6004`, Ursache `version`) bleiben unverändert.
+**Ziel:** Ein Leser für das EDMX/CSDL einer V2-Quelle (Teilumfang nach dem dokumentierten V2-Umfang des Architect) liefert das Modell des Dienstes als `model.ServiceModel` mit `Version()` gleich `2.0` (`SPEC-171`, Paket `csdlv2`) und einen Validierungsbericht: ausgewertet wird der Teilumfang, alles andere erscheint als Fund und nie als unterstützt (`LH-RB-01`). Das Modell trägt die Version des Dienstes (die „Version je Service“ des Slice-Titels: die Version, die das Modell nennt, nicht ihre Deklaration in der Konfiguration), und ein V2-Dokument vermischt sich nicht mit dem V4-Modell. Der V4-Leser (`csdl`) und das Verhalten eines V2-Dokuments an ihm (`ODR-E6004`, Ursache `version`) bleiben unverändert.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Payload-Codec für V2 (lesen, schreiben, leeres Ergebnis) — `slice-v2-payload`.
+- Payload-Codec für V2 — `slice-v2-payload-lesen` und `slice-v2-payload-schreiben`.
 - Query-Semantik und Kompatibilitätsfehler — `slice-v2-query`.
-- Deklaration der Version eines Service in der Konfiguration, Wahl des Adapters im Composition Root und Anpassung des Imports an einen Leser je Version — `slice-v2-bootstrap` (`baselineimport.New` nimmt heute genau ein Paar von Codecs, `SPEC-127` Nr. 1; die Änderung liegt in `done/` und ist keine Adresse für diesen Slice).
+- Deklaration der Version eines Service in der Konfiguration und Wahl des Adapters im Composition Root — `slice-v2-bootstrap`.
+- Anpassung des Imports an einen Satz von Codecs je Dienst — `slice-v2-import-codecs` (der Nehmer trägt es zuerst ein, `AGENTS.md` §3.13; die Änderung am Vertrag von `SPEC-127` Nr. 1 liegt dort).
 - Vollständige Kompatibilität zu herstellerspezifischen (SAP-)Erweiterungen — Out-of-Scope von `LH-FA-17`; sie erscheinen im Bericht als Fund.
 - V2-Mutationen und ihre Metadaten — `welle-odata-v2` §6; was die Spezifikation nicht nennt, ergibt den Kompatibilitätsfehler.
 
@@ -59,7 +60,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Leser und Modell: EDMX/CSDL V2 im Teilumfang des Architect (Wurzel, Schema, Entity-Typen, Schlüssel, Properties, Assoziationen und Navigation-Properties, Container, Entity-Sets) in das Modell der V2-Seite; Namen aufgelöst; V4-Modell und V4-Leser unberührt (die Tests des V4-Lesers laufen unverändert grün).
+- [ ] Leser und Modell: EDMX/CSDL V2 im Teilumfang des Architect (Wurzel, Schema, Entity-Typen, Schlüssel, Properties, Assoziationen und Navigation-Properties, Container, Entity-Sets) in `model.ServiceModel` mit Version `2.0`; Namen aufgelöst; V4-Modell und V4-Leser unberührt (die Tests des V4-Lesers laufen unverändert grün).
 - [ ] Validierungsbericht: jedes nicht ausgewertete Konstrukt (Funktionsimporte, komplexe Typen soweit nicht im Umfang, herstellerspezifische Annotationen und Attribute, nicht unterstützte Property-Typen) ist ein Fund; nichts Unterstütztes wird verschwiegen und nichts Unterstütztes behauptet (`LH-RB-01`).
 - [ ] Verträge und Randformen eines Lesers fremder Bytes (Kodierung, Größe, Tiefe, ungültiges XML, falsche Wurzel oder Version, Verweise ohne Ziel, Wiederholung, Zerlegung des Stroms in Reads): je Zelle des Rasters ein Ort in der Spezifikation und ein Fänger; Generator über die Klasse der Dokumente.
 - [ ] `make gates` grün.
@@ -82,24 +83,14 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/model/` | update | Modell der V2-Seite, falls die ADR ein eigenes verlangt; das V4-Modell bleibt unverändert |
-| `src/hexagon/ports/outbound/` | update | Schnittstelle des Metadatenlesers je Version nach der ADR |
-| `src/adapters/driven/odata/` (neues Paket für den V2-Leser; Name nach Architect) | neu | Leser und Validierungsbericht |
-| `spec/spezifikation.md` | update | Vertrag mit Randformen und der dokumentierte V2-Umfang (Architect) |
+| `src/adapters/driven/odata/csdlv2/` | neu | Leser und Validierungsbericht (`SPEC-171`); kein eigenes Modell und kein neuer Port ([ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md)) |
 | Tests | neu | Fälle von `LH-FA-17` (Happy Path) für die Metadaten; Generator über die Klasse der Dokumente; Fixtures aus einem echten V2-Dienst |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer.
 
 - Der Leser liest fremde Bytes (ein Format, das dieses Repo nicht schreibt): die Produktcode-Erwartung des Architect ist ein fester Anteil der Schätzung (`SPEC-128`); Dokumente mit Escape-Folgen, BOM oder Rohbytes entstehen aus Bytewerten (`AGENTS.md` §3.18).
 
-**Auftrag an den Architect** (vor dem ersten Code-Commit; die Entscheidung zur Aufteilung der Ports je Version steht in der ADR zum versionierten Adapter, Status `Accepted`; Neues in der Spezifikation unter einer künftigen Nummer, die der Architect vergibt):
-
-1. **Der dokumentierte V2-Umfang** (`LH-FA-17`, Happy Path: „gemäß dokumentiertem V2-Umfang“): das Lastenheft nennt ihn nicht, die Spezifikation führt ihn nicht. Der Architect schreibt ihn vor dem Start der Welle: welche V2-Konstrukte, Typen und Optionen unterstützt sind; alle vier Slices der Welle tragen ihn.
-2. Modell der V2-Seite gegenüber `model.ServiceModel`: ein eigener Typ oder derselbe Typ mit Version `2.0` (Folge der ADR, Auftrag zur Aufteilung der Ports); wie `LH-FA-17.a` („keine Vermischung“) im Typ geprüft wird.
-3. Abbildung der V2-Konstrukte: Assoziationen und Assoziationsmengen gegenüber Navigationen mit Bindings; EDM-Typen von V2 (etwa `Edm.DateTime`, `Edm.Time`, `Edm.DateTimeOffset`) gegenüber den acht unterstützten Typen von `SPEC-049`; Schlüssel, Nullbarkeit, Vererbung.
-4. Dokument: EDMX-Wurzel und Namensräume von V1 bis V3, Datendienst-Version (`DataServiceVersion`), mehrere Schemas, Aliase; was ein V4-Dokument am V2-Leser ist.
-5. Bericht: Arten der Funde und Ort (Vorbild `SPEC-125` Nr. 7 und 12), Ursachen und Code der Fehler (bestehende oder neue, die der Architect vergibt), Grenzen mit Grund und Folge im Betrieb (Größe aus `MAX_CAPTURE_BODY`, Tiefe, Summe, Kette).
-6. Ort der Version des Dienstes (`odata_version` im Service, Version im Modell) und wer sie prüft; die Ableitung der Konfiguration trägt `slice-v2-bootstrap`.
+**Auftrag an den Architect:** erledigt ([ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md), `Accepted`). Auftrag 1 (Umfang) steht in `SPEC-170`; 2 (Modell) in [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) und `SPEC-171` Nr. 8 (derselbe Typ mit Version `2.0`); 3 (Abbildung) in `SPEC-170` Nr. 4, `SPEC-171` Nr. 5 und 6; 4 (Dokument) in `SPEC-171` Nr. 2 und 3; 5 (Bericht) in `SPEC-171` Nr. 4, 9 und `SPEC-125` Nr. 13; 6 (Ort der Version) in `SPEC-170` Nr. 1 und `SPEC-175` Nr. 1.
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; füllt der Architect mit dem Vertrag, bevor der Slice an den Reviewer übergeht):
 
@@ -119,16 +110,16 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): die ADR des Architect zum versionierten Adapter ist `Accepted`, und der dokumentierte V2-Umfang steht in der Spezifikation. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) ist `Accepted` und der V2-Umfang steht in der Spezifikation (`SPEC-170`, `SPEC-171`; beides erfüllt). Die Tabelle *Zusage · Fänger* füllt der Architect vor dem ersten Code-Commit (`AGENTS.md` §3.12).
 
-- **Code-Abhängigkeit, mit Grund:** keine auf einen offenen Slice. Der Leser steht hinter dem Port des Metadatenlesers (`MetadataCodec`, `SPEC-125`), den `slice-odata-codec-csdl` in `done/` geliefert hat, und braucht das Modell und das Fehlermodell (`done/`); den Vorgang, ob der Port je Version geteilt wird, entscheidet die ADR (Bedingung). Er ruft weder `MockUseCase` noch Workspace, Interpreter oder URL-Parser. Der Welle-Trigger (`welle-mock` in `done/`) trägt für diesen Slice nur, soweit die ADR den Port ändert, den der Mock-Kern nutzt; für den Leser selbst ist er Reihenfolge-Vorsicht (Priorisierung nach den Muss-Wellen).
-- **Was der Slice nicht braucht — und warum:** `welle-mock` und M2 (Leser und Bericht arbeiten auf Bytes und Modell; der Rundlauf über Import und Mock gehört `slice-v2-bootstrap`), `slice-v2-payload` und die späteren Slices der Welle, `welle-hybrid`, `welle-betrieb`, `welle-admin-api`, `welle-etag`, `welle-expand-batch`. Das heißt: **bedingt startbar ohne `welle-mock` und ohne M2 — die Bedingung ist die ADR im Status `Accepted` und der V2-Umfang in der Spezifikation.**
-- **Größenmarke:** noch nicht gesetzt. Der Planner setzt sie vor dem ersten Code-Commit mit `make groessenmarke` nach `SPEC-128`; die Faktoren stehen allein dort, Leser fremder Bytes haben in der Formel keinen Zuschlag mehr, die Produktcode-Erwartung des Architect (Zeile `produktcode` im Block) ist ein fester Anteil; der V4-Leser `csdl` (Zeile *csdl* in `SPEC-128` Nr. 2) ist die Messlatte für die Erwartung, nicht ihr Ersatz.
+- **Code-Abhängigkeit, mit Grund:** keine auf einen offenen Slice. Der Leser steht hinter dem Port des Metadatenlesers (`MetadataCodec`, `SPEC-125`), den `slice-odata-codec-csdl` in `done/` geliefert hat, und braucht das Modell und das Fehlermodell (`done/`); die ADR ändert den Port nicht, und das Modell ist derselbe Typ. Er ruft weder `MockUseCase` noch Workspace, Interpreter oder URL-Parser. Der Welle-Trigger (`welle-mock` in `done/`) trägt für diesen Slice nichts; er ist Reihenfolge-Vorsicht (Priorisierung nach den Muss-Wellen).
+- **Was der Slice nicht braucht — und warum:** `welle-mock` und M2 (Leser und Bericht arbeiten auf Bytes und Modell; der Rundlauf über Import und Mock gehört `slice-v2-bootstrap`), `slice-v2-payload-lesen`, `slice-v2-payload-schreiben` und die späteren Slices der Welle, `welle-hybrid`, `welle-betrieb`, `welle-admin-api`, `welle-etag`, `welle-expand-batch`. Das heißt: **startbar ohne `welle-mock` und ohne M2, sobald [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) `Accepted` ist.**
+- **Größenmarke** (`AGENTS.md` §3.14, `SPEC-128`), vorläufig aus der Grobschätzung des Architect (grob 5700 bis 6100 für *S* ohne Hebung des XML-Rahmens, gerechnet am oberen Ende): *S* ≈ 6100, Marke *M* = 100 · ⌈135·6100 / 10000⌉ = **8300**. Die Metrik ist die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über `src/adapters/driven/odata/csdlv2/` und die Tests dort, Tests eingeschlossen. Der Block nach `SPEC-128` Nr. 3 h folgt mit der Tabelle *Zusage · Fänger* des Architect (Teil des Architect: `pfad`, `produktcode`, `fakes`; Teil des Planner: `basis`, `schaetzung`, `marke`); bis dahin ist die Marke eine Prosa-Zeile und das Gate misst sie nicht. **Schnittfrage** (*S* ≥ 2223): Lesen und Auflösen des Dokuments teilen den Baum (die Namen werden im Baum gelesen und im Baum aufgelöst), ein Teil ohne geteilten Mechanismus lässt sich nicht abtrennen (Architect); der Grund steht damit hier. Der Architect darf beim Start die Hebung des versionsfreien XML-Rahmens als Vorlauf wählen ([ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) erlaubt sie, die V4-Tests bleiben unverändert); dann wird dieser Teil vor dem Code benannt und die Marke neu gesetzt.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner nach `SPEC-128` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Eine Zahl steht hier erst, wenn die Tabelle *Zusage · Fänger* vorliegt.
-- `in-progress` → `open` (blockiert — Carveout?): die ADR ist nicht `Accepted`, oder der dokumentierte V2-Umfang fehlt (Auftrag 1).
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner nach `SPEC-128` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Die Zahl der Marke steht in der Größenmarke oben.
+- `in-progress` → `open` (blockiert — Carveout?): [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) verliert den Status `Accepted`.
 
 ## 5. Closure-Trigger
 
@@ -145,7 +136,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Der dokumentierte V2-Umfang ist weder im Lastenheft noch in der Spezifikation beschrieben; ohne ihn lässt sich kein Leser abnehmen — **Ausgang:** offen; Architect (Auftrag 1), vor dem Start der Welle.
+- Der dokumentierte V2-Umfang war weder im Lastenheft noch in der Spezifikation beschrieben — **Ausgang:** entfallen: er steht in `SPEC-170`.
 - Die Menge der V2-Dokumente ist unbeschränkt (jede Bytefolge, jede Zerlegung) — **Ausgang:** offen; Generator über die Klasse mit Orakel und Zählprüfung oder Prüfgrenze als akzeptiertes Negativ mit Grund und Folge im Betrieb (`AGENTS.md` §3.17).
 - Echte V2-Dienste liefern Konstrukte, die der Umfang nicht kennt (herstellerspezifische Annotationen, Funktionsimporte); sie dürfen den Bericht füllen, nicht das Lesen brechen — **Ausgang:** offen; Fänger je Art des Fundes.
 - Das V4-Modell darf durch den Leser nicht berührt werden (`LH-FA-17.a`): die Tests von `slice-odata-codec-csdl` laufen unverändert, und ein V2-Dokument am V4-Leser bleibt `ODR-E6004` — **Ausgang:** offen; Fänger an beiden Lesern.
@@ -156,15 +147,17 @@ dasteht.
 
 | Operation | Dokument leer oder ohne Schema | falsche Wurzel oder Version (V4 am V2-Leser) | unbekannter oder nicht unterstützter Typ | fremde Erweiterung (herstellerspezifisch) | Verweis ohne Ziel, Wiederholung (doppelter Name) | über Grenze (Größe, Tiefe, Summe) | Abbruch (Kontext, Strom) |
 |---|---|---|---|---|---|---|---|
-| Lesen des Dokuments | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
-| Auflösen der Namen und Assoziationen | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
-| Bericht | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
+| Lesen des Dokuments | leer, nur Leerraum, nur BOM: `syntax`; Wurzel ohne `Schema`: gültig, leeres Modell (`SPEC-171` Nr. 1, `SPEC-125` Nr. 4) | `SPEC-171` Nr. 2 (`wurzel`, `version`) | Property bleibt im Modell, Fund `property_typ` (`SPEC-171` Nr. 4, 5) | Fund `erweiterung` (`SPEC-171` Nr. 4) | doppelter Name: `struktur` (`SPEC-171` Nr. 1, `SPEC-125` Nr. 8 e) | `SPEC-171` Nr. 1 (`SPEC-125` Nr. 5: `zu_gross`, `tiefe`, `kette`, `zu_viele_properties`) | `SPEC-171` Nr. 1 (`SPEC-125` Nr. 1, 2) |
+| Auflösen der Namen und Assoziationen | leeres Modell: nichts aufzulösen, gültig (`SPEC-171` Nr. 1) | gilt nicht: Wurzel und Version stehen vor dem Auflösen fest (`SPEC-171` Nr. 2) | nicht auflösbarer Name `nicht_aufloesbar`, Schlüsseltyp `schluesseltyp` (`SPEC-171` Nr. 5, 7) | gilt nicht: Erweiterungen werden gemeldet, nicht aufgelöst (`SPEC-171` Nr. 4) | `SPEC-171` Nr. 6 und 7 (Relationship, Rollen, Typ, Sets: `nicht_aufloesbar`; `Multiplicity`: `struktur`) | `SPEC-171` Nr. 7 (`SPEC-125` Nr. 5, 9 a, 9 b) | `SPEC-171` Nr. 1 und *Ungeprüft*: das Auflösen ist nicht abbrechbar (`SPEC-125` Nr. 1) |
+| Bericht | leere Menge, nicht `nil` (`SPEC-171` Nr. 9) | Fehler: Bericht Nullwert (`SPEC-171` Nr. 9) | Fund `property_typ` (`SPEC-171` Nr. 4) | Fund `erweiterung`, Ausnahme der drei `m:`-Attribute (`SPEC-171` Nr. 4) | gilt nicht: ein Fehler ist kein Fund (`SPEC-171` Nr. 9) | Fehler: Bericht Nullwert (`SPEC-171` Nr. 9) | Fehler: Bericht Nullwert (`SPEC-171` Nr. 9) |
 
 **Zusatztabelle** (je Paar von Verstößen am selben Dokument; `AGENTS.md` §3.16): ungültiges XML und falsche Version, Verweis ohne Ziel und nicht unterstützter Typ, Größe über der Grenze und Verstoß dahinter.
 
 | Paar oder Modus | Entscheidung (Ort) | Fänger |
 |---|---|---|
-| (Vertrag, offen) | (Vertrag, offen) | (offen) |
+| ungültiges XML und falsche Version | die Wurzel entscheidet, sobald ihr Start-Tag gelesen ist; Müll davor ist `syntax` (`SPEC-171` Nr. 2) | ein Fall je Paar im Rangfolge-Test des Lesers (Name beim Start) |
+| Verweis ohne Ziel und nicht unterstützter Typ | `nicht_aufloesbar` gewinnt; der Fund `property_typ` erscheint nicht, der Bericht ist Nullwert (`SPEC-171` Nr. 7, 9) | ein Fall je Paar |
+| Größe über der Grenze und Verstoß dahinter | `zu_gross` am Byte `grenze + 1`, davor entscheidet der Verstoß (`SPEC-171` Nr. 1, `SPEC-125` Nr. 5) | ein Fall je Paar |
 
 ## 7. Closure-Notiz
 

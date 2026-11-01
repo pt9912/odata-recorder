@@ -33,7 +33,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** `MockUseCase` (Inbound Port, Paket `src/hexagon/services/mock`) ordnet einen Request Service und Workspace zu, liefert `$metadata` aus den gespeicherten Metadaten und beantwortet Collection, Key-Lookup und `/$count` aus dem Workspace-Zustand über Parser, Coverage-Prüfung, Interpreter und Codec; die Coverage wird vor der Query-Ausführung geprüft (`ODR-E6003` bei `STRICT_COVERAGE=true`, sonst Antwort mit Header `X-Recorder-Coverage`), und ein `404` entsteht nur, wo das Nichtvorhandensein abgesichert ist.
 
-**Übernimmt (Sendung von `slice-v2-bootstrap`, [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) Proposed; entfällt, wenn die ADR nicht `Accepted` wird):** die Konfiguration von `MockUseCase` nimmt je Dienst `Codecs *outbound.CodecSatz` (URL-Leser und Schreiber) entgegen; `nil` bedeutet die V4-Implementierungen der Konfig, und der Dienst verzweigt nie nach der Version (`SPEC-175` Nr. 3; ein Feld des Satzes, das der Dienst nicht braucht, darf `nil` sein). Kein Ausschluss dieses Slice trifft sie.
+**Übernimmt (Sendung von `slice-v2-bootstrap`, [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) `Accepted`):** die Konfiguration von `MockUseCase` nimmt je Dienst `Codecs *outbound.CodecSatz` (URL-Leser und Schreiber) entgegen; `nil` bedeutet die V4-Implementierungen der Konfig, und der Dienst verzweigt nie nach der Version (`SPEC-175` Nr. 3; ein Feld des Satzes, das der Dienst nicht braucht, darf `nil` sein). Kein Ausschluss dieses Slice trifft sie.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 

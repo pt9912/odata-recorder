@@ -11,9 +11,9 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Welle:** [welle-odata-v2](../welle-odata-v2.md).
 
-**Bezug:** `LH-FA-17`, `LH-FA-12`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
+**Bezug:** `LH-FA-17`, `LH-FA-12`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md)
 
-**Berührte Spec-Stellen:** `LH-FA-17.a` (versionierter Adapter, keine Vermischung von V2 und V4) · `LH-FA-12.a` (Betriebsarten) · `SPEC-054` (`SERVICE_ROOT_PATH`, Adressierung je Service) · `SPEC-091` (`SERVICES_FILE`: heute `id`, `service_root`, `upstream_url` je Eintrag, keine Version) · `SPEC-107` Nr. 14 (der Root legt jeden Service mit der Version `4.0` an) · `SPEC-110` (Startkonfiguration) · `SPEC-127` Nr. 1 (Konfiguration des Imports) · `ARC-005`, `ARC-012` · `architecture.md` §2.5 (Modus-Routing), §7 (Erweiterungspunkt OData V2).
+**Berührte Spec-Stellen:** `SPEC-170` · `SPEC-174` · `SPEC-175` · `SPEC-176` · `SPEC-110` Nr. 2, 7, 9 · `SPEC-107` Nr. 14 · `SPEC-127` Nr. 1 · `LH-FA-17.a` (versionierter Adapter, keine Vermischung von V2 und V4) · `LH-FA-12.a` (Betriebsarten) · `SPEC-054` (`SERVICE_ROOT_PATH`, Adressierung je Service) · `SPEC-091` (`SERVICES_FILE`: heute `id`, `service_root`, `upstream_url` je Eintrag, keine Version) · `SPEC-107` Nr. 14 (der Root legt jeden Service mit der Version `4.0` an) · `SPEC-110` (Startkonfiguration) · `SPEC-127` Nr. 1 (Konfiguration des Imports) · `ARC-005`, `ARC-012` · `architecture.md` §2.5 (Modus-Routing), §7 (Erweiterungspunkt OData V2).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -35,15 +35,15 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Konfiguration und Anlage des Service):** die Angabe der Version je Service (`SERVICES_FILE` kennt heute keine, `SPEC-091`) und die Anlage mit der konfigurierten statt der festen Version (`SPEC-107` Nr. 14); die Ableitung der Version aus dem Modell trägt `slice-v2-metadaten` (Auftrag 6 dort).
 
-**Übernimmt (Handbuch zu V2):** das Kapitel zu V2 mit Beispiel gegen das gebaute Binary und den Katalogeintrag des Kompatibilitätsfehlers, soweit `slice-v2-metadaten`, `slice-v2-payload` und `slice-v2-query` sie nicht im selben Slice tragen konnten, weil ein V2-Dienst das Binary erst hier erreicht (Sendung von `slice-v2-metadaten`, `slice-v2-payload` und `slice-v2-query`, `AGENTS.md` §3.13).
+**Übernimmt (Handbuch zu V2):** das Kapitel zu V2 mit Beispiel gegen das gebaute Binary und den Katalogeintrag des Kompatibilitätsfehlers, soweit `slice-v2-metadaten`, `slice-v2-payload-lesen`, `slice-v2-payload-schreiben` und `slice-v2-query` sie nicht im selben Slice tragen konnten, weil ein V2-Dienst das Binary erst hier erreicht (Sendung dieser Slices, `AGENTS.md` §3.13); den Eintrag von `ODR-E6006` trägt `slice-v2-query`, wenn `slice-handbuch-meldungskatalog` vorher in `done/` liegt, sonst dieser Slice.
 
-**Übernimmt (Import je Version):** Die Anpassung des Imports an einen Codec je Version — `baselineimport.New` nimmt genau ein Paar von Codecs, die Auswahl der Antworten (`SPEC-127` Nr. 8) und die Ketten über Folgelinks (Nr. 12) sind V4-Regeln — entscheidet der Architect in der ADR; verlangt sie eine Änderung an Verträgen in `done/`, legt der Planner dafür vor diesem Slice einen eigenen an (§6), und dieser Slice trägt nur die Verdrahtung.
+**Import je Version:** entschieden in `SPEC-175` Nr. 4 (derselbe Importer, Satz je Dienst). `slice-v2-import-codecs` liefert `baselineimport.Dienst.Codecs`; dieser Slice trägt die Tabelle Version → Satz im Root und die Verdrahtung.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Metadaten-Leser, Payload-Codec und URL-Parser für V2 — `slice-v2-metadaten`, `slice-v2-payload` und `slice-v2-query`; dieser Slice verdrahtet sie und ändert keinen von ihnen.
+- Metadaten-Leser, Payload-Codec und URL-Parser für V2 — `slice-v2-metadaten`, `slice-v2-payload-lesen`, `slice-v2-payload-schreiben` und `slice-v2-query`; dieser Slice verdrahtet sie und ändert keinen von ihnen.
 - Aufzeichnen im Modus `record`: die Aufzeichnung ist von der Version unabhängig (`welle-odata-v2` §1); kein Teil des Record-Pfads ändert sich.
-- V2-Mutationen und der Modus `hybrid` für einen V2-Dienst — `welle-odata-v2` §6 bzw. `welle-hybrid`; für einen V2-Dienst im Modus `hybrid` gilt, was der Architect in der ADR festlegt, sonst ein Fehler beim Start.
+- V2-Mutationen und der Modus `hybrid` für einen V2-Dienst — `welle-odata-v2` §6 bzw. `welle-hybrid`; für einen V2-Dienst im Modus `hybrid` gilt `ODR-E2001` beim Start (`SPEC-175` Nr. 5).
 - Änderungen am V4-Pfad (Mock, Replay, Record) über die Ports hinaus, hinter denen der Adapter steht — `welle-odata-v2` §6.
 - Vollständige Kompatibilität zu herstellerspezifischen (SAP-)Erweiterungen — Out-of-Scope von `LH-FA-17`.
 
@@ -65,9 +65,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Wahl des Adapters: Version je Service in der Startkonfiguration (fehlend `4.0`, unbekannt oder im Widerspruch zum gespeicherten Service ein Start-Fehler `ODR-E2001`, wie `SPEC-107` Nr. 14 es für den Root sagt), Anlage des Service mit dieser Version, Metadatenleser, Payload-Codec und URL-Parser je Version in Import und Mock verdrahtet; ein V4-Dienst nutzt unverändert die V4-Adapter.
-- [ ] Rundlauftest in `make test`: V2-Referenzdienst aufzeichnen, Session beenden, importieren, Workspace anlegen, im Modus `mock` Metadaten und Standardabfrage beantworten; leeres Ergebnis im V2-Format; nicht unterstützte V2-Eigenschaft ergibt den Kompatibilitätsfehler; die Tests von `welle-mock` laufen unverändert grün.
-- [ ] Randformen der Konfiguration und der Wahl (Version fehlt, leer, unbekannt, Widerspruch zum gespeicherten Service, Services verschiedener Versionen nebeneinander, Neustart): je Zelle des Rasters ein Ort in der Spezifikation und ein Fänger.
+- [ ] Konfiguration, Anlage und Wahl: `SERVICE_ODATA_VERSION` und `odata_version` (`SPEC-175` Nr. 1, `SPEC-176`; fehlend `4.0`, unbekannt oder im Widerspruch zum gespeicherten Service `ODR-E2001`), Anlage des Service mit dieser Version (`SPEC-107` Nr. 14), die Tabelle Version → `outbound.CodecSatz` im Root und der Satz je Service in Import und Mock (`SPEC-175` Nr. 3), `hybrid` für einen V2-Service als `ODR-E2001` beim Start (`SPEC-175` Nr. 5); ein V4-Dienst nutzt unverändert die V4-Adapter; Randformen der Konfiguration und der Wahl (fehlt, leer, unbekannt, Widerspruch, Services verschiedener Versionen nebeneinander, Neustart): je Zelle des Rasters ein Ort in der Spezifikation und ein Fänger.
+- [ ] Mock-Ergänzungen (Sendung vom Architect, [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md); Ergänzung am Mock-Kern aus `welle-mock`, die V4-Tests bleiben unverändert): der Mock beantwortet für einen Service, dessen Satz `NurLesend` trägt, jede Methode außer `GET` und `HEAD` mit `ODR-E6006`, Ursache `methode` (`SPEC-174` Nr. 3), nach dem URL-Leser und vor Body, Workspace und Coverage; und er setzt Content-Type und Versionskennzeichen aus dem Darstellungskopf des Schreibers des Satzes (`SPEC-172` Nr. 6 g, `SPEC-175` Nr. 7).
+- [ ] Rundlauftest in `make test`: V2-Referenzdienst aufzeichnen (Referenzdienst nach dem Auftrag 6), Session beenden, importieren, Workspace anlegen, im Modus `mock` Metadaten und Standardabfrage beantworten; leeres Ergebnis im V2-Format; Abfragen außerhalb des Umfangs (`$expand`, `substringof`) ergeben `ODR-E6006` mit den Ursachen `option` und `filter`; der Test über beide Seiten (Parser plus Interpreter) aus `slice-v2-query` liegt hier; die Tests von `welle-mock` laufen unverändert grün.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -89,16 +89,14 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | `src/bootstrap/` | update | Konfiguration der Version je Service, Wahl und Verdrahtung der Adapter |
-| `src/hexagon/services/` (Import, Mock) | update | Entgegennahme der Adapter je Version, soweit die ADR sie nicht im Root bündelt |
-| `src/adapters/driving/httpodata/` | update | Kennzeichnung der V2-Antwort (Header), soweit die ADR sie dem Adapter zuweist |
-| `spec/spezifikation.md` | update | Schlüssel der Konfiguration, Anlage des Service, Vertrag mit Randformen (Architect) |
+| `src/hexagon/services/` (Mock) | update | `NurLesend`-Prüfung und Darstellungskopf aus dem Satz je Service; der Import nimmt den Satz seit `slice-v2-import-codecs` entgegen |
 | Tests | neu | Rundlauftest V2 gegen einen Referenzdienst als Test-Server; Fälle der Konfiguration |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer.
 
 - Der Slice liefert einen Test-Server (den Referenzdienst mit V2-Antworten) und Fakes der Adapter: sie zählen im Block (`SPEC-128`) als Port-Fakes und Test-Server; der Rundlauftest ist ein Test mit Prozessen und Fristen, die Betriebsregel zu `docker` und `flock` gilt dafür besonders.
 
-**Auftrag an den Architect** (vor dem ersten Code-Commit; die Aufteilung der Ports je Version steht in der ADR, Status `Accepted`; Neues in der Spezifikation unter einer künftigen Nummer, die der Architect vergibt):
+**Auftrag an den Architect:** erledigt ([ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md), `Accepted`): 1 → `SPEC-175` Nr. 1 und `SPEC-176`, 2 → `SPEC-175` Nr. 3, 3 → `SPEC-175` Nr. 4, 4 → `SPEC-175` Nr. 5, 5 → `SPEC-172` Nr. 6 g und `SPEC-175` Nr. 7, 6 → der Referenzdienst V2 (Entwurf des Architect, Teil F.5, geht beim Start in die Tabelle ein). Der Text der ursprünglichen Fragen bleibt zur Nachprüfung stehen:
 
 1. Konfiguration: Schlüssel der Version je Service (Eintrag der `SERVICES_FILE`, Einzelschlüssel für den einen Service), Werte, Default, Prüfung (`SPEC-110`); Verhalten bei einer Version, die der Speicher anders kennt (`SPEC-107` Nr. 14: `ODR-E2001`).
 2. Wahl: wo der Root die Adapter bündelt (je Service ein Satz Adapter, ein Verteiler hinter den Ports, der nach Version entscheidet) und wie der Mock-Kern und der Import sie erhalten; Zusage, dass kein Adapter einer Version ein Modell der anderen sieht (`LH-FA-17.a`).
@@ -125,16 +123,16 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-v2-query` liegt in `done/` (und damit `slice-v2-payload` und `slice-v2-metadaten`), `welle-mock` liegt in `done/` (Trigger der Welle), und die ADR des Architect zum versionierten Adapter ist `Accepted`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-v2-import-codecs`, `slice-v2-metadaten`, `slice-v2-payload-lesen`, `slice-v2-payload-schreiben` und `slice-v2-query` liegen in `done/`, `welle-mock` liegt in `done/` (Trigger der Welle), [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) ist `Accepted` (erfüllt). Die Spezifikation trägt den Vertrag samt Randformen (`SPEC-170` bis `SPEC-177`); die Tabelle *Zusage · Fänger* füllt der Architect vor dem ersten Code-Commit (`AGENTS.md` §3.12).
 
-- **Code-Abhängigkeit, mit Grund:** die drei V2-Slices davor (die Adapter, die der Root wählt), `slice-bootstrap-m2` (der Composition Root, in dem Record, Import und die Anlage der Services verdrahtet sind, `SPEC-107` Nr. 14), `slice-bootstrap-m3` (der Modus `mock` im Root und der M3-Test, der die Grundlage des Rundlaufs ist), `slice-handbuch-meldungskatalog` (Kataloge-Gate für die Handbuch-Pflicht). Der Slice ist **nicht** vor `welle-mock` und nicht ohne M2 startbar.
+- **Code-Abhängigkeit, mit Grund:** die fünf V2-Slices davor (die Adapter und der Import, die der Root verdrahtet), `slice-bootstrap-m2` (der Composition Root, in dem Record, Import und die Anlage der Services verdrahtet sind, `SPEC-107` Nr. 14), `slice-bootstrap-m3` (der Modus `mock` im Root und der M3-Test, der die Grundlage des Rundlaufs ist), `slice-handbuch-meldungskatalog` (Kataloge-Gate für die Handbuch-Pflicht). Der Slice ist **nicht** vor `welle-mock` und nicht ohne M2 startbar.
 - **Was der Slice nicht braucht:** `welle-etag`, `welle-expand-batch`, `welle-hybrid`, `welle-betrieb`, `welle-admin-api`; die Reihenfolge nach den Muss-Wellen ist Priorisierung.
 - **Größenmarke:** noch nicht gesetzt. Der Planner setzt sie vor dem ersten Code-Commit mit `make groessenmarke` nach `SPEC-128`; die Faktoren stehen allein dort, die Produktcode-Erwartung des Architect (Zeile `produktcode` im Block) ist ein fester Anteil; der Slice liest keine fremden Bytes im Sinne eines Formats, aber der Referenzdienst V2 und die Fakes sind Test-Server und Port-Fakes der Schätzung.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner nach `SPEC-128` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Eine Zahl steht hier erst, wenn die Tabelle *Zusage · Fänger* vorliegt; ein Schnitt vor dem Code läge zwischen Konfiguration und Wahl einerseits und dem Rundlauftest andererseits, sofern sie keinen Mechanismus teilen (sonst steht der Grund in §4).
-- `in-progress` → `open` (blockiert — Carveout?): die Anpassung des Imports je Version (Auftrag 3) ist nicht entschieden oder ohne Slice vor diesem nicht zu tragen (siehe §6).
+- `in-progress` → `open` (blockiert — Carveout?): [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) verliert den Status `Accepted`, oder `slice-v2-import-codecs` liegt nicht in `done/`.
 
 ## 5. Closure-Trigger
 
@@ -151,7 +149,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Der Import eines V2-Dienstes braucht mehr als einen Codec je Version: Auswahl der Antworten, Ketten und Folgelinks sind V4-Regeln in `done/` (`SPEC-127` Nr. 8 und 12), und kein Slice der Welle trägt ihre Anpassung — **Ausgang:** offen; Adresse: Architect (Entscheidung in der ADR, Auftrag 3) und Planner (Slice für die Anpassung des Imports vor diesem, `AGENTS.md` §3.13); ohne ihn ist der Rundlauftest der Welle nicht erreichbar.
+- Der Import eines V2-Dienstes braucht mehr als einen Codec je Version: Auswahl der Antworten, Ketten und Folgelinks sind V4-Regeln in `done/` (`SPEC-127` Nr. 8 und 12) — **Ausgang:** eingetreten: `slice-v2-import-codecs` (`SPEC-175` Nr. 4: derselbe Importer, Satz je Dienst).
 - Der Rundlauf ist ein Test mit Prozessen, Fristen und einem Referenzdienst; er erbt die Zeitgrenzen von `make test` und `make gegenproben` — **Ausgang:** offen; Zeit gemessen und im Bericht genannt (`BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts`).
 - Die Tests von `welle-mock` müssen unverändert grün laufen (`welle-odata-v2` §3); ein Fänger vergleicht V4-Antworten vor und nach dem Slice über die Ports — **Ausgang:** offen.
 - Mehrere Services verschiedener Versionen im selben Prozess dürfen sich nicht beeinflussen (Roots, Metadaten, Caches) — **Ausgang:** offen; Fänger mit einem V2- und einem V4-Dienst nebeneinander.
@@ -162,16 +160,21 @@ dasteht.
 
 | Operation | Version fehlt | Version leer | unbekannte oder fremde Version | Widerspruch zum gespeicherten Service | Services verschiedener Versionen nebeneinander | Abbruch (Signal im Start), Wiederholung (Neustart) |
 |---|---|---|---|---|---|---|
-| Prüfung der Startkonfiguration | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
-| Anlage des Service | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
-| Wahl der Adapter in Import und Mock | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
-| Rundlauf Aufzeichnen, Importieren, Abfragen | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
+| Prüfung der Startkonfiguration | Default `4.0` (`SPEC-175` Nr. 1) | wie fehlend (`SPEC-110` Nr. 1, `SPEC-175` Nr. 1) | `ODR-E2001` (`SPEC-175` Nr. 1) | gilt nicht: die Prüfung kennt den Speicher nicht (die Anlage prüft, Nr. 2) | zulässig, je Service eine Version (`SPEC-175` Nr. 1 und 6) | gilt nicht: die Prüfung ist eine Funktion ohne Kontext; Signale: `SPEC-138` |
+| Anlage des Service | `Create` mit `4.0` (`SPEC-175` Nr. 2, `SPEC-107` Nr. 14) | wie fehlend | gilt nicht: die Prüfung wies sie ab | Start verhindert, `ODR-E2001` (`SPEC-107` Nr. 14, `SPEC-175` Nr. 2) | je Service eine Anlage mit seiner Version (`SPEC-175` Nr. 2 und 6) | Abbruch: `SPEC-107` Nr. 12; Wiederholung: bekannter Service mit gleichen Werten tut nichts (`SPEC-107` Nr. 14) |
+| Wahl der Adapter in Import und Mock | Satz der Version 4 (`SPEC-175` Nr. 3) | wie fehlend | gilt nicht: nur zwei Werte, die Prüfung wies jeden anderen ab | gilt nicht: der Satz folgt der Konfiguration, die der Speicher bestätigt hat | je Service sein Satz, keine Kreuzung (`SPEC-175` Nr. 3 und 6) | Wiederholung: die Wahl hat keinen Zustand (`SPEC-175` Nr. 3); Abbruch: gilt nicht, die Wahl ist eine Tabelle |
+| Rundlauf Aufzeichnen, Importieren, Abfragen | gilt nicht: Aufbau des Tests | gilt nicht | gilt nicht | Dokument anderer Version als deklariert: `ODR-E6004`, nichts geschrieben (`SPEC-175` Nr. 4, `SPEC-171` Nr. 2) | `SPEC-175` Nr. 6 | Wiederholung: `SPEC-127` Nr. 5; Abbruch: `SPEC-127` Nr. 2 |
 
 **Zusatztabelle** (je Modus eine Zeile; `AGENTS.md` §3.16): V2-Dienst in `record`, `replay`, `mock` und `hybrid`; V4-Dienst unverändert.
 
 | Paar oder Modus | Entscheidung (Ort) | Fänger |
 |---|---|---|
-| (Vertrag, offen) | (Vertrag, offen) | (offen) |
+| V2-Service in `record` | wie V4, von der Version unabhängig (`SPEC-170` Nr. 6) | Aufzeichnung gegen den Referenzdienst V2, byte-gleiche Austausche |
+| V2-Service in `replay` | wie V4 (`SPEC-170` Nr. 6) | Wiedergabe der Aufzeichnung |
+| V2-Service in `mock` | `SPEC-170` bis `SPEC-174`; Methode außer `GET`/`HEAD`: `ODR-E6006` `methode` (`SPEC-174` Nr. 3) | Rundlauf der Welle |
+| V2-Service in `hybrid` | `ODR-E2001` beim Start (`SPEC-175` Nr. 5) | Startkonfiguration mit `MODE=hybrid` und einem V2-Service |
+| V4-Service neben einem V2-Service | unverändert (`SPEC-175` Nr. 6) | derselbe Test mit beiden Diensten nebeneinander |
+| Funktionsimport eines V2-Dienstes im Mock | unbekanntes Set statt `ODR-E6006` (`SPEC-174` Nr. 7, akzeptiertes Negativ) | benannt, kein Fänger |
 
 ## 7. Closure-Notiz
 
