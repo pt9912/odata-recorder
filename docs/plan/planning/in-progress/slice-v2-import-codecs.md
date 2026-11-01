@@ -182,7 +182,7 @@ schaetzung: 1045
 marke: 1500
 ```
 
-**Messung beim Handoff:** `make groessenmarke` meldet 695 von Marke 1500 (Schätzung 1045): `codec_satz.go` 16, `importer.go` 43, `metadaten.go` 7, `satz_test.go` 629 Zeilen.
+**Messung beim Handoff:** `make groessenmarke` meldet 695 von Marke 1500 (Schätzung 1045): `codec_satz.go` 16, `importer.go` 43, `metadaten.go` 7, `satz_test.go` 629 Zeilen. **Messung nach der Fix-Runde zum Review:** 758 von Marke 1500 (Stand `3bef041`, Ausgabe `Messpunkt slice-v2-import-codecs.md: zeilen=9 nebenlaeufig=1 fakes=1 produktcode=120 schaetzung=1045 marke=1500 messung=758`). Messpunkt: die Schätzung (1045) liegt um 38 % über der Messung (695 beim Handoff, 758 nach dem Review), weil Fakes und Tabellenzeilen dieses Slice weniger kosten als die Faktoren 85 und 80 je Zeile; die Marke 1500 bleibt unverändert, die Setzung ist Sache des Planners.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
