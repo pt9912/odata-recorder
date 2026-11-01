@@ -3,6 +3,8 @@ package bootstrap_test
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"reflect"
 	"sync"
 	"testing"
@@ -36,7 +38,13 @@ func konfigMitWerten(dir, modus string) bootstrap.Konfiguration {
 
 func baue(ctx context.Context, t *testing.T, k bootstrap.Konfiguration, h *haken) *bootstrap.Handle {
 	t.Helper()
-	hd, err := bootstrap.BuildMit(ctx, k, nil, h.bauteile())
+	return baueMitLog(ctx, t, k, h, nil)
+}
+
+// baueMitLog baut den Handle mit dem übergebenen Logger; nil lässt Build den eigenen wählen.
+func baueMitLog(ctx context.Context, t *testing.T, k bootstrap.Konfiguration, h *haken, log *slog.Logger) *bootstrap.Handle {
+	t.Helper()
+	hd, err := bootstrap.BuildMit(ctx, k, log, h.bauteile())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +52,7 @@ func baue(ctx context.Context, t *testing.T, k bootstrap.Konfiguration, h *haken
 	return hd
 }
 
-// TestImportErhaeltWerte fängt M5 und M6 (Import): jedes Feld der Konfig des Imports gegen seinen
+// TestImportErhaeltWerte fängt die Zeilen M5 und M6 von slice-m2-referenzdienst (Import): jedes Feld der Konfig des Imports gegen seinen
 // Verbraucher; die Felder der Regelmenge als Schleife, die Menge der Felder von Konfig als Tabelle.
 func TestImportErhaeltWerte(t *testing.T) {
 	ctx := context.Background()
@@ -115,13 +123,14 @@ func TestImportErhaeltWerte(t *testing.T) {
 	}
 }
 
-// TestWorkspaceErhaeltWerte fängt M6 (Workspace-Dienst) in beiden Modi: Feld für Feld.
+// TestWorkspaceErhaeltWerte fängt die Zeile M6 von slice-m2-referenzdienst (Workspace-Dienst) in beiden Modi: Feld für Feld.
 func TestWorkspaceErhaeltWerte(t *testing.T) {
 	ctx := context.Background()
 	for _, modus := range modi() {
 		t.Run(modus, func(t *testing.T) {
 			h := neuHaken()
-			hd := baue(ctx, t, konfigMitWerten(t.TempDir(), modus), h)
+			log := slog.New(slog.NewTextHandler(io.Discard, nil))
+			hd := baueMitLog(ctx, t, konfigMitWerten(t.TempDir(), modus), h, log)
 			got := h.workspace
 			if got == nil {
 				t.Fatal("der Konstruktor des Workspace-Dienstes wurde nicht gerufen")
@@ -142,7 +151,7 @@ func TestWorkspaceErhaeltWerte(t *testing.T) {
 				"Wartung":     got.Wartung != nil && got.Wartung == hd.Wartung(),
 				"Uhr":         got.Uhr != nil && got.Uhr == h.wartung.Uhr,
 				"IDs":         got.IDs != nil && got.IDs == bootstrap.IDsVon(hd),
-				"Log":         got.Log != nil,
+				"Log":         got.Log != nil && got.Log == log,
 			}
 			typ := reflect.TypeOf(*got)
 			if len(dieselbe) != typ.NumField() {
@@ -167,7 +176,7 @@ func TestWorkspaceErhaeltWerte(t *testing.T) {
 	}
 }
 
-// TestZugaengeJeModus fängt M9b: {Import, Workspaces} x {record, replay} und der gleichzeitige Aufruf.
+// TestZugaengeJeModus fängt die Zeile M9b von slice-m2-referenzdienst: {Import, Workspaces} x {record, replay} und der gleichzeitige Aufruf.
 func TestZugaengeJeModus(t *testing.T) {
 	ctx := context.Background()
 	zugaenge := []struct {
@@ -184,8 +193,8 @@ func TestZugaengeJeModus(t *testing.T) {
 		for _, modus := range modi() {
 			t.Run(z.name+"/"+modus, func(t *testing.T) {
 				hd := baue(ctx, t, basisKonfig(t.TempDir(), modus, dienstA("http://127.0.0.1:9/a")), neuHaken())
-				// Der erste Aufruf des Zugangs geschieht in den Goroutinen, gleichzeitig: ein Zugang, der sein Feld
-				// beim ersten Aufruf füllt, schriebe dort, und der Detektor meldet es.
+				// Der erste Aufruf jedes Zugangs liegt in den Goroutinen, gleichzeitig: füllt ein Zugang sein Feld
+				// beim ersten Aufruf, schreibt er dort, und der Detektor meldet es.
 				const goroutinen, runden = 8, 200
 				start := make(chan struct{})
 				var wg sync.WaitGroup

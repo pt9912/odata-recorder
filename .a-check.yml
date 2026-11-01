@@ -39,6 +39,10 @@ layers:
     role: adapter
     direction: driven
 
+  # Prüfpakete außerhalb des Hexagons: eigene Schicht ohne Rolle, nicht Teil des Composition Root.
+  tests:
+    globs: ["tests/**"]
+
 edges:
   - {from: services,         to: model}
   - {from: services,         to: ports-inbound}
@@ -53,11 +57,13 @@ edges:
   - {from: adapters-driven,  to: model}
   - {from: adapters-driven,  to: ports-outbound}
   - {from: adapters-driven,  to: ports-support}
+  # tests/ nennt Modell, Inbound-Ports und Driven Adapter (etwa sqlite.Open); den Composition Root ruft es ohne Kante
+  - {from: tests,            to: model}
+  - {from: tests,            to: ports-inbound}
+  - {from: tests,            to: adapters-driven}
 
 composition_root:
   - "src/bootstrap/**"
-  # tests/ verdrahtet den Composition Root von außen und nennt dessen Typen
-  - "tests/**"
 
 tech:
   - {pattern: "modernc.org/sqlite", adapter: "src/adapters/driven/sqlite"}

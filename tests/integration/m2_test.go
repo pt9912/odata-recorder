@@ -80,7 +80,7 @@ func (c *client) hole(a anfrage, zusatz map[string]string) antwort {
 }
 
 // konfig lädt die Konfiguration wie im Betrieb; nur Listen ist auf Port 0 überschrieben. Auch der
-// Replay-Lauf nennt den Upstream: er könnte den Referenzdienst erreichen, und der Zähler zeigt, dass er es nicht tut.
+// Replay-Lauf nennt den Upstream: so belegt der Zähler, dass der Replay ihn nicht erreicht.
 func konfig(t *testing.T, modus, dir, upstream string) bootstrap.Konfiguration {
 	t.Helper()
 	env := []string{"MODE=" + modus, "LISTEN=127.0.0.1:8080", "DATA_DIR=" + dir, "SERVICE_ID=" + serviceID, "SERVICE_ROOT_PATH=/odata"}
@@ -219,7 +219,11 @@ func TestDurchstichM2(t *testing.T) {
 	}
 	d.pruefeMetadataHash()
 	d.sucheGeheimnisseNachHerunterfahren(vorher) // Schritt 6
-	d.spieleAb()                                 // Schritte 7 bis 10
+	rep := d.spieleAb()                          // Schritte 7 bis 10
+	if err := rep.Herunterfahren(ctx); err != nil {
+		t.Fatalf("Herunterfahren(replay): %v", err)
+	}
+	d.sucheGeheimnisse(2) // Schritt 11: auch der Replay schreibt kein Geheimnis nach DATA_DIR
 }
 
 // nimmAuf ist Schritt 2: der Client fragt über den Recorder; die erste Session ist offen (Schritt 1).
@@ -256,7 +260,7 @@ func (d *durchstich) nimmAuf(rec *bootstrap.Handle) {
 	}
 }
 
-// pruefeAufnahme ist die Gegenprobe der Zähler und der Geheimnisse (M2, M3): jeder Request erreichte den
+// pruefeAufnahme ist die Gegenprobe der Zähler und der Geheimnisse (Zeilen M2 und M3 von slice-m2-referenzdienst): jeder Request erreichte den
 // Referenzdienst genau einmal, GEHEIM-A erreichte ihn, GEHEIM-B erreichte den Client.
 func (d *durchstich) pruefeAufnahme() {
 	t, ref := d.t, d.ref
@@ -279,7 +283,7 @@ func (d *durchstich) pruefeAufnahme() {
 	}
 }
 
-// beendeUndImportiere sind die Schritte 3 und 4: Beenden, Workspace aus unbekannter Baseline scheitert (M9),
+// beendeUndImportiere sind die Schritte 3 und 4: Beenden, Workspace aus unbekannter Baseline scheitert (Zeile M9 von slice-m2-referenzdienst),
 // Import, Report, Workspace aus der Baseline.
 func (d *durchstich) beendeUndImportiere(rec *bootstrap.Handle) {
 	t, ctx := d.t, context.Background()
@@ -308,7 +312,7 @@ func (d *durchstich) beendeUndImportiere(rec *bootstrap.Handle) {
 	}
 }
 
-// pruefeCoverage liest den Report (M8): genau ein Eintrag, Products, complete.
+// pruefeCoverage liest den Report (Zeile M8 von slice-m2-referenzdienst): genau ein Eintrag, Products, complete.
 func (d *durchstich) pruefeCoverage(reportJSON string) {
 	var report struct {
 		Coverage []struct {
@@ -338,7 +342,7 @@ func (d *durchstich) sucheGeheimnisse(nr int) []string {
 	return dateien
 }
 
-// pruefeMetadataHash ist die zweite Hälfte von Schritt 5: die Ablage selbst öffnen, MetadataHash gleich dem Orakel (M7).
+// pruefeMetadataHash ist die zweite Hälfte von Schritt 5: die Ablage selbst öffnen, MetadataHash gleich dem Orakel (Zeile M7 von slice-m2-referenzdienst).
 func (d *durchstich) pruefeMetadataHash() {
 	ctx := context.Background()
 	db, err := sqlite.Open(ctx, filepath.Join(d.dir, "odata-recorder.db"), sqlite.Options{})
@@ -353,7 +357,8 @@ func (d *durchstich) pruefeMetadataHash() {
 }
 
 // sucheGeheimnisseNachHerunterfahren ist Schritt 6: kein Geheimnis in einer Datei, und der Sucher findet
-// einen Marker, den es geben muss (M3).
+// einen Marker, den es geben muss, und er sieht vor dem Herunterfahren Datenbank, -wal und -shm (Zeile M3
+// von slice-m2-referenzdienst).
 func (d *durchstich) sucheGeheimnisseNachHerunterfahren(vorher []string) {
 	nachher, funde := durchsuche(d.t, d.dir, []string{geheimA, geheimB, "Anvil"})
 	blobFunde := 0
@@ -368,15 +373,22 @@ func (d *durchstich) sucheGeheimnisseNachHerunterfahren(vorher []string) {
 	if blobFunde == 0 {
 		d.t.Errorf("der Sucher findet den Produktnamen in keinem Blob (Dateien: %v)", nachher)
 	}
-	if !slices.Contains(vorher, "odata-recorder.db") || !slices.Contains(nachher, "odata-recorder.db") {
-		d.t.Errorf("der Sucher sieht die Datenbank nicht: %v, %v", vorher, nachher)
+	if !slices.Contains(nachher, "odata-recorder.db") {
+		d.t.Errorf("der Sucher sieht die Datenbank nach dem Herunterfahren nicht: %v", nachher)
+	}
+	for _, datei := range []string{"odata-recorder.db", "odata-recorder.db-wal", "odata-recorder.db-shm"} {
+		if !slices.Contains(vorher, datei) {
+			d.t.Errorf("der Sucher sieht %s vor dem Herunterfahren nicht: %v", datei, vorher)
+		}
 	}
 }
 
 // spieleAb sind die Schritte 7 bis 10: Build(replay) auf derselben Ablage, Durchgang A bei lebendem
-// Referenzdienst, Close, Durchgang B.
-func (d *durchstich) spieleAb() {
+// Referenzdienst, Close, Durchgang B. Die Grundlinie der Zähler liegt vor Build(replay): auch ein Kontakt beim
+// Verdrahten oder Hochfahren des Replay-Handle verändert sie. Der Handle ist zurückgegeben, der Aufrufer fährt ihn herunter.
+func (d *durchstich) spieleAb() *bootstrap.Handle {
 	t, ctx := d.t, context.Background()
+	vor := [2]int64{d.ref.verbindungen.Load(), d.ref.requests.Load()}
 	rep := hochgefahren(ctx, t, d.kRep)
 	if rep.Import() != nil {
 		t.Error("Import() im Modus replay ist nicht nil")
@@ -388,12 +400,12 @@ func (d *durchstich) spieleAb() {
 		t.Fatalf("Get im Replay-Handle: %+v, %v", got, err)
 	}
 	pc := neuerClient(t, rep.Adresse())
-	vor := [2]int64{d.ref.verbindungen.Load(), d.ref.requests.Load()}
 	d.durchgang(pc, "A", "rep-a")
 	d.keinKontakt("A", vor)
 	d.ref.srv.Close()
 	d.durchgang(pc, "B", "rep-b")
 	d.keinKontakt("B", vor)
+	return rep
 }
 
 func (d *durchstich) keinKontakt(name string, vor [2]int64) {
@@ -403,7 +415,7 @@ func (d *durchstich) keinKontakt(name string, vor [2]int64) {
 }
 
 // durchgang spielt jeden aufgenommenen Request mit den drei Headern der Zuordnung ab und vergleicht
-// ihn mit der Aufnahme (M1); die Folge von $count nennt die Fixture (M4).
+// ihn mit der Aufnahme (Zeile M1 von slice-m2-referenzdienst); die Folge von $count nennt die Fixture (Zeile M4).
 func (d *durchstich) durchgang(pc *client, name, replaySession string) {
 	t := d.t
 	t.Helper()
