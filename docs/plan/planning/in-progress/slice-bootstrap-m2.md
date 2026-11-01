@@ -59,7 +59,7 @@ Dazu der Fänger, dass der Root `Pruefen` aus dem Wert des Starts übergibt und 
 - Start im Modus `mock` oder `hybrid` — scheitert mit `ODR-E2001`, bis die Folgewellen die Use Cases liefern (Entscheidung steht in `slice-fehlermodell-konfiguration`).
 - CLI-Kommandos für Import, Workspace und Session über den Start hinaus, Admin-Listener — Folgewelle; der Test erreicht Import, Workspace und Session-Ende über den Handle des Composition Root.
 - Lasttest zu `LH-QA-01` — braucht Telemetrie und ein Messprofil (Welle §6); bleibt ausdrücklich ungeprüft.
-- Das gebaute Binary im Container, `make test-integration` (`SPEC-037`) — [slice-test-integration](slice-test-integration.md), nach diesem Slice; der M2-Test hier fährt den ganzen Pfad im Prozess von `go test`, nicht das Binary.
+- Das gebaute Binary im Container, `make test-integration` (`SPEC-037`) — [slice-test-integration](../open/slice-test-integration.md), nach diesem Slice; der M2-Test hier fährt den ganzen Pfad im Prozess von `go test`, nicht das Binary.
 - Vergleichstest zu `LH-QA-07` (Direktzugriff gegen Proxy) — `slice-protokolltreue`, nach diesem Slice; er nutzt Referenzdienst und Composition Root von hier und bringt mit, was der Vergleich zusätzlich braucht. Dieser Slice bleibt beim Satz von M2 (Entscheidung des Users vom 2026-10-21).
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
