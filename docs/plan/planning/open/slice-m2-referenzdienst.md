@@ -35,7 +35,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Ein Test zeichnet über den Recorder gegen einen Referenzdienst auf, beendet die Session, importiert sie, legt einen Workspace an, beendet den Upstream und spielt dieselben Antworten byte-gleich nach `SPEC-045` ab, mit Zähler 0 am Referenzdienst: der Beleg für M2 (die Zelle setzt die Welle-Closure, nicht dieser Slice).
 
-**Herkunft (Schnitt vor dem ersten Code-Commit, `AGENTS.md` §3.14):** `slice-bootstrap-m2` lieferte Composition Root und M2-Beleg in einem Plan; die Formel von `SPEC-128` gab für beide zusammen S rund 3200 (Schnittfrage), für den Root-Kern allein S = 2120. Geschnitten ist an der Stelle, an der kein Mechanismus geteilt wird: Referenzdienst, Import und Workspace sind additive Zugänge am `Handle` ([slice-bootstrap-m2](../in-progress/slice-bootstrap-m2.md), `SPEC-139` Nr. 1), der Kern kommt für seinen sichtbaren Schritt mit einem kleinen Upstream im Testcode von `src/bootstrap` aus. Reihenfolge der Welle: `slice-bootstrap-m2` → dieser Slice → [slice-protokolltreue](slice-protokolltreue.md).
+**Herkunft (Schnitt vor dem ersten Code-Commit, `AGENTS.md` §3.14):** `slice-bootstrap-m2` lieferte Composition Root und M2-Beleg in einem Plan; die Formel von `SPEC-128` gab für beide zusammen S rund 3200 (Schnittfrage), für den Root-Kern allein S = 2120. Geschnitten ist an der Stelle, an der kein Mechanismus geteilt wird: Referenzdienst, Import und Workspace sind additive Zugänge am `Handle` ([slice-bootstrap-m2](../done/slice-bootstrap-m2.md), `SPEC-139` Nr. 1), der Kern kommt für seinen sichtbaren Schritt mit einem kleinen Upstream im Testcode von `src/bootstrap` aus. Reihenfolge der Welle: `slice-bootstrap-m2` → dieser Slice → [slice-protokolltreue](slice-protokolltreue.md).
 
 **Übernimmt (aus `slice-bootstrap-m2`, `AGENTS.md` §3.13):**
 
@@ -49,7 +49,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Composition Root, Start-Befehl, Exit-Codes, Herunterfahren und Wartung — [slice-bootstrap-m2](../in-progress/slice-bootstrap-m2.md); dieser Slice setzt dessen Abschluss voraus und ändert ihn nicht.
+- Composition Root, Start-Befehl, Exit-Codes, Herunterfahren und Wartung — [slice-bootstrap-m2](../done/slice-bootstrap-m2.md); dieser Slice setzt dessen Abschluss voraus und ändert ihn nicht.
 - Admin-API oder CLI-Kommandos für Import, Workspace und Session-Ende — Folgewelle bzw. entfallen (Entscheidung des Users, Welle §6): der Test erreicht Session-Ende, Import und Workspace über den `Handle`, nicht über HTTP.
 - Das gebaute Binary im Container und `make test-integration` (`SPEC-037`) — [slice-test-integration](slice-test-integration.md); der M2-Test fährt den ganzen Pfad im Prozess von `go test`.
 - Ergänzungen am Referenzdienst für den Vergleich von Direktzugriff und Proxy (Antworten mit `Content-Encoding`, mehrere Werte je Header) — [slice-protokolltreue](slice-protokolltreue.md); dessen §1 und §3 führen sie, und der M2-Test bleibt beim Satz von M2 (Entscheidung des Users vom 2026-10-21).
