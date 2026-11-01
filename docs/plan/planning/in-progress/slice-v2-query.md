@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-170` · `SPEC-173` · `SPEC-174` · `SPEC-177` · `SPEC-109` Nr. 2 und 5 · `SPEC-230` Nr. 8 · `LH-FA-17.a` (versionierter Adapter für Query-Semantik, keine Vermischung von V2 und V4) · `LH-FA-17` Negative (nicht unterstützte V2-Eigenschaft: expliziter Kompatibilitätsfehler) · `LH-FA-08.a` und `LH-FA-08.b` (V4-Semantik der Abfrageoptionen, auf die der AST abbildet) · `SPEC-022` (`ODR-E6001`) · `SPEC-049` · `SPEC-002` · `ARC-001`, `ARC-004`, `ARC-011` · `architecture.md` §7 (Erweiterungspunkt OData V2).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-v2-query)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
@@ -35,7 +35,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Metadaten-Leser und Payload-Codec — `slice-v2-metadaten` und `slice-v2-payload`; dieser Slice braucht das V2-Modell und liest und schreibt keine Payloads.
+- Metadaten-Leser und Payload-Codec — `slice-v2-metadaten`, `slice-v2-payload-lesen` und `slice-v2-payload-schreiben`; dieser Slice braucht das V2-Modell und liest und schreibt keine Payloads.
 - Wahl des Adapters je Service, Konfiguration, Route und Rundlauftest — `slice-v2-bootstrap`.
 - Ausführung der Abfrage — der Query-Interpreter aus `slice-query-interpreter` (`welle-mock`); ein V2-Konstrukt, das der AST nicht tragen kann (V4-Semantik), ist hier ein Kompatibilitätsfehler und ändert den Interpreter nicht (V4-Pfad bleibt unberührt, `welle-odata-v2` §6).
 - V2-Mutationen (POST, MERGE, PUT, DELETE) — `welle-odata-v2` §6; was die Spezifikation nicht nennt, ergibt den Kompatibilitätsfehler (der Parser erkennt die Methode und lehnt sie ab).
@@ -121,7 +121,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 - **Code-Abhängigkeit, mit Grund:** `slice-odata-url-pfad` und `slice-odata-url-filter` (beide in `done/`: Gerüst des Parsers und Query-AST, auf die V2 abbildet), Modell und Fehlermodell (`done/`). Der Parser kennt das Modell nicht (`SPEC-173`); `slice-v2-metadaten`, `slice-v2-payload-lesen`, `slice-edm-ausdruecke` und `slice-query-interpreter` sind keine Voraussetzung, der Test über beide Seiten (Parser plus Interpreter) wandert in den Rundlauf von `slice-v2-bootstrap`. Der Schnitt von Pfad und Optionen (`SPEC-173` Nr. 1 bis 4, 6, 7) und `$filter` (Nr. 5), die allein die Literale (Nr. 3) und die Einhängestelle `WithFilter` teilen, ist bei Bedarf möglich, nach dem Vorbild von `slice-odata-url-pfad` und `slice-odata-url-filter`.
 - **Was der Slice nicht braucht — und warum:** `welle-mock` ganz, `MockUseCase`, Workspace und HTTP-Adapter (der Parser liest Text; der Rundlauf gehört `slice-v2-bootstrap`), M2 und `slice-bootstrap-m3` (das Binary ändert sich erst mit der Wahl des Adapters), `welle-hybrid`, `welle-betrieb`, `welle-admin-api`, `welle-etag`, `welle-expand-batch`. Der V2-Parser bildet auf den AST der Mock-Slices ab und hängt an dessen Form, nicht am Use Case.
-- **Größenmarke:** noch nicht gesetzt. Der Planner setzt sie vor dem ersten Code-Commit mit `make groessenmarke` nach `SPEC-128`; die Faktoren stehen allein dort, Leser fremder Bytes haben in der Formel keinen Zuschlag mehr, die Produktcode-Erwartung des Architect (Zeile `produktcode` im Block) ist ein fester Anteil.
+- **Größenmarke** (`AGENTS.md` §3.14, `SPEC-128`): **noch keine Zahl**, denn der Architect hat keine Grobschätzung geliefert und die Tabelle *Zusage · Fänger* ist leer; eine Zahl ohne gezählte Tabelle und ohne `produktcode` wäre geraten. Der Planner setzt sie vor dem ersten Code-Commit nach `SPEC-128` Nr. 1 (Block nach Nr. 3 h; Teil des Architect: `pfad`, `produktcode`, `fakes`; Teil des Planner: `basis`, `schaetzung`, `marke`); bis dahin ist die Marke eine Prosa-Zeile und das Gate misst sie nicht. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über `src/adapters/driven/odata/urlparserv2/`, die Fehlerwerte in `src/hexagon/model/` und `src/hexagon/ports/outbound/` aus §3 und die Tests dort, Tests eingeschlossen. Orientierung, keine Schätzung: das V4-Vorbild lag in zwei Slices, `slice-odata-url-pfad` und `slice-odata-url-filter` (Letzterer *S* = 3460 bei *p* = 650, Marke 4700, Ende 2388 nach dem Review); die Summe beider liegt über der Schwelle. **Schnittfrage** (*S* ≥ 2223): sie ist gestellt und wird mit den Zahlen des Architect vor dem ersten Code-Commit entschieden. Der Schnitt von Pfad und Optionen (`SPEC-173` Nr. 1 bis 4, 6, 7, mit `KompatFehler`, `ODR-E6006` und der Abbildung in `outbound`) und `$filter` (Nr. 5) teilt allein die Literale (Nr. 3) und die Einhängestelle `WithFilter` und ist damit ein Teil ohne geteilten Mechanismus; liegt *S* mit der Tabelle bei 2223 oder darüber, wird vor dem Code in diese beiden Slices geschnitten (neue Kennungen vergibt der Planner, Nehmer `slice-v2-bootstrap` und `welle-odata-v2` ziehen im selben Commit nach, `AGENTS.md` §3.13), sonst steht der Grund hier. Die Produktcode-Erwartung des Architect ist ein fester Anteil.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -146,7 +146,7 @@ dasteht.
 - Die Menge der URLs ist unbeschränkt (jede Zeichenfolge) — **Ausgang:** offen; Generator über die Klasse mit Orakel und Zählprüfung oder Prüfgrenze als akzeptiertes Negativ mit Grund und Folge im Betrieb (`AGENTS.md` §3.17).
 - Der AST der Mock-Slices ist beim Schreiben dieses Plans nicht entschieden; ein V2-Konstrukt, das er nicht trägt, wird Kompatibilitätsfehler oder verlangt einen neuen Knoten (Änderung am V4-Pfad, `welle-odata-v2` §6) — **Ausgang:** entfallen: der AST liegt in `done/` (`SPEC-165`), `SPEC-173` Nr. 5 bildet auf ihn ab; ein Konstrukt ohne Knoten ist `ODR-E6006`.
 - Zahl der Fehlerfälle: der Kompatibilitätsfehler ist eine Allaussage über jede V2-Eigenschaft außerhalb des Umfangs — **Ausgang:** offen; der Fänger läuft als Schleife über Optionen, Operatoren, Funktionen, Methoden und Pfadsegmente der V2-Spezifikation, die der Umfang nicht nennt, nicht als Liste der Fälle, die einfielen (`AGENTS.md` §3.15, §3.17).
-- Fakes der Ports halten jedes Argument fest und zählen jede Operation (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 2×) — **Ausgang:** offen.
+- Fakes der Ports halten jedes Argument fest und zählen jede Operation (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 4×) — **Ausgang:** offen.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
 
 **Raster *Operation × Argumentart*** (Zellen füllt der Architect; Stand: alle `(Vertrag, offen)`):
@@ -198,7 +198,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-10-30); der Planner zieht Treffer und Zähler beim Start nach. `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) gilt für die Fakes der Codec-Ports; `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×) für die Betriebsregel „nur `Edit` und `Write`“. Der Slice ist nicht nebenläufig. Keiner der offenen Einträge erreicht mit diesem Slice 3×.
+**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-10-30), beim Start nachgezogen (2026-11-01, Zähler = Zahl der Dateien in `evidence/`). `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×, Schwelle erreicht, Verkörperung offen) gilt für die Fakes der Ports; `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (3×, Schwelle erreicht, Zustand offen) für die Betriebsregel „nur `Edit` und `Write`“. Der Slice ist nicht nebenläufig. Beide sind Feldlagen, die der Plan als Risiko führt (§3 Betriebsregeln, §6); ein weiteres Auftreten trägt der Slice in `evidence/` ein.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der

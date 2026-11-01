@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-170` (Umfang, Typen) · `SPEC-172` Nr. 1 bis 5 (Lesen; Nr. 6 und 7 gehören `slice-v2-payload-schreiben`) · `SPEC-178` · `LH-FA-17.a` (versionierter Adapter für V2-Payloads, keine Vermischung von V2 und V4) · `LH-FA-17` Boundary (leeres Ergebnis bleibt im V2-Antwortformat konsistent) · `SPEC-126` (Vertrag des V4-Lesers als Vorbild; Schreibweisen der Typen Nr. 10) · `SPEC-127` Nr. 8 (Auswahl der Antworten durch den Import) · `SPEC-002` · `SPEC-006` (Fehlerobjekt) · `ARC-004`, `ARC-011` · `architecture.md` §7 (Erweiterungspunkt OData V2).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-v2-payload-lesen)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
@@ -121,7 +121,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 - **Code-Abhängigkeit, mit Grund:** keine auf einen offenen Slice. Der Leser steht hinter dem Port `ODataCodec` (`done/`) und braucht Modell und Fehlermodell (`done/`); das V2-Modell ist derselbe Typ `model.ServiceModel` ([ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md)), die Tests bauen es mit `model.NeuesServiceModel("2.0", …)`, der V2-Metadatenleser ist keine Voraussetzung. Der Schnitt von Lesen und Schreiben ist ein Teil ohne geteilten Mechanismus (`AGENTS.md` §3.14): sie teilen allein die Tabelle der Typen in der Spezifikation (`SPEC-170` Nr. 4, `SPEC-172` Nr. 4), der Rundlauf beider liegt im Schreiben.
 - **Was der Slice nicht braucht — und warum:** `MockUseCase`, Workspace, Composition Root, M2 und `slice-bootstrap-m3` (der Codec arbeitet auf Bytes, Modell und Entities; der Rundlauf über Import und Mock gehört `slice-v2-bootstrap`), `slice-v2-query`, `slice-v2-metadaten`, `slice-odata-json-schreiben`, `welle-hybrid`, `welle-betrieb`, `welle-admin-api`, `welle-etag`, `welle-expand-batch`. Das heißt: **startbar ohne `welle-mock` und ohne M2, sobald [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) `Accepted` ist.**
-- **Größenmarke:** noch nicht gesetzt. Der Planner setzt sie vor dem ersten Code-Commit mit `make groessenmarke` nach `SPEC-128`; die Faktoren stehen allein dort, Leser fremder Bytes haben in der Formel keinen Zuschlag mehr, die Produktcode-Erwartung des Architect (Zeile `produktcode` im Block) ist ein fester Anteil; der V4-Leser `json` (Zeile *json* in `SPEC-128` Nr. 2) ist die Messlatte für die Erwartung des Lesens.
+- **Größenmarke** (`AGENTS.md` §3.14, `SPEC-128`), vorläufig aus der Grobschätzung des Architect (45 Zeilen der Tabelle, davon keine nebenläufig, mal 80 plus Produktcode 900): *S* ≈ 4500, Marke *M* = 100 · ⌈135·4500 / 10000⌉ = **6100**. Die Metrik ist die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über `src/adapters/driven/odata/jsoncodecv2/` und die Tests dort, Tests eingeschlossen (`versionstrennung_test.go` zählt nur, wenn dieser Slice ihn anlegt, §6). Der Block nach `SPEC-128` Nr. 3 h folgt mit der Tabelle *Zusage · Fänger* des Architect (Teil des Architect: `pfad`, `produktcode`, `fakes`; Teil des Planner: `basis`, `schaetzung`, `marke`); bis dahin ist die Marke eine Prosa-Zeile und das Gate misst sie nicht. Die Zahl wird mit der gezählten Tabelle neu gerechnet; die Produktcode-Erwartung (900) ist ein fester Anteil, der V4-Leser `jsoncodec` (rund 1500 Zeilen Produktcode, `scan.go` davon 517) ist die Messlatte. **Schnittfrage** (*S* ≥ 2223, hier gestellt): Entity und Collection teilen Scanner, Hülle (`d`, `results`, `__count`, `__next`) und die Tabelle der Typen; ein Teil ohne geteilten Mechanismus ist nicht abtrennbar, das Schreiben ist bereits vor dem Code geschnitten (`slice-v2-payload-schreiben`). Die Alternative, den JSON-Scanner aus `jsoncodec` zu heben und von beiden Versionen zu teilen, ändert den V4-Pfad (Verschieben zählt doppelt) und bräche die Versionstrennung, solange `jsoncodecv2` kein V4-Paket des Adapters importieren darf (§1, Test Nr. 3); der Architect entscheidet im Vorabentwurf, ob ein eigener Scanner in `jsoncodecv2` im Produktcode (900) steht, und nennt sonst den Wert. Damit steht hier der Grund, warum kein Teil vor dem Code abgetrennt wird (`AGENTS.md` §3.14); ein Befund des Architect, der einen Teil ohne geteilten Mechanismus zeigt, ersetzt ihn vor dem ersten Code-Commit.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -147,7 +147,7 @@ dasteht.
 - Die Menge der Bodies ist unbeschränkt (jede Bytefolge) — **Ausgang:** offen; Generator über die Klasse mit Orakel und Zählprüfung oder Prüfgrenze als akzeptiertes Negativ mit Grund und Folge im Betrieb (`AGENTS.md` §3.17).
 - Das Format der V2-Antworten (JSON oder Atom) steht im Lastenheft nicht — **Ausgang:** entfallen: JSON, Atom außerhalb des Umfangs (`SPEC-170` Nr. 2).
 - Zeit- und Zahlenschreibweisen von V2 (Zeitpunkte als Millisekunden, `Edm.Int64` und `Edm.Decimal` als Zeichenketten): jede Abbildung auf die kanonische Form ist verlustbehaftet oder nicht — **Ausgang:** offen; Raster, eine Zelle je Typ (Schleife über die sieben Typen, `SPEC-172` Nr. 4).
-- Fakes der Ports halten jedes Argument fest und zählen jede Operation (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 2×) — **Ausgang:** offen.
+- Fakes der Ports halten jedes Argument fest und zählen jede Operation (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 4×) — **Ausgang:** offen.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
 
 **Raster *Operation × Argumentart*** (Zellen füllt der Architect; Stand: alle `(Vertrag, offen)`):
@@ -159,7 +159,7 @@ dasteht.
 
 Die Zelle *unbekannte Property, nicht unterstützter Typ* führt auch die Property mit `Unterstuetzt()` falsch und `EdmType` `Edm.DateTimeOffset(V2)`: `Uebersprungen` mit `typ`, Ort `SPEC-172` Nr. 3, Fänger Nr. 1 der Tabelle in §3 (Sendung von `slice-v2-metadaten`). Die Zelle *Typ-Schreibweisen* führt den Wert des Modells `Edm.DateTimeOffset` aus `Edm.DateTime`: `datetimeoffset`, Ort `SPEC-170` Nr. 4, Fänger Nr. 2.
 
-- Die Sendungen von `slice-v2-metadaten` (Fixture `Edm.DateTimeOffset(V2)`, Test `versionstrennung_test.go`) — **Ausgang:** offen; Adresse: dieser Slice, §1 *Übernommen*, DoD (Lesen), §3 Nr. 1 bis 3.
+- Die Sendungen von `slice-v2-metadaten` (Fixture `Edm.DateTimeOffset(V2)`, Test `versionstrennung_test.go`) — **Ausgang:** offen; Adresse: dieser Slice, §1 *Übernommen*, DoD (Lesen), §3 Nr. 1 bis 3. Stand beim Start (2026-11-01): `main` trägt den Test nicht, er liegt im Zweig `slice-v2-metadaten` (im Verifier-Lauf). Legten beide Zweige die Datei an, kollidierte der Merge (beide Seiten neu); deshalb prüft der Implementer vor dem ersten Code-Commit mit `git merge main`, ob `main` den Test trägt, und legt ihn nur an, wenn nicht; liegt er, lässt er ihn unverändert (Schleife erfasst `jsoncodecv2` ohne Eintrag). Legt er ihn an, geht das als Rückgabe an den Planner (Merge-Reihenfolge, Zweig `slice-v2-metadaten` wird vor diesem gemerged).
 
 Die Zeilen zum Schreiben des Rasters stehen in `slice-v2-payload-schreiben`.
 
@@ -195,7 +195,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-10-30); der Planner zieht Treffer und Zähler beim Start nach. `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) gilt für Fakes der Codec-Ports und Hüllen von Strömen (jede Schnittstelle des Originals, jeder Read gezählt); `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×) für die Betriebsregel „nur `Edit` und `Write`“. Der Slice ist nicht nebenläufig. Keiner der offenen Einträge erreicht mit diesem Slice 3×.
+**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-10-30), beim Start nachgezogen (2026-11-01, Zähler = Zahl der Dateien in `evidence/`). `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×, Schwelle erreicht, Verkörperung offen) gilt für Fakes der Codec-Ports und Hüllen von Strömen (jede Schnittstelle des Originals, jeder Read gezählt); `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (3×, Schwelle erreicht, Zustand offen) für die Betriebsregel „nur `Edit` und `Write`“. Der Slice ist nicht nebenläufig. Beide sind Feldlagen, die der Plan als Risiko führt (§3 Betriebsregeln, §6); ein weiteres Auftreten trägt der Slice in `evidence/` ein.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der
