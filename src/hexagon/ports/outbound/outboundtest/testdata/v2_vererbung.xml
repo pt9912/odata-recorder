@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="1.0" xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx">
+  <edmx:DataServices>
+    <Schema Namespace="Zoo" xmlns="http://schemas.microsoft.com/ado/2006/04/edm">
+      <EntityType Name="Animal" Abstract="true">
+        <Key><PropertyRef Name="Id"/></Key>
+        <Property Name="Id" Type="Edm.Int64" Nullable="false"/>
+        <Property Name="Name" Type="Edm.String"/>
+      </EntityType>
+      <EntityType Name="Mammal" BaseType="Zoo.Animal">
+        <Property Name="Fur" Type="Edm.Boolean"/>
+        <NavigationProperty Name="Keeper" Relationship="Zoo.Mammal_Keeper" FromRole="Mammal" ToRole="Keeper"/>
+      </EntityType>
+      <EntityType Name="Dog" BaseType="Zoo.Mammal">
+        <Property Name="Breed" Type="Edm.String"/>
+      </EntityType>
+      <EntityType Name="Puppy" BaseType="Zoo.Dog"/>
+      <EntityType Name="Keeper">
+        <Key><PropertyRef Name="Id"/></Key>
+        <Property Name="Id" Type="Edm.Int32" Nullable="false"/>
+      </EntityType>
+      <Association Name="Mammal_Keeper">
+        <End Type="Zoo.Mammal" Role="Mammal" Multiplicity="*"/>
+        <End Type="Zoo.Keeper" Role="Keeper" Multiplicity="0..1"/>
+      </Association>
+      <EntityContainer Name="Park">
+        <EntitySet Name="Animals" EntityType="Zoo.Animal"/>
+        <EntitySet Name="Keepers" EntityType="Zoo.Keeper"/>
+        <AssociationSet Name="Mammal_Keeper" Association="Zoo.Mammal_Keeper">
+          <End Role="Mammal" EntitySet="Animals"/>
+          <End Role="Keeper" EntitySet="Keepers"/>
+        </AssociationSet>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

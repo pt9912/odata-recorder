@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-metadaten
+**Fund:** Mutationen von N8 (`selfref`) und der Austausch von `basen`, `ketten` und `summe` in D9 endeten mit der Panik des Speicherwächters der Suite, ohne `--- FAIL`-Zeile und ohne den Namen des Tests, den die Tabelle nennt; I2-Mutanten ebenso. Rot aus dem richtigen Grund, aber nicht im benannten Test. Beleg: Reports `docs/reviews/2026-11-01-slice-v2-metadaten-review.md` (I-3, I-5) und `docs/reviews/2026-11-01-slice-v2-metadaten-verifikation.md` (Zeile F-1 / N8).

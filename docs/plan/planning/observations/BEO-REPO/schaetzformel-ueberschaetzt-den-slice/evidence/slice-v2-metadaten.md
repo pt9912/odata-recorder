@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-metadaten
+**Fund:** Schätzung des Blocks 6070, Tabelle (59 Zeilen) 6230, Messung 4962 beim Stand nach der Fix-Runde der Verifikation, Marke 8200 nie berührt; Ende ÷ *S* 0,80 bis 0,82, Auslastung 0,61. Die Formel überschätzt den Slice, wie bei `slice-v2-import-codecs`. Beleg: Plan §4 (*Schätzung 6070 gegen Tabelle 6230*) und §6 (Rückgaben, Adresse Architect); Report `docs/reviews/2026-11-01-slice-v2-metadaten-verifikation.md` (INFO-4 a).
