@@ -47,6 +47,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Start-Befehl):** Aufruf `start` (Kommando, Argumente, Ausgabe je Strom, Ausgangswert), Exit-Codes 0, 1, 2, 130, 143 und das Signalverhalten (SIGTERM, SIGINT; das erste Signal fährt geordnet herunter, das zweite erzwingt das Ende) nach `SPEC-138` Nr. 2 bis 7 (Sendung von `slice-cli-adapter`, `AGENTS.md` §3.13). Ein gebundenes Beispiel für `start` ist ein Lauf, der endet (Konfigurationsfehler, Exit 1, Meldung nach `SPEC-110` Nr. 12).
 
+**Übernimmt (Hinweis, keine Pflicht; Sendung von `slice-bootstrap-m2`, `AGENTS.md` §3.13):** Das Handbuch nennt den Satz „ein Prozess je Datenverzeichnis“ (`SPEC-106`): zwei Prozesse auf demselben `DATA_DIR` sind nicht unterstützt, die Startwartung des zweiten setzt die offene Session des ersten auf `incomplete` (`SPEC-139` *Ungeprüft*). Ohne den Satz bleibt es bei `SPEC-106`.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Mock-Modus, Hybrid-Modus, Fallback, Admin-API, Snapshots, Telemetrie, TLS des Listeners — Folgewellen (Welle §6); ihre Kapitel entstehen dort. Was das Binary nach `slice-bootstrap-m2` nicht kann, steht gar nicht im Handbuch, auch nicht als Hinweis „folgt“ oder „nicht verfügbar“ (Welle §1, Entscheidung des Users); Schlüssel, die das Binary ablehnt (`SPEC-110` Nr. 2: `ADMIN_*`, `HYBRID_*`, `FALLBACK_*`, `LISTEN_TLS_*`, `STRICT_COVERAGE`, `PUBLIC_BASE_URL`), erscheinen nicht als Konfiguration, die der Anwender setzen kann. Ob die Fehlermeldung beim Setzen eines solchen Schlüssels (`ODR-E2001`) im Kapitel Fehlerbehebung steht, ist Ist-Zustand und entscheidet der Architect.
