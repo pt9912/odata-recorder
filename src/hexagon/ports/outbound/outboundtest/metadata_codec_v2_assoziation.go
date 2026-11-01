@@ -396,7 +396,9 @@ func n8Dokument(gruppen []n8Gruppe) []byte {
 	t := typ
 	for _, g := range gruppen {
 		if g.ohneSchluessel {
-			t = func(name, inhalt string) string { return `<EntityType Name="` + name + `" Abstract="true">` + inhalt + `</EntityType>` }
+			t = func(name, inhalt string) string {
+				return `<EntityType Name="` + name + `" Abstract="true">` + inhalt + `</EntityType>`
+			}
 		}
 		assocs.WriteString(`<Association Name="` + g.name + `"><End Type="Ns.T" Role="F" Multiplicity="*"/><End Type="Ns.T" Role="G" Multiplicity="0..1"/></Association>`)
 		for i := range g.navs {
