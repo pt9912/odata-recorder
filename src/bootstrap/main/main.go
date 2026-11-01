@@ -6,11 +6,12 @@ import (
 	"os"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driving/cli"
+	"github.com/pt9912/odata-recorder/src/bootstrap"
 )
 
 // version setzt der Build per -ldflags (Dockerfile, Stufe build).
 var version = "dev"
 
 func main() {
-	os.Exit(cli.Run(os.Args[1:], cli.Konfig{Version: version, Stdout: os.Stdout, Stderr: os.Stderr}))
+	os.Exit(cli.Run(os.Args[1:], cli.Konfig{Version: version, Start: bootstrap.Start, Stdout: os.Stdout, Stderr: os.Stderr}))
 }

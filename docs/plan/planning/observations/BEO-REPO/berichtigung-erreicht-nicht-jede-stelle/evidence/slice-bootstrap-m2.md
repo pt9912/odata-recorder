@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m2
+**Fund:** Ein Kommentar sagte die Stelle des Ausfalls von `Serve` sei "offen", nachdem Plan und Spezifikation sie entschieden hatten (V-6); die Block-Schätzung (2120) blieb bei der gewachsenen Tabelle (2445), vom Vertrag zugelassen; der Satz zu `Konfig.Start` in `harness/README.md` stimmte nach dem Slice nicht mehr und wurde erst bei der Closure gefunden. Beleg: Plan §4 und §7.

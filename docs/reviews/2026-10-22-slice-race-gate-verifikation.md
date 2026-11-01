@@ -104,7 +104,7 @@ Grün geblieben sind allein N3 (vom Vertrag als Negativ geführt) und B8 b (der 
 
 ## 7. Sendungen (§3.13)
 
-`slice-bootstrap-m2` liegt in `open/` (nicht in `done/`); die Sendung (`tests/` in die Stufe `source` und den Build-Kontext) steht in dessen §1 *Übernimmt (Quellstand)*, DoD und §3 (`docs/plan/planning/in-progress/slice-bootstrap-m2.md:43,71,95`) mit Verweis auf `slice-race-gate`; sein *Ausdrücklich NICHT* trifft sie nicht (Plan §6, *Pakete*). `slice-http-adapter` trägt die Sendung in §1 (Zeile 40) und DoD (Zeile 69). Keine Zuweisung an einen Slice in `done/`.
+`slice-bootstrap-m2` liegt in `open/` (nicht in `done/`); die Sendung (`tests/` in die Stufe `source` und den Build-Kontext) steht in dessen §1 *Übernimmt (Quellstand)*, DoD und §3 (`docs/plan/planning/done/slice-bootstrap-m2.md:43,71,95`) mit Verweis auf `slice-race-gate`; sein *Ausdrücklich NICHT* trifft sie nicht (Plan §6, *Pakete*). `slice-http-adapter` trägt die Sendung in §1 (Zeile 40) und DoD (Zeile 69). Keine Zuweisung an einen Slice in `done/`.
 
 ## Befunde
 
