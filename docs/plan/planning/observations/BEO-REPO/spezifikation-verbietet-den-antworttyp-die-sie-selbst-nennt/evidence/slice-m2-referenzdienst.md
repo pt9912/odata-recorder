@@ -1,0 +1,2 @@
+**Vorgang:** slice-m2-referenzdienst
+**Fund:** Der Architect las beim Start des Slice den Wortlaut von `SPEC-118` Nr. 3 und `SPEC-045` Zeile 3: die Typregel erklärte jeden `text/*` für unbekannt, damit war die echte Antwort auf `/$count` und `$value` nie abspielbar. Der Referenzdienst liefert `/Products/$count` deshalb als `application/json`. Behoben durch `slice-text-antworten`; die Umstellung der Fixture auf `text/plain` gehört diesem Folge-Slice. Beleg: Plan §1 (*Ausdrücklich NICHT*) und §6 (Risiko S3).
