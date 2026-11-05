@@ -429,8 +429,8 @@ func mitInhalt(fs []fall) []fall {
 // --- Prüfung der direkten Antworten
 
 // TestFaelleDirektWieErwartet fängt den Referenzdienst gegen die Annahmen der Fälle: Status, Typ, Coding, Inhalt,
-// die Namen der relevanten Header und das Echo des Accept-Encoding je Antwortart; ohne sie wäre ein grüner
-// Vergleich kein Beleg für die Antwortart (Z16, Z18, LH-QA-07.a Nr. 4 bis 6).
+// die Namen der relevanten Header und das Echo des Accept-Encoding je Antwortart; ein grüner Vergleich belegt
+// die Antwortart nur, wenn die direkte Antwort sie trägt (Z16, Z18, LH-QA-07.a Nr. 4 bis 6).
 func TestFaelleDirektWieErwartet(t *testing.T) {
 	u := neueVgUmgebung(t)
 	if len(u.faelle) != 16 {
