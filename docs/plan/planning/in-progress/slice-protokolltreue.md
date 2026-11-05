@@ -176,8 +176,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - Nach `AGENTS.md` §3.14 (85 je nebenläufige, 40 je andere Zeile, 200 je Test-Server, × 1,25): 85 + 840 + 200 = 1125, × 1,25 = 1406,25, Marke **1500**.
 - Beide Fassungen widersprechen einander (offene Entscheidung des Users, §6); der Architect setzt keine Marke. Gesetzt ist die Marke des Gates, 2700; die vorläufige Marke 1400 ist ersetzt (oben).
 
-**Messpunkt, Stand Handoff** (`SPEC-128` Nr. 9; `git diff --numstat 7c4e1df..d3c5823 -- tests/`: 1028 + 251 + 125 = 1404, Tests eingeschlossen, Produktcode 0):
-`Messpunkt slice-protokolltreue.md: zeilen=22 nebenlaeufig=1 fakes=1 produktcode=0 schaetzung=1965 marke=2700 messung=1404`; Auslastung 1404 ÷ 2700 = 0,52, die Marke wird nicht überschritten. Zum Vergleich ergibt `AGENTS.md` §3.14 mit 1125 vor und 1406 nach dem Faktor 1,25 eine Schätzung, die der Messung gleicht (1404).
+**Messpunkt, Stand Fix-Runde nach dem Review** (`SPEC-128` Nr. 9; `git diff --numstat 7c4e1df..HEAD -- tests/`: 1141 + 251 + 125 = 1517; beim Handoff 1404, Tests eingeschlossen, Produktcode 0):
+`Messpunkt slice-protokolltreue.md: zeilen=22 nebenlaeufig=1 fakes=1 produktcode=0 schaetzung=1965 marke=2700 messung=1517`; Auslastung 1517 ÷ 2700 = 0,56, die Marke wird nicht überschritten. Zum Vergleich ergibt `AGENTS.md` §3.14 mit 1125 vor und 1406 nach dem Faktor 1,25 eine Schätzung, die der Messung gleicht (1404).
 
 ```groessenmarke
 pfad: tests/integration/
