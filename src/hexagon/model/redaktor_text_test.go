@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/url"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -13,8 +14,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// Die Tests dieser Datei fangen die Zusagen Z1 bis Z11 und Z9 von SPEC-118 Nr. 3 und Nr. 11
-// (Typ Text). Bytes ab 0x80 stehen als \x-Folgen im Quelltext, nie als Zeichen.
+// Die Tests dieser Datei fangen die Zusagen von SPEC-118 Nr. 3 und Nr. 11 (Typ Text). Bytes ab 0x80 stehen als \x-Folgen im Quelltext, nie als Zeichen.
 
 const (
 	zeichenE  = "\xC3\xA9"
@@ -43,7 +43,7 @@ func istUnsicher(g ergebnis, grund model.UnsicherGrund) bool {
 	return g.status == model.RedactionUnsafe && grundVon(g.err) == grund
 }
 
-// Z1: Text ist nur mit Ziel bekannt.
+// Text ist nur mit Ziel bekannt (SPEC-118 Nr. 3).
 func TestTextNurMitZiel(t *testing.T) {
 	typen := []string{"text/plain", "text/csv", "text/html", "TEXT/Plain", " text/plain ", "\ttext/xml\t", "text/json", "text/plain; charset=utf-8"}
 	n := 0
@@ -67,7 +67,7 @@ func TestTextNurMitZiel(t *testing.T) {
 	}
 }
 
-// Z2: Randformen des Typs bei gesetztem Ziel.
+// Randformen des Typs bei gesetztem Ziel (SPEC-118 Nr. 3).
 func TestTextTypRandformen(t *testing.T) {
 	unbekannt := [][]string{
 		{"text/"}, {"text"}, {"xtext/plain"}, {"application/text"}, {"text/;x"}, {" text/ "}, {"texts/plain"},
@@ -96,7 +96,7 @@ func TestTextTypRandformen(t *testing.T) {
 	}
 }
 
-// Z3: JSON bleibt JSON bei gesetztem Ziel.
+// JSON bleibt JSON bei gesetztem Ziel (SPEC-118 Nr. 3).
 func TestTextJSONBleibtJSON(t *testing.T) {
 	for _, art := range []string{"zaehlung", "wert"} {
 		g := redigiere(t, einmal("3"), zielEin(art, "application/json"), bodyRegeln(t))
@@ -120,7 +120,7 @@ type zeichensatzFall struct {
 	erlaubt bool
 }
 
-// Z4: Zeichensatz, jede Form, für beide Ziele.
+// Zeichensatz, jede Form, für beide Ziele (SPEC-118 Nr. 11 c).
 func TestTextZeichensatz(t *testing.T) {
 	faelle := []zeichensatzFall{
 		{"text/plain", true}, {"text/plain; charset=utf-8", true}, {"text/plain; charset=UTF-8", true},
@@ -165,7 +165,7 @@ func TestTextZeichensatz(t *testing.T) {
 	}
 }
 
-// Z4/Z11: Rangfolge der Verstöße beim Zeichensatz.
+// Rangfolge der Verstöße beim Zeichensatz.
 func TestTextZeichensatzRangfolge(t *testing.T) {
 	for _, art := range []string{"zaehlung", "wert"} {
 		g := redigiere(t, einmal("1a"), zielEin(art, "text/plain; charset=iso-8859-1"), bodyRegeln(t))
@@ -194,7 +194,7 @@ func TestTextZeichensatzRangfolge(t *testing.T) {
 	}
 }
 
-// Z5: Zählung, jedes Byte an erster, mittlerer und letzter Stelle.
+// Zählung (SPEC-118 Nr. 11 a), jedes Byte an erster, mittlerer und letzter Stelle.
 func TestTextZaehlungBytes(t *testing.T) {
 	zahl := 0
 	for b := 0; b < 256; b++ {
@@ -234,7 +234,7 @@ func TestTextZaehlungBytes(t *testing.T) {
 	}
 }
 
-// Z6: Redaktion des Werts nach dem Namen.
+// Redaktion des Werts nach dem Namen (SPEC-118 Nr. 11 b).
 func TestTextWertRedaktion(t *testing.T) {
 	treffer := []string{"password", "PASSWORD", "PassWord", "passwd", "secret", "client_secret", "access_token", "refresh_token", "api_key", "API_KEY"}
 	inhalte := []string{"S3CR3T-7f", "a", "line1\nline2", " ", zeichenE + zeichenEu + zeichenSm, "[REDACTED] ", " [REDACTED]", "[REDACTED]x", "[REDACTE", "[REDACTED", "[redacted]", "\"x\""}
@@ -304,7 +304,7 @@ func (w *aufzeichnerWriter) Write(p []byte) (int, error) {
 
 func (w *aufzeichnerWriter) alles() []byte { return slices.Concat(w.writes...) }
 
-// Z7: ins dst gelangt nie ein Byte des Geheimnisses.
+// Ins dst gelangt nie ein Byte des Geheimnisses (SPEC-118 Nr. 9 und 11 b).
 func TestTextKeinGeheimnisImDst(t *testing.T) {
 	const geheim = "s3cr3t-7f9"
 	hat := func(dst []byte) bool {
@@ -332,6 +332,11 @@ func TestTextKeinGeheimnisImDst(t *testing.T) {
 	rest(einmal(geheim), model.BodyRegeln{Pfade: regeln.Pfade, MaxBytes: 4}, model.GrundZuGross, "zu_gross")
 	rest(&abbruchReader{daten: geheim, k: len(geheim), err: errTest}, regeln, model.GrundEingabe, "Abbruch am Ende")
 	rest(&abbruchReader{daten: geheim, k: 3, err: errTest, zusammen: true}, regeln, model.GrundEingabe, "Abbruch mit Daten")
+	// Nach vollständigen Daten: der Fehler von src oder die Grenze trifft erst nach dem letzten Byte des Inhalts.
+	rest(&abbruchReader{daten: geheim, k: len(geheim), err: errTest, zusammen: true}, regeln, model.GrundEingabe, "Abbruch mit den letzten Bytes")
+	rest(&abbruchReader{daten: geheim, k: len(geheim), err: errTest, teil: 1}, regeln, model.GrundEingabe, "Abbruch nach einzelnen Bytes")
+	rest(einmal(geheim+"x"), model.BodyRegeln{Pfade: regeln.Pfade, MaxBytes: int64(len(geheim))}, model.GrundZuGross, "zu_gross am letzten Byte")
+	rest(teile(false, false, einzelneBytes(geheim+"x")...), model.BodyRegeln{Pfade: regeln.Pfade, MaxBytes: int64(len(geheim))}, model.GrundZuGross, "zu_gross am letzten Byte, einzeln")
 	rest(teile(false, false, einzelneBytes(geheim+"\xFF")...), regeln, model.GrundUTF8, "einzelne Bytes")
 	// Bei Erfolg steht genau der Marker, und zwar in einem Write.
 	w := &aufzeichnerWriter{}
@@ -346,7 +351,7 @@ func TestTextKeinGeheimnisImDst(t *testing.T) {
 	}
 }
 
-// Z8: UTF-8 beim Wert, an jeder Teilungsstelle und über jedes Bytepaar.
+// UTF-8 beim Wert (SPEC-118 Nr. 11 b), an jeder Teilungsstelle und über jedes Bytepaar.
 func TestTextWertUTF8(t *testing.T) {
 	zahl := 0
 	for _, zeichen := range []string{zeichenE, zeichenEu, zeichenSm, "a", "\x00", "\x7F"} {
@@ -391,7 +396,87 @@ func TestTextWertUTF8(t *testing.T) {
 	}
 }
 
-// Z8: Generator über jedes Bytepaar (und die langen Anfänge); das Orakel ist utf8.Valid.
+// Der Speicher hängt nicht von der Länge des Inhalts ab (SPEC-118 Nr. 6), und der Inhalt eines
+// treffenden Werts wird nie gepuffert (Nr. 11 b): der Zuwachs von TotalAlloc bleibt bei einem
+// Strom von 9 MiB unter 1 MiB, für jede Art des Inhalts (Ziffern, ein-, zwei-, drei- und
+// vierbyte-Zeichen) unter jedem Ziel, und bei Treffer steht allein der Marker im dst.
+func TestTextSpeicher(t *testing.T) {
+	const neun = 9 << 20
+	faelle := []struct {
+		name   string
+		ein    model.BodyEingang
+		muster string
+		status model.RedactionStatus
+		aus    int64
+	}{
+		{"Zählung", zielEin("zaehlung", "text/plain"), "7", model.RedactionNone, neun},
+		{"Wert ohne Treffer, ASCII", wertEin("Name", "text/plain"), "a", model.RedactionNone, neun},
+		{"Wert ohne Treffer, zwei Bytes", wertEin("Name", "text/plain"), zeichenE, model.RedactionNone, neun},
+		{"Wert ohne Treffer, drei Bytes", wertEin("Name", "text/plain"), zeichenEu, model.RedactionNone, neun},
+		{"Wert ohne Treffer, vier Bytes", wertEin("Name", "text/plain"), zeichenSm, model.RedactionNone, neun},
+		{"Wert mit Treffer, ASCII", wertEin("password", "text/plain"), "a", model.RedactionApplied, int64(len(model.Marker))},
+		{"Wert mit Treffer, zwei Bytes", wertEin("password", "text/plain"), zeichenE, model.RedactionApplied, int64(len(model.Marker))},
+		{"Wert mit Treffer, drei Bytes", wertEin("password", "text/plain"), zeichenEu, model.RedactionApplied, int64(len(model.Marker))},
+		{"Wert mit Treffer, vier Bytes", wertEin("password", "text/plain"), zeichenSm, model.RedactionApplied, int64(len(model.Marker))},
+		{"Wert mit Treffer, Marker wiederholt", wertEin("password", "text/plain"), model.Marker, model.RedactionApplied, int64(len(model.Marker))},
+	}
+	if len(faelle) != 10 {
+		t.Fatalf("%d Fälle", len(faelle))
+	}
+	for _, f := range faelle {
+		w := &zaehlWriter{}
+		var vor, nach runtime.MemStats
+		runtime.ReadMemStats(&vor)
+		st, err := model.RedigiereBody(w, &genReader{muster: f.muster, n: neun / len(f.muster) * len(f.muster)}, f.ein,
+			model.BodyRegeln{Pfade: standardPfade(t), MaxBytes: 16 << 20})
+		runtime.ReadMemStats(&nach)
+		aus := f.aus
+		if aus == neun {
+			aus = neun / int64(len(f.muster)) * int64(len(f.muster))
+		}
+		if err != nil || st != f.status {
+			t.Errorf("%s: Status %q, Fehler %v", f.name, st, err)
+		}
+		if w.n != aus {
+			t.Errorf("%s: %d Bytes geschrieben, erwartet %d", f.name, w.n, aus)
+		}
+		if zuwachs := nach.TotalAlloc - vor.TotalAlloc; zuwachs >= 1<<20 {
+			t.Errorf("%s: Zuwachs %d Bytes bei 9 MiB Strom", f.name, zuwachs)
+		}
+	}
+}
+
+// Eine am Stromende halbe Mehrbyte-Folge ist utf8, bei Treffer ohne ein Byte im dst, ohne Treffer
+// mit den Bytes der halben Folge (SPEC-118 Nr. 11 b): jede Folge von 2 bis 4 Bytes, jede Länge der
+// halben Folge, jede Zerlegung.
+func TestTextWertHalbeFolgeAmEnde(t *testing.T) {
+	zahl := 0
+	for _, folge := range []string{zeichenE, zeichenEu, zeichenSm} {
+		for k := 1; k < len(folge); k++ {
+			body := "ab" + folge[:k]
+			for _, name := range []string{"password", "Name"} {
+				soll := body
+				if name == "password" {
+					soll = ""
+				}
+				for _, z := range zerlegungen(body) {
+					zahl++
+					w := &aufzeichnerWriter{}
+					st, err := model.RedigiereBody(w, z.leser(), wertEin(name, "text/plain"), bodyRegeln(t))
+					if st != model.RedactionUnsafe || grundVon(err) != model.GrundUTF8 || string(w.alles()) != soll {
+						t.Errorf("%q als %s, %s: %q, %v, dst %q, erwartet %q", body, name, z.name, st, err, w.alles(), soll)
+					}
+				}
+			}
+		}
+	}
+	// 6 halbe Folgen (1; 1, 2; 1, 2, 3 Bytes) × 2 Namen × (Länge − 1 + 4) Zerlegungen: 2 × 40.
+	if zahl != 80 {
+		t.Errorf("Zählprüfung: %d", zahl)
+	}
+}
+
+// Generator über jedes Bytepaar (und die langen Anfänge); das Orakel ist utf8.Valid.
 func TestTextWertUTF8Generator(t *testing.T) {
 	zahl := 0
 	pruefe := func(mitte string) {
@@ -424,7 +509,7 @@ func TestTextWertUTF8Generator(t *testing.T) {
 	}
 }
 
-// Z10: Kombinationen der Ziele.
+// Kombinationen der Ziele (SPEC-118 Nr. 1).
 func TestTextZielKombinationen(t *testing.T) {
 	zahl := 0
 	for bits := 0; bits < 8; bits++ {
@@ -451,7 +536,7 @@ func TestTextZielKombinationen(t *testing.T) {
 	}
 }
 
-// Z11: die Rangfolge der Nummern gilt für Text.
+// Die Rangfolge der Nummern 2, 6 und 7 von SPEC-118 gilt für Text.
 func TestTextRangfolge(t *testing.T) {
 	for _, art := range []string{"zaehlung", "wert"} {
 		ein := func(ct string) model.BodyEingang { return zielEin(art, ct) }
@@ -504,7 +589,7 @@ func TestTextRangfolge(t *testing.T) {
 	}
 }
 
-// Z9: TextZiel, eine Zeile je Pfadform.
+// TextZiel, eine Zeile je Pfadform (SPEC-118 Nr. 11 d).
 func TestTextZiel(t *testing.T) {
 	faelle := []struct {
 		pfad     string
@@ -529,6 +614,10 @@ func TestTextZiel(t *testing.T) {
 		{"/P/%FF/$value", false, true, "\xFF"}, {"/P/Name/$value ", false, false, ""}, {"/P/Name/$values", false, false, ""},
 		{"/P/Name/$VALUE", false, false, ""}, {"/P/Name/%24value", false, false, ""}, {"", false, false, ""}, {"/", false, false, ""},
 		{"/P/Name", false, false, ""},
+		// Ziffer am Anfang des Namens: ein Schlüssel als Segment, kein Property-Name (SPEC-118 Nr. 11 d).
+		{"/Products/1/$value", false, false, ""}, {"/Products/0/$value", false, false, ""}, {"/Products/9x/$value", false, false, ""},
+		{"/Products/%31/$value", false, false, ""}, {"/P/1%zz/$value", false, false, ""}, {"/Products/abc/$value", false, true, "abc"},
+		{"/Products/a1/$value", false, true, "a1"}, {"/P/%2531/$value", false, true, "%31"},
 	}
 	for _, f := range faelle {
 		z, w, n := model.TextZiel(f.pfad)
@@ -536,14 +625,33 @@ func TestTextZiel(t *testing.T) {
 			t.Errorf("TextZiel(%q) = %v, %v, %q; erwartet %v, %v, %q", f.pfad, z, w, n, f.zaehlung, f.wert, f.name)
 		}
 	}
-	if len(faelle) != 52 {
+	if len(faelle) != 60 {
 		t.Errorf("%d Fälle", len(faelle))
+	}
+	// Jede Ziffer 0 bis 9 am Anfang des Namens setzt kein Ziel, roh, als %XX und mit Rest; mit
+	// einem Buchstaben davor ist die Ziffer ein Teil des Namens.
+	zahl := 0
+	for d := '0'; d <= '9'; d++ {
+		ziffer := string(d)
+		for _, name := range []string{ziffer, ziffer + "x", ziffer + "%zz", "%3" + string(d), "%3" + string(d) + "x"} {
+			zahl++
+			if z, w, n := model.TextZiel("/Products/" + name + "/$value"); z || w || n != "" {
+				t.Errorf("Ziffer %s, Name %q: %v %v %q", ziffer, name, z, w, n)
+			}
+		}
+		zahl++
+		if z, w, n := model.TextZiel("/Products/a" + ziffer + "/$value"); z || !w || n != "a"+ziffer {
+			t.Errorf("a%s: %v %v %q", ziffer, z, w, n)
+		}
+	}
+	if zahl != 60 {
+		t.Errorf("%d Ziffernfälle", zahl)
 	}
 }
 
-// Z9: Generator über Pfade aus Segmenten; das Orakel arbeitet auf den Segmenten, nicht auf dem Suffix.
+// Generator über Pfade aus Segmenten; das Orakel arbeitet auf den Segmenten, nicht auf dem Suffix.
 func TestTextZielGenerator(t *testing.T) {
-	segmente := []string{"", "a", "(", ")", "'", "$x", "%28", "%zz", "$count", "$value", "%24count", "P(1)", "%41", "a$"}
+	segmente := []string{"", "a", "(", ")", "'", "$x", "%28", "%zz", "$count", "$value", "%24count", "P(1)", "%41", "a$", "0", "%39", "7x", "%2531", "3%zz"}
 	var pfade [][]string
 	var baue func(rest int, aktuell []string)
 	baue = func(rest int, aktuell []string) {
@@ -558,7 +666,7 @@ func TestTextZielGenerator(t *testing.T) {
 		}
 	}
 	baue(4, nil)
-	if len(pfade) != 14+14*14+14*14*14+14*14*14*14 {
+	if n := len(segmente); len(pfade) != n+n*n+n*n*n+n*n*n*n {
 		t.Fatalf("%d Pfade", len(pfade))
 	}
 	for _, segs := range pfade {
@@ -573,9 +681,15 @@ func TestTextZielGenerator(t *testing.T) {
 		if letztes == "$value" && len(segs) >= 2 {
 			roh := segs[len(segs)-2]
 			if roh != "" && !strings.ContainsAny(roh, "()'") && roh[0] != '$' {
-				wert, name = true, roh
+				name = roh
 				if d, err := url.PathUnescape(roh); err == nil {
 					name = d
+				}
+				// Orakel: ein Name mit einer Ziffer am Segmentanfang ist ein Schlüssel, kein Ziel.
+				if strings.IndexByte("0123456789", name[0]) >= 0 {
+					name = ""
+				} else {
+					wert = true
 				}
 			}
 		}
@@ -586,7 +700,7 @@ func TestTextZielGenerator(t *testing.T) {
 	}
 }
 
-// Z9: eine Länge ohne Obergrenze und jeder Text sind definiert.
+// Eine Länge ohne Obergrenze und jeder Text sind definiert.
 func TestTextZielRein(t *testing.T) {
 	lang := "/P/" + strings.Repeat("a", 100000) + "/$value"
 	if z, w, n := model.TextZiel(lang); z || !w || len(n) != 100000 {
@@ -595,7 +709,7 @@ func TestTextZielRein(t *testing.T) {
 	for b := 0; b < 256; b++ {
 		s := "/P/" + string([]byte{byte(b)}) + "/$value"
 		z, w, n := model.TextZiel(s)
-		soll := b != '(' && b != ')' && b != '\'' && b != '$' && b != '/'
+		soll := b != '(' && b != ')' && b != '\'' && b != '$' && b != '/' && (b < '0' || b > '9')
 		if z || w != soll {
 			t.Errorf("Byte %#x im Namen: %v %v %q", b, z, w, n)
 		}

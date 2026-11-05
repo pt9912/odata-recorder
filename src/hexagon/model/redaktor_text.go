@@ -12,8 +12,8 @@ const (
 
 // TextZiel leitet aus dem OData-Pfad (nach dem Service-Root, mit seinen Escapes, ohne Query) die
 // Ziele des Typs Text ab (SPEC-118 Nr. 11 d): zaehlung bei `/$count` mit einem Gegenstand davor,
-// wert bei `/<Name>/$value`, dann ist name der einmal %XX-dekodierte Name. Beide sind nie zugleich
-// wahr. Die Funktion ist rein und für jeden Text definiert.
+// wert bei `/<Name>/$value`, dann ist name der einmal %XX-dekodierte Name; beginnt der Name mit
+// einer Ziffer 0 bis 9, gilt kein Ziel. Beide sind nie zugleich wahr. Die Funktion ist rein und für jeden Text definiert.
 func TextZiel(pfad string) (zaehlung, wert bool, name string) {
 	if rest, ok := strings.CutSuffix(pfad, pfadZaehlung); ok {
 		return rest != "", false, ""
@@ -30,10 +30,14 @@ func TextZiel(pfad string) (zaehlung, wert bool, name string) {
 	if roh == "" || roh[0] == '$' || strings.ContainsAny(roh, "()'") {
 		return false, false, ""
 	}
+	name = roh
 	if dekodiert, err := url.PathUnescape(roh); err == nil {
-		return false, true, dekodiert
+		name = dekodiert
 	}
-	return false, true, roh
+	if name != "" && name[0] >= '0' && name[0] <= '9' {
+		return false, false, ""
+	}
+	return false, true, name
 }
 
 // textTyp meldet, ob der Media-Type `text/<x>` mit nichtleerem <x> ist (SPEC-118 Nr. 3); die

@@ -6,7 +6,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// Z12 (SPEC-121 Nr. 5): die Antwort trägt die Ziele aus TextZiel des OData-Pfads, der Request nie;
+// Aufrufstelle des Record-Dienstes (SPEC-121 Nr. 5): die Antwort trägt die Ziele aus TextZiel des OData-Pfads, der Request nie;
 // Antworten ohne Body gehen nicht in die Pipeline. Die Pfade stehen nach dem Service-Root `/a`.
 
 func textHeader(typ string) map[string][]string { return map[string][]string{"Content-Type": {typ}} }
@@ -67,6 +67,52 @@ func TestTextAntwortZiele(t *testing.T) {
 	}
 	if len(faelle) != 19 {
 		t.Errorf("%d Fälle", len(faelle))
+	}
+}
+
+// TestTextAntwortMethodeUndSchreibweise: die Methode ist gleichgültig (SPEC-121 Nr. 5), und der Pfad
+// wird so geschrieben gelesen, wie er kam: `$Count` und `$VALUE` setzen kein Ziel. Die Menge ist
+// jede Methode mit Body in der Antwort mal jede Pfadform.
+func TestTextAntwortMethodeUndSchreibweise(t *testing.T) {
+	methoden := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE", "PROPFIND"}
+	pfade := []struct {
+		pfad, body string
+		ziel       bool
+		blob       string
+		red        model.RedactionStatus
+	}{
+		{"/a/Products/$count", "42", true, "42", model.RedactionNone},
+		{"/a/Products(1)/Name/$value", "Anvil", true, "Anvil", model.RedactionNone},
+		{"/a/Products(1)/password/$value", "S3CR3T", true, model.Marker, model.RedactionApplied},
+		{"/a/Products/$Count", "42", false, "", ""},
+		{"/a/Products/$COUNT", "42", false, "", ""},
+		{"/a/Products(1)/Name/$Value", "Anvil", false, "", ""},
+		{"/a/Products(1)/password/$VALUE", "S3CR3T", false, "", ""},
+	}
+	zahl := 0
+	for _, methode := range methoden {
+		for _, f := range pfade {
+			zahl++
+			u := neu(t)
+			u.upstream.plane(antwort(200, textHeader("text/plain"), koerper(f.body)))
+			_, gelesen := u.rundlauf(anfrage(methode, f.pfad))
+			e := u.letzter()
+			if gelesen != f.body {
+				t.Errorf("%s %s: der Client las %q", methode, f.pfad, gelesen)
+			}
+			if !f.ziel {
+				if e.Capture != model.CaptureFailed || u.gruende()["response"] == "" {
+					t.Errorf("%s %s: %s, Gründe %v", methode, f.pfad, e.Capture, u.gruende())
+				}
+				continue
+			}
+			if blob, _ := u.blobs.inhalt(e.ResponseBlob); e.Capture != model.CaptureComplete || blob != f.blob || e.ResponseRedact != f.red {
+				t.Errorf("%s %s: %s, Blob %q, %s", methode, f.pfad, e.Capture, blob, e.ResponseRedact)
+			}
+		}
+	}
+	if zahl != 56 {
+		t.Errorf("%d Fälle", zahl)
 	}
 }
 

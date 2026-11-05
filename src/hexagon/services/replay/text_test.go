@@ -7,7 +7,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// TestRequestTextOhneZiel hält Z14 (SPEC-135 Nr. 7 c): der Request-Body als `text/plain` ist `typ`
+// TestRequestTextOhneZiel hält SPEC-135 Nr. 7 c: der Request-Body als `text/plain` ist `typ`
 // und ODR-E5001, auch auf den Pfaden der Ziele und unter beiden Modi des Matchings. Der Austausch
 // mit dem Key, der bei einem gesetzten Ziel entstünde, liegt in der Ablage: setzte der Replay das
 // Ziel, fände er ihn.
