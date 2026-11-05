@@ -133,4 +133,4 @@ Gegengelesen mit `LC_ALL=C grep -P` die Dateien des Diffs `241b3a3..8081cbf` unt
 
 ## Summary
 
-Kein HIGH, ein MEDIUM (V-1: untere Nachbar-Grenze der Ziffernklasse), drei LOW (V-2, V-3, V-4), zwei INFO. Die Fixes zu F-1 und F-3 decken die Klasse (F-1: 8 Elemente plus `aus`, rot in jedem Lauf, mit und ohne Detektor; F-3: Schleife Methode × Pfadform); F-2 deckt die Klasse bis auf das Element „einzelne Ziffer“ (V-2). `make gates` und der frische Race-Lauf sind grün. Entscheidungs-Konformität zu `SPEC-118` Nr. 1/3/11, `SPEC-119` Nr. 2/8, `SPEC-121` Nr. 5, `SPEC-135` Nr. 7 c und ADR-0001: bestätigt.
+Kein HIGH, ein MEDIUM (V-1: untere Nachbar-Grenze der Ziffernklasse), drei LOW (V-2, V-3, V-4), zwei INFO. Die Fixes zu F-1 und F-3 decken die Klasse (F-1: 8 Elemente plus `aus`, rot in jedem Lauf, mit und ohne Detektor; F-3: Schleife Methode × Pfadform); F-2 deckt die Klasse bis auf das Element „einzelne Ziffer“ (V-2). `make gates` und der frische Race-Lauf sind grün. Entscheidungs-Konformität zu `SPEC-118` Nr. 1/3/11, `SPEC-119` Nr. 2/8, `SPEC-121` Nr. 5, `SPEC-135` Nr. 7 c und [ADR-0001](../plan/adr/0001-implementierungssprache-go.md): bestätigt.
