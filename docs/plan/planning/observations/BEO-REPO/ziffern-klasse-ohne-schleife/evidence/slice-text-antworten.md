@@ -1,0 +1,2 @@
+**Vorgang:** slice-text-antworten
+**Fund:** V-2 (Verifikation, LOW): die Zusage „der Speicher hängt nicht vom Inhalt ab“ ist für die Zählung nur mit einem Strom aus lauter `7` gefangen; die Menge `0` bis `9` ist keine Schleife, eine Mutation, die nur das Byte `9` hält, bleibt grün. Nicht behoben, akzeptiertes Negativ mit Grund und Folge im Plan. Beleg: Plan §3 (*Akzeptierte Negative nach der Verifikation*); Report `docs/reviews/2026-11-05-slice-text-antworten-verifikation.md` (V-2).

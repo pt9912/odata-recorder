@@ -27,6 +27,7 @@ const (
 	serviceID  = "ref"
 	acceptJSON = "application/json"
 	acceptXML  = "application/xml"
+	acceptText = "text/plain"
 )
 
 // anfrage ist ein Request des Clients: Pfad mit Query und der Accept-Header (steht in MATCH_VARY_HEADERS).
@@ -80,10 +81,11 @@ func (c *client) hole(a anfrage, zusatz map[string]string) antwort {
 }
 
 // konfig lädt die Konfiguration wie im Betrieb; nur Listen ist auf Port 0 überschrieben. Auch der
-// Replay-Lauf nennt den Upstream: so belegt der Zähler, dass der Replay ihn nicht erreicht.
-func konfig(t *testing.T, modus, dir, upstream string) bootstrap.Konfiguration {
+// Replay-Lauf nennt den Upstream: so belegt der Zähler, dass der Replay ihn nicht erreicht. extra
+// sind weitere Zeilen der Umgebung.
+func konfig(t *testing.T, modus, dir, upstream string, extra ...string) bootstrap.Konfiguration {
 	t.Helper()
-	env := []string{"MODE=" + modus, "LISTEN=127.0.0.1:8080", "DATA_DIR=" + dir, "SERVICE_ID=" + serviceID, "SERVICE_ROOT_PATH=/odata"}
+	env := append([]string{"MODE=" + modus, "LISTEN=127.0.0.1:8080", "DATA_DIR=" + dir, "SERVICE_ID=" + serviceID, "SERVICE_ROOT_PATH=/odata"}, extra...)
 	if upstream != "" {
 		env = append(env, "UPSTREAM_URL="+upstream)
 	}
@@ -256,7 +258,7 @@ func (d *durchstich) nimmAuf(rec *bootstrap.Handle) {
 	nimm(anfrage{folge.RequestURI(), acceptJSON})
 	nimm(anfrage{"/odata/Products(1)", acceptJSON})
 	for range zaehlerFolge() {
-		nimm(anfrage{"/odata/Products/$count", acceptJSON})
+		nimm(anfrage{"/odata/Products/$count", acceptText})
 	}
 }
 
@@ -430,8 +432,8 @@ func (d *durchstich) durchgang(pc *client, name, replaySession string) {
 			t.Errorf("Durchgang %s, Request %d (%s): Wiedergabe weicht von der Aufnahme ab: %s", name, i, a.pfad, diff)
 		}
 		if strings.HasSuffix(a.pfad, "/$count") && naechster < len(folge) {
-			if soll := fmt.Sprintf(`{"count":%d}`, folge[naechster]); string(w.body) != soll {
-				t.Errorf("Durchgang %s: %d. $count %s, erwartet %s", name, naechster+1, w.body, soll)
+			if soll := fmt.Sprintf("%d", folge[naechster]); string(w.body) != soll || w.header.Get("Content-Type") != "text/plain" {
+				t.Errorf("Durchgang %s: %d. $count %q als %q, erwartet %q als text/plain", name, naechster+1, w.body, w.header.Get("Content-Type"), soll)
 			}
 			naechster++
 		}
@@ -444,7 +446,7 @@ func (d *durchstich) durchgang(pc *client, name, replaySession string) {
 	if unbekannt.status != 404 || !bytes.Contains(unbekannt.body, []byte("ODR-E5001")) {
 		t.Errorf("Durchgang %s: Products(99): %d %s", name, unbekannt.status, unbekannt.body)
 	}
-	erschoepft := pc.hole(anfrage{"/odata/Products/$count", acceptJSON}, z)
+	erschoepft := pc.hole(anfrage{"/odata/Products/$count", acceptText}, z)
 	if erschoepft.status != 410 || !bytes.Contains(erschoepft.body, []byte("ODR-E5002")) {
 		t.Errorf("Durchgang %s: vierter $count: %d %s", name, erschoepft.status, erschoepft.body)
 	}

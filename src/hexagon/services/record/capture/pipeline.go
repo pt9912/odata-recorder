@@ -67,13 +67,22 @@ func New(k Konfig) (*Pipeline, error) {
 }
 
 // Eingang beschreibt den Body, den Tee aufnimmt: ContentType und ContentEncoding sind alle
-// Werte des jeweiligen Headers, Metadata setzt der Aufrufer wie bei model.BodyEingang und nie
-// für einen Request (SPEC-119 Nr. 2).
+// Werte des jeweiligen Headers; Metadata, Zaehlung, Wert und Name setzt der Aufrufer wie bei
+// model.BodyEingang und nie für einen Request (SPEC-119 Nr. 2).
 type Eingang struct {
 	Richtung        Richtung
 	ContentType     []string
 	ContentEncoding []string
 	Metadata        bool
+	Zaehlung        bool
+	Wert            bool
+	Name            string
+}
+
+// bodyEingang ist der Teil des Eingangs, den der Redaktor liest.
+func (e Eingang) bodyEingang() model.BodyEingang {
+	return model.BodyEingang{ContentType: slices.Clone(e.ContentType), Metadata: e.Metadata,
+		Zaehlung: e.Zaehlung, Wert: e.Wert, Name: e.Name}
 }
 
 func pruefeEingang(ctx context.Context, src io.Reader, ein Eingang) error {
@@ -84,8 +93,10 @@ func pruefeEingang(ctx context.Context, src io.Reader, ein Eingang) error {
 		return ungueltig("src fehlt")
 	case ein.Richtung != Request && ein.Richtung != Response:
 		return ungueltig("Richtung ist weder Request noch Response")
-	case ein.Metadata && ein.Richtung == Request:
-		return ungueltig("Metadata gilt nie für einen Request")
+	case ein.Richtung == Request && (ein.Metadata || ein.Zaehlung || ein.Wert):
+		return ungueltig("ein Request bekommt nie ein Ziel")
+	case !ein.bodyEingang().Gueltig():
+		return ungueltig("Ziele des Bodys widersprechen sich")
 	}
 	return nil
 }
@@ -103,7 +114,7 @@ func (p *Pipeline) Tee(ctx context.Context, src io.Reader, ein Eingang) (*Aufnah
 		src:      src,
 		q:        neueQueue(p.konfig.QueueBytes, p.konfig.MaxBytes, func() { cancel(errUeberlauf) }),
 		richtung: ein.Richtung,
-		eingang:  model.BodyEingang{ContentType: slices.Clone(ein.ContentType), Metadata: ein.Metadata},
+		eingang:  ein.bodyEingang(),
 		fertig:   make(chan struct{}),
 		abbruch: func(ursache error) {
 			cancel(ursache)
