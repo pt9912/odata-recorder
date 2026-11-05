@@ -10,7 +10,7 @@
 **Eingangs-Kontext:**
 
 - `slice-v2-query` (Plan, §1, §3 mit 49 Zeilen, §6 Raster)
-- ADR-0011 (versionierter Adapter für OData V2), `Accepted`
+- [ADR-0011](../plan/adr/0011-versionierter-adapter-fuer-odata-v2.md) (versionierter Adapter für OData V2), `Accepted`
 - `LH-FA-17`, `LH-QA-05`, `LH-RB-01`
 - `SPEC-160` bis `SPEC-162`, `SPEC-173`, `SPEC-174`
 - `AGENTS.md` (Hard Rules §3.7, §3.9 bis §3.18)
@@ -27,9 +27,9 @@ Lauf: `make gates` im Worktree grün (Exit 0, kein Datei-Diff danach). Zusätzli
 | F-2 | MEDIUM | Die Rangfolge „Element-Zahl vor Pfad- oder Funktionsform“ ist an beiden Optionen ohne Fänger: `leseSelect` prüft `zu_viele` (257 Elemente) vor dem `/`-Test, `leseOrderBy` prüft `(` und `/` (Kompatibilität `option`) vor `zu_viele` (33 Elemente). Beide Vertauschungen bleiben grün (`$select` mit 257 Elementen und einem `/` müsste `zu_viele` sein, `$orderby` mit 33 Elementen und `tolower(` müsste `option` sein). Zeilen 42 und 43 führen 257 und 33 Elemente nur ohne Pfad und Klammer. | `AGENTS.md` §3.15 (Fänger führt nur eine Form der Eingabe), `SPEC-162` Nr. 6 und 7, `SPEC-173` Nr. 4 | `src/adapters/driven/odata/urlparserv2/query.go` · `if len(elemente) > maxSelect {` und `if strings.ContainsAny(wert, "(/") {` | ja, zwei Mutationen auf Wegwerfkopie: je `go test` grün | Rangfolge Grenze gegen Kompatibilitätsform ohne Fänger |
 | F-3 | LOW | Die Zusatztabelle in §6 nennt „Zeile 7 (41 Paare)“ und „Zeile 9 (19 Paare)“, die Zeilen 7 und 9 in §3 und der Bullet in §6 tragen die gezählten Mengen 38 und 18. | `AGENTS.md` §3.9 (Plan folgt jeder Korrektur) | `docs/plan/planning/in-progress/slice-v2-query.md` · `Zeile 7 (41 Paare)` | nein, kein Gate liest die Zahlen | Plan-Zahl an einer Stelle nachgezogen, an einer anderen nicht |
 | F-4 | INFO | Die Plan-Zeile 22 (Versions-Kopfzeilen) und der Anhang A (Zeile 49) haben Ausgang *offen* mit Adresse (`slice-v2-bootstrap`, Planner). Die Adressen stehen in §6; die Annahme durch die Nehmer ist am Zweig nicht prüfbar (deren Pläne liegen auf `main`). Zur Rolle des Integrations-Planners. | `AGENTS.md` §3.13 | `docs/plan/planning/in-progress/slice-v2-query.md` · `Der Anhang A, auf den Zeile 49 verwies` | nein | offene Sendung, Annahme beim Nehmer ungeprüft |
-| F-5 | INFO | Dieser Zweig fasst `outbound/codec_satz.go` an, wie §6 selbst als Konfliktpunkt nennt; `main` hat sich seit der Merge-Basis geändert (Schicht `tests` im a-check, ADR-0012). Das Ergebnis von `make gates` gilt für den Zweig-Stand, nicht für den Merge-Stand. | Maintainability | `src/hexagon/ports/outbound/codec_satz.go` · `URL URLCodec` | ja, `make gates` nach dem Merge | Gate-Ergebnis gilt nur für den ungemergten Stand |
+| F-5 | INFO | Dieser Zweig fasst `outbound/codec_satz.go` an, wie §6 selbst als Konfliktpunkt nennt; `main` hat sich seit der Merge-Basis geändert (Schicht `tests` im a-check, neue ADR). Das Ergebnis von `make gates` gilt für den Zweig-Stand, nicht für den Merge-Stand. | Maintainability | `src/hexagon/ports/outbound/codec_satz.go` · `URL URLCodec` | ja, `make gates` nach dem Merge | Gate-Ergebnis gilt nur für den ungemergten Stand |
 
-Keine HIGH-Findings. Geprüft gegen die HIGH-Liste: Geheimnis in Fehlertext (`URLFehler` und `KompatFehler` tragen Ursache und Ort, nie Eingabe; Tests `TestUrlFehlerWert`, `TestKompatFehlerWert`), ADR-0011 (kein V4-Import, `TestKeinV4Import`, `make a-check` grün), Gate-Suppression (kein `nolint`), Kommentarklassen (kein Konjunktiv, keine Chronik gefunden), Spec-Straten (Code gegen `SPEC-173` Nr. 1 bis 7 gelesen, keine Abweichung gefunden).
+Keine HIGH-Findings. Geprüft gegen die HIGH-Liste: Geheimnis in Fehlertext (`URLFehler` und `KompatFehler` tragen Ursache und Ort, nie Eingabe; Tests `TestUrlFehlerWert`, `TestKompatFehlerWert`), [ADR-0011](../plan/adr/0011-versionierter-adapter-fuer-odata-v2.md) (kein V4-Import, `TestKeinV4Import`, `make a-check` grün), Gate-Suppression (kein `nolint`), Kommentarklassen (kein Konjunktiv, keine Chronik gefunden), Spec-Straten (Code gegen `SPEC-173` Nr. 1 bis 7 gelesen, keine Abweichung gefunden).
 
 ## Mutationen des Reviewers (Wegwerfkopie, `go test ./src/adapters/driven/odata/urlparserv2/`)
 
