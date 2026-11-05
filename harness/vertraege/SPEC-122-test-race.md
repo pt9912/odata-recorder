@@ -15,8 +15,8 @@ Die Stufe liefert ein Urteil und kein Artefakt; das Binary entsteht in der Stufe
    Ohne Befund: Text `pruefung race: ok` nach stdout, Exit 0.
    `pruefung race` unterscheidet keine Ursache: es reicht Exit-Code und Ausgabe von `go test` durch.
 2. **Pakete.** Alle Pakete des Quellstands der Stufe `source`, also dieselben, die `make test` fährt (Muster `./...`, Nr. 1).
-   Es gibt keine Liste und keine Ausnahme: ein Paket, das hinzukommt, fährt das Ziel ohne Eintrag, und was die Stufe `source` an Quellen aufnimmt (heute `go.mod`, `go.sum` und `src/`; ein künftiges `tests/`, sobald die Stufe es aufnimmt), fahren `make test` und `make test-race` beide.
-   Fehlt `src/`, scheitert schon die Stufe `source`.
+   Es gibt keine Liste und keine Ausnahme: ein Paket, das hinzukommt, fährt das Ziel ohne Eintrag, und was die Stufe `source` an Quellen aufnimmt (`go.mod`, `go.sum`, `src/` und `tests/`), fahren `make test` und `make test-race` beide.
+   Fehlt `src/` oder `tests/`, scheitert schon die Stufe `source` (`COPY` ohne Quelle, gemessen am 2026-11-01); dass die Stufe `tests/` aufnimmt, fängt kein dauerhafter Fall (Nr. 9), gemessen ist es am 2026-11-01 von Hand (Wegwerfkopie mit einem Datenrennen in `tests/`: `make test-race` rot; ohne die Zeile `COPY tests ./tests` Exit 0).
    Ein Paket ohne Testdatei ist kein Befund (`go` meldet `[no test files]`), ein Quellstand ohne Paket ist einer (`go` meldet `no packages to test` und endet mit 1; beides gemessen am 2026-10-22).
    Die Module unter `tools/` gehören nicht dazu (Nr. 9).
    Die Pakete von Fremdcode, die `go test` mitbaut (etwa `modernc.org/sqlite` und `modernc.org/libc`), stehen unter dem Detektor und unter den Prüfungen von `checkptr`, die `-race` einschaltet; meldet er dort etwas, ist das Ziel rot, und der Befund geht an den Planner.

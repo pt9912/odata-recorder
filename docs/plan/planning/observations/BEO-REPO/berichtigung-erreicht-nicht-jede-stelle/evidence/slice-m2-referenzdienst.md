@@ -1,0 +1,2 @@
+**Vorgang:** slice-m2-referenzdienst
+**Fund:** `SPEC-122` Nr. 2 sagte „heute“ nur `src/`, nachdem der Slice `tests/` in die Stufe `source` aufnahm (F-6); eine Mutation stand in vier Zeilen des Plans mit zwei verschiedenen Ausgängen (F-7); der Status von [ADR-0012](../../../../../adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md) stand nach der Annahme auf `main` noch an drei Stellen des Plans als Proposed (LOW-1 der Verifikation). Beleg: Review- und Verifikations-Report, Plan §6 und §7.
