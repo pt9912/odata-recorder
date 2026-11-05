@@ -8,17 +8,29 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"testing"
 )
 
-// Die beiden Geheimnisse des Referenzdienstes: GEHEIM-A erreicht ihn im Request-Header Authorization,
-// GEHEIM-B verlässt ihn im Antwort-Header Set-Cookie (LH-FA-14).
+// Die drei Geheimnisse des Referenzdienstes: GEHEIM-A erreicht ihn im Request-Header Authorization,
+// GEHEIM-B verlässt ihn im Antwort-Header Set-Cookie, GEHEIM-C steht als Text-Antwort auf
+// /Products(1)/Password/$value (LH-FA-14).
 const (
 	geheimA = "GEHEIM-A-4f7c1e"
 	geheimB = "GEHEIM-B-9d2a60"
+	geheimC = "GEHEIM-C-5b8e33"
 )
+
+// propertyWert ist die Route `/Products(<Schlüssel>)/<Property>/$value`, propertyWerte nennt den Wert
+// je `<Schlüssel>/<Property>`. `Password` trägt ein Geheimnis unter einem Namen, den ein Standardmuster
+// trifft, `Name` einen Wert ohne Treffer.
+var propertyWert = regexp.MustCompile(`^/odata/Products\(([0-9]+)\)/([A-Za-z]+)/\$value$`)
+
+func propertyWerte() map[string]string {
+	return map[string]string{"1/Name": "Anvil", "2/Name": "Bolt", "1/Password": geheimC}
+}
 
 // Die Werte der Fixture: die Antworten auf /Products/$count in der Reihenfolge der Requests, ungleich
 // Index und Anzahl.
@@ -108,12 +120,22 @@ func (r *referenzdienst) bediene(w http.ResponseWriter, req *http.Request) {
 		json(`W/"e1"`, fmt.Sprintf(`{"@odata.context":%q,"Id":1,"Name":"Anvil"}`, r.srv.URL+"/odata/$metadata#Products/$entity"))
 	case req.URL.Path == "/odata/Products/$count":
 		n, folge := int(r.zaehlerRequests.Add(1))-1, zaehlerFolge()
-		json("", fmt.Sprintf(`{"count":%d}`, folge[n%len(folge)]))
+		h.Set("Content-Type", "text/plain")
+		_, _ = fmt.Fprintf(w, "%d", folge[n%len(folge)])
+	case propertyWert.MatchString(req.URL.Path) && property(req.URL.Path) != "":
+		h.Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte(property(req.URL.Path)))
 	default:
 		h.Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"error":{"code":"404","message":"nicht gefunden"}}`))
 	}
+}
+
+// property liefert den Wert der Route `$value` oder "" für ein unbekanntes Paar aus Schlüssel und Property.
+func property(pfad string) string {
+	m := propertyWert.FindStringSubmatch(pfad)
+	return propertyWerte()[m[1]+"/"+m[2]]
 }
 
 // TestReferenzdienstSelbst fängt den Referenzdienst gegen die Annahmen des M2-Tests: die Zähler zählen,
@@ -146,16 +168,30 @@ func TestReferenzdienstSelbst(t *testing.T) {
 		t.Errorf("Set-Cookie: %q", resp.Header.Get("Set-Cookie"))
 	}
 	for i, soll := range zaehlerFolge() {
-		_, b := hole("/odata/Products/$count")
-		if b != fmt.Sprintf(`{"count":%d}`, soll) {
-			t.Errorf("$count Nr. %d: %s", i+1, b)
+		resp, b := hole("/odata/Products/$count")
+		if b != fmt.Sprintf("%d", soll) || resp.Header.Get("Content-Type") != "text/plain" {
+			t.Errorf("$count Nr. %d: %q als %q", i+1, b, resp.Header.Get("Content-Type"))
 		}
 	}
-	if got := r.requests.Load(); got != 4 {
-		t.Errorf("Requests %d, erwartet 4", got)
+	for _, f := range []struct{ pfad, wert string }{
+		{"/odata/Products(1)/Name/$value", "Anvil"}, {"/odata/Products(2)/Name/$value", "Bolt"},
+		{"/odata/Products(1)/Password/$value", geheimC},
+	} {
+		resp, b := hole(f.pfad)
+		if resp.StatusCode != 200 || b != f.wert || resp.Header.Get("Content-Type") != "text/plain" {
+			t.Errorf("%s: %d %q als %q", f.pfad, resp.StatusCode, b, resp.Header.Get("Content-Type"))
+		}
 	}
-	if got := r.mitGeheimnis.Load(); got != 4 {
-		t.Errorf("Requests mit Geheimnis %d, erwartet 4", got)
+	for _, pfad := range []string{"/odata/Products(3)/Name/$value", "/odata/Products(2)/Password/$value", "/odata/Products(1)/Id/$value"} {
+		if resp, _ := hole(pfad); resp.StatusCode != 404 || resp.Header.Get("Content-Type") != "application/json" {
+			t.Errorf("%s: %d als %q", pfad, resp.StatusCode, resp.Header.Get("Content-Type"))
+		}
+	}
+	if got := r.requests.Load(); got != 10 {
+		t.Errorf("Requests %d, erwartet 10", got)
+	}
+	if got := r.mitGeheimnis.Load(); got != 10 {
+		t.Errorf("Requests mit Geheimnis %d, erwartet 10", got)
 	}
 	if r.verbindungen.Load() < 1 {
 		t.Error("Verbindungen zählen nichts")

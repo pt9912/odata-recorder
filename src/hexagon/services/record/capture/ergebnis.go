@@ -45,6 +45,7 @@ const (
 	GrundAusgabeZuGross Grund = "ausgabe_zu_gross"
 	GrundAblage         Grund = "ablage"
 	GrundAbbruch        Grund = "abbruch"
+	GrundCharset        Grund = "charset"
 )
 
 // Ergebnis ist der Ausgang der Aufnahme eines Bodys (SPEC-119 Nr. 11). Fehler ist nur bei
