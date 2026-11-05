@@ -32,6 +32,9 @@ func BuildMit(ctx context.Context, k Konfiguration, log *slog.Logger, b Bauteile
 	return build(ctx, k, log, b)
 }
 
+// IDsVon liefert den IDGenerator des Handle.
+func IDsVon(h *Handle) support.IDGenerator { return h.ids }
+
 // Warte ist das Warten von Start auf den Abbruch von ctx oder das Ende von Serve.
 func Warte(ctx context.Context, fehler <-chan error) error { return warte(ctx, fehler) }
 
