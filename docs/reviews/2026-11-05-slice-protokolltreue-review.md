@@ -54,7 +54,7 @@ Jede der fünfzehn Zellen und die Zusatztabelle gelesen: jede nennt Nr. 1 bis 7 
 - **§3.7 / §3.11 (Kommentare):** kein Konjunktiv über verworfene Alternativen, kein abwesender Text; Kopfzeile des Tests der direkten Antworten im Indikativ (letzter Commit). Eine Zusage ohne Fänger: der Kommentar von `entpackeGlied` (Finding 2).
 - **§3.18 (Rohbytes):** keine Escape-Folge aus Backslash und `u` in den drei Dateien (`grep -P '\\u[0-9a-fA-F]{4}|\\x'` leer); `brotliBytes()` ist aus Bytewerten gebaut; erwartete Header und Bodies stehen ausgeschrieben.
 - **§3.2:** keine `//nolint`; `make lint` grün.
-- **ADR-0012:** Importe des Pakets `tests/integration` gegen `src/bootstrap` entsprechen den vorhandenen Tests des Pakets; `make a-check` nicht gefahren.
+- **[ADR-0012](../plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md):** Importe des Pakets `tests/integration` gegen `src/bootstrap` entsprechen den vorhandenen Tests des Pakets; `make a-check` nicht gefahren.
 - **Kritischer Pfad (Capture, Redaction, Replay):** nicht berührt; kein Produktcode.
 
 ## Geprüft, ohne Befund
