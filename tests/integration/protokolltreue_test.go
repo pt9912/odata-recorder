@@ -641,6 +641,52 @@ func TestSchreibweiseDesNamens(t *testing.T) {
 	}
 }
 
+// zeilenlisten sind die Formen der Feldzeilen eines Namens (LH-QA-07.a Nr. 1): eine leere Zeile allein, neben einer
+// gefüllten in jeder Stellung, gleiche Zeilen, Leerraum am Rand, andere Schreibweise des Werts, ein Komma im Wert,
+// Reihenfolge und Anzahl. Zwei Listen sind gleich, wenn sie Zeile für Zeile übereinstimmen, sonst nicht.
+func zeilenlisten() [][]string {
+	return [][]string{{"a"}, {"a", "a"}, {"", "a"}, {"a", ""}, {""}, {"", ""}, {" a"}, {"a "}, {"\ta"}, {"a\t"}, {" "},
+		{"A"}, {"a, b"}, {"a", "b"}, {"b", "a"}, {"a", "", "b"}, {"a", "a", "b"}}
+}
+
+// TestZeilenliste (Z5, Z6): jede Form der Zeilenliste gegen jede, mit verschiedener Schreibweise des Namens: gleich genau
+// dann, wenn es dieselbe Form ist; 17 Formen, 289 Paare.
+func TestZeilenliste(t *testing.T) {
+	n := 0
+	for i, l := range zeilenlisten() {
+		for j, r := range zeilenlisten() {
+			n++
+			d := rohantwort{status: 200, header: map[string][]string{"X-Liste": l}}
+			p := rohantwort{status: 200, header: map[string][]string{"x-liste": r}}
+			var soll []abweichung
+			if i != j {
+				soll = []abweichung{{"Header", "x-liste"}}
+			}
+			if ab, err := vergleiche(vergleichsregeln{}, d, p); err != nil || !slices.Equal(ab, soll) {
+				t.Errorf("Zeilen %q gegen %q: %v, %v, erwartet %v", l, r, ab, err, soll)
+			}
+		}
+	}
+	if n != 289 {
+		t.Errorf("%d Paare, erwartet 289 (17 Formen)", n)
+	}
+}
+
+// TestSchreibweisenInEinerMap: stehen in einer handgebauten Map zwei Schreibweisen desselben Namens, folgen ihre
+// Zeilen der Bytefolge der Schreibweisen (`X-A` vor `x-a`); auf dem Draht kommt das nicht vor.
+func TestSchreibweisenInEinerMap(t *testing.T) {
+	zwei := rohantwort{status: 200, header: map[string][]string{"X-A": {"1"}, "x-a": {"2"}}}
+	for _, f := range []struct {
+		zeilen []string
+		gleich bool
+	}{{[]string{"1", "2"}, true}, {[]string{"2", "1"}, false}, {[]string{"2"}, false}, {[]string{"1"}, false}} {
+		andere := rohantwort{status: 200, header: map[string][]string{"x-a": f.zeilen}}
+		if ab, err := vergleiche(vergleichsregeln{}, zwei, andere); err != nil || (len(ab) == 0) != f.gleich {
+			t.Errorf("X-A 1 und x-a 2 gegen %q: %v, %v, erwartet gleich %v", f.zeilen, ab, err, f.gleich)
+		}
+	}
+}
+
 // volatileOrakel sind die sieben Namen von VOLATILE_HEADERS mit ihrem Default (SPEC-063), ausgeschrieben.
 func volatileOrakel() []string {
 	return []string{"Date", "Server", "Via", "Age", "X-Request-Id", "X-Correlation-Id", "Traceparent"}
@@ -861,6 +907,8 @@ type kaputt struct {
 	name string
 	ce   []string
 	body []byte
+	// strom nennt einen Strom, den der Dekoder ablehnt, im Gegensatz zu einer Kette, die der Test nicht kennt.
+	strom bool
 }
 
 // kaputteKetten ist die Menge der Antworten, die der Test nicht entpackt (LH-QA-07.a Nr. 3): ein unbekanntes Glied,
@@ -870,22 +918,68 @@ func kaputteKetten() []kaputt {
 	ok := []byte("x")
 	var out []kaputt
 	for _, g := range []string{"br", "zstd", "compress", "x-gzip", "gzipx"} {
-		out = append(out, kaputt{"unbekannt " + g, []string{g}, ok})
+		out = append(out, kaputt{"unbekannt " + g, []string{g}, ok, false})
 	}
 	for _, g := range []string{"gzip,", ",gzip", "", " ", "gzip, ,deflate"} {
-		out = append(out, kaputt{"leeres Glied " + strconv.Quote(g), []string{g}, ok})
+		out = append(out, kaputt{"leeres Glied " + strconv.Quote(g), []string{g}, ok, false})
 	}
 	for _, g := range []string{"gzip, gzip, gzip", "identity, gzip, deflate", "identity,identity,identity"} {
-		out = append(out, kaputt{"drei Glieder " + g, []string{g}, ok})
+		out = append(out, kaputt{"drei Glieder " + g, []string{g}, ok, false})
 	}
-	out = append(out, kaputt{"vier Glieder in zwei Zeilen", []string{"gzip, deflate", "gzip, deflate"}, ok})
+	out = append(out, kaputt{"vier Glieder in zwei Zeilen", []string{"gzip, deflate", "gzip, deflate"}, ok, false})
 	out = append(out,
-		kaputt{"gzip ohne Strom", []string{"gzip"}, []byte("kein gzip")},
-		kaputt{"gzip abgeschnitten", []string{"gzip"}, gz[:len(gz)-6]},
-		kaputt{"deflate ohne zlib-Kopf", []string{"deflate"}, []byte{0x01, 0x00, 0x00, 0xff, 0xff}},
-		kaputt{"deflate mit gzip-Bytes", []string{"deflate"}, gz},
-		kaputt{"gzip mit zlib-Bytes", []string{"gzip"}, kodiere([]string{"deflate"}, []byte("Anvil Bolt"))})
+		kaputt{"gzip ohne Strom", []string{"gzip"}, []byte("kein gzip"), true},
+		kaputt{"gzip abgeschnitten", []string{"gzip"}, gz[:len(gz)-6], true},
+		kaputt{"deflate ohne zlib-Kopf", []string{"deflate"}, []byte{0x01, 0x00, 0x00, 0xff, 0xff}, true},
+		kaputt{"deflate mit gzip-Bytes", []string{"deflate"}, gz, true},
+		kaputt{"gzip mit zlib-Bytes", []string{"gzip"}, kodiere([]string{"deflate"}, []byte("Anvil Bolt")), true})
 	return out
+}
+
+// TestKettenSchreibweise (Z11, SPEC-119 Nr. 6): der Name eines Codings gilt ohne Beachtung der Schreibweise und mit
+// Leerraum am Rand; 4 Ketten × 4 Schreibweisen = 16, je gleich dem Klartext.
+func TestKettenSchreibweise(t *testing.T) {
+	formen := []func(string) string{
+		func(g string) string { return g },
+		strings.ToUpper,
+		func(g string) string { return strings.ToUpper(g[:1]) + g[1:] },
+		func(g string) string { return " \t" + g + "\t " },
+	}
+	n := 0
+	for _, glieder := range [][]string{{"gzip"}, {"deflate"}, {"identity"}, {"deflate", "gzip"}} {
+		for _, form := range formen {
+			n++
+			a := rohantwort{status: 200, body: kodiere(glieder, []byte("Anvil Bolt")), header: map[string][]string{}}
+			var namen []string
+			for _, g := range glieder {
+				namen = append(namen, form(g))
+			}
+			a.header["Content-Encoding"] = []string{strings.Join(namen, ",")}
+			if ab, err := vergleiche(vergleichsregeln{}, a, mitKette("Anvil Bolt")); err != nil || len(ab) != 0 {
+				t.Errorf("Kette %q: %v, %v", a.header["Content-Encoding"], ab, err)
+			}
+		}
+	}
+	if n != 16 {
+		t.Errorf("%d Fälle, erwartet 16", n)
+	}
+}
+
+// TestMehrereGzipGlieder (Z11, SPEC-119 Nr. 6): mehrere gzip-Glieder hintereinander sind ein Strom, auch leere Glieder
+// am Anfang und am Ende; 4 Formen.
+func TestMehrereGzipGlieder(t *testing.T) {
+	for _, teile := range [][]string{{"Anvil", " Bolt"}, {"Anvil", " Bolt", " Cog"}, {"", "Anvil"}, {"Anvil", ""}} {
+		var roh []byte
+		ganz := ""
+		for _, s := range teile {
+			roh = append(roh, kodiere([]string{"gzip"}, []byte(s))...)
+			ganz += s
+		}
+		a := rohantwort{status: 200, header: map[string][]string{"Content-Encoding": {"gzip"}}, body: roh}
+		if ab, err := vergleiche(vergleichsregeln{}, a, mitKette(ganz)); err != nil || len(ab) != 0 {
+			t.Errorf("Glieder %q: %v, %v", teile, ab, err)
+		}
+	}
 }
 
 // TestNichtEntpackbar (Z14): eine Kette, die der Test nicht entpackt, und ein abgelehnter Strom machen den Fall rot
@@ -904,6 +998,25 @@ func TestNichtEntpackbar(t *testing.T) {
 	}
 	if n != 38 {
 		t.Errorf("%d Fälle, erwartet 38 (19 Ketten und Ströme, zwei Seiten)", n)
+	}
+	// Ein leerer Rohbody ist bei einer Kette, die der Test nicht kennt, ebenfalls rot (SPEC-119 Nr. 6: Grund encoding);
+	// bei einem Strom ist er leer und gültig.
+	n = 0
+	for _, k := range kaputteKetten() {
+		if k.strom {
+			continue
+		}
+		schlecht := rohantwort{status: 200, header: map[string][]string{"Content-Encoding": k.ce}}
+		gut := rohantwort{status: 200, header: map[string][]string{}}
+		for seite, paar := range map[string][2]rohantwort{"direkt": {schlecht, gut}, "proxy": {gut, schlecht}} {
+			n++
+			if ab, err := vergleiche(vergleichsregeln{}, paar[0], paar[1]); err == nil {
+				t.Errorf("%s mit leerem Rohbody auf der Seite %s: kein Fehler des Tests, Abweichungen %v", k.name, seite, ab)
+			}
+		}
+	}
+	if n != 28 {
+		t.Errorf("%d Fälle mit leerem Rohbody, erwartet 28 (14 Ketten, zwei Seiten)", n)
 	}
 }
 
