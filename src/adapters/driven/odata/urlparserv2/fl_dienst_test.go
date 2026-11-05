@@ -326,8 +326,8 @@ func flParallelFrisch(l interface {
 }
 
 // TestFlGleichzeitig (Zeilen 32 und 33): gleichzeitige Aufrufe auf einer Instanz liefern je das Ergebnis des einzelnen Aufrufs.
-// Menge: 16 Goroutinen × 64 Texte × 10 Runden, dazu zwei verschränkte Ausdrücke (Tiefe 32 gültig, Tiefe 33 `zu_viele`): ein
-// Tiefenzähler im Feld der Instanz lieferte dem einen das Ergebnis des anderen; dazu 16 × 10 × 64 Texte, die vorher kein Aufruf
+// Menge: 16 Goroutinen × 64 Texte × 10 Runden, dazu zwei verschränkte Ausdrücke (Tiefe 32 gültig, Tiefe 33 `zu_viele`), die je ihr
+// eigenes Ergebnis erhalten (der Tiefenzähler lebt im Aufruf, nicht in der Instanz); dazu 16 × 10 × 64 Texte, die vorher kein Aufruf
 // gelesen hat. Der Fänger zählt die Wirkung und ist vom Detektor unabhängig; `make test-race` meldet das Fehlen der Ordnung
 // (Zeile 33), auch für einen Zugriff, der erst beim ersten Lesen eines Textes geschieht.
 func TestFlGleichzeitig(t *testing.T) {
