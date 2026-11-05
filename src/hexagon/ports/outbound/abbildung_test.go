@@ -174,7 +174,7 @@ func TestAbbildungVollstaendig(t *testing.T) {
 		}
 	}
 	for _, n := range eintraege {
-		modell := []string{"ErrUngueltig", "ErrMetadatenUngueltig", "ErrDatenUngueltig", "ErrURLUngueltig", "ErrURLNichtUnterstuetzt"}
+		modell := []string{"ErrUngueltig", "ErrMetadatenUngueltig", "ErrDatenUngueltig", "ErrURLUngueltig", "ErrURLNichtUnterstuetzt", "ErrKompatibilitaet"}
 		if !slices.Contains(modell, n) && !slices.Contains(vorhanden, n) {
 			t.Errorf("Eintrag %s ohne Variable im Paket", n)
 		}
@@ -250,5 +250,48 @@ func TestAbbildungURL(t *testing.T) {
 		if !slices.Contains(outbound.EintraegeAbbildung(), name) {
 			t.Errorf("die Tabelle nennt %s nicht", name)
 		}
+	}
+}
+
+// TestAbbildungKompat (Zeile 13): jeder Fehler, der ErrKompatibilitaet trägt, bildet bei jedem der acht Gegenstände auf ODR-E6006
+// ab; 6 Ursachen × 8 Formen (der Sentinel roh und verpackt, der Zeiger roh, einfach und doppelt verpackt, verbunden links und
+// rechts, mit context.Canceled verbunden: kein Code) × 8 Gegenstände. Ein Fehler der Gruppe ODR-E9001 daneben ändert den Code
+// nicht (die Zeile steht vor der Gruppe).
+func TestAbbildungKompat(t *testing.T) {
+	n := 0
+	for _, u := range model.AlleKompatUrsachen() {
+		e := &model.KompatFehler{Ursache: u, Ort: "query/1"}
+		formen := map[string]error{
+			"Sentinel": model.ErrKompatibilitaet, "SentinelVerpackt": fmt.Errorf("lesen: %w", model.ErrKompatibilitaet), "Zeiger": e,
+			"Einfach": fmt.Errorf("lesen: %w", e), "Doppelt": fmt.Errorf("a: %w", fmt.Errorf("b: %w", e)),
+			"JoinLinks": errors.Join(e, errors.New("x")), "JoinRechts": errors.Join(errors.New("x"), e),
+			"Abbruch": errors.Join(e, context.Canceled),
+		}
+		for name, err := range formen {
+			for _, g := range alleGegenstaende() {
+				got, ok := outbound.Abbilden(err, g)
+				if name == "Abbruch" {
+					if ok {
+						t.Errorf("%s %s / Gegenstand %d: Code %v neben context.Canceled", u, name, g, got)
+					}
+				} else if !ok || got != model.CodeE6006 {
+					t.Errorf("%s %s / Gegenstand %d: %v %v, erwartet ODR-E6006", u, name, g, got, ok)
+				}
+				n++
+			}
+		}
+		for _, daneben := range []error{outbound.ErrAbgeschlossen, outbound.ErrUngueltigeSequenz, outbound.ErrRevisionVeraltet} {
+			for _, err := range []error{errors.Join(e, daneben), errors.Join(daneben, e)} {
+				if got, ok := outbound.Abbilden(err, gSonst); !ok || got != model.CodeE6006 {
+					t.Errorf("%s neben %v: %v %v, erwartet ODR-E6006", u, daneben, got, ok)
+				}
+			}
+		}
+	}
+	if n != 6*8*8 {
+		t.Errorf("%d Fälle", n)
+	}
+	if !slices.Contains(outbound.EintraegeAbbildung(), "ErrKompatibilitaet") {
+		t.Error("die Tabelle nennt ErrKompatibilitaet nicht")
 	}
 }

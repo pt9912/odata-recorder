@@ -112,7 +112,7 @@ func TestFehlerAbbildungJedeStelle(t *testing.T) {
 			faelle++
 		}
 	}
-	if faelle != 19*24 {
+	if faelle != 19*25 {
 		t.Errorf("Fälle %d", faelle)
 	}
 }

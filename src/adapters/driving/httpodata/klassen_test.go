@@ -40,7 +40,7 @@ func TestAntwortStatusAlle(t *testing.T) {
 	}
 }
 
-// A32 über die Klasse: bei HEAD tragen alle 34 Paare Status, Content-Type, Content-Length und
+// A32 über die Klasse: bei HEAD tragen alle 35 Paare Status, Content-Type, Content-Length und
 // X-Correlation-Id, ohne Body.
 func TestFehlerHeadAlleCodes(t *testing.T) {
 	codes, stati := codeStatusPaare()

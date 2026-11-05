@@ -11,6 +11,8 @@ type CodecSatz struct {
 	Metadaten MetadataCodec
 	// Daten liest die Antworten der Version (SPEC-126, SPEC-172).
 	Daten ODataCodec
+	// URL liest Pfad und Query der OData-URL der Version (SPEC-160, SPEC-173); der Import liest es nie.
+	URL URLCodec
 	// NurLesend sagt, dass der Mock die Version nur liest; der Import liest es nicht.
 	NurLesend bool
 }
