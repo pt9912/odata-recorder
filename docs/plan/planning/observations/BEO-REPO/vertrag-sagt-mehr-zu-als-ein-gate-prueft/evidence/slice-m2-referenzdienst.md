@@ -1,0 +1,2 @@
+**Vorgang:** slice-m2-referenzdienst
+**Fund:** Zusagen ohne Fänger in einer Dimension, die die Menge der Tabelle nicht führte: Phasen, in denen eine Datei unter `DATA_DIR` entsteht (F-1), Identität des Feldes `Log` statt nur nicht-nil (F-3), Fenster der Zähler-Grundlinie (F-4), Dateiarten des Suchers `-wal` und `-shm` (F-5), Identität von `IDs` (F-10); dazu eine Ausnahmefläche des Gates (`composition_root`), die mehr ausnahm, als ihr Name zusagte (F-2). Beleg: Review- und Verifikations-Report, Plan §3 (Fixes nach dem Review) und §7.

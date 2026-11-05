@@ -8,7 +8,7 @@
 
 ## Ergebnis in einem Satz
 
-Kein HIGH, kein MEDIUM. Ein LOW (Plan nennt ADR-0012 noch „Proposed“, auf `main` ist sie Accepted) und ein INFO (Closure-Haken offen). Die DoD-Lieferpunkte sind erfüllt, `make gates` ist selbst grün gefahren, die Größenmarke hält, drei an der Klasse neu gebildete Mutanten sind rot.
+Kein HIGH, kein MEDIUM. Ein LOW (Plan nennt [ADR-0012](../plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md) noch „Proposed“, auf `main` ist sie Accepted) und ein INFO (Closure-Haken offen). Die DoD-Lieferpunkte sind erfüllt, `make gates` ist selbst grün gefahren, die Größenmarke hält, drei an der Klasse neu gebildete Mutanten sind rot.
 
 ## Belege (selbst gemessen)
 
@@ -18,13 +18,13 @@ Kein HIGH, kein MEDIUM. Ein LOW (Plan nennt ADR-0012 noch „Proposed“, auf `m
 | Größenmarke | `groessenmarke slice-m2-referenzdienst.md: ok, Messung 980 von Marke 1700`; selbst gerechnet `git diff --numstat 1984383..HEAD` über die fünf Pfade des Blocks: **980** (m2_test 451, import_workspace_test 286, referenzdienst_test 163, wurzel 40, haken_test 25, `.a-check.yml` 8, export_test 3, Dockerfile 3, `.dockerignore` 1); 57,6 % der Marke |
 | Tests im Zweig | `go test -race -count=1 ./src/bootstrap/ ./tests/...` im Image `odata-recorder:race` (netzlos, `--memory=4g --cpus=4`) auf Kopie des Worktrees: beide Pakete `ok` (65 s, 2 s) |
 | Diff gegen `main` | 21 Dateien, 1319 Einfügungen, 66 Löschungen; Produktcode nur `src/bootstrap/wurzel.go` (+40), sonst Tests, Dockerfile, `.dockerignore`, `.a-check.yml`, Spezifikation, Gegenproben, Doku |
-| Zweig vs. `main` | Merge-Basis `d318d25`; `main` steht auf `3c87c55` (ADR-0012 Accepted), im Zweig nicht gemergt (Auftrag des Integrations-Planners) |
+| Zweig vs. `main` | Merge-Basis `d318d25`; `main` steht auf `3c87c55` ([ADR-0012](../plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md) Accepted), im Zweig nicht gemergt (Auftrag des Integrations-Planners) |
 
 ## DoD, Zeile für Zeile
 
 | DoD-Punkt | Befund |
 |---|---|
-| Verdrahtung und Quellstand | erfüllt: `NeuerImport` und `NeueWorkspaces` in `bauteile` (`wurzel.go:67/68`, `99/100`), Verdrahtung im Root (Workspace in beiden Modi, Import nur in `verdrahteRecord`), `Import()`/`Workspaces()` additiv; `Dockerfile` `COPY tests ./tests`, `.dockerignore` `!tests/`, `.a-check.yml` Schicht `tests` mit drei Kanten, `harness/README.md` Zeile `make a-check` „unter `src/` und `tests/`“ mit Bindung ADR-0002 und ADR-0012 |
+| Verdrahtung und Quellstand | erfüllt: `NeuerImport` und `NeueWorkspaces` in `bauteile` (`wurzel.go:67/68`, `99/100`), Verdrahtung im Root (Workspace in beiden Modi, Import nur in `verdrahteRecord`), `Import()`/`Workspaces()` additiv; `Dockerfile` `COPY tests ./tests`, `.dockerignore` `!tests/`, `.a-check.yml` Schicht `tests` mit drei Kanten, `harness/README.md` Zeile `make a-check` „unter `src/` und `tests/`“ mit Bindung [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md) und [ADR-0012](../plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md) |
 | Referenzdienst und M2-Test | erfüllt: `tests/integration/referenzdienst_test.go` und `m2_test.go` (`TestDurchstichM2`), laufen grün unter `-race` |
 | Zeilen und Mutationen | der Plan führt je Zeile M1 bis M10, M9b Mutation, Test und Grund (§3 Handoff-Tabelle) und Raten (30 Prozesse, `-race`); Stichprobe neu gebildet, siehe unten |
 | `make gates` grün, `make gegenproben` und Stempel | Gates grün (selbst); Fälle 171 bis 173 in `tools/gegenproben/faelle.go` und `SPEC-102`, Stempel in eigenem Commit (`901a61a`) nachgezogen; `make gegenproben` nicht erneut gefahren (Stempel gleich der Eingabe, `make gates` meldet kein Veralten) |
@@ -57,7 +57,7 @@ Die Basis ohne Mutation ist grün. Die weiteren Zeilen (M1 bis M4, M6 bis M10) h
 
 ## Befunde
 
-- **LOW-1 — ADR-0012-Status im Plan.** Der Plan nennt [ADR-0012](../plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md) an drei Stellen „Proposed“ (Kopf *Bezug*, §1 *Quellstand*, §6 F-2 mit dem Offen-Punkt „Annahme vor dem Merge, Adresse: User“). Auf `main` (`3c87c55`) ist sie seit 2026-11-05 Accepted, der Index dort führt `Accepted`. Der Planner zieht alle drei Stellen und den Ausgang des offenen Punktes (F-2) bei der Integration nach (`AGENTS.md` §3.9; Klasse: jede Stelle, die den Status nennt). Kein Code-Befund; der Zweig ändert die ADR nicht.
+- **LOW-1 — [ADR-0012](../plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md)-Status im Plan.** Der Plan nennt [ADR-0012](../plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md) an drei Stellen „Proposed“ (Kopf *Bezug*, §1 *Quellstand*, §6 F-2 mit dem Offen-Punkt „Annahme vor dem Merge, Adresse: User“). Auf `main` (`3c87c55`) ist sie seit 2026-11-05 Accepted, der Index dort führt `Accepted`. Der Planner zieht alle drei Stellen und den Ausgang des offenen Punktes (F-2) bei der Integration nach (`AGENTS.md` §3.9; Klasse: jede Stelle, die den Status nennt). Kein Code-Befund; der Zweig ändert die ADR nicht.
 - **INFO-1 — Closure offen.** Review-Haken, Doku-Haken, Closure-Notiz, Register-Fortschreibung, Ausgänge von §6 (mehrere *offen*) und die Paarungen sind nicht gesetzt; das ist Sache der Closure, kein Befund an Code.
 - **INFO-2 — akzeptierte Negative im Plan benannt.** `IDGenerator`-Instanz (zustandsloses Struct, F-10), Body-/Query-Geheimnisse, parallele Clients, Coverage `partial`, Log-Inhalt, Weg ins Netz an anderem Ziel: alle mit Grund und Folge in §6; nichts davon ist eine Zusage ohne Fänger.
 
