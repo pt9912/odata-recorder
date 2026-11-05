@@ -91,7 +91,7 @@ Die Rate der Tabelle (30 von 30, ohne 0 von 30) ist best채tigt; der Reviewer ma�
 
 ## 5. Gates
 
-`make gates` im Worktree, unter `flock`: siehe Zeile am Ende dieses Abschnitts (wird nach dem Lauf eingetragen).
+`make gates` im Worktree auf dem Stand `338d0e7` (Spitze mit diesem Bericht), unter `flock /tmp/odata-recorder-heavy.lock`, R체ckgabe 0; `groessenmarke slice-protokolltreue.md: ok, Messung 1517 von Marke 2700`; `zeichen: ok, 1259 Datei(en) gepr체ft`. Ein fr체herer Lauf vor dem Commit des Berichts war ebenfalls gr체n (R체ckgabe 0). Die Stufen `test` und `race` laufen 체ber `./...` und damit 체ber `tests/integration`.
 
 ## 6. Akzeptierte Negative (Z20, `LH-QA-07.a` Nr. 7 a bis d)
 
