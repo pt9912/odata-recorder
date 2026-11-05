@@ -1,6 +1,6 @@
 # ADR-0012: Prüfpakete unter tests/ als eigene Schicht des Architektur-Gates
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Datum:** 2026-11-01
 
@@ -60,3 +60,4 @@ Ein Prüfpaket braucht eine Kante, die diese Entscheidung nicht trägt, oder a-c
 | Datum | Ereignis | Verweis |
 |---|---|---|
 | 2026-11-01 | Proposed | Review-Befund F-2 zu `slice-m2-referenzdienst` |
+| 2026-11-05 | Accepted | Entscheidung des Users |
