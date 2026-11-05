@@ -3,7 +3,7 @@
 * Datum: 2026-11-05
 * Rolle: verifier (frischer Kontext; kein Produktcode, kein Test, kein Vertrag, kein Plan, keine Roadmap, keine Welle und kein Register geändert; einmaliger Lauf, keine Wiederholungsschleife)
 * Gegenstand: Zweig `slice-protokolltreue`, Spitze `e2620cc`, Diff `195afaa..e2620cc`; Basis der Größenmarke und der Randformen `7c4e1df`; Implementer `d3c5823` bis `c588bb6`, Review `ce97f35`, Fix-Runde `fe76239` bis `adb7674`, Architect `e2620cc`.
-* Plan: `docs/plan/planning/in-progress/slice-protokolltreue.md`
+* Plan: `docs/plan/planning/done/slice-protokolltreue.md`
 * Maßstab: DoD (§2), Tabelle *Zusage · Fänger* (§3, Z1 bis Z22 mit Handoff-Absatz und Raten), Messpunkt (§4), Raster und Zusatztabelle (§6) gegen `LH-QA-07.a` Nr. 1 bis 7, [LH-QA-07](../../spec/lastenheft.md#lh-qa-07--protokolltreue), `LH-FA-01.a`, `SPEC-119` Nr. 6, `SPEC-121` Nr. 4; `AGENTS.md` §3.9 bis §3.18; [ADR-0012](../plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md) (Prüfpakete unter `tests/`), [ADR-0007](../plan/adr/0007-race-detektor-im-gate.md) (Race-Detektor), [ADR-0009](../plan/adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md) (Größenmarke).
 * Hinweis zum Skill: `.harness/skills/closure-note-reviewer.md` gilt für Slices in `done/`; dieser Slice liegt in `in-progress/` und seine Closure-Notiz (§7) ist leer, der Skill passt nicht auf diese Rolle und wurde nicht angewandt.
 * Belege selbst gefahren: Basislauf der Vergleichstests, Probe-Mutationen auf Wegwerfkopien (Scratchpad `ver-pt/`, Image `odata-recorder:race`, `--network none --memory 4g`, unter `flock /tmp/odata-recorder-heavy.lock`), Z21 je 30 Prozesse, `make gates` im Worktree. `df` vor den Läufen: 31 G frei, nichts gelöscht.
