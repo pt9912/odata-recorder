@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -359,5 +360,34 @@ func TestGleichwertig(t *testing.T) {
 	}
 	if n != 136 {
 		t.Errorf("%d Fälle, erwartet 136", n)
+	}
+}
+
+// TestRangElementzahl (Zeilen 42 und 43): die Zahl der Elemente geht der Pfad- oder Funktionsform vor, wo der Vertrag sie vor dem
+// Lesen des Werts prüft. `$select` mit 257 Elementen ist `zu_viele`, auch wenn ein Element ein `/` trägt (Menge 257: das `/` an jeder
+// Stelle); `$orderby` mit 33 Elementen und einem `(` oder `/` ist Kompatibilität `option` (Menge 66: 33 Stellen × 2 Formen).
+func TestRangElementzahl(t *testing.T) {
+	var faelle []pfadFall
+	n := 0
+	mit := func(namen []string, i int, ersatz string) string {
+		k := slices.Clone(namen)
+		k[i] = ersatz
+		return strings.Join(k, ",")
+	}
+	s := namenListe(257)
+	for i := range s {
+		faelle = append(faelle, optFall("$select="+mit(s, i, "A/B"), ung(model.URLZuViele, "query/1")))
+		n++
+	}
+	o := namenListe(33)
+	for i := range o {
+		for _, form := range []string{"tolower(A)", "A/B"} {
+			faelle = append(faelle, optFall("$orderby="+mit(o, i, form), kmp(model.KompatOption, "query/1")))
+			n++
+		}
+	}
+	laufe(t, urlparserv2.New(), faelle)
+	if n != 257+66 {
+		t.Errorf("%d Fälle, erwartet 323", n)
 	}
 }

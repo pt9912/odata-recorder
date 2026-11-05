@@ -317,3 +317,28 @@ func TestKompatFehlerWert(t *testing.T) {
 		t.Errorf("%d Eingaben, erwartet 30", n)
 	}
 }
+
+// TestSchluesselLiteralPaar (Zeile 7, Schlüsselpaare): ein Literal außerhalb des Umfangs (`literal_typ`) und ein ungültiges Literal
+// (`literal`, `zu_lang`) im selben Schlüssel sind `ODR-E6005`, gleich in welcher Reihenfolge. Menge 1600: 25 Formen außerhalb ×
+// 32 ungültige Formen (31 `literal`, 1 `zu_lang`) × 2 Reihenfolgen.
+func TestSchluesselLiteralPaar(t *testing.T) {
+	zuLang := "'" + strings.Repeat("a", 511) + "'"
+	schlecht := map[string]model.URLUrsache{zuLang: model.URLZuLang}
+	formen := append(literalVerstoesse(), zuLang)
+	p := urlparserv2.New()
+	n := 0
+	for _, typ := range ausserhalbLiterale() {
+		for _, f := range formen {
+			ursache, ok := schlecht[f]
+			if !ok {
+				ursache = model.URLLiteral
+			}
+			pruefe(t, p, "/S(A="+typ+",B="+f+")", "", ung(ursache, "pfad/1"))
+			pruefe(t, p, "/S(A="+f+",B="+typ+")", "", ung(ursache, "pfad/1"))
+			n += 2
+		}
+	}
+	if len(formen) != 32 || n != 1600 {
+		t.Errorf("%d Formen, %d Fälle, erwartet 32 und 1600", len(formen), n)
+	}
+}

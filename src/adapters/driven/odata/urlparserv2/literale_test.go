@@ -173,11 +173,16 @@ func TestLiteralTyp(t *testing.T) {
 	}
 }
 
-// TestLiteralVerstoss (Zeile 32): jede andere Form ist `literal`, nicht `literal_typ` und nicht `key`. Menge 31.
-func TestLiteralVerstoss(t *testing.T) {
-	formen := []string{"null", "NULL", "Null", "+1", ".5", "5.", "42LL", "42Lx", "1.5LM", "0x10", "1_000", guidBasis, "2020-01-02",
+// literalVerstoesse sind die 31 Formen eines Schlüsselliterals mit der Ursache `literal` (SPEC-173 Nr. 3).
+func literalVerstoesse() []string {
+	return []string{"null", "NULL", "Null", "+1", ".5", "5.", "42LL", "42Lx", "1.5LM", "0x10", "1_000", guidBasis, "2020-01-02",
 		"2020-01-02T03:04:05Z", "{" + guidBasis + "}", "guid'x'", "guid'", "datetime'2020-01-01'", "datetime'2020-01-02T03:04:05Z'",
 		"datetime'2020-01-02T03:04:05+01:00'", "'a'b", "'a", "'a''", "1e", "1E+", "-", "--1", "1 2", "%20", "true1", "yes"}
+}
+
+// TestLiteralVerstoss (Zeile 32): jede andere Form ist `literal`, nicht `literal_typ` und nicht `key`. Menge 31.
+func TestLiteralVerstoss(t *testing.T) {
+	formen := literalVerstoesse()
 	p := urlparserv2.New()
 	for _, f := range formen {
 		pruefe(t, p, "/S(K="+f+")", "", ung(model.URLLiteral, "pfad/1"))
