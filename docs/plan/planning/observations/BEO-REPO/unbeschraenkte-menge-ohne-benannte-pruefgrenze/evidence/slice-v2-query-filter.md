@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-query-filter
+**Fund:** V-4 (Verifikation, LOW): die Menge der Zeichen jenseits von ASCII mit Faltungsbild in ASCII ist für die Kompatibilitätsfaltung (Vollbreite, Ligaturen, hochgestellt) unbeschränkt; der Fänger führt 464 Elemente der einfachen Faltung, der Plan nannte die Prüfgrenze nicht. Jetzt als akzeptiertes Negativ mit Grund und Folge in §3 benannt, nicht behoben. Beleg: Plan §3 (*Akzeptierte Negative nach der Verifikation*, V-4); Report `docs/reviews/2026-11-05-slice-v2-query-filter-verifikation.md` (V-4).
