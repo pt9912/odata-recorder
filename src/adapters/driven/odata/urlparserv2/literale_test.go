@@ -22,11 +22,14 @@ func schreibweise(wort string, maske int) string {
 	return string(b)
 }
 
-// TestSchluesselLiterale (Zeile 28): Zeichenkette, Wahrheitswert, ganze Zahl, `L`, Dezimalzahl mit oder ohne `M`: Art und kanonischer
-// Text. Menge 35.
-func TestSchluesselLiterale(t *testing.T) {
+// schluesselLiterale sind die 35 Formen der Zeile 28 mit Art und kanonischem Text (die Eingabe ist die Schreibweise in der URL).
+func schluesselLiterale() []struct {
+	eingabe string
+	art     model.LiteralArt
+	text    string
+} {
 	zk, wv, zl := model.LiteralZeichenkette, model.LiteralWahrheitswert, model.LiteralZahl
-	tabelle := []struct {
+	return []struct {
 		eingabe string
 		art     model.LiteralArt
 		text    string
@@ -40,6 +43,12 @@ func TestSchluesselLiterale(t *testing.T) {
 		{"1.5M", zl, "1.5"}, {"1.50m", zl, "1.5"}, {"0M", zl, "0"}, {"-0.0M", zl, "0"}, {"7M", zl, "7"}, {"7m", zl, "7"},
 		{"-1.25M", zl, "-1.25"},
 	}
+}
+
+// TestSchluesselLiterale (Zeile 28): Zeichenkette, Wahrheitswert, ganze Zahl, `L`, Dezimalzahl mit oder ohne `M`: Art und kanonischer
+// Text. Menge 35.
+func TestSchluesselLiterale(t *testing.T) {
+	tabelle := schluesselLiterale()
 	p := urlparserv2.New()
 	for _, f := range tabelle {
 		pruefe(t, p, "/S("+f.eingabe+")", "", keyOk(f.art, f.text))
@@ -51,6 +60,28 @@ func TestSchluesselLiterale(t *testing.T) {
 }
 
 const guidBasis = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+
+// guidAbweichend sind die 17 Inhalte von `guid'…'`, die von der Form 8-4-4-4-12 abweichen.
+func guidAbweichend() []string {
+	gruppen := strings.Split(guidBasis, "-")
+	var abweichend []string
+	abweichend = append(abweichend, guidBasis[:35], guidBasis+"0")
+	for _, pos := range []int{8, 13, 18, 23} {
+		abweichend = append(abweichend, guidBasis[:pos]+guidBasis[pos+1:])
+	}
+	for gi := range gruppen {
+		mehr, weniger := append([]string(nil), gruppen...), append([]string(nil), gruppen...)
+		mehr[gi] += "0"
+		weniger[gi] = weniger[gi][:len(weniger[gi])-1]
+		abweichend = append(abweichend, strings.Join(mehr, "-"), strings.Join(weniger, "-"))
+	}
+	return append(abweichend, "g"+guidBasis[1:])
+}
+
+// guidRoh sind die drei Schreibweisen ohne Präfix mit Anführungszeichen, mit Klammern und ohne schließendes `'`.
+func guidRoh() []string {
+	return []string{"guid" + guidBasis, "guid'{" + guidBasis + "}'", "guid'" + guidBasis}
+}
 
 // TestGuid (Zeile 29): `guid'…'`: das Präfix in jeder ASCII-Schreibweise, 8-4-4-4-12 Hex-Ziffern in jeder Schreibweise, der Text
 // kleingeschrieben; jede Abweichung der Form ist `literal`. Menge 42: 16 Schreibweisen von `guid`, 6 der Ziffern, 20 Randformen.
@@ -78,24 +109,11 @@ func TestGuid(t *testing.T) {
 		pruefe(t, p, "/S(guid'"+g+"')", "", keyOk(model.LiteralGUID, guidBasis))
 		n++
 	}
-	gruppen := strings.Split(guidBasis, "-")
-	var abweichend []string
-	abweichend = append(abweichend, guidBasis[:35], guidBasis+"0")
-	for _, pos := range []int{8, 13, 18, 23} {
-		abweichend = append(abweichend, guidBasis[:pos]+guidBasis[pos+1:])
-	}
-	for gi := range gruppen {
-		mehr, weniger := append([]string(nil), gruppen...), append([]string(nil), gruppen...)
-		mehr[gi] += "0"
-		weniger[gi] = weniger[gi][:len(weniger[gi])-1]
-		abweichend = append(abweichend, strings.Join(mehr, "-"), strings.Join(weniger, "-"))
-	}
-	abweichend = append(abweichend, "g"+guidBasis[1:])
-	for _, g := range abweichend {
+	for _, g := range guidAbweichend() {
 		pruefe(t, p, "/S(guid'"+g+"')", "", ung(model.URLLiteral, "pfad/1"))
 		n++
 	}
-	for _, roh := range []string{"guid" + guidBasis, "guid'{" + guidBasis + "}'", "guid'" + guidBasis} {
+	for _, roh := range guidRoh() {
 		pruefe(t, p, "/S("+roh+")", "", ung(model.URLLiteral, "pfad/1"))
 		n++
 	}
@@ -109,18 +127,40 @@ func TestGuid(t *testing.T) {
 func TestDatetime(t *testing.T) {
 	p := urlparserv2.New()
 	n := 0
-	soll := func(y, mo, d, h, mi, s int, bruch string) string {
-		text := time.Date(y, time.Month(mo), d, h, mi, s, 0, time.UTC).Format("2006-01-02T15:04:05")
-		if bruch != "" {
-			text += "." + bruch
-		}
-		return text + "Z"
-	}
 	for m := range 256 {
-		pruefe(t, p, "/S("+schreibweise("datetime", m)+"'2020-01-02T03:04')", "", keyOk(model.LiteralZeitpunkt, soll(2020, 1, 2, 3, 4, 0, "")))
+		pruefe(t, p, "/S("+schreibweise("datetime", m)+"'2020-01-02T03:04')", "", keyOk(model.LiteralZeitpunkt, datetimeSoll(2020, 1, 2, 3, 4, 0, "")))
 		n++
 	}
-	gut := []struct {
+	gut, schlecht := datetimeGut(), datetimeSchlecht()
+	for _, f := range gut {
+		pruefe(t, p, "/S(datetime'"+f.eingabe+"')", "", keyOk(model.LiteralZeitpunkt, f.text))
+		n++
+	}
+	for _, s := range schlecht {
+		pruefe(t, p, "/S(datetime'"+s+"')", "", ung(model.URLLiteral, "pfad/1"))
+		n++
+	}
+	if n != 256+len(gut)+len(schlecht) || len(gut) != 21 || len(schlecht) != 21 {
+		t.Errorf("%d Fälle (%d gut, %d schlecht), erwartet 298", n, len(gut), len(schlecht))
+	}
+}
+
+// datetimeSoll ist der kanonische Text eines Zeitpunkts als UTC; das Orakel ist `time.Date`.
+func datetimeSoll(y, mo, d, h, mi, s int, bruch string) string {
+	text := time.Date(y, time.Month(mo), d, h, mi, s, 0, time.UTC).Format("2006-01-02T15:04:05")
+	if bruch != "" {
+		text += "." + bruch
+	}
+	return text + "Z"
+}
+
+// datetimeGut sind die 21 lesbaren Inhalte von `datetime'…'` mit ihrem Text.
+func datetimeGut() []struct {
+	eingabe string
+	text    string
+} {
+	soll := datetimeSoll
+	return []struct {
 		eingabe string
 		text    string
 	}{
@@ -137,23 +177,16 @@ func TestDatetime(t *testing.T) {
 		{"2024-02-29T00:00", soll(2024, 2, 29, 0, 0, 0, "")}, {"2020-01-02T23:00", soll(2020, 1, 2, 23, 0, 0, "")},
 		{"2020-01-02T03:59", soll(2020, 1, 2, 3, 59, 0, "")}, {"2020-01-02T03:04:59", soll(2020, 1, 2, 3, 4, 59, "")},
 	}
-	for _, f := range gut {
-		pruefe(t, p, "/S(datetime'"+f.eingabe+"')", "", keyOk(model.LiteralZeitpunkt, f.text))
-		n++
-	}
-	schlecht := []string{
+}
+
+// datetimeSchlecht sind die 21 Inhalte von `datetime'…'`, die `literal` ergeben.
+func datetimeSchlecht() []string {
+	return []string{
 		"0000-01-01T00:00", "2020-13-01T00:00", "2020-00-01T00:00", "2020-01-32T00:00", "2020-01-00T00:00", "2023-02-29T00:00",
 		"2020-02-30T00:00", "2020-01-02T24:00", "2020-01-02T03:60", "2020-01-02T03:04:60",
 		"2020-01-02T03:04:05Z", "2020-01-02T03:04:05+01:00", "2020-01-02T03:04:05-01:00",
 		"2020-01-02", "2020-01-02t03:04", "2020-01-02 03:04", "2020-01-02T03:04:05.12345678",
 		" 2020-01-02T03:04", "2020-01-02T03:04 ", "2020-01-02T03:04:05.", "2020-01-02T10",
-	}
-	for _, s := range schlecht {
-		pruefe(t, p, "/S(datetime'"+s+"')", "", ung(model.URLLiteral, "pfad/1"))
-		n++
-	}
-	if n != 256+len(gut)+len(schlecht) || len(gut) != 21 || len(schlecht) != 21 {
-		t.Errorf("%d Fälle (%d gut, %d schlecht), erwartet 298", n, len(gut), len(schlecht))
 	}
 }
 
