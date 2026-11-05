@@ -89,9 +89,9 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `tests/integration/` | update | Vergleichstest und die Antworten des Referenzdienstes, die er zusätzlich braucht; Referenzdienst aus `slice-m2-referenzdienst`, Composition Root aus `slice-bootstrap-m2` |
+| `tests/integration/` | neu | Vergleichstest und die Antworten des Referenzdienstes, die er zusätzlich braucht: ein eigener, zustandsloser Test-Server `vergleichsdienst_test.go` mit 16 Antwortarten; der Referenzdienst von `slice-m2-referenzdienst` zählt `$count` und bleibt unverändert (`tests/integration/m2_test.go`, `tests/integration/referenzdienst_test.go`, `tests/integration/text_test.go` ohne Diff); Composition Root aus `slice-bootstrap-m2` |
 | `spec/spezifikation.md` | update | `LH-QA-07.a`: die Randformen aus §6, vor dem Code entschieden vom Architect; im Slice nur Nachzug nach Review und Verifikation |
-| Testdatei des Vergleichs | neu | ein Fall je Antwortart und je Randform des Rasters; Mutationen des Proxys und des Vergleichs nach `LH-QA-07` |
+| `tests/integration/vergleich_test.go`, `protokolltreue_test.go` | neu | die Vergleichsfunktion (Header als Listen der Feldzeilen, ausgenommene Namen, Entpacken je Seite) und die Tests: ein Fall je Antwortart und je Randform des Rasters; der Veränderer zwischen Client und Recorder trägt die Mutationen nach `LH-QA-07` |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit den Randformen in `LH-QA-07.a` **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12).
 
@@ -127,6 +127,41 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 
 Zählung (`SPEC-128` Nr. 3 g): *a* = 1 nebenläufig (Z21), *b* = 21 andere Zeilen.
 
+**Stand beim Handoff** (Implementer; Fänger in `tests/integration/`; *Mutation* ist eine Änderung an einer Wegwerfkopie, die den Test aus dem benannten Grund rot färbt, einmal gesehen; *Mutator* wie oben). Vergleichsfunktion `vergleiche` in `vergleich_test.go`, Fälle und Veränderer in `protokolltreue_test.go`, Referenzdienst in `vergleichsdienst_test.go`.
+
+| Nr. | Fänger (Test, Menge) | Mutation, rot gesehen |
+|---|---|---|
+| Z1 | `TestStatusAbweichung` (16 Fälle), `TestStatusNichtPhrase` | Statusvergleich entfernt; Vergleich liest die Phrase |
+| Z2 | `TestBodyAbweichung` (11 Antwortarten × 3 Stellen = 33) | Vergleich nur der Länge; erstes Byte ausgenommen; letztes Byte ausgenommen |
+| Z3 | `TestHeaderWertAbweichung` (68 Paare aus Fall und Header, der Orakel-Satz je Fall steht in `faelle()`) | jeder der 9 Namen der Fälle einzeln in der Ausnahmemenge (9 von 9) |
+| Z4 | `TestHeaderNurEineSeite` (je relevanter Name ein Fall und je Fall ein hinzugefügter Name) | nur die Namen der direkten Seite; nur die Namen der Proxy-Seite |
+| Z5 | `TestLeererWert` | leerer Wert wie fehlend behandelt |
+| Z6 | `TestFeldzeilen` | Werte sortiert; Zeilen mit Komma zu einer Zeile geführt |
+| Z7 | `TestSchreibweiseDesNamens` (4 Namen × 9 Paare = 36, je gleich und mit anderem Wert) | Namen nicht kleingeschrieben |
+| Z8 | `TestVolatileHeaders` (7 Namen × 9 Paare von Schreibweisen = 63; Orakel `volatileOrakel`, ausgeschrieben) | je ein Element aus dem Default von `VOLATILE_HEADERS` in `src/bootstrap/konfig_werte.go` entfernt (7 von 7) |
+| Z9 | `TestHopByHopUndConnection` (9 Namen × 3 Schreibweisen = 27; 5 Formen von `Connection` × 3 Träger = 15) | die Liste verliert je ein Element (9 von 9); `Connection` nur von der direkten Seite; nur von der Proxy-Seite |
+| Z10 | `TestCodingUndLaenge` (11 Antwortarten × 4 Ketten = 44, dazu handgebaut: Paare von Codings, `Content-Length` 10 gegen 11) | `Content-Encoding` zählt als relevant; `Content-Length` zählt als relevant |
+| Z11 | `TestKetten` (5 Ketten × 5 Ketten = 25 und 5 leere Rohbodies = 30) | Entpacken entfällt; Kette nicht umgekehrt; Dekoder auf den leeren Rohbody |
+| Z12 | `TestUmkodierenMitAenderung` (3 Antworten mit Coding × 3 Stellen = 9) | Vergleich prüft den Body nicht (nur die Entpackbarkeit) |
+| Z13 | `TestOhneBody` (HEAD, 204, 304; handgebaut 204 und 304 mit Body auf jeder Seite) | Body bei 204 nicht verglichen; Body bei 304 nicht verglichen; Header ohne Body nicht verglichen |
+| Z14 | `TestNichtEntpackbar` (19 Ketten und Ströme × 2 Seiten = 38) | Fehler übergangen; nur der Status verglichen |
+| Z15 | `TestNichtAngefragtesCoding` (3 Stellen im Rohbody, Wert von `Content-Encoding`) | Modus roh entpackt trotzdem; `Content-Encoding` im Modus roh ausgenommen; Fall ausgeschlossen |
+| Z16 | `TestAcceptEncodingErreichtDenDienst`, `TestFaelleDirektWieErwartet` (Echo je Fall, beide Seiten) | Proxy ergänzt `identity` (`src/hexagon/services/record/header.go`); Client ohne `DisableCompression` |
+| Z17 | `TestSelbstvergleich` (16 Fälle direkt gegen direkt, 302 auf beiden Seiten) | Dienst zählt `$count`; Client folgt der Weiterleitung |
+| Z18 | `TestTextAntworten` (`$count`, `$value`) | `Content-Type` aus dem Vergleich genommen |
+| Z19 | `TestAcceptEncodingNurBekannte` (Echo je Fall) | Client nennt zusätzlich `br` |
+| Z20 | akzeptiertes Negativ, kein Fänger (Grund und Folge in `LH-QA-07.a` Nr. 7 a, b) | — |
+| Z21 | `TestParallel` (8 Clients zugleich, alle Fälle, beide Seiten) | Zähler ohne Sperre im Referenzdienst: rot in 30 von 30 Prozessen |
+| Z22 | `TestDurchstichM2` vor und nach dem Slice; `git diff 195afaa -- tests/integration/m2_test.go` leer | Zeile `Set-Cookie` aus `tests/integration/referenzdienst_test.go` entfernt |
+
+*Raten.* Z21 ist der einzige nebenläufige Fänger: Test-Binary mit `-race` einmal gebaut, 30 Prozesse nacheinander mit `-test.count=1` (Image `odata-recorder:race`, Messender: der Implementer): mit der Mutation rot in 30 von 30 Prozessen, ohne sie in 0 von 30. Jede andere Zeile läuft in einem Prozess ohne Nebenläufigkeit und ist je Lauf deterministisch; `go test -count=20` über das Paket `tests/integration` ist grün (20 von 20).
+
+*Echte Mutationen am Proxy* (zusätzlich zu den Mutatoren, `src/adapters/driving/httpodata/antwort.go`): leere Werte verworfen, Zeilen eines Namens umgekehrt, Status 200 als 201, nur die erste Zeile eines Namens — jede färbt `TestProtokolltreue` rot (4 von 4).
+
+*Klassen als Schleife mit Orakel und Zählprüfung* (`AGENTS.md` §3.15, §3.17; Generator ist die Schleife, das Orakel steht ausgeschrieben im Test, die Zählprüfung nennt die Menge): Z2, Z3, Z7, Z8, Z9, Z10, Z11, Z12 und Z14, Mengen in der Tabelle. Orakel: die sieben Namen (`volatileOrakel`), die neun Hop-by-Hop-Namen, die Namen der relevanten Header je Fall (`relevant` in `faelle()`, gegen die Antwort des Dienstes geprüft), die Menge der 19 Ketten und Ströme (`kaputteKetten`).
+
+*Zuordnung und Abweichungen vom Plan.* (1) Der Referenzdienst dieses Slice ist ein eigener Test-Server: der von M2 zählt `$count`, der Vergleich braucht zustandslose Antworten (Entscheidung Nr. 6 des Architect), das Echo von `Accept-Encoding` (Z16) steht in jeder Antwort als `X-Echo-Accept-Encoding`. (2) Z13: `net/http` sendet bei HEAD, 204 und 304 keinen Body, ein Mutator kann ihn nicht ausliefern; der Body nach 204 und 304 steht an handgebauten Antworten (beide Seiten), bei HEAD prüft dieselbe Funktion, die die Methode nicht kennt, den leeren Body (akzeptiertes Negativ: ein Proxy, der bei HEAD einen Body schickt, fiele dem Go-Client nicht auf; Folge im Betrieb: keine, der Server verwirft ihn). Der erste Lauf der Mutation „Body bei 304 nicht verglichen“ blieb grün; die handgebaute Schleife über 204 und 304 schließt die Lücke. (3) Z11 und Z14 prüfen die Ketten an handgebauten Antworten (die fünf Ketten und die Kette über zwei Zeilen); über den Draht laufen `gzip`, `deflate` und `deflate, gzip` (Fälle `gzip`, `deflate`, `kette`). (4) Z17, Z19: die Mutation ändert den Test-Server beziehungsweise die Fälle; kein Produktcode. (5) Z18: der Mutator des Plans (Typ, Wert) steckt im Test, die rot gesehene Mutation ist die Ausnahme von `content-type` aus dem Vergleich. Der Vergleich fand mit dem echten Recorder keine Abweichung in den 16 Antwortarten (§6, Risiko *Unterschied*: nicht eingetreten).
+
 ## 4. Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
@@ -140,6 +175,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - Nach `SPEC-128` Nr. 1: *S* = 85·1 + 80·21 + 200·1 + 0 = **1965**; Marke 100 · ⌈135·1965 / 10000⌉ = **2700** (135·1965 = 265275); keine Schnittfrage (*S* < 2223).
 - Nach `AGENTS.md` §3.14 (85 je nebenläufige, 40 je andere Zeile, 200 je Test-Server, × 1,25): 85 + 840 + 200 = 1125, × 1,25 = 1406,25, Marke **1500**.
 - Beide Fassungen widersprechen einander (offene Entscheidung des Users, §6); der Architect setzt keine Marke. Gesetzt ist die Marke des Gates, 2700; die vorläufige Marke 1400 ist ersetzt (oben).
+
+**Messpunkt, Stand Handoff** (`SPEC-128` Nr. 9; `git diff --numstat 7c4e1df..d3c5823 -- tests/`: 1028 + 251 + 125 = 1404, Tests eingeschlossen, Produktcode 0):
+`Messpunkt slice-protokolltreue.md: zeilen=22 nebenlaeufig=1 fakes=1 produktcode=0 schaetzung=1965 marke=2700 messung=1404`; Auslastung 1404 ÷ 2700 = 0,52, die Marke wird nicht überschritten. Zum Vergleich ergibt `AGENTS.md` §3.14 mit 1125 vor und 1406 nach dem Faktor 1,25 eine Schätzung, die der Messung gleicht (1404).
 
 ```groessenmarke
 pfad: tests/integration/
@@ -172,9 +210,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Nicht angefragtes Coding: der Referenzdienst sendet ein `Content-Encoding`, das der Client nicht genannt hat (etwa `br` auf `Accept-Encoding: gzip`); direkt kann der Test es nicht entpacken (`SPEC-119` Nr. 6), über den Proxy leitet der Record-Pfad die Antwort unverändert weiter — entschieden in `LH-QA-07.a` Nr. 4: eigener Fall mit eigener Erwartung (Rohbytes und `Content-Encoding` byte-gleich), Fänger Z15; Folge im Betrieb dort — **Ausgang:** entfallen bei Closure, wenn Z15 mit rot gesehener Mutation steht.
-- Unterschied, den der Vergleich findet: ein Unterschied in Status, Body oder relevantem Header zwischen Direktzugriff und Proxy ist ein Befund gegen `LH-FA-01` in einem Slice, der dann in `done/` liegt — **Ausgang:** offen; Befund an den Planner (`AGENTS.md` §3.13), der über Behebung entscheidet; der Test nimmt ihn nicht hin.
-- Gemeinsamer Referenzdienst: die Ergänzungen dieses Slice dürfen den M2-Test nicht ändern — **Ausgang:** offen; der M2-Test läuft vor und nach dem Slice unverändert grün, die Closure nennt beide Läufe.
-- Nebenläufigkeit: Proxy, Referenzdienst und Client laufen in einem Prozess — **Ausgang:** offen; die nebenläufigen Fälle laufen im Ziel `make test-race` aus `slice-race-gate`: dessen Vertrag fährt alle Pakete der Stufe `source` (`SPEC-122` Nr. 2), und `tests/` liegt dort seit `slice-bootstrap-m2` (§1 dort, Sendung von `slice-race-gate`), der Vergleichstest läuft in der Stufe `test` (§1); ein Fänger mit Wahrscheinlichkeit, den der Detektor nicht ersetzt (ein Rennen ohne ungeordneten Zugriff, `SPEC-122` Nr. 8b), nennt seine Rate je Mutation und je Lauf von `go test` (`AGENTS.md` §3.10; Reviewer-Skill, MEDIUM).
+- Unterschied, den der Vergleich findet: ein Unterschied in Status, Body oder relevantem Header zwischen Direktzugriff und Proxy ist ein Befund gegen `LH-FA-01` in einem Slice, der dann in `done/` liegt — **Ausgang:** offen; Befund an den Planner (`AGENTS.md` §3.13), der über Behebung entscheidet; der Test nimmt ihn nicht hin. Stand Handoff: der Vergleich fand über den echten Recorder in keiner der 16 Antwortarten einen Unterschied.
+- Gemeinsamer Referenzdienst: die Ergänzungen dieses Slice dürfen den M2-Test nicht ändern — **Ausgang:** offen; der M2-Test läuft vor und nach dem Slice unverändert grün, die Closure nennt beide Läufe. Stand Handoff: `TestDurchstichM2` grün auf 195afaa und auf dem Stand des Handoffs, kein Diff an den drei Dateien des M2-Dienstes und -Tests (§3, Z22).
+- Nebenläufigkeit: Proxy, Referenzdienst und Client laufen in einem Prozess — **Ausgang:** offen; die nebenläufigen Fälle laufen im Ziel `make test-race` aus `slice-race-gate`: dessen Vertrag fährt alle Pakete der Stufe `source` (`SPEC-122` Nr. 2), und `tests/` liegt dort seit `slice-bootstrap-m2` (§1 dort, Sendung von `slice-race-gate`), der Vergleichstest läuft in der Stufe `test` (§1); ein Fänger mit Wahrscheinlichkeit, den der Detektor nicht ersetzt (ein Rennen ohne ungeordneten Zugriff, `SPEC-122` Nr. 8b), nennt seine Rate je Mutation und je Lauf von `go test` (`AGENTS.md` §3.10; Reviewer-Skill, MEDIUM). Stand Handoff: Z21 rot in 30 von 30 Prozessen mit der Mutation, 0 von 30 ohne (§3).
 - Randformen (`AGENTS.md` §3.12, §3.16): Raster *Operation × Argumentart*; jede Zelle trägt ihren Ort in `LH-QA-07.a` (Nr. 1 bis 7, vor dem ersten Code-Commit eingetragen) oder „gilt nicht“ mit Grund; eine Randform ohne Ort hält den Implementer an — **Ausgang:** offen (entfällt bei Closure, wenn keine Randform im Code entschieden wurde).
 
 | Operation | fehlender Wert | leerer Wert | unbekannter oder fremder Wert | Abbruch | Wiederholung |
