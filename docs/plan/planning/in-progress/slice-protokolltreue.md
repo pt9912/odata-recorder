@@ -134,17 +134,20 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): `slice-bootstrap-m2`, `slice-m2-referenzdienst` und `slice-text-antworten` liegen in `done/` (Composition Root im Code; Referenzdienst und M2-Test im Code; Text-Antworten des Referenzdienstes im Code, Reihenfolge der Welle). Die Spezifikation trägt die Randformen aus §6 in `LH-QA-07.a`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12). Dieser Slice ist der letzte der Welle.
 
-**Größenmarke** (`AGENTS.md` §3.14): über **1400** Zeilen (Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3 unter `tests/`, Tests eingeschlossen; `<Basis>` ist der Commit, der die Randformen vor dem Code abschließt; Text der Spezifikation zählt nicht mit). Grund der Ersetzung (§3.14): Marke neu gesetzt nach §3.14 auf die vorläufige Schätzung × 1,25, aufgerundet auf volle Hundert; die ältere Marke 1100 entstand vor dem Faktor 1,25.
+**Größenmarke** (`AGENTS.md` §3.14): über **2700** Zeilen (Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3 unter `tests/`, Tests eingeschlossen; `<Basis>` ist der Commit, der die Randformen vor dem Code abschließt; Text der Spezifikation zählt nicht mit). Grund der Ersetzung der vorläufigen Marke 1400 (§3.14): Sie entstand ohne Tabelle; die Formel des Gates (`SPEC-128` Nr. 1) ist die durchgesetzte, `make groessenmarke` meldete „Marke steht aus: Schätzung 1965, Marke 2700“, und die Marke des Blocks muss ihr gleichen. Der Konflikt mit `AGENTS.md` §3.14 (dort 1500) bleibt eine offene Entscheidung des Users (§6).
 
-**Schätzung** (`AGENTS.md` §3.14, `SPEC-128`), nach der Tabelle in §3 (*a* = 1, *b* = 21, *f* = 1: der Referenzdienst mit den Zusatzfällen als Test-Server; *p* = 0, der Slice liefert keinen Produktcode; `pfad`: `tests/integration/`). Der Architect hat `pfad`, `produktcode` und `fakes` gesetzt, `basis`, `schaetzung` und `marke` setzt der Planner (`SPEC-128` Nr. 3 k).
+**Schätzung** (`AGENTS.md` §3.14, `SPEC-128`), nach der Tabelle in §3 (*a* = 1, *b* = 21, *f* = 1: der Referenzdienst mit den Zusatzfällen als Test-Server; *p* = 0, der Slice liefert keinen Produktcode; `pfad`: `tests/integration/`). Der Architect hat `pfad`, `produktcode` und `fakes` gesetzt, `basis`, `schaetzung` und `marke` hat der Planner gesetzt (`SPEC-128` Nr. 3 k): `basis` ist 7c4e1df, der Commit, der die Randformen vor dem Code abschließt.
 - Nach `SPEC-128` Nr. 1: *S* = 85·1 + 80·21 + 200·1 + 0 = **1965**; Marke 100 · ⌈135·1965 / 10000⌉ = **2700** (135·1965 = 265275); keine Schnittfrage (*S* < 2223).
 - Nach `AGENTS.md` §3.14 (85 je nebenläufige, 40 je andere Zeile, 200 je Test-Server, × 1,25): 85 + 840 + 200 = 1125, × 1,25 = 1406,25, Marke **1500**.
-- Beide Fassungen widersprechen einander (offene Entscheidung des Users, §6); der Architect setzt keine Marke. Die vorläufige Marke 1400 oben entstand ohne Tabelle und gilt, bis der Planner sie ersetzt.
+- Beide Fassungen widersprechen einander (offene Entscheidung des Users, §6); der Architect setzt keine Marke. Gesetzt ist die Marke des Gates, 2700; die vorläufige Marke 1400 ist ersetzt (oben).
 
 ```groessenmarke
 pfad: tests/integration/
 produktcode: 0
 fakes: 1
+basis: 7c4e1df4d8c6afebf83683c30bf7cc0ea5a4808e
+schaetzung: 1965
+marke: 2700
 ```
 
 
@@ -189,7 +192,7 @@ Zusatztabelle (`AGENTS.md` §3.16), Paare von Ursachen:
 | Name nur auf einer Seite und in `Connection` der anderen genannt | ausgenommen: die Namen aus `Connection` beider Antworten bilden eine Menge (Nr. 2) | Z9: die Seite, die `Connection` trägt, wechselt |
 | nicht angefragtes Coding und geänderter Body | Rohbytes werden verglichen, ein geändertes Byte ist rot (Nr. 4) | Z15: Mutator ändert ein Byte |
 
-- Formelkonflikt der Größenmarke: `AGENTS.md` §3.14 (85 und 40 je Zeile, × 1,25) und `SPEC-128` Nr. 1 (85 und 80, × 1,35) ergeben für diese Tabelle 1500 und 2700 (§4) — **Ausgang:** offen; Adresse: der User entscheidet die Formel, der Planner setzt danach `basis`, `schaetzung` und `marke` im Block und ersetzt die vorläufige Marke 1400 mit Grund (`AGENTS.md` §3.14); der Architect setzt keine Marke.
+- Formelkonflikt der Größenmarke: `AGENTS.md` §3.14 (85 und 40 je Zeile, × 1,25) und `SPEC-128` Nr. 1 (85 und 80, × 1,35) ergeben für diese Tabelle 1500 und 2700 (§4) — **Ausgang:** offen; Adresse: der User entscheidet die Formel. Der Planner hat `basis`, `schaetzung` und `marke` (2700, Formel des Gates) gesetzt und die vorläufige Marke 1400 mit Grund ersetzt (§4); die Marke des Blocks bleibt die des Gates, solange `SPEC-128` gilt.
 
 ## 7. Closure-Notiz
 
