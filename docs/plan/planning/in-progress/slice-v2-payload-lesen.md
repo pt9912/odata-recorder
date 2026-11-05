@@ -11,9 +11,9 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Welle:** [welle-odata-v2](../welle-odata-v2.md).
 
-**Bezug:** `LH-FA-17`, `LH-RB-01`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md)
+**Bezug:** `LH-FA-17`, `LH-RB-01`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md), [ADR-0003](../../adr/0003-lint-profil-golangci.md) (`make lint` bleibt ohne Ausnahme grün, `AGENTS.md` §3.2, §3.6)
 
-**Berührte Spec-Stellen:** `SPEC-170` (Umfang, Typen) · `SPEC-172` Nr. 1 bis 5 (Lesen; Nr. 6 und 7 gehören `slice-v2-payload-schreiben`) · `SPEC-178` · `LH-FA-17.a` (versionierter Adapter für V2-Payloads, keine Vermischung von V2 und V4) · `LH-FA-17` Boundary (leeres Ergebnis bleibt im V2-Antwortformat konsistent) · `SPEC-126` (Vertrag des V4-Lesers als Vorbild; Schreibweisen der Typen Nr. 10) · `SPEC-127` Nr. 8 (Auswahl der Antworten durch den Import) · `SPEC-002` · `SPEC-006` (Fehlerobjekt) · `ARC-004`, `ARC-011` · `architecture.md` §7 (Erweiterungspunkt OData V2).
+**Berührte Spec-Stellen:** `SPEC-170` (Umfang, Typen) · `SPEC-125` Nr. 9 a (Ketten von `BaseType`: ein Modell von Hand kann sie schließen, Zeile N1, Kreis) · `SPEC-172` Nr. 1 bis 5 (Lesen; Nr. 6 und 7 gehören `slice-v2-payload-schreiben`) · `SPEC-178` · `LH-FA-17.a` (versionierter Adapter für V2-Payloads, keine Vermischung von V2 und V4) · `LH-FA-17` Boundary (leeres Ergebnis bleibt im V2-Antwortformat konsistent) · `SPEC-126` (Vertrag des V4-Lesers als Vorbild; Schreibweisen der Typen Nr. 10) · `SPEC-127` Nr. 8 (Auswahl der Antworten durch den Import) · `SPEC-002` · `SPEC-006` (Fehlerobjekt) · `ARC-004`, `ARC-011` · `architecture.md` §7 (Erweiterungspunkt OData V2).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** pt9912 (Zweig slice-v2-payload-lesen)
@@ -32,6 +32,8 @@ Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der Leser `jsoncodecv2` (Paket `src/adapters/driven/odata/jsoncodecv2`, `SPEC-172`) **liest** die JSON-Antworten eines V2-Dienstes (Hülle `d`) auf Entity- und Collection-Abfragen für den Import in typisierte Entities gegen ein `model.ServiceModel` mit Version `2.0`: Typen in der Schreibweise von V2 (`/Date(…)/`, `Edm.Int64` und `Edm.Decimal` als String), Anzahl `__count`, Folgelink `__next`, nicht gedeutete Konstrukte als übersprungen gemeldet; das leere Ergebnis bleibt eine leere Menge (`LH-FA-17`, Boundary). Das Modell baut der Test mit `model.NeuesServiceModel("2.0", …)`; der V2-Metadatenleser ist keine Voraussetzung. Der Schnitt von Lesen und Schreiben folgt `AGENTS.md` §3.14: beide teilen allein die Tabelle der Typen in der Spezifikation (`SPEC-170` Nr. 4), keinen Mechanismus im Code; der Rundlauf beider ist der Test von `slice-v2-payload-schreiben`.
+
+**Teilen mit der V4-Suite** (`AGENTS.md` §3.9; `make lint` mit `dupl`, `cyclop`, `gocyclo`, `gocognit`, `unparam` ohne Ausnahme grün, [ADR-0003](../../adr/0003-lint-profil-golangci.md)): Die V2-Suite liegt im Paket `outboundtest` neben der V4-Suite und teilt drei Helfer mit ihr: `uPruefer` (Prüfer der Menge U, aus `b3Pruefer`), `a3Quellfehler` (die sieben Orte eines Fehlers von `src`, aus `jA3`) und `int32Werte` (die handgeschriebenen Fälle von `Edm.Int32`, aus `jfF3`); `b3Alphabet` verliert den Parameter `bis` (jeder Aufruf übergab 0xFF). Das Verhalten der V4-Suite ist unverändert (die Aufrufe und die Fälle sind dieselben, ihre Tests laufen grün); die Dateien der V4-Suite sind damit nicht mehr byte-gleich, siehe J4 in §3 und §6 (Abweichung).
 
 **Übernommen von `slice-v2-metadaten`** (Geber; `AGENTS.md` §3.13, Sendung vor dem Nehmer eingetragen):
 
@@ -65,7 +67,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Lesen: Antworten auf Entity- und Collection-Abfrage in typisierte Entities gegen das Modell der Version `2.0` (Hülle `d`, Typen in der Schreibweise von V2, `__count`, `__next`, nicht gedeutete Konstrukte als übersprungen gemeldet); kanonische Schreibweise je Typ; ein Modell anderer Version ist `ErrUngueltig`; V4-Leser und V4-Schreiber unberührt (ihre Tests laufen unverändert grün); eine nicht unterstützte Property (`Unterstuetzt()` falsch, `EdmType` `Edm.DateTimeOffset(V2)`) ist `Uebersprungen` mit Grund `typ`, und der Test `versionstrennung_test.go` über alle Verzeichnisse von `src/adapters/driven/odata/` liegt vor (aus `slice-v2-metadaten`, sonst von diesem Slice angelegt).
+- [ ] Lesen: Antworten auf Entity- und Collection-Abfrage in typisierte Entities gegen das Modell der Version `2.0` (Hülle `d`, Typen in der Schreibweise von V2, `__count`, `__next`, nicht gedeutete Konstrukte als übersprungen gemeldet); kanonische Schreibweise je Typ; ein Modell anderer Version ist `ErrUngueltig`; V4-Leser und V4-Schreiber unberührt (ihre Tests laufen unverändert grün; die V4-Suite gibt drei Helfer an die V2-Suite ab, §1 *Teilen mit der V4-Suite*); eine nicht unterstützte Property (`Unterstuetzt()` falsch, `EdmType` `Edm.DateTimeOffset(V2)`) ist `Uebersprungen` mit Grund `typ`, und der Test `versionstrennung_test.go` über alle Verzeichnisse von `src/adapters/driven/odata/` liegt vor (aus `slice-v2-metadaten`, sonst von diesem Slice angelegt).
 - [ ] Randformen des Lesers fremder Bytes (leer, falsche Hülle, V4-Antwort am V2-Leser, Typ-Schreibweisen, Zahlen jenseits von `float64`, doppelte Namen, Größe, Tiefe, Zerlegung des Stroms in Reads): je Zelle des Rasters ein Ort in der Spezifikation und ein Fänger; Generator über die Klasse der Bodies.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
@@ -134,7 +136,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 | H8 | `ParseEntity`: `d` Objekt ist die Entity; `results`, `__count`, `__next` sind gewöhnliche Namen (Property, sonst `unbekannte_property`); `d` kein Objekt ist `struktur` `/d` (Nr. 2 b) | Modell mit und ohne Property `results`, `__count`, `__next`; `d` als 6 JSON-Typen | `__count` an einer Entity als Anzahl behandelt | andere |
 | H9 | Die Methode entscheidet: ein Collection-Body an `ParseEntity` ist `unbekannte_property` `/d/results`; ein Entity-Body an `ParseCollection` ist `struktur`, Ort das erste Mitglied von `d` (Nr. 2 b, E3) | zwei Fälle mit Echt 14 und 08 | der Body bestimmt die Methode | andere |
 | H10 | Rangfolge im Deuten nach E3: Hülle vor Inhalt, Mitglieder in Dokumentreihenfolge, `results` an seiner Stelle, dann das Ende (Zusatztabelle Z3) | ein Fall je Paar von Z3 | Schritte (2) und (3) von E3 vertauscht; `__metadata` nicht zuerst | andere |
-| N1 | `__metadata` ist ein Objekt (sonst `struktur`, Ort `…/__metadata`); `type` ist ein String, der genau einen Entity-Typ nennt (Typ des Sets oder abgeleiteter, nicht abstrakter), sonst `odata_typ`, Ort `…/__metadata/type`; `Entity.Typ` ist der genannte Typ, die Reihenfolge der Mitglieder ist frei (Nr. 3, E4) | Schleife `__metadata` (6 JSON-Typen); `type` (kein String mal 5, leer, unbekannt, mit `#`, Alias, Leerraum, falsche Schreibweise, außerhalb der Ableitung, abstrakt, unmittelbar/mittelbar abgeleitet, Typ des Sets) mal Stelle (vor/hinter den Properties); Property des abgeleiteten Typs vor `__metadata` | `#` akzeptiert; nur unmittelbar abgeleitet; `__metadata` erst nach den Properties gedeutet | andere |
+| N1 | `__metadata` ist ein Objekt (sonst `struktur`, Ort `…/__metadata`); `type` ist ein String, der genau einen Entity-Typ nennt (Typ des Sets oder abgeleiteter, nicht abstrakter), sonst `odata_typ`, Ort `…/__metadata/type`; `Entity.Typ` ist der genannte Typ, die Reihenfolge der Mitglieder ist frei (Nr. 3, E4) | Schleife `__metadata` (6 JSON-Typen); `type` (kein String mal 5, leer, unbekannt, mit `#`, Alias, Leerraum, falsche Schreibweise, außerhalb der Ableitung, abstrakt, unmittelbar/mittelbar abgeleitet, Typ des Sets) mal Stelle (vor/hinter den Properties); Property des abgeleiteten Typs vor `__metadata`; Kreis in `BaseType` (`v2N1Kreis`, Modell `Y` von Hand, Schleife über 7 Typen: Selbstbezug, Ring über 2 und über 3 Typen, Anhang an einem Ring, mal 3 Formen des Bodys = 21 Läufe, Frist 10 s je Lauf): ein Typ in einer geschlossenen Kette, die den Typ des Sets nicht erreicht, ist `odata_typ`, der Leser kehrt zurück | `#` akzeptiert; nur unmittelbar abgeleitet; `__metadata` erst nach den Properties gedeutet; Markierung `besucht` in `abgeleitet` entfernt oder nur am ersten Typ gesetzt | andere |
 | N2 | Andere Mitglieder von `__metadata` (`uri`, `etag`, `id`, `content_type`, `media_src`, `edit_media`, fremde) sind ohne Wirkung, jeder JSON-Wert, und stehen nirgends im Ergebnis (Nr. 3) | Schleife Mitglieder mal 6 Wertformen; Echt 08 und 40 | `etag` als Property; `__metadata` in `Uebersprungen` | andere |
 | N3 | Properties unterstützten Typs stehen in der Reihenfolge des Dokuments; eine fehlende Property ist nicht selektiert (nicht in `Properties`), `null` ist `Art` null bei `Nullable`, sonst `null` (SPEC-126 Nr. 9, 10 e) | Schleife Properties mal {fehlt, `null`, Wert}; Body-Reihenfolge verschieden von der des Modells | fehlend als `null`; `null` bei nicht `Nullable` zugelassen | andere |
 | N4 | Eine Property nicht unterstützten Typs (`Edm.Int16`, `Edm.Double`, `Edm.Binary`, `Edm.Time`, komplex, `Edm.DateTimeOffset(V2)`, `Edm.Date`) ist `Uebersprungen` `typ`; ihr Inhalt wird gelesen, nicht gedeutet, jeder JSON-Wert auch `null` (Nr. 3, E4) | Schleife 8 Typen mal 7 JSON-Werte (auch tiefes Objekt) | `Edm.Int16` auf `Edm.Int32` abgebildet; `null` als Fehler | andere |
@@ -156,7 +158,82 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 | K3 | Verschiedene Schlüssel haben verschiedene Texte, derselbe Schlüssel denselben, gleich in welcher Schreibweise (`1`, `1.0`, `"1"` bei `Edm.Int64`) und Reihenfolge (SPEC-126 Nr. 11) | Paarvergleich als Schleife über die Schreibweisen je Typ | Text ohne Typ (`1` gleich `'1'`) | andere |
 | R1 | Echtfälle (Olingo Referenzszenario): sieben Antworten ergeben die erwarteten Entities (Schlüssel `'1'`, `EntryDate` `1999-01-01T00:00:00Z` bis `2010-12-01T00:00:00Z`, `Age`/`Seats`/`Version`/`Location` `typ`, `ne_*` `navigation`, `__count` 6 aus `"6"`, leer, ETag ignoriert) | Schleife über die Dateien 14, 20, 22, 08, 19, 36, 35 mit den erwarteten Entities als Literalen (nicht aus dem Leser gebildet), plus alle Zweiteilungen | Datum nicht umgerechnet; `__count` als String nicht gelesen; `__metadata` als Property | andere |
 | R2 | Echtfälle mit Verstoß: `$select` ohne Schlüssel ist `schluessel`, Ort `/d/results/0/EmployeeId`; das V2-Fehlerobjekt ist `struktur` `/d`; drei V4-Bodys sind `struktur` `/d` | Schleife über Datei 18, 24 und drei V4-Dateien, je mit der Methode der Datei | Fehlerobjekt als leere Collection gelesen | andere |
-| J4 | V4-Leser, V4-Schreiber und die V4-Dateien der Suite bleiben byte-gleich; ihre Tests laufen unverändert grün | benannte Ausgabe: `git diff --numstat --diff-filter=MDRT <basis>..HEAD` über `jsoncodec`, `csdl`, `urlparser`, `src/hexagon/model`, `src/hexagon/ports/outbound` ist leer (außer neuen Dateien); `make test` | beliebige Änderung an `jsoncodec/scan.go` | andere |
+| J4 | V4-Leser, V4-Schreiber, `csdl`, `urlparser` und `src/hexagon/model` bleiben byte-gleich; in `src/hexagon/ports/outbound` ändern sich allein drei V4-Dateien der Suite (`odata_codec_kodierung.go`, `odata_codec_strom.go`, `odata_codec_werte.go`) durch das Herausziehen von Helfern ohne geändertes Verhalten (§1 *Teilen mit der V4-Suite*); ihre Tests laufen unverändert grün | benannte Ausgabe: `git diff --numstat --diff-filter=MDRT <basis>..HEAD` über `jsoncodec`, `csdl`, `urlparser`, `src/hexagon/model`, `src/hexagon/ports/outbound` nennt allein diese drei Dateien (Stand beim Handoff, Zahlen in §4); `make test` | beliebige Änderung an `jsoncodec/scan.go`; ein Helfer der V4-Suite, der eine Zusage der V4-Suite abschwächt (Mutation am V4-Leser `jsoncodec`, rot in der V4-Suite, siehe Absatz *Mutationen*) | andere |
+
+**Mutationen des Implementers** (`AGENTS.md` §3.10; Stand Handoff, Zusage · Mutation · roter Test). Messender: der Implementer, je Mutante eine Ersetzung im Produktcode `jsoncodecv2` auf einer Wegwerfkopie von `src/` im Scratchpad, Image `odata-recorder:test` (`--network none --memory=4g --cpus=4`, unter `flock /tmp/odata-recorder-heavy.lock`), `go test -count=1 -run TestVertrag` über das Paket; „rot“ heißt: die genannte Zeile der Suite meldet `--- FAIL` (weitere rote Zeilen sind nicht aufgelistet, sofern sie nicht die Zusage selbst sind). Jede Mutante baut und läuft; eine gleichwertige Mutante ist keine Zeile.
+
+| Zeile | Mutation | roter Test |
+|---|---|---|
+| Nr. 1 | `!p.Unterstuetzt() \|\|` aus `property` entfernt | N4 |
+| Nr. 2 | `lesText(k, model.ArtDateTimeOffset, …)` mit `model.ArtString` | W8 (Art) |
+| G1 | `grenze < 1` zu `grenze < 0` | G1 |
+| G2 | Version `2.0` durch Präfix `2.` ersetzt | G2 |
+| G3 | Kontextprüfung vor die Argumentprüfung gestellt | G3 |
+| G4 | Ort des `entity_set`-Fehlers leer | G4 |
+| G5 | zweite Kontextprüfung (nach dem letzten Read) entfernt | G5 |
+| G6 | Fehler von `src` als `syntax` gemeldet | G6, G14 |
+| G7 | `n == 0` ohne Fehler als Ende gewertet | G7 |
+| G8 | `Close` am Ende gerufen, wenn `src` es führt | G8 |
+| G9 | Tabulator aus dem Leerraum entfernt | G9 |
+| G10 | Führungsbyte-Bereich `0xE1..0xEF` zu `0xE1..0xEE` | G10 |
+| G11 | `>= maxTiefe` zu `> maxTiefe` | G11 |
+| G12 | `n > rest` zu `n >= rest`; `want = rest + 2` statt `+ 1` | G12 (beide), G1, G8 |
+| G13 | Dublettenprüfung abgeschaltet (`false && f.hat(text)`) | G13 |
+| G14 | Verstoß in den Bytes vor `grenze+1` unterdrückt, wenn der Read über die Grenze geht (`&& !ueber`) | G7, G12; G14 selbst bleibt grün (das Paar *`zu_gross` gegen Verstoß davor* fängt G12, siehe Z2) |
+| G15 | `~0` und `~1` vertauscht | G15 |
+| G16 | `kontext` für die fehlende Hülle | G16 |
+| G17 | Property vorn statt hinten angefügt (Reihenfolge des Dokuments) | G17, N3 |
+| G18 | `Uebersprungen` einer Entity `nil`; `results` leer als `nil` | G18 (beide), N2, H5, R1 |
+| G19 | Feld `cache` im Leser | G19 |
+| H1 | Prüfung der Wurzel (Objekt) abgeschaltet | H1 |
+| H2 | weitere Mitglieder neben `d` ignoriert | H2 |
+| H3 | Index im Ort der Array-Elemente fehlt | H3 |
+| H4 | fremdes Mitglied in `d` ignoriert | H4 |
+| H5 | `results` leer ohne Nicht-`nil` | H5 |
+| H6 | `__count` negativ erlaubt (`v < 0` aus) | H6 |
+| H7 | `__next` leer erlaubt | H7 |
+| H8, H9 | unbekannte Property ignoriert (`return nil`) | H8, H9 |
+| H10 | `__metadata` nicht zuerst gedeutet (Name im ersten Durchlauf nie gleich) | H10, N1 |
+| N1 | abstrakten Typ zugelassen; Markierung `besucht` weg oder nur am ersten Typ (Kreis) | N1 (Kreis: Frist von 10 s) |
+| N2 | `__metadata` im zweiten Durchlauf nicht übersprungen | N1, N2 |
+| N3 | `null` bei nicht `Nullable` zugelassen | N3, W1 |
+| N4 | `Edm.Date` nicht übersprungen | N4 |
+| N5 | `null` bei Navigation als `typ` | N5 |
+| N6 | unbekannter Name ignoriert | H8, H9, G16 |
+| W1 | `Edm.Int32` als String angenommen | W1, W3 |
+| W2 | `Edm.Boolean` als String angenommen | W2 |
+| W3 | `ParseInt(…, bits+1)` | W3 (und V4: F3) |
+| W4 | Int64 mit 63 Bit gelesen | W4 |
+| W5 | `-0` bleibt `-0` | W5 |
+| W6 | `laenge >= maxDezimalLaenge` | W6 |
+| W7 | Guid nicht in Kleinbuchstaben | W7 |
+| W8 | `ms >= zeitMax`; `TrimRight` entfernt | W8 (beide) |
+| W9 | `-0` angenommen | W9 |
+| W10 | Escape `\/` im String nicht zugelassen | W10 |
+| W11 | Marker auch für `Edm.Int32` | W11 |
+| K1 | `'` nicht verdoppelt | K1 |
+| K2 | `null` als Schlüssel zugelassen | K2 |
+| K3 | Schlüsseltext ohne Anführungszeichen für Strings | K3 |
+| R1 | Zeitpunkt um eine Stunde verschoben | R1 |
+| R2 | Ursache der fehlenden Hülle `kontext` | R2 (zusammen mit G16) |
+| J4 | Änderung an `jsoncodec` (benannte Ausgabe des `git diff`) | keine Mutation im Test; die Ausgabe nennt die drei Dateien der Suite |
+
+Nicht gefahren (kein roter Test gesehen): G9 für die übrigen Zeichen der Grammatik (nur der Tabulator ist gemutet; der Generator zählt die Folgen), G14 für jedes Paar von Z2 einzeln (nur das genannte Paar), H8 und H9 mit eigener Mutation (rot nur durch die Mutation von N6), K1 mit Body- statt Modellreihenfolge, R2 mit einem Fehlerobjekt als leere Collection. Das sind Zusagen mit Fänger in der Tabelle, deren Mutation der Reviewer fährt; keine ist ein Negativ.
+
+**Mutationen an den geteilten Helfern** (J4; die V4-Suite ist der Fänger der V4-Seite): Mutation am V4-Leser `jsoncodec` auf einer Wegwerfkopie, Lauf `go test -run TestODataCodecVertrag ./src/bootstrap/` im Image `odata-recorder:test`: UTF-8-Bereich `0xE1..0xEE` rot in B3 (Helfer `uPruefer`, `b3Alphabet`), Fehler von `src` als `syntax` rot in A3 (Helfer `a3Quellfehler`), `ParseInt(…, bits+1)` rot in F3 und F4 (Helfer `int32Werte`). Auf der V2-Seite derselben Helfer: G10, G6 und W3 (siehe oben). Alle sechs Aufrufstellen der drei Helfer sind damit rot gesehen.
+
+**Raten der Zeilen G20 und G21** (`AGENTS.md` §3.10; Messender: der Implementer; Image `odata-recorder:race`, gebaut von `make test-race` (Go mit C-Compiler, cgo), Test-Binary mit `go test -race -c`, danach je Mutante 30 Prozesse nacheinander mit `-test.count=1 -test.run TestVertrag/G20` bzw. `/G21`, rot heißt Exit ungleich null; der Detektor meldet dasselbe Rennen je Prozess einmal, ein `-count=20` zeigt es nicht). Die Mutanten sind Paketvariablen im Leser, denn der Leser hat kein Feld (G19):
+
+| Mutation | G20 (Prozesse rot) | G21 (Prozesse rot) |
+|---|---|---|
+| C1: Paketvariable `zaehlerM`, in `vorbereiten` erhöht | 30 von 30 | 30 von 30 |
+| C2: Lesepuffer als Paketvariable (`[32 << 10]byte`) | 30 von 30 | 30 von 30 |
+| C3: Paketvariable `letzter` mit dem Fehler von `lies` beschrieben | 30 von 30 | 30 von 30 |
+| C4: Vermischung unter Sperre (Mutex, `letzter` liefert dem nächsten gültigen Aufruf den Fehler eines früheren), also kein Datenrennen | 20 von 20 Läufen eines Prozesses mit `-count=20`, ohne `-race` | 20 von 20 Läufen mit `-count=20`, ohne `-race`; unter `-race`: 30 von 30 Prozesse rot, 0 Meldungen des Detektors |
+
+Der Detektor fängt die Mutationen C1 bis C3 in jedem Prozess (30 von 30 je Zeile und Mutante); die Vermischung unter einer Sperre meldet er nicht (0 Meldungen), sie fängt der Wirkungs-Fänger (G21 vergleicht jedes Ergebnis mit dem eines einzelnen Aufrufs). Der Leser hat keine Sperre und gibt keine zwischen Prüfen und Handeln frei; ein Raster je Fenster der Sperre entfällt. Ungesehen bleibt, was der Detektor nicht meldet: ein Zugriff, den kein Lauf der Suite ausführt (Folge: ein Rennen in einem Pfad, den weder Echtdatei noch Fall der Suite berührt, bliebe grün; die Klasse der Bodies deckt die Pfade des Deuters, nicht jede Kombination).
+
+**Lint (`make lint`, Befund des Reviews):** die elf Meldungen (`cyclop`, `gocyclo` für `v2G18`; `gocognit` für `v2G6` und `v2FaelleG9Bytes`; `dupl` über drei Paare, `unparam` an `b3Alphabet`) sind durch Umbau behoben, ohne `//nolint` und ohne Änderung von `.golangci.yml`: `v2G18Leer`, `v2G9ByteOrte`, `v2G6Zeitpunkte` und die geteilten Helfer `uPruefer`, `a3Quellfehler`, `int32Werte`.
 
 **Betriebsregeln** (gelten für jede Rolle dieses Slice):
 
@@ -220,6 +297,8 @@ schaetzung: 5970
 marke: 8100
 ```
 
+**Messung beim Handoff** (Metrik des Blocks: Summe aus Einfügungen und Löschungen von `git diff --numstat 20b0d1a..<letzter Commit des Slice>` über die Pfade des Blocks): 4085, also 0,68 mal *S* (5970) und unter der Marke 8100; `make groessenmarke` meldet `ok, Messung 4085 von Marke 8100`. Der Review nennt 7323 (1,23 mal *S*); der Befehl über die Pfade des Blocks und das Gate messen davor, beim Stand `ead28d1`, 4078 und beim Handoff 4085. Der Unterschied zur Zahl des Reviews liegt in der Metrik, nicht im Code: die Zahl des Reviews zählt nicht die Pfade des Blocks (Ursache nicht geklärt; Adresse: der Reviewer der nächsten Prüfrunde). Der Zuwachs dieser Änderung gegen den Stand des Reviews beträgt 7 Zeilen; die drei V4-Dateien der Suite (J4) liegen nicht im Block und zählen nicht mit (Änderung dort: 56 Einfügungen und 41 Löschungen in `odata_codec_kodierung.go`, `odata_codec_strom.go`, `odata_codec_werte.go`).
+
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke 8100 (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat 20b0d1a..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen). Der Schnitt zwischen Lesen und Schreiben ist vor dem Code gemacht; die Schätzung ist *S* = 5970, die Schnittfrage von `SPEC-128` ist gestellt und entschieden (eigener Scanner, Grund im Block).
@@ -246,9 +325,11 @@ dasteht.
 - Zeit- und Zahlenschreibweisen: Ausgang *entschieden*: Zeilen W3 bis W11, Raster-Zelle *Typ-Schreibweisen*.
 - Fakes: Ausgang *entschieden*: Strom-Fakes zählen jeden Read, jede angeforderte Byte-Zahl, jede Methode der Menge O und `Close`; keine Port-Fakes (f = 0).
 - Randformen ohne Ort: Ausgang *entschieden* mit E1 bis E6, eingetragen in `SPEC-172` vor dem ersten Code-Commit (Commit `20b0d1a`).
-- Kopplung an die V4-Suite: die neue Suite nutzt Hilfen im selben Paket (`jsuite`, Strom-Hüllen, Generator-Rahmen `gFahre`/`gZaehle`); ändert ein späterer Slice diese Hilfen, bricht der Bau der V2-Suite. Ausgang: *weiter offen*, Folge klein (Bauabbruch, kein stilles Grün).
-- Merge-Konflikt in `spec/spezifikation.md`: `slice-v2-metadaten` ändert `SPEC-171`/`SPEC-172` *Ungeprüft* und die Historie. Ausgang: *weiter offen*; E6 steht in einem eigenen Absatz vor dem Absatz *Ungeprüft bleibt* und die Historienzeile an zweiter Stelle, damit der Merge keine Zeile des Gebers berührt; E1 bis E5 berühren andere Zeilen. Kollidiert der Merge dennoch, löst ihn der Implementer ohne Inhaltsänderung beider Seiten.
-- Marke: *S* = 5970, *M* = 8100; das Ende wird zwischen 0,8 und 1,2 mal *S* erwartet; `ueberschreitung` nur mit Grund (`SPEC-128` Nr. 5 d).
+- Kopplung an die V4-Suite: die neue Suite nutzt Hilfen im selben Paket (`jsuite`, Strom-Hüllen, Generator-Rahmen `gFahre`/`gZaehle`); ändert ein späterer Slice diese Hilfen, bricht der Bau der V2-Suite. Ausgang: *eingetreten* und im Slice gelöst: `make lint` meldete vier `dupl`-Paare und ein `unparam` zwischen den V2-Dateien und den V4-Dateien der Suite; die Lösung teilt drei Helfer (§1 *Teilen mit der V4-Suite*), die Kopplung ist damit größer, nicht kleiner. Folge klein (Bauabbruch, kein stilles Grün); ob die Kopplung ins Beobachtungs-Register wandert, entscheidet der Planner bei der Closure.
+- Abweichung vom Plan (J4): die V4-Dateien der Suite `odata_codec_kodierung.go`, `odata_codec_strom.go` und `odata_codec_werte.go` sind nicht byte-gleich geblieben (Helfer herausgezogen, Verhalten unverändert; Zahlen in §4). Ausgang: *offen*; Adresse: der Reviewer der nächsten Prüfrunde (er löst J4 in der geänderten Fassung auf) und der Planner (er bestätigt den Wortlaut von J4 und der DoD-Zeile *Lesen* oder gibt den Schnitt zurück). Eine Alternative ohne Änderung der V4-Dateien ist eine Ausnahme in `.golangci.yml` (`exclusions.rules` für `dupl`) und damit ein ADR (`AGENTS.md` §3.6), kein Teil dieses Slice.
+- Kreis in `BaseType` (Zeile N1, `v2N1Kreis`): ein von Hand gebautes `model.ServiceModel` kann eine geschlossene Kette von `BaseType` tragen (`model.NeuesServiceModel` prüft sie nicht, der CSDL-Leser weist sie mit `nicht_aufloesbar` ab, `SPEC-125` Nr. 9 a); `SPEC-172` Nr. 3 sagt nicht, dass die Ketten des Modells endlich sind. Der Leser folgt der Kette mit einer Markierung je Typ (`abgeleitet`) und behandelt einen Typ, dessen Kette sich schließt, ohne den Typ des Sets zu erreichen, wie jeden Typ außerhalb der Ableitung (`odata_typ`, Regel E4, kein neuer Fall); das Ergebnis ist damit aus E4 abgeleitet, nur das Terminieren ist zugesagt und gefangen. Ausgang: *offen*; Adresse: der Architect (ein Satz in `SPEC-172` Nr. 3 oder `SPEC-126`, ob der Leser Ketten ohne Ende des Modells erträgt; bis dahin gilt die Prüfgrenze als akzeptiertes Negativ unten).
+- Merge-Konflikt in `spec/spezifikation.md`: `slice-v2-metadaten` ändert `SPEC-171`/`SPEC-172` *Ungeprüft* und die Historie. Ausgang: *entfallen*; Grund: `git merge-tree --write-tree HEAD main` meldet beim Handoff keinen Konflikt (Stand HEAD beim Handoff gegen `main`; der Merge von `main` in diesen Zweig steht in `9650388`).
+- Marke: *S* = 5970, *M* = 8100; das Ende wird zwischen 0,8 und 1,2 mal *S* erwartet; `ueberschreitung` nur mit Grund (`SPEC-128` Nr. 5 d). Ausgang: *entfallen*, die Marke ist nicht überschritten; die Messung steht in §4.
 
 **Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; Stand: vom Architect gefüllt, keine Zelle ohne Ort, keine „gilt nicht“). `E1` bis `E6` sind die Ersatzwortlaute, die vor dem ersten Code-Commit in `SPEC-172` stehen: Nr. 1 (E1), Nr. 2 a (E2), Nr. 2 c (E3), Nr. 3 (E4), Nr. 4 (E5) und der Absatz *Ungeprüft bleibt beim Lesen außerdem* (E6). Die Zellen sind damit *entschieden*; der Implementer entscheidet im Code nichts und hält an einer Randform ohne Ort an (`AGENTS.md` §3.12).
 
@@ -306,12 +387,13 @@ dasteht.
 - `__next` unbelegt (E6 b): Grund: der Referenzdienst paginiert nicht; Folge: Form nach der Spezifikation, Fänger H7 mit künstlichen Bodys.
 - Schlüsselliteral gegen URL-Leser (E6 c): Grund: der URL-Leser ist nicht dieser Slice; Folge: Abweichung zeigt sich im Rundlauf von `slice-v2-bootstrap` (Sendung S1).
 - Prüfgrenzen der Mengen: G9 und G10 prüfen alle Folgen bis zu einer Länge, die die Zählprüfung nennt; längere Folgen und Alphabete außerhalb der Token sind nicht erschöpfend; Folge: ein Fehler, der nur in einer längeren Folge liegt, bleibt ungesehen, der Probe-Lauf des Reviewers über die Klasse ist das Mittel (`AGENTS.md` §3.17).
+- Prüfgrenze des Kreises (N1, `v2N1Kreis`): geprüft sind Selbstbezug, Ringe über 2 und 3 Typen und ein Anhang an einem Ring; Ringe beliebiger Länge sind eine unbeschränkte Menge. Grund: der Leser markiert jeden besuchten Typ, die Länge des Rings geht in keine Entscheidung ein; Folge: eine Fassung, die nur Ringe ab Länge 4 nicht abbricht, bliebe ungesehen. Die Frist von 10 s je Lauf hält einen Leser ohne Abbruch an; ein hängender Lauf bleibt als Goroutine bis zum Ende des Prozesses stehen (nur in der Mutante).
 - `Edm.Int16`, komplexe Typen und `Edm.Double` echter Dienste werden übersprungen (`SPEC-170` Nr. 3, entschieden): Folge im Betrieb: der Mock zeigt diese Properties nicht; **Hinweis an den Planner für das Beobachtungs-Register**: im Referenzszenario sind 3 von 9 Properties von `Employee` (`Age`, `Location`, und `Room.Seats`/`Version`) betroffen; ein Eintrag in `observations/` ist eine Antwort, keine Aktion dieses Slice.
 
 
 Die Zelle *unbekannte Property, nicht unterstützter Typ* führt auch die Property mit `Unterstuetzt()` falsch und `EdmType` `Edm.DateTimeOffset(V2)`: `Uebersprungen` mit `typ`, Ort `SPEC-172` Nr. 3, Fänger Nr. 1 der Tabelle in §3 (Sendung von `slice-v2-metadaten`). Die Zelle *Typ-Schreibweisen* führt den Wert des Modells `Edm.DateTimeOffset` aus `Edm.DateTime`: `datetimeoffset`, Ort `SPEC-170` Nr. 4, Fänger Nr. 2.
 
-- Die Sendungen von `slice-v2-metadaten` (Fixture `Edm.DateTimeOffset(V2)`, Test `versionstrennung_test.go`) — **Ausgang:** offen; Adresse: dieser Slice, §1 *Übernommen*, DoD (Lesen), §3 Nr. 1 bis 3. Stand beim Start (2026-11-01): `main` trägt den Test nicht, er liegt im Zweig `slice-v2-metadaten` (im Verifier-Lauf). Legten beide Zweige die Datei an, kollidierte der Merge (beide Seiten neu); deshalb prüft der Implementer vor dem ersten Code-Commit mit `git merge main`, ob `main` den Test trägt, und legt ihn nur an, wenn nicht; liegt er, lässt er ihn unverändert (Schleife erfasst `jsoncodecv2` ohne Eintrag). Legt er ihn an, geht das als Rückgabe an den Planner (Merge-Reihenfolge, Zweig `slice-v2-metadaten` wird vor diesem gemerged).
+- Die Sendungen von `slice-v2-metadaten` (Fixture `Edm.DateTimeOffset(V2)`, Test `versionstrennung_test.go`) — **Ausgang:** *entfallen*, geliefert: der Test `src/adapters/driven/odata/versionstrennung_test.go` liegt per Merge von `main` (`9650388`) im Zweig, dieser Slice hat ihn nicht angelegt und nicht geändert; die Fixture `Edm.DateTimeOffset(V2)` steht in `v2Uebersprungen` (`odata_codec_v2_vertrag.go`, Zeile N4 der Tabelle in §3, Nr. 1 bis 3).
 
 - Sendung S1 an `slice-v2-bootstrap` (Geber dieser Slice): die DoD-Zeile des Rundlaufs „Test über beide Seiten“ führt die Zeile „Das Schlüsselliteral des V2-Payload-Lesers (`SPEC-172` Nr. 5) gleicht dem Literal, das der V2-URL-Leser (`SPEC-173` Nr. 3) für denselben Schlüssel bildet, Schleife über die sieben Typen, Geber `slice-v2-payload-lesen`.“ — **Ausgang:** offen; Adresse: der Planner auf `main` (der Plan des Nehmers liegt dort in `open/`, sein §1 *Ausdrücklich NICHT* schließt es nicht aus); der Nehmer trägt zuerst ein (`AGENTS.md` §3.13), dieser Zweig ändert fremde Pläne nicht. Bis dahin steht der Punkt als akzeptiertes Negativ (E6 c).
 - Keine Sendung an `slice-v2-payload-schreiben`: E5 gilt dem Leser, Nr. 6 f und Nr. 7 von `SPEC-172` bleiben unverändert.

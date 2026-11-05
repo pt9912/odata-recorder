@@ -1,7 +1,6 @@
 package outboundtest
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -37,23 +36,7 @@ func v2FaelleG9Bytes() []jfall {
 	var out []jfall
 	gut := []model.PropertyWert{pw("ID", model.ArtInt32, "1"), pw("Name", model.ArtString, "a")}
 	for b := range 256 {
-		ws := b == 0x20 || b == 0x09 || b == 0x0A || b == 0x0D
-		for ort, name := range b2Orte() {
-			for _, einzel := range []bool{false, true} {
-				schablone := v2SchabloneKol
-				if einzel {
-					schablone = v2SchabloneEin
-				}
-				f := jfall{name: fmt.Sprintf("G9 Byte %#02x %s", b, name), m: "R", set: "Products", einzel: einzel,
-					body: []byte(einsetzen(schablone, ort+1, string([]byte{byte(b)})))}
-				if ws {
-					f.props = gut
-				} else {
-					f.ursache = model.DatenSyntax
-				}
-				out = append(out, f)
-			}
-		}
+		out = append(out, v2G9ByteOrte(b, gut)...)
 		u := model.DatenUrsache("")
 		switch {
 		case b < 0x20 || b == '"' || b == '\\':
@@ -68,6 +51,30 @@ func v2FaelleG9Bytes() []jfall {
 				pw("ID", model.ArtInt32, "1"), pw("Name", model.ArtString, text))...)
 		} else {
 			out = append(out, v2Beide(fmt.Sprintf("G9 Byte %#02x im String", b), "R", "Products", members, u, "")...)
+		}
+	}
+	return out
+}
+
+// v2G9ByteOrte setzt das Byte b an jeden Ort der Schablonen ein; gültig ist der Body mit gut als Properties genau für Leerzeichen,
+// Tabulator, LF und CR, sonst ist er `syntax`.
+func v2G9ByteOrte(b int, gut []model.PropertyWert) []jfall {
+	var out []jfall
+	ws := b == 0x20 || b == 0x09 || b == 0x0A || b == 0x0D
+	for ort, name := range b2Orte() {
+		for _, einzel := range []bool{false, true} {
+			schablone := v2SchabloneKol
+			if einzel {
+				schablone = v2SchabloneEin
+			}
+			f := jfall{name: fmt.Sprintf("G9 Byte %#02x %s", b, name), m: "R", set: "Products", einzel: einzel,
+				body: []byte(einsetzen(schablone, ort+1, string([]byte{byte(b)})))}
+			if ws {
+				f.props = gut
+			} else {
+				f.ursache = model.DatenSyntax
+			}
+			out = append(out, f)
 		}
 	}
 	return out
@@ -173,22 +180,7 @@ const (
 // v2UPruefer prüft einen Body der Menge U gegen das Orakel utf8: gültig heißt kein Fehler und der Text gleich der Folge, sonst die
 // Ursache des Orakels (b3Orakel).
 func (s *jsuite) v2UPruefer(b []byte, _ int64) (klasse, abweichung string) {
-	seq := b[len(v2UKopf) : len(b)-len(v2UFuss)]
-	soll := b3Orakel(seq)
-	r := s.aufruf(context.Background(), false, bytes.NewReader(b), s.modelle["R"], "Products", 1<<30)
-	klasse = "gültig"
-	if soll != "" {
-		klasse = string(soll)
-	}
-	var df *model.DatenFehler
-	switch {
-	case soll == "" && r.err == nil && len(r.seite.Entities) == 1 && len(r.seite.Entities[0].Properties) == 2 &&
-		r.seite.Entities[0].Properties[1].Wert.Text == string(seq):
-		return klasse, ""
-	case soll != "" && errors.As(r.err, &df) && df.Ursache == soll && df.Ort == "":
-		return klasse, ""
-	}
-	return klasse, fmt.Sprintf("Folge %x: Ergebnis %v %+v, erwartet %s", seq, r.err, r.seite.Entities, klasse)
+	return s.uPruefer(b, v2UKopf, v2UFuss)
 }
 
 // v2LeadSteuer liefert die Menge U3: jedes Lead-Byte 0xC2 bis 0xF4 mit jedem Steuerzeichen 0x00 bis 0x1F dahinter.
@@ -225,8 +217,8 @@ func v2G10(t *testing.T, s *jsuite) {
 	if unterDetektor {
 		drei, vier = []string{"\x7F", "\x80", "\xBF", "\xC2", "\xE0", "\xED", "\xF0", "\xF4"}, 3
 	}
-	alle := b3Alphabet(0x00, 0xFF)
-	zwei := b3Alphabet(0x20, 0xFF, '"', '\\')
+	alle := b3Alphabet(0x00)
+	zwei := b3Alphabet(0x20, '"', '\\')
 	gZaehle(t, "G10 U Ein-Byte-Folgen", gFahre(t, "G10 U1", gFolgen(alle, 1, 1, v2UKopf, v2UFuss), s.v2UPruefer), 256)
 	gZaehle(t, "G10 U Zwei-Byte-Folgen", gFahre(t, "G10 U2", gFolgen(zwei, 2, 2, v2UKopf, v2UFuss), s.v2UPruefer), 222*222)
 	gZaehle(t, "G10 U Lead-Byte und Steuerzeichen", gFahre(t, "G10 U3", v2LeadSteuer(), s.v2UPruefer), 51*32)

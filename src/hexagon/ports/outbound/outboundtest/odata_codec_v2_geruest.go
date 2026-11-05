@@ -139,59 +139,35 @@ func v2G6(t *testing.T, s *jsuite) {
 	var laeufe, erwartet int
 	for _, einzel := range []bool{true, false} {
 		basis, _ := v2Belege(einzel)
-		doc := basis.body
-		mitte := func(b string) int { return bytesIndex(doc, b) }
-		for _, f := range []struct {
-			name    string
-			rd      *teilReader
-			mitEnde bool
-			syntax  bool
-		}{
-			{"vor dem ersten Byte", &teilReader{}, false, false}, {"nach dem ersten Byte", teile(doc[:1]), false, false},
-			{"mitten in einem String", teile(doc[:mitte("Milk")+2]), false, false},
-			{"mitten in einer Zahl", teile(doc[:mitte(`"ID":1`)+5]), false, false},
-			{"nach dem vollständigen Body", teile(doc), false, false},
-			{"Daten und Fehler im selben Read", teile(doc[:30]), true, false},
-			{"Daten mit Verstoß des Lesens und Fehler im selben Read", teile([]byte(`{"a" 1}`)), true, true},
-		} {
-			f.rd.ende, f.rd.mitEnde = errQuelle, f.mitEnde
-			r := s.ruf(context.Background(), &endlichStrom{inner: f.rd}, basis)
-			name := methodeName(einzel) + " " + f.name
-			if f.syntax {
-				datenFehler(t, name, r.err, model.DatenSyntax, "")
-			} else {
-				var df *model.DatenFehler
-				if !errors.Is(r.err, errQuelle) || errors.As(r.err, &df) {
-					t.Errorf("%s: Fehler %v, erwartet errQuelle ohne DatenFehler", name, r.err)
-				}
-			}
-			r.nullwerte(t, name)
-		}
-		rd := &teilReader{teile: [][]byte{doc}, mitEnde: true}
-		if r := s.ruf(context.Background(), rd, basis); r.err != nil {
-			t.Errorf("%s Daten mit io.EOF im letzten Read: %v", methodeName(einzel), r.err)
-		}
-		erwartet += a3FehlerZahl * (2*len(doc) + 3)
-		for _, fehler := range a3Fehlerarten() {
-			for i, rd := range a3Zeitpunkte(doc, fehler) {
-				r := s.ruf(context.Background(), rd, basis)
-				name := fmt.Sprintf("%s Fehler %v Zeitpunkt %d", methodeName(einzel), fehler, i)
-				var df *model.DatenFehler
-				if !errors.Is(r.err, fehler) || errors.As(r.err, &df) {
-					t.Errorf("%s: Fehler %v, erwartet den Fehler von src ohne DatenFehler", name, r.err)
-				}
-				if rd.nachFehler != 0 {
-					t.Errorf("%s: %d Reads nach dem Fehler, erwartet 0", name, rd.nachFehler)
-				}
-				r.nullwerte(t, name)
-				laeufe++
-			}
-		}
+		a3Quellfehler(t, s, einzel, basis, `"ID":1`, 5, 30)
+		erwartet += a3FehlerZahl * (2*len(basis.body) + 3)
+		laeufe += v2G6Zeitpunkte(t, s, einzel, basis)
 	}
 	if n := len(a3Fehlerarten()); n != a3FehlerZahl || laeufe != erwartet {
 		t.Errorf("G6: %d Fehlerarten (erwartet %d), %d Läufe (erwartet %d)", n, a3FehlerZahl, laeufe, erwartet)
 	}
 	t.Logf("G6: %d Läufe", laeufe)
+}
+
+// v2G6Zeitpunkte fährt jeden Fehler von src zu jedem Zeitpunkt über basis und liefert die Zahl der Läufe.
+func v2G6Zeitpunkte(t *testing.T, s *jsuite, einzel bool, basis jfall) int {
+	laeufe := 0
+	for _, fehler := range a3Fehlerarten() {
+		for i, rd := range a3Zeitpunkte(basis.body, fehler) {
+			r := s.ruf(context.Background(), rd, basis)
+			name := fmt.Sprintf("%s Fehler %v Zeitpunkt %d", methodeName(einzel), fehler, i)
+			var df *model.DatenFehler
+			if !errors.Is(r.err, fehler) || errors.As(r.err, &df) {
+				t.Errorf("%s: Fehler %v, erwartet den Fehler von src ohne DatenFehler", name, r.err)
+			}
+			if rd.nachFehler != 0 {
+				t.Errorf("%s: %d Reads nach dem Fehler, erwartet 0", name, rd.nachFehler)
+			}
+			r.nullwerte(t, name)
+			laeufe++
+		}
+	}
+	return laeufe
 }
 
 // v2G7: Ergebnis und Fehler hängen nicht davon ab, wie src den Strom in Reads zerlegt (SPEC-126 Nr. 2). Die Zerlegungen von A4

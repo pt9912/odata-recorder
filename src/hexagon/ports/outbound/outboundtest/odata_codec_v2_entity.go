@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
@@ -69,7 +70,35 @@ func v2FaelleN1() []jfall {
 	return out
 }
 
-func v2N1(t *testing.T, s *jsuite) { s.pruefeAlle(t, v2FaelleN1()) }
+func v2N1(t *testing.T, s *jsuite) {
+	s.pruefeAlle(t, v2FaelleN1())
+	v2N1Kreis(t, s)
+}
+
+// v2N1Kreis: ein Typ in `__metadata.type`, dessen Kette von `BaseType` sich schließt und den Typ des Sets nicht erreicht, ist
+// kein abgeleiteter Typ des Sets (SPEC-172 Nr. 3, E4) und endet in `odata_typ`; der Leser kehrt zurück, statt der Kette ohne Ende
+// zu folgen. Schleife über die Formen des Kreises (Selbstbezug, Ring über zwei und drei Typen, Anhang an einem Ring) und die
+// drei Formen des Bodys.
+func v2N1Kreis(t *testing.T, s *jsuite) {
+	typen := []string{"Y.Self", "Y.R1", "Y.R2", "Y.Q1", "Y.Q2", "Y.Q3", "Y.T"}
+	n := 0
+	for _, typ := range typen {
+		for _, f := range v2Beide("N1 Kreis "+typ, "Y", "Ss", `"__metadata":{"type":"`+typ+`"},"Id":1`, model.DatenODataTyp, "/__metadata/type") {
+			n++
+			fertig := make(chan jergebnis, 1)
+			go func() { fertig <- s.lauf(f) }()
+			select {
+			case r := <-fertig:
+				datenFehler(t, f.name, r.err, f.ursache, f.ort)
+			case <-time.After(10 * time.Second):
+				t.Fatalf("%s: der Leser kehrt nicht zurück", f.name)
+			}
+		}
+	}
+	if n != 3*len(typen) {
+		t.Errorf("N1 Kreis: %d Läufe, erwartet %d", n, 3*len(typen))
+	}
+}
 
 // v2Metawerte sind sechs Wertformen eines Mitglieds von `__metadata`.
 func v2Metawerte() []string { return []string{`"x"`, `1`, `null`, `{"a":[1]}`, `[1]`, `true`} }

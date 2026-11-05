@@ -213,41 +213,46 @@ func jA2(t *testing.T, s *jsuite) {
 // Fehler im selben Read: ein Verstoß des Lesens in den Daten geht vor, sonst gilt der Fehler.
 func jA3(t *testing.T, s *jsuite) {
 	for _, einzel := range []bool{true, false} {
-		basis := basisR(einzel)
-		doc := basis.body
-		mitte := func(b string) int { return bytesIndex(doc, b) }
-		for _, f := range []struct {
-			name    string
-			rd      *teilReader
-			mitEnde bool
-			syntax  bool
-		}{
-			{"vor dem ersten Byte", &teilReader{}, false, false}, {"nach dem ersten Byte", teile(doc[:1]), false, false},
-			{"mitten in einem String", teile(doc[:mitte("Milk")+2]), false, false},
-			{"mitten in einer Zahl", teile(doc[:mitte("1.5")+1]), false, false},
-			{"nach dem vollständigen Body", teile(doc), false, false},
-			{"Daten und Fehler im selben Read", teile(doc[:60]), true, false},
-			{"Daten mit Verstoß des Lesens und Fehler im selben Read", teile([]byte(`{"a" 1}`)), true, true},
-		} {
-			f.rd.ende, f.rd.mitEnde = errQuelle, f.mitEnde
-			r := s.ruf(context.Background(), &endlichStrom{inner: f.rd}, basis)
-			name := methodeName(einzel) + " " + f.name
-			if f.syntax {
-				datenFehler(t, name, r.err, model.DatenSyntax, "")
-			} else {
-				var df *model.DatenFehler
-				if !errors.Is(r.err, errQuelle) || errors.As(r.err, &df) {
-					t.Errorf("%s: Fehler %v, erwartet errQuelle ohne DatenFehler", name, r.err)
-				}
-			}
-			r.nullwerte(t, name)
-		}
-		rd := &teilReader{teile: [][]byte{doc}, mitEnde: true}
-		if r := s.ruf(context.Background(), rd, basis); r.err != nil {
-			t.Errorf("%s Daten mit io.EOF im letzten Read: %v", methodeName(einzel), r.err)
-		}
+		a3Quellfehler(t, s, einzel, basisR(einzel), "1.5", 1, 60)
 	}
 	jA3M2(t, s)
+}
+
+// a3Quellfehler fährt die sieben Orte eines Fehlers von src und den Body mit io.EOF im letzten Read gegen basis: der Strom
+// bricht versatz Bytes hinter dem Text zahl ab, der Fehler kommt im selben Read wie die ersten gemischt Bytes.
+func a3Quellfehler(t *testing.T, s *jsuite, einzel bool, basis jfall, zahl string, versatz, gemischt int) {
+	doc := basis.body
+	mitte := func(b string) int { return bytesIndex(doc, b) }
+	for _, f := range []struct {
+		name    string
+		rd      *teilReader
+		mitEnde bool
+		syntax  bool
+	}{
+		{"vor dem ersten Byte", &teilReader{}, false, false}, {"nach dem ersten Byte", teile(doc[:1]), false, false},
+		{"mitten in einem String", teile(doc[:mitte("Milk")+2]), false, false},
+		{"mitten in einer Zahl", teile(doc[:mitte(zahl)+versatz]), false, false},
+		{"nach dem vollständigen Body", teile(doc), false, false},
+		{"Daten und Fehler im selben Read", teile(doc[:gemischt]), true, false},
+		{"Daten mit Verstoß des Lesens und Fehler im selben Read", teile([]byte(`{"a" 1}`)), true, true},
+	} {
+		f.rd.ende, f.rd.mitEnde = errQuelle, f.mitEnde
+		r := s.ruf(context.Background(), &endlichStrom{inner: f.rd}, basis)
+		name := methodeName(einzel) + " " + f.name
+		if f.syntax {
+			datenFehler(t, name, r.err, model.DatenSyntax, "")
+		} else {
+			var df *model.DatenFehler
+			if !errors.Is(r.err, errQuelle) || errors.As(r.err, &df) {
+				t.Errorf("%s: Fehler %v, erwartet errQuelle ohne DatenFehler", name, r.err)
+			}
+		}
+		r.nullwerte(t, name)
+	}
+	rd := &teilReader{teile: [][]byte{doc}, mitEnde: true}
+	if r := s.ruf(context.Background(), rd, basis); r.err != nil {
+		t.Errorf("%s Daten mit io.EOF im letzten Read: %v", methodeName(einzel), r.err)
+	}
 }
 
 // a3M2Zahl ist die Zahl der Läufe der Menge M2: 12 Fehlerarten × (2L + 3) Zeitpunkte für E1 (L = 138, 279) und C1 (L = 257, 517):

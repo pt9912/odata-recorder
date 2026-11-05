@@ -139,16 +139,7 @@ func v2W2(t *testing.T, s *jsuite) {
 }
 
 func v2FaelleW3() []jfall {
-	w := []wertFall{
-		gutW(`0`, model.ArtInt32, "0"), gutW(`-0`, model.ArtInt32, "0"), gutW(`1`, model.ArtInt32, "1"), gutW(`-1`, model.ArtInt32, "-1"),
-		gutW(`2147483647`, model.ArtInt32, "2147483647"), gutW(`-2147483648`, model.ArtInt32, "-2147483648"),
-		schlechtW(`2147483648`, model.DatenWert), schlechtW(`-2147483649`, model.DatenWert), gutW(`1.0`, model.ArtInt32, "1"),
-		gutW(`1e2`, model.ArtInt32, "100"), gutW(`100E-0`, model.ArtInt32, "100"), gutW(`1E+2`, model.ArtInt32, "100"),
-		gutW(`10e-1`, model.ArtInt32, "1"), gutW(`0.5e1`, model.ArtInt32, "5"), schlechtW(`1.5`, model.DatenWert), schlechtW(`1e-1`, model.DatenWert),
-		gutW(`2147483647.0`, model.ArtInt32, "2147483647"), schlechtW(`2147483648.0`, model.DatenWert), schlechtW(`1e999999999`, model.DatenWert),
-		schlechtW(`1e-999999999`, model.DatenWert), schlechtW(`"5"`, model.DatenTyp), schlechtW(`""`, model.DatenTyp), gutW(`0e999999999`, model.ArtInt32, "0"),
-	}
-	return verbinde(v2WertFaelle("W3", "Edm.Int32", w, false), v2WertFaelle("W3 Generator", "Edm.Int32", generierteZahlen("Edm.Int32"), true))
+	return verbinde(v2WertFaelle("W3", "Edm.Int32", int32Werte(), false), v2WertFaelle("W3 Generator", "Edm.Int32", generierteZahlen("Edm.Int32"), true))
 }
 
 func v2W3(t *testing.T, s *jsuite) {

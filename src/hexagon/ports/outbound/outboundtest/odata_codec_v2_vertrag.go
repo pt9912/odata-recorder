@@ -144,7 +144,20 @@ func v2Uebersprungen() []string {
 }
 
 func v2Modelle() map[string]model.ServiceModel {
-	return map[string]model.ServiceModel{"R": v2ModellR(), "W": v2ModellW(), "T": v2ModellT(), "Z": v2ModellZ(), "M": v2ModellM()}
+	return map[string]model.ServiceModel{"R": v2ModellR(), "W": v2ModellW(), "T": v2ModellT(), "Z": v2ModellZ(), "M": v2ModellM(), "Y": v2ModellY()}
+}
+
+// v2ModellY ist ein Modell, wie `model.NeuesServiceModel` es annimmt und kein Leser von CSDL es liefert: die Ketten von
+// `BaseType` schließen sich. Der Typ des Sets `Ss` ist `Y.S` ohne Basistyp; `Y.Self` ist sein eigener Basistyp, `Y.R1` und `Y.R2`
+// sind ein Ring über zwei, `Y.Q1` bis `Y.Q3` ein Ring über drei Typen, `Y.T` hängt mit seinem Basistyp an einem Ring.
+func v2ModellY() model.ServiceModel {
+	id := p("Id", "Edm.Int32", false)
+	typ := func(name, basis string) model.EntityType {
+		return model.EntityType{Name: name, BaseType: basis, Keys: []string{"Id"}, Properties: []model.Property{id}}
+	}
+	typen := []model.EntityType{typ("Y.S", ""), typ("Y.Self", "Y.Self"), typ("Y.R1", "Y.R2"), typ("Y.R2", "Y.R1"),
+		typ("Y.Q1", "Y.Q2"), typ("Y.Q2", "Y.Q3"), typ("Y.Q3", "Y.Q1"), typ("Y.T", "Y.R1")}
+	return model.NeuesServiceModel("2.0", []string{"Y"}, typen, []model.EntitySet{{Name: "Ss", EntityType: "Y.S"}}, nil)
 }
 
 // v2ModellR ist das Modell der Echtfälle (Olingo-Referenzszenario nach 03-metadata) und der Produkte der Strom-Zeilen.
@@ -398,6 +411,16 @@ func v2G18(t *testing.T, s *jsuite) {
 	if b := s.lauf(f); !reflect.DeepEqual(b, s.lauf(f)) || b.seite.Entities[0].Properties[1].Wert.Text != "a" || len(b.seite.Entities) != 2 {
 		t.Errorf("G18: der zweite Aufruf hängt von der Änderung des ersten ab: %+v", b.seite)
 	}
+	v2G18Leer(t, s)
+	r := s.lauf(jfall{m: "R", set: "Products", body: v2Kol(`{"ID":1}`)})
+	if r.seite.Entities[0].Uebersprungen == nil {
+		t.Error("G18: Uebersprungen einer Entity ist nil")
+	}
+}
+
+// v2G18Leer: leere Mengen sind nie nil, weder die Entities einer Sammlung noch die Properties und die übersprungenen Namen einer
+// einzelnen Entity.
+func v2G18Leer(t *testing.T, s *jsuite) {
 	for _, einzel := range []bool{false, true} {
 		body := v2Kol()
 		if einzel {
@@ -413,10 +436,6 @@ func v2G18(t *testing.T, s *jsuite) {
 		case einzel && (r.entity.Properties == nil || r.entity.Uebersprungen == nil):
 			t.Errorf("G18: Entity ohne übersprungene Namen liefert %#v", r.entity)
 		}
-	}
-	r := s.lauf(jfall{m: "R", set: "Products", body: v2Kol(`{"ID":1}`)})
-	if r.seite.Entities[0].Uebersprungen == nil {
-		t.Error("G18: Uebersprungen einer Entity ist nil")
 	}
 }
 

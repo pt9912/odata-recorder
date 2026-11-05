@@ -170,8 +170,9 @@ func ganzFall(text string, bits uint, art model.WertArt) wertFall {
 	return schlechtW(text, model.DatenWert)
 }
 
-func jfF3() []jfall {
-	w := []wertFall{
+// int32Werte sind die handgeschriebenen Fälle von Edm.Int32 (F3, W3): Grenzen, Exponenten, Nachkommastellen und Strings.
+func int32Werte() []wertFall {
+	return []wertFall{
 		gutW(`0`, model.ArtInt32, "0"), gutW(`-0`, model.ArtInt32, "0"), gutW(`1`, model.ArtInt32, "1"), gutW(`-1`, model.ArtInt32, "-1"),
 		gutW(`2147483647`, model.ArtInt32, "2147483647"), gutW(`-2147483648`, model.ArtInt32, "-2147483648"),
 		schlechtW(`2147483648`, model.DatenWert), schlechtW(`-2147483649`, model.DatenWert), gutW(`1.0`, model.ArtInt32, "1"),
@@ -180,7 +181,10 @@ func jfF3() []jfall {
 		gutW(`2147483647.0`, model.ArtInt32, "2147483647"), schlechtW(`2147483648.0`, model.DatenWert), schlechtW(`1e999999999`, model.DatenWert),
 		schlechtW(`1e-999999999`, model.DatenWert), schlechtW(`"5"`, model.DatenTyp), schlechtW(`""`, model.DatenTyp), gutW(`0e999999999`, model.ArtInt32, "0"),
 	}
-	return verbinde(wertFaelle("F3", "Edm.Int32", w, false), wertFaelle("F3 Generator", "Edm.Int32", generierteZahlen("Edm.Int32"), true))
+}
+
+func jfF3() []jfall {
+	return verbinde(wertFaelle("F3", "Edm.Int32", int32Werte(), false), wertFaelle("F3 Generator", "Edm.Int32", generierteZahlen("Edm.Int32"), true))
 }
 
 func jF3(t *testing.T, s *jsuite) { s.pruefeAlle(t, jfF3()) }
