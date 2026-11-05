@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-query-filter
+**Fund:** F-5 (Review, MEDIUM): `SPEC-173` Nr. 5 sagte im Satz zur Lesbarkeit eines V4-förmigen Laufs `wert` für `2020-13-45` und `12:30x` das Gegenteil des Absatzes *Literal-Lauf ohne Präfix* c (die Form entscheidet, Rest und Bereiche nicht geprüft). Der Architect berichtigte den Satz nach dem Absatz (Historie 2026-11-05), Code und Tabelle blieben. Beleg: Plan §6 (Befunde des Reviews), `spec/spezifikation.md` §7 Historie; Report `docs/reviews/2026-11-05-slice-v2-query-filter-review.md` (F-5).
