@@ -161,7 +161,13 @@ func b3Orakel(seq []byte) model.DatenUrsache {
 
 // b3Pruefer prüft einen Body der Menge U: gültig heißt kein Fehler und der Text gleich der Folge, sonst die Ursache des Orakels.
 func (s *jsuite) b3Pruefer(b []byte, _ int64) (klasse, abweichung string) {
-	seq := b[len(b3Kopf) : len(b)-len(b3Fuss)]
+	return s.uPruefer(b, b3Kopf, b3Fuss)
+}
+
+// uPruefer prüft einen Body der Menge U, dessen Folge zwischen kopf und fuss steht, gegen das Orakel b3Orakel; gelesen wird die
+// Sammlung Products des Modells R, für beide Versionen des Formats.
+func (s *jsuite) uPruefer(b []byte, kopf, fuss string) (klasse, abweichung string) {
+	seq := b[len(kopf) : len(b)-len(fuss)]
 	soll := b3Orakel(seq)
 	r := s.aufruf(context.Background(), false, bytes.NewReader(b), s.modelle["R"], "Products", 1<<30)
 	klasse = "gültig"
@@ -179,10 +185,10 @@ func (s *jsuite) b3Pruefer(b []byte, _ int64) (klasse, abweichung string) {
 	return klasse, fmt.Sprintf("Folge %x: Ergebnis %v %+v, erwartet %s", seq, r.err, r.seite.Entities, klasse)
 }
 
-// b3Alphabet liefert die Bytes von bis bis (einschließlich) ohne die genannten, je als String von einem Byte.
-func b3Alphabet(von, bis int, ohne ...byte) []string {
+// b3Alphabet liefert die Bytes von von bis 0xFF ohne die genannten, je als String von einem Byte.
+func b3Alphabet(von int, ohne ...byte) []string {
 	var out []string
-	for c := von; c <= bis; c++ {
+	for c := von; c <= 0xFF; c++ {
 		if !bytes.Contains(ohne, []byte{byte(c)}) {
 			out = append(out, string([]byte{byte(c)}))
 		}
@@ -226,8 +232,8 @@ func jB3Mengen(t *testing.T, s *jsuite) {
 	if unterDetektor {
 		drei, vier = []string{"\x7F", "\x80", "\xBF", "\xC2", "\xE0", "\xED", "\xF0", "\xF4"}, 3
 	}
-	alle := b3Alphabet(0x00, 0xFF)
-	zwei := b3Alphabet(0x20, 0xFF, '"', '\\')
+	alle := b3Alphabet(0x00)
+	zwei := b3Alphabet(0x20, '"', '\\')
 	gZaehle(t, "B3 U Ein-Byte-Folgen", gFahre(t, "B3 U1", gFolgen(alle, 1, 1, b3Kopf, b3Fuss), s.b3Pruefer), 256)
 	gZaehle(t, "B3 U Zwei-Byte-Folgen", gFahre(t, "B3 U2", gFolgen(zwei, 2, 2, b3Kopf, b3Fuss), s.b3Pruefer), 222*222)
 	gZaehle(t, "B3 U Lead-Byte und Steuerzeichen", gFahre(t, "B3 U3", b3LeadSteuer(), s.b3Pruefer), 51*32)

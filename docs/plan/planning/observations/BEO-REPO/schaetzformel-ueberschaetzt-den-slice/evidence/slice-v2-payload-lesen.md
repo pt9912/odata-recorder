@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-payload-lesen
+**Fund:** Schätzung *S* 5970 (57 Zeilen, davon 2 nebenläufig, kein Fake, Produktcode 1400), Marke 8100, Messung 4085 beim Stand nach dem Review (`make groessenmarke`: ok); Ende ÷ *S* 0,68, Auslastung 0,50; Produktcode 1389 statt 1400. Die Formel überschätzt den Slice, wie bei den vier Slices davor. Die 7323 im Review zählten ganze Verzeichnisse und sind kein Wert dieser Metrik (Ursache in Plan §4). Beleg: Plan §4 (Größenmarke); Report `docs/reviews/2026-11-05-slice-v2-payload-lesen-verifikation.md` (Zahlen).
