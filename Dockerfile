@@ -71,6 +71,14 @@ RUN --network=none GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -buildvc
       -o /out/odata-recorder ./src/bootstrap/main
 RUN --network=none pruefung build /out/odata-recorder "$VERSION"
 
+
+# --- integration: das Test-Binary (go test -c über tests/e2e) und das Hilfsprogramm uebergang über dem
+# Binary der Stufe build (SPEC-037 Nr. 1). Der Treiber tools/harness/test-integration.sh führt je Stufe
+# einen Container ohne Netz aus diesem Image; jeder RUN läuft ohne Netz.
+FROM source AS integration
+COPY --from=build /out/odata-recorder /out/odata-recorder
+RUN --network=none go test -c -trimpath -o /out/e2e.test ./tests/e2e \
+ && go build -trimpath -buildvcs=false -o /out/uebergang ./tests/e2e/uebergang
 # --- handbuch: das Benutzerhandbuch und seine Beispiel-Dateien gegen das gebaute Binary der Stufe
 # build, gefahren von pruefung (SPEC-200); jeder RUN ohne Netz. Die Wurzel trägt docs/user, die
 # Makefiles, das Dockerfile und harness/mk.

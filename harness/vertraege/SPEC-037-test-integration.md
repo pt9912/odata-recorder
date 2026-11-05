@@ -5,7 +5,7 @@
 **Festlegung:** Das gebaute Binary läuft als Prozess in einem Container ohne Netz; die Szenarien sind die Akzeptanzkriterien des Lastenhefts von `LH-FA-01`, `LH-FA-02`, `LH-FA-03`, `LH-FA-04`, `LH-FA-05` und `LH-FA-14` (Happy Path, Boundary, Negative): Record → Upstream stoppen → Replay.
 Der Teil *Mock CRUD → Reset* und die Szenarien über Admin-Listener und Verbindungszähler kommen als weitere Stufen, sobald der Code existiert, den sie fahren (Nr. 3 nennt die Form der Stufe).
 
-**Stand:** entsteht mit dem Slice, der den Code liefert.
+**Stand:** geliefert sind der Treiber, die Stufe `integration` des `Dockerfile`, das Fragment `test-integration.mk` und die sieben Stufen von Nr. 7 mit Referenzdienst, Prozess-Helfer, Datensuche und Übergang; das Ziel hängt nicht an `GATE_CHECKS`. Mock, Hybrid und Admin-Listener fehlen (Nr. 3 nennt die Form einer weiteren Stufe).
 
 1. **Aufbau.** Die Stufe `integration` des `Dockerfile` baut aus der Stufe `source` das Test-Binary (`go test -c` über `tests/e2e`, `/out/e2e.test`) und das Hilfsprogramm `/out/uebergang` (Nr. 6) und trägt das Binary der Stufe `build` (`/out/odata-recorder`); alle `RUN` laufen ohne Netz.
    Der Treiber führt je Stufe (Nr. 2) `docker run --rm --network none --memory 2g --read-only` mit je einem `tmpfs` für `/tmp` und für `/voll` (1 MiB, Nr. 8) und ohne Mount aus; die Pfade des Binary und des Hilfsprogramms übergibt er als `E2E_BINARY` und `E2E_UEBERGANG`.
