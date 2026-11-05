@@ -1,6 +1,6 @@
 # Verifikations-Report: slice-m2-referenzdienst — 2026-11-05
 
-**Verifikations-Art:** DoD- und Entscheidungs-Konformität, Plan-vs-Code-Diff — geprüft gegen `docs/plan/planning/in-progress/slice-m2-referenzdienst.md` (DoD §2, Tabelle *Zusage · Fänger* M1 bis M10 und M9b, Fixes F-1 bis F-10, Raster §6, Block der Größenmarke §4), `SPEC-139` Nr. 1, 3, 4, `SPEC-122` Nr. 2, `SPEC-039` Nr. 2, `SPEC-102` (Fälle 171 bis 173), [ADR-0012](../plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md) (auf `main` Accepted), `AGENTS.md` §3.9, §3.10, §3.15, §3.17.
+**Verifikations-Art:** DoD- und Entscheidungs-Konformität, Plan-vs-Code-Diff — geprüft gegen `docs/plan/planning/done/slice-m2-referenzdienst.md` (DoD §2, Tabelle *Zusage · Fänger* M1 bis M10 und M9b, Fixes F-1 bis F-10, Raster §6, Block der Größenmarke §4), `SPEC-139` Nr. 1, 3, 4, `SPEC-122` Nr. 2, `SPEC-039` Nr. 2, `SPEC-102` (Fälle 171 bis 173), [ADR-0012](../plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md) (auf `main` Accepted), `AGENTS.md` §3.9, §3.10, §3.15, §3.17.
 
 **Gegenstand:** `slice-m2-referenzdienst` (Welle `welle-record-replay`), Zweig `slice-m2-referenzdienst`, HEAD `a0e0dde`, Worktree `/Development/odata-recorder-wt-m2-referenzdienst`. Bezug: `LH-FA-04`, `LH-FA-05`, `LH-FA-09`, `LH-FA-14`, `LH-QA-06`.
 
