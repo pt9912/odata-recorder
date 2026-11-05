@@ -73,7 +73,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 - Composition Root, Start-Befehl, Exit-Codes, Herunterfahren und Wartung — [slice-bootstrap-m2](../done/slice-bootstrap-m2.md); dieser Slice setzt dessen Abschluss voraus und ändert ihn nicht.
 - Admin-API oder CLI-Kommandos für Import, Workspace und Session-Ende — Folgewelle bzw. entfallen (Entscheidung des Users, Welle §6): der Test erreicht Session-Ende, Import und Workspace über den `Handle`, nicht über HTTP.
-- Das gebaute Binary im Container und `make test-integration` (`SPEC-037`) — [slice-test-integration](../open/slice-test-integration.md); der M2-Test fährt den ganzen Pfad im Prozess von `go test`.
+- Das gebaute Binary im Container und `make test-integration` (`SPEC-037`) — [slice-test-integration](../in-progress/slice-test-integration.md); der M2-Test fährt den ganzen Pfad im Prozess von `go test`.
 - Ergänzungen am Referenzdienst für den Vergleich von Direktzugriff und Proxy (Antworten mit `Content-Encoding`, mehrere Werte je Header) — [slice-protokolltreue](../open/slice-protokolltreue.md); dessen §1 und §3 führen sie, und der M2-Test bleibt beim Satz von M2 (Entscheidung des Users vom 2026-10-21).
 - `/Products/$count` bleibt JSON bis `slice-text-antworten`: die Umstellung des Referenzdienstes und der Fixture auf `text/plain` samt Route `/<Property>/$value` übernimmt [slice-text-antworten](../done/slice-text-antworten.md); ein Aufruf als `text/plain` vorher meldete `ODR-E5008`.
 - Zähler nach Methode am Referenzdienst — gehört den Slices, die ihn brauchen (`slice-bootstrap-m4`); dieser Slice zählt Verbindungen und Requests.

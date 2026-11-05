@@ -64,7 +64,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Verdrahtung und Konfiguration: Modus `mock` bindet `MockUseCase`, der Start verlangt keinen Upstream, `STRICT_COVERAGE` und `PUBLIC_BASE_URL` (Pflicht bei nicht-Loopback-Host) kommen aus dem Wert des Starts; Fänger, dass der Root sie weiterreicht und den Nullwert nicht stehen lässt (Muster aus `slice-upstream-tls`). Dazu hängt der Root den Filter-Leser ein, `urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser()))` (Sendung von `slice-odata-url-filter`); Fänger: `$filter` im Mock ergibt keine Ursache `filter` (`501`) mehr, und `New()` ohne Leser bleibt im Root unerreichbar.
-- [ ] M3-Test aus §3 der Welle, Referenzdienst beendet, keine Verbindung zu ihm (`LH-FA-12`, Happy Path); dazu als Stufe von `make test-integration` am gebauten Binary das Szenario *Mock CRUD → Reset* (`SPEC-037`, Ziel aus [slice-test-integration](slice-test-integration.md)) für die Kriterien, die die [Rückverfolgungs-Matrix](../rueckverfolgung.md) diesem Slice zuweist.
+- [ ] M3-Test aus §3 der Welle, Referenzdienst beendet, keine Verbindung zu ihm (`LH-FA-12`, Happy Path); dazu als Stufe von `make test-integration` am gebauten Binary das Szenario *Mock CRUD → Reset* (`SPEC-037`, Ziel aus [slice-test-integration](../in-progress/slice-test-integration.md)) für die Kriterien, die die [Rückverfolgungs-Matrix](../rueckverfolgung.md) diesem Slice zuweist.
 - [ ] Nicht gelieferte Schlüssel bleiben `ODR-E2001` (`HYBRID_*`, `FALLBACK_*`, `ADMIN_*`, `LISTEN_TLS_*`), und die Spezifikation führt den Nachzug von `SPEC-110`.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
