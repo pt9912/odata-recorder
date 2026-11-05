@@ -1,0 +1,2 @@
+**Vorgang:** slice-text-antworten
+**Fund:** V-1 (Verifikation, MEDIUM): die Fix-Runde zur Ziffernregel (Ziffer am Anfang des Namens) fängt die obere Nachbar-Grenze der Klasse (`:`), die untere (`/`, nur über `%2F` erreichbar) nicht; die Mutation `name[0] >= '/'` lässt alle drei Fänger grün, das Orakel des Generators kennt den Fall nicht. Nicht behoben, akzeptiertes Negativ mit Grund und Folge im Plan (fail-closed). Beleg: Plan §3 (*Akzeptierte Negative nach der Verifikation*); Report `docs/reviews/2026-11-05-slice-text-antworten-verifikation.md` (V-1).

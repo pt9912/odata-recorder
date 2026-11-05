@@ -66,11 +66,15 @@ func (x *austausch) leite(ctx, actx context.Context) (inbound.Antwort, error) {
 	x.e.ResponseHeaders = model.RedigiereHeader(ohne, x.r.k.Regeln.RedactHeaders, x.r.k.Regeln.RedactQueryParams)
 	src := io.Reader(ant.Body)
 	if hatBody(a.Methode, ant.Status) {
+		zaehlung, wert, name := model.TextZiel(x.e.Path)
 		x.res, err = x.r.k.Pipeline.Tee(ctx, ant.Body, capture.Eingang{
 			Richtung:        capture.Response,
 			ContentType:     werteVon(ant.Header, "content-type"),
 			ContentEncoding: werteVon(ant.Header, "content-encoding"),
 			Metadata:        x.e.Path == "/$metadata",
+			Zaehlung:        zaehlung,
+			Wert:            wert,
+			Name:            name,
 		})
 		if err != nil {
 			return inbound.Antwort{}, x.ohneTee(actx, err)

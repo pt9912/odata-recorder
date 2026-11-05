@@ -27,6 +27,7 @@ const (
 	GrundUnvollstaendig UnsicherGrund = "unvollstaendig"
 	GrundEingabe        UnsicherGrund = "eingabe"
 	GrundAusgabe        UnsicherGrund = "ausgabe"
+	GrundCharset        UnsicherGrund = "charset"
 )
 
 // UnsicherFehler ist der Fehler von RedigiereBody bei Status unsafe: ODR-E2401 mit Grund. Sein
@@ -59,9 +60,25 @@ func (e *UnsicherFehler) Unwrap() []error {
 
 // BodyEingang beschreibt den Body, den RedigiereBody liest (SPEC-118): ContentType sind alle
 // Werte des Headers Content-Type, Metadata ist wahr genau für die Antwort auf `$metadata`.
+// Zaehlung, Wert und Name sind die Ziele des Typs Text (TextZiel); höchstens eines der Ziele
+// Metadata, Zaehlung, Wert ist wahr, Wert verlangt einen Namen und Name verlangt Wert.
 type BodyEingang struct {
 	ContentType []string
 	Metadata    bool
+	Zaehlung    bool
+	Wert        bool
+	Name        string
+}
+
+// Gueltig prüft die Kombination der Ziele (SPEC-118 Nr. 1).
+func (e BodyEingang) Gueltig() bool {
+	n := 0
+	for _, z := range []bool{e.Metadata, e.Zaehlung, e.Wert} {
+		if z {
+			n++
+		}
+	}
+	return n <= 1 && e.Wert == (e.Name != "")
 }
 
 // BodyRegeln sind die wirksamen Pfadmuster und die Grenze MAX_CAPTURE_BODY (SPEC-118).
@@ -87,7 +104,7 @@ const (
 // den Status der Redaction (SPEC-118). Jeder Verstoß ist unsafe mit einem *UnsicherFehler; der
 // Aufrufer verwirft dann dst (Nr. 9).
 func RedigiereBody(dst io.Writer, src io.Reader, ein BodyEingang, regeln BodyRegeln) (RedactionStatus, error) {
-	if err := pruefeBodyArgumente(dst, src, regeln); err != nil {
+	if err := pruefeBodyArgumente(dst, src, ein, regeln); err != nil {
 		return "", err
 	}
 	l := &bodyLauf{
@@ -99,8 +116,10 @@ func RedigiereBody(dst io.Writer, src io.Reader, ein BodyEingang, regeln BodyReg
 	return l.lauf(ein, regeln.Pfade)
 }
 
-func pruefeBodyArgumente(dst io.Writer, src io.Reader, regeln BodyRegeln) error {
+func pruefeBodyArgumente(dst io.Writer, src io.Reader, ein BodyEingang, regeln BodyRegeln) error {
 	switch {
+	case !ein.Gueltig():
+		return ungueltig("Ziele des Bodys widersprechen sich")
 	case regeln.MaxBytes < 1:
 		return ungueltig("MaxBytes ist kleiner als 1")
 	case dst == nil || src == nil:
@@ -248,6 +267,15 @@ func (l *bodyLauf) waehleVerarbeiter(ein BodyEingang, pfade []JSONPfad) *Unsiche
 		l.v = neuerJSONRedaktor(pfade, l.aus)
 	case bodyEDMX:
 		l.v = &edmxPruefer{aus: l.aus}
+	case bodyText:
+		if !zeichensatzErlaubt(ein.ContentType[0]) {
+			return unsicher(GrundCharset, nil)
+		}
+		if ein.Zaehlung {
+			l.v = &zaehlungPruefer{aus: l.aus}
+		} else {
+			l.v = neuerWertRedaktor(ein.Name, pfade, l.aus)
+		}
 	default:
 		return unsicher(GrundTyp, nil)
 	}
@@ -260,6 +288,7 @@ const (
 	bodyUnbekannt bodyTyp = iota
 	bodyJSON
 	bodyEDMX
+	bodyText
 )
 
 // klassifiziereBody liest genau einen Content-Type: den Media-Type bis zum ersten `;`, ohne
@@ -278,6 +307,8 @@ func klassifiziereBody(ein BodyEingang) bodyTyp {
 		return bodyJSON
 	case mt == "application/xml" && ein.Metadata:
 		return bodyEDMX
+	case textTyp(mt) && (ein.Zaehlung || ein.Wert):
+		return bodyText
 	}
 	return bodyUnbekannt
 }

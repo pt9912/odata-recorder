@@ -1,1 +1,1 @@
-**Stand:** offen; Wortlaut vor dem Code entschieden (`SPEC-118` Nr. 11), Code und Fixture in `slice-text-antworten`
+**Stand:** offen; Ursache behoben: Wortlaut `SPEC-118` Nr. 11, Referenzdienst und M2-Fixture als `text/plain` in `slice-text-antworten` (`TestTextRoundTrip`, `TestDurchstichM2`)

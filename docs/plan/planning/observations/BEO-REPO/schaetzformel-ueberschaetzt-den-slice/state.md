@@ -1,1 +1,1 @@
-**Stand:** offen (2×: slice-v2-import-codecs, slice-v2-metadaten; Rückgaben in deren §6, Adresse Architect)
+**Stand:** offen (4×: slice-v2-import-codecs, slice-v2-metadaten, slice-v2-query, slice-v2-query-filter; Schwelle erreicht, Ausgang nicht zugewiesen; Adresse User und Architect, Neukalibrierung der Faktoren in `SPEC-128`, Rückgaben in §6 der Pläne)

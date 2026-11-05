@@ -15,6 +15,8 @@ import (
 	"github.com/pt9912/odata-recorder/src/adapters/driven/blobs"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/clock"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/httpupstream"
+	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/csdl"
+	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/jsoncodec"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/sqlite"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/telemetry"
 	"github.com/pt9912/odata-recorder/src/adapters/driving/httpodata"
@@ -22,11 +24,13 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/baselineimport"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/maintenance"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record/capture"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/replay"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/session"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/workspace"
 )
 
 // Namen der Ablage in DATA_DIR (SPEC-139 Nr. 2) und die odata_version neu angelegter Services (SPEC-107 Nr. 14).
@@ -60,6 +64,8 @@ type bauteile struct {
 	NeuerRecorder  func(record.Konfig) (inbound.RecordUseCase, error)
 	NeueSession    func(session.Konfig) (inbound.SessionUseCase, error)
 	NeuerReplay    func(replay.Konfig) (inbound.ReplayUseCase, error)
+	NeuerImport    func(baselineimport.Konfig) (inbound.ImportUseCase, error)
+	NeueWorkspaces func(workspace.Konfig) (inbound.WorkspaceUseCase, error)
 	Listen         func(ctx context.Context, network, addr string) (net.Listener, error)
 	NeuerServer    func(httpodata.Konfig) (server, error)
 }
@@ -90,6 +96,8 @@ func standardBauteile() bauteile {
 		NeuerRecorder:  als[inbound.RecordUseCase](record.New),
 		NeueSession:    als[inbound.SessionUseCase](session.New),
 		NeuerReplay:    als[inbound.ReplayUseCase](replay.New),
+		NeuerImport:    als[inbound.ImportUseCase](baselineimport.New),
+		NeueWorkspaces: als[inbound.WorkspaceUseCase](workspace.New),
 		Listen: func(ctx context.Context, network, addr string) (net.Listener, error) {
 			var lc net.ListenConfig
 			return lc.Listen(ctx, network, addr)
@@ -117,6 +125,9 @@ type Handle struct {
 	wartung  inbound.MaintenanceUseCase
 	record   inbound.RecordUseCase
 	sessions inbound.SessionUseCase
+	// importer ist nur im Modus record gesetzt, workspaces in beiden Modi (SPEC-139 Nr. 1).
+	importer   inbound.ImportUseCase
+	workspaces inbound.WorkspaceUseCase
 	// verarbeiten ist der Dienst des Betriebsmodus am Listener.
 	verarbeiten httpodata.Verarbeiter
 	fehler      chan error
@@ -236,6 +247,13 @@ func (h *Handle) verdrahte(db *sqlite.DB, v vorlaeufig) error {
 	if err != nil {
 		return err
 	}
+	h.workspaces, err = b.NeueWorkspaces(workspace.Konfig{
+		Workspaces: db.Workspaces(), Transaktion: db, Snapshots: db.Snapshots(), Blobs: waechter, Dienste: h.dienste,
+		Wartung: h.wartung, Uhr: h.uhr, IDs: h.ids, Log: h.log,
+	})
+	if err != nil {
+		return err
+	}
 	if k.Modus == modusReplay {
 		return h.verdrahteReplay(db, waechter, v)
 	}
@@ -270,8 +288,24 @@ func (h *Handle) verdrahteRecord(db *sqlite.DB, waechter *maintenance.BlobWaecht
 	if err != nil {
 		return err
 	}
+	h.importer, err = b.NeuerImport(baselineimport.Konfig{
+		Dienste: importDienste(k.Dienste), Sessions: db.Sessions(), Exchanges: db.Recording(), Blobs: waechter,
+		Metadaten: h.dienste, Snapshots: db.Snapshots(), Imports: db.Imports(), MetadatenCodec: csdl.New(),
+		DatenCodec: jsoncodec.New(), Regeln: h.regeln(), MaxCaptureBody: k.MaxCaptureBody, Uhr: h.uhr, IDs: h.ids,
+	})
+	if err != nil {
+		return err
+	}
 	h.verarbeiten = h.record.Record
 	return nil
+}
+
+func importDienste(ds []Dienst) []baselineimport.Dienst {
+	out := make([]baselineimport.Dienst, len(ds))
+	for i, d := range ds {
+		out[i] = baselineimport.Dienst{ID: d.ID, UpstreamURL: d.UpstreamURL}
+	}
+	return out
 }
 
 func (h *Handle) verdrahteReplay(db *sqlite.DB, waechter *maintenance.BlobWaechter, v vorlaeufig) error {
@@ -304,6 +338,12 @@ func (h *Handle) Record() inbound.RecordUseCase { return h.record }
 
 // Sessions liefert den Use Case der Sessions; im Modus replay nil.
 func (h *Handle) Sessions() inbound.SessionUseCase { return h.sessions }
+
+// Import liefert den Use Case des Imports; im Modus replay nil.
+func (h *Handle) Import() inbound.ImportUseCase { return h.importer }
+
+// Workspaces liefert den Use Case der Workspaces, in beiden Modi.
+func (h *Handle) Workspaces() inbound.WorkspaceUseCase { return h.workspaces }
 
 // Fehler liefert höchstens einen Wert, den Fehler von Serve, und ist geschlossen, wenn Serve zurückgekehrt ist.
 func (h *Handle) Fehler() <-chan error { return h.fehler }

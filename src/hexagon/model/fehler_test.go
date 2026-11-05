@@ -70,7 +70,7 @@ func TestCodeTabelle(t *testing.T) {
 		"ODR-E5007": {[]int{409}, "replay"}, "ODR-E5008": {[]int{422}, "replay"}, "ODR-E5009": {[]int{409}, "record"},
 		"ODR-E5010": {[]int{503}, "service"},
 		"ODR-E6001": {[]int{501}, "mock"}, "ODR-E6002": {[]int{501}, "mock"}, "ODR-E6003": {[]int{422}, "mock"},
-		"ODR-E6004": {[]int{422, 0}, "import"}, "ODR-E6005": {[]int{400}, "mock"}, "ODR-E6101": {[]int{422}, "import"}, "ODR-E6102": {[]int{409}, "import"},
+		"ODR-E6004": {[]int{422, 0}, "import"}, "ODR-E6005": {[]int{400}, "mock"}, "ODR-E6006": {[]int{501}, "mock"}, "ODR-E6101": {[]int{422}, "import"}, "ODR-E6102": {[]int{409}, "import"},
 		"ODR-E7001": {[]int{404}, "workspace"}, "ODR-E7002": {[]int{404}, "workspace"}, "ODR-E7003": {[]int{404}, "session"},
 		"ODR-E7004": {[]int{409}, "session"}, "ODR-E7005": {[]int{404}, "import"}, "ODR-E7006": {[]int{409}, "workspace"},
 		"ODR-E7007": {[]int{409}, "workspace"}, "ODR-E7008": {[]int{422}, "workspace"}, "ODR-E7009": {[]int{409}, "session"},
@@ -78,8 +78,15 @@ func TestCodeTabelle(t *testing.T) {
 		"ODR-E9001": {[]int{500}, "internal"},
 	}
 	alle := model.AlleCodes()
-	if len(alle) != len(soll) {
-		t.Fatalf("%d Codes im Modell, %d in §4", len(alle), len(soll))
+	if len(alle) != len(soll) || len(alle) != 36 {
+		t.Fatalf("%d Codes im Modell, %d in §4, erwartet 36", len(alle), len(soll))
+	}
+	// ODR-E6006 steht hinter ODR-E6005, mit dem festen Text der Entscheidung; CodeE9001 ist der letzte Code der Tabelle.
+	if i := slices.Index(alle, model.CodeE6005); alle[i+1] != model.CodeE6006 || model.CodeE6006.Message() != "Unsupported OData V2 feature" {
+		t.Errorf("ODR-E6006 steht nicht hinter ODR-E6005 oder trägt die message %q", model.CodeE6006.Message())
+	}
+	if alle[len(alle)-1] != model.CodeE9001 || (model.CodeE9001 + 1).Gueltig() {
+		t.Error("ODR-E9001 ist nicht der letzte Code, oder der Code dahinter ist gültig")
 	}
 	for _, c := range alle {
 		erwartet, ok := soll[c.String()]

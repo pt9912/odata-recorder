@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-query-filter
+**Fund:** Schätzung *S* 3370 (37 Zeilen, davon 2 nebenläufig, kein Fake, Produktcode 400), Marke 4600, Messung 2546 beim Stand nach der Fix-Runde (`make groessenmarke`: ok); Ende ÷ *S* 0,76, Auslastung 0,55; Produktcode 469 statt 400. Die Formel überschätzt den Slice, wie bei den drei Slices davor. Beleg: Plan §4 und §6 (Größenmarke); Report `docs/reviews/2026-11-05-slice-v2-query-filter-verifikation.md` (Zahlen).

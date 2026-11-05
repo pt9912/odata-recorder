@@ -205,6 +205,34 @@ func aCheckFaelle() []Fall {
 	}
 }
 
+// aCheckTestsFaelle sind die Fälle 171 bis 173 (SPEC-102, SPEC-039 Nr. 2): die Schicht tests des
+// Architektur-Gates. Sie lesen beide Ströme gemeinsam wie die Fälle 1 bis 37. Die Kopie der Eingaben
+// trägt tests/ nicht; der Fall legt das Paket tests/x selbst an. Ohne Fall bleiben die Kante von
+// tests auf model und der Import von tests/ aus src/ (SPEC-039, Offen).
+func aCheckTestsFaelle() []Fall {
+	return []Fall{
+		{
+			Name: "a-check/tests-bibliothek", Gate: gateACheck,
+			Neu:      map[string]string{"tests/x/x.go": "// Package x importiert die SQLite-Bibliothek.\npackage x\n\nimport _ \"modernc.org/sqlite\"\n"},
+			WantExit: 1, WantText: []string{"tech-leak"},
+		},
+		{
+			Name: "a-check/tests-auf-dienst", Gate: gateACheck,
+			Neu: map[string]string{
+				"src/hexagon/services/ziel/ziel.go": goDatei("ziel"),
+				"tests/x/x.go":                      goDatei("x", "src/hexagon/services/ziel"),
+			},
+			WantExit: 1, WantText: []string{"wrong-direction"},
+		},
+		{
+			Name: "a-check/tests-erlaubter-weg", Gate: gateACheck,
+			Neu: map[string]string{
+				"tests/x/x.go": goDatei("x", "src/bootstrap", "src/hexagon/ports/inbound", "src/adapters/driven/sqlite"),
+			},
+		},
+	}
+}
+
 func lintFaelle() []Fall {
 	return []Fall{
 		{Name: "lint/basis", Gate: gateLint, WantText: []string{"0 issues"}},
@@ -501,5 +529,6 @@ func faelle() []Fall {
 	alle = append(alle, groessenmarkeFaelle()...)
 	alle = append(alle, handbuchFaelle()...)
 	alle = append(alle, zeichenFaelle()...)
-	return append(alle, guideFaelle()...)
+	alle = append(alle, guideFaelle()...)
+	return append(alle, aCheckTestsFaelle()...)
 }

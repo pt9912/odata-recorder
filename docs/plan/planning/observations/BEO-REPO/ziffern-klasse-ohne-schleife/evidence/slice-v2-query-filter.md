@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-query-filter
+**Fund:** V-2 (Verifikation, MEDIUM): die Zusage „die Form von V4 Position für Position“ gilt für jede Ziffer und jede Hex-Ziffer an jeder Stelle; der Fänger führt als Ersatzzeichen nur `x`, die Nachbarzeichen der Klassen (`g`, `G`, `:`, `/`, `@` als Hex-Ziffer; `:`, `/`, U+0663 als Ziffer) und die Ziffer an Stelle 0 bleiben ohne Fänger. Nicht behoben, akzeptiertes Negativ mit Grund und Folge im Plan. Beleg: Plan §3 (*Akzeptierte Negative nach der Verifikation*); Report `docs/reviews/2026-11-05-slice-v2-query-filter-verifikation.md` (V-2).

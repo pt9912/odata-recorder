@@ -164,7 +164,7 @@ func TestFehlerInDerTransaktionDesReset(t *testing.T) {
 		}
 		faelle++
 	}
-	if faelle != 4*(24+4+1) {
+	if faelle != 4*(25+4+1) {
 		t.Errorf("Fälle %d", faelle)
 	}
 }

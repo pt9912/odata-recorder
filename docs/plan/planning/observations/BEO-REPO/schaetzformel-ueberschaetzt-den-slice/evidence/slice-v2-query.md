@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-query
+**Fund:** Schätzung *S* 5130 (49 Zeilen, davon 2 nebenläufig, ein Fake, Produktcode 1000), Marke 7000, Messung 3781 beim Stand nach der Fix-Runde der Verifikation (`make groessenmarke`: ok); Ende ÷ *S* 0,74, Auslastung 0,54. Die Formel überschätzt den Slice, wie bei `slice-v2-import-codecs` und `slice-v2-metadaten`. Beleg: Plan §4 (Erwartung der Messung 3400 bis 4400 trifft); Report `docs/reviews/2026-11-05-slice-v2-query-verifikation.md` (V-6).

@@ -22,11 +22,13 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/baselineimport"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/maintenance"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record/capture"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/replay"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/session"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/workspace"
 )
 
 // Die Haken setzen die Felder von bootstrap.Bauteile. Wartung, Sessions und Server sind Fakes, die
@@ -129,6 +131,7 @@ type haken struct {
 
 	mu         sync.Mutex
 	sqliteOpt  sqlite.Options
+	db         *sqlite.DB
 	wartung    maintenance.Konfig
 	waechter   support.Clock
 	telemetrie telemetry.Config
@@ -137,6 +140,11 @@ type haken struct {
 	recorder   *record.Konfig
 	session    *session.Konfig
 	replay     *replay.Konfig
+	importKfg  *baselineimport.Konfig
+	workspace  *workspace.Konfig
+	// importe und workspaces zählen die Aufrufe der Konstruktoren.
+	importe    int
+	workspaces int
 	server     httpodata.Konfig
 	listener   []net.Listener
 	listenAdr  string
@@ -228,6 +236,9 @@ func (h *haken) bauteile() bootstrap.Bauteile {
 			}
 		}
 		db, err := echt.Oeffne(ctx, pfad, opt)
+		h.mu.Lock()
+		h.db = db
+		h.mu.Unlock()
 		if err == nil && h.wirkung == brecheAb {
 			_ = h.wirke(ctx, pAblage)
 		}
@@ -284,6 +295,20 @@ func (h *haken) bauteile() bootstrap.Bauteile {
 		h.replay = &k
 		h.mu.Unlock()
 		return echt.NeuerReplay(k)
+	}
+	b.NeuerImport = func(k baselineimport.Konfig) (inbound.ImportUseCase, error) {
+		h.mu.Lock()
+		h.importKfg = &k
+		h.importe++
+		h.mu.Unlock()
+		return echt.NeuerImport(k)
+	}
+	b.NeueWorkspaces = func(k workspace.Konfig) (inbound.WorkspaceUseCase, error) {
+		h.mu.Lock()
+		h.workspace = &k
+		h.workspaces++
+		h.mu.Unlock()
+		return echt.NeueWorkspaces(k)
 	}
 	b.Listen = func(ctx context.Context, network, addr string) (net.Listener, error) {
 		h.merke(ctx, pListen)
