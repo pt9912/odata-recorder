@@ -49,7 +49,7 @@ func ungueltigeKonfiguration(t *testing.T) {
 		{"leer", func(string) []string { return []string{} }, []string{"MODE"}},
 		{"MODE=Record", func(d string) []string { return append(gueltig(d), "MODE=Record") }, []string{"MODE"}},
 		{"beide Verstöße", func(d string) []string {
-			return append(gueltig(d)[:2:2], "MODE=Record", "SERVICE_ID=ref", "SERVICE_ROOT_PATH=odata/")
+			return append(gueltig(d)[:2:2], "MODE=Record", "SERVICE_ID=ref", "SERVICE_ROOT_PATH=/odata/")
 		}, []string{"MODE", "SERVICE_ROOT_PATH"}},
 		{"record ohne UPSTREAM_URL", func(d string) []string {
 			return []string{"LISTEN=127.0.0.1:%PORT%", "DATA_DIR=" + d, "SERVICE_ID=ref", "SERVICE_ROOT_PATH=/odata", "MODE=record"}

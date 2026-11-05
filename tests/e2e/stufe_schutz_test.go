@@ -144,22 +144,34 @@ func speicherVollSchutz(t *testing.T) {
 	p := l.nimmAuf()
 	ballast := fuelle(t)
 	soll := ref.seite("1", "Anvil", true)
-	for i := 0; i < 2; i++ {
-		w := holen(t, p.adresse, anfrage{pfad: "/odata/Products", header: map[string][]string{"X-Test-Marker": {marker}}})
-		if w.status != 200 || string(w.body) != soll {
-			t.Errorf("Request %d bei vollem Speicher: %d %q, erwartet 200 mit dem vollen Body", i+1, w.status, w.body)
+	const geheimD, passwort = "GEHEIM-D-2c71", "GEHEIM-E-8f40"
+	w := holen(t, p.adresse, anfrage{pfad: "/odata/Products", header: map[string][]string{"X-Test-Marker": {marker}}})
+	if w.status != 200 || string(w.body) != soll {
+		t.Errorf("Request 1 bei vollem Speicher: %d %q, erwartet 200 mit dem vollen Body", w.status, w.body)
+	}
+	post := postJSON(`{"Name":"x","password":"` + passwort + `"}`)
+	post.header["X-Test-Marker"] = []string{marker}
+	post.header["Authorization"] = []string{"Bearer " + geheimD}
+	if w := holen(t, p.adresse, post); w.status != 201 {
+		t.Errorf("Request 2 bei vollem Speicher: %d %q, erwartet 201", w.status, w.body)
+	}
+	geheimnisse := []string{geheimA, geheimD, passwort}
+	p.warteAufZeilen(2, "ereignis=ablage")
+	_, vorher := durchsuche(t, l.dir, append([]string{marker}, geheimnisse...))
+	for _, f := range vorher {
+		if f.wert == marker {
+			t.Logf("Spurwert vor dem Herunterfahren: %v", f)
+		} else {
+			t.Errorf("Geheimnis %s vor dem Herunterfahren in %s", f.wert, f.ort)
 		}
 	}
-	p.warteAufZeilen(2, "ereignis=ablage")
-	_, vorher := durchsuche(t, l.dir, []string{marker})
-	t.Logf("vor dem Herunterfahren: %v", vorher)
 	if err := os.Remove(ballast); err != nil {
 		t.Fatal(err)
 	}
 	l.rec = p
 	l.beendeAufnahme()
-	_, nachher := durchsuche(t, l.dir, []string{marker})
-	if len(nachher) > 0 {
-		t.Errorf("der Marker liegt nach dem Herunterfahren in einer Datei: %v", nachher)
+	_, nachher := durchsuche(t, l.dir, append([]string{marker}, geheimnisse...))
+	for _, f := range nachher {
+		t.Errorf("%s liegt nach dem Herunterfahren in %s", f.wert, f.ort)
 	}
 }
