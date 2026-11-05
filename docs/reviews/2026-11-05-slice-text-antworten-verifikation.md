@@ -124,7 +124,7 @@ Keine DoD-Verletzung. Kein HIGH. Die Rückgaben F-5 bis F-7 des Reviews stehen i
 
 ## Rohbytes (§3.18)
 
-Gegengelesen mit `LC_ALL=C grep -P` die Dateien des Diffs `241b3a3..8081cbf` unter `src/`, `tests/`, `spec/spezifikation.md` (nur die Zeilen des Diffs), `docs/reviews/…-review.md` und `docs/plan/planning/in-progress/slice-text-antworten.md`: nur `ä ö ü Ä Ö Ü ß § · × ³ ² é µ` und Anführungszeichen; kein BOM, kein NBSP, keine Zeilentrenner, kein Steuerzeichen, keine Folge aus Backslash, `u` und vier Hex-Ziffern in den neuen Zeilen (die fünf Treffer in `spec/spezifikation.md` stehen in unveränderten Zeilen zu `SPEC-115` und `SPEC-118` Nr. 4). `make zeichen-check` meldet `1192 Datei(en)`, ok. Dieser Bericht wurde nach dem Schreiben auf Rohbytes gegengelesen (siehe Übergabe).
+Gegengelesen mit `LC_ALL=C grep -P` die Dateien des Diffs `241b3a3..8081cbf` unter `src/`, `tests/`, `spec/spezifikation.md` (nur die Zeilen des Diffs), `docs/reviews/…-review.md` und `docs/plan/planning/done/slice-text-antworten.md`: nur `ä ö ü Ä Ö Ü ß § · × ³ ² é µ` und Anführungszeichen; kein BOM, kein NBSP, keine Zeilentrenner, kein Steuerzeichen, keine Folge aus Backslash, `u` und vier Hex-Ziffern in den neuen Zeilen (die fünf Treffer in `spec/spezifikation.md` stehen in unveränderten Zeilen zu `SPEC-115` und `SPEC-118` Nr. 4). `make zeichen-check` meldet `1192 Datei(en)`, ok. Dieser Bericht wurde nach dem Schreiben auf Rohbytes gegengelesen (siehe Übergabe).
 
 ## Zusagen ohne Bestätigung
 

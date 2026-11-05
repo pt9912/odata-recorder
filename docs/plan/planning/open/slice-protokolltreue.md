@@ -39,7 +39,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Nutzt:** den Referenzdienst von [slice-m2-referenzdienst](../done/slice-m2-referenzdienst.md) und den Composition Root (`Build`, `Handle`) von `slice-bootstrap-m2`; `slice-m2-referenzdienst` bleibt beim Satz von M2 (Entscheidung des Users). Was der Vergleich am Referenzdienst zusätzlich braucht (Antworten mit `Content-Encoding`, mehrere Werte je Header, die Randform aus §6), bringt dieser Slice selbst mit.
 
-**Nutzt außerdem (Sendung von [slice-text-antworten](../in-progress/slice-text-antworten.md), `AGENTS.md` §3.13):** Der Referenzdienst trägt dann `text/plain`-Antworten (`/Products/$count` und `/Products(<Schlüssel>)/<Property>/$value`); die Antwortarten des Vergleichs (§2, ein Fall je Antwortart des Referenzdienstes) schließen sie ein, und der Vergleich entpackt nur das Coding, nicht den Typ. Ein Unterschied zwischen Direktzugriff und Proxy bei diesen Antworten ist ein Befund wie jeder andere (§6). Der Slice liegt nach `slice-text-antworten` (Reihenfolge, kein Code-Blocker).
+**Nutzt außerdem (Sendung von [slice-text-antworten](../done/slice-text-antworten.md), `AGENTS.md` §3.13):** Der Referenzdienst trägt dann `text/plain`-Antworten (`/Products/$count` und `/Products(<Schlüssel>)/<Property>/$value`); die Antwortarten des Vergleichs (§2, ein Fall je Antwortart des Referenzdienstes) schließen sie ein, und der Vergleich entpackt nur das Coding, nicht den Typ. Ein Unterschied zwischen Direktzugriff und Proxy bei diesen Antworten ist ein Befund wie jeder andere (§6). Der Slice liegt nach `slice-text-antworten` (Reihenfolge, kein Code-Blocker).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
