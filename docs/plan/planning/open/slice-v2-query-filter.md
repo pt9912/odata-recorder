@@ -108,7 +108,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) füllt der Architect beim S
 | Pfad ist `filter` (L1, L6), Aufruf (22 Funktionen aus `SPEC-170` Nr. 3, 5 V4-Namen, `geo.distance`, 5 erfundene × 5 Formen + 3), Operatoren und weitere Konstrukte | 3 | 10, 168, 49 |
 | Tiefe, Rang im Filter, Fehlerwert, Einhängung mit echtem Leser, Dekodierung, Struktur, Wiederholung | 7 | 77, 49, 53, 13, 22, 24, 64 |
 | nebenläufig (gleichzeitige Aufrufe, Wächter der Knotenzahl und `TotalAlloc`) | 2 + 1 | wie `slice-odata-url-filter` Zeilen 29 und 30; Wächter 18 |
-| Allaussage (Operatoren 5, Funktionen 28 × 3 Einbettungen), Generator (2000 Läufe), echte V2-Filter (5 aus Anhang A des Architect-Ausgangs, `substringof('a',Name) eq true`, `Date gt datetime'2020-01-01T00:00:00'`, `Id eq guid'…'`, `Price gt 1.5M`, `Big eq 5L`, `not (Age gt 3)`, `Name eq null`, 5 weitere) | 3 | rund 100, 2000, 17 |
+| Allaussage (Operatoren 5, Funktionen 28 × 3 Einbettungen), Generator (2000 Läufe), echte V2-Filter (die 5 `filter`-Anfragen der Erfassung aus `TestEchteV2URLs` in `slice-v2-query`, `substringof('a',Name) eq true`, `Date gt datetime'2020-01-01T00:00:00'`, `Id eq guid'…'`, `Price gt 1.5M`, `Big eq 5L`, `not (Age gt 3)`, `Name eq null`, 5 weitere) | 3 | rund 100, 2000, 17 |
 
 Summe 37 Zeilen, davon 2 nebenläufig.
 

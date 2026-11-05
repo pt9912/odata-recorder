@@ -320,7 +320,9 @@ func TestKompatFehlerWert(t *testing.T) {
 
 // TestSchluesselLiteralPaar (Zeile 7, Schlüsselpaare): ein Literal außerhalb des Umfangs (`literal_typ`) und ein ungültiges Literal
 // (`literal`, `zu_lang`) im selben Schlüssel sind `ODR-E6005`, gleich in welcher Reihenfolge. Menge 1600: 25 Formen außerhalb ×
-// 32 ungültige Formen (31 `literal`, 1 `zu_lang`) × 2 Reihenfolgen.
+// 32 ungültige Formen (31 `literal`, 1 `zu_lang`) × 2 Reihenfolgen. Die Zahl zählt Fälle, nicht Paare: in 75 davon steht eine Form
+// mit ungerader Zahl von Anführungszeichen im ersten Teil, `zerlegeTeile` liest den Rest als Text, und es bleibt ein Einzelverstoß.
+// Der Test führt nur Schlüssel mit zwei Teilen (akzeptiertes Negativ, Plan §3).
 func TestSchluesselLiteralPaar(t *testing.T) {
 	zuLang := "'" + strings.Repeat("a", 511) + "'"
 	schlecht := map[string]model.URLUrsache{zuLang: model.URLZuLang}
