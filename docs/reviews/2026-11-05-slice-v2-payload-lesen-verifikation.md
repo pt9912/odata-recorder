@@ -2,7 +2,7 @@
 
 **Verifikations-Art:** DoD- und Entscheidungs-Konformität, Plan-vs-Code-Diff — geprüft gegen `docs/plan/planning/in-progress/slice-v2-payload-lesen.md` (DoD §2, Tabelle *Zusage · Fänger* mit 57 Zeilen, Raster §6, Block §4), `SPEC-172` Nr. 1 bis 5 (mit dem neuen Absatz zu Kreisen in Nr. 3), `SPEC-125` Nr. 9 a, `SPEC-126`, [ADR-0011](../plan/adr/0011-versionierter-adapter-fuer-odata-v2.md) und `AGENTS.md` §3.10, §3.15, §3.17, §3.18.
 
-**Gegenstand:** `slice-v2-payload-lesen` (Welle `welle-odata-v2`), Zweig `slice-v2-payload-lesen`, HEAD `6b9b332` (Review `ead28d1`, Handoff `617585f`, Architect `6b9b332`), Basis `20b0d1a`. Bezug: `LH-FA-17`, `LH-RB-01`, ADR-0011.
+**Gegenstand:** `slice-v2-payload-lesen` (Welle `welle-odata-v2`), Zweig `slice-v2-payload-lesen`, HEAD `6b9b332` (Review `ead28d1`, Handoff `617585f`, Architect `6b9b332`), Basis `20b0d1a`. Bezug: `LH-FA-17`, `LH-RB-01`, [ADR-0011](../plan/adr/0011-versionierter-adapter-fuer-odata-v2.md).
 
 **Rolle / Modell / Datum:** Verifier · claude-sonnet-5-5 · 2026-11-05. Frischer Kontext, einmalige Verifikation, kein Push. Die Session wurde einmal unterbrochen (Zwischenstand-Commit `932fa05`); die danach gemessenen Teile stehen im Abschnitt *Nachgetragen*.
 
@@ -85,7 +85,7 @@ Die Zahlen des Plans sind bestätigt; Messender: der Verifier, Mutanten nach der
 |---|---|---|
 | Paket `jsoncodecv2`, eigener Scanner, kein V4-Import, kein Feld im Leser | `type Leser struct{}`, 10 Dateien (1389 Zeilen), `scan.go` und `zahl.go` sind Kopien der V4-Dateien bis auf den Paketnamen; kein Paketzustand | gleich |
 | `make lint` ohne Ausnahme grün durch Umbau; drei geteilte Helfer, `b3Alphabet` ohne `bis` | Diff zeigt `uPruefer`, `a3Quellfehler`, `int32Werte`; `lint` im Gate grün | gleich |
-| J4: nur drei V4-Dateien der Suite geändert | numstat gleich 56/41; V4-Verhalten gleich | gleich; die Entscheidung des Architect (ADR-0011 §Konsequenzen) trägt |
+| J4: nur drei V4-Dateien der Suite geändert | numstat gleich 56/41; V4-Verhalten gleich | gleich; die Entscheidung des Architect ([ADR-0011](../plan/adr/0011-versionierter-adapter-fuer-odata-v2.md) §Konsequenzen) trägt |
 | Kreis: der Leser kehrt zurück, `odata_typ` | `abgeleitet` markiert jeden Typ; einzige Stelle im Leser, die `BaseType` folgt (`grep`) | gleich `SPEC-172` Nr. 3 |
 | Mutationsabsatz und Raten im Plan (§3.10) | Absatz und Tabelle stehen im Plan; C1 bis C4 mit Zahlen | bestätigt |
 | Zeile *Nr. 3* der Tabelle (Import von `jsoncodec`) | in der Mutationstabelle des Plans fehlt die Zeile *Nr. 3* | kleine Lücke, V-2 |
