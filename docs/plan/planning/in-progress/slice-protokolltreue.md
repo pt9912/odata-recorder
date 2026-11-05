@@ -18,7 +18,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie
 (Baseline-Regelwerk `grundlagen-referenz-richtung.md`
 §Referenz-Richtung (SDP), `grundlagen-source-precedence.md` §ID-Schema als Klammer).
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-protokolltreue)
 
 **Autor:** pt9912. **Datum:** 2026-10-21.
 
