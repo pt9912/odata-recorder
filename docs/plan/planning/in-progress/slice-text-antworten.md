@@ -70,10 +70,10 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Redaktor und Ableitung nach `SPEC-118` Nr. 1, 3 und 11: `BodyEingang` mit `Zaehlung`, `Wert`, `Name`; Typ *Text* nur mit Ziel; Zeichensatz (Grund `charset`); Ziffernprüfung; Redaktion des `Wert` nach dem Property-Namen; die reine Funktion `model.TextZiel(path)` als einzige Stelle der Ableitung; Record-Dienst (`SPEC-121` Nr. 5) und Eingang des `Tee` (`SPEC-119`) reichen die Ziele für die Antwort durch, nie für den Request; `Tee` weist ein Ziel beim Request und ungültige Kombinationen mit `ErrUngueltig` ab (`SPEC-119` Nr. 2; `LH-FA-04`, `LH-FA-14`, `LH-QA-07`).
-- [ ] Referenzdienst: `/Products/$count` als `text/plain`, Route `/Products(<Schlüssel>)/<Property>/$value`; die Fixture des M2-Tests wechselt auf `text/plain`; Round-Trip `$count` dreimal in derselben Folge (`LH-FA-05`) und `$value` mit und ohne Treffer, Replay des Treffers nur bei `REPLAY_REDACTED_BODIES=true` (`SPEC-045`); der M2-Test läuft vor und nach dem Wechsel grün.
-- [ ] Je Zeile der Tabelle *Zusage · Fänger* (§3) ein Test und eine selbst rot gesehene Mutation; der Bericht nennt Zusage · Mutation · roter Test (`AGENTS.md` §3.10, §3.15, §3.17).
-- [ ] `make gates` grün.
+- [x] Redaktor und Ableitung nach `SPEC-118` Nr. 1, 3 und 11: `BodyEingang` mit `Zaehlung`, `Wert`, `Name`; Typ *Text* nur mit Ziel; Zeichensatz (Grund `charset`); Ziffernprüfung; Redaktion des `Wert` nach dem Property-Namen; die reine Funktion `model.TextZiel(path)` als einzige Stelle der Ableitung; Record-Dienst (`SPEC-121` Nr. 5) und Eingang des `Tee` (`SPEC-119`) reichen die Ziele für die Antwort durch, nie für den Request; `Tee` weist ein Ziel beim Request und ungültige Kombinationen mit `ErrUngueltig` ab (`SPEC-119` Nr. 2; `LH-FA-04`, `LH-FA-14`, `LH-QA-07`).
+- [x] Referenzdienst: `/Products/$count` als `text/plain`, Route `/Products(<Schlüssel>)/<Property>/$value`; die Fixture des M2-Tests wechselt auf `text/plain`; Round-Trip `$count` dreimal in derselben Folge (`LH-FA-05`) und `$value` mit und ohne Treffer, Replay des Treffers nur bei `REPLAY_REDACTED_BODIES=true` (`SPEC-045`); der M2-Test läuft vor und nach dem Wechsel grün.
+- [x] Je Zeile der Tabelle *Zusage · Fänger* (§3) ein Test und eine selbst rot gesehene Mutation; der Bericht nennt Zusage · Mutation · roter Test (`AGENTS.md` §3.10, §3.15, §3.17).
+- [x] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
@@ -92,7 +92,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/model/` | update | `BodyEingang` (`Zaehlung`, `Wert`, `Name`), Typ *Text*, Zeichensatz, Ziffernprüfung, Redaktion des `Wert`, `TextZiel(path)` (`SPEC-118` Nr. 1, 3, 11) |
+| `src/hexagon/model/` | update, neu (`redaktor_text.go`, Tests in `redaktor_text_test.go`) | `BodyEingang` (`Zaehlung`, `Wert`, `Name`, `Gueltig()`), Typ *Text*, Zeichensatz, Ziffernprüfung, Redaktion des `Wert`, `TextZiel(path)`, Grund `charset` (`SPEC-118` Nr. 1, 3, 11) |
 | `src/hexagon/services/record/` | update | Ableitung der Ziele aus dem OData-Pfad und Durchreichen im Eingang des `Tee` (`SPEC-121` Nr. 5, `SPEC-119`), nur für die Antwort; Abweisung eines Ziels beim Request und ungültiger Kombinationen in `capture/` (`SPEC-119` Nr. 2) |
 | `tests/integration/` | update | Referenzdienst: `/Products/$count` als `text/plain`, Route `$value`; Fixture des M2-Tests; Round-Trip (`LH-FA-04`, `LH-FA-05`) |
 | `src/hexagon/services/replay/` | update (nur Test) | Fall Z14: ein Request als Text auf `/$count` und `/<Property>/$value` bleibt `ODR-E5001`; kein Produktcode (`SPEC-135` Nr. 7 c) |
@@ -124,6 +124,49 @@ Raten (`AGENTS.md` §3.10): Z13 und Z15 sind nebenläufig (Aufnahme-Goroutine de
 
 Testdaten von Hand: Bytes ab `0x80`, BOM und Folgen mit Escape werden aus Bytewerten gebaut (`esc("…")`, `[]byte{…}`) und die geschriebene Datei wird auf Rohbytes gegengelesen (`AGENTS.md` §3.18, `BEO-REPO/werkzeug-eingabe-setzt-escape-in-zeichen-um`).
 
+**Belege des Implementers** (`AGENTS.md` §3.10, §3.15, §3.17). Jede Mutation wurde auf einer Wegwerfkopie des Worktrees angewendet (Perl-Ersetzung des Quelltextes, `go test -count=1` im Image der Stufe `deps`, netzlos, `--memory 4g`) und färbt den genannten Test rot; kein Lauf der Kopie ist Teil des Repos. Gezählt sind 111 Mutationen, jede rot gesehen; eine erste Fassung der Zeile Z6 (Leerraum hinter dem Marker) blieb grün, weil die Ersetzung nichts änderte, und wurde durch die Mutation „Byte hinter dem vollständigen Marker unbeachtet“ ersetzt. Die Fänger sind Tests in den Paketen `src/hexagon/model/` (Datei redaktor_text_test.go), `src/hexagon/services/record/capture/` und `src/hexagon/services/record/` (je Datei text_test.go), `src/hexagon/services/replay/` (Datei text_test.go) und `tests/integration/` (text_test.go, m2_test.go, referenzdienst_test.go).
+
+| Nr. | Fänger (Zahl der Fälle, die der Test zählt) | Mutationen, jede rot | Klasse |
+|---|---|---|---|
+| Z1 | `TestTextNurMitZiel` (24: 3 Ziele × 8 Typen) | Ziel ignoriert; Text nie bekannt; nur `Zaehlung` bekannt; nur `Wert` bekannt | Schleife über die Menge |
+| Z2 | `TestTextTypRandformen` (34) | `text` ohne Schrägstrich; leerer Untertyp; mehrere Werte, der erste zählt; Untertyp auf Zeichen geprüft; Rand nicht getrimmt; Schreibweise nicht ASCII-klein (die beiden letzten fängt `TestTextNurMitZiel`) | Schleife |
+| Z3 | `TestTextJSONBleibtJSON` | das Ziel verdrängt `application/json`; das Ziel verdrängt `application/<x>+json` | Fälle |
+| Z4 | `TestTextZeichensatz` (46 Formen × 2 Ziele), `TestTextZeichensatzRangfolge` | nur der erste Parameter; nur `utf-8`; nur `us-ascii`; leerer Wert erlaubt; Anführungszeichen nicht entfernt; Resttext erlaubt; Name nicht ASCII-klein; Name nicht getrimmt; Wert nicht ASCII-klein; Wert nicht getrimmt; Prüfung nur bei `Wert`; Prüfung nur bei `Zaehlung`; keine Teilung an `;` | Schleife über Formen × Ziele |
+| Z5 | `TestTextZaehlungBytes` (768: 256 Bytes × 3 Stellen, dazu 15 Formen und 6 Längen bis 100000) | Leerraum und Zeilenende erlaubt; nur das erste Byte geprüft; Vorzeichen erlaubt; Verstoßbyte geschrieben; Obergrenze `8`; Untergrenze `1` | Generator über alle Bytes, Orakel: Ziffer ist `0` bis `9` |
+| Z6 | `TestTextWertRedaktion` (120 Treffer-Fälle: 10 Namen × 12 Inhalte, dazu je Name der Marker, 7 nicht treffende Namen × 13 Inhalte) | Marker mit Anführungszeichen; Inhalt bei Treffer durchgereicht; Marker nicht idempotent; Namensvergleich ohne ASCII-Schreibweise; nur das erste Muster; Marker-Gleichheit nur am Präfix; Status `applied` auch ohne Treffer; Byte hinter dem vollständigen Marker unbeachtet | Schleife über Namen × Inhalte |
+| Z7 | `TestTextKeinGeheimnisImDst` (6 Fehlerformen, ein Fake hält jeden Write) | die ersten drei Bytes durchgelassen; Marker schon beim ersten Byte; dazu Z6 `Inhalt bei Treffer durchgereicht` | Fall je Verstoß |
+| Z8 | `TestTextWertUTF8` (84 Zerlegungen und 14 ungültige Folgen × 2 Namen × jede Zerlegung), `TestTextWertUTF8Generator` (232 448 Läufe: 116 224 Körper × 2 Namen) | UTF-8 bei Treffer nicht geprüft; Folge zwischen zwei Reads ungültig; Surrogat erlaubt; überlanges `E0` erlaubt; überlanges `F0` erlaubt; über U+10FFFF erlaubt; `C0` und `C1` erlaubt; `F5` bis `F7` erlaubt; halbe Folge am Ende gültig; Folgebyte nicht geprüft; Folge mit zwei Folgebytes zählt eines; Folge mit drei Folgebytes zählt zwei (nur der Generator fängt die letzte) | Generator über jedes Bytepaar und die langen Anfänge, Orakel `utf8.ValidString` |
+| Z9 | `TestTextZiel` (52 Pfadformen), `TestTextZielGenerator` (41 370 Pfade aus 14 Segmenten, 1 bis 4 Segmente), `TestTextZielRein` (Name von 100000 Bytes, jedes Byte als Name) | `/$count` allein hat Gegenstand; `(`, `)`, `'` im Namen erlaubt (drei Mutationen); `$` am Anfang erlaubt; leerer Name erlaubt; Zeichen am dekodierten statt am rohen Text geprüft; Name ohne Dekodierung; ungültige Kodierung gilt als kein Ziel; ohne Schrägstrich vor dem Namen; Suffix nur ohne Klammer im Rest | Generator, Orakel arbeitet auf den Segmenten |
+| Z10 | `TestTextZielKombinationen` (16), `TestBodyArgumente` unverändert | Prüfung entfällt; mehr als ein Ziel erlaubt; `Name` ohne `Wert` erlaubt; `Wert` ohne `Name` erlaubt; `Metadata`, `Zaehlung` oder `Wert` zählt nicht (drei); Prüfung am leeren Eingang | Schleife über 2³ × 2 |
+| Z11 | `TestTextRangfolge` | Typ vor leerer Eingabe; Grenze `>=` statt `>` | Fälle je Seite der Grenze |
+| Z12 | `TestTextAntwortZiele` (19 Pfadformen), `TestTextAntwortKeinGeheimnisImBlob`, `TestTextRequestOhneZiel` (12), `TestTextAntwortOhneBody` (8) | Query im Pfad der Ableitung; Pfad mit Service-Root; `Zaehlung`, `Wert` oder `Name` nicht durchgereicht; falscher Name; Request bekommt ein Ziel; `HEAD`, 204 und 304 gehen in die Pipeline | Schleife über Pfadform × Richtung |
+| Z13 | `TestTeeReichtZieleDurch` (4 × 2), `TestTeeTextGleichzeitig` (24 Aufnahmen, 12 mit Treffer) | `Eingang` ohne die neuen Felder; je ein Feld nicht durchgereicht (drei); gemeinsamer Zustand des Wert-Automaten (Raten unten) | Fälle; nebenläufig |
+| Z14 | `TestRequestTextOhneZiel` (16: 4 Pfade × 2 Modi × 2 Inhalte) | der Replay setzt das Ziel aus dem Pfad; nur `Zaehlung`; nur `Wert` | Schleife |
+| Z15 | `TestTextRoundTrip` (beide Werte der Option), `TestDurchstichM2` | Treffer wird bei `false` ausgeliefert; Reihenfolge gekippt; `Content-Type` fehlt in der Wiedergabe; Name falsch durchgereicht (das Geheimnis steht dann im Blob) | Fälle; nebenläufig |
+| Z16 | `TestReferenzdienstSelbst`, dazu `TestDurchstichM2` und `TestTextRoundTrip` | `$count` als `application/json`; `$value` als `application/json`; `$count` als JSON-Zahl; das Geheimnis fehlt im Referenzdienst | Fälle |
+| Z17 | `TestTeeZielKombinationen` (32 Teiltests: 2 Richtungen × 2³ × 2) | Ziel beim Request nicht abgewiesen (vier: alle drei Flags und jedes einzeln); Kombination nie abgewiesen; nur `Wert` ohne `Name`; nur `Name` ohne `Wert`; jedes der drei Paare von Zielen einzeln erlaubt (drei); `Tee` liest vor der Abweisung; `Tee` startet die Goroutine vor der Abweisung | Schleife |
+
+Der Fänger für „nichtleerer `Name` bei `Request`“ aus `SPEC-119` Nr. 2 ist keine eigene Prüfung im Code: ein `Name` ohne `Wert` ist schon die ungültige Kombination, und die Mutation, die nur diese Klausel im Zweig für `Request` entfernte, ließ sich nicht von der Prüfung der Kombination trennen; der Zweig für `Request` nennt deshalb nur die drei Flags.
+
+Raten (`AGENTS.md` §3.10), gemessen vom Implementer mit dem übersetzten Testbinary, je Lauf `-test.count=1`, 30 Prozesse je Zeile:
+
+| Zusage | Mutation | Fänger | Rate |
+|---|---|---|---|
+| Z13 | gemeinsamer Zustand: `trifft` des Wert-Automaten als Paketvariable | `TestTeeTextGleichzeitig`, `TestTeeReichtZieleDurch`, ohne `-race` | rot in 30 von 30 Prozessen |
+| Z13 | dieselbe Mutation | dieselben Tests mit `-race` (Image von `make test-race`) | rot in 30 von 30 Prozessen |
+| Z13 | keine Mutation (Basis) | dieselben Tests ohne `-race` | rot in 0 von 30 Prozessen |
+| Z15 | Treffer wird bei `false` ausgeliefert | `TestTextRoundTrip`, `TestDurchstichM2` | rot in 30 von 30 Prozessen |
+| Z15 | Reihenfolge gekippt | dieselben | rot in 30 von 30 Prozessen |
+| Z15 | `Content-Type` fehlt in der Wiedergabe | dieselben | rot in 30 von 30 Prozessen |
+| Z15 | Name falsch durchgereicht | dieselben | rot in 30 von 30 Prozessen |
+| Z15 | keine Mutation (Basis) | dieselben | rot in 0 von 30 Prozessen |
+
+Die Mutationen von Z15 sind keine Datenrennen: der Detektor ist dafür nicht der Fänger, sondern der Vergleich von Status, Body und Header der Wiedergabe mit der Aufnahme. Ein Zugriff, den kein Test aus zwei Goroutinen ausführt, bleibt wie in `SPEC-118` *Ungeprüft* ungesehen; `TestTeeTextGleichzeitig` führt 24 Aufnahmen mit je eigenem Wert-Automaten gleichzeitig durch den Redaktor, `make test-race` fährt sie mit dem Detektor.
+
+**Mengen, die der Plan generierbar nannte** (Schritt 14 von `implement-slice`): (1) UTF-8-Folgen beim Wert, Generator über jedes Bytepaar (65 536) und jedes lange Anfangsbyte `E0` bis `EF` und `F0` bis `F5` mit drei oder vier Bytes (50 688), Orakel `utf8.ValidString` der Standardbibliothek, 232 448 Läufe, die der Test zählt; (2) Pfadformen für `TextZiel`, Generator über 14 Segmente und Längen 1 bis 4, Orakel segmentweise (letztes Segment, vorletztes Segment, `url.PathUnescape`), 41 370 Pfade, die der Test zählt; (3) die Bytes `0x00` bis `0xFF` an drei Stellen der Zählung, Orakel „Ziffer“, 768 Fälle; (4) Kombinationen der Ziele, 16 beim Redaktor und 32 beim `Tee`, Orakel als Liste der gültigen Kombinationen. Handgeschriebene Fälle bleiben als Goldens daneben.
+
+**Gelieferte Form** (Festlegungen des Implementers, die die Spezifikation offen lässt): `model.TextZiel(pfad string) (zaehlung, wert bool, name string)`; `BodyEingang` trägt die Methode `Gueltig()` (`SPEC-118` Nr. 1), die `RedigiereBody` und die Prüfung des `Tee` gemeinsam nutzen; der Grund `charset` steht in `model` und in `capture`, und die geschlossene Menge der Gründe im Protokolltest des Record-Dienstes führt ihn.
+
 ## 4. Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
@@ -146,6 +189,8 @@ marke: 2500
 ersetzt: 2300 | Zeile Z17 (Abweisung im Tee), Produktcode 260 statt 150 (Wert-Automat), Pfad des Replay-Dienstes für den Test Z14; vor dem ersten Code-Commit
 ```
 
+**Messung** (Implementer beim Handoff, vor dem Review): die Summe aus Einfügungen und Löschungen von `git diff --numstat` zwischen `basis` des Blocks und dem Stand des Handoffs über die vier Pfade des Blocks ist **1420** (1395 Einfügungen, 25 Löschungen), die Marke ist 2500 und die Schätzung 1830. Der Produktcode ohne Testdateien umfasst 250 Zeilen (erwartet 260), die Tests 1170. Die Marke ist nicht überschritten; Review und Verifikation messen den Stand danach neu.
+
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): nicht über die Marke (sie ist die Schätzung × 1,35 nach `SPEC-128` und schneidet nicht, `AGENTS.md` §3.14); offen bleiben die Kriterien der Baseline (mehr als drei Liefer-Punkte, mehr als zwei Schichten).
@@ -166,9 +211,12 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Der Wechsel der Fixture bricht den M2-Test (Referenzdienst und Fixture gehören `slice-m2-referenzdienst`) — **Ausgang:** offen; der M2-Test läuft vor und nach dem Wechsel grün, M4 (Reihenfolge) bleibt als Test bestehen, die Closure nennt beide Läufe.
+- Der Wechsel der Fixture bricht den M2-Test (Referenzdienst und Fixture gehören `slice-m2-referenzdienst`) — **Ausgang:** offen; der M2-Test läuft vor und nach dem Wechsel grün, M4 (Reihenfolge) bleibt als Test bestehen, die Closure nennt beide Läufe. Beleg des Implementers: `TestDurchstichM2` lief mit dem neuen Produktcode und der alten Fixture (JSON `{"count":n}`) grün, dann mit der Fixture `text/plain` grün; der Lauf der neuen Tests auf dem Stand vor dem Slice (ohne den Produktcode, gemessen auf einer Kopie) schlägt mit der neuen Fixture fehl: die Session endet `incomplete`, weil der Redaktor das `$count` als `typ` verwirft; das ist die Herkunft des Slice.
+- Auslegung des Wortlauts von `SPEC-118` Nr. 11 b: „beim Marker erst mit dem letzten gelesenen Byte“ ist als *am Ende des Stroms, nur bei Erfolg* umgesetzt (ein Verstoß vor dem Ende lässt das `dst` leer, auch ein `eingabe`-Fehler und `zu_gross`); der Test `TestTextKeinGeheimnisImDst` hält es fest — **Ausgang:** offen; Adresse: Architect (Bestätigung oder Schärfung des Wortlauts; ein Marker schon vor dem Ende wäre eine andere Zusage, keine Mutation dieser).
+- Auslegung von `SPEC-118` Nr. 11 b: eine halbe Mehrbyte-Folge am Ende des Stroms ist beim `Wert` der Grund `utf8` (Nr. 4 kennt das nur im String als `unvollstaendig`, für den Text gibt es keinen String); ohne Treffer trägt das `dst` die Bytes der halben Folge (Nr. 9: eine Mehrbyte-Folge vor dem Verstoß kann halb stehen) — **Ausgang:** offen; Adresse: Architect (Bestätigung).
+- Auslegung von `SPEC-118` Nr. 11 d: `/<Name>/$value` verlangt einen Schrägstrich vor `<Name>`; `/Name/$value` (Name unmittelbar hinter dem Service-Root) ist ein `Wert` mit `Name`, `x/$value` ohne führenden Schrägstrich hat kein Ziel; `TextZiel` nimmt den Pfad ohne Query, die Query abzuschneiden ist Sache des Aufrufers (der Record-Dienst übergibt den Pfad ohne Query, `TestTextAntwortZiele`) — **Ausgang:** offen; Adresse: Architect (Bestätigung).
 - Ein Geheimnis in einem `$value` unter einem Namen, den kein Muster nennt, steht im Blob (wie im JSON, `SPEC-118` *Ungeprüft*) — **Ausgang:** offen; akzeptiertes Negativ, Folge: der Betreiber nennt den Namen in `REDACT_JSON_PATHS`; der Fänger Z6 weist den Fall „kein Treffer: byte-gleich“ aus.
-- Nebenläufigkeit: Aufnahme-Goroutine des `Tee`, Proxy, Referenzdienst und Client in einem Prozess (Z13, Z15) — **Ausgang:** offen; `make test-race` fährt `tests/` und die Pakete (`SPEC-122` Nr. 2); ein Fänger mit Wahrscheinlichkeit nennt seine Rate je Mutation und je Lauf von `go test` (`AGENTS.md` §3.10).
+- Nebenläufigkeit: Aufnahme-Goroutine des `Tee`, Proxy, Referenzdienst und Client in einem Prozess (Z13, Z15) — **Ausgang:** offen; `make test-race` fährt `tests/` und die Pakete (`SPEC-122` Nr. 2); ein Fänger mit Wahrscheinlichkeit nennt seine Rate je Mutation und je Lauf von `go test` (`AGENTS.md` §3.10). Raten in §3: jede Mutation von Z13 und Z15 war in 30 von 30 Prozessen rot, die Basis in 0 von 30; der Wirkungs-Fänger von Z13 (`TestTeeTextGleichzeitig` prüft den Inhalt jedes Blobs) fängt den gemeinsamen Zustand auch ohne Detektor.
 - Die Ziele werden an der Aufrufstelle des Record-Dienstes abgeleitet; ein zweiter Aufrufer des Redaktors (Replay, Import) bekäme sie nie — **Ausgang:** offen; Z12 und Z14 fangen beide Seiten (Antwort trägt, Request nie); die Menge der Aufrufstellen ist Schleife (`AGENTS.md` §3.15).
 - Größenmarke (§4): gesetzt beim Start, vom Architect vor dem Code neu gesetzt, *S* 1830, *M* 2500 — **Ausgang:** entfallen; der Block steht in §4, `pfad`, `produktcode` und `fakes` sind bestätigt. Offen bleibt der Formelkonflikt `AGENTS.md` §3.14 gegen `SPEC-128` (Entscheidung des Users).
 - Randformen (`AGENTS.md` §3.12, §3.16): Raster *Operation × Argumentart* für `RedigiereBody` (neue Ziele); jede Zelle nennt ihren Ort im Wortlaut der Spezifikation, den der Architect vor dem Code entschieden hat; eine Zelle ohne Ort hält den Implementer an — **Ausgang:** offen. „118/3“ ist `SPEC-118` Nr. 3, „118/11 a“ ihre Nr. 11 Unterpunkt a.

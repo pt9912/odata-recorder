@@ -58,7 +58,7 @@ func pruefeWerte(t *testing.T, name string, eintraege []eintrag) {
 	for _, g := range []capture.Grund{capture.GrundTyp, capture.GrundMismatch, capture.GrundSyntax, capture.GrundUTF8,
 		capture.GrundTiefe, capture.GrundNichtstring, capture.GrundUnvollstaendig, capture.GrundZuGross,
 		capture.GrundEncoding, capture.GrundDekodierung, capture.GrundBombe, capture.GrundUeberlauf, capture.GrundFrist,
-		capture.GrundAusgabeZuGross, capture.GrundAblage, capture.GrundAbbruch} {
+		capture.GrundAusgabeZuGross, capture.GrundAblage, capture.GrundAbbruch, capture.GrundCharset} {
 		gruende = append(gruende, string(g))
 	}
 	erlaubt := map[string]func(string) bool{
