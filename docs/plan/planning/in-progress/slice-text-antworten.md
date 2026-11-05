@@ -127,9 +127,20 @@ Testdaten von Hand: Bytes ab `0x80`, BOM und Folgen mit Escape werden aus Bytewe
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): [slice-m2-referenzdienst](../done/slice-m2-referenzdienst.md) liegt in `done/` (Referenzdienst, M2-Test und `Handle` im Code). Die Spezifikation trägt den Wortlaut vor dem Code (`SPEC-118` Nr. 11, Historie *Text-Antworten*); das Raster in §6 hat für jede Zelle einen Ort (`AGENTS.md` §3.12, §3.16), eine Zelle ohne Ort geht an den Architect. Reihenfolge in der Welle: nach `slice-m2-referenzdienst`, vor [slice-protokolltreue](../open/slice-protokolltreue.md) (Reihenfolge, kein Code-Blocker). Der Planner setzt beim Start die Marke neu nach `SPEC-128` Nr. 1 aus der dann geltenden Tabelle, trägt `basis`, `schaetzung` und `marke` ein, und der Architect setzt `pfad`, `produktcode` und `fakes` im Block (`SPEC-128` Nr. 3 k).
+**Start** (`next` → `in-progress`): [slice-m2-referenzdienst](../done/slice-m2-referenzdienst.md) liegt in `done/` (Referenzdienst, M2-Test und `Handle` im Code). Die Spezifikation trägt den Wortlaut vor dem Code (`SPEC-118` Nr. 11, Historie *Text-Antworten*); das Raster in §6 hat für jede Zelle einen Ort (`AGENTS.md` §3.12, §3.16), eine Zelle ohne Ort geht an den Architect. Reihenfolge in der Welle: nach `slice-m2-referenzdienst`, vor [slice-protokolltreue](../open/slice-protokolltreue.md) (Reihenfolge, kein Code-Blocker). Der Planner hat beim Start die Marke nach `SPEC-128` Nr. 1 aus der Tabelle gesetzt (`basis`, `schaetzung`, `marke` im Block unten); der Architect bestätigt `pfad`, `produktcode` und `fakes` im Block (`SPEC-128` Nr. 3 k).
 
-**Größenmarke** (`AGENTS.md` §3.14, `SPEC-128`), **Entwurf** des Planner vom 2026-11-01, kein gesetzter Wert: die Metrik ist die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3 (`src/hexagon/model/`, `src/hexagon/services/record/`, `tests/integration/`), Tests eingeschlossen; Text der Spezifikation zählt nicht mit. Zählung nach der Tabelle in §3: *a* = 2 nebenläufige (Z13, Z15) und *b* = 14 andere Zeilen, *f* = 1 (der Referenzdienst als Test-Server; der Fake des `Tee` besteht in den Tests des Record-Dienstes), *p* = 150 (Produktcode nach der Erwartung des Architect: Prüfer, `TextZiel`, Zeichensatz-Parser). Schätzung S = 85·2 + 80·14 + 200·1 + 150 = **1640**, Marke M = 100 · ⌈135·1640 / 10000⌉ = **2300** (135·1640 = 221400); keine Schnittfrage (S liegt 583 unter 2223). Die Grobschätzung 1100 des Architect entstand in der alten Metrik (Zeile × 40 und × 1,25) und gilt nicht mehr; die Marke ist 2300, bis der Planner sie beim Start aus der dann geltenden Tabelle neu setzt.
+**Größenmarke** (`AGENTS.md` §3.14, `SPEC-128`), vom Planner gesetzt beim Start am 2026-11-05, vor dem ersten Code-Commit (Messung 0): die Metrik ist die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3 (`src/hexagon/model/`, `src/hexagon/services/record/`, `tests/integration/`), Tests eingeschlossen; Text der Spezifikation zählt nicht mit. Zählung nach der Tabelle in §3: *a* = 2 nebenläufige (Z13, Z15) und *b* = 14 andere Zeilen, *f* = 1 (der Referenzdienst als Test-Server; der Fake des `Tee` besteht in den Tests des Record-Dienstes), *p* = 150 (Produktcode nach der Erwartung des Architect: Prüfer, `TextZiel`, Zeichensatz-Parser). Schätzung S = 85·2 + 80·14 + 200·1 + 150 = **1640**, Marke M = 100 · ⌈135·1640 / 10000⌉ = **2300** (135·1640 = 221400); keine Schnittfrage (S liegt 583 unter 2223). Der Block trägt die Fassung von `SPEC-128` Nr. 1, die `make groessenmarke` verlangt. Die Formel von `AGENTS.md` §3.14 (85 und 40 je Zeile, 200 je Test-Server, Produktcode nur bei einem Leser fremder Bytes, × 1,25) ergäbe 85·2 + 40·14 + 200·1 = 930, × 1,25 = 1162,5, Marke 1200 (mit *p* = 150: 1080, Marke 1400); der Konflikt beider Fassungen ist eine offene Entscheidung des Users, nicht des Planner. Die Grobschätzung 1100 des Architect entstand in der alten Metrik und gilt nicht mehr. *pfad*, *produktcode* und *fakes* übernimmt der Block aus dem Entwurf von §3 und §4; der Architect bestätigt oder setzt sie neu (`SPEC-128` Nr. 3 k), die Marke folgt dann der Tabelle (`SPEC-128` Nr. 5 c). Der Block:
+
+```groessenmarke
+pfad: src/hexagon/model/
+pfad: src/hexagon/services/record/
+pfad: tests/integration/
+produktcode: 150
+fakes: 1
+basis: 73e140b99f0ee6ff55adee3f5b39a992fdfebf39
+schaetzung: 1640
+marke: 2300
+```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -155,7 +166,7 @@ dasteht.
 - Ein Geheimnis in einem `$value` unter einem Namen, den kein Muster nennt, steht im Blob (wie im JSON, `SPEC-118` *Ungeprüft*) — **Ausgang:** offen; akzeptiertes Negativ, Folge: der Betreiber nennt den Namen in `REDACT_JSON_PATHS`; der Fänger Z6 weist den Fall „kein Treffer: byte-gleich“ aus.
 - Nebenläufigkeit: Aufnahme-Goroutine des `Tee`, Proxy, Referenzdienst und Client in einem Prozess (Z13, Z15) — **Ausgang:** offen; `make test-race` fährt `tests/` und die Pakete (`SPEC-122` Nr. 2); ein Fänger mit Wahrscheinlichkeit nennt seine Rate je Mutation und je Lauf von `go test` (`AGENTS.md` §3.10).
 - Die Ziele werden an der Aufrufstelle des Record-Dienstes abgeleitet; ein zweiter Aufrufer des Redaktors (Replay, Import) bekäme sie nie — **Ausgang:** offen; Z12 und Z14 fangen beide Seiten (Antwort trägt, Request nie); die Menge der Aufrufstellen ist Schleife (`AGENTS.md` §3.15).
-- Größenmarke als Entwurf — **Ausgang:** offen; der Planner setzt sie beim Start neu (§4).
+- Größenmarke (§4): gesetzt beim Start, *S* 1640, *M* 2300 — **Ausgang:** entfallen; der Block steht in §4. Offen bleibt der Formelkonflikt `AGENTS.md` §3.14 gegen `SPEC-128` (Entscheidung des Users), und der Architect bestätigt `produktcode` und `fakes`.
 - Randformen (`AGENTS.md` §3.12, §3.16): Raster *Operation × Argumentart* für `RedigiereBody` (neue Ziele); jede Zelle nennt ihren Ort im Wortlaut der Spezifikation, den der Architect vor dem Code entschieden hat; eine Zelle ohne Ort hält den Implementer an — **Ausgang:** offen. „118/3“ ist `SPEC-118` Nr. 3, „118/11 a“ ihre Nr. 11 Unterpunkt a.
 
 | Argumentart | `Zaehlung` | `Wert` |
