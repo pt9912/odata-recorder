@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-record-replay](../welle-record-replay.md).
+**Welle:** [welle-record-replay](welle-record-replay.md).
 
 **Bezug:** `LH-FA-02`, `LH-FA-03`, `LH-FA-13`, `LH-RB-04`, `LH-QA-03` (nebenläufige Tests), [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md), [ADR-0007](../../adr/0007-race-detektor-im-gate.md) (das Gate fährt `make test-race`), [ADR-0008](../../adr/0008-blob-bereinigung-im-betrieb-waechter-und-zurueckstellen.md) (Status `Accepted` seit 2026-10-23: Wächter und Zurückstellen der Bereinigung im Betrieb, Karenz fest zehn Minuten)
 

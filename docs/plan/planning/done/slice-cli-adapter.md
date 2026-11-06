@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-record-replay](../welle-record-replay.md).
+**Welle:** [welle-record-replay](welle-record-replay.md).
 
 **Bezug:** `LH-FA-02`, `LH-RB-03`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0007](../../adr/0007-race-detektor-im-gate.md)
 
@@ -37,8 +37,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Kommandos über Start und Version hinaus — entfallen (Entscheidung des Users, 2026-10-30, [welle-record-replay](../welle-record-replay.md) §6): `LH-FA-13` verlangt eine Verwaltungsschnittstelle, keine Kommandos, und die Spezifikation nennt keine Kommandozeilen-Optionen (`SPEC-110`).
-- Hilfetext und Optionen (`--help`, `-h`, `--version`) — entfallen (Entscheidung des Users, 2026-10-30, [welle-record-replay](../welle-record-replay.md) §6; `SPEC-110`: keine Kommandozeilen-Optionen); `--help` ist ein Aufrufverstoß mit Exit-Code 2 (`SPEC-138` Nr. 4).
+- Kommandos über Start und Version hinaus — entfallen (Entscheidung des Users, 2026-10-30, [welle-record-replay](welle-record-replay.md) §6): `LH-FA-13` verlangt eine Verwaltungsschnittstelle, keine Kommandos, und die Spezifikation nennt keine Kommandozeilen-Optionen (`SPEC-110`).
+- Hilfetext und Optionen (`--help`, `-h`, `--version`) — entfallen (Entscheidung des Users, 2026-10-30, [welle-record-replay](welle-record-replay.md) §6; `SPEC-110`: keine Kommandozeilen-Optionen); `--help` ist ein Aufrufverstoß mit Exit-Code 2 (`SPEC-138` Nr. 4).
 - Listener öffnen und schließen, 503 während des Herunterfahrens — `slice-http-adapter` (zwei getrennte Schritte); dieser Slice liefert nur den Auslöser.
 - Verdrahtung von Konfiguration, Diensten und `CloseAll` — `slice-bootstrap-m2`; der Adapter kennt weder Dienste noch Listener (`architecture.md` §2: Driving Adapter importieren nur Modell und Ports).
 - Der Admin-Listener — `slice-admin-listener-token` ([welle-admin-api](../welle-admin-api.md)).
