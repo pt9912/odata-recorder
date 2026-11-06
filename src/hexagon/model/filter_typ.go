@@ -5,9 +5,9 @@ import "strconv"
 // knotenTyp ist der Typ eines Knotens des Filter-AST (SPEC-167 Nr. 2): seine Klasse; für eine FilterEigenschaft
 // zusätzlich der EDM-Typ, für ein LiteralZahl der Text.
 type knotenTyp struct {
-	klasse    wertKlasse
-	edmTyp    string
-	zahlText  string
+	klasse      wertKlasse
+	edmTyp      string
+	zahlText    string
 	zahlLiteral bool
 }
 

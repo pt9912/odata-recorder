@@ -534,9 +534,9 @@ func TestMaskeAufrufe(t *testing.T) {
 	offen.Open = true
 	geschlossen := typMit(model.Property{Name: "Bin", EdmType: "Edm.Binary"})
 	for _, c := range []struct {
-		name   string
-		typ    model.EntityType
-		baum   model.FilterAusdruck
+		name    string
+		typ     model.EntityType
+		baum    model.FilterAusdruck
 		erlaubt func(string) bool
 		ursache model.FilterTypUrsache
 		gefragt []string
