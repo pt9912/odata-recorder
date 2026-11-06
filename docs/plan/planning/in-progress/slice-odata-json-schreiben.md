@@ -83,12 +83,12 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/model/schreiben.go` (+ `schreiben_test.go`) | neu | `Darstellung`, `Kopfzeile`, `EntityAntwort`, `CollectionAntwort` (`SPEC-168`) |
+| `src/hexagon/model/schreiben.go` | neu | `Darstellung`, `Kopfzeile`, `EntityAntwort`, `CollectionAntwort` (`SPEC-168`); ohne `schreiben_test.go`: vier Typen ohne Verhalten, jeder Test des Pakets `jsoncodec` führt sie (Abweichung vom Entwurf, Block unverändert) |
 | `src/hexagon/ports/outbound/odata_schreiber.go` | neu | Schnittstelle `ODataSchreiber` der Codec-Gruppe |
 | `src/hexagon/ports/outbound/codec_satz.go` | update | Feld `Schreiber` im `CodecSatz` (`SPEC-175` Nr. 3) |
-| `src/adapters/driven/odata/jsoncodec/` | update | `Schreiber` in neuen Dateien neben dem Leser; der Leser bleibt unberührt |
+| `src/adapters/driven/odata/jsoncodec/` | update | `Schreiber` in neuen Dateien neben dem Leser: `schreiber.go` (Vertrag, vier Operationen, Ablauf), `schreiber_bau.go` (Sicht, Entity, Collection), `schreiber_kanon.go` (Art gegen Typ, kanonischer Text), `schreiber_adresse.go` (Wurzel, Kodierung), `schreiber_accept.go` (Aushandlung), `schreiber_ausgabe.go` (Escape); der Leser bleibt unberührt, seine Hilfen `datumTeile`, `ziffernWert`, `ziffer`, `hexWert` und `maxBruchteil` werden gerufen |
 | `spec/spezifikation.md`, `spec/architecture.md` | update | Vertrag mit Randformen (Architect, erledigt: `SPEC-168`, `SPEC-169`, Verweise) |
-| Tests | neu | die Zeilen der Tabelle unten, Round-trip gegen `ODataCodec` |
+| Tests (`schreiber_*_test.go` im Paket `jsoncodec`, extern) | neu | die Zeilen der Tabelle unten, Round-trip gegen `ODataCodec`; `schreiber_helfer_test.go` trägt die Fakes von `dst` und `ctx` und das Modell |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stehen unten **vor** dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen hat der Architect entschieden, nicht der Implementer. Hält der Implementer an einer Zelle ohne Ort an, geht sie an den Architect, und §6 trägt sie im selben Commit mit Ausgang *offen* (`AGENTS.md` §3.13).
 
@@ -169,6 +169,77 @@ Elemente der Mengen (zweite Tabelle; *Menge · Achsen mit Elementzahl · eine Mu
 | Zeilen 1 bis 4, Zustände | **Operation** 4; **ctx** 5 (nil, aktiv, abgebrochen, Frist abgelaufen, abgebrochen mit Ursache); **dst** 4 (nil, gut, Fehler, kurz) | **ctx:** `DeadlineExceeded` als `Canceled` gemeldet; **dst:** der erste Aufruf von `Write` mit Fehler wiederholt |
 | Zeile 27, Escapes | **Zeichen** 41; **Stelle** 5 | **Zeichen:** U+001F nicht escaped (Grenze 0x1F gegen 0x20); **Stelle:** der Name der Property nicht escaped |
 
+**Ergebnis des Implementers: Zusage · Mutation · roter Test** (`AGENTS.md` §3.10, §3.15, §3.17; 2026-11-06). Messender ist `tools/harness/mutationslauf.sh` (`SPEC-210`; Image `odata-recorder:race`, `--memory 2g`, `--cpus 4`, ein Container je Liste, unter `flock`); die Listen (je Mutation Datei, Text vor und nach, Test, Klasse) liegen im Scratchpad des Implementers und nicht im Repo. **182 Läufe der Klasse `andere`** (181 verschiedene Mutationen, eine in zwei Listen): alle `rot`, keiner `rot-paket`, `gruen` oder Übersetzungsfehler im letzten Lauf; der zuständige Test ist der rote (kein Rot aus dem Aufbau: die ersten Läufe nannten 4 Übersetzungsfehler (Fehler der Mutation, nicht des Codes), ein `rot-paket` und ein `gruen`, siehe *Lücken, die der Lauf fand*). Die Namen sind die der Liste (`zNN-…` mit der Zeile der Tabelle).
+
+| Zeile | Mutationen (Name ohne `zNN-`) | roter Test |
+|---|---|---|
+| 1 | `dst-nil`, `ctx-nil` | `TestSchreibeNilArgumente` |
+| 2 | `ctx-vor-args-entity`, `-collection`, `-anzahl` | `TestArgumentVorKontext` |
+| 3 | `cause` (`context.Cause` statt `ctx.Err()`), `verpackt` | `TestKontextBeendet` |
+| 4 | `err-zweimal`, `err-nach-write`, `done`, `deadline` | `TestKontextEinmalVorWrite` |
+| 5 | `version-nur-2`, `version-entfaellt`, `adresse-ohne-modell` | `TestModellVersion`, `TestSetUngueltig` |
+| 6 | `set-schreibweise`, `set-ohne-typ`, `set-leer-im-modell` | `TestSetUngueltig` |
+| 7 | `ring-ohne-zaehler`, `abstract`, `nur-erstes-element`, `mittleres-element-uebersprungen`, `odata-type-immer` | `TestEntityTyp` |
+| 8 | `nul-nur-anfang`, `laengengrenze`, `utf8-nicht-geprueft` | `TestSchluessel` |
+| 9 | `duplikat-nur-gleicher-wert`, `duplikat-nur-benachbart`, `name-schreibweise` | `TestPropertyNamen` |
+| 10 | `date-dto-vertauscht`, `null-bei-nicht-nullbar`, `null-mit-text`, `redigiert-als-null`, `typ-nicht-verglichen` | `TestArtGegenTyp` |
+| 11 | 24 Mutationen `z11-…`: `minus-null-int32`, `int-bereich`, `int-rechts-nicht-geprueft`, `fuehrende-null`, `dezimal-grenze-gleich`, `dezimal-grenze-plus-eins`, `dezimal-null-am-ende`, `dezimal-punkt-ohne-bruch`, `dezimal-exponent`, `dezimal-minus-null`, `boolean-gross`, `guid-grossbuchstaben`, `guid-nur-anfang`, `guid-laenge-37`, `guid-bindestrich-verschoben`, `guid-ausgabe-gross`, `datum-jahrhundert`, `dto-stunde-24`, `dto-minute-60`, `dto-sekunde-60`, `dto-bruchteil-13`, `dto-bruchteil-null`, `dto-klein-t`, `dto-nur-erste-property` | `TestTextKanonisch` |
+| 12 | `auswahl-nur-erstes-element`, `auswahl-bei-none-entity`, `auswahl-bei-none-collection` | `TestAuswahl` |
+| 13 | `anzahl-groesser-null`, `wert-bei-nicht-vorhanden`, `n-groesser-null` | `TestAnzahlGrenzen` |
+| 14 | `nur-code`, `message-nicht-verglichen`, `target-nicht-verglichen` | `TestFehlerobjektTabelle` |
+| 15 | `teilausgabe` | `TestNichtsBeiVerstoss` |
+| 16 | `bloecke`, `writestring`, `close`, `readfrom` | `TestEinWrite` |
+| 17 | `kurz-ignoriert`, `kurz-nur-null`, `fehler-verpackt` | `TestDstFehler` |
+| 18 | `charset`, `ieee-immer`, `version-401`, `anzahl-contenttype`, `fehler-contenttype` | `TestDarstellungskopf` |
+| 19 | 13 Mutationen `z19-…` (`tilde-kodiert`, `plus-roh`, `prozent-roh`, `komma-kodiert`, `apostroph-kodiert`, `gleich-kodiert`, `hex-klein-niedrig`, `hex-klein-hoch`, `nibble-gleich`, `007f-roh`, `folgebytes-roh`, `set-roh`, `schluessel-roh`) | `TestAdresseKodierung` |
+| 20 | `kontext-kodiert`, `id-eigener-kodierer` | `TestAdresseGleich` |
+| 21 | 18 Mutationen `z21-…` (`ftp`, `schema-gross`, `laenge-2049`, `laenge-2047`, `leeres-segment`, `dekodiert-nicht-geprueft`, `nur-ein-punkt`, `userinfo`, `fragezeichen`, `host-umlaut`, `port-ohne-ziffern`, `port-sechs`, `ipv6-g`, `ipv6-leer`, `nul`, `nur-erstes-segment`, `adresse-prueft-nicht`, `collection-ohne-entities`) | `TestWurzel` |
+| 22 | 18 Mutationen `z22-…` (`letzter-bereich`, `application-stern`, `medientyp-schreibweise`, `tab-nicht-entfernt`, `rechts-nicht-entfernt`, `links-nicht-entfernt`, `name-meta-schreibweise`, `name-ieee-schreibweise`, `wert-none-schreibweise`, `wert-true-gemischt`, `wert-eins`, `doppelt-meta-letztes`, `doppelt-ieee-letztes`, `name-prefix`, `wert-none-prefix`, `wert-true-suffix`, `nur-erste-kopfzeile`, `letzte-kopfzeile-zuerst`) | `TestAushandlung` |
+| 23 | `int32-string`, `float64`, `count-immer-zahl`, `decimal-immer-zahl`, `negative-nicht-quoted` | `TestZahlform` |
+| 24 | `leerzeichen`, `entity-suffix`, `none-kontext`, `none-id`, `odata-type-immer` | `TestEntityBytes` |
+| 25 | `value-null`, `count-bei-nicht-vorhanden`, `ohne-komma`, `none-ohne-count`, `none-kontext` | `TestCollectionBytes` |
+| 26 | `uebergabe-reihenfolge` (Klasse `andere`); `map-iteration` (Klasse nebenläufig, Rate unten) | `TestPropertyReihenfolge` |
+| 27 | 13 Mutationen `z27-…` (`kurzform-n`, `slash`, `007f`, `hex-gross`, `grenze-1f`, `grenze-20`, `2028`, `name-nicht-escaped`, `typ-nicht-escaped`, `kontext-nicht-escaped`, `anfuehrungszeichen`, `backslash`, `utf8-ungeprueft`), dazu 4 `z27u-…` (`name-roh`, `typ-roh`, `kontext-roh-entity`, `kontext-roh-collection`) | `TestEscapes`, `TestUngueltigesUTF8AnVierStellen` |
+| 28 | `uebersprungen-als-null`, `fehlende-als-null` | `TestNichtGenannt` |
+| 29 | `message-name`, `target-fehlt` | `TestFehlerBytes` |
+| 30 | `zeilenende` | `TestAnzahlBytes` |
+| 31 | `int64-float64` (und `z11-guid-ausgabe-gross`) | `TestRundlauf` (`TestTextKanonisch`) |
+| 32 | `auswahl-komma-leerzeichen`, `auswahl-ohne-klammer`, `collection-entity-suffix` | `TestRundlaufAuswahl` |
+| 33 | `none-kontext`, `none-count` | `TestStufeNone` |
+| 34 | `cache` (Darstellung nach `Content-Type` gemerkt) | `TestWiederholung` |
+| 35 | `auswahl-sortiert`, `properties-sortiert`, `accept-geschrieben`, `uebersprungen-geschrieben`, `entities-geschrieben` | `TestArgumenteUnveraendert` |
+| 36, 37 | `z36-puffer-geteilt` und 90 Zähler (Rate unten) | `TestGleichzeitig` |
+| 38 | `import-v2` (ein Import von `jsoncodecv2`): `rot` | `TestKeinPaketImportiertEineAndereVersion` |
+| 39 | benannte Ausgabe: `git diff --stat 17528be..HEAD -- src/bootstrap src/adapters/driving` ist leer (geprüft am letzten Commit des Implementers) | – |
+| 40 bis 42 | akzeptierte Negative, keine Mutation | – |
+
+Zeile 38, erster Halbsatz (eine Methode entfernt): das ist ein Übersetzungsfehler von `var _ outbound.ODataSchreiber = (*Schreiber)(nil)` im Testpaket und kein Rot des Werkzeugs; das Werkzeug zählt ihn nirgends als rot (`SPEC-210` Nr. 5 d), der Beleg ist die Übersetzung selbst.
+
+**Nebenläufige Zeilen (36, 37) und Zeile 26: Rate mit Zahl, Last und Messendem.** Messender wie oben; die Prozesse eines Arms laufen höchstens vier zugleich, jeder mit `-test.count=1`; der Detektor ist `-race` (cgo, Image `odata-recorder:race`). Last des Hosts (`/proc/loadavg`, erster Wert) zu Beginn der Mutationen 3,75 bis 23,5 bei 4 CPUs des Containers (andere Rollen liefen zugleich).
+
+| Zusage · Mutation | Klasse | Prozesse (Messender) | mit Detektor | ohne Detektor |
+|---|---|---|---|---|
+| 36: ein Puffer als Variable des Pakets, den alle Aufrufe überschreiben (`z36-puffer-geteilt`) | nebenläufig | 20 mit, 50 ohne | 20 von 20 rot | **50 von 50 rot** (der Wirkungs-Fänger zählt abweichende Ausgaben, `TestGleichzeitig`) |
+| 37: ein Zähler als Variable des Pakets, in **jeder Funktion** (47 Funktionen des Schreibers einschließlich der Einzeiler und der, die den Schreiber liefert) und **in jedem Zweig, den ein Lauf ausführt** (43 Zweige: jede Zeile `ungueltig(…)`, `ctx.Err()`, `Write`-Fehler, kurzer `Write`, UTF-8, Port, IPv6, Prozent, Typ im Cache, Stern der Auswahl, jeder `case` von `wert`, jeder `case` der Aushandlung); 90 Mutationen (44 + 3 `zf-…` und 43 `zz-…`) | nebenläufig | 20 je Mutation | **20 von 20 rot, in 89 von 90 Mutationen**; die 90. (`zz-utf8`, der Zweig des Escape für ungültiges UTF-8) war im ersten Lauf `gruen` (0 von 20): kein Lauf erreichte den Zweig, denn die Prüfung des Wertes kommt vor dem Escape. Der Fall steht jetzt in `TestGleichzeitig` (Namen des Modells mit ungültigem UTF-8 an vier Stellen); Wiederholung auf dem letzten Stand: 20 von 20 | – (der Zähler ändert keine Ausgabe, der Arm entfällt) |
+| 26: Iteration über eine `map` statt der Reihenfolge des Modells (`z26-map-iteration`) | nebenläufig | 50 ohne | – (kein Arm, kein Rennen) | **50 von 50 rot** je Prozess (`TestPropertyReihenfolge`, 24 Anordnungen × 5 Aufrufe × 2 Typen je Prozess) |
+
+Auf dem letzten Stand des Tests liefen nach der Ergänzung nur 13 der 92 Mutationen noch einmal (`z36-puffer-geteilt`, `z26-map-iteration`, `zz-utf8`, sieben Zähler an `ausgeben`, `text`, `entity`, `kanonDezimal`, `aushandeln`, einer Zeile `ungueltig(Wurzel)`, einer Zeile `ungueltig(Code)`, dazu drei Zähler in `NewSchreiber`, `kanonUhrzeit` und `kanonBruchteil`, die erst die Teilung von `kanonZeitpunkt` nach dem Lint hinzufügte): alle rot, jede 20 von 20 beziehungsweise 50 von 50. Die übrigen 79 hat der Test davor gemessen (er rief weniger Aufrufe); ein Rot kann durch zusätzliche Aufrufe nicht grün werden, die Zahlen sind für sie der Stand vor der Ergänzung. Die Zähler brauchen eine Variable im Paket, die der Schreiber nicht hat: der Lauf legte dafür eine Testdatei export_test.go mit einer Variablen `Zaehler` an und entfernte sie danach; sie ist nicht im Repo.
+
+**Pflicht-Mengen** (zweite Tabelle, `AGENTS.md` §3.17): jede Allaussage ist eine Schleife über alle Elemente der Klasse mit Zählprüfung im Test (`t.Errorf` bei falscher Zahl) und je Achse mindestens einer Mutation, die der Plan oben nicht nannte.
+
+| Menge | Zählprüfung (Test) | Achse · Mutation, im Plan nicht genannt (alle `rot`) |
+|---|---|---|
+| Zeile 11, Text je Art (33 gültig, 107 ungültig, 560 Zellen) | `TestTextKanonisch` zählt 33, 107, 560 | Zeichen `boolean-gross`; Länge `dezimal-grenze-plus-eins`; Folge `guid-bindestrich-verschoben`; Seite `int-rechts-nicht-geprueft`; Stelle `dto-nur-erste-property`; Zustand `null-mit-text` |
+| Zeile 21, `Wurzel` (11 gültig, 44 ungültig, 165 Zellen) | `TestWurzel` zählt 11, 44, 165 | Zeichen `fragezeichen`; Länge `laenge-2049`; Folge `nur-ein-punkt`; Seite `schema-gross`; Stelle `nur-erstes-segment`; Zustand `collection-ohne-entities` |
+| Zeile 19, 130 Zeichen der Adresse (260 Zellen) | `TestAdresseKodierung` zählt 130 und 260 | Zeichen `apostroph-kodiert`; Länge `folgebytes-roh`; Folge `nibble-gleich`; Seite `hex-klein-hoch`; Stelle `set-roh` |
+| Zeile 22, Aushandlung (88 Zellen) | `TestAushandlung` zählt 88 | Zeichen `wert-true-gemischt`; Länge `name-prefix`; Folge `letzte-kopfzeile-zuerst`; Seite `rechts-nicht-entfernt`; Stelle `nur-erste-kopfzeile`; Zustand `doppelt-meta-letztes` |
+| Zeile 27, Escapes (58 Zellen) | `TestEscapes` zählt 58 | Zeichen `grenze-20`; Folge `kurzform-n`; Seite `anfuehrungszeichen`; Stelle `typ-roh` (`TestUngueltigesUTF8AnVierStellen`); Zustand `utf8-ungeprueft` |
+| Zeilen 1 bis 4, Zustände | `TestSchreibeNilArgumente` 8, `TestArgumentVorKontext` 8, `TestKontextBeendet` 12, `TestKontextEinmalVorWrite` 8 | ctx: `cause`, `deadline`; Operation: `ctx-vor-args-anzahl`; dst: `kurz-nur-null` |
+| Zeilen 7 bis 9 und 11, Stellen | `TestEntityTyp` 44, `TestSchluessel` 32, `TestPropertyNamen` 48 Zellen | Stelle: `mittleres-element-uebersprungen`, `nur-erstes-element` |
+| Zeile 10, Art gegen Typ | `TestArtGegenTyp` zählt 16 gültig, 96 ungültig | Typ: `date-dto-vertauscht`; Nullbarkeit: `null-bei-nicht-nullbar`; Zustand: `redigiert-als-null` |
+
+**Lücken, die der Lauf fand** (alle vor der Übergabe geschlossen): (1) `z27-grenze-20` (U+0020 als Escape) blieb in `TestEscapes` grün — das Leerzeichen als Grenze fehlte in der Klasse; es steht jetzt dort (58 statt 57 Zellen). (2) `z27-utf8-ungeprueft` blieb grün — ungültiges UTF-8 in einem Namen des Modells erreicht den Escape nur über Property, Set, Typ und Auswahl; `TestUngueltigesUTF8AnVierStellen` führt vier Formen an vier Stellen und beiden Operationen (32 Zellen). (3) `zz-utf8` (oben). (4) `z06-set-leer-im-modell`: die Prüfung `Set` nicht leer war gegenüber der Suche im Modell nicht unterscheidbar, solange das Modell kein Set mit leerem Namen hat; `TestSetUngueltig` führt ein Modell mit einem Set `""` (21 statt 18 Zellen). (5) `TestZahlform` führte nur positive Werte; `negative-nicht-quoted` fand die Lücke (jetzt 26 statt 14 Zellen, drei negative Werte). Dazu zwei Elemente mehr in der Klasse von Zeile 22 (`True`, zwei Kopfzeilen mit `application/json`, Namen und Werte mit Zusatz). **Gleichwertig, nicht fangbar:** die Prüfung `Unterstuetzt()` in `entity` (`Edm.Binary` ist keine Art von `SPEC-169` Nr. 4, die Paarung von Art und Typ lehnt jede Property nicht unterstützten Typs ohnehin ab; die Prüfung bleibt, weil `SPEC-168` Nr. 3 c sie nennt).
+
 Zusatztabelle der Paare und Modi: unter dem Raster in §6.
 
 ## 4. Trigger
@@ -221,10 +292,11 @@ dasteht.
 
 - Aushandlung des JSON-Metadatenlevels (`Accept`, `odata.metadata`, `$format`): `LH-FA-07.b` sagt „folgen dem ausgehandelten Metadatenlevel“, ohne die Aushandlung zu regeln — **Ausgang:** entfallen als Lücke des Plans: `SPEC-169` Nr. 3 entscheidet (Stufen `minimal` und `none`, `full` als `minimal`, kein `406`, `$format` ohne Wirkung); Fänger Zeilen 22, 24, 25, 33.
 - Darstellung von `Edm.Int64` und `Edm.Decimal` im JSON (Zahl oder Zeichenkette) und die Gegenprobe über den Leser — **Ausgang:** entfallen als Lücke des Plans: `SPEC-169` Nr. 3 und 4 entscheiden (Zeichenkette genau bei `IEEE754Compatible=true`, sonst Zahl); Fänger Zeilen 23 und 31 (Round-trip über alle acht Typen in beiden Formen).
-- Zeichen jenseits von ASCII und Escape-Folgen in den Fixtures — **Ausgang:** offen; Fixtures aus Bytewerten, Datei auf Rohbytes gegengelesen (`AGENTS.md` §3.18).
+- Zeichen jenseits von ASCII und Escape-Folgen in den Fixtures — **Ausgang:** entfallen: jeder Wert mit Sonderbytes entsteht in den Tests aus Bytewerten (`"\xc3\xa9"`, `"\xff"`, `esc("001f")` aus `bs` und Hex-Ziffern, Raw-Strings); gegengelesen sind alle `schreiber_*_test.go` des Pakets `jsoncodec` mit `LC_ALL=C grep -nP '\\u[0-9a-fA-F]{4}'` (kein Treffer) und `LC_ALL=C grep -nP '[\x80-\xff]'` (Treffer nur in Meldungen und Namen der Fälle, nie in einem Wert, der geprüft wird).
 - Die Quelle von `Wurzel` im Mock: der Schreiber prüft nur die Form (`SPEC-169` Nr. 2); dass `Wurzel` aus `PUBLIC_BASE_URL` und dem Service-Root entsteht und nie aus dem `Host`-Header, sichert der Aufrufer (`SPEC-168` Nr. 10) — **Ausgang:** offen; Adresse: Planner (Zuweisung an die Dienste von Teil 2 der Welle; kein Fänger in diesem Slice).
 - Sendungen an die Dienste von Teil 2 (`AGENTS.md` §3.13): (a) der Mock trägt `Codecs *outbound.CodecSatz`, ruft `URL` und `Schreiber`, setzt `Content-Type`, `Kennzeichen` und `Location` aus der `Darstellung` bzw. `Adresse` (`SPEC-168` Nr. 7, 8, 10); (b) die Verdrahtung `CodecSatz{Schreiber: jsoncodec.NewSchreiber()}` im Composition Root; (c) der V2-Schreiber erfüllt `SPEC-168` (Nr. 1 bis 9) mit dem Format von `SPEC-172` Nr. 6. Der Planner hat §1 *Ausdrücklich NICHT* und DoD der Nehmer in `open/` auf `main` gelesen (2026-11-06): kein Ausschluss trifft eine der Sendungen, alle Nehmer liegen in `open/`. Zeile (a) teilt sich: `Codecs`, `URL`, `Schreiber`, `Content-Type` und `Kennzeichen` gehören `slice-mock-lesen` (dessen „Übernimmt“ trägt `Codecs *outbound.CodecSatz` schon, nennt aber weder `SPEC-168` Nr. 10 noch die `Darstellung`), `Location` aus `Adresse` gehört `slice-mock-schreiben` (Ziel und DoD nennen `201` mit `Location`; es hat kein „Übernimmt“ zu `Codecs` und `Adresse`). Zeile (b) trägt `slice-bootstrap-m3` („Übernimmt“: der Root baut den Satz der Version 4 mit dem Schreiber der Version 4), ohne den Namen `jsoncodec.NewSchreiber()` und `SPEC-168`. Zeile (c): `slice-v2-payload-schreiben` hängt in seiner Code-Abhängigkeit an diesem Slice und trägt die Nummer des Vertrags erst nach dem Eintrag des Architect (sein Raster). Die Nachträge schreibt der Planner auf `main` im Commit des Starts des jeweiligen Nehmers (`welle-mock.md` §4, die Pläne in `open/` bleiben bis dahin unverändert) — **Ausgang:** offen; Adresse: Planner, Nachträge: `slice-mock-lesen` „Übernimmt“ um `SPEC-168` Nr. 7 und 10 (`Darstellung`, Satz) ergänzen; `slice-mock-schreiben` neues „Übernimmt“ für `Adresse` und `Location` (`SPEC-168` Nr. 8) samt DoD-Zeile; `slice-bootstrap-m3` „Übernimmt“ um `jsoncodec.NewSchreiber()` (`SPEC-168`) ergänzen.
-- Pfade des Blocks, die Linie A oder andere Zweige ebenfalls berühren (`src/hexagon/ports/outbound/codec_satz.go`): `git merge main` brächte deren Änderungen in die Messung (`SPEC-128` Nr. 10 g) — **Ausgang:** weiter offen; der Planner und der Implementer nennen Fremdzeilen beim Handoff.
+- Pfade des Blocks, die Linie A oder andere Zweige ebenfalls berühren (`src/hexagon/ports/outbound/codec_satz.go`): `git merge main` brächte deren Änderungen in die Messung (`SPEC-128` Nr. 10 g) — **Ausgang:** entfallen: der Merge von `main` vor dem ersten Code-Commit (`4f3043e`) brachte keine Zeile in die Pfade des Blocks; `git diff --numstat 17528be..HEAD` über die Pfade des Blocks zählt allein Zeilen dieses Slice (`codec_satz.go`: 2 Einfügungen, das Feld `Schreiber`).
+- Zeile 33 und `SPEC-169` Nr. 8: „der Leser lehnt den Body der Stufe `none` mit `kontext`, Ort `/@odata.context` ab“ gilt für eine Entity, deren Properties alle zum Typ des Sets gehören. Hat die Entity den abgeleiteten Typ und eine Property nur dieses Typs, schreibt die Stufe `none` kein `@odata.type`, und der Leser meldet die Property als `unbekannte_property` (Ort `/Extra`), weil er die Mitglieder in der Reihenfolge des Dokuments prüft und den fehlenden Kontext erst am Ende — die Ablehnung bleibt, nur der Grund ist ein anderer. Der Test `TestStufeNone` führt den abgeleiteten Typ deshalb mit Properties des Typs des Sets; der Code entscheidet nichts — **Ausgang:** offen; Adresse: Architect (Zeile 33 und `SPEC-169` Nr. 8 um „oder `unbekannte_property`, wenn die Entity eine Property nur des abgeleiteten Typs trägt“ präzisieren; die Stufe `none` ist kein Gegenstand des Rundlaufs).
 - Gate-Kette (Bedingung aus §4) — **Ausgang:** entfallen: keine Datei der Gate-Kette ist zu ändern (geprüft, §3 Entscheidung 9).
 - Handbuch-Pflicht und Katalog des Binary — **Ausgang:** entfallen: kein neuer Fehlercode, Schlüssel oder Kommando, das Binary ändert sich nicht (§3 Entscheidung 8).
 - Speicher des Aufrufs wächst mit der Ausgabe (genau ein `Write`) — **Ausgang:** entfallen als Lücke: akzeptiert mit Grund und Folge in `SPEC-168` Nr. 6.

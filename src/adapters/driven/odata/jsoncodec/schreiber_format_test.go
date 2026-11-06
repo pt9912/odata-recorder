@@ -342,6 +342,15 @@ func aufruf(i, g int) ergebnis {
 			_, e3 := schreiber().SchreibeCollection(context.Background(), z, testModell(), y)
 			fehler = append(fehler, e3)
 		}
+		// ein Name des Modells, der kein gültiges UTF-8 ist: der Fehler kommt aus dem Escape, nicht aus der Prüfung des Wertes
+		for stelle := range 4 {
+			var zs [4]string
+			zs[stelle] = "\xff"
+			x := model.EntityAntwort{Wurzel: wurzel, Set: "Set" + zs[1], Auswahl: []string{"Nav" + zs[3]},
+				Entity: model.Entity{Typ: "Ns.D" + zs[2], Schluessel: "1", Properties: []model.PropertyWert{pw("Id", model.ArtInt32, "1"), pw("P"+zs[0], model.ArtString, name)}}}
+			_, e := schreiber().SchreibeEntity(context.Background(), z, modellStellen(zs[0], zs[1], zs[2], zs[3]), x)
+			fehler = append(fehler, e)
+		}
 		err = errors.Join(fehler...)
 	case 7: // beendeter Kontext und Fehler von dst
 		abgebrochen, cancel := context.WithCancel(context.Background())
