@@ -18,7 +18,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie
 (Baseline-Regelwerk `grundlagen-referenz-richtung.md`
 §Referenz-Richtung (SDP), `grundlagen-source-precedence.md` §ID-Schema als Klammer).
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-mutationslauf-werkzeug, Worktree /Development/odata-recorder-wt-mutationslauf)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
@@ -42,7 +42,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 Die Größe der Wirkung ist unbekannt; **Messwerte gibt es noch nicht**. Der Slice misst sie vor und nach der Änderung (Closure-Trigger in §5), der Plan setzt keine Zahl voraus.
 
-**Ziel:** Ein Werkzeug (Programm oder Skript, das der Architect wählt) arbeitet eine **Mutationsliste** (je Eintrag: Name, Datei, Ersetzung, zuständiger Test, Klasse `nebenläufig` oder `andere`) in **einem** Container-Lauf mit **gemeinsamem Cache** ab und gibt das Ergebnis je Mutation aus. Es setzt vier Ansatzpunkte des Users um — und nur diese vier: (a) `-run` auf den zuständigen Test statt auf das Paket; (b) das Paket einmal mit `-c` zu einem Test-Binary übersetzen und die Prozesse daraus starten statt je Lauf neu zu übersetzen; (c) ein Cache, den die Rollen gemeinsam nutzen; (d) die Rate (viele Prozesse) nur für die Mutationen der Klasse `nebenläufig`, nicht für jede. Das Werkzeug **entscheidet nicht, welche Mutationen nötig sind**: Die Liste schreibt die Rolle nach `AGENTS.md` §3.10, §3.15 und §3.17.
+**Ziel:** Ein Werkzeug (Programm oder Skript, das der Architect wählt) arbeitet eine **Mutationsliste** (je Eintrag: Name, Datei, Ersetzung, zuständiger Test, Klasse `nebenläufig` oder `andere`) in **einem** Container-Lauf mit **gemeinsamem Cache** ab und gibt das Ergebnis je Mutation aus. Es begrenzt dabei Speicher (`--memory` je Lauf) und räumt Kopien, Binaries und eigene Container auf (Z12, §6). Es setzt vier Ansatzpunkte des Users um — und nur diese vier: (a) `-run` auf den zuständigen Test statt auf das Paket; (b) das Paket einmal mit `-c` zu einem Test-Binary übersetzen und die Prozesse daraus starten statt je Lauf neu zu übersetzen; (c) ein Cache, den die Rollen gemeinsam nutzen; (d) die Rate (viele Prozesse) nur für die Mutationen der Klasse `nebenläufig`, nicht für jede. Das Werkzeug **entscheidet nicht, welche Mutationen nötig sind**: Die Liste schreibt die Rolle nach `AGENTS.md` §3.10, §3.15 und §3.17.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -109,33 +109,36 @@ Der Planner schneidet; der Architect entscheidet (Aufträge unten), der Implemen
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Spalten und Klassen nach [SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md) Nr. 3 e). Die **Zusagen** sind Kandidaten des Planners aus dem Anlass; **Fänger, Mutation und Klasse** (`nebenläufig` oder `andere`) füllt der Architect, bis dahin steht „(Architect)“. Der Implementer trägt die Mutationen und Raten mit Zahl der Prozesse und Messendem in einen Absatz darunter ein (`AGENTS.md` §3.10):
 
-| Nr. | Zusage (Kandidat) | Fänger | Mutation | Klasse |
+| Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|
-| Z1 | Jede Mutation läuft in einer eigenen Wegwerfkopie des Baums; keine Mutation beeinflusst eine andere (Reihenfolge, Zahl, Ausfall der vorigen) | (Architect) | (Architect) | (Architect) |
-| Z2 | Das Ergebnis je Mutation gleicht dem Einzellauf (rot, grün) für jede Art von Mutation der Liste | (Architect: Schleife über die Arten; Orakel: Einzellauf auf frischer Kopie) | (Architect) | (Architect) |
-| Z3 | Ein Übersetzungsfehler der Mutation wird als solcher gemeldet und nicht als rot gezählt (`AGENTS.md` §3.10: ein Test zählt nur, wenn er aus dem benannten Grund rot wird) | (Architect) | (Architect) | (Architect) |
-| Z4 | Der Lauf trifft den zuständigen Test (`-run`); ein Name, der keinen Test trifft, ist ein Fehler und kein grünes Ergebnis | (Architect) | (Architect) | (Architect) |
-| Z5 | Zahl der Prozesse und Last werden mit dem Ergebnis ausgegeben | (Architect) | (Architect) | (Architect) |
-| Z6 | Die Rate (viele Prozesse, mit und ohne Detektor) läuft nur für Mutationen der Klasse `nebenläufig`; eine Mutation der Klasse `andere` startet einen Lauf | (Architect) | (Architect) | (Architect) |
-| Z7 | Der gemeinsame Cache verändert die Aussage nicht (Treffer und Fehlen des Caches geben dasselbe Ergebnis) | (Architect) | (Architect) | (Architect) |
-| Z8 | Abbruch (Signal, Zeitgrenze) räumt Kopien und Prozesse auf; nach dem Lauf bleibt nichts zurück | (Architect) | (Architect) | (Architect) |
-| Z9 | Das Werkzeug ändert den Baum des Aufrufers nicht (Mutationen nur in Kopien) | (Architect) | (Architect) | (Architect) |
-| Z10 | Das Werkzeug läuft netzlos; ein schreibbarer Pfad ist nur der, den die Entscheidung des Users nennt | (Architect) | (Architect) | (Architect) |
-| Z11 | Die Mutationen eines Aufrufs laufen in einem Lauf des Containers, nicht als getrennte Jobs (eine Wartezeit am Lock je Aufruf, nicht je Mutation) | (Architect) | (Architect) | (Architect) |
+| Z1 | Jede Mutation läuft in einer eigenen Wegwerfkopie des Baums; keine Mutation beeinflusst eine andere (Reihenfolge, Zahl, Ausfall der vorigen) | (Architect) | (Architect) | andere |
+| Z2 | Das Ergebnis je Mutation gleicht dem Einzellauf (rot, grün) für jede Art von Mutation der Liste | (Architect: Schleife über die Arten; Orakel: Einzellauf auf frischer Kopie) | (Architect) | andere |
+| Z3 | Ein Übersetzungsfehler der Mutation wird als solcher gemeldet und nicht als rot gezählt (`AGENTS.md` §3.10: ein Test zählt nur, wenn er aus dem benannten Grund rot wird) | (Architect) | (Architect) | andere |
+| Z4 | Der Lauf trifft den zuständigen Test (`-run`); ein Name, der keinen Test trifft, ist ein Fehler und kein grünes Ergebnis | (Architect) | (Architect) | andere |
+| Z5 | Zahl der Prozesse und Last werden mit dem Ergebnis ausgegeben | (Architect) | (Architect) | andere |
+| Z6 | Die Rate (viele Prozesse, mit und ohne Detektor) läuft nur für Mutationen der Klasse `nebenläufig`; eine Mutation der Klasse `andere` startet einen Lauf | (Architect) | (Architect) | nebenläufig |
+| Z7 | Der gemeinsame Cache verändert die Aussage nicht (Treffer und Fehlen des Caches geben dasselbe Ergebnis) | (Architect) | (Architect) | andere |
+| Z8 | Abbruch (Signal, Zeitgrenze) räumt Kopien und Prozesse auf; nach dem Lauf bleibt nichts zurück | (Architect) | (Architect) | nebenläufig |
+| Z9 | Das Werkzeug ändert den Baum des Aufrufers nicht (Mutationen nur in Kopien) | (Architect) | (Architect) | andere |
+| Z10 | Das Werkzeug läuft netzlos; ein schreibbarer Pfad ist nur der, den die Entscheidung des Users nennt | (Architect) | (Architect) | andere |
+| Z11 | Die Mutationen eines Aufrufs laufen in einem Lauf des Containers, nicht als getrennte Jobs (eine Wartezeit am Lock je Aufruf, nicht je Mutation) | (Architect) | (Architect) | andere |
+| Z12 | Speicher und Platz sind begrenzt: jeder Container trägt `--memory` (≤ 4g, Mutationsläufe 2g), kein zweiter Go-Build zugleich, Wegwerfkopien, Binaries, eigene Container und Images sind nach dem Lauf weg, der Cache hat Größengrenze oder Aufräumweg (Zusatz des Users 2026-11-06) | (Architect) | (Architect) | nebenläufig |
 
 ## 4. Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): nicht produktiv, blockiert keine produktive Linie und wartet auf keine. Er startet erst, wenn **beobachtbar** die Schlange am `flock /tmp/odata-recorder-heavy.lock` kurz ist (kein wartender Lauf einer produktiven Linie, wenn der Slice einen schweren Lauf braucht) **oder auf ausdrückliche Anweisung des Users**; kein Datum. Außerdem liegt kein anderer Slice der Gate-Kette in `in-progress/` (Übergangsregeln Nr. 7), falls der Architect für das Werkzeug eine Änderung dort braucht (Auftrag 7). Die Architect-Aufträge 1 bis 8 sind entschieden, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): nicht produktiv, blockiert keine produktive Linie und wartet auf keine. Er startet erst, wenn **beobachtbar** die Schlange am `flock /tmp/odata-recorder-heavy.lock` kurz ist (kein wartender Lauf einer produktiven Linie, wenn der Slice einen schweren Lauf braucht) **oder auf ausdrückliche Anweisung des Users**; kein Datum. Außerdem liegt kein anderer Slice der Gate-Kette in `in-progress/` (Übergangsregeln Nr. 7), falls der Architect für das Werkzeug eine Änderung dort braucht (Auftrag 7).
+**Start am 2026-11-06 auf ausdrückliche Anweisung des Users** (nicht wegen kurzer Schlange). **Bedingung für den Architect:** `slice-test-determinism` liegt in `in-progress/` und ändert `harness/mk/` und die Sensors-Tabelle (Gate-Kette). Aus dem Plan ist keine Änderung der Gate-Kette durch dieses Werkzeug erkennbar (§3: `Makefile` und `harness/mk/` nicht geändert); der Slice läuft nur weiter, wenn der Architect in Auftrag 7 bestätigt, dass das Werkzeug **ohne** Ziel in `harness/mk/`, ohne Stufe im `Dockerfile`, ohne Eintrag in `GATE_CHECKS` und ohne Änderung der Sensors-Tabelle auskommt. Braucht er eine, gibt er an den Planner zurück (§6), und der Slice geht nach `open/`, bis `slice-test-determinism` geschlossen ist. `harness/README.md` (*Nicht behauptet*, Werkzeug-Zeile) ist ebenfalls Gate-Kette (Übergangsregeln Nr. 7): der Implementer ändert sie erst, wenn `slice-test-determinism` in `done/` liegt, oder der Planner ordnet die Änderung beim Merge. Die Architect-Aufträge 1 bis 8 sind entschieden, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Größenmarke** (`AGENTS.md` §3.14): **noch nicht gesetzt.** Der Architect füllt den Teil `pfad`, `produktcode`, `fakes` des Blocks ([SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md) Nr. 3); der Planner schreibt danach `basis`, `schaetzung` und `marke` und setzt die Marke mit `make groessenmarke` im eigenen Commit vor dem ersten Code-Commit. Die Werte unten sind **Platzhalter**, keine Schätzung; der Plan liegt in `open/` und wird dort nicht gemessen. Aufwand nach Einschätzung des Planners: S bis M (Programm mit Prozessen und Cache, nebenläufig).
 
 ```groessenmarke
-pfad: (Architect)
-produktcode: (Architect)
-fakes: (Architect)
+pfad: tools/mutationslauf
+pfad: tools/harness/mutationslauf.sh
+produktcode: 500
+fakes: 3
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
@@ -178,6 +181,7 @@ Risiken und offene Punkte:
 - **Cache-Einfluss auf die Aussage.** Ein Treffer im Testcache von `go test` (ohne `-count=1`) wäre ein falsches Grün; der Cache der Übersetzung ändert die Aussage nicht, aber das Werkzeug muss das zusagen und belegen — **Ausgang:** offen, Adresse Architect (Auftrag 3, Z7).
 - **Die Rate der Fenster-Mutationen bleibt ein Wirkungs-Fänger-Thema.** `AGENTS.md` §3.10 verlangt für Nebenläufigkeit „in jedem Lauf rot“; das Werkzeug macht den Lauf billiger, ersetzt aber den Fänger nicht, der die Wirkung zählt (`BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last`, `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft`). Wer die Rate nur für Fenster-Mutationen fährt, verlässt sich darauf, dass die Rolle die Klasse richtig setzt (setzt sie `andere` für eine nebenläufige Zusage, fehlt die Rate, und das Werkzeug merkt es nicht) — **Ausgang:** weiter offen → Register; der Architect nennt die Grenze im Vertrag als akzeptiertes Negativ mit Grund und Folge (`BEO-REPO/akzeptiertes-negativ-ohne-folge`).
 - **Docker-only und kein schreibbarer Mount (`AGENTS.md` §3.1).** Ein Cache über die Rollen braucht einen Ort, der den Lauf überlebt; die Läufe sind netzlos und ohne schreibbaren Mount. Der User erwägt eine Ausnahme für den Cache. **Offene Entscheidung des Users**, nicht des Planners und nicht des Architect: ob ein schreibbarer Pfad (Volume oder Verzeichnis) für den Cache erlaubt ist, wer ihn schreibt und ob er die Läufe der Rollen trennen darf — **Ausgang:** offen, Adresse User (der Architect legt die Alternativen vor, Auftrag 3). Ohne Freigabe entfällt der Ansatzpunkt (c); (a), (b) und (d) laufen mit einem Cache im Container je Lauf.
+- **Speicher und Platz sind Anforderung an das Werkzeug (Zusatz des Users, 2026-11-06; Host 31 GB RAM, 17 GB verfügbar, ein fremder Container läuft nebenher).** Das Werkzeug setzt `--memory` je Lauf selbst (Obergrenze 4g, Mutationsläufe 2g, Wert vom Architect im Vertrag), fährt nicht mehrere Go-Builds zugleich und räumt Wegwerfkopien, Test-Binaries und eigene Container/Images nach dem Lauf, auch nach Abbruch (Z8); der Cache hat eine Größengrenze oder einen Aufräumweg (Auftrag 3, 6). Die Zusage steht als Z12 in §3; **Ausgang:** offen, Adresse Architect.
 - **Ein Mutations-Protokoll mit Prüfsummen, das Ergebnisse zwischen Rollen wiederverwendet** (gleicher Baum, gleiche Mutation, gleiche Quellen: gleiches Ergebnis ohne Neulauf), würde Läufe sparen und die Unabhängigkeit der Rollen aufheben (`AGENTS.md` §3.10, §3.15: Reviewer und Verifier messen weiter selbst). Das ist eine Entscheidung des Users und des Architect über die Rollen, kein Werkzeug-Detail; der Slice baut es nicht — **Ausgang:** offen, Adresse Architect und User; eine Entscheidung dafür wäre ein eigener Slice.
 - **Das Werkzeug braucht eine Änderung der Gate-Kette** (ein Ziel in `harness/mk/`, eine Stufe im `Dockerfile`, einen Eintrag in `GATE_CHECKS`) und kollidiert mit einem anderen Slice der Linie C (Übergangsregeln Nr. 7) — **Ausgang:** offen, Adresse Planner (Rückgabe des Architect nach Auftrag 7), dann Reihenfolge der Linie C oder Schnitt.
 - **Das Werkzeug wird von keiner Rolle gerufen.** Die Anweisungen der Rollen (`.claude/commands/`, `.claude/agents/`, `.harness/skills/`) schreibt dieser Slice nicht; ein Werkzeug ohne Aufrufer spart nichts — **Ausgang:** offen, Adresse Planner (Diff-Vorschlag an den User bei der Closure, Übergangsregeln Nr. 4).
