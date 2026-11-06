@@ -330,7 +330,9 @@ type fakeWriter struct {
 }
 
 func (w *fakeWriter) Write(b []byte) (int, error) {
-	if _, err := w.f.p.betrete("Write", nil, slices.Clone(b)); err != nil {
+	n, err := w.f.p.betrete("Write", nil, slices.Clone(b))
+	defer w.f.p.nach("Write", n)
+	if err != nil {
 		return 0, err
 	}
 	w.mu.Lock()
@@ -349,7 +351,9 @@ func (w *fakeWriter) Write(b []byte) (int, error) {
 }
 
 func (w *fakeWriter) Commit() (string, int64, error) {
-	if _, err := w.f.p.betrete("Commit", nil); err != nil {
+	n, err := w.f.p.betrete("Commit", nil)
+	defer w.f.p.nach("Commit", n)
+	if err != nil {
 		return "", 0, err
 	}
 	w.mu.Lock()
@@ -727,6 +731,7 @@ type welt struct {
 	imports   *fakeImports
 	meta      *fakeMetaCodec
 	daten     *fakeDatenCodec
+	audit     *supporttest.FakeAudit
 	konfig    baselineimport.Konfig
 	imp       *baselineimport.Importer
 }
@@ -752,7 +757,9 @@ func neu(t *testing.T) *welt {
 	w.meta = &fakeMetaCodec{p: p, vorgabe: metaVorgabe{modell: modellR(), bericht: model.ValidierungsBericht{Funde: []model.Fund{}}}, nachRef: map[string]metaVorgabe{}}
 	w.daten = &fakeDatenCodec{p: p, nachRef: map[string]datenVorgabe{}, aufrufe: map[string][]datenAufruf{}}
 	w.sessions.m[sitzungID] = model.Session{ID: sitzungID, ServiceID: dienstID, CreatedAt: t0(), Status: model.SessionComplete}
+	w.audit = supporttest.NewFakeAudit()
 	w.konfig = baselineimport.Konfig{
+		Audit:    w.audit,
 		Dienste:  []baselineimport.Dienst{{ID: dienstID, UpstreamURL: upstream}},
 		Sessions: w.sessions, Exchanges: w.exchanges, Blobs: w.blobs, Metadaten: w.metadaten,
 		Snapshots: w.snapshots, Imports: w.imports, MetadatenCodec: w.meta, DatenCodec: w.daten,

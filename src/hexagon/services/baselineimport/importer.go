@@ -31,7 +31,8 @@ type Dienst struct {
 
 // Konfig ist die Konfiguration des Dienstes (SPEC-127 Nr. 1). Dienste dient der Prüfung von
 // service_id, der Auflösung der Links und der Wahl der Codecs je Service, Regeln allein der Bildung
-// des Match-Keys; MetadatenCodec und DatenCodec gelten für jeden Dienst ohne Satz.
+// des Match-Keys; MetadatenCodec und DatenCodec gelten für jeden Dienst ohne Satz. Audit dient allein
+// dem Eintrag eines fehlgeschlagenen Imports: der Dienst ruft von ihm nur Append (SPEC-234 Nr. 8).
 type Konfig struct {
 	Dienste        []Dienst
 	Sessions       outbound.SessionRepository
@@ -46,6 +47,7 @@ type Konfig struct {
 	MaxCaptureBody int64
 	Uhr            support.Clock
 	IDs            support.IDGenerator
+	Audit          support.AuditLog
 }
 
 // Importer setzt ImportUseCase um. Er hält allein seine Konfiguration.
@@ -74,8 +76,8 @@ func pruefeKonfig(k Konfig) error {
 	switch {
 	case repositoryFehlt(k):
 		return ungueltig("Repository fehlt")
-	case k.MetadatenCodec == nil || k.DatenCodec == nil || k.Uhr == nil || k.IDs == nil:
-		return ungueltig("Codec, Uhr oder Generator fehlt")
+	case k.MetadatenCodec == nil || k.DatenCodec == nil || k.Uhr == nil || k.IDs == nil || k.Audit == nil:
+		return ungueltig("Codec, Uhr, Generator oder Audit fehlt")
 	case k.MaxCaptureBody < 1:
 		return ungueltig("MaxCaptureBody ist kleiner als 1")
 	case k.Regeln.InvalidEncoding != model.KodierungLiteral && k.Regeln.InvalidEncoding != model.KodierungReject:
@@ -128,6 +130,29 @@ func (i *Importer) Import(ctx context.Context, a inbound.ImportAnfrage) (inbound
 	if res, fertig, err := i.wiederhole(ctx, a, hash); fertig || err != nil {
 		return res, err
 	}
+	res, err := i.neuerImport(ctx, a, hash)
+	if err != nil && !kontextFehler(err) {
+		// Der Fall „neu“ endete mit einem Fehler der Schritte (d) bis (l): der Versuch besteht nur
+		// als Eintrag. Sein Fehler ändert das Ergebnis nicht, und Append hat weder ctx noch Frist
+		// (SPEC-234 Nr. 4 d, 5).
+		_ = i.k.Audit.Append(support.Eintrag{
+			Art: support.ArtImportFehlgeschlagen, ServiceID: a.ServiceID, ImportID: a.ImportID, ErrorCode: codeVon(err),
+		})
+	}
+	return res, err
+}
+
+// codeVon liefert den Code des Fehlers (*inbound.Fehler, auch verpackt), ohne Code ODR-E9001.
+func codeVon(err error) model.Code {
+	var f *inbound.Fehler
+	if errors.As(err, &f) {
+		return f.Code
+	}
+	return model.CodeE9001
+}
+
+// neuerImport führt die Schritte (d) bis (l) des Falls „neu“ aus (Nr. 4).
+func (i *Importer) neuerImport(ctx context.Context, a inbound.ImportAnfrage, hash string) (inbound.ImportErgebnis, error) {
 	exs, err := i.ladeSession(ctx, a)
 	if err != nil {
 		return inbound.ImportErgebnis{}, err

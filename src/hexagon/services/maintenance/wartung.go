@@ -17,6 +17,7 @@ import (
 var _ inbound.MaintenanceUseCase = (*Wartung)(nil)
 
 // Konfig ist die Konfiguration des Dienstes (SPEC-123 Nr. 1). MaxAge 0 schaltet die Aufbewahrung aus.
+// Audit dient allein dem Eintrag je gelöschter Session der Aufbewahrung (SPEC-234 Nr. 8).
 type Konfig struct {
 	Sessions outbound.SessionRepository
 	Dienste  outbound.MetadataRepository
@@ -25,6 +26,7 @@ type Konfig struct {
 	Uhr      support.Clock
 	MaxAge   time.Duration
 	Log      *slog.Logger
+	Audit    support.AuditLog
 }
 
 // Wartung setzt MaintenanceUseCase um. Sie hält keinen Zustand außer ihrer Konfiguration.
@@ -34,8 +36,8 @@ type Wartung struct {
 
 // New prüft die Konfiguration (SPEC-123 Nr. 1).
 func New(k Konfig) (*Wartung, error) {
-	if k.Sessions == nil || k.Dienste == nil || k.Speicher == nil || k.Blobs == nil || k.Uhr == nil || k.Log == nil || k.MaxAge < 0 {
-		return nil, errors.Join(model.ErrUngueltig, errors.New("Port, Wächter, Uhr oder Log fehlt, oder MaxAge ist negativ"))
+	if k.Sessions == nil || k.Dienste == nil || k.Speicher == nil || k.Blobs == nil || k.Uhr == nil || k.Log == nil || k.Audit == nil || k.MaxAge < 0 {
+		return nil, errors.Join(model.ErrUngueltig, errors.New("Port, Wächter, Uhr, Log oder Audit fehlt, oder MaxAge ist negativ"))
 	}
 	return &Wartung{k: k}, nil
 }

@@ -211,6 +211,8 @@ type fakeSessions struct {
 	refs     map[string][]string
 	ziele    []model.SessionStatus
 	gelistet []string
+	// nachDelete läuft in Delete nach dem Löschen unter der Sperre des Fakes, vor der Rückkehr mit nil.
+	nachDelete func(id string)
 }
 
 func (s *fakeSessions) fuege(id, dienst string, erzeugt time.Time, status model.SessionStatus, refs ...string) {
@@ -312,6 +314,9 @@ func (s *fakeSessions) Delete(ctx context.Context, id string) error {
 	}
 	delete(s.alle, id)
 	delete(s.refs, id)
+	if s.nachDelete != nil {
+		s.nachDelete(id)
+	}
 	return nil
 }
 
@@ -630,6 +635,7 @@ type welt struct {
 	speicher *fakeSpeicher
 	blobs    *fakeBlobs
 	waechter *maintenance.BlobWaechter
+	audit    *supporttest.FakeAudit
 	log      *fang
 	konfig   maintenance.Konfig
 	w        *maintenance.Wartung
@@ -657,9 +663,10 @@ func neuAb(t *testing.T, start time.Time, karenz time.Duration, aendere ...func(
 	if u.waechter, err = maintenance.NewBlobWaechter(u.blobs, u.uhr, karenz); err != nil {
 		t.Fatal(err)
 	}
+	u.audit = supporttest.NewFakeAudit()
 	u.konfig = maintenance.Konfig{
 		Sessions: u.sessions, Dienste: u.dienste, Speicher: u.speicher, Blobs: u.waechter,
-		Uhr: u.uhr, Log: slog.New(u.log),
+		Uhr: u.uhr, Log: slog.New(u.log), Audit: u.audit,
 	}
 	for _, f := range aendere {
 		f(&u.konfig)
