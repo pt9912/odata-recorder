@@ -24,6 +24,9 @@ import (
 const (
 	exitEingabe   = 2
 	cacheGrenze   = 3 << 29 // 1,5 GiB
+	testZeit      = 2 * time.Minute
+	testGnade     = 30 * time.Second
+	bauZeit       = 10 * time.Minute
 	grenzeVorgabe = 3600
 	grenzeMax     = 14400
 	aufrufText    = "Aufruf: mutationslauf <Liste> <Baum> [<Ablage> [<Image>]]\n"
@@ -129,9 +132,9 @@ func run(ctx context.Context, args, env []string, stdout, stderr io.Writer) int 
 	}
 	penv := append(append([]string(nil), env...), "GOCACHE="+cache, "GOFLAGS=-mod=readonly", "GOPROXY=off", "GOTOOLCHAIN=local")
 	w := &Werk{
-		Konfig: Konfig{Baum: baum, Ablage: ablage, TestZeit: 2 * time.Minute, Gnade: 30 * time.Second,
+		Konfig: Konfig{Baum: baum, Ablage: ablage, TestZeit: testZeit, Gnade: testGnade,
 			CacheGrenze: cacheGrenze, CPUs: runtime.GOMAXPROCS(0)},
-		P:    &echt{env: penv, cache: cache, bauZeit: 10 * time.Minute},
+		P:    &echt{env: penv, cache: cache, bauZeit: bauZeit},
 		D:    echteDateien{},
 		Last: ladeLast, Jetzt: time.Now, Aus: stdout, Fehl: stderr,
 	}

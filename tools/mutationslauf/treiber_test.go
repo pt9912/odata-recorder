@@ -29,7 +29,7 @@ case $1 in
 			exit2) exit 2 ;;
 			block)
 				i=0
-				while [ ! -e "$d/killed" ] && [ $i -lt 600 ]; do sleep 0.1; i=$((i + 1)); done
+				while [ ! -e "$d/killed" ] && [ $i -lt 1500 ]; do sleep 0.1; i=$((i + 1)); done
 				exit 3 ;;
 		esac ;;
 	kill) echo "$*" > "$d/killed" ;;
@@ -197,6 +197,20 @@ func TestTreiberRaeumtAuf(t *testing.T) {
 				t.Errorf("rm: %q, Exit %d", r, c.ProcessState.ExitCode())
 			}
 		})
+	}
+}
+
+// TestTreiberFrist (SPEC-210 Nr. 10 b): der Treiber tötet den Container 60 Sekunden nach der Gesamtgrenze.
+func TestTreiberFrist(t *testing.T) {
+	if testing.Short() {
+		t.Skip("die Frist braucht 61 Sekunden")
+	}
+	u := neueTreiberUmgebung(t)
+	t0 := time.Now()
+	rc, _, _ := u.lauf(t, "STUB_START=block", "MUTATIONSLAUF_GRENZE=1")
+	d, k := time.Since(t0), u.aufrufe("kill")
+	if rc != 3 || len(k) != 1 || k[0] != "kill cid1" || d < 60*time.Second || d > 75*time.Second {
+		t.Errorf("Exit %d, kill %q nach %v", rc, k, d)
 	}
 }
 

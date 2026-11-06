@@ -40,6 +40,17 @@ func TestUmgebung(t *testing.T) {
 	}
 }
 
+// TestFristen (SPEC-210 Nr. 5 c, 9 c): 2 Minuten je Test-Prozess, 30 Sekunden Gnade, 10 Minuten je Bau; das
+// Argument des Test-Prozesses trägt die Minuten ohne Sekundenrest.
+func TestFristen(t *testing.T) {
+	if testZeit != 120*time.Second || testGnade != 30*time.Second || bauZeit != 600*time.Second {
+		t.Errorf("Fristen %v, %v, %v", testZeit, testGnade, bauZeit)
+	}
+	if dauerArg(testZeit) != "2m" || dauerArg(1500*time.Millisecond) != "1.5s" {
+		t.Errorf("Argument %q, %q", dauerArg(testZeit), dauerArg(1500*time.Millisecond))
+	}
+}
+
 // TestRunEingabe (SPEC-210 Nr. 1 a, 3 a): Aufruf, fehlende Liste, ungültige Umgebung und veraltetes Image sind Exit 2.
 func TestRunEingabe(t *testing.T) {
 	baum, ablage, image := fixtureBaum(t), t.TempDir(), t.TempDir()
