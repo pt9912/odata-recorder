@@ -838,3 +838,61 @@ const (
 
 // Zählprüfung der Randformen der Zeichenketten in TestWertAusLiteral.
 const randformenLiteral = 714
+
+// TestTextLaenge (Zeile 4, Raster R1 „Text sonst unbegrenzt“): Texte der Längen 255, 256, 257, 1023, 1024, 1025, 65535, 65536 und
+// 65537 Bytes in vier Formen (nur `a`; das letzte Byte `b`; das erste Byte `b`; ein `a` länger), alle Paare, sechs Operatoren und
+// OrdneWerte gegen die Runen des Orakels: die Abweichung liegt vor, auf und hinter jeder Grenze, links wie rechts.
+func TestTextLaenge(t *testing.T) {
+	var ws []model.Wert
+	for _, n := range []int{255, 256, 257, 1023, 1024, 1025, 65535, 65536, 65537} {
+		a := strings.Repeat("a", n)
+		ws = append(ws, werte(model.ArtString, a, a[:n-1]+"b", "b"+a[1:], a+"a")...)
+	}
+	if len(ws) != 36 {
+		t.Fatalf("%d Texte", len(ws))
+	}
+	if n := pruefeKlasse(t, "textlaenge", ws, orakelText); n != 36*36*6 {
+		t.Errorf("%d Vergleiche", n)
+	}
+	for _, a := range ws {
+		for _, b := range ws {
+			if got, err := model.OrdneWerte(a, b); err != nil || got != vorzeichen(orakelText(a.Text, b.Text)) {
+				t.Fatalf("OrdneWerte der Längen %d und %d: %d %v", len(a.Text), len(b.Text), got, err)
+			}
+		}
+	}
+}
+
+// TestZahlLaengeVorzeichen (Zeile 3, Achsen Länge × Vorzeichen × Gestalt): die Grenze von 1024 Zeichen gilt für den Text samt `-` und
+// `.`; Längen 1023, 1024 und 1025, mit und ohne Vorzeichen, als ganze Zahl, als `0.…1` und als `1.…1`, in den drei Arten, in
+// Vergleiche (auch gegen null) und OrdneWerte.
+func TestZahlLaengeVorzeichen(t *testing.T) {
+	n := 0
+	for _, laenge := range []int{1023, 1024, 1025} {
+		for _, vz := range []string{"", "-"} {
+			rest := laenge - len(vz)
+			for _, text := range []string{
+				vz + "1" + strings.Repeat("0", rest-1),
+				vz + "0." + strings.Repeat("0", rest-3) + "1",
+				vz + "1." + strings.Repeat("0", rest-3) + "1",
+			} {
+				if len(text) != laenge {
+					t.Fatalf("Länge %d statt %d", len(text), laenge)
+				}
+				for _, art := range []model.WertArt{model.ArtInt32, model.ArtInt64, model.ArtDecimal} {
+					w := model.Wert{Art: art, Text: text}
+					_, e1 := model.Vergleiche(model.VergleichEq, w, w)
+					_, e2 := model.Vergleiche(model.VergleichNe, model.Wert{Art: model.ArtNull}, w)
+					_, e3 := model.OrdneWerte(w, model.Wert{Art: model.ArtDecimal, Text: "0"})
+					if ok := laenge <= 1024; (e1 == nil) != ok || (e2 == nil) != ok || (e3 == nil) != ok {
+						t.Errorf("%s mit %d Zeichen (%q…): %v %v %v", art, laenge, text[:4], e1, e2, e3)
+					}
+					n++
+				}
+			}
+		}
+	}
+	if n != 3*2*3*3 {
+		t.Errorf("%d Fälle", n)
+	}
+}

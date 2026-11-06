@@ -69,6 +69,12 @@ func TestFilterTypFehler(t *testing.T) {
 		t.Errorf("%d Paare", n)
 	}
 	// jeder Verstoß ist ein FilterTypFehler, nie ErrUngueltig
+	// eine Ursache außerhalb der sieben hat die Klasse ungueltig (SPEC-167 Nr. 6)
+	fremd := &model.FilterTypFehler{Ursache: "x"}
+	if fremd.Code() != model.CodeE6005 || !errors.Is(fremd, model.ErrURLUngueltig) || errors.Is(fremd, model.ErrURLNichtUnterstuetzt) ||
+		errors.Is(fremd, model.ErrFilterNichtBeobachtet) || fremd.Error() != "ODR-E6005: Filter ungültig: x" {
+		t.Errorf("fremde Ursache: %v %v", fremd.Code(), fremd.Error())
+	}
 	for _, s := range stellen() {
 		if err := model.PruefeFilter(typ, s.baue(prop("GEHEIMX")), beob); errors.Is(err, model.ErrUngueltig) {
 			t.Errorf("%s: %v", s.name, err)

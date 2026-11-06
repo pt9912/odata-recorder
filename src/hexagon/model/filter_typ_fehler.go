@@ -22,7 +22,7 @@ const (
 // FilterNichtBeobachtet ist die Ursache, die ErrFilterNichtBeobachtet trägt (ODR-E6003, 422).
 const FilterNichtBeobachtet FilterTypUrsache = "nicht_beobachtet"
 
-// AlleFilterTypUrsachen liefert die sieben Ursachen in der Reihenfolge von SPEC-167 Nr. 6.
+// AlleFilterTypUrsachen liefert die sieben Ursachen.
 func AlleFilterTypUrsachen() []FilterTypUrsache {
 	return []FilterTypUrsache{
 		FilterEigenschaftUnbekannt, FilterNichtBoolesch, FilterTypUnvertraeglich, FilterLiteralBereich,

@@ -139,3 +139,30 @@ func TestWahrheitVonUndDurchlaesst(t *testing.T) {
 		}
 	}
 }
+
+// TestNullwertWahrheit (SPEC-166 Kopf, Raster R4 *fehlend*): der Nullwert von Wahrheit ist WahrheitUnbekannt; eine nicht gesetzte
+// Wahrheit (Variable, Feld einer Struktur) verhält sich in allen Funktionen als unbekannt.
+func TestNullwertWahrheit(t *testing.T) {
+	var w model.Wahrheit
+	feld := struct{ W model.Wahrheit }{}
+	if w != model.WahrheitUnbekannt || feld.W != model.WahrheitUnbekannt || model.Wahrheit(0) != wU {
+		t.Fatalf("Nullwert %d", w)
+	}
+	for _, z := range []model.Wahrheit{w, feld.W} {
+		if model.Nicht(z) != wU || z.Durchlaesst() {
+			t.Errorf("Nicht %d, Durchlaesst %v", model.Nicht(z), z.Durchlaesst())
+		}
+		for _, rest := range []model.Wahrheit{wF, wW, wU} {
+			wantUnd, wantOder := wU, wU
+			if rest == wF {
+				wantUnd = wF
+			}
+			if rest == wW {
+				wantOder = wW
+			}
+			if model.Und(z, rest) != wantUnd || model.Und(rest, z) != wantUnd || model.Oder(z, rest) != wantOder || model.Oder(rest, z) != wantOder {
+				t.Errorf("Und/Oder mit dem Nullwert und %d", rest)
+			}
+		}
+	}
+}

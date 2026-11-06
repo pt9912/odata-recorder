@@ -625,7 +625,7 @@ func TestReihenfolgeVerstoesse(t *testing.T) {
 			erwarte(t, "Rechts nach Links", typ, verk(op, wahrLit(), x), beob, model.FilterNichtBoolesch)
 		}
 	}
-	// Ordnungsoperator auf Guid und Typ: typ_unvertraeglich zuerst; Bereich vor Operator
+	// Ordnungsoperator auf Guid und Typ: typ_unvertraeglich vor operator_nicht_unterstuetzt
 	erwarte(t, "Guid gt 5", typ, vgl("gt", prop("Ref"), litZahl()), beob, model.FilterTypUnvertraeglich)
 	erwarte(t, "5 gt Guid", typ, vgl("gt", litZahl(), litGUID()), beob, model.FilterTypUnvertraeglich)
 	// die Wurzel zuletzt: ihre Property prüft sich selbst vor der Regel der Wurzel
@@ -764,7 +764,7 @@ func TestTiefeUndUnveraendert(t *testing.T) {
 
 // --- Zeile 20: Nebenläufigkeit ---
 
-// TestGleichzeitig (Zeile 20): acht Goroutinen rufen je 1000 mal Vergleiche, OrdneWerte, Und, Oder, Nicht und PruefeFilter auf
+// TestGleichzeitig (Zeile 20): acht Goroutinen rufen je mindestens 1000 mal alle Funktionen von SPEC-166 und PruefeFilter auf (Vergleiche und OrdneWerte in allen sechs Klassen und mit null, WertAusLiteral, WahrheitVon, HatOrdnung, Und, Oder, Nicht, Durchlaesst)
 // geteilten Werten, Typ und Baum; jedes Ergebnis gleicht der Erwartung der Tafeln und Orakel des Tests (nicht dem Ergebnis eines
 // ersten Laufs derselben Funktion). Das Datenrennen findet `make test-race`.
 func TestGleichzeitig(t *testing.T) {
@@ -801,7 +801,10 @@ func TestGleichzeitig(t *testing.T) {
 		func() string { return fmt.Sprint(model.PruefeFilter(typ, gueltig, beob)) },
 		func() string { return fmt.Sprint(model.PruefeFilter(typ, kaputt, beob)) })
 	soll = append(soll, "<nil>", "ODR-E6005: Filter ungültig: literal_bereich")
-	const goroutinen, durchlaeufe = 8, 1000
+	f2, s2 := gleichzeitigAlle(t)
+	faelle, soll = append(faelle, f2...), append(soll, s2...)
+	const goroutinen = 8
+	durchlaeufe := max(1000, 3*len(faelle))
 	var wg sync.WaitGroup
 	start := make(chan struct{})
 	var mu sync.Mutex
@@ -812,7 +815,7 @@ func TestGleichzeitig(t *testing.T) {
 			defer wg.Done()
 			<-start
 			for i := 0; i < durchlaeufe; i++ {
-				k := (i*7 + g*13) % len(faelle)
+				k := (i + g*13) % len(faelle)
 				if got := faelle[k](); got != soll[k] {
 					mu.Lock()
 					abweichungen++
@@ -826,8 +829,8 @@ func TestGleichzeitig(t *testing.T) {
 	if abweichungen != 0 {
 		t.Errorf("%d Abweichungen vom sequentiellen Lauf", abweichungen)
 	}
-	if len(faelle) != 2*(36*3)+25+2 {
-		t.Errorf("%d Fälle", len(faelle))
+	if len(faelle) != len(soll) || len(faelle) != gleichzeitigFaelle {
+		t.Errorf("%d Fälle, %d Erwartungen", len(faelle), len(soll))
 	}
 }
 
@@ -837,3 +840,173 @@ const (
 	randformenTypen   = 2368
 	randformenBereich = 1689
 )
+
+// gleichzeitigFaelle ist die Zählprüfung der Fälle von TestGleichzeitig.
+const gleichzeitigFaelle = 1133
+
+func wahrText(w model.Wahrheit, err error) string {
+	if err != nil {
+		if istUngueltig(err) {
+			return "ungueltig"
+		}
+		return err.Error()
+	}
+	return fmt.Sprint(w)
+}
+
+// gleichzeitigAlle liefert die Aufrufe der übrigen Funktionen von SPEC-166 mit der Erwartung des Tests: Vergleiche und
+// OrdneWerte über alle Klassen (Datum, Wahrheit, Guid, Zahl, Text, Zeitpunkt) und über null, WertAusLiteral, WahrheitVon,
+// HatOrdnung und Durchlaesst.
+func gleichzeitigAlle(t *testing.T) ([]func() string, []string) {
+	var faelle []func() string
+	var soll []string
+	guids := werte(model.ArtGUID, "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002")
+	nulls := []model.Wert{{Art: model.ArtNull}, {Art: model.ArtNull, Text: "x"}}
+	klassen := []struct {
+		ws     []model.Wert
+		orakel func(a, b string) int
+	}{
+		{werte(model.ArtDate, "2024-02-28", "2024-02-29", "2025-01-01"), orakelDatum},
+		{werte(model.ArtBoolean, "false", "true"), orakelWahrheit},
+		{guids, nil},
+		{werte(model.ArtInt32, "5", "-1"), orakelZahl(t)},
+		{werte(model.ArtString, "", "a", "B"), orakelText},
+		{zeitListe()[2:5], orakelZeit(t)},
+	}
+	for _, k := range klassen {
+		ws := append(append([]model.Wert{}, k.ws...), nulls...)
+		for _, a := range ws {
+			for _, b := range ws {
+				a, b := a, b
+				an, bn := a.Art == model.ArtNull, b.Art == model.ArtNull
+				ag := a.Art == model.ArtGUID || b.Art == model.ArtGUID
+				c := 0
+				if !an && !bn && k.orakel != nil {
+					c = vorzeichen(k.orakel(a.Text, b.Text))
+				} else if !an && !bn && a.Text != b.Text {
+					c = 1
+				}
+				for _, op := range alleOps() {
+					sollOp := wahrText(erwartet(op, c), nil)
+					switch {
+					case ag && op != "eq" && op != "ne":
+						sollOp = "ungueltig"
+					case an && bn:
+						sollOp = wahrText(erwartet(op, 0), nil)
+					case an || bn:
+						sollOp = wahrText(wahrVon(op == "ne"), nil)
+					}
+					op := op
+					faelle = append(faelle, func() string { w, err := model.Vergleiche(op, a, b); return wahrText(w, err) })
+					soll = append(soll, sollOp)
+				}
+				sollOrd := fmt.Sprint(c)
+				switch {
+				case ag:
+					sollOrd = "ungueltig"
+				case an && bn:
+					sollOrd = "0"
+				case an:
+					sollOrd = "-1"
+				case bn:
+					sollOrd = "1"
+				}
+				faelle = append(faelle, func() string {
+					r, err := model.OrdneWerte(a, b)
+					if err != nil {
+						return wahrText(0, err)
+					}
+					return fmt.Sprint(r)
+				})
+				soll = append(soll, sollOrd)
+			}
+		}
+	}
+	literale := []struct {
+		l    model.Literal
+		want string
+	}{
+		{model.Literal{Art: model.LiteralZeichenkette, Text: "'O''Hara'"}, fmt.Sprint(model.Wert{Art: model.ArtString, Text: "O'Hara"})},
+		{model.Literal{Art: model.LiteralZeichenkette, Text: "'a"}, "ungueltig"},
+		{model.Literal{Art: model.LiteralWahrheitswert, Text: "true"}, fmt.Sprint(model.Wert{Art: model.ArtBoolean, Text: "true"})},
+		{model.Literal{Art: model.LiteralZahl, Text: "1.5"}, fmt.Sprint(model.Wert{Art: model.ArtDecimal, Text: "1.5"})},
+		{model.Literal{Art: model.LiteralGUID, Text: "00000000-0000-0000-0000-000000000001"}, fmt.Sprint(guids[0])},
+		{model.Literal{Art: model.LiteralDatum, Text: "2020-01-01"}, fmt.Sprint(model.Wert{Art: model.ArtDate, Text: "2020-01-01"})},
+		{model.Literal{Art: model.LiteralZeitpunkt, Text: "2020-01-01T00:00:00Z"}, fmt.Sprint(model.Wert{Art: model.ArtDateTimeOffset, Text: "2020-01-01T00:00:00Z"})},
+		{model.Literal{Art: 7, Text: "x"}, "ungueltig"},
+	}
+	for _, c := range literale {
+		c := c
+		faelle = append(faelle, func() string {
+			w, err := model.WertAusLiteral(c.l)
+			if err != nil {
+				return wahrText(0, err)
+			}
+			return fmt.Sprint(w)
+		})
+		soll = append(soll, c.want)
+	}
+	for _, c := range []struct {
+		w    model.Wert
+		want string
+	}{
+		{model.Wert{Art: model.ArtBoolean, Text: "true"}, fmt.Sprint(wW)}, {model.Wert{Art: model.ArtBoolean, Text: "false"}, fmt.Sprint(wF)},
+		{model.Wert{Art: model.ArtNull}, fmt.Sprint(wU)}, {model.Wert{Art: model.ArtString, Text: "true"}, "ungueltig"},
+		{model.Wert{Art: model.ArtBoolean, Text: "True"}, "ungueltig"},
+	} {
+		c := c
+		faelle = append(faelle, func() string { w, err := model.WahrheitVon(c.w); return wahrText(w, err) })
+		soll = append(soll, c.want)
+	}
+	for _, name := range append(model.UnterstuetzteEDMTypen(), "edm.string", "", "Edm.Binary") {
+		name := name
+		faelle = append(faelle, func() string { return fmt.Sprint(model.HatOrdnung(name)) })
+		soll = append(soll, fmt.Sprint(slicesContains(model.UnterstuetzteEDMTypen(), name) && name != "Edm.Guid"))
+	}
+	for _, w := range tafelEingaben() {
+		w := w
+		faelle = append(faelle, func() string { return fmt.Sprint(w.Durchlaesst()) })
+		soll = append(soll, fmt.Sprint(w == wW))
+	}
+	return faelle, soll
+}
+
+func wahrVon(b bool) model.Wahrheit {
+	if b {
+		return wW
+	}
+	return wF
+}
+
+// TestTypOhneProperties (Raster R6 *fehlend*): ein EntityType ohne Properties (nil und leer, mit und ohne Navigation, offen und
+// geschlossen) kennt keinen Namen: geschlossen ist jeder Name eigenschaft_unbekannt, offen typ_nicht_unterstuetzt, eine Navigation
+// typ_nicht_unterstuetzt; Literale und null brauchen keine Property.
+func TestTypOhneProperties(t *testing.T) {
+	n := 0
+	for _, leer := range [][]model.Property{nil, {}} {
+		for _, offen := range []bool{false, true} {
+			typ := model.EntityType{Name: "Ns.T", Properties: leer, Open: offen}
+			soll := model.FilterEigenschaftUnbekannt
+			if offen {
+				soll = model.FilterTypNichtUnterstuetzt
+			}
+			for _, name := range []string{"Foo", "Id", "", "Name", "Nav"} {
+				for _, s := range stellen() {
+					erwarte(t, fmt.Sprintf("%q an %s", name, s.name), typ, s.baue(prop(name)), nil, soll)
+					n++
+				}
+			}
+			mitNav := typ
+			mitNav.NavigationProperties = []model.NavigationProperty{{Name: "Nav", Target: "Ns.T"}}
+			for _, s := range stellen() {
+				erwarte(t, "Navigation an "+s.name, mitNav, s.baue(prop("Nav")), nil, model.FilterTypNichtUnterstuetzt)
+				n++
+			}
+			erwarte(t, "nur Literale", typ, vgl("eq", litZahl(), litZahl()), nil, "")
+			erwarte(t, "null", typ, nul(), nil, "")
+		}
+	}
+	if n != 4*(5+1)*8 {
+		t.Errorf("%d Fälle", n)
+	}
+}
