@@ -73,7 +73,7 @@ func TestOrdnungTypen(t *testing.T) {
 			}
 			for desc, soll := range map[bool][]string{false: auf, true: ab} {
 				r := abOk(t, ty.prop, typ, es, model.Optionen{OrderBy: []model.Sortierung{abOrd(ty.prop, desc)}}, nil)
-				abIdsGleich(t, fmt.Sprintf("%s absteigend %v Reihenfolge %v", ty.prop, desc, p), r.Entities, soll...)
+				abIDsGleich(t, fmt.Sprintf("%s absteigend %v Reihenfolge %v", ty.prop, desc, p), r.Entities, soll...)
 				n++
 			}
 		}
@@ -160,7 +160,7 @@ func TestGemischteSchluessel(t *testing.T) {
 					ein = append(ein, es[i])
 				}
 				r := abOk(t, "gemischt", typ, ein, model.Optionen{OrderBy: ordnung}, nil)
-				abIdsGleich(t, fmt.Sprintf("Folge %v Richtungen %03b Eingabe %v", folge, maske, p[:3]), r.Entities, soll...)
+				abIDsGleich(t, fmt.Sprintf("Folge %v Richtungen %03b Eingabe %v", folge, maske, p[:3]), r.Entities, soll...)
 			}
 			n++
 		}
@@ -197,14 +197,14 @@ func TestOrderByLaenge(t *testing.T) {
 			ordnung = append(ordnung, abOrd(fmt.Sprintf("P%02d", j), false))
 		}
 		r := abOk(t, "OrderBy", typ, es, model.Optionen{OrderBy: ordnung}, nil)
-		abIdsGleich(t, fmt.Sprintf("%d Elemente", k), r.Entities, "4", "3", "2", "1")
+		abIDsGleich(t, fmt.Sprintf("%d Elemente", k), r.Entities, "4", "3", "2", "1")
 	}
 }
 
 // --- Zeile 18: Gleichstand nach dem Schlüssel ---
 
-// abEntOhneId ist eine Entity mit dem Schlüssel s, ohne die Property Id.
-func abEntOhneId(s string, props ...model.PropertyWert) model.Entity {
+// abEntOhneID ist eine Entity mit dem Schlüssel s, ohne die Property Id.
+func abEntOhneID(s string, props ...model.PropertyWert) model.Entity {
 	return model.Entity{Typ: "Ns.K", Schluessel: s, Properties: props, Uebersprungen: []model.Uebersprungen{}}
 }
 
@@ -219,18 +219,18 @@ func TestGleichstandSchluessel(t *testing.T) {
 		es := []model.Entity{basis[p[0]], basis[p[1]], basis[p[2]]}
 		for name, opt := range map[string]model.Optionen{"ohne": {}, "N asc": {OrderBy: []model.Sortierung{abOrd("N", false)}}, "N desc": {OrderBy: []model.Sortierung{abOrd("N", true)}}} {
 			r := abOk(t, name, typ, es, opt, nil)
-			abIdsGleich(t, "Werte "+name+fmt.Sprint(p), r.Entities, "1", "2", "10")
+			abIDsGleich(t, "Werte "+name+fmt.Sprint(p), r.Entities, "1", "2", "10")
 		}
 	}
 	es := []model.Entity{gleichN(1), abE(4, abI("N", 2)), gleichN(2), gleichN(3)}
 	r := abOk(t, "desc", typ, es, model.Optionen{OrderBy: []model.Sortierung{abOrd("N", true)}}, nil)
-	abIdsGleich(t, "absteigend, Gleichstand aufsteigend", r.Entities, "4", "1", "2", "3")
+	abIDsGleich(t, "absteigend, Gleichstand aufsteigend", r.Entities, "4", "1", "2", "3")
 
 	// zusammengesetzter Schlüssel: Keys in der Folge Region, Id; Properties in der Folge Id, Region
 	komp := model.EntityType{Name: "Ns.K", Keys: []string{"Region", "Id"},
 		Properties: []model.Property{{Name: "Id", EdmType: "Edm.Int32"}, {Name: "Region", EdmType: "Edm.String"}}}
 	paar := func(region string, id int) model.Entity {
-		return abEntOhneId("z"+region+strconv.Itoa(10-id), abI("Id", id), abS("Region", region))
+		return abEntOhneID("z"+region+strconv.Itoa(10-id), abI("Id", id), abS("Region", region))
 	}
 	for _, p := range abPermutationen(4) {
 		basis := []model.Entity{paar("A", 2), paar("B", 1), paar("A", 1), paar("B", 2)}
@@ -246,18 +246,18 @@ func TestGleichstandSchluessel(t *testing.T) {
 	}
 	// Text: B vor a vor b
 	text := model.EntityType{Name: "Ns.K", Keys: []string{"Region"}, Properties: []model.Property{{Name: "Region", EdmType: "Edm.String"}}}
-	r = abOk(t, "Text", text, []model.Entity{abEntOhneId("1", abS("Region", "b")), abEntOhneId("2", abS("Region", "a")), abEntOhneId("3", abS("Region", "B"))}, model.Optionen{}, nil)
-	abIdsGleich(t, "Text B a b", r.Entities, "3", "2", "1")
+	r = abOk(t, "Text", text, []model.Entity{abEntOhneID("1", abS("Region", "b")), abEntOhneID("2", abS("Region", "a")), abEntOhneID("3", abS("Region", "B"))}, model.Optionen{}, nil)
+	abIDsGleich(t, "Text B a b", r.Entities, "3", "2", "1")
 	// Guid: nach dem Text der Guid, nicht nach dem Schlüssel
 	guid := model.EntityType{Name: "Ns.K", Keys: []string{"Ref"}, Properties: []model.Property{{Name: "Ref", EdmType: "Edm.Guid"}}}
 	g := func(n int) model.PropertyWert {
 		return abPW("Ref", model.ArtGUID, fmt.Sprintf("00000000-0000-0000-0000-%012d", n))
 	}
 	for _, p := range abPermutationen(3) {
-		basis := []model.Entity{abEntOhneId("z", g(1)), abEntOhneId("y", g(2)), abEntOhneId("x", g(3))}
+		basis := []model.Entity{abEntOhneID("z", g(1)), abEntOhneID("y", g(2)), abEntOhneID("x", g(3))}
 		ein := []model.Entity{basis[p[0]], basis[p[1]], basis[p[2]]}
 		r = abOk(t, "Guid", guid, ein, model.Optionen{}, nil)
-		abIdsGleich(t, "Guid "+fmt.Sprint(p), r.Entities, "z", "y", "x")
+		abIDsGleich(t, "Guid "+fmt.Sprint(p), r.Entities, "z", "y", "x")
 	}
 }
 
@@ -269,12 +269,12 @@ func TestSchluesselRest(t *testing.T) {
 	a.Schluessel, b.Schluessel = "b", "a"
 	for _, es := range [][]model.Entity{{a, b}, {b, a}} {
 		r := abOk(t, "Rest", typ, es, model.Optionen{}, nil)
-		abIdsGleich(t, "Rest", r.Entities, "a", "b")
+		abIDsGleich(t, "Rest", r.Entities, "a", "b")
 	}
 	ohne := model.EntityType{Name: "Ns.K", Properties: []model.Property{{Name: "N", EdmType: "Edm.Int32"}}}
-	for _, es := range [][]model.Entity{{abEntOhneId("2"), abEntOhneId("1")}, {abEntOhneId("1"), abEntOhneId("2")}} {
+	for _, es := range [][]model.Entity{{abEntOhneID("2"), abEntOhneID("1")}, {abEntOhneID("1"), abEntOhneID("2")}} {
 		r := abOk(t, "ohne Keys", ohne, es, model.Optionen{}, nil)
-		abIdsGleich(t, "ohne Keys", r.Entities, "1", "2")
+		abIDsGleich(t, "ohne Keys", r.Entities, "1", "2")
 	}
 }
 
@@ -311,7 +311,7 @@ func TestOrderByGuid(t *testing.T) {
 	}
 	guid := lit(model.LiteralGUID, "00000000-0000-0000-0000-000000000097")
 	es := abSharedMit(false)
-	abIdsGleich(t, "Ref eq", abOk(t, "eq", typ, es, model.Optionen{Filter: abF(vgl("eq", prop("Ref"), guid))}, nil).Entities, "3")
+	abIDsGleich(t, "Ref eq", abOk(t, "eq", typ, es, model.Optionen{Filter: abF(vgl("eq", prop("Ref"), guid))}, nil).Entities, "3")
 	if r := abOk(t, "ne", typ, es, model.Optionen{Filter: abF(vgl("ne", prop("Ref"), guid))}, nil); len(r.Entities) != 9 {
 		t.Errorf("Ref ne: %d", len(r.Entities))
 	}

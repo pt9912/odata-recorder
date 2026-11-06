@@ -24,11 +24,11 @@ func abfrageDaten() (model.EntityType, []model.Entity) {
 		}}
 	}
 	dez := func(s string) model.Wert { return model.Wert{Art: model.ArtDecimal, Text: s} }
-	bool_ := func(s string) model.Wert { return model.Wert{Art: model.ArtBoolean, Text: s} }
+	wahrheit := func(s string) model.Wert { return model.Wert{Art: model.ArtBoolean, Text: s} }
 	null := model.Wert{Art: model.ArtNull}
 	return typ, []model.Entity{
-		zeile(1, "Alpha", dez("10"), bool_("true")), zeile(2, "Beta", dez("20.5"), bool_("false")), zeile(3, "Gamma", dez("5"), null),
-		zeile(4, "Delta", null, bool_("true")), zeile(5, "Epsilon", dez("30"), bool_("true")),
+		zeile(1, "Alpha", dez("10"), wahrheit("true")), zeile(2, "Beta", dez("20.5"), wahrheit("false")), zeile(3, "Gamma", dez("5"), null),
+		zeile(4, "Delta", null, wahrheit("true")), zeile(5, "Epsilon", dez("30"), wahrheit("true")),
 	}
 }
 

@@ -36,7 +36,7 @@ func abE(id int, props ...model.PropertyWert) model.Entity {
 		Properties: slices.Concat([]model.PropertyWert{abI("Id", id)}, props), Uebersprungen: []model.Uebersprungen{}}
 }
 
-func abIds(es []model.Entity) []string {
+func abIDs(es []model.Entity) []string {
 	r := make([]string, 0, len(es))
 	for _, e := range es {
 		r = append(r, e.Schluessel)
@@ -63,10 +63,10 @@ func abOk(t *testing.T, was string, typ model.EntityType, es []model.Entity, opt
 	return r
 }
 
-// abIdsGleich vergleicht die Schlüssel der Entities mit der Erwartung.
-func abIdsGleich(t *testing.T, was string, got []model.Entity, want ...string) {
+// abIDsGleich vergleicht die Schlüssel der Entities mit der Erwartung.
+func abIDsGleich(t *testing.T, was string, got []model.Entity, want ...string) {
 	t.Helper()
-	if g := abIds(got); !slices.Equal(g, want) || got == nil {
+	if g := abIDs(got); !slices.Equal(g, want) || got == nil {
 		t.Errorf("%s: %v, erwartet %v", was, g, want)
 	}
 }
@@ -111,7 +111,7 @@ func abDaten() []model.Entity {
 	return es
 }
 
-func abIdGt(n string) model.FilterAusdruck { return vgl("gt", prop("Id"), lit(model.LiteralZahl, n)) }
+func abIDGt(n string) model.FilterVergleich { return vgl("gt", prop("Id"), lit(model.LiteralZahl, n)) }
 
 // --- Zeile 1: Folge der Stufen ---
 
@@ -120,10 +120,10 @@ func abIdGt(n string) model.FilterAusdruck { return vgl("gt", prop("Id"), lit(mo
 func TestStufen(t *testing.T) {
 	typ, es := abTyp(), abDaten()
 	r := abOk(t, "alle Stufen", typ, es, model.Optionen{
-		Filter: abF(abIdGt("1")), OrderBy: []model.Sortierung{abOrd("Name", false), abOrd("Price", true)},
+		Filter: abF(abIDGt("1")), OrderBy: []model.Sortierung{abOrd("Name", false), abOrd("Price", true)},
 		Skip: abZ(1), Top: abZ(3), Select: abSel("Name"),
 	}, nil)
-	abIdsGleich(t, "alle Stufen", r.Entities, "4", "2", "8")
+	abIDsGleich(t, "alle Stufen", r.Entities, "4", "2", "8")
 	if r.Anzahl != 7 || !slices.Equal(abNamen(r.Entities, "Name"), []string{"a", "a", "b"}) {
 		t.Errorf("Anzahl %d, Namen %v", r.Anzahl, abNamen(r.Entities, "Name"))
 	}
@@ -134,13 +134,13 @@ func TestStufen(t *testing.T) {
 	}
 	// Filter gegen Paging: die Auswahl geht dem $skip voraus
 	r = abOk(t, "Filter vor Paging", typ, es, model.Optionen{Filter: abF(vgl("ne", prop("Name"), lit(model.LiteralZeichenkette, "'a'"))), Skip: abZ(1), Top: abZ(2)}, nil)
-	abIdsGleich(t, "Filter vor Paging", r.Entities, "3", "5")
+	abIDsGleich(t, "Filter vor Paging", r.Entities, "3", "5")
 	// Ordnung gegen Paging: die Ordnung geht dem $top voraus
 	r = abOk(t, "Ordnung vor Paging", typ, es, model.Optionen{OrderBy: []model.Sortierung{abOrd("Price", true)}, Top: abZ(2)}, nil)
-	abIdsGleich(t, "Ordnung vor Paging", r.Entities, "8", "7")
+	abIDsGleich(t, "Ordnung vor Paging", r.Entities, "8", "7")
 	// Ordnung gegen Projektion: $select Id verliert Name nicht vor der Ordnung
 	r = abOk(t, "Ordnung vor Projektion", typ, es, model.Optionen{OrderBy: []model.Sortierung{abOrd("Name", false)}, Select: abSel("Id")}, nil)
-	abIdsGleich(t, "Ordnung vor Projektion", r.Entities, "2", "4", "7", "1", "3", "8", "5", "6")
+	abIDsGleich(t, "Ordnung vor Projektion", r.Entities, "2", "4", "7", "1", "3", "8", "5", "6")
 	for _, e := range r.Entities {
 		if len(e.Properties) != 1 || e.Properties[0].Name != "Id" {
 			t.Errorf("Projektion: %v", e.Properties)
@@ -148,7 +148,7 @@ func TestStufen(t *testing.T) {
 	}
 	// $skip vor $top, bei $top über dem Rest
 	r = abOk(t, "skip vor top", typ, es, model.Optionen{Skip: abZ(6), Top: abZ(5)}, nil)
-	abIdsGleich(t, "skip vor top", r.Entities, "7", "8")
+	abIDsGleich(t, "skip vor top", r.Entities, "7", "8")
 }
 
 // --- Zeile 2: Anzahl ---
@@ -161,7 +161,7 @@ func TestAnzahl(t *testing.T) {
 	for _, c := range []model.WahrOption{{}, {Gesetzt: true, Wert: false}, {Gesetzt: true, Wert: true}} {
 		for _, top := range []model.ZahlOption{{}, abZ(0), abZ(1), abZ(8), abZ(9)} {
 			for _, skip := range []model.ZahlOption{{}, abZ(0), abZ(1), abZ(9)} {
-				r := abOk(t, "Anzahl", typ, es, model.Optionen{Filter: abF(abIdGt("4")), Count: c, Top: top, Skip: skip}, nil)
+				r := abOk(t, "Anzahl", typ, es, model.Optionen{Filter: abF(abIDGt("4")), Count: c, Top: top, Skip: skip}, nil)
 				if r.Anzahl != 4 {
 					t.Errorf("Count %v Top %v Skip %v: Anzahl %d", c, top, skip, r.Anzahl)
 				}
@@ -175,7 +175,7 @@ func TestAnzahl(t *testing.T) {
 	if r := abOk(t, "ohne Filter", typ, es, model.Optionen{Top: abZ(2), Skip: abZ(1)}, nil); r.Anzahl != 8 {
 		t.Errorf("ohne Filter: %d", r.Anzahl)
 	}
-	if r := abOk(t, "nur Filter", typ, es, model.Optionen{Filter: abF(abIdGt("4"))}, nil); r.Anzahl != 4 || len(r.Entities) != 4 {
+	if r := abOk(t, "nur Filter", typ, es, model.Optionen{Filter: abF(abIDGt("4"))}, nil); r.Anzahl != 4 || len(r.Entities) != 4 {
 		t.Errorf("nur Filter: %d", r.Anzahl)
 	}
 }
@@ -206,7 +206,7 @@ func TestPaging(t *testing.T) {
 					bis = int(min(int64(zahl), int64(von)+int64(top.Wert)))
 				}
 				r := abOk(t, "Paging", typ, es, model.Optionen{Top: top, Skip: skip}, nil)
-				abIdsGleich(t, fmt.Sprintf("n %d Top %v Skip %v", zahl, top, skip), r.Entities, alle[von:bis]...)
+				abIDsGleich(t, fmt.Sprintf("n %d Top %v Skip %v", zahl, top, skip), r.Entities, alle[von:bis]...)
 				if r.Anzahl != zahl {
 					t.Errorf("Anzahl %d", r.Anzahl)
 				}
@@ -228,7 +228,7 @@ func TestGesetztFalsch(t *testing.T) {
 	for _, z := range []model.ZahlOption{{Wert: 5}, {Wert: -3}, {Wert: abMax}, {Wert: 0}, {Wert: -1}, {Wert: -abMax - 1}} {
 		for _, opt := range []model.Optionen{{Top: z}, {Skip: z}, {Top: z, Skip: z}} {
 			r := abOk(t, "Gesetzt falsch", typ, es, opt, nil)
-			abIdsGleich(t, fmt.Sprintf("%+v", opt), r.Entities, "1", "2", "3")
+			abIDsGleich(t, fmt.Sprintf("%+v", opt), r.Entities, "1", "2", "3")
 		}
 	}
 }
@@ -277,7 +277,7 @@ func TestPermutation(t *testing.T) {
 		}
 		for i, q := range abfragen {
 			r := abOk(t, "Permutation", typ, es, q.opt, nil)
-			if g := abIds(r.Entities); !slices.Equal(g, q.soll) {
+			if g := abIDs(r.Entities); !slices.Equal(g, q.soll) {
 				t.Fatalf("Reihenfolge %v, Abfrage %d: %v, erwartet %v", p, i, g, q.soll)
 			}
 		}
@@ -486,7 +486,7 @@ func abAbfragen() []abAbfrage {
 	return []abAbfrage{
 		{"alles", func() model.Optionen { return model.Optionen{} }, nil},
 		{"Filter und Paging", func() model.Optionen {
-			return model.Optionen{Filter: abF(verk("and", abIdGt("2"), nicht(vgl("eq", prop("Name"), str("'b'"))))), Skip: abZ(1), Top: abZ(4)}
+			return model.Optionen{Filter: abF(verk("and", abIDGt("2"), nicht(vgl("eq", prop("Name"), str("'b'"))))), Skip: abZ(1), Top: abZ(4)}
 		}, alle},
 		{"Filter or null", func() model.Optionen {
 			return model.Optionen{Filter: abF(verk("or", vgl("eq", prop("Active"), wahrLit()), vgl("eq", prop("N"), nul())))}
@@ -624,9 +624,9 @@ func TestEingabeUnveraendert(t *testing.T) {
 	}
 	// Abfragen der Zeilen 16 und 19: Ordnung nach mehreren Schlüsseln
 	for _, o := range [][]model.Sortierung{{abOrd("Name", true), abOrd("N", false)}, {abOrd("Big", true)}} {
-		es, opt := abShared(), model.Optionen{OrderBy: o, Select: abSel("Name", "Id"), Filter: abF(abIdGt("1"))}
+		es, opt := abShared(), model.Optionen{OrderBy: o, Select: abSel("Name", "Id"), Filter: abF(abIDGt("1"))}
 		abOk(t, "Ordnung", typ, es, opt, nil)
-		if !reflect.DeepEqual(es, abShared()) || !reflect.DeepEqual(opt, model.Optionen{OrderBy: o, Select: abSel("Name", "Id"), Filter: abF(abIdGt("1"))}) {
+		if !reflect.DeepEqual(es, abShared()) || !reflect.DeepEqual(opt, model.Optionen{OrderBy: o, Select: abSel("Name", "Id"), Filter: abF(abIDGt("1"))}) {
 			t.Errorf("Ordnung %v: die Eingabe ist verändert", o)
 		}
 	}
@@ -734,8 +734,8 @@ func TestGrosseMenge(t *testing.T) {
 		for _, p := range ref[5:55] {
 			soll = append(soll, strconv.Itoa(p.id))
 		}
-		r := abOk(t, "große Menge", typ, es, model.Optionen{Filter: abF(abIdGt("100")), OrderBy: []model.Sortierung{abOrd("N", true)}, Skip: abZ(5), Top: abZ(50)}, nil)
-		abIdsGleich(t, fmt.Sprintf("%d Entities", zahl), r.Entities, soll...)
+		r := abOk(t, "große Menge", typ, es, model.Optionen{Filter: abF(abIDGt("100")), OrderBy: []model.Sortierung{abOrd("N", true)}, Skip: abZ(5), Top: abZ(50)}, nil)
+		abIDsGleich(t, fmt.Sprintf("%d Entities", zahl), r.Entities, soll...)
 		if r.Anzahl != zahl-100 {
 			t.Errorf("%d Entities: Anzahl %d", zahl, r.Anzahl)
 		}

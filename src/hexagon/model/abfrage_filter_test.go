@@ -170,7 +170,7 @@ func TestFilterDurchlass(t *testing.T) {
 	}
 	for _, f := range faelle {
 		r := abOk(t, f.name, typ, es, model.Optionen{Filter: abF(f.baum)}, nil)
-		abIdsGleich(t, f.name, r.Entities, f.soll...)
+		abIDsGleich(t, f.name, r.Entities, f.soll...)
 		if r.Anzahl != len(f.soll) {
 			t.Errorf("%s: Anzahl %d", f.name, r.Anzahl)
 		}
@@ -200,7 +200,7 @@ func TestFilterNull(t *testing.T) {
 					f = vgl(op, nul(), prop(p.name))
 				}
 				r := abOk(t, p.name, typ, es, model.Optionen{Filter: abF(f)}, nil)
-				abIdsGleich(t, fmt.Sprintf("%s %s Property links %v", p.name, op, links), r.Entities, soll[op]...)
+				abIDsGleich(t, fmt.Sprintf("%s %s Property links %v", p.name, op, links), r.Entities, soll[op]...)
 				n++
 			}
 		}
@@ -210,7 +210,7 @@ func TestFilterNull(t *testing.T) {
 	}
 	// P eq null und null eq P auf null selbst
 	r := abOk(t, "null eq null", typ, []model.Entity{abE(1)}, model.Optionen{Filter: abF(vgl("ne", nul(), nul()))}, nil)
-	abIdsGleich(t, "null ne null", r.Entities)
+	abIDsGleich(t, "null ne null", r.Entities)
 }
 
 // --- Zeile 12: die sechs Operatoren auf jedem Typ ---
@@ -342,7 +342,7 @@ func TestWahrheitAlsOperand(t *testing.T) {
 	}
 	for _, f := range faelle {
 		r := abOk(t, f.name, typ, es, model.Optionen{Filter: abF(f.baum)}, nil)
-		abIdsGleich(t, f.name, r.Entities, f.soll...)
+		abIDsGleich(t, f.name, r.Entities, f.soll...)
 	}
 }
 
@@ -353,7 +353,7 @@ func TestWahrheitAlsOperand(t *testing.T) {
 // derselbe Filter auf lauter Entities mit der Property (auch mit Wert null) gilt.
 func TestFilterEigenschaftFehlt(t *testing.T) {
 	typ := abTyp()
-	immer := abIdGt("0")
+	immer := abIDGt("0")
 	huellen := []func(x model.FilterAusdruck) model.FilterAusdruck{
 		func(x model.FilterAusdruck) model.FilterAusdruck { return x },
 		func(x model.FilterAusdruck) model.FilterAusdruck { return verk("or", immer, x) },
