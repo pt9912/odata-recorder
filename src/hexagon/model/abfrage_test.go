@@ -455,15 +455,18 @@ type abAbfrage struct {
 	beob func(string) bool
 }
 
-// abShared sind zehn Entities mit allen Properties; die Folge ist durchmischt.
-func abShared() []model.Entity {
+// abShared sind zehn Entities mit allen Properties, die dritte und die sechste ohne Day; die Folge ist durchmischt.
+func abShared() []model.Entity { return abSharedMit(true) }
+
+// abSharedMit lässt Day bei luecken wahr in zwei Entities aus.
+func abSharedMit(luecken bool) []model.Entity {
 	es := make([]model.Entity, 0, 10)
 	for _, i := range []int{7, 3, 9, 1, 5, 10, 2, 8, 4, 6} {
 		e := abE(i, abS("Name", string(rune('a'+i%4))), abI("N", i%3), abPW("Big", model.ArtInt64, strconv.Itoa(i*1000)),
 			abPW("Price", model.ArtDecimal, strconv.Itoa(i%5)+".5"), abPW("Active", model.ArtBoolean, strconv.FormatBool(i%2 == 0)),
 			abPW("Ref", model.ArtGUID, fmt.Sprintf("00000000-0000-0000-0000-%012d", 100-i)), abPW("Day", model.ArtDate, fmt.Sprintf("2020-01-%02d", i)),
 			abPW("At", model.ArtDateTimeOffset, fmt.Sprintf("2020-01-01T00:00:%02dZ", i)))
-		if i == 3 || i == 6 {
+		if luecken && (i == 3 || i == 6) {
 			e.Properties = slices.DeleteFunc(e.Properties, func(p model.PropertyWert) bool { return p.Name == "Day" })
 		}
 		es = append(es, e)
