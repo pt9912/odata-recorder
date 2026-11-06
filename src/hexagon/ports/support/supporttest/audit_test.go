@@ -15,7 +15,7 @@ import (
 // eintragVoll trägt in jedem der sieben Felder einen eigenen Wert, auch solche, die der Adapter abwiese.
 func eintragVoll() support.Eintrag {
 	return support.Eintrag{
-		Art: "keine-art", ServiceID: "dienst ü", SessionID: "s", WorkspaceID: "w!", ImportID: "i",
+		Art: "keine-art", ServiceID: "dienst \xc3\xbc", SessionID: "s", WorkspaceID: "w!", ImportID: "i",
 		ErrorCode: model.Code(-3), KorrelationsID: "k",
 	}
 }
@@ -74,7 +74,7 @@ func TestFakeAuditZaehltJedeOperation(t *testing.T) {
 	if got := f.Aufrufe(); got != 5 {
 		t.Errorf("Aufrufe %d, erwartet 5 (3 Append, 2 Eintraege)", got)
 	}
-	kopie[0].ServiceID = "geändert"
+	kopie[0].ServiceID = "ge\xc3\xa4ndert"
 	if f.Eintraege()[0].ServiceID != eintragVoll().ServiceID {
 		t.Error("eine Änderung am gelieferten Slice änderte den Stand des Fakes")
 	}
