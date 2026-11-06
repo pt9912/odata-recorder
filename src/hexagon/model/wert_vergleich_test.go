@@ -202,20 +202,21 @@ func lang(vorn string, n int, zeichen string, ende string) string {
 }
 
 func textListe() []model.Wert {
-	return werte(model.ArtString, "", "\x00", " a", "A", "B", "a", "a ", "ab", "abc", "e"+string([]byte{0xcc, 0x81}), nbsp(),
+	return werte(model.ArtString, "", "\x00", " a", "A", "AAA", "AB", "B", "a", "a ", "ab", "abc", "e"+string([]byte{0xcc, 0x81}), nbsp(),
 		string([]byte{0xc3, 0xa9}), string([]byte{0xc3, 0xa9}), string([]byte{0xef, 0xbf, 0xbf}), string([]byte{0xf0, 0x90, 0x80, 0x80}))
 }
 
 func dezimalListe() []model.Wert {
 	return werte(model.ArtDecimal, "0.1", "0.10000000000000001", "-1.5", "-1.25", "-0.5", "-0.25", "0", "9", "10", "99", "100", "0.3",
-		"0.30000000000000004", "-10", "-9", "-100", "0.1234567890123456789012345678901234567891", lang("0.", 1021, "0", "1"),
+		"0.30000000000000004", "-10", "-9", "-100", "0.1234567890123456789012345678901234567891", "0.100000000000000000000001", "0.100000000000000000000002",
+		lang("1", 500, "0", "1")+lang("", 400, "0", ""), lang("1", 500, "0", "2")+lang("", 400, "0", ""), lang("0.", 1021, "0", "1"),
 		lang("1", 1023, "0", ""), lang("1", 511, "0", "")+"."+lang("", 510, "0", "1"))
 }
 
 func zeitListe() []model.Wert {
 	return werte(model.ArtDateTimeOffset, "0001-01-01T00:00:00Z", "2020-01-01T00:00:00Z", "2020-01-01T00:00:00.000000000001Z",
-		"2020-01-01T00:00:00.49Z", "2020-01-01T00:00:00.5Z", "2020-01-01T00:00:00.51Z", "2020-01-01T00:00:01Z", "2020-01-01T23:59:59Z",
-		"2020-01-02T00:00:00Z", "2020-12-31T23:59:59.999999999999Z", "2021-01-01T00:00:00Z", "9999-12-31T23:59:59.999999999999Z",
+		"2020-01-01T00:00:00.000000000002Z", "2020-01-01T00:00:00.49Z", "2020-01-01T00:00:00.5Z", "2020-01-01T00:00:00.51Z", "2020-01-01T00:00:01Z", "2020-01-01T23:59:59Z",
+		"2020-01-02T00:00:00Z", "2020-12-31T23:59:59.999999999998Z", "2020-12-31T23:59:59.999999999999Z", "2021-01-01T00:00:00Z", "9999-12-31T23:59:59.999999999999Z",
 		"2020-01-01T00:00:00.5Z")
 }
 
@@ -294,7 +295,7 @@ func TestZahlGleichUeberArten(t *testing.T) {
 // TestDecimalExakt (Zeile 3): Decimal ohne Binär-Float und ohne Facetten, alle Paare gegen math/big; 1024 Zeichen gültig, 1025 nicht.
 func TestDecimalExakt(t *testing.T) {
 	l := klassenListen(t)[1]
-	if n := pruefeKlasse(t, l.name, l.werte, l.orakel); n != 20*20*6 {
+	if n := pruefeKlasse(t, l.name, l.werte, l.orakel); n != 24*24*6 {
 		t.Errorf("%d Vergleiche", n)
 	}
 	for _, w := range l.werte {
@@ -327,7 +328,7 @@ func TestDecimalExakt(t *testing.T) {
 // TestTextOrdinal (Zeile 4): Text nach Codepunkten, ohne Locale, Normalisierung und Faltung; alle Paare, sechs Operatoren.
 func TestTextOrdinal(t *testing.T) {
 	l := klassenListen(t)[2]
-	if n := pruefeKlasse(t, l.name, l.werte, l.orakel); n != 15*15*6 {
+	if n := pruefeKlasse(t, l.name, l.werte, l.orakel); n != 17*17*6 {
 		t.Errorf("%d Vergleiche", n)
 	}
 	// die Liste steigt nach Codepunkten (das Orakel zählt Runen, nicht Bytes)
@@ -361,7 +362,7 @@ func TestDatum(t *testing.T) {
 // TestZeitpunktOrdnung (Zeile 7): DateTimeOffset nach Instant, Sekunde und Bruchteil, alle Paare gegen math/big.
 func TestZeitpunktOrdnung(t *testing.T) {
 	l := klassenListen(t)[5]
-	if n := pruefeKlasse(t, l.name, l.werte, l.orakel); n != 13*13*6 {
+	if n := pruefeKlasse(t, l.name, l.werte, l.orakel); n != 15*15*6 {
 		t.Errorf("%d Vergleiche", n)
 	}
 	a := model.Wert{Art: model.ArtDateTimeOffset, Text: "2020-01-01T00:00:00Z"}
@@ -558,7 +559,7 @@ func TestOrdneWerteGleichVergleiche(t *testing.T) {
 	if g, err := model.OrdneWerte(model.Wert{Art: model.ArtNull}, model.Wert{Art: model.ArtNull, Text: "x"}); err != nil || g != 0 {
 		t.Errorf("null gegen null: %d %v", g, err)
 	}
-	if n != 1024 {
+	if n != 1336 {
 		t.Errorf("%d Fälle", n)
 	}
 }
@@ -593,8 +594,8 @@ func TestOrdnungTotal(t *testing.T) {
 			}
 		}
 	}
-	if n != 17152 {
-		t.Errorf("%d Tripel statt 17152", n)
+	if n != 26604 {
+		t.Errorf("%d Tripel statt 26604", n)
 	}
 }
 

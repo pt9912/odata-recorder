@@ -764,22 +764,28 @@ func TestTiefeUndUnveraendert(t *testing.T) {
 // --- Zeile 20: Nebenläufigkeit ---
 
 // TestGleichzeitig (Zeile 20): acht Goroutinen rufen je 1000 mal Vergleiche, OrdneWerte, Und, Oder, Nicht und PruefeFilter auf
-// geteilten Werten, Typ und Baum; jedes Ergebnis gleicht dem des sequentiellen Laufs. Das Datenrennen findet `make test-race`.
+// geteilten Werten, Typ und Baum; jedes Ergebnis gleicht der Erwartung der Tafeln und Orakel des Tests (nicht dem Ergebnis eines
+// ersten Laufs derselben Funktion). Das Datenrennen findet `make test-race`.
 func TestGleichzeitig(t *testing.T) {
 	typ, beob := typVerstoesse()
 	gueltig := verk("and", prop("Active"), vgl("gt", prop("Big"), lit(model.LiteralZahl, "9223372036854775807")))
 	kaputt := verk("and", prop("Active"), vgl("eq", prop("Id"), lit(model.LiteralZahl, "2147483648")))
 	var faelle []func() string
+	var soll []string
 	zahlen := werte(model.ArtDecimal, "9007199254740993", "9007199254740992", "-1.5", "0.1", "0.10000000000000001", lang("0.", 1021, "0", "1"))
-	zeiten := zeitListe()[:6]
-	texte := textListe()[:6]
-	for _, liste := range [][]model.Wert{zahlen, zeiten, texte} {
-		for _, a := range liste {
-			for _, b := range liste {
+	listen := []struct {
+		ws     []model.Wert
+		orakel func(a, b string) int
+	}{{zahlen, orakelZahl(t)}, {zeitListe()[:6], orakelZeit(t)}, {textListe()[:6], orakelText}}
+	for _, l := range listen {
+		for _, a := range l.ws {
+			for _, b := range l.ws {
 				a, b := a, b
+				c := vorzeichen(l.orakel(a.Text, b.Text))
 				faelle = append(faelle,
 					func() string { w, err := model.Vergleiche(model.VergleichLt, a, b); return fmt.Sprint(w, err) },
 					func() string { c, err := model.OrdneWerte(a, b); return fmt.Sprint(c, err) })
+				soll = append(soll, fmt.Sprint(erwartet(model.VergleichLt, c), error(nil)), fmt.Sprint(c, error(nil)))
 			}
 		}
 	}
@@ -787,15 +793,13 @@ func TestGleichzeitig(t *testing.T) {
 		for _, b := range tafelEingaben() {
 			a, b := a, b
 			faelle = append(faelle, func() string { return fmt.Sprint(model.Und(a, b), model.Oder(a, b), model.Nicht(a)) })
+			soll = append(soll, fmt.Sprint(tafelUnd[wahrKanonisch(a)][spalte(wahrKanonisch(b))], tafelOder[wahrKanonisch(a)][spalte(wahrKanonisch(b))], tafelNicht[wahrKanonisch(a)]))
 		}
 	}
 	faelle = append(faelle,
 		func() string { return fmt.Sprint(model.PruefeFilter(typ, gueltig, beob)) },
 		func() string { return fmt.Sprint(model.PruefeFilter(typ, kaputt, beob)) })
-	soll := make([]string, len(faelle))
-	for i, f := range faelle {
-		soll[i] = f()
-	}
+	soll = append(soll, "<nil>", "ODR-E6005: Filter ungültig: literal_bereich")
 	const goroutinen, durchlaeufe = 8, 1000
 	var wg sync.WaitGroup
 	start := make(chan struct{})

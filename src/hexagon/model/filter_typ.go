@@ -92,13 +92,13 @@ func (p filterPruefer) eigenschaft(name string) (knotenTyp, error) {
 		if prop.Name != name {
 			continue
 		}
-		k, ok := klasseVonEdmTyp(prop.EdmType)
-		if !ok {
+		if !prop.Unterstuetzt() {
 			return knotenTyp{}, verstoss(FilterTypNichtUnterstuetzt)
 		}
 		if p.beobachtet != nil && !p.beobachtet(name) {
 			return knotenTyp{}, verstoss(FilterNichtBeobachtet)
 		}
+		k, _ := klasseVonEdmTyp(prop.EdmType)
 		return knotenTyp{klasse: k, edmTyp: prop.EdmType}, nil
 	}
 	if p.typ.Open {
@@ -174,7 +174,7 @@ func bereichGueltig(literal, gegen knotenTyp) bool {
 	default:
 		return true
 	}
-	if _, _, bruch, ok := zerlegeZahl(literal.zahlText); !ok || bruch != "" {
+	if _, _, _, ok := zerlegeZahl(literal.zahlText); !ok {
 		return false
 	}
 	_, err := strconv.ParseInt(literal.zahlText, 10, bits)
