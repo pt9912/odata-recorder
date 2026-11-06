@@ -177,6 +177,47 @@ func TestEingabeAbgeleiteterTypPflicht(t *testing.T) {
 	}
 }
 
+// TestEingabeMitgliederAbgeleiteterTyp hält Zeile 20 für die Achse „Typ der Entity“: jede Mitglieder-Klasse (Navigation, nicht unterstützte Property, unbekannter
+// Name, Schlüssel mit U+0000, gültige Property) gegen den Typ des Sets ohne `BaseType` (`Ns.VB`) und gegen die abgeleiteten Typen mit `BaseType` (`Ns.VD` geschlossen,
+// `Ns.VDO` offen), der Typ steht in `@odata.type`. Menge 3 Typen × 5 Klassen × 3 Arten = 45.
+func TestEingabeMitgliederAbgeleiteterTyp(t *testing.T) {
+	typen := []struct{ name, kopf string }{{"Ns.VB", ""}, {"Ns.VD", `"@odata.type":"#Ns.VD",`}, {"Ns.VDO", `"@odata.type":"#Ns.VDO",`}}
+	nul := esc("0000")
+	n := 0
+	for _, ty := range typen {
+		unbekannt := model.EingabeUnbekannteProperty
+		if ty.name == "Ns.VDO" {
+			unbekannt = model.EingabeOffen
+		}
+		klassen := []struct {
+			name, body string
+			ursache    model.EingabeUrsache
+			ort        string
+		}{
+			{"Navigation", `"Id":"k","Nav":{}`, model.EingabeNavigation, "/Nav"},
+			{"nicht unterstützt", `"Id":"k","Dbl":1`, model.EingabePropertyTyp, "/Dbl"},
+			{"unbekannt", `"Id":"k","zz":1`, unbekannt, "/zz"},
+			{"Schlüssel mit U+0000", `"Id":"a` + nul + `b"`, model.EingabeSchluessel, "/Id"},
+			{"gültig", `"Id":"k","N1":5`, "", ""},
+		}
+		for _, k := range klassen {
+			for _, art := range eArten() {
+				got, err := eA("VB", art, "{"+ty.kopf+k.body+"}").los()
+				was := ty.name + " " + k.name + " " + string(art)
+				if k.ursache != "" {
+					eFehler(t, was, got, err, k.ursache, k.ort)
+				} else {
+					eOK(t, was, got, err, model.EntityEingabe{Typ: ty.name, Schluessel: "'k'", Properties: []model.PropertyWert{ePW("Id", model.ArtString, "k"), ePW("N1", model.ArtInt32, "5")}})
+				}
+				n++
+			}
+		}
+	}
+	if n != 45 {
+		t.Errorf("Menge %d, erwartet 45", n)
+	}
+}
+
 // TestEingabeMitglieder hält Zeile 20: nicht unterstützter Typ, Navigation, dynamisches Member und unbekannter Name, jeder JSON-Wert.
 // Menge 315 = 15 Klassen (10 im geschlossenen Typ `Ms` und `Os`, 5 Namen des Modells im offenen Typ) × 7 Werte × 3 Arten.
 func TestEingabeMitglieder(t *testing.T) {

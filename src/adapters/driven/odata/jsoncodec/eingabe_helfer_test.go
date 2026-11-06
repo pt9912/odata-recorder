@@ -320,6 +320,11 @@ func eModell() model.ServiceModel {
 	muss, muss2 := prop("Muss", "Edm.Int32", false), prop("Muss2", "Edm.Int32", false)
 	add("", model.EntityType{Name: "Ns.Pflicht", BaseType: "Ns.Mitte", Keys: []string{"Id"}, Properties: []model.Property{idp, namep, muss}})
 	add("", model.EntityType{Name: "Ns.Pflicht2", BaseType: "Ns.Pflicht", Keys: []string{"Id"}, Properties: []model.Property{idp, namep, muss, muss2}})
+	vp := []model.Property{prop("Id", "Edm.String", false), prop("Dbl", "Edm.Double", true), prop("N1", "Edm.Int32", true)}
+	vn := []model.NavigationProperty{{Name: "Nav", Target: "Ns.VB"}}
+	add("VB", model.EntityType{Name: "Ns.VB", Keys: []string{"Id"}, Properties: vp, NavigationProperties: vn})
+	add("", model.EntityType{Name: "Ns.VD", BaseType: "Ns.VB", Keys: []string{"Id"}, Properties: vp, NavigationProperties: vn})
+	add("", model.EntityType{Name: "Ns.VDO", BaseType: "Ns.VB", Open: true, Keys: []string{"Id"}, Properties: vp, NavigationProperties: vn})
 	add("KN", model.EntityType{Name: "Ns.KN", Keys: []string{"A", "B"}, Properties: []model.Property{prop("A", "Edm.Int32", true), prop("B", "Edm.String", true)}})
 	add("", model.EntityType{Name: "Ns.Abs", BaseType: "Ns.Mitte", Abstract: true, Keys: []string{"Id"}, Properties: []model.Property{idp, namep}})
 	add("Fremde", model.EntityType{Name: "Ns.Fremd", Keys: []string{"Id"}, Properties: []model.Property{idp}})

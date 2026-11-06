@@ -1,6 +1,8 @@
 package jsoncodec_test
 
 import (
+	"context"
+	"errors"
 	"io"
 	"reflect"
 	"runtime"
@@ -156,7 +158,9 @@ type eGleichzeitigFall struct {
 }
 
 // eGleichzeitigFaelle sind die Zweige der Zeile 39: gültig, `fehlend`, `wert`, `doppelter_name`, `bind`, `navigation`, `property_typ`, `offen`, gültiges
-// und ungültiges `@odata.type`, `schluessel`, Programmfehler, `content_type`, `charset` gültig und ungültig und der Fehler von `src`; jeder Zweig, den der Leser ausführen kann, hat einen Aufruf.
+// und ungültiges `@odata.type`, `schluessel`, Programmfehler, `content_type`, `charset` gültig und ungültig und der Fehler von `src`, dazu `syntax`, `kodierung`, `tiefe`,
+// `zu_gross`, `struktur` (Annotation und Wurzel), `unbekannte_property`, `typ`, `null`, `zahl_zu_lang`, abstrakter Typ des Sets und der beendete Kontext vor dem `Content-Type`
+// und nach dem Lesen: jede Ursache von `SPEC-180` Nr. 3 und beide Stellen des Kontexts haben einen Aufruf (der Test zählt sie).
 func eGleichzeitigFaelle() []eGleichzeitigFall {
 	mit := func(name, set, body string) eGleichzeitigFall {
 		return eGleichzeitigFall{name, func(m model.ServiceModel, art model.EingabeArt) eAufruf {
@@ -185,6 +189,28 @@ func eGleichzeitigFaelle() []eGleichzeitigFall {
 			a.ct = []string{"application/json; charset=UTF-8;odata.metadata=minimal"}
 			return a
 		}},
+		mit("syntax", "Ws", `{x`), mit("kodierung", "Ws", "{\"Id\":1,\"S\":\"\xff\"}"), mit("tiefe", "Ws", `{"Id":1,"@a":`+strings.Repeat("[", 513)+`}`),
+		mit("struktur Annotation", "Ws", `{"Id":1,"a@b@c":1}`), mit("struktur Wurzel", "Ws", `5`), mit("unbekannte_property", "Ws", `{"Id":1,"zz":1}`),
+		mit("typ", "Ws", `{"Id":1,"S":5}`), mit("null", "Sts", `{"Id":null}`), mit("zahl_zu_lang", "Ws", `{"Id":1,"Dec":1e1024}`),
+		mit("odata_typ abstrakt", "Wurzeln", `{"Id":1}`),
+		{"zu_gross", func(m model.ServiceModel, art model.EingabeArt) eAufruf {
+			a := eAm(m, "Ws", art, `{"Id":1}`)
+			a.grenze = 5
+			return a
+		}},
+		{"Kontext vor Content-Type", func(m model.ServiceModel, art model.EingabeArt) eAufruf {
+			a := eAm(m, "Ws", art, `{"Id":1}`)
+			c, cancel := context.WithCancel(context.Background())
+			cancel()
+			a.ctx = c
+			return a
+		}},
+		{"Kontext nach dem Lesen", func(m model.ServiceModel, art model.EingabeArt) eAufruf {
+			a := eAm(m, "Ws", art, "")
+			s := eNeuerStrom(eSchritt{daten: []byte(`{"Id":1}`), err: io.EOF})
+			a.src, a.ctx = s, &eKontext{log: s.log, err: context.Canceled, ab: 3}
+			return a
+		}},
 		{"Fehler von src", func(m model.ServiceModel, art model.EingabeArt) eAufruf {
 			a := eAm(m, "Ws", art, "")
 			a.src = eNeuerStrom(eSchritt{daten: []byte(`{"Id":`)}, eSchritt{err: io.ErrUnexpectedEOF})
@@ -194,7 +220,8 @@ func eGleichzeitigFaelle() []eGleichzeitigFall {
 }
 
 // TestEingabeGleichzeitig hält Zeile 39: gleichzeitige Aufrufe auf einer Instanz beeinflussen sich nicht; jedes Ergebnis gleicht dem eines
-// einzelnen Aufrufs. 32 Goroutinen × 3 Arten × 16 Zweige, je 8 Runden. Der Zähler zählt abweichende Ergebnisse; unter `make test-race` meldet der
+// einzelnen Aufrufs. 32 Goroutinen × 3 Arten × 29 Zweige, je 8 Runden; die Zweige sind die Rückgaben des Lesers (alle 19 Ursachen, beendeter Kontext an zwei Stellen,
+// Programmfehler), die Zählung im Test hält die Menge gegen `model.AlleEingabeUrsachen`. Der Zähler zählt abweichende Ergebnisse; unter `make test-race` meldet der
 // Detektor den ungeordneten Zugriff, in einem Zweig ohne Wirkung auf das Ergebnis allein er.
 func TestEingabeGleichzeitig(t *testing.T) {
 	type erg struct {
@@ -211,10 +238,32 @@ func TestEingabeGleichzeitig(t *testing.T) {
 		return erg{e, ""}
 	}
 	soll := map[string]erg{}
+	ursachen := map[model.EingabeUrsache]bool{}
+	kontexte, programm := 0, 0
 	for _, art := range eArten() {
 		for _, f := range eGleichzeitigFaelle() {
 			soll[string(art)+f.name] = einzeln(jsoncodec.NewEingabe(), f, art)
+			a := f.bau(m, art)
+			_, err := jsoncodec.NewEingabe().LeseEntity(a.kontext(), a.src, a.ct, a.m, a.set, a.art, a.grenze)
+			var ef *model.EingabeFehler
+			switch {
+			case errors.As(err, &ef):
+				ursachen[ef.Ursache] = true
+			case errors.Is(err, context.Canceled):
+				kontexte++
+			case errors.Is(err, model.ErrUngueltig):
+				programm++
+			}
 		}
+	}
+	// Klasse: jede Rückgabe von LeseEntity hat einen Aufruf, nämlich alle 19 Ursachen, der beendete Kontext (vor dem Content-Type und nach dem Lesen) und der Programmfehler.
+	for _, u := range model.AlleEingabeUrsachen() {
+		if !ursachen[u] {
+			t.Errorf("Ursache %s hat keinen Zweig in eGleichzeitigFaelle", u)
+		}
+	}
+	if kontexte != 3*2 || programm == 0 {
+		t.Errorf("Kontext %d (erwartet 6), Programmfehler %d", kontexte, programm)
 	}
 	l := jsoncodec.NewEingabe()
 	var abweichend, aufrufe atomic.Int64
@@ -239,7 +288,7 @@ func TestEingabeGleichzeitig(t *testing.T) {
 	}
 	close(start)
 	wg.Wait()
-	if abweichend.Load() != 0 || aufrufe.Load() != 32*8*3*16 {
+	if abweichend.Load() != 0 || aufrufe.Load() != int64(32*8*3*len(eGleichzeitigFaelle())) {
 		t.Errorf("%d von %d Aufrufen weichen vom Ergebnis des einzelnen Aufrufs ab", abweichend.Load(), aufrufe.Load())
 	}
 }
