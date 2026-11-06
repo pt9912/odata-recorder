@@ -129,6 +129,26 @@ func TestKatCZiffern(t *testing.T) {
 	zaehle(t, "Ziffern", n, 1024)
 }
 
+// TestKatCLaenge: die Folge der Ziffern hinter `ODR-E` gilt ganz, bei jeder Länge. Menge: 0 bis 12 Ziffern = 13
+// Längen; nur vier sind ein Code (er steht nicht in §4: Art 4 und Art 7), jede andere ist Befund Form.
+func TestKatCLaenge(t *testing.T) {
+	codes := codeListe()[:3]
+	n := 0
+	for k := 0; k <= 12; k++ {
+		wert := "ODR-E" + strings.Repeat("7", k)
+		m := grund(codes, nil)
+		m[dFehler] = mitLiteralen(codes, "\t\""+wert+"\",")
+		zeile := zeileVon(t, m[dFehler], wert+"\"")
+		if k == 4 {
+			erwarteBefunde(t, wert, m, fmt.Sprintf("%s in fehler.go (Zeile %d), nicht in §4", wert, zeile), wert+" fehlt im Handbuch")
+		} else {
+			erwarteBefunde(t, wert, m, formQuelle("fehler.go", zeile, wert))
+		}
+		n++
+	}
+	zaehle(t, "Längen", n, 13)
+}
+
 // TestKatCDoppelt: ein Code als Literal an mehreren Stellen ist Befund doppelt, einmal je Code, mit der Zeile des
 // ersten Vorkommens. Menge 3 Orte des zweiten Vorkommens (direkt dahinter, Mitte, Ende) × 2 (zweimal, dreimal) = 6.
 func TestKatCDoppelt(t *testing.T) {

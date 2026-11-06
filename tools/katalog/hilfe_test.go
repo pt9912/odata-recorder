@@ -187,8 +187,6 @@ func zaehle(t *testing.T, was string, ist, soll int) {
 	}
 }
 
-func quote(x string) string { return fmt.Sprintf("%q", x) }
-
 // verzeichnisBaum ist der Inhalt eines Baums: Pfad, Größe und Inhalt jeder Datei, geordnet.
 func verzeichnisBaum(t *testing.T, w string) string {
 	t.Helper()
