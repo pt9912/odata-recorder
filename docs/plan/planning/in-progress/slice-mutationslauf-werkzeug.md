@@ -145,7 +145,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **Start am 2026-11-06 auf ausdrückliche Anweisung des Users** (nicht wegen kurzer Schlange). **Bedingung für den Architect:** `slice-test-determinism` liegt in `in-progress/` und ändert `harness/mk/` und die Sensors-Tabelle (Gate-Kette). Aus dem Plan ist keine Änderung der Gate-Kette durch dieses Werkzeug erkennbar (§3: `Makefile` und `harness/mk/` nicht geändert); der Slice läuft nur weiter, wenn der Architect in Auftrag 7 bestätigt, dass das Werkzeug **ohne** Ziel in `harness/mk/`, ohne Stufe im `Dockerfile`, ohne Eintrag in `GATE_CHECKS` und ohne Änderung der Sensors-Tabelle auskommt. Braucht er eine, gibt er an den Planner zurück (§6), und der Slice geht nach `open/`, bis `slice-test-determinism` geschlossen ist. `harness/README.md` (*Nicht behauptet*, Werkzeug-Zeile) ist ebenfalls Gate-Kette (Übergangsregeln Nr. 7): der Implementer ändert sie erst, wenn `slice-test-determinism` in `done/` liegt, oder der Planner ordnet die Änderung beim Merge. Die Architect-Aufträge 1 bis 8 sind entschieden, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 **Bestätigt vom Architect am 2026-11-06 (Auftrag 7):** Das Werkzeug kommt ohne Ziel in `harness/mk/`, ohne Stufe im `Dockerfile`, ohne Eintrag in `GATE_CHECKS` und ohne Änderung der Sensors-Tabelle aus; der Slice läuft weiter. Die Zeile in `harness/README.md` bleibt beim Merge oder nach `slice-test-determinism` (oben).
 
-**Größenmarke** (`AGENTS.md` §3.14): **Marke noch nicht gesetzt.** Der Architect hat den Teil `pfad`, `produktcode`, `fakes` des Blocks ([SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md) Nr. 3) gefüllt; der Planner schreibt danach `basis`, `schaetzung` und `marke` und setzt die Marke mit `make groessenmarke` im eigenen Commit vor dem ersten Code-Commit. Aufwand nach Einschätzung des Planners: S bis M (Programm mit Prozessen und Cache, nebenläufig).
+**Größenmarke** (`AGENTS.md` §3.14): **Marke 3000, Schätzung 2155, Basis `9c9b406`** (der Commit des Architect, der SPEC-210, Tabelle und Raster vor dem Code abschließt). Es gilt die durchgesetzte Formel des Gates ([SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md) Nr. 1). Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat 9c9b406..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen, `harness/vertraege/` ausgenommen. Der Planner hat `basis`, `schaetzung` und `marke` vor dem ersten Code-Commit im eigenen Commit gesetzt; eine ältere Marke gab es nicht (kein Eintrag `ersetzt`). **Der Formelkonflikt bleibt beim User, der Planner löst ihn nicht:** nach `AGENTS.md` §3.14 wäre die Marke 1600. Aufwand nach Einschätzung des Planners: S bis M (Programm mit Prozessen und Cache, nebenläufig).
 **Schätzung des Architect nach beiden Formeln, sie widersprechen sich** (Zeilen der Tabelle: 3 `nebenläufig` — Z6, Z8, Z12 —, 10 `andere`; drei Fakes: Prozess-Port, Ersatz-Skript für `docker`, Fixture-Modul):
 
 - **Nach SPEC-128 Nr. 1** (das Gate, `make groessenmarke`): *S* = 85·3 + 80·10 + 200·3 + 500 = **2155**, Marke 100 · ⌈1,35·2155⌉ = **3000**; keine Schnittfrage (*S* < 2223). `produktcode: 500` ist das Programm (rund 420 Zeilen Go) und der Treiber (rund 80 Zeilen Shell).
@@ -158,6 +158,9 @@ pfad: tools/mutationslauf
 pfad: tools/harness/mutationslauf.sh
 produktcode: 500
 fakes: 3
+basis: 9c9b406
+schaetzung: 2155
+marke: 3000
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
