@@ -3,7 +3,9 @@
 # Aufruf: mutationslauf.sh <Liste>
 # Legt einen Container aus dem Image der Kette an (ohne Netz, ohne Mount, mit --memory), schickt den
 # Arbeitsbaum, die Liste und die Quelle von tools/mutationslauf mit `docker cp` hinein, startet den
-# Lauf und gibt dessen Ausgabe und Exit-Code weiter. Der Container wird in jedem Fall entfernt.
+# Lauf und gibt dessen Ausgabe und Exit-Code weiter. Der Container wird nach Erfolg, bei Exit 2 und bei
+# HUP, INT und TERM entfernt; bei SIGKILL des Treibers bleibt höchstens einer mit dem Label, den der
+# nächste Aufruf räumt.
 # Umgebung: MUTATIONSLAUF_IMAGE (odata-recorder:race), MUTATIONSLAUF_SPEICHER (2g, 1g bis 4g),
 # MUTATIONSLAUF_GRENZE (3600 Sekunden, 1 bis 14400), MUTATIONSLAUF_KALT (1: leerer Build-Cache),
 # DOCKER (docker). Der Aufrufer hält den flock; der Treiber schreibt nichts auf den Host.

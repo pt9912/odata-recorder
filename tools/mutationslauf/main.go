@@ -80,6 +80,11 @@ func imageAbgleich(baum, image string) bool {
 	return true
 }
 
+// kindUmgebung ist die Umgebung der Go-Aufrufe und Test-Prozesse: netzlos, ohne Toolchain-Wechsel, mit dem Cache.
+func kindUmgebung(env []string, cache string) []string {
+	return append(append([]string(nil), env...), "GOCACHE="+cache, "GOFLAGS=-mod=readonly", "GOPROXY=off", "GOTOOLCHAIN=local")
+}
+
 // ladeLast liest den ersten Wert von /proc/loadavg.
 func ladeLast() string {
 	roh, err := os.ReadFile("/proc/loadavg")
@@ -130,7 +135,7 @@ func run(ctx context.Context, args, env []string, stdout, stderr io.Writer) int 
 	if kalt {
 		cache = filepath.Join(ablage, "gocache")
 	}
-	penv := append(append([]string(nil), env...), "GOCACHE="+cache, "GOFLAGS=-mod=readonly", "GOPROXY=off", "GOTOOLCHAIN=local")
+	penv := kindUmgebung(env, cache)
 	w := &Werk{
 		Konfig: Konfig{Baum: baum, Ablage: ablage, TestZeit: testZeit, Gnade: testGnade,
 			CacheGrenze: cacheGrenze, CPUs: runtime.GOMAXPROCS(0)},

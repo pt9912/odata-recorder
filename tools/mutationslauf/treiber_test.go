@@ -125,6 +125,20 @@ func TestTreiberOptionen(t *testing.T) {
 	}
 }
 
+// TestTreiberContainerOptionen (SPEC-210 Nr. 3 b, 3 c, 9 a): create trägt cpus, pids-limit, das Label für die Reste, die
+// Grenze und KALT der Umgebung; der Befehl baut netzlos und startet das Programm mit den drei Pfaden.
+func TestTreiberContainerOptionen(t *testing.T) {
+	u := neueTreiberUmgebung(t)
+	u.lauf(t, "MUTATIONSLAUF_GRENZE=7", "MUTATIONSLAUF_KALT=1")
+	c := strings.Join(u.aufrufe("create"), "")
+	for _, w := range []string{" --cpus=4 ", " --pids-limit=1024 ", " --label odata-recorder.mutationslauf=1 ", " -e MUTATIONSLAUF_GRENZE=7 ",
+		" -e MUTATIONSLAUF_KALT=1 ", " odata-recorder:race sh -c ", "cd /tmp/mutationslauf && CGO_ENABLED=0 GOFLAGS=-mod=readonly GOTOOLCHAIN=local GOPROXY=off go build -o /usr/local/bin/mutationslauf . || exit 2; exec mutationslauf /tmp/liste.json /tmp/baum"} {
+		if !strings.Contains(c, w) {
+			t.Errorf("create ohne %q: %q", w, c)
+		}
+	}
+}
+
 // TestEinContainerJeAufruf (SPEC-210 Nr. 3 b): ein create und ein start je Aufruf, unabhängig von der Zahl der Mutationen.
 func TestEinContainerJeAufruf(t *testing.T) {
 	u := neueTreiberUmgebung(t)
