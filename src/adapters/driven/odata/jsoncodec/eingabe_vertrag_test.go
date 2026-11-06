@@ -3,6 +3,7 @@ package jsoncodec_test
 import (
 	"reflect"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -115,6 +116,7 @@ func TestEingabeErgebnisGehoertDemAufrufer(t *testing.T) {
 			if err1 != nil || errFrisch != nil {
 				t.Fatalf("%s %s: %v %v", art, body, err1, errFrisch)
 			}
+			frisch.Properties = slices.Clone(frisch.Properties)
 			r1.Typ, r1.Schluessel = "X", "X"
 			if len(r1.Properties) > 0 {
 				r1.Properties[0].Name, r1.Properties[0].Wert.Text = "X", "X"
@@ -124,6 +126,10 @@ func TestEingabeErgebnisGehoertDemAufrufer(t *testing.T) {
 			r2, err2 := l.LeseEntity(b.ctx, b.src, b.ct, b.m, b.set, b.art, b.grenze)
 			if err2 != nil || !reflect.DeepEqual(r2, frisch) {
 				t.Errorf("%s %s: zweiter Aufruf %+v %v, erwartet %+v", art, body, r2, err2, frisch)
+			}
+			// der zweite Aufruf ändert das erste Ergebnis nicht: die Änderungen des Aufrufers stehen noch da
+			if r1.Typ != "X" || r1.Properties[len(r1.Properties)-1].Name != "Y" || (len(frisch.Properties) > 0 && r1.Properties[0].Name != "X") {
+				t.Errorf("%s %s: das erste Ergebnis hat sich durch den zweiten Aufruf geändert: %+v", art, body, r1)
 			}
 		}
 	}
