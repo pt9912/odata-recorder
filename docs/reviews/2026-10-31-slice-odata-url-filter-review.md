@@ -14,7 +14,7 @@
 - `SPEC-164`, `SPEC-165`, `SPEC-160` Nr. 8, `SPEC-161` Nr. 6, `SPEC-162` Nr. 2 und 8, `SPEC-122` Nr. 8 und 9, `SPEC-128` Nr. 1 und 2
 - [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0007](../plan/adr/0007-race-detektor-im-gate.md)
 - [LH-FA-08, LH-QA-05](../../spec/lastenheft.md)
-- `AGENTS.md` (Hard Rules); Reviewer-Skill mit den Zeilen *Fänger führt nur eine Form der Eingabe*, *Paar von Ursachen ohne Fänger*, *Fänger nur mit Wahrscheinlichkeit, Rate nicht benannt*; Report `2026-10-31-slice-replay-service-review.md` als Maßstab
+- `AGENTS.md` (Hard Rules); Reviewer-Skill mit den Zeilen *Fänger führt nur eine Form der Eingabe*, *Paar von Ursachen ohne Fänger*, *Fänger nur mit Wahrscheinlichkeit, Rate nicht benannt*; Report `2026-10-31-slice-replay-service-review` als Maßstab
 
 ---
 

@@ -41,6 +41,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Der Rahmen (Listener, Token, Fehlerobjekt, Abbildung der Port-Fehler) — `slice-admin-listener-token`; dieser Slice trägt die Routen und ihre Abbildung.
 - Statusregel, Rangfolge der Fehler und Bereinigung der Blobs — `SessionUseCase` (`done/`); der Adapter bildet ab und schreibt nie direkt in die Datenbank (Architektur §2).
 - Der Port `AuditLog` — `welle-betrieb` (`slice-audit-log`); der Slice ruft ihn.
+- Der Audit-Eintrag der Löschung einer Session (Art `session_geloescht`) — `SessionUseCase.Delete` schreibt ihn (`slice-audit-dienste`); der Adapter schreibt die vier Arten von `SPEC-234` Nr. 2 nie, auch nicht für denselben Request (Entscheidung `SPEC-234` Nr. 7, Geber: `slice-audit-log` und `slice-audit-dienste`). Der Adapter auditiert nur eigene Arten (Anlegen, Beenden), die der Vertrag des Adapters in die Tabelle einträgt.
 - Ein Endpunkt für die Wartung — `SPEC-005` führt keinen; die Startwartung läuft im Composition Root (Ausgang in §6).
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
@@ -69,7 +70,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
 - [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Bringt der Slice einen Fehlercode, Schlüssel oder ein Kommando in den Katalog des Binary: Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün. Sonst steht in §7, dass das Binary unverändert blieb (der Admin-Listener erreicht es erst mit `slice-bootstrap-m6`).
+- [ ] Bringt der Slice einen Fehlercode, Schlüssel oder ein Kommando in den Katalog des Binary: Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün. Sonst steht in §7, dass das Binary unverändert blieb (der Admin-Listener erreicht es erst mit `slice-bootstrap-m6`). Hinweis aus `slice-audit-verdrahtung` (§6): die Datei `audit.jsonl` im Datenverzeichnis ist für den Anwender sichtbar, ihr Kapitel folgt mit dem ersten Slice, dessen Binary eine Löschung auslöst; das ist dieser Slice, sobald der Listener verdrahtet ist (`slice-bootstrap-m6`) und ein Beispiel gegen das gebaute Binary die Datei erzeugen kann.
 - [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
 - [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
@@ -120,7 +121,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-admin-listener-token`, `slice-inspection-use-case` und `slice-audit-log` (`welle-betrieb`) liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-admin-listener-token`, `slice-inspection-use-case`, `slice-audit-log` und `slice-audit-dienste` (`welle-betrieb`) liegen in `done/` (`slice-audit-dienste`, weil der Eintrag der Löschung erst dort im Use Case entsteht und die DoD „ohne Doppelung“ verlangt). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Warum:** Rahmen und Authentisierung kommen aus `slice-admin-listener-token`, `InspectionUseCase` für Exchanges, Coverage und Diagnose aus `slice-inspection-use-case`, der Port `AuditLog` für die Schreibendpunkte aus `slice-audit-log` (alle drei *Code-Abhängigkeit*; der Audit-Port ist über `slice-admin-listener-token` schon vorausgesetzt und hier genannt, weil dieser Slice ihn für `POST`, `close` und `DELETE` ruft). `SessionUseCase` liegt seit `slice-session-use-case` und `slice-session-beenden` in `done/`.
 
@@ -157,7 +158,7 @@ dasteht.
 | `GET …/exchanges`, `GET /__admin/coverage`, `GET /__admin/diagnostics` (Seitenparameter, Baseline) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
 | Audit-Eintrag der Schreibendpunkte | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
 
-- Wer schreibt den Audit-Eintrag einer Löschung: der Adapter oder `SessionUseCase` (`slice-audit-log`)? Beide ergäben einen doppelten Eintrag — **Ausgang:** offen; Adresse: Architect (Auftrag 3), vor dem ersten Code-Commit.
+- Wer schreibt den Audit-Eintrag einer Löschung: der Adapter oder `SessionUseCase` (`slice-audit-log`)? Beide ergäben einen doppelten Eintrag — **Ausgang:** offen; Adresse: Architect (Auftrag 3), vor dem ersten Code-Commit. Vorentscheidung in `SPEC-234` Nr. 7: allein der Use Case schreibt (Geber: `slice-audit-log`); der Architect übernimmt sie in den Vertrag des Adapters.
 - `close` wartet auf `Beenden` und kann länger dauern als `SHUTDOWN_TIMEOUT` und als jedes Schreib-Timeout des Servers (`SPEC-124` *Ungeprüft*); bricht der Client ab, wird der Kontext des Requests abgebrochen — **Ausgang:** offen; Adresse: Architect (Auftrag 2).
 - Statuscodes der Erfolge und JSON-Form der Antworten stehen nicht in `SPEC-005`; die OpenAPI-Datei ist Voraussetzung (Welle §6) — **Ausgang:** offen; Adresse: Architect (Auftrag 1).
 - Ein Endpunkt für die Wartung existiert in `SPEC-005` nicht; `slice-session-wartung` nennt „Admin-Endpunkte für Sessions und Wartung“ als Folgewelle — **Ausgang:** entfallen: die Wartung läuft beim Start im Composition Root (`ARC-012`), `SPEC-005` führt keinen Endpunkt, und die Sendung trifft nur den Teil der Sessions, den dieser Slice trägt.

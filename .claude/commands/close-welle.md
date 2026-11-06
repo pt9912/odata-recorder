@@ -44,6 +44,10 @@ Wellen-Closure), Modul 7 (Carveouts), Modul 5 (Lifecycle). Bei Konflikt gilt der
    Das ist die **beobachtbare** Bedingung, nicht der Kalendertag. Fehlt ein Beleg (ein Slice nicht
    `done`, ein Gate rot), **schließt die Welle nicht** — kein halbfertiges `done/`. Erzeuge die Belege
    **real** (Gate-Ausgabe, Smoke-Lauf), behaupte sie nicht.
+   **Pflichtlauf neben der Gate-Kette** (bis `slice-gate-integration-determinism` in `done/` liegt
+   und beide Ziele an `GATE_CHECKS` hängen): `make test-integration` und `make test-determinism`
+   laufen unter `flock /tmp/odata-recorder-heavy.lock` vor der Closure, ihre Ausgabe steht in der
+   Results-Notiz unter *Verifikation*  (seit welle-record-replay).
 3. **Schritt 2 — Trigger-Audit der Welle.** Drei Artefaktklassen tragen einen Trigger, alle drei
    werden geprüft: **Carveout** (Modul 7) → aufgelöst · verlängert (mit Folge-Slice) · permanent ·
    **bootstrap-aware Gate** (Modul 13) → Stufe hochschalten, oder Carveout eröffnen, wenn die neue

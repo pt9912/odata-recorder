@@ -76,7 +76,15 @@ bewusst kurz (Ergänzungs-Kanal, nicht Hauptkanal).
 - **Akzeptiertes Negativ ohne Grund und Folge** — ein Plan oder Vertrag nimmt einen
   Fall als akzeptiertes Negativ hin und nennt Grund oder Folge nicht; es zählt als
   Zusage ohne Fänger (`AGENTS.md` §3.15)  (seit welle-record-replay)
+- **Fänger schmaler als Zusage, Menge unbeschränkt oder ohne Achsenliste** — Differenz oder
+  Prüfgrenze fehlt als akzeptiertes Negativ, oder der Fix nennt die Menge ohne Achsen und je Achse
+  eine nicht genannte Mutation (`AGENTS.md` §3.15, §3.17)  (seit welle-record-replay)
+- **Fixture, Hilfe oder Kommentar verdeckt, was der Test prüft** — Felder derselben Referenz
+  tragen denselben Wert, eine Hilfe trägt weniger als ihr Original, ein Kommentar oder Plan nennt
+  mehr Elemente als der Test (`AGENTS.md` §3.11)  (seit welle-record-replay)
 
+**Hinweis:** `panic:` oder Zeitlimit statt `--- FAIL` des benannten Tests heißt rot, aber nicht
+aus ihm; der Befund nennt das  (seit welle-record-replay).
 **LOW** — *mit Konventions-Anker* (ADR, Hard Rule, Linter-Regel, Eintrag im
 Reviewer-Skill): stilistisch unschön ohne semantische Auswirkung, einmalige
 Tippfehler, unbenutzte Imports.

@@ -40,7 +40,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Die Endpunkte außer `GET /healthz` — `slice-admin-sessions`, `slice-admin-imports` und `slice-admin-workspaces`; der Rahmen nimmt Routen entgegen, die Tests registrieren eine Testroute.
 - TLS, `ADMIN_TLS_*`, `ADMIN_ALLOW_PLAINTEXT` und die Start-Prüfung bei nicht-loopback `ADMIN_LISTEN` — `slice-admin-tls`; bis dahin bindet kein Composition Root den Listener (`slice-bootstrap-m6` verdrahtet ihn erst nach TLS), also entsteht keine ungeschützte Erreichbarkeit.
 - Das Lesen von `ADMIN_LISTEN` und `ADMIN_TOKEN_FILE` aus der Umgebung und das Aufheben ihrer Ablehnung in `SPEC-110` Nr. 2 — `slice-bootstrap-m6`; ein gelesener, aber nirgends verdrahteter Schlüssel wäre eine still wirkungslose Sicherheitseinstellung. Der Adapter nimmt typisierte Werte.
-- Der Port `AuditLog` und sein Adapter — `welle-betrieb` (`slice-audit-log`); der Slice ruft den Port.
+- Der Port `AuditLog` und sein Adapter — `welle-betrieb` (`slice-audit-log`); der Slice ruft den Port. Die vier Arten einer Löschung und eines fehlgeschlagenen Imports schreibt allein der Use Case (`slice-audit-dienste`, Entscheidung `SPEC-234` Nr. 7, Geber: `slice-audit-log`); der Eintrag zu `ODR-E2101` ist eine eigene Art des Adapters und braucht `slice-audit-dienste` nicht, der Start-Trigger bleibt.
 - Token-Rotation, mehrere Token, Benutzer, Rollen, OIDC — Out-of-Scope der Welle (§6): die Spezifikation kennt ein Token.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als

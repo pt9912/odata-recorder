@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-record-replay](../welle-record-replay.md).
+**Welle:** [welle-record-replay](welle-record-replay.md).
 
 **Bezug:** `LH-QA-07` (Messmethode: Direktzugriff gegen Proxy-Zugriff am Referenzdienst), `LH-FA-01` (transparente Weiterleitung), [ADR-0001](../../adr/0001-implementierungssprache-go.md) (Go, Test in der Stufe `test`).
 

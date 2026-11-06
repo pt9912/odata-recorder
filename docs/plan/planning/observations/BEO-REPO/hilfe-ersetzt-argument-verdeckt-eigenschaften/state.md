@@ -1,1 +1,1 @@
-**Stand:** offen, Schwelle erreicht (3×: slice-odata-codec-json, slice-baseline-import, slice-groessenmarke-werkzeug); Ausgang noch nicht zugewiesen, Verkörperung ist ein Diff-Vorschlag an den User (Zielorte: `.claude/commands/implement-slice.md` Schritt 14 und MEDIUM-Liste von `.harness/skills/reviewer.md`)
+**Stand:** verkörpert in `.claude/commands/implement-slice.md` (Schritt 14, Testhilfe trägt alles, was das Original trägt) und `.harness/skills/reviewer.md` (MEDIUM *Fixture, Hilfe oder Kommentar verdeckt, was der Test prüft*) seit welle-record-replay

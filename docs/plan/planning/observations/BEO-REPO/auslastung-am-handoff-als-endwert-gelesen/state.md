@@ -1,1 +1,1 @@
-**Stand:** offen, Schwelle erreicht (3×: siehe `evidence/`); Ausgang noch nicht zugewiesen
+**Stand:** geplant: Auftrag an den Architect, `SPEC-128` Nr. 9 auf den Endwert zu stellen (Zuwachs vom Handoff zum Ende 1,19- bis 1,49-fach), zusammen mit der Neukalibrierung der Faktoren in Nr. 1 und 2; Träger ist noch kein Slice, die Kennung folgt mit dem Auftrag

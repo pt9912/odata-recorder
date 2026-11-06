@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-record-replay](../welle-record-replay.md).
+**Welle:** [welle-record-replay](welle-record-replay.md).
 
 **Bezug:** `LH-QA-03` (nebenläufige Tests, Isolation), `LH-QA-06` (gleiches Testverhalten, Container, gepinntes Image), [ADR-0001](../../adr/0001-implementierungssprache-go.md) (Go, Stufen des `Dockerfile`), [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Gegenprobe des neuen Ziels), [ADR-0006](../../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md) (Build ohne cgo bleibt; der SQLite-Adapter ist reines Go und läuft unter `-race`), [ADR-0007](../../adr/0007-race-detektor-im-gate.md) (Race-Detektor im Gate; vom Architect geschrieben, Status Accepted seit 2026-10-22, Geschichte der ADR).
 

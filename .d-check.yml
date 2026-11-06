@@ -246,31 +246,34 @@ structure:
 # Lauf einer Rolle laedt (SPEC-040 Nr. 2); das Modul liest scan.ignore nicht und erreicht
 # .claude/ und .harness/skills/. Jede Grenze ist das Maximum ihrer Dateien am Stand
 # 2026-10-31 (Zeilen wie wc -l, Bytes wie wc -c), kein Spielraum; die Summe der Grenzen ist
-# 976 Zeilen und 68861 Bytes. Senken ist frei, Anheben nur als Verschiebung zwischen Regeln
+# 976 Zeilen und 68663 Bytes (Verschiebung 2026-11-06 nach SPEC-040 Nr. 8 b: AGENTS.md -8 Zeilen
+# und -1000 Bytes, .harness/skills/*.md +8 Zeilen und +713 Bytes, .claude/commands/*.md +89 Bytes;
+# Messung vorher AGENTS.md 337/24648, reviewer.md 137/7397, implement-slice.md 221/16992,
+# nachher 329/23648, 145/8110, 220/17081). Senken ist frei, Anheben nur als Verschiebung zwischen Regeln
 # oder per ADR (SPEC-040 Nr. 8, ADR-0010); eine Regel traegt kein hint (SPEC-040 Nr. 4 d).
 # Messung je Regel:
-#   AGENTS.md              337 Zeilen, 24648 Bytes
-#   .claude/commands/*.md  Maximum implement-slice.md 221 Zeilen, 16992 Bytes
-#                          (close-welle.md 142/11369, plan-welle.md 99/6554)
+#   AGENTS.md              329 Zeilen, 23648 Bytes
+#   .claude/commands/*.md  Maximum implement-slice.md 220 Zeilen, 17081 Bytes
+#                          (close-welle.md 146/11731, plan-welle.md 99/6554)
 #   .claude/agents/*.md    Maximum architect.md 53 Zeilen, 3759 Bytes
 #                          (implementer 48/3069, verifier 43/2639, validator 42/2493,
 #                          reviewer 41/2542, planner 36/2166)
-#   .harness/skills/*.md   Maximum reviewer.md 137 Zeilen, 7397 Bytes
+#   .harness/skills/*.md   Maximum reviewer.md 145 Zeilen, 8110 Bytes
 #                          (closure-note-reviewer.md 90/4144)
 #   harness/conventions.md 228 Zeilen, 16065 Bytes
 file:
   - files: "AGENTS.md"
-    max-lines: 337
-    max-bytes: 24648
+    max-lines: 329
+    max-bytes: 23648
   - files: ".claude/commands/*.md"
     max-lines: 221
-    max-bytes: 16992
+    max-bytes: 17081
   - files: ".claude/agents/*.md"
     max-lines: 53
     max-bytes: 3759
   - files: ".harness/skills/*.md"
-    max-lines: 137
-    max-bytes: 7397
+    max-lines: 145
+    max-bytes: 8110
   - files: "harness/conventions.md"
     max-lines: 228
     max-bytes: 16065
