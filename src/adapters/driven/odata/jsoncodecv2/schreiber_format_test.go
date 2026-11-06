@@ -226,6 +226,7 @@ func zeitFaelle() [][2]string {
 		{"1969-12-31T23:59:59.999Z", "-1"}, {"1969-12-31T23:59:59Z", "-1000"}, {"1969-12-31T23:59:59.001Z", "-999"},
 		{"0001-01-01T00:00:00Z", "-62135596800000"}, {"9999-12-31T23:59:59.999Z", "253402300799999"}, {"2024-02-29T12:00:00Z", "1709208000000"},
 		// je eine Zehnerpotenz des Betrags 4 bis 12 (in Millisekunden), beide Vorzeichen
+		{"1970-01-01T00:00:00.5Z", "500"}, {"1970-01-01T00:00:00.05Z", "50"}, {"1970-01-01T00:00:00.12Z", "120"},
 		{"1970-01-01T00:00:10Z", ""}, {"1970-01-01T00:01:40Z", ""}, {"1970-01-01T00:16:40Z", ""}, {"1970-01-01T02:46:40Z", ""},
 		{"1970-01-02T03:46:40Z", ""}, {"1970-01-12T13:46:40Z", ""}, {"1970-04-26T17:46:40Z", ""}, {"1973-03-03T09:46:40Z", ""}, {"2001-09-09T01:46:40Z", ""},
 		{"1969-12-31T23:59:50Z", ""}, {"1969-12-31T23:58:20Z", ""}, {"1969-12-31T23:43:20Z", ""}, {"1969-12-31T21:13:20Z", ""},
@@ -251,8 +252,8 @@ func TestZeitpunktBytes(t *testing.T) {
 		}
 		n++
 	}
-	if n != 28 {
-		t.Errorf("Menge %d, will 28", n)
+	if n != 31 {
+		t.Errorf("Menge %d, will 31", n)
 	}
 }
 
@@ -273,6 +274,7 @@ func fehlerText(err error) string {
 // aufruf ruft die Operation mit Index i für den Lauf g: die Argumente hängen von g ab, nie von einem anderen Lauf.
 func aufruf(s *jsoncodecv2.Schreiber, i, g int) ergebnis {
 	z := neuesZiel()
+	z.yield = true
 	name := "n" + strconv.Itoa(g)
 	var d model.Darstellung
 	var err error
@@ -507,12 +509,11 @@ func TestWiederholung(t *testing.T) {
 	}
 }
 
-// TestGleichzeitig hält Zeile 37 und 38: 16 Goroutinen rufen nach gemeinsamem Start einen gemeinsamen Schreiber mit 11 Aufrufarten in 50 Läufen;
-// jede Ausgabe gleicht der des einzelnen Aufrufs, den der Test danach berechnet. Ein Datenrennen meldet allein der Detektor von make test-race,
-// und nur in einem Zweig, den diese Aufrufe ausführen.
-func TestGleichzeitig(t *testing.T) {
-	const gor, laeufe = 16, 50
-	geteilt := jsoncodecv2.NewSchreiber()
+// gleichzeitig lässt 16 Goroutinen nach gemeinsamem Start den gemeinsamen Schreiber mit den Aufrufarten arten in laeufe Läufen rufen und
+// prüft jede Ausgabe gegen die des einzelnen Aufrufs, den der Test danach berechnet.
+func gleichzeitig(t *testing.T, geteilt *jsoncodecv2.Schreiber, arten []int, laeufe int) {
+	t.Helper()
+	const gor = 16
 	start := make(chan struct{})
 	gelaufen := make([][]ergebnis, gor)
 	var wg sync.WaitGroup
@@ -523,7 +524,7 @@ func TestGleichzeitig(t *testing.T) {
 			<-start
 			_ = jsoncodecv2.NewSchreiber()
 			for range laeufe {
-				for i := range varianten {
+				for _, i := range arten {
 					gelaufen[g] = append(gelaufen[g], aufruf(geteilt, i, g))
 				}
 			}
@@ -532,14 +533,14 @@ func TestGleichzeitig(t *testing.T) {
 	close(start)
 	wg.Wait()
 	for g := range gor {
-		for i := range varianten {
+		for k, i := range arten {
 			erwartet := aufruf(schreiber(), i, g)
 			if erwartet.body == "" && erwartet.err == "" {
 				t.Fatalf("Aufrufart %d, Goroutine %d: weder Ausgabe noch Fehler", i, g)
 			}
 			abweichend := 0
-			for k := range laeufe {
-				if gelaufen[g][k*varianten+i] != erwartet {
+			for lauf := range laeufe {
+				if gelaufen[g][lauf*len(arten)+k] != erwartet {
 					abweichend++
 				}
 			}
@@ -547,6 +548,22 @@ func TestGleichzeitig(t *testing.T) {
 				t.Errorf("Aufrufart %d, Goroutine %d: %d abweichende Ausgaben von %d", i, g, abweichend, laeufe)
 			}
 		}
+	}
+}
+
+// TestGleichzeitig hält Zeile 37 und 38: ein gemeinsamer Schreiber, erst alle 11 Aufrufarten gemischt in 50 Läufen, dann jede Aufrufart allein in
+// 30 Läufen (ohne die Zeitpunkte, die fmt und andere Pools zwischen den Goroutinen ordnen); jede Ausgabe gleicht der des einzelnen Aufrufs. Ein
+// Datenrennen meldet allein der Detektor von make test-race, und nur in einem Zweig, den diese Aufrufe ausführen; das Ziel gibt in Write den
+// Prozessor frei, damit ein gemeinsamer Puffer zwischen Aufbau und Schreiben überschrieben wird.
+func TestGleichzeitig(t *testing.T) {
+	alle := make([]int, varianten)
+	for i := range alle {
+		alle[i] = i
+	}
+	geteilt := jsoncodecv2.NewSchreiber()
+	gleichzeitig(t, geteilt, alle, 50)
+	for _, i := range alle {
+		gleichzeitig(t, geteilt, []int{i}, 30)
 	}
 }
 

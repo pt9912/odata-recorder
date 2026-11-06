@@ -169,7 +169,7 @@ func TestAuswahl(t *testing.T) {
 		t.Errorf("Zellen %d, will 20", n)
 	}
 	ohneE, ohneC := entityBody(t, "ohne Auswahl", gutEntity()), collectionBody(t, "ohne Auswahl", gutCollection())
-	gueltig := [][]string{{"*"}, {"Kategorie"}, {"Name", "Name"}, nil, {}, {"Name"}}
+	gueltig := [][]string{{"*"}, {"Kategorie"}, {"Name", "Name"}, nil, {}, {"Name"}, {"Id", "Name"}}
 	for _, auswahl := range gueltig {
 		e, c := gutEntity(), gutCollection()
 		e.Auswahl, c.Auswahl = auswahl, auswahl
@@ -180,8 +180,8 @@ func TestAuswahl(t *testing.T) {
 			t.Errorf("Auswahl %v ändert die Collection: %s", auswahl, got)
 		}
 	}
-	if len(gueltig) != 6 {
-		t.Errorf("gültige Formen %d, will 6", len(gueltig))
+	if len(gueltig) != 7 {
+		t.Errorf("gültige Formen %d, will 7", len(gueltig))
 	}
 }
 

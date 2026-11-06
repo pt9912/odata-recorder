@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -32,12 +33,16 @@ type ziel struct {
 	readFromN int
 	closeN    int
 	err       error
-	kurz      int // -1: vollständig; -2: Länge-1; sonst die Zahl der Bytes, die er meldet
+	kurz      int  // -1: vollständig; -2: Länge-1; sonst die Zahl der Bytes, die er meldet
+	yield     bool // Write gibt zuerst den Prozessor frei
 }
 
 func neuesZiel() *ziel { return &ziel{log: &[]string{}, kurz: -1} }
 
 func (z *ziel) Write(p []byte) (int, error) {
+	if z.yield {
+		runtime.Gosched()
+	}
 	*z.log = append(*z.log, "Write")
 	z.writes = append(z.writes, append([]byte{}, p...))
 	switch {
@@ -147,7 +152,7 @@ func alleProps() []model.Property {
 }
 
 func ringTyp(name, basis string) model.EntityType {
-	return model.EntityType{Name: name, BaseType: basis, Keys: []string{"Id"}, Properties: []model.Property{prop("Id", "Edm.Int32", false)}}
+	return model.EntityType{Name: name, BaseType: basis, Keys: []string{"Id"}, Properties: []model.Property{prop("Id", "Edm.Int32", false), prop("Name", "Edm.String", true)}}
 }
 
 func testModell() model.ServiceModel { return modellVersion("2.0") }
