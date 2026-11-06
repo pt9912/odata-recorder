@@ -31,7 +31,7 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel (Teil A des Schnitts in drei Teile, §4):** Der Querschnitts-Port `AuditLog` mit `Eintrag`, `Art` und `Arten()` (Paket `src/hexagon/ports/support`, `ARC-021`) und sein Driven Adapter `audit.Datei` (`src/adapters/driven/audit`, `ARC-020`) halten einen Audit-Eintrag fest: Art, Gegenstand (Kennung, Service), Zeitpunkt aus `Clock` und Korrelations-ID, ohne Geheimnisse (`LH-RB-04.a`). Die Ablage ist die Datei `audit.jsonl` im Datenverzeichnis, eine JSON-Zeile je Eintrag, anhängend, mit Sperre, `Sync` und Fehlerpfad (`SPEC-235`). Der Slice liefert Typen und Adapter, die ein Test gegen den Adapter allein belegt; kein Dienst ruft den Port, und der Composition Root kennt den Adapter nicht.
+**Ziel (Teil A des Schnitts in drei Teile, §4):** Der Querschnitts-Port `AuditLog` mit `Eintrag`, `AuditArt` (im Vertrag `Art`, siehe §6 *Namenskollision*) und `Arten()` (Paket `src/hexagon/ports/support`, `ARC-021`) und sein Driven Adapter `audit.Datei` (`src/adapters/driven/audit`, `ARC-020`) halten einen Audit-Eintrag fest: Art, Gegenstand (Kennung, Service), Zeitpunkt aus `Clock` und Korrelations-ID, ohne Geheimnisse (`LH-RB-04.a`). Die Ablage ist die Datei `audit.jsonl` im Datenverzeichnis, eine JSON-Zeile je Eintrag, anhängend, mit Sperre, `Sync` und Fehlerpfad (`SPEC-235`). Der Slice liefert Typen und Adapter, die ein Test gegen den Adapter allein belegt; kein Dienst ruft den Port, und der Composition Root kennt den Adapter nicht.
 
 **Umfang und Schnitt (Planner, 2026-11-06):** Die Tabelle des Architect hatte 45 Zeilen (*S* 4815) und lag über der Schwelle der Schnittfrage (`SPEC-128` Nr. 1: *S* ab 2223). Der Planner schneidet vor dem Code in drei Teile (Gründe und Zahlen in §4): **A** ist dieser Slice (Zeilen A01 bis A21), **E** ist `slice-audit-dienste` (E01 bis E19) und **V** ist `slice-audit-verdrahtung` (V01 bis V05). Die Zeilen E und V stehen in deren Plänen, nicht hier.
 
@@ -69,7 +69,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Port `AuditLog` mit `Eintrag`, `Art` und `Arten()`: die Menge der vier Arten ist geschlossen, je Art ist jedes Feld Pflicht oder verboten, jede Wertform ist byteweise geprüft (`SPEC-234` Nr. 1 bis 3; Zeilen A01, A06 bis A09), ein Verstoß ist `model.ErrUngueltig` und schreibt nichts (`LH-RB-04`, `LH-QA-04`).
+- [ ] Port `AuditLog` mit `Eintrag`, `AuditArt` (im Vertrag `Art`) und `Arten()`: die Menge der vier Arten ist geschlossen, je Art ist jedes Feld Pflicht oder verboten, jede Wertform ist byteweise geprüft (`SPEC-234` Nr. 1 bis 3; Zeilen A01, A06 bis A09), ein Verstoß ist `model.ErrUngueltig` und schreibt nichts (`LH-RB-04`, `LH-QA-04`).
 - [ ] Adapter `audit.Datei`: ein Eintrag hat die feste Zeile (Art, Gegenstand, Zeitpunkt aus `Clock`, Korrelations-ID), wird anhängend und unter einer Sperre abgelegt, übersteht einen Neustart, enthält nie ein Geheimnis, und ein Fehler der Ablage kommt als Rückgabe und genau einmal im Log (`SPEC-235`; Zeilen A02 bis A05, A10 bis A21).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
@@ -91,7 +91,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/ports/support/` | update | Port `AuditLog`, `Eintrag`, `Art` und `Arten()` (`SPEC-234` Nr. 1 bis 3); `supporttest/` bleibt unberührt (`FakeAudit`: `slice-audit-dienste`) |
+| `src/hexagon/ports/support/` | update | Port `AuditLog`, `Eintrag`, `AuditArt` (Name des Typs `Art` im Vertrag, siehe §6 *Namenskollision*) und `Arten()` (`SPEC-234` Nr. 1 bis 3); `supporttest/` bleibt unberührt (`FakeAudit`: `slice-audit-dienste`) |
 | `src/adapters/driven/audit/` | neu | Adapter `audit.Datei` und die Datei `audit.jsonl` (`SPEC-235`) |
 | `src/hexagon/services/session/`, `maintenance/`, `workspace/`, `baselineimport/` | entfällt | Feld `Audit` und die vier Aufrufstellen: `slice-audit-dienste` (Zeilen E01 bis E19) |
 | `src/bootstrap/` | entfällt | Verdrahtung einer Instanz in allen vier Diensten: `slice-audit-verdrahtung` (Zeilen V01 bis V05) |
@@ -136,6 +136,62 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 | A19 | Gleichzeitige `Append`: N vollständige Zeilen, jede gültiges JSON, Zeitpunkte nicht abnehmend, N verschiedene IDs | 64 Goroutinen mit einer Test-Uhr, die bei jedem Aufruf vorrückt; Zeilen gelesen und geprüft | Sperre entfernt (die Zeitpunkte nehmen ab) | nebenläufig |
 | A20 | Jeder Rückkehrpfad gibt die Sperre frei: Verstoß der Form, Zeit, Öffnen, Schreiben | Schleife über die vier Pfade; danach gelingt ein gültiges `Append` innerhalb der Frist | Freigabe im Fehlerpfad der Zeit fehlt | nebenläufig |
 | A21 | Akzeptiertes Negativ: ein Fehler von `Sync`, ein kurzes Schreiben und ein Fehler des Schließens sind nicht auslösbar; die Lücke zwischen Schreiben und `Sync` (ein zweiter Eintrag dazwischen) ist folgenlos | kein Fänger. Grund: der Adapter ruft `os.File` ohne Naht. Folge: der Fehler käme als Rückgabe und im Log (A16), kein Test sieht ihn; der Dienst ändert sein Ergebnis nicht (E12 in `slice-audit-dienste`) | keine | andere |
+
+**Mutationen und Raten (Implementer, 2026-11-06, `AGENTS.md` §3.10).** Jede Mutation lief auf einer Kopie des Quellbaums (`perl`-Ersetzung im Text von `audit.go` bzw. `support/audit.go`, `go test -count=1` im gepinnten Go-Image, netzlos, `--memory=2g`); der Baum des Zweigs blieb unverändert. Rot heißt: der benannte Test, nicht der Aufbau (ein Baufehler zählt nicht und wurde als solcher erkannt und ersetzt: `if false {` ließ die Variable ungenutzt, die Fassung `… && false` ersetzte A06b, A13a, A13b). Die Spalte *Mutation* der Tabelle oben nennt die Mutation des Planners; die Tabelle darunter nennt alle gesehenen Mutationen je Nr. mit dem Test, der aus dem benannten Grund rot wird (weitere Tests wurden zum Teil ebenfalls rot und stehen nicht darin).
+
+| Nr. | Mutation → roter Test |
+|---|---|
+| A01 | `session_id` aus `session_aufbewahrung` entfernt (a), `service_id` zu `workspace_geloescht` (b), `error_code` aus `import_fehlgeschlagen` (c), Art `import_fehlgeschlagen` entfernt (d), fünfte Art ergänzt (e) → `TestArtenGleichTabelle` (d auch `TestArtTexte`) |
+| A02 | Prüfung von `Log` (a), `Uhr` (b), `IDs` (c), `Pfad` (d) einzeln entfernt → `TestNewWeistAb`; `New` legt die Datei an (e) → `TestNewBeruehrtDateiNicht` |
+| A03 | `session_id` vor `service_id` (a), `import_id` vor `service_id` (b), Leerraum nach dem Komma (c), LF am Ende fehlt (d) → `TestZeileJeArt` |
+| A04 | Nachkommastellen auf 3 (a), 6 (b) gekürzt, Nullen am Ende gekürzt (c, `.999999999`), `.UTC()` entfernt (d) → `TestZeitpunkt` |
+| A05 | ID immer vergeben (a), zusätzlich `SessionID()` gerufen (b), `KorrelationsID()` immer gerufen (c) → `TestKorrelationsID` |
+| A06 | `Uhr.Now()` vor der Prüfung der Art (a) → `TestArtAusserhalbDerMenge`; Prüfung der Art entfällt (b), Art mit angehängtem Rest akzeptiert (c), mit abgeschnittenem Rest (d), Groß/Klein gleichgesetzt (e), Leerraum abgeschnitten (f) → `TestArtAusserhalbDerMenge` |
+| A07 | nur fehlende Pflichtfelder geprüft (a), nur verbotene Felder geprüft (b), Prüfung für ein Feld ausgenommen (c bis g: `service_id`, `session_id`, `workspace_id`, `import_id`, `error_code`), für eine Art ausgenommen (h bis k: die vier Arten) → `TestFeldBelegung` |
+| A08 | `/` in die Klasse (a), Länge 65 erlaubt (b), Byte ab `0x80` erlaubt (c), `.` (d), `_` (e), `-` (f), die Ziffern (g) aus der Klasse genommen, nur das erste (h), nur das letzte (i), nur die mittleren Bytes (j) geprüft, `KorrelationsID` ungeprüft (k), `service_id` (l), `session_id` (m), `workspace_id` (n), `import_id` (o) ungeprüft → `TestKennungsform` |
+| A09 | nur `< 0` geprüft (a), nur `> 36` geprüft (b), `Message()` statt `String()` (c), Prüfung entfällt (d), negativer Wert geht durch (e) → `TestErrorCode` |
+| A10 | Nullzeit (a), Jahr unter 1 (b), Jahr über 9999 (c) nicht geprüft, `IDs` vor der Prüfung der Zeit gerufen (e), `.UTC()` entfernt (siehe A04 d) → `TestZeitAusserhalb` |
+| A11 | Anlegen mit `0666` (a), Chmod auf `0600` einer vorhandenen Datei (b), Anlegen mit `0700` (c) → `TestRechte` |
+| A12 | Öffnen mit `O_TRUNC` (a), ohne `O_APPEND` (b) → `TestAnhaengen` (und weitere) |
+| A13 | LF immer vorangestellt (a), nie (b), CR zählt als Zeilenende (c), liest das erste statt das letzte Byte (d), leere Datei liest bei -1 (e) → `TestZeilenende` (d, e auch weitere) |
+| A14 | Fehler des Öffnens als `nil` (a), als Text ohne Verpackung (b) → `TestOeffnenScheitert` |
+| A15 | Fehler des Schreibens verworfen (a), als Text ohne Verpackung (b) → `TestSchreibenScheitert` |
+| A16 | Pfad als Attribut (a), zweimal geloggt (b), Stufe `WARN` (c), Attribut `workspace_id` (d), `session_id` (e), `service_id` (f) fehlt, `import_id` (g) oder `correlation_id` (h) zusätzlich, anderer Text (i), anderes `ereignis` (j), falscher `grund` (k), kein Eintrag beim Fehler der Zeit (l), des Öffnens (m), des Schreibens (n) → `TestLogBeiFehler` (a bis c, i, j auch `TestLogBeiUngueltig`) |
+| A17 | `melde(e, true)` für einen ungültigen Eintrag (a) → `TestLogBeiUngueltig` |
+| A18 | `Uhr.Now()` vor die Sperre (a), Sperre nur um das Schreiben (b) → `TestSperreUmfasstUhr` |
+| A19 | Sperre entfernt (a), Sperre nur um `Uhr.Now()` (b), Sperre vor dem Schreiben freigegeben (c) → `TestGleichzeitigeAppend` |
+| A20 | Freigabe im Fehlerpfad der Zeit fehlt (a), Freigabe im Fehlerpfad von Öffnen und Schreiben fehlt (b) → `TestSperreFreiNachFehler` |
+| A21 | benanntes Negativ, keine Mutation |
+
+**Raten der nebenläufigen Zeilen** (A18 bis A20; gemessen vom Implementer, je Mutation eigene Testbinary-Prozesse mit `-test.count=1`, im Container mit `--memory=2g --cpus=4` auf einem Rechner mit 20 Kernen, während weitere Agenten bauten; Load-Average (1 Minute) zu Beginn der Läufe 5,3 bis 9,5: die Wirkung ist eine Sperre ohne Datenrennen, der Detektor (`make test-race`) sieht sie nicht und ist hier kein Fänger). Die unveränderte Fassung ist in jedem der Läufe grün (Grundlauf):
+
+| Zeile | Mutation | rot | Grundlauf unverändert |
+|---|---|---|---|
+| A18 | a) `Uhr.Now()` vor die Sperre | 50 von 50 Prozessen | 0 von 50 |
+| A18 | b) Sperre nur um das Schreiben | 50 von 50 | 0 von 50 |
+| A19 | a) Sperre entfernt | 50 von 50 | 0 von 50 |
+| A19 | b) Sperre nur um `Uhr.Now()` | 50 von 50 | 0 von 50 |
+| A19 | c) Sperre vor dem Schreiben freigegeben | 50 von 50 | 0 von 50 |
+| A20 | a) Freigabe im Fehlerpfad der Zeit fehlt | 20 von 20 | 0 von 20 |
+| A20 | b) Freigabe im Fehlerpfad von Öffnen und Schreiben fehlt | 20 von 20 | 0 von 20 |
+
+Warum die Raten 100 % betragen: A18 hält die Uhr im ersten Aufruf an und wartet 300 ms auf einen zweiten Aufruf von `Uhr.Now()` — ohne Sperre vor der Uhr kommt er in Mikrosekunden; A19 lässt die Uhr zwischen Ablesen und Rückgabe die Prozessorzeit abgeben (`runtime.Gosched()`), 64 Goroutinen stehen an einer geschlossenen Startleitung; A20 hängt am zweiten `Append` mit einer Frist von 5 s. Die Grenze des Fängers A18: er ist ein Warten auf ein Ereignis, das nicht kommen soll (300 ms); ein Rechner, der den zweiten Aufruf um mehr als 300 ms verzögert, ließe die Mutation (a) durch — gemessen wurde das unter Last nicht (0 von 50 grün).
+
+**Mengen und Elementzahlen** (`implement-slice` Schritt 14 und 19; Generator oder Schleife mit Orakel, Zählprüfung im Test):
+
+| Menge (Zusage) | Achsen · Elementzahl je Achse | Orakel | eine im Plan nicht genannte Mutation je Achse, rot gesehen |
+|---|---|---|---|
+| Zellen der Feldtabelle (A01, A07) | Art 4 · Feld 5 · Richtung 2 (fehlt, verboten) · = 20 Zellen, 40 abgewiesene und 20 erlaubte Aufrufe | Tabelle von `SPEC-234` Nr. 2 im Test, unabhängig von `Arten()` | Art: A07h bis k; Feld: A07c bis g; Richtung: A07a, A07b |
+| Verformungen der Art (A06) | Art 4 · Form je Art 15 + 2 × Länge (49, 55, 53, 57 = 214) · Eintrag 2 (mit den Feldern der Art, ohne Felder) = 428 Aufrufe | keine der Formen gleicht einer Art (im Test geprüft, Formen je Art verschieden) | Anhang A06c, Präfix A06d, Groß/Klein A06e, Leerraum A06f (Folge, Zeichen) |
+| Kennungsform (A08) | Feld 5 · Byte 256 · Stelle 3 (erstes, mittleres, letztes) · Länge 0, 1, 64, 65 · Sonderwerte 9; = 3889 Aufrufe, 65 gültige Bytes je Stelle, 197 gültige Zeilen je Feld | Klasse aus dem Wortlaut (`A-Z a-z 0-9 . _ -`) | Feld: A08k bis o; Byte: A08d bis g, A08c; Stelle: A08h bis j; Länge: A08b |
+| Codes (A09) | Wert −5 bis 60 = 66 · davon 36 Codes, 30 ungültig; Zählprüfung 36 und 30 | Textspalte von `SPEC-109` Nr. 2 im Test, gegen `model.ParseCode` | oben A09b, unten A09e, Mitte A09a, Text A09c |
+| Zeit (A10, A04) | Zustand 5 (Nullzeit, Jahr 0, Jahr 10000, Jahr 1 und 9999 erst nach der Umrechnung nach UTC) · Zeitpunkt 8 (Randwerte der Nachkommastellen, Jahr 1, Jahr 9999, anderer Ort) | Literale aus `SPEC-235` Nr. 3 | A10a bis c, A10e, A04a bis d |
+| Zeilenende (A13) | Zustand 7 (keine Datei, leer, LF am Ende, nur LF, ohne LF, CR am Ende, zwei Zeilen und halbe dritte) | Soll-Inhalt je Zeile der Tabelle im Test | A13c bis e |
+| Rückkehrpfade der Sperre (A20) | Pfad 4 (Form, Zeit, Öffnen, Schreiben); Form liegt vor der Sperre | Rückkehr innerhalb von 5 s | A20a (Zeit), A20b (Öffnen und Schreiben) |
+| Stellen × Arten des Log-Eintrags (A16) | Stelle 3 (Öffnen, Schreiben, Zeit) · Art 4 = 12; Schlüssel 3 (`service_id`, `session_id`, `workspace_id`) | Soll-Objekt je Art exakt, Schlüsselmenge geschlossen | Stelle A16l bis n; Schlüssel A16d bis f; zusätzlicher Schlüssel A16g, h |
+| Menge der Arten (A01) | 4 Arten; Zählprüfung | Tabelle | A01d (Art entfernt), A01e (Art ergänzt) |
+
+**Befunde beim Schreiben der Fänger.** (1) Ein Index außerhalb von `TestKorrelationsID` (Panik bei einer Mutation, die eine Zeile verschluckt) brach den Lauf des Pakets ab und verbarg die späteren Tests (`TestAnhaengen` erschien bei A12 zuerst nicht rot); der Test prüft jetzt die Zahl der Zeilen vor dem Index, und A12, A13 d, A13 e, A03 d sind danach neu gelaufen. (2) Für `KorrelationsID` ist die Länge 0 kein Verstoß (`SPEC-234` Nr. 2: optional), die Zeile A08 des Plans nennt „Länge 0“ für alle fünf Felder; der Fänger führt die Länge 0 für vier Felder. (3) Die Zählung der Formen je Art in A06 ist 15 + 2 × Länge, nicht 13 + 2 × Länge (Zählprüfung des Tests fing den eigenen Rechenfehler).
 
 **Betriebsregeln für alle Rollen:**
 
@@ -194,6 +250,8 @@ marke: 3000
 Nebenläufig sind A18, A19, A20, E04 und E16. **Entscheidung des Planner (2026-11-06): geschnitten in drei Teile, vor dem Code.** Gründe: (1) Die ganze Tabelle liegt bei *S* 4815 und damit weit über der Schwelle der Schnittfrage (*S* ab 2223, `SPEC-128` Nr. 1); zwei Teile genügten nicht, denn jeder dürfte höchstens 2222 tragen, zusammen also 4444, die Tabelle trägt 4815. Auch die Zusammenlegung von `E` und `V` hätte *S* 2630 und die Schnittfrage ausgelöst; der User hat am 2026-11-06 entschieden, dass `SPEC-128` gilt, es gibt keine zweite Formel. (2) Die Naht zwischen `A` und `E` ist die, die dieser Plan vorab nannte: `A` liefert Typen und Adapter, `E` braucht nur den Port und die Typen, nie den Adapter; `A` ist allein mit dem Adapter prüfbar. (3) Die Naht zwischen `E` und `V` teilt keinen Mechanismus, den `E` nicht schon geliefert hat: `V` braucht die vier Konfig-Felder von `E` und den Adapter von `A`, ändert aber nur `src/bootstrap/` und läuft nach `slice-bootstrap-m2`, der dieselben Dateien ändert; ein Teil `V` in `E` zu halten hieße, `E` an `slice-bootstrap-m2` zu binden. (4) Ein vierter Schnitt, etwa der Nebenläufigkeit (A18 bis A20) vom Rest des Adapters, teilt dagegen den Mechanismus (Sperre, Datei, Uhr), den der Rest braucht, und ist nicht abtrennbar. Die Slice-Dateien `slice-audit-dienste` und `slice-audit-verdrahtung` legt der Planner an (Entwurf liegt vor; auf `main`, sobald der Planner dort schreibt, §6 Zeile *Schnitt*).
 
 **Naht und Rest.** Die Teile liegen knapp unter der Schwelle (`A` 2185, `E` 2190, Abstand 37 und 32 zu 2222): eine Zeile mehr nach dem Handoff wird eine Überschreitung der Marke, nicht eine Schnittfrage. **Vergleich:** `slice-telemetry-port` maß 3093 bei Marke 3000 und Schätzung 2150 (Ende ÷ *S* 1,44 gegenüber 1,35 der Marke). Für `A` ist nach diesem Vergleich ein Ende bei etwa 3150 möglich, 5 % über der Marke. Das ist keine Rückführung: die Folge ist ein Eintrag `ueberschreitung` mit Grund (`SPEC-128` Nr. 5 d, 10 a), die Faktoren rechnet der Architect aus dem Messpunkt neu (`SPEC-128` Nr. 9). Der gemessene Wert des ersten Slice mit Zeilen, die keine reinen Funktionen sind, steht in dessen §4 nach der Messung. Die Marken von `E` (3000) und `V` (600) setzt der Planner mit deren Block beim Start; hier stehen sie als Prosa, weil beide Basen erst mit dem Start entstehen (`SPEC-128` Nr. 10 d).
+
+**Messung nach dem Code** (Implementer, 2026-11-06; Summe aus Einfügungen und Löschungen von `git diff --numstat 1c99ede..25158e3` über `src/hexagon/ports/support` und `src/adapters/driven/audit`, Tests eingeschlossen): **1463** (Produktcode 285: `audit.go` 222 und `support/audit.go` 63; Tests 1178 in `audit_test.go`, `hilfen_test.go`, `log_sperre_test.go`, `support/audit_test.go`), gegen die Schätzung 2185 (Ende ÷ *S* 0,67) und die Marke 3000: keine Überschreitung, kein Eintrag `ueberschreitung`. Der Produktcode liegt bei der Erwartung des Architect (290: 285 gemessen); die Tests (1178) liegen unter dem Rest der Schätzung (2185 − 290 = 1895), weil die Schleifen über Mengen (A06 bis A09) je eine Testfunktion tragen und nicht je Fall eine. Die Faktoren rechnet der Architect aus dem Messpunkt neu (`SPEC-128` Nr. 9).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
