@@ -46,7 +46,7 @@ Zu (a), Schutz-Szenario Zeile 28: Am Produkt ergab sich kein Befund gegen `LH-FA
 
 - `kategorie`: LOW
 - `quelle`: Maintainability; Plan §6 verlangt je Risiko genau einen Ausgang
-- `pfad`: `docs/plan/planning/in-progress/slice-test-integration.md` · `(Neurechnung nur, wenn sie unter 0,60 liegt).\n- Netzlos mit zwei Servern`
+- `pfad`: `docs/plan/planning/done/slice-test-integration.md` · `(Neurechnung nur, wenn sie unter 0,60 liegt).\n- Netzlos mit zwei Servern`
 - `befund`: Zwei Aufzählungspunkte (Auslastung 0,47 und *Netzlos mit zwei Servern*) stehen in einer Zeile, getrennt durch die Zeichen Backslash, `n`, Minus; im gerenderten Text ist der zweite Punkt Teil des ersten, und seine Zeile *Ausgang: entfallen* hängt am Ausgang *offen* des ersten.
 - `verifizierbar`: ja (`grep -n '\\n- '` auf die Datei)
 - `klasse`: Escape-Folge im Schreibwerkzeug nicht gegengelesen (`AGENTS.md` §3.18)
@@ -116,7 +116,7 @@ Die Zahlen 20 von 20 und 30 von 30 des Plans sind für diese Zeilen bestätigt. 
 - `tests/e2e/uebergang/` und `tests/e2e/fixture/`: geprüft, ohne Befund.
 - `tests/e2e/` (Stufen Prozess, Weiterleitung, Aufzeichnung, Persistenz, Replay, Matching): gelesen, Zeilen 7, 13, 14, 15, 18 mutiert, ohne Befund; Stufe Schutz: M-1, M-2, L-2.
 - `harness/vertraege/SPEC-037-test-integration.md`, `docs/plan/planning/e2e-abdeckung.md` (`make e2e-abdeckung`: unverändert, 7 Stufen, 7 Deklarationen): geprüft, ohne Befund.
-- `docs/plan/planning/in-progress/slice-test-integration.md`: L-1.
+- `docs/plan/planning/done/slice-test-integration.md`: L-1.
 - Produktcode `src/`: nicht geändert, kein Befund am Produkt (kein Geheimnis in einer Datei bei unmutiertem Lauf).
 
 ## Steering-Loop (Zähler)
