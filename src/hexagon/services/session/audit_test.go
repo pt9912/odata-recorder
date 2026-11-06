@@ -89,23 +89,27 @@ func TestAuditEintragFelderUndKennungen(t *testing.T) {
 func TestAuditAblehnungenSchreibenNichts(t *testing.T) {
 	var keinCtx context.Context
 	faelle := []struct {
-		name  string
-		setup func(*welt)
-		ctx   context.Context
+		name   string
+		setup  func(*welt)
+		ctxNil bool
 	}{
-		{"ctx nil", func(*welt) {}, keinCtx},
-		{"Get: nicht gefunden", func(u *welt) { u.st.scheitere("Sessions.Get", 1, verpackt(outbound.ErrNichtGefunden)) }, context.Background()},
-		{"Get: anderer Fehler", func(u *welt) { u.st.scheitere("Sessions.Get", 1, errDisk) }, context.Background()},
-		{"offen", func(u *welt) { u.sessions.fuege("s1", dienstA, t0(), model.SessionOpen) }, context.Background()},
-		{"referenziert", func(u *welt) { u.st.scheitere("Sessions.Delete", 1, verpackt(outbound.ErrReferenziert)) }, context.Background()},
-		{"Delete: nicht gefunden", func(u *welt) { u.st.scheitere("Sessions.Delete", 1, verpackt(outbound.ErrNichtGefunden)) }, context.Background()},
-		{"Delete: anderer Fehler", func(u *welt) { u.st.scheitere("Sessions.Delete", 1, errDisk) }, context.Background()},
+		{"ctx nil", func(*welt) {}, true},
+		{"Get: nicht gefunden", func(u *welt) { u.st.scheitere("Sessions.Get", 1, verpackt(outbound.ErrNichtGefunden)) }, false},
+		{"Get: anderer Fehler", func(u *welt) { u.st.scheitere("Sessions.Get", 1, errDisk) }, false},
+		{"offen", func(u *welt) { u.sessions.fuege("s1", dienstA, t0(), model.SessionOpen) }, false},
+		{"referenziert", func(u *welt) { u.st.scheitere("Sessions.Delete", 1, verpackt(outbound.ErrReferenziert)) }, false},
+		{"Delete: nicht gefunden", func(u *welt) { u.st.scheitere("Sessions.Delete", 1, verpackt(outbound.ErrNichtGefunden)) }, false},
+		{"Delete: anderer Fehler", func(u *welt) { u.st.scheitere("Sessions.Delete", 1, errDisk) }, false},
 	}
 	for _, f := range faelle {
 		u := neu(t)
 		u.sessions.fuege("s1", dienstA, t0(), model.SessionComplete)
 		f.setup(u)
-		if _, err := u.del(f.ctx, "s1"); err == nil {
+		ctx := context.Background()
+		if f.ctxNil {
+			ctx = keinCtx
+		}
+		if _, err := u.del(ctx, "s1"); err == nil {
 			t.Errorf("%s: kein Fehler", f.name)
 		}
 		if n := u.audit.Aufrufe(); n != 0 {
@@ -253,17 +257,19 @@ func TestAuditKeinGeheimnis(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := u.audit.Eintraege()
-	if len(got) != 1 {
-		t.Fatalf("Einträge %+v", got)
-	}
-	v := reflect.ValueOf(got[0])
-	if v.NumField() != 7 {
-		t.Fatalf("Felder %d", v.NumField())
-	}
-	for i := range v.NumField() {
-		if s := fmt.Sprint(v.Field(i).Interface()); strings.Contains(s, geheimnis) {
-			t.Errorf("Feld %s trägt das Geheimnis: %q", v.Type().Field(i).Name, s)
+	for _, e := range got {
+		v := reflect.ValueOf(e)
+		if v.NumField() != 7 {
+			t.Fatalf("Felder %d", v.NumField())
 		}
+		for i := range v.NumField() {
+			if s := fmt.Sprint(v.Field(i).Interface()); strings.Contains(s, geheimnis) {
+				t.Errorf("Feld %s trägt das Geheimnis: %q", v.Type().Field(i).Name, s)
+			}
+		}
+	}
+	if len(got) != 1 {
+		t.Errorf("Einträge %+v", got)
 	}
 }
 

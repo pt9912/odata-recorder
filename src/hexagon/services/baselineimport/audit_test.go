@@ -47,7 +47,7 @@ func neueStellen(t *testing.T) []stelle {
 }
 
 // neuLauf führt den Weg „neu“ aus, lässt den Aufruf der Stelle mit fehler scheitern und ruft Import mit ctx.
-func (s stelle) neuLauf(t *testing.T, ctx context.Context, fehler error, vorStart func(*welt)) (*welt, error) {
+func (s stelle) neuLauf(ctx context.Context, t *testing.T, fehler error, vorStart func(*welt)) (*welt, error) {
 	t.Helper()
 	w := neu(t)
 	w.sessionR()
@@ -128,7 +128,7 @@ func TestAuditCodeJeStelle(t *testing.T) {
 			if s.name == "Publish" && f.name == "ErrNichtGefunden" {
 				g = "Session"
 			}
-			w, err := s.neuLauf(t, context.Background(), f.err, nil)
+			w, err := s.neuLauf(context.Background(), t, f.err, nil)
 			code, _ := erwarteterCode(g, f.name)
 			var fe *inbound.Fehler
 			if !errors.As(err, &fe) || fe.Code != code {
@@ -324,7 +324,7 @@ func TestAuditFehlerAendertNichts(t *testing.T) {
 					}
 					w.audit.Fehler = fehler
 				}
-				w, err := s.neuLauf(t, ctx, errPlatte, vor)
+				w, err := s.neuLauf(ctx, t, errPlatte, vor)
 				cancel()
 				if beendet && !gefeuert {
 					t.Errorf("%s: der Port beendete den ctx nicht", s.name)
@@ -374,22 +374,24 @@ func TestAuditKeinGeheimnis(t *testing.T) {
 		vor := func(w *welt) {
 			w.konfig.Dienste = []baselineimport.Dienst{{ID: dienstID, UpstreamURL: "https://nutzer:" + geheimnis + "@example.test/svc"}}
 		}
-		w, err := s.neuLauf(t, context.Background(), errors.New("Port "+geheimnis), vor)
+		w, err := s.neuLauf(context.Background(), t, errors.New("Port "+geheimnis), vor)
 		if err == nil {
 			t.Fatalf("%s: kein Fehler", s.name)
 		}
 		got := w.audit.Eintraege()
-		if len(got) != 1 {
-			t.Fatalf("%s: Einträge %+v", s.name, got)
-		}
-		v := reflect.ValueOf(got[0])
-		if v.NumField() != 7 {
-			t.Fatalf("Felder %d", v.NumField())
-		}
-		for i := range v.NumField() {
-			if str := fmt.Sprint(v.Field(i).Interface()); strings.Contains(str, geheimnis) {
-				t.Errorf("%s: Feld %s trägt das Geheimnis: %q", s.name, v.Type().Field(i).Name, str)
+		for _, e := range got {
+			v := reflect.ValueOf(e)
+			if v.NumField() != 7 {
+				t.Fatalf("Felder %d", v.NumField())
 			}
+			for i := range v.NumField() {
+				if str := fmt.Sprint(v.Field(i).Interface()); strings.Contains(str, geheimnis) {
+					t.Errorf("%s: Feld %s trägt das Geheimnis: %q", s.name, v.Type().Field(i).Name, str)
+				}
+			}
+		}
+		if len(got) != 1 {
+			t.Errorf("%s: Einträge %+v", s.name, got)
 		}
 		n++
 	}
@@ -414,7 +416,7 @@ func TestAuditSynchronOhneFrist(t *testing.T) {
 	for _, beendet := range []bool{false, true} {
 		n++
 		refCtx, refCancel := context.WithCancel(context.Background())
-		ref, rerr := commit.neuLauf(t, refCtx, errPlatte, func(w *welt) {
+		ref, rerr := commit.neuLauf(refCtx, t, errPlatte, func(w *welt) {
 			w.audit.Vor = func(support.Eintrag) {
 				if beendet {
 					refCancel()
@@ -430,7 +432,7 @@ func TestAuditSynchronOhneFrist(t *testing.T) {
 		var folge []string
 		fertig := make(chan ergebnis, 1)
 		go func() {
-			_, err := commit.neuLauf(t, ctx, errPlatte, func(x *welt) {
+			_, err := commit.neuLauf(ctx, t, errPlatte, func(x *welt) {
 				w = x
 				x.audit.Vor = func(support.Eintrag) {
 					if beendet {

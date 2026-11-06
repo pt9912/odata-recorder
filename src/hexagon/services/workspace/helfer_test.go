@@ -57,9 +57,8 @@ func neu(t *testing.T) *welt {
 	w.ids = zaehlIDs{p: p, g: supporttest.NewFestIDs()}
 	w.audit = supporttest.NewFakeAudit()
 	w.konfig = workspace.Konfig{
-		Audit: w.audit,
 		Workspaces: w.st.workspaces(), Transaktion: w.st, Snapshots: w.snaps, Blobs: w.blobs, Dienste: w.dienste,
-		Wartung: w.wartung, Uhr: w.uhr, IDs: w.ids, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Wartung: w.wartung, Uhr: w.uhr, IDs: w.ids, Log: slog.New(slog.NewTextHandler(io.Discard, nil)), Audit: w.audit,
 	}
 	v, err := workspace.New(w.konfig)
 	if err != nil {

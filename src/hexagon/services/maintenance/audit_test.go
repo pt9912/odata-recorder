@@ -269,17 +269,19 @@ func TestAuditKeinGeheimnis(t *testing.T) {
 	u.audit.Fehler = errors.New("Ablage " + geheimnis)
 	_, _ = u.startup(context.Background())
 	got := u.audit.Eintraege()
-	if len(got) != 1 {
-		t.Fatalf("Einträge %+v", got)
-	}
-	v := reflect.ValueOf(got[0])
-	if v.NumField() != 7 {
-		t.Fatalf("Felder %d", v.NumField())
-	}
-	for i := range v.NumField() {
-		if s := fmt.Sprint(v.Field(i).Interface()); strings.Contains(s, geheimnis) {
-			t.Errorf("Feld %s trägt das Geheimnis: %q", v.Type().Field(i).Name, s)
+	for _, e := range got {
+		v := reflect.ValueOf(e)
+		if v.NumField() != 7 {
+			t.Fatalf("Felder %d", v.NumField())
 		}
+		for i := range v.NumField() {
+			if s := fmt.Sprint(v.Field(i).Interface()); strings.Contains(s, geheimnis) {
+				t.Errorf("Feld %s trägt das Geheimnis: %q", v.Type().Field(i).Name, s)
+			}
+		}
+	}
+	if len(got) != 1 {
+		t.Errorf("Einträge %+v", got)
 	}
 }
 

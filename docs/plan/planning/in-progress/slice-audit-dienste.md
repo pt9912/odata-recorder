@@ -94,10 +94,10 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/hexagon/services/maintenance/` | update | Feld `Audit`, Eintrag je gelöschter Session der Aufbewahrung (`SPEC-123` Nr. 6); der Bericht bleibt unverändert |
 | `src/hexagon/services/workspace/` | update | Feld `Audit`, Eintrag beim Löschen des Workspace (`SPEC-129` Nr. 9 b1) |
 | `src/hexagon/services/baselineimport/` | update | Feld `Audit`, Eintrag bei fehlgeschlagenem Import (`SPEC-127` Nr. 4 m) |
-| `src/bootstrap/`, `src/adapters/driven/audit/` | entfällt | Verdrahtung: `slice-audit-verdrahtung`; Adapter: `slice-audit-log` |
+| `src/bootstrap/`, `src/adapters/driven/audit/` | entfällt | Verdrahtung: `slice-audit-verdrahtung`; Adapter: `slice-audit-log`; `Build` scheitert bis dahin an dem nil-`Audit` (§6, Ausgang offen) |
 | `tools/schema/schema.yaml`, `src/adapters/driven/sqlite/migrations/` | entfällt | die Ablage ist eine Datei (`SPEC-235`): kein Schema, keine Migration |
 | `spec/spezifikation.md` | update (Architect, getan) | `SPEC-234` und der Nachzug in `SPEC-123`, `SPEC-124`, `SPEC-127`, `SPEC-129` |
-| Tests | update, neu | Fakes der Ports; ein Fall je Löschvorgang |
+| Tests | update, neu | Fakes der Ports; ein Fall je Löschvorgang; je Paket `audit_test.go` (Zeilen E05 bis E19 der Stelle) und `supporttest/audit_test.go` (E01 bis E04); Haken in den vorhandenen Fakes: `nachGet` und `nachDelete` (Session), `nachDelete` (Aufbewahrung), `beiCleanup` (Workspace), `nach` für `Write` und `Commit` und `CodeVon` in `export_test.go` (Import) |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stehen mit dem Vertrag in der Spezifikation vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen hat der Architect entschieden, nicht der Implementer.
 
@@ -148,6 +148,34 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 | M5 | Kennung im Eintrag | Länge 2 (1 und 64) × Zeichen 37 (`0-9`, `a-z`, `-`) für `SessionID`, `WorkspaceID`, `ImportID` und 65 (`A-Z`, `a-z`, `0-9`, `.`, `_`, `-`) für `ServiceID` × Feld-Stelle 7 (`ServiceID` an drei Stellen, `SessionID` an zwei, `WorkspaceID`, `ImportID`) | E05, E01 | `SessionID` der Aufbewahrung auf 63 Bytes gekürzt |
 | M6 | Geheimnis im Eintrag | Feld 7 × Quelle 2 (Fehlertext eines Ports, Userinfo der `UpstreamURL`) × Stelle 4 | E18 | `KorrelationsID` mit dem Fehlertext besetzt |
 | M7 | Position in der Aufbewahrung | Position 3 (erste, mittlere, letzte von drei Sessions) × Ergebnis von `Delete` 4 (`nil`, `ErrReferenziert`, `ErrNichtGefunden`, anderer Fehler; die anderen Sessions `nil`) = 12 Läufe | E07, E11 | die Schleife endet bei `ErrNichtGefunden` an der letzten Session |
+
+**Mutationen und Raten** (Implementer, `AGENTS.md` §3.10; gemessen mit `tools/harness/mutationslauf.sh`, `SPEC-210`, Image `odata-recorder:race`, ein Container je Liste, `--cpus=4`, `--memory=2g`, Listen unter dem `flock` auf `/tmp/odata-recorder-heavy.lock`; die Last ist der erste Wert von `/proc/loadavg` des Hosts zu Beginn der Mutation, 7 bis 15 bei 4 CPUs des Containers). Je Mutation ein Prozess und der Test der Zeile rot, bei der Klasse *nebenläufig* 20 Prozesse mit Detektor (`-race`, `-test.count=1`) und 20 ohne. Alle 104 Mutationen der Tabelle sind rot im Test der Zeile (zwei weitere mit `rot-paket` zählen nicht, siehe unten).
+
+| Zeile | Mutationen (Test der Zeile rot) |
+|---|---|
+| E01 | Feld `ImportID`, `KorrelationsID`, `ErrorCode`, `Art` nicht festgehalten (4 von 4) |
+| E02 | Slice statt Kopie; `Eintraege` nicht gezählt; `Append` nicht gezählt; `Aufrufe` ohne `Eintraege` (4 von 4) |
+| E03 | `Fehler` nicht geliefert; Eintrag bei Fehler verworfen; `Vor` nach dem Festhalten; `Vor` vor dem Zählen; `Vor` unter der Sperre (Test rot nach der Frist von 5 s); `Vor` ohne den Eintrag (6 von 6) |
+| E04 | `Append` ohne Sperre: Detektor 20 von 20, ohne Detektor 16 von 20; Zähler ohne Sperre: Detektor 20 von 20, ohne Detektor 12 von 20. Die Zusage „verliert keinen Eintrag“ gilt über den Detektor (jedes Rennen in jedem Prozess); die Wirkung allein ist kein Fänger in jedem Lauf. |
+| E05 | je Stelle `ServiceID`/`SessionID`/`WorkspaceID`/`ImportID` auf 63 Bytes gekürzt, ein Zeichen (`-`, `.`) ersetzt, `KorrelationsID` oder ein verbotenes Feld besetzt, falsche `Art`, `ServiceID` aus dem Argument, Eintrag je entferntem Blob, Quell-Session im Eintrag, `ServiceID` und `SessionID` vertauscht: Session 8, Aufbewahrung 7, Workspace 6, Import 7 (28 von 28) |
+| E06 | Eintrag vor `Sessions.Get`, vor der Prüfung auf offen, vor `Sessions.Delete`, bei einem Fehler von `Sessions.Delete` (4 von 4) |
+| E07 | Eintrag bei `ErrReferenziert`, bei `ErrNichtGefunden`, bei einem anderen Fehler; die Schleife endet bei `ErrNichtGefunden`; `MaxAge` 0 nicht ausgeschaltet (5 von 5) |
+| E08 | Eintrag vor der Prüfung von `ctx`, vor `Workspaces.Delete`, bei einem Fehler von `Workspaces.Delete` (3 von 3) |
+| E09 | Eintrag bei `ODR-E5005`, bei einem Verstoß der Anfrage, bei einem Fehler der Wiederholung, bei Erfolg; Kontextfehler nur mit `==` erkannt; `DeadlineExceeded` nicht erkannt (6 von 6) |
+| E10 | Eintrag nach `CleanupBlobs` (Session, Workspace; 2 von 2) |
+| E11 | Eintrag vor `Sessions.Delete`; Eintrag in einer Goroutine (Detektor 20 von 20, ohne 20 von 20); ein Eintrag am Ende der Stufe zusätzlich (3 von 3) |
+| E12 | Fehler von `Append` als Fehler des Dienstes; Fehler von `Append` ohne Bereinigung (Session 2, Aufbewahrung 1, Workspace 2, Import 1; 6 von 6) |
+| E13 | Eintrag nur bei `ctx.Err() == nil` (vier Stellen; 4 von 4) |
+| E14 | Code fest `ODR-E9001`; ein mit `%w` verpackter `*inbound.Fehler` ergibt `ODR-E9001`; Rückfall ohne Code `ODR-E3001` (3 von 3) |
+| E15 | Eintrag bei `ODR-E7003` des Lesens (Session), bei einem Fehler von `Workspaces.Delete`, Eintrag auch bei Erfolg (Import); der Abschlusseintrag der Aufbewahrung unter E11 ist hier der Fänger des zweiten `Startup` (3 von 3) |
+| E16 | Eintrag vor dem Ergebnis des Ports: Session Detektor 20 von 20, ohne 20 von 20; Workspace Detektor 20 von 20, ohne 20 von 20 |
+| E17 | die Prüfung von `Audit` entfernt (vier Dienste; 4 von 4) |
+| E18 | Fehlertext des Ports als Feld (Session, Aufbewahrung, Workspace), Ursache des `*inbound.Fehler` als Feld, Userinfo der `UpstreamURL` als Feld (Import; 5 von 5) |
+| E19 | `Append` in einer Goroutine; das Warten endet bei `ctx.Done()`; `CleanupBlobs` vor `Append` (Session, Workspace); nur die ersten beiden bei Aufbewahrung und Import: je Mutation Detektor 20 von 20, ohne Detektor 20 von 20 (10 Mutationen) |
+
+Zwei Mutationen lieferten `rot-paket` (der Test der Zeile blieb grün) und stehen nicht in der Zählung. Eintrag bei einem Fehler von `Sessions.Delete` unter E15 (Session): das zweite `Delete` endet schon in `Sessions.Get`, die Mutation gehört zu E06 und wurde unter E15 durch den Eintrag bei `ODR-E7003` des Lesens ersetzt (rot). `KorrelationsID` mit `err.Error()` im Import: äquivalent, denn `inbound.Fehler.Error()` trägt den Code und seinen Text, nicht die Ursache; der Fänger von E18 fängt statt dessen die Ursache (rot). Akzeptierte Negative bleiben, mit Grund und Folge, das Ende des Prozesses zwischen Commit und `Append` und ein nie endendes `Append` (E19, `SPEC-234` *Ungeprüft*).
+
+**Mengen, gezählt** (der Test zählt, `AGENTS.md` §3.17): M1: 4 Stellen × 2 Zustände von `ctx` (E13 und E19 je Stelle, E05 mit aktivem ctx). M2: Session 7, Aufbewahrung 5 (3 Ergebnisse von `Delete` an 3 Positionen, `MaxAge` 0, ohne Session), Workspace 3 (ctx nil, `ODR-E7001`, jeder der Fehler von `tabellenFehlerListe`). M3: 12 Stellen des Falls „neu“ × 10 Fehler der Ports = 120, dazu `codeVon` an 16 Werten (7 Codes × nackt und mit `%w`, ein Fehler ohne Code × 2). M4: 15 Stellen × 4 Formen = 60. M5: 37 Zeichen × 2 Längen für `SessionID` (Session, Aufbewahrung), `WorkspaceID` und `ImportID`, 65 × 2 für `ServiceID` (Session, Aufbewahrung, Import). M6: 7 Felder × 4 Stellen und × 12 Stellen des Imports mit zwei Quellen. M7: 12 Läufe.
 
 **Betriebsregeln für alle Rollen:**
 
@@ -221,6 +249,7 @@ dasteht.
 - Fenster zwischen Löschung und Eintrag, Abbruch nach dem Commit (Rückgabe aus Teil A, Aufträge 1 und 2 in §3) — **Ausgang:** entfallen (Architect, 2026-11-06): entschieden in §3 (drei Fenster F1 bis F3, Zusatztabelle unten), `SPEC-234` Nr. 5 d und Nr. 9 (`FakeAudit.Vor`) und E19; als Negativ bleiben das Ende des Prozesses und das nie endende `Append`, mit Grund und Folge in E19.
 - Gate-Kette (Bedingung in §3): ein Bedarf an einer Änderung der Gate-Kette — **Ausgang:** weiter offen (nicht zu erwarten); Adresse: Planner, falls der Implementer ihn meldet. Der Architect hat Vertrag und Plan geprüft: keine dieser Dateien ist berührt (§3).
 - Größenmarke knapp unter der Schwelle der Schnittfrage (*S* 2195 gegen 2223, Abstand 28) und ein Vergleichswert über der Marke (`slice-telemetry-port`, Ende ÷ *S* 1,44) — **Ausgang:** weiter offen (bei der Closure); Folge ist ein Eintrag `ueberschreitung` mit Grund, keine Rückführung; eine neue Zeile der Tabelle geht vor dem Code an den Planner (§4).
+- Der Composition Root übergibt `Audit` nicht: `src/bootstrap/wurzel.go` baut die Konfigs von `maintenance`, `workspace`, `session` und `baselineimport` ohne das Feld, `New` weist nil ab (`SPEC-234` Nr. 8), `Build` scheitert mit `ODR-E9001`, und neun Tests unter `src/bootstrap/` sind rot (`TestStartReihenfolge`, `TestAbbruchInJederPhase`, `TestZugaengeJeModus`, `TestZugaengeTypen`, `TestZugaengeGleichzeitig`, `TestImportErhaeltWerte`, `TestWorkspaceErhaeltWerte`, `TestKonstruktorFehlerSchliesstAblage`, `TestHerunterfahrenOhneAbbruchDesAusloesers`), also `make test` und `make gates`. Der Plan schließt `src/bootstrap/` aus (§1) und weist die Verdrahtung `slice-audit-verdrahtung` zu, das in `open/` liegt; zwischen den beiden Slices gibt es keinen grünen Stand. Der Implementer hat `src/bootstrap/` nicht angefasst (`AGENTS.md` §3.13) und die Pakete der vier Dienste, des Fakes und die Stufen `docs-check`, `groessenmarke`, `a-check` und `lint` einzeln belegt. — **Ausgang:** offen; Adresse: Planner (Reihenfolge der beiden Slices: die Verdrahtung vor `done/` dieses Slice oder zusammen mit ihm schneiden, oder §1 und die Abgrenzung dieses Slice um die eine Verdrahtung in `wurzel.go` erweitern; die Entscheidung liegt nicht beim Implementer).
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster unten steht vor dem ersten Code-Commit, jede Zelle mit Ort oder „gilt nicht“ und Grund (der Architect hat es gegen die Spezifikation gelesen: keine leere Zelle); eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen (bis zum Review).
 
 **Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; jede Zelle nennt ihren Ort in der Spezifikation oder `gilt nicht` mit Grund). Das Argument der Operationen ist die Kennung des Gegenstands (`id`) bzw. der Eintrag; „fehlende Kennung“ gibt es bei einem `string` nicht (er ist die leere), die Zelle zeigt auf die leere.
