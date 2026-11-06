@@ -896,3 +896,60 @@ func TestZahlLaengeVorzeichen(t *testing.T) {
 		t.Errorf("%d Fälle", n)
 	}
 }
+
+// TestGuidSchreibweise (Zeile 19, Achsen Stelle × Zeichen): an jeder der 32 Hex-Stellen einer Guid ist jeder Großbuchstabe `A` bis `F`
+// ungültig (auch dort, wo der Samen eine Ziffer trägt), jeder Kleinbuchstabe `a` bis `f` und jede Ziffer gültig; mit zwei Samen
+// (Ziffern und Buchstaben), gegen das Orakel des regulären Ausdrucks, in Vergleiche und gegen null.
+func TestGuidSchreibweise(t *testing.T) {
+	orakel := formOrakel()
+	n, ungueltig := 0, 0
+	for _, seed := range []string{"0a1b2c3d-4e5f-6789-abcd-ef0123456789", "00000000-0000-0000-0000-000000000000"} {
+		for i := 0; i < len(seed); i++ {
+			if seed[i] == '-' {
+				continue
+			}
+			for _, z := range "ABCDEFabcdef09" {
+				m := seed[:i] + string(z) + seed[i+1:]
+				w := model.Wert{Art: model.ArtGUID, Text: m}
+				_, e1 := model.Vergleiche(model.VergleichEq, w, w)
+				_, e2 := model.Vergleiche(model.VergleichNe, w, model.Wert{Art: model.ArtNull})
+				ok := formGueltig(orakel, model.ArtGUID, m)
+				if (e1 == nil) != ok || (e2 == nil) != ok || ok != !strings.ContainsAny(string(z), "ABCDEF") {
+					t.Errorf("%q: %v %v, Orakel %v", m, e1, e2, ok)
+				}
+				if !ok {
+					ungueltig++
+				}
+				n++
+			}
+		}
+	}
+	if n != 2*32*14 || ungueltig != 2*32*6 {
+		t.Errorf("%d Fälle, %d ungültig", n, ungueltig)
+	}
+}
+
+// TestBruchteilLaenge (Zeile 7 und 19, Achse Länge): der Bruchteil eines Zeitpunkts hat 1 bis 12 Ziffern, die letzte ungleich Null;
+// alle Längen 0 bis 13 (0 ohne Punkt), dazu der Punkt ohne Ziffern und jede Länge mit Null am Ende, in Vergleiche und OrdneWerte.
+func TestBruchteilLaenge(t *testing.T) {
+	n := 0
+	pruefe := func(text string, ok bool) {
+		w := model.Wert{Art: model.ArtDateTimeOffset, Text: text}
+		_, e1 := model.Vergleiche(model.VergleichEq, w, w)
+		_, e2 := model.OrdneWerte(w, model.Wert{Art: model.ArtNull})
+		if (e1 == nil) != ok || (e2 == nil) != ok {
+			t.Errorf("%q: %v %v, erwartet gültig=%v", text, e1, e2, ok)
+		}
+		n++
+	}
+	pruefe("2020-01-01T10:00:00Z", true)
+	pruefe("2020-01-01T10:00:00.Z", false)
+	for l := 1; l <= 13; l++ {
+		pruefe("2020-01-01T10:00:00."+strings.Repeat("0", l-1)+"1Z", l <= 12)
+		pruefe("2020-01-01T10:00:00."+strings.Repeat("1", l-1)+"0Z", false)
+		pruefe("2020-01-01T10:00:00."+strings.Repeat("9", l)+"Z", l <= 12)
+	}
+	if n != 2+13*3 {
+		t.Errorf("%d Fälle", n)
+	}
+}

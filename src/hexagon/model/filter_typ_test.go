@@ -842,7 +842,7 @@ const (
 )
 
 // gleichzeitigFaelle ist die Zählprüfung der Fälle von TestGleichzeitig.
-const gleichzeitigFaelle = 1133
+const gleichzeitigFaelle = 1165
 
 func wahrText(w model.Wahrheit, err error) string {
 	if err != nil {
@@ -968,6 +968,8 @@ func gleichzeitigAlle(t *testing.T) ([]func() string, []string) {
 		faelle = append(faelle, func() string { return fmt.Sprint(w.Durchlaesst()) })
 		soll = append(soll, fmt.Sprint(w == wW))
 	}
+	f3, s3 := gleichzeitigZweige(t)
+	faelle, soll = append(faelle, f3...), append(soll, s3...)
 	return faelle, soll
 }
 
@@ -1009,4 +1011,130 @@ func TestTypOhneProperties(t *testing.T) {
 	if n != 4*(5+1)*8 {
 		t.Errorf("%d Fälle", n)
 	}
+}
+
+// TestProgrammfehlerFolge (SPEC-167 Nr. 7, Zeilen 34 und 37): ein Programmfehler neben einem Verstoß: der erste Fund in der Folge
+// entscheidet. Hinter einem Verstoß in Links (7 Ursachen) bleiben nil, eine Literalart 0 und 7, ein Knoten mit unbekanntem Operator,
+// ein Zeiger und ein fremder Typ unbemerkt, in Vergleich, and und or; vor dem Verstoß ist der Programmfehler der Fund. Ein unbekannter
+// Operator des Knotens selbst folgt auf die Kinder (Verstoß links wie rechts).
+func TestProgrammfehlerFolge(t *testing.T) {
+	typ, beob := typVerstoesse()
+	fehler := map[string]model.FilterAusdruck{
+		"nil": nil, "Art 7": lit(7, "x"), "Art 0": lit(0, "x"), "Operator des Vergleichs": vgl("", prop("Id"), litZahl()),
+		"Operator der Verknüpfung": verk("xor", wahrLit(), wahrLit()), "Zeiger": &model.FilterNull{}, "fremd": fremderKnoten{},
+	}
+	baue := map[string]func(l, r model.FilterAusdruck) model.FilterAusdruck{
+		"eq":  func(l, r model.FilterAusdruck) model.FilterAusdruck { return vgl("eq", l, r) },
+		"and": func(l, r model.FilterAusdruck) model.FilterAusdruck { return verk("and", l, r) },
+		"or":  func(l, r model.FilterAusdruck) model.FilterAusdruck { return verk("or", l, r) },
+	}
+	n := 0
+	for _, v := range verstoesse() {
+		for pname, p := range fehler {
+			for bname, b := range baue {
+				erwarte(t, string(v.u)+" vor "+pname+" in "+bname, typ, b(v.baum, p), beob, v.u)
+				erwarteProgrammfehler(t, pname+" vor "+string(v.u)+" in "+bname, typ, b(p, v.baum), beob)
+				n += 2
+			}
+		}
+		for _, op := range []model.FilterAusdruck{vgl("", v.baum, nul()), vgl("", nul(), v.baum), verk("xor", v.baum, wahrLit()), verk("xor", wahrLit(), v.baum)} {
+			erwarte(t, "Operator nach dem Kind "+string(v.u), typ, op, beob, v.u)
+			n++
+		}
+	}
+	if n != 7*(7*3*2+4) {
+		t.Errorf("%d Fälle", n)
+	}
+}
+
+// gleichzeitigZweige liefert die Zweige von PruefeFilter (alle Knotenarten, Verstöße, offener Typ, Guid), die Fehlerpfade von
+// Vergleiche und OrdneWerte und Is und Code von FilterTypFehler mit der Erwartung des Tests.
+func gleichzeitigZweige(t *testing.T) ([]func() string, []string) {
+	var faelle []func() string
+	var soll []string
+	typ, beob := typVerstoesse()
+	offen := typ
+	offen.Open = true
+	const (
+		e400 = "ODR-E6005: Filter ungültig: "
+		e501 = "ODR-E6001: Filter nicht unterstützt: "
+		e422 = "ODR-E6003: Filter nicht beobachtet: "
+	)
+	baeume := []struct {
+		typ  model.EntityType
+		baum model.FilterAusdruck
+		want string
+	}{
+		{typ, nicht(prop("Active")), "<nil>"},
+		{typ, nul(), "<nil>"},
+		{typ, verk("and", nicht(nul()), wahrLit()), "<nil>"},
+		{typ, vgl("eq", prop("Ref"), litGUID()), "<nil>"},
+		{typ, vgl("lt", prop("Day"), litDatum()), "<nil>"},
+		{typ, prop("Foo"), e400 + "eigenschaft_unbekannt"},
+		{offen, prop("Foo"), e501 + "typ_nicht_unterstuetzt"},
+		{typ, prop("Nav"), e501 + "typ_nicht_unterstuetzt"},
+		{typ, prop("Bin"), e501 + "typ_nicht_unterstuetzt"},
+		{typ, prop("Hidden"), e422 + "nicht_beobachtet"},
+		{typ, vgl("gt", prop("Ref"), litGUID()), e501 + "operator_nicht_unterstuetzt"},
+		{typ, vgl("eq", prop("Id"), litText()), e400 + "typ_unvertraeglich"},
+		{typ, vgl("eq", prop("Id"), lit(model.LiteralZahl, "2147483648")), e400 + "literal_bereich"},
+		{typ, prop("Id"), e400 + "nicht_boolesch"},
+		{typ, nicht(prop("Id")), e400 + "nicht_boolesch"},
+		{typ, vgl("", prop("Id"), litZahl()), "ungueltig"},
+		{typ, nil, "ungueltig"},
+		{typ, vgl("eq", prop("Id"), lit(7, "x")), "ungueltig"},
+	}
+	for _, b := range baeume {
+		b := b
+		faelle = append(faelle, func() string {
+			err := model.PruefeFilter(b.typ, b.baum, beob)
+			if istUngueltig(err) {
+				return "ungueltig"
+			}
+			return fmt.Sprint(err)
+		})
+		soll = append(soll, b.want)
+	}
+	klasse := map[model.FilterTypUrsache]int{
+		model.FilterEigenschaftUnbekannt: 0, model.FilterNichtBoolesch: 0, model.FilterTypUnvertraeglich: 0, model.FilterLiteralBereich: 0,
+		model.FilterTypNichtUnterstuetzt: 1, model.FilterOperatorNichtUnterstuetzt: 1, model.FilterNichtBeobachtet: 2,
+	}
+	codes := []model.Code{model.CodeE6005, model.CodeE6001, model.CodeE6003}
+	for _, u := range append(model.AlleFilterTypUrsachen(), "x") {
+		u := u
+		k := klasse[u]
+		faelle = append(faelle, func() string {
+			e := &model.FilterTypFehler{Ursache: u}
+			return fmt.Sprint(errors.Is(e, model.ErrURLUngueltig), errors.Is(e, model.ErrURLNichtUnterstuetzt), errors.Is(e, model.ErrFilterNichtBeobachtet), e.Code())
+		})
+		soll = append(soll, fmt.Sprint(k == 0, k == 1, k == 2, codes[k]))
+	}
+	gut := model.Wert{Art: model.ArtString, Text: "a"}
+	for _, f := range []func() string{
+		func() string {
+			w, err := model.Vergleiche(model.VergleichEq, model.Wert{Art: model.ArtRedigiert}, gut)
+			return wahrText(w, err)
+		},
+		func() string { w, err := model.Vergleiche("EQ", gut, gut); return wahrText(w, err) },
+		func() string {
+			w, err := model.Vergleiche(model.VergleichEq, model.Wert{Art: "x"}, gut)
+			return wahrText(w, err)
+		},
+		func() string {
+			w, err := model.Vergleiche(model.VergleichEq, model.Wert{Art: model.ArtInt32, Text: "01"}, gut)
+			return wahrText(w, err)
+		},
+		func() string {
+			w, err := model.Vergleiche(model.VergleichEq, gut, model.Wert{Art: model.ArtInt32, Text: "1"})
+			return wahrText(w, err)
+		},
+		func() string {
+			c, err := model.OrdneWerte(model.Wert{Art: model.ArtRedigiert}, gut)
+			return wahrText(model.Wahrheit(c), err)
+		},
+	} {
+		faelle = append(faelle, f)
+		soll = append(soll, "ungueltig")
+	}
+	return faelle, soll
 }
