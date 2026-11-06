@@ -133,7 +133,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) steht hier, das Raster *Ope
 | 37 | Ein Programmfehler ist `ErrUngueltig`, nie `FilterTypFehler` (`SPEC-167` Nr. 7) | `TestProgrammfehler`: Schleife über `nil`, Kind `nil` an jeder Stelle (`Links`, `Rechts`, `Operand`), Knoten als Zeiger, fremder Typ des Knotens, Operator `''`, `EQ`, `Literal{}` und Art 7; je mit gültigem Rest | Zeiger als Knoten angenommen; `nil` als gültig | andere |
 | 38 | Jede Tiefe wird bewältigt, der Baum bleibt unverändert (`SPEC-167` Nr. 1, 8) | `TestTiefeUndUnveraendert`: Kette `a or a or …` von 2000 Ebenen, 32 verschachtelte Gruppen, 32 `not`; `reflect.DeepEqual` des Baums vor und nach dem Aufruf, auch bei einem Verstoß | Tiefe auf 32 begrenzt; Kind im Baum ändern | andere |
 
-**Stand der Fänger beim Handoff (Implementer, `AGENTS.md` §3.10, §3.17):** Jede Zeile hat ihren Fänger; jede Mutation der Tabelle wurde einzeln am Produktcode vorgenommen und im Paket des Fängers rot gesehen (Wegwerfkopie, `go test`; 176 Läufe: eine Nullprobe, vier mit Aufbaufehler der Mutation und durch eine Fassung ersetzt, eine äquivalente Mutation, alle übrigen rot). Die Spalte nennt Zeile · Mutationen (Kennung des Laufs) · roten Test, jeweils mit mindestens einer Mutation an einem Element, das die Tabelle nicht nannte (**fett**).
+**Stand der Fänger beim Handoff (Implementer, `AGENTS.md` §3.10, §3.17):** Jede Zeile hat ihren Fänger; jede Mutation der Tabelle wurde einzeln am Produktcode vorgenommen und im Paket des Fängers rot gesehen (Wegwerfkopie, `go test`; 176 Läufe: eine Nullprobe, vier mit Aufbaufehler der Mutation und durch eine Fassung ersetzt, eine äquivalente Mutation, alle übrigen rot). Nach der letzten Umformung der Tests (Lint) liefen 39 der Mutationen, eine je Zeile oder mehr, erneut: alle rot. Die Spalte nennt Zeile · Mutationen (Kennung des Laufs) · roten Test, jeweils mit mindestens einer Mutation an einem Element, das die Tabelle nicht nannte (**fett**).
 
 | Zeile | Mutationen | roter Test |
 |---|---|---|
@@ -247,7 +247,7 @@ schaetzung: 3645
 marke: 5000
 ```
 
-**Messpunkte** (`SPEC-128` Nr. 9): beim Handoff und bei der Closure trägt der Planner hier die Messpunkt-Zeile des Programms ein. Messung des Implementer beim Handoff (ohne Messpunkt-Zeile des Programms): Summe aus Einfügungen und Löschungen von `git diff --numstat f6daf34..HEAD` über die elf Pfade des Blocks 2760 (Produktcode 707, Tests 2053), Marke 5000, Auslastung 0,55; die Schätzung nach `SPEC-128` Nr. 1 war 3645, die nach `AGENTS.md` §3.14 mit Fester-Anteil-Regel 2165.
+**Messpunkte** (`SPEC-128` Nr. 9): beim Handoff und bei der Closure trägt der Planner hier die Messpunkt-Zeile des Programms ein. Messung des Implementer beim Handoff (ohne Messpunkt-Zeile des Programms): Summe aus Einfügungen und Löschungen von `git diff --numstat f6daf34..HEAD` über die elf Pfade des Blocks 2780 (Produktcode 708, Tests 2072), Marke 5000, Auslastung 0,56; die Schätzung nach `SPEC-128` Nr. 1 war 3645, die nach `AGENTS.md` §3.14 mit Fester-Anteil-Regel 2165.
 
 ## 5. Closure-Trigger
 
