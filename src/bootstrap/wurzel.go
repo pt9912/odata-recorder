@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pt9912/odata-recorder/src/adapters/driven/audit"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/blobs"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/clock"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/httpupstream"
@@ -119,6 +120,7 @@ type Handle struct {
 	log      *slog.Logger
 	uhr      support.Clock
 	ids      support.IDGenerator
+	audit    support.AuditLog
 	ablage   io.Closer
 	b        bauteile
 	dienste  outbound.MetadataRepository
@@ -240,16 +242,20 @@ func (h *Handle) verdrahte(db *sqlite.DB, v vorlaeufig) error {
 	if err != nil {
 		return err
 	}
+	h.audit, err = audit.New(audit.Config{Pfad: filepath.Join(k.DataDir, audit.DateiName), Uhr: h.uhr, IDs: h.ids, Log: h.log})
+	if err != nil {
+		return err
+	}
 	h.wartung, err = b.NeueWartung(maintenance.Konfig{
 		Sessions: db.Sessions(), Dienste: h.dienste, Speicher: db.Maintenance(), Blobs: waechter,
-		Uhr: h.uhr, MaxAge: k.RetentionMaxAge, Log: h.log,
+		Uhr: h.uhr, MaxAge: k.RetentionMaxAge, Log: h.log, Audit: h.audit,
 	})
 	if err != nil {
 		return err
 	}
 	h.workspaces, err = b.NeueWorkspaces(workspace.Konfig{
 		Workspaces: db.Workspaces(), Transaktion: db, Snapshots: db.Snapshots(), Blobs: waechter, Dienste: h.dienste,
-		Wartung: h.wartung, Uhr: h.uhr, IDs: h.ids, Log: h.log,
+		Wartung: h.wartung, Uhr: h.uhr, IDs: h.ids, Log: h.log, Audit: h.audit,
 	})
 	if err != nil {
 		return err
@@ -283,7 +289,7 @@ func (h *Handle) verdrahteRecord(db *sqlite.DB, waechter *maintenance.BlobWaecht
 	}
 	h.sessions, err = b.NeueSession(session.Konfig{
 		Sessions: db.Sessions(), Dienste: h.dienste, Wartung: h.wartung, Uhr: h.uhr, IDs: h.ids, Log: h.log,
-		Record: h.record, Exchanges: db.Recording(), Frist: k.ShutdownTimeout,
+		Record: h.record, Exchanges: db.Recording(), Frist: k.ShutdownTimeout, Audit: h.audit,
 	})
 	if err != nil {
 		return err
@@ -291,7 +297,7 @@ func (h *Handle) verdrahteRecord(db *sqlite.DB, waechter *maintenance.BlobWaecht
 	h.importer, err = b.NeuerImport(baselineimport.Konfig{
 		Dienste: importDienste(k.Dienste), Sessions: db.Sessions(), Exchanges: db.Recording(), Blobs: waechter,
 		Metadaten: h.dienste, Snapshots: db.Snapshots(), Imports: db.Imports(), MetadatenCodec: csdl.New(),
-		DatenCodec: jsoncodec.New(), Regeln: h.regeln(), MaxCaptureBody: k.MaxCaptureBody, Uhr: h.uhr, IDs: h.ids,
+		DatenCodec: jsoncodec.New(), Regeln: h.regeln(), MaxCaptureBody: k.MaxCaptureBody, Uhr: h.uhr, IDs: h.ids, Audit: h.audit,
 	})
 	if err != nil {
 		return err
