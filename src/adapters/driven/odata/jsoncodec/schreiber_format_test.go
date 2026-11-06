@@ -202,8 +202,7 @@ func TestStufeNone(t *testing.T) {
 	leser := jsoncodec.New()
 	sonder := gutEntity()
 	sonder.Entity.Typ = "Ns.Sonder"
-	// nur Properties des Typs des Sets: der Leser prüft die Mitglieder in der Reihenfolge des Dokuments, und eine
-	// Property nur des abgeleiteten Typs wäre ihm ohne @odata.type `unbekannte_property`, bevor er den Kontext vermisst
+	// nur Properties des Typs des Sets: ohne @odata.type liest der Leser die Entity als Typ des Sets (SPEC-169 Nr. 8)
 	sonder.Entity.Properties = []model.PropertyWert{pw("Id", model.ArtInt32, "1"), pw("Name", model.ArtString, "A")}
 	sonder.Accept = none
 	e := gutEntity()
@@ -249,7 +248,7 @@ type ergebnis struct {
 }
 
 // aufruf ruft die Operation mit Index i für den Lauf g: die Argumente hängen von g ab, nie von einem anderen Lauf.
-func aufruf(i, g int) ergebnis {
+func aufruf(s *jsoncodec.Schreiber, i, g int) ergebnis {
 	z := neuesZiel()
 	name := "n" + strconv.Itoa(g)
 	var d model.Darstellung
@@ -258,51 +257,51 @@ func aufruf(i, g int) ergebnis {
 	case 0:
 		a := gutEntity()
 		a.Entity = produkt(strconv.Itoa(g+1), name)
-		d, err = schreiber().SchreibeEntity(context.Background(), z, testModell(), a)
+		d, err = s.SchreibeEntity(context.Background(), z, testModell(), a)
 	case 1:
 		a := gutCollection()
 		a.Entities = []model.Entity{produkt(strconv.Itoa(g+1), name), produkt(strconv.Itoa(g+2), name)}
 		a.Accept = []string{"application/json;IEEE754Compatible=" + strconv.FormatBool(g%2 == 0)}
-		d, err = schreiber().SchreibeCollection(context.Background(), z, testModell(), a)
+		d, err = s.SchreibeCollection(context.Background(), z, testModell(), a)
 	case 2:
-		d, err = schreiber().SchreibeAnzahl(context.Background(), z, int64(g))
+		d, err = s.SchreibeAnzahl(context.Background(), z, int64(g))
 	case 3:
 		f, _ := model.NeuesFehlerobjekt(model.AlleCodes()[g%len(model.AlleCodes())])
-		d, err = schreiber().SchreibeFehler(context.Background(), z, f)
+		d, err = s.SchreibeFehler(context.Background(), z, f)
 	case 4: // alle acht Typen und null, beide Zahlformen
-		props := []model.PropertyWert{pw("S", model.ArtString, "k"+name), pw("B", model.ArtBoolean, "true"), pw("I32", model.ArtInt32, strconv.Itoa(g)),
+		props := []model.PropertyWert{pw("S", model.ArtString, "k"+name+"\"\x5c\x01"), pw("NDec", model.ArtDecimal, strconv.Itoa(g)), pw("B", model.ArtBoolean, "true"), pw("I32", model.ArtInt32, strconv.Itoa(g)),
 			pw("I64", model.ArtInt64, "9223372036854775807"), pw("Dec", model.ArtDecimal, "-"+strconv.Itoa(g+1)+".5"),
 			pw("G", model.ArtGUID, "0f8fad5b-d9cb-469f-a165-70867728950e"), pw("D", model.ArtDate, "2024-02-29"),
 			pw("T", model.ArtDateTimeOffset, "2020-01-01T00:00:00.5Z"), pw("NS", model.ArtNull, "")}
 		a := alleAntwort(props...)
 		a.Accept = []string{"application/json;IEEE754Compatible=" + strconv.FormatBool(g%2 == 1)}
-		d, err = schreiber().SchreibeEntity(context.Background(), z, testModell(), a)
+		d, err = s.SchreibeEntity(context.Background(), z, testModell(), a)
 	case 5: // abgeleitete Typen, Auswahl, Stufe none, Anzahl
 		a := gutCollection()
 		a.Entities = []model.Entity{{Typ: "Ns.Sonder", Schluessel: strconv.Itoa(g), Properties: []model.PropertyWert{pw("Extra", model.ArtString, name)}},
 			{Typ: "Ns.Sonder2", Schluessel: "7", Properties: []model.PropertyWert{pw("Id", model.ArtInt32, "7")}}}
 		a.Auswahl, a.Anzahl = []string{"Id", "*"}, model.Anzahl{Vorhanden: true, Wert: int64(g)}
 		a.Accept = []string{"text/html", "application/json;odata.metadata=" + []string{"none", "minimal"}[g%2]}
-		d, err = schreiber().SchreibeCollection(context.Background(), z, testModell(), a)
+		d, err = s.SchreibeCollection(context.Background(), z, testModell(), a)
 	case 6: // ungültige Argumente an jeder Operation
 		a := gutEntity()
 		a.Entity.Typ = "Ns.Fremd" + name
-		_, e1 := schreiber().SchreibeEntity(context.Background(), z, testModell(), a)
+		_, e1 := s.SchreibeEntity(context.Background(), z, testModell(), a)
 		b := gutCollection()
 		b.Wurzel = "ftp://" + name
-		_, e2 := schreiber().SchreibeCollection(context.Background(), z, testModell(), b)
-		_, e3 := schreiber().SchreibeAnzahl(context.Background(), z, -int64(g)-1)
-		_, e4 := schreiber().SchreibeFehler(context.Background(), z, model.Fehlerobjekt{})
-		_, e5 := schreiber().Adresse(testModell(), wurzel, "Produkte", "")
+		_, e2 := s.SchreibeCollection(context.Background(), z, testModell(), b)
+		_, e3 := s.SchreibeAnzahl(context.Background(), z, -int64(g)-1)
+		_, e4 := s.SchreibeFehler(context.Background(), z, model.Fehlerobjekt{})
+		_, e5 := s.Adresse(testModell(), wurzel, "Produkte", "")
 		fehler := []error{e1, e2, e3, e4, e5}
 		var nilCtx context.Context
 		var nilDst io.Writer
-		_, e6 := schreiber().SchreibeAnzahl(nilCtx, z, 1)
-		_, e7 := schreiber().SchreibeAnzahl(context.Background(), nilDst, 1)
+		_, e6 := s.SchreibeAnzahl(nilCtx, z, 1)
+		_, e7 := s.SchreibeAnzahl(context.Background(), nilDst, 1)
 		falsch, _ := model.NeuesFehlerobjekt(model.AlleCodes()[0])
 		falsch.Error.Message += name
-		_, e8 := schreiber().SchreibeFehler(context.Background(), z, falsch)
-		_, e9 := schreiber().SchreibeFehler(context.Background(), z, model.Fehlerobjekt{Error: model.FehlerInhalt{Code: "ODR-E0000"}})
+		_, e8 := s.SchreibeFehler(context.Background(), z, falsch)
+		_, e9 := s.SchreibeFehler(context.Background(), z, model.Fehlerobjekt{Error: model.FehlerInhalt{Code: "ODR-E0000"}})
 		fehler = append(fehler, e6, e7, e8, e9)
 		// jede Zeile des Raster-Verstoßes: Version, Set, Typ, Name, Duplikat, Art, Text, Auswahl, Schlüssel, Anzahl, ungültiges UTF-8
 		for k, mut := range []func(a *model.EntityAntwort){
@@ -332,14 +331,14 @@ func aufruf(i, g int) ergebnis {
 		} {
 			x := gutEntity()
 			mut(&x)
-			_, e := schreiber().SchreibeEntity(context.Background(), z, testModell(), x)
-			_, e2 := schreiber().SchreibeEntity(context.Background(), z, modellVersion("2.0"), x)
+			_, e := s.SchreibeEntity(context.Background(), z, testModell(), x)
+			_, e2 := s.SchreibeEntity(context.Background(), z, modellVersion("2.0"), x)
 			fehler = append(fehler, e, e2)
 			y := gutCollection()
 			y.Entities = []model.Entity{x.Entity}
 			y.Set, y.Wurzel, y.Auswahl = x.Set, x.Wurzel, x.Auswahl
 			y.Anzahl = model.Anzahl{Vorhanden: true, Wert: int64(-k - 1)}
-			_, e3 := schreiber().SchreibeCollection(context.Background(), z, testModell(), y)
+			_, e3 := s.SchreibeCollection(context.Background(), z, testModell(), y)
 			fehler = append(fehler, e3)
 		}
 		// ein Name des Modells, der kein gültiges UTF-8 ist: der Fehler kommt aus dem Escape, nicht aus der Prüfung des Wertes
@@ -348,39 +347,85 @@ func aufruf(i, g int) ergebnis {
 			zs[stelle] = "\xff"
 			x := model.EntityAntwort{Wurzel: wurzel, Set: "Set" + zs[1], Auswahl: []string{"Nav" + zs[3]},
 				Entity: model.Entity{Typ: "Ns.D" + zs[2], Schluessel: "1", Properties: []model.PropertyWert{pw("Id", model.ArtInt32, "1"), pw("P"+zs[0], model.ArtString, name)}}}
-			_, e := schreiber().SchreibeEntity(context.Background(), z, modellStellen(zs[0], zs[1], zs[2], zs[3]), x)
+			_, e := s.SchreibeEntity(context.Background(), z, modellStellen(zs[0], zs[1], zs[2], zs[3]), x)
 			fehler = append(fehler, e)
 		}
 		err = errors.Join(fehler...)
 	case 7: // beendeter Kontext und Fehler von dst
 		abgebrochen, cancel := context.WithCancel(context.Background())
 		cancel()
-		_, e1 := schreiber().SchreibeEntity(abgebrochen, z, testModell(), gutEntity())
+		_, e1 := s.SchreibeEntity(abgebrochen, z, testModell(), gutEntity())
 		z2 := &ziel{log: &[]string{}, kurz: -2}
-		_, e2 := schreiber().SchreibeCollection(context.Background(), z2, testModell(), gutCollection())
+		_, e2 := s.SchreibeCollection(context.Background(), z2, testModell(), gutCollection())
 		z3 := &ziel{log: &[]string{}, kurz: -1, err: errors.New("dst " + name)}
-		_, e3 := schreiber().SchreibeAnzahl(context.Background(), z3, 1)
+		_, e3 := s.SchreibeAnzahl(context.Background(), z3, 1)
 		err = errors.Join(e1, e2, e3)
 	case 8: // Adresse mit Schlüsseln, die kodiert werden
-		var s string
-		s, err = schreiber().Adresse(testModell(), wurzel, "Produkte", "'a b'/"+name+"+%")
-		r := ergebnis{body: s}
+		var adr string
+		adr, err = s.Adresse(testModell(), wurzel, "Produkte", "'a b'/"+name+"+%")
+		r := ergebnis{body: adr}
 		if err != nil {
 			r.err = err.Error()
 		}
 		return r
-	default: // Wurzeln und Typen im Ring
+	case 9: // Wurzeln und Typen im Ring
 		a := gutEntity()
 		a.Wurzel = "https://[::1]:" + strconv.Itoa(g+1) + "/a/%C3%A4"
 		a.Entity.Typ = "Ns.R3a"
-		_, e1 := schreiber().SchreibeEntity(context.Background(), z, testModell(), a)
+		_, e1 := s.SchreibeEntity(context.Background(), z, testModell(), a)
 		a.Entity.Typ = "Ns.Product"
-		d, e2 := schreiber().SchreibeEntity(context.Background(), z, testModell(), a)
+		d, e2 := s.SchreibeEntity(context.Background(), z, testModell(), a)
 		err = errors.Join(e1, e2)
 		return ergebnis{body: z.body(), d: d, err: fehlerText(err)}
+	default: // die Zweige der Ablehnung in den Prüfungen der Wurzel, der Art und des Textes
+		err = errors.Join(ablehnungen(s, z)...)
 	}
 	return ergebnis{body: z.body(), d: d, err: fehlerText(err)}
 }
+
+// ablehnungen ruft den Schreiber mit je einem Wert, der einen Zweig der Ablehnung ausführt (nil-Ziele, Wurzel, Art, Text), und liefert die Fehler.
+func ablehnungen(s *jsoncodec.Schreiber, z *ziel) []error {
+	var nilCtx context.Context
+	var nilDst io.Writer
+	ctx := context.Background()
+	var fehler []error
+	sammle := func(_ model.Darstellung, e error) { fehler = append(fehler, e) }
+	sammle(s.SchreibeEntity(nilCtx, z, testModell(), gutEntity()))
+	sammle(s.SchreibeEntity(ctx, nilDst, testModell(), gutEntity()))
+	sammle(s.SchreibeCollection(ctx, nilDst, testModell(), gutCollection()))
+	sammle(s.SchreibeFehler(ctx, nilDst, fehlerCode()))
+	_, e := s.Adresse(testModell(), wurzel, "Unbekannt", "1")
+	fehler = append(fehler, e)
+	bad := gutCollection()
+	bad.Entities = []model.Entity{produkt("1", "A"), {Typ: "Ns.Unbekannt", Schluessel: "2"}}
+	sammle(s.SchreibeCollection(ctx, z, testModell(), bad))
+	for _, w := range []string{
+		"http://" + strings.Repeat("a", maxWurzelTest), "http://", "http://h:", "http://h:80x", "http://h//a", "http://h/a b", "http://[]", "http://[g]",
+	} {
+		_, e := s.Adresse(testModell(), w, "Produkte", "1")
+		fehler = append(fehler, e)
+	}
+	if _, e := s.Adresse(testModell(), "http://h", "Produkte", "1"); e != nil {
+		fehler = append(fehler, e)
+	}
+	for _, f := range []struct {
+		prop string
+		art  model.WertArt
+		text string
+	}{
+		{"NS", "unbekannt", "x"}, {"I32", model.ArtInt32, "-"}, {"I32", model.ArtInt32, "x"}, {"I32", model.ArtInt32, "-5"}, {"I32", model.ArtInt32, "5x"},
+		{"Dec", model.ArtDecimal, strings.Repeat("1", 1025)}, {"Dec", model.ArtDecimal, "x"}, {"Dec", model.ArtDecimal, "5x"},
+		{"G", model.ArtGUID, "0f8fad5b"}, {"G", model.ArtGUID, "0f8fad5bxd9cb-469f-a165-70867728950e"}, {"G", model.ArtGUID, "0f8fad5b-d9cb-469f-a165-70867728950g"},
+		{"T", model.ArtDateTimeOffset, "2020"}, {"T", model.ArtDateTimeOffset, "2023-02-29T00:00:00Z"}, {"T", model.ArtDateTimeOffset, "2020-01-01T00:00:00Z"},
+	} {
+		_, e := s.SchreibeEntity(ctx, z, testModell(), alleAntwort(pw(f.prop, f.art, f.text)))
+		fehler = append(fehler, e)
+	}
+	return fehler
+}
+
+// maxWurzelTest ist die Länge der Wurzel, die der Schreiber höchstens annimmt (SPEC-169 Nr. 2), ohne das Schema.
+const maxWurzelTest = 2048
 
 func fehlerText(err error) string {
 	if err == nil {
@@ -390,22 +435,22 @@ func fehlerText(err error) string {
 }
 
 // varianten ist die Zahl der Aufrufe von aufruf.
-const varianten = 10
+const varianten = 11
 
 // TestWiederholung hält Zeile 34: gleiche Argumente ergeben gleiche Bytes, geänderte geänderte; kein Cache.
 func TestWiederholung(t *testing.T) {
 	n := 0
 	for i := range 4 {
-		erst := aufruf(i, 3)
+		erst := aufruf(schreiber(), i, 3)
 		if erst.err != "" || erst.body == "" {
 			t.Fatalf("Operation %d: %+v", i, erst)
 		}
 		for k := range 100 {
-			if r := aufruf(i, 3); r != erst {
+			if r := aufruf(schreiber(), i, 3); r != erst {
 				t.Fatalf("Operation %d, Aufruf %d: %+v, will %+v", i, k, r, erst)
 			}
 		}
-		if r := aufruf(i, 4); r == erst {
+		if r := aufruf(schreiber(), i, 4); r == erst {
 			t.Errorf("Operation %d: geändertes Argument, gleiche Ausgabe %q", i, r.body)
 		}
 		n += 2
@@ -432,38 +477,44 @@ func TestWiederholung(t *testing.T) {
 	}
 }
 
-// TestGleichzeitig hält Zeile 36 und 37 (Wirkungs-Fänger und Datenrennen): 16 Goroutinen × 10 Aufrufarten (vier Operationen und Adresse, Fehler, alle acht Typen) × 50 Läufe, jede
-// Ausgabe gleich der des einzelnen Aufrufs; der Detektor von make test-race meldet das Rennen.
+// TestGleichzeitig hält Zeile 36 und 37 (Wirkungs-Fänger, Aufruf des Detektors): 16 Goroutinen rufen einen gemeinsamen Schreiber (der Mock hält
+// einen) mit 10 Aufrufarten (vier Operationen, Adresse, Fehler, alle acht Typen) in 50 Läufen. Alle Goroutinen starten zugleich, auch die ersten
+// Aufrufe sind nebenläufig. Jede Ausgabe ist gleich der des einzelnen Aufrufs, den der Test nach dem nebenläufigen Teil berechnet.
 func TestGleichzeitig(t *testing.T) {
 	const gor, laeufe = 16, 50
-	var erwartet [gor][varianten]ergebnis
-	for g := range gor {
-		for i := range varianten {
-			erwartet[g][i] = aufruf(i, g)
-			if r := erwartet[g][i]; r.body == "" && r.err == "" {
-				t.Fatalf("Variante %d, Lauf %d: weder Ausgabe noch Fehler", i, g)
-			}
-		}
-	}
+	geteilt := jsoncodec.NewSchreiber()
+	start := make(chan struct{})
+	gelaufen := make([][]ergebnis, gor)
 	var wg sync.WaitGroup
-	abweichungen := make([]int, gor)
 	for g := range gor {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			<-start
 			for range laeufe {
 				for i := range varianten {
-					if aufruf(i, g) != erwartet[g][i] {
-						abweichungen[g]++
-					}
+					gelaufen[g] = append(gelaufen[g], aufruf(geteilt, i, g))
 				}
 			}
 		}()
 	}
+	close(start)
 	wg.Wait()
-	for g, a := range abweichungen {
-		if a != 0 {
-			t.Errorf("Goroutine %d: %d abweichende Ausgaben von %d", g, a, laeufe*varianten)
+	for g := range gor {
+		for i := range varianten {
+			erwartet := aufruf(schreiber(), i, g)
+			if erwartet.body == "" && erwartet.err == "" {
+				t.Fatalf("Aufrufart %d, Goroutine %d: weder Ausgabe noch Fehler", i, g)
+			}
+			abweichend := 0
+			for k := range laeufe {
+				if gelaufen[g][k*varianten+i] != erwartet {
+					abweichend++
+				}
+			}
+			if abweichend != 0 {
+				t.Errorf("Aufrufart %d, Goroutine %d: %d abweichende Ausgaben von %d", i, g, abweichend, laeufe)
+			}
 		}
 	}
 }

@@ -130,6 +130,10 @@ func TestWurzel(t *testing.T) {
 	gueltig := []string{
 		"http://h", "https://h", "http://h:8080", "http://[::1]:8080", "http://h/a", "http://h/a/b", "http://h/%C3%A4", "http://127.0.0.1:1",
 		"http://h/a.b", "http://h/...", "http://h/" + strings.Repeat("a", 2048-len("http://h/")),
+		// gültige Seite der Zeichen und Ziffern: Host mit - _ ~ und Großbuchstaben, Port mit fünf Ziffern, Port mit Pfad, IPv6 mit Punkt und Großbuchstaben,
+		// Hex-Kleinbuchstaben und Steuerzeichen im %-Teil, %2F im Segment
+		"http://a-b", "http://a_b", "http://a~b", "http://A.B", "http://h:65535", "http://h:80/a/b", "http://[::FFFF:1.2.3.4]:80", "http://h/%c3%a4",
+		"http://h/a-b/c_d/e~f/G", "http://h/%00", "http://h/%1F", "http://h/%2F",
 	}
 	ungueltig := []string{
 		"", "ftp://h", "HTTP://h", "Https://h", "//h", "h", "http://", "http:///a", "http://h/", "http://h//a", "http://h/a/", "http://u@h", "http://u:p@h",
@@ -138,8 +142,8 @@ func TestWurzel(t *testing.T) {
 		"http://[::1", "http://[]", "http://[g::1]", "http://h%41", "http://h\n", "http://h\r\nX: y", "http://h/a\x00", "http://h/a\x7f",
 		"http://h/" + strings.Repeat("a", 2049-len("http://h/")), "http://h/%2E", "http://h/%2e%2e", "http://h/.%2E",
 	}
-	if len(gueltig) != 11 || len(ungueltig) != 44 {
-		t.Fatalf("Menge gültig %d, ungültig %d; will 11, 44", len(gueltig), len(ungueltig))
+	if len(gueltig) != 23 || len(ungueltig) != 44 {
+		t.Fatalf("Menge gültig %d, ungültig %d; will 23, 44", len(gueltig), len(ungueltig))
 	}
 	n := 0
 	for _, w := range gueltig {
@@ -168,8 +172,8 @@ func TestWurzel(t *testing.T) {
 		istUngueltig(t, err, fmt.Sprintf("Adresse %q", w))
 		n += 3
 	}
-	if n != 165 {
-		t.Errorf("Zellen %d, will 165", n)
+	if n != 201 {
+		t.Errorf("Zellen %d, will 201", n)
 	}
 }
 
@@ -254,6 +258,12 @@ func TestAushandlung(t *testing.T) {
 		{"Rand: Tabulator", []string{"application/json;\todata.metadata\t=\tnone\t"}, true, false},
 		{"Rand: vor dem Medientyp", []string{" application/json ;IEEE754Compatible=true"}, false, true},
 		{"Rand: mehrere Leerzeichen", []string{"application/json;  odata.metadata=none"}, true, false},
+		{"Rand: nur Leerzeichen und Tabulator, nicht VT vor dem Namen", []string{"application/json;\x0bodata.metadata=none"}, false, false},
+		{"Rand: nicht CR hinter dem Medientyp", []string{"application/json\r;odata.metadata=none"}, false, false},
+		{"Rand: nicht NBSP vor dem Namen", []string{"application/json;\xc2\xa0odata.metadata=none"}, false, false},
+		{"Länge: Medientyp mit Zusatz hinten", []string{"application/jsonx;odata.metadata=none"}, false, false},
+		{"Länge: Medientyp mit Zusatz vorn", []string{"xapplication/json;odata.metadata=none"}, false, false},
+		{"Länge: Medientyp mit Teil davor und dahinter", []string{"application/x-ndjson;odata.metadata=none"}, false, false},
 		{"Schreibweise: Medientyp", []string{"Application/JSON;odata.metadata=none"}, true, false},
 		{"Schreibweise: Name", []string{"application/json;ODATA.METADATA=none"}, true, false},
 		{"Schreibweise: IEEE", []string{"application/json;ieee754compatible=true"}, false, true},
@@ -275,7 +285,7 @@ func TestAushandlung(t *testing.T) {
 		aushandlung(t, f.was, f.accept, f.none, f.i)
 		n++
 	}
-	if n != 88 {
-		t.Errorf("Menge %d, will 88 (64 + 24)", n)
+	if n != 94 {
+		t.Errorf("Menge %d, will 94 (64 + 30)", n)
 	}
 }

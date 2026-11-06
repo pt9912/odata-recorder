@@ -115,16 +115,17 @@ func TestSchluessel(t *testing.T) {
 func TestPropertyNamen(t *testing.T) {
 	id, name := pw("Id", model.ArtInt32, "1"), pw("Name", model.ArtString, "A")
 	verstoesse := map[string][]model.PropertyWert{
-		"unbekannt":                 {id, pw("Nope", model.ArtString, "x")},
-		"Navigation-Property":       {id, pw("Kategorie", model.ArtString, "x")},
-		"Typ nicht unterstützt":     {id, pw("Blob", model.ArtString, "x")},
-		"leerer Name":               {id, pw("", model.ArtString, "x")},
-		"andere Schreibweise":       {id, pw("name", model.ArtString, "A")},
-		"zweimal, gleicher Wert":    {id, name, name},
-		"zweimal, anderer Wert":     {id, name, pw("Name", model.ArtString, "B")},
-		"zweimal, nicht benachbart": {name, id, name},
-		"zweimal, erste und letzte": {id, name, id},
-		"zweimal, gleiche Property": {id, id},
+		"unbekannt":                   {id, pw("Nope", model.ArtString, "x")},
+		"Navigation-Property":         {id, pw("Kategorie", model.ArtString, "x")},
+		"Typ nicht unterstützt":       {id, pw("Blob", model.ArtString, "x")},
+		"Typ nicht unterstützt, null": {id, pw("Blob", model.ArtNull, "")},
+		"leerer Name":                 {id, pw("", model.ArtString, "x")},
+		"andere Schreibweise":         {id, pw("name", model.ArtString, "A")},
+		"zweimal, gleicher Wert":      {id, name, name},
+		"zweimal, anderer Wert":       {id, name, pw("Name", model.ArtString, "B")},
+		"zweimal, nicht benachbart":   {name, id, name},
+		"zweimal, erste und letzte":   {id, name, id},
+		"zweimal, gleiche Property":   {id, id},
 	}
 	n := 0
 	for was, props := range verstoesse {
@@ -141,8 +142,8 @@ func TestPropertyNamen(t *testing.T) {
 			}
 		})
 	}
-	if n != 48 {
-		t.Errorf("Zellen %d, will 48 (10 Verstöße + 2 Gegenfälle, je 4 Stellen)", n)
+	if n != 52 {
+		t.Errorf("Zellen %d, will 52 (11 Verstöße + 2 Gegenfälle, je 4 Stellen)", n)
 	}
 }
 

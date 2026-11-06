@@ -57,7 +57,9 @@ func artMengen() []artMenge {
 		{model.ArtGUID, "G", zeichenketten("0f8fad5b-d9cb-469f-a165-70867728950e", "00000000-0000-0000-0000-000000000000"),
 			[]string{"0F8FAD5B-D9CB-469F-A165-70867728950E", "0f8fad5b-d9cb-469f-a165-70867728950E", "0f8fad5bd9cb469fa16570867728950e",
 				"{0f8fad5b-d9cb-469f-a165-70867728950e}", "0f8fad5b-d9cb-469f-a165-70867728950", "0f8fad5b-d9cb-469f-a165-70867728950ee",
-				"0f8fad5-bd9cb-469f-a165-70867728950e", "0f8fad5b-d9cb-469f-a165-7086772895ge", " 0f8fad5b-d9cb-469f-a165-70867728950e", "0f8fad5b-d9cb-469f-a165-70867728950e\n"}},
+				"0f8fad5-bd9cb-469f-a165-70867728950e", "0f8fad5b-d9cb-469f-a165-7086772895ge", " 0f8fad5b-d9cb-469f-a165-70867728950e", "0f8fad5b-d9cb-469f-a165-70867728950e\n",
+				// die Nachbarn der Hex-Bereiche: das Zeichen vor 0, hinter 9 und vor a
+				"0f8fad5b-d9cb-469f-a165-70867728950/", "0f8fad5b-d9cb-469f-a165-70867728950:", "0f8fad5b-d9cb-469f-a165-70867728950`"}},
 		{model.ArtDate, "D", zeichenketten("0001-01-01", "9999-12-31", "2024-02-29", "2000-02-29"),
 			[]string{"0000-01-01", "10000-01-01", "2023-02-29", "1900-02-29", "2024-13-01", "2024-00-01", "2024-01-00", "2024-04-31",
 				"2024-1-5", "20240105", "+2024-01-01", "2024-01-01" + stunde, " 2024-01-01", "2024-01-01\n"}},
@@ -65,7 +67,9 @@ func artMengen() []artMenge {
 			[]string{"2020-01-01T00:00:00+01:00", "2020-01-01T00:00:00z", "2020-01-01t00:00:00Z", "2020-01-01 00:00:00Z", "2020-01-01T00:00Z",
 				"2020-01-01T00:00:00.0Z", "2020-01-01T00:00:00.50Z", "2020-01-01T00:00:00.1234567890123Z", "2020-01-01T00:00:60Z",
 				"2020-01-01T24:00:00Z", "2020-01-01T00:60:00Z", "2020-13-01T00:00:00Z", "2023-02-29T00:00:00Z", "0000-01-01" + stunde,
-				"2020-01-01T00:00:00", "2020-01-01T00:00:00.Z", " 2020-01-01T00:00:00Z", "2020-01-01T00:00:00Z\n"}},
+				"2020-01-01T00:00:00", "2020-01-01T00:00:00.Z", " 2020-01-01T00:00:00Z", "2020-01-01T00:00:00Z\n",
+				// ein Zeichen im Bruchteil, das keine Ziffer ist (hinter der Ziffer, davor), und je ein Trennzeichen der Uhrzeit falsch
+				"2020-01-01T00:00:00.1aZ", "2020-01-01T00:00:00.1 Z", "2020-01-01T00.00:00Z", "2020-01-01T00:00.00Z"}},
 	}
 }
 
@@ -119,8 +123,8 @@ func TestTextKanonisch(t *testing.T) {
 			pruefe(u, nil)
 		}
 	}
-	if gueltig != 33 || ungueltig != 107 || zellen != 560 {
-		t.Errorf("Menge gültig %d, ungültig %d, Zellen %d; will 33, 107, 560", gueltig, ungueltig, zellen)
+	if gueltig != 33 || ungueltig != 114 || zellen != 588 {
+		t.Errorf("Menge gültig %d, ungültig %d, Zellen %d; will 33, 114, 588", gueltig, ungueltig, zellen)
 	}
 }
 

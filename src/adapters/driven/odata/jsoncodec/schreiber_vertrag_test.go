@@ -51,9 +51,19 @@ func TestArgumentVorKontext(t *testing.T) {
 			}
 			z.leer(t, op.name+" "+zustand)
 		}
+		// Paar aus nil-Ziel und beendetem Kontext: (a) vor (c), SPEC-168 Nr. 1
+		var nilDst io.Writer
+		for zustand, ctx := range map[string]context.Context{"abgebrochen": abgebrochen, "Frist": frist} {
+			n++
+			d, err := op.gut(ctx, nilDst)
+			istUngueltig(t, err, op.name+" dst nil und "+zustand)
+			if d != (model.Darstellung{}) {
+				t.Errorf("%s dst nil und %s: Darstellung %+v", op.name, zustand, d)
+			}
+		}
 	}
-	if n != 8 {
-		t.Errorf("Menge %d, will 8", n)
+	if n != 16 {
+		t.Errorf("Menge %d, will 16 (4 Operationen × 2 Zustände × {ungültiges Argument, dst nil})", n)
 	}
 }
 
