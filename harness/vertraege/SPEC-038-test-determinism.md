@@ -5,7 +5,7 @@
 **Festlegung:** 100 Wiederholungen identischer Inputs; identische normalisierte Outputs und Cursor-Stände.
 Gemessen wird der Replay (`LH-QA-02`, `LH-FA-04`, `LH-FA-09.b`): eine feste Folge von Requests (Nr. 4) wird hundertmal nacheinander gegen denselben Workspace und dieselbe Replay-Session gespielt, vor jedem Lauf steht ein Reset (Nr. 7); Referenz ist Lauf 1.
 
-**Stand:** Vertrag geschrieben; Treiber, Fragment und Test sind nicht geliefert, das Ziel existiert noch nicht.
+**Stand:** geliefert sind der Treiber, das Fragment `test-determinism.mk`, `TestE2EDeterminismus` mit den Vergleichstests `TestDeterminismusVergleich` und `TestDeterminismusStand` in `tests/e2e/determinismus_test.go`; das Ziel hängt nicht an `GATE_CHECKS`. Der Mock-Teil fehlt (Nr. 9), Binary und Admin-Reset sind nicht beteiligt (Nr. 10 a, b).
 
 1. **Aufbau.** Der Treiber baut die Stufe `integration` des `Dockerfile` (`docker build --target integration`, wie `SPEC-037` Nr. 1) und führt `/out/e2e.test -test.run '^TestE2EDeterminismus$' -test.v -test.count=1 -test.timeout 120s` aus: `docker run --rm --network none --memory 2g --read-only` mit einem `tmpfs` für `/tmp`, ohne Mount, mit `E2E_BINARY` und `E2E_UEBERGANG` wie dort.
    Ein Container trägt den Test-Prozess, den Referenzdienst (`SPEC-037` Nr. 4), das Binary im Modus `record` als Kindprozess (nur Vorbereitung, Nr. 3) und das Handle des Composition Root im Modus `replay` im Prozess des Tests.
