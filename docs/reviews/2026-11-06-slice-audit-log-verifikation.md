@@ -4,7 +4,7 @@
 
 **Gegenstand:** Zweig `slice-audit-log`, HEAD `d58715c` (Diff `1067fcd..d58715c`; Implementer `a9cf341`/`25158e3`/`49fa701`, Review `969f232`, Fix-Runde `6ebe88e`, Architect `4a1c5e2`/`d58715c`, Merge von `main` `39628c2`). Zweig-eigene Änderung gegen den Abzweig `e2b9c7e`: 10 Dateien, alle Audit (Plan, Review, `spec/spezifikation.md`, Port, Adapter, Tests).
 
-**Eingang:** Plan `docs/plan/planning/in-progress/slice-audit-log.md` (DoD, §3 Tabelle A01–A21, Pflicht-Mengen, Raten, §4 Messung, §6), Vertrag `SPEC-234`, `SPEC-235`, `SPEC-123` Nr. 6/8 (Teil E, nur Naht), `LH-RB-04`, `LH-FA-13`, `LH-FA-14` (kein Geheimnis im Eintrag), Review `docs/reviews/2026-11-06-slice-audit-log-review.md`. Rollen-Skripte (`.harness/skills/reviewer.md`, `.claude/commands/implement-slice.md`): nach dem Merge von `main` unverändert gegenüber der Fassung des Reviews (`git diff 1067fcd..d58715c` über beide Pfade: leer).
+**Eingang:** Plan `docs/plan/planning/done/slice-audit-log.md` (DoD, §3 Tabelle A01–A21, Pflicht-Mengen, Raten, §4 Messung, §6), Vertrag `SPEC-234`, `SPEC-235`, `SPEC-123` Nr. 6/8 (Teil E, nur Naht), `LH-RB-04`, `LH-FA-13`, `LH-FA-14` (kein Geheimnis im Eintrag), Review `docs/reviews/2026-11-06-slice-audit-log-review.md`. Rollen-Skripte (`.harness/skills/reviewer.md`, `.claude/commands/implement-slice.md`): nach dem Merge von `main` unverändert gegenüber der Fassung des Reviews (`git diff 1067fcd..d58715c` über beide Pfade: leer).
 
 **Rolle · Modell:** Verifier · claude-sonnet-5-5.
 

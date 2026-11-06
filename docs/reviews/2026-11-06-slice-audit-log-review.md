@@ -33,7 +33,7 @@ Statische Mutationen (S1 bis S5) liefen über das ganze Paket mit `-test.count=1
 
 **M3 — Fenster „Öffnen bis Schreiben“ hat nur A19 als Fänger, mit Rate unter 100 %, Rate nicht benannt**
 - `kategorie`: MEDIUM · `quelle`: `AGENTS.md` §3.10 (Fänger nur mit Wahrscheinlichkeit, Rate nicht benannt), §3.15 · `klasse`: Fenster der Sperre; Rate nicht benannt
-- `pfad`: `docs/plan/planning/in-progress/slice-audit-log.md` · „Fenster der Sperre: von `Uhr.Now()` bis zum Schreiben“
+- `pfad`: `docs/plan/planning/done/slice-audit-log.md` · „Fenster der Sperre: von `Uhr.Now()` bis zum Schreiben“
 - `befund`: Die Zeile ordnet das ganze Fenster A19 zu; die Raten im Plan (50 von 50) gelten für die drei Mutationen des Implementers, die die Sperre ganz oder vor dem Schreiben lösen. Löst eine Mutation die Sperre an einer Stelle *innerhalb* des Fensters (Freigabe und sofortiges Wiedernehmen, ohne `Gosched`), wird A19 nur teilweise rot, je 20 Prozesse: nach `Uhr.Now()`/vor der ID: 12 von 20; nach der ID, vor dem Öffnen: 17 von 20; nach dem Öffnen, vor der Zeilenende-Prüfung: 8 von 20; vor dem Schreiben: 10 von 20. Mit `runtime.Gosched()` im Fenster: 20/20, 20/20, 19/20, 20/20. Das Fenster zwischen Zeilenende-Prüfung und Schreiben hat zudem eine eigene Wirkung, die A19 nicht zählt (zwei gleichzeitige `Append` auf einer Datei mit halber Zeile schreiben dann zwei vorangestellte LF, eine Leerzeile); mein Probe-Test dafür (64 Goroutinen, Datei beginnt mit `halb`) wurde mit Yield 20 von 20 rot (zugleich mit A19), er gehört nicht zur Suite. Ein Wirkungs-Fänger mit halber Zeile fehlt; die Rate je Mutation fehlt im Plan.
 - `verifizierbar`: ja.
 
@@ -65,7 +65,7 @@ Statische Mutationen (S1 bis S5) liefen über das ganze Paket mit `-test.count=1
 
 **L2 — Negativ A21 nennt den Fehler von `Sync`, nicht das Fehlen des Aufrufs**
 - `kategorie`: LOW · `quelle`: `AGENTS.md` §3.15 · `klasse`: akzeptiertes Negativ schmaler als Zusage
-- `pfad`: `docs/plan/planning/in-progress/slice-audit-log.md` · „ein Fehler von `Sync`, ein kurzes Schreiben und ein Fehler des Schließens sind nicht auslösbar“
+- `pfad`: `docs/plan/planning/done/slice-audit-log.md` · „ein Fehler von `Sync`, ein kurzes Schreiben und ein Fehler des Schließens sind nicht auslösbar“
 - `befund`: Mutation S3 (`return f.Sync()` zu `return nil`) bleibt grün. Die Zusage „erst nach `Sync` `nil`“ (`SPEC-235` Nr. 4 h) hat Grund und Folge im Negativ, aber nur für den Fehler des Aufrufs; der Wegfall des Aufrufs steht nicht darin. Die Folge-Zeile des Vertrags („hängt am Dateisystem“) trägt ihn teilweise. Eine Naht gibt es nicht; das ist als Negativ vertretbar, wenn es den Wegfall nennt.
 - `verifizierbar`: nein (kein Lauf des Images kann es sehen).
 
@@ -87,7 +87,7 @@ Statische Mutationen (S1 bis S5) liefen über das ganze Paket mit `-test.count=1
 - `src/hexagon/ports/support/` (`audit.go`, `audit_test.go`): geprüft, ohne Befund außer L1.
 - `src/adapters/driven/audit/` (`audit.go`, Tests): geprüft; Befunde M1 bis M6, L2.
 - `spec/spezifikation.md` (Diff: `AuditArt`): geprüft, ohne Befund; Typzeile und Historie stimmen mit dem Code überein.
-- `docs/plan/planning/in-progress/slice-audit-log.md`: geprüft; Befunde M3 (Zusatztabelle), L2; Messung 1463 von 3000 im Rahmen der Marke.
+- `docs/plan/planning/done/slice-audit-log.md`: geprüft; Befunde M3 (Zusatztabelle), L2; Messung 1463 von 3000 im Rahmen der Marke.
 - Gate-Kette (`Makefile`, `harness/`, `Dockerfile`, `tools/`, `.a-check.yml`): geprüft, ohne Befund (unberührt).
 
 ## Nicht aufgelöst
