@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-08.a` (Pipeline) · `LH-FA-08.b` · `LH-QA-02.a` (stabile Sortierung) · `SPEC-044` (Property-Maske) · `SPEC-022`, `SPEC-024` · `ARC-001`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-query-interpreter, Worktree /Development/odata-recorder-wt-query-interpreter)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
@@ -34,6 +34,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Ziel:** Der Interpreter führt einen geprüften Query-AST auf einer Menge typisierter Entities aus: Filter, stabile Sortierung (bei Gleichstand nach Entity-Key, ohne `$orderby` nach Key), Zählung vor dem Paging, `$skip` und `$top` (`$top=0` ergibt eine leere Liste) und Projektion mit Property-Maske, und liefert Elemente und Count für die Serialisierung.
 
 **Übernimmt (Hinweis, keine Pflicht; Sendung von `slice-bootstrap-m2`, `AGENTS.md` §3.13):** Längen-Differenz zwischen Filter und Schlüssel (`SPEC-161`, `SPEC-164`; 1641 Abweichungen in 167634 Läufen): alle sind `literal` im Filter gegen `zu_lang` im Schlüssel, erklärt durch die Regel „der Rest hinter dem schließenden `'` zählt nicht zur Länge“ (`SPEC-164` Nr. 4 a); entschieden und vertraglich getragen, kein Fehler. Eine Angleichung wäre eine Änderung des Vertrags des Lesers; wer sie will, entscheidet sie in diesem Slice, dessen Lauf beide Pfade verwendet. Ohne Beschluss bleibt die Regel.
+
+**Übernimmt (Sendung von `slice-edm-ausdruecke`, `AGENTS.md` §3.13):** (a) der Interpreter ruft `model.PruefeFilter` mit der Property-Maske vor der Auswertung des Filters und bildet den Fehler über die Abbildung ab (`SPEC-167` Nr. 6); (b) `$orderby` nach einer Property, für die `model.HatOrdnung` falsch ist (`Edm.Guid`), ist `501` mit `ODR-E6001` (`SPEC-166` Nr. 3 f); (c) `desc` kehrt die Ordnung von `model.OrdneWerte` um, `null` steht dann zuletzt (`SPEC-166` Nr. 6). Die Auswertung der Wahrheitswerte, die Vergleiche und die Ordnung selbst liefert `slice-edm-ausdruecke`.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -94,12 +96,18 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-edm-ausdruecke` liegt in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-edm-ausdruecke` liegt in `done/` (eingetreten, Beleg [slice-edm-ausdruecke](../done/slice-edm-ausdruecke.md)); der Start als Teil 1 von `welle-mock` folgt dem Trigger aus deren §2 (Linie B). Zusammenhang mit der Regel „höchstens eine Linie von Teil 1 zugleich“ (`welle-mock` §4): `slice-odata-json-schreiben` aus Teil 1 läuft bereits in einem eigenen Worktree; die Regel bleibt im Wortlaut der Welle stehen und gilt hier als Hinweis, denn der User hat höchstens drei Worktrees zugleich entschieden. Beide Slices brauchen nur das Modell (der Interpreter zusätzlich `slice-edm-ausdruecke`, in `done/`) und teilen keinen Code. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner beim Start vor dem ersten Code-Commit nach `AGENTS.md` §3.14 mit dem Werkzeug aus `slice-groessenmarke-werkzeug` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Eine Zahl steht hier erst, wenn die Tabelle *Zusage · Fänger* vorliegt.
 - `in-progress` → `open` (blockiert — Carveout?): der Ort der Entscheidung über negative oder nicht ganzzahlige Werte von `$top` und `$skip` (Parser oder Interpreter) ist nicht entschieden (siehe §6).
+
+**Größenmarke** (`AGENTS.md` §3.14): **noch nicht gesetzt.** Metrik wie oben; Faktoren, Formel und Schnittfrage stehen allein in `SPEC-128` Nr. 1, hier steht keine Zahl davon. Der Block `groessenmarke` steht erst im Plan, wenn der Architect `pfad`, `produktcode`, `fakes` liefert und der Planner `basis`, `schaetzung`, `marke` mit `make groessenmarke` setzt, in eigenem Commit vor dem ersten Code-Commit im Slice-Zweig (damit `make groessenmarke` auf `main` bis zum Merge grün bleibt). Trifft die Schnittfrage zu, wird vor dem Code geschnitten; sie stellt der Architect mit der Tabelle (§6).
+
+**Aufträge an den Architect** (vor dem ersten Code-Commit, `AGENTS.md` §3.12): (1) Vertrag der Ausführung in der Spezifikation mit Randformen, Argumenten, Fehlern und der Eingabe (geprüfter Query-AST, Menge typisierter Entities, Property-Maske); die Sendung (a) bis (c) aus §1 ist Teil des Vertrags (`SPEC-166` Nr. 3 f und 6, `SPEC-167` Nr. 6, `SPEC-125` Nr. 10 und 11). (2) Die Entscheidung über negative und nicht ganzzahlige Werte von `$top` und `$skip` samt Ort (§6); fällt sie dem Parser zu, ist `slice-odata-url-pfad` kein Nehmer (liegt in `done/`), und der Architect gibt die Änderung als Rückgabe an den Planner (`AGENTS.md` §3.13). (3) Tabelle *Zusage · Fänger* in §3. (4) Raster *Operation × Argumentart* in §6, darin die offenen Risiken (gemischte Sortierschlüssel, Teilprojektion). (5) Erwartete Größe für die Marke. (6) Schnittfrage nach `SPEC-128` Nr. 1. (7) Kennungen: `slice-odata-json-schreiben` läuft zugleich in Linie B; zur Vermeidung stiller Kollisionen vergibt dieser Slice aus dem hinteren Teil des Bereichs: `SPEC-190` bis `SPEC-199`, `ARC-035` bis `ARC-039`, ADR `0025` bis `0029`, `CO-030` bis `CO-039`; `slice-odata-json-schreiben` behält `SPEC-176` bis `SPEC-189`, `ARC-030` bis `ARC-034`, ADR `0020` bis `0024`, `CO-020` bis `CO-029`. Ein erschöpfter Teil geht als Frage an den Planner.
+
+**Bedingung Gate-Kette** (Übergangsregeln Nr. 7): Der Slice berührt laut §3 keine Datei der Gate-Kette (`Makefile`, `harness/mk/`, `Dockerfile`, `harness/README.md`, `tools/gegenproben/`, Stempel). Muss der Architect oder der Implementer eine ändern (etwa die Regeln von `.a-check.yml` für ein neues Paket), hält er an und gibt es als Rückgabe an den Planner zurück (§6, Ausgang *offen*, `AGENTS.md` §3.13); der Slice ändert sie nicht selbst.
 
 ## 5. Closure-Trigger
 
@@ -117,7 +125,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Negative oder nicht ganzzahlige Werte von `$top` und `$skip` (`400`): der Ort der Entscheidung (Parser oder Interpreter) ist offen — **Ausgang:** offen; Architect, eine Zelle des Rasters.
-- Ordnung von `null` im `$orderby` und gemischte Sortierschlüssel — **Ausgang:** offen; Architect.
+- Ordnung von `null` im `$orderby` — **Ausgang:** entfallen als Lücke: entschieden in `SPEC-166` Nr. 6 (`null` zuerst aufsteigend, zuletzt absteigend). Gemischte Sortierschlüssel — **Ausgang:** offen; Architect.
 - Laufzeit bei 10.000 Entities pro Workspace (`LH-QA-01.a`): dieser Slice sagt Korrektheit zu, nicht Latenz — **Ausgang:** weiter offen; die Messung trägt der Closure-Trigger von `welle-betrieb` (§3 dort, Lasttest).
 - Teilprojektionen: `$select` einer Property, die nur teilweise beobachtet ist (`SPEC-044`) — **Ausgang:** offen; Raster *Operation × Argumentart*.
 
@@ -153,7 +161,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-10-30); der Planner zieht Treffer und Zähler beim Start nach. Reine Funktionen mit Allaussagen: `BEO-REPO/universalaussage-im-vertrag-ungeprueft` (9×, verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (25×, verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/randform-erst-im-review-entschieden` (20×, verkörpert in `AGENTS.md` §3.16). Offen: `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×); er erreicht mit diesem Slice nicht 3×.
+**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-10-30) und beim Start am 2026-11-06 erneut; der Zähler folgt aus den Dateien unter `../observations/BEO-REPO/<slug>/evidence/`, hier steht keine Zahl. Reine Funktionen mit Allaussagen: `BEO-REPO/universalaussage-im-vertrag-ungeprueft` (verkörpert in `AGENTS.md` §3.16), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15) und `BEO-REPO/randform-erst-im-review-entschieden` (verkörpert in `AGENTS.md` §3.16). Beim Start zusätzlich einschlägig für Fänger und Raster (verkörpert in `AGENTS.md` §3.17 bzw. §3.14): `BEO-REPO/fix-deckt-die-genannte-mutation-nicht-die-klasse`, `BEO-REPO/unbeschraenkte-menge-ohne-benannte-pruefgrenze` (10.000 Entities, Mengen von Sortierschlüsseln), `BEO-REPO/zustand-des-arguments-als-dimension` (fehlend, `null`, leer) und `BEO-REPO/groessenmarke-ueberschritten-ohne-rueckfuehrung`. Offen: `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (Stand: geplant in `slice-guard-schreibwege`); die Betriebsregel „nur `Edit` und `Write`“ gilt für jede Rolle dieses Slice (Übergangsregeln Nr. 8).
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der
