@@ -17,7 +17,7 @@ build: ## Binary bauen; pruefung build prüft Version aus VERSION und -trimpath 
 test: ## pruefung test: gofmt, vet und Unit-Tests (Dockerfile, Stufe test; netzlos ausser deps)
 	$(DOCKER_BUILD) --target test -t odata-recorder:test .
 
-test-race: ## pruefung race: go test -race mit cgo über alle Pakete der Stufe source (Dockerfile, Stufe race; netzlos ausser deps)
+test-race: ## pruefung race: go test -race mit cgo über alle Pakete der Stufe source (Dockerfile, Stufe race; netzlos ausser deps) · ADR-0007 · seit welle-record-replay
 	$(DOCKER_BUILD) --build-arg RACE_IMAGE=$(RACE_IMAGE) --target race -t odata-recorder:race .
 
 GATE_CHECKS += build test test-race

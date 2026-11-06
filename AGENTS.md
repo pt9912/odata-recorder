@@ -187,6 +187,7 @@ Wer einen neuen Vertrag liefert (Format, Fehlercode, Leser, Gate, Option), schre
 Der Bericht nennt je Zusage: Zusage · Mutation · roter Test.
 Ein Test zählt nur, wenn er aus dem benannten Grund rot wird, nicht weil der Aufbau bricht.
 Wird ein Fänger nur mit Wahrscheinlichkeit rot, nennt der Bericht seine Rate je Mutation und je Lauf von `go test`; „hoch“ steht nur mit Zahl.
+Eine Rate steht mit Last des Hosts und Messendem; ohne Detektor schwankt sie mit der Last, und eine Einzelzahl gilt als Größenordnung, nicht als fester Wert.
 Der Implementer trägt dieselbe Tabelle und die Raten mit Zahl der Prozesse und Messendem in einen Absatz von §3 des Plans ein, denn der Bericht allein genügt nicht: Reviewer und Verifier haben ihn nicht, und sie messen weiter selbst.
 Wo ein Vertrag eine Zusage über Nebenläufigkeit macht (Sperre, Zähler, Reihenfolge), gilt sie nur als gefangen, wenn die Mutation in jedem Lauf rot wird.
 Ein Datenrennen zählt der Detektor von `make test-race` je Prozess (`-test.count=1`; er meldet dasselbe Rennen in einem Prozess nur einmal, ein `-count=20` zeigt es nicht), jede andere Wirkung eine Wiederholung (`-count=20`).
@@ -233,21 +234,12 @@ Eine offene Entscheidung, die der Implementer oder eine Prüfrunde an den Archit
 ### 3.14 Die Größenmarke schneidet vor dem Code oder am vorab benannten Teil und nennt ihre Metrik   (geschärft seit welle-record-replay)
 
 Jede Marke in §4 eines Plans („zu groß, über N Zeilen") nennt ihre Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade, die der Plan nennt, Tests eingeschlossen.
-Schätzungen werden in dieser Metrik angegeben: Zeilen der Tabelle *Zusage · Fänger* (§3.15) × 85 (nebenläufig) bzw. × 40 (jede andere Zeile), plus 200 je Port-Fake oder Test-Server.
-Liefert der Slice einen Leser fremder Bytes (einen Parser für ein Format, das nicht dieses Repo schreibt), zählt jede andere Zeile × 65 statt × 40, und die Produktcode-Größe, die der Architect erwartet, kommt als fester Anteil hinzu.
-Nebenläufig zählt eine Zeile, wenn der Code oder sein Fänger nebenläufig ist.
-Der erste Slice mit Zeilen, die keine reinen Funktionen sind, nennt den gemessenen Wert in §4.
-Die Formel schätzt den Stand beim Handoff; die Marke misst den Stand nach dem Review, und dafür wird die ganze Schätzung, feste Anteile eingeschlossen, × 1,25 gehalten, denn das Ende lag nachgemessen 17 bis 29 % über dem Handoff.
-Die Marke setzt der Planner vor dem ersten Code-Commit auf die Schätzung × 1,25, aufgerundet auf volle Hundert; eine ältere Marke ersetzt er dabei mit Grund in §4.
-Liegt die Schätzung × 1,25 über 3000, wird vor dem ersten Code-Commit geschnitten; lässt sich kein Teil ohne geteilten Mechanismus abtrennen, steht der Grund in §4.
-Daneben ist ein vorab benannter Schnitt beim Handoff erlaubt: der Teil ist vor dem Code in §4 benannt, zuletzt in eigenem Commit geschrieben und davor gemessen, und er teilt keinen Mechanismus mit dem Rest.
-Sonst wird nach dem Code gemessen und mit Grund berichtet.
+Formel, Faktoren, Zuschlag, Aufrundung und Schnittgrenze stehen allein in `SPEC-128` Nr. 1 (`harness/vertraege/SPEC-128-groessenmarke.md`); diese Regel trägt keine Zahl davon.
+Die Marke setzt der Planner vor dem ersten Code-Commit nach `SPEC-128` Nr. 1 (eine ältere ersetzt er mit Grund in §4); über der Schnittgrenze wird vor dem Code geschnitten, und lässt sich kein Teil ohne geteilten Mechanismus abtrennen, steht der Grund in §4.
+Beim Handoff ist nur ein vorab benannter Schnitt erlaubt: der Teil steht vor dem Code in §4, ist zuletzt in eigenem Commit geschrieben und davor gemessen und teilt keinen Mechanismus mit dem Rest; sonst wird nach dem Code gemessen und mit Grund berichtet.
 
-**Falsch:** „über 700 Zeilen", ohne Metrik; eine Marke unter der Schätzung × 1,25, die der Planner vor dem ersten Code-Commit nicht neu gesetzt hat; eine Marke, die nach dem fertigen Code eine Rückführung verspricht; ein Schnitt beim Handoff an einem Teil, den erst die Messung benennt.
-**Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)", vor dem ersten Code-Commit vom Planner auf die Schätzung × 1,25, aufgerundet auf volle Hundert, gesetzt; vor dem Code wird nur über 3000 geschnitten, beim Handoff nur der Teil, den §4 vor dem Code benannt hat; sonst steht nach dem Code die Messung mit Grund im Plan.
-
-**Falsch:** Die Marke eines Slice mit einem Leser fremder Bytes zählt nur die Fänger (Formel 1850 und 2050 bei Enden von 4333 und 7236).
-**Richtig:** Zeilen × 65 plus die Produktcode-Größe des Architect, × 1,25.
+**Falsch:** „über 700 Zeilen", ohne Metrik; eine Marke, die der Planner vor dem Code nicht nach `SPEC-128` Nr. 1 gesetzt hat; eine Marke, die nach dem Code eine Rückführung verspricht; ein Schnitt beim Handoff an einem Teil, den erst die Messung benennt.
+**Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)", vom Planner vor dem Code nach `SPEC-128` Nr. 1 gesetzt; sonst steht nach dem Code die Messung mit Grund im Plan.
 
 ### 3.15 Zusage und Fänger stehen als Paar im Plan   (seit welle-fundament, geschärft seit welle-record-replay)
 
