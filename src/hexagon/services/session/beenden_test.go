@@ -476,6 +476,7 @@ func tabellenzeilen() []tabellenzeile {
 		{"ErrDatenUngueltig", model.ErrDatenUngueltig}, {"ErrURLUngueltig", model.ErrURLUngueltig},
 		{"ErrURLNichtUnterstuetzt", model.ErrURLNichtUnterstuetzt}, {"ErrFilterNichtBeobachtet", model.ErrFilterNichtBeobachtet},
 		{"ErrKompatibilitaet", model.ErrKompatibilitaet},
+		{"ErrEingabeUngueltig", model.ErrEingabeUngueltig}, {"ErrEingabeNichtUnterstuetzt", model.ErrEingabeNichtUnterstuetzt},
 		{"ErrUngueltigeSequenz", outbound.ErrUngueltigeSequenz},
 		{"ErrAbgeschlossen", outbound.ErrAbgeschlossen}, {"ErrRevisionVeraltet", outbound.ErrRevisionVeraltet},
 		{"Platte (ohne Zeile)", errDisk},
