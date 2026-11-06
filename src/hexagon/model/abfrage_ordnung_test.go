@@ -250,7 +250,9 @@ func TestGleichstandSchluessel(t *testing.T) {
 	abIdsGleich(t, "Text B a b", r.Entities, "3", "2", "1")
 	// Guid: nach dem Text der Guid, nicht nach dem Schlüssel
 	guid := model.EntityType{Name: "Ns.K", Keys: []string{"Ref"}, Properties: []model.Property{{Name: "Ref", EdmType: "Edm.Guid"}}}
-	g := func(n int) model.PropertyWert { return abPW("Ref", model.ArtGUID, fmt.Sprintf("00000000-0000-0000-0000-%012d", n)) }
+	g := func(n int) model.PropertyWert {
+		return abPW("Ref", model.ArtGUID, fmt.Sprintf("00000000-0000-0000-0000-%012d", n))
+	}
 	for _, p := range abPermutationen(3) {
 		basis := []model.Entity{abEntOhneId("z", g(1)), abEntOhneId("y", g(2)), abEntOhneId("x", g(3))}
 		ein := []model.Entity{basis[p[0]], basis[p[1]], basis[p[2]]}

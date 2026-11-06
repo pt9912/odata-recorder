@@ -250,7 +250,9 @@ func TestStatischOhneEntities(t *testing.T) {
 // Eingabe (die Fälle der Entities nur mit nichtleerer), die Fehler der Entities an erster, mittlerer und letzter Stelle.
 func TestAbfrageProgrammfehler(t *testing.T) {
 	typ := abTyp()
-	basis := func() []model.Entity { return []model.Entity{abE(1, abS("Name", "a")), abE(2, abS("Name", "b")), abE(3, abS("Name", "c"))} }
+	basis := func() []model.Entity {
+		return []model.Entity{abE(1, abS("Name", "a")), abE(2, abS("Name", "b")), abE(3, abS("Name", "c"))}
+	}
 	type fall struct {
 		name string
 		opt  model.Optionen
@@ -348,6 +350,26 @@ func TestAuswertungProgrammfehler(t *testing.T) {
 		}},
 		{"Literal True and", "Active", abPW("Active", model.ArtBoolean, "true"), func(model.FilterAusdruck) model.FilterAusdruck {
 			return verk("and", wahrLit(), lit(model.LiteralWahrheitswert, "True"))
+		}},
+		// der Fehler steckt in einem verschachtelten Vergleich: er geht durch not, Links und Rechts von Vergleich, and und or
+		{"verschachtelt not", "Name", abPW("Name", model.ArtRedigiert, ""), func(p model.FilterAusdruck) model.FilterAusdruck { return nicht(vgl("eq", p, str)) }},
+		{"verschachtelt Links", "Name", abPW("Name", model.ArtRedigiert, ""), func(p model.FilterAusdruck) model.FilterAusdruck {
+			return vgl("eq", vgl("eq", p, str), wahrLit())
+		}},
+		{"verschachtelt Rechts", "Name", abPW("Name", model.ArtRedigiert, ""), func(p model.FilterAusdruck) model.FilterAusdruck {
+			return vgl("eq", wahrLit(), vgl("eq", p, str))
+		}},
+		{"verschachtelt and", "Name", abPW("Name", model.ArtRedigiert, ""), func(p model.FilterAusdruck) model.FilterAusdruck {
+			return verk("and", vgl("eq", p, str), wahrLit())
+		}},
+		{"verschachtelt or", "Name", abPW("Name", model.ArtRedigiert, ""), func(p model.FilterAusdruck) model.FilterAusdruck {
+			return verk("or", wahrLit(), vgl("eq", p, str))
+		}},
+		{"Zeichenkette ohne Anführung", "Name", abS("Name", "x"), func(model.FilterAusdruck) model.FilterAusdruck {
+			return vgl("eq", prop("Name"), lit(model.LiteralZeichenkette, "x"))
+		}},
+		{"Zeichenkette ohne Anführung links", "Name", abS("Name", "x"), func(model.FilterAusdruck) model.FilterAusdruck {
+			return vgl("eq", lit(model.LiteralZeichenkette, "x"), prop("Name"))
 		}},
 	}
 	for _, s := range schlecht {

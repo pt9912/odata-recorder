@@ -44,10 +44,14 @@ func abIds(es []model.Entity) []string {
 	return r
 }
 
-func abF(a model.FilterAusdruck) *model.FilterOption { return &model.FilterOption{Text: "x", Ausdruck: a} }
-func abZ(n int) model.ZahlOption                     { return model.ZahlOption{Gesetzt: true, Wert: n} }
-func abSel(namen ...string) *model.SelectOption      { return &model.SelectOption{Namen: namen} }
-func abOrd(name string, desc bool) model.Sortierung  { return model.Sortierung{Name: name, Absteigend: desc} }
+func abF(a model.FilterAusdruck) *model.FilterOption {
+	return &model.FilterOption{Text: "x", Ausdruck: a}
+}
+func abZ(n int) model.ZahlOption                { return model.ZahlOption{Gesetzt: true, Wert: n} }
+func abSel(namen ...string) *model.SelectOption { return &model.SelectOption{Namen: namen} }
+func abOrd(name string, desc bool) model.Sortierung {
+	return model.Sortierung{Name: name, Absteigend: desc}
+}
 
 // abOk führt aus und verlangt keinen Fehler.
 func abOk(t *testing.T, was string, typ model.EntityType, es []model.Entity, opt model.Optionen, beob func(string) bool) model.Ergebnis {
@@ -490,7 +494,7 @@ func abAbfragen() []abAbfrage {
 		{"Ordnung gemischt", func() model.Optionen {
 			return model.Optionen{OrderBy: []model.Sortierung{abOrd("Name", true), abOrd("Price", false), abOrd("At", true), abOrd("Big", false)}}
 		}, nil},
-		{"Ordnung N",func() model.Optionen {
+		{"Ordnung N", func() model.Optionen {
 			return model.Optionen{OrderBy: []model.Sortierung{abOrd("N", false)}, Select: abSel("N", "Name")}
 		}, nil},
 		{"Select Alle", func() model.Optionen { return model.Optionen{Select: &model.SelectOption{Alle: true}, Top: abZ(3)} }, nil},
@@ -507,13 +511,82 @@ func abAbfragen() []abAbfrage {
 		{"Programmfehler", func() model.Optionen { return model.Optionen{Top: abZ(-1)} }, nil},
 		{"Programmfehler Select", func() model.Optionen { return model.Optionen{Select: abSel("Id", "Id")} }, nil},
 		{"Programmfehler Filter", func() model.Optionen { return model.Optionen{Filter: &model.FilterOption{}} }, nil},
-		{"Typprüfung unverträglich",func() model.Optionen {
+		{"Typprüfung unverträglich", func() model.Optionen {
 			return model.Optionen{Filter: abF(vgl("eq", prop("N"), lit(model.LiteralWahrheitswert, "true")))}
 		}, nil},
 		{"Programmfehler OrderBy", func() model.Optionen {
 			return model.Optionen{OrderBy: []model.Sortierung{abOrd("N", false), abOrd("N", true)}}
 		}, nil},
+		// Programmfehler der Auswertung und der Ordnung auf Listen mit einem Wert, den kein Leser liefert (abListen)
+		{"Auswertung redigiert", func() model.Optionen {
+			return model.Optionen{Filter: abF(vgl("eq", prop("Name"), str("'x'")))}
+		}, nil},
+		{"Auswertung not", func() model.Optionen {
+			return model.Optionen{Filter: abF(nicht(vgl("eq", prop("Name"), str("'x'"))))}
+		}, nil},
+		{"Auswertung Links", func() model.Optionen {
+			return model.Optionen{Filter: abF(vgl("eq", vgl("eq", prop("Name"), str("'x'")), wahrLit()))}
+		}, nil},
+		{"Auswertung and", func() model.Optionen {
+			return model.Optionen{Filter: abF(verk("and", vgl("eq", prop("Name"), str("'x'")), wahrLit()))}
+		}, nil},
+		{"Auswertung Wahrheit", func() model.Optionen { return model.Optionen{Filter: abF(prop("Active"))} }, nil},
+		{"Auswertung Wahrheit links", func() model.Optionen { return model.Optionen{Filter: abF(verk("and", prop("Active"), wahrLit()))} }, nil},
+		{"Auswertung Wahrheit rechts", func() model.Optionen { return model.Optionen{Filter: abF(verk("or", wahrLit(), prop("Active")))} }, nil},
+		{"Auswertung Literal", func() model.Optionen {
+			return model.Optionen{Filter: abF(vgl("eq", prop("Active"), lit(model.LiteralWahrheitswert, "True")))}
+		}, nil},
+		{"Auswertung Zeichenkette", func() model.Optionen {
+			return model.Optionen{Filter: abF(vgl("eq", prop("Name"), str("x")))}
+		}, nil},
+		{"Ordnung Klasse", func() model.Optionen { return model.Optionen{OrderBy: []model.Sortierung{abOrd("Name", false)}} }, nil},
+		{"Ordnung Guid", func() model.Optionen { return model.Optionen{OrderBy: []model.Sortierung{abOrd("Name", false)}} }, nil},
+		{"Ordnung redigiert", func() model.Optionen { return model.Optionen{OrderBy: []model.Sortierung{abOrd("Name", false)}} }, nil},
+		{"Schlüssel doppelt", func() model.Optionen { return model.Optionen{} }, nil},
+		{"Key null", func() model.Optionen { return model.Optionen{} }, nil},
+		{"Key Klasse", func() model.Optionen { return model.Optionen{} }, nil},
 	}
+}
+
+// abListen bestimmt die Eingabe jener Abfragen, die nicht die geteilte Liste nehmen; die Funktionen bauen sie frisch.
+func abListen() map[string]func() []model.Entity {
+	mit := func(f func(es []model.Entity)) func() []model.Entity {
+		return func() []model.Entity {
+			es := abSharedMit(false)
+			f(es)
+			return es
+		}
+	}
+	setze := func(e *model.Entity, w model.PropertyWert) {
+		for i, p := range e.Properties {
+			if p.Name == w.Name {
+				e.Properties[i] = w
+			}
+		}
+	}
+	redigiert := mit(func(es []model.Entity) { setze(&es[0], abPW("Name", model.ArtRedigiert, "")) })
+	aktiv := mit(func(es []model.Entity) { setze(&es[3], abS("Active", "x")) })
+	return map[string]func() []model.Entity{
+		"Auswertung redigiert": redigiert, "Auswertung not": redigiert, "Auswertung Links": redigiert, "Auswertung and": redigiert,
+		"Ordnung redigiert": redigiert, "Auswertung Wahrheit": aktiv, "Auswertung Wahrheit links": aktiv, "Auswertung Wahrheit rechts": aktiv,
+		"Ordnung Klasse": mit(func(es []model.Entity) { setze(&es[2], abI("Name", 1)) }),
+		"Ordnung Guid": mit(func(es []model.Entity) {
+			for i := range es {
+				setze(&es[i], abPW("Name", model.ArtGUID, fmt.Sprintf("00000000-0000-0000-0000-%012d", i)))
+			}
+		}),
+		"Schlüssel doppelt": mit(func(es []model.Entity) { es[4].Schluessel = es[1].Schluessel }),
+		"Key null":          mit(func(es []model.Entity) { setze(&es[5], abNu("Id")) }),
+		"Key Klasse":        mit(func(es []model.Entity) { setze(&es[6], abS("Id", "x")) }),
+	}
+}
+
+// abListe liefert die Eingabe der Abfrage: die geteilte Liste oder die von abListen.
+func abListe(name string) []model.Entity {
+	if f, ok := abListen()[name]; ok {
+		return f()
+	}
+	return abShared()
 }
 
 // TestEingabeUnveraendert (Zeile 31): Reihenfolge der Liste, Entities, Optionen und Baum sind nach dem Aufruf gleich einer zweiten,
@@ -521,9 +594,9 @@ func abAbfragen() []abAbfrage {
 func TestEingabeUnveraendert(t *testing.T) {
 	typ := abTyp()
 	for _, q := range abAbfragen() {
-		es, opt := abShared(), q.opt()
+		es, opt := abListe(q.name), q.opt()
 		_, _ = model.FuehreAus(typ, es, opt, q.beob)
-		if !reflect.DeepEqual(es, abShared()) || !reflect.DeepEqual(opt, q.opt()) {
+		if !reflect.DeepEqual(es, abListe(q.name)) || !reflect.DeepEqual(opt, q.opt()) {
 			t.Errorf("%s: die Eingabe ist verändert", q.name)
 		}
 	}
@@ -542,14 +615,15 @@ func TestEingabeUnveraendert(t *testing.T) {
 // TestAbfrageGleichzeitig (Zeile 32): acht Goroutinen mit je 1000 Aufrufen über die Abfragen von abAbfragen auf geteilter Liste, geteilten
 // Optionen und geteiltem Baum; jedes Ergebnis ist gleich dem sequentiellen Lauf, und die Zahl der Aufrufe je Abfrage wird gezählt.
 func TestAbfrageGleichzeitig(t *testing.T) {
-	typ, es := abTyp(), abShared()
+	typ := abTyp()
 	qs := abAbfragen()
+	ess := make([][]model.Entity, len(qs))
 	opts := make([]model.Optionen, len(qs))
 	soll := make([]model.Ergebnis, len(qs))
 	sollErr := make([]string, len(qs))
 	for i, q := range qs {
-		opts[i] = q.opt()
-		r, err := model.FuehreAus(typ, es, opts[i], q.beob)
+		ess[i], opts[i] = abListe(q.name), q.opt()
+		r, err := model.FuehreAus(typ, ess[i], opts[i], q.beob)
 		soll[i], sollErr[i] = r, abKennung(err)
 	}
 	const goroutinen, aufrufe = 8, 1000
@@ -564,7 +638,16 @@ func TestAbfrageGleichzeitig(t *testing.T) {
 			lokal := make([]int, len(qs))
 			for k := 0; k < aufrufe; k++ {
 				i := (k + g) % len(qs)
-				r, err := model.FuehreAus(typ, es, opts[i], qs[i].beob)
+				r, err := model.FuehreAus(typ, ess[i], opts[i], qs[i].beob)
+				if err != nil {
+					// Text, Code und Klasse des Fehlers lesen
+					var ae *model.AbfrageFehler
+					if errors.As(err, &ae) {
+						_ = ae.Code()
+					}
+					_ = err.Error() + fmt.Sprint(errors.Is(err, model.ErrURLUngueltig), errors.Is(err, model.ErrURLNichtUnterstuetzt), errors.Is(err, model.ErrFilterNichtBeobachtet))
+					_ = model.AlleAbfrageUrsachen()
+				}
 				if !reflect.DeepEqual(r, soll[i]) || abKennung(err) != sollErr[i] {
 					select {
 					case fehler <- qs[i].name:
@@ -596,8 +679,10 @@ func TestAbfrageGleichzeitig(t *testing.T) {
 	if !t.Failed() && gesamt != goroutinen*aufrufe {
 		t.Errorf("%d Aufrufe gezählt", gesamt)
 	}
-	if !reflect.DeepEqual(es, abShared()) {
-		t.Error("die geteilte Liste ist verändert")
+	for i, q := range qs {
+		if !reflect.DeepEqual(ess[i], abListe(q.name)) {
+			t.Errorf("die geteilte Liste von %q ist verändert", q.name)
+		}
 	}
 }
 
