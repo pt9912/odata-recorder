@@ -191,23 +191,43 @@ func TestEingabeGleichzeitig(t *testing.T) {
 }
 
 // TestEingabeKeinZustand hält Zeile 40: der Leser hat keinen Zustand zwischen Aufrufen; derselbe Leser für die drei Arten nacheinander und in umgekehrter
-// Folge ergibt jeweils das Ergebnis eines frischen Lesers. Menge 3 Arten × 2 Folgen × 2 Bodys.
+// Folge ergibt jeweils das Ergebnis, das eine Tabelle des Tests nennt (nicht das eines frischen Lesers: ein Zustand im Paket träfe ihn ebenso). Das Ergebnis
+// zählt die Wirkung: der Fänger wartet nicht auf ein Datenrennen. Menge 3 Bodys × 2 Folgen × 3 Arten.
 func TestEingabeKeinZustand(t *testing.T) {
 	l := jsoncodec.NewEingabe()
 	arten := eArten()
 	folgen := [][]model.EingabeArt{arten, {arten[2], arten[1], arten[0]}}
-	for _, body := range []string{`{"Id":1,"S":"x"}`, `{"S":"x"}`, `{}`} {
+	idS := []model.PropertyWert{ePW("Id", model.ArtInt32, "1"), ePW("S", model.ArtString, "x")}
+	faelle := []struct {
+		body      string
+		ohnePatch bool // bei POST und PUT `fehlend`, bei PATCH das Ergebnis
+		patch     model.EntityEingabe
+		voll      model.EntityEingabe
+	}{
+		{`{"Id":1,"S":"x"}`, false, model.EntityEingabe{Typ: "Ns.W", Schluessel: "1", Properties: idS}, model.EntityEingabe{Typ: "Ns.W", Schluessel: "1", Properties: idS}},
+		{`{"S":"x"}`, true, model.EntityEingabe{Typ: "Ns.W", Properties: []model.PropertyWert{ePW("S", model.ArtString, "x")}}, model.EntityEingabe{}},
+		{`{}`, true, model.EntityEingabe{Typ: "Ns.W", Properties: []model.PropertyWert{}}, model.EntityEingabe{}},
+	}
+	n := 0
+	for _, f := range faelle {
 		for _, folge := range folgen {
 			for _, art := range folge {
-				a := eA("Ws", art, body)
+				a := eA("Ws", art, f.body)
 				got, err := l.LeseEntity(a.ctx, a.src, a.ct, a.m, a.set, a.art, a.grenze)
-				b := eA("Ws", art, body)
-				frisch, errFrisch := jsoncodec.NewEingabe().LeseEntity(b.ctx, b.src, b.ct, b.m, b.set, b.art, b.grenze)
-				if !reflect.DeepEqual(got, frisch) || (err == nil) != (errFrisch == nil) || (err != nil && err.Error() != errFrisch.Error()) {
-					t.Errorf("%s %s: %+v %v, frisch %+v %v", art, body, got, err, frisch, errFrisch)
+				switch {
+				case f.ohnePatch && art != model.EingabePatch:
+					eFehler(t, f.body+" "+string(art), got, err, model.EingabeFehlend, "/Id")
+				case art == model.EingabePatch:
+					eOK(t, f.body+" "+string(art), got, err, f.patch)
+				default:
+					eOK(t, f.body+" "+string(art), got, err, f.voll)
 				}
+				n++
 			}
 		}
+	}
+	if n != 18 {
+		t.Errorf("Menge %d, erwartet 18", n)
 	}
 }
 

@@ -112,7 +112,8 @@ func eAtoi(s string) int {
 
 // TestEingabeDatumStellen hält Zeile 26 für Datum: Menge 2573 = 10 Stellen × 256 + Längen 0 bis 12.
 func TestEingabeDatumStellen(t *testing.T) {
-	const basis = "2020-01-01"
+	// Die Basis liegt an den Grenzen (Schalttag, Monat 2), damit ein Zeichen allein Jahr 2021, Monat 13 oder Tag 39 erreicht.
+	const basis = "2020-02-29"
 	var texte []string
 	for pos := range len(basis) {
 		texte = append(texte, eErsetzt(basis, pos)...)
@@ -165,7 +166,8 @@ func eZeitOrakel(s string) (string, bool) {
 
 // TestEingabeZeitpunktStellen hält Zeile 26 für Zeitpunkte: Menge 9758 = Grundform 5120 + Bruchteil 3102 + Versatz 1536.
 func TestEingabeZeitpunktStellen(t *testing.T) {
-	grund := "2020-01-01T00:00:00Z"
+	// Die Basis liegt an den Grenzen (23:59:59, Schalttag), damit ein Zeichen allein Stunde 24, Minute 60 oder Sekunde 60 erreicht.
+	grund := "2020-02-29T23:59:59Z"
 	var texte []string
 	for pos := range len(grund) {
 		texte = append(texte, eErsetzt(grund, pos)...)
@@ -183,7 +185,7 @@ func TestEingabeZeitpunktStellen(t *testing.T) {
 	if len(texte) != 5120+3102 {
 		t.Fatalf("Bruchteil %d", len(texte)-5120)
 	}
-	versatz := "2020-01-01T00:00:00+01:00"
+	versatz := "2020-02-29T23:59:59+23:59" // ein Zeichen allein erreicht die Versatz-Stunde 24 und die Minute 60
 	for pos := 19; pos < 25; pos++ {
 		texte = append(texte, eErsetzt(versatz, pos)...)
 	}
