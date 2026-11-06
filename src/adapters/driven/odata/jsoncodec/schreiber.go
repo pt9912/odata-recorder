@@ -20,7 +20,7 @@ func NewSchreiber() *Schreiber { return &Schreiber{} }
 // version ist die Version, die der Schreiber setzt; das Kennzeichen jeder Ausgabe nennt sie (SPEC-169 Nr. 7).
 const version = "4.0"
 
-var kennzeichen = model.Kopfzeile{Name: "OData-Version", Wert: version}
+func kennzeichen() model.Kopfzeile { return model.Kopfzeile{Name: "OData-Version", Wert: version} }
 
 // ungueltig ist ein Programmfehler des Aufrufers (SPEC-168 Nr. 1): model.ErrUngueltig ohne Code und ohne DatenFehler.
 func ungueltig(format string, args ...any) error {
@@ -59,7 +59,7 @@ func (*Schreiber) SchreibeAnzahl(ctx context.Context, dst io.Writer, n int64) (m
 	if n < 0 {
 		return model.Darstellung{}, ungueltig("Anzahl negativ")
 	}
-	return ausgeben(ctx, dst, strconv.AppendInt(nil, n, 10), model.Darstellung{ContentType: "text/plain;charset=utf-8", Kennzeichen: kennzeichen})
+	return ausgeben(ctx, dst, strconv.AppendInt(nil, n, 10), model.Darstellung{ContentType: "text/plain;charset=utf-8", Kennzeichen: kennzeichen()})
 }
 
 // SchreibeFehler schreibt das Fehlerobjekt zu einem Code der Tabelle (SPEC-168 Nr. 5 f, SPEC-169 Nr. 7).
@@ -86,12 +86,12 @@ func (*Schreiber) SchreibeFehler(ctx context.Context, dst io.Writer, f model.Feh
 	if b.err != nil {
 		return model.Darstellung{}, b.err
 	}
-	return ausgeben(ctx, dst, b.b, model.Darstellung{ContentType: "application/json;odata.metadata=minimal;charset=utf-8", Kennzeichen: kennzeichen})
+	return ausgeben(ctx, dst, b.b, model.Darstellung{ContentType: "application/json;odata.metadata=minimal;charset=utf-8", Kennzeichen: kennzeichen()})
 }
 
 // Adresse liefert `<Wurzel>/<Set>(<Schlüssel>)` (SPEC-169 Nr. 2).
 func (*Schreiber) Adresse(m model.ServiceModel, wurzel, entitySet, schluessel string) (string, error) {
-	if _, _, err := setTyp(m, entitySet); err != nil {
+	if _, err := setTyp(m, entitySet); err != nil {
 		return "", err
 	}
 	return adresse(wurzel, entitySet, schluessel)

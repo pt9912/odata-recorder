@@ -22,23 +22,23 @@ type sicht struct {
 }
 
 // setTyp prüft Modell, Version und Set (SPEC-168 Nr. 2) und liefert den Typ des Sets.
-func setTyp(m model.ServiceModel, name string) (model.EntityType, model.EntitySet, error) {
+func setTyp(m model.ServiceModel, name string) (model.EntityType, error) {
 	if m.Version() != version {
-		return model.EntityType{}, model.EntitySet{}, ungueltig("Modell hat nicht die Version %s", version)
+		return model.EntityType{}, ungueltig("Modell hat nicht die Version %s", version)
 	}
 	s, ok := m.EntitySet(name)
 	if !ok || name == "" {
-		return model.EntityType{}, model.EntitySet{}, ungueltig("Set ist dem Modell unbekannt")
+		return model.EntityType{}, ungueltig("Set ist dem Modell unbekannt")
 	}
 	t, ok := m.EntityType(s.EntityType)
 	if !ok {
-		return model.EntityType{}, model.EntitySet{}, ungueltig("Typ des Sets ist dem Modell unbekannt")
+		return model.EntityType{}, ungueltig("Typ des Sets ist dem Modell unbekannt")
 	}
-	return t, s, nil
+	return t, nil
 }
 
 func neueSicht(m model.ServiceModel, set string) (*sicht, error) {
-	t, _, err := setTyp(m, set)
+	t, err := setTyp(m, set)
 	if err != nil {
 		return nil, err
 	}
@@ -239,5 +239,5 @@ func (a *ausgabe) ergebnis(f form) ([]byte, model.Darstellung, error) {
 	if a.err != nil {
 		return nil, model.Darstellung{}, a.err
 	}
-	return a.b, model.Darstellung{ContentType: f.contentType(), Kennzeichen: kennzeichen}, nil
+	return a.b, model.Darstellung{ContentType: f.contentType(), Kennzeichen: kennzeichen()}, nil
 }

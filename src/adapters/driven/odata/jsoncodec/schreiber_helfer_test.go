@@ -86,12 +86,12 @@ type kontext struct {
 	log                 *[]string
 	err                 error
 	errN, doneN, deadlN int
-	context.Context
 }
 
-func neuerKontext(z *ziel, err error) *kontext {
-	return &kontext{log: z.log, err: err, Context: context.Background()}
-}
+func neuerKontext(z *ziel, err error) *kontext { return &kontext{log: z.log, err: err} }
+
+// Value liefert nichts; der Schreiber liest keinen Wert aus dem Kontext.
+func (*kontext) Value(any) any { return nil }
 
 func (k *kontext) Err() error {
 	k.errN++
