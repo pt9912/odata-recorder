@@ -121,8 +121,64 @@ func TestEingabeAnnotationen(t *testing.T) {
 	}
 }
 
+// TestEingabeAnnotationenNachbarn hält Zeile 19 für die Klasse „Namen, die einen Sonderfall nur berühren“: Präfix, Suffix, Abschnitt, Schreibweise und Leerzeichen
+// von `@odata.type` (8 Namen an der Wurzel) und von `odata.bind` (8 Terme × 3 Namen) sind Annotationen ohne Wirkung, nie `bind` und nie ein Typ.
+// Menge (8 + 24) × 3 Stellen × 3 Arten = 288.
+func TestEingabeAnnotationenNachbarn(t *testing.T) {
+	namen := []string{"@odata.typeX", "@odata.typ", "@Xodata.type", "@ODATA.TYPE", "@odata.Type", "@odata.type ", "@ odata.type", "@odata.types"}
+	for _, name := range []string{"Name", "Einzel", "Unbekannt"} {
+		for _, term := range []string{"odata.bindX", "odata.bin", "Xodata.bind", "x.odata.bind", "ODATA.BIND", "odata.Bind", "odata.bind ", " odata.bind"} {
+			namen = append(namen, name+"@"+term)
+		}
+	}
+	n := 0
+	for _, name := range namen {
+		ann := eQuote(name) + `:"x"`
+		stellen := []string{ann + `,"Id":1,"Name":"x"`, `"Id":1,` + ann + `,"Name":"x"`, `"Id":1,"Name":"x",` + ann}
+		for s, mitglieder := range stellen {
+			for _, art := range eArten() {
+				got, err := eA("Ms", art, "{"+mitglieder+"}").los()
+				eOK(t, name+" Stelle "+eP(s)+" "+string(art), got, err, model.EntityEingabe{Typ: "Ns.M", Schluessel: "1",
+					Properties: []model.PropertyWert{ePW("Id", model.ArtInt32, "1"), ePW("Name", model.ArtString, "x")}})
+				n++
+			}
+		}
+	}
+	if n != 32*3*3 {
+		t.Errorf("Menge %d, erwartet 288", n)
+	}
+}
+
+// TestEingabeAbgeleiteterTypPflicht hält Zeile 30 für den abgeleiteten Typ: ein `POST` oder `PUT` mit `@odata.type` eines abgeleiteten Typs verlangt dessen eigene nicht
+// nullbare Property (SPEC-181 Nr. 7 a „wirksame Properties des Typs“), nicht die des Typs des Sets.
+func TestEingabeAbgeleiteterTypPflicht(t *testing.T) {
+	faelle := []struct {
+		typ, body, fehlt string // fehlt: leer = gültig
+	}{
+		{"Ns.Pflicht", `"Id":1`, "/Muss"}, {"Ns.Pflicht", `"Id":1,"Muss":3`, ""},
+		{"Ns.Pflicht2", `"Id":1`, "/Muss"}, {"Ns.Pflicht2", `"Id":1,"Muss":3`, "/Muss2"}, {"Ns.Pflicht2", `"Id":1,"Muss2":4`, "/Muss"},
+		{"Ns.Pflicht2", `"Id":1,"Muss":3,"Muss2":4`, ""},
+	}
+	n := 0
+	for _, f := range faelle {
+		body := `{"@odata.type":"#` + f.typ + `",` + f.body + `}`
+		for _, art := range eArten() {
+			got, err := eA("Mitten", art, body).los()
+			if f.fehlt != "" && art != model.EingabePatch {
+				eFehler(t, f.typ+" "+f.body+" "+string(art), got, err, model.EingabeFehlend, f.fehlt)
+			} else if err != nil || got.Typ != f.typ || got.Schluessel != "1" {
+				t.Errorf("%s %s %s: %+v %v", f.typ, f.body, art, got, err)
+			}
+			n++
+		}
+	}
+	if n != 18 {
+		t.Errorf("Menge %d, erwartet 18", n)
+	}
+}
+
 // TestEingabeMitglieder hält Zeile 20: nicht unterstützter Typ, Navigation, dynamisches Member und unbekannter Name, jeder JSON-Wert.
-// Menge 210 = 10 Klassen × 7 Werte × 3 Arten.
+// Menge 315 = 15 Klassen (10 im geschlossenen Typ `Ms` und `Os`, 5 Namen des Modells im offenen Typ) × 7 Werte × 3 Arten.
 func TestEingabeMitglieder(t *testing.T) {
 	klassen := []struct {
 		set, name string
@@ -132,6 +188,9 @@ func TestEingabeMitglieder(t *testing.T) {
 		{"Ms", "Kom", model.EingabePropertyTyp}, {"Ms", "Auf", model.EingabePropertyTyp},
 		{"Ms", "Einzel", model.EingabeNavigation}, {"Ms", "Liste", model.EingabeNavigation},
 		{"Os", "dyn", model.EingabeOffen}, {"Ms", "dyn", model.EingabeUnbekannteProperty}, {"Ms", "", model.EingabeUnbekannteProperty},
+		// im offenen Typ gelten die Namen des Modells wie im geschlossenen
+		{"Os", "Dbl", model.EingabePropertyTyp}, {"Os", "Kom", model.EingabePropertyTyp}, {"Os", "Einzel", model.EingabeNavigation},
+		{"Os", "Liste", model.EingabeNavigation}, {"Os", "", model.EingabeOffen},
 	}
 	n := 0
 	for _, k := range klassen {
@@ -143,8 +202,8 @@ func TestEingabeMitglieder(t *testing.T) {
 			}
 		}
 	}
-	if n != 210 {
-		t.Errorf("Menge %d, erwartet 210", n)
+	if n != 15*7*3 {
+		t.Errorf("Menge %d, erwartet 315", n)
 	}
 }
 
@@ -453,7 +512,8 @@ func TestEingabeSchluessel(t *testing.T) {
 }
 
 // TestEingabeSchluesselNul hält Zeile 32: U+0000 in einer Schlüssel-Property ist `schluessel`, in einer anderen ein gültiges Zeichen.
-// Menge 24 = 4 Formen × 2 Stellen × 3 Arten, dazu `null` des Schlüssels × 3.
+// Menge 111 = 4 Formen × 2 Stellen × 3 Arten (24), `null` des Schlüssels `Sts.Id` × 3, U+0000 an jeder der 25 Stellen eines Schlüssels × 3 Arten (75) und `null`
+// an jeder nullbaren Schlüssel-Property (`Rs.Id`, `KN.A`, `KN.B`; das Modell führt sie als nullbar, der Schlüssel ist trotzdem `null`) × 3 Arten (9).
 func TestEingabeSchluesselNul(t *testing.T) {
 	nul := esc("0000")
 	formen := []struct{ json, text string }{{`"` + nul + `ab"`, "\x00ab"}, {`"a` + nul + `b"`, "a\x00b"}, {`"ab` + nul + `"`, "ab\x00"}, {`"` + nul + `"`, "\x00"}}
@@ -473,7 +533,25 @@ func TestEingabeSchluesselNul(t *testing.T) {
 		eFehler(t, "Schlüssel null", got, err, model.EingabeNull, "/Id")
 		n++
 	}
-	if n != 27 {
-		t.Errorf("Menge %d, erwartet 27", n)
+	// U+0000 an jeder Stelle eines Schlüssels von 25 Zeichen
+	lang := strings.Repeat("a", 25)
+	for i := range 25 {
+		text := lang[:i] + "\x00" + lang[i+1:]
+		for _, art := range eArten() {
+			got, err := eA("Sts", art, eObj("Id", eQuote(text))).los()
+			eFehler(t, "NUL an Stelle "+eP(i), got, err, model.EingabeSchluessel, "/Id")
+			n++
+		}
+	}
+	// `null` an einer nullbaren Schlüssel-Property
+	for _, f := range []struct{ set, name string }{{"Rs", "Id"}, {"KN", "A"}, {"KN", "B"}} {
+		for _, art := range eArten() {
+			got, err := eA(f.set, art, eObj(f.name, "null")).los()
+			eFehler(t, f.set+"."+f.name+" null", got, err, model.EingabeNull, "/"+f.name)
+			n++
+		}
+	}
+	if n != 111 {
+		t.Errorf("Menge %d, erwartet 111", n)
 	}
 }

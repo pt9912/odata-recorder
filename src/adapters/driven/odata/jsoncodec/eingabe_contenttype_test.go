@@ -1,6 +1,7 @@
 package jsoncodec_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -45,7 +46,7 @@ func TestEingabeMedientyp(t *testing.T) {
 }
 
 // TestEingabeCharset hält Zeile 6: jedes Vorkommen von `charset` muss `utf-8` sein, der Name zählt ohne Beachtung der Schreibweise. Menge 14 × 3
-// (der Plan nennt 13; dazu `CHARSET=utf-16`, der den Namen allein fängt).
+// (6 gültige und 8 ungültige Formen; `CHARSET=utf-16` fängt den Namen allein).
 func TestEingabeCharset(t *testing.T) {
 	gueltig := []string{"application/json; charset=utf-8", "application/json;charset=UTF-8", "application/json;CHARSET=Utf-8",
 		"application/json; charset = utf-8", "application/json;odata.metadata=minimal", "application/json;;charset=utf-8"}
@@ -65,6 +66,48 @@ func TestEingabeCharset(t *testing.T) {
 	}
 	if n != 14*3 {
 		t.Errorf("Menge %d, erwartet 42", n)
+	}
+}
+
+// TestEingabeCharsetPositionen hält Zeile 6 für die Klasse „Parameter `charset` an jeder Position mit jedem Rand“: 4 Positionen (hinter 0, 1, 2, 3 anderen
+// Parametern) × 81 Ränder (Leerzeichen, Tabulator oder keiner in den vier Lücken vor dem Namen, hinter dem Namen, hinter dem `=`, hinter dem Wert) ×
+// Wert (`utf-8` gültig; `iso-8859-1`, `utf-16`, `iso-8859-1=x` ungültig) = 4 × 81 × 4 = 1296 Elemente × 3 Arten. Dazu andere Randzeichen (CR, LF, FF, VT,
+// NBSP): am Medientyp und am Wert sind sie kein Rand und machen den Medientyp bzw. den Wert ungültig, am Namen ist der Teil kein `charset` und ohne Wirkung.
+// Das Orakel ist die Konstruktion der Elemente, nie der Leser.
+func TestEingabeCharsetPositionen(t *testing.T) {
+	raender := []string{"", " ", "\t"}
+	n := 0
+	for pos := range 4 {
+		for _, wert := range []string{"utf-8", "iso-8859-1", "utf-16", "iso-8859-1=x"} {
+			for _, r1 := range raender {
+				for _, r2 := range raender {
+					for _, r3 := range raender {
+						for _, r4 := range raender {
+							arg := r1 + "charset" + r2 + "=" + r3 + wert + r4
+							ct := "application/json" + strings.Repeat(";a=b", pos) + ";" + arg + strings.Repeat(";c=d", 3-pos)
+							for _, art := range eArten() {
+								eCT(t, ct, art, []string{ct}, wert == "utf-8")
+								n++
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if n != 4*4*81*3 {
+		t.Errorf("Menge %d, erwartet %d", n, 4*4*81*3)
+	}
+	// andere Randzeichen
+	for _, c := range []string{"\r", "\n", "\f", "\v", "\xc2\xa0"} {
+		for _, art := range eArten() {
+			eCT(t, "Medientyp davor", art, []string{c + "application/json"}, false)
+			eCT(t, "Medientyp dahinter", art, []string{"application/json" + c}, false)
+			eCT(t, "Wert davor", art, []string{"application/json;charset=" + c + "utf-8"}, false)
+			eCT(t, "Wert dahinter", art, []string{"application/json;charset=utf-8" + c}, false)
+			eCT(t, "Name davor", art, []string{"application/json;" + c + "charset=utf-16"}, true)
+			eCT(t, "Name dahinter", art, []string{"application/json;charset" + c + "=utf-16"}, true)
+		}
 	}
 }
 

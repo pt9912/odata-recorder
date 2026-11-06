@@ -46,6 +46,23 @@ func TestEingabeLeerraum(t *testing.T) {
 		got, err := eA("Mitten", art, body).los()
 		eOK(t, "Leerraum", got, err, model.EntityEingabe{Typ: "Ns.Mitte", Schluessel: "1", Properties: []model.PropertyWert{ePW("Id", model.ArtInt32, "1")}})
 	}
+	// Negativseite: jedes andere Byte (252 von 256) vor und hinter dem Dokument ist `syntax`, darunter Form Feed, Vertical Tab, 0x85 und 0xA0.
+	n := 0
+	for b := range 256 {
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' {
+			continue
+		}
+		for _, art := range eArten() {
+			for _, body := range []string{string([]byte{byte(b)}) + "{}", "{}" + string([]byte{byte(b)})} {
+				got, err := eA("Mitten", art, body).los()
+				eFehler(t, "Byte "+eP(b), got, err, model.EingabeSyntax, "")
+				n++
+			}
+		}
+	}
+	if n != 252*3*2 {
+		t.Errorf("Menge %d, erwartet %d", n, 252*3*2)
+	}
 }
 
 // TestEingabeWurzel hält Zeile 10: die Wurzel ist ein Objekt, sonst `struktur` mit leerem Ort. Menge 21 = 6 × 3 + 3.
@@ -234,7 +251,7 @@ func TestEingabeGroesse(t *testing.T) {
 					eMitteLeer(t, was, art, got, err)
 				}
 				// Kein Read fordert mehr an, als `grenze + 1` abzüglich der schon gelieferten Bytes zulassen (SPEC-126 Nr. 5); die Summe aller
-				// Anforderungen ist bei einem Strom, der weniger liefert als gefordert, nicht durch `grenze + 1` begrenzt (Rückgabe an den Architect).
+				// Anforderungen ist bei einem Strom, der weniger liefert als gefordert, nicht zugesagt (SPEC-181 Nr. 2 c (i)).
 				var geliefert int64
 				for i, x := range s.geliefert {
 					if a := int64(s.angefordert[i]); a < 1 || a > 32768 || (g != math.MaxInt64 && a > g+1-geliefert) {

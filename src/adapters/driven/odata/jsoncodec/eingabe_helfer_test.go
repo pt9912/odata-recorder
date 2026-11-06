@@ -160,7 +160,12 @@ func eJSONCT() []string { return []string{"application/json"} }
 
 // eA ist der gültige Aufruf mit dem Body.
 func eA(set string, art model.EingabeArt, body string) eAufruf {
-	return eAufruf{ctx: context.Background(), src: strings.NewReader(body), ct: eJSONCT(), m: eModell(), set: set, art: art, grenze: eGrenze}
+	return eAm(eModell(), set, art, body)
+}
+
+// eAm ist der gültige Aufruf mit dem Body gegen das Modell m.
+func eAm(m model.ServiceModel, set string, art model.EingabeArt, body string) eAufruf {
+	return eAufruf{ctx: context.Background(), src: strings.NewReader(body), ct: eJSONCT(), m: m, set: set, art: art, grenze: eGrenze}
 }
 
 // kontext liefert ctx als context.Context, den Nullwert für nil.
@@ -312,6 +317,10 @@ func eModell() model.ServiceModel {
 	add("Mitten", model.EntityType{Name: "Ns.Mitte", BaseType: "Ns.Wurzel", Keys: []string{"Id"}, Properties: []model.Property{idp, namep}})
 	add("Blaetter", model.EntityType{Name: "Ns.Blatt", BaseType: "Ns.Mitte", Keys: []string{"Id"}, Properties: []model.Property{idp, namep, extrap}})
 	add("", model.EntityType{Name: "Ns.Blatt2", BaseType: "Ns.Blatt", Keys: []string{"Id"}, Properties: []model.Property{idp, namep, extrap}})
+	muss, muss2 := prop("Muss", "Edm.Int32", false), prop("Muss2", "Edm.Int32", false)
+	add("", model.EntityType{Name: "Ns.Pflicht", BaseType: "Ns.Mitte", Keys: []string{"Id"}, Properties: []model.Property{idp, namep, muss}})
+	add("", model.EntityType{Name: "Ns.Pflicht2", BaseType: "Ns.Pflicht", Keys: []string{"Id"}, Properties: []model.Property{idp, namep, muss, muss2}})
+	add("KN", model.EntityType{Name: "Ns.KN", Keys: []string{"A", "B"}, Properties: []model.Property{prop("A", "Edm.Int32", true), prop("B", "Edm.String", true)}})
 	add("", model.EntityType{Name: "Ns.Abs", BaseType: "Ns.Mitte", Abstract: true, Keys: []string{"Id"}, Properties: []model.Property{idp, namep}})
 	add("Fremde", model.EntityType{Name: "Ns.Fremd", Keys: []string{"Id"}, Properties: []model.Property{idp}})
 

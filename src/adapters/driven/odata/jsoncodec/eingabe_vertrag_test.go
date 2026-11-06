@@ -1,6 +1,7 @@
 package jsoncodec_test
 
 import (
+	"io"
 	"reflect"
 	"runtime"
 	"slices"
@@ -26,7 +27,7 @@ func (z *eZaehler) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// eZuteilungFormen sind die acht Formen der Zeile 29; jede liefert einen Body von etwa der gewünschten Größe.
+// eZuteilungFormen sind die neun Formen der Zeile 29; jede liefert einen Body von etwa der gewünschten Größe.
 func eZuteilungFormen() []struct {
 	name string
 	body func(groesse int) string
@@ -47,6 +48,7 @@ func eZuteilungFormen() []struct {
 		{"lauter [", func(g int) string { return strings.Repeat("[", g) }},
 		{"lauter {\"a\":", func(g int) string { return strings.Repeat(`{"a":`, g/5) }},
 		{"[0,-Folge", func(g int) string { return `{"@a":[` + strings.Repeat("0,", g/2) + `0]}` }},
+		{"1,-Folge", func(g int) string { return `{"@a":[` + strings.Repeat("1,", g/2) + `1]}` }},
 		{"Mitglieder", func(g int) string { return namen("a", g) }},
 		{"Escape-Folgen in einem String", func(g int) string { return `{"@s":"` + strings.Repeat(esc("0041"), g/6) + `"}` }},
 		{"lange Namen", func(g int) string { return `{"` + strings.Repeat("a", g) + `":1}` }},
@@ -56,11 +58,18 @@ func eZuteilungFormen() []struct {
 }
 
 // TestEingabeZuteilung hält Zeile 29: die Gesamtzuteilung eines Aufrufs (`TotalAlloc`) ist höchstens 256 · n + 1 MiB, n die Zahl der Bytes aus `src`.
-// Menge 24 = 8 Formen × 3 Größen; das Verhältnis steht im Protokoll (`go test -v`).
+// Die Zuteilung der Formen mit vielen Knoten hängt von der Wachstumsstufe des Slice `kinder` ab (sägezahnförmig, Maximum 224,3 bei etwa 4,08 MiB
+// und 223,8 bei 8 MiB); die `1,`-Folge läuft deshalb über die Stufen bis zur Standardgrenze von 8 MiB, die übrigen Formen über 1 KiB, 64 KiB und
+// 1 MiB. Größen über 14 MiB sind ungeprüft (akzeptiertes Negativ, Plan §3). Menge 8 Formen × 3 Größen + `1,`-Folge × 11 Größen = 35; das Verhältnis
+// steht im Protokoll (`go test -v`).
 func TestEingabeZuteilung(t *testing.T) {
 	n := 0
 	for _, f := range eZuteilungFormen() {
-		for _, g := range []int{1 << 10, 64 << 10, 1 << 20} {
+		groessen := []int{1 << 10, 64 << 10, 1 << 20}
+		if f.name == "1,-Folge" {
+			groessen = []int{1 << 10, 64 << 10, 1 << 20, 2 << 20, 3 << 20, 4 << 20, 4278618, 5 << 20, 6 << 20, 7 << 20, 8<<20 - 16}
+		}
+		for _, g := range groessen {
 			body := f.body(g)
 			z := &eZaehler{r: strings.NewReader(body)}
 			a := eA("Ms", model.EingabePatch, "")
@@ -79,8 +88,8 @@ func TestEingabeZuteilung(t *testing.T) {
 			n++
 		}
 	}
-	if n != 24 {
-		t.Errorf("Menge %d, erwartet 24", n)
+	if n != 35 {
+		t.Errorf("Menge %d, erwartet 35", n)
 	}
 }
 
@@ -135,21 +144,61 @@ func TestEingabeErgebnisGehoertDemAufrufer(t *testing.T) {
 	}
 }
 
-// eGleichzeitigFaelle sind die vier Bodys der Zeile 39 (gültig, `fehlend`, `wert`, `doppelter_name`) an Ws.
-func eGleichzeitigFaelle() []string {
-	return []string{`{"Id":1,"S":"x","Dec":1.50}`, `{"S":"x"}`, `{"Id":1,"I32":1.5}`, `{"Id":1,"Id":2}`}
+// eGleichzeitigFall ist ein Zweig des Lesers: der Aufruf mit Modell m und der Art, mit frischem Strom je Aufruf.
+type eGleichzeitigFall struct {
+	name string
+	bau  func(m model.ServiceModel, art model.EingabeArt) eAufruf
+}
+
+// eGleichzeitigFaelle sind die Zweige der Zeile 39: gültig, `fehlend`, `wert`, `doppelter_name`, `bind`, `navigation`, `property_typ`, `offen`, gültiges
+// und ungültiges `@odata.type`, `schluessel`, Programmfehler, `content_type`, `charset` gültig und ungültig und der Fehler von `src`; jeder Zweig, den der Leser ausführen kann, hat einen Aufruf.
+func eGleichzeitigFaelle() []eGleichzeitigFall {
+	mit := func(name, set, body string) eGleichzeitigFall {
+		return eGleichzeitigFall{name, func(m model.ServiceModel, art model.EingabeArt) eAufruf {
+			return eAm(m, set, art, body)
+		}}
+	}
+	nul := esc("0000")
+	return []eGleichzeitigFall{
+		mit("gültig", "Ws", `{"Id":1,"S":"x","Dec":1.50}`), mit("fehlend", "Ws", `{"S":"x"}`), mit("wert", "Ws", `{"Id":1,"I32":1.5}`),
+		mit("doppelter_name", "Ws", `{"Id":1,"Id":2}`), mit("bind", "Ms", `{"Id":1,"Einzel@odata.bind":"x"}`), mit("navigation", "Ms", `{"Id":1,"Einzel":{}}`),
+		mit("property_typ", "Ms", `{"Id":1,"Dbl":1}`), mit("offen", "Os", `{"Id":1,"dyn":1}`),
+		mit("odata_typ gültig", "Mitten", `{"@odata.type":"#Ns.Blatt","Id":1,"Extra":"x"}`), mit("odata_typ ungültig", "Mitten", `{"@odata.type":5}`),
+		mit("schluessel", "Sts", `{"Id":"a`+nul+`"}`), mit("programmfehler", "Unbekannt", `{}`),
+		{"content_type", func(m model.ServiceModel, art model.EingabeArt) eAufruf {
+			a := eAm(m, "Ws", art, `{"Id":1}`)
+			a.ct = []string{"text/plain"}
+			return a
+		}},
+		{"charset ungültig", func(m model.ServiceModel, art model.EingabeArt) eAufruf {
+			a := eAm(m, "Ws", art, `{"Id":1}`)
+			a.ct = []string{"application/json;charset=utf-16"}
+			return a
+		}},
+		{"charset gültig", func(m model.ServiceModel, art model.EingabeArt) eAufruf {
+			a := eAm(m, "Ws", art, `{"Id":1}`)
+			a.ct = []string{"application/json; charset=UTF-8;odata.metadata=minimal"}
+			return a
+		}},
+		{"Fehler von src", func(m model.ServiceModel, art model.EingabeArt) eAufruf {
+			a := eAm(m, "Ws", art, "")
+			a.src = eNeuerStrom(eSchritt{daten: []byte(`{"Id":`)}, eSchritt{err: io.ErrUnexpectedEOF})
+			return a
+		}},
+	}
 }
 
 // TestEingabeGleichzeitig hält Zeile 39: gleichzeitige Aufrufe auf einer Instanz beeinflussen sich nicht; jedes Ergebnis gleicht dem eines
-// einzelnen Aufrufs. 32 Goroutinen × 3 Arten × 4 Bodys, je 25 Runden. Der Zähler zählt abweichende Ergebnisse; unter `make test-race` meldet der
-// Detektor den ungeordneten Zugriff.
+// einzelnen Aufrufs. 32 Goroutinen × 3 Arten × 16 Zweige, je 8 Runden. Der Zähler zählt abweichende Ergebnisse; unter `make test-race` meldet der
+// Detektor den ungeordneten Zugriff, in einem Zweig ohne Wirkung auf das Ergebnis allein er.
 func TestEingabeGleichzeitig(t *testing.T) {
 	type erg struct {
 		e   model.EntityEingabe
 		err string
 	}
-	einzeln := func(l *jsoncodec.EingabeLeser, art model.EingabeArt, body string) erg {
-		a := eA("Ws", art, body)
+	m := eModell()
+	einzeln := func(l *jsoncodec.EingabeLeser, f eGleichzeitigFall, art model.EingabeArt) erg {
+		a := f.bau(m, art)
 		e, err := l.LeseEntity(a.kontext(), a.src, a.ct, a.m, a.set, a.art, a.grenze)
 		if err != nil {
 			return erg{e, err.Error()}
@@ -158,8 +207,8 @@ func TestEingabeGleichzeitig(t *testing.T) {
 	}
 	soll := map[string]erg{}
 	for _, art := range eArten() {
-		for i, b := range eGleichzeitigFaelle() {
-			soll[string(art)+eP(i)] = einzeln(jsoncodec.NewEingabe(), art, b)
+		for _, f := range eGleichzeitigFaelle() {
+			soll[string(art)+f.name] = einzeln(jsoncodec.NewEingabe(), f, art)
 		}
 	}
 	l := jsoncodec.NewEingabe()
@@ -171,11 +220,11 @@ func TestEingabeGleichzeitig(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			for range 25 {
+			for range 8 {
 				for _, art := range eArten() {
-					for i, b := range eGleichzeitigFaelle() {
+					for _, f := range eGleichzeitigFaelle() {
 						aufrufe.Add(1)
-						if got := einzeln(l, art, b); !reflect.DeepEqual(got, soll[string(art)+eP(i)]) {
+						if got := einzeln(l, f, art); !reflect.DeepEqual(got, soll[string(art)+f.name]) {
 							abweichend.Add(1)
 						}
 					}
@@ -185,14 +234,15 @@ func TestEingabeGleichzeitig(t *testing.T) {
 	}
 	close(start)
 	wg.Wait()
-	if abweichend.Load() != 0 || aufrufe.Load() != 32*25*12 {
+	if abweichend.Load() != 0 || aufrufe.Load() != 32*8*3*16 {
 		t.Errorf("%d von %d Aufrufen weichen vom Ergebnis des einzelnen Aufrufs ab", abweichend.Load(), aufrufe.Load())
 	}
 }
 
 // TestEingabeKeinZustand hält Zeile 40: der Leser hat keinen Zustand zwischen Aufrufen; derselbe Leser für die drei Arten nacheinander und in umgekehrter
 // Folge ergibt jeweils das Ergebnis, das eine Tabelle des Tests nennt (nicht das eines frischen Lesers: ein Zustand im Paket träfe ihn ebenso). Das Ergebnis
-// zählt die Wirkung: der Fänger wartet nicht auf ein Datenrennen. Menge 3 Bodys × 2 Folgen × 3 Arten.
+// zählt die Wirkung: der Fänger wartet nicht auf ein Datenrennen. Menge 3 Bodys × 2 Folgen × 3 Arten, dazu 4 Fälle × 2 Reihen × 3 Arten × 8 Wechsel zweier
+// Modelle mit demselben Set.
 func TestEingabeKeinZustand(t *testing.T) {
 	l := jsoncodec.NewEingabe()
 	arten := eArten()
@@ -228,6 +278,42 @@ func TestEingabeKeinZustand(t *testing.T) {
 	}
 	if n != 18 {
 		t.Errorf("Menge %d, erwartet 18", n)
+	}
+	// Achse Modell: dasselbe Set `Ws` in zwei Modellen mit verschiedenem Typ von `S`; ein Cache der Deuter nach Name des Sets lieferte das Ergebnis des anderen.
+	m1 := eModell()
+	m2 := model.NeuesServiceModel("4.0", []string{"Ns"}, []model.EntityType{{Name: "Ns.W", Keys: []string{"Id"},
+		Properties: []model.Property{prop("Id", "Edm.Int32", false), prop("S", "Edm.Int32", true)}}}, []model.EntitySet{{Name: "Ws", EntityType: "Ns.W"}}, nil)
+	modelle := []struct {
+		name   string
+		m      model.ServiceModel
+		body   string
+		ursach model.EingabeUrsache
+		props  []model.PropertyWert
+	}{
+		{"M1 String", m1, `{"Id":1,"S":"x"}`, "", idS},
+		{"M2 String", m2, `{"Id":1,"S":"x"}`, model.EingabeTyp, nil},
+		{"M2 Zahl", m2, `{"Id":1,"S":5}`, "", []model.PropertyWert{ePW("Id", model.ArtInt32, "1"), ePW("S", model.ArtInt32, "5")}},
+		{"M1 Zahl", m1, `{"Id":1,"S":5}`, model.EingabeTyp, nil},
+	}
+	k := 0
+	for _, reihe := range [][]int{{0, 1, 2, 3, 0, 1, 2, 3}, {3, 2, 1, 0, 3, 2, 1, 0}} {
+		for _, art := range arten {
+			for _, i := range reihe {
+				c := modelle[i]
+				a := eA("Ws", art, c.body)
+				a.m = c.m
+				got, err := l.LeseEntity(a.kontext(), a.src, a.ct, a.m, a.set, a.art, a.grenze)
+				if c.ursach != "" {
+					eFehler(t, c.name+" "+string(art), got, err, c.ursach, "/S")
+				} else {
+					eOK(t, c.name+" "+string(art), got, err, model.EntityEingabe{Typ: "Ns.W", Schluessel: "1", Properties: c.props})
+				}
+				k++
+			}
+		}
+	}
+	if k != 2*3*8 {
+		t.Errorf("Menge Modelle %d, erwartet 48", k)
 	}
 }
 

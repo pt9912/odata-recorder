@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -80,10 +81,26 @@ func TestEingabeArt(t *testing.T) {
 			t.Errorf("%q ungültig", a)
 		}
 	}
-	for _, a := range []model.EingabeArt{"post", "Post", "DELETE", "GET", "", "POST ", "put", "Patch"} {
+	// Klasse: je Konstante sieben Schreibweisen (klein, Anfangsbuchstabe groß, Leerzeichen dahinter und davor, Tabulator, ein Zeichen zu viel, eines zu wenig) = 21,
+	// dazu `DELETE`, `GET` und leer.
+	n := 0
+	for _, k := range []string{"POST", "PATCH", "PUT"} {
+		kl := strings.ToLower(k)
+		for _, v := range []string{kl, strings.ToUpper(kl[:1]) + kl[1:], k + " ", " " + k, k + "\t", k + "X", k[:len(k)-1]} {
+			if model.EingabeArt(v).Gueltig() {
+				t.Errorf("%q gültig", v)
+			}
+			n++
+		}
+	}
+	for _, a := range []model.EingabeArt{"DELETE", "GET", ""} {
 		if a.Gueltig() {
 			t.Errorf("%q gültig", a)
 		}
+		n++
+	}
+	if n != 24 {
+		t.Errorf("Menge %d, erwartet 24", n)
 	}
 	if model.EingabePost != "POST" || model.EingabePatch != "PATCH" || model.EingabePut != "PUT" {
 		t.Error("Konstanten tragen nicht den Text der Methode")

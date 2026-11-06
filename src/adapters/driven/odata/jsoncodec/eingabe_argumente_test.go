@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,13 +35,21 @@ func eVerstoesse() []eVerstoss {
 	}
 }
 
-// eFalscheArten sind die sechs `art` der Zeile 1, die keine der drei Konstanten sind.
+// eFalscheArten sind die 24 `art` der Zeile 1, die keine der drei Konstanten sind: je Konstante sieben Varianten (klein, Anfangsbuchstabe groß, Leerzeichen
+// dahinter und davor, Tabulator dahinter, ein Zeichen zu viel, ein Zeichen zu wenig) und `DELETE`, `GET`, leer.
 func eFalscheArten() []model.EingabeArt {
-	return []model.EingabeArt{"post", "Post", "DELETE", "GET", "", "POST "}
+	var out []model.EingabeArt
+	for _, k := range []string{"POST", "PATCH", "PUT"} {
+		kl := strings.ToLower(k)
+		for _, v := range []string{kl, strings.ToUpper(kl[:1]) + kl[1:], k + " ", " " + k, k + "\t", k + "X", k[:len(k)-1]} {
+			out = append(out, model.EingabeArt(v))
+		}
+	}
+	return append(out, "DELETE", "GET", "")
 }
 
 // TestEingabeProgrammfehler hält Zeile 1: Verstoß × Art, `src` wird nie gelesen; die Gegenfälle `grenze` 1 und MaxInt64 sind
-// keine Programmfehler. Menge 45 = 11 × 3 + 6 + 3 × 2.
+// keine Programmfehler. Menge 63 = 11 × 3 + 24 + 3 × 2.
 func TestEingabeProgrammfehler(t *testing.T) {
 	n := 0
 	for _, v := range eVerstoesse() {
@@ -81,8 +90,8 @@ func TestEingabeProgrammfehler(t *testing.T) {
 			n++
 		}
 	}
-	if n != 45 {
-		t.Errorf("Menge %d, erwartet 45", n)
+	if n != 63 {
+		t.Errorf("Menge %d, erwartet 63", n)
 	}
 }
 
@@ -94,8 +103,8 @@ func eBeendet() (map[string]context.Context, func()) {
 	return map[string]context.Context{"abgebrochen": abgebrochen, "Frist": frist}, c2
 }
 
-// TestEingabeArgumentVorKontext hält Zeile 2: ein Programmfehler geht dem beendeten Kontext vor. Menge 32 = (10 Verstöße ohne
-// `ctx` + 6 `art`) × 2 Zustände.
+// TestEingabeArgumentVorKontext hält Zeile 2: ein Programmfehler geht dem beendeten Kontext vor. Menge 68 = (10 Verstöße ohne
+// `ctx` + 24 `art`) × 2 Zustände.
 func TestEingabeArgumentVorKontext(t *testing.T) {
 	kontexte, ende := eBeendet()
 	defer ende()
@@ -117,8 +126,8 @@ func TestEingabeArgumentVorKontext(t *testing.T) {
 			n++
 		}
 	}
-	if n != 32 {
-		t.Errorf("Menge %d, erwartet 32", n)
+	if n != 68 {
+		t.Errorf("Menge %d, erwartet 68", n)
 	}
 }
 
