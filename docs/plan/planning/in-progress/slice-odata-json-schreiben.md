@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-07.b` (`@odata.context`, `@odata.count`, `value`, `Location`) · `SPEC-006` · `SPEC-126` (Gegenstück zum Lesen) · `SPEC-055` · `ARC-004`, `ARC-011` · `architecture.md` §1 (Codec-Zugriff).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-odata-json-schreiben, Worktree /Development/odata-recorder-wt-odata-json-schreiben)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
@@ -95,11 +95,17 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `welle-record-replay` liegt in `done/` (der Codec zum Lesen aus `slice-odata-codec-json` ist das Gegenstück des Round-trips). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `welle-record-replay` liegt in `done/` (eingetreten, Beleg `welle-record-replay-results`; der Codec zum Lesen aus `slice-odata-codec-json` ist das Gegenstück des Round-trips); der Start als Teil 1 von `welle-mock` folgt dem Trigger aus deren §2 (Linie B). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner beim Start vor dem ersten Code-Commit nach `AGENTS.md` §3.14 mit dem Werkzeug aus `slice-groessenmarke-werkzeug` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Eine Zahl steht hier erst, wenn die Tabelle *Zusage · Fänger* vorliegt.
+**Größenmarke** (`AGENTS.md` §3.14): **noch nicht gesetzt.** Metrik wie oben; Faktoren, Formel und Schnittfrage stehen allein in `SPEC-128` Nr. 1, hier steht keine Zahl davon. Der Block `groessenmarke` steht erst im Plan, wenn der Architect `pfad`, `produktcode`, `fakes` liefert und der Planner `basis`, `schaetzung`, `marke` mit `make groessenmarke` setzt, in eigenem Commit vor dem ersten Code-Commit im Slice-Zweig (damit `make groessenmarke` auf `main` bis zum Merge grün bleibt). Trifft die Schnittfrage zu, wird vor dem Code geschnitten; sie stellt der Architect mit der Tabelle (§6).
+
+**Aufträge an den Architect** (vor dem ersten Code-Commit, `AGENTS.md` §3.12): (1) Vertrag der Schreib-Schnittstelle mit Randformen in der Spezifikation aus dem Bereich der Linie B (frei am Startstand: `SPEC-166` bis `SPEC-169` und `SPEC-176` bis `SPEC-199`, soweit `slice-edm-ausdruecke` sie nicht vergibt; `ARC-030` bis `ARC-039` und ADR `0020` bis `0029`); der Vertrag trägt Argumente, Kontext und Fehler der Schnittstelle sowie den Darstellungskopf (Content-Type, `OData-Version: 4.0`) und nimmt `Codecs` in den Vertrag von `MockUseCase` auf (Sendung von `slice-v2-bootstrap`); (2) die Nummer des Vertrags in `SPEC-172` Nr. 6 nachziehen, denn `slice-v2-payload-schreiben` (Start-Bedingung dort) braucht sie vor ihrem Start; (3) Tabelle *Zusage · Fänger* in §3; (4) Raster *Operation × Argumentart* in §6, darin die offenen Risiken (Metadatenlevel, Darstellung von `Edm.Int64` und `Edm.Decimal`); (5) erwartete Größe für die Marke; (6) Schnittfrage nach `SPEC-128` Nr. 1.
+
+**Bedingung Gate-Kette** (Übergangsregeln Nr. 7): Der Slice berührt laut §3 keine Datei der Gate-Kette (`Makefile`, `harness/mk/`, `Dockerfile`, `harness/README.md`, `tools/gegenproben/`, Stempel). Muss der Architect oder der Implementer eine ändern (etwa die Regeln von `.a-check.yml` für ein neues Paket), hält er an und gibt es als Rückgabe an den Planner zurück (§6, Ausgang *offen*, `AGENTS.md` §3.13); der Slice ändert sie nicht selbst.
+
 - `in-progress` → `open` (blockiert — Carveout?): die Aushandlung des JSON-Metadatenlevels (`Accept`, `odata.metadata`) ist in der Spezifikation nicht entschieden (siehe §6).
 
 ## 5. Closure-Trigger

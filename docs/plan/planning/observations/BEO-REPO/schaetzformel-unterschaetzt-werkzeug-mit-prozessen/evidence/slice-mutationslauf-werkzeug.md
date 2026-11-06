@@ -1,0 +1,2 @@
+**Vorgang:** slice-mutationslauf-werkzeug
+**Fund:** Schätzung *S* 2155 nach `SPEC-128` Nr. 1 (3 Zeilen `nebenläufig`, 10 `andere`, drei Fakes, Produktcode 500), Marke 3000, Messung 3463 (3129 beim Handoff, 3463 nach der Fix-Runde; Programm und Treiber 1252, Tests 2211); Messung ÷ *S* 1,61, nach `AGENTS.md` §3.14 gerechnet 2,21. Der Eintrag `ueberschreitung: 3500` deckt die Messung, die Marke bleibt 3000 (`SPEC-128` Nr. 5 d). Entscheidung des Planners: Eintrag genügt, keine Rückführung, kein Schnitt. Beleg: Plan §4 (*Größenmarke*, *Messung des Implementers*), §6.
