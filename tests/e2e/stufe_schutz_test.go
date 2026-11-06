@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-// secrets sind die drei Geheimnisse mit dem Ort, an dem sie erlaubt sind: A erreicht den Referenzdienst, C
-// den Client, B ist ein Request-Header ohne Ziel.
+// secrets sind die drei Geheimnisse der Header: A (Authorization) erreicht den Referenzdienst, B (Cookie)
+// ist ein Request-Header ohne Ziel, C (Set-Cookie) erreicht den Client.
 func secrets() []string { return []string{geheimA, geheimB, geheimC} }
 
 // schutzLauf ist ein Lauf mit dem Kontrollwert als SERVICE_ID.
@@ -24,6 +24,7 @@ func TestE2ESchutz(t *testing.T) {
 	t.Run("Geheimnisse", geheimnisse)
 	t.Run("Kontrollwert", kontrollwert)
 	t.Run("Nutzlast", nutzlast)
+	t.Run("JSON-Felder", jsonFelder)
 	t.Run("unredigierbar", unredigierbar)
 	t.Run("Speicher voll", speicherVollSchutz)
 }
@@ -134,8 +135,9 @@ func unredigierbar(t *testing.T) {
 	}
 }
 
-// speicherVollSchutz: bei vollem Speicher nach Beginn der Antwort bleibt der Status, und der Marker im
-// Request-Header wird nicht abgelegt.
+// speicherVollSchutz: bei vollem Speicher bleibt der Status; drei Geheimnisse (zwei Authorization, ein
+// `password` im Body) stehen weder vor noch nach dem Herunterfahren in einer Datei noch in stdout und stderr;
+// der Spurwert steht nach dem Herunterfahren in keiner Datei.
 func speicherVollSchutz(t *testing.T) {
 	const marker = "MARKER-VOLL-5a9c"
 	ref := neueReferenz(t)
@@ -173,5 +175,50 @@ func speicherVollSchutz(t *testing.T) {
 	_, nachher := durchsuche(t, l.dir, append([]string{marker}, geheimnisse...))
 	for _, f := range nachher {
 		t.Errorf("%s liegt nach dem Herunterfahren in %s", f.wert, f.ort)
+	}
+	for _, f := range sucheStroeme(p, geheimnisse) {
+		t.Errorf("Geheimnis %s in %s", f.wert, f.ort)
+	}
+}
+
+// jsonFelder: jedes der 7 Felder der Standardmenge von REDACT_JSON_PATHS trägt in Request- und
+// Antwort-Body ein Geheimnis; bei nicht vollem Speicher steht keines der 14 Werte in einer Datei vor oder
+// nach dem Herunterfahren, in stdout oder stderr, ein Wert ohne Redaktion (Titel) steht im Blob.
+func jsonFelder(t *testing.T) {
+	ref := neueReferenz(t)
+	l := schutzLauf(t, ref)
+	p := l.nimmAuf()
+	post := postJSON(feldBody(false))
+	if w := l.frage(post); w.status != 201 {
+		t.Errorf("POST mit sensiblen Feldern: %d %q, erwartet 201", w.status, w.body)
+	}
+	konto := l.frage(anfrage{pfad: "/odata/Konto"})
+	if string(konto.body) != feldBody(true) {
+		t.Errorf("der Client erhält %q, erwartet den Body des Referenzdienstes", konto.body)
+	}
+	if got := ref.felderErreicht.Load(); got != 1 {
+		t.Errorf("POST mit allen sensiblen Werten am Referenzdienst: %d, erwartet 1", got)
+	}
+	var werte []string
+	for _, f := range sensibleFelder() {
+		werte = append(werte, f.anfrage, f.antwort)
+	}
+	suche := append([]string{kontrollBody}, werte...)
+	_, vorher := durchsuche(t, l.dir, suche)
+	l.beendeAufnahme()
+	_, nachher := durchsuche(t, l.dir, suche)
+	orte := []ort{{"Dateien vor dem Herunterfahren", vorher}, {"Dateien nach dem Herunterfahren", nachher},
+		{"stdout", filtere(sucheStroeme(p, suche), "stdout")}, {"stderr", filtere(sucheStroeme(p, suche), "stderr")}}
+	for _, f := range sensibleFelder() {
+		for _, w := range []string{f.anfrage, f.antwort} {
+			for _, o := range orte {
+				if hat(o.funde, "", w) {
+					t.Errorf("Feld %s: %s steht in %s", f.name, w, o.name)
+				}
+			}
+		}
+	}
+	if !hat(nachher, "blobs", kontrollBody) {
+		t.Errorf("der Kontrollwert %s steht in keinem Blob: die Suche beweist nichts", kontrollBody)
 	}
 }

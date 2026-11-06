@@ -79,6 +79,7 @@ FROM source AS integration
 COPY --from=build /out/odata-recorder /out/odata-recorder
 RUN --network=none go test -c -trimpath -o /out/e2e.test ./tests/e2e \
  && go build -trimpath -buildvcs=false -o /out/uebergang ./tests/e2e/uebergang
+
 # --- handbuch: das Benutzerhandbuch und seine Beispiel-Dateien gegen das gebaute Binary der Stufe
 # build, gefahren von pruefung (SPEC-200); jeder RUN ohne Netz. Die Wurzel trägt docs/user, die
 # Makefiles, das Dockerfile und harness/mk.

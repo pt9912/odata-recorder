@@ -21,6 +21,35 @@ const (
 	geheimC = "GEHEIM-C-5b8e33"
 )
 
+// sensibel ist ein Feld der Standardmenge von REDACT_JSON_PATHS mit je einem Wert im Request- und im
+// Antwort-Body.
+type sensibel struct{ name, anfrage, antwort string }
+
+// sensibleFelder sind die 7 Pfade `$..<name>` der Standardmenge von REDACT_JSON_PATHS.
+func sensibleFelder() []sensibel {
+	var out []sensibel
+	for i, n := range []string{"password", "passwd", "secret", "client_secret", "access_token", "refresh_token", "api_key"} {
+		out = append(out, sensibel{n, fmt.Sprintf("GEHEIM-Q%d-anfrage", i+1), fmt.Sprintf("GEHEIM-Q%d-antwort", i+1)})
+	}
+	return out
+}
+
+// feldBody baut einen JSON-Body mit den sensiblen Feldern unter `Konto` und einem Feld ohne Geheimnis.
+func feldBody(antwort bool) string {
+	var teile []string
+	for _, f := range sensibleFelder() {
+		wert := f.anfrage
+		if antwort {
+			wert = f.antwort
+		}
+		teile = append(teile, fmt.Sprintf("%q:%q", f.name, wert))
+	}
+	return `{"Titel":"` + kontrollBody + `","Konto":{` + strings.Join(teile, ",") + `}}`
+}
+
+// kontrollBody steht in beiden Bodies ohne Redaktion und muss in einem Blob gefunden werden.
+const kontrollBody = "KONTROLLE-BODY-7d2e"
+
 // zaehlerFolge sind die Antworten auf `/odata/Products/$count` in der Reihenfolge der Requests.
 func zaehlerFolge() []string { return []string{"7", "11", "13"} }
 
@@ -33,6 +62,8 @@ type referenz struct {
 	mitGeheimnis atomic.Int64
 	// zaehlerRequests wählt mit der Zahl der Requests auf $count den Wert der Antwort.
 	zaehlerRequests atomic.Int64
+	// felderErreicht zählt die POST, deren Body jeden sensiblen Wert der Anfrage trug.
+	felderErreicht atomic.Int64
 }
 
 func neueReferenz(t *testing.T) *referenz {
@@ -92,6 +123,9 @@ func (r *referenz) bediene(w http.ResponseWriter, req *http.Request) {
 		schreibe(200, "application/xml", "", fixture.CSDL)
 	case pfad == "/odata/Products" && req.Method == http.MethodPost:
 		b, _ := io.ReadAll(req.Body)
+		if strings.Contains(string(b), feldBody(false)) {
+			r.felderErreicht.Add(1)
+		}
 		schreibe(http.StatusCreated, jsonTyp, "", fmt.Sprintf(`{"Id":%d,"Name":"neu"}`, len(b)))
 	case pfad == "/odata/Products" && strings.HasPrefix(q.Get("$filter"), "Id eq "):
 		n := strings.TrimPrefix(q.Get("$filter"), "Id eq ")
@@ -107,6 +141,8 @@ func (r *referenz) bediene(w http.ResponseWriter, req *http.Request) {
 		schreibe(200, "text/plain", "", zaehlerFolge()[n%len(zaehlerFolge())])
 	case pfad == "/odata/Products(1)/Name/$value":
 		schreibe(200, "text/plain", "", "Anvil")
+	case pfad == "/odata/Konto":
+		schreibe(200, jsonTyp, "", feldBody(true))
 	case pfad == "/odata/Leer":
 		w.WriteHeader(http.StatusOK)
 	case pfad == "/odata/Nichts":
