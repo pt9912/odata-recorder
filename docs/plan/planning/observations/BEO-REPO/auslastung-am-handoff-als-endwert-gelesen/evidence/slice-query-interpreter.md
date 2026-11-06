@@ -1,0 +1,2 @@
+**Vorgang:** slice-query-interpreter
+**Fund:** Die Messung stieg vom Handoff (2588, Auslastung 0,58) ueber das Review (2710 im Plan, 3070 nach der Fix-Runde) auf das Ende nach dem Nachzug der Verifikation (3201 gegen Marke 4500, Auslastung 0,71, Faktor 1,24 zum Handoff). Die Marke blieb unberuehrt; die Tabelle wuchs von 34 auf 40 Zeilen, der Hinweis von `make groessenmarke` nennt 3760 gegen die Schaetzung 3275 (nach `SPEC-128` Nr. 1 ergaebe 3760 die Marke 5100). Der Handoff-Wert war kein Endwert. Beleg: Plan §4 und §7.

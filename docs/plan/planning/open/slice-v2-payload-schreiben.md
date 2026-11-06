@@ -33,6 +33,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der Schreiber `jsoncodecv2` implementiert die Schreib-Schnittstelle der Codec-Gruppe für Version 2 (`SPEC-172` Nr. 6): Entity, Collection (mit `__count` bei verlangter Anzahl), das leere Ergebnis in der Form `{"d":{"results":[]}}`, die Anzahl als Ziffern, das Fehlerobjekt im V2-Format und den Darstellungskopf (Content-Type und Versionskennzeichen); was der Schreiber ausgibt, liest der Leser aus `slice-v2-payload-lesen` mit demselben Modell zu denselben Entities zurück (`SPEC-172` Nr. 7), der Rundlauf ist der Test dieses Slice.
 
+**Übernimmt (Sendung von `slice-odata-json-schreiben`, `SPEC-168`):** der Schreiber `jsoncodecv2` erfüllt `outbound.ODataSchreiber` und den Vertrag `SPEC-168` Nr. 1 bis 9 (Argumente, Kontext, ein `Write`, Fehler von `dst`, Darstellungskopf, `Adresse`, keine Zustände zwischen Aufrufen); das Format der Version 2 bleibt `SPEC-172` Nr. 6, sein Fehlerobjekt ist wie in `SPEC-168` Nr. 5 f gegen die Tabelle der Codes zu prüfen. Kein Ausschluss dieses Slice trifft diesen Punkt.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Das Lesen der V2-Antworten — `slice-v2-payload-lesen`; es teilt mit dem Schreiben keinen Mechanismus im Code, nur die Tabelle der Typen in der Spezifikation.
@@ -58,7 +60,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Schreiben: Entity, Collection (`__count`), leeres Ergebnis, Anzahl, Fehlerobjekt und Darstellungskopf nach `SPEC-172` Nr. 6; ein Zeitpunkt, der keine ganze Millisekunde ist, ist `ErrUngueltig`; Rundlauf Schreiben → Lesen liefert dieselben Entities (`SPEC-172` Nr. 7); V4-Schreiber unberührt.
+- [ ] Schreiben: Entity, Collection (`__count`), leeres Ergebnis, Anzahl, Fehlerobjekt und Darstellungskopf nach `SPEC-172` Nr. 6, der Schreiber erfüllt `outbound.ODataSchreiber` und `SPEC-168` Nr. 1 bis 9 (Sendung von `slice-odata-json-schreiben`); ein Zeitpunkt, der keine ganze Millisekunde ist, ist `ErrUngueltig`; Rundlauf Schreiben → Lesen liefert dieselben Entities (`SPEC-172` Nr. 7); V4-Schreiber unberührt.
 - [ ] Je Zelle des Rasters (§6) ein Ort in der Spezifikation und ein Fänger; Schleife über die sieben Typen und die Escapes der Zeichenketten.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
@@ -82,7 +84,7 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/adapters/driven/odata/jsoncodecv2/` | update | Schreiber der V2-Antworten (`SPEC-172` Nr. 6 und 7) neben dem Leser aus `slice-v2-payload-lesen` |
 | Tests | neu | Format je Ausgabe, Werte je Typ, Escapes, Rundlauf mit dem Leser |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) füllt der Architect beim Start vor dem ersten Code-Commit; den Vertrag der Schreib-Schnittstelle (aus `slice-odata-json-schreiben`) trägt er vorher in die Spezifikation ein und nennt dessen Nummer in `SPEC-172` Nr. 6.
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) füllt der Architect beim Start vor dem ersten Code-Commit; den Vertrag der Schreib-Schnittstelle trägt `SPEC-168` (aus `slice-odata-json-schreiben`, `SPEC-172` Nr. 6 nennt die Nummer schon); der Architect füllt die Tabelle gegen `SPEC-168` Nr. 1 bis 9.
 
 **Betriebsregeln** (gelten für jede Rolle dieses Slice):
 
@@ -97,7 +99,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) füllt der Architect beim S
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) ist `Accepted`, `slice-odata-json-schreiben` liegt in `done/`, und der Vertrag der Schreib-Schnittstelle steht in der Spezifikation (`SPEC-172` Nr. 6 trägt dann nur das Format). Der Schreib-Teil ist deshalb nicht vor `slice-odata-json-schreiben` startbar.
+**Start** (`next` → `in-progress`): [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) ist `Accepted`, `slice-odata-json-schreiben` liegt in `done/`, und der Vertrag der Schreib-Schnittstelle steht in der Spezifikation (`SPEC-168`; `SPEC-172` Nr. 6 trägt nur das Format). Der Schreib-Teil ist deshalb nicht vor `slice-odata-json-schreiben` startbar.
 
 - **Code-Abhängigkeit, mit Grund:** `slice-odata-json-schreiben` (die Schreib-Schnittstelle der Codec-Gruppe und der Darstellungskopf, Sendung von `slice-v2-bootstrap`); `slice-v2-payload-lesen` ist nicht Voraussetzung, der Rundlauf-Test braucht den Leser aber im Paket.
 - **Größenmarke:** noch nicht gesetzt; der Planner setzt sie beim Start nach `SPEC-128` aus der Tabelle des Architect.
@@ -122,7 +124,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Der Vertrag der Schreib-Schnittstelle (Argumente, Kontext, Fehler) steht erst mit `slice-odata-json-schreiben` in der Spezifikation — **Ausgang:** offen; Adresse: Architect, vor dem Start dieses Slice.
+- Der Vertrag der Schreib-Schnittstelle (Argumente, Kontext, Fehler) steht als `SPEC-168` in der Spezifikation (seit `slice-odata-json-schreiben` in `done/`; `SPEC-172` Nr. 6 g und die Einleitung von Nr. 6 verweisen auf ihn) — **Ausgang:** entfallen als Lücke des Plans: der Vertrag liegt vor, dieser Slice erfüllt `SPEC-168` Nr. 1 bis 9 (Sendung von `slice-odata-json-schreiben`, oben in §1).
 - Zeit- und Zahlenschreibweisen von V2 (`\/Date(<ms>)\/`, `Edm.Int64` und `Edm.Decimal` als String): Rundlauf mit dem Leser — **Ausgang:** offen; Raster, eine Zelle je Typ (Schleife über die sieben Typen, `SPEC-172` Nr. 6 f).
 - Fakes der Ports halten jedes Argument fest und zählen jede Operation (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`) — **Ausgang:** offen.
 - Randformen (`AGENTS.md` §3.12, §3.16): das Raster unten; jede Zelle nennt ihren Ort, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
