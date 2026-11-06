@@ -265,16 +265,74 @@ func aufruf(i, g int) ergebnis {
 		d, err = sch.SchreibeCollection(context.Background(), z, modell, a)
 	case 2:
 		d, err = sch.SchreibeAnzahl(context.Background(), z, int64(g))
-	default:
+	case 3:
 		f, _ := model.NeuesFehlerobjekt(model.AlleCodes()[g%len(model.AlleCodes())])
 		d, err = sch.SchreibeFehler(context.Background(), z, f)
+	case 4: // alle acht Typen und null, beide Zahlformen
+		props := []model.PropertyWert{pw("S", model.ArtString, "k"+name), pw("B", model.ArtBoolean, "true"), pw("I32", model.ArtInt32, strconv.Itoa(g)),
+			pw("I64", model.ArtInt64, "9223372036854775807"), pw("Dec", model.ArtDecimal, "-"+strconv.Itoa(g+1)+".5"),
+			pw("G", model.ArtGUID, "0f8fad5b-d9cb-469f-a165-70867728950e"), pw("D", model.ArtDate, "2024-02-29"),
+			pw("T", model.ArtDateTimeOffset, "2020-01-01T00:00:00.5Z"), pw("NS", model.ArtNull, "")}
+		a := alleAntwort(props...)
+		a.Accept = []string{"application/json;IEEE754Compatible=" + strconv.FormatBool(g%2 == 1)}
+		d, err = sch.SchreibeEntity(context.Background(), z, modell, a)
+	case 5: // abgeleitete Typen, Auswahl, Stufe none, Anzahl
+		a := gutCollection()
+		a.Entities = []model.Entity{{Typ: "Ns.Sonder", Schluessel: strconv.Itoa(g), Properties: []model.PropertyWert{pw("Extra", model.ArtString, name)}},
+			{Typ: "Ns.Sonder2", Schluessel: "7", Properties: []model.PropertyWert{pw("Id", model.ArtInt32, "7")}}}
+		a.Auswahl, a.Anzahl = []string{"Id", "*"}, model.Anzahl{Vorhanden: true, Wert: int64(g)}
+		a.Accept = []string{"text/html", "application/json;odata.metadata=" + []string{"none", "minimal"}[g%2]}
+		d, err = sch.SchreibeCollection(context.Background(), z, modell, a)
+	case 6: // ungültige Argumente an jeder Operation
+		a := gutEntity()
+		a.Entity.Typ = "Ns.Fremd" + name
+		_, e1 := sch.SchreibeEntity(context.Background(), z, modell, a)
+		b := gutCollection()
+		b.Wurzel = "ftp://" + name
+		_, e2 := sch.SchreibeCollection(context.Background(), z, modell, b)
+		_, e3 := sch.SchreibeAnzahl(context.Background(), z, -int64(g)-1)
+		_, e4 := sch.SchreibeFehler(context.Background(), z, model.Fehlerobjekt{})
+		_, e5 := sch.Adresse(modell, wurzel, "Produkte", "")
+		err = errors.Join(e1, e2, e3, e4, e5)
+	case 7: // beendeter Kontext und Fehler von dst
+		abgebrochen, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, e1 := sch.SchreibeEntity(abgebrochen, z, modell, gutEntity())
+		z2 := &ziel{log: &[]string{}, kurz: -2}
+		_, e2 := sch.SchreibeCollection(context.Background(), z2, modell, gutCollection())
+		z3 := &ziel{log: &[]string{}, kurz: -1, err: errors.New("dst " + name)}
+		_, e3 := sch.SchreibeAnzahl(context.Background(), z3, 1)
+		err = errors.Join(e1, e2, e3)
+	case 8: // Adresse mit Schlüsseln, die kodiert werden
+		var s string
+		s, err = sch.Adresse(modell, wurzel, "Produkte", "'a b'/"+name+"+%")
+		r := ergebnis{body: s}
+		if err != nil {
+			r.err = err.Error()
+		}
+		return r
+	default: // Wurzeln und Typen im Ring
+		a := gutEntity()
+		a.Wurzel = "https://[::1]:" + strconv.Itoa(g+1) + "/a/%C3%A4"
+		a.Entity.Typ = "Ns.R3a"
+		_, e1 := sch.SchreibeEntity(context.Background(), z, modell, a)
+		a.Entity.Typ = "Ns.Product"
+		d, e2 := sch.SchreibeEntity(context.Background(), z, modell, a)
+		err = errors.Join(e1, e2)
+		return ergebnis{body: z.body(), d: d, err: fehlerText(err)}
 	}
-	r := ergebnis{body: z.body(), d: d}
-	if err != nil {
-		r.err = err.Error()
-	}
-	return r
+	return ergebnis{body: z.body(), d: d, err: fehlerText(err)}
 }
+
+func fehlerText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+// varianten ist die Zahl der Aufrufe von aufruf.
+const varianten = 10
 
 // TestWiederholung hält Zeile 34: gleiche Argumente ergeben gleiche Bytes, geänderte geänderte; kein Cache.
 func TestWiederholung(t *testing.T) {
@@ -316,14 +374,17 @@ func TestWiederholung(t *testing.T) {
 	}
 }
 
-// TestGleichzeitig hält Zeile 36 und 37 (Wirkungs-Fänger und Datenrennen): 16 Goroutinen × 4 Operationen × 50 Läufe, jede
+// TestGleichzeitig hält Zeile 36 und 37 (Wirkungs-Fänger und Datenrennen): 16 Goroutinen × 10 Aufrufarten (vier Operationen und Adresse, Fehler, alle acht Typen) × 50 Läufe, jede
 // Ausgabe gleich der des einzelnen Aufrufs; der Detektor von make test-race meldet das Rennen.
 func TestGleichzeitig(t *testing.T) {
 	const gor, laeufe = 16, 50
-	var erwartet [gor][4]ergebnis
+	var erwartet [gor][varianten]ergebnis
 	for g := range gor {
-		for i := range 4 {
+		for i := range varianten {
 			erwartet[g][i] = aufruf(i, g)
+			if r := erwartet[g][i]; r.body == "" && r.err == "" {
+				t.Fatalf("Variante %d, Lauf %d: weder Ausgabe noch Fehler", i, g)
+			}
 		}
 	}
 	var wg sync.WaitGroup
@@ -333,7 +394,7 @@ func TestGleichzeitig(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range laeufe {
-				for i := range 4 {
+				for i := range varianten {
 					if aufruf(i, g) != erwartet[g][i] {
 						abweichungen[g]++
 					}
@@ -344,7 +405,7 @@ func TestGleichzeitig(t *testing.T) {
 	wg.Wait()
 	for g, a := range abweichungen {
 		if a != 0 {
-			t.Errorf("Goroutine %d: %d abweichende Ausgaben von %d", g, a, laeufe*4)
+			t.Errorf("Goroutine %d: %d abweichende Ausgaben von %d", g, a, laeufe*varianten)
 		}
 	}
 }

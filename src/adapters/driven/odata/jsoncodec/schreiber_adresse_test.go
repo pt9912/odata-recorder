@@ -227,7 +227,7 @@ func aushandlung(t *testing.T, was string, accept []string, none, ieee bool) {
 func TestAushandlung(t *testing.T) {
 	n := 0
 	metadata := []string{"none", "NONE", "None", "minimal", "full", "foo", "", "<fehlt>"}
-	ieee := []string{"true", "TRUE", "false", "1", `"true"`, "", "<fehlt>"}
+	ieee := []string{"true", "TRUE", "True", "false", "1", `"true"`, "", "<fehlt>"}
 	for _, m := range metadata {
 		for _, i := range ieee {
 			accept := "application/json"
@@ -265,13 +265,17 @@ func TestAushandlung(t *testing.T) {
 		{"Sonderform: text/html", []string{"text/html"}, false, false},
 		{"doppelter Parameter: none zuerst", []string{"application/json;odata.metadata=none;odata.metadata=minimal"}, true, false},
 		{"doppelter Parameter: minimal zuerst", []string{"application/json;odata.metadata=minimal;odata.metadata=none"}, false, false},
+		{"Stelle: zwei Kopfzeilen, die erste gilt", []string{"application/json;odata.metadata=none", "application/json;odata.metadata=minimal"}, true, false},
+		{"Länge: Name mit Zusatz", []string{"application/json;odata.metadata2=none;IEEE754Compatible2=true"}, false, false},
+		{"Länge: Wert mit Zusatz", []string{"application/json;odata.metadata=nonex;IEEE754Compatible=truex"}, false, false},
+		{"Länge: Wert mit Vorsatz", []string{"application/json;odata.metadata=xnone;IEEE754Compatible=xtrue"}, false, false},
 		{"doppelter Parameter IEEE", []string{"application/json;IEEE754Compatible=false;IEEE754Compatible=true"}, false, false},
 	}
 	for _, f := range faelle {
 		aushandlung(t, f.was, f.accept, f.none, f.i)
 		n++
 	}
-	if n != 76 {
-		t.Errorf("Menge %d, will 76 (56 + 20)", n)
+	if n != 88 {
+		t.Errorf("Menge %d, will 88 (64 + 24)", n)
 	}
 }

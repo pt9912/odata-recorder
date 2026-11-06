@@ -168,6 +168,7 @@ func TestSetUngueltig(t *testing.T) {
 	}{
 		{"leer", "", modell}, {"unbekannt", "Unbekannt", modell}, {"Schreibweise", "produkte", modell},
 		{"Namensraum", "Ns.Produkte", modell}, {"ohne Typ", "OhneTyp", modell}, {"Nullwert-Modell", "Produkte", model.ServiceModel{}},
+		{"leer, im Modell vorhanden", "", setModell("")},
 	}
 	n := 0
 	for _, f := range formen {
@@ -186,8 +187,8 @@ func TestSetUngueltig(t *testing.T) {
 		istUngueltig(t, err, "Adresse "+f.name)
 		n += 3
 	}
-	if n != 18 {
-		t.Errorf("Menge %d, will 18", n)
+	if n != 21 {
+		t.Errorf("Menge %d, will 21 (7 Formen, 3 Operationen)", n)
 	}
 }
 
