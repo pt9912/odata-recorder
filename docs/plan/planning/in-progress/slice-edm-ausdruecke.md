@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-08.b` (Typtabelle, Null-Semantik) · `LH-FA-08.a` · `LH-QA-02.a` · `SPEC-049` · `SPEC-024` · `SPEC-164` Nr. 10 · `ARC-001`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-edm-ausdruecke, Worktree /Development/odata-recorder-wt-edm-ausdruecke)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
@@ -99,6 +99,10 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner beim Start vor dem ersten Code-Commit nach `AGENTS.md` §3.14 mit dem Werkzeug aus `slice-groessenmarke-werkzeug` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Eine Zahl steht hier erst, wenn die Tabelle *Zusage · Fänger* vorliegt.
+
+**Größenmarke** (`AGENTS.md` §3.14): **noch nicht gesetzt.** Metrik wie oben; Schätzung aus der Tabelle (Zeilen × 40, reine Funktionen, keine Port-Fakes, kein Leser fremder Bytes), Marke = Schätzung × 1,25, aufgerundet auf volle Hundert. Die Zeilen der Wahrheitstafeln (Allaussage über alle Kombinationen) und die Typprüfung der Sendung (a) bis (c) zählen je eine eigene Zeile. Der Block `groessenmarke` steht erst im Plan, wenn der Architect `pfad`, `produktcode`, `fakes` liefert und der Planner `basis`, `schaetzung`, `marke` mit `make groessenmarke` setzt, in eigenem Commit vor dem ersten Code-Commit (im Slice-Zweig, damit `make groessenmarke` auf `main` bis zum Merge grün bleibt). Liegt die Schätzung × 1,25 über 3000, wird vor dem Code geschnitten; die Schnittfrage stellt der Architect mit der Tabelle (§6).
+
+**Aufträge an den Architect** (vor dem ersten Code-Commit, `AGENTS.md` §3.12): (1) Vertrag mit Randformen in der Spezifikation aus dem Bereich der Linie B (frei am Startstand: `SPEC-166` bis `SPEC-169` und `SPEC-176` bis `SPEC-199`; `SPEC-170` bis `SPEC-175` hat `welle-odata-v2` vergeben, `ARC-030` bis `ARC-039` und ADR `0020` bis `0029` bleiben im Bereich der Linie B); (2) Tabelle *Zusage · Fänger* in §3; (3) Raster *Operation × Argumentart* in §6, darin die Zeile der Sendung (a) bis (c) und die offenen Punkte; (4) erwartete Größe für die Marke; (5) Schnittfrage, falls die Schätzung × 1,25 über 3000 liegt.
 - `in-progress` → `open` (blockiert — Carveout?): die Regeln für Scale und Precision von `Edm.Decimal` und für Bereichsgrenzen sind in der Spezifikation nicht entschieden (siehe §6).
 
 ## 5. Closure-Trigger
