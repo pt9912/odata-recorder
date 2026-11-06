@@ -13,9 +13,9 @@
 | Anforderungen des Lastenhefts | 29 (18 funktional, 7 nichtfunktional, 4 Randbedingungen) |
 | Akzeptanzkriterien (Zeilen in Teil A) | 65 (18 Happy Path, 18 Boundary, 18 Negative, 11 Messmethode oder Nachweis) |
 | Anforderungen ohne Träger in einem Plan | 0 |
-| Kriterien mit Szenario, dessen Träger-Plan die Anforderung nennt | 61 |
+| Kriterien mit Szenario, dessen Träger-Plan die Anforderung nennt | 62 |
 | Kriterien mit Szenario als Vorschlag | 3 |
-| Kriterien ohne E2E-Szenario | 1 (Negative von `LH-FA-02`: Speicherfehler am laufenden Binary, Frage an den Architect in `slice-test-integration` §6) |
+| Kriterien ohne E2E-Szenario | 0 |
 | Kennungen `SPEC-NNN` (Spezifikation und Verträge der Werkzeuge) | 137 (42 Abschnitte mit 315 nummerierten Zusagen, 82 Tabellenzeilen, 13 Verträge der Werkzeuge) |
 | davon gebaut (ein Plan in `done/` nennt sie) | 95 |
 | davon geplant (nur Pläne in `open/` oder `in-progress/` nennen sie) | 37 |
@@ -40,7 +40,7 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `LH-FA-01` | Negative | Given ein nicht erreichbarer Upstream, when eine Anfrage weitergeleitet wird, then erhält der Client einen definierten  … | HTTP · record | `slice-test-integration` | geplant (Plan nennt die Anforderung) |
 | `LH-FA-02` | Happy Path | Given aktiver Record-Modus, when ein GET- und ein POST-Austausch erfolgreich stattfinden, then sind beide mit Request un … | HTTP, Admin · record | `slice-test-integration` (Lesen über Replay); Admin-Lesen: `slice-bootstrap-m6` | geplant (Plan nennt die Anforderung) |
 | `LH-FA-02` | Boundary | Given ein Austausch ohne Request- oder Response-Body, when er erfasst wird, then bleibt die leere Nutzlast eindeutig von … | HTTP · record | `slice-test-integration` | geplant (Plan nennt die Anforderung) |
-| `LH-FA-02` | Negative | Given ein Speicherfehler, when eine Aufzeichnung geschrieben werden soll, then wird der Fehler sichtbar gemeldet und kei … | — · record | — | fehlt |
+| `LH-FA-02` | Negative | Given ein Speicherfehler, when eine Aufzeichnung geschrieben werden soll, then wird der Fehler sichtbar gemeldet und kei … | — · record | `slice-test-integration` (Speicher voll per `ENOSPC` auf `tmpfs`; `SPEC-037` Nr. 8) | geplant (Plan nennt die Anforderung) |
 | `LH-FA-03` | Happy Path | Given eine gespeicherte Session, when der Dienst neu gestartet wird, then sind ihre Austausche weiterhin vollständig le … | HTTP · record, replay | `slice-container-image` (Neustart); `slice-test-integration` (Neustart im Rundlauf) | geplant (Plan nennt die Anforderung) |
 | `LH-FA-03` | Boundary | Given eine leere Session, when sie geöffnet wird, then wird sie als leer angezeigt, ohne erfundene Austausche. | HTTP · record | `slice-test-integration` | geplant (Plan nennt die Anforderung) |
 | `LH-FA-03` | Negative | Given beschädigte gespeicherte Daten, when sie gelesen werden, then wird ein nachvollziehbarer Integritätsfehler ausge … | Start · record, replay | `slice-test-integration` | geplant (Plan nennt die Anforderung) |
@@ -76,7 +76,7 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `LH-FA-13` | Negative | Given eine unberechtigte oder fehlerhafte Management-Anfrage, when sie eingeht, then wird sie abgewiesen, ohne Recorder- … | Admin · alle | `slice-bootstrap-m6`; `slice-test-security` | geplant (Plan nennt die Anforderung) |
 | `LH-FA-14` | Happy Path | Given ein Request mit `Authorization` und `Cookie`, when er aufgezeichnet wird, then sind diese Werte weder in der Recor … | HTTP · record | `slice-test-security`; `slice-test-integration` | geplant (Plan nennt die Anforderung) |
 | `LH-FA-14` | Boundary | Given ein Body ohne sensible Felder, when er erfasst wird, then bleibt seine für Replay benötigte fachliche Nutzlast e … | HTTP · record, replay | `slice-test-integration` | geplant (Plan nennt die Anforderung) |
-| `LH-FA-14` | Negative | Given eine fehlgeschlagene erforderliche Redaktionsregel oder einen Speicherfehler nach Beginn der Client-Antwort, when  … | — · record | `slice-test-integration` (Speicher voll per `ENOSPC` auf `tmpfs`, nicht redigierbarer Body; `SPEC-037` Nr. 7 und 8) | geplant (Plan nennt die Anforderung) |
+| `LH-FA-14` | Negative | Given eine fehlgeschlagene erforderliche Redaktionsregel oder einen Speicherfehler nach Beginn der Client-Antwort, when  … | — · record | `slice-test-integration` (Speicher voll per `ENOSPC` auf `tmpfs`, nicht redigierbarer Body; `SPEC-037` Nr. 7 und 8); Markierung `capture_status`: `slice-bootstrap-m6` (`SPEC-037` Nr. 10 h, Geber `slice-test-integration`) | geplant (Plan nennt die Anforderung) |
 | `LH-FA-15` | Happy Path | Given eine Entität mit ETag, when PATCH mit aktuellem `If-Match` erfolgt, then wird die Änderung übernommen und ein n … | HTTP · mock | `slice-if-match` | geplant (Plan nennt die Anforderung) |
 | `LH-FA-15` | Boundary | Given eine unveränderte Entität, when sie mehrfach gelesen wird, then bleibt ihr ETag stabil. | HTTP · mock | `slice-etag-versionen` | geplant (Plan nennt die Anforderung) |
 | `LH-FA-15` | Negative | Given ein veraltetes ETag, when PATCH erfolgt, then wird die Änderung mit passender Precondition-Fehlermeldung abgewies … | HTTP · mock | `slice-if-match` | geplant (Plan nennt die Anforderung) |
