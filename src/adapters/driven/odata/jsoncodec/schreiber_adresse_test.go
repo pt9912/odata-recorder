@@ -44,13 +44,13 @@ func TestAdresseKodierung(t *testing.T) {
 	for _, z := range zeichen {
 		for _, stelle := range []string{"Schlüssel", "Set"} {
 			set, key := "Produkte", "k"+z
-			m := modell
+			m := testModell()
 			if stelle == "Set" {
 				set, key = "S"+z, "1"
 				m = setModell(set)
 			}
 			want := wurzel + "/" + kodiertErwartet(set) + "(" + kodiertErwartet(key) + ")"
-			got, err := sch.Adresse(m, wurzel, set, key)
+			got, err := schreiber().Adresse(m, wurzel, set, key)
 			if err != nil || got != want {
 				t.Errorf("%s %q: %q, %v; will %q", stelle, z, got, err, want)
 			}
@@ -82,7 +82,7 @@ func TestAdresseGleich(t *testing.T) {
 	schluessel := []string{"42", "'O''Hara'", "Id=1,Region='EU'", "\xc3\xa4", "a b", "a/b", "a?b", "a#b", "a%b", "a+b"}
 	n := 0
 	pruefe := func(m model.ServiceModel, set, key, kontextSet string) {
-		adr, err := sch.Adresse(m, wurzel, set, key)
+		adr, err := schreiber().Adresse(m, wurzel, set, key)
 		if err != nil {
 			t.Fatalf("%q: %v", key, err)
 		}
@@ -95,7 +95,7 @@ func TestAdresseGleich(t *testing.T) {
 		}
 		e := model.Entity{Typ: typ, Schluessel: key, Properties: []model.PropertyWert{pw("Id", model.ArtInt32, "1")}}
 		zl := neuesZiel()
-		if _, err := sch.SchreibeEntity(context.Background(), zl, m, model.EntityAntwort{Wurzel: wurzel, Set: set, Entity: e}); err != nil {
+		if _, err := schreiber().SchreibeEntity(context.Background(), zl, m, model.EntityAntwort{Wurzel: wurzel, Set: set, Entity: e}); err != nil {
 			t.Fatal(err)
 		}
 		if id, _ := idVon(zl.body(), 0); id != adr {
@@ -105,7 +105,7 @@ func TestAdresseGleich(t *testing.T) {
 			t.Errorf("Kontext trägt das Set nicht roh: %s", zl.body())
 		}
 		zc := neuesZiel()
-		if _, err := sch.SchreibeCollection(context.Background(), zc, m, model.CollectionAntwort{Wurzel: wurzel, Set: set, Entities: []model.Entity{e}}); err != nil {
+		if _, err := schreiber().SchreibeCollection(context.Background(), zc, m, model.CollectionAntwort{Wurzel: wurzel, Set: set, Entities: []model.Entity{e}}); err != nil {
 			t.Fatal(err)
 		}
 		if id, _ := idVon(zc.body(), 0); id != adr {
@@ -117,7 +117,7 @@ func TestAdresseGleich(t *testing.T) {
 		n += 3
 	}
 	for _, k := range schluessel {
-		pruefe(modell, "Produkte", k, "Produkte")
+		pruefe(testModell(), "Produkte", k, "Produkte")
 	}
 	pruefe(setModell("Prod\xc3\xbckte"), "Prod\xc3\xbckte", "1", "Prod\xc3\xbckte")
 	if n != 33 {
@@ -149,7 +149,7 @@ func TestWurzel(t *testing.T) {
 			t.Errorf("Entity %q: %s", w, body)
 		}
 		collectionBody(t, w, c)
-		if a, err := sch.Adresse(modell, w, "Produkte", "1"); err != nil || a != w+"/Produkte(1)" {
+		if a, err := schreiber().Adresse(testModell(), w, "Produkte", "1"); err != nil || a != w+"/Produkte(1)" {
 			t.Errorf("Adresse %q: %q, %v", w, a, err)
 		}
 		n += 3
@@ -161,7 +161,7 @@ func TestWurzel(t *testing.T) {
 		collectionScheitert(t, fmt.Sprintf("Collection %q", w), c)
 		leer := model.CollectionAntwort{Wurzel: w, Set: "Produkte"}
 		collectionScheitert(t, fmt.Sprintf("Collection ohne Entities %q", w), leer)
-		a, err := sch.Adresse(modell, w, "Produkte", "1")
+		a, err := schreiber().Adresse(testModell(), w, "Produkte", "1")
 		if a != "" {
 			t.Errorf("Adresse %q: %q", w, a)
 		}
@@ -194,10 +194,10 @@ func aushandlung(t *testing.T, was string, accept []string, none, ieee bool) {
 		f    func(z io.Writer) (model.Darstellung, error)
 	}{
 		{"Collection", func(z io.Writer) (model.Darstellung, error) {
-			return sch.SchreibeCollection(context.Background(), z, modell, c)
+			return schreiber().SchreibeCollection(context.Background(), z, testModell(), c)
 		}},
 		{"Entity", func(z io.Writer) (model.Darstellung, error) {
-			return sch.SchreibeEntity(context.Background(), z, modell, e)
+			return schreiber().SchreibeEntity(context.Background(), z, testModell(), e)
 		}},
 	} {
 		z := neuesZiel()

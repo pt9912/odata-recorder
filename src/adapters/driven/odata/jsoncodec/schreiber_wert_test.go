@@ -245,10 +245,10 @@ func TestUngueltigesUTF8AnVierStellen(t *testing.T) {
 				Entity: model.Entity{Typ: "Ns.D" + zs[2], Schluessel: "1", Properties: []model.PropertyWert{pw("Id", model.ArtInt32, "1"), pw("P"+zs[0], model.ArtString, "x")}}}
 			c := model.CollectionAntwort{Wurzel: wurzel, Set: e.Set, Auswahl: e.Auswahl, Entities: []model.Entity{e.Entity}}
 			scheitert(t, fmt.Sprintf("Entity Stelle %d %q", stelle, z), func(ctx context.Context, d io.Writer) (model.Darstellung, error) {
-				return sch.SchreibeEntity(ctx, d, m, e)
+				return schreiber().SchreibeEntity(ctx, d, m, e)
 			})
 			scheitert(t, fmt.Sprintf("Collection Stelle %d %q", stelle, z), func(ctx context.Context, d io.Writer) (model.Darstellung, error) {
-				return sch.SchreibeCollection(ctx, d, m, c)
+				return schreiber().SchreibeCollection(ctx, d, m, c)
 			})
 			n += 2
 		}
@@ -259,7 +259,7 @@ func TestUngueltigesUTF8AnVierStellen(t *testing.T) {
 	m := modellStellen("", "", "", "")
 	zl := neuesZiel()
 	e := model.EntityAntwort{Wurzel: wurzel, Set: "Set", Auswahl: []string{"Nav"}, Entity: model.Entity{Typ: "Ns.D", Schluessel: "1", Properties: []model.PropertyWert{pw("Id", model.ArtInt32, "1"), pw("P", model.ArtString, "x")}}}
-	if _, err := sch.SchreibeEntity(context.Background(), zl, m, e); err != nil {
+	if _, err := schreiber().SchreibeEntity(context.Background(), zl, m, e); err != nil {
 		t.Errorf("Gegenfall ohne Zusatz: %v", err)
 	}
 }
@@ -300,7 +300,7 @@ func TestEscapes(t *testing.T) {
 		x := erwartet(z)
 		want := `{"@odata.context":"` + wurzel + `/$metadata#Set` + x + `(P` + x + `)/$entity","@odata.type":"#Ns.D` + x + `","@odata.id":"` + wurzel + `/Set` + pct + `(1)","Id":1,"P` + x + `":"x"}`
 		zl := neuesZiel()
-		if _, err := sch.SchreibeEntity(context.Background(), zl, m, e); err != nil || zl.body() != want {
+		if _, err := schreiber().SchreibeEntity(context.Background(), zl, m, e); err != nil || zl.body() != want {
 			t.Errorf("Stellen mit %q: %v\n got %s\nwant %s", z, err, zl.body(), want)
 		}
 		n += 4

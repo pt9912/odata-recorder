@@ -22,7 +22,7 @@ func artPruefer(art model.WertArt) (edm string, kanon func(string) bool, bekannt
 	case model.ArtDecimal:
 		return "Edm.Decimal", kanonDezimal, true
 	case model.ArtGUID:
-		return "Edm.Guid", kanonGuid, true
+		return "Edm.Guid", kanonGUID, true
 	case model.ArtDate:
 		return "Edm.Date", func(s string) bool { _, _, _, ok := datumTeile(s); return ok }, true
 	case model.ArtDateTimeOffset:
@@ -108,8 +108,8 @@ func kanonDezimal(s string) bool {
 	return f == len(s) && f > e+1 && s[f-1] != '0'
 }
 
-// kanonGuid: `8-4-4-4-12` Hex-Ziffern in Kleinbuchstaben.
-func kanonGuid(s string) bool {
+// kanonGUID: `8-4-4-4-12` Hex-Ziffern in Kleinbuchstaben.
+func kanonGUID(s string) bool {
 	if len(s) != 36 {
 		return false
 	}
@@ -134,13 +134,19 @@ func kanonZeitpunkt(s string) bool {
 	if _, _, _, ok := datumTeile(s[:10]); !ok {
 		return false
 	}
-	h, o1 := ziffernWert(s[11:13])
-	mi, o2 := ziffernWert(s[14:16])
-	sek, o3 := ziffernWert(s[17:19])
-	if !o1 || !o2 || !o3 || h > 23 || mi > 59 || sek > 59 {
-		return false
-	}
-	rest := s[19 : len(s)-1]
+	return kanonUhrzeit(s[11:19]) && kanonBruchteil(s[19:len(s)-1])
+}
+
+// kanonUhrzeit: `hh:mm:ss` mit der Stunde bis 23, der Minute und der Sekunde bis 59.
+func kanonUhrzeit(t string) bool {
+	h, o1 := ziffernWert(t[:2])
+	mi, o2 := ziffernWert(t[3:5])
+	sek, o3 := ziffernWert(t[6:8])
+	return o1 && o2 && o3 && h <= 23 && mi <= 59 && sek <= 59
+}
+
+// kanonBruchteil: leer oder `.f` mit 1 bis maxBruchteil Ziffern, die letzte nicht `0`.
+func kanonBruchteil(rest string) bool {
 	if rest == "" {
 		return true
 	}

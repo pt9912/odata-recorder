@@ -32,13 +32,13 @@ func kopie(e model.Entity) model.Entity {
 }
 
 // stellen sind die vier Stellen, an denen eine Entity steht: SchreibeEntity und das erste, mittlere, letzte von drei Elementen.
-var stellen = []string{"Entity", "Element 1", "Element 2", "Element 3"}
+func stellenNamen() []string { return []string{"Entity", "Element 1", "Element 2", "Element 3"} }
 
 // ueberStellen setzt mut auf die Entity an jeder der vier Stellen; bei fehler muss der Aufruf scheitern und dst leer sein,
 // sonst gelingt er und pruef bekommt den Body und die Stelle. Es liefert die Zahl der Zellen.
 func ueberStellen(t *testing.T, was string, mut func(e *model.Entity), fehler bool, pruef func(stelle, body string)) int {
 	t.Helper()
-	for i, stelle := range stellen {
+	for i, stelle := range stellenNamen() {
 		name := was + " / " + stelle
 		var body string
 		if i == 0 {
@@ -65,7 +65,7 @@ func ueberStellen(t *testing.T, was string, mut func(e *model.Entity), fehler bo
 			pruef(stelle, body)
 		}
 	}
-	return len(stellen)
+	return len(stellenNamen())
 }
 
 // TestEntityTyp hält Zeile 7: der Typ der Entity ist nicht abstrakt und der Typ des Sets oder von ihm abgeleitet.
@@ -218,7 +218,7 @@ func TestAnzahlGrenzen(t *testing.T) {
 	for _, w := range []int64{-1, math.MinInt64, 0, 1, math.MaxInt64} {
 		n++
 		z := neuesZiel()
-		_, err := sch.SchreibeAnzahl(context.Background(), z, w)
+		_, err := schreiber().SchreibeAnzahl(context.Background(), z, w)
 		if w < 0 {
 			istUngueltig(t, err, "n negativ")
 			z.leer(t, "n negativ")

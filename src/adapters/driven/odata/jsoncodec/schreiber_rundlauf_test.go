@@ -13,7 +13,9 @@ import (
 
 const grenzeLesen = 1 << 20
 
-var formen = map[string][]string{"Zahl": nil, "Zeichenkette": {"application/json;IEEE754Compatible=true"}}
+func formenZahl() map[string][]string {
+	return map[string][]string{"Zahl": nil, "Zeichenkette": {"application/json;IEEE754Compatible=true"}}
+}
 
 // gelesen ist die Entity, die der Leser zu einer Entity mit dem Schlüssel S "k" und den Properties props liefern muss.
 func gelesen(typ, schluessel string, props []model.PropertyWert) model.Entity {
@@ -26,13 +28,13 @@ func rundlauf(t *testing.T, was, set string, accept []string, e model.Entity, an
 	leser := jsoncodec.New()
 	ea := model.EntityAntwort{Wurzel: wurzel, Set: set, Entity: e, Accept: accept, Auswahl: auswahl}
 	body := entityBody(t, was, ea)
-	got, err := leser.ParseEntity(context.Background(), strings.NewReader(body), modell, set, grenzeLesen)
+	got, err := leser.ParseEntity(context.Background(), strings.NewReader(body), testModell(), set, grenzeLesen)
 	if err != nil || !reflect.DeepEqual(got, gelesenVon(e)) {
 		t.Errorf("%s Entity: %v\n got %+v\nwant %+v\nBody %s", was, err, got, gelesenVon(e), body)
 	}
 	ca := model.CollectionAntwort{Wurzel: wurzel, Set: set, Entities: []model.Entity{e, e, e}, Accept: accept, Anzahl: anzahl, Auswahl: auswahl}
 	body = collectionBody(t, was, ca)
-	seite, err := leser.ParseCollection(context.Background(), strings.NewReader(body), modell, set, grenzeLesen)
+	seite, err := leser.ParseCollection(context.Background(), strings.NewReader(body), testModell(), set, grenzeLesen)
 	want := model.EntitySeite{Entities: []model.Entity{gelesenVon(e), gelesenVon(e), gelesenVon(e)}, Anzahl: anzahl}
 	if !anzahl.Vorhanden {
 		want.Anzahl = model.Anzahl{}
@@ -49,7 +51,7 @@ func TestRundlauf(t *testing.T) {
 	n := 0
 	for _, m := range artMengen() {
 		for _, g := range m.gueltig {
-			for form, accept := range formen {
+			for form, accept := range formenZahl() {
 				e := model.Entity{Typ: "Ns.Alle", Schluessel: "'k'", Properties: []model.PropertyWert{pw("S", model.ArtString, "k"), pw("N"+m.prop, m.art, g.text)}}
 				rundlauf(t, m.prop+" "+form, "Alles", accept, e, model.Anzahl{}, nil)
 				n += 2
@@ -71,17 +73,17 @@ func TestRundlauf(t *testing.T) {
 		n += 2
 	}
 	leser := jsoncodec.New()
-	for form, accept := range formen {
+	for form, accept := range formenZahl() {
 		c := gutCollection()
 		c.Entities, c.Accept = nil, accept
-		seite, err := leser.ParseCollection(context.Background(), strings.NewReader(collectionBody(t, "leer", c)), modell, "Produkte", grenzeLesen)
+		seite, err := leser.ParseCollection(context.Background(), strings.NewReader(collectionBody(t, "leer", c)), testModell(), "Produkte", grenzeLesen)
 		if err != nil || len(seite.Entities) != 0 || seite.Entities == nil || seite.Anzahl.Vorhanden || seite.FolgeLink != (model.FolgeLink{}) {
 			t.Errorf("leere Collection %s: %+v, %v", form, seite, err)
 		}
 		n++
 		for _, w := range []int64{0, 1, math.MaxInt64} {
 			c.Entities, c.Anzahl = []model.Entity{produkt("1", "A")}, model.Anzahl{Vorhanden: true, Wert: w}
-			seite, err := leser.ParseCollection(context.Background(), strings.NewReader(collectionBody(t, "Anzahl", c)), modell, "Produkte", grenzeLesen)
+			seite, err := leser.ParseCollection(context.Background(), strings.NewReader(collectionBody(t, "Anzahl", c)), testModell(), "Produkte", grenzeLesen)
 			if err != nil || seite.Anzahl != c.Anzahl {
 				t.Errorf("Anzahl %d %s: %+v, %v", w, form, seite.Anzahl, err)
 			}
@@ -97,7 +99,7 @@ func TestRundlauf(t *testing.T) {
 func TestRundlaufAuswahl(t *testing.T) {
 	n := 0
 	for _, auswahl := range [][]string{{"Id", "Name"}, {"*"}, {"Name", "Name"}, {"Kategorie"}, nil} {
-		for form, accept := range formen {
+		for form, accept := range formenZahl() {
 			if form == "Zeichenkette" {
 				continue
 			}

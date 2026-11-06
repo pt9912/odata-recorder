@@ -68,19 +68,19 @@ func TestKontextBeendet(t *testing.T) {
 	cancel3(ursache)
 	faelle := []struct {
 		name string
-		ctx  context.Context
+		ctx  func() context.Context
 		want error
 	}{
-		{"Canceled", abgebrochen, context.Canceled},
-		{"DeadlineExceeded", frist, context.DeadlineExceeded},
-		{"Ursache", mitUrsache, context.Canceled},
+		{"Canceled", func() context.Context { return abgebrochen }, context.Canceled},
+		{"DeadlineExceeded", func() context.Context { return frist }, context.DeadlineExceeded},
+		{"Ursache", func() context.Context { return mitUrsache }, context.Canceled},
 	}
 	n := 0
 	for _, op := range operationen() {
 		for _, f := range faelle {
 			n++
 			z := neuesZiel()
-			d, err := op.gut(f.ctx, z)
+			d, err := op.gut(f.ctx(), z)
 			if err != f.want || err == ursache {
 				t.Errorf("%s %s: Fehler %v (%T), will %v unverändert", op.name, f.name, err, err, f.want)
 			}
@@ -140,12 +140,12 @@ func TestModellVersion(t *testing.T) {
 			m = model.ServiceModel{}
 		}
 		scheitert(t, "Entity "+v, func(c context.Context, d io.Writer) (model.Darstellung, error) {
-			return sch.SchreibeEntity(c, d, m, gutEntity())
+			return schreiber().SchreibeEntity(c, d, m, gutEntity())
 		})
 		scheitert(t, "Collection "+v, func(c context.Context, d io.Writer) (model.Darstellung, error) {
-			return sch.SchreibeCollection(c, d, m, gutCollection())
+			return schreiber().SchreibeCollection(c, d, m, gutCollection())
 		})
-		if a, err := sch.Adresse(m, wurzel, "Produkte", "1"); a != "" {
+		if a, err := schreiber().Adresse(m, wurzel, "Produkte", "1"); a != "" {
 			t.Errorf("Adresse %q: %q", v, a)
 		} else {
 			istUngueltig(t, err, "Adresse "+v)
@@ -155,7 +155,7 @@ func TestModellVersion(t *testing.T) {
 	if n != 12 {
 		t.Errorf("Menge %d, will 12", n)
 	}
-	if a, err := sch.Adresse(modellVersion("4.0"), wurzel, "Produkte", "1"); err != nil || a != wurzel+"/Produkte(1)" {
+	if a, err := schreiber().Adresse(modellVersion("4.0"), wurzel, "Produkte", "1"); err != nil || a != wurzel+"/Produkte(1)" {
 		t.Errorf("Gegenfall 4.0: %q, %v", a, err)
 	}
 }
@@ -166,8 +166,8 @@ func TestSetUngueltig(t *testing.T) {
 		name, set string
 		m         model.ServiceModel
 	}{
-		{"leer", "", modell}, {"unbekannt", "Unbekannt", modell}, {"Schreibweise", "produkte", modell},
-		{"Namensraum", "Ns.Produkte", modell}, {"ohne Typ", "OhneTyp", modell}, {"Nullwert-Modell", "Produkte", model.ServiceModel{}},
+		{"leer", "", testModell()}, {"unbekannt", "Unbekannt", testModell()}, {"Schreibweise", "produkte", testModell()},
+		{"Namensraum", "Ns.Produkte", testModell()}, {"ohne Typ", "OhneTyp", testModell()}, {"Nullwert-Modell", "Produkte", model.ServiceModel{}},
 		{"leer, im Modell vorhanden", "", setModell("")},
 	}
 	n := 0
@@ -175,12 +175,12 @@ func TestSetUngueltig(t *testing.T) {
 		e, c := gutEntity(), gutCollection()
 		e.Set, c.Set = f.set, f.set
 		scheitert(t, "Entity "+f.name, func(ctx context.Context, d io.Writer) (model.Darstellung, error) {
-			return sch.SchreibeEntity(ctx, d, f.m, e)
+			return schreiber().SchreibeEntity(ctx, d, f.m, e)
 		})
 		scheitert(t, "Collection "+f.name, func(ctx context.Context, d io.Writer) (model.Darstellung, error) {
-			return sch.SchreibeCollection(ctx, d, f.m, c)
+			return schreiber().SchreibeCollection(ctx, d, f.m, c)
 		})
-		a, err := sch.Adresse(f.m, wurzel, f.set, "1")
+		a, err := schreiber().Adresse(f.m, wurzel, f.set, "1")
 		if a != "" {
 			t.Errorf("Adresse %s: %q", f.name, a)
 		}
@@ -204,7 +204,7 @@ func TestFehlerobjektTabelle(t *testing.T) {
 			t.Fatal(err)
 		}
 		z := neuesZiel()
-		if _, err := sch.SchreibeFehler(context.Background(), z, f); err != nil {
+		if _, err := schreiber().SchreibeFehler(context.Background(), z, f); err != nil {
 			t.Errorf("%s: %v", c, err)
 		}
 		abweichungen := map[string]model.Fehlerobjekt{}
@@ -231,7 +231,7 @@ func TestFehlerobjektTabelle(t *testing.T) {
 				continue
 			}
 			scheitert(t, c.String()+" "+was, func(ctx context.Context, d io.Writer) (model.Darstellung, error) {
-				return sch.SchreibeFehler(ctx, d, a)
+				return schreiber().SchreibeFehler(ctx, d, a)
 			})
 		}
 	}
@@ -245,7 +245,7 @@ func TestFehlerobjektTabelle(t *testing.T) {
 	}
 	for was, a := range faelle {
 		scheitert(t, was, func(ctx context.Context, d io.Writer) (model.Darstellung, error) {
-			return sch.SchreibeFehler(ctx, d, a)
+			return schreiber().SchreibeFehler(ctx, d, a)
 		})
 	}
 }
@@ -291,25 +291,29 @@ func TestEinWrite(t *testing.T) {
 	n := 0
 	groessen := map[string]func(z *ziel) (model.Darstellung, error){
 		"Entity klein": func(z *ziel) (model.Darstellung, error) {
-			return sch.SchreibeEntity(context.Background(), z, modell, gutEntity())
+			return schreiber().SchreibeEntity(context.Background(), z, testModell(), gutEntity())
 		},
 		"Entity groß": func(z *ziel) (model.Darstellung, error) {
-			return sch.SchreibeEntity(context.Background(), z, modell, grossEntity)
+			return schreiber().SchreibeEntity(context.Background(), z, testModell(), grossEntity)
 		},
 		"Collection klein": func(z *ziel) (model.Darstellung, error) {
-			return sch.SchreibeCollection(context.Background(), z, modell, gutCollection())
+			return schreiber().SchreibeCollection(context.Background(), z, testModell(), gutCollection())
 		},
 		"Collection groß": func(z *ziel) (model.Darstellung, error) {
-			return sch.SchreibeCollection(context.Background(), z, modell, gross)
+			return schreiber().SchreibeCollection(context.Background(), z, testModell(), gross)
 		},
-		"Anzahl klein": func(z *ziel) (model.Darstellung, error) { return sch.SchreibeAnzahl(context.Background(), z, 5) },
-		"Anzahl groß":  func(z *ziel) (model.Darstellung, error) { return sch.SchreibeAnzahl(context.Background(), z, 1<<62) },
+		"Anzahl klein": func(z *ziel) (model.Darstellung, error) {
+			return schreiber().SchreibeAnzahl(context.Background(), z, 5)
+		},
+		"Anzahl groß": func(z *ziel) (model.Darstellung, error) {
+			return schreiber().SchreibeAnzahl(context.Background(), z, 1<<62)
+		},
 		"Fehler klein": func(z *ziel) (model.Darstellung, error) {
-			return sch.SchreibeFehler(context.Background(), z, fehlerCode())
+			return schreiber().SchreibeFehler(context.Background(), z, fehlerCode())
 		},
 		"Fehler letzter Code": func(z *ziel) (model.Darstellung, error) {
 			f, _ := model.NeuesFehlerobjekt(model.AlleCodes()[len(model.AlleCodes())-1])
-			return sch.SchreibeFehler(context.Background(), z, f)
+			return schreiber().SchreibeFehler(context.Background(), z, f)
 		},
 	}
 	for was, f := range groessen {
@@ -391,21 +395,21 @@ func TestDarstellungskopf(t *testing.T) {
 	for _, f := range faelle {
 		e, c := gutEntity(), gutCollection()
 		e.Accept, c.Accept = f.accept, f.accept
-		d, err := sch.SchreibeEntity(context.Background(), neuesZiel(), modell, e)
+		d, err := schreiber().SchreibeEntity(context.Background(), neuesZiel(), testModell(), e)
 		if err != nil || d.ContentType != f.want || d.Kennzeichen != kennzeichen {
 			t.Errorf("Entity %v: %+v, %v", f.accept, d, err)
 		}
-		d, err = sch.SchreibeCollection(context.Background(), neuesZiel(), modell, c)
+		d, err = schreiber().SchreibeCollection(context.Background(), neuesZiel(), testModell(), c)
 		if err != nil || d.ContentType != f.want || d.Kennzeichen != kennzeichen {
 			t.Errorf("Collection %v: %+v, %v", f.accept, d, err)
 		}
 		n += 2
 	}
-	d, err := sch.SchreibeAnzahl(context.Background(), neuesZiel(), 1)
+	d, err := schreiber().SchreibeAnzahl(context.Background(), neuesZiel(), 1)
 	if err != nil || d != (model.Darstellung{ContentType: "text/plain;charset=utf-8", Kennzeichen: kennzeichen}) {
 		t.Errorf("Anzahl: %+v, %v", d, err)
 	}
-	d, err = sch.SchreibeFehler(context.Background(), neuesZiel(), fehlerCode())
+	d, err = schreiber().SchreibeFehler(context.Background(), neuesZiel(), fehlerCode())
 	if err != nil || d != (model.Darstellung{ContentType: "application/json;odata.metadata=minimal;charset=utf-8", Kennzeichen: kennzeichen}) {
 		t.Errorf("Fehler: %+v, %v", d, err)
 	}

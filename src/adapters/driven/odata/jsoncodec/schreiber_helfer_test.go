@@ -22,7 +22,7 @@ func esc(hex string) string { return bs + "u" + hex }
 
 const wurzel = "http://h:8080/odata"
 
-var sch = jsoncodec.NewSchreiber()
+func schreiber() *jsoncodec.Schreiber { return jsoncodec.NewSchreiber() }
 
 // ziel ist der Fake von dst: er hält jeden Aufruf fest und zählt jede Operation, auch die, die der Schreiber nie rufen darf.
 type ziel struct {
@@ -167,8 +167,6 @@ func modellVersion(v string) model.ServiceModel {
 	return model.NeuesServiceModel(v, []string{"Ns"}, typen, sets, nil)
 }
 
-var modell = testModell()
-
 func pw(name string, art model.WertArt, text string) model.PropertyWert {
 	return model.PropertyWert{Name: name, Wert: model.Wert{Art: art, Text: text}}
 }
@@ -206,27 +204,31 @@ func operationen() []operation {
 	return []operation{
 		{"SchreibeEntity",
 			func(c context.Context, d io.Writer) (model.Darstellung, error) {
-				return sch.SchreibeEntity(c, d, modell, gutEntity())
+				return schreiber().SchreibeEntity(c, d, testModell(), gutEntity())
 			},
 			func(c context.Context, d io.Writer) (model.Darstellung, error) {
-				return sch.SchreibeEntity(c, d, modell, schlechteEntity)
+				return schreiber().SchreibeEntity(c, d, testModell(), schlechteEntity)
 			}},
 		{"SchreibeCollection",
 			func(c context.Context, d io.Writer) (model.Darstellung, error) {
-				return sch.SchreibeCollection(c, d, modell, gutCollection())
+				return schreiber().SchreibeCollection(c, d, testModell(), gutCollection())
 			},
 			func(c context.Context, d io.Writer) (model.Darstellung, error) {
-				return sch.SchreibeCollection(c, d, modell, schlechteCollection)
+				return schreiber().SchreibeCollection(c, d, testModell(), schlechteCollection)
 			}},
 		{"SchreibeAnzahl",
-			func(c context.Context, d io.Writer) (model.Darstellung, error) { return sch.SchreibeAnzahl(c, d, 5) },
-			func(c context.Context, d io.Writer) (model.Darstellung, error) { return sch.SchreibeAnzahl(c, d, -1) }},
-		{"SchreibeFehler",
 			func(c context.Context, d io.Writer) (model.Darstellung, error) {
-				return sch.SchreibeFehler(c, d, fehlerCode())
+				return schreiber().SchreibeAnzahl(c, d, 5)
 			},
 			func(c context.Context, d io.Writer) (model.Darstellung, error) {
-				return sch.SchreibeFehler(c, d, model.Fehlerobjekt{})
+				return schreiber().SchreibeAnzahl(c, d, -1)
+			}},
+		{"SchreibeFehler",
+			func(c context.Context, d io.Writer) (model.Darstellung, error) {
+				return schreiber().SchreibeFehler(c, d, fehlerCode())
+			},
+			func(c context.Context, d io.Writer) (model.Darstellung, error) {
+				return schreiber().SchreibeFehler(c, d, model.Fehlerobjekt{})
 			}},
 	}
 }
@@ -261,14 +263,14 @@ func scheitert(t *testing.T, was string, f func(ctx context.Context, dst io.Writ
 func entityScheitert(t *testing.T, was string, a model.EntityAntwort) {
 	t.Helper()
 	scheitert(t, was, func(c context.Context, d io.Writer) (model.Darstellung, error) {
-		return sch.SchreibeEntity(c, d, modell, a)
+		return schreiber().SchreibeEntity(c, d, testModell(), a)
 	})
 }
 
 func collectionScheitert(t *testing.T, was string, a model.CollectionAntwort) {
 	t.Helper()
 	scheitert(t, was, func(c context.Context, d io.Writer) (model.Darstellung, error) {
-		return sch.SchreibeCollection(c, d, modell, a)
+		return schreiber().SchreibeCollection(c, d, testModell(), a)
 	})
 }
 
@@ -276,7 +278,7 @@ func collectionScheitert(t *testing.T, was string, a model.CollectionAntwort) {
 func entityBody(t *testing.T, was string, a model.EntityAntwort) string {
 	t.Helper()
 	z := neuesZiel()
-	_, err := sch.SchreibeEntity(context.Background(), z, modell, a)
+	_, err := schreiber().SchreibeEntity(context.Background(), z, testModell(), a)
 	if err != nil {
 		t.Fatalf("%s: %v", was, err)
 	}
@@ -287,7 +289,7 @@ func entityBody(t *testing.T, was string, a model.EntityAntwort) string {
 func collectionBody(t *testing.T, was string, a model.CollectionAntwort) string {
 	t.Helper()
 	z := neuesZiel()
-	_, err := sch.SchreibeCollection(context.Background(), z, modell, a)
+	_, err := schreiber().SchreibeCollection(context.Background(), z, testModell(), a)
 	if err != nil {
 		t.Fatalf("%s: %v", was, err)
 	}

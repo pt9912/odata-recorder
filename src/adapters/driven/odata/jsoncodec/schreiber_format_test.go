@@ -177,7 +177,7 @@ func TestFehlerBytes(t *testing.T) {
 		}
 		want := `{"error":{"code":"` + f.Error.Code + `","message":"` + f.Error.Message + `","target":"` + f.Error.Target + `"}}`
 		z := neuesZiel()
-		if _, err := sch.SchreibeFehler(context.Background(), z, f); err != nil || z.body() != want {
+		if _, err := schreiber().SchreibeFehler(context.Background(), z, f); err != nil || z.body() != want {
 			t.Errorf("%s: %q, %v; will %q", c, z.body(), err, want)
 		}
 	}
@@ -190,7 +190,7 @@ func TestFehlerBytes(t *testing.T) {
 func TestAnzahlBytes(t *testing.T) {
 	for n, want := range map[int64]string{0: "0", 1: "1", 9: "9", 10: "10", math.MaxInt64: "9223372036854775807"} {
 		z := neuesZiel()
-		if _, err := sch.SchreibeAnzahl(context.Background(), z, n); err != nil || z.body() != want {
+		if _, err := schreiber().SchreibeAnzahl(context.Background(), z, n); err != nil || z.body() != want {
 			t.Errorf("n %d: %q, %v; will %q", n, z.body(), err, want)
 		}
 	}
@@ -219,7 +219,7 @@ func TestStufeNone(t *testing.T) {
 				t.Errorf("%s: %s im Body %s", was, verboten, body)
 			}
 		}
-		_, err := leser.ParseEntity(context.Background(), strings.NewReader(body), modell, "Produkte", 1<<20)
+		_, err := leser.ParseEntity(context.Background(), strings.NewReader(body), testModell(), "Produkte", 1<<20)
 		var df *model.DatenFehler
 		if !errors.As(err, &df) || df.Ursache != model.DatenKontext || df.Ort != "/@odata.context" {
 			t.Errorf("%s: Leser: %v", was, err)
@@ -233,7 +233,7 @@ func TestStufeNone(t *testing.T) {
 		if got := strings.Contains(body, `"@odata.count":3`); got != (a.Anzahl.Vorhanden) {
 			t.Errorf("%s: @odata.count %v: %s", was, got, body)
 		}
-		_, err := leser.ParseCollection(context.Background(), strings.NewReader(body), modell, "Produkte", 1<<20)
+		_, err := leser.ParseCollection(context.Background(), strings.NewReader(body), testModell(), "Produkte", 1<<20)
 		var df *model.DatenFehler
 		if !errors.As(err, &df) || df.Ursache != model.DatenKontext || df.Ort != "/@odata.context" {
 			t.Errorf("%s: Leser: %v", was, err)
@@ -258,17 +258,17 @@ func aufruf(i, g int) ergebnis {
 	case 0:
 		a := gutEntity()
 		a.Entity = produkt(strconv.Itoa(g+1), name)
-		d, err = sch.SchreibeEntity(context.Background(), z, modell, a)
+		d, err = schreiber().SchreibeEntity(context.Background(), z, testModell(), a)
 	case 1:
 		a := gutCollection()
 		a.Entities = []model.Entity{produkt(strconv.Itoa(g+1), name), produkt(strconv.Itoa(g+2), name)}
 		a.Accept = []string{"application/json;IEEE754Compatible=" + strconv.FormatBool(g%2 == 0)}
-		d, err = sch.SchreibeCollection(context.Background(), z, modell, a)
+		d, err = schreiber().SchreibeCollection(context.Background(), z, testModell(), a)
 	case 2:
-		d, err = sch.SchreibeAnzahl(context.Background(), z, int64(g))
+		d, err = schreiber().SchreibeAnzahl(context.Background(), z, int64(g))
 	case 3:
 		f, _ := model.NeuesFehlerobjekt(model.AlleCodes()[g%len(model.AlleCodes())])
-		d, err = sch.SchreibeFehler(context.Background(), z, f)
+		d, err = schreiber().SchreibeFehler(context.Background(), z, f)
 	case 4: // alle acht Typen und null, beide Zahlformen
 		props := []model.PropertyWert{pw("S", model.ArtString, "k"+name), pw("B", model.ArtBoolean, "true"), pw("I32", model.ArtInt32, strconv.Itoa(g)),
 			pw("I64", model.ArtInt64, "9223372036854775807"), pw("Dec", model.ArtDecimal, "-"+strconv.Itoa(g+1)+".5"),
@@ -276,33 +276,33 @@ func aufruf(i, g int) ergebnis {
 			pw("T", model.ArtDateTimeOffset, "2020-01-01T00:00:00.5Z"), pw("NS", model.ArtNull, "")}
 		a := alleAntwort(props...)
 		a.Accept = []string{"application/json;IEEE754Compatible=" + strconv.FormatBool(g%2 == 1)}
-		d, err = sch.SchreibeEntity(context.Background(), z, modell, a)
+		d, err = schreiber().SchreibeEntity(context.Background(), z, testModell(), a)
 	case 5: // abgeleitete Typen, Auswahl, Stufe none, Anzahl
 		a := gutCollection()
 		a.Entities = []model.Entity{{Typ: "Ns.Sonder", Schluessel: strconv.Itoa(g), Properties: []model.PropertyWert{pw("Extra", model.ArtString, name)}},
 			{Typ: "Ns.Sonder2", Schluessel: "7", Properties: []model.PropertyWert{pw("Id", model.ArtInt32, "7")}}}
 		a.Auswahl, a.Anzahl = []string{"Id", "*"}, model.Anzahl{Vorhanden: true, Wert: int64(g)}
 		a.Accept = []string{"text/html", "application/json;odata.metadata=" + []string{"none", "minimal"}[g%2]}
-		d, err = sch.SchreibeCollection(context.Background(), z, modell, a)
+		d, err = schreiber().SchreibeCollection(context.Background(), z, testModell(), a)
 	case 6: // ungültige Argumente an jeder Operation
 		a := gutEntity()
 		a.Entity.Typ = "Ns.Fremd" + name
-		_, e1 := sch.SchreibeEntity(context.Background(), z, modell, a)
+		_, e1 := schreiber().SchreibeEntity(context.Background(), z, testModell(), a)
 		b := gutCollection()
 		b.Wurzel = "ftp://" + name
-		_, e2 := sch.SchreibeCollection(context.Background(), z, modell, b)
-		_, e3 := sch.SchreibeAnzahl(context.Background(), z, -int64(g)-1)
-		_, e4 := sch.SchreibeFehler(context.Background(), z, model.Fehlerobjekt{})
-		_, e5 := sch.Adresse(modell, wurzel, "Produkte", "")
+		_, e2 := schreiber().SchreibeCollection(context.Background(), z, testModell(), b)
+		_, e3 := schreiber().SchreibeAnzahl(context.Background(), z, -int64(g)-1)
+		_, e4 := schreiber().SchreibeFehler(context.Background(), z, model.Fehlerobjekt{})
+		_, e5 := schreiber().Adresse(testModell(), wurzel, "Produkte", "")
 		fehler := []error{e1, e2, e3, e4, e5}
 		var nilCtx context.Context
 		var nilDst io.Writer
-		_, e6 := sch.SchreibeAnzahl(nilCtx, z, 1)
-		_, e7 := sch.SchreibeAnzahl(context.Background(), nilDst, 1)
+		_, e6 := schreiber().SchreibeAnzahl(nilCtx, z, 1)
+		_, e7 := schreiber().SchreibeAnzahl(context.Background(), nilDst, 1)
 		falsch, _ := model.NeuesFehlerobjekt(model.AlleCodes()[0])
 		falsch.Error.Message += name
-		_, e8 := sch.SchreibeFehler(context.Background(), z, falsch)
-		_, e9 := sch.SchreibeFehler(context.Background(), z, model.Fehlerobjekt{Error: model.FehlerInhalt{Code: "ODR-E0000"}})
+		_, e8 := schreiber().SchreibeFehler(context.Background(), z, falsch)
+		_, e9 := schreiber().SchreibeFehler(context.Background(), z, model.Fehlerobjekt{Error: model.FehlerInhalt{Code: "ODR-E0000"}})
 		fehler = append(fehler, e6, e7, e8, e9)
 		// jede Zeile des Raster-Verstoßes: Version, Set, Typ, Name, Duplikat, Art, Text, Auswahl, Schlüssel, Anzahl, ungültiges UTF-8
 		for k, mut := range []func(a *model.EntityAntwort){
@@ -332,29 +332,29 @@ func aufruf(i, g int) ergebnis {
 		} {
 			x := gutEntity()
 			mut(&x)
-			_, e := sch.SchreibeEntity(context.Background(), z, modell, x)
-			_, e2 := sch.SchreibeEntity(context.Background(), z, modellVersion("2.0"), x)
+			_, e := schreiber().SchreibeEntity(context.Background(), z, testModell(), x)
+			_, e2 := schreiber().SchreibeEntity(context.Background(), z, modellVersion("2.0"), x)
 			fehler = append(fehler, e, e2)
 			y := gutCollection()
 			y.Entities = []model.Entity{x.Entity}
 			y.Set, y.Wurzel, y.Auswahl = x.Set, x.Wurzel, x.Auswahl
 			y.Anzahl = model.Anzahl{Vorhanden: true, Wert: int64(-k - 1)}
-			_, e3 := sch.SchreibeCollection(context.Background(), z, modell, y)
+			_, e3 := schreiber().SchreibeCollection(context.Background(), z, testModell(), y)
 			fehler = append(fehler, e3)
 		}
 		err = errors.Join(fehler...)
 	case 7: // beendeter Kontext und Fehler von dst
 		abgebrochen, cancel := context.WithCancel(context.Background())
 		cancel()
-		_, e1 := sch.SchreibeEntity(abgebrochen, z, modell, gutEntity())
+		_, e1 := schreiber().SchreibeEntity(abgebrochen, z, testModell(), gutEntity())
 		z2 := &ziel{log: &[]string{}, kurz: -2}
-		_, e2 := sch.SchreibeCollection(context.Background(), z2, modell, gutCollection())
+		_, e2 := schreiber().SchreibeCollection(context.Background(), z2, testModell(), gutCollection())
 		z3 := &ziel{log: &[]string{}, kurz: -1, err: errors.New("dst " + name)}
-		_, e3 := sch.SchreibeAnzahl(context.Background(), z3, 1)
+		_, e3 := schreiber().SchreibeAnzahl(context.Background(), z3, 1)
 		err = errors.Join(e1, e2, e3)
 	case 8: // Adresse mit Schlüsseln, die kodiert werden
 		var s string
-		s, err = sch.Adresse(modell, wurzel, "Produkte", "'a b'/"+name+"+%")
+		s, err = schreiber().Adresse(testModell(), wurzel, "Produkte", "'a b'/"+name+"+%")
 		r := ergebnis{body: s}
 		if err != nil {
 			r.err = err.Error()
@@ -364,9 +364,9 @@ func aufruf(i, g int) ergebnis {
 		a := gutEntity()
 		a.Wurzel = "https://[::1]:" + strconv.Itoa(g+1) + "/a/%C3%A4"
 		a.Entity.Typ = "Ns.R3a"
-		_, e1 := sch.SchreibeEntity(context.Background(), z, modell, a)
+		_, e1 := schreiber().SchreibeEntity(context.Background(), z, testModell(), a)
 		a.Entity.Typ = "Ns.Product"
-		d, e2 := sch.SchreibeEntity(context.Background(), z, modell, a)
+		d, e2 := schreiber().SchreibeEntity(context.Background(), z, testModell(), a)
 		err = errors.Join(e1, e2)
 		return ergebnis{body: z.body(), d: d, err: fehlerText(err)}
 	}
