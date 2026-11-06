@@ -295,7 +295,7 @@ func inKlasse(b byte) bool {
 // und Mehrbyte-UTF-8; die Datei trägt genau die gültigen Zeilen.
 func TestKennungsform(t *testing.T) {
 	for _, f := range kennungsFelder() {
-		a := neu(t, festeZeit)
+		a := neuAn(t, filepath.Join(schnellVerz(t), audit.DateiName), festeZeit)
 		gueltigeZeilen := 0
 		pruefe := func(wert string, soll bool, was string) {
 			e := gueltig(f.art)
@@ -350,8 +350,30 @@ func TestKennungsform(t *testing.T) {
 		if stellen != 246 {
 			t.Fatalf("%d Stellen, erwartet 246", stellen)
 		}
-		if got := strings.Count(a.inhalt(t), "\n"); got != gueltigeZeilen || gueltigeZeilen != 3*65+2+11 {
-			t.Errorf("%s: %d Zeilen in der Datei, %d gültige Aufrufe, erwartet %d", f.name, got, gueltigeZeilen, 3*65+2+11)
+		// Länge 1 bis 64 (64 Längen) × Stellen 0 bis 3, die mittlere und die letzten vier (540
+		// Stellen über alle Längen) × drei ungültige Bytes (Schrägstrich, LF, Leerzeichen). Die
+		// Prüfgrenze: nicht jede der 64·65/2 = 2080 Stellen; siehe Plan §3, Fix-Runde (V1).
+		stellen = 0
+		for laenge := 1; laenge <= 64; laenge++ {
+			pruefe(strings.Repeat("a", laenge), true, fmt.Sprintf("Länge %d", laenge))
+			ort := map[int]bool{laenge / 2: true}
+			for i := range min(4, laenge) {
+				ort[i], ort[laenge-1-i] = true, true
+			}
+			for i := range ort {
+				stellen++
+				for _, schlecht := range []byte{'/', '\n', ' '} {
+					b := []byte(strings.Repeat("a", laenge))
+					b[i] = schlecht
+					pruefe(string(b), false, fmt.Sprintf("Byte %#02x an Stelle %d von %d", schlecht, i, laenge))
+				}
+			}
+		}
+		if stellen != 540 {
+			t.Fatalf("%d Stellen, erwartet 540", stellen)
+		}
+		if want := 3*65 + 2 + 11 + 64; strings.Count(a.inhalt(t), "\n") != gueltigeZeilen || gueltigeZeilen != want {
+			t.Errorf("%s: %d Zeilen in der Datei, %d gültige Aufrufe, erwartet %d", f.name, strings.Count(a.inhalt(t), "\n"), gueltigeZeilen, want)
 		}
 	}
 }
@@ -404,6 +426,26 @@ func TestErrorCode(t *testing.T) {
 	if schreiber != 36 || verworfen != 66-36 {
 		t.Errorf("%d gültige und %d verworfene Werte, erwartet 36 und 30", schreiber, verworfen)
 	}
+	// In den drei Arten, die error_code verbieten, ist jeder Wert von -5 bis 60 außer 0 ein
+	// Verstoß (3 × 65 Werte), 0 schreibt (3 × 1).
+	verboten := 0
+	b := neu(t, festeZeit)
+	for _, art := range []support.AuditArt{support.ArtSessionGeloescht, support.ArtSessionAufbewahrung, support.ArtWorkspaceGeloescht} {
+		for v := -5; v <= 60; v++ {
+			e := gueltig(art)
+			e.ErrorCode = model.Code(v)
+			err := b.d.Append(e)
+			if (v == 0) != (err == nil) || (v != 0 && !errors.Is(err, model.ErrUngueltig)) {
+				t.Errorf("%s mit error_code %d: %v", art, v, err)
+			}
+			if v != 0 {
+				verboten++
+			}
+		}
+	}
+	if verboten != 3*65 {
+		t.Errorf("%d verbotene Werte geprüft, erwartet %d", verboten, 3*65)
+	}
 	zeilen := strings.Split(strings.TrimSuffix(a.inhalt(t), "\n"), "\n")
 	if len(zeilen) != 36 {
 		t.Fatalf("%d Zeilen, erwartet 36", len(zeilen))
@@ -418,15 +460,7 @@ func TestErrorCode(t *testing.T) {
 // A10: die Nullzeit und jede Zeit außerhalb der Jahre 1 bis 9999 (auch erst nach der Umrechnung
 // nach UTC) sind ErrUngueltig; die Uhr wurde einmal gerufen, der Generator nie, nichts geschrieben.
 func TestZeitAusserhalb(t *testing.T) {
-	plus2 := time.FixedZone("plus2", 2*60*60)
-	minus2 := time.FixedZone("minus2", -2*60*60)
-	faelle := map[string]time.Time{
-		"Nullzeit":                        {},
-		"Jahr 0":                          time.Date(0, 12, 31, 23, 59, 59, 999999999, time.UTC),
-		"Jahr 10000":                      time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC),
-		"Jahr 1 vor UTC, 0 danach":        time.Date(1, 1, 1, 1, 0, 0, 0, plus2),
-		"Jahr 9999 vor UTC, 10000 danach": time.Date(9999, 12, 31, 23, 30, 0, 0, minus2),
-	}
+	faelle := ungueltigeZeiten()
 	for name, zeit := range faelle {
 		a := neu(t, func(int) time.Time { return zeit })
 		if err := a.d.Append(gueltig(support.ArtSessionGeloescht)); !errors.Is(err, model.ErrUngueltig) {

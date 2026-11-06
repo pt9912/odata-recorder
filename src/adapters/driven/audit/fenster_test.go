@@ -53,6 +53,23 @@ func TestKeinHandleBleibt(t *testing.T) {
 	if nachher := offen(); nachher != vorher {
 		t.Errorf("offene Dateien: %d vor, %d nach %d Append", vorher, nachher, n)
 	}
+	// Auch die Dateizustände leer, mit LF am Ende und halbe Zeile schließen die Datei: vor jedem
+	// der 100 Append wird die Datei auf den Zustand gesetzt.
+	for name, inhalt := range map[string]string{"leer": "", "mit LF": "alt\n", "halbe Zeile": "halb"} {
+		z := neuAn(t, filepath.Join(schnellVerz(t), audit.DateiName), festeZeit)
+		vorher = offen()
+		for range n {
+			if err := os.WriteFile(z.pfad, []byte(inhalt), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := z.d.Append(gueltig(support.ArtSessionGeloescht)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if nachher := offen(); nachher != vorher {
+			t.Errorf("Zustand %s: offene Dateien: %d vor, %d nach %d Append", name, vorher, nachher, n)
+		}
+	}
 	// Auch der Fehlerpfad nach dem Öffnen (Schreiben auf /dev/full) schließt die Datei.
 	voll := neuAn(t, "/dev/full", festeZeit)
 	_ = voll.d.Append(gueltig(support.ArtSessionGeloescht))

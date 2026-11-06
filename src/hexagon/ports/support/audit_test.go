@@ -82,10 +82,26 @@ func TestArtTexte(t *testing.T) {
 // Jeder Aufruf liefert eine neue Kopie: eine Änderung der Antwort ändert die Tabelle nicht.
 func TestArtenLiefertKopie(t *testing.T) {
 	a := support.Arten()
-	a[0].Pflicht[0] = "verändert"
-	a[0].Art = "verändert"
+	pflichtfelder := 0
+	for i := range a {
+		a[i].Art = "verändert"
+		for j := range a[i].Pflicht {
+			a[i].Pflicht[j] = "verändert"
+			pflichtfelder++
+		}
+	}
+	if len(a) != 4 || pflichtfelder != 2+2+1+3 {
+		t.Fatalf("%d Arten, %d Pflichtfelder, erwartet 4 und 8", len(a), pflichtfelder)
+	}
 	b := support.Arten()
-	if b[0].Art != support.ArtSessionGeloescht || b[0].Pflicht[0] != support.FeldServiceID {
-		t.Errorf("Arten() teilt Zustand zwischen Aufrufen: %v", b[0])
+	for i, s := range b {
+		if _, bekannt := orakelArten()[string(s.Art)]; !bekannt {
+			t.Errorf("Arten() teilt Zustand zwischen Aufrufen: %v", s)
+		}
+		for j, f := range s.Pflicht {
+			if f == "verändert" {
+				t.Errorf("Arten()[%d].Pflicht[%d] teilt Zustand", i, j)
+			}
+		}
 	}
 }

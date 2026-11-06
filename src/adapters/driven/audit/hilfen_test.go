@@ -242,3 +242,16 @@ func slogNull() *slog.Logger { return slog.New(slog.NewJSONHandler(io.Discard, n
 func mkdirFuer(wurzel string) error { return os.Mkdir(filepath.Join(wurzel, "fehlt"), 0o700) }
 
 func corID(n int) string { return "cor-" + strings.Repeat("0", 31) + string(rune('0'+n)) }
+
+// ungueltigeZeiten sind die fünf Zeiten, die Append als ErrUngueltig abweist (SPEC-235 Nr. 4 c).
+func ungueltigeZeiten() map[string]time.Time {
+	plus2 := time.FixedZone("plus2", 2*60*60)
+	minus2 := time.FixedZone("minus2", -2*60*60)
+	return map[string]time.Time{
+		"Nullzeit":                        {},
+		"Jahr 0":                          time.Date(0, 12, 31, 23, 59, 59, 999999999, time.UTC),
+		"Jahr 10000":                      time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC),
+		"Jahr 1 vor UTC, 0 danach":        time.Date(1, 1, 1, 1, 0, 0, 0, plus2),
+		"Jahr 9999 vor UTC, 10000 danach": time.Date(9999, 12, 31, 23, 30, 0, 0, minus2),
+	}
+}

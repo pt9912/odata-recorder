@@ -264,17 +264,30 @@ func TestSperreFreiNachFehler(t *testing.T) {
 		t.Errorf("nach der Form: %v", err)
 	}
 
-	zeit := neu(t, func(n int) time.Time {
-		if n == 1 {
-			return time.Date(0, 12, 31, 0, 0, 0, 0, time.UTC)
+	zeiten := ungueltigeZeiten()
+	for name, schlechteZeit := range zeiten {
+		zeit := neu(t, func(n int) time.Time {
+			if n == 1 {
+				return schlechteZeit
+			}
+			return stand()
+		})
+		if err := zeit.d.Append(gueltig(support.ArtSessionGeloescht)); !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("Zeit %s: %v", name, err)
 		}
-		return stand()
-	})
-	if err := zeit.d.Append(gueltig(support.ArtSessionGeloescht)); !errors.Is(err, model.ErrUngueltig) {
-		t.Errorf("Zeit: %v", err)
+		if err := gut(zeit); err != nil {
+			t.Errorf("nach der Zeit %s: %v", name, err)
+		}
 	}
-	if err := gut(zeit); err != nil {
-		t.Errorf("nach der Zeit: %v", err)
+	if len(zeiten) != 5 {
+		t.Fatalf("%d Zeiten, erwartet 5", len(zeiten))
+	}
+
+	verz := neuAn(t, t.TempDir(), festeZeit)
+	for i := range 2 {
+		if err := gut(verz); err == nil {
+			t.Errorf("Pfad ist ein Verzeichnis, Aufruf %d: Append gelang", i)
+		}
 	}
 
 	wurzel := t.TempDir()
