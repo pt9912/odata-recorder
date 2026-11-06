@@ -336,6 +336,9 @@ func TestAuditFehlerAendertNichts(t *testing.T) {
 				if !errors.As(err, &a) || !errors.As(ref, &b) || a.Code != b.Code || a.Status != b.Status {
 					t.Errorf("%s (beendet %v, Fehler %v): Fehler %v, ohne Fehler %v", s.name, beendet, fehler, err, ref)
 				}
+				if err.Error() != ref.Error() || fehler != nil && errors.Is(err, fehler) {
+					t.Errorf("%s (beendet %v, Fehler %v): Text %q, ohne Fehler %q, Fehler von Append erreichbar", s.name, beendet, fehler, err.Error(), ref.Error())
+				}
 				if got := w.audit.Eintraege(); !slices.Equal(got, []support.Eintrag{fehlgeschlagen(dienstID, "imp-1", model.CodeE9001)}) {
 					t.Errorf("%s (beendet %v, Fehler %v): Einträge %+v", s.name, beendet, fehler, got)
 				}

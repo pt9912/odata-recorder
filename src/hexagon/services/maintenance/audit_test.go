@@ -142,6 +142,28 @@ func TestAuditPositionUndErgebnis(t *testing.T) {
 	if _, err := v.startup(context.Background()); err != nil || v.audit.Aufrufe() != 0 {
 		t.Errorf("ohne Session: %v, Aufrufe %d", err, v.audit.Aufrufe())
 	}
+	// M2, Elemente 6 bis 8: eine Session innerhalb der Frist, ein Fehler von Dienste.List und einer von
+	// Sessions.List (SPEC-234 Nr. 4: kein Eintrag vor der Tatsache).
+	j := neu(t, mitMaxAge(30*tag))
+	alteSessions(j, dienstA)
+	j.sessions.fuege("jung", dienstA, t0().Add(-tag), model.SessionComplete)
+	if _, err := j.startup(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := j.audit.Eintraege(); len(got) != 3 {
+		t.Errorf("junge Session: Einträge %+v, erwartet 3 (die alten)", got)
+	}
+	if _, da := j.sessions.status("jung"); !da {
+		t.Error("junge Session gelöscht")
+	}
+	for _, op := range []string{"Dienste.List", "Sessions.List"} {
+		x := neu(t, mitMaxAge(30*tag))
+		alteSessions(x, dienstA)
+		x.st.scheitere(op, 1, errDisk)
+		if _, err := x.startup(context.Background()); err == nil || x.audit.Aufrufe() != 0 {
+			t.Errorf("%s: %v, Aufrufe des Audits %d", op, err, x.audit.Aufrufe())
+		}
+	}
 }
 
 // TestAuditVorDemNaechstenPort (E11, F3): im Delete der zweiten Session stehen die Einträge der ersten
