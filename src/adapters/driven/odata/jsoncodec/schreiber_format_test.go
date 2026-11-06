@@ -477,9 +477,9 @@ func TestWiederholung(t *testing.T) {
 	}
 }
 
-// TestGleichzeitig hält Zeile 36 und 37 (Wirkungs-Fänger, Aufruf des Detektors): 16 Goroutinen rufen einen gemeinsamen Schreiber (der Mock hält
-// einen) mit 10 Aufrufarten (vier Operationen, Adresse, Fehler, alle acht Typen) in 50 Läufen. Alle Goroutinen starten zugleich, auch die ersten
-// Aufrufe sind nebenläufig. Jede Ausgabe ist gleich der des einzelnen Aufrufs, den der Test nach dem nebenläufigen Teil berechnet.
+// TestGleichzeitig hält Zeile 36 und 37: 16 Goroutinen rufen nach gemeinsamem Start einen gemeinsamen Schreiber mit 11 Aufrufarten in 50 Läufen;
+// jede Ausgabe gleicht der des einzelnen Aufrufs, den der Test danach berechnet. Ein Datenrennen meldet allein der Detektor von make test-race,
+// und nur in einem Zweig, den diese Aufrufe ausführen.
 func TestGleichzeitig(t *testing.T) {
 	const gor, laeufe = 16, 50
 	geteilt := jsoncodec.NewSchreiber()
@@ -491,6 +491,7 @@ func TestGleichzeitig(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
+			_ = jsoncodec.NewSchreiber()
 			for range laeufe {
 				for i := range varianten {
 					gelaufen[g] = append(gelaufen[g], aufruf(geteilt, i, g))
