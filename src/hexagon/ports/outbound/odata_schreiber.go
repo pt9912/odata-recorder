@@ -11,7 +11,8 @@ import (
 // die Anzahl, das Fehlerobjekt und die Adresse einer Entity. Je Version gibt es eine Umsetzung; das Lesen gehört zu
 // ODataCodec. Jede Operation mit dst schreibt bei Erfolg die Bytes in genau einem Write und liefert den Darstellungskopf.
 // Ein Verstoß gegen das Argument oder das Format ist model.ErrUngueltig ohne Code, ein beendeter Kontext liefert ctx.Err()
-// unverändert, ein Fehler von dst bleibt unverändert; bei jedem Fehler ist die Darstellung der Nullwert und dst leer.
+// unverändert, ein Fehler von dst bleibt unverändert; bei jedem Fehler ist die Darstellung der Nullwert, und bei jedem Fehler der Prüfung
+// und des Kontexts ist dst leer (was dst vor seinem eigenen Fehler angenommen hat, nimmt der Schreiber nicht zurück, SPEC-168 Nr. 6).
 type ODataSchreiber interface {
 	SchreibeEntity(ctx context.Context, dst io.Writer, m model.ServiceModel, a model.EntityAntwort) (model.Darstellung, error)
 	SchreibeCollection(ctx context.Context, dst io.Writer, m model.ServiceModel, a model.CollectionAntwort) (model.Darstellung, error)
