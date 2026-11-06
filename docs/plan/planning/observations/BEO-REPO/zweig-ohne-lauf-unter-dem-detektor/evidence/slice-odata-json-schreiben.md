@@ -1,0 +1,3 @@
+
+**Vorgang:** slice-odata-json-schreiben
+**Fund:** `TestGleichzeitig` sagte im Kopf zu, der Detektor melde das Rennen, fuehrte aber nur die Zweige, die der Autor nannte: drei von 20 gezogenen Zweigen liefen in keiner Goroutine (F-3), ein Cache und eine traege Initialisierung blieben ungefangen, weil die Erwartung vor dem nebenlaeufigen Teil berechnet wurde (F-2, Mutation `rz22` 0 von 20), und der gemeinsame `*Schreiber` fehlte (F-1). Die Fix-Runde bildete die Menge der Zweige aus dem Abdeckungsprofil von `TestGleichzeitig` allein (ein Block offen, begruendet), und der Verifier fand mit 24 weiteren Zaehlern keinen offenen Zweig (24 von 24, 20 von 20). Beleg: Plan §6; Report `2026-11-06-slice-odata-json-schreiben-review` (F-1 bis F-3), Verifikation V-9.

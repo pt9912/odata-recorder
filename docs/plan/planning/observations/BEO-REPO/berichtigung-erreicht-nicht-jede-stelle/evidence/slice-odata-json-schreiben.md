@@ -1,0 +1,3 @@
+
+**Vorgang:** slice-odata-json-schreiben
+**Fund:** Zwei Stellen trugen dieselbe Aussage im alten Wortlaut (V-8): Entscheidung 10 und das Raster nennen `SPEC-162` Nr. 8 fuer „die Stufe gehoert dem Schreiber“, der Verweis stand nur in *Ungeprueft* von `SPEC-160`, die Nummer selbst nicht; in `slice-v2-payload-schreiben` blieben drei Zeilen „der Vertrag steht erst mit `slice-odata-json-schreiben` in der Spezifikation“ stehen, obwohl er als `SPEC-168` steht (V-7, vier Nehmer ohne die Sendung). Die Closure zog `SPEC-162` Nr. 8 und die Zeilen des Nehmers nach. Beleg: Report `2026-11-06-slice-odata-json-schreiben-verifikation` (V-7, V-8); Historie der Spezifikation.

@@ -1,0 +1,3 @@
+
+**Vorgang:** slice-odata-json-schreiben
+**Fund:** Schaetzung 4570 nach `SPEC-128` (42 Zeilen, ein Fake, 1000 Zeilen Produktcode), Marke 6200; Messung 3000 beim Handoff, 3077 nach der Fix-Runde nach dem Review, 3367 nach der Runde nach der Verifikation (Faktor 0,74 gegen die Schaetzung, Auslastung 0,54), Produktcode 810 statt 1000 Zeilen, Tests beim Handoff rund 52 Zeilen je Tabellenzeile statt 80 bis 85, weil die Faenger Schleifen ueber Mengen sind. Kein Eintrag `ueberschreitung`. Beleg: Plan §4 (*Messung des Implementers beim Handoff*, *Messung nach der Fix-Runde*, *Messung nach der Runde nach der Verifikation*); Verifikation §3.
