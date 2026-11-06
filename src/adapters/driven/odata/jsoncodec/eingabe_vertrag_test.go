@@ -112,7 +112,7 @@ func TestEingabeErgebnisGehoertDemAufrufer(t *testing.T) {
 			set, body := f[0], f[1]
 			frisch, errFrisch := eA(set, art, body).los()
 			a := eA(set, art, body)
-			r1, err1 := l.LeseEntity(a.ctx, a.src, a.ct, a.m, a.set, a.art, a.grenze)
+			r1, err1 := l.LeseEntity(a.kontext(), a.src, a.ct, a.m, a.set, a.art, a.grenze)
 			if err1 != nil || errFrisch != nil {
 				t.Fatalf("%s %s: %v %v", art, body, err1, errFrisch)
 			}
@@ -123,7 +123,7 @@ func TestEingabeErgebnisGehoertDemAufrufer(t *testing.T) {
 			}
 			r1.Properties = append(r1.Properties, ePW("Y", model.ArtString, "Y"))
 			b := eA(set, art, body)
-			r2, err2 := l.LeseEntity(b.ctx, b.src, b.ct, b.m, b.set, b.art, b.grenze)
+			r2, err2 := l.LeseEntity(b.kontext(), b.src, b.ct, b.m, b.set, b.art, b.grenze)
 			if err2 != nil || !reflect.DeepEqual(r2, frisch) {
 				t.Errorf("%s %s: zweiter Aufruf %+v %v, erwartet %+v", art, body, r2, err2, frisch)
 			}
@@ -150,7 +150,7 @@ func TestEingabeGleichzeitig(t *testing.T) {
 	}
 	einzeln := func(l *jsoncodec.EingabeLeser, art model.EingabeArt, body string) erg {
 		a := eA("Ws", art, body)
-		e, err := l.LeseEntity(a.ctx, a.src, a.ct, a.m, a.set, a.art, a.grenze)
+		e, err := l.LeseEntity(a.kontext(), a.src, a.ct, a.m, a.set, a.art, a.grenze)
 		if err != nil {
 			return erg{e, err.Error()}
 		}
@@ -213,7 +213,7 @@ func TestEingabeKeinZustand(t *testing.T) {
 		for _, folge := range folgen {
 			for _, art := range folge {
 				a := eA("Ws", art, f.body)
-				got, err := l.LeseEntity(a.ctx, a.src, a.ct, a.m, a.set, a.art, a.grenze)
+				got, err := l.LeseEntity(a.kontext(), a.src, a.ct, a.m, a.set, a.art, a.grenze)
 				switch {
 				case f.ohnePatch && art != model.EingabePatch:
 					eFehler(t, f.body+" "+string(art), got, err, model.EingabeFehlend, "/Id")

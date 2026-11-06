@@ -77,7 +77,7 @@ func ePruefeTexte(t *testing.T, name string, texte []string, soll func(string) (
 	return len(texte)
 }
 
-var eGuidRE = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+var eGUIDRE = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 // TestEingabeGuidStellen hält Zeile 26 für Guid: jedes Zeichen an jeder der 36 Stellen und jede Länge von 0 bis 40. Menge 9257.
 func TestEingabeGuidStellen(t *testing.T) {
@@ -89,7 +89,7 @@ func TestEingabeGuidStellen(t *testing.T) {
 	for l := 0; l <= 40; l++ {
 		texte = append(texte, (basis + "0000")[:l])
 	}
-	n := ePruefeTexte(t, "G", texte, func(s string) (string, bool) { return strings.ToLower(s), eGuidRE.MatchString(s) })
+	n := ePruefeTexte(t, "G", texte, func(s string) (string, bool) { return strings.ToLower(s), eGUIDRE.MatchString(s) })
 	if n != 9257 {
 		t.Errorf("Menge %d, erwartet 9257", n)
 	}
@@ -248,7 +248,7 @@ func TestEingabeZahlStellen(t *testing.T) {
 			case !eZahlRE.MatchString(strings.Trim(s, " \t\n\r")):
 				eFehler(t, was, got, err, model.EingabeSyntax, "")
 			case gueltig:
-				eOK(t, was, got, err, model.EntityEingabe{Typ: "Ns.W", Schluessel: "1", Properties: []model.PropertyWert{ePW("Id", model.ArtInt32, "1"), ePW(typ, eWArt[typ], kanon)}})
+				eOK(t, was, got, err, model.EntityEingabe{Typ: "Ns.W", Schluessel: "1", Properties: []model.PropertyWert{ePW("Id", model.ArtInt32, "1"), ePW(typ, eWArt(typ), kanon)}})
 			default:
 				eFehler(t, was, got, err, model.EingabeWert, "/"+typ)
 			}

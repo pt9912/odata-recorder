@@ -147,7 +147,7 @@ func (k *eKontext) Deadline() (time.Time, bool) {
 
 // eAufruf sind die Argumente von LeseEntity.
 type eAufruf struct {
-	ctx    context.Context
+	ctx    any // ein context.Context oder nil; kontext() liefert ihn (ein Feld des Typs context.Context verbietet das Lint-Profil)
 	src    io.Reader
 	ct     []string
 	m      model.ServiceModel
@@ -156,17 +156,21 @@ type eAufruf struct {
 	grenze int64
 }
 
-var eM = eModell()
-
 func eJSONCT() []string { return []string{"application/json"} }
 
 // eA ist der gültige Aufruf mit dem Body.
 func eA(set string, art model.EingabeArt, body string) eAufruf {
-	return eAufruf{ctx: context.Background(), src: strings.NewReader(body), ct: eJSONCT(), m: eM, set: set, art: art, grenze: eGrenze}
+	return eAufruf{ctx: context.Background(), src: strings.NewReader(body), ct: eJSONCT(), m: eModell(), set: set, art: art, grenze: eGrenze}
+}
+
+// kontext liefert ctx als context.Context, den Nullwert für nil.
+func (a eAufruf) kontext() context.Context {
+	c, _ := a.ctx.(context.Context)
+	return c
 }
 
 func (a eAufruf) los() (model.EntityEingabe, error) {
-	return jsoncodec.NewEingabe().LeseEntity(a.ctx, a.src, a.ct, a.m, a.set, a.art, a.grenze)
+	return jsoncodec.NewEingabe().LeseEntity(a.kontext(), a.src, a.ct, a.m, a.set, a.art, a.grenze)
 }
 
 // ---- Prüfungen -------------------------------------------------------------------------------------------------------

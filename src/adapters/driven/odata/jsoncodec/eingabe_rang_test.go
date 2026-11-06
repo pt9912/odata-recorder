@@ -86,7 +86,7 @@ func TestEingabeRangfolge(t *testing.T) {
 				set = "Sto"
 			}
 			mitglieder := a.member(0)
-			if !(i == j && a.einmalig) {
+			if i != j || !a.einmalig {
 				mitglieder = append(mitglieder, b.member(1)...)
 			}
 			ursache, ort := eErwartet(a, b)

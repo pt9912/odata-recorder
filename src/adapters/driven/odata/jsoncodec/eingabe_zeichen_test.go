@@ -133,8 +133,8 @@ func TestEingabeEscapeRohbytes(t *testing.T) {
 			func(dec string) (model.EntityEingabe, model.EingabeUrsache, string) {
 				return model.EntityEingabe{Typ: "Ns.W", Schluessel: "1", Properties: []model.PropertyWert{ePW("Id", model.ArtInt32, "1"), ePW("S", model.ArtString, dec)}}, "", ""
 			}},
-		{"Wert einer Annotation", func(i string) string { return `{"Id":1,"@a":"` + i + `"}` }, eNurId},
-		{"Name in einem Objekt einer Annotation", func(i string) string { return `{"Id":1,"@a":{"` + i + `":1}}` }, eNurId},
+		{"Wert einer Annotation", func(i string) string { return `{"Id":1,"@a":"` + i + `"}` }, eNurID},
+		{"Name in einem Objekt einer Annotation", func(i string) string { return `{"Id":1,"@a":{"` + i + `":1}}` }, eNurID},
 	}
 	for _, st := range stellen {
 		for _, z := range zeichen {
@@ -173,7 +173,7 @@ func TestEingabeBackslashAmEnde(t *testing.T) {
 	}
 }
 
-// eNurId ist das Ergebnis für einen Inhalt, den der Leser nicht deutet.
-func eNurId(string) (model.EntityEingabe, model.EingabeUrsache, string) {
+// eNurID ist das Ergebnis für einen Inhalt, den der Leser nicht deutet.
+func eNurID(string) (model.EntityEingabe, model.EingabeUrsache, string) {
 	return model.EntityEingabe{Typ: "Ns.W", Schluessel: "1", Properties: []model.PropertyWert{ePW("Id", model.ArtInt32, "1")}}, "", ""
 }

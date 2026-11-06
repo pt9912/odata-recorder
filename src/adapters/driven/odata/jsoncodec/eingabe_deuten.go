@@ -28,7 +28,7 @@ func (d *deuter) eingabe(w *knoten, art model.EingabeArt) (model.EntityEingabe, 
 	out := model.EntityEingabe{Typ: info.typ.Name, Properties: make([]model.PropertyWert, 0, min(len(w.namen), len(info.typ.Properties)))}
 	genannt := map[string]int{}
 	for i, name := range w.namen {
-		if err := d.eingabeMitglied(info, &out, genannt, name, &w.kinder[i]); err != nil {
+		if err := eingabeMitglied(info, &out, genannt, name, &w.kinder[i]); err != nil {
 			return model.EntityEingabe{}, err
 		}
 	}
@@ -61,7 +61,7 @@ func (d *deuter) eingabeTyp(w *knoten) (*typInfo, error) {
 }
 
 // eingabeMitglied deutet ein Mitglied der Wurzel (SPEC-181 Nr. 4 und 5).
-func (d *deuter) eingabeMitglied(info *typInfo, out *model.EntityEingabe, genannt map[string]int, name string, k *knoten) error {
+func eingabeMitglied(info *typInfo, out *model.EntityEingabe, genannt map[string]int, name string, k *knoten) error {
 	switch artDesNamens(name) {
 	case annotationUngueltig:
 		return eingabeFehlerAn(model.EingabeStruktur, name)

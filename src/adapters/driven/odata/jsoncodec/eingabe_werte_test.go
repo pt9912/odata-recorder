@@ -76,8 +76,11 @@ func eZeitpunkte() []eWertFall {
 	}
 }
 
-var eWArt = map[string]model.WertArt{"S": model.ArtString, "B": model.ArtBoolean, "I32": model.ArtInt32, "I64": model.ArtInt64,
-	"Dec": model.ArtDecimal, "G": model.ArtGUID, "D": model.ArtDate, "T": model.ArtDateTimeOffset}
+// eWArt ist die Art der Property name des Typs W.
+func eWArt(name string) model.WertArt {
+	return map[string]model.WertArt{"S": model.ArtString, "B": model.ArtBoolean, "I32": model.ArtInt32, "I64": model.ArtInt64,
+		"Dec": model.ArtDecimal, "G": model.ArtGUID, "D": model.ArtDate, "T": model.ArtDateTimeOffset}[name]
+}
 
 // eWertPruefen liest den Wert f der Property name des Typs W bei der Art und prüft Ergebnis oder Fehler.
 func eWertPruefen(t *testing.T, name string, f eWertFall, art model.EingabeArt) {
@@ -88,7 +91,7 @@ func eWertPruefen(t *testing.T, name string, f eWertFall, art model.EingabeArt) 
 		eFehler(t, was, got, err, f.ursache, "/"+name)
 		return
 	}
-	eOK(t, was, got, err, model.EntityEingabe{Typ: "Ns.W", Schluessel: "1", Properties: []model.PropertyWert{ePW("Id", model.ArtInt32, "1"), ePW(name, eWArt[name], f.text)}})
+	eOK(t, was, got, err, model.EntityEingabe{Typ: "Ns.W", Schluessel: "1", Properties: []model.PropertyWert{ePW("Id", model.ArtInt32, "1"), ePW(name, eWArt(name), f.text)}})
 }
 
 // TestEingabeWerte hält Zeile 24: Art und kanonischer Text, jeder andere Wert `typ`, `wert` oder `zahl_zu_lang`. Menge 141 × 3 = 423 (gültig 66,

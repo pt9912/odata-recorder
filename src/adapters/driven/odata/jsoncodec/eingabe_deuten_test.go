@@ -274,10 +274,9 @@ func TestEingabeZustaende(t *testing.T) {
 					}
 					got, err := eA("Zs", art, body).los()
 					was := x + " " + zustand + " " + string(art)
-					switch {
-					case ursache == "":
+					if ursache == "" {
 						eOK(t, was, got, err, model.EntityEingabe{Typ: "Ns.Z", Schluessel: "1", Properties: props})
-					default:
+					} else {
 						eFehler(t, was, got, err, ursache, "/"+x)
 					}
 					n++
