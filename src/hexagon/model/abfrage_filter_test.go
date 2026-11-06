@@ -348,6 +348,39 @@ func TestWahrheitAlsOperand(t *testing.T) {
 
 // --- Zeile 14: jede Property des Filters steht in jeder Entity ---
 
+// TestFilterNotTiefe (Zeile 14): die Property steht unter 1 bis 6 geschachtelten not, an jeder der acht Stellen des Baums, und fehlt in
+// einer der fünf Entities: 6 × 8 × 5 = 240 Fälle, immer 422 mit der Option $filter.
+func TestFilterNotTiefe(t *testing.T) {
+	typ := abTyp()
+	n := 0
+	for tiefe := 1; tiefe <= 6; tiefe++ {
+		var x model.FilterAusdruck = prop("Active")
+		for i := 0; i < tiefe; i++ {
+			x = nicht(x)
+		}
+		for _, s := range stellen() {
+			for luecke := 0; luecke < 5; luecke++ {
+				es := make([]model.Entity, 0, 5)
+				for i := 1; i <= 5; i++ {
+					if i-1 == luecke {
+						es = append(es, abE(i))
+					} else {
+						es = append(es, abE(i, abPW("Active", model.ArtBoolean, "true")))
+					}
+				}
+				_, err := model.FuehreAus(typ, es, model.Optionen{Filter: abF(s.baue(x))}, nil)
+				if abKennung(err) != "$filter:nicht_beobachtet" {
+					t.Errorf("Tiefe %d, %s, Entity %d ohne Property: %v", tiefe, s.name, luecke+1, err)
+				}
+				n++
+			}
+		}
+	}
+	if n != 6*8*5 {
+		t.Errorf("%d Fälle", n)
+	}
+}
+
 // TestFilterEigenschaftFehlt (Zeile 14): die Property von $filter an acht Stellen des Baums × Entity ohne sie an jeder der
 // fünf Stellen × fünf Verknüpfungen mit einem für jede Entity wahren Gegenüber: immer 422 mit der Option $filter;
 // derselbe Filter auf lauter Entities mit der Property (auch mit Wert null) gilt.

@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -280,11 +281,12 @@ func TestGleichstandSchluessel(t *testing.T) {
 }
 
 // TestSchluesselRest (Zeile 35): der Rest der Ordnung ist der Text von Schluessel, bytegleich aufsteigend (SPEC-191 Nr. 3 e), gleich
-// in welcher Richtung das letzte Element von $orderby ordnet. Menge: 13 Texte (10 vor 2, Länge, Groß und Klein, führende Null,
+// in welcher Richtung das letzte Element von $orderby ordnet. Menge: 19 Texte (10 vor 2, Länge, Groß und Klein, führende Null, Texte über 8 und über 100 Bytes, die sich erst am Ende unterscheiden,
 // Leerraum, ein Zeichen jenseits von ASCII) × 4 Formen (Typ ohne Keys; gleiche Key-Werte; gleiche Key-Werte mit $orderby N
 // aufsteigend und absteigend) × 3 Reihenfolgen der Eingabe gegen die Reihenfolge von sort.Strings.
 func TestSchluesselRest(t *testing.T) {
-	texte := []string{"1", "2", "10", "01", "a", "B", "b", "ab", "A1", "a1", "10 ", " 10", string([]byte{0xc3, 0xa9})}
+	texte := []string{"1", "2", "10", "01", "a", "B", "b", "ab", "A1", "a1", "10 ", " 10", string([]byte{0xc3, 0xa9}),
+		"abcdefgh1", "abcdefgh2", "abcdefgh10", strings.Repeat("x", 100) + "1", strings.Repeat("x", 100) + "2", strings.Repeat("x", 100) + "10"}
 	soll := slices.Clone(texte)
 	sort.Strings(soll)
 	ohneKeys := abTyp()
@@ -420,6 +422,80 @@ func abSetze(e *model.Entity, w model.PropertyWert) {
 	}
 }
 
+// TestNamenlisten (Zeilen 6, 21, 22): die Listen von Namen sind nicht begrenzt (SPEC-190 Nr. 7); jede Stelle jeder Länge von 1, 2, 3, 4, 7,
+// 17, 21, 32 und 33 trägt den Verstoß, an vier Orten: unbekannter Name in $select und in $orderby, Entity ohne die Property in Stufe 5
+// (zweite Entity), doppelter Name in $select und in $orderby (zweites Vorkommen an jeder Stelle ab der zweiten, gleich dem ersten und
+// gleich dem Vorgänger). Menge: Σ Länge = 120 Stellen × 3 + 2 Orte × 2 Formen × Σ (Länge − 1) = 111 → 804 Fälle.
+func TestNamenlisten(t *testing.T) {
+	typ := model.EntityType{Name: "Ns.L", Keys: []string{"Id"}, Properties: []model.Property{{Name: "Id", EdmType: "Edm.Int32"}}}
+	var alle []string
+	for j := 1; j <= 33; j++ {
+		nm := fmt.Sprintf("N%02d", j)
+		alle = append(alle, nm)
+		typ.Properties = append(typ.Properties, model.Property{Name: nm, EdmType: "Edm.Int32"})
+	}
+	opt := func(stelle model.AbfrageOption, namen []string) model.Optionen {
+		if stelle == model.AbfrageSelect {
+			return model.Optionen{Select: abSel(namen...)}
+		}
+		var o model.Optionen
+		for _, nm := range namen {
+			o.OrderBy = append(o.OrderBy, abOrd(nm, false))
+		}
+		return o
+	}
+	stellen := []model.AbfrageOption{model.AbfrageSelect, model.AbfrageOrderBy}
+	n := 0
+	for _, laenge := range []int{1, 2, 3, 4, 7, 17, 21, 32, 33} {
+		for p := 1; p <= laenge; p++ {
+			for _, st := range stellen {
+				namen := slices.Clone(alle[:laenge])
+				namen[p-1] = "Foo"
+				_, err := model.FuehreAus(typ, nil, opt(st, namen), nil)
+				if abKennung(err) != string(st)+":eigenschaft_unbekannt" {
+					t.Errorf("%s, Länge %d, Stelle %d: %v", st, laenge, p, err)
+				}
+				n++
+			}
+			// Stufe 5: die zweite Entity kennt die Property an Stelle p nicht
+			es := []model.Entity{abE(1), abE(2)}
+			for _, nm := range alle[:laenge] {
+				es[0].Properties = append(es[0].Properties, abI(nm, 1))
+				if nm != alle[p-1] {
+					es[1].Properties = append(es[1].Properties, abI(nm, 2))
+				}
+			}
+			r, err := model.FuehreAus(typ, es, opt(model.AbfrageOrderBy, alle[:laenge]), nil)
+			if abKennung(err) != "$orderby:nicht_beobachtet" || !reflect.DeepEqual(r, model.Ergebnis{}) {
+				t.Errorf("Stufe 5, Länge %d, Stelle %d: %v", laenge, p, err)
+			}
+			n++
+			if p < 2 {
+				continue
+			}
+			for _, st := range stellen {
+				for _, vorlage := range []int{0, p - 2} {
+					namen := slices.Clone(alle[:laenge])
+					namen[p-1] = namen[vorlage]
+					_, err := model.FuehreAus(typ, nil, opt(st, namen), nil)
+					if !errors.Is(err, model.ErrUngueltig) || abKennung(err) != "programm" {
+						t.Errorf("doppelt %s, Länge %d, Stelle %d, gleich Stelle %d: %v", st, laenge, p, vorlage+1, err)
+					}
+					n++
+				}
+			}
+		}
+	}
+	if n != 120*3+2*2*111 {
+		t.Errorf("%d Fälle", n)
+	}
+	// ohne Verstoß gelten alle 33 Namen in beiden Listen
+	for _, st := range stellen {
+		abOk(t, "33 Namen", typ, []model.Entity{abE(1, abI("N01", 1))}, opt(st, alle[:1]), nil)
+		abOk(t, "33 Namen", typ, nil, opt(st, alle), nil)
+	}
+}
+
 // TestOrdnungProgrammfehler (Zeile 37): ein Wert, den kein Leser liefert, in einer Spalte der Ordnung ist ErrUngueltig und kein
 // Ergebnis (SPEC-190 Nr. 3 g, Nr. 5 Stufe 6). Menge: 5 Formen des Werts (redigiert, unbekannte Art, Form 01, andere Klasse,
 // Guid unter Zahlen) × 4 Spalten ($orderby P1, P2, P3; zweite Key-Property) × 5 Positionen der Entity = 100, dazu P2 mit Guid in
@@ -429,13 +505,14 @@ func TestOrdnungProgrammfehler(t *testing.T) {
 	for _, p := range []string{"Id", "K2", "P1", "P2", "P3"} {
 		typ.Properties = append(typ.Properties, model.Property{Name: p, EdmType: "Edm.Int32"})
 	}
-	basis := func() []model.Entity {
-		es := make([]model.Entity, 0, 5)
-		for i := 1; i <= 5; i++ {
+	basisN := func(n int) []model.Entity {
+		es := make([]model.Entity, 0, n)
+		for i := 1; i <= n; i++ {
 			es = append(es, abE(i, abI("K2", i), abI("P1", i), abI("P2", i), abI("P3", i)))
 		}
 		return es
 	}
+	basis := func() []model.Entity { return basisN(5) }
 	opt := model.Optionen{OrderBy: []model.Sortierung{abOrd("P1", false), abOrd("P2", false), abOrd("P3", false)}}
 	guid := "00000000-0000-0000-0000-000000000001"
 	formen := []func(name string) model.PropertyWert{
@@ -467,6 +544,27 @@ func TestOrdnungProgrammfehler(t *testing.T) {
 	}
 	if n != 5*4*5 {
 		t.Errorf("%d Fälle", n)
+	}
+	// Zahl der Entities: genau eine, zwei, drei und vier (bei einer Entity gibt es keinen Vergleich, der den Fehler fände)
+	m := 0
+	for zahl := 1; zahl <= 4; zahl++ {
+		for fi, form := range formen {
+			for _, spalte := range []string{"P1", "P2", "P3", "K2"} {
+				// ein einzelner Text ist eine Spalte einer Klasse, eine einzelne Guid ist als Schlüssel zulässig: kein Fehler
+				if zahl == 1 && (fi == 3 || (fi == 4 && spalte == "K2")) {
+					continue
+				}
+				for pos := 0; pos < zahl; pos++ {
+					es := basisN(zahl)
+					abSetze(&es[pos], form(spalte))
+					pruefe(fmt.Sprintf("%d Entities, Form %d, Spalte %s, Entity %d", zahl, fi, spalte, pos+1), es)
+					m++
+				}
+			}
+		}
+	}
+	if m != (2+3+4)*5*4+(5*4-5) {
+		t.Errorf("%d Fälle nach Zahl der Entities", m)
 	}
 	es := basis()
 	for i := range es {
