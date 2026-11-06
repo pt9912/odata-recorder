@@ -39,7 +39,7 @@ func wertVonRechts(t *testing.T, v model.FilterVergleich) model.Wert {
 
 // TestInstantVerschiedenerVersatz (SPEC-166 Nr. 3 e, SPEC-161 Nr. 6 f): Zeitpunkte, die der Leser des Filters aus Schreibweisen mit
 // verschiedenem Versatz liest, vergleichen sich nach dem Instant; die drei Schreibweisen des Beispiels und `00:30+01:00` gegen
-// `23:30Z` des Vortags sind gleich, dazu alle Paare aus vier Instants in sieben Versätzen (mit und ohne Bruchteil) gegen den Vergleich
+// `23:30Z` des Vortags sind gleich, dazu alle Paare aus sechs Instants (drei am selben UTC-Tag) in sieben Versätzen (mit und ohne Bruchteil) gegen den Vergleich
 // von time.Time.
 func TestInstantVerschiedenerVersatz(t *testing.T) {
 	gleich := []string{"2020-01-01T10:00:00+02:00", "2020-01-01T08:00:00Z", "2020-01-01T07:00:00-01:00"}
@@ -57,7 +57,7 @@ func TestInstantVerschiedenerVersatz(t *testing.T) {
 		t.Errorf("über das Jahr: %d %v", got, err)
 	}
 
-	instants := []string{"2019-12-31T23:30:00", "2020-01-01T10:00:00", "2020-02-29T23:59:59", "2020-12-31T23:30:00.25"}
+	instants := []string{"2019-12-31T23:30:00", "2020-01-01T08:00:00", "2020-01-01T08:00:01", "2020-01-01T08:00:00.5", "2020-02-29T23:59:59", "2020-12-31T23:30:00.25"}
 	versaetze := []int{0, 2 * 60, -60, 5*60 + 30, -(23*60 + 59), 23*60 + 59, 60}
 	type schreibweise struct {
 		text    string
@@ -95,7 +95,7 @@ func TestInstantVerschiedenerVersatz(t *testing.T) {
 			}
 		}
 	}
-	if n != 28*28*6 {
+	if n != 42*42*6 {
 		t.Errorf("%d Vergleiche", n)
 	}
 }

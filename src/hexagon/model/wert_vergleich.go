@@ -160,22 +160,25 @@ func zerlegeZahl(s string) (negativ bool, ganz, bruch string, ok bool) {
 	if len(s) == 0 || len(s) > maxZahlLaenge {
 		return false, "", "", false
 	}
-	t := s
-	if t[0] == '-' {
-		negativ = true
-		t = t[1:]
-	}
+	t, negativ := strings.CutPrefix(s, "-")
 	ganz, bruch, hatBruch := strings.Cut(t, ".")
-	if ganz == "" || !nurZiffern(ganz) || (ganz[0] == '0' && len(ganz) > 1) {
-		return false, "", "", false
-	}
-	if hatBruch && (bruch == "" || !nurZiffern(bruch) || bruch[len(bruch)-1] == '0') {
+	if !ganzteilForm(ganz) || (hatBruch && !bruchteilForm(bruch)) {
 		return false, "", "", false
 	}
 	if negativ && ganz == "0" && !hatBruch {
 		return false, "", "", false
 	}
 	return negativ, ganz, bruch, true
+}
+
+// ganzteilForm prüft `0` oder eine Ziffernfolge ohne führende Null.
+func ganzteilForm(g string) bool {
+	return g != "" && nurZiffern(g) && (g[0] != '0' || len(g) == 1)
+}
+
+// bruchteilForm prüft eine nicht leere Ziffernfolge ohne Null am Ende.
+func bruchteilForm(b string) bool {
+	return b != "" && nurZiffern(b) && b[len(b)-1] != '0'
 }
 
 func istHexKlein(c byte) bool { return ziffer(c) || (c >= 'a' && c <= 'f') }
@@ -204,8 +207,7 @@ func datumForm(s string) bool {
 
 // zeitpunktForm prüft `JJJJ-MM-TTThh:mm:ssZ`, mit Bruchteil von 1 bis 12 Ziffern ohne Null am Ende.
 func zeitpunktForm(s string) bool {
-	if len(s) < 20 || !datumForm(s[:10]) || s[10] != 'T' || s[13] != ':' || s[16] != ':' ||
-		!nurZiffern(s[11:13]) || !nurZiffern(s[14:16]) || !nurZiffern(s[17:19]) || s[len(s)-1] != 'Z' {
+	if len(s) < 20 || s[len(s)-1] != 'Z' || s[10] != 'T' || !datumForm(s[:10]) || !uhrzeitForm(s[11:19]) {
 		return false
 	}
 	rest := s[19 : len(s)-1]
@@ -213,7 +215,12 @@ func zeitpunktForm(s string) bool {
 		return true
 	}
 	bruch, ok := strings.CutPrefix(rest, ".")
-	return ok && len(bruch) >= 1 && len(bruch) <= 12 && nurZiffern(bruch) && bruch[len(bruch)-1] != '0'
+	return ok && len(bruch) <= 12 && bruchteilForm(bruch)
+}
+
+// uhrzeitForm prüft `hh:mm:ss` aus Ziffern.
+func uhrzeitForm(s string) bool {
+	return len(s) == 8 && s[2] == ':' && s[5] == ':' && nurZiffern(s[:2]) && nurZiffern(s[3:5]) && nurZiffern(s[6:])
 }
 
 // vergleicheZahl ordnet zwei kanonische Zahlen exakt: Vorzeichen, Stellen des ganzen Teils, Ziffern, Nachkommastellen.
