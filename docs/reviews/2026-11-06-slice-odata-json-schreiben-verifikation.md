@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier, frischer Kontext (Frage: „Bauen wir es richtig?“ gegen Plan, DoD, `SPEC-168`, `SPEC-169`, `SPEC-125`, `SPEC-126`, `SPEC-162`, `SPEC-172` Nr. 6 g, `SPEC-175` Nr. 3, `SPEC-006`, `LH-FA-07.b`, `LH-FA-08.b`, `AGENTS.md` §3.7 bis §3.18). Kein Review, keine Reparatur: kein Produktcode, keine Roadmap, keine Welle, kein Register geschrieben.
 
-**Gegenstand:** Zweig `slice-odata-json-schreiben`, HEAD `03819ed` (Diff `17528be..03819ed`; Implementer bis `f5c6c48`, Review `3774f00`, Fix-Runde `0c7fe8f`, `abd00c7`, `5f44aad`, Architect `e1a8376` und `03819ed`, Merge von `main` `4f3043e`). Plan `docs/plan/planning/in-progress/slice-odata-json-schreiben.md`; Review-Report `docs/reviews/2026-11-06-slice-odata-json-schreiben-review.md`. Ein Lauf, keine Wiederholungsschleife.
+**Gegenstand:** Zweig `slice-odata-json-schreiben`, HEAD `03819ed` (Diff `17528be..03819ed`; Implementer bis `f5c6c48`, Review `3774f00`, Fix-Runde `0c7fe8f`, `abd00c7`, `5f44aad`, Architect `e1a8376` und `03819ed`, Merge von `main` `4f3043e`). Plan `docs/plan/planning/done/slice-odata-json-schreiben.md`; Review-Report `docs/reviews/2026-11-06-slice-odata-json-schreiben-review.md`. Ein Lauf, keine Wiederholungsschleife.
 
 **Skripte:** die Fassung im Zweig (nach dem Merge von `main`): Reviewer-Skill (MEDIUM-Zeilen „Menge ohne Achsenliste“, „Fänger schmaler als Zusage“, „unbeschränkte Menge ohne Prüfgrenze“) und `.claude/commands/implement-slice.md`; die Pflicht-Mengen-Tabelle des Plans (Achsen Zeichen, Länge, Folge, Seite, Stelle, Zustand) ist der Maßstab für den Fix.
 
