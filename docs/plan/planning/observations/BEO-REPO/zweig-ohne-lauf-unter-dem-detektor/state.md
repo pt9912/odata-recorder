@@ -1,1 +1,1 @@
-**Stand:** offen
+**Stand:** offen; dritter Vorgang mit `slice-odata-json-schreiben` (Evidenz), Lese-Schritt bei der Closure von welle-mock; Mittel der Fix-Runde dort: Menge der Zweige aus dem Abdeckungsprofil von `TestGleichzeitig` allein, nicht aus der Erinnerung

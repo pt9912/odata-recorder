@@ -1,0 +1,2 @@
+**Vorgang:** slice-audit-log
+**Fund:** Verifier V1: die Kennungsform (Länge 1 bis 64 × Stelle × Byte × Feld) führte der Fänger bis zu einer Zahl, ohne dass der Plan die Prüfgrenze nannte; der Fix wählte 8100 Aufrufe (Stellen 0 bis 3, die mittlere und die letzten vier je Länge) gegen 31200 für jede Stelle und schrieb Grund und Folge als benanntes Negativ in §3 (gemessen: Länge 37, Stelle 20, `"` bliebe grün). Die Grenze stand erst nach der Verifikation im Plan. Beleg: Plan §3 (*Benannte Negative dieser Runde* (a)); Report `2026-11-06-slice-audit-log-verifikation` (V1).

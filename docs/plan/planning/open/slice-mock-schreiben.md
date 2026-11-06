@@ -33,6 +33,10 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** `MockUseCase` führt POST (`201` mit Entity und `Location`, Duplicate Key `409`), PATCH (nur übergebene Properties), PUT (ersetzt, fehlende erforderliche Property `400`, kein Upsert) und DELETE (`204`) auf dem Workspace aus; jede Mutation wird vor dem Schreiben validiert, Schreibvorgänge eines Workspace laufen serialisiert in einer Transaktion, ein fehlgeschlagener Vorgang lässt den Zustand unverändert, und PATCH auf einer partiellen Entity ergibt `ODR-E6003`.
 
+**Übernimmt (Sendung von `slice-odata-json-schreiben`, `SPEC-168` Nr. 8 und 10, `SPEC-169` Nr. 2):** die `Location` der `201`-Antwort setzt der Dienst aus `Adresse` des Schreibers im Satz `Codecs` (`CodecSatz.Schreiber`, dieselbe Zeichenfolge wie `@odata.id` der geschriebenen Entity; eine reine Funktion ohne `ctx`), mit der `Wurzel`, die `slice-mock-lesen` aus `PUBLIC_BASE_URL` und dem Service-Root bildet (nie aus dem `Host`-Header); `Codecs` und `Satz` selbst übernimmt `slice-mock-lesen`. Kein Ausschluss dieses Slice trifft diesen Punkt.
+
+**Übernimmt (Sendung von `slice-odata-json-eingabe`, `SPEC-180` Nr. 6, `SPEC-109` Nr. 5):** der Dienst liest den Body von POST, PATCH und PUT über `CodecSatz.Eingabe` (`ODataEingabe.LeseEntity`) und ruft den Leser an drei Aufrufstellen {`POST`, `PATCH`, `PUT`} des Request (die drei Teile eines Changeset trägt `slice-batch-changesets`; zusammen die sechs Stellen der Menge). Je Aufrufstelle reicht er die acht Zusagen von `SPEC-180` Nr. 6 a bis h unverändert weiter (`ctx` des Aufrufs, `src`, `contentType` des Request, `entitySet`, `art`, `grenze` gleich `MAX_CAPTURE_BODY`, Fehlerabbildung über `SPEC-109` Nr. 5: `ErrEingabeUngueltig` → `ODR-E6007` mit `400`, `ErrEingabeNichtUnterstuetzt` → `ODR-E6002` mit `501`, Zustand unverändert bei jedem Fehler); Fänger je Aufrufstelle, der Fake des Ports hält jedes Argument fest. Der Handbuch-Eintrag von `ODR-E6007` kommt mit `slice-bootstrap-m3` (der Code erreicht einen Client erst mit dem Modus `mock`). Kein Ausschluss dieses Slice trifft diesen Punkt.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - ETag, `If-Match` und `Prefer` — `welle-etag`; bis dahin gilt das Muss-Verhalten ohne `Prefer` (POST `201`, PATCH und PUT `204`).
@@ -58,7 +62,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] POST und DELETE: Key aus dem Body (der Mock vergibt keinen), `201` mit `Location`, Duplicate Key `409`, `404` bei vollständiger Kenntnis, sonst `ODR-E6003`; `204` bei DELETE.
+- [ ] POST und DELETE (der Body von POST, PATCH und PUT kommt über `ODataEingabe`, Sendung von `slice-odata-json-eingabe`, `SPEC-180` Nr. 6: an den drei Aufrufstellen {`POST`, `PATCH`, `PUT`} je ein Fänger für die acht Zusagen a bis h, Abbildung `ODR-E6007` mit `400` und `ODR-E6002` mit `501`, Zustand unverändert bei Fehler): Key aus dem Body (der Mock vergibt keinen), `201` mit `Location` aus `Adresse` des Schreibers (gleich dem `@odata.id` der geschriebenen Entity; Sendung von `slice-odata-json-schreiben`, `SPEC-168` Nr. 8), Duplicate Key `409`, `404` bei vollständiger Kenntnis, sonst `ODR-E6003`; `204` bei DELETE.
 - [ ] PATCH und PUT: PATCH ändert nur übergebene Properties, PUT ersetzt (fehlende nullable Property wird `null`, fehlende erforderliche `400`), kein Upsert; PATCH auf partieller Entity `ODR-E6003`; unbekannte Property `400`.
 - [ ] Atomarität: Schreibvorgänge je Workspace serialisiert in einer Workspace-Transaktion, ein fehlgeschlagener Vorgang ändert den Zustand nicht, die Revision steigt nur bei Erfolg; andere Workspaces bleiben unberührt (`LH-FA-09`).
 - [ ] `make gates` grün.
