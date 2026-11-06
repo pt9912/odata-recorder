@@ -1,6 +1,7 @@
 package jsoncodec_test
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -195,6 +196,37 @@ func TestEingabeDezimalLaenge(t *testing.T) {
 	if n != 18 {
 		t.Errorf("Menge %d, erwartet 18", n)
 	}
+	// Ein Exponent, dessen Ausschreiben 10 Millionen Zeichen ergäbe, wird nicht ausgeschrieben: Zuteilung höchstens 256 · n + 1 MiB (SPEC-181 Nr. 2 c iii).
+	m := 0
+	for _, f := range []struct {
+		typ     string
+		ursache model.EingabeUrsache
+	}{{"Dec", model.EingabeZahlZuLang}, {"I32", model.EingabeWert}, {"I64", model.EingabeWert}} {
+		for _, art := range eArten() {
+			body := eObj("Id", "1", f.typ, "1e9999999")
+			z := &eZaehler{r: strings.NewReader(body)}
+			a := eA("Ws", art, "")
+			a.src = z
+			var vor, nach runtime.MemStats
+			runtime.GC()
+			runtime.ReadMemStats(&vor)
+			got, err := a.los()
+			runtime.ReadMemStats(&nach)
+			eFehler(t, f.typ+" 1e9999999 "+string(art), got, err, f.ursache, "/"+f.typ)
+			if zugeteilt, grenze := int64(nach.TotalAlloc-vor.TotalAlloc), 256*z.n+1<<20; zugeteilt > grenze {
+				t.Fatalf("%s %s: %d Bytes zugeteilt, höchstens %d erlaubt (n = %d)", f.typ, art, zugeteilt, grenze, z.n)
+			}
+			m++
+		}
+	}
+	if m != 9 {
+		t.Errorf("Menge %d, erwartet 9", m)
+	}
+}
+
+// TestEingabeDezimalExponentGross hält Zeile 28 für `1e999999999`: der Exponent wird nie ausgeschrieben (ausgeschrieben mehr als 1 GiB). Eigene
+// Funktion, damit die Mutation „Exponent ausgeschrieben“ sie mit `-run TestEingabeDezimalLaenge` auslässt und nur gegen ungemutierten Code läuft.
+func TestEingabeDezimalExponentGross(t *testing.T) {
 	for _, art := range eArten() {
 		eWertPruefen(t, "Dec", bad("1e999999999", model.EingabeZahlZuLang), art)
 		eWertPruefen(t, "I32", bad("1e999999999", model.EingabeWert), art)
