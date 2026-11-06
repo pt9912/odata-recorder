@@ -6,7 +6,8 @@ Das Werkzeug ist kein Gate: es hat kein `make`-Ziel, keine Stufe im `Dockerfile`
 **Festlegung:** Das Werkzeug arbeitet eine Liste von Mutationen in **einem** Container-Lauf ab und gibt je Mutation ein Ergebnis aus.
 Eine Mutation ersetzt einen Text in einer Go-Datei; das Werkzeug übersetzt das Paket, fährt den zuständigen Test und das Paket, und bei der Klasse `nebenläufig` zusätzlich die Rate (viele Prozesse, mit und ohne Detektor).
 Es entscheidet nicht, welche Mutationen nötig sind und welche Mutation eine Fenster-Mutation ist: das steht in der Liste, und die Liste schreibt die Rolle (`AGENTS.md` §3.10, §3.15, §3.17).
-Es macht den Lauf billiger, nicht kleiner: Zahl und Art der Prozesse, die eine Zusage verlangt, stehen in der Liste und werden nicht gekürzt.
+Es führt den Ablauf für alle Rollen gleich aus (ein Container, Speichergrenzen, Aufräumen, Gleichwertigkeit zum Einzellauf, Nr. 6 c) und kürzt nichts: Zahl und Art der Prozesse, die eine Zusage verlangt, stehen in der Liste und werden nicht gekürzt.
+Ein Gewinn an Laufzeit ist nicht zugesagt: die Messung (Plan des Slice) fand das Werkzeug auf einem Einzelsatz nicht schneller als den Einzellauf; getragen hat allein der warme Cache des Images (Nr. 8).
 
 1. **Aufruf, Ausgabe, Exit.**
    - **a) Aufruf.** `mutationslauf.sh <Liste>`: genau ein Argument, eine lesbare Datei; sonst `Aufruf: mutationslauf.sh <Liste>` auf stderr, Exit 2.
@@ -32,6 +33,7 @@ Es macht den Lauf billiger, nicht kleiner: Zahl und Art der Prozesse, die eine Z
    - **c) Programm.** Der Container baut `tools/mutationslauf` mit `go build` (ohne Netz, `CGO_ENABLED=0`, `GOFLAGS=-mod=readonly`) und startet es; ein Fehler dabei ist Exit 2 mit der Meldung von `go`.
    - **d) Baum.** Der Treiber sendet den Arbeitsbaum der Wurzel des Repos ohne `.git` (geprüft: 19 MB am 2026-11-06); über 256 MiB ist der Eingabefehler `Baum zu groß`.
    - **e) Host.** Außer der Liste liest der Treiber den Baum und schreibt nichts: weder in den Baum noch sonst auf den Host. Er nimmt den `flock` nicht selbst; der Aufrufer fährt ihn unter `flock /tmp/odata-recorder-heavy.lock`, ein Aufruf hält ihn einmal für alle Mutationen.
+   - **f) Host-Werkzeuge.** Der Treiber setzt GNU `tar` (`--transform`, `--exclude`) und GNU `du` (`--apparent-size`) voraus, neben `bash` und `docker`; `tools/harness/zeichen.sh` setzt GNU `tar` schon voraus. Das ist eine Ausprägung der Host-Zusage von `AGENTS.md` §3.1 (Docker und GNU `make`, GNU-Umgebung), keine Lockerung; fehlt eine Form, endet der Treiber mit dem Fehler des Werkzeugs und Exit 2.
 4. **Baum und Wegwerfkopie.**
    - **a) Modul.** Das Modul einer Mutation ist das mit der nächsten `go.mod` oberhalb von `datei`. Die Kopie des Wurzelmoduls ist `go.mod`, `go.sum`, `src` und `tests` (das, was die Stufe `source` des `Dockerfile` trägt und `make test` fährt); die Kopie jedes anderen Moduls ist sein ganzes Verzeichnis (`tools/<modul>`). Verschachtelte Module sind nicht Teil der Kopie.
    - **b) Je Mutation eine Kopie.** Die Kopie liegt unter `/work/lauf/<n>` im beschreibbaren Dateisystem des Containers (nicht im tmpfs), wird aus dem Baum frisch angelegt, enthält die Mutation und wird entfernt, sobald die Mutation ihr Ergebnis hat; eine Kopie lebt nie länger als ihre Mutation und keine Mutation sieht die Datei einer anderen. Zwei Mutationen derselben Datei verändern die Datei je in ihrer Kopie.
@@ -90,6 +92,7 @@ Es macht den Lauf billiger, nicht kleiner: Zahl und Art der Prozesse, die eine Z
     | `datei` fehlt im Baum **und** `alt` leer | beide Befunde, in der Reihenfolge `datei`, `alt` (Nr. 2 d) |
     | `name` doppelt **und** `klasse` unbekannt | beide Befunde, `name` vor `klasse`, an der zweiten Mutation (Nr. 2 d) |
     | `alt` trifft nicht **und** `neu` gleich `alt` | beide Befunde, `alt` vor `neu` (Nr. 2 d) |
+    | `alt` leer **und** `neu` leer | ein Befund `alt leer` (Nr. 2 b); `neu Ã¤ndert nichts` entfÃ¤llt, denn der Vergleich mit einem leeren `alt` sagt nichts Ã¼ber `neu` (Nr. 2 d: je Feld ein Befund) |
     | Klasse `nebenläufig` mit `n_detektor` 0 und `n_ohne` 0 | ein Befund `Rate ohne Prozess` (Nr. 2 b) |
     | Klasse `andere` mit `n_detektor` gesetzt **und** `datei` fehlt | beide Befunde (Nr. 2 d) |
     | Klasse `andere` | ein Prozess je Stufe, kein Arm (Nr. 7 a) |
@@ -103,6 +106,6 @@ Es macht den Lauf billiger, nicht kleiner: Zahl und Art der Prozesse, die eine Z
     - **d) Nicht gegatet.** Das Programm hat keine Stufe im `Dockerfile`: `gofmt`, `go vet`, `golangci-lint` und die Tests des Moduls `tools/mutationslauf` fährt `make gates` nicht. Folge: eine Regression fängt erst ein Lauf der Tests des Moduls im Image `odata-recorder:race` oder ein späterer Lauf des Werkzeugs.
     - **e) Keine Wiederverwendung von Ergebnissen** zwischen Aufrufen oder Rollen; jeder Aufruf misst selbst.
 
-**Stand:** der Vertrag steht vor dem Code; nichts davon ist geliefert.
+**Stand:** Programm `tools/mutationslauf` und Treiber liegen vor; das Werkzeug ist kein Gate, und keine Rollen-Anweisung ruft es. Ein Gewinn an Laufzeit ist nicht belegt (Kopf); ungemessen sind ein kalter Cache je Rolle und Listen mit vielen Mutationen oder Paketen.
 
 **Grenze:** Der Vertrag sagt, was das Werkzeug zusagt; was ein Test des Moduls davon fängt, steht dort und im Bericht der Rolle, die es liefert.
