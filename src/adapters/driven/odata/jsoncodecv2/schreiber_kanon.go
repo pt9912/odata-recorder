@@ -134,35 +134,69 @@ func zahlAus(s string, i, n int) (int, bool) {
 	return z, err == nil
 }
 
-// zeitpunktMillis liefert zur kanonischen Schreibweise `JJJJ-MM-TTThh:mm:ssZ` oder `JJJJ-MM-TTThh:mm:ss.fZ` (`f` 1 bis 3 Ziffern,
-// die letzte nicht `0`; Jahr 0001 bis 9999) die Millisekunden seit 1970-01-01T00:00:00Z (SPEC-172 Nr. 6 k).
-func zeitpunktMillis(s string) (int64, bool) {
-	if len(s) < 20 || len(s) > 24 || len(s) == 21 || s[4] != '-' || s[7] != '-' || s[10] != 'T' || s[13] != ':' || s[16] != ':' || s[len(s)-1] != 'Z' {
-		return 0, false
+// zeitForm prüft Länge und Trennzeichen von `JJJJ-MM-TTThh:mm:ss`, den Bruchteil `.f` mit höchstens drei Zeichen und das `Z`.
+func zeitForm(s string) bool {
+	if len(s) < 20 || len(s) > 24 || len(s) == 21 || s[len(s)-1] != 'Z' {
+		return false
 	}
-	teile := [6]int{}
+	for _, t := range [5]struct {
+		stelle  int
+		zeichen byte
+	}{{4, '-'}, {7, '-'}, {10, 'T'}, {13, ':'}, {16, ':'}} {
+		if s[t.stelle] != t.zeichen {
+			return false
+		}
+	}
+	return true
+}
+
+// zeitFelder liest Jahr, Monat, Tag, Stunde, Minute und Sekunde als je zwei oder vier Ziffern.
+func zeitFelder(s string) (felder [6]int, ok bool) {
 	for k, st := range [6][2]int{{0, 4}, {5, 2}, {8, 2}, {11, 2}, {14, 2}, {17, 2}} {
 		z, ok := zahlAus(s, st[0], st[1])
 		if !ok {
-			return 0, false
+			return felder, false
 		}
-		teile[k] = z
+		felder[k] = z
 	}
-	jahr, monat, tag, std, mi, sek := teile[0], teile[1], teile[2], teile[3], teile[4], teile[5]
-	t := time.Date(jahr, time.Month(monat), tag, 0, 0, 0, 0, time.UTC)
-	if jahr < 1 || t.Year() != jahr || int(t.Month()) != monat || t.Day() != tag || std > 23 || mi > 59 || sek > 59 {
+	return felder, true
+}
+
+// zeitFeldGueltig prüft Jahr ab 0001, den Kalender des gregorianischen Jahres und die Grenzen von Stunde, Minute und Sekunde.
+func zeitFeldGueltig(f [6]int) bool {
+	t := time.Date(f[0], time.Month(f[1]), f[2], 0, 0, 0, 0, time.UTC)
+	return f[0] >= 1 && t.Year() == f[0] && int(t.Month()) == f[1] && t.Day() == f[2] && f[3] <= 23 && f[4] <= 59 && f[5] <= 59
+}
+
+// bruchMillis liest den Bruchteil hinter den Sekunden (leer oder `.f` mit 1 bis 3 Ziffern, die letzte nicht `0`) als Millisekunden.
+func bruchMillis(bruch string) (int, bool) {
+	if bruch == "" {
+		return 0, true
+	}
+	ziffern := bruch[1:]
+	if bruch[0] != '.' || ziffernVon(ziffern, 0) != len(ziffern) || ziffern[len(ziffern)-1] == '0' {
 		return 0, false
 	}
-	ms := 0
-	if bruch := s[19 : len(s)-1]; bruch != "" {
-		ziffern := bruch[1:]
-		if bruch[0] != '.' || ziffernVon(ziffern, 0) != len(ziffern) || ziffern[len(ziffern)-1] == '0' {
-			return 0, false
-		}
-		ms, _ = strconv.Atoi(ziffern)
-		for range 3 - len(ziffern) {
-			ms *= 10
-		}
+	ms, _ := strconv.Atoi(ziffern)
+	for range 3 - len(ziffern) {
+		ms *= 10
 	}
-	return time.Date(jahr, time.Month(monat), tag, std, mi, sek, ms*int(time.Millisecond), time.UTC).UnixMilli(), true
+	return ms, true
+}
+
+// zeitpunktMillis liefert zur kanonischen Schreibweise `JJJJ-MM-TTThh:mm:ssZ` oder `JJJJ-MM-TTThh:mm:ss.fZ` (`f` 1 bis 3 Ziffern,
+// die letzte nicht `0`; Jahr 0001 bis 9999) die Millisekunden seit 1970-01-01T00:00:00Z (SPEC-172 Nr. 6 k).
+func zeitpunktMillis(s string) (int64, bool) {
+	if !zeitForm(s) {
+		return 0, false
+	}
+	f, ok := zeitFelder(s)
+	if !ok || !zeitFeldGueltig(f) {
+		return 0, false
+	}
+	ms, ok := bruchMillis(s[19 : len(s)-1])
+	if !ok {
+		return 0, false
+	}
+	return time.Date(f[0], time.Month(f[1]), f[2], f[3], f[4], f[5], ms*int(time.Millisecond), time.UTC).UnixMilli(), true
 }

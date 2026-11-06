@@ -193,7 +193,96 @@ Die Pflicht-Mengen (dritte Tabelle; `AGENTS.md` §3.17, `implement-slice` Schrit
 
 **Nebenläufige Zeilen (37, 38) und Zeile 29: Rate mit Zahl, Last und Messendem.** Die Messung trägt der Implementer in diesen Absatz ein (`AGENTS.md` §3.10): Mutation, Klasse, Zahl der Prozesse (jeder mit `-test.count=1`; der Detektor ist `-race`), Messender, Last des Hosts, Rate mit und ohne Detektor. Ein Datenrennen zählt der Detektor je Prozess; jede andere Wirkung eine Wiederholung. Das Fenster „zwischen Prüfen und Handeln“ gibt es nicht: der Schreiber hat keine Sperre und keinen Zustand (`SPEC-168` Nr. 9), die Zusage ist „kein Zustand“, und die Zeilen 37 und 38 fangen sein Fehlen.
 
-**Zusage · Mutation · roter Test** (`AGENTS.md` §3.10): *wird vom Implementer vor der Übergabe als Tabelle mit Raten in diesen Absatz eingetragen.*
+**Zusage · Mutation · roter Test** (`AGENTS.md` §3.10; Implementer, 2026-11-06). Die Mutationen liefen mit `sh tools/harness/mutationslauf.sh` im Container des Images `odata-recorder:race` (ohne Netz, ohne Mount, `--memory 2g`, unter `flock /tmp/odata-recorder-heavy.lock`, ein schwerer Lauf zugleich), Messender der Implementer-Lauf; die Last des Hosts steht je Zeile als `last=<l>/4` (Schwankung 1,4 bis 28 bei weiteren Läufen anderer Zweige auf demselben Host). 129 Mutationen der Klasse `andere` und 12 der Klasse `nebenläufig`; jede Mutation ersetzt eine Textstelle des Produktcodes genau einmal, die Kennung steht in der Tabelle. Ein `go vet` gegen die Mutationen fährt das Werkzeug nicht (`SPEC-210` Nr. 5 e). Jede Zeile nennt mindestens eine Mutation, die die Tabelle oben nicht nennt (die Mutationen der Spalte *Mutation* oben fährt der Reviewer weiter selbst).
+
+| Zeile | Mutation (Kennung: Änderung am geprüften Code) | roter Test |
+|---|---|---|
+| 1 | m01a, m01b: `ctx` bzw. `dst` nil ergibt einen Fehler ohne `ErrUngueltig` (`errors.New`); m01c: `SchreibeEntity` prüft `dst` nicht (prüft `io.Discard`); m01d: `SchreibeCollection` prüft `ctx` nicht (prüft `context.Background()`) | `TestSchreibeNilArgumente` |
+| 2 | m02a bis m02d: `ctx.Err()` vor der Prüfung der Argumente in `SchreibeEntity`, `SchreibeCollection`, `SchreibeAnzahl`, `SchreibeFehler` (eine Mutation je Operation) | `TestArgumentVorKontext` |
+| 3 | m03a: `context.Cause(ctx)` statt `ctx.Err()`; m03b: Kontextfehler mit `fmt.Errorf("%w")` verpackt; m03c: jeder Kontextfehler als `context.Canceled`; m03d: nur `DeadlineExceeded` verpackt | `TestKontextBeendet` |
+| 4 | m04a: `ctx.Err()` zweimal gefragt; m04b: zusätzlich `ctx.Deadline()`; m04c: `ctx.Err()` schon in der Prüfung der Ziele (auch bei ungültigem Argument) | `TestKontextEinmalVorWrite` |
+| 5 | m05a: Version `3.0` akzeptiert; m05b: Versionen mit Präfix `2.0` akzeptiert (`2.0 `) | `TestModellVersion` |
+| 6 | m06a: ein Set, dessen Typ das Modell nicht auflöst, besteht die Suche; m06b: `Adresse` prüft das Set nicht | `TestSetUngueltig` |
+| 7 | m07a: `Ns.Fremd` (außerhalb der Ableitung) akzeptiert; m07b: Ableitung nur bis Tiefe 1; m07c: das letzte Element der Collection wird nicht geprüft und nicht geschrieben | `TestEntityTyp` |
+| 8 | m08a: U+0000 nur am Ende geprüft; m08b: leerer Schlüssel akzeptiert; m08c: ungültiges UTF-8 im Schlüssel akzeptiert | `TestSchluessel` |
+| 9 | m09a: Duplikat der ersten Property nicht erkannt; m09b: Property nicht unterstützten Typs nicht geprüft (nur der Name); m09c: letzte Property der Liste nicht geprüft; m09d: `Edm.Date` mit `null` durchgelassen | `TestPropertyNamen` |
+| 10 | m10a: `Art` `guid` gehört zu `Edm.String`; m10b: `null` bei nicht nullbarer Property akzeptiert; m10c: `null` mit Text akzeptiert; m10d: `null` bei nicht nullbarer `Edm.Guid` akzeptiert; m10e: `Art` `boolean` gehört zu `Edm.Int32` | `TestArtGegenTyp` |
+| 11 | m11a (Art): Kalender ohne Schaltjahre und Monatslängen (`tag > 31`); m11b (Stelle): nur die erste Property geprüft; m11c (Randform): `true` mit Zeilenende akzeptiert; m11d: Dezimalgrenze 1025; m11e: `Edm.Int32` mit 33 Bit | `TestTextKanonisch` |
+| 12 | m12a: führende Null akzeptiert; m12b: Nullen am Ende des Bruchs akzeptiert; m12c: `1.` akzeptiert; m12d: erste Ziffer nur 1 bis 8; m12e: `Edm.Int64` mit 65 Bit; m12f: Komma als Dezimaltrenner | `TestZifferKlasse` |
+| 13 | m13a: Hex-Ziffern bis `g`; m13b: Bindestrich an Stelle 12 statt 13; m13c: Länge 35 akzeptiert; m13d: Stelle 20 nicht geprüft | `TestGuidStellen` |
+| 14 | m14a: Länge 21 (`.` ohne Ziffern) durchgelassen; m14b: `T` nicht geprüft; m14c: `0` am Ende des Bruchteils akzeptiert; m14d: Stunde 24; m14e: Jahr 0000; m14f: Sekunde 60; m14g: Zeichen statt `.` vor dem Bruchteil; m14h: zweite Ziffer der Sekunde nicht geprüft; m14i: Zeichen im Bruchteil nicht geprüft; m14j: Minute 60 | `TestZeitpunktKlasse` |
+| 15 | m15a: Bruchteil von einer und zwei Ziffern nicht auf drei aufgefüllt (`.5Z` ergibt 5 ms); m15b: negative Millisekunden auf 0; m15c: schließender Schrägstrich ohne Escape; m15d: Millisekunden als Mikrosekunden | `TestZeitpunktBytes` (m15d: auch `TestRundlauf`) |
+| 16 | m16a: leeres Element akzeptiert; m16b: Navigation-Property nicht in der Auswahl; m16d: die Auswahl `Id` kürzt die Properties der Ausgabe; m16c (Stelle): fünftes Element der Liste nicht geprüft | `TestAuswahl` (m16c: `TestAuswahlStellen`) |
+| 17 | m17a: Anzahl `-1` akzeptiert; m17b: `n` gleich `-1` akzeptiert; m17c: `__count` über `int32` geführt | `TestAnzahlGrenzen` (m17c: `TestCollectionBytes`) |
+| 18 | m18a: der letzte Code der Tabelle gilt als unbekannt | `TestFehlerobjektTabelle` |
+| 19 | m19a, m19b: bei einem Verstoß im letzten Element liefert der Aufbau die Teilausgabe ohne Fehler (sie geht nach `dst`) | `TestNichtsBeiVerstoss` |
+| 20 | m20a: Ausgabe in zwei `Write` geteilt; m20b: `Close` auf `dst`, wenn es ein `io.Closer` ist | `TestEinWrite` |
+| 21 | m21a: kurzer `Write` um ein Byte nicht erkannt; m21b: kurzer `Write` mit n gleich 0 nicht erkannt | `TestDstFehler` |
+| 22 | m22a: Fehlerobjekt ohne `charset`; m22b: Anzahl als `text/plain` ohne `charset`; m22c (Form, Entity): `Accept` mit `odata.metadata=none` ändert den `Content-Type`; m22d (Operation, Collection): `Accept` `application/atom+xml` ändert den `Content-Type`; m22e: Version `2.01` | `TestDarstellungskopf` |
+| 23 | m23a: `:` unkodiert; m23b: Hex-Ziffer des oberen Nibbles klein; m23c: Ziffern kodiert; m23d: nur die ersten zwei Bytes kodiert; m24c: `Set` unkodiert | `TestAdresseKodierung` |
+| 24 | m24a: `uri` mit rohem Set und Schlüssel; m24b: Elemente der Collection mit dem Set `Produkte` | `TestAdresseGleich` |
+| 25 | m25a: Länge 4096 akzeptiert; m25b: `..` im Segment akzeptiert; m25c: leere Collection prüft die `Wurzel` nicht; m25d: `Adresse` prüft die `Wurzel` nicht; m26f: `https` abgelehnt | `TestWurzel` |
+| 26 | m26a: `*` im Host; m26b: Hex-Ziffer `g`; m26c: Port mit `a`; m26d: IPv6 mit `-`; m26e: zweite Ziffer hinter `%` nicht geprüft; m26g: letztes Zeichen des Segments nicht geprüft; m26h: Host von einem Zeichen abgelehnt; m26i: Port mit sechs Ziffern | `TestWurzelZeichenMenge` (m26i: `TestWurzel`) |
+| 27 | m27a: `typ` statt `type`; m27b: `D` statt `d`; m27c: Komma mit Leerzeichen zwischen Properties | `TestEntityBytes` |
+| 28 | m28a: `results` mit Leerzeichen; m28b: Semikolon zwischen Elementen; m28c: Zeilenende am Schluss | `TestCollectionBytes` |
+| 29 | m29a: Properties in umgekehrter Reihenfolge des Modells; m29b: nicht genannte, nicht nullbare Property als `null`; w03: Iteration über eine `map` (Rate unten) | `TestPropertyReihenfolge` (m29b: `TestNichtGenannt`) |
+| 30 | m30a: `\` unescaped; m30b: Escape mit unterem Nibble bis 7; m30c: Wert ohne Escape; m30d: ungültiges UTF-8 in Name und Typ nicht geprüft; m30e: letztes Zeichen des Textes verloren | `TestStringKlasse` |
+| 31 | m31a: nur `[REDACTED` (9 Zeichen) mit Escape; m31b: Escape `005B` groß; m31c: Marker im Wert nicht behandelt | `TestMarkerText` |
+| 32 | m32a: `Edm.Int64`, `Edm.Decimal` und `Edm.Guid` ohne Anführungszeichen; m32b: `Edm.Decimal` als Zahl | `TestWerteBytes` |
+| 33 | m33a: `lang` gleich `en`; m33b: Leerzeichen hinter `error` | `TestFehlerBytes` |
+| 34 | m34a: Ziffern zur Basis 16 | `TestAnzahlBytes` |
+| 35 | m35a: `Edm.Boolean` als String; m35b: Millisekunden als Mikrosekunden | `TestRundlauf` |
+| 36 | m36a: `Properties` des Aufrufers umgedreht; m36c: `Auswahl` des Aufrufers umgedreht; m36b: ein Zähler im Paket ändert jede siebte Darstellung | `TestArgumenteUnveraendert` (m36b: `TestWiederholung`) |
+| 37 | w01, w02: siehe die Raten unten | `TestGleichzeitig` |
+| 38 | z01 bis z10: siehe die Raten unten | `TestGleichzeitig` unter dem Detektor |
+| 39 | m39a: ein Feld im Schreiber | `TestSchreiberOhneZustand` |
+
+**Raten** (Klasse `nebenläufig`, Zeilen 29, 37, 38; jeder Prozess `-test.count=1`; `r/N` = rote von gestarteten Prozessen; Image `odata-recorder:race`, 4 CPUs, Last des Hosts in der letzten Spalte; der Arm ohne Detektor entfällt bei einem Zähler, der ohne Detektor keine Wirkung hat, `0/0`):
+
+| Mutation | Test | mit Detektor | ohne Detektor | Last |
+|---|---|---|---|---|
+| z01: ein Zähler des Pakets in `ungueltig` (Fehlerpfad) | `TestGleichzeitig` | 50/50 | 0/0 | 7,33 |
+| z03: Zähler im Zweig „Bindestrich fehlt“ von `kanonGUID` | `TestGleichzeitig` | 50/50 | 0/0 | 4,10 |
+| z04: Zähler im Zweig „keine Ziffer“ von `zahlAus` (Datum) | `TestGleichzeitig` | 50/50 | 0/0 | 7,66 |
+| z05: Zähler im Zweig des Markers von `stringWert` | `TestGleichzeitig` | 50/50 | 0/0 | 2,02 |
+| z06: Zähler im Treffer des Typ-Verzeichnisses von `typ` | `TestGleichzeitig` | 50/50 | 0/0 | 1,36 |
+| z07: Zähler im Zweig `*` von `pruefeAuswahl` | `TestGleichzeitig` | 50/50 | 0/0 | 13,81 |
+| z09: Zähler im Zweig IPv6 von `hostEnde` | `TestGleichzeitig` | 50/50 | 0/0 | 3,01 |
+| z10: Zähler im Zweig „Property doppelt“ von `werte` | `TestGleichzeitig` | 50/50 | 0/0 | 1,48 |
+| w01: ein Aufrufzähler des Pakets ändert jede siebte Darstellung | `TestGleichzeitig` | 50/50 | 50/50 | 11,29 |
+| w02: ein gemeinsamer Puffer des Pakets in `roh` (die Mutation, die Zeile 37 nennt) | `TestGleichzeitig` | 50/50 | 43/50 rot, 7 Prozesse hingen (das Werkzeug beendete sie nach 2 Minuten 30, Ergebnis `abbruch`) | 2,58 |
+| w04: ein gemeinsames Array des Pakets als Puffer der Anzahl | `TestGleichzeitig` | 50/50 | 50/50 | 12,04 |
+| w03: Iteration über eine `map` statt über die Properties des Modells (Zeile 29) | `TestPropertyReihenfolge` | 0/0 | 50/50 | 3,31 |
+
+Die Zähler z01 bis z10 sind echte Schreibzugriffe (`zaehler++` auf einer Variable des Pakets) in Zweigen, die die Tabelle oben nicht nennt; `TestGleichzeitig` führt jede Anweisung des Produktcodes aus außer den zwei Zeilen, die die Gleichheit mit der Tabelle der Codes unerreichbar macht (gemessen mit `-coverprofile`, der Aufbau des Fehlerobjekts kann nicht scheitern und trägt keine Prüfung mehr).
+**Lehre der Runde:** die erste Fassung von `TestGleichzeitig` (eine gemischte Runde, das Ziel ohne Yield) fing w04 nur in 27 von 50 Prozessen mit Detektor und 18 von 50 ohne (`flatternd`): `fmt` hält einen `sync.Pool`, dessen Übergaben der Detektor als Ordnung zwischen den Goroutinen zählt, und das Fenster zwischen Aufbau und `Write` war zu eng. Die Fassung dieses Plans läuft in 12 Runden (alle Aufrufarten gemischt, dann je Aufrufart allein) und das Ziel gibt in `Write` den Prozessor frei; w04 ist damit in jedem Prozess rot, mit und ohne Detektor. Die Raten oben gelten für diese Fassung. Die Läufe z02 (Zähler in `kennzeichen`) und z08 (Zähler im Zweig des beendeten Kontexts) liefen mit der Vorfassung und waren 50/50 mit Detektor; sie stehen nicht in der Tabelle.
+
+**Mengen mit Achsen** (zweite Tabelle, `AGENTS.md` §3.17, `implement-slice` Schritt 14; Generator je Menge, Orakel im Test, nie der Schreiber; die Prüfgrenze der unbeschränkten Mengen steht in der dritten Tabelle):
+
+| Menge (Zeile) | Elemente (Zählprüfung im Test) | Achsen, je eine nicht genannte Mutation rot |
+|---|---|---|
+| Text je Art (11) | 133 (31 gültig, 102 ungültig), 532 Zellen | Art: m11a (Kalender), m11d (Dezimalgrenze), m11e (Bereich `Edm.Int32`); Stelle: m11b (nur die erste Property); Randform: m11c (Zeilenende) |
+| Ziffern der Zahlarten (12) | 9546 Zellen: Basis-Texte 2816 + 5120 + 1536, Längen und Ränder 22 + 31 + 21 | Stelle × Byte: m12a (führende Null), m12d (erste Ziffer); Länge und Rand: m12e, m12f; Form des Bruchs: m12b, m12c |
+| Guid (13) | 9257 Zellen: 36 Stellen × 256 Bytes, 41 Längen | Zeichen: m13a; Stelle: m13b, m13d; Länge: m13c |
+| Zeitpunkt, Text (14) | 6243 Zellen: 6144 + 42 + 30 + 27 | Stelle × Byte: m14b, m14h, m14i; Länge: m14a; Feldgrenze: m14d, m14e, m14f, m14j; Bruchteil: m14c, m14g |
+| Zeitpunkt, Bytes (15) | 31 Werte | Stelle der Ziffern des Bruchteils: m15a; Vorzeichen: m15b; Escape: m15c; Einheit: m15d |
+| `Wurzel` (25) | 23 gültig, 44 ungültig, je 4 Operationen: 268 Zellen | Operation: m25c (leere Collection), m25d (`Adresse`); Zeichen: m25b; Länge: m25a, m26i |
+| Zeichen von `Wurzel` (26) | 18 Stellen × 256 Bytes × 4 Operationen: 18432 Zellen | Host: m26a, m26h; Hex-Ziffer: m26b; Port: m26c; IPv6: m26d; `%`: m26e; Segment: m26g |
+| Zeichen der Adresse (23) | 130 Zeichen × 2 Stellen: 260 Zellen | Zeichen: m23a, m23c; Stelle: m24c (Set); Schreibweise: m23b; Mehrbyte: m23d |
+| `Accept` (22) | 9 Formen × 2 Operationen (Entity, Collection) + 4 Ausgaben: 22 Zellen | Form: m22c; Operation: m22d |
+| Stellen in Listen (7 bis 9, 11, 16) | 4 Stellen der Entities; 5 Stellen der Auswahl | m07c (letztes Element), m09c (letzte Property), m11b, m16c (fünftes Element) |
+| Art gegen Typ (10) | 107 Zellen (14 gültig, 93 ungültig) | Typ: m10a, m10e; Nullbarkeit: m10b, m10c, m10d |
+| Zustände (1 bis 4) | 4 Operationen × 5 `ctx` × 4 `dst` | `ctx`: m03d (nur die Frist verpackt); `dst`: m21a, m21b |
+| Strings (30) | 269 Texte × 5 Stellen: 1345 Zellen | Text: m30a, m30b; Stelle: m30c (Wert), m30d (Name und Typ), m30e (Ende des Textes) |
+| Hüllen der Collection (28) | 4 × 4: 16 Zellen | m28a, m28b, m28c, m17c (`MaxInt64` über `int32`) |
+| Fehlerobjekt (33, 18) | `len(model.AlleCodes())` Fälle (36 am Start) und die Abweichungen je Code | Element der Menge: m18a (letzter Code); Format: m33a, m33b |
+| Rundlauf (35) | 235 Elemente | Typ: m35a (`Edm.Boolean`); Einheit: m35b (Mikrosekunden); Marker: m31a |
+
+**Mutationen, die zuerst grün blieben** (vor dem Fix in dieser Runde; alle jetzt rot): m07a (`Ns.Fremd` außerhalb der Ableitung): die Ring- und Fremdtypen des Modells trugen nur `Id`, die Entity des Tests trägt `Name`, der Fehler kam aus dem Namen der Property und nicht aus der Ableitung, deshalb tragen die Typen jetzt `Id` und `Name`; m15a (Bruchteil von einer und zwei Ziffern nicht aufgefüllt): `TestZeitpunktBytes` führte nur Bruchteile von drei Ziffern (die Mutation war erst im Paket rot, `rot-paket`), jetzt führt es `.5Z`, `.05Z`, `.12Z`; m16d (die Auswahl `Id` kürzt die Properties): keine gültige Auswahl nannte `Id`, jetzt führt `TestAuswahl` auch `Id` und `Name`; die Mutation `Edm.Date` mit `null` (m09d) war äquivalent zu `Edm.Date` mit `date`, solange kein Fall `null` bei der nullbaren Property `Edm.Date` führte (Zeilen 9 und 10); `TestGleichzeitig` siehe oben.
+
+**Gegengelesen** (`AGENTS.md` §3.18): `LC_ALL=C grep -nP '\\u[0-9a-fA-F]{4}' src/adapters/driven/odata/jsoncodecv2/schreiber*.go` ist leer, und die Folge aus Backslash und `u` entsteht im Code nur aus Bytewerten (`'\\', 'u', '0', '0', '5', 'b'` in `schreiber_ausgabe.go`, `bs = "\x5c"` und `esc("…")` in den Tests); die Werte mit Rohbytes der Tests stehen als `\x…` im Quelltext (`schreiber_wert_test.go`, `schreiber_klasse_test.go`, `schreiber_adresse_test.go`).
+
+**Weitere Befunde der Messung:** (1) Eine Zeile von `SchreibeFehler` (der Fehler beim Aufbau) war nicht erreichbar, weil Code und `message` die Texte der Tabelle sind; sie ist entfernt, ein Kommentar sagt es. (2) Zeile 29 führt „Grund `offen`“ nicht mehr (V2 kennt ihn nicht, `SPEC-172` Nr. 3).
 
 ## 4. Trigger
 
@@ -253,10 +342,10 @@ dasteht.
 - Der Vertrag der Schreib-Schnittstelle (Argumente, Kontext, Fehler) steht als `SPEC-168` in der Spezifikation (seit `slice-odata-json-schreiben` in `done/`; `SPEC-172` Nr. 6 g und die Einleitung von Nr. 6 verweisen auf ihn) — **Ausgang:** entfallen als Lücke des Plans: der Vertrag liegt vor, dieser Slice erfüllt `SPEC-168` Nr. 1 bis 9 (Sendung von `slice-odata-json-schreiben`, oben in §1).
 - Zeit- und Zahlenschreibweisen von V2 (`\/Date(<ms>)\/`, `Edm.Int64` und `Edm.Decimal` als String): Rundlauf mit dem Leser — **Ausgang:** offen; Raster, eine Zelle je Typ (Schleife über die sieben Typen, `SPEC-172` Nr. 6 f, k), Zeilen 11 bis 15 und 32.
 - Fakes der Ports halten jedes Argument fest und zählen jede Operation (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`) — **Ausgang:** offen; Auftrag 2 des Architect an den Implementer, Zeilen 1 bis 4, 19 bis 21.
-- Randformen (`AGENTS.md` §3.12, §3.16): das Raster unten, jede Zelle mit Ort; der Architect hat die Zellen ohne Ort vor dem Code in `SPEC-172` Nr. 6 h bis o entschieden (Entscheidungen 1 bis 7) — **Ausgang:** offen; Adresse: Architect für jede Zelle, die der Implementer ohne Ort findet.
+- Randformen (`AGENTS.md` §3.12, §3.16): das Raster unten, jede Zelle mit Ort; der Architect hat die Zellen ohne Ort vor dem Code in `SPEC-172` Nr. 6 h bis o entschieden (Entscheidungen 1 bis 7) — **Ausgang:** offen; Adresse: Architect für jede Zelle, die der Implementer ohne Ort findet. Stand nach dem Code (Implementer, 2026-11-06): keine Zelle ohne Ort gefunden, keine Rückgabe an den Architect; `Edm.Date` mit `null` liegt unter `SPEC-172` Nr. 6 j.
 - Schnittfrage (Auftrag 4 in §3): *S* = 4300 liegt über 2223 — **Ausgang:** entfallen: entschieden (Architect, 2026-11-06), kein Schnitt, Grund im Block (`schnitt-grund`, Entscheidung 11); die Marke setzt der Planner nach der Tabelle.
 - Linie B neben `slice-odata-json-eingabe` (Auftrag 5 in §3): Kennungen (keine neue Nummer nötig, `SPEC-192` bis `SPEC-199` frei), `codec_satz.go`, Wortlaut von `SPEC-125` und `SPEC-168` (unberührt, Zeile 40), Reihenfolge der Merges (erster Verifier-Pass entscheidet, der zweite Zweig nimmt `main` per Merge auf; die einzige Stelle gleicher Region ist die Historie der Spezifikation, hier hinter den Zeilen vom 2026-11-06 eingefügt; bei der Integration behält der Merge beide Seiten der Historie) — **Ausgang:** weiter offen bis zum Merge; Adresse: Planner (Linie B bleibt bis dahin offen; die Marke ist gesetzt, `make groessenmarke` ok).
-- Nebenläufige Zusage „keine Zustände zwischen Aufrufen“ (`SPEC-168` Nr. 9): Wirkungs-Fänger oder Detektor, Rate mit Zahl der Prozesse und Messendem (`AGENTS.md` §3.10) — **Ausgang:** offen; Adresse: Architect (Zeilen 37 und 38 der Tabelle, erledigt), Implementer (Rate).
+- Nebenläufige Zusage „keine Zustände zwischen Aufrufen“ (`SPEC-168` Nr. 9): Wirkungs-Fänger oder Detektor, Rate mit Zahl der Prozesse und Messendem (`AGENTS.md` §3.10) — **Ausgang:** offen; Adresse: Architect (Zeilen 37 und 38 der Tabelle, erledigt), Implementer (Rate im Absatz *Raten* von §3 eingetragen; der Ausgang folgt der Verifikation).
 - Gate-Kette (Stand beim Start in §4): ein Bedarf an einer Änderung der Gate-Kette — **Ausgang:** weiter offen (nicht zu erwarten; Entscheidung 9 hat die Bedingung geprüft); Adresse: Planner.
 - **Rückgabe 1 (Architect an den Planner, 2026-11-06):** der V4-Schreiber `jsoncodec` schreibt den Text `[REDACTED]` eines `Edm.String` roh, `ODataCodec` liest den Rohtext als Marker (`SPEC-126` Nr. 10 f): der Rundlauf von `SPEC-169` Nr. 8 gilt für diesen einen Text nicht, und `SPEC-168` Nr. 4 lässt ihn zu (nur `redigiert` als Art ist verboten). V2 löst es mit `SPEC-172` Nr. 6 n (Entscheidung 3). Dieser Slice berührt `jsoncodec` nicht (Auftrag 5, Zeile 40) — **Ausgang:** eingetreten: `slice-v4-schreiber-marker-text` (in `open/`, Planner 2026-11-06; sein §1 führt die Sendung unter `Übernimmt` mit der Kennung dieses Slice als Geber, sein Start folgt dem Merge von `slice-odata-json-eingabe`). Die Beobachtung „Schreiber und Leser nicht als Paar geprüft“ legt die Closure dieses Slice im Register an (`BEO-REPO/`, Beleg dieses Fundes).
 - **Integration mit `ODR-E6007`** (Zweig `slice-odata-json-eingabe` führt den Code ein, Zweig `slice-handbuch-meldungskatalog` legt `harness/katalog-ausnahmen.txt` an): dieser Slice führt keinen Code ein; mergt er nach beiden, prüft er nach dem Merge von `main`, dass die Ausnahmen den Code `ODR-E6007` nennen, und meldet eine Lücke an den Planner — **Ausgang:** weiter offen bis zum Merge; Adresse: Planner (trägt den Eintrag bei der Integration des später gemergten Zweigs ein).
