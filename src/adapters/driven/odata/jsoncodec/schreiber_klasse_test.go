@@ -154,7 +154,7 @@ func TestZeitpunktKlasse(t *testing.T) {
 			c := byte(b)
 			frac := []byte(strings.Repeat("1", 12))
 			frac[p] = c
-			want := istZiffer(c) && !(p == 11 && c == '0')
+			want := istZiffer(c) && (p != 11 || c != '0')
 			if got := textGilt(t, model.ArtDateTimeOffset, "T", kopf+"."+string(frac)+"Z"); got != want {
 				t.Errorf("Bruchteil Stelle %d Byte %#x: angenommen %v, will %v", p, c, got, want)
 			}
