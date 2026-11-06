@@ -94,7 +94,7 @@ Ein Gewinn an Laufzeit ist nicht zugesagt: die Messung (Plan des Slice) fand das
     | `datei` fehlt im Baum **und** `alt` leer | beide Befunde, in der Reihenfolge `datei`, `alt` (Nr. 2 d) |
     | `name` doppelt **und** `klasse` unbekannt | beide Befunde, `name` vor `klasse`, an der zweiten Mutation (Nr. 2 d) |
     | `alt` trifft nicht **und** `neu` gleich `alt` | beide Befunde, `alt` vor `neu` (Nr. 2 d) |
-    | `alt` leer **und** `neu` leer | ein Befund `alt leer` (Nr. 2 b); `neu Ã¤ndert nichts` entfÃ¤llt, denn der Vergleich mit einem leeren `alt` sagt nichts Ã¼ber `neu` (Nr. 2 d: je Feld ein Befund) |
+    | `alt` leer **und** `neu` leer | ein Befund `alt leer` (Nr. 2 b); `neu ändert nichts` entfällt, denn der Vergleich mit einem leeren `alt` sagt nichts über `neu` (Nr. 2 d: je Feld ein Befund) |
     | Klasse `nebenläufig` mit `n_detektor` 0 und `n_ohne` 0 | ein Befund `Rate ohne Prozess` (Nr. 2 b) |
     | Klasse `andere` mit `n_detektor` gesetzt **und** `datei` fehlt | beide Befunde (Nr. 2 d) |
     | Klasse `andere` | ein Prozess je Stufe, kein Arm (Nr. 7 a) |
