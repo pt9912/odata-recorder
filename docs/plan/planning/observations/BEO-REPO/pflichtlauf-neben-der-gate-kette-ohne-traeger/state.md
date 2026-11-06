@@ -1,1 +1,1 @@
-**Stand:** offen (2×: slice-test-integration, slice-test-determinism; Schwelle nicht erreicht; Adresse User, Entscheidung Gate-Kette oder daneben, `slice-test-integration` §6)
+**Stand:** geplant in `slice-gate-integration-determinism` (`make test-integration` und `make test-determinism` an `GATE_CHECKS`, Entscheidung des Users vom 2026-11-06); bis dahin trägt der Pflichtlauf `.claude/commands/close-welle.md` (Schritt 1) seit welle-record-replay

@@ -1,1 +1,1 @@
-**Stand:** offen
+**Stand:** offen, Schwelle erreicht (4×); kein Zielort, weil die Ursache ungeklärt ist (Last oder Zustand des Adapters); Adresse Architect, Auslöser zum Handeln ist ein weiteres Rot von `TestTransaktionVertrag` in einem Lauf von `make gates` oder `make test-race`; Stand der Closure von welle-record-replay: kein Rot in den Läufen der Closure

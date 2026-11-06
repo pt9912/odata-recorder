@@ -1,1 +1,1 @@
-**Stand:** verkörpert in `AGENTS.md` §3.17 seit welle-record-replay; geschärft in `.claude/commands/implement-slice.md` (Schritt 19), `.claude/agents/verifier.md` seit welle-record-replay
+**Stand:** verkörpert in `AGENTS.md` §3.17 seit welle-record-replay; geschärft in `.claude/commands/implement-slice.md` (Schritt 19, Achsentabelle je Befund), `.claude/agents/verifier.md` seit welle-record-replay; Prosa ausgeschöpft, Sensor benannt: `slice-mutationslauf-werkzeug` (Mutationsläufe der Rollen in einem Container-Lauf)
