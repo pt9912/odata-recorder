@@ -37,6 +37,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Fall `If-Match`):** Liegt `welle-etag` vor `welle-expand-batch` in `done/`, trägt dieser Slice den Fall „PATCH mit `If-Match` in einem Changeset“ als Zeile der Tabelle *Zusage · Fänger*; liegt `welle-expand-batch` zuerst, ergänzt `slice-if-match` ihn (Sendung von `slice-if-match`, `AGENTS.md` §3.13, Berührung ohne Kante nach `welle-etag` §5).
 
+**Übernimmt (Sendung von `slice-odata-json-eingabe`, `SPEC-180` Nr. 6):** der Aufruf von `ODataEingabe.LeseEntity` für den Body eines POST, PATCH oder PUT als Teil eines Changeset: drei Aufrufstellen {`POST`, `PATCH`, `PUT`} × Teil eines Changeset (die drei des Request trägt `slice-mock-schreiben`; zusammen die sechs Stellen der Menge). `contentType` ist der des Teils, nicht der Hülle; die übrigen Zusagen a bis h reicht der Dienst je Teil unverändert weiter (`ctx`, `src`, `entitySet`, `art`, `grenze`, Fehlerabbildung `ODR-E6007` mit `400` und `ODR-E6002` mit `501`, Zustand); ein Fehler des Bodys scheitert das Changeset. Kein Ausschluss dieses Slice trifft diesen Punkt (der Ausschluss „Leser der Client-Bodies“ nennt den Leser als vorhanden und den Aufruf je Einzelrequest als Gegenstand dieses Slice).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Parser und Validator des Batch — `slice-batch-parser`; dieser Slice liest die geprüfte Struktur und prüft keine Bytes der Hülle.
@@ -64,7 +66,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Ausführung: Einzelrequests (Lesen, POST, PATCH, PUT, DELETE) in der Reihenfolge der Teile über den Pfad von `MockUseCase`, `Content-ID`-Verweise aufgelöst, Antwort mit einem Einzelergebnis je Teil in der Form des Architect; leerer Batch ergibt die gültige leere Antwort; Route `POST /$batch`.
-- [ ] Atomarität: ein Changeset in einer Workspace-Transaktion; scheitert ein Request an jeder Stelle und mit jeder Art von Fehler, bleiben Zustand, Revision und Zähler der Entities wie vor dem Changeset, und die Antwort nennt den Fehler; Changesets und Requests anderer Workspaces bleiben unberührt (`LH-FA-09`).
+- [ ] Atomarität (dazu der Body-Aufruf je Teil eines Changeset über `ODataEingabe`, Sendung von `slice-odata-json-eingabe`, `SPEC-180` Nr. 6: an den drei Stellen {`POST`, `PATCH`, `PUT`} × Teil je ein Fänger für die acht Zusagen a bis h, `contentType` des Teils): ein Changeset in einer Workspace-Transaktion; scheitert ein Request an jeder Stelle und mit jeder Art von Fehler, bleiben Zustand, Revision und Zähler der Entities wie vor dem Changeset, und die Antwort nennt den Fehler; Changesets und Requests anderer Workspaces bleiben unberührt (`LH-FA-09`).
 - [ ] Executor- und Serializer-Contract-Test für `$batch` (`LH-FA-16.a`); ein Test im Modus `mock` über die Abnahme der Welle: gültiger Batch mit Einzelergebnissen, leerer Batch, fehlerhaftes Changeset ohne Teiländerung.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
