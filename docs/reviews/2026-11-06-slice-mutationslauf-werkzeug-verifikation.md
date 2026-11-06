@@ -37,7 +37,7 @@ HIGH: keine. MEDIUM: 8 (V-1 bis V-7 und V-13). LOW: 5 (V-8 bis V-12). INFO: 7. *
 | Rohbytes (`LC_ALL=C grep`, `AGENTS.md` §3.18) | 25 geänderte Dateien: kein BOM, kein NBSP, keine Nullbreiten- oder weichen Trennzeichen, keine Folge Backslash-`u`-vier-Hex in Quelle, Test und Doku. **Eine Zeile doppelt kodiert:** `SPEC-210` Zeile 97 (V-8) |
 | Roadmap, Welle, Register | nicht angefasst |
 
-`make gates`: GATES_ERGEBNIS
+`make gates` im Worktree auf `99ad900` (Bericht in der Fassung dieses Commits), Exit 0, 3 min 36 s: `d-check: 643 Datei(en) geprüft, 0 Befund(e)`, `groessenmarke slice-mutationslauf-werkzeug.md: ok, Messung 3463 von Marke 3000`, `zeichen: ok, 1312 Datei(en) geprüft`, `baseline-verify` und `migration-check` ok. Die Kette fährt die Tests des Moduls `tools/mutationslauf` nicht (`SPEC-210` Nr. 12 d); sie liefen separat (Grundlauf oben). Nach dem Eintrag dieser Zeile liefen `make docs-check`, `make zeichen-check`, `make groessenmarke` erneut: siehe letzte Zeile des Berichts.
 
 ## Größenüberschreitung (bewertet, nicht entschieden)
 
@@ -286,3 +286,5 @@ Die Gesamtgrenze in der Nullprobe verhält sich im Lauf richtig (Exit 3); nur de
 - `tools/harness/messung-mutationslauf/`: Liste und Nachbau im Repo, wiederholbar (Aufruf in Plan §5); Ergebnis je Mutation stimmt.
 - `harness/vertraege/SPEC-210-mutationslauf.md` gegen den Code: Wortlaut der Befunde (Nr. 2 f) stimmt mit `liste.go` und dem Ende-zu-Ende-Lauf überein.
 - Gate-Kette, `.golangci.yml`, `harness/README.md`, Sensors-Tabelle, `Dockerfile`, `harness/mk/`: unberührt.
+
+**Letzter Lauf nach dem letzten Eintrag in diesem Bericht:** `make docs-check` (643 Dateien, 0 Befunde), `make zeichen-check` (1312 Dateien, ok), `make groessenmarke` (Messung 3463 von Marke 3000, ok) grün; `make gates` grün auf `99ad900`.
