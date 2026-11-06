@@ -1,0 +1,2 @@
+**Vorgang:** slice-audit-log
+**Fund:** Schätzung *S* 2185 (21 Zeilen, davon 3 nebenläufig, ein Fake, Produktcode 290), Marke 3000, Messung 1895 beim Stand nach der Fix-Runde der Verifikation (Produktcode 285, Tests 1610); Ende ÷ *S* 0,87, Auslastung 0,63. Die Formel überschätzt den Slice, weil die Schleifen über Mengen (A06 bis A09) je eine Testfunktion tragen und nicht je Fall eine. Wachstum durch die Fix-Runden 1463 → 1698 → 1895. Beleg: Plan §4 (*Messung nach dem Code*).
