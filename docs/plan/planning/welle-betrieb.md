@@ -38,6 +38,8 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 **Start vor dem Welle-Trigger: `slice-telemetry-port`** (Entscheidung des Users vom 2026-10-30): in [done/](done/slice-telemetry-port.md) (Linie D). Die Welle bleibt unter *Nächste Wellen*; der Slice ist eine Ausnahme von ihrem Trigger, nicht der Start der Welle. Die Handbuch-Pflicht des Plans ist dort als Rückführung geführt, falls der Port ein sichtbares Verhalten des Binary einführt.
 
+**Start vor dem Welle-Trigger: `slice-audit-log`** (2026-11-06, Ausnahme je Slice nach §2, Linie D): gestartet in [in-progress/](in-progress/slice-audit-log.md), Zweig slice-audit-log, Architect-Aufträge offen. Die Welle bleibt unter *Nächste Wellen*.
+
 ## 3. Closure-Trigger (Welle schließt)
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
