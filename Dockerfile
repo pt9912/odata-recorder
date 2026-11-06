@@ -151,8 +151,8 @@ FROM ${A_CHECK_IMAGE} AS a-check-bin
 FROM ${D_CHECK_IMAGE} AS d-check-bin
 
 # --- gegenproben: das Programm aus tools/gegenproben prüft, dass a-check, lint.sh,
-# migration-check.sh, pruefung, groessenmarke und zeichen samt Treibern und die Größengrenzen von docs-check (d-check) einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
-# Eingaben gefahren, die Fälle zu `pruefung race`, zu `groessenmarke`, zu `zeichen` und zu `d-check` gegen ein Wegwerfverzeichnis statt der Eingaben.
+# migration-check.sh, pruefung, groessenmarke, zeichen und katalog samt Treibern und die Größengrenzen von docs-check (d-check) einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
+# Eingaben gefahren, die Fälle zu `pruefung race`, zu `groessenmarke`, zu `zeichen`, zu `katalog` und zu `d-check` gegen ein Wegwerfverzeichnis statt der Eingaben.
 FROM ${LINT_IMAGE} AS gegenproben
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY --from=a-check-bin /a-check /usr/local/bin/a-check
@@ -160,6 +160,7 @@ COPY --from=d-check-bin /d-check /usr/local/bin/d-check
 COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
 COPY --from=groessenmarke /usr/local/bin/groessenmarke /usr/local/bin/groessenmarke
 COPY --from=zeichen /usr/local/bin/zeichen /usr/local/bin/zeichen
+COPY --from=katalog-bin /usr/local/bin/katalog /usr/local/bin/katalog
 WORKDIR /gp
 COPY tools/gegenproben ./
 RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-formatiert:"; echo "$f"; exit 1; }; } \
