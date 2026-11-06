@@ -20,3 +20,8 @@
 #
 # Eine Vorgabe fuer einen Marker der Fragmente (dort mit ?= belegt) steht hier
 # mit einfachem = und gewinnt, weil diese Datei nach den Fragmenten gelesen wird.
+
+# make e2e-abdeckung liest die Stufen des Treibers der Integrationstests (SPEC-037 Nr. 3).
+E2E_ABDECKUNG_QUELLE = tools/harness/test-integration.sh
+E2E_ABDECKUNG_PRAEFIX = integration
+E2E_ABDECKUNG_ZIEL = docs/plan/planning/e2e-abdeckung.md

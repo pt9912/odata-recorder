@@ -207,3 +207,10 @@ linters:
           - forbidigo
         path: ^tools/(gegenproben|groessenmarke|pruefung|zeichen)/main\.go$
         text: os\.Std(out|err)
+
+      # Why: Das Hilfsprogramm der Stufen von tests/e2e hat einen eigenen Einstieg und verbindet dort den
+      # Prozess mit seinen Standard-Strömen (SPEC-037 Nr. 6); die Ausnahme gilt dieser einen Datei.
+      - linters:
+          - forbidigo
+        path: ^tests/e2e/uebergang/main\.go$
+        text: os\.Std(out|err)
