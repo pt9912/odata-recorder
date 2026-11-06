@@ -35,6 +35,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Hinweis, keine Pflicht; Sendung von `slice-bootstrap-m2`, `AGENTS.md` §3.13):** Längen-Differenz zwischen Filter und Schlüssel (`SPEC-161`, `SPEC-164`; 1641 Abweichungen in 167634 Läufen): alle sind `literal` im Filter gegen `zu_lang` im Schlüssel, erklärt durch die Regel „der Rest hinter dem schließenden `'` zählt nicht zur Länge“ (`SPEC-164` Nr. 4 a); entschieden und vertraglich getragen, kein Fehler. Eine Angleichung wäre eine Änderung des Vertrags des Lesers; wer sie will, entscheidet sie in diesem Slice, dessen Lauf beide Pfade verwendet. Ohne Beschluss bleibt die Regel.
 
+**Übernimmt (Sendung von `slice-edm-ausdruecke`, `AGENTS.md` §3.13):** (a) der Interpreter ruft `model.PruefeFilter` mit der Property-Maske vor der Auswertung des Filters und bildet den Fehler über die Abbildung ab (`SPEC-167` Nr. 6); (b) `$orderby` nach einer Property, für die `model.HatOrdnung` falsch ist (`Edm.Guid`), ist `501` mit `ODR-E6001` (`SPEC-166` Nr. 3 f); (c) `desc` kehrt die Ordnung von `model.OrdneWerte` um, `null` steht dann zuletzt (`SPEC-166` Nr. 6). Die Auswertung der Wahrheitswerte, die Vergleiche und die Ordnung selbst liefert `slice-edm-ausdruecke`.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Die Coverage-Prüfung vor der Ausführung — `slice-mock-lesen`; der Interpreter bekommt einen Bestand und fragt nicht, wie vollständig er ist.
@@ -117,7 +119,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Negative oder nicht ganzzahlige Werte von `$top` und `$skip` (`400`): der Ort der Entscheidung (Parser oder Interpreter) ist offen — **Ausgang:** offen; Architect, eine Zelle des Rasters.
-- Ordnung von `null` im `$orderby` und gemischte Sortierschlüssel — **Ausgang:** offen; Architect.
+- Ordnung von `null` im `$orderby` — **Ausgang:** entfallen als Lücke: entschieden in `SPEC-166` Nr. 6 (`null` zuerst aufsteigend, zuletzt absteigend). Gemischte Sortierschlüssel — **Ausgang:** offen; Architect.
 - Laufzeit bei 10.000 Entities pro Workspace (`LH-QA-01.a`): dieser Slice sagt Korrektheit zu, nicht Latenz — **Ausgang:** weiter offen; die Messung trägt der Closure-Trigger von `welle-betrieb` (§3 dort, Lasttest).
 - Teilprojektionen: `$select` einer Property, die nur teilweise beobachtet ist (`SPEC-044`) — **Ausgang:** offen; Raster *Operation × Argumentart*.
 

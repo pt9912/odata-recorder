@@ -1,0 +1,2 @@
+**Vorgang:** slice-edm-ausdruecke
+**Fund:** Der Architect-Typ hat kein `Edit`; er schrieb `SPEC-166` und `SPEC-167` mit `git apply --unidiff-zero` und `perl` auf Repo-Dateien. Kein Verlust, kein doppelt kodiertes UTF-8 (`LC_ALL=C git grep -P '\xC3[\x82\x83]'` ohne Textbefund). Zweiter Vorgang nach `slice-mutationslauf-werkzeug`; kein Gate und kein Waechter erzwingt die Regel (Traeger geplant: `slice-guard-schreibwege`). Beleg: Plan §7.

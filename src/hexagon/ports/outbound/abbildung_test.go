@@ -174,7 +174,7 @@ func TestAbbildungVollstaendig(t *testing.T) {
 		}
 	}
 	for _, n := range eintraege {
-		modell := []string{"ErrUngueltig", "ErrMetadatenUngueltig", "ErrDatenUngueltig", "ErrURLUngueltig", "ErrURLNichtUnterstuetzt", "ErrKompatibilitaet"}
+		modell := []string{"ErrUngueltig", "ErrMetadatenUngueltig", "ErrDatenUngueltig", "ErrURLUngueltig", "ErrURLNichtUnterstuetzt", "ErrFilterNichtBeobachtet", "ErrKompatibilitaet"}
 		if !slices.Contains(modell, n) && !slices.Contains(vorhanden, n) {
 			t.Errorf("Eintrag %s ohne Variable im Paket", n)
 		}
@@ -293,5 +293,40 @@ func TestAbbildungKompat(t *testing.T) {
 	}
 	if !slices.Contains(outbound.EintraegeAbbildung(), "ErrKompatibilitaet") {
 		t.Error("die Tabelle nennt ErrKompatibilitaet nicht")
+	}
+}
+
+// TestAbbildungFilterTyp (Zeile 36): der Fehler der Typprüfung des Filters bildet bei jedem der acht Gegenstände auf den Code seiner
+// Ursache ab (ODR-E6005 für vier Ursachen, ODR-E6001 für zwei, ODR-E6003 für nicht_beobachtet), auch verpackt und verbunden; ein
+// Kontextfehler daneben bekommt keinen Code. 7 Ursachen × 4 Formen × 8 Gegenstände; die Tabelle nennt ErrFilterNichtBeobachtet.
+func TestAbbildungFilterTyp(t *testing.T) {
+	n := 0
+	for _, u := range model.AlleFilterTypUrsachen() {
+		soll := model.CodeE6005
+		switch u {
+		case model.FilterTypNichtUnterstuetzt, model.FilterOperatorNichtUnterstuetzt:
+			soll = model.CodeE6001
+		case model.FilterNichtBeobachtet:
+			soll = model.CodeE6003
+		}
+		e := &model.FilterTypFehler{Ursache: u}
+		formen := map[string]error{"Fehler": e, "Errorf": fmt.Errorf("prüfen: %w", e), "JoinLinks": errors.Join(e, errors.New("x")), "JoinRechts": errors.Join(errors.New("x"), e)}
+		for name, err := range formen {
+			for _, g := range alleGegenstaende() {
+				if got, ok := outbound.Abbilden(err, g); !ok || got != soll {
+					t.Errorf("%s %s / Gegenstand %d: %v %v, erwartet %v", u, name, g, got, ok, soll)
+				}
+				n++
+			}
+		}
+		if _, ok := outbound.Abbilden(errors.Join(e, context.Canceled), gSonst); ok {
+			t.Error("ein Kontextfehler neben dem Fehler bekommt einen Code")
+		}
+	}
+	if n != 7*4*8 {
+		t.Errorf("%d Fälle", n)
+	}
+	if !slices.Contains(outbound.EintraegeAbbildung(), "ErrFilterNichtBeobachtet") {
+		t.Error("die Tabelle nennt ErrFilterNichtBeobachtet nicht")
 	}
 }
