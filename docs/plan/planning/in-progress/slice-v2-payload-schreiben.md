@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-172` Nr. 6 und 7 (Schreiben, Gegenstücke) · `SPEC-170` Nr. 4 (Typen) · `SPEC-006` (Fehlerobjekt) · `SPEC-178` · `ARC-004`, `ARC-011`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-v2-payload-schreiben)
 
 **Autor:** pt9912. **Datum:** 2026-11-01.
 
@@ -86,6 +86,14 @@ Aussagen-Berührung steht hier gar nicht.
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) füllt der Architect beim Start vor dem ersten Code-Commit; den Vertrag der Schreib-Schnittstelle trägt `SPEC-168` (aus `slice-odata-json-schreiben`, `SPEC-172` Nr. 6 nennt die Nummer schon); der Architect füllt die Tabelle gegen `SPEC-168` Nr. 1 bis 9.
 
+**Aufträge an den Architect** (Start, Planner, 2026-11-06; vor dem ersten Code-Commit, `AGENTS.md` §3.12; Ausgang jeweils *offen* in §6):
+
+1. **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15, Spalten nach `SPEC-128` Nr. 3 a) gegen `SPEC-168` Nr. 1 bis 9 (jede Nummer, auch die Aufrufstellen des Schreibers: `dst`, `ctx`, ein `Write`, Fehler von `dst`) und `SPEC-172` Nr. 6 a bis g und Nr. 7; ein Fake von `dst` hält jedes Argument fest und zählt jede Operation (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 4×).
+2. **Raster *Operation × Argumentart*** (`AGENTS.md` §3.16) in §6 vollständig: jede Zelle mit Nummer in `SPEC-168` oder `SPEC-172`, die Zellen „Vertrag der Schreib-Schnittstelle“ tragen die Nummer von `SPEC-168`; die Zelle „Zeitpunkt, der keine ganze Millisekunde ist“ (`ErrUngueltig`) und die Grenzen von `Edm.Int64` und `Edm.Decimal` als String je mit beiden Seiten der Grenze.
+3. **Pflicht-Mengen** (`AGENTS.md` §3.17, `implement-slice` Schritt 14): je Klasse (sieben Typen × Wertformen, Escapes in Zeichenketten und Rohbytes, Hüllen, Fehlerobjekt) die Menge, die Zahl ihrer Elemente, der Generator über die Klasse, das Orakel (nie der Schreiber selbst, der Rundlauf nur zusätzlich) und die Prüfgrenze der unbeschränkten Mengen als akzeptiertes Negativ mit Grund und Folge im Betrieb.
+4. **Schnittfrage** nach `SPEC-128` Nr. 1: *S* liegt voraussichtlich über 2223 (§4); der Architect beantwortet sie vor der Tabelle (Vorbild: `slice-v2-payload-lesen` ohne Schnitt, Grund im Block `schnitt-grund`; Entity, Collection, Anzahl und Fehlerobjekt teilen Hülle und Tabelle der Typen).
+5. **Kennungen und Dateien neben dem Zweig `slice-odata-json-eingabe`** (Linie B, läuft zugleich; `SPEC-180` bis `SPEC-189`, `SPEC-190` und `SPEC-191` sind vergeben, `ARC` ab 030 und `ADR` ab 0020 teilt die Linie): dieser Slice schreibt in `spezifikation.md` nur Nummern von `SPEC-172` und `SPEC-178`; braucht er eine neue Nummer, nimmt er `SPEC-192` bis `SPEC-199`, braucht er `ARC` oder `ADR`, geht das als Rückgabe an den Planner. Der Zweig der Eingabe ergänzt `CodecSatz` um das Feld `Eingabe` (`src/hexagon/ports/outbound/codec_satz.go`) und berührt den Wortlaut von `SPEC-125` und `SPEC-168` Nr. 10 (Stand des Zweigs am 2026-11-06); dieser Slice ändert weder `codec_satz.go` noch `SPEC-125` oder `SPEC-168` und schreibt nur in `src/adapters/driven/odata/jsoncodecv2/` und den Tests; `jsoncodec` (V4) bleibt unberührt, ein Bedarf an dessen Helfern geht als Rückgabe an den Planner.
+
 **Betriebsregeln** (gelten für jede Rolle dieses Slice):
 
 - Auf Repo-Dateien kein `sed -i`, kein Heredoc, kein `>>`, kein `awk` und kein Python, nur `Edit`/`Write`; keine Hilfsdateien im Repo-Wurzelverzeichnis (`BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt`).
@@ -102,7 +110,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **Start** (`next` → `in-progress`): [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) ist `Accepted`, `slice-odata-json-schreiben` liegt in `done/`, und der Vertrag der Schreib-Schnittstelle steht in der Spezifikation (`SPEC-168`; `SPEC-172` Nr. 6 trägt nur das Format). Der Schreib-Teil ist deshalb nicht vor `slice-odata-json-schreiben` startbar.
 
 - **Code-Abhängigkeit, mit Grund:** `slice-odata-json-schreiben` (die Schreib-Schnittstelle der Codec-Gruppe und der Darstellungskopf, Sendung von `slice-v2-bootstrap`); `slice-v2-payload-lesen` ist nicht Voraussetzung, der Rundlauf-Test braucht den Leser aber im Paket.
-- **Größenmarke:** noch nicht gesetzt; der Planner setzt sie beim Start nach `SPEC-128` aus der Tabelle des Architect.
+- **Stand beim Start** (Planner, 2026-11-06): erfüllt, [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) ist `Accepted`, `slice-odata-json-schreiben` und `slice-v2-payload-lesen` liegen in `done/`, der Vertrag `SPEC-168` steht. Der Slice liegt in der Linie B neben `slice-odata-json-eingabe` (Auftrag 5 in §3) und berührt keine Datei der Gate-Kette (Übergangsregeln Nr. 7; Stand beim Start: `slice-handbuch-meldungskatalog`, Linie C, ist der eine Slice der Gate-Kette in `in-progress/`); ändert Vertrag oder Code eine Datei der Gate-Kette (auch `.a-check.yml`, `.golangci.yml`), geht das als Rückgabe an den Planner (§6).
+- **Größenmarke** (`SPEC-128`; Faktoren allein dort; Stand beim Start, Planner). Der Block mit `basis`, `schaetzung` und `marke` steht auf `main` nicht (ein Block ohne Zahlen der Tabelle wäre ein Platzhalter und machte `make groessenmarke` rot); der Architect legt ihn im Zweig an, `basis` ist der letzte Commit, der Vertrag, Tabelle und Raster abschließt, und der Planner setzt Schätzung und Marke in eigenem Commit vor dem ersten Code-Commit. Pfad: `src/adapters/driven/odata/jsoncodecv2/` (Tests eingeschlossen; der Leser aus `slice-v2-payload-lesen` liegt im selben Verzeichnis, der Block nennt die neuen Dateien statt des Verzeichnisses, soweit der Architect sie trennt). **Vorläufige Rechnung ohne Tabelle, nur Richtwert, nicht bindend:** rund 38 Zeilen (2 nebenläufig, 36 andere), *f* = 1 (Fake von `dst`), *p* rund 900 (Vergleich: Schreiber V4 810 gemessen bei 1000 erwartet), also *S* = 85·2 + 80·36 + 200·1 + 900 = 4150 und *M* = 100 · ⌈135·4150 / 10000⌉ = 5700; die Schnittfrage stellt sich (*S* ≥ 2223, Auftrag 4). Die Messpunkte der Vorgänger (V4-Schreiber 3367 bei *S* 4570, V2-Leser 4085 bei *S* 5970) liegen bei 0,68 bis 0,74 von *S*; das Register führt die Überschätzung (`BEO-REPO/schaetzformel-ueberschaetzt-den-slice`, 11×), die Marke folgt trotzdem der Formel.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -128,6 +137,10 @@ dasteht.
 - Zeit- und Zahlenschreibweisen von V2 (`\/Date(<ms>)\/`, `Edm.Int64` und `Edm.Decimal` als String): Rundlauf mit dem Leser — **Ausgang:** offen; Raster, eine Zelle je Typ (Schleife über die sieben Typen, `SPEC-172` Nr. 6 f).
 - Fakes der Ports halten jedes Argument fest und zählen jede Operation (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`) — **Ausgang:** offen.
 - Randformen (`AGENTS.md` §3.12, §3.16): das Raster unten; jede Zelle nennt ihren Ort, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
+- Schnittfrage (Auftrag 4 in §3): *S* liegt nach dem Richtwert über 2223 — **Ausgang:** offen; Adresse: Architect (Schnitt oder `schnitt-grund`), Marke setzt der Planner nach der Tabelle.
+- Linie B neben `slice-odata-json-eingabe` (Auftrag 5 in §3): Kennungen (`SPEC-192` bis `SPEC-199`), `codec_satz.go`, Wortlaut von `SPEC-125` und `SPEC-168`, Reihenfolge der Merges (erster Verifier-Pass entscheidet, der zweite Zweig nimmt `main` per Merge auf) — **Ausgang:** offen; Adresse: Architect, bei einer Berührung Planner.
+- Nebenläufige Zusage „keine Zustände zwischen Aufrufen“ (`SPEC-168` Nr. 9): Wirkungs-Fänger oder Detektor, Rate mit Zahl der Prozesse und Messendem (`AGENTS.md` §3.10) — **Ausgang:** offen; Adresse: Architect (Zeile der Tabelle), Implementer (Rate).
+- Gate-Kette (Stand beim Start in §4): ein Bedarf an einer Änderung der Gate-Kette — **Ausgang:** weiter offen (nicht zu erwarten); Adresse: Planner.
 
 **Raster *Operation × Argumentart*** (Orte des Architect; „Vertrag der Schreib-Schnittstelle“ erbt den Vertrag des Schreibers der Codec-Gruppe, dessen Nummer der Architect vor dem Start einträgt):
 
@@ -169,7 +182,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-11-01); `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) gilt für Fakes und Hüllen von Strömen; `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×) für die Betriebsregel „nur `Edit` und `Write`“. Der Slice ist nicht nebenläufig. Keiner der offenen Einträge erreicht mit diesem Slice 3×.
+**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-11-01) und beim Start nachgezogen (Planner, 2026-11-06; Zähler = Zahl der Dateien in `evidence/`). Verkörpert und mit dem Slice zu beachten: `BEO-REPO/randform-erst-im-review-entschieden` (33×, `AGENTS.md` §3.16), `BEO-REPO/fix-deckt-die-genannte-mutation-nicht-die-klasse` (27×, `AGENTS.md` §3.17), `BEO-REPO/suite-ohne-generator-fuer-klassen-der-spezifikation` (6×, `implement-slice` Schritt 14), `BEO-REPO/unbeschraenkte-menge-ohne-benannte-pruefgrenze` (11×, `implement-slice` Schritt 14), `BEO-REPO/ziffern-klasse-ohne-schleife` (5×, `implement-slice` Schritt 14) für die Zahlenformen, `BEO-REPO/werkzeug-eingabe-setzt-escape-in-zeichen-um` (5×, `AGENTS.md` §3.18) für `\/Date(…)\/` und die Escapes, `BEO-REPO/universalaussage-im-vertrag-ungeprueft` (14×) und `BEO-REPO/akzeptiertes-negativ-ohne-folge` (14×, beide `AGENTS.md` §3.15 und §3.16). Offen: `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×, verkörpert in `implement-slice` Schritt 14) gilt für Fakes und Hüllen von Strömen (der Fake von `dst`); `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (7×, `geplant` in `slice-guard-schreibwege`) für die Betriebsregel „nur `Edit` und `Write`“; `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (4×, Schwelle erreicht, Verkörperung beim Lese-Schritt der Closure von `welle-mock` oder des nächsten Slice mit Nebenläufigkeit) berührt die eine nebenläufige Zusage, „keine Zustände zwischen Aufrufen“ (`SPEC-168` Nr. 9): der Fänger läuft unter `make test-race`, ein Zweig ohne Lauf ist ein benanntes Negativ; `BEO-REPO/schaetzformel-ueberschaetzt-den-slice` (11×) für die Marke. Mit diesem Slice erreicht kein offener Eintrag ohne Ausgang 3×, außer den genannten.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der
