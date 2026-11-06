@@ -449,7 +449,7 @@ func ablehnungen(s *jsoncodecv2.Schreiber, z *ziel) []error {
 		{"Dec", model.ArtDecimal, "-0"}, {"Dec", model.ArtDecimal, "1.5.5"}, {"Dec", model.ArtDecimal, "-0.5"}, {"Dec", model.ArtDecimal, "1."}, {"Dec", model.ArtDecimal, "1.5"},
 		{"G", model.ArtGUID, "0f8fad5b"}, {"G", model.ArtGUID, "0f8fad5bxd9cb-469f-a165-70867728950e"}, {"G", model.ArtGUID, "0f8fad5b-d9cb-469f-a165-70867728950g"},
 		{"B", model.ArtBoolean, "True"}, {"B", model.ArtBoolean, "false"},
-		{"T", model.ArtDateTimeOffset, "2020"}, {"T", model.ArtDateTimeOffset, "2023-02-29T00:00:00Z"}, {"T", model.ArtDateTimeOffset, "2020-01-01T00:00:00Z"},
+		{"T", model.ArtDateTimeOffset, "2020"}, {"T", model.ArtDateTimeOffset, "2020-01-01t00:00:00Z"}, {"T", model.ArtDateTimeOffset, "2023-02-29T00:00:00Z"}, {"T", model.ArtDateTimeOffset, "2020-01-01T00:00:00Z"},
 		{"T", model.ArtDateTimeOffset, "2020-01-01T00:00:00.1234Z"}, {"T", model.ArtDateTimeOffset, "2020-01-01T00:00:00.120Z"}, {"T", model.ArtDateTimeOffset, "2020-01-01T00:00:00,1Z"},
 		{"T", model.ArtDateTimeOffset, "2020-01-01T00:00:00.12aZ"}, {"T", model.ArtDateTimeOffset, "2020-13-01T00:00:00Z"}, {"T", model.ArtDateTimeOffset, "2020-01-01T24:00:00Z"},
 		{"T", model.ArtDateTimeOffset, "2020-01-01T00:60:00Z"}, {"T", model.ArtDateTimeOffset, "2020-01-01T00:00:60Z"}, {"T", model.ArtDateTimeOffset, "0000-01-01T00:00:00Z"},
