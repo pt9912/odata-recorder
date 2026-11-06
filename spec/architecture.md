@@ -203,7 +203,7 @@ Der Core entscheidet **nicht** über TLS, Socket-Lifecycle oder HTTP-Chunking.
 | `CursorRepository` | Veränderlichen Replay-Cursor-Zustand je `(workspace, replay_session, recording_session)` atomar lesen und fortschreiben; getrennt vom append-only `RecordingRepository` |
 | `MetadataCodec` | EDMX/CSDL-Bytes in das Modell des OData-Dienstes und den Validierungsbericht überführen (nur lesend) |
 | `ODataCodec` | OData-JSON-Antworten (der Version des Dienstes) auf Einzel-Entity- und Collection-Abfragen in typisierte Entities des Domain-Modells überführen (nur lesend); das Schreiben von OData-JSON ist `ODataSchreiber` |
-| `ODataEingabe` | Den JSON-Body eines POST, PATCH oder PUT gegen das Modell in eine typisierte Entity-Eingabe überführen (nur lesend, entscheidet nichts über den Zustand); ein ungültiger Body ist ein Fehler der Klasse `ungueltig`, ein gültiger, nicht unterstützter Inhalt ein Fehler mit `ODR-E6002` |
+| `ODataEingabe` | Den JSON-Body eines POST, PATCH oder PUT gegen das Modell in eine typisierte Entity-Eingabe überführen (nur lesend, entscheidet nichts über den Zustand); ein ungültiger Body ist ein Fehler mit `ODR-E6007`, ein gültiger, nicht unterstützter Inhalt ein Fehler mit `ODR-E6002` |
 | `URLCodec` | Pfad und Query einer OData-URL in den technologieunabhängigen Query-AST des Domain-Modells überführen (nur lesend, reine Funktion ohne Kontext); eine nicht lesbare URL ist ein Fehler mit `ODR-E6005`, eine gültige, nicht unterstützte Form ein Fehler mit `ODR-E6001` |
 | `AuditLog` (Querschnitts-Port) | Audit-Einträge der Verwaltungs- und Löschvorgänge ohne Geheimnisse anhängen |
 | `Telemetry` (Querschnitts-Port) | Strukturierte Logs, Metriken und Spans (`SPEC-026`–`SPEC-030`) ausgeben |
@@ -608,6 +608,7 @@ sequenceDiagram
 | Befund der Integritätsprüfung beim Start | `ARC-002` (Maintenance) → `ARC-012` | `ODR-E3001`, der Prozess startet nicht; ein fehlender oder beschädigter Blob wird gemeldet, der Start läuft weiter |
 | Unbekannte OData-Funktion | `ARC-011` → `ARC-002` | Expliziter 501-Pfad |
 | Nicht lesbare OData-URL (Pfad, Schlüssel, Systemoption) | `ARC-011` → `ARC-002` | `ODR-E6005`, HTTP 400, kein Zugriff auf den Bestand |
+| Nicht lesbarer Request-Body (POST, PATCH, PUT) | `ARC-011` → `ARC-002` | `ODR-E6007`, HTTP 400, kein Zustandswechsel |
 | Ungenügende Coverage | `ARC-002` | `ODR-E6003`, keine irreführende leere Collection |
 | Concurrency-Konflikt | `ARC-002`/`ARC-009` | Atomarer Rollback, 409 oder 412 je Vertragsfall |
 | Redaction-Fehler | `ARC-002` (Record-Service, Capture-Pipeline) | Keine unredigierte Ablage; Capture-Fehler |
