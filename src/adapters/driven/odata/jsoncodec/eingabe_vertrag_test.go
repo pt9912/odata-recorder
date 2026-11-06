@@ -66,7 +66,8 @@ func TestEingabeZuteilung(t *testing.T) {
 	n := 0
 	for _, f := range eZuteilungFormen() {
 		groessen := []int{1 << 10, 64 << 10, 1 << 20}
-		if f.name == "1,-Folge" {
+		// Unter dem Detektor braucht der Lauf bis 8 MiB mehr Speicher, als ein Container von 2 GiB trägt: die Stufen über 1 MiB laufen unter `make test`.
+		if f.name == "1,-Folge" && !eUnterDetektor {
 			groessen = []int{1 << 10, 64 << 10, 1 << 20, 2 << 20, 3 << 20, 4 << 20, 4278618, 5 << 20, 6 << 20, 7 << 20, 8<<20 - 16}
 		}
 		for _, g := range groessen {
@@ -88,8 +89,12 @@ func TestEingabeZuteilung(t *testing.T) {
 			n++
 		}
 	}
-	if n != 35 {
-		t.Errorf("Menge %d, erwartet 35", n)
+	soll := 35
+	if eUnterDetektor {
+		soll = 27 // 9 Formen × 3 Größen
+	}
+	if n != soll {
+		t.Errorf("Menge %d, erwartet %d", n, soll)
 	}
 }
 
