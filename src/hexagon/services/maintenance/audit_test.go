@@ -285,13 +285,14 @@ func TestAuditKeinGeheimnis(t *testing.T) {
 	}
 }
 
-// TestAuditSynchronOhneFrist (E19, F1, M1 der Aufbewahrung): Append der zweiten von drei Sessions läuft
-// auf der Goroutine des Dienstes, Startup setzt erst nach seiner Rückkehr fort, auch bei im Halt
-// beendetem ctx; im Halt steht die Löschung, der Eintrag fehlt, Delete(c) ist nicht gerufen, und Startup
+// TestAuditSynchronOhneFrist (E19, F1, M1 der Aufbewahrung): Append der Session an jeder der drei Positionen
+// läuft auf der Goroutine des Dienstes, Startup setzt erst nach seiner Rückkehr fort, auch bei im Halt
+// beendetem ctx (6 Läufe); im Halt steht die Löschung, der Eintrag fehlt, das nächste Delete ist nicht gerufen, und Startup
 // ist nach 100 ms nicht zurückgekehrt. Nach der Freigabe ist das Ergebnis das des Laufs ohne Halt.
 func TestAuditSynchronOhneFrist(t *testing.T) {
 	n := 0
-	for _, beendet := range []bool{false, true} {
+	for _, kombi := range [][2]int{{1, 0}, {1, 1}, {2, 0}, {2, 1}, {3, 0}, {3, 1}} {
+		pos, beendet := kombi[0], kombi[1] == 1
 		n++
 		// lauf baut die Welt; im Aufruf von Append der zweiten Session endet der ctx (wenn beendet) und
 		// laeuft vor, falls gesetzt.
@@ -302,7 +303,7 @@ func TestAuditSynchronOhneFrist(t *testing.T) {
 			zaehler := 0
 			u.audit.Vor = func(support.Eintrag) {
 				zaehler++
-				if zaehler != 2 {
+				if zaehler != pos {
 					return
 				}
 				if beendet {
@@ -336,14 +337,23 @@ func TestAuditSynchronOhneFrist(t *testing.T) {
 			b, err := u.startup(ctx)
 			fertig <- ergebnis{fmt.Sprintf("%+v", b), err}
 		}()
-		warte(t, erreicht, "Append der zweiten Session erreicht")
+		warte(t, erreicht, "Append der Session erreicht")
+		ids := []string{"a", "b", "c"}
 		select {
 		case <-fertig:
 			t.Errorf("beendet %v: Startup kehrte im Halt von Append zurück", beendet)
 		case <-time.After(100 * time.Millisecond):
 		}
-		if !slices.Equal(u.p.mit("Delete("), []string{"Delete(a)", "Delete(b)"}) || len(stand) != 1 || stand[0] != aufbewahrt(dienstA, "a") {
-			t.Errorf("beendet %v: im Halt Delete %v, Einträge %+v", beendet, u.p.mit("Delete("), stand)
+		var solld []string
+		var solle []support.Eintrag
+		for i, id := range ids[:pos] {
+			solld = append(solld, "Delete("+id+")")
+			if i < pos-1 {
+				solle = append(solle, aufbewahrt(dienstA, id))
+			}
+		}
+		if !slices.Equal(u.p.mit("Delete("), solld) || !slices.Equal(stand, solle) {
+			t.Errorf("Position %d, beendet %v: im Halt Delete %v, Einträge %+v", pos, beendet, u.p.mit("Delete("), stand)
 		}
 		if len(u.p.liste()) != len(folge) {
 			t.Errorf("beendet %v: im Halt tat der Dienst weiter: %v nach %v", beendet, u.p.liste(), folge)
@@ -362,7 +372,7 @@ func TestAuditSynchronOhneFrist(t *testing.T) {
 			t.Errorf("beendet %v: Einträge %+v, ohne Halt %+v", beendet, got, soll)
 		}
 	}
-	if n != 2 {
-		t.Errorf("Menge %d, erwartet 2", n)
+	if n != 6 {
+		t.Errorf("Menge %d, erwartet 6", n)
 	}
 }

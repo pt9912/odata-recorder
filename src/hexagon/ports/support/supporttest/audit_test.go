@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -137,21 +138,79 @@ func TestFakeAuditFehlerUndHaltepunkt(t *testing.T) {
 // TestFakeAuditGleichzeitig prüft SPEC-234 Nr. 9: 64 Goroutinen × 8 Aufrufe verlieren keinen
 // Eintrag und keinen Zähler.
 func TestFakeAuditGleichzeitig(t *testing.T) {
-	const g, n = 64, 8
-	f := supporttest.NewFakeAudit()
-	var wg sync.WaitGroup
-	for range g {
-		wg.Go(func() {
-			for range n {
+	const g, n, leser, runden = 64, 8, 8, 50
+	// Zweige: ohne und mit Haltepunkt; neben den Aufrufen von Append rufen leser Goroutinen Eintraege
+	// und Aufrufe, und Vor ruft beide aus der Goroutine von Append.
+	for _, mitVor := range []bool{false, true} {
+		f := supporttest.NewFakeAudit()
+		var vor atomic.Int64
+		if mitVor {
+			f.Vor = func(support.Eintrag) {
+				vor.Add(1)
+				_ = f.Aufrufe()
+				_ = f.Eintraege()
+			}
+		}
+		var wg sync.WaitGroup
+		for range g {
+			wg.Go(func() {
+				for range n {
+					_ = f.Append(eintragVoll())
+				}
+			})
+		}
+		for range leser {
+			wg.Go(func() {
+				for range runden {
+					_ = f.Eintraege()
+					_ = f.Aufrufe()
+				}
+			})
+		}
+		wg.Wait()
+		soll := g*n + leser*runden
+		if mitVor {
+			soll += g * n
+			if got := vor.Load(); got != g*n {
+				t.Errorf("mit Vor: %d Aufrufe von Vor, erwartet %d", got, g*n)
+			}
+		}
+		if got := f.Aufrufe(); got != soll {
+			t.Errorf("mit Vor %v: Aufrufe %d, erwartet %d", mitVor, got, soll)
+		}
+		if got := len(f.Eintraege()); got != g*n {
+			t.Errorf("mit Vor %v: %d Einträge, erwartet %d", mitVor, got, g*n)
+		}
+	}
+}
+
+// TestFakeAuditFehlerMalZaehlerUndVor prüft das Paar Fehler × Zähler und Fehler × Vor (SPEC-234 Nr. 9):
+// mit und ohne Fehler zählt Append, ruft Vor genau einmal und hält den Eintrag fest.
+func TestFakeAuditFehlerMalZaehlerUndVor(t *testing.T) {
+	n := 0
+	for _, fehler := range []error{nil, errors.New("Ablage")} {
+		for _, mitVor := range []bool{false, true} {
+			n++
+			f := &supporttest.FakeAudit{Fehler: fehler}
+			gerufen := 0
+			if mitVor {
+				f.Vor = func(support.Eintrag) { gerufen++ }
+			}
+			for range 3 {
 				_ = f.Append(eintragVoll())
 			}
-		})
+			if got := f.Aufrufe(); got != 3 {
+				t.Errorf("Fehler %v, Vor %v: Aufrufe %d, erwartet 3", fehler, mitVor, got)
+			}
+			if mitVor && gerufen != 3 || !mitVor && gerufen != 0 {
+				t.Errorf("Fehler %v, Vor %v: Vor %d-mal gerufen", fehler, mitVor, gerufen)
+			}
+			if got := len(f.Eintraege()); got != 3 {
+				t.Errorf("Fehler %v, Vor %v: %d Einträge, erwartet 3", fehler, mitVor, got)
+			}
+		}
 	}
-	wg.Wait()
-	if got := len(f.Eintraege()); got != g*n {
-		t.Errorf("%d Einträge, erwartet %d", got, g*n)
-	}
-	if got := f.Aufrufe(); got != g*n+1 {
-		t.Errorf("Aufrufe %d, erwartet %d", got, g*n+1)
+	if n != 4 {
+		t.Errorf("Paare %d, erwartet 4", n)
 	}
 }
