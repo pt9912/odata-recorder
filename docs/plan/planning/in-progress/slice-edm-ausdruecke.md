@@ -246,7 +246,7 @@ schaetzung: 3645
 marke: 5000
 ```
 
-**Messpunkte** (`SPEC-128` Nr. 9): beim Handoff und bei der Closure trägt der Planner hier die Messpunkt-Zeile des Programms ein.
+**Messpunkte** (`SPEC-128` Nr. 9): beim Handoff und bei der Closure trägt der Planner hier die Messpunkt-Zeile des Programms ein. Messung des Implementer beim Handoff (ohne Messpunkt-Zeile des Programms): Summe aus Einfügungen und Löschungen von `git diff --numstat f6daf34..HEAD` über die elf Pfade des Blocks 2760 (Produktcode 707, Tests 2053), Marke 5000, Auslastung 0,55; die Schätzung nach `SPEC-128` Nr. 1 war 3645, die nach `AGENTS.md` §3.14 mit Fester-Anteil-Regel 2165.
 
 ## 5. Closure-Trigger
 
