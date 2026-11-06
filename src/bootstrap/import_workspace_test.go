@@ -104,6 +104,7 @@ func TestImportErhaeltWerte(t *testing.T) {
 		"MaxCaptureBody": got.MaxCaptureBody == 12345 && got.MaxCaptureBody == h.pipeline.MaxBytes,
 		"Uhr":            got.Uhr != nil && got.Uhr == h.wartung.Uhr && got.Uhr == h.recorder.Uhr,
 		"IDs":            got.IDs != nil && got.IDs == bootstrap.IDsVon(hd),
+		"Audit":          got.Audit != nil && got.Audit == h.wartung.Audit,
 	}
 	typ := reflect.TypeOf(*got)
 	if len(dieselbe) != typ.NumField() {
@@ -152,6 +153,7 @@ func TestWorkspaceErhaeltWerte(t *testing.T) {
 				"Uhr":         got.Uhr != nil && got.Uhr == h.wartung.Uhr,
 				"IDs":         got.IDs != nil && got.IDs == bootstrap.IDsVon(hd),
 				"Log":         got.Log != nil && got.Log == log,
+				"Audit":       got.Audit != nil && got.Audit == h.wartung.Audit,
 			}
 			typ := reflect.TypeOf(*got)
 			if len(dieselbe) != typ.NumField() {
