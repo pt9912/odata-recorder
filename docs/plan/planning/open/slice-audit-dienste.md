@@ -41,7 +41,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Port `AuditLog`, `Eintrag`, `Art`, `Arten()`, der Adapter `audit.Datei` und die Datei `audit.jsonl` — `slice-audit-log`. Grund: Naht des Schnitts; dieser Slice braucht den Port und die Typen, nie den Adapter, und prüft gegen `FakeAudit`.
+- Port `AuditLog`, `Eintrag`, `AuditArt`, `Arten()`, der Adapter `audit.Datei` und die Datei `audit.jsonl` — `slice-audit-log`. Grund: Naht des Schnitts; dieser Slice braucht den Port und die Typen, nie den Adapter, und prüft gegen `FakeAudit`.
 - Die Verdrahtung im Composition Root, die Datei im Datenverzeichnis und der Canary-Test über das `Handle` — `slice-audit-verdrahtung`. Grund: `src/bootstrap/` ändert auch `slice-bootstrap-m2`; die Verdrahtung läuft nach den Diensten und nach ihm.
 - Audit-Einträge der Admin-Schreibendpunkte (Anlegen, Beenden, Reset, Restore über HTTP, die Anfrage eines Import-`POST`) und der Eintrag zu `ODR-E2101` — `welle-admin-api` (`SPEC-005`, `LH-FA-13.a`); die Nehmer `slice-admin-sessions`, `slice-admin-workspaces`, `slice-admin-imports` und `slice-admin-listener-token` tragen die Entscheidung `SPEC-234` Nr. 7 (nur der Use Case schreibt die vier Arten, der Adapter nie dieselben). Dieser Slice schreibt die vier Arten und nur sie.
 - Die Löschung der Blobs nach dem Commit (best effort, `SPEC-123` Nr. 8) — **entschieden: kein Eintrag**, weder eigener noch als Teil des Eintrags der Löschung (`SPEC-234` Nr. 6, Grund und Folge dort).
@@ -142,7 +142,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-audit-log` liegt in `done/` (Port, `Eintrag`, `Art`, `Arten()`; dieser Slice importiert sie). `slice-workspace-use-case` liegt in `done/` (`WorkspaceUseCase` mit `Delete`). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-audit-log` liegt in `done/` (Port, `Eintrag`, `AuditArt`, `Arten()`; dieser Slice importiert sie). `slice-workspace-use-case` liegt in `done/` (`WorkspaceUseCase` mit `Delete`). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Abhängigkeiten — Grund je Eintrag:**
 
