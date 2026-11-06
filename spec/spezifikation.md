@@ -2676,9 +2676,9 @@ Ein Eintrag ist ein Nachweis und kein Diagnose-Log: er hängt an keiner Stufe un
 
 ```text
 AuditLog.Append(e Eintrag) error
-Eintrag{Art Art; ServiceID, SessionID, WorkspaceID, ImportID string; ErrorCode model.Code; KorrelationsID string}
-Art (Zeichenkette): ArtSessionGeloescht "session_geloescht" · ArtSessionAufbewahrung "session_aufbewahrung" · ArtWorkspaceGeloescht "workspace_geloescht" · ArtImportFehlgeschlagen "import_fehlgeschlagen"
-support.Arten() []ArtSpec      ArtSpec{Art Art; Pflicht []Feld}      Feld: service_id, session_id, workspace_id, import_id, error_code
+Eintrag{Art AuditArt; ServiceID, SessionID, WorkspaceID, ImportID string; ErrorCode model.Code; KorrelationsID string}
+AuditArt (Zeichenkette): ArtSessionGeloescht "session_geloescht" · ArtSessionAufbewahrung "session_aufbewahrung" · ArtWorkspaceGeloescht "workspace_geloescht" · ArtImportFehlgeschlagen "import_fehlgeschlagen"
+support.Arten() []ArtSpec      ArtSpec{Art AuditArt; Pflicht []Feld}      Feld: service_id, session_id, workspace_id, import_id, error_code
 FakeAudit{Fehler error}   FakeAudit.Append(e Eintrag) error   FakeAudit.Eintraege() []Eintrag   FakeAudit.Aufrufe() int
 ```
 
@@ -2784,6 +2784,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-06 | `SPEC-234` Typzeile berichtigt (Namenskollision, keine Entscheidung geändert): der Typ der Arten heißt `AuditArt` statt `Art`, weil `Art` im Paket `support` den Typ der Attribute von `Telemetry` trägt (`SPEC-230` Nr. 1) und beide Typen in einem Paket nicht übersetzbar sind; die Konstanten (`ArtSessionGeloescht` und drei weitere), das Feld `Eintrag.Art`, `ArtSpec.Art`, `Feld` und `Arten()` behalten ihre Namen |
 | 2026-11-06 | Audit-Log vor dem Code (`SPEC-234`, `SPEC-235`): Port `AuditLog` mit geschlossener Menge von vier Arten, Ablage als Datei `audit.jsonl`, Eintrag nach der Tatsache und ohne Wirkung auf das Ergebnis des Dienstes, kein Eintrag für die Bereinigung der Blobs; Nachzug in `SPEC-123`, `SPEC-124`, `SPEC-127`, `SPEC-129`, `SPEC-139`, `SPEC-077`, `SPEC-005`, `SPEC-004` |
 | 2026-11-05 | OData V2, Antworten lesen nach dem Review (`SPEC-172` Nr. 3): Ketten von `BaseType` im Modell sind nicht als endlich zugesagt; der Leser kehrt bei jedem Modell zurück, ein Typ in einer geschlossenen Kette ohne den Typ des Sets ist `odata_typ`, die Länge des Rings ist ohne Wirkung; ausgesprochen, was der Code tat, keine Entscheidung geändert |
 | 2026-11-05 | `SPEC-173` Nr. 5 berichtigt (Widerspruch innerhalb der Nummer, keine Änderung einer Entscheidung): der Satz „ein Literal-Lauf, der in der Form von V4 … lesbar ist (ohne Präfix), ist `wert`“ stand neben dem Absatz *Literal-Lauf ohne Präfix* c („der Form nach beginnt, … Rest und Bereiche nicht geprüft“) und sagte für `2020-13-45` und `12:30x` `literal`, der Absatz `wert`; der Satz folgt jetzt dem Absatz (die Form entscheidet, nicht die Lesbarkeit), der Absatz bleibt unverändert |
