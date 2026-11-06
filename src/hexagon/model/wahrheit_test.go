@@ -27,19 +27,25 @@ func wahrKanonisch(w model.Wahrheit) model.Wahrheit {
 }
 
 // Die Tafeln stehen ausgeschrieben: Zeile = linker Operand, Spalte = rechter, Reihenfolge falsch, wahr, unbekannt.
-var (
-	tafelUnd = map[model.Wahrheit][3]model.Wahrheit{
+func tafelUnd() map[model.Wahrheit][3]model.Wahrheit {
+	return map[model.Wahrheit][3]model.Wahrheit{
 		wF: {wF, wF, wF},
 		wW: {wF, wW, wU},
 		wU: {wF, wU, wU},
 	}
-	tafelOder = map[model.Wahrheit][3]model.Wahrheit{
+}
+
+func tafelOder() map[model.Wahrheit][3]model.Wahrheit {
+	return map[model.Wahrheit][3]model.Wahrheit{
 		wF: {wF, wW, wU},
 		wW: {wW, wW, wW},
 		wU: {wU, wW, wU},
 	}
-	tafelNicht = map[model.Wahrheit]model.Wahrheit{wF: wW, wW: wF, wU: wU}
-)
+}
+
+func tafelNicht() map[model.Wahrheit]model.Wahrheit {
+	return map[model.Wahrheit]model.Wahrheit{wF: wW, wW: wF, wU: wU}
+}
 
 func spalte(w model.Wahrheit) int {
 	switch w {
@@ -70,16 +76,16 @@ func pruefeTafel(t *testing.T, name string, f func(a, b model.Wahrheit) model.Wa
 
 // TestUndTafel (Zeile 12): alle Paare aus falsch, wahr, unbekannt und zwei Werten außerhalb der Konstanten in beiden
 // Reihenfolgen gegen die ausgeschriebene Tafel.
-func TestUndTafel(t *testing.T) { pruefeTafel(t, "Und", model.Und, tafelUnd) }
+func TestUndTafel(t *testing.T) { pruefeTafel(t, "Und", model.Und, tafelUnd()) }
 
 // TestOderTafel (Zeile 13): wie TestUndTafel für Oder.
-func TestOderTafel(t *testing.T) { pruefeTafel(t, "Oder", model.Oder, tafelOder) }
+func TestOderTafel(t *testing.T) { pruefeTafel(t, "Oder", model.Oder, tafelOder()) }
 
 // TestNichtTafel (Zeile 14): alle drei Werte und zwei außerhalb der Konstanten; das Ergebnis ist eine der drei Konstanten.
 func TestNichtTafel(t *testing.T) {
 	n := 0
 	for _, a := range tafelEingaben() {
-		if got, soll := model.Nicht(a), tafelNicht[wahrKanonisch(a)]; got != soll {
+		if got, soll := model.Nicht(a), tafelNicht()[wahrKanonisch(a)]; got != soll {
 			t.Errorf("Nicht(%d) = %d, erwartet %d", a, got, soll)
 		}
 		n++

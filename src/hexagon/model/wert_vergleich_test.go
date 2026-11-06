@@ -13,7 +13,9 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-var alleOps = []model.VergleichOp{model.VergleichEq, model.VergleichNe, model.VergleichGt, model.VergleichGe, model.VergleichLt, model.VergleichLe}
+func alleOps() []model.VergleichOp {
+	return []model.VergleichOp{model.VergleichEq, model.VergleichNe, model.VergleichGt, model.VergleichGe, model.VergleichLt, model.VergleichLe}
+}
 
 // erwartet ist die Wahrheit eines Vergleichs bei dem Vorzeichen c der Ordnung (links gegen rechts); die Tabelle steht im Test.
 func erwartet(op model.VergleichOp, c int) model.Wahrheit {
@@ -119,21 +121,29 @@ func orakelDatum(a, b string) int {
 	return slices.Compare(ta[:], tb[:])
 }
 
-// formOrakel hält die Form je Art als reguläre Ausdrücke (SPEC-166 Nr. 7); `\z` und `[0-9]` sind ASCII und ohne Zeilenende-Sonderfall.
-var formOrakel = map[model.WertArt]*regexp.Regexp{
-	model.ArtBoolean:        regexp.MustCompile(`\A(true|false)\z`),
-	model.ArtInt32:          zahlForm,
-	model.ArtInt64:          zahlForm,
-	model.ArtDecimal:        zahlForm,
-	model.ArtGUID:           regexp.MustCompile(`\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z`),
-	model.ArtDate:           regexp.MustCompile(`\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z`),
-	model.ArtDateTimeOffset: regexp.MustCompile(`\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{0,11}[1-9])?Z\z`),
+// Die Form je Art als reguläre Ausdrücke (SPEC-166 Nr. 7); `\z` und `[0-9]` sind ASCII und ohne Zeilenende-Sonderfall.
+var (
+	formBoolean   = regexp.MustCompile(`\A(true|false)\z`)
+	formGUID      = regexp.MustCompile(`\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z`)
+	formDatum     = regexp.MustCompile(`\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z`)
+	formZeitpunkt = regexp.MustCompile(`\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{0,11}[1-9])?Z\z`)
+	zahlForm      = regexp.MustCompile(`\A(0|-?[1-9][0-9]*(\.[0-9]*[1-9])?|-?0\.[0-9]*[1-9])\z`)
+)
+
+func formOrakel() map[model.WertArt]*regexp.Regexp {
+	return map[model.WertArt]*regexp.Regexp{
+		model.ArtBoolean:        formBoolean,
+		model.ArtInt32:          zahlForm,
+		model.ArtInt64:          zahlForm,
+		model.ArtDecimal:        zahlForm,
+		model.ArtGUID:           formGUID,
+		model.ArtDate:           formDatum,
+		model.ArtDateTimeOffset: formZeitpunkt,
+	}
 }
 
-var zahlForm = regexp.MustCompile(`\A(0|-?[1-9][0-9]*(\.[0-9]*[1-9])?|-?0\.[0-9]*[1-9])\z`)
-
-func formGueltig(art model.WertArt, text string) bool {
-	re, ok := formOrakel[art]
+func formGueltig(orakel map[model.WertArt]*regexp.Regexp, art model.WertArt, text string) bool {
+	re, ok := orakel[art]
 	if !ok {
 		return true // ArtString nimmt jeden Text, ArtNull liest ihn nicht
 	}
@@ -240,7 +250,7 @@ func pruefeKlasse(t *testing.T, name string, ws []model.Wert, orakel func(a, b s
 	for _, a := range ws {
 		for _, b := range ws {
 			c := vorzeichen(orakel(a.Text, b.Text))
-			for _, op := range alleOps {
+			for _, op := range alleOps() {
 				got, err := model.Vergleiche(op, a, b)
 				if err != nil || got != erwartet(op, c) {
 					t.Errorf("%s: %q %s %q = %d, %v, erwartet %d", name, a.Text, op, b.Text, got, err, erwartet(op, c))
@@ -276,7 +286,7 @@ func TestZahlGleichUeberArten(t *testing.T) {
 			for _, a := range texte {
 				for _, b := range texte {
 					c := vorzeichen(ratVon(t, a).Cmp(ratVon(t, b)))
-					for _, op := range alleOps {
+					for _, op := range alleOps() {
 						got, err := model.Vergleiche(op, model.Wert{Art: la, Text: a}, model.Wert{Art: ra, Text: b})
 						if err != nil || got != erwartet(op, c) {
 							t.Errorf("%s %s %s %s %s: %d, %v", la, a, op, ra, b, got, err)
@@ -384,7 +394,7 @@ func TestKlassenUnvergleichbar(t *testing.T) {
 	for la, lk := range klasse {
 		for ra, rk := range klasse {
 			l, r := model.Wert{Art: la, Text: probe[la]}, model.Wert{Art: ra, Text: probe[ra]}
-			for _, op := range alleOps {
+			for _, op := range alleOps() {
 				got, err := model.Vergleiche(op, l, r)
 				erwartetFehler := lk != rk || (lk == "guid" && ordnung(op))
 				if erwartetFehler != (err != nil) || (err != nil && !istUngueltig(err)) || (err == nil && got != erwartet(op, 0)) {
@@ -400,7 +410,7 @@ func TestKlassenUnvergleichbar(t *testing.T) {
 			}
 		}
 		// ArtNull ist mit jeder Art vergleichbar, in beiden Richtungen
-		for _, op := range alleOps {
+		for _, op := range alleOps() {
 			null, w := model.Wert{Art: model.ArtNull}, model.Wert{Art: la, Text: probe[la]}
 			for _, p := range [][2]model.Wert{{null, w}, {w, null}} {
 				_, err := model.Vergleiche(op, p[0], p[1])
@@ -415,7 +425,7 @@ func TestKlassenUnvergleichbar(t *testing.T) {
 		t.Errorf("%d Fälle, %d verschiedener Klassen", n, verschieden)
 	}
 	// die 30 geordneten Paare verschiedener Klassen, eine Art je Klasse, Date gegen DateTimeOffset ausdrücklich
-	for _, op := range alleOps {
+	for _, op := range alleOps() {
 		_, e1 := model.Vergleiche(op, model.Wert{Art: model.ArtDate, Text: "2020-01-01"}, model.Wert{Art: model.ArtDateTimeOffset, Text: "2020-01-01T00:00:00Z"})
 		_, e2 := model.Vergleiche(op, model.Wert{Art: model.ArtDateTimeOffset, Text: "2020-01-01T00:00:00Z"}, model.Wert{Art: model.ArtDate, Text: "2020-01-01"})
 		_, e3 := model.Vergleiche(op, model.Wert{Art: model.ArtString, Text: "00000000-0000-0000-0000-000000000000"}, model.Wert{Art: model.ArtGUID, Text: "00000000-0000-0000-0000-000000000000"})
@@ -460,7 +470,7 @@ func TestGuid(t *testing.T) {
 	n := 0
 	for _, name := range namen {
 		if model.HatOrdnung(name) != (name != "Edm.Guid") {
-			t.Errorf("HatOrdnung(%q) = %v", name, !(name != "Edm.Guid"))
+			t.Errorf("HatOrdnung(%q) = %v", name, name == "Edm.Guid")
 		}
 		for _, m := range randformen(name) {
 			if soll := slices.Contains(namen, m) && m != "Edm.Guid"; model.HatOrdnung(m) != soll {
@@ -487,7 +497,7 @@ func TestNullVergleiche(t *testing.T) {
 		{Art: model.ArtString, Text: "x"}, {Art: model.ArtString, Text: "null"}, {Art: model.ArtGUID, Text: "00000000-0000-0000-0000-000000000000"}}
 	nulls := []model.Wert{{Art: model.ArtNull}, {Art: model.ArtNull, Text: "x"}}
 	n := 0
-	for _, op := range alleOps {
+	for _, op := range alleOps() {
 		beideNull := op == "eq" || op == "ge" || op == "le"
 		for _, a := range nulls {
 			for _, b := range nulls {
@@ -693,33 +703,36 @@ func TestWertAusLiteral(t *testing.T) {
 	}
 }
 
-var gueltigeSamen = map[model.WertArt][]string{
-	model.ArtBoolean: {"true", "false"},
-	model.ArtInt32:   {"0", "5", "-1", "2147483647", "-2147483648"},
-	model.ArtInt64:   {"9007199254740993", "-9223372036854775808", "10"},
-	model.ArtDecimal: {"0.1", "-0.5", "1.25", "10", "0.10000000000000001", "-1.5"},
-	model.ArtGUID:    {"0a1b2c3d-4e5f-6789-abcd-ef0123456789", "00000000-0000-0000-0000-000000000000"},
-	model.ArtDate:    {"2024-02-29", "0001-01-01"},
-	model.ArtDateTimeOffset: {"2020-01-01T10:00:00Z", "2020-01-01T10:00:00.5Z", "2020-01-01T10:00:00.000000000001Z",
-		"9999-12-31T23:59:59.123456789012Z"},
+func gueltigeSamen() map[model.WertArt][]string {
+	return map[model.WertArt][]string{
+		model.ArtBoolean: {"true", "false"},
+		model.ArtInt32:   {"0", "5", "-1", "2147483647", "-2147483648"},
+		model.ArtInt64:   {"9007199254740993", "-9223372036854775808", "10"},
+		model.ArtDecimal: {"0.1", "-0.5", "1.25", "10", "0.10000000000000001", "-1.5"},
+		model.ArtGUID:    {"0a1b2c3d-4e5f-6789-abcd-ef0123456789", "00000000-0000-0000-0000-000000000000"},
+		model.ArtDate:    {"2024-02-29", "0001-01-01"},
+		model.ArtDateTimeOffset: {"2020-01-01T10:00:00Z", "2020-01-01T10:00:00.5Z", "2020-01-01T10:00:00.000000000001Z",
+			"9999-12-31T23:59:59.123456789012Z"},
+	}
 }
 
 // TestFormverstoesse (Zeile 19): die Randformen der Bytes jedes gültigen Samens (Generator randformen) in beiden
 // Richtungen von Vergleiche und OrdneWerte, gegen null und für WahrheitVon: ErrUngueltig genau dann, wenn der reguläre
 // Ausdruck der Art nicht passt. ArtRedigiert, unbekannte Arten und unbekannte Operatoren.
 func TestFormverstoesse(t *testing.T) {
+	orakel := formOrakel()
 	ungueltig, gueltigMutanten, samen := 0, 0, 0
-	for art, liste := range gueltigeSamen {
+	for art, liste := range gueltigeSamen() {
 		for _, seed := range liste {
 			samen++
-			if !formGueltig(art, seed) {
+			if !formGueltig(orakel, art, seed) {
 				t.Fatalf("Samen %q ist nach dem Orakel ungültig", seed)
 			}
 			gut := model.Wert{Art: art, Text: seed}
 			null := model.Wert{Art: model.ArtNull}
 			for _, m := range append([]string{seed}, randformen(seed)...) {
 				w := model.Wert{Art: art, Text: m}
-				ok := formGueltig(art, m)
+				ok := formGueltig(orakel, art, m)
 				if ok && m != seed {
 					gueltigMutanten++
 				}
@@ -787,7 +800,7 @@ func TestFormverstoesse(t *testing.T) {
 	// der Operator: nur die sechs; jede Randform eines Operators ist ErrUngueltig
 	gueltigOps := map[string]bool{"eq": true, "ne": true, "gt": true, "ge": true, "lt": true, "le": true}
 	nOps := 0
-	for _, op := range alleOps {
+	for _, op := range alleOps() {
 		for _, m := range append([]string{"", "EQ", "like", "and", "not"}, randformen(string(op))...) {
 			got, err := model.Vergleiche(model.VergleichOp(m), gut, gut)
 			if gueltigOps[m] {

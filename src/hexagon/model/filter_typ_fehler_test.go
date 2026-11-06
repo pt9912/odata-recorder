@@ -44,7 +44,7 @@ func TestFilterTypFehler(t *testing.T) {
 		}
 		for i, s := range sentinels {
 			if errors.Is(e, s) != (i == k) {
-				t.Errorf("%s: errors.Is(%v) = %v", u, s, !(i == k))
+				t.Errorf("%s: errors.Is(%v) = %v", u, s, i != k)
 			}
 			// verpackt und verbunden
 			if errors.Is(errors.Join(errors.New("x"), e), s) != (i == k) {

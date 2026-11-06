@@ -14,28 +14,29 @@ import (
 
 // --- Bausteine ---
 
-func prop(name string) model.FilterAusdruck { return model.FilterEigenschaft{Name: name} }
-func lit(art model.LiteralArt, text string) model.FilterAusdruck {
+func prop(name string) model.FilterEigenschaft { return model.FilterEigenschaft{Name: name} }
+func lit(art model.LiteralArt, text string) model.FilterLiteral {
 	return model.FilterLiteral{Literal: model.Literal{Art: art, Text: text}}
 }
-func vgl(op model.VergleichOp, l, r model.FilterAusdruck) model.FilterAusdruck {
+func vgl(op model.VergleichOp, l, r model.FilterAusdruck) model.FilterVergleich {
 	return model.FilterVergleich{Op: op, Links: l, Rechts: r}
 }
-func verk(op model.VerknuepfungOp, l, r model.FilterAusdruck) model.FilterAusdruck {
+func verk(op model.VerknuepfungOp, l, r model.FilterAusdruck) model.FilterVerknuepfung {
 	return model.FilterVerknuepfung{Op: op, Links: l, Rechts: r}
 }
-func nicht(a model.FilterAusdruck) model.FilterAusdruck { return model.FilterNicht{Operand: a} }
+func nicht(a model.FilterAusdruck) model.FilterNicht { return model.FilterNicht{Operand: a} }
 
-var (
-	nul      model.FilterAusdruck = model.FilterNull{}
-	wahrLit                       = lit(model.LiteralWahrheitswert, "true")
-	falschLi                      = lit(model.LiteralWahrheitswert, "false")
-	litText                       = lit(model.LiteralZeichenkette, "'x'")
-	litZahl                       = lit(model.LiteralZahl, "1")
-	litGUID                       = lit(model.LiteralGUID, "00000000-0000-0000-0000-000000000000")
-	litDatum                      = lit(model.LiteralDatum, "2020-01-01")
-	litZeit                       = lit(model.LiteralZeitpunkt, "2020-01-01T00:00:00Z")
-)
+func nul() model.FilterNull { return model.FilterNull{} }
+
+func wahrLit() model.FilterLiteral  { return lit(model.LiteralWahrheitswert, "true") }
+func falschLi() model.FilterLiteral { return lit(model.LiteralWahrheitswert, "false") }
+func litText() model.FilterLiteral  { return lit(model.LiteralZeichenkette, "'x'") }
+func litZahl() model.FilterLiteral  { return lit(model.LiteralZahl, "1") }
+func litGUID() model.FilterLiteral {
+	return lit(model.LiteralGUID, "00000000-0000-0000-0000-000000000000")
+}
+func litDatum() model.FilterLiteral { return lit(model.LiteralDatum, "2020-01-01") }
+func litZeit() model.FilterLiteral  { return lit(model.LiteralZeitpunkt, "2020-01-01T00:00:00Z") }
 
 // typen hat die acht unterstützten Properties, eine Navigation und, je Aufruf, die Properties mit Typen außerhalb der acht.
 func typMit(extra ...model.Property) model.EntityType {
@@ -53,7 +54,7 @@ func typMit(extra ...model.Property) model.EntityType {
 // die sieben Eigenschaften, die nicht Edm.Boolean sind, und die fünf Literalarten, die keine Wahrheit sind
 func nichtBoolesch() []model.FilterAusdruck {
 	return []model.FilterAusdruck{prop("Name"), prop("Id"), prop("Big"), prop("Price"), prop("Ref"), prop("Day"), prop("At"),
-		litText, litZahl, litGUID, litDatum, litZeit}
+		litText(), litZahl(), litGUID(), litDatum(), litZeit()}
 }
 
 func ursacheVon(t *testing.T, err error) model.FilterTypUrsache {
@@ -103,12 +104,12 @@ func stellen() []stelle {
 	return []stelle{
 		{"Wurzel", func(x model.FilterAusdruck) model.FilterAusdruck { return x }},
 		{"Operand von not", func(x model.FilterAusdruck) model.FilterAusdruck { return nicht(x) }},
-		{"Links von eq", func(x model.FilterAusdruck) model.FilterAusdruck { return vgl("eq", x, nul) }},
-		{"Rechts von eq", func(x model.FilterAusdruck) model.FilterAusdruck { return vgl("eq", nul, x) }},
-		{"Links von and", func(x model.FilterAusdruck) model.FilterAusdruck { return verk("and", x, wahrLit) }},
-		{"Rechts von and", func(x model.FilterAusdruck) model.FilterAusdruck { return verk("and", wahrLit, x) }},
-		{"Links von or", func(x model.FilterAusdruck) model.FilterAusdruck { return verk("or", x, wahrLit) }},
-		{"Rechts von or", func(x model.FilterAusdruck) model.FilterAusdruck { return verk("or", wahrLit, x) }},
+		{"Links von eq", func(x model.FilterAusdruck) model.FilterAusdruck { return vgl("eq", x, nul()) }},
+		{"Rechts von eq", func(x model.FilterAusdruck) model.FilterAusdruck { return vgl("eq", nul(), x) }},
+		{"Links von and", func(x model.FilterAusdruck) model.FilterAusdruck { return verk("and", x, wahrLit()) }},
+		{"Rechts von and", func(x model.FilterAusdruck) model.FilterAusdruck { return verk("and", wahrLit(), x) }},
+		{"Links von or", func(x model.FilterAusdruck) model.FilterAusdruck { return verk("or", x, wahrLit()) }},
+		{"Rechts von or", func(x model.FilterAusdruck) model.FilterAusdruck { return verk("or", wahrLit(), x) }},
 	}
 }
 
@@ -118,8 +119,8 @@ func alleBeobachtet(string) bool { return true }
 
 // TestWurzel (Zeile 21): acht gültige Wurzeln, zwölf ungültige (die sieben anderen Property-Typen, fünf andere Literalarten).
 func TestWurzel(t *testing.T) {
-	gueltig := []model.FilterAusdruck{vgl("eq", prop("Id"), litZahl), verk("and", wahrLit, wahrLit), verk("or", wahrLit, nul), nicht(wahrLit),
-		prop("Active"), wahrLit, falschLi, nul}
+	gueltig := []model.FilterAusdruck{vgl("eq", prop("Id"), litZahl()), verk("and", wahrLit(), wahrLit()), verk("or", wahrLit(), nul()), nicht(wahrLit()),
+		prop("Active"), wahrLit(), falschLi(), nul()}
 	for i, a := range gueltig {
 		erwarte(t, fmt.Sprintf("gültige Wurzel %d", i), typMit(), a, nil, "")
 	}
@@ -154,8 +155,8 @@ func TestBooleschOperand(t *testing.T) {
 
 // TestBooleschGueltig (Zeile 23): dieselben fünf Stellen mit booleschen Operanden und null sind gültig.
 func TestBooleschGueltig(t *testing.T) {
-	operanden := []model.FilterAusdruck{prop("Active"), wahrLit, falschLi, vgl("eq", prop("Id"), litZahl), verk("and", wahrLit, wahrLit),
-		verk("or", wahrLit, wahrLit), nicht(wahrLit), nul}
+	operanden := []model.FilterAusdruck{prop("Active"), wahrLit(), falschLi(), vgl("eq", prop("Id"), litZahl()), verk("and", wahrLit(), wahrLit()),
+		verk("or", wahrLit(), wahrLit()), nicht(wahrLit()), nul()}
 	n := 0
 	for _, x := range operanden {
 		for _, s := range append(stellen()[1:2], stellen()[4:]...) {
@@ -220,8 +221,8 @@ func TestNavigationUndOffen(t *testing.T) {
 		n += 5
 	}
 	// ein Name der Properties gilt im offenen Typ wie im geschlossenen
-	erwarte(t, "bekannt im offenen Typ", offen, vgl("eq", prop("Id"), litZahl), nil, "")
-	erwarte(t, "Tippfehler im offenen Typ", offen, vgl("eq", prop("id"), litZahl), nil, model.FilterTypNichtUnterstuetzt)
+	erwarte(t, "bekannt im offenen Typ", offen, vgl("eq", prop("Id"), litZahl()), nil, "")
+	erwarte(t, "Tippfehler im offenen Typ", offen, vgl("eq", prop("id"), litZahl()), nil, model.FilterTypNichtUnterstuetzt)
 	if n != 40 {
 		t.Errorf("%d Fälle", n)
 	}
@@ -262,7 +263,7 @@ func TestTypAusserhalb(t *testing.T) {
 			erwarte(t, typName+" unbeobachtet "+s.name, typ, s.baue(prop("P")), nichts, model.FilterTypNichtUnterstuetzt)
 			n += 2
 		}
-		erwarte(t, typName+" eq null", typ, vgl("eq", prop("P"), nul), nil, model.FilterTypNichtUnterstuetzt)
+		erwarte(t, typName+" eq null", typ, vgl("eq", prop("P"), nul()), nil, model.FilterTypNichtUnterstuetzt)
 	}
 	if n != 16*(29+randformenTypen) {
 		t.Errorf("%d Fälle", n)
@@ -290,8 +291,8 @@ func operanden() []operand {
 	return []operand{
 		{"Id", "zahl", prop("Id")}, {"Name", "text", prop("Name")}, {"Active", "wahrheit", prop("Active")}, {"Big", "zahl", prop("Big")},
 		{"Price", "zahl", prop("Price")}, {"Ref", "guid", prop("Ref")}, {"Day", "datum", prop("Day")}, {"At", "zeit", prop("At")},
-		{"'x'", "text", litText}, {"true", "wahrheit", wahrLit}, {"1", "zahl", litZahl}, {"guid", "guid", litGUID},
-		{"date", "datum", litDatum}, {"zeit", "zeit", litZeit}, {"null", "null", nul},
+		{"'x'", "text", litText()}, {"true", "wahrheit", wahrLit()}, {"1", "zahl", litZahl()}, {"guid", "guid", litGUID()},
+		{"date", "datum", litDatum()}, {"zeit", "zeit", litZeit()}, {"null", "null", nul()},
 	}
 }
 
@@ -314,32 +315,32 @@ func TestVertraeglichkeit(t *testing.T) {
 	if n != 225 || unvertraeglich != 160 {
 		t.Errorf("%d Paare, %d unverträglich", n, unvertraeglich)
 	}
-	erwarte(t, "Id eq 'x'", typMit(), vgl("eq", prop("Id"), litText), nil, model.FilterTypUnvertraeglich)
-	erwarte(t, "Day eq Zeitpunkt", typMit(), vgl("eq", prop("Day"), litZeit), nil, model.FilterTypUnvertraeglich)
-	erwarte(t, "At eq Datum", typMit(), vgl("eq", prop("At"), litDatum), nil, model.FilterTypUnvertraeglich)
-	erwarte(t, "Name eq Guid", typMit(), vgl("eq", prop("Name"), litGUID), nil, model.FilterTypUnvertraeglich)
-	erwarte(t, "Ref eq 'x'", typMit(), vgl("eq", prop("Ref"), litText), nil, model.FilterTypUnvertraeglich)
+	erwarte(t, "Id eq 'x'", typMit(), vgl("eq", prop("Id"), litText()), nil, model.FilterTypUnvertraeglich)
+	erwarte(t, "Day eq Zeitpunkt", typMit(), vgl("eq", prop("Day"), litZeit()), nil, model.FilterTypUnvertraeglich)
+	erwarte(t, "At eq Datum", typMit(), vgl("eq", prop("At"), litDatum()), nil, model.FilterTypUnvertraeglich)
+	erwarte(t, "Name eq Guid", typMit(), vgl("eq", prop("Name"), litGUID()), nil, model.FilterTypUnvertraeglich)
+	erwarte(t, "Ref eq 'x'", typMit(), vgl("eq", prop("Ref"), litText()), nil, model.FilterTypUnvertraeglich)
 }
 
-var ordnungsOps = []model.VergleichOp{"gt", "ge", "lt", "le"}
+func ordnungsOps() []model.VergleichOp { return []model.VergleichOp{"gt", "ge", "lt", "le"} }
 
 // TestNullGegenTyp (Zeile 28): null gegen die acht Property-Typen, beide Seiten, sechs Operatoren; auch gegen eine Property,
 // die nicht Nullable ist; Guid mit Ordnungsoperator ist operator_nicht_unterstuetzt.
 func TestNullGegenTyp(t *testing.T) {
 	n := 0
 	for _, o := range operanden()[:8] {
-		for _, op := range alleOps {
+		for _, op := range alleOps() {
 			soll := model.FilterTypUrsache("")
 			if o.klasse == "guid" && op != "eq" && op != "ne" {
 				soll = model.FilterOperatorNichtUnterstuetzt
 			}
-			erwarte(t, o.name+" "+string(op)+" null", typMit(), vgl(op, o.baum, nul), nil, soll)
-			erwarte(t, "null "+string(op)+" "+o.name, typMit(), vgl(op, nul, o.baum), nil, soll)
+			erwarte(t, o.name+" "+string(op)+" null", typMit(), vgl(op, o.baum, nul()), nil, soll)
+			erwarte(t, "null "+string(op)+" "+o.name, typMit(), vgl(op, nul(), o.baum), nil, soll)
 			n += 2
 		}
 	}
-	for _, op := range alleOps {
-		erwarte(t, "null "+string(op)+" null", typMit(), vgl(op, nul, nul), nil, "")
+	for _, op := range alleOps() {
+		erwarte(t, "null "+string(op)+" null", typMit(), vgl(op, nul(), nul()), nil, "")
 		n++
 	}
 	typ := typMit()
@@ -347,7 +348,7 @@ func TestNullGegenTyp(t *testing.T) {
 		typ.Properties[i].Nullable = i%2 == 0 // gemischt: Nullable gilt nicht
 	}
 	for _, o := range operanden()[:8] {
-		erwarte(t, o.name+" eq null, Nullable gemischt", typ, vgl("eq", o.baum, nul), nil, "")
+		erwarte(t, o.name+" eq null, Nullable gemischt", typ, vgl("eq", o.baum, nul()), nil, "")
 		n++
 	}
 	if n != 8*6*2+6+8 {
@@ -373,16 +374,16 @@ func TestLiteralGegenLiteral(t *testing.T) {
 		t.Errorf("%d Fälle", n)
 	}
 	gross := lit(model.LiteralZahl, "99999999999999999999")
-	for _, op := range alleOps {
-		erwarte(t, "Zahl groß gegen 1", typMit(), vgl(op, gross, litZahl), nil, "")
-		erwarte(t, "1 gegen Zahl groß", typMit(), vgl(op, litZahl, gross), nil, "")
+	for _, op := range alleOps() {
+		erwarte(t, "Zahl groß gegen 1", typMit(), vgl(op, gross, litZahl()), nil, "")
+		erwarte(t, "1 gegen Zahl groß", typMit(), vgl(op, litZahl(), gross), nil, "")
 		erwarte(t, "Zahl ohne Form", typMit(), vgl(op, lit(model.LiteralZahl, ""), lit(model.LiteralZahl, "1e3")), nil, "")
 	}
-	erwarte(t, "Zeichenkette lt", typMit(), vgl("lt", litText, litText), nil, "")
-	for _, op := range ordnungsOps {
-		erwarte(t, "Guid "+string(op), typMit(), vgl(op, litGUID, litGUID), nil, model.FilterOperatorNichtUnterstuetzt)
+	erwarte(t, "Zeichenkette lt", typMit(), vgl("lt", litText(), litText()), nil, "")
+	for _, op := range ordnungsOps() {
+		erwarte(t, "Guid "+string(op), typMit(), vgl(op, litGUID(), litGUID()), nil, model.FilterOperatorNichtUnterstuetzt)
 	}
-	erwarte(t, "Guid eq Guid", typMit(), vgl("eq", litGUID, litGUID), nil, "")
+	erwarte(t, "Guid eq Guid", typMit(), vgl("eq", litGUID(), litGUID()), nil, "")
 }
 
 // TestBereich (Zeile 30): die Literale der Zahl gegen Edm.Int32 und Edm.Int64, auf beiden Seiten des Vergleichs und in sechs
@@ -407,7 +408,7 @@ func TestBereich(t *testing.T) {
 					soll = ""
 				}
 			}
-			for _, op := range alleOps {
+			for _, op := range alleOps() {
 				l := lit(model.LiteralZahl, text)
 				erwarte(t, eigenschaft+" "+string(op)+" "+text, typMit(), vgl(op, prop(eigenschaft), l), nil, soll)
 				erwarte(t, text+" "+string(op)+" "+eigenschaft, typMit(), vgl(op, l, prop(eigenschaft)), nil, soll)
@@ -419,17 +420,17 @@ func TestBereich(t *testing.T) {
 		t.Errorf("%d Fälle, %d Texte", n, len(texte))
 	}
 	for _, text := range texte {
-		for _, op := range alleOps {
+		for _, op := range alleOps() {
 			l := lit(model.LiteralZahl, text)
 			erwarte(t, "Decimal", typMit(), vgl(op, prop("Price"), l), nil, "")
 			erwarte(t, "Decimal rechts", typMit(), vgl(op, l, prop("Price")), nil, "")
-			erwarte(t, "Zahl gegen null", typMit(), vgl(op, l, nul), nil, "")
-			erwarte(t, "Zahl gegen Zahl", typMit(), vgl(op, l, litZahl), nil, "")
+			erwarte(t, "Zahl gegen null", typMit(), vgl(op, l, nul()), nil, "")
+			erwarte(t, "Zahl gegen Zahl", typMit(), vgl(op, l, litZahl()), nil, "")
 		}
 	}
 	// Int32 gegen Int64-Property ohne Literal ist gültig; das Literal prüft nur gegen die Property unmittelbar daneben
 	erwarte(t, "Id eq Big", typMit(), vgl("eq", prop("Id"), prop("Big")), nil, "")
-	erwarte(t, "Zahl gegen Vergleich", typMit(), vgl("eq", lit(model.LiteralZahl, "99999999999"), vgl("eq", prop("Id"), litZahl)), nil, model.FilterTypUnvertraeglich)
+	erwarte(t, "Zahl gegen Vergleich", typMit(), vgl("eq", lit(model.LiteralZahl, "99999999999"), vgl("eq", prop("Id"), litZahl())), nil, model.FilterTypUnvertraeglich)
 }
 
 func ratVonText(s string) *big.Int { v, _ := new(big.Int).SetString(s, 10); return v }
@@ -454,12 +455,12 @@ func gueltigeGanzzahl(s string) bool {
 // TestGuidOperatoren (Zeile 31): die vier Ordnungsoperatoren auf Guid sind operator_nicht_unterstuetzt, mit Property und
 // Literal, auf beiden Seiten, gegen Guid und null; eq und ne sind gültig; `Guid gt 5` ist typ_unvertraeglich.
 func TestGuidOperatoren(t *testing.T) {
-	guids := []model.FilterAusdruck{prop("Ref"), litGUID}
-	gegen := []model.FilterAusdruck{prop("Ref"), litGUID, nul}
+	guids := []model.FilterAusdruck{prop("Ref"), litGUID()}
+	gegen := []model.FilterAusdruck{prop("Ref"), litGUID(), nul()}
 	n := 0
 	for _, g := range guids {
 		for _, h := range gegen {
-			for _, op := range alleOps {
+			for _, op := range alleOps() {
 				soll := model.FilterTypUrsache("")
 				if op != "eq" && op != "ne" {
 					soll = model.FilterOperatorNichtUnterstuetzt
@@ -474,7 +475,7 @@ func TestGuidOperatoren(t *testing.T) {
 		t.Errorf("%d Fälle", n)
 	}
 	for _, g := range guids {
-		for _, op := range alleOps {
+		for _, op := range alleOps() {
 			erwarte(t, "Guid gegen 5", typMit(), vgl(op, g, lit(model.LiteralZahl, "5")), nil, model.FilterTypUnvertraeglich)
 			erwarte(t, "5 gegen Guid", typMit(), vgl(op, lit(model.LiteralZahl, "5"), g), nil, model.FilterTypUnvertraeglich)
 		}
@@ -518,10 +519,10 @@ func TestNichtBeobachtet(t *testing.T) {
 		t.Errorf("%d Fälle", n)
 	}
 	// `P eq null` mit unbeobachteter P ist nicht_beobachtet, nicht wahr oder falsch
-	erwarte(t, "Active eq null", typMit(), vgl("eq", prop("Active"), nul), func(string) bool { return false }, model.FilterNichtBeobachtet)
+	erwarte(t, "Active eq null", typMit(), vgl("eq", prop("Active"), nul()), func(string) bool { return false }, model.FilterNichtBeobachtet)
 	// Literale und null fragen die Maske nicht
 	fake := &maskenFake{erlaubt: func(string) bool { return false }}
-	erwarte(t, "nur Literale", typMit(), verk("and", vgl("eq", litZahl, litZahl), vgl("eq", nul, nul)), fake.beobachtet, "")
+	erwarte(t, "nur Literale", typMit(), verk("and", vgl("eq", litZahl(), litZahl()), vgl("eq", nul(), nul())), fake.beobachtet, "")
 	if len(fake.gefragt) != 0 {
 		t.Errorf("Maske gefragt: %v", fake.gefragt)
 	}
@@ -541,15 +542,15 @@ func TestMaskeAufrufe(t *testing.T) {
 		ursache model.FilterTypUrsache
 		gefragt []string
 	}{
-		{"Links vor Rechts", geschlossen, verk("and", prop("Active"), vgl("gt", prop("Id"), litZahl)), alleBeobachtet, "", []string{"Active", "Id"}},
+		{"Links vor Rechts", geschlossen, verk("and", prop("Active"), vgl("gt", prop("Id"), litZahl())), alleBeobachtet, "", []string{"Active", "Id"}},
 		{"doppeltes Vorkommen", geschlossen, verk("and", prop("Active"), prop("Active")), alleBeobachtet, "", []string{"Active", "Active"}},
-		{"Navigation", geschlossen, vgl("eq", prop("Nav"), nul), alleBeobachtet, model.FilterTypNichtUnterstuetzt, nil},
-		{"unbekannter Name", geschlossen, vgl("eq", prop("Foo"), nul), alleBeobachtet, model.FilterEigenschaftUnbekannt, nil},
-		{"Name im offenen Typ", offen, vgl("eq", prop("Foo"), nul), alleBeobachtet, model.FilterTypNichtUnterstuetzt, nil},
-		{"nicht unterstützter Typ", geschlossen, vgl("eq", prop("Bin"), nul), func(string) bool { return false }, model.FilterTypNichtUnterstuetzt, nil},
-		{"Verstoß in der Mitte", geschlossen, verk("and", verk("and", prop("Active"), vgl("eq", prop("Foo"), nul)), vgl("eq", prop("Id"), litZahl)),
+		{"Navigation", geschlossen, vgl("eq", prop("Nav"), nul()), alleBeobachtet, model.FilterTypNichtUnterstuetzt, nil},
+		{"unbekannter Name", geschlossen, vgl("eq", prop("Foo"), nul()), alleBeobachtet, model.FilterEigenschaftUnbekannt, nil},
+		{"Name im offenen Typ", offen, vgl("eq", prop("Foo"), nul()), alleBeobachtet, model.FilterTypNichtUnterstuetzt, nil},
+		{"nicht unterstützter Typ", geschlossen, vgl("eq", prop("Bin"), nul()), func(string) bool { return false }, model.FilterTypNichtUnterstuetzt, nil},
+		{"Verstoß in der Mitte", geschlossen, verk("and", verk("and", prop("Active"), vgl("eq", prop("Foo"), nul())), vgl("eq", prop("Id"), litZahl())),
 			alleBeobachtet, model.FilterEigenschaftUnbekannt, []string{"Active"}},
-		{"erster Verstoß ist die Maske", geschlossen, verk("and", prop("Active"), vgl("gt", prop("Id"), litZahl)), func(string) bool { return false },
+		{"erster Verstoß ist die Maske", geschlossen, verk("and", prop("Active"), vgl("gt", prop("Id"), litZahl())), func(string) bool { return false },
 			model.FilterNichtBeobachtet, []string{"Active"}},
 		{"Maske nach Verstoß an Links", geschlossen, verk("and", prop("Id"), prop("Active")), alleBeobachtet, model.FilterNichtBoolesch, []string{"Id"}},
 		{"Vergleich: Links vor Rechts", geschlossen, vgl("eq", prop("Name"), prop("Name")), alleBeobachtet, "", []string{"Name", "Name"}},
@@ -576,10 +577,10 @@ func verstoesse() []struct {
 	}{
 		{model.FilterEigenschaftUnbekannt, prop("Foo")},
 		{model.FilterNichtBoolesch, nicht(prop("Id"))},
-		{model.FilterTypUnvertraeglich, vgl("eq", prop("Id"), litText)},
+		{model.FilterTypUnvertraeglich, vgl("eq", prop("Id"), litText())},
 		{model.FilterLiteralBereich, vgl("eq", prop("Id"), lit(model.LiteralZahl, "2147483648"))},
 		{model.FilterTypNichtUnterstuetzt, prop("Bin")},
-		{model.FilterOperatorNichtUnterstuetzt, vgl("gt", prop("Ref"), litGUID)},
+		{model.FilterOperatorNichtUnterstuetzt, vgl("gt", prop("Ref"), litGUID())},
 		{model.FilterNichtBeobachtet, prop("Hidden")},
 	}
 }
@@ -596,7 +597,7 @@ func TestReihenfolgeVerstoesse(t *testing.T) {
 	vs := verstoesse()
 	for _, v := range vs {
 		erwarte(t, "einzeln "+string(v.u), typ, v.baum, beob, v.u)
-		erwarte(t, "einzeln in or "+string(v.u), typ, verk("or", v.baum, wahrLit), beob, v.u)
+		erwarte(t, "einzeln in or "+string(v.u), typ, verk("or", v.baum, wahrLit()), beob, v.u)
 	}
 	n := 0
 	for _, a := range vs {
@@ -612,8 +613,8 @@ func TestReihenfolgeVerstoesse(t *testing.T) {
 		t.Errorf("%d Fälle", n)
 	}
 	// ein Verstoß im Kind kommt vor der Regel des Knotens
-	erwarte(t, "Kind vor Vergleich", typ, vgl("eq", prop("Id"), vgl("eq", prop("Foo"), nul)), beob, model.FilterEigenschaftUnbekannt)
-	erwarte(t, "Kind vor Vergleich, links", typ, vgl("eq", vgl("eq", prop("Foo"), nul), prop("Id")), beob, model.FilterEigenschaftUnbekannt)
+	erwarte(t, "Kind vor Vergleich", typ, vgl("eq", prop("Id"), vgl("eq", prop("Foo"), nul())), beob, model.FilterEigenschaftUnbekannt)
+	erwarte(t, "Kind vor Vergleich, links", typ, vgl("eq", vgl("eq", prop("Foo"), nul()), prop("Id")), beob, model.FilterEigenschaftUnbekannt)
 	erwarte(t, "Kind vor Literal", typ, vgl("eq", prop("Hidden"), lit(model.LiteralZahl, "1")), beob, model.FilterNichtBeobachtet)
 	erwarte(t, "Kind vor Bereich", typ, vgl("eq", prop("Foo"), lit(model.LiteralZahl, "99999999999")), beob, model.FilterEigenschaftUnbekannt)
 	// die Anforderung an Links gilt, bevor Rechts geprüft wird
@@ -621,12 +622,12 @@ func TestReihenfolgeVerstoesse(t *testing.T) {
 		for _, x := range nichtBoolesch() {
 			erwarte(t, "Links nicht boolesch vor Rechts", typ, verk(op, x, prop("Foo")), beob, model.FilterNichtBoolesch)
 			erwarte(t, "Links nicht boolesch vor Rechts", typ, verk(op, x, prop("Bin")), beob, model.FilterNichtBoolesch)
-			erwarte(t, "Rechts nach Links", typ, verk(op, wahrLit, x), beob, model.FilterNichtBoolesch)
+			erwarte(t, "Rechts nach Links", typ, verk(op, wahrLit(), x), beob, model.FilterNichtBoolesch)
 		}
 	}
 	// Ordnungsoperator auf Guid und Typ: typ_unvertraeglich zuerst; Bereich vor Operator
-	erwarte(t, "Guid gt 5", typ, vgl("gt", prop("Ref"), litZahl), beob, model.FilterTypUnvertraeglich)
-	erwarte(t, "5 gt Guid", typ, vgl("gt", litZahl, litGUID), beob, model.FilterTypUnvertraeglich)
+	erwarte(t, "Guid gt 5", typ, vgl("gt", prop("Ref"), litZahl()), beob, model.FilterTypUnvertraeglich)
+	erwarte(t, "5 gt Guid", typ, vgl("gt", litZahl(), litGUID()), beob, model.FilterTypUnvertraeglich)
 	// die Wurzel zuletzt: ihre Property prüft sich selbst vor der Regel der Wurzel
 	erwarte(t, "Wurzel Name", typ, prop("Foo"), beob, model.FilterEigenschaftUnbekannt)
 	erwarte(t, "Wurzel Bin", typ, prop("Bin"), beob, model.FilterTypNichtUnterstuetzt)
@@ -646,12 +647,12 @@ func (fremderKnoten) IstFilterAusdruck() {}
 // acht Stellen mit gültigem Rest: nil, Kind nil, Knoten als Zeiger (auch typed nil), fremder Typ, unbekannte Art des Literals,
 // unbekannter Operator.
 func TestProgrammfehler(t *testing.T) {
-	gueltigerVgl := vgl("eq", prop("Id"), litZahl)
+	gueltigerVgl := vgl("eq", prop("Id"), litZahl())
 	fehlerhaft := map[string]model.FilterAusdruck{
 		"nil":                nil,
-		"Zeiger Vergleich":   &model.FilterVergleich{Op: "eq", Links: prop("Id"), Rechts: litZahl},
-		"Zeiger Verknüpfung": &model.FilterVerknuepfung{Op: "and", Links: wahrLit, Rechts: wahrLit},
-		"Zeiger Nicht":       &model.FilterNicht{Operand: wahrLit},
+		"Zeiger Vergleich":   &model.FilterVergleich{Op: "eq", Links: prop("Id"), Rechts: litZahl()},
+		"Zeiger Verknüpfung": &model.FilterVerknuepfung{Op: "and", Links: wahrLit(), Rechts: wahrLit()},
+		"Zeiger Nicht":       &model.FilterNicht{Operand: wahrLit()},
 		"Zeiger Eigenschaft": &model.FilterEigenschaft{Name: "Active"},
 		"Zeiger Literal":     &model.FilterLiteral{Literal: model.Literal{Art: model.LiteralWahrheitswert, Text: "true"}},
 		"Zeiger Null":        &model.FilterNull{},
@@ -666,20 +667,20 @@ func TestProgrammfehler(t *testing.T) {
 		"Literal Art 7":      lit(7, "x"),
 		"Literal Art -1":     lit(-1, "x"),
 		"Nicht{nil}":         model.FilterNicht{},
-		"Links nil (and)":    model.FilterVerknuepfung{Op: "and", Rechts: wahrLit},
-		"Rechts nil (and)":   model.FilterVerknuepfung{Op: "and", Links: wahrLit},
-		"Links nil (or)":     model.FilterVerknuepfung{Op: "or", Rechts: wahrLit},
-		"Rechts nil (or)":    model.FilterVerknuepfung{Op: "or", Links: wahrLit},
-		"Links nil (vgl)":    model.FilterVergleich{Op: "eq", Rechts: nul},
-		"Rechts nil (vgl)":   model.FilterVergleich{Op: "eq", Links: nul},
+		"Links nil (and)":    model.FilterVerknuepfung{Op: "and", Rechts: wahrLit()},
+		"Rechts nil (and)":   model.FilterVerknuepfung{Op: "and", Links: wahrLit()},
+		"Links nil (or)":     model.FilterVerknuepfung{Op: "or", Rechts: wahrLit()},
+		"Rechts nil (or)":    model.FilterVerknuepfung{Op: "or", Links: wahrLit()},
+		"Links nil (vgl)":    model.FilterVergleich{Op: "eq", Rechts: nul()},
+		"Rechts nil (vgl)":   model.FilterVergleich{Op: "eq", Links: nul()},
 		"Vergleich{}":        model.FilterVergleich{},
 		"Verknüpfung{}":      model.FilterVerknuepfung{},
 	}
 	for _, op := range []model.VergleichOp{"", "EQ", "like", "and", "Eq", "eq "} {
-		fehlerhaft["Operator "+string(op)] = vgl(op, prop("Id"), litZahl)
+		fehlerhaft["Operator "+string(op)] = vgl(op, prop("Id"), litZahl())
 	}
 	for _, op := range []model.VerknuepfungOp{"", "AND", "xor", "eq", "or "} {
-		fehlerhaft["Verknüpfung "+string(op)] = verk(op, wahrLit, wahrLit)
+		fehlerhaft["Verknüpfung "+string(op)] = verk(op, wahrLit(), wahrLit())
 	}
 	n := 0
 	for name, x := range fehlerhaft {
@@ -699,25 +700,25 @@ func TestProgrammfehler(t *testing.T) {
 
 // --- Zeile 38: Tiefe und unveränderter Baum ---
 
-func kette(n int, blatt model.FilterAusdruck) model.FilterAusdruck {
-	b := blatt
-	for i := 0; i < n; i++ {
+func kette(n int, blatt model.FilterAusdruck) model.FilterVerknuepfung {
+	b := verk("or", blatt, prop("Active"))
+	for i := 1; i < n; i++ {
 		b = verk("or", b, prop("Active"))
 	}
 	return b
 }
 
-func gruppen(n int, blatt model.FilterAusdruck) model.FilterAusdruck {
-	b := blatt
-	for i := 0; i < n; i++ {
+func gruppen(n int, blatt model.FilterAusdruck) model.FilterVerknuepfung {
+	b := verk("and", prop("Active"), blatt)
+	for i := 1; i < n; i++ {
 		b = verk("and", prop("Active"), b)
 	}
 	return b
 }
 
-func nichts(n int, blatt model.FilterAusdruck) model.FilterAusdruck {
-	b := blatt
-	for i := 0; i < n; i++ {
+func nichts(n int, blatt model.FilterAusdruck) model.FilterNicht {
+	b := nicht(blatt)
+	for i := 1; i < n; i++ {
 		b = nicht(b)
 	}
 	return b
@@ -793,7 +794,7 @@ func TestGleichzeitig(t *testing.T) {
 		for _, b := range tafelEingaben() {
 			a, b := a, b
 			faelle = append(faelle, func() string { return fmt.Sprint(model.Und(a, b), model.Oder(a, b), model.Nicht(a)) })
-			soll = append(soll, fmt.Sprint(tafelUnd[wahrKanonisch(a)][spalte(wahrKanonisch(b))], tafelOder[wahrKanonisch(a)][spalte(wahrKanonisch(b))], tafelNicht[wahrKanonisch(a)]))
+			soll = append(soll, fmt.Sprint(tafelUnd()[wahrKanonisch(a)][spalte(wahrKanonisch(b))], tafelOder()[wahrKanonisch(a)][spalte(wahrKanonisch(b))], tafelNicht()[wahrKanonisch(a)]))
 		}
 	}
 	faelle = append(faelle,
