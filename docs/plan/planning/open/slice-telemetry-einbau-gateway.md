@@ -35,6 +35,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-telemetry-port`):** der Einbau in die Pfade `record` und `replay`; der Port selbst und der Fake sind dort geliefert.
 
+**Übernimmt (Sendung von `slice-audit-log`, Stand beim Anlegen von `slice-audit-verdrahtung`):** `SPEC-231` Nr. 4 und 7 nennen den Adapter `audit` (Verdrahtung des Audit-Adapters mit dem Logger der Telemetrie) und den Protokolleintrag `audit_fehlgeschlagen` (`SPEC-235` Nr. 5, Schlüssel nur aus der Menge `Log`) noch nicht; der Architect trägt sie beim Vertrag dieses Slice nach, die Verdrahtung im Composition Root folgt hier. Gilt für die Dienste `record`, `session` und `maintenance`, soweit sie im Root verdrahtet sind; die Dienste der Pfade `mock` und Workspace liegen bei `slice-telemetry-einbau-mock`.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Port und Adapter `Telemetry` — `slice-telemetry-port`; dieser Slice ruft ihn nur.

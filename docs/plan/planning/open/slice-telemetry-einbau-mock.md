@@ -38,6 +38,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Port und Adapter `Telemetry` — `slice-telemetry-port`.
+- Der Eintrag `audit_fehlgeschlagen` und die Abbildung des Adapters `audit` (`SPEC-231` Nr. 4 und 7, Sendung von `slice-audit-log`) — `slice-telemetry-einbau-gateway`; die Löschung eines Workspace ist kein Mutations-Span.
 - Gesamtspan, Capture-Span und Match-Span (`SPEC-026` bis `SPEC-028`) — `slice-telemetry-einbau-gateway`; der Gesamtspan liegt im HTTP-Adapter und ist modusunabhängig.
 - Spans und Zähler des Hybrid-Fallbacks — kein Slice von `welle-betrieb` nimmt sie an (Sendung ohne Nehmer, siehe §6 von `slice-telemetry-einbau-gateway`, Adresse: Planner).
 - Mutations-Spans der Admin-Endpunkte (Reset, Restore, Delete über HTTP) — `welle-admin-api`; welche Operationen des `WorkspaceUseCase` und `SnapshotUseCase` ein `recorder.mutation_type` tragen, entscheidet der Architect (Auftrag 1), die Endpunkte kommen später.

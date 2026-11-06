@@ -1,1 +1,1 @@
-**Stand:** offen, Schwelle erreicht (3×: siehe `evidence/`); Ausgang noch nicht zugewiesen
+**Stand:** verkörpert in `.claude/commands/implement-slice.md` (Schritt 19, Felder derselben Referenz tragen verschiedene Werte) und `.harness/skills/reviewer.md` (MEDIUM *Fixture, Hilfe oder Kommentar verdeckt, was der Test prüft*) seit welle-record-replay

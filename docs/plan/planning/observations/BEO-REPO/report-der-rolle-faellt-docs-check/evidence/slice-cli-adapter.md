@@ -1,2 +1,2 @@
 **Vorgang:** slice-cli-adapter
-**Fund:** V-1 der Verifikation: zwei ADR-Kennungen ohne Link in einer Kopfzeile des Review-Reports machten `make docs-check` und damit `make gates` rot; weder Reviewer noch Implementer ließen nach dem Report `make docs-check` laufen, der Verifier fand es. Beleg: Plan §7 *Was ging anders als geplant* (1); Report `docs/reviews/2026-10-31-slice-cli-adapter-verifikation.md`.
+**Fund:** V-1 der Verifikation: zwei ADR-Kennungen ohne Link in einer Kopfzeile des Review-Reports machten `make docs-check` und damit `make gates` rot; weder Reviewer noch Implementer ließen nach dem Report `make docs-check` laufen, der Verifier fand es. Beleg: Plan §7 *Was ging anders als geplant* (1); Report `2026-10-31-slice-cli-adapter-verifikation`.

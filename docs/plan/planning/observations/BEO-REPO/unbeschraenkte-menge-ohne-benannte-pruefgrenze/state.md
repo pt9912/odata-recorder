@@ -1,1 +1,1 @@
-**Stand:** offen
+**Stand:** verkörpert in `.claude/commands/implement-slice.md` (Schritt 14) und `.harness/skills/reviewer.md` (MEDIUM *Fänger schmaler als Zusage, Menge unbeschränkt oder ohne Achsenliste*) seit welle-record-replay

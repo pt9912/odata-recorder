@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-record-replay](../welle-record-replay.md).
+**Welle:** [welle-record-replay](welle-record-replay.md).
 
 **Bezug:** [`LH-RB-02`](../../../../spec/lastenheft.md#lh-rb-02--http-schnittstelle) (HTTPS und Zertifikatsfehler), [`LH-FA-01`](../../../../spec/lastenheft.md#lh-fa-01--transparente-weiterleitung-muss), [ADR-0001](../../adr/0001-implementierungssprache-go.md) (Go, nur Standardbibliothek: `crypto/tls`, `crypto/x509`), [ADR-0003](../../adr/0003-lint-profil-golangci.md) (Lint-Profil)
 

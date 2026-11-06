@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-record-replay](../welle-record-replay.md), Linie A.
+**Welle:** [welle-record-replay](welle-record-replay.md), Linie A.
 
 **Bezug:** `LH-FA-04` (Happy Path: Status und Nutzdaten auch für Text-Antworten), `LH-FA-14` (Boundary: fachliche Nutzlast bleibt erhalten; Negative: fail-closed, das Geheimnis unter `/<Property>/$value` erreicht den Blob nicht), `LH-QA-07` (unbekannte Formen verhindern die Aufzeichnung nicht grundsätzlich), `LH-FA-05` (Sequenz identischer Requests, hier `$count`), [ADR-0001](../../adr/0001-implementierungssprache-go.md) (Go, Tests in der Stufe `test`).
 

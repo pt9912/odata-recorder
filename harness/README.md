@@ -84,6 +84,7 @@ Diese Datei dupliziert sie nicht.
 | `make a-check-graph` | gibt den Architektur-Graphen (Mermaid) aus `.a-check.yml` aus, prüft nichts (netzlos, schreibgeschützt) | kein Gate |
 | `make gegenproben` | Gegenproben zu `a-check`, `lint.sh`, `migration-check.sh`, `pruefung`, `groessenmarke`, `zeichen`, `docs-check` in Wegwerfverzeichnissen, bei geänderter Eingabe (Stempel `harness/gegenproben.stempel`) | [ADR-0005](../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) |
 | `make test-integration` | baut die Stufe `integration`, fährt je Stufe einen Container ohne Netz mit dem gebauten Binary (Record → Upstream stoppen → Replay, `SPEC-037`); Pflichtlauf vor jeder Welle-Closure | kein Gate, Aufnahme in die Kette ist die eine Zeile `GATE_CHECKS += test-integration` ([ADR-0005](../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md)) |
+| `make test-determinism` | 100 Läufe des Replay nach Reset im Container ohne Netz: gleiche normalisierte Antworten und Cursor-Stände (`SPEC-038`) | kein Gate, Aufnahme in die Kette ist die eine Zeile `GATE_CHECKS += test-determinism` ([ADR-0005](../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md)) |
 
 **Aktueller Lauf-Status:** lokal `make help` / `make gates`; eine CI gibt es noch nicht.
 **Rote Gates:** keine; ein rotes Gate bekommt einen `CO-<NNN>` und verweist in der Bindung-Spalte darauf (Modul 7).

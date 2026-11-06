@@ -1,0 +1,2 @@
+**Vorgang:** slice-test-determinism
+**Fund:** Schätzung *S* 1280 nach der Tabelle (15 Zeilen alle *andere*, kein Fake, Produktcode 80), Marke 1800, Messung 694 (613 beim Handoff, 668 nach der Fix-Runde, 694 nach der Behebung von V-1 und V-2); Ende ÷ *S* 0,54, Auslastung 0,39. Die Formel überschätzt auch einen Slice ohne fremden Fake und ohne Nebenläufigkeit: rund 46 Zeilen je Zeile der Tabelle gegen 80. Beleg: Plan §4 (*Messpunkt Ende*).

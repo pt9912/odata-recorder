@@ -1,0 +1,2 @@
+**Vorgang:** slice-test-determinism
+**Fund:** Plan (Zeile 10 des Nachtrags) und Meldung sagten „Lesen schließt jede Verbindung“ zu; der Fänger zählt die offenen Dateien nach Lauf 2 gegen Lauf 100 und fängt nur Wachstum (V-2, LOW; eine über alle Läufe offene Verbindung bleibt grün). Behoben durch Einschränken der Zusage auf „kein Wachstum“ und ein benanntes Negativ mit Grund und Folge. Beleg: Plan §3 (*Negative und Rückgabe* b), Report der Verifikation (V-2).

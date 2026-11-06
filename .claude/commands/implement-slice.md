@@ -15,12 +15,6 @@ Kanonische Quellen (vendored Regelwerk, `.harness/baseline/<tag>/regelwerk/`): M
 
 ## Repo-lokale Adaptionen, die du beachten MUSST (ANPASSEN an dein Repo)
 
-<!-- ANPASSEN: Dieser Block listet die Adaptionen DEINES Repos gegenüber der Baseline
-     (dein `harness/conventions.md`, „MR-Block"). Der Bootstrap hat eine
-     Durchsetzungsschicht emittiert (Stop-Hook, Command-Guard, Gate-Nachweis,
-     Doc-Gate); die daraus folgenden, workflow-relevanten Adaptionen stehen unten.
-     Ergänze/streiche nach deinem Repo. -->
-
 Über das Regelwerk hinaus trägt dein Repo lokale Adaptionen gegenüber der Baseline. Lies den
 Adaptions-Block („MR-Block") in `harness/conventions.md`; die workflow-relevanten (aus der
 emittierten Durchsetzungsschicht):
@@ -95,11 +89,6 @@ emittierten Durchsetzungsschicht):
    einen Move-Commit. Der Move landet damit **auf dem Hauptzweig, vor der Arbeit** — der Branch
    entsteht danach. Reist er erst im PR mit, ist der Zustand zweigelokal, und `in-progress/`
    bleibt für alle anderen leer, bis die Arbeit fertig ist.
-   <!-- ANPASSEN: der Weg zum Werkzeug ist die repo-spezifische Stelle; nenne hier den deines
-        Repos. Der Ziel-NAME `slice-mv` ist es nicht — er kommt aus einem tool-eigenen Fragment,
-        das jeder Bootstrap kanonisch neu schreibt; ein umbenanntes Ziel hält darum nicht, und
-        diese Anleitung bliebe auf einem Namen stehen, den `make` nach dem nächsten Lauf nicht
-        mehr kennt. Das Fragment bricht dann laut ab, statt still nichts zu tun. -->
    **Was das Werkzeug nicht kann, steht in seinem Kopf, und der Rest ist deine Handarbeit:** es
    zieht Pfade nach, keine Zustandsätze, und einen präfixlosen **eingehenden** Verweis erkennt es nur
    als Markdown-Link in den Geschwistern, die flach im Ausgangsverzeichnis liegen. `make docs-check`
@@ -124,8 +113,11 @@ emittierten Durchsetzungsschicht):
     erzeugt die Eingaben aus der Grammatik der Klasse, ein Orakel nennt die Erwartung unabhängig
     vom Code), führt schon der Handoff den Generator oder die Schleife mit diesem Orakel und eine
     Zählprüfung der Menge; handgeschriebene Fälle bleiben als Goldens daneben. Der Bericht nennt
-    je Klasse Generator, Orakel und die Zahl der Elemente, die der Test zählt  (seit
-    welle-record-replay).
+    je Klasse Generator, Orakel und die Zahl der Elemente, die der Test zählt. Eine Dezimalzahl
+    ist die Menge Ziffer × Stelle; eine Testhilfe, die ein Argument ersetzt, trägt alles, was das
+    Original trägt. Ist die Menge unbeschränkt oder der Fänger schmaler als die Zusage, steht
+    Prüfgrenze bzw. Differenz im Plan als akzeptiertes Negativ mit Grund und Folge, oder der
+    Fänger wird verbreitert  (seit welle-record-replay).
 15. Zuerst den engsten nützlichen Gate laufen lassen (z. B. eine Testdatei / ein Gate).
 16. `make gates` laufen lassen.
 
@@ -161,6 +153,11 @@ ist eine Lifecycle-Rücksprungkante (11).
     Medientyps, Name und Wert eines Parameters; jede Aufrufstelle), ist jede Stelle ein Faktor der
     Schleife, und der Bericht nennt die Stellen, die der Satz trägt, und die Elemente je Stelle
     (`AGENTS.md` §3.17)  (seit welle-record-replay).
+    **Der Bericht führt je Befund eine Tabelle:** Menge · Achsen · Elementzahl je Achse · eine nicht
+    genannte Mutation je Achse, rot gesehen. Achsen: Zeichen, Länge, Folge, Seite, Stelle, Zustand
+    (des Arguments beim Aufruf: `ctx` aktiv, abgebrochen, abgelaufen; Span mit und ohne Eltern;
+    nil, leer). Felder derselben Referenz tragen in der Fixture verschiedene Werte  (seit
+    welle-record-replay).
 20. **Jeden in diesem Lauf neu geschriebenen oder geänderten Kommentar gegen `AGENTS.md` §3.7
     prüfen** (Code, Konfiguration, Skripte). Die Probe: beschreibt der Satz den **Ist-Zustand**
     (indikativ, auflösbar), oder trägt er eine Slice-Nummer als Begründung, ein „(… , entschieden)"
@@ -175,7 +172,9 @@ Hier endet die Implementation. Die übrigen Rollen laufen in **getrennten Kontex
 ## Übergaben an nachgelagerte Rollen (Modul 8 → 10 → 11)
 
 21. **→ Reviewer (Code-Review, Modul 10):** den Diff + Plan-Verweis an einen **unabhängigen**
-    Reviewer übergeben (`.harness/skills/reviewer.md`, frischer Kontext — kein Selbst-Review). Er
+    Reviewer übergeben (`.harness/skills/reviewer.md`, frischer Kontext — kein Selbst-Review).
+    Jeder Handoff trägt einen Commit, der den Bericht (Mutationstabelle, Raten, Mengen) in §3 des
+    Plans nachzieht (`AGENTS.md` §3.9, §3.10)  (seit welle-record-replay). Er
     kategorisiert Findings (HIGH/MEDIUM/LOW/INFO) in einen Report unter `docs/reviews/` und prüft
     den Diff gegen **Plan + ADR + Hard Rules** (nicht die DoD). HIGH/MEDIUM auflösen; ein HIGH mit
     Rollen-Konflikt folgt Modul 8 §Konflikt-Pfad (Sequenz mit Übergabe-Artefakten, nie
