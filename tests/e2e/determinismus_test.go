@@ -6,6 +6,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -136,13 +137,15 @@ func pruefeKontrollwert(stand []model.ReplayCursor, recording string) string {
 	switch {
 	case c.ReplaySessionID != determinismusSession || c.RecordingSessionID != recording:
 		return fmt.Sprintf("Cursor %s/%s, erwartet %s/%s", c.ReplaySessionID, c.RecordingSessionID, determinismusSession, recording)
-	case c.Position <= 0 || len(c.Consumed) == 0:
-		return fmt.Sprintf("Position %d, Consumed %v", c.Position, c.Consumed)
+	case c.Position <= 0:
+		return fmt.Sprintf("Position %d, erwartet größer 0", c.Position)
+	case len(c.Consumed) == 0:
+		return "Consumed leer, erwartet nichtleer"
 	}
 	return ""
 }
 
-// leseStand liest den Stand aus der Ablage über eine zweite Verbindung, nur lesend und nach dem Lesen geschlossen;
+// leseStand liest den Stand aus der Ablage über eine zweite Verbindung, die es nach dem Lesen schließt;
 // jeder Fehler beendet den Test mit der Nummer des Laufs (SPEC-038 Nr. 6, Nr. 8 a).
 func leseStand(t *testing.T, lauf int, dir, workspace string) []model.ReplayCursor {
 	t.Helper()
@@ -202,7 +205,18 @@ func abweichungOrakel(aufnahme []paar, a []antwort) []string {
 		return []string{fmt.Sprintf("%d Antworten, erwartet 10", len(a))}
 	}
 	var out []string
+	if len(aufnahme) != 8 {
+		out = append(out, fmt.Sprintf("Orakel: Aufnahme mit %d Austauschen, erwartet 8", len(aufnahme)))
+	}
+	for i, soll := range zaehlerFolge() {
+		if i+5 < len(aufnahme) && string(aufnahme[i+5].w.body) != soll {
+			out = append(out, fmt.Sprintf("Orakel: Aufnahme Request %d: %q, erwartet $count %s", i+6, aufnahme[i+5].w.body, soll))
+		}
+	}
 	for i, p := range aufnahme {
+		if i >= len(a) {
+			break
+		}
 		if a[i].status != p.w.status || string(a[i].body) != string(p.w.body) {
 			out = append(out, fmt.Sprintf("Orakel, Request %d: %d %q, Aufnahme %d %q", i+1, a[i].status, a[i].body, p.w.status, p.w.body))
 		}
@@ -264,7 +278,7 @@ func TestE2EDeterminismus(t *testing.T) {
 			t.Errorf("Lauf %d: %s", i, fmt.Sprintf(format, args...))
 		}
 	}
-	gelaufen := 0
+	gelaufen, offen2 := 0, 0
 	for i := 1; i <= laeufe; i++ {
 		w, err := h.Workspaces().Reset(ctx, l.workspace)
 		if err != nil {
@@ -300,6 +314,12 @@ func TestE2EDeterminismus(t *testing.T) {
 			}
 		}
 		gelaufen++
+		if i == 2 {
+			offen2 = offeneAblagen(t, l.dir)
+		}
+	}
+	if offen := offeneAblagen(t, l.dir); offen2 == 0 || offen != offen2 {
+		t.Errorf("Offene Dateien der Ablage: %d nach Lauf 2, %d nach Lauf %d (Lesen schließt jede Verbindung, beide Zahlen größer 0)", offen2, offen, laeufe)
 	}
 	if gelaufen != laeufe {
 		t.Errorf("Läufe: %d, erwartet %d", gelaufen, laeufe)
@@ -338,8 +358,8 @@ func standardVolatile(t *testing.T, extra ...string) []string {
 	return k.VolatileHeaders
 }
 
-// TestDeterminismusVergleich fängt SPEC-038 Nr. 5 ohne Binary: je Art der Abweichung ein Fall in beiden Richtungen,
-// die Reihenfolge der Meldung, jeder flüchtige Name in jeder Schreibweise und die Liste des Handle.
+// TestDeterminismusVergleich fängt SPEC-038 Nr. 5 ohne Binary: die 30 Fälle der Abweichung in beiden Richtungen, die
+// Meldung Status vor Body vor Header für drei Paare, 7 flüchtige Namen in 3 Schreibweisen und die Liste des Handle.
 func TestDeterminismusVergleich(t *testing.T) {
 	vol := standardVolatile(t)
 	mit := func(f func(a *antwort)) antwort { a := klon(probe()); f(&a); return a }
@@ -347,11 +367,13 @@ func TestDeterminismusVergleich(t *testing.T) {
 		"Status":           mit(func(a *antwort) { a.status = 201 }),
 		"Body erstes Byte": mit(func(a *antwort) { a.body[0] ^= 1 }), "Body mittleres Byte": mit(func(a *antwort) { a.body[len(a.body)/2] ^= 1 }),
 		"Body letztes Byte": mit(func(a *antwort) { a.body[len(a.body)-1] ^= 1 }), "Body gekürzt": mit(func(a *antwort) { a.body = a.body[1:] }),
-		"Body leer":               mit(func(a *antwort) { a.body = nil }),
-		"zusätzlicher Name":       mit(func(a *antwort) { a.header["X-Neu"] = []string{"1"} }),
-		"Reihenfolge der Werte":   mit(func(a *antwort) { a.header["Vary"] = []string{"Prefer", "Accept"} }),
-		"zusätzlicher Wert":       mit(func(a *antwort) { a.header["Odata-Version"] = []string{"4.0", "4.0"} }),
-		"fehlender Wert von Vary": mit(func(a *antwort) { a.header["Vary"] = []string{"Accept"} }),
+		"Body leer":                        mit(func(a *antwort) { a.body = nil }),
+		"zusätzlicher Name":                mit(func(a *antwort) { a.header["X-Neu"] = []string{"1"} }),
+		"Reihenfolge der Werte":            mit(func(a *antwort) { a.header["Vary"] = []string{"Prefer", "Accept"} }),
+		"zusätzlicher Wert":                mit(func(a *antwort) { a.header["Odata-Version"] = []string{"4.0", "4.0"} }),
+		"fehlender Wert von Vary":          mit(func(a *antwort) { a.header["Vary"] = []string{"Accept"} }),
+		"eine verkettete Zeile statt zwei": mit(func(a *antwort) { a.header["Vary"] = []string{"Accept,Prefer"} }),
+		"zwei Zeilen und eine leere":       mit(func(a *antwort) { a.header["Vary"] = []string{"Accept", "Prefer", ""} }),
 	}
 	for n := range probe().header {
 		if !slices.Contains(vol, n) {
@@ -360,8 +382,8 @@ func TestDeterminismusVergleich(t *testing.T) {
 			faelle["leerer Wert von "+n] = mit(func(a *antwort) { a.header[n] = []string{""} })
 		}
 	}
-	if len(faelle) < 25 {
-		t.Fatalf("%d Fälle, erwartet mindestens 25", len(faelle))
+	if len(faelle) != 30 {
+		t.Fatalf("%d Fälle, erwartet 30 (12 Arten und 6 Namen mal 3)", len(faelle))
 	}
 	for name, ab := range faelle {
 		for richtung, p := range map[string][2]antwort{"soll gegen ist": {probe(), ab}, "ist gegen soll": {ab, probe()}} {
@@ -439,8 +461,8 @@ func cursor(replay, recording string) model.ReplayCursor {
 		Strategy: model.StrategySequential, Position: 3, Consumed: []int64{1, 2, 3}}
 }
 
-// TestDeterminismusStand fängt SPEC-038 Nr. 6 ohne Binary: der Vergleich in jedem Feld jedes Cursors, der Stand nach
-// dem Reset in jedem Verstoß und der Kontrollwert des Lesers.
+// TestDeterminismusStand fängt SPEC-038 Nr. 6 ohne Binary: den Vergleich je Feld an jedem der 2 Cursor, den Stand nach
+// dem Reset je Verstoß an 3 Cursors (18 Fälle) und den Kontrollwert des Lesers (7 Fälle).
 func TestDeterminismusStand(t *testing.T) {
 	basis := func() []model.ReplayCursor { return []model.ReplayCursor{cursor("a", "r1"), cursor("b", "r1")} }
 	aendern := map[string]func(c *model.ReplayCursor){
@@ -476,54 +498,87 @@ func TestDeterminismusStand(t *testing.T) {
 	}
 
 	t.Run("nach Reset", func(t *testing.T) {
+		drei := func() []model.ReplayCursor {
+			return []model.ReplayCursor{cursor("a", "r1"), cursor("b", "r1"), cursor("c", "r1")}
+		}
 		leer := func() []model.ReplayCursor {
-			s := basis()
+			s := drei()
 			for i := range s {
 				s[i].Position, s[i].Consumed = 0, nil
 			}
 			return s
 		}
-		if m := pruefeStandNachReset(leer(), basis(), false); m != "" {
+		if m := pruefeStandNachReset(leer(), drei(), false); m != "" {
 			t.Errorf("zurückgesetzter Stand: %s", m)
 		}
-		if m := pruefeStandNachReset(nil, basis(), true); m != "" {
+		if m := pruefeStandNachReset(nil, drei(), true); m != "" {
 			t.Errorf("leerer Stand in Lauf 1: %s", m)
 		}
-		verstoesse := map[string]func(s []model.ReplayCursor) []model.ReplayCursor{
-			"Position":                 func(s []model.ReplayCursor) []model.ReplayCursor { s[1].Position = 1; return s },
-			"Consumed":                 func(s []model.ReplayCursor) []model.ReplayCursor { s[1].Consumed = []int64{1}; return s },
-			"fehlt":                    func(s []model.ReplayCursor) []model.ReplayCursor { return s[:1] },
-			"zusätzlich":               func(s []model.ReplayCursor) []model.ReplayCursor { return append(s, cursor("c", "r1")) },
-			"andere Replay-Session":    func(s []model.ReplayCursor) []model.ReplayCursor { s[0].ReplaySessionID = "x"; return s },
-			"andere Recording-Session": func(s []model.ReplayCursor) []model.ReplayCursor { s[0].RecordingSessionID = "x"; return s },
-			"andere Workspace-ID":      func(s []model.ReplayCursor) []model.ReplayCursor { s[0].WorkspaceID = "x"; return s },
-			"keiner":                   func(s []model.ReplayCursor) []model.ReplayCursor { return nil },
+		type verstoss func(s []model.ReplayCursor) []model.ReplayCursor
+		verstoesse := map[string]verstoss{
+			"fehlt":      func(s []model.ReplayCursor) []model.ReplayCursor { return s[:2] },
+			"zusätzlich": func(s []model.ReplayCursor) []model.ReplayCursor { return append(s, cursor("d", "r1")) },
+			"keiner":     func(s []model.ReplayCursor) []model.ReplayCursor { return nil },
+		}
+		for i := range drei() {
+			verstoesse[fmt.Sprintf("Position an Cursor %d", i)] = func(s []model.ReplayCursor) []model.ReplayCursor { s[i].Position = 1; return s }
+			verstoesse[fmt.Sprintf("Consumed an Cursor %d", i)] = func(s []model.ReplayCursor) []model.ReplayCursor { s[i].Consumed = []int64{1}; return s }
+			verstoesse[fmt.Sprintf("andere Replay-Session an Cursor %d", i)] = func(s []model.ReplayCursor) []model.ReplayCursor { s[i].ReplaySessionID = "x"; return s }
+			verstoesse[fmt.Sprintf("andere Recording-Session an Cursor %d", i)] = func(s []model.ReplayCursor) []model.ReplayCursor { s[i].RecordingSessionID = "x"; return s }
+			verstoesse[fmt.Sprintf("andere Workspace-ID an Cursor %d", i)] = func(s []model.ReplayCursor) []model.ReplayCursor { s[i].WorkspaceID = "x"; return s }
+		}
+		if len(verstoesse) != 18 {
+			t.Fatalf("%d Verstöße, erwartet 18 (3 Stände und 5 Arten an 3 Cursors)", len(verstoesse))
 		}
 		for name, f := range verstoesse {
-			if pruefeStandNachReset(f(leer()), basis(), false) == "" {
+			if pruefeStandNachReset(f(leer()), drei(), false) == "" {
 				t.Errorf("Verstoß %s: nicht gemeldet", name)
 			}
 		}
-		if pruefeStandNachReset(basis(), nil, true) == "" {
+		if pruefeStandNachReset(drei(), nil, true) == "" {
 			t.Errorf("Stand in Lauf 1 nicht leer: nicht gemeldet")
 		}
 	})
 	t.Run("Kontrollwert", func(t *testing.T) {
-		gut := func() []model.ReplayCursor {
-			c := cursor(determinismusSession, "r1")
-			return []model.ReplayCursor{c}
-		}
-		if m := pruefeKontrollwert(gut(), "r1"); m != "" {
+		gut := func() model.ReplayCursor { return cursor(determinismusSession, "r1") }
+		if m := pruefeKontrollwert([]model.ReplayCursor{gut()}, "r1"); m != "" {
 			t.Errorf("gültiger Stand: %s", m)
 		}
-		for name, s := range map[string][]model.ReplayCursor{
-			"leer": nil, "zwei": append(gut(), cursor("zweite", "r1")),
+		ohne := func(f func(c *model.ReplayCursor)) []model.ReplayCursor {
+			c := gut()
+			f(&c)
+			return []model.ReplayCursor{c}
+		}
+		faelle := map[string][]model.ReplayCursor{
+			"leer": nil, "zwei": {gut(), cursor("zweite", "r1")},
 			"andere Replay-Session": {cursor("x", "r1")}, "andere Recording-Session": {cursor(determinismusSession, "x")},
-			"Position 0": {func() model.ReplayCursor { c := gut()[0]; c.Position, c.Consumed = 0, nil; return c }()},
-		} {
+			"Position 0 bei gefülltem Consumed":    ohne(func(c *model.ReplayCursor) { c.Position = 0 }),
+			"Position negativ":                     ohne(func(c *model.ReplayCursor) { c.Position = -1 }),
+			"Consumed leer bei gesetzter Position": ohne(func(c *model.ReplayCursor) { c.Consumed = nil }),
+		}
+		for name, s := range faelle {
 			if pruefeKontrollwert(s, "r1") == "" {
 				t.Errorf("%s: Leser gilt als gültig", name)
 			}
 		}
+		if len(faelle) != 7 {
+			t.Fatalf("%d Fälle, erwartet 7", len(faelle))
+		}
 	})
+}
+
+// offeneAblagen zählt die offenen Dateien dieses Prozesses unter dem Pfad der Ablage (Datei, Journal, Wiederherstellung).
+func offeneAblagen(t *testing.T, dir string) int {
+	t.Helper()
+	es, err := os.ReadDir("/proc/self/fd")
+	if err != nil {
+		t.Fatalf("offene Dateien lesen: %v", err)
+	}
+	n := 0
+	for _, e := range es {
+		if z, err := os.Readlink("/proc/self/fd/" + e.Name()); err == nil && strings.HasPrefix(z, filepath.Join(dir, "odata-recorder.db")) {
+			n++
+		}
+	}
+	return n
 }
