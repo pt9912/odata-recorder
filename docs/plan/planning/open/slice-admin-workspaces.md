@@ -41,6 +41,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Mutation des Entity-State und Lesen von Entities über die Admin-API — `SPEC-005` führt beides nicht; Mutationen laufen im Modus `mock` über den OData-Listener.
 - Das Löschen einzelner Snapshots — `SPEC-108` kennt es nicht (ein Snapshot geht mit seinem Workspace).
 - Der Rahmen (Listener, Token, Fehlerobjekt) — `slice-admin-listener-token`; der Port `AuditLog` — `welle-betrieb` (`slice-audit-log`).
+- Der Audit-Eintrag der Löschung eines Workspace (Art `workspace_geloescht`) — `WorkspaceUseCase.Delete` schreibt ihn (`slice-audit-dienste`); der Adapter schreibt die vier Arten von `SPEC-234` Nr. 2 nie (Entscheidung `SPEC-234` Nr. 7, Geber: `slice-audit-log` und `slice-audit-dienste`). Er auditiert nur eigene Arten (Anlegen, Reset, Snapshot, Restore), die der Vertrag des Adapters einträgt.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
 einer mit vier erfundenen; die vier Klassen sind ein Suchraster, keine
@@ -119,7 +120,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-admin-listener-token`, `slice-audit-log` (`welle-betrieb`), `slice-workspace-use-case` (`welle-record-replay`) und `slice-snapshot-use-case` (`welle-mock`) liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-admin-listener-token`, `slice-audit-log` und `slice-audit-dienste` (`welle-betrieb`; letzterer, weil der Eintrag der Löschung erst dort im Use Case entsteht), `slice-workspace-use-case` (`welle-record-replay`) und `slice-snapshot-use-case` (`welle-mock`) liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Warum:** Rahmen und Port `AuditLog` wie in `slice-admin-sessions`. `WorkspaceUseCase` (Anlegen, Lesen, Löschen, Reset) liegt heute nicht in `src/hexagon/ports/inbound/` und kommt mit `slice-workspace-use-case`; `SnapshotUseCase` und `WorkspaceUseCase.Restore` legt erst `slice-snapshot-use-case` an (alle *Code-Abhängigkeit, Port*).
 
@@ -157,7 +158,7 @@ dasteht.
 | Audit-Eintrag der Schreibendpunkte | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
 
 - Form und Grenzen von `id` und `name` (leer, Länge, Zeichen) stehen im Vertrag der Use Cases, die noch nicht geschrieben sind (`slice-workspace-use-case`, `slice-snapshot-use-case` in `open/`) — **Ausgang:** offen; Adresse: Architect (Auftrag 1).
-- Wer schreibt den Audit-Eintrag einer Löschung: der Adapter oder `WorkspaceUseCase` (`slice-audit-log`)? Beide ergäben einen doppelten Eintrag — **Ausgang:** offen; Adresse: Architect (Auftrag 5).
+- Wer schreibt den Audit-Eintrag einer Löschung: der Adapter oder `WorkspaceUseCase` (`slice-audit-log`)? Beide ergäben einen doppelten Eintrag — **Ausgang:** offen; Adresse: Architect (Auftrag 5). Vorentscheidung in `SPEC-234` Nr. 7: allein der Use Case schreibt (Geber: `slice-audit-log`); der Architect übernimmt sie in den Vertrag des Adapters.
 - Statuscodes der Erfolge und JSON-Form von Workspace und Snapshot stehen nicht in `SPEC-005` — **Ausgang:** offen; Adresse: Architect (Auftrag 2).
 - Die Wirkung von `reset` und `restore` bei gleichzeitiger Mutation im Modus `mock` gehört den Use Cases (`LH-FA-07.a`, Serialisierung je Workspace); der Adapter reicht den Kontext durch — **Ausgang:** entfallen: Zuständigkeit der Use Cases; der Adapter-Test prüft die Durchreichung des `ctx`.
 - `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` (2×): die Fakes von `WorkspaceUseCase`, `SnapshotUseCase` und `AuditLog` tragen jede Schnittstelle des Originals und zählen jeden Aufruf — **Ausgang:** weiter offen → `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` im Register.
