@@ -10,8 +10,8 @@ type AuditLog interface {
 	Append(e Eintrag) error
 }
 
-// AuditArt ist die Art eines Eintrags (SPEC-234 Nr. 2); die Menge ist geschlossen. Der Name
-// weicht vom Vertrag ab, weil Art den Typ der Attribute von Telemetry trägt.
+// AuditArt ist die Art eines Eintrags (SPEC-234 Nr. 2); die Menge ist geschlossen. Art trägt im
+// Paket den Typ der Attribute von Telemetry (SPEC-230).
 type AuditArt string
 
 // Die vier Arten (SPEC-234 Nr. 2).

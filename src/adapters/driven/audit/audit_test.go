@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driven/audit"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -166,14 +167,14 @@ func TestKorrelationsID(t *testing.T) {
 }
 
 // A06: jede Verformung jeder Art ist ErrUngueltig; nichts geschrieben, weder Uhr noch Generator
-// gerufen. Je Art 15 + 2 × Länge Formen: leer, Groß- und Titelschreibung, Leerraum davor und
-// dahinter (je 5), jedes echte Präfix und jeder echte Rest hinter dem Anfang, um ein Zeichen
-// verlängert (3), mit einem Zeichen davor. Jede Form läuft als Eintrag mit den Feldern der Art
-// und als Eintrag ohne Felder.
+// gerufen. Je Art 57 + 2 × Länge Formen: leer, Groß- und Titelschreibung, jedes der 26 Zeichen
+// von leerraumZeichen davor und dahinter, jedes echte Präfix und jeder echte Rest hinter dem
+// Anfang, um ein Zeichen verlängert (3), mit einem Zeichen davor. Jede Form läuft als Eintrag
+// mit den Feldern der Art und als Eintrag ohne Felder.
 func verformungen(art string) []string {
 	var out []string
 	out = append(out, "", strings.ToUpper(art), strings.ToUpper(art[:1])+art[1:])
-	for _, w := range []string{" ", "\t", "\n", "\r", "\v"} {
+	for _, w := range leerraumZeichen() {
 		out = append(out, w+art, art+w)
 	}
 	for k := 1; k < len(art); k++ {
@@ -182,7 +183,25 @@ func verformungen(art string) []string {
 	return append(out, art+"x", art+"_", art+"0", "x"+art)
 }
 
+// leerraumZeichen sind NUL, die sechs ASCII-Zeichen von unicode.IsSpace und die 19 weiteren
+// Zeichen von unicode.IsSpace (U+0085, U+00A0, U+1680, U+2000 bis U+200A, U+2028, U+2029,
+// U+202F, U+205F, U+3000); die Mehrbyte-Zeichen entstehen aus ihrem Codepunkt zu UTF-8-Bytes.
+func leerraumZeichen() []string {
+	out := []string{"\x00", " ", "\t", "\n", "\v", "\f", "\r"}
+	punkte := []rune{0x85, 0xa0, 0x1680, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000}
+	for r := rune(0x2000); r <= 0x200a; r++ {
+		punkte = append(punkte, r)
+	}
+	for _, r := range punkte {
+		out = append(out, string(utf8.AppendRune(nil, r)))
+	}
+	return out
+}
+
 func TestArtAusserhalbDerMenge(t *testing.T) {
+	if n := len(leerraumZeichen()); n != 26 {
+		t.Fatalf("%d Leerraumzeichen, erwartet 26", n)
+	}
 	gesamt := 0
 	for art := range orakelPflicht() {
 		formen := verformungen(string(art))
@@ -190,8 +209,8 @@ func TestArtAusserhalbDerMenge(t *testing.T) {
 		for _, f := range formen {
 			einmalig[f] = true
 		}
-		if len(formen) != 15+2*len(art) || len(einmalig) != len(formen) {
-			t.Fatalf("Art %s: %d Formen (%d verschieden), erwartet %d", art, len(formen), len(einmalig), 15+2*len(art))
+		if len(formen) != 57+2*len(art) || len(einmalig) != len(formen) {
+			t.Fatalf("Art %s: %d Formen (%d verschieden), erwartet %d", art, len(formen), len(einmalig), 57+2*len(art))
 		}
 		for _, f := range formen {
 			if _, bekannt := orakelPflicht()[support.AuditArt(f)]; bekannt {
@@ -210,7 +229,7 @@ func TestArtAusserhalbDerMenge(t *testing.T) {
 			}
 		}
 	}
-	if want := 2 * (4*15 + 2*(17+20+19+21)); gesamt != want {
+	if want := 2 * (4*57 + 2*(17+20+19+21)); gesamt != want {
 		t.Errorf("%d Aufrufe geprüft, erwartet %d", gesamt, want)
 	}
 }
@@ -314,8 +333,25 @@ func TestKennungsform(t *testing.T) {
 		if f.name != "KorrelationsID" {
 			pruefe("", false, "Länge 0")
 		}
-		if got := strings.Count(a.inhalt(t), "\n"); got != gueltigeZeilen || gueltigeZeilen != 3*65+2 {
-			t.Errorf("%s: %d Zeilen in der Datei, %d gültige Aufrufe, erwartet %d", f.name, got, gueltigeZeilen, 3*65+2)
+		// Stelle × Länge: ein ungültiges Byte an jeder Stelle jeder Länge der Liste (246 Stellen,
+		// zwei Bytes: Anführungszeichen und 0xff).
+		stellen := 0
+		for _, laenge := range []int{1, 2, 3, 4, 5, 8, 31, 32, 33, 63, 64} {
+			pruefe(strings.Repeat("a", laenge), true, fmt.Sprintf("Länge %d", laenge))
+			for i := range laenge {
+				for _, schlecht := range []byte{'"', 0xff} {
+					b := []byte(strings.Repeat("a", laenge))
+					b[i] = schlecht
+					pruefe(string(b), false, fmt.Sprintf("Byte %#02x an Stelle %d von %d", schlecht, i, laenge))
+				}
+				stellen++
+			}
+		}
+		if stellen != 246 {
+			t.Fatalf("%d Stellen, erwartet 246", stellen)
+		}
+		if got := strings.Count(a.inhalt(t), "\n"); got != gueltigeZeilen || gueltigeZeilen != 3*65+2+11 {
+			t.Errorf("%s: %d Zeilen in der Datei, %d gültige Aufrufe, erwartet %d", f.name, got, gueltigeZeilen, 3*65+2+11)
 		}
 	}
 }
@@ -482,6 +518,26 @@ func TestZeilenende(t *testing.T) {
 		{"endet ohne LF", true, "halb", "\n"},
 		{"endet mit CR", true, "x\r", "\n"},
 		{"zwei Zeilen, halbe dritte", true, "a\nb", "\n"},
+	}
+	// Länge der Datei 1 bis 64 Bytes, ohne LF am Ende und mit LF am Ende (128 Fälle).
+	for n := 1; n <= 64; n++ {
+		faelle = append(faelle,
+			struct {
+				name      string
+				vorhanden bool
+				vorher    string
+				trenner   string
+			}{fmt.Sprintf("%d Bytes ohne LF", n), true, strings.Repeat("x", n), "\n"},
+			struct {
+				name      string
+				vorhanden bool
+				vorher    string
+				trenner   string
+			}{fmt.Sprintf("%d Bytes mit LF", n), true, strings.Repeat("x", n-1) + "\n", ""},
+		)
+	}
+	if len(faelle) != 7+128 {
+		t.Fatalf("%d Fälle, erwartet %d", len(faelle), 7+128)
 	}
 	for _, f := range faelle {
 		a := neu(t, festeZeit)
