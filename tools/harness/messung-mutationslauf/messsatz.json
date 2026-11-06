@@ -1,0 +1,7 @@
+{"mutationen": [
+ {"name":"m1-lock-weg","datei":"src/hexagon/services/record/anhaengen.go","alt":"\tsz.anhaengen.Lock()\n\tdefer sz.anhaengen.Unlock()\n","neu":"","test":"TestSequenzGleichzeitig","klasse":"nebenläufig"},
+ {"name":"m2-zahl-nicht-erhoeht","datei":"src/hexagon/services/record/anhaengen.go","alt":"\tsz.zahl++\n\treturn nil","neu":"\treturn nil","test":"TestSequenz","klasse":"andere"},
+ {"name":"m3-nummer-ohne-plus-eins","datei":"src/hexagon/services/record/anhaengen.go","alt":"e.SequenceNo = sz.zahl + 1","neu":"e.SequenceNo = sz.zahl","test":"TestSequenz","klasse":"andere"},
+ {"name":"m4-zahl-falsch","datei":"src/hexagon/services/record/anhaengen.go","alt":"sz.zahl, sz.zahlBekannt = len(liste), true","neu":"sz.zahl, sz.zahlBekannt = len(liste)+1, true","test":"TestSequenz","klasse":"andere"},
+ {"name":"m5-aequivalent","datei":"src/hexagon/services/record/anhaengen.go","alt":"if !sz.zahlBekannt {","neu":"if !sz.zahlBekannt || false {","test":"TestSequenz","klasse":"andere"}
+]}
