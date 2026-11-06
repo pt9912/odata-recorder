@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier, frischer Kontext (Frage: „Bauen wir es richtig?“ gegen Plan, DoD, `SPEC-166`, `SPEC-167`, `SPEC-109` Nr. 5, `LH-FA-08.b`, `AGENTS.md` §3.9 bis §3.18). Kein Review, keine Reparatur: kein Produktcode, keine Roadmap, keine Welle, kein Register geschrieben.
 
-**Gegenstand:** Zweig `slice-edm-ausdruecke`, HEAD `c66329c` (Diff `f6daf34..c66329c`; Review `4bdbd1a`, Architect `777ae26` und `1134fd2`, Fix-Runde `e474eda`, `22d215a`, `c66329c`, Merge von `main` `ec01ce3`). Plan `docs/plan/planning/in-progress/slice-edm-ausdruecke.md`; Review-Report `docs/reviews/2026-11-06-slice-edm-ausdruecke-review.md`.
+**Gegenstand:** Zweig `slice-edm-ausdruecke`, HEAD `c66329c` (Diff `f6daf34..c66329c`; Review `4bdbd1a`, Architect `777ae26` und `1134fd2`, Fix-Runde `e474eda`, `22d215a`, `c66329c`, Merge von `main` `ec01ce3`). Plan `docs/plan/planning/done/slice-edm-ausdruecke.md`; Review-Report `docs/reviews/2026-11-06-slice-edm-ausdruecke-review.md`.
 
 **Skripte:** die Fassung nach dem Merge von `main` im Zweig: `.harness/skills/reviewer.md` (MEDIUM-Zeilen „Fänger schmaler als Zusage, Menge unbeschränkt oder ohne Achsenliste“ und „Fixture, Hilfe oder Kommentar verdeckt, was der Test prüft“) und `.claude/commands/implement-slice.md` (Schritt 14: Menge Ziffer mal Stelle, Prüfgrenze oder Differenz im Plan; Schritt 19: Tabelle Menge · Achsen · Elementzahl · nicht genannte Mutation je Achse; Schritt 21: Handoff-Commit trägt die Tabellen in §3 nach).
 
