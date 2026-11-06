@@ -3,6 +3,7 @@ package jsoncodec_test
 import (
 	"context"
 	"errors"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -293,7 +294,55 @@ func aufruf(i, g int) ergebnis {
 		_, e3 := sch.SchreibeAnzahl(context.Background(), z, -int64(g)-1)
 		_, e4 := sch.SchreibeFehler(context.Background(), z, model.Fehlerobjekt{})
 		_, e5 := sch.Adresse(modell, wurzel, "Produkte", "")
-		err = errors.Join(e1, e2, e3, e4, e5)
+		fehler := []error{e1, e2, e3, e4, e5}
+		var nilCtx context.Context
+		var nilDst io.Writer
+		_, e6 := sch.SchreibeAnzahl(nilCtx, z, 1)
+		_, e7 := sch.SchreibeAnzahl(context.Background(), nilDst, 1)
+		falsch, _ := model.NeuesFehlerobjekt(model.AlleCodes()[0])
+		falsch.Error.Message += name
+		_, e8 := sch.SchreibeFehler(context.Background(), z, falsch)
+		_, e9 := sch.SchreibeFehler(context.Background(), z, model.Fehlerobjekt{Error: model.FehlerInhalt{Code: "ODR-E0000"}})
+		fehler = append(fehler, e6, e7, e8, e9)
+		// jede Zeile des Raster-Verstoßes: Version, Set, Typ, Name, Duplikat, Art, Text, Auswahl, Schlüssel, Anzahl, ungültiges UTF-8
+		for k, mut := range []func(a *model.EntityAntwort){
+			func(a *model.EntityAntwort) { a.Set = "Unbekannt" },
+			func(a *model.EntityAntwort) { a.Set = "OhneTyp" },
+			func(a *model.EntityAntwort) { a.Entity.Typ = "Ns.Abstrakt" },
+			func(a *model.EntityAntwort) { a.Entity.Typ = "Ns.R2a" },
+			func(a *model.EntityAntwort) {
+				a.Entity.Properties = []model.PropertyWert{pw("Nope", model.ArtString, "x")}
+			},
+			func(a *model.EntityAntwort) {
+				a.Entity.Properties = []model.PropertyWert{pw("Id", model.ArtInt32, "1"), pw("Id", model.ArtInt32, "1")}
+			},
+			func(a *model.EntityAntwort) { a.Entity.Properties = []model.PropertyWert{pw("Id", model.ArtNull, "")} },
+			func(a *model.EntityAntwort) {
+				a.Entity.Properties = []model.PropertyWert{pw("Id", model.ArtString, "1")}
+			},
+			func(a *model.EntityAntwort) {
+				a.Entity.Properties = []model.PropertyWert{pw("Id", model.ArtInt32, "01")}
+			},
+			func(a *model.EntityAntwort) {
+				a.Entity.Properties = []model.PropertyWert{pw("Name", model.ArtString, "\xff")}
+			},
+			func(a *model.EntityAntwort) { a.Auswahl = []string{"Nope"} },
+			func(a *model.EntityAntwort) { a.Entity.Schluessel = "" },
+			func(a *model.EntityAntwort) { a.Wurzel = "" },
+		} {
+			x := gutEntity()
+			mut(&x)
+			_, e := sch.SchreibeEntity(context.Background(), z, modell, x)
+			_, e2 := sch.SchreibeEntity(context.Background(), z, modellVersion("2.0"), x)
+			fehler = append(fehler, e, e2)
+			y := gutCollection()
+			y.Entities = []model.Entity{x.Entity}
+			y.Set, y.Wurzel, y.Auswahl = x.Set, x.Wurzel, x.Auswahl
+			y.Anzahl = model.Anzahl{Vorhanden: true, Wert: int64(-k - 1)}
+			_, e3 := sch.SchreibeCollection(context.Background(), z, modell, y)
+			fehler = append(fehler, e3)
+		}
+		err = errors.Join(fehler...)
 	case 7: // beendeter Kontext und Fehler von dst
 		abgebrochen, cancel := context.WithCancel(context.Background())
 		cancel()

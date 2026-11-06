@@ -3,6 +3,7 @@ package jsoncodec_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -177,6 +178,9 @@ func TestZahlform(t *testing.T) {
 		{"I32", model.ArtInt32, "2147483647", false},
 		{"I64", model.ArtInt64, "9223372036854775807", true},
 		{"Dec", model.ArtDecimal, "123456789012345678901234567890.123456789", true},
+		{"I32", model.ArtInt32, "-2147483648", false},
+		{"I64", model.ArtInt64, "-9223372036854775808", true},
+		{"Dec", model.ArtDecimal, "-0.5", true},
 	}
 	n := 0
 	for _, w := range werte {
@@ -210,19 +214,54 @@ func TestZahlform(t *testing.T) {
 		}
 		n++
 	}
-	if n != 14 {
-		t.Errorf("Menge %d, will 14", n)
+	if n != 26 {
+		t.Errorf("Menge %d, will 26 (6 Werte × 2 Formen × 2 Operationen + Anzahl × 2 Formen)", n)
 	}
 }
 
 // sonderModell hat Namen mit dem Zeichen z an den vier Stellen: Property, Set, Auswahl (Navigation-Property) und Typ.
-func sonderModell(z string) model.ServiceModel {
-	props := []model.Property{prop("Id", "Edm.Int32", false), prop("P"+z, "Edm.String", true)}
+func sonderModell(z string) model.ServiceModel { return modellStellen(z, z, z, z) }
+
+// modellStellen hat an jeder der vier Stellen den Zusatz des Namens: Property `P`, Set `Set`, Typ `Ns.D` und Navigation-Property `Nav`.
+func modellStellen(zProp, zSet, zTyp, zNav string) model.ServiceModel {
+	props := []model.Property{prop("Id", "Edm.Int32", false), prop("P"+zProp, "Edm.String", true)}
 	typen := []model.EntityType{
-		{Name: "Ns.B", Keys: []string{"Id"}, Properties: props, NavigationProperties: []model.NavigationProperty{{Name: "Nav" + z, Target: "Ns.B"}}},
-		{Name: "Ns.D" + z, BaseType: "Ns.B", Keys: []string{"Id"}, Properties: props},
+		{Name: "Ns.B", Keys: []string{"Id"}, Properties: props, NavigationProperties: []model.NavigationProperty{{Name: "Nav" + zNav, Target: "Ns.B"}}},
+		{Name: "Ns.D" + zTyp, BaseType: "Ns.B", Keys: []string{"Id"}, Properties: props},
 	}
-	return model.NeuesServiceModel("4.0", []string{"Ns"}, typen, []model.EntitySet{{Name: "Set" + z, EntityType: "Ns.B"}}, nil)
+	return model.NeuesServiceModel("4.0", []string{"Ns"}, typen, []model.EntitySet{{Name: "Set" + zSet, EntityType: "Ns.B"}}, nil)
+}
+
+// TestUngueltigesUTF8AnVierStellen hält Zeile 27 (Folge): ein Name, der kein gültiges UTF-8 ist, ist ErrUngueltig an jeder Stelle, an der
+// ein Name in die Ausgabe geht (Property, Set, Typ, Navigation-Property in der Auswahl), an Entity und Collection.
+func TestUngueltigesUTF8AnVierStellen(t *testing.T) {
+	n := 0
+	for _, z := range []string{"\xff", "\xc3", "\xed\xa0\x80", "\xc0\x80"} {
+		for stelle := range 4 {
+			var zs [4]string
+			zs[stelle] = z
+			m := modellStellen(zs[0], zs[1], zs[2], zs[3])
+			e := model.EntityAntwort{Wurzel: wurzel, Set: "Set" + zs[1], Auswahl: []string{"Nav" + zs[3]},
+				Entity: model.Entity{Typ: "Ns.D" + zs[2], Schluessel: "1", Properties: []model.PropertyWert{pw("Id", model.ArtInt32, "1"), pw("P"+zs[0], model.ArtString, "x")}}}
+			c := model.CollectionAntwort{Wurzel: wurzel, Set: e.Set, Auswahl: e.Auswahl, Entities: []model.Entity{e.Entity}}
+			scheitert(t, fmt.Sprintf("Entity Stelle %d %q", stelle, z), func(ctx context.Context, d io.Writer) (model.Darstellung, error) {
+				return sch.SchreibeEntity(ctx, d, m, e)
+			})
+			scheitert(t, fmt.Sprintf("Collection Stelle %d %q", stelle, z), func(ctx context.Context, d io.Writer) (model.Darstellung, error) {
+				return sch.SchreibeCollection(ctx, d, m, c)
+			})
+			n += 2
+		}
+	}
+	if n != 32 {
+		t.Errorf("Menge %d, will 32", n)
+	}
+	m := modellStellen("", "", "", "")
+	zl := neuesZiel()
+	e := model.EntityAntwort{Wurzel: wurzel, Set: "Set", Auswahl: []string{"Nav"}, Entity: model.Entity{Typ: "Ns.D", Schluessel: "1", Properties: []model.PropertyWert{pw("Id", model.ArtInt32, "1"), pw("P", model.ArtString, "x")}}}
+	if _, err := sch.SchreibeEntity(context.Background(), zl, m, e); err != nil {
+		t.Errorf("Gegenfall ohne Zusatz: %v", err)
+	}
 }
 
 // TestEscapes hält Zeile 27: der Zeichensatz des Escapes an fünf Stellen.
@@ -243,7 +282,7 @@ func TestEscapes(t *testing.T) {
 	for c := range 0x20 {
 		zeichen = append(zeichen, string(rune(c)))
 	}
-	zeichen = append(zeichen, `"`, bs, "/", "\x7f", "\xe2\x80\xa8", "\xe2\x80\xa9", "\xc3\xa9", "\xe2\x82\xac", "\xf0\x90\x80\x80")
+	zeichen = append(zeichen, " ", `"`, bs, "/", "\x7f", "\xe2\x80\xa8", "\xe2\x80\xa9", "\xc3\xa9", "\xe2\x82\xac", "\xf0\x90\x80\x80")
 	for _, z := range zeichen {
 		a := gutEntity()
 		a.Entity.Properties = []model.PropertyWert{pw("Id", model.ArtInt32, "1"), pw("Name", model.ArtString, "a"+z+"b")}
@@ -266,7 +305,7 @@ func TestEscapes(t *testing.T) {
 		}
 		n += 4
 	}
-	if n != 57 {
-		t.Errorf("Menge %d, will 57", n)
+	if n != 58 {
+		t.Errorf("Menge %d, will 58 (41 Zeichen und das Leerzeichen als Grenze, dazu 4 mal 4)", n)
 	}
 }
