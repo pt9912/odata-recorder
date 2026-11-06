@@ -162,7 +162,7 @@ func modellVersion(v string) model.ServiceModel {
 	}
 	sets := []model.EntitySet{
 		{Name: "Produkte", EntityType: "Ns.Product"}, {Name: "Fremde", EntityType: "Ns.Fremd"},
-		{Name: "Alles", EntityType: "Ns.Alle"}, {Name: "OhneTyp", EntityType: "Ns.Fehlt"},
+		{Name: "Alles", EntityType: "Ns.Alle"}, {Name: "OhneTyp", EntityType: "Ns.Fehlt"}, {Name: "Produkte2", EntityType: "Ns.Product"},
 	}
 	return model.NeuesServiceModel(v, []string{"Ns"}, typen, sets, nil)
 }
