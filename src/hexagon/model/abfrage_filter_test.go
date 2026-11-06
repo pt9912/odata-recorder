@@ -348,8 +348,8 @@ func TestWahrheitAlsOperand(t *testing.T) {
 
 // --- Zeile 14: jede Property des Filters steht in jeder Entity ---
 
-// TestFilterEigenschaftFehlt (Zeile 14): die Property von $filter an acht Stellen des Baums × Entity ohne sie an erster, mittlerer
-// und letzter Stelle von fünf × fünf Verknüpfungen mit einem für jede Entity wahren Gegenüber: immer 422 mit der Option $filter;
+// TestFilterEigenschaftFehlt (Zeile 14): die Property von $filter an acht Stellen des Baums × Entity ohne sie an jeder der
+// fünf Stellen × fünf Verknüpfungen mit einem für jede Entity wahren Gegenüber: immer 422 mit der Option $filter;
 // derselbe Filter auf lauter Entities mit der Property (auch mit Wert null) gilt.
 func TestFilterEigenschaftFehlt(t *testing.T) {
 	typ := abTyp()
@@ -381,7 +381,7 @@ func TestFilterEigenschaftFehlt(t *testing.T) {
 		for _, h := range huellen {
 			f := h(s.baue(prop("Active")))
 			abOk(t, "alle Entities tragen die Property: "+s.name, typ, voll(-1), model.Optionen{Filter: abF(f)}, nil)
-			for _, luecke := range []int{0, 2, 4} {
+			for _, luecke := range []int{0, 1, 2, 3, 4} {
 				r, err := model.FuehreAus(typ, voll(luecke), model.Optionen{Filter: abF(f)}, nil)
 				if abKennung(err) != "$filter:nicht_beobachtet" || !errors.Is(err, model.ErrFilterNichtBeobachtet) || !reflect.DeepEqual(r, model.Ergebnis{}) {
 					t.Errorf("%s, Entity %d ohne Property: %v", s.name, luecke+1, err)
@@ -390,7 +390,7 @@ func TestFilterEigenschaftFehlt(t *testing.T) {
 			}
 		}
 	}
-	if n != 8*5*3 {
+	if n != 8*5*5 {
 		t.Errorf("%d Fälle", n)
 	}
 }

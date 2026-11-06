@@ -402,7 +402,7 @@ func TestNamen(t *testing.T) {
 
 // --- Zeile 22: Properties von $orderby in jeder Entity ---
 
-// TestOrderByEigenschaftFehlt (Zeile 22): Entity ohne die Property an erster, mittlerer und letzter Stelle von fünf × Element
+// TestOrderByEigenschaftFehlt (Zeile 22): Entity ohne die Property an jeder der fünf Stellen × Element
 // (erstes, mittleres, letztes von drei) × Richtung: 422 mit der Option $orderby; eine Property mit Wert null gilt.
 func TestOrderByEigenschaftFehlt(t *testing.T) {
 	typ := abTyp()
@@ -414,7 +414,7 @@ func TestOrderByEigenschaftFehlt(t *testing.T) {
 	}
 	n := 0
 	for _, element := range namen {
-		for _, luecke := range []int{1, 3, 5} {
+		for _, luecke := range []int{1, 2, 3, 4, 5} {
 			for _, desc := range []bool{false, true} {
 				var es []model.Entity
 				for i := 1; i <= 5; i++ {
@@ -436,7 +436,7 @@ func TestOrderByEigenschaftFehlt(t *testing.T) {
 			}
 		}
 	}
-	if n != 18 {
+	if n != 3*5*2 {
 		t.Errorf("%d Fälle", n)
 	}
 	es := []model.Entity{abE(1, abNu("Name"), abNu("Price"), abNu("Day")), voll(2, "")}
