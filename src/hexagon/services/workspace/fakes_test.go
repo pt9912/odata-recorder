@@ -721,6 +721,8 @@ type wartung struct {
 	mu      sync.Mutex
 	bericht inbound.Loeschbericht
 	fehler  error
+	// beiCleanup läuft in CleanupBlobs nach dem Eintrag ins Protokoll.
+	beiCleanup func()
 }
 
 func (w *wartung) setze(b inbound.Loeschbericht, err error) {
@@ -737,7 +739,11 @@ func (w *wartung) CleanupBlobs(ctx context.Context) (inbound.Loeschbericht, erro
 	w.mu.Lock()
 	b, err := w.bericht, w.fehler
 	w.mu.Unlock()
-	if e := w.p.beginn("Wartung.CleanupBlobs", ctx); e != nil {
+	e := w.p.beginn("Wartung.CleanupBlobs", ctx)
+	if w.beiCleanup != nil {
+		w.beiCleanup()
+	}
+	if e != nil {
 		return b, e
 	}
 	return b, err

@@ -21,7 +21,8 @@ const MaxIDLaenge = 64
 // Konfig ist die Konfiguration des Dienstes (SPEC-124 Nr. 1). Dienste dient allein List, Wartung
 // allein der Bereinigung nach dem Löschen. Record, Exchanges und Frist dienen allein dem Beenden:
 // Record ist der RecordUseCase, den auch der HTTP-Adapter ruft, Frist der Wert von
-// SHUTDOWN_TIMEOUT und die frist jedes Aufrufs von Drain.
+// SHUTDOWN_TIMEOUT und die frist jedes Aufrufs von Drain. Audit dient allein dem Eintrag nach dem
+// Löschen: der Dienst ruft von ihm nur Append (SPEC-234 Nr. 8).
 type Konfig struct {
 	Sessions  outbound.SessionRepository
 	Dienste   outbound.MetadataRepository
@@ -32,6 +33,7 @@ type Konfig struct {
 	Record    inbound.RecordUseCase
 	Exchanges outbound.RecordingRepository
 	Frist     time.Duration
+	Audit     support.AuditLog
 }
 
 // Verwaltung setzt die Operationen von SessionUseCase um. Sie hält keinen Zustand außer ihrer
@@ -45,8 +47,8 @@ func New(k Konfig) (*Verwaltung, error) {
 	if k.Sessions == nil || k.Dienste == nil || k.Wartung == nil || k.Uhr == nil || k.IDs == nil || k.Log == nil {
 		return nil, errors.Join(model.ErrUngueltig, errors.New("Port, Uhr, Generator oder Log fehlt"))
 	}
-	if k.Record == nil || k.Exchanges == nil {
-		return nil, errors.Join(model.ErrUngueltig, errors.New("Record oder Exchanges fehlt"))
+	if k.Record == nil || k.Exchanges == nil || k.Audit == nil {
+		return nil, errors.Join(model.ErrUngueltig, errors.New("Record, Exchanges oder Audit fehlt"))
 	}
 	if k.Frist < 0 {
 		return nil, errors.Join(model.ErrUngueltig, errors.New("Frist ist negativ"))

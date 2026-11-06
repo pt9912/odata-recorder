@@ -33,6 +33,7 @@ type welt struct {
 	blobs   *blobs
 	dienste *dienste
 	wartung *wartung
+	audit   *supporttest.FakeAudit
 	uhr     zaehlUhr
 	ids     zaehlIDs
 	konfig  workspace.Konfig
@@ -54,9 +55,10 @@ func neu(t *testing.T) *welt {
 	w.wartung = &wartung{p: p}
 	w.uhr = zaehlUhr{p: p, u: supporttest.NewFestUhr(t0())}
 	w.ids = zaehlIDs{p: p, g: supporttest.NewFestIDs()}
+	w.audit = supporttest.NewFakeAudit()
 	w.konfig = workspace.Konfig{
 		Workspaces: w.st.workspaces(), Transaktion: w.st, Snapshots: w.snaps, Blobs: w.blobs, Dienste: w.dienste,
-		Wartung: w.wartung, Uhr: w.uhr, IDs: w.ids, Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Wartung: w.wartung, Uhr: w.uhr, IDs: w.ids, Log: slog.New(slog.NewTextHandler(io.Discard, nil)), Audit: w.audit,
 	}
 	v, err := workspace.New(w.konfig)
 	if err != nil {

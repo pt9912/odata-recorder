@@ -1,0 +1,2 @@
+**Vorgang:** slice-query-interpreter
+**Fund:** §6 des Plans wies `slice-mock-lesen` drei Pflichten des Aufrufers zu (Maske aus den Baseline-Properties, `/$count` nur mit Filter, Entities mit Key-Properties). Der Verifier las `SPEC-190` gegen und fand zwei weitere: `Schluessel` eindeutig und nichtleer (Nr. 3 e) und kein Wert `redigiert` in einer Property von `$filter` oder `$orderby` (Nr. 3 g, sonst `500` mit `ODR-E9001`). Der Planner trug alle fuenf beim Integrieren in `slice-mock-lesen` ein. Beleg: Report `2026-11-06-slice-query-interpreter-verifikation` (V-2); Plan §6.

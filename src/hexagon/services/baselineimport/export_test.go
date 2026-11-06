@@ -1,6 +1,12 @@
 package baselineimport
 
-import "github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
+import (
+	"github.com/pt9912/odata-recorder/src/hexagon/model"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
+)
+
+// CodeVon ist codeVon (SPEC-234 Nr. 4 d): der Code des Fehlers, auch verpackt, sonst ODR-E9001.
+func CodeVon(err error) model.Code { return codeVon(err) }
 
 // Hilfen für die externen Tests: die reinen Funktionen des Hashes der Anfrage, der Kanonform, der Ordnung von
 // unsupported_features.entities, des Content-Type und der ASCII-Kleinschreibung.

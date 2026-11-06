@@ -296,6 +296,35 @@ func TestAbbildungKompat(t *testing.T) {
 	}
 }
 
+// TestAbbildungAbfrage (Zeile 24 von slice-query-interpreter): der Fehler des Interpreters bildet bei jedem der acht Gegenstände auf
+// den Code seiner Ursache ab (ODR-E6005 für eigenschaft_unbekannt, ODR-E6001 für typ_nicht_unterstuetzt und
+// ordnung_nicht_unterstuetzt, ODR-E6003 für nicht_beobachtet), auch verpackt und verbunden. 4 Ursachen × 3 Optionen × 4 Formen × 8
+// Gegenstände.
+func TestAbbildungAbfrage(t *testing.T) {
+	soll := map[model.AbfrageUrsache]model.Code{
+		model.AbfrageEigenschaftUnbekannt: model.CodeE6005, model.AbfrageTypNichtUnterstuetzt: model.CodeE6001,
+		model.AbfrageOrdnungNichtUnterstuetzt: model.CodeE6001, model.AbfrageNichtBeobachtet: model.CodeE6003,
+	}
+	n := 0
+	for _, u := range model.AlleAbfrageUrsachen() {
+		for _, o := range []model.AbfrageOption{model.AbfrageFilter, model.AbfrageOrderBy, model.AbfrageSelect} {
+			e := &model.AbfrageFehler{Option: o, Ursache: u}
+			formen := map[string]error{"Fehler": e, "Errorf": fmt.Errorf("ausführen: %w", e), "JoinLinks": errors.Join(e, errors.New("x")), "JoinRechts": errors.Join(errors.New("x"), e)}
+			for name, err := range formen {
+				for _, g := range alleGegenstaende() {
+					if got, ok := outbound.Abbilden(err, g); !ok || got != soll[u] {
+						t.Errorf("%s %s %s / Gegenstand %d: %v %v, erwartet %v", u, o, name, g, got, ok, soll[u])
+					}
+					n++
+				}
+			}
+		}
+	}
+	if n != 4*3*4*8 {
+		t.Errorf("%d Fälle", n)
+	}
+}
+
 // TestAbbildungFilterTyp (Zeile 36): der Fehler der Typprüfung des Filters bildet bei jedem der acht Gegenstände auf den Code seiner
 // Ursache ab (ODR-E6005 für vier Ursachen, ODR-E6001 für zwei, ODR-E6003 für nicht_beobachtet), auch verpackt und verbunden; ein
 // Kontextfehler daneben bekommt keinen Code. 7 Ursachen × 4 Formen × 8 Gegenstände; die Tabelle nennt ErrFilterNichtBeobachtet.

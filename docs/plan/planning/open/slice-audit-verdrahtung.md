@@ -31,11 +31,12 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel (Teil V des Schnitts von `slice-audit-log` in drei Teile):** Der Composition Root (`src/bootstrap/`) erzeugt je Prozess genau einen `audit.New` über `<DATA_DIR>/audit.jsonl` mit der einen Uhr, dem einen Generator und dem einen Logger und gibt diese eine Instanz als `Audit` in `maintenance.Konfig`, `session.Konfig`, `workspace.Konfig` und `baselineimport.Konfig` (`SPEC-139` Nr. 3, `SPEC-234` Nr. 8). Nach einer Löschung steht der Eintrag in der Datei, im Modus `record` mit allen vier Arten, im Modus `replay` für Aufbewahrung und Workspace; ein zweites `Build` auf demselben Datenverzeichnis hängt an; ein Canary (Token, Userinfo der `UpstreamURL`, Fehlertext) steht in keinem Byte der Datei; ohne Löschung entsteht die Datei nicht (`SPEC-235` Nr. 2).
+**Ziel (Teil V des Schnitts von `slice-audit-log` in drei Teile, verkleinert; Entscheidung des Planner bei der Closure von `slice-audit-dienste`, 2026-11-06):** Der Composition Root erzeugt je Prozess genau einen `audit.New` über `<DATA_DIR>/audit.jsonl` mit der einen Uhr, dem einen Generator und dem einen Logger und gibt diese eine Instanz als `Audit` in `maintenance.Konfig`, `session.Konfig`, `workspace.Konfig` und `baselineimport.Konfig` (`SPEC-139` Nr. 3, `SPEC-234` Nr. 8) — **das ist geliefert**: `slice-audit-dienste` trägt es als Brücke in `src/bootstrap/wurzel.go` (zwei Commits »Brücke:«, `5b7636e`, `d210747`), weil `New` ein nil-`Audit` abweist und ohne sie kein grüner Stand zwischen den beiden Slices besteht. Dieser Slice liefert die **Fänger der Datei im Betrieb** über das `Handle`: nach einer Löschung steht der Eintrag in der Datei, im Modus `record` mit allen vier Arten, im Modus `replay` für Aufbewahrung und Workspace (V01); ein zweites `Build` auf demselben Datenverzeichnis hängt an (V02); ein Canary (Token, Userinfo der `UpstreamURL`, Fehlertext) steht in keinem Byte der Datei (V03); ohne Löschung entsteht die Datei auch nicht beim Hochfahren und Herunterfahren (V05, Rest; dass `Build` allein sie nicht anlegt, fängt `TestAuditPfadUndZeile`) (`SPEC-235` Nr. 2). Der Code der Brücke ändert sich hier nur, wenn ein Fänger eine Lücke zeigt; dann geht der Fund als Befund an den Reviewer, nicht still in den Code.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Port, Typen und Adapter — `slice-audit-log`; die Aufrufstellen und das Feld `Audit` der vier Konfigs — `slice-audit-dienste`. Grund: dieser Slice verdrahtet fertige Teile und schreibt keinen Dienst um.
+- Die Instanz, der Pfad und die Übergabe an die vier Konfigs in `src/bootstrap/wurzel.go` samt Zeile V04 (dieselbe Instanz) und dem Logger der Instanz — **geliefert von `slice-audit-dienste`** (Brücke, Geber: `slice-audit-dienste`), gefangen von `TestAuditEineInstanz`, `TestAuditPfadUndZeile` und `TestAuditLoggerDesProzesses` in `src/bootstrap/`; hier nicht wiederholt. Akzeptiertes Negativ der Brücke (Grund und Folge im Plan von `slice-audit-dienste`, §3): eine zweite Uhr oder ein zweiter Generator für den Adapter bleibt ungefangen, weil beide ohne Zustand sind.
 - Audit-Einträge der Admin-Schreibendpunkte und der Eintrag zu `ODR-E2101` — `welle-admin-api` (`SPEC-005`, `LH-FA-13.a`); die Nehmer tragen die Entscheidung `SPEC-234` Nr. 7.
 - Das Handbuch-Kapitel zur Datei `audit.jsonl` — mit `slice-admin-sessions` (erster Slice, dessen Binary eine Löschung auslöst); hier steht in §7, was das Binary nach der Verdrahtung tut und warum kein gebundenes Beispiel die Datei erzeugen kann (siehe §6).
 - Die Abbildung auf die Telemetrie (`audit_fehlgeschlagen`, Adapter `audit`) — `slice-telemetry-einbau-gateway` und `slice-telemetry-einbau-mock` (`SPEC-231` Nr. 4 und 7).
@@ -59,8 +60,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Verdrahtung: eine Instanz von `audit.New` über `<DATA_DIR>/audit.jsonl` in allen vier Diensten, in beiden Modi, wo der Dienst besteht (`SPEC-139` Nr. 3, 4; Zeilen V01, V04).
-- [ ] Datei im Datenverzeichnis: nach einer Löschung steht der Eintrag in der Ablage, ein zweites `Build` hängt an und ändert Vorhandenes nicht, ohne Löschung entsteht die Datei nicht (`SPEC-235` Nr. 2, 7; Zeilen V01, V02, V05).
+- [ ] Datei im Betrieb über das `Handle`: nach einer Löschung und nach einem fehlgeschlagenen Import steht der Eintrag in `<DATA_DIR>/audit.jsonl`, in beiden Modi, wo der Dienst besteht (`SPEC-139` Nr. 4, `SPEC-235` Nr. 2; Zeile V01). Die Verdrahtung selbst (eine Instanz in allen Diensten, Zeile V04) liefert `slice-audit-dienste` als Brücke und ist hier nicht Gegenstand.
+- [ ] Neustart und leere Ablage: ein zweites `Build` hängt an und ändert Vorhandenes nicht, ohne Löschung entsteht die Datei nicht, auch nicht beim Hochfahren und Herunterfahren (`SPEC-235` Nr. 2, 7; Zeilen V02, V05).
 - [ ] Kein Geheimnis: ein Canary-Secret (Token, Userinfo der `UpstreamURL`, Fehlertext) erscheint in keinem Byte der Datei (`LH-QA-04`; Zeile V03).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
@@ -82,7 +83,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/bootstrap/` | update | Verdrahtung: eine Instanz des Adapters in allen vier Diensten (`SPEC-139` Nr. 3, 4) |
+| `src/bootstrap/` | update (nur Tests) | Fänger der Datei im Betrieb über das `Handle`; der Code der Verdrahtung steht als Brücke in `wurzel.go` (Lieferung von `slice-audit-dienste`) |
 | `src/hexagon/`, `src/adapters/driven/audit/` | entfällt | Port, Typen, Dienste und Adapter liefern `slice-audit-log` und `slice-audit-dienste` |
 | `tools/schema/schema.yaml`, `src/adapters/driven/sqlite/migrations/` | entfällt | die Ablage ist eine Datei (`SPEC-235`): kein Schema, keine Migration |
 | `spec/spezifikation.md` | update (Architect, getan) | `SPEC-139` Nr. 2 bis 4, `SPEC-077` |
@@ -90,15 +91,16 @@ Aussagen-Berührung steht hier gar nicht.
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stehen mit dem Vertrag in der Spezifikation vor dem ersten Code-Commit (`AGENTS.md` §3.12).
 
-**Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Spalten nach `SPEC-128` Nr. 3 a; der Implementer trägt die Mutationen und Raten mit Zahl der Prozesse und Messendem in einen Absatz darunter ein, `AGENTS.md` §3.10). Die Zeilen V01 bis V05 sind die des Architect aus dem ungeschnittenen Plan von `slice-audit-log`, unverändert.
+**Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Spalten nach `SPEC-128` Nr. 3 a; der Implementer trägt die Mutationen und Raten mit Zahl der Prozesse und Messendem in einen Absatz darunter ein, `AGENTS.md` §3.10). Die Zeilen V01 bis V05 sind die des Architect aus dem ungeschnittenen Plan von `slice-audit-log`; V04 ist geliefert (Brücke, `slice-audit-dienste`) und steht nicht mehr in der Tabelle, V05 ist auf den Rest verkleinert (Planner, 2026-11-06). Vier Zeilen zählt die Tabelle.
 
 | Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|
 | V01 | Über das `Handle` stehen die Einträge in `<DATA_DIR>/audit.jsonl`: im Modus `record` alle vier Arten, im Modus `replay` Aufbewahrung und Workspace | Schleife über beide Modi und ihre Arten: Löschung über `Sessions()`, `Workspaces()`, fehlgeschlagener Import über `Import()`, Aufbewahrung mit `RetentionMaxAge` beim zweiten `Build`; die Datei gelesen und geparst | Wartung ohne `Audit` verdrahtet | andere |
 | V02 | Neustart: ein zweites `Build` auf demselben `DATA_DIR` findet die Zeilen unverändert und hängt an | zwei `Build` nacheinander, Datei vor und nach | Datei beim `Build` abgeschnitten | andere |
 | V03 | Ein Canary (Token, Userinfo der `UpstreamURL`, Fehlertext) steht in keinem Byte der Datei | Datei nach allen Canary durchsucht, nach allen vier Arten | Wert aus der Konfiguration als Feld | andere |
-| V04 | Alle vier Dienste erhalten dieselbe Instanz des Adapters | Haken (`NeueWartung`, `NeuerImport`, `NeueWorkspaces`, Session-Dienst): `Audit` ist je Konfig dieselbe Instanz | zweite Instanz für den Workspace-Dienst | andere |
-| V05 | Ohne Löschung entsteht die Datei nicht, auch nicht beim Hochfahren und Herunterfahren | `DATA_DIR` nach `Hochfahren` und `Herunterfahren` ohne Löschung | Datei in `Build` angelegt | andere |
+| V05 | Ohne Löschung entsteht die Datei nicht, auch nicht beim Hochfahren und Herunterfahren (der Teil »`Build` allein legt sie nicht an« ist durch `TestAuditPfadUndZeile` gefangen) | `DATA_DIR` nach `Hochfahren` und `Herunterfahren` ohne Löschung | Datei in `Hochfahren` angelegt | andere |
+
+**Geliefert durch die Brücke, nicht Gegenstand dieses Slice (Geber: `slice-audit-dienste`):** V04 (dieselbe Instanz in allen Konfigs; `TestAuditEineInstanz`, Mutation: eigene Instanz für Session, Import oder Workspace, rot), der Pfad (`TestAuditPfadUndZeile`) und der eine Logger (`TestAuditLoggerDesProzesses`).
 
 **Betriebsregeln für alle Rollen:**
 
@@ -120,18 +122,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **Abhängigkeiten — Grund je Eintrag:**
 
 - `slice-audit-log` (`welle-betrieb`): der Adapter `audit.Datei` besteht erst dort (*Code-Abhängigkeit*, mittelbar über `slice-audit-dienste`).
-- `slice-audit-dienste` (`welle-betrieb`): die Felder `Audit` der vier Konfigs bestehen erst dort; ohne sie ließe sich die Instanz nicht übergeben (*Code-Abhängigkeit*).
-- `slice-bootstrap-m2` (`welle-record-replay`): `slice-bootstrap-m2` ändert `src/bootstrap/` für die Verdrahtung der Dienste und der Listener; zwei Slices an denselben Dateien laufen nacheinander (Übergangsregeln, Welle-Datei §5). Läuft dieser Slice nach ihm, ergänzt er dessen Verdrahtung um die eine Instanz des Audit.
+- `slice-audit-dienste` (`welle-betrieb`): die Felder `Audit` der vier Konfigs und die Brücke in `wurzel.go` (Instanz, Pfad, Übergabe) bestehen erst dort; die Fänger dieses Slice laufen gegen `Build` mit dieser Verdrahtung (*Code-Abhängigkeit*).
+- `slice-bootstrap-m2` (`welle-record-replay`, `done/`): hat `src/bootstrap/` für die Dienste und Listener verdrahtet; die Brücke ergänzt dessen Stand um die eine Instanz des Audit. Beide liegen in `done/`, die Reihenfolge der Dateien ist entschieden.
 - Handbuch-Punkt der DoD: siehe §6, Adresse Planner.
 
 **Start-Ausnahme je Slice** (Linie D, `welle-betrieb` §2): wie `slice-audit-log`; `welle-mock` ist nicht Bedingung, M2 ist es über `slice-bootstrap-m2`.
 
-**Größenmarke** (`SPEC-128`; Faktoren allein dort): Der Block mit `basis`, `schaetzung` und `marke` entsteht beim Start, weil `basis` der Commit ist, der den Stand nach `slice-audit-dienste` und `slice-bootstrap-m2` abschließt; bis dahin steht hier die Rechnung als Prosa. Pfad: `src/bootstrap`. Erwarteter Produktcode (Architect): 40. Fakes: 0. Zeilen: 5, alle andere (keine nebenläufige). Nach `SPEC-128` Nr. 1: *S* 440, *M* 600. `basis` muss hinter dem letzten Commit von `slice-bootstrap-m2` liegen, damit dessen Zeilen unter `src/bootstrap` nicht in die Messung dieses Slice fallen (`SPEC-128` Nr. 10 g). Der Slice liefert keinen Leser fremder Bytes.
+**Größenmarke** (`SPEC-128`; Faktoren allein dort): Der Block mit `basis`, `schaetzung` und `marke` entsteht beim Start, weil `basis` der Commit ist, der den Stand nach `slice-audit-dienste` abschließt (mit der Brücke); bis dahin steht hier die Rechnung als Prosa. Pfad: `src/bootstrap`. Erwarteter Produktcode (Architect): 0 — die 40 Zeilen des ungeschnittenen Plans liegen in der Brücke von `slice-audit-dienste`; der Architect bestätigt die 0 beim Start oder nennt den Rest. Fakes: 0. Zeilen: 4 (V01, V02, V03, V05), alle andere (keine nebenläufige). Nach `SPEC-128` Nr. 1: *S* 320, *M* 500 (vorher 5 Zeilen, *S* 440, *M* 600). `basis` muss hinter dem letzten Commit von `slice-audit-dienste` liegen, damit die Zeilen der Brücke unter `src/bootstrap` nicht in die Messung dieses Slice fallen (`SPEC-128` Nr. 10 g). Der Slice liefert keinen Leser fremder Bytes.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke ohne gedeckten Eintrag.
-- `in-progress` → `open` (blockiert): `slice-bootstrap-m2` ändert den Aufbau von `Build` so, dass die Verdrahtung des Audit eine Entscheidung des Architect verlangt (Reihenfolge der Instanzen, `SPEC-139` Nr. 3), oder eine Änderung der Gate-Kette (nicht zu erwarten).
+- `in-progress` → `open` (blockiert): ein Slice, der `src/bootstrap/` ändert (etwa `slice-bootstrap-m3`), ändert den Aufbau von `Build` so, dass die Verdrahtung des Audit eine Entscheidung des Architect verlangt (Reihenfolge der Instanzen, `SPEC-139` Nr. 3), oder eine Änderung der Gate-Kette (nicht zu erwarten).
 
 ## 5. Closure-Trigger
 
@@ -150,6 +152,7 @@ dasteht.
 
 - **Handbuch** (DoD): Die Datei `audit.jsonl` im Datenverzeichnis ist eine für den Anwender sichtbare Datei, entsteht aber erst bei einer Löschung, und kein gebundenes Beispiel gegen das gebaute Binary kann sie erzeugen (das Binary kennt `version` und `start`; eine Löschung ohne Admin-Endpunkt löst nur die Aufbewahrung bei vorhandenen Daten aus). Eine Aussage im Handbuch ohne Beispiel verstieße gegen `SPEC-200` Nr. 1 (K1) — **Ausgang:** weiter offen; Adresse: `slice-admin-sessions` (trägt das Kapitel in seiner DoD; Geber: dieser Slice und `slice-audit-log`).
 - Reihenfolge der Verdrahtung gegenüber `slice-bootstrap-m2` (beide ändern `src/bootstrap/`) — **Ausgang:** entfallen durch den Start-Trigger (§4): dieser Slice startet nach ihm.
+- Die Brücke aus `slice-audit-dienste` trägt den Kern der Verdrahtung (Entscheidung des Planner, 2026-11-06, Geber: `slice-audit-dienste`): sie bleibt, weil ohne sie zwischen den Slices kein grüner Stand besteht (`SPEC-139` Nr. 3 und `SPEC-234` Nr. 8 verlangen das Feld, `New` weist nil ab). Dieser Slice ist verkleinert auf V01, V02, V03 und den Rest von V05; Ziel, DoD, Tabelle und Marke sind nachgezogen. Fällt ein Fänger dieses Slice an der Brücke rot, ist es ein Befund an den Reviewer und keine stille Änderung — **Ausgang:** entfallen (entschieden; die Brücke ist Bestand).
 - Ein zweiter `Build` im selben Prozess auf demselben `DATA_DIR` ist nicht unterstützt (`SPEC-106`, `SPEC-139` *Ungeprüft*), V02 fährt zwei `Build` nacheinander nach dem Herunterfahren — **Ausgang:** weiter offen (bei der Closure); der Fänger V02 ruft `Herunterfahren` zwischen den Läufen.
 - Telemetrie-Abbildung: `SPEC-231` Nr. 4 und 7 brauchen später `audit_fehlgeschlagen` und den Adapter `audit` — **Ausgang:** weiter offen; Adresse: `slice-telemetry-einbau-gateway` und `slice-telemetry-einbau-mock`.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster unten steht vor dem ersten Code-Commit, jede Zelle mit Ort oder „gilt nicht“ und Grund; eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen (bis zum Review).

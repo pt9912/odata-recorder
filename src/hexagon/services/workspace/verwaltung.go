@@ -20,7 +20,7 @@ const MaxIDLaenge = 64
 // Konfig ist die Konfiguration des Dienstes (SPEC-129 Nr. 1). Workspaces dient Get, Delete, List und
 // dem Lesen vor dem Reset, Transaktion der Anlage und dem Reset; Snapshots und Blobs dienen allein dem
 // Lesen der Baseline, Dienste allein List, Wartung allein der Bereinigung nach dem Löschen, Uhr und IDs
-// allein Create.
+// allein Create, Audit allein dem Eintrag nach dem Löschen (SPEC-234 Nr. 8).
 type Konfig struct {
 	Workspaces  outbound.WorkspaceRepository
 	Transaktion outbound.WorkspaceTransactor
@@ -31,6 +31,7 @@ type Konfig struct {
 	Uhr         support.Clock
 	IDs         support.IDGenerator
 	Log         *slog.Logger
+	Audit       support.AuditLog
 }
 
 // Verwaltung setzt die Operationen von WorkspaceUseCase um. Sie hält keinen Zustand außer ihrer
@@ -42,8 +43,8 @@ type Verwaltung struct {
 // New prüft die Konfiguration und ruft keinen Port (SPEC-129 Nr. 1).
 func New(k Konfig) (*Verwaltung, error) {
 	if k.Workspaces == nil || k.Transaktion == nil || k.Snapshots == nil || k.Blobs == nil || k.Dienste == nil ||
-		k.Wartung == nil || k.Uhr == nil || k.IDs == nil || k.Log == nil {
-		return nil, errors.Join(model.ErrUngueltig, errors.New("Port, Wartung, Uhr, Generator oder Log fehlt"))
+		k.Wartung == nil || k.Uhr == nil || k.IDs == nil || k.Log == nil || k.Audit == nil {
+		return nil, errors.Join(model.ErrUngueltig, errors.New("Port, Wartung, Uhr, Generator, Log oder Audit fehlt"))
 	}
 	return &Verwaltung{k: k}, nil
 }
