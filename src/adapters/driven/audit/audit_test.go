@@ -155,6 +155,9 @@ func TestKorrelationsID(t *testing.T) {
 		t.Errorf("gesetzte ID: %d Aufrufe insgesamt, erwartet 2", a.ids.Gesamt())
 	}
 	zeilen := strings.Split(strings.TrimSuffix(a.inhalt(t), "\n"), "\n")
+	if len(zeilen) != 3 {
+		t.Fatalf("%d Zeilen in der Datei, erwartet 3", len(zeilen))
+	}
 	for i, id := range []string{corID(1), corID(2), "gesetzt-1"} {
 		if !strings.Contains(zeilen[i], `"correlation_id":"`+id+`"`) {
 			t.Errorf("Zeile %d: %q, erwartet correlation_id %q", i, zeilen[i], id)
