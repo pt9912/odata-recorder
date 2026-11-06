@@ -13,6 +13,8 @@ type CodecSatz struct {
 	Daten ODataCodec
 	// URL liest Pfad und Query der OData-URL der Version (SPEC-160, SPEC-173); der Import liest es nie.
 	URL URLCodec
+	// Schreiber erzeugt die Antworten der Version (SPEC-168, SPEC-169, SPEC-172 Nr. 6); der Import liest es nie.
+	Schreiber ODataSchreiber
 	// NurLesend sagt, dass der Mock die Version nur liest; der Import liest es nicht.
 	NurLesend bool
 }

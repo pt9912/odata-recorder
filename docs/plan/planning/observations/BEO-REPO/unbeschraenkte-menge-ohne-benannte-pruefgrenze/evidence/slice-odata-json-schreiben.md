@@ -1,0 +1,3 @@
+
+**Vorgang:** slice-odata-json-schreiben
+**Fund:** Der Plan sagte zu Zeile 37, ein Zaehler stehe „in jedem Zweig, den ein Lauf ausfuehrt“ (43 Zweige, 90 Zaehler). Der Review zog 20 Zweige, die die Listen des Implementers nicht nannten: drei (Escape der Anfuehrungszeichen, Zeichen unter U+0020, Ganzzahl der Dezimalzahl) liefen nur in sequenziellen Tests, 0 von 20 Prozessen rot (F-3). Weder die Differenz noch die Pruefgrenze der unbeschraenkten Menge „jede Zeile“ stand als akzeptiertes Negativ im Plan; die Fix-Runde fuehrte Aufrufarten nach und nannte die Grenze (Abdeckungslauf, ein unerreichbarer Block `b.err != nil`). Beleg: Plan §6 (*Zweige, die `TestGleichzeitig` allein nicht ausfuehrt*); Report `2026-11-06-slice-odata-json-schreiben-review` (F-3), Verifikation V-9.

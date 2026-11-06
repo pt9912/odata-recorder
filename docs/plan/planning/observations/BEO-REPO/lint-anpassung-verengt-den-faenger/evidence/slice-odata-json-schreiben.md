@@ -1,0 +1,3 @@
+
+**Vorgang:** slice-odata-json-schreiben
+**Fund:** `9477c92` ersetzte `var sch = jsoncodec.NewSchreiber()` in den Tests durch eine Funktion `schreiber()`; `TestGleichzeitig` teilte danach keinen `*Schreiber` mehr zwischen den Goroutinen, und die Mutation „Puffer im Feld des Schreibers“ blieb in 0 von 20 Prozessen mit Detektor und 0 von 50 ohne rot (Review F-1, F-12; mit geteiltem Wert 20 von 20). Die Fix-Runde teilt einen Schreiber aller Goroutinen (der Mock hält einen) und nennt den Preis des Profils in §6. Beleg: Plan §6 (*Preis des Lint-Profils*); Report `2026-11-06-slice-odata-json-schreiben-review` (F-1, F-12).

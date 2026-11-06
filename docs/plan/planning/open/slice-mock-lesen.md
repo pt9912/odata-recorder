@@ -35,6 +35,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-v2-bootstrap`, [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md) `Accepted`):** die Konfiguration von `MockUseCase` nimmt je Dienst `Codecs *outbound.CodecSatz` (URL-Leser und Schreiber) entgegen; `nil` bedeutet die V4-Implementierungen der Konfig, und der Dienst verzweigt nie nach der Version (`SPEC-175` Nr. 3; ein Feld des Satzes, das der Dienst nicht braucht, darf `nil` sein). Kein Ausschluss dieses Slice trifft sie.
 
+**Übernimmt (Sendung von `slice-odata-json-schreiben`, `SPEC-168` Nr. 7 und 10, `SPEC-169`):** der Dienst ruft über den Satz `URL` und `Schreiber`, setzt `Content-Type` und `Kennzeichen` unverändert aus der `Darstellung` jeder Ausgabe (auch der Anzahl und des Fehlerobjekts) in die Antwort und kennt die Namen der Kennzeichen nicht (`SPEC-168` Nr. 7; `SPEC-175` Nr. 7); der Dienst reicht `Accept` des Requests an den Schreiber und handelt Stufe und Zahlform nicht selbst aus (`SPEC-169` Nr. 3). **`Wurzel`** bildet der Dienst aus der Konfiguration (`PUBLIC_BASE_URL`, `SPEC-055`) und dem Service-Root, **nie** aus dem `Host`-Header der Anfrage (`SPEC-168` Nr. 10); der Schreiber prüft nur die Form (`SPEC-169` Nr. 2). Die Quelle von `Wurzel` ist damit diesem Slice zugewiesen (Geber: `slice-odata-json-schreiben` §6); `slice-bootstrap-m3` reicht `PUBLIC_BASE_URL` aus dem Start an die Konfiguration des Dienstes. Kein Ausschluss dieses Slice trifft diese Punkte.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Mutationen — `slice-mock-schreiben`; Konstruktor, Routing und Zuordnung sind gemeinsam, die Zustandsänderung nicht.
@@ -61,7 +63,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Zuordnung und `$metadata`: Service und Workspace aus dem Request (`ODR-E5005`, `ODR-E5003`, `ODR-E7001`), `$metadata` aus den gespeicherten Metadaten, ein EntitySet ohne Instanzen bleibt im Modell (`LH-FA-06`, Boundary).
-- [ ] Collection, Key-Lookup und `/$count` über Parser, Interpreter und Codec; `404` nur bei abgesichertem Nichtvorhandensein, sonst Coverage-Fehler.
+- [ ] Collection, Key-Lookup und `/$count` über Parser, Interpreter und Codec; `404` nur bei abgesichertem Nichtvorhandensein, sonst Coverage-Fehler; `Content-Type` und `Kennzeichen` aus der `Darstellung` des Schreibers, `Wurzel` aus `PUBLIC_BASE_URL` und Service-Root, nie aus dem `Host`-Header (Fänger: ein anderer `Host` ändert Kontext und `@odata.id` nicht; Sendung von `slice-odata-json-schreiben`, `SPEC-168` Nr. 7 und 10).
 - [ ] Coverage vor der Query-Ausführung, gebunden an die Baseline des Workspace: `ODR-E6003` bei `STRICT_COVERAGE=true`, sonst Header `X-Recorder-Coverage`; null beobachtete Entities sind kein Leerheitsbeweis (`LH-FA-11`).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor

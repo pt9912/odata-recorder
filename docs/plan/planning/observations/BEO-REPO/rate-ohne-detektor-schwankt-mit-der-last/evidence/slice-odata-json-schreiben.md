@@ -1,0 +1,3 @@
+
+**Vorgang:** slice-odata-json-schreiben
+**Fund:** Der Plan fuehrte fuer die Reihenfolge der Auswahl (`SPEC-169` Nr. 5) keinen gezielten Faenger mit Rate. Der Verifier mass die Mutation „Auswahl ueber eine `map`“ ohne Detektor: `TestEntityBytes` 6 von 50 Prozessen rot (12 %, Last des Hosts 6,6 bis 21,8), vier weitere Tests 0 von 50, der Wirkungs-Faenger `TestGleichzeitig` 20 von 20 (V-5). Die Zusage war also gefangen, aber vom Fanger der Nebenlaeufigkeit; die Fix-Runde fuehrte `TestAuswahlReihenfolge` (24 Anordnungen, 144 Zellen) mit der Rate 50 von 50. Beleg: Plan §3 (*Klassen der Verifikations-Runde*, V-5); Report `2026-11-06-slice-odata-json-schreiben-verifikation` (V-5).
