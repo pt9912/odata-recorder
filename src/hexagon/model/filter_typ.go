@@ -11,7 +11,7 @@ type knotenTyp struct {
 	zahlLiteral bool
 }
 
-var wahrheitTyp = knotenTyp{klasse: klasseWahrheit}
+func wahrheitTyp() knotenTyp { return knotenTyp{klasse: klasseWahrheit} }
 
 // PruefeFilter prüft den Baum gegen die wirksamen Properties von typ (SPEC-167). beobachtet fragt die
 // Property-Maske, nil heißt: alle beobachtet. Das Ergebnis ist nil, ein *FilterTypFehler oder ErrUngueltig für
@@ -55,7 +55,7 @@ func (p filterPruefer) knoten(a FilterAusdruck) (knotenTyp, error) {
 		if err != nil {
 			return knotenTyp{}, err
 		}
-		return wahrheitTyp, verlangeWahrheit(t)
+		return wahrheitTyp(), verlangeWahrheit(t)
 	case FilterVerknuepfung:
 		return p.verknuepfung(n)
 	case FilterVergleich:
@@ -82,7 +82,7 @@ func (p filterPruefer) verknuepfung(n FilterVerknuepfung) (knotenTyp, error) {
 	if n.Op != VerknuepfungUnd && n.Op != VerknuepfungOder {
 		return knotenTyp{}, formFehler("Operator der Verknüpfung")
 	}
-	return wahrheitTyp, nil
+	return wahrheitTyp(), nil
 }
 
 // eigenschaft schlägt den Namen bytegleich nach (SPEC-167 Nr. 3 a, 5). Die Maske sieht nur Namen von Properties
@@ -156,7 +156,7 @@ func (p filterPruefer) vergleich(n FilterVergleich) (knotenTyp, error) {
 	if (l.klasse == klasseGUID || r.klasse == klasseGUID) && n.Op != VergleichEq && n.Op != VergleichNe {
 		return knotenTyp{}, verstoss(FilterOperatorNichtUnterstuetzt)
 	}
-	return wahrheitTyp, nil
+	return wahrheitTyp(), nil
 }
 
 // bereichGueltig prüft ein Zahlliteral gegen den Typ der Property auf der anderen Seite: bei Edm.Int32 und

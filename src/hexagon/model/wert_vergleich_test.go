@@ -469,7 +469,7 @@ func TestGuid(t *testing.T) {
 			n++
 		}
 	}
-	for _, name := range []string{"", "edm.string", "Edm.Binary", "Edm.Duration", "Collection(Edm.String)", "Ns.Color"} {
+	for _, name := range append([]string{"", "edm.string", "Collection(Edm.String)", "Ns.Color"}, typenAusserhalb()...) {
 		if model.HatOrdnung(name) {
 			t.Errorf("HatOrdnung(%q) ist wahr", name)
 		}
@@ -668,6 +668,24 @@ func TestWertAusLiteral(t *testing.T) {
 	if inhalte != 63 || kandidaten != 255 || gueltig == 0 || gueltig == kandidaten {
 		t.Errorf("%d Inhalte, %d Kandidaten, %d gültig", inhalte, kandidaten, gueltig)
 	}
+	nRand := 0
+	for _, seed := range []string{"'a'", "'O''Hara'", "''", "''''", "' a b'"} {
+		for _, s := range randformen(seed) {
+			got, err := model.WertAusLiteral(model.Literal{Art: model.LiteralZeichenkette, Text: s})
+			if kodierung.MatchString(s) {
+				soll := strings.ReplaceAll(s[1:len(s)-1], "''", "'")
+				if err != nil || got.Text != soll {
+					t.Errorf("%q: %q %v, erwartet %q", s, got.Text, err, soll)
+				}
+			} else if !istUngueltig(err) {
+				t.Errorf("%q: %v", s, err)
+			}
+			nRand++
+		}
+	}
+	if nRand != randformenLiteral {
+		t.Errorf("%d Randformen der Zeichenketten", nRand)
+	}
 	for _, s := range []string{"abc", "'a", "a'", "'", "", "\"a\"", "'a'b'", " 'a'", "'a' ", "'a'\n"} {
 		if _, err := model.WertAusLiteral(model.Literal{Art: model.LiteralZeichenkette, Text: s}); !istUngueltig(err) {
 			t.Errorf("%q: %v", s, err)
@@ -804,3 +822,6 @@ const (
 	randformenGueltig      = 862
 	randformenOperatoren   = 457
 )
+
+// Zählprüfung der Randformen der Zeichenketten in TestWertAusLiteral.
+const randformenLiteral = 714
