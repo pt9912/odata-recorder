@@ -109,20 +109,20 @@ Der Planner schneidet; der Architect entscheidet (Aufträge unten), der Implemen
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Spalten und Klassen nach [SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md) Nr. 3 e). Die **Zusagen** sind Kandidaten des Planners aus dem Anlass; **Fänger, Mutation und Klasse** (`nebenläufig` oder `andere`) füllt der Architect, bis dahin steht „(Architect)“. Der Implementer trägt die Mutationen und Raten mit Zahl der Prozesse und Messendem in einen Absatz darunter ein (`AGENTS.md` §3.10):
 
-| Nr. | Zusage (Kandidat) | Fänger | Mutation | Klasse |
+| Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|
-| Z1 | Jede Mutation läuft in einer eigenen Wegwerfkopie des Baums; keine Mutation beeinflusst eine andere (Reihenfolge, Zahl, Ausfall der vorigen) | (Architect) | (Architect) | (Architect) |
-| Z2 | Das Ergebnis je Mutation gleicht dem Einzellauf (rot, grün) für jede Art von Mutation der Liste | (Architect: Schleife über die Arten; Orakel: Einzellauf auf frischer Kopie) | (Architect) | (Architect) |
-| Z3 | Ein Übersetzungsfehler der Mutation wird als solcher gemeldet und nicht als rot gezählt (`AGENTS.md` §3.10: ein Test zählt nur, wenn er aus dem benannten Grund rot wird) | (Architect) | (Architect) | (Architect) |
-| Z4 | Der Lauf trifft den zuständigen Test (`-run`); ein Name, der keinen Test trifft, ist ein Fehler und kein grünes Ergebnis | (Architect) | (Architect) | (Architect) |
-| Z5 | Zahl der Prozesse und Last werden mit dem Ergebnis ausgegeben | (Architect) | (Architect) | (Architect) |
-| Z6 | Die Rate (viele Prozesse, mit und ohne Detektor) läuft nur für Mutationen der Klasse `nebenläufig`; eine Mutation der Klasse `andere` startet einen Lauf | (Architect) | (Architect) | (Architect) |
-| Z7 | Der gemeinsame Cache verändert die Aussage nicht (Treffer und Fehlen des Caches geben dasselbe Ergebnis) | (Architect) | (Architect) | (Architect) |
-| Z8 | Abbruch (Signal, Zeitgrenze) räumt Kopien und Prozesse auf; nach dem Lauf bleibt nichts zurück | (Architect) | (Architect) | (Architect) |
-| Z9 | Das Werkzeug ändert den Baum des Aufrufers nicht (Mutationen nur in Kopien) | (Architect) | (Architect) | (Architect) |
-| Z10 | Das Werkzeug läuft netzlos; ein schreibbarer Pfad ist nur der, den die Entscheidung des Users nennt | (Architect) | (Architect) | (Architect) |
-| Z11 | Die Mutationen eines Aufrufs laufen in einem Lauf des Containers, nicht als getrennte Jobs (eine Wartezeit am Lock je Aufruf, nicht je Mutation) | (Architect) | (Architect) | (Architect) |
-| Z12 | Speicher und Platz sind begrenzt: jeder Container trägt `--memory` (≤ 4g, Mutationsläufe 2g), kein zweiter Go-Build zugleich, Wegwerfkopien, Binaries, eigene Container und Images sind nach dem Lauf weg, der Cache hat Größengrenze oder Aufräumweg (Zusatz des Users 2026-11-06) | (Architect) | (Architect) | (Architect) |
+| Z1 | Jede Mutation läuft in einer eigenen Wegwerfkopie des Baums; keine Mutation beeinflusst eine andere (Reihenfolge, Zahl, Ausfall der vorigen) | (Architect) | (Architect) | andere |
+| Z2 | Das Ergebnis je Mutation gleicht dem Einzellauf (rot, grün) für jede Art von Mutation der Liste | (Architect: Schleife über die Arten; Orakel: Einzellauf auf frischer Kopie) | (Architect) | andere |
+| Z3 | Ein Übersetzungsfehler der Mutation wird als solcher gemeldet und nicht als rot gezählt (`AGENTS.md` §3.10: ein Test zählt nur, wenn er aus dem benannten Grund rot wird) | (Architect) | (Architect) | andere |
+| Z4 | Der Lauf trifft den zuständigen Test (`-run`); ein Name, der keinen Test trifft, ist ein Fehler und kein grünes Ergebnis | (Architect) | (Architect) | andere |
+| Z5 | Zahl der Prozesse und Last werden mit dem Ergebnis ausgegeben | (Architect) | (Architect) | andere |
+| Z6 | Die Rate (viele Prozesse, mit und ohne Detektor) läuft nur für Mutationen der Klasse `nebenläufig`; eine Mutation der Klasse `andere` startet einen Lauf | (Architect) | (Architect) | nebenläufig |
+| Z7 | Der gemeinsame Cache verändert die Aussage nicht (Treffer und Fehlen des Caches geben dasselbe Ergebnis) | (Architect) | (Architect) | andere |
+| Z8 | Abbruch (Signal, Zeitgrenze) räumt Kopien und Prozesse auf; nach dem Lauf bleibt nichts zurück | (Architect) | (Architect) | nebenläufig |
+| Z9 | Das Werkzeug ändert den Baum des Aufrufers nicht (Mutationen nur in Kopien) | (Architect) | (Architect) | andere |
+| Z10 | Das Werkzeug läuft netzlos; ein schreibbarer Pfad ist nur der, den die Entscheidung des Users nennt | (Architect) | (Architect) | andere |
+| Z11 | Die Mutationen eines Aufrufs laufen in einem Lauf des Containers, nicht als getrennte Jobs (eine Wartezeit am Lock je Aufruf, nicht je Mutation) | (Architect) | (Architect) | andere |
+| Z12 | Speicher und Platz sind begrenzt: jeder Container trägt `--memory` (≤ 4g, Mutationsläufe 2g), kein zweiter Go-Build zugleich, Wegwerfkopien, Binaries, eigene Container und Images sind nach dem Lauf weg, der Cache hat Größengrenze oder Aufräumweg (Zusatz des Users 2026-11-06) | (Architect) | (Architect) | nebenläufig |
 
 ## 4. Trigger
 
@@ -135,9 +135,10 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **Größenmarke** (`AGENTS.md` §3.14): **noch nicht gesetzt.** Der Architect füllt den Teil `pfad`, `produktcode`, `fakes` des Blocks ([SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md) Nr. 3); der Planner schreibt danach `basis`, `schaetzung` und `marke` und setzt die Marke mit `make groessenmarke` im eigenen Commit vor dem ersten Code-Commit. Die Werte unten sind **Platzhalter**, keine Schätzung; der Plan liegt in `open/` und wird dort nicht gemessen. Aufwand nach Einschätzung des Planners: S bis M (Programm mit Prozessen und Cache, nebenläufig).
 
 ```groessenmarke
-pfad: (Architect)
-produktcode: (Architect)
-fakes: (Architect)
+pfad: tools/mutationslauf
+pfad: tools/harness/mutationslauf.sh
+produktcode: 500
+fakes: 3
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
