@@ -545,7 +545,25 @@ func abAbfragen() []abAbfrage {
 		{"Schlüssel doppelt", func() model.Optionen { return model.Optionen{} }, nil},
 		{"Key null", func() model.Optionen { return model.Optionen{} }, nil},
 		{"Key Klasse", func() model.Optionen { return model.Optionen{} }, nil},
+		{"Ordnung null", func() model.Optionen { return model.Optionen{OrderBy: []model.Sortierung{abOrd("N", true)}} }, nil},
+		{"Schlüssel Guid", func() model.Optionen { return model.Optionen{Top: abZ(5)} }, nil},
+		{"Schlüssel Rest", func() model.Optionen { return model.Optionen{Skip: abZ(1)} }, nil},
+		{"Typ außerhalb", func() model.Optionen { return model.Optionen{Select: abSel("Bin")} }, nil},
 	}
+}
+
+// abTypFuer liefert den Typ der Abfrage: abTyp, für drei Abfragen mit anderem Schlüssel bzw. einer Property außerhalb der acht Typen.
+func abTypFuer(name string) model.EntityType {
+	t := abTyp()
+	switch name {
+	case "Schlüssel Guid":
+		t.Keys = []string{"Ref"}
+	case "Schlüssel Rest":
+		t.Keys = []string{"N"}
+	case "Typ außerhalb":
+		t.Properties = append(t.Properties, model.Property{Name: "Bin", EdmType: "Edm.Binary"})
+	}
+	return t
 }
 
 // abListen bestimmt die Eingabe jener Abfragen, die nicht die geteilte Liste nehmen; die Funktionen bauen sie frisch.
@@ -578,6 +596,10 @@ func abListen() map[string]func() []model.Entity {
 		"Schlüssel doppelt": mit(func(es []model.Entity) { es[4].Schluessel = es[1].Schluessel }),
 		"Key null":          mit(func(es []model.Entity) { setze(&es[5], abNu("Id")) }),
 		"Key Klasse":        mit(func(es []model.Entity) { setze(&es[6], abS("Id", "x")) }),
+		"Ordnung null": mit(func(es []model.Entity) {
+			setze(&es[1], abNu("N"))
+			setze(&es[4], abNu("N"))
+		}),
 	}
 }
 
@@ -595,7 +617,7 @@ func TestEingabeUnveraendert(t *testing.T) {
 	typ := abTyp()
 	for _, q := range abAbfragen() {
 		es, opt := abListe(q.name), q.opt()
-		_, _ = model.FuehreAus(typ, es, opt, q.beob)
+		_, _ = model.FuehreAus(abTypFuer(q.name), es, opt, q.beob)
 		if !reflect.DeepEqual(es, abListe(q.name)) || !reflect.DeepEqual(opt, q.opt()) {
 			t.Errorf("%s: die Eingabe ist verändert", q.name)
 		}
@@ -615,7 +637,6 @@ func TestEingabeUnveraendert(t *testing.T) {
 // TestAbfrageGleichzeitig (Zeile 32): acht Goroutinen mit je 1000 Aufrufen über die Abfragen von abAbfragen auf geteilter Liste, geteilten
 // Optionen und geteiltem Baum; jedes Ergebnis ist gleich dem sequentiellen Lauf, und die Zahl der Aufrufe je Abfrage wird gezählt.
 func TestAbfrageGleichzeitig(t *testing.T) {
-	typ := abTyp()
 	qs := abAbfragen()
 	ess := make([][]model.Entity, len(qs))
 	opts := make([]model.Optionen, len(qs))
@@ -623,7 +644,7 @@ func TestAbfrageGleichzeitig(t *testing.T) {
 	sollErr := make([]string, len(qs))
 	for i, q := range qs {
 		ess[i], opts[i] = abListe(q.name), q.opt()
-		r, err := model.FuehreAus(typ, ess[i], opts[i], q.beob)
+		r, err := model.FuehreAus(abTypFuer(q.name), ess[i], opts[i], q.beob)
 		soll[i], sollErr[i] = r, abKennung(err)
 	}
 	const goroutinen, aufrufe = 8, 1000
@@ -638,7 +659,7 @@ func TestAbfrageGleichzeitig(t *testing.T) {
 			lokal := make([]int, len(qs))
 			for k := 0; k < aufrufe; k++ {
 				i := (k + g) % len(qs)
-				r, err := model.FuehreAus(typ, ess[i], opts[i], qs[i].beob)
+				r, err := model.FuehreAus(abTypFuer(qs[i].name), ess[i], opts[i], qs[i].beob)
 				if err != nil {
 					// Text, Code und Klasse des Fehlers lesen
 					var ae *model.AbfrageFehler
