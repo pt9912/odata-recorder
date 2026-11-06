@@ -4,7 +4,7 @@
 
 **Gegenstand:** `slice-audit-dienste`, Zweig `slice-audit-dienste`, HEAD `303e09b`, Basis `1543b02`. Bezug: `LH-RB-04`, `LH-FA-13`, `LH-QA-04`, [ADR-0006](../plan/adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md).
 
-**Eingang:** Plan `docs/plan/planning/in-progress/slice-audit-dienste.md` (DoD, §1, §3, §4, §6), `SPEC-234` Nr. 1 bis 11 und *Ungeprüft*, Review `2026-11-06-slice-audit-dienste-review.md`, `AGENTS.md` §3.10, §3.15 bis §3.18. Der Bericht des Implementers ist nicht übernommen; die Sensoren sind selbst gefahren.
+**Eingang:** Plan `docs/plan/planning/done/slice-audit-dienste.md` (DoD, §1, §3, §4, §6), `SPEC-234` Nr. 1 bis 11 und *Ungeprüft*, Review `2026-11-06-slice-audit-dienste-review.md`, `AGENTS.md` §3.10, §3.15 bis §3.18. Der Bericht des Implementers ist nicht übernommen; die Sensoren sind selbst gefahren.
 
 **Modell:** Sonnet 5.5 (Verifier-Agent, Messender aller Zahlen unten) · **Methode:** einmal gefahren, keine Wiederholungsschleife.
 

@@ -107,7 +107,7 @@ Nebenläufige Mutationen: je 20 Prozesse mit Detektor (`-race`, `-test.count=1`)
 
 - `kategorie`: MEDIUM
 - `quelle`: `AGENTS.md` §3.9 (der Plan folgt jeder Korrektur; wer eine Aussage berichtigt, zieht alle Stellen nach)
-- `pfad`: `docs/plan/planning/in-progress/slice-audit-dienste.md` · „dieser Slice verdrahtet nichts und ruft den Adapter nie“ (§1 Ziel); „Dieser Slice ändert `src/bootstrap/` nicht.“ (§4 *Unabhängig von*); „dieser Teil führt weder Konfigurationsschlüssel noch Fehlercode noch Datei ein und verdrahtet nichts; in §7 steht, dass das Binary unverändert blieb“ (§2 Handbuch-Punkt)
+- `pfad`: `docs/plan/planning/done/slice-audit-dienste.md` · „dieser Slice verdrahtet nichts und ruft den Adapter nie“ (§1 Ziel); „Dieser Slice ändert `src/bootstrap/` nicht.“ (§4 *Unabhängig von*); „dieser Teil führt weder Konfigurationsschlüssel noch Fehlercode noch Datei ein und verdrahtet nichts; in §7 steht, dass das Binary unverändert blieb“ (§2 Handbuch-Punkt)
 - `befund`: Die Brücke ist in §1 *Ausdrücklich NICHT*, in §3 (Tabelle) und in §6 nachgezogen, diese drei Sätze stehen daneben unverändert und sagen das Gegenteil. Der dritte verlangt eine Zeile für §7, die mit der Brücke falsch wäre (das Binary schreibt ab jetzt `audit.jsonl`, wenn gelöscht wird); der Verifier läse die DoD gegen den Zweig.
 - `verifizierbar`: nein (Plan-Text; kein Gate prüft Widerspruch im Plan)
 - `klasse`: Plan folgt der Korrektur nicht an allen Stellen
