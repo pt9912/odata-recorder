@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"slices"
 	"strconv"
 	"sync"
@@ -682,6 +683,28 @@ func TestEingabeUnveraendert(t *testing.T) {
 
 // --- Zeile 32: gleichzeitige Aufrufe ---
 
+// abSchreibeLies schreibt marker in jede Property jeder Entity des Ergebnisses, hängt eine Entity an (auch an ein leeres Ergebnis) und
+// setzt in AlleAbfrageUrsachen den ersten Eintrag; nach einem Lauf des Zeitplaners muss alles unverändert dastehen, denn kein anderer
+// Aufruf teilt Speicher mit dem Ergebnis.
+func abSchreibeLies(r model.Ergebnis, marker string) bool {
+	for k := range r.Entities {
+		for p := range r.Entities[k].Properties {
+			r.Entities[k].Properties[p].Wert.Text = marker
+		}
+	}
+	r.Entities = append(r.Entities, model.Entity{Schluessel: marker})
+	u := model.AlleAbfrageUrsachen()
+	ok := u[0] == model.AbfrageEigenschaftUnbekannt
+	u[0] = model.AbfrageUrsache(marker)
+	runtime.Gosched()
+	for k := range r.Entities[:len(r.Entities)-1] {
+		for p := range r.Entities[k].Properties {
+			ok = ok && r.Entities[k].Properties[p].Wert.Text == marker
+		}
+	}
+	return ok && r.Entities[len(r.Entities)-1].Schluessel == marker && u[0] == model.AbfrageUrsache(marker)
+}
+
 // TestAbfrageGleichzeitig (Zeile 32): acht Goroutinen mit je 1000 Aufrufen über die Abfragen von abAbfragen auf geteilter Liste, geteilten
 // Optionen und geteiltem Baum; jedes Ergebnis ist gleich dem sequentiellen Lauf, und die Zahl der Aufrufe je Abfrage wird gezählt.
 func TestAbfrageGleichzeitig(t *testing.T) {
@@ -724,13 +747,14 @@ func TestAbfrageGleichzeitig(t *testing.T) {
 					}
 					return
 				}
-				// das Ergebnis gehört dem Aufrufer: schreiben in jede Property und anhängen, auch an ein leeres Ergebnis
-				for k := range r.Entities {
-					for p := range r.Entities[k].Properties {
-						r.Entities[k].Properties[p].Wert.Text = "geschrieben"
+				// das Ergebnis gehört dem Aufrufer: schreiben, den Zeitplaner laufen lassen, zurücklesen
+				if !abSchreibeLies(r, "g"+strconv.Itoa(g)) {
+					select {
+					case fehler <- qs[i].name + " (Ergebnis)":
+					default:
 					}
+					return
 				}
-				r.Entities = append(r.Entities, model.Entity{Schluessel: "angehängt"})
 				lokal[i]++
 			}
 			mu.Lock()
