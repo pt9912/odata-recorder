@@ -2,8 +2,10 @@ package model_test
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -219,7 +221,7 @@ func TestRangfolge(t *testing.T) {
 	if _, err := model.FuehreAus(typ, nil, opt, nil); abKennung(err) != "programm" {
 		t.Errorf("Programmfehler nach dem Filter: %v", err)
 	}
-	// innerhalb von $orderby und $select das erste Element, auch wenn das zweite die frühere Ursache hätte
+	// innerhalb von $orderby und $select entscheidet das erste Element; das zweite trägt eine Ursache, die in der Folge der Ursachen früher steht
 	_, err = model.FuehreAus(typ, nil, model.Optionen{OrderBy: []model.Sortierung{abOrd("Ref", false), abOrd("Foo", false)}}, nil)
 	if abKennung(err) != "$orderby:ordnung_nicht_unterstuetzt" {
 		t.Errorf("zwei Namen: %v", err)
@@ -313,6 +315,68 @@ func TestAbfrageProgrammfehler(t *testing.T) {
 	}
 	if _, err := model.FuehreAus(zwei, []model.Entity{abE(1, abS("Name", "a"))}, model.Optionen{}, nil); err != nil {
 		t.Errorf("beide Key-Properties: %v", err)
+	}
+}
+
+// TestStufe1Schluessel (Zeile 6): jede Key-Property fehlt, ist null oder redigiert, und der Schlüssel ist leer oder doppelt, an jeder
+// Position (SPEC-190 Nr. 3 e, f). Menge: 4 Key-Properties × 3 Zustände × 5 Positionen = 60; Schlüssel leer an 8 Positionen; 28
+// Paare gleicher Schlüssel unter 8 Entities. Jeder Fall ist ErrUngueltig ohne Fehlerwert und ohne Ergebnis.
+func TestStufe1Schluessel(t *testing.T) {
+	typ := model.EntityType{Name: "Ns.S", Keys: []string{"A", "B", "C", "D"}}
+	for _, k := range typ.Keys {
+		typ.Properties = append(typ.Properties, model.Property{Name: k, EdmType: "Edm.Int32"})
+	}
+	basis := func(n int) []model.Entity {
+		es := make([]model.Entity, 0, n)
+		for i := 1; i <= n; i++ {
+			es = append(es, abEntOhneID(strconv.Itoa(i), abI("A", i), abI("B", i), abI("C", i), abI("D", i)))
+		}
+		return es
+	}
+	n := 0
+	pruefe := func(was string, es []model.Entity) {
+		t.Helper()
+		r, err := model.FuehreAus(typ, es, model.Optionen{}, nil)
+		var ae *model.AbfrageFehler
+		var fe *model.FilterTypFehler
+		if !errors.Is(err, model.ErrUngueltig) || errors.As(err, &ae) || errors.As(err, &fe) || !reflect.DeepEqual(r, model.Ergebnis{}) {
+			t.Errorf("%s: %v %#v", was, err, r)
+		}
+		n++
+	}
+	zustaende := []func(e *model.Entity, k string){
+		func(e *model.Entity, k string) {
+			e.Properties = slices.DeleteFunc(e.Properties, func(p model.PropertyWert) bool { return p.Name == k })
+		},
+		func(e *model.Entity, k string) { abSetze(e, abNu(k)) },
+		func(e *model.Entity, k string) { abSetze(e, abPW(k, model.ArtRedigiert, "")) },
+	}
+	for _, k := range typ.Keys {
+		for zi, z := range zustaende {
+			for pos := 0; pos < 5; pos++ {
+				es := basis(5)
+				z(&es[pos], k)
+				pruefe(fmt.Sprintf("Key %s, Zustand %d, Entity %d", k, zi, pos+1), es)
+			}
+		}
+	}
+	if n != 60 {
+		t.Errorf("%d Fälle", n)
+	}
+	for pos := 0; pos < 8; pos++ {
+		es := basis(8)
+		es[pos].Schluessel = ""
+		pruefe(fmt.Sprintf("Schlüssel leer, Entity %d", pos+1), es)
+	}
+	for i := 0; i < 8; i++ {
+		for j := i + 1; j < 8; j++ {
+			es := basis(8)
+			es[j].Schluessel = es[i].Schluessel
+			pruefe(fmt.Sprintf("Schlüssel doppelt, Entities %d und %d", i+1, j+1), es)
+		}
+	}
+	if n != 60+8+28 {
+		t.Errorf("%d Fälle", n)
 	}
 }
 

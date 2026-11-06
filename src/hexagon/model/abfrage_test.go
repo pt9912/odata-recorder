@@ -420,34 +420,82 @@ func TestSelectMaskeUndTeilprojektion(t *testing.T) {
 	}
 }
 
-// TestErgebnisUnabhaengig (Zeile 30): Typ und Schluessel bleiben, Uebersprungen ist nil, und Ergebnis und Eingabe teilen nichts.
+// TestErgebnisUnabhaengig (Zeile 30): Typ und Schluessel bleiben, Uebersprungen ist nil, und das Ergebnis gehört dem Aufrufer
+// (SPEC-190 Nr. 2, 6). Menge: 3 Formen von Select × 5 Entities × 3 Richtungen (Schreiben in das Ergebnis erreicht die Eingabe nicht
+// und kein zweites Ergebnis; Schreiben in die Eingabe erreicht kein Ergebnis); dazu 4 Arten leerer Ergebnisse, die kein Stück
+// Speicher teilen (Anhängen an das eine überschreibt das andere nicht), und AlleAbfrageUrsachen liefert bei jedem Aufruf eine eigene Liste.
 func TestErgebnisUnabhaengig(t *testing.T) {
 	typ := abTyp()
 	mk := func() []model.Entity {
-		e := abE(1, abS("Name", "x"), abI("N", 7))
-		e.Uebersprungen = []model.Uebersprungen{{Name: "a", Grund: model.UebersprungTyp}, {Name: "b", Grund: model.UebersprungOffen}}
-		return []model.Entity{e}
+		es := make([]model.Entity, 0, 5)
+		for i := 1; i <= 5; i++ {
+			e := abE(i, abS("Name", "x"), abI("N", 7))
+			e.Uebersprungen = []model.Uebersprungen{{Name: "a", Grund: model.UebersprungTyp}, {Name: "b", Grund: model.UebersprungOffen}}
+			es = append(es, e)
+		}
+		return es
 	}
+	n := 0
 	for _, sel := range []*model.SelectOption{nil, {Alle: true}, abSel("Name", "Id")} {
 		in, vorher := mk(), mk()
 		r := abOk(t, "unabhängig", typ, in, model.Optionen{Select: sel}, nil)
-		e := r.Entities[0]
-		if e.Typ != "Ns.T" || e.Schluessel != "1" || e.Uebersprungen != nil {
-			t.Errorf("Select %v: %q %q %v", sel, e.Typ, e.Schluessel, e.Uebersprungen)
+		r2 := abOk(t, "unabhängig", typ, in, model.Optionen{Select: sel}, nil)
+		soll := abOk(t, "unabhängig", typ, mk(), model.Optionen{Select: sel}, nil)
+		if len(r.Entities) != 5 {
+			t.Fatalf("Select %v: %d Entities", sel, len(r.Entities))
 		}
-		for i := range e.Properties {
-			e.Properties[i] = abS("X", "geändert")
+		for k, e := range r.Entities {
+			if e.Typ != "Ns.T" || e.Schluessel != strconv.Itoa(k+1) || e.Uebersprungen != nil {
+				t.Errorf("Select %v, Entity %d: %q %q %v", sel, k+1, e.Typ, e.Schluessel, e.Uebersprungen)
+			}
 		}
+		// in das erste Ergebnis schreiben: jede Property jeder Entity, dann anhängen
+		for k := range r.Entities {
+			for i := range r.Entities[k].Properties {
+				r.Entities[k].Properties[i] = abS("X", "geändert")
+			}
+		}
+		r.Entities = append(r.Entities, model.Entity{Schluessel: "angehängt"})
 		if !reflect.DeepEqual(in, vorher) {
 			t.Errorf("Select %v: die Änderung des Ergebnisses erreicht die Eingabe", sel)
 		}
-		r2 := abOk(t, "unabhängig", typ, in, model.Optionen{Select: sel}, nil)
-		for i := range in[0].Properties {
-			in[0].Properties[i] = abS("Y", "geändert")
+		if !reflect.DeepEqual(r2, soll) {
+			t.Errorf("Select %v: die Änderung des einen Ergebnisses erreicht das andere", sel)
 		}
-		if g := r2.Entities[0].Properties; g[0].Name == "Y" || g[len(g)-1].Name == "Y" {
+		// in die Eingabe schreiben: kein Ergebnis ändert sich
+		for k := range in {
+			for i := range in[k].Properties {
+				in[k].Properties[i] = abS("Y", "geändert")
+			}
+		}
+		if !reflect.DeepEqual(r2, soll) {
 			t.Errorf("Select %v: die Änderung der Eingabe erreicht das Ergebnis", sel)
 		}
+		n += 3
+	}
+	if n != 9 {
+		t.Errorf("%d Fälle", n)
+	}
+	leer := []func() model.Ergebnis{
+		func() model.Ergebnis { return abOk(t, "leer", typ, nil, model.Optionen{}, nil) },
+		func() model.Ergebnis { return abOk(t, "leer", typ, mk(), model.Optionen{Top: abZ(0)}, nil) },
+		func() model.Ergebnis { return abOk(t, "leer", typ, mk(), model.Optionen{Skip: abZ(abMax)}, nil) },
+		func() model.Ergebnis {
+			return abOk(t, "leer", typ, mk(), model.Optionen{Filter: abF(abIDGt("99"))}, nil)
+		},
+	}
+	for i, f := range leer {
+		a, b := f(), f()
+		a.Entities = append(a.Entities, model.Entity{Schluessel: "a"})
+		b.Entities = append(b.Entities, model.Entity{Schluessel: "b"})
+		if a.Entities[0].Schluessel != "a" || b.Entities[0].Schluessel != "b" {
+			t.Errorf("leeres Ergebnis %d: zwei Ergebnisse teilen Speicher", i)
+		}
+	}
+	x, y := model.AlleAbfrageUrsachen(), model.AlleAbfrageUrsachen()
+	x[0] = "geändert"
+	if y[0] != model.AbfrageEigenschaftUnbekannt || model.AlleAbfrageUrsachen()[0] != model.AbfrageEigenschaftUnbekannt {
+		t.Error("AlleAbfrageUrsachen teilt die Liste zwischen Aufrufen")
 	}
 }
 
@@ -676,6 +724,13 @@ func TestAbfrageGleichzeitig(t *testing.T) {
 					}
 					return
 				}
+				// das Ergebnis gehört dem Aufrufer: schreiben in jede Property und anhängen, auch an ein leeres Ergebnis
+				for k := range r.Entities {
+					for p := range r.Entities[k].Properties {
+						r.Entities[k].Properties[p].Wert.Text = "geschrieben"
+					}
+				}
+				r.Entities = append(r.Entities, model.Entity{Schluessel: "angehängt"})
 				lokal[i]++
 			}
 			mu.Lock()
@@ -739,5 +794,114 @@ func TestGrosseMenge(t *testing.T) {
 		if r.Anzahl != zahl-100 {
 			t.Errorf("%d Entities: Anzahl %d", zahl, r.Anzahl)
 		}
+	}
+}
+
+// TestGrosseMengeStellen (Zeile 38): die Prüfgrenze 10.000 und 10.001 gilt an jeder Stelle der Pipeline (SPEC-190 Nr. 7). Menge:
+// 2 Zahlen × 8 Stellen: Stufe 1 (letzte Entity mit doppeltem Schlüssel, letzte Entity mit Key null), Stufe 5 (letzte Entity ohne die
+// Property von $filter, ohne die von $orderby), Filter (lässt alle durch), Ordnung (ohne Paging), Seite (Skip 1 Top über die Zahl
+// hinaus) und Projektion ($select auf alle); Anzahl und Entities ohne Optionen stehen in jeder Abfrage.
+func TestGrosseMengeStellen(t *testing.T) {
+	typ := abTyp()
+	for _, zahl := range []int{10000, 10001} {
+		es := make([]model.Entity, 0, zahl)
+		type paar struct{ id, n int }
+		ref := make([]paar, 0, zahl)
+		alle := make([]string, 0, zahl)
+		for i := 0; i < zahl; i++ {
+			id := (i*7919)%zahl + 1
+			es = append(es, abE(id, abI("N", id%7)))
+			ref = append(ref, paar{id, id % 7})
+			alle = append(alle, strconv.Itoa(i+1))
+		}
+		slices.SortFunc(ref, func(a, b paar) int {
+			if a.n != b.n {
+				return b.n - a.n
+			}
+			return a.id - b.id
+		})
+		nachN := make([]string, 0, zahl)
+		for _, p := range ref {
+			nachN = append(nachN, strconv.Itoa(p.id))
+		}
+		gleich := func(was string, r model.Ergebnis, soll []string) {
+			t.Helper()
+			if g := abIDs(r.Entities); !slices.Equal(g, soll) || r.Anzahl != zahl {
+				t.Errorf("%d Entities, %s: %d Entities, Anzahl %d", zahl, was, len(g), r.Anzahl)
+			}
+		}
+		gleich("ohne Optionen", abOk(t, "o", typ, es, model.Optionen{}, nil), alle)
+		gleich("Filter", abOk(t, "f", typ, es, model.Optionen{Filter: abF(abIDGt("0"))}, nil), alle)
+		gleich("Ordnung", abOk(t, "n", typ, es, model.Optionen{OrderBy: []model.Sortierung{abOrd("N", true)}}, nil), nachN)
+		r := abOk(t, "s", typ, es, model.Optionen{Skip: abZ(1), Top: abZ(zahl + 1)}, nil)
+		if g := abIDs(r.Entities); !slices.Equal(g, alle[1:]) || r.Anzahl != zahl {
+			t.Errorf("%d Entities, Seite: %d Entities, Anzahl %d", zahl, len(g), r.Anzahl)
+		}
+		r = abOk(t, "p", typ, es, model.Optionen{Select: abSel("N")}, nil)
+		gleich("Projektion", r, alle)
+		for _, e := range r.Entities {
+			if len(e.Properties) != 1 || e.Properties[0].Name != "N" {
+				t.Fatalf("%d Entities, Projektion: %v", zahl, e.Properties)
+			}
+		}
+		doppelt := slices.Clone(es)
+		doppelt[zahl-1].Schluessel = doppelt[0].Schluessel
+		if _, err := model.FuehreAus(typ, doppelt, model.Optionen{}, nil); !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%d Entities, doppelter Schlüssel an der letzten Stelle: %v", zahl, err)
+		}
+		ohneKey := slices.Clone(es)
+		letzte := ohneKey[zahl-1]
+		letzte.Properties = slices.Clone(letzte.Properties)
+		abSetze(&letzte, abNu("Id"))
+		ohneKey[zahl-1] = letzte
+		if _, err := model.FuehreAus(typ, ohneKey, model.Optionen{}, nil); !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%d Entities, Key null an der letzten Stelle: %v", zahl, err)
+		}
+		fehlt := slices.Clone(es)
+		kopie := fehlt[zahl-1]
+		kopie.Properties = slices.DeleteFunc(slices.Clone(kopie.Properties), func(p model.PropertyWert) bool { return p.Name == "N" })
+		fehlt[zahl-1] = kopie
+		_, err := model.FuehreAus(typ, fehlt, model.Optionen{Filter: abF(vgl("ge", prop("N"), lit(model.LiteralZahl, "0")))}, nil)
+		if abKennung(err) != "$filter:nicht_beobachtet" {
+			t.Errorf("%d Entities, Filter-Property fehlt an der letzten Stelle: %v", zahl, err)
+		}
+		_, err = model.FuehreAus(typ, fehlt, model.Optionen{OrderBy: []model.Sortierung{abOrd("N", false)}}, nil)
+		if abKennung(err) != "$orderby:nicht_beobachtet" {
+			t.Errorf("%d Entities, $orderby-Property fehlt an der letzten Stelle: %v", zahl, err)
+		}
+	}
+}
+
+// TestProjektionNamen (Zeile 27): $select mit 1 bis 9 Namen, als Anfang der Properties und als Ende in umgekehrter Folge, sowie
+// jeder Name allein: die Properties der Entity in ihrer Folge, soweit der Name gewählt ist (9 + 9 + 9 = 27 Fälle).
+func TestProjektionNamen(t *testing.T) {
+	typ := abTyp()
+	alle := []string{"Id", "Name", "N", "Big", "Price", "Active", "Ref", "Day", "At"}
+	e := abSharedMit(false)[0]
+	if g := propNamen(e); !slices.Equal(g, alle) {
+		t.Fatalf("Fixture: %v", g)
+	}
+	var mengen [][]string
+	for l := 1; l <= 9; l++ {
+		mengen = append(mengen, slices.Clone(alle[:l]))
+		ende := slices.Clone(alle[9-l:])
+		slices.Reverse(ende)
+		mengen = append(mengen, ende)
+		mengen = append(mengen, []string{alle[l-1]})
+	}
+	for _, namen := range mengen {
+		r := abOk(t, "Namen", typ, []model.Entity{e}, model.Optionen{Select: abSel(namen...)}, nil)
+		var soll []string
+		for _, a := range alle {
+			if slices.Contains(namen, a) {
+				soll = append(soll, a)
+			}
+		}
+		if g := propNamen(r.Entities[0]); !slices.Equal(g, soll) {
+			t.Errorf("Select %v: %v, erwartet %v", namen, g, soll)
+		}
+	}
+	if len(mengen) != 27 {
+		t.Errorf("%d Fälle", len(mengen))
 	}
 }

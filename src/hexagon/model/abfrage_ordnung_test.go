@@ -172,20 +172,22 @@ func TestGemischteSchluessel(t *testing.T) {
 
 // --- Zeile 17: Länge von $orderby ---
 
-// TestOrderByLaenge (Zeile 17): ein Typ mit 33 Properties; $orderby mit 1, 2, 3, 32 und 33 Elementen, wobei erst das letzte
-// Element die Gleichstände auflöst (gegen die Folge der Schlüssel).
+// TestOrderByLaenge (Zeile 17): ein Typ mit 33 Properties; $orderby mit 1, 2, 3, 32 und 33 Elementen, wobei jedes Element einmal
+// allein die Gleichstände auflöst (1 + 2 + 3 + 32 + 33 = 71 Läufe, gegen die Folge der Schlüssel).
 func TestOrderByLaenge(t *testing.T) {
 	typ := model.EntityType{Name: "Ns.T33", Keys: []string{"Id"}, Properties: []model.Property{{Name: "Id", EdmType: "Edm.Int32"}}}
 	for j := 1; j <= 33; j++ {
 		typ.Properties = append(typ.Properties, model.Property{Name: fmt.Sprintf("P%02d", j), EdmType: "Edm.Int32"})
 	}
-	for _, k := range []int{1, 2, 3, 32, 33} {
+	n := 0
+	for _, kd := range abLaengeUndStelle() {
+		k, dec := kd[0], kd[1]
 		var es []model.Entity
 		for i := 1; i <= 4; i++ {
 			var props []model.PropertyWert
 			for j := 1; j <= k; j++ {
 				w := 0
-				if j == k {
+				if j == dec {
 					w = 5 - i
 				}
 				props = append(props, abI(fmt.Sprintf("P%02d", j), w))
@@ -197,8 +199,24 @@ func TestOrderByLaenge(t *testing.T) {
 			ordnung = append(ordnung, abOrd(fmt.Sprintf("P%02d", j), false))
 		}
 		r := abOk(t, "OrderBy", typ, es, model.Optionen{OrderBy: ordnung}, nil)
-		abIDsGleich(t, fmt.Sprintf("%d Elemente", k), r.Entities, "4", "3", "2", "1")
+		abIDsGleich(t, fmt.Sprintf("%d Elemente, entscheidend Element %d", k, dec), r.Entities, "4", "3", "2", "1")
+		n++
 	}
+	if n != 1+2+3+32+33 {
+		t.Errorf("%d Läufe", n)
+	}
+}
+
+// abLaengeUndStelle sind die Paare (Länge von $orderby, Stelle des einen Elements, das die Gleichstände auflöst) für die Längen
+// 1, 2, 3, 32 und 33 und jede Stelle von 1 bis zur Länge.
+func abLaengeUndStelle() [][2]int {
+	var r [][2]int
+	for _, k := range []int{1, 2, 3, 32, 33} {
+		for dec := 1; dec <= k; dec++ {
+			r = append(r, [2]int{k, dec})
+		}
+	}
+	return r
 }
 
 // --- Zeile 18: Gleichstand nach dem Schlüssel ---
@@ -261,21 +279,200 @@ func TestGleichstandSchluessel(t *testing.T) {
 	}
 }
 
-// TestSchluesselRest: Entities, deren Werte der Key-Properties gleich sind, aber verschiedene Schluessel tragen (eine Eingabe,
-// die der Vertrag nicht prüft), ordnet der Text von Schluessel; die Folge hängt nicht von der Eingabe ab.
+// TestSchluesselRest (Zeile 35): der Rest der Ordnung ist der Text von Schluessel, bytegleich aufsteigend (SPEC-191 Nr. 3 e), gleich
+// in welcher Richtung das letzte Element von $orderby ordnet. Menge: 13 Texte (10 vor 2, Länge, Groß und Klein, führende Null,
+// Leerraum, ein Zeichen jenseits von ASCII) × 4 Formen (Typ ohne Keys; gleiche Key-Werte; gleiche Key-Werte mit $orderby N
+// aufsteigend und absteigend) × 3 Reihenfolgen der Eingabe gegen die Reihenfolge von sort.Strings.
 func TestSchluesselRest(t *testing.T) {
-	typ := abTyp()
-	a, b := abE(1), abE(1)
-	a.Schluessel, b.Schluessel = "b", "a"
-	for _, es := range [][]model.Entity{{a, b}, {b, a}} {
-		r := abOk(t, "Rest", typ, es, model.Optionen{}, nil)
-		abIDsGleich(t, "Rest", r.Entities, "a", "b")
+	texte := []string{"1", "2", "10", "01", "a", "B", "b", "ab", "A1", "a1", "10 ", " 10", string([]byte{0xc3, 0xa9})}
+	soll := slices.Clone(texte)
+	sort.Strings(soll)
+	ohneKeys := abTyp()
+	ohneKeys.Keys = nil
+	formen := []struct {
+		name string
+		typ  model.EntityType
+		opt  model.Optionen
+	}{
+		{"ohne Keys", ohneKeys, model.Optionen{}},
+		{"gleiche Werte", abTyp(), model.Optionen{}},
+		{"gleiche Werte, N aufsteigend", abTyp(), model.Optionen{OrderBy: []model.Sortierung{abOrd("N", false)}}},
+		{"gleiche Werte, N absteigend", abTyp(), model.Optionen{OrderBy: []model.Sortierung{abOrd("N", true)}}},
 	}
-	ohne := model.EntityType{Name: "Ns.K", Properties: []model.Property{{Name: "N", EdmType: "Edm.Int32"}}}
-	for _, es := range [][]model.Entity{{abEntOhneID("2"), abEntOhneID("1")}, {abEntOhneID("1"), abEntOhneID("2")}} {
-		r := abOk(t, "ohne Keys", ohne, es, model.Optionen{}, nil)
-		abIDsGleich(t, "ohne Keys", r.Entities, "1", "2")
+	n := 0
+	for _, f := range formen {
+		basis := make([]model.Entity, 0, len(texte))
+		for _, s := range texte {
+			e := abE(1, abI("N", 1))
+			e.Schluessel = s
+			basis = append(basis, e)
+		}
+		for _, p := range abPermutationen(len(texte)) {
+			ein := make([]model.Entity, 0, len(texte))
+			for _, i := range p {
+				ein = append(ein, basis[i])
+			}
+			r := abOk(t, f.name, f.typ, ein, f.opt, nil)
+			abIDsGleich(t, f.name+fmt.Sprint(p[:3]), r.Entities, soll...)
+			n++
+		}
 	}
+	if n != 4*3 {
+		t.Errorf("%d Läufe", n)
+	}
+}
+
+// TestSchluesselTypen (Zeile 36): der Schlüssel ordnet nach den Werten seines Typs (SPEC-191 Nr. 3 d), nicht nach dem Text der
+// Werte und nicht nach Schluessel. Menge: die 8 Typen mit Schlüsselordnung (Edm.Int32 mit negativen Werten und mehreren Stellen,
+// Edm.Int64 über 2^53, Edm.Decimal, Edm.DateTimeOffset mit Bruchteil, Edm.String mit B vor a, Edm.Boolean, Edm.Date, Edm.Guid mit
+// Hex-Buchstaben und einer letzten Gruppe gegen die Ordnung) × 3 Reihenfolgen der Eingabe; Schluessel trägt die umgekehrte Folge der Werte.
+func TestSchluesselTypen(t *testing.T) {
+	typen := []struct {
+		edm   string
+		art   model.WertArt
+		werte []string
+	}{
+		{"Edm.Int32", model.ArtInt32, []string{"-10", "-2", "0", "2", "10"}},
+		{"Edm.Int64", model.ArtInt64, []string{"-9007199254740993", "-9007199254740992", "-1", "0", "9", "10", "9007199254740993"}},
+		{"Edm.Decimal", model.ArtDecimal, []string{"-10.5", "-2", "0", "0.5", "2", "10"}},
+		{"Edm.DateTimeOffset", model.ArtDateTimeOffset, []string{"2020-01-01T00:00:00Z", "2020-01-01T00:00:00.5Z", "2020-01-01T00:00:01Z"}},
+		{"Edm.String", model.ArtString, []string{"B", "a", "ab", "b"}},
+		{"Edm.Boolean", model.ArtBoolean, []string{"false", "true"}},
+		{"Edm.Date", model.ArtDate, []string{"2019-12-31", "2020-01-31", "2021-01-01"}},
+		{"Edm.Guid", model.ArtGUID, []string{
+			"00000001-0000-0000-0000-000000000009", "00000002-0000-0000-0000-000000000008", "0000000a-0000-0000-0000-000000000007",
+			"0000000b-0000-0000-0000-000000000006", "00000100-0000-0000-0000-000000000005",
+		}},
+	}
+	n := 0
+	for _, ty := range typen {
+		typ := model.EntityType{Name: "Ns.S", Keys: []string{"K"}, Properties: []model.Property{{Name: "K", EdmType: ty.edm}}}
+		k := len(ty.werte)
+		var soll []string
+		basis := make([]model.Entity, 0, k)
+		for i, w := range ty.werte {
+			s := fmt.Sprintf("s%02d", 50-i)
+			soll = append(soll, s)
+			basis = append(basis, abEntOhneID(s, abPW("K", ty.art, w)))
+		}
+		for _, p := range abPermutationen(k) {
+			ein := make([]model.Entity, 0, k)
+			for _, i := range p {
+				ein = append(ein, basis[i])
+			}
+			r := abOk(t, ty.edm, typ, ein, model.Optionen{}, nil)
+			abIDsGleich(t, ty.edm+fmt.Sprint(p), r.Entities, soll...)
+			n++
+		}
+	}
+	if n != 8*3 {
+		t.Errorf("%d Läufe", n)
+	}
+}
+
+// TestSchluesselLaenge (Zeile 36): der Schlüssel aus 1, 2, 3 und 4 Key-Properties, jede Key-Property einmal allein entscheidend
+// (1 + 2 + 3 + 4 = 10 Fälle) × 3 Reihenfolgen der Eingabe; Schluessel trägt die umgekehrte Folge.
+func TestSchluesselLaenge(t *testing.T) {
+	n := 0
+	for kn := 1; kn <= 4; kn++ {
+		for dec := 1; dec <= kn; dec++ {
+			typ := model.EntityType{Name: "Ns.S"}
+			var props [4]string
+			for j := 1; j <= kn; j++ {
+				props[j-1] = fmt.Sprintf("K%d", j)
+				typ.Keys = append(typ.Keys, props[j-1])
+				typ.Properties = append(typ.Properties, model.Property{Name: props[j-1], EdmType: "Edm.Int32"})
+			}
+			basis := make([]model.Entity, 0, 4)
+			var soll []string
+			for i := 1; i <= 4; i++ {
+				var ps []model.PropertyWert
+				for j := 1; j <= kn; j++ {
+					w := 0
+					if j == dec {
+						w = i
+					}
+					ps = append(ps, abI(props[j-1], w))
+				}
+				s := fmt.Sprintf("s%d", 9-i)
+				soll = append(soll, s)
+				basis = append(basis, abEntOhneID(s, ps...))
+			}
+			for _, p := range abPermutationen(4) {
+				ein := []model.Entity{basis[p[0]], basis[p[1]], basis[p[2]], basis[p[3]]}
+				r := abOk(t, "Schlüssel", typ, ein, model.Optionen{}, nil)
+				abIDsGleich(t, fmt.Sprintf("%d Keys, entscheidend %d, %v", kn, dec, p), r.Entities, soll...)
+				n++
+			}
+		}
+	}
+	if n != 10*3 {
+		t.Errorf("%d Läufe", n)
+	}
+}
+
+// abSetze ersetzt die Property gleichen Namens in der Entity.
+func abSetze(e *model.Entity, w model.PropertyWert) {
+	for i, p := range e.Properties {
+		if p.Name == w.Name {
+			e.Properties[i] = w
+		}
+	}
+}
+
+// TestOrdnungProgrammfehler (Zeile 37): ein Wert, den kein Leser liefert, in einer Spalte der Ordnung ist ErrUngueltig und kein
+// Ergebnis (SPEC-190 Nr. 3 g, Nr. 5 Stufe 6). Menge: 5 Formen des Werts (redigiert, unbekannte Art, Form 01, andere Klasse,
+// Guid unter Zahlen) × 4 Spalten ($orderby P1, P2, P3; zweite Key-Property) × 5 Positionen der Entity = 100, dazu P2 mit Guid in
+// allen Entities (Ordnung auf Guid).
+func TestOrdnungProgrammfehler(t *testing.T) {
+	typ := model.EntityType{Name: "Ns.P", Keys: []string{"Id", "K2"}}
+	for _, p := range []string{"Id", "K2", "P1", "P2", "P3"} {
+		typ.Properties = append(typ.Properties, model.Property{Name: p, EdmType: "Edm.Int32"})
+	}
+	basis := func() []model.Entity {
+		es := make([]model.Entity, 0, 5)
+		for i := 1; i <= 5; i++ {
+			es = append(es, abE(i, abI("K2", i), abI("P1", i), abI("P2", i), abI("P3", i)))
+		}
+		return es
+	}
+	opt := model.Optionen{OrderBy: []model.Sortierung{abOrd("P1", false), abOrd("P2", false), abOrd("P3", false)}}
+	guid := "00000000-0000-0000-0000-000000000001"
+	formen := []func(name string) model.PropertyWert{
+		func(name string) model.PropertyWert { return abPW(name, model.ArtRedigiert, "") },
+		func(name string) model.PropertyWert { return abPW(name, "foo", "1") },
+		func(name string) model.PropertyWert { return abPW(name, model.ArtInt32, "01") },
+		func(name string) model.PropertyWert { return abS(name, "x") },
+		func(name string) model.PropertyWert { return abPW(name, model.ArtGUID, guid) },
+	}
+	pruefe := func(was string, es []model.Entity) {
+		t.Helper()
+		r, err := model.FuehreAus(typ, es, opt, nil)
+		var ae *model.AbfrageFehler
+		var fe *model.FilterTypFehler
+		if !errors.Is(err, model.ErrUngueltig) || errors.As(err, &ae) || errors.As(err, &fe) || !reflect.DeepEqual(r, model.Ergebnis{}) {
+			t.Errorf("%s: %v %#v", was, err, r)
+		}
+	}
+	n := 0
+	for fi, form := range formen {
+		for _, spalte := range []string{"P1", "P2", "P3", "K2"} {
+			for pos := 0; pos < 5; pos++ {
+				es := basis()
+				abSetze(&es[pos], form(spalte))
+				pruefe(fmt.Sprintf("Form %d, Spalte %s, Entity %d", fi, spalte, pos+1), es)
+				n++
+			}
+		}
+	}
+	if n != 5*4*5 {
+		t.Errorf("%d Fälle", n)
+	}
+	es := basis()
+	for i := range es {
+		abSetze(&es[i], abPW("P2", model.ArtGUID, fmt.Sprintf("00000000-0000-0000-0000-%012d", i)))
+	}
+	pruefe("P2 nur Guid", es)
 }
 
 // --- Zeile 20: Edm.Guid in $orderby ---
@@ -346,6 +543,10 @@ func TestNamen(t *testing.T) {
 	for i, e := range ausserhalb {
 		geschlossen.Properties = append(geschlossen.Properties, model.Property{Name: fmt.Sprintf("X%02d", i), EdmType: e})
 	}
+	navs := []string{"Nav2", "Nav3", "Nav4", "Nav5"}
+	for _, nav := range navs {
+		geschlossen.NavigationProperties = append(geschlossen.NavigationProperties, model.NavigationProperty{Name: nav, Target: "Ns.T"})
+	}
 	offen := geschlossen
 	offen.Open = true
 	maske := func(n string) bool { return n == "Id" || n == "Name" }
@@ -363,6 +564,9 @@ func TestNamen(t *testing.T) {
 	}
 	for i, e := range ausserhalb {
 		arten = append(arten, art{e, fmt.Sprintf("X%02d", i), geschlossen, model.AbfrageTypNichtUnterstuetzt})
+	}
+	for _, nav := range navs {
+		arten = append(arten, art{"Navigation " + nav, nav, geschlossen, model.AbfrageTypNichtUnterstuetzt})
 	}
 	klasse := map[model.AbfrageUrsache]error{
 		model.AbfrageEigenschaftUnbekannt: model.ErrURLUngueltig, model.AbfrageTypNichtUnterstuetzt: model.ErrURLNichtUnterstuetzt, model.AbfrageNichtBeobachtet: model.ErrFilterNichtBeobachtet,
@@ -389,7 +593,7 @@ func TestNamen(t *testing.T) {
 			}
 		}
 	}
-	if n != 2*39*3 {
+	if len(arten) != 43 || n != 2*43*3 {
 		t.Errorf("%d Fälle", n)
 	}
 	// `*` mit einem unbekannten Namen daneben, und Id als gültiger Name
@@ -438,6 +642,32 @@ func TestOrderByEigenschaftFehlt(t *testing.T) {
 	}
 	if n != 3*5*2 {
 		t.Errorf("%d Fälle", n)
+	}
+	// mit Filter (Modus der Zusatztabelle): Stufe 5 prüft $orderby unabhängig davon, ob ein Filter gesetzt ist und wen er durchlässt
+	filter := []model.FilterAusdruck{abIDGt("0"), abIDGt("100"), nicht(abIDGt("100"))}
+	m := 0
+	for _, f := range filter {
+		for _, element := range namen {
+			for _, luecke := range []int{1, 2, 3, 4, 5} {
+				var es []model.Entity
+				for i := 1; i <= 5; i++ {
+					if i == luecke {
+						es = append(es, voll(i, element))
+					} else {
+						es = append(es, voll(i, ""))
+					}
+				}
+				o := []model.Sortierung{abOrd("Name", false), abOrd("Price", false), abOrd("Day", true)}
+				r, err := model.FuehreAus(typ, es, model.Optionen{Filter: abF(f), OrderBy: o}, nil)
+				if abKennung(err) != "$orderby:nicht_beobachtet" || !reflect.DeepEqual(r, model.Ergebnis{}) {
+					t.Errorf("Filter %v, %s fehlt in Entity %d: %v", f, element, luecke, err)
+				}
+				m++
+			}
+		}
+	}
+	if m != 3*3*5 {
+		t.Errorf("%d Fälle mit Filter", m)
 	}
 	es := []model.Entity{abE(1, abNu("Name"), abNu("Price"), abNu("Day")), voll(2, "")}
 	abOk(t, "null gilt", typ, es, model.Optionen{OrderBy: []model.Sortierung{abOrd("Name", false), abOrd("Price", false), abOrd("Day", false)}}, nil)
