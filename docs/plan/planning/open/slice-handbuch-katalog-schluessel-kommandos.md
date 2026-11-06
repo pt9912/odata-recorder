@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-QA-05`, `LH-RB-01`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `harness/vertraege/SPEC-201-handbuch-katalog.md` Nr. 4, 5, 6, 7 (Art 4, 8, 10), 8, 10 a · `SPEC-200` (Handbuch gegen das gebaute Binary) · `SPEC-102` (Gegenproben) · `SPEC-110` Nr. 2 (Schlüssel dieser Version) · `SPEC-138` Nr. 2 (Kommandos des Adapters).
+**Berührte Spec-Stellen:** `SPEC-201` (Vertrag unter `harness/vertraege/`, Abgleich der Kataloge) Nr. 4, 5, 6, 7 (Art 4, 8, 10), 8, 10 a · `SPEC-200` (Handbuch gegen das gebaute Binary) · `SPEC-102` (Gegenproben) · `SPEC-110` Nr. 2 (Schlüssel dieser Version) · `SPEC-138` Nr. 2 (Kommandos des Adapters).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -38,7 +38,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Programm `katalog`, Stufen `katalog-bin` und `katalog`, Ziel `make katalog-check`, Gate-Kette und der Katalog der Fehlercodes samt Ausnahmen-Datei — `slice-handbuch-meldungskatalog`; dieser Slice erweitert das Programm, er legt es nicht an (Start-Trigger, §4).
-- Die Entscheidung der ADR-Frage zur Laufzeit (`ADR-0005`) — der User, vorgelegt in `slice-handbuch-meldungskatalog` §6; dieser Slice misst die Zusatzzeit seiner Erweiterung und trägt sie in §7 nach.
+- Die Entscheidung der ADR-Frage zur Laufzeit ([ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)) — der User, vorgelegt in `slice-handbuch-meldungskatalog` §6; dieser Slice misst die Zusatzzeit seiner Erweiterung und trägt sie in §7 nach.
 - Bedeutung und Wahrheit der Zeilen der Tabellen (`SPEC-201` Nr. 9 a) — akzeptiertes Negativ des Vertrags; die belegten Beispiele (`slice-handbuch-record-replay`) und der Probelauf (`slice-handbuch-abnahme`) tragen es.
 - Optionen des Binary, Namen hinter `Gesetzt (nichtleer) und nicht geliefert sind` in `SPEC-110` Nr. 2 und der Leser für `SERVICE_ODATA_VERSION` — der Vertrag führt keine Optionen (`SPEC-201` Nr. 5 b) und vergleicht die Menge N nicht (Nr. 9 c); den Leser liefert die Welle `welle-odata-v2` (`slice-v2-bootstrap`).
 - Eine Änderung von `AGENTS.md` — nur als Diff-Vorschlag an den User (Pflicht der Folgewellen, `SPEC-201` Nr. 11), den schon `slice-handbuch-meldungskatalog` vorlegt.
@@ -104,7 +104,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): `slice-handbuch-meldungskatalog` liegt in `done/` (das Programm `katalog`, die Stufen, das Ziel `make katalog-check` und die Gate-Kette sind sein Gegenstand). Der Architect hat Tabelle und Raster gefüllt, bevor der erste Code-Commit entsteht.
 
-**Bedingung Gate-Kette** (Übergangsregeln Nr. 7, Planner, 2026-11-06): Dieser Slice ändert dieselben Dateien der Gate-Kette wie `slice-handbuch-meldungskatalog` (`Dockerfile`, `harness/mk/katalog.mk`, `harness/README.md`, `tools/gegenproben/`) und **startet nicht daneben, sondern erst nach dessen `done/`**. Kein weiterer Slice der Gate-Kette steht in `in-progress/`, solange dieser läuft. Kennungen aus dem Bereich der Linie C (`SPEC` 200 bis 229, `ADR` 0030 bis 0039, `CO` 040 bis 059): die nächste freie `SPEC`-Nummer der Linie C ist `SPEC-202`. Gate-Zeit: `make gates` und `make gegenproben` unter `flock /tmp/odata-recorder-heavy.lock`, höchstens zwei Linien zugleich.
+**Bedingung Gate-Kette** (Übergangsregeln Nr. 7, Planner, 2026-11-06): Dieser Slice ändert dieselben Dateien der Gate-Kette wie `slice-handbuch-meldungskatalog` (`Dockerfile`, dem Fragment `katalog.mk` unter `harness/mk/`, `harness/README.md`, `tools/gegenproben/`) und **startet nicht daneben, sondern erst nach dessen `done/`**. Kein weiterer Slice der Gate-Kette steht in `in-progress/`, solange dieser läuft. Kennungen aus dem Bereich der Linie C (`SPEC` 200 bis 229, `ADR` 0030 bis 0039, `CO` 040 bis 059): die nächste freie `SPEC`-Nummer der Linie C ist `SPEC-202`. Gate-Zeit: `make gates` und `make gegenproben` unter `flock /tmp/odata-recorder-heavy.lock`, höchstens zwei Linien zugleich.
 
 **Größenmarke** (`AGENTS.md` §3.14): noch nicht gesetzt. Der Architect legt den Block `groessenmarke` beim Start an (Pfade, Produktcode, Fakes), der Planner setzt `basis`, `schaetzung` und `marke` in eigenem Commit vor dem ersten Code-Commit nach `SPEC-128` Nr. 1. Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Erwartet: *S* grob 1520, keine Schnittfrage.
 
