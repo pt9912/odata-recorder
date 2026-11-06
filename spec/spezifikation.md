@@ -247,6 +247,7 @@ URL-Key-Syntax unterstützt einfache und benannte zusammengesetzte Keys; Literal
 - `$expand` und `$batch` gehören zu LH-FA-16 (Soll); Actions und Functions gehören nicht zum ersten Abnahmeumfang (Lastenheft §5).
 - Pfad, Schlüssel und Systemoptionen der URL liest `URLCodec` (`SPEC-160` bis `SPEC-162`); eine nicht lesbare URL ist `400`, eine gültige, nicht unterstützte Form `501` mit `ODR-E6001`; die Grammatik von `$filter` liest `SPEC-164`.
 - Standardisierte Query-Fehler und Formatdetails sind durch OData-V4-Contract-Tests zu prüfen.
+- Die Ausführung auf den Entities (Filter, Zählung, stabile Ordnung mit Schlüssel als Gleichstand, `$skip`, `$top`, Projektion mit Property-Maske) und ihre Fehler sind der Vertrag `SPEC-190` und `SPEC-191`; negative und nicht ganzzahlige Werte von `$top` und `$skip` entscheidet der Parser (`SPEC-162` Nr. 4).
 
 ### LH-FA-09.a — Workspace-Isolation und Reset
 
@@ -2355,6 +2356,100 @@ Ungeprüft bleibt:
 - die Eindeutigkeit des Namens in `typ.Properties`: der Metadatenleser liefert jeden Namen einmal (`SPEC-125` Nr. 11).
 - ein Datenrennen, das kein Lauf auslöst (`make test-race`, `SPEC-122` Nr. 8 und 9).
 
+### SPEC-190 — Query ausführen: Vertrag des Interpreters
+
+Reine Funktion im Paket `src/hexagon/model` (`ARC-001`, Schicht Domain), die der Dienst ruft, der eine Collection liest: sie führt die Pipeline von `LH-FA-08.a` auf einer Menge typisierter Entities im Speicher aus (Filter, Zählung, stabile Ordnung, `$skip`, `$top`, Projektion).
+Sie hat keinen Port und keinen `ctx`, liest kein Repository und keine Coverage (die Prüfung der Vollständigkeit geht dem Aufruf voraus, `SPEC-044`) und serialisiert nicht.
+Die Werte, ihre Ordnung und die dreiwertige Logik liefert `SPEC-166`, die Typprüfung des Filters `SPEC-167`; die Stufen im Einzelnen stehen in `SPEC-191`.
+
+```text
+model.FuehreAus(typ EntityType, entities []Entity, opt Optionen, beobachtet func(name string) bool) (Ergebnis, error)
+model.Ergebnis{Entities []Entity; Anzahl int}
+model.AbfrageFehler{Option AbfrageOption; Ursache AbfrageUrsache}   // Code() Code; Error() string; Is(target error) bool
+model.AbfrageOption                                                 // AbfrageFilter "$filter", AbfrageOrderBy "$orderby", AbfrageSelect "$select"
+model.AbfrageUrsache                                                // eigenschaft_unbekannt, typ_nicht_unterstuetzt, ordnung_nicht_unterstuetzt, nicht_beobachtet
+model.AlleAbfrageUrsachen() []AbfrageUrsache                        // die vier
+```
+
+1. **Eingabe.**
+   - (a) `typ` ist der Entity-Typ des Sets mit den wirksamen `Properties`, `NavigationProperties` und `Keys`, den geerbten eingeschlossen (`SPEC-125` Nr. 11).
+   - (b) `entities` sind die Entities des Sets in der Form des Lesers (`SPEC-126` Nr. 9 bis 11): `Properties` nennt die bekannten Properties mit ihrem Wert; eine Property, die dort nicht steht, ist **nicht selektiert** (unbekannt), eine mit der Art `null` ist `null` (`SPEC-044`: fehlend und `null` bleiben unterscheidbar). `nil` und die leere Liste sind gleich. Die Reihenfolge der Liste hat keine Bedeutung: dieselbe Menge in jeder Reihenfolge ergibt dasselbe Ergebnis (`LH-QA-02`).
+   - (c) `opt` sind die `Optionen` des Parsers (`SPEC-160` Nr. 2). Gelesen werden `Filter`, `OrderBy`, `Top`, `Skip` und `Select`; `Count` und `Sonstige` werden nicht gelesen (die Anzahl wird immer geliefert, Nr. 2).
+   - (d) `beobachtet` ist die Property-Maske des Typs (`SPEC-167` Nr. 1): `nil` heißt alle beobachtet. Sie sagt, welche Properties des Typs der Bestand überhaupt kennt (`SPEC-127` Nr. 10 d: eine Property, die keine Beobachtung nannte, ist unbekannt); ob eine einzelne Entity eine Property kennt, steht in deren `Properties` (`SPEC-191` Nr. 2 b, 3 c).
+2. **Ergebnis.**
+   - `Entities` sind die Entities nach Filter, Ordnung, `$skip`, `$top` und Projektion; die Liste ist nie `nil` (ohne Element eine leere Liste, die als `[]` serialisiert wird).
+   - `Anzahl` ist die Zahl der Entities nach dem Filter und vor `$skip` und `$top`: immer, auch wenn `Count.Gesetzt` falsch ist; `@odata.count` und `/$count` verwenden diese Zahl (`LH-FA-08.a`). `$skip` und `$top` ändern sie nie. Der Dienst für `/$count` übergibt nur `Filter`: `$orderby` und `$select` würden dort Fehler nach Nr. 4 erzeugen, die die Zahl nicht betreffen (`SPEC-160` *Ungeprüft*).
+   - Das Ergebnis gehört dem Aufrufer. Die Eingabe bleibt unverändert (Reihenfolge von `entities`, jede Entity, jedes `Properties`, `opt`, der Baum), und das Ergebnis teilt keinen Slice mit ihr.
+   - Bei einem Fehler ist das Ergebnis `Ergebnis{}` (`Entities` ist dann `nil`, `Anzahl` 0): es gibt kein Teilergebnis.
+3. **Programmfehler.** `model.ErrUngueltig` ohne Fehlerwert und ohne Code (`SPEC-109` Nr. 5: `ODR-E9001`), ein Fehler des Aufrufers, in diesen Fällen:
+   - (a) `Top` oder `Skip` mit `Gesetzt` wahr und `Wert` unter 0. Die Entscheidung über einen negativen oder nicht ganzzahligen Wert fällt der Parser (`SPEC-162` Nr. 4: `wert`, `400`, `ODR-E6005`); er liefert nie einen negativen `Wert` (`SPEC-160` Nr. 2), und ein `int` ist ganzzahlig. Mit `Gesetzt` falsch wird `Wert` nicht gelesen.
+   - (b) `Filter` ungleich `nil` mit `Ausdruck` gleich `nil` (der Parser ohne `FilterLeser`, `SPEC-160` Nr. 8): ein Filter, den niemand lesen konnte, ergibt nie eine ungefilterte Antwort.
+   - (c) `Select` ungleich `nil` mit `Alle` falsch und ohne Namen, oder ein Name zweimal in `Select.Namen` (der Parser liefert beides nie, `SPEC-162` Nr. 6).
+   - (d) ein Name zweimal in `OrderBy` (`SPEC-162` Nr. 7).
+   - (e) ein leerer `Schluessel` oder derselbe `Schluessel` in zwei Entities von `entities` (`SPEC-127` Nr. 10 a: die Identität ist `(Set, Schluessel)`).
+   - (f) eine Entity, in deren `Properties` eine Property aus `typ.Keys` fehlt, die Art `null` oder die Art `redigiert` hat (`SPEC-126` Nr. 11: ein Schlüssel ist nie `null`, nie redigiert und nie nicht selektiert).
+   - (g) ein Programmfehler beim Auswerten: was `SPEC-166` Nr. 7 und `SPEC-167` Nr. 7 so nennen (ein Wert der Art `redigiert`, nicht vergleichbare Klassen, eine Form, die kein Leser liefert, ein Baum mit `nil`-Kind). Er kommt unverändert zurück (`errors.Is(err, ErrUngueltig)`).
+   Von (a) bis (f) wird geprüft, bevor etwas anderes geprüft wird (Nr. 5, Stufe 1); welcher von mehreren gemeldet wird, ist nicht zugesagt (dieselbe Fehlerart, der Text ist keine Zusage).
+4. **Fehler der Anfrage.** Ein Verstoß des Clients ist, und kein anderer Fehler: ein `*model.FilterTypFehler` aus `PruefeFilter` (unverändert, `SPEC-167` Nr. 6) oder ein `*model.AbfrageFehler` mit genau einer Ursache:
+
+   | Ursache | Klasse (`errors.Is`) | Code | Status |
+   |---|---|---|---|
+   | `eigenschaft_unbekannt` | `model.ErrURLUngueltig` | `ODR-E6005` | 400 |
+   | `typ_nicht_unterstuetzt`, `ordnung_nicht_unterstuetzt` | `model.ErrURLNichtUnterstuetzt` | `ODR-E6001` | 501 |
+   | `nicht_beobachtet` | `model.ErrFilterNichtBeobachtet` | `ODR-E6003` | 422 |
+
+   Die Ursachen gelten für die Namen in `$orderby` und `$select` (ein Name wird bytegleich gesucht, `SPEC-167` Nr. 1):
+   - `eigenschaft_unbekannt`: der Name steht weder in `typ.Properties` noch in `typ.NavigationProperties`, und der Typ ist nicht offen (`Open`).
+   - `typ_nicht_unterstuetzt`: der Name einer Navigation-Property, jeder Name im offenen Typ, der nicht in `typ.Properties` steht, und eine Property mit `Unterstuetzt()` falsch (`SPEC-167` Nr. 3 a, 5; `LH-FA-08`, Negative: nie eine ungefilterte oder unvollständige Antwort).
+   - `ordnung_nicht_unterstuetzt`: nur `$orderby`: eine Property mit unterstütztem Typ, für die `HatOrdnung` falsch ist (`Edm.Guid`, `SPEC-166` Nr. 3 f).
+   - `nicht_beobachtet`: `beobachtet` ist ungleich `nil` und für den Namen einer Property mit unterstütztem Typ falsch (`$orderby`, `$select`); in `$filter` und `$orderby` außerdem: eine Entity von `entities` nennt die Property nicht (`SPEC-191` Nr. 2 b, 3 c).
+   `Code()` liefert den Code der Zeile, `errors.Is` trifft genau die Sentinel seiner Klasse. `Error()` ist `ODR-E6005: Abfrage ungültig: <Ursache> (<Option>)`, `ODR-E6001: Abfrage nicht unterstützt: <Ursache> (<Option>)` bzw. `ODR-E6003: Abfrage nicht beobachtet: <Ursache> (<Option>)`, mit der Option als `$filter`, `$orderby` oder `$select`. **Kein Teil der Eingabe steht im Fehler** (kein Name, keine Entity, kein Wert): wer nur die Ursache sieht, erfährt nicht, welche Property fehlt. Eine Ursache außerhalb der vier (nur ein von Hand gebauter Fehler) hat die Klasse der ersten Zeile. Die Abbildung (`SPEC-109` Nr. 5) kennt alle drei Sentinel schon; `ErrFilterNichtBeobachtet` trägt hier auch Verstöße von `$orderby` und `$select`, sein Name ist der der ersten Verwendung.
+5. **Rangfolge.** Geprüft wird in dieser Folge; der erste Verstoß entscheidet, gleich welcher Klasse, und hinter ihm wird nichts mehr geprüft (auch `beobachtet` nicht mehr gerufen):
+   - **Stufe 1:** die Argumente (Nr. 3 a bis f).
+   - **Stufe 2:** `$filter`: `PruefeFilter` (`SPEC-191` Nr. 2 a), auch bei leerer Eingabe.
+   - **Stufe 3:** `$orderby`, die Elemente in der Folge von `OrderBy`, je Name in der Folge `eigenschaft_unbekannt`, `typ_nicht_unterstuetzt`, `ordnung_nicht_unterstuetzt`, `nicht_beobachtet`.
+   - **Stufe 4:** `$select`, die Namen in der Folge von `Select.Namen`, je Name wie Stufe 3 ohne `ordnung_nicht_unterstuetzt`; die Namen neben `*` werden geprüft.
+   - **Stufe 5:** die Properties der Entities (`SPEC-191` Nr. 2 b, 3 c): zuerst die des Filters (Option `$filter`), dann die von `$orderby` (Option `$orderby`); die Ursache ist `nicht_beobachtet`. Ohne Entity gibt es nichts zu prüfen.
+   - **Stufe 6:** die Auswertung (Nr. 3 g).
+   Folge: `$orderby=GuidProp` ist `501` auch bei leerer Eingabe und bei `$top=0`; ein Fehler der Stufen 1 bis 4 hängt nie von den Entities ab.
+6. **Wiederholung und Nebenläufigkeit.** Gleiche Eingabe ergibt ein gleiches Ergebnis und den gleichen Fehler. Die Funktion ändert nichts an der Eingabe, keine Variable des Pakets, hat keinen Cache und keinen geteilten Puffer (sie ordnet eine Kopie, nie `entities`); gleichzeitige Aufrufe, auch auf derselben Liste und denselben `Optionen`, beeinflussen sich nicht. `beobachtet` wird während des Aufrufs gerufen; teilen mehrere Aufrufe eine Funktion, muss sie nebenläufig aufrufbar sein (der Aufrufer sorgt dafür).
+7. **Grenzen.** Der Code kennt keine Obergrenze: nicht für die Zahl der Entities, nicht für die Zahl der Elemente von `$orderby` (der Parser liefert höchstens 32, `SPEC-162` Nr. 7) und nicht für die Tiefe des Baums (`SPEC-167` Nr. 8). **Prüfgrenze:** die Tests führen 10.000 Entities (die Größe von `LH-QA-01.a`) und 10.001 aus (beide Seiten der Zahl, damit eine eingebaute Grenze rot wird) und 33 Elemente von `$orderby`; darüber ist nichts geprüft. Der Aufwand wächst mit der Zahl der Entities, der Knoten und der Schlüssel; er ist nicht zugesagt (*Ungeprüft*).
+
+Ungeprüft bleibt:
+- die Laufzeit bei 10.000 Entities. Grund: diese Funktion sagt Korrektheit zu, nicht Latenz (`LH-QA-01.a` misst der Lasttest). Folge: eine quadratische Regression (etwa ein Insertion Sort) bliebe bei grünen Gates unbemerkt, solange sie in den Tests unter einer Sekunde bleibt; das Review des Diffs fängt sie.
+- Entities abgeleiteter Typen: `typ` ist der Typ des Sets, ein Name, den nur ein abgeleiteter Typ trägt, ist `eigenschaft_unbekannt`. Grund: `SPEC-125` Nr. 11 führt die Properties je Typ, und der Dienst reicht den Typ des Sets. Folge: ein Filter auf eine Property eines abgeleiteten Typs ist `400`, auch wenn Entities sie tragen.
+- ob `Entity.Schluessel` zu den Werten der Key-Properties passt. Grund: die Leser bilden beides aus demselben Objekt (`SPEC-126` Nr. 11). Folge: die Ordnung folgt den Werten (`SPEC-191` Nr. 3), der `Schluessel` dient nur der Eindeutigkeit (Nr. 3 e).
+- die Eindeutigkeit eines Namens in `Properties` einer Entity (`SPEC-126` Nr. 9 liefert eine Property je Name): bei einem Doppelten gilt der erste Eintrag.
+- die Bereiche der Werte (`SPEC-166` *Ungeprüft*).
+- die Anwendbarkeit der Optionen auf die Art der Ressource (`SPEC-160` Nr. 9 d): der Dienst ruft die Funktion nur für Collection und `/$count`.
+- ein Datenrennen, das kein Lauf auslöst (`make test-race`, `SPEC-122` Nr. 8 und 9).
+
+### SPEC-191 — Query ausführen: Filter, Ordnung, Paging und Projektion
+
+Die Stufen von `SPEC-190`.
+
+1. **Stufen.** Die Folge ist Filter, Zählung, Ordnung, `$skip`, `$top`, Projektion (`LH-FA-08.a`, Pipeline); jede Stufe sieht das Ergebnis der vorigen. Fehlt eine Option, entfällt ihre Stufe; die Ordnung entfällt nie (Nr. 3).
+2. **Filter.**
+   - (a) `Filter == nil`: alle Entities. Sonst ruft die Funktion vor jeder Auswertung `PruefeFilter(typ, Filter.Ausdruck, beobachtet)` mit der Maske des Aufrufs (`SPEC-167`), auch bei leerer Eingabe; ihr Fehler kommt unverändert zurück.
+   - (b) Jede `FilterEigenschaft` des Baums muss in `Properties` **jeder** Entity stehen, sonst ist es `nicht_beobachtet` (Option `$filter`, `SPEC-190` Nr. 5 Stufe 5). Die Prüfung ist statisch: sie hängt nicht vom Wert der Entity und nicht von der Verknüpfung ab (`Id eq 1 or Name eq 'x'` wird abgewiesen, auch wenn `Id eq 1` für jede Entity wahr ist). Grund: eine Entity ohne die Property nach `null` oder `false` zu deuten verbarge eine Teilprojektion (`SPEC-044`: keine unbekannte Property wird durch `null` ersetzt), sie auszulassen lieferte eine scheinbar vollständige Ergebnismenge (`LH-FA-08`, Negative). Alternative: die Entity auslassen oder als unbekannt (`Wahrheit`) werten. Verworfen: beides ändert die Antwort still. Folge: ein einziger Eintrag mit einer Teilprojektion, der die Property nicht kennt, lässt jeden Filter auf sie mit `422` enden, bis der Bestand sie kennt.
+   - (c) Auswertung je Entity, beide Operanden jedes Knotens immer (kein Kurzschluss; das Ergebnis ist gleich, weil die Logik rein ist). `FilterVergleich` ruft `Vergleiche` mit den Werten der Operanden: der Wert einer Property aus `Properties`, ein Literal über `WertAusLiteral`, `FilterNull` als `Wert{Art: null}`; ist ein Operand das Ergebnis eines Vergleichs oder einer Verknüpfung (`(a eq 1) eq true`), ist wahr der Wert `boolean` `true`, falsch `boolean` `false` und unbekannt der Wert `null`. `FilterVerknuepfung` und `FilterNicht` rufen `Und`, `Oder`, `Nicht` auf `WahrheitVon` der Operanden (eine `Edm.Boolean`-Property, ein Literal `true` oder `false`, `null` als unbekannt). Eine Entity besteht, wenn die Wurzel `Durchlaesst` (`SPEC-166` Nr. 5): `unbekannt` lässt sie nicht durch, auch nicht die Wurzel `null`.
+3. **Ordnung.**
+   - (a) Die Entities werden total geordnet, in der Folge: die Elemente von `OrderBy`, dann der Schlüssel. Das erste Element, in dem zwei Entities verschieden sind, entscheidet.
+   - (b) Ein Element vergleicht die Werte der Property mit `OrdneWerte` (`SPEC-166` Nr. 6): `null` ist kleiner als jeder Wert, aufsteigend also zuerst. `Absteigend` kehrt das Vorzeichen um, `null` steht dann zuletzt, und gleiche Werte bleiben gleich (die Entscheidung geht an das nächste Element). Die Schlüssel sind gemischt: jedes Element hat seinen Typ (jeder der sieben mit Ordnung, `HatOrdnung`) und seine Richtung; verschiedene Elemente dürfen verschiedene Typen und Richtungen haben, `null` kommt in jedem vor.
+   - (c) Jede Property von `OrderBy` muss in `Properties` jeder Entity stehen, sonst `nicht_beobachtet` (Option `$orderby`, `SPEC-190` Nr. 5 Stufe 5); Grund und Folge wie Nr. 2 b (eine fehlende Property nach `null` einzuordnen verbarge sie).
+   - (d) **Schlüssel (Gleichstand):** die Werte der Key-Properties in der Folge von `typ.Keys`, jeweils aufsteigend, auch wenn das letzte Element von `OrderBy` absteigend ist; Typen mit Ordnung nach `OrdneWerte`, `Edm.Guid` nach den Bytes der kanonischen Schreibweise (eine Hilfsordnung, die nur die Folge von Gleichständen und die Folge ohne `$orderby` festlegt; `Edm.Guid` hat sonst keine Ordnung, `SPEC-166` Nr. 3 f). Ohne `OrderBy` ist die Ordnung allein der Schlüssel. Entities mit gleichem Schlüssel gibt es nicht (`SPEC-190` Nr. 3 e), die Ordnung ist deshalb total und die Folge unabhängig von der Reihenfolge der Eingabe (`LH-QA-02`, `LH-FA-08.a`: stabile Sortierung, bei Gleichstand der Schlüssel). **Entscheidung:** der Schlüssel ordnet aufsteigend nach seinen Werten, nicht nach dem Text von `Schluessel`. Alternative: nach dem Text. Verworfen: `10` stünde vor `2`, und `Id=2,Region='EU'` hinge an der Schreibweise der Literalform. Folge: die Reihenfolge ohne `$orderby` ist die der Werte des Schlüssels (`Id` aufsteigend).
+4. **`$skip` und `$top`.** Nach der Zählung und der Ordnung: zuerst `$skip` (die ersten `Skip.Wert` Entities entfallen; ein `Skip.Wert` ab der Zahl der Entities ergibt die leere Liste), dann `$top` (höchstens `Top.Wert` Entities; `0` ergibt die leere Liste, ein Wert über dem Rest alle verbleibenden). Mit `Gesetzt` falsch entfällt die Stufe. `Anzahl` bleibt unberührt (`SPEC-190` Nr. 2). Die Werte gehen bis `2147483647` (`SPEC-162` Nr. 4); die Rechnung läuft für `Skip` und `Top` zugleich auf dem Maximum nicht über.
+5. **Projektion.**
+   - (a) `Select == nil` oder `Alle` wahr: jede Entity mit allen ihren bekannten `Properties`, in der Folge der Eingabe. `*` neben Namen (`*,Name`) gilt wie `*` allein; die Namen werden geprüft (`SPEC-190` Nr. 5 Stufe 4).
+   - (b) Sonst: nur die Properties, deren Name in `Select.Namen` steht, in der Folge von `Entity.Properties` der Eingabe (nicht der URL: `$select=B,A` und `A,B` ergeben dasselbe). Kennt eine Entity eine genannte Property nicht, fehlt sie im Ergebnis dieser Entity: nie ersetzt durch `null`; ein Wert `null` bleibt mit der Art `null` erhalten (`SPEC-044`, `LH-FA-18`: Teilprojektion, fehlend und `null` unterscheidbar). Die Key-Properties werden nicht ergänzt; die Identität trägt `Entity.Schluessel`.
+   - (c) `Typ` und `Schluessel` bleiben, `Uebersprungen` ist `nil`, und jede Entity des Ergebnisses ist eine Kopie: `Properties` teilt keinen Slice mit der Eingabe.
+6. **Entscheidung (Teilprojektion).** Eine Property, die eine einzelne Entity nicht kennt, führt in `$filter` und `$orderby` zu `422` (Nr. 2 b, 3 c), in `$select` zur Auslassung dieser Property in dieser Entity (Nr. 5 b). Grund: der Filter und die Ordnung entscheiden, welche Entities und in welcher Folge sie erscheinen, und jede stille Deutung der fehlenden Property änderte die Antwort; `$select` formt nur die Ausgabe, und die Auslassung sagt nur, was der Bestand nicht weiß (`LH-FA-18`: verlustfreie Regel). Alternative: auch `$select` mit `422` abweisen. Verworfen: ein Client, der Properties wünscht, bekäme für einen Bestand mit einer Teilprojektion nie eine Antwort, obwohl jede Aussage wahr wäre. Folge im Betrieb: ein Client sieht für eine Entity weniger Properties, als er verlangt hat; ob die Collection vollständig ist, entscheidet die Coverage vor dem Aufruf (`SPEC-044`), nicht diese Funktion.
+
+Ungeprüft bleibt:
+- die Auswahl der Entities durch `Skip` und `Top` bei einer Änderung des Bestands zwischen zwei Aufrufen: jede Seite ist eine eigene Ausführung (kein Cursor).
+- die Zahl der Properties je Entity und die Länge der Texte (`SPEC-166` Nr. 7 begrenzt `Edm.Decimal` auf 1024 Zeichen; sonst unbegrenzt).
+- ein Datenrennen, das kein Lauf auslöst (`make test-race`, `SPEC-122` Nr. 8 und 9).
+
 ### SPEC-170 — OData V2: Umfang, Version je Service und Abbildung auf das Modell
 
 Ein Service mit der `odata_version` `2.0` wird von Implementierungen der Codec-Ports verarbeitet, die ausschließlich V2 lesen und schreiben (`LH-FA-17`, `LH-FA-17.a`).
@@ -2764,6 +2859,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-06 | Vertrag der Ausführung einer Query vor dem Code (`SPEC-190`, `SPEC-191`): Eingabe (Typ, Entities, Optionen, Property-Maske), Ergebnis mit Anzahl vor dem Paging, Programmfehler, Fehler der Namen in `$orderby` und `$select` (neuer Fehlerwert `AbfrageFehler` über den vorhandenen Sentinel, keine neue Abbildung), Rangfolge, Filter mit statischer Prüfung der Properties je Entity, Ordnung mit `null`, gemischten Schlüsseln und Schlüssel als aufsteigendem Gleichstand (Entscheidung: nach den Werten, nicht nach dem Text), `$skip` vor `$top`, Projektion; Entscheidung zur Teilprojektion (`422` in Filter und Ordnung, Auslassung in `$select`); negative und nicht ganzzahlige Werte von `$top` und `$skip` entscheidet der Parser (`SPEC-162` Nr. 4), Prüfgrenze 10.000 Entities |
 | 2026-11-06 | `SPEC-167` Nr. 3 c und Nr. 6 nach dem Review berichtigt (zwei Randformen, die der Code entschieden hatte): `PruefeFilter` normiert den Text eines `LiteralZahl` nicht (`1.0` aus dem Leser gilt, weil der Leser `1` liefert; von Hand gebaut ist `1.0` `literal_bereich`), und eine Ursache außerhalb der sieben hat die Klasse `ungueltig` (`ODR-E6005`, `400`) |
 | 2026-11-06 | Typregeln der EDM-Typen und Null-Semantik vor dem Code (`SPEC-166`, `SPEC-167`): Ordnung je Klasse (Text ordinal, Zahl exakt, Zeitpunkt nach Instant, Guid nur Gleichheit), Scale und Precision von `Edm.Decimal` nicht geprüft (Entscheidung, Grund: das Modell trägt die Facetten nicht), `null` zuerst in der Sortierung, dreiwertige Logik, Typprüfung des Filter-AST mit Ursachen und Codes (nicht boolesche Wurzel und Operanden, Literal gegen Literal, `null` gegen Typ, Bereich von `Edm.Int32` und `Edm.Int64`, Typ außerhalb der acht `501`, nicht beobachtete Property `ODR-E6003`); Zeile `ErrFilterNichtBeobachtet` in `SPEC-109` Nr. 5 |
 | 2026-11-05 | OData V2, Antworten lesen nach dem Review (`SPEC-172` Nr. 3): Ketten von `BaseType` im Modell sind nicht als endlich zugesagt; der Leser kehrt bei jedem Modell zurück, ein Typ in einer geschlossenen Kette ohne den Typ des Sets ist `odata_typ`, die Länge des Rings ist ohne Wirkung; ausgesprochen, was der Code tat, keine Entscheidung geändert |
