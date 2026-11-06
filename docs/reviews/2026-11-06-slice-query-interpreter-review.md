@@ -89,7 +89,7 @@ Nicht aufgelöst bei Zeile 32: die drei Zweige, die kein Aufruf erreicht (`Prope
 
 - `kategorie`: MEDIUM
 - `quelle`: `AGENTS.md` §3.15 (Fixture gleicht nie dem Wert der Mutation; Zusage ohne Zeile ist ein MEDIUM); `SPEC-191` Nr. 3 e (*„bytegleich aufsteigend“*, Folge: *„bei `Keys` leer steht `10` vor `2` (Text, nicht Wert)“*)
-- `pfad`: `src/hexagon/model/abfrage_ordnung_test.go` · `func TestSchluesselRest` und `a.Schluessel, b.Schluessel = "b", "a"`; Plan `docs/plan/planning/in-progress/slice-query-interpreter.md` · `Er hat keine Zeile der Tabelle`
+- `pfad`: `src/hexagon/model/abfrage_ordnung_test.go` · `func TestSchluesselRest` und `a.Schluessel, b.Schluessel = "b", "a"`; Plan `docs/plan/planning/done/slice-query-interpreter.md` · `Er hat keine Zeile der Tabelle`
 - `befund`: Alle vier Eingaben des Fängers haben gleich lange, einheitlich kleingeschriebene Schlüssel. Länge zuerst (`V03`), Kleinschreibung gefaltet (`V04`), führende Nullen weg (`D3`) und absteigend bei absteigendem letztem `OrderBy` (`D4`) bleiben grün; die im Vertrag benannte Folge `10` vor `2` und „bytegleich“ sind ungefangen. Die Zusage hat im Plan keine Zeile der Tabelle *Zusage · Fänger* (§6 benennt das selbst).
 - `verifizierbar`: ja (V03, V04, D3, D4)
 - `klasse`: Fixture gleicht dem Wert der Mutation, Zusage ohne Zeile
@@ -143,7 +143,7 @@ Nicht aufgelöst bei Zeile 32: die drei Zweige, die kein Aufruf erreicht (`Prope
 
 - `kategorie`: LOW
 - `quelle`: `AGENTS.md` §3.13 (eine offene Entscheidung steht mit Ausgang *offen* und Adresse in §6)
-- `pfad`: `docs/plan/planning/in-progress/slice-query-interpreter.md` · `Ausgang:** entschieden: `SPEC-191` Nr. 3 e` und `die Zeile ist eine Rückgabe an den Planner`
+- `pfad`: `docs/plan/planning/done/slice-query-interpreter.md` · `Ausgang:** entschieden: `SPEC-191` Nr. 3 e` und `die Zeile ist eine Rückgabe an den Planner`
 - `befund`: Derselbe Absatz nennt den Ausgang *entschieden* und die fehlende Tabellenzeile eine Rückgabe an den Planner; die Rückgabe hat weder Ausgang *offen* noch eine Adresse. Der Fänger bleibt damit (siehe M-3) ohne Zeile und ohne Empfänger.
 - `verifizierbar`: nein
 - `klasse`: Rückgabe ohne Adresse im Plan
@@ -161,7 +161,7 @@ Nicht aufgelöst bei Zeile 32: die drei Zweige, die kein Aufruf erreicht (`Prope
 
 - `kategorie`: INFO
 - `quelle`: `AGENTS.md` §3.10
-- `pfad`: `docs/plan/planning/in-progress/slice-query-interpreter.md` · `Raten der Zeile 32`
+- `pfad`: `docs/plan/planning/done/slice-query-interpreter.md` · `Raten der Zeile 32`
 - `befund`: Der gemeinsame Puffer in `projiziere` (`S3`) wird vom Detektor in 20 von 20 Prozessen gefangen, ohne Detektor in 0 von 20 (flatternd, wie `S4namen` im Plan); die Aussage des Plans, solche Zugriffe seien nur dem Detektor zugänglich, stimmt. Die Aussage des Plans, dass jede Funktion von `abfrage*.go` einen Zähler fängt (5 von 5), ist mit 20 von 20 je Zähler an 48 Stellen bestätigt (siehe oben).
 - `verifizierbar`: ja
 - `klasse`: —
