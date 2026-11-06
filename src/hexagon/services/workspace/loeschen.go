@@ -5,6 +5,7 @@ import (
 
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
 var _ inbound.WorkspaceUseCase = (*Verwaltung)(nil)
@@ -19,6 +20,9 @@ func (v *Verwaltung) Delete(ctx context.Context, id string) (inbound.Loeschberic
 	if err := v.k.Workspaces.Delete(ctx, id); err != nil {
 		return inbound.Loeschbericht{}, mitCode(err, outbound.GegenstandWorkspace)
 	}
+	// Der Eintrag folgt der Löschung; sein Fehler ändert das Ergebnis nicht, und Append hat weder
+	// ctx noch Frist (SPEC-234 Nr. 4 c, 5).
+	_ = v.k.Audit.Append(support.Eintrag{Art: support.ArtWorkspaceGeloescht, WorkspaceID: id})
 	bericht, err := v.k.Wartung.CleanupBlobs(ctx)
 	v.protokolliere(ctx, id, bericht, err)
 	return bericht, nil

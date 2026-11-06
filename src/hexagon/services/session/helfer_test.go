@@ -310,6 +310,8 @@ type fakeSessions struct {
 	mu         sync.Mutex
 	alle       map[string]model.Session
 	nachDelete func()
+	// nachGet läuft in Get nach dem Lesen, vor der Rückkehr.
+	nachGet func()
 	// beiSetStatus läuft vor dem Statuswechsel mit dem erhaltenen ctx und der Kennung.
 	beiSetStatus func(ctx context.Context, id string)
 	// gesetzt hält den Status jedes Aufrufs von SetStatus je Kennung fest, erfolge zählt davon die gelungenen.
@@ -384,6 +386,9 @@ func (s *fakeSessions) Get(ctx context.Context, id string) (model.Session, error
 		return model.Session{}, err
 	}
 	x, ok := s.hat(id)
+	if s.nachGet != nil {
+		s.nachGet()
+	}
 	if !ok {
 		return model.Session{}, fmt.Errorf("%s: %w", marker, outbound.ErrNichtGefunden)
 	}
@@ -836,6 +841,7 @@ type welt struct {
 	wartung  *fakeWartung
 	record   *fakeRecord
 	exchange *fakeExchanges
+	audit    *supporttest.FakeAudit
 	log      *fang
 	konfig   session.Konfig
 	v        *session.Verwaltung
@@ -857,9 +863,10 @@ func neu(t *testing.T, aendere ...func(*session.Konfig)) *welt {
 	u.wartung = &fakeWartung{t: t, st: st, p: p, bericht: inbound.Loeschbericht{Entfernt: 2}}
 	u.record = &fakeRecord{t: t, st: st, p: p, berichte: map[string]inbound.DrainBericht{}}
 	u.exchange = &fakeExchanges{t: t, st: st, p: p, sessions: u.sessions, alle: map[string][]model.Exchange{}}
+	u.audit = supporttest.NewFakeAudit()
 	u.konfig = session.Konfig{
 		Sessions: u.sessions, Dienste: u.dienste, Wartung: u.wartung, Uhr: u.uhr, IDs: u.ids, Log: slog.New(u.log),
-		Record: u.record, Exchanges: u.exchange, Frist: fristTest,
+		Record: u.record, Exchanges: u.exchange, Frist: fristTest, Audit: u.audit,
 	}
 	for _, f := range aendere {
 		f(&u.konfig)

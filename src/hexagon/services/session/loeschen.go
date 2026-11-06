@@ -6,6 +6,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
 var _ inbound.SessionUseCase = (*Verwaltung)(nil)
@@ -34,6 +35,9 @@ func (v *Verwaltung) Delete(ctx context.Context, id string) (inbound.Loeschberic
 	if err := v.k.Sessions.Delete(ctx, id); err != nil {
 		return inbound.Loeschbericht{}, mitCode(err, outbound.GegenstandSession)
 	}
+	// Der Eintrag folgt der Löschung; sein Fehler ändert das Ergebnis nicht, und Append hat weder
+	// ctx noch Frist (SPEC-234 Nr. 4 a, 5).
+	_ = v.k.Audit.Append(support.Eintrag{Art: support.ArtSessionGeloescht, ServiceID: s.ServiceID, SessionID: id})
 	bericht, err := v.k.Wartung.CleanupBlobs(ctx)
 	v.protokolliere(ctx, s, bericht, err)
 	return bericht, nil

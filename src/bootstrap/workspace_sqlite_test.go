@@ -104,13 +104,14 @@ func wsNeueDatei(t *testing.T) *wsDatei {
 		t.Fatal(err)
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	audit := supporttest.NewFakeAudit()
 	wartung, err := maintenance.New(maintenance.Konfig{Sessions: db.Sessions(), Dienste: db.Metadata(), Speicher: db.Maintenance(),
-		Blobs: waechter, Uhr: uhr, Log: log})
+		Blobs: waechter, Uhr: uhr, Log: log, Audit: audit})
 	if err != nil {
 		t.Fatal(err)
 	}
 	dienst, err := workspace.New(workspace.Konfig{Workspaces: db.Workspaces(), Transaktion: db, Snapshots: db.Snapshots(), Blobs: waechter,
-		Dienste: db.Metadata(), Wartung: wartung, Uhr: uhr, IDs: supporttest.NewFestIDs(), Log: log})
+		Dienste: db.Metadata(), Wartung: wartung, Uhr: uhr, IDs: supporttest.NewFestIDs(), Log: log, Audit: audit})
 	if err != nil {
 		t.Fatal(err)
 	}

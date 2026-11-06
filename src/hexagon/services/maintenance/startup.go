@@ -8,6 +8,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
 // integritaet ist Stufe 1 (SPEC-123 Nr. 4): jedes Element der Liste von Check ist ein Befund, und
@@ -75,6 +76,9 @@ func (w *Wartung) loesche(ctx context.Context, b *inbound.Wartungsbericht, diens
 	switch {
 	case err == nil:
 		b.SessionsGeloescht++
+		// Der Eintrag folgt der Löschung und geht dem nächsten Aufruf eines Ports voraus; sein Fehler
+		// ändert nichts, und Append hat weder ctx noch Frist (SPEC-234 Nr. 4 b, 5).
+		_ = w.k.Audit.Append(support.Eintrag{Art: support.ArtSessionAufbewahrung, ServiceID: dienstID, SessionID: sessionID})
 	case kontextFehler(err):
 		return err
 	case errors.Is(err, outbound.ErrReferenziert):

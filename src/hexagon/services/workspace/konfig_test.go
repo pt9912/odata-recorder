@@ -13,12 +13,12 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/services/workspace"
 )
 
-// TestNewNilFeld (Z01): ein nil in einem der neun Feldern, auch in jedem Paar von zweien, ergibt
-// ErrUngueltig ohne Code und keinen Dienst; die anderen Felder sind gesetzt.
+// TestNewNilFeld (Z01, E17): ein nil in einem der zehn Felder (darunter Audit), auch in jedem Paar von
+// zweien, ergibt ErrUngueltig ohne Code und keinen Dienst; die anderen Felder sind gesetzt.
 func TestNewNilFeld(t *testing.T) {
 	w := neu(t)
 	typ := reflect.TypeOf(workspace.Konfig{})
-	if typ.NumField() != 9 {
+	if typ.NumField() != 10 {
 		t.Fatalf("Felder %d", typ.NumField())
 	}
 	faelle := 0
@@ -36,8 +36,11 @@ func TestNewNilFeld(t *testing.T) {
 			faelle++
 		}
 	}
-	if faelle != 9+36 {
-		t.Errorf("Fälle %d, erwartet 45 (neun einzelne, 36 Paare)", faelle)
+	if faelle != 10+45 {
+		t.Errorf("Fälle %d, erwartet 55 (zehn einzelne, 45 Paare)", faelle)
+	}
+	if w.audit.Aufrufe() != 0 {
+		t.Errorf("New rief den Audit-Port %d-mal", w.audit.Aufrufe())
 	}
 }
 
@@ -102,13 +105,16 @@ func TestPortUndKonfigFestgeschrieben(t *testing.T) {
 		{"IDs", reflect.TypeOf((*support.IDGenerator)(nil)).Elem()},
 	}
 	typ := reflect.TypeOf(workspace.Konfig{})
-	if typ.NumField() != 9 {
+	if typ.NumField() != 10 {
 		t.Fatalf("Felder %d", typ.NumField())
 	}
 	for i, s := range soll {
 		if f := typ.Field(i); f.Name != s.name || f.Type != s.typ {
 			t.Errorf("Feld %d: %s %v, erwartet %s %v", i, f.Name, f.Type, s.name, s.typ)
 		}
+	}
+	if f := typ.Field(9); f.Name != "Audit" || f.Type != reflect.TypeOf((*support.AuditLog)(nil)).Elem() {
+		t.Errorf("Feld 9: %s %v", f.Name, f.Type)
 	}
 	if f := typ.Field(8); f.Name != "Log" || f.Type.String() != "*slog.Logger" {
 		t.Errorf("Feld 8: %s %v", f.Name, f.Type)
