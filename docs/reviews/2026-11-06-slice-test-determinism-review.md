@@ -115,7 +115,7 @@ Argument `x` und `""`: `Aufruf:`, Exit 2; SIGTERM nach 1,5 s: Exit 2, kein Conta
 - `tools/harness/` · `test-determinism.sh`: geprüft, ohne Befund (Exit-Codes, Signalbehandlung, Wertung, `--network none`, `--memory 2g`, `--read-only`, tmpfs gelesen; Aufruf und SIGTERM gefahren).
 - `harness/mk/` · `test-determinism.mk`: geprüft, ohne Befund (kein `GATE_CHECKS`-Eintrag, Kommentar beschreibt, was da ist).
 - `harness/README.md`, `harness/vertraege/SPEC-038-test-determinism.md`: geprüft, ohne Befund (Sensors-Zeile benennt Ziel, Vertrag, Bindung; `Stand` nennt den gelieferten Umfang).
-- `docs/plan/planning/in-progress/slice-test-determinism.md`: geprüft, ohne Befund außer M-5 (Tabelle) und I-1 (Negativ); Messung 613 stimmt mit `git diff --numstat` (11 + 529 + 73).
+- `docs/plan/planning/done/slice-test-determinism.md`: geprüft, ohne Befund außer M-5 (Tabelle) und I-1 (Negativ); Messung 613 stimmt mit `git diff --numstat` (11 + 529 + 73).
 - `src/`, `Dockerfile`, `tests/e2e/uebergang/`: unverändert, nicht berührt.
 
 **Nicht aufgelöst:** Zeilen 1, 2, 4, 5, 7, 8, 9, 12 der Tabelle und die Feld-Mutationen der Zeile 10 (gelesen, nicht nachgefahren); Treiber-Handläufe `t.Skip` und entferntes `--network none`; `make gates`; Lauf 1 gegen Orakel für Request 9 und 10 mit eigenen Mutationen; Verhalten des Handle bei Fehler im Herunterfahren (kein Fänger vorhanden).
