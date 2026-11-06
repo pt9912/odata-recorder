@@ -319,7 +319,7 @@ func TestE2EDeterminismus(t *testing.T) {
 		}
 	}
 	if offen := offeneAblagen(t, l.dir); offen2 == 0 || offen != offen2 {
-		t.Errorf("Offene Dateien der Ablage: %d nach Lauf 2, %d nach Lauf %d (Lesen schließt jede Verbindung, beide Zahlen größer 0)", offen2, offen, laeufe)
+		t.Errorf("Offene Dateien der Ablage: %d nach Lauf 2, %d nach Lauf %d (kein Wachstum der Zahl nach Lauf 2, beide Zahlen größer 0)", offen2, offen, laeufe)
 	}
 	if gelaufen != laeufe {
 		t.Errorf("Läufe: %d, erwartet %d", gelaufen, laeufe)
@@ -382,8 +382,34 @@ func TestDeterminismusVergleich(t *testing.T) {
 			faelle["leerer Wert von "+n] = mit(func(a *antwort) { a.header[n] = []string{""} })
 		}
 	}
-	if len(faelle) != 30 {
-		t.Fatalf("%d Fälle, erwartet 30 (12 Arten und 6 Namen mal 3)", len(faelle))
+	for name, f := range map[string]func(b []byte) []byte{
+		"Body Zeilenumbruch am Ende":   func(b []byte) []byte { return append(b, '\n') },
+		"Body Zeilenumbruch am Anfang": func(b []byte) []byte { return append([]byte{'\n'}, b...) },
+		"Body Leerraum am Ende":        func(b []byte) []byte { return append(b, ' ') },
+		"Body Leerraum am Anfang":      func(b []byte) []byte { return append([]byte{' '}, b...) },
+		"Body nur Groß-Klein":          func(b []byte) []byte { return []byte(strings.ToUpper(string(b))) },
+		"Body mittleres Zeichen":       func(b []byte) []byte { b[len(b)/2] = 'Z'; return b },
+	} {
+		faelle[name] = mit(func(a *antwort) { a.body = f(a.body) })
+	}
+	for n := range probe().header {
+		if slices.Contains(vol, n) {
+			continue
+		}
+		werte := map[string]func(v string) string{
+			" Leerraum am Ende": func(v string) string { return v + " " }, " Leerraum am Anfang": func(v string) string { return " " + v },
+			" Zeilenumbruch am Ende": func(v string) string { return v + "\n" },
+			" mittleres Zeichen":     func(v string) string { return v[:len(v)/2] + "Z" + v[len(v)/2+1:] },
+		}
+		if strings.ToUpper(probe().header[n][0]) != probe().header[n][0] {
+			werte[" nur Groß-Klein"] = strings.ToUpper
+		}
+		for art, f := range werte {
+			faelle["Wert von "+n+art] = mit(func(a *antwort) { a.header[n][0] = f(a.header[n][0]) })
+		}
+	}
+	if len(faelle) != 64 {
+		t.Fatalf("%d Fälle, erwartet 64 (12 Arten, 6 Namen mal 3, 6 Arten des Body, 6 Namen mal 4 und 4 mal Groß-Klein)", len(faelle))
 	}
 	for name, ab := range faelle {
 		for richtung, p := range map[string][2]antwort{"soll gegen ist": {probe(), ab}, "ist gegen soll": {ab, probe()}} {
