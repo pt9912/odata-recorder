@@ -1,1 +1,1 @@
-**Stand:** offen
+**Stand:** geplant in `slice-coverage-gate` (Auftrag 5 an den Architect: Eingabe der Fälle sind Profile und Wegwerfmodule, nicht die Pakete des Produkts); Lauf der Gegenproben bei geänderter Eingabe in der Closure von welle-record-replay gemessen, siehe `welle-record-replay-results`

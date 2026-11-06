@@ -1,1 +1,1 @@
-**Stand:** offen
+**Stand:** verkörpert in `docs/plan/planning/README.md` (Übergangsregeln Nr. 2, Stempel allein im Integrationsschritt, nach dem letzten Eingabe-Commit) seit welle-record-replay; ein Sensor fehlt, `make gegenproben` läuft bei veralteter Prüfsumme erneut und ändert den Stempel im Arbeitsbaum

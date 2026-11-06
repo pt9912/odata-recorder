@@ -41,6 +41,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Mehrere Quell-Sessions und andere Konfliktstrategien als `reject` — `SPEC-047` lässt im MVP eine Session, `target=new_baseline` und `conflict_policy=reject` zu; der Endpunkt weist jeden anderen Wert mit `400` ab, und kein Folge-Slice nimmt den Punkt an (`slice-baseline-import` §1).
 - Rollen oder Berechtigungsstufen — Out-of-Scope der Welle (§6): „autorisiert“ heißt hier „trägt das gültige Token“ (Lastenheft-Lücke in §6).
 - Der Rahmen (Listener, Token, Fehlerobjekt) — `slice-admin-listener-token`; der Port `AuditLog` — `welle-betrieb` (`slice-audit-log`).
+- Der Audit-Eintrag eines fehlgeschlagenen Imports (Art `import_fehlgeschlagen`) — `ImportUseCase.Import` schreibt ihn (`slice-audit-dienste`); der Adapter schreibt die vier Arten von `SPEC-234` Nr. 2 nie, auch nicht für denselben `POST` (Entscheidung `SPEC-234` Nr. 7, Geber: `slice-audit-log` und `slice-audit-dienste`). „Jeder `POST` auditiert“ meint die eigene Art der Anfrage und den Eintrag zu `ODR-E2101`, die der Vertrag des Adapters einträgt.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
 einer mit vier erfundenen; die vier Klassen sind ein Suchraster, keine
@@ -120,7 +121,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-admin-listener-token` und `slice-audit-log` (`welle-betrieb`) liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-admin-listener-token`, `slice-audit-log` und `slice-audit-dienste` (`welle-betrieb`) liegen in `done/` (`slice-audit-dienste`, weil der Eintrag des fehlgeschlagenen Imports erst dort im Use Case entsteht und der Adapter ihn nicht doppeln darf). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Warum:** Rahmen, Authentisierung und Fehlerabbildung kommen aus `slice-admin-listener-token`, der Port `AuditLog` für den Schreibendpunkt aus `slice-audit-log` (beide *Code-Abhängigkeit*). `ImportUseCase` liegt seit `slice-baseline-import` in `done/` (`src/hexagon/ports/inbound/import.go`, Port vorhanden).
 

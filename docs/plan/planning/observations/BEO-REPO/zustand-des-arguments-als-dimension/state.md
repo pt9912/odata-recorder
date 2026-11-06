@@ -1,1 +1,1 @@
-**Stand:** offen
+**Stand:** verkörpert in `.claude/commands/implement-slice.md` (Schritt 19, Achsentabelle mit der Achse Zustand) und `.harness/skills/reviewer.md` (MEDIUM *Menge ohne Achsenliste*) seit welle-record-replay
