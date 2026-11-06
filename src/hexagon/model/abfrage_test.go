@@ -490,7 +490,7 @@ func abAbfragen() []abAbfrage {
 		{"Ordnung gemischt", func() model.Optionen {
 			return model.Optionen{OrderBy: []model.Sortierung{abOrd("Name", true), abOrd("Price", false), abOrd("At", true), abOrd("Big", false)}}
 		}, nil},
-		{"Ordnung Day", func() model.Optionen {
+		{"Ordnung N",func() model.Optionen {
 			return model.Optionen{OrderBy: []model.Sortierung{abOrd("N", false)}, Select: abSel("N", "Name")}
 		}, nil},
 		{"Select Alle", func() model.Optionen { return model.Optionen{Select: &model.SelectOption{Alle: true}, Top: abZ(3)} }, nil},
@@ -507,7 +507,7 @@ func abAbfragen() []abAbfrage {
 		{"Programmfehler", func() model.Optionen { return model.Optionen{Top: abZ(-1)} }, nil},
 		{"Programmfehler Select", func() model.Optionen { return model.Optionen{Select: abSel("Id", "Id")} }, nil},
 		{"Programmfehler Filter", func() model.Optionen { return model.Optionen{Filter: &model.FilterOption{}} }, nil},
-		{"Programmfehler Auswertung", func() model.Optionen {
+		{"Typprüfung unverträglich",func() model.Optionen {
 			return model.Optionen{Filter: abF(vgl("eq", prop("N"), lit(model.LiteralWahrheitswert, "true")))}
 		}, nil},
 		{"Programmfehler OrderBy", func() model.Optionen {
