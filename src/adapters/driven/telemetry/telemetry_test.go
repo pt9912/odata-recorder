@@ -41,12 +41,12 @@ func summe(m map[model.Code]uint64) (n uint64) {
 	return n
 }
 
-// reihenFest prüft SPEC-230 Nr. 8 an einem Stand nach Aufrufen: die Zahl der Reihen ist fest (36
+// reihenFest prüft SPEC-230 Nr. 8 an einem Stand nach Aufrufen: die Zahl der Reihen ist fest (37
 // Codes, 7 Gründe, 5 Span-Namen mit je 12 Eimern), kein Wert eines Aufrufers bildet einen Schlüssel.
 func reihenFest(t *testing.T, wo string, s support.Snapshot) {
 	t.Helper()
-	if len(s.Errors) != 36 || len(s.Dropped) != 7 || len(s.Durations) != 5 {
-		t.Errorf("%s: Errors %d, Dropped %d, Durations %d; erwartet 36, 7, 5", wo, len(s.Errors), len(s.Dropped), len(s.Durations))
+	if len(s.Errors) != 37 || len(s.Dropped) != 7 || len(s.Durations) != 5 {
+		t.Errorf("%s: Errors %d, Dropped %d, Durations %d; erwartet 37, 7, 5", wo, len(s.Errors), len(s.Dropped), len(s.Durations))
 	}
 	for n, v := range s.Durations {
 		if len(v.Counts) != 12 {
@@ -160,8 +160,8 @@ func TestAdapterErfuelltPorts(t *testing.T) {
 // P06: CountError(c) erhöht genau den Zähler von c um 1.
 func TestCountErrorJeCode(t *testing.T) {
 	codes := model.AlleCodes()
-	if len(codes) != 36 {
-		t.Fatalf("%d Codes, erwartet 36", len(codes))
+	if len(codes) != 37 {
+		t.Fatalf("%d Codes, erwartet 37", len(codes))
 	}
 	for _, c := range codes {
 		a, _ := neu(t)
@@ -203,8 +203,8 @@ func TestCountErrorUnbekannt(t *testing.T) {
 func TestSnapshotVollstaendig(t *testing.T) {
 	a, _ := neu(t)
 	s := a.Snapshot()
-	if len(s.Errors) != 36 || len(s.Durations) != 5 || len(s.Dropped) != 7 {
-		t.Fatalf("Errors %d, Durations %d, Dropped %d; erwartet 36, 5, 7", len(s.Errors), len(s.Durations), len(s.Dropped))
+	if len(s.Errors) != 37 || len(s.Durations) != 5 || len(s.Dropped) != 7 {
+		t.Fatalf("Errors %d, Durations %d, Dropped %d; erwartet 37, 5, 7", len(s.Errors), len(s.Durations), len(s.Dropped))
 	}
 	for _, c := range model.AlleCodes() {
 		if n, ok := s.Errors[c]; !ok || n != 0 {
@@ -379,7 +379,7 @@ func TestKernSchreibtNichts(t *testing.T) {
 type ctxSchluessel struct{}
 
 // P15: CountError verliert keinen Zuwachs, in beiden Zweigen; 64 Goroutinen mit je 500 Aufrufen,
-// Codes reihum über die 36 der Tabelle und 4 außerhalb.
+// Codes reihum über die 37 der Tabelle und 4 außerhalb.
 func TestCountErrorGleichzeitig(t *testing.T) {
 	const goroutinen, aufrufe = 64, 500
 	bekannt := model.AlleCodes()
@@ -410,7 +410,7 @@ func TestCountErrorGleichzeitig(t *testing.T) {
 	}
 	s := a.Snapshot()
 	reihenFest(t, "CountError gleichzeitig", s)
-	if len(erwartet) != 36 || len(codes) != 40 || unbekannt == 0 || summe(s.Errors)+s.Dropped[support.VerwurfFehlercode] != goroutinen*aufrufe {
+	if len(erwartet) != 37 || len(codes) != 41 || unbekannt == 0 || summe(s.Errors)+s.Dropped[support.VerwurfFehlercode] != goroutinen*aufrufe {
 		t.Errorf("Summe %d plus %d, erwartet %d bei %d Codes", summe(s.Errors), s.Dropped[support.VerwurfFehlercode], goroutinen*aufrufe, len(erwartet))
 	}
 	for c, n := range erwartet {
@@ -492,8 +492,8 @@ func TestAdapterGleichzeitig(t *testing.T) {
 func TestSnapshotZeitpunkt(t *testing.T) {
 	const schreiber, leser, runden = 8, 8, 1000
 	codes := model.AlleCodes()
-	if len(codes) != 36 {
-		t.Fatalf("%d Codes, erwartet 36", len(codes))
+	if len(codes) != 37 {
+		t.Fatalf("%d Codes, erwartet 37", len(codes))
 	}
 	kette := func(s support.Snapshot) []uint64 {
 		k := make([]uint64, 0, len(codes)+3)
@@ -509,8 +509,8 @@ func TestSnapshotZeitpunkt(t *testing.T) {
 	namen = append(namen, "fehlercode", "schluessel", "wert")
 	laenge := len(namen)
 	fenster := laenge - 1
-	if laenge != 39 || fenster != 38 {
-		t.Fatalf("%d Zähler und %d Fenster, erwartet 39 und 38", laenge, fenster)
+	if laenge != 40 || fenster != 39 {
+		t.Fatalf("%d Zähler und %d Fenster, erwartet 40 und 39", laenge, fenster)
 	}
 
 	// ein Log zählt schluessel und wert unter einer Sperre: dieses Paar ist gleich, die übrigen liegen
