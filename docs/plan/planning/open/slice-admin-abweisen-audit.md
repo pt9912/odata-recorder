@@ -20,7 +20,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` ste
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-07.
 
-**Herkunft:** Teil 6 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen D1 bis D7, H1, N1, Y1, Y5, Y6 und P1 der Tabelle des Architect (13 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich H1 (die Schleife über alle acht Ausgabewege braucht den Eintrag und die Fehlertexte von `Serve` und `Schliessen`) und N1 (gleichzeitige Requests über `Handler`, `Append` und `CountError`).
+**Herkunft:** Teil 6 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](../in-progress/slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen D1 bis D7, H1, N1, Y1, Y5, Y6 und P1 der Tabelle des Architect (13 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich H1 (die Schleife über alle acht Ausgabewege braucht den Eintrag und die Fehlertexte von `Serve` und `Schliessen`) und N1 (gleichzeitige Requests über `Handler`, `Append` und `CountError`).
 
 ---
 
