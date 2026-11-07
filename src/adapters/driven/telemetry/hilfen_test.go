@@ -112,6 +112,18 @@ func (u *zaehlUhr) Now() time.Time {
 	return u.t
 }
 
+// folgeUhr liefert beim n-ten Aufruf von Now das n-te Element von zeiten (das letzte, wenn sie
+// aufgebraucht sind) und zählt die Aufrufe.
+type folgeUhr struct {
+	zeiten []time.Time
+	n      atomic.Int64
+}
+
+func (u *folgeUhr) Now() time.Time {
+	i := int(u.n.Add(1)) - 1
+	return u.zeiten[min(i, len(u.zeiten)-1)]
+}
+
 func festeUhr() *zaehlUhr {
 	return &zaehlUhr{t: time.Date(2026, 10, 30, 12, 34, 56, 123456789, time.UTC)}
 }

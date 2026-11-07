@@ -76,20 +76,7 @@ func TestZeilenform(t *testing.T) {
 // L02: Menge M5 (8 Zustände der Zeit): neun Nachkommastellen in UTC, Now einmal je Zeile. Die
 // Erwartung steht je Fall als Zeichenkette und als time.Format.
 func TestTimestamp(t *testing.T) {
-	plus := time.FixedZone("plus", 5*3600+30*60)
-	minus := time.FixedZone("minus", -8*3600)
-	d := func(n int) time.Time { return time.Date(2026, 10, 30, 12, 34, 56, n, time.UTC) }
-	faelle := []struct {
-		t    time.Time
-		want string
-	}{
-		{d(0), "2026-10-30T12:34:56.000000000Z"}, {d(1), "2026-10-30T12:34:56.000000001Z"},
-		{d(10), "2026-10-30T12:34:56.000000010Z"}, {d(123456789), "2026-10-30T12:34:56.123456789Z"},
-		{d(999999999), "2026-10-30T12:34:56.999999999Z"},
-		{time.Date(2026, 10, 30, 12, 0, 0, 500000000, plus), "2026-10-30T06:30:00.500000000Z"},
-		{time.Date(2026, 12, 31, 20, 0, 0, 0, minus), "2027-01-01T04:00:00.000000000Z"},
-		{time.Time{}, "0001-01-01T00:00:00.000000000Z"},
-	}
+	faelle := zeitFaelle()
 	if len(faelle) != 8 {
 		t.Fatalf("%d Fälle, erwartet 8", len(faelle))
 	}
@@ -104,6 +91,56 @@ func TestTimestamp(t *testing.T) {
 		if got := lies(t, z[0]).text["timestamp"]; got != f.want || got != f.t.UTC().Format("2006-01-02T15:04:05.000000000Z") {
 			t.Errorf("%v: timestamp %q, erwartet %q", f.t, got, f.want)
 		}
+	}
+}
+
+// V-2 (SPEC-231 Nr. 2: timestamp ist Clock.Now() zum Aufruf): Menge M5 in einem einzigen Adapter,
+// ein Log je Zustand der Zeit mit einer Uhr, die die Zustände der Reihe nach liefert; jede Zeile
+// trägt den Wert ihres eigenen Aufrufs, in der Folge der Liste und auch in der umgekehrten.
+func TestTimestampJeAufruf(t *testing.T) {
+	for _, umgekehrt := range []bool{false, true} {
+		faelle := zeitFaelle()
+		if umgekehrt {
+			slices.Reverse(faelle)
+		}
+		var zeiten []time.Time
+		for _, f := range faelle {
+			zeiten = append(zeiten, f.t)
+		}
+		senke, uhr := &FakeSenke{}, &folgeUhr{zeiten: zeiten}
+		a := neuMit(t, senke, uhr, slog.LevelInfo)
+		for range faelle {
+			a.Log(context.Background(), slog.LevelInfo, "m")
+		}
+		z := senke.zeilen()
+		if len(z) != len(faelle) || int(uhr.n.Load()) != len(faelle) {
+			t.Fatalf("%d Zeilen, %d Aufrufe von Now; erwartet je %d", len(z), uhr.n.Load(), len(faelle))
+		}
+		for i, f := range faelle {
+			if got := lies(t, z[i]).text["timestamp"]; got != f.want {
+				t.Errorf("Aufruf %d (umgekehrt %t): timestamp %q, erwartet %q", i, umgekehrt, got, f.want)
+			}
+		}
+	}
+}
+
+func zeitFaelle() []struct {
+	t    time.Time
+	want string
+} {
+	plus := time.FixedZone("plus", 5*3600+30*60)
+	minus := time.FixedZone("minus", -8*3600)
+	d := func(n int) time.Time { return time.Date(2026, 10, 30, 12, 34, 56, n, time.UTC) }
+	return []struct {
+		t    time.Time
+		want string
+	}{
+		{d(0), "2026-10-30T12:34:56.000000000Z"}, {d(1), "2026-10-30T12:34:56.000000001Z"},
+		{d(10), "2026-10-30T12:34:56.000000010Z"}, {d(123456789), "2026-10-30T12:34:56.123456789Z"},
+		{d(999999999), "2026-10-30T12:34:56.999999999Z"},
+		{time.Date(2026, 10, 30, 12, 0, 0, 500000000, plus), "2026-10-30T06:30:00.500000000Z"},
+		{time.Date(2026, 12, 31, 20, 0, 0, 0, minus), "2027-01-01T04:00:00.000000000Z"},
+		{time.Time{}, "0001-01-01T00:00:00.000000000Z"},
 	}
 }
 
@@ -590,8 +627,8 @@ func rohWert(t *testing.T, z []byte) []byte {
 // die 2048 Ersatzzeichen (63488) und drei Zeichen oberhalb (U+10000, U+10FFFF, U+1F600), zusammen
 // 63747. Maskiert werden allein ", Backslash, die Zeichen unter U+0020, U+2028 und U+2029: dort
 // beginnt der Wert mit einem Backslash, enthält das Zeichen nicht roh und liest sich als dasselbe
-// Zeichen; jedes andere Zeichen steht mit genau seinen Bytes da. Prüfgrenze: Zeichen oberhalb von
-// U+FFFF sind mit drei Vertretern geprüft (der Code behandelt sie nicht anders als U+0800 bis U+FFFF).
+// Zeichen; jedes andere Zeichen steht mit genau seinen Bytes da. Prüfgrenze: Die Zeichen oberhalb
+// von U+FFFF prüft TestMaskierungOberhalbBmp vollständig.
 func TestMaskierungRohbytes(t *testing.T) {
 	var menge [][2]string // roh, erwarteter Text von msg
 	for v := range 256 {
@@ -647,25 +684,108 @@ func TestMaskierungRohbytes(t *testing.T) {
 	}
 }
 
-// Log ändert den Stand nicht über die Verwürfe hinaus: nach einem Aufruf mit allen gültigen Feldern
-// und einem ungültigen Attribut sind Fehlerzähler, Verteilungen und Spans gleich, und von den
-// Verwürfen wächst allein wert.
+// Log ändert den Stand nicht über die Verwürfe hinaus. Menge Weg × Feld: die drei Wege von Log
+// (Zeile geschrieben, Eintrag unter MinLevel, Senke defekt) × die 13 Felder (je ein gültiges Feld
+// neben einem ungültigen Attribut) = 39 Aufrufe. Orakel: Fehlerzähler, Verteilungen und Spans
+// gleich dem Stand davor; von den Gründen wächst wert um 1 und, nur auf dem Weg mit defekter
+// Senke, senke um 1, kein anderer.
 func TestLogAendertNurVerwuerfe(t *testing.T) {
-	a := neuMit(t, &FakeSenke{}, festeUhr(), slog.LevelInfo)
-	vorher := a.Snapshot()
-	attrs := []support.Attr{support.Str("mode", "a b")}
-	for _, k := range orakelFolge() {
-		attrs = append(attrs, gueltigFuer(k))
+	wege := []struct {
+		name    string
+		level   slog.Level
+		antwort func([]byte) (int, error)
+		senke   uint64
+	}{
+		{"geschrieben", slog.LevelError, nil, 0},
+		{"unter MinLevel", slog.LevelDebug, nil, 0},
+		{"Senke defekt", slog.LevelError, func([]byte) (int, error) { return 0, errors.New("defekt") }, 1},
 	}
-	a.Log(context.Background(), slog.LevelError, "m", attrs...)
-	nachher := a.Snapshot()
-	if !reflect.DeepEqual(vorher.Errors, nachher.Errors) || !reflect.DeepEqual(vorher.Durations, nachher.Durations) || len(nachher.Spans) != 0 {
-		t.Errorf("Log änderte Fehlerzähler, Verteilungen oder Spans: %+v", nachher)
-	}
-	for g, n := range nachher.Dropped {
-		if want := vorher.Dropped[g]; (g == support.VerwurfWert && n != want+1) || (g != support.VerwurfWert && n != want) {
-			t.Errorf("Grund %s: %d, vorher %d", g, n, want)
+	faelle := 0
+	for _, w := range wege {
+		for _, k := range orakelFolge() {
+			faelle++
+			a := neuMit(t, &FakeSenke{antwort: w.antwort}, festeUhr(), slog.LevelInfo)
+			vorher := a.Snapshot()
+			a.Log(context.Background(), w.level, "m", support.Str("mode", "a b"), gueltigFuer(k))
+			nachher := a.Snapshot()
+			if !reflect.DeepEqual(vorher.Errors, nachher.Errors) || !reflect.DeepEqual(vorher.Durations, nachher.Durations) || len(nachher.Spans) != 0 {
+				t.Errorf("%s, %s: Log änderte Fehlerzähler, Verteilungen oder Spans: %+v", w.name, k, nachher)
+			}
+			for g, n := range nachher.Dropped {
+				want := vorher.Dropped[g]
+				switch g {
+				case support.VerwurfWert:
+					want++
+				case support.VerwurfSenke:
+					want += w.senke
+				}
+				if n != want {
+					t.Errorf("%s, %s: Grund %s zählt %d, erwartet %d", w.name, k, g, n, want)
+				}
+			}
 		}
+	}
+	if faelle != 3*len(orakelFolge()) {
+		t.Fatalf("%d Fälle, erwartet %d", faelle, 3*len(orakelFolge()))
+	}
+}
+
+// V-1 (SPEC-231 Nr. 3: die Länge von msg zählt die Bytes des Textes, nicht die der maskierten
+// Form): Menge Zeichen × Offset = 134 × 8 = 1072 Fälle. Die 134 sind die 36 maskierten Zeichen
+// (32 unter U+0020, ", Backslash, U+2028, U+2029), die 94 übrigen ASCII-Zeichen von U+0020 bis
+// U+007F und vier Mehrbyte-Zeichen (é, €, U+1F600, U+FFFD); der Offset ist die Zahl der Zeichen a
+// vor dem Zeichen, 250 bis 257 um die Grenze 256. Orakel: der Text mit den Bytes des Zeichens, ganz,
+// wenn er in 256 Bytes passt, sonst die a allein.
+func TestMsgLaengeMaskiert(t *testing.T) {
+	var zeichen []string
+	for r := rune(0); r < ' '; r++ {
+		zeichen = append(zeichen, string(r))
+	}
+	zeichen = append(zeichen, "\"", "\\", string(rune(0x2028)), string(rune(0x2029)))
+	maskiert := len(zeichen)
+	for r := rune(' '); r <= 0x7F; r++ {
+		if r != '"' && r != '\\' {
+			zeichen = append(zeichen, string(r))
+		}
+	}
+	zeichen = append(zeichen, string(rune(0xE9)), string(rune(0x20AC)), string(rune(0x1F600)), string(rune(0xFFFD)))
+	const grenze = 256
+	faelle := 0
+	for _, c := range zeichen {
+		for off := grenze - 6; off <= grenze+1; off++ {
+			faelle++
+			senke := &FakeSenke{}
+			neuMit(t, senke, festeUhr(), slog.LevelInfo).Log(context.Background(), slog.LevelInfo, strings.Repeat("a", off)+c)
+			want := strings.Repeat("a", min(off, grenze))
+			if off+len(c) <= grenze {
+				want += c
+			}
+			if got := lies(t, senke.zeilen()[0]).text["msg"]; got != want {
+				t.Errorf("Zeichen %x bei Offset %d: msg hat %d Bytes, erwartet %d", c, off, len(got), len(want))
+			}
+		}
+	}
+	if maskiert != 36 || len(zeichen) != 36+94+4 || faelle != len(zeichen)*8 {
+		t.Fatalf("%d maskierte, %d Zeichen, %d Fälle; erwartet 36, 134 und 1072", maskiert, len(zeichen), faelle)
+	}
+}
+
+// I-1: jedes Zeichen von U+10000 bis U+10FFFF (1048576 Elemente) steht unverändert in der Zeile,
+// geprüft auf den Rohbytes; die Senke ist ein Puffer, der je Zeile zurückgesetzt wird.
+func TestMaskierungOberhalbBmp(t *testing.T) {
+	var puffer bytes.Buffer
+	a := neuMit(t, &puffer, festeUhr(), slog.LevelInfo)
+	n := 0
+	for r := rune(0x10000); r <= 0x10FFFF; r++ {
+		puffer.Reset()
+		a.Log(context.Background(), slog.LevelInfo, string(r))
+		if roh := rohWert(t, puffer.Bytes()); string(roh) != string(r) {
+			t.Fatalf("U+%X: roh %x", r, roh)
+		}
+		n++
+	}
+	if n != 0x100000 {
+		t.Fatalf("%d Zeichen, erwartet %d", n, 0x100000)
 	}
 }
 
