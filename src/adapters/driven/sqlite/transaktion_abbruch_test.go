@@ -6,12 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
-	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -22,95 +19,76 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
 
-// Diagnose der Reihenfolge von Statement und Interrupt (Flake von TestTransaktionVertrag, Fall
-// "eine gescheiterte Operation nimmt ihre Teilwirkung zurück"). Der Treiber ruft bei
-// ctx.Done in einer eigenen Goroutine sqlite3_interrupt und meldet nicht, wann der Interrupt
-// angewendet ist; SQLite rollt bei SQLITE_INTERRUPT in einem schreibenden Statement die ganze
-// Transaktion zurück.
+// Abbruch des Kontexts im Statement einer offenen Transaktion (SPEC-108 Nr. 1, Kontext in der
+// Transaktion). Der Treiber ruft bei ctx.Done in einer eigenen Goroutine sqlite3_interrupt und
+// meldet nicht, wann der Interrupt angewendet ist; SQLite rollt bei SQLITE_INTERRUPT in einem
+// schreibenden Statement die ganze Transaktion zurück. Der Adapter führt die Statements der
+// Transaktion ohne den Abbruch des Aufrufs aus, so dass die Reihenfolge von Statement und
+// Interrupt nichts entscheidet.
 
 const (
-	modusZuerst     = "interrupt-zuerst"
-	modusDanach     = "statement-zuerst"
-	modusNatuerlich = "natuerlich"
+	modusZuerst = "interrupt-zuerst"
+	modusDanach = "statement-zuerst"
 
 	// Grenze des Wartens auf den Interrupt in modusZuerst: der Treiber liefert kein Signal.
 	wartezeitInterrupt = 500 * time.Millisecond
 )
 
-type ereignis struct {
-	ns   int64
-	was  string
-	wert int64
-}
-
-// protokoll hält Ereignisse im Speicher: vorab angelegter Puffer, atomarer Zähler, kein Log im
-// heißen Pfad.
-type protokoll struct {
-	n     atomic.Int64
-	start time.Time
-	e     []ereignis
-}
-
-func neuesProtokoll() *protokoll { return &protokoll{start: time.Now(), e: make([]ereignis, 64)} }
-
-func (p *protokoll) add(was string, wert int64) {
-	i := p.n.Add(1) - 1
-	if int(i) < len(p.e) {
-		p.e[i] = ereignis{ns: time.Since(p.start).Nanoseconds(), was: was, wert: wert}
-	}
-}
-
-func (p *protokoll) String() string {
-	var b strings.Builder
-	for i := 0; i < int(min(p.n.Load(), int64(len(p.e)))); i++ {
-		fmt.Fprintf(&b, "%10d ns  %-28s %d\n", p.e[i].ns, p.e[i].was, p.e[i].wert)
-	}
-	return b.String()
-}
-
-type diagLauf struct {
-	modus string
-	stop  context.CancelFunc
-	prot  *protokoll
-}
-
-// registriereDiagFunktion meldet eine Funktion unter eigenem Namen an; sie gilt nur für
-// Verbindungen, die danach öffnen. Sie ruft den Abbruch und wartet im Modus modusZuerst.
-func registriereDiagFunktion(l *diagLauf) string {
-	name := fmt.Sprintf("odr_diag_%x", rand.Uint64())
+// abbruchFunktion meldet eine SQL-Funktion unter eigenem Namen an; sie gilt nur für
+// Verbindungen, die danach öffnen. Sie ruft stop und wartet im Modus modusZuerst, bis der
+// Interrupt des Treibers angewendet ist.
+func abbruchFunktion(modus string, stop context.CancelFunc) string {
+	name := fmt.Sprintf("odr_abbruch_%x", rand.Uint64())
 	sqlitedriver.MustRegisterScalarFunction(name, 0, func(*sqlitedriver.FunctionContext, []driver.Value) (driver.Value, error) {
-		l.prot.add("funktion-start", 0)
-		l.stop()
-		l.prot.add("stop-gerufen", 0)
-		if l.modus == modusZuerst {
+		stop()
+		if modus == modusZuerst {
 			time.Sleep(wartezeitInterrupt)
-			l.prot.add("gewartet", 0)
 		}
 		return int64(0), nil
 	})
 	return name
 }
 
-type diagErgebnis struct {
-	opErr        error
-	aktiv        bool // Transaktion vor dem COMMIT offen
-	w2           bool
-	commitErr    error
-	snapshotDa   bool
-	stateAlt     bool
-	prot         *protokoll
-	modus, fall  string
-	unerwartetAb string // Abweichung vom Vertrag, leer wenn der Vertrag hält
+// abbruchErgebnis ist, was ein Durchlauf von abbruchDurchlauf beobachtet.
+type abbruchErgebnis struct {
+	opErr      error
+	aktiv      bool // Transaktion vor dem COMMIT offen
+	w2         bool // die gelungene Operation derselben Transaktion ist sichtbar
+	commitErr  error
+	snapshotDa bool
+	stateAlt   bool
 }
 
-func b2i(b bool) int64 {
-	if b {
-		return 1
+// abweichung nennt, was vom Vertrag abweicht; leer, wenn er hält.
+func (r abbruchErgebnis) abweichung() string {
+	switch {
+	case !errors.Is(r.opErr, context.Canceled):
+		return fmt.Sprintf("Operation lieferte nicht context.Canceled: %v", r.opErr)
+	case !r.aktiv:
+		return "Transaktion vor dem COMMIT nicht mehr offen"
+	case r.commitErr != nil:
+		return fmt.Sprintf("COMMIT scheiterte: %v", r.commitErr)
+	case !r.w2:
+		return "w2 ging verloren"
+	case !r.snapshotDa || !r.stateAlt:
+		return "Teilwirkung nicht zurückgenommen"
 	}
-	return 0
+	return ""
 }
 
-func diagBasis(t *testing.T) *sqlite.DB {
+func (r abbruchErgebnis) String() string {
+	return fmt.Sprintf("opErr=%v aktivVorCommit=%v w2=%v commitErr=%v snapshotDa=%v stateAlt=%v",
+		r.opErr, r.aktiv, r.w2, r.commitErr, r.snapshotDa, r.stateAlt)
+}
+
+func abbruchEntity(ws, schluessel string) model.EntityState {
+	return model.EntityState{WorkspaceID: ws, EntitySet: "Products", EntityKey: schluessel,
+		Payload: `{"ID":1}`, KnownProperties: []string{"ID"}, Completeness: model.EntityComplete, Version: 1}
+}
+
+// abbruchBasis öffnet eine Datenbank mit Service d, Baseline snap-1, Workspace w, dem Eintrag
+// alt und dem Workspace-Snapshot sn.
+func abbruchBasis(t *testing.T) *sqlite.DB {
 	t.Helper()
 	bg := context.Background()
 	d, err := sqlite.Open(bg, filepath.Join(t.TempDir(), "r.db"), sqlite.Options{})
@@ -137,26 +115,21 @@ func diagBasis(t *testing.T) *sqlite.DB {
 	})
 	must(err)
 	must(d.Workspaces().Create(bg, model.Workspace{ID: "w", ServiceID: "d", BaselineSnapshotID: "snap-1", CreatedAt: t0}))
-	must(d.Entities().Put(bg, diagEntity("w", "alt")))
+	must(d.Entities().Put(bg, abbruchEntity("w", "alt")))
 	must(d.Snapshots().CreateWorkspace(bg, model.WorkspaceSnapshot{ID: "sn", ServiceID: "d", WorkspaceID: "w", Name: "n", CreatedAt: t0,
 		StateBlob: ref, StateHash: "sh-sn", MetadataHash: "mh"}))
 	return d
 }
 
-func diagEntity(ws, schluessel string) model.EntityState {
-	return model.EntityState{WorkspaceID: ws, EntitySet: "Products", EntityKey: schluessel,
-		Payload: `{"ID":1}`, KnownProperties: []string{"ID"}, Completeness: model.EntityComplete, Version: 1}
-}
-
-// diagLauf führt den Aufbau von transaktionTeilwirkung (outboundtest) in der Reihenfolge des Modus.
-func diagDurchlauf(t *testing.T, modus, fall string) diagErgebnis {
+// abbruchDurchlauf führt den Aufbau von transaktionTeilwirkung (outboundtest) in der Reihenfolge
+// des Modus: ein Trigger nach dem Löschen ruft den Abbruch des Kontexts der Operation.
+func abbruchDurchlauf(t *testing.T, modus, fall string) abbruchErgebnis {
 	t.Helper()
 	bg := context.Background()
 	ctx, stop := context.WithCancel(bg)
 	defer stop()
-	l := &diagLauf{modus: modus, stop: stop, prot: neuesProtokoll()}
-	funktion := registriereDiagFunktion(l)
-	d := diagBasis(t)
+	funktion := abbruchFunktion(modus, stop)
+	d := abbruchBasis(t)
 	t0 := time.Date(2026, 10, 19, 10, 1, 0, 0, time.UTC)
 	ops := map[string]struct {
 		tabelle string
@@ -164,7 +137,7 @@ func diagDurchlauf(t *testing.T, modus, fall string) diagErgebnis {
 	}{
 		"Delete": {"snapshots", func(ctx context.Context, s outbound.WorkspaceStores) error { return s.Workspaces.Delete(ctx, "w") }},
 		"ReplaceAll": {"entities", func(ctx context.Context, s outbound.WorkspaceStores) error {
-			return s.Entities.ReplaceAll(ctx, "w", []model.EntityState{diagEntity("w", "neu")})
+			return s.Entities.ReplaceAll(ctx, "w", []model.EntityState{abbruchEntity("w", "neu")})
 		}},
 	}
 	f := ops[fall]
@@ -175,92 +148,43 @@ func diagDurchlauf(t *testing.T, modus, fall string) diagErgebnis {
 		// Eine P: die vom Abbruch geweckte Goroutine des Treibers läuft erst, wenn das Statement fertig ist.
 		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	}
-	r := diagErgebnis{prot: l.prot, modus: modus, fall: fall}
-	l.prot.add("transaktion-start", 0)
+	var r abbruchErgebnis
 	r.commitErr = d.WithWorkspaceTransaction(bg, func(s outbound.WorkspaceStores) error {
 		if err := s.Workspaces.Create(bg, model.Workspace{ID: "w2", ServiceID: "d", BaselineSnapshotID: "snap-1", CreatedAt: t0}); err != nil {
 			t.Fatal(err)
 		}
-		l.prot.add("op-start", 0)
 		r.opErr = f.op(ctx, s)
-		l.prot.add("op-ende", b2i(errors.Is(r.opErr, context.Canceled)))
-		r.aktiv = sqlite.DiagTransaktionAktiv(bg, s)
-		l.prot.add("transaktion-aktiv", b2i(r.aktiv))
+		r.aktiv = sqlite.TransaktionAktiv(bg, s)
 		_, err := s.Workspaces.Get(bg, "w2")
 		r.w2 = err == nil
-		l.prot.add("w2-da", b2i(r.w2))
 		return nil
 	})
-	l.prot.add("commit-ende", b2i(r.commitErr == nil))
 	_, errSn := d.Snapshots().GetWorkspace(bg, "w", "sn")
 	r.snapshotDa = errSn == nil
 	liste, errL := d.Entities().List(bg, "w")
 	r.stateAlt = errL == nil && len(liste) == 1 && liste[0].EntityKey == "alt"
-	switch {
-	case !errors.Is(r.opErr, context.Canceled):
-		r.unerwartetAb = "Operation lieferte nicht context.Canceled: " + fmt.Sprint(r.opErr)
-	case r.commitErr != nil:
-		r.unerwartetAb = "COMMIT scheiterte: " + r.commitErr.Error()
-	case !r.w2:
-		r.unerwartetAb = "w2 ging verloren"
-	case !r.snapshotDa || !r.stateAlt:
-		r.unerwartetAb = "Teilwirkung nicht zurückgenommen"
-	}
 	return r
 }
 
-func diagBericht(r diagErgebnis) string {
-	return fmt.Sprintf("modus=%s fall=%s opErr=%v aktivVorCommit=%v w2=%v commitErr=%v snapshotDa=%v stateAlt=%v abweichung=%q\n%s",
-		r.modus, r.fall, r.opErr, r.aktiv, r.w2, r.commitErr, r.snapshotDa, r.stateAlt, r.unerwartetAb, r.prot)
-}
-
-// TestDiagInterruptReihenfolge belegt den Mechanismus: kommt der Interrupt vor dem Ende des
-// Statements, rollt SQLite die ganze Transaktion zurück und COMMIT scheitert; endet das Statement
-// zuerst, bleibt die Transaktion bestehen. Der Test hält den Ist-Zustand des Adapters fest und wird
-// rot, sobald der Adapter die Reihenfolge verträgt.
-func TestDiagInterruptReihenfolge(t *testing.T) {
-	for _, fall := range []string{"Delete", "ReplaceAll"} {
-		t.Run(fall, func(t *testing.T) {
-			const lauefe = 3
-			for i := range lauefe {
-				r := diagDurchlauf(t, modusZuerst, fall)
-				if i == 0 {
-					t.Logf("Protokoll interrupt-zuerst:\n%s", diagBericht(r))
-				}
-				if r.aktiv || r.commitErr == nil || !strings.Contains(r.commitErr.Error(), "no transaction is active") {
-					t.Fatalf("interrupt-zuerst Lauf %d: erwartet Rollback der ganzen Transaktion\n%s", i, diagBericht(r))
-				}
-				if r.w2 {
-					t.Fatalf("interrupt-zuerst Lauf %d: w2 überlebte\n%s", i, diagBericht(r))
-				}
-			}
-			for i := range lauefe {
-				r := diagDurchlauf(t, modusDanach, fall)
-				if i == 0 {
-					t.Logf("Protokoll statement-zuerst:\n%s", diagBericht(r))
-				}
-				if r.unerwartetAb != "" || !r.aktiv {
-					t.Fatalf("statement-zuerst Lauf %d: erwartet Vertrag erfüllt\n%s", i, diagBericht(r))
-				}
+// TestTransaktionAbbruchImStatement fängt ein Statement der offenen Transaktion, das der
+// Abbruch des Aufrufs unterbricht: kommt der Interrupt vor dem Ende des Statements, rollt SQLite
+// die ganze Transaktion zurück und COMMIT scheitert. Beide Reihenfolgen müssen dasselbe
+// ergeben: die Operation liefert context.Canceled, die Transaktion bleibt offen und bestätigt,
+// die gelungene Operation bleibt, die Teilwirkung der gescheiterten ist zurückgenommen. Offen
+// bleibt das Warten von 500 ms in der Reihenfolge interrupt-zuerst: der Treiber meldet nicht,
+// wann der Interrupt angewendet ist, und unter extremer Last könnte er später kommen;
+// TestTransaktionAbbruchHaltepunkt fängt dieselbe Klasse ohne Zeitfenster.
+func TestTransaktionAbbruchImStatement(t *testing.T) {
+	for _, modus := range []string{modusZuerst, modusDanach} {
+		t.Run(modus, func(t *testing.T) {
+			for _, fall := range []string{"Delete", "ReplaceAll"} {
+				t.Run(fall, func(t *testing.T) {
+					r := abbruchDurchlauf(t, modus, fall)
+					if a := r.abweichung(); a != "" {
+						t.Fatalf("%s: %s\n%s", modus, a, r)
+					}
+				})
 			}
 		})
 	}
-}
-
-// TestDiagInterruptNatuerlich fährt den ursprünglichen Ablauf (Abbruch ohne Warten, alle P) so oft,
-// wie DIAG_N sagt (Voreinstellung: kein Lauf). Rote Läufe gibt der Test mit Protokoll auf stdout aus
-// und zählt sie; er scheitert nicht.
-func TestDiagInterruptNatuerlich(t *testing.T) {
-	n, _ := strconv.Atoi(os.Getenv("DIAG_N"))
-	rot := map[string]int{}
-	for i := range n {
-		for _, fall := range []string{"Delete", "ReplaceAll"} {
-			r := diagDurchlauf(t, modusNatuerlich, fall)
-			if r.unerwartetAb != "" {
-				rot[fall]++
-				t.Logf("=== ROT lauf=%d ===\n%s", i, diagBericht(r))
-			}
-		}
-	}
-	t.Logf("DIAG natuerlich: n=%d rot=%v", n, rot)
 }
