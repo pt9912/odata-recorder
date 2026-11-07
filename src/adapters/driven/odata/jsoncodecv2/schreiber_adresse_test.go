@@ -152,3 +152,24 @@ func TestWurzel(t *testing.T) {
 		wurzelGilt(t, w, false)
 	}
 }
+
+// TestWurzelPort hält Zeile 25 für den Port (SPEC-172 Nr. 6 h: ein bis fünf Ziffern, der Wert wird nicht geprüft): jede Länge 1 bis 5 mit
+// der Ziffer 1, dazu Werte über 65535 und Nullen; sechs Ziffern, ein Buchstabe und kein Port sind ungültig. Menge 5 + 5 + 3, je 4 Operationen.
+func TestWurzelPort(t *testing.T) {
+	var gueltig []string
+	for l := 1; l <= 5; l++ {
+		gueltig = append(gueltig, strings.Repeat("1", l))
+	}
+	gueltig = append(gueltig, "99999", "65536", "00000", "0", "00")
+	ungueltig := []string{"111111", "1a", ""}
+	for _, p := range gueltig {
+		wurzelGilt(t, "http://h:"+p, true)
+		wurzelGilt(t, "http://h:"+p+"/a", true)
+	}
+	for _, p := range ungueltig {
+		wurzelGilt(t, "http://h:"+p, false)
+	}
+	if len(gueltig) != 10 || len(ungueltig) != 3 {
+		t.Errorf("Menge gültig %d, ungültig %d; will 10, 3", len(gueltig), len(ungueltig))
+	}
+}

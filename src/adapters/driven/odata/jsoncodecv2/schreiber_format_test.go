@@ -257,6 +257,31 @@ func TestZeitpunktBytes(t *testing.T) {
 	}
 }
 
+// TestZeitpunktZone hält Zeile 15 für die Zone der Maschine: die Millisekunden hängen nicht von time.Local ab (der Text nennt `Z`). Der Test
+// setzt time.Local auf vier Zonen (Versatz -5 h 30, 0, +3 h, +14 h) und prüft die 31 Werte von Zeile 15 in jeder; Menge 4 × 31.
+func TestZeitpunktZone(t *testing.T) {
+	vorher := time.Local
+	defer func() { time.Local = vorher }()
+	n := 0
+	for _, versatz := range []int{-5*3600 - 1800, 0, 3 * 3600, 14 * 3600} {
+		time.Local = time.FixedZone("test", versatz)
+		for _, f := range zeitFaelle() {
+			parsed, err := time.Parse(time.RFC3339Nano, f[0])
+			if err != nil {
+				t.Fatalf("%s: %v", f[0], err)
+			}
+			want := bs + "/Date(" + strconv.FormatInt(parsed.UnixMilli(), 10) + ")" + bs + "/"
+			if body := entityBody(t, f[0], alleAntwort(pw("T", model.ArtDateTimeOffset, f[0]))); !strings.HasSuffix(body, `"T":"`+want+`"}}`) {
+				t.Errorf("Zone %+d s, %s: %s, will %s", versatz, f[0], body, want)
+			}
+			n++
+		}
+	}
+	if n != 4*31 {
+		t.Errorf("Menge %d, will %d", n, 4*31)
+	}
+}
+
 // ergebnis ist die Ausgabe eines Aufrufs: Bytes, Darstellung, Fehlertext.
 type ergebnis struct {
 	body string
@@ -291,8 +316,11 @@ func aufruf(s *jsoncodecv2.Schreiber, i, g int) ergebnis {
 	case 2:
 		d, err = s.SchreibeAnzahl(context.Background(), z, int64(g))
 	case 3:
-		f, _ := model.NeuesFehlerobjekt(model.AlleCodes()[g%len(model.AlleCodes())])
-		d, err = s.SchreibeFehler(context.Background(), z, f)
+		codes := model.AlleCodes() // alle Codes, der Beginn hängt von g ab: der Zweig jedes Codes läuft in jeder Goroutine
+		for k := range codes {
+			f, _ := model.NeuesFehlerobjekt(codes[(g+k)%len(codes)])
+			d, err = s.SchreibeFehler(context.Background(), z, f)
+		}
 	case 4: // alle sieben Typen und null
 		props := []model.PropertyWert{pw("S", model.ArtString, "k"+name+"\"\x5c\x01"+marker(g)), pw("NDec", model.ArtDecimal, strconv.Itoa(g)), pw("B", model.ArtBoolean, "true"),
 			pw("I32", model.ArtInt32, strconv.Itoa(g)), pw("I64", model.ArtInt64, "9223372036854775807"), pw("Dec", model.ArtDecimal, "-"+strconv.Itoa(g+1)+".5"),
@@ -551,8 +579,8 @@ func gleichzeitig(t *testing.T, geteilt *jsoncodecv2.Schreiber, arten []int, lae
 	}
 }
 
-// TestGleichzeitig hält Zeile 37 und 38: ein gemeinsamer Schreiber, erst alle 11 Aufrufarten gemischt in 50 Läufen, dann jede Aufrufart allein in
-// 30 Läufen (ohne die Zeitpunkte, die fmt und andere Pools zwischen den Goroutinen ordnen); jede Ausgabe gleicht der des einzelnen Aufrufs. Ein
+// TestGleichzeitig hält Zeile 37 und 38: ein gemeinsamer Schreiber, erst alle 11 Aufrufarten gemischt in 50 Läufen, dann jede der 11 Aufrufarten
+// einzeln in 30 Läufen (so ordnet kein Pool einer anderen Aufrufart, etwa der von fmt, die Goroutinen); jede Ausgabe gleicht der des einzelnen Aufrufs. Ein
 // Datenrennen meldet allein der Detektor von make test-race, und nur in einem Zweig, den diese Aufrufe ausführen; das Ziel gibt in Write den
 // Prozessor frei, damit ein gemeinsamer Puffer zwischen Aufbau und Schreiben überschrieben wird.
 func TestGleichzeitig(t *testing.T) {
