@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-listener-token
+**Fund:** Schätzung *S* 2080 (Tabelle, 24 Zeilen, 2 nebenläufig, 0 Fakes, Produktcode 150), Marke 2900, Messung 1512 (`make groessenmarke`: ok); Ende ÷ *S* 0,73, Auslastung 0,52, unter 0,60. Mit den Zeilen T27 bis T31 des Nachzugs (29 Zeilen, 3 nebenläufig) wäre *S* 2485 und Ende ÷ *S* 0,61. Produktcode `tokendatei.go` 174 Zeilen gegen 150 erwartet (1,16), die Tests tragen 1338 Zeilen. Der Messpunkt liegt unter 0,60 und geht als Meldung an den Architect (`SPEC-128` Nr. 9). Beleg: Plan §7 (Messpunkt-Zeile), Verifikation.
