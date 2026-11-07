@@ -268,7 +268,7 @@ Snapshots sind unveränderliche, benannte, versionierte Zustandsreferenzen.
 Erstellung erfasst konsistent ausschließlich den Entity-State; Replay-Cursor sind niemals Bestandteil eines Snapshots.
 Restore ersetzt den Entity-State atomar, erstellt eine neue Workspace-Revision und lässt sämtliche Replay-Cursor unverändert.
 Ein Restore mit unbekannter Snapshot-ID führt zu `ODR-E7002`, ohne dass ein Teilzustand übernommen wird;
-ein Snapshot eines anderen Service ergibt `ODR-E5004`, ein Snapshot, der zu einem anderen Workspace gehört, `ODR-E7002`.
+die Baseline eines anderen Service ergibt `ODR-E5004`, ein Snapshot, der zu einem anderen Workspace gehört (auch der Workspace-Snapshot eines Workspace eines anderen Service), `ODR-E7002` (`SPEC-129` Nr. 18).
 Ein Workspace-Snapshot gehört zu genau einem Workspace (`snapshots.workspace_id`) und trägt einen im Workspace eindeutigen Namen (Wiederholung: `ODR-E7006`);
 ein Restore mit einem Snapshot der Art `baseline` ergibt `ODR-E7008`.
 

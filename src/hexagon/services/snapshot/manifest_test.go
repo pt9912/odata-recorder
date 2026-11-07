@@ -67,6 +67,32 @@ func TestManifestForm(t *testing.T) {
 	}
 }
 
+// TestManifestKopieEingabe (T11): der Dienst verändert die Listen nicht, die der Port geliefert hat: weder die Folge der
+// Einträge noch die Folge der Properties (Menge: die Liste und jede Property-Liste der Fixture, 3 + 3 Elemente); die Fixture
+// ist weder nach Menge und Schlüssel noch nach Properties geordnet, sonst bliebe ein Sortieren am Ort unsichtbar.
+func TestManifestKopieEingabe(t *testing.T) {
+	es := standard("ws-1")
+	es[2].KnownProperties = []string{"Title", "Id"}
+	vorher := make([]model.EntityState, len(es))
+	for i, e := range es {
+		e.KnownProperties = slices.Clone(e.KnownProperties)
+		vorher[i] = e
+	}
+	geordnet := 0
+	for _, e := range es {
+		if slices.IsSorted(e.KnownProperties) {
+			geordnet++
+		}
+	}
+	if geordnet != 1 || es[0].EntitySet < es[2].EntitySet {
+		t.Fatalf("Fixture: %d geordnete Property-Listen", geordnet)
+	}
+	w, _, _ := erzeugeMitState(t, es)
+	if len(w.ent.ausgegeben) != 1 || !reflect.DeepEqual(w.ent.ausgegeben[0], vorher) {
+		t.Errorf("der Dienst hat die Liste des Ports verändert: %+v", w.ent.ausgegeben)
+	}
+}
+
 // TestManifestZeichen (T07, T08): Zeichenketten der Kanonform: `\"` und `\\`, `\u00xx` mit kleinen Hexziffern für jedes
 // Byte unter 0x20, sonst unverändert (0x7F und Mehrbyte-Zeichen bleiben Rohbytes); gilt für entity_set, typed_key und
 // jede Property. Die Bytes entstehen aus Bytewerten, die Escape-Folge mit esc.

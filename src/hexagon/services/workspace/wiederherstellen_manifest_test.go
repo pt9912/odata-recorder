@@ -14,6 +14,10 @@ import (
 // (SPEC-129 Nr. 20: der Ort ohne Wert).
 const kanarienWert = "CANARY-7f3a"
 
+// kanarienZahl ist der Wert, den die Fälle mit Zahlen tragen (Version, Zahl der Einträge, Version der Ganzzahl); er steht
+// in keinem Fehlertext.
+const kanarienZahl = "7743"
+
 // kanarienEintraege ist der State der Manifest-Tests: fünf Einträge, jeder Schlüssel und jeder Payload trägt den Wert.
 func kanarienEintraege() []model.EntityState {
 	es := fuenfEintraege("ws-1")
@@ -75,7 +79,7 @@ func pruefeVerstoss(t *testing.T, f mfall) {
 	if fe, ok := codeVon(err); ok {
 		if fe.Status != 500 || fe.Ursache == nil {
 			t.Errorf("%s: Status %d, Ursache %v", f.name, fe.Status, fe.Ursache)
-		} else if text := err.Error() + " " + fe.Ursache.Error(); strings.Contains(text, kanarienWert) {
+		} else if text := err.Error() + " " + fe.Ursache.Error(); strings.Contains(text, kanarienWert) || strings.Contains(text, kanarienZahl) {
 			t.Errorf("%s: der Wert steht im Fehlertext: %s", f.name, text)
 		}
 	}
@@ -131,8 +135,9 @@ func TestManifestSyntax(t *testing.T) {
 // von manifest_version und entity_count (je 5).
 func kopfFaelle() []mfall {
 	var r []mfall
-	typ := map[string]any{"manifest_version": roh("true"), "snapshot_kind": 5, "service_id": 5, "metadata_hash": 5, "entity_count": "5"}
-	wert := map[string]any{"manifest_version": 2, "snapshot_kind": "baseline", "service_id": "anders", "metadata_hash": "sha256:" + strings.Repeat("f", 64), "entity_count": 4}
+	// Jedes Glied trägt im Verstoß einen Wert, der nicht im Fehlertext stehen darf (Allaussage über alle Glieder des Kopfes).
+	typ := map[string]any{"manifest_version": roh(`"` + kanarienWert + `"`), "snapshot_kind": 5, "service_id": 5, "metadata_hash": 5, "entity_count": kanarienWert}
+	wert := map[string]any{"manifest_version": 7743, "snapshot_kind": kanarienWert + "-k", "service_id": kanarienWert + "-s", "metadata_hash": kanarienWert + "-m", "entity_count": 7743}
 	for _, g := range []string{"manifest_version", "snapshot_kind", "service_id", "metadata_hash", "entity_count"} {
 		r = append(r, mfall{g + " fehlt", "b:" + g, manifestMit(-1, g, fehltMarke{})},
 			mfall{g + " Typ", "b:" + g, manifestMit(-1, g, typ[g])},
@@ -169,9 +174,9 @@ func eintragFaelle() []mfall {
 	e("completeness", "fehlt", f)
 	e("completeness", "Typ", 5)
 	e("completeness", "leer", "")
-	e("completeness", "Wert", "full")
+	e("completeness", "Wert", kanarienWert)
 	e("deleted", "fehlt", f)
-	e("deleted", "Typ", "true")
+	e("deleted", "Typ", kanarienWert)
 	e("deleted", "null", roh("null"))
 	e("deleted", "Zahl", roh("1"))
 	e("entity_set", "fehlt", f)
@@ -182,19 +187,19 @@ func eintragFaelle() []mfall {
 	e("selected_properties", "Typ", "Id")
 	e("selected_properties", "null", roh("null"))
 	e("selected_properties", "leeres Element", []any{""})
-	e("selected_properties", "doppelt", []any{"Id", "Id"})
+	e("selected_properties", "doppelt", []any{kanarienWert, kanarienWert})
 	e("selected_properties", "kein String", []any{roh("1")})
 	e("typed_key", "fehlt", f)
 	e("typed_key", "Typ", 5)
 	e("typed_key", "leer", "")
 	e("version", "fehlt", f)
-	e("version", "Typ", "1")
-	e("version", "Bruch", roh("1.5"))
-	e("version", "Exponent", roh("1e2"))
-	e("version", "über int64", roh("9223372036854775808"))
+	e("version", "Typ", kanarienWert)
+	e("version", "Bruch", roh("7743.5"))
+	e("version", "Exponent", roh("1e7743"))
+	e("version", "über int64", roh("97743223372036854775808"))
 	e("version", "null", roh("null"))
 	// (e) Validate(): eine negative Version ist ein Ganzzahl im Bereich, aber kein gültiger Eintrag.
-	r = append(r, mfall{"version negativ", "e", manifestMit(2, "version", roh("-1"))})
+	r = append(r, mfall{"version negativ", "e", manifestMit(2, "version", roh("-7743"))})
 	for _, n := range []struct {
 		name string
 		w    any

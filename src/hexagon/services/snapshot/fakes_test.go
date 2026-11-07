@@ -199,6 +199,9 @@ type entFake struct {
 	mu      sync.Mutex
 	ent     map[string][]model.EntityState
 	nilLeer bool
+	// ausgegeben hält die Listen, die List geliefert hat (dieselben Speicher, die der Dienst sieht), damit ein Test
+	// prüft, ob der Dienst sie verändert hat.
+	ausgegeben [][]model.EntityState
 }
 
 func (f *entFake) List(ctx context.Context, wid string) ([]model.EntityState, error) {
@@ -220,6 +223,7 @@ func (f *entFake) List(ctx context.Context, wid string) ([]model.EntityState, er
 		e.KnownProperties = slices.Clone(e.KnownProperties)
 		r[i] = e
 	}
+	f.ausgegeben = append(f.ausgegeben, r)
 	return r, nil
 }
 

@@ -240,6 +240,13 @@ func TestZweigeRestore(t *testing.T) {
 	if len(zs) != 17 {
 		t.Fatalf("Zählprüfung: %d Zweige", len(zs))
 	}
+	// Z-Liste gegen die Quelle: wiederherstellen.go hat 16 Rückgaben mit Fehlerwert: Restore 9 (ctx nil, S10, S19, S20 über
+	// die Hilfe, Manifest, f mit S11, S9, S13, Transaktion), baselineStattSnapshot 3 (S20, ODR-E5004, ODR-E7008) und
+	// snapshotManifest 4 (Hash, S4, S5, Manifest). Z16 bis Z32 verteilen sich darauf; Z25 (Close) und Z31 (Panik) haben keine
+	// Rückgabe, Z32 ist der Kontextfehler einer Stelle.
+	if n := fehlerRueckgaben(t, "wiederherstellen.go"); n != 16 {
+		t.Errorf("%d Rückgaben mit Fehlerwert in wiederherstellen.go, erwartet 16", n)
+	}
 	for _, z := range zs {
 		einzel, closes := z.lauf(t)
 		if einzel != z.soll || closes != z.close {
@@ -266,6 +273,31 @@ func TestZweigeRestore(t *testing.T) {
 			}
 		}
 	}
+}
+
+// fehlerRueckgaben zählt in der Datei die return-Anweisungen, deren letztes Ergebnis ein Aufruf, ein Verweis auf err oder
+// ein Adresswert ist (jede Rückgabe mit Fehlerwert).
+func fehlerRueckgaben(t *testing.T, datei string) int {
+	t.Helper()
+	f, err := parser.ParseFile(token.NewFileSet(), datei, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	ast.Inspect(f, func(x ast.Node) bool {
+		if r, ok := x.(*ast.ReturnStmt); ok && len(r.Results) > 0 {
+			switch l := r.Results[len(r.Results)-1].(type) {
+			case *ast.CallExpr, *ast.UnaryExpr:
+				n++
+			case *ast.Ident:
+				if l.Name == "err" {
+					n++
+				}
+			}
+		}
+		return true
+	})
+	return n
 }
 
 // aufrufstellen zählt in der Datei datei die Aufrufe der Formen Wurzel.Port.Operation (v.k.Blobs.Open) und

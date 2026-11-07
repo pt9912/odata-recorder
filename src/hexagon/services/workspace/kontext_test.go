@@ -100,12 +100,12 @@ func TestKontextfehlerDesPorts(t *testing.T) {
 // ist ein *Fehler mit dem Code, den outbound.Abbilden für den Gegenstand der Stelle liefert, dem einen
 // Status des Codes und der Ursache.
 func TestFehlerAbbildungJedeStelle(t *testing.T) {
-	faelle := 0
+	faelle, uebersprungen := 0, 0
 	for _, s := range stellen() {
 		for _, fe := range tabellenFehlerListe() {
 			if s.nr == "S19" && fe.err == outbound.ErrFalscheArt {
 				// ErrFalscheArt an S19 führt zu S20 (SPEC-129 Nr. 16 d); TestRestorePortFehler führt diese Fälle.
-				faelle++
+				uebersprungen++
 				continue
 			}
 			w, o := s.vorbereitet(t)
@@ -119,7 +119,7 @@ func TestFehlerAbbildungJedeStelle(t *testing.T) {
 			faelle++
 		}
 	}
-	if faelle != 28*28 {
+	if uebersprungen != 1 || faelle+uebersprungen != 28*28 {
 		t.Errorf("Fälle %d", faelle)
 	}
 }
