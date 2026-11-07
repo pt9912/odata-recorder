@@ -33,10 +33,13 @@ func TestNewKonfig(t *testing.T) {
 		}
 		felder++
 		name := f.Name
+		if name == "Eingabe" {
+			continue // nil ist erlaubt (SPEC-192 Nr. 1, W05)
+		}
 		faelle = append(faelle, fall{"nil in " + name, func(k *mock.Konfig) { reflect.ValueOf(k).Elem().FieldByName(name).SetZero() }})
 	}
-	if felder != 8 {
-		t.Fatalf("Konfig hat %d Felder mit einer Schnittstelle, die Menge M1 nennt 8; Z01 ist nachzuziehen", felder)
+	if felder != 10 {
+		t.Fatalf("Konfig hat %d Felder mit einer Schnittstelle, die Menge M1 nennt 10 (neun Ports und Eingabe); Z01 ist nachzuziehen", felder)
 	}
 	satzOhne := func(name string, aendere func(s *outbound.CodecSatz)) fall {
 		return fall{"Satz mit nil in " + name, func(k *mock.Konfig) {
@@ -56,8 +59,8 @@ func TestNewKonfig(t *testing.T) {
 		satzOhne("URL", func(s *outbound.CodecSatz) { s.URL = nil }),
 		satzOhne("Schreiber", func(s *outbound.CodecSatz) { s.Schreiber = nil }),
 	)
-	if len(faelle) != 17 {
-		t.Fatalf("%d Fälle, die Menge M1 nennt 17", len(faelle))
+	if len(faelle) != 18 {
+		t.Fatalf("%d Fälle, die Menge M1 nennt 18", len(faelle))
 	}
 	for _, f := range faelle {
 		t.Run(f.name, func(t *testing.T) {
@@ -187,16 +190,19 @@ func TestSatzWahl(t *testing.T) {
 }
 
 // TestQuelltextOhneVersion hält Z02: im Quelltext des Pakets ohne Tests steht nichts über die Version des Satzes und
-// den Namen eines Kennzeichens.
+// den Namen eines Kennzeichens. Die Version des Eintrags im Entity-State (`EntityState.Version`, SPEC-193 Nr. 4) ist eine andere
+// Sache: die beiden Schreibweisen `es.Version` und `Version: version` fallen aus der Prüfung, jede andere Nennung bleibt ein Befund.
 func TestQuelltextOhneVersion(t *testing.T) {
 	dateien := quelltext(t)
+	eintrag := strings.NewReplacer("es.Version", "", "Version: version", "")
 	for _, d := range dateien {
 		b, err := os.ReadFile(d)
 		if err != nil {
 			t.Fatal(err)
 		}
+		text := eintrag.Replace(string(b))
 		for _, w := range []string{"Version", "OData-Version", "DataServiceVersion"} {
-			if strings.Contains(string(b), w) {
+			if strings.Contains(text, w) {
 				t.Errorf("%s nennt %q", d, w)
 			}
 		}

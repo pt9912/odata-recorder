@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -44,15 +45,56 @@ type prot struct {
 	mu     sync.Mutex
 	ev     []ereignis
 	fehler map[string]error
+	// beiNr speist einen Fehler allein beim n-ten Aufruf der Operation ein (die Stelle S19 ist der zweite Aufruf von
+	// Workspaces.Get); panik lässt den Aufruf der Operation mit einer Panik enden.
+	beiNr map[string]nummerFehler
+	panik map[string]bool
 }
 
-func neuesProt() *prot { return &prot{fehler: map[string]error{}} }
+type nummerFehler struct {
+	n   int
+	err error
+}
+
+func neuesProt() *prot {
+	return &prot{fehler: map[string]error{}, beiNr: map[string]nummerFehler{}, panik: map[string]bool{}}
+}
 
 func (p *prot) beginn(ctx context.Context, op string, args ...any) error {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	p.ev = append(p.ev, ereignis{op: op, ctx: ctx, args: args})
-	return p.fehler[op]
+	err := p.fehler[op]
+	if nf, da := p.beiNr[op]; da {
+		k := 0
+		for _, e := range p.ev {
+			if e.op == op {
+				k++
+			}
+		}
+		if k == nf.n {
+			err = nf.err
+		}
+	}
+	panik := p.panik[op]
+	p.mu.Unlock()
+	if panik {
+		panic("Panik des Fakes in " + op)
+	}
+	return err
+}
+
+// setzeFehlerBeiNr speist err allein beim n-ten Aufruf von op ein.
+func (p *prot) setzeFehlerBeiNr(op string, n int, err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.beiNr[op] = nummerFehler{n: n, err: err}
+}
+
+// setzePanik lässt jeden Aufruf von op mit einer Panik enden.
+func (p *prot) setzePanik(op string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.panik[op] = true
 }
 
 func (p *prot) setzeFehler(op string, err error) {
@@ -101,6 +143,8 @@ type workspaces struct {
 	mu     sync.Mutex
 	m      map[string]model.Workspace
 	ersatz func(id string) (model.Workspace, error)
+	// nach ist der Haltepunkt: er läuft nach dem n-ten Aufruf von Get (n zählt alle bisherigen), bevor Get zurückkehrt.
+	nach func(n int)
 }
 
 func (w *workspaces) setze(x model.Workspace) {
@@ -119,6 +163,15 @@ func (w *workspaces) Get(ctx context.Context, id string) (model.Workspace, error
 	if err := w.p.beginn(ctx, "Workspaces.Get", id); err != nil {
 		return model.Workspace{}, err
 	}
+	x, err := w.lies(id)
+	if w.nach != nil {
+		w.nach(w.p.anzahl("Workspaces.Get"))
+	}
+	return x, err
+}
+
+// lies liest den Workspace unter der Sperre der Tabelle.
+func (w *workspaces) lies(id string) (model.Workspace, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.ersatz != nil {
@@ -139,8 +192,31 @@ func (w *workspaces) List(ctx context.Context, serviceID string) ([]model.Worksp
 	return nil, w.p.beginn(ctx, "Workspaces.List", serviceID)
 }
 
+// Advance erhöht die Revision von erwartet auf erwartet+1; eine andere gespeicherte Revision ist ErrRevisionVeraltet, ein
+// unbekannter Workspace ErrNichtGefunden.
 func (w *workspaces) Advance(ctx context.Context, id string, erwartet int64) (int64, error) {
-	return 0, w.p.beginn(ctx, "Workspaces.Advance", id, erwartet)
+	if err := w.p.beginn(ctx, "Workspaces.Advance", id, erwartet); err != nil {
+		return 0, err
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	x, da := w.m[id]
+	switch {
+	case !da:
+		return 0, outbound.ErrNichtGefunden
+	case x.Revision != erwartet:
+		return 0, outbound.ErrRevisionVeraltet
+	}
+	x.Revision++
+	w.m[id] = x
+	return x.Revision, nil
+}
+
+// revision liest die gespeicherte Revision des Workspace.
+func (w *workspaces) revision(id string) int64 {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.m[id].Revision
 }
 
 func (w *workspaces) Delete(ctx context.Context, id string) error {
@@ -269,6 +345,25 @@ type entities struct {
 	mu     sync.Mutex
 	m      map[string][]model.EntityState
 	ersatz func(set string) ([]model.EntityState, error)
+	// beobachter sieht jedes Ergebnis von ListSet (der Zustand, den die Antwort zeigt).
+	beobachter func([]model.EntityState)
+	// jeWs trennt den Zustand nach der Kennung des Workspace (W73); sonst gilt allein das Set.
+	jeWs bool
+}
+
+// schl ist der Schlüssel der Tabelle zu Workspace und Set.
+func (e *entities) schl(workspaceID, set string) string {
+	if e.jeWs {
+		return workspaceID + "\x00" + set
+	}
+	return set
+}
+
+// ausWs liest die Einträge eines Sets in einem Workspace.
+func (e *entities) ausWs(workspaceID, set string) []model.EntityState {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return slices.Clone(e.m[e.schl(workspaceID, set)])
 }
 
 func (e *entities) setze(set string, eintraege ...model.EntityState) {
@@ -280,8 +375,50 @@ func (e *entities) setze(set string, eintraege ...model.EntityState) {
 	e.m[set] = slices.Clone(eintraege)
 }
 
+// Put ersetzt den Eintrag mit demselben Schlüssel oder fügt ihn in der Folge der Bytes des Schlüssels ein; bei einem
+// eingespeisten Fehler schreibt der Fake nichts.
 func (e *entities) Put(ctx context.Context, x model.EntityState) error {
-	return e.p.beginn(ctx, "Entities.Put", x)
+	if err := e.p.beginn(ctx, "Entities.Put", x); err != nil {
+		return err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.m == nil {
+		e.m = map[string][]model.EntityState{}
+	}
+	x.KnownProperties = slices.Clone(x.KnownProperties)
+	k := e.schl(x.WorkspaceID, x.EntitySet)
+	liste := e.m[k]
+	if i := slices.IndexFunc(liste, func(y model.EntityState) bool { return y.EntityKey == x.EntityKey }); i >= 0 {
+		liste[i] = x
+		return nil
+	}
+	e.m[k] = append(liste, x)
+	slices.SortFunc(e.m[k], func(a, b model.EntityState) int { return strings.Compare(a.EntityKey, b.EntityKey) })
+	return nil
+}
+
+// inhalt liefert eine tiefe Kopie des gespeicherten Zustands.
+func (e *entities) inhalt() map[string][]model.EntityState {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	r := make(map[string][]model.EntityState, len(e.m))
+	for set, liste := range e.m {
+		kopie := make([]model.EntityState, len(liste))
+		for i, x := range liste {
+			x.KnownProperties = slices.Clone(x.KnownProperties)
+			kopie[i] = x
+		}
+		r[set] = kopie
+	}
+	return r
+}
+
+// stelleHer ersetzt den gespeicherten Zustand durch eine Sicherung von inhalt.
+func (e *entities) stelleHer(s map[string][]model.EntityState) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.m = s
 }
 
 func (e *entities) Get(ctx context.Context, workspaceID, entitySet, entityKey string) (model.EntityState, error) {
@@ -290,7 +427,7 @@ func (e *entities) Get(ctx context.Context, workspaceID, entitySet, entityKey st
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	for _, x := range e.m[entitySet] {
+	for _, x := range e.m[e.schl(workspaceID, entitySet)] {
 		if x.EntityKey == entityKey {
 			return x, nil
 		}
@@ -310,8 +447,12 @@ func (e *entities) ListSet(ctx context.Context, workspaceID, entitySet string) (
 		return e.ersatz(entitySet)
 	}
 	e.mu.Lock()
-	defer e.mu.Unlock()
-	return slices.Clone(e.m[entitySet]), nil
+	r := slices.Clone(e.m[e.schl(workspaceID, entitySet)])
+	e.mu.Unlock()
+	if e.beobachter != nil {
+		e.beobachter(r)
+	}
+	return r, nil
 }
 
 func (e *entities) ReplaceAll(ctx context.Context, workspaceID string, eintraege []model.EntityState) error {
@@ -391,6 +532,8 @@ type schreiber struct {
 	kopfe map[string]model.Darstellung
 	// zeigeIDs hängt die Schlüssel der Entities einer Collection an den geschriebenen Body.
 	zeigeIDs bool
+	// ort ist das Ergebnis von Adresse.
+	ort string
 }
 
 func (s *schreiber) SchreibeAnzahl(ctx context.Context, dst io.Writer, n int64) (model.Darstellung, error) {
@@ -440,28 +583,32 @@ func (s *schreiber) SchreibeFehler(ctx context.Context, dst io.Writer, f model.F
 }
 
 func (s *schreiber) Adresse(m model.ServiceModel, wurzel, entitySet, schluessel string) (string, error) {
-	return "", s.p.beginn(keinKontext(), "Schreiber.Adresse", m, wurzel, entitySet, schluessel)
+	if err := s.p.beginn(keinKontext(), "Schreiber.Adresse", m, wurzel, entitySet, schluessel); err != nil {
+		return "", err
+	}
+	return s.ort, nil
 }
 
 // codecs sind die drei Codec-Fakes eines Satzes, auf einem Protokoll.
 type codecs struct {
-	p   *prot
-	url *urlcodec
-	sch *schreiber
-	mc  *metacodec
+	p       *prot
+	url     *urlcodec
+	sch     *schreiber
+	mc      *metacodec
+	eingabe outbound.ODataEingabe
 }
 
 func neueCodecs(p *prot, kennzeichen model.Kopfzeile) *codecs {
 	return &codecs{
 		p:   p,
 		url: &urlcodec{p: p},
-		sch: &schreiber{p: p, kopf: model.Darstellung{ContentType: "text/plain", Kennzeichen: kennzeichen}, probe: []byte("PROBE-" + kanarienwert)},
+		sch: &schreiber{p: p, kopf: model.Darstellung{ContentType: "text/plain", Kennzeichen: kennzeichen}, probe: []byte("PROBE-" + kanarienwert), ort: "http://adresse.test/fake"},
 		mc:  &metacodec{p: p},
 	}
 }
 
 func (c *codecs) satz(nurLesend bool, version string) *outbound.CodecSatz {
-	return &outbound.CodecSatz{Version: version, Metadaten: c.mc, URL: c.url, Schreiber: c.sch, NurLesend: nurLesend}
+	return &outbound.CodecSatz{Version: version, Metadaten: c.mc, URL: c.url, Schreiber: c.sch, NurLesend: nurLesend, Eingabe: c.eingabe}
 }
 
 const (
@@ -481,6 +628,8 @@ type umg struct {
 	en  *entities
 	co  *coverage
 	c   *codecs
+	tx  *transaktion
+	ei  *eingabeFake
 	k   mock.Konfig
 	ctx ctxMethoden
 	// fehlerobjektErlaubt nimmt den Test von der Prüfung aus, die den Aufruf von SchreibeFehler verbietet (der Test der
@@ -507,6 +656,9 @@ func neueUmg(t *testing.T) *umg {
 		c:   neueCodecs(p, model.Kopfzeile{Name: "X-Fake-Kennzeichen", Wert: "kennzeichen-1"}),
 		ctx: context.WithValue(context.Background(), schluesselKtx{}, "ctx-des-aufrufs"),
 	}
+	u.tx = &transaktion{p: p, ws: u.ws, en: u.en, cu: &cursors{p: p}, sn: &snapshots{p: p}}
+	u.ei = &eingabeFake{p: p}
+	u.c.eingabe = u.ei
 	// Der Dienst ruft SchreibeFehler nie: der Fake prüft den Zähler für jeden Test des Pakets (SPEC-195 Nr. 10, L45).
 	t.Cleanup(func() {
 		if n := p.anzahl("Schreiber.SchreibeFehler"); n != 0 && !u.fehlerobjektErlaubt {
@@ -528,6 +680,8 @@ func neueUmg(t *testing.T) *umg {
 		Schreiber:      u.c.sch,
 		PublicBaseURL:  "http://recorder.test",
 		MaxBytes:       1 << 20,
+		Transaktion:    u.tx,
+		Eingabe:        u.ei,
 	}
 	return u
 }
