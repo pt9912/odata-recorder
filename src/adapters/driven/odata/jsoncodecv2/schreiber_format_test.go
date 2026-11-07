@@ -6,12 +6,15 @@ import (
 	"errors"
 	"io"
 	"math"
+	"os"
+	"os/exec"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/jsoncodecv2"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -257,14 +260,17 @@ func TestZeitpunktBytes(t *testing.T) {
 	}
 }
 
+// zoneVariable nennt die Umgebungsvariable, mit der TestZeitpunktZone sich im Kindprozess erkennt.
+const zoneVariable = "ODR_ZEITPUNKT_ZONE"
+
 // TestZeitpunktZone hält Zeile 15 für die Zone der Maschine: die Millisekunden hängen nicht von time.Local ab (der Text nennt `Z`). Der Test
-// setzt time.Local auf vier Zonen (Versatz -5 h 30, 0, +3 h, +14 h) und prüft die 31 Werte von Zeile 15 in jeder; Menge 4 × 31.
+// startet sich selbst dreimal mit `TZ` gleich einer Zone mit Versatz -3 h 30, +5 h 30 und +14 h (time.Local liest `TZ` beim ersten Gebrauch, eine
+// Zuweisung an time.Local liefe gegen die Timer des Laufzeitsystems) und prüft im Kind die 31 Werte von Zeile 15; Menge 3 × 31.
 func TestZeitpunktZone(t *testing.T) {
-	vorher := time.Local
-	defer func() { time.Local = vorher }()
-	n := 0
-	for _, versatz := range []int{-5*3600 - 1800, 0, 3 * 3600, 14 * 3600} {
-		time.Local = time.FixedZone("test", versatz)
+	if os.Getenv(zoneVariable) != "" {
+		if _, versatz := time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local).Zone(); versatz == 0 {
+			t.Fatalf("TZ=%s wirkt nicht: Versatz 0", os.Getenv("TZ"))
+		}
 		for _, f := range zeitFaelle() {
 			parsed, err := time.Parse(time.RFC3339Nano, f[0])
 			if err != nil {
@@ -272,13 +278,22 @@ func TestZeitpunktZone(t *testing.T) {
 			}
 			want := bs + "/Date(" + strconv.FormatInt(parsed.UnixMilli(), 10) + ")" + bs + "/"
 			if body := entityBody(t, f[0], alleAntwort(pw("T", model.ArtDateTimeOffset, f[0]))); !strings.HasSuffix(body, `"T":"`+want+`"}}`) {
-				t.Errorf("Zone %+d s, %s: %s, will %s", versatz, f[0], body, want)
+				t.Errorf("Zone %s, %s: %s, will %s", os.Getenv("TZ"), f[0], body, want)
 			}
-			n++
 		}
+		return
 	}
-	if n != 4*31 {
-		t.Errorf("Menge %d, will %d", n, 4*31)
+	n := 0
+	for _, zone := range []string{"America/St_Johns", "Asia/Kolkata", "Pacific/Kiritimati"} {
+		cmd := exec.Command(os.Args[0], "-test.run=^TestZeitpunktZone$", "-test.count=1")
+		cmd.Env = append(os.Environ(), "TZ="+zone, zoneVariable+"=1")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Errorf("Zone %s: %v\n%s", zone, err, out)
+		}
+		n += len(zeitFaelle())
+	}
+	if n != 3*31 {
+		t.Errorf("Menge %d, will %d", n, 3*31)
 	}
 }
 
