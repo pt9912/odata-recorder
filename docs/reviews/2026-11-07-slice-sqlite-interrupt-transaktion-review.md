@@ -77,4 +77,4 @@ Von mir gefahren (rot = roter Test aus dem benannten Grund, kein Aufbaufehler): 
 * `src/adapters/driven/sqlite/tx.go`, `workspace_tx.go`: Prüfung vor `COMMIT`, `COMMIT` ohne Abbruch, `ROLLBACK` ohne Abbruch, Zustand *unbrauchbar* als Fehler der Transaktion; kein Befund außer dem in M-2 genannten Rangfragen.
 * `src/adapters/driven/sqlite/export_test.go`, `transaktion_abbruch_test.go` (Umformung der Diagnose, kein `DIAG_N`, keine Umgebungsvariable), `aufrufstellen_test.go`: ohne Befund.
 * `src/hexagon/ports/outbound/outboundtest/transaktion_vertrag.go`: ohne Befund (`transaktionFall4` je Art, Folge-Transaktion nutzbar).
-* `docs/plan/planning/in-progress/slice-sqlite-interrupt-transaktion.md`: §3 und §6 im selben Commit nachgezogen; Befunde nur L-1 und M-2 (Raster).
+* `docs/plan/planning/done/slice-sqlite-interrupt-transaktion.md`: §3 und §6 im selben Commit nachgezogen; Befunde nur L-1 und M-2 (Raster).
