@@ -1,0 +1,2 @@
+**Vorgang:** slice-snapshot-use-case
+**Fund:** Schätzung *S* 7845 (81 Zeilen, davon 13 nebenläufig, 4 Fakes, Produktcode 500), Marke 10600, Messung 5581 (Summe aus `git diff --numstat` über die Pfade des Blocks, Stand nach dem Nachzug; das Gate maß 5478 vor ihm: ok); Auslastung 0,53, unter 0,60. Der Produktcode (534 gegen 500) ist nicht überschätzt, die Tests sind es. Beleg: Plan §4 (Größenmarke) und §7; Report `docs/reviews/2026-11-07-slice-snapshot-use-case-verifikation.md` §1.
