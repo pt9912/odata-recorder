@@ -12,7 +12,11 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/inspection"
 )
+
+// Bindung: Inspektion erfüllt den Inbound Port; weicht eine Signatur ab, übersetzt das Testpaket nicht.
+var _ inbound.InspectionUseCase = (*inspection.Inspektion)(nil)
 
 // TestKennungUnveraendert (X7): ListBySession wird genau einmal gerufen, mit der Kennung unverändert,
 // sonst kein Port; eine unbekannte Session ist ODR-E7003, auch mit der leeren Kennung.
