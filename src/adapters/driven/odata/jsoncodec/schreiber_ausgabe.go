@@ -35,6 +35,20 @@ func (a *ausgabe) text(s string) {
 	a.b = append(a.b, '"')
 }
 
+// markerText ist der Text, dessen Rohtext der Leser als redigierten Wert liest (SPEC-126 Nr. 10 f).
+const markerText = "[REDACTED]"
+
+// stringWert hängt den Text eines Edm.String an; der Text `[REDACTED]` steht mit `[` als Escape (Backslash, `u`, `005b`),
+// damit der Rohtext des Strings nicht der Marker ist (SPEC-169 Nr. 4); jeder andere Text läuft durch text.
+func (a *ausgabe) stringWert(s string) {
+	if s == markerText {
+		a.b = append(a.b, '"', '\\', 'u', '0', '0', '5', 'b')
+		a.roh(markerText[1:] + `"`)
+		return
+	}
+	a.text(s)
+}
+
 // mitglied hängt `,` (außer vor dem ersten Mitglied) und `"<name>":` an.
 func (a *ausgabe) mitglied(erstes *bool, name string) {
 	if !*erstes {

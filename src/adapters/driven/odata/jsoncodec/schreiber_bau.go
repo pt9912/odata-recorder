@@ -154,7 +154,7 @@ func (a *ausgabe) wert(w model.Wert, f form) {
 	case model.ArtNull:
 		a.roh("null")
 	case model.ArtString:
-		a.text(w.Text)
+		a.stringWert(w.Text)
 	case model.ArtBoolean, model.ArtInt32:
 		a.roh(w.Text)
 	case model.ArtInt64, model.ArtDecimal:

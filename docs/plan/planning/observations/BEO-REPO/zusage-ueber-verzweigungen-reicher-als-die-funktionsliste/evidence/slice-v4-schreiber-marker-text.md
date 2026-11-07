@@ -1,0 +1,2 @@
+**Vorgang:** slice-v4-schreiber-marker-text
+**Fund:** Z10 und Z13 sagten, `TestMarkerZweige` melde „jede neue Verzweigung“; der Test zählt fünf Funktionen (`wert`, `stringWert`, `text`, `pruefeWert`, `ausgeben`) und meldet keine Verzweigung in `artPruefer`, `zahl` oder einer neuen Hilfsfunktion (Review F-2, Verifikation F-2). Keine Wirkung im Produkt; der Planner berichtigte den Wortlaut auf die fünf Funktionen. Beleg: Plan §3 (Z10, Z13), Report `docs/reviews/2026-11-07-slice-v4-schreiber-marker-text-verifikation.md` §4.
