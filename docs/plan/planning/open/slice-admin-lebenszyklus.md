@@ -14,7 +14,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Bezug:** `LH-FA-13`, `LH-QA-04`, `LH-RB-04`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
 **Berührte Spec-Stellen:** `SPEC-238` Nr. 3 b (angehaltener Server), Nr. 9 (`ctx` der Route), Nr. 10 (Grenzen des Servers), Nr. 11 (Serve, Anhalten, Schliessen) · `SPEC-136` Nr. 12 bis 14 (zweistufiges Herunterfahren, auf das Nr. 11 verweist) · `SPEC-124` *Ungeprüft* (Beenden einer Session kann länger dauern als jedes Schreib-Timeout) · `LH-FA-13.a` (Listener) · `ARC-007`, `ARC-021`.
-Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht im Zweig `slice-admin-listener-token` und kommt mit dessen Merge nach `main`.
+Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht auf `main` (seit dem Merge von `slice-admin-listener-token`).
 
 **Verantwortlich:** —
 

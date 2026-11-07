@@ -14,7 +14,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Bezug:** `LH-FA-13`, `LH-QA-04`, `LH-RB-04`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
 **Berührte Spec-Stellen:** `SPEC-238` Nr. 5 (Format des Fehlerobjekts), Nr. 6 (Abbildung der Fehler der Routen, `ODR-E2102`), Nr. 7 (Zählen), Nr. 9 (Kontextfehler), Nr. 13 (Geheimnisse, soweit Fehlerobjekt, Telemetrie, Log und Panik), Nr. 15 (Pflichten der Endpunkte) · `SPEC-109` Nr. 1 bis 6 (Fehlerobjekt, Abbildung der Port-Fehler) · `SPEC-006` (Fehlerobjekt) · `SPEC-230` Nr. 8 (Zähler je Fehlercode) · `SPEC-124` *Ungeprüft*, `SPEC-127`, `SPEC-129` (Code der Antwort auf `model.ErrUngueltig`) · `LH-FA-13.a` · `LH-QA-04.a` · `ARC-007`, `ARC-021`.
-Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht im Zweig `slice-admin-listener-token` und kommt mit dessen Merge nach `main`.
+Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht auf `main` (seit dem Merge von `slice-admin-listener-token`).
 
 **Verantwortlich:** —
 

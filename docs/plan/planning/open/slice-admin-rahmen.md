@@ -14,7 +14,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Bezug:** `LH-FA-13`, `LH-QA-04`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
 **Berührte Spec-Stellen:** `SPEC-238` Nr. 1 (`Konfig`, `New`), Nr. 2 (Routen, Zuordnung, `Anfrage`, 404 und 405), Nr. 3 a (Korrelations-ID), Nr. 5 (Fehlerobjekt für 404 und 405), Nr. 6 (Code `ODR-E2102`), Nr. 14 (Katalog) · `SPEC-239` — nicht berührt · `SPEC-240` (Zeile `ODR-E2102`) · `SPEC-109` Nr. 2 (Zeile `ODR-E2102`) · `SPEC-230` Nr. 8 (39 Codes) · `SPEC-114` (Korrelations-ID) · `SPEC-006` · `ARC-007`, `ARC-021`.
-Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` bis `SPEC-240` stehen im Zweig `slice-admin-listener-token` und kommen mit dessen Merge nach `main`.
+Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` bis `SPEC-240` stehen auf `main` (seit dem Merge von `slice-admin-listener-token`).
 
 **Verantwortlich:** —
 

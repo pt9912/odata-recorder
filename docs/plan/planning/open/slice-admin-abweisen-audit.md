@@ -14,7 +14,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Bezug:** `LH-FA-13`, `LH-QA-04`, `LH-RB-04`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
 **Berührte Spec-Stellen:** `LH-FA-13.a` (jedes Abweisen mit `ODR-E2101` hinterlässt einen Audit-Eintrag ohne Tokenwert) · `LH-QA-04.a` · `SPEC-238` Nr. 8 (Audit des Abweisens), Nr. 12 (Gleichzeitigkeit), Nr. 13 (Geheimnisse, acht Ausgabewege), Nr. 14 (Binary und Katalog), Nr. 15 (Pflichten der Endpunkte) · `SPEC-234` Nr. 2 (fünfte Art `admin_abgewiesen`), Nr. 5, Nr. 7 (der Adapter schreibt die vier Arten des Use Case nie) · `SPEC-110` Nr. 2 (unberührt) · `ARC-007`, `ARC-021`.
-Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht im Zweig `slice-admin-listener-token` und kommt mit dessen Merge nach `main`.
+Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht auf `main` (seit dem Merge von `slice-admin-listener-token`).
 
 **Verantwortlich:** —
 

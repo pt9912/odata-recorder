@@ -14,7 +14,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Bezug:** `LH-FA-13`, `LH-QA-04`, `LH-RB-04`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
 **Berührte Spec-Stellen:** `LH-FA-13.a` (Bearer-Token, zeitkonstanter Vergleich, 401 ohne Zustandsänderung) · `LH-QA-04.a` · `SPEC-238` Nr. 3 (Ablauf: a, c, d, e, f), Nr. 4 (Authentisierung), Nr. 5 (Header und Erfolgsantwort) · `SPEC-005` (Zeile `GET /healthz`, Schlusssatz) · `SPEC-064` (`ODR-E2101`) · `SPEC-006` (Fehlerobjekt) · `SPEC-114` Nr. 6 (Korrelations-ID) · `ARC-007`, `ARC-021`.
-Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht im Zweig `slice-admin-listener-token` und kommt mit dessen Merge nach `main`.
+Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht auf `main` (seit dem Merge von `slice-admin-listener-token`).
 
 **Verantwortlich:** —
 
