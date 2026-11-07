@@ -67,7 +67,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [x] Handler: `Handler()` bildet die Arten von `slog.Attr` ab (zuerst der Schlüssel, dann die Art; eine Gruppe ist ein Attribut), trägt `WithAttrs` und `WithGroup`, wendet `MinLevel` in `Enabled` und `Handle` an, ignoriert `Record.Time`, liefert dieselbe Zeile wie `Log` und gibt die zehn Einträge der Dienste `record`, `session` und `maintenance` mit Text, Stufe und Attributen unverändert aus (`SPEC-231` Nr. 4 und 5, `LH-FA-01`, `LH-QA-05`).
 - [x] Senke, Sperre und Geheimnisse über den Handler: `Handle` liefert immer `nil` und gerät nie in Panik, auch bei defekter Senke; Handler und alle abgeleiteten teilen die Sperre der Zeile und den Stand, die Zeilen einer Goroutine bleiben in Reihenfolge, keine Sperre liegt über `Clock.Now()`, unter `make test-race` ohne Befund; ein Canary erreicht über keinen der Einbringungswege eine Zeile, den Stand oder einen Fehlerwert (`SPEC-231` Nr. 5, `SPEC-232` Nr. 2, 3, 5 c, d, f und g, `LH-QA-04`).
-- [ ] `make gates` grün.
+- [x] `make gates` grün.
 - [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
@@ -407,7 +407,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 
 **Abdeckung** (`go test -race -covermode=atomic`, Implementer und Verifier mit eigenem Baum, Zahlen gleich): alle 21 Blöcke von `handler.go` mit Treffer, kleinster Wert 8 (`WithAttrs` leer), null Blöcke ohne Treffer; Gesamtlauf über das Paket 98,9 Prozent der Anweisungen; Runden R1 bis R6 je Fänger mit den Treffern in §3 (*Zweige*). Kein Gate.
 
-**Gate:** der Lauf von `make gates` im Zweig nach dem Merge von `main` und dem Closure-Commit steht unten (*Gate-Lauf der Closure*); der Lauf auf `main` nach dem Merge steht im Commit der Integration.
+**Gate:** `make gates` im Zweig nach dem Merge von `main` und dem Closure-Commit `7c379a0`, unter `flock`: Exit 0, `a-check` 0 Befunde, `d-check` 799 Dateien, 0 Befunde, `groessenmarke slice-telemetry-handler.md: ok, Messung 1705 von Marke 2000`, `zeichen-check` ok (1615 Dateien); Stufen `build`, `test`, `race`, `lint` grün. Der Lauf auf `main` nach dem Merge steht im Commit der Integration.
 
 **Akzeptierte Negative** (Grund und Folge in §6): Verkettung der Präfixe mehrerer `WithGroup` ohne beobachtbare Wirkung (m22, vom Verifier mit g3 bis g6 bestätigt); `Uint64 <= MaxInt64` ohne Wrap (F6); Text der Panik eines `LogValue` (Z54, `Resolve` fängt); der zweite Generator der Menge M2 (F4); die Zählprüfung von M13 ohne Quelle im Code.
 
