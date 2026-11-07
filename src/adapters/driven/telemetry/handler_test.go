@@ -314,21 +314,28 @@ func TestDienstEintraege(t *testing.T) {
 }
 
 // mengeLaenge ist die Menge M2 (469 Texte nach Länge und Zeichen an der Grenze 256), nach demselben
-// Muster gebildet wie TestMsgLaenge.
-func mengeLaenge() []string {
+// Muster gebildet wie TestMsgLaenge, dessen Generator inline liegt. Die Grenze steht einmal
+// (grenzeMsg); die Zählprüfung bindet sie an das Modell von SPEC-231 Nr. 3 und die Zahl 469 an
+// TestMsgLaenge.
+func mengeLaenge(t *testing.T) []string {
+	t.Helper()
+	const grenzeMsg = 256
+	if len(modellMsg(strings.Repeat("a", grenzeMsg+1))) != grenzeMsg || len(modellMsg(strings.Repeat("a", grenzeMsg))) != grenzeMsg {
+		t.Fatalf("die Grenze %d ist nicht die des Modells", grenzeMsg)
+	}
 	var menge []string
-	for n := 0; n <= 300; n++ {
+	for n := 0; n <= grenzeMsg+44; n++ {
 		menge = append(menge, strings.Repeat("a", n))
 	}
 	folgen := []string{"", "x", string(rune(0xE9)), string(rune(0x20AC)), string(rune(0x1F600))}
 	for _, r := range []rune{'x', 0xE9, 0x20AC, 0x1F600} {
-		for off := 250; off <= 257; off++ {
+		for off := grenzeMsg - 6; off <= grenzeMsg+1; off++ {
 			for _, danach := range folgen {
 				menge = append(menge, strings.Repeat("a", off)+string(r)+danach)
 			}
 		}
 	}
-	for off := 250; off <= 257; off++ {
+	for off := grenzeMsg - 6; off <= grenzeMsg+1; off++ {
 		menge = append(menge, strings.Repeat("a", off)+string([]byte{0x80}))
 	}
 	return menge
@@ -361,7 +368,7 @@ func TestHandlerGleichLog(t *testing.T) {
 		}
 	}
 	m1 := len(aufrufe)
-	laenge, zeichen := mengeLaenge(), mengeZeichen(t)
+	laenge, zeichen := mengeLaenge(t), mengeZeichen(t)
 	for _, msg := range slices.Concat(laenge, zeichen) {
 		aufrufe = append(aufrufe, aufruf{slog.LevelInfo, msg, nil})
 	}
@@ -580,34 +587,39 @@ func TestHandlePCNull(t *testing.T) {
 }
 
 // H14: Enabled folgt MinLevel, liest ctx nicht, ruft Now nicht und zählt nichts: Menge M17 (4 Arten)
-// × Menge M8 (3 ctx) × 9 Stufen von M4 bei MinLevel INFO = 108 Aufrufe.
+// × Menge M8 (3 ctx) × 9 Stufen von M4 × 3 MinLevel (INFO, WARN, ERROR) = 324 Aufrufe.
 func TestEnabled(t *testing.T) {
 	ctxs, stufen := ctxe(t), stufenGrenzen(t)
+	mindeste := []slog.Level{slog.LevelInfo, slog.LevelWarn, slog.LevelError}
 	faelle := 0
-	senke, uhr := &FakeSenke{}, festeUhr()
-	a := neuMit(t, senke, uhr, slog.LevelInfo)
-	arten := ketten(a)
-	for _, k := range arten {
-		for _, ctx := range ctxs {
-			for _, l := range stufen {
-				faelle++
-				if got, want := k.h.Enabled(ctx, slog.Level(l)), l >= int(slog.LevelInfo); got != want {
-					t.Errorf("%s, Stufe %d: Enabled %t, erwartet %t", k.name, l, got, want)
+	for _, mindest := range mindeste {
+		senke, uhr := &FakeSenke{}, festeUhr()
+		a := neuMit(t, senke, uhr, mindest)
+		arten := ketten(a)
+		for _, k := range arten {
+			for _, ctx := range ctxs {
+				for _, l := range stufen {
+					faelle++
+					if got, want := k.h.Enabled(ctx, slog.Level(l)), l >= int(mindest); got != want {
+						t.Errorf("%s, MinLevel %d, Stufe %d: Enabled %t, erwartet %t", k.name, mindest, l, got, want)
+					}
 				}
 			}
 		}
-	}
-	vorher := a.Snapshot()
-	if faelle != len(arten)*len(ctxs)*len(stufen) || faelle != 108 {
-		t.Fatalf("%d Aufrufe, erwartet 108", faelle)
-	}
-	if uhr.n.Load() != 0 || len(senke.zeilen()) != 0 {
-		t.Errorf("%d Aufrufe von Now, %d Zeilen; erwartet 0", uhr.n.Load(), len(senke.zeilen()))
-	}
-	for g, n := range vorher.Dropped {
-		if n != 0 {
-			t.Errorf("Grund %s zählt %d, erwartet 0", g, n)
+		if len(arten)*len(ctxs)*len(stufen) != 108 {
+			t.Fatalf("%d Aufrufe je MinLevel, erwartet 108", len(arten)*len(ctxs)*len(stufen))
 		}
+		if uhr.n.Load() != 0 || len(senke.zeilen()) != 0 {
+			t.Errorf("MinLevel %d: %d Aufrufe von Now, %d Zeilen; erwartet 0", mindest, uhr.n.Load(), len(senke.zeilen()))
+		}
+		for g, n := range a.Snapshot().Dropped {
+			if n != 0 {
+				t.Errorf("MinLevel %d: Grund %s zählt %d, erwartet 0", mindest, g, n)
+			}
+		}
+	}
+	if faelle != len(mindeste)*108 {
+		t.Fatalf("%d Aufrufe, erwartet %d", faelle, len(mindeste)*108)
 	}
 }
 

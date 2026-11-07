@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"math"
 	"slices"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -396,5 +398,101 @@ func TestWithGroup(t *testing.T) {
 	}
 	if n != 4*(len(folgen)*2+1) || n/4 != 9 {
 		t.Fatalf("%d Fälle, erwartet 36", n)
+	}
+}
+
+// H06 (Punkt): der Präfix ist name. und nichts anderes. Menge: jeder Schlüssel K der Menge Log, in
+// einen oder zwei Gruppennamen und den Rest zerlegt an jeder Stelle (jeder Name nichtleer, darunter
+// Namen, die selbst Buchstaben, Ziffern und _ tragen, und Reste wie _id), ohne Zeichen und mit je einem
+// ausgelassenen Zeichen an jeder Stelle (der Platz eines Trenners): ohne Punkt, mit einem anderen
+// Trenner oder mit dem Punkt an anderer Stelle ergäbe die Verkettung den gültigen Schlüssel K.
+// Orakel: das Modell mit Punkt, genau ein Verwurf schluessel, kein Feld. Die Zahl der Zerlegungen
+// kommt aus der Länge der Schlüssel: zerlegungen(m) = (m-1) + (m-1)(m-2)/2 für eine Länge m, einmal
+// für K und je einmal für K ohne das Zeichen d (len Stellen).
+func TestWithGroupPunkt(t *testing.T) {
+	zahl := func(m int) int { return (m - 1) + (m-1)*(m-2)/2 }
+	n, want := 0, 0
+	for _, key := range logSchluessel(t) {
+		l := len(key)
+		want += zahl(l) + l*zahl(l-1)
+		x := slogAttr(gueltigFuer(key))
+		zerlegungen := [][]string{}
+		for d := -1; d < l; d++ {
+			rest := key
+			if d >= 0 {
+				rest = key[:d] + key[d+1:]
+			}
+			for i := 1; i < len(rest); i++ {
+				zerlegungen = append(zerlegungen, []string{rest[:i], rest[i:]})
+				for j := i + 1; j < len(rest); j++ {
+					zerlegungen = append(zerlegungen, []string{rest[:i], rest[i:j], rest[j:]})
+				}
+			}
+		}
+		for _, z := range zerlegungen {
+			n++
+			senke := &FakeSenke{}
+			a := neuMit(t, senke, festeUhr(), slog.LevelInfo)
+			m := ketten(a)[0]
+			for _, name := range z[:len(z)-1] {
+				m = m.mitGruppe(m.h.WithGroup(name), name)
+			}
+			y := x
+			y.Key = z[len(z)-1]
+			schreibe(t, key+" zerlegt "+strings.Join(z, "|"), a, senke, m, slog.LevelInfo, "m", y)
+			if e := m.erwartet(y); e.schluessel != 1 || len(e.felder) != 0 {
+				t.Fatalf("Modell: %d Verwürfe, %d Felder; erwartet 1 und 0", e.schluessel, len(e.felder))
+			}
+		}
+	}
+	if n != want {
+		t.Fatalf("%d Zerlegungen, erwartet %d", n, want)
+	}
+}
+
+// wiederEintritt ist ein LogValuer, dessen LogValue auf demselben Handler Handle ruft (Wiedereintritt
+// zwischen dem Aufbau zweier Teile der Liste des äußeren Eintrags).
+type wiederEintritt struct{ h slog.Handler }
+
+func (w wiederEintritt) LogValue() slog.Value {
+	_ = w.h.Handle(context.Background(), rec(slog.LevelInfo, "innen", s("exchange_id", "ex-2")))
+	return slog.StringValue("x")
+}
+
+// H05 (Wiedereintritt): Handle baut die Liste je Aufruf neu und hängt nie an vorgelegt an. Menge:
+// Ketten aus 0 bis 9 WithAttrs mit je einem Attribut (jede Kapazität, die das Wachstum ergibt); der
+// äußere Eintrag trägt exchange_id=ex-1 und einen LogValuer, der denselben Handler mit exchange_id=ex-2
+// aufruft. Orakel: das Modell; die innere Zeile (zuerst geschrieben) trägt ex-2, die äußere ex-1.
+// Fängt den Anhang an eine geteilte Liste sequentiell, ohne Detektor.
+func TestHandleWiedereintritt(t *testing.T) {
+	var keys []string
+	for _, k := range logSchluessel(t) {
+		if k != "exchange_id" && k != "mode" {
+			keys = append(keys, k)
+		}
+	}
+	n := 0
+	for laenge := 0; laenge <= 9; laenge++ {
+		n++
+		senke := &FakeSenke{}
+		a := neuMit(t, senke, festeUhr(), slog.LevelInfo)
+		m := kette{h: a.Handler()}
+		for _, key := range keys[:laenge] {
+			x := slogAttr(gueltigFuer(key))
+			m = m.mitAttrs(m.h.WithAttrs([]slog.Attr{x}), x)
+		}
+		aussen := []slog.Attr{s("exchange_id", "ex-1"), slog.Any("mode", wiederEintritt{m.h})}
+		if err := m.h.Handle(context.Background(), rec(slog.LevelInfo, "aussen", aussen...)); err != nil {
+			t.Errorf("Länge %d: Handle liefert %v", laenge, err)
+		}
+		z := senke.zeilen()
+		if len(z) != 2 {
+			t.Fatalf("Länge %d: %d Zeilen, erwartet 2", laenge, len(z))
+		}
+		pruefeZeile(t, "Länge "+strconv.Itoa(laenge)+" innen", z[0], "INFO", "innen", m.erwartet(s("exchange_id", "ex-2")))
+		pruefeZeile(t, "Länge "+strconv.Itoa(laenge)+" außen", z[1], "INFO", "aussen", m.erwartet(s("exchange_id", "ex-1"), s("mode", "x")))
+	}
+	if n != 10 {
+		t.Fatalf("%d Ketten, erwartet 10", n)
 	}
 }
