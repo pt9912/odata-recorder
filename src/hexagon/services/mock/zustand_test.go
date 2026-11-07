@@ -111,14 +111,16 @@ func urlFuerGleichzeitig(p, _ string) (model.ODataURL, error) {
 	return model.ODataURL{}, &model.URLFehler{Ursache: model.URLSegment}
 }
 
-// TestGleichzeitig hält Z22 für gleichzeitige Aufrufe: 64 Goroutinen × 18 Requests gegen einen Dienst mit sieben Services
-// (Standard, leere Metadaten, ohne Eintrag, fehlender Blob, Fehler der Probe, nur lesend, Root `/`), in drei Klassen von
-// Workspaces (unbekannt, fremd, eigen) und mit einem Kontextfehler des Ports, geben je Request die Antwort des Einzelaufrufs;
+// TestGleichzeitig hält Z22 für gleichzeitige Aufrufe: 64 Goroutinen × 19 Requests in vier Runden gegen einen Dienst mit acht Services
+// (Standard, leere Metadaten, ohne Eintrag, fehlender Blob, Fehler der Probe, nur lesend, Root `/`, leeres Kennzeichen), in drei
+// Klassen von Workspaces (unbekannt, fremd, eigen) und mit einem Kontextfehler des Ports, geben je Request die Antwort des Einzelaufrufs;
 // unter `make test-race` meldet der Detektor einen ungeordneten Zugriff des Dienstes. Jeder Zweig von `Mock` und seiner
 // Helfer läuft darin, außer New und der Prüfung der Konfig (kein gleichzeitiger Aufruf).
 func TestGleichzeitig(t *testing.T) {
-	const goroutinen, requests = 64, 18
+	const goroutinen, requests, runden = 64, 19, 4
 	u := neueUmg(t)
+	leerKz := neueCodecs(neuesProt(), model.Kopfzeile{})
+	leerKz.url.f = urlFuerGleichzeitig
 	u.c.url.f = urlFuerGleichzeitig
 	probe := neueCodecs(neuesProt(), model.Kopfzeile{Name: "X-Probe", Wert: "p"})
 	probe.url.f = urlFuerGleichzeitig
@@ -128,7 +130,8 @@ func TestGleichzeitig(t *testing.T) {
 	u.k.Dienste = append(u.k.Dienste,
 		mock.Dienst{ID: "leer", Root: "/leer"}, mock.Dienst{ID: "fehlt", Root: "/fehlt"}, mock.Dienst{ID: "kaputt", Root: "/kaputt"},
 		mock.Dienst{ID: "probe", Root: "/probe", Codecs: probe.satz(false, "")}, mock.Dienst{ID: "lesend", Root: "/lesend", Codecs: lesend.satz(true, "")},
-		mock.Dienst{ID: "wurzel", Root: "/"})
+		mock.Dienst{ID: "wurzel", Root: "/"}, mock.Dienst{ID: "leerkz", Root: "/leerkz", Codecs: leerKz.satz(false, "")})
+	u.md.setze(model.Service{ID: "leerkz", MetadataBlob: metaRef})
 	u.md.setze(model.Service{ID: "leer"})
 	u.md.setze(model.Service{ID: "kaputt", MetadataBlob: "sha256:fehlt"})
 	u.md.setze(model.Service{ID: "probe", MetadataBlob: metaRef})
@@ -150,7 +153,7 @@ func TestGleichzeitig(t *testing.T) {
 	anfragen := func(g, i int) inbound.Anfrage {
 		dienst, root := dienstID, dienstRoot
 		anders := map[int][2]string{8: {"leer", "/leer"}, 9: {"fehlt", "/fehlt"}, 10: {"kaputt", "/kaputt"}, 11: {"probe", "/probe"},
-			12: {"lesend", "/lesend"}, 17: {"wurzel", "/x"}}
+			12: {"lesend", "/lesend"}, 17: {"wurzel", "/x"}, 18: {"leerkz", "/leerkz"}}
 		if r, da := anders[i]; da {
 			dienst, root = r[0], r[1]
 		}
@@ -208,11 +211,13 @@ func TestGleichzeitig(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			for i := 0; i < requests; i++ {
-				if got := ergebnis(m.Mock(u.ctx, anfragen(g, i))); got != soll[g][i] {
-					mu.Lock()
-					abweichungen = append(abweichungen, fmt.Sprintf("g%d i%d: %q, erwartet %q", g, i, got, soll[g][i]))
-					mu.Unlock()
+			for r := 0; r < runden; r++ {
+				for i := 0; i < requests; i++ {
+					if got := ergebnis(m.Mock(u.ctx, anfragen(g, i))); got != soll[g][i] {
+						mu.Lock()
+						abweichungen = append(abweichungen, fmt.Sprintf("g%d i%d: %q, erwartet %q", g, i, got, soll[g][i]))
+						mu.Unlock()
+					}
 				}
 			}
 		}()

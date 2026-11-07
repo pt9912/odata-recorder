@@ -17,29 +17,42 @@ import (
 // stufe ist eine der acht Stufen von SPEC-195 Nr. 3, die dieser Dienst erreicht: wie ein Aufbau sie verletzt, welcher Code
 // folgt (0 für ErrUngueltig ohne Code) und welche Aufrufe bis dahin stattgefunden haben.
 type stufe struct {
-	name string
-	code model.Code
-	bau  func(u *umg, a *inbound.Anfrage)
-	ops  []string
+	name    string
+	code    model.Code
+	bau     func(u *umg, a *inbound.Anfrage)
+	ops     []string
+	stufe   int
+	keinCtx bool
 }
 
+// stufenM4 liefert die Formen der acht Stufen: Argumente vier (ctx nil, leere Methode, Laenge -2, Body nil bei Laenge 1),
+// URL zwei (Fehler des Lesers, Art außerhalb der vier), jede andere Stufe eine; stufe ist die Nummer der Stufe.
 func stufenM4() []stufe {
 	url, ws, md := "URL.ParseURL", "Workspaces.Get", "Metadaten.Get"
+	urlFehler := func(u *umg, _ *inbound.Anfrage) {
+		u.c.url.f = func(string, string) (model.ODataURL, error) {
+			return model.ODataURL{}, &model.URLFehler{Ursache: model.URLSegment}
+		}
+	}
 	return []stufe{
-		{"Argumente", 0, func(_ *umg, a *inbound.Anfrage) { a.Laenge = -2 }, nil},
-		{"kein Dienst", model.CodeE5005, func(_ *umg, a *inbound.Anfrage) { a.Pfad = "/nirgends" }, nil},
-		{"Zuordnung", model.CodeE5003, func(_ *umg, a *inbound.Anfrage) { delete(a.Header, headerName) }, nil},
-		{"URL", model.CodeE6005, func(u *umg, _ *inbound.Anfrage) {
-			u.c.url.f = func(string, string) (model.ODataURL, error) {
-				return model.ODataURL{}, &model.URLFehler{Ursache: model.URLSegment}
-			}
-		}, []string{url}},
-		{"Methode", model.CodeE6002, func(_ *umg, a *inbound.Anfrage) { a.Methode = "POST" }, []string{url}},
-		{"Workspace unbekannt", model.CodeE7001, func(u *umg, _ *inbound.Anfrage) { u.ws.entferne(wsID) }, []string{url, ws}},
-		{"Workspace fremd", model.CodeE5004, func(u *umg, _ *inbound.Anfrage) {
+		{name: "Argumente ctx nil", bau: func(*umg, *inbound.Anfrage) {}, stufe: 0, keinCtx: true},
+		{name: "Argumente Methode leer", bau: func(_ *umg, a *inbound.Anfrage) { a.Methode = "" }, stufe: 0},
+		{name: "Argumente Laenge -2", bau: func(_ *umg, a *inbound.Anfrage) { a.Laenge = -2 }, stufe: 0},
+		{name: "Argumente Body nil", bau: func(_ *umg, a *inbound.Anfrage) { a.Laenge, a.Body = 1, nil }, stufe: 0},
+		{name: "kein Dienst", code: model.CodeE5005, bau: func(_ *umg, a *inbound.Anfrage) { a.Pfad = "/nirgends" }, stufe: 1},
+		{name: "Zuordnung", code: model.CodeE5003, bau: func(_ *umg, a *inbound.Anfrage) { delete(a.Header, headerName) }, stufe: 2},
+		{name: "URL Fehler", code: model.CodeE6005, bau: urlFehler, ops: []string{url}, stufe: 3},
+		{name: "URL Art 0", code: model.CodeE9001, bau: func(u *umg, _ *inbound.Anfrage) {
+			u.c.url.f = func(string, string) (model.ODataURL, error) { return model.ODataURL{}, nil }
+		}, ops: []string{url}, stufe: 3},
+		{name: "Methode", code: model.CodeE6002, bau: func(_ *umg, a *inbound.Anfrage) { a.Methode = "POST" }, ops: []string{url}, stufe: 4},
+		{name: "Workspace unbekannt", code: model.CodeE7001, bau: func(u *umg, _ *inbound.Anfrage) { u.ws.entferne(wsID) },
+			ops: []string{url, ws}, stufe: 5},
+		{name: "Workspace fremd", code: model.CodeE5004, bau: func(u *umg, _ *inbound.Anfrage) {
 			u.ws.setze(model.Workspace{ID: wsID, ServiceID: "anderer", BaselineSnapshotID: "b"})
-		}, []string{url, ws}},
-		{"Service ohne Metadaten", model.CodeE6004, func(u *umg, _ *inbound.Anfrage) { u.md.setze(model.Service{ID: dienstID}) }, []string{url, ws, md}},
+		}, ops: []string{url, ws}, stufe: 6},
+		{name: "Service ohne Metadaten", code: model.CodeE6004, bau: func(u *umg, _ *inbound.Anfrage) { u.md.setze(model.Service{ID: dienstID}) },
+			ops: []string{url, ws, md}, stufe: 7},
 	}
 }
 
@@ -47,17 +60,23 @@ func stufenM4() []stufe {
 // ungerufen; „Workspace unbekannt“ und „fremd“ schließen sich aus, bleiben 27 von 28 Paaren, dazu die acht einzelnen.
 func TestRangfolge(t *testing.T) {
 	stufen := stufenM4()
-	if len(stufen) != 8 {
-		t.Fatalf("%d Stufen, M4 nennt 8", len(stufen))
+	if len(stufen) != 12 {
+		t.Fatalf("%d Formen, M4 nennt 12 (8 Stufen)", len(stufen))
 	}
 	pruefe := func(name string, verletzt ...stufe) {
 		u := neueUmg(t)
 		a := metadatenAnfrage()
-		for _, s := range verletzt {
-			s.bau(u, &a)
+		// Der erste Verstoß entscheidet: die späteren Stufen zuerst setzen, damit die frühere eine gleiche Größe überschreibt.
+		for k := len(verletzt) - 1; k >= 0; k-- {
+			verletzt[k].bau(u, &a)
 		}
 		erste := verletzt[0]
-		_, err := u.rufe(a)
+		m := u.mocker()
+		ctx := u.ctx
+		if slices.ContainsFunc(verletzt, func(s stufe) bool { return s.keinCtx }) {
+			ctx = keinKontext()
+		}
+		_, err := m.Mock(ctx, a)
 		if erste.code == 0 {
 			var f *inbound.Fehler
 			if !errors.Is(err, model.ErrUngueltig) || errors.As(err, &f) {
@@ -74,15 +93,15 @@ func TestRangfolge(t *testing.T) {
 	for i, s := range stufen {
 		pruefe(s.name, s)
 		for j := i + 1; j < len(stufen); j++ {
-			if i == 5 && j == 6 {
+			if s.stufe == stufen[j].stufe || s.stufe == 5 && stufen[j].stufe == 6 {
 				continue
 			}
 			paare++
 			pruefe(s.name+" vor "+stufen[j].name, s, stufen[j])
 		}
 	}
-	if paare != 27 {
-		t.Errorf("%d Paare, M4 nennt 27", paare)
+	if paare != 58 {
+		t.Errorf("%d Paare, erwartet 58 (27 Paare der Stufen, aufgefächert nach den Formen)", paare)
 	}
 }
 
@@ -194,6 +213,12 @@ func TestFehlerWert(t *testing.T) {
 			continue
 		}
 		gesehen[fe.Code.String()] = true
+		// Die Codes, die der Dienst ohne Tabelle bildet, tragen keine Ursache (SPEC-195 Nr. 10).
+		ohne := slices.Contains([]string{"kein Dienst", "Header fehlt", "Methode POST", "Workspace fremd", "Service ohne Blob", "Art 0"}, f.name) ||
+			strings.HasPrefix(f.name, "Platzhalter ") || strings.HasPrefix(f.name, "Metadaten Kennzeichen")
+		if ohne && fe.Ursache != nil {
+			t.Errorf("%s: Ursache %v, erwartet keine", f.name, fe.Ursache)
+		}
 		if !fe.Code.StatusErlaubt(fe.Status) || fe.Status != fe.Code.Stati()[0] {
 			t.Errorf("%s: Status %d", f.name, fe.Status)
 		}

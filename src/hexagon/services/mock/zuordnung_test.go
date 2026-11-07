@@ -184,14 +184,24 @@ func TestDienstWahl(t *testing.T) {
 		t.Errorf("%d Zellen, M2 nennt 60", zelle)
 	}
 
-	// Alle fünf Roots zugleich: der längste passende gewinnt.
+	// Alle fünf Roots zugleich: der längste passende gewinnt. Die Reihenfolge von Dienste ist eine Achse: wie angegeben,
+	// umgekehrt, nach Länge auf- und absteigend (4 Ordnungen).
+	for _, ordnung := range [][]int{{0, 1, 2, 3, 4}, {4, 3, 2, 1, 0}, {0, 1, 3, 2, 4}, {4, 2, 3, 1, 0}} {
+		pfadWahl(t, wurzeln, formen, ordnung)
+	}
+}
+
+// pfadWahl fährt alle Pfade gegen alle Roots, die Dienste in der Reihenfolge ordnung.
+func pfadWahl(t *testing.T, wurzeln []string, formen []func(string) string, ordnung []int) {
+	t.Helper()
 	for i, root := range wurzeln {
 		for _, form := range formen {
 			pfad := form(root)
 			u := neueUmg(t)
 			var gewaehlt, rest string
 			u.k.Dienste = nil
-			for k, r := range wurzeln {
+			for _, k := range ordnung {
+				r := wurzeln[k]
 				id := "d" + string(rune('0'+k))
 				u.k.Dienste = append(u.k.Dienste, mock.Dienst{ID: id, Root: r})
 				u.md.setze(model.Service{ID: id, MetadataBlob: metaRef})
@@ -226,7 +236,7 @@ func TestDienstWahl(t *testing.T) {
 
 const headerName = "X-Recorder-Workspace"
 
-// TestZuordnung hält Z06 (M3): 13 Formen des Headers × 6 Werte; genau ein nichtleerer Wert, byte-gleich benutzt, ohne
+// TestZuordnung hält Z06 (M3): 16 Formen des Headers × 6 Werte; genau ein nichtleerer Wert, byte-gleich benutzt, ohne
 // Beachtung der Schreibweise des Namens; jede andere Form ist ODR-E5003 ohne Port.
 func TestZuordnung(t *testing.T) {
 	werte := []string{"a", strings.Repeat("w", 64), strings.Repeat("W", 200), "WsMitGross", "a/b", "a\x00b"}
@@ -247,6 +257,11 @@ func TestZuordnung(t *testing.T) {
 		{"Name klein", true, func(v string) map[string][]string { return map[string][]string{"x-recorder-workspace": {v}} }},
 		{"Name gemischt", true, func(v string) map[string][]string { return map[string][]string{"x-RECORDER-workspace": {v}} }},
 		{"Rand-Leerzeichen", true, func(v string) map[string][]string { return map[string][]string{headerName: {" " + v + " "}} }},
+		{"drei Werte", false, func(v string) map[string][]string {
+			return map[string][]string{headerName: {v, v + "2", v + "3"}}
+		}},
+		{"zwei Werte, der erste leer", false, func(v string) map[string][]string { return map[string][]string{headerName: {"", v}} }},
+		{"zwei Werte, der zweite leer", false, func(v string) map[string][]string { return map[string][]string{headerName: {v, ""}} }},
 		// Zeichen jenseits von ASCII aus Bytewerten (AGENTS.md §3.18): U+212A KELVIN SIGN faltet zu k, U+017F zu s.
 		{"Name mit Kelvin-Zeichen", false, func(v string) map[string][]string {
 			return map[string][]string{"x-recorder-wor" + string([]byte{0xE2, 0x84, 0xAA}) + "space": {v}}
@@ -291,8 +306,8 @@ func TestZuordnung(t *testing.T) {
 			}
 		}
 	}
-	if n != 78 {
-		t.Errorf("%d Zellen, 13 Formen × 6 Werte = 78", n)
+	if n != 96 {
+		t.Errorf("%d Zellen, 16 Formen × 6 Werte = 96", n)
 	}
 }
 
@@ -352,9 +367,9 @@ func TestSessionHeaderOhneWirkung(t *testing.T) {
 // TestMethode hält Z10: GET und HEAD laufen weiter, jede andere Methode ist ODR-E6002, bei einem nur lesenden Satz
 // ODR-E6006; nach dem Lesen der URL, vor dem Workspace, ohne den Body zu lesen.
 func TestMethode(t *testing.T) {
-	methoden := []string{"POST", "PATCH", "PUT", "DELETE", "OPTIONS", "get", "Get", "FOO"}
-	if len(methoden) != 8 {
-		t.Fatal("M2: acht Methoden")
+	methoden := []string{"POST", "PATCH", "PUT", "DELETE", "OPTIONS", "get", "Get", "FOO", "head", "Head", "hEAD"}
+	if len(methoden) != 11 {
+		t.Fatal("Z10: elf Methoden")
 	}
 	modi := []struct {
 		name   string
