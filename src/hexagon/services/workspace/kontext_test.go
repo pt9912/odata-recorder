@@ -21,6 +21,8 @@ func paareMitCtx() map[string][]string {
 		"Delete": {"Workspaces.Delete", "Wartung.CleanupBlobs"},
 		"Reset": {"Workspaces.Get", "Snapshots.Get", "Blobs.Open", lblTx, "tx Workspaces.Get", "tx Entities.ReplaceAll",
 			"tx Cursors.ResetAll", "tx Workspaces.Advance"},
+		"Restore": {"Workspaces.Get", "Snapshots.GetWorkspace", "Blobs.Open", lblTx, "tx Workspaces.Get", "tx Entities.ReplaceAll",
+			"tx Workspaces.Advance"},
 	}
 }
 
@@ -54,8 +56,8 @@ func TestKontextUnveraendertAnJedemPort(t *testing.T) {
 		}
 		paare += len(got)
 	}
-	if paare != 18 {
-		t.Errorf("Paare mit ctx %d, erwartet 18", paare)
+	if paare != 25 {
+		t.Errorf("Paare mit ctx %d, erwartet 25 (18 und 7 von Restore ohne S20)", paare)
 	}
 }
 
@@ -89,7 +91,7 @@ func TestKontextfehlerDesPorts(t *testing.T) {
 			faelle++
 		}
 	}
-	if faelle != 19*4 {
+	if faelle != 28*4 {
 		t.Errorf("Fälle %d", faelle)
 	}
 }
@@ -101,6 +103,11 @@ func TestFehlerAbbildungJedeStelle(t *testing.T) {
 	faelle := 0
 	for _, s := range stellen() {
 		for _, fe := range tabellenFehlerListe() {
+			if s.nr == "S19" && fe.err == outbound.ErrFalscheArt {
+				// ErrFalscheArt an S19 führt zu S20 (SPEC-129 Nr. 16 d); TestRestorePortFehler führt diese Fälle.
+				faelle++
+				continue
+			}
 			w, o := s.vorbereitet(t)
 			w.p.setzeFehler(s.label, fe.err)
 			err := o.lauf(w, context.Background())
@@ -112,7 +119,7 @@ func TestFehlerAbbildungJedeStelle(t *testing.T) {
 			faelle++
 		}
 	}
-	if faelle != 19*28 {
+	if faelle != 28*28 {
 		t.Errorf("Fälle %d", faelle)
 	}
 }

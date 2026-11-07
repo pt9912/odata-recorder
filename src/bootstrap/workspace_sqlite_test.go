@@ -31,12 +31,13 @@ import (
 // Wartung (SPEC-129 *Ungeprüft*, Verdrahtung): Workspaces, Transaktion und Snapshots über dieselbe Datenbank, Blobs
 // über den Wächter derselben Ablage.
 type wsDatei struct {
-	t       *testing.T
-	db      *sqlite.DB
-	store   *blobs.Store
-	wartung *maintenance.Wartung
-	dienst  *workspace.Verwaltung
-	uhr     *supporttest.FestUhr
+	t        *testing.T
+	db       *sqlite.DB
+	store    *blobs.Store
+	waechter *maintenance.BlobWaechter
+	wartung  *maintenance.Wartung
+	dienst   *workspace.Verwaltung
+	uhr      *supporttest.FestUhr
 }
 
 func wsT0() time.Time { return time.Date(2026, 10, 20, 10, 0, 0, 0, time.UTC) }
@@ -115,7 +116,7 @@ func wsNeueDatei(t *testing.T) *wsDatei {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d := &wsDatei{t: t, db: db, store: store, wartung: wartung, dienst: dienst, uhr: uhr}
+	d := &wsDatei{t: t, db: db, store: store, waechter: waechter, wartung: wartung, dienst: dienst, uhr: uhr}
 	must := func(err error) {
 		t.Helper()
 		if err != nil {
