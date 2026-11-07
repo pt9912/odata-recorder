@@ -121,7 +121,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-admin-listener-token` und `slice-listener-tls` (`welle-betrieb`) liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-admin-listener-token` samt seinen Teilen `slice-admin-rahmen`, `slice-admin-authentisierung`, `slice-admin-lebenszyklus`, `slice-admin-fehlerabbildung` und `slice-admin-abweisen-audit` (Schnitt vor dem Code, 2026-11-07; TLS umhüllt den Listener, den `Serve` aus `slice-admin-lebenszyklus` bedient) und `slice-listener-tls` (`welle-betrieb`) liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Warum:** der Listener, den TLS umhüllt, kommt aus `slice-admin-listener-token` (*Code-Abhängigkeit*); den wiederverwendbaren Baustein zum Laden und Prüfen des Zertifikatspaars liefert `slice-listener-tls` (*Code-Abhängigkeit*, soweit er so geliefert wird; liefert er ihn nicht, geht der Punkt an den Planner, §6).
 
