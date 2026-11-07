@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-meldungskatalog
+**Fund:** Der Implementer schrieb `go.mod` des neuen Moduls `tools/katalog` mit `printf` und Umleitung statt mit `Write` (Übergangsregeln Nr. 8). Eine weitere Form des Schreibwegs für die Prüfung in `slice-guard-schreibwege` (`printf` mit Umleitung auf eine Repo-Datei). Angabe des Auftraggebers der Closure; der Plan von `slice-handbuch-meldungskatalog` nennt die Form nicht.
