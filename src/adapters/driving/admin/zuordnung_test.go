@@ -16,11 +16,19 @@ import (
 // z4Muster sind die drei Muster von M-Zuordnung (Z4).
 func z4Muster() []string { return []string{"/a", "/a/{id}", "/{p}/c/{q}"} }
 
-// z4Werte sind die sieben Werte eines Parameters, roh im Pfad und dekodiert als Literale des Vertrags (SPEC-238 Nr. 2);
-// die Werte mit Bytes jenseits von ASCII entstehen aus Bytewerten.
+// z4Werte sind die 19 Werte eines Parameters, roh im Pfad und dekodiert als Literale des Vertrags (SPEC-238 Nr. 2): sieben
+// Formen aus Punkten, Prozentfolgen und Bytes sowie zwölf Formen, in denen die Dekodierung eines Pfadsegments von der
+// eines Query-Wertes abweicht (`+` roh und als `%2B`/`%2b`, `%20`, `;`, `%3B`, `%25`, `&=`, `%3F`, `%23`, `~`); die
+// Werte mit Bytes jenseits von ASCII entstehen aus Bytewerten.
 func z4Werte() (roh, dekodiert []string) {
-	roh = []string{"x", ".", "..", "a%2Fb", "%C3%A4", "%FF", "%00"}
-	dekodiert = []string{"x", ".", "..", "a/b", string([]byte{0xC3, 0xA4}), string([]byte{0xFF}), string([]byte{0x00})}
+	roh = []string{
+		"x", ".", "..", "a%2Fb", "%C3%A4", "%FF", "%00",
+		"+", "a+b", "%2B", "%2b", "%20", ";", "%3B", "%25", "&=", "%3F", "%23", "~",
+	}
+	dekodiert = []string{
+		"x", ".", "..", "a/b", string([]byte{0xC3, 0xA4}), string([]byte{0xFF}), string([]byte{0x00}),
+		"+", "a+b", "+", "+", " ", ";", ";", "%", "&=", "?", "#", "~",
+	}
 	return roh, dekodiert
 }
 
@@ -130,8 +138,8 @@ func TestZuordnung(t *testing.T) {
 	faelle := z4Generator()
 	roh, _ := z4Werte()
 	// 6 Formen je Muster, dazu Slots × (Werte und das leere Segment): /a hat 0, /a/{id} 1, /{p}/c/{q} 2 Parameter
-	if soll := 6*len(z4Muster()) + (0+1+2)*(len(roh)+1); len(faelle) != soll || soll != 42 {
-		t.Fatalf("%d Fälle, erwartet 6 × 3 + 3 × (7 + 1) = %d", len(faelle), soll)
+	if soll := 6*len(z4Muster()) + (0+1+2)*(len(roh)+1); len(faelle) != soll || soll != 78 || len(roh) != 19 {
+		t.Fatalf("%d Fälle, erwartet 6 × 3 + 3 × (19 + 1) = %d", len(faelle), soll)
 	}
 	for _, f := range faelle {
 		route := neueRoute()

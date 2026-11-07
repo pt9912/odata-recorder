@@ -157,21 +157,71 @@ type z8Fall struct {
 	kopf map[string][]string
 }
 
-// z8Faelle sind die Header-Zeilen von Z8; Authorization trägt einen Canary, in jeder Schreibweise des Schlüssels.
+// z8Nachbarn sind die Namen, die Authorization ähneln und bleiben: jedes Zeichen gestrichen (13), nach jedem Zeichen und
+// davor ein `x` eingefügt (14), jedes Zeichen durch `x` ersetzt (13) und acht feste Namen (Präfix, Suffix und verwandte
+// Felder); 48 verschiedene, keiner gleicht Authorization in einer Schreibweise.
+func z8Nachbarn() []string {
+	const a = "authorization"
+	var namen []string
+	for i := 0; i <= len(a); i++ {
+		namen = append(namen, a[:i]+"x"+a[i:])
+	}
+	for i := 0; i < len(a); i++ {
+		namen = append(namen, a[:i]+a[i+1:], a[:i]+"x"+a[i+1:])
+	}
+	return append(namen, "Proxy-Authorization", "X-Authorization", "Authorization-Info", "Auth", "AuthX", "Auth-Info",
+		"Authentication", "WWW-Authenticate")
+}
+
+// z8Schreibweisen sind alle 2^13 Groß-/Kleinschreibungen von Authorization.
+func z8Schreibweisen() []string {
+	const a = "authorization"
+	var namen []string
+	for m := 0; m < 1<<len(a); m++ {
+		b := []byte(a)
+		for i := range b {
+			if m>>i&1 == 1 {
+				b[i] -= 'a' - 'A'
+			}
+		}
+		namen = append(namen, string(b))
+	}
+	return namen
+}
+
+// z8Faelle sind die Header-Zeilen von Z8; Authorization trägt einen Canary, in jeder der 8192 Schreibweisen des
+// Schlüssels. Jeder Nachbarname steht zusammen mit Authorization: nur dieses Feld fällt weg.
 func z8Faelle() []z8Fall {
 	bearer := []string{"Bearer " + canary()}
-	return []z8Fall{
+	faelle := []z8Fall{
 		{"Authorization", map[string][]string{"Authorization": bearer}},
-		{"authorization als Schlüssel", map[string][]string{"authorization": bearer}},
-		{"AUTHORIZATION als Schlüssel", map[string][]string{"AUTHORIZATION": bearer}},
 		{"X-A", map[string][]string{"X-A": {"1"}}},
 		{"zwei Werte", map[string][]string{"X-Multi": {"1", "2"}}},
 	}
+	for _, n := range z8Schreibweisen() {
+		faelle = append(faelle, z8Fall{"Schreibweise " + n, map[string][]string{n: bearer}})
+	}
+	for _, n := range z8Nachbarn() {
+		faelle = append(faelle, z8Fall{"Nachbar " + n, map[string][]string{n: {"1"}, "Authorization": bearer}})
+	}
+	return faelle
 }
 
 // TestHeaderOhneAuthorization hält Z8: Authorization erreicht keine Route, jede andere Zeile bleibt.
 func TestHeaderOhneAuthorization(t *testing.T) {
-	for _, f := range z8Faelle() {
+	faelle := z8Faelle()
+	verschieden := map[string]bool{}
+	for _, n := range z8Nachbarn() {
+		verschieden[n] = true
+		if strings.EqualFold(n, "Authorization") {
+			t.Errorf("Nachbarname %q gleicht Authorization", n)
+		}
+	}
+	if len(verschieden) != 48 || len(z8Nachbarn()) != 48 || len(z8Schreibweisen()) != 8192 || len(faelle) != 3+8192+48 {
+		t.Fatalf("%d Nachbarn (%d verschieden), %d Schreibweisen, %d Fälle, erwartet 48, 8192 und 3 + 8192 + 48",
+			len(z8Nachbarn()), len(verschieden), len(z8Schreibweisen()), len(faelle))
+	}
+	for _, f := range faelle {
 		route := neueRoute()
 		u := neuMit(t, admin.Route{Methode: "GET", Muster: "/a", Handler: route.handle})
 		u.rufe(anfrageMit("GET", "/a", f.kopf, nil))

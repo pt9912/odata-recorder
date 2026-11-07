@@ -135,14 +135,13 @@ func zerlegePfad(kodiert string) ([]string, bool) {
 // treffer ist das Ergebnis der Zuordnung: die Route mit ihren Parameterwerten, oder die Methoden aller Routen,
 // die auf den Pfad passen (leer: 404).
 type treffer struct {
-	route  *route
-	werte  map[string]string
-	allow  []string
-	gefund bool
+	route *route
+	werte map[string]string
+	allow []string
 }
 
 // ordne ordnet Methode und kodierten Pfad den Routen zu (SPEC-238 Nr. 2): kein Pfad-Treffer heißt 404
-// (gefund falsch, allow leer), Pfad-Treffer ohne die Methode 405 (allow sortiert nach Bytefolge).
+// (route nil, allow leer), Pfad-Treffer ohne die Methode 405 (allow sortiert nach Bytefolge).
 func ordne(routen []route, methode, kodiert string) treffer {
 	pfad, ok := zerlegePfad(kodiert)
 	if !ok {
@@ -156,7 +155,7 @@ func ordne(routen []route, methode, kodiert string) treffer {
 		}
 		t.allow = append(t.allow, routen[i].methode)
 		if routen[i].methode == methode {
-			t.route, t.werte, t.gefund = &routen[i], werte, true
+			t.route, t.werte = &routen[i], werte
 		}
 	}
 	slices.Sort(t.allow)

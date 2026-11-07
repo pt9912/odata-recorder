@@ -3,6 +3,7 @@ package admin_test
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -132,9 +133,30 @@ func TestRoutenTextOhneWert(t *testing.T) {
 	}
 }
 
-// z3Muster sind die neun Muster von M-Überlappung; /b/c unterscheidet sich von /a/c allein im ersten Segment.
+// z3Muster sind die Muster von M-Überlappung: alle Folgen von einem bis vier Segmenten über die drei Segmentarten
+// Literal `a`, Literal `b` und Parameter (3 + 9 + 27 + 81 = 120); der Parameter an Stelle i heißt p plus der i-te Kleinbuchstabe, damit kein
+// Muster einen Namen doppelt führt. Jede Stelle bis zur vierten ist damit gegen jede Art und jede Länge gepaart.
 func z3Muster() []string {
-	return []string{"/a/b", "/a/c", "/a/{x}", "/{x}/c", "/a/{y}", "/a", "/a/b/c", "/healthz", "/b/c"}
+	arten := []string{"a", "b", "{p}"}
+	var muster []string
+	folgen := [][]string{nil}
+	for laenge := 1; laenge <= 4; laenge++ {
+		var neu [][]string
+		for _, f := range folgen {
+			for _, art := range arten {
+				seg := art
+				if art == "{p}" {
+					seg = "{p" + string(rune('a'+len(f))) + "}"
+				}
+				neu = append(neu, append(slices.Clone(f), seg))
+			}
+		}
+		for _, f := range neu {
+			muster = append(muster, "/"+strings.Join(f, "/"))
+		}
+		folgen = neu
+	}
+	return muster
 }
 
 // modellUeberlappt ist das Modell des Tests je Segment (SPEC-238 Nr. 2 d): gleiche Zahl der Segmente, an jeder Stelle
@@ -153,8 +175,9 @@ func modellUeberlappt(a, b string) bool {
 	return true
 }
 
-// TestRoutenUeberlappung hält Z3 (M-Überlappung): 45 Paare aus neun Mustern, je mit gleicher und mit verschiedener
-// Methode; gleiche Methode überlappt genau, wenn das Modell es sagt, verschiedene nie. Dazu vier Fälle der eingebauten Route.
+// TestRoutenUeberlappung hält Z3 (M-Überlappung): 7260 Paare aus 120 Mustern (ein bis vier Segmente), je mit gleicher
+// und mit verschiedener Methode; gleiche Methode überlappt genau, wenn das Modell es sagt, verschiedene nie. Die vier
+// Fälle der eingebauten Route hält TestEingebauteRouteUeberlappt.
 func TestRoutenUeberlappung(t *testing.T) {
 	muster := z3Muster()
 	h := neueRoute().handle
@@ -176,8 +199,8 @@ func TestRoutenUeberlappung(t *testing.T) {
 			}
 		}
 	}
-	if n := len(muster); faelle != n*(n+1)/2*2 || faelle != 90 {
-		t.Errorf("%d Paarfälle, erwartet n(n+1)/2 × 2 = 90", faelle)
+	if n := len(muster); faelle != n*(n+1)/2*2 || n != 120 || faelle != 14520 {
+		t.Errorf("%d Paarfälle aus %d Mustern, erwartet n(n+1)/2 × 2 = 14520 aus 120", faelle, n)
 	}
 }
 
