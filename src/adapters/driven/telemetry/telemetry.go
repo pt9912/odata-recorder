@@ -1,7 +1,8 @@
 // Package telemetry ist der Driven Adapter der Ports Telemetry und TelemetryReader (SPEC-230 bis
 // SPEC-232, ARC-020): Regeln der Attribute, Zähler je Fehlercode, der Stand zum Lesen und die
-// Logzeile. Er nutzt nur die Standardbibliothek. Log schreibt eine Zeile (SPEC-231); StartSpan ist
-// ohne Wirkung und beendet keinen Span.
+// Logzeile. Er nutzt nur die Standardbibliothek. Log schreibt eine Zeile (SPEC-231); StartSpan,
+// Set und End führen die Spans von SPEC-026 bis SPEC-030 und schreiben je End eine Zeile
+// (SPEC-231 Nr. 6).
 package telemetry
 
 import (
@@ -9,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
@@ -34,19 +36,27 @@ type Config struct {
 
 // Adapter erfüllt Telemetry und TelemetryReader; er ist für gleichzeitigen Aufruf sicher
 // (SPEC-232 Nr. 5): jeder Zugriff auf den Zustand liegt unter mu, jedes Write unter zeilenMu. Die
-// beiden Sperren werden nie ineinander gehalten (SPEC-232 Nr. 5 g).
+// beiden Sperren werden nie ineinander gehalten (SPEC-232 Nr. 5 g), und keine Sperre liegt über
+// Clock.Now() (Nr. 5 f). pflicht und grenzen sind nach New unveränderlich.
 type Adapter struct {
 	writer   io.Writer
 	clock    support.Clock
 	minLevel slog.Level
 	maxSpans int
+	pflicht  map[support.SpanName][]string
+	grenzen  []time.Duration
+
+	idMu        sync.Mutex
+	spanZaehler uint64
 
 	zeilenMu sync.Mutex
 
-	mu        sync.Mutex
-	errors    map[model.Code]uint64
-	durations map[support.SpanName]support.Verteilung
-	dropped   map[support.Verwurf]uint64
+	mu            sync.Mutex
+	errors        map[model.Code]uint64
+	durations     map[support.SpanName]support.Verteilung
+	dropped       map[support.Verwurf]uint64
+	ring          []support.SpanRecord
+	ringNaechster int
 }
 
 // New weist einen nil-Writer, eine nil-Clock und ein MaxSpans unter 0 oder über 65536 mit
@@ -64,6 +74,8 @@ func New(cfg Config) (*Adapter, error) {
 		clock:     cfg.Clock,
 		minLevel:  cfg.MinLevel,
 		maxSpans:  cfg.MaxSpans,
+		pflicht:   map[support.SpanName][]string{},
+		grenzen:   support.Eimer(),
 		errors:    map[model.Code]uint64{},
 		durations: map[support.SpanName]support.Verteilung{},
 		dropped:   map[support.Verwurf]uint64{},
@@ -72,7 +84,8 @@ func New(cfg Config) (*Adapter, error) {
 		a.errors[c] = 0
 	}
 	for _, s := range support.Spans() {
-		a.durations[s.Name] = support.Verteilung{Counts: make([]uint64, len(support.Eimer())+1)}
+		a.pflicht[s.Name] = s.Pflicht
+		a.durations[s.Name] = support.Verteilung{Counts: make([]uint64, len(a.grenzen)+1)}
 	}
 	for _, v := range support.Verwuerfe() {
 		a.dropped[v] = 0
@@ -84,15 +97,6 @@ func New(cfg Config) (*Adapter, error) {
 // ab MinLevel eine Zeile (SPEC-231 Nr. 1 bis 3); ctx wirkt nicht.
 func (a *Adapter) Log(_ context.Context, level slog.Level, msg string, attrs ...support.Attr) {
 	a.eintrag(level, msg, attrs)
-}
-
-// StartSpan ist ohne Wirkung: es liefert einen nicht-nil ctx und einen Span, dessen Set und End
-// nichts tun.
-func (*Adapter) StartSpan(ctx context.Context, _ support.SpanName, _ ...support.Attr) (context.Context, support.Span) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return ctx, keinSpan{}
 }
 
 // CountError erhöht den Zähler von code um 1; ein Code außerhalb der Tabelle erhöht keinen
@@ -107,15 +111,19 @@ func (a *Adapter) CountError(code model.Code) {
 	a.dropped[support.VerwurfFehlercode]++
 }
 
-// Snapshot liefert eine Kopie des Stands; jeder Schlüssel steht darin, auch mit 0 (SPEC-230 Nr. 9).
+// Snapshot liefert eine Kopie des Stands, die ältesten Spans zuerst; jeder Schlüssel steht darin,
+// auch mit 0 (SPEC-230 Nr. 9). Die Kopie liegt in einem Abschnitt unter der Sperre (SPEC-232 Nr. 5 b).
 func (a *Adapter) Snapshot() support.Snapshot {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	spans := make([]support.SpanRecord, 0, len(a.ring))
+	spans = append(spans, a.ring[a.ringNaechster:]...)
+	spans = append(spans, a.ring[:a.ringNaechster]...)
 	return support.Snapshot{
 		Errors:    a.errors,
 		Durations: a.durations,
 		Dropped:   a.dropped,
-		Spans:     []support.SpanRecord{},
+		Spans:     spans,
 	}.Kopie()
 }
 
