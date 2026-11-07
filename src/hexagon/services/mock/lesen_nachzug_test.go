@@ -35,7 +35,7 @@ func TestRedigiertAnJederPosition(t *testing.T) {
 		}
 		for i, e := range c.Entities {
 			_, da := wertVon(e, "Name")
-			if soll := !(p == i || p == -1); da != soll {
+			if soll := p != i && p != -1; da != soll {
 				t.Errorf("Position %d, redigiert an %d: Name da=%v, erwartet %v", i, p, da, soll)
 			}
 		}
