@@ -179,9 +179,9 @@ func urlGleichzeitig(pfad, _ string) (model.ODataURL, error) {
 	case "c-alle":
 		return r(model.RessourceMenge, setProducts, model.Optionen{Select: &model.SelectOption{Alle: true, Namen: []string{"Name"}}})
 	case "c-opt":
-		nichtId := model.FilterNicht{Operand: idGroesser("0").Ausdruck}
+		nichtID := model.FilterNicht{Operand: idGroesser("0").Ausdruck}
 		return r(model.RessourceMenge, setProducts, model.Optionen{
-			Filter:  filterOpt(model.FilterVerknuepfung{Op: model.VerknuepfungOder, Links: nichtId, Rechts: idGroesser("1").Ausdruck}),
+			Filter:  filterOpt(model.FilterVerknuepfung{Op: model.VerknuepfungOder, Links: nichtID, Rechts: idGroesser("1").Ausdruck}),
 			OrderBy: []model.Sortierung{{Name: "Name", Absteigend: true}, {Name: "Id"}}, Top: model.ZahlOption{Gesetzt: true, Wert: 2},
 			Skip: model.ZahlOption{Gesetzt: true}, Count: model.WahrOption{Gesetzt: true, Wert: true}, Select: &model.SelectOption{Namen: []string{"Id", "Name"}},
 		})
