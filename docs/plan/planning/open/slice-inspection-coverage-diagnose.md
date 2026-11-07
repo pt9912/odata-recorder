@@ -20,7 +20,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-07.
 
-**Herkunft:** Teil 2 des Schnitts von [slice-inspection-use-case](../in-progress/slice-inspection-use-case.md) (Entscheidung des Architect, Schnitt vor dem Code, `SPEC-128` Nr. 1; vollzogen vom Planner am 2026-11-07). Der Plan trägt die Zeilen K2 bis K4, A2, C1 bis C5, D1 bis D8, N2, W3 und W4 der Tabelle dieses Slice.
+**Herkunft:** Teil 2 des Schnitts von [slice-inspection-use-case](../done/slice-inspection-use-case.md) (Entscheidung des Architect, Schnitt vor dem Code, `SPEC-128` Nr. 1; vollzogen vom Planner am 2026-11-07). Der Plan trägt die Zeilen K2 bis K4, A2, C1 bis C5, D1 bis D8, N2, W3 und W4 der Tabelle dieses Slice.
 
 ---
 
