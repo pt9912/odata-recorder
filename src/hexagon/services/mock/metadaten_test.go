@@ -238,26 +238,3 @@ func TestHeadMetadaten(t *testing.T) {
 		}
 	}
 }
-
-// TestPlatzhalterLesen hält Z18: Collection, Entity und Anzahl enden mit ODR-E6001 nach Schritt g, ohne Entities, Coverage,
-// Blobs oder Schreiber.
-func TestPlatzhalterLesen(t *testing.T) {
-	arten := []model.RessourcenArt{model.RessourceMenge, model.RessourceEntity, model.RessourceAnzahl}
-	for _, art := range arten {
-		for _, methode := range []string{"GET", "HEAD"} {
-			u := neueUmg(t)
-			u.c.url.f = func(string, string) (model.ODataURL, error) {
-				return model.ODataURL{Ressource: model.Ressource{Art: art, EntitySet: "Set"}}, nil
-			}
-			_, err := u.rufe(anfrage(methode, dienstRoot+"/Set"))
-			f := erwarteFehler(t, "Platzhalter", err, model.CodeE6001)
-			if f != nil && f.Ursache != nil {
-				t.Errorf("Art %d: Ursache %v", art, f.Ursache)
-			}
-			soll := []string{"URL.ParseURL", "Workspaces.Get", "Metadaten.Get"}
-			if ops := u.p.ops(); !reflect.DeepEqual(ops, soll) {
-				t.Errorf("Art %d %s: Aufrufe %v, erwartet %v", art, methode, ops, soll)
-			}
-		}
-	}
-}

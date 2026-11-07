@@ -378,21 +378,21 @@ func TestKennungsform(t *testing.T) {
 	}
 }
 
-// codeTexte ist die Spalte „Code“ der Tabelle in SPEC-109 Nr. 2 aus dem Wortlaut (37 Codes).
+// codeTexte ist die Spalte „Code“ der Tabelle in SPEC-109 Nr. 2 aus dem Wortlaut (38 Codes).
 func codeTexte() []string {
 	return strings.Fields(`ODR-E2001 ODR-E2101 ODR-E2401 ODR-E3001 ODR-E4001 ODR-E5001 ODR-E5002 ODR-E5003
 ODR-E5004 ODR-E5005 ODR-E5006 ODR-E5007 ODR-E5008 ODR-E5009 ODR-E5010 ODR-E6001 ODR-E6002 ODR-E6003
-ODR-E6004 ODR-E6005 ODR-E6006 ODR-E6007 ODR-E6101 ODR-E6102 ODR-E7001 ODR-E7002 ODR-E7003 ODR-E7004 ODR-E7005
+ODR-E6004 ODR-E6005 ODR-E6006 ODR-E6007 ODR-E6008 ODR-E6101 ODR-E6102 ODR-E7001 ODR-E7002 ODR-E7003 ODR-E7004 ODR-E7005
 ODR-E7006 ODR-E7007 ODR-E7008 ODR-E7009 ODR-E7010 ODR-E7011 ODR-E7012 ODR-E9001`)
 }
 
-// A09: jeder der 37 Codes wird als sein Text geschrieben; jeder ganzzahlige Wert von -5 bis 60,
+// A09: jeder der 38 Codes wird als sein Text geschrieben; jeder ganzzahlige Wert von -5 bis 60,
 // der keiner ist (0, negativ, nach dem letzten), ist ErrUngueltig.
 func TestErrorCode(t *testing.T) {
 	texte := codeTexte()
 	alle := model.AlleCodes()
-	if len(texte) != 37 || len(alle) != 37 {
-		t.Fatalf("%d Texte und %d Codes, erwartet je 37", len(texte), len(alle))
+	if len(texte) != 38 || len(alle) != 38 {
+		t.Fatalf("%d Texte und %d Codes, erwartet je 38", len(texte), len(alle))
 	}
 	a := neu(t, festeZeit)
 	gueltigeWerte := map[model.Code]string{}
@@ -403,8 +403,8 @@ func TestErrorCode(t *testing.T) {
 		}
 		gueltigeWerte[c] = text
 	}
-	if len(gueltigeWerte) != 37 {
-		t.Fatalf("%d verschiedene Codes im Orakel, erwartet 37", len(gueltigeWerte))
+	if len(gueltigeWerte) != 38 {
+		t.Fatalf("%d verschiedene Codes im Orakel, erwartet 38", len(gueltigeWerte))
 	}
 	schreiber, verworfen := 0, 0
 	for v := -5; v <= 60; v++ {
@@ -423,8 +423,8 @@ func TestErrorCode(t *testing.T) {
 			verworfen++
 		}
 	}
-	if schreiber != 37 || verworfen != 66-37 {
-		t.Errorf("%d gültige und %d verworfene Werte, erwartet 37 und 29", schreiber, verworfen)
+	if schreiber != 38 || verworfen != 66-38 {
+		t.Errorf("%d gültige und %d verworfene Werte, erwartet 38 und 28", schreiber, verworfen)
 	}
 	// In den drei Arten, die error_code verbieten, ist jeder Wert von -5 bis 60 außer 0 ein
 	// Verstoß (3 × 65 Werte), 0 schreibt (3 × 1).
@@ -447,8 +447,8 @@ func TestErrorCode(t *testing.T) {
 		t.Errorf("%d verbotene Werte geprüft, erwartet %d", verboten, 3*65)
 	}
 	zeilen := strings.Split(strings.TrimSuffix(a.inhalt(t), "\n"), "\n")
-	if len(zeilen) != 37 {
-		t.Fatalf("%d Zeilen, erwartet 37", len(zeilen))
+	if len(zeilen) != 38 {
+		t.Fatalf("%d Zeilen, erwartet 38", len(zeilen))
 	}
 	for _, text := range texte {
 		if !strings.Contains(a.inhalt(t), `"error_code":"`+text+`"}`+"\n") {
