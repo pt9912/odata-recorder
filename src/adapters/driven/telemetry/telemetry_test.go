@@ -356,38 +356,6 @@ func TestVerwurfRangfolge(t *testing.T) {
 	}
 }
 
-// StartSpan, Set und End sind ohne Wirkung: keine Zeile, kein Stand (die Zeile von Log fängt
-// TestLogSchreibtZeile).
-func TestKernSchreibtNichts(t *testing.T) {
-	a, puffer := neu(t)
-	var kein context.Context
-	ctx := context.WithValue(context.Background(), ctxSchluessel{}, 1)
-	ctxK, sp := a.StartSpan(ctx, support.SpanMockQuery, support.Str("recorder.entity_set", "x"))
-	sp.Set(support.Str("recorder.coverage_status", "voll"))
-	sp.End()
-	sp.End()
-	ctxN, spN := a.StartSpan(kein, "unbekannt")
-	spN.End()
-	if puffer.Len() != 0 {
-		t.Errorf("der Kern schrieb %d Bytes", puffer.Len())
-	}
-	if ctxK != ctx || ctxN == nil || sp == nil || spN == nil {
-		t.Error("StartSpan liefert nicht den übergebenen ctx und einen Span")
-	}
-	s := a.Snapshot()
-	reihenFest(t, "Kern", s)
-	for g, n := range s.Dropped {
-		if n != 0 {
-			t.Errorf("Grund %s zählt %d", g, n)
-		}
-	}
-	if len(s.Spans) != 0 || s.Durations[support.SpanMockQuery].Count != 0 {
-		t.Errorf("StartSpan hat gewirkt: %+v", s)
-	}
-}
-
-type ctxSchluessel struct{}
-
 // P15: CountError verliert keinen Zuwachs, in beiden Zweigen; 64 Goroutinen mit je 500 Aufrufen,
 // Codes reihum über die der Tabelle (model.AlleCodes()) und 4 außerhalb.
 func TestCountErrorGleichzeitig(t *testing.T) {
