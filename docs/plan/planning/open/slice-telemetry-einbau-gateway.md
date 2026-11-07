@@ -39,6 +39,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-telemetry-log` §1, Schnitt in `slice-telemetry-log` und `slice-telemetry-handler`; Geber: `slice-telemetry-log` und `slice-telemetry-handler`; Eintrag des Planners vom 2026-11-07):** (a) die Umstellung der Dienste `record`, `session` und `maintenance` auf `slog.New(Handler())` und die Verdrahtung des Adapters mit dem Standard-Fehlerstrom als Senke, der Systemuhr und `MinLevel` gleich `slog.LevelInfo` im Composition Root (`SPEC-231` Nr. 7), soweit die Dienste dort verdrahtet sind; die Dienste behalten ihr `*slog.Logger`-Feld und ändern ihren Code nicht; (b) der Wortlaut von `SPEC-121` Nr. 12 zum Port `Telemetry` (der Satz „einen Port `Telemetry` gibt es noch nicht“ veraltet mit diesem Slice); (c) der Fänger je Stelle zum akzeptierten Negativ L15 von `slice-telemetry-log`: eine Stelle, die einen Request-Wert in `session_id` oder `msg` ablegt, gibt ihn aus, der Schutz ist ein Test je Stelle der Einträge der Dienste (`SPEC-232` Nr. 2, *Ungeprüft*). Das Ziel oben („statt über einen `*slog.Logger`“) und `SPEC-231` Nr. 7 (die Dienste behalten das Feld) sagen verschieden, was der Record-Dienst am Ende hält; die Spezifikation gewinnt, die Frage geht an den Architect (§6).
 
+**Übernimmt (Sendung von `slice-telemetry-handler` §6, Spec-Lücke; Geber: `slice-telemetry-handler`; Eintrag des Planners vom 2026-11-07):** (d) der Wortlaut der Texte der Ereignisse `upstream` und `ablage` des Record-Dienstes. `SPEC-121` Nr. 12 sagt „festem Text“, nennt ihn aber für diese beiden nicht; die Tests des Handlers (Menge M13, `TestDienstEintraege`) nehmen die Texte des Codes (`record: Upstream ohne Antwort`, `record: Exchange nicht angehängt`, Quelle `src/hexagon/services/record/protokoll.go`), also ein Orakel aus dem Code. Der Architect legt den Wortlaut beim Vertrag dieses Slice fest (Auftrag 8, zusammen mit (b)); der Fänger je Stelle aus (c) und die Fixture von `TestDienstEintraege` nehmen danach den Text aus der Spezifikation. Der Handler ändert den Code der Dienste nicht (`slice-telemetry-handler` §1), der Text ist hier zu berichtigen, falls die Spezifikation einen anderen festlegt.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Port und Adapter `Telemetry` — `slice-telemetry-port`; dieser Slice ruft ihn nur.
@@ -107,6 +109,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 5. **Fehlerzähler.** Welche Fehler den Zähler erhöhen (jeder Code, den der Adapter schreibt, auch `ODR-E9001`; Kontextfehler ohne Code nicht), und wo (Adapter oder Dienst), so dass kein Fehler doppelt zählt.
 6. **Aufrufstellen als Menge** (`AGENTS.md` §3.15): jeder Port, jede Stelle, an der der Port gerufen wird, ein Fall je Stelle; der Fake hält jedes Argument fest.
 7. **Tabelle, Raster, Gegenproben, erwartete Produktcode-Größe** für die Marke des Planners.
+8. **Wortlaut der Ereignisse `upstream` und `ablage`** (Sendung (d) in §1, Geber `slice-telemetry-handler`): `SPEC-121` Nr. 12 nennt für beide „festen Text“ ohne Wortlaut; der Architect legt ihn fest (heute im Code: `record: Upstream ohne Antwort` und `record: Exchange nicht angehängt`) und nennt, ob der Code oder die Spezifikation gewinnt; danach tauscht der Implementer das Orakel aus dem Code in `TestDienstEintraege` (`src/adapters/driven/telemetry`, Menge M13) gegen den Wortlaut der Spezifikation.
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; füllt der Architect, der Implementer trägt die Mutationen und Raten mit Zahl der Prozesse und Messendem in einen Absatz darunter ein, `AGENTS.md` §3.10):
 
@@ -172,6 +175,7 @@ dasteht.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster entsteht vor dem ersten Code-Commit; eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
 - Das Ziel (Protokolleintrag „über den Port `Telemetry` statt über einen `*slog.Logger`“) widerspricht `SPEC-231` Nr. 7 (die Dienste behalten das `*slog.Logger`-Feld und erhalten `slog.New(Handler())`); die Spezifikation gewinnt, der Wortlaut des Ziels und der DoD ist zu berichtigen — **Ausgang:** offen; Adresse: Architect (beim Vertrag dieses Slice, vor dem ersten Code-Commit).
 - Fänger je Stelle zu L15 (`slice-telemetry-log`) für die Einträge der Dienste — **Ausgang:** offen; Adresse: dieser Slice (DoD, Eintrag des Planners vom 2026-11-07).
+- Texte der Ereignisse `upstream` und `ablage` stehen nicht im Wortlaut von `SPEC-121` Nr. 12 („festem Text“); die Tests von `slice-telemetry-handler` nehmen die Texte des Codes (Orakel aus dem Code), der Wortlaut ist Spec-Lücke (Auftrag 8; Geber `slice-telemetry-handler`, Befund F3 des Reviews, V3 der Verifikation) — **Ausgang:** offen; Adresse: Architect.
 
 **Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; jede Zelle nennt ihren Ort in der Spezifikation oder `gilt nicht` mit Grund):
 
