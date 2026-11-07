@@ -8,7 +8,7 @@
 
 **Eingangs-Kontext:**
 
-- `docs/plan/planning/in-progress/slice-telemetry-spans.md` (im Zweig): §3 Antworten A bis L, Tabelle S01 bis S24, Mengen M1 bis M15, Absatz *Zusagen, Mutationen und Raten*, Runden R1 bis R8, Zweig-Menge Z66 bis Z91, Fenster der Sperre, §6 (zwei Abweichungen mit Ausgang *offen*)
+- `docs/plan/planning/done/slice-telemetry-spans.md` (im Zweig): §3 Antworten A bis L, Tabelle S01 bis S24, Mengen M1 bis M15, Absatz *Zusagen, Mutationen und Raten*, Runden R1 bis R8, Zweig-Menge Z66 bis Z91, Fenster der Sperre, §6 (zwei Abweichungen mit Ausgang *offen*)
 - `SPEC-230` Nr. 5 bis 9, `SPEC-231` Nr. 6, `SPEC-232` Nr. 1 bis 5
 - `AGENTS.md` §3.7, §3.9 bis §3.18
 - `LH-QA-05`, `LH-QA-04`, `LH-QA-01`, `LH-FA-01`
@@ -73,7 +73,7 @@ Eigene Raten gelten für 30 Prozesse je Arm bei S15 und S16 (der Auftrag nennt 5
 
 - `kategorie`: MEDIUM
 - `quelle`: `AGENTS.md` §3.10 (Prüfen und Handeln in getrennten Abschnitten bei geordneten Zugriffen; Rate mit Zahl der Prozesse), Skill *Fänger nur mit Wahrscheinlichkeit, Rate nicht benannt*
-- `pfad`: `docs/plan/planning/in-progress/slice-telemetry-spans.md` · `| Sperre des Spans (`Set` gegen `End`, `End` gegen `End`) | `Set`, `End` | S23 (2) mit dem Detektor;`
+- `pfad`: `docs/plan/planning/done/slice-telemetry-spans.md` · `| Sperre des Spans (`Set` gegen `End`, `End` gegen `End`) | `Set`, `End` | S23 (2) mit dem Detektor;`
 - `befund`: Die Zeile verweist für das Fenster zwischen Prüfen und Markieren auf den Detektor; eine Mutation, die Prüfen und Markieren in zwei Abschnitte unter derselben Sperre legt, ist kein Datenrennen. Sie färbt `TestEndGleichzeitig` in 50 von 50 Prozessen mit Detektor und in 26 von 50 ohne (`flatternd`), und weder Tabelle noch Absatz nennen diese Mutation oder diese Rate; die genannten 3 und 7 von 50 gelten für zwei andere Mutationen.
 - `verifizierbar`: ja — `mutationslauf.sh` mit der Klasse `nebenläufig`
 - `klasse`: Fenster der Sperre nennt den Detektor für eine Mutation, die er nicht meldet
@@ -91,7 +91,7 @@ Eigene Raten gelten für 30 Prozesse je Arm bei S15 und S16 (der Auftrag nennt 5
 
 - `kategorie`: LOW
 - `quelle`: `AGENTS.md` §3.9 (Plan folgt jeder Korrektur)
-- `pfad`: `docs/plan/planning/in-progress/slice-telemetry-spans.md` · `| M2 Paare Span × Schlüssel (S03) |`
+- `pfad`: `docs/plan/planning/done/slice-telemetry-spans.md` · `| M2 Paare Span × Schlüssel (S03) |`
 - `befund`: Tabelle M2 und Zeile S03 nennen 320 Prüfungen; der Test zählt 618 (2 × (160 + 149), die fremden zusätzlich mit leerem Wert) und der Absatz *Mengen* nennt 618. Die Zahl der Zählprüfung im Plan stimmt an zwei Stellen nicht mit dem Test überein.
 - `verifizierbar`: nein — Lesen des Plans
 - `klasse`: Zahl der Menge im Plan weicht vom Test ab
@@ -100,7 +100,7 @@ Eigene Raten gelten für 30 Prozesse je Arm bei S15 und S16 (der Auftrag nennt 5
 
 - `kategorie`: INFO
 - `quelle`: `AGENTS.md` §3.10, §3.15 (benanntes Negativ mit Grund und Folge)
-- `pfad`: `docs/plan/planning/in-progress/slice-telemetry-spans.md` · `*Nicht gebildete Mutationen:*`
+- `pfad`: `docs/plan/planning/done/slice-telemetry-spans.md` · `*Nicht gebildete Mutationen:*`
 - `befund`: Die Begründungen für S10 (`End` hat kein `ctx`) und S14 (Namen werden in einer Abbildung nachgeschlagen) stimmen mit dem Code überein. Für S06 gilt sie nur eingeschränkt: eine Mutation „Geschwister teilen einen Span" ließe sich mit einem Zustand im Adapter schreiben (das Negativ sagt, sie verlange einen im `ctx`); der Test der Geschwister prüft den Abbruch des einen gegen das andere und ist von dieser Lücke nicht betroffen. Zuständig: Implementer, falls er die Begründung schärfen will.
 - `verifizierbar`: nein
 - `klasse`: Begründung eines nicht gebildeten Fängers zu eng
