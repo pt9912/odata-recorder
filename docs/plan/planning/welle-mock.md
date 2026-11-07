@@ -40,6 +40,7 @@ Die Welle startet gestaffelt, in zwei Teilen mit je eigenem Trigger (Umplanung v
   - `welle-record-replay` liegt in `done/` (eingetreten, Beleg `welle-record-replay-results`): Workspace, Replay, Import, Codec zum Lesen, HTTP-Adapter und Composition Root sind die Grundlage von `MockUseCase`.
   - M2 ist erreicht: der M2-Test aus [slice-m2-referenzdienst](done/slice-m2-referenzdienst.md) ist grün und Teil von `make test`.
   - `slice-handbuch-meldungskatalog` (`welle-benutzerhandbuch`) liegt in `done/`: Die Handbuch-Pflicht aus §4 und das Closure-Kriterium aus §3 setzen das Handbuch-Gerüst und das Kataloge-Gate voraus. Der Slice startet erst nach `slice-bootstrap-m2`, liegt also nicht automatisch vor dem Trigger oben; ohne ihn könnte kein Slice von Teil 2 seine DoD erfüllen.
+  - Geliefert: [slice-mock-zuordnung](done/slice-mock-zuordnung.md) und [slice-mock-lesen](done/slice-mock-lesen.md), die beiden Teile des Schnitts (Linie B, `SPEC-195` bis `SPEC-199`, Code `ODR-E6008`); der Trigger von `slice-mock-schreiben` ist eingetreten, M3 bleibt offen (Kette `slice-mock-schreiben`, `slice-snapshot-use-case`, `slice-mock-abnahme`, `slice-bootstrap-m3`).
 
 ## 3. Closure-Trigger (Welle schließt)
 
