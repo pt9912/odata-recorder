@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-QA-02`, `LH-QA-03`, `LH-RB-01`, `LH-FA-08`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `LH-QA-02.a` · `LH-QA-03.a` · `LH-RB-01.a` · `SPEC-049` (Abnahmematrix) · `SPEC-048` (Fault Injection, nur Neustart-Teil) · `architecture.md` §6 (Qualitätssicherung).
+**Berührte Spec-Stellen:** `LH-QA-02.a` · `LH-QA-03.a` · `LH-RB-01.a` · `SPEC-049` (Abnahmematrix; Nr. 1 bis 10 vom Architect vor dem Code) · `SPEC-048` (Fault Injection, nur Neustart-Teil) · `architecture.md` §6 (Qualitätssicherung).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** pt9912 (Zweig `slice-mock-abnahme`, Worktree `/Development/odata-recorder-wt-mock-abnahme`; der Zweig entsteht nach dem Start-Commit von `main`)
@@ -31,7 +31,7 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Die Tests in `tests/` belegen den Mock gegen die Zusagen des Lastenhefts, die kein Slice allein trägt: die Muss-Zeilen der Abnahmematrix (`SPEC-049`, `ODV4-*`) als Golden-Fixtures, 100 identische Läufe nach Reset mit gleichen normalisierten Antworten, 20 parallele Workspaces ohne Beobachtung fremden Zustands und Cursors, und ein regulärer Neustart, nach dem abgeschlossene Mutationen und Snapshots vorhanden sind.
+**Ziel:** Die Abnahmetests (Ablage `src/bootstrap/abnahme_*_test.go`, `SPEC-049` Nr. 1) belegen den Mock gegen die Zusagen des Lastenhefts, die kein Slice allein trägt: die Muss-Zeilen der Abnahmematrix (`SPEC-049`, `ODV4-*`) als Golden-Fixtures, 100 identische Läufe nach Reset mit gleichen normalisierten Antworten, 20 parallele Workspaces ohne Beobachtung fremden Zustands und Cursors, und ein regulärer Neustart, nach dem abgeschlossene Mutationen und Snapshots vorhanden sind.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -80,12 +80,112 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `tests/` | neu | Golden-Fixtures der Matrix, Läufe über 100 Wiederholungen, Paralleltest, Neustarttest; Pakete im Quellstand der Stufe `source`, damit `make test-race` sie fährt (Muster von `slice-bootstrap-m2`) |
-| `spec/spezifikation.md` | update | Fixture-IDs von `SPEC-049` als Testadressen mit Inhalt (Architect) |
+| `src/bootstrap/abnahme_aufbau_test.go`, `abnahme_matrix_test.go`, `abnahme_determinismus_test.go`, `abnahme_isolation_test.go`, `abnahme_neustart_test.go`, `abnahme_nebenlaeufig_test.go` | neu | Aufbau, Golden-Fixtures der Matrix, 100 Läufe, 20 parallele Workspaces, Neustart und Fänger mit Haltepunkt im Paket `bootstrap_test`, damit `make test` und `make test-race` sie fahren (`SPEC-049` Nr. 1; das Architektur-Gate erlaubt dem Paket `tests` keine Kante auf die Dienste, Rückgabe R1) |
+| `spec/spezifikation.md` | update | `SPEC-049` Nr. 1 bis 10: Inhalt der Fixtures und Verträge der Läufe, des Neustarts und der Fenster (Architect, vor dem Code erledigt) |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster entstehen mit der Festlegung der Fixtures in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Fixtures sind „geplante Testadressen“ (`SPEC-049`) und werden vom Architect festgelegt, nicht vom Implementer.
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster (§6, `AGENTS.md` §3.16) entstanden mit der Festlegung der Fixtures in `SPEC-049` Nr. 4, vor dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); sie stehen unten und in §6. Die Fixtures hat der Architect festgelegt, nicht der Implementer.
 
-- Die Läufe sind Teil von `make test`: wie lange die 100 Läufe dauern dürfen, ist eine Randform des Vertrags (§6).
+- Die Läufe sind Teil von `make test`: wie lange die 100 Läufe dauern dürfen, ist als Randform in `SPEC-049` Nr. 5 f entschieden (erwartet unter 15 s, Frist 120 s).
+
+**Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Architect, 2026-11-07; Spalten nach `SPEC-128` Nr. 3 a). Die Zusagen sind die Nummern von `SPEC-049` (Nr. 3 bis 8) und die Zeilen von Nr. 4; die Mutationen gelten für `src/` (Mock, Parser, Interpreter, Schreiber, Dienste, Adapter der Ablage) und für die Hilfen des Tests, jede mit einem Wert, der von dem der Fixture verschieden ist. Die Fänger der Matrix sind Teilfälle von `TestAbnahmeMatrix` mit der Fixture-ID als Namen.
+
+| Nr. | Zusage | Fänger | Mutation | Klasse |
+|---|---|---|---|---|
+| T01 | `ODV4-GET-01`: Collection liefert alle fünf Einträge mit `KK` | `TestAbnahmeMatrix/ODV4-GET-01` | der Schreiber lässt das letzte Element von `value` weg | andere |
+| T02 | `ODV4-GET-02`: Lookup liefert Entity 1 und Entity 4 (`null`), `404` für 99 | `TestAbnahmeMatrix/ODV4-GET-02` | ein Mitglied mit `null` entfällt in der Entity; ein Lookup ohne Treffer liefert 200 | andere |
+| T03 | `ODV4-GET-03`: leere Collection `value: []`, Anzahl `0`, Lookup `404` | `TestAbnahmeMatrix/ODV4-GET-03` | `value` fehlt bei leerer Collection; die Anzahl `0` ergibt einen leeren Body | andere |
+| T04 | `ODV4-Q-01`: `eq` | `TestAbnahmeMatrix/ODV4-Q-01` | `eq` wertet wie `ne` | andere |
+| T05 | `ODV4-Q-02`: `ne` ist die Negation von `eq`, mit `null` | `TestAbnahmeMatrix/ODV4-Q-02` | `ne` schließt `null` aus | andere |
+| T06 | `ODV4-Q-03`: `gt` ohne Gleichheit | `TestAbnahmeMatrix/ODV4-Q-03` | `gt` wertet wie `ge` | andere |
+| T07 | `ODV4-Q-04`: `ge` mit Gleichheit | `TestAbnahmeMatrix/ODV4-Q-04` | `ge` wertet wie `gt` | andere |
+| T08 | `ODV4-Q-05`: `lt` ohne Gleichheit | `TestAbnahmeMatrix/ODV4-Q-05` | `lt` wertet wie `le` | andere |
+| T09 | `ODV4-Q-06`: `le` mit Gleichheit | `TestAbnahmeMatrix/ODV4-Q-06` | `le` wertet wie `lt` | andere |
+| T10 | `ODV4-Q-07`: `and` und `or` | `TestAbnahmeMatrix/ODV4-Q-07` | `and` wertet wie `or`; `or` wertet wie `and` (zwei Läufe) | andere |
+| T11 | `ODV4-Q-08`: `not` mit `null` als falsch bei `eq` | `TestAbnahmeMatrix/ODV4-Q-08` | `not` gibt seinen Operanden unverändert zurück | andere |
+| T12 | `ODV4-Q-09`: `$select` an Entity und Collection in der Folge des Modells | `TestAbnahmeMatrix/ODV4-Q-09` | `$select` wird ignoriert; die Mitglieder stehen in der Folge der URL | andere |
+| T13 | `ODV4-Q-10`: `$orderby` mit `desc`, zweiter Schlüssel, `null` am Ende | `TestAbnahmeMatrix/ODV4-Q-10` | `desc` ordnet aufsteigend; `null` ordnet bei `desc` zuerst | andere |
+| T14 | `ODV4-Q-11`: `$skip` vor `$top` | `TestAbnahmeMatrix/ODV4-Q-11` | `$top` wirkt vor `$skip` | andere |
+| T15 | `ODV4-Q-12`: `@odata.count` vor dem Paging, `/$count` mit `$filter` | `TestAbnahmeMatrix/ODV4-Q-12` | `@odata.count` zählt nach `$top`; `/$count` ignoriert `$filter` | andere |
+| T16 | `ODV4-T-01`: `Edm.String` | `TestAbnahmeMatrix/ODV4-T-01` | der Schreiber setzt keine Anführungszeichen um einen String | andere |
+| T17 | `ODV4-T-02`: `Edm.Boolean` | `TestAbnahmeMatrix/ODV4-T-02` | `false` wird als `null` geschrieben | andere |
+| T18 | `ODV4-T-03`: `Edm.Int32` als Zahl | `TestAbnahmeMatrix/ODV4-T-03` | `Edm.Int32` wird als String geschrieben | andere |
+| T19 | `ODV4-T-04`: `Edm.Int64` als Zahl ohne Rundung, mit `IEEE754Compatible` als String | `TestAbnahmeMatrix/ODV4-T-04` | `Edm.Int64` läuft über `float64`; `IEEE754Compatible` bleibt ohne Wirkung | andere |
+| T20 | `ODV4-T-05`: `Edm.Decimal` mit Vorzeichen | `TestAbnahmeMatrix/ODV4-T-05` | das Vorzeichen eines Decimal geht verloren | andere |
+| T21 | `ODV4-T-06`: `Edm.Guid` in Kleinbuchstaben | `TestAbnahmeMatrix/ODV4-T-06` | die Guid wird in Großbuchstaben geschrieben | andere |
+| T22 | `ODV4-T-07`: `Edm.Date` | `TestAbnahmeMatrix/ODV4-T-07` | das Datum trägt eine Uhrzeit | andere |
+| T23 | `ODV4-T-08`: `Edm.DateTimeOffset` mit Bruchteil | `TestAbnahmeMatrix/ODV4-T-08` | der Bruchteil der Sekunde wird abgeschnitten | andere |
+| T24 | `ODV4-H-01`: Stufe aus `Accept` (`none`), keine Ablehnung (`text/html`), `full` als `minimal` | `TestAbnahmeMatrix/ODV4-H-01` | `none` ergibt `minimal`; `text/html` ergibt einen Fehler; `full` setzt `full` in den `Content-Type` (drei Läufe) | andere |
+| T25 | `ODV4-H-02`: `OData-Version: 4.0` an jeder Antwortart (Collection, Entity, Anzahl, `$metadata`, 201, 204) | `TestAbnahmeMatrix/ODV4-H-02` | das Kennzeichen fehlt bei `204`; es fehlt bei `$metadata` (zwei Läufe) | andere |
+| T26 | `ODV4-H-03`: `Content-Type` von `$metadata`, Anzahl, Collection ohne `IEEE754Compatible` | `TestAbnahmeMatrix/ODV4-H-03` | `$metadata` mit `text/xml`; Anzahl mit `application/json`; `IEEE754Compatible` ohne Anfrage (drei Läufe) | andere |
+| T27 | `ODV4-E-01`: ungültiger Filter und `$top` negativ sind `400`, `ODR-E6005` | `TestAbnahmeMatrix/ODV4-E-01` | der Filter mit unbekannter Property ergibt 500; `$top=-1` wird als 0 gelesen | andere |
+| T28 | `ODV4-E-02`: unbekanntes Set und fehlende Entity (`complete`) sind `404`, `ODR-E6008` | `TestAbnahmeMatrix/ODV4-E-02` | ein unbekanntes Set ergibt 400; die fehlende Entity ergibt `ODR-E6003` | andere |
+| T29 | `ODV4-E-03`: `$search`, `$apply`, `$expand`, Service-Dokument `501`, `OPTIONS` `ODR-E6002` | `TestAbnahmeMatrix/ODV4-E-03` | `$search` wird ignoriert; `$expand` wird ignoriert; das Service-Dokument ergibt 200; `OPTIONS` wird wie `GET` beantwortet (vier Läufe) | andere |
+| T30 | `ODV4-E-04`: Coverage strikt und lax, Zähler, Lookup (`partial` ist nie `404`), Mutation unabhängig vom Modus | `TestAbnahmeMatrix/ODV4-E-04` | der strikte Modus antwortet 200; lax setzt `X-Recorder-Coverage` nicht; ein Lookup auf `partial` ergibt 404 (drei Läufe) | andere |
+| T31 | `ODV4-CRUD-01`: `POST` mit `201`, `Location` aus der Konfiguration, Entity, Zahl und Ordnung nach Zahl | `TestAbnahmeMatrix/ODV4-CRUD-01` | `Location` fehlt; `Location` trägt den Host der Anfrage; `Edm.Int64` im Body fehlerhaft gespeichert (drei Läufe) | andere |
+| T32 | `ODV4-CRUD-02`: `PATCH` ändert nur die genannten Mitglieder | `TestAbnahmeMatrix/ODV4-CRUD-02` | `PATCH` ersetzt den Eintrag (nicht genannte werden `null`) | andere |
+| T33 | `ODV4-CRUD-03`: `PUT` ersetzt, nicht genannte nullbare werden `null` | `TestAbnahmeMatrix/ODV4-CRUD-03` | `PUT` behält die nicht genannten Mitglieder | andere |
+| T34 | `ODV4-CRUD-04`: `DELETE` setzt einen Tombstone, `404` danach, Anzahl und Collection ohne ihn | `TestAbnahmeMatrix/ODV4-CRUD-04` | `DELETE` entfernt den Eintrag (das zweite `DELETE` ergibt 204); der Tombstone erscheint in der Collection | andere |
+| T35 | `ODV4-CRUD-05`: `null`, leerer Text und `{}` bleiben unterscheidbar | `TestAbnahmeMatrix/ODV4-CRUD-05` | `null` im `PATCH` gilt als nicht genannt; der leere Text wird `null`; `{}` ändert den Eintrag | andere |
+| T36 | `ODV4-CRUD-06`: Duplikat `409`, fehlender Schlüssel und Widerspruch `400`, fehlend `404`, `partial` `422`, Zustand unverändert | `TestAbnahmeMatrix/ODV4-CRUD-06` | `POST` mit vorhandenem Schlüssel überschreibt (201); `PATCH` an `partial` ändert; die Revision wächst bei einem Fehler (drei Läufe) | andere |
+| T37 | Nr. 3 e: genau 36 IDs aus Nr. 4, 88 Schritte, jeder gelaufen | `TestAbnahmeMatrixZaehlung` | eine ID aus der Tabelle des Tests entfernt; ein Schritt entfernt; eine ID doppelt | andere |
+| T38 | Nr. 3 c: der Vergleich nennt die Menge der Header genau (kein weiterer, keiner fehlt, Wert genau) | `TestAbnahmeMatrixVergleich/Header` | der Vergleich prüft nur die Header der Erwartung | andere |
+| T39 | Nr. 3 c: der Body ist byte-gleich (ein Zeilenende am Ende ist ein Befund) | `TestAbnahmeMatrixVergleich/Body` | der Vergleich kürzt Leerraum am Ende | andere |
+| T40 | Nr. 3 c: bei einem Fehler zählen Status und Code beide | `TestAbnahmeMatrixVergleich/Fehler` | der Vergleich prüft nur den Status; nur den Code (zwei Läufe) | andere |
+| T41 | Nr. 3 b: jede ID beginnt im Ausgangszustand (frische Datei) | `TestAbnahmeMatrixAusgangszustand` | der Aufbau teilt die Datei zwischen zwei IDs | andere |
+| T42 | Nr. 3 d: Revision nach der ID gleich der Zahl der erfolgreichen Mutationen | `TestAbnahmeMatrix/ODV4-CRUD-04` | die Mutation ruft `Advance` nicht auf | andere |
+| T43 | Nr. 9 a: kein `t.Skip`, kein `testing.Short` in den Dateien der Abnahme | `TestAbnahmeKeinSkip` | ein `t.Skip` in `abnahme_neustart_test.go` | andere |
+| T44 | Nr. 5 a: Revision nach dem Reset von Lauf i ist 3·(i−1)+1, nach dem Lauf 3·i | `TestAbnahmeDeterminismus` | der Reset erhöht die Revision nicht | andere |
+| T45 | Nr. 5 b: Lauf 1 gleich dem Orakel in allen 14 Schritten | `TestAbnahmeDeterminismus` | Schritt D05 ohne die Änderung des `PATCH` (Name unverändert) | andere |
+| T46 | Nr. 5 b, c: jeder Lauf ab 2 gleich Lauf 1 (Antworten, Stand nach Reset, Stand nach dem Lauf) | `TestAbnahmeDeterminismus` | die `entity_version` wächst ab Lauf 2 um 2 statt 1 | andere |
+| T47 | Nr. 5 c: der Stand nach Reset ist der Ausgangszustand (Version 0, kein Tombstone) in jedem Lauf | `TestAbnahmeDeterminismus` | der Reset lässt den Tombstone von Produkt 3 stehen | andere |
+| T48 | Nr. 5 c: der Cursor steht nach dem Reset auf Position 0, vorher auf 5 (Kontrollwert) | `TestAbnahmeDeterminismus` | der Reset ruft `Cursors.ResetAll` nicht | andere |
+| T49 | Nr. 5 d: der Vergleich nimmt allein die Namen aus `VOLATILE_HEADERS` aus (ohne Beachtung der Schreibweise), vergleicht Status, Body, Namen, Zahl und Folge der Werte | `TestAbnahmeDeterminismusVergleich` | die Ausnahme trifft `Content-Length`; sie beachtet die Schreibweise; die Folge der Werte zählt nicht (drei Läufe) | andere |
+| T50 | Nr. 5 d: jeder Name einer Antwort liegt in `Content-Type`, `OData-Version`, `X-Recorder-Coverage`, `Location` und keiner in `VOLATILE_HEADERS` | `TestAbnahmeDeterminismus` | der Mock setzt `Date` an jede Antwort | andere |
+| T51 | Nr. 5 e: ein abweichender Lauf macht den Test rot, die Zeile `Läufe: 100, abweichend: <k>` | `TestAbnahmeDeterminismusAuswertung` | eine Abweichung wird nur protokolliert | andere |
+| T52 | Nr. 5 f: die Frist von 120 s ist gesetzt, ihr Ablauf ist `Fatal` | `TestAbnahmeDeterminismusFrist` | der Lauf setzt keine Frist | andere |
+| T53 | Nr. 5 a: genau 100 Läufe laufen | `TestAbnahmeDeterminismus` | die Schleife zählt bis 99 | andere |
+| T54 | Nr. 6 a, f: 20 Goroutinen starten auf ein gemeinsames Signal, 20 enden, 228 Schritte verglichen | `TestAbnahmeIsolation` | die Menge hat 19 Workspaces; ein Workspace läuft nicht | nebenläufig |
+| T55 | Nr. 6 b, c: jeder Schritt von S(k) gleich dem Orakel von k | `TestAbnahmeIsolation` | `EntityRepository.ListSet` ohne Filter auf den Workspace | nebenläufig |
+| T56 | Nr. 6 c: Revision je Workspace gleich dem Orakel | `TestAbnahmeIsolation` | `Advance` ohne die Kennung des Workspace in der Bedingung | nebenläufig |
+| T57 | Nr. 6 e: Cursor-Liste von `ws-k` gleich dem Orakel, die Resets von 0, 5, 10, 15 berühren die übrigen nicht | `TestAbnahmeIsolation` | `Cursors.ResetAll` setzt die Cursors aller Workspaces zurück | nebenläufig |
+| T58 | Nr. 6 b: Snapshot `s1` in allen 20 Workspaces, die Liste nennt nur den eigenen | `TestAbnahmeIsolation` | der Name eines Snapshots ist global eindeutig; `ListWorkspace` ohne Filter | nebenläufig |
+| T59 | Nr. 6 b: `Restore` wirkt auf den einen Workspace | `TestAbnahmeIsolation` | `Restore` ersetzt den State des ersten Workspace der Liste | nebenläufig |
+| T60 | Nr. 6 d: kein Eintrag von `ws-k` trägt einen Wert von `ws-j` (Schleife über 20·19 Paare) | `TestAbnahmeIsolation` | `Entities.Put` schreibt die Kennung `ws-00` | nebenläufig |
+| T61 | Nr. 6 c: die Orakel der 20 Workspaces unterscheiden sich paarweise (Schritte 5 und 8) | `TestAbnahmeIsolationOrakelUnterscheidet` | die Folge S(k) benutzt k nicht | andere |
+| T62 | Nr. 6 a: alle 20 Goroutinen sind am Startsignal, bevor eine den ersten Schritt beginnt | `TestAbnahmeIsolationStart` | das Signal entfällt | nebenläufig |
+| T63 | Nr. 7 a: nach dem Neustart gibt es neue Instanzen; die alten sind geschlossen und benutzbar nicht mehr | `TestAbnahmeNeustart` | der Aufbau benutzt die alte Datenbank weiter | andere |
+| T64 | Nr. 7 d (1): Stand von `ws-1` und `ws-2` nach dem Neustart gleich dem festgehaltenen (Version, `Deleted`, Payload, Revision, Cursors) | `TestAbnahmeNeustart` | der Adapter der Ablage schreibt `entity_version` nicht | andere |
+| T65 | Nr. 7 d (2): die vier Antworten sind byte-gleich | `TestAbnahmeNeustart` | der Tombstone von Produkt 3 geht beim Öffnen verloren | andere |
+| T66 | Nr. 7 d (3): die Snapshots von `ws-1` (Reihenfolge, Felder), `ws-2` keiner | `TestAbnahmeNeustart` | `CreatedAt` des Snapshots wird beim Lesen durch die Zeit des Öffnens ersetzt | andere |
+| T67 | Nr. 7 b: ein Fehlversuch (`ODR-E6009`) und ein beendeter Kontext hinterlassen nichts (Version 1 von Produkt 1, Revision 5) | `TestAbnahmeNeustart` | die Mutation schreibt vor der Prüfung auf ein vorhandenes Produkt; der Rollback fehlt | andere |
+| T68 | Nr. 7 d (4): `Restore` von `vor` nach dem Neustart: State nach Schritt 4, Revision 6, Cursors unverändert | `TestAbnahmeNeustart` | `Restore` lässt den Tombstone von Produkt 3 aus; es setzt die Cursors zurück | andere |
+| T69 | Nr. 7 d (5): Version 2 und Revision 7 danach | `TestAbnahmeNeustart` | das Öffnen setzt die Revision auf 0 | andere |
+| T70 | Nr. 7 d (6): ein zweiter Neustart ohne Änderung ergibt denselben Stand (`SPEC-103` Nr. 3) | `TestAbnahmeNeustart` | das Öffnen migriert die Datei erneut und leert den State | andere |
+| T71 | Nr. 8 (a): 20 gleichzeitige `POST` mit gleichem Schlüssel: eine 201, 19 `ODR-E6009`, Version 1, Revision plus 1 | `TestAbnahmeNebenlaeufigPost` | die Prüfung auf ein vorhandenes Produkt liest `Konfig.Entities` außerhalb der Transaktion | nebenläufig |
+| T72 | Nr. 8 (a): 20 gleichzeitige `DELETE`: eine 204, 19 `ODR-E6008`, Version 1, Revision plus 1 | `TestAbnahmeNebenlaeufigDelete` | der Tombstone wird nach der Prüfung außerhalb der Transaktion geschrieben | nebenläufig |
+| T73 | Nr. 8 (b): 20 gleichzeitige `PATCH`: 20 mal 204, Revision plus 20, Version 20, kein `ODR-E9001` | `TestAbnahmeNebenlaeufigPatch` | `erwartet` stammt aus dem Lesen des Workspace in Schritt (f) statt aus der Transaktion | nebenläufig |
+| T74 | Nr. 8 (c1): Löschen des Workspace am Haltepunkt: `ODR-E7001`, keine Zeile | `TestAbnahmeNebenlaeufigLoeschen` | `f` liest den Workspace nicht noch einmal und benutzt den aus Schritt (f) | nebenläufig |
+| T75 | Nr. 8 (c2): Reset am Haltepunkt: 204, Version 1, Revision des Reset plus 1 | `TestAbnahmeNebenlaeufigReset` | `erwartet` stammt aus Schritt (f) | nebenläufig |
+| T76 | Nr. 8 Haltepunkt: hält bis *n* eingetroffen sind, Freigabe von Hand, Frist 10 s ist `Fatal` | `TestAbnahmeHaltepunkt` | der Dekorator gibt bei *n*−1 frei; die Frist entfällt | nebenläufig |
+| T77 | Nr. 8: Raten je Mutation von T71 bis T75 sind 20 von 20 | Absatz *Mutationen und Raten* in §3 (Ausgabe von 20 Prozessläufen je Mutation) | jede Mutation von T71 bis T75 in 20 Läufen | nebenläufig |
+| T78 | Nr. 8: die Zweige der Tests unter dem Detektor stammen aus dem Abdeckungsprofil | Absatz *Mutationen und Raten* in §3 (Profil von `go test -race -coverprofile -coverpkg`) | der Zweig von `Entities.Put` des Mock hat im Profil 0 Treffer | nebenläufig |
+| T79 | Nr. 10 a: HTTP-Adapter, Routen und Rahmung sind nicht Gegenstand | keiner; akzeptiertes Negativ: Grund `SPEC-049` Nr. 1, Folge: eine falsche Route bleibt hier unbemerkt (Nr. 10 a) | – | andere |
+| T80 | Nr. 10 b: Binary, `main`, Signale und Start im Modus `mock` | keiner; akzeptiertes Negativ: Grund Nr. 7 a, Folge: der Neustart über die Prozessgrenze ist ohne Fänger (Nr. 10 b) | – | andere |
+| T81 | Nr. 10 c: Absturz und Fehler der Ablage | keiner; akzeptiertes Negativ: Grund `SPEC-048`, Folge: ein Absturz in einer Mutation ist hier nicht belegt (Nr. 10 c) | – | andere |
+| T82 | Nr. 10 d: Mischung aus Vorher und Nachher beim gleichzeitigen Lesen | keiner; akzeptiertes Negativ: Grund und Folge Nr. 10 d | – | andere |
+| T83 | Nr. 10 e bis h: Last, Soll-Zeilen, zwei Vergleichsfunktionen, Kombinationen | keiner; akzeptiertes Negativ: Grund und Folge in Nr. 10 e bis h | – | andere |
+
+**Mengen** (Zählung gegen die Quelle, `AGENTS.md` §3.15; die Zahlen prüft `TestAbnahmeMatrixZaehlung` bzw. der Test der Menge):
+
+- **M1 Fixture-IDs:** 36 = 3 (`GET`) + 6 (`CRUD`) + 12 (`Q`) + 8 (`T`) + 3 (`H`) + 4 (`E`), aus der Tabelle oben in `SPEC-049`; Fänger T37.
+- **M2 Schritte der Fixtures:** 88 (GET 7, CRUD 26, Q 15, T 9, H 13, E 18); Fänger T37.
+- **M3 Typen:** die acht EDM-Typen der Zeile EDM, je einer in `ODV4-T-01..08`; der Test bildet die Zählung aus `model.UnterstuetzteEDMTypen()` und vergleicht sie mit 8; Fänger T16 bis T23.
+- **M4 Header-Namen einer Antwort:** vier (`Content-Type`, `OData-Version`, `X-Recorder-Coverage`, `Location`); Fänger T50.
+- **M5 Workspaces der Isolation:** 20; Fänger T54. **M6 Schritte:** 228 = 20·11 + 4·2; Fänger T54.
+- **M7 Fenster der Mutation (`SPEC-192` Nr. 8):** (a) Prüfen und Schreiben bei `POST` und bei `DELETE`, (b) Schreiben und Revision, (c) Zuordnung und Transaktion mit Löschen und mit Reset; fünf Läufe; Fänger T71 bis T75. (d) ist Nr. 6, (e) und (f) sind Nr. 10 d und Nr. 8 (Antwort in der Transaktion) und haben keine eigene Zeile.
+- **M8 Läufe der Determinismus-Messung:** 100; Fänger T53.
+
+**Mutationen und Raten** (Implementer, `AGENTS.md` §3.10): *wird mit dem Code gefüllt* — je Zeile die Mutation und der rote Test, die Raten von T71 bis T75 mit Zahl der Prozesse, Last und Messendem, das Abdeckungsprofil von T78 und die Messung des Zeitbudgets von `SPEC-049` Nr. 5 f.
 
 ## 4. Trigger
 
@@ -96,7 +196,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Stand beim Start** (Planner, 2026-11-07, `main` = `08843060`): Trigger Teil 1 erfüllt, `slice-snapshot-use-case` liegt seit dem Merge `56b87d09` in `done/`. Trigger Teil 2 (Fixtures der Matrix `SPEC-049` mit Inhalt in der Spezifikation) **nicht erfüllt**: `SPEC-049` führt die Adressen `ODV4-GET-01..03`, `-CRUD-01..06`, `-Q-01..12`, `-T-01..08`, `-H-01..03`, `-E-01..04` als „geplante Testadressen“ ohne Inhalt; er ist Bedingung für den ersten Code-Commit, nicht für den Start, und liegt beim Architect (Aufträge M1 bis M7). §1 *Ausdrücklich NICHT* und DoD der Sendungen von `slice-snapshot-use-case` gelesen (`AGENTS.md` §3.13): `welle-mock` §5 und `done/slice-snapshot-use-case.md` §7 weisen diesem Slice allein die Bedingung „Trigger in `done/`“ und den Prüfgegenstand Reset-Determinismus, Isolation und Neustart mit Snapshots zu; kein Ausschluss in §1 dieses Slice trifft sie (Snapshots und Restore sind Gegenstand der Neustart-Zeile, nicht ausgeschlossen). Codes: `model.AlleCodes()` zählt auf `main` 39; dieser Slice fügt keinen hinzu, solange kein Test einen Fehler findet (§1, vierter Punkt); `slice-admin-rahmen` (40. Code) und `slice-sqlite-interrupt-transaktion` mergen nach `main`, wer als zweiter merged, gleicht die Zahl an (`welle-mock` §5, Merge-Nähe). Gate-Kette (Nr. 7 der Übergangsregeln): `tests/` ist neu, `Makefile`, `harness/mk/`, `Dockerfile` und Stempel bleiben unberührt; braucht `tests/` im Build-Kontext eine Änderung des `Dockerfile`, geht das als Rückgabe an den Planner. Speicher beim Start: 14 GB verfügbar, Load 13.
 
-**Größenmarke** (Planner, 2026-11-07; Prosa-Form, kein Block): **nicht gesetzt.** `SPEC-128` Nr. 1 rechnet auf die Tabelle *Zusage · Fänger*, und diese entsteht erst mit den Fixtures (M1); eine Zahl vor der Tabelle wäre geraten (§4 Rückführungen). Der Planner setzt Marke und Block (`basis`, `schaetzung`, `marke`, Pfade aus §3) in eigenem Commit nach der Tabelle und vor dem ersten Code-Commit und beantwortet dann die Schnittfrage.
+**Größenmarke** (`SPEC-128`; die Faktoren stehen allein dort; Architect, 2026-11-07, Auftrag M7). Die Tabelle in §3 hat 83 Zeilen (*a* = 16 nebenläufige: T54 bis T60, T62, T71 bis T78; *b* = 67 andere, darunter fünf akzeptierte Negative T79 bis T83); Port-Fakes *f* = 2 (die Dekoratoren von `WorkspaceRepository` und `EntityRepository` als Haltepunkt, `SPEC-049` Nr. 8; die Ablage ist die echte); Produktcode *p* = 0 (die Tests ändern `src/` nur, wo sie einen Fehler finden, und ein Fix gehört der Marke des Slice, dem die Zusage gehört, `SPEC-049` Nr. 9 c). Richtwert nach `SPEC-128` Nr. 1, das Werkzeug rechnet: *S* = 85·16 + 80·67 + 200·2 + 0 = 7120 und *M* = 100·⌈135·7120/10000⌉ = 9700, also die Schnittfrage (*S* ≥ 2223); der Vorschlag steht in Rückgabe R3 (§6). Der Pfad `spec/spezifikation.md` steht nicht im Block: `SPEC-128` Nr. 3 m schließt `spec/` aus, und die Spezifikation zählt nicht zur Messung. Das Register führt die Überschätzung des Produktcodes und die Unterschätzung der Tests (`BEO-REPO/schaetzformel-ueberschaetzt-den-slice`): hier gibt es keinen Produktcode, die Zeilen der Tabelle sind realistisch gezählt (eine Zeile je Fixture-ID, nicht je Schritt), die Formel ist nicht geändert. **Der Block unter diesem Absatz** trägt den Teil des Architect (`pfad`, `produktcode`, `fakes`); `basis`, `schaetzung`, `marke` und, falls der Planner nicht schneidet, `schnitt-grund` setzt der Planner in eigenem Commit vor dem ersten Code-Commit (`AGENTS.md` §3.14).
+
+```groessenmarke
+pfad: src/bootstrap/abnahme_aufbau_test.go
+pfad: src/bootstrap/abnahme_matrix_test.go
+pfad: src/bootstrap/abnahme_determinismus_test.go
+pfad: src/bootstrap/abnahme_isolation_test.go
+pfad: src/bootstrap/abnahme_neustart_test.go
+pfad: src/bootstrap/abnahme_nebenlaeufig_test.go
+produktcode: 0
+fakes: 2
+```
 
 **Aufträge an den Architect zum Start** (Planner, 2026-11-07, `main` = `08843060`; vor dem ersten Code-Commit, `AGENTS.md` §3.12; der Architect arbeitet im Zweig `slice-mock-abnahme`; Ausgang jeweils *offen* in §6; Namen M1 bis M7):
 
@@ -108,10 +219,20 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - **M6. Nebenläufigkeit.** Fänger der Zusagen über 20 Workspaces mit Wirkungs-Fänger oder benanntem Negativ (`AGENTS.md` §3.10; Register `rate-ohne-detektor-schwankt-mit-der-last`, `zweig-ohne-lauf-unter-dem-detektor`), Zweige mit Zählprüfung unter `-race -coverprofile`, Raten mit Zahl der Prozesse, Last und Messendem.
 - **M7. Pfade, Merge-Nähe, Reports.** Pfade des Blocks (§3: `tests/`, `spec/spezifikation.md`; weitere nur mit Meldung an den Planner) und die Faktoren *a*, *b*, *f*, *p* für die Marke; in `spec/spezifikation.md` nur die Stellen von `SPEC-049` und was sie berühren, kein Umstellen daneben. Reports von Reviewer und Verifier tragen ADR-Kennungen nie nackt, sondern als auflösenden Link (Register `report-der-rolle-faellt-docs-check`); der Implementer schreibt Repo-Dateien nur mit `Edit` und `Write` (Register `betriebsregel-fuer-repo-dateien-verletzt`, 13×).
 
+**Bestätigung des Architect zum Start** (2026-11-07, Aufträge M1 bis M7; Vertrag in `SPEC-049` Nr. 1 bis 10 ohne neue `SPEC`-Nummer, denn der Bereich 160 bis 199 der Linie B ist erschöpft und die Kennungsfrage ist beim User offen, Rückgabe R2; Tabelle, Mengen und Raster in diesem Plan; der Ausgang jedes Auftrags steht in §6). Die Prüfstellen sind in der Spezifikation entschieden, sonst hielte der Implementer an (`AGENTS.md` §3.12).
+
+- **M1. Fixtures.** 36 Adressen in sechs Bereichen mit 88 Schritten (`SPEC-049` Nr. 4), Ausgangsdaten (Nr. 2) und Form des Vergleichs (Nr. 3); die Antworten sind gegen den Stand des Codes auf `9208698c` gemessen (ein Wegwerf-Probelauf der Anfragen gegen den echten Dienst, nicht eingecheckt) und gegen den Wortlaut von `SPEC-169`, `SPEC-193` und `SPEC-197` gelesen; eine Abweichung des Codes von der Spezifikation hat der Probelauf nicht gezeigt. Die Tabelle *Zusage · Fänger* hat 83 Zeilen (T01 bis T83); die Namen in der Spalte *Fänger* sind Aufträge an den Implementer: jedes Symbol entsteht mit seinem Test, er prüft vor dem Handoff mit `grep -rn "func <Symbol>" src`, dass jedes existiert, und zieht die Tabelle im selben Commit nach, wenn ein Name abweicht (`AGENTS.md` §3.9; Register `tabelle-nennt-test-der-nicht-existiert`).
+- **M2. Determinismus.** Lauf, Folge D (14 Schritte als Wiederholung von Schritten aus Nr. 4), Orakel, Stand und Cursor, Normalisierung (`SPEC-049` Nr. 5 a bis e): kein Header des Mock ist flüchtig, die Normalisierung nimmt hier nichts aus und steht im Vergleich, damit ein künftiger flüchtiger Header nicht still ausfällt. Zeitbudget (Nr. 5 f): erwartet unter 15 s, Frist 120 s, Fatal; die Gegenproben fahren das Paket nicht.
+- **M3. Isolation.** 20 Workspaces, 228 Schritte, Einzelläufe als Orakel, Cursor-Liste je Schritt (Nr. 6). Cursor kommen im Modus `mock` nicht vor, soweit der Mock sie berührt (er liest und schreibt keinen); sie kommen im Workspace vor, weil Replay und Hybrid sie führen, und der Test setzt je Workspace einen eigenen, den Reset, Restore, Snapshot und Mutation anderer nicht verändern dürfen.
+- **M4. Neustart.** Im Prozess des Tests, nicht als Prozess mit `SIGTERM` (Nr. 7 a): der Modus `mock` ist im Binary nicht verdrahtet. Abgeschlossen heißt: der Aufruf kehrt ohne Fehler zurück (Nr. 7 b). Die Prozessgrenze ist Rückgabe R4.
+- **M5. Raster und Zusatztabelle.** In §6, jede Zelle mit einer Nummer der Spezifikation oder „gilt nicht“ mit Grund.
+- **M6. Nebenläufigkeit.** Fünf Läufe der Fenster mit Haltepunkt an `Konfig.Workspaces` (Stelle S2) und an `Konfig.Entities` (T71 bis T75), die Isolation T54 bis T62, der Haltepunkt selbst (T76); Raten `rot in <k> von 20` mit Last und Messendem (Nr. 8); Zweige aus dem Abdeckungsprofil unter `-race -coverprofile` (T78). Akzeptiertes Negativ: die Mischung aus Vorher und Nachher beim Lesen (T82).
+- **M7. Pfade, Merge-Nähe, Reports.** Pfade: die sechs Dateien `src/bootstrap/abnahme_*_test.go` (`tests/` ist nach dem Architektur-Gate nicht möglich, Rückgabe R1); `spec/spezifikation.md` steht nicht im Block (`SPEC-128` Nr. 3 m). Faktoren *a* = 16, *b* = 67, *f* = 2, *p* = 0 (siehe *Größenmarke*). Merge-Nähe: Dieser Slice fügt keinen Fehlercode hinzu (`SPEC-049` Nr. 9 c); die Zahl der Codes bleibt unberührt. Die Reports von Reviewer und Verifier tragen ADR-Kennungen als auflösenden Link, und der Implementer schreibt Repo-Dateien nur mit `Edit` und `Write` (Planner-Satz aus M7 unverändert).
+
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner beim Start vor dem ersten Code-Commit nach `AGENTS.md` §3.14 mit dem Werkzeug aus `slice-groessenmarke-werkzeug` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Eine Zahl steht hier erst, wenn die Tabelle *Zusage · Fänger* vorliegt; die Gruppe der Matrix lässt sich vorab von den drei übrigen Gruppen trennen (kein geteilter Mechanismus), wenn die Schätzung × 1,25 über 3000 liegt.
-- `in-progress` → `open` (blockiert — Carveout?): die Fixtures der Matrix sind vom Architect nicht festgelegt (siehe §6).
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner beim Start vor dem ersten Code-Commit nach `AGENTS.md` §3.14 mit dem Werkzeug aus `slice-groessenmarke-werkzeug` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Die Tabelle *Zusage · Fänger* liegt vor (§3), der Richtwert steht unter *Größenmarke* (Architect); ob und wo vorab geschnitten wird, beantwortet der Planner (Rückgabe R3 in §6).
+- `in-progress` → `open` (blockiert — Carveout?): die Festlegungen von `SPEC-049` Nr. 1 bis 10 tragen nicht, weil ein Test eine Randform ohne Ort findet (`AGENTS.md` §3.12, siehe §6).
 
 ## 5. Closure-Trigger
 
@@ -128,14 +249,49 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Die Fixture-IDs `ODV4-*` sind „geplante Testadressen“ ohne Inhalt (`SPEC-049`) — **Ausgang:** offen; Adresse: Architect (M1); er legt Inhalt und Zahl der Fixtures vor dem ersten Code-Commit fest, sonst entscheidet der Implementer, was „abgenommen“ heißt.
-- Laufzeit der 100 Läufe und des Paralleltests in `make test` und die Frist der Gegenproben, die Pakete des Produkts mitfahren (`BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts`) — **Ausgang:** offen; Adresse: Architect (M2), Zeitbudget als Randform im Vertrag.
-- Raten der nebenläufigen Fänger (20 Workspaces) — **Ausgang:** offen; Adresse: Architect (M6) und Implementer; Rate je Lauf mit Zahl der Prozesse und Messendem (`BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last`).
-- Der Neustarttest: im Test-Binary oder als Prozess (`SIGTERM`, `LH-FA-02.c`) — **Ausgang:** offen; Adresse: Architect (M4).
-- Aufträge M1 bis M7 an den Architect zum Start (§4): Fixtures mit Inhalt und Tabelle, Determinismus, Isolation, Neustart, Raster, Nebenläufigkeit, Pfade und Reports — **Ausgang:** offen; Adresse: Architect (Bestätigung oder Ergänzung in diesem Abschnitt), Implementer (Test).
-- Größe: die Marke ist nicht gesetzt (§4), weil die Tabelle fehlt — **Ausgang:** offen; Adresse: Planner nach M1 (Block mit `basis`, `schaetzung`, `marke` in einem Commit vor dem ersten Code-Commit).
-- Gate-Kette (Nr. 7 der Übergangsregeln): ändert `tests/` den Build-Kontext (`Dockerfile`, `.dockerignore`), ist das ein Pfad der Gate-Kette — **Ausgang:** offen; Adresse: Planner (Rückgabe, nicht im Code entscheiden).
-- Zahl der Codes: ein Fehler, den ein Test findet, kann einen Code verlangen, und `slice-admin-rahmen` und `slice-sqlite-interrupt-transaktion` mergen anders auf `main` — **Ausgang:** offen; Adresse: Planner (Integrationsschritt, `welle-mock` §5).
+- Die Fixture-IDs `ODV4-*` waren „geplante Testadressen“ ohne Inhalt (`SPEC-049`) — **Ausgang:** entfallen. Der Architect hat Inhalt, Zahl (36 Adressen, 88 Schritte) und Ausgangsdaten vor dem ersten Code-Commit in `SPEC-049` Nr. 2 bis 4 festgelegt (M1).
+- Laufzeit der 100 Läufe und des Paralleltests in `make test` und die Frist der Gegenproben, die Pakete des Produkts mitfahren (`BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts`) — **Ausgang:** entfallen für die Entscheidung (Zeitbudget als Randform in `SPEC-049` Nr. 5 f: erwartet unter 15 s, Frist 120 s; die Fälle der Gegenproben arbeiten auf Wegwerfmodulen, ihre Frist ist nicht berührt); **weiter offen** für die Messung: der Implementer trägt die gemessene Dauer in den Absatz *Mutationen und Raten* (§3) ein.
+- Raten der nebenläufigen Fänger (20 Workspaces) — **Ausgang:** weiter offen; Adresse: Implementer. Die Fenster sind mit Haltepunkt deterministisch gebaut (`SPEC-049` Nr. 8); der Implementer berichtet je Mutation `rot in <k> von 20` Prozessläufen mit Last (Eins-Minuten-Wert vor und nach) und Messendem (`BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last`), das Abdeckungsprofil unter `-race -coverprofile` bildet die Menge der Zweige (`BEO-REPO/zweig-ohne-lauf-unter-dem-detektor`).
+- Der Neustarttest: im Test-Binary oder als Prozess (`SIGTERM`, `LH-FA-02.c`) — **Ausgang:** entfallen. Entschieden in `SPEC-049` Nr. 7 a: Neustart im Prozess des Tests (Dienste und Ablage geschlossen und neu gebaut); der Modus `mock` ist im Binary nicht verdrahtet. Die Prozessgrenze ist Rückgabe R4.
+- Aufträge M1 bis M7 an den Architect zum Start (§4) — **Ausgang:** entfallen. Bestätigung des Architect in §4; die Rückgaben R1 bis R4 stehen unten.
+- Größe: die Marke ist nicht gesetzt, die Tabelle liegt jetzt vor (§3, §4 *Größenmarke*) — **Ausgang:** offen; Adresse: Planner (Block mit `basis`, `schaetzung`, `marke` in einem Commit vor dem ersten Code-Commit, Antwort auf die Schnittfrage, Rückgabe R3).
+- Gate-Kette (Nr. 7 der Übergangsregeln): die Tests liegen unter `src/bootstrap/`, im Build-Kontext der Stufe `source`; `Makefile`, `Dockerfile`, `.dockerignore` und `harness/mk/` bleiben unberührt — **Ausgang:** entfallen. Der Stempel der Gegenproben gehört dem Integrationsschritt (`SPEC-049` Nr. 9 d).
+- Zahl der Codes: ein Fehler, den ein Test findet, kann einen Code verlangen, und `slice-admin-rahmen` und `slice-sqlite-interrupt-transaktion` mergen anders auf `main` — **Ausgang:** offen; Adresse: Planner (Integrationsschritt, `welle-mock` §5). Der Architect hat keinen Code hinzugefügt.
+
+**Rückgaben des Architect** (`AGENTS.md` §3.13; Ausgang jeweils *offen*, Adresse genannt):
+
+- **R1. Ablage der Tests in `src/bootstrap/` statt `tests/`** — Ausgang: offen; Adresse: Planner (zur Kenntnis; §1, §3 und Block sind nachgezogen). Das Architektur-Gate erlaubt dem Paket `tests` Kanten auf Modell, Inbound-Ports und Driven Adapter, nicht auf die Dienste; die Abnahme braucht `mock`, `workspace` und `snapshot`. Der Composition Root darf sie importieren. Eine Kante `tests` → Dienste wäre eine Änderung der Architekturregel (`AGENTS.md` §3.6) und braucht eine Entscheidung. Folge: die Pfade des Blocks sind sechs Dateien; der Stempel der Gegenproben ändert sich, weil `src` Eingabe ist.
+- **R2. Kennungsfrage der Linie B** — Ausgang: offen; Adresse: User (über den Planner). Nichts entschieden: der Vertrag steht als Nr. 1 bis 10 in `SPEC-049` und nimmt keine Nummer aus 160 bis 199 oder aus einem Bereich anderer Linien; ob die Abnahme eine eigene Nummer bekommt, ist Teil der Frage.
+- **R3. Größenmarke und Schnitt** — Ausgang: offen; Adresse: Planner. *S* = 7120, *M* = 9700 (Schnittfrage). Die Aussage in §4, die Gruppe der Matrix lasse sich ohne geteilten Mechanismus von den übrigen trennen, trifft nicht zu: die Folge D der Determinismus-Messung nimmt Schritte der Matrix als Orakel (`SPEC-049` Nr. 5 b), und alle Teile teilen Aufbau und Ausgangsdaten. Ein trennbarer Teil ist **Isolation und Nebenläufigkeit** (T54 bis T60, T62, T71 bis T78; Dateien `abnahme_isolation_test.go` und `abnahme_nebenlaeufig_test.go`): *a* = 16, *f* = 2, *S* = 1760 und *M* = 2400, unter der Schnittgrenze; er nutzt vom Rest nur die Hilfen von `abnahme_aufbau_test.go` (liest sie, ändert sie nicht) und teilt kein Orakel. Der Rest hat *S* = 5360 (*M* 7300) und bleibt über der Grenze, weil Aufbau, Fixture-Tabelle und Folge D gemeinsam sind. Ob vorab so geschnitten wird oder ein `schnitt-grund` in den Block kommt, entscheidet der Planner; der Block erlaubt `pfad` der sechs Dateien für beide Wege. Ein Pfad `spec/spezifikation.md` ist im Block nicht zulässig (`SPEC-128` Nr. 3 m); der Planner-Auftrag M7 nannte ihn.
+- **R4. Neustart über die Prozessgrenze im Modus `mock`** (`SIGTERM`, `LH-FA-02.c`, Start aus `main`) — Ausgang: offen; Adresse: Planner. Der Architect hat §1 und die DoD von `slice-bootstrap-m3` gelesen: dort steht der M3-Test (Start im Modus `mock`, Anlegen, Abfragen, Mutieren, Snapshot, Restore, Reset), kein Neustart über die Prozessgrenze und kein Ausschluss, der ihn trifft. Der Architect trägt die Sendung nicht selbst in den Plan eines anderen Slice ein (Pläne in `open/` schreibt der Planner); `SPEC-049` Nr. 10 b führt die Lücke als akzeptiertes Negativ mit Grund und Folge. Nimmt `slice-bootstrap-m3` die Zeile (Neustart mit `SIGTERM`: abgeschlossene Mutationen und Snapshots nach dem Start vorhanden, Geber `slice-mock-abnahme`) in §1 oder die DoD, ist die Lücke geschlossen; sonst bleibt sie das Negativ.
+
+**Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; Orte sind Nummern von `SPEC-129`, `SPEC-192` bis `SPEC-198`, `SPEC-103` und `SPEC-049`):
+
+| Operation | fehlend oder leer | unbekannt | fremd | Abbruch | Wiederholung |
+|---|---|---|---|---|---|
+| `Reset` | Kennung leer: `SPEC-129` Nr. 10 (b), unverändert an den Port, `ODR-E7001` | `SPEC-129` Nr. 10 (b), `ODR-E7001` | gilt nicht: der Aufruf nennt eine Kennung, keinen Aufrufer; die Wirkung auf fremde State und Cursors: `SPEC-129` Nr. 10 *Wirkung*, `SPEC-049` Nr. 6 e | `SPEC-129` Nr. 2 und Nr. 10 (d): Zustand unverändert | `SPEC-129` Nr. 10 *Revision* (wächst bei jedem Reset), `SPEC-049` Nr. 5 a |
+| Mutation (`POST`, `PATCH`, `PUT`, `DELETE`) | Header `X-Recorder-Workspace`: `SPEC-195` Nr. 5; Body: `SPEC-192` Nr. 5 und `SPEC-181` Nr. 2 a; Schlüssel der URL: `SPEC-196` Nr. 7 a; `null` und nicht genannt: `SPEC-193` Nr. 3, `SPEC-049` Nr. 4 (`ODV4-CRUD-03`, `-05`) | Workspace: `SPEC-195` Nr. 8; Set: `SPEC-192` Nr. 4; Eintrag: `SPEC-193` Nr. 2; Property und Typ im Body: `SPEC-181` Nr. 3 bis 5 | Workspace eines anderen Service: `SPEC-195` Nr. 8 (`ODR-E5004`); Mutation eines Workspace gegen die anderen: `SPEC-192` Nr. 8 (d), `SPEC-049` Nr. 6 | `SPEC-195` Nr. 2 und `SPEC-192` Nr. 7, `SPEC-049` Nr. 7 b | `SPEC-193` Nr. 2 (`POST` doppelt, `DELETE` doppelt), `SPEC-194` Nr. 5, gleichzeitig `SPEC-192` Nr. 8 (a), `SPEC-049` Nr. 8 |
+| Snapshot erzeugen | Name leer: `SPEC-129` Nr. 21; Workspace leer: Nr. 22 (c) | Workspace: Nr. 22 (c) und Nr. 24, `ODR-E7001` | Name eines anderen Workspace ist frei: Nr. 22 (i); `ErrFremderService`: Nr. 24 (unerreichbar); `SPEC-049` Nr. 6 b Schritt 6 | Nr. 21 (Kontextfehler ohne Code), Nr. 25 (Blob ohne Referenz) | Name vergeben `ODR-E7006`: Nr. 22 (i) |
+| Snapshot auflisten | Kennung leer: Nr. 23 (unverändert an den Port) | Nr. 23, `ODR-E7001` | Nr. 23: nie der Snapshot eines anderen Workspace; `SPEC-049` Nr. 6 b Schritt 13 | Nr. 21 | gilt nicht: lesend, eine Wiederholung ändert nichts (Nr. 23) |
+| `Restore` | Kennung des Workspace oder des Snapshots leer: `SPEC-129` Nr. 16 und 18 (Rangfolge) | Nr. 18 (`ODR-E7001`, `ODR-E7002`) | Snapshot eines anderen Workspace `ODR-E7002`, Baseline eines anderen Service `ODR-E5004`: Nr. 18 | Nr. 16 (Zustand unverändert) und Nr. 18 (Kontextfehler geht jeder Zeile vor) | Nr. 17 (Revision plus 1, auch bei gleichem State) |
+| Neustart | Verzeichnis fehlt: `SPEC-103` Nr. 7 (nicht Gegenstand von Nr. 7, der Test öffnet das vorhandene) | Schemaversion neuer oder Tabellen ohne Version: `SPEC-103` Nr. 4 und 5 (nicht Gegenstand) | fremde Datei: `SPEC-103` Nr. 6 (nicht Gegenstand) | gilt nicht: der reguläre Neustart wird nicht abgebrochen; Abbruch und Absturz sind `SPEC-048` (`SPEC-049` Nr. 10 c) | zweiter Neustart: `SPEC-049` Nr. 7 d (6), `SPEC-103` Nr. 3 und 9 |
+
+**Zusatztabelle Z** (Verstöße am selben Schlüssel und Modus von `STRICT_COVERAGE`, `AGENTS.md` §3.16; Ort `SPEC-197` Nr. 2 und 3, `SPEC-193` Nr. 2, `SPEC-049` Nr. 4):
+
+| Nr. | Operation | Lage des Schlüssels | `StrictCoverage` | Ergebnis | Fänger |
+|---|---|---|---|---|---|
+| Z1 | Collection | `Orders`, Coverage `partial` | falsch | 200, `X-Recorder-Coverage: partial` | `ODV4-E-04` b (T30) |
+| Z2 | Collection | `Orders`, `partial` | wahr | `ODR-E6003` | `ODV4-E-04` a (T30) |
+| Z3 | Anzahl | `Orders`, `partial` | wahr | `ODR-E6003` | `ODV4-E-04` c (T30) |
+| Z4 | Collection | `Products`, `complete` | wahr | 200, `complete` | `ODV4-E-04` d (T30) |
+| Z5 | Lookup ohne Treffer | `Orders`, `partial` | falsch | `ODR-E6003`, kein `404` | `ODV4-E-04` e (T30) |
+| Z6 | Lookup ohne Treffer | `Orders`, `partial` | wahr | `ODR-E6003` | `ODV4-E-04` f (T30) |
+| Z7 | Lookup, Eintrag `partial` | `Orders(1)` kennt `Note` nicht | falsch | `ODR-E6003` | `ODV4-E-04` g (T30) |
+| Z8 | `PATCH`, Eintrag fehlt | `Orders(9)`, `partial` | falsch | `ODR-E6003` | `ODV4-CRUD-06` e (T36) |
+| Z9 | `PATCH`, Eintrag vorhanden | `Orders(1)`, `partial` | falsch | `ODR-E6003` | `ODV4-CRUD-06` f (T36) |
+| Z10 | `PATCH`, Eintrag fehlt | `Products(99)`, `complete` | falsch | `ODR-E6008` | `ODV4-CRUD-06` d (T36) |
+| Z11 | `PATCH`, Eintrag fehlt | `Orders(9)`, `partial` | wahr | `ODR-E6003`, wie Z8 (kein Einfluss des Modus) | `ODV4-E-04` h (T30) |
+| Z12 | `PATCH`, Eintrag fehlt | `Products(99)`, `complete` | wahr | `ODR-E6008`, wie Z10 | `ODV4-E-04` i (T30) |
 
 ## 7. Closure-Notiz
 
