@@ -234,6 +234,12 @@ func (b *blobs) Open(ctx context.Context, ref string) (io.ReadCloser, error) {
 	return s, nil
 }
 
+func (b *blobs) setzeInhalt(ref string, inhalt []byte) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.inhalt[ref] = inhalt
+}
+
 func (b *blobs) strome() []*strom {
 	b.mu.Lock()
 	defer b.mu.Unlock()

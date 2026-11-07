@@ -146,7 +146,8 @@ func fehlerFaelle() []fall {
 	return r
 }
 
-// spec195Nr10 ist die Liste der erreichbaren Codes in SPEC-195 Nr. 10 (13 Codes).
+// spec195Nr10 ist eine Handkopie der Liste der erreichbaren Codes in SPEC-195 Nr. 10 (13 Codes); kein Lauf liest die
+// Spezifikation, eine Änderung der Liste dort fängt dieser Test nicht.
 func spec195Nr10() []string {
 	return []string{"ODR-E3001", "ODR-E5003", "ODR-E5004", "ODR-E5005", "ODR-E6001", "ODR-E6002", "ODR-E6003", "ODR-E6004",
 		"ODR-E6005", "ODR-E6006", "ODR-E6008", "ODR-E7001", "ODR-E9001"}

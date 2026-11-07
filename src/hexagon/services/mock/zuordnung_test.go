@@ -226,7 +226,7 @@ func TestDienstWahl(t *testing.T) {
 
 const headerName = "X-Recorder-Workspace"
 
-// TestZuordnung hält Z06 (M3): 10 Formen des Headers × 6 Werte; genau ein nichtleerer Wert, byte-gleich benutzt, ohne
+// TestZuordnung hält Z06 (M3): 13 Formen des Headers × 6 Werte; genau ein nichtleerer Wert, byte-gleich benutzt, ohne
 // Beachtung der Schreibweise des Namens; jede andere Form ist ODR-E5003 ohne Port.
 func TestZuordnung(t *testing.T) {
 	werte := []string{"a", strings.Repeat("w", 64), strings.Repeat("W", 200), "WsMitGross", "a/b", "a\x00b"}
@@ -247,6 +247,16 @@ func TestZuordnung(t *testing.T) {
 		{"Name klein", true, func(v string) map[string][]string { return map[string][]string{"x-recorder-workspace": {v}} }},
 		{"Name gemischt", true, func(v string) map[string][]string { return map[string][]string{"x-RECORDER-workspace": {v}} }},
 		{"Rand-Leerzeichen", true, func(v string) map[string][]string { return map[string][]string{headerName: {" " + v + " "}} }},
+		// Zeichen jenseits von ASCII aus Bytewerten (AGENTS.md §3.18): U+212A KELVIN SIGN faltet zu k, U+017F zu s.
+		{"Name mit Kelvin-Zeichen", false, func(v string) map[string][]string {
+			return map[string][]string{"x-recorder-wor" + string([]byte{0xE2, 0x84, 0xAA}) + "space": {v}}
+		}},
+		{"Name mit langem s", false, func(v string) map[string][]string {
+			return map[string][]string{"x-recorder-work" + string([]byte{0xC5, 0xBF}) + "pace": {v}}
+		}},
+		{"Wert mit Kelvin-Zeichen", true, func(v string) map[string][]string {
+			return map[string][]string{headerName: {v + string([]byte{0xE2, 0x84, 0xAA})}}
+		}},
 	}
 	n := 0
 	for _, f := range formenH {
@@ -271,9 +281,9 @@ func TestZuordnung(t *testing.T) {
 				continue
 			}
 			lies(t, antwort)
-			soll := v
-			if f.name == "Rand-Leerzeichen" {
-				soll = " " + v + " "
+			var soll string
+			for _, w := range a.Header {
+				soll = w[0]
 			}
 			gets := u.p.von("Workspaces.Get")
 			if len(gets) != 1 || gets[0].args[0] != soll {
@@ -281,8 +291,28 @@ func TestZuordnung(t *testing.T) {
 			}
 		}
 	}
-	if n != 60 {
-		t.Errorf("%d Zellen, M3 nennt 60", n)
+	if n != 78 {
+		t.Errorf("%d Zellen, 13 Formen × 6 Werte = 78", n)
+	}
+}
+
+// TestFremdeKennungen hält Z12 für die Menge der Kennungsformen des fremden Service: gleiche Länge, Präfix, Erweiterung,
+// andere Schreibweise, Rand-Leerzeichen, anderer Anfang und leer sind je ODR-E5004; nur die gleiche Kennung ist eigen.
+func TestFremdeKennungen(t *testing.T) {
+	fremd := []string{"svx", "xvc", "sXc", "sv", "s", "svc2", "svcx", "SVC", "svc ", " svc", "xsvc", ""}
+	for _, k := range append([]string{dienstID}, fremd...) {
+		u := neueUmg(t)
+		u.ws.setze(model.Workspace{ID: wsID, ServiceID: k, BaselineSnapshotID: "b"})
+		antwort, err := u.rufe(metadatenAnfrage())
+		if k == dienstID {
+			if err != nil {
+				t.Errorf("eigene Kennung: %v", err)
+				continue
+			}
+			lies(t, antwort)
+			continue
+		}
+		_ = erwarteFehler(t, "fremd "+k, err, model.CodeE5004)
 	}
 }
 
