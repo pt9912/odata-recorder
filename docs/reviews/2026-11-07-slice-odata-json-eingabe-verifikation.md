@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, `SPEC-180`, `SPEC-181`, ADRs und Plan; nicht Code-Review (das ist `docs/reviews/2026-11-06-slice-odata-json-eingabe-review.md`).
 
-**Gegenstand:** Zweig `slice-odata-json-eingabe`, HEAD `0f3b125`, Basis `d4ca2e2`. Plan: `docs/plan/planning/in-progress/slice-odata-json-eingabe.md`. Die Fix-Runde nach dem Review (F-1 bis F-15) hat nur Tests, Fixture und Plan geändert; der Produktcode ist gegenüber dem Review-Stand unverändert (`git diff 7ef049a..HEAD` über `eingabe*.go` ohne Tests ist leer, geprüft).
+**Gegenstand:** Zweig `slice-odata-json-eingabe`, HEAD `0f3b125`, Basis `d4ca2e2`. Plan: `docs/plan/planning/done/slice-odata-json-eingabe.md`. Die Fix-Runde nach dem Review (F-1 bis F-15) hat nur Tests, Fixture und Plan geändert; der Produktcode ist gegenüber dem Review-Stand unverändert (`git diff 7ef049a..HEAD` über `eingabe*.go` ohne Tests ist leer, geprüft).
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 
