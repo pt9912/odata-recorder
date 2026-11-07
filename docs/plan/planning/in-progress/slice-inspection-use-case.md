@@ -114,7 +114,7 @@ Die Spalte `Nr.` trägt den Buchstaben der Art: `K` Konfiguration, `A` Kontext n
 | X13 | Lesen schreibt nichts: `Exchanges` ruft von `RecordingRepository` nur `ListBySession` (Nr. 1) | `FakeRecording` zählt jede Operation (`Append`, `Get`, `ListBySession`) bei Erfolg, Port-Fehler, Parameterfehler, `ctx` nil: `Append` und `Get` 0, Bestand nach dem Aufruf gleich dem davor | `Get` je Zeile; `Append` eines Vermerks | andere |
 | N1 | Akzeptierte Negative dieses Teils: die Größe einer Session (Schnitt im Speicher) und ein Geheimnis im Pfad (`SPEC-236` *Ungeprüft*) | kein Fänger; Grund und Folge in `SPEC-236` Nr. 4 und 5; die Gegenprobe in X12 hält den Pfad als sichtbar fest | – | andere |
 | W1 | Zählprüfung: die Wege von `Exchanges` und der Anteil von `New` (K1) im Quelltext sind die Zeilen dieser Tabelle (Aufrufe der Ports, Aufrufe der Abbildung, Stellen eines Argumentverstoßes) | Test mit `go/parser` über die Dateien des Pakets ohne `_test`: Zahl der Aufrufe über Felder von `Konfig`, der Aufrufe von `mitCode` und der Stellen, die `ErrUngueltig` bilden, gleich der Zahl der Wege der Tabelle des Tests (Name, Art, Nr. dieser Tabelle); `slice-inspection-coverage-diagnose` erweitert die Tabelle des Tests um seine Wege im selben Commit (`AGENTS.md` §3.9) | ein weiterer Port-Aufruf, eine weitere Stelle `ErrUngueltig` ohne Zeile | andere |
-| W2 | Gleichzeitige Aufrufe von `Exchanges` stören sich nicht, der Dienst hält keinen Zustand (Nr. 10) | 8 Goroutinen mit je 50 Aufrufen verschiedener Seiten gegen einen Dienst; jedes Ergebnis gleich dem sequentiellen; `make test-race` je Prozess (`-test.count=1`) | der Dienst puffert die gelesene Liste in einem Feld: Detektor rot in N von N Prozessläufen (Zahl nennt der Bericht) | nebenläufig |
+| W2 | Gleichzeitige Aufrufe von `Exchanges` stören sich nicht, der Dienst hält keinen Zustand (Nr. 10) | 8 Goroutinen mit je 50 Aufrufen verschiedener Seiten zweier Sessions gegen einen Dienst; jedes Ergebnis gleich dem Modell der Session (`modellSeite`, nicht dem sequentiellen Lauf des Dienstes: ein Zustand im Dienst verfälschte auch diesen); `make test-race` je Prozess (`-test.count=1`) | der Dienst puffert die gelesene Liste in einem Feld: Detektor rot in 30 von 30 Prozessläufen (Bericht, §3); ein Cache der ersten gelesenen Liste: rot in 30 von 30 auch ohne Detektor | nebenläufig |
 
 **Pflicht-Mengen** (`AGENTS.md` §3.15, §3.17, `implement-slice` Schritt 14): je Menge Achsen, Zahl der Elemente als Produkt, Generator, Orakel (nie der Dienst und nie sein Code), Zählprüfung gegen die Quelle der Menge (keine feste Zahl im Test), Prüfgrenze der unbeschränkten Menge. Die Mengen M-Coverage, M-Codes und M-Schlüssel führt `slice-inspection-coverage-diagnose`.
 
@@ -133,6 +133,61 @@ Die Spalte `Nr.` trägt den Buchstaben der Art: `K` Konfiguration, `A` Kontext n
 | `Exchanges` | `ctx` nil; `Nach` < 0; `Limit` < 0; Limit 0; Limit über der Grenze; Limit sonst; `ListBySession`: Kontextfehler, Fehler mit Code (je Eintrag der Tabelle), Erfolg; Filter `sequence_no` > `Nach`; Schnitt auf `Limit`; `Weiter` gesetzt oder 0; Feld je Eintrag der Allowlist | A1, X1 bis X13 |
 
 Jeder Weg läuft in einem Test des Pakets und damit unter `make test-race`; ein Weg ohne Test ist nach W1 rot. Ein benanntes Negativ gibt es nur für die Fehler des Ports, die der echte Adapter nie liefert (etwa `ErrBlobFehlt` an `ListBySession`): der Fake liefert sie, der Weg ist derselbe wie für jeden Fehler (`mitCode`), Folge keine.
+
+**Bericht des Implementers** (Handoff an den Reviewer; `AGENTS.md` §3.9, §3.10, §3.15, §3.17; Stand: Dienst, Port und Tests liegen im Zweig, die Fänger heißen wie folgt):
+
+| Zeile | Fänger (Tests in `src/hexagon/services/inspection/`) |
+|---|---|
+| K1, A1 | `TestNewExchangesNil`, `TestKontextNil` |
+| X1 | `TestSeitenparameterNegativ` |
+| X2, X3, X4 | `TestSeitenModell` (Menge M-Seite), `TestSeitenGoldens` (Zahlen statt Modell), `TestMengeSeiteZaehlung` (Zählprüfung der Achsen) |
+| X5 | `TestSeitenFolge` (Menge M-Seite, Folge ab jedem `Nach`; zweiter Aufruf gleich erstem) |
+| X6 | `TestAnhaengenZwischenSeiten` (Menge M-Bestand) |
+| X7, X8, X9, X10 | `TestKennungUnveraendert`, `TestKontextfehlerUnveraendert`, `TestFehlerDesPortsMitCode`, `TestKontextDesAufrufs` |
+| X11 | `TestAllowlistIstMengeDerFelder` (Reflexion), `TestFeldUnveraendert` (Schleife über die 15 enthaltenen Felder) |
+| X12 | `TestKeinGeheimnis` (9 Orte × 3 Kodierungen, Gegenprobe Pfad) |
+| X13 | `TestLesenSchreibtNichts` |
+| W1, W2 | `TestWegeImQuelltext` (`go/parser`), `TestGleichzeitig` |
+
+*Mutationen, je Zusage rot gesehen.* Ein Lauf des Werkzeugs `tools/harness/mutationslauf.sh` (`SPEC-210`, Klasse `andere`, ein Prozess je Mutation, 4g, `--cpus=4`) über 65 Mutationen: alle 65 `rot`, keine `rot-paket`, keine `gruen`, keine `uebersetzungsfehler`; Last des Hosts beim Lauf etwa 9,7 bei 4 CPUs (Messender: der Implementer; Last: andere Läufe auf dem Host). Der Fänger ist der benannte Test, der Rest des Pakets lief mit (Stufe 2 nur bei grün). `x2-null-nicht-standard` wird über ein `panic` des Dienstes rot (Index in `schneide` bei `Limit` 0, das der Vertrag nie liefert); alle anderen über eine Meldung des Tests.
+
+| Zusage | Mutation (Namen der Liste) | roter Test |
+|---|---|---|
+| K1 | Prüfung entfernt (`k1-pruefung-weg`) | `TestNewExchangesNil` |
+| A1 | Prüfung `ctx` nil entfernt (`a1-ctx-nil-pruefung-weg`) | `TestKontextNil` |
+| X1 | `<` zu `<=` bei `Nach` und bei `Limit`; Prüfung von `Nach`, von `Limit` entfernt; Text nennt einen Wert (`x1-*`, 5) | `TestSeitenparameterNegativ` |
+| X2 | Kappung entfernt; Kappung erst ab `MaxLimit + 1`, schon ab `MaxLimit - 1`; Standard + 1; 0 nicht auf Standard; `Limit` der Antwort 0 (`x2-*`, 6) | `TestSeitenModell` |
+| X3 | `>=` statt `>` im Filter; `Weiter` aus dem ersten Eintrag; Umkehr der Reihenfolge; `Eintraege` nil bei leerer Seite; `Gesamt` - 1 (`x3-*`, 5) | `TestSeitenModell` |
+| X4 | `Weiter` gesetzt, wenn die Seite genau bis zum Ende reicht; Fehler bei `Nach` über `Gesamt` (`x4-*`, 2) | `TestSeitenModell` |
+| X5 | `Weiter` um 1 zu klein (Doppelung), um 1 zu groß (Lücke) (`x5-*`, 2) | `TestSeitenFolge` |
+| X6 | Liste der ersten Antwort im Dienst gepuffert (Zustand zwischen Aufrufen; Werkzeug nicht möglich, weil zwei Textstellen, Einzellauf in Kopie `mA`) | `TestAnhaengenZwischenSeiten`: rot in 5 von 5 Prozessen ohne und 5 von 5 mit Detektor |
+| X7 | Kennung verlängert; Leerzeichen-Kennung zur leeren; zweiter Aufruf von `ListBySession` (`x7-*`, 3) | `TestKennungUnveraendert` |
+| X8 | Kontextfehler bekommt einen Code (`x8-kontextfehler-mit-code`) | `TestKontextfehlerUnveraendert` |
+| X9 | Gegenstand `Snapshot`; Status 0; Status des letzten statt des ersten; Ursache nil (`x9-*`, 4) | `TestFehlerDesPortsMitCode` |
+| X10 | `context.Background()` an den Port; `ctx.Err()` nach dem Aufruf geprüft (`x10-*`, 2) | `TestKontextDesAufrufs` |
+| X11 | je Feld der Allowlist ungesetzt (15, `f01` bis `f15`); `ID` aus `Method`; `Method` und `Path`, `StartedAt` und `FinishedAt`, die Bodies, die Redaction-Zustände getauscht; `SequenceNo` aus `ResponseStatus` (`v1` bis `v6`) | `TestFeldUnveraendert` |
+| X12 | je ausgeschlossenes Feld in den Pfad kopiert (7: `SessionID`, `RawQuery`, `MatchKey`, `RequestBlob`, `ResponseBlob`, `RequestHeaders` samt Namen und Werten, `ResponseHeaders` ebenso; `l1` bis `l7`) | `TestKeinGeheimnis` |
+| X13 | `Get` je Aufruf; `Append` eines Vermerks (`x13-*`, 2) | `TestLesenSchreibtNichts` |
+| W1 | ein weiterer Port-Aufruf, eine weitere Stelle `ErrUngueltig`, ein weiterer Aufruf von `mitCode`, je hinter `if false` (`w1-*`, 3) | `TestWegeImQuelltext` |
+| W2 | Liste in einem Feld des Dienstes abgelegt und von dort gelesen (Datenrennen, kein Wirkungsunterschied) | `TestGleichzeitig`: mit Detektor rot in 30 von 30 Prozessen (je `-test.count=1`), ohne Detektor 0 von 30 |
+| W2 | Cache der ersten gelesenen Liste (Wirkung: die zweite Session liest die Liste der ersten) | `TestGleichzeitig`: ohne Detektor 30 von 30, mit Detektor 30 von 30 |
+
+Raten: Messender der Implementer, Last des Hosts beim Lauf 5,8 bis 19,9 bei 4 CPUs (andere Rollen und `make gates` anderer Zweige liefen auf dem Host). Der Ausgangsstand ist in 30 von 30 Prozessen mit Detektor und in 30 von 30 ohne grün (0 rot). Die W2-Zusage „kein Zustand im Dienst“ ist durch den Detektor nur für das Datenrennen gefangen (30 von 30); ein Zustand ohne Rennen (die Liste nur lesend zwischen Aufrufen) fängt der Wirkungs-Fänger der zweiten Session, wiederum 30 von 30. Es gibt kein Fenster zwischen Prüfen und Handeln (`SPEC-236` Nr. 10), also keine Zeile je Fenster.
+
+*Mengen* (`implement-slice` Schritt 14, `AGENTS.md` §3.17): jede Menge ist eine Schleife, die Zählprüfung hält die Zahl gegen die Quelle der Menge, nie gegen eine feste Zahl; das Orakel ist nie der Dienst.
+
+| Menge | Achsen und Elemente | Generator und Orakel | Zählprüfung | Mutation an einem Element je Achse, rot gesehen |
+|---|---|---|---|---|
+| M-Seite | `Limit` 7 × Bestand 7 × `Nach` 6 = 294, nach dem Entfernen gleicher Fälle und ungültiger Zeiger (`n - 1` bei `n` gleich 0) 236 | `seitenFaelle`; Orakel `modellSeite` (eigene Schleife, Konstanten aus dem Paket) | `TestMengeSeiteZaehlung`: Produkt der Längen der Achsen gleich der Zahl vor dem Entfernen; der Fall der leeren Session je `Limit` | `Limit`: Kappung erst über `MaxLimit + 1` (`x2-kappung-erst-ueber-max-plus-1`); Bestand: `Eintraege` nil bei n gleich 0 (`x3-eintraege-nil`); `Nach`: `Weiter` um 1 zu klein, die Folge ab `Nach` doppelt (`x5-weiter-minus-1`) |
+| M-Bestand | k 4 × Zeitpunkt 2 × n 5 = 40 | Schleife in `TestAnhaengenZwischenSeiten`; Orakel: `bereich(1, n + k)`, die Nachlese holt, was die Folge nicht erreicht | die Zahl der gelaufenen Fälle gleich dem Produkt der Längen der Achsen | nur eine, für alle drei Achsen: Cache der ersten Liste im Dienst, rot in 5 von 5 Prozessen; eine Mutation je Achse gibt es nicht, weil der Dienst jeden Stand neu liest und Zustand zwischen Aufrufen die einzige Art Fehler ist, die das Anhängen betrifft (akzeptiertes Negativ, Folge: ein Fehler allein bei k gleich `L + 1` bliebe ungefangen) |
+| M-Feld | X11: 15 enthaltene Felder (Reflexion über `model.Exchange`); X12: 9 Orte × 3 Kodierungen = 27, in 3 Seiten je Ort | `TestFeldUnveraendert` (Orakel `erwartet`: Kopie nach Namen per Reflexion), `orte`, `kodierungen` | enthaltene + ausgeschlossene Felder gleich `NumField` von `model.Exchange`; Felder von `ExchangeZeile` gleich den enthaltenen mit demselben Typ; Orte gleich den ausgeschlossenen Feldern (Header mit zwei Orten) | Feld: alle 15 ungesetzt (`f01` bis `f15`); Ort: alle 7 ausgeschlossenen Felder (`l1` bis `l7`); Kodierung: keine (die Gegenprobe im Pfad hält alle drei als sichtbar fest) |
+| M-Fehler | 27 Einträge von `outbound.EintraegeAbbildung()` + 1 anderer Fehler = 28; 5 Formen des Kontextfehlers; 3 Zustände von `ctx` | `tabelleSession` (abgeschrieben aus `SPEC-109` Nr. 5, nicht der Aufruf von `Abbilden`) | Namen der Tabelle des Tests gleich `EintraegeAbbildung()` plus dem anderen Fehler | Fehler: Gegenstand `Snapshot`; Kontextfehler: Code für den Kontextfehler; Zustand: `ctx.Err()` danach |
+
+Prüfgrenzen (akzeptierte Negative, Grund und Folge im Plan oben, Tabelle *Pflicht-Mengen*): Bestand bis 2 · `MaxLimit` + 1; drei Kodierungen des Canary; fünf Formen des Kontextfehlers. Die Mutation `x1-text-nennt-wert` prüft allein den Wert -1 im Text; für -2 und den kleinsten `int` fehlt die Mutation, weil die Erzeugung eines Textes mit dem Wert in der Wegwerfkopie einen Import brauchte. Folge: ein Text, der nur einen dieser Werte nennt, bliebe ungefangen; der Test selbst schleift über alle drei Werte.
+
+*Abdeckung* (Register `zweig-ohne-lauf-unter-dem-detektor`): `go test -race -cover` über das Paket: 100,0 % der Anweisungen, je Funktion 100,0 % (`mitCode`, `New`, `ctxNil`, `Exchanges`, `wirksamesLimit`, `schneide`, `zeile`); jeder Zweig läuft unter dem Detektor.
+
+*Zeichen* (`AGENTS.md` §3.18): die geschriebenen Dateien `src/hexagon/ports/inbound/inspection.go` und `src/hexagon/services/inspection/*.go` sind auf Rohbytes gegengelesen (`LC_ALL=C grep -P` auf Backslash-u-Folge, BOM, NBSP, Nullbreiten- und Trennzeichen: kein Treffer); Werte jenseits von ASCII entstehen aus Bytewerten (`string([]byte{0xc3, 0xa4})`, der Canary aus `[]byte{0x4b, ...}`).
 
 **Betriebsregeln für alle Rollen dieses Slice** (Lehren der Läufe vom 2026-10-24; sie stehen im Plan, damit ein Lauf sie am Arbeitsort liest):
 
@@ -239,9 +294,9 @@ dasteht.
 
 - Die Paginierung (Auftrag 2) und die Seitenabfrage in `RecordingRepository` und SQLite-Adapter — **Ausgang:** entfallen; entschieden in `SPEC-236` Nr. 3 und 4 (Zeiger `sequence_no`, Standard 100, Obergrenze 1000; der Port bleibt, der Dienst schneidet im Speicher); die Größe einer Session ist ein akzeptiertes Negativ mit Grund und Folge (`SPEC-236` Nr. 4 und *Ungeprüft*).
 - Lesen der Zähler (`TelemetryReader`, `SPEC-230` Nr. 9) — **Ausgang:** entfallen für diesen Slice; der Gegenstand ist Teil 2, `slice-inspection-coverage-diagnose` trägt die Sendung des Gebers `slice-telemetry-port` in Ziel, DoD und §4 (`AGENTS.md` §3.13).
-- Aufträge 8 bis 13 (Tabelle, Pflicht-Mengen mit Achsen, Zweig-Menge mit Zählprüfung, Schnittfrage, Kennungen und Dateien, Katalog-Pflicht) — **Ausgang:** entfallen für den Architect (geliefert: §3 und `SPEC-236`); **weiter offen** für die Umsetzung der Zählprüfung W1 und der Zählprüfungen der Mengen und den Bericht je Befund mit Menge, Zahl der Elemente und einer Mutation an einem Element, das der Befund nicht nannte (`AGENTS.md` §3.17); Adresse: Implementer.
+- Aufträge 8 bis 13 (Tabelle, Pflicht-Mengen mit Achsen, Zweig-Menge mit Zählprüfung, Schnittfrage, Kennungen und Dateien, Katalog-Pflicht) — **Ausgang:** entfallen für den Architect (geliefert: §3 und `SPEC-236`); die Zählprüfung W1 und die Zählprüfungen der Mengen sind umgesetzt (§3, *Bericht des Implementers*); **weiter offen** bis zur Closure ist der Bericht je Befund aus Review und Verifikation mit Menge, Zahl der Elemente und einer Mutation an einem Element, das der Befund nicht nannte (`AGENTS.md` §3.17); Adresse: Implementer.
 - Der Code für `ODR-E7012` ohne Endpunkt (Auftrag 6) — **Ausgang:** entfallen; entschieden in `SPEC-236` Nr. 9 und in `SPEC-005`.
-- Geheimnisse in Exchanges: die Allowlist der Felder (`SPEC-236` Nr. 5) ist der Schutz, der Fänger ist X12; der Fänger über alle Artefakte ist der Canary-Test in `slice-test-security` — **Ausgang:** weiter offen bis zur Closure; Adresse: Implementer (X12), danach Reviewer.
+- Geheimnisse in Exchanges: die Allowlist der Felder (`SPEC-236` Nr. 5) ist der Schutz, der Fänger ist X12 (`TestKeinGeheimnis`, umgesetzt, 7 Mutationen rot); der Fänger über alle Artefakte ist der Canary-Test in `slice-test-security` — **Ausgang:** weiter offen bis zur Closure; Adresse: Reviewer.
 - `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×) und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` (4×): `FakeRecording` trägt jede Schnittstelle des Originals und zählt jeden Aufruf — **Ausgang:** weiter offen → `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` im Register.
 - Größe: die Schätzung des ungeschnittenen Plans lag über der Schnittgrenze, der Schnitt ist vollzogen (§4, *Schnitt*); die Marke dieses Teils steht im Block (Planner, 2026-11-07, Schnitt-Commit als `basis`) — **Ausgang:** entfallen (Marke gesetzt); die Messung steht bei der Closure.
 - Der Vertrag `SPEC-236` gilt für beide Teile, dieser Teil liefert `Exchanges` und `Konfig` mit dem Feld `Exchanges`; `Coverage`, `Diagnose` und die übrigen Felder (`SPEC-236` Nr. 1, 6, 7) fehlen im Code bis zur Closure von `slice-inspection-coverage-diagnose`, und kein Gate prüft diese Lücke (`SPEC-236` *Ungeprüft*) — **Ausgang:** weiter offen; Adresse: `slice-inspection-coverage-diagnose`.
