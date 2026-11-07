@@ -34,7 +34,7 @@ Kein HIGH. Der Produktcode (`ausgabe.stringWert`, eine Methode und eine geänder
 | leer, doppelt, enthält, Rest davor/dahinter beliebig | 5 | alle rot |
 | Rest 12 Zeichen × Seite 3 (davor, dahinter, beide) | 36 | alle rot |
 | Rest-Länge 4096/65 537 × 2 Seiten | 4 | alle rot |
-| Escape-Folge im Text (`[`, `[`, Backslash davor) | 3 | alle rot |
+| Escape-Folge für `[` im Text (Hex-Ziffern klein und groß) und Backslash davor | 3 | alle rot |
 | Escape des Markers: Hex `B`, `5a`, `5c`, `4b`; zweites, letztes Zeichen escapet; ohne Escape; `EDACTED`-Verlust; Zweig weg (Bytes, Rohtext, Rundlauf) | 11 | alle rot |
 | `dst`: `n < len(body)-k` für k = 1, 3, 4, 5, 6 und `+1`; `ctx` nach dem `Write` | 7 | alle rot |
 | Art: `kanon` der 7 Arten nimmt den Marker an | 7 | alle rot (`TestMarkerAndereArten`) |
