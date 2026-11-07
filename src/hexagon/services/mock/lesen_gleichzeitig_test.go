@@ -57,6 +57,42 @@ func zweigeM19() []zweig {
 	}
 }
 
+// zweigeRest sind 29 weitere Requests, die die übrigen Zweige des Lesepfads im Lauf der Gleichzeitigkeit erreichen (Abdeckungsprofil
+// unter dem Detektor): Payloads der Einträge 101 bis 117, Lookups ohne Treffer, Tombstone, Auswahl, Optionen und leere Mengen.
+func zweigeRest() []zweig {
+	c := model.CoverageComplete
+	var r []zweig
+	for k := 101; k <= 117; k++ {
+		r = append(r, zweig{fmt.Sprintf("Eintrag %d", k), "svc", c, "GET", false, fmt.Sprintf("e/%d", k)})
+	}
+	for _, z := range model.AlleCoverageStatus() {
+		r = append(r, zweig{"Lookup ohne Treffer " + string(z), "svc", z, "GET", false, "e/99"}, zweig{"leere Menge " + string(z), "svc", z, "GET", false, "c-leer"})
+	}
+	return append(r,
+		zweig{"Tombstone", "svc", c, "GET", false, "e/7"}, zweig{"Auswahl alle", "svc", c, "GET", false, "e/1/alle"},
+		zweig{"Auswahl Namen", "svc", c, "GET", false, "e/1/namen"}, zweig{"nicht vollständig", "svc", c, "GET", false, "e/121"},
+		zweig{"Optionen", "svc", c, "GET", false, "c-opt"}, zweig{"Auswahl alle Collection", "svc", c, "GET", false, "c-alle"})
+}
+
+// eintraegeRest sind die Einträge von Products, die zweigeRest liest: 101 bis 117 mit je einem Verstoß oder einer Wertform, 7 als
+// Tombstone, 121 mit den bekannten Properties allein des Schlüssels.
+func eintraegeRest() []model.EntityState {
+	nutzlasten := []string{
+		`[1]`, `{"Id":`, `{"Id":1,"Id":2}`, `{"Id":1} x`, `{"@odata.type":5,"Id":1}`, `{"@odata.type":"#N.Gibtsnicht","Id":1}`,
+		`{"@odata.type":"#N.Abstrakt","Id":1}`, `{"@odata.type":"#N.Fremd","Id":1}`, `{"@odata.type":"#N.Special","Id":109,"Extra":"e"}`,
+		`{"Id":1,"Zeug":1}`, `{"Id":1,"Flag":"x"}`, `{"Id":1,"Count":"x"}`, `{"Id":1,"Name":5}`, `{"Id":null}`,
+		`{"Id":115,"Name":"x","Flag":true,"Count":1,"Big":"1","Price":"1.5","Ref":"g","Day":"d","Ts":"t"}`,
+		`{"Id":116,"Name":"` + model.Marker + `"}`, `{"Id":117,"Name":null}`,
+	}
+	var r []model.EntityState
+	for i, p := range nutzlasten {
+		r = append(r, eintrag(setProducts, fmt.Sprint(101+i), p, append(alleNamen(), "Extra")...))
+	}
+	tot := produkt(7, "t")
+	tot.Deleted = true
+	return append(r, tot, eintrag(setProducts, "121", `{"Id":121}`, "Id"))
+}
+
 // gleichzeitig baut den Aufbau des Tests: drei Dienste (svc, kaputt ohne Blob, pm mit Fehler des Metadaten-Lesers), drei
 // Zustände der Coverage je Workspace (Kennung `<Dienst>|<Zustand>`) und zwei Dienste des Modus (strikt und nicht strikt).
 func gleichzeitig(t *testing.T) (*umg, *mock.Mocker, *mock.Mocker) {
@@ -70,7 +106,7 @@ func gleichzeitig(t *testing.T) (*umg, *mock.Mocker, *mock.Mocker) {
 	u.md.setze(model.Service{ID: "kaputt", MetadataBlob: "sha256:fehlt"})
 	u.md.setze(model.Service{ID: "pm", MetadataBlob: metaRef})
 	for _, z := range model.AlleCoverageStatus() {
-		for _, set := range []string{setProducts, "Sks", "Pairs", "Nirgends"} {
+		for _, set := range []string{setProducts, "Sks", "Pairs", "Nirgends", "Kunden"} {
 			u.co.setze("b"+string(z), set, z)
 		}
 	}
@@ -78,8 +114,11 @@ func gleichzeitig(t *testing.T) (*umg, *mock.Mocker, *mock.Mocker) {
 		dienst, zustand, _ := strings.Cut(id, "|")
 		return model.Workspace{ID: id, ServiceID: dienst, BaselineSnapshotID: "b" + zustand}, nil
 	}
+	u.en.setze(setProducts, append([]model.EntityState{produkt(1, "a"), produkt(2, "b"), produkt(3, "c")}, eintraegeRest()...)...)
 	u.en.ersatz = func(set string) ([]model.EntityState, error) {
 		switch set {
+		case "Kunden":
+			return nil, nil
 		case "Sks":
 			return nil, outbound.ErrNichtGefunden
 		case "Pairs":
@@ -107,6 +146,17 @@ func urlGleichzeitig(pfad, _ string) (model.ODataURL, error) {
 	r := func(art model.RessourcenArt, set string, opt model.Optionen, teile ...model.SchluesselTeil) (model.ODataURL, error) {
 		return model.ODataURL{Ressource: model.Ressource{Art: art, EntitySet: set, Schluessel: teile}, Optionen: opt}, nil
 	}
+	if rest, ok := strings.CutPrefix(strings.TrimPrefix(pfad, "/"), "e/"); ok {
+		key, wahl, _ := strings.Cut(rest, "/")
+		o := model.Optionen{}
+		switch wahl {
+		case "alle":
+			o.Select = &model.SelectOption{Alle: true}
+		case "namen":
+			o.Select = &model.SelectOption{Namen: []string{"Id", "Name"}}
+		}
+		return r(model.RessourceEntity, setProducts, o, zahl("", key))
+	}
 	switch strings.TrimPrefix(pfad, "/") {
 	case "m":
 		return r(model.RessourceMetadaten, "", model.Optionen{})
@@ -124,6 +174,17 @@ func urlGleichzeitig(pfad, _ string) (model.ODataURL, error) {
 		return r(model.RessourceMenge, "Nirgends", model.Optionen{})
 	case "c-sks":
 		return r(model.RessourceMenge, "Sks", model.Optionen{})
+	case "c-leer":
+		return r(model.RessourceMenge, "Kunden", model.Optionen{})
+	case "c-alle":
+		return r(model.RessourceMenge, setProducts, model.Optionen{Select: &model.SelectOption{Alle: true, Namen: []string{"Name"}}})
+	case "c-opt":
+		nichtId := model.FilterNicht{Operand: idGroesser("0").Ausdruck}
+		return r(model.RessourceMenge, setProducts, model.Optionen{
+			Filter:  filterOpt(model.FilterVerknuepfung{Op: model.VerknuepfungOder, Links: nichtId, Rechts: idGroesser("1").Ausdruck}),
+			OrderBy: []model.Sortierung{{Name: "Name", Absteigend: true}, {Name: "Id"}}, Top: model.ZahlOption{Gesetzt: true, Wert: 2},
+			Skip: model.ZahlOption{Gesetzt: true}, Count: model.WahrOption{Gesetzt: true, Wert: true}, Select: &model.SelectOption{Namen: []string{"Id", "Name"}},
+		})
 	case "c-pairs":
 		return r(model.RessourceMenge, "Pairs", model.Optionen{})
 	}
@@ -153,7 +214,7 @@ func TestZweigeGleichzeitig(t *testing.T) {
 	if len(m19) != len(lesepfad)+(len(model.AlleRessourcenArten())-1)+1 || len(lesepfad) != 8 || len(m19) != 12 {
 		t.Fatalf("%d seltene Zweige, %d Codes des Lesepfads", len(m19), len(lesepfad))
 	}
-	alle := append(slices.Clone(m14), m19...)
+	alle := append(append(slices.Clone(m14), m19...), zweigeRest()...)
 	anfrageZu := func(z zweig) (inbound.Anfrage, *mock.Mocker) {
 		root := "/" + z.dienst
 		if z.dienst == dienstID {

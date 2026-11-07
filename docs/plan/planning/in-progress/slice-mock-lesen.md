@@ -99,11 +99,11 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/services/mock/` | update | Deuten des Entity-State, Coverage-Prüfung, Collection, Lookup, Anzahl, Pflichten des Aufrufers, Antwort, Ausführung des Interpreters (`SPEC-195` Nr. 3 (h), `SPEC-196` bis `SPEC-198`); ersetzt den Platzhalter von Teil 1; Konfig, Port und Fakes liefert Teil 1 |
+| `src/hexagon/services/mock/` | update | Deuten des Entity-State, Coverage-Prüfung, Collection, Lookup, Anzahl, Pflichten des Aufrufers, Antwort, Ausführung des Interpreters (`SPEC-195` Nr. 3 (h), `SPEC-196` bis `SPEC-198`); ersetzt den Platzhalter von Teil 1; Konfig, Port und Fakes liefert Teil 1. Umgesetzt in `src/hexagon/services/mock/lesen.go` (Ablauf, Coverage, Antwort), `src/hexagon/services/mock/deuten.go` (Payload, Maske, Pflicht 3 g), `src/hexagon/services/mock/schluessel.go` (Schlüssel der URL) und der Verdrahtung in `src/hexagon/services/mock/mock.go` (`holeWorkspace` liefert den Workspace); die Pflichten 3 e und 3 f prüft der Interpreter selbst als `ErrUngueltig`, der Dienst bildet daraus `ODR-E9001` (Absatz *Mutationen und Raten*); die Tests `TestPlatzhalterLesen` und die Fälle „Platzhalter“ in `rang_test.go` entfallen mit dem Platzhalter (Z18) |
 | `src/hexagon/model/` | update | `fehler.go`: `CodeE6008` (`SPEC-199`) und sein Test; `ressource_mengen.go`: `AlleRessourcenArten()`, `AlleCoverageStatus()` und ihr Test (`SPEC-196` Nr. 9) |
 | `src/bootstrap/` | neu (nur Test) | `mock_lesen_ende_zu_ende_test.go`: L33 bis L35 mit den echten Adaptern (das Composition Root darf alles, `tests/` hat keine Kante zu `services`); `Build` und `wurzel.go` bleiben unberührt |
 | `harness/katalog-ausnahmen.txt` | update | Zeile für `ODR-E6008` (Auftrag 7); die Datei gehört nicht zur Gate-Kette |
-| Stellen mit der Zahl der Codes | update | `src/adapters/driven/audit/audit_test.go`, `src/adapters/driven/telemetry/regeln_test.go` (Orakel-Liste `alleCodes`, Zählprüfung P05), `src/adapters/driven/telemetry/telemetry_test.go` (feste Zahl 37 in `reihenFest` und fünf weiteren Zählprüfungen; Pfad beim Start in die Pfad-Liste der Marke aufgenommen, Planner) und jede weitere Stelle, die `ODR-E6007` oder 37 Codes nennt (Suche, §6). Der Zweig `slice-telemetry-log` zieht dieselben Zahlen an die Quellen (`model.AlleCodes()`); wer zuerst nach `main` kommt, bestimmt, ob die Zahl 38 hier steht oder entfällt; der Zusammenstoß löst der Integrationsschritt (§6) |
+| Stellen mit der Zahl der Codes | update | `src/adapters/driven/audit/audit_test.go` (Orakel `codeTexte` mit `ODR-E6008`, 38 statt 37, `66-38` und 28), `src/adapters/driven/telemetry/regeln_test.go` (Orakel-Liste `alleCodes` mit `ODR-E6008`), `src/hexagon/model/fehler_test.go` (Soll-Tabelle 38) und `src/adapters/driving/httpodata/fehler_test.go` (die Zahl der Paare aus Code und Status gegen `model.AlleCodes()`, eine Stelle, die die Suche des Implementers fand und die keine Pfad-Zeile des Blocks trägt). `slice-telemetry-log` liegt in `main` und zählt in `telemetry_test.go` schon gegen `model.AlleCodes()`: die festen 37 dort entfallen, der Zweig hat `main` aufgenommen |
 | `spec/spezifikation.md`, `spec/architecture.md` | update (Architect, getan) | `SPEC-195` bis `SPEC-199`, `SPEC-109`, `SPEC-160` Nr. 9, `SPEC-230` Nr. 8, Historie; Reihenfolge der Lesevorgänge in §4.4 |
 | `docs/plan/planning/open/slice-mock-schreiben.md` | update (Architect, getan) | §1 *Übernimmt* (Erwartung von diesem Slice, `AGENTS.md` §3.13) |
 | Tests | neu | die Fänger der Zeilen L01 bis L46 (`TestOptionenJeArt` bis `TestKeinFehlerobjektLesen`) mit den Fakes von Teil 1, die dieser Teil erweitert (`Entities`, `Coverage`, `MetadatenCodec` bekommen Daten und Fehler; `Workspaces`, `Metadaten`, `Blobs`, `URLCodec` und `Schreiber` bleiben, die Schleife von Z21 läuft weiter über alle Fakes); der Dienst importiert keinen Upstream-Typ und kein Paket eines anderen Service |
@@ -232,6 +232,92 @@ Die acht Aufträge und die sieben Entscheidungen beziehen sich auf den ungeteilt
 
 **Vorgaben für den Absatz *Mutationen und Raten*** (Architect, Auftrag B; der Implementer trägt ihn in §3 ein, `AGENTS.md` §3.10): (1) die Tabelle *Zusage · Mutation · roter Test* für L01 bis L46; (2) die Raten der seltenen Zweige (M19) je Zweig mit Zahl der Runden, Zahl der Prozesse, `-test.count=1`, Messendem und Last des Hosts, Ziel 50 von 50 mit Detektor; erreicht ein Zweig es nicht, erhöht der Implementer die Runden und nennt die endgültige Zahl; (3) das Abdeckungsprofil unter dem Detektor (`go test -race -coverprofile` über das Paket, dazu von `TestZweigeGleichzeitig` allein): jede Funktion des Lesepfads zu 100 % im Lauf der Gleichzeitigkeit, nicht gelaufene Blöcke einzeln benannt (erwartet nur Fehlerzweige von `New` und `pruefeKonfig`); (4) die Rate je Mutation von L38 mit Zahl der Prozesse und Messendem; (5) je Menge die Zahl, die der Test zählt (M4 bis M20), und je Achse eine Mutation an einem Element, das die Zeile nicht nennt.
 
+**Mutationen und Raten** (Implementer, Handoff; `AGENTS.md` §3.10, §3.15, §3.17). Gemessen am 2026-11-07 mit `tools/harness/mutationslauf.sh` (`SPEC-210`) im Image `odata-recorder:test` bzw. `odata-recorder:race`, ohne Netz, `--memory=4g --cpus=4`; Messender ist der Implementer; der Host war unter Last (erster Wert von `/proc/loadavg` 7 bis 30 bei 4 CPUs des Containers, die Zeile jeder Mutation nennt ihn). Vier Listen: 63 Mutationen der Klasse *andere* (alle Zeilen außer L36), 17 der Klasse *nebenläufig*, 9 weitere für die Achsen der Mengen und 2 von Hand im Container auf einer Kopie (die Nullprobe des Pakets `src/bootstrap` dauert 117 Sekunden und überschreitet unter Last die 2 Minuten des Werkzeugs: `Ausgangsstand rot`).
+
+*(1) Zusage · Mutation · roter Test.* Jede Mutation ersetzt Text im Dienst (`src/hexagon/services/mock`) oder im Modell; das Ergebnis ist `rot`, wo nichts anderes steht.
+
+| Zeile | Mutation | Roter Test |
+|---|---|---|
+| L01 | `$filter` an der Entity ohne Fehler; `$top`, `$skip`, `$orderby`, `$select` bei `/$count` an den Interpreter gereicht (4) | `TestOptionenJeArt` |
+| L02 | Set mit `strings.EqualFold` gesucht (das Kelvin-Zeichen trifft `Kunden`) | `TestSetUnbekannt` |
+| L03 | Strom des Blobs nicht geschlossen; `MaxBytes` 0 an `ParseMetadata` (2) | `TestModellLesen` |
+| L04 | `Edm.Int32` als `int64` gelesen | `TestPayloadWerte` |
+| L05 | unbekannte Property angenommen | `TestPayloadVerstoesse` |
+| L06 | Marker als gewöhnlicher String | `TestMarker` |
+| L07 | Tombstones nicht in der Maske; leeres Set bei `partial` mit Maske nil (2) | `TestMaske` |
+| L08 | `OrderBy` an `FuehreAus` bei `/$count` | `TestAnzahlNurFilter` |
+| L09 | Key-Properties aus `Properties` entfernt | `TestSchluesselProperties` |
+| L10 | doppelter Schlüssel still zusammengeführt; Eintrag mit leerem Schlüssel weggelassen (2) | `TestSchluesselEindeutig` |
+| L11 | Prüfung nicht unter `not`, nur beim ersten Element von `$orderby`, nicht rechts der Verknüpfung, nicht rechts und nicht links des Vergleichs (5) | `TestRedigiertInOptionen` |
+| L12 | Wert `redigiert` ausgeliefert | `TestRedigiertNichtAusgeliefert` |
+| L13 | `FuehreAus` vor der Prüfung von Pflicht 3 g | `TestInterpreterFehler` |
+| L14 | `$count=false` meldet die Anzahl | `TestCollectionAblauf` |
+| L15 | `OData-Version: 4.0` fest statt des Kennzeichens | `TestDarstellungKopf` |
+| L16 | Root ohne Abschneiden des `/`; Basis aus einem fremden Wert (2) | `TestWurzel` |
+| L17 | nur der erste Wert von `Accept`; Schreibweisen in der Folge der Eingabe (Rate unten) | `TestAccept` |
+| L18 | Workspace-Kennung statt Baseline-Kennung; Status ohne Beachtung von Schreibweise und Leerraum (2) | `TestCoverageLesen` |
+| L19 | `STRICT_COVERAGE` bei `unknown` ignoriert | `TestCoverageMatrix` |
+| L20 | Header der Coverage auch an der Entity | `TestCoverageHeader` |
+| L21 | leeres Set immer mit Maske nil | `TestLeereMenge` |
+| L22 | Zustand fest `complete` statt der gelesenen Coverage | `TestCoverageBaseline` |
+| L23 | Schlüssel in der Folge der URL statt des Modells | `TestSchluesselBilden` |
+| L24 | Tombstone liest die Coverage; Schlüssel an `Get` verändert (2) | `TestLookupTreffer` |
+| L25 | `404` bei `unknown` im nicht strikten Modus | `TestCoverageMatrix` |
+| L26 | `partial` ohne `$select` gilt als vollständig | `TestLookupVollstaendigkeit` |
+| L27 | `$top` an die Entity gereicht | `TestLookupOptionen` |
+| L28 | Namen von `$select` sortiert | `TestAuswahl` |
+| L29 | Body bei `HEAD` | `TestHead` |
+| L30, L31 | Tombstones gedeutet und gezählt | `TestAnzahl`, `TestTombstones` |
+| L32 | `Properties` aus einer Map-Iteration | `TestReihenfolge` |
+| L33 | Schlüssel in der Folge der URL; `Edm.Int64` mit 32 Bit | `TestSchluesselEndeZuEnde` |
+| L34 | `OrderBy`, `Skip` nicht übergeben (2) | `TestAbfrageEndeZuEnde` |
+| L35 | `Wurzel` aus einer fremden Basis | `TestHostEndeZuEnde` |
+| L36 | Schreibzugriff auf die Konfig in 16 Zweigen (Raten unten) | `TestZweigeGleichzeitig` |
+| L37 | fünfter Wert in `AlleRessourcenArten()`; Status 0 an `ODR-E6008` (2) | `TestRueckgabenMenge`, `TestFehlerWertLesen` |
+| L38 | zweiter Aufruf von `ListSet` für die Anzahl; Maske aus einem eigenen Aufruf (2) | `TestLesesicht` |
+| L39 | akzeptiertes Negativ, kein Fänger (Grund und Folge in der Zeile) | – |
+| L40 | `Coverage.Get` zweimal; `Entities.List` statt `ListSet` (2) | `TestAufrufzahlen` |
+| L41 | `ListSet` mit Gegenstand `Sonstiges`; S10 mit Gegenstand `Workspace`; S8 mit Gegenstand `Sonstiges` (3) | `TestPortFehler` |
+| L42 | Fehler des Schreibers verschluckt | `TestSchreiberFehler` |
+| L43 | `errors.Join` neben `ErrNichtGefunden`: die Coverage `unknown` gewinnt gegen den Kontextfehler; S9 bildet den Kontextfehler mit Code (2) | `TestKontextLesen` |
+| L44 | Coverage vor der Prüfung des Sets | `TestRangfolgeLesen` |
+| L45 | der Dienst schreibt das Fehlerobjekt bei `ODR-E6003` selbst | `TestKeinFehlerobjektLesen` |
+| L46 | Kennzeichen ungeprüft; Prüfung nur bei `GET`; `ContentType` ungeprüft (3) | `TestDarstellungLeer` |
+
+**Befunde der ersten Messung** (alle behoben): (a) der Dienst prüfte Pflicht 3 e und 3 f selbst (leerer oder doppelter `Schluessel`, fehlende Key-Property); `model.FuehreAus` prüft beides vor jeder Auswertung als `ErrUngueltig` (`SPEC-196` Nr. 4 c: „`FuehreAus` liefert `ErrUngueltig`“), und die Mutation „Prüfung des Dienstes entfernt“ blieb grün, auch mit den vier Paaren *Verstoß der Entities × Fehler des Interpreters* — die Prüfungen des Dienstes waren gleichwertig und sind entfernt; die Fänger L09 und L10 greifen jetzt Mutationen des Dienstes (Key-Properties entfernt, Dubletten zusammengeführt). (b) Bei L11 blieben fünf Mutationen grün, weil der Interpreter einen Wert `redigiert` im Filter selbst als `ErrUngueltig` abweist; jede Stelle trägt jetzt zusätzlich eine unbekannte Property, so dass ohne die Prüfung des Dienstes `ODR-E6005` statt `ODR-E9001` entsteht. (c) `$top`, `$skip` und `$orderby` ändern die Zahl der Anzahl nie; L01 nimmt bei `/$count` deshalb Werte, die der Interpreter abweist (negative Zahl, unbekannte Property). (d) `Status 0 an ODR-E6008` blieb grün, solange der Test den Status aus dem Modell las; er trägt jetzt eine Tabelle von Hand. (e) Die Reihenfolge der Schreibweisen von `Accept` war nur mit der Rate 49 von 50 rot; 20 Wiederholungen je Form machen sie 50 von 50.
+
+*(2) Raten der seltenen Zweige (M19) und der Schreibzugriffe (L36).* `TestZweigeGleichzeitig`: 64 Goroutinen × 4 Runden × 89 Requests (M14: 48, M19: 12, dazu 29 der Randformen); je Mutation 50 Prozesse mit Detektor, `-test.count=1`, kein Prozess ohne Detektor. Ergebnis jeder der 16 Mutationen (Metadaten, Collection, Entity, Anzahl und die 12 Zweige von M19: `ODR-E3001`, `ODR-E6001`, `ODR-E6003`, `ODR-E6004`, `ODR-E6005`, `ODR-E6008`, `ODR-E7001`, `ODR-E9001`, Erfolg Menge, Erfolg Entity, Erfolg Anzahl, `HEAD`): **rot in 50 von 50 Prozessen**, in zwei Läufen gemessen (mit 60 und mit 89 Requests je Runde, beide 50 von 50), Last des Hosts 7 bis 42 (erste Zahl von `/proc/loadavg`, 4 CPUs), Messender der Implementer. Die Runden bleiben bei 4 (256 Aufrufe je Zweig und Prozess); keine Erhöhung nötig. Je Prozess dauert der Test mit Detektor 0,6 bis 1,5 Sekunden.
+
+*(3) Rate von L38.* `TestLesesicht` (8 Leser × 200 Antworten, ein Schreiber): die Mutation „zweiter Aufruf von `ListSet` für die Anzahl“ ist in 20 von 20 Prozessen mit Detektor und 20 von 20 ohne Detektor rot (Zähler `ListSet` gleich Zahl der Antworten, deterministisch); Last des Hosts 21.
+
+*(4) Rate von L17.* Die Mutation „Schreibweisen von `Accept` in der Folge der Eingabe“ (Iteration über die Map der Header) war mit einem Aufruf je Form in 49 von 50 Prozessen rot, mit 20 Wiederholungen je Form (die Wahrscheinlichkeit eines Laufs ist 1/6) in **50 von 50**, ohne Detektor, Last des Hosts 30.
+
+*(5) Abdeckungsprofil unter dem Detektor* (`go test -race -count=1 -coverprofile`, Image `odata-recorder:race`). Das ganze Paket `src/hexagon/services/mock`: **98,4 %** der Anweisungen. `TestZweigeGleichzeitig` allein, mit 89 Requests je Runde (M14: 48, M19: 12, dazu 29 Requests der Randformen, damit der Lauf auch die Zweige des Deutens, der Auswahl, der Optionen, der leeren Menge und des Lookups ohne Treffer erreicht): **82,2 %** des Pakets. Zu 100 % laufen im Lauf der Gleichzeitigkeit `artTyp`, `deute`, `leseWert`, `redigiertFrei`, `filterNamen`, `ohneRedigiert`, `ladeModell`, `kontextFehler`, `nichtGefunden`, `vollstaendig`, `wurzel`, `auswahl` und `ganz`. **Nicht gelaufene Blöcke einzeln** (akzeptiertes Negativ; Grund: sie erreicht nur ein Fehler eines Ports, den die Fakes je Prozess, nicht je Request einspeisen, oder ein Modell, das die Fixture dieses Laufs nicht trägt; Folge im Betrieb: ein Datenrennen in genau diesen Blöcken meldet der Detektor nur, wenn ein anderer gleichzeitiger Lauf sie erreicht, und das tut kein Test; die Zusage „kein Zustand, keine Sperre, keine Goroutine“ fängt `TestPaketOhneZustand` am Quelltext): `deuteListe` (Tombstone in der Antwort von `ListSet`), `zerlege` (Fehler des Tokens hinter `}`), `abgeleitet` (Zyklus in `BaseType`), `maske` (Rumpf der leeren Maske), `lese` (Typ des Sets nicht aufgelöst), `coverage` (Fehler und ungültiger Status), `vorErgebnis` (Fehler der Coverage), `collection`, `anzahl`, `entity` (Fehler des Interpreters und des Schreibers, mehr als ein Ergebnis), `ohneTreffer` (Fehler der Coverage), `fuehreAus` (Verstoß gegen Pflicht 3 g, Fehler des Interpreters), `liefere` (leere Darstellung), `metadaten` (drei Fehlerzweige), `bildeSchluessel` und `literalPasst` (die Typen außer `Edm.Int32` und `Edm.String`, die Fehler der Schlüssel; das Modell dieses Laufs trägt nur Products mit einem Schlüssel `Edm.Int32`). Die Fehlerzweige laufen im Paketlauf (nicht gleichzeitig) und sind dort durch L13, L18, L40, L41, L43, L46 gefangen.
+
+*(6) Mengen und eine Mutation an einem Element, das die Zeile nicht nennt* (`AGENTS.md` §3.17; die Zählprüfung steht im Test, Quellen sind `model.AlleCodes()`, `AlleRessourcenArten()`, `AlleCoverageStatus()`, `AlleAbfrageUrsachen()` und `AlleFilterTypUrsachen()`):
+
+| Menge | Zahl im Test | Mutation an einem nicht genannten Element (rot) |
+|---|---|---|
+| M4 | 27 Paare der Stufen, 39 aufgefächert; 3 einzelne Stufen | nur L44 (das Paar der Zeile); keine weitere Achse gemessen |
+| M5 | 13 erreichbare und 25 übrige Codes = Länge von `AlleCodes()` (38) | Status 0 an `ODR-E6008` |
+| M6 | Form 4 × Stelle 7 = 28 | S9: Kontextfehler mit Code |
+| M7 | 19 Fälle + leerer Schlüssel in zwei Zuständen | `Edm.Int64` mit 32 Bit |
+| M8 | 9 Verstöße + 8 falsche JSON-Typen + 3 Randformen = 20 | unbekannte Property angenommen (nicht „doppeltes Mitglied“) |
+| M9 | Typ 8 × Wert 4 + NUL = 33 | Text von `Edm.Decimal` ohne Nullen am Ende |
+| M10 | 64 Zellen: 42 erreichbar (43 Läufe), 22 gelten nicht | `Edm.Decimal` nimmt jede Art des Literals |
+| M11 | 3 × 3 × 2 × 2 = 36 | `404` bei `unknown` im nicht strikten Modus (Lookup); `HEAD` im strikten Modus ohne Fehler |
+| M12 | 3 × 5 = 15 | `partial` ohne `$select` gilt als vollständig |
+| M13 | 6 × 3 = 18 | Maske kennt `Name` immer (Option `$select`) |
+| M14 | 48 aus `AlleRessourcenArten()` und `AlleCoverageStatus()` | Schreibzugriff im Zweig `Anzahl` und in 15 weiteren Zweigen |
+| M15 | 9 Stellen | Prüfung nicht unter `not`, nicht rechts der Verknüpfung, nicht rechts und links des Vergleichs |
+| M16 | 10 Formen × 2 Arten × 20 Wiederholungen | nur der erste Wert von `Accept` |
+| M17 | 8 Abfragen + 3 Fehler | `$skip` nicht übergeben |
+| M18 | 84 + 1 = 85 | S8 mit Gegenstand `Sonstiges`, S10 mit Gegenstand `Workspace` |
+| M19 | 12 seltene Zweige = 8 Codes (13 erreichbare ohne die 5 der Zuordnung) + 3 Arten + `HEAD` | jede der 12 Zeilen von (2) |
+| M20 | 3 × 4 × 2 = 24, dazu 2 Läufe im strikten Modus | Kennzeichen ungeprüft; Prüfung nur bei `GET` |
+
+*(7) Abweichungen vom Plan* (mit Adresse in §6): die Prüfungen der Pflichten 3 e und 3 f im Dienst entfallen (Befund (a)); der Dienst deutet jeden Eintrag ohne eigene Prüfung des Schlüssels. Der Test `TestPlatzhalterLesen` (Z18) und die Fälle „Platzhalter“ der Fehlerzeilen von Teil 1 entfallen mit dem Platzhalter. In `src/adapters/driving/httpodata` zählt `TestFehlerobjektJeCode` die Paare aus Code und Status gegen `model.AlleCodes()` (die Zahl 36 stand dort fest).
+
 **Betriebsregeln** (gelten für jede Rolle dieses Slice):
 
 - Auf Repo-Dateien kein `sed -i`, kein Heredoc, kein `>>`, kein `awk` und kein Python, nur `Edit`/`Write`; keine Hilfsdateien im Repo-Wurzelverzeichnis (`BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt`).
@@ -313,6 +399,8 @@ Stand beim Schnitt (Architect, 2026-11-07; Planner, 2026-11-07): der Vertrag ste
 - Block `groessenmarke` und Marke (Auftrag D in §3, §4): der Block trägt `basis` `473fe8f`, `schaetzung` 5370 und `marke` 7300 (46 Zeilen, `SPEC-128` Nr. 1) — **Ausgang:** eingetreten (Planner, 2026-11-07, in eigenem Commit vor dem ersten Code-Commit).
 - Auslastung 0,47 von Teil 1, unter der Schwelle 0,60 (`SPEC-128` Nr. 9; Auftrag E in §3): der Architect hat die Faktoren aus 16 Messpunkten neu gerechnet; der Vorschlag steht am Ende dieses Abschnitts (V0: Formel behalten und die untere Schwelle von Nr. 9 auf 0,45 setzen, V1: neue Faktoren; Empfehlung V0); die Neukalibrierung ist Entscheidung des User — **Ausgang:** weiter offen; Adresse: User (Entscheidung über `SPEC-128`); die Marke für Teil 2 hängt nicht davon ab.
 - Zusammenstoß der Zahl der Codes mit `slice-telemetry-log` (Linie D; `telemetry_test.go` und `regeln_test.go` tragen 37 und `alleCodes`, `audit_test.go` dieselbe Zahl): beide Zweige berühren dieselben Zeilen. **Auflösung für den Integrationsschritt:** kommt `slice-telemetry-log` zuerst in `main`, nimmt dieser Zweig `main` per Merge auf, übernimmt dort die Zählung gegen `model.AlleCodes()` und ergänzt allein den Text `ODR-E6008` in den Orakel-Listen (`alleCodes`, `codeTexte`); kommt dieser Slice zuerst, steht 38 hier und `slice-telemetry-log` entfernt die Zahl (die Zahl 38 ist dann nicht nachzuziehen). Nicht auflösen durch eine Zahl, die beide Seiten ändern: der Konflikt zeigt dieselbe Zeile, die Antwort ist die Quelle `model.AlleCodes()`. Die Zeile `odr_errors_total` in `SPEC-230` Nr. 8 trägt in `main` schon 38 und ist nicht berührt — **Ausgang:** offen; Adresse: Integrationsschritt (der zweite Zweig nimmt `main` per Merge auf); Planner bei einer Berührung einer Nummer.
+
+- Stand des Handoffs (Implementer, 2026-11-07): (a) `ODR-E6008` liegt in `src/hexagon/model/fehler.go` (38 Codes) und in `harness/katalog-ausnahmen.txt`, `make katalog-check` ist grün; die Zahl 38 und der Text in den Orakel-Listen stehen in `audit_test.go`, `regeln_test.go`, `fehler_test.go`, die festen Zahlen in `telemetry_test.go` entfallen mit dem Merge von `main`, und `httpodata/fehler_test.go` zählt die Paare gegen `model.AlleCodes()`. (b) Abweichung: der Dienst prüft die Pflichten 3 e und 3 f nicht selbst; `model.FuehreAus` weist leeren oder doppelten `Schluessel` und fehlende Key-Properties vor jeder Auswertung ab, und der Dienst bildet `ODR-E9001`; eine Prüfung im Dienst war gleichwertig (Mutation grün) und ist entfernt — **Ausgang:** offen; Adresse: Reviewer (ob er die Pflichten im Dienst sehen will). (c) Die Messung von `make groessenmarke` (3893 von Marke 7300, Auslastung 0,53) zählt 91 Zeilen mit, die der Merge von `main` in `telemetry_test.go` und `regeln_test.go` bringt (`git diff --numstat` von `basis` bis zur Spitze); der Produktcode hat rund 600 Zeilen (erwartet 1080) — **Ausgang:** offen; Adresse: Planner (Messpunkt, Auslastung unter 0,60 nach `SPEC-128` Nr. 9). (d) Die Nullprobe des Mutationslaufs für `src/bootstrap` (117 Sekunden) überschreitet unter Last die 2 Minuten des Werkzeugs; zwei Mutationen dieses Pakets liefen von Hand im Container auf einer Kopie (Absatz *Mutationen und Raten*) — **Ausgang:** weiter offen; Adresse: Planner (Grenze des Werkzeugs, `SPEC-210` Nr. 5 c).
 
 **Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; jede Zelle nennt ihren Ort in der Spezifikation oder `gilt nicht` mit Grund). Das Argument der Zuordnung ist der Header `X-Recorder-Workspace` (die Kennung) und der Pfad (der Service); „Header fehlt“ meint das Fehlen der Zeile, „leer“ den leeren Wert oder die leere Liste, „mehrfach“ zwei oder mehr Werte. Die Spalte *Coverage* führt die Achsen Zustand (`complete`, `partial`, `unknown`) × Methode (`GET`, `HEAD`) × Modus von `STRICT_COVERAGE`. Die Zeilen *Zuordnung des Service*, *Zuordnung des Workspace* und `$metadata` des ungeteilten Rasters stehen in Teil 1; die Zellen der drei Zeilen unten, die auf die Zuordnung verweisen (`SPEC-195` Nr. 5 und 8), führt Teil 1 mit den Zeilen Z06 und Z12.
 

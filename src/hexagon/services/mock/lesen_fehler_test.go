@@ -73,6 +73,11 @@ func lesefaelle() []lesefall {
 // Ursache (außer wo SPEC-109 Nr. 5 sie führt) und im Error() keinen Wert (Canary: Name des Sets, Text des Schlüssels, Name
 // einer Property, Wert im Payload, Text des Fehlers des Ports). Schleife über die 8 Codes in 10 Auslösern.
 func TestFehlerWertLesen(t *testing.T) {
+	// Der Status je Code von Hand (SPEC-109 Nr. 2): der Test liest ihn nicht aus dem Modell, das er prüft.
+	statusJeCode := map[model.Code]int{
+		model.CodeE3001: 500, model.CodeE6001: 501, model.CodeE6003: 422, model.CodeE6004: 422, model.CodeE6005: 400,
+		model.CodeE6008: 404, model.CodeE7001: 404, model.CodeE9001: 500,
+	}
 	codes := map[model.Code]bool{}
 	for _, f := range lesefaelle() {
 		u := leseUmg(t)
@@ -86,7 +91,7 @@ func TestFehlerWertLesen(t *testing.T) {
 		if (fe.Ursache != nil) != f.ursache {
 			t.Errorf("%s: Ursache %v, erwartet vorhanden=%v", f.name, fe.Ursache, f.ursache)
 		}
-		if fe.Status != f.code.Stati()[0] || strings.Contains(fe.Error(), kanarienwert) {
+		if fe.Status != statusJeCode[f.code] || strings.Contains(fe.Error(), kanarienwert) {
 			t.Errorf("%s: Status %d, Error() %q", f.name, fe.Status, fe.Error())
 		}
 	}

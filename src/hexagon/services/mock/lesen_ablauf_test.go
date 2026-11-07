@@ -323,7 +323,8 @@ func TestWurzel(t *testing.T) {
 
 // TestAccept hält L17 (M16, SPEC-198 Nr. 7): die Werte aller Schreibweisen des Namens, die Schreibweisen in der Bytefolge der
 // Namen, dann in ihrer Reihenfolge, unverändert (leer und ungültig bleiben), ohne Header nil; der Name mit dem kyrillischen
-// е (Bytes D0 B5) ist ein anderer Name. 10 Formen × Collection und Entity.
+// e (Bytes D0 B5) ist ein anderer Name. 10 Formen × Collection und Entity, je 20 Wiederholungen: eine Iteration über die Map der
+// Header trifft die Bytefolge bei drei Schreibweisen mit der Wahrscheinlichkeit 1/6 je Lauf.
 func TestAccept(t *testing.T) {
 	kyr := "Acc\xd0\xb5pt"
 	formen := []struct {
@@ -343,7 +344,7 @@ func TestAccept(t *testing.T) {
 		{"kyrillisches e", map[string][]string{"Accept": {"a"}, kyr: {"x"}}, []string{"a"}},
 	}
 	for _, art := range []model.RessourcenArt{model.RessourceMenge, model.RessourceEntity} {
-		for _, f := range formen {
+		for _, f := range slices.Repeat(formen, 20) {
 			u := leseUmg(t)
 			u.ressource(art, setProducts, model.Optionen{}, zahl("", "1"))
 			a := anfrage("GET", dienstRoot+"/x")
