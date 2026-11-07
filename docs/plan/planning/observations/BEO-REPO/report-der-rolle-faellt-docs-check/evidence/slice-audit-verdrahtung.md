@@ -1,0 +1,2 @@
+**Vorgang:** slice-audit-verdrahtung
+**Fund:** Die Reports der Rollen (`docs/reviews/2026-11-07-slice-audit-verdrahtung-review.md` und `-verifikation.md`) trugen eine nackte `ADR-*`-Kennung ohne Link; `make docs-check` meldete `id-unlinked`, bevor die nächste Rolle es sah. Nachgetragen bei der Integration von `slice-telemetry-log`, weil das Auftreten dort in den Berichten genannt, in der Closure aber nicht eingetragen wurde.

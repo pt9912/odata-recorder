@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-log
+**Fund:** Die Reports von Reviewer und Verifier (`docs/reviews/2026-11-07-slice-telemetry-log-review.md` und `-verifikation.md`) trugen eine nackte `ADR-*`-Kennung ohne Link in der Eingangs-Liste; `make docs-check` meldete `id-unlinked`, bevor die nächste Rolle es sah, ein Commit des Implementers machte die Kennung zu einem auflösenden Link. Dasselbe trat an den Reports von `slice-audit-verdrahtung` und `slice-mock-zuordnung` auf. Beleg: Commit `319688d` (Zeile im Review-Report), `make docs-check`.

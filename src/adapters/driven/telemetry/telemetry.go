@@ -1,7 +1,7 @@
 // Package telemetry ist der Driven Adapter der Ports Telemetry und TelemetryReader (SPEC-230 bis
-// SPEC-232, ARC-020): Regeln der Attribute, Zähler je Fehlercode und der Stand zum Lesen. Er nutzt
-// nur die Standardbibliothek. Dieser Kern schreibt keine Zeile und beendet keinen Span:
-// Writer, Clock und MinLevel werden gehalten, nicht gelesen, und StartSpan ist ohne Wirkung.
+// SPEC-232, ARC-020): Regeln der Attribute, Zähler je Fehlercode, der Stand zum Lesen und die
+// Logzeile. Er nutzt nur die Standardbibliothek. Log schreibt eine Zeile (SPEC-231); StartSpan ist
+// ohne Wirkung und beendet keinen Span.
 package telemetry
 
 import (
@@ -33,12 +33,15 @@ type Config struct {
 }
 
 // Adapter erfüllt Telemetry und TelemetryReader; er ist für gleichzeitigen Aufruf sicher
-// (SPEC-232 Nr. 5): jeder Zugriff auf den Zustand liegt unter mu.
+// (SPEC-232 Nr. 5): jeder Zugriff auf den Zustand liegt unter mu, jedes Write unter zeilenMu. Die
+// beiden Sperren werden nie ineinander gehalten (SPEC-232 Nr. 5 g).
 type Adapter struct {
 	writer   io.Writer
 	clock    support.Clock
 	minLevel slog.Level
 	maxSpans int
+
+	zeilenMu sync.Mutex
 
 	mu        sync.Mutex
 	errors    map[model.Code]uint64
@@ -77,11 +80,10 @@ func New(cfg Config) (*Adapter, error) {
 	return a, nil
 }
 
-// Log wendet die Regeln der Attribute an (SPEC-230 Nr. 2 bis 4) und zählt die Verwürfe; es
-// schreibt keine Zeile und wendet MinLevel nicht an.
-func (a *Adapter) Log(_ context.Context, _ slog.Level, _ string, attrs ...support.Attr) {
-	_, verworfen := filtern(opLog, attrs)
-	a.verwerfen(verworfen...)
+// Log wendet die Regeln der Attribute an (SPEC-230 Nr. 2 bis 4), zählt die Verwürfe und schreibt
+// ab MinLevel eine Zeile (SPEC-231 Nr. 1 bis 3); ctx wirkt nicht.
+func (a *Adapter) Log(_ context.Context, level slog.Level, msg string, attrs ...support.Attr) {
+	a.eintrag(level, msg, attrs)
 }
 
 // StartSpan ist ohne Wirkung: es liefert einen nicht-nil ctx und einen Span, dessen Set und End
