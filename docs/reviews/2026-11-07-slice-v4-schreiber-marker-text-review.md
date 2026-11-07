@@ -2,7 +2,7 @@
 
 **Art:** Review (einmal) — gegen Plan, `SPEC-169`/`SPEC-168`/`SPEC-126`, `LH-FA-07`, `LH-QA-05` und die Hard Rules; nicht gegen die DoD (Verifier).
 
-**Gegenstand:** Zweig `slice-v4-schreiber-marker-text`, HEAD `c2f296c`, Basis `94dafe9`. Plan: `docs/plan/planning/in-progress/slice-v4-schreiber-marker-text.md` (§3 Z01 bis Z13, Mengen M1 bis M8, Zweig-Menge W01 bis W18, Absatz *Bericht des Implementers*, §6).
+**Gegenstand:** Zweig `slice-v4-schreiber-marker-text`, HEAD `c2f296c`, Basis `94dafe9`. Plan: `docs/plan/planning/done/slice-v4-schreiber-marker-text.md` (§3 Z01 bis Z13, Mengen M1 bis M8, Zweig-Menge W01 bis W18, Absatz *Bericht des Implementers*, §6).
 
 **Rolle/Modell:** reviewer · claude-sonnet-5-5.
 
@@ -51,7 +51,7 @@ Elemente, die der Plan nicht nannte und die ich rot sah: Ersetzung an jeder Stel
 
 - `kategorie`: LOW (nahe MEDIUM „Akzeptiertes Negativ ohne Grund und Folge“; der Grund steht, die Folge nicht)
 - `quelle`: `AGENTS.md` §3.15
-- `pfad`: `docs/plan/planning/in-progress/slice-v4-schreiber-marker-text.md` · „jeder Wächter allein ist gleichwertig (grün, siehe Absatz *Bericht des Implementers*)“
+- `pfad`: `docs/plan/planning/done/slice-v4-schreiber-marker-text.md` · „jeder Wächter allein ist gleichwertig (grün, siehe Absatz *Bericht des Implementers*)“
 - `befund`: Selbst gefahren (Wurzel des Baums, einzeln): Prüfung der Art in `artPruefer` entfällt = `gruen` in jedem Test des Pakets (`TestMarkerUTF8` 2 Prozesse, kein Fänger); Prüfung in `text` entfällt = `rot-paket` (`TestMarkerUTF8` grün, `TestUngueltigesUTF8AnVierStellen` und `TestMarkerZweige` rot). Beide zusammen, und der Wächter der Art zusammen mit der Bedingung „Präfix 9“ oder „Suffix 9“ in `stringWert`, sind rot in `TestMarkerUTF8` (je in einer Kopie gefahren). M5 erreicht den Zweig des Escapes mit keinem Text (kein Text von M5 ist der Marker), die Zeile Z06 hat also für keinen Wächter einen isolierenden Fänger; sie steht als Fänger-Zeile in der Tabelle, ist aber ein Negativ ohne Folge. `artPruefer` trägt eine zweite, redundante Prüfung (`utf8.ValidString`), die kein Test unterscheidet.
 - `verifizierbar`: ja (Mutationslauf, Listen 3 und 4 im Scratchpad)
 - `klasse`: „Doppelter Wächter: Fänger rot nur für beide, Einzelfall Negativ ohne Folge“

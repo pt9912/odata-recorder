@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, `SPEC-169` Nr. 4, 8 und *Ungeprüft*, `SPEC-168` Nr. 4, `SPEC-126` Nr. 10 f und die Hard Rules; nicht Diff-Review (siehe `2026-11-07-slice-v4-schreiber-marker-text-review.md`) und nicht Validierung.
 
-**Gegenstand:** Zweig `slice-v4-schreiber-marker-text`, HEAD `956e1c3` (Implementer-Stand `c2f296c`, Review-Commits `bb5e935`, `956e1c3`), Basis `94dafe9`. Plan: `docs/plan/planning/in-progress/slice-v4-schreiber-marker-text.md`.
+**Gegenstand:** Zweig `slice-v4-schreiber-marker-text`, HEAD `956e1c3` (Implementer-Stand `c2f296c`, Review-Commits `bb5e935`, `956e1c3`), Basis `94dafe9`. Plan: `docs/plan/planning/done/slice-v4-schreiber-marker-text.md`.
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 
