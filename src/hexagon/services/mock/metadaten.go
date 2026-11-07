@@ -23,6 +23,10 @@ func (m *Mocker) metadaten(ctx context.Context, head bool, d Dienst, s model.Ser
 		_ = strom.Close()
 		return inbound.Antwort{}, abbilden(err, outbound.GegenstandSonstiges)
 	}
+	if dar.Kennzeichen.Name == "" || dar.Kennzeichen.Wert == "" {
+		_ = strom.Close()
+		return inbound.Antwort{}, mitCode(model.CodeE9001, nil)
+	}
 	body := strom
 	if head {
 		_ = strom.Close()

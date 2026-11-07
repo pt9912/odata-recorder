@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
 
 // urlKlassen ist das Orakel von Z08: der Code je Ursache, von Hand gesetzt (SPEC-160 Nr. 4).
@@ -94,16 +95,20 @@ func TestKompatUndRest(t *testing.T) {
 	rest := []struct {
 		name string
 		err  error
+		code model.Code
 	}{
-		{"ErrUngueltig", model.ErrUngueltig},
-		{"ErrUngueltig mit Text", errors.Join(model.ErrUngueltig, errors.New("form "+kanarienwert))},
-		{"anderer Fehler", errors.New("roh " + kanarienwert)},
+		{"ErrUngueltig", model.ErrUngueltig, model.CodeE9001},
+		{"ErrUngueltig mit Text", errors.Join(model.ErrUngueltig, errors.New("form "+kanarienwert)), model.CodeE9001},
+		{"anderer Fehler", errors.New("roh " + kanarienwert), model.CodeE9001},
+		{"ErrBeschaedigt", outbound.ErrBeschaedigt, model.CodeE3001},
+		{"ErrBlobFehlt", outbound.ErrBlobFehlt, model.CodeE3001},
+		{"ErrBlobBeschaedigt", outbound.ErrBlobBeschaedigt, model.CodeE3001},
 	}
 	for _, r := range rest {
 		u := neueUmg(t)
 		u.c.url.f = func(string, string) (model.ODataURL, error) { return model.ODataURL{}, r.err }
 		_, err := u.rufe(metadatenAnfrage())
-		f := erwarteFehler(t, r.name, err, model.CodeE9001)
+		f := erwarteFehler(t, r.name, err, r.code)
 		if f != nil && !errors.Is(f, r.err) {
 			t.Errorf("%s: Ursache nicht erreichbar", r.name)
 		}

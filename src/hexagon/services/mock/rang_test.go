@@ -133,7 +133,7 @@ func fehlerFaelle() []fall {
 		fall{"Service ohne Blob", func(u *umg, _ *inbound.Anfrage) { u.md.setze(model.Service{ID: dienstID}) }, model.CodeE6004},
 		fall{"Service roh", func(u *umg, _ *inbound.Anfrage) { u.p.setzeFehler("Metadaten.Get", roh) }, model.CodeE9001},
 	)
-	for _, f := range metadatenFehlerFaelle() {
+	for _, f := range append(metadatenFehlerFaelle(), kennzeichenFaelle()...) {
 		r = append(r, fall{"Metadaten " + f.name, func(u *umg, _ *inbound.Anfrage) { f.bau(u) }, f.code})
 	}
 	for _, art := range []model.RessourcenArt{model.RessourceMenge, model.RessourceEntity, model.RessourceAnzahl} {

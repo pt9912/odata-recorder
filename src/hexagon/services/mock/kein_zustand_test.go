@@ -13,7 +13,7 @@ import (
 
 // TestGegenstandJeStelle hält den Gegenstand der Fehlerabbildung an den Aufrufstellen S1, S2, S3, S4 und S12 (SPEC-195
 // Nr. 10, 11): 5 Stellen × 6 Fehler des Speichers, Orakel von Hand. Der Gegenstand entscheidet allein bei ErrNichtGefunden
-// und ErrBereitsVorhanden (SPEC-109 Nr. 5); die Zelle 0 (S1 mit den Sentinels des Speichers) entscheidet der Vertrag nicht.
+// und ErrBereitsVorhanden (SPEC-109 Nr. 5); ein Sentinel des Speichers bleibt auch aus dem URL-Leser ODR-E3001 (SPEC-195 Nr. 6).
 func TestGegenstandJeStelle(t *testing.T) {
 	fehler := []error{outbound.ErrNichtGefunden, outbound.ErrBereitsVorhanden, outbound.ErrBeschaedigt, outbound.ErrBlobFehlt,
 		model.ErrUngueltig, errors.New("roh " + kanarienwert)}
@@ -22,7 +22,7 @@ func TestGegenstandJeStelle(t *testing.T) {
 		name, op string
 		soll     [6]model.Code
 	}{
-		{"S1", "URL.ParseURL", [6]model.Code{e90, e90, 0, 0, e90, e90}},
+		{"S1", "URL.ParseURL", [6]model.Code{e90, e90, e30, e31, e90, e90}},
 		{"S2", "Workspaces.Get", [6]model.Code{e70, e77, e30, e31, e90, e90}},
 		{"S3", "Metadaten.Get", [6]model.Code{e50, e90, e30, e31, e90, e90}},
 		{"S4", "Blobs.Open", [6]model.Code{e90, e90, e30, e31, e90, e90}},
@@ -31,9 +31,6 @@ func TestGegenstandJeStelle(t *testing.T) {
 	n := 0
 	for _, s := range stellen {
 		for i, err := range fehler {
-			if s.soll[i] == 0 {
-				continue
-			}
 			n++
 			u := neueUmg(t)
 			u.p.setzeFehler(s.op, err)
@@ -43,8 +40,8 @@ func TestGegenstandJeStelle(t *testing.T) {
 			}
 		}
 	}
-	if n != 28 {
-		t.Errorf("%d Zellen, erwartet 28 (30 ohne die zwei ungeklärten von S1)", n)
+	if n != 30 {
+		t.Errorf("%d Zellen, erwartet 30", n)
 	}
 }
 

@@ -126,6 +126,41 @@ func metadatenFehlerFaelle() []fehlerFall {
 	}
 }
 
+// kennzeichenFaelle sind die drei leeren Kennzeichen von Z16 (SPEC-198 Nr. 8): Name leer, Wert leer, beide leer; der Strom
+// ist geöffnet, der Fehler ODR-E9001 hat keine Ursache.
+func kennzeichenFaelle() []fehlerFall {
+	leer := func(k model.Kopfzeile) func(u *umg) {
+		return func(u *umg) { u.c.sch.kopf.Kennzeichen = k }
+	}
+	return []fehlerFall{
+		{"Kennzeichen ohne Namen", leer(model.Kopfzeile{Wert: "w"}), model.CodeE9001, true},
+		{"Kennzeichen ohne Wert", leer(model.Kopfzeile{Name: "X-Fake-Kennzeichen"}), model.CodeE9001, true},
+		{"Kennzeichen leer", leer(model.Kopfzeile{}), model.CodeE9001, true},
+	}
+}
+
+// TestKennzeichenLeer hält Z16 für ein leeres Kennzeichen der Probe: ODR-E9001/500 ohne Ursache, der Strom genau einmal
+// geschlossen, GET wie HEAD, und kein Header mit leerem Namen.
+func TestKennzeichenLeer(t *testing.T) {
+	for _, f := range kennzeichenFaelle() {
+		for _, methode := range []string{"GET", "HEAD"} {
+			u := neueUmg(t)
+			f.bau(u)
+			antwort, err := u.rufe(anfrage(methode, dienstRoot+"/$metadata"))
+			fe := erwarteFehler(t, f.name+" "+methode, err, f.code)
+			if fe != nil && fe.Ursache != nil {
+				t.Errorf("%s %s: Ursache %v", f.name, methode, fe.Ursache)
+			}
+			if st := u.bl.strome(); len(st) != 1 || st[0].geschlossen() != 1 {
+				t.Errorf("%s %s: Ströme %v, erwartet einer, genau einmal geschlossen", f.name, methode, st)
+			}
+			if _, da := antwort.Header[""]; da || antwort.Body != nil {
+				t.Errorf("%s %s: Antwort nicht der Nullwert: %+v", f.name, methode, antwort)
+			}
+		}
+	}
+}
+
 // TestMetadatenFehler hält Z16: ErrBlobFehlt und ErrBlobBeschaedigt sind ODR-E3001, jeder andere Fehler ODR-E9001; bei einem
 // Fehler der Probe wird der geöffnete Strom genau einmal geschlossen, bei einem Fehler von Open gibt es keinen.
 func TestMetadatenFehler(t *testing.T) {
@@ -165,7 +200,7 @@ func TestMetadatenFehler(t *testing.T) {
 // TestHeadMetadaten hält Z17: HEAD liefert Status und Header von GET und einen leeren Body (nicht nil), schließt den
 // geöffneten Strom und meldet dieselben Fehler.
 func TestHeadMetadaten(t *testing.T) {
-	faelle := append([]fehlerFall{{"Erfolg", func(*umg) {}, 0, true}}, metadatenFehlerFaelle()...)
+	faelle := append([]fehlerFall{{"Erfolg", func(*umg) {}, 0, true}}, append(metadatenFehlerFaelle(), kennzeichenFaelle()...)...)
 	for _, f := range faelle {
 		type ergebnis struct {
 			status int
