@@ -61,17 +61,22 @@ func beobachte(u *umg, art model.RessourcenArt, a inbound.Antwort, err error) st
 // Tabelle es sagt.
 func TestOptionenJeArt(t *testing.T) {
 	sel := &model.SelectOption{Namen: []string{"Name"}}
+	// Bei `/$count` hat `$top`, `$skip` und `$orderby` keine sichtbare Wirkung der Zahl; die Zeile nimmt dort Werte, die der
+	// Interpreter abweist (ungültige Zahl, unbekannte Property), damit ein Dienst, der die Option weiterreicht, auffällt.
+	negativ := model.ZahlOption{Gesetzt: true, Wert: -1}
+	unbekannt := &model.SelectOption{Namen: []string{"Unbekannt"}}
 	opts := []struct {
 		name string
 		o    model.Optionen
+		anz  model.Optionen
 	}{
-		{"filter", model.Optionen{Filter: idGroesser("1")}},
-		{"orderby", model.Optionen{OrderBy: []model.Sortierung{{Name: "Id", Absteigend: true}}}},
-		{"top", model.Optionen{Top: model.ZahlOption{Gesetzt: true, Wert: 1}}},
-		{"skip", model.Optionen{Skip: model.ZahlOption{Gesetzt: true, Wert: 1}}},
-		{"count", model.Optionen{Count: model.WahrOption{Gesetzt: true, Wert: true}}},
-		{"select", model.Optionen{Select: sel}},
-		{"sonstige", model.Optionen{Sonstige: []model.SonstigeOption{{Name: "x", Wert: "y"}}}},
+		{"filter", model.Optionen{Filter: idGroesser("1")}, model.Optionen{Filter: idGroesser("1")}},
+		{"orderby", model.Optionen{OrderBy: []model.Sortierung{{Name: "Id", Absteigend: true}}}, model.Optionen{OrderBy: []model.Sortierung{{Name: "Unbekannt"}}}},
+		{"top", model.Optionen{Top: model.ZahlOption{Gesetzt: true, Wert: 1}}, model.Optionen{Top: negativ}},
+		{"skip", model.Optionen{Skip: model.ZahlOption{Gesetzt: true, Wert: 1}}, model.Optionen{Skip: negativ}},
+		{"count", model.Optionen{Count: model.WahrOption{Gesetzt: true, Wert: true}}, model.Optionen{Count: model.WahrOption{Gesetzt: true, Wert: true}}},
+		{"select", model.Optionen{Select: sel}, model.Optionen{Select: unbekannt}},
+		{"sonstige", model.Optionen{Sonstige: []model.SonstigeOption{{Name: "x", Wert: "y"}}}, model.Optionen{Sonstige: []model.SonstigeOption{{Name: "x", Wert: "y"}}}},
 	}
 	basis := map[model.RessourcenArt]string{
 		model.RessourceMetadaten: "M", model.RessourceMenge: "C 1,2,3 n=- sel=-", model.RessourceEntity: "E Id,Name sel=-",
@@ -92,7 +97,11 @@ func TestOptionenJeArt(t *testing.T) {
 			if art == model.RessourceMetadaten {
 				set = ""
 			}
-			u.ressource(art, set, o.o, zahl("", "1"))
+			opt := o.o
+			if art == model.RessourceAnzahl {
+				opt = o.anz
+			}
+			u.ressource(art, set, opt, zahl("", "1"))
 			a, err := u.leseGET()
 			soll, da := abweichung[fmt.Sprint(int(art))+"/"+o.name]
 			if !da {
@@ -120,7 +129,7 @@ func TestSetUnbekannt(t *testing.T) {
 			u := leseUmg(t)
 			u.ressource(art, name, model.Optionen{}, zahl("", "1"))
 			_, err := u.leseGET()
-			erwarteFehler(t, fmt.Sprintf("Art %d, Name von %d Bytes", art, len(name)), err, model.CodeE6008)
+			_ = erwarteFehler(t, fmt.Sprintf("Art %d, Name von %d Bytes", art, len(name)), err, model.CodeE6008)
 			for _, op := range []string{"Coverage.Get", "Entities.Get", "Entities.ListSet", "Schreiber.SchreibeCollection", "Schreiber.SchreibeEntity"} {
 				if u.p.anzahl(op) != 0 {
 					t.Errorf("Art %d, Name von %d Bytes: %s gerufen", art, len(name), op)
@@ -238,7 +247,7 @@ func TestCollectionAblauf(t *testing.T) {
 		u.ressource(r, setProducts, model.Optionen{})
 		u.p.setzeFehler("Entities.ListSet", outbound.ErrNichtGefunden)
 		_, err := u.leseGET()
-		erwarteFehler(t, "ListSet ohne Workspace", err, model.CodeE7001)
+		_ = erwarteFehler(t, "ListSet ohne Workspace", err, model.CodeE7001)
 	}
 }
 
@@ -370,7 +379,7 @@ func TestSchreiberFehler(t *testing.T) {
 			u.p.setzeFehler(op, f)
 			a, err := u.leseGET()
 			if errors.Is(f, model.ErrUngueltig) {
-				erwarteFehler(t, op, err, model.CodeE9001)
+				_ = erwarteFehler(t, op, err, model.CodeE9001)
 			} else if fehlercode(err) != 0 || !errors.Is(err, context.DeadlineExceeded) {
 				t.Errorf("%s: Kontextfehler wurde %v", op, err)
 			}

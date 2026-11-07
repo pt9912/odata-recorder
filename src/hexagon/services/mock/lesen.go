@@ -18,7 +18,6 @@ const headerCoverage = "X-Recorder-Coverage"
 
 // lauf trägt, was die Schritte nach dem Lesen des Modells brauchen: nur Werte (SPEC-195 Nr. 12).
 type lauf struct {
-	ctx    context.Context
 	kopf   bool
 	d      Dienst
 	w      model.Workspace
@@ -44,14 +43,14 @@ func (m *Mocker) lese(ctx context.Context, a inbound.Anfrage, d Dienst, w model.
 	if !ok {
 		return inbound.Antwort{}, mitCode(model.CodeE9001, nil)
 	}
-	l := lauf{ctx: ctx, kopf: a.Methode == "HEAD", d: d, w: w, u: u, modell: modell, set: set.Name, typ: typ, accept: werteVon(a.Header, "accept")}
+	l := lauf{kopf: a.Methode == "HEAD", d: d, w: w, u: u, modell: modell, set: set.Name, typ: typ, accept: werteVon(a.Header, "accept")}
 	switch u.Ressource.Art {
 	case model.RessourceMenge:
-		return m.collection(l)
+		return m.collection(ctx, l)
 	case model.RessourceAnzahl:
-		return m.anzahl(l)
+		return m.anzahl(ctx, l)
 	}
-	return m.entity(l)
+	return m.entity(ctx, l)
 }
 
 // ladeModell öffnet den Blob, liest das Modell und schließt den Strom genau einmal (SPEC-196 Nr. 2).
@@ -79,8 +78,8 @@ func nichtGefunden(err error) bool {
 }
 
 // coverage liest den Zustand des Sets an der Baseline des Workspace (SPEC-197 Nr. 1); kein Eintrag ist `unknown`.
-func (m *Mocker) coverage(l lauf) (model.CoverageStatus, error) {
-	c, err := m.k.Coverage.Get(l.ctx, l.w.BaselineSnapshotID, l.set)
+func (m *Mocker) coverage(ctx context.Context, l lauf) (model.CoverageStatus, error) {
+	c, err := m.k.Coverage.Get(ctx, l.w.BaselineSnapshotID, l.set)
 	switch {
 	case nichtGefunden(err):
 		return model.CoverageUnknown, nil
@@ -94,15 +93,15 @@ func (m *Mocker) coverage(l lauf) (model.CoverageStatus, error) {
 
 // vorErgebnis ist der gemeinsame Anfang von Collection und Anzahl: Coverage vor der Ausführung (SPEC-197 Nr. 2),
 // ListSet genau einmal, Deuten und die Pflichten 1, 3 e und 3 f (SPEC-196 Nr. 3, 4).
-func (m *Mocker) vorErgebnis(l lauf) (model.CoverageStatus, []model.Entity, func(string) bool, error) {
-	status, err := m.coverage(l)
+func (m *Mocker) vorErgebnis(ctx context.Context, l lauf) (model.CoverageStatus, []model.Entity, func(string) bool, error) {
+	status, err := m.coverage(ctx, l)
 	if err != nil {
 		return "", nil, nil, err
 	}
 	if status != model.CoverageComplete && m.k.StrictCoverage {
 		return "", nil, nil, mitCode(model.CodeE6003, nil)
 	}
-	liste, err := m.k.Entities.ListSet(l.ctx, l.w.ID, l.set)
+	liste, err := m.k.Entities.ListSet(ctx, l.w.ID, l.set)
 	if err != nil {
 		return "", nil, nil, abbilden(err, outbound.GegenstandWorkspace)
 	}
@@ -114,8 +113,8 @@ func (m *Mocker) vorErgebnis(l lauf) (model.CoverageStatus, []model.Entity, func
 }
 
 // collection beantwortet die Collection (SPEC-196 Nr. 5).
-func (m *Mocker) collection(l lauf) (inbound.Antwort, error) {
-	status, entities, beobachtet, err := m.vorErgebnis(l)
+func (m *Mocker) collection(ctx context.Context, l lauf) (inbound.Antwort, error) {
+	status, entities, beobachtet, err := m.vorErgebnis(ctx, l)
 	if err != nil {
 		return inbound.Antwort{}, err
 	}
@@ -126,7 +125,7 @@ func (m *Mocker) collection(l lauf) (inbound.Antwort, error) {
 		return inbound.Antwort{}, err
 	}
 	var buf bytes.Buffer
-	dar, err := l.d.Codecs.Schreiber.SchreibeCollection(l.ctx, &buf, l.modell, model.CollectionAntwort{
+	dar, err := l.d.Codecs.Schreiber.SchreibeCollection(ctx, &buf, l.modell, model.CollectionAntwort{
 		Wurzel:   m.wurzel(l.d),
 		Set:      l.set,
 		Entities: erg.Entities,
@@ -141,8 +140,8 @@ func (m *Mocker) collection(l lauf) (inbound.Antwort, error) {
 }
 
 // anzahl beantwortet `/$count`: wie die Collection, der Interpreter erhält allein den Filter (SPEC-196 Nr. 6).
-func (m *Mocker) anzahl(l lauf) (inbound.Antwort, error) {
-	status, entities, beobachtet, err := m.vorErgebnis(l)
+func (m *Mocker) anzahl(ctx context.Context, l lauf) (inbound.Antwort, error) {
+	status, entities, beobachtet, err := m.vorErgebnis(ctx, l)
 	if err != nil {
 		return inbound.Antwort{}, err
 	}
@@ -151,7 +150,7 @@ func (m *Mocker) anzahl(l lauf) (inbound.Antwort, error) {
 		return inbound.Antwort{}, err
 	}
 	var buf bytes.Buffer
-	dar, err := l.d.Codecs.Schreiber.SchreibeAnzahl(l.ctx, &buf, int64(erg.Anzahl))
+	dar, err := l.d.Codecs.Schreiber.SchreibeAnzahl(ctx, &buf, int64(erg.Anzahl))
 	if err != nil {
 		return inbound.Antwort{}, abbilden(err, outbound.GegenstandSonstiges)
 	}
@@ -159,7 +158,7 @@ func (m *Mocker) anzahl(l lauf) (inbound.Antwort, error) {
 }
 
 // entity beantwortet den Einzel-Lookup (SPEC-196 Nr. 7).
-func (m *Mocker) entity(l lauf) (inbound.Antwort, error) {
+func (m *Mocker) entity(ctx context.Context, l lauf) (inbound.Antwort, error) {
 	schluessel, ok := bildeSchluessel(l.typ, l.u.Ressource.Schluessel)
 	if !ok {
 		return inbound.Antwort{}, mitCode(model.CodeE6005, nil)
@@ -167,10 +166,10 @@ func (m *Mocker) entity(l lauf) (inbound.Antwort, error) {
 	if l.u.Optionen.Filter != nil {
 		return inbound.Antwort{}, mitCode(model.CodeE6001, nil)
 	}
-	es, err := m.k.Entities.Get(l.ctx, l.w.ID, l.set, schluessel)
+	es, err := m.k.Entities.Get(ctx, l.w.ID, l.set, schluessel)
 	switch {
 	case nichtGefunden(err):
-		return m.ohneTreffer(l)
+		return m.ohneTreffer(ctx, l)
 	case err != nil:
 		return inbound.Antwort{}, abbilden(err, outbound.GegenstandWorkspace)
 	case es.Deleted:
@@ -192,7 +191,7 @@ func (m *Mocker) entity(l lauf) (inbound.Antwort, error) {
 		return inbound.Antwort{}, mitCode(model.CodeE6003, nil)
 	}
 	var buf bytes.Buffer
-	dar, err := l.d.Codecs.Schreiber.SchreibeEntity(l.ctx, &buf, l.modell, model.EntityAntwort{
+	dar, err := l.d.Codecs.Schreiber.SchreibeEntity(ctx, &buf, l.modell, model.EntityAntwort{
 		Wurzel:  m.wurzel(l.d),
 		Set:     l.set,
 		Entity:  erg.Entities[0],
@@ -206,8 +205,8 @@ func (m *Mocker) entity(l lauf) (inbound.Antwort, error) {
 }
 
 // ohneTreffer entscheidet den Lookup ohne Treffer nach der Coverage (SPEC-197 Nr. 3), in beiden Modi gleich.
-func (m *Mocker) ohneTreffer(l lauf) (inbound.Antwort, error) {
-	status, err := m.coverage(l)
+func (m *Mocker) ohneTreffer(ctx context.Context, l lauf) (inbound.Antwort, error) {
+	status, err := m.coverage(ctx, l)
 	switch {
 	case err != nil:
 		return inbound.Antwort{}, err

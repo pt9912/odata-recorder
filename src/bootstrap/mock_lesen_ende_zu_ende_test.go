@@ -142,7 +142,7 @@ func mlSchluesselXML() string {
 	typ("T10", [2]string{"A", "Edm.String"}, [2]string{"B", "Edm.Int32"}, [2]string{"C", "Edm.Guid"})
 	sb.WriteString(`<EntityContainer Name="C">`)
 	for i := 0; i <= 10; i++ {
-		sb.WriteString(fmt.Sprintf(`<EntitySet Name="S%d" EntityType="N.T%d"/>`, i, i))
+		fmt.Fprintf(&sb, `<EntitySet Name="S%d" EntityType="N.T%d"/>`, i, i)
 	}
 	sb.WriteString(`</EntityContainer></Schema></edmx:DataServices></edmx:Edmx>`)
 	return sb.String()

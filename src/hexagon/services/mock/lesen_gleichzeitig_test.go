@@ -26,7 +26,9 @@ type zweig struct {
 }
 
 // artPfad ist der Pfad der Ressource je Art (der Fake des URL-Lesers kennt sie).
-var artPfad = map[model.RessourcenArt]string{model.RessourceMetadaten: "m", model.RessourceMenge: "c", model.RessourceEntity: "e", model.RessourceAnzahl: "a"}
+func artPfad(art model.RessourcenArt) string {
+	return map[model.RessourcenArt]string{model.RessourceMetadaten: "m", model.RessourceMenge: "c", model.RessourceEntity: "e", model.RessourceAnzahl: "a"}[art]
+}
 
 // zweigeM14 sind die 48 Läufe von M14, gebildet aus den Modell-Mengen: Art 4 × Zustand 3 × Methode 2 × Modus 2.
 func zweigeM14() []zweig {
@@ -35,7 +37,7 @@ func zweigeM14() []zweig {
 		for _, z := range model.AlleCoverageStatus() {
 			for _, m := range []string{"GET", "HEAD"} {
 				for _, strikt := range []bool{false, true} {
-					r = append(r, zweig{fmt.Sprintf("Art %d %s %s strikt=%v", art, z, m, strikt), "svc", z, m, strikt, artPfad[art]})
+					r = append(r, zweig{fmt.Sprintf("Art %d %s %s strikt=%v", art, z, m, strikt), "svc", z, m, strikt, artPfad(art)})
 				}
 			}
 		}
@@ -217,7 +219,7 @@ func TestZweigeGleichzeitig(t *testing.T) {
 func TestLesesicht(t *testing.T) {
 	const leser, antworten = 8, 200
 	u := leseUmg(t)
-	u.c.sch.zeigeIds = true
+	u.c.sch.zeigeIDs = true
 	var a, b []model.EntityState
 	var idsA, idsB []string
 	for i := 1; i <= 40; i++ {

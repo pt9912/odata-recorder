@@ -133,7 +133,7 @@ func TestSchluesselBilden(t *testing.T) {
 		u := leseUmg(t)
 		u.ressource(model.RessourceEntity, r.set, r.opt, r.teil...)
 		_, err := u.leseGET()
-		erwarteFehler(t, r.name, err, r.code)
+		_ = erwarteFehler(t, r.name, err, r.code)
 	}
 }
 
@@ -152,7 +152,7 @@ func TestLookupTreffer(t *testing.T) {
 		u.entity(model.Optionen{Select: &model.SelectOption{Namen: []string{"Name"}}}, "1")
 		_, err := u.leseGET()
 		if name == "Tombstone" {
-			erwarteFehler(t, name, err, model.CodeE6008)
+			_ = erwarteFehler(t, name, err, model.CodeE6008)
 		} else if err != nil {
 			t.Errorf("%s: %v", name, err)
 		}
@@ -216,7 +216,7 @@ func TestLookupOptionen(t *testing.T) {
 	u := leseUmg(t)
 	u.entity(model.Optionen{Filter: idGroesser("0")}, "1")
 	_, err := u.leseGET()
-	erwarteFehler(t, "$filter", err, model.CodeE6001)
+	_ = erwarteFehler(t, "$filter", err, model.CodeE6001)
 	if u.p.anzahl("Entities.Get") != 0 {
 		t.Error("$filter: Get gerufen")
 	}
@@ -233,7 +233,7 @@ func TestLookupOptionen(t *testing.T) {
 		u.en.setze(s.set, eintrag(s.set, "1", `{"Id":1}`, "Id"))
 		u.ressource(model.RessourceEntity, s.set, model.Optionen{Select: &model.SelectOption{Namen: []string{s.sel}}}, zahl("", "1"))
 		_, err := u.leseGET()
-		erwarteFehler(t, s.name, err, s.code)
+		_ = erwarteFehler(t, s.name, err, s.code)
 	}
 }
 

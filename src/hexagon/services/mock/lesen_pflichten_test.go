@@ -72,7 +72,7 @@ func TestPayloadWerte(t *testing.T) {
 	for _, f := range faelle {
 		je[f.edm]++
 		u := leseUmg(t)
-		name := propJeTyp[f.edm]
+		name := propJeTyp(f.edm)
 		e, err := u.einEintrag(`{"Id":1,"` + name + `":` + f.json + `}`)
 		if err != nil {
 			t.Errorf("%s %s: %v", f.edm, f.json, err)
@@ -145,13 +145,13 @@ func TestMarker(t *testing.T) {
 		for _, text := range []string{model.Marker, "[redacted]", model.Marker + " "} {
 			n++
 			u := leseUmg(t)
-			name := propJeTyp[edm]
+			name := propJeTyp(edm)
 			e, err := u.einEintrag(`{"Id":1,"` + name + `":"` + text + `"}`)
 			istString := edm != "Edm.Int32" && edm != "Edm.Boolean"
 			w, da := wertVon(e, name)
 			switch {
 			case !istString:
-				erwarteFehler(t, edm+" "+text, err, model.CodeE9001)
+				_ = erwarteFehler(t, edm+" "+text, err, model.CodeE9001)
 			case err != nil:
 				t.Errorf("%s %q: %v", edm, text, err)
 			case text == model.Marker && da:
@@ -296,7 +296,7 @@ func TestSchluesselProperties(t *testing.T) {
 			for _, wie := range []string{"fehlt", "null", "Marker"} {
 				n++
 				u, err := pflichtMenge(t, ty.set, model.RessourceMenge, eintrag(ty.set, "'x'", payload(ty.keys, k, wie), "K", "A", "B"))
-				erwarteFehler(t, fmt.Sprintf("%s %s %s", ty.set, k, wie), err, model.CodeE9001)
+				_ = erwarteFehler(t, fmt.Sprintf("%s %s %s", ty.set, k, wie), err, model.CodeE9001)
 				if u.p.anzahl("Schreiber.SchreibeCollection") != 0 {
 					t.Errorf("%s %s %s: der Schreiber wurde gerufen", ty.set, k, wie)
 				}
@@ -317,7 +317,7 @@ func TestSchluesselEindeutig(t *testing.T) {
 		doppelt := produkt(1, "b")
 		for name, es := range map[string]model.EntityState{"leer": leer, "doppelt": doppelt} {
 			_, err := pflichtMenge(t, setProducts, art, produkt(1, "a"), es)
-			erwarteFehler(t, fmt.Sprintf("Art %d, %s", art, name), err, model.CodeE9001)
+			_ = erwarteFehler(t, fmt.Sprintf("Art %d, %s", art, name), err, model.CodeE9001)
 		}
 	}
 }
@@ -332,10 +332,14 @@ func redigiertStellen() []struct {
 		return vergleich(op, "Id", model.Literal{Art: model.LiteralZahl, Text: n})
 	}
 	name := nameGleich("a")
-	f := func(a model.FilterAusdruck) model.Optionen { return model.Optionen{Filter: filterOpt(a)} }
+	// Jede Stelle trägt zusätzlich eine unbekannte Property: fehlt die Prüfung des Dienstes an der Stelle, meldet der Interpreter
+	// ODR-E6005 statt ODR-E9001 (sonst endet der Aufruf an einem Wert `redigiert` in beiden Fällen als ODR-E9001).
+	f := func(a model.FilterAusdruck) model.Optionen {
+		return model.Optionen{Filter: filterOpt(model.FilterVerknuepfung{Op: model.VerknuepfungUnd, Links: a, Rechts: vergleich(model.VergleichEq, "Unbekannt", model.Literal{Art: model.LiteralZahl, Text: "1"})})}
+	}
 	ord := func(namen ...string) model.Optionen {
 		var o model.Optionen
-		for _, n := range namen {
+		for _, n := range append(namen, "Unbekannt") {
 			o.OrderBy = append(o.OrderBy, model.Sortierung{Name: n})
 		}
 		return o
@@ -368,7 +372,7 @@ func TestRedigiertInOptionen(t *testing.T) {
 			eintrag(setProducts, "3", `{"Id":3,"Name":"`+model.Marker+`","Count":3}`, alleNamen()...))
 		u.menge(s.o)
 		_, err := u.leseGET()
-		erwarteFehler(t, s.name, err, model.CodeE9001)
+		_ = erwarteFehler(t, s.name, err, model.CodeE9001)
 		if u.p.anzahl("Schreiber.SchreibeCollection") != 0 {
 			t.Errorf("%s: der Schreiber wurde gerufen", s.name)
 		}
@@ -393,7 +397,7 @@ func TestRedigiertNichtAusgeliefert(t *testing.T) {
 		for _, art := range []model.RessourcenArt{model.RessourceMenge, model.RessourceEntity} {
 			n++
 			u := leseUmg(t)
-			name := propJeTyp[edm]
+			name := propJeTyp(edm)
 			u.en.setze(setProducts, eintrag(setProducts, "1", `{"Id":1,"`+name+`":"`+model.Marker+`","Count":7}`, alleNamen()...))
 			u.standard(art, "1")
 			if _, err := u.leseGET(); err != nil {

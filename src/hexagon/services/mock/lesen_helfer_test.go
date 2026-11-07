@@ -20,9 +20,11 @@ const (
 )
 
 // Die Namen der Properties je EDM-Typ in Product.
-var propJeTyp = map[string]string{
-	"Edm.String": "Name", "Edm.Boolean": "Flag", "Edm.Int32": "Count", "Edm.Int64": "Big",
-	"Edm.Decimal": "Price", "Edm.Guid": "Ref", "Edm.Date": "Day", "Edm.DateTimeOffset": "Ts",
+func propJeTyp(edm string) string {
+	return map[string]string{
+		"Edm.String": "Name", "Edm.Boolean": "Flag", "Edm.Int32": "Count", "Edm.Int64": "Big",
+		"Edm.Decimal": "Price", "Edm.Guid": "Ref", "Edm.Date": "Day", "Edm.DateTimeOffset": "Ts",
+	}[edm]
 }
 
 // achtTypen sind die acht unterstützten EDM-Typen in der Folge von model.UnterstuetzteEDMTypen().
@@ -32,7 +34,7 @@ func achtTypen() []string { return model.UnterstuetzteEDMTypen() }
 func produktProperties() []model.Property {
 	ps := []model.Property{{Name: "Id", EdmType: "Edm.Int32"}}
 	for _, t := range achtTypen() {
-		ps = append(ps, model.Property{Name: propJeTyp[t], EdmType: t, Nullable: true})
+		ps = append(ps, model.Property{Name: propJeTyp(t), EdmType: t, Nullable: true})
 	}
 	return ps
 }
@@ -117,8 +119,7 @@ func zahl(name, text string) model.SchluesselTeil {
 }
 
 // lies ruft GET (oder HEAD) auf den Pfad des Dienstes.
-func (u *umg) leseGET() (inbound.Antwort, error)  { return u.rufe(anfrage("GET", dienstRoot+"/x")) }
-func (u *umg) leseHEAD() (inbound.Antwort, error) { return u.rufe(anfrage("HEAD", dienstRoot+"/x")) }
+func (u *umg) leseGET() (inbound.Antwort, error) { return u.rufe(anfrage("GET", dienstRoot+"/x")) }
 
 // letzteCollection ist die CollectionAntwort des einen Aufrufs von SchreibeCollection.
 func (u *umg) letzteCollection() model.CollectionAntwort {
@@ -160,7 +161,7 @@ func ids(es []model.Entity) string {
 }
 
 // eigenschaft ist der Filter `<name> <op> <literal>` (Zahl oder Zeichenkette mit Anführungszeichen).
-func vergleich(op model.VergleichOp, name string, lit model.Literal) model.FilterAusdruck {
+func vergleich(op model.VergleichOp, name string, lit model.Literal) model.FilterVergleich {
 	return model.FilterVergleich{Op: op, Links: model.FilterEigenschaft{Name: name}, Rechts: model.FilterLiteral{Literal: lit}}
 }
 
@@ -174,7 +175,7 @@ func idGroesser(n string) *model.FilterOption {
 }
 
 // nameGleich ist der Filter `Name eq '<s>'`.
-func nameGleich(s string) model.FilterAusdruck {
+func nameGleich(s string) model.FilterVergleich {
 	return vergleich(model.VergleichEq, "Name", model.Literal{Art: model.LiteralZeichenkette, Text: "'" + s + "'"})
 }
 

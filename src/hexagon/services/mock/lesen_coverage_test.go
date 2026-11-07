@@ -110,7 +110,7 @@ func TestCoverageLesen(t *testing.T) {
 			u.co.setze(baselineID, setProducts, status)
 			u.standard(art.art, art.key)
 			_, err := u.leseGET()
-			erwarteFehler(t, fmt.Sprintf("Status %q Art %d", status, art.art), err, model.CodeE9001)
+			_ = erwarteFehler(t, fmt.Sprintf("Status %q Art %d", status, art.art), err, model.CodeE9001)
 		}
 	}
 }
@@ -133,11 +133,11 @@ func TestCoverageMatrix(t *testing.T) {
 					name := fmt.Sprintf("Art %d, %s, strikt=%v, %s", art, status, strikt, methode)
 					switch {
 					case art == model.RessourceEntity && status == model.CoverageComplete:
-						erwarteFehler(t, name, err, model.CodeE6008)
+						_ = erwarteFehler(t, name, err, model.CodeE6008)
 					case art == model.RessourceEntity:
-						erwarteFehler(t, name, err, model.CodeE6003)
+						_ = erwarteFehler(t, name, err, model.CodeE6003)
 					case status != model.CoverageComplete && strikt:
-						erwarteFehler(t, name, err, model.CodeE6003)
+						_ = erwarteFehler(t, name, err, model.CodeE6003)
 						if u.p.anzahl("Entities.ListSet") != 0 || u.p.anzahl(artOp(art)) != 0 {
 							t.Errorf("%s: Entities gelesen oder geschrieben", name)
 						}
@@ -213,7 +213,7 @@ func TestLeereMenge(t *testing.T) {
 				switch {
 				case unvollstaendig && (strikt || filter):
 					soll := model.CodeE6003
-					erwarteFehler(t, name, err, soll)
+					_ = erwarteFehler(t, name, err, soll)
 				case err != nil:
 					t.Errorf("%s: %v", name, err)
 				default:
@@ -271,7 +271,7 @@ func TestCoverageBaseline(t *testing.T) {
 		u.co.setze(baselineID, setProducts, s)
 		u.menge(model.Optionen{OrderBy: []model.Sortierung{{Name: "Unbekannt"}}})
 		_, err := u.leseGET()
-		erwarteFehler(t, "strikt "+string(s)+" und unbekannte Property", err, model.CodeE6003)
+		_ = erwarteFehler(t, "strikt "+string(s)+" und unbekannte Property", err, model.CodeE6003)
 	}
 	// Ein Set ohne Eintrag der Coverage ist `unknown`, auch wenn alle Einträge des Workspace vollständig sind.
 	u := leseUmg(t)
@@ -363,7 +363,7 @@ func TestDarstellungLeer(t *testing.T) {
 		u.c.sch.kopfe = map[string]model.Darstellung{artOp(art): {}}
 		u.standard(art, "1")
 		_, err := u.leseGET()
-		erwarteFehler(t, "strikt partial", err, model.CodeE6003)
+		_ = erwarteFehler(t, "strikt partial", err, model.CodeE6003)
 		if u.p.anzahl(artOp(art)) != 0 {
 			t.Errorf("Art %d: Schreiber trotz ODR-E6003 gerufen", art)
 		}

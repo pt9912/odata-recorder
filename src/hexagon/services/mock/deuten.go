@@ -24,32 +24,23 @@ type mitglied struct {
 	roh  []byte
 }
 
-// deuteListe deutet die Einträge ohne Tombstones (SPEC-196 Nr. 3) und prüft die Pflichten 3 e und 3 f (Nr. 4): jede Entity
-// trägt ihre Key-Properties mit einem Wert, `Schluessel` ist nichtleer und je Entity eindeutig; jeder Verstoß ist ODR-E9001.
+// deuteListe deutet die Einträge ohne Tombstones (SPEC-196 Nr. 3); `Schluessel` ist `EntityKey` unverändert und jede Property
+// des Payloads steht in der Entity. Dass jede Entity ihre Key-Properties mit einem Wert trägt und `Schluessel` nichtleer und
+// je Entity eindeutig ist (Pflichten 3 e und 3 f, SPEC-196 Nr. 4 c und d), prüft `model.FuehreAus` vor jeder Auswertung als
+// ErrUngueltig, der Dienst bildet daraus ODR-E9001; ein Verstoß der Form des Payloads ist ODR-E9001 vor dem Aufruf.
 func deuteListe(l lauf, liste []model.EntityState) ([]model.Entity, error) {
 	entities := []model.Entity{}
-	gesehen := map[string]bool{}
 	for _, es := range liste {
 		if es.Deleted {
 			continue
 		}
 		e, ok := deute(l.modell, l.typ, es)
-		if !ok || es.EntityKey == "" || gesehen[es.EntityKey] || !schluesselProperties(l.modell, e) {
+		if !ok {
 			return nil, mitCode(model.CodeE9001, nil)
 		}
-		gesehen[es.EntityKey] = true
 		entities = append(entities, e)
 	}
 	return entities, nil
-}
-
-// schluesselProperties sagt, ob e alle Keys seines Typs mit einem Wert außer `null` und `redigiert` trägt (SPEC-196 Nr. 4 c).
-func schluesselProperties(modell model.ServiceModel, e model.Entity) bool {
-	t, _ := modell.EntityType(e.Typ)
-	return !slices.ContainsFunc(t.Keys, func(k string) bool {
-		i := slices.IndexFunc(e.Properties, func(p model.PropertyWert) bool { return p.Name == k })
-		return i < 0 || e.Properties[i].Wert.Art == model.ArtNull || e.Properties[i].Wert.Art == model.ArtRedigiert
-	})
 }
 
 // deute bildet die Entity aus dem Payload eines Eintrags (SPEC-196 Nr. 3); ok ist falsch bei jedem Verstoß der Form.

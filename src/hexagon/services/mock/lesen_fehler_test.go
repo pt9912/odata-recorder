@@ -315,7 +315,7 @@ func TestPortFehler(t *testing.T) {
 						t.Errorf("%s: %v, erwartet die Coverage unknown", name, got)
 					}
 				case s.name == "S8" && i == 0:
-					erwarteFehler(t, name, got, model.CodeE6008) // Entity fehlt, Coverage complete
+					_ = erwarteFehler(t, name, got, model.CodeE6008) // Entity fehlt, Coverage complete
 				default:
 					if fe := erwarteFehler(t, name, got, code); fe != nil && !errors.Is(fe, f) {
 						t.Errorf("%s: Ursache nicht erreichbar", name)
@@ -328,7 +328,7 @@ func TestPortFehler(t *testing.T) {
 	u.menge(model.Optionen{})
 	u.p.setzeFehler("MetadatenCodec.ParseMetadata", model.ErrMetadatenUngueltig)
 	_, got := u.leseGET()
-	erwarteFehler(t, "S5 ErrMetadatenUngueltig", got, model.CodeE6004)
+	_ = erwarteFehler(t, "S5 ErrMetadatenUngueltig", got, model.CodeE6004)
 	if n != 84 {
 		t.Errorf("%d Läufe, erwartet 84 (und einer)", n)
 	}
@@ -346,6 +346,7 @@ func TestRangfolgeLesen(t *testing.T) {
 		{name: "Coverage im strikten Modus", code: model.CodeE6003, stufe: 9, ops: append(slices.Clone(kopf), "Coverage.Get"), bau: func(u *umg, _ *inbound.Anfrage) {
 			u.k.StrictCoverage = true
 			u.co.setze(baselineID, setProducts, model.CoveragePartial)
+			u.co.setze(baselineID, "Unbekannt", model.CoveragePartial) // das unbekannte Set trägt ebenfalls partial: nur die Reihenfolge der Stufen unterscheidet ODR-E6008 von ODR-E6003
 			u.menge(model.Optionen{})
 		}},
 		{name: "Fehler des Interpreters", code: model.CodeE6005, stufe: 10, ops: append(slices.Clone(kopf), "Coverage.Get", "Entities.ListSet"), bau: func(u *umg, _ *inbound.Anfrage) {
@@ -371,7 +372,7 @@ func TestRangfolgeLesen(t *testing.T) {
 				t.Errorf("%s: Fehler %v, erwartet ErrUngueltig ohne Code", name, err)
 			}
 		} else {
-			erwarteFehler(t, name, err, erste.code)
+			_ = erwarteFehler(t, name, err, erste.code)
 		}
 		if ops := u.p.ops(); !slices.Equal(ops, erste.ops) {
 			t.Errorf("%s: Aufrufe %v, erwartet %v", name, ops, erste.ops)
@@ -505,7 +506,7 @@ func TestInterpreterFehler(t *testing.T) {
 	// Eingaben: Aufbau (Set, Einträge) und Optionen; die Einträge kennen Name nur dort, wo die Ursache es nicht verlangt.
 	seltsam := []model.EntityState{eintrag("Seltsam", "1", `{"Id":1}`, "Id", "Blob")}
 	bekannt := []model.EntityState{produkt(1, "a"), produkt(2, "b")}
-	nurId := []model.EntityState{produkt(1, "a", "Id"), produkt(2, "b", "Id")}
+	nurID := []model.EntityState{produkt(1, "a", "Id"), produkt(2, "b", "Id")}
 	type eingabe struct {
 		set       string
 		eintraege []model.EntityState
@@ -516,7 +517,7 @@ func TestInterpreterFehler(t *testing.T) {
 		"Menge/" + string(model.AbfrageEigenschaftUnbekannt):     {setProducts, bekannt, model.Optionen{OrderBy: []model.Sortierung{{Name: "Unbekannt"}}}, model.CodeE6005},
 		"Menge/" + string(model.AbfrageTypNichtUnterstuetzt):     {"Seltsam", seltsam, model.Optionen{Select: &model.SelectOption{Namen: []string{"Blob"}}}, model.CodeE6001},
 		"Menge/" + string(model.AbfrageOrdnungNichtUnterstuetzt): {setProducts, bekannt, model.Optionen{OrderBy: []model.Sortierung{{Name: "Ref"}}}, model.CodeE6001},
-		"Menge/" + string(model.AbfrageNichtBeobachtet):          {setProducts, nurId, model.Optionen{OrderBy: []model.Sortierung{{Name: "Name"}}}, model.CodeE6003},
+		"Menge/" + string(model.AbfrageNichtBeobachtet):          {setProducts, nurID, model.Optionen{OrderBy: []model.Sortierung{{Name: "Name"}}}, model.CodeE6003},
 		"Entity/" + string(model.AbfrageEigenschaftUnbekannt):    {setProducts, bekannt, model.Optionen{Select: &model.SelectOption{Namen: []string{"Unbekannt"}}}, model.CodeE6005},
 		"Entity/" + string(model.AbfrageTypNichtUnterstuetzt):    {"Seltsam", seltsam, model.Optionen{Select: &model.SelectOption{Namen: []string{"Blob"}}}, model.CodeE6001},
 	}
@@ -528,7 +529,7 @@ func TestInterpreterFehler(t *testing.T) {
 		u.en.setze(e.set, e.eintraege...)
 		u.ressource(art, e.set, e.opt, zahl("", "1"))
 		_, err := u.leseGET()
-		erwarteFehler(t, name, err, e.code)
+		_ = erwarteFehler(t, name, err, e.code)
 	}
 	for name, e := range abfrage {
 		art := model.RessourceMenge
@@ -543,7 +544,7 @@ func TestInterpreterFehler(t *testing.T) {
 		case model.FilterTypNichtUnterstuetzt:
 			set, es = "Seltsam", seltsam
 		case model.FilterNichtBeobachtet:
-			es = nurId
+			es = nurID
 		case model.FilterOperatorNichtUnterstuetzt:
 			es = []model.EntityState{eintrag(setProducts, "1", `{"Id":1,"Ref":"00000000-0000-0000-0000-000000000000"}`, alleNamen()...)}
 		}
@@ -599,7 +600,7 @@ func TestInterpreterFehler(t *testing.T) {
 		u := leseUmg(t)
 		u.ressource(g.art, setProducts, g.opt, zahl("", "1"))
 		_, err := u.leseGET()
-		erwarteFehler(t, g.name, err, model.CodeE9001)
+		_ = erwarteFehler(t, g.name, err, model.CodeE9001)
 	}
 	// Ein Verstoß der Entities geht dem Fehler des Interpreters voraus (SPEC-196 Nr. 4 vor Nr. 5 und 8): 4 Paare je Stelle, an der
 	// Entity die beiden, die ein einzelner Eintrag zulässt.
@@ -641,7 +642,7 @@ func TestInterpreterFehler(t *testing.T) {
 				u.ressource(stelle, setProducts, opt)
 			}
 			_, err := u.leseGET()
-			erwarteFehler(t, fmt.Sprintf("Art %d: %s vor Interpreter", stelle, name), err, model.CodeE9001)
+			_ = erwarteFehler(t, fmt.Sprintf("Art %d: %s vor Interpreter", stelle, name), err, model.CodeE9001)
 		}
 	}
 	if faelle != 4+4+2 {

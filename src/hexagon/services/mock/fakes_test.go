@@ -389,8 +389,8 @@ type schreiber struct {
 	kopf  model.Darstellung
 	probe []byte
 	kopfe map[string]model.Darstellung
-	// zeigeIds hängt die Schlüssel der Entities einer Collection an den geschriebenen Body.
-	zeigeIds bool
+	// zeigeIDs hängt die Schlüssel der Entities einer Collection an den geschriebenen Body.
+	zeigeIDs bool
 }
 
 func (s *schreiber) SchreibeAnzahl(ctx context.Context, dst io.Writer, n int64) (model.Darstellung, error) {
@@ -429,7 +429,7 @@ func (s *schreiber) SchreibeCollection(ctx context.Context, dst io.Writer, m mod
 		return model.Darstellung{}, err
 	}
 	d := s.ausgabe("Schreiber.SchreibeCollection", dst)
-	if s.zeigeIds && dst != nil {
+	if s.zeigeIDs && dst != nil {
 		_, _ = dst.Write([]byte("|" + ids(a.Entities)))
 	}
 	return d, nil
