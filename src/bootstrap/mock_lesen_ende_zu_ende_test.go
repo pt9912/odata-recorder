@@ -85,6 +85,8 @@ func mlDienst(t *testing.T, xml string, status model.CoverageStatus, es ...model
 		Coverage: mlCoverage{status: status}, Blobs: mlBlobs{xml: xml}, MetadatenCodec: csdl.New(),
 		URLCodec: urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser())), Schreiber: jsoncodec.NewSchreiber(),
 		PublicBaseURL: "http://recorder.test", MaxBytes: 1 << 20,
+		// Das Lesen ruft die Transaktion nie; der Nullwert der eingebetteten Schnittstelle verrät jeden Aufruf mit einer Panik.
+		Transaktion: struct{ outbound.WorkspaceTransactor }{},
 	})
 	if err != nil {
 		t.Fatal(err)
