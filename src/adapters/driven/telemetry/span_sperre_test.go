@@ -35,9 +35,9 @@ func masseLauf(t *testing.T, pruefe func(s support.Snapshot) string) umgebung {
 	t.Helper()
 	tab := spanTabelle(t)
 	u := neuUmgebung(t, slog.LevelInfo, 65536)
-	anker := make([]context.Context, masseSchreiber)
-	for g := range anker {
-		anker[g] = offenerSpanCtx(u.a, tab[0].name)
+	var anker []context.Context
+	for range masseSchreiber {
+		anker = append(anker, offenerSpanCtx(u.a, tab[0].name))
 	}
 	start := make(chan struct{})
 	melden := make(chan string, 4)
