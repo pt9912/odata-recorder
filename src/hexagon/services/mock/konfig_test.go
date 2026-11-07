@@ -267,7 +267,7 @@ func TestFakesZaehlenAlles(t *testing.T) {
 					v = reflect.ValueOf(u.ctx)
 				}
 				args = append(args, v)
-				if !(j == 0 && hatCtx) {
+				if j != 0 || !hatCtx {
 					erwartet = append(erwartet, v.Interface())
 				}
 			}

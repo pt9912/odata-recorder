@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
@@ -24,8 +25,17 @@ const kanarienwert = "S3CR3T-7f"
 // ParseURL nil) und jedes Argument, wie der Dienst es übergab.
 type ereignis struct {
 	op   string
-	ctx  context.Context
+	ctx  ctxMethoden
 	args []any
+}
+
+// ctxMethoden ist die Methodenmenge von context.Context: die Fakes halten den ctx eines Aufrufs als Wert dieser
+// Schnittstelle fest und vergleichen seine Identität.
+type ctxMethoden interface {
+	Deadline() (time.Time, bool)
+	Done() <-chan struct{}
+	Err() error
+	Value(key any) any
 }
 
 // prot ist das gemeinsame Protokoll der Fakes eines Aufbaus: jede Operation jedes Ports, auch die der Dienst nie rufen
@@ -375,7 +385,7 @@ type umg struct {
 	co  *coverage
 	c   *codecs
 	k   mock.Konfig
-	ctx context.Context
+	ctx ctxMethoden
 }
 
 type schluesselKtx struct{}

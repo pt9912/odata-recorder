@@ -66,8 +66,7 @@ func pruefeKonfig(k Konfig) error {
 		return ungueltig("kein Dienst")
 	case slices.ContainsFunc(k.Dienste, func(d Dienst) bool { return d.ID == "" || d.Root == "" }):
 		return ungueltig("Dienst ohne Kennung oder Root")
-	case k.Metadaten == nil || k.Workspaces == nil || k.Entities == nil || k.Coverage == nil || k.Blobs == nil ||
-		k.MetadatenCodec == nil || k.URLCodec == nil || k.Schreiber == nil:
+	case portFehlt(k):
 		return ungueltig("Port fehlt")
 	case slices.ContainsFunc(k.Dienste, func(d Dienst) bool {
 		return d.Codecs != nil && (d.Codecs.Metadaten == nil || d.Codecs.URL == nil || d.Codecs.Schreiber == nil)
@@ -79,6 +78,12 @@ func pruefeKonfig(k Konfig) error {
 		return ungueltig("MaxBytes ist kleiner als 1")
 	}
 	return nil
+}
+
+// portFehlt sagt, ob eines der acht Felder mit einem Port nil ist (SPEC-195 Nr. 1).
+func portFehlt(k Konfig) bool {
+	return k.Metadaten == nil || k.Workspaces == nil || k.Entities == nil || k.Coverage == nil || k.Blobs == nil ||
+		k.MetadatenCodec == nil || k.URLCodec == nil || k.Schreiber == nil
 }
 
 // Mock prüft den Request in der Reihenfolge von SPEC-195 Nr. 3 (der erste Verstoß entscheidet) und liefert die

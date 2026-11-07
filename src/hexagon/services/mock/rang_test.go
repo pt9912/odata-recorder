@@ -64,7 +64,7 @@ func TestRangfolge(t *testing.T) {
 				t.Errorf("%s: Fehler %v, erwartet ErrUngueltig ohne Code", name, err)
 			}
 		} else {
-			erwarteFehler(t, name, err, erste.code)
+			_ = erwarteFehler(t, name, err, erste.code)
 		}
 		if ops := u.p.ops(); !slices.Equal(ops, erste.ops) {
 			t.Errorf("%s: Aufrufe %v, erwartet %v", name, ops, erste.ops)

@@ -163,7 +163,7 @@ func TestDienstWahl(t *testing.T) {
 			a.RawQuery = rohquery
 			antwort, err := u.rufe(a)
 			if soll == keiner {
-				erwarteFehler(t, root+" "+pfad, err, model.CodeE5005)
+				_ = erwarteFehler(t, root+" "+pfad, err, model.CodeE5005)
 				if ops := u.p.ops(); len(ops) != 0 {
 					t.Errorf("%q %q: Ports gerufen: %v", root, pfad, ops)
 				}
@@ -206,7 +206,7 @@ func TestDienstWahl(t *testing.T) {
 			a.RawQuery = rohquery
 			antwort, err := u.rufe(a)
 			if gewaehlt == "" {
-				erwarteFehler(t, "mehrere "+pfad, err, model.CodeE5005)
+				_ = erwarteFehler(t, "mehrere "+pfad, err, model.CodeE5005)
 				continue
 			}
 			if err != nil {
@@ -260,7 +260,7 @@ func TestZuordnung(t *testing.T) {
 			a.Header = f.bau(v)
 			antwort, err := u.rufe(a)
 			if !f.ok {
-				erwarteFehler(t, f.name, err, model.CodeE5003)
+				_ = erwarteFehler(t, f.name, err, model.CodeE5003)
 				if ops := u.p.ops(); len(ops) != 0 {
 					t.Errorf("%s: Ports gerufen: %v", f.name, ops)
 				}
