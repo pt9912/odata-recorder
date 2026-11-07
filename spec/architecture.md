@@ -392,10 +392,10 @@ sequenceDiagram
     alt URL invalid or unsupported
         M-->>H: ODR-E6005 or ODR-E6001
     end
-    M->>E: Read entity state
-    E-->>M: Typed entities
     M->>V: Read coverage (baseline, entity_set)
     V-->>M: Coverage status
+    M->>E: Read entity state
+    E-->>M: Typed entities
     M->>M: Validate and execute AST (domain model)
     M->>M: Serialize result via codec port
     M-->>H: OData response + coverage

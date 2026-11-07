@@ -17,8 +17,8 @@
 | Kriterien mit Szenario als Vorschlag | 3 |
 | Kriterien ohne E2E-Szenario | 0 |
 | Kennungen `SPEC-NNN` (Spezifikation und Verträge der Werkzeuge) | 137 (42 Abschnitte mit 315 nummerierten Zusagen, 82 Tabellenzeilen, 13 Verträge der Werkzeuge) |
-| davon gebaut (ein Plan in `done/` nennt sie) | 95 |
-| davon geplant (nur Pläne in `open/` oder `in-progress/` nennen sie) | 37 |
+| davon gebaut (ein Plan in `done/` nennt sie) | 97 |
+| davon geplant (nur Pläne in `open/` oder `in-progress/` nennen sie) | 35 |
 | davon ohne Plan, der sie nennt | 5 (alle fünf sind gebaut oder vorhanden, siehe unten) |
 | davon mit Fänger-Zeile in einem Plan in `done/` | 34 |
 | Verträge der Werkzeuge mit Plan | 11 von 13 |
@@ -110,14 +110,14 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `LH-FA-03` | `slice-baseline-import` `slice-session-beenden` `slice-session-use-case` `slice-session-wartung` | — | `slice-test-integration` |
 | `LH-FA-04` | `slice-fehlermodell-konfiguration` `slice-workspace-use-case` | `slice-replay-service` | `slice-bootstrap-m2` `slice-m2-referenzdienst` `slice-handbuch-record-replay` `slice-http-adapter` `slice-hybrid-service` `slice-test-determinism` `slice-test-integration` |
 | `LH-FA-05` | `slice-redaction-match-key` `slice-streaming-redaction` | `slice-replay-service` | `slice-handbuch-record-replay` `slice-test-integration` |
-| `LH-FA-06` | `slice-odata-codec-csdl` | — | `slice-bootstrap-m3` `slice-mock-lesen` `slice-mock-zuordnung` |
+| `LH-FA-06` | `slice-mock-zuordnung` `slice-odata-codec-csdl` | — | `slice-bootstrap-m3` `slice-mock-lesen` |
 | `LH-FA-07` | `slice-odata-json-eingabe` `slice-odata-json-schreiben` `slice-odata-url-pfad` `slice-v4-schreiber-marker-text` | — | `slice-batch-changesets` `slice-bootstrap-m3` `slice-etag-versionen` `slice-if-match` `slice-mock-schreiben` `slice-prefer-return` `slice-telemetry-einbau-mock` |
 | `LH-FA-08` | `slice-edm-ausdruecke` `slice-odata-json-schreiben` `slice-odata-url-pfad` `slice-query-interpreter` | — | `slice-bootstrap-m3` `slice-mock-abnahme` `slice-mock-lesen` `slice-odata-url-filter` |
-| `LH-FA-09` | `slice-workspace-use-case` | `slice-replay-service` | `slice-admin-workspaces` `slice-bootstrap-m3` `slice-bootstrap-m6` `slice-mock-lesen` `slice-mock-schreiben` `slice-mock-zuordnung` `slice-snapshot-use-case` |
+| `LH-FA-09` | `slice-mock-zuordnung` `slice-workspace-use-case` | `slice-replay-service` | `slice-admin-workspaces` `slice-bootstrap-m3` `slice-bootstrap-m6` `slice-mock-lesen` `slice-mock-schreiben` `slice-snapshot-use-case` |
 | `LH-FA-10` | — | — | `slice-admin-workspaces` `slice-bootstrap-m3` `slice-bootstrap-m6` `slice-snapshot-use-case` |
 | `LH-FA-11` | `slice-baseline-import` `slice-odata-codec-json` `slice-query-interpreter` | — | `slice-admin-sessions` `slice-bootstrap-m3` `slice-expand-ausfuehrung` `slice-hybrid-service` `slice-inspection-use-case` `slice-mock-lesen` |
 | `LH-FA-12` | `slice-fehlermodell-konfiguration` | — | `slice-bootstrap-m2` `slice-bootstrap-m3` `slice-bootstrap-m4` `slice-fallback-policy` `slice-hybrid-service` `slice-v2-bootstrap` |
-| `LH-FA-13` | `slice-audit-dienste` `slice-audit-log` `slice-clock-idgenerator` `slice-record-service` `slice-session-beenden` `slice-session-use-case` `slice-session-wartung` | — | `slice-admin-imports` `slice-admin-listener-token` `slice-admin-sessions` `slice-admin-tls` `slice-admin-workspaces` `slice-bootstrap-m6` `slice-inspection-use-case` |
+| `LH-FA-13` | `slice-audit-dienste` `slice-audit-log` `slice-audit-verdrahtung` `slice-clock-idgenerator` `slice-record-service` `slice-session-beenden` `slice-session-use-case` `slice-session-wartung` | — | `slice-admin-imports` `slice-admin-listener-token` `slice-admin-sessions` `slice-admin-tls` `slice-admin-workspaces` `slice-bootstrap-m6` `slice-inspection-use-case` |
 | `LH-FA-14` | `slice-baseline-import` `slice-capture-pipeline` `slice-redaction-match-key` `slice-streaming-redaction` | `slice-replay-service` | `slice-handbuch-record-replay` `slice-test-integration` `slice-test-security` |
 | `LH-FA-15` | — | — | `slice-etag-versionen` `slice-if-match` |
 | `LH-FA-16` | — | — | `slice-batch-changesets` `slice-batch-parser` `slice-expand-ausfuehrung` `slice-expand-parser` |
@@ -126,14 +126,14 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `LH-QA-01` | — | — | `slice-lasttest` `slice-telemetry-einbau-gateway` `slice-telemetry-einbau-mock` `slice-telemetry-spans` |
 | `LH-QA-02` | `slice-clock-idgenerator` `slice-edm-ausdruecke` `slice-query-interpreter` `slice-redaction-match-key` `slice-streaming-redaction` | `slice-replay-service` | `slice-bootstrap-m2` `slice-bootstrap-m4` `slice-etag-versionen` `slice-expand-ausfuehrung` `slice-mock-abnahme` `slice-mock-schreiben` `slice-test-determinism` |
 | `LH-QA-03` | `slice-race-gate` `slice-session-beenden` `slice-session-use-case` `slice-session-wartung` | `slice-replay-service` | `slice-batch-changesets` `slice-dev-container-lauf` `slice-if-match` `slice-mock-abnahme` `slice-mock-schreiben` `slice-snapshot-use-case` |
-| `LH-QA-04` | `slice-audit-dienste` `slice-audit-log` `slice-capture-pipeline` `slice-redaction-match-key` `slice-streaming-redaction` `slice-telemetry-port` | — | `slice-admin-listener-token` `slice-admin-tls` `slice-bootstrap-m6` `slice-inspection-use-case` `slice-listener-tls` `slice-telemetry-einbau-gateway` `slice-telemetry-einbau-mock` `slice-telemetry-log` `slice-telemetry-spans` `slice-test-security` |
-| `LH-QA-05` | `slice-fehlermodell-konfiguration` `slice-handbuch-geruest` `slice-handbuch-meldungskatalog` `slice-odata-json-eingabe` `slice-odata-url-pfad` `slice-query-interpreter` `slice-telemetry-port` `slice-v2-payload-schreiben` `slice-v2-query` `slice-v2-query-filter` `slice-v4-schreiber-marker-text` | — | `slice-batch-parser` `slice-expand-parser` `slice-handbuch-abnahme` `slice-handbuch-record-replay` `slice-http-adapter` `slice-http-lebenszyklus` `slice-inspection-use-case` `slice-mock-lesen` `slice-mock-zuordnung` `slice-odata-url-filter` `slice-telemetry-einbau-gateway` `slice-telemetry-log` `slice-telemetry-spans` `slice-test-contract` |
+| `LH-QA-04` | `slice-audit-dienste` `slice-audit-log` `slice-audit-verdrahtung` `slice-capture-pipeline` `slice-redaction-match-key` `slice-streaming-redaction` `slice-telemetry-port` | — | `slice-admin-listener-token` `slice-admin-tls` `slice-bootstrap-m6` `slice-inspection-use-case` `slice-listener-tls` `slice-telemetry-einbau-gateway` `slice-telemetry-einbau-mock` `slice-telemetry-log` `slice-telemetry-spans` `slice-test-security` |
+| `LH-QA-05` | `slice-fehlermodell-konfiguration` `slice-handbuch-geruest` `slice-handbuch-meldungskatalog` `slice-mock-zuordnung` `slice-odata-json-eingabe` `slice-odata-url-pfad` `slice-query-interpreter` `slice-telemetry-port` `slice-v2-payload-schreiben` `slice-v2-query` `slice-v2-query-filter` `slice-v4-schreiber-marker-text` | — | `slice-batch-parser` `slice-expand-parser` `slice-handbuch-abnahme` `slice-handbuch-record-replay` `slice-http-adapter` `slice-http-lebenszyklus` `slice-inspection-use-case` `slice-mock-lesen` `slice-odata-url-filter` `slice-telemetry-einbau-gateway` `slice-telemetry-log` `slice-telemetry-spans` `slice-test-contract` |
 | `LH-QA-06` | `slice-gegenproben-build-test` `slice-groessenmarke-werkzeug` `slice-handbuch-geruest` `slice-mutationslauf-werkzeug` `slice-race-gate` | `slice-unsichtbare-zeichen` | `slice-abdeckung-deklaration` `slice-container-image` `slice-coverage-gate` `slice-dev-container-einlieferung` `slice-dev-container-geruest` `slice-dev-container-lauf` `slice-guide-groessen-gate` `slice-worktree-parallel` |
 | `LH-QA-07` | `slice-odata-codec-csdl` `slice-record-service` `slice-upstream-adapter` | — | `slice-http-adapter` `slice-protokolltreue` |
 | `LH-RB-01` | `slice-handbuch-geruest` `slice-handbuch-meldungskatalog` `slice-odata-codec-csdl` `slice-odata-codec-json` `slice-odata-json-eingabe` `slice-odata-json-schreiben` `slice-odata-url-pfad` | — | `slice-batch-parser` `slice-expand-parser` `slice-handbuch-record-replay` `slice-mock-abnahme` `slice-odata-url-filter` `slice-test-contract` `slice-v2-metadaten` `slice-v2-payload` `slice-v2-query` |
 | `LH-RB-02` | `slice-fehlermodell-konfiguration` `slice-upstream-adapter` `slice-upstream-tls` | — | `slice-admin-tls` `slice-bootstrap-m2` `slice-http-adapter` `slice-listener-tls` |
 | `LH-RB-03` | `slice-handbuch-geruest` | — | `slice-cli-adapter` `slice-container-image` `slice-dev-container-dokument` `slice-dev-container-einlieferung` `slice-dev-container-geruest` `slice-dev-container-lauf` `slice-dev-container-zugang` `slice-test-integration` |
-| `LH-RB-04` | `slice-audit-dienste` `slice-audit-log` `slice-session-use-case` `slice-session-wartung` | — | `slice-admin-listener-token` `slice-admin-sessions` `slice-dev-container-zugang` `slice-handbuch-record-replay` `slice-test-security` |
+| `LH-RB-04` | `slice-audit-dienste` `slice-audit-log` `slice-audit-verdrahtung` `slice-session-use-case` `slice-session-wartung` | — | `slice-admin-listener-token` `slice-admin-sessions` `slice-dev-container-zugang` `slice-handbuch-record-replay` `slice-test-security` |
 
 ## Teil B — SPEC-Nummer → Plan
 
@@ -210,14 +210,14 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `SPEC-067` | Tabellenzeile | ODR-E5006 / Ungültige Kodierung bei MATCH_INVALID_ENCODING=reject | - | `slice-record-service` `slice-redaction-match-key` | — | nein |
 | `SPEC-068` | Tabellenzeile | ODR-E6004 / Metadaten ungültig oder nicht unterstützt: eine der Bedi | - | `slice-baseline-import` `slice-odata-codec-csdl` `slice-odata-codec-json` `slice-odata-url-pfad` | `slice-admin-imports` | nein |
 | `SPEC-069` | Tabellenzeile | ODR-E6102 / import_id mit abweichendem Inhalt wiederverwendet | - | `slice-baseline-import` | `slice-admin-imports` | nein |
-| `SPEC-070` | Tabellenzeile | ODR-E7001 / Workspace unbekannt | - | `slice-workspace-use-case` | `slice-replay-service` `slice-admin-workspaces` `slice-mock-lesen` `slice-mock-zuordnung` | nein |
+| `SPEC-070` | Tabellenzeile | ODR-E7001 / Workspace unbekannt | - | `slice-mock-zuordnung` `slice-workspace-use-case` | `slice-replay-service` `slice-admin-workspaces` `slice-mock-lesen` | nein |
 | `SPEC-071` | Tabellenzeile | ODR-E7003 / Recording-Session unbekannt | - | `slice-record-service` | `slice-replay-service` `slice-admin-imports` `slice-admin-sessions` `slice-inspection-use-case` | nein |
 | `SPEC-072` | Tabellenzeile | ODR-E7004 / Session von einer Baseline referenziert, Löschen abgewies | - | `slice-session-use-case` `slice-session-wartung` | `slice-admin-sessions` | nein |
 | `SPEC-073` | Tabellenzeile | ODR-E7005 / Import unbekannt | - | — | `slice-admin-imports` | — |
 | `SPEC-074` | Tabellenzeile | ODR-E5007 / Strict-Replay: nächste erwartete Exchange hat anderen Mat | - | — | `slice-replay-service` | — |
 | `SPEC-075` | Tabellenzeile | MODE / mock | - | — | `slice-bootstrap-m3` `slice-bootstrap-m4` | — |
 | `SPEC-076` | Tabellenzeile | UPSTREAM_URL / keiner (Pflicht in record und bei Upstream-Fallback) | - | — | `slice-bootstrap-m4` | — |
-| `SPEC-077` | Tabellenzeile | DATA_DIR / data (relativ zum Arbeitsverzeichnis) | - | — | `slice-bootstrap-m6` `slice-container-image` | — |
+| `SPEC-077` | Tabellenzeile | DATA_DIR / data (relativ zum Arbeitsverzeichnis) | - | `slice-audit-verdrahtung` | `slice-bootstrap-m6` `slice-container-image` | — |
 | `SPEC-078` | Tabellenzeile | REPLAY_ASSIGNMENT / explicit | - | — | `slice-replay-service` | — |
 | `SPEC-079` | Tabellenzeile | HYBRID_REPLAY_FALLBACK / leer | - | — | `slice-bootstrap-m4` `slice-fallback-policy` `slice-hybrid-service` | — |
 | `SPEC-080` | Tabellenzeile | FALLBACK_WRITE_ALLOW / leer | - | — | `slice-bootstrap-m4` `slice-fallback-policy` `slice-hybrid-service` | — |
@@ -270,7 +270,7 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `SPEC-127` | Abschnitt | Baseline-Import: Vertrag von `ImportUseCase` | 18 | `slice-audit-dienste` `slice-audit-log` `slice-baseline-import` `slice-odata-url-pfad` `slice-workspace-use-case` | `slice-admin-imports` `slice-bootstrap-m2` `slice-expand-ausfuehrung` `slice-m2-referenzdienst` `slice-v2-bootstrap` `slice-v2-metadaten` `slice-v2-payload` | ja |
 | `SPEC-128` | Vertrag | Größenmarke (`make groessenmarke`) | - | `slice-groessenmarke-werkzeug` `slice-handbuch-geruest` `slice-handbuch-meldungskatalog` `slice-odata-url-pfad` `slice-telemetry-port` `slice-workspace-use-case` | `slice-unsichtbare-zeichen` `slice-abdeckung-deklaration` `slice-admin-imports` `slice-admin-listener-token` `slice-admin-sessions` `slice-admin-tls` `slice-admin-workspaces` `slice-audit-log` `slice-batch-changesets` `slice-batch-parser` `slice-bootstrap-m4` `slice-bootstrap-m6` `slice-container-image` `slice-coverage-gate` `slice-dev-container-dokument` `slice-dev-container-einlieferung` `slice-dev-container-geruest` `slice-dev-container-lauf` `slice-dev-container-zugang` `slice-etag-versionen` `slice-expand-ausfuehrung` `slice-expand-parser` `slice-fallback-policy` `slice-guide-groessen-gate` `slice-handbuch-abnahme` `slice-handbuch-record-replay` `slice-http-adapter` `slice-http-lebenszyklus` `slice-hybrid-service` `slice-if-match` `slice-inspection-use-case` `slice-lasttest` `slice-listener-tls` `slice-prefer-return` `slice-telemetry-einbau-gateway` `slice-telemetry-einbau-mock` `slice-telemetry-log` `slice-telemetry-spans` `slice-test-security` `slice-v2-bootstrap` `slice-v2-metadaten` `slice-v2-payload` `slice-v2-query` `slice-worktree-parallel` | ja |
 | `SPEC-129` | Abschnitt | Workspaces verwalten: Vertrag von `WorkspaceUseCase` | 15 | `slice-audit-dienste` `slice-handbuch-geruest` `slice-odata-url-pfad` `slice-workspace-use-case` | `slice-replay-service` `slice-http-adapter` | ja |
-| `SPEC-139` | Abschnitt | Start und Verdrahtung: Vertrag des Composition Root | 10 | — | `slice-bootstrap-m2` | nein |
+| `SPEC-139` | Abschnitt | Start und Verdrahtung: Vertrag des Composition Root | 10 | `slice-audit-verdrahtung` | `slice-bootstrap-m2` | nein |
 | `SPEC-160` | Abschnitt | OData-URL lesen: Vertrag von `URLCodec` | 9 | `slice-odata-url-pfad` | — | ja |
 | `SPEC-161` | Abschnitt | OData-URL lesen: Ressourcenpfad, Schlüssel und Literale | 8 | `slice-odata-url-pfad` | — | ja |
 | `SPEC-162` | Abschnitt | OData-URL lesen: Zerlegung der Query und Systemoptionen | 9 | `slice-odata-url-pfad` | — | ja |
