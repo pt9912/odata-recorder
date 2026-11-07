@@ -1,0 +1,2 @@
+**Vorgang:** slice-sqlite-interrupt-transaktion
+**Fund:** Zwei Abweichungen. Der Architect hatte im Rollen-Typ kein `Edit`-Werkzeug und baute die Plan-Datei durch Spleißen (`head`, `tail`, `cat`); der Implementer nutzte einmal `git stash` und `git stash pop` im Arbeitsbaum und überschrieb dabei eine fremde Datei im Scratchpad. Die erste Form ist eine Lücke der Werkzeugliste des Rollen-Typs, keine Verletzung durch die Rolle (gleiche Form wie in der Evidenz `slice-snapshot-use-case`). Beleg: Plan §7, Eintrag 4.
