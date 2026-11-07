@@ -386,6 +386,20 @@ func TestSpanCtx(t *testing.T) {
 	if recs[orakelID(3)].ParentID != orakelID(1) || recs[orakelID(4)].ParentID != orakelID(2) || recs[orakelID(1)].ParentID != "" {
 		t.Errorf("Geschwister teilen einen Span: %+v", recs)
 	}
+	// Geschwister unter einem Eltern-Span teilen weder Attribute noch Zustand (F5)
+	w := neuUmgebung(t, slog.LevelInfo, 0)
+	ec, eltern := w.a.StartSpan(wert, support.SpanName(tab[0].name))
+	_, g1 := w.a.StartSpan(ec, support.SpanName(tab[1].name), gueltigSpan(tab[1].pflicht[0]))
+	_, g2 := w.a.StartSpan(ec, support.SpanName(tab[1].name), anderesSpan(tab[1].pflicht[0]))
+	g1.End()
+	g2.End()
+	eltern.End()
+	recs = nachID(w.a.Snapshot())
+	if !attrsGleich(recs[orakelID(2)].Attrs, []support.Attr{gueltigSpan(tab[1].pflicht[0])}) ||
+		!attrsGleich(recs[orakelID(3)].Attrs, []support.Attr{anderesSpan(tab[1].pflicht[0])}) ||
+		recs[orakelID(2)].ParentID != orakelID(1) || recs[orakelID(3)].ParentID != orakelID(1) {
+		t.Errorf("Geschwister unter einem Eltern-Span: %+v", recs)
+	}
 }
 
 // S05 (M7): ParentID ist die ID des Spans desselben Adapters im ctx, sonst leer; für jeden Namen und

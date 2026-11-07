@@ -35,6 +35,14 @@ func masseLauf(t *testing.T, pruefe func(s support.Snapshot) string) umgebung {
 	t.Helper()
 	tab := spanTabelle(t)
 	u := neuUmgebung(t, slog.LevelInfo, 65536)
+	// die Uhr liefert bei jeder Ablesung eine spätere Zeit: die Dauern sind verschieden und nicht 0,
+	// so dass Sum in jedem Stand etwas zu prüfen hat
+	basis := time.Date(2026, 11, 7, 9, 0, 0, 0, time.UTC)
+	zeiten := make([]time.Time, 40000)
+	for i := range zeiten {
+		zeiten[i] = basis.Add(time.Duration(i) * 100 * time.Microsecond)
+	}
+	u.a = neuMitMax(t, u.senke, &folgeUhr{zeiten: zeiten}, slog.LevelInfo, 65536)
 	var anker []context.Context
 	for range masseSchreiber {
 		anker = append(anker, offenerSpanCtx(u.a, tab[0].name))
@@ -89,17 +97,19 @@ func masseLauf(t *testing.T, pruefe func(s support.Snapshot) string) umgebung {
 // verteilungKaputt prüft SPEC-230 Nr. 9 an einem Stand: Count gleich Summe von Counts und die Zahl der
 // Einträge je Name gleich Count (der Ring fasst alle Enden); es liefert die Abweichung oder "".
 func verteilungKaputt(tab []spanZeile, s support.Snapshot) string {
-	imRing := map[string]uint64{}
+	imRing, dauerImRing := map[string]uint64{}, map[string]time.Duration{}
 	for _, r := range s.Spans {
 		imRing[string(r.Name)]++
+		dauerImRing[string(r.Name)] += r.Duration
 	}
 	for _, z := range tab {
 		v, summe := s.Durations[support.SpanName(z.name)], uint64(0)
 		for _, c := range v.Counts {
 			summe += c
 		}
-		if v.Count != summe || imRing[z.name] != v.Count {
-			return fmt.Sprintf("%s: Count %d, Summe der Counts %d, Einträge im Ring %d", z.name, v.Count, summe, imRing[z.name])
+		if v.Count != summe || imRing[z.name] != v.Count || v.Sum != dauerImRing[z.name] {
+			return fmt.Sprintf("%s: Count %d, Summe der Counts %d, Einträge im Ring %d, Sum %v, Dauern im Ring %v",
+				z.name, v.Count, summe, imRing[z.name], v.Sum, dauerImRing[z.name])
 		}
 	}
 	return ""
@@ -324,7 +334,7 @@ func TestEndGleichzeitig(t *testing.T) {
 		}
 	})
 	t.Run("Masse", func(t *testing.T) {
-		const enden, setzer, spans = 16, 8, 50
+		const enden, setzer, spans = 16, 8, 400
 		u := neuUmgebung(t, slog.LevelError+1, 0)
 		for n := 1; n <= spans; n++ {
 			z := tab[n%len(tab)]

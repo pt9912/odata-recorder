@@ -181,3 +181,18 @@ func startEnde(a *telemetry.Adapter, name string, attrs ...support.Attr) {
 
 // attrsGleich vergleicht zwei Listen von Attributen auf Länge und Elemente; nil und leer sind gleich.
 func attrsGleich(x, y []support.Attr) bool { return slices.Equal(x, y) }
+
+// permutationen liefert alle Anordnungen von keys.
+func permutationen(keys []string) [][]string {
+	if len(keys) <= 1 {
+		return [][]string{slices.Clone(keys)}
+	}
+	var out [][]string
+	for i := range keys {
+		rest := slices.Concat(keys[:i:i], keys[i+1:])
+		for _, p := range permutationen(rest) {
+			out = append(out, append([]string{keys[i]}, p...))
+		}
+	}
+	return out
+}

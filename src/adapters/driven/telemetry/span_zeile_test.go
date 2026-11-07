@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -343,5 +344,70 @@ func TestSpanZeileGesamtspan(t *testing.T) {
 		eltern["odata.gateway.request"] != "" || dauern["odata.gateway.request"] != "10.000" ||
 		dauern["odata.replay.match"] != "3.000" || dauern["odata.mock.query"] != "4.000" {
 		t.Errorf("Gesamtspan nicht lesbar: IDs %v, Eltern %v, Dauern %v", ids, eltern, dauern)
+	}
+}
+
+// S12, S21 (F1): die Attribute stehen in Eintrag und Zeile in der Reihenfolge der Tabelle in §5, nicht in
+// der Folge des Setzens. Menge: jede Anordnung der Pflicht-Attribute jedes Spans (3! + 4 × 2! = 14, aus
+// der Länge von Pflicht gezählt) × 3 Wege des Setzens (alle in StartSpan, alle in einem Set, je eines in
+// einem Set) = 42 Läufe; je Span ein Adapter, so dass spätere Läufe nicht der erste Span sind. Orakel:
+// der Eintrag im Ring, die Folge der Schlüssel der Zeile und die Lage der Schlüssel in den Rohbytes.
+func TestAttributFolge(t *testing.T) {
+	laeufe, erwartet := 0, 0
+	for _, z := range spanTabelle(t) {
+		fak := 1
+		for i := 2; i <= len(z.pflicht); i++ {
+			fak *= i
+		}
+		perms := permutationen(z.pflicht)
+		if len(perms) != fak {
+			t.Fatalf("%s: %d Anordnungen, erwartet %d", z.name, len(perms), fak)
+		}
+		erwartet += 3 * fak
+		senke := &FakeSenke{}
+		a := neuMitMax(t, senke, festeUhr(), slog.LevelInfo, 0)
+		soll := werteVon(z.pflicht, gueltigSpan)
+		folge := append([]string{"timestamp", "level", "msg", "ereignis", "span_id", "duration_ms"}, z.pflicht...)
+		for _, p := range perms {
+			for _, weg := range []string{"StartSpan", "Set", "einzeln"} {
+				laeufe++
+				attrs := werteVon(p, gueltigSpan)
+				var sp support.Span
+				if weg == "StartSpan" {
+					_, sp = a.StartSpan(context.Background(), support.SpanName(z.name), attrs...)
+				} else {
+					_, sp = a.StartSpan(context.Background(), support.SpanName(z.name))
+					if weg == "Set" {
+						sp.Set(attrs...)
+					} else {
+						for _, at := range attrs {
+							sp.Set(at)
+						}
+					}
+				}
+				sp.End()
+				wo := z.name + " " + weg + " " + strings.Join(p, ",")
+				spans := a.Snapshot().Spans
+				if r := spans[len(spans)-1]; !attrsGleich(r.Attrs, soll) {
+					t.Errorf("%s: Eintrag %+v, erwartet %+v", wo, r.Attrs, soll)
+				}
+				zeilen := senke.zeilen()
+				zeile := zeilen[len(zeilen)-1]
+				if g := lies(t, zeile); !slices.Equal(g.schluessel, folge) {
+					t.Errorf("%s: Felder %v, erwartet %v", wo, g.schluessel, folge)
+				}
+				letzte := -1
+				for _, k := range z.pflicht {
+					i := bytes.Index(zeile, []byte(`"`+k+`":`))
+					if i <= letzte {
+						t.Errorf("%s: %q steht in den Rohbytes nicht hinter seinem Vorgänger: %q", wo, k, zeile)
+					}
+					letzte = i
+				}
+			}
+		}
+	}
+	if laeufe != erwartet || laeufe != 42 {
+		t.Errorf("%d Läufe, erwartet %d und 42", laeufe, erwartet)
 	}
 }
