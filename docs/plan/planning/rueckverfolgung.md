@@ -17,8 +17,8 @@
 | Kriterien mit Szenario als Vorschlag | 3 |
 | Kriterien ohne E2E-Szenario | 0 |
 | Kennungen `SPEC-NNN` (Spezifikation und Verträge der Werkzeuge) | 137 (42 Abschnitte mit 315 nummerierten Zusagen, 82 Tabellenzeilen, 13 Verträge der Werkzeuge) |
-| davon gebaut (ein Plan in `done/` nennt sie) | 98 |
-| davon geplant (nur Pläne in `open/` oder `in-progress/` nennen sie) | 34 |
+| davon gebaut (ein Plan in `done/` nennt sie) | 99 |
+| davon geplant (nur Pläne in `open/` oder `in-progress/` nennen sie) | 33 |
 | davon ohne Plan, der sie nennt | 5 (alle fünf sind gebaut oder vorhanden, siehe unten) |
 | davon mit Fänger-Zeile in einem Plan in `done/` | 34 |
 | Verträge der Werkzeuge mit Plan | 11 von 13 |
@@ -110,12 +110,12 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `LH-FA-03` | `slice-baseline-import` `slice-session-beenden` `slice-session-use-case` `slice-session-wartung` | — | `slice-test-integration` |
 | `LH-FA-04` | `slice-fehlermodell-konfiguration` `slice-workspace-use-case` | `slice-replay-service` | `slice-bootstrap-m2` `slice-m2-referenzdienst` `slice-handbuch-record-replay` `slice-http-adapter` `slice-hybrid-service` `slice-test-determinism` `slice-test-integration` |
 | `LH-FA-05` | `slice-redaction-match-key` `slice-streaming-redaction` | `slice-replay-service` | `slice-handbuch-record-replay` `slice-test-integration` |
-| `LH-FA-06` | `slice-mock-zuordnung` `slice-odata-codec-csdl` | — | `slice-bootstrap-m3` `slice-mock-lesen` |
+| `LH-FA-06` | `slice-mock-lesen` `slice-mock-zuordnung` `slice-odata-codec-csdl` | — | `slice-bootstrap-m3` |
 | `LH-FA-07` | `slice-odata-json-eingabe` `slice-odata-json-schreiben` `slice-odata-url-pfad` `slice-v4-schreiber-marker-text` | — | `slice-batch-changesets` `slice-bootstrap-m3` `slice-etag-versionen` `slice-if-match` `slice-mock-schreiben` `slice-prefer-return` `slice-telemetry-einbau-mock` |
-| `LH-FA-08` | `slice-edm-ausdruecke` `slice-odata-json-schreiben` `slice-odata-url-pfad` `slice-query-interpreter` | — | `slice-bootstrap-m3` `slice-mock-abnahme` `slice-mock-lesen` `slice-odata-url-filter` |
-| `LH-FA-09` | `slice-mock-zuordnung` `slice-workspace-use-case` | `slice-replay-service` | `slice-admin-workspaces` `slice-bootstrap-m3` `slice-bootstrap-m6` `slice-mock-lesen` `slice-mock-schreiben` `slice-snapshot-use-case` |
+| `LH-FA-08` | `slice-edm-ausdruecke` `slice-mock-lesen` `slice-odata-json-schreiben` `slice-odata-url-pfad` `slice-query-interpreter` | — | `slice-bootstrap-m3` `slice-mock-abnahme` `slice-odata-url-filter` |
+| `LH-FA-09` | `slice-mock-lesen` `slice-mock-zuordnung` `slice-workspace-use-case` | `slice-replay-service` | `slice-admin-workspaces` `slice-bootstrap-m3` `slice-bootstrap-m6` `slice-mock-schreiben` `slice-snapshot-use-case` |
 | `LH-FA-10` | — | — | `slice-admin-workspaces` `slice-bootstrap-m3` `slice-bootstrap-m6` `slice-snapshot-use-case` |
-| `LH-FA-11` | `slice-baseline-import` `slice-inspection-coverage-diagnose` `slice-odata-codec-json` `slice-query-interpreter` | — | `slice-admin-sessions` `slice-bootstrap-m3` `slice-expand-ausfuehrung` `slice-hybrid-service` `slice-mock-lesen` |
+| `LH-FA-11` | `slice-baseline-import` `slice-inspection-coverage-diagnose` `slice-mock-lesen` `slice-odata-codec-json` `slice-query-interpreter` | — | `slice-admin-sessions` `slice-bootstrap-m3` `slice-expand-ausfuehrung` `slice-hybrid-service` |
 | `LH-FA-12` | `slice-fehlermodell-konfiguration` | — | `slice-bootstrap-m2` `slice-bootstrap-m3` `slice-bootstrap-m4` `slice-fallback-policy` `slice-hybrid-service` `slice-v2-bootstrap` |
 | `LH-FA-13` | `slice-audit-dienste` `slice-audit-log` `slice-audit-verdrahtung` `slice-clock-idgenerator` `slice-inspection-coverage-diagnose` `slice-inspection-use-case` `slice-record-service` `slice-session-beenden` `slice-session-use-case` `slice-session-wartung` | — | `slice-admin-imports` `slice-admin-listener-token` `slice-admin-sessions` `slice-admin-tls` `slice-admin-workspaces` `slice-bootstrap-m6` |
 | `LH-FA-14` | `slice-baseline-import` `slice-capture-pipeline` `slice-redaction-match-key` `slice-streaming-redaction` | `slice-replay-service` | `slice-handbuch-record-replay` `slice-test-integration` `slice-test-security` |
@@ -127,7 +127,7 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `LH-QA-02` | `slice-clock-idgenerator` `slice-edm-ausdruecke` `slice-query-interpreter` `slice-redaction-match-key` `slice-streaming-redaction` | `slice-replay-service` | `slice-bootstrap-m2` `slice-bootstrap-m4` `slice-etag-versionen` `slice-expand-ausfuehrung` `slice-mock-abnahme` `slice-mock-schreiben` `slice-test-determinism` |
 | `LH-QA-03` | `slice-race-gate` `slice-session-beenden` `slice-session-use-case` `slice-session-wartung` | `slice-replay-service` | `slice-batch-changesets` `slice-dev-container-lauf` `slice-if-match` `slice-mock-abnahme` `slice-mock-schreiben` `slice-snapshot-use-case` |
 | `LH-QA-04` | `slice-audit-dienste` `slice-audit-log` `slice-audit-verdrahtung` `slice-capture-pipeline` `slice-inspection-coverage-diagnose` `slice-inspection-use-case` `slice-redaction-match-key` `slice-streaming-redaction` `slice-telemetry-handler` `slice-telemetry-log` `slice-telemetry-port` | — | `slice-admin-listener-token` `slice-admin-tls` `slice-bootstrap-m6` `slice-listener-tls` `slice-telemetry-einbau-gateway` `slice-telemetry-einbau-mock` `slice-telemetry-spans` `slice-test-security` |
-| `LH-QA-05` | `slice-fehlermodell-konfiguration` `slice-handbuch-geruest` `slice-handbuch-meldungskatalog` `slice-inspection-coverage-diagnose` `slice-inspection-use-case` `slice-mock-zuordnung` `slice-odata-json-eingabe` `slice-odata-url-pfad` `slice-query-interpreter` `slice-telemetry-handler` `slice-telemetry-log` `slice-telemetry-port` `slice-v2-payload-schreiben` `slice-v2-query` `slice-v2-query-filter` `slice-v4-schreiber-marker-text` | — | `slice-batch-parser` `slice-expand-parser` `slice-handbuch-abnahme` `slice-handbuch-record-replay` `slice-http-adapter` `slice-http-lebenszyklus` `slice-mock-lesen` `slice-odata-url-filter` `slice-telemetry-einbau-gateway` `slice-telemetry-spans` `slice-test-contract` |
+| `LH-QA-05` | `slice-fehlermodell-konfiguration` `slice-handbuch-geruest` `slice-handbuch-meldungskatalog` `slice-inspection-coverage-diagnose` `slice-inspection-use-case` `slice-mock-lesen` `slice-mock-zuordnung` `slice-odata-json-eingabe` `slice-odata-url-pfad` `slice-query-interpreter` `slice-telemetry-handler` `slice-telemetry-log` `slice-telemetry-port` `slice-v2-payload-schreiben` `slice-v2-query-filter` `slice-v2-query` `slice-v4-schreiber-marker-text` | — | `slice-batch-parser` `slice-expand-parser` `slice-handbuch-abnahme` `slice-handbuch-record-replay` `slice-http-adapter` `slice-http-lebenszyklus` `slice-odata-url-filter` `slice-telemetry-einbau-gateway` `slice-telemetry-spans` `slice-test-contract` |
 | `LH-QA-06` | `slice-gegenproben-build-test` `slice-groessenmarke-werkzeug` `slice-handbuch-geruest` `slice-mutationslauf-werkzeug` `slice-race-gate` | `slice-unsichtbare-zeichen` | `slice-abdeckung-deklaration` `slice-container-image` `slice-coverage-gate` `slice-dev-container-einlieferung` `slice-dev-container-geruest` `slice-dev-container-lauf` `slice-guide-groessen-gate` `slice-worktree-parallel` |
 | `LH-QA-07` | `slice-odata-codec-csdl` `slice-record-service` `slice-upstream-adapter` | — | `slice-http-adapter` `slice-protokolltreue` |
 | `LH-RB-01` | `slice-handbuch-geruest` `slice-handbuch-meldungskatalog` `slice-odata-codec-csdl` `slice-odata-codec-json` `slice-odata-json-eingabe` `slice-odata-json-schreiben` `slice-odata-url-pfad` | — | `slice-batch-parser` `slice-expand-parser` `slice-handbuch-record-replay` `slice-mock-abnahme` `slice-odata-url-filter` `slice-test-contract` `slice-v2-metadaten` `slice-v2-payload` `slice-v2-query` |
@@ -151,7 +151,7 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `SPEC-008` | Tabellenzeile | ADMIN_LISTEN / 127.0.0.1:8081 | - | — | `slice-admin-listener-token` `slice-admin-tls` `slice-bootstrap-m6` | — |
 | `SPEC-009` | Tabellenzeile | REPLAY_STRATEGY / sequential | - | — | `slice-replay-service` | — |
 | `SPEC-010` | Tabellenzeile | HYBRID_FALLBACK / disabled | - | — | `slice-bootstrap-m4` `slice-fallback-policy` `slice-hybrid-service` | — |
-| `SPEC-011` | Tabellenzeile | STRICT_COVERAGE / true | - | — | `slice-bootstrap-m3` `slice-bootstrap-m4` `slice-mock-lesen` | — |
+| `SPEC-011` | Tabellenzeile | STRICT_COVERAGE / true | - | `slice-mock-lesen` | `slice-bootstrap-m3` `slice-bootstrap-m4` | — |
 | `SPEC-012` | Tabellenzeile | UPSTREAM_TIMEOUT / 30s | - | `slice-record-service` `slice-upstream-adapter` | — | nein |
 | `SPEC-013` | Tabellenzeile | MAX_CAPTURE_BODY / 8 MiB | - | `slice-baseline-import` `slice-capture-pipeline` `slice-odata-codec-csdl` `slice-odata-codec-json` `slice-streaming-redaction` | — | nein |
 | `SPEC-014` | Tabellenzeile | SQLITE_BUSY_TIMEOUT / 5000ms | - | — | — | — |
@@ -164,12 +164,12 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `SPEC-021` | Tabellenzeile | ODR-E5002 / Replay erschöpft | - | — | `slice-replay-service` `slice-fallback-policy` `slice-hybrid-service` | — |
 | `SPEC-022` | Tabellenzeile | ODR-E6001 / Nicht unterstützte OData-Query oder lesender Zugriff auf  | - | `slice-odata-url-pfad` `slice-query-interpreter` | `slice-batch-changesets` `slice-batch-parser` `slice-expand-parser` `slice-fallback-policy` `slice-odata-url-filter` `slice-v2-query` | nein |
 | `SPEC-023` | Tabellenzeile | ODR-E6002 / Nicht unterstützte Mutation oder schreibender Zugriff auf | - | `slice-odata-json-eingabe` | `slice-fallback-policy` `slice-mock-schreiben` | — |
-| `SPEC-024` | Tabellenzeile | ODR-E6003 / Unvollständige Coverage (Collection, partielle Entity, un | - | `slice-edm-ausdruecke` `slice-query-interpreter` | `slice-expand-ausfuehrung` `slice-fallback-policy` `slice-hybrid-service` `slice-mock-lesen` `slice-mock-schreiben` | — |
+| `SPEC-024` | Tabellenzeile | ODR-E6003 / Unvollständige Coverage (Collection, partielle Entity, un | - | `slice-edm-ausdruecke` `slice-mock-lesen` `slice-query-interpreter` | `slice-expand-ausfuehrung` `slice-fallback-policy` `slice-hybrid-service` `slice-mock-schreiben` | — |
 | `SPEC-025` | Tabellenzeile | ODR-E7002 / Snapshot unbekannt | - | `slice-workspace-use-case` | `slice-admin-workspaces` `slice-snapshot-use-case` | nein |
 | `SPEC-026` | Tabellenzeile | odata.gateway.request / http.request.method, http.response.status_code | - | `slice-telemetry-port` | `slice-lasttest` `slice-telemetry-einbau-gateway` `slice-telemetry-einbau-mock` `slice-telemetry-spans` | nein |
 | `SPEC-027` | Tabellenzeile | odata.record.capture / recorder.session_id, recorder.capture_status | - | `slice-record-service` | `slice-telemetry-einbau-gateway` | nein |
 | `SPEC-028` | Tabellenzeile | odata.replay.match / recorder.match_strategy, recorder.match_result | - | — | `slice-lasttest` `slice-telemetry-einbau-gateway` `slice-telemetry-einbau-mock` | — |
-| `SPEC-029` | Tabellenzeile | odata.mock.query / recorder.entity_set, recorder.coverage_status | - | `slice-telemetry-port` | `slice-lasttest` `slice-mock-lesen` `slice-telemetry-einbau-gateway` `slice-telemetry-einbau-mock` | nein |
+| `SPEC-029` | Tabellenzeile | odata.mock.query / recorder.entity_set, recorder.coverage_status | - | `slice-mock-lesen` `slice-telemetry-port` | `slice-lasttest` `slice-telemetry-einbau-gateway` `slice-telemetry-einbau-mock` | nein |
 | `SPEC-030` | Tabellenzeile | odata.workspace.mutation / recorder.workspace_id, recorder.mutation_ty | - | `slice-telemetry-port` | `slice-telemetry-einbau-gateway` `slice-telemetry-einbau-mock` `slice-telemetry-spans` | nein |
 | `SPEC-031` | Tabellenzeile | OData Protocol / V4.0 | - | `slice-odata-codec-json` | — | nein |
 | `SPEC-032` | Tabellenzeile | OData CSDL / V4.0 XML | - | `slice-odata-codec-csdl` | — | nein |
@@ -184,7 +184,7 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `SPEC-041` | Vertrag | Security-Tests (`make test-security`) | - | — | `slice-test-security` | — |
 | `SPEC-042` | Vertrag | Contract-Tests (`make test-contract`) | - | — | `slice-test-contract` | — |
 | `SPEC-043` | Abschnitt | Import- und Provenienz-Schema | 0 | `slice-baseline-import` `slice-inspection-coverage-diagnose` `slice-odata-codec-csdl` `slice-session-wartung` `slice-workspace-use-case` | — | nein |
-| `SPEC-044` | Abschnitt | Baseline-Coverage und Entity-Vollständigkeit | 0 | `slice-baseline-import` `slice-inspection-coverage-diagnose` `slice-odata-codec-json` `slice-odata-json-eingabe` `slice-query-interpreter` `slice-workspace-use-case` | `slice-expand-ausfuehrung` `slice-mock-lesen` `slice-mock-schreiben` `slice-snapshot-use-case` `slice-telemetry-einbau-mock` | nein |
+| `SPEC-044` | Abschnitt | Baseline-Coverage und Entity-Vollständigkeit | 0 | `slice-baseline-import` `slice-inspection-coverage-diagnose` `slice-mock-lesen` `slice-odata-codec-json` `slice-odata-json-eingabe` `slice-query-interpreter` `slice-workspace-use-case` | `slice-expand-ausfuehrung` `slice-mock-schreiben` `slice-snapshot-use-case` `slice-telemetry-einbau-mock` | nein |
 | `SPEC-045` | Abschnitt | Capture-/Replay-Fähigkeitsmatrix | 0 | `slice-capture-pipeline` `slice-record-service` `slice-redaction-match-key` `slice-streaming-redaction` | `slice-replay-service` `slice-bootstrap-m2` `slice-m2-referenzdienst` `slice-handbuch-record-replay` `slice-test-integration` | nein |
 | `SPEC-046` | Abschnitt | Sicheres Streaming-Capture | 7 | `slice-capture-pipeline` `slice-record-service` `slice-redaction-match-key` `slice-streaming-redaction` | `slice-test-security` | nein |
 | `SPEC-047` | Abschnitt | Import-API-Vertrag | 0 | `slice-baseline-import` `slice-odata-codec-csdl` | `slice-admin-imports` | nein |
@@ -210,7 +210,7 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `SPEC-067` | Tabellenzeile | ODR-E5006 / Ungültige Kodierung bei MATCH_INVALID_ENCODING=reject | - | `slice-record-service` `slice-redaction-match-key` | — | nein |
 | `SPEC-068` | Tabellenzeile | ODR-E6004 / Metadaten ungültig oder nicht unterstützt: eine der Bedi | - | `slice-baseline-import` `slice-odata-codec-csdl` `slice-odata-codec-json` `slice-odata-url-pfad` | `slice-admin-imports` | nein |
 | `SPEC-069` | Tabellenzeile | ODR-E6102 / import_id mit abweichendem Inhalt wiederverwendet | - | `slice-baseline-import` | `slice-admin-imports` | nein |
-| `SPEC-070` | Tabellenzeile | ODR-E7001 / Workspace unbekannt | - | `slice-mock-zuordnung` `slice-workspace-use-case` | `slice-replay-service` `slice-admin-workspaces` `slice-mock-lesen` | nein |
+| `SPEC-070` | Tabellenzeile | ODR-E7001 / Workspace unbekannt | - | `slice-mock-lesen` `slice-mock-zuordnung` `slice-workspace-use-case` | `slice-replay-service` `slice-admin-workspaces` | nein |
 | `SPEC-071` | Tabellenzeile | ODR-E7003 / Recording-Session unbekannt | - | `slice-inspection-coverage-diagnose` `slice-inspection-use-case` `slice-record-service` | `slice-replay-service` `slice-admin-imports` `slice-admin-sessions` | nein |
 | `SPEC-072` | Tabellenzeile | ODR-E7004 / Session von einer Baseline referenziert, Löschen abgewies | - | `slice-session-use-case` `slice-session-wartung` | `slice-admin-sessions` | nein |
 | `SPEC-073` | Tabellenzeile | ODR-E7005 / Import unbekannt | - | — | `slice-admin-imports` | — |
