@@ -294,30 +294,37 @@ func TestDarstellungKopf(t *testing.T) {
 // PublicBaseURL), nie ein Header; Root 3 × PublicBaseURL 2 × Header 3 (keiner, Host, X-Forwarded-Host).
 func TestWurzel(t *testing.T) {
 	n := 0
-	for _, root := range []string{"/", "/svc", "/a/b"} {
-		for _, basis := range []string{"http://recorder.test", "https://anders.test:8443"} {
-			for _, h := range []string{"", "Host", "X-Forwarded-Host"} {
-				n++
-				u := leseUmg(t)
-				u.k.Dienste = []mock.Dienst{{ID: dienstID, Root: root}}
-				u.k.PublicBaseURL = basis
-				u.menge(model.Optionen{})
-				a := anfrage("GET", strings.TrimSuffix(root, "/")+"/x")
-				if h != "" {
-					a.Header[h] = []string{"evil.example"}
-				}
-				if _, err := u.rufe(a); err != nil {
-					t.Fatal(err)
-				}
-				soll := basis + strings.TrimSuffix(root, "/")
-				if got := u.letzteCollection().Wurzel; got != soll {
-					t.Errorf("Root %q, Basis %q, Header %q: Wurzel %q, erwartet %q", root, basis, h, got, soll)
+	for _, art := range []model.RessourcenArt{model.RessourceMenge, model.RessourceEntity} {
+		for _, root := range []string{"/", "/svc", "/a/b"} {
+			for _, basis := range []string{"http://recorder.test", "https://anders.test:8443"} {
+				for _, h := range []string{"", "Host", "X-Forwarded-Host"} {
+					n++
+					u := leseUmg(t)
+					u.k.Dienste = []mock.Dienst{{ID: dienstID, Root: root}}
+					u.k.PublicBaseURL = basis
+					u.standard(art, "1")
+					a := anfrage("GET", strings.TrimSuffix(root, "/")+"/x")
+					if h != "" {
+						a.Header[h] = []string{"evil.example"}
+					}
+					if _, err := u.rufe(a); err != nil {
+						t.Fatal(err)
+					}
+					soll := basis + strings.TrimSuffix(root, "/")
+					got := u.letzteEntity
+					if art == model.RessourceMenge {
+						if w := u.letzteCollection().Wurzel; w != soll {
+							t.Errorf("Collection, Root %q, Basis %q, Header %q: Wurzel %q, erwartet %q", root, basis, h, w, soll)
+						}
+					} else if w := got().Wurzel; w != soll {
+						t.Errorf("Entity, Root %q, Basis %q, Header %q: Wurzel %q, erwartet %q", root, basis, h, w, soll)
+					}
 				}
 			}
 		}
 	}
-	if n != 18 {
-		t.Errorf("%d Läufe, erwartet 18", n)
+	if n != 36 {
+		t.Errorf("%d Läufe, erwartet 36", n)
 	}
 }
 

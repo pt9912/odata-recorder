@@ -57,7 +57,7 @@ func zweigeM19() []zweig {
 	}
 }
 
-// zweigeRest sind 29 weitere Requests, die die übrigen Zweige des Lesepfads im Lauf der Gleichzeitigkeit erreichen (Abdeckungsprofil
+// zweigeRest sind 30 weitere Requests (darunter eines auf ein Set ohne Eintrag der Coverage, das `unknown` ergibt), die die übrigen Zweige des Lesepfads im Lauf der Gleichzeitigkeit erreichen (Abdeckungsprofil
 // unter dem Detektor): Payloads der Einträge 101 bis 117, Lookups ohne Treffer, Tombstone, Auswahl, Optionen und leere Mengen.
 func zweigeRest() []zweig {
 	c := model.CoverageComplete
@@ -69,7 +69,7 @@ func zweigeRest() []zweig {
 		r = append(r, zweig{"Lookup ohne Treffer " + string(z), "svc", z, "GET", false, "e/99"}, zweig{"leere Menge " + string(z), "svc", z, "GET", false, "c-leer"})
 	}
 	return append(r,
-		zweig{"Tombstone", "svc", c, "GET", false, "e/7"}, zweig{"Auswahl alle", "svc", c, "GET", false, "e/1/alle"},
+		zweig{"Coverage ohne Eintrag", "svc", c, "GET", false, "c-ohne"}, zweig{"Tombstone", "svc", c, "GET", false, "e/7"}, zweig{"Auswahl alle", "svc", c, "GET", false, "e/1/alle"},
 		zweig{"Auswahl Namen", "svc", c, "GET", false, "e/1/namen"}, zweig{"nicht vollständig", "svc", c, "GET", false, "e/121"},
 		zweig{"Optionen", "svc", c, "GET", false, "c-opt"}, zweig{"Auswahl alle Collection", "svc", c, "GET", false, "c-alle"})
 }
@@ -185,6 +185,8 @@ func urlGleichzeitig(pfad, _ string) (model.ODataURL, error) {
 			OrderBy: []model.Sortierung{{Name: "Name", Absteigend: true}, {Name: "Id"}}, Top: model.ZahlOption{Gesetzt: true, Wert: 2},
 			Skip: model.ZahlOption{Gesetzt: true}, Count: model.WahrOption{Gesetzt: true, Wert: true}, Select: &model.SelectOption{Namen: []string{"Id", "Name"}},
 		})
+	case "c-ohne":
+		return r(model.RessourceMenge, "Bunt", model.Optionen{})
 	case "c-pairs":
 		return r(model.RessourceMenge, "Pairs", model.Optionen{})
 	}
