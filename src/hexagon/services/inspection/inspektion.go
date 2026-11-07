@@ -37,8 +37,8 @@ type Inspektion struct {
 	k Konfig
 }
 
-// Erlaubt liefert die Schlüssel der Einstellungen, die die Diagnose zeigt, in der Folge von
-// SPEC-236 Nr. 7; jeder andere Schlüssel wird verworfen. Jeder Aufruf liefert einen frischen Slice.
+// Erlaubt liefert die Schlüssel von SPEC-236 Nr. 7; jeder andere Schlüssel wird verworfen.
+// Jeder Aufruf liefert einen frischen Slice.
 func Erlaubt() []string {
 	return []string{
 		"REPLAY_STRATEGY", "REPLAY_ASSIGNMENT", "REPLAY_REDACTED_BODIES", "MATCH_VARY_HEADERS",
