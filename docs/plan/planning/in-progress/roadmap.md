@@ -16,6 +16,8 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
+Nichts in Arbeit.
+
 - ohne Welle: [slice-mutationslauf-werkzeug](../done/slice-mutationslauf-werkzeug.md) (in `done/`, Linie C, nicht produktiv; Vertrag [SPEC-210](../../../../harness/vertraege/SPEC-210-mutationslauf.md); beim User offen: Cache über Läufe, Aufruf durch die Rollen, Gate für das Modul, Formelkonflikt, siehe §7 des Plans)
 - ohne Welle: [slice-mutationslauf-modulwurzel](../open/slice-mutationslauf-modulwurzel.md) (angelegt in `open/`, Linie C, nicht produktiv, kein Slice der Gate-Kette; Mutationslauf für Pakete an der Wurzel eines Moduls unter `tools/`, `SPEC-210`; Geber `slice-handbuch-meldungskatalog`)
 - ohne Welle: [slice-v4-schreiber-marker-text](../done/slice-v4-schreiber-marker-text.md) (in `done/`, Linie B; der Text `[REDACTED]` im V4-Schreiber, `SPEC-168` und `SPEC-169`, Beleg Verifikations-Report `docs/reviews/2026-11-07-slice-v4-schreiber-marker-text-verifikation.md`)
