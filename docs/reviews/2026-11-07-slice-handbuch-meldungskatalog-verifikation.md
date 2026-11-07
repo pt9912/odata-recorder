@@ -4,7 +4,7 @@
 
 **Gegenstand:** `slice-handbuch-meldungskatalog`, Zweig `slice-handbuch-meldungskatalog`, Basis `567b8ba`, geprüfter Stand `b420961` (die Belege des Implementers stehen auf `f877db4`; seither zwei reine Plan-Commits `ed2cf06`, `b420961`).
 
-**Quellen:** Plan `docs/plan/planning/in-progress/slice-handbuch-meldungskatalog.md`, `harness/vertraege/SPEC-201-handbuch-katalog.md` (mit Nr. 2 e), `harness/vertraege/SPEC-102-gegenproben.md` (Fälle 174 bis 188), das Review `2026-11-07-slice-handbuch-meldungskatalog-review.md`, [ADR-0003](../plan/adr/0003-lint-profil-golangci.md), [ADR-0004](../plan/adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md), [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md), `LH-QA-05`, `LH-RB-01`.
+**Quellen:** Plan `docs/plan/planning/done/slice-handbuch-meldungskatalog.md`, `harness/vertraege/SPEC-201-handbuch-katalog.md` (mit Nr. 2 e), `harness/vertraege/SPEC-102-gegenproben.md` (Fälle 174 bis 188), das Review `2026-11-07-slice-handbuch-meldungskatalog-review.md`, [ADR-0003](../plan/adr/0003-lint-profil-golangci.md), [ADR-0004](../plan/adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md), [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md), `LH-QA-05`, `LH-RB-01`.
 
 ## Urteil
 

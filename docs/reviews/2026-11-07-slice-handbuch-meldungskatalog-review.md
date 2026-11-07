@@ -55,7 +55,7 @@ Kein HIGH. Keine Verletzung einer HIGH-Regel der Liste: kein ADR-Verstoß, keine
 | `docs/user/benutzerhandbuch.md` (Abschnitt Fehlercodes, 18 Zeilen) | geprüft, ohne Befund (Inhalt der Zeilen ist ungeprüft nach Nr. 9 a) |
 | `harness/README.md`, `harness/vertraege/SPEC-102-gegenproben.md` | geprüft, ohne Befund |
 | `.golangci.yml` | geprüft, F-8 (INFO) |
-| `docs/plan/planning/in-progress/slice-handbuch-meldungskatalog.md` | geprüft; Rückgaben mit Ausgang und Adresse, siehe oben |
+| `docs/plan/planning/done/slice-handbuch-meldungskatalog.md` | geprüft; Rückgaben mit Ausgang und Adresse, siehe oben |
 
 ## Summary
 
