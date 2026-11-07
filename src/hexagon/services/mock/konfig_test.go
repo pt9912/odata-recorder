@@ -226,6 +226,7 @@ func quelltext(t *testing.T) []string {
 // Argumente fest und speist einen Fehler ein, auch die, die der Dienst nie rufen darf.
 func TestFakesZaehlenAlles(t *testing.T) {
 	u := neueUmg(t)
+	u.fehlerobjektErlaubt = true
 	ports := []struct {
 		praefix string
 		impl    any

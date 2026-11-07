@@ -262,15 +262,40 @@ func (b *blobs) Remove(ctx context.Context, ref string) error {
 	return b.p.beginn(ctx, "Blobs.Remove", ref)
 }
 
-// entities und coverage sind Zähl-Fakes: jede Operation zählt, keine liefert etwas.
-type entities struct{ p *prot }
+// entities ist der Fake von EntityRepository: Get und ListSet lesen die Einträge je Set (ListSet auch über ersatz), jede
+// andere Operation zählt; jede Operation hält ihre Argumente im Protokoll fest.
+type entities struct {
+	p      *prot
+	mu     sync.Mutex
+	m      map[string][]model.EntityState
+	ersatz func(set string) ([]model.EntityState, error)
+}
+
+func (e *entities) setze(set string, eintraege ...model.EntityState) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.m == nil {
+		e.m = map[string][]model.EntityState{}
+	}
+	e.m[set] = slices.Clone(eintraege)
+}
 
 func (e *entities) Put(ctx context.Context, x model.EntityState) error {
 	return e.p.beginn(ctx, "Entities.Put", x)
 }
 
 func (e *entities) Get(ctx context.Context, workspaceID, entitySet, entityKey string) (model.EntityState, error) {
-	return model.EntityState{}, e.p.beginn(ctx, "Entities.Get", workspaceID, entitySet, entityKey)
+	if err := e.p.beginn(ctx, "Entities.Get", workspaceID, entitySet, entityKey); err != nil {
+		return model.EntityState{}, err
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, x := range e.m[entitySet] {
+		if x.EntityKey == entityKey {
+			return x, nil
+		}
+	}
+	return model.EntityState{}, outbound.ErrNichtGefunden
 }
 
 func (e *entities) List(ctx context.Context, workspaceID string) ([]model.EntityState, error) {
@@ -278,28 +303,67 @@ func (e *entities) List(ctx context.Context, workspaceID string) ([]model.Entity
 }
 
 func (e *entities) ListSet(ctx context.Context, workspaceID, entitySet string) ([]model.EntityState, error) {
-	return nil, e.p.beginn(ctx, "Entities.ListSet", workspaceID, entitySet)
+	if err := e.p.beginn(ctx, "Entities.ListSet", workspaceID, entitySet); err != nil {
+		return nil, err
+	}
+	if e.ersatz != nil {
+		return e.ersatz(entitySet)
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return slices.Clone(e.m[entitySet]), nil
 }
 
 func (e *entities) ReplaceAll(ctx context.Context, workspaceID string, eintraege []model.EntityState) error {
 	return e.p.beginn(ctx, "Entities.ReplaceAll", workspaceID, eintraege)
 }
 
-type coverage struct{ p *prot }
+// coverage ist der Fake von CoverageRepository: Get liest die Einträge je (Baseline, Set), ohne Eintrag ErrNichtGefunden;
+// List zählt.
+type coverage struct {
+	p  *prot
+	mu sync.Mutex
+	m  map[string]model.Coverage
+}
+
+func (c *coverage) setze(baseline, set string, status model.CoverageStatus) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.m == nil {
+		c.m = map[string]model.Coverage{}
+	}
+	c.m[baseline+"|"+set] = model.Coverage{EntitySet: set, Status: status, EvidenceJSON: "{}"}
+}
 
 func (c *coverage) Get(ctx context.Context, baselineID, entitySet string) (model.Coverage, error) {
-	return model.Coverage{}, c.p.beginn(ctx, "Coverage.Get", baselineID, entitySet)
+	if err := c.p.beginn(ctx, "Coverage.Get", baselineID, entitySet); err != nil {
+		return model.Coverage{}, err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	x, da := c.m[baselineID+"|"+entitySet]
+	if !da {
+		return model.Coverage{}, outbound.ErrNichtGefunden
+	}
+	return x, nil
 }
 
 func (c *coverage) List(ctx context.Context, baselineID string) ([]model.Coverage, error) {
 	return nil, c.p.beginn(ctx, "Coverage.List", baselineID)
 }
 
-// metacodec ist der Zähl-Fake von MetadataCodec.
-type metacodec struct{ p *prot }
+// metacodec ist der Fake von MetadataCodec: ParseMetadata liefert das Modell (der Nullwert, wenn keines gesetzt ist) und
+// hält Strom und Grenze im Protokoll fest.
+type metacodec struct {
+	p      *prot
+	modell model.ServiceModel
+}
 
 func (m *metacodec) ParseMetadata(ctx context.Context, src io.Reader, grenze int64) (model.ServiceModel, model.ValidierungsBericht, error) {
-	return model.ServiceModel{}, model.ValidierungsBericht{}, m.p.beginn(ctx, "MetadatenCodec.ParseMetadata", src, grenze)
+	if err := m.p.beginn(ctx, "MetadatenCodec.ParseMetadata", src, grenze); err != nil {
+		return model.ServiceModel{}, model.ValidierungsBericht{}, err
+	}
+	return m.modell, model.ValidierungsBericht{}, nil
 }
 
 // urlcodec ist der Fake von URLCodec: f bildet (Pfad, Query) auf das Ergebnis ab; ParseURL hat keinen ctx.
@@ -324,6 +388,9 @@ type schreiber struct {
 	p     *prot
 	kopf  model.Darstellung
 	probe []byte
+	kopfe map[string]model.Darstellung
+	// zeigeIds hängt die Schlüssel der Entities einer Collection an den geschriebenen Body.
+	zeigeIds bool
 }
 
 func (s *schreiber) SchreibeAnzahl(ctx context.Context, dst io.Writer, n int64) (model.Darstellung, error) {
@@ -333,15 +400,39 @@ func (s *schreiber) SchreibeAnzahl(ctx context.Context, dst io.Writer, n int64) 
 	if dst != nil {
 		_, _ = dst.Write(s.probe)
 	}
+	if d, da := s.kopfe["Schreiber.SchreibeAnzahl"]; da {
+		return d, nil
+	}
 	return s.kopf, nil
 }
 
+// ausgabe schreibt die Bytes der Probe und liefert die Darstellung der Operation: kopfe[op], sonst der feste Kopf.
+func (s *schreiber) ausgabe(op string, dst io.Writer) model.Darstellung {
+	if dst != nil {
+		_, _ = dst.Write(append([]byte(op+":"), s.probe...))
+	}
+	if d, da := s.kopfe[op]; da {
+		return d
+	}
+	return s.kopf
+}
+
 func (s *schreiber) SchreibeEntity(ctx context.Context, dst io.Writer, m model.ServiceModel, a model.EntityAntwort) (model.Darstellung, error) {
-	return model.Darstellung{}, s.p.beginn(ctx, "Schreiber.SchreibeEntity", dst, m, a)
+	if err := s.p.beginn(ctx, "Schreiber.SchreibeEntity", dst, m, a); err != nil {
+		return model.Darstellung{}, err
+	}
+	return s.ausgabe("Schreiber.SchreibeEntity", dst), nil
 }
 
 func (s *schreiber) SchreibeCollection(ctx context.Context, dst io.Writer, m model.ServiceModel, a model.CollectionAntwort) (model.Darstellung, error) {
-	return model.Darstellung{}, s.p.beginn(ctx, "Schreiber.SchreibeCollection", dst, m, a)
+	if err := s.p.beginn(ctx, "Schreiber.SchreibeCollection", dst, m, a); err != nil {
+		return model.Darstellung{}, err
+	}
+	d := s.ausgabe("Schreiber.SchreibeCollection", dst)
+	if s.zeigeIds && dst != nil {
+		_, _ = dst.Write([]byte("|" + ids(a.Entities)))
+	}
+	return d, nil
 }
 
 func (s *schreiber) SchreibeFehler(ctx context.Context, dst io.Writer, f model.Fehlerobjekt) (model.Darstellung, error) {
@@ -392,6 +483,9 @@ type umg struct {
 	c   *codecs
 	k   mock.Konfig
 	ctx ctxMethoden
+	// fehlerobjektErlaubt nimmt den Test von der Prüfung aus, die den Aufruf von SchreibeFehler verbietet (der Test der
+	// Fakes ruft jede Operation selbst).
+	fehlerobjektErlaubt bool
 }
 
 type schluesselKtx struct{}
@@ -413,6 +507,12 @@ func neueUmg(t *testing.T) *umg {
 		c:   neueCodecs(p, model.Kopfzeile{Name: "X-Fake-Kennzeichen", Wert: "kennzeichen-1"}),
 		ctx: context.WithValue(context.Background(), schluesselKtx{}, "ctx-des-aufrufs"),
 	}
+	// Der Dienst ruft SchreibeFehler nie: der Fake prüft den Zähler für jeden Test des Pakets (SPEC-195 Nr. 10, L45).
+	t.Cleanup(func() {
+		if n := p.anzahl("Schreiber.SchreibeFehler"); n != 0 && !u.fehlerobjektErlaubt {
+			t.Errorf("SchreibeFehler %d Mal gerufen, der Dienst ruft es nie", n)
+		}
+	})
 	u.ws.setze(model.Workspace{ID: wsID, ServiceID: dienstID, BaselineSnapshotID: "b1"})
 	u.md.setze(model.Service{ID: dienstID, ServiceRoot: "http://up.test", ODataVersion: "4.0", MetadataBlob: metaRef})
 	u.bl.inhalt[metaRef] = metaInhalt()
