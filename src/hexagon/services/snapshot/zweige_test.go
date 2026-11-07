@@ -188,16 +188,20 @@ func TestZweigeSnapshot(t *testing.T) {
 	// Z-Liste gegen die Quelle: dienst.go hat 13 Rückgaben mit Fehlerwert: 10 tragen die Zweige Z01 bis Z14 (Name; Get, Get,
 	// List; Begin, Write, Commit; CreateWorkspace für Z09, Z10, Z12; ListWorkspace für Z13, Z14), 3 gehören zu New und zu
 	// ctx nil (TestKonfigSnapshot, TestCtxNilSnapshot).
-	if n := fehlerRueckgaben(t); n != 13 {
-		t.Errorf("%d Rückgaben mit Fehlerwert in dienst.go, erwartet 13", n)
+	// Die übrigen Quelldateien des Pakets: fehler.go bildet den Fehler (mitCode, ctxNil, nameUngueltig) und hat 4 Rückgaben
+	// mit Fehlerwert, manifest.go schreibt Bytes (2 Rückgaben von Aufrufen, kein Fehlerwert; kein verstoss, kein errors).
+	for datei, soll := range map[string]int{"dienst.go": 13, "fehler.go": 4, "manifest.go": 2} {
+		if n := fehlerRueckgaben(t, datei); n != soll {
+			t.Errorf("%d Rückgaben mit Fehlerwert in %s, erwartet %d", n, datei, soll)
+		}
 	}
 }
 
-// fehlerRueckgaben zählt in dienst.go die return-Anweisungen, die einen Fehlerwert ungleich nil liefern (die Rückgabe `, nil`
-// und `nil, ctxNil()`-freie Formen ausgenommen): jede Rückgabe, deren letztes Ergebnis kein nil ist.
-func fehlerRueckgaben(t *testing.T) int {
+// fehlerRueckgaben zählt in der Datei die return-Anweisungen, die einen Fehlerwert ungleich nil liefern (die Rückgabe `, nil`
+// und `nil, ctxNil()`-freie Formen ausgenommen): jede Rückgabe, deren letztes Ergebnis ein Aufruf, ein Adresswert oder err ist.
+func fehlerRueckgaben(t *testing.T, datei string) int {
 	t.Helper()
-	f, err := parser.ParseFile(token.NewFileSet(), "dienst.go", nil, 0)
+	f, err := parser.ParseFile(token.NewFileSet(), datei, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +209,7 @@ func fehlerRueckgaben(t *testing.T) int {
 	ast.Inspect(f, func(x ast.Node) bool {
 		if r, ok := x.(*ast.ReturnStmt); ok && len(r.Results) > 0 {
 			switch l := r.Results[len(r.Results)-1].(type) {
-			case *ast.CallExpr:
+			case *ast.CallExpr, *ast.UnaryExpr:
 				n++
 			case *ast.Ident:
 				if l.Name == "err" {

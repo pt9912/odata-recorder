@@ -247,6 +247,11 @@ func TestZweigeRestore(t *testing.T) {
 	if n := fehlerRueckgaben(t, "wiederherstellen.go"); n != 16 {
 		t.Errorf("%d Rückgaben mit Fehlerwert in wiederherstellen.go, erwartet 16", n)
 	}
+	// Z26 (Verstoß des Manifests) gegen die Quelle: manifest_snapshot.go ruft verstoss an 11 Stellen und hat 16 Rückgaben mit
+	// Fehlerwert; eine weitere Stelle ist eine weitere Regel von SPEC-129 Nr. 20 und braucht einen Fall in M6.
+	if n, r := rufe(t, "manifest_snapshot.go", "verstoss"), fehlerRueckgaben(t, "manifest_snapshot.go"); n != 11 || r != 24 {
+		t.Errorf("manifest_snapshot.go: %d Aufrufe von verstoss (erwartet 11), %d Rückgaben mit Fehlerwert (erwartet 24)", n, r)
+	}
 	for _, z := range zs {
 		einzel, closes := z.lauf(t)
 		if einzel != z.soll || closes != z.close {
@@ -273,6 +278,25 @@ func TestZweigeRestore(t *testing.T) {
 			}
 		}
 	}
+}
+
+// rufe zählt in der Datei die Aufrufe der Funktion name.
+func rufe(t *testing.T, datei, name string) int {
+	t.Helper()
+	f, err := parser.ParseFile(token.NewFileSet(), datei, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	ast.Inspect(f, func(x ast.Node) bool {
+		if c, ok := x.(*ast.CallExpr); ok {
+			if id, ok := c.Fun.(*ast.Ident); ok && id.Name == name {
+				n++
+			}
+		}
+		return true
+	})
+	return n
 }
 
 // fehlerRueckgaben zählt in der Datei die return-Anweisungen, deren letztes Ergebnis ein Aufruf, ein Verweis auf err oder

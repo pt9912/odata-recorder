@@ -23,9 +23,35 @@ func kanarienEintraege() []model.EntityState {
 	es := fuenfEintraege("ws-1")
 	for i := range es {
 		es[i].EntityKey += "-" + kanarienWert
+		es[i].EntitySet += "-" + kanarienWert
+		es[i].KnownProperties = []string{"Id-" + kanarienWert, "Wert-" + kanarienWert}[:1+i%2]
+		es[i].Version = 7743
 		es[i].Payload = fmt.Sprintf(`{"c":"%s","n":%d}`, kanarienWert, i)
 	}
 	return es
+}
+
+// kanarienDienst und kanarienMeta sind Service und MetadataHash des Snapshots der Manifest-Tests; auch sie tragen den Wert.
+const (
+	kanarienDienst = kanarienWert + "-svc"
+	kanarienMeta   = "sha256:" + kanarienWert + "-meta"
+)
+
+// kanarienBaum ist das Manifest der Kanarien-Einträge: jedes Glied von Kopf und Eintrag trägt den Wert, der in keinem
+// Fehlertext stehen darf (Menge Glied × Stelle des Verstoßes).
+func kanarienBaum() obj {
+	b := snapshotManifestBaum(kanarienDienst, kanarienEintraege())
+	b["metadata_hash"] = kanarienMeta
+	return b
+}
+
+// kanarienAblegen legt b als Manifest des Snapshots snp-1 ab; Service und MetadataHash des Snapshots tragen den Wert.
+func (w *welt) kanarienAblegen(b []byte) {
+	w.snapshotBytesAblegen("ws-1", "snp-1", b)
+	k := [2]string{"ws-1", "snp-1"}
+	s := w.snaps.wsSnaps[k]
+	s.ServiceID, s.MetadataHash = kanarienDienst, kanarienMeta
+	w.snaps.wsSnaps[k] = s
 }
 
 // fehltMarke steht für ein Glied, das fehlt.
@@ -34,7 +60,7 @@ type fehltMarke struct{}
 // manifestMit liefert das Manifest der Kanarien-Einträge, in dem das Glied name des Kopfes (idx < 0) oder des Eintrags
 // idx auf wert gesetzt ist; fehltMarke entfernt das Glied.
 func manifestMit(idx int, name string, wert any) []byte {
-	baum := snapshotManifestBaum("svc", kanarienEintraege())
+	baum := kanarienBaum()
 	ziel := baum
 	if idx >= 0 {
 		ziel = baum["entities"].([]any)[idx].(obj)
@@ -47,7 +73,7 @@ func manifestMit(idx int, name string, wert any) []byte {
 	return []byte(schreibe(baum))
 }
 
-func manifestGut() []byte { return []byte(schreibe(snapshotManifestBaum("svc", kanarienEintraege()))) }
+func manifestGut() []byte { return []byte(schreibe(kanarienBaum())) }
 
 // mfall ist ein Fall der Manifest-Tests: die Regel aus SPEC-129 Nr. 20, der er angehört, und die Bytes.
 type mfall struct {
@@ -60,7 +86,7 @@ func restoreMitManifest(t *testing.T, b []byte) (*welt, error) {
 	t.Helper()
 	w := neu(t)
 	w.vorbelegen("ws-1", 5)
-	w.snapshotBytesAblegen("ws-1", "snp-1", b)
+	w.kanarienAblegen(b)
 	w.p.leeren()
 	_, err := restoreLauf(w)
 	return w, err
@@ -71,7 +97,7 @@ func pruefeVerstoss(t *testing.T, f mfall) {
 	t.Helper()
 	w := neu(t)
 	w.vorbelegen("ws-1", 5)
-	w.snapshotBytesAblegen("ws-1", "snp-1", f.b)
+	w.kanarienAblegen(f.b)
 	vorher := w.st.stand()
 	w.p.leeren()
 	_, err := restoreLauf(w)
@@ -244,7 +270,7 @@ func TestManifestEintrag(t *testing.T) {
 func doppeltFaelle() []mfall {
 	var r []mfall
 	for _, p := range [][2]int{{0, 1}, {0, 4}, {2, 4}} {
-		baum := snapshotManifestBaum("svc", kanarienEintraege())
+		baum := kanarienBaum()
 		es := baum["entities"].([]any)
 		es[p[1]].(obj)["entity_set"] = es[p[0]].(obj)["entity_set"]
 		es[p[1]].(obj)["typed_key"] = es[p[0]].(obj)["typed_key"]
@@ -262,7 +288,7 @@ func TestManifestDoppelt(t *testing.T) {
 	for _, f := range fs {
 		pruefeVerstoss(t, f)
 	}
-	baum := snapshotManifestBaum("svc", kanarienEintraege())
+	baum := kanarienBaum()
 	es := baum["entities"].([]any)
 	es[1].(obj)["typed_key"] = es[0].(obj)["typed_key"] // zwei Mengen, derselbe Schlüssel
 	es[4].(obj)["typed_key"] = strings.ToLower(es[2].(obj)["typed_key"].(string))
