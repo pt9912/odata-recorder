@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-payload-schreiben
+**Fund:** Der Verifier maß die Anweisungs-Abdeckung mit einem `docker run` gegen `odata-recorder:race`; der Lauf fuhr den Baum eines anderen Zweigs und meldete „no tests to run“. Abhilfe des Verifiers: den eigenen Baum per `docker cp` in den Container kopieren (wie `mutationslauf.sh`). Beleg: Report `docs/reviews/2026-11-07-slice-v2-payload-schreiben-verifikation.md` §1 (Beobachtung).

@@ -159,7 +159,7 @@ Zehn Zähler in Zweigen, die weder Plan noch Review nannten (zC1 bis zC10), dazu
 ### V-7 (MEDIUM, Planner): `slice-audit-verdrahtung` kennt die Brücke nicht
 
 - `quelle`: `AGENTS.md` §3.13, §3.9
-- `pfad`: `docs/plan/planning/open/slice-audit-verdrahtung.md` (kein Treffer für „Brücke“)
+- `pfad`: `docs/plan/planning/in-progress/slice-audit-verdrahtung.md` (kein Treffer für „Brücke“)
 - `befund`: die Brücke setzt den Kern von `slice-audit-verdrahtung` um (Instanz, Pfad, Konfigs); dessen §1 Ziel („Der Composition Root erzeugt … `audit.New` …“) und V04 (dieselbe Instanz) sind schon erfüllt und durch `TestAuditEineInstanz`, `TestAuditPfadUndZeile` doppelt belegt. Der Plan von `slice-audit-dienste` führt die Entscheidung als §6-Zeile *offen*, Adresse Planner (richtig nach §3.13), aber der Nehmer ist nicht nachgezogen. Die Entscheidung ist nicht meine; Sachlage unten.
 
 ### INFO
