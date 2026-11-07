@@ -1,0 +1,2 @@
+**Vorgang:** slice-v2-payload-schreiben
+**Fund:** Schätzung *S* 4300 (43 Zeilen, davon 2 nebenläufig, ein Fake, Produktcode 650), Marke 5900, Messung 3293 beim Stand nach der Fix-Runde (`make groessenmarke`: ok); Ende ÷ *S* 0,77, Auslastung 0,56. Die Formel überschätzt den Slice, wie bei den Slices davor. Beleg: Plan §4 (Größenmarke) und §7; Report `docs/reviews/2026-11-07-slice-v2-payload-schreiben-verifikation.md` §1 (Zahlen).

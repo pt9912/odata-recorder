@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang mit `slice-v2-payload-schreiben` (Evidenz); der Fall im V4-Schreiber geht an `slice-v4-schreiber-marker-text`, dessen Rundlauf als Schleife über die Klasse der Texte läuft (DoD, zweiter Punkt) und die zweite Evidenz liefert
