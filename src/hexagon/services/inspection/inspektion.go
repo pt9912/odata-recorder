@@ -6,10 +6,12 @@ package inspection
 import (
 	"context"
 	"errors"
+	"maps"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
 // StandardLimit ist das Limit einer Seite ohne Angabe, MaxLimit die Obergrenze (SPEC-236 Nr. 3).
@@ -19,9 +21,14 @@ const (
 )
 
 // Konfig ist die Konfiguration des Dienstes (SPEC-236 Nr. 1). Exchanges dient allein dem Lesen
-// der Exchanges einer Session.
+// der Exchanges einer Session, Coverage dem der Coverage einer Baseline, Zaehler dem der Zähler je
+// Fehlercode. Modus und Einstellungen liefert der Composition Root als fertigen Wert.
 type Konfig struct {
-	Exchanges outbound.RecordingRepository
+	Exchanges     outbound.RecordingRepository
+	Coverage      outbound.CoverageRepository
+	Zaehler       support.TelemetryReader
+	Modus         string
+	Einstellungen map[string]string
 }
 
 // Inspektion setzt die Operationen von InspectionUseCase um. Sie hält keinen Zustand außer ihrer
@@ -30,11 +37,35 @@ type Inspektion struct {
 	k Konfig
 }
 
-// New prüft die Konfiguration (SPEC-236 Nr. 1).
+// Erlaubt liefert die Schlüssel der Einstellungen, die die Diagnose zeigt, in der Folge von
+// SPEC-236 Nr. 7; jeder andere Schlüssel wird verworfen. Jeder Aufruf liefert einen frischen Slice.
+func Erlaubt() []string {
+	return []string{
+		"REPLAY_STRATEGY", "REPLAY_ASSIGNMENT", "REPLAY_REDACTED_BODIES", "MATCH_VARY_HEADERS",
+		"MATCH_INVALID_ENCODING", "MATCH_BODY_MODE", "REDACT_HEADERS", "REDACT_QUERY_PARAMS",
+		"REDACT_JSON_PATHS", "MAX_CAPTURE_BODY", "UPSTREAM_TIMEOUT", "UPSTREAM_TLS_VERIFY",
+		"UPSTREAM_TLS_INSECURE_SKIP_VERIFY", "SHUTDOWN_TIMEOUT", "RETENTION_MAX_AGE",
+		"SQLITE_BUSY_TIMEOUT", "VOLATILE_HEADERS", "LINK_REWRITE",
+	}
+}
+
+// New prüft die Konfiguration und kopiert die Einstellungen (SPEC-236 Nr. 1).
 func New(k Konfig) (*Inspektion, error) {
 	if k.Exchanges == nil {
 		return nil, errors.Join(model.ErrUngueltig, errors.New("Exchanges fehlt"))
 	}
+	if k.Coverage == nil {
+		return nil, errors.Join(model.ErrUngueltig, errors.New("Coverage fehlt"))
+	}
+	if k.Zaehler == nil {
+		return nil, errors.Join(model.ErrUngueltig, errors.New("Zaehler fehlt"))
+	}
+	switch k.Modus {
+	case "record", "replay", "mock", "hybrid":
+	default:
+		return nil, errors.Join(model.ErrUngueltig, errors.New("Modus ist keiner der vier"))
+	}
+	k.Einstellungen = maps.Clone(k.Einstellungen)
 	return &Inspektion{k: k}, nil
 }
 
@@ -59,6 +90,52 @@ func (s *Inspektion) Exchanges(ctx context.Context, sessionID string, seite inbo
 		return inbound.ExchangeSeite{}, mitCode(err, outbound.GegenstandSession)
 	}
 	return schneide(alle, seite.Nach, wirksamesLimit(seite.Limit)), nil
+}
+
+// Coverage liest die Einträge der Baseline mit genau einem Aufruf von List und gibt sie in der
+// Reihenfolge des Ports weiter (SPEC-236 Nr. 6); Fehler des Ports gehen mit dem Gegenstand Snapshot
+// nach Nr. 8, im Fehlerfall ist das Ergebnis nil.
+func (s *Inspektion) Coverage(ctx context.Context, baselineID string) ([]inbound.CoverageEintrag, error) {
+	if ctx == nil {
+		return nil, ctxNil()
+	}
+	if baselineID == "" {
+		return nil, errors.Join(model.ErrUngueltig, errors.New("baselineID ist leer"))
+	}
+	liste, err := s.k.Coverage.List(ctx, baselineID)
+	if err != nil {
+		return nil, mitCode(err, outbound.GegenstandSnapshot)
+	}
+	eintraege := make([]inbound.CoverageEintrag, 0, len(liste))
+	for _, c := range liste {
+		eintraege = append(eintraege, inbound.CoverageEintrag{EntitySet: c.EntitySet, Status: c.Status, Evidenz: c.EvidenceJSON})
+	}
+	return eintraege, nil
+}
+
+// Diagnose prüft den Kontext einmal und liest die Zähler mit genau einem Aufruf von Snapshot
+// (SPEC-236 Nr. 7): Einstellungen sind die Einträge der Konfiguration mit Schlüsseln aus Erlaubt,
+// Fehler ein Eintrag je Code von model.AlleCodes().
+func (s *Inspektion) Diagnose(ctx context.Context) (inbound.Diagnose, error) {
+	if ctx == nil {
+		return inbound.Diagnose{}, ctxNil()
+	}
+	if err := ctx.Err(); err != nil {
+		return inbound.Diagnose{}, err
+	}
+	stand := s.k.Zaehler.Snapshot()
+	einstellungen := map[string]string{}
+	for _, schluessel := range Erlaubt() {
+		if wert, da := s.k.Einstellungen[schluessel]; da {
+			einstellungen[schluessel] = wert
+		}
+	}
+	codes := model.AlleCodes()
+	fehler := make([]inbound.FehlerZaehler, 0, len(codes))
+	for _, c := range codes {
+		fehler = append(fehler, inbound.FehlerZaehler{Code: c, Anzahl: stand.Errors[c]})
+	}
+	return inbound.Diagnose{Modus: s.k.Modus, Einstellungen: einstellungen, Fehler: fehler}, nil
 }
 
 // wirksamesLimit ist StandardLimit für 0, höchstens MaxLimit und sonst der Wert (SPEC-236 Nr. 3).
