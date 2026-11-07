@@ -11,7 +11,7 @@
 
 - Plan `slice-audit-verdrahtung` (§3 Tabelle V01a bis V07, Fälle F1 bis F7, Zeitpunkte Z1 bis Z4, Mengen M1 bis M4, Zweig-Menge W/N, Stand der Fänger; §6 Ausgänge und Raster)
 - `LH-RB-04`, `LH-FA-13`, `LH-QA-04`; `SPEC-139` Nr. 2 bis 4, 6, 7, 10 und *Ungeprüft*; `SPEC-234` Nr. 3 und 8; `SPEC-235` Nr. 1, 2, 6 bis 8
-- ADR-0001, ADR-0006
+- [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0006](../plan/adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md)
 - `AGENTS.md` (Hard Rules, besonders §3.9, §3.10, §3.15 bis §3.18)
 
 **Eigene Läufe:** `tools/harness/mutationslauf.sh`, Image `odata-recorder:test`, 4g, unter `flock /tmp/odata-recorder-heavy.lock`, 5 Mutationen, Klasse `andere`, 1 bis 2 Prozesse je Mutation, `last` 4,3 bis 6,2 von 4 (Host belegt, Messender: Reviewer). Die 20 Mutationen des Implementers sind nicht wiederholt.

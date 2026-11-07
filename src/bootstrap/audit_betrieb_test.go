@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -137,7 +138,7 @@ type ablauf struct {
 	hochfahren error
 	bestand    []string
 	log        string
-	get        []string
+	ops        map[string][]string
 	von, bis   time.Time
 }
 
@@ -176,7 +177,7 @@ func (f fall) lauf(t *testing.T, stoerung, neustart bool) ablauf {
 		t.Fatalf("%s: Herunterfahren: %v", f.nr, err)
 	}
 	a.z[1] = lies()
-	a.rec, a.log, a.get = b.rec.Eintraege(), b.log.String(), b.sess.Aufrufe("Get")
+	a.rec, a.log, a.ops = b.rec.Eintraege(), b.log.String(), b.sess.Alle()
 	a.bestand = bestandVon(t, dir, slices.Concat(f.weg, f.bleibt))
 	if neustart {
 		b2 := neuerBetrieb(t, dir, f.modus, 0)
@@ -234,6 +235,19 @@ func zeilenVon(t *testing.T, name string, d datei) []map[string]string {
 	return aus
 }
 
+// feldFormen ist die Form jedes Feldes einer Zeile nach seiner Quelle: timestamp aus der Uhr des Roots (SPEC-235
+// Nr. 3), correlation_id aus dem Generator des Roots (Präfix cor, 16 Zufallsbyte als Hex, SPEC-114), die Kennungen aus
+// der Anfrage und der Ablage (SPEC-234 Nr. 3), error_code der Text eines Codes (SPEC-109); art prüft die Tabelle.
+func feldFormen() map[string]*regexp.Regexp {
+	kennung := regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
+	return map[string]*regexp.Regexp{
+		"timestamp":      regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z$`),
+		"correlation_id": regexp.MustCompile(`^cor-[0-9a-f]{32}$`),
+		"service_id":     kennung, "session_id": kennung, "workspace_id": kennung, "import_id": kennung,
+		"error_code": regexp.MustCompile(`^ODR-E\d{4}$`),
+	}
+}
+
 // pruefeStruktur ist das Struktur-Orakel von SPEC-234 Nr. 2 als Literal: nur Felder der geschlossenen Menge, je Art
 // genau die Pflichtfelder.
 func pruefeStruktur(t *testing.T, name string, zeilen []map[string]string) {
@@ -254,6 +268,9 @@ func pruefeStruktur(t *testing.T, name string, zeilen []map[string]string) {
 		for k, v := range m {
 			if !slices.Contains(feldFolge(), k) {
 				t.Errorf("%s: Feld %q gehört nicht zur geschlossenen Menge", name, k)
+			}
+			if re, ok := feldFormen()[k]; ok && !re.MatchString(v) {
+				t.Errorf("%s: Feld %s trägt %q, erwartet die Form %s", name, k, v, re)
 			}
 			if k != "timestamp" && k != "correlation_id" && k != "art" {
 				felder = append(felder, k)
@@ -342,8 +359,12 @@ func TestAuditEintraegeJeFall(t *testing.T) {
 			if !slices.Equal(a.bestand, sortierteKopie(f.bleibt)) {
 				t.Errorf("Bestand %v, erwartet %v (entfernt: %v)", a.bestand, f.bleibt, f.weg)
 			}
-			if f.nr == "F7" && !slices.Equal(a.get, []string{"ses-f7"}) {
-				t.Errorf("Aufrufe von Sessions.Get: %v", a.get)
+			// Der Import ruft nach dem Fehler von Get keine weitere Operation des Repositorys (SPEC-127 Nr. 4).
+			if f.quelle == "import" {
+				ids := map[string]string{"F6": "ses-unbekannt", "F7": "ses-f7"}
+				if want := map[string][]string{"Get": {ids[f.nr]}}; !reflect.DeepEqual(a.ops, want) {
+					t.Errorf("Aufrufe von Sessions im Import: %v, erwartet %v", a.ops, want)
+				}
 			}
 			if strings.Contains(a.log, "audit: Eintrag nicht geschrieben") {
 				t.Errorf("gesunde Ablage, aber das Log meldet einen Ausfall: %s", a.log)
@@ -436,6 +457,7 @@ func TestAuditNeustartHaengtAn(t *testing.T) {
 // Prüfungen aus Wert × Fall × Zeitpunkt.
 func TestAuditCanary(t *testing.T) {
 	n := 0
+	ids := map[string]string{}
 	ft := geheimnis{"fehlertext", [][]byte{fehlertext()}}
 	for _, f := range auditFaelle() {
 		a := f.lauf(t, false, true)
@@ -452,6 +474,13 @@ func TestAuditCanary(t *testing.T) {
 				}
 			}
 		}
+		// Die Generator-ID ist zufällig: über alle Fälle und Läufe kehrt keine wieder (ein abgeleiteter, fester Wert wiederholt sich).
+		for _, m := range zeilenVon(t, f.nr, a.z[1]) {
+			if vorher, doppelt := ids[m["correlation_id"]]; doppelt {
+				t.Errorf("%s: correlation_id %q kehrt aus %s wieder", f.nr, m["correlation_id"], vorher)
+			}
+			ids[m["correlation_id"]] = f.nr
+		}
 		for _, r := range a.rec {
 			e := r.Eintrag
 			for _, feld := range []string{string(e.Art), e.ServiceID, e.SessionID, e.WorkspaceID, e.ImportID, e.ErrorCode.String(), e.KorrelationsID} {
@@ -465,6 +494,9 @@ func TestAuditCanary(t *testing.T) {
 	}
 	if n != 172 {
 		t.Errorf("%d Prüfungen, erwartet (6 · 7 + 1) · 4 = 172", n)
+	}
+	if len(ids) != 9 {
+		t.Errorf("%d verschiedene correlation_id, erwartet 9 (eine je Zeile der sieben Fälle)", len(ids))
 	}
 }
 
@@ -603,6 +635,7 @@ func TestAuditAblehnungenKeinEintrag(t *testing.T) {
 		saeeDienst(d, "x1", "/r1")
 		saeeSession(d, "ses-fertig", "x1", time.Hour, false)
 		saeeSession(d, "ses-offen", "x1", time.Hour, true)
+		saeeWorkspaces(d) // Service svc, Session ses-1 als Quelle der Baseline bsl-1
 	})
 	b := neuerBetrieb(t, dir, modusRecord, 0)
 	b.bauen()
@@ -618,6 +651,7 @@ func TestAuditAblehnungenKeinEintrag(t *testing.T) {
 		{"Session unbekannt", model.CodeE7003, loesche("ses-gibt-es-nicht"), 0},
 		{"Session leere Kennung", model.CodeE7003, loesche(""), 0},
 		{"Session offen", model.CodeE7009, loesche("ses-offen"), 0},
+		{"Session von einer Baseline referenziert", model.CodeE7004, loesche("ses-1"), 0},
 		{"Workspace unbekannt", model.CodeE7001, func() error { _, err := b.h.Workspaces().Delete(ctx, "ws-gibt-es-nicht"); return err }, 0},
 		{"Import, Dienst unbekannt", model.CodeE5005, func() error {
 			_, err := b.h.Import().Import(ctx, inbound.ImportAnfrage{ImportID: "imp-x", ServiceID: "unbekannt", SourceSessionIDs: []string{"ses-fertig"}})
@@ -630,8 +664,8 @@ func TestAuditAblehnungenKeinEintrag(t *testing.T) {
 			return loesche("ses-fertig")()
 		}, 1},
 	}
-	if len(faelle) != 6 {
-		t.Fatalf("%d Ablehnungen, erwartet 6", len(faelle))
+	if len(faelle) != 7 {
+		t.Fatalf("%d Ablehnungen, erwartet 7", len(faelle))
 	}
 	for _, f := range faelle {
 		if !codeIst(f.code)(f.rufe()) {
@@ -753,7 +787,7 @@ func TestAuditAufrufstellen(t *testing.T) {
 		"workspace/loeschen.go ArtWorkspaceGeloescht",
 	}
 	wurzel := filepath.Join("..", "hexagon", "services")
-	var ist []string
+	var ist, sonst []string
 	err := filepath.WalkDir(wurzel, func(pfad string, e fs.DirEntry, err error) error {
 		if err != nil || e.IsDir() || !strings.HasSuffix(pfad, ".go") || strings.HasSuffix(pfad, "_test.go") {
 			return err
@@ -763,17 +797,28 @@ func TestAuditAufrufstellen(t *testing.T) {
 			return err
 		}
 		rel, _ := filepath.Rel(wurzel, pfad)
+		erlaubt := map[*ast.SelectorExpr]bool{}
 		ast.Inspect(f, func(n ast.Node) bool {
-			c, ok := n.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			sel, ok := c.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "Append" {
-				return true
-			}
-			if feld, ok := sel.X.(*ast.SelectorExpr); ok && feld.Sel.Name == "Audit" {
-				ist = append(ist, filepath.ToSlash(rel)+" "+artDesAufrufs(c))
+			switch x := n.(type) {
+			case *ast.CallExpr:
+				if sel, ok := x.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Append" {
+					if feld, ok := sel.X.(*ast.SelectorExpr); ok && feld.Sel.Name == "Audit" {
+						erlaubt[feld] = true
+						ist = append(ist, filepath.ToSlash(rel)+" "+artDesAufrufs(x))
+					}
+				}
+			case *ast.BinaryExpr:
+				// k.Audit == nil in New ist keine Aufrufstelle.
+				for _, seite := range []ast.Expr{x.X, x.Y} {
+					if feld, ok := seite.(*ast.SelectorExpr); ok && feld.Sel.Name == "Audit" && (x.Op == token.EQL || x.Op == token.NEQ) {
+						erlaubt[feld] = true
+					}
+				}
+			case *ast.SelectorExpr:
+				// Jede andere Verwendung des Feldes Audit (Alias, Methodenwert, Übergabe) ist ein Fund außerhalb von W.
+				if x.Sel.Name == "Audit" && !erlaubt[x] {
+					sonst = append(sonst, filepath.ToSlash(rel))
+				}
 			}
 			return true
 		})
@@ -785,6 +830,9 @@ func TestAuditAufrufstellen(t *testing.T) {
 	slices.Sort(ist)
 	if !slices.Equal(ist, soll) {
 		t.Errorf("Aufrufstellen von Audit.Append: %v, erwartet %v", ist, soll)
+	}
+	if len(sonst) != 0 {
+		t.Errorf("Verwendungen des Feldes Audit, die kein Aufruf von Append und kein Vergleich mit nil sind: %v", sonst)
 	}
 	if n := len(support.Arten()); n != 4 {
 		t.Errorf("%d Arten, erwartet 4", n)

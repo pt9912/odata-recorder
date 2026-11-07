@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"log/slog"
 	"net/url"
@@ -84,6 +85,17 @@ func (s *SessionsMitFehlertext) merke(op, arg string) {
 		s.ruf = map[string][]string{}
 	}
 	s.ruf[op] = append(s.ruf[op], arg)
+}
+
+// Alle liefert die Argumente der Aufrufe jeder Operation, die gerufen wurde.
+func (s *SessionsMitFehlertext) Alle() map[string][]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	aus := map[string][]string{}
+	for op, args := range s.ruf {
+		aus[op] = slices.Clone(args)
+	}
+	return aus
 }
 
 // Aufrufe liefert die Argumente der Aufrufe der Operation op.
@@ -167,13 +179,20 @@ func (z zugang) url(host string) string {
 	return u.String()
 }
 
-// formenVon liefert roh, prozent-kodiert (Query, Pfadsegment, Userinfo) und, wenn paar gesetzt ist, die Base64-Form
-// von benutzer:passwort.
+// formenVon liefert roh, prozent-kodiert (Query, Pfadsegment, Userinfo), Hex (klein und groß), Base64 in den vier
+// Alphabeten und Füllungen von encoding/base64 und, wenn paar gesetzt ist, dieselben Base64-Formen von
+// benutzer:passwort. Weitere Kodierungen (Hash, ROT13, Teilstücke) sind die Prüfgrenze im Plan.
 func formenVon(roh []byte, paar []byte) [][]byte {
 	userinfo := strings.TrimSuffix(url.UserPassword(string(roh), "").String(), ":")
-	fs := [][]byte{roh, []byte(url.QueryEscape(string(roh))), []byte(url.PathEscape(string(roh))), []byte(userinfo)}
-	if paar != nil {
-		fs = append(fs, []byte(base64.StdEncoding.EncodeToString(paar)))
+	fs := [][]byte{roh, []byte(url.QueryEscape(string(roh))), []byte(url.PathEscape(string(roh))), []byte(userinfo),
+		[]byte(hex.EncodeToString(roh)), []byte(strings.ToUpper(hex.EncodeToString(roh)))}
+	for _, quelle := range [][]byte{roh, paar} {
+		if quelle == nil {
+			continue
+		}
+		for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.URLEncoding, base64.RawStdEncoding, base64.RawURLEncoding} {
+			fs = append(fs, []byte(enc.EncodeToString(quelle)))
+		}
 	}
 	var aus [][]byte
 	for _, f := range fs {
