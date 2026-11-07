@@ -35,6 +35,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt:** den Endpunkt samt Authentisierung aus `slice-baseline-import` (dessen §1 *Ausdrücklich NICHT* ihn der Folgewelle zuweist; `AGENTS.md` §3.13) und die Abnahmeregel *Import-Autorisierung* von `LH-FA-18`, die ohne Admin-Listener nicht belegbar ist ([Abgleichsbericht](../../../reviews/2026-10-30-lastenheft-wellen-abgleich.md) §8 Nr. 1).
 
+**Übernimmt (Sendung von `slice-admin-listener-token`, Pflichten der Endpunkte nach `SPEC-238` Nr. 15, Schnitt vom 2026-11-07, `AGENTS.md` §3.13):** (a) die 400-Antworten von `SPEC-047` (fehlerhaftes JSON, fehlendes Pflichtfeld, im MVP nicht zulässiger Wert) und ein Lesefehler des `Body`, der kein Kontextfehler ist (auch über 1 MiB), gibt die Route als Fehler zurück (`ErrUngueltig` oder `*inbound.Fehler{Code: CodeE2102, Status: 400}`); der Code ist `ODR-E2102` (Entscheidung des Architect, `SPEC-238` Nr. 6 und 15 a), ein eigener Code entsteht nicht; (b) die Route ruft `CountError` nie und `Audit.Append` nie für `ODR-E2101` (diesen Eintrag schreibt der Rahmen, `slice-admin-abweisen-audit`) und schreibt kein Fehlerobjekt selbst; (c) die vier Arten von `SPEC-234` Nr. 2 schreibt der Dienst, nie die Route; die Art für den `POST` ist eine Zeile im Vertrag dieses Endpunkts; (d) eine Erfolgsantwort hat einen Status von 200 bis 299 und trägt Daten als `Antwort.Body`. Der Fänger liegt in diesem Slice (die Routen und ihre Tests); der Reviewer löst jede Zeile von Nr. 15 mit einer Mutation auf.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Die Fachlogik des Imports (Lesen, Zusammenführen, Coverage-Beweis, Konfliktregel) — `ImportUseCase` (`done/`); der Adapter bildet nur HTTP ab.
@@ -61,7 +63,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] `POST /__admin/imports`: Body nach `SPEC-047` (Pflichtfelder, Standardwerte, im MVP nicht zulässige Werte `400`), Abbildung auf `ImportAnfrage`; Statuscodes `201`, `200` (Wiederholung, Body byte-gleich), `400`, `401`, `404`, `409`, `422` und `500` mit den `ODR`-Codes der Tabelle in `SPEC-047`; der Body der Antwort ist der `ReportJSON`.
+- [ ] `POST /__admin/imports`: Body nach `SPEC-047` (Pflichtfelder, Standardwerte, im MVP nicht zulässige Werte `400` mit `ODR-E2102`, Pflichten (a) bis (d) von `SPEC-238` Nr. 15, Geber `slice-admin-listener-token`), Abbildung auf `ImportAnfrage`; Statuscodes `201`, `200` (Wiederholung, Body byte-gleich), `400`, `401`, `404`, `409`, `422` und `500` mit den `ODR`-Codes der Tabelle in `SPEC-047`; der Body der Antwort ist der `ReportJSON`.
 - [ ] `GET /__admin/imports/{id}`: der Report; ein unbekannter Import ergibt `ODR-E7005` (404).
 - [ ] Import-Autorisierung (`LH-FA-18`): ohne oder mit falschem Token weist der Endpunkt ab (`ODR-E2101`), `ImportUseCase` wird nicht gerufen (Zähler 0), der Audit-Eintrag steht; jeder `POST` ist auditiert (Umfang nach Vertrag).
 - [ ] `make gates` grün.
@@ -121,7 +123,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-admin-listener-token`, `slice-audit-log` und `slice-audit-dienste` (`welle-betrieb`) liegen in `done/` (`slice-audit-dienste`, weil der Eintrag des fehlgeschlagenen Imports erst dort im Use Case entsteht und der Adapter ihn nicht doppeln darf). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-admin-listener-token` samt seinen Teilen `slice-admin-rahmen`, `slice-admin-authentisierung`, `slice-admin-lebenszyklus`, `slice-admin-fehlerabbildung` und `slice-admin-abweisen-audit` (Schnitt vor dem Code, 2026-11-07; der Rahmen und der Audit-Eintrag zu `ODR-E2101` sind erst mit dem letzten Teil vollständig), `slice-audit-log` und `slice-audit-dienste` (`welle-betrieb`) liegen in `done/` (`slice-audit-dienste`, weil der Eintrag des fehlgeschlagenen Imports erst dort im Use Case entsteht und der Adapter ihn nicht doppeln darf). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Warum:** Rahmen, Authentisierung und Fehlerabbildung kommen aus `slice-admin-listener-token`, der Port `AuditLog` für den Schreibendpunkt aus `slice-audit-log` (beide *Code-Abhängigkeit*). `ImportUseCase` liegt seit `slice-baseline-import` in `done/` (`src/hexagon/ports/inbound/import.go`, Port vorhanden).
 
@@ -156,8 +158,8 @@ dasteht.
 | `GET /__admin/imports/{id}` | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
 | Audit-Eintrag des `POST` | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) | (Vertrag, offen) |
 
-- `SPEC-047` nennt für `400` (fehlerhaftes JSON, fehlende Pflichtfelder, nicht zulässiger Wert) keinen `ODR`-Code, und `SPEC-109` kennt keinen für ein formal ungültiges Argument — **Ausgang:** offen; Adresse: Architect (Übernahme in `slice-admin-listener-token`, Auftrag 1).
-- Die größte zulässige Größe des Request-Bodys ist nicht festgelegt (`source_session_ids`, `import_id`) — **Ausgang:** offen; Adresse: Architect (Auftrag 1).
+- `SPEC-047` nennt für `400` (fehlerhaftes JSON, fehlende Pflichtfelder, nicht zulässiger Wert) keinen `ODR`-Code, und `SPEC-109` kennt keinen für ein formal ungültiges Argument — **Ausgang:** entschieden (Architect, 2026-11-07, `SPEC-238` Nr. 6 und 15 a): `ODR-E2102` mit 400, ein eigener Code entsteht nicht (Geber `slice-admin-listener-token`, §1 *Übernimmt*).
+- Die größte zulässige Größe des Request-Bodys ist nicht festgelegt (`source_session_ids`, `import_id`) — **Ausgang:** entschieden für die Grenze des Servers (Architect, 2026-11-07, `SPEC-238` Nr. 10: der `Body` der Route ist auf 1 MiB begrenzt, ein Lesefehler ist `ODR-E2102`); offen bleiben Grenzen der Felder darunter (Zahl der `source_session_ids`, Länge von `import_id`); Adresse: Architect (Auftrag 1).
 - `LH-FA-18` fordert „nicht autorisierter Admin-Client“, `LH-FA-13.a` kennt ein Token ohne Rollen: ob „nicht autorisiert“ mehr heißt als „kein gültiges Token“, ist im Lastenheft nicht gesagt — **Ausgang:** weiter offen als benannte Lücke des Lastenhefts; Adresse: User; der Slice setzt „gültiges Token“ (§1) und belegt die Regel damit.
 - Ein langer Import und der Abbruch des Clients: das Rollback ist atomar (`SPEC-047`), das Verhalten gegen Timeouts des Servers hat keinen Ort (Auftrag 5) — **Ausgang:** offen; Adresse: Architect.
 - Der Body der Wiederholung ist byte-gleich (`SPEC-047`); eine Neuserialisierung im Adapter bräche die Zusage — **Ausgang:** offen bis zur Closure; Fänger: zwei Aufrufe, Vergleich der Bytes, Mutation „Neuserialisierung“ rot.

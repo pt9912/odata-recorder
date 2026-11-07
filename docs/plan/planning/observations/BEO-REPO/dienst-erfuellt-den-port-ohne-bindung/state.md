@@ -1,1 +1,1 @@
-**Stand:** offen; erster Vorgang mit `slice-inspection-use-case` (Evidenz; Mittel dort: eine Zeile `var _ inbound.InspectionUseCase = (*inspection.Inspektion)(nil)` im Testpaket)
+**Stand:** offen; zweiter Vorgang mit `slice-inspection-coverage-diagnose` (Evidenz; die Bindung wuchs um `Coverage` und `Diagnose`, Fänger ist die Übersetzungsmeldung), erster Vorgang mit `slice-inspection-use-case` (Evidenz; Mittel dort: eine Zeile `var _ inbound.InspectionUseCase = (*inspection.Inspektion)(nil)` im Testpaket)

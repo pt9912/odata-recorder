@@ -11,7 +11,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Welle:** [welle-mock](../welle-mock.md).
 
-**Teil 1 des Schnitts:** Der Plan `slice-mock-lesen` war zu groß (§4). Der Architect hat ihn vor dem Code geschnitten (Rückgabe R1), der Planner hat den Schnitt vollzogen: dieser Slice trägt Port, Konfig, Zuordnung und `$metadata`; [slice-mock-lesen](../in-progress/slice-mock-lesen.md) (Teil 2) trägt das Lesen aus dem Entity-State mit der Coverage-Prüfung und braucht diesen Slice in `done/`.
+**Teil 1 des Schnitts:** Der Plan `slice-mock-lesen` war zu groß (§4). Der Architect hat ihn vor dem Code geschnitten (Rückgabe R1), der Planner hat den Schnitt vollzogen: dieser Slice trägt Port, Konfig, Zuordnung und `$metadata`; [slice-mock-lesen](../done/slice-mock-lesen.md) (Teil 2) trägt das Lesen aus dem Entity-State mit der Coverage-Prüfung und braucht diesen Slice in `done/`.
 
 **Bezug:** `LH-FA-06`, `LH-FA-09`, `LH-QA-05`, [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0011](../../adr/0011-versionierter-adapter-fuer-odata-v2.md)
 
@@ -98,14 +98,14 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/hexagon/ports/inbound/` | update | `mock.go`: `MockUseCase` (Z23) |
 | `src/hexagon/services/mock/` | neu | Konfig und `New`, Zuordnung, URL, Methode, Metadaten, Fehlerbildung, Platzhalter für Collection, Entity und Anzahl, Antwort von `$metadata` (`SPEC-195`, `SPEC-198` Nr. 4 und 5) |
 | `spec/spezifikation.md`, `spec/architecture.md` | update (Architect, getan; Planner: Nachzug R2) | `SPEC-195` bis `SPEC-199`, `SPEC-109`, `SPEC-160` Nr. 9, `SPEC-230` Nr. 8, Historie; Reihenfolge der Lesevorgänge in §4.4; `SPEC-168` Nr. 10 |
-| `docs/plan/planning/open/slice-mock-schreiben.md` | update (Architect, getan) | §1 *Übernimmt* (Erwartung von diesem Slice und von Teil 2, `AGENTS.md` §3.13) |
+| `docs/plan/planning/in-progress/slice-mock-schreiben.md` | update (Architect, getan) | §1 *Übernimmt* (Erwartung von diesem Slice und von Teil 2, `AGENTS.md` §3.13) |
 | Tests | neu | die Fänger der Tabelle (`TestNewKonfig` bis `TestKeinFehlerobjekt`) mit Fakes der acht Ports (Metadaten, Workspaces, Blobs, `URLCodec`, Schreiber mit Verhalten; Entities, Coverage, `MetadatenCodec` als Zähl-Fakes, die Teil 2 erweitert); der Dienst importiert keinen Upstream-Typ und kein Paket eines anderen Service |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation **vor** dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer.
 
 - Die Fakes der Ports (Repositories, Codec) halten jedes Argument fest und zählen jede Operation, auch die, die der Dienst nie rufen darf (`AGENTS.md` §3.15).
 
-**Entscheidungen des Architect** (2026-11-07; die Gründe und die Alternativen stehen in der Spezifikation, nicht hier; Aufträge und Entscheidungen des ungeteilten Plans stehen in [slice-mock-lesen](../in-progress/slice-mock-lesen.md) §3, soweit sie Teil 2 betreffen):
+**Entscheidungen des Architect** (2026-11-07; die Gründe und die Alternativen stehen in der Spezifikation, nicht hier; Aufträge und Entscheidungen des ungeteilten Plans stehen in [slice-mock-lesen](../done/slice-mock-lesen.md) §3, soweit sie Teil 2 betreffen):
 
 1. **Schnitt:** in zwei Teile, Zeilen Z01 bis Z24 hier, Zeilen L01 bis L45 in Teil 2 (Rückgabe R1, vom Planner vollzogen).
 2. **Fehlerwert, nicht Fehlerantwort:** der Dienst liefert `*inbound.Fehler`, das Fehlerobjekt schreibt der Adapter (`SPEC-195` Nr. 10); die Sendung „Fehlerobjekt mit `Content-Type` und Kennzeichen“ aus `slice-odata-json-schreiben` gilt damit nicht für den Mock, sondern bleibt eine Erwartung an den Adapter (Rückgabe R3, an `slice-bootstrap-m3`).
@@ -245,7 +245,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-Stand beim Start (Architect, 2026-11-07; Planner, 2026-11-07): der Vertrag steht in `SPEC-195` bis `SPEC-198` und `SPEC-199`; Tabelle (§3) und Raster (unten) stehen vor dem ersten Code-Commit. Jeder Ausgang unten bleibt *offen* bis zur Closure, außer R1; was der Architect entschieden hat, steht mit Ort dabei. Die Risiken des Lesens (Lesesicht, Einzel-Lookup bei `partial`, Zweig- und Rückgaben-Menge, Verdrahtung des Parsers, Fehlercodes und Katalog) führt Teil 2 ([slice-mock-lesen](../in-progress/slice-mock-lesen.md)).
+Stand beim Start (Architect, 2026-11-07; Planner, 2026-11-07): der Vertrag steht in `SPEC-195` bis `SPEC-198` und `SPEC-199`; Tabelle (§3) und Raster (unten) stehen vor dem ersten Code-Commit. Jeder Ausgang unten bleibt *offen* bis zur Closure, außer R1; was der Architect entschieden hat, steht mit Ort dabei. Die Risiken des Lesens (Lesesicht, Einzel-Lookup bei `partial`, Zweig- und Rückgaben-Menge, Verdrahtung des Parsers, Fehlercodes und Katalog) führt Teil 2 ([slice-mock-lesen](../done/slice-mock-lesen.md)).
 
 - Zuordnung im Modus `mock` (Header fehlt, leer, mehrfach, gehört zu einem anderen Service): entschieden in `SPEC-195` Nr. 3 bis 5 und 8 (allein `X-Recorder-Workspace`, `ODR-E5003`, `ODR-E7001`, `ODR-E5004`); das Raster unten hat keine Zelle ohne Ort; Fänger Z04, Z06, Z07, Z11, Z12 — **Ausgang:** entfallen (kein Raster-Ort fehlte; R6 war die einzige Zelle ohne Ort und ist entschieden).
 - Das Service-Dokument (`GET` auf den Service-Root) hat in der Spezifikation keinen Vertrag und gehört nicht zum Muss-Umfang (Entscheidung des Users, 2026-10-30). **Beleg des Architect (2026-11-07, vor dem ersten Code-Commit):** der M3-Test (`welle-mock` §3, Closure-Trigger; `slice-bootstrap-m3` §1 und DoD) startet den Recorder im Modus `mock`, legt einen Workspace an, fragt `$metadata` und eine kombinierte Abfrage (`$filter`, `$orderby`, `$top`, `$skip`, `$count`), mutiert, erzeugt einen Snapshot, stellt wieder her und setzt zurück; sein Client ist ein `net/http`-Client im selben Prozess wie Recorder und Referenzdienst (`slice-bootstrap-m3` §6), und kein Wort in `welle-mock`, `slice-bootstrap-m3` oder `slice-m2-referenzdienst` verlangt das Service-Dokument. Das Fehlen des Requests ist der Beleg: es bleibt bei `501` mit `ODR-E6001` (der Parser liefert die Ursache `service_dokument`, `SPEC-195` Nr. 6), ohne Mindestfassung, ohne Rückgabe an den Planner; Fänger Z08, *Ungeprüft* in `SPEC-195` — **Ausgang:** entfallen (bei `501` mit `ODR-E6001` belassen, Fänger Z08 rot gesehen).
@@ -307,7 +307,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 
 **Risiko-Ausgänge (§6):** je Punkt im Plan selbst. Entfallen oder gelöst: Zuordnung, Service-Dokument (`501`), Sendungen, Z19 mit 11 statt 13 Codes, Linie B, Gate-Kette, `Codecs`, R1 (geschnitten), R2 und R5 (Merge-Commit), R3 (an `slice-bootstrap-m3`), R6 (entschieden vom Architect, umgesetzt). **Weiter offen, bei Adresse:** (1) R4: die Mutationen ersetzen `SPEC-195` Nr. 7 für vier Methoden, Punkt (a): `slice-mock-schreiben` (§1 *Übernimmt*, angenommen); (2) R7 und die Mengen `AlleRessourcenArten()` und `AlleCoverageStatus()`, `ODR-E6008` (38. Code, Metrik-Zeile `odr_errors_total` hinter `SPEC-230` von 37 auf 38 Reihen): `slice-mock-lesen` (Teil 2, §1 und Tabelle, `ausdrücklich NICHT` trifft sie nicht); (3) die Aufrufstellen S5 bis S11 (L43) und S14 bis S16: `slice-mock-lesen`; (4) R3, Fehlerantwort des Mock ohne Versions-Header, Verdrahtung im Root: `slice-bootstrap-m3`.
 
-**Teil 2:** [slice-mock-lesen](../in-progress/slice-mock-lesen.md); der Start-Trigger (`slice-mock-zuordnung` in `done/`) ist mit dieser Closure eingetreten. Die Marke steht dort als Prosa (*S* 5290, *M* 7200) und wird beim Start als Block nach `SPEC-128` Nr. 1 gesetzt (`AGENTS.md` §3.14); mit der Auslastung 0,47 dieses Teils rechnet der Architect die Faktoren neu, bevor der Block gesetzt wird.
+**Teil 2:** [slice-mock-lesen](../done/slice-mock-lesen.md); der Start-Trigger (`slice-mock-zuordnung` in `done/`) ist mit dieser Closure eingetreten. Die Marke steht dort als Prosa (*S* 5290, *M* 7200) und wird beim Start als Block nach `SPEC-128` Nr. 1 gesetzt (`AGENTS.md` §3.14); mit der Auslastung 0,47 dieses Teils rechnet der Architect die Faktoren neu, bevor der Block gesetzt wird.
 
 **Nummernfrage Linie B (sichtbar):** genommen sind `SPEC-195` bis `SPEC-198` (Verträge) und `SPEC-199` (Zeile des Codes `ODR-E6008`); `SPEC-192` bis `SPEC-194` bleiben frei. Neben der Linie B liegen `slice-v2-payload-schreiben` (`done/`) und die Kennungen ab `SPEC-236` der Linie D (`slice-inspection-use-case`).
 

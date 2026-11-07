@@ -35,6 +35,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt:** den Admin-Endpunkt der Workspaces aus `slice-workspace-use-case` und die Endpunkte `GET` und `POST …/snapshots` und `POST …/restore` aus `slice-snapshot-use-case`, deren §1 *Ausdrücklich NICHT* sie `welle-admin-api` zuweisen (`AGENTS.md` §3.13).
 
+**Übernimmt (Sendung von `slice-admin-listener-token`, Pflichten der Endpunkte nach `SPEC-238` Nr. 15, Schnitt vom 2026-11-07, `AGENTS.md` §3.13):** (a) was die Route als formal ungültig erkennt oder von einem Dienst als `model.ErrUngueltig` ohne Code erhält (Name, Form der `id`, fehlerhafter Body, Lesefehler des `Body`, auch über 1 MiB), gibt sie als Fehler zurück (`ErrUngueltig` oder `*inbound.Fehler{Code: CodeE2102, Status: 400}`); der Code ist `ODR-E2102` (Entscheidung des Architect, `SPEC-238` Nr. 6 und 15 a), ein eigener Code entsteht nicht; (b) die Route ruft `CountError` nie und `Audit.Append` nie für `ODR-E2101` und schreibt kein Fehlerobjekt selbst; (c) die vier Arten von `SPEC-234` Nr. 2 schreibt der Dienst, nie die Route; die Arten für Anlegen, Reset, Snapshot und Restore sind Zeilen im Vertrag des Endpunkts; (d) eine Erfolgsantwort hat einen Status von 200 bis 299 und trägt Daten als `Antwort.Body`. Der Fänger liegt in diesem Slice (die Routen und ihre Tests); der Reviewer löst jede Zeile von Nr. 15 mit einer Mutation auf.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Die Logik von Anlage, Reset, Löschen, Snapshot und Restore — `WorkspaceUseCase` und `SnapshotUseCase`; der Adapter bildet ab und schreibt nie direkt in die Datenbank (Architektur §2).
@@ -63,7 +65,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Workspaces: `GET` (Kennung, Service, Revision, Baseline, Erstellzeit), `POST` aus `baseline_snapshot_id` (optionale `id`; `ODR-E7007`, `ODR-E7008`), `GET {id}` (`ODR-E7001`), `DELETE` (die Bereinigung nach dem Commit ändert die Antwort nicht), `reset` (`ODR-E7001`).
 - [ ] Snapshots: `GET …/snapshots`, `POST …/snapshots` mit `name` (`ODR-E7006`), `POST …/restore` mit `snapshot_id` (`ODR-E7002`, `ODR-E7008`; Cursor unverändert).
-- [ ] Audit: jeder Schreibendpunkt schreibt über `AuditLog` einen Eintrag ohne Geheimnisse; formal ungültige Argumente (Name, `id`, Body) werden nach dem Rahmen aus `slice-admin-listener-token` abgebildet.
+- [ ] Audit: jeder Schreibendpunkt schreibt über `AuditLog` einen Eintrag ohne Geheimnisse; formal ungültige Argumente (Name, `id`, Body) werden nach dem Rahmen aus `slice-admin-listener-token` als `ODR-E2102` mit 400 abgebildet, und die Pflichten (a) bis (d) von `SPEC-238` Nr. 15 (kein `CountError`, kein `Append` für `ODR-E2101`, kein selbst geschriebenes Fehlerobjekt, Erfolgsstatus 200 bis 299) sind je Route gefangen.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -120,7 +122,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-admin-listener-token`, `slice-audit-log` und `slice-audit-dienste` (`welle-betrieb`; letzterer, weil der Eintrag der Löschung erst dort im Use Case entsteht), `slice-workspace-use-case` (`welle-record-replay`) und `slice-snapshot-use-case` (`welle-mock`) liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-admin-listener-token` samt seinen Teilen `slice-admin-rahmen`, `slice-admin-authentisierung`, `slice-admin-lebenszyklus`, `slice-admin-fehlerabbildung` und `slice-admin-abweisen-audit` (Schnitt vor dem Code, 2026-11-07; der Rahmen ist erst mit dem letzten Teil vollständig), `slice-audit-log` und `slice-audit-dienste` (`welle-betrieb`; letzterer, weil der Eintrag der Löschung erst dort im Use Case entsteht), `slice-workspace-use-case` (`welle-record-replay`) und `slice-snapshot-use-case` (`welle-mock`) liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Warum:** Rahmen und Port `AuditLog` wie in `slice-admin-sessions`. `WorkspaceUseCase` (Anlegen, Lesen, Löschen, Reset) liegt heute nicht in `src/hexagon/ports/inbound/` und kommt mit `slice-workspace-use-case`; `SnapshotUseCase` und `WorkspaceUseCase.Restore` legt erst `slice-snapshot-use-case` an (alle *Code-Abhängigkeit, Port*).
 

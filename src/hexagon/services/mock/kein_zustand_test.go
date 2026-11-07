@@ -67,7 +67,7 @@ func TestKeinZustand(t *testing.T) {
 			u.c.url.f = func(string, string) (model.ODataURL, error) {
 				return model.ODataURL{Ressource: model.Ressource{Art: model.RessourceMenge}}, nil
 			}
-		}, model.CodeE6001, nil, ""},
+		}, model.CodeE6008, nil, ""},
 		{"URL-Leser wieder $metadata", func() { u.c.url.f = nil }, 0, inhaltB, "kennzeichen-2"},
 		{"Workspace fremd", func() { u.ws.setze(model.Workspace{ID: wsID, ServiceID: "anderer"}) }, model.CodeE5004, nil, ""},
 		{"Workspace entfernt", func() { u.ws.entferne(wsID) }, model.CodeE7001, nil, ""},

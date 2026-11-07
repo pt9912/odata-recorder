@@ -112,7 +112,7 @@ type fall struct {
 	code model.Code
 }
 
-// fehlerFaelle sind alle Fehlerzeilen von Z08 bis Z16 und Z18.
+// fehlerFaelle sind alle Fehlerzeilen von Z08 bis Z16; die Fehlerzeilen des Lesens stehen in lesen_fehler_test.go.
 func fehlerFaelle() []fall {
 	var r []fall
 	klassen := urlKlassen()
@@ -154,13 +154,6 @@ func fehlerFaelle() []fall {
 	)
 	for _, f := range append(metadatenFehlerFaelle(), kennzeichenFaelle()...) {
 		r = append(r, fall{"Metadaten " + f.name, func(u *umg, _ *inbound.Anfrage) { f.bau(u) }, f.code})
-	}
-	for _, art := range []model.RessourcenArt{model.RessourceMenge, model.RessourceEntity, model.RessourceAnzahl} {
-		r = append(r, fall{fmt.Sprintf("Platzhalter %d", art), func(u *umg, _ *inbound.Anfrage) {
-			u.c.url.f = func(string, string) (model.ODataURL, error) {
-				return model.ODataURL{Ressource: model.Ressource{Art: art, EntitySet: "Set"}}, nil
-			}
-		}, model.CodeE6001})
 	}
 	return r
 }
@@ -215,7 +208,7 @@ func TestFehlerWert(t *testing.T) {
 		gesehen[fe.Code.String()] = true
 		// Die Codes, die der Dienst ohne Tabelle bildet, tragen keine Ursache (SPEC-195 Nr. 10).
 		ohne := slices.Contains([]string{"kein Dienst", "Header fehlt", "Methode POST", "Workspace fremd", "Service ohne Blob", "Art 0"}, f.name) ||
-			strings.HasPrefix(f.name, "Platzhalter ") || strings.HasPrefix(f.name, "Metadaten Kennzeichen")
+			strings.HasPrefix(f.name, "Metadaten Kennzeichen")
 		if ohne && fe.Ursache != nil {
 			t.Errorf("%s: Ursache %v, erwartet keine", f.name, fe.Ursache)
 		}
