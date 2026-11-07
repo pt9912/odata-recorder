@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-log
+**Fund:** Der erste Abdeckungslauf des Verifiers fuhr `docker run` gegen `odata-recorder:race` ohne Kopie des eigenen Baums und traf das Image eines anderen Zweigs (Paket ohne `zeile.go`, 98,0 statt 98,7 Prozent); mit `docker cp` des eigenen Baums stimmte die Zahl. Kein Sensor, der den Lauf gegen fremden Code meldet. Beleg: Verifikation `docs/reviews/2026-11-07-slice-telemetry-log-verifikation.md` Abschnitt 1 und I-4.
