@@ -8,7 +8,7 @@
 
 **Eingangs-Kontext:**
 
-- `docs/plan/planning/in-progress/slice-telemetry-handler.md` (im Zweig): §3 Entscheidungen 18 und 19, Tabelle H01 bis H16, Mengen M1 bis M17, Runden R1 bis R6, Fenster der Sperre, Absatz *Umsetzung*, §6
+- `docs/plan/planning/done/slice-telemetry-handler.md` (im Zweig): §3 Entscheidungen 18 und 19, Tabelle H01 bis H16, Mengen M1 bis M17, Runden R1 bis R6, Fenster der Sperre, Absatz *Umsetzung*, §6
 - `SPEC-231` Nr. 4 und 5, `SPEC-232` Nr. 2, 3, 5 c, d, f, g, `SPEC-121` Nr. 12, `SPEC-123` Nr. 11, `SPEC-124` Nr. 9
 - `AGENTS.md` §3.7, §3.9 bis §3.18
 - ADR: [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Trigger Zeit/Gate-Kette, nur genannt)

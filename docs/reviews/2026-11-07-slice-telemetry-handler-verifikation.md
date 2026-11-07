@@ -6,7 +6,7 @@
 
 **Rolle:** Verifier · **Modell:** claude-sonnet-5-5 · **Datum:** 2026-11-07
 
-**Eingang:** Plan `docs/plan/planning/in-progress/slice-telemetry-handler.md` (§3 Entscheidungen 18 und 19, Tabelle H01 bis H16, Mengen M1 bis M17, Runden R1 bis R6, Absatz *Umsetzung* samt Fix-Runde, §6), `SPEC-231` Nr. 4 und 5, `SPEC-232` Nr. 2, 3, 5 c, d, f, g, das Review `docs/reviews/2026-11-07-slice-telemetry-handler-review.md`.
+**Eingang:** Plan `docs/plan/planning/done/slice-telemetry-handler.md` (§3 Entscheidungen 18 und 19, Tabelle H01 bis H16, Mengen M1 bis M17, Runden R1 bis R6, Absatz *Umsetzung* samt Fix-Runde, §6), `SPEC-231` Nr. 4 und 5, `SPEC-232` Nr. 2, 3, 5 c, d, f, g, das Review `docs/reviews/2026-11-07-slice-telemetry-handler-review.md`.
 ADR: [ADR-0001](../plan/adr/0001-implementierungssprache-go.md) (Bezug des Slice), [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (nur genannt: Entscheidung über den Trigger liegt beim User).
 
 ## Urteil
