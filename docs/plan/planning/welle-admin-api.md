@@ -36,6 +36,8 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 **Der Trigger ist Priorisierung, keine Code-Abhängigkeit** (Entscheidung des Users zu Betrieb vor Admin, [Abgleichsbericht](../../reviews/2026-10-30-lastenheft-wellen-abgleich.md) §10 Nr. 1): `slice-lasttest` und M5 liefern dem Code der Admin-API nichts. Code-Abhängigkeiten von `welle-betrieb` haben nur vier Slices: `slice-audit-log`, `slice-telemetry-port`, `slice-telemetry-einbau-gateway` und `slice-listener-tls`; die Pläne tragen sie als Start-Trigger (§5).
 
+**Start vor dem Welle-Trigger: `slice-inspection-use-case`** (2026-11-07, Ausnahme je Slice, Linie D): Code-Kante allein `slice-telemetry-port` (in `done/`, Lese-Teil `TelemetryReader`); Plan [in-progress/](in-progress/slice-inspection-use-case.md), Zweig slice-inspection-use-case. Der Slice braucht keinen Slice von `welle-mock` oder `welle-record-replay`, ändert weder `src/bootstrap/` noch das Binary und berührt die Gate-Kette nicht. Die Welle bleibt unter *Nächste Wellen*.
+
 ## 3. Closure-Trigger (Welle schließt)
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
@@ -77,7 +79,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 §Roadmap-Struktur: fünf Abschnitte.
 
 - Blockiert: keine Welle; sie schließt die Muss-Anforderungen für M7 (Erstabnahme).
-- Wird blockiert von: `welle-betrieb`, konkret von `slice-audit-log` (`AuditLog`), `slice-telemetry-port` (`Telemetry`, Zähler der Diagnose), `slice-telemetry-einbau-gateway` (Voraussetzung von `slice-test-security`) und `slice-listener-tls` (TLS-Baustein, nur `slice-admin-tls`); der Trigger „M5 erreicht“ (§2) ist Priorisierung. Mittelbar von `welle-mock` (`slice-snapshot-use-case`, `slice-bootstrap-m3`) und `welle-record-replay` (`slice-workspace-use-case`, `slice-bootstrap-m2`).
+- Wird blockiert von: `welle-betrieb`, konkret von `slice-audit-log` (`AuditLog`), `slice-telemetry-port` (`TelemetryReader`, Zähler der Diagnose), `slice-telemetry-einbau-gateway` (Voraussetzung von `slice-test-security`) und `slice-listener-tls` (TLS-Baustein, nur `slice-admin-tls`); der Trigger „M5 erreicht“ (§2) ist Priorisierung. Mittelbar von `welle-mock` (`slice-snapshot-use-case`, `slice-bootstrap-m3`) und `welle-record-replay` (`slice-workspace-use-case`, `slice-bootstrap-m2`).
 - Unabhängig: `welle-hybrid`, `welle-etag`, `welle-expand-batch`, `welle-odata-v2`.
 - Reihenfolge der Slices (Pfeil heißt: braucht; `slice-audit-log` aus `welle-betrieb`):
   - `slice-admin-listener-token` braucht `slice-audit-log`; `slice-admin-tls` braucht `slice-admin-listener-token` und `slice-listener-tls`.
