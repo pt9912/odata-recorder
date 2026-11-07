@@ -35,9 +35,12 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-telemetry-port`):** der Einbau in die Pfade `mock` und Workspace-Mutation.
 
+**Übernimmt (Sendung von `slice-telemetry-log`, akzeptiertes Negativ L15; Geber: `slice-telemetry-log`; Eintrag des Planners vom 2026-11-07):** der Fänger je Stelle: ein wohlgeformter Wert in einem zulässigen Schlüssel geht durch die Form des Adapters (`SPEC-232` Nr. 2, *Ungeprüft*), der Schutz ist ein Test je Stelle des Mock-Pfads, dass kein Wert aus dem Request (Entity-Set, Workspace-ID, Key-Wert, Query-Literal) in einem Attribut oder in `msg` einer Zeile landet, außer nach Prüfung gegen das Modell.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Port und Adapter `Telemetry` — `slice-telemetry-port`.
+- Zeile, Stufen, Senke, `Handler`, Spans, Verteilung, Ring und Span-Zeile im Adapter — `slice-telemetry-log`, `slice-telemetry-handler` und `slice-telemetry-spans`; alle drei liegen beim Start dieses Slice in `done/`, dieser Slice ändert sie nicht.
 - Der Eintrag `audit_fehlgeschlagen` und die Abbildung des Adapters `audit` (`SPEC-231` Nr. 4 und 7, Sendung von `slice-audit-log`) — `slice-telemetry-einbau-gateway`; die Löschung eines Workspace ist kein Mutations-Span.
 - Gesamtspan, Capture-Span und Match-Span (`SPEC-026` bis `SPEC-028`) — `slice-telemetry-einbau-gateway`; der Gesamtspan liegt im HTTP-Adapter und ist modusunabhängig.
 - Spans und Zähler des Hybrid-Fallbacks — kein Slice von `welle-betrieb` nimmt sie an (Sendung ohne Nehmer, siehe §6 von `slice-telemetry-einbau-gateway`, Adresse: Planner).
@@ -64,7 +67,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Query-Span: jede Abfrage des Mock-Dienstes (Collection, Key-Lookup, `/$count`, `$metadata` nach Entscheidung des Architect) öffnet und beendet `odata.mock.query` mit Entity-Set und Coverage-Status, auch im Fehlerfall (`ODR-E6003`, `ODR-E6001`, Abbruch); der Span umfasst die Query-Ausführung, nicht die Serialisierung außerhalb (`LH-QA-01.a`).
 - [ ] Mutations-Span: jede Mutation des Workspace (nach `LH-FA-07.b`) setzt `odata.workspace.mutation` mit Workspace-ID und Art der Mutation; eine abgewiesene Mutation (Constraint, Coverage) trägt den Span mit ihrem Ergebnis; der Zähler je Fehlercode steigt für jeden Code des Mock-Pfads, den der Test auslöst.
-- [ ] Verdrahtung im Composition Root im Modus `mock` und Test durch Mock-Lesen und Mutation: die Spans `SPEC-029` und `SPEC-030` mit ihren Pflicht-Attributen, ohne Query-Literal und Body (Canary).
+- [ ] Verdrahtung im Composition Root im Modus `mock` und Test durch Mock-Lesen und Mutation: die Spans `SPEC-029` und `SPEC-030` mit ihren Pflicht-Attributen, ohne Query-Literal und Body (Canary), mit einem Fänger je Stelle des Mock-Pfads, dass kein Request-Wert ungeprüft in einem Attribut oder in `msg` landet (Sendung L15 von `slice-telemetry-log`).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -123,11 +126,12 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-telemetry-port`, `slice-mock-lesen`, `slice-mock-schreiben`, `slice-snapshot-use-case` und `slice-bootstrap-m3` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-telemetry-port`, `slice-telemetry-log`, `slice-telemetry-handler`, `slice-telemetry-spans`, `slice-mock-lesen`, `slice-mock-schreiben`, `slice-snapshot-use-case` und `slice-bootstrap-m3` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Abhängigkeiten — Grund je Eintrag:**
 
 - `slice-telemetry-port`: der Port und sein Fake, die dieser Slice ruft.
+- `slice-telemetry-log`, `slice-telemetry-handler` und `slice-telemetry-spans` (Schnitt des Planners vom 2026-11-07): *Code-Abhängigkeit*. Ohne Zeile, Handler und Spans im Adapter schreibt das Binary keine Span-Zeile; der Einbau prüft Wirkung und Span-Zeile.
 - `slice-mock-lesen` und `slice-mock-schreiben` (`welle-mock`): die Orte der beiden Spans (`src/hexagon/services/mock`, heute nicht vorhanden); ohne Lesen und Mutation gibt es weder Query-Ausführung noch Zustandsänderung zu umschließen.
 - `slice-snapshot-use-case` (`welle-mock`): Reset, Restore und Snapshot sind Zustandsänderungen des Workspace; ob sie `odata.workspace.mutation` tragen, entscheidet Auftrag 1, und der Dienst muss dann bestehen.
 - `slice-bootstrap-m3` (`welle-mock`): der Modus `mock` im Composition Root, über den der Test die Spans erreicht (kein HTTP-Adapter für Admin, kein CLI).
