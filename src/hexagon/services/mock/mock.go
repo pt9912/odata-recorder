@@ -84,7 +84,7 @@ func pruefeKonfig(k Konfig) error {
 // Mock prüft den Request in der Reihenfolge von SPEC-195 Nr. 3 (der erste Verstoß entscheidet) und liefert die
 // Antwort. Collection, Entity und Anzahl enden mit ODR-E6001 (Platzhalter nach Schritt g).
 func (m *Mocker) Mock(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, error) {
-	if ctx == nil || a.Methode == "" || a.Laenge < -1 || a.Body == nil && a.Laenge > 0 {
+	if argumenteUngueltig(ctx, a) {
 		return inbound.Antwort{}, ungueltig("Anfrage, die kein HTTP-Adapter liefert")
 	}
 	d, pfad, ok := dienstFuer(m.k.Dienste, a.Pfad)
@@ -108,17 +108,31 @@ func (m *Mocker) Mock(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, 
 	if err := m.pruefeWorkspace(ctx, d, ws); err != nil {
 		return inbound.Antwort{}, err
 	}
-	s, err := m.k.Metadaten.Get(ctx, d.ID)
-	switch {
-	case err != nil:
-		return inbound.Antwort{}, abbilden(err, outbound.GegenstandDienst)
-	case s.MetadataBlob == "":
-		return inbound.Antwort{}, mitCode(model.CodeE6004, nil)
+	s, err := m.holeService(ctx, d)
+	if err != nil {
+		return inbound.Antwort{}, err
 	}
 	if u.Ressource.Art != model.RessourceMetadaten {
 		return inbound.Antwort{}, mitCode(model.CodeE6001, nil)
 	}
 	return m.metadaten(ctx, a.Methode == "HEAD", d, s)
+}
+
+// argumenteUngueltig sagt, ob der Aufruf ein Programmfehler des Adapters ist (SPEC-195 Nr. 2).
+func argumenteUngueltig(ctx context.Context, a inbound.Anfrage) bool {
+	return ctx == nil || a.Methode == "" || a.Laenge < -1 || a.Body == nil && a.Laenge > 0
+}
+
+// holeService liest den Service genau einmal; ohne Metadaten ist er nicht verwendbar (SPEC-195 Nr. 9).
+func (m *Mocker) holeService(ctx context.Context, d Dienst) (model.Service, error) {
+	s, err := m.k.Metadaten.Get(ctx, d.ID)
+	switch {
+	case err != nil:
+		return model.Service{}, abbilden(err, outbound.GegenstandDienst)
+	case s.MetadataBlob == "":
+		return model.Service{}, mitCode(model.CodeE6004, nil)
+	}
+	return s, nil
 }
 
 // nichtGelesen ist der Fehler einer Methode außer GET und HEAD (SPEC-195 Nr. 7): ODR-E6006 bei einem Dienst, dessen Satz nur
