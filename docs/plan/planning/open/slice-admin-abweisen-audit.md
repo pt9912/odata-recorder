@@ -14,13 +14,13 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Bezug:** `LH-FA-13`, `LH-QA-04`, `LH-RB-04`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
 **Berührte Spec-Stellen:** `LH-FA-13.a` (jedes Abweisen mit `ODR-E2101` hinterlässt einen Audit-Eintrag ohne Tokenwert) · `LH-QA-04.a` · `SPEC-238` Nr. 8 (Audit des Abweisens), Nr. 12 (Gleichzeitigkeit), Nr. 13 (Geheimnisse, acht Ausgabewege), Nr. 14 (Binary und Katalog), Nr. 15 (Pflichten der Endpunkte) · `SPEC-234` Nr. 2 (fünfte Art `admin_abgewiesen`), Nr. 5, Nr. 7 (der Adapter schreibt die vier Arten des Use Case nie) · `SPEC-110` Nr. 2 (unberührt) · `ARC-007`, `ARC-021`.
-Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht im Zweig `slice-admin-listener-token` und kommt mit dessen Merge nach `main`.
+Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht auf `main` (seit dem Merge von `slice-admin-listener-token`).
 
 **Verantwortlich:** —
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-07.
 
-**Herkunft:** Teil 6 des Schnitts von [slice-admin-listener-token](../in-progress/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen D1 bis D7, H1, N1, Y1, Y5, Y6 und P1 der Tabelle des Architect (13 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich H1 (die Schleife über alle acht Ausgabewege braucht den Eintrag und die Fehlertexte von `Serve` und `Schliessen`) und N1 (gleichzeitige Requests über `Handler`, `Append` und `CountError`).
+**Herkunft:** Teil 6 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen D1 bis D7, H1, N1, Y1, Y5, Y6 und P1 der Tabelle des Architect (13 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich H1 (die Schleife über alle acht Ausgabewege braucht den Eintrag und die Fehlertexte von `Serve` und `Schliessen`) und N1 (gleichzeitige Requests über `Handler`, `Append` und `CountError`).
 
 ---
 
@@ -93,7 +93,7 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/bootstrap/audit_betrieb_test.go` | update (nur Test, Rückgabe R2) | zählt vier Arten und die Zellen Modus × Art: fünf Arten, `admin_abgewiesen` ausdrücklich ausgenommen (kein Use Case, kein Aufruf im Binary); kein Produktcode von `bootstrap` ändert sich |
 | Tests | neu / update | Adapter gegen `ServeHTTP` und gegen einen echten Listener; `FakeAudit` (hält jedes Argument, zählt `Aufrufe()`, `Vor` als Haltepunkt, `Fehler` einstellbar) und `FakeTelemetry` aus `supporttest`; Pipes für `stdout`, `stderr` und `log.Default()`; der Adapter importiert weder Adapter noch Service (`make a-check`) |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stammen vom Architect (2026-11-07, Plan von [slice-admin-listener-token](../in-progress/slice-admin-listener-token.md)); der Schnitt gibt jedem Teil ganze Zeilen im Wortlaut (D Audit, H Geheimnisse, N Gleichzeitigkeit, Y Katalog und Code, P Pflichten der Endpunkte). Die Mengen *R* und *W* und die Mengen M-Header (U1) und M-Methode × Pfad (U7), über die D1 und D2 laufen, führt der Plan, der die jeweilige Zeile trägt (`slice-admin-authentisierung`, `slice-admin-fehlerabbildung`).
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stammen vom Architect (2026-11-07, Plan von [slice-admin-listener-token](../done/slice-admin-listener-token.md)); der Schnitt gibt jedem Teil ganze Zeilen im Wortlaut (D Audit, H Geheimnisse, N Gleichzeitigkeit, Y Katalog und Code, P Pflichten der Endpunkte). Die Mengen *R* und *W* und die Mengen M-Header (U1) und M-Methode × Pfad (U7), über die D1 und D2 laufen, führt der Plan, der die jeweilige Zeile trägt (`slice-admin-authentisierung`, `slice-admin-fehlerabbildung`).
 
 | Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|
