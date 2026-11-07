@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-spans
+**Fund:** Schätzung *S* 2230 (24 Zeilen, 6 nebenläufig, 0 Fakes, Produktcode 280), Marke 3100, Messung 2203 (`make groessenmarke`: ok); Ende ÷ *S* 0,99, Auslastung 0,71, innerhalb 0,60 bis 1,00. Gemischtes Bild: Produktcode `span.go` 147 Zeilen gegen 280 erwartet (0,53), die Tests tragen den Rest und haben die Schätzung für den Produktcode ausgeglichen. Die Messung zählt 2 Zeilen von `regeln_test.go` aus dem Merge von `main` mit. Beleg: Plan §7 (Messpunkt-Zeile), Verifikation.

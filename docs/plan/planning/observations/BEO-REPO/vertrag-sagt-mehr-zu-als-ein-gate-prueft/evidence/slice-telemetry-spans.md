@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-spans
+**Fund:** Review F3: `SPEC-232` Nr. 5 b sagt einen Stand zu, das Orakel des Stands in S15 und S16 verglich `Count`, `Counts` und die Einträge je Name, ließ aber `Sum` aus; die Mutation "`Sum` in eigenem Abschnitt vor der Verteilung" blieb grün. Der Fix nimmt `Sum` (Summe der Dauern des Rings) in `verteilungKaputt` und lässt die Uhr der Masse vorwärts laufen, damit die Dauern ungleich 0 sind: 50 von 50 und 50 von 50 rot, dazu `Spans` in eigenem Abschnitt (nicht genannt) ebenso. Beleg: Plan §3 (*Fix-Runde*), Review F3, Verifikation.
