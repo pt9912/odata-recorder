@@ -75,7 +75,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [x] Port und Konfig: `MockUseCase` mit der einen Methode `Mock` in `src/hexagon/ports/inbound/`, `mock.New` mit `Codecs` (`nil` gilt als Satz der Konfig), Rangfolge der Schritte, Fehlerbildung als `*inbound.Fehler` nach `SPEC-109` Nr. 5, Kontext und Fakes der Ports; die Sendungen von `slice-v2-bootstrap`, `slice-hybrid-service` und `slice-odata-url-pfad` (§1: Präfix, Fake von `URLCodec`, `service_dokument` als `501`).
 - [x] Zuordnung und `$metadata`: Service und Workspace aus dem Request (`ODR-E5005`, `ODR-E5003`, `ODR-E7001`, `ODR-E5004`), `$metadata` aus den gespeicherten Metadaten byte-gleich mit dem Kennzeichen der `Darstellung` des Schreibers, `HEAD` gleich `GET` ohne Body; ein EntitySet ohne Instanzen bleibt im Modell, weil der Blob unverändert ausgeliefert wird (`LH-FA-06`, Boundary).
-- [ ] `make gates` grün.
+- [x] `make gates` grün.
 - [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
