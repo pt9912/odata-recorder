@@ -122,9 +122,12 @@ func TestKeineAusgabe(t *testing.T) {
 			_ = os.WriteFile(p, []byte(hex64()), 0o644)
 			_ = os.Chmod(p, 0o644)
 		})
+		// Der vierte Weg zu Datei nicht anlegbar: Link scheitert mit einem anderen Fehler als fs.ErrExist.
+		_, err := admin.LadeMitHaltepunkten(filepath.Join(t.TempDir(), "admin.token"), nil, func(h string) { _ = os.Remove(h) })
+		zaehle(err)
 	})
-	if aufrufe != 3+29+5+3 {
-		t.Fatalf("%d Aufrufe, erwartet 40", aufrufe)
+	if aufrufe != 3+29+5+3+1 {
+		t.Fatalf("%d Aufrufe, erwartet 41", aufrufe)
 	}
 	sieben := []string{gNichtLesbar, gVerzeichnis, gKeineDatei, gRechte, gMehrZeilen, gZuKurz, gNichtAnlegbar}
 	for _, g := range sieben {
