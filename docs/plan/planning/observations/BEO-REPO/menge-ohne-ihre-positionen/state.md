@@ -1,1 +1,1 @@
-**Stand:** offen; erster Vorgang mit `slice-mock-lesen` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht
+**Stand:** offen; zweiter Vorgang mit `slice-mock-schreiben` (Evidenz; Positionen im Set nicht vom Verifier gefahren), erster mit `slice-mock-lesen` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht

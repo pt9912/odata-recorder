@@ -97,7 +97,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-mock-schreiben` liegt in `done/` (erst dort entstehen die Änderungen, die ein Snapshot festhält). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-mock-schreiben` liegt in `done/` (erst dort entstehen die Änderungen, die ein Snapshot festhält). **Stand** (Planner, 2026-11-07): erfüllt, `slice-mock-schreiben` liegt in `done/` (Zweig-Merge nach `main`); der Slice ist startbar. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
