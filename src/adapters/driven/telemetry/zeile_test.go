@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -570,6 +571,101 @@ func TestCanary(t *testing.T) {
 	}
 	if enthaelt(festeUhrZeile(t)) {
 		t.Error("Kontrolle: das Präfix steht in der Zeile eines Aufrufs mit gültigen Werten")
+	}
+}
+
+// rohWert ist der Text des Werts von msg in den Rohbytes einer Zeile ohne weitere Felder.
+func rohWert(t *testing.T, z []byte) []byte {
+	t.Helper()
+	vor, nach := `{"timestamp":"`+festerStempel+`","level":"INFO","msg":"`, "\"}\n"
+	if !bytes.HasPrefix(z, []byte(vor)) || !bytes.HasSuffix(z, []byte(nach)) || len(z) < len(vor)+len(nach) {
+		t.Fatalf("Zeile %q hat nicht die Form einer Zeile ohne Felder", z)
+	}
+	return z[len(vor) : len(z)-len(nach)]
+}
+
+// F-1 (SPEC-231 Nr. 1): Menge Zeichen der Eingabe × maskiert/unverändert, Orakel auf den Rohbytes
+// der Zeile und nicht über den JSON-Leser. Elemente: die 256 Bytewerte einzeln (0x80 bis 0xFF
+// allein sind ungültig und ergeben ein U+FFFD), jedes gültige Zeichen von U+0000 bis U+FFFF ohne
+// die 2048 Ersatzzeichen (63488) und drei Zeichen oberhalb (U+10000, U+10FFFF, U+1F600), zusammen
+// 63747. Maskiert werden allein ", Backslash, die Zeichen unter U+0020, U+2028 und U+2029: dort
+// beginnt der Wert mit einem Backslash, enthält das Zeichen nicht roh und liest sich als dasselbe
+// Zeichen; jedes andere Zeichen steht mit genau seinen Bytes da. Prüfgrenze: Zeichen oberhalb von
+// U+FFFF sind mit drei Vertretern geprüft (der Code behandelt sie nicht anders als U+0800 bis U+FFFF).
+func TestMaskierungRohbytes(t *testing.T) {
+	var menge [][2]string // roh, erwarteter Text von msg
+	for v := range 256 {
+		if v < 0x80 {
+			menge = append(menge, [2]string{string([]byte{byte(v)}), string([]byte{byte(v)})})
+		} else {
+			menge = append(menge, [2]string{string([]byte{byte(v)}), string(rune(0xFFFD))})
+		}
+	}
+	einzeln := len(menge)
+	for r := rune(0); r <= 0xFFFF; r++ {
+		if r < 0xD800 || r > 0xDFFF {
+			menge = append(menge, [2]string{string(r), string(r)})
+		}
+	}
+	bmp := len(menge) - einzeln
+	for _, r := range []rune{0x10000, 0x10FFFF, 0x1F600} {
+		menge = append(menge, [2]string{string(r), string(r)})
+	}
+	if einzeln != 256 || bmp != 0x10000-2048 || len(menge) != 256+0x10000-2048+3 {
+		t.Fatalf("%d einzeln, %d BMP, %d Elemente", einzeln, bmp, len(menge))
+	}
+	senke := &FakeSenke{}
+	a := neuMit(t, senke, festeUhr(), slog.LevelInfo)
+	for _, e := range menge {
+		a.Log(context.Background(), slog.LevelInfo, e[0])
+	}
+	zeilen := senke.zeilen()
+	if len(zeilen) != len(menge) {
+		t.Fatalf("%d Zeilen, erwartet %d", len(zeilen), len(menge))
+	}
+	maskiert := 0
+	for i, e := range menge {
+		roh, text := rohWert(t, zeilen[i]), e[1]
+		c, _ := utf8.DecodeRuneInString(text)
+		if c == '"' || c == '\\' || c < ' ' || c == 0x2028 || c == 0x2029 {
+			maskiert++
+			if len(roh) < 2 || roh[0] != '\\' || (c != '"' && c != '\\' && bytes.Contains(roh, []byte(text))) {
+				t.Fatalf("Element %d (%x): Zeichen nicht maskiert: roh %q", i, e[0], roh)
+			}
+			if got := lies(t, zeilen[i]).text["msg"]; got != text {
+				t.Fatalf("Element %d (%x): gelesen %q, erwartet %q", i, e[0], got, text)
+			}
+			continue
+		}
+		if string(roh) != text {
+			t.Fatalf("Element %d (%x): roh %x, erwartet unverändert %x", i, e[0], roh, text)
+		}
+	}
+	// 34 aus den Bytewerten (32 Steuerzeichen, ", Backslash), 36 aus dem Bereich (dieselben und U+2028, U+2029)
+	if maskiert != 34+36 {
+		t.Errorf("%d maskierte Elemente, erwartet %d", maskiert, 34+36)
+	}
+}
+
+// Log ändert den Stand nicht über die Verwürfe hinaus: nach einem Aufruf mit allen gültigen Feldern
+// und einem ungültigen Attribut sind Fehlerzähler, Verteilungen und Spans gleich, und von den
+// Verwürfen wächst allein wert.
+func TestLogAendertNurVerwuerfe(t *testing.T) {
+	a := neuMit(t, &FakeSenke{}, festeUhr(), slog.LevelInfo)
+	vorher := a.Snapshot()
+	attrs := []support.Attr{support.Str("mode", "a b")}
+	for _, k := range orakelFolge() {
+		attrs = append(attrs, gueltigFuer(k))
+	}
+	a.Log(context.Background(), slog.LevelError, "m", attrs...)
+	nachher := a.Snapshot()
+	if !reflect.DeepEqual(vorher.Errors, nachher.Errors) || !reflect.DeepEqual(vorher.Durations, nachher.Durations) || len(nachher.Spans) != 0 {
+		t.Errorf("Log änderte Fehlerzähler, Verteilungen oder Spans: %+v", nachher)
+	}
+	for g, n := range nachher.Dropped {
+		if want := vorher.Dropped[g]; (g == support.VerwurfWert && n != want+1) || (g != support.VerwurfWert && n != want) {
+			t.Errorf("Grund %s: %d, vorher %d", g, n, want)
+		}
 	}
 }
 

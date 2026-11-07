@@ -10,7 +10,7 @@
 
 - `slice-telemetry-log` (§3 Entscheidungen 10 bis 17, Tabelle L01 bis L20, Mengen M1 bis M10 und M16 (Anteil L), Bericht des Implementers, Raster, Fehlerformen der Senke, Fenster der Sperre, Zweig-Menge Z01 bis Z37 in §6)
 - `SPEC-230` bis `SPEC-232` (`SPEC-231` Nr. 1 bis 3, `SPEC-232` Nr. 2, 3, 5)
-- `LH-QA-05`, `LH-QA-04`, `LH-FA-01`, ADR-0001
+- `LH-QA-05`, `LH-QA-04`, `LH-FA-01`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md)
 - `AGENTS.md` (Hard Rules, besonders §3.9, §3.10, §3.11, §3.15, §3.17, §3.18)
 
 **Vorgehen.** Eigene Mutationen mit `tools/harness/mutationslauf.sh` (Image `odata-recorder:race`, `--memory=2g`, unter `flock`, Last des Hosts 1,6 bis 2,8 von 4 CPUs): 26 Mutationen in zwei Listen, jede am Code, nie an der Fixture. Ergebnis: 14 rot, 5 `rot-paket`, 6 grün, 1 flatternd, 0 Übersetzungsfehler. Nicht neu gemessen: die Abdeckung 98,7 Prozent unter dem Detektor (ein Container-Lauf mit Kopie des Baums wurde von der Sicherheitsprüfung abgelehnt); die Zweig-Menge ist deshalb gegen den Bericht des Implementers, nicht gegen eine eigene Messung aufgelöst.
