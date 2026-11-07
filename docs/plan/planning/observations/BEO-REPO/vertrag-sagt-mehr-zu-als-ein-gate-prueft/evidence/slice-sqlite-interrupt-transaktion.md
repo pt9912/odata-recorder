@@ -1,0 +1,2 @@
+**Vorgang:** slice-sqlite-interrupt-transaktion
+**Fund:** Zweimal im Review: Satz f sagte „jedes Steuerstatement“ zu, der Fänger der Zeile 15 prüfte beide nur gemeinsam (M-1); die Allaussage „jede weitere schreibende Operation“ hatte für das Paar beendeter Kontext × unbrauchbare Transaktion keinen Fänger und keinen Ort in der Spezifikation (M-2). Beide sind behoben (Entscheid des Architect `dea715a4`, Fix-Runde `3ea3b9fa`). Beleg: `docs/reviews/2026-11-07-slice-sqlite-interrupt-transaktion-review.md`.

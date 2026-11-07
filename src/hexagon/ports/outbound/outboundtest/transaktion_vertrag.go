@@ -28,6 +28,10 @@ func RunTransaktionVertrag(t *testing.T, neu Neu) {
 		{"Transaktionen laufen nacheinander", transaktionNebenlaeufig},
 		{"eine gescheiterte Operation nimmt ihre Teilwirkung zurück, auch wenn f den Fehler verschluckt", transaktionTeilwirkung},
 		{"der Abschluss einer gelungenen Operation sieht den Abbruch des Kontexts nicht", transaktionAbschluss},
+		{"ein beendeter Kontext vor der Operation: jede Operation liefert seinen Fehler ohne Änderung", transaktionKontextVorOperation},
+		{"der Fehler des Kontexts geht dem Fehler der Datenbank vor", transaktionKontextVorDatenbankfehler},
+		{"zwei verschluckte Fehler derselben Transaktion ändern nichts", transaktionVerschluckteFehler},
+		{"die Operationen der Prüfung sind die Methoden der vier Repositories", transaktionOperationenMenge},
 		{"f ohne Wert ist ungültig", transaktionOhneF},
 		{"Löschen eines Workspace in f über alle vier Repositories", transaktionLoeschenFall},
 		{"Reset: ReplaceAll, ResetAll und Advance in einer Transaktion", transaktionResetFall},
@@ -135,25 +139,35 @@ func transaktionFall3(t *testing.T, neu Neu) {
 
 func transaktionFall4(t *testing.T, neu Neu) {
 	v := wsBasis(t, neu)
-	aufgerufen := false
-	err := v.Transaktion.WithWorkspaceTransaction(abgebrochen(), func(outbound.WorkspaceStores) error {
-		aufgerufen = true
-		return nil
-	})
-	erwarte(t, err, context.Canceled)
-	if aufgerufen {
-		t.Fatal("f lief trotz abgebrochenem Kontext")
-	}
-	// Bricht der Kontext in f ab und f liefert nil, ist das Ergebnis der Fehler des Kontexts.
-	ctx, abbruch := context.WithCancel(context.Background())
-	err = v.Transaktion.WithWorkspaceTransaction(ctx, func(s outbound.WorkspaceStores) error {
-		ok(t, s.Workspaces.Create(context.Background(), arbeitsraum("w", 0)))
-		abbruch()
-		return nil
-	})
-	erwarte(t, err, context.Canceled)
-	if n := v.Zeilen(t, "workspaces"); n != 0 {
-		t.Fatalf("%d Workspaces nach abgebrochener Transaktion", n)
+	for _, a := range KontextArten() {
+		aufgerufen := false
+		err := v.Transaktion.WithWorkspaceTransaction(a.Beendet(), func(outbound.WorkspaceStores) error {
+			aufgerufen = true
+			return nil
+		})
+		erwarte(t, err, a.Soll)
+		if aufgerufen {
+			t.Fatalf("%s: f lief trotz beendetem Kontext", a.Name)
+		}
+		// Endet der Kontext in f und f liefert nil, ist das Ergebnis der Fehler des Kontexts; die
+		// Operation mit eigenem, lebendem Kontext gelingt, bestätigt wird nichts.
+		ctx, beende := a.neu()
+		err = v.Transaktion.WithWorkspaceTransaction(ctx, func(s outbound.WorkspaceStores) error {
+			ok(t, s.Workspaces.Create(context.Background(), arbeitsraum("w", 0)))
+			beende()
+			return nil
+		})
+		erwarte(t, err, a.Soll)
+		if n := v.Zeilen(t, "workspaces"); n != 0 {
+			t.Fatalf("%s: %d Workspaces nach beendeter Transaktion", a.Name, n)
+		}
+		// Die nächste Transaktion ist nutzbar.
+		ok(t, v.Transaktion.WithWorkspaceTransaction(context.Background(), func(s outbound.WorkspaceStores) error {
+			return s.Workspaces.Create(context.Background(), arbeitsraum("w", 0))
+		}))
+		ok(t, v.Transaktion.WithWorkspaceTransaction(context.Background(), func(s outbound.WorkspaceStores) error {
+			return s.Workspaces.Delete(context.Background(), "w")
+		}))
 	}
 }
 
