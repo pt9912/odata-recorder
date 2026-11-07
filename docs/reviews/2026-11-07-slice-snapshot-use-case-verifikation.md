@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier (Modul 11) · **Frage:** Bauen wir es richtig? — gegen Plan, DoD, Vertrag und Entscheidungen; nicht der Diff (Reviewer) und nicht der Bedarf (Validator).
 
-**Gegenstand:** Slice `slice-snapshot-use-case`, Zweig `slice-snapshot-use-case`, HEAD `46248426` (Implementierung `833824cd`, Review `1134888e`, Fix-Runde `46248426`). Plan `docs/plan/planning/in-progress/slice-snapshot-use-case.md`, Vertrag `SPEC-129` Nr. 16 bis 26, Review-Report `docs/reviews/2026-11-07-slice-snapshot-use-case-review.md`. Modell: Sonnet 5.5.
+**Gegenstand:** Slice `slice-snapshot-use-case`, Zweig `slice-snapshot-use-case`, HEAD `46248426` (Implementierung `833824cd`, Review `1134888e`, Fix-Runde `46248426`). Plan `docs/plan/planning/done/slice-snapshot-use-case.md`, Vertrag `SPEC-129` Nr. 16 bis 26, Review-Report `docs/reviews/2026-11-07-slice-snapshot-use-case-review.md`. Modell: Sonnet 5.5.
 
 **Methode.** Einmal gefahren, keine Wiederholungsschleife. Die Behauptungen des Implementers sind nicht übernommen, die Belege selbst gemessen. Docker nur unter `flock /tmp/odata-recorder-heavy.lock` mit `--network none --memory 6g`; Mutationen nur in Baumkopien (`git archive HEAD` in das Scratch-Verzeichnis), nie im Worktree. Der Worktree trägt von mir nur diese Datei.
 
