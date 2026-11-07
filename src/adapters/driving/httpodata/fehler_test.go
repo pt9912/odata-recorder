@@ -79,8 +79,8 @@ func codeStatusPaare() (codes []model.Code, stati []int) {
 // A26: Jeder *Fehler mit gültigem Code und Status geht mit diesem Status und dem Fehlerobjekt aus.
 func TestFehlerobjektJeCode(t *testing.T) {
 	codes, stati := codeStatusPaare()
-	// Zwei Codes tragen nur den Status 0 (ODR-E2001, ODR-E2401), ODR-E4001 trägt zwei Stati, jeder andere Code einen von 0 verschiedenen.
-	if soll := len(model.AlleCodes()) - 2 + 1; len(codes) != soll {
+	// Zwei Codes tragen nur den Status 0 (ODR-E2001, ODR-E2401), ODR-E4001 trägt zwei Stati, ODR-E2102 drei, jeder andere Code einen von 0 verschiedenen.
+	if soll := len(model.AlleCodes()) - 2 + 1 + 2; len(codes) != soll {
 		t.Fatalf("Zahl der Paare = %d, erwartet %d", len(codes), soll)
 	}
 	for _, b := range bindungen() {

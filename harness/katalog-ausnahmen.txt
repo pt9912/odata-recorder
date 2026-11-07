@@ -1,4 +1,5 @@
 ODR-E2101 | Admin-Authentisierung: das Binary startet keinen Admin-Listener
+ODR-E2102 | Admin-Anfrage ungültig: das Binary startet keinen Admin-Listener
 ODR-E6001 | Mock-Betrieb: der Modus mock wird beim Start abgelehnt, kein Mock-Dienst läuft
 ODR-E6002 | Mock-Betrieb: der Modus mock wird beim Start abgelehnt, kein Mock-Dienst läuft
 ODR-E6003 | Mock-Betrieb: der Modus mock wird beim Start abgelehnt, kein Mock-Dienst läuft

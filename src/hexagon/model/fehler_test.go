@@ -63,7 +63,7 @@ func TestCodeTabelle(t *testing.T) {
 		stati []int
 		ziel  model.Zielbereich
 	}{
-		"ODR-E2001": {[]int{0}, "config"}, "ODR-E2101": {[]int{401}, "admin"}, "ODR-E2401": {[]int{0}, "record"},
+		"ODR-E2001": {[]int{0}, "config"}, "ODR-E2101": {[]int{401}, "admin"}, "ODR-E2102": {[]int{400, 404, 405}, "admin"}, "ODR-E2401": {[]int{0}, "record"},
 		"ODR-E3001": {[]int{500}, "storage"}, "ODR-E4001": {[]int{502, 504}, "upstream"},
 		"ODR-E5001": {[]int{404}, "replay"}, "ODR-E5002": {[]int{410}, "replay"}, "ODR-E5003": {[]int{400}, "replay"},
 		"ODR-E5004": {[]int{409}, "replay"}, "ODR-E5005": {[]int{404}, "service"}, "ODR-E5006": {[]int{400}, "replay"},
@@ -78,8 +78,25 @@ func TestCodeTabelle(t *testing.T) {
 		"ODR-E9001": {[]int{500}, "internal"},
 	}
 	alle := model.AlleCodes()
-	if len(alle) != len(soll) || len(alle) != 39 {
-		t.Fatalf("%d Codes im Modell, %d in §4, erwartet 39", len(alle), len(soll))
+	if len(alle) != len(soll) {
+		t.Fatalf("%d Codes im Modell, %d in §4", len(alle), len(soll))
+	}
+	// ODR-E2102 steht hinter ODR-E2101, mit dem festen Text und den drei Status 400, 404 und 405 (SPEC-240); jeder andere
+	// ganzzahlige Status von 0 bis 999 ist ausgeschlossen.
+	if i := slices.Index(alle, model.CodeE2101); alle[i+1] != model.CodeE2102 || model.CodeE2102.Message() != "Admin request invalid" {
+		t.Errorf("ODR-E2102 steht nicht hinter ODR-E2101 oder trägt die message %q", model.CodeE2102.Message())
+	}
+	for s := 0; s < 1000; s++ {
+		if model.CodeE2102.StatusErlaubt(s) != (s == 400 || s == 404 || s == 405) {
+			t.Errorf("ODR-E2102: Status %d erlaubt = %v", s, s != 400 && s != 404 && s != 405)
+		}
+	}
+	if model.CodeE2102.String() != "ODR-E2102" || model.CodeE2102.Zielbereich() != "admin" {
+		t.Errorf("ODR-E2102: Text %q Ziel %q", model.CodeE2102.String(), model.CodeE2102.Zielbereich())
+	}
+	if obj, err := model.NeuesFehlerobjekt(model.CodeE2102); err != nil ||
+		obj.Error.Code != "ODR-E2102" || obj.Error.Message != "Admin request invalid" || obj.Error.Target != "admin" {
+		t.Errorf("Fehlerobjekt zu ODR-E2102: %+v (%v)", obj, err)
 	}
 	// ODR-E6009 steht hinter ODR-E6008 (W67), mit dem festen Text und dem einen Status 409 des Duplicate Key.
 	if i := slices.Index(alle, model.CodeE6008); alle[i+1] != model.CodeE6009 || model.CodeE6009.Message() != "Entity key already exists" {
