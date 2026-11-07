@@ -53,7 +53,7 @@
 | `src/hexagon/services/mock/metadaten.go` (Strom, `HEAD`, Schließen, `ctx`) | geprüft; Befund F-1 (S4, S12) |
 | `src/hexagon/services/mock/dienst.go` | geprüft; Befunde F-4, F-7 |
 | `src/hexagon/services/mock/*_test.go` | geprüft; Befunde F-2, F-3, F-5; Rohbytes ohne Treffer |
-| `docs/plan/planning/in-progress/slice-mock-zuordnung.md` | geprüft; Befund F-6; Plan folgt dem Code (§3.9) bis auf die genannten Stellen |
+| `docs/plan/planning/done/slice-mock-zuordnung.md` | geprüft; Befund F-6; Plan folgt dem Code (§3.9) bis auf die genannten Stellen |
 | `spec/` | im Diff unberührt; Nachzug R2 und R5 steht für den Merge aus |
 | `.golangci.yml`, `.a-check.yml`, `Makefile`, `harness/` | im Diff unberührt |
 
