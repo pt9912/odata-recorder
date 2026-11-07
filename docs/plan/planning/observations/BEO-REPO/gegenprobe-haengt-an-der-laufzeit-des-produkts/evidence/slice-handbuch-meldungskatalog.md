@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-meldungskatalog
+**Fund:** `make gegenproben` bei geänderter Eingabe dauerte mit den Fällen 174 bis 188 137,3 s, 123,4 s und 132,5 s (Schritt `RUN gegenproben` 80,1 s, die 15 Fälle allein 31 bis 38 ms; Last am Ende über dem Dreifachen der Kernzahl), alle drei über dem Budget von 120 s aus `SPEC-102`. Die Zeit hängt am Bau der Stufe, nicht an den Fällen. Der Trigger von [ADR-0005](../../../../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) liegt beim User. Beleg: Plan §6, Verifikation V-3.

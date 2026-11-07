@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-meldungskatalog
+**Fund:** Zwei Randformen waren im Code entschieden und standen weder in `SPEC-201` noch in den Rückgaben des Implementers (F-7): das Abschnittsende von §4 ignoriert `## ` in Zäunen, und „getrimmt“ meint `unicode.IsSpace` (25 Zeichen, auch U+00A0). Der Architect entschied beide nach dem Code (`SPEC-201` Nr. 2 e, 3 b). Dazu acht Rückgaben (a) bis (h) des Implementers, die der Architect am 2026-11-07 entschied. Beleg: Plan §6; Review F-7.

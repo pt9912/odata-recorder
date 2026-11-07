@@ -97,12 +97,12 @@ func TestFuehreFallStartetMitDerHuelleDesFalls(t *testing.T) {
 	}
 }
 
-// Die Fälle 38 bis 170 lesen die Ströme getrennt, die Fälle 1 bis 37 und 171 bis 173 gemeinsam (Randform 13), und
-// kein getrennter Fall nennt einen Text ohne Strom.
+// Die Fälle 38 bis 170 und 174 bis 188 lesen die Ströme getrennt, die Fälle 1 bis 37 und 171 bis 173 gemeinsam
+// (Randform 13), und kein getrennter Fall nennt einen Text ohne Strom.
 func TestStroemeJeNachFall(t *testing.T) {
 	alt, neu := 0, 0
 	for _, f := range faelle() {
-		gm := strings.HasPrefix(f.Name, "groessenmarke/") || strings.HasPrefix(f.Name, "handbuch/") || strings.HasPrefix(f.Name, "zeichen/") || strings.HasPrefix(f.Name, "guide/")
+		gm := strings.HasPrefix(f.Name, "groessenmarke/") || strings.HasPrefix(f.Name, "handbuch/") || strings.HasPrefix(f.Name, "zeichen/") || strings.HasPrefix(f.Name, "guide/") || strings.HasPrefix(f.Name, "katalog/")
 		if f.Getrennt != gm {
 			t.Errorf("%s: Getrennt %v", f.Name, f.Getrennt)
 		}
@@ -118,8 +118,8 @@ func TestStroemeJeNachFall(t *testing.T) {
 			}
 		}
 	}
-	if alt != 40 || neu != 133 {
-		t.Errorf("%d Fälle mit gemeinsamer und %d mit getrennter Hülle statt 40 und 133", alt, neu)
+	if alt != 40 || neu != 148 {
+		t.Errorf("%d Fälle mit gemeinsamer und %d mit getrennter Hülle statt 40 und 148", alt, neu)
 	}
 }
 

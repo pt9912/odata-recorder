@@ -15,6 +15,9 @@
 !tools/harness/groessenmarke.sh
 !tools/zeichen
 !tools/harness/zeichen.sh
+!tools/katalog
+!spec/spezifikation.md
+!harness/katalog-ausnahmen.txt
 !tools/harness/migration-check.sh
 !docs/user
 !Makefile

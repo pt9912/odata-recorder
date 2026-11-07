@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-meldungskatalog
+**Fund:** Die Formel ergibt für die 32 Zeilen der Tabelle 3210, die Messung ist 2739 (Produktcode des Programms 639 gegen 650 geschätzt, der Rest Tests und Gegenproben); die Schätzung des Starts (2570 aus 24 Zeilen) unterschätzte die gewachsene Tabelle, die Formel selbst überschätzt auch hier. Marke 3500 hält, Auslastung 0,78. Beleg: Plan §4 und §6; Verifikation V-4.

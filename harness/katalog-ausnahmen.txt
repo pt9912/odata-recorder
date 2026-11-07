@@ -1,0 +1,19 @@
+ODR-E2101 | Admin-Authentisierung: das Binary startet keinen Admin-Listener
+ODR-E6001 | Mock-Betrieb: der Modus mock wird beim Start abgelehnt, kein Mock-Dienst läuft
+ODR-E6002 | Mock-Betrieb: der Modus mock wird beim Start abgelehnt, kein Mock-Dienst läuft
+ODR-E6003 | Mock-Betrieb: der Modus mock wird beim Start abgelehnt, kein Mock-Dienst läuft
+ODR-E6004 | Metadaten werden nur vom Baseline-Import und vom Mock gelesen, beide sind im Binary nicht erreichbar
+ODR-E6005 | Mock-Betrieb: der Modus mock wird beim Start abgelehnt, kein Mock-Dienst läuft
+ODR-E6006 | nur ein Dienst mit odata_version 2.0 erreicht den Code, das Binary legt keinen solchen Dienst an
+ODR-E6101 | Baseline-Import: das Binary hat keinen Aufruf dafür, ihn stößt nur die Admin-API an
+ODR-E6102 | Baseline-Import: das Binary hat keinen Aufruf dafür, ihn stößt nur die Admin-API an
+ODR-E7002 | Snapshots verwaltet nur die Admin-API, das Binary hat sie nicht
+ODR-E7004 | Sessions löscht nur die Admin-API, das Binary hat sie nicht
+ODR-E7005 | Imports liest nur die Admin-API, das Binary hat sie nicht
+ODR-E7006 | Snapshots legt nur die Admin-API an, das Binary hat sie nicht
+ODR-E7007 | Workspaces legt nur die Admin-API an, das Binary hat sie nicht
+ODR-E7008 | Snapshots stellt nur die Admin-API wieder her, das Binary hat sie nicht
+ODR-E7010 | Sessions legt außer dem Start nur die Admin-API an; die Kennung des Starts erzeugt der Generator
+ODR-E7011 | Sessions beendet außer dem Herunterfahren nur die Admin-API, das Binary hat sie nicht
+ODR-E7012 | Exchanges liest nur die Admin-API, das Binary hat sie nicht
+ODR-E6007 | Mock-Betrieb: der Eingabe-Leser des Mock ist im Binary nicht erreichbar, das Handbuch nennt den Code mit slice-bootstrap-m3
