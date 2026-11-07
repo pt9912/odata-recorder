@@ -37,6 +37,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-telemetry-log`, akzeptiertes Negativ L15; Geber: `slice-telemetry-log`; Eintrag des Planners vom 2026-11-07):** der Fänger je Stelle: ein wohlgeformter Wert in einem zulässigen Schlüssel geht durch die Form des Adapters (`SPEC-232` Nr. 2, *Ungeprüft*), der Schutz ist ein Test je Stelle des Mock-Pfads, dass kein Wert aus dem Request (Entity-Set, Workspace-ID, Key-Wert, Query-Literal) in einem Attribut oder in `msg` einer Zeile landet, außer nach Prüfung gegen das Modell.
 
+**Übernimmt (Sendung von `slice-telemetry-handler`, Rückgabe 2 des Architect; Geber: `slice-telemetry-handler`; Eintrag des Planners vom 2026-11-07):** die Einträge des Dienstes `workspace` (`SPEC-129` Nr. 13: `bereinigung_fehlgeschlagen`, `bereinigung_zurueckgestellt`): der Dienst schreibt im Composition Root über denselben `*slog.Logger` wie `record`, `session` und `maintenance`, der Handler behandelt sie wie die zehn Einträge der Menge M13; `SPEC-231` Nr. 4 und 7 nennen sie noch nicht, der Architect trägt sie beim Vertrag dieses Slice nach (Auftrag 7), die Verdrahtung im Composition Root und der Fänger je Stelle (Request-Wert in `msg` oder Schlüssel) folgen hier. Der Ausschluss unten zu `audit_fehlgeschlagen` berührt sie nicht.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Port und Adapter `Telemetry` — `slice-telemetry-port`.
@@ -67,7 +69,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Query-Span: jede Abfrage des Mock-Dienstes (Collection, Key-Lookup, `/$count`, `$metadata` nach Entscheidung des Architect) öffnet und beendet `odata.mock.query` mit Entity-Set und Coverage-Status, auch im Fehlerfall (`ODR-E6003`, `ODR-E6001`, Abbruch); der Span umfasst die Query-Ausführung, nicht die Serialisierung außerhalb (`LH-QA-01.a`).
 - [ ] Mutations-Span: jede Mutation des Workspace (nach `LH-FA-07.b`) setzt `odata.workspace.mutation` mit Workspace-ID und Art der Mutation; eine abgewiesene Mutation (Constraint, Coverage) trägt den Span mit ihrem Ergebnis; der Zähler je Fehlercode steigt für jeden Code des Mock-Pfads, den der Test auslöst.
-- [ ] Verdrahtung im Composition Root im Modus `mock` und Test durch Mock-Lesen und Mutation: die Spans `SPEC-029` und `SPEC-030` mit ihren Pflicht-Attributen, ohne Query-Literal und Body (Canary), mit einem Fänger je Stelle des Mock-Pfads, dass kein Request-Wert ungeprüft in einem Attribut oder in `msg` landet (Sendung L15 von `slice-telemetry-log`).
+- [ ] Verdrahtung im Composition Root im Modus `mock` und Test durch Mock-Lesen und Mutation: die Spans `SPEC-029` und `SPEC-030` mit ihren Pflicht-Attributen, ohne Query-Literal und Body (Canary), mit einem Fänger je Stelle des Mock-Pfads, dass kein Request-Wert ungeprüft in einem Attribut oder in `msg` landet (Sendung L15 von `slice-telemetry-log`); die Einträge des Dienstes `workspace` laufen über denselben Logger des Roots, mit demselben Fänger je Stelle (Sendung von `slice-telemetry-handler`).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -104,6 +106,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 4. **Fehlerzähler.** Welche Codes des Mock-Pfads zählen und wo, so dass kein Fehler doppelt zählt (der Adapter des Gesamtspans zählt, was er schreibt, `slice-telemetry-einbau-gateway`).
 5. **Aufrufstellen als Menge** (`AGENTS.md` §3.15): jede Operation des Mock-Dienstes, jede Mutationsart, ein Fall je Stelle.
 6. **Tabelle, Raster, Gegenproben, erwartete Produktcode-Größe** für die Marke des Planners.
+7. **Einträge des Dienstes `workspace`** (Sendung von `slice-telemetry-handler`): `SPEC-231` Nr. 4 und 7 um die Ereignisse `bereinigung_fehlgeschlagen` und `bereinigung_zurueckgestellt` (`SPEC-129` Nr. 13) ergänzen, mit Schlüsseln aus der Menge `Log`.
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; füllt der Architect, der Implementer trägt die Mutationen und Raten mit Zahl der Prozesse und Messendem in einen Absatz darunter ein, `AGENTS.md` §3.10):
 
@@ -165,6 +168,7 @@ dasteht.
 - `recorder.entity_set` und `recorder.workspace_id` stammen aus dem Request; ein Wert aus dem Request darf nur als Attribut stehen, wenn er gegen das Modell geprüft ist — **Ausgang:** offen; Adresse: Architect (Auftrag 3), Canary mit einem Entity-Set-Namen und einer Workspace-ID mit Sonderzeichen.
 - Der Span `odata.mock.query` zerlegt den Gesamtspan nur, wenn beide verbunden sind (`LH-QA-01.a`); wird die Verbindung über `ctx` nicht gehalten, weist der Lasttest den Anteil nicht aus — **Ausgang:** offen; Adresse: Architect (Auftrag 2), Fänger: der Span ist Kind des Gesamtspans im Test durch den Composition Root.
 - Pfad ohne Lauf unter dem Detektor (Abbruch, Ausfall der Senke) — **Ausgang:** offen; `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×): Wirkungs-Fänger oder akzeptiertes Negativ mit Grund und Folge (`AGENTS.md` §3.10).
+- Einträge des Dienstes `workspace` (`SPEC-129` Nr. 13) fehlen in `SPEC-231` Nr. 4 und 7 (Sendung von `slice-telemetry-handler`, §1) — **Ausgang:** offen; Adresse: Architect (Auftrag 7), vor dem ersten Code-Commit.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster entsteht vor dem ersten Code-Commit; eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
 
 **Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; jede Zelle nennt ihren Ort in der Spezifikation oder `gilt nicht` mit Grund):
