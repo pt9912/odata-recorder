@@ -679,7 +679,7 @@ Die Prüfung der Gültigkeit eines Arguments geht der Prüfung des Kontexts vora
 12. Request-Header werden nie als `nil` gelesen (leer ist eine leere Abbildung); Response-Header sind `nil`, wenn keine gespeichert sind, und eine leere Abbildung, wenn eine leere gespeichert wurde. Ein Response-Status `0` heißt: keiner.
 13. Ein abgebrochener Kontext beendet jede Operation beider Repositories mit dem Fehler des Kontexts, ohne eine Änderung zu hinterlassen.
 
-Ungeprüft bleibt: Seitenweises Lesen großer Sessions (`InspectionUseCase`; `SessionUseCase.Beenden` liest bis dahin alle Exchanges einer Session auf einmal, Grund und Folge in `SPEC-124` *Ungeprüft*) und die Blob-Ablage (Blobs sind hier nur Verweise).
+Ungeprüft bleibt: Seitenweises Lesen großer Sessions im Port (`InspectionUseCase` schneidet die Seite im Speicher aus `ListBySession`, Grund und Folge in `SPEC-236` Nr. 4; `SessionUseCase.Beenden` liest ebenso alle Exchanges einer Session auf einmal, Grund und Folge in `SPEC-124` *Ungeprüft*) und die Blob-Ablage (Blobs sind hier nur Verweise).
 
 ### SPEC-106 — Blob-Ablage: Vertrag des BlobRepository
 
@@ -1335,6 +1335,85 @@ Ungeprüft bleibt, je mit Grund und Folge:
 - `Beenden` läuft nach dem Abbruch des Aufrufers zu Ende (Nr. 11 e). Grund: siehe dort. Folge: ein Aufrufer, dessen Kontext endet, während `Drain` wartet, kehrt erst nach dem Lesen der Exchanges und dem Statuswechsel zurück, mit dem Ergebnis und nicht mit einem Kontextfehler; das Lesen wächst mit der Zahl der Exchanges, der Statuswechsel ist durch `SQLITE_BUSY_TIMEOUT` begrenzt (`SPEC-103` Nr. 1), und beide sind nicht abbrechbar.
 - Ein Port, der panict oder nie zurückkehrt, und ein Port mit einem Typed-nil-Wert. Grund: die Ports panicen nie, und `New` prüft nur auf nil. Folge: der Aufruf kehrt nie zurück oder bricht mit der Panik des Ports ab.
 - Ein Datenrennen, das kein Test auslöst (`make test-race`, `SPEC-122` Nr. 8a). Der Dienst hält keinen Zustand (Nr. 10). Ein Zustand, den eine Änderung einführt, meldet der Detektor nur, wenn kein Aufruf eines Ports die beiden Zugriffe ordnet; die Fakes der Tests ordnen jeden Aufruf eines Ports über eine gemeinsame Sperre, ein Zugriff des Dienstes nach dem ersten Port-Aufruf entgeht ihm meist (am Dienst `workspace` gemessen, `SPEC-129` *Ungeprüft*; hier nach dem Quelltext der Fakes gelesen). Es gibt dafür keinen Test über den Quelltext des Pakets. Folge: ein Zustand, den eine Änderung einführt, bleibt in den meisten Läufen von `make test-race` unentdeckt und ist im Betrieb ein Datenrennen; das Review liest die Änderung.
+
+### SPEC-236 — Inspektion: Vertrag von `InspectionUseCase`
+
+`InspectionUseCase` (Inbound Port, `ARC-003`) liest für die Admin-API (`SPEC-005`): die Exchanges einer Session seitenweise, die Coverage einer Baseline und die Diagnose (Modus, Zusammenfassung der Konfiguration, Zähler je Fehlercode), ohne Geheimnisse (`LH-FA-13.a`, `LH-FA-11.a`, `LH-QA-04`).
+Der Dienst `inspection.Inspektion` (`ARC-002`) setzt ihn um; er importiert Domain, Ports und die Standardbibliothek, keinen Adapter und keinen anderen Dienst, und er kennt weder HTTP noch die Umgebung.
+Er verändert nichts: kein Schreiben in einen Port, kein Audit-Eintrag (`SPEC-234` auditiert die Schreibendpunkte), kein Log, kein Zähler.
+
+```text
+InspectionUseCase.Exchanges(ctx, sessionID string, seite Seite) (ExchangeSeite, error)
+InspectionUseCase.Coverage(ctx, baselineID string) ([]CoverageEintrag, error)
+InspectionUseCase.Diagnose(ctx) (Diagnose, error)
+Seite{Limit, Nach int}
+ExchangeSeite{Eintraege []ExchangeZeile; Limit, Gesamt, Weiter int}
+ExchangeZeile{ID string; SequenceNo int; Method, Path string; StartedAt, FinishedAt time.Time; KeyRedacted bool;
+              RequestBody, ResponseBody model.BodyState; ResponseStatus int; Capture model.CaptureStatus;
+              RequestRedact, ResponseRedact model.RedactionStatus; Integrity model.BodyIntegrity; Equivalence model.ReplayEquivalence}
+CoverageEintrag{EntitySet string; Status model.CoverageStatus; Evidenz string}
+Diagnose{Modus string; Einstellungen map[string]string; Fehler []FehlerZaehler}
+FehlerZaehler{Code model.Code; Anzahl uint64}
+inspection.Konfig{Exchanges outbound.RecordingRepository; Coverage outbound.CoverageRepository;
+                  Zaehler support.TelemetryReader; Modus string; Einstellungen map[string]string}
+inspection.New(Konfig) (*Inspektion, error)
+inspection.StandardLimit = 100      inspection.MaxLimit = 1000      inspection.Erlaubt() []string
+```
+
+Die Typen der Ergebnisse liegen im Paket des Ports (`inbound`), die Konstanten und `Erlaubt` im Paket des Dienstes. Ein Ergebnis ist bei einem Fehler der Nullwert, bei `Coverage` `nil`.
+
+1. **Konfiguration.** `New` liefert `model.ErrUngueltig` und keinen Dienst bei einem nil-Wert in `Exchanges`, `Coverage` oder `Zaehler` und bei einem `Modus` außerhalb von `record`, `replay`, `mock` und `hybrid` (Schreibweise wie `SPEC-110` Nr. 3); `Einstellungen` darf nil sein.
+   `New` kopiert `Einstellungen`; eine spätere Änderung der Abbildung durch den Aufrufer wirkt nicht auf den Dienst.
+   Der Dienst ruft von `Exchanges` nur `ListBySession`, von `Coverage` nur `List` und von `Zaehler` nur `Snapshot`; er erhält nie `Telemetry` und nie den Adapter (`SPEC-230` Nr. 9), damit er weder zählt noch protokolliert. `Modus` und `Einstellungen` liefert der Composition Root als fertigen Wert: der Dienst liest nie die Umgebung (`SPEC-110`).
+   Grund der Modus-Prüfung: ein Modus, den der Root später hinzufügt, lässt `New` beim Start scheitern, sichtbar und nicht still.
+2. **Argumente und Kontext.** `ctx` nil ist bei jeder Operation `model.ErrUngueltig` (kein `Fehler`-Wert, kein Code); kein Port wird gerufen.
+   Der Dienst prüft den Kontext nicht selbst, außer in `Diagnose` (Nr. 7): jede Operation der Ports endet mit dem Fehler des Kontexts (`SPEC-105` Nr. 13, `SPEC-107` Nr. 12), und der Dienst gibt ihn unverändert und ohne Code zurück (`SPEC-109` Nr. 6), auch neben einem Fehler der Tabelle in `SPEC-109` Nr. 5. Er beendet die Operation an der Stelle: danach wird kein Port mehr gerufen.
+   Der `ctx` des Aufrufs geht unverändert (dieselbe Identität) an den Port. Ein Kontext, der erst nach der Rückkehr des Ports endet, ändert das Ergebnis nicht: der Dienst prüft ihn danach nicht.
+   Die Prüfung der Argumente (Nr. 3, Nr. 6) geht jedem Aufruf eines Ports voraus; ihr Verstoß ist `model.ErrUngueltig` ohne `Fehler`-Wert und ohne Code, im Text ohne den Wert. Welche HTTP-Antwort daraus wird, bestimmt der Adapter (wie bei der Kennung in `SPEC-124` Nr. 3).
+3. **Seite.** `Seite{Limit, Nach}`: `Nach` ist die `sequence_no`, hinter der die Seite beginnt (`0`: am Anfang), `Limit` die gewünschte Zahl der Einträge. Prüfung in dieser Reihenfolge, der erste Verstoß entscheidet: (a) `ctx` nil (Nr. 2); (b) `Nach` kleiner `0`; (c) `Limit` kleiner `0`: `model.ErrUngueltig`, kein Port wird gerufen; (b) und (c) sind in ihrer Folge nicht zu unterscheiden. Danach gilt das wirksame `Limit`: `0` heißt `StandardLimit`, ein Wert über `MaxLimit` wird auf `MaxLimit` gekappt (kein Fehler, jede Zahl bis zum größten `int`), jeder andere bleibt. Die Antwort trägt das wirksame `Limit`.
+   Grund des Kappens: ein zu großer Wert ist keine falsche Eingabe, sondern ein Wunsch über der Grenze, und die Antwort zeigt mit `Weiter`, dass es mehr gibt; so braucht die Grenze keinen Fehlercode (`SPEC-201` Nr. 3).
+4. **Exchanges lesen.** Der Dienst ruft `Exchanges.ListBySession(ctx, sessionID)` genau einmal, mit `sessionID` unverändert (auch leer oder außerhalb der Form von `SPEC-124` Nr. 4; die Form prüft nur `Create`), und sonst keinen Port. Eine unbekannte Session (auch die leere Kennung) ist `ODR-E7003`, ein anderer Fehler geht nach Nr. 8.
+   - **Gesamt** ist die Zahl der gelesenen Exchanges der Session; **Eintraege** sind die gelesenen Exchanges mit `sequence_no` größer `Nach` in der Reihenfolge des Ports (aufsteigend, `SPEC-105` Nr. 11), höchstens das wirksame `Limit`, als `ExchangeZeile` (Nr. 5); **Weiter** ist die `sequence_no` des letzten gelieferten Eintrags, wenn danach noch ein gelesener Exchange folgt, sonst `0`. Der Aufrufer ruft für die nächste Seite mit `Nach` gleich `Weiter`; `0` heißt: keine weitere Seite.
+   - Eine Session ohne Exchange, ein `Nach` gleich oder über der letzten `sequence_no` und ein `Limit`, das genau bis zum letzten Exchange reicht, liefern keinen Fehler: die Seite ist leer (nie `nil`) oder endet mit `Weiter` gleich `0`. `Gesamt` zählt immer alle Exchanges, nicht den Rest.
+   - **Stabilität.** Der Zeiger ist die `sequence_no`, und sie ist lückenlos, nur wachsend und nie neu vergeben (`SPEC-105` Nr. 8 und 9). Ein Exchange, der zwischen zwei Seiten angehängt wird, verschiebt keinen gelieferten oder folgenden Eintrag; er erscheint hinter dem bisher letzten, `Gesamt` wächst. Ein Aufruf liest einen Stand (`ListBySession` ist atomar); die Folge der Seiten liefert jeden Exchange, der beim Aufruf der ersten Seite bestand, genau einmal. Wird die Session zwischen zwei Seiten gelöscht, ist die nächste `ODR-E7003`.
+   - **Schnitt im Speicher.** Der Port bleibt unverändert, und der Dienst schneidet die Seite aus der Liste, die `ListBySession` liefert. Grund: eine Seitenabfrage im Port änderte `SPEC-105`, den SQLite-Adapter, jeden Fake und die Verträge der Ports, ohne dass die Antwort eine andere würde; das Lesen ist die Aufgabe des Administrators, ein Aufruf zur Zeit hinter dem Token, und `SessionUseCase.Beenden` liest ebenso alle Exchanges (`SPEC-124` *Ungeprüft*). Folge: Zeit und Speicher je Aufruf wachsen mit der Größe der Session, auch für eine Seite von einem Eintrag; eine Obergrenze der Session gibt es nicht. Wird das zum Problem, ist die Seitenabfrage im Port eine eigene Entscheidung mit eigenem Vertrag, und `InspectionUseCase` ändert sich dabei nicht.
+5. **Felder der Zeile (Allowlist).** `ExchangeZeile` führt genau diese Felder des `model.Exchange`, und nur diese; was nicht hier steht, erscheint nie:
+
+   | Feld | Name in der Antwort | Wert |
+   |---|---|---|
+   | `ID` | `id` | unverändert |
+   | `SequenceNo` | `sequence_no` | unverändert |
+   | `Method`, `Path` | `method`, `path` | unverändert, wie gespeichert (Pfad: siehe unten) |
+   | `StartedAt`, `FinishedAt` | `started_at`, `finished_at` | unverändert; die Nullzeit von `FinishedAt` (nicht abgeschlossen) bleibt die Nullzeit, im JSON `null` |
+   | `KeyRedacted` | `key_redacted` | unverändert |
+   | `RequestBody`, `ResponseBody` | `request_body_state`, `response_body_state` | nur der Zustand (`absent`, `present`, `discarded`), nie der Blob |
+   | `ResponseStatus` | `response_status` | unverändert; `0` heißt keiner, im JSON `null` |
+   | `Capture`, `Integrity`, `Equivalence` | `capture_status`, `body_integrity`, `replay_equivalence` | unverändert |
+   | `RequestRedact`, `ResponseRedact` | `request_redaction_status`, `response_redaction_status` | unverändert |
+
+   Nicht erscheinen: `SessionID` (der Aufrufer nannte sie), `RawQuery`, `MatchKey`, `RequestHeaders`, `ResponseHeaders`, `RequestBlob`, `ResponseBlob`. Kein Name und kein Wert eines Headers, kein Query-Wert, kein Body und keine Blob-Referenz steht in einer Zeile oder an anderer Stelle der Antwort.
+   Die Allowlist ist die Menge der Felder des Typs: ein neues Feld von `model.Exchange` ist ausgeschlossen, bis diese Tabelle es nennt. Die Antwort enthält die Werte der Felder unverändert; der Dienst prüft sie nicht.
+   **Der Pfad** steht, wie ihn die Aufzeichnung speichert: `SPEC-115` redigiert Header, Query und `Location`, nicht den Pfad. Ein Geheimnis, das ein Client in den Pfad legt, wird nicht erkannt und nicht entfernt. Grund: Methode und Pfad sind das, woran der Administrator einen Exchange erkennt. Folge: der Pfad ist in der Antwort sichtbar, erreichbar nur über den Admin-Listener mit Token (`LH-FA-13.a`, `SPEC-005`); ein Geheimnis im Pfad ist wie in der Aufzeichnung selbst (`SPEC-001`) lesbar.
+6. **Coverage lesen.** Der Parameter ist die Kennung einer Baseline (die Kennung eines Snapshots der Art `baseline`); nicht ein Workspace und nicht ein Service. Grund: `SPEC-044` liest Coverage ausschließlich für `(baseline_snapshot_id, entity_set)`, der Workspace nennt seine Baseline, und der Aufrufer löst sie auf. Es gibt kein „alle Baselines“.
+   - Eine leere `baselineID` ist `model.ErrUngueltig` (Nr. 2), kein Port wird gerufen; jede andere wird unverändert (auch mit Leerraum oder Sonderzeichen) an `Coverage.List(ctx, baselineID)` gereicht, genau einmal und sonst kein Port.
+   - Das Ergebnis hat einen `CoverageEintrag` je Eintrag des Ports in dessen Reihenfolge (`entity_set` aufsteigend, `SPEC-107` Nr. 11) mit `EntitySet`, `Status` und `Evidenz` (der `EvidenceJSON` des Eintrags) unverändert und byte-gleich. Der Dienst leitet nichts ab, ändert keinen Status und prüft den Status nicht (`SPEC-044`: `complete` folgt allein aus dem Import); die Evidenz enthält nur Zahlen und Gründe (`SPEC-127` Nr. 13), keinen Wert aus Request oder Response. Eine Baseline ohne Einträge liefert eine leere Liste (nie `nil`).
+   - Die Liste wird nicht seitenweise geliefert: ihre Länge ist die Zahl der EntitySets des Service (`SPEC-127` Nr. 12), nicht die Zahl der Aufzeichnungen.
+   - Eine unbekannte Baseline, auch die Kennung eines Snapshots anderer Art (eines Workspace), ist `ErrNichtGefunden` des Ports (`SPEC-107` Nr. 11) und `ODR-E7002` (Nr. 8).
+7. **Diagnose.** `Diagnose(ctx)` prüft `ctx` nil (Nr. 2), dann einmal `ctx.Err()`: ein beendeter Kontext ist sein Fehler, unverändert und ohne Code, und `Snapshot` wird nicht gerufen (kein Port der Diagnose nimmt einen Kontext, und ein Dienst, der ihn nie prüfte, beantwortete einen abgebrochenen Aufruf). Danach ruft der Dienst `Zaehler.Snapshot()` genau einmal und sonst nichts; ein Fehler dieses Aufrufs gibt es nicht.
+   - **Modus** ist der `Modus` der Konfiguration.
+   - **Einstellungen** enthält jeden Eintrag der Konfiguration, dessen Schlüssel genau (Byte für Byte) in der Allowlist `Erlaubt()` steht, mit unverändertem Wert; jeden anderen Eintrag verwirft der Dienst ohne Meldung, ein erlaubter Schlüssel ohne Eintrag fehlt (kein leerer Wert). Die Allowlist sind diese Schlüssel von `SPEC-110` Nr. 2, deren Werte Aufzählungen, Wahrheitswerte, Dauern, Größen oder Listen von Header- und Parameter-Namen sind: `REPLAY_STRATEGY`, `REPLAY_ASSIGNMENT`, `REPLAY_REDACTED_BODIES`, `MATCH_VARY_HEADERS`, `MATCH_INVALID_ENCODING`, `MATCH_BODY_MODE`, `REDACT_HEADERS`, `REDACT_QUERY_PARAMS`, `REDACT_JSON_PATHS`, `MAX_CAPTURE_BODY`, `UPSTREAM_TIMEOUT`, `UPSTREAM_TLS_VERIFY`, `UPSTREAM_TLS_INSECURE_SKIP_VERIFY`, `SHUTDOWN_TIMEOUT`, `RETENTION_MAX_AGE`, `SQLITE_BUSY_TIMEOUT`, `VOLATILE_HEADERS`, `LINK_REWRITE`. Jeder andere Schlüssel ist ausgeschlossen, darunter `MODE` (eigenes Feld), `LISTEN`, `DATA_DIR`, `SERVICE_ID`, `SERVICE_ROOT_PATH`, `SERVICE_ODATA_VERSION` (je Service), `UPSTREAM_URL`, `SERVICES_FILE`, `UPSTREAM_CA_FILE`, `ADMIN_TOKEN_FILE` und jeder Schlüssel `ADMIN_*`, `HYBRID_*`, `FALLBACK_*`, `LISTEN_TLS_*` und `PUBLIC_BASE_URL`. Grund der Allowlist: Adressen und Pfade können Zugangsdaten oder Orte von Geheimnisdateien tragen, und eine Sperrliste vergäße den nächsten Schlüssel; ein neuer Schlüssel ist ausgeschlossen, bis diese Liste ihn nennt.
+   - **Fehler** hat einen `FehlerZaehler` je Code von `model.AlleCodes()` in dieser Reihenfolge (`SPEC-109` Nr. 2), auch mit `Anzahl` gleich `0`; `Anzahl` ist der Wert von `Snapshot().Errors` zum Code, fehlt der Eintrag, `0`. Ein Eintrag der Abbildung außerhalb der Tabelle wird verworfen. Die Zahl der Einträge ist die Zahl der Codes der Tabelle, nicht eine feste Zahl (`SPEC-230` Nr. 8).
+   - Das Ergebnis ist eine Kopie: `Einstellungen` und `Fehler` sind nie `nil` (ein Dienst, der das Ergebnis als JSON ausgibt, sieht `{}` und `[]`), und eine Änderung am Ergebnis wirkt weder auf die Konfiguration des Dienstes noch auf ein späteres Ergebnis; jeder Aufruf liest den Stand neu.
+8. **Fehler.** Jeder Fehler mit Code ist ein `*inbound.Fehler` (`SPEC-121` Nr. 14), gebildet aus dem Fehler eines Ports nach `SPEC-109` Nr. 5, mit dem Gegenstand `Session` bei `Exchanges` und `Snapshot` bei `Coverage`; das ist die Anwendung der Tabelle und keine Ausnahme von ihr. `Status` ist der eine Status des Codes. Erreichbar sind bei `Exchanges` `ODR-E7003` (`ErrNichtGefunden`), `ODR-E3001` und `ODR-E9001`, bei `Coverage` `ODR-E7002` (`ErrNichtGefunden`), `ODR-E3001` und `ODR-E9001` (darunter `ErrUngueltig` des Ports); `Diagnose` liefert keinen Fehler mit Code. Neue Codes führt dieser Vertrag nicht ein.
+9. **`ODR-E7012`.** `SPEC-005` hat keinen Endpunkt für einen einzelnen Exchange, und `InspectionUseCase` hat keine Operation dafür: der Code hat in dieser Version keinen Verwender. Seine Zeile in §4 (`SPEC-112`) und der Gegenstand `Exchange` der Abbildung bleiben; ein Endpunkt `GET …/exchanges/{id}` erhält mit seinem Vertrag die Operation und die Anwendung der Abbildung.
+10. **Zustand und Nebenläufigkeit.** Der Dienst hält keinen Zustand außer seiner Konfiguration, die nach `New` unverändert bleibt; er puffert keine Seite und keinen Stand. Gleichzeitige Aufrufe teilen nichts außer den Ports, die für gleichzeitigen Aufruf sicher sind (`SPEC-105`, `SPEC-230` Nr. 9). Es gibt kein Fenster zwischen Prüfen und Handeln: die Entscheidung einer Seite fällt über der einen Liste, die ein Aufruf liest (Nr. 4), die der Zähler über dem einen Stand von `Snapshot`.
+
+Ungeprüft bleibt:
+- Die Größe einer Session (Nr. 4, *Schnitt im Speicher*): kein Test liest eine Session, deren Liste den Speicher füllt. Folge: ein Aufruf auf einer sehr großen Session braucht Zeit und Speicher bis zum Ende des Prozesses.
+- Ein Geheimnis im Pfad eines Exchange (Nr. 5): der Dienst erkennt es nicht. Folge: es ist in der Antwort lesbar; Schutz sind Token und Loopback oder TLS des Admin-Listeners.
+- Die Menge der Schlüssel der Startkonfiguration und die der Modi: sie liegen im Composition Root (`src/bootstrap/`), den der Dienst nicht importieren darf; die Allowlist ist eine feste Liste, die der Test gegen den Wortlaut dieser Nummer hält, nicht gegen den Root. Folge: ein Schlüssel, den der Root neu einführt, erscheint nie in der Diagnose, und ein neuer Modus lässt `New` scheitern (Nr. 1); beides ist sichtbar und unschädlich.
+- Das Zählen der Fehler, die der Dienst mit Code liefert (`SPEC-230` Nr. 8 verlangt es von jeder Stelle, die einen Fehler mit Code ausliefert): der Dienst erhält nie `Telemetry` (Nr. 1). Folge: ein `ODR-E7003` oder `ODR-E7002` aus diesem Dienst steigt in `Snapshot().Errors` nur, wenn der Einbau es an anderer Stelle zählt.
+- Die Antwort über HTTP (Namen und Statuscodes eines ungültigen Parameters, Format von `next` und `total`): sie gehört dem Admin-Adapter.
 
 ### SPEC-125 — Metadaten lesen: Vertrag von `MetadataCodec`
 
@@ -2755,9 +2834,9 @@ Ungeprüft bleibt:
 | GET | `/__admin/sessions` | Aufzeichnungen aller Services mit Kennung und Status auflisten (leere Liste, wenn keine existieren; Reihenfolge `SPEC-124` Nr. 6) |
 | POST | `/__admin/sessions` | Neue Recording-Session anlegen (`{"service_id": "...", "id": "..."}`, `id` optional, Form `SPEC-124` Nr. 4); Status `open`; vergebene `id` `ODR-E7010`, unbekannter Service `ODR-E5005` |
 | POST | `/__admin/sessions/{id}/close` | Aufzeichnung beenden (`SessionUseCase.Beenden`, `SPEC-124` Nr. 11): wartet höchstens `SHUTDOWN_TIMEOUT` auf laufende Exchanges, Status `complete` oder `incomplete` (Regel unter „Status“ in `LH-FA-13.a`, `SPEC-124` Nr. 12); unbekannt: `ODR-E7003`; nicht `open`: `ODR-E7011`, nichts wird geändert (Rangfolge `SPEC-124` Nr. 11) |
-| GET | `/__admin/sessions/{id}/exchanges` | Exchanges lesen |
+| GET | `/__admin/sessions/{id}/exchanges` | Exchanges lesen, seitenweise: Parameter `limit` (Standard 100, höchstens 1000, ein größerer Wert gilt als 1000) und `after` (die `sequence_no`, hinter der die Seite beginnt, Standard 0); die Zeile trägt nur die Felder der Allowlist, nie Header, Query oder Body (`SPEC-236` Nr. 3 bis 5); unbekannt: `ODR-E7003` |
 | DELETE | `/__admin/sessions/{id}` | Session löschen (`LH-RB-04.a`); unbekannt `ODR-E7003`, Quelle einer Baseline `ODR-E7004`, Status `open` `ODR-E7009` (Rangfolge `SPEC-124` Nr. 7); danach ruft das Löschen die Bereinigung der Blobs (`SPEC-123` Nr. 8), deren Fehler das Ergebnis des Löschens nicht ändert |
-| GET | `/__admin/coverage` | Coverage lesen |
+| GET | `/__admin/coverage` | Coverage einer Baseline lesen: Parameter `baseline_id` (Pflicht), alle Einträge der Baseline ohne Seitenbildung (`SPEC-236` Nr. 6); unbekannte Baseline oder Kennung eines Snapshots anderer Art: `ODR-E7002` |
 | POST | `/__admin/imports` | Recording-Session explizit in neue Baseline importieren |
 | GET | `/__admin/imports/{id}` | Import-Report und Provenienz lesen; unbekannt: `ODR-E7005` |
 | GET | `/__admin/workspaces` | Workspaces mit Kennung, Service, Revision, Baseline und Erstellzeit auflisten |
@@ -2768,11 +2847,11 @@ Ungeprüft bleibt:
 | GET | `/__admin/workspaces/{id}/snapshots` | Snapshots auflisten |
 | POST | `/__admin/workspaces/{id}/snapshots` | Benannten Snapshot erzeugen (`{"name": "..."}`); Name im Workspace vergeben: `ODR-E7006` |
 | POST | `/__admin/workspaces/{id}/restore` | Snapshot wiederherstellen (`{"snapshot_id": "..."}`); Cursor unverändert; Baseline-Snapshot `ODR-E7008` |
-| GET | `/__admin/diagnostics` | Konfigurationszusammenfassung ohne Geheimnisse, Modus, Zähler je Fehlercode |
+| GET | `/__admin/diagnostics` | Konfigurationszusammenfassung ohne Geheimnisse (nur Schlüssel der Allowlist, nie Token, Adressen oder Pfade), Modus, Zähler je Fehlercode (`SPEC-236` Nr. 7) |
 
 Admin-API wird über separaten Listener ausgeliefert und verlangt die Authentisierung aus `LH-FA-13.a`; konkrete OpenAPI-Datei ist vor Implementierung zu erstellen.
 
-Die Zähler je Fehlercode in `GET /__admin/diagnostics` liest der Dienst über `TelemetryReader` (`SPEC-230` Nr. 8 und 9): ein Eintrag je Code aus `SPEC-109` Nr. 2, auch mit dem Wert 0.
+Die Zähler je Fehlercode in `GET /__admin/diagnostics` liest der Dienst über `TelemetryReader` (`SPEC-230` Nr. 8 und 9, `SPEC-236` Nr. 7): ein Eintrag je Code aus `SPEC-109` Nr. 2, auch mit dem Wert 0.
 
 ### SPEC-006 — Fehlerobjekt
 
@@ -2879,7 +2958,7 @@ Syntax der Werte (Dauern, Größen, Listen, leere Werte), Prüfung und Verhalten
 | `SPEC-100` | `ODR-E7010` | Session-ID bereits vergeben | HTTP 409 (Admin) |
 | `SPEC-097` | `ODR-E7009` | Session ist `open`: Replay, Import und Löschen abgewiesen | HTTP 409 |
 | `SPEC-111` | `ODR-E7011` | Session ist nicht `open`: Beenden abgewiesen (Übergang aus einem geschlossenen Zustand) | HTTP 409 (Admin), nichts wird geändert |
-| `SPEC-112` | `ODR-E7012` | Exchange unbekannt | HTTP 404 (Admin) |
+| `SPEC-112` | `ODR-E7012` | Exchange unbekannt (in dieser Version ohne Endpunkt, `SPEC-236` Nr. 9) | HTTP 404 (Admin) |
 | `SPEC-113` | `ODR-E9001` | Interner Fehler (ein Fehler, den die Abbildung keinem Code zuordnet, `SPEC-109`) | HTTP 500, Ursache nur im Log |
 
 Fallback-Entscheidungen (`LH-FA-12.b`) hängen am `ODR-`-Code, nie am HTTP-Status.
@@ -3110,6 +3189,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-07 | Inspektion (`SPEC-236`) vor dem Code entschieden: Seite mit Zeiger `sequence_no`, Standard 100 und Obergrenze 1000 (ein größerer Wert wird gekappt, ein negativer ist ungültig), Schnitt im Speicher bei unverändertem Port (`SPEC-105` *Ungeprüft*), Allowlist der Felder einer Exchange-Zeile und der Schlüssel der Diagnose, Coverage je Baseline-Kennung ohne Seitenbildung, Zähler je Code über `TelemetryReader`, `ODR-E7012` ohne Verwender; `SPEC-005` nennt die Parameter |
 | 2026-11-07 | `SPEC-139` vor den Fängern des Audit im Betrieb ergänzt (keine Entscheidung geändert, Randformen benannt): `Build` berührt `audit.jsonl` nie und gelingt auch bei einer Datei, die nicht beschreibbar ist (Nr. 2), `Hochfahren` schreibt nur die Einträge der Aufbewahrung (Nr. 6), `Herunterfahren` keinen (Nr. 7), der Neustart hängt an (Nr. 10); *Ungeprüft*: ein Tokenwert im Audit |
 | 2026-11-07 | Der Text `[REDACTED]` einer Art `string` im Schreiber der Version 4 vor dem Code entschieden (`SPEC-169` Nr. 4, Nr. 8 und *Ungeprüft*, `SPEC-168` Nr. 4): Escape für `[` statt `ErrUngueltig`, die Klasse der Texte hat ein Element, jeder ähnliche Text bleibt in der Form von Nr. 1; ein Text mit U+0000 in einer Schlüssel-Property als Negativ in *Ungeprüft* |
 | 2026-11-06 | Code für einen ungültigen Request-Body entschieden (Planner): neuer Code `ODR-E6007` (HTTP 400, Ziel `mock`) in §4 (`SPEC-180`), `SPEC-109` Nr. 2 und Nr. 5 (`ErrEingabeUngueltig` → `ODR-E6007`, `ErrEingabeNichtUnterstuetzt` → `ODR-E6002`), `SPEC-180` Nr. 3; 37 Codes in `SPEC-109` Nr. 2 und 37 Reihen von `odr_errors_total` in `SPEC-230` Nr. 8 |
