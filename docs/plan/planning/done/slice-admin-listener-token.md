@@ -303,7 +303,7 @@ dasteht.
 - Gate-Kette (Nr. 7 der Übergangsregeln von `welle-benutzerhandbuch`): der Teil ändert weder `GATE_CHECKS` noch ein Gate — **Ausgang:** entfallen; kein Pfad der Gate-Kette im Plan (§3).
 - Befunde der Verifikation V-1 bis V-6 (drei MEDIUM: Umgebung, Zustand, Entropie ohne Fänger; zwei LOW: Begründung von Z-N2, fehlendes Recht an einem Pfadelement; ein INFO: `Lstat` in `istFehlend`) — **Ausgang:** eingetreten, behoben im Nachzug `58bd1f2` (Zeilen T27 bis T31 in §3, Z-N2 berichtigt, Z-N6 neu); der Nachzug ist nicht nachverifiziert (Durchstich vor Härtung).
 - Auslastung 0,52 (Messung 1512 von Marke 2900) liegt unter 0,60 — **Ausgang:** weiter offen; Adresse: Architect (Meldung nach `SPEC-128` Nr. 9, Messpunkt in §7); die Marke bleibt, `SPEC-128` Nr. 6 c.
-- Zusatzzeit der Stufen durch `TestEntropieDerPositionen` (rund 10 s, 1000 Dateien) — **Ausgang:** weiter offen; Adresse: User (ADR-0005-Trigger, Zahlen in §7).
+- Zusatzzeit der Stufen durch `TestEntropieDerPositionen` (rund 10 s, 1000 Dateien) — **Ausgang:** weiter offen; Adresse: User ([ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)-Trigger, Zahlen in §7).
 - Sätze eines Vertrags ohne Zeile (Einleitung, Zustand, Quantität; Steering-Loop-Eintrag 1 in §7) — **Ausgang:** weiter offen; Adresse: Architect (Satz-Inventur vor der Übergabe) und User (Schärfung von `AGENTS.md` §3.15 nur mit seiner Entscheidung); Evidenz im Register `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft`.
 
 ## 7. Closure-Notiz
@@ -328,7 +328,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 
 **Raten der Wirkungs-Fänger** (Messender der Implementer und der Verifier, `tools/harness/mutationslauf.sh`, `-test.count=1` je Prozess; Last des Hosts 6,6 bis 17,1 bei 4 CPUs): siehe die Absätze *Raten* in §3. Verifier: 6 von 7 nebenläufigen Mutationen 20 von 20 und 20 von 20 (mit und ohne Detektor), wiederholt mit 50 und 50: 50 von 50 und 50 von 50; die siebte (`Link` vor dem Schreiben) flattert in `TestWettlaufNebenlaeufig` (18 von 20 mit, 19 von 20 ohne Detektor) und ist in `TestVollstaendigOderGarNicht` (T17) in jedem Lauf rot. Nachzug T28: 20 von 20 Prozessen mit und 20 von 20 ohne Detektor (Last 17,1; Messender der Implementer). Die Raten sind eine Größenordnung bei dieser Last, kein fester Wert.
 
-**Zusatzzeit der Stufen `test` und `race`:** `TestEntropieDerPositionen` braucht rund 10 s (1000 Token mit je einer Datei); das Paket `admin` insgesamt nicht eigens gemessen; der ganze `make gates` lief 8 min 21 s unter Last (Host mit weiteren Läufen). Ob das einen ADR-0005-Trigger auslöst, entscheidet der User.
+**Zusatzzeit der Stufen `test` und `race`:** `TestEntropieDerPositionen` braucht rund 10 s (1000 Token mit je einer Datei); das Paket `admin` insgesamt nicht eigens gemessen; der ganze `make gates` lief 8 min 21 s unter Last (Host mit weiteren Läufen). Ob das einen [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)-Trigger auslöst, entscheidet der User.
 
 **Mutationen:** der Implementer hat je Zusage eine Mutation rot gesehen (Tabelle T1 bis T31 in §3, Fix-Runde 23, Nachzug mindestens eine je Zeile T27 bis T31), der Reviewer 147, der Verifier 144 (112 + 14 + 8 + 10); in der Verifikation blieben 11 von 112 grün, davon 5 bestätigte akzeptierte Negative, 3 gleichwertige und 3 Befunde (V-3 zweimal, V-6); aus den Listen c und d entstanden V-1, V-2, V-4 und V-5. Keine Mutation an einem Element der Klasse der Fix-Runde (F-1 bis F-5) blieb grün.
 
