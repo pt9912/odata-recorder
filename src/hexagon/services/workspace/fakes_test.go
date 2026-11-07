@@ -509,13 +509,16 @@ func (r curRepo) ResetAll(ctx context.Context, wid string) error {
 	})
 }
 
-// snapshots ist der Fake von SnapshotRepository (F2): er hält die Baselines; außer Get zählt jede
-// Operation und schlägt den Test fehl, denn der Dienst ruft nur Get.
+// snapshots ist der Fake von SnapshotRepository (F2): er hält die Baselines und die Workspace-Snapshots; Get und
+// GetWorkspace sind erlaubt, jede andere Operation zählt und schlägt den Test fehl, denn der Dienst ruft nur diese
+// beiden (SPEC-129 Nr. 1).
 type snapshots struct {
 	p         *prot
 	tx        bool
 	mu        sync.Mutex
 	baselines map[string]model.BaselineSnapshot
+	// wsSnaps hält die Workspace-Snapshots je (Workspace, Kennung).
+	wsSnaps map[[2]string]model.WorkspaceSnapshot
 }
 
 func (s *snapshots) name(op string) string {
@@ -553,8 +556,26 @@ func (s *snapshots) CreateWorkspace(ctx context.Context, w model.WorkspaceSnapsh
 	return s.verboten("CreateWorkspace", ctx, w)
 }
 
+// GetWorkspace liefert den Snapshot des Workspace wid; die Kennung einer Baseline ist ErrFalscheArt, jede andere
+// unbekannte oder zu einem anderen Workspace gehörige ErrNichtGefunden (SPEC-108 Nr. 14).
 func (s *snapshots) GetWorkspace(ctx context.Context, wid, id string) (model.WorkspaceSnapshot, error) {
-	return model.WorkspaceSnapshot{}, s.verboten("GetWorkspace", ctx, wid, id)
+	op := s.name("GetWorkspace")
+	if err := s.p.beginn(op, ctx, wid, id); err != nil {
+		s.p.haltepunkt(op)
+		return model.WorkspaceSnapshot{}, err
+	}
+	s.mu.Lock()
+	ws, da := s.wsSnaps[[2]string{wid, id}]
+	_, baseline := s.baselines[id]
+	s.mu.Unlock()
+	s.p.haltepunkt(op)
+	switch {
+	case da:
+		return ws, nil
+	case baseline:
+		return model.WorkspaceSnapshot{}, outbound.ErrFalscheArt
+	}
+	return model.WorkspaceSnapshot{}, outbound.ErrNichtGefunden
 }
 
 func (s *snapshots) ListWorkspace(ctx context.Context, wid string) ([]model.WorkspaceSnapshot, error) {
@@ -649,6 +670,7 @@ type blobs struct {
 }
 
 func (b *blobs) Open(ctx context.Context, ref string) (io.ReadCloser, error) {
+	defer b.p.haltepunkt("Blobs.Open")
 	if err := b.p.beginn("Blobs.Open", ctx, ref); err != nil {
 		return nil, err
 	}

@@ -101,8 +101,9 @@ func TestFakesZaehlenJedeOperation(t *testing.T) {
 			if p.name != "Uhr" && p.name != "IDs" && last.ctx != ctxWert {
 				t.Errorf("%s: Kontext nicht festgehalten", op)
 			}
-			// Der Haltepunkt gehört dem Store und Snapshots.Get, den Ports, an denen ein Test einen Schreiber einreiht.
-			mitHaltepunkt := p.name == "Workspaces" || p.name == "Entities" || p.name == "Cursors" || op == "Snapshots.Get"
+			// Der Haltepunkt gehört dem Store, Snapshots.Get, Snapshots.GetWorkspace und Blobs.Open, den Ports, an denen ein Test einen Schreiber einreiht.
+			mitHaltepunkt := p.name == "Workspaces" || p.name == "Entities" || p.name == "Cursors" || op == "Snapshots.Get" ||
+				op == "Snapshots.GetWorkspace" || op == "Blobs.Open"
 			if (gerufen[op] == 1) != mitHaltepunkt {
 				t.Errorf("%s: Haltepunkt %d mal gerufen", op, gerufen[op])
 			}
@@ -124,8 +125,8 @@ func TestFakesZaehlenJedeOperation(t *testing.T) {
 	if methoden != 5+5+4+5+5+4+2+1+1+5 {
 		t.Errorf("Methoden %d", methoden)
 	}
-	if w.p.verboten.Load() != 12 {
-		t.Errorf("verbotene Aufrufe %d, erwartet 12 (vier Operationen außer Get, je dreimal gerufen)", w.p.verboten.Load())
+	if w.p.verboten.Load() != 9 {
+		t.Errorf("verbotene Aufrufe %d, erwartet 9 (drei Operationen außer Get und GetWorkspace, je dreimal gerufen)", w.p.verboten.Load())
 	}
 	w.p.verboten.Store(0)
 }
