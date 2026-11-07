@@ -66,6 +66,8 @@ func erlaubt() map[string][]string {
 		"Delete": {"Workspaces.Delete", "Wartung.CleanupBlobs"},
 		"Reset": append([]string{"Workspaces.Get", lblTx, "tx Workspaces.Get", "tx Entities.ReplaceAll", "tx Cursors.ResetAll",
 			"tx Workspaces.Advance"}, baseline...),
+		"Restore": {"Workspaces.Get", "Snapshots.GetWorkspace", "Snapshots.Get", "Blobs.Open", "Strom.Read", "Strom.Close", lblTx,
+			"tx Workspaces.Get", "tx Entities.ReplaceAll", "tx Workspaces.Advance"},
 	}
 }
 
@@ -121,11 +123,12 @@ func TestPortUndKonfigFestgeschrieben(t *testing.T) {
 	}
 	port := reflect.TypeOf((*inbound.WorkspaceUseCase)(nil)).Elem()
 	methoden := map[string]string{
-		"Create": "func(context.Context, string, string) (model.Workspace, error)",
-		"Delete": "func(context.Context, string) (inbound.Loeschbericht, error)",
-		"Get":    "func(context.Context, string) (model.Workspace, error)",
-		"List":   "func(context.Context) ([]model.Workspace, error)",
-		"Reset":  "func(context.Context, string) (model.Workspace, error)",
+		"Create":  "func(context.Context, string, string) (model.Workspace, error)",
+		"Delete":  "func(context.Context, string) (inbound.Loeschbericht, error)",
+		"Get":     "func(context.Context, string) (model.Workspace, error)",
+		"List":    "func(context.Context) ([]model.Workspace, error)",
+		"Reset":   "func(context.Context, string) (model.Workspace, error)",
+		"Restore": "func(context.Context, string, string) (model.Workspace, error)",
 	}
 	if port.NumMethod() != len(methoden) {
 		t.Errorf("Methoden %d", port.NumMethod())

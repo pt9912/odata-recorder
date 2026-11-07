@@ -49,7 +49,7 @@ func neu(t *testing.T) *welt {
 			t.Errorf("%d Operationen gerufen, die der Dienst nie rufen darf", n)
 		}
 	})
-	w.snaps = &snapshots{p: p, baselines: map[string]model.BaselineSnapshot{}}
+	w.snaps = &snapshots{p: p, baselines: map[string]model.BaselineSnapshot{}, wsSnaps: map[[2]string]model.WorkspaceSnapshot{}}
 	w.blobs = &blobs{p: p, inhalt: map[string][]byte{}, fehlerBei: -1}
 	w.dienste = &dienste{p: p, alle: []model.Service{{ID: "svc"}}}
 	w.wartung = &wartung{p: p}

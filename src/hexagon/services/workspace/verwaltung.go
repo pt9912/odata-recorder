@@ -18,8 +18,9 @@ import (
 const MaxIDLaenge = 64
 
 // Konfig ist die Konfiguration des Dienstes (SPEC-129 Nr. 1). Workspaces dient Get, Delete, List und
-// dem Lesen vor dem Reset, Transaktion der Anlage und dem Reset; Snapshots und Blobs dienen allein dem
-// Lesen der Baseline, Dienste allein List, Wartung allein der Bereinigung nach dem Löschen, Uhr und IDs
+// dem Lesen vor dem Reset und dem Restore, Transaktion der Anlage, dem Reset und dem Restore; Snapshots
+// (Get und GetWorkspace) und Blobs (Open) dienen allein dem Lesen der Baseline und eines Workspace-Snapshots,
+// Dienste allein List, Wartung allein der Bereinigung nach dem Löschen, Uhr und IDs
 // allein Create, Audit allein dem Eintrag nach dem Löschen (SPEC-234 Nr. 8).
 type Konfig struct {
 	Workspaces  outbound.WorkspaceRepository
