@@ -20,7 +20,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` bis
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-07.
 
-**Herkunft:** Teil 2 des Schnitts von [slice-admin-listener-token](../in-progress/slice-admin-listener-token.md) (Vorschlag des Architect, Rückgabe R1; Schnitt vor dem Code vollzogen vom Planner am 2026-11-07 nach `SPEC-128` Nr. 1, `AGENTS.md` §3.14). Die Teile in der Reihenfolge ihres Starts: 1 `slice-admin-listener-token` (Token-Datei), 2 dieser Slice, 3 [slice-admin-authentisierung](slice-admin-authentisierung.md), 4 [slice-admin-lebenszyklus](slice-admin-lebenszyklus.md), 5 [slice-admin-fehlerabbildung](slice-admin-fehlerabbildung.md), 6 [slice-admin-abweisen-audit](slice-admin-abweisen-audit.md). Der Plan trägt die Zeilen K1 bis K3, Z1, Z3 bis Z8 und Y2 bis Y4 der Tabelle des Architect (13 von 102); sie stehen im Wortlaut in §3.
+**Herkunft:** Teil 2 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (Vorschlag des Architect, Rückgabe R1; Schnitt vor dem Code vollzogen vom Planner am 2026-11-07 nach `SPEC-128` Nr. 1, `AGENTS.md` §3.14). Die Teile in der Reihenfolge ihres Starts: 1 `slice-admin-listener-token` (Token-Datei), 2 dieser Slice, 3 [slice-admin-authentisierung](slice-admin-authentisierung.md), 4 [slice-admin-lebenszyklus](slice-admin-lebenszyklus.md), 5 [slice-admin-fehlerabbildung](slice-admin-fehlerabbildung.md), 6 [slice-admin-abweisen-audit](slice-admin-abweisen-audit.md). Der Plan trägt die Zeilen K1 bis K3, Z1, Z3 bis Z8 und Y2 bis Y4 der Tabelle des Architect (13 von 102); sie stehen im Wortlaut in §3.
 
 ---
 
@@ -94,7 +94,7 @@ Aussagen-Berührung steht hier gar nicht.
 | Tests | neu | Adapter gegen `ServeHTTP` mit `httptest`; Fakes `zaehlendeIDs`, `routeFake`, `listenerFake`; `FakeAudit` und `FakeTelemetry` aus `supporttest`; `bindung_test.go`; der Adapter importiert weder Adapter noch Service (`make a-check`) |
 | `spec/spezifikation.md` | geliefert (Architect, im Zweig von `slice-admin-listener-token`) | `SPEC-238` bis `SPEC-240`, Nachzug `SPEC-109`, `SPEC-230`; dieser Teil schreibt sie nicht |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stammen vom Architect (2026-11-07, Plan von [slice-admin-listener-token](../in-progress/slice-admin-listener-token.md)); der Schnitt gibt jedem Teil ganze Zeilen im Wortlaut, `Nr.` ist eine Kennung und keine Zählung (K Konfiguration, Z Zuordnung, Y Katalog und Code). **Wachsende Mengen:** Die Schleifen über die Requestarten *R* (A1, E4 in `slice-admin-authentisierung`) und die Antwortarten (E2) wachsen mit den Teilen; dieser Teil trägt in *R* die Formen 404 und 405 und die Route mit 2xx, die Zählprüfung der späteren Teile rechnet die Formen der Vorgänger mit.
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stammen vom Architect (2026-11-07, Plan von [slice-admin-listener-token](../done/slice-admin-listener-token.md)); der Schnitt gibt jedem Teil ganze Zeilen im Wortlaut, `Nr.` ist eine Kennung und keine Zählung (K Konfiguration, Z Zuordnung, Y Katalog und Code). **Wachsende Mengen:** Die Schleifen über die Requestarten *R* (A1, E4 in `slice-admin-authentisierung`) und die Antwortarten (E2) wachsen mit den Teilen; dieser Teil trägt in *R* die Formen 404 und 405 und die Route mit 2xx, die Zählprüfung der späteren Teile rechnet die Formen der Vorgänger mit.
 
 | Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|

@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, `SPEC-239` (Nr. 1 bis 6 und *Ungeprüft*), `SPEC-238` soweit Teil 1, `LH-FA-13.a`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md) und die Hard Rules; nicht Diff-Review (siehe `2026-11-07-slice-admin-listener-token-review.md`) und nicht Validierung.
 
-**Gegenstand:** Zweig `slice-admin-listener-token`, HEAD `b83a1da1` (Fix-Runde nach Review `ddd20fc5` und Entscheidungen des Architect `61e6483a`), Basis `20c02c5`. Plan: `docs/plan/planning/in-progress/slice-admin-listener-token.md`. Teil 1 des Admin-Adapters: die Token-Datei `admin.LadeToken`.
+**Gegenstand:** Zweig `slice-admin-listener-token`, HEAD `b83a1da1` (Fix-Runde nach Review `ddd20fc5` und Entscheidungen des Architect `61e6483a`), Basis `20c02c5`. Plan: `docs/plan/planning/done/slice-admin-listener-token.md`. Teil 1 des Admin-Adapters: die Token-Datei `admin.LadeToken`.
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 

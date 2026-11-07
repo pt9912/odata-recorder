@@ -20,7 +20,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` ste
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-07.
 
-**Herkunft:** Teil 4 des Schnitts von [slice-admin-listener-token](../in-progress/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen A2, K5, S1 bis S10, X2 und G1 bis G3 der Tabelle des Architect (16 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich A2 (Teil 3 des Vorschlags) und K5 (Teil 2 des Vorschlags): beide brauchen `Anhalten`, das erst hier entsteht.
+**Herkunft:** Teil 4 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen A2, K5, S1 bis S10, X2 und G1 bis G3 der Tabelle des Architect (16 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich A2 (Teil 3 des Vorschlags) und K5 (Teil 2 des Vorschlags): beide brauchen `Anhalten`, das erst hier entsteht.
 
 ---
 
@@ -88,7 +88,7 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/adapters/driving/admin/` | update | `Serve`, `Anhalten`, `Schliessen`, Zulassung unter einer Sperre, 503 vor allem anderen, `http.Server` mit den festen Werten, Begrenzung des `Body`, `ctx` der Route (`SPEC-238` Nr. 3 b, 9, 10, 11; `SPEC-136` Nr. 12 bis 14) |
 | Tests | neu / update | Adapter gegen einen echten Listener auf `127.0.0.1:0` mit rohem Client (Keep-Alive-Verbindung, `OPTIONS *`) und gegen `ServeHTTP`; der Test-Server mit Client ist der neue Fake; `listenerFake`, `routeFake` aus `slice-admin-rahmen`; Kanäle statt Schlaf; der Adapter importiert weder Adapter noch Service (`make a-check`) |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stammen vom Architect (2026-11-07, Plan von [slice-admin-listener-token](../in-progress/slice-admin-listener-token.md)); der Schnitt gibt jedem Teil ganze Zeilen im Wortlaut (A Ablauf, K Konfiguration, S Server, X Abbruch, G Grenzen). **Wachsende Mengen:** dieser Teil ergänzt die Form 503 in den Schleifen über die Requestarten *R* (A1, E4 in `slice-admin-authentisierung`) und die Antwortarten (E2); die Formen „Route mit Fehler“ und „Route mit Panik“ kommen mit `slice-admin-fehlerabbildung`.
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stammen vom Architect (2026-11-07, Plan von [slice-admin-listener-token](../done/slice-admin-listener-token.md)); der Schnitt gibt jedem Teil ganze Zeilen im Wortlaut (A Ablauf, K Konfiguration, S Server, X Abbruch, G Grenzen). **Wachsende Mengen:** dieser Teil ergänzt die Form 503 in den Schleifen über die Requestarten *R* (A1, E4 in `slice-admin-authentisierung`) und die Antwortarten (E2); die Formen „Route mit Fehler“ und „Route mit Panik“ kommen mit `slice-admin-fehlerabbildung`.
 
 | Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|

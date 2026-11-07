@@ -20,7 +20,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` ste
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-07.
 
-**Herkunft:** Teil 5 des Schnitts von [slice-admin-listener-token](../in-progress/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen B1 bis B9, C1 bis C5, E1, E5, X1 und H2 der Tabelle des Architect (18 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich E1 und E5 (Schleifen über die Fehler, die eine Route liefert) und gibt H1 (Schleife über alle acht Ausgabewege) an `slice-admin-abweisen-audit` ab, wo der Weg des Audit-Eintrags und die Fehlertexte von `Serve` und `Schliessen` bestehen.
+**Herkunft:** Teil 5 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen B1 bis B9, C1 bis C5, E1, E5, X1 und H2 der Tabelle des Architect (18 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich E1 und E5 (Schleifen über die Fehler, die eine Route liefert) und gibt H1 (Schleife über alle acht Ausgabewege) an `slice-admin-abweisen-audit` ab, wo der Weg des Audit-Eintrags und die Fehlertexte von `Serve` und `Schliessen` bestehen.
 
 ---
 
@@ -88,7 +88,7 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/adapters/driving/admin/` | update | Abbildung der Fehler der Routen, Fangen der Panik, Behandlung der Kontextfehler, `CountError` in der einen Stelle, die das Fehlerobjekt schreibt (`SPEC-238` Nr. 5, 6, 7, 9, 13) |
 | Tests | neu / update | Adapter gegen `ServeHTTP` mit `httptest`; `FakeTelemetry` aus `supporttest` (`Aufrufe()` hält Operation und Argument, `Anzahl(op)` zählt `Log`, `StartSpan`, `Snapshot` mit); `routeFake` liefert Antwort und Fehler einstellbar; AST-Tests für die eine Stelle (C3) und die Typen der `Anfrage` (C4); der Adapter importiert weder Adapter noch Service (`make a-check`) |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stammen vom Architect (2026-11-07, Plan von [slice-admin-listener-token](../in-progress/slice-admin-listener-token.md)); der Schnitt gibt jedem Teil ganze Zeilen im Wortlaut (B Fehler der Routen, C Zählen, E Antwort, X Abbruch, H Geheimnisse). **Wachsende Mengen:** dieser Teil vervollständigt die Schleifen über die Requestarten *R* (A1, E4 in `slice-admin-authentisierung`) um „Route mit Fehler“ und „Route mit Panik“ und die Antwortarten von E2 um 400, Fehler der Route und 500; damit gilt dort die Zählprüfung 9 × 3 = 27.
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stammen vom Architect (2026-11-07, Plan von [slice-admin-listener-token](../done/slice-admin-listener-token.md)); der Schnitt gibt jedem Teil ganze Zeilen im Wortlaut (B Fehler der Routen, C Zählen, E Antwort, X Abbruch, H Geheimnisse). **Wachsende Mengen:** dieser Teil vervollständigt die Schleifen über die Requestarten *R* (A1, E4 in `slice-admin-authentisierung`) um „Route mit Fehler“ und „Route mit Panik“ und die Antwortarten von E2 um 400, Fehler der Route und 500; damit gilt dort die Zählprüfung 9 × 3 = 27.
 
 | Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|
