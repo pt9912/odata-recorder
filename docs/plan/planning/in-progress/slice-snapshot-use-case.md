@@ -305,7 +305,10 @@ pfad: src/hexagon/services/workspace
 pfad: src/bootstrap/snapshot_sqlite_test.go
 produktcode: 500
 fakes: 4
-schnitt-grund: Kein Schnitt vor dem Code (Architect, 2026-11-07, Rückgabe R1; der Planner bestätigt oder schneidet). Trennbar wäre Erzeugen und Auflisten (T01 bis T28, T67 bis T71, S rund 4000) gegen Wiederherstellen (T29 bis T66, S rund 3900); beide Teile liegen selbst über der Schnittgrenze und trügen die Schnittfrage weiter. Die Teile teilen die Form des Manifests (Schreiber und Leser, verbunden allein durch den Rundlauf T46), die Fehlerabbildung, die Zählprüfungen und den Aufbau in src/bootstrap; ein grüner Stand läge nach jedem Teil, aber der Weg zu M3 braucht beide, und der Schnitt verdoppelte Plan, Review und Verifikation für rund die Hälfte der Zeilen.
+basis: 6e1e52d32b53756585312f4ee215f052c11a31a1
+schaetzung: 7845
+marke: 10600
+schnitt-grund: Kein Schnitt vor dem Code (Architect, 2026-11-07, Rückgabe R1; vom Planner am 2026-11-07 bestätigt). Trennbar wäre Erzeugen und Auflisten (T01 bis T28, T67 bis T71, S rund 4000) gegen Wiederherstellen (T29 bis T66, S rund 3900); beide Teile liegen selbst über der Schnittgrenze und trügen die Schnittfrage weiter. Die Teile teilen die Form des Manifests (Schreiber und Leser, verbunden allein durch den Rundlauf T46), die Fehlerabbildung, die Zählprüfungen und den Aufbau in src/bootstrap; ein grüner Stand läge nach jedem Teil, aber der Weg zu M3 braucht beide, und der Schnitt verdoppelte Plan, Review und Verifikation für rund die Hälfte der Zeilen. Der Teil Wiederherstellen ist ohne die Form des Manifests aus dem Teil Erzeugen nicht prüfbar (der Rundlauf T46 verbindet beide), also teilt der Schnitt einen Mechanismus und ist nach `AGENTS.md` §3.14 kein zulässiger Schnitt.
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
