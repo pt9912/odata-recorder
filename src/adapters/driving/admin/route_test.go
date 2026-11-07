@@ -169,7 +169,7 @@ func TestRoutenUeberlappung(t *testing.T) {
 				}
 				k, _ := konfigMit(admin.Route{Methode: "POST", Muster: muster[i], Handler: h}, admin.Route{Methode: m2, Muster: muster[j], Handler: h})
 				srv, err := admin.New(k)
-				soll := !(gleich && modellUeberlappt(muster[i], muster[j]))
+				soll := !gleich || !modellUeberlappt(muster[i], muster[j])
 				if soll != (err == nil && srv != nil) || (!soll && !errors.Is(err, model.ErrUngueltig)) {
 					t.Errorf("%s %s mit %s %s: Fehler %v, erwartet gültig = %v", "POST", muster[i], m2, muster[j], err, soll)
 				}

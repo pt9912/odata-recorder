@@ -124,7 +124,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	t := ordne(s.routen, r.Method, r.URL.EscapedPath())
 	switch {
 	case t.route != nil:
-		s.rufe(w, r, id, t)
+		rufe(w, r, id, t)
 	case len(t.allow) == 0:
 		schreibeFehler(w, model.CodeE2102, http.StatusNotFound, "")
 	default:
@@ -147,7 +147,7 @@ func anfrage(r *http.Request, id string, werte map[string]string) Anfrage {
 }
 
 // rufe ruft den Handler der Route genau einmal; Status und Body gehen durch, ein Fehler ist ODR-E9001 mit 500.
-func (s *Server) rufe(w http.ResponseWriter, r *http.Request, id string, t treffer) {
+func rufe(w http.ResponseWriter, r *http.Request, id string, t treffer) {
 	antwort, err := t.route.handler(r.Context(), anfrage(r, id, t.werte))
 	if err != nil {
 		schreibeFehler(w, model.CodeE9001, http.StatusInternalServerError, "")
