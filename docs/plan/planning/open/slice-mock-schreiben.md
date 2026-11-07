@@ -37,6 +37,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-odata-json-eingabe`, `SPEC-180` Nr. 6, `SPEC-109` Nr. 5):** der Dienst liest den Body von POST, PATCH und PUT über `CodecSatz.Eingabe` (`ODataEingabe.LeseEntity`) und ruft den Leser an drei Aufrufstellen {`POST`, `PATCH`, `PUT`} des Request (die drei Teile eines Changeset trägt `slice-batch-changesets`; zusammen die sechs Stellen der Menge). Je Aufrufstelle reicht er die acht Zusagen von `SPEC-180` Nr. 6 a bis h unverändert weiter (`ctx` des Aufrufs, `src`, `contentType` des Request, `entitySet`, `art`, `grenze` gleich `MAX_CAPTURE_BODY`, Fehlerabbildung über `SPEC-109` Nr. 5: `ErrEingabeUngueltig` → `ODR-E6007` mit `400`, `ErrEingabeNichtUnterstuetzt` → `ODR-E6002` mit `501`, Zustand unverändert bei jedem Fehler); Fänger je Aufrufstelle, der Fake des Ports hält jedes Argument fest. Der Handbuch-Eintrag von `ODR-E6007` kommt mit `slice-bootstrap-m3` (der Code erreicht einen Client erst mit dem Modus `mock`). Kein Ausschluss dieses Slice trifft diesen Punkt.
 
+**Übernimmt (Sendung von `slice-odata-json-eingabe`, Review F-15, `SPEC-180` Nr. 3):** `Error()` eines Fehlers des Eingabe-Lesers trägt den Namen einer unbekannten Property im Ort, und ein Name kann bis zu `grenze` Bytes lang sein (gemessen: ein Name von 1 MiB ergibt einen Ort von 1 MiB). Der Architect entscheidet vor dem Code (Auftrag beim Start, `AGENTS.md` §3.12), ob der Ort im Fehlertyp begrenzt wird (Änderung von `SPEC-180` Nr. 3) oder ob die Länge als akzeptiertes Negativ mit Grund und Folge in *Ungeprüft* von `SPEC-180` steht; der Dienst schreibt den Ort nicht ungekürzt in Log oder Span, solange das nicht entschieden ist. Fänger: ein Name von `grenze` Bytes ergibt in Log und Span keinen Eintrag über der gewählten Grenze. Kein Ausschluss dieses Slice trifft diesen Punkt.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - ETag, `If-Match` und `Prefer` — `welle-etag`; bis dahin gilt das Muss-Verhalten ohne `Prefer` (POST `201`, PATCH und PUT `204`).
@@ -120,6 +122,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
+- Länge des Ortes im `Error()` des Eingabe-Lesers (Sendung von `slice-odata-json-eingabe`, Review F-15, siehe §1) — **Ausgang:** offen; Adresse: Architect (Begrenzung in `SPEC-180` Nr. 3 oder Negativ mit Grund und Folge) vor dem ersten Code-Commit.
 - Serialisierung der Schreibvorgänge je Workspace ist eine Zusage über Nebenläufigkeit: der Detektor meldet nur, was läuft — **Ausgang:** offen; Wirkungs-Fänger, der zählt, was das Fenster zuließe, mit der Rate je Mutation und je Lauf von `go test` samt Zahl der Prozesse und Messendem (`AGENTS.md` §3.10; `BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last`, `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor`).
 - Umfang der Referenzregeln und Navigationen, „soweit der Modellumfang sie eindeutig definiert“ (`LH-FA-07.a`) — **Ausgang:** offen; Architect nennt die Fälle, alles andere ist `ODR-E6002`.
 - Wer `entity_version` erhöht, solange kein ETag ausgeliefert wird (die Spalte existiert im Schema) — **Ausgang:** offen; Architect entscheidet es in diesem Slice, so dass `welle-etag` darauf aufbaut.
