@@ -39,16 +39,33 @@ func produktProperties() []model.Property {
 	return ps
 }
 
+// nichtUnterstuetzteTypen sind die EDM-Typen (und ein Typ außerhalb von Edm), für die Property.Unterstuetzt() falsch ist; die
+// Zählprüfung steht in TestNichtUnterstuetzteMenge.
+func nichtUnterstuetzteTypen() []string {
+	return []string{"Edm.Binary", "Edm.Byte", "Edm.SByte", "Edm.Int16", "Edm.Double", "Edm.Single", "Edm.Duration", "Edm.TimeOfDay",
+		"Edm.Stream", "Edm.GeographyPoint", "Edm.GeometryPoint", "N.Komplex"}
+}
+
+// vielProp ist der Name der Property von Viele zu einem nicht unterstützten Typ.
+func vielProp(edm string) string { return "P" + strings.ReplaceAll(edm, ".", "_") }
+
 // testModell ist das Modell der Lesetests (SPEC-125 Nr. 11), mit den Typen Product, Special (abgeleitet), Abstrakt, Fremd,
 // Sk, Pair und den Sets von oben.
 func testModell() model.ServiceModel {
 	prod := produktProperties()
 	special := append(append([]model.Property{}, prod...), model.Property{Name: "Extra", EdmType: "Edm.String", Nullable: true})
+	viele := []model.Property{{Name: "Id", EdmType: "Edm.Int32"}}
+	for _, t := range nichtUnterstuetzteTypen() {
+		viele = append(viele, model.Property{Name: vielProp(t), EdmType: t, Nullable: true})
+	}
 	nullbar := func(n string) model.Property { return model.Property{Name: n, EdmType: "Edm.String", Nullable: true} }
 	typen := []model.EntityType{
 		{Name: typProduct, Keys: []string{"Id"}, Properties: prod},
 		{Name: typSpecial, BaseType: typProduct, Keys: []string{"Id"}, Properties: special},
-		{Name: "N.Abstrakt", Abstract: true, Keys: []string{"Id"}, Properties: prod},
+		{Name: "N.Abstrakt", BaseType: typProduct, Abstract: true, Keys: []string{"Id"}, Properties: prod},
+		{Name: "N.SpezAbstrakt", BaseType: typSpecial, Abstract: true, Keys: []string{"Id"}, Properties: special},
+		{Name: "N.Tief", BaseType: typSpecial, Keys: []string{"Id"}, Properties: special},
+		{Name: "N.Viele", Keys: []string{"Id"}, Properties: viele},
 		{Name: "N.Fremd", Keys: []string{"Id"}, Properties: prod},
 		{Name: "N.Sk", Keys: []string{"K"}, Properties: []model.Property{nullbar("K"), nullbar("Name")}},
 		{Name: "N.Pair", Keys: []string{"A", "B"}, Properties: []model.Property{nullbar("A"), nullbar("B"), nullbar("Name")}},
@@ -60,6 +77,7 @@ func testModell() model.ServiceModel {
 	sets := []model.EntitySet{
 		{Name: setProducts, EntityType: typProduct}, {Name: "Kunden", EntityType: typProduct}, {Name: "Sks", EntityType: "N.Sk"},
 		{Name: "Pairs", EntityType: "N.Pair"}, {Name: "Bunt", EntityType: "N.Bunt"}, {Name: "Seltsam", EntityType: "N.Seltsam"},
+		{Name: "Viele", EntityType: "N.Viele"}, {Name: "Waise", EntityType: "N.GibtEsNicht"},
 	}
 	return model.NeuesServiceModel("4.0", []string{"N"}, typen, sets, nil)
 }
