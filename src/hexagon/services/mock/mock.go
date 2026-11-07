@@ -87,7 +87,7 @@ func portFehlt(k Konfig) bool {
 }
 
 // Mock prüft den Request in der Reihenfolge von SPEC-195 Nr. 3 (der erste Verstoß entscheidet) und liefert die
-// Antwort. Collection, Entity und Anzahl enden mit ODR-E6001 (Platzhalter nach Schritt g).
+// Antwort: $metadata (SPEC-198 Nr. 4), Collection, Entity und Anzahl (SPEC-196 bis SPEC-198).
 func (m *Mocker) Mock(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, error) {
 	if argumenteUngueltig(ctx, a) {
 		return inbound.Antwort{}, ungueltig("Anfrage, die kein HTTP-Adapter liefert")
@@ -104,13 +104,14 @@ func (m *Mocker) Mock(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, 
 	if err != nil {
 		return inbound.Antwort{}, abbilden(err, outbound.GegenstandSonstiges)
 	}
-	if !slices.Contains([]model.RessourcenArt{model.RessourceMetadaten, model.RessourceMenge, model.RessourceEntity, model.RessourceAnzahl}, u.Ressource.Art) {
+	if !slices.Contains(model.AlleRessourcenArten(), u.Ressource.Art) {
 		return inbound.Antwort{}, mitCode(model.CodeE9001, nil)
 	}
 	if a.Methode != "GET" && a.Methode != "HEAD" {
 		return inbound.Antwort{}, nichtGelesen(d)
 	}
-	if err := m.pruefeWorkspace(ctx, d, ws); err != nil {
+	w, err := m.holeWorkspace(ctx, d, ws)
+	if err != nil {
 		return inbound.Antwort{}, err
 	}
 	s, err := m.holeService(ctx, d)
@@ -118,7 +119,7 @@ func (m *Mocker) Mock(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, 
 		return inbound.Antwort{}, err
 	}
 	if u.Ressource.Art != model.RessourceMetadaten {
-		return inbound.Antwort{}, mitCode(model.CodeE6001, nil)
+		return m.lese(ctx, a, d, w, s, u)
 	}
 	return m.metadaten(ctx, a.Methode == "HEAD", d, s)
 }
@@ -149,14 +150,14 @@ func nichtGelesen(d Dienst) error {
 	return mitCode(model.CodeE6002, nil)
 }
 
-// pruefeWorkspace liest den Workspace genau einmal und prüft seinen Service (SPEC-195 Nr. 8).
-func (m *Mocker) pruefeWorkspace(ctx context.Context, d Dienst, id string) error {
+// holeWorkspace liest den Workspace genau einmal und prüft seinen Service (SPEC-195 Nr. 8).
+func (m *Mocker) holeWorkspace(ctx context.Context, d Dienst, id string) (model.Workspace, error) {
 	w, err := m.k.Workspaces.Get(ctx, id)
 	switch {
 	case err != nil:
-		return abbilden(err, outbound.GegenstandWorkspace)
+		return model.Workspace{}, abbilden(err, outbound.GegenstandWorkspace)
 	case w.ServiceID != d.ID:
-		return mitCode(model.CodeE5004, nil)
+		return model.Workspace{}, mitCode(model.CodeE5004, nil)
 	}
-	return nil
+	return w, nil
 }

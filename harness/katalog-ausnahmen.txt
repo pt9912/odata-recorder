@@ -17,3 +17,4 @@ ODR-E7010 | Sessions legt außer dem Start nur die Admin-API an; die Kennung des
 ODR-E7011 | Sessions beendet außer dem Herunterfahren nur die Admin-API, das Binary hat sie nicht
 ODR-E7012 | Exchanges liest nur die Admin-API, das Binary hat sie nicht
 ODR-E6007 | Mock-Betrieb: der Eingabe-Leser des Mock ist im Binary nicht erreichbar, das Handbuch nennt den Code mit slice-bootstrap-m3
+ODR-E6008 | Mock-Betrieb: der Modus mock erreicht das Binary erst mit slice-bootstrap-m3, dessen Handbuch-Eintrag den Code nennt

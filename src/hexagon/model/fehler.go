@@ -34,6 +34,7 @@ const (
 	CodeE6005
 	CodeE6006
 	CodeE6007
+	CodeE6008
 	CodeE6101
 	CodeE6102
 	CodeE7001
@@ -104,6 +105,7 @@ func codeZeilen() []codeZeile {
 		{CodeE6005, "ODR-E6005", []int{400}, ZielMock, "Invalid OData URL"},
 		{CodeE6006, "ODR-E6006", []int{501}, ZielMock, "Unsupported OData V2 feature"},
 		{CodeE6007, "ODR-E6007", []int{400}, ZielMock, "Invalid request body"},
+		{CodeE6008, "ODR-E6008", []int{404}, ZielMock, "Entity or entity set not found"},
 		{CodeE6101, "ODR-E6101", []int{422}, ZielImport, "Baseline import invalid or inconsistent"},
 		{CodeE6102, "ODR-E6102", []int{409}, ZielImport, "Import id reused with different content"},
 		{CodeE7001, "ODR-E7001", []int{404}, ZielWorkspace, "Workspace unknown"},
