@@ -34,29 +34,60 @@ func handleInGoroutine(h slog.Handler, msg string) <-chan struct{} {
 	return fertig
 }
 
-// H10 (1): Haltepunkt am Writer: A schreibt über die Wurzel und hängt im Write, B über WithAttrs, C
-// über WithGroup; innerhalb 200 ms tritt kein zweites Write ein, nach der Freigabe stehen drei Zeilen
-// da, nie zwei Write zugleich.
+// ableitungen sind alle Handler, die aus der Wurzel von a durch höchstens drei Ableitungen WithAttrs
+// (A) und WithGroup (G) entstehen, mit ihrem Modell: die Arten von Handlern der Menge M17 in jeder
+// Tiefe (1 + 2 + 4 + 8 = 15). Der Name ist die Folge der Ableitungen, "W" die Wurzel.
+func ableitungen(t *testing.T, a *telemetry.Adapter) []kette {
+	t.Helper()
+	wurzel := kette{name: "W", h: a.Handler()}
+	alle, stufe := []kette{wurzel}, []kette{wurzel}
+	for tiefe := 1; tiefe <= 3; tiefe++ {
+		var naechste []kette
+		for _, k := range stufe {
+			x := s("mode", "record")
+			mitA := k.mitAttrs(k.h.WithAttrs([]slog.Attr{x}), x)
+			mitA.name = strings.TrimPrefix(k.name, "W") + "A"
+			mitG := k.mitGruppe(k.h.WithGroup("g"), "g")
+			mitG.name = strings.TrimPrefix(k.name, "W") + "G"
+			naechste = append(naechste, mitA, mitG)
+		}
+		alle, stufe = append(alle, naechste...), naechste
+	}
+	if len(alle) != 1+2+4+8 {
+		t.Fatalf("%d Handler, erwartet 15", len(alle))
+	}
+	return alle
+}
+
+// H10 (1): Haltepunkt am Writer: A schreibt über die Wurzel und hängt im Write; jeder der 14 anderen
+// Handler aus ableitungen (Menge M17 in jeder Tiefe bis 3) schreibt zugleich; innerhalb 200 ms tritt
+// kein zweites Write ein, nach der Freigabe stehen 15 Zeilen da, nie zwei Write zugleich.
 func TestHandlerKeineZweiWriteHaltepunkt(t *testing.T) {
 	senke, a := blockierendH(t)
-	w := a.Handler()
-	fertigA := handleInGoroutine(w, "a")
+	alle := ableitungen(t, a)
+	fertige := []<-chan struct{}{handleInGoroutine(alle[0].h, "W")}
 	if !senke.warteEintritt(5 * time.Second) {
 		t.Fatal("A erreicht Write nicht")
 	}
-	fertigB := handleInGoroutine(w.WithAttrs([]slog.Attr{s("mode", "record")}), "b")
-	fertigC := handleInGoroutine(w.WithGroup("g"), "c")
-	if senke.warteEintritt(200 * time.Millisecond) {
-		t.Error("ein zweites Write trat ein, während das erste hing")
+	for _, k := range alle[1:] {
+		fertige = append(fertige, handleInGoroutine(k.h, k.name))
+	}
+	time.Sleep(200 * time.Millisecond)
+	if z := senke.zeilen(); len(z) != 1 {
+		var namen []string
+		for _, b := range z[1:] {
+			namen = append(namen, lies(t, b).text["msg"])
+		}
+		t.Errorf("ein zweites Write trat ein, während das erste hing: Handler %v", namen)
 	}
 	senke.freigeben()
-	for _, f := range []<-chan struct{}{fertigA, fertigB, fertigC} {
+	for _, f := range fertige {
 		if !zurueck(f, 2*time.Second) {
 			t.Fatal("ein Handle kehrt nach der Freigabe nicht zurück")
 		}
 	}
-	if len(senke.zeilen()) != 3 || senke.hoechstwert() != 1 {
-		t.Errorf("%d Zeilen, Höchstwert gleichzeitiger Write %d; erwartet 3 und 1", len(senke.zeilen()), senke.hoechstwert())
+	if len(senke.zeilen()) != len(alle) || senke.hoechstwert() != 1 {
+		t.Errorf("%d Zeilen, Höchstwert gleichzeitiger Write %d; erwartet %d und 1", len(senke.zeilen()), senke.hoechstwert(), len(alle))
 	}
 }
 
@@ -77,21 +108,22 @@ func TestHandleKehrtNachWriteZurueck(t *testing.T) {
 	}
 }
 
-// H10 (2): Masse: 32 Goroutinen × 200 Einträge, verteilt auf die vier Arten zu schreiben (Wurzel,
-// WithAttrs, WithGroup, slog.New): 6400 gültige Zeilen, nie zwei Write zugleich, je Goroutine streng
-// aufsteigend (die Nummer steht im Text).
+// H10 (2): Masse: 32 Goroutinen × 200 Einträge, verteilt auf die 15 Handler aus ableitungen (jeder
+// wird von mindestens einer Goroutine geschrieben) und slog.New: 6400 gültige Zeilen, nie zwei Write
+// zugleich, je Goroutine streng aufsteigend (die Nummer steht im Text).
 func TestHandlerKeineZweiWriteMasse(t *testing.T) {
 	const goroutinen, runden = 32, 200
 	senke := &FakeSenke{}
 	a := neuMit(t, senke, festeUhr(), slog.LevelInfo)
-	w := a.Handler()
-	wa, wg := w.WithAttrs([]slog.Attr{s("mode", "record")}), w.WithGroup("g")
-	logger := slog.New(w)
-	schreiber := []func(msg string){
-		func(m string) { _ = w.Handle(context.Background(), rec(slog.LevelInfo, m)) },
-		func(m string) { _ = wa.Handle(context.Background(), rec(slog.LevelInfo, m)) },
-		func(m string) { _ = wg.Handle(context.Background(), rec(slog.LevelInfo, m)) },
-		func(m string) { logger.Info(m) },
+	alle := ableitungen(t, a)
+	logger := slog.New(alle[0].h)
+	var schreiber []func(msg string)
+	for _, k := range alle {
+		schreiber = append(schreiber, func(m string) { _ = k.h.Handle(context.Background(), rec(slog.LevelInfo, m)) })
+	}
+	schreiber = append(schreiber, func(m string) { logger.Info(m) })
+	if goroutinen < len(schreiber) {
+		t.Fatalf("%d Goroutinen für %d Schreiber", goroutinen, len(schreiber))
 	}
 	var gruppe sync.WaitGroup
 	start := make(chan struct{})
@@ -219,14 +251,14 @@ func TestUhrRuftHandle(t *testing.T) {
 }
 
 // H13: Zähler, Snapshot und das Zählen von Verwürfen warten nicht auf eine blockierte Senke, Seite
-// Handle. Haltepunkt am Writer: A hängt in Handle der Wurzel; B ruft CountError, Snapshot, Handle
-// direkt unter MinLevel mit ungültigem Attribut und Handle eines WithAttrs-Handlers unter MinLevel mit
-// ungültigem vorgelegtem Attribut; jede kehrt innerhalb 2 s zurück, wert zählt 1 je Handle.
+// Handle. Haltepunkt am Writer: A hängt in Handle der Wurzel; B ruft CountError, Snapshot und Handle
+// jedes der 15 Handler aus ableitungen (Menge M17 in jeder Tiefe bis 3) unter MinLevel mit einem
+// ungültigen Attribut des Aufrufs (und den ungültigen vorgelegten Attributen der Kette); jede kehrt
+// innerhalb 2 s zurück, die Verwürfe wachsen um die Summe des Modells der Ketten.
 func TestBlockierteSenkeHandle(t *testing.T) {
 	senke, a := blockierendH(t)
-	h := a.Handler()
-	abgeleitet := h.WithAttrs([]slog.Attr{s("mode", "a b")})
-	fertigA := handleInGoroutine(h, "a")
+	alle := ableitungen(t, a)
+	fertigA := handleInGoroutine(alle[0].h, "a")
 	if !senke.warteEintritt(5 * time.Second) {
 		t.Fatal("A erreicht Write nicht")
 	}
@@ -236,21 +268,29 @@ func TestBlockierteSenkeHandle(t *testing.T) {
 	}{
 		{"CountError", func() { a.CountError(model.CodeE2001) }},
 		{"Snapshot", func() { _ = a.Snapshot() }},
-		{"Handle unter MinLevel mit ungültigem Attribut", func() {
-			_ = h.Handle(context.Background(), rec(slog.LevelDebug, "m", s("mode", "a b")))
-		}},
-		{"Handle eines WithAttrs-Handlers unter MinLevel", func() {
-			_ = abgeleitet.Handle(context.Background(), rec(slog.LevelDebug, "m"))
-		}},
 	}
+	var schluessel, wert uint64
+	for _, k := range alle {
+		ops = append(ops, struct {
+			name string
+			f    func()
+		}{"Handle unter MinLevel, Handler " + k.name, func() {
+			_ = k.h.Handle(context.Background(), rec(slog.LevelDebug, "m", s("mode", "a b")))
+		}})
+		e := k.erwartet(s("mode", "a b"))
+		schluessel, wert = schluessel+e.schluessel, wert+e.wert
+	}
+	vorher := a.Snapshot()
 	for _, o := range ops {
 		if !binnen(t, 2*time.Second, o.name, o.f) {
 			t.Fatalf("%s wartet auf die blockierte Senke", o.name)
 		}
 	}
 	stand := a.Snapshot()
-	if stand.Errors[model.CodeE2001] != 1 || stand.Dropped[support.VerwurfWert] != 2 {
-		t.Errorf("CountError %d, wert %d; erwartet 1 und 2", stand.Errors[model.CodeE2001], stand.Dropped[support.VerwurfWert])
+	if stand.Errors[model.CodeE2001] != 1 || stand.Dropped[support.VerwurfWert]-vorher.Dropped[support.VerwurfWert] != wert ||
+		stand.Dropped[support.VerwurfSchluessel]-vorher.Dropped[support.VerwurfSchluessel] != schluessel {
+		t.Errorf("CountError %d, wert %d, schluessel %d; erwartet 1, %d und %d", stand.Errors[model.CodeE2001],
+			stand.Dropped[support.VerwurfWert], stand.Dropped[support.VerwurfSchluessel], wert, schluessel)
 	}
 	if zurueck(fertigA, 100*time.Millisecond) {
 		t.Fatal("A kehrt vor der Freigabe zurück")
