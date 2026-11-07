@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal), Code und Plan gegen die DoD des Slice, `SPEC-236` Nr. 1, 2, 6, 7, 8, 10, `SPEC-109` Nr. 5, `SPEC-110` Nr. 2, `SPEC-230` Nr. 9, `LH-FA-13`, `LH-FA-11`, `LH-QA-04`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0002](../plan/adr/0002-architektur-gate-a-check.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md), [ADR-0007](../plan/adr/0007-race-detektor-im-gate.md), [ADR-0009](../plan/adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md) und die Hard Rules.
 
-**Gegenstand:** Zweig `slice-inspection-coverage-diagnose`, HEAD `0ae9fd8` (Implementer `331d3d8`, Review-Report), Basis `9a9180d`. Plan: `docs/plan/planning/in-progress/slice-inspection-coverage-diagnose.md`. Review: `docs/reviews/2026-11-07-slice-inspection-coverage-diagnose-review.md`.
+**Gegenstand:** Zweig `slice-inspection-coverage-diagnose`, HEAD `0ae9fd8` (Implementer `331d3d8`, Review-Report), Basis `9a9180d`. Plan: `docs/plan/planning/done/slice-inspection-coverage-diagnose.md`. Review: `docs/reviews/2026-11-07-slice-inspection-coverage-diagnose-review.md`.
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 
