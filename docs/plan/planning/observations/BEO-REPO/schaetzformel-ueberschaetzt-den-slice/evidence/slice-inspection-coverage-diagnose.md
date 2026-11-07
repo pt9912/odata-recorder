@@ -1,0 +1,2 @@
+**Vorgang:** slice-inspection-coverage-diagnose
+**Fund:** Schätzung *S* 2155 (22 Zeilen, davon 1 nebenläufig, Fakes 1, Produktcode 190), Marke 3000, Messung 1725 (`make groessenmarke`: ok); Ende ÷ *S* 0,80, Auslastung 0,58 (unter 0,60, Meldung an den Architect nach `SPEC-128` Nr. 9). Produktcode von Hand 109 gegen 190 geschätzt (0,57). Beleg: Plan §4 (Größenmarke) und §7 (Messpunkt-Zeile); Verifikation `docs/reviews/2026-11-07-slice-inspection-coverage-diagnose-verifikation.md` §1.
