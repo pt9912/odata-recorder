@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-201` (Vertrag unter `harness/vertraege/`, Abgleich der Kataloge) Nr. 4, 5, 6, 7 (Art 4, 8, 10), 8, 10 a · `SPEC-200` (Handbuch gegen das gebaute Binary) · `SPEC-102` (Gegenproben) · `SPEC-110` Nr. 2 (Schlüssel dieser Version) · `SPEC-138` Nr. 2 (Kommandos des Adapters).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-handbuch-katalog-schluessel-kommandos`, Worktree `/Development/odata-recorder-wt-handbuch-katalog`; der Zweig entsteht nach dem Start-Commit von `main`)
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-06.
 
@@ -106,7 +106,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Bedingung Gate-Kette** (Übergangsregeln Nr. 7, Planner, 2026-11-06): Dieser Slice ändert dieselben Dateien der Gate-Kette wie `slice-handbuch-meldungskatalog` (`Dockerfile`, dem Fragment `katalog.mk` unter `harness/mk/`, `harness/README.md`, `tools/gegenproben/`) und **startet nicht daneben, sondern erst nach dessen `done/`**. Kein weiterer Slice der Gate-Kette steht in `in-progress/`, solange dieser läuft. Kennungen aus dem Bereich der Linie C (`SPEC` 200 bis 229, `ADR` 0030 bis 0039, `CO` 040 bis 059): die nächste freie `SPEC`-Nummer der Linie C ist `SPEC-202`. Gate-Zeit: `make gates` und `make gegenproben` unter `flock /tmp/odata-recorder-heavy.lock`, höchstens zwei Linien zugleich.
 
-**Größenmarke** (`AGENTS.md` §3.14): noch nicht gesetzt. Der Architect legt den Block `groessenmarke` beim Start an (Pfade, Produktcode, Fakes), der Planner setzt `basis`, `schaetzung` und `marke` in eigenem Commit vor dem ersten Code-Commit nach `SPEC-128` Nr. 1. Metrik: die Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Erwartet: *S* grob 1520, keine Schnittfrage.
+**Stand beim Start** (Planner, 2026-11-08, `main` = `e5c0f8b9`): erfüllt. `slice-handbuch-meldungskatalog` liegt in `done/`, das Programm `katalog`, die Stufen und `make katalog-check` stehen auf `main`. Nr. 7 der Übergangsregeln: kein anderer Slice der Gate-Kette in `in-progress/` (`slice-admin-rahmen` und `slice-mock-abnahme` ändern weder `GATE_CHECKS` noch ein Gate); `slice-admin-rahmen` ändert `harness/katalog-ausnahmen.txt` und `model.AlleCodes()`, Eingaben des Fehlercode-Katalogs, nicht die Kataloge der Schlüssel und Kommandos.
+
+**Größenmarke** (Planner, 2026-11-08, `SPEC-128` Nr. 1; Prosa-Form, der Block folgt vom Architect und wird vom Planner in eigenem Commit vor dem ersten Code-Commit bestätigt): 14 Zeilen der Tabelle, *a* = 0, *b* = 14, *f* = 0, *p* = 400: *S* = 85·0 + 80·14 + 200·0 + 400 = 1520, *M* = 100·⌈135·1520/10000⌉ = 2100, keine Schnittfrage (*S* < 2223). Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Der Architect legt den Block `groessenmarke` (Pfade, `produktcode`, `fakes`) beim Start an; ändert sich die Zeilenzahl der Tabelle, rechnet der Planner neu. `basis`, `schaetzung` und `marke` setzt der Planner.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
