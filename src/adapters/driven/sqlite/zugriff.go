@@ -31,7 +31,9 @@ var (
 // Fehler beim Zurücknehmen oder beim Abschluss eines Savepoints macht die Transaktion
 // unbrauchbar (unbrauchbar ist der Fehler).
 type txVerbindung struct {
-	conn        *sql.Conn
+	// conn ist die *sql.Conn der Transaktion; ein Test tauscht sie gegen einen Wrapper, der ein
+	// Steuerstatement scheitern lässt (export_test.go).
+	conn        querier
 	unbrauchbar error
 }
 

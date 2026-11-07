@@ -64,6 +64,29 @@ func (h *haltepunkt) Err() error {
 // aufrufe ist die Zahl der Err-Aufrufe bisher.
 func (h *haltepunkt) aufrufe() int64 { return h.n.Load() }
 
+// pruefungsZahl ist je Operation die Zahl der Prüfungen des Kontexts in einem gelungenen Lauf
+// im Zustand von OperationenBasis: ein Statement des Adapters je Prüfung, der Savepoint der
+// schreibenden Operation eingeschlossen. Die Zahl gehört zum Adapter, nicht zum Vertrag; der
+// Probelauf in haltepunktPosition und haltepunktLesen bestätigt sie.
+func pruefungsZahl() map[string]int {
+	return map[string]int{
+		"Workspaces.Create": 5, "Workspaces.Get": 1, "Workspaces.List": 1, "Workspaces.Advance": 3, "Workspaces.Delete": 4,
+		"Entities.Put": 3, "Entities.Get": 1, "Entities.List": 1, "Entities.ListSet": 1, "Entities.ReplaceAll": 4,
+		"Cursors.Put": 4, "Cursors.Get": 1, "Cursors.List": 1, "Cursors.ResetAll": 3,
+		"Snapshots.Get": 1, "Snapshots.List": 1, "Snapshots.CreateWorkspace": 5, "Snapshots.GetWorkspace": 1, "Snapshots.ListWorkspace": 1,
+	}
+}
+
+func pruefungen(t *testing.T, op outboundtest.Operation) int {
+	t.Helper()
+	zahlen := pruefungsZahl()
+	n, ok := zahlen[op.Name]
+	if !ok || len(zahlen) != 19 {
+		t.Fatalf("Zahl der Prüfungen von %s unbekannt (%d Einträge, erwartet 19)", op.Name, len(zahlen))
+	}
+	return n
+}
+
 func operationen(t *testing.T, filter func(outboundtest.Operation) bool) []outboundtest.Operation {
 	t.Helper()
 	var out []outboundtest.Operation
@@ -137,8 +160,8 @@ func haltepunktLesen(t *testing.T, art outboundtest.Art) {
 			if err := laufeMitW2(h, t, v, op); err != nil {
 				t.Fatalf("Fehler %v nach dem Abbruch im Statement", err)
 			}
-			if h.aufrufe() != int64(op.Pruefungen) || !h.ende.Load() {
-				t.Fatalf("%d Prüfungen (erwartet %d), Kontext beendet: %v", h.aufrufe(), op.Pruefungen, h.ende.Load())
+			if h.aufrufe() != int64(pruefungen(t, op)) || !h.ende.Load() {
+				t.Fatalf("%d Prüfungen (erwartet %d), Kontext beendet: %v", h.aufrufe(), pruefungen(t, op), h.ende.Load())
 			}
 		})
 	}
@@ -157,22 +180,23 @@ func haltepunktPosition(t *testing.T) {
 			// Probelauf: die Zahl der Prüfungen einer gelungenen Operation.
 			v := outboundtest.OperationenBasis(t, neueVerbindung)
 			probe := neuerHaltepunkt(0, false, nil)
-			if err := laufeMitW2(probe, t, v, op); err != nil || probe.aufrufe() != int64(op.Pruefungen) {
-				t.Fatalf("Probelauf: Fehler %v, %d Prüfungen, erwartet %d", err, probe.aufrufe(), op.Pruefungen)
+			n := pruefungen(t, op)
+			if err := laufeMitW2(probe, t, v, op); err != nil || probe.aufrufe() != int64(n) {
+				t.Fatalf("Probelauf: Fehler %v, %d Prüfungen, erwartet %d", err, probe.aufrufe(), n)
 			}
-			for k := 1; k <= op.Pruefungen; k++ {
+			for k := 1; k <= n; k++ {
 				v := outboundtest.OperationenBasis(t, neueVerbindung)
 				vorher := outboundtest.LiesGesamtzustand(t, v)
 				err := laufeMitW2(neuerHaltepunkt(int64(k), true, nil), t, v, op)
 				nachher := outboundtest.OhneWorkspace(outboundtest.LiesGesamtzustand(t, v), "w2")
 				switch {
-				case k < op.Pruefungen && !errors.Is(err, context.Canceled):
+				case k < n && !errors.Is(err, context.Canceled):
 					t.Errorf("k=%d: Fehler %v, erwartet context.Canceled", k, err)
-				case k < op.Pruefungen && !reflect.DeepEqual(nachher, vorher):
+				case k < n && !reflect.DeepEqual(nachher, vorher):
 					t.Errorf("k=%d: Zustand nach dem Fehler geändert:\n%+v\n%+v", k, nachher, vorher)
-				case k == op.Pruefungen && err != nil:
+				case k == n && err != nil:
 					t.Errorf("k=%d (letztes Statement): Fehler %v, erwartet gelungen", k, err)
-				case k == op.Pruefungen && reflect.DeepEqual(nachher, vorher):
+				case k == n && reflect.DeepEqual(nachher, vorher):
 					t.Errorf("k=%d (letztes Statement): gelungen ohne Wirkung", k)
 				}
 			}

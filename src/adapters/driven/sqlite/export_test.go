@@ -34,6 +34,27 @@ func TransaktionAktiv(ctx context.Context, s outbound.WorkspaceStores) bool {
 	return false
 }
 
+// scheiterndeVerbindung führt jedes Statement auf der Verbindung der Transaktion aus, außer
+// denen in scheitern: sie liefern den zugeordneten Fehler, ohne die Datenbank zu erreichen.
+type scheiterndeVerbindung struct {
+	querier
+	scheitern map[string]error
+}
+
+func (s *scheiterndeVerbindung) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	if err, ok := s.scheitern[query]; ok {
+		return nil, err
+	}
+	return s.querier.ExecContext(ctx, query, args...)
+}
+
+// ScheitereBei lässt auf der Verbindung der Stores jedes Statement aus scheitern mit dem
+// zugeordneten Fehler (Text des Statements wie im Adapter, etwa "ROLLBACK TO operation").
+func ScheitereBei(s outbound.WorkspaceStores, scheitern map[string]error) {
+	v := s.Workspaces.(*WorkspaceRepository).z.conn
+	v.conn = &scheiterndeVerbindung{querier: v.conn, scheitern: scheitern}
+}
+
 // StatementAufVerbindung führt query auf der Verbindung der Stores aus, ohne die Prüfung der
 // Transaktion: der Eingriff, den ein Test zwischen zwei Statements einer Operation setzt.
 func StatementAufVerbindung(ctx context.Context, s outbound.WorkspaceStores, query string) error {

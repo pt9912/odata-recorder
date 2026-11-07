@@ -50,7 +50,10 @@ func w2(id string) model.Workspace {
 
 func TestTransaktionUnbrauchbar(t *testing.T) {
 	t.Run("operation", unbrauchbarOperation)
+	t.Run("steuerung", unbrauchbarSteuerung)
 	t.Run("weitere", unbrauchbarWeitere)
+	t.Run("argument", unbrauchbarArgument)
+	t.Run("kontext", unbrauchbarKontext)
 	t.Run("transaktion", unbrauchbarTransaktion)
 	t.Run("release", unbrauchbarRelease)
 }
@@ -141,7 +144,7 @@ func unbrauchbarRelease(t *testing.T) {
 	v := outboundtest.OperationenBasis(t, neueVerbindung)
 	op := entityPut(t)
 	var opErr error
-	err := inTransaktion(neuerHaltepunkt(int64(op.Pruefungen), true, hebeSavepointAuf), v, func(ctx context.Context, s outbound.WorkspaceStores) error {
+	err := inTransaktion(neuerHaltepunkt(int64(pruefungen(t, op)), true, hebeSavepointAuf), v, func(ctx context.Context, s outbound.WorkspaceStores) error {
 		opErr = op.Lauf(ctx, s)
 		return nil
 	})

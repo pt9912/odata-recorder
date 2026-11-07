@@ -27,9 +27,6 @@ type Operation struct {
 	Name       string
 	Art        Art
 	Schreibend bool
-	// Pruefungen ist die Zahl der Prüfungen des Kontexts in einem gelungenen Lauf: ein Statement
-	// je Prüfung, der Savepoint der schreibenden Operation eingeschlossen.
-	Pruefungen int
 	Lauf       func(context.Context, outbound.WorkspaceStores) error
 	// Fehler ist der Fehler der Datenbank, den LaufFehler auslöst; nil, wenn die Operation keinen hat.
 	Fehler     error
@@ -93,7 +90,7 @@ func Operationen() []Operation {
 
 func workspaceOperationen() []Operation {
 	return []Operation{
-		{"Workspaces.Create", ArtExec, true, 5,
+		{"Workspaces.Create", ArtExec, true,
 			func(ctx context.Context, s outbound.WorkspaceStores) error {
 				return s.Workspaces.Create(ctx, arbeitsraum("wn", 5))
 			},
@@ -101,7 +98,7 @@ func workspaceOperationen() []Operation {
 			func(ctx context.Context, s outbound.WorkspaceStores) error {
 				return s.Workspaces.Create(ctx, arbeitsraum("w", 5))
 			}},
-		{"Workspaces.Get", ArtQueryRow, false, 1,
+		{"Workspaces.Get", ArtQueryRow, false,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (model.Workspace, error) {
 				return s.Workspaces.Get(ctx, "w")
 			}),
@@ -109,12 +106,12 @@ func workspaceOperationen() []Operation {
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (model.Workspace, error) {
 				return s.Workspaces.Get(ctx, "x")
 			})},
-		{"Workspaces.List", ArtQuery, false, 1,
+		{"Workspaces.List", ArtQuery, false,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) ([]model.Workspace, error) {
 				return s.Workspaces.List(ctx, "d")
 			}),
 			nil, nil},
-		{"Workspaces.Advance", ArtExec, true, 3,
+		{"Workspaces.Advance", ArtExec, true,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (int64, error) {
 				return s.Workspaces.Advance(ctx, "w", 0)
 			}),
@@ -122,7 +119,7 @@ func workspaceOperationen() []Operation {
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (int64, error) {
 				return s.Workspaces.Advance(ctx, "x", 0)
 			})},
-		{"Workspaces.Delete", ArtExec, true, 4,
+		{"Workspaces.Delete", ArtExec, true,
 			func(ctx context.Context, s outbound.WorkspaceStores) error { return s.Workspaces.Delete(ctx, "w") },
 			outbound.ErrNichtGefunden,
 			func(ctx context.Context, s outbound.WorkspaceStores) error { return s.Workspaces.Delete(ctx, "x") }},
@@ -132,7 +129,7 @@ func workspaceOperationen() []Operation {
 func entityOperationen() []Operation {
 	neu := func(ws string) []model.EntityState { return []model.EntityState{entity(ws, "Products", "neu")} }
 	return []Operation{
-		{"Entities.Put", ArtExec, true, 3,
+		{"Entities.Put", ArtExec, true,
 			func(ctx context.Context, s outbound.WorkspaceStores) error {
 				return s.Entities.Put(ctx, entity("w", "Products", "neu"))
 			},
@@ -140,7 +137,7 @@ func entityOperationen() []Operation {
 			func(ctx context.Context, s outbound.WorkspaceStores) error {
 				return s.Entities.Put(ctx, entity("x", "Products", "neu"))
 			}},
-		{"Entities.Get", ArtQueryRow, false, 1,
+		{"Entities.Get", ArtQueryRow, false,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (model.EntityState, error) {
 				return s.Entities.Get(ctx, "w", "Products", "alt")
 			}),
@@ -148,7 +145,7 @@ func entityOperationen() []Operation {
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (model.EntityState, error) {
 				return s.Entities.Get(ctx, "x", "Products", "alt")
 			})},
-		{"Entities.List", ArtQuery, false, 1,
+		{"Entities.List", ArtQuery, false,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) ([]model.EntityState, error) {
 				return s.Entities.List(ctx, "w")
 			}),
@@ -156,7 +153,7 @@ func entityOperationen() []Operation {
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) ([]model.EntityState, error) {
 				return s.Entities.List(ctx, "x")
 			})},
-		{"Entities.ListSet", ArtQuery, false, 1,
+		{"Entities.ListSet", ArtQuery, false,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) ([]model.EntityState, error) {
 				return s.Entities.ListSet(ctx, "w", "Products")
 			}),
@@ -164,7 +161,7 @@ func entityOperationen() []Operation {
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) ([]model.EntityState, error) {
 				return s.Entities.ListSet(ctx, "x", "Products")
 			})},
-		{"Entities.ReplaceAll", ArtExec, true, 4,
+		{"Entities.ReplaceAll", ArtExec, true,
 			func(ctx context.Context, s outbound.WorkspaceStores) error {
 				return s.Entities.ReplaceAll(ctx, "w", neu("w"))
 			},
@@ -177,7 +174,7 @@ func entityOperationen() []Operation {
 
 func cursorUndSnapshotOperationen() []Operation {
 	return []Operation{
-		{"Cursors.Put", ArtExec, true, 4,
+		{"Cursors.Put", ArtExec, true,
 			func(ctx context.Context, s outbound.WorkspaceStores) error {
 				return s.Cursors.Put(ctx, cursor("w", "r", "s2"))
 			},
@@ -185,7 +182,7 @@ func cursorUndSnapshotOperationen() []Operation {
 			func(ctx context.Context, s outbound.WorkspaceStores) error {
 				return s.Cursors.Put(ctx, cursor("x", "r", "s2"))
 			}},
-		{"Cursors.Get", ArtQueryRow, false, 1,
+		{"Cursors.Get", ArtQueryRow, false,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (model.ReplayCursor, error) {
 				return s.Cursors.Get(ctx, "w", "r", "s1")
 			}),
@@ -193,7 +190,7 @@ func cursorUndSnapshotOperationen() []Operation {
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (model.ReplayCursor, error) {
 				return s.Cursors.Get(ctx, "w", "r", "s9")
 			})},
-		{"Cursors.List", ArtQuery, false, 1,
+		{"Cursors.List", ArtQuery, false,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) ([]model.ReplayCursor, error) {
 				return s.Cursors.List(ctx, "w")
 			}),
@@ -201,11 +198,11 @@ func cursorUndSnapshotOperationen() []Operation {
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) ([]model.ReplayCursor, error) {
 				return s.Cursors.List(ctx, "x")
 			})},
-		{"Cursors.ResetAll", ArtExec, true, 3,
+		{"Cursors.ResetAll", ArtExec, true,
 			func(ctx context.Context, s outbound.WorkspaceStores) error { return s.Cursors.ResetAll(ctx, "w") },
 			outbound.ErrNichtGefunden,
 			func(ctx context.Context, s outbound.WorkspaceStores) error { return s.Cursors.ResetAll(ctx, "x") }},
-		{"Snapshots.Get", ArtQueryRow, false, 1,
+		{"Snapshots.Get", ArtQueryRow, false,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (model.BaselineSnapshot, error) {
 				return s.Snapshots.Get(ctx, "snap-1")
 			}),
@@ -213,12 +210,12 @@ func cursorUndSnapshotOperationen() []Operation {
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (model.BaselineSnapshot, error) {
 				return s.Snapshots.Get(ctx, "x")
 			})},
-		{"Snapshots.List", ArtQuery, false, 1,
+		{"Snapshots.List", ArtQuery, false,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) ([]model.BaselineSnapshot, error) {
 				return s.Snapshots.List(ctx, "d")
 			}),
 			nil, nil},
-		{"Snapshots.CreateWorkspace", ArtExec, true, 5,
+		{"Snapshots.CreateWorkspace", ArtExec, true,
 			func(ctx context.Context, s outbound.WorkspaceStores) error {
 				return s.Snapshots.CreateWorkspace(ctx, arbeitsraumSnapshot("sn2", "d", "w", "n2", 1))
 			},
@@ -226,7 +223,7 @@ func cursorUndSnapshotOperationen() []Operation {
 			func(ctx context.Context, s outbound.WorkspaceStores) error {
 				return s.Snapshots.CreateWorkspace(ctx, arbeitsraumSnapshot("sn", "d", "w", "n2", 1))
 			}},
-		{"Snapshots.GetWorkspace", ArtQueryRow, false, 1,
+		{"Snapshots.GetWorkspace", ArtQueryRow, false,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (model.WorkspaceSnapshot, error) {
 				return s.Snapshots.GetWorkspace(ctx, "w", "sn")
 			}),
@@ -234,7 +231,7 @@ func cursorUndSnapshotOperationen() []Operation {
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) (model.WorkspaceSnapshot, error) {
 				return s.Snapshots.GetWorkspace(ctx, "w", "x")
 			})},
-		{"Snapshots.ListWorkspace", ArtQuery, false, 1,
+		{"Snapshots.ListWorkspace", ArtQuery, false,
 			ohneWert(func(ctx context.Context, s outbound.WorkspaceStores) ([]model.WorkspaceSnapshot, error) {
 				return s.Snapshots.ListWorkspace(ctx, "w")
 			}),
@@ -245,16 +242,17 @@ func cursorUndSnapshotOperationen() []Operation {
 	}
 }
 
-// kontextArt ist eine Art des Kontextfehlers (SPEC-108 Nr. 1 a): neu liefert einen lebenden
-// Kontext und die Funktion, die ihn beendet.
-type kontextArt struct {
-	name string
-	soll error
+// KontextArt ist eine Art des Kontextfehlers (SPEC-108 Nr. 1 a): neu liefert einen lebenden
+// Kontext und die Funktion, die ihn beendet; Soll ist der Fehler, den er nach dem Ende trägt.
+type KontextArt struct {
+	Name string
+	Soll error
 	neu  func() (context.Context, func())
 }
 
-func kontextArten() []kontextArt {
-	return []kontextArt{
+// KontextArten sind die drei Arten des Kontextfehlers: Abbruch, Frist, Abbruch mit Ursache.
+func KontextArten() []KontextArt {
+	return []KontextArt{
 		{"Canceled", context.Canceled, func() (context.Context, func()) {
 			ctx, stop := context.WithCancel(context.Background())
 			return ctx, stop
@@ -270,11 +268,41 @@ func kontextArten() []kontextArt {
 	}
 }
 
-// beendet liefert den Kontext der Art im Zustand beendet.
-func (a kontextArt) beendet() context.Context {
+// Beendet liefert den Kontext der Art im Zustand beendet.
+func (a KontextArt) Beendet() context.Context {
 	ctx, beende := a.neu()
 	beende()
 	return ctx
+}
+
+// UngueltigeAufrufe sind je schreibender Operation, die ein Argument vor ihrem ersten Statement
+// als ungültig erkennt, ein Aufruf mit einem solchen Argument (Ergebnis ErrUngueltig, bevor die
+// Datenbank gefragt wird; SPEC-108 Nr. 1 f, Reihenfolge der Prüfungen). Die übrigen schreibenden
+// Operationen (Workspaces.Delete, Cursors.ResetAll) nehmen nur eine Kennung entgegen und
+// erkennen vor dem Savepoint keinen ungültigen Wert: eine unbekannte Kennung ist ein Fehler der
+// Datenbank (ErrNichtGefunden), kein ErrUngueltig.
+func UngueltigeAufrufe() map[string]func(context.Context, outbound.WorkspaceStores) error {
+	return map[string]func(context.Context, outbound.WorkspaceStores) error{
+		"Workspaces.Create": func(ctx context.Context, s outbound.WorkspaceStores) error {
+			return s.Workspaces.Create(ctx, arbeitsraum("", 5))
+		},
+		"Workspaces.Advance": func(ctx context.Context, s outbound.WorkspaceStores) error {
+			_, err := s.Workspaces.Advance(ctx, "w", -1)
+			return err
+		},
+		"Entities.Put": func(ctx context.Context, s outbound.WorkspaceStores) error {
+			return s.Entities.Put(ctx, entity("", "Products", "neu"))
+		},
+		"Entities.ReplaceAll": func(ctx context.Context, s outbound.WorkspaceStores) error {
+			return s.Entities.ReplaceAll(ctx, "w", []model.EntityState{entity("x", "Products", "neu")})
+		},
+		"Cursors.Put": func(ctx context.Context, s outbound.WorkspaceStores) error {
+			return s.Cursors.Put(ctx, cursor("", "r", "s2"))
+		},
+		"Snapshots.CreateWorkspace": func(ctx context.Context, s outbound.WorkspaceStores) error {
+			return s.Snapshots.CreateWorkspace(ctx, arbeitsraumSnapshot("", "d", "w", "n2", 1))
+		},
+	}
 }
 
 // OhneWorkspace nimmt den Workspace id aus dem Zustand.
@@ -319,9 +347,9 @@ func transaktionKontextVorOperation(t *testing.T, neu Neu) {
 			v := OperationenBasis(t, neu)
 			vorher := LiesGesamtzustand(t, v)
 			inTransaktionMitW2(t, v, func(s outbound.WorkspaceStores) {
-				for _, a := range kontextArten() {
-					if err := op.Lauf(a.beendet(), s); !errors.Is(err, a.soll) {
-						t.Errorf("%s: Fehler %v, erwartet %v", a.name, err, a.soll)
+				for _, a := range KontextArten() {
+					if err := op.Lauf(a.Beendet(), s); !errors.Is(err, a.Soll) {
+						t.Errorf("%s: Fehler %v, erwartet %v", a.Name, err, a.Soll)
 					}
 				}
 			})
@@ -345,10 +373,10 @@ func transaktionKontextVorDatenbankfehler(t *testing.T, neu Neu) {
 				if err := op.LaufFehler(context.Background(), s); !errors.Is(err, op.Fehler) {
 					t.Fatalf("lebender Kontext: Fehler %v, erwartet %v", err, op.Fehler)
 				}
-				for _, a := range kontextArten() {
-					err := op.LaufFehler(a.beendet(), s)
-					if !errors.Is(err, a.soll) || errors.Is(err, op.Fehler) {
-						t.Errorf("%s: Fehler %v, erwartet %v vor %v", a.name, err, a.soll, op.Fehler)
+				for _, a := range KontextArten() {
+					err := op.LaufFehler(a.Beendet(), s)
+					if !errors.Is(err, a.Soll) || errors.Is(err, op.Fehler) {
+						t.Errorf("%s: Fehler %v, erwartet %v vor %v", a.Name, err, a.Soll, op.Fehler)
 					}
 				}
 			})

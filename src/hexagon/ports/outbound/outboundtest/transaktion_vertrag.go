@@ -139,15 +139,15 @@ func transaktionFall3(t *testing.T, neu Neu) {
 
 func transaktionFall4(t *testing.T, neu Neu) {
 	v := wsBasis(t, neu)
-	for _, a := range kontextArten() {
+	for _, a := range KontextArten() {
 		aufgerufen := false
-		err := v.Transaktion.WithWorkspaceTransaction(a.beendet(), func(outbound.WorkspaceStores) error {
+		err := v.Transaktion.WithWorkspaceTransaction(a.Beendet(), func(outbound.WorkspaceStores) error {
 			aufgerufen = true
 			return nil
 		})
-		erwarte(t, err, a.soll)
+		erwarte(t, err, a.Soll)
 		if aufgerufen {
-			t.Fatalf("%s: f lief trotz beendetem Kontext", a.name)
+			t.Fatalf("%s: f lief trotz beendetem Kontext", a.Name)
 		}
 		// Endet der Kontext in f und f liefert nil, ist das Ergebnis der Fehler des Kontexts; die
 		// Operation mit eigenem, lebendem Kontext gelingt, bestätigt wird nichts.
@@ -157,9 +157,9 @@ func transaktionFall4(t *testing.T, neu Neu) {
 			beende()
 			return nil
 		})
-		erwarte(t, err, a.soll)
+		erwarte(t, err, a.Soll)
 		if n := v.Zeilen(t, "workspaces"); n != 0 {
-			t.Fatalf("%s: %d Workspaces nach beendeter Transaktion", a.name, n)
+			t.Fatalf("%s: %d Workspaces nach beendeter Transaktion", a.Name, n)
 		}
 		// Die nächste Transaktion ist nutzbar.
 		ok(t, v.Transaktion.WithWorkspaceTransaction(context.Background(), func(s outbound.WorkspaceStores) error {
