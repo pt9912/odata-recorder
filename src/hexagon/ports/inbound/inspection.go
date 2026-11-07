@@ -1,0 +1,47 @@
+package inbound
+
+import (
+	"context"
+	"time"
+
+	"github.com/pt9912/odata-recorder/src/hexagon/model"
+)
+
+// Seite wählt die Exchanges einer Session (SPEC-236 Nr. 3): Nach ist die sequence_no, hinter der
+// die Seite beginnt (0: am Anfang), Limit die gewünschte Zahl der Einträge (0: Standard).
+type Seite struct {
+	Limit, Nach int
+}
+
+// ExchangeSeite ist die Antwort auf Exchanges (SPEC-236 Nr. 4): Limit ist das wirksame Limit,
+// Gesamt die Zahl aller Exchanges der Session, Weiter der Zeiger der nächsten Seite (0: keine).
+type ExchangeSeite struct {
+	Eintraege             []ExchangeZeile
+	Limit, Gesamt, Weiter int
+}
+
+// ExchangeZeile führt genau die Felder der Allowlist des Exchange (SPEC-236 Nr. 5); kein Header,
+// keine Query und keine Blob-Referenz.
+type ExchangeZeile struct {
+	ID             string
+	SequenceNo     int
+	Method, Path   string
+	StartedAt      time.Time
+	FinishedAt     time.Time
+	KeyRedacted    bool
+	RequestBody    model.BodyState
+	ResponseBody   model.BodyState
+	ResponseStatus int
+	Capture        model.CaptureStatus
+	RequestRedact  model.RedactionStatus
+	ResponseRedact model.RedactionStatus
+	Integrity      model.BodyIntegrity
+	Equivalence    model.ReplayEquivalence
+}
+
+// InspectionUseCase liest für die Admin-API, ohne etwas zu verändern (SPEC-236). Jeder Fehler mit
+// Code ist ein *Fehler; model.ErrUngueltig und die Kontextfehler kehren ohne Code zurück.
+type InspectionUseCase interface {
+	// Exchanges liefert die Exchanges einer Session seitenweise, in der Folge ihrer sequence_no.
+	Exchanges(ctx context.Context, sessionID string, seite Seite) (ExchangeSeite, error)
+}
