@@ -20,7 +20,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
-**Schnitt:** Dieser Plan ist Teil 1 des Schnitts vor dem Code (Architect und Planner, 2026-11-07, `SPEC-128` Nr. 1). Teil 2, Coverage und Diagnose, ist [slice-inspection-coverage-diagnose](../open/slice-inspection-coverage-diagnose.md) (Start nach diesem Slice in `done/`); die Zeilen K2 bis K4, A2, C1 bis C5, D1 bis D8, N2, W3 und W4 der Tabelle stehen dort.
+**Schnitt:** Dieser Plan ist Teil 1 des Schnitts vor dem Code (Architect und Planner, 2026-11-07, `SPEC-128` Nr. 1). Teil 2, Coverage und Diagnose, ist [slice-inspection-coverage-diagnose](../in-progress/slice-inspection-coverage-diagnose.md) (Start nach diesem Slice in `done/`); die Zeilen K2 bis K4, A2, C1 bis C5, D1 bis D8, N2, W3 und W4 der Tabelle stehen dort.
 
 ---
 
@@ -352,7 +352,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 | Teil | Slice | Zeilen der Tabelle | Inhalt | *S* | *M* |
 |---|---|---|---|---|---|
 | 1 | `slice-inspection-use-case` (dieser Plan) | K1, A1, X1 bis X13, N1, W1, W2 (18; 1 nebenläufig, 17 andere) | Port `InspectionUseCase` mit `Exchanges`, Dienst, `Konfig` mit `Exchanges`, Seitenbildung, Allowlist der Felder; `FakeRecording`; *produktcode* etwa 200, *fakes* 1 | 85 + 1360 + 200 + 200 = 1845 | 2500 |
-| 2 | [slice-inspection-coverage-diagnose](../open/slice-inspection-coverage-diagnose.md) | K2 bis K4, A2, C1 bis C5, D1 bis D8, N2, W3, W4 (20; 1 nebenläufig, 19 andere) | `Coverage` und `Diagnose` als zusätzliche Methoden des Ports, zusätzliche Felder von `Konfig`, `Erlaubt`; `FakeCoverage`; *produktcode* etwa 190, *fakes* 1 | 85 + 1520 + 200 + 190 = 1995 | 2700 |
+| 2 | [slice-inspection-coverage-diagnose](../in-progress/slice-inspection-coverage-diagnose.md) | K2 bis K4, A2, C1 bis C5, D1 bis D8, N2, W3, W4 (20; 1 nebenläufig, 19 andere) | `Coverage` und `Diagnose` als zusätzliche Methoden des Ports, zusätzliche Felder von `Konfig`, `Erlaubt`; `FakeCoverage`; *produktcode* etwa 190, *fakes* 1 | 85 + 1520 + 200 + 190 = 1995 | 2700 |
 
 Beide Teile liegen unter der Schnittgrenze. Teil 2 folgt Teil 1, erweitert `Konfig` und den Port um Felder und Methoden, ohne bestehende zu ändern (die Signatur von `New` bleibt), und trägt seinen Block beim Start; `slice-admin-sessions` und `slice-bootstrap-m6` hängen an beiden. Eine Rückführung ist das nicht, der Schnitt geschah vor dem Code.
 

@@ -49,4 +49,4 @@ Eigene Läufe: `tools/harness/mutationslauf.sh` in einer Kopie des Baums (nur im
 - `src/hexagon/services/inspection/inspektion.go` (Logik): Reihenfolge der Prüfungen (a) bis (c), Port erst nach der Prüfung, genau ein Aufruf, `Weiter`, `Gesamt`, leere Seite nie `nil`; Kappung, Standard und negative Werte sind gefangen (außer den Werten, Finding 1).
 - `src/hexagon/services/inspection/*_test.go`: Fänger je Zeile K1, A1, X1 bis X13, W1, W2 vorhanden, Rohbytes sauber; Befunde oben.
 - `docs/plan/planning/done/slice-inspection-use-case.md`: §3, Bericht, §6 konsistent mit dem Code (Tests und Zeilen stimmen mit der Tabelle); Plan folgt Code (§3.9) bis auf Finding 4 und 6.
-- `docs/plan/planning/open/slice-inspection-coverage-diagnose.md` (eine Zeile): Hinweis auf `SPEC-236` gleichgezogen.
+- `docs/plan/planning/in-progress/slice-inspection-coverage-diagnose.md` (eine Zeile): Hinweis auf `SPEC-236` gleichgezogen.
