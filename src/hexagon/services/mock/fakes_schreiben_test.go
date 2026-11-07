@@ -80,11 +80,17 @@ type transaktion struct {
 	innen func(outbound.WorkspaceStores) outbound.WorkspaceStores
 	// nachF ist der Fehler der Bestätigung: ein Wert ungleich nil rollt zurück und wird anstelle von nil geliefert.
 	nachF error
+	// vor ist der Haltepunkt am Eingang: er läuft nach dem Aufruf und vor der Sperre, also zwischen allem, was der Dienst vor der
+	// Transaktion liest, und dem Schreiben in ihr.
+	vor func()
 }
 
 func (t *transaktion) WithWorkspaceTransaction(ctx context.Context, f func(outbound.WorkspaceStores) error) (err error) {
 	if err := t.p.beginn(ctx, "Transaktion.WithWorkspaceTransaction", f); err != nil {
 		return err
+	}
+	if t.vor != nil {
+		t.vor()
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()

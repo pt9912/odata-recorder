@@ -46,6 +46,12 @@ func TestAufrufzahlenUndFolge(t *testing.T) {
 		if want := append(folgeVorTx(m), folgeInTx(m)...); !slices.Equal(u.p.ops(), want) {
 			t.Errorf("%s Erfolg: Folge %v, erwartet %v", m, u.p.ops(), want)
 		}
+		// Das ctx des Aufrufs geht an jeden Port als dieselbe Instanz (nicht nur mit demselben Wert), S2 bis S5 und S17 bis S26.
+		for _, e := range u.p.ev {
+			if e.ctx != nil && e.ctx != u.ctx {
+				t.Errorf("%s Erfolg: %s erhielt ein anderes ctx", m, e.op)
+			}
+		}
 		n++
 		// Fehler vor der Transaktion: unbekanntes Set.
 		u = schreibUmg(t)
@@ -468,7 +474,7 @@ func TestKontextMutation(t *testing.T) {
 				t.Errorf("%s: %d Aufrufe", kontext, len(ev))
 			}
 			for _, e := range u.p.ev {
-				if e.ctx != nil && e.ctx.Value(schluesselKtx{}) != "ctx-des-aufrufs" {
+				if e.ctx != nil && e.ctx != u.ctx {
 					t.Errorf("%s: %s ohne das ctx des Aufrufs", kontext, e.op)
 				}
 			}
@@ -580,8 +586,10 @@ func TestRollback(t *testing.T) {
 	}
 }
 
-// TestFehlerWertMutation (W62): Error() jedes Fehlers des Dienstes nennt Code und message, keinen Wert aus dem Request (Name der
-// Property, Schlüssel, Wert, Content-Type); der Canary steht in allen vier Orten des Requests.
+// TestFehlerWertMutation (W62, geprüft ist weniger als die Zeile sagt): ein Auslöser, ODR-E6007 aus einem Fehler des Lesers, mit dem
+// Canary im Ort der Ursache, im Wert der Property Name und im Content-Type; sein Error() nennt den Canary nicht. Dazu der Text von
+// Error() für fünf Codes (ODR-E6009, ODR-E6007, ODR-E6008, ODR-E6003, ODR-E6002) gegen Code und message. Die übrigen erreichbaren
+// Codes und Canary im Schlüssel stehen in TestFehlerWert des Lesens (ein Fall je Fehlerzeile) und sind hier nicht geprüft.
 func TestFehlerWertMutation(t *testing.T) {
 	canary := kanarienwert
 	u := schreibUmg(t)

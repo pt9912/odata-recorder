@@ -2,6 +2,7 @@ package mock_test
 
 import (
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
@@ -294,6 +295,11 @@ func TestVertragsverletzungen(t *testing.T) {
 			e.Properties = append(e.Properties, pw("Nirgends", model.ArtString, "x"))
 			return e
 		}},
+		{"erforderliche Property nicht genannt bei PUT", "PUT", func(*umg) model.EntityEingabe {
+			e := eingabeIDName("2", "neu")
+			e.Properties = e.Properties[1:]
+			return e
+		}},
 		{"Payload des Eintrags kein JSON", "PATCH", func(u *umg) model.EntityEingabe {
 			alt := voll(2, "b")
 			alt.Payload = "kein JSON"
@@ -318,5 +324,100 @@ func TestVertragsverletzungen(t *testing.T) {
 			t.Errorf("%s: Ursache %v", f.name, g.Ursache)
 		}
 		u.unveraendert(vorher, rev, f.name)
+	}
+}
+
+// TestSchluesselZeichen (F-3, SPEC-193 Nr. 1, SPEC-126 Nr. 11): der Schlüssel eines Edm.String steht in der URL als Literal mit
+// verdoppelten einfachen Anführungszeichen; der Abgleich mit dem Body vergleicht den Text byte-gleich. Text 9 × Methode {PATCH,
+// PUT} = 18 Läufe mit gleichem Schlüssel (204) und 9 mit abweichendem Body (ODR-E6007). Das Orakel steht je Zeile von Hand.
+func TestSchluesselZeichen(t *testing.T) {
+	ue := string([]byte{0xC3, 0xBC})
+	faelle := []struct{ text, literal string }{
+		{"O'Neil", "'O''Neil'"}, {"''", "''''''"}, {"'", "''''"}, {"x''y", "'x''''y'"}, {"a b", "'a b'"}, {"50%", "'50%'"},
+		{"a\"b", "'a\"b'"}, {"a/b\\c", "'a/b\\c'"}, {"m" + ue + "ller", "'m" + ue + "ller'"},
+	}
+	n := 0
+	for _, f := range faelle {
+		for _, m := range []string{"PATCH", "PUT"} {
+			for _, passt := range []bool{true, false} {
+				n++
+				u := schreibUmg(t)
+				alt := model.EntityState{
+					WorkspaceID: wsID, EntitySet: "Sks", EntityKey: f.literal, Completeness: model.EntityComplete, Version: 1,
+					Payload: "{}", KnownProperties: []string{"K", "Name"},
+				}
+				u.en.setze("Sks", alt)
+				u.ressource(model.RessourceEntity, "Sks", model.Optionen{},
+					model.SchluesselTeil{Literal: model.Literal{Art: model.LiteralZeichenkette, Text: f.literal}})
+				body := f.text
+				if !passt {
+					body += "!"
+				}
+				u.ei.ergebnis = model.EntityEingabe{Typ: "N.Sk", Properties: []model.PropertyWert{pw("K", model.ArtString, body), pw("Name", model.ArtString, "neu")}}
+				a, err := u.rufe(anfrage(m, dienstRoot+"/x"))
+				kontext := fmt.Sprintf("%s %q passt=%v", m, f.text, passt)
+				if passt {
+					erwarteStatus(t, kontext, a, err, 204)
+				} else {
+					pruefeFehler(t, kontext, err, e6007)
+				}
+			}
+		}
+	}
+	if n != 36 {
+		t.Errorf("Menge %d, erwartet 36", n)
+	}
+}
+
+// TestStellenImQuelltext (F-5, SPEC-195 Nr. 11): die Aufrufe der Ports im Quelltext des Pakets sind 22 Aufrufstellen im Text, 20 davon
+// mit ctx; eine weitere Stelle macht den Test rot, bis die Listen der Fänger (TestKontextMutation, TestPortFehlerMutation, TestKontextLesen)
+// und diese Zahl nachgezogen sind. 22 Stellen im Text gegen 26 Stellen S1 bis S26 der Spezifikation: S4/S5 (Modell) und S2, S3, S6, S8
+// teilen eine Stelle des Textes mit der Mutation oder dem Lesen.
+func TestStellenImQuelltext(t *testing.T) {
+	ops := map[string]bool{"WithWorkspaceTransaction": true, "Get": true, "Put": true, "Advance": true, "SchreibeEntity": true, "SchreibeAnzahl": true,
+		"SchreibeCollection": true, "Adresse": true, "LeseEntity": true, "Open": true, "ParseMetadata": true, "ParseURL": true, "ListSet": true}
+	ports := map[string]bool{"URL": true, "Metadaten": true, "Workspaces": true, "Blobs": true, "Coverage": true, "Entities": true, "Schreiber": true,
+		"Eingabe": true, "Transaktion": true, "sch": true}
+	dateien, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gesamt, mitCtx := 0, 0
+	for _, d := range dateien {
+		if strings.HasSuffix(d, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(token.NewFileSet(), d, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(f, func(nd ast.Node) bool {
+			ce, ok := nd.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			sel, ok := ce.Fun.(*ast.SelectorExpr)
+			if !ok || !ops[sel.Sel.Name] {
+				return true
+			}
+			name := ""
+			switch x := sel.X.(type) {
+			case *ast.SelectorExpr:
+				name = x.Sel.Name
+			case *ast.Ident:
+				name = x.Name
+			}
+			if !ports[name] {
+				return true
+			}
+			gesamt++
+			if id, ok := ce.Args[0].(*ast.Ident); ok && id.Name == "ctx" {
+				mitCtx++
+			}
+			return true
+		})
+	}
+	if gesamt != 22 || mitCtx != 20 {
+		t.Errorf("%d Aufrufe der Ports im Quelltext, davon %d mit ctx; erwartet 22 und 20 (SPEC-195 Nr. 11)", gesamt, mitCtx)
 	}
 }

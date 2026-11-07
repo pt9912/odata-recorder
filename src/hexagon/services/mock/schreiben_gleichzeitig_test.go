@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -81,12 +82,25 @@ func aufEinmal(n int, f func(i int)) {
 	wg.Wait()
 }
 
+// sperreAmEingang lässt jede Transaktion am Eingang warten, bis n Aufrufe angekommen sind: was der Dienst vorher außerhalb der
+// Transaktion las, ist dann von allen n gelesen, bevor einer schreibt (Haltepunkt zwischen Prüfen und Schreiben, W69, W70).
+func sperreAmEingang(u *umg, n int32) {
+	var da atomic.Int32
+	u.tx.vor = func() {
+		da.Add(1)
+		for da.Load() < n {
+			runtime.Gosched()
+		}
+	}
+}
+
 // TestPostWettlauf (W69): von n gleichzeitigen POST mit demselben Schlüssel gelingt genau einer, die übrigen sind ODR-E6009, Put
 // läuft genau einmal. 32 Goroutinen × 4 Runden; der Wirkungs-Fänger zählt, was das Fenster zuließe.
 func TestPostWettlauf(t *testing.T) {
 	for runde := 0; runde < 4; runde++ {
 		u := schreibUmg(t)
 		u.dynamisch()
+		sperreAmEingang(u, 32)
 		m := u.mocker()
 		var r ergebnisse
 		aufEinmal(32, func(i int) {
@@ -104,6 +118,7 @@ func TestDeleteWettlauf(t *testing.T) {
 	for runde := 0; runde < 4; runde++ {
 		u := schreibUmg(t)
 		u.dynamisch()
+		sperreAmEingang(u, 32)
 		m := u.mocker()
 		var r ergebnisse
 		aufEinmal(32, func(i int) {
