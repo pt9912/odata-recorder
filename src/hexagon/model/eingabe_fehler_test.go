@@ -106,3 +106,95 @@ func TestEingabeArt(t *testing.T) {
 		t.Error("Konstanten tragen nicht den Text der Methode")
 	}
 }
+
+// ortZeichen sind die fünf Zeichen der Menge M23, aus Bytewerten gebildet (AGENTS.md §3.18): ASCII, zwei, drei und vier Bytes
+// im UTF-8 und ein Steuerzeichen, dessen Schreibweise in strconv.Quote vier Zeichen lang ist.
+func ortZeichen() [][]byte {
+	return [][]byte{{0x61}, {0xC3, 0xA9}, {0xE2, 0x82, 0xAC}, {0xF0, 0x9F, 0x98, 0x80}, {0x01}}
+}
+
+// ortVonLaenge bildet einen Ort von genau n Bytes: vorn (n mod Länge des Zeichens) ASCII-Bytes `x`, dahinter das Zeichen so oft, wie
+// es passt; ein Zeichen aus mehreren Bytes liegt so an wechselnden Stellen der Grenze von 256 Bytes.
+func ortVonLaenge(n int, z []byte) string {
+	b := []byte(strings.Repeat("x", n%len(z)))
+	b = append(b, []byte(strings.Repeat(string(z), n/len(z)))...)
+	return string(b)
+}
+
+// sollKurz ist das Orakel zu M23, unabhängig vom Code: die Zeichen von vorn lesen, solange sie ganz in 256 Bytes passen.
+func sollKurz(ort string) (string, bool) {
+	if len(ort) <= 256 {
+		return ort, false
+	}
+	n := 0
+	for _, r := range ort {
+		w := len(string(r))
+		if n+w > 256 {
+			break
+		}
+		n += w
+	}
+	return ort[:n], true
+}
+
+// TestOrtGekuerzt (W64, F-15, SPEC-180 Nr. 3): Länge 7 × Zeichen 5 = 35; Error() trägt höchstens 256 Bytes des Ortes am Rand eines
+// Zeichens, `...` hinter dem schließenden Anführungszeichen nur bei einer Kürzung, ist nie länger als 1280 Bytes; das Feld Ort,
+// Code(), Unwrap und errors.Is sind unverändert.
+func TestOrtGekuerzt(t *testing.T) {
+	laengen := []int{0, 255, 256, 257, 300, 1024, 1 << 20}
+	zeichen := ortZeichen()
+	if len(laengen) != 7 || len(zeichen) != 5 {
+		t.Fatal("Menge M23 ist nicht 7 × 5")
+	}
+	n := 0
+	for _, u := range []model.EingabeUrsache{model.EingabeUnbekannteProperty, model.EingabeOffen} {
+		for _, l := range laengen {
+			for zi, z := range zeichen {
+				ort := ortVonLaenge(l, z)
+				if len(ort) != l {
+					t.Fatalf("Ort von %d Bytes hat %d", l, len(ort))
+				}
+				e := &model.EingabeFehler{Ursache: u, Ort: ort}
+				kurz, gekuerzt := sollKurz(ort)
+				kopf := "ODR-E6007: Request-Body ungültig: "
+				if u.NichtUnterstuetzt() {
+					kopf = "ODR-E6002: Request-Body nicht unterstützt: "
+				}
+				want := kopf + string(u)
+				if ort != "" {
+					want += " " + strconv.Quote(kurz)
+				}
+				if gekuerzt {
+					want += "..."
+				}
+				if got := e.Error(); got != want || len(got) > 1280 {
+					t.Errorf("Länge %d Zeichen %d: Error() hat %d Bytes, erwartet %d (%v)", l, zi, len(got), len(want), got == want)
+				}
+				if gekuerzt != (l > 256) || (l > 256) != strings.HasSuffix(e.Error(), "...") {
+					t.Errorf("Länge %d Zeichen %d: Kürzung %v, `...` %v", l, zi, gekuerzt, strings.HasSuffix(e.Error(), "..."))
+				}
+				if e.Ort != ort || e.Code().String() != kopf[:9] || !errors.Is(e, e.Unwrap()) {
+					t.Errorf("Länge %d Zeichen %d: Ort, Code oder Unwrap verändert", l, zi)
+				}
+				if u.NichtUnterstuetzt() != errors.Is(e, model.ErrEingabeNichtUnterstuetzt) || errors.Is(e, model.ErrEingabeUngueltig) == u.NichtUnterstuetzt() {
+					t.Errorf("Länge %d: errors.Is verändert", l)
+				}
+				n++
+			}
+		}
+	}
+	if n != 2*35 {
+		t.Errorf("Menge %d, erwartet 70", n)
+	}
+	// Goldens von Hand: 85 Zeichen zu drei Bytes (255 Bytes) bei 257 Bytes, ein Zeichen zu vier Bytes an der Grenze von 256 Bytes.
+	drei := string([]byte{0xE2, 0x82, 0xAC})
+	e := &model.EingabeFehler{Ursache: model.EingabeUnbekannteProperty, Ort: strings.Repeat(drei, 86)}
+	if got, want := e.Error(), "ODR-E6007: Request-Body ungültig: unbekannte_property \""+strings.Repeat(drei, 85)+"\"..."; got != want {
+		t.Errorf("drei Bytes: %q", got)
+	}
+	vier := string([]byte{0xF0, 0x9F, 0x98, 0x80})
+	e = &model.EingabeFehler{Ursache: model.EingabeUnbekannteProperty, Ort: strings.Repeat("x", 254) + vier}
+	if got, want := e.Error(), "ODR-E6007: Request-Body ungültig: unbekannte_property \""+strings.Repeat("x", 254)+"\"..."; got != want {
+		t.Errorf("vier Bytes an der Grenze: %q", got)
+	}
+}
