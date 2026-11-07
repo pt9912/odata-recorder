@@ -38,6 +38,8 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 **Start vor dem Welle-Trigger: `slice-telemetry-port`** (Entscheidung des Users vom 2026-10-30): in [done/](done/slice-telemetry-port.md) (Linie D). Die Welle bleibt unter *Nächste Wellen*; der Slice ist eine Ausnahme von ihrem Trigger, nicht der Start der Welle. Die Handbuch-Pflicht des Plans ist dort als Rückführung geführt, falls der Port ein sichtbares Verhalten des Binary einführt.
 
+**Start vor dem Welle-Trigger: `slice-telemetry-log`** (2026-11-07, Ausnahme je Slice wie `slice-telemetry-port`, Linie D): Teil `L` der Kette `P` → `L` → `S`, nach `slice-telemetry-port` in `done/`; Plan [in-progress/](in-progress/slice-telemetry-log.md), Zweig slice-telemetry-log. Der Slice braucht keinen Code von Mock oder Workspace und ändert `src/bootstrap` nicht. Die Lockerung gilt, solange das Binary unverändert bleibt.
+
 **Start vor dem Welle-Trigger: `slice-audit-log`** (2026-11-06, Ausnahme je Slice nach §2, Linie D): Teil A geliefert in [done/](done/slice-audit-log.md). Der Planner hat den Plan vor dem Code in drei Slices geschnitten (`SPEC-128` Nr. 1, Schätzung der ganzen Tabelle 4815): `slice-audit-log` (Port und Adapter, Marke 3000), [slice-audit-dienste](done/slice-audit-dienste.md) (Marke 3000, gestartet, Zweig slice-audit-dienste, Linie D, Architect-Aufträge offen) und [slice-audit-verdrahtung](in-progress/slice-audit-verdrahtung.md) (Marke 600, startet nach `slice-audit-dienste` und `slice-bootstrap-m2`); für beide gilt dieselbe Ausnahme je Slice. Die Welle bleibt unter *Nächste Wellen*.
 
 ## 3. Closure-Trigger (Welle schließt)
