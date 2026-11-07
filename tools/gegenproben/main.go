@@ -66,7 +66,7 @@ func standard() Umgebung {
 	zeichen := absolut("tools/harness/zeichen.sh")
 	return Umgebung{
 		Eingaben:   []string{"src", "go.mod", "go.sum", ".a-check.yml", ".d-check.yml", ".golangci.yml", "tools/harness/lint.sh", "tools/harness/migration-check.sh"},
-		Programme:  []string{"a-check", "golangci-lint", "sh", "pruefung", "go", "gofmt", "groessenmarke", "zeichen", "git", "tar"},
+		Programme:  []string{"a-check", "golangci-lint", "sh", "pruefung", "go", "gofmt", "groessenmarke", "zeichen", "katalog", "git", "tar"},
 		Aufraeumen: os.RemoveAll,
 		Befehl:     befehlMit(treiber, zeichen),
 		Bauen:      bauen,
@@ -78,7 +78,7 @@ func standard() Umgebung {
 
 // befehlMit liefert den Aufruf der Gates; die Fälle zu groessenmarke rufen das Programm bzw. den
 // Treiber unter dem Pfad treiber, die zu zeichen das Programm bzw. den Treiber unter dem Pfad
-// zeichen, jeweils im Verzeichnis des Falls.
+// zeichen, die zu katalog das Programm, jeweils im Verzeichnis des Falls.
 func befehlMit(treiber, zeichen string) func(dir string, f Fall) (string, []string, string) {
 	return func(dir string, f Fall) (string, []string, string) {
 		switch f.Gate {
@@ -92,6 +92,8 @@ func befehlMit(treiber, zeichen string) func(dir string, f Fall) (string, []stri
 			return "bash", append([]string{zeichen}, f.ersetzeOrte(dir)...), dir
 		case gateDCheck:
 			return "d-check", f.ersetzeOrte(dir), dir
+		case gateKatalog:
+			return "katalog", f.ersetzeOrte(dir), dir
 		}
 		return befehl(dir, f)
 	}

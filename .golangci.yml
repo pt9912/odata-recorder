@@ -201,11 +201,11 @@ linters:
         path: ^(src/bootstrap|test)/
         text: os\.Std(out|err)
 
-      # Why: Die Programme der Gegenproben, der Größenmarke, der Prüfung und der Zeichen haben je einen
+      # Why: Die Programme der Gegenproben, der Größenmarke, des Katalogs, der Prüfung und der Zeichen haben je einen
       # eigenen Einstieg und verbinden dort den Prozess mit seinen Standard-Strömen.
       - linters:
           - forbidigo
-        path: ^tools/(gegenproben|groessenmarke|pruefung|zeichen)/main\.go$
+        path: ^tools/(gegenproben|groessenmarke|katalog|pruefung|zeichen)/main\.go$
         text: os\.Std(out|err)
 
       # Why: Das Hilfsprogramm der Stufen von tests/e2e hat einen eigenen Einstieg und verbindet dort den

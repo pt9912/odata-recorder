@@ -11,7 +11,7 @@ cd "$(git rev-parse --show-toplevel)"
 for p in "$@"; do [ -n "$p" ] || { echo "gegenproben-eingabe: leerer Pin" >&2; exit 1; }; done
 
 # Die Eingabepfade; go.sum darf fehlen, alle übrigen müssen existieren.
-EINGABEN=(src go.mod go.sum .a-check.yml .d-check.yml .golangci.yml tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/groessenmarke.sh tools/harness/zeichen.sh tools/gegenproben tools/pruefung tools/groessenmarke tools/zeichen Dockerfile .dockerignore)
+EINGABEN=(src go.mod go.sum .a-check.yml .d-check.yml .golangci.yml tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/groessenmarke.sh tools/harness/zeichen.sh tools/gegenproben tools/pruefung tools/groessenmarke tools/zeichen tools/katalog Dockerfile .dockerignore)
 
 for f in "${EINGABEN[@]}"; do
   [ "$f" = go.sum ] && continue

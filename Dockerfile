@@ -53,6 +53,27 @@ RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-for
 WORKDIR /work
 ENTRYPOINT ["/usr/local/bin/zeichen"]
 
+# --- katalog-bin: das Programm aus tools/katalog hält den Katalog der Fehlercodes gegen die Spezifikation und
+# das Handbuch (SPEC-201). Es wird geprüft (gofmt, vet, Test) und gebaut; die Stufe katalog fährt es.
+FROM deps AS katalog-bin
+WORKDIR /kat
+COPY tools/katalog ./
+RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-formatiert:"; echo "$f"; exit 1; }; } \
+ && go vet ./... && go test ./... && go build -trimpath -buildvcs=false -o /usr/local/bin/katalog .
+WORKDIR /work
+ENTRYPOINT ["/usr/local/bin/katalog"]
+
+# --- katalog: die Dateien, die das Programm liest, unter einer eigenen Wurzel (SPEC-201 Nr. 10 a); der RUN ist rot,
+# wenn das Programm einen Befund oder Eingabefehler meldet. Das Ziel `make katalog-check` baut diese Stufe ohne
+# Netz und ohne Mount.
+FROM katalog-bin AS katalog
+WORKDIR /katalog
+COPY src/hexagon/model/fehler.go src/hexagon/model/fehler.go
+COPY spec/spezifikation.md spec/spezifikation.md
+COPY harness/katalog-ausnahmen.txt harness/katalog-ausnahmen.txt
+COPY docs/user/benutzerhandbuch.md docs/user/benutzerhandbuch.md
+RUN --network=none katalog /katalog
+
 # --- test: Formatierung (gofmt nennt die nicht formatierten Dateien), vet und
 # Unit-Tests, gefahren von pruefung.
 FROM source AS test
@@ -107,7 +128,7 @@ COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
 RUN --network=none pruefung race /src
 
 # --- lint: golangci-lint nach .golangci.yml und die eigenen Prüfungen von tools/harness/lint.sh
-# auf dem Quellstand und auf tools/gegenproben, tools/groessenmarke, tools/pruefung und tools/zeichen;
+# auf dem Quellstand und auf tools/gegenproben, tools/groessenmarke, tools/katalog, tools/pruefung und tools/zeichen;
 # die Module kommen aus deps.
 FROM ${LINT_IMAGE} AS lint
 WORKDIR /src
@@ -117,6 +138,7 @@ COPY --from=source /src ./
 COPY .golangci.yml ./
 COPY tools/gegenproben tools/gegenproben
 COPY tools/groessenmarke tools/groessenmarke
+COPY tools/katalog tools/katalog
 COPY tools/pruefung tools/pruefung
 COPY tools/zeichen tools/zeichen
 COPY tools/harness/lint.sh /usr/local/bin/lint.sh
@@ -129,8 +151,8 @@ FROM ${A_CHECK_IMAGE} AS a-check-bin
 FROM ${D_CHECK_IMAGE} AS d-check-bin
 
 # --- gegenproben: das Programm aus tools/gegenproben prüft, dass a-check, lint.sh,
-# migration-check.sh, pruefung, groessenmarke und zeichen samt Treibern und die Größengrenzen von docs-check (d-check) einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
-# Eingaben gefahren, die Fälle zu `pruefung race`, zu `groessenmarke`, zu `zeichen` und zu `d-check` gegen ein Wegwerfverzeichnis statt der Eingaben.
+# migration-check.sh, pruefung, groessenmarke, zeichen und katalog samt Treibern und die Größengrenzen von docs-check (d-check) einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
+# Eingaben gefahren, die Fälle zu `pruefung race`, zu `groessenmarke`, zu `zeichen`, zu `katalog` und zu `d-check` gegen ein Wegwerfverzeichnis statt der Eingaben.
 FROM ${LINT_IMAGE} AS gegenproben
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY --from=a-check-bin /a-check /usr/local/bin/a-check
@@ -138,6 +160,7 @@ COPY --from=d-check-bin /d-check /usr/local/bin/d-check
 COPY --from=pruefung /out/pruefung /usr/local/bin/pruefung
 COPY --from=groessenmarke /usr/local/bin/groessenmarke /usr/local/bin/groessenmarke
 COPY --from=zeichen /usr/local/bin/zeichen /usr/local/bin/zeichen
+COPY --from=katalog-bin /usr/local/bin/katalog /usr/local/bin/katalog
 WORKDIR /gp
 COPY tools/gegenproben ./
 RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-formatiert:"; echo "$f"; exit 1; }; } \
