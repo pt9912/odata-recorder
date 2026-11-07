@@ -49,6 +49,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Neuer Code `ODR-E6008`** (Architect, 2026-11-07): das `404` des Ziels „nur, wo das Nichtvorhandensein abgesichert ist“ trägt den Code `ODR-E6008` (404, Ziel `mock`; `SPEC-199`, `SPEC-196` Nr. 2 und 7, `SPEC-197` Nr. 3); er gilt auch für ein Entity-Set, das das Modell nicht nennt. Der Katalog des Binary und die Zahl der Codes folgen in §3 und §6 (Auftrag 7).
 
+**Übernimmt (Sendung von `slice-telemetry-log`, Rückgabe 2 des Architect; Geber: `slice-telemetry-log` §3 und §6; Eintrag des Planners vom 2026-11-07):** der Text `ODR-E6008` in die Orakel-Liste `alleCodes` in `src/adapters/driven/telemetry/regeln_test.go` (die Liste der Texte aus dem Wortlaut von `SPEC-109` Nr. 2; sie wird mit der Meldung „Orakel-Liste nachziehen“ rot, wenn ein Code fehlt). Die festen Zahlen der Zählprüfungen (37 Codes) dort und in `telemetry_test.go` zieht `slice-telemetry-log` an die Quellen (`model.AlleCodes()`); liegt dieser Slice vor ihm in `main`, steht die Zahl 38 hier (Zeile „Stellen mit der Zahl der Codes“ in §3), sonst entfällt sie. Kein Ausschluss dieses Slice trifft den Punkt.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Mutationen — `slice-mock-schreiben`; Konstruktor, Routing und Zuordnung sind gemeinsam, die Zustandsänderung nicht.

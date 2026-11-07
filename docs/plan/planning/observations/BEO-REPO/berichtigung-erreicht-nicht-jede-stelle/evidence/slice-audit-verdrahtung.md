@@ -1,0 +1,2 @@
+**Vorgang:** slice-audit-verdrahtung
+**Fund:** Die Fix-Runde zu F-3 (Menge M3 der Ablehnungen von sechs auf sieben, neuer Grund »Session von einer Baseline referenziert«, `ODR-E7004`) zog die Mengenzeile und »Stand der Fänger« nach, nicht die Zeile V05b (»Schleife über sechs Ablehnungen«, ohne `ODR-E7004`) und nicht die Achse *Grund* der Mengenzeile M3. Der Verifier fand beide Stellen (Auflage 1, LOW); der Planner zog sie bei der Closure nach. Beleg: Report `docs/reviews/2026-11-07-slice-audit-verdrahtung-verifikation.md` Auflage 1; Plan §3 Zeilen V05b und M3.
