@@ -209,7 +209,12 @@ pfad: src/hexagon/ports/inbound/inspection.go
 pfad: src/hexagon/services/inspection/
 produktcode: 200
 fakes: 1
+basis: 81e960d14d0d53d78aa7b77de482372550a0cad5
+schaetzung: 1845
+marke: 2500
 ```
+
+Die Marke dieses Teils (Planner, 2026-11-07, vor dem ersten Code-Commit): *S* = 85·1 + 80·17 + 200·1 + 200 = 1845, *M* = 2500, keine Schnittfrage. `basis` ist der Schnitt-Commit im Zweig, der Vertrag (`SPEC-236`), Tabelle, Raster und Mengen dieses Teils abschließt. Die Metrik steht in `SPEC-128` Nr. 1 und 4; die Marke des Teils 2 steht in dessen §4.
 
 ## 5. Closure-Trigger
 
