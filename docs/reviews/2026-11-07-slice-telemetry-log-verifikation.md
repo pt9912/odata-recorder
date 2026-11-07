@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, `SPEC-231` Nr. 1 bis 3, `SPEC-232` Nr. 2, 3, 5 c, d, f, g und die Hard Rules; nicht Diff-Review (siehe `2026-11-07-slice-telemetry-log-review.md`) und nicht Validierung.
 
-**Gegenstand:** Zweig `slice-telemetry-log`, HEAD `319688d` (Implementer-Stand `7e64f20`, Review `5bd05b0`, Fix-Runde `319688d`), Basis `47b9716`. Plan: `docs/plan/planning/in-progress/slice-telemetry-log.md`.
+**Gegenstand:** Zweig `slice-telemetry-log`, HEAD `319688d` (Implementer-Stand `7e64f20`, Review `5bd05b0`, Fix-Runde `319688d`), Basis `47b9716`. Plan: `docs/plan/planning/done/slice-telemetry-log.md`.
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 
