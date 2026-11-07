@@ -217,6 +217,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 pfad: src/adapters/driven/telemetry
 produktcode: 260
 fakes: 1
+basis: 47b97169f594779f8c6e793edd5ba6e6124226c2
+schaetzung: 2085
+marke: 2900
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
