@@ -66,7 +66,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [x] Exchanges: die Exchanges einer Session paginiert (Zeiger `sequence_no`, Standard 100, Obergrenze 1000, `SPEC-236` Nr. 3 und 4); eine Session ohne Exchange ergibt eine leere Seite, eine unbekannte Session `ODR-E7003`; die Zeile führt nur die Felder der Allowlist, nie Header, Query, Body oder Blob-Referenz (`SPEC-236` Nr. 5).
-- [ ] `make gates` grün.
+- [x] `make gates` grün.
 - [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
@@ -427,6 +427,8 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 **Raten der Klasse `nebenläufig`** (Zahlen aus §3 und den Reports): die 15 Mutationen `w-*` mit Detektor rot in 20 von 20 Prozessen je Mutation (`-test.count=1`), ohne Detektor 0 von 50 (`flatternd`, Last 7,3 bis 15,1 bei 4 CPUs, Messender der Implementer); der Verifier an zwei Stellen, die keine der 15 war: mit Detektor 20 von 20, ohne 0 von 50 (Last 6,1 bis 6,2). Ein Cache der Liste (Wirkung) fängt `TestAnhaengenZwischenSeiten` in 5 von 5 Prozessen mit und ohne Detektor, nicht `TestGleichzeitig`. Das Datenrennen ohne Wirkung fängt allein der Detektor von `make test-race`; das ist die Zusage des Plans.
 
 **Abdeckung:** Paket `inspection` und Paket `inbound` je 100,0 Prozent der Anweisungen (`go test -race -covermode=atomic`, Verifier mit eigenem Baum); kein Gate.
+
+**Gate:** `make gates` im Zweig nach dem Merge von `main` und dem Closure-Commit `86cfd44`, unter `flock`: Exit 0, `a-check` 0 Befunde, `groessenmarke slice-inspection-use-case.md: ok, Messung 1408 von Marke 2500`, `zeichen-check` ok; der Lauf auf `main` nach dem Merge steht im Commit der Integration.
 
 **Akzeptierte Negative** (Grund und Folge in §3 und `SPEC-236` *Ungeprüft*): die Größe einer Session (Schnitt im Speicher), der Pfad "wie gespeichert", das Zählen der Fehler (Rahmen des Admin-Listeners), die HTTP-Antwort; im Plan: W1 zählt Aufrufe und Stellen, keine Verzweigungen (`vn-neuer-zweig-ohne-test` bleibt grün), `TestZweigeSindDieWege` führt die 13 Wege von Hand, ein Port-Aufruf über eine lokale Variable zählt W1 nicht (fängt X13).
 
