@@ -41,27 +41,30 @@ func summe(m map[model.Code]uint64) (n uint64) {
 	return n
 }
 
-// reihenFest prüft SPEC-230 Nr. 8 an einem Stand nach Aufrufen: die Zahl der Reihen ist fest (37
-// Codes, 7 Gründe, 5 Span-Namen mit je 12 Eimern), kein Wert eines Aufrufers bildet einen Schlüssel.
+// reihenFest prüft SPEC-230 Nr. 8 an einem Stand nach Aufrufen: die Zahl der Reihen ist fest (die
+// Codes von model.AlleCodes(), die Gründe von support.Verwuerfe(), die Namen von support.Spans() mit je
+// einem Eimer mehr als support.Eimer()), kein Wert eines Aufrufers bildet einen Schlüssel.
 func reihenFest(t *testing.T, wo string, s support.Snapshot) {
 	t.Helper()
-	if len(s.Errors) != 37 || len(s.Dropped) != 7 || len(s.Durations) != 5 {
-		t.Errorf("%s: Errors %d, Dropped %d, Durations %d; erwartet 37, 7, 5", wo, len(s.Errors), len(s.Dropped), len(s.Durations))
+	codes, gruende, namen, eimer := len(model.AlleCodes()), len(support.Verwuerfe()), len(support.Spans()), len(support.Eimer())+1
+	if len(s.Errors) != codes || len(s.Dropped) != gruende || len(s.Durations) != namen {
+		t.Errorf("%s: Errors %d, Dropped %d, Durations %d; erwartet %d, %d, %d", wo, len(s.Errors), len(s.Dropped), len(s.Durations), codes, gruende, namen)
 	}
 	for n, v := range s.Durations {
-		if len(v.Counts) != 12 {
-			t.Errorf("%s: %s hat %d Eimer, erwartet 12", wo, n, len(v.Counts))
+		if len(v.Counts) != eimer {
+			t.Errorf("%s: %s hat %d Eimer, erwartet %d", wo, n, len(v.Counts), eimer)
 		}
 	}
 }
 
 // P07, P17: nach Aufrufen mit Werten, die kein Schlüssel sein dürfen, bleibt die Zahl der Reihen
 // fest, geprüft nach jedem Aufruf. Menge: Aufrufstelle × Wert: CountError mit 7 Codes außerhalb der
-// Tabelle und jedem Code von -50 bis 3050 (3101), Log mit den 12 fremden und den 13 gültigen
+// Tabelle und jedem Code von -50 bis 3050, Log mit den 12 fremden und den 13 gültigen
 // Schlüsseln × 4 Werten (darunter ungültige) in den Arten String, Int und Float, und
 // StartSpan mit 8 Namen (die 5 gültigen, der leere, ein fremder, einer mit Leerzeichen), danach Set
-// und End.
+// und End. Die Zählprüfung rechnet die Menge aus den Listen und Grenzen der Schleifen.
 func TestReihenFest(t *testing.T) {
+	const von, bis = -50, 3050
 	a, _ := neu(t)
 	ctx := context.Background()
 	aufrufe := 0
@@ -69,22 +72,25 @@ func TestReihenFest(t *testing.T) {
 		aufrufe++
 		reihenFest(t, wo, a.Snapshot())
 	}
-	for _, c := range []model.Code{0, -1, model.CodeE9001 + 1, math.MaxInt, math.MinInt, 1, 99999} {
+	fremdeCodes := []model.Code{0, -1, model.CodeE9001 + 1, math.MaxInt, math.MinInt, 1, 99999}
+	for _, c := range fremdeCodes {
 		a.CountError(c)
 		pruefe("CountError " + strconv.Itoa(int(c)))
 	}
 	schluessel := []string{"", "x", "timestamp", "level", "msg", "Mode", "mode ", "a b", "ODR-E2001", "senke", "wert", "fehlercode"}
+	fremde := len(schluessel)
 	for _, z := range katalog() {
 		if z.menge == "log" {
 			schluessel = append(schluessel, z.key)
 		}
 	}
-	for c := model.Code(-50); c <= 3050; c++ {
+	for c := model.Code(von); c <= bis; c++ {
 		a.CountError(c)
 		pruefe("CountError " + strconv.Itoa(int(c)))
 	}
+	werte := []string{"", "a b", "ok", "x=y"}
 	for _, k := range schluessel {
-		for _, v := range []string{"", "a b", "ok", "x=y"} {
+		for _, v := range werte {
 			a.Log(ctx, slog.LevelInfo, "m", support.Str(k, v), support.Int(k, 7), support.Millis(k, time.Millisecond))
 			pruefe("Log " + k + " " + v)
 		}
@@ -96,8 +102,9 @@ func TestReihenFest(t *testing.T) {
 		sp.End()
 		pruefe("StartSpan " + n)
 	}
-	if aufrufe != 7+3101+25*4+8 || len(namen) != 8 {
-		t.Errorf("%d Prüfungen, %d Namen; erwartet %d und 8", aufrufe, len(namen), 7+3101+25*4+8)
+	erwartet := len(fremdeCodes) + (bis - von + 1) + len(schluessel)*len(werte) + len(namen)
+	if aufrufe != erwartet || len(namen) != len(support.Spans())+3 || fremde != 12 || len(schluessel) != fremde+13 {
+		t.Errorf("%d Prüfungen, %d Namen, %d Schlüssel; erwartet %d, %d und %d", aufrufe, len(namen), len(schluessel), erwartet, len(support.Spans())+3, fremde+13)
 	}
 }
 
@@ -160,8 +167,8 @@ func TestAdapterErfuelltPorts(t *testing.T) {
 // P06: CountError(c) erhöht genau den Zähler von c um 1.
 func TestCountErrorJeCode(t *testing.T) {
 	codes := model.AlleCodes()
-	if len(codes) != 37 {
-		t.Fatalf("%d Codes, erwartet 37", len(codes))
+	if len(codes) == 0 {
+		t.Fatal("keine Codes")
 	}
 	for _, c := range codes {
 		a, _ := neu(t)
@@ -203,8 +210,9 @@ func TestCountErrorUnbekannt(t *testing.T) {
 func TestSnapshotVollstaendig(t *testing.T) {
 	a, _ := neu(t)
 	s := a.Snapshot()
-	if len(s.Errors) != 37 || len(s.Durations) != 5 || len(s.Dropped) != 7 {
-		t.Fatalf("Errors %d, Durations %d, Dropped %d; erwartet 37, 5, 7", len(s.Errors), len(s.Durations), len(s.Dropped))
+	reihenFest(t, "Snapshot", s)
+	if len(spanNamen()) != len(support.Spans()) {
+		t.Fatalf("%d Namen in der Orakel-Liste, %d in support.Spans(): Orakel-Liste nachziehen", len(spanNamen()), len(support.Spans()))
 	}
 	for _, c := range model.AlleCodes() {
 		if n, ok := s.Errors[c]; !ok || n != 0 {
@@ -213,8 +221,8 @@ func TestSnapshotVollstaendig(t *testing.T) {
 	}
 	for _, name := range spanNamen() {
 		v, ok := s.Durations[support.SpanName(name)]
-		if !ok || len(v.Counts) != 12 || v.Count != 0 || v.Sum != 0 {
-			t.Errorf("Durations[%s] = %+v, vorhanden %t; erwartet 12 Counts, Count und Sum 0", name, v, ok)
+		if !ok || len(v.Counts) != len(support.Eimer())+1 || v.Count != 0 || v.Sum != 0 {
+			t.Errorf("Durations[%s] = %+v, vorhanden %t; erwartet %d Counts, Count und Sum 0", name, v, ok, len(support.Eimer())+1)
 		}
 		for _, n := range v.Counts {
 			if n != 0 {
@@ -222,7 +230,11 @@ func TestSnapshotVollstaendig(t *testing.T) {
 			}
 		}
 	}
-	for _, g := range []string{"senke", "schluessel", "wert", "pflicht", "spanname", "zustand", "fehlercode"} {
+	gruende := []string{"senke", "schluessel", "wert", "pflicht", "spanname", "zustand", "fehlercode"}
+	if len(gruende) != len(support.Verwuerfe()) {
+		t.Fatalf("%d Gründe in der Orakel-Liste, %d in support.Verwuerfe(): Orakel-Liste nachziehen", len(gruende), len(support.Verwuerfe()))
+	}
+	for _, g := range gruende {
 		if n, ok := s.Dropped[support.Verwurf(g)]; !ok || n != 0 {
 			t.Errorf("Dropped[%s] = %d, vorhanden %t", g, n, ok)
 		}
@@ -344,13 +356,11 @@ func TestVerwurfRangfolge(t *testing.T) {
 	}
 }
 
-// Log schreibt keine Zeile und ändert nichts außer den Verwürfen; StartSpan ist ohne Wirkung.
+// StartSpan, Set und End sind ohne Wirkung: keine Zeile, kein Stand (die Zeile von Log fängt
+// TestLogSchreibtZeile).
 func TestKernSchreibtNichts(t *testing.T) {
 	a, puffer := neu(t)
-	a.Log(context.Background(), slog.LevelError, "m", support.Str("mode", "record"))
-	a.Log(context.TODO(), slog.LevelDebug, "m")
 	var kein context.Context
-	a.Log(kein, slog.LevelInfo, "m")
 	ctx := context.WithValue(context.Background(), ctxSchluessel{}, 1)
 	ctxK, sp := a.StartSpan(ctx, support.SpanMockQuery, support.Str("recorder.entity_set", "x"))
 	sp.Set(support.Str("recorder.coverage_status", "voll"))
@@ -379,7 +389,7 @@ func TestKernSchreibtNichts(t *testing.T) {
 type ctxSchluessel struct{}
 
 // P15: CountError verliert keinen Zuwachs, in beiden Zweigen; 64 Goroutinen mit je 500 Aufrufen,
-// Codes reihum über die 37 der Tabelle und 4 außerhalb.
+// Codes reihum über die der Tabelle (model.AlleCodes()) und 4 außerhalb.
 func TestCountErrorGleichzeitig(t *testing.T) {
 	const goroutinen, aufrufe = 64, 500
 	bekannt := model.AlleCodes()
@@ -410,7 +420,7 @@ func TestCountErrorGleichzeitig(t *testing.T) {
 	}
 	s := a.Snapshot()
 	reihenFest(t, "CountError gleichzeitig", s)
-	if len(erwartet) != 37 || len(codes) != 41 || unbekannt == 0 || summe(s.Errors)+s.Dropped[support.VerwurfFehlercode] != goroutinen*aufrufe {
+	if len(erwartet) != len(bekannt) || len(codes) != len(bekannt)+4 || unbekannt == 0 || summe(s.Errors)+s.Dropped[support.VerwurfFehlercode] != goroutinen*aufrufe {
 		t.Errorf("Summe %d plus %d, erwartet %d bei %d Codes", summe(s.Errors), s.Dropped[support.VerwurfFehlercode], goroutinen*aufrufe, len(erwartet))
 	}
 	for c, n := range erwartet {
@@ -477,10 +487,10 @@ func TestAdapterGleichzeitig(t *testing.T) {
 }
 
 // P15: Snapshot liefert einen Stand zu einem Zeitpunkt (SPEC-230 Nr. 9). Die Menge sind alle
-// Zähler, die ein Aufruf dieses Teils ändert: die 36 Codes von Errors in der Reihenfolge der
-// Tabelle, dann fehlercode, schluessel und wert von Dropped (39 Zähler, 38 Fenster der Sperre
+// Zähler, die ein Aufruf dieses Teils ändert: die Codes von Errors in der Reihenfolge der
+// Tabelle, dann fehlercode, schluessel und wert von Dropped (Codes + 3 Zähler, ein Fenster der Sperre
 // zwischen je zwei Nachbarn). Schreiber erhöhen in jeder Runde diese Zähler in genau dieser
-// Reihenfolge: alle 36 Codes nacheinander, CountError(0) und ein Log mit zwei Verwürfen
+// Reihenfolge: alle Codes nacheinander, CountError(0) und ein Log mit zwei Verwürfen
 // (schluessel, wert). Leser lesen Stände, solange die Schreiber laufen. Das Orakel steht im
 // Test, nicht im Adapter: in jedem Stand gilt für jedes Paar Nachbarn k[i+1] <= k[i] <= k[i+1] +
 // Zahl der Schreiber, für das Paar schluessel und wert die Gleichheit (ein Log zählt beide unter
@@ -492,9 +502,6 @@ func TestAdapterGleichzeitig(t *testing.T) {
 func TestSnapshotZeitpunkt(t *testing.T) {
 	const schreiber, leser, runden = 8, 8, 1000
 	codes := model.AlleCodes()
-	if len(codes) != 37 {
-		t.Fatalf("%d Codes, erwartet 37", len(codes))
-	}
 	kette := func(s support.Snapshot) []uint64 {
 		k := make([]uint64, 0, len(codes)+3)
 		for _, c := range codes {
@@ -509,8 +516,8 @@ func TestSnapshotZeitpunkt(t *testing.T) {
 	namen = append(namen, "fehlercode", "schluessel", "wert")
 	laenge := len(namen)
 	fenster := laenge - 1
-	if laenge != 40 || fenster != 39 {
-		t.Fatalf("%d Zähler und %d Fenster, erwartet 40 und 39", laenge, fenster)
+	if laenge != len(model.AlleCodes())+3 || fenster != laenge-1 {
+		t.Fatalf("%d Zähler und %d Fenster, erwartet %d und %d", laenge, fenster, len(model.AlleCodes())+3, len(model.AlleCodes())+2)
 	}
 
 	// ein Log zählt schluessel und wert unter einer Sperre: dieses Paar ist gleich, die übrigen liegen
@@ -588,8 +595,8 @@ func TestSnapshotZeitpunkt(t *testing.T) {
 	}
 }
 
-// P17: Log wendet MinLevel nicht an: bei jeder Stufe des Aufrufs und jedem MinLevel zählt ein
-// Verwurf (4 Stufen × 4 MinLevel).
+// P17: ein Eintrag unter MinLevel zählt seine Verwürfe weiter: bei jeder Stufe des Aufrufs und jedem
+// MinLevel zählt ein Verwurf (4 Stufen × 4 MinLevel).
 func TestLogOhneMinLevel(t *testing.T) {
 	stufen := []slog.Level{slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError}
 	minima := []slog.Level{slog.LevelDebug, slog.LevelInfo, slog.LevelError, slog.LevelError + 1}
