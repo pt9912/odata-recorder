@@ -191,6 +191,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 pfad: src/adapters/driving/admin/
 produktcode: 150
 fakes: 0
+basis: 20c02c538f1d6a0b2910cf0a5831e9ea4263c932
+schaetzung: 2080
+marke: 2900
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
