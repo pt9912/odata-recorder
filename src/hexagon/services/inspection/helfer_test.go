@@ -150,7 +150,7 @@ func (f *fakeRecording) kontexte() []context.Context {
 
 func neuerDienst(t *testing.T, f *fakeRecording) *inspection.Inspektion {
 	t.Helper()
-	d, err := inspection.New(inspection.Konfig{Exchanges: f})
+	d, err := inspection.New(konfigMit(f))
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
