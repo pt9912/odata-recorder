@@ -16,3 +16,4 @@ ODR-E7008 | Snapshots stellt nur die Admin-API wieder her, das Binary hat sie ni
 ODR-E7010 | Sessions legt außer dem Start nur die Admin-API an; die Kennung des Starts erzeugt der Generator
 ODR-E7011 | Sessions beendet außer dem Herunterfahren nur die Admin-API, das Binary hat sie nicht
 ODR-E7012 | Exchanges liest nur die Admin-API, das Binary hat sie nicht
+ODR-E6007 | Mock-Betrieb: der Eingabe-Leser des Mock ist im Binary nicht erreichbar, das Handbuch nennt den Code mit slice-bootstrap-m3
