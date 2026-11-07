@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang `slice-odata-json-eingabe` (Evidenz); unterhalb der Schwelle, Sichtung bei der Planung des nächsten Slice, der Bytes bis zur Grenze liest (`slice-v2-payload-schreiben`, `slice-mock-schreiben`)

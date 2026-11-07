@@ -50,7 +50,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 
 - Alle Slices der Welle liegen in `done/`.
-- Jeder Fehlercode, jeder Konfigurationsschlüssel und jedes Kommando des gebauten Binary kommt im Handbuch vor, und das Handbuch nennt nichts, was das Binary nicht kennt; das Gate dafür (`slice-handbuch-meldungskatalog`) ist grün.
+- Jeder Fehlercode, jeder Konfigurationsschlüssel und jedes Kommando des gebauten Binary kommt im Handbuch vor, und das Handbuch nennt nichts, was das Binary nicht kennt; das Gate dafür (`slice-handbuch-meldungskatalog` für die Fehlercodes, `slice-handbuch-katalog-schluessel-kommandos` für Schlüssel und Kommandos) ist grün.
 - `make gates` ist grün und fährt den Abgleich der Kataloge; `make gegenproben` ist grün.
 - Der Probelauf aus `slice-handbuch-abnahme` ist gefahren: Eine Rolle ohne Vorwissen hat jede Aufgabe des Handbuchs allein nach dem Handbuch am gebauten Binary ausgeführt; jeder Befund ist behoben oder trägt einen Ausgang in §6 des Slice-Plans.
 - Der Fänger für „Geplantes“ und „Chronik“ im Handbuch (Auftrag in `slice-handbuch-geruest`) läuft und ist grün; je Element seiner Menge ist eine Mutation (ein verbotenes Wort oder eine Kennung im Handbuch) rot gesehen.
@@ -66,7 +66,8 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | Slice | Titel | Bezug |
 |---|---|---|
 | slice-handbuch-geruest | Gerüst von docs/user/benutzerhandbuch.md, Anpassung des Standards, Kapitel über Belegtes | `LH-RB-01`, `LH-RB-03`, `LH-QA-06` |
-| slice-handbuch-meldungskatalog | Abgleich der Kataloge (Fehlercodes `ODR-E…`, Konfigurationsschlüssel, Kommandos) zwischen Binary, Spezifikation und Handbuch | `LH-QA-05`, `LH-RB-01` |
+| slice-handbuch-meldungskatalog | Programm und Gate `make katalog-check`, Abgleich des Katalogs der Fehlercodes `ODR-E…` zwischen Binary, Spezifikation und Handbuch | `LH-QA-05`, `LH-RB-01` |
+| slice-handbuch-katalog-schluessel-kommandos | Kataloge der Konfigurationsschlüssel und der Kommandos im Abgleich, Abschnitte *Einstellungen* und *Kommandos* des Handbuchs | `LH-QA-05`, `LH-RB-01` |
 | slice-handbuch-record-replay | Kapitel Aufzeichnen und Wiedergeben mit belegten Beispielen | `LH-FA-02`, `LH-FA-04`, `LH-FA-14`, `LH-RB-04` |
 | slice-handbuch-abnahme | Probelauf durch eine Rolle ohne Vorwissen, Befunde, Abgleich von Kopf und gebautem Binary | `LH-QA-05` |
 
@@ -81,7 +82,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 - Wird blockiert von: `slice-groessenmarke-werkzeug` (Start der Welle, §2); `slice-bootstrap-m2` und `slice-m2-referenzdienst` blockieren nur `slice-handbuch-record-replay`, nicht die Welle.
 - Reihenfolge ohne Blocker: `slice-handbuch-geruest` liegt nach Teil 1 von [welle-sensoren](welle-sensoren.md) (§2); der Katalog-Slice und `slice-handbuch-record-replay` liegen nach `slice-bootstrap-m2`, wie in §2 und in der Reihenfolge der Slices unten.
 - Unabhängig von: welle-dev-container (deren „Dokument für Entwickler“ ist ein anderes Dokument mit anderer Zielgruppe) und Teil 2 der Welle der Sensoren.
-- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-handbuch-geruest` → `slice-handbuch-meldungskatalog` (das Gate liest die Abschnitte *Aufruf und Version* und *Fehlerbehebung*, die das Gerüst anlegt; der Abschnitt der Konfiguration und die Tabellen der Kataloge entstehen in diesem Slice selbst; braucht zusätzlich `slice-bootstrap-m2` in `done/`, weil das Binary vorher weder Schlüssel liest noch Fehlercodes erzeugt) → `slice-handbuch-record-replay` (braucht zusätzlich `slice-bootstrap-m2` in `done/`) → `slice-handbuch-abnahme` zuletzt.
+- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-handbuch-geruest` → `slice-handbuch-meldungskatalog` (das Gate liest die Abschnitte *Aufruf und Version* und *Fehlerbehebung*, die das Gerüst anlegt; der Abschnitt der Konfiguration und die Tabellen der Kataloge entstehen in diesem Slice selbst; braucht zusätzlich `slice-bootstrap-m2` in `done/`, weil das Binary vorher weder Schlüssel liest noch Fehlercodes erzeugt) → `slice-handbuch-katalog-schluessel-kommandos` (braucht `slice-handbuch-meldungskatalog` in `done/`, weil beide dieselben Dateien der Gate-Kette ändern; startet nicht daneben) → `slice-handbuch-record-replay` (braucht zusätzlich `slice-bootstrap-m2` in `done/`) → `slice-handbuch-abnahme` zuletzt.
 
 ## 6. Out-of-Scope für diese Welle
 

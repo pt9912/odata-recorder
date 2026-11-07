@@ -174,7 +174,7 @@ func TestAbbildungVollstaendig(t *testing.T) {
 		}
 	}
 	for _, n := range eintraege {
-		modell := []string{"ErrUngueltig", "ErrMetadatenUngueltig", "ErrDatenUngueltig", "ErrURLUngueltig", "ErrURLNichtUnterstuetzt", "ErrFilterNichtBeobachtet", "ErrKompatibilitaet"}
+		modell := []string{"ErrUngueltig", "ErrMetadatenUngueltig", "ErrDatenUngueltig", "ErrURLUngueltig", "ErrURLNichtUnterstuetzt", "ErrFilterNichtBeobachtet", "ErrKompatibilitaet", "ErrEingabeUngueltig", "ErrEingabeNichtUnterstuetzt"}
 		if !slices.Contains(modell, n) && !slices.Contains(vorhanden, n) {
 			t.Errorf("Eintrag %s ohne Variable im Paket", n)
 		}

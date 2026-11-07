@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-meldungskatalog
+**Fund:** Vorsorge-Eintrag der Closure-Vormerkung: Der Abgleich fängt „Code erreichbar, Zeile in den Ausnahmen bleibt“ nicht (`SPEC-201` Nr. 9 c, akzeptiertes Negativ), die Gegenmaßnahme ist die Pflicht der Folgewellen (`SPEC-201` Nr. 11). Kein Auftreten beim Slice selbst; die Sendung `ODR-E6007` (von `slice-odata-json-eingabe`) wurde im Integrationsschritt eingetragen. Beleg: Plan §6 *Hinweis für die Planer der Folgewellen*.

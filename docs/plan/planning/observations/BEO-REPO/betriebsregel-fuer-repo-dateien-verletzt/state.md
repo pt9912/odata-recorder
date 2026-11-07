@@ -1,1 +1,1 @@
-**Stand:** geplant in `slice-guard-schreibwege` (Wächter im Command-Guard für `sed -i` und Schreiben per Heredoc auf Repo-Dateien; `git commit -F -` bleibt erlaubt)
+**Stand:** geplant in `slice-guard-schreibwege` (Wächter im Command-Guard für `sed -i` und Schreiben per Heredoc auf Repo-Dateien; `git commit -F -` bleibt erlaubt); `gofmt -w` auf Repo-Dateien ist mit dem achten Vorgang (`slice-odata-json-eingabe`) eine weitere Form, die der Plan von `slice-guard-schreibwege` prüft
