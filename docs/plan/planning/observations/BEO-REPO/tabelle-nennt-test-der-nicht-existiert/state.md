@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang mit `slice-mock-schreiben` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht. Der Verifier hielt alle 62 Symbole der Spalte per `grep "^func <Symbol>("` gegen `src/`; ein Sensor dafür ist nicht entschieden.

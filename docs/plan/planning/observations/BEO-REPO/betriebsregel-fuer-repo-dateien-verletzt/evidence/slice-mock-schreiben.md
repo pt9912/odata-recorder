@@ -1,0 +1,2 @@
+**Vorgang:** slice-mock-schreiben
+**Fund:** Im Integrationsschritt änderte der Planner `spec/spezifikation.md` mit `sed -i` (die Zahl der Reihen von `odr_errors_total` und eine eingefügte Zeile der Änderungstabelle), nach dem Konflikt beider Seiten; die Konfliktmarken selbst löste er mit dem Edit-Werkzeug. Das Ergebnis ist im Diff geprüft (zwei Zeilen). Der Implementer und die Prüfer meldeten keine Berührung fremder Dateien.

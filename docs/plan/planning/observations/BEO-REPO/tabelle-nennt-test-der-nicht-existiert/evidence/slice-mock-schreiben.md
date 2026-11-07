@@ -1,0 +1,2 @@
+**Vorgang:** slice-mock-schreiben
+**Fund:** Review F-2: 24 Zeilen der Tabelle W01 bis W81 nannten einen Test, den es nicht gab (etwa `TestEingabeKontext`, `TestEingabeQuelle`, `TestEingabeContentType`); die Fix-Runde führte die Namen auf die vorhandenen Tests zurück. Verifikation §1: 62 verschiedene Symbole der Spalte *Fänger* und der Tabelle *Mutationen* per `grep "^func <Symbol>("` unter `src/`, 0 fehlend.

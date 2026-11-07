@@ -35,6 +35,10 @@ type Konfig struct {
 	PublicBaseURL  string
 	StrictCoverage bool
 	MaxBytes       int64
+	// Transaktion führt jede Mutation in einer Workspace-Transaktion aus (SPEC-192 Nr. 1); nil ist ungültig.
+	Transaktion outbound.WorkspaceTransactor
+	// Eingabe ist der Leser der Client-Bodies für einen Dienst ohne Satz; nil ist erlaubt (SPEC-192 Nr. 1).
+	Eingabe outbound.ODataEingabe
 }
 
 // Mocker setzt MockUseCase um. Er hält nach New nur seine Konfig, die er nicht ändert, keine Sperre und keine
@@ -51,7 +55,7 @@ func New(k Konfig) (*Mocker, error) {
 	}
 	k.Dienste = slices.Clone(k.Dienste)
 	for i, d := range k.Dienste {
-		s := outbound.CodecSatz{Metadaten: k.MetadatenCodec, URL: k.URLCodec, Schreiber: k.Schreiber}
+		s := outbound.CodecSatz{Metadaten: k.MetadatenCodec, URL: k.URLCodec, Schreiber: k.Schreiber, Eingabe: k.Eingabe}
 		if d.Codecs != nil {
 			s = *d.Codecs
 		}
@@ -80,14 +84,15 @@ func pruefeKonfig(k Konfig) error {
 	return nil
 }
 
-// portFehlt sagt, ob eines der acht Felder mit einem Port nil ist (SPEC-195 Nr. 1).
+// portFehlt sagt, ob eines der neun Felder mit einem Port nil ist (SPEC-195 Nr. 1, SPEC-192 Nr. 1); Eingabe darf nil sein.
 func portFehlt(k Konfig) bool {
 	return k.Metadaten == nil || k.Workspaces == nil || k.Entities == nil || k.Coverage == nil || k.Blobs == nil ||
-		k.MetadatenCodec == nil || k.URLCodec == nil || k.Schreiber == nil
+		k.MetadatenCodec == nil || k.URLCodec == nil || k.Schreiber == nil || k.Transaktion == nil
 }
 
 // Mock prüft den Request in der Reihenfolge von SPEC-195 Nr. 3 (der erste Verstoß entscheidet) und liefert die
-// Antwort: $metadata (SPEC-198 Nr. 4), Collection, Entity und Anzahl (SPEC-196 bis SPEC-198).
+// Antwort: $metadata (SPEC-198 Nr. 4), Collection, Entity und Anzahl (SPEC-196 bis SPEC-198); POST, PATCH, PUT und DELETE führt
+// schreibe in einer Workspace-Transaktion aus (SPEC-192 bis SPEC-194).
 func (m *Mocker) Mock(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, error) {
 	if argumenteUngueltig(ctx, a) {
 		return inbound.Antwort{}, ungueltig("Anfrage, die kein HTTP-Adapter liefert")
@@ -106,6 +111,9 @@ func (m *Mocker) Mock(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, 
 	}
 	if !slices.Contains(model.AlleRessourcenArten(), u.Ressource.Art) {
 		return inbound.Antwort{}, mitCode(model.CodeE9001, nil)
+	}
+	if istMutation(a.Methode) {
+		return m.schreibe(ctx, a, d, ws, u)
 	}
 	if a.Methode != "GET" && a.Methode != "HEAD" {
 		return inbound.Antwort{}, nichtGelesen(d)

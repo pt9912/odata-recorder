@@ -73,11 +73,12 @@ func testModell() model.ServiceModel {
 			NavigationProperties: []model.NavigationProperty{{Name: "Nav", Target: typProduct}}},
 		{Name: "N.Bunt", Keys: []string{"I", "S"}, Properties: []model.Property{
 			{Name: "I", EdmType: "Edm.Int32"}, {Name: "S", EdmType: "Edm.String"}, {Name: "Name", EdmType: "Edm.String", Nullable: true}}},
+		{Name: "N.Drei", Keys: []string{"Id"}, Properties: []model.Property{{Name: "Id", EdmType: "Edm.Int32"}, nullbar("S1"), nullbar("S2"), nullbar("S3")}},
 	}
 	sets := []model.EntitySet{
 		{Name: setProducts, EntityType: typProduct}, {Name: "Kunden", EntityType: typProduct}, {Name: "Sks", EntityType: "N.Sk"},
 		{Name: "Pairs", EntityType: "N.Pair"}, {Name: "Bunt", EntityType: "N.Bunt"}, {Name: "Seltsam", EntityType: "N.Seltsam"},
-		{Name: "Viele", EntityType: "N.Viele"}, {Name: "Waise", EntityType: "N.GibtEsNicht"},
+		{Name: "Viele", EntityType: "N.Viele"}, {Name: "Waise", EntityType: "N.GibtEsNicht"}, {Name: "Drei", EntityType: "N.Drei"},
 	}
 	return model.NeuesServiceModel("4.0", []string{"N"}, typen, sets, nil)
 }

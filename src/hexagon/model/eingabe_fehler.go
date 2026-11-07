@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"strconv"
+	"unicode/utf8"
 )
 
 // EingabeUrsache ist die Ursache eines EingabeFehler (SPEC-180 Nr. 3).
@@ -62,8 +63,12 @@ type EingabeFehler struct {
 	Ort     string
 }
 
+// ortGrenze ist die Länge in Bytes, auf die Error() den Ort kürzt (SPEC-180 Nr. 3).
+const ortGrenze = 256
+
 // Error nennt den Code und die Ursache; der Ort steht in der Schreibweise von strconv.Quote dahinter, denn er enthält Text des
-// Dokuments und darf kein rohes Steuerzeichen tragen.
+// Dokuments und darf kein rohes Steuerzeichen tragen. Der Ort ist auf höchstens 256 Bytes am Rand eines UTF-8-Zeichens
+// gekürzt, nach dem schließenden Anführungszeichen folgt `...`, wenn gekürzt wurde; das Feld Ort bleibt ungekürzt.
 func (e *EingabeFehler) Error() string {
 	s := e.Code().String() + ": Request-Body ungültig: "
 	if e.Ursache.NichtUnterstuetzt() {
@@ -71,9 +76,25 @@ func (e *EingabeFehler) Error() string {
 	}
 	s += string(e.Ursache)
 	if e.Ort != "" {
-		s += " " + strconv.Quote(e.Ort)
+		ort, gekuerzt := kuerzeOrt(e.Ort)
+		s += " " + strconv.Quote(ort)
+		if gekuerzt {
+			s += "..."
+		}
 	}
 	return s
+}
+
+// kuerzeOrt liefert den längsten Anfang von ort mit höchstens ortGrenze Bytes, der nicht in einem UTF-8-Zeichen endet.
+func kuerzeOrt(ort string) (string, bool) {
+	if len(ort) <= ortGrenze {
+		return ort, false
+	}
+	n := ortGrenze
+	for n > 0 && !utf8.RuneStart(ort[n]) {
+		n--
+	}
+	return ort[:n], true
 }
 
 // Code liefert ODR-E6002 für die Klasse nicht_unterstuetzt, sonst ODR-E6007.

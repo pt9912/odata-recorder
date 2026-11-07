@@ -45,7 +45,7 @@ func stufenM4() []stufe {
 		{name: "URL Art 0", code: model.CodeE9001, bau: func(u *umg, _ *inbound.Anfrage) {
 			u.c.url.f = func(string, string) (model.ODataURL, error) { return model.ODataURL{}, nil }
 		}, ops: []string{url}, stufe: 3},
-		{name: "Methode", code: model.CodeE6002, bau: func(_ *umg, a *inbound.Anfrage) { a.Methode = "POST" }, ops: []string{url}, stufe: 4},
+		{name: "Methode", code: model.CodeE6002, bau: func(_ *umg, a *inbound.Anfrage) { a.Methode = "OPTIONS" }, ops: []string{url}, stufe: 4},
 		{name: "Workspace unbekannt", code: model.CodeE7001, bau: func(u *umg, _ *inbound.Anfrage) { u.ws.entferne(wsID) },
 			ops: []string{url, ws}, stufe: 5},
 		{name: "Workspace fremd", code: model.CodeE5004, bau: func(u *umg, _ *inbound.Anfrage) {
@@ -139,7 +139,7 @@ func fehlerFaelle() []fall {
 		}, model.CodeE9001},
 		fall{"kein Dienst", func(_ *umg, a *inbound.Anfrage) { a.Pfad = "/" + kanarienwert }, model.CodeE5005},
 		fall{"Header fehlt", func(_ *umg, a *inbound.Anfrage) { delete(a.Header, headerName) }, model.CodeE5003},
-		fall{"Methode POST", func(_ *umg, a *inbound.Anfrage) { a.Methode = "POST" }, model.CodeE6002},
+		fall{"Methode POST", func(_ *umg, a *inbound.Anfrage) { a.Methode = "OPTIONS" }, model.CodeE6002},
 		fall{"Methode nur lesend", func(u *umg, a *inbound.Anfrage) {
 			a.Methode = "DELETE"
 			u.k.Dienste[0].Codecs = u.c.satz(true, "")
@@ -158,11 +158,11 @@ func fehlerFaelle() []fall {
 	return r
 }
 
-// spec195Nr10 ist eine Handkopie der Liste der erreichbaren Codes in SPEC-195 Nr. 10 (13 Codes); kein Lauf liest die
+// spec195Nr10 ist eine Handkopie der Liste der erreichbaren Codes in SPEC-195 Nr. 10 (15 Codes); kein Lauf liest die
 // Spezifikation, eine Änderung der Liste dort fängt dieser Test nicht.
 func spec195Nr10() []string {
 	return []string{"ODR-E3001", "ODR-E5003", "ODR-E5004", "ODR-E5005", "ODR-E6001", "ODR-E6002", "ODR-E6003", "ODR-E6004",
-		"ODR-E6005", "ODR-E6006", "ODR-E6008", "ODR-E7001", "ODR-E9001"}
+		"ODR-E6005", "ODR-E6006", "ODR-E6007", "ODR-E6008", "ODR-E6009", "ODR-E7001", "ODR-E9001"}
 }
 
 // laufeFall baut einen Aufbau, verletzt ihn nach dem Fall und ruft den Dienst; Request und Fehler der Ports tragen den
@@ -183,12 +183,12 @@ func laufeFall(t *testing.T, f fall) (*umg, error) {
 func TestFehlerWert(t *testing.T) {
 	erwartet := map[string]bool{}
 	for _, c := range spec195Nr10() {
-		if c != "ODR-E6003" && c != "ODR-E6008" {
+		if c != "ODR-E6003" && c != "ODR-E6008" && c != "ODR-E6007" && c != "ODR-E6009" {
 			erwartet[c] = true
 		}
 	}
-	if len(spec195Nr10()) != 13 || len(erwartet) != 11 {
-		t.Fatalf("Liste: %d Codes, davon %d in diesem Teil; erwartet 13 und 11", len(spec195Nr10()), len(erwartet))
+	if len(spec195Nr10()) != 15 || len(erwartet) != 11 {
+		t.Fatalf("Liste: %d Codes, davon %d in diesem Teil; erwartet 15 und 11", len(spec195Nr10()), len(erwartet))
 	}
 	alle := model.AlleCodes()
 	for c := range erwartet {

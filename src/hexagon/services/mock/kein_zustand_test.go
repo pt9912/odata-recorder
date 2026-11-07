@@ -96,7 +96,7 @@ func TestKeinZustand(t *testing.T) {
 }
 
 // TestMockerFelder hält, dass der Dienst nur seine Konfig trägt (SPEC-195 Nr. 12): Mocker hat das eine Feld k, und die Felder
-// von Konfig sind die zwölf des Vertrags in Arten ohne Zustand (Schnittstelle, Liste der Dienste, Text, Wahrheitswert, Zahl).
+// von Konfig sind die vierzehn des Vertrags (SPEC-195 Nr. 1, SPEC-192 Nr. 1) in Arten ohne Zustand (Schnittstelle, Liste der Dienste, Text, Wahrheitswert, Zahl).
 func TestMockerFelder(t *testing.T) {
 	typ := reflect.TypeFor[mock.Mocker]()
 	if typ.NumField() != 1 || typ.Field(0).Name != "k" || typ.Field(0).Type != reflect.TypeFor[mock.Konfig]() {
@@ -105,7 +105,7 @@ func TestMockerFelder(t *testing.T) {
 	soll := map[string]reflect.Kind{"Dienste": reflect.Slice, "Metadaten": reflect.Interface, "Workspaces": reflect.Interface,
 		"Entities": reflect.Interface, "Coverage": reflect.Interface, "Blobs": reflect.Interface, "MetadatenCodec": reflect.Interface,
 		"URLCodec": reflect.Interface, "Schreiber": reflect.Interface, "PublicBaseURL": reflect.String, "StrictCoverage": reflect.Bool,
-		"MaxBytes": reflect.Int64}
+		"MaxBytes": reflect.Int64, "Transaktion": reflect.Interface, "Eingabe": reflect.Interface}
 	k := reflect.TypeFor[mock.Konfig]()
 	if k.NumField() != len(soll) {
 		t.Fatalf("Konfig hat %d Felder, erwartet %d", k.NumField(), len(soll))
