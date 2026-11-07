@@ -98,7 +98,7 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/hexagon/ports/inbound/` | update | `mock.go`: `MockUseCase` (Z23) |
 | `src/hexagon/services/mock/` | neu | Konfig und `New`, Zuordnung, URL, Methode, Metadaten, Fehlerbildung, Platzhalter für Collection, Entity und Anzahl, Antwort von `$metadata` (`SPEC-195`, `SPEC-198` Nr. 4 und 5) |
 | `spec/spezifikation.md`, `spec/architecture.md` | update (Architect, getan; Planner: Nachzug R2) | `SPEC-195` bis `SPEC-199`, `SPEC-109`, `SPEC-160` Nr. 9, `SPEC-230` Nr. 8, Historie; Reihenfolge der Lesevorgänge in §4.4; `SPEC-168` Nr. 10 |
-| `docs/plan/planning/open/slice-mock-schreiben.md` | update (Architect, getan) | §1 *Übernimmt* (Erwartung von diesem Slice und von Teil 2, `AGENTS.md` §3.13) |
+| `docs/plan/planning/in-progress/slice-mock-schreiben.md` | update (Architect, getan) | §1 *Übernimmt* (Erwartung von diesem Slice und von Teil 2, `AGENTS.md` §3.13) |
 | Tests | neu | die Fänger der Tabelle (`TestNewKonfig` bis `TestKeinFehlerobjekt`) mit Fakes der acht Ports (Metadaten, Workspaces, Blobs, `URLCodec`, Schreiber mit Verhalten; Entities, Coverage, `MetadatenCodec` als Zähl-Fakes, die Teil 2 erweitert); der Dienst importiert keinen Upstream-Typ und kein Paket eines anderen Service |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation **vor** dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer.
