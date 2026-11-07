@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-log
+**Fund:** Schätzung 2085 (20 Zeilen, davon 5 nebenläufig, 1 Fake, Produktcode 260), Marke 2900, Messung 1600: Ende ÷ Schätzung 0,77, Auslastung 0,55. Der Produktcode betrug etwa 100 reine Zeilen gegen 260 geschätzt; die Tests (Mengen, Zeichenmengen, Haltepunkte, `FakeSenke`) tragen den Rest. Messpunkt der Klasse mit nebenläufigen Zeilen und vielen Mengen für die geplante Neukalibrierung. Beleg: `make groessenmarke`, Messpunkt-Zeile in Plan §7.
