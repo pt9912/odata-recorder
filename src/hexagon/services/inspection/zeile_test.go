@@ -68,7 +68,13 @@ func setzeWert(v reflect.Value, i int) {
 	case reflect.Bool:
 		v.SetBool(true)
 	default:
-		v.Set(reflect.ValueOf(time.Date(2026, time.December, 24, 18, 0, i, 0, time.UTC)))
+		// Gerades i: lokale Zeit mit monotoner Ablesung; ungerades i: Zone ungleich UTC (In verwirft die
+		// monotone Ablesung). Ein Dienst, der die Zeit umrechnet oder rundet, fällt in einer der Formen auf.
+		if i%2 == 0 {
+			v.Set(reflect.ValueOf(time.Now().Add(time.Duration(i) * time.Hour)))
+		} else {
+			v.Set(reflect.ValueOf(time.Now().In(time.FixedZone("test", (i+1)*3600))))
+		}
 	}
 }
 
@@ -85,7 +91,8 @@ func erwartet(e model.Exchange) inbound.ExchangeZeile {
 // der Zeile erscheint mit einem; die Basis trägt nur eine sequence_no, FinishedAt ist die Nullzeit
 // und ResponseStatus 0, wo sie nicht das geprüfte Feld sind.
 func TestFeldUnveraendert(t *testing.T) {
-	for i, name := range enthalten() {
+	// Zwei Runden: i ändert in der zweiten Runde seine Parität, die Zeitfelder tragen beide Formen.
+	for i, name := range slices.Concat(enthalten(), enthalten()) {
 		e := model.Exchange{SessionID: sid, SequenceNo: 1}
 		setzeWert(reflect.ValueOf(&e).Elem().FieldByName(name), i)
 		f := neuesFake()

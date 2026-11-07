@@ -86,7 +86,7 @@ func TestSeitenparameterNegativ(t *testing.T) {
 
 // Achsen der Menge M-Seite (Plan §3, Pflicht-Mengen).
 func limitAchse() []int {
-	return []int{0, 1, inspection.StandardLimit, inspection.MaxLimit - 1, inspection.MaxLimit, inspection.MaxLimit + 1, math.MaxInt}
+	return []int{0, 1, vertragStandard, vertragMax - 1, vertragMax, vertragMax + 1, math.MaxInt}
 }
 func bestandAchse(l int) []int { return []int{0, 1, l - 1, l, l + 1, 2 * l, 2*l + 1} }
 func nachAchse(n, l int) []int { return []int{0, 1, n - 1, n, n + 1, n + l} }
@@ -173,8 +173,8 @@ func TestSeitenGoldens(t *testing.T) {
 		{3, 2, 1, []int{3}, 0, 3, 1},
 		{3, 3, 1, []int{}, 0, 3, 1},
 		{3, 4, 1, []int{}, 0, 3, 1},
-		{0, 0, 0, []int{}, 0, 0, inspection.StandardLimit},
-		{3, 0, math.MaxInt, []int{1, 2, 3}, 0, 3, inspection.MaxLimit},
+		{0, 0, 0, []int{}, 0, 0, 100},
+		{3, 0, math.MaxInt, []int{1, 2, 3}, 0, 3, 1000},
 	}
 	for _, c := range fall {
 		f := neuesFake()
@@ -183,5 +183,58 @@ func TestSeitenGoldens(t *testing.T) {
 		if !slices.Equal(nummern(z), c.nums) || z.Weiter != c.weiter || z.Gesamt != c.gesamt || z.Limit != c.lm || z.Eintraege == nil {
 			t.Errorf("%+v: erhalten %v Weiter %d Gesamt %d Limit %d", c, nummern(z), z.Weiter, z.Gesamt, z.Limit)
 		}
+	}
+}
+
+// TestGrenzenDesVertrags (X2): Standard 100 und Obergrenze 1000 aus SPEC-236 Nr. 3 als Literale des
+// Tests, nicht aus dem Paket: die Menge der Limits an beiden Grenzen (je Grenze: darunter, genau,
+// darüber, ein weiterer Wert darüber) bei einem Bestand über der Obergrenze.
+func TestGrenzenDesVertrags(t *testing.T) {
+	f := neuesFake()
+	f.legeAn(sid, 1100)
+	d := neuerDienst(t, f)
+	fall := []struct{ limit, erwartet int }{
+		{0, 100}, {1, 1}, {99, 99}, {100, 100}, {101, 101}, {500, 500},
+		{999, 999}, {1000, 1000}, {1001, 1000}, {1002, 1000}, {1100, 1000}, {math.MaxInt, 1000},
+	}
+	for _, c := range fall {
+		z := lies(t, d, sid, inbound.Seite{Limit: c.limit})
+		if len(z.Eintraege) != c.erwartet || z.Limit != c.erwartet {
+			t.Errorf("Limit %d: %d Einträge, Limit der Antwort %d, erwartet %d", c.limit, len(z.Eintraege), z.Limit, c.erwartet)
+		}
+	}
+}
+
+// TestSequenzMitLuecken (X3, X5): der Zeiger ist der Wert der sequence_no, nicht die Zahl der gelesenen
+// Einträge: Sessions mit Lücken in den Nummern, das Modell über die Nummern, die Folge der Seiten ab
+// jedem Zeiger. Der Port liefert keine Lücken (SPEC-105 Nr. 8); der Dienst filtert nach dem Wert.
+func TestSequenzMitLuecken(t *testing.T) {
+	listen := [][]int{{2, 5, 6, 10, 11}, {7}, {1, 3}, {100, 200, 300, 400}}
+	faelle := 0
+	for _, nums := range listen {
+		zeiger := []int{0, nums[len(nums)-1] + 5}
+		for _, q := range nums {
+			zeiger = append(zeiger, q-1, q, q+1)
+		}
+		for _, limit := range []int{0, 1, 2, 3} {
+			for _, nach := range zeiger {
+				faelle++
+				f := neuesFake()
+				f.setzeNummern(sid, nums)
+				d := neuerDienst(t, f)
+				want, weiter := modellListe(nums, nach, wirksam(limit))
+				z := lies(t, d, sid, inbound.Seite{Limit: limit, Nach: nach})
+				if !slices.Equal(nummern(z), want) || z.Weiter != weiter || z.Gesamt != len(nums) {
+					t.Errorf("%v Limit %d Nach %d: %v Weiter %d Gesamt %d, erwartet %v Weiter %d", nums, limit, nach, nummern(z), z.Weiter, z.Gesamt, want, weiter)
+				}
+				rest, _ := modellListe(nums, nach, len(nums))
+				if got := nummern(folge(t, d, sid, limit, nach)...); !slices.Equal(got, rest) {
+					t.Errorf("%v Limit %d Nach %d: Folge %v, erwartet %v", nums, limit, nach, got, rest)
+				}
+			}
+		}
+	}
+	if faelle == 0 {
+		t.Error("kein Fall gelaufen")
 	}
 }

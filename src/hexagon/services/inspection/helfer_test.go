@@ -205,28 +205,47 @@ func bereich(von, bis int) []int {
 	return r
 }
 
-// wirksam ist das wirksame Limit nach SPEC-236 Nr. 3, gerechnet aus den Konstanten des Pakets.
+// Die Grenzen aus SPEC-236 Nr. 3 als Literale: das Orakel liest sie nie aus dem Paket.
+const (
+	vertragStandard = 100
+	vertragMax      = 1000
+)
+
+// wirksam ist das wirksame Limit nach SPEC-236 Nr. 3, gerechnet aus den Literalen des Vertrags.
 func wirksam(limit int) int {
 	if limit == 0 {
-		return inspection.StandardLimit
+		return vertragStandard
 	}
-	return min(limit, inspection.MaxLimit)
+	return min(limit, vertragMax)
 }
 
-// modellSeite ist das Orakel der Seite: die Exchanges 1 bis n, geschnitten in einer eigenen Schleife
-// (sequence_no über nach, die ersten limit), und Weiter als Nummer des letzten, wenn sie unter n liegt.
-func modellSeite(n, nach, limit int) ([]int, int) {
+// modellSeite ist das Orakel der Seite einer Session aus den Exchanges 1 bis n.
+func modellSeite(n, nach, limit int) ([]int, int) { return modellListe(bereich(1, n), nach, limit) }
+
+// modellListe ist das Orakel der Seite über aufsteigende sequence_no: geschnitten in einer eigenen
+// Schleife (Nummer über nach, die ersten limit), Weiter als Nummer des letzten, wenn danach noch eine folgt.
+func modellListe(alle []int, nach, limit int) ([]int, int) {
 	nums := []int{}
-	for q := 1; q <= n; q++ {
+	for _, q := range alle {
 		if q > nach && len(nums) < limit {
 			nums = append(nums, q)
 		}
 	}
 	weiter := 0
-	if len(nums) > 0 && nums[len(nums)-1] < n {
+	if len(nums) > 0 && nums[len(nums)-1] < alle[len(alle)-1] {
 		weiter = nums[len(nums)-1]
 	}
 	return nums, weiter
+}
+
+// setzeNummern legt die Session id mit Exchanges an, deren sequence_no nums sind (auch mit Lücken).
+func (f *fakeRecording) setzeNummern(id string, nums []int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.sitzungen[id] = []model.Exchange{}
+	for _, q := range nums {
+		f.sitzungen[id] = append(f.sitzungen[id], beispiel(id, q))
+	}
 }
 
 // gleichSeite vergleicht eine Seite mit dem Modell der Session aus n Exchanges.

@@ -114,7 +114,7 @@ Die Spalte `Nr.` trägt den Buchstaben der Art: `K` Konfiguration, `A` Kontext n
 | X13 | Lesen schreibt nichts: `Exchanges` ruft von `RecordingRepository` nur `ListBySession` (Nr. 1) | `FakeRecording` zählt jede Operation (`Append`, `Get`, `ListBySession`) bei Erfolg, Port-Fehler, Parameterfehler, `ctx` nil: `Append` und `Get` 0, Bestand nach dem Aufruf gleich dem davor | `Get` je Zeile; `Append` eines Vermerks | andere |
 | N1 | Akzeptierte Negative dieses Teils: die Größe einer Session (Schnitt im Speicher) und ein Geheimnis im Pfad (`SPEC-236` *Ungeprüft*) | kein Fänger; Grund und Folge in `SPEC-236` Nr. 4 und 5; die Gegenprobe in X12 hält den Pfad als sichtbar fest | – | andere |
 | W1 | Zählprüfung: die Wege von `Exchanges` und der Anteil von `New` (K1) im Quelltext sind die Zeilen dieser Tabelle (Aufrufe der Ports, Aufrufe der Abbildung, Stellen eines Argumentverstoßes) | Test mit `go/parser` über die Dateien des Pakets ohne `_test`: Zahl der Aufrufe über Felder von `Konfig`, der Aufrufe von `mitCode` und der Stellen, die `ErrUngueltig` bilden, gleich der Zahl der Wege der Tabelle des Tests (Name, Art, Nr. dieser Tabelle); `slice-inspection-coverage-diagnose` erweitert die Tabelle des Tests um seine Wege im selben Commit (`AGENTS.md` §3.9) | ein weiterer Port-Aufruf, eine weitere Stelle `ErrUngueltig` ohne Zeile | andere |
-| W2 | Gleichzeitige Aufrufe von `Exchanges` stören sich nicht, der Dienst hält keinen Zustand (Nr. 10) | 8 Goroutinen mit je 50 Aufrufen verschiedener Seiten zweier Sessions gegen einen Dienst; jedes Ergebnis gleich dem Modell der Session (`modellSeite`, nicht dem sequentiellen Lauf des Dienstes: ein Zustand im Dienst verfälschte auch diesen); `make test-race` je Prozess (`-test.count=1`) | der Dienst puffert die gelesene Liste in einem Feld: Detektor rot in 30 von 30 Prozessläufen (Bericht, §3); ein Cache der ersten gelesenen Liste: rot in 30 von 30 auch ohne Detektor | nebenläufig |
+| W2 | Gleichzeitige Aufrufe von `Exchanges` stören sich nicht, der Dienst hält keinen Zustand (Nr. 10) | Schleife über die Zweig-Menge W2 (jeder Weg von `Exchanges`, 41 Zweige: Erfolg, Weiter, Port-Fehler je Eintrag von `outbound.EintraegeAbbildung()` und ein anderer, Kappung, Limit 0, Limit unter 0, Nach unter 0, `ctx` nil, 5 Kontextfehler-Formen), je Zweig 8 Goroutinen mit je 20 Runden gegen einen Dienst; jedes Ergebnis gleich der Erwartung des Zweigs; Zählprüfung der Zweige gegen die Wege-Menge (`TestZweigeSindDieWege`); `make test-race` je Prozess (`-test.count=1`) | ein Schreibzugriff auf eine geteilte Variable je Zweig (15 Mutationen): Detektor rot in 20 von 20 Prozessläufen je Mutation (Bericht, §3) | nebenläufig |
 
 **Pflicht-Mengen** (`AGENTS.md` §3.15, §3.17, `implement-slice` Schritt 14): je Menge Achsen, Zahl der Elemente als Produkt, Generator, Orakel (nie der Dienst und nie sein Code), Zählprüfung gegen die Quelle der Menge (keine feste Zahl im Test), Prüfgrenze der unbeschränkten Menge. Die Mengen M-Coverage, M-Codes und M-Schlüssel führt `slice-inspection-coverage-diagnose`.
 
@@ -140,54 +140,146 @@ Jeder Weg läuft in einem Test des Pakets und damit unter `make test-race`; ein 
 |---|---|
 | K1, A1 | `TestNewExchangesNil`, `TestKontextNil` |
 | X1 | `TestSeitenparameterNegativ` |
-| X2, X3, X4 | `TestSeitenModell` (Menge M-Seite), `TestSeitenGoldens` (Zahlen statt Modell), `TestMengeSeiteZaehlung` (Zählprüfung der Achsen) |
-| X5 | `TestSeitenFolge` (Menge M-Seite, Folge ab jedem `Nach`; zweiter Aufruf gleich erstem) |
+| X2, X3, X4 | `TestSeitenModell` (Menge M-Seite), `TestSeitenGoldens` (Zahlen statt Modell), `TestMengeSeiteZaehlung` (Zählprüfung der Achsen), `TestGrenzenDesVertrags` (Standard 100 und Obergrenze 1000 als Literale des Tests: Limit 0, 1, 99, 100, 101, 500, 999, 1000, 1001, 1002, 1100, größter `int` bei Bestand 1100) |
+| X3, X5 | `TestSeitenFolge` (Menge M-Seite, Folge ab jedem `Nach`; zweiter Aufruf gleich erstem), `TestSequenzMitLuecken` (Nummern mit Lücken: der Zeiger ist der Wert der `sequence_no`) |
 | X6 | `TestAnhaengenZwischenSeiten` (Menge M-Bestand) |
 | X7, X8, X9, X10 | `TestKennungUnveraendert`, `TestKontextfehlerUnveraendert`, `TestFehlerDesPortsMitCode`, `TestKontextDesAufrufs` |
 | X11 | `TestAllowlistIstMengeDerFelder` (Reflexion), `TestFeldUnveraendert` (Schleife über die 15 enthaltenen Felder) |
 | X12 | `TestKeinGeheimnis` (9 Orte × 3 Kodierungen, Gegenprobe Pfad) |
 | X13 | `TestLesenSchreibtNichts` |
-| W1, W2 | `TestWegeImQuelltext` (`go/parser`), `TestGleichzeitig` |
+| W1, W2 | `TestWegeImQuelltext` (`go/parser`), `TestGleichzeitig` (Schleife über die Zweig-Menge W2), `TestZweigeSindDieWege` (Zählprüfung der Zweige) |
 
-*Mutationen, je Zusage rot gesehen.* Ein Lauf des Werkzeugs `tools/harness/mutationslauf.sh` (`SPEC-210`, Klasse `andere`, ein Prozess je Mutation, 4g, `--cpus=4`) über 65 Mutationen: alle 65 `rot`, keine `rot-paket`, keine `gruen`, keine `uebersetzungsfehler`; Last des Hosts beim Lauf etwa 9,7 bei 4 CPUs (Messender: der Implementer; Last: andere Läufe auf dem Host). Der Fänger ist der benannte Test, der Rest des Pakets lief mit (Stufe 2 nur bei grün). `x2-null-nicht-standard` wird über ein `panic` des Dienstes rot (Index in `schneide` bei `Limit` 0, das der Vertrag nie liefert); alle anderen über eine Meldung des Tests.
+*Mutationen, je Zusage rot gesehen.* Ein Lauf des Werkzeugs `tools/harness/mutationslauf.sh` (`SPEC-210`, Klasse `andere`, ein Prozess je Mutation, 4g, `--cpus=4`) über 65 Mutationen: alle 65 `rot`, keine `rot-paket`, keine `gruen`, keine `uebersetzungsfehler`; Last des Hosts beim Lauf etwa 9,7 bei 4 CPUs (Messender: der Implementer; Last: andere Läufe auf dem Host). Der Fänger ist der benannte Test, der Rest des Pakets lief mit (Stufe 2 nur bei grün). Nach dem Review lief die Liste mit den 30 neuen Mutationen (15 Klasse `andere`: `g1` bis `g6`, `l1`, `t1` bis `t4`, `z1` bis `z4`; 15 Klasse `nebenläufig`: `w-*`) noch einmal, 95 Mutationen: 80 der Klasse `andere` `rot` (zwei, `z3` und `z4`, waren zuerst `gruen`, weil `In` die monotone Ablesung der Fixture verwarf; nach der Änderung der Fixture in einem eigenen Lauf `rot`), 15 `flatternd` (nur mit Detektor rot, siehe Raten). Die Liste im Wortlaut steht am Ende dieses Abschnitts. `x2-null-nicht-standard` wird über ein `panic` des Dienstes rot (Index in `schneide` bei `Limit` 0, das der Vertrag nie liefert); alle anderen über eine Meldung des Tests.
 
 | Zusage | Mutation (Namen der Liste) | roter Test |
 |---|---|---|
 | K1 | Prüfung entfernt (`k1-pruefung-weg`) | `TestNewExchangesNil` |
 | A1 | Prüfung `ctx` nil entfernt (`a1-ctx-nil-pruefung-weg`) | `TestKontextNil` |
-| X1 | `<` zu `<=` bei `Nach` und bei `Limit`; Prüfung von `Nach`, von `Limit` entfernt; Text nennt einen Wert (`x1-*`, 5) | `TestSeitenparameterNegativ` |
-| X2 | Kappung entfernt; Kappung erst ab `MaxLimit + 1`, schon ab `MaxLimit - 1`; Standard + 1; 0 nicht auf Standard; `Limit` der Antwort 0 (`x2-*`, 6) | `TestSeitenModell` |
+| X1 | `<` zu `<=` bei `Nach` und bei `Limit`; Prüfung von `Nach`, von `Limit` entfernt; Text nennt einen Wert (`x1-*`, 5); der Text nennt den Wert -2 oder den kleinsten `int` bei `Nach` und bei `Limit` (`t1` bis `t4`, über ein Map-Literal, ohne Import) | `TestSeitenparameterNegativ` |
+| X2 | Kappung entfernt; Kappung erst ab `MaxLimit + 1`, schon ab `MaxLimit - 1`; Standard + 1; 0 nicht auf Standard; `Limit` der Antwort 0 (`x2-*`, 6); die Werte selbst: Standard 101, 99, 50, Obergrenze 1001, 1002, 999 (`g1` bis `g6`) | `TestSeitenModell`; die Werte `TestGrenzenDesVertrags` |
 | X3 | `>=` statt `>` im Filter; `Weiter` aus dem ersten Eintrag; Umkehr der Reihenfolge; `Eintraege` nil bei leerer Seite; `Gesamt` - 1 (`x3-*`, 5) | `TestSeitenModell` |
 | X4 | `Weiter` gesetzt, wenn die Seite genau bis zum Ende reicht; Fehler bei `Nach` über `Gesamt` (`x4-*`, 2) | `TestSeitenModell` |
 | X5 | `Weiter` um 1 zu klein (Doppelung), um 1 zu groß (Lücke) (`x5-*`, 2) | `TestSeitenFolge` |
+| X3, X5 | `Weiter` als `Nach` plus Zahl der Einträge statt `sequence_no` des letzten (`l1-weiter-nach-plus-len`) | `TestSequenzMitLuecken` |
 | X6 | Liste der ersten Antwort im Dienst gepuffert (Zustand zwischen Aufrufen; Werkzeug nicht möglich, weil zwei Textstellen, Einzellauf in Kopie `mA`) | `TestAnhaengenZwischenSeiten`: rot in 5 von 5 Prozessen ohne und 5 von 5 mit Detektor |
 | X7 | Kennung verlängert; Leerzeichen-Kennung zur leeren; zweiter Aufruf von `ListBySession` (`x7-*`, 3) | `TestKennungUnveraendert` |
 | X8 | Kontextfehler bekommt einen Code (`x8-kontextfehler-mit-code`) | `TestKontextfehlerUnveraendert` |
 | X9 | Gegenstand `Snapshot`; Status 0; Status des letzten statt des ersten; Ursache nil (`x9-*`, 4) | `TestFehlerDesPortsMitCode` |
 | X10 | `context.Background()` an den Port; `ctx.Err()` nach dem Aufruf geprüft (`x10-*`, 2) | `TestKontextDesAufrufs` |
-| X11 | je Feld der Allowlist ungesetzt (15, `f01` bis `f15`); `ID` aus `Method`; `Method` und `Path`, `StartedAt` und `FinishedAt`, die Bodies, die Redaction-Zustände getauscht; `SequenceNo` aus `ResponseStatus` (`v1` bis `v6`) | `TestFeldUnveraendert` |
+| X11 | je Feld der Allowlist ungesetzt (15, `f01` bis `f15`); `ID` aus `Method`; `Method` und `Path`, `StartedAt` und `FinishedAt`, die Bodies, die Redaction-Zustände getauscht; `SequenceNo` aus `ResponseStatus` (`v1` bis `v6`); `StartedAt` und `FinishedAt` nach UTC umgerechnet, die monotone Ablesung abgestreift (`z1` bis `z4`; die Fixture trägt beide Formen: lokale Zeit mit monotoner Ablesung und eine Zone ungleich UTC) | `TestFeldUnveraendert` |
 | X12 | je ausgeschlossenes Feld in den Pfad kopiert (7: `SessionID`, `RawQuery`, `MatchKey`, `RequestBlob`, `ResponseBlob`, `RequestHeaders` samt Namen und Werten, `ResponseHeaders` ebenso; `l1` bis `l7`) | `TestKeinGeheimnis` |
 | X13 | `Get` je Aufruf; `Append` eines Vermerks (`x13-*`, 2) | `TestLesenSchreibtNichts` |
 | W1 | ein weiterer Port-Aufruf, eine weitere Stelle `ErrUngueltig`, ein weiterer Aufruf von `mitCode`, je hinter `if false` (`w1-*`, 3) | `TestWegeImQuelltext` |
-| W2 | Liste in einem Feld des Dienstes abgelegt und von dort gelesen (Datenrennen, kein Wirkungsunterschied) | `TestGleichzeitig`: mit Detektor rot in 30 von 30 Prozessen (je `-test.count=1`), ohne Detektor 0 von 30 |
-| W2 | Cache der ersten gelesenen Liste (Wirkung: die zweite Session liest die Liste der ersten) | `TestGleichzeitig`: ohne Detektor 30 von 30, mit Detektor 30 von 30 |
+| W2 | je Zweig der Menge W2 ein Schreibzugriff auf eine geteilte Variable (15 Mutationen `w-*`: `ctx` nil, Nach unter 0, Limit unter 0, Port-Fehler in `Exchanges`, Erfolg, Kontextfehler in `mitCode`, Code in `mitCode`, Limit 0, Kappung, Limit sonst, Filter, Schnitt, Weiter gesetzt, Weiter 0, `zeile`) | `TestGleichzeitig`: mit Detektor rot in 20 von 20 Prozessen je Mutation (je `-test.count=1`), ohne Detektor 0 von 50 |
+| W2 | Liste in einem Feld des Dienstes abgelegt und von dort gelesen (Einzellauf in Kopie `mB`) | `TestGleichzeitig`: mit Detektor 30 von 30, ohne 0 von 30; Ausgangsstand 0 von 30 mit und ohne |
+| X6 | Cache der ersten gelesenen Liste (Einzellauf in Kopie `mA`) | `TestAnhaengenZwischenSeiten`: 5 von 5 ohne und 5 von 5 mit Detektor |
 
-Raten: Messender der Implementer, Last des Hosts beim Lauf 5,8 bis 19,9 bei 4 CPUs (andere Rollen und `make gates` anderer Zweige liefen auf dem Host). Der Ausgangsstand ist in 30 von 30 Prozessen mit Detektor und in 30 von 30 ohne grün (0 rot). Die W2-Zusage „kein Zustand im Dienst“ ist durch den Detektor nur für das Datenrennen gefangen (30 von 30); ein Zustand ohne Rennen (die Liste nur lesend zwischen Aufrufen) fängt der Wirkungs-Fänger der zweiten Session, wiederum 30 von 30. Es gibt kein Fenster zwischen Prüfen und Handeln (`SPEC-236` Nr. 10), also keine Zeile je Fenster.
+Raten: Messender der Implementer; Last des Hosts bei den Läufen der 15 Mutationen `w-*` 7,3 bis 15,1 bei 4 CPUs, bei den Einzelläufen 8,0 bis 9,9 (andere Rollen und `make gates` anderer Zweige liefen auf dem Host). Die 15 Mutationen `w-*` liefen im Werkzeug (Klasse `nebenläufig`, 20 Prozesse mit Detektor, 50 ohne): mit Detektor 20 von 20 je Mutation, ohne Detektor 0 von 50, Ergebnis `flatternd` (rot nur mit Detektor, wie bei einem Datenrennen ohne Wirkung). Der Ausgangsstand ist in 30 von 30 Prozessen mit und in 30 von 30 ohne Detektor grün. Ein Zustand mit Wirkung (der Cache einer Liste) fängt `TestAnhaengenZwischenSeiten` (X6), nicht mehr `TestGleichzeitig`; die Rate steht in der Tabelle oben. Es gibt kein Fenster zwischen Prüfen und Handeln (`SPEC-236` Nr. 10), also keine Zeile je Fenster. Abdeckung des Tests allein (`go test -race -run 'TestGleichzeitig|TestZweigeSindDieWege' -coverprofile`): 97,1 % der Anweisungen; `mitCode`, `Exchanges`, `wirksamesLimit`, `schneide` und `zeile` je 100,0 %, `New` 66,7 % (der Zweig mit nil läuft nicht gleichzeitig: `New` liest keinen Zustand und läuft nur im Aufbau). Der Rest des Pakets (alle Zweige nacheinander) 100,0 %.
 
 *Mengen* (`implement-slice` Schritt 14, `AGENTS.md` §3.17): jede Menge ist eine Schleife, die Zählprüfung hält die Zahl gegen die Quelle der Menge, nie gegen eine feste Zahl; das Orakel ist nie der Dienst.
 
 | Menge | Achsen und Elemente | Generator und Orakel | Zählprüfung | Mutation an einem Element je Achse, rot gesehen |
 |---|---|---|---|---|
-| M-Seite | `Limit` 7 × Bestand 7 × `Nach` 6 = 294, nach dem Entfernen gleicher Fälle und ungültiger Zeiger (`n - 1` bei `n` gleich 0) 236 | `seitenFaelle`; Orakel `modellSeite` (eigene Schleife, Konstanten aus dem Paket) | `TestMengeSeiteZaehlung`: Produkt der Längen der Achsen gleich der Zahl vor dem Entfernen; der Fall der leeren Session je `Limit` | `Limit`: Kappung erst über `MaxLimit + 1` (`x2-kappung-erst-ueber-max-plus-1`); Bestand: `Eintraege` nil bei n gleich 0 (`x3-eintraege-nil`); `Nach`: `Weiter` um 1 zu klein, die Folge ab `Nach` doppelt (`x5-weiter-minus-1`) |
+| M-Seite | `Limit` 7 × Bestand 7 × `Nach` 6 = 294, nach dem Entfernen gleicher Fälle und ungültiger Zeiger (`n - 1` bei `n` gleich 0) 236 | `seitenFaelle`; Orakel `modellSeite` (eigene Schleife, die Grenzen 100 und 1000 als Literale des Tests aus `SPEC-236` Nr. 3, nie aus dem Paket) | `TestMengeSeiteZaehlung`: Produkt der Längen der Achsen gleich der Zahl vor dem Entfernen; der Fall der leeren Session je `Limit` | `Limit`: Kappung erst über `MaxLimit + 1` (`x2-kappung-erst-ueber-max-plus-1`); Bestand: `Eintraege` nil bei n gleich 0 (`x3-eintraege-nil`); `Nach`: `Weiter` um 1 zu klein, die Folge ab `Nach` doppelt (`x5-weiter-minus-1`); Grenzwerte der Achse `Limit` (`TestGrenzenDesVertrags`, 12 Werte): Obergrenze 1002 (`g5-max-1002`, in der Fassung vor der Fix-Runde nicht genannt) |
+| M-Lücken | Nummernfolgen 4 × Limit 4 × Zeiger je Folge (0, hinter der letzten, je Nummer davor, auf und hinter ihr) | `TestSequenzMitLuecken`; Orakel `modellListe` (eigene Schleife über die Nummern) | die Zahl der Fälle gleich dem Zähler der Schleifen; mindestens ein Fall | `l1-weiter-nach-plus-len`; Prüfgrenze: der Port liefert keine Lücken (`SPEC-105` Nr. 8), die Menge prüft allein, dass der Dienst nach dem Wert filtert |
+| M-Zweig (W2) | 8 feste Zweige + 5 Formen des Kontextfehlers + 28 Fehler mit Code (27 Einträge der Abbildung und ein anderer) = 41; je Zweig 8 Goroutinen × 20 Runden | `zweige`, Erwartung `pruefe` je Art (Seite gegen `modellSeite`, ungültig, Kontextfehler gleicher Wert, Code) | `TestZweigeSindDieWege`: die Wege der Zweige gleich `wegeExchanges` (13 Wege), Fehler mit Code gleich `EintraegeAbbildung()` plus 1, Kontextfehler 5 | 15 Schreibzugriffe `w-*`, je einer in einem Zweig, darunter die im Review nicht genannten: Kontextfehler in `mitCode`, Weiter 0, Filter, Schnitt, Limit sonst, `zeile`; je 20 von 20 mit Detektor |
 | M-Bestand | k 4 × Zeitpunkt 2 × n 5 = 40 | Schleife in `TestAnhaengenZwischenSeiten`; Orakel: `bereich(1, n + k)`, die Nachlese holt, was die Folge nicht erreicht | die Zahl der gelaufenen Fälle gleich dem Produkt der Längen der Achsen | nur eine, für alle drei Achsen: Cache der ersten Liste im Dienst, rot in 5 von 5 Prozessen; eine Mutation je Achse gibt es nicht, weil der Dienst jeden Stand neu liest und Zustand zwischen Aufrufen die einzige Art Fehler ist, die das Anhängen betrifft (akzeptiertes Negativ, Folge: ein Fehler allein bei k gleich `L + 1` bliebe ungefangen) |
 | M-Feld | X11: 15 enthaltene Felder (Reflexion über `model.Exchange`); X12: 9 Orte × 3 Kodierungen = 27, in 3 Seiten je Ort | `TestFeldUnveraendert` (Orakel `erwartet`: Kopie nach Namen per Reflexion), `orte`, `kodierungen` | enthaltene + ausgeschlossene Felder gleich `NumField` von `model.Exchange`; Felder von `ExchangeZeile` gleich den enthaltenen mit demselben Typ; Orte gleich den ausgeschlossenen Feldern (Header mit zwei Orten) | Feld: alle 15 ungesetzt (`f01` bis `f15`); Ort: alle 7 ausgeschlossenen Felder (`l1` bis `l7`); Kodierung: keine (die Gegenprobe im Pfad hält alle drei als sichtbar fest) |
 | M-Fehler | 27 Einträge von `outbound.EintraegeAbbildung()` + 1 anderer Fehler = 28; 5 Formen des Kontextfehlers; 3 Zustände von `ctx` | `tabelleSession` (abgeschrieben aus `SPEC-109` Nr. 5, nicht der Aufruf von `Abbilden`) | Namen der Tabelle des Tests gleich `EintraegeAbbildung()` plus dem anderen Fehler | Fehler: Gegenstand `Snapshot`; Kontextfehler: Code für den Kontextfehler; Zustand: `ctx.Err()` danach |
 
-Prüfgrenzen (akzeptierte Negative, Grund und Folge im Plan oben, Tabelle *Pflicht-Mengen*): Bestand bis 2 · `MaxLimit` + 1; drei Kodierungen des Canary; fünf Formen des Kontextfehlers. Die Mutation `x1-text-nennt-wert` prüft allein den Wert -1 im Text; für -2 und den kleinsten `int` fehlt die Mutation, weil die Erzeugung eines Textes mit dem Wert in der Wegwerfkopie einen Import brauchte. Folge: ein Text, der nur einen dieser Werte nennt, bliebe ungefangen; der Test selbst schleift über alle drei Werte.
+Prüfgrenzen (akzeptierte Negative, Grund und Folge im Plan oben, Tabelle *Pflicht-Mengen*): Bestand bis 2 · `MaxLimit` + 1; drei Kodierungen des Canary; fünf Formen des Kontextfehlers. Ein Text, der den Wert -2 oder den kleinsten `int` nennt, ist gefangen (`t1` bis `t4`); ein benanntes Negativ dazu gibt es nicht. Benannte Grenze von `TestWegeImQuelltext` (W1): er zählt Aufrufe über Felder von `Konfig`, Aufrufe von `mitCode` und Stellen `ErrUngueltig`; ein Port-Aufruf über eine lokale Variable und ein Aufruf von `Abbilden` ohne `mitCode` zählen nicht. Folge: ein solcher Weg ohne Zeile bliebe vom Zähler ungesehen; `Get` und `Append` fängt `TestLesenSchreibtNichts` zur Laufzeit, ein Fehler ohne Code bliebe nur durch `TestFehlerDesPortsMitCode` gefangen.
 
-*Abdeckung* (Register `zweig-ohne-lauf-unter-dem-detektor`): `go test -race -cover` über das Paket: 100,0 % der Anweisungen, je Funktion 100,0 % (`mitCode`, `New`, `ctxNil`, `Exchanges`, `wirksamesLimit`, `schneide`, `zeile`); jeder Zweig läuft unter dem Detektor.
+*Abdeckung* (Register `zweig-ohne-lauf-unter-dem-detektor`): `go test -race -cover` über das Paket: 100,0 % der Anweisungen, je Funktion 100,0 % (`mitCode`, `New`, `ctxNil`, `Exchanges`, `wirksamesLimit`, `schneide`, `zeile`); jeder Zweig läuft unter dem Detektor, und `TestGleichzeitig` führt ihn gleichzeitig aus (Abdeckung des Tests allein bei den Raten).
 
 *Zeichen* (`AGENTS.md` §3.18): die geschriebenen Dateien `src/hexagon/ports/inbound/inspection.go` und `src/hexagon/services/inspection/*.go` sind auf Rohbytes gegengelesen (`LC_ALL=C grep -P` auf Backslash-u-Folge, BOM, NBSP, Nullbreiten- und Trennzeichen: kein Treffer); Werte jenseits von ASCII entstehen aus Bytewerten (`string([]byte{0xc3, 0xa4})`, der Canary aus `[]byte{0x4b, ...}`).
+
+*Mutationsliste im Wortlaut* (reproduzierbar: eine Zeile je Mutation, `Kennung | Datei | alt => neu`; die Datei ist `inspektion` oder `fehler` im Paket des Dienstes, `⏎` ist ein Zeilenumbruch, Einrückung und die Anführungszeichen des JSON sind weggelassen, rechts von `=>` nichts heißt Löschung; `alt` kommt in der Datei genau einmal vor; die Zeilen werden in die Felder `alt` und `neu` einer Liste nach `SPEC-210` Nr. 2 übernommen, Test und Klasse stehen in der Tabelle oben):
+
+```text
+k1-pruefung-weg | inspektion | if k.Exchanges == nil { => if false {
+a1-ctx-nil-pruefung-weg | inspektion | if ctx == nil {⏎return inbound.ExchangeSeite{}, ctxNil()⏎}⏎ =>
+x1-nach-kleiner-gleich | inspektion | seite.Nach < 0 => seite.Nach <= 0
+x1-limit-kleiner-gleich | inspektion | seite.Limit < 0 => seite.Limit <= 0
+x1-nach-pruefung-weg | inspektion | if seite.Nach < 0 {⏎return inbound.ExchangeSeite{}, errors.Join(model.ErrUngueltig, errors.New("Nach ist negativ"))⏎}⏎ =>
+x1-limit-pruefung-weg | inspektion | if seite.Limit < 0 {⏎return inbound.ExchangeSeite{}, errors.Join(model.ErrUngueltig, errors.New("Limit ist negativ"))⏎}⏎ =>
+x1-text-nennt-wert | inspektion | errors.New("Nach ist negativ") => errors.New("Nach ist negativ: -1")
+x2-kappung-weg | inspektion | case limit > MaxLimit:⏎return MaxLimit⏎ =>
+x2-kappung-erst-ueber-max-plus-1 | inspektion | limit > MaxLimit: => limit > MaxLimit+1:
+x2-kappung-ab-max-minus-1 | inspektion | limit > MaxLimit: => limit >= MaxLimit-1:
+x2-standard-plus-1 | inspektion | return StandardLimit => return StandardLimit + 1
+x2-null-nicht-standard | inspektion | case limit == 0:⏎return StandardLimit⏎ =>
+x2-limit-antwort-null | inspektion | Limit: limit, => Limit: 0,
+x3-filter-kleiner | inspektion | e.SequenceNo <= nach => e.SequenceNo < nach
+x3-weiter-aus-erstem | inspektion | seite.Eintraege[len(seite.Eintraege)-1].SequenceNo => seite.Eintraege[0].SequenceNo
+x3-reihenfolge-umgekehrt | inspektion | return schneide(alle, seite.Nach, wirksamesLimit(seite.Limit)), nil => for i, j := 0, len(alle)-1; i < j; i, j = i+1, j-1 {⏎alle[i], alle[j] = alle[j], alle[i]⏎}⏎return schneide(alle, seite.Nach, wirksamesLimit(seite.Limit)), nil
+x3-eintraege-nil | inspektion | Eintraege: []inbound.ExchangeZeile{}, => Eintraege: nil,
+x3-gesamt-minus-1 | inspektion | Gesamt: len(alle)} => Gesamt: len(alle) - 1}
+x4-weiter-bei-gleich | inspektion | if rest { => if rest || len(seite.Eintraege) == limit {
+x4-fehler-bei-nach-ueber-gesamt | inspektion | return schneide(alle, seite.Nach, wirksamesLimit(seite.Limit)), nil => if seite.Nach > len(alle) {⏎return inbound.ExchangeSeite{}, mitCode(outbound.ErrNichtGefunden, outbound.GegenstandSession)⏎}⏎return schneide(alle, seite.Nach, wirksamesLimit(seite.Limit)), nil
+x5-weiter-minus-1 | inspektion | seite.Weiter = seite.Eintraege[len(seite.Eintraege)-1].SequenceNo => seite.Weiter = seite.Eintraege[len(seite.Eintraege)-1].SequenceNo - 1
+x5-weiter-plus-1 | inspektion | seite.Weiter = seite.Eintraege[len(seite.Eintraege)-1].SequenceNo => seite.Weiter = seite.Eintraege[len(seite.Eintraege)-1].SequenceNo + 1
+x7-kennung-verlaengert | inspektion | ListBySession(ctx, sessionID) => ListBySession(ctx, sessionID+"x")
+x7-leerzeichen-id-leer | inspektion | alle, err := s.k.Exchanges.ListBySession(ctx, sessionID) => if sessionID == " " {⏎sessionID = ""⏎}⏎alle, err := s.k.Exchanges.ListBySession(ctx, sessionID)
+x7-zweiter-aufruf | inspektion | alle, err := s.k.Exchanges.ListBySession(ctx, sessionID) => alle, err := s.k.Exchanges.ListBySession(ctx, sessionID)⏎if err == nil {⏎_, err = s.k.Exchanges.ListBySession(ctx, sessionID)⏎}
+x13-get-je-aufruf | inspektion | alle, err := s.k.Exchanges.ListBySession(ctx, sessionID) => _, _ = s.k.Exchanges.Get(ctx, sessionID)⏎alle, err := s.k.Exchanges.ListBySession(ctx, sessionID)
+x13-append-vermerk | inspektion | alle, err := s.k.Exchanges.ListBySession(ctx, sessionID) => _ = s.k.Exchanges.Append(ctx, model.Exchange{SessionID: sessionID})⏎alle, err := s.k.Exchanges.ListBySession(ctx, sessionID)
+x8-kontextfehler-mit-code | fehler | if !ok {⏎return err⏎} => if !ok {⏎c, ok = outbound.Abbilden(outbound.ErrNichtGefunden, g)⏎}
+x9-gegenstand-snapshot | inspektion | outbound.GegenstandSession => outbound.GegenstandSnapshot
+x9-status-null | fehler | Status: c.Stati()[0], => Status: 0,
+x9-status-letzter | fehler | Status: c.Stati()[0], => Status: c.Stati()[len(c.Stati())-1],
+x9-ursache-nil | fehler | Ursache: err} => Ursache: nil}
+x10-background-an-den-port | inspektion | ListBySession(ctx, sessionID) => ListBySession(context.Background(), sessionID)
+x10-ctx-err-danach | inspektion | if err != nil {⏎return inbound.ExchangeSeite{}, mitCode(err, outbound.GegenstandSession)⏎}⏎ => if err == nil {⏎err = ctx.Err()⏎}⏎if err != nil {⏎return inbound.ExchangeSeite{}, mitCode(err, outbound.GegenstandSession)⏎}⏎
+f01-id-ungesetzt | inspektion | ID: e.ID,  =>
+f02-sequenceno-ungesetzt | inspektion | SequenceNo: e.SequenceNo,  =>
+f03-method-ungesetzt | inspektion | Method: e.Method,  =>
+f04-path-ungesetzt | inspektion | Path: e.Path, =>
+f05-startedat-ungesetzt | inspektion | StartedAt: e.StartedAt,  =>
+f06-finishedat-ungesetzt | inspektion | FinishedAt: e.FinishedAt,  =>
+f07-keyredacted-ungesetzt | inspektion | KeyRedacted: e.KeyRedacted, =>
+f08-requestbody-ungesetzt | inspektion | RequestBody: e.RequestBody,  =>
+f09-responsebody-ungesetzt | inspektion | ResponseBody: e.ResponseBody,  =>
+f10-responsestatus-ungesetzt | inspektion | ResponseStatus: e.ResponseStatus, =>
+f11-capture-ungesetzt | inspektion | Capture: e.Capture,  =>
+f12-requestredact-ungesetzt | inspektion | RequestRedact: e.RequestRedact,  =>
+f13-responseredact-ungesetzt | inspektion | ResponseRedact: e.ResponseRedact, =>
+f14-integrity-ungesetzt | inspektion | Integrity: e.Integrity,  =>
+f15-equivalence-ungesetzt | inspektion | Equivalence: e.Equivalence, =>
+v1-id-aus-method | inspektion | ID: e.ID,  => ID: e.Method, 
+v2-method-path-getauscht | inspektion | Method: e.Method, Path: e.Path, => Method: e.Path, Path: e.Method,
+v3-zeiten-getauscht | inspektion | StartedAt: e.StartedAt, FinishedAt: e.FinishedAt, => StartedAt: e.FinishedAt, FinishedAt: e.StartedAt,
+v4-bodies-getauscht | inspektion | RequestBody: e.RequestBody, ResponseBody: e.ResponseBody, => RequestBody: e.ResponseBody, ResponseBody: e.RequestBody,
+v5-redact-getauscht | inspektion | RequestRedact: e.RequestRedact, ResponseRedact: e.ResponseRedact, => RequestRedact: e.ResponseRedact, ResponseRedact: e.RequestRedact,
+v6-sequenceno-aus-status | inspektion | SequenceNo: e.SequenceNo,  => SequenceNo: e.ResponseStatus, 
+l1-sessionid-im-pfad | inspektion | Path: e.Path, => Path: e.Path + e.SessionID,
+l2-rawquery-im-pfad | inspektion | Path: e.Path, => Path: e.Path + e.RawQuery,
+l3-matchkey-im-pfad | inspektion | Path: e.Path, => Path: e.Path + e.MatchKey,
+l4-requestblob-im-pfad | inspektion | Path: e.Path, => Path: e.Path + e.RequestBlob,
+l5-responseblob-im-pfad | inspektion | Path: e.Path, => Path: e.Path + e.ResponseBlob,
+l6-requestheaders-im-pfad | inspektion | Path: e.Path, => Path: func() string { s := e.Path; for k, v := range e.RequestHeaders { s += k; for _, x := range v { s += x } }; return s }(),
+l7-responseheaders-im-pfad | inspektion | Path: e.Path, => Path: func() string { s := e.Path; for k, v := range e.ResponseHeaders { s += k; for _, x := range v { s += x } }; return s }(),
+w1-weiterer-port-aufruf | inspektion | alle, err := s.k.Exchanges.ListBySession(ctx, sessionID) => if false {⏎_, _ = s.k.Exchanges.Get(ctx, sessionID)⏎}⏎alle, err := s.k.Exchanges.ListBySession(ctx, sessionID)
+w1-weitere-stelle-ungueltig | inspektion | alle, err := s.k.Exchanges.ListBySession(ctx, sessionID) => if false {⏎return inbound.ExchangeSeite{}, model.ErrUngueltig⏎}⏎alle, err := s.k.Exchanges.ListBySession(ctx, sessionID)
+w1-weiterer-mitcode | inspektion | alle, err := s.k.Exchanges.ListBySession(ctx, sessionID) => if false {⏎return inbound.ExchangeSeite{}, mitCode(nil, outbound.GegenstandSession)⏎}⏎alle, err := s.k.Exchanges.ListBySession(ctx, sessionID)
+g1-standard-101 | inspektion | StandardLimit = 100 => StandardLimit = 101
+g2-standard-50 | inspektion | StandardLimit = 100 => StandardLimit = 50
+g3-max-1001 | inspektion | MaxLimit      = 1000 => MaxLimit      = 1001
+g4-max-999 | inspektion | MaxLimit      = 1000 => MaxLimit      = 999
+g5-max-1002 | inspektion | MaxLimit      = 1000 => MaxLimit      = 1002
+g6-standard-99 | inspektion | StandardLimit = 100 => StandardLimit = 99
+l1-weiter-nach-plus-len | inspektion | seite.Weiter = seite.Eintraege[len(seite.Eintraege)-1].SequenceNo => seite.Weiter = nach + len(seite.Eintraege)
+t1-nach-text-minus-2 | inspektion | errors.New("Nach ist negativ") => errors.New("Nach ist negativ"+map[int]string{-2: " -2"}[seite.Nach])
+t2-nach-text-minint | inspektion | errors.New("Nach ist negativ") => errors.New("Nach ist negativ"+map[int]string{-9223372036854775808: " -9223372036854775808"}[seite.Nach])
+t3-limit-text-minus-2 | inspektion | errors.New("Limit ist negativ") => errors.New("Limit ist negativ"+map[int]string{-2: " -2"}[seite.Limit])
+t4-limit-text-minint | inspektion | errors.New("Limit ist negativ") => errors.New("Limit ist negativ"+map[int]string{-9223372036854775808: " -9223372036854775808"}[seite.Limit])
+z1-startedat-utc | inspektion | StartedAt: e.StartedAt,  => StartedAt: e.StartedAt.UTC(), 
+z2-finishedat-utc | inspektion | FinishedAt: e.FinishedAt,  => FinishedAt: e.FinishedAt.UTC(), 
+z3-startedat-round0 | inspektion | StartedAt: e.StartedAt,  => StartedAt: e.StartedAt.Round(0), 
+z4-finishedat-round0 | inspektion | FinishedAt: e.FinishedAt,  => FinishedAt: e.FinishedAt.Round(0), 
+w-* (15, Klasse nebenläufig, 20 Prozesse mit Detektor) | je Zweig eine Zeile `s.k = s.k` (ctx nil, Nach unter 0, Limit unter 0, Port-Fehler, Erfolg in Exchanges) oder `geteilt++` mit der Deklaration `var geteilt int` hinter der Funktion (Kontextfehler und Code in mitCode, Limit 0, Kappung, Limit sonst in wirksamesLimit; Filter, Schnitt, Weiter gesetzt, Weiter 0 in schneide; zeile) in dem Zweig
+X6 Zustand: ein Feld puffer []model.Exchange in Inspektion; Exchanges liest ListBySession nur, wenn puffer nil ist, und legt das Ergebnis dort ab
+W2 Datenrennen: dasselbe Feld, in jedem Aufruf geschrieben (s.puffer = alle) und von dort geschnitten
+```
 
 **Betriebsregeln für alle Rollen dieses Slice** (Lehren der Läufe vom 2026-10-24; sie stehen im Plan, damit ein Lauf sie am Arbeitsort liest):
 
@@ -299,7 +391,7 @@ dasteht.
 - Geheimnisse in Exchanges: die Allowlist der Felder (`SPEC-236` Nr. 5) ist der Schutz, der Fänger ist X12 (`TestKeinGeheimnis`, umgesetzt, 7 Mutationen rot); der Fänger über alle Artefakte ist der Canary-Test in `slice-test-security` — **Ausgang:** weiter offen bis zur Closure; Adresse: Reviewer.
 - `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×) und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` (4×): `FakeRecording` trägt jede Schnittstelle des Originals und zählt jeden Aufruf — **Ausgang:** weiter offen → `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` im Register.
 - Größe: die Schätzung des ungeschnittenen Plans lag über der Schnittgrenze, der Schnitt ist vollzogen (§4, *Schnitt*); die Marke dieses Teils steht im Block (Planner, 2026-11-07, Schnitt-Commit als `basis`) — **Ausgang:** entfallen (Marke gesetzt); die Messung steht bei der Closure.
-- Der Vertrag `SPEC-236` gilt für beide Teile, dieser Teil liefert `Exchanges` und `Konfig` mit dem Feld `Exchanges`; `Coverage`, `Diagnose` und die übrigen Felder (`SPEC-236` Nr. 1, 6, 7) fehlen im Code bis zur Closure von `slice-inspection-coverage-diagnose`, und kein Gate prüft diese Lücke (`SPEC-236` *Ungeprüft*) — **Ausgang:** weiter offen; Adresse: `slice-inspection-coverage-diagnose`.
+- Der Vertrag `SPEC-236` gilt für beide Teile, dieser Teil liefert `Exchanges` und `Konfig` mit dem Feld `Exchanges`; `Coverage`, `Diagnose` und die übrigen Felder (`SPEC-236` Nr. 1, 6, 7) fehlen im Code bis zur Closure von `slice-inspection-coverage-diagnose`, und kein Gate prüft diese Lücke (die Lücke steht allein hier und in §1; `SPEC-236` *Ungeprüft* nennt sie nicht, der Zitatort ist berichtigt) — **Ausgang:** weiter offen; Adresse: `slice-inspection-coverage-diagnose`.
 - Doku-Update `SPEC-109` Nr. 5, Absatz *Anwendung* (Rückgabe 2 des Architect): der Satz zu `InspectionUseCase` fehlt; dieser Zweig ändert die Stelle nicht, weil `slice-mock-zuordnung` (Linie B) `SPEC-109` Nr. 5 und 6 ändert — **Ausgang:** offen; Adresse: Planner im Integrationsschritt (Merge-Commit): Gegenstand `Session` bei `Exchanges` (`SPEC-236` Nr. 8); der Satz für `Coverage` folgt mit `slice-inspection-coverage-diagnose`.
 - Zählen der Fehler mit Code (Rückgabe 4, `SPEC-230` Nr. 8): der Dienst erhält nie `Telemetry` und zählt `ODR-E7003` nicht — **Ausgang:** entfallen für diesen Slice; die Sendung an den Rahmen des Admin-Listeners ist in `slice-admin-listener-token` getragen (§1 *Übernimmt*, DoD, Start-Trigger, Planner, 2026-11-07).
 - Parameter `limit`, `after` und die Antwort auf einen ungültigen Wert (Rückgabe 3): der Use Case liefert `model.ErrUngueltig` ohne Code, die Spezifikation hat dafür keinen Code und keinen Status — **Ausgang:** entfallen für diesen Slice; getragen in `slice-admin-sessions` (§1 *Übernimmt*, DoD Punkt 2, Auftrag 4, §6) und im Code für `model.ErrUngueltig` aus `slice-admin-listener-token` (Planner, 2026-11-07).
