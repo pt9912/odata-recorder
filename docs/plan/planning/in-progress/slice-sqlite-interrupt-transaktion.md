@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-108` Nr. 1 (Transaktion: „ein abgebrochener Kontext“, Atomarität jeder Operation in `f`) · `SPEC-105` und `SPEC-107` (Nr. 12 des Vertrags der Repositories: abgebrochener Kontext beendet jede Operation mit dem Fehler des Kontexts, ohne eine Änderung) · `SPEC-109` Nr. 5 (Fehlerabbildung) · `SPEC-004` (Persistenzschema, unverändert). Der Architect nennt die Stelle, an der die Fehlerabbildung bei Kontext-Abbruch in der Transaktion steht.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** — bis zum Start (siehe §4).
+**Verantwortlich:** pt9912 (Zweig `slice-sqlite-interrupt-transaktion`, Worktree `/Development/odata-recorder-wt-sqlite-interrupt`; der Zweig entsteht nach dem Start-Commit von `main`)
 
 **Autor:** pt9912. **Datum:** 2026-11-07.
 
