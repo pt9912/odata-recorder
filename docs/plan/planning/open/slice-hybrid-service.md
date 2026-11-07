@@ -123,12 +123,12 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-fallback-policy`, `slice-mock-lesen`, `slice-mock-schreiben` und `slice-replay-service` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-fallback-policy`, `slice-mock-zuordnung`, `slice-mock-lesen`, `slice-mock-schreiben` und `slice-replay-service` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Warum diese vier:**
 
 - `slice-fallback-policy`: Typen und Entscheidungsfunktion, die der Dienst ruft (*Code-Abhängigkeit*).
-- `slice-mock-lesen`: legt den Inbound Port `MockUseCase` an (er liegt heute nicht in `src/hexagon/ports/inbound/`) und liefert `ODR-E6001` und `ODR-E6003`, nach denen der Dienst entscheidet (*Code-Abhängigkeit, Port*).
+- `slice-mock-zuordnung` und `slice-mock-lesen` (die beiden Teile des geschnittenen Plans): `slice-mock-zuordnung` legt den Inbound Port `MockUseCase` an (er liegt heute nicht in `src/hexagon/ports/inbound/`) und liefert `ODR-E6001`; `slice-mock-lesen` liefert `ODR-E6003`, nach dem der Dienst mit `ODR-E6001` entscheidet (*Code-Abhängigkeit, Port*).
 - `slice-mock-schreiben`: legt fest, welche Mutationen der Mock mit `ODR-E6002` als nicht unterstützt abweist; ohne diesen Vertrag hat die Zeile „POST auf eine nicht unterstützte Operation“ der Matrix keinen Boden (*Vertrags-Abhängigkeit*, keine Typ-Abhängigkeit).
 - `slice-replay-service`: legt den Inbound Port `ReplayUseCase` an (heute nicht vorhanden) und liefert `ODR-E5001`, `ODR-E5002` und `ODR-E5003` (*Code-Abhängigkeit, Port*).
 
