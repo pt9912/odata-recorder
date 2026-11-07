@@ -4,6 +4,7 @@ package admin_test
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -67,19 +68,69 @@ func TestKeineAusgabe(t *testing.T) {
 	neu := filepath.Join(t.TempDir(), "admin.token")
 	gueltig := filepath.Join(t.TempDir(), "admin.token")
 	schreibe(t, gueltig, hex64(), 0o600)
+	// Die übrigen Gründe: nicht lesbar (drei Formen von Stat-Fehlern), nicht anlegbar (zwei Formen) und der Weg des
+	// Verlierers (fs.ErrExist, dann ladeVorhandene) mit gültiger Datei, Symlink ohne Ziel und Rechteverstoß.
+	dir := t.TempDir()
+	schreibe(t, filepath.Join(dir, "datei"), hex64(), 0o600)
+	if err := os.Symlink(filepath.Join(dir, "b"), filepath.Join(dir, "a")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "a"), filepath.Join(dir, "b")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "ohne-ziel"), filepath.Join(dir, "ziellos")); err != nil {
+		t.Fatal(err)
+	}
+	zusatz := []verstoss{
+		{"Pfadelement ist Datei", filepath.Join(dir, "datei", "x"), gNichtLesbar},
+		{"Symlinkschleife", filepath.Join(dir, "a"), gNichtLesbar},
+		{"NUL im Pfad", filepath.Join(dir, "x") + "\x00y", gNichtLesbar},
+		{"Eltern fehlt", filepath.Join(dir, "fehlt", "x", "admin.token"), gNichtAnlegbar},
+		{"Pfadelement ist Symlink ohne Ziel", filepath.Join(dir, "ziellos", "admin.token"), gNichtAnlegbar},
+	}
+	gruende := map[string]bool{}
 	aufrufe := 0
+	zaehle := func(err error) {
+		aufrufe++
+		var tf *admin.TokenFehler
+		if errors.As(err, &tf) {
+			gruende[tf.Grund] = true
+		}
+	}
+	verlierer := func(name string, halt func(pfad string)) {
+		pfad := filepath.Join(t.TempDir(), "admin.token")
+		_, err := admin.LadeMitHaltepunkten(pfad, nil, func(string) { halt(pfad) })
+		zaehle(err)
+	}
 	aus, fehl, logs := erfasse(t, func() {
 		for _, p := range []string{neu, gueltig, neu} {
-			_, _ = admin.LadeToken(p)
-			aufrufe++
+			_, err := admin.LadeToken(p)
+			zaehle(err)
 		}
-		for _, v := range vs {
-			_, _ = mitFrist(t, v.name, func() ([]byte, error) { return admin.LadeToken(v.pfad) })
-			aufrufe++
+		for _, v := range append(vs, zusatz...) {
+			_, err := mitFrist(t, v.name, func() ([]byte, error) { return admin.LadeToken(v.pfad) })
+			zaehle(err)
+			if v.grund == gNichtAnlegbar || v.grund == gNichtLesbar {
+				if _, lerr := os.Lstat(filepath.Join(dir, "fehlt")); lerr == nil {
+					t.Errorf("%s: es entstand ein Verzeichnis", v.name)
+				}
+			}
 		}
+		verlierer("gültig", func(p string) { _, _ = admin.LadeToken(p) })
+		verlierer("Symlink ohne Ziel", func(p string) { _ = os.Symlink(filepath.Join(filepath.Dir(p), "ohne-ziel"), p) })
+		verlierer("Rechte", func(p string) {
+			_ = os.WriteFile(p, []byte(hex64()), 0o644)
+			_ = os.Chmod(p, 0o644)
+		})
 	})
-	if aufrufe != 3+29 {
-		t.Fatalf("%d Aufrufe, erwartet 32", aufrufe)
+	if aufrufe != 3+29+5+3 {
+		t.Fatalf("%d Aufrufe, erwartet 40", aufrufe)
+	}
+	sieben := []string{gNichtLesbar, gVerzeichnis, gKeineDatei, gRechte, gMehrZeilen, gZuKurz, gNichtAnlegbar}
+	for _, g := range sieben {
+		if !gruende[g] {
+			t.Errorf("Grund %q kam in keinem Aufruf vor", g)
+		}
 	}
 	if aus != "" || fehl != "" || logs != "" {
 		t.Errorf("Ausgabe: stdout %q, stderr %q, log %q; erwartet leer", aus, fehl, logs)

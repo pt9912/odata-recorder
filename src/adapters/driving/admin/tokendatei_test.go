@@ -161,6 +161,40 @@ func TestInhaltKernUndRand(t *testing.T) {
 	if len(kerne) != 5 || len(raender) != 8 || n != 320 {
 		t.Fatalf("Menge: %d Kerne, %d Ränder, %d Elemente, erwartet 5, 8, 320", len(kerne), len(raender), n)
 	}
+	randMenge(t)
+}
+
+// randMenge (M-Rand): alle 256 Bytewerte einzeln links und rechts, dazu U+0085, U+00A0, U+2003 und U+FEFF je
+// links und rechts gleich 520 Elemente. Orakel: Leerraum sind genau die sechs Bytes 0x20 und 0x09 bis 0x0d
+// (SPEC-239 Nr. 1 f), als Literal des Tests; jedes andere Byte und jede andere Folge bleibt am Rand.
+func randMenge(t *testing.T) {
+	t.Helper()
+	leerraum := "\x20\x09\x0a\x0b\x0c\x0d"
+	if len(leerraum) != 6 {
+		t.Fatal("Orakel: sechs Bytes Leerraum")
+	}
+	var raender []string
+	for b := 0; b < 256; b++ {
+		raender = append(raender, string([]byte{byte(b)}))
+	}
+	raender = append(raender, "\xc2\x85", "\xc2\xa0", "\xe2\x80\x83", "\xef\xbb\xbf")
+	if len(raender) != 260 {
+		t.Fatalf("M-Rand: %d Ränder, erwartet 260", len(raender))
+	}
+	kern := hex64()
+	n := 0
+	for _, r := range raender {
+		bleibt := r
+		if strings.Contains(leerraum, r) {
+			bleibt = ""
+		}
+		pruefeFall(t, dateiFall{name: "rand links " + strconv.Quote(r), inhalt: r + kern, modus: 0o600, erwartet: bleibt + kern})
+		pruefeFall(t, dateiFall{name: "rand rechts " + strconv.Quote(r), inhalt: kern + r, modus: 0o600, erwartet: kern + bleibt})
+		n += 2
+	}
+	if n != 520 {
+		t.Fatalf("M-Rand: %d Elemente, erwartet 520", n)
+	}
 }
 
 func rechteFaelle() []dateiFall {
@@ -556,7 +590,8 @@ func TestRechteBeiJederUmask(t *testing.T) {
 				t.Errorf("umask %04o: %v", um, err)
 			}
 		}()
-		if haltGroesse != 0 || haltRechte&0o077 != 0 {
+		// Teilmenge von 0600 (jedes Bit außerhalb ist ein Verstoß), bei Umask 000 genau 0600 (SPEC-239 Nr. 3 b).
+		if haltGroesse != 0 || haltRechte&^0o600 != 0 || (um == 0 && haltRechte != 0o600) {
 			t.Errorf("umask %04o: Hilfsdatei nach dem Anlegen: Rechte %04o, Größe %d", um, haltRechte, haltGroesse)
 		}
 		fi, err := os.Stat(pfad)
@@ -573,7 +608,9 @@ func TestVollstaendigOderGarNicht(t *testing.T) {
 	hilfsGroesse := int64(-1)
 	_, lerr := os.Lstat(pfad)
 	fehlte := false
+	hilfsName, hilfsDir := "", ""
 	got, err := admin.LadeMitHaltepunkten(pfad, nil, func(h string) {
+		hilfsName, hilfsDir = filepath.Base(h), filepath.Dir(h)
 		_, lerr = os.Lstat(pfad)
 		fehlte = errors.Is(lerr, fs.ErrNotExist)
 		if fi, err := os.Stat(h); err == nil {
@@ -585,6 +622,10 @@ func TestVollstaendigOderGarNicht(t *testing.T) {
 	}
 	if !fehlte {
 		t.Error("pfad existierte vor dem Link")
+	}
+	// Name der Hilfsdatei (SPEC-239 Nr. 3 b): <Dateiname>.tmp- und 16 Zeichen 0-9a-f, im Verzeichnis von pfad.
+	if !regexp.MustCompile(`^admin\.token\.tmp-[0-9a-f]{16}$`).MatchString(hilfsName) || hilfsDir != dir {
+		t.Errorf("Hilfsdatei %q in %q, erwartet admin.token.tmp- und 16 Zeichen 0-9a-f in %q", hilfsName, hilfsDir, dir)
 	}
 	if hilfsGroesse != 65 {
 		t.Errorf("Hilfsdatei vor dem Link: %d Bytes, erwartet 65", hilfsGroesse)
