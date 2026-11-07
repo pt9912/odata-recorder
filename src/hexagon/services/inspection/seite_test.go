@@ -26,12 +26,14 @@ func ohneCode(t *testing.T, was string, err error) {
 
 // TestNewExchangesNil (K1): ein nil in Exchanges weist New ab, eine gültige Konfiguration nicht.
 func TestNewExchangesNil(t *testing.T) {
-	d, err := inspection.New(inspection.Konfig{Exchanges: nil})
+	k := konfigMit(neuesFake())
+	k.Exchanges = nil
+	d, err := inspection.New(k)
 	if d != nil {
 		t.Error("New liefert einen Dienst ohne Exchanges")
 	}
 	ohneCode(t, "Exchanges nil", err)
-	if d, err = inspection.New(inspection.Konfig{Exchanges: neuesFake()}); d == nil || err != nil {
+	if d, err = inspection.New(konfigMit(neuesFake())); d == nil || err != nil {
 		t.Errorf("gültige Konfiguration: %v, %v", d, err)
 	}
 }
