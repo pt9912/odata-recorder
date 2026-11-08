@@ -387,6 +387,11 @@ func TestAbnahmeDeterminismusFrist(t *testing.T) {
 	if e := abDetLaufen(context.Background(), u, folge, 2, volatile); e.Fatal == "" || e.Laeufe != 0 {
 		t.Errorf("ohne Frist: %+v", e)
 	}
+	knapp, c0 := context.WithTimeout(context.Background(), abDetFrist+5*time.Second)
+	defer c0()
+	if e := abDetLaufen(knapp, u, folge, 2, volatile); e.Fatal == "" || e.Laeufe != 0 {
+		t.Errorf("Frist knapp über 120 s: %+v", e)
+	}
 	lang, c1 := context.WithTimeout(context.Background(), abDetFrist+time.Minute)
 	defer c1()
 	if e := abDetLaufen(lang, u, folge, 2, volatile); e.Fatal == "" || e.Laeufe != 0 {
