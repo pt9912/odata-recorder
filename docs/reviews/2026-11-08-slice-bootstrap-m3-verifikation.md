@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, `SPEC-110` Nr. 2, 8, 9, 14 a bis e, `SPEC-139` Nr. 11, `SPEC-136` Nr. 8, `SPEC-201` Nr. 3 e, die Tabelle *Zusage · Fänger* (A01 bis A16) und die Hard Rules; nicht Diff-Review (siehe `2026-11-08-slice-bootstrap-m3-review.md`) und nicht Validierung.
 
-**Gegenstand:** Zweig `slice-bootstrap-m3`, HEAD `5a6f0b5e` (Fix-Runde `a4804086` nach dem Review, Architect `affb15a2`), Basis des Blocks `ada8bd88`, Worktree `/Development/odata-recorder-wt-bootstrap-m3`. Plan: `docs/plan/planning/in-progress/slice-bootstrap-m3.md`. Bezug: `LH-FA-12`, `LH-FA-06`, `LH-FA-11`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
+**Gegenstand:** Zweig `slice-bootstrap-m3`, HEAD `5a6f0b5e` (Fix-Runde `a4804086` nach dem Review, Architect `affb15a2`), Basis des Blocks `ada8bd88`, Worktree `/Development/odata-recorder-wt-bootstrap-m3`. Plan: `docs/plan/planning/done/slice-bootstrap-m3.md`. Bezug: `LH-FA-12`, `LH-FA-06`, `LH-FA-11`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 
