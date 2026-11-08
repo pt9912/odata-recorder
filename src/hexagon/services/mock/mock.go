@@ -14,11 +14,13 @@ import (
 var _ inbound.MockUseCase = (*Mocker)(nil)
 
 // Dienst ist ein Service der Konfiguration: Kennung, Root und der Satz der Codecs (SPEC-195 Nr. 1); Codecs gleich nil
-// heißt, dass MetadatenCodec, URLCodec und Schreiber der Konfig gelten.
+// heißt, dass MetadatenCodec, URLCodec und Schreiber der Konfig gelten. Etag wahr liefert ETags aus dem Zähler `entity_version`
+// der Entity (SPEC-280 Nr. 2, SPEC-281); der Nullwert liefert keine.
 type Dienst struct {
 	ID     string
 	Root   string
 	Codecs *outbound.CodecSatz
+	Etag   bool
 }
 
 // Konfig ist die Konfiguration des Dienstes (SPEC-195 Nr. 1).

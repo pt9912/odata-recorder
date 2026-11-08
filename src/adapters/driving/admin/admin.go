@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
@@ -63,7 +64,8 @@ type Konfig struct {
 	Vergleich func(erwartet, gegeben []byte) bool
 }
 
-// Server authentisiert und ordnet Requests den Routen zu (SPEC-238); sein Zustand ist nach New schreibgeschützt.
+// Server authentisiert und ordnet Requests den Routen zu (SPEC-238); außer dem Zustand der Zulassung (SPEC-238 Nr. 11)
+// ist sein Zustand nach New schreibgeschützt.
 type Server struct {
 	listener   net.Listener
 	token      []byte
@@ -72,6 +74,20 @@ type Server struct {
 	telemetrie support.Telemetry
 	routen     []route
 	vergleich  func(erwartet, gegeben []byte) bool
+	http       *http.Server
+	abbruch    context.CancelFunc
+
+	// mu schützt die folgenden Felder; die Zulassung prüft angehalten und zählt unter einer Sperre ohne Freigabe
+	// dazwischen, und keine Sperre liegt über einem Aufruf von Handler oder Vergleich (SPEC-238 Nr. 12).
+	mu            sync.Mutex
+	angehalten    bool
+	durchAnhalten bool
+	acceptFehler  error
+	geschlossen   bool
+	laufend       int
+	leer          chan struct{}
+	leerZu        bool
+	verb          map[net.Conn]*verbindung
 }
 
 // vergleiche liefert, ob beide Werte gleich sind: ConstantTimeCompare auf den SHA-256-Summen. Der Vergleich der
@@ -138,18 +154,35 @@ func New(k Konfig) (*Server, error) {
 	if vergleich == nil {
 		vergleich = vergleiche
 	}
-	return &Server{
+	basis, abbruch := context.WithCancel(context.Background())
+	s := &Server{
 		listener: k.Listener, token: slices.Clone(k.Token), ids: k.IDs, audit: k.Audit, telemetrie: k.Telemetrie,
-		routen: routen, vergleich: vergleich,
-	}, nil
+		routen: routen, vergleich: vergleich, abbruch: abbruch,
+		leer: make(chan struct{}), verb: map[net.Conn]*verbindung{},
+	}
+	s.http = s.baueHTTP(basis)
+	return s, nil
 }
 
-// ServeHTTP vergibt die Korrelations-ID vor allem anderen, bedient `GET /healthz` ohne Token, authentisiert jeden
-// anderen Request vor der Zuordnung und ruft dann den Handler der einen Route oder antwortet 404 oder 405 mit
-// ODR-E2102 (SPEC-238 Nr. 3, 4, 5).
+// ServeHTTP vergibt die Korrelations-ID vor allem anderen und weist auf einem angehaltenen Server jeden Request mit 503
+// ab; sonst bedient es `GET /healthz` ohne Token, authentisiert jeden anderen Request vor der Zuordnung und ruft dann
+// den Handler der einen Route oder antwortet 404 oder 405 mit ODR-E2102 (SPEC-238 Nr. 3, 4, 5, 11).
+// `EnableFullDuplex` erlaubt dem Handler, Lesen und Schreiben zu mischen; kein Test fängt das Entfernen (N-13).
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	_ = http.NewResponseController(w).EnableFullDuplex()
+	s.markiereHandler(r)
 	id := s.ids.KorrelationsID()
 	w.Header().Set("X-Correlation-Id", id)
+	if !s.zulassen() {
+		abweisen(w)
+		return
+	}
+	defer s.verlasse()
+	s.bediene(w, r, id)
+}
+
+// bediene ist der Ablauf eines zugelassenen Requests ab Nr. 3 c.
+func (s *Server) bediene(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method == http.MethodGet && r.URL.Path == healthzPfad {
 		antwort, _ := healthz(r.Context(), Anfrage{})
 		schreibeErfolg(w, antwort)
@@ -215,8 +248,10 @@ func anfrage(r *http.Request, id string, werte map[string]string) Anfrage {
 	}
 }
 
-// rufe ruft den Handler der Route genau einmal; Status und Body gehen durch, ein Fehler ist ODR-E9001 mit 500.
+// rufe ruft den Handler der Route genau einmal; Status und Body gehen durch, ein Fehler ist ODR-E9001 mit 500. Der Body
+// ist auf 1 MiB begrenzt: das 1048577. Byte ergibt *http.MaxBytesError (SPEC-238 Nr. 10).
 func rufe(w http.ResponseWriter, r *http.Request, id string, t treffer) {
+	r.Body = http.MaxBytesReader(w, r.Body, bodyBytes)
 	antwort, err := t.route.handler(r.Context(), anfrage(r, id, t.werte))
 	if err != nil {
 		schreibeFehler(w, model.CodeE9001, http.StatusInternalServerError, "", "")

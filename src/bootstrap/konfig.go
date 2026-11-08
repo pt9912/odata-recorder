@@ -51,6 +51,9 @@ type Konfiguration struct {
 	// anderen Modi leer, wenn der Schlüssel fehlt.
 	StrictCoverage bool
 	PublicBaseURL  string
+	// EtagEnabled ist ETAG_ENABLED (SPEC-110 Nr. 15, SPEC-282): in jedem Modus geprüft, im Modus mock nur für Dienste der
+	// Version 4.0 wirksam (SPEC-280 Nr. 2).
+	EtagEnabled bool
 }
 
 // KonfigFehler sammelt alle Verstöße der Startkonfiguration, je Zeile

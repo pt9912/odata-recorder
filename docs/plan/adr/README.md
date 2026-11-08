@@ -17,7 +17,7 @@
 | [ADR-0010](0010-groesse-der-guide-dateien-als-gate.md) | Größe der Guide-Dateien als Gate, Grenze auf dem Ist-Stand | Accepted | `LH-QA-06` |
 | [ADR-0011](0011-versionierter-adapter-fuer-odata-v2.md) | Versionierter Adapter für OData V2: versionsneutrale Ports, Implementierung je Version, ein Satz je Service | Accepted | `LH-FA-17`, `LH-RB-01`, `LH-QA-05` |
 | [ADR-0012](0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md) | Prüfpakete unter tests/ als eigene Schicht des Architektur-Gates | Accepted | `LH-QA-06` |
-| [ADR-0013](0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) | Zeitbudget der Gegenproben als Soll mit Messvorschrift, Frist je Fall bleibt die Schwelle | Proposed | `LH-QA-06` |
+| [ADR-0013](0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) | Zeitbudget der Gegenproben als Soll mit Messvorschrift, Frist je Fall bleibt die Schwelle | Accepted | `LH-QA-06` |
 
 ## Konventionen
 

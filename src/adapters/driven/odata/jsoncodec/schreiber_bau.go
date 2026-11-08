@@ -108,6 +108,9 @@ func (s *sicht) entity(a *ausgabe, e model.Entity, wurzel, set string, f form, k
 	if err != nil {
 		return err
 	}
+	if err := pruefeEtag(e.Etag); err != nil {
+		return err
+	}
 	werte := make(map[string]int, len(e.Properties))
 	for i, pw := range e.Properties {
 		pi, ok := ts.idx[pw.Name]
@@ -135,6 +138,10 @@ func (s *sicht) entity(a *ausgabe, e model.Entity, wurzel, set string, f form, k
 		}
 		a.mitglied(&erstes, "@odata.id")
 		a.text(adr)
+		if e.Etag != "" {
+			a.mitglied(&erstes, "@odata.etag")
+			a.text(e.Etag)
+		}
 	}
 	for _, p := range ts.typ.Properties {
 		i, ok := werte[p.Name]

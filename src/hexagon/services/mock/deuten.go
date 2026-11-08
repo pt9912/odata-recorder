@@ -38,9 +38,18 @@ func deuteListe(l lauf, liste []model.EntityState) ([]model.Entity, error) {
 		if !ok {
 			return nil, mitCode(model.CodeE9001, nil)
 		}
+		e.Etag = etagVon(l.d, es)
 		entities = append(entities, e)
 	}
 	return entities, nil
+}
+
+// etagVon ist der ETag des Eintrags aus seinem Zähler `entity_version`, bei einem Dienst ohne Etag leer (SPEC-280 Nr. 2, SPEC-281 Nr. 3).
+func etagVon(d Dienst, es model.EntityState) string {
+	if !d.Etag {
+		return ""
+	}
+	return model.EtagFuer(es.Version)
 }
 
 // deute bildet die Entity aus dem Payload eines Eintrags (SPEC-196 Nr. 3); ok ist falsch bei jedem Verstoß der Form.

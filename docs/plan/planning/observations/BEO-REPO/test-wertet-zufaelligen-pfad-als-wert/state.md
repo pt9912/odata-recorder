@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang mit `slice-admin-lebenszyklus` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht. Adresse des Ausgangs: Planner (ein Fix-Slice für `src/adapters/driven/audit/randformen_test.go`, sobald ein zweiter Vorgang vorliegt)
