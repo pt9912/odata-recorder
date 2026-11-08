@@ -16,6 +16,9 @@ import (
 // headerCoverage ist der Header der Coverage auf Collection und Anzahl (SPEC-197 Nr. 4).
 const headerCoverage = "X-Recorder-Coverage"
 
+// headerEtag ist die Kopfzeile des ETag (SPEC-281 Nr. 1).
+const headerEtag = "ETag"
+
 // lauf trägt, was die Schritte nach dem Lesen des Modells brauchen: nur Werte (SPEC-195 Nr. 12).
 type lauf struct {
 	kopf   bool
@@ -136,7 +139,7 @@ func (m *Mocker) collection(ctx context.Context, l lauf) (inbound.Antwort, error
 	if err != nil {
 		return inbound.Antwort{}, abbilden(err, outbound.GegenstandSonstiges)
 	}
-	return liefere(l, dar, buf.Bytes(), string(status))
+	return liefere(l, dar, buf.Bytes(), string(status), "")
 }
 
 // anzahl beantwortet `/$count`: wie die Collection, der Interpreter erhält allein den Filter (SPEC-196 Nr. 6).
@@ -154,7 +157,7 @@ func (m *Mocker) anzahl(ctx context.Context, l lauf) (inbound.Antwort, error) {
 	if err != nil {
 		return inbound.Antwort{}, abbilden(err, outbound.GegenstandSonstiges)
 	}
-	return liefere(l, dar, buf.Bytes(), string(status))
+	return liefere(l, dar, buf.Bytes(), string(status), "")
 }
 
 // entity beantwortet den Einzel-Lookup (SPEC-196 Nr. 7).
@@ -201,7 +204,7 @@ func (m *Mocker) entity(ctx context.Context, l lauf) (inbound.Antwort, error) {
 	if err != nil {
 		return inbound.Antwort{}, abbilden(err, outbound.GegenstandSonstiges)
 	}
-	return liefere(l, dar, buf.Bytes(), "")
+	return liefere(l, dar, buf.Bytes(), "", erg.Entities[0].Etag)
 }
 
 // ohneTreffer entscheidet den Lookup ohne Treffer nach der Coverage (SPEC-197 Nr. 3), in beiden Modi gleich.
@@ -246,14 +249,18 @@ func fuehreAus(typ model.EntityType, entities []model.Entity, opt model.Optionen
 	return erg, nil
 }
 
-// liefere prüft die Darstellung des Schreibers (SPEC-198 Nr. 8) und bildet die Antwort; bei HEAD ist der Body leer.
-func liefere(l lauf, dar model.Darstellung, body []byte, coverage string) (inbound.Antwort, error) {
+// liefere prüft die Darstellung des Schreibers (SPEC-198 Nr. 8) und bildet die Antwort; bei HEAD ist der Body leer. Ein
+// nichtleerer etag steht als Kopfzeile `ETag` (SPEC-281 Nr. 1), und zwar der, den die Entity des Bodys trägt.
+func liefere(l lauf, dar model.Darstellung, body []byte, coverage, etag string) (inbound.Antwort, error) {
 	if dar.ContentType == "" || dar.Kennzeichen.Name == "" || dar.Kennzeichen.Wert == "" {
 		return inbound.Antwort{}, mitCode(model.CodeE9001, nil)
 	}
 	h := map[string][]string{"Content-Type": {dar.ContentType}, dar.Kennzeichen.Name: {dar.Kennzeichen.Wert}}
 	if coverage != "" {
 		h[headerCoverage] = []string{coverage}
+	}
+	if etag != "" {
+		h[headerEtag] = []string{etag}
 	}
 	if l.kopf {
 		body = nil

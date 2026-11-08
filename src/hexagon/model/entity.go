@@ -49,12 +49,14 @@ type Uebersprungen struct {
 
 // Entity ist eine gelesene Entity (SPEC-126 Nr. 9 bis 12): Typ ist der qualifizierte Name, Schluessel die
 // Literalform der URL ohne Klammern. Properties und Uebersprungen stehen in der Reihenfolge des Dokuments und
-// sind nie nil, wenn der Leser die Entity geliefert hat.
+// sind nie nil, wenn der Leser die Entity geliefert hat. Etag ist der ETag, den der Schreiber als `@odata.etag` ausgibt
+// (SPEC-281 Nr. 3); leer heißt kein ETag, und der Leser setzt ihn nie.
 type Entity struct {
 	Typ           string
 	Schluessel    string
 	Properties    []PropertyWert
 	Uebersprungen []Uebersprungen
+	Etag          string
 }
 
 // FolgeLink ist der Nachweis `@odata.nextLink`: der rohe Text, oder Redigiert, wenn der Marker an seiner Stelle steht.

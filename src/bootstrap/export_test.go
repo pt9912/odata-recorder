@@ -7,8 +7,15 @@ import (
 	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
+
+// EtagFuerSatz ist die Entscheidung des Composition Root, ob ein Dienst mit diesem Satz ETags liefert (SPEC-280 Nr. 2).
+func EtagFuerSatz(satz outbound.CodecSatz, an bool) bool { return etagFuerSatz(satz, an) }
+
+// SatzVersion4 ist der Satz der Codecs der Version 4.0 des Mock.
+func SatzVersion4() outbound.CodecSatz { return satzVersion4() }
 
 // Die Naht der Tests: Das Testpaket bootstrap_test setzt die Haken von Bauteile und ruft Start und
 // Build mit ihnen; der Betrieb nutzt standardBauteile.

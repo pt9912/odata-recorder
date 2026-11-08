@@ -35,6 +35,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Fehlercode):** Die Fehlertabelle führt keinen Code für `412`; der Architect ergänzt ihn vor dem ersten Code-Commit dieses Slice in der Spezifikation (Sendung von `welle-etag`, §6 dort: Aufgabe des Architect, nicht Gegenstand der Slices). Der Slice liefert die Verwendung des Codes, den Katalogeintrag im Handbuch und den Fänger.
 
+**Übernimmt (Entscheidungen aus `slice-etag-versionen`, `SPEC-280` Nr. 1 und 3, Sendung des Architect vom 2026-11-08):** (1) Der ETag hat die schwache Form `W/"<n>"`; welcher Vergleich für `If-Match` gilt, legt der Architect dieses Slice fest (RFC 9110 §13.1.1 verlangt für `If-Match` den starken Vergleich, ein schwacher Wert träfe dann nie). (2) Bei `ETAG_ENABLED=false` bleiben `If-Match` und `If-None-Match` ohne Wirkung (ignoriert, kein `412`), es sei denn, der Vertrag dieses Slice entscheidet anders und zieht `SPEC-280` Nr. 3 mit einer neuen Nummer nach. (3) Der Satz zu `If-Match` in `SPEC-192` *Ungeprüft* und `SPEC-280` *Ungeprüft* fällt mit der Auswertung; bis dahin ändert ein `PATCH` oder `PUT` mit `If-Match` den Eintrag bedingungslos.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Bildung und Auslieferung des ETag und der Zähler — `slice-etag-versionen` (Voraussetzung); dieser Slice vergleicht, er bildet nicht.
