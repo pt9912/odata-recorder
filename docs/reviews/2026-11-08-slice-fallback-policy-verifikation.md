@@ -1,7 +1,7 @@
 # Verifikation slice-fallback-policy, Teil 1 (Prüfung der Einträge und `New`)
 
 **Rolle:** Verifier (einmal). **Datum:** 2026-11-08. **Stand:** Zweig `slice-fallback-policy`, HEAD `e246094a` (Fix-Runde nach dem [Review](2026-11-08-slice-fallback-policy-review.md)). **Bezug:** [LH-FA-12](../../spec/lastenheft.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), `SPEC-261`.
-**Plan:** [slice-fallback-policy](../plan/planning/in-progress/slice-fallback-policy.md).
+**Plan:** [slice-fallback-policy](../plan/planning/done/slice-fallback-policy.md).
 
 ## Urteil
 
