@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, `SPEC-049` Nr. 1 bis 10, die Tabelle *Zusage · Fänger* und die Hard Rules; nicht Diff-Review (siehe `2026-11-08-slice-mock-abnahme-review.md`) und nicht Validierung.
 
-**Gegenstand:** Zweig `slice-mock-abnahme`, HEAD `73a1f341` (Fix-Runde `267bdc89`, Messung `028ba949`, Entscheidung R12 `73a1f341`), Worktree `/Development/odata-recorder-wt-mock-abnahme`. Plan: `docs/plan/planning/in-progress/slice-mock-abnahme.md`. Bezug: `LH-QA-02`, `LH-QA-03`, `LH-RB-01`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
+**Gegenstand:** Zweig `slice-mock-abnahme`, HEAD `73a1f341` (Fix-Runde `267bdc89`, Messung `028ba949`, Entscheidung R12 `73a1f341`), Worktree `/Development/odata-recorder-wt-mock-abnahme`. Plan: `docs/plan/planning/done/slice-mock-abnahme.md`. Bezug: `LH-QA-02`, `LH-QA-03`, `LH-RB-01`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 
