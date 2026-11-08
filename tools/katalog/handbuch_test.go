@@ -43,7 +43,7 @@ func TestKatHandbuchLeser(t *testing.T) {
 			}
 			return l
 		}},
-		{"Ende der Datei ohne Schlussstrich", strings.TrimSuffix("# Benutzerhandbuch\n\n"+abschnittKopf+"\n"+kopfH+zeilenH(codes), " |\n"), nil},
+		{"Ende der Datei ohne Schlussstrich", strings.TrimSuffix("# Benutzerhandbuch\n\n"+sektionen()+"\n"+abschnittKopf+"\n"+kopfH+zeilenH(codes), " |\n"), nil},
 		{"Strich in der Zelle", strings.Replace(h, erste, "| `"+codes[0]+"` | Die \\| Bedeutung. |", 1), nil},
 		{"CRLF", strings.ReplaceAll(h, "\n", "\r\n"), nil},
 		{"Abschnitt endet an der Überschrift gleicher Ebene", strings.Replace(h, "## Ende\n", "## Ende\n\n"+kopfH+"| `a` | x |\n", 1), nil},
@@ -64,7 +64,7 @@ func TestKatHandbuchLeser(t *testing.T) {
 func TestKatHandbuchEingabe(t *testing.T) {
 	codes := codeListe()[:3]
 	h := handbuchText(codes)
-	ohneTabelle := "# Benutzerhandbuch\n\n" + abschnittKopf
+	ohneTabelle := "# Benutzerhandbuch\n\n" + sektionen() + "\n" + abschnittKopf
 	faelle := []struct {
 		name string
 		bau  func(m map[string]string)
@@ -83,7 +83,7 @@ func TestKatHandbuchEingabe(t *testing.T) {
 		{"Abschnitt doppelt", func(m map[string]string) { m[dHandbuch] = h + "\n" + abschnittKopf }, texte("Handbuch: Abschnitt Fehlercodes mehrdeutig"), ""},
 		{"Tabelle fehlt", func(m map[string]string) { m[dHandbuch] = ohneTabelle }, texte("Handbuch: Tabelle in Fehlercodes fehlt"), ""},
 		{"Tabelle doppelt", func(m map[string]string) {
-			m[dHandbuch] = strings.Replace(h, "\n## Ende", "\nText.\n\n"+kopfH+"| `ODR-E9999` | x |\n\n## Ende", 1)
+			m[dHandbuch] = strings.Replace(h, "\n## Einstellungen", "\nText.\n\n"+kopfH+"| `ODR-E9999` | x |\n\n## Einstellungen", 1)
 		}, texte("Handbuch: Tabelle in Fehlercodes mehrdeutig"), ""},
 		{"Kopf weicht ab", func(m map[string]string) {
 			m[dHandbuch] = strings.Replace(h, "| Code | Bedeutung |", "| Code | Erklärung |", 1)

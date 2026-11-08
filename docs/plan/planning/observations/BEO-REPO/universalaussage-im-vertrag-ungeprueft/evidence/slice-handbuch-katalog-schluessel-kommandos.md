@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-katalog-schluessel-kommandos
+**Fund:** Die Allaussagen „an jeder Stelle der Datei“ (30 Positionen in `konfig*.go`), „jede Konstante auf Paketebene oder in einem Funktionskörper“ und „jeder Schlüssel in C steht in K“ hatten Fänger über die Mengen, aber das Review (F-1: 13 grüne Knotenarten) und die Verifikation (V-2: Verschachtelung der Konstante, Zaunstellen) fanden Elemente, die die Schleife nicht führte; die Menge Knotenarten ist unbeschränkt, die Prüfgrenze steht als akzeptiertes Negativ in §3. Beleg: Review F-1 bis F-5, Verifikation V-2.

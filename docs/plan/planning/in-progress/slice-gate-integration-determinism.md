@@ -18,7 +18,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie
 (Baseline-Regelwerk `grundlagen-referenz-richtung.md`
 §Referenz-Richtung (SDP), `grundlagen-source-precedence.md` §ID-Schema als Klammer).
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-gate-integration-determinism`, Worktree `/Development/odata-recorder-wt-gate-integration-determinism`; der Zweig entsteht nach dem Start-Commit von `main`)
 
 **Autor:** pt9912 (Planner der Closure von `welle-record-replay`). **Datum:** 2026-11-06.
 
@@ -104,6 +104,10 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Größenmarke:** Prosa, kein Block. Die Marke setzt der Planner vor dem ersten Code-Commit mit `make groessenmarke` nach `SPEC-128` Nr. 1 und `AGENTS.md` §3.14; die Schätzung kommt aus der Tabelle des Architect. Erwartet ist ein kleiner Slice (zwei Zeilen der Kette, Skripte und Verträge).
 
+**Vorläufige Marke** (Planner, 2026-11-08, `SPEC-128` Nr. 1; die Tabelle *Zusage · Fänger* fehlt, Schätzung aus dem Wortlaut von §3 Aufträge 2 bis 5): rund 12 Zeilen der Tabelle, davon 2 der Klasse `nebenläufig` (zwei Läufe zugleich bei gleichem Image-Tag, Abbruch mitten in der Kette), *a* = 2, *b* = 10, *f* = 0, *p* = 60 (Mk-Zeilen, Skripte, Vertragstext): *S* = 85·2 + 80·10 + 200·0 + 60 = 1030, *M* = 100·⌈135·1030/10000⌉ = 1400. **Schnittfrage: nein** (*S* < 2223, Schnittgrenze); es wird vor dem Code nicht geschnitten. Der Planner rechnet neu, sobald der Architect die Tabelle hat, und setzt die endgültige Marke vor dem ersten Code-Commit. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Plans (§3), Tests eingeschlossen. Basis der Messung: `4a6a760b` (die Start-Commits ändern allein Pläne).
+
+**Stand der Bedingungen beim Start** (Planner, 2026-11-08, `main` = `4a6a760b`, Stempel der Gegenproben gleich diesem Stand): `welle-record-replay` liegt in `done/`; `slice-handbuch-katalog-schluessel-kommandos` liegt in `done/`, damit hält kein Slice mehr die Gate-Kette (Nr. 7). In `in-progress/` laufen `slice-admin-authentisierung` (Pfad `src/adapters/driving/admin/`) und `slice-bootstrap-m3` (Linie B); beide ändern laut ihrem Plan `Makefile`, `harness/mk/`, `harness/README.md`, `tools/gegenproben/` und Stempel nicht. `slice-mutationslauf-werkzeug` liegt in `done/`, `slice-guard-schreibwege` in `open/` und startet nicht zugleich. **Kontaktstelle zu `slice-bootstrap-m3`:** dessen Plan führt die Szenarien von `make test-integration` (Treiber `tools/harness/test-integration.sh`, Stufe `integration` des `Dockerfile`, `tests/e2e`) und gibt eine Änderung des `Dockerfile` als Rückgabe an den Planner zurück; dieser Slice kann denselben Treiber und dieselbe Stufe ändern (§3, Aufträge 2 und 4). Beide Zweige fassen dort nie dieselbe Zeile an, sondern der Architect hält die Änderung am Treiber klein (Image-Tag, Aufräumen); wer als zweiter nach `main` merged, gleicht die Datei ab. Ändert dieser Slice das `Dockerfile`, meldet der Implementer es dem Planner vor dem Commit, damit `slice-bootstrap-m3` davon erfährt.
+
 **Rückführungen — vorab benannt:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): die Marke liegt nach `SPEC-128` über der Schnittgrenze.
@@ -120,6 +124,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 - Die Kette wird durch zwei Container-Läufe merklich langsamer, und die Fristen der Gegenproben und von `pruefung` (für einen ruhigen Host bemessen) reißen unter Last — **Ausgang:** weiter offen: Zeitbudget und Trigger entscheidet der Architect (Auftrag 3).
 - Zwei Checks bauen dieselbe Stufe `integration` zugleich und überschreiben ein Image-Tag — **Ausgang:** weiter offen: der Architect entscheidet (Auftrag 2), der Fänger oder das Negativ steht vor dem ersten Code-Commit.
+- Größe: die Marke steht als Prosa in §4 (vorläufig *S* = 1030, *M* = 1400, keine Schnittfrage) — **Ausgang:** offen; Adresse: Planner (neu rechnen mit der Tabelle des Architect, endgültige Marke vor dem ersten Code-Commit).
+- Berührung mit `slice-bootstrap-m3` am Treiber `tools/harness/test-integration.sh` und an der Stufe `integration` des `Dockerfile` (Stand der Bedingungen in §4) — **Ausgang:** offen; Adresse: Architect (Auftrag 2 hält die Änderung klein) und Planner (Meldung des Implementers vor einem Commit am `Dockerfile`).
 - Die Aufnahme verdeckt einen Rest, den die Tests nicht prüfen (`SPEC-037` Nr. 10, `SPEC-038` Nr. 10): „Gate grün“ wird als „Binary fehlerfrei“ gelesen — **Ausgang:** weiter offen: *Nicht behauptet* in `harness/README.md` nennt den Rest (DoD).
 
 ## 7. Closure-Notiz

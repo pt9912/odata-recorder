@@ -53,8 +53,9 @@ RUN --network=none f="$(gofmt -l .)" && { [ -z "$f" ] || { echo "nicht gofmt-for
 WORKDIR /work
 ENTRYPOINT ["/usr/local/bin/zeichen"]
 
-# --- katalog-bin: das Programm aus tools/katalog hält den Katalog der Fehlercodes gegen die Spezifikation und
-# das Handbuch (SPEC-201). Es wird geprüft (gofmt, vet, Test) und gebaut; die Stufe katalog fährt es.
+# --- katalog-bin: das Programm aus tools/katalog hält die Kataloge der Fehlercodes, der Schlüssel und der Kommandos
+# gegen die Spezifikation und das Handbuch (SPEC-201). Es wird geprüft (gofmt, vet, Test) und gebaut; die Stufe
+# katalog fährt es.
 FROM deps AS katalog-bin
 WORKDIR /kat
 COPY tools/katalog ./
@@ -72,6 +73,8 @@ COPY src/hexagon/model/fehler.go src/hexagon/model/fehler.go
 COPY spec/spezifikation.md spec/spezifikation.md
 COPY harness/katalog-ausnahmen.txt harness/katalog-ausnahmen.txt
 COPY docs/user/benutzerhandbuch.md docs/user/benutzerhandbuch.md
+COPY src/bootstrap/konfig*.go src/bootstrap/
+COPY src/adapters/driving/cli/cli.go src/adapters/driving/cli/cli.go
 RUN --network=none katalog /katalog
 
 # --- test: Formatierung (gofmt nennt die nicht formatierten Dateien), vet und
