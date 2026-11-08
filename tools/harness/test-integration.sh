@@ -126,5 +126,13 @@ echo "integration: Schutz der Geheimnisse in Dateien und Strömen ..."
 e2e_abdeckung "LH-FA-14" "Geheimnisse, Nutzlast ohne sensible Felder, nicht redigierbarer Body, Speicher voll (Happy Path, Boundary, Negative)" "TestE2ESchutz"
 stufe 7 TestE2ESchutz
 
+echo "integration: Modus mock, CRUD, Reset und Zuordnung am gebauten Binary ..."
+e2e_abdeckung "LH-FA-07 LH-FA-11 LH-FA-12" "Mock CRUD und Reset ohne Upstream, Header der Zuordnung, nicht unterstützter Filter (Happy Path, Boundary, Negative)" "TestE2EMock"
+stufe 8 TestE2EMock
+
+echo "integration: Modus mock, Neustart auf demselben DATA_DIR ..."
+e2e_abdeckung "LH-FA-03 LH-QA-03" "Mutationen nach SIGTERM und Neustart lesbar, zweiter Neustart, fehlendes DATA_DIR wird angelegt (Happy Path, Boundary)" "TestE2EMockNeustart"
+stufe 9 TestE2EMockNeustart
+
 rm -rf "$tmp"
 exit "$rot"

@@ -27,3 +27,5 @@ Waisen-Urteil fällt nicht hier.
 | `LH-FA-04` | Replay gleich Aufnahme, Folge 7, 11, 13, Fehlerfälle und Übergang (Happy Path, Boundary, Negative) | Stufe 5 | `tools/harness/test-integration.sh:119` |
 | `LH-FA-05` | Reihenfolge und Hexziffern, Filterwert, ungültige Kodierung (Happy Path, Boundary, Negative) | Stufe 6 | `tools/harness/test-integration.sh:123` |
 | `LH-FA-14` | Geheimnisse, Nutzlast ohne sensible Felder, nicht redigierbarer Body, Speicher voll (Happy Path, Boundary, Negative) | Stufe 7 | `tools/harness/test-integration.sh:127` |
+| `LH-FA-07`, `LH-FA-11`, `LH-FA-12` | Mock CRUD und Reset ohne Upstream, Header der Zuordnung, nicht unterstützter Filter (Happy Path, Boundary, Negative) | Stufe 8 | `tools/harness/test-integration.sh:131` |
+| `LH-FA-03`, `LH-QA-03` | Mutationen nach SIGTERM und Neustart lesbar, zweiter Neustart, fehlendes DATA_DIR wird angelegt (Happy Path, Boundary) | Stufe 9 | `tools/harness/test-integration.sh:135` |
