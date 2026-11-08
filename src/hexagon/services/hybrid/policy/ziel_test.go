@@ -1,12 +1,46 @@
 package policy_test
 
 import (
+	"fmt"
 	"math/big"
 	"strings"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
 )
+
+// praefixPlusRest erzeugt die Familie "Präfix über 65535 plus gültiger Rest": N·10^k + R mit
+// N in {65536, 65537, 99999, 123456, 2^32}, k = 1 bis 5 Stellen des Rests (mit Nullen aufgefüllt)
+// und R in {1, 80, 443, 8443, 65535} mit R < 10^k (75 Texte), dazu beide Seiten der Grenze 65535
+// (N = 6553, k = 1, R = 0 bis 9: 10 Texte) und jeden der 75 Texte mit drei Nullen davor (75).
+// Ein Wächter, der den Zähler zurücksetzt oder kürzt statt abzuweisen, liest den Rest als Port.
+func praefixPlusRest() []string {
+	var aus []string
+	for _, n := range []string{"65536", "65537", "99999", "123456", "4294967296"} {
+		for k := 1; k <= 5; k++ {
+			for _, r := range []int{1, 80, 443, 8443, 65535} {
+				if r < pow10(k) {
+					aus = append(aus, n+fmt.Sprintf("%0*d", k, r))
+				}
+			}
+		}
+	}
+	for r := 0; r < 10; r++ {
+		aus = append(aus, fmt.Sprintf("6553%d", r))
+	}
+	for _, t := range aus[:75] {
+		aus = append(aus, "000"+t)
+	}
+	return aus
+}
+
+func pow10(k int) int {
+	p := 1
+	for ; k > 0; k-- {
+		p *= 10
+	}
+	return p
+}
 
 // portTexte erzeugt die Ports von TestZielPort: 2^k und 2^k - 1 für acht Stellen k (16, 32, 48, 63,
 // 64, 65, 96, 128), je mit den Zuschlägen 0, 80, 443 und 8443 (so liegt 2^64 + 443 hinter der
@@ -22,6 +56,7 @@ func portTexte() []string {
 			}
 		}
 	}
+	aus = append(aus, praefixPlusRest()...)
 	return append(aus,
 		"1", "65535", "65536", "99999", "0", "00000", "0443", "00443", "080",
 		strings.Repeat("0", 1000)+"443", strings.Repeat("0", 1000)+"65536", strings.Repeat("0", 40)+"65535",
@@ -68,7 +103,7 @@ func TestZielPort(t *testing.T) {
 			}
 		}
 	}
-	if len(texte) != 8*2*4+16 || faelle != len(texte)*2*6 || frei == 0 {
+	if len(praefixPlusRest()) != 75+10+75 || len(texte) != 8*2*4+16+160 || faelle != len(texte)*2*6 || frei == 0 {
 		t.Fatalf("%d Ports, %d Fälle, %d frei", len(texte), faelle, frei)
 	}
 }
