@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-rahmen
+**Fund:** Der Implementer von Teil 2 sah `TestWettlaufNebenlaeufig` (Teil 1, `slice-admin-listener-token`) unter Last rot (3 von 5 Läufen im Container bei Load Average 55 bis 69), las die Ursache und ließ den Code von Teil 1 unverändert, weil die Randform in `SPEC-239` keinen Ort hat (`AGENTS.md` §3.12). Der Verifier fuhr ihn in seinem Gate-Lauf grün. Beleg: Plan `slice-admin-rahmen` §6 (Fund Teil 1) und §7, Eintrag 3; Report `docs/reviews/2026-11-08-slice-admin-rahmen-verifikation.md` Abschnitt 1 und 5.
