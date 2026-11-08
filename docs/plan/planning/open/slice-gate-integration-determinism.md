@@ -18,7 +18,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie
 (Baseline-Regelwerk `grundlagen-referenz-richtung.md`
 §Referenz-Richtung (SDP), `grundlagen-source-precedence.md` §ID-Schema als Klammer).
 
-**Verantwortlich:** pt9912 (Zweig `slice-gate-integration-determinism`, Worktree `/Development/odata-recorder-wt-gate-integration-determinism`; der Zweig entsteht nach dem Start-Commit von `main`)
+**Verantwortlich:** —
 
 **Autor:** pt9912 (Planner der Closure von `welle-record-replay`). **Datum:** 2026-11-06.
 
@@ -108,6 +108,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Stand der Bedingungen beim Start** (Planner, 2026-11-08, `main` = `4a6a760b`, Stempel der Gegenproben gleich diesem Stand): `welle-record-replay` liegt in `done/`; `slice-handbuch-katalog-schluessel-kommandos` liegt in `done/`, damit hält kein Slice mehr die Gate-Kette (Nr. 7). In `in-progress/` laufen `slice-admin-authentisierung` (Pfad `src/adapters/driving/admin/`) und `slice-bootstrap-m3` (Linie B); beide ändern laut ihrem Plan `Makefile`, `harness/mk/`, `harness/README.md`, `tools/gegenproben/` und Stempel nicht. `slice-mutationslauf-werkzeug` liegt in `done/`, `slice-guard-schreibwege` in `open/` und startet nicht zugleich. **Kontaktstelle zu `slice-bootstrap-m3`:** dessen Plan führt die Szenarien von `make test-integration` (Treiber `tools/harness/test-integration.sh`, Stufe `integration` des `Dockerfile`, `tests/e2e`) und gibt eine Änderung des `Dockerfile` als Rückgabe an den Planner zurück; dieser Slice kann denselben Treiber und dieselbe Stufe ändern (§3, Aufträge 2 und 4). Beide Zweige fassen dort nie dieselbe Zeile an, sondern der Architect hält die Änderung am Treiber klein (Image-Tag, Aufräumen); wer als zweiter nach `main` merged, gleicht die Datei ab. Ändert dieser Slice das `Dockerfile`, meldet der Implementer es dem Planner vor dem Commit, damit `slice-bootstrap-m3` davon erfährt.
 
+**Zurückgestellt** (`in-progress` → `open`, Planner, 2026-11-08, Grund nachgetragen): zugunsten von `welle-mock` (Vorrang des Users). Der Start-Commit `43d67170` trug keinen Code, der Architect war nicht gelaufen, Zweig und Worktree sind gelöscht; die Gate-Kette (Nr. 7 der Übergangsregeln) ist frei und geht an `slice-test-contract`. Beim erneuten Start gilt: `slice-bootstrap-m3-e2e-mock` ändert `tools/harness/test-integration.sh` (Stufen 8 und 9), `slice-test-contract` ändert `Makefile` und `harness/mk/`; dieser Slice liest beide vor dem Architect-Auftrag neu und setzt `Basis` und Marke neu (die Basis `4a6a760b` oben gilt nicht mehr). Der Start verlangt zusätzlich, dass `slice-test-contract` nicht in `in-progress/` liegt.
+
 **Rückführungen — vorab benannt:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): die Marke liegt nach `SPEC-128` über der Schnittgrenze.
@@ -125,7 +127,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - Die Kette wird durch zwei Container-Läufe merklich langsamer, und die Fristen der Gegenproben und von `pruefung` (für einen ruhigen Host bemessen) reißen unter Last — **Ausgang:** weiter offen: Zeitbudget und Trigger entscheidet der Architect (Auftrag 3).
 - Zwei Checks bauen dieselbe Stufe `integration` zugleich und überschreiben ein Image-Tag — **Ausgang:** weiter offen: der Architect entscheidet (Auftrag 2), der Fänger oder das Negativ steht vor dem ersten Code-Commit.
 - Größe: die Marke steht als Prosa in §4 (vorläufig *S* = 1030, *M* = 1400, keine Schnittfrage) — **Ausgang:** offen; Adresse: Planner (neu rechnen mit der Tabelle des Architect, endgültige Marke vor dem ersten Code-Commit).
-- Berührung mit `slice-bootstrap-m3` am Treiber `tools/harness/test-integration.sh` und an der Stufe `integration` des `Dockerfile` (Stand der Bedingungen in §4) — **Ausgang:** offen; Adresse: Architect (Auftrag 2 hält die Änderung klein) und Planner (Meldung des Implementers vor einem Commit am `Dockerfile`).
+- Berührung mit `slice-bootstrap-m3` und `slice-bootstrap-m3-e2e-mock` (dieser ändert den Treiber in Stufe 8 und 9, siehe *Zurückgestellt* in §4) am Treiber `tools/harness/test-integration.sh` und an der Stufe `integration` des `Dockerfile` (Stand der Bedingungen in §4) — **Ausgang:** offen; Adresse: Architect (Auftrag 2 hält die Änderung klein) und Planner (Meldung des Implementers vor einem Commit am `Dockerfile`).
 - Die Aufnahme verdeckt einen Rest, den die Tests nicht prüfen (`SPEC-037` Nr. 10, `SPEC-038` Nr. 10): „Gate grün“ wird als „Binary fehlerfrei“ gelesen — **Ausgang:** weiter offen: *Nicht behauptet* in `harness/README.md` nennt den Rest (DoD).
 
 ## 7. Closure-Notiz
