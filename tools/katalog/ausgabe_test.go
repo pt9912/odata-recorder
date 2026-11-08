@@ -113,22 +113,33 @@ func TestKatAusgabe(t *testing.T) {
 }
 
 // TestKatEingabeAlle: ein Eingabefehler schließt jeden Befund aus und steht allein; alle Eingabefehler stehen in der
-// Reihenfolge der Quellen. Menge 4 Quellen fehlen je allein, dazu der Lauf mit allen vieren; die übrigen
-// Quellen im Baum lieferten ohne den Eingabefehler Befunde (Codes ohne Gegenstück).
+// Reihenfolge der Quellen. Menge 7 = 6 Quellen fehlen je allein, dazu der Lauf mit allen sechs; die übrigen
+// Quellen im Baum lieferten ohne den Eingabefehler Befunde in allen drei Katalogen (Codes, Schlüssel und Kommandos
+// ohne Gegenstück).
 func TestKatEingabeAlle(t *testing.T) {
 	quellen := []struct{ pfad, text string }{
 		{dFehler, "fehler.go fehlt: src/hexagon/model/fehler.go"},
 		{dSpez, "spezifikation.md fehlt: spec/spezifikation.md"},
 		{dAusnahmen, "Ausnahmen fehlt: harness/katalog-ausnahmen.txt"},
+		{dKonfig, "konfig*.go fehlt: src/bootstrap"},
+		{dCli, "cli.go fehlt: src/adapters/driving/cli/cli.go"},
 		{dHandbuch, "Handbuch fehlt: docs/user/benutzerhandbuch.md"},
 	}
-	zaehle(t, "Quellen", len(quellen), 4)
+	zaehle(t, "Quellen", len(quellen), 6)
 	basis := func() map[string]string {
 		m := grund(codeListe()[:4], nil)
 		m[dFehler] = fehlerGo(codeListe()[:5])
 		m[dSpez] = spezText(codeListe()[:3])
 		m[dAusnahmen] = "ODR-E2001 |\nODR-E9999 | Grund\n"
+		m[dKonfig] = konfigGo(append([]string{"EXTRA_X"}, schluesselBasis()...))
+		m[dCli] = cliGo(append([]string{"stop"}, kommandoBasis()...))
 		return m
+	}
+	c, _, e := fahre(schreibe(t, basis()))
+	for _, k := range []string{"Fehlercodes", katS, "Kommandos"} {
+		if c != 1 || !strings.Contains(e, "katalog: "+k+": ") {
+			t.Errorf("Basis ohne Eingabefehler: Exit %d, kein Befund im Katalog %s: %q", c, k, e)
+		}
 	}
 	var alle []string
 	for _, q := range quellen {
@@ -137,7 +148,7 @@ func TestKatEingabeAlle(t *testing.T) {
 		erwarteEingabe(t, q.pfad, m, q.text)
 		alle = append(alle, q.text)
 	}
-	erwarteEingabe(t, "alle vier", map[string]string{}, alle...)
+	erwarteEingabe(t, "alle sechs", map[string]string{}, alle...)
 }
 
 // TestKatReihenfolge: Befunde nach Art, Name in Bytefolge, Zeile; gleiche Eingabe gleiche Ausgabe,
@@ -155,6 +166,8 @@ func TestKatReihenfolge(t *testing.T) {
 			dSpez:      spezText([]string{"ODR-E1999"}),
 			dAusnahmen: "",
 			dHandbuch:  handbuchText(nil),
+			dKonfig:    konfigGo(schluesselBasis()),
+			dCli:       cliGo(kommandoBasis()),
 		}
 		var texte []string
 		for _, c := range codes {

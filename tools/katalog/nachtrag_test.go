@@ -132,7 +132,7 @@ func TestKatGetrimmt(t *testing.T) {
 		// Ort 2: Ausnahmen-Zeile mit Zeichen an den Rändern und neben dem Strich, dazu eine Zeile aus dem Zeichen allein.
 		m = grund(codes, []string{codes[1]})
 		m[dAusnahmen] = c + codes[1] + c + "|" + c + "Grund" + c + "\n" + c + "\n"
-		kuerze(m, dHandbuch, "|---|---|\n", "|"+c+"---"+c+"|"+c+"---"+c+"|\n") // Trennzeile mit Zeichen an den Rändern der Zellen
+		kuerzeErste(m, dHandbuch, "|---|---|\n", "|"+c+"---"+c+"|"+c+"---"+c+"|\n") // Trennzeile mit Zeichen an den Rändern der Zellen
 		w = schreibe(t, m)
 		liesZurueck(t, w, dAusnahmen, c+codes[1]+c+"|"+c+"Grund"+c)
 		c2, o2, e2 := fahre(w)
@@ -305,7 +305,7 @@ func TestKatReihenfolgeGleichstand(t *testing.T) {
 		// Art 2: zwei Zeilen der Tabelle des Handbuchs ohne Name.
 		m = grund(codes, nil)
 		h := "# Benutzerhandbuch\n" + strings.Repeat("Text.\n", l-7) + "\n## Fehlercodes\n\n" + kopfH
-		m[dHandbuch] = h + "| kein Name | x |\n| kein Name | y |\n" + zeilenH(codes)
+		m[dHandbuch] = h + "| kein Name | x |\n| kein Name | y |\n" + zeilenH(codes) + "\n" + sektionen()
 		zelle := "Zelle: Handbuch Zeile %d: erste Zelle ist nicht genau ein Name in Inline-Code"
 		erwarteBefunde(t, fmt.Sprintf("Art 2 ab Zeile %d", l), m, fmt.Sprintf(zelle, l), fmt.Sprintf(zelle, l+1))
 		n++
@@ -328,7 +328,7 @@ func TestKatAbschnittEbene(t *testing.T) {
 	n := 0
 	for e := 1; e <= 6; e++ {
 		for e2 := 1; e2 <= 6; e2++ {
-			h := strings.Replace(handbuchText(codes), "\n## Ende\n", "\n"+strings.Repeat("#", e2)+" Danach\n\n"+kopfH+"| `a` | x |\n", 1)
+			h := strings.Replace(handbuchVorn(codes), "\n## Ende\n", "\n"+strings.Repeat("#", e2)+" Danach\n\n"+kopfH+"| `a` | x |\n", 1)
 			h = strings.Replace(h, "## Fehlercodes", strings.Repeat("#", e)+" Fehlercodes", 1)
 			m := grund(codes, nil)
 			m[dHandbuch] = h
@@ -403,7 +403,7 @@ func TestKatWortlaut(t *testing.T) {
 		for _, s := range []string{"---", ":---", "---:", ":---:", "::---", "---::", ":::", "--:-", ":", ""} {
 			gilt := s != "::---" && s != "---::" && s != ":::" && s != "--:-" && s != ":" && s != ""
 			m := grund(codes, nil)
-			kuerze(m, q.pfad, q.sep, "|"+strings.Repeat(s+"|", zellen)+"\n")
+			kuerzeErste(m, q.pfad, q.sep, "|"+strings.Repeat(s+"|", zellen)+"\n")
 			if gilt {
 				erwarteOk(t, q.pfad+" Trennzeile "+s, m)
 			} else {

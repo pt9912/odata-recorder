@@ -1,0 +1,2 @@
+**Vorgang:** slice-handbuch-katalog-schluessel-kommandos
+**Fund:** Zwei Randformen waren im Raster ohne Ort und standen im Code: ein Name in C und in N, und ein Verweis auf `konfig…go` ohne Ziel. Der Implementer gab beide ordnungsgemäß zurück (§6 des Plans), der Architect entschied sie nach dem Code (`SPEC-201` Nr. 1, 4 a, 4 c, 8). Der Name am Präfix aus N (F-6) und die Zeile eines Go-Fehlers bei `//line` (F-8) fand erst das Review; der Architect entschied beide vor der Fix-Runde. Beleg: Plan §6, Review F-6 bis F-8.
