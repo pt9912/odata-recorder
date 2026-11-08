@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-037` Nr. 2, 3, 5 bis 7 und 10 (Vertrag von `make test-integration`, `harness/vertraege/`) · `SPEC-139` Nr. 11 d und f (Neustart im Modus `mock`) · `SPEC-049` Nr. 7 a und 10 b (Neustart über die Prozessgrenze, Negativ der Snapshots) · `SPEC-110` Nr. 8 und 14 (Default `mock`, `PUBLIC_BASE_URL` aus `LISTEN`).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-bootstrap-m3-e2e-mock`, Worktree `/Development/odata-recorder-wt-bootstrap-m3-e2e-mock`; der Zweig entsteht nach dem Start-Commit von `main`)
 
 **Autor:** pt9912. **Datum:** 2026-11-08.
 
@@ -92,15 +92,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`open` → `in-progress`): `slice-bootstrap-m3` liegt in `done/` (das Binary im Modus `mock` und der Nachzug von `SPEC-037` Nr. 5 bis 7 und 10 sowie `SPEC-139` Nr. 11 liegen damit in `main`). Beim Start liest der Planner §1 *Ausdrücklich NICHT* und die DoD der Nachbarn neu (`AGENTS.md` §3.13).
 
-**Gate-Kette (Nr. 7 der Übergangsregeln):** Linie B. Dieser Slice ändert `tools/harness/test-integration.sh` und `tests/e2e/`, kein Pfad aus Nr. 7 (Architect, 2026-11-08, im Plan von `slice-bootstrap-m3` bestätigt: die Stufe `integration` baut `tests/e2e` und `tests/e2e/uebergang` als Ganzes). Braucht ein Szenario eine Änderung des `Dockerfile`, geht das als Rückgabe an den Planner. `slice-bootstrap-m4` und `slice-bootstrap-m6` führen je ein weiteres Szenario im selben Treiber; der Planner ordnet die Merges beim Start (Risiko in §6).
+**Gate-Kette (Nr. 7 der Übergangsregeln):** Linie B. Dieser Slice ändert `tools/harness/test-integration.sh` und `tests/e2e/`, kein Pfad aus Nr. 7 (Architect, 2026-11-08, im Plan von `slice-bootstrap-m3` bestätigt: die Stufe `integration` baut `tests/e2e` und `tests/e2e/uebergang` als Ganzes). Braucht ein Szenario eine Änderung des `Dockerfile`, geht das als Rückgabe an den Planner. Stand beim Start (Planner, 2026-11-08): `slice-bootstrap-m3` liegt in `done/`; zugleich in `in-progress/` ist allein `slice-test-contract` (Kettenslice, `Makefile` und `harness/mk/`, rührt den Treiber nicht an); `slice-gate-integration-determinism`, der den Treiber hätte berühren können, ist nach `open/` zurückgestellt und liest diesen Slice beim erneuten Start. `slice-bootstrap-m4` und `slice-bootstrap-m6` führen je ein weiteres Szenario im selben Treiber; der Planner ordnet die Merges beim Start (Risiko in §6).
 
-Größenmarke (Architect, 2026-11-08, `SPEC-128` Nr. 1; Planner-Rechnung gleich): *a* = 1 (E04), *b* = 8, *f* = 0, *p* = 40: *S* = 85 + 640 + 0 + 40 = 765, *M* = 1100, keine Schnittfrage. Der Block trägt den Teil des Architect; `basis`, `schaetzung` und `marke` setzt der Planner beim Start in eigenem Commit vor dem ersten Code-Commit (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; `docs/` zählt nicht).
+Größenmarke (Architect, 2026-11-08, `SPEC-128` Nr. 1; Planner-Rechnung gleich): *a* = 1 (E04), *b* = 8, *f* = 0, *p* = 40: *S* = 85 + 640 + 0 + 40 = 765, *M* = 1100, keine Schnittfrage. Der Block trägt den Teil des Architect; `basis`, `schaetzung` und `marke` hat der Planner beim Start am 2026-11-08 in eigenem Commit vor dem ersten Code-Commit gesetzt (nachgerechnet nach `SPEC-128` Nr. 1: 85·1 + 80·8 + 200·0 + 40 = 765, 135·765 = 103275, aufgerundet auf volle Hundert 1100; *S* liegt unter der Grenze 2223, keine Schnittfrage). Basis `fc6d1a6b` ist `main` vor dem Start-Commit; die Planungs-Commits dazwischen ändern allein `docs/`. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; `docs/` zählt nicht.
 
 ```groessenmarke
 pfad: tests/e2e/
 pfad: tools/harness/test-integration.sh
 produktcode: 40
 fakes: 0
+basis: fc6d1a6b
+schaetzung: 765
+marke: 1100
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
