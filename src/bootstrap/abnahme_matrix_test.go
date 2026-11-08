@@ -140,7 +140,7 @@ func abFixtures() []abFixture {
 				return s
 			}()}},
 		{ID: "ODV4-T-05", Schritte: []abSchritt{abS("", abG("/Products", "$filter=Price eq -3.75&$select=Id,Price"), abKK(abAuswahl("Id,Price", 4)))}},
-		{ID: "ODV4-T-06", Schritte: []abSchritt{abS("", abG("/Products", "$filter=Ref eq 00000000-0000-0000-0000-000000000003&$select=Id,Ref"), abKK(abAuswahl("Id,Ref", 3)))}},
+		{ID: "ODV4-T-06", Schritte: []abSchritt{abS("", abG("/Products", "$filter=Ref eq 0000000c-0000-0000-0000-00000000000c&$select=Id,Ref"), abKK(abAuswahl("Id,Ref", 3)))}},
 		{ID: "ODV4-T-07", Schritte: []abSchritt{abS("", abG("/Products", "$filter=Released eq 2024-02-29&$select=Id,Released"), abKK(abAuswahl("Id,Released", 4)))}},
 		{ID: "ODV4-T-08", Schritte: []abSchritt{abS("", abG("/Products", "$filter=Updated eq 2025-12-31T23:59:59.5Z&$select=Id,Updated"), abKK(abAuswahl("Id,Updated", 2)))}},
 		{ID: "ODV4-H-01", Schritte: []abSchritt{

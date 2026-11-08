@@ -59,7 +59,7 @@ func abWerte() map[int]map[string]string {
 	return map[int]map[string]string{
 		1: {"Id": "1", "Name": `"Anvil"`, "Active": "true", "Stock": "9007199254740993", "Price": "12.5", "Ref": `"00000000-0000-0000-0000-000000000001"`, "Released": `"2026-01-15"`, "Updated": `"2026-01-15T10:00:00Z"`},
 		2: {"Id": "2", "Name": `"Bolt"`, "Active": "false", "Stock": "0", "Price": "0.25", "Ref": `"00000000-0000-0000-0000-000000000002"`, "Released": `"2025-12-31"`, "Updated": `"2025-12-31T23:59:59.5Z"`},
-		3: {"Id": "3", "Name": `"Chain"`, "Active": "true", "Stock": "40", "Price": "100", "Ref": `"00000000-0000-0000-0000-000000000003"`, "Released": `"2026-03-01"`, "Updated": `"2026-03-01T08:30:00Z"`},
+		3: {"Id": "3", "Name": `"Chain"`, "Active": "true", "Stock": "40", "Price": "100", "Ref": `"0000000c-0000-0000-0000-00000000000c"`, "Released": `"2026-03-01"`, "Updated": `"2026-03-01T08:30:00Z"`},
 		4: {"Id": "4", "Name": "null", "Active": "true", "Stock": "-5", "Price": "-3.75", "Ref": `"00000000-0000-0000-0000-000000000004"`, "Released": `"2024-02-29"`, "Updated": `"2024-02-29T00:00:00Z"`},
 		5: {"Id": "5", "Name": `"Drill"`, "Active": "null", "Stock": "7", "Price": "null", "Ref": `"00000000-0000-0000-0000-000000000005"`, "Released": `"2026-06-30"`, "Updated": `"2026-06-30T12:00:00.25Z"`},
 	}
