@@ -13,35 +13,32 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// nichtGelieferte sind die Schlüssel und Präfixe, die diese Version nicht liefert (SPEC-110 Nr. 2).
-func nichtGelieferte() (praefixe, namen []string) {
-	return []string{"ADMIN_", "HYBRID_", "FALLBACK_", "LISTEN_TLS_"}, []string{"STRICT_COVERAGE", "PUBLIC_BASE_URL"}
+// nichtGelieferte sind die Präfixe der Schlüssel, die diese Version nicht liefert (SPEC-110 Nr. 2).
+func nichtGelieferte() []string {
+	return []string{"ADMIN_", "HYBRID_", "FALLBACK_", "LISTEN_TLS_"}
 }
 
 func (p *pruefer) nichtGeliefert() {
-	praefixe, namen := nichtGelieferte()
 	for k, v := range p.env {
 		if strings.TrimSpace(v) == "" {
 			continue
 		}
-		gesperrt := slices.Contains(namen, k)
-		for _, pre := range praefixe {
-			gesperrt = gesperrt || strings.HasPrefix(k, pre)
-		}
-		if gesperrt {
+		if slices.ContainsFunc(nichtGelieferte(), func(pre string) bool { return strings.HasPrefix(k, pre) }) {
 			p.melde(k, "wird von dieser Version nicht unterstützt")
 		}
 	}
 }
 
+// liesModus liest MODE (SPEC-110 Nr. 8): ungesetzt ist mock, hybrid ist ein gültiger, nicht gelieferter Wert.
+// Ein ungültiger Wert lässt den Modus leer, damit die Pflichten, die am gültigen Modus hängen, entfallen.
 func (p *pruefer) liesModus(k *Konfiguration) {
 	vorher := len(p.verstoesse)
-	k.Modus = p.aufzaehlung("MODE", "mock", "record", "replay", "mock", "hybrid")
-	if len(p.verstoesse) > vorher {
-		return
-	}
-	if k.Modus == "mock" || k.Modus == "hybrid" {
-		p.melde("MODE", "Modus nicht unterstützt; lieferbar sind record und replay")
+	k.Modus = p.aufzaehlung("MODE", modusMock, modusRecord, modusReplay, modusMock, modusHybrid)
+	switch {
+	case len(p.verstoesse) > vorher:
+		k.Modus = ""
+	case k.Modus == modusHybrid:
+		p.melde("MODE", "Modus nicht unterstützt; lieferbar sind record, replay und mock")
 	}
 }
 
@@ -88,6 +85,7 @@ func (p *pruefer) liesEinfache(k *Konfiguration) {
 	k.ReplayStrategy = p.aufzaehlung("REPLAY_STRATEGY", "sequential", "sequential", "strict", "first", "last")
 	k.ReplayAssignment = p.aufzaehlung("REPLAY_ASSIGNMENT", "explicit", "explicit", "ordered")
 	k.ReplayRedactedBodies = p.wahrheitswert("REPLAY_REDACTED_BODIES", false)
+	k.StrictCoverage = p.wahrheitswert("STRICT_COVERAGE", true)
 	k.MatchInvalidEncoding = p.aufzaehlung("MATCH_INVALID_ENCODING", "literal", "literal", "reject")
 	k.MatchBodyMode = p.aufzaehlung("MATCH_BODY_MODE", "bytes", "bytes", "json-canonical")
 	k.LinkRewrite = p.aufzaehlung("LINK_REWRITE", "off", "off")

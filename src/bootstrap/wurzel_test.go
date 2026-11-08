@@ -364,7 +364,7 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		RedactHeaders: []string{"x-red"}, RedactQueryParams: []string{"qred"}, RedactJSONPaths: []string{"$..geheim"},
 		MaxCaptureBody: 12345, UpstreamTimeout: 7 * time.Second, UpstreamCAFile: caDatei, UpstreamTLSVerify: true,
 		ShutdownTimeout: 11 * time.Second, RetentionMaxAge: 13 * time.Hour, SQLiteBusyTimeout: 17 * time.Second,
-		VolatileHeaders: []string{"x-vol"}, LinkRewrite: "off",
+		VolatileHeaders: []string{"x-vol"}, LinkRewrite: "off", StrictCoverage: true, PublicBaseURL: "http://pub.test:1/api",
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	lauf2 := func(modus string) *haken {
@@ -379,6 +379,12 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		return h
 	}
 	r, p := lauf2(modusRecord), lauf2(modusReplay)
+	mh, km := neuM3Haken(), k
+	km.Modus, km.DataDir = modusMock, filepath.Join(dir, modusMock)
+	_ = os.MkdirAll(km.DataDir, 0o700)
+	if _, err := lauf(ctx, t, km, log, mh.bauteile()); err != nil {
+		t.Fatal(err)
+	}
 	pfade := []model.JSONPfad{mustPfad(t, "$..geheim")}
 	dr := []record.Dienst{{ID: "x1", Root: "/r1", UpstreamURL: "http://u1.test/o"}, {ID: "x2", Root: "/r2", UpstreamURL: "http://u2.test/o"}}
 	dp := []replay.Dienst{{ID: "x1", Root: "/r1"}, {ID: "x2", Root: "/r2"}}
@@ -404,6 +410,8 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		"ShutdownTimeout":      r.session != nil && r.session.Frist == k.ShutdownTimeout,
 		"RetentionMaxAge":      r.wartung.MaxAge == k.RetentionMaxAge && p.wartung.MaxAge == k.RetentionMaxAge,
 		"SQLiteBusyTimeout":    r.sqliteOpt.BusyTimeout == k.SQLiteBusyTimeout && p.sqliteOpt.BusyTimeout == k.SQLiteBusyTimeout,
+		"StrictCoverage":       len(mh.mock) == 1 && mh.mock[0].StrictCoverage,
+		"PublicBaseURL":        len(mh.mock) == 1 && mh.mock[0].PublicBaseURL == k.PublicBaseURL,
 	}
 	ohneVerbraucher := []string{"ReplayAssignment", "LinkRewrite"}
 	typ, wert := reflect.TypeOf(k), reflect.ValueOf(k)
@@ -519,7 +527,7 @@ func TestModus(t *testing.T) {
 		pruefe  func(error) bool
 		offen   bool
 	}{
-		{"mock", func(k *bootstrap.Konfiguration) { k.Modus = "mock" }, istUngueltig, false},
+		{"mock ohne PublicBaseURL", func(k *bootstrap.Konfiguration) { k.Modus = "mock" }, istUngueltig, false},
 		{"hybrid", func(k *bootstrap.Konfiguration) { k.Modus = "hybrid" }, istUngueltig, false},
 		{"leer", func(k *bootstrap.Konfiguration) { k.Modus = "" }, istUngueltig, false},
 		{"ohne Dienste", func(k *bootstrap.Konfiguration) { k.Dienste = nil }, istUngueltig, false},

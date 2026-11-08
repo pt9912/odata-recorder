@@ -47,6 +47,10 @@ type Konfiguration struct {
 	SQLiteBusyTimeout    time.Duration
 	VolatileHeaders      []string
 	LinkRewrite          string
+	// StrictCoverage und PublicBaseURL wirken im Modus mock (SPEC-110 Nr. 14); PublicBaseURL ist in den
+	// anderen Modi leer, wenn der Schlüssel fehlt.
+	StrictCoverage bool
+	PublicBaseURL  string
 }
 
 // KonfigFehler sammelt alle Verstöße der Startkonfiguration, je Zeile
@@ -117,6 +121,7 @@ func LadeKonfiguration(environ []string) (Konfiguration, error) {
 	p.liesMengen(&k)
 	p.liesTLS(&k)
 	p.liesDienste(&k)
+	p.liesPublicBaseURL(&k)
 	p.pruefeCADatei(&k)
 	if len(p.verstoesse) == 0 {
 		p.legeDatenverzeichnisAn(k.DataDir)

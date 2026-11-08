@@ -2,7 +2,7 @@
 
 Software-Version: dev
 Gültigkeitsbereich: das Binary, das `make build` erzeugt
-Stand: 2026-11-06
+Stand: 2026-11-08
 
 ## Einleitung
 
@@ -71,6 +71,14 @@ Dieser Abschnitt führt die Fehlercodes, die das Binary dem Anwender zeigt. Ein 
 | `ODR-E5008` | Der gefundene Austausch lässt sich nicht abspielen. |
 | `ODR-E5009` | Keine Aufnahme-Session des Services nimmt die Anfrage an. |
 | `ODR-E5010` | Der Server ist angehalten und verarbeitet die Anfrage nicht. |
+| `ODR-E6001` | Der Mock unterstützt die Abfrage oder den lesenden Zugriff nicht. |
+| `ODR-E6002` | Der Mock unterstützt die Änderung oder den schreibenden Zugriff nicht. |
+| `ODR-E6003` | Die aufgezeichneten Daten decken das Entity-Set nicht vollständig ab, und der strikte Modus weist die Abfrage ab. |
+| `ODR-E6004` | Die Metadaten des Services fehlen oder sind ungültig. |
+| `ODR-E6005` | Die OData-URL der Anfrage ist ungültig. |
+| `ODR-E6007` | Der Request-Body ist nicht lesbar oder verstößt gegen das Modell. |
+| `ODR-E6008` | Die Entity oder das Entity-Set ist unbekannt. |
+| `ODR-E6009` | Der Schlüssel der Entity ist bereits vergeben. |
 | `ODR-E7001` | Der Workspace ist unbekannt. |
 | `ODR-E7003` | Die Aufnahme-Session ist unbekannt. |
 | `ODR-E7009` | Die Session ist noch offen. |

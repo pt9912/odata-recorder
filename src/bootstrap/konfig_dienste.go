@@ -52,7 +52,7 @@ func (p *pruefer) pruefeCADatei(k *Konfiguration) {
 
 // liesDienste bildet die Services aus SERVICES_FILE oder den Einzelschlüsseln (SPEC-110 Nr. 9).
 func (p *pruefer) liesDienste(k *Konfiguration) {
-	record := k.Modus == "record"
+	record := k.Modus == modusRecord
 	datei, hatDatei := p.wert("SERVICES_FILE")
 	if hatDatei {
 		for _, schluessel := range []string{"SERVICE_ID", "SERVICE_ROOT_PATH", "UPSTREAM_URL"} {
