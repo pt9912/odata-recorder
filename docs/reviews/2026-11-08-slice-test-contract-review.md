@@ -21,7 +21,7 @@
 ### LOW
 
 3. **kategorie** LOW · **quelle** Maintainability / `AGENTS.md` §3.9
-   **pfad** `docs/plan/planning/in-progress/slice-test-contract.md` · „Der Fall *kein PASS* (Name in der Liste, Test läuft nicht) ist nicht gefahren.“
+   **pfad** `docs/plan/planning/done/slice-test-contract.md` · „Der Fall *kein PASS* (Name in der Liste, Test läuft nicht) ist nicht gefahren.“
    **befund** Der Fall ist gefahren (siehe INFO 5); der Satz im Handlauf-Absatz von §3 ist damit überholt und der Plan zieht die Messung nicht nach.
    **verifizierbar** ja · **klasse** Plan folgt der Messung nicht
 
