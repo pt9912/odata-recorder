@@ -46,18 +46,18 @@ seinen Grund.
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Ziel-Form: Slice — **≤ 3 Liefer-Punkte**.
 
-- [ ] Die Stufen `TestE2EMock` und `TestE2EMockNeustart` in `tests/e2e/` samt den drei Zeilen je Stufe in `tools/harness/test-integration.sh` und der Befehl `reset` des Übergangs in `tests/e2e/uebergang/` mit Test; `make test-integration` fährt beide grün (`SPEC-037`, Zeilen E01 bis E07 der Tabelle).
-- [ ] Das Abdeckungs-Dokument `docs/plan/planning/e2e-abdeckung.md` ist aus `make e2e-abdeckung` neu erzeugt und führt die beiden Stufen; die Negative E08 und E09 stehen mit Grund und Folge in der Spezifikation.
-- [ ] `make gates` grün; `make test-integration` als Pflichtlauf vor der Closure grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Die Stufen `TestE2EMock` und `TestE2EMockNeustart` in `tests/e2e/` samt den drei Zeilen je Stufe in `tools/harness/test-integration.sh` und der Befehl `reset` des Übergangs in `tests/e2e/uebergang/` mit Test; `make test-integration` fährt beide grün (`SPEC-037`, Zeilen E01 bis E07 der Tabelle).
+- [x] Das Abdeckungs-Dokument `docs/plan/planning/e2e-abdeckung.md` ist aus `make e2e-abdeckung` neu erzeugt und führt die beiden Stufen; die Negative E08 und E09 stehen mit Grund und Folge in der Spezifikation.
+- [x] `make gates` grün; `make test-integration` als Pflichtlauf vor der Closure grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Handbuch-Kapitel: entfällt, kein Ergebnis dieses Slice ist am Binary für einen Anwender neu (Stufen und `reset` sind Prüfwerkzeug); das Handbuch-Gate bleibt grün.
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Handbuch-Kapitel: entfällt, kein Ergebnis dieses Slice ist am Binary für einen Anwender neu (Stufen und `reset` sind Prüfwerkzeug); das Handbuch-Gate bleibt grün.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
 
 ## 3. Plan (vor Code)
 
@@ -111,6 +111,8 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster (§6) hat de
 **Raten.** Die Zeile E04 ist die Klasse `nebenläufig`; ihr Fänger ist ein Wirkungs-Fänger (der Zustand nach dem Neustart gegen die Antworten vor dem Signal), kein Detektor: der Test ist sequenziell und `SIGTERM` kommt erst nach der letzten Antwort, ein Datenrennen im Binary sieht er nicht, das ist `make test-race` für die Pakete im Prozess. Gemessen von mir, auf dem Host mit `uptime` Last 18,4 bis 19,3 bei 20 Kernen (andere Zweige liefen): `TestE2EMockNeustart` mit der Mutation *`-wal` löschen* rot in 30 von 30 Prozessläufen, mit der Mutation *zweiter Start leert* rot in 10 von 10; ohne Mutation rot in 0 von 30 Läufen (beide Stufen in einem Prozess je Lauf). Die Zeile gilt als gefangen.
 
 **Mengen** (`implement-slice` Schritt 14): Header-Zuordnung 6 Formen (fehlend, leer, zwei gleiche, zwei verschiedene, zwei Schreibweisen, unbekannter Wert) × 5 Requests = 30 (`TestE2EMock/Zuordnung` zählt), Orakel die Konstanten Status und Code je Form; Argumentformen von `uebergang` 3 Befehle × 6 Formen + 2 = 20 (`TestAufrufformen` zählt 18 plus die Schleife über 2); Neustart 4 Lesezugriffe × 2 Neustarts = 8 (Orakel: die Antworten vor dem Signal); `DATA_DIR` ohne Ablage 4 Pfade (`TestE2EMockNeustart` zählt).
+
+**Akzeptiertes Negativ der Menge *Zuordnung durch den Header*** (Verifier V1, Planner, 2026-11-08): die Methoden `HEAD`, `PUT`, `PATCH` und die Form *drei Werte* liegen außerhalb der 30 Elemente; die Mutationen *Prüfung entfällt für `HEAD`* und `len(w) != 1 && len(w) != 3` bleiben am Binary grün. *Grund:* der Dienst prüft den Header an einer Stelle vor der Methodenwahl, `TestZuordnung` führt *drei Werte* im Prozess. *Folge:* ein Eingang, der Methoden verschieden behandelte, bliebe für diese drei Elemente am Binary ungefangen. Wortlaut: `SPEC-037` Nr. 10 m.
 
 **Grenzen, die ich beim Bauen fand** (Adresse in §6): (1) Der Übergang `import` löst den `@odata.nextLink` gegen die `UPSTREAM_URL` der Aufnahme auf (`SPEC-127` Nr. 12 e); sie kennt er nicht, die Kette endet in `link_nicht_aufloesbar` und die Coverage ist `partial` statt `complete` (`ODR-E6003` bei `STRICT_COVERAGE`, dem Default). Der Test übergibt sie als `E2E_UPSTREAM_URL`; `SPEC-037` Nr. 6 nennt diese Eingabe nicht. (2) Der Zähler des Referenzdienstes (E03) kann nach dem Stoppen nicht rot werden: ohne `UPSTREAM_URL` kennt das Binary keinen Upstream, und eine Verbindung zu einem geschlossenen Server zählt der Server nicht. Die Mutation *Pflicht `UPSTREAM_URL`* wird dennoch rot, am Start, nicht am Zähler. (3) *Zwei Schreibweisen* des Namens (E02) kommen beim Server von Go als ein Name mit zwei Werten an (der Server kanonisiert), und sind am Binary von *zwei gleiche Werte* nicht zu unterscheiden; eine Mutation von `werteVon`, die nur eine Schreibweise liest, fängt kein Fall am Binary (Gegenstand im Prozess: `SPEC-195` Nr. 5, `src/hexagon/services/mock/zuordnung_test.go`; der Test fängt die Mutation: 6 rote Zellen, Zeile in der Mutationstabelle).
 
@@ -170,9 +172,10 @@ dasteht.
 - Neustart über die Prozessgrenze im Modus `mock` (Sendung, `SPEC-049` Nr. 7 a): Randformen — **Ausgang:** entschieden (Architect, 2026-11-08): Verzeichnis fehlt wird angelegt (E05), Signal während einer Mutation ist ein akzeptiertes Negativ (E08), Snapshots bleiben das Negativ (E09).
 - Randformen der Sendung, die der Architect am 2026-11-08 nachgezogen hat: Zeitpunkt von `SIGTERM` (erst nach der letzten Antwort, E04; das Fenster davor ist E08), Bereitschaft im Modus `mock` (Verbindung ohne Request, `SPEC-037` Nr. 5), fehlendes `DATA_DIR` am Binary (wird angelegt, E05) und am `reset` (Exit 1, E06), doppelter Neustart (E04), die Formen des Headers (E02) — **Ausgang:** entschieden, in `SPEC-037` Nr. 5 bis 7 und `SPEC-139` Nr. 11 f.
 - Nummern der Stufen im Treiber `tools/harness/test-integration.sh` und das Abdeckungs-Dokument: `slice-bootstrap-m4` und `slice-bootstrap-m6` fügen im selben Treiber Stufen an. Die Zahl `<n>` in `stufe <n> <Name>` ist nur Ausgabe; der Schlüssel ist der Name des Tests (`SPEC-037` Nr. 2, `-test.list`), und `docs/plan/planning/e2e-abdeckung.md` zählt die Stufen nach der Reihenfolge im Skript und ist erzeugt. Entscheidung: dieser Slice nimmt 8 und 9 als nächste freie Zahlen; wer später in `main` merged, nummeriert seine Literale hinter die vorhandenen um und erzeugt das Dokument aus `make e2e-abdeckung` neu, statt einen Konflikt von Hand aufzulösen; die Reihenfolge der Merges ordnet der Planner. Kein Fänger gleicht die Zahl im Skript mit der Position im Dokument ab — akzeptiertes Negativ: Grund, die Zahl ist nur eine Beschriftung der Ausgabe; Folge, eine falsche Zahl irritiert den Leser der Ausgabe, belegt aber nichts Falsches. — **Ausgang:** entschieden (Architect, 2026-11-08); der Integrationsschritt liegt beim Planner (Merge-Reihenfolge, kein Slice als Nehmer).
-- Die Stufe 9 beendet und startet den Server und liegt in der Klasse `nebenläufig` (E04) — **Ausgang:** offen (die Raten stehen in §3, Absatz *Raten*: 30 von 30 und 10 von 10 rot, ohne Mutation 0 von 30; den Ausgang setzt der Planner bei der Closure); Muster der Fänger wie bei den Stufen 1 bis 7 (Bereitschaft statt Schlaf).
+- Die Stufe 9 beendet und startet den Server und liegt in der Klasse `nebenläufig` (E04) — **Ausgang:** eingetreten und gefangen (Planner, 2026-11-08, Closure): Wirkungs-Fänger statt Detektor, Raten in §3, Absatz *Raten*: 30 von 30 und 10 von 10 Prozessläufen rot, ohne Mutation 0 von 30; der Verifier fuhr alle neun Stufen im eigenen Lauf grün; Muster der Fänger wie bei den Stufen 1 bis 7 (Bereitschaft statt Schlaf).
 - Der Übergang `import` braucht die `UPSTREAM_URL` der Aufnahme, damit die Coverage `complete` wird (`SPEC-127` Nr. 12 e); `SPEC-037` Nr. 6 nennt die Eingabe nicht, und E01 fordert `complete` (`SPEC-037` Nr. 7). Der Implementer hat sie als Umgebungsvariable `E2E_UPSTREAM_URL` des Hilfsprogramms eingeführt (Abweichung vom Wortlaut von Nr. 6, im Code entschieden, nicht in der Spezifikation) — **Ausgang:** entfallen (entschieden): `SPEC-037` Nr. 6 nennt die Eingabe `E2E_UPSTREAM_URL`; ein Argument ist verworfen (Gründe dort). Der Code gilt unverändert.
 - Die Zeile E03 (Zähler des Referenzdienstes nach dem Stoppen) kann keine Mutation am Zähler fangen, E02 *zwei Schreibweisen* ist am Binary von *zwei gleiche Werte* nicht zu unterscheiden (§3, *Grenzen*, Punkte 2 und 3) — **Ausgang:** entfallen (entschieden): E03 ist akzeptiertes Negativ in `SPEC-037` Nr. 10 k; bei E02 fängt `TestZuordnung` im Prozess die Mutation von `werteVon`, am Binary steht das Negativ in Nr. 10 l. Auftrag an den Implementer: die Mutation *`werteVon` liest nur eine Schreibweise* (Mock-Dienst) einmal fahren und `TestZuordnung/zwei Schreibweisen` rot sehen, Zahl der roten Zellen (erwartet 6) in die Mutationstabelle.
+- Die Menge *Zuordnung durch den Header* (6 Formen × 5 Requests) lässt `HEAD`, `PUT`, `PATCH` und die Form *drei Werte* aus (Verifier V1, LOW) — **Ausgang:** entfallen (entschieden, Planner, 2026-11-08): akzeptiertes Negativ mit Grund und Folge in §3 und `SPEC-037` Nr. 10 m; kein Fix-Lauf (Durchstich vor Härtung).
 
 ## 7. Closure-Notiz
 
@@ -181,7 +184,29 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 Steering-Loop-Regeln (das Feld `liegt in` steht **nur**, wenn mit diesem Slice
 wirklich etwas verkörpert wurde).
 
-*Wird bei der Closure gefüllt.*
+**Stand der Closure** (Planner, Integrationsschritt, 2026-11-08, Zweig `slice-bootstrap-m3-e2e-mock` bei Merge von `main` (`ada0ab5f`); das reine `git mv` nach `done/` folgt als eigener Commit, danach der Merge nach `main`, kein Push). Belege: Review `docs/reviews/2026-11-08-slice-bootstrap-m3-e2e-mock-review.md` (0 HIGH, 0 MEDIUM, 4 LOW, Fix-Runde `4b0e59ff`), Verifikation `docs/reviews/2026-11-08-slice-bootstrap-m3-e2e-mock-verifikation.md` (bestanden mit Auflagen; Auflagen 1 und 2 hier erledigt, 3 im Gate-Lauf der Integration, 4 als Hinweis an die Nehmer, 5 durch `echo EXIT=$?` im Integrationslauf).
+
+**Gegenstand:** geliefert. Die Stufen 8 (`TestE2EMock`) und 9 (`TestE2EMockNeustart`) von `make test-integration` fahren das gebaute Binary im Modus `mock` (CRUD, Reset, Zuordnung durch den Header, Neustart nach `SIGTERM` auf demselben `DATA_DIR`); der Übergang kennt `reset` und die Eingabe `E2E_UPSTREAM_URL`. Kein Produktcode in `src/`. Die Sendung von `slice-mock-abnahme` (`SPEC-049` Nr. 7 a und 10 b, Rückgabe R4, über `slice-bootstrap-m3`) ist für Mutationen erfüllt; Snapshots bleiben das akzeptierte Negativ (E09) bis `welle-admin-api`.
+
+**Größen** (`SPEC-128` Nr. 9): `Messpunkt slice-bootstrap-m3-e2e-mock.md: zeilen=9 nebenlaeufig=1 fakes=0 produktcode=40 schaetzung=765 marke=1100 messung=570`; `make groessenmarke`: `ok, Messung 570 von Marke 1100`. **Auslastung 0,52 (570 / 1100), unter 0,60: Meldung an den Architect** (Marke zu hoch; Ende ÷ Schätzung 0,75). Keine `ueberschreitung`, keine Rückführung. Evidenz für `BEO-REPO/schaetzformel-ueberschaetzt-den-slice` ist die Zeile selbst, wie bei `slice-bootstrap-m3`.
+
+**Mutationen:** je Zusage rot gesehen (Tabellen in §3); die Fix-Runde deckte die Form *zwei verschiedene Werte*. Der Verifier fuhr drei eigene Mutationen an Elementen außerhalb der Befunde: zwei grün (`HEAD`, *drei Werte*, jetzt akzeptiertes Negativ, `SPEC-037` Nr. 10 m), eine gleichwertig. Die Klasse `nebenläufig` (E04): 30 von 30 und 10 von 10 Prozessläufe rot, ohne Mutation 0 von 30 (§3, *Raten*).
+
+**Gate:** `make gates` und `make test-integration` im Zweig auf dem Merge-Stand unter `flock /tmp/odata-recorder-heavy.lock` und auf `main` nach dem Merge: die Ergebnisse stehen im Commit der Integration. Akzeptierte Negative (Grund und Folge in §3, §6 und `SPEC-037` Nr. 10): E03 (Zähler), E08, E09, `ODR-E6004` am Binary, Nr. 10 l (zwei Schreibweisen) und Nr. 10 m (`HEAD`, `PUT`, `PATCH`, drei Werte).
+
+**Risiko-Ausgänge (§6):** je Punkt im Plan selbst; alle entschieden, entfallen oder eingetreten, keiner weiter offen. Hinweis an die Nehmer `slice-bootstrap-m4` und `slice-bootstrap-m6`: dieser Slice nimmt die Stufen 8 und 9; sie nummerieren ihre Literale hinter 9 neu und erzeugen `docs/plan/planning/e2e-abdeckung.md` aus `make e2e-abdeckung` neu (Eintrag in deren §6).
+
+**Steering-Loop-Einträge:**
+
+1. **Die Menge des Fixes kam aus dem Plan, nicht aus dem Wortlaut der Zusage:** `SPEC-037` Nr. 7 und `SPEC-195` Nr. 5 sagen „ein Request ohne …“ und „mehr als ein Wert“; die Menge (6 Formen × 5 Requests) ließ Methoden und die dritte Wertzahl aus. Evidenz zu `BEO-REPO/fix-deckt-die-genannte-mutation-nicht-die-klasse` (verkörpert in `AGENTS.md` §3.17, gezählt, nicht geschärft); dieselbe Lücke ist zugleich Evidenz zu `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft`.
+2. **Benannte Spec-Lücke, geschlossen:** `SPEC-037` Nr. 6 kannte die Eingabe `E2E_UPSTREAM_URL` des Übergangs nicht, ohne die der Import die Coverage `partial` statt `complete` ergibt; der Implementer hielt an (`AGENTS.md` §3.12), der Architect hat die Eingabe samt Alternative in Nr. 6 geschrieben, dazu Nr. 10 k und l. Der Planner ergänzt Nr. 10 m.
+3. **Beobachtungen ohne neue Regel:** keine weitere. Zur Betriebsregel für Repo-Dateien liegt kein Beleg im Repo vor (kein Report nennt `sed` oder Heredoc); eine Evidenz zu `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` entsteht nicht.
+
+**Spec-Lücken:** eine, benannt und geschlossen in Eintrag 2.
+
+**Kein Feld `liegt in` in diesem Slice:** nichts wurde in einer Regel, einem Sensor oder einer Spec-Stelle neu verkörpert; Eintrag 1 zählt, Eintrag 2 ist eine benannte Spec-Lücke.
+
+**Drei Paarungen:** Anker (kein Eintrag trägt `liegt in`, nichts zu paaren) · Folge-Slice (die Sendung von `slice-mock-abnahme` ist erfüllt und im Geber vermerkt; Hinweis an `slice-bootstrap-m4` und `slice-bootstrap-m6` in deren §6) · Register (Evidenz `slice-bootstrap-m3-e2e-mock` zu `BEO-REPO/fix-deckt-die-genannte-mutation-nicht-die-klasse` und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft`).
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
