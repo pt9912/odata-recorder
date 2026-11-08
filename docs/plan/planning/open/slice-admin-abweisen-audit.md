@@ -97,7 +97,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 
 | Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|
-| D1 | (Nr. 8) Bei jeder Antwort 401 genau ein `Append(Eintrag{Art: ArtAdminAbgewiesen, ErrorCode: CodeE2101, KorrelationsID: ID der Antwort})`, alle übrigen Felder leer | Schleife über die 14 Formen von U1, die Zellen von U7 und `Vergleich` gleich `false`: `FakeAudit.Eintraege()` gleich dem Literal-Eintrag mit der ID, `Aufrufe()` 1 | `ServiceID` gesetzt; Art falsch | andere |
+| D1 | (Nr. 8) Bei jeder Antwort 401 genau ein `Append(Eintrag{Art: ArtAdminAbgewiesen, ErrorCode: CodeE2101, KorrelationsID: ID der Antwort})`, alle übrigen Felder leer | Schleife über die 20 Formen von U1, die Zellen von U7 und `Vergleich` gleich `false`: `FakeAudit.Eintraege()` gleich dem Literal-Eintrag mit der ID, `Aufrufe()` 1 | `ServiceID` gesetzt; Art falsch | andere |
 | D2 | (Nr. 8) Bei keiner anderen Antwort ein `Append`, und nie eine der vier Arten von `SPEC-234` | Schleife über 404, 405, 400, 503, 500, healthz, Erfolg, Kontextfehler: `FakeAudit.Aufrufe()` 0 | `Append` auch bei 404 | andere |
 | D3 | (Nr. 8) Der Eintrag trägt keinen Tokenwert, kein Teilstück, keinen Pfad, keine Methode, keine Adresse | Canary im falschen Token, im Pfad, in der Query, in einem Header, in der Methode: der gehaltene `Eintrag` ist als Struktur gleich dem Literal (alle sieben Felder) | der Pfad in `ServiceID` | andere |
 | D4 | (Nr. 8) Bis `Append` zurückkehrt, hat der Adapter weder Header noch Body geschrieben | `FakeAudit.Vor` prüft einen `ResponseRecorder` (`ServeHTTP` direkt): Header leer, Body leer | `Append` nach dem Schreiben | andere |
@@ -131,7 +131,7 @@ Zeilen gesamt 13: *a* = 3 (D6, D7, N1), *b* = 10. N1 steht hier statt bei `slice
 | Menge | Achsen und Elemente | Generator | Orakel | Zählprüfung gegen die Quelle |
 |---|---|---|---|---|
 | M-Ausgabewege (H1) | 8 Wege × 7 Anlässe × 3 Teilstücke und der ganze Wert | Schleife | Canary fehlt | 8 gleich den Buchstaben in `SPEC-238` Nr. 13 |
-| M-Header (U1), M-Methode × Pfad (U7), M-Schreibstellen W | aus den Plänen, die ihre Zeilen tragen (14, 40, 9) | Schleife | Eintrag gleich dem Literal | wie dort |
+| M-Header (U1), M-Methode × Pfad (U7), M-Schreibstellen W | aus den Plänen, die ihre Zeilen tragen (20, 40, 9) | Schleife | Eintrag gleich dem Literal | wie dort |
 
 **Unbeschränkte Menge und ihre Prüfgrenze (akzeptiertes Negativ):** die Zahl gleichzeitiger Requests (Prüfgrenze 32 in N1, 8 × 8 in D7; Grund: der Zustand ist je Request lokal, es gibt keine gemeinsame Sperre; Folge: ein Fehler unter 1000 gleichzeitigen Requests ist durch die Eigenschaft „keine gemeinsame Sperre“ getragen, nicht durch einen eigenen Fänger).
 

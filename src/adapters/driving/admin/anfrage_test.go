@@ -189,20 +189,25 @@ func z8Schreibweisen() []string {
 	return namen
 }
 
-// z8Faelle sind die Header-Zeilen von Z8; Authorization trägt einen Canary, in jeder der 8192 Schreibweisen des
-// Schlüssels. Jeder Nachbarname steht zusammen mit Authorization: nur dieses Feld fällt weg.
+// z8Faelle sind die Header-Zeilen von Z8 neben der gültigen kanonischen Zeile, die anfrageMit setzt: ein Schlüssel in
+// jeder der 8192 Schreibweisen von Authorization trägt einen Canary (die kanonische Schreibweise ist die gültige Zeile
+// selbst und trägt keinen), jeder Nachbarname steht neben ihr: nur Authorization fällt weg.
 func z8Faelle() []z8Fall {
 	bearer := []string{"Bearer " + canary()}
 	faelle := []z8Fall{
-		{"Authorization", map[string][]string{"Authorization": bearer}},
+		{"Authorization", map[string][]string{}},
 		{"X-A", map[string][]string{"X-A": {"1"}}},
 		{"zwei Werte", map[string][]string{"X-Multi": {"1", "2"}}},
 	}
 	for _, n := range z8Schreibweisen() {
-		faelle = append(faelle, z8Fall{"Schreibweise " + n, map[string][]string{n: bearer}})
+		kopf := map[string][]string{n: bearer}
+		if n == "Authorization" {
+			kopf = map[string][]string{}
+		}
+		faelle = append(faelle, z8Fall{"Schreibweise " + n, kopf})
 	}
 	for _, n := range z8Nachbarn() {
-		faelle = append(faelle, z8Fall{"Nachbar " + n, map[string][]string{n: {"1"}, "Authorization": bearer}})
+		faelle = append(faelle, z8Fall{"Nachbar " + n, map[string][]string{n: {"1"}}})
 	}
 	return faelle
 }
