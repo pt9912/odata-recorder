@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-042` (Vertrag `make test-contract`, `harness/vertraege/SPEC-042-test-contract.md`: *OData-V4-JSON, Metadata, Fehlerfälle und HTTP-Semantik*; Referenzanfragen und Negativfälle) · `SPEC-049` (Abnahmematrix, Fixtures `ODV4-*`) · `LH-RB-01.a` (Nachweis: Referenzanfragen und Negativfälle) · `LH-QA-05.a` (Fehlerklassen) · `SPEC-109` (Tabelle der Codes).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-test-contract`, Worktree `/Development/odata-recorder-wt-test-contract`; der Zweig entsteht nach dem Start-Commit von `main`)
 
 **Autor:** pt9912. **Datum:** 2026-10-31.
 
@@ -93,9 +93,13 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): `slice-mock-abnahme` und `slice-bootstrap-m3` liegen in `done/` (die Fixtures `ODV4-*` und der Mock-Betrieb stehen; vier Fehlerklassen von `LH-QA-05` erreichen den Eingang erst dort). Der Vertrag `SPEC-042` trägt Umfang und Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12). Der Slice ändert `Makefile` und `harness/mk/` und startet nur, wenn kein anderer Slice der Gate-Kette in `in-progress/` liegt ([Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln) Nr. 7).
 
+**Stand der Bedingungen beim Start** (Planner, 2026-11-08): `slice-mock-abnahme` und `slice-bootstrap-m3` liegen in `done/`; `slice-gate-integration-determinism` ist nach `open/` zurückgestellt (User-Vorrang `welle-mock`), damit hält kein anderer Slice die Gate-Kette (Nr. 7). In `in-progress/` läuft zugleich allein `slice-bootstrap-m3-e2e-mock` (Linie B; Pfade `tests/e2e/` und `tools/harness/test-integration.sh`, keine Kettenpfade). Der Vertrag `SPEC-042`, die Tabelle *Zusage · Fänger* und das Raster fehlen noch: der Architect schreibt sie im Slice-Zweig vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Entscheidungen aus §6 (Doppelung der Fixtures, Weg der Klasse „ungültige Metadaten“) gehören zu seinem Auftrag.
+
+**Größenmarke** (Planner, 2026-11-08, `SPEC-128` Nr. 1 und `AGENTS.md` §3.14), vorläufig als Prosa, weil die Tabelle des Architect fehlt: kein Block, daher misst `make groessenmarke` den Plan nicht. Schätzung aus dem Wortlaut von §1 und §3: rund 16 Zeilen der Tabelle (Aufruf der Fixtures `ODV4-*`, vier Fehlerklassen mit Status, Kontext und Geheimnisfreiheit, Verdrahtung des Ziels, Randformen), davon keine der Klasse `nebenläufig`, *a* = 0, *b* = 16, *f* = 0 (der Fake des Ports ist die Composition des Mock), *p* = 150 (Fragment, Skript, Test-Treiber): *S* = 80·16 + 150 = 1430, *M* = 100·⌈135·1430/10000⌉ = 2000. **Schnittfrage: nein** — *S* liegt unter der Grenze 2223 (135·*S* = 193050 ≤ 300000); die Tabelle müsste um mehr als 9 Zeilen auf rund 26 wachsen oder *p* auf über 900, damit die Frage gilt. Ein Teil ohne geteilten Mechanismus wäre ohnehin nicht abtrennbar: alle Fälle laufen durch dieselbe Verdrahtung des Ziels. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen, `harness/vertraege/` ausgenommen. Der Planner setzt den Block `groessenmarke` (Pfade des Architect, `basis`, `schaetzung`, `marke`) und rechnet neu, sobald die Tabelle steht, in eigenem Commit vor dem ersten Code-Commit; liegt *S* dann bei 2223 oder darüber, gilt die Schnittfrage vor dem Code.
+
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): Die Marke setzt der Planner beim Start nach `AGENTS.md` §3.14 (Summe aus `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen); die Zahl steht erst mit der Tabelle *Zusage · Fänger* des Architect. Der Planner schätzt den Slice als klein.
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): die Marke aus dem Absatz *Größenmarke* oben, endgültig vor dem ersten Code-Commit nach `AGENTS.md` §3.14; die Zahl steht erst mit der Tabelle *Zusage · Fänger* des Architect. Der Planner schätzt den Slice als klein.
 - `in-progress` → `open` (blockiert): eine Fehlerklasse von `LH-QA-05` erreicht den HTTP-Eingang nicht (siehe §6).
 
 ## 5. Closure-Trigger
