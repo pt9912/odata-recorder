@@ -1,0 +1,2 @@
+**Vorgang:** slice-fallback-policy-entscheidung
+**Fund:** Die *Ungeprüft*-Zeile „Lesart des Ziels durch den HTTP-Client“ in `spec/spezifikation.md` (Architect-Text, `SPEC-261`) nannte `slice-hybrid-service`; `make docs-check` meldete sie als Verweis nach unten (`matrix-forbidden`). Der Implementer strich den Klammerzusatz mit der Slice-Kennung; Grund, Folge und der Fänger „beim Dienst“ blieben byte-gleich (Wort-Diff `531d2ff2..HEAD` des Verifiers). Beleg: Plan §3 und §6 (Fix-Runde), Verifikation (Plan-vs-Code-Diff).

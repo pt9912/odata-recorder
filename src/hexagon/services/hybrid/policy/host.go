@@ -2,6 +2,7 @@ package policy
 
 import (
 	"net/netip"
+	"net/url"
 	"strings"
 )
 
@@ -92,6 +93,103 @@ func nameByte(c byte) (byte, bool) {
 		return c, true
 	}
 	return 0, false
+}
+
+// zielHost ist der gelesene Host eines Ziels: Name (ASCII-Kleinschreibung oder kanonische
+// IPv6-Adresse), Port und der Standardport des Schemas.
+type zielHost struct {
+	name           string
+	port, standard int
+}
+
+// hostFrei sagt, ob der Host von ziel durch einen Eintrag von Hosts freigegeben ist (SPEC-261
+// Nr. 5 c, d): ein Eintrag ohne Port meint den Standardport des Schemas von ziel.
+func (p *Policy) hostFrei(ziel string) bool {
+	z, ok := leseZiel(ziel)
+	if !ok {
+		return false
+	}
+	for _, e := range p.hosts {
+		port := e.port
+		if port == 0 {
+			port = z.standard
+		}
+		if e.name == z.name && port == z.port {
+			return true
+		}
+	}
+	return false
+}
+
+// leseZiel liest ein Ziel nach SPEC-261 Nr. 5 c; ein nicht lesbares Ziel liefert false. Wie im
+// Eintrag steht eine IPv6-Adresse in eckigen Klammern und ein Name ohne sie.
+func leseZiel(ziel string) (zielHost, bool) {
+	u, err := url.Parse(ziel)
+	if err != nil || u.User != nil {
+		return zielHost{}, false
+	}
+	var z zielHost
+	switch u.Scheme {
+	case "http":
+		z.standard = 80
+	case "https":
+		z.standard = 443
+	default:
+		return zielHost{}, false
+	}
+	z.port = z.standard
+	if t := u.Port(); t != "" {
+		n, ok := zielPort(t)
+		if !ok {
+			return zielHost{}, false
+		}
+		z.port = n
+	}
+	name, ok := zielName(u.Host, u.Hostname())
+	z.name = name
+	return z, ok
+}
+
+// zielName liest den Namen eines Ziels aus dem Host mit Port und Klammern (roh) und dem Hostnamen
+// ohne sie: einen Namen in ASCII-Kleinschreibung oder die kanonische IPv6-Adresse ohne Zone.
+func zielName(roh, host string) (string, bool) {
+	if strings.HasPrefix(roh, "[") != strings.Contains(host, ":") {
+		return "", false
+	}
+	if strings.Contains(host, ":") {
+		adr, err := netip.ParseAddr(host)
+		if err != nil || !adr.Is6() || adr.Zone() != "" {
+			return "", false
+		}
+		return adr.String(), true
+	}
+	if host == "" {
+		return "", false
+	}
+	klein := make([]byte, len(host))
+	for i := 0; i < len(host); i++ {
+		c, gueltig := nameByte(host[i])
+		if !gueltig {
+			return "", false
+		}
+		klein[i] = c
+	}
+	return string(klein), true
+}
+
+// zielPort liest den Port eines Ziels: eine Dezimalzahl von 1 bis 65535, auch mit führender Null.
+func zielPort(s string) (int, bool) {
+	n := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return 0, false
+		}
+		n = n*10 + int(s[i]-'0')
+		if n > 65535 {
+			return 0, false
+		}
+	}
+	return n, n >= 1
 }
 
 // parsePort liest Dezimalziffern ohne führende Null im Bereich 1 bis 65535.
