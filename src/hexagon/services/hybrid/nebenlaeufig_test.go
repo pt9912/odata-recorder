@@ -133,10 +133,8 @@ func TestGleichzeitigerAbbruch(t *testing.T) {
 	g := neuesRig(t, offenste(t), standardMax)
 	e6003 := codeNamed(t, "ODR-E6003")
 	cancels := make([]context.CancelFunc, aufrufe)
-	ctxs := make([]context.Context, aufrufe)
 	sm, sr := make([]*strom, aufrufe), make([]*strom, aufrufe)
 	for id := range aufrufe {
-		ctxs[id], cancels[id] = abbruchKontext()
 		sm[id], sr[id] = neuerStrom([]byte("m")), neuerStrom([]byte("r"))
 	}
 	g.m.fn = func(_ int, ctx context.Context, a inbound.Anfrage) (inbound.Antwort, error) {
@@ -162,7 +160,10 @@ func TestGleichzeitigerAbbruch(t *testing.T) {
 	gleichzeitig(aufrufe, func(id int) {
 		a := anfrage("GET")
 		a.KorrelationsID = strconv.Itoa(id)
-		got, err := g.v.Hybrid(ctxs[id], a)
+		ctx, cancel := abbruchKontext()
+		defer cancel()
+		cancels[id] = cancel
+		got, err := g.v.Hybrid(ctx, a)
 		var fe *inbound.Fehler
 		switch id % 4 {
 		case 0:
