@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-authentisierung
+**Fund:** Schätzung *S* 1860 (Tabelle, 22 Zeilen, 0 nebenläufig, 0 Fakes, Produktcode 100), Marke 2600, Messung 1537 (`make groessenmarke`: ok); Ende ÷ *S* 0,83, Auslastung 0,59, knapp unter 0,60. Produktcode `admin.go` 109 Zeilen gegen 100 erwartet (1,09), die Tests tragen den Rest (Mengen A7 mit 65536 Fällen, Schema-Bytes, Kandidat-Bytes und -Ränder als Generatoren). Der Messpunkt liegt unter 0,60 und geht als Meldung an den Architect (`SPEC-128` Nr. 9). Beleg: Plan §7 (Messpunkt-Zeile), Verifikation Abschnitt 1.
