@@ -8,7 +8,7 @@
 
 **Eingangs-Kontext:**
 
-- `docs/plan/planning/in-progress/slice-admin-rahmen.md` (im Zweig): Tabelle *Zusage · Fänger* K1 bis K3, Z1, Z3 bis Z8, Y2 bis Y4, Mengen, Zweig-Tabelle, Absatz *Mutationen und Raten*, N-1 bis N-7, Raster und Abweichungen in §6
+- `docs/plan/planning/done/slice-admin-rahmen.md` (im Zweig): Tabelle *Zusage · Fänger* K1 bis K3, Z1, Z3 bis Z8, Y2 bis Y4, Mengen, Zweig-Tabelle, Absatz *Mutationen und Raten*, N-1 bis N-7, Raster und Abweichungen in §6
 - `SPEC-238` Nr. 1 und 2 (Stand mit den Nachzügen des Architect), angrenzend `SPEC-239` Nr. 1 a und 3 d, `SPEC-240`
 - `AGENTS.md` §3.2, §3.7, §3.10, §3.11, §3.13, §3.15 bis §3.18
 - `LH-FA-13`, `LH-QA-04`
@@ -102,7 +102,7 @@ Die Befunde 1 bis 3 sind Lücken von je einer Zeile im Fänger; der Code ist an 
 
 - `kategorie`: LOW
 - `quelle`: `AGENTS.md` §3.9 (der Plan folgt jeder Korrektur), §3.10 (Zahlen)
-- `pfad`: `docs/plan/planning/in-progress/slice-admin-rahmen.md` · `108 Läufe von Mutationen, 106 rot; vier blieben grün`
+- `pfad`: `docs/plan/planning/done/slice-admin-rahmen.md` · `108 Läufe von Mutationen, 106 rot; vier blieben grün`
 - `befund`: 108 Läufe mit 106 rot lässt zwei grüne zu, der Satz nennt vier; die beiden gleichen Läufe derselben Mutation und die danach rot gesehenen sind nicht aus der Zählung herausgerechnet.
 - `verifizierbar`: nein (Zahl im Text)
 - `klasse`: Zählung im Bericht widerspricht ihrer Aufzählung

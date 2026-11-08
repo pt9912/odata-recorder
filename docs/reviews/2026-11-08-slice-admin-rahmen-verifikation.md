@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, `SPEC-238` Nr. 1 bis 3 a, 5, 6, 14, `SPEC-240` und die Hard Rules; nicht Diff-Review (siehe `2026-11-07-slice-admin-rahmen-review.md`) und nicht Validierung.
 
-**Gegenstand:** Zweig `slice-admin-rahmen`, HEAD `0d49e4e0` (Implementer-Stand `0c13cfa4`/`f93fd0ab`, Review `a69a4236`, Fix-Runde `0d49e4e0`), Basis `0504b729`. Plan: `docs/plan/planning/in-progress/slice-admin-rahmen.md`. Angrenzende ADR: [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
+**Gegenstand:** Zweig `slice-admin-rahmen`, HEAD `0d49e4e0` (Implementer-Stand `0c13cfa4`/`f93fd0ab`, Review `a69a4236`, Fix-Runde `0d49e4e0`), Basis `0504b729`. Plan: `docs/plan/planning/done/slice-admin-rahmen.md`. Angrenzende ADR: [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5. `make docs-check` über diesen Report: siehe Abschnitt 1.
 
