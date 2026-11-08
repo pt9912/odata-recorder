@@ -20,7 +20,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` bis
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-07.
 
-**Herkunft:** Teil 2 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (Vorschlag des Architect, Rückgabe R1; Schnitt vor dem Code vollzogen vom Planner am 2026-11-07 nach `SPEC-128` Nr. 1, `AGENTS.md` §3.14). Die Teile in der Reihenfolge ihres Starts: 1 `slice-admin-listener-token` (Token-Datei), 2 dieser Slice, 3 [slice-admin-authentisierung](../done/slice-admin-authentisierung.md), 4 [slice-admin-lebenszyklus](../open/slice-admin-lebenszyklus.md), 5 [slice-admin-fehlerabbildung](../open/slice-admin-fehlerabbildung.md), 6 [slice-admin-abweisen-audit](../open/slice-admin-abweisen-audit.md). Der Plan trägt die Zeilen K1 bis K3, Z1, Z3 bis Z8 und Y2 bis Y4 der Tabelle des Architect (13 von 102); sie stehen im Wortlaut in §3.
+**Herkunft:** Teil 2 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (Vorschlag des Architect, Rückgabe R1; Schnitt vor dem Code vollzogen vom Planner am 2026-11-07 nach `SPEC-128` Nr. 1, `AGENTS.md` §3.14). Die Teile in der Reihenfolge ihres Starts: 1 `slice-admin-listener-token` (Token-Datei), 2 dieser Slice, 3 [slice-admin-authentisierung](../done/slice-admin-authentisierung.md), 4 [slice-admin-lebenszyklus](../in-progress/slice-admin-lebenszyklus.md), 5 [slice-admin-fehlerabbildung](../open/slice-admin-fehlerabbildung.md), 6 [slice-admin-abweisen-audit](../open/slice-admin-abweisen-audit.md). Der Plan trägt die Zeilen K1 bis K3, Z1, Z3 bis Z8 und Y2 bis Y4 der Tabelle des Architect (13 von 102); sie stehen im Wortlaut in §3.
 
 ---
 
