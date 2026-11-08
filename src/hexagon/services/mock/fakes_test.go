@@ -350,7 +350,7 @@ type entities struct {
 	// jeWs trennt den Zustand nach der Kennung des Workspace (W73); sonst gilt allein das Set.
 	jeWs bool
 	// wachsend lässt Get zur Version des Eintrags die Zahl der bisherigen Aufrufe von Get (den eigenen eingeschlossen) addieren:
-	// jedes zweite Lesen eines Eintrags liefert eine höhere Version.
+	// der n-te Aufruf von Get liefert also die Version des Eintrags plus n; jeder Aufruf liefert eine höhere Version als der vorige.
 	wachsend bool
 }
 
