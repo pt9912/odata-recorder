@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -54,29 +55,135 @@ func TestAngehaltenJedeRequestart(t *testing.T) {
 
 // TestZweiServerTeilenNichts hält K5 (SPEC-238 Nr. 1, 11): nach Anhalten von A liefert A 503 und B 200; nach Schliessen
 // von A bleibt B bedient und lässt sich selbst schließen.
+//
+// Die sieben Zustandsfelder des Servers (angehalten, Listener, geschlossen, Zähler samt leer, Kontext samt abbruch,
+// durchAnhalten samt acceptFehler, Verbindungsmenge) haben je einen Wechsel an A und die Wirkung an B als Teilfall.
 func TestZweiServerTeilenNichts(t *testing.T) {
-	a, b := neuLive(t, neueRoute()), neuLive(t, neueRoute())
-	va, vb := a.verbinde(t), b.verbinde(t)
-	va.erledige(t)
-	vb.erledige(t)
-	a.srv.Anhalten()
-	va.schreibe(t, getP())
-	if resp, _ := va.antwort(t, "GET"); resp.StatusCode != 503 {
-		t.Errorf("A nach Anhalten: Status %d, erwartet 503", resp.StatusCode)
+	felder := []struct {
+		name string
+		los  func(t *testing.T)
+	}{
+		{"angehalten", func(t *testing.T) {
+			a, b := neuLive(t, neueRoute()), neuLive(t, neueRoute())
+			va, vb := a.verbinde(t), b.verbinde(t)
+			va.erledige(t)
+			vb.erledige(t)
+			a.srv.Anhalten()
+			va.schreibe(t, getP())
+			if resp, _ := va.antwort(t, "GET"); resp.StatusCode != 503 {
+				t.Errorf("A nach Anhalten: Status %d, erwartet 503", resp.StatusCode)
+			}
+			vb.erledige(t)
+			gleichAuf(t, "Aufrufe der Route von B", b.route.aufrufe(), 2)
+		}},
+		{"Listener", func(t *testing.T) {
+			a, b := neuLive(t, neueRoute()), neuLive(t, neueRoute())
+			a.srv.Anhalten()
+			if !dialScheitert(a.addr) || dialScheitert(b.addr) {
+				t.Errorf("nach Anhalten von A: Dial A scheitert %v, Dial B scheitert %v; erwartet wahr und falsch", dialScheitert(a.addr), dialScheitert(b.addr))
+			}
+			if x := erwarte(t, b.async("GET", "/p"), "Antwort von B"); x.err != nil || x.status != 200 {
+				t.Errorf("B nach Anhalten von A: %+v, erwartet 200", x)
+			}
+		}},
+		{"geschlossen", func(t *testing.T) {
+			rb := neueHaengRoute(t, wartetCtx)
+			a, b := neuLive(t, neueRoute()), neuLive(t, rb)
+			_ = b.async("GET", "/p")
+			rb.warteBegonnen(t, 1)
+			if _, err := schliesse(t, a.srv, time.Second); err != nil {
+				t.Errorf("Schliessen von A = %v, erwartet nil", err)
+			}
+			if _, err := schliesse(t, b.srv, 0); !errors.Is(err, admin.ErrFristAbgelaufen) {
+				t.Errorf("Schliessen(0) von B mit laufendem Request = %v, erwartet ErrFristAbgelaufen: B übernahm das Schließen von A", err)
+			}
+		}},
+		{"Zähler samt leer", func(t *testing.T) {
+			ra, rb := neueHaengRoute(t, wartetFrei), neueHaengRoute(t, wartetFrei)
+			a, b := neuLive(t, ra), neuLive(t, rb)
+			_ = a.async("GET", "/p")
+			ra.warteBegonnen(t, 1)
+			a.srv.Anhalten()
+			if dauer, err := schliesse(t, b.srv, 30*time.Second); err != nil || dauer >= 3*time.Second {
+				t.Errorf("Schliessen von B ohne Request = %v nach %v, erwartet nil in unter 3 s: B zählt den Request von A", err, dauer)
+			}
+			// Anhalten von A ohne Request meldet nicht, dass B leer ist.
+			c, d := neuLive(t, neueRoute()), neuLive(t, rb)
+			r := d.async("GET", "/p")
+			rb.warteBegonnen(t, 1)
+			c.srv.Anhalten()
+			schluss := make(chan error, 1)
+			go func() { schluss <- d.srv.Schliessen(30 * time.Second) }()
+			select {
+			case err := <-schluss:
+				t.Errorf("Schliessen von D kehrte mit laufendem Request zurück: %v", err)
+			case <-time.After(300 * time.Millisecond):
+				rb.gibFrei()
+				select {
+				case err := <-schluss:
+					if err != nil {
+						t.Errorf("Schliessen von D = %v, erwartet nil", err)
+					}
+				case <-time.After(5 * time.Second):
+					t.Error("Schliessen von D kehrte nach der Freigabe nicht zurück")
+				}
+			}
+			rb.gibFrei()
+			erwarte(t, r, "Antwort von D")
+		}},
+		{"Kontext samt abbruch", func(t *testing.T) {
+			ra, rb := neueHaengRoute(t, wartetCtx), neueHaengRoute(t, wartetCtx)
+			a, b := neuLive(t, ra), neuLive(t, rb)
+			_ = a.async("GET", "/p")
+			rr := b.async("GET", "/p")
+			ra.warteBegonnen(t, 1)
+			rb.warteBegonnen(t, 1)
+			if _, err := schliesse(t, a.srv, 0); !errors.Is(err, admin.ErrFristAbgelaufen) {
+				t.Errorf("Schliessen(0) von A = %v, erwartet ErrFristAbgelaufen", err)
+			}
+			time.Sleep(100 * time.Millisecond)
+			gleichAuf(t, "Fehler von ctx bei B nach Schliessen von A", rb.ctxFehlerListe(), []error(nil))
+			rb.gibFrei()
+			if x := erwarte(t, rr, "Antwort von B"); x.err != nil || x.status != 200 {
+				t.Errorf("B: %+v, erwartet 200", x)
+			}
+		}},
+		{"durchAnhalten samt acceptFehler", func(t *testing.T) {
+			la, lb := neuKippListener(), neuKippListener()
+			a, b := neuMitListener(t, la), neuMitListener(t, lb)
+			ca, cb := startServe(a), startServe(b)
+			for _, ch := range []chan struct{}{la.acceptiert, lb.acceptiert} {
+				select {
+				case <-ch:
+				case <-time.After(5 * time.Second):
+					t.Fatal("ein Server rief Accept nicht")
+				}
+			}
+			a.Anhalten()
+			if err := serveEnde(t, ca, "A"); err != nil {
+				t.Errorf("Serve von A lieferte %v, erwartet nil", err)
+			}
+			_ = lb.Close()
+			if err := serveEnde(t, cb, "B"); !errors.Is(err, net.ErrClosed) {
+				t.Errorf("Serve von B lieferte %v, erwartet den Fehler des äußeren Schließens", err)
+			}
+		}},
+		{"Verbindungsmenge", func(t *testing.T) {
+			a, b := neuLive(t, neueRoute()), neuLive(t, neueRoute())
+			va := a.verbinde(t)
+			va.erledige(t)
+			if _, err := schliesse(t, b.srv, time.Second); err != nil {
+				t.Errorf("Schliessen von B = %v, erwartet nil", err)
+			}
+			if n, err := va.ende(300 * time.Millisecond); n != 0 || !istZeitgrenze(err) {
+				t.Errorf("Verbindung von A nach Schliessen von B: %d Bytes, Fehler %v; erwartet offen (Zeitgrenze)", n, err)
+			}
+			va.erledige(t)
+		}},
 	}
-	vb.erledige(t)
-	if _, err := schliesse(t, a.srv, time.Second); err != nil {
-		t.Errorf("Schliessen von A = %v, erwartet nil", err)
-	}
-	if !dialScheitert(a.addr) || dialScheitert(b.addr) {
-		t.Errorf("nach Schliessen von A: Dial A scheitert %v, Dial B scheitert %v; erwartet wahr und falsch", dialScheitert(a.addr), dialScheitert(b.addr))
-	}
-	if x := erwarte(t, b.async("GET", "/p"), "Antwort von B"); x.err != nil || x.status != 200 {
-		t.Errorf("B nach Schliessen von A: %+v, erwartet 200", x)
-	}
-	gleichAuf(t, "Aufrufe der Route von B", b.route.aufrufe(), 3)
-	if _, err := schliesse(t, b.srv, time.Second); err != nil {
-		t.Errorf("Schliessen von B = %v, erwartet nil", err)
+	gleichAuf(t, "Zahl der Zustandsfelder", len(felder), 7)
+	for _, f := range felder {
+		t.Run(f.name, f.los)
 	}
 }
 

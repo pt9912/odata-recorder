@@ -166,8 +166,8 @@ func New(k Konfig) (*Server, error) {
 
 // ServeHTTP vergibt die Korrelations-ID vor allem anderen und weist auf einem angehaltenen Server jeden Request mit 503
 // ab; sonst bedient es `GET /healthz` ohne Token, authentisiert jeden anderen Request vor der Zuordnung und ruft dann
-// den Handler der einen Route oder antwortet 404 oder 405 mit ODR-E2102 (SPEC-238 Nr. 3, 4, 5, 11). Mit Vollduplex
-// verwirft net/http den ungelesenen Rest des Bodys beim ersten Schreiben nicht.
+// den Handler der einen Route oder antwortet 404 oder 405 mit ODR-E2102 (SPEC-238 Nr. 3, 4, 5, 11).
+// `EnableFullDuplex` erlaubt dem Handler, Lesen und Schreiben zu mischen; kein Test fängt das Entfernen (N-13).
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = http.NewResponseController(w).EnableFullDuplex()
 	s.markiereHandler(r)

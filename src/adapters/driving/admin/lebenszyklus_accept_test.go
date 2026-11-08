@@ -295,3 +295,67 @@ func TestServeCloseNilNachAeusserem(t *testing.T) {
 		t.Errorf("Serve lieferte %v, erwartet nil", err)
 	}
 }
+
+// tempFehler ist ein Fehler des Accept, den net/http wiederholt: unverpackt ein net.Error mit Temporary() == true.
+type tempFehler struct{ name string }
+
+func (e *tempFehler) Error() string   { return "accept vorübergehend: " + e.name }
+func (e *tempFehler) Timeout() bool   { return false }
+func (e *tempFehler) Temporary() bool { return true }
+
+var _ net.Error = (*tempFehler)(nil)
+
+// TestServeFolgeTemporaererFehler hält S2 (SPEC-238 Nr. 11 a): der letzte Fehler des Accept zählt. Auf einen
+// temporären Fehler, den net/http wiederholt, folgt ein Accept; endet es durch Anhalten oder Schliessen, ist die
+// Rückgabe nil, endet es durch äußeres Schließen, der Fehler dieses Schließens und nicht der temporäre. 4 Elemente:
+// (1) ein temporärer Fehler, dann Anhalten; (2) einer, dann Schliessen(0); (3) zwei, dann äußeres Schließen;
+// (4) einer, dann äußeres Schließen.
+func TestServeFolgeTemporaererFehler(t *testing.T) {
+	faelle := []struct {
+		name      string
+		temporaer int
+		schluss   string
+	}{
+		{"1 temporär, Anhalten", 1, "anhalten"},
+		{"1 temporär, Schliessen(0)", 1, "schliessen"},
+		{"2 temporär, äußeres Schließen", 2, "aussen"},
+		{"1 temporär, äußeres Schließen", 1, "aussen"},
+	}
+	gleichAuf(t, "Zahl der Elemente", len(faelle), 4)
+	for _, f := range faelle {
+		l := neuKippListener()
+		srv := neuMitListener(t, l)
+		c := startServe(srv)
+		<-l.acceptiert
+		var fehler []error
+		for i := range f.temporaer {
+			e := &tempFehler{name: fmt.Sprint(i)}
+			fehler = append(fehler, e)
+			l.spontan <- e
+			warteBis(t, f.name+": der Accept nach dem temporären Fehler", func() bool { return l.accepts.Load() >= int64(i+2) })
+		}
+		switch f.schluss {
+		case "anhalten":
+			srv.Anhalten()
+		case "schliessen":
+			_ = srv.Schliessen(0)
+		default:
+			_ = l.Close()
+		}
+		err := serveEnde(t, c, f.name)
+		if f.schluss != "aussen" {
+			if err != nil {
+				t.Errorf("%s: Serve lieferte %v, erwartet nil", f.name, err)
+			}
+			continue
+		}
+		if !errors.Is(err, net.ErrClosed) {
+			t.Errorf("%s: Serve lieferte %v, erwartet den Fehler des äußeren Schließens", f.name, err)
+		}
+		for _, e := range fehler {
+			if errors.Is(err, e) {
+				t.Errorf("%s: Serve lieferte den temporären Fehler %v", f.name, e)
+			}
+		}
+	}
+}

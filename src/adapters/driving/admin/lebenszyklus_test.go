@@ -269,26 +269,58 @@ func TestZulassungAtomar(t *testing.T) {
 	})
 }
 
-// TestSchliessenNegativ hält S7 (SPEC-136 Nr. 14): eine negative Frist ergibt ErrUngueltig und ändert nichts; 0 ist
-// gültig.
+// TestSchliessenNegativ hält S7 (SPEC-238 Nr. 11 b, SPEC-136 Nr. 14): eine negative Frist ergibt in jedem Zustand
+// (frisch, angehalten, geschlossen) ErrUngueltig und ändert nichts; 0 ist gültig. 3 Zustände × 2 Fristen = 6 Elemente.
 func TestSchliessenNegativ(t *testing.T) {
-	u := neuLive(t, neueRoute())
-	for _, f := range []time.Duration{-1, time.Duration(math.MinInt64)} {
-		if err := u.srv.Schliessen(f); !errors.Is(err, model.ErrUngueltig) {
-			t.Errorf("Schliessen(%d) = %v, erwartet ErrUngueltig", int64(f), err)
+	zustaende := []struct {
+		name string
+		// pruefe läuft nach den negativen Fristen mit der Verbindung v, die vor dem Zustandswechsel im Leerlauf lag.
+		richte func(t *testing.T, u *live, v *verbindung)
+		pruefe func(t *testing.T, u *live, v *verbindung)
+	}{
+		{"frisch", func(*testing.T, *live, *verbindung) {}, func(t *testing.T, u *live, v *verbindung) {
+			v.erledige(t)
+			select {
+			case err := <-u.serve:
+				t.Errorf("Serve endete nach einer negativen Frist: %v", err)
+			default:
+			}
+		}},
+		{"angehalten", func(_ *testing.T, u *live, _ *verbindung) { u.srv.Anhalten() }, func(t *testing.T, u *live, v *verbindung) {
+			v.schreibe(t, getP())
+			if resp, _ := v.antwort(t, "GET"); resp.StatusCode != 503 {
+				t.Errorf("Status %d, erwartet 503", resp.StatusCode)
+			}
+		}},
+		{"geschlossen", func(t *testing.T, u *live, _ *verbindung) {
+			if err := u.srv.Schliessen(0); err != nil {
+				t.Fatalf("Schliessen(0) = %v", err)
+			}
+		}, func(t *testing.T, u *live, _ *verbindung) {
+			if !dialScheitert(u.addr) {
+				t.Error("nach Schliessen gelingt ein Dial")
+			}
+		}},
+	}
+	fristen := []time.Duration{-1, time.Duration(math.MinInt64)}
+	n := 0
+	for _, z := range zustaende {
+		for _, f := range fristen {
+			n++
+			u := neuLive(t, neueRoute())
+			v := u.verbinde(t)
+			v.erledige(t)
+			z.richte(t, u, v)
+			if err := u.srv.Schliessen(f); !errors.Is(err, model.ErrUngueltig) {
+				t.Errorf("%s: Schliessen(%d) = %v, erwartet ErrUngueltig", z.name, int64(f), err)
+			}
+			z.pruefe(t, u, v)
+			if err := u.srv.Schliessen(0); err != nil {
+				t.Errorf("%s: Schliessen(0) = %v, erwartet nil", z.name, err)
+			}
 		}
 	}
-	if x := erwarte(t, u.async("GET", "/p"), "Antwort"); x.err != nil || x.status != 200 {
-		t.Errorf("nach den negativen Fristen: %+v, erwartet 200", x)
-	}
-	select {
-	case err := <-u.serve:
-		t.Errorf("Serve endete nach einer negativen Frist: %v", err)
-	default:
-	}
-	if err := u.srv.Schliessen(0); err != nil {
-		t.Errorf("Schliessen(0) = %v, erwartet nil", err)
-	}
+	gleichAuf(t, "Zahl der Elemente", n, 6)
 }
 
 // TestSchliessenFristen hält S8 (SPEC-136 Nr. 14): Schliessen wartet höchstens frist (0: nicht) und kehrt früher
@@ -365,20 +397,33 @@ func TestSchliessenKontextNachFrist(t *testing.T) {
 			v.schreibe(t, []byte("POST /p HTTP/1.1\r\nHost: h\r\n"+kopfAuth()+"Content-Length: 100\r\n\r\nabc"))
 		}},
 	}
+	fristen := []time.Duration{100 * time.Millisecond, 400 * time.Millisecond}
+	gleichAuf(t, "Zahl der Fristen", len(fristen), 2)
 	for _, f := range faelle {
-		t.Run(f.name, func(t *testing.T) {
-			route := neueHaengRoute(t, wartetCtx)
-			route.endeVerz = 150 * time.Millisecond
-			u := neuLive(t, route)
-			f.los(t, u)
-			route.warteBegonnen(t, 1)
-			_, err := schliesse(t, u.srv, 200*time.Millisecond)
-			if !errors.Is(err, admin.ErrFristAbgelaufen) || errors.Is(err, model.ErrUngueltig) {
-				t.Errorf("Schliessen(200 ms) = %v, erwartet ErrFristAbgelaufen und nicht ErrUngueltig", err)
-			}
-			gleichAuf(t, "laufende Handler bei der Rückkehr", route.laufend.Load(), int64(0))
-			gleichAuf(t, "Fehler von ctx", route.ctxFehlerListe(), []error{context.Canceled})
-		})
+		for _, frist := range fristen {
+			t.Run(fmt.Sprintf("%s/%v", f.name, frist), func(t *testing.T) {
+				route := neueHaengRoute(t, wartetCtx)
+				route.endeVerz = 150 * time.Millisecond
+				u := neuLive(t, route)
+				f.los(t, u)
+				route.warteBegonnen(t, 1)
+				start := time.Now()
+				_, err := schliesse(t, u.srv, frist)
+				if !errors.Is(err, admin.ErrFristAbgelaufen) || errors.Is(err, model.ErrUngueltig) {
+					t.Errorf("Schliessen(%v) = %v, erwartet ErrFristAbgelaufen und nicht ErrUngueltig", frist, err)
+				}
+				gleichAuf(t, "laufende Handler bei der Rückkehr", route.laufend.Load(), int64(0))
+				gleichAuf(t, "Fehler von ctx", route.ctxFehlerListe(), []error{context.Canceled})
+				// Untere Schranke: von Aufrufbeginn bis zum Ende von ctx vergeht mindestens frist (keine Obergrenze, N-4).
+				enden := route.ctxEndenListe()
+				if len(enden) != 1 {
+					t.Fatalf("%d Enden von ctx, erwartet 1", len(enden))
+				}
+				if dauer := enden[0].Sub(start); dauer < frist {
+					t.Errorf("ctx endete nach %v, erwartet mindestens %v", dauer, frist)
+				}
+			})
+		}
 	}
 }
 
@@ -475,6 +520,17 @@ func TestVerbindungszustaende(t *testing.T) {
 	route.gibFrei()
 	if resp, _ := laeuft.antwort(t, "GET"); resp.StatusCode != 200 {
 		t.Errorf("laufender Request: Status %d, erwartet 200", resp.StatusCode)
+	}
+	if resp, _ := halbBody.antwort(t, "POST"); resp.StatusCode != 200 {
+		t.Errorf("halber Body: Status %d, erwartet 200", resp.StatusCode)
+	}
+	// Nach der Antwort schließt der Server jede Verbindung mit Handler (Shutdown), sie bleibt nicht im Leerlauf. Der
+	// Server verwirft den ungelesenen Rest des Bodys erst, wenn er da ist: der Client sendet die fehlenden 97 Bytes.
+	halbBody.schreibe(t, bytes.Repeat([]byte("x"), 97))
+	for name, v := range mit {
+		if n, err := v.ende(3 * time.Second); n != 0 || !errors.Is(err, io.EOF) {
+			t.Errorf("%s nach der Antwort: %d Bytes, Fehler %v; erwartet EOF", name, n, err)
+		}
 	}
 	select {
 	case err := <-schluss:
@@ -613,8 +669,8 @@ func TestKeineSperreUeberAufruf(t *testing.T) {
 	gleichAuf(t, "Zahl der Stellen", len(stellen), 2)
 }
 
-// TestFuenfzigHandlerEndenGleichzeitig hält S13 und S6 Fall 2: Zähler und Zulassung werden von 50 Goroutinen
-// geändert, ohne dass Anhalten die meisten abweist.
+// TestFuenfzigHandlerEndenGleichzeitig hält S13: 50 zugelassene Handler enden gleichzeitig, der Zähler ist danach 0;
+// Anhalten läuft erst nach den 50 Antworten.
 func TestFuenfzigHandlerEndenGleichzeitig(t *testing.T) {
 	const n = 50
 	route := neueHaengRoute(t, wartetFrei)

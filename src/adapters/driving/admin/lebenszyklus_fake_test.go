@@ -367,6 +367,7 @@ type kippListener struct {
 	spontan     chan error
 	acceptiert  chan struct{}
 	erster      sync.Once
+	accepts     atomic.Int64
 	mu          sync.Mutex
 	geschlossen bool
 	closeNil    bool
@@ -379,6 +380,7 @@ func neuKippListener() *kippListener {
 }
 
 func (l *kippListener) Accept() (net.Conn, error) {
+	l.accepts.Add(1)
 	l.erster.Do(func() { close(l.acceptiert) })
 	var err error
 	select {

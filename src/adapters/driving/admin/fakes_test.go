@@ -125,6 +125,7 @@ type routeFake struct {
 	einmal    sync.Once
 	laufend   atomic.Int64
 	ctxFehler []error
+	ctxEnden  []time.Time
 }
 
 func neueRoute() *routeFake { return &routeFake{antwort: admin.Antwort{Status: 200}} }
@@ -178,8 +179,16 @@ func (f *routeFake) halte(ctx context.Context, pfad string) {
 	}
 	f.mu.Lock()
 	f.ctxFehler = append(f.ctxFehler, ctx.Err())
+	f.ctxEnden = append(f.ctxEnden, time.Now())
 	f.mu.Unlock()
 	time.Sleep(f.endeVerz)
+}
+
+// ctxEndenListe liefert die Zeitpunkte, zu denen die Aufrufe das Warten beendeten.
+func (f *routeFake) ctxEndenListe() []time.Time {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.ctxEnden)
 }
 
 // ctxFehlerListe liefert die Fehler von ctx, die die Aufrufe nach dem Warten sahen.
