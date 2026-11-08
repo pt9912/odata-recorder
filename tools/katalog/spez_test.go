@@ -75,7 +75,9 @@ func TestKatKEingabe(t *testing.T) {
 		{"Datei fehlt", func(m map[string]string) { delete(m, dSpez) }, func(map[string]string) string { return "spezifikation.md fehlt: spec/spezifikation.md" }},
 		{"Überschrift fehlt", func(m map[string]string) { kuerze(m, dSpez, ueberschrift, "## 4. Anderes\n") }, func(map[string]string) string { return "§4: Überschrift fehlt" }},
 		{"Überschrift doppelt", func(m map[string]string) { m[dSpez] += "\n" + ueberschrift }, func(map[string]string) string { return "§4: Überschrift mehrdeutig" }},
-		{"Tabelle fehlt", func(m map[string]string) { m[dSpez] = "## 4. Fehler-Codes und Logging-Felder\n\nText.\n" }, func(map[string]string) string { return "§4: Tabelle fehlt" }},
+		{"Tabelle fehlt", func(m map[string]string) {
+			m[dSpez] = spec110(schluesselBasis()) + "\n## 4. Fehler-Codes und Logging-Felder\n\nText.\n"
+		}, func(map[string]string) string { return "§4: Tabelle fehlt" }},
 		{"Tabelle doppelt", func(m map[string]string) { kuerze(m, dSpez, "\nText danach.\n", "\n"+koederTabelle+"\nText danach.\n") }, func(map[string]string) string { return "§4: Tabelle mehrdeutig" }},
 		{"Kopf weicht ab", func(m map[string]string) {
 			kuerze(m, dSpez, "| ID | Code | Bedingung | Aktion |", "| ID | Code | Bedingung |")

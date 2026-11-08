@@ -1,4 +1,4 @@
-// Command katalog hält den Katalog der Fehlercodes gegen das Handbuch (SPEC-201): `katalog <Wurzel>`.
+// Command katalog hält die Kataloge der Fehlercodes, der Schlüssel und der Kommandos gegen das Handbuch (SPEC-201): `katalog <Wurzel>`.
 // Es liest Dateien unter der Wurzel, vergleicht Mengen von Namen und schreibt nur nach stdout und stderr.
 package main
 
@@ -20,5 +20,5 @@ func run(args []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprint(stderr, aufrufText)
 		return 2
 	}
-	return pruefeFehlercodes(args[0]).ausgeben(stdout, stderr)
+	return pruefeKataloge(args[0]).ausgeben(stdout, stderr)
 }

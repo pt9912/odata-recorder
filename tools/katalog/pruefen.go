@@ -2,27 +2,32 @@ package main
 
 import "strconv"
 
-// pruefeFehlercodes liest die vier Quellen in ihrer Reihenfolge (fehler.go, Spezifikation, Ausnahmen,
+// pruefeKataloge liest die Quellen in ihrer Reihenfolge (fehler.go, Spezifikation, Ausnahmen, konfig*.go, cli.go,
 // Handbuch) und vergleicht die Mengen. Eine Quelle, die fehlt, schließt nur ihre eigenen Prüfungen aus
 // (SPEC-201 Nr. 8).
-func pruefeFehlercodes(wurzel string) *bericht {
+func pruefeKataloge(wurzel string) *bericht {
 	b := &bericht{}
-	var c, k, ausnahmen menge
+	var c, k, ausnahmen, kSchl menge
 	var h handbuch
 	if t, ok := lies(wurzel, pfadFehler, "fehler.go", b); ok {
 		c = liesC(t, b)
 	}
 	if t, ok := lies(wurzel, pfadSpez, "spezifikation.md", b); ok {
 		k = liesK(t, b)
+		kSchl = liesKSchluessel(t, b)
 	}
 	if t, ok := lies(wurzel, pfadAusnahmen, "Ausnahmen", b); ok {
 		ausnahmen = liesAusnahmen(t, b)
 	}
+	schl := liesKonfig(wurzel, b)
+	kommandos := liesCli(wurzel, b)
 	if t, ok := lies(wurzel, pfadHandbuch, "Handbuch", b); ok {
 		h = liesHandbuch(t, b)
 	}
 	if len(b.eingabe) == 0 {
 		vergleiche(c, k, ausnahmen, h, b)
+		vergleicheSchluessel(schl, kSchl, h.schl, b)
+		vergleicheKommandos(kommandos, h.komm, b)
 	}
 	return b
 }

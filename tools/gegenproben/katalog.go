@@ -2,17 +2,23 @@ package main
 
 import "strings"
 
-// Fälle 174 bis 188 (SPEC-102, SPEC-201): `katalog <Wurzel>` im Wegwerfverzeichnis des Falls. Der Baum
-// trägt fehler.go mit vier Codes, die Spezifikation mit denselben, die Ausnahmen mit einem Code und das
-// Handbuch mit einer Zeile für jeden Code aus H. Jeder Fall verändert einen Baustein dieses Baums.
+// Fälle 174 bis 204 (SPEC-102, SPEC-201): `katalog <Wurzel>` im Wegwerfverzeichnis des Falls. Der Baum
+// trägt fehler.go mit vier Codes, die Spezifikation mit denselben, die Ausnahmen mit einem Code, konfig.go mit
+// zwei Schlüsseln, cli.go mit zwei Kommandos und das Handbuch mit einer Zeile für jeden Namen aus H. Jeder Fall
+// verändert einen Baustein dieses Baums. Zeichen jenseits von ASCII stehen als Bytewerte (AGENTS.md §3.18).
 
 const (
 	kaFehler    = "src/hexagon/model/fehler.go"
 	kaSpez      = "spec/spezifikation.md"
 	kaAusnahmen = "harness/katalog-ausnahmen.txt"
 	kaHandbuch  = "docs/user/benutzerhandbuch.md"
+	kaKonfig    = "src/bootstrap/konfig.go"
+	kaCli       = "src/adapters/driving/cli/cli.go"
 	kaParagraf  = "\xc2\xa74"
 	kaKopfH     = "| Code | Bedeutung |\n|---|---|\n"
+	kaSchl      = "Schl\xc3\xbcssel"
+	kaKopfS     = "| " + kaSchl + " | Bedeutung |\n|---|---|\n"
+	kaKopfK     = "| Kommando | Bedeutung |\n|---|---|\n"
 )
 
 // kaCodes sind die vier Codes des sauberen Baums; der zweite steht in den Ausnahmen.
@@ -28,21 +34,63 @@ func kaFehlerText(codes ...string) string {
 }
 
 func kaSpezText(codes ...string) string {
+	return kaSpezMit(kaSpec110("`MODE`, `LISTEN`"), codes...)
+}
+
+// kaSpec110 ist der Abschnitt SPEC-110 mit der Zeile der Schlüssel, deren Spans der Text nennt.
+func kaSpec110(spans string) string {
+	return "### SPEC-110 \xe2\x80\x94 Start\n\n1. **Leer.** Text.\n2. **" + kaSchl + " dieser Version.** Gepr\xc3\xbcft werden " + spans +
+		".\n   Gesetzt (nichtleer) und nicht geliefert sind `ADMIN_*`.\n3. **Weiter.** Text.\n"
+}
+
+func kaSpezMit(spec110 string, codes ...string) string {
 	var b strings.Builder
 	b.WriteString("# Spezifikation\n\n## 4. Fehler-Codes und Logging-Felder\n\n| ID | Code | Bedingung | Aktion |\n|---|---|---|---|\n")
 	for i, c := range codes {
 		b.WriteString("| `SPEC-00" + string(rune('1'+i)) + "` | `" + c + "` | Bedingung | Aktion |\n")
 	}
-	return b.String() + "\n## 5. Metriken\n\nText.\n"
+	return b.String() + "\n## 5. Metriken\n\nText.\n\n" + spec110
+}
+
+// kaKonfigText liest je Name ein Literal; `nichtGelieferte` nennt die Präfixe aus n.
+func kaKonfigText(namen []string, n string) string {
+	var b strings.Builder
+	b.WriteString("package bootstrap\n\nfunc lade(p *pruefer) {\n")
+	for _, s := range namen {
+		b.WriteString("\tp.wert(\"" + s + "\")\n")
+	}
+	return b.String() + "}\n\nfunc nichtGelieferte() (praefixe, namen []string) {\n\treturn []string{" + n + "}, nil\n}\n"
+}
+
+// kaCliText trägt je Kommando eine Konstante.
+func kaCliText(kommandos ...string) string {
+	s := "package cli\n\nconst (\n\tkommandoName = \"odata-recorder\"\n"
+	for i, k := range kommandos {
+		s += "\tk" + string(rune('a'+i)) + " = \"" + k + "\"\n"
+	}
+	return s + ")\n"
+}
+
+func kaZeilen(kopf string, namen []string) string {
+	s := kopf
+	for _, n := range namen {
+		s += "| `" + n + "` | Die Bedeutung. |\n"
+	}
+	return s
 }
 
 func kaHandbuchText(zeilen []string, davor, danach string) string {
+	return kaHandbuchMit(zeilen, davor, danach, []string{"MODE", "LISTEN"}, []string{"start", "version"})
+}
+
+// kaHandbuchMit trägt hinter dem Abschnitt Fehlercodes die Abschnitte Einstellungen und Kommandos.
+func kaHandbuchMit(zeilen []string, davor, danach string, schl, komm []string) string {
 	var b strings.Builder
 	b.WriteString("# Handbuch\n\n## Fehlercodes\n\n" + davor + kaKopfH)
 	for _, c := range zeilen {
 		b.WriteString("| `" + c + "` | Die Bedeutung. |\n")
 	}
-	return b.String() + danach
+	return b.String() + danach + "\n## Einstellungen\n\nText.\n\n" + kaZeilen(kaKopfS, schl) + "\n## Kommandos\n\nText.\n\n" + kaZeilen(kaKopfK, komm)
 }
 
 // kaBaum ist der saubere Baum G1; die Fälle ersetzen einzelne Dateien.
@@ -53,6 +101,8 @@ func kaBaum() map[string]string {
 		kaSpez:      kaSpezText(c...),
 		kaAusnahmen: c[1] + " | Grund\n",
 		kaHandbuch:  kaHandbuchText([]string{c[0], c[2], c[3]}, "Text.\n\n", ""),
+		kaKonfig:    kaKonfigText([]string{"MODE", "LISTEN"}, "\"ADMIN_\""),
+		kaCli:       kaCliText("start", "version"),
 	}
 }
 
@@ -73,8 +123,13 @@ func kaFall(name string, aender map[string]string, exit int, want ...string) Fal
 	return f
 }
 
-// katalogFaelle sind die Fälle G1 bis G15 (SPEC-102, Fälle 174 bis 188).
+// katalogFaelle sind die Fälle G1 bis G31 (SPEC-102, Fälle 174 bis 204).
 func katalogFaelle() []Fall {
+	return append(katalogFaelleCodes(), katalogFaelleSchluessel()...)
+}
+
+// katalogFaelleCodes sind die Fälle G1 bis G15 zu den Fehlercodes.
+func katalogFaelleCodes() []Fall {
 	c := kaCodes()
 	h := func(zeilen ...string) string { return kaHandbuchText(zeilen, "Text.\n\n", "") }
 	return []Fall{
