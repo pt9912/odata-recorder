@@ -203,7 +203,7 @@ Zusatztabelle (Modi und mehrere Verstöße; `AGENTS.md` §3.16):
 **Entscheidungen des Architect** (2026-11-08, aus den Fragen der Planung):
 
 - Doppelung der Fixtures mit `make test` — **Ausgang:** entschieden, `SPEC-042` Nr. 7: der HTTP-Lauf liegt im Paket `bootstrap_test` neben der Abnahme, ruft `abFixtures()` ohne Kopie und läuft auch unter `make test`; `make test-contract` wählt per Name aus und fügt das Urteil des Treibers hinzu. Die Fixtures liegen in `_test.go` des Composition Root und sind aus `tests/` nicht importierbar; `SPEC-049` Nr. 11 a weist dem Test am HTTP-Eingang die Fixtures als Quelle zu.
-- Weg der Klasse „ungültige Metadaten“ — **Ausgang:** entschieden, `SPEC-042` Nr. 5 und 9 c: der Eingang ist der Listener der Daten (`mock`), das Dokument liegt als `MetadataBlob` kaputt in der Ablage (`sqlite.Open` und Blob-Adapter vor dem Start, erlaubt nach ADR-0012); die Abweisung beim Import ist Sache der Admin-API und kein Eingang dieses Vertrags. `slice-bootstrap-m6` wird dafür nicht gebraucht.
+- Weg der Klasse „ungültige Metadaten“ — **Ausgang:** entschieden, `SPEC-042` Nr. 5 und 9 c: der Eingang ist der Listener der Daten (`mock`), das Dokument liegt als `MetadataBlob` kaputt in der Ablage (`sqlite.Open` und Blob-Adapter vor dem Start, erlaubt nach [ADR-0012](../../adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md)); die Abweisung beim Import ist Sache der Admin-API und kein Eingang dieses Vertrags. `slice-bootstrap-m6` wird dafür nicht gebraucht.
 
 **Offene Punkte:**
 
