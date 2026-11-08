@@ -98,7 +98,7 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|---|
 | `src/bootstrap/` | update | Wahl des Use Case je Modus, Start im Modus `mock`, Schlüssel `STRICT_COVERAGE` und `PUBLIC_BASE_URL`, Einhängen von `urlparser.WithFilter(urlparser.NewFilterLeser())` (von `slice-odata-url-filter`), Bindung des `SnapshotUseCase` mit Wächter als `Blobs` und gemeinsamer Datenbank (von `slice-snapshot-use-case`) |
 | `src/adapters/driving/httpodata/` | update | Mock-Anfragen aller Methoden an den Port; der Adapter kennt den Modus nicht |
-| `tests/` | neu | M3-Test mit dem Referenzdienst aus `slice-m2-referenzdienst` |
+| `tests/` oder `src/bootstrap/` (Ort: Architect, §6) | neu | M3-Test mit dem Referenzdienst aus `slice-m2-referenzdienst` |
 | Szenario des Neustarts in `make test-integration` (Ort: Architect) | neu | Mutation, `SIGTERM`, Start auf demselben `DATA_DIR`, Lesen über den Listener (Sendung von `slice-mock-abnahme`) |
 | `spec/spezifikation.md` | update | Nachzug von `SPEC-110` Nr. 2 und 8 (Architect) |
 
@@ -134,6 +134,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Neustart über die Prozessgrenze im Modus `mock` (Sendung von `slice-mock-abnahme`, `SPEC-049` Nr. 7 a): das Szenario braucht ein `DATA_DIR` im Modus `mock` und ein geordnetes Beenden durch `SIGTERM`; Randformen (Verzeichnis fehlt, Signal während einer Mutation) entscheidet der Architect vor dem Code (`AGENTS.md` §3.12), Snapshots bleiben das Negativ aus `SPEC-049` Nr. 10 b — **Ausgang:** offen; Adresse: Architect.
+- Ablage des M3-Tests (Rückgabe R1 von `slice-mock-abnahme`, Planner, 2026-11-08): das Architektur-Gate gibt dem Paket `tests` Kanten auf Modell, Inbound-Ports und Driven Adapter, nicht auf die Dienste und nicht auf den Composition Root; die Abnahme des Gebers liegt deshalb in `src/bootstrap/abnahme_*_test.go`. Die Zeile `tests/` in §3 gilt nur, wenn der M3-Test über erlaubte Kanten auskommt (Binary und Listener von außen); sonst liegt er in `src/bootstrap/`. Eine Änderung der Architekturregel oder eine ADR beginnt dieser Slice nicht — **Ausgang:** offen; Adresse: Architect (vor dem Code, `AGENTS.md` §3.12).
 - Der Wechsel des Defaults `MODE=mock` macht aus einem heute abgewiesenen Start einen gültigen; Tests, die den alten Fehler erwarten, sind mit zu ändern — **Ausgang:** offen; Liste der Tests im Vertrag des Architect.
 - `PUBLIC_BASE_URL` ist bei Wildcard-Host (Container) Pflicht und prägt `Location` und `@odata.id` (`SPEC-055`); Randformen (fehlt, leer, mit Pfad, mit abschließendem `/`) — **Ausgang:** offen; Raster, Ort `SPEC-055` und `SPEC-110`.
 - Der M3-Test läuft mit Referenzdienst, Recorder und Client im selben Prozess unter dem Detektor (`make test-race`) — **Ausgang:** offen; Muster und Ordnung der Fänger wie in `slice-m2-referenzdienst` (Kanäle statt Schlaf).

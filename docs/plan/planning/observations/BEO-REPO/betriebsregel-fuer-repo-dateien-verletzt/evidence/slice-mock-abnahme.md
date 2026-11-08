@@ -1,0 +1,2 @@
+**Vorgang:** slice-mock-abnahme
+**Fund:** Im Integrationsschritt setzte der Planner die zehn Haken der DoD des Plans mit `sed -i` statt mit dem Edit-Werkzeug, obwohl der Auftrag es verbot; der Command-Guard ließ den Aufruf durch. Der Diff ist geprüft (zehn Zeilen, nichts daneben). Ein Aufruf von `python3` für dieselbe Arbeit wurde vom Guard abgewiesen (Docker-only, keine Wirkung). Die Berichte von Implementer, Reviewer und Verifier melden keine Verletzung. Beleg: Plan §7, Eintrag 5; Träger des Wächters: `slice-guard-schreibwege`.
