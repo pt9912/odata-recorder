@@ -2106,6 +2106,8 @@ Ungeprüft bleibt, je mit Grund und Folge:
 - Die Wirkung von `ReadHeaderTimeout`, `ReadTimeout` und `IdleTimeout`: geprüft sind die Werte. Grund: Laufzeit von 10 s bis 120 s je Fall. Folge: wie `SPEC-136` *Ungeprüft*.
 - Ein Token mit führendem BOM oder mit Bytes außerhalb von ASCII: der Adapter vergleicht Bytes, die Datei ändert sie nicht. Folge: ein Client, der das BOM nicht sendet, wird abgewiesen.
 - HTTP/2 und TLS: der Listener ist Klartext, TLS über einen umhüllten `Listener` kommt später.
+- Das Trennen des Clients bei einem Request mit ungelesenem Body (Nr. 9). Grund: nach der Quelle von `net/http` beobachtet der Server die Verbindung erst, wenn der Body gelesen ist oder fehlt (nicht gemessen); die Frist von `Schliessen` beendet den `ctx` in jedem Fall. Folge: eine Route, die ihren Body nicht liest, sieht das Trennen nicht als Ende des `ctx`; sie endet mit ihrer Rückkehr, mit dem `ReadTimeout` oder mit der Frist.
+- Was `SPEC-136` *Ungeprüft* zu Nr. 12 bis 14 nennt, gilt für `admin.Server` mit demselben Grund und derselben Folge (Nr. 11): Verbindungen im Backlog des Listeners beim Schließen, der Abschluss der Antwort eines zugelassenen Requests nach `Schliessen`, ein gleichzeitiges `Schliessen` (nicht zugesagt, dass der zweite Aufruf erst nach dem ersten zurückkehrt; zugesagt ist, dass es nicht in Panik gerät), ein zweites `Serve` und derselbe `Listener` in zwei Servern.
 - Ein Datenrennen, das kein Test auslöst (`SPEC-122` Nr. 8): `make test-race` fängt die Zulassung unter der Sperre (Nr. 11) nur, wenn die Sperre fehlt; ein Freigeben dazwischen fängt allein ein Wirkungs-Fänger, mit Wahrscheinlichkeit (Rate im Plan).
 
 ### SPEC-239 — Token-Datei: Laden und Erzeugen (`admin.LadeToken`)
@@ -3930,6 +3932,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-08 | `SPEC-238` *Ungeprüft* vor dem Code von `slice-admin-lebenszyklus` ergänzt (Architect, keine bestehende Entscheidung geändert): das Trennen des Clients bei ungelesenem Body beendet den `ctx` nicht zugesagt (Nr. 9); *Ungeprüft* von `SPEC-136` zu Nr. 12 bis 14 gilt für `admin.Server` (Nr. 11) |
 | 2026-11-08 | Länge der Wurzel bei abgeleiteter `PUBLIC_BASE_URL` vor dem Code (Architect, keine bestehende Entscheidung geändert, Klarstellung von `SPEC-110` Nr. 14 b und c): neue Nr. 14 (e), die Grenze von 2048 Bytes gilt auch für die aus `LISTEN` gebildete Basis |
 | 2026-11-08 | Modus `mock` im Composition Root vor dem Code (Architect, keine bestehende Entscheidung geändert; die Nachzüge folgen aus `SPEC-110` Nr. 8): `SPEC-110` Nr. 2, 8, 9 und neue Nr. 14 (`STRICT_COVERAGE` und `PUBLIC_BASE_URL` geliefert, Form, Ableitung aus `LISTEN` bei Loopback, `hybrid` bleibt `ODR-E2001`), `SPEC-139` Nr. 1 bis 5, 7, 9 und neue Nr. 11 (Verdrahtung des Mock, des Satzes der Version 4 und des Snapshot-Dienstes, Neustart, `Snapshots()`), `SPEC-136` Nr. 8 (Fehlerantwort ohne Kennzeichen der Version als akzeptiertes Negativ), `SPEC-049` Nr. 10 (a) |
 | 2026-11-08 | `SPEC-049` Nr. 10 (i) (Architect, keine bestehende Entscheidung geändert): `PUT` an `partial` bleibt `partial` ist kein Schritt der Matrix, sondern ein akzeptiertes Negativ mit Fänger im Test des Dienstes; 92 Schritte unverändert |
