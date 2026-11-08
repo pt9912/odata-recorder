@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang mit `slice-mock-abnahme` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht. Adresse des Ausgangs: Architect (Lesart von `SPEC-210` Nr. 5 a und 9 c, Zeitgrenze der Nullprobe), kein Nehmer-Slice.

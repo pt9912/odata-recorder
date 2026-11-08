@@ -1,0 +1,2 @@
+**Vorgang:** slice-mock-abnahme
+**Fund:** Der Architect entschied R12 (`PUT` an `partial` bleibt `partial` ist an der Matrix ungefangen, `SPEC-049` Nr. 10 i); der Plan zog nur §6 nach. Vier weitere Stellen trugen die alte Aussage: T33 (Mutation als von `CRUD-03` gefangen), die Zeile `T32 bis T35` (nur „Rückgabe R12“), T83 (nennt Nr. 10 e bis h) und Z13 („danach `complete`“ von c und d getragen). Beleg: Verifikation V1 (MEDIUM), Plan-Nachzug in einem Commit; die Messung m7 des Verifiers lässt `TestAbnahme*` grün.
