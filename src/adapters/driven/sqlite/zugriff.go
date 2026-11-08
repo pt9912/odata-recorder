@@ -20,15 +20,65 @@ type querier interface {
 var (
 	_ querier = (*sql.DB)(nil)
 	_ querier = (*sql.Conn)(nil)
+	_ querier = (*txVerbindung)(nil)
 	_ querier = zugriff{}
 )
+
+// txVerbindung ist die Verbindung der offenen Transaktion von WithWorkspaceTransaction
+// (SPEC-108 Nr. 1, Kontext in der Transaktion). Sie prüft den Kontext, bevor ein Statement
+// beginnt, und führt das Statement ohne den Abbruch des Aufrufs aus: der Treiber ruft bei
+// einem Abbruch sqlite3_interrupt, und SQLite rollt dann die ganze Transaktion zurück. Ein
+// Fehler beim Zurücknehmen oder beim Abschluss eines Savepoints macht die Transaktion
+// unbrauchbar (unbrauchbar ist der Fehler).
+type txVerbindung struct {
+	// conn ist die *sql.Conn der Transaktion; ein Test tauscht sie gegen einen Wrapper, der ein
+	// Steuerstatement scheitern lässt (export_test.go).
+	conn        querier
+	unbrauchbar error
+}
+
+func (v *txVerbindung) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return v.conn.ExecContext(context.WithoutCancel(ctx), query, args...)
+}
+
+func (v *txVerbindung) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return v.conn.QueryContext(context.WithoutCancel(ctx), query, args...)
+}
+
+// QueryRowContext reicht einen beendeten Kontext an die Verbindung weiter: database/sql liefert
+// seinen Fehler aus Row.Scan, ohne den Treiber zu rufen.
+func (v *txVerbindung) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	if ctx.Err() != nil {
+		return v.conn.QueryRowContext(ctx, query, args...)
+	}
+	return v.conn.QueryRowContext(context.WithoutCancel(ctx), query, args...)
+}
+
+// steuere führt ein Statement des Savepoints einer Operation ohne den Kontext des Aufrufs aus;
+// scheitert es, ist die Transaktion unbrauchbar.
+func (v *txVerbindung) steuere(ctx context.Context, query string) error {
+	_, err := v.conn.ExecContext(context.WithoutCancel(ctx), query)
+	if err != nil {
+		err = klassifiziere(err)
+		if v.unbrauchbar == nil {
+			v.unbrauchbar = err
+		}
+	}
+	return err
+}
 
 // zugriff ist der Weg eines Repositories zur Datenbank: allein auf der Datenbank (conn ist
 // nil, jede schreibende Operation ist eine eigene Transaktion) oder auf der Verbindung einer
 // laufenden Transaktion (WithWorkspaceTransaction).
 type zugriff struct {
 	db   *DB
-	conn *sql.Conn
+	conn *txVerbindung
 }
 
 // zugriff selbst erfüllt querier: Abfragen laufen auf der Verbindung der Transaktion oder auf
@@ -56,22 +106,30 @@ func (z zugriff) QueryRowContext(ctx context.Context, query string, args ...any)
 
 // schreibe führt f atomar aus: in einer eigenen Transaktion oder, in der laufenden, in einem
 // Savepoint, den ein Fehler von f zurücknimmt; die Transaktion bestätigt danach nur, was
-// gelang.
+// gelang. Scheitert das Zurücknehmen oder der Abschluss des Savepoints, liefert die Operation
+// diesen Fehler und jede weitere schreibende Operation der Transaktion ebenso (SPEC-108 Nr. 1 f).
 func (z zugriff) schreibe(ctx context.Context, f func(querier) error) error {
-	if z.conn == nil {
+	v := z.conn
+	if v == nil {
 		return z.db.inTx(ctx, func(c *sql.Conn) error { return f(c) })
 	}
-	if _, err := z.conn.ExecContext(ctx, "SAVEPOINT operation"); err != nil {
+	if v.unbrauchbar != nil {
+		return v.unbrauchbar
+	}
+	if _, err := v.ExecContext(ctx, "SAVEPOINT operation"); err != nil {
 		return klassifiziere(err)
 	}
-	ohneAbbruch := context.WithoutCancel(ctx)
-	if err := f(z.conn); err != nil {
-		_, _ = z.conn.ExecContext(ohneAbbruch, "ROLLBACK TO operation")
-		_, _ = z.conn.ExecContext(ohneAbbruch, "RELEASE operation")
+	if err := f(v); err != nil {
+		scheitert := v.steuere(ctx, "ROLLBACK TO operation")
+		if frei := v.steuere(ctx, "RELEASE operation"); scheitert == nil {
+			scheitert = frei
+		}
+		if scheitert != nil {
+			return scheitert
+		}
 		return err
 	}
-	_, err := z.conn.ExecContext(ohneAbbruch, "RELEASE operation")
-	return klassifiziere(err)
+	return v.steuere(ctx, "RELEASE operation")
 }
 
 // sammle liest alle Zeilen; das Ergebnis ist nie nil.

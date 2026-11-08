@@ -110,7 +110,7 @@ func TestFehlerWertLesen(t *testing.T) {
 func codeListen() (erreichbar, uebrige []model.Code) {
 	e := []string{"ODR-E3001", "ODR-E5003", "ODR-E5004", "ODR-E5005", "ODR-E6001", "ODR-E6002", "ODR-E6003", "ODR-E6004", "ODR-E6005", "ODR-E6006",
 		"ODR-E6007", "ODR-E6008", "ODR-E6009", "ODR-E7001", "ODR-E9001"}
-	u := []string{"ODR-E2001", "ODR-E2101", "ODR-E2401", "ODR-E4001", "ODR-E5001", "ODR-E5002", "ODR-E5006", "ODR-E5007", "ODR-E5008", "ODR-E5009", "ODR-E5010",
+	u := []string{"ODR-E2001", "ODR-E2101", "ODR-E2102", "ODR-E2401", "ODR-E4001", "ODR-E5001", "ODR-E5002", "ODR-E5006", "ODR-E5007", "ODR-E5008", "ODR-E5009", "ODR-E5010",
 		"ODR-E6101", "ODR-E6102", "ODR-E7002", "ODR-E7003", "ODR-E7004", "ODR-E7005", "ODR-E7006", "ODR-E7007", "ODR-E7008", "ODR-E7009",
 		"ODR-E7010", "ODR-E7011", "ODR-E7012"}
 	for _, t := range e {

@@ -18,12 +18,16 @@ func (d *DB) WithWorkspaceTransaction(ctx context.Context, f func(outbound.Works
 		return ungueltigerWert("WithWorkspaceTransaction ohne f")
 	}
 	return d.inTx(ctx, func(c *sql.Conn) error {
-		z := zugriff{db: d, conn: c}
-		return f(outbound.WorkspaceStores{
+		v := &txVerbindung{conn: c}
+		z := zugriff{db: d, conn: v}
+		if err := f(outbound.WorkspaceStores{
 			Workspaces: &WorkspaceRepository{z: z},
 			Entities:   &EntityRepository{z: z},
 			Cursors:    &CursorRepository{z: z},
 			Snapshots:  &SnapshotRepository{z: z},
-		})
+		}); err != nil {
+			return err
+		}
+		return v.unbrauchbar
 	})
 }
