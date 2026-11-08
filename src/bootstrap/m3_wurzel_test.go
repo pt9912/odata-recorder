@@ -235,7 +235,7 @@ func TestM3KonfigDesMock(t *testing.T) {
 			t.Fatalf("Wächter %d-mal gebaut", len(m.waechter))
 		}
 		w := m.waechter[0]
-		blobs := map[string]any{"Mock": mk.Blobs, "Snapshot": sk.Blobs, "Workspace": wk.Blobs, "Wartung": m.haken.wartung.Blobs}
+		blobs := map[string]any{"Mock": mk.Blobs, "Snapshot": sk.Blobs, "Workspace": wk.Blobs, "Wartung": m.wartung.Blobs}
 		for name, b := range blobs {
 			if b != any(w) {
 				t.Errorf("Blobs von %s ist nicht der Wächter: %T", name, b)
@@ -247,7 +247,7 @@ func TestM3KonfigDesMock(t *testing.T) {
 		repos := map[string][2]any{
 			"Workspaces mock/snapshot": {mk.Workspaces, sk.Workspaces}, "Entities mock/snapshot": {mk.Entities, sk.Entities},
 			"Workspaces snapshot/workspace": {sk.Workspaces, wk.Workspaces}, "Snapshots snapshot/workspace": {sk.Snapshots, wk.Snapshots},
-			"Transaktion mock/workspace": {mk.Transaktion, wk.Transaktion}, "Transaktion mock/Ablage": {mk.Transaktion, m.haken.db},
+			"Transaktion mock/workspace": {mk.Transaktion, wk.Transaktion}, "Transaktion mock/Ablage": {mk.Transaktion, m.db},
 		}
 		for name, paar := range repos {
 			if paar[0] == nil || paar[0] != paar[1] {
@@ -282,7 +282,7 @@ func TestM3Lebenszyklus(t *testing.T) {
 	if err := hd.Hochfahren(ctx); err != nil {
 		t.Fatal(err)
 	}
-	dienste, err := m.haken.db.Metadata().List(ctx)
+	dienste, err := m.db.Metadata().List(ctx)
 	if err != nil || len(dienste) != 2 {
 		t.Fatalf("Services %+v, %v", dienste, err)
 	}
