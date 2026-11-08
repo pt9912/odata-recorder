@@ -94,4 +94,4 @@ Die Zeilen T56, T57 und T59 hat der Reviewer in 20 von 20 gemessen; zusammen sin
 
 ## 7. Rohbyte-Gegenlesen (`AGENTS.md` §3.18)
 
-Dieser Bericht enthält Umlaute, kein BOM, kein NBSP und keine Escape-Folge als Wert; gegengelesen mit `LC_ALL=C grep -nP '\\u[0-9a-fA-F]{4}|\xEF\xBB\xBF|\xC2\xA0' docs/reviews/2026-11-08-slice-mock-abnahme-verifikation.md`. Das Muster steht selbst im Text dieser Zeile und im Abschnitt 1 als ASCII-Beschreibung; Treffer sind deshalb allein diese beiden Zeilen (Beschreibung des Musters, kein Wert).
+Dieser Bericht enthält Umlaute, kein BOM, kein NBSP und keine Escape-Folge als Wert; gegengelesen mit `LC_ALL=C grep -nP '\\u[0-9a-fA-F]{4}|\xEF\xBB\xBF|\xC2\xA0' docs/reviews/2026-11-08-slice-mock-abnahme-verifikation.md`. Ergebnis: 0 Treffer.
