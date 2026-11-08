@@ -57,18 +57,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Das Ziel `make test-contract` (Treiber, Fragment, Stufe `contract` des `Dockerfile`) und der Vertrag `SPEC-042` (der Stand „entsteht mit dem Slice, der den Code liefert“ wird zum gelieferten Umfang); die Muss-Fixtures `ODV4-*` aus `slice-mock-abnahme` laufen über echtes HTTP, aufgerufen aus `abFixtures()` (Aufruf, keine Kopie, `SPEC-042` Nr. 3 a).
-- [ ] Je Fehlerklasse von `LH-QA-05` ein Negativfall am HTTP-Eingang, der Klasse, Status und diagnostischen Kontext prüft und keine Geheimnisse offenlegt.
-- [ ] Je Zusage eine Mutation, vom Implementer rot gesehen (`AGENTS.md` §3.10): eine Fehlerklasse, die auf eine andere abgebildet wird, färbt den Negativfall rot.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Das Ziel `make test-contract` (Treiber, Fragment, Stufe `contract` des `Dockerfile`) und der Vertrag `SPEC-042` (der Stand „entsteht mit dem Slice, der den Code liefert“ wird zum gelieferten Umfang); die Muss-Fixtures `ODV4-*` aus `slice-mock-abnahme` laufen über echtes HTTP, aufgerufen aus `abFixtures()` (Aufruf, keine Kopie, `SPEC-042` Nr. 3 a).
+- [x] Je Fehlerklasse von `LH-QA-05` ein Negativfall am HTTP-Eingang, der Klasse, Status und diagnostischen Kontext prüft und keine Geheimnisse offenlegt.
+- [x] Je Zusage eine Mutation, vom Implementer rot gesehen (`AGENTS.md` §3.10): eine Fehlerklasse, die auf eine andere abgebildet wird, färbt den Negativfall rot.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist (`SPEC-042`, Sensors-Tabelle in `harness/README.md`).
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist (`SPEC-042`, Sensors-Tabelle in `harness/README.md`).
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — von der nächsten Welle-Closure geprüft, auch für Slices ohne Wellen-Zugehörigkeit.
 
 ## 3. Plan (vor Code)
 
@@ -216,10 +216,10 @@ Zusatztabelle (Modi und mehrere Verstöße; `AGENTS.md` §3.16):
 
 **Offene Punkte:**
 
-- Aufnahme von `make test-contract` in `GATE_CHECKS`: der Vertrag lässt das Ziel daneben (`SPEC-042` Nr. 2, [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)); ob es in die Kette gehört, entscheidet wie bei `make test-integration` und `make test-determinism` der Betreiber — **Ausgang:** offen; Adresse Planner (Entscheidung des Users nötig; `slice-gate-integration-determinism` führt in §1 allein die beiden anderen Ziele, eine Sendung dorthin ist damit nicht erfolgt, `AGENTS.md` §3.13).
-- Die Spalten *Soll* und *Nicht in MVP* von `SPEC-049` haben kein Ziel, an das ihre Welle ihre Fälle hängen müsste; `SPEC-042` Nr. 9 e hält fest, dass dieser Vertrag sie nicht fährt — **Ausgang:** offen; Entscheidung bei Start der jeweiligen Welle.
+- Aufnahme von `make test-contract` in `GATE_CHECKS`: der Vertrag lässt das Ziel daneben (`SPEC-042` Nr. 2, [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)); ob es in die Kette gehört, entscheidet wie bei `make test-integration` und `make test-determinism` der Betreiber — **Ausgang:** weiter offen; Adresse Planner, in Roadmap und `welle-mock` als Entscheidung des Users sichtbar (Entscheidung des Users nötig; `slice-gate-integration-determinism` führt in §1 allein die beiden anderen Ziele, eine Sendung dorthin ist damit nicht erfolgt, `AGENTS.md` §3.13).
+- Die Spalten *Soll* und *Nicht in MVP* von `SPEC-049` haben kein Ziel, an das ihre Welle ihre Fälle hängen müsste; `SPEC-042` Nr. 9 e hält fest, dass dieser Vertrag sie nicht fährt — **Ausgang:** weiter offen; Entscheidung bei Start der jeweiligen Welle.
 - Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** entschieden; das Raster steht oben, jede Zelle nennt Nummer oder „gilt nicht“ mit Grund.
-- Stufe `contract` und Treiber (Handlauf, `SPEC-042` Nr. 9 f) und ob die Test-Binaries ohne weitere Dateien aus dem Arbeitsverzeichnis des Pakets laufen (Nr. 1) — **Ausgang:** offen bis zur Closure; der Handlauf ist gefahren (§3, *Handlauf des Treibers*), die Binaries laufen ohne weitere Dateien, keine Abweichung.
+- Stufe `contract` und Treiber (Handlauf, `SPEC-042` Nr. 9 f) und ob die Test-Binaries ohne weitere Dateien aus dem Arbeitsverzeichnis des Pakets laufen (Nr. 1) — **Ausgang:** entfallen; der Handlauf ist gefahren (§3, *Handlauf des Treibers*), `make test-contract` ist grün, die Binaries laufen ohne weitere Dateien, keine Abweichung; der Verifier hat den Fall Argument × Fall bestätigt (`x` und `""` ergeben Exit 2 ohne Container).
 - Zeile *ungültige Metadaten* (`SPEC-042` Nr. 5, T10): `GET /odata/$metadata` auf ein Dokument `<kaputt` antwortet `200` mit den gespeicherten Bytes, nicht `422` `ODR-E6004`, denn `SPEC-198` Nr. 4 liest das Modell dort nicht; die Vorgabe „für `$metadata` und für eine Collection“ ist damit unerfüllbar, ohne den Dienst zu ändern. Der Test fährt allein `GET /odata/Products` (`tests/integration/vertrag_fehlerklassen_test.go`); der Implementer entscheidet den zweiten Pfad nicht (`AGENTS.md` §3.12). Der Architect wählt die Beschränkung auf die Collection — **Ausgang:** entschieden, `SPEC-042` Nr. 5 und 9 i: `$metadata` ist Nicht-Fall mit Grund (kleinste vertragsgerechte Lösung; ein leerer Blob ist die Klasse *Service ohne Metadaten*, nach `SPEC-195` Nr. 9 `ODR-E6004`, braucht aber einen Aufbau ohne Workspace-Baseline, den dieser Vertrag nicht führt); T10 und Nr. 5 sind nachgezogen. Der Implementer ändert keinen Test.
 - Die Prüfung des Fehlerobjekts (`SPEC-042` Nr. 4: „die Prüfung selbst als Funktion, die auch `TestVertragMatrix` ruft“) liegt zweimal vor, je Test-Paket (`vertragFehlerobjekt` in `src/bootstrap/vertrag_http_test.go` und in `tests/integration/vertrag_fehlerklassen_test.go`), weil `tests/integration` den Composition Root nicht nennt und die Pakete `_test` sich nicht importieren; beide Schleifen (9 Codes × 20 Eigenschaften) laufen gleich. Eine gemeinsame Funktion bräuchte ein weiteres Paket unter `tests/` (Pfad außerhalb des Blocks der Größenmarke, [ADR-0012](../../adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md)) — **Ausgang:** entschieden, `SPEC-042` Nr. 4 und 9 j: zwei Fassungen mit je eigener Schleife (9 Codes × 20 Eigenschaften) als Fänger; ein gemeinsames Paket unter `tests/` entfällt (neue Schicht oder Kante für eine Funktion, Marke und `.a-check.yml` unberührt halten); die Gleichheit beider Fassungen ist akzeptiertes Negativ mit Grund und Folge (T17). Der Wortlaut von Nr. 4 ist angepasst.
 
@@ -237,7 +237,27 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-*Wird bei der Closure gefüllt.*
+**Größen** (`SPEC-128` Nr. 9): `make groessenmarke`: Messung 1311 von Marke 2000, **Auslastung 0,66 (1311 / 2000), nicht unter 0,60: keine Meldung** an den Architect. Keine Überschreitung, keine Rückführung.
+
+**Mutationen:** je Zusage rot gesehen (Tabelle T01 bis T17 in §3). Review-Runde: die Sendeseite der Marker (`Authorization`, `Cookie`, `GEHEIM-Q`) und das Herunterfahren in `tests/integration` hatten keinen Fänger; die Fix-Runde (`69eac720`) deckt beide. Der Verifier löste den Fix gegen die Klasse auf (`AGENTS.md` §3.17) mit 13 eigenen Mutationen an Elementen, die der Befund nicht nannte (B1 bis B4, K1 bis K5, P1 bis P3, H1): alle rot, kein Element der Mengen blieb grün.
+
+**Gate:** `make gates` und `make test-contract` im Zweig grün (Verifier); `make gates` auf dem Merge-Stand und auf `main` nach dem Merge sowie der Lauf der Gegenproben (Stempel) stehen im Commit der Integration. Akzeptierte Negative (Grund und Folge in §3, §6 und `SPEC-042` Nr. 9): ein Header, den der Client sendet und den der Server nicht erreicht, bleibt in den Klassen ungesehen; 7 der 10 nicht unterstützten Optionen führt kein Fall; `$metadata` mit ungültigem Dokument (Nr. 9 i); zwei Fassungen von `vertragFehlerobjekt` ohne Gleichheitsfänger (Nr. 9 j).
+
+**Risiko-Ausgänge (§6):** Stufe und Treiber: entfallen. Entschieden: Doppelung der Fixtures, Weg der Klasse *ungültige Metadaten*, Randformen, Zeile *ungültige Metadaten* (`$metadata`), zwei Fassungen der Prüfung. **Weiter offen mit Adresse (kein Ausgang im Slice):** (1) Aufnahme von `make test-contract` in `GATE_CHECKS`: Entscheidung des Users, in Roadmap und `welle-mock` als Entscheidung des Users sichtbar; (2) Spalten *Soll* und *Nicht in MVP* von `SPEC-049` ohne Ziel: Entscheidung bei Start der jeweiligen Welle ([welle-etag](../welle-etag.md), [welle-expand-batch](../welle-expand-batch.md), [welle-odata-v2](../welle-odata-v2.md)); beide Adressen nehmen die Sendung an (kein Ausschluss trifft sie, §1).
+
+**Steering-Loop-Einträge:**
+
+1. **Die Zusage der Sendeseite hatte keinen Fänger, nur die Empfangsseite:** Marker `Authorization`, `Cookie` und `GEHEIM-Q` wurden in den Antworten gesucht; sendete der Test sie nicht, fand die Suche nichts und blieb grün (Review M-1, Mutation: die Marker aus Anfrage und Pfaden entfernt, beide Pakete grün). Neue Beobachtung `BEO-REPO/sendeseite-der-marker-ohne-faenger` (1×, gezählt, nicht verkörpert). Dazu die Randform *Herunterfahren* nur in einem von zwei Test-Paketen gefangen (Review M-2): Evidenz zu `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (verkörpert in `AGENTS.md` §3.15, gezählt, nicht geschärft).
+2. **Benannte Spec-Lücke:** `GET /odata/$metadata` auf ein ungültiges Metadaten-Dokument antwortet `200` mit den gespeicherten Bytes, nicht `422` `ODR-E6004`, denn `SPEC-198` Nr. 4 liest das Modell dort nicht; ob `$metadata` ein ungültiges Dokument melden soll, ist eine Frage an `SPEC-198`, nicht an diesen Vertrag. `SPEC-042` Nr. 5 und 9 i halten den Nicht-Fall mit Grund fest; die Rückfrage an `SPEC-198` Nr. 4 bleibt beim Architect.
+3. **Beobachtungen ohne neue Regel:** keine weitere. Zur Betriebsregel für Repo-Dateien liegt kein Beleg vor (kein Report nennt `sed` oder Heredoc); eine Evidenz zu `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` entsteht nicht. Die Fix-Runde deckte die Klasse (Verifier); eine Evidenz zu `BEO-REPO/fix-deckt-die-genannte-mutation-nicht-die-klasse` entsteht nicht.
+
+**Spec-Lücken:** eine, benannt in Eintrag 2 (Frage an `SPEC-198` Nr. 4, im Vertrag als Nicht-Fall mit Grund geschlossen).
+
+**Kein Feld `liegt in` in diesem Slice:** nichts wurde in einer Regel, einem Sensor oder einer Spec-Stelle als Lerneintrag verkörpert; Eintrag 1 zählt, Eintrag 2 ist eine benannte Spec-Lücke.
+
+**Drei Paarungen:** Anker (kein Eintrag trägt `liegt in`, nichts zu paaren) · Folge-Slice (die beiden Adressen aus §6 sind in Roadmap und `welle-mock` bzw. bei Start der Folgewellen geführt; die Sendung von `slice-mock-abnahme` ist erfüllt) · Register (Evidenz `slice-test-contract` zu `BEO-REPO/sendeseite-der-marker-ohne-faenger` und `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft`).
+
+**Nachbarn:** Die Aufnahme in `GATE_CHECKS` bleibt Entscheidung des Users; bis dahin ist `make test-contract` wie `make test-integration` ein Werkzeug neben der Kette (`SPEC-042` Nr. 2, [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)).
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 

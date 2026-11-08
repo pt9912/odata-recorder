@@ -1,0 +1,2 @@
+**Vorgang:** slice-test-contract
+**Fund:** `SPEC-042` Nr. 8 d sagte zu: ein Fehler beim Herunterfahren ist rot. In `vertrag_http_test.go` galt das, in `TestVertragFehlerklassen` verwarf die Hilfe den Fehler des Handle, und kein Fall fing ihn (Review M-2); die Fix-Runde fängt ihn in beiden Paketen (Mutation H1 rot). Dazu die Sendeseite der Marker, siehe `sendeseite-der-marker-ohne-faenger`. Beleg: Review `docs/reviews/2026-11-08-slice-test-contract-review.md` (Finding 2).
