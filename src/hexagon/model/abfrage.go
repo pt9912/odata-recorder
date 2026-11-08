@@ -173,7 +173,7 @@ func projiziere(entities []Entity, sel *SelectOption) []Entity {
 				props = append(props, p)
 			}
 		}
-		aus = append(aus, Entity{Typ: e.Typ, Schluessel: e.Schluessel, Properties: props})
+		aus = append(aus, Entity{Typ: e.Typ, Schluessel: e.Schluessel, Properties: props, Etag: e.Etag})
 	}
 	return aus
 }

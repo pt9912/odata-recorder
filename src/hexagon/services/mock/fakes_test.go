@@ -349,6 +349,9 @@ type entities struct {
 	beobachter func([]model.EntityState)
 	// jeWs trennt den Zustand nach der Kennung des Workspace (W73); sonst gilt allein das Set.
 	jeWs bool
+	// wachsend lässt Get zur Version des Eintrags die Zahl der bisherigen Aufrufe von Get (den eigenen eingeschlossen) addieren:
+	// jedes zweite Lesen eines Eintrags liefert eine höhere Version.
+	wachsend bool
 }
 
 // schl ist der Schlüssel der Tabelle zu Workspace und Set.
@@ -425,10 +428,17 @@ func (e *entities) Get(ctx context.Context, workspaceID, entitySet, entityKey st
 	if err := e.p.beginn(ctx, "Entities.Get", workspaceID, entitySet, entityKey); err != nil {
 		return model.EntityState{}, err
 	}
+	var n int64
+	if e.wachsend {
+		n = int64(e.p.anzahl("Entities.Get"))
+	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for _, x := range e.m[e.schl(workspaceID, entitySet)] {
 		if x.EntityKey == entityKey {
+			if e.wachsend {
+				x.Version += n
+			}
 			return x, nil
 		}
 	}
@@ -532,6 +542,8 @@ type schreiber struct {
 	kopfe map[string]model.Darstellung
 	// zeigeIDs hängt die Schlüssel der Entities einer Collection an den geschriebenen Body.
 	zeigeIDs bool
+	// zeigeEtag hängt `|<Etag>` der Entity und je Element einer Collection `|<Schlüssel>=<Etag>` an den geschriebenen Body.
+	zeigeEtag bool
 	// ort ist das Ergebnis von Adresse.
 	ort string
 }
@@ -564,7 +576,11 @@ func (s *schreiber) SchreibeEntity(ctx context.Context, dst io.Writer, m model.S
 	if err := s.p.beginn(ctx, "Schreiber.SchreibeEntity", dst, m, a); err != nil {
 		return model.Darstellung{}, err
 	}
-	return s.ausgabe("Schreiber.SchreibeEntity", dst), nil
+	d := s.ausgabe("Schreiber.SchreibeEntity", dst)
+	if s.zeigeEtag && dst != nil {
+		_, _ = dst.Write([]byte("|" + a.Entity.Etag))
+	}
+	return d, nil
 }
 
 func (s *schreiber) SchreibeCollection(ctx context.Context, dst io.Writer, m model.ServiceModel, a model.CollectionAntwort) (model.Darstellung, error) {
@@ -574,6 +590,11 @@ func (s *schreiber) SchreibeCollection(ctx context.Context, dst io.Writer, m mod
 	d := s.ausgabe("Schreiber.SchreibeCollection", dst)
 	if s.zeigeIDs && dst != nil {
 		_, _ = dst.Write([]byte("|" + ids(a.Entities)))
+	}
+	if s.zeigeEtag && dst != nil {
+		for _, e := range a.Entities {
+			_, _ = dst.Write([]byte("|" + e.Schluessel + "=" + e.Etag))
+		}
 	}
 	return d, nil
 }

@@ -86,6 +86,7 @@ func (p *pruefer) liesEinfache(k *Konfiguration) {
 	k.ReplayAssignment = p.aufzaehlung("REPLAY_ASSIGNMENT", "explicit", "explicit", "ordered")
 	k.ReplayRedactedBodies = p.wahrheitswert("REPLAY_REDACTED_BODIES", false)
 	k.StrictCoverage = p.wahrheitswert("STRICT_COVERAGE", true)
+	k.EtagEnabled = p.wahrheitswert("ETAG_ENABLED", false)
 	k.MatchInvalidEncoding = p.aufzaehlung("MATCH_INVALID_ENCODING", "literal", "literal", "reject")
 	k.MatchBodyMode = p.aufzaehlung("MATCH_BODY_MODE", "bytes", "bytes", "json-canonical")
 	k.LinkRewrite = p.aufzaehlung("LINK_REWRITE", "off", "off")

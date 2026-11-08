@@ -116,7 +116,7 @@ func TestMockerFelder(t *testing.T) {
 		}
 	}
 	d := reflect.TypeFor[mock.Dienst]()
-	if d.NumField() != 3 || d.Field(2).Type != reflect.TypeFor[*outbound.CodecSatz]() {
-		t.Errorf("Dienst trägt mehr als ID, Root und Codecs")
+	if d.NumField() != 4 || d.Field(2).Type != reflect.TypeFor[*outbound.CodecSatz]() || d.Field(3).Name != "Etag" || d.Field(3).Type.Kind() != reflect.Bool {
+		t.Errorf("Dienst trägt mehr als ID, Root, Codecs und Etag (SPEC-280 Nr. 2)")
 	}
 }
