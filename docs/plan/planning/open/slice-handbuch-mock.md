@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-mock](../welle-mock.md).
+**Welle:** [welle-benutzerhandbuch](../welle-benutzerhandbuch.md) (aus `welle-mock` verlegt, Entscheidung des Users, 2026-11-08).
 
 **Bezug:** `LH-QA-05` (Fehlerdiagnose), `LH-FA-06` (Mock), `LH-FA-12` (Betriebsarten), `LH-RB-01` (unterstützter Teilumfang), [ADR-0004](../../adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md), [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)
 
@@ -33,13 +33,13 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Das Handbuch beschreibt den Modus `mock` (Start ohne Upstream, Antworten aus dem Zustand eines Workspace, die Wirkung von `STRICT_COVERAGE` und `PUBLIC_BASE_URL`) in einem Kapitel mit mindestens einem gebundenen Beispiel; die Tabelle *Einstellungen* trägt die Zeilen `STRICT_COVERAGE` und `PUBLIC_BASE_URL`. Dafür erweitert der Slice den Vertrag `SPEC-200` und das Werkzeug `pruefung handbuch` um eine Umgebung im Beispiel-Format und um einen Lauf, der einen Dauerlauf mit einem Signal beendet.
 
-**Übernimmt (Sendung von `slice-bootstrap-m3`, Architect 2026-11-08, `AGENTS.md` §3.13):** Das Kapitel zum Modus `mock` samt Beispiel als Datei, die Zeilen `STRICT_COVERAGE` und `PUBLIC_BASE_URL` der Tabelle *Einstellungen* und die Erweiterung von `SPEC-200` Nr. 6 und 7 um Umgebung und einen Lauf, der den Dauerlauf mit einem Signal beendet. Grund beim Geber: `SPEC-200` Nr. 6 d und 7 b erlauben keine Umgebung, ein `start` mit leerer Umgebung läuft im Modus `mock` bis zur Zeitgrenze von 10 s, ein Verstoß gegen `STRICT_COVERAGE` oder `PUBLIC_BASE_URL` braucht eine Umgebung, und `SPEC-200` Nr. 1 lässt ein Verhalten nur als gebundenes Beispiel zu. Geliefert hat der Geber die acht Zeilen des Mock in der Tabelle *Fehlercodes*. Die Adresse nimmt an: kein Ausschluss eines Nachbarn trifft die Sendung (gelesen: `slice-handbuch-abnahme` §1 schließt Kapitel über Mock aus, weil sein Probelauf prüft, was das Handbuch zum Zeitpunkt der Closure sagt, und trifft damit ein Kapitel eines anderen Slice nicht; `slice-bootstrap-m3-e2e-mock` §1 und DoD schließen das Handbuch aus, ihr Binary ändert für den Anwender nichts; `welle-benutzerhandbuch` §6 verweist Kapitel über Mock an die Welle, die das Verhalten liefert, das ist `welle-mock`).
+**Übernimmt (Sendung von `slice-bootstrap-m3`, Architect 2026-11-08, `AGENTS.md` §3.13):** Das Kapitel zum Modus `mock` samt Beispiel als Datei, die Zeilen `STRICT_COVERAGE` und `PUBLIC_BASE_URL` der Tabelle *Einstellungen* und die Erweiterung von `SPEC-200` Nr. 6 und 7 um Umgebung und einen Lauf, der den Dauerlauf mit einem Signal beendet. Grund beim Geber: `SPEC-200` Nr. 6 d und 7 b erlauben keine Umgebung, ein `start` mit leerer Umgebung läuft im Modus `mock` bis zur Zeitgrenze von 10 s, ein Verstoß gegen `STRICT_COVERAGE` oder `PUBLIC_BASE_URL` braucht eine Umgebung, und `SPEC-200` Nr. 1 lässt ein Verhalten nur als gebundenes Beispiel zu. Geliefert hat der Geber die acht Zeilen des Mock in der Tabelle *Fehlercodes*. Die Adresse nimmt an: kein Ausschluss eines Nachbarn trifft die Sendung (gelesen: `slice-handbuch-abnahme` §1 schließt Kapitel über Mock aus, weil sein Probelauf prüft, was das Handbuch zum Zeitpunkt der Closure sagt, und trifft damit ein Kapitel eines anderen Slice nicht; `slice-bootstrap-m3-e2e-mock` §1 und DoD schließen das Handbuch aus, ihr Binary ändert für den Anwender nichts; `welle-benutzerhandbuch` §6 schloss Kapitel über Mock aus und führt seit der Entscheidung des Users vom 2026-11-08 diesen Slice in §4; `welle-mock` schließt ohne ihn).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Die Fehlercodes des Mock in der Tabelle *Fehlercodes* und die acht Zeilen in `harness/katalog-ausnahmen.txt` — geliefert von `slice-bootstrap-m3` (A16); dieser Slice setzt sie voraus.
 - Binary, Verdrahtung, Konfiguration des Modus `mock` — `slice-bootstrap-m3`; ein Unterschied zwischen Spezifikation und Binary ist ein Befund an den Planner.
-- Kapitel über Hybrid, Fallback, Admin-API, Snapshots über HTTP, Telemetrie, TLS — Folgewellen; das Kapitel entsteht in der Welle, die das Verhalten liefert (`welle-benutzerhandbuch` §6).
+- Kapitel über Hybrid, Fallback, Admin-API, Snapshots über HTTP, Telemetrie, TLS — Folgewellen; das Kapitel entsteht in der Welle, die das Verhalten liefert (`welle-benutzerhandbuch` §6; der Modus `mock` ist davon ausgenommen und gehört in diesen Slice).
 - Der Probelauf durch eine Rolle ohne Vorwissen — `slice-handbuch-abnahme`; dieser Slice belegt Beispiele durch das Gate, nicht die Verständlichkeit.
 - Szenarien des gebauten Binary in `make test-integration` — `slice-bootstrap-m3-e2e-mock`; das Handbuch-Gate fährt seine eigene Stufe `handbuch`.
 - Neue Gate-Klassen über Umgebung und Signal hinaus (Mehrprozess-Läufe, Netz, Upstream) — das Beispiel des Mock braucht sie nicht; was der Architect darüber hinaus für nötig hält, geht als Rückgabe an den Planner.
@@ -119,7 +119,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Closure- und Lerneintrag-Regeln — zwei beobachtbare Kriterien **und** ein
 Lerneintrag; ohne ihn ist der Slice nur abgelegt.
 
-Die DoD ist vollständig, `make gates` und `make gegenproben` sind grün, `make handbuch-check` fährt das Beispiel des Mock gegen das gebaute Binary, und je Zusage der Erweiterung ist eine Mutation rot gesehen (`AGENTS.md` §3.10); die Closure-Notiz mit Lerneintrag liegt vor. Der Slice gehört zum Closure-Trigger von `welle-mock` („Das Handbuch deckt alles ab, was das Binary dieser Welle kann“).
+Die DoD ist vollständig, `make gates` und `make gegenproben` sind grün, `make handbuch-check` fährt das Beispiel des Mock gegen das gebaute Binary, und je Zusage der Erweiterung ist eine Mutation rot gesehen (`AGENTS.md` §3.10); die Closure-Notiz mit Lerneintrag liegt vor. Der Slice gehört zu `welle-benutzerhandbuch` (Kapitel zum Modus `mock`, Closure-Trigger dort §3) und ist kein Kriterium von `welle-mock` mehr.
 
 ## 6. Risiken und offene Punkte
 
