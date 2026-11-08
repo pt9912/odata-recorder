@@ -18,6 +18,7 @@ import (
 const (
 	objekt404  = `{"error":{"code":"ODR-E2102","message":"Admin request invalid","target":"admin"}}`
 	objekt500  = `{"error":{"code":"ODR-E9001","message":"Internal error","target":"internal"}}`
+	objekt503  = `{"error":{"code":"ODR-E5010","message":"Service is shutting down","target":"service"}}`
 	healthzObj = `{"status":"ok"}`
 )
 
