@@ -1,0 +1,3 @@
+**Vorgang:** slice-bootstrap-m3-e2e-mock
+**Fund:** `SPEC-037` Nr. 7 sagte die Zuordnung durch den Header für „ein Request ohne `X-Recorder-Workspace`“ zu, `TestE2EMock` prüft sie an fünf Requests und sechs Formen; `HEAD`, `PUT`, `PATCH` und die Form *drei Werte* fängt am Binary kein Test. Ebenso der Zähler des Referenzdienstes (E03, `SPEC-037` Nr. 10 k) und die Form *zwei Schreibweisen* (Nr. 10 l), die der Wortlaut zusagte und das Binary nicht unterscheidet; beide sind als Negativ mit Grund und Folge benannt. Beleg: Verifikation V1; `SPEC-037` Nr. 10 k bis m.
+**Stand:** verkörpert in `AGENTS.md` §3.15 seit welle-fundament, geschärft seit welle-record-replay; MEDIUM-Zeilen in `.harness/skills/reviewer.md` seit welle-record-replay

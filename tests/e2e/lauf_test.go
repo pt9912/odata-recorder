@@ -103,13 +103,19 @@ func (l *lauf) sessionen() []string {
 // uebergang führt das Hilfsprogramm aus und liefert stdout, stderr und den Exit-Code.
 func uebergang(t *testing.T, args ...string) (stdout, stderr string, exit int) {
 	t.Helper()
+	return uebergangMit(t, nil, args...)
+}
+
+// uebergangMit führt das Hilfsprogramm mit genau der Umgebung env aus.
+func uebergangMit(t *testing.T, env []string, args ...string) (stdout, stderr string, exit int) {
+	t.Helper()
 	p := os.Getenv("E2E_UEBERGANG")
 	if p == "" {
 		t.Fatal("E2E_UEBERGANG nicht gesetzt")
 	}
 	var o, e bytes.Buffer
 	cmd := exec.Command(p, args...)
-	cmd.Env, cmd.Stdout, cmd.Stderr = []string{}, &o, &e
+	cmd.Env, cmd.Stdout, cmd.Stderr = append([]string{}, env...), &o, &e
 	err := cmd.Run()
 	var ee *exec.ExitError
 	switch {
@@ -122,10 +128,11 @@ func uebergang(t *testing.T, args ...string) (stdout, stderr string, exit int) {
 	return o.String(), e.String(), exit
 }
 
-// importiere legt Import und Workspace an; stdout trägt `workspace=<ID>` und `session=<ID>`.
+// importiere legt Import und Workspace an; stdout trägt `workspace=<ID>` und `session=<ID>`. Der Übergang
+// kennt die UPSTREAM_URL der Aufnahme, damit der Import den `@odata.nextLink` auflöst.
 func (l *lauf) importiere() {
 	l.t.Helper()
-	out, errOut, code := uebergang(l.t, "import", l.dir, l.session)
+	out, errOut, code := uebergangMit(l.t, []string{"E2E_UPSTREAM_URL=" + l.ref.url() + "/odata"}, "import", l.dir, l.session)
 	if code != 0 {
 		l.t.Fatalf("Übergang import: Exit %d\nstderr: %s", code, errOut)
 	}
