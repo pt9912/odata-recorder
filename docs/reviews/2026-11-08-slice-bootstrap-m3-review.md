@@ -11,7 +11,7 @@
 - Plan von `slice-bootstrap-m3` (§1, §3, §6), `SPEC-110` Nr. 1 bis 14, `SPEC-139` Nr. 11, `SPEC-136` Nr. 8, `SPEC-201` Nr. 3 e
 - `AGENTS.md` §3.2, §3.6, §3.7, §3.9 bis §3.18
 - `LH-FA-12`, `LH-FA-06`, `LH-FA-11`, `LH-QA-04`
-- ADR: `ADR-0001` (nur genannt)
+- ADR: [ADR-0001](../plan/adr/0001-implementierungssprache-go.md) (nur genannt)
 
 **Nicht geprüft (Rolle des Verifiers oder Planners):** DoD, `make gates`, Größenmarke. Als bekannt gemeldet und hier nur bewertet: Handbuch-Kapitel und Beispiel zum Modus `mock`, Länge der abgeleiteten `PUBLIC_BASE_URL`, `mutationslauf.sh` an `src/bootstrap`, flackernder `urlparser/TestUeberlangeEingabe`.
 
