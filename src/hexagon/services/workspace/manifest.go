@@ -10,13 +10,16 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
 
-// eintrag ist ein geprüfter Eintrag von entities im Manifest (SPEC-129 Nr. 6 c); payload sind die
-// Bytes des Gliedes, wie das Manifest sie trägt.
+// eintrag ist ein geprüfter Eintrag von entities im Manifest (SPEC-129 Nr. 6 c, Nr. 20 c); payload sind die
+// Bytes des Gliedes, wie das Manifest sie trägt. version und deleted trägt allein das Manifest eines
+// Workspace-Snapshots; die Baseline lässt sie auf dem Nullwert.
 type eintrag struct {
 	set, key     string
 	payload      string
 	props        []string
 	completeness model.Completeness
+	version      int64
+	deleted      bool
 }
 
 // verstoss ist ein Verstoß des Manifests: ODR-E3001 mit der Ursache ErrBeschaedigt; ort nennt Glied
@@ -104,6 +107,11 @@ func leseKopf(kopf map[string]json.RawMessage, snap model.BaselineSnapshot) ([]j
 			return nil, verstoss("%s passt nicht zur Baseline", g[0])
 		}
 	}
+	return leseEntities(kopf)
+}
+
+// leseEntities liefert die Elemente von entities und prüft entity_count gegen ihre Zahl (SPEC-129 Nr. 6 b, Nr. 20 b).
+func leseEntities(kopf map[string]json.RawMessage) ([]json.RawMessage, error) {
 	rawEntities := kopf["entities"]
 	var elemente []json.RawMessage
 	if len(rawEntities) == 0 || rawEntities[0] != '[' || json.Unmarshal(rawEntities, &elemente) != nil {

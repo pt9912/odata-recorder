@@ -311,11 +311,11 @@ func empfaengerBefunde(fset *token.FileSet, fd *ast.FuncDecl, v string) []string
 }
 
 // TestPaketOhneZustand (Z57, Z47, Z04): der Quelltext des Pakets erfüllt die Regeln aus dateiBefunde. Der Test ist
-// deterministisch (keine Goroutine, keine Zeit); die Zahl der Dateien (7) schützt gegen leeres Lesen.
+// deterministisch (keine Goroutine, keine Zeit); die Zahl der Dateien (9) schützt gegen leeres Lesen.
 func TestPaketOhneZustand(t *testing.T) {
 	befunde, dateien := quelltextBefunde(t, ".")
-	if dateien != 7 {
-		t.Errorf("%d Dateien ohne _test.go gelesen, erwartet 7", dateien)
+	if dateien != 9 {
+		t.Errorf("%d Dateien ohne _test.go gelesen, erwartet 9", dateien)
 	}
 	if n := len(erlaubteImporte()); n != 12 {
 		t.Errorf("%d erlaubte Importe, erwartet 12", n)

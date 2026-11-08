@@ -1,0 +1,2 @@
+**Vorgang:** slice-sqlite-interrupt-transaktion
+**Fund:** Die Regel hielt. Der erste Wurf prüfte Zeile 15 für beide Steuerstatements gemeinsam und das Paar Kontext × unbrauchbare Transaktion nicht (Review M-1, M-2); die Fix-Runde `3ea3b9fa` machte beide zur Schleife über die Menge (40 Blätter, 8 Operationen × 3 Arten). Der Verifier mutierte sechs Elemente, die weder der Befund noch der Plan nannten, alle rot im benannten Grund. Beleg: `docs/reviews/2026-11-07-slice-sqlite-interrupt-transaktion-verifikation.md`, Abschnitt *Fix-Runde gegen die Klasse*.

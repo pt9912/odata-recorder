@@ -23,4 +23,7 @@ type WorkspaceUseCase interface {
 	// Reset setzt State und Cursors auf die Baseline zurück, erhöht die Revision um 1 und liefert
 	// den Workspace mit der neuen Revision.
 	Reset(ctx context.Context, id string) (model.Workspace, error)
+	// Restore ersetzt den Entity-State des Workspace atomar durch den des Workspace-Snapshots snapshotID,
+	// erhöht die Revision um 1 und lässt jeden Replay-Cursor unverändert (SPEC-129 Nr. 16 bis 19).
+	Restore(ctx context.Context, workspaceID, snapshotID string) (model.Workspace, error)
 }

@@ -41,7 +41,8 @@ func istFremdschluessel(err error) bool {
 }
 
 // inTx führt f in einer Schreibtransaktion auf einer Verbindung aus: Erfolg bestätigt,
-// jeder Fehler rollt zurück.
+// jeder Fehler rollt zurück. Der Kontext wird vor dem Bestätigen geprüft; das Bestätigen und
+// das Zurückrollen laufen ohne seinen Abbruch (SPEC-108 Nr. 1 d).
 func (d *DB) inTx(ctx context.Context, f func(*sql.Conn) error) (err error) {
 	conn, err := d.sql.Conn(ctx)
 	if err != nil {
@@ -64,7 +65,10 @@ func (d *DB) inTx(ctx context.Context, f func(*sql.Conn) error) (err error) {
 	if err = f(conn); err != nil {
 		return err
 	}
-	if _, err = conn.ExecContext(ctx, "COMMIT"); err != nil {
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+	if _, err = conn.ExecContext(context.WithoutCancel(ctx), "COMMIT"); err != nil {
 		return klassifiziere(err)
 	}
 	fertig = true
