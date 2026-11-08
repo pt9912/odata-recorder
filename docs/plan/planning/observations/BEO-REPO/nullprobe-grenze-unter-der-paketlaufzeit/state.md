@@ -1,1 +1,1 @@
-**Stand:** offen; erster Vorgang mit `slice-mock-abnahme` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht. Adresse des Ausgangs: Architect (Lesart von `SPEC-210` Nr. 5 a und 9 c, Zeitgrenze der Nullprobe), kein Nehmer-Slice.
+**Stand:** offen; drei Vorgänge (`slice-mock-abnahme`, `slice-bootstrap-m3`, `slice-etag-versionen`, Evidenz), Schwelle 3x erreicht, kein Zielort. Adresse des Ausgangs: Architect (Lesart von `SPEC-210` Nr. 5 a und 9 c, Zeitgrenze der Nullprobe; die Welle-Closure von `welle-etag` oder der nächste Planner liest den Eintrag), kein Nehmer-Slice.

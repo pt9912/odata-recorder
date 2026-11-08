@@ -1,0 +1,2 @@
+**Vorgang:** slice-etag-versionen
+**Fund:** Dritter Vorgang. Die Mutationen der Zeilen E3, E4, E21, E22 und E23 liegen in `src/bootstrap`, dessen Paketlaufzeit die Zeitgrenze der Nullprobe von `tools/harness/mutationslauf.sh` überschreitet; Implementer, Reviewer und Verifier fuhren ihre Mutationen je mit einem eigenen Treiber im Scratchpad (Wegwerfkopie, `sed` auf der Kopie, nur der benannte Test), nicht mit dem Werkzeug. Beleg: Plan §3 *Umsetzung und Belege*, Review (Messender), Verifikation Abschnitt 4 und 8.
