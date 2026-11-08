@@ -33,11 +33,11 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** `HybridUseCase` (Inbound Port in `src/hexagon/ports/inbound`, Dienst in `src/hexagon/services/hybrid`) ruft `MockUseCase` über dessen Inbound Port und entscheidet bei einem Fehler des Mock nach dem `ODR`-Code (nie nach dem HTTP-Status) mit der Policy aus `slice-fallback-policy`: Antwort oder Fehler bleiben (Erfolg, fachliche `404`, `409`, `412`, ungültige Anfrage), `ReplayUseCase` wird nur für die freigegebenen Kategorien gerufen, der `UpstreamClient` nur nach der Policy; ein Replay-Fehler außer `ODR-E5001`, insbesondere ein erschöpfter Key (`ODR-E5002`), wird unverändert ausgeliefert und löst nie einen Upstream-Zugriff aus (`LH-FA-12.b`).
 
-**Übernimmt:** das Risiko der Upstream-Links einer Fallback-Antwort aus `welle-hybrid` §6 (`LINK_REWRITE` ist nach `SPEC-092` nur `off`); es steht als Risiko in §6 dieses Plans.
+**Übernimmt:** das Risiko der Upstream-Links einer Fallback-Antwort aus `welle-hybrid` §6 (`LINK_REWRITE` ist nach `SPEC-092` nur `off`); es steht als Risiko in §6 dieses Plans. Dazu die Pflichten des Aufrufers aus `SPEC-261` Nr. 10 (Sendung von `slice-fallback-policy-entscheidung`, dessen §1 *Ausdrücklich NICHT* diesen Slice nennt): der Dienst gibt der Policy dieselbe Zeichenkette als `Ziel`, die er sendet; er ruft `Entscheide` vor jedem Senden an den Upstream; er wählt die gesendeten Header so, dass die Header zum Überschreiben der Methode nicht weitergehen oder die Entscheidung des Architect sie nennt (Auftrag 9); und der Replay-Fallback einer mutierenden Methode ändert den Zustand des Mock nicht (der Client sieht eine aufgezeichnete Erfolgsantwort, der Mock bleibt unverändert).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Die Policy (Hauptschalter, Allowlist, Routenfreigaben, Kategorien) und ihre Syntax — `slice-fallback-policy`; der Dienst ruft sie und entscheidet nichts selbst.
+- Die Policy (Hauptschalter, Allowlist, Routenfreigaben, Kategorien) und ihre Syntax — `slice-fallback-policy` (Prüfung der Einträge und `New`) und `slice-fallback-policy-entscheidung` (`Entscheide`); der Dienst ruft sie und entscheidet nichts selbst.
 - Der Modus `hybrid` im Composition Root, die Konfiguration und der Listener — `slice-bootstrap-m4`; der Dienst läuft hier nur gegen Fakes der Ports.
 - Speichern einer Fallback-Antwort und Datenabgleich zwischen Mock und Upstream — Out-of-Scope von `LH-FA-12`.
 - Umschreiben absoluter Upstream-Links (`LINK_REWRITE`) — `SPEC-092` kennt nur `off`; das Risiko steht in §6.
@@ -62,8 +62,8 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Mock zuerst: Erfolg und jeder Fehler ohne Fallback-Auslöser (fachliche `404`, `409`, `412`, ungültige Anfrage, Fehler ohne `ODR`-Code) gehen unverändert an den Aufrufer; die Zuordnung (`X-Recorder-*`) geht unverändert an Mock und Replay.
-- [ ] Replay-Fallback nur für die Kategorien der Policy (`ODR-E6001` und `ODR-E6002` als `unsupported`, `ODR-E6003` als `coverage_insufficient`): ein Treffer wird ausgeliefert, `ODR-E5001` geht weiter zur Entscheidung über den Upstream, jeder andere Replay-Fehler (Liste in `LH-FA-12.b`) unverändert; ein erschöpfter Key geht nie an den Upstream.
-- [ ] Upstream-Fallback über `UpstreamClient` nur nach Freigabe der Policy: alle `X-Recorder-*`-Header entfernt, Body des Requests nach der Entscheidung des Architect, Antwort-Strom genau einmal geschlossen, ohne Freigabe kein Aufruf des Upstream (Zähler 0).
+- [ ] Replay-Fallback nur für die Kategorien der Policy (`ODR-E6001` und `ODR-E6002` als `unsupported`, `ODR-E6003` als `coverage_insufficient`): ein Treffer wird ausgeliefert, `ODR-E5001` geht weiter zur Entscheidung über den Upstream, jeder andere Replay-Fehler (Liste in `LH-FA-12.b`) unverändert; ein erschöpfter Key geht nie an den Upstream; ein Replay-Fallback einer mutierenden Methode lässt den Zustand des Mock unverändert (`SPEC-261` Nr. 10, Sendung von `slice-fallback-policy-entscheidung`).
+- [ ] Upstream-Fallback über `UpstreamClient` nur nach Freigabe der Policy: alle `X-Recorder-*`-Header entfernt, Body des Requests nach der Entscheidung des Architect, Antwort-Strom genau einmal geschlossen, ohne Freigabe kein Aufruf des Upstream (Zähler 0); `Entscheide` läuft vor jedem Senden und bekommt als `Ziel` dieselbe Zeichenkette, die der Dienst sendet, und die Header zum Überschreiben der Methode gehen nicht an den Upstream oder der Architect nennt sie (`SPEC-261` Nr. 10, Sendung von `slice-fallback-policy-entscheidung`).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -85,7 +85,7 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | `src/hexagon/ports/inbound/` | update | `HybridUseCase` |
-| `src/hexagon/services/hybrid/` | update | Dienst neben der Policy aus `slice-fallback-policy` |
+| `src/hexagon/services/hybrid/` | update | Dienst neben der Policy aus `slice-fallback-policy` und `slice-fallback-policy-entscheidung` |
 | `spec/spezifikation.md` | update (Architect) | Vertrag des Dienstes samt Randformen; Nachzug `LH-FA-12.b`, `architecture.md` §2.2 und §4.6 |
 | Tests | neu | Matrix `LH-FA-12.b` × Zustände der Policy; die Fakes von `MockUseCase`, `ReplayUseCase` und `UpstreamClient` halten jedes Argument fest und zählen jede Operation, auch die, die der Dienst nie rufen darf (`AGENTS.md` §3.15); der Dienst importiert weder Adapter noch das Paket eines anderen Service |
 
@@ -115,19 +115,20 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 6. **Fehler des Upstream im Fallback** (`ODR-E4001`, `SPEC-120` Nr. 8): unverändert ausliefern, kein Wiederholen, kein Rückfall auf Replay.
 7. **Ströme:** die verworfene Antwort des Mock und jede Antwort, die nicht ausgeliefert wird, schließt der Dienst genau einmal, auch nach Abbruch.
 8. Tabelle *Zusage · Fänger*, Raster in §6, Nachzug der Stellen aus der Tabelle oben.
+9. **Header des Upstream-Fallbacks** (`SPEC-261` Nr. 10, *Ungeprüft*): welche Request-Header der Dienst sendet, darunter die Header zum Überschreiben der Methode (`X-HTTP-Method-Override` und Verwandte): entfernen oder nennen, mit Grund.
 
-**Prüfung der Sendungen durch den Planner** (`AGENTS.md` §3.13, am 2026-10-30 gelesen: §1 *Ausdrücklich NICHT*, DoD und §4 der Gegenstellen): *von diesem Slice an* `slice-bootstrap-m4` (Verdrahtung des Dienstes im Composition Root): angenommen, §1 und DoD Punkt 1 von `slice-bootstrap-m4` tragen sie. *An diesen Slice:* das Risiko der Upstream-Links aus `welle-hybrid` §6, angenommen (§1 *Übernimmt*, §6).
+**Prüfung der Sendungen durch den Planner** (`AGENTS.md` §3.13, am 2026-10-30 gelesen: §1 *Ausdrücklich NICHT*, DoD und §4 der Gegenstellen; ergänzt am 2026-11-08): *an diesen Slice* aus `slice-fallback-policy-entscheidung` (dieselbe Zeichenkette als `Ziel`, Aufruf vor jedem Senden, Header-Auswahl, Zustand des Mock beim mutierenden Replay-Fallback): angenommen, §1 *Übernimmt* und DoD (Punkte 2 und 3) tragen sie mit der Kennung des Gebers, kein *Ausdrücklich NICHT* trifft sie (der Ausschluss der Policy betrifft deren Syntax und Entscheidung, nicht den Aufruf). *Von diesem Slice an* `slice-bootstrap-m4` (Verdrahtung des Dienstes im Composition Root): angenommen, §1 und DoD Punkt 1 von `slice-bootstrap-m4` tragen sie. *An diesen Slice:* das Risiko der Upstream-Links aus `welle-hybrid` §6, angenommen (§1 *Übernimmt*, §6).
 
 ## 4. Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-fallback-policy`, `slice-mock-zuordnung`, `slice-mock-lesen`, `slice-mock-schreiben` und `slice-replay-service` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-fallback-policy`, `slice-fallback-policy-entscheidung`, `slice-mock-zuordnung`, `slice-mock-lesen`, `slice-mock-schreiben` und `slice-replay-service` liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Warum diese vier:**
 
-- `slice-fallback-policy`: Typen und Entscheidungsfunktion, die der Dienst ruft (*Code-Abhängigkeit*).
+- `slice-fallback-policy` und `slice-fallback-policy-entscheidung` (der Policy-Slice ist vor dem Code geschnitten, der zweite baut auf dem ersten): Typen, `New` und Entscheidungsfunktion, die der Dienst ruft (*Code-Abhängigkeit*).
 - `slice-mock-zuordnung` und `slice-mock-lesen` (die beiden Teile des geschnittenen Plans): `slice-mock-zuordnung` legt den Inbound Port `MockUseCase` an (er liegt heute nicht in `src/hexagon/ports/inbound/`) und liefert `ODR-E6001`; `slice-mock-lesen` liefert `ODR-E6003`, nach dem der Dienst mit `ODR-E6001` entscheidet (*Code-Abhängigkeit, Port*).
 - `slice-mock-schreiben`: legt fest, welche Mutationen der Mock mit `ODR-E6002` als nicht unterstützt abweist; ohne diesen Vertrag hat die Zeile „POST auf eine nicht unterstützte Operation“ der Matrix keinen Boden (*Vertrags-Abhängigkeit*, keine Typ-Abhängigkeit).
 - `slice-replay-service`: legt den Inbound Port `ReplayUseCase` an (heute nicht vorhanden) und liefert `ODR-E5001`, `ODR-E5002` und `ODR-E5003` (*Code-Abhängigkeit, Port*).
