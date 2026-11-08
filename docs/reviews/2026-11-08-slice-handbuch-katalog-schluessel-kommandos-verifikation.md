@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, `SPEC-201` Nr. 1, 4, 5, 7, 8 und `SPEC-102`, die Tabelle *Zusage · Fänger* und die Hard Rules; nicht Diff-Review (siehe `2026-11-08-slice-handbuch-katalog-schluessel-kommandos-review.md`).
 
-**Gegenstand:** Zweig `slice-handbuch-katalog-schluessel-kommandos`, HEAD `c76a0a05` (Fix-Runde `136c350c` nach Review, Entscheid des Architect `90b5434c`), Basis `fc5de8c`. Plan: `docs/plan/planning/in-progress/slice-handbuch-katalog-schluessel-kommandos.md`.
+**Gegenstand:** Zweig `slice-handbuch-katalog-schluessel-kommandos`, HEAD `c76a0a05` (Fix-Runde `136c350c` nach Review, Entscheid des Architect `90b5434c`), Basis `fc5de8c`. Plan: `docs/plan/planning/done/slice-handbuch-katalog-schluessel-kommandos.md`.
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 
