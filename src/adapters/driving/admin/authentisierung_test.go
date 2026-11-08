@@ -47,30 +47,33 @@ func u1Formen(k string) []u1Form {
 	}
 }
 
-// requestArt ist eine Requestart aus R (26 in diesem Teil) mit der Erwartung des Orakels.
+// requestArt ist eine Requestart aus R (27) mit der Erwartung des Orakels; angehalten heißt: der Server ist vor dem
+// Request angehalten.
 type requestArt struct {
 	name, methode, ziel string
 	kopf                map[string][]string
 	vergleich           bool
 	status              int
 	body                string
+	angehalten          bool
 }
 
-// requestArten sind die 26 Requestarten R: healthz, die 20 Formen von U1, falsches Token, 404, 405, Route mit 2xx und
-// Route mit Fehler. Status und Body stehen als Literale des Vertrags.
+// requestArten sind die 27 Requestarten R: healthz, die 20 Formen von U1, falsches Token, 404, 405, Route mit 2xx,
+// Route mit Fehler und der Request eines angehaltenen Servers (503). Status und Body stehen als Literale des Vertrags.
 func requestArten() []requestArt {
 	tok := string(tokenGueltig())
 	gueltig := bearer(tok)
-	arten := []requestArt{{"healthz", "GET", "/healthz", nil, true, 200, healthzObj}}
+	arten := []requestArt{{"healthz", "GET", "/healthz", nil, true, 200, healthzObj, false}}
 	for _, f := range u1Formen(tok) {
-		arten = append(arten, requestArt{"U1 " + f.name, "GET", "/a", f.kopf, true, 401, objekt401})
+		arten = append(arten, requestArt{"U1 " + f.name, "GET", "/a", f.kopf, true, 401, objekt401, false})
 	}
 	return append(arten,
-		requestArt{"falsches Token", "GET", "/a", bearer("falsch"), false, 401, objekt401},
-		requestArt{"404", "GET", "/zzz", gueltig, true, 404, objekt404},
-		requestArt{"405", "POST", "/a", gueltig, true, 405, objekt404},
-		requestArt{"Route 2xx", "GET", "/a", gueltig, true, 200, routeBody},
-		requestArt{"Route Fehler", "GET", "/fehler", gueltig, true, 500, objekt500},
+		requestArt{"falsches Token", "GET", "/a", bearer("falsch"), false, 401, objekt401, false},
+		requestArt{"404", "GET", "/zzz", gueltig, true, 404, objekt404, false},
+		requestArt{"405", "POST", "/a", gueltig, true, 405, objekt404, false},
+		requestArt{"Route 2xx", "GET", "/a", gueltig, true, 200, routeBody, false},
+		requestArt{"Route Fehler", "GET", "/fehler", gueltig, true, 500, objekt500, false},
+		requestArt{"503", "GET", "/a", gueltig, true, 503, objekt503, true},
 	)
 }
 
@@ -82,7 +85,8 @@ type lauf struct {
 	uc         *useCaseFake
 }
 
-// baue baut den Server der Requestart a (Routen GET /a mit Body und GET /fehler mit Fehler) ohne einen Request.
+// baue baut den Server der Requestart a (Routen GET /a mit Body und GET /fehler mit Fehler) ohne einen Request; bei
+// angehalten hält es ihn an.
 func baue(t *testing.T, a requestArt) *lauf {
 	t.Helper()
 	uc := &useCaseFake{}
@@ -93,13 +97,16 @@ func baue(t *testing.T, a requestArt) *lauf {
 	u := neuMitVergleich(t, nil, vf,
 		admin.Route{Methode: "GET", Muster: "/a", Handler: ok.handle},
 		admin.Route{Methode: "GET", Muster: "/fehler", Handler: fehler.handle})
+	if a.angehalten {
+		u.srv.Anhalten()
+	}
 	return &lauf{u: u, vf: vf, ok: ok, fehler: fehler, uc: uc}
 }
 
-// TestRequestArtenZahl hält die Mengen R (26) und M-Header (20) gegen die Quelle des Tests.
+// TestRequestArtenZahl hält die Mengen R (27) und M-Header (20) gegen die Quelle des Tests.
 func TestRequestArtenZahl(t *testing.T) {
-	if n, m := len(requestArten()), len(u1Formen("x")); n != 26 || m != 20 {
-		t.Errorf("%d Requestarten und %d Formen von Authorization, erwartet 26 und 20", n, m)
+	if n, m := len(requestArten()), len(u1Formen("x")); n != 27 || m != 20 {
+		t.Errorf("%d Requestarten und %d Formen von Authorization, erwartet 27 und 20", n, m)
 	}
 }
 
@@ -150,8 +157,8 @@ type e2Zeile struct {
 	www, allow, conn []string
 }
 
-// TestHeaderJeAntwortart hält E2: WWW-Authenticate nur bei 401, Allow nur bei 405, Connection nie (nur 503 trägt es, das
-// kommt mit dem Lebenszyklus): sechs Antwortarten × drei Header = 18 Zellen mit Literalen des Vertrags.
+// TestHeaderJeAntwortart hält E2: WWW-Authenticate nur bei 401, Allow nur bei 405, Connection: close nur bei 503: sieben
+// Antwortarten × drei Header = 21 Zellen mit Literalen des Vertrags.
 func TestHeaderJeAntwortart(t *testing.T) {
 	zeilen := []e2Zeile{
 		{"U1 1 fehlt", []string{"Bearer"}, nil, nil},
@@ -160,6 +167,7 @@ func TestHeaderJeAntwortart(t *testing.T) {
 		{"Route 2xx", nil, nil, nil},
 		{"healthz", nil, nil, nil},
 		{"Route Fehler", nil, nil, nil},
+		{"503", nil, nil, []string{"close"}},
 	}
 	zellen := 0
 	for _, z := range zeilen {
@@ -179,8 +187,8 @@ func TestHeaderJeAntwortart(t *testing.T) {
 			}
 		}
 	}
-	if zellen != 18 {
-		t.Errorf("%d Zellen geprüft, erwartet 18", zellen)
+	if zellen != 21 {
+		t.Errorf("%d Zellen geprüft, erwartet 21", zellen)
 	}
 }
 
