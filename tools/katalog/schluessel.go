@@ -112,12 +112,8 @@ func konfigDateien(dir string, b *bericht) ([]string, bool) {
 		if !strings.HasPrefix(n, "konfig") || !strings.HasSuffix(n, ".go") || strings.HasSuffix(n, "_test.go") {
 			continue
 		}
-		info, err := os.Stat(filepath.Join(dir, n))
-		if err != nil {
-			b.fehler("konfig*.go nicht lesbar: " + n + ": " + grundVon(err))
-			continue
-		}
-		if !info.IsDir() {
+		// Ein Verweis ohne Ziel bleibt in der Liste: sein Eingabefehler entsteht beim Lesen, in der Bytefolge der Namen.
+		if info, err := os.Stat(filepath.Join(dir, n)); err != nil || !info.IsDir() {
 			out = append(out, n)
 		}
 	}

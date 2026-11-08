@@ -134,7 +134,8 @@ func zeichenGruppen(a, ab string) [][3]string {
 }
 
 // TestKatFormZeichenklassen: die Form eines Schlüssels `^[A-Z][A-Z0-9_]+$` und die eines Kommandos `^[a-z]+$` gilt für jedes
-// ASCII-Zeichen an jeder Stelle (SPEC-201 Nr. 4 a, 5 a). Menge 1538 = 2 Formen × 6 Stellen × 128 Zeichen + 2 leere Werte;
+// ASCII-Zeichen an jeder Stelle (SPEC-201 Nr. 4 a, 5 a). Menge 1550 = 2 Formen × 6 Stellen × 128 Zeichen + 2 leere Werte + je Form 4 Werte mit Zeichen ab 0x80 und 2 lange Werte (der
+// Vertrag nennt keine obere Länge);
 // das Orakel ist `regexp`. Je Form und Stelle ein Lauf: gültige Werte sind Art 4 (Schlüssel, nicht in SPEC-110) bzw. Art 7
 // (Kommando, ohne Zeile), ungültige geben nichts.
 func TestKatFormZeichenklassen(t *testing.T) {
@@ -147,6 +148,9 @@ func TestKatFormZeichenklassen(t *testing.T) {
 		}
 		for _, c := range asciiWerte() {
 			werte = append(werte, g[1]+c+g[2])
+		}
+		if g[0] == "einzeln" { // Zeichen ab 0x80 (zwei Bytes, Vollbreite, ein einzelnes Byte) und lange Werte: keine obere Länge
+			werte = append(werte, "A\xc3\x84", "\xc3\x84B", "AB\x80", "\xef\xbc\xa1B", strings.Repeat("A", 40), strings.Repeat("A", 64))
 		}
 		var src strings.Builder
 		src.WriteString(paket)
@@ -181,6 +185,9 @@ func TestKatFormZeichenklassen(t *testing.T) {
 		for _, c := range asciiWerte() {
 			werte = append(werte, g[1]+c+g[2])
 		}
+		if g[0] == "einzeln" {
+			werte = append(werte, "\xc3\xa4", "a\xc3\xa4", "ab\x80", "\xef\xbd\x81b", strings.Repeat("a", 10), strings.Repeat("a", 40))
+		}
 		m := baumKomm(kommandoBasis(), kommandoBasis())
 		var gueltig []string
 		for i, v := range werte {
@@ -197,15 +204,15 @@ func TestKatFormZeichenklassen(t *testing.T) {
 		}
 		erwarteAus(t, "Kommando "+g[0], m, 1, katZeilen(katK, soll...))
 	}
-	zaehle(t, "Werte", n, 1538)
+	zaehle(t, "Werte", n, 1550)
 }
 
 // TestKatSchlDateinamen: gelesen wird ein Eintrag, der eine Datei ist, dessen Name mit `konfig` beginnt, auf `.go` und nicht
 // auf `_test.go` endet; die Überschrift des Abschnitts beginnt mit `### SPEC-110 — `, und `### ` und `## ` beenden ihn
-// am Zeilenanfang (SPEC-201 Nr. 4 a, 4 b). Menge 38 = 8 gelesene und 15 nicht gelesene Dateinamen, 5 Verweise (Datei,
-// Verzeichnis, ins Leere, ins Leere mit anderem Namen, ins Leere auf `_test.go`), 5 Köder der Überschrift (vorn ein Zeichen,
-// eingerückt, vier `#`, mitten in der Zeile, Tabulator) und 5 Köder des Endes (mitten, vor `##`, mitten mit Wort, vier `#`,
-// fünf `#`).
+// am Zeilenanfang, außerhalb von Zäunen (SPEC-201 Nr. 4 a, 4 b). Menge 43 = 8 gelesene und 15 nicht gelesene Dateinamen, 5
+// Verweise (Datei, Verzeichnis, ins Leere, ins Leere mit anderem Namen, ins Leere auf `_test.go`), 6 Köder der Überschrift
+// (vorn ein Zeichen, eingerückt, vier `#`, mitten in der Zeile, Tabulator, im Zaun) und 9 Köder des Endes (mitten, vor `##`,
+// mitten mit Wort, vier `#`, fünf `#`, eingerückt mit `##` und `###`, im Zaun mit `##` und `###`).
 func TestKatSchlDateinamen(t *testing.T) {
 	text := paket + "var x = \"NAME_F\"\n"
 	gelesen := []string{"konfigtest.go", "konfig_Test.go", "konfig_test.go.go", "konfig_.go", "konfig-x.go", "konfigX.go", "konfig.go.go", "konfig_ergo.go"}
@@ -252,36 +259,40 @@ func TestKatSchlDateinamen(t *testing.T) {
 	}
 	dash := "\xe2\x80\x94"
 	anfang := []string{"x### SPEC-110 " + dash + " x", "  ### SPEC-110 " + dash + " x", "#### SPEC-110 " + dash + " x",
-		"Siehe ### SPEC-110 " + dash + " dort", "\t### SPEC-110 " + dash + " x"}
+		"Siehe ### SPEC-110 " + dash + " dort", "\t### SPEC-110 " + dash + " x", "```\n### SPEC-110 " + dash + " x\n```"}
 	for _, k := range anfang {
 		m := baumSchl(schluesselBasis(), schluesselBasis(), schluesselBasis())
 		m[dSpez] += "\n" + k + "\n"
 		erwarteOk(t, fmt.Sprintf("Überschrift %q", k), m)
 		n++
 	}
-	ende := []string{"Siehe ### Anderes", "x## Anderes", "text ## mitten", "#### Tiefer", "##### Tiefer"}
+	ende := []string{"Siehe ### Anderes", "x## Anderes", "text ## mitten", "#### Tiefer", "##### Tiefer", "  ## Anderes", "  ### Anderes",
+		"```\n## Im Zaun\n```", "```\n### Im Zaun\n```"}
 	for _, k := range ende {
 		m := baumSchl(schluesselBasis(), schluesselBasis(), schluesselBasis())
 		kuerzeErste(m, dSpez, "2. **"+katS+" dieser Version.**", k+"\n2. **"+katS+" dieser Version.**")
 		erwarteOk(t, fmt.Sprintf("Ende %q", k), m)
 		n++
 	}
-	zaehle(t, "Fälle", n, 38)
+	zaehle(t, "Fälle", n, 43)
 }
 
 // TestKatKommWertarten: nur ein Zeichenketten-Literal als Wert einer Konstante gibt ein Kommando; jede andere Wertart und
-// jede Konstante ohne eigenen Wert gibt keines und keinen Absturz (SPEC-201 Nr. 5 a). Menge 31 = 7 Wertformen
-// (Zeichenkette, Raw-String, Rune, Ganzzahl in Hexschreibweise, Fließkomma, Imaginärzahl, Umwandlung) × 3 Stellen
-// (Paketebene einzeln, Gruppe, Funktionskörper) + 10 Konstanten mit weniger Werten als Namen, an jeder Stelle der Gruppe.
+// jede Konstante ohne eigenen Wert gibt keines und keinen Absturz (SPEC-201 Nr. 5 a). Menge 58 = 8 Wertformen
+// (Zeichenkette, Raw-String, Rune, Ganzzahl in Hexschreibweise, Fließkomma, Imaginärzahl, Umwandlung, Klammer) × 6 Stellen
+// (Paketebene einzeln, Gruppe, Funktionskörper, Funktionsliteral, `if`-Block, `case` im Körper) + 10 Konstanten mit weniger Werten als Namen, an jeder Stelle der Gruppe.
 func TestKatKommWertarten(t *testing.T) {
 	werte := []struct {
 		v  string
 		da bool
-	}{{`"neu"`, true}, {"`neu`", true}, {`'a'`, false}, {`0x1F`, false}, {`1.5`, false}, {`1i`, false}, {`string("neu")`, false}}
+	}{{`"neu"`, true}, {"`neu`", true}, {`'a'`, false}, {`0x1F`, false}, {`1.5`, false}, {`1i`, false}, {`string("neu")`, false}, {`("neu")`, false}}
 	stellen := []func(v string) string{
 		func(v string) string { return "const a = " + v },
 		func(v string) string { return "const (\n\ta = " + v + "\n)" },
 		func(v string) string { return "func f() { const a = " + v + " }" },
+		func(v string) string { return "var f = func() { const a = " + v + " }" },
+		func(v string) string { return "func f() { if true { const a = " + v + " } }" },
+		func(v string) string { return "func f(s string) { switch s { case \"x\": const a = " + v + " } }" },
 	}
 	faelle := []struct {
 		src  string
@@ -326,7 +337,7 @@ func TestKatKommWertarten(t *testing.T) {
 		pruefe(f.src, f.soll)
 		n++
 	}
-	zaehle(t, "Fälle", n, 31)
+	zaehle(t, "Fälle", n, 58)
 }
 
 // ersteFehlerzeile ist die Zeile des ersten Fehlers von go/parser in src (ohne Direktive); src hat mindestens zwei Fehler
@@ -497,4 +508,42 @@ func TestKatLineDirektive(t *testing.T) {
 		n += 3
 	}
 	zaehle(t, "Fälle", n, 12)
+}
+
+// TestKatVerweisEingabe: ein Verweis ohne Ziel ist ein Eintrag, der nicht zu lesen ist; sein Eingabefehler steht in der
+// Bytefolge der Namen unter den Eingabefehlern der Dateien, und `kein Schlüssel gefunden` steht nur, wenn keine Datei einen
+// Eingabefehler trägt (SPEC-201 Nr. 4 a, 8). Menge 6: der Baum hat nur die genannten Dateien `konfig*.go`; der Verweis
+// `konfig_l.go` ist die einzige Datei, steht hinter und vor einer Datei ohne Go (`konfig_a.go`, `konfig_z.go`), neben einer
+// gültigen Datei, neben einer Datei ohne Namen und neben einer Datei mit Namen nur aus N.
+func TestKatVerweisEingabe(t *testing.T) {
+	ohneGo, gueltig, nurN := "package bootstrap\n\nfunc f() {\n", konfigLade(schluesselBasis()), paket+konfigN
+	leer := "konfig*.go nicht lesbar: konfig_l.go: no such file or directory"
+	kg := func(d string) string { return "konfig*.go nicht lesbar: " + d + ": kein Go (Zeile 3)" }
+	faelle := []struct {
+		name   string
+		dazu   map[string]string
+		fehler []string
+	}{
+		{"einzige Datei", nil, []string{leer}},
+		{"hinter einer Datei ohne Go", map[string]string{"konfig_a.go": ohneGo}, []string{kg("konfig_a.go"), leer}},
+		{"vor einer Datei ohne Go", map[string]string{"konfig_z.go": ohneGo}, []string{leer, kg("konfig_z.go")}},
+		{"neben einer gültigen Datei", map[string]string{"konfig_a.go": gueltig}, []string{leer}},
+		{"neben einer Datei ohne Namen", map[string]string{"konfig_a.go": paket + "var x = 1\n"}, []string{leer}},
+		{"neben einer Datei mit Namen nur aus N", map[string]string{"konfig_a.go": nurN}, []string{leer}},
+	}
+	zaehle(t, "Fälle", len(faelle), 6)
+	for _, f := range faelle {
+		m := grund(codeListe()[:3], nil)
+		delete(m, dKonfig)
+		m["src/bootstrap/.leer"] = ""
+		for d, inhalt := range f.dazu {
+			m["src/bootstrap/"+d] = inhalt
+		}
+		w := schreibe(t, m)
+		if err := os.Symlink("nirgends", filepath.Join(w, "src", "bootstrap", "konfig_l.go")); err != nil {
+			t.Fatal(err)
+		}
+		c, o, e := fahre(w)
+		gleichFahrt(t, f.name, c, o, e, 2, "", eingaben(f.fehler...))
+	}
 }
