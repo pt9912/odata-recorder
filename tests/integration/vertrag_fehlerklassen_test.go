@@ -137,7 +137,7 @@ func vertragGeheimnisse(a antwort) []string {
 			d = append(d, m+" im Body")
 		}
 		for k, v := range a.header {
-			if strings.Contains(strings.ToUpper(k), m) ||strings.Contains(strings.Join(v, "\n"), m) {
+			if strings.Contains(strings.ToUpper(k), m) || strings.Contains(strings.Join(v, "\n"), m) {
 				d = append(d, m+" im Header "+k)
 			}
 		}

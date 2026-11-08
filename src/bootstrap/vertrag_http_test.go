@@ -16,8 +16,8 @@ import (
 
 	"github.com/pt9912/odata-recorder/src/adapters/driving/httpodata"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
-	"github.com/pt9912/odata-recorder/src/hexagon/services/mock"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/mock"
 )
 
 // Die Matrix der Abnahme über echtes HTTP auf der Schleife (SPEC-042 Nr. 3, 4, 6): die Fixtures liefert abFixtures() der Abnahme, der Eingang ist
@@ -224,7 +224,7 @@ func vertragGeheimnisse(a drahtAntwort) []string {
 			d = append(d, m+" im Body")
 		}
 		for k, v := range a.Header {
-			if strings.Contains(strings.ToUpper(k), m) ||strings.Contains(strings.Join(v, "\n"), m) {
+			if strings.Contains(strings.ToUpper(k), m) || strings.Contains(strings.Join(v, "\n"), m) {
 				d = append(d, m+" im Header "+k)
 			}
 		}
@@ -376,11 +376,10 @@ func vertragFehlerAntwort(status int, code model.Code) drahtAntwort {
 func TestVertragVergleich(t *testing.T) {
 	soll := abKK(`{"a":1}`)
 	type fall struct {
-		name   string
-		ist    drahtAntwort
-		rot    bool
-		soll   abSoll
-		stichw string
+		name string
+		ist  drahtAntwort
+		rot  bool
+		soll abSoll
 	}
 	var faelle []fall
 	add := func(name string, rot bool, mut func(*drahtAntwort)) {
