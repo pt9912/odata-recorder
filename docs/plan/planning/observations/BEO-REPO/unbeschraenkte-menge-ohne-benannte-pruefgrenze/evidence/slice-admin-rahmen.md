@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-rahmen
+**Fund:** Der Plan nannte als Prüfgrenze nur die Zahl der Routen (64) und der Parameter (4). Länge und Zeichen eines Parameterwertes (Mutationen: nur bis 8 oder 64 Bytes, ASCII-Großbuchstaben gewandelt) sowie Name und Wert eines Headers (Namen bis 19 Zeichen, Wert `1`) waren ebenfalls unbeschränkt und ohne Grenze und Folge; sechs Mutationen blieben grün. Beleg: Plan `slice-admin-rahmen` §3 (N-11) und §7; Report `docs/reviews/2026-11-08-slice-admin-rahmen-verifikation.md` Abschnitt 4, Befund 4.

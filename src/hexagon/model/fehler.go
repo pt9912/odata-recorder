@@ -14,6 +14,7 @@ type Code int
 const (
 	CodeE2001 Code = iota + 1
 	CodeE2101
+	CodeE2102
 	CodeE2401
 	CodeE3001
 	CodeE4001
@@ -86,6 +87,7 @@ func codeZeilen() []codeZeile {
 	return []codeZeile{
 		{CodeE2001, "ODR-E2001", []int{0}, ZielConfig, "Invalid configuration"},
 		{CodeE2101, "ODR-E2101", []int{401}, ZielAdmin, "Admin authentication missing or invalid"},
+		{CodeE2102, "ODR-E2102", []int{400, 404, 405}, ZielAdmin, "Admin request invalid"},
 		{CodeE2401, "ODR-E2401", []int{0}, ZielRecord, "Capture or redaction failed"},
 		{CodeE3001, "ODR-E3001", []int{500}, ZielStorage, "Stored data damaged or not loadable"},
 		{CodeE4001, "ODR-E4001", []int{502, 504}, ZielUpstream, "Upstream unavailable"},
