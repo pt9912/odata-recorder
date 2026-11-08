@@ -1,0 +1,2 @@
+**Vorgang:** welle-mock
+**Fund:** `archive-welle --vorschau welle-mock` nennt `[haenger]`: 36 Verweise mit Pfad auf Review-Reports in 34 Dateien, nach der Auflösung der Closure von welle-record-replay neu entstanden (Evidence-Dateien des Registers, Pläne unter `done/`, Roadmap). Die Archivierung ist damit gesperrt, bis die Verweise auf die Kennung ohne Pfad gezogen sind; die Closure von welle-mock führt das nicht von Hand aus, sondern hält die Sperre fest (Auftrag: nicht als Handlauf).

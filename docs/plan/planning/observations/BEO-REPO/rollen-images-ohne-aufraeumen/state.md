@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang `welle-mock` (Evidenz); unterhalb der Schwelle, kein Zielort beschlossen. Adresse des Ausgangs: User (Aufräumen der Ablage von Hand oder ein Wächter), danach Planner (ein Slice, sobald ein dritter Vorgang vorliegt)

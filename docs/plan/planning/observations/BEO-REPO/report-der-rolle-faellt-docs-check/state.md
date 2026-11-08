@@ -1,2 +1,2 @@
-**Stand:** offen
+**Stand:** offen, Schwelle erreicht (5×); Vorlage, nicht verkörpert, beim User offen (Diff in `welle-mock-results`, Lese-Schritt der Closure von welle-mock)
 **Vorschlag (nicht verkörpert, Planner, an den User als Diff-Vorlage für Rollen-Typen und Skills):** Reviewer und Verifier setzen eine `ADR-*`-Kennung in einem Report nie nackt, sondern als auflösenden Link (`[ADR-NNNN](../plan/adr/NNNN-titel.md)`), und fahren `make docs-check` nach dem Schreiben des Reports; Träger wäre `.harness/skills/reviewer.md` und der Rollen-Typ des Verifiers, Anker `seit welle-betrieb` erst bei der Verkörperung. Die Prüfung der heutigen Fassungen dieser Dateien fand die Regel dort nicht.

@@ -1,0 +1,1 @@
+**Stand:** offen; zweiter Vorgang `welle-mock` (Evidenz), erster Vorgang `welle-record-replay` (Evidenz); unterhalb der Schwelle, kein Zielort beschlossen. Adresse des Ausgangs: Planner (Verweise vor der Archivierung auf die Kennung ohne Pfad ziehen, wie in der Closure von welle-record-replay); ein Sensor oder eine Zeile in den Rollen-Anweisungen ist Entscheidung des Users
