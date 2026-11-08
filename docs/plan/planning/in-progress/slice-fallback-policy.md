@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-12.a` · `LH-FA-12.b` (Entscheidungsmatrix) · `SPEC-010`, `SPEC-062`, `SPEC-079`, `SPEC-080` · `SPEC-020`, `SPEC-021`, `SPEC-022`, `SPEC-023`, `SPEC-024` (die Codes, nach denen die Matrix entscheidet) · `SPEC-110` Nr. 2 (die Schlüssel, die diese Version noch ablehnt) · `ARC-002` · `architecture.md` §2.5 (Modus-Routing).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-fallback-policy`, Worktree `/Development/odata-recorder-wt-fallback-policy`; der Zweig entsteht nach dem Start-Commit von `main`)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
@@ -123,11 +123,15 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Code-Abhängigkeit: keine.** Die Policy liest nur `model` (die Codes `CodeE5001` und `CodeE6001` bis `CodeE6003` stehen seit `slice-fehlermodell-konfiguration` in `src/hexagon/model/fehler.go`) und typisierte Werte; sie ruft keinen Port.
 
-**Unabhängig von `welle-mock`, M2 und `welle-record-replay`:** die Policy braucht weder `MockUseCase` noch `ReplayUseCase` noch `UpstreamClient` und kann auf dem heutigen Stand von `src/` entstehen. Der Trigger der Welle (`welle-hybrid` §2: `welle-mock` in `done/`, M3) hält sie zurück, ohne dass der Code es verlangt; ein früherer Start ist eine Umplanung mit Eintrag im Drift-Log der Roadmap und nicht Inhalt dieses Plans.
+**Unabhängig von `welle-mock`, M2 und `welle-record-replay`:** die Policy braucht weder `MockUseCase` noch `ReplayUseCase` noch `UpstreamClient` und kann auf dem heutigen Stand von `src/` entstehen. Der Trigger der Welle (`welle-hybrid` §2: `welle-mock` in `done/`, M3) ist seit der Closure von `welle-mock` eingetreten; der Start ist keine Umplanung mehr.
+
+**Stand der Bedingungen beim Start** (Planner, 2026-11-08, `main` = `686612a2`): `welle-mock` liegt in `done/` (M3 erreicht), `slice-fehlermodell-konfiguration` liefert die Codes `CodeE5001` und `CodeE6001` bis `CodeE6003`. In `in-progress/` laufen parallel `slice-etag-versionen` und `slice-admin-lebenszyklus`; keiner berührt `src/hexagon/services/hybrid/`, und dieser Slice ändert keinen Pfad der Gate-Kette (Übergangsregel 7, §6), also kein Konflikt. Die Verträge der Policy schreibt der Architect im Zweig (Aufträge 1 bis 8 in §3), bevor der erste Code-Commit entsteht.
+
+**Größenmarke** (Planner, 2026-11-08, `SPEC-128` Nr. 1; **vorläufig, Prosa-Form**; die Tabelle *Zusage · Fänger* fehlt noch, der Block mit `basis`, `schaetzung` und `marke` steht erst nach ihr und vor dem ersten Code-Commit): angenommen 20 Zeilen der Tabelle, *a* = 0, *b* = 20, *f* = 0, *p* = 300 (reine Funktion, kein Port, kein Fake): *S* = 85·0 + 80·20 + 200·0 + 300 = 1900, *M* = 2600, keine Schnittfrage (*S* < 2223). Die Schnittfrage entsteht erst bei 25 oder mehr Zeilen (bei *p* = 300); der Planner rechnet *S* und *M* neu, sobald die Tabelle des Architect vorliegt, und ersetzt diese Zeile mit Grund. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Pfad des Blocks: `src/hexagon/services/hybrid/`. Basis der Messung: `686612a2` (die Start-Commits ändern allein Pläne).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner beim Start vor dem ersten Code-Commit nach `AGENTS.md` §3.14 mit dem Werkzeug aus `slice-groessenmarke-werkzeug` setzt (Vertrag [SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md); Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). **Marke: noch nicht gesetzt**; eine Zahl steht hier erst, wenn die Tabelle *Zusage · Fänger* vorliegt, und bis das Werkzeug liegt, gilt die Formel aus `AGENTS.md` §3.14.
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner beim Start vor dem ersten Code-Commit nach `AGENTS.md` §3.14 mit dem Werkzeug aus `slice-groessenmarke-werkzeug` setzt (Vertrag [SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md); Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). **Marke: vorläufig 2600** (siehe *Größenmarke* oben); die endgültige Zahl steht, wenn die Tabelle *Zusage · Fänger* vorliegt.
 - `in-progress` → `open` (blockiert — Carveout?): eine Zelle des Rasters (Pfadmuster, Host-Vergleich, Methodenklasse) hat keinen Ort in der Spezifikation, und der Architect entscheidet sie nicht vor dem Code (siehe §6).
 
 ## 5. Closure-Trigger
@@ -159,7 +163,8 @@ dasteht.
 - Der Replay-Fallback hat im Lastenheft weder Anforderung noch Akzeptanzkriterium ([Abgleichsbericht](../../../reviews/2026-10-30-lastenheft-wellen-abgleich.md) §8 Nr. 2); die Policy leitet ihn aus `LH-FA-12.a` und `LH-FA-12.b` der Spezifikation ab — **Ausgang:** weiter offen als benannte Lücke des Lastenhefts; Adresse: User (Change Request vor `Accepted` oder Bestätigung).
 - Eine Policy, die in einem Zustand fehlt, den die Matrix nicht nennt (unbekannter Code, unbekannte Methode, leere Werte), erlaubt nie einen Fallback; der Fänger ist eine Schleife über Methoden × Zustände × Codes mit Zählprüfung, die Mutation „Standardzweig erlaubt“ färbt ihn rot — **Ausgang:** offen bis zur Closure.
 - `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×): die Policy hat keine Nebenläufigkeit, der Detektor hat nichts zu melden; jeder Zweig der Matrix hat einen Fall der Tabelle — **Ausgang:** entfallen: reine Funktion ohne Zustand, Zählprüfung der Fälle gegen die Zeilen von `LH-FA-12.b` statt eines Laufs unter dem Detektor.
-- Größe: die Marke steht nicht, bevor die Tabelle *Zusage · Fänger* vorliegt — **Ausgang:** offen; Adresse: Planner beim Start (§4).
+- Größe: die Marke steht vorläufig als Prosa in §4 (*S* = 1900, *M* = 2600, angenommen 20 Zeilen) — **Ausgang:** offen; Adresse: Planner (nach der Tabelle des Architect: *S*, *M* und Schnittfrage neu, Block mit `basis`, `schaetzung` und `marke` in einem Commit vor dem ersten Code-Commit).
+- Gate-Kette (Nr. 7 der Übergangsregeln von `welle-benutzerhandbuch`): der Slice ändert weder `GATE_CHECKS` noch ein Gate — **Ausgang:** entfallen; kein Pfad der Gate-Kette im Plan (§3).
 
 ## 7. Closure-Notiz
 

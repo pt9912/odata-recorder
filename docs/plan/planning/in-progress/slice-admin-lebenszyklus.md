@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-238` Nr. 3 b (angehaltener Server), Nr. 9 (`ctx` der Route), Nr. 10 (Grenzen des Servers), Nr. 11 (Serve, Anhalten, Schliessen) · `SPEC-136` Nr. 12 bis 14 (zweistufiges Herunterfahren, auf das Nr. 11 verweist) · `SPEC-124` *Ungeprüft* (Beenden einer Session kann länger dauern als jedes Schreib-Timeout) · `LH-FA-13.a` (Listener) · `ARC-007`, `ARC-021`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht auf `main` (seit dem Merge von `slice-admin-listener-token`).
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-admin-lebenszyklus`, Worktree `/Development/odata-recorder-wt-admin-lebenszyklus`; der Zweig entsteht nach dem Start-Commit von `main`)
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-07.
 
@@ -155,7 +155,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): [slice-admin-authentisierung](../done/slice-admin-authentisierung.md) liegt in `done/` (Code-Abhängigkeit: die Authentisierung vor der Zuordnung, ohne die A2 und G2 keinen Gegenstand haben; über sie transitiv `slice-admin-rahmen`). Die Spezifikation trägt den Vertrag samt Randformen (`SPEC-238` Nr. 3 b, 9, 10, 11) seit dem Zweig von `slice-admin-listener-token` (`AGENTS.md` §3.12). Stand der Bedingungen beim Schnitt (Planner, 2026-11-07, `main` = `aadbef0`): `slice-audit-log` und `slice-telemetry-port` liegen in `done/`; der Teil ruft beide Ports nicht.
 
-**Größenmarke** (Planner, 2026-11-07, `SPEC-128` Nr. 1; Prosa-Form, der Block folgt beim Start): 16 Zeilen der Tabelle, *a* = 7, *b* = 9, *f* = 1, *p* = 100: *S* = 85·7 + 80·9 + 200·1 + 100 = 1615, *M* = 2200, keine Schnittfrage (*S* < 2223). Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Pfad des Blocks beim Start: `src/adapters/driving/admin/`; `produktcode` 100, `fakes` 1. `basis`, `schaetzung` und `marke` setzt der Planner beim Start in einem Commit vor dem ersten Code-Commit.
+**Größenmarke** (Planner, 2026-11-07, `SPEC-128` Nr. 1; Prosa-Form; der Block mit `basis`, `schaetzung` und `marke` steht vor dem ersten Code-Commit, Start 2026-11-08): 16 Zeilen der Tabelle, *a* = 7, *b* = 9, *f* = 1, *p* = 100: *S* = 85·7 + 80·9 + 200·1 + 100 = 1615, *M* = 2200, keine Schnittfrage (*S* < 2223). Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Pfad des Blocks beim Start: `src/adapters/driving/admin/`; `produktcode` 100, `fakes` 1. Start (Planner, 2026-11-08): *S* = 1615 und *M* = 2200 bleiben, die Schnittgrenze 2223 wird nicht erreicht, es wird vor dem Code nicht geschnitten. Stand der Bedingungen beim Start (`main` = `686612a2`): `slice-admin-authentisierung` und über sie `slice-admin-rahmen` liegen in `done/`; `slice-audit-log` und `slice-telemetry-port` liegen in `done/`; in `in-progress/` laufen parallel `slice-fallback-policy` (neues Paket unter `src/hexagon/services/hybrid/`) und `slice-etag-versionen` (Mock, Schreiber, Snapshot-Pfad), beide ohne Pfad unter `src/adapters/driving/admin/`; dieser Slice ändert keinen Pfad der Gate-Kette (Übergangsregel 7, §6), also kein Konflikt. Basis der Messung: `686612a2` (die Start-Commits ändern allein Pläne).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -199,7 +199,7 @@ dasteht.
 - `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` (13×): S3 bis S6, S8, S9 und X2 sind Zusagen über Nebenläufigkeit; jede Mutation muss in jedem Lauf rot werden (`AGENTS.md` §3.10) — **Ausgang:** weiter offen → `BEO-REPO/nebenlaeufiger-lauf-nur-im-glueck-gruen` im Register.
 - `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (12×): jeder Zweig von `Serve` und `Schliessen` hat einen Lauf unter dem Detektor (Z-Liste in §3) — **Ausgang:** weiter offen → `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` im Register.
 - `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×) und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` (4×): `listenerFake` und `routeFake` zählen jede Operation — **Ausgang:** weiter offen → `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` im Register.
-- Größe: die Marke steht als Prosa in §4 (*S* = 1615, *M* = 2200) — **Ausgang:** offen; Adresse: Planner beim Start (Block mit `basis`, `schaetzung` und `marke` in einem Commit vor dem ersten Code-Commit).
+- Größe: die Marke steht als Prosa in §4 (*S* = 1615, *M* = 2200) — **Ausgang:** offen; Adresse: Planner (Start 2026-11-08: Marke bestätigt, Basis `686612a2`; der Block mit `basis`, `schaetzung` und `marke` folgt in einem Commit vor dem ersten Code-Commit).
 - Gate-Kette (Nr. 7 der Übergangsregeln von `welle-benutzerhandbuch`): der Teil ändert weder `GATE_CHECKS` noch ein Gate — **Ausgang:** entfallen; kein Pfad der Gate-Kette im Plan (§3).
 
 ## 7. Closure-Notiz

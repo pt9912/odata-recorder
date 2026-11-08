@@ -34,7 +34,7 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 - `welle-mock` liegt in `done/`: `HybridUseCase` ruft `MockUseCase` über dessen Inbound Port, und `ReplayUseCase` liegt seit `welle-record-replay` vor.
 - M3 ist erreicht: der M3-Test aus `slice-bootstrap-m3` ist grün und Teil von `make test`.
 
-**Ausnahme je Slice (Code-Unabhängigkeit):** `slice-fallback-policy` hat keine Code-Abhängigkeit von `welle-mock`, `welle-record-replay` und M2 (reine Entscheidung ohne `MockUseCase`, `ReplayUseCase` und `UpstreamClient`); der Trigger der Welle hält sie formal zurück. Ein Start davor ist eine Umplanung des Planners mit Eintrag im Drift-Log der Roadmap und bleibt, solange sie nicht vorliegt, ausgeschlossen. `slice-hybrid-service` und `slice-bootstrap-m4` hängen an `welle-mock` (§5).
+**Stand (2026-11-08):** Beide Trigger sind eingetreten; `slice-fallback-policy` ist gestartet ([in-progress/](in-progress/slice-fallback-policy.md)). `slice-fallback-policy` hat keine Code-Abhängigkeit von `welle-mock`, `welle-record-replay` und M2 (reine Entscheidung ohne `MockUseCase`, `ReplayUseCase` und `UpstreamClient`). `slice-hybrid-service` und `slice-bootstrap-m4` hängen an `welle-mock` (§5) und folgen auf die Policy.
 
 ## 3. Closure-Trigger (Welle schließt)
 

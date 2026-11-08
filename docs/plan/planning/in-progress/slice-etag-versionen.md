@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-15.a` (Entity-Versionen als ETag; ohne aktivierte Unterstützung kein scheinbarer Schutz) · `LH-QA-02.a` (ETags leiten sich aus dem Versionszähler ab) · `SPEC-003` (`entity_version`) · `SPEC-049` (Zeile GET, Spalte Soll: ETag) · `LH-FA-07.b` (Antworten auf POST, PATCH, PUT) · `SPEC-108` Nr. 1 (`WithWorkspaceTransaction`) · `ARC-002`, `ARC-003`, `ARC-004`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-etag-versionen`, Worktree `/Development/odata-recorder-wt-etag-versionen`; der Zweig entsteht nach dem Start-Commit von `main`)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
@@ -124,11 +124,12 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - **Code-Abhängigkeit, mit Grund:** `slice-mock-schreiben` (der Zähler `entity_version` wird in der Workspace-Transaktion einer Mutation erhöht, und der Slice liest die Entscheidung dazu aus dessen §6), `slice-mock-lesen` und `slice-odata-json-schreiben` (der ETag erscheint in der Antwort des Lesens, `@odata.etag` ist ein Teil des Schreibers), `slice-snapshot-use-case` (Restore stellt Zähler und ETag wieder her; der Fänger dafür setzt den Use Case voraus). Kein Typ und kein Port dieser Slices liegt heute in `done/`: der Slice ist **nicht** vor `welle-mock` startbar.
 - **Binary und Handbuch:** Der Modus `mock` erreicht das Binary erst mit `slice-bootstrap-m3`; das Handbuch-Beispiel der DoD läuft gegen dieses Binary, `slice-handbuch-meldungskatalog` liefert das Kataloge-Gate. Beide liegen mit `welle-mock` in `done/`.
 - **Was der Slice nicht braucht:** `welle-hybrid`, `welle-betrieb`, `welle-admin-api`, `welle-expand-batch` und `welle-odata-v2` (Reihenfolge nach den Muss-Wellen ist Priorisierung, keine Abhängigkeit); `slice-if-match` und `slice-prefer-return` (die Folge-Slices bauen auf diesem, nicht umgekehrt). M2 ist über `welle-mock` Voraussetzung, nicht durch einen eigenen Typ dieses Slice.
-- **Größenmarke:** noch nicht gesetzt. Der Planner setzt sie vor dem ersten Code-Commit mit `make groessenmarke` nach `SPEC-128`; die Faktoren stehen allein dort, die Produktcode-Erwartung des Architect (Zeile `produktcode` im Block) ist ein fester Anteil der Schätzung, und der Slice hat keinen Leser fremder Bytes.
+- **Stand der Bedingungen beim Start** (Planner, 2026-11-08, `main` = `686612a2`): `welle-mock` liegt in `done/` (M3 erreicht), ebenso `slice-mock-schreiben`, `slice-mock-lesen`, `slice-odata-json-schreiben`, `slice-snapshot-use-case`, `slice-bootstrap-m3` und `slice-handbuch-meldungskatalog`. In `in-progress/` laufen parallel `slice-fallback-policy` (`src/hexagon/services/hybrid/`) und `slice-admin-lebenszyklus` (`src/adapters/driving/admin/`); beide teilen keinen Pfad aus §3, und dieser Slice ändert keinen Pfad der Gate-Kette (Übergangsregel 7, §6), also kein Konflikt. Berührung für später: `slice-if-match` und `slice-prefer-return` bauen auf demselben Pfad und starten nach diesem Slice. Die Verträge schreibt der Architect im Zweig, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+- **Größenmarke** (Planner, 2026-11-08, `SPEC-128` Nr. 1; **vorläufig, Prosa-Form**; die Tabelle *Zusage · Fänger* fehlt noch, der Block mit `basis`, `schaetzung` und `marke` steht erst nach ihr und vor dem ersten Code-Commit): angenommen 20 Zeilen der Tabelle, *a* = 2 (Zähler unter gleichzeitigen Änderungen), *b* = 18, *f* = 0, *p* = 300: *S* = 85·2 + 80·18 + 200·0 + 300 = 1910, *M* = 2600, keine Schnittfrage (*S* < 2223). Die Schnittfrage entsteht erst bei 24 oder mehr Zeilen (bei *a* = 2 und *p* = 300); der Planner rechnet neu, sobald die Tabelle des Architect vorliegt, und ersetzt diese Zeile mit Grund. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks (die vier Code-Pfade aus §3), Tests eingeschlossen. Der Slice hat keinen Leser fremder Bytes. Basis der Messung: `686612a2` (die Start-Commits ändern allein Pläne).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner nach `SPEC-128` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Eine Zahl steht hier erst, wenn die Tabelle *Zusage · Fänger* vorliegt.
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner nach `SPEC-128` setzt (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade aus §3, Tests eingeschlossen). Vorläufig 2600 (siehe *Größenmarke* oben); die endgültige Zahl steht, wenn die Tabelle *Zusage · Fänger* vorliegt.
 - `in-progress` → `open` (blockiert — Carveout?): Form des ETag, Aktivierung oder Startwert des Zählers sind nicht entschieden (siehe §6), oder `slice-mock-schreiben` hat die Frage nach dem Zähler anders beantwortet, als dieser Plan annimmt.
 
 ## 5. Closure-Trigger
@@ -151,6 +152,8 @@ dasteht.
 - Restore und Reset: der Zähler des Zustands, nicht ein fortlaufender, sonst unterscheidet sich der ETag nach Reset von dem des ersten Laufs (`LH-QA-02`) — **Ausgang:** offen; Architect (Auftrag 4), Fänger über Reset und Restore.
 - Fakes der Ports (Repository, Schreiber) halten jedes Argument fest und zählen jede Operation (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 2×) — **Ausgang:** offen.
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
+- Größe: die Marke steht vorläufig als Prosa in §4 (*S* = 1910, *M* = 2600, angenommen 20 Zeilen) — **Ausgang:** offen; Adresse: Planner (nach der Tabelle des Architect: *S*, *M* und Schnittfrage neu, Block mit `basis`, `schaetzung` und `marke` in einem Commit vor dem ersten Code-Commit).
+- Gate-Kette (Nr. 7 der Übergangsregeln von `welle-benutzerhandbuch`): der Slice ändert weder `GATE_CHECKS` noch ein Gate — **Ausgang:** entfallen; kein Pfad der Gate-Kette im Plan (§3).
 
 **Raster *Operation × Argumentart*** (Zellen füllt der Architect; Stand: alle `(Vertrag, offen)`):
 
