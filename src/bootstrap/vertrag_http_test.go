@@ -11,11 +11,13 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driving/httpodata"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/mock"
 )
@@ -88,6 +90,55 @@ func drahtSende(c *http.Client, basis string, a abAnfrage) (drahtAntwort, error)
 	return drahtAntwort{Status: resp.StatusCode, Header: resp.Header, Body: b}, err
 }
 
+// vertragGesehen ist, was der Server von einer Anfrage sah: die Werte von Authorization und Cookie und die Query.
+type vertragGesehen struct {
+	Authorization, Cookie []string
+	Query                 string
+}
+
+// vertragSpiegel zählt am Server, was jede Anfrage trug (SPEC-042 Nr. 6, Sendeseite).
+type vertragSpiegel struct {
+	mu    sync.Mutex
+	liste []vertragGesehen
+}
+
+// verarbeiten umhüllt den Prüfling: es hält die Anfrage fest und ruft ihn unverändert.
+func (s *vertragSpiegel) verarbeiten(m *mock.Mocker) httpodata.Verarbeiter {
+	return func(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, error) {
+		s.mu.Lock()
+		s.liste = append(s.liste, vertragGesehen{append([]string(nil), a.Header["Authorization"]...), append([]string(nil), a.Header["Cookie"]...), a.RawQuery})
+		s.mu.Unlock()
+		return m.Mock(ctx, a)
+	}
+}
+
+func (s *vertragSpiegel) gesehen() []vertragGesehen {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]vertragGesehen(nil), s.liste...)
+}
+
+// vertragSendeseite nennt die Verstöße gegen die Sendeseite von SPEC-042 Nr. 6: genau n Anfragen kamen an, jede mit Authorization
+// `Bearer GEHEIM-A` und Cookie `GEHEIM-B`, und die Query trägt GEHEIM-Q genau dann, wenn mitQ gilt.
+func vertragSendeseite(g []vertragGesehen, n int, mitQ bool) []string {
+	var d []string
+	if len(g) != n {
+		d = append(d, fmt.Sprintf("%d Anfragen am Server, erwartet %d", len(g), n))
+	}
+	for i, a := range g {
+		if len(a.Authorization) != 1 || a.Authorization[0] != "Bearer GEHEIM-A" {
+			d = append(d, fmt.Sprintf("Anfrage %d: Authorization %q, erwartet Bearer GEHEIM-A", i, a.Authorization))
+		}
+		if len(a.Cookie) != 1 || a.Cookie[0] != "GEHEIM-B" {
+			d = append(d, fmt.Sprintf("Anfrage %d: Cookie %q, erwartet GEHEIM-B", i, a.Cookie))
+		}
+		if strings.Contains(a.Query, "GEHEIM-Q") != mitQ {
+			d = append(d, fmt.Sprintf("Anfrage %d: Query %q, GEHEIM-Q erwartet=%v", i, a.Query, mitQ))
+		}
+	}
+	return d
+}
+
 // vertragClient ist der Client einer ID: ohne Kompression, ohne Weiterleiten.
 func vertragClient(t *testing.T) *http.Client {
 	t.Helper()
@@ -98,13 +149,13 @@ func vertragClient(t *testing.T) *http.Client {
 
 // vertragServer fährt einen httpodata.Server auf 127.0.0.1:0 über m und liefert seine Basis; das Herunterfahren am Ende des Tests ist Teil des
 // Urteils (SPEC-042 Nr. 8 d).
-func vertragServer(t *testing.T, id string, m *mock.Mocker) string {
+func vertragServer(t *testing.T, id string, sp *vertragSpiegel, m *mock.Mocker) string {
 	t.Helper()
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("%s: Listener: %v", id, err)
 	}
-	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: m.Mock, IDs: supporttest.NewFestIDs(), Listener: l})
+	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: sp.verarbeiten(m), IDs: supporttest.NewFestIDs(), Listener: l})
 	if err != nil {
 		t.Fatalf("%s: Server: %v", id, err)
 	}
@@ -272,7 +323,8 @@ func vertragLaufe(t *testing.T, f abFixture) int {
 	t.Helper()
 	u := abFrisch(t)
 	abPruefeAusgang(t, u)
-	lax, strikt := vertragServer(t, f.ID, u.mock), vertragServer(t, f.ID, u.strikt)
+	sp := &vertragSpiegel{}
+	lax, strikt := vertragServer(t, f.ID, sp, u.mock), vertragServer(t, f.ID, sp, u.strikt)
 	c := vertragClient(t)
 	n := 0
 	for _, s := range f.Schritte {
@@ -291,6 +343,9 @@ func vertragLaufe(t *testing.T, f abFixture) int {
 		for _, d := range vertragGeheimnisse(ist) {
 			t.Errorf("%s %s %s %s: Geheimnis %s", f.ID, s.Name, s.Anf.Methode, s.Anf.Pfad, d)
 		}
+	}
+	for _, d := range vertragSendeseite(sp.gesehen(), n, false) {
+		t.Errorf("%s: %s", f.ID, d)
 	}
 	if w, err := u.db.Workspaces().Get(context.Background(), "ws-1"); err != nil || w.Revision != f.Revision {
 		t.Errorf("%s: Revision %d (%v), erwartet %d", f.ID, w.Revision, err, f.Revision)
@@ -425,6 +480,88 @@ func TestVertragVergleich(t *testing.T) {
 		t.Errorf("%d Fälle, erwartet %d", len(faelle), 7+3*len(soll.Kopf)+4+5)
 	}
 	t.Run("Fehlerobjekt", func(t *testing.T) { vertragFehlerobjektFaelle(t) })
+	t.Run("Sendeseite", func(t *testing.T) {
+		gut := func() []vertragGesehen {
+			return []vertragGesehen{{[]string{"Bearer GEHEIM-A"}, []string{"GEHEIM-B"}, "a=1"}, {[]string{"Bearer GEHEIM-A"}, []string{"GEHEIM-B"}, "x=GEHEIM-Q"}}
+		}
+		if d := vertragSendeseite(gut()[:1], 1, false); len(d) != 0 {
+			t.Errorf("gültige Anfrage gemeldet: %v", d)
+		}
+		if d := vertragSendeseite(gut()[1:], 1, true); len(d) != 0 {
+			t.Errorf("gültige Anfrage mit GEHEIM-Q gemeldet: %v", d)
+		}
+		faelle := map[string]struct {
+			g     []vertragGesehen
+			n     int
+			mitQ  bool
+			stich string
+		}{}
+		for _, i := range []int{0, 1} {
+			mit := i == 1
+			mut := func(f func(*vertragGesehen)) []vertragGesehen {
+				g := gut()[i : i+1]
+				f(&g[0])
+				return g
+			}
+			pre := fmt.Sprintf("Anfrage %d ", i)
+			faelle[pre+"Authorization fehlt"] = struct {
+				g     []vertragGesehen
+				n     int
+				mitQ  bool
+				stich string
+			}{mut(func(a *vertragGesehen) { a.Authorization = nil }), 1, mit, "Authorization"}
+			faelle[pre+"Authorization anders"] = struct {
+				g     []vertragGesehen
+				n     int
+				mitQ  bool
+				stich string
+			}{mut(func(a *vertragGesehen) { a.Authorization = []string{"Bearer x"} }), 1, mit, "Authorization"}
+			faelle[pre+"Authorization doppelt"] = struct {
+				g     []vertragGesehen
+				n     int
+				mitQ  bool
+				stich string
+			}{mut(func(a *vertragGesehen) { a.Authorization = append(a.Authorization, "Bearer GEHEIM-A") }), 1, mit, "Authorization"}
+			faelle[pre+"Cookie fehlt"] = struct {
+				g     []vertragGesehen
+				n     int
+				mitQ  bool
+				stich string
+			}{mut(func(a *vertragGesehen) { a.Cookie = nil }), 1, mit, "Cookie"}
+			faelle[pre+"Cookie anders"] = struct {
+				g     []vertragGesehen
+				n     int
+				mitQ  bool
+				stich string
+			}{mut(func(a *vertragGesehen) { a.Cookie = []string{"x"} }), 1, mit, "Cookie"}
+			faelle[pre+"Query ohne/mit GEHEIM-Q gegen die Erwartung"] = struct {
+				g     []vertragGesehen
+				n     int
+				mitQ  bool
+				stich string
+			}{gut()[i : i+1], 1, !mit, "Query"}
+		}
+		faelle["eine Anfrage zu wenig"] = struct {
+			g     []vertragGesehen
+			n     int
+			mitQ  bool
+			stich string
+		}{gut()[:1], 2, false, "Anfragen am Server"}
+		faelle["keine Anfrage"] = struct {
+			g     []vertragGesehen
+			n     int
+			mitQ  bool
+			stich string
+		}{nil, 1, false, "Anfragen am Server"}
+		for name, f := range faelle {
+			if d := strings.Join(vertragSendeseite(f.g, f.n, f.mitQ), "\n"); !strings.Contains(d, f.stich) {
+				t.Errorf("%s: Verstöße %q, erwartet einer mit %q", name, d, f.stich)
+			}
+		}
+		if len(faelle) != 2*6+2 {
+			t.Errorf("%d Fälle, erwartet %d", len(faelle), 2*6+2)
+		}
+	})
 	t.Run("Geheimnisse", func(t *testing.T) {
 		if d := vertragGeheimnisse(vertragErfolg(soll)); len(d) != 0 {
 			t.Errorf("Antwort ohne Marker gemeldet: %v", d)

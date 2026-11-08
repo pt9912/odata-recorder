@@ -13,6 +13,7 @@ import (
 
 	"github.com/pt9912/odata-recorder/src/adapters/driven/blobs"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/sqlite"
+	"github.com/pt9912/odata-recorder/src/bootstrap"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
@@ -28,19 +29,83 @@ type vertragKlasse struct {
 	code   model.Code
 	ziel   string
 	pfade  []string
+	q      bool // die Anfragen der Klasse tragen GEHEIM-Q in der Query (SPEC-042 Nr. 6)
 	start  func(t *testing.T) (*client, map[string]string)
 }
 
 // vertragKlassen ist die Tabelle: vier Klassen, je mit dem Code, den der Eingang liefert.
 func vertragKlassen() []vertragKlasse {
 	return []vertragKlasse{
-		{"fehlender Replay-Treffer", 404, model.CodeE5001, "replay", []string{"/odata/Products(99)?x=GEHEIM-Q"}, vertragReplay},
-		// $metadata liefert die gespeicherten Bytes ohne Modell (SPEC-198 Nr. 4); die Zeile führt allein die Collection.
-		{"ungültige Metadaten", 422, model.CodeE6004, "import", []string{"/odata/Products"}, vertragKaputt},
+		{"fehlender Replay-Treffer", 404, model.CodeE5001, "replay", []string{"/odata/Products(99)?x=GEHEIM-Q"}, true, vertragReplay},
+		// Die Zeile führt allein die Collection (SPEC-042 Nr. 9 i).
+		{"ungültige Metadaten", 422, model.CodeE6004, "import", []string{"/odata/Products"}, false, vertragKaputt},
 		{"nicht unterstützte Query-Option", 501, model.CodeE6001, "mock",
-			[]string{"/odata/Products?$search=GEHEIM-Q", "/odata/Products?$apply=GEHEIM-Q", "/odata/Products?$expand=GEHEIM-Q"}, vertragMock},
-		{"unvollständige Coverage", 422, model.CodeE6003, "mock", []string{"/odata/Products"}, vertragTeil},
+			[]string{"/odata/Products?$search=GEHEIM-Q", "/odata/Products?$apply=GEHEIM-Q", "/odata/Products?$expand=GEHEIM-Q"}, true, vertragMock},
+		{"unvollständige Coverage", 422, model.CodeE6003, "mock", []string{"/odata/Products"}, false, vertragTeil},
 	}
+}
+
+// vertragHoch baut und startet den Handle wie hochgefahren; ein Fehler beim Herunterfahren am Ende des Tests ist rot (SPEC-042 Nr. 8 d).
+func vertragHoch(t *testing.T, k bootstrap.Konfiguration) *bootstrap.Handle {
+	t.Helper()
+	ctx := context.Background()
+	h, err := bootstrap.Build(ctx, k, nil)
+	if err != nil {
+		t.Fatalf("Build %s: %v", k.Modus, err)
+	}
+	t.Cleanup(func() {
+		if err := h.Herunterfahren(context.WithoutCancel(ctx)); err != nil {
+			t.Errorf("Herunterfahren %s: %v", k.Modus, err)
+		}
+	})
+	if err := h.Hochfahren(ctx); err != nil {
+		t.Fatalf("Hochfahren %s: %v", k.Modus, err)
+	}
+	return h
+}
+
+// vertragMockStart fährt den Modus mock auf DATA_DIR von w hoch; extra sind weitere Zeilen der Umgebung.
+func vertragMockStart(t *testing.T, w *m3Welt, extra ...string) *client {
+	t.Helper()
+	return neuerClient(t, vertragHoch(t, konfig(t, "mock", w.dir, "", extra...)).Adresse())
+}
+
+// vertragGesehen ist, was der Client abschickte: die Werte von Authorization und Cookie und die Query.
+type vertragGesehen struct {
+	Authorization, Cookie []string
+	Query                 string
+}
+
+// vertragSpiegel hält am Transport des Clients fest, was jede Anfrage trug (SPEC-042 Nr. 6, Sendeseite).
+type vertragSpiegel struct {
+	next  http.RoundTripper
+	liste []vertragGesehen
+}
+
+func (s *vertragSpiegel) RoundTrip(r *http.Request) (*http.Response, error) {
+	s.liste = append(s.liste, vertragGesehen{append([]string(nil), r.Header.Values("Authorization")...), append([]string(nil), r.Header.Values("Cookie")...), r.URL.RawQuery})
+	return s.next.RoundTrip(r)
+}
+
+// vertragSendeseite nennt die Verstöße gegen die Sendeseite von SPEC-042 Nr. 6: genau n Anfragen gingen aus, jede mit Authorization
+// `Bearer GEHEIM-A` und Cookie `GEHEIM-B`, und die Query trägt GEHEIM-Q genau dann, wenn mitQ gilt.
+func vertragSendeseite(g []vertragGesehen, n int, mitQ bool) []string {
+	var d []string
+	if len(g) != n {
+		d = append(d, fmt.Sprintf("%d Anfragen gesendet, erwartet %d", len(g), n))
+	}
+	for i, a := range g {
+		if len(a.Authorization) != 1 || a.Authorization[0] != "Bearer GEHEIM-A" {
+			d = append(d, fmt.Sprintf("Anfrage %d: Authorization %q, erwartet Bearer GEHEIM-A", i, a.Authorization))
+		}
+		if len(a.Cookie) != 1 || a.Cookie[0] != "GEHEIM-B" {
+			d = append(d, fmt.Sprintf("Anfrage %d: Cookie %q, erwartet GEHEIM-B", i, a.Cookie))
+		}
+		if strings.Contains(a.Query, "GEHEIM-Q") != mitQ {
+			d = append(d, fmt.Sprintf("Anfrage %d: Query %q, GEHEIM-Q erwartet=%v", i, a.Query, mitQ))
+		}
+	}
+	return d
 }
 
 // vertragReplay fährt den Modus replay auf der Aufnahme hoch; die Zuordnung nennt Workspace, aufgenommene Session und eine Replay-Session.
@@ -51,7 +116,7 @@ func vertragReplay(t *testing.T) (*client, map[string]string) {
 	if cerr := db.Close(); err != nil || cerr != nil || len(sessions) == 0 {
 		t.Fatalf("Sessions der Aufnahme: %v, %v, %v", sessions, err, cerr)
 	}
-	h := hochgefahren(context.Background(), t, konfig(t, "replay", w.dir, ""))
+	h := vertragHoch(t, konfig(t, "replay", w.dir, ""))
 	z := kopf(w.ws)
 	z["X-Recorder-Recording-Session"] = sessions[0].ID // die erste Session ist die der Baseline von w.ws
 	z["X-Recorder-Replay-Session"] = "vertrag-1"
@@ -95,22 +160,19 @@ func vertragKaputt(t *testing.T) (*client, map[string]string) {
 	if err := db.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
-	_, c := w.startMock()
-	return c, kopf(w.ws)
+	return vertragMockStart(t, w), kopf(w.ws)
 }
 
 // vertragMock fährt den Modus mock lax hoch, Workspace aus der vollständigen Baseline.
 func vertragMock(t *testing.T) (*client, map[string]string) {
 	w := m3Aufbau(t)
-	_, c := w.startMock()
-	return c, kopf(w.ws)
+	return vertragMockStart(t, w), kopf(w.ws)
 }
 
 // vertragTeil fährt den Modus mock mit STRICT_COVERAGE=true hoch, Workspace aus der Baseline mit nicht vollständiger Collection.
 func vertragTeil(t *testing.T) (*client, map[string]string) {
 	w := m3Aufbau(t)
-	_, c := w.startMock("STRICT_COVERAGE=true")
-	return c, kopf(w.wsTeil)
+	return vertragMockStart(t, w, "STRICT_COVERAGE=true"), kopf(w.wsTeil)
 }
 
 // vertragPruefeKlassen nennt die Verstöße der Tabelle: genau vier Klassen, die Codes paarweise verschieden (SPEC-042 Nr. 5).
@@ -264,6 +326,13 @@ func TestVertragFehlerklassen(t *testing.T) {
 	for _, k := range klassen {
 		t.Run(k.name, func(t *testing.T) {
 			c, z := k.start(t)
+			sp := &vertragSpiegel{next: c.c.Transport}
+			c.c.Transport = sp
+			t.Cleanup(func() {
+				for _, d := range vertragSendeseite(sp.liste, len(k.pfade), k.q) {
+					t.Errorf("%s: %s", k.name, d)
+				}
+			})
 			zuordnung := map[string]string{"Authorization": "Bearer GEHEIM-A", "Cookie": "GEHEIM-B"}
 			for n, v := range z {
 				zuordnung[n] = v
@@ -376,6 +445,30 @@ func TestVertragFehlerobjekt(t *testing.T) {
 	}
 	if zahl != len(vertragCodes())*20 {
 		t.Errorf("%d Fälle, erwartet %d", zahl, len(vertragCodes())*20)
+	}
+	// Sendeseite: je Marker (A in Authorization, B in Cookie, Q in der Query) und je Zahl der Anfragen ein verletztes Beispiel.
+	gut := vertragGesehen{[]string{"Bearer GEHEIM-A"}, []string{"GEHEIM-B"}, "x=GEHEIM-Q"}
+	if d := vertragSendeseite([]vertragGesehen{gut}, 1, true); len(d) != 0 {
+		t.Errorf("gültige Anfrage gemeldet: %v", d)
+	}
+	for name, f := range map[string]struct {
+		g     []vertragGesehen
+		n     int
+		mitQ  bool
+		stich string
+	}{
+		"Authorization fehlt":    {[]vertragGesehen{{nil, gut.Cookie, gut.Query}}, 1, true, "Authorization"},
+		"Authorization anders":   {[]vertragGesehen{{[]string{"x"}, gut.Cookie, gut.Query}}, 1, true, "Authorization"},
+		"Cookie fehlt":           {[]vertragGesehen{{gut.Authorization, nil, gut.Query}}, 1, true, "Cookie"},
+		"Cookie anders":          {[]vertragGesehen{{gut.Authorization, []string{"x"}, gut.Query}}, 1, true, "Cookie"},
+		"GEHEIM-Q fehlt":         {[]vertragGesehen{{gut.Authorization, gut.Cookie, "x=1"}}, 1, true, "Query"},
+		"GEHEIM-Q unerwartet":    {[]vertragGesehen{gut}, 1, false, "Query"},
+		"eine Anfrage zu wenig":  {[]vertragGesehen{gut}, 2, true, "Anfragen gesendet"},
+		"keine Anfrage gesendet": {nil, 1, true, "Anfragen gesendet"},
+	} {
+		if d := strings.Join(vertragSendeseite(f.g, f.n, f.mitQ), "\n"); !strings.Contains(d, f.stich) {
+			t.Errorf("Sendeseite %s: Verstöße %q, erwartet einer mit %q", name, d, f.stich)
+		}
 	}
 	for _, m := range vertragMarker() {
 		sauber := vertragFehlerAntwort(model.CodeE6001)
