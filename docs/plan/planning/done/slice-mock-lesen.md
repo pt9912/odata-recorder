@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-mock](../welle-mock.md).
+**Welle:** [welle-mock](welle-mock.md).
 
 **Teil 2 des Schnitts:** Der Plan `slice-mock-lesen` ist nach dem Schnitt des Architect (Rückgabe R1, §6) der zweite von zwei Teilen; Teil 1 ist [slice-mock-zuordnung](../done/slice-mock-zuordnung.md) und trägt Port, Konfig, Zuordnung und `$metadata`. Dieser Slice braucht Teil 1 in `done/` (§4) und erweitert dessen Ablauf, Fehlerbildung und Fakes.
 

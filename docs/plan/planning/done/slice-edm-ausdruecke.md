@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-mock](../welle-mock.md).
+**Welle:** [welle-mock](welle-mock.md).
 
 **Bezug:** `LH-FA-08`, `LH-QA-02`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 

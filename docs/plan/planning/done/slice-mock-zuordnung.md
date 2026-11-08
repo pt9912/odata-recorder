@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-mock](../welle-mock.md).
+**Welle:** [welle-mock](welle-mock.md).
 
 **Teil 1 des Schnitts:** Der Plan `slice-mock-lesen` war zu groß (§4). Der Architect hat ihn vor dem Code geschnitten (Rückgabe R1), der Planner hat den Schnitt vollzogen: dieser Slice trägt Port, Konfig, Zuordnung und `$metadata`; [slice-mock-lesen](../done/slice-mock-lesen.md) (Teil 2) trägt das Lesen aus dem Entity-State mit der Coverage-Prüfung und braucht diesen Slice in `done/`.
 

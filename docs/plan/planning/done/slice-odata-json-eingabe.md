@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** [welle-mock](../welle-mock.md).
+**Welle:** [welle-mock](welle-mock.md).
 
 **Bezug:** `LH-FA-07`, `LH-RB-01`, `LH-QA-05`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
@@ -289,7 +289,7 @@ Akzeptierte Negative (Verifikation V-3, Grund und Folge): (a) der Rand von Medie
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `welle-record-replay` liegt in `done/`. Stand beim Start (Planner, 2026-11-06): erfüllt, `welle-record-replay` ist geschlossen; zugleich gilt der Trigger von Teil 1 von [welle-mock](../welle-mock.md) (§2: `slice-baseline-import` in `done/`) und die empfohlene Reihenfolge (Kette, dann `slice-odata-json-schreiben`, dann dieser Slice; `slice-odata-json-schreiben` liegt in `done/`). `slice-query-interpreter` (Linie B) läuft zugleich: Entscheidung des Users, höchstens drei Worktrees, die Regel „höchstens eine Linie von Teil 1 zugleich“ bleibt als Hinweis stehen. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `welle-record-replay` liegt in `done/`. Stand beim Start (Planner, 2026-11-06): erfüllt, `welle-record-replay` ist geschlossen; zugleich gilt der Trigger von Teil 1 von [welle-mock](welle-mock.md) (§2: `slice-baseline-import` in `done/`) und die empfohlene Reihenfolge (Kette, dann `slice-odata-json-schreiben`, dann dieser Slice; `slice-odata-json-schreiben` liegt in `done/`). `slice-query-interpreter` (Linie B) läuft zugleich: Entscheidung des Users, höchstens drei Worktrees, die Regel „höchstens eine Linie von Teil 1 zugleich“ bleibt als Hinweis stehen. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
