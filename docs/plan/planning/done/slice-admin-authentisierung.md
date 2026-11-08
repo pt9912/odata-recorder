@@ -333,7 +333,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 
 **Drei Paarungen:** Anker (kein Eintrag trägt `liegt in`, nichts zu paaren) · Folge-Slice (`slice-admin-abweisen-audit` führt Audit zu `ODR-E2101` in §1 und DoD, `slice-admin-fehlerabbildung` das Zählen des 401, `slice-admin-lebenszyklus` liegt als Datei in `open/`) · Register (die fünf genannten Verzeichnisse tragen `evidence/slice-admin-authentisierung.md`).
 
-**Start-Trigger des Folgers:** [slice-admin-lebenszyklus](../in-progress/slice-admin-lebenszyklus.md) (Teil 4) hat als Bedingung, dass dieser Slice in `done/` liegt; sie tritt mit dem Merge nach `main` ein. Der Start ist Sache des Planners (Block `groessenmarke` vor dem ersten Code-Commit).
+**Start-Trigger des Folgers:** [slice-admin-lebenszyklus](../done/slice-admin-lebenszyklus.md) (Teil 4) hat als Bedingung, dass dieser Slice in `done/` liegt; sie tritt mit dem Merge nach `main` ein. Der Start ist Sache des Planners (Block `groessenmarke` vor dem ersten Code-Commit).
 
 **Hinweise an den User (nicht entschieden):** (1) Der Fund in Teil 1 (`SPEC-239` Randform, Flake unter Last) wartet auf den Architect. (2) Die Begrenzung der Fehlversuche (`LH-FA-13.a`) bleibt Entscheidung des Users.
 

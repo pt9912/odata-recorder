@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, `SPEC-238` Nr. 1 bis 15, `SPEC-136` Nr. 13 c und 14, die Tabelle *Zusage · Fänger* (19 Zeilen und die Aufträge der Fix-Runde) und die Hard Rules; nicht Diff-Review (siehe `2026-11-08-slice-admin-lebenszyklus-review.md`) und nicht Validierung.
 
-**Gegenstand:** Zweig `slice-admin-lebenszyklus`, HEAD `8af67837` (Fix-Runde nach dem Review; Architect `319aa096`), Worktree `/Development/odata-recorder-wt-admin-lebenszyklus`. Plan: `docs/plan/planning/in-progress/slice-admin-lebenszyklus.md`. Bezug: [LH-FA-13](../../spec/lastenheft.md), [LH-QA-04](../../spec/lastenheft.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
+**Gegenstand:** Zweig `slice-admin-lebenszyklus`, HEAD `8af67837` (Fix-Runde nach dem Review; Architect `319aa096`), Worktree `/Development/odata-recorder-wt-admin-lebenszyklus`. Plan: `docs/plan/planning/done/slice-admin-lebenszyklus.md`. Bezug: [LH-FA-13](../../spec/lastenheft.md), [LH-QA-04](../../spec/lastenheft.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 
