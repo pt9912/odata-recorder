@@ -266,7 +266,7 @@ func TestKatEntschieden(t *testing.T) {
 	erwarteOk(t, "Name doppelt in SPEC-110", m)
 }
 
-// TestKatSchlPaare: die Prüfungen am selben Namen sind unabhängig (Nr. 7: kein Befund unterdrückt einen anderen). Menge 7 Paare.
+// TestKatSchlPaare: die Prüfungen am selben Namen sind unabhängig (Nr. 7: kein Befund unterdrückt einen anderen). Menge 8 Paare.
 func TestKatSchlPaare(t *testing.T) {
 	base := schluesselBasis()
 	nName := func(n string) string {
@@ -296,4 +296,9 @@ func TestKatSchlPaare(t *testing.T) {
 	erwarteAus(t, "6 Art 2 und 7", m, 1, katZeilen(katS, fmt.Sprintf("Zelle: Handbuch Zeile %d: erste Zelle ist nicht genau ein Name in Inline-Code", z(m, "| PAAR_X |")), "PAAR_X fehlt im Handbuch"))
 	m = baumSchl(base, plus(base, "SERVICE_NEU"), plus(base, "SERVICE_NEU"))
 	erwarteAus(t, "7 Art 8", m, 1, katZeilen(katS, fmt.Sprintf("Handbuch Zeile %d nennt SERVICE_NEU, der nicht in konfig*.go steht", z(m, "`SERVICE_NEU`"))))
+	// Ein Name am Präfix `ADMIN_` aus N, in C und in K: ohne Zeile kein Befund (Art 7 entfällt), mit Zeile Art 10, nie Art 7 und 10 zugleich.
+	m = baumSchl(plus(base, "ADMIN_TOKEN"), plus(base, "ADMIN_TOKEN"), base)
+	erwarteOk(t, "8 Präfix ohne Zeile", m)
+	m = baumSchl(plus(base, "ADMIN_TOKEN"), plus(base, "ADMIN_TOKEN"), plus(base, "ADMIN_TOKEN"))
+	erwarteAus(t, "8 Präfix mit Zeile", m, 1, katZeilen(katS, fmt.Sprintf("Handbuch Zeile %d nennt ADMIN_TOKEN, den das Binary ablehnt", z(m, "`ADMIN_TOKEN`"))))
 }

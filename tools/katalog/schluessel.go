@@ -124,7 +124,8 @@ func konfigDateien(dir string, b *bericht) ([]string, bool) {
 	return out, true
 }
 
-// parseGo liest Go-Quelltext ohne Typprüfung; was der Parser ablehnt, ist die Zeile seines ersten Fehlers.
+// parseGo liest Go-Quelltext ohne Typprüfung; was der Parser ablehnt, ist die Zeile seines ersten Fehlers in der Datei
+// (die Zeile der Datei, nicht die einer `//line`-Direktive, SPEC-201 Nr. 7).
 func parseGo(name, src string) (*token.FileSet, *ast.File, int) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, name, src, parser.SkipObjectResolution)
@@ -134,7 +135,14 @@ func parseGo(name, src string) (*token.FileSet, *ast.File, int) {
 	zeile := 1
 	var el scanner.ErrorList
 	if errors.As(err, &el) && len(el) > 0 {
-		zeile = el[0].Pos.Line
+		erster := el[0].Pos.Offset
+		for _, e := range el {
+			erster = min(erster, e.Pos.Offset)
+		}
+		fset.Iterate(func(tf *token.File) bool {
+			zeile = tf.PositionFor(tf.Pos(min(erster, tf.Size())), false).Line
+			return false
+		})
 	}
 	return nil, nil, zeile
 }
@@ -218,8 +226,8 @@ func literale(fset *token.FileSet, f *ast.File) (aussen, innen menge) {
 	return aussen, innen
 }
 
-// abgelehnt sagt, ob ein Name des Handbuchs ein Name aus N ist (gleich) oder an einem Präfix aus N beginnt (SPEC-201
-// Nr. 4 c); ein Element von N, das auf `_` endet, ist ein Präfix.
+// abgelehnt sagt, ob ein Name ein Name aus N ist (gleich) oder an einem Präfix aus N beginnt (SPEC-201 Nr. 4 c); ein
+// Element von N, das auf `_` endet, ist ein Präfix. Es gilt für H (keine Pflicht) und für W (Art 10) gleich.
 func (s schluessel) abgelehnt(name string) bool {
 	for e := range s.n {
 		if strings.HasSuffix(e, "_") && strings.HasPrefix(name, e) || !strings.HasSuffix(e, "_") && name == e {
@@ -230,13 +238,13 @@ func (s schluessel) abgelehnt(name string) bool {
 }
 
 // vergleicheSchluessel prüft die Beziehungen der Schlüssel (SPEC-201 Nr. 1, 4, 7): jeder Name aus C steht in K, jeder
-// Name aus H = C ohne die Elemente von N hat eine Zeile, und jeder Name der Tabelle ist ein Name aus C oder (Art 10) aus N.
+// Name aus H = C ohne die abgelehnten Namen (Name aus N, Name an einem Präfix aus N) hat eine Zeile, und jeder Name der Tabelle ist ein Name aus C oder (Art 10) aus N.
 func vergleicheSchluessel(s schluessel, k, w menge, b *bericht) {
 	for name, zeile := range s.c {
 		if _, da := k[name]; !da {
 			b.befundIn(katSchluessel, artOhneSpezifikation, name, zeile, name+" in konfig*.go (Zeile "+strconv.Itoa(zeile)+"), nicht in SPEC-110")
 		}
-		if _, tabelle := w[name]; !tabelle && !s.n[name] {
+		if _, tabelle := w[name]; !tabelle && !s.abgelehnt(name) {
 			b.befundIn(katSchluessel, artFehlt, name, 0, name+" fehlt im Handbuch")
 		}
 	}
