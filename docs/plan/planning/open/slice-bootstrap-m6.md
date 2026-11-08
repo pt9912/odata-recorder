@@ -165,6 +165,7 @@ dasteht.
 - Der M6-Test läuft mit Referenzdienst, Recorder, Admin-Client und OData-Client im selben Prozess unter dem Detektor (`make test-race`) — **Ausgang:** offen; Muster und Ordnung der Fänger wie in `slice-m2-referenzdienst` (Kanäle statt Schlaf).
 - `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` (1×): der Admin-Pfad im Composition Root erweitert die Pakete, deren Laufzeit Fälle der Gegenproben mitfahren — **Ausgang:** weiter offen → `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` im Register.
 - Gleichzeitige Änderung von `src/bootstrap/` und `SPEC-110` Nr. 2 durch `slice-bootstrap-m4` — **Ausgang:** offen; Adresse: Planner (Reihenfolge beim Start, keine parallelen Arbeitsbäume auf diesen Dateien).
+- Stufennummern im Treiber `tools/harness/test-integration.sh`: `slice-bootstrap-m3-e2e-mock` (Geber, `done/`) nimmt die Stufen 8 und 9; die Stufe dieses Slice nummeriert hinter die vorhandenen und `docs/plan/planning/e2e-abdeckung.md` wird aus `make e2e-abdeckung` neu erzeugt, ohne Konflikt von Hand (`SPEC-037` Nr. 2, 3) — **Ausgang:** offen; Adresse: dieser Slice beim Start, Reihenfolge der Merges mit `slice-bootstrap-m4` ordnet der Planner.
 - Größe: die Marke steht nicht, bevor die Tabelle *Zusage · Fänger* vorliegt — **Ausgang:** offen; Adresse: Planner beim Start (§4).
 
 ## 7. Closure-Notiz

@@ -1,0 +1,3 @@
+**Vorgang:** slice-bootstrap-m3-e2e-mock
+**Fund:** Die Menge des Fixes zur Zuordnung durch den Header (6 Formen × 5 Requests = 30) war aus dem Plan gebildet, nicht aus dem Wortlaut von `SPEC-037` Nr. 7 und `SPEC-195` Nr. 5 („ein Request ohne …“, „mehr als ein Wert“): die Methoden `HEAD`, `PUT`, `PATCH` und die Form *drei Werte* liegen außerhalb, und die Mutationen dazu bleiben am Binary grün. Der Fix der Review-Runde hatte zuvor die Form *zwei verschiedene Werte* nachgezogen, die der Befund nannte. Beleg: Verifikation V1 (LOW); Plan `slice-bootstrap-m3-e2e-mock` §3 (akzeptiertes Negativ) und `SPEC-037` Nr. 10 m.
+**Stand:** verkörpert in `AGENTS.md` §3.17 seit welle-record-replay
