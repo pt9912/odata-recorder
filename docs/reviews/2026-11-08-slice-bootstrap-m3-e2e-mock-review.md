@@ -69,7 +69,7 @@ Nicht gefahren: E07 (Anker, Name der Stufe im Treiber; braucht den Bau des getei
 
 - `kategorie`: LOW
 - `quelle`: `AGENTS.md` §3.16 (jede Zelle des Rasters hat einen Fänger oder ein benanntes Negativ), §3.15
-- `pfad`: Plan §6 Raster, Zeile `| Start auf vorhandenem `DATA_DIR` |`, Zelle *leerer Wert* · `eine Ablage ohne Baseline und ohne Metadaten ist `ODR-E7001` und `ODR-E6004``; `SPEC-139` Nr. 11 f
+- `pfad`: Plan §6 Raster, Zeile *Start auf vorhandenem DATA_DIR*, Zelle *leerer Wert* · „eine Ablage ohne Baseline und ohne Metadaten ist `ODR-E7001` und `ODR-E6004`“; `SPEC-139` Nr. 11 f
 - `befund`: Der Ort steht in der Spezifikation, aber `ODR-E6004` (Service ohne Metadaten) ist am Binary nicht erreichbar, weil `ODR-E7001` (Workspace unbekannt) vorausgeht und es im Modus `mock` keinen Weg zu einem Workspace ohne Service-Metadaten gibt; E05 prüft allein `ODR-E7001`. Weder die Tabelle E01 bis E09 noch `SPEC-037` Nr. 10 nennen für diese Hälfte der Zelle einen Fänger oder ein Negativ.
 - `verifizierbar`: nein — Lesen von Raster, `SPEC-195` Nr. 3 (Reihenfolge f vor g) und Tabelle
 - `klasse`: Rasterzelle mit Ort, aber ohne Fänger oder Negativ
