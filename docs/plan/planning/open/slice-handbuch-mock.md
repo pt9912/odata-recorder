@@ -84,7 +84,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `harness/vertraege/SPEC-200-benutzerhandbuch.md` | update | Umgebung im Beispiel-Format (Nr. 6), Lauf mit Signal (Nr. 7); der Architect schreibt sie vor dem Code |
+| `harness/vertraege/SPEC-200-handbuch.md` | update | Umgebung im Beispiel-Format (Nr. 6), Lauf mit Signal (Nr. 7); der Architect schreibt sie vor dem Code |
 | `tools/` (Programm `pruefung`, Stufe `handbuch`) | update | Umgebung und Signal im Lauf gegen das Binary; Pfade nennt der Architect |
 | `tools/gegenproben/` und `harness/gegenproben.stempel` | update | je Zusage der Erweiterung ein Fall der Gegenprobe (Nr. 7 der Übergangsregeln: Kettenpfade) |
 | `docs/user/benutzerhandbuch.md`, `docs/user/beispiele/` | update, neu | Kapitel zum Modus `mock`, Zeilen der Tabelle *Einstellungen*, Beispiel-Datei(en) |
