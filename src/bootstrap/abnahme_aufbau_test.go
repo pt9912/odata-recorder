@@ -50,15 +50,19 @@ const abCSDL = `<?xml version="1.0" encoding="utf-8"?><edmx:Edmx Version="4.0" x
 	`<EntitySet Name="Labels" EntityType="N.Label"/></EntityContainer></Schema></edmx:DataServices></edmx:Edmx>`
 
 // abMitglieder sind die Mitglieder von Product in der Folge des Modells.
-var abMitglieder = []string{"Id", "Name", "Active", "Stock", "Price", "Ref", "Released", "Updated"}
+func abMitglieder() []string {
+	return []string{"Id", "Name", "Active", "Stock", "Price", "Ref", "Released", "Updated"}
+}
 
 // abWerte sind die Werte der fünf Produkte der Ausgangsdaten als JSON-Text der Antwort (Stock und Price als Zahl).
-var abWerte = map[int]map[string]string{
-	1: {"Id": "1", "Name": `"Anvil"`, "Active": "true", "Stock": "9007199254740993", "Price": "12.5", "Ref": `"00000000-0000-0000-0000-000000000001"`, "Released": `"2026-01-15"`, "Updated": `"2026-01-15T10:00:00Z"`},
-	2: {"Id": "2", "Name": `"Bolt"`, "Active": "false", "Stock": "0", "Price": "0.25", "Ref": `"00000000-0000-0000-0000-000000000002"`, "Released": `"2025-12-31"`, "Updated": `"2025-12-31T23:59:59.5Z"`},
-	3: {"Id": "3", "Name": `"Chain"`, "Active": "true", "Stock": "40", "Price": "100", "Ref": `"00000000-0000-0000-0000-000000000003"`, "Released": `"2026-03-01"`, "Updated": `"2026-03-01T08:30:00Z"`},
-	4: {"Id": "4", "Name": "null", "Active": "true", "Stock": "-5", "Price": "-3.75", "Ref": `"00000000-0000-0000-0000-000000000004"`, "Released": `"2024-02-29"`, "Updated": `"2024-02-29T00:00:00Z"`},
-	5: {"Id": "5", "Name": `"Drill"`, "Active": "null", "Stock": "7", "Price": "null", "Ref": `"00000000-0000-0000-0000-000000000005"`, "Released": `"2026-06-30"`, "Updated": `"2026-06-30T12:00:00.25Z"`},
+func abWerte() map[int]map[string]string {
+	return map[int]map[string]string{
+		1: {"Id": "1", "Name": `"Anvil"`, "Active": "true", "Stock": "9007199254740993", "Price": "12.5", "Ref": `"00000000-0000-0000-0000-000000000001"`, "Released": `"2026-01-15"`, "Updated": `"2026-01-15T10:00:00Z"`},
+		2: {"Id": "2", "Name": `"Bolt"`, "Active": "false", "Stock": "0", "Price": "0.25", "Ref": `"00000000-0000-0000-0000-000000000002"`, "Released": `"2025-12-31"`, "Updated": `"2025-12-31T23:59:59.5Z"`},
+		3: {"Id": "3", "Name": `"Chain"`, "Active": "true", "Stock": "40", "Price": "100", "Ref": `"00000000-0000-0000-0000-000000000003"`, "Released": `"2026-03-01"`, "Updated": `"2026-03-01T08:30:00Z"`},
+		4: {"Id": "4", "Name": "null", "Active": "true", "Stock": "-5", "Price": "-3.75", "Ref": `"00000000-0000-0000-0000-000000000004"`, "Released": `"2024-02-29"`, "Updated": `"2024-02-29T00:00:00Z"`},
+		5: {"Id": "5", "Name": `"Drill"`, "Active": "null", "Stock": "7", "Price": "null", "Ref": `"00000000-0000-0000-0000-000000000005"`, "Released": `"2026-06-30"`, "Updated": `"2026-06-30T12:00:00.25Z"`},
+	}
 }
 
 // abU setzt W in einen Text der Fixtures ein.
@@ -67,8 +71,8 @@ func abU(s string) string { return strings.ReplaceAll(s, "{W}", abW) }
 // abPmit ist P(n) mit den Werten aus ueber an Stelle der Ausgangswerte: die Mitglieder in der Folge des Modells.
 func abPmit(n int, ueber map[string]string) string {
 	var teile []string
-	for _, m := range abMitglieder {
-		w := abWerte[n][m]
+	for _, m := range abMitglieder() {
+		w := abWerte()[n][m]
 		if v, da := ueber[m]; da {
 			w = v
 		}
@@ -112,12 +116,12 @@ func abAuswahl(sel string, ids ...int) string {
 
 // abAuswahlMitglieder sind die gewählten Mitglieder von Produkt n; das Produkt 10 (CRUD-01) trägt nur seinen Schlüssel.
 func abAuswahlMitglieder(n int, waehlt map[string]bool) string {
-	werte := abWerte[n]
+	werte := abWerte()[n]
 	if n == 10 {
 		werte = map[string]string{"Id": "10"}
 	}
 	var s string
-	for _, m := range abMitglieder {
+	for _, m := range abMitglieder() {
 		if waehlt[m] {
 			s += `,"` + m + `":` + werte[m]
 		}
@@ -128,11 +132,11 @@ func abAuswahlMitglieder(n int, waehlt map[string]bool) string {
 // abPayload ist der Payload eines Produkts der Baseline in der Kanonform von SPEC-127 Nr. 14: die Mitglieder aufsteigend nach den Bytes
 // ihrer Namen, Id als Zahl, Stock und Price als String, null als null.
 func abPayload(n int, ueber map[string]string) string {
-	namen := append([]string(nil), abMitglieder...)
+	namen := abMitglieder()
 	sort.Strings(namen)
 	var teile []string
 	for _, m := range namen {
-		w := abWerte[n][m]
+		w := abWerte()[n][m]
 		if v, da := ueber[m]; da {
 			w = v
 		}
@@ -146,7 +150,7 @@ func abPayload(n int, ueber map[string]string) string {
 
 // abAlleProperties sind die acht Namen von Product aufsteigend.
 func abAlleProperties() []string {
-	l := append([]string(nil), abMitglieder...)
+	l := abMitglieder()
 	sort.Strings(l)
 	return l
 }

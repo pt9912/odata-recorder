@@ -94,18 +94,21 @@ func (h *abHalt) Pruefe(m abMelder) {
 	}
 }
 
-// abHaltWorkspaces umhüllt das WorkspaceRepository der Konfig: Get (Stelle S2, vor der Transaktion) hält.
+// abHaltWorkspaces umhüllt das WorkspaceRepository der Konfig: Get (Stelle S2, vor der Transaktion) liest und hält danach; der Aufrufer
+// bekommt den Stand von vor dem Halten, auch wenn der Test ihn währenddessen ändert.
 type abHaltWorkspaces struct {
 	outbound.WorkspaceRepository
 	h *abHalt
 }
 
 func (w abHaltWorkspaces) Get(ctx context.Context, id string) (model.Workspace, error) {
+	x, err := w.WorkspaceRepository.Get(ctx, id)
 	w.h.halte()
-	return w.WorkspaceRepository.Get(ctx, id)
+	return x, err
 }
 
-// abHaltEntities umhüllt das EntityRepository der Konfig: jede Operation hält.
+// abHaltEntities umhüllt das EntityRepository der Konfig: jede Operation hält; die lesenden liefern den Stand von vor dem Halten, die
+// schreibenden schreiben erst danach.
 type abHaltEntities struct {
 	outbound.EntityRepository
 	h *abHalt
@@ -117,18 +120,21 @@ func (e abHaltEntities) Put(ctx context.Context, x model.EntityState) error {
 }
 
 func (e abHaltEntities) Get(ctx context.Context, ws, set, key string) (model.EntityState, error) {
+	x, err := e.EntityRepository.Get(ctx, ws, set, key)
 	e.h.halte()
-	return e.EntityRepository.Get(ctx, ws, set, key)
+	return x, err
 }
 
 func (e abHaltEntities) List(ctx context.Context, ws string) ([]model.EntityState, error) {
+	x, err := e.EntityRepository.List(ctx, ws)
 	e.h.halte()
-	return e.EntityRepository.List(ctx, ws)
+	return x, err
 }
 
 func (e abHaltEntities) ListSet(ctx context.Context, ws, set string) ([]model.EntityState, error) {
+	x, err := e.EntityRepository.ListSet(ctx, ws, set)
 	e.h.halte()
-	return e.EntityRepository.ListSet(ctx, ws, set)
+	return x, err
 }
 
 func (e abHaltEntities) ReplaceAll(ctx context.Context, ws string, es []model.EntityState) error {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/csdl"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 )
@@ -396,6 +397,41 @@ func TestAbnahmeMatrixZaehlung(t *testing.T) {
 	for bereich, soll := range map[string]int{"GET": 7, "CRUD": 26, "Q": 15, "T": 9, "H": 13, "E": 18} {
 		if je[bereich] != soll {
 			t.Errorf("Bereich %s: %d Schritte, erwartet %d", bereich, je[bereich], soll)
+		}
+	}
+	// M3: die acht Typen der Zeile EDM, je einer in ODV4-T-01 bis 08 (die Eigenschaft, die der Schritt wählt, hat den Typ aus dem CSDL).
+	modell, _, err := csdl.New().ParseMetadata(context.Background(), strings.NewReader(abCSDL), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	produkt, _ := modell.EntityType("N.Product")
+	typen := map[string]int{}
+	var tFixtures int
+	for _, f := range fixtures {
+		if !strings.HasPrefix(f.ID, "ODV4-T-") {
+			continue
+		}
+		tFixtures++
+		var ersteQuery string
+		for _, s := range f.Schritte[:1] {
+			ersteQuery = s.Anf.Query
+		}
+		_, sel, _ := strings.Cut(ersteQuery, "$select=")
+		namen := strings.Split(sel, ",")
+		name := namen[len(namen)-1]
+		for _, p := range produkt.Properties {
+			if p.Name == name {
+				typen[p.EdmType]++
+			}
+		}
+	}
+	soll := model.UnterstuetzteEDMTypen()
+	if len(soll) != 8 || tFixtures != len(soll) || len(typen) != len(soll) {
+		t.Errorf("Typen: %d unterstützt, %d Fixtures ODV4-T, %d verschiedene Typen gewählt; erwartet 8, 8, 8", len(soll), tFixtures, len(typen))
+	}
+	for _, typ := range soll {
+		if typen[typ] != 1 {
+			t.Errorf("Typ %s wird von %d Fixtures ODV4-T gewählt, erwartet genau eine", typ, typen[typ])
 		}
 	}
 	// Gegenproben des Zählers: eine ID weniger, ein Schritt weniger, eine ID doppelt, ein Schritt nicht gelaufen.

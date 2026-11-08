@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 )
@@ -47,8 +46,9 @@ func abIsoUmgebung(t *testing.T) *abUmgebung {
 }
 
 // abFolgeS führt die Folge S(k) für den Workspace k aus (SPEC-049 Nr. 6 b) und liefert die Beobachtungen; cursorLesen zählt die gelesenen
-// Cursor-Listen. Der Aufruf ruft kein Fatal (er läuft auf Goroutinen); ein Fehler steht als Text der Beobachtung.
-func abFolgeS(ctx context.Context, u *abUmgebung, k int, cursorLesen *atomic.Int32) []abBeob {
+// Cursor-Listen, kurz beendet die Folge nach Schritt 5. Der Aufruf ruft kein Fatal (er läuft auf Goroutinen); ein Fehler steht als Text der
+// Beobachtung.
+func abFolgeS(ctx context.Context, u *abUmgebung, k int, cursorLesen *atomic.Int32, kurz bool) []abBeob {
 	ws := abWsName(k)
 	var beob []abBeob
 	beo := func(text string) {
@@ -73,6 +73,9 @@ func abFolgeS(ctx context.Context, u *abUmgebung, k int, cursorLesen *atomic.Int
 	http(abAnfrage{Methode: "PATCH", Pfad: "/Products(1)", Body: `{"Name":"N` + ks + `"}`})
 	http(abAnfrage{Methode: "DELETE", Pfad: fmt.Sprintf("/Products(%d)", 2+k%3)})
 	http(abAnfrage{Methode: "GET", Pfad: "/Products", Query: "$select=Id,Name&$orderby=Id"})
+	if kurz {
+		return beob
+	}
 	sn, err := u.snap.Create(ctx, ws, "s1")
 	beo(fmt.Sprintf("Snapshot %s|%s|%s|%s|%v", sn.Name, sn.WorkspaceID, sn.ServiceID, sn.StateHash, err))
 	http(abAnfrage{Methode: "PUT", Pfad: "/Products(5)", Body: `{"Id":5,"Name":"P` + ks + `"}`})
@@ -94,27 +97,29 @@ func abFolgeS(ctx context.Context, u *abUmgebung, k int, cursorLesen *atomic.Int
 	return beob
 }
 
-var (
-	abIsoOnce   sync.Once
-	abIsoOrakel [][]abBeob
-)
-
-// abIsoOrakelFolgen liefert die Einzelläufe der 20 Workspaces: das Orakel von k (SPEC-049 Nr. 6 c).
-func abIsoOrakelFolgen(t *testing.T) [][]abBeob {
+// abIsoOrakelFolgen liefert die Einzelläufe der 20 Workspaces: das Orakel von k (SPEC-049 Nr. 6 c); kurz endet jede Folge nach Schritt 5.
+func abIsoOrakelFolgen(t *testing.T, kurz bool) [][]abBeob {
 	t.Helper()
-	abIsoOnce.Do(func() {
-		var z atomic.Int32
-		for k := 0; k < abIsoN; k++ {
-			abIsoOrakel = append(abIsoOrakel, abFolgeS(context.Background(), abIsoOrakelUmgebung(t, k), k, &z))
-		}
-	})
-	return abIsoOrakel
+	var z atomic.Int32
+	var orakel [][]abBeob
+	for k := 0; k < abIsoN; k++ {
+		orakel = append(orakel, abFolgeS(context.Background(), abIsoOrakelUmgebung(t, k), k, &z, kurz))
+	}
+	return orakel
 }
 
 // TestAbnahmeIsolation (T54 bis T60): 20 Goroutinen auf ein Startsignal, jeder Schritt von S(k) gleich dem Orakel von k, Revision und Cursor-Liste je
 // Schritt, Snapshot s1 in allen 20 Workspaces, Restore und Reset berühren nur den eigenen Workspace, am Ende trägt kein Eintrag einen fremden Wert.
 func TestAbnahmeIsolation(t *testing.T) {
-	orakel := abIsoOrakelFolgen(t)
+	if abIsoN != 20 {
+		t.Fatalf("%d Workspaces, erwartet 20", abIsoN)
+	}
+	orakel := abIsoOrakelFolgen(t, false)
+	for k := range orakel {
+		if n := len(orakel[k]); (k%5 == 0) != (n == 13) || n != 11 && n != 13 {
+			t.Errorf("ws-%02d: %d Beobachtungen im Orakel, erwartet 11 (13 für k durch 5 teilbar)", k, n)
+		}
+	}
 	u := abIsoUmgebung(t)
 	ergebnis := make([][]abBeob, abIsoN)
 	var cursorLesen, frueh atomic.Int32
@@ -123,7 +128,7 @@ func TestAbnahmeIsolation(t *testing.T) {
 		if p.Bereit.Load() != abIsoN || !p.Gefallen.Load() {
 			frueh.Add(1)
 		}
-		ergebnis[k] = abFolgeS(context.Background(), u, k, &cursorLesen)
+		ergebnis[k] = abFolgeS(context.Background(), u, k, &cursorLesen, false)
 	})
 	if p.Gestartet.Load() != abIsoN || p.Beendet.Load() != abIsoN || frueh.Load() != 0 {
 		t.Errorf("Goroutinen gestartet %d, beendet %d, vor dem Startsignal begonnen %d; erwartet 20, 20, 0", p.Gestartet.Load(), p.Beendet.Load(), frueh.Load())
@@ -180,7 +185,10 @@ func TestAbnahmeIsolation(t *testing.T) {
 // TestAbnahmeIsolationOrakelUnterscheidet (T61): die Orakel der 20 Workspaces unterscheiden sich paarweise; die Antwort von Schritt 5 (eigene
 // Entity, eigener Name, eigener Tombstone) und die des Schrittes 2 tragen k.
 func TestAbnahmeIsolationOrakelUnterscheidet(t *testing.T) {
-	orakel := abIsoOrakelFolgen(t)
+	if abIsoN != 20 {
+		t.Fatalf("%d Workspaces, erwartet 20", abIsoN)
+	}
+	orakel := abIsoOrakelFolgen(t, true)
 	if len(orakel) != abIsoN {
 		t.Fatalf("%d Orakel, erwartet %d", len(orakel), abIsoN)
 	}
@@ -196,11 +204,6 @@ func TestAbnahmeIsolationOrakelUnterscheidet(t *testing.T) {
 		}
 		if paare != abIsoN*(abIsoN-1)/2 {
 			t.Errorf("Schritt %d: %d Paare, erwartet %d", schritt, paare, abIsoN*(abIsoN-1)/2)
-		}
-	}
-	for k := 0; k < abIsoN; k++ {
-		if n := len(orakel[k]); n != 11 && n != 13 || (k%5 == 0) != (len(orakel[k]) == 13) {
-			t.Errorf("ws-%02d: %d Beobachtungen", k, n)
 		}
 	}
 }

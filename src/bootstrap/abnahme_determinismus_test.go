@@ -162,22 +162,28 @@ func abDetLaufen(ctx context.Context, u *abUmgebung, folge []abSchritt, n int, v
 		e.Fatal = "keine Frist von höchstens 120 s für die Läufe gesetzt"
 		return e
 	}
+	// fatal beendet die Läufe; ist die Frist abgelaufen, nennt es sie und nicht den Fehler, den ihr Ablauf in der Operation auslöste.
+	fatal := func(i int, format string, args ...any) abDetErgebnis {
+		if ctx.Err() != nil {
+			e.Fatal = fmt.Sprintf("Lauf %d: Frist abgelaufen: %v", i, ctx.Err())
+		} else {
+			e.Fatal = fmt.Sprintf(format, args...)
+		}
+		return e
+	}
 	st, err := abLeseStand(ctx, u.db, "ws-1")
 	if err != nil || !reflect.DeepEqual(st.Cursors, []model.ReplayCursor{abDetCursor(5)}) {
-		e.Fatal = fmt.Sprintf("Kontrollwert des Lesers: Cursor vor dem ersten Reset %+v (%v), erwartet Position 5", st.Cursors, err)
-		return e
+		return fatal(0, "Kontrollwert des Lesers: Cursor vor dem ersten Reset %+v (%v), erwartet Position 5", st.Cursors, err)
 	}
 	var lauf1 []abIst
 	var stand1 abStand
 	for i := 1; i <= n; i++ {
 		if ctx.Err() != nil {
-			e.Fatal = fmt.Sprintf("Lauf %d: Frist abgelaufen: %v", i, ctx.Err())
-			return e
+			return fatal(i, "")
 		}
 		w, err := u.ws.Reset(ctx, "ws-1")
 		if err != nil || w.Revision != int64(3*(i-1)+1) {
-			e.Fatal = fmt.Sprintf("Lauf %d: Reset ergab Revision %d (%v), erwartet %d", i, w.Revision, err, 3*(i-1)+1)
-			return e
+			return fatal(i, "Lauf %d: Reset ergab Revision %d (%v), erwartet %d", i, w.Revision, err, 3*(i-1)+1)
 		}
 		abwich := false
 		melde := func(schritt, art string) {
@@ -186,8 +192,7 @@ func abDetLaufen(ctx context.Context, u *abUmgebung, folge []abSchritt, n int, v
 		}
 		nachReset, err := abLeseStand(ctx, u.db, "ws-1")
 		if err != nil {
-			e.Fatal = fmt.Sprintf("Lauf %d: Lesefehler nach dem Reset: %v", i, err)
-			return e
+			return fatal(i, "Lauf %d: Lesefehler nach dem Reset: %v", i, err)
 		}
 		if d := abStandGleich(nachReset, abStandNachReset(i)); len(d) != 0 {
 			melde("Stand nach Reset", "Stand: "+strings.Join(d, "; "))
@@ -196,14 +201,12 @@ func abDetLaufen(ctx context.Context, u *abUmgebung, folge []abSchritt, n int, v
 		for j, s := range folge {
 			ist[j] = abSende(ctx, u.mock, "ws-1", s.Anf)
 			if ctx.Err() != nil {
-				e.Fatal = fmt.Sprintf("Lauf %d, Schritt D%02d: Frist abgelaufen: %v", i, j+1, ctx.Err())
-				return e
+				return fatal(i, "")
 			}
 		}
 		nachLauf, err := abLeseStand(ctx, u.db, "ws-1")
 		if err != nil {
-			e.Fatal = fmt.Sprintf("Lauf %d: Lesefehler nach dem Lauf: %v", i, err)
-			return e
+			return fatal(i, "Lauf %d: Lesefehler nach dem Lauf: %v", i, err)
 		}
 		if i == 1 {
 			lauf1, stand1 = ist, nachLauf
@@ -246,6 +249,9 @@ func abDetUmgebung(t *testing.T) *abUmgebung {
 // TestAbnahmeDeterminismus (T44 bis T48, T50, T53): 100 Läufe nach Reset; Lauf 1 gleich dem Orakel, jeder Lauf ab 2 gleich Lauf 1, Stand nach
 // Reset und nach dem Lauf, Cursor, nur die vier Namen der Antwort im Mock.
 func TestAbnahmeDeterminismus(t *testing.T) {
+	if abDetLaeufe != 100 {
+		t.Fatalf("%d Läufe vorgesehen, erwartet 100", abDetLaeufe)
+	}
 	start := time.Now()
 	volatile := abVolatileDefault(t)
 	u := abDetUmgebung(t)
@@ -389,11 +395,18 @@ func TestAbnahmeDeterminismusFrist(t *testing.T) {
 	abgelaufen, c2 := context.WithTimeout(context.Background(), time.Nanosecond)
 	defer c2()
 	<-abgelaufen.Done()
-	if e := abDetLaufen(abgelaufen, u, folge, 2, volatile); e.Fatal == "" || e.Laeufe != 0 {
+	if e := abDetLaufen(abgelaufen, u, folge, 2, volatile); !strings.Contains(e.Fatal, "Frist abgelaufen") || e.Laeufe != 0 {
 		t.Errorf("abgelaufene Frist: %+v", e)
 	}
+	// Die Frist läuft im Lauf ab: Fatal mit der Frist als Grund, nicht alle Läufe gelaufen.
+	kurz, c3 := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer c3()
+	e := abDetLaufen(kurz, u, folge, abDetLaeufe, volatile)
+	if !strings.Contains(e.Fatal, "Frist abgelaufen") || e.Laeufe >= abDetLaeufe {
+		t.Errorf("Frist im Lauf abgelaufen: Fatal %q, %d Läufe", e.Fatal, e.Laeufe)
+	}
 	m := &abTestMelder{}
-	abDetMelde(m, abDetLaufen(abgelaufen, u, folge, 2, volatile))
+	abDetMelde(m, e)
 	if len(m.fatal) != 1 {
 		t.Errorf("abgelaufene Frist ist nicht Fatal: %+v", m)
 	}
