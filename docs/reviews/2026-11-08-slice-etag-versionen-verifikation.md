@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, `SPEC-280` bis `SPEC-282` samt Nachzügen, die Tabelle *Zusage · Fänger* E1 bis E24 und die Hard Rules; nicht Diff-Review (siehe `2026-11-08-slice-etag-versionen-review.md`) und nicht Validierung.
 
-**Gegenstand:** Zweig `slice-etag-versionen`, HEAD `a5246418` (Fix-Runde nach dem Review; davor Entscheidungen des Architect `4204a3a0`, Review `05899549`, Code `7783f4f5`), Worktree `/Development/odata-recorder-wt-etag-versionen`, Basis `af1f1bac`. Plan: `docs/plan/planning/in-progress/slice-etag-versionen.md`. Bezug: [`LH-FA-15`](../../spec/lastenheft.md), [`LH-QA-02`](../../spec/lastenheft.md), [`LH-FA-07`](../../spec/lastenheft.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
+**Gegenstand:** Zweig `slice-etag-versionen`, HEAD `a5246418` (Fix-Runde nach dem Review; davor Entscheidungen des Architect `4204a3a0`, Review `05899549`, Code `7783f4f5`), Worktree `/Development/odata-recorder-wt-etag-versionen`, Basis `af1f1bac`. Plan: `docs/plan/planning/done/slice-etag-versionen.md`. Bezug: [`LH-FA-15`](../../spec/lastenheft.md), [`LH-QA-02`](../../spec/lastenheft.md), [`LH-FA-07`](../../spec/lastenheft.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 
@@ -42,7 +42,7 @@ Liefer-Punkte: drei, wie der Plan zählt.
 ## 3. Plan-vs-Code-Diff
 
 - **Unberührt, wie zugesagt:** `Dockerfile`, `Makefile`, `harness/`, `tools/`, `.golangci.yml`, `.a-check.yml`: `git diff --stat af1f1bac HEAD -- Dockerfile Makefile harness tools` ist leer. Kein Gate gelockert (`AGENTS.md` §3.6).
-- **Außerhalb von `src/`:** `docs/plan/planning/in-progress/slice-etag-versionen.md`, `docs/plan/planning/open/slice-if-match.md` (Sendung, §1 angenommen), `docs/reviews/…-review.md`, `docs/user/benutzerhandbuch.md` (eine Zeile), `spec/spezifikation.md`. Nichts sonst.
+- **Außerhalb von `src/`:** `docs/plan/planning/done/slice-etag-versionen.md`, `docs/plan/planning/open/slice-if-match.md` (Sendung, §1 angenommen), `docs/reviews/…-review.md`, `docs/user/benutzerhandbuch.md` (eine Zeile), `spec/spezifikation.md`. Nichts sonst.
 - **Produktcode:** zwölf Dateien, genau die Pfade des Blocks plus `jsoncodec/schreiber_etag.go` (neu, im Pfad `jsoncodec/`): `model/{etag,entity,abfrage}.go`, `services/mock/{deuten,lesen,mock,schreiben}.go`, `jsoncodec/{schreiber_bau,schreiber_etag}.go`, `bootstrap/{konfig,konfig_werte,wurzel}.go`. `src/bootstrap` ist auf die drei Dateien des Blocks beschränkt. Tests außerhalb des Blocks: `bootstrap/wurzel_test.go`, `bootstrap/export_test.go` und `jsoncodecv2/schreiber_etag_test.go`, wie §6 des Plans angibt.
 - **Verhalten gegen den Vertrag, gelesen:** `etagFuerSatz` verlangt Version `4.0` (`SPEC-280` Nr. 2); der Dienst verzweigt nicht nach der Version, er liest nur `Dienst.Etag`. `liefere` setzt die Kopfzeile aus derselben Entity, die den Body trägt (ein Lesen, `SPEC-281` Nr. 1); `DELETE` trägt keinen ETag (`kopf204`); der Schreiber schreibt das Mitglied nur in `minimal`, hinter `@odata.id`, und prüft die Form vorher (`pruefeEtag`, `ErrUngueltig`); der Leser setzt `Etag` nie (Feld nur im Schreiber-Pfad).
 - **Abweichung vom Plan:** keine am Code. Die Fix-Runde ändert Tests, Plan und die Handbuch-Zeile; zu der Zeile siehe V1.
