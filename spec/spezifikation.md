@@ -3476,6 +3476,7 @@ Ungeprüft bleibt, je mit Grund und Folge:
 - Ein `Body` nil in der `UpstreamAntwort` (ein Bruch von `SPEC-120` Nr. 5). Grund: der Dienst prüft es nicht, wie `SPEC-121` *Ungeprüft*. Folge: Lesen und Schließen in der Goroutine des Handlers paniken.
 - Ein Adapter, der `Header` oder `Body` der Anfrage während des Aufrufs ändert oder liest (Leihe, `SPEC-121` Kopf). Folge: ein Datenrennen, und der Puffer enthält andere Bytes als der Client sandte.
 - Die Header-Namen, die eine Methode im Upstream ändern könnten, außer den dreien aus Nr. 8 c, und die Query (`SPEC-261` *Ungeprüft*).
+- Ein Fehler einer Stufe, der ein typisierter nil-Zeiger `*inbound.Fehler` ist (Interface ungleich nil, Zeiger nil). Grund: `errors.Is` und `errors.As` rufen `Unwrap` am Nil-Empfänger, was paniken würde; kein Dienst und kein Adapter liefert die Form, ein Fehler mit Code entsteht als Wert (`SPEC-121` Nr. 14), und der Dienst prüft sie nicht, wie er `Fehler.Unwrap` nicht ändert. Folge: ein Fake oder eine Stufe, die sie lieferte, ließe `Hybrid` in der Goroutine des Handlers paniken; sie ist ein Programmfehler der Stufe wie ein `Body` nil oben, und kein Test des Dienstes fängt sie.
 
 ### SPEC-168 — Entities schreiben: Vertrag von `ODataSchreiber`
 
