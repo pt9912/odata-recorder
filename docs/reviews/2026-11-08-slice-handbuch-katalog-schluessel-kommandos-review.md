@@ -1,6 +1,6 @@
 # Review: slice-handbuch-katalog-schluessel-kommandos — 2026-11-08
 
-**Art:** Review (einmal), Code — gegen Plan, `SPEC-201` (Nr. 4 bis 8, 9 e und h, 10 a, 11; G16 bis G31), `SPEC-102`, `LH-QA-05`, `LH-RB-01`, `ADR-0001`, `ADR-0003`, `ADR-0005` und die Hard Rules; nicht gegen die DoD (Verifier).
+**Art:** Review (einmal), Code — gegen Plan, `SPEC-201` (Nr. 4 bis 8, 9 e und h, 10 a, 11; G16 bis G31), `SPEC-102`, `LH-QA-05`, `LH-RB-01`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0003](../plan/adr/0003-lint-profil-golangci.md), [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) und die Hard Rules; nicht gegen die DoD (Verifier).
 
 **Gegenstand:** Zweig `slice-handbuch-katalog-schluessel-kommandos`, HEAD `233308a1`, Basis `6dbe5d02` (Implementer `8907ddb3`, `48832016`, `023c06ce`; Architect-Entscheid `233308a1`). Plan: `slice-handbuch-katalog-schluessel-kommandos` (§3 Tabelle 22 Zeilen, *Mutationen und Raten*, *Mengen*, §6).
 
