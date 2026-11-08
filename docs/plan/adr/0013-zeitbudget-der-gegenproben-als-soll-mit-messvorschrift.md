@@ -1,6 +1,6 @@
 # ADR-0013: Das Zeitbudget der Gegenproben ist ein Soll mit Messvorschrift; die Frist je Fall bleibt die einzige Schwelle
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Datum:** 2026-11-08
 
@@ -73,3 +73,4 @@ Oder: die Frist je Fall reißt in einem gültigen Lauf (Last unter der Grenze): 
 | Datum | Ereignis | Verweis |
 |---|---|---|
 | 2026-11-08 | Proposed | Architect, Auftrag zu den offenen Punkten aus [`welle-mock-results`](../planning/done/welle-mock-results.md) |
+| 2026-11-08 | Accepted | Entscheidung des Users (Option B) |
