@@ -220,7 +220,10 @@ func (w *mockWelt) crud(t *testing.T, p *prozess) {
 	}
 	w.pruefeNamen(t, p, "DELETE", "Anvil", "Bolt")
 	pruefeFehler(t, "GET nach DELETE", w.hole(t, p, anfrage{pfad: collPfad + "(3)"}), 404, "ODR-E6008")
-	pruefeFehler(t, "$search", w.hole(t, p, anfrage{pfad: collPfad + "?$search=x"}), 501, "ODR-E6001")
+	// Ein Aufruf und ein Operatorwort sind gültig und nicht unterstützt (SPEC-164 Nr. 5).
+	for _, ausdruck := range []string{"contains(Name,'A')", "Id%20add%201%20eq%202"} {
+		pruefeFehler(t, "$filter="+ausdruck, w.hole(t, p, anfrage{pfad: collPfad + "?$filter=" + ausdruck}), 501, "ODR-E6001")
+	}
 	w.keinKontakt(t, "CRUD")
 	// Mutationen für den Reset: Anlegen, Ändern und Löschen an Entities der Baseline.
 	w.schreibe(t, p, "POST", collPfad, `{"Id":4,"Name":"Drill"}`)

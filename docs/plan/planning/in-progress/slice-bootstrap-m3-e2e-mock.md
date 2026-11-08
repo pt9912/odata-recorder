@@ -67,7 +67,8 @@ nicht die Antwort.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `tests/e2e/` | neu | Stufen `TestE2EMock` und `TestE2EMockNeustart`; Befehl `reset` des Übergangs in `tests/e2e/uebergang/` mit Test (`lauf`) |
+| `tests/e2e/` | neu | Stufen `TestE2EMock` und `TestE2EMockNeustart` (`stufe_mock_test.go`); `lauf_test.go`: der Aufruf des Übergangs nimmt eine Umgebung, `importiere` übergibt `E2E_UPSTREAM_URL` (Abweichung, §6) |
+| `tests/e2e/uebergang/` | update | Befehl `reset` (`uebergang.go`) mit Test `TestAufrufformen` und `TestReset` (`uebergang_test.go`); `handle` liest `E2E_UPSTREAM_URL` |
 | `tools/harness/test-integration.sh` | update | drei Zeilen je Stufe (`SPEC-037` Nr. 3), Stufe 8 und 9 |
 | `docs/plan/planning/e2e-abdeckung.md` | update (erzeugt) | entsteht aus `make e2e-abdeckung` |
 
@@ -84,6 +85,32 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster (§6) hat de
 | E07 | Stufen im Treiber: je Stufe drei Zeilen, der Name steht in `-test.list`, ohne `PASS` ist die Stufe rot; `make e2e-abdeckung` führt Stufe 8 und 9 (`SPEC-037` Nr. 2, 3) | ein Lauf von `make test-integration`; `docs/plan/planning/e2e-abdeckung.md` aus `make e2e-abdeckung` erzeugt | eine Anker-Zeile mit falschem Namen ⇒ `nicht gefunden`, Exit 2 | andere |
 | E08 | **Negativ:** `SIGTERM` während einer Mutation am Binary; Grund und Folge in `SPEC-037` Nr. 10 i und `SPEC-139` *Ungeprüft* | kein Fänger am Binary; getrennt belegt: `SPEC-136` Nr. 15 (Frist) und `SPEC-192` Nr. 7 (Atomarität) | — | andere |
 | E09 | **Negativ:** Snapshots über die Prozessgrenze; Grund und Folge in `SPEC-037` Nr. 10 j und `SPEC-049` Nr. 10 b | im Prozess: `SPEC-049` Nr. 7 d | — | andere |
+
+**Mutationen** (Implementer, 2026-11-08; `AGENTS.md` §3.10). Jede Mutation lief in einer Kopie der Quellen (`src/`, `tests/`), schreibgeschützt eingehängt, im Container ohne Netz mit `--memory 4g`; die Stufen fuhren mit `-test.count=1` in einem Prozess je Lauf. Das Maß ist der Test, der aus dem genannten Grund rot wird; der Aufbau brach in keinem Fall (jede Mutation baut).
+
+| Zeile | Zusage | Mutation | roter Test |
+|---|---|---|---|
+| E01 | `Location` aus `LISTEN` | `basisAusListen` liefert `localhost` statt des Hosts aus `LISTEN` | `TestE2EMock/CRUD`: `Location` ungleich `http://127.0.0.1:<Port>/odata/Products(3)` |
+| E01 | `501` mit `ODR-E6001` für Aufruf und Operatorwort in `$filter` (2 Elemente) | Status von `ODR-E6001` im Katalog 400 statt 501 | `TestE2EMock/CRUD`, beide Elemente |
+| E01, E03 | Start im Modus `mock` ohne `UPSTREAM_URL` | `UPSTREAM_URL` in jedem Modus Pflicht | `TestE2EMock` und beide Teile von `TestE2EMockNeustart`: `Binary nicht bereit`, `ODR-E2001` |
+| E02 | Reset wirkt | `reset` des Übergangs ruft `Get` statt `Reset` | `TestE2EMock`: Collection nach dem Reset weicht ab; `TestReset`: Revisionen 0, 0 |
+| E02 | leerer Wert ist `400` (fünf Formen × fünf Requests = 25, Zählprüfung im Test) | `w[0] == ""` in `einzelwert` entfällt | `TestE2EMock/Zuordnung`: 5 Elemente der Form *leer* `404` statt `400` |
+| E02 | zwei Werte sind `400` (dieselben 25) | `len(w) != 1` wird `len(w) < 1` | `TestE2EMock/Zuordnung`: *zwei gleiche* und *zwei Schreibweisen*, 10 Elemente; der `DELETE` ändert den Zustand, die Collection danach weicht ab |
+| E04 | Mutationen überleben `SIGTERM` und zwei Neustarts (Orakel: Antworten vor dem Signal; 4 Lesezugriffe × 2 Neustarts = 8 Elemente) | `Herunterfahren` im Modus `mock` löscht `-wal` und `-shm`, statt die Ablage zu schließen | `TestE2EMockNeustart/Mutationen…`: alle 8 Elemente weichen ab |
+| E04 | dasselbe | der zweite Start im Modus `mock` leert `DATA_DIR` (Marker-Datei) | `TestE2EMockNeustart/Mutationen…`; auch `TestE2EMock` (Reset nach dem Neustart: `ODR-E7001`) |
+| E05 | fehlendes `DATA_DIR` wird angelegt | `MkdirAll` wird `Stat` in `legeDatenverzeichnisAn` | `TestE2EMockNeustart/DATA_DIR_besteht_nicht`: `Binary nicht bereit`, `ODR-E2001` |
+| E06 | Exit 1 und 2 getrennt (3 Befehle × 6 Formen + 2 = 20 Elemente von `TestAufrufformen`) | die Konstanten `exitFehler` und `exitAufruf` vertauscht | `TestAufrufformen` (alle 20) |
+| E06 | `reset` legt `DATA_DIR` nicht an | die Prüfung `os.Stat` in `zuruecksetzen` entfällt | `TestReset`: `reset hat das DATA_DIR angelegt` |
+| E06 | leeres Argument ist Exit 2 (je Stelle) | `args[1] == ""` entfällt; getrennt `args[2] == ""` entfällt | `TestAufrufformen`, je 3 Elemente (*DATA_DIR leer* bzw. *zweites Argument leer* je Befehl) |
+| E06 | ein Argument zu viel ist Exit 2 | `len(args) != 3` wird `len(args) < 3` | `TestAufrufformen`, 3 Elemente |
+| E07 | der Name der Stufe steht im Test-Binary | `stufe 9 TestE2EMockNeustar` (ein Zeichen weniger) | Treiber: `Stufe 9: Test TestE2EMockNeustar nicht gefunden`, Exit 2 |
+| E07 | die Anker-Zeile gehört zur Stufe | Anker `TestE2EMokNeustart` | `make e2e-abdeckung`: Exit 2 (Anker löst in der Region nicht auf) |
+
+**Raten.** Die Zeile E04 ist die Klasse `nebenläufig`; ihr Fänger ist ein Wirkungs-Fänger (der Zustand nach dem Neustart gegen die Antworten vor dem Signal), kein Detektor: der Test ist sequenziell und `SIGTERM` kommt erst nach der letzten Antwort, ein Datenrennen im Binary sieht er nicht, das ist `make test-race` für die Pakete im Prozess. Gemessen von mir, auf dem Host mit `uptime` Last 18,4 bis 19,3 bei 20 Kernen (andere Zweige liefen): `TestE2EMockNeustart` mit der Mutation *`-wal` löschen* rot in 30 von 30 Prozessläufen, mit der Mutation *zweiter Start leert* rot in 10 von 10; ohne Mutation rot in 0 von 30 Läufen (beide Stufen in einem Prozess je Lauf). Die Zeile gilt als gefangen.
+
+**Mengen** (`implement-slice` Schritt 14): Header-Zuordnung 5 Formen × 5 Requests = 25 (`TestE2EMock/Zuordnung` zählt), Orakel die Konstanten Status und Code je Form; Argumentformen von `uebergang` 3 Befehle × 6 Formen + 2 = 20 (`TestAufrufformen` zählt 18 plus die Schleife über 2); Neustart 4 Lesezugriffe × 2 Neustarts = 8 (Orakel: die Antworten vor dem Signal); `DATA_DIR` ohne Ablage 4 Pfade (`TestE2EMockNeustart` zählt).
+
+**Grenzen, die ich beim Bauen fand** (Adresse in §6): (1) Der Übergang `import` löst den `@odata.nextLink` gegen die `UPSTREAM_URL` der Aufnahme auf (`SPEC-127` Nr. 12 e); sie kennt er nicht, die Kette endet in `link_nicht_aufloesbar` und die Coverage ist `partial` statt `complete` (`ODR-E6003` bei `STRICT_COVERAGE`, dem Default). Der Test übergibt sie als `E2E_UPSTREAM_URL`; `SPEC-037` Nr. 6 nennt diese Eingabe nicht. (2) Der Zähler des Referenzdienstes (E03) kann nach dem Stoppen nicht rot werden: ohne `UPSTREAM_URL` kennt das Binary keinen Upstream, und eine Verbindung zu einem geschlossenen Server zählt der Server nicht. Die Mutation *Pflicht `UPSTREAM_URL`* wird dennoch rot, am Start, nicht am Zähler. (3) *Zwei Schreibweisen* des Namens (E02) kommen beim Server von Go als ein Name mit zwei Werten an (der Server kanonisiert), und sind am Binary von *zwei gleiche Werte* nicht zu unterscheiden; eine Mutation von `werteVon`, die nur eine Schreibweise liest, fängt kein Fall am Binary (Gegenstand im Prozess: `SPEC-195` Nr. 5, `src/hexagon/services/mock/zuordnung_test.go`; ob dieser Test die Mutation fängt, habe ich nicht gemessen).
 
 ## 4. Trigger
 
@@ -139,7 +166,9 @@ dasteht.
 - Neustart über die Prozessgrenze im Modus `mock` (Sendung, `SPEC-049` Nr. 7 a): Randformen — **Ausgang:** entschieden (Architect, 2026-11-08): Verzeichnis fehlt wird angelegt (E05), Signal während einer Mutation ist ein akzeptiertes Negativ (E08), Snapshots bleiben das Negativ (E09).
 - Randformen der Sendung, die der Architect am 2026-11-08 nachgezogen hat: Zeitpunkt von `SIGTERM` (erst nach der letzten Antwort, E04; das Fenster davor ist E08), Bereitschaft im Modus `mock` (Verbindung ohne Request, `SPEC-037` Nr. 5), fehlendes `DATA_DIR` am Binary (wird angelegt, E05) und am `reset` (Exit 1, E06), doppelter Neustart (E04), die Formen des Headers (E02) — **Ausgang:** entschieden, in `SPEC-037` Nr. 5 bis 7 und `SPEC-139` Nr. 11 f.
 - Nummern der Stufen im Treiber `tools/harness/test-integration.sh` und das Abdeckungs-Dokument: `slice-bootstrap-m4` und `slice-bootstrap-m6` fügen im selben Treiber Stufen an. Die Zahl `<n>` in `stufe <n> <Name>` ist nur Ausgabe; der Schlüssel ist der Name des Tests (`SPEC-037` Nr. 2, `-test.list`), und `docs/plan/planning/e2e-abdeckung.md` zählt die Stufen nach der Reihenfolge im Skript und ist erzeugt. Entscheidung: dieser Slice nimmt 8 und 9 als nächste freie Zahlen; wer später in `main` merged, nummeriert seine Literale hinter die vorhandenen um und erzeugt das Dokument aus `make e2e-abdeckung` neu, statt einen Konflikt von Hand aufzulösen; die Reihenfolge der Merges ordnet der Planner. Kein Fänger gleicht die Zahl im Skript mit der Position im Dokument ab — akzeptiertes Negativ: Grund, die Zahl ist nur eine Beschriftung der Ausgabe; Folge, eine falsche Zahl irritiert den Leser der Ausgabe, belegt aber nichts Falsches. — **Ausgang:** entschieden (Architect, 2026-11-08); der Integrationsschritt liegt beim Planner (Merge-Reihenfolge, kein Slice als Nehmer).
-- Die Stufe 9 beendet und startet den Server und liegt in der Klasse `nebenläufig` (E04) — **Ausgang:** offen (Implementer trägt die Raten in §3 ein, kein weiterer Träger); Muster der Fänger wie bei den Stufen 1 bis 7 (Bereitschaft statt Schlaf), Raten trägt der Implementer in §3.
+- Die Stufe 9 beendet und startet den Server und liegt in der Klasse `nebenläufig` (E04) — **Ausgang:** offen (die Raten stehen in §3, Absatz *Raten*: 30 von 30 und 10 von 10 rot, ohne Mutation 0 von 30; den Ausgang setzt der Planner bei der Closure); Muster der Fänger wie bei den Stufen 1 bis 7 (Bereitschaft statt Schlaf).
+- Der Übergang `import` braucht die `UPSTREAM_URL` der Aufnahme, damit die Coverage `complete` wird (`SPEC-127` Nr. 12 e); `SPEC-037` Nr. 6 nennt die Eingabe nicht, und E01 fordert `complete` (`SPEC-037` Nr. 7). Der Implementer hat sie als Umgebungsvariable `E2E_UPSTREAM_URL` des Hilfsprogramms eingeführt (Abweichung vom Wortlaut von Nr. 6, im Code entschieden, nicht in der Spezifikation) — **Ausgang:** offen, Adresse Architect: Nr. 6 nennt die Eingabe, oder er wählt einen anderen Weg (etwa ein Argument); bis dahin trägt der Code die Entscheidung.
+- Die Zeile E03 (Zähler des Referenzdienstes nach dem Stoppen) kann keine Mutation am Zähler fangen, E02 *zwei Schreibweisen* ist am Binary von *zwei gleiche Werte* nicht zu unterscheiden (§3, *Grenzen*, Punkte 2 und 3) — **Ausgang:** offen, Adresse Architect: beide als akzeptiertes Negativ mit Grund und Folge in `SPEC-037` Nr. 10 führen oder den Fänger ändern.
 
 ## 7. Closure-Notiz
 
