@@ -1,6 +1,6 @@
 // Package policy prüft die Werte der Fallback-Policy und hält sie in geparster Form
-// (LH-FA-12.a, SPEC-261). Das Paket importiert model und die Standardbibliothek, keinen Port
-// und keinen Adapter; New ruft nichts, liest keine Umgebung und löst keinen Namen auf.
+// (LH-FA-12.a, SPEC-261). Das Paket importiert nur die Standardbibliothek, keinen Port, keinen
+// Adapter und kein anderes Paket des Hexagons (model darf es, braucht es noch nicht); New ruft nichts, liest keine Umgebung und löst keinen Namen auf.
 package policy
 
 import (

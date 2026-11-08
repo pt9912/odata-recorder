@@ -35,6 +35,11 @@ func importErlaubt(pfad string) bool {
 
 // TestQuelltext liest die Dateien des Pakets (ohne Tests) und prüft Importe, go-Statements,
 // Variablen auf Paketebene und Methoden.
+//
+// Grenze: gelesen wird nur das Wurzelverzeichnis des Pakets (ein Unterverzeichnis ist ein eigenes
+// Paket, dessen Importe `make a-check` hält); ein `init` ist nicht verboten, `reflect` und `runtime`
+// sind erlaubt; die Zählprüfung hat feste Untergrenzen (3 Dateien, 4 Importe, 8 Funktionen) und
+// meldet zu wenig Gelesenes als Fehler.
 func TestQuelltext(t *testing.T) {
 	eintraege, err := os.ReadDir(".")
 	if err != nil {

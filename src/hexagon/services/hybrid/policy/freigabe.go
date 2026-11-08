@@ -96,6 +96,9 @@ func parseSegment(t string, letztes bool) (segment, bool) {
 		return segment{}, false
 	case n == 1:
 		k := strings.IndexByte(t, '*')
+		if punktEinzel(t[:k], t[k+1:]) {
+			return segment{}, false
+		}
 		return segment{art: segStern, anfang: t[:k], ende: t[k+1:]}, true
 	case punktSegment(t):
 		return segment{}, false
@@ -106,9 +109,20 @@ func parseSegment(t string, letztes bool) (segment, bool) {
 // punktSegment sagt, ob ein Segment nach dem Ersetzen jedes `%2e` und `%2E` durch `.` gleich `.`
 // oder `..` ist.
 func punktSegment(s string) bool {
-	s = strings.ReplaceAll(s, "%2e", ".")
-	s = strings.ReplaceAll(s, "%2E", ".")
+	s = ersetzePunkte(s)
 	return s == "." || s == ".."
+}
+
+// punktEinzel sagt, ob ein Segment mit einem `*` (Text davor und dahinter) nach dem Ersetzen jedes
+// `%2e` und `%2E` durch `.` und dem Streichen des `*` gleich `.` ist: das `*` könnte den Rest
+// eines Punkt-Segments decken (SPEC-261 Nr. 6 b, e).
+func punktEinzel(vor, nach string) bool {
+	return ersetzePunkte(vor+nach) == "."
+}
+
+func ersetzePunkte(s string) string {
+	s = strings.ReplaceAll(s, "%2e", ".")
+	return strings.ReplaceAll(s, "%2E", ".")
 }
 
 func hexZiffer(c byte) bool {

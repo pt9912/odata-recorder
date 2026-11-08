@@ -14,6 +14,7 @@ import (
 var (
 	musterZeichen = regexp.MustCompile(`^(?:/(?:[!"$&-+\-.0->@-\[\]-~]|%[0-9A-Fa-f]{2})+)+$`)
 	punktFolge    = regexp.MustCompile(`^(?:\.|%2[eE]){1,2}$`)
+	punktEin      = regexp.MustCompile(`^(?:\.|%2[eE])$`)
 )
 
 func orakelMuster(m string) bool {
@@ -33,6 +34,9 @@ func orakelMuster(m string) bool {
 			return false
 		}
 		if sterne == 0 && punktFolge.MatchString(s) {
+			return false
+		}
+		if sterne == 1 && punktEin.MatchString(strings.Replace(s, "*", "", 1)) {
 			return false
 		}
 	}
@@ -135,6 +139,71 @@ func TestMusterEintraege(t *testing.T) {
 		}
 		if u := einzel(t, policy.SchluesselSchreibfreigaben, "POST "+m); u != policy.UrsacheMuster {
 			t.Errorf("Verstoß %q: New meldet %q, erwartet muster", m, u)
+		}
+	}
+}
+
+// TestMusterStern führt die Klasse der Segmente `A*B` (A und B je null bis zwei Teile aus `.`,
+// `%2e`, `%2E`: 13 mal 13 = 169) als Segment in `/a/<S>`, `/<S>/b` und `/a/<S>/**`. Das Orakel
+// liest SPEC-261 Nr. 6 b, e: ungültig ist ein Segment genau dann, wenn A und B nicht beide leer
+// sind und eine Einsetzung des `*` durch einen oder zwei Punkte nach dem Ersetzen von `%2e` und
+// `%2E` `.` oder `..` ergibt (das `*` könnte ein Punkt-Segment decken).
+func TestMusterStern(t *testing.T) {
+	teile := []string{".", "%2e", "%2E"}
+	seiten := []string{""}
+	for _, a := range teile {
+		seiten = append(seiten, a)
+		for _, b := range teile {
+			seiten = append(seiten, a+b)
+		}
+	}
+	if len(seiten) != 13 {
+		t.Fatalf("Seiten: %d, erwartet 13", len(seiten))
+	}
+	ersetze := strings.NewReplacer("%2e", ".", "%2E", ".")
+	zahl, schlecht := 0, 0
+	for _, a := range seiten {
+		for _, b := range seiten {
+			s := a + "*" + b
+			zahl++
+			ungueltig := false
+			if a != "" || b != "" {
+				for _, p := range []string{".", ".."} {
+					if r := ersetze.Replace(a + p + b); r == "." || r == ".." {
+						ungueltig = true
+					}
+				}
+			}
+			if ungueltig {
+				schlecht++
+			}
+			for _, m := range []string{"/a/" + s, "/" + s + "/b", "/a/" + s + "/**"} {
+				_, ok := policy.ParseMuster(m)
+				if ok == ungueltig {
+					t.Errorf("Muster %q: angenommen %v, erwartet %v", m, ok, !ungueltig)
+				}
+				soll := ""
+				if ungueltig {
+					soll = policy.UrsacheMuster
+				}
+				if u := einzel(t, policy.SchluesselSchreibfreigaben, "POST "+m); u != soll {
+					t.Errorf("Muster %q: New meldet %q, erwartet %q", m, u, soll)
+				}
+			}
+		}
+	}
+	if zahl != 169 || schlecht != 6 {
+		t.Fatalf("Zählprüfung: %d Segmente, %d Verstöße, erwartet 169 und 6", zahl, schlecht)
+	}
+	// Handfälle: die sechs Verstöße und fünf Gutfälle
+	for _, s := range []string{".*", "*.", "%2e*", "*%2e", "%2E*", "*%2E"} {
+		if _, ok := policy.ParseMuster("/svc/" + s); ok {
+			t.Errorf("/svc/%s angenommen", s)
+		}
+	}
+	for _, s := range []string{"*", "..*", ".*.", "%2e*%2e", "a.*"} {
+		if _, ok := policy.ParseMuster("/svc/" + s); !ok {
+			t.Errorf("/svc/%s abgewiesen", s)
 		}
 	}
 }

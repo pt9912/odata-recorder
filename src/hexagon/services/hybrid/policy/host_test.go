@@ -55,14 +55,16 @@ func TestHostEintraege(t *testing.T) {
 		{"h", "h", 0}, {"h.example", "h.example", 0}, {"h-1_x", "h-1_x", 0},
 		{"h:1", "h", 1}, {"h:65535", "h", 65535},
 		{"[::1]", "::1", 0}, {"[::1]:8080", "::1", 8080}, {"[2001:db8::1]", "2001:db8::1", 0},
-		{"H", "h", 0},
+		{"H", "h", 0}, {"[::ffff:1.2.3.4]", "::ffff:1.2.3.4", 0},
 	}
 	// Schreibweise: Name klein, IPv6 kanonisch (SPEC-261 Nr. 5 b)
 	zusatz := []hostGut{
 		{"Exa.MPLE:9", "exa.mple", 9}, {"[0:0:0:0:0:0:0:1]", "::1", 0}, {"[2001:DB8:0:0::1]:7", "2001:db8::1", 7},
+		// gleiche kanonische Form wie [::ffff:1.2.3.4]
+		{"[::ffff:102:304]", "::ffff:1.2.3.4", 0},
 	}
-	if len(plan) != 9 {
-		t.Fatalf("Gutfälle der Tabelle: %d, erwartet 9", len(plan))
+	if len(plan) != 10 {
+		t.Fatalf("Gutfälle der Tabelle: %d, erwartet 10", len(plan))
 	}
 	for _, g := range append(plan, zusatz...) {
 		name, port, ursache := policy.ParseHost(g.eintrag)
