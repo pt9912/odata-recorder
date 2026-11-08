@@ -408,7 +408,7 @@ func TestKonfigModus(t *testing.T) {
 	if s := schluessel(t, zeilen); !slices.Equal(s, []string{"LISTEN"}) {
 		t.Errorf("mock mit kaputtem LISTEN: Schlüssel %v", s)
 	}
-	// bei mock und hybrid wird kein DATA_DIR angelegt
+	// bei einem Verstoß, hier MODE=hybrid, wird kein DATA_DIR angelegt
 	frisch := filepath.Join(t.TempDir(), "frisch")
 	lade(t, "MODE=hybrid", "DATA_DIR="+frisch)
 	if _, err := os.Stat(frisch); err == nil {
@@ -673,6 +673,7 @@ func TestKonfigMeldung(t *testing.T) {
 	env := []string{
 		"MODE=" + geheim, "LISTEN=" + geheim, "UPSTREAM_TIMEOUT=" + geheim, "MAX_CAPTURE_BODY=" + geheim, "SERVICE_ID=" + geheim + "/x",
 		"REDACT_JSON_PATHS=" + geheim, "UPSTREAM_URL=ftp://" + geheim, "ADMIN_TOKEN_FILE=" + geheim, "REPLAY_STRATEGY=" + geheim,
+		"PUBLIC_BASE_URL=http://nutzer:" + geheim + "@h", "STRICT_COVERAGE=" + geheim,
 		"DATA_DIR=" + filepath.Join(t.TempDir(), "d"), "SERVICES_FILE=" + filepath.Join(t.TempDir(), geheim),
 	}
 	var stderr bytes.Buffer
@@ -693,6 +694,11 @@ func TestKonfigMeldung(t *testing.T) {
 	for _, z := range zeilen {
 		if !strings.HasPrefix(z, "ODR-E2001 ") {
 			t.Errorf("Zeile ohne Code: %q", z)
+		}
+	}
+	for _, key := range []string{"PUBLIC_BASE_URL", "STRICT_COVERAGE"} {
+		if !slices.Contains(schluessel(t, zeilen), key) {
+			t.Errorf("keine Zeile für %s: %v", key, zeilen)
 		}
 	}
 	if _, code := bootstrap.LadeOderMelde(basis(t), &stderr); code != 0 {

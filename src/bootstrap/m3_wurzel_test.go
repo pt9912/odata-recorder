@@ -2,6 +2,7 @@ package bootstrap_test
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -59,6 +60,16 @@ type m3Haken struct {
 	verboten map[string]int
 	fake     *fakeMock
 	srv      *fakeServer
+}
+
+// ohnePanik führt f aus und macht aus einer Panik einen benannten Fehler, damit der Verstoß als Aussage des Tests erscheint.
+func ohnePanik(f func() error) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("Panik beim Zugriff auf einen Dienst, den der Modus mock nicht baut: %v", r)
+		}
+	}()
+	return f()
 }
 
 func neuM3Haken() *m3Haken { return &m3Haken{haken: neuHaken(), verboten: map[string]int{}} }
@@ -133,9 +144,10 @@ func TestM3WahlJeModus(t *testing.T) {
 		if modus != "record" { // nur der Modus record liest UPSTREAM_CA_FILE (SPEC-139 Nr. 2)
 			k.UpstreamCAFile = filepath.Join(t.TempDir(), "keine-ca.pem")
 		}
-		hd, err := bootstrap.BuildMit(ctx, k, nil, m.bauteile())
+		var hd *bootstrap.Handle
+		err := ohnePanik(func() (e error) { hd, e = bootstrap.BuildMit(ctx, k, nil, m.bauteile()); return e })
 		if err != nil {
-			t.Fatal(modus, err)
+			t.Fatalf("Build im Modus %s: %v", modus, err)
 		}
 		got := zugaenge{hd.Record() != nil, hd.Sessions() != nil, hd.Import() != nil}
 		if got != soll || hd.Workspaces() == nil || hd.Snapshots() == nil || hd.Wartung() == nil {
@@ -279,12 +291,17 @@ func TestM3Lebenszyklus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := hd.Hochfahren(ctx); err != nil {
-		t.Fatal(err)
+	if err := ohnePanik(func() error { return hd.Hochfahren(ctx) }); err != nil {
+		t.Fatalf("Hochfahren im Modus mock (kein Session-Dienst, keine Session): %v", err)
 	}
 	dienste, err := m.db.Metadata().List(ctx)
 	if err != nil || len(dienste) != 2 {
 		t.Fatalf("Services %+v, %v", dienste, err)
+	}
+	for _, d := range dienste {
+		if sessions, err := m.db.Sessions().List(ctx, d.ID); err != nil || len(sessions) != 0 {
+			t.Errorf("Service %s: %d Sessions in der Ablage, %v; erwartet 0", d.ID, len(sessions), err)
+		}
 	}
 	for _, d := range dienste {
 		if d.ODataVersion != "4.0" {

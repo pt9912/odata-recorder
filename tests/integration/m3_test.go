@@ -137,6 +137,8 @@ func TestM3(t *testing.T) {
 	t.Run("Coverage", w.coverage)
 	t.Run("Adressen", w.adressen)
 	t.Run("Neustart", w.neustart)
+	// Diese Probe kann nicht rot werden: der Mock erhält keine UPSTREAM_URL und der Referenzdienst ist geschlossen. Dass der Mock keinen
+	// Upstream-Client baut, fängt TestM3WahlJeModus.
 	if got := [2]int64{w.ref.verbindungen.Load(), w.ref.requests.Load()}; got != w.nachDemEnde {
 		t.Errorf("Zähler des Referenzdienstes (Verbindungen, Requests) %v nach dem Mock, %v nach dem Beenden", got, w.nachDemEnde)
 	}

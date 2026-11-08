@@ -371,7 +371,9 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		kk := k
 		kk.Modus = modus
 		kk.DataDir = filepath.Join(dir, modus)
-		_ = os.MkdirAll(kk.DataDir, 0o700)
+		if err := os.MkdirAll(kk.DataDir, 0o700); err != nil {
+			t.Fatal(err)
+		}
 		h := neuHaken()
 		if _, err := lauf(ctx, t, kk, log, h.bauteile()); err != nil {
 			t.Fatal(err)
@@ -381,7 +383,9 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 	r, p := lauf2(modusRecord), lauf2(modusReplay)
 	mh, km := neuM3Haken(), k
 	km.Modus, km.DataDir = modusMock, filepath.Join(dir, modusMock)
-	_ = os.MkdirAll(km.DataDir, 0o700)
+	if err := os.MkdirAll(km.DataDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := lauf(ctx, t, km, log, mh.bauteile()); err != nil {
 		t.Fatal(err)
 	}

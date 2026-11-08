@@ -94,7 +94,7 @@ func TestKonfigPublicBaseURLForm(t *testing.T) {
 		"http://h/a/b", "http://h/a%20b", "http://127.0.0.1:1", "http://h/a.b_c~d-e", "http://[fe80::1]:9", "http://h/%41"}
 	ungueltig := []string{"http://h/", "http://h//x", "HTTP://h", "ftp://h", "http://u@h", "http://h?x", "http://h#x", "http://",
 		`http://h\x`, "http://h x", "http://h\tx", "http://h\x01", "http://h\xc3\xa4", "http://h/\xc3\xa4", "http://h:123456", "http://h:",
-		"http://h:8080x", "http://h/.", "http://h/..", "http://h/%2E", "http://h/%2e%2e", "http://h/%", "http://h/%4", "http://h/%zz",
+		"http://h:8080x", "http://h/.", "http://h/..", "http://h/%2E", "http://h/%2e%2e", "http://h/%", "http://h/%4", "http://h/%zz", "http://h/%4z", "http://h/%z4", "http://h/a%4",
 		"http://:80", "http://[]", "http://[::1", "http://[g]", "http://h/a b", "http://h/a/", "/h", "h", "https:/h", "http://h/a//b",
 		"http://h/" + strings.Repeat("a", 2048), "http://h" + strings.Repeat("/a", 1024) + "/"}
 	n := 0
@@ -138,6 +138,58 @@ func TestKonfigPublicBaseURLZeichen(t *testing.T) {
 	}
 	if n != 1280 || angenommen < 100 || angenommen > 1100 {
 		t.Errorf("Menge hat %d Elemente, davon %d angenommen", n, angenommen)
+	}
+}
+
+// TestKonfigPublicBaseURLProzent fängt A04 für die Klasse der Prozent-Kodierung als Generator: beide Stellen von `%XY` über alle
+// 256 × 256 Bytewerte (65536 Elemente), Orakel ist der Schreiber; angenommen sind genau die 484 Paare aus Hex-Ziffern ohne die zwei,
+// die `.` ergeben (`%2e`, `%2E`).
+func TestKonfigPublicBaseURLProzent(t *testing.T) {
+	env := append(basis(t), "MODE=mock")
+	n, angenommen := 0, 0
+	for a := range 256 {
+		for b := range 256 {
+			w := "http://h/%" + string([]byte{byte(a), byte(b)})
+			n++
+			soll := schreiberNimmtAn(w)
+			if soll {
+				angenommen++
+			}
+			if _, zeilen := lade(t, append(slices.Clone(env), "PUBLIC_BASE_URL="+w)...); soll != (len(zeilen) == 0) {
+				t.Errorf("%q: Schreiber nimmt an: %v, Zeilen der Konfiguration %v", w, soll, zeilen)
+			}
+		}
+	}
+	if n != 65536 || angenommen != 482 {
+		t.Errorf("Menge hat %d Elemente, davon %d angenommen; erwartet 65536 und 482", n, angenommen)
+	}
+}
+
+// TestKonfigPublicBaseURLAbleitungLaenge fängt A05 (Länge bei abgeleiteter Basis, SPEC-110 Nr. 14 e): drei Loopback-Hosts × Port 8080
+// und 00080 × ein Root, der die Wurzel auf genau 2048 Bytes bringt (gültig), und ein Byte mehr (Verstoß); der Port zählt ohne
+// führende Nullen.
+func TestKonfigPublicBaseURLAbleitungLaenge(t *testing.T) {
+	const zeile = "ODR-E2001 PUBLIC_BASE_URL: mit dem Root eines Service länger als 2048 Bytes"
+	n := 0
+	for _, host := range []string{"127.0.0.1", "[::1]", "localhost"} {
+		for port, ohneNull := range map[string]string{"8080": "8080", "00080": "80"} {
+			wurzelLaenge := len("http://" + host + ":" + ohneNull)
+			root := "/" + strings.Repeat("a", 2048-wurzelLaenge-1)
+			for plus := range 2 {
+				n++
+				var soll []string
+				if plus == 1 {
+					soll = []string{zeile}
+				}
+				env := append(basis(t), "MODE=mock", "LISTEN="+host+":"+port, "SERVICE_ROOT_PATH="+root+strings.Repeat("a", plus))
+				if k, zeilen := lade(t, env...); !slices.Equal(zeilen, soll) || (plus == 0 && len(k.PublicBaseURL)+len(root) != 2048) {
+					t.Errorf("%s:%s, Root +%d: Zeilen %v, erwartet %v", host, port, plus, zeilen, soll)
+				}
+			}
+		}
+	}
+	if n != 12 {
+		t.Errorf("Menge hat %d Elemente, erwartet 12", n)
 	}
 }
 
