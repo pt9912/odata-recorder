@@ -1,0 +1,1 @@
+**Stand:** offen (1×); Eingriff vom Verifier per Wort-Diff geprüft, Inhalt unverändert (nur der Klammerzusatz mit der Slice-Kennung fiel weg), im Plan §6 mit Hinweis an den Architect geführt; kein Ausgang vor 3×
