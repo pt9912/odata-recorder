@@ -3,6 +3,7 @@ package admin_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -529,6 +530,39 @@ func TestKandidatAlleBytes(t *testing.T) {
 	}
 	if stellen != 256 || route.aufrufe() != 1 {
 		t.Errorf("%d Stellen (erwartet 256), Route %d Aufrufe (erwartet 1)", stellen, route.aufrufe())
+	}
+}
+
+// TestKandidatRaender hält U3 (SPEC-238 Nr. 4 b: der Rest hinter den führenden Leerzeichen ist der Kandidat, Byte für
+// Byte unverändert) gegen die Klasse "Rand des Kandidaten": jedes der 256 Bytes am Anfang (hinter einem und hinter drei
+// Leerzeichen; allein das Leerzeichen gehört zu den führenden und fällt weg, 255 Bytes bleiben), am Ende (256) und an
+// beiden Rändern zugleich (255) erreicht Vergleich unverändert, genau einmal; direkter Aufruf, ohne Leitung.
+func TestKandidatRaender(t *testing.T) {
+	kern := string(tokenVielfalt())
+	type fall struct{ name, wert, kandidat string }
+	var faelle []fall
+	for b := 0; b < 256; b++ {
+		c := string([]byte{byte(b)})
+		if b != ' ' {
+			for _, n := range []int{1, 3} {
+				faelle = append(faelle, fall{fmt.Sprintf("Anfang %#x nach %d Leerzeichen", b, n),
+					"Bearer " + strings.Repeat(" ", n-1) + c + kern, c + kern})
+			}
+			faelle = append(faelle, fall{fmt.Sprintf("Anfang und Ende %#x", b), "Bearer " + c + kern + c, c + kern + c})
+		}
+		faelle = append(faelle, fall{fmt.Sprintf("Ende %#x", b), "Bearer " + kern + c, kern + c})
+	}
+	if len(faelle) != 255*2+256+255 {
+		t.Fatalf("%d Fälle, erwartet 255 × 2 + 256 + 255", len(faelle))
+	}
+	for _, f := range faelle {
+		vf := neuerVergleich(true)
+		u := neuMitVergleich(t, nil, vf, admin.Route{Methode: "GET", Muster: "/a", Handler: neueRoute().handle})
+		rec := u.rufe(ohneAuth("GET", "/a", map[string][]string{"Authorization": {f.wert}}))
+		args, ok := vf.einziger()
+		if rec.Code != 200 || !ok || args[1] != f.kandidat {
+			t.Errorf("%s: Status %d, Kandidat %q (ein Aufruf %v), erwartet %q", f.name, rec.Code, args[1], ok, f.kandidat)
+		}
 	}
 }
 

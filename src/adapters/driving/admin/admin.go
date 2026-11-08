@@ -74,8 +74,9 @@ type Server struct {
 	vergleich  func(erwartet, gegeben []byte) bool
 }
 
-// vergleiche liefert, ob beide Werte gleich sind: ConstantTimeCompare auf den SHA-256-Summen, damit weder Inhalt
-// noch Länge die Laufzeit bestimmen (SPEC-238 Nr. 4 e).
+// vergleiche liefert, ob beide Werte gleich sind: ConstantTimeCompare auf den SHA-256-Summen. Der Vergleich der
+// Summen hängt weder vom Inhalt noch von der Länge ab; die Länge des Gegebenen wirkt nur auf das Hashen und ist durch
+// die Header-Grenze des bedienenden Servers begrenzt (SPEC-238 Nr. 4 e).
 func vergleiche(erwartet, gegeben []byte) bool {
 	a, b := sha256.Sum256(erwartet), sha256.Sum256(gegeben)
 	return subtle.ConstantTimeCompare(a[:], b[:]) == 1
