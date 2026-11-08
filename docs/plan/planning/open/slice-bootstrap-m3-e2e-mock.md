@@ -38,7 +38,7 @@ seinen Grund.
 - Verdrahtung des Modus `mock` im Composition Root, Konfiguration, M3-Test in `tests/integration/`, Handbuch und der Fall `leer` von `TestE2EProzess` — `slice-bootstrap-m3`; ohne dessen Binary gibt es nichts, was die Stufen fahren (Reihenfolge, kein geteilter Mechanismus: E fährt das Binary von außen).
 - Snapshots über die Prozessgrenze — es gibt bis `welle-admin-api` keinen Lesepfad dafür; akzeptiertes Negativ in `SPEC-049` Nr. 10 b und `SPEC-037` Nr. 10 j (E09).
 - `SIGTERM` während einer Mutation am Binary — akzeptiertes Negativ in `SPEC-037` Nr. 10 i (E08); getrennt belegt durch `SPEC-136` Nr. 15 und `SPEC-192` Nr. 7.
-- Änderungen an `Makefile`, `Dockerfile`, `harness/mk/`, `harness/README.md`, `tools/gegenproben/` und am Stempel — Nr. 7 der Übergangsregeln; die Stufe `integration` baut `./tests/e2e` und `./tests/e2e/uebergang` als Ganzes. Braucht ein Szenario doch eine Zeile dort, ist das eine Rückgabe an den Planner, kein Code dieses Slice.
+- Änderungen an `Makefile`, `Dockerfile`, `harness/mk/`, `harness/README.md`, `tools/gegenproben/` und am Stempel — Nr. 7 der Übergangsregeln; die Stufe `integration` baut `tests/e2e` und `tests/e2e/uebergang` als Ganzes. Braucht ein Szenario doch eine Zeile dort, ist das eine Rückgabe an den Planner, kein Code dieses Slice.
 - Modus `hybrid` und Szenarien von `welle-hybrid` — `slice-bootstrap-m4`.
 
 ## 2. Definition of Done
@@ -92,7 +92,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`open` → `in-progress`): `slice-bootstrap-m3` liegt in `done/` (das Binary im Modus `mock` und der Nachzug von `SPEC-037` Nr. 5 bis 7 und 10 sowie `SPEC-139` Nr. 11 liegen damit in `main`). Beim Start liest der Planner §1 *Ausdrücklich NICHT* und die DoD der Nachbarn neu (`AGENTS.md` §3.13).
 
-**Gate-Kette (Nr. 7 der Übergangsregeln):** Linie B. Dieser Slice ändert `tools/harness/test-integration.sh` und `tests/e2e/`, kein Pfad aus Nr. 7 (Architect, 2026-11-08, im Plan von `slice-bootstrap-m3` bestätigt: die Stufe `integration` baut `./tests/e2e` und `./tests/e2e/uebergang` als Ganzes). Braucht ein Szenario eine Änderung des `Dockerfile`, geht das als Rückgabe an den Planner. `slice-bootstrap-m4` und `slice-bootstrap-m6` führen je ein weiteres Szenario im selben Treiber; der Planner ordnet die Merges beim Start (Risiko in §6).
+**Gate-Kette (Nr. 7 der Übergangsregeln):** Linie B. Dieser Slice ändert `tools/harness/test-integration.sh` und `tests/e2e/`, kein Pfad aus Nr. 7 (Architect, 2026-11-08, im Plan von `slice-bootstrap-m3` bestätigt: die Stufe `integration` baut `tests/e2e` und `tests/e2e/uebergang` als Ganzes). Braucht ein Szenario eine Änderung des `Dockerfile`, geht das als Rückgabe an den Planner. `slice-bootstrap-m4` und `slice-bootstrap-m6` führen je ein weiteres Szenario im selben Treiber; der Planner ordnet die Merges beim Start (Risiko in §6).
 
 Größenmarke (Architect, 2026-11-08, `SPEC-128` Nr. 1; Planner-Rechnung gleich): *a* = 1 (E04), *b* = 8, *f* = 0, *p* = 40: *S* = 85 + 640 + 0 + 40 = 765, *M* = 1100, keine Schnittfrage. Der Block trägt den Teil des Architect; `basis`, `schaetzung` und `marke` setzt der Planner beim Start in eigenem Commit vor dem ersten Code-Commit (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; `docs/` zählt nicht).
 
