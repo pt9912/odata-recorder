@@ -2,6 +2,8 @@ package admin
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"io"
@@ -17,6 +19,13 @@ import (
 
 // healthzBody ist der Body der eingebauten Route `GET /healthz` (SPEC-238 Nr. 3 c).
 const healthzBody = `{"status":"ok"}`
+
+// healthzPfad ist der Pfad der Route, die ohne Authentisierung bedient wird (SPEC-238 Nr. 3 c).
+const healthzPfad = "/healthz"
+
+// schemaKlein ist das Schema der Authentisierung in Kleinbuchstaben; die ASCII-Schreibweise im Header ist
+// gleichgültig (SPEC-238 Nr. 4 b).
+const schemaKlein = "bearer"
 
 // Handler bearbeitet einen Request einer Route (SPEC-238 Nr. 2).
 type Handler func(ctx context.Context, a Anfrage) (Antwort, error)
@@ -50,9 +59,11 @@ type Konfig struct {
 	Audit      support.AuditLog
 	Telemetrie support.Telemetry
 	Routen     []Route
+	// Vergleich vergleicht das erwartete Token mit dem Kandidaten; nil heißt vergleiche (SPEC-238 Nr. 1, 4 e).
+	Vergleich func(erwartet, gegeben []byte) bool
 }
 
-// Server ordnet Requests den Routen zu (SPEC-238); sein Zustand ist nach New schreibgeschützt.
+// Server authentisiert und ordnet Requests den Routen zu (SPEC-238); sein Zustand ist nach New schreibgeschützt.
 type Server struct {
 	listener   net.Listener
 	token      []byte
@@ -60,6 +71,14 @@ type Server struct {
 	audit      support.AuditLog
 	telemetrie support.Telemetry
 	routen     []route
+	vergleich  func(erwartet, gegeben []byte) bool
+}
+
+// vergleiche liefert, ob beide Werte gleich sind: ConstantTimeCompare auf den SHA-256-Summen, damit weder Inhalt
+// noch Länge die Laufzeit bestimmen (SPEC-238 Nr. 4 e).
+func vergleiche(erwartet, gegeben []byte) bool {
+	a, b := sha256.Sum256(erwartet), sha256.Sum256(gegeben)
+	return subtle.ConstantTimeCompare(a[:], b[:]) == 1
 }
 
 // ungueltig bildet den Fehler von New: model.ErrUngueltig mit einem festen Text, der keinen Wert nennt.
@@ -114,22 +133,71 @@ func New(k Konfig) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{listener: k.Listener, token: slices.Clone(k.Token), ids: k.IDs, audit: k.Audit, telemetrie: k.Telemetrie, routen: routen}, nil
+	vergleich := k.Vergleich
+	if vergleich == nil {
+		vergleich = vergleiche
+	}
+	return &Server{
+		listener: k.Listener, token: slices.Clone(k.Token), ids: k.IDs, audit: k.Audit, telemetrie: k.Telemetrie,
+		routen: routen, vergleich: vergleich,
+	}, nil
 }
 
-// ServeHTTP vergibt die Korrelations-ID vor allem anderen, ordnet den Request zu und ruft den Handler der einen
-// Route oder antwortet 404 oder 405 mit ODR-E2102 (SPEC-238 Nr. 2, 3).
+// ServeHTTP vergibt die Korrelations-ID vor allem anderen, bedient `GET /healthz` ohne Token, authentisiert jeden
+// anderen Request vor der Zuordnung und ruft dann den Handler der einen Route oder antwortet 404 oder 405 mit
+// ODR-E2102 (SPEC-238 Nr. 3, 4, 5).
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	id := s.ids.KorrelationsID()
+	w.Header().Set("X-Correlation-Id", id)
+	if r.Method == http.MethodGet && r.URL.Path == healthzPfad {
+		antwort, _ := healthz(r.Context(), Anfrage{})
+		schreibeErfolg(w, antwort)
+		return
+	}
+	if !s.authentisiert(r.Header.Values("Authorization")) {
+		schreibeFehler(w, model.CodeE2101, http.StatusUnauthorized, "", "Bearer")
+		return
+	}
 	t := ordne(s.routen, r.Method, r.URL.EscapedPath())
 	switch {
 	case t.route != nil:
 		rufe(w, r, id, t)
 	case len(t.allow) == 0:
-		schreibeFehler(w, model.CodeE2102, http.StatusNotFound, "")
+		schreibeFehler(w, model.CodeE2102, http.StatusNotFound, "", "")
 	default:
-		schreibeFehler(w, model.CodeE2102, http.StatusMethodNotAllowed, strings.Join(t.allow, ", "))
+		schreibeFehler(w, model.CodeE2102, http.StatusMethodNotAllowed, strings.Join(t.allow, ", "), "")
 	}
+}
+
+// authentisiert prüft die Zeilen des Headers Authorization (SPEC-238 Nr. 4 a bis c): genau eine Zeile mit dem Schema
+// und einem nichtleeren Kandidaten; erst dann ruft sie Vergleich genau einmal, und allein sein Ergebnis gilt.
+func (s *Server) authentisiert(zeilen []string) bool {
+	if len(zeilen) != 1 {
+		return false
+	}
+	rest, ok := hinterSchema(zeilen[0])
+	if !ok || rest == "" {
+		return false
+	}
+	return s.vergleich(s.token, []byte(rest))
+}
+
+// hinterSchema liefert den Rest des Wertes hinter dem Schema und den führenden Leerzeichen, Byte für Byte; ok ist
+// falsch, wenn der Wert nicht mit dem Schema und mindestens einem Leerzeichen (0x20) beginnt (SPEC-238 Nr. 4 b).
+func hinterSchema(wert string) (rest string, ok bool) {
+	if len(wert) <= len(schemaKlein) || wert[len(schemaKlein)] != ' ' {
+		return "", false
+	}
+	for i := 0; i < len(schemaKlein); i++ {
+		c := wert[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if c != schemaKlein[i] {
+			return "", false
+		}
+	}
+	return strings.TrimLeft(wert[len(schemaKlein):], " "), true
 }
 
 // anfrage bildet die Anfrage der Route: der Header ist eine Kopie ohne Authorization (SPEC-238 Nr. 2).
@@ -150,19 +218,30 @@ func anfrage(r *http.Request, id string, werte map[string]string) Anfrage {
 func rufe(w http.ResponseWriter, r *http.Request, id string, t treffer) {
 	antwort, err := t.route.handler(r.Context(), anfrage(r, id, t.werte))
 	if err != nil {
-		schreibeFehler(w, model.CodeE9001, http.StatusInternalServerError, "")
+		schreibeFehler(w, model.CodeE9001, http.StatusInternalServerError, "", "")
 		return
 	}
-	w.WriteHeader(antwort.Status)
-	if len(antwort.Body) > 0 {
-		_, _ = w.Write(antwort.Body)
+	schreibeErfolg(w, antwort)
+}
+
+// schreibeErfolg schreibt die Erfolgsantwort einer Route: den Status der Route und, wenn der Body nicht leer ist,
+// Content-Type, Content-Length und den Body (SPEC-238 Nr. 5).
+func schreibeErfolg(w http.ResponseWriter, a Antwort) {
+	if len(a.Body) > 0 {
+		h := w.Header()
+		h.Set("Content-Type", "application/json")
+		h.Set("Content-Length", strconv.Itoa(len(a.Body)))
+	}
+	w.WriteHeader(a.Status)
+	if len(a.Body) > 0 {
+		_, _ = w.Write(a.Body)
 	}
 }
 
 // schreibeFehler ist die eine Stelle, die das Fehlerobjekt bildet und schreibt (SPEC-238 Nr. 5): drei Felder,
-// Content-Type, Content-Length und bei 405 Allow. Der Code ist eine Konstante der Tabelle, das Marshalling
-// einer Struktur aus Zeichenketten scheitert nicht.
-func schreibeFehler(w http.ResponseWriter, code model.Code, status int, allow string) {
+// Content-Type, Content-Length, bei 405 Allow (allow nichtleer) und bei 401 WWW-Authenticate (www nichtleer).
+// Der Code ist eine Konstante der Tabelle, das Marshalling einer Struktur aus Zeichenketten scheitert nicht.
+func schreibeFehler(w http.ResponseWriter, code model.Code, status int, allow, www string) {
 	obj, _ := model.NeuesFehlerobjekt(code)
 	body, _ := json.Marshal(obj)
 	h := w.Header()
@@ -170,6 +249,9 @@ func schreibeFehler(w http.ResponseWriter, code model.Code, status int, allow st
 	h.Set("Content-Length", strconv.Itoa(len(body)))
 	if allow != "" {
 		h.Set("Allow", allow)
+	}
+	if www != "" {
+		h.Set("WWW-Authenticate", www)
 	}
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
