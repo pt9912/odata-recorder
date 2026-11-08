@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m3
+**Fund:** Die Kürzung der DoD (Kapitel, Beispiel und Zeilen der Tabelle *Einstellungen* entfallen) war gegen ein Handbuch ohne diese Tabelle gerechnet; nach dem Merge von `main` verlangte das Katalog-Gate die Schlüssel `STRICT_COVERAGE` und `PUBLIC_BASE_URL` (`SPEC-201` Nr. 5 b) und war rot. Der Plan sagte zu, das Kataloge-Gate sei grün, und prüfte es nur auf dem Stand des Zweigs. Die Zeilen sind im Integrationsschritt nachgezogen. Beleg: Verifikation V1 (Auflage A1).

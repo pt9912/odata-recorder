@@ -229,10 +229,10 @@ func TestKontextFehlerUmhuellt(t *testing.T) {
 	}
 }
 
-// TestKonfigFehlerBeiAbbruch fängt S3: Kontext {offen, abgebrochen} × Verstoß {MODE=mock, ungültiger Schlüssel}.
+// TestKonfigFehlerBeiAbbruch fängt S3: Kontext {offen, abgebrochen} × Verstoß {MODE=hybrid, ungültiger Schlüssel}.
 func TestKonfigFehlerBeiAbbruch(t *testing.T) {
 	for _, abgebrochen := range []bool{false, true} {
-		for _, verstoss := range []string{"MODE=mock", "MAX_CAPTURE_BODY=abc"} {
+		for _, verstoss := range []string{"MODE=hybrid", "MAX_CAPTURE_BODY=abc"} {
 			t.Run(fmt.Sprintf("abgebrochen=%v/%s", abgebrochen, verstoss), func(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()

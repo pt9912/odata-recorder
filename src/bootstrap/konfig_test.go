@@ -94,7 +94,7 @@ func TestKonfigLeer(t *testing.T) {
 		"MATCH_VARY_HEADERS", "MATCH_INVALID_ENCODING", "MATCH_BODY_MODE", "REDACT_HEADERS", "REDACT_QUERY_PARAMS",
 		"REDACT_JSON_PATHS", "MAX_CAPTURE_BODY", "UPSTREAM_TIMEOUT", "UPSTREAM_CA_FILE", "UPSTREAM_TLS_VERIFY",
 		"UPSTREAM_TLS_INSECURE_SKIP_VERIFY", "SHUTDOWN_TIMEOUT", "RETENTION_MAX_AGE", "SQLITE_BUSY_TIMEOUT",
-		"VOLATILE_HEADERS", "LINK_REWRITE", "SERVICES_FILE", "STRICT_COVERAGE", "ADMIN_TOKEN_FILE",
+		"VOLATILE_HEADERS", "LINK_REWRITE", "SERVICES_FILE", "STRICT_COVERAGE", "PUBLIC_BASE_URL", "ADMIN_TOKEN_FILE",
 	} {
 		for _, leer := range []string{"", "  ", "\t"} {
 			k := erwarteGueltig(t, append(basis(t), key+"="+leer)...)
@@ -110,7 +110,9 @@ func TestKonfigLeer(t *testing.T) {
 	if k := erwarteGueltig(t, append(basis(t), "LISTEN= 0.0.0.0:99 ")...); k.Listen != "0.0.0.0:99" {
 		t.Errorf("Leerraum bei LISTEN: %q", k.Listen)
 	}
-	erwarteVerstoss(t, "MODE", "MODE=", "DATA_DIR="+t.TempDir()+"/x") // leer ist ungesetzt: Default mock scheitert
+	if k := erwarteGueltig(t, "MODE=", "DATA_DIR="+t.TempDir()+"/x"); k.Modus != "mock" { // leer ist ungesetzt: Default mock
+		t.Errorf("MODE leer: %q", k.Modus)
+	}
 }
 
 func TestKonfigDefaults(t *testing.T) {
@@ -128,7 +130,7 @@ func TestKonfigDefaults(t *testing.T) {
 		MaxCaptureBody:    8 << 20, UpstreamTimeout: 30 * time.Second, UpstreamTLSVerify: true,
 		ShutdownTimeout: 10 * time.Second, RetentionMaxAge: 0, SQLiteBusyTimeout: 5000 * time.Millisecond,
 		VolatileHeaders: []string{"Age", "Date", "Server", "Traceparent", "Via", "X-Correlation-Id", "X-Request-Id"},
-		LinkRewrite:     "off",
+		LinkRewrite:     "off", StrictCoverage: true,
 	}
 	if !reflect.DeepEqual(k, soll) {
 		t.Errorf("Defaults weichen ab:\n got %+v\nwant %+v", k, soll)
@@ -214,11 +216,18 @@ func TestKonfigHeaderSchreibweise(t *testing.T) {
 	}
 }
 
+// TestKonfigNichtGeliefert fängt A06: jeder nicht gelieferte Schlüssel und jedes Präfix × die Modi record, replay und mock;
+// STRICT_COVERAGE und PUBLIC_BASE_URL gehören nicht mehr dazu (SPEC-110 Nr. 2).
 func TestKonfigNichtGeliefert(t *testing.T) {
-	for _, key := range []string{"ADMIN_LISTEN", "ADMIN_TOKEN_FILE", "HYBRID_FALLBACK", "HYBRID_REPLAY_FALLBACK", "FALLBACK_ALLOW_HOSTS",
-		"FALLBACK_WRITE_ALLOW", "LISTEN_TLS_CERT", "LISTEN_TLS_KEY", "STRICT_COVERAGE", "PUBLIC_BASE_URL"} {
-		erwarteVerstoss(t, key, append(basis(t), key+"=irgendwas")...)
-		erwarteGueltig(t, append(basis(t), key+"=")...)
+	namen := []string{"ADMIN_LISTEN", "ADMIN_TOKEN_FILE", "HYBRID_FALLBACK", "HYBRID_REPLAY_FALLBACK", "FALLBACK_ALLOW_HOSTS",
+		"FALLBACK_WRITE_ALLOW", "LISTEN_TLS_CERT", "LISTEN_TLS_KEY", "ADMIN_X", "HYBRID_X", "FALLBACK_X", "LISTEN_TLS_X"}
+	for _, modus := range []string{"record", "replay", "mock"} {
+		for _, key := range namen {
+			env := append(basis(t), "MODE="+modus)
+			erwarteGrund(t, key, "wird von dieser Version nicht unterstützt", append(env, key+"=irgendwas")...)
+			erwarteGueltig(t, append(env, key+"=")...)
+		}
+		erwarteGueltig(t, append(basis(t), "MODE="+modus, "STRICT_COVERAGE=false", "PUBLIC_BASE_URL=http://h:1")...)
 	}
 }
 
@@ -371,28 +380,35 @@ func TestKonfigURL(t *testing.T) {
 
 func TestKonfigModus(t *testing.T) {
 	d := "DATA_DIR=" + filepath.Join(t.TempDir(), "m")
-	for _, w := range []string{"mock", "hybrid", ""} {
-		env := []string{"MODE=" + w, d, "UPSTREAM_URL=https://h"}
-		_, zeilen := lade(t, env...)
-		hat := false
-		for _, z := range zeilen {
-			if strings.HasPrefix(z, "ODR-E2001 MODE: ") && strings.Contains(z, "record") && strings.Contains(z, "replay") {
-				hat = true
-			}
+	const hybrid = "ODR-E2001 MODE: Modus nicht unterstützt; lieferbar sind record, replay und mock"
+	const form = "ODR-E2001 MODE: Wert nicht in der Aufzählung: record, replay, mock, hybrid"
+	// A01: ungesetzt, leer und die drei lieferbaren Modi laden ohne Verstoß; hybrid und die Schreibweisen melden genau ihre Zeile.
+	for _, tc := range []struct {
+		mode  []string
+		modus string
+		soll  []string
+	}{
+		{nil, "mock", nil}, {[]string{"MODE="}, "mock", nil}, {[]string{"MODE=mock"}, "mock", nil},
+		{[]string{"MODE=record"}, "record", nil}, {[]string{"MODE=replay"}, "replay", nil},
+		{[]string{"MODE=hybrid"}, "", []string{hybrid}},
+		{[]string{"MODE=hybrid", "HYBRID_FALLBACK=x"}, "", []string{"ODR-E2001 HYBRID_FALLBACK: wird von dieser Version nicht unterstützt", hybrid}},
+		{[]string{"MODE=Mock"}, "", []string{form}}, {[]string{"MODE=MOCK"}, "", []string{form}},
+	} {
+		k, zeilen := lade(t, append(tc.mode, d, "UPSTREAM_URL=https://h")...)
+		if !slices.Equal(zeilen, tc.soll) || k.Modus != tc.modus {
+			t.Errorf("%v: Modus %q, Zeilen %v; erwartet %q und %v", tc.mode, k.Modus, zeilen, tc.modus, tc.soll)
 		}
-		if !hat {
-			t.Errorf("MODE=%q: %v", w, zeilen)
-		}
-	}
-	for _, w := range []string{"record", "replay"} {
-		erwarteGueltig(t, "MODE="+w, d, "UPSTREAM_URL=https://h")
 	}
 	// Die Syntax der übrigen Schlüssel wird trotzdem geprüft und mitgemeldet.
-	_, zeilen := lade(t, "MODE=mock", d, "LISTEN=kaputt")
+	_, zeilen := lade(t, "MODE=hybrid", d, "LISTEN=kaputt")
 	if s := schluessel(t, zeilen); !slices.Equal(s, []string{"LISTEN", "MODE"}) {
 		t.Errorf("Schlüssel %v", s)
 	}
-	// bei mock und hybrid wird kein DATA_DIR angelegt
+	_, zeilen = lade(t, "MODE=mock", d, "LISTEN=kaputt")
+	if s := schluessel(t, zeilen); !slices.Equal(s, []string{"LISTEN"}) {
+		t.Errorf("mock mit kaputtem LISTEN: Schlüssel %v", s)
+	}
+	// bei einem Verstoß, hier MODE=hybrid, wird kein DATA_DIR angelegt
 	frisch := filepath.Join(t.TempDir(), "frisch")
 	lade(t, "MODE=hybrid", "DATA_DIR="+frisch)
 	if _, err := os.Stat(frisch); err == nil {
@@ -657,6 +673,7 @@ func TestKonfigMeldung(t *testing.T) {
 	env := []string{
 		"MODE=" + geheim, "LISTEN=" + geheim, "UPSTREAM_TIMEOUT=" + geheim, "MAX_CAPTURE_BODY=" + geheim, "SERVICE_ID=" + geheim + "/x",
 		"REDACT_JSON_PATHS=" + geheim, "UPSTREAM_URL=ftp://" + geheim, "ADMIN_TOKEN_FILE=" + geheim, "REPLAY_STRATEGY=" + geheim,
+		"PUBLIC_BASE_URL=http://nutzer:" + geheim + "@h", "STRICT_COVERAGE=" + geheim,
 		"DATA_DIR=" + filepath.Join(t.TempDir(), "d"), "SERVICES_FILE=" + filepath.Join(t.TempDir(), geheim),
 	}
 	var stderr bytes.Buffer
@@ -679,6 +696,11 @@ func TestKonfigMeldung(t *testing.T) {
 			t.Errorf("Zeile ohne Code: %q", z)
 		}
 	}
+	for _, key := range []string{"PUBLIC_BASE_URL", "STRICT_COVERAGE"} {
+		if !slices.Contains(schluessel(t, zeilen), key) {
+			t.Errorf("keine Zeile für %s: %v", key, zeilen)
+		}
+	}
 	if _, code := bootstrap.LadeOderMelde(basis(t), &stderr); code != 0 {
 		t.Errorf("gültig: Exit-Code %d", code)
 	}
@@ -698,7 +720,7 @@ func TestKonfigWiederholung(t *testing.T) {
 	if !reflect.DeepEqual(a, b) {
 		t.Error("zweimal geladen, Werte verschieden")
 	}
-	bad := []string{"MODE=mock", "LISTEN=x", "UPSTREAM_TIMEOUT=y", "DATA_DIR=" + filepath.Join(t.TempDir(), "d")}
+	bad := []string{"MODE=hybrid", "LISTEN=x", "UPSTREAM_TIMEOUT=y", "DATA_DIR=" + filepath.Join(t.TempDir(), "d")}
 	_, z1 := lade(t, bad...)
 	_, z2 := lade(t, bad...)
 	if !reflect.DeepEqual(z1, z2) || len(z1) == 0 {
@@ -785,7 +807,7 @@ func TestKonfigDienstefeldTyp(t *testing.T) {
 	const typ = "ODR-E2001 SERVICES_FILE[0].upstream_url: muss eine Zeichenkette sein"
 	for modus, soll := range map[string][]string{
 		"replay": {typ},
-		"mock":   {"ODR-E2001 MODE: Modus nicht unterstützt; lieferbar sind record und replay", typ},
+		"mock":   {typ},
 	} {
 		t.Run("upstream_url_"+modus, func(t *testing.T) {
 			_, zeilen := lade(t, "MODE="+modus, "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, eintrag))

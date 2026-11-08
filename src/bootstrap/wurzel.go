@@ -18,6 +18,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/adapters/driven/httpupstream"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/csdl"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/jsoncodec"
+	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/urlparser"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/sqlite"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/telemetry"
 	"github.com/pt9912/odata-recorder/src/adapters/driving/httpodata"
@@ -27,10 +28,12 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/baselineimport"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/maintenance"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/mock"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record/capture"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/replay"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/session"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/snapshot"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/workspace"
 )
 
@@ -41,6 +44,8 @@ const (
 	odataVersion = "4.0"
 	modusRecord  = "record"
 	modusReplay  = "replay"
+	modusMock    = "mock"
+	modusHybrid  = "hybrid"
 )
 
 // server ist, was der Root vom Listener-Adapter ruft (SPEC-136 Nr. 12 bis 15).
@@ -67,6 +72,8 @@ type bauteile struct {
 	NeuerReplay    func(replay.Konfig) (inbound.ReplayUseCase, error)
 	NeuerImport    func(baselineimport.Konfig) (inbound.ImportUseCase, error)
 	NeueWorkspaces func(workspace.Konfig) (inbound.WorkspaceUseCase, error)
+	NeuerSnapshot  func(snapshot.Konfig) (inbound.SnapshotUseCase, error)
+	NeuerMock      func(mock.Konfig) (inbound.MockUseCase, error)
 	Listen         func(ctx context.Context, network, addr string) (net.Listener, error)
 	NeuerServer    func(httpodata.Konfig) (server, error)
 }
@@ -99,6 +106,8 @@ func standardBauteile() bauteile {
 		NeuerReplay:    als[inbound.ReplayUseCase](replay.New),
 		NeuerImport:    als[inbound.ImportUseCase](baselineimport.New),
 		NeueWorkspaces: als[inbound.WorkspaceUseCase](workspace.New),
+		NeuerSnapshot:  als[inbound.SnapshotUseCase](snapshot.New),
+		NeuerMock:      als[inbound.MockUseCase](mock.New),
 		Listen: func(ctx context.Context, network, addr string) (net.Listener, error) {
 			var lc net.ListenConfig
 			return lc.Listen(ctx, network, addr)
@@ -127,9 +136,10 @@ type Handle struct {
 	wartung  inbound.MaintenanceUseCase
 	record   inbound.RecordUseCase
 	sessions inbound.SessionUseCase
-	// importer ist nur im Modus record gesetzt, workspaces in beiden Modi (SPEC-139 Nr. 1).
+	// importer ist nur im Modus record gesetzt, workspaces und snapshots in jedem Modus (SPEC-139 Nr. 1).
 	importer   inbound.ImportUseCase
 	workspaces inbound.WorkspaceUseCase
+	snapshots  inbound.SnapshotUseCase
 	// verarbeiten ist der Dienst des Betriebsmodus am Listener.
 	verarbeiten httpodata.Verarbeiter
 	fehler      chan error
@@ -172,12 +182,14 @@ type vorlaeufig struct {
 func vorbereiten(k Konfiguration) (vorlaeufig, error) {
 	var v vorlaeufig
 	switch {
-	case k.Modus != modusRecord && k.Modus != modusReplay:
+	case k.Modus != modusRecord && k.Modus != modusReplay && k.Modus != modusMock:
 		return v, ungueltig("Betriebsmodus nicht lieferbar")
 	case len(k.Dienste) == 0:
 		return v, ungueltig("keine Dienste")
 	case k.DataDir == "":
 		return v, fmt.Errorf("%w: DATA_DIR leer", outbound.ErrPfad)
+	case k.Modus == modusMock && k.PublicBaseURL == "":
+		return v, ungueltig("PublicBaseURL fehlt im Modus mock")
 	}
 	for _, text := range k.RedactJSONPaths {
 		p, err := model.ParseJSONPfad(text)
@@ -253,17 +265,62 @@ func (h *Handle) verdrahte(db *sqlite.DB, v vorlaeufig) error {
 	if err != nil {
 		return err
 	}
+	r := ablageRepos{workspaces: db.Workspaces(), entities: db.Entities(), snapshots: db.Snapshots()}
 	h.workspaces, err = b.NeueWorkspaces(workspace.Konfig{
-		Workspaces: db.Workspaces(), Transaktion: db, Snapshots: db.Snapshots(), Blobs: waechter, Dienste: h.dienste,
+		Workspaces: r.workspaces, Transaktion: db, Snapshots: r.snapshots, Blobs: waechter, Dienste: h.dienste,
 		Wartung: h.wartung, Uhr: h.uhr, IDs: h.ids, Log: h.log, Audit: h.audit,
 	})
 	if err != nil {
 		return err
 	}
-	if k.Modus == modusReplay {
+	h.snapshots, err = b.NeuerSnapshot(snapshot.Konfig{
+		Workspaces: r.workspaces, Entities: r.entities, Snapshots: r.snapshots, Blobs: waechter, Uhr: h.uhr, IDs: h.ids,
+	})
+	if err != nil {
+		return err
+	}
+	switch k.Modus {
+	case modusReplay:
 		return h.verdrahteReplay(db, waechter, v)
+	case modusMock:
+		return h.verdrahteMock(db, r, waechter)
 	}
 	return h.verdrahteRecord(db, waechter, v)
+}
+
+// ablageRepos sind die Repositories der einen Ablage, die mehrere Dienste teilen (SPEC-139 Nr. 11 c).
+type ablageRepos struct {
+	workspaces *sqlite.WorkspaceRepository
+	entities   *sqlite.EntityRepository
+	snapshots  *sqlite.SnapshotRepository
+}
+
+// satzVersion4 ist der Satz der Codecs der Version 4.0, den jeder Dienst des Mock trägt (SPEC-139 Nr. 11 b).
+func satzVersion4() outbound.CodecSatz {
+	return outbound.CodecSatz{
+		Version: odataVersion, Metadaten: csdl.New(), Daten: jsoncodec.New(),
+		URL:       urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser())),
+		Schreiber: jsoncodec.NewSchreiber(), Eingabe: jsoncodec.NewEingabe(),
+	}
+}
+
+func (h *Handle) verdrahteMock(db *sqlite.DB, r ablageRepos, waechter *maintenance.BlobWaechter) error {
+	k := h.k
+	satz := satzVersion4()
+	dienste := make([]mock.Dienst, len(k.Dienste))
+	for i, d := range k.Dienste {
+		dienste[i] = mock.Dienst{ID: d.ID, Root: d.Root, Codecs: &satz}
+	}
+	m, err := h.b.NeuerMock(mock.Konfig{
+		Dienste: dienste, Metadaten: h.dienste, Workspaces: r.workspaces, Entities: r.entities, Coverage: db.Coverage(),
+		Blobs: waechter, MetadatenCodec: satz.Metadaten, URLCodec: satz.URL, Schreiber: satz.Schreiber,
+		PublicBaseURL: k.PublicBaseURL, StrictCoverage: k.StrictCoverage, MaxBytes: k.MaxCaptureBody, Transaktion: db,
+	})
+	if err != nil {
+		return err
+	}
+	h.verarbeiten = m.Mock
+	return nil
 }
 
 func (h *Handle) verdrahteRecord(db *sqlite.DB, waechter *maintenance.BlobWaechter, v vorlaeufig) error {
@@ -339,17 +396,20 @@ func (h *Handle) verdrahteReplay(db *sqlite.DB, waechter *maintenance.BlobWaecht
 // Wartung liefert den Use Case der Wartung.
 func (h *Handle) Wartung() inbound.MaintenanceUseCase { return h.wartung }
 
-// Record liefert den Use Case der Aufnahme; im Modus replay nil.
+// Record liefert den Use Case der Aufnahme; außer im Modus record nil.
 func (h *Handle) Record() inbound.RecordUseCase { return h.record }
 
-// Sessions liefert den Use Case der Sessions; im Modus replay nil.
+// Sessions liefert den Use Case der Sessions; außer im Modus record nil.
 func (h *Handle) Sessions() inbound.SessionUseCase { return h.sessions }
 
-// Import liefert den Use Case des Imports; im Modus replay nil.
+// Import liefert den Use Case des Imports; außer im Modus record nil.
 func (h *Handle) Import() inbound.ImportUseCase { return h.importer }
 
-// Workspaces liefert den Use Case der Workspaces, in beiden Modi.
+// Workspaces liefert den Use Case der Workspaces, in jedem Modus.
 func (h *Handle) Workspaces() inbound.WorkspaceUseCase { return h.workspaces }
+
+// Snapshots liefert den Use Case der Snapshots, in jedem Modus.
+func (h *Handle) Snapshots() inbound.SnapshotUseCase { return h.snapshots }
 
 // Fehler liefert höchstens einen Wert, den Fehler von Serve, und ist geschlossen, wenn Serve zurückgekehrt ist.
 func (h *Handle) Fehler() <-chan error { return h.fehler }

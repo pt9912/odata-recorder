@@ -437,7 +437,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 
 **Drei Paarungen:** Anker (kein Eintrag trägt `liegt in`, nichts zu paaren) · Folge-Slice (`slice-bootstrap-m3` trägt die Sendung des Neustarts über die Prozessgrenze für Mutationen in §1, DoD und §6, den Start-Trigger „`slice-mock-abnahme` in `done/`“ und neu den offenen Punkt der Ablage des M3-Tests mit Adresse Architect in §6; `slice-batch-changesets` braucht `welle-mock` in `done/`; R2 hat als Adresse den User, R10 den Architect, beide ohne Nehmer-Slice) · Register (die fünf Verzeichnisse liegen mit `evidence/slice-mock-abnahme.md` im Register, das fünfte ist neu).
 
-**Start-Trigger der Folger:** [slice-bootstrap-m3](../in-progress/slice-bootstrap-m3.md) hat als Bedingung, dass `slice-mock-abnahme`, `slice-snapshot-use-case`, `slice-test-integration` und `slice-odata-url-filter` in `done/` liegen; sie tritt mit dem Merge nach `main` ein. Der Spezifikations-Nachzug von `SPEC-110` (Architect) ist Bedingung für den ersten Code-Commit, nicht für den Start.
+**Start-Trigger der Folger:** [slice-bootstrap-m3](../done/slice-bootstrap-m3.md) hat als Bedingung, dass `slice-mock-abnahme`, `slice-snapshot-use-case`, `slice-test-integration` und `slice-odata-url-filter` in `done/` liegen; sie tritt mit dem Merge nach `main` ein. Der Spezifikations-Nachzug von `SPEC-110` (Architect) ist Bedingung für den ersten Code-Commit, nicht für den Start.
 
 **Hinweise an den User (nicht entschieden):** (1) Kennungsfrage R2 der Linie B. (2) R10: die Nullprobe von `mutationslauf` trägt `src/bootstrap` nicht; eine Entscheidung über die Zeitgrenze liegt beim Architect, ein Slice dafür gibt es nicht.
 

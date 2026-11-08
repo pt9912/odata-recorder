@@ -46,7 +46,7 @@ func ungueltigeKonfiguration(t *testing.T) {
 		env  func(dir string) []string
 		soll []string
 	}{
-		{"leer", func(string) []string { return []string{} }, []string{"MODE"}},
+		{"hybrid", func(string) []string { return []string{"MODE=hybrid"} }, []string{"MODE"}},
 		{"MODE=Record", func(d string) []string { return append(gueltig(d), "MODE=Record") }, []string{"MODE"}},
 		{"beide Verstöße", func(d string) []string {
 			return append(gueltig(d)[:2:2], "MODE=Record", "SERVICE_ID=ref", "SERVICE_ROOT_PATH=/odata/")
@@ -58,7 +58,7 @@ func ungueltigeKonfiguration(t *testing.T) {
 	for _, f := range faelle {
 		t.Run(f.name, func(t *testing.T) {
 			adresse, env := freierPort(t), f.env(t.TempDir())
-			if len(env) == 0 {
+			if len(env) == 1 { // allein MODE=hybrid: LISTEN bleibt der Default
 				adresse = "127.0.0.1:8080"
 			}
 			for i, e := range env {

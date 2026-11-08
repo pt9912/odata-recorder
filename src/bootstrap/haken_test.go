@@ -41,6 +41,7 @@ const (
 	verzeichnisB = "blobs"
 	modusRecord  = "record"
 	modusReplay  = "replay"
+	modusMock    = "mock"
 )
 
 func modi() []string { return []string{modusRecord, modusReplay} }
