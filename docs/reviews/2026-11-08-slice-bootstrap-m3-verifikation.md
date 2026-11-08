@@ -18,7 +18,7 @@
 | `make groessenmarke` | im selben Lauf: `slice-bootstrap-m3.md: ok, Messung 1337 von Marke 2400` (`Messpunkt: zeilen=16 nebenlaeufig=1 fakes=1 produktcode=260 schaetzung=1745`). Eigene Nachrechnung: `git diff --numstat ada8bd88..HEAD` über die vier Pfade des Blocks = 1273 Einfügungen + 64 Löschungen = 1337. |
 | Plan-vs-Code-Diff | 20 Dateien seit `ada8bd88`. `src/bootstrap/` (Produktcode: `konfig_basis.go` neu, `konfig.go`, `konfig_dienste.go`, `konfig_werte.go`, `wurzel.go`; Tests), `tests/integration/m3_test.go` neu, `tests/e2e/stufe_prozess_test.go` (allein der Fall `leer`), `harness/katalog-ausnahmen.txt` (-8), `docs/user/benutzerhandbuch.md` (+8 Zeilen *Fehlercodes*), `SPEC-201` Nr. 3 e, `spec/spezifikation.md` (Nr. 14 e und Historie), Plan, Review, Plan des Nehmers. `Makefile`, `Dockerfile`, `harness/mk/`, `.golangci.yml`, `.a-check.yml`, `tools/` unberührt: stimmt mit §3 und §4 (Gate-Kette Linie B). Keine Abweichung vom Plan. |
 | §3.2 / §3.18 | `nolint` im Diff: 0; `LC_ALL=C grep -nP` auf BOM, NBSP, Nullbreite, Steuerzeichen über alle geänderten Dateien: 0 Treffer; Folge Backslash-`u`-Hex in `m3_konfig_test.go`, `m3_test.go`: 0. |
-| Merge-Nähe | `git merge-tree --write-tree --name-only main HEAD`: **ein** Konflikt, `docs/plan/planning/in-progress/slice-bootstrap-m3-e2e-mock.md` (beide Seiten haben die Pfade ohne `./` verschieden berichtigt: `main` ohne Schrägstrich am Ende, der Zweig mit). `docs/user/benutzerhandbuch.md`, `SPEC-201`, `spec/spezifikation.md` mergen ohne Konflikt. Branch-Basis `2cefe4f2`, `main` `43d67170`. |
+| Merge-Nähe | `git merge-tree --write-tree --name-only main HEAD`: **ein** Konflikt, `docs/plan/planning/done/slice-bootstrap-m3-e2e-mock.md` (beide Seiten haben die Pfade ohne `./` verschieden berichtigt: `main` ohne Schrägstrich am Ende, der Zweig mit). `docs/user/benutzerhandbuch.md`, `SPEC-201`, `spec/spezifikation.md` mergen ohne Konflikt. Branch-Basis `2cefe4f2`, `main` `43d67170`. |
 | Wegwerf-Merge (Worktree im Scratchpad, entfernt) | `make katalog-check`: **rot** (siehe A1); `make handbuch-check`: `pruefung handbuch: ok`. |
 
 ## 2. DoD (§2 des Plans)
@@ -111,7 +111,7 @@ Zählung eigene Mutationen: 38 verschiedene (davon 5 verworfen und wiederholt, 4
 |---|---|---|---|
 | A1 | Integrations-Planner | Zwei Zeilen `STRICT_COVERAGE`, `PUBLIC_BASE_URL` in *Einstellungen* ergänzen, Zeile `MODE` auf den Ist-Zustand; `make katalog-check` und `make handbuch-check` auf dem Merge-Stand; Plan (§1, §2, §3 A16, §6) auf Kapitel und Beispiel einschränken | im Merge-Commit |
 | A2 | Planner | `slice-handbuch-mock` in `open/` anlegen (Sendung Kapitel, Beispiel, `SPEC-200`-Erweiterung vor dem Code), `welle-mock` und Roadmap nachziehen | vor `done/` des Gebers |
-| A3 | Integrations-Planner | Konflikt in `docs/plan/planning/in-progress/slice-bootstrap-m3-e2e-mock.md` lösen: die Fassung von `main` übernehmen (Pfade `tests/e2e` und `tests/e2e/uebergang` ohne Schrägstrich am Ende), die Fassung des Zweigs verwerfen; `make docs-check` danach | im Merge-Commit |
+| A3 | Integrations-Planner | Konflikt in `docs/plan/planning/done/slice-bootstrap-m3-e2e-mock.md` lösen: die Fassung von `main` übernehmen (Pfade `tests/e2e` und `tests/e2e/uebergang` ohne Schrägstrich am Ende), die Fassung des Zweigs verwerfen; `make docs-check` danach | im Merge-Commit |
 | A4 | Implementer | Fänger über die 12 Schreibweisen des dekodierten Punkt-Segments (Mutation P9) | vor `done/` |
 | A5 | Planner | Ausgänge in §6, §7, Haken, Register; DoD-Tippfehler; nach dem Merge `model.AlleCodes()` zählen | Closure |
 

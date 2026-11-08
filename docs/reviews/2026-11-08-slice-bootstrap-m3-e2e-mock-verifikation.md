@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, `SPEC-037` Nr. 5 bis 7 und 10 i bis l, `SPEC-139` Nr. 11 f, `SPEC-195` Nr. 5, die Tabelle *Zusage · Fänger* E01 bis E09 und die Hard Rules; nicht Diff-Review (siehe `2026-11-08-slice-bootstrap-m3-e2e-mock-review.md`) und nicht Validierung.
 
-**Gegenstand:** Zweig `slice-bootstrap-m3-e2e-mock`, HEAD `6c8a6fe8` (Fix-Runde `4b0e59ff` nach dem Review, Architect `56c413d1` und `d2f848ae`), Worktree `/Development/odata-recorder-wt-bootstrap-m3-e2e-mock`. Plan: `docs/plan/planning/in-progress/slice-bootstrap-m3-e2e-mock.md`. Bezug: `LH-FA-12`, `LH-FA-09`, `LH-FA-03`.
+**Gegenstand:** Zweig `slice-bootstrap-m3-e2e-mock`, HEAD `6c8a6fe8` (Fix-Runde `4b0e59ff` nach dem Review, Architect `56c413d1` und `d2f848ae`), Worktree `/Development/odata-recorder-wt-bootstrap-m3-e2e-mock`. Plan: `docs/plan/planning/done/slice-bootstrap-m3-e2e-mock.md`. Bezug: `LH-FA-12`, `LH-FA-09`, `LH-FA-03`.
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 
