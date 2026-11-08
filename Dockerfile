@@ -104,6 +104,13 @@ COPY --from=build /out/odata-recorder /out/odata-recorder
 RUN --network=none go test -c -trimpath -o /out/e2e.test ./tests/e2e \
  && go build -trimpath -buildvcs=false -o /out/uebergang ./tests/e2e/uebergang
 
+# --- contract: die Test-Binaries von src/bootstrap und tests/integration (go test -c, SPEC-042 Nr. 1). Der Treiber
+# tools/harness/test-contract.sh führt je Binary einen Container ohne Netz aus diesem Image, im Arbeitsverzeichnis
+# des Pakets; jeder RUN läuft ohne Netz.
+FROM source AS contract
+RUN --network=none go test -c -trimpath -o /out/bootstrap.test ./src/bootstrap \
+ && go test -c -trimpath -o /out/integration.test ./tests/integration
+
 # --- handbuch: das Benutzerhandbuch und seine Beispiel-Dateien gegen das gebaute Binary der Stufe
 # build, gefahren von pruefung (SPEC-200); jeder RUN ohne Netz. Die Wurzel trägt docs/user, die
 # Makefiles, das Dockerfile und harness/mk.
