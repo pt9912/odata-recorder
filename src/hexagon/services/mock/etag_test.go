@@ -254,12 +254,12 @@ func TestEtagEinLesen(t *testing.T) {
 	}
 }
 
-// TestEtagHeaderKeinEinfluss (E6): If-Match und If-None-Match ändern nichts: Methode × Header × Wert × aus/an, die Antwort (Status, Namen, ETag)
-// gleich der ohne Header, der Zustand gleich dem nach der Anfrage ohne Header.
+// TestEtagHeaderKeinEinfluss (E6): bei aus ändern If-Match und If-None-Match nichts: Methode × Header × Wert, die Antwort (Status, Namen, ETag)
+// gleich der ohne Header, der Zustand gleich dem nach der Anfrage ohne Header; bei an gilt SPEC-283 (if_match_test.go).
 func TestEtagHeaderKeinEinfluss(t *testing.T) {
 	werte := []string{"*", `W/"99"`, etagLit(6), etagLit(7), "", `"6"`}
 	n := 0
-	for _, an := range []bool{false, true} {
+	for _, an := range []bool{false} {
 		for _, methode := range []string{"PATCH", "PUT", "DELETE"} {
 			ohne := etagUmg(t, an, 4, 6, 9)
 			aOhne, err := ohne.mutiere(methode, "2", eingabeIDName("2", "x"))
@@ -294,8 +294,8 @@ func TestEtagHeaderKeinEinfluss(t *testing.T) {
 			}
 		}
 	}
-	if n != 2*3*2*len(werte) {
-		t.Errorf("%d Fälle, erwartet %d", n, 2*3*2*len(werte))
+	if n != 3*2*len(werte) {
+		t.Errorf("%d Fälle, erwartet %d", n, 3*2*len(werte))
 	}
 }
 

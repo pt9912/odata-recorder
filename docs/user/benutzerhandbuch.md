@@ -93,7 +93,7 @@ Dieser Abschnitt führt die Einstellungen, die der Dienst aus den Umgebungsvaria
 | `VOLATILE_HEADERS` | Header-Namen, die der Vergleich der Antworten übergeht, durch Komma getrennt; `none` steht für keinen Header. Ohne Angabe gilt `Date, Server, Via, Age, X-Request-Id, X-Correlation-Id, Traceparent`. |
 | `LINK_REWRITE` | Umschreiben absoluter Links; der Dienst nimmt nur `off` an, und `off` gilt ohne Angabe. |
 | `STRICT_COVERAGE` | Wahrheitswert; wirkt im Modus `mock`: `true` weist eine Collection-Abfrage über einen nicht vollständigen Bestand ab, `false` beantwortet sie aus den bekannten Entities. Ohne Angabe gilt `true`. |
-| `ETAG_ENABLED` | Wahrheitswert; wirkt im Modus `mock` für Services der OData-Version 4.0: `true` liefert zu jeder Entity einen ETag der Form `W/"<n>"`, dessen Zahl allein der Zähler der Entity bestimmt. Er steht in der Kopfzeile `ETag` und, in der Stufe `odata.metadata=minimal`, als Mitglied `@odata.etag` der Entity. `false` liefert keinen ETag. Ohne Angabe gilt `false`. |
+| `ETAG_ENABLED` | Wahrheitswert; wirkt im Modus `mock` für Services der OData-Version 4.0: `true` liefert zu jeder Entity einen ETag der Form `W/"<n>"`, dessen Zahl allein der Zähler der Entity bestimmt. Er steht in der Kopfzeile `ETag` und, in der Stufe `odata.metadata=minimal`, als Mitglied `@odata.etag` der Entity. `true` wertet außerdem bei `PATCH`, `PUT` und `DELETE` die Kopfzeilen `If-Match` und `If-None-Match` gegen den ETag der Entity aus (der Vergleich ist schwach, `W/` zählt nicht) und weist eine nicht erfüllte Bedingung mit `412` ab, ohne den Zustand zu ändern (der Fehlercode steht in der Tabelle der Fehlercodes). `false` liefert keinen ETag und liest beide Kopfzeilen nie. Ohne Angabe gilt `false`. |
 | `PUBLIC_BASE_URL` | Öffentliche Basis der Links, die der Dienst im Modus `mock` erzeugt: `http://` oder `https://`, Host, optional Port und Segmente, ohne abschließenden Schrägstrich, höchstens 2048 Bytes. Ohne Angabe leitet der Dienst sie aus `LISTEN` ab, wenn dessen Host `127.0.0.1`, `[::1]` oder `localhost` ist; bei jedem anderen Host verlangt der Modus `mock` sie. |
 
 ## Fehlercodes
@@ -124,6 +124,7 @@ Dieser Abschnitt führt die Fehlercodes, die das Binary dem Anwender zeigt. Ein 
 | `ODR-E6007` | Der Request-Body ist nicht lesbar oder verstößt gegen das Modell. |
 | `ODR-E6008` | Die Entity oder das Entity-Set ist unbekannt. |
 | `ODR-E6009` | Der Schlüssel der Entity ist bereits vergeben. |
+| `ODR-E6010` | Die Bedingung von `If-Match` oder `If-None-Match` trifft den ETag der Entity nicht (HTTP 412); die Änderung unterbleibt. |
 | `ODR-E7001` | Der Workspace ist unbekannt. |
 | `ODR-E7003` | Die Aufnahme-Session ist unbekannt. |
 | `ODR-E7009` | Die Session ist noch offen. |

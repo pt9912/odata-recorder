@@ -32,6 +32,10 @@ type mutation struct {
 	methode    string
 	schluessel string
 	eingabe    model.EntityEingabe
+	// vorbedingung sagt, ob die Header gelten (SPEC-283 Nr. 1); ifMatch und ifNoneMatch sind ihre Zeilen (Nr. 2).
+	vorbedingung bool
+	ifMatch      []string
+	ifNoneMatch  []string
 }
 
 // schreibe führt POST, PATCH, PUT und DELETE aus (SPEC-192 Nr. 2): Methode und Ressource, Workspace und Service, Modell und Set,
@@ -70,6 +74,9 @@ func (m *Mocker) schreibe(ctx context.Context, a inbound.Anfrage, d Dienst, wsID
 			return inbound.Antwort{}, mitCode(model.CodeE6005, nil)
 		}
 		mu.schluessel = schluessel
+	}
+	if d.Etag && a.Methode != methodePost {
+		mu.vorbedingung, mu.ifMatch, mu.ifNoneMatch = true, werteVon(a.Header, "if-match"), werteVon(a.Header, "if-none-match")
 	}
 	if a.Methode != methodeDelete {
 		if mu, err = m.liesBody(ctx, a, mu); err != nil {
@@ -176,7 +183,8 @@ func (m *Mocker) transaktion(ctx context.Context, mu mutation) (inbound.Antwort,
 	return inbound.Antwort{}, err
 }
 
-// imWorkspace ist f: Workspace lesen, Eintrag lesen, entscheiden, Put, Advance, Antwort (SPEC-192 Nr. 6).
+// imWorkspace ist f: Workspace lesen, Eintrag lesen, entscheiden, die Vorbedingung gegen den Zähler des gelesenen Eintrags
+// auswerten (SPEC-283 Nr. 6), Put, Advance, Antwort (SPEC-192 Nr. 6).
 func (m *Mocker) imWorkspace(ctx context.Context, s outbound.WorkspaceStores, mu mutation) (inbound.Antwort, error) {
 	w, err := s.Workspaces.Get(ctx, mu.w.ID)
 	if err != nil {
@@ -193,6 +201,9 @@ func (m *Mocker) imWorkspace(ctx context.Context, s outbound.WorkspaceStores, mu
 	neu, err := m.entscheide(ctx, mu, es, fehlend)
 	if err != nil {
 		return inbound.Antwort{}, err
+	}
+	if vorbedingungVerletzt(mu, es.Version) {
+		return inbound.Antwort{}, mitCode(model.CodeE6010, nil)
 	}
 	if err := s.Entities.Put(ctx, neu); err != nil {
 		return inbound.Antwort{}, abbilden(err, outbound.GegenstandWorkspace)
@@ -246,6 +257,12 @@ func (m *Mocker) entscheide(ctx context.Context, mu mutation, es model.EntitySta
 		return legeAn(mu, es.Version)
 	}
 	return aendere(mu, es, mitglieder)
+}
+
+// vorbedingungVerletzt sagt, ob die Header einer Mutation eines Dienstes mit Etag den Zähler des Eintrags vor der Mutation nicht
+// treffen (SPEC-283 Nr. 6); sie ruft keinen Port.
+func vorbedingungVerletzt(mu mutation, zaehler int64) bool {
+	return mu.vorbedingung && !model.VorbedingungErfuellt(mu.ifMatch, mu.ifNoneMatch, zaehler)
 }
 
 // antwort bildet die Antwort in der Transaktion (SPEC-194): `201` mit Entity und Location bei POST, sonst `204` mit dem

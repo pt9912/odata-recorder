@@ -206,7 +206,7 @@ func TestZweigeGleichzeitig(t *testing.T) {
 		t.Fatalf("%d Läufe in M14", len(m14))
 	}
 	erreichbar, _ := codeListen()
-	zuordnung := []string{"ODR-E5003", "ODR-E5004", "ODR-E5005", "ODR-E6002", "ODR-E6006", "ODR-E6007", "ODR-E6009"} // die beiden letzten kommen nur bei Mutationen vor
+	zuordnung := []string{"ODR-E5003", "ODR-E5004", "ODR-E5005", "ODR-E6002", "ODR-E6006", "ODR-E6007", "ODR-E6009", "ODR-E6010"} // die drei letzten kommen nur bei Mutationen vor
 	var lesepfad []string
 	for _, c := range erreichbar {
 		if !slices.Contains(zuordnung, c.String()) {

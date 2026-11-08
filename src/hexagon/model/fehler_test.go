@@ -70,7 +70,7 @@ func TestCodeTabelle(t *testing.T) {
 		"ODR-E5007": {[]int{409}, "replay"}, "ODR-E5008": {[]int{422}, "replay"}, "ODR-E5009": {[]int{409}, "record"},
 		"ODR-E5010": {[]int{503}, "service"},
 		"ODR-E6001": {[]int{501}, "mock"}, "ODR-E6002": {[]int{501}, "mock"}, "ODR-E6003": {[]int{422}, "mock"},
-		"ODR-E6004": {[]int{422, 0}, "import"}, "ODR-E6005": {[]int{400}, "mock"}, "ODR-E6006": {[]int{501}, "mock"}, "ODR-E6007": {[]int{400}, "mock"}, "ODR-E6008": {[]int{404}, "mock"}, "ODR-E6009": {[]int{409}, "mock"}, "ODR-E6101": {[]int{422}, "import"}, "ODR-E6102": {[]int{409}, "import"},
+		"ODR-E6004": {[]int{422, 0}, "import"}, "ODR-E6005": {[]int{400}, "mock"}, "ODR-E6006": {[]int{501}, "mock"}, "ODR-E6007": {[]int{400}, "mock"}, "ODR-E6008": {[]int{404}, "mock"}, "ODR-E6009": {[]int{409}, "mock"}, "ODR-E6010": {[]int{412}, "mock"}, "ODR-E6101": {[]int{422}, "import"}, "ODR-E6102": {[]int{409}, "import"},
 		"ODR-E7001": {[]int{404}, "workspace"}, "ODR-E7002": {[]int{404}, "workspace"}, "ODR-E7003": {[]int{404}, "session"},
 		"ODR-E7004": {[]int{409}, "session"}, "ODR-E7005": {[]int{404}, "import"}, "ODR-E7006": {[]int{409}, "workspace"},
 		"ODR-E7007": {[]int{409}, "workspace"}, "ODR-E7008": {[]int{422}, "workspace"}, "ODR-E7009": {[]int{409}, "session"},
@@ -109,6 +109,23 @@ func TestCodeTabelle(t *testing.T) {
 	}
 	if model.CodeE6009.String() != "ODR-E6009" || model.CodeE6009.Zielbereich() != "mock" {
 		t.Errorf("ODR-E6009: Text %q Ziel %q", model.CodeE6009.String(), model.CodeE6009.Zielbereich())
+	}
+	// ODR-E6010 steht hinter ODR-E6009 (F22), mit dem festen Text und dem einen Status 412 der Vorbedingung (SPEC-283 Nr. 7); die Zahl
+	// der Codes ist 41.
+	if i := slices.Index(alle, model.CodeE6009); alle[i+1] != model.CodeE6010 || model.CodeE6010.Message() != "Precondition failed" {
+		t.Errorf("ODR-E6010 steht nicht hinter ODR-E6009 oder trägt die message %q", model.CodeE6010.Message())
+	}
+	for s := 0; s < 1000; s++ {
+		if model.CodeE6010.StatusErlaubt(s) != (s == 412) {
+			t.Errorf("ODR-E6010: Status %d erlaubt = %v", s, s != 412)
+		}
+	}
+	if model.CodeE6010.String() != "ODR-E6010" || model.CodeE6010.Zielbereich() != "mock" || len(alle) != 41 {
+		t.Errorf("ODR-E6010: Text %q Ziel %q, %d Codes, erwartet 41", model.CodeE6010.String(), model.CodeE6010.Zielbereich(), len(alle))
+	}
+	if obj, err := model.NeuesFehlerobjekt(model.CodeE6010); err != nil ||
+		obj.Error.Code != "ODR-E6010" || obj.Error.Message != "Precondition failed" || obj.Error.Target != "mock" {
+		t.Errorf("Fehlerobjekt zu ODR-E6010: %+v (%v)", obj, err)
 	}
 	// ODR-E6008 steht hinter ODR-E6007, mit dem festen Text der Entscheidung.
 	if i := slices.Index(alle, model.CodeE6007); alle[i+1] != model.CodeE6008 || model.CodeE6008.Message() != "Entity or entity set not found" {
