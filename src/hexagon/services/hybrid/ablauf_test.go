@@ -277,7 +277,11 @@ func TestAbbruchZwischenStufen(t *testing.T) {
 		defer cancel()
 		g := neuesRig(t, offenste(t), standardMax)
 		g.m.fn = func(_ int, c context.Context, _ inbound.Anfrage) (inbound.Antwort, error) {
-			<-c.Done()
+			select {
+			case <-c.Done():
+			case <-time.After(time.Second):
+				return inbound.Antwort{}, errors.New("das ctx von M endete nicht")
+			}
 			return inbound.Antwort{}, e6003
 		}
 		g.replayAntwort(antwortVon(200, nil))
