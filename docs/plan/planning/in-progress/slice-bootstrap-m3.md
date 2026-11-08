@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-12.a` · `SPEC-110` Nr. 2 und 8 (Schlüssel dieser Version, Modus) · `SPEC-011`, `SPEC-055`, `SPEC-075` · `SPEC-052` (Adressierung) · `SPEC-160` Nr. 8 (Einhängestelle `$filter`) · `ARC-005`, `ARC-012` · `architecture.md` §2.5 (Modus-Routing).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-bootstrap-m3`, Worktree `/Development/odata-recorder-wt-bootstrap-m3`; der Zweig entsteht nach dem Start-Commit von `main`)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
@@ -98,7 +98,7 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|---|
 | `src/bootstrap/` | update | Wahl des Use Case je Modus, Start im Modus `mock`, Schlüssel `STRICT_COVERAGE` und `PUBLIC_BASE_URL`, Einhängen von `urlparser.WithFilter(urlparser.NewFilterLeser())` (von `slice-odata-url-filter`), Bindung des `SnapshotUseCase` mit Wächter als `Blobs` und gemeinsamer Datenbank (von `slice-snapshot-use-case`) |
 | `src/adapters/driving/httpodata/` | update | Mock-Anfragen aller Methoden an den Port; der Adapter kennt den Modus nicht |
-| `tests/` | neu | M3-Test mit dem Referenzdienst aus `slice-m2-referenzdienst` |
+| `tests/` oder `src/bootstrap/` (Ort: Architect, §6) | neu | M3-Test mit dem Referenzdienst aus `slice-m2-referenzdienst` |
 | Szenario des Neustarts in `make test-integration` (Ort: Architect) | neu | Mutation, `SIGTERM`, Start auf demselben `DATA_DIR`, Lesen über den Listener (Sendung von `slice-mock-abnahme`) |
 | `spec/spezifikation.md` | update | Nachzug von `SPEC-110` Nr. 2 und 8 (Architect) |
 
@@ -112,6 +112,12 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
 **Start** (`next` → `in-progress`): `slice-mock-abnahme`, `slice-snapshot-use-case`, `slice-test-integration` und `slice-odata-url-filter` liegen in `done/` (der Leser, den der Root einhängt, muss existieren). Die Spezifikation trägt den Nachzug von `SPEC-110`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+
+**Stand beim Start** (Planner, 2026-11-08, `main` = `741e7ec9`, Stempel der Gegenproben gleich dem Stand nach `slice-mock-abnahme`): `slice-mock-abnahme`, `slice-snapshot-use-case`, `slice-test-integration` und `slice-odata-url-filter` liegen in `done/` (Trigger Teil 1 erfüllt). Trigger Teil 2 (Nachzug von `SPEC-110` Nr. 2 und 8 in der Spezifikation) **nicht erfüllt**: er ist Bedingung für den ersten Code-Commit, nicht für den Start, und liegt beim Architect (`welle-mock` §1). §1 *Ausdrücklich NICHT* und DoD aller Nehmer-Sendungen gelesen (`AGENTS.md` §3.13): kein Ausschluss trifft sie. Codes: `model.AlleCodes()` zählt auf `main` 40 (mit `ODR-E2102` aus `slice-admin-rahmen`); dieser Slice fügt höchstens `ODR-E5004`-Fälle hinzu, wenn der User sie entscheidet (Kennungsfrage R3 beim User); wer als zweiter nach `main` merged (`slice-admin-authentisierung` läuft parallel), gleicht die Zahl in den Zählstellen an (`welle-mock` §5, Merge-Nähe). Register am Start nachgezogen: `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` (5×), `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×), `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` (4×), `BEO-REPO/berichtigung-erreicht-nicht-jede-stelle` (24×, verkörpert in `AGENTS.md` §3.9).
+
+**Gate-Kette (Nr. 7 der Übergangsregeln):** Linie B. Von den Slices der `welle-mock` ändert allein dieser die Verdrahtung der Szenarien von `make test-integration` (Treiber `tools/harness/test-integration.sh`, Stufe `integration` des `Dockerfile`, `tests/e2e`); `slice-test-contract` folgt danach, nicht zugleich. `Makefile`, `harness/mk/`, `harness/README.md`, `tools/gegenproben/` und Stempel bleiben unberührt. Braucht ein Szenario eine Änderung des `Dockerfile`, geht das als Rückgabe an den Planner (Nr. 7): `slice-handbuch-katalog-schluessel-kommandos` hält die Gate-Kette in `in-progress/`.
+
+**Größenmarke** (Planner, 2026-11-08, `SPEC-128` Nr. 1; Prosa-Form, kein Block: der Architect legt den Block `groessenmarke` im Zweig an, `basis`, `schaetzung` und `marke` setzt der Planner in eigenem Commit vor dem ersten Code-Commit): vorläufig aus dem Wortlaut der DoD, die Tabelle *Zusage · Fänger* fehlt noch (rund 25 Zeilen: Filter-Leser, Schreiber, Eingabe, Version der Fehlerantwort, Snapshot mit Wächter, `STRICT_COVERAGE`, `PUBLIC_BASE_URL` mit vier Randformen, Default `MODE`, nicht gelieferte Schlüssel, M3-Test, zwei Szenarien): *a* = 2 (M3-Test im Prozess unter dem Detektor, Neustart), *b* = 23, *f* = 1, *p* = 600: *S* = 85·2 + 80·23 + 200·1 + 600 = 2810, *M* = 100·⌈135·2810/10000⌉ = 3800. **Schnittfrage: ja** (*S* ≥ 2223). Der Planner rechnet neu und beantwortet sie, sobald der Architect die Tabelle hat, vor dem ersten Code-Commit (Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen). Ein Schnitt-Kandidat ohne geteilten Mechanismus: die beiden Szenarien von `make test-integration` (Binary von außen) gegen die Verdrahtung des Root samt M3-Test im Prozess.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -134,8 +140,12 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Neustart über die Prozessgrenze im Modus `mock` (Sendung von `slice-mock-abnahme`, `SPEC-049` Nr. 7 a): das Szenario braucht ein `DATA_DIR` im Modus `mock` und ein geordnetes Beenden durch `SIGTERM`; Randformen (Verzeichnis fehlt, Signal während einer Mutation) entscheidet der Architect vor dem Code (`AGENTS.md` §3.12), Snapshots bleiben das Negativ aus `SPEC-049` Nr. 10 b — **Ausgang:** offen; Adresse: Architect.
+- Ablage des M3-Tests (Rückgabe R1 von `slice-mock-abnahme`, Planner, 2026-11-08): das Architektur-Gate gibt dem Paket `tests` Kanten auf Modell, Inbound-Ports und Driven Adapter, nicht auf die Dienste und nicht auf den Composition Root; die Abnahme des Gebers liegt deshalb in `src/bootstrap/abnahme_*_test.go`. Die Zeile `tests/` in §3 gilt nur, wenn der M3-Test über erlaubte Kanten auskommt (Binary und Listener von außen); sonst liegt er in `src/bootstrap/`. Eine Änderung der Architekturregel oder eine ADR beginnt dieser Slice nicht — **Ausgang:** offen; Adresse: Architect (vor dem Code, `AGENTS.md` §3.12).
 - Der Wechsel des Defaults `MODE=mock` macht aus einem heute abgewiesenen Start einen gültigen; Tests, die den alten Fehler erwarten, sind mit zu ändern — **Ausgang:** offen; Liste der Tests im Vertrag des Architect.
 - `PUBLIC_BASE_URL` ist bei Wildcard-Host (Container) Pflicht und prägt `Location` und `@odata.id` (`SPEC-055`); Randformen (fehlt, leer, mit Pfad, mit abschließendem `/`) — **Ausgang:** offen; Raster, Ort `SPEC-055` und `SPEC-110`.
+- Größe: die Schätzung (*S* 2810, *M* 3800) liegt über der Schwelle der Schnittfrage (`SPEC-128` Nr. 1), die Tabelle fehlt (§4) — **Ausgang:** offen; Adresse: Architect (Tabelle, Block, Schnitt-Vorschlag) und Planner (Marke, Antwort auf die Schnittfrage vor dem ersten Code-Commit).
+- Gate-Kette: ein Szenario, das das `Dockerfile` ändert, kollidiert mit `slice-handbuch-katalog-schluessel-kommandos` (hält Nr. 7) — **Ausgang:** offen; Adresse: Planner (Rückgabe, nicht im Code entscheiden).
+- Zahl der Codes und Merge-Nähe zu `slice-admin-authentisierung` (läuft parallel) — **Ausgang:** offen; Adresse: Planner (Integrationsschritt, `welle-mock` §5).
 - Der M3-Test läuft mit Referenzdienst, Recorder und Client im selben Prozess unter dem Detektor (`make test-race`) — **Ausgang:** offen; Muster und Ordnung der Fänger wie in `slice-m2-referenzdienst` (Kanäle statt Schlaf).
 - `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` (1×): der Mock-Pfad im Composition Root erweitert die Pakete, die Fälle der Gegenproben mitfahren — **Ausgang:** weiter offen → `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` im Register.
 

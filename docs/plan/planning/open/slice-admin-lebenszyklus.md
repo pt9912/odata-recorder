@@ -20,7 +20,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` ste
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-07.
 
-**Herkunft:** Teil 4 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](../in-progress/slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen A2, K5, S1 bis S10, X2 und G1 bis G3 der Tabelle des Architect (16 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich A2 (Teil 3 des Vorschlags) und K5 (Teil 2 des Vorschlags): beide brauchen `Anhalten`, das erst hier entsteht.
+**Herkunft:** Teil 4 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](../done/slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen A2, K5, S1 bis S10, X2 und G1 bis G3 der Tabelle des Architect (16 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich A2 (Teil 3 des Vorschlags) und K5 (Teil 2 des Vorschlags): beide brauchen `Anhalten`, das erst hier entsteht.
 
 ---
 
@@ -153,7 +153,7 @@ Zeilen gesamt 16: *a* = 7 (S3, S4, S5, S6, S8, S9, X2), *b* = 9. G1 gehört hier
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): [slice-admin-authentisierung](slice-admin-authentisierung.md) liegt in `done/` (Code-Abhängigkeit: die Authentisierung vor der Zuordnung, ohne die A2 und G2 keinen Gegenstand haben; über sie transitiv `slice-admin-rahmen`). Die Spezifikation trägt den Vertrag samt Randformen (`SPEC-238` Nr. 3 b, 9, 10, 11) seit dem Zweig von `slice-admin-listener-token` (`AGENTS.md` §3.12). Stand der Bedingungen beim Schnitt (Planner, 2026-11-07, `main` = `aadbef0`): `slice-audit-log` und `slice-telemetry-port` liegen in `done/`; der Teil ruft beide Ports nicht.
+**Start** (`next` → `in-progress`): [slice-admin-authentisierung](../in-progress/slice-admin-authentisierung.md) liegt in `done/` (Code-Abhängigkeit: die Authentisierung vor der Zuordnung, ohne die A2 und G2 keinen Gegenstand haben; über sie transitiv `slice-admin-rahmen`). Die Spezifikation trägt den Vertrag samt Randformen (`SPEC-238` Nr. 3 b, 9, 10, 11) seit dem Zweig von `slice-admin-listener-token` (`AGENTS.md` §3.12). Stand der Bedingungen beim Schnitt (Planner, 2026-11-07, `main` = `aadbef0`): `slice-audit-log` und `slice-telemetry-port` liegen in `done/`; der Teil ruft beide Ports nicht.
 
 **Größenmarke** (Planner, 2026-11-07, `SPEC-128` Nr. 1; Prosa-Form, der Block folgt beim Start): 16 Zeilen der Tabelle, *a* = 7, *b* = 9, *f* = 1, *p* = 100: *S* = 85·7 + 80·9 + 200·1 + 100 = 1615, *M* = 2200, keine Schnittfrage (*S* < 2223). Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Pfad des Blocks beim Start: `src/adapters/driving/admin/`; `produktcode` 100, `fakes` 1. `basis`, `schaetzung` und `marke` setzt der Planner beim Start in einem Commit vor dem ersten Code-Commit.
 

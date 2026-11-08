@@ -20,7 +20,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` ste
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-07.
 
-**Herkunft:** Teil 5 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](../in-progress/slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen B1 bis B9, C1 bis C5, E1, E5, X1 und H2 der Tabelle des Architect (18 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich E1 und E5 (Schleifen über die Fehler, die eine Route liefert) und gibt H1 (Schleife über alle acht Ausgabewege) an `slice-admin-abweisen-audit` ab, wo der Weg des Audit-Eintrags und die Fehlertexte von `Serve` und `Schliessen` bestehen.
+**Herkunft:** Teil 5 des Schnitts von [slice-admin-listener-token](../done/slice-admin-listener-token.md) (siehe dort und [slice-admin-rahmen](../done/slice-admin-rahmen.md) für die Reihenfolge der sechs Teile). Der Plan trägt die Zeilen B1 bis B9, C1 bis C5, E1, E5, X1 und H2 der Tabelle des Architect (18 von 102); sie stehen im Wortlaut in §3. Gegenüber dem Vorschlag des Architect trägt dieser Teil zusätzlich E1 und E5 (Schleifen über die Fehler, die eine Route liefert) und gibt H1 (Schleife über alle acht Ausgabewege) an `slice-admin-abweisen-audit` ab, wo der Weg des Audit-Eintrags und die Fehlertexte von `Serve` und `Schliessen` bestehen.
 
 ---
 

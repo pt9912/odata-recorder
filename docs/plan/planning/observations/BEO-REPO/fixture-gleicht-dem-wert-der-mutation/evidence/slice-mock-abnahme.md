@@ -1,0 +1,2 @@
+**Vorgang:** slice-mock-abnahme
+**Fund:** `ODV4-Q-10` hatte keinen Gleichstand im ersten Schlüssel und als zweiten Schlüssel den der Hilfsordnung; die Mutation „nur das erste Element von `$orderby`“ blieb grün (Review F1, MEDIUM). Früher R5: alle Guid-Werte der Ausgangsdaten trugen nur Ziffern, die Schreibweise in Großbuchstaben änderte kein Byte (`ODV4-T-06` fing T21 nicht). Beide Fixtures wurden gegen die Klasse der Zusage neu geschnitten; der Verifier fuhr in der Klasse Mutationen an nicht genannten Elementen (m3, m10) rot. Beleg: Review F1, Plan §6 R5 und R11.

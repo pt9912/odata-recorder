@@ -1,0 +1,2 @@
+**Vorgang:** slice-mock-abnahme
+**Fund:** Das Paket `src/bootstrap` braucht mit den Abnahme-Tests rund 150 s ohne Detektor (Last 5 bis 13); die Nullprobe fährt es mit `-test.timeout=2m` und meldet `Ausgangsstand rot: src/bootstrap`. Die Abnahme-Tests selbst brauchen 26 s. Der Implementer fuhr die Mutationen mit einem Runner im Scratchpad, Reviewer und Verifier ebenso. Beleg: Plan §6 R10; Verifikation V3.
