@@ -138,6 +138,7 @@ src/
 │       ├── replay/
 │       ├── mock/
 │       ├── hybrid/
+│       │   └── policy/
 │       ├── inspection/
 │       ├── maintenance/
 │       ├── baselineimport/
@@ -262,6 +263,7 @@ der Composition Root bindet je Modus genau einen Use Case (`RecordUseCase`, `Rep
 Der Use Case des Modus ermittelt Service und Recording-Session aus Pfad und Headern des Rohrequests (`ODR-E5005`, `ODR-E5003`, `ODR-E5009`); der HTTP-Adapter reicht Methode, Pfad, Query, Header und Body unverändert weiter und vergibt nur die Korrelations-ID und den Span `odata.gateway.request`.
 Unbekannte Operationen im Mock dürfen nicht in einen unkontrollierten Upstream-Fallback münden.
 Die Fallback-Policy wird vor dem Senden an den Upstream geprüft.
+Sie ist eine reine Entscheidung über Methode, Pfad, Ziel und den `ODR`-Code des letzten Ergebnisses (Paket `src/hexagon/services/hybrid/policy`, `SPEC-261`), ruft keinen Port und lässt ohne ausdrückliche Freigabe die Antwort des Zweigs stehen.
 `HybridUseCase` ruft `MockUseCase` und `ReplayUseCase` über deren Inbound Ports auf, nie über deren Pakete.
 
 ---

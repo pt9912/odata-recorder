@@ -300,6 +300,7 @@ optional `mock` → `replay` → Fehler nur für definierte Kategorien (`unsuppo
 Upstream-Fallback nur per Allowlist (`FALLBACK_ALLOW_HOSTS`, `SPEC-062`) für lesende Methoden und autorisierte Zielhosts.
 Für mutierende Methoden ist Upstream-Fallback verboten, es sei denn, eine ausdrückliche Routenfreigabe (`FALLBACK_WRITE_ALLOW`, Liste aus Methode und Pfadmuster, Default leer) deckt den Request;
 ohne Eintrag wird nichts an den Upstream gesendet.
+Syntax von Eintrag, Pfadmuster und Host-Vergleich und die Entscheidung selbst: `SPEC-261`.
 Unbekannte Funktionen werden nicht stillschweigend als erfolgreich behandelt.
 
 ### LH-FA-12.b — Hybrid-Entscheidungsmatrix
@@ -316,6 +317,7 @@ Unbekannte Funktionen werden nicht stillschweigend als erfolgreich behandelt.
 Unter den Replay-Fehlern darf nur `ODR-E5001` (kein Exchange mit diesem Match-Key) einen Fallback auslösen; die übrigen Auslöser der Matrix (Mock) bleiben davon unberührt.
 Alle anderen Replay-Fehler (`ODR-E3001`, `ODR-E5002`, `ODR-E5003`, `ODR-E5004`, `ODR-E5006`, `ODR-E5007`, `ODR-E5008`, `ODR-E7001`, `ODR-E7003`, `ODR-E7009`) werden unverändert ausgeliefert;
 ein erschöpfter Key fällt nie still auf den Live-Upstream durch.
+Die Entscheidung nach dieser Matrix trifft die Fallback-Policy (`SPEC-261`).
 
 ### LH-FA-13.a — Management und Diagnose
 
@@ -3281,6 +3283,79 @@ Gilt für den Schritt (l) von `SPEC-192` Nr. 2 und die Antwort von `POST`, `PATC
 
 Ungeprüft bleibt: die Bytes des Bodys über das hinaus, was der Schreiber zusagt (`SPEC-198` *Ungeprüft*); `Prefer` und die Antwort `200` mit Entity bei `PATCH` und `PUT` (Soll-Umfang, `SPEC-049`). Folge: ein Client, der `return=representation` verlangt, erhält `204` ohne Body.
 
+### SPEC-261 — Fallback-Policy: Vertrag von `policy.Policy`
+
+Die Fallback-Policy entscheidet im Modus `hybrid`, ob nach dem Ergebnis eines Zweigs ein Replay-Fallback oder ein Upstream-Fallback erlaubt ist (`LH-FA-12.a`, `LH-FA-12.b`); ohne ausdrückliche Freigabe lautet jede Entscheidung „bleiben“, und die Antwort des Zweigs, auch ihr Fehler, kommt unverändert zum Client.
+Sie ist eine reine Funktion ohne Zustand: das Paket `policy` unter `src/hexagon/services/hybrid/policy` (`ARC-002`) importiert `model` und die Standardbibliothek, keinen Port, keinen Adapter und keinen Dienst, und kennt weder Umgebung noch HTTP noch Kontext.
+`HybridUseCase` (Paket `hybrid`) und der Composition Root rufen sie; der Aufruf von Mock, Replay und Upstream, Strom und Zustand gehören dem Hybrid-Dienst, die Policy sendet nichts.
+
+```text
+policy.New(Werte) (*Policy, error)
+(*Policy).Entscheide(Anfrage) Entscheidung
+Werte{Upstream bool; Hosts, Schreibfreigaben, ReplayKategorien []string}
+Anfrage{Methode, Pfad, Ziel string; Code model.Code}
+Entscheidung: Bleiben (Nullwert) | Replay | Upstream
+KonfigFehler{Schluessel string; Eintrag int; Ursache string}      Ursache: leer, trenner, methode, muster, host, kategorie, ohne-hosts
+```
+
+`Werte` trägt die typisierten Werte der Schlüssel (`SPEC-110`: die Services erhalten nie die Umgebung): `Upstream` ist wahr genau bei `HYBRID_FALLBACK=enabled` (`SPEC-010`), `Hosts` sind die Einträge von `FALLBACK_ALLOW_HOSTS` (`SPEC-062`), `Schreibfreigaben` die von `FALLBACK_WRITE_ALLOW` (`SPEC-080`), `ReplayKategorien` die von `HYBRID_REPLAY_FALLBACK` (`SPEC-079`); der Root zerlegt die Listen nach `SPEC-110` Nr. 6 und entfernt den Leerraum am Rand, `New` prüft jeden Eintrag.
+`Anfrage` trägt `Methode` und `Pfad` des Rohrequests, wie der Adapter sie liefert (`SPEC-121`: der volle Pfad samt Service-Root, mit seinen Escapes, ohne Query), `Ziel` die `UPSTREAM_URL` des Service der Anfrage (dieselbe Zeichenkette, die der Hybrid-Dienst als `Ziel` der `UpstreamAnfrage` sendet, `SPEC-120`) und `Code` den `ODR`-Code des letzten Ergebnisses: den des Mock für die Zeilen Coverage und nicht unterstützte Operation, `ODR-E5001` für den Replay-Miss. Der Nullwert von `model.Code` ist kein Code und steht für Erfolg und für jedes Ergebnis ohne Code.
+Der HTTP-Status ist keine Eingabe (`LH-FA-12.b`).
+
+1. **Werte.**
+   a) Eine Liste ist eine Menge: Reihenfolge und Doppelte (Bytegleichheit) haben keine Wirkung.
+   b) `New` hält keine Referenz auf eine Liste von `Werte`; eine spätere Änderung der Slices wirkt nicht auf die Policy.
+   c) Die Policy ist nach `New` unveränderlich.
+2. **Methodenklassen.** Die Methode wird byte-gleich verglichen; die Schreibweise zählt.
+   a) *Lesend* sind `GET` und `HEAD` (`LH-FA-12.b`).
+   b) *Mutierend* sind `POST`, `PUT`, `PATCH`, `DELETE` und `MERGE` (`MERGE` ist die Änderungsmethode der Version 2, `SPEC-170`).
+   c) Jede andere Zeichenkette ist *nie freigegeben*: `OPTIONS`, `TRACE`, `CONNECT`, eine Kleinschreibung (`get`), jede unbekannte Methode und die leere. Grund: nur die Methoden, die die Matrix oder eine Routenfreigabe nennt, dürfen einen Upstream erreichen; `OPTIONS`, `TRACE` und `CONNECT` sind keine OData-Operation, und eine Methode, die niemand zugesagt hat, wird nicht als lesend geraten. Für sie gibt es weder Replay- noch Upstream-Fallback.
+3. **Auslöser.** Entschieden wird am `ODR`-Code, nie am Status (`ODR-E5001` und `ODR-E6008` tragen beide HTTP 404).
+   a) *Mock-Auslöser* sind `ODR-E6001` und `ODR-E6002` (Kategorie `unsupported`; `ODR-E6002` ist die mutierende Form der Zeile „Nicht unterstützte Operation“, `SPEC-023`) und `ODR-E6003` (Kategorie `coverage_insufficient`).
+   b) *Replay-Miss* ist `ODR-E5001`; er löst nie einen Replay-Fallback aus und erreicht den Upstream nur lesend (Nr. 4).
+   c) Jeder andere Wert von `Code` löst nichts aus: der Nullwert (Erfolg), die fachlichen `404`, `409` und `412` des Mock, die ungültige Anfrage (`ODR-E6005`, `ODR-E6007`), jeder andere Replay-Fehler (`LH-FA-12.b`: `ODR-E3001`, `ODR-E5002` bis `ODR-E5004`, `ODR-E5006` bis `ODR-E5008`, `ODR-E7001`, `ODR-E7003`, `ODR-E7009`), `ODR-E9001` und jeder Wert außerhalb der Tabelle von `SPEC-109`. Die Liste der Auslöser ist geschlossen; ein weiterer Code ist eine Änderung dieses Vertrags und der Matrix.
+   d) `ODR-E6006` (Eigenschaft eines V2-Service außerhalb des Umfangs) ist bewusst kein Auslöser: die Matrix nennt die Zeile „Nicht unterstützte Operation“ allein mit `ODR-E6001`, und ein V2-Service fällt nicht auf den Upstream zurück, solange `LH-FA-12.b` diesen Code nicht nennt.
+4. **Entscheidung.** `Entscheide` ist total (Nr. 9) und prüft in dieser Reihenfolge; die erste zutreffende Regel entscheidet:
+   a) Ist die Policy nil oder der Nullwert, oder die Methode *nie freigegeben* (Nr. 2 c), oder `Code` kein Auslöser nach Nr. 3 a und b: `Bleiben`.
+   b) *Replay:* `Code` ist ein Mock-Auslöser (Nr. 3 a) und die Kategorie des Codes steht in `ReplayKategorien` (`ODR-E6001`, `ODR-E6002`: `unsupported`; `ODR-E6003`: `coverage_insufficient`). Die Regel hängt weder von `Upstream` noch von `Hosts` noch von `Ziel` ab (`SPEC-010`: der Replay-Fallback kontaktiert keinen Upstream) und gilt für lesende wie mutierende Methoden: er sendet nichts, und `LH-FA-12.b` bindet ihn nicht an die Methode. Ergebnis `Replay`.
+   c) *Upstream:* `Upstream` ist wahr, `Code` ist ein Mock-Auslöser oder `ODR-E5001`, der Host von `Ziel` ist freigegeben (Nr. 5), und die Methode ist lesend (Nr. 2 a); oder sie ist mutierend (Nr. 2 b), `Code` ist ein Mock-Auslöser und eine Routenfreigabe deckt Methode und Pfad (Nr. 6). Ergebnis `Upstream`.
+   d) Sonst `Bleiben`.
+   e) Sind beide Wege offen, gilt der Replay (`LH-FA-12.a`: Mock, dann Replay): für `ODR-E6003` einer lesenden Methode mit gesetzter Kategorie und freigegebenem Host ist das Ergebnis `Replay`, und erst der Replay-Miss (`ODR-E5001`) führt in einem zweiten Aufruf zu `Upstream`. Eine mutierende Methode erreicht nach einem Replay-Miss den Upstream nie, auch nicht mit Routenfreigabe (Zeile „Replay-Miss“ der Matrix: nur `GET` und `HEAD`); wer für eine Kategorie den Replay-Fallback setzt, schaltet damit den schreibenden Upstream-Fallback für deren Codes ab.
+   f) Ist `Upstream` falsch, erreicht keine Anfrage den Upstream, weder lesend noch mit Routenfreigabe; die Einträge von `Hosts` und `Schreibfreigaben` bleiben ohne Wirkung (`SPEC-010`).
+5. **Zielhost.**
+   a) *Eintrag* von `Hosts`: ein Name oder eine IPv6-Adresse in eckigen Klammern, danach optional `:` und ein Port. Der Name besteht aus Buchstaben, Ziffern, `.`, `-` und `_` (wie bei `LISTEN`, `SPEC-110` Nr. 7; den Aufbau der Labels prüft `New` nicht), die Adresse ist eine IPv6-Adresse ohne Zone (`[::1]`; `[1.2.3.4]` und `[]` sind ungültig; die IPv4-abgebildete Form `[::ffff:1.2.3.4]` ist eine IPv6-Adresse und gültig, sie ist nach Nr. 5 b gleich `[::ffff:102:304]` und gilt nur für sich, nie für das Ziel `http://1.2.3.4`, dessen Name ein anderer ist), der Port besteht aus Dezimalziffern ohne führende Null und liegt zwischen 1 und 65535. Kein Schema, kein Pfad, kein Benutzerteil, kein Platzhalter, kein Leerraum. Der leere Eintrag hat die Ursache `leer`, jede andere Verletzung `host`.
+   b) *Schreibweise:* Namen werden ohne Beachtung der ASCII-Schreibweise verglichen, IPv6-Adressen in kanonischer Form (`[::1]` und `[0:0:0:0:0:0:0:1]` sind gleich); ein Name wird nicht umgeformt (`127.1` ist nicht `127.0.0.1`, `h.` nicht `h`), und es wird nicht aufgelöst (DNS).
+   c) *Ziel lesen:* `Ziel` gilt, wenn `url.Parse` es annimmt, das Schema `http` oder `https` ist, kein Benutzerteil steht, `Hostname()` nicht leer ist, der Port leer oder eine Dezimalzahl von 1 bis 65535 ist und der Hostname unter die Syntax eines Eintrags fällt (Name oder IPv6-Adresse ohne Zone); sonst ist der Host nicht freigegeben. Query und Fragment ändern den Host nicht und bleiben unbeachtet.
+   d) *Vergleich:* der Host von `Ziel` ist freigegeben genau dann, wenn ein Eintrag den gleichen Namen (Nr. 5 b) trägt und sein Port stimmt: ein Eintrag ohne Port meint den Standardport des Schemas von `Ziel` (80 bei `http`, 443 bei `https`), ein Eintrag mit Port den genannten, und der Port von `Ziel` ist der genannte oder der Standardport. `h` gilt also für `https://h` und `https://h:443`, nicht für `https://h:8443`; `h:443` gilt nicht für `http://h`.
+   e) Ein Eintrag, der zu keinem Ziel passt, ist kein Fehler und gibt nichts frei: Upstream-Fallback gibt es nur zum Host der `UPSTREAM_URL` des Service der Anfrage (`SPEC-062`), nie zu einem anderen, und ein Teil eines Namens, eine Endung und ein Platzhalter sind keine Gleichheit. Die Allowlist prüft den Zielnamen; sie schützt nicht vor einem Namen, der auf eine unerwartete Adresse zeigt (*Ungeprüft*).
+6. **Routenfreigabe.**
+   a) *Eintrag* von `Schreibfreigaben`: `<Methode> <Muster>`, getrennt durch genau ein Leerzeichen. Der Teil vor dem ersten Leerzeichen ist die Methode, der Rest das Muster. Ursache `leer` beim leeren Eintrag, sonst in dieser Reihenfolge: `trenner` (kein Leerzeichen), `methode` (der Teil vor dem Leerzeichen ist keine mutierende Methode nach Nr. 2 b, auch `GET`, `HEAD`, `OPTIONS`, eine Kleinschreibung oder der leere Teil), `muster` (der Rest ist kein Muster nach Nr. 6 b, auch mit einem zweiten Leerzeichen).
+   b) *Muster:* beginnt mit `/`, hat mindestens ein Segment, Segmente trennt `/`, kein Segment ist leer (kein `//`, kein abschließendes `/`). Zeichen sind die Bytes `0x21` bis `0x7E` außer `?`, `#`, `\` und `,` (`,` trennt die Liste, `SPEC-110` Nr. 6); `%` steht nur vor zwei Hexadezimalziffern. Ein Segment enthält höchstens ein `*`; `**` ist nur als ganzes letztes Segment erlaubt. Ein Segment ohne `*`, das nach dem Ersetzen jedes `%2e` und `%2E` durch `.` gleich `.` oder `..` ist, ist ungültig; ebenso ein Segment mit einem `*`, das nach diesem Ersetzen und dem Streichen des `*` gleich `.` ist (`.*`, `*.`, `%2e*`, `*%2e`, `%2E*`, `*%2E`: genau diese sechs Segmente). Jede Verletzung hat die Ursache `muster`.
+   c) *Vergleich:* die Methode des Requests ist byte-gleich der des Eintrags, und der Pfad passt zum Muster. Der Pfad muss mit `/` beginnen und wird an jedem `/` zerlegt; es wird nichts dekodiert oder normalisiert, Groß- und Kleinschreibung zählt, `%2f` ist nicht `%2F`. Ein Segment ohne `*` gleicht dem des Musters byte-gleich. Ein Segment mit einem `*` gleicht, wenn Anfang vor und Ende hinter dem `*` byte-gleich sind und dazwischen mindestens ein Byte liegt (Anfang und Ende überlappen nicht); ein Segment `**` am Ende gleicht dem Rest des Pfades von einem oder mehr Segmenten. Die Bytes, die ein `*` oder `**` deckt, sind die der Menge W (`0x21` bis `0x7E` außer `/`, `%`, `\`, `?` und `#`); ein Segment, das ganz von einem `*` oder `**` gedeckt wird, ist weder `.` noch `..`; ein nur teilweise gedecktes Segment ist es nie, weil Nr. 6 b jedes Muster ausschließt, das eines deckte. Ein leeres Segment im Pfad (`//`, abschließendes `/`) passt nie; die Zahl der Segmente muss gleich sein, außer bei `**`.
+   d) Ein Pfad, der nicht mit `/` beginnt, und der leere Pfad passen zu keinem Muster.
+   e) Grund der Menge W: ein Upstream löst `%2e%2e`, `%2F`, `%5C`, `\` und `..` anders auf als die Policy, und ein Muster, das sie deckte, gäbe mehr frei, als der Betreiber las (`/svc/Orders/**` sollte `/svc/Orders/%2e%2e/Geheim` nicht erlauben). Grund der Regel für `*` in Nr. 6 b: ein `*` deckt mindestens ein `.` und nie ein `%`; ein Segment ergibt `.` oder `..` (auch in der Form mit `%2e` und `%2E`) nur, wenn es neben dem gedeckten `.` höchstens ein weiteres `.` trägt, als `.`, `%2e` oder `%2E`; das sind die sechs Muster, und sie decken fünf Segmente (`..`, `%2e.`, `.%2e`, `%2E.`, `.%2E`). Jedes andere Muster mit `*` ergibt ein Segment aus mindestens drei Punkten oder mit einem anderen Zeichen. Folge: ein Schlüssel mit Prozent-Kodierung (`Orders('a%20b')`) passt zu keinem Platzhalter und braucht einen Eintrag ohne Platzhalter für genau diesen Pfad; sonst ist die Entscheidung `Bleiben` (kein Fallback), nie eine breitere Freigabe.
+   f) Die Zahl der Vergleichsschritte wächst linear mit der Länge des Pfades und der Zahl der Einträge, weil ein Segment höchstens ein `*` trägt (kein Zurücksetzen).
+7. **Replay-Kategorien.** Ein Eintrag von `ReplayKategorien` ist genau `unsupported` oder `coverage_insufficient` (Groß- und Kleinschreibung zählt, `SPEC-110` Nr. 3); der leere Eintrag hat die Ursache `leer`, jeder andere (auch `none`, `Unsupported`, `coverage-insufficient`, ein Code wie `ODR-E6003`) `kategorie`.
+8. **Prüfung in `New`.**
+   a) Jeder Eintrag der drei Listen wird geprüft, unabhängig von `Upstream`: eine Verletzung ist ein Fehler auch bei `disabled`, weil der Betreiber sie sonst erst beim Einschalten findet.
+   b) Der Fehler ist je Schlüssel der erste Verstoß in der Reihenfolge der Liste (`Eintrag` zählt ab 1; `Schluessel` ist `FALLBACK_ALLOW_HOSTS`, `FALLBACK_WRITE_ALLOW` oder `HYBRID_REPLAY_FALLBACK`). `New` liefert den `errors.Join` aller Fehler in dieser Reihenfolge der Schlüssel, danach den des Zusammenhangs (c), und keine Policy; `errors.As` findet jeden `*KonfigFehler`. Der Text nennt Schlüssel, Nummer und Ursache und nie den Wert eines Eintrags.
+   c) *Zusammenhänge:* ist `Upstream` wahr und `Hosts` ohne Eintrag, ist das `*KonfigFehler{Schluessel: "HYBRID_FALLBACK", Eintrag: 0, Ursache: "ohne-hosts"}` (ein Hauptschalter, der nichts freigibt, wäre eine still wirkungslose Sicherheitseinstellung); trägt `Hosts` einen ungültigen Eintrag, entfällt dieser Fehler. `Upstream` falsch mit gesetzten `Hosts` oder `Schreibfreigaben` ist kein Fehler (`SPEC-010`: erst `enabled` macht sie wirksam). Ein Eintrag von `Schreibfreigaben` ohne passenden Host in `Hosts` ist kein Fehler: die Freigabe gilt je Anfrage nur zusammen mit einem freigegebenen Host (Nr. 4 c). Ein Eintrag von `Hosts`, der zu keinem Service passt, ist kein Fehler (Nr. 5 e).
+   d) `New` ruft nichts, liest keine Umgebung und löst keinen Namen auf.
+9. **Randformen und Wiederholung.**
+   a) `Entscheide` ist total: für jede Eingabe (jede Zeichenkette, auch mit NUL, ungültigem UTF-8 und Länge bis 1 MiB, jeder Wert von `Code`) eine Entscheidung, nie eine Panik, nie ein Fehler; eine nil-Policy und der Nullwert `Policy{}` antworten `Bleiben`.
+   b) Dieselbe Eingabe ergibt dieselbe Entscheidung, auch nach beliebig vielen anderen Aufrufen.
+   c) Die Policy hat nach `New` keinen Zustand, hält keine Sperre und startet keine Goroutine; `Entscheide` ist für gleichzeitigen Aufruf sicher, weil es nichts schreibt. Das Paket führt keinen Typ mit Methoden außer `Policy` und `KonfigFehler` und keine Variable auf Paketebene, die sich ändert.
+10. **Aufrufer.**
+    a) Der Hybrid-Dienst ruft `Entscheide` vor jedem Senden an den Upstream (`ARC-002`), jeweils mit dem Code des letzten Ergebnisses, und übergibt als `Ziel` dieselbe Zeichenkette, die er sendet; er sendet nur bei dem Ergebnis `Upstream` und ruft jede Stufe (Mock, Replay, Upstream) höchstens einmal.
+    b) Der Root liefert `Werte` aus `HYBRID_FALLBACK`, `FALLBACK_ALLOW_HOSTS`, `FALLBACK_WRITE_ALLOW` und `HYBRID_REPLAY_FALLBACK`, bildet jeden `*KonfigFehler` auf `ODR-E2001` ab (`SPEC-016`, `SPEC-110`) und weist `HYBRID_FALLBACK=enabled` ohne `UPSTREAM_URL` in irgendeinem Service als `ODR-E2001` ab (`SPEC-076`). Bis der Start den Modus `hybrid` liefert, gelten `SPEC-110` Nr. 2 und Nr. 8 unverändert: die vier Schlüsselfamilien bleiben abgelehnt.
+
+Ungeprüft bleibt, je mit Grund und Folge:
+- Der Zielname gegen die Adresse, zu der er auflöst. Grund: die Policy vergleicht Namen und löst nicht auf (Nr. 5 b). Folge: ein Name der Allowlist, der auf eine unerwartete Adresse zeigt, wird erreicht; der Schutz davor ist Sache des Netzes, nicht der Policy.
+- Ein Header, der die Methode im Upstream ändert (`X-HTTP-Method`, `X-HTTP-Method-Override`, `X-Method-Override`). Grund: die Policy sieht keinen Header (Nr. 1). Folge: eine freigegebene Route einer Methode (etwa `POST`) kann im Upstream als andere Methode ausgeführt werden, wenn der Hybrid-Dienst den Header weiterreicht; welche Header der Fallback sendet, entscheidet `SPEC-121` Nr. 4 und der Hybrid-Dienst.
+- Dass `Senden` den Host verbindet, den die Policy verglich. Grund: beide lesen `Ziel` mit derselben Regel (`SPEC-110` Nr. 7, `SPEC-120` Nr. 2), aber mit eigenem Code. Folge: eine Abweichung der beiden Leser läge außerhalb dieses Pakets; der Hybrid-Dienst belegt sie am Verbindungszähler des Referenzdienstes.
+- Die Folge eines Replay-Fallbacks einer mutierenden Methode für den Zustand des Mock. Grund: die Antwort stammt aus der Aufzeichnung, nicht aus einer Änderung des Zustands (Nr. 4 b). Folge: der Mock bleibt unverändert, während der Client eine Erfolgsantwort sieht, solange der Betreiber die Kategorie setzt.
+- Die Prozent-Kodierung in einem Pfad, den ein Muster mit Platzhalter decken soll (Nr. 6 e). Folge: kein Fallback, nie ein breiterer.
+
 ### SPEC-168 — Entities schreiben: Vertrag von `ODataSchreiber`
 
 `ODataSchreiber` (Outbound Port, `ARC-004`) erzeugt die Darstellung der Antworten des Mock-OData-Dienstes (`LH-FA-07.b`): eine Entity, eine Collection, die Anzahl, das Fehlerobjekt (`SPEC-006`) und die Adresse einer Entity (`Location`, `@odata.id`).
@@ -3638,14 +3713,14 @@ Für HTTP-Antworten des Mock-OData-Dienstes eines Service der Version `4.0` gilt
 | `SPEC-059` | `SHUTDOWN_TIMEOUT` | `10s` | Frist für laufende Exchanges beim Beenden (`LH-FA-02.c`); die `frist` von `Drain` in `Beenden` und `CloseAll` (`SPEC-124` Nr. 1, 11, 14) |
 | `SPEC-060` | `REDACT_HEADERS` | leer (ergänzt die Default-Liste) | `LH-FA-14.a` |
 | `SPEC-061` | `MATCH_VARY_HEADERS` | `Accept, OData-Version, Content-Type, If-Match, Prefer` | `LH-FA-05.a` |
-| `SPEC-062` | `FALLBACK_ALLOW_HOSTS` | leer | Upstream-Fallback nur zum Host der konfigurierten `UPSTREAM_URL`, und nur wenn dieser Host hier aufgeführt ist; gilt für lesenden wie mutierenden Fallback (`LH-FA-12.a`) |
+| `SPEC-062` | `FALLBACK_ALLOW_HOSTS` | leer | Upstream-Fallback nur zum Host der konfigurierten `UPSTREAM_URL`, und nur wenn dieser Host hier aufgeführt ist; gilt für lesenden wie mutierenden Fallback (`LH-FA-12.a`); Syntax des Eintrags und Vergleich mit dem Host: `SPEC-261` Nr. 5 |
 | `SPEC-063` | `VOLATILE_HEADERS` | `Date, Server, Via, Age, X-Request-Id, X-Correlation-Id, Traceparent` | `LH-QA-02.a` |
 | `SPEC-075` | `MODE` | `mock` | Betriebsart `record`, `replay`, `mock`, `hybrid`; Startkonfiguration (`LH-FA-12.a`) |
 | `SPEC-076` | `UPSTREAM_URL` | keiner (Pflicht in `record` und bei Upstream-Fallback) | Ziel je Service; ohne Wert kein Upstream-Zugriff |
 | `SPEC-077` | `DATA_DIR` | `data` (relativ zum Arbeitsverzeichnis) | Verzeichnis für SQLite, Blobs, `ADMIN_TOKEN_FILE` und das Audit-Log `audit.jsonl` (`SPEC-235`) |
 | `SPEC-078` | `REPLAY_ASSIGNMENT` | `explicit` | `ordered` ist Opt-in für seriell ausgeführte Tests (`LH-FA-04.b`) |
-| `SPEC-079` | `HYBRID_REPLAY_FALLBACK` | leer | Kategorien (`unsupported`, `coverage_insufficient`), für die der Replay-Fallback gilt |
-| `SPEC-080` | `FALLBACK_WRITE_ALLOW` | leer | Routenfreigaben (Methode und Pfadmuster) für mutierenden Upstream-Fallback |
+| `SPEC-079` | `HYBRID_REPLAY_FALLBACK` | leer | Kategorien (`unsupported`, `coverage_insufficient`), für die der Replay-Fallback gilt; Syntax des Eintrags: `SPEC-261` Nr. 7 |
+| `SPEC-080` | `FALLBACK_WRITE_ALLOW` | leer | Routenfreigaben (Methode und Pfadmuster) für mutierenden Upstream-Fallback; Syntax von Eintrag und Pfadmuster: `SPEC-261` Nr. 6 |
 | `SPEC-081` | `MATCH_INVALID_ENCODING` | `literal` | `literal` oder `reject` (`LH-FA-05.a`) |
 | `SPEC-082` | `MATCH_BODY_MODE` | `bytes` | `bytes` oder `json-canonical` |
 | `SPEC-083` | `REPLAY_REDACTED_BODIES` | `false` | Replay von Exchanges mit Response-Body-Redaction (`SPEC-045`) |
@@ -3938,6 +4013,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-08 | Fallback-Policy vor dem Code (`SPEC-261`, Architect, keine bestehende Entscheidung geändert): Paket `policy` mit `New` und `Entscheide`, Methodenklassen (lesend `GET`/`HEAD`, mutierend `POST`/`PUT`/`PATCH`/`DELETE`/`MERGE`, jede andere nie freigegeben), Auslöser am `ODR`-Code (`ODR-E6001` bis `ODR-E6003`, Replay-Miss `ODR-E5001`; `ODR-E6006` bewusst keiner), Replay-Fallback für alle bekannten Methoden und unabhängig vom Hauptschalter, Syntax des Host-Eintrags und Vergleich (Standardport des Schemas), Syntax von Eintrag und Pfadmuster der Routenfreigabe (voller Pfad, ein `*` je Segment, `**` am Ende, nichts dekodiert), Zusammenhang `enabled` ohne Hosts als Fehler; Nachzug in `LH-FA-12.a`, `LH-FA-12.b` und den Zeilen `SPEC-062`, `SPEC-079`, `SPEC-080` |
 | 2026-11-08 | Vertrag von `SnapshotUseCase` unter eigener Kennung (Architect, Inhalt unverändert, keine bestehende Entscheidung geändert): `SPEC-129` Nr. 21 bis 26 stehen als `SPEC-260` mit unveränderter Zählung (Bereich 160 bis 199 der Linie B erschöpft, zweiter Bereich 260 bis 299, Übergangsregeln Nr. 6); Verweise in `SPEC-109` Nr. 5, `SPEC-139` Nr. 1 und `SPEC-049` Nr. 10 nachgezogen, `SPEC-129` Nr. 14, 20 und der Kopf des Abschnitts zeigen auf `SPEC-260` |
 | 2026-11-08 | Länge der Wurzel bei abgeleiteter `PUBLIC_BASE_URL` vor dem Code (Architect, keine bestehende Entscheidung geändert, Klarstellung von `SPEC-110` Nr. 14 b und c): neue Nr. 14 (e), die Grenze von 2048 Bytes gilt auch für die aus `LISTEN` gebildete Basis |
 | 2026-11-08 | Modus `mock` im Composition Root vor dem Code (Architect, keine bestehende Entscheidung geändert; die Nachzüge folgen aus `SPEC-110` Nr. 8): `SPEC-110` Nr. 2, 8, 9 und neue Nr. 14 (`STRICT_COVERAGE` und `PUBLIC_BASE_URL` geliefert, Form, Ableitung aus `LISTEN` bei Loopback, `hybrid` bleibt `ODR-E2001`), `SPEC-139` Nr. 1 bis 5, 7, 9 und neue Nr. 11 (Verdrahtung des Mock, des Satzes der Version 4 und des Snapshot-Dienstes, Neustart, `Snapshots()`), `SPEC-136` Nr. 8 (Fehlerantwort ohne Kennzeichen der Version als akzeptiertes Negativ), `SPEC-049` Nr. 10 (a) |
