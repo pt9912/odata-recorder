@@ -50,6 +50,9 @@ func ParseMuster(m string) ([]Segment, bool) {
 	return segmenteVon(segs), ok
 }
 
+// ZielName liest den Namen eines Ziels aus dem Host mit Klammern (roh) und dem Hostnamen ohne sie.
+func ZielName(roh, host string) (string, bool) { return zielName(roh, host) }
+
 // PruefeKategorie liefert die Ursache eines Eintrags von ReplayKategorien.
 func PruefeKategorie(e string) string { return pruefeKategorie(e) }
 

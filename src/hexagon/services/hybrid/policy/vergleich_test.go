@@ -90,6 +90,10 @@ func nichtLesbar() []string {
 		"http://@h", "http://::1", "http://[1.2.3.4]", "http://[h]", "//h", "http:h", "http://h"+umlaut, "http://h"+nul,
 		"http://h:80x", "http://h:-1", "http://h:+80", "http://h:100000", "http://[]", " http://h", "http://h ",
 		"https://:443", "http://[::1]x", "http://[::1%25eth0]:80",
+		// weitere Formen des Benutzerteils (Nr. 5 c: kein Benutzerteil): mit Passwort, mit leerem
+		// Passwort, ohne Namen, vor Port und vor IPv6, mit Prozent-Kodierung, mit zweitem `@`
+		"http://u:p@h", "http://:p@h", "http://u:@h", "http://u:p@h:443", "https://u:p@[::1]",
+		"http://u%40v:p@h", "http://a@b@h", "http://:@h",
 	)
 }
 
@@ -110,7 +114,7 @@ func TestHostNichtLesbar(t *testing.T) {
 			}
 		}
 	}
-	if len(ziele) != 15+18 || paare != 33*12 || !slices.Contains(ziele, "http://h.") {
+	if len(ziele) != 15+18+8 || paare != 41*12 || !slices.Contains(ziele, "http://h.") {
 		t.Fatalf("%d Ziele, %d Paare", len(ziele), paare)
 	}
 }
@@ -224,11 +228,13 @@ func musterMenge() []string {
 	return aus
 }
 
-// pfadMenge erzeugt die 1891 Pfade: Folgen der Länge 0 bis 3 aus zwölf Segmenten mit führendem `/`
-// (1 + 12 + 144 + 1728 = 1885), dazu sechs Pfade ohne führendes `/`. Die zehn Segmente des Plans
-// sind um `aa` und `aba` ergänzt: ohne sie deckt kein Pfad ein Segment von `a*a`.
+// pfadMenge erzeugt die 2961 Pfade: Folgen der Länge 0 bis 3 aus vierzehn Segmenten mit führendem
+// `/` (1 + 14 + 196 + 2744 = 2955), dazu sechs Pfade ohne führendes `/`. Die zehn Segmente des
+// Plans sind um `aa` und `aba` (sonst deckt kein Pfad ein Segment von `a*a`) sowie `xa` und
+// `XOrders(1)` ergänzt: sie enthalten den Anfang eines Musters (`a`, `Orders(`), beginnen aber
+// nicht damit.
 func pfadMenge() []string {
-	zehn := []string{"Orders", "Orders(1)", "Orders(1,2)", "ab", "xb", "a", "b", "", ".", "..", "aa", "aba"}
+	zehn := []string{"Orders", "Orders(1)", "Orders(1,2)", "ab", "xb", "a", "b", "", ".", "..", "aa", "aba", "xa", "XOrders(1)"}
 	aus := []string{"/"}
 	var rec func(folge []string, rest int)
 	rec = func(folge []string, rest int) {
@@ -246,11 +252,11 @@ func pfadMenge() []string {
 	return append(aus, "", "Orders", "Orders/Orders", "a/b", "ab", "x/y/z")
 }
 
-// TestMusterVergleich (P15): 456 Muster x 1891 Pfade gegen das Orakel mit der Klasse W.
+// TestMusterVergleich (P15): 456 Muster x 2961 Pfade gegen das Orakel mit der Klasse W.
 func TestMusterVergleich(t *testing.T) {
 	muster, pfade := musterMenge(), pfadMenge()
-	if len(muster) != 456 || len(pfade) != 1891 {
-		t.Fatalf("%d Muster, %d Pfade; erwartet 456 und 1891", len(muster), len(pfade))
+	if len(muster) != 456 || len(pfade) != 2961 {
+		t.Fatalf("%d Muster, %d Pfade; erwartet 456 und 2961", len(muster), len(pfade))
 	}
 	paare, treffer := 0, 0
 	for _, m := range muster {
@@ -273,7 +279,7 @@ func TestMusterVergleich(t *testing.T) {
 		}
 		treffer += hits
 	}
-	if paare != 456*1891 {
+	if paare != 456*2961 {
 		t.Fatalf("%d Paare", paare)
 	}
 	if treffer != trefferP15 {
@@ -281,9 +287,9 @@ func TestMusterVergleich(t *testing.T) {
 	}
 }
 
-// trefferP15 ist die Zahl der Treffer des Orakels über die 862296 Paare; der Wert steht hier, damit
+// trefferP15 ist die Zahl der Treffer des Orakels über die 1350216 Paare; der Wert steht hier, damit
 // ein Orakel, das mit dem Code zugleich bricht, auffällt.
-const trefferP15 = 13017
+const trefferP15 = 18809
 
 // endungen sind die 17 Pfadendungen von P16.
 func endungen() []string {
