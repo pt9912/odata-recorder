@@ -152,8 +152,10 @@ func TestE2EMock(t *testing.T) {
 	}
 }
 
-// zuordnungsFormen sind die fünf Formen des Headers `X-Recorder-Workspace` (SPEC-195 Nr. 5, 8): vier sind
-// `ODR-E5003`, der unbekannte Wert `ODR-E7001`. Die Zeilen tragen den Namen unter der Schreibweise der Form.
+// zuordnungsFormen sind die sechs Formen des Headers `X-Recorder-Workspace` (SPEC-195 Nr. 5, 8): fünf sind
+// `ODR-E5003`, der unbekannte Wert `ODR-E7001`. Die Form „zwei Schreibweisen“ kommt beim Server von Go als
+// ein Name mit zwei Werten an und ist am Binary von „zwei gleiche Werte“ nicht zu trennen (SPEC-037 Nr. 10 l);
+// sie zählt als Form der Leitung, nicht als eigene Klasse des Binary.
 func zuordnungsFormen(ws string) []struct {
 	name, code string
 	status     int
@@ -167,12 +169,13 @@ func zuordnungsFormen(ws string) []struct {
 		{"fehlend", "ODR-E5003", 400, nil},
 		{"leer", "ODR-E5003", 400, []string{"X-Recorder-Workspace:"}},
 		{"zwei gleiche Werte", "ODR-E5003", 400, []string{"X-Recorder-Workspace: " + ws, "X-Recorder-Workspace: " + ws}},
+		{"zwei verschiedene Werte", "ODR-E5003", 400, []string{"X-Recorder-Workspace: " + ws, "X-Recorder-Workspace: " + ws + "x"}},
 		{"zwei Schreibweisen", "ODR-E5003", 400, []string{"X-Recorder-Workspace: " + ws, "x-recorder-workspace: " + ws}},
 		{"unbekannter Wert", "ODR-E7001", 404, []string{"X-Recorder-Workspace: ws-gibt-es-nicht"}},
 	}
 }
 
-// zuordnung: jede der fünf Formen an jedem von fünf Requests (lesend und schreibend); der Zustand bleibt
+// zuordnung: jede der sechs Formen an jedem von fünf Requests (lesend und schreibend); der Zustand bleibt
 // die Antwort vor den Mutationen.
 func (w *mockWelt) zuordnung(t *testing.T, p *prozess, vorher antwort) {
 	requests := []struct{ methode, pfad, body string }{
@@ -191,8 +194,8 @@ func (w *mockWelt) zuordnung(t *testing.T, p *prozess, vorher antwort) {
 			w.keinKontakt(t, f.name)
 		}
 	}
-	if n != 25 {
-		t.Errorf("Menge hat %d Elemente, erwartet 25 (5 Formen, 5 Requests)", n)
+	if n != 30 {
+		t.Errorf("Menge hat %d Elemente, erwartet 30 (6 Formen, 5 Requests)", n)
 	}
 	pruefeGleich(t, "Collection nach den Fehlern der Zuordnung", vorher, w.hole(t, p, anfrage{pfad: collPfad}))
 }
