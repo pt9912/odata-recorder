@@ -31,6 +31,79 @@ func mutierend(m string) bool {
 	return false
 }
 
+// routeFrei sagt, ob ein Eintrag von Schreibfreigaben Methode und Pfad deckt (SPEC-261 Nr. 6 c, d).
+func (p *Policy) routeFrei(methode, pfad string) bool {
+	if !strings.HasPrefix(pfad, "/") {
+		return false
+	}
+	teile := strings.Split(pfad[1:], "/")
+	for _, f := range p.freigaben {
+		if f.methode == methode && passt(f, teile) {
+			return true
+		}
+	}
+	return false
+}
+
+// passt vergleicht die Segmente des Pfades mit denen des Musters: einmal von vorn nach hinten, ohne
+// Zurücksetzen (SPEC-261 Nr. 6 f). Die Zahl der Segmente ist gleich, außer bei `**` am Ende.
+func passt(f freigabe, teile []string) bool {
+	n := len(f.segmente)
+	rest := f.segmente[n-1].art == segRest
+	if rest && len(teile) < n || !rest && len(teile) != n {
+		return false
+	}
+	for i, s := range f.segmente {
+		switch s.art {
+		case segLiteral:
+			if teile[i] != s.anfang {
+				return false
+			}
+		case segStern:
+			if !sternPasst(s, teile[i]) {
+				return false
+			}
+		case segRest:
+			for _, t := range teile[i:] {
+				if !gedeckt(t) {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// sternPasst sagt, ob ein Segment mit einem `*` passt: Anfang und Ende byte-gleich, dazwischen
+// mindestens ein Byte der Menge W; deckt das `*` das ganze Segment, ist es weder `.` noch `..`.
+func sternPasst(s segment, t string) bool {
+	if len(t) < len(s.anfang)+len(s.ende)+1 || !strings.HasPrefix(t, s.anfang) || !strings.HasSuffix(t, s.ende) {
+		return false
+	}
+	mitte := t[len(s.anfang) : len(t)-len(s.ende)]
+	if s.anfang == "" && s.ende == "" {
+		return gedeckt(mitte)
+	}
+	return wBytes(mitte)
+}
+
+// gedeckt sagt, ob ein ganzes Segment von `*` oder `**` gedeckt werden darf: nicht leer, nur Bytes
+// der Menge W, weder `.` noch `..`.
+func gedeckt(t string) bool {
+	return t != "" && t != "." && t != ".." && wBytes(t)
+}
+
+// wBytes sagt, ob jedes Byte zur Menge W gehört: 0x21 bis 0x7E außer `/`, `%`, `\`, `?` und `#`.
+func wBytes(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c < 0x21 || c > 0x7E || c == '/' || c == '%' || c == '\\' || c == '?' || c == '#' {
+			return false
+		}
+	}
+	return true
+}
+
 // parseFreigabe prüft `<Methode> <Muster>` mit genau einem Leerzeichen und liefert die Ursache in
 // der Rangfolge leer, trenner, methode, muster (SPEC-261 Nr. 6 a).
 func parseFreigabe(e string) (freigabe, string) {
