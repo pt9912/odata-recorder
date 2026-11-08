@@ -161,7 +161,7 @@ Zeilen gesamt 22: *a* = 0, *b* = 22. In A1 und E2 nennen die Zellen die Formen d
 
 **Zeitkonstanter Vergleich** (Architect, Auftrag H): Haltepunkt am Argument: `Konfig.Vergleich` (U4) belegt, dass der Adapter die Funktion ruft und allein ihr Ergebnis gilt; die Quelle der Funktion belegt der AST-Test U6 (`subtle.ConstantTimeCompare` auf SHA-256, keine verbotenen Vergleiche; Grenze N-3); das Zeitverhalten selbst misst kein Test (akzeptiertes Negativ in `SPEC-238` *Ungeprüft*, Grund und Folge dort).
 
-**Größe der Sicht des Architect** (`SPEC-128` Nr. 1, Aufteilung durch den Planner): 22 Zeilen (*a* = 0, *b* = 22; der Planner-Stand vom 2026-11-07 zählte 18), *f* = 0 (die Fakes liegen seit `slice-admin-rahmen`), *p* = 100. Die Rechnung nach der Formel der Prosa in §4 ergäbe *S* = 80·22 + 100 = 1860 und *M* = 2600; die Marke setzt der Planner (§6, Größe).
+**Größe der Sicht des Architect** (`SPEC-128` Nr. 1, Aufteilung durch den Planner): 22 Zeilen (*a* = 0, *b* = 22; der Planner-Stand vom 2026-11-07 zählte 18), *f* = 0 (die Fakes liegen seit `slice-admin-rahmen`), *p* = 100. Der Planner setzt danach *S* = 80·22 + 100 = 1860 und *M* = 2600 in den Block von §4 (§6, Größe).
 
 **Betriebsregeln für alle Rollen dieses Slice** (Lehren der Läufe vom 2026-10-24; sie stehen im Plan, damit ein Lauf sie am Arbeitsort liest):
 
@@ -181,17 +181,20 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): [slice-admin-rahmen](../done/slice-admin-rahmen.md) liegt in `done/` (Code-Abhängigkeit: `Konfig`, Zuordnung, die eine Stelle für das Fehlerobjekt, die Fakes `zaehlendeIDs` und `routeFake`). Die Spezifikation trägt den Vertrag samt Randformen (`SPEC-238` Nr. 3 bis 5) seit dem Zweig von `slice-admin-listener-token` (`AGENTS.md` §3.12). Stand der Bedingungen beim Schnitt (Planner, 2026-11-07, `main` = `aadbef0`): `slice-audit-log` und `slice-telemetry-port` liegen in `done/`; der Teil ruft beide Ports nicht.
 
-**Größenmarke** (Planner, 2026-11-07, `SPEC-128` Nr. 1; Prosa-Form; der Block mit `basis`, `schaetzung` und `marke` steht vor dem ersten Code-Commit, Start 2026-11-08): 18 Zeilen der Tabelle, *a* = 0, *b* = 18, *f* = 0, *p* = 100: *S* = 85·0 + 80·18 + 200·0 + 100 = 1540, *M* = 2100, keine Schnittfrage (*S* < 2223). Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Pfad des Blocks beim Start: `src/adapters/driving/admin/`; `produktcode` 100, `fakes` 0. Start (Planner, 2026-11-08): *S* = 1540 und *M* = 2100 bleiben, die Schnittgrenze 2223 wird nicht erreicht, es wird vor dem Code nicht geschnitten. Stand der Bedingungen beim Start (`main` = `c469ef1e`): `slice-admin-rahmen` liegt in `done/`; `slice-audit-log` und `slice-telemetry-port` liegen in `done/`; in `in-progress/` liegen sonst nur `slice-handbuch-katalog-schluessel-kommandos` (Linie der Gate-Kette) und der parallel startende `slice-bootstrap-m3`; dieser Slice ändert keinen Pfad der Gate-Kette (Übergangsregel 7, §6), also kein Konflikt. Basis der Messung: `c469ef1e` (die Start-Commits ändern allein Pläne). **Architect, 2026-11-08:** die Tabelle in §3 hat 22 statt 18 Zeilen; der Block unten trägt Pfad, `produktcode` und `fakes`, `basis`, `schaetzung` und `marke` setzt der Planner (§6, Größe).
+**Größenmarke** (Planner, 2026-11-08, `SPEC-128` Nr. 1; vollständiger Block unten, vor dem ersten Code-Commit): 22 Zeilen der Tabelle (Architect, 2026-11-08), alle Klasse `andere`: *a* = 0, *b* = 22, *f* = 0, *p* = 100: *S* = 85·0 + 80·22 + 200·0 + 100 = 1860, *M* = 2600, keine Schnittfrage (*S* < 2223), es wird vor dem Code nicht geschnitten. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Pfad des Blocks: `src/adapters/driving/admin/`; `produktcode` 100, `fakes` 0. Die Schätzung folgt allein der Formel, ohne Eigenkalibrierung. Stand der Bedingungen beim Start (`main` = `c469ef1e`): `slice-admin-rahmen` liegt in `done/`; `slice-audit-log` und `slice-telemetry-port` liegen in `done/`; in `in-progress/` liegen sonst nur `slice-handbuch-katalog-schluessel-kommandos` (Linie der Gate-Kette) und der parallel startende `slice-bootstrap-m3`; dieser Slice ändert keinen Pfad der Gate-Kette (Übergangsregel 7, §6), also kein Konflikt. Basis der Messung: `c469ef1e` (die Start-Commits ändern allein Pläne; Messung vor dem Code 0).
 
 ```groessenmarke
 pfad: src/adapters/driving/admin/
 produktcode: 100
 fakes: 0
+basis: c469ef1e
+schaetzung: 1860
+marke: 2600
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke 2100 (Vertrag [SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md)); ein Teil, der sich ohne geteilten Mechanismus abtrennen lässt, steht dann vor dem Code in §4, sonst steht die Messung mit Grund im Plan (`AGENTS.md` §3.14).
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke 2600 (Vertrag [SPEC-128](../../../../harness/vertraege/SPEC-128-groessenmarke.md)); ein Teil, der sich ohne geteilten Mechanismus abtrennen lässt, steht dann vor dem Code in §4, sonst steht die Messung mit Grund im Plan (`AGENTS.md` §3.14).
 - `in-progress` → `open` (blockiert — Carveout?): der Architect ändert `SPEC-238` Nr. 3 oder 4 (Rückgabe an den Planner), oder `slice-admin-rahmen` liefert `Konfig` oder die Zuordnung nicht in der Form, die der Ablauf braucht. Die Schärfung vom 2026-11-08 ändert die Spezifikation nicht: jede Randform ist aus Nr. 1 bis 5 und 13 oder durch ein akzeptiertes Negativ (N-1 bis N-4) entschieden.
 
 ## 5. Closure-Trigger
@@ -248,7 +251,7 @@ Die Paare „ungültige Form und angehaltener Server“ und „`GET /healthz` be
 - `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (12×): jeder Zweig der Authentisierung hat einen Lauf unter dem Detektor (Z-Liste in §3) — **Ausgang:** weiter offen → `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` im Register.
 - `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×) und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` (4×): die Fakes `routeFake` und `useCaseFake` zählen jede Operation, auch die, die der Rahmen nie rufen darf — **Ausgang:** weiter offen → `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` im Register.
 - `BEO-REPO/akzeptiertes-negativ-ohne-folge` (15×): das Zeitverhalten des Vergleichs ist ein Negativ mit Grund und Folge in `SPEC-238` *Ungeprüft*, der Haltepunkt ist U4; N-1 bis N-4 tragen Grund und Folge — **Ausgang:** weiter offen → `BEO-REPO/akzeptiertes-negativ-ohne-folge` im Register.
-- Größe: die Marke steht als Prosa in §4 (*S* = 1540, *M* = 2100) für 18 Zeilen; die Tabelle hat nach der Schärfung des Architect 22 (*S* = 1860, *M* = 2600 nach der Formel, noch unter der Schnittgrenze 2223) — **Ausgang:** offen; Adresse: Planner (setzt vor dem ersten Code-Commit Marke, Basis und Schätzung im Block von §4 und die Prosa auf 22 Zeilen; der Block trägt bisher allein Pfad, `produktcode` und `fakes`).
+- Größe: der Block in §4 trägt für die 22 Zeilen der Tabelle *S* = 1860, *M* = 2600, Basis `c469ef1e`, unter der Schnittgrenze 2223 — **Ausgang:** gesetzt (Planner, 2026-11-08, vor dem ersten Code-Commit); `make groessenmarke` grün.
 - Gate-Kette (Nr. 7 der Übergangsregeln von `welle-benutzerhandbuch`): der Teil ändert weder `GATE_CHECKS` noch ein Gate — **Ausgang:** entfallen; kein Pfad der Gate-Kette im Plan (§3).
 
 ## 7. Closure-Notiz
