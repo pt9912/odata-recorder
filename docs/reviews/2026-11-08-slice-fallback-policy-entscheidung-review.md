@@ -98,7 +98,7 @@ Kein Befund erlaubt einen Upstream-Zugriff, den der Wortlaut nicht erlaubt. Der 
 **I3**
 - kategorie: INFO
 - quelle: `AGENTS.md` §3.15; Plan §3 (acht äquivalente Mutationen)
-- pfad: `docs/plan/planning/in-progress/slice-fallback-policy-entscheidung.md` · `**Äquivalente Mutationen** (8, grün, Grund und Folge)`
+- pfad: `docs/plan/planning/done/slice-fallback-policy-entscheidung.md` · `**Äquivalente Mutationen** (8, grün, Grund und Folge)`
 - befund: Von den acht sind sechs äquivalent und mit dem Probe-Paket gemessen (je grün über 57,6 Mio. Fälle, Mutationen des Implementers unverändert): `m-w-schraegstrich`, `m-ziel-port-null-gueltig`, `m-ziel-host-leer`, `m-ziel-namenszeichen`, `m-ziel-zone-erlaubt`, `m-ziel-ipv6-nur-adresse`. `m-host-klammer-pruefung-fehlt` ist zurzeit äquivalent und hängt an der Standardbibliothek (M2). `m-ziel-port-ueberlauf` ist es nur in der gewählten Form (M1). Eine Zeile Plan sagt „Folge: keine im Betrieb“ für alle acht; für M1 und M2 gilt das nur, solange `url.Parse` und `Senden` dieselbe Lesart halten.
 - verifizierbar: ja
 - klasse: Äquivalenz-Behauptung gemessen

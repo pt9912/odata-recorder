@@ -1,7 +1,7 @@
 # Verifikation slice-fallback-policy-entscheidung (Teil 2: Entscheide)
 
 **Rolle:** Verifier (einmal). **Datum:** 2026-11-08. **Stand:** Zweig `slice-fallback-policy-entscheidung`, HEAD `1914ee9f` (Fix-Runde nach dem [Review](2026-11-08-slice-fallback-policy-entscheidung-review.md)). **Bezug:** [LH-FA-12](../../spec/lastenheft.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
-**Plan:** [slice-fallback-policy-entscheidung](../plan/planning/in-progress/slice-fallback-policy-entscheidung.md).
+**Plan:** [slice-fallback-policy-entscheidung](../plan/planning/done/slice-fallback-policy-entscheidung.md).
 
 ## Urteil
 
