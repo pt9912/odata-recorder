@@ -66,7 +66,7 @@ Dieser Abschnitt führt die Einstellungen, die der Dienst aus den Umgebungsvaria
 
 | Schlüssel | Bedeutung |
 |---|---|
-| `MODE` | Betriebsart des Dienstes: `record` nimmt Austausche mit dem Upstream auf, `replay` spielt aufgezeichnete Austausche ab. Der Start nimmt nur diese beiden Werte an; ohne Angabe gilt `mock`, und der Start lehnt ihn ab. |
+| `MODE` | Betriebsart des Dienstes: `record` nimmt Austausche mit dem Upstream auf, `replay` spielt aufgezeichnete Austausche ab. `mock` beantwortet Anfragen allein aus dem Bestand, ohne Upstream. Ohne Angabe gilt `mock`; `hybrid` ist ein gültiger Wert, aber der Start lehnt ihn ab. |
 | `LISTEN` | Host und Port, an dem der Dienst Anfragen annimmt, in der Form `host:port`. Ohne Angabe gilt `127.0.0.1:8080`. |
 | `DATA_DIR` | Verzeichnis, in dem der Dienst seine Daten ablegt, absolut oder relativ zum Arbeitsverzeichnis. Ohne Angabe gilt `data`. |
 | `SERVICE_ID` | Kennung des einzigen Services, 1 bis 64 Zeichen aus Buchstaben, Ziffern, `.`, `_` und `-`. Ohne Angabe gilt `default`. |
@@ -92,6 +92,8 @@ Dieser Abschnitt führt die Einstellungen, die der Dienst aus den Umgebungsvaria
 | `SQLITE_BUSY_TIMEOUT` | Wartezeit der Datenbank bei gleichzeitigem Zugriff: eine Dauer wie bei `UPSTREAM_TIMEOUT`, höchstens 2147483647 ms. Ohne Angabe gilt `5000ms`. |
 | `VOLATILE_HEADERS` | Header-Namen, die der Vergleich der Antworten übergeht, durch Komma getrennt; `none` steht für keinen Header. Ohne Angabe gilt `Date, Server, Via, Age, X-Request-Id, X-Correlation-Id, Traceparent`. |
 | `LINK_REWRITE` | Umschreiben absoluter Links; der Dienst nimmt nur `off` an, und `off` gilt ohne Angabe. |
+| `STRICT_COVERAGE` | Wahrheitswert; wirkt im Modus `mock`: `true` weist eine Collection-Abfrage über einen nicht vollständigen Bestand ab, `false` beantwortet sie aus den bekannten Entities. Ohne Angabe gilt `true`. |
+| `PUBLIC_BASE_URL` | Öffentliche Basis der Links, die der Dienst im Modus `mock` erzeugt: `http://` oder `https://`, Host, optional Port und Segmente, ohne abschließenden Schrägstrich, höchstens 2048 Bytes. Ohne Angabe leitet der Dienst sie aus `LISTEN` ab, wenn dessen Host `127.0.0.1`, `[::1]` oder `localhost` ist; bei jedem anderen Host verlangt der Modus `mock` sie. |
 
 ## Fehlercodes
 

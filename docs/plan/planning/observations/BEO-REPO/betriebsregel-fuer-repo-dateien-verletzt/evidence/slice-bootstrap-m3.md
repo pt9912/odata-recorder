@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m3
+**Fund:** Drei Formen. (1) Der Implementer schrieb mit einem Heredoc und beendete fremde Läufe mit `pgrep`/`kill` (Meldung des Auftraggebers der Integration). (2) Der Planner nutzte `sed` auf `slice-bootstrap-m3-e2e-mock.md`; die Datei wurde dadurch zur Konfliktquelle gegen `main` (Auflage A3). (3) Ein Aufruf von Python wurde vom Command-Guard blockiert. Die Berichte von Review und Verifikation nennen die Berührungen nicht.

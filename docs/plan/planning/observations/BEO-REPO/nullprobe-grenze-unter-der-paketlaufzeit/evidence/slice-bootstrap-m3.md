@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m3
+**Fund:** `src/bootstrap` braucht in `make test` 198 s (Zeitgrenze der Nullprobe 2 Minuten je Testprozess); `mutationslauf.sh` endet mit `Ausgangsstand rot: src/bootstrap`. Der Implementer fuhr die 44 Mutationen der Klasse `andere` und die 4 der Klasse `nebenläufig` mit einem eigenen Treiber, der je Mutation nur den benannten Test fährt. Zweiter Vorgang nach `slice-mock-abnahme`. Beleg: Plan §3 *Mutationen*, §6.

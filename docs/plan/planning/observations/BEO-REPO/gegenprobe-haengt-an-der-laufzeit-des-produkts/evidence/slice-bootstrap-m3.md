@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m3
+**Fund:** Der Mock-Pfad im Composition Root vergrößert `src/bootstrap`: `make test` misst 198 s für das Paket. Die Gegenproben fahren Pakete des Produkts mit; ob ihre Zusatzzeit mit dem Paket wächst, hat dieser Slice nicht gemessen. Der Trigger von [ADR-0005](../../../../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) bleibt beim User. Beleg: Plan §6 (Ausgang *weiter offen*).

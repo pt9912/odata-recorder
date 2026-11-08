@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m3
+**Fund:** Zwei Tests von Paketen, die der Slice nicht berührt, flackerten unter der Last des geteilten Hosts: `urlparser` `TestUeberlangeEingabe` (`grenzen_test.go`, „pfad: Zuteilung 5576“, einmal rot, im nächsten Lauf von `make test` grün) und `admin` `TestWettlaufNebenlaeufig` (`src/adapters/driving/admin`, Wettlauf, einmal rot, im nächsten Lauf grün). Beleg: Plan §6.

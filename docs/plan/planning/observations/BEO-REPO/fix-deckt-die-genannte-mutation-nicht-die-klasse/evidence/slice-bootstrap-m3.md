@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m3
+**Fund:** Der Fix der Review-Runde deckte die Prozent-Kodierung von `PUBLIC_BASE_URL` über 65536 Paare, nicht aber die Nachbarklasse im selben Wortlaut (`SPEC-168` Nr. 2): ein Segment, dessen dekodierter Text `.` oder `..` ist (12 Schreibweisen, 24 Prüfungen). Mutation P9 (Vergleich auf dem rohen Segment) blieb grün; der Verifier fand sie, der Nachzug (`TestKonfigPublicBaseURLPunktSegment`) schloss sie. Beleg: Verifikation V3 (Auflage A4); Plan §3 *Fix-Runde*.
