@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-- [welle-hybrid](../welle-hybrid.md) (Trigger eingetreten: `welle-mock` in `done/`, M3 erreicht; [slice-fallback-policy](../done/slice-fallback-policy.md) (Prüfung der Einträge und `New`) in `done/`; als Nächstes [slice-fallback-policy-entscheidung](../in-progress/slice-fallback-policy-entscheidung.md) (Entscheidung, startbar), danach `slice-hybrid-service`, dann `slice-bootstrap-m4` (M4))
+- [welle-hybrid](../welle-hybrid.md) (Trigger eingetreten: `welle-mock` in `done/`, M3 erreicht; [slice-fallback-policy](../done/slice-fallback-policy.md) (Prüfung der Einträge und `New`) in `done/`; in Arbeit: [slice-fallback-policy-entscheidung](slice-fallback-policy-entscheidung.md) (`in-progress/`, Entscheidung, Linie B, Zweig `slice-fallback-policy-entscheidung`; Marke 2000), danach `slice-hybrid-service`, dann `slice-bootstrap-m4` (M4))
 - [welle-etag](../welle-etag.md) (Trigger eingetreten: `welle-mock` in `done/`, M3 erreicht; in Arbeit: [slice-etag-versionen](slice-etag-versionen.md) (`in-progress/`, ETag aus dem Versionszähler, Zweig `slice-etag-versionen`); danach `slice-if-match` und `slice-prefer-return`)
 - [welle-admin-api](../welle-admin-api.md) (Ausnahme je Slice, siehe *Nächste Wellen*; in Arbeit: [slice-admin-lebenszyklus](slice-admin-lebenszyklus.md) (`in-progress/`, Linie D, Teil 4 des Admin-Rahmens, Zweig `slice-admin-lebenszyklus`; ändert das Binary nicht))
 

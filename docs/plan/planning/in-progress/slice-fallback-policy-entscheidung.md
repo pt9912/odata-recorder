@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-12.a` · `LH-FA-12.b` (Entscheidungsmatrix) · `SPEC-010`, `SPEC-062`, `SPEC-079`, `SPEC-080` · `SPEC-020`, `SPEC-021`, `SPEC-022`, `SPEC-023`, `SPEC-024` (die Codes, nach denen die Matrix entscheidet) · `ARC-002` · `architecture.md` §2.5 (Modus-Routing) · `SPEC-261` Nr. 1 (Listen sind Mengen), 2 bis 4 (Methodenklassen, Auslöser, Matrix), 5 b bis e und 6 c bis e (Vergleich von Host und Pfad), 9 und 10 (Totalität, Aufrufer) (Vertrag der Policy, Architect).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-fallback-policy-entscheidung`, Worktree `/Development/odata-recorder-wt-fallback-policy-entscheidung`; der Zweig entsteht nach dem Start-Commit von `main`)
 
 **Autor:** pt9912. **Datum:** 2026-11-08.
 
@@ -137,6 +137,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): `slice-fallback-policy` liegt in `done/` (Merge nach `main`). Die Spezifikation trägt den Vertrag samt Randformen (`SPEC-261`) bereits.
 
+- **Stand der Bedingungen beim Start** (Planner, 2026-11-08, `main` = `98bcbb5d`): `slice-fallback-policy` liegt in `done/` (Merge `9be8c848`); die Spezifikation trägt `SPEC-261`. In `in-progress/` laufen parallel `slice-etag-versionen` (`src/hexagon/services/`, ohne `hybrid`) und `slice-admin-lebenszyklus` (`src/adapters/driving/admin/`); beide teilen keinen Pfad aus §3, und dieser Slice ändert keinen Pfad der Gate-Kette (Übergangsregel 7, §6), also kein Konflikt. Der Architect prüft den Plan (Tabelle in §3 mit P01 bis P10, P12, P15, P16, P22 bis P24 und den Auftrag zu den Headern zum Überschreiben der Methode) nach dem Start im Worktree, vor dem ersten Code-Commit.
+
 **Warum:** `slice-fallback-policy` liefert `Policy`, die geparste Form von Host, Methode und Muster, `New` und `*KonfigFehler`; die Entscheidung liest sie (*Code-Abhängigkeit*, dieselben Dateien unter `src/hexagon/services/hybrid/policy/`). Keine Abhängigkeit von `welle-mock`, `welle-record-replay` und M2: die Entscheidung braucht weder `MockUseCase` noch `ReplayUseCase` noch `UpstreamClient`.
 
 **Größenmarke** (Planner, 2026-11-08, `SPEC-128` Nr. 1; Schnitt von `slice-fallback-policy`, dessen §4 die Rechnung des ungeschnittenen Plans trägt: 24 Zeilen, *p* = 500, *S* = 2420, *M* = 3300, Schnittfrage ja): 16 Zeilen der Tabelle (P01 bis P10, P12, P15, P16, P22 bis P24), *a* = 0, *b* = 16, *f* = 0, *p* = 200 (Auswahl, Methodenklassen, Vergleich von Host und Muster auf der geparsten Form): *S* = 85·0 + 80·16 + 200·0 + 200 = 1480, *M* = 2000, keine Schnittfrage (*S* < 2223). Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Der Planner setzt `basis`, `schaetzung` und `marke` beim Start; **Basis** ist der letzte Commit von `slice-fallback-policy` unter `src/hexagon/services/hybrid`, damit die Messung allein diesen Slice zählt (Pfad `src/hexagon/services/hybrid` ist der des Architect). Der erste Teil (`slice-fallback-policy`) hat 9 Zeilen (die Zeile P01a als akzeptiertes Negativ zählt mit), *p* = 300, *S* = 1020, *M* = 1400, Basis `9310c219`; die Summe der Schätzungen (2500) liegt um diese Zeile (80) über der des ungeschnittenen Plans (2420), die der Marken (3400) um 100 über 3300.
@@ -147,7 +149,12 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 pfad: src/hexagon/services/hybrid
 produktcode: 200
 fakes: 0
+basis: 56dc7c58
+schaetzung: 1480
+marke: 2000
 ```
+
+Teil des Planner (2026-11-08, vor dem ersten Code-Commit): `basis` ist der letzte Commit von `slice-fallback-policy` unter `src/hexagon/services/hybrid` auf `main` (`git log`: `56dc7c58`, Vorfahre von `HEAD`); *S* = 85·0 + 80·16 + 200·0 + 200 = 1480; *M* = 100 · ⌈135·1480 / 10000⌉ = 100 · ⌈19,98⌉ = 2000; keine Schnittfrage (135·1480 = 199800 ≤ 300000).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -186,6 +193,12 @@ Zusatztabelle (Abhängigkeit vom Modus):
 
 Die Zusatztabelle der Verstöße am selben Schlüssel (mehrere Verstöße je Liste und über Listen) führt `slice-fallback-policy`.
 
+**Offene Fragen an den User (drei; sie bremsen den Start nicht, die Antwort ändert §3 und `SPEC-261`):**
+
+- **FRAGE 1 (User):** Replay-Fallback auch für mutierende Methoden — bis zur Antwort gilt `SPEC-261` Nr. 4 b = ja (zweiter Punkt unten).
+- **FRAGE 2 (User):** `ODR-E6006` als Auslöser — bis zur Antwort nein, kein Fallback (dritter Punkt unten).
+- **FRAGE 3 (User):** Lücke im Lastenheft — der Replay-Fallback hat dort keine Anforderung (erster Punkt unten).
+
 - Der Replay-Fallback hat im Lastenheft weder Anforderung noch Akzeptanzkriterium ([Abgleichsbericht](../../../reviews/2026-10-30-lastenheft-wellen-abgleich.md) §8 Nr. 2); die Policy leitet ihn aus `LH-FA-12.a` und `LH-FA-12.b` der Spezifikation ab — **Ausgang:** weiter offen als benannte Lücke des Lastenhefts; Adresse: User (Change Request vor `Accepted` oder Bestätigung).
 - **Frage (Architect, 2026-11-08):** Soll der Replay-Fallback auch für mutierende Methoden gelten (`SPEC-261` Nr. 4 b: ja, weil `LH-FA-12.b` ihn nicht an die Methode bindet und er keinen Upstream kontaktiert), mit der Folge, dass der Mock unverändert bleibt, während der Client eine aufgezeichnete Erfolgsantwort sieht? Die Alternative „nur lesend“ ist eine Zeile in Nr. 4 b und die Zeilen P05 und P06 — **Ausgang:** weiter offen; Adresse: User; bis zur Antwort gilt Nr. 4 b.
 - **Frage (Architect, 2026-11-08):** Soll `ODR-E6006` (V2: Eigenschaft außerhalb des Umfangs) ein Auslöser werden? `SPEC-261` Nr. 3 d sagt nein, weil `LH-FA-12.b` den Code nicht nennt; ein V2-Service fiele sonst bei einer nicht unterstützten Eigenschaft auf den Upstream zurück. Das wäre eine Änderung der Matrix im Lastenheft — **Ausgang:** weiter offen; Adresse: User; bis zur Antwort kein Fallback (die sichere Seite).
@@ -193,7 +206,7 @@ Die Zusatztabelle der Verstöße am selben Schlüssel (mehrere Verstöße je Lis
 - Wechselwirkung (`SPEC-261` Nr. 4 e): wer für eine Kategorie den Replay-Fallback setzt, schaltet den schreibenden Upstream-Fallback für deren Codes ab, weil die Zeile „Replay-Miss“ der Matrix nur `GET` und `HEAD` kennt — **Ausgang:** eingetreten als Sendung: `slice-bootstrap-m4` nimmt sie an (DoD Punkt 7, Handbuch nennt die Wechselwirkung; Planner, 2026-11-08, §3.13 geprüft).
 - Sendungen aus Nr. 10 von `SPEC-261` (`AGENTS.md` §3.13): an `slice-hybrid-service` — `Ziel` ist dieselbe Zeichenkette, die gesendet wird; `Entscheide` vor jedem Senden; Auswahl der gesendeten Header, darunter die Header zum Überschreiben der Methode (*Ungeprüft* von `SPEC-261`); der Replay-Fallback einer mutierenden Methode ändert den Mock nicht. An `slice-bootstrap-m4` — `*KonfigFehler` wird `ODR-E2001`, `enabled` ohne `UPSTREAM_URL` wird `ODR-E2001`, die Reihenfolge der Schlüssel in der Meldung — **Ausgang:** eingetreten als Sendung: beide Nehmer tragen sie in §1 und DoD (Commit vor diesem Plan, Planner 2026-11-08).
 - `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×): die Policy hat keine Nebenläufigkeit, der Detektor hat nichts zu melden; jeder Zweig der Matrix hat einen Fall der Tabelle — **Ausgang:** entfallen: reine Funktion ohne Zustand, Zählprüfung der Fälle gegen die Zeilen von `LH-FA-12.b` statt eines Laufs unter dem Detektor.
-- Größe: *S* = 1480 und *M* = 2000 (§4), keine Schnittfrage; der Block mit `basis`, `schaetzung` und `marke` entsteht beim Start vor dem ersten Code-Commit — **Ausgang:** offen; Adresse: Planner beim Start.
+- Größe: *S* = 1480 und *M* = 2000 (§4), keine Schnittfrage; der Block mit `basis` (`56dc7c58`), `schaetzung` (1480) und `marke` (2000) steht seit dem Start vor dem ersten Code-Commit (§4) — **Ausgang:** entfallen: Marke gesetzt, nachgerechnet nach `SPEC-128` Nr. 1.
 - Gate-Kette (Nr. 7 der Übergangsregeln von `welle-benutzerhandbuch`): der Slice ändert weder `GATE_CHECKS` noch ein Gate — **Ausgang:** entfallen; kein Pfad der Gate-Kette im Plan (§3).
 
 ## 7. Closure-Notiz
