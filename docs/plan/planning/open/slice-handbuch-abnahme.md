@@ -48,7 +48,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Kapitel über Mock, Hybrid, Admin-API — Folgewellen; der Probelauf prüft, was das Handbuch zum Zeitpunkt der Closure sagt.
+- Kapitel über Hybrid, Admin-API — Folgewellen; das Kapitel zum Modus `mock` schreibt `slice-handbuch-mock` (Geber: dieser Slice nimmt es nicht an und liegt in der Reihenfolge danach); der Probelauf prüft, was das Handbuch zum Zeitpunkt der Closure sagt.
 - Code- oder Binary-Änderungen — andere Schicht; ein Binary-Befund geht an den Planner.
 - Ein wiederkehrender Probelauf als Gate — kostet einen Rollenlauf pro Änderung und ist kein deterministischer Sensor; der Lauf gehört zur Closure der Welle und, mit Beschluss der Folgewellen, zu deren Closure (Vorschlag an den User in der Closure-Notiz der Welle).
 - Eine Übersetzung oder Barrierefreiheitsprüfung nach Standard Abschnitt 11 — der Recorder hat keine Oberfläche; was bleibt (Überschriftenstruktur), prüft der Probelauf mit.
