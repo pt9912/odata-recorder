@@ -1,6 +1,8 @@
 package mock_test
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
 
 // Die Tests dieser Datei halten die Zusagen von SPEC-283 (Tabelle Zusage und Fänger des Plans, F1 bis F26). Die Literale der Header und
@@ -153,15 +156,15 @@ func TestIfMatchPasst(t *testing.T) {
 
 // TestIfMatchVeraltet (F2, F21): ein Tag, der die Bedingung bricht (v - 1, v + 1, 0, "x", W/"x"; für If-None-Match der eigene Tag), ist
 // ODR-E6010: Zustand, Revision und Zähler bleiben, nur Transaktion, Workspaces.Get und Entities.Get je einmal. Der Wert trägt eine
-// Marke, die in keinem Text stehen darf. Methode 3 × Version 3 × Tag je Header 5 = 90 Läufe.
+// Marke, die in keinem Text stehen darf. Methode 3 × Version 4 (0, 1, 7, 10) × Tag je Header 5 = 120 Läufe.
 func TestIfMatchVeraltet(t *testing.T) {
 	n := 0
 	for _, m := range bedingteMethoden() {
-		for _, v := range []int64{1, 7, 10} {
+		for _, v := range []int64{0, 1, 7, 10} {
 			for _, k := range beideKoepfe() {
 				var tags []string
 				if k == ifMatch {
-					tags = []string{zeile(v-1, true), zeile(v+1, true), zeile(0, false), `"` + kanarienwert + `"`, `W/"x"`}
+					tags = []string{zeile(v-1, true), zeile(v+1, true), zeile(v+2, false), `"` + kanarienwert + `"`, `W/"x"`}
 				} else {
 					tags = []string{zeile(v, true), zeile(v, false), `*`, zeile(v, true) + `,"` + kanarienwert + `"`, `"` + kanarienwert + `",` + zeile(v, true)}
 				}
@@ -181,8 +184,8 @@ func TestIfMatchVeraltet(t *testing.T) {
 			}
 		}
 	}
-	if n != 90 {
-		t.Errorf("Menge %d, erwartet 90", n)
+	if n != 120 {
+		t.Errorf("Menge %d, erwartet 120", n)
 	}
 }
 
@@ -708,5 +711,74 @@ func TestIfMatchLesenIgnoriert(t *testing.T) {
 	// Methode × Ressource: GET 3 + HEAD 1 = 4, × Header 2 × Wert 5 × Schalter 2.
 	if n != 4*2*5*2 {
 		t.Errorf("Menge %d, erwartet %d", n, 4*2*5*2)
+	}
+}
+
+// versionenAnSternGrenze sind die Versionen für If-None-Match: * an einem vorhandenen Eintrag (SPEC-283 Nr. 5 b): die Grenze 0/1/2, Zehnerpotenzen und große Zähler.
+func versionenAnSternGrenze() []int64 {
+	return []int64{0, 1, 2, 3, 9, 10, 99, 100, 4294967296, 9223372036854775806}
+}
+
+// TestIfMatchSternBeiJederVersion (F11, Klasse Version 0 bis 2^63-1): If-None-Match: * ist bei vorhandenem Eintrag nicht erfüllt, auch an einem
+// unveränderten Baseline-Eintrag (Version 0); If-Match: * ist bei jeder Version erfüllt. Methode 3 × Version 10 × Header 2 = 60 Läufe.
+func TestIfMatchSternBeiJederVersion(t *testing.T) {
+	n := 0
+	for _, m := range bedingteMethoden() {
+		for _, v := range versionenAnSternGrenze() {
+			for _, k := range beideKoepfe() {
+				n++
+				kontext := fmt.Sprintf("%s %s Version %d", m, k, v)
+				u := etagUmg(t, true, v, v, v)
+				a, err := u.mutiereMit(m, "2", k.mit([]string{"*"}))
+				if k == ifMatch {
+					erwarteStatus(t, kontext, a, err, 204)
+					continue
+				}
+				erwarte412(t, kontext, err)
+				u.abgewiesen(kontext)
+			}
+		}
+	}
+	if n != 3*10*2 {
+		t.Errorf("Menge %d, erwartet %d", n, 3*10*2)
+	}
+}
+
+// TestIfMatchAbbruchEntitiesGet (Raster Abbruch, SPEC-283 Nr. 9 d): ein Fehler an Entities.Get geht der Vorbedingung vor, auch bei nicht erfülltem
+// Header: ein Port-Fehler ist sein Code, ein Kontextfehler bleibt ohne Code und ist errors.Is gleich; nichts wird geschrieben.
+// Methode 3 × Header 2 × Fehlerart 3 = 18 Läufe.
+func TestIfMatchAbbruchEntitiesGet(t *testing.T) {
+	arten := []struct {
+		name string
+		err  error
+		code model.Code
+	}{
+		{"Port-Fehler", outbound.ErrBeschaedigt, model.CodeE3001},
+		{"context.Canceled", context.Canceled, 0},
+		{"context.DeadlineExceeded", context.DeadlineExceeded, 0},
+	}
+	n := 0
+	for _, m := range bedingteMethoden() {
+		for _, k := range beideKoepfe() {
+			for _, a := range arten {
+				n++
+				kontext := fmt.Sprintf("%s %s %s", m, k, a.name)
+				u := etagUmg(t, true, 5, 5, 5)
+				u.p.setzeFehler("Entities.Get", a.err)
+				_, err := u.mutiereMit(m, "2", k.mit(k.verletzt(5)))
+				if a.code != 0 {
+					pruefeFehler(t, kontext, err, a.code)
+				} else if !errors.Is(err, a.err) || fehlercode(err) != 0 {
+					t.Errorf("%s: Fehler %v, erwartet %v ohne Code", kontext, err, a.err)
+				}
+				u.ohneSchreiben(kontext)
+				if u.p.anzahl("Entities.Get") != 1 || u.p.anzahl("Coverage.Get") != 0 || u.p.anzahl("Schreiber.SchreibeAnzahl") != 0 {
+					t.Errorf("%s: Entities.Get %d, Coverage.Get %d", kontext, u.p.anzahl("Entities.Get"), u.p.anzahl("Coverage.Get"))
+				}
+			}
+		}
+	}
+	if n != 18 {
+		t.Errorf("Menge %d, erwartet 18", n)
 	}
 }

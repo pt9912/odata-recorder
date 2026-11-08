@@ -293,3 +293,27 @@ func TestVorbedingungNichtGesetzt(t *testing.T) {
 		t.Error("eine leere Zeile ist erfüllt")
 	}
 }
+
+// TestVorbedingungSternBeiJederVersion (F11, SPEC-283 Nr. 5): bei vorhandenem Eintrag ist If-None-Match: * nicht erfüllt und If-Match: * erfüllt, für
+// jede Version der Klasse (`etagKlasse`: 0 bis 300, Potenzen mit Nachbarn, 2^63-1, Stichproben), auch Version 0 und die Grenze 0/1/2. Dazu `*` mit Leerraum
+// und Kommas. Die Zählprüfung nennt die Menge.
+func TestVorbedingungSternBeiJederVersion(t *testing.T) {
+	n := 0
+	klasse := etagKlasse()
+	for _, v := range klasse {
+		for _, s := range []string{"*", " * ", "\t*", ",*,", " , *\t,"} {
+			n++
+			if model.VorbedingungErfuellt(nil, []string{s}, v) || !model.VorbedingungErfuellt([]string{s}, nil, v) {
+				t.Errorf("Version %d, Wert %q: If-None-Match erfüllt oder If-Match nicht erfüllt", v, s)
+			}
+		}
+	}
+	for v := int64(0); v <= 2; v++ {
+		if model.VorbedingungErfuellt(nil, []string{"*"}, v) {
+			t.Errorf("Version %d an der Grenze: If-None-Match: * erfüllt", v)
+		}
+	}
+	if n != 5*len(klasse) || len(klasse) < 4000 {
+		t.Errorf("%d Elemente bei %d Versionen, erwartet 5 je Version und mindestens 4000 Versionen", n, len(klasse))
+	}
+}

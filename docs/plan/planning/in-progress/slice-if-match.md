@@ -200,6 +200,16 @@ Die Tabelle hat 28 Zeilen: *a* = 4 (F15 bis F18), *b* = 24 (F28 ist ein akzeptie
 
 **Prüfgrenzen als akzeptierte Negative** (`AGENTS.md` §3.15): (1) Die Versionen sind unbeschränkt (2^63 Werte); geprüft sind 4196. Folge im Betrieb: ein Fehler, der nur bei einer nicht gezogenen Zahl auftritt, bliebe ungefangen; der Vergleich arbeitet auf der Zeichenfolge und rechnet nie mit der Zahl, so dass dafür keine Form bekannt ist. (2) Die Länge des Headerwerts ist unbeschränkt (`SPEC-283` *Ungeprüft*); die Grammatik ist an acht Werten mit einem Byte geändert geprüft, zwei gleichzeitige Änderungen und Werte mit mehr als vier Elementen sind es nicht (die Liste des Dienstes: Länge 1 bis 4, die des Modells: 1 bis 3). Folge: ein Fehler, der nur bei zwei Änderungen am Wert auftritt, bliebe ungefangen. (3) Der Zugriff auf die Header bei aus, bei `POST`, `GET` und `HEAD` ist geprüft über die Wirkung, nicht über den Zugriff (`SPEC-280` Nr. 3, dort der Grund).
 
+**Nachtrag der Fix-Runde** (Implementer, 2026-11-08, nach dem Review; die Tabelle F1 bis F28 und die Marke bleiben, die folgende Tabelle trägt keine Spalte *Klasse* und zählt nicht in `SPEC-128`):
+
+| Zusage | Fänger | Mutation | roter Test |
+|---|---|---|---|
+| F11 erweitert, Klasse Version 0 bis 2^63-1: `If-None-Match: *` ist bei vorhandenem Eintrag nicht erfüllt, auch am unveränderten Baseline-Eintrag (Version 0); `If-Match: *` ist bei jeder Version erfüllt (Nr. 5) | `TestVorbedingungSternBeiJederVersion` (`etagKlasse` mit 4196 Versionen × 5 Schreibweisen des Sterns = 20980 Elemente, dazu die Grenze 0/1/2) und `TestIfMatchSternBeiJederVersion` (Methode 3 × Version 10 {0, 1, 2, 3, 9, 10, 99, 100, 2^32, 2^63-2} × Header 2 = 60 Läufe) | `liste.stern && version > 0`, `> 1`, `>= 1` (die genannten), `== 1` und `!= 2` (nicht genannt: weder Befund noch Review) | beide Tests, je 5 Mutationen rot |
+| F2 erweitert: ein nicht erfüllter Tag bei Version 0 ist `ODR-E6010` | `TestIfMatchVeraltet` mit Version 0 (jetzt 120 Läufe; der Tag `"0"` der Zeile F2 ist durch `"v+2"` ersetzt, denn bei Version 0 wäre er der Treffer) | `w-auswertung-nur-ab-version-1` (`es.Version > 0 &&` vor der Auswertung) | `TestIfMatchVeraltet` |
+| F29 · Nr. 9 d: ein Fehler oder Kontextabbruch an `Entities.Get` geht der Auswertung vor, auch bei nicht erfülltem Header: Port-Fehler mit seinem Code (`ODR-E3001`), `context.Canceled` und `context.DeadlineExceeded` ohne Code und `errors.Is` gleich; `Put`, `Advance`, `Coverage.Get`, Schreiber je 0 | `TestIfMatchAbbruchEntitiesGet`: Methode 3 × Header 2 × Fehlerart 3 = 18 Läufe; der Fake hält die Argumente und zählt jede Operation | `m2-auswertung-vor-fehler-von-entities-get`, `m2-fehler-gilt-als-fehlend`, `m2-kontextfehler-wird-e9001` | `TestIfMatchAbbruchEntitiesGet` |
+
+**Rate zu F15 am SQLite-Test (Messung des Reviewers):** die Mutation derselben Klasse "Version in einer eigenen Transaktion vor der Auswertung gelesen" ist am Test `TestIfMatchWettlaufSQLite` in 14 von 20 Prozessen rot (6 grün; Last 5,5 bis 9,7 bei 4 CPUs), am Mock-Test mit Haltepunkt in 20 von 20. Die 20 von 20 oben gelten für die Form "Lesen ohne Transaktion"; der SQLite-Lauf ist wahrscheinlich, der Haltepunkt deterministisch. Eine Größenordnung, keine feste Zahl.
+
 **Betriebsregeln** (gelten für jede Rolle dieses Slice):
 
 - Auf Repo-Dateien kein `sed -i`, kein Heredoc, kein `>>`, kein `awk` und kein Python, nur `Edit`/`Write`; keine Hilfsdateien im Repo-Wurzelverzeichnis (`BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt`).
@@ -280,10 +290,10 @@ dasteht.
 
 | Operation | Header fehlt | leerer Wert | `*` | veralteter oder fremder ETag | fehlerhaft geformt, Liste, doppelt | Abbruch, Wiederholung |
 |---|---|---|---|---|---|---|
-| PATCH mit `If-Match` | Nr. 2 (nicht gesetzt: Mutation wie ohne Header) | Nr. 3 (kein Element: unlesbar, `ODR-E6010`) | Nr. 5 a (erfüllt bei vorhandenem Eintrag; fehlender Eintrag oder Tombstone: Nr. 6) | Nr. 4, 5 a, 7 (`ODR-E6010`, Zustand unverändert) | Nr. 3 (Grammatik, Liste), Nr. 2 (mehrere Zeilen, Schreibweisen des Namens) | Nr. 9 b (Wiederholung), Nr. 9 d (Abbruch) |
-| PUT mit `If-Match` | Nr. 2 | Nr. 3 | Nr. 5 a | Nr. 4, 5 a, 7 | Nr. 3, Nr. 2 | Nr. 9 b, 9 d |
-| DELETE mit `If-Match` | Nr. 2 | Nr. 3 | Nr. 5 a, Nr. 6 (Tombstone: `ODR-E6008`) | Nr. 4, 5 a, 7 | Nr. 3, Nr. 2 | Nr. 8 d (gleichzeitig), Nr. 9 d |
-| PATCH, PUT, DELETE mit `If-None-Match` | Nr. 2 | Nr. 3 | Nr. 5 b (bei vorhandenem Eintrag nicht erfüllt: `ODR-E6010`) | Nr. 5 b (ohne Treffer erfüllt, mit Treffer `ODR-E6010`) | Nr. 3, Nr. 2 | Nr. 9 b, 9 d |
+| PATCH mit `If-Match` | Nr. 2 (nicht gesetzt: Mutation wie ohne Header) | Nr. 3 (kein Element: unlesbar, `ODR-E6010`) | Nr. 5 a (erfüllt bei vorhandenem Eintrag; fehlender Eintrag oder Tombstone: Nr. 6) | Nr. 4, 5 a, 7 (`ODR-E6010`, Zustand unverändert) | Nr. 3 (Grammatik, Liste), Nr. 2 (mehrere Zeilen, Schreibweisen des Namens) | Nr. 9 b (Wiederholung), Nr. 9 d (Abbruch; Fänger F29) |
+| PUT mit `If-Match` | Nr. 2 | Nr. 3 | Nr. 5 a | Nr. 4, 5 a, 7 | Nr. 3, Nr. 2 | Nr. 9 b, 9 d (Abbruch: Fänger F29) |
+| DELETE mit `If-Match` | Nr. 2 | Nr. 3 | Nr. 5 a, Nr. 6 (Tombstone: `ODR-E6008`) | Nr. 4, 5 a, 7 | Nr. 3, Nr. 2 | Nr. 8 d (gleichzeitig), Nr. 9 d (Abbruch: Fänger F29) |
+| PATCH, PUT, DELETE mit `If-None-Match` | Nr. 2 | Nr. 3 | Nr. 5 b (bei vorhandenem Eintrag nicht erfüllt: `ODR-E6010`) | Nr. 5 b (ohne Treffer erfüllt, mit Treffer `ODR-E6010`) | Nr. 3, Nr. 2 | Nr. 9 b, 9 d (Abbruch: Fänger F29) |
 | POST mit `If-Match` oder `If-None-Match` | gilt nicht: `POST` liest die Header nie (Nr. 1) | gilt nicht (Nr. 1) | gilt nicht (Nr. 1) | gilt nicht (Nr. 1) | gilt nicht (Nr. 1) | gilt nicht (Nr. 1); die Wiederholung ist `ODR-E6009` (`SPEC-193` Nr. 2) |
 | GET, HEAD mit `If-Match` oder `If-None-Match` | gilt nicht: Nr. 10 (ignoriert) | gilt nicht (Nr. 10) | gilt nicht (Nr. 10) | gilt nicht (Nr. 10) | gilt nicht (Nr. 10) | gilt nicht (Nr. 10) |
 
@@ -300,6 +310,7 @@ dasteht.
 | ohne aktivierte Unterstützung (aus) | Nr. 1: beide Header ohne Wirkung (`SPEC-280` Nr. 3) | F24 |
 | mit aktivierter Unterstützung (an) | Nr. 1 bis 9 | F1 bis F23, F25 bis F27 |
 | Modus `hybrid` | Nr. 7: kein Fallback bei `ODR-E6010` (`SPEC-261` Nr. 3 c) | F28 (akzeptiertes Negativ) |
+| Fehler oder Kontextabbruch an `Entities.Get` bei nicht erfülltem Header | Nr. 9 d: der Port- oder Kontextfehler geht der Auswertung vor (Port-Fehler mit seinem Code, Kontextfehler ohne Code), nichts wird geschrieben | F29 |
 | Reset und Restore | Nr. 9 c: ein ETag der verlassenen Geschichte kann treffen (`SPEC-280` Nr. 4, akzeptiertes Negativ, Grund dort) | keiner, keine Folgepflicht |
 
 ## 7. Closure-Notiz
