@@ -95,6 +95,7 @@ func TestKonfigLeer(t *testing.T) {
 		"REDACT_JSON_PATHS", "MAX_CAPTURE_BODY", "UPSTREAM_TIMEOUT", "UPSTREAM_CA_FILE", "UPSTREAM_TLS_VERIFY",
 		"UPSTREAM_TLS_INSECURE_SKIP_VERIFY", "SHUTDOWN_TIMEOUT", "RETENTION_MAX_AGE", "SQLITE_BUSY_TIMEOUT",
 		"VOLATILE_HEADERS", "LINK_REWRITE", "SERVICES_FILE", "STRICT_COVERAGE", "PUBLIC_BASE_URL", "ADMIN_TOKEN_FILE",
+		"ETAG_ENABLED",
 	} {
 		for _, leer := range []string{"", "  ", "\t"} {
 			k := erwarteGueltig(t, append(basis(t), key+"="+leer)...)

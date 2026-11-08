@@ -304,12 +304,18 @@ func satzVersion4() outbound.CodecSatz {
 	}
 }
 
+// etagFuerSatz ist `Dienst.Etag`: ETAG_ENABLED gilt nur für einen Dienst, dessen Satz die Version 4.0 hat; ein Dienst der
+// Version 2.0 liefert keinen ETag (SPEC-280 Nr. 2).
+func etagFuerSatz(satz outbound.CodecSatz, an bool) bool {
+	return an && satz.Version == odataVersion
+}
+
 func (h *Handle) verdrahteMock(db *sqlite.DB, r ablageRepos, waechter *maintenance.BlobWaechter) error {
 	k := h.k
 	satz := satzVersion4()
 	dienste := make([]mock.Dienst, len(k.Dienste))
 	for i, d := range k.Dienste {
-		dienste[i] = mock.Dienst{ID: d.ID, Root: d.Root, Codecs: &satz}
+		dienste[i] = mock.Dienst{ID: d.ID, Root: d.Root, Codecs: &satz, Etag: etagFuerSatz(satz, k.EtagEnabled)}
 	}
 	m, err := h.b.NeuerMock(mock.Konfig{
 		Dienste: dienste, Metadaten: h.dienste, Workspaces: r.workspaces, Entities: r.entities, Coverage: db.Coverage(),
