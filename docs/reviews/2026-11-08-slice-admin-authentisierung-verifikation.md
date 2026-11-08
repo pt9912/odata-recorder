@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (einmal) — gegen DoD, Tabelle Zusage · Fänger, `SPEC-238` Nr. 1 bis 5 und 13, `SPEC-240`, `LH-FA-13.a`, `LH-QA-04` und die Hard Rules; nicht Diff-Review (siehe `2026-11-08-slice-admin-authentisierung-review.md`) und nicht Validierung.
 
-**Gegenstand:** Zweig `slice-admin-authentisierung`, HEAD `f468858c` (Implementer `c4c06ed1`, Review `e115c53d`, Architect-Entscheid F-3 `3f754815`, Fix-Runde F-1 `4c3cc788`, Plan `f468858c`), Basis `c469ef1e`. Plan: `docs/plan/planning/in-progress/slice-admin-authentisierung.md`. Bezug: [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
+**Gegenstand:** Zweig `slice-admin-authentisierung`, HEAD `f468858c` (Implementer `c4c06ed1`, Review `e115c53d`, Architect-Entscheid F-3 `3f754815`, Fix-Runde F-1 `4c3cc788`, Plan `f468858c`), Basis `c469ef1e`. Plan: `docs/plan/planning/done/slice-admin-authentisierung.md`. Bezug: [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
 
 **Rolle/Modell:** verifier · claude-sonnet-5-5.
 
