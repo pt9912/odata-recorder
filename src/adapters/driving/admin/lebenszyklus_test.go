@@ -270,33 +270,48 @@ func TestZulassungAtomar(t *testing.T) {
 }
 
 // TestSchliessenNegativ hält S7 (SPEC-238 Nr. 11 b, SPEC-136 Nr. 14): eine negative Frist ergibt in jedem Zustand
-// (frisch, angehalten, geschlossen) ErrUngueltig und ändert nichts; 0 ist gültig. 3 Zustände × 2 Fristen = 6 Elemente.
+// (frisch, angehalten, geschlossen) ErrUngueltig und ändert nichts. „Nichts“ ist die Menge der Wirkungen, die ein Test
+// über Verhalten sieht: der Listener (offen oder zu wie vorher), die Verbindung im Leerlauf, Serve läuft weiter, der
+// ctx eines laufenden Requests ist nicht beendet, der laufende Request endet mit 200, und ein späteres
+// Schliessen(30 s) wirkt wie beim ersten Mal (es wartet auf den laufenden Request, ohne ihn kehrt es sofort mit nil
+// zurück). 3 Zustände × 2 Fristen = 6 Elemente, 22 Wirkungen (frisch 5, angehalten 4, geschlossen 2, je zweimal).
 func TestSchliessenNegativ(t *testing.T) {
+	wirkungen := 0
 	zustaende := []struct {
-		name string
+		name       string
+		mitRequest bool // ein Request hängt (wartet auf ctx), solange die negative Frist gilt
 		// pruefe läuft nach den negativen Fristen mit der Verbindung v, die vor dem Zustandswechsel im Leerlauf lag.
 		richte func(t *testing.T, u *live, v *verbindung)
 		pruefe func(t *testing.T, u *live, v *verbindung)
 	}{
-		{"frisch", func(*testing.T, *live, *verbindung) {}, func(t *testing.T, u *live, v *verbindung) {
+		{"frisch", true, func(*testing.T, *live, *verbindung) {}, func(t *testing.T, u *live, v *verbindung) {
+			wirkungen += 3
 			v.erledige(t)
+			if dialScheitert(u.addr) {
+				t.Error("der Listener ist nach der negativen Frist zu")
+			}
 			select {
 			case err := <-u.serve:
 				t.Errorf("Serve endete nach einer negativen Frist: %v", err)
 			default:
 			}
 		}},
-		{"angehalten", func(_ *testing.T, u *live, _ *verbindung) { u.srv.Anhalten() }, func(t *testing.T, u *live, v *verbindung) {
+		{"angehalten", true, func(_ *testing.T, u *live, _ *verbindung) { u.srv.Anhalten() }, func(t *testing.T, u *live, v *verbindung) {
+			wirkungen += 2
+			if !dialScheitert(u.addr) {
+				t.Error("der Listener ist nach der negativen Frist offen")
+			}
 			v.schreibe(t, getP())
 			if resp, _ := v.antwort(t, "GET"); resp.StatusCode != 503 {
 				t.Errorf("Status %d, erwartet 503", resp.StatusCode)
 			}
 		}},
-		{"geschlossen", func(t *testing.T, u *live, _ *verbindung) {
+		{"geschlossen", false, func(t *testing.T, u *live, _ *verbindung) {
 			if err := u.srv.Schliessen(0); err != nil {
 				t.Fatalf("Schliessen(0) = %v", err)
 			}
 		}, func(t *testing.T, u *live, _ *verbindung) {
+			wirkungen++
 			if !dialScheitert(u.addr) {
 				t.Error("nach Schliessen gelingt ein Dial")
 			}
@@ -307,20 +322,71 @@ func TestSchliessenNegativ(t *testing.T) {
 	for _, z := range zustaende {
 		for _, f := range fristen {
 			n++
-			u := neuLive(t, neueRoute())
+			route := neueHaengRoute(t, wartetCtx)
+			route.nurPfad = "/haengt"
+			u := neuLive(t, route)
 			v := u.verbinde(t)
 			v.erledige(t)
+			var antwort <-chan ergebnis
+			if z.mitRequest {
+				route.warteBegonnen(t, 1)
+				antwort = u.async("GET", "/haengt")
+				route.warteBegonnen(t, 1)
+			}
 			z.richte(t, u, v)
 			if err := u.srv.Schliessen(f); !errors.Is(err, model.ErrUngueltig) {
 				t.Errorf("%s: Schliessen(%d) = %v, erwartet ErrUngueltig", z.name, int64(f), err)
 			}
 			z.pruefe(t, u, v)
-			if err := u.srv.Schliessen(0); err != nil {
-				t.Errorf("%s: Schliessen(0) = %v, erwartet nil", z.name, err)
-			}
+			pruefeSpaeteresSchliessen(t, z.name, u, route, antwort, &wirkungen)
 		}
 	}
 	gleichAuf(t, "Zahl der Elemente", n, 6)
+	gleichAuf(t, "Zahl der Wirkungen", wirkungen, 22)
+}
+
+// pruefeSpaeteresSchliessen hält die Wirkungen von TestSchliessenNegativ, die erst ein späteres Schliessen(30 s) zeigt:
+// der ctx des laufenden Requests ist nicht beendet (2 Wirkungen mit dem Request), und das Schliessen wartet auf ihn und
+// kehrt nach seinem Ende mit nil zurück; ohne Request kehrt es sofort mit nil zurück (1 Wirkung).
+func pruefeSpaeteresSchliessen(t *testing.T, name string, u *live, route *routeFake, antwort <-chan ergebnis, wirkungen *int) {
+	t.Helper()
+	if antwort == nil {
+		*wirkungen++
+		if dauer, err := schliesse(t, u.srv, 30*time.Second); err != nil || dauer >= time.Second {
+			t.Errorf("%s: späteres Schliessen(30 s) = %v nach %v, erwartet nil in unter 1 s", name, err, dauer)
+		}
+		return
+	}
+	*wirkungen += 2
+	time.Sleep(100 * time.Millisecond)
+	for _, e := range route.ctxFehlerListe() {
+		if e != nil {
+			t.Errorf("%s: ctx eines Requests endete mit %v", name, e)
+		}
+	}
+	if n := route.laufend.Load(); n != 1 {
+		t.Errorf("%s: %d laufende Handler, erwartet 1 (der hängende Request läuft weiter)", name, n)
+	}
+	schluss := make(chan error, 1)
+	go func() { schluss <- u.srv.Schliessen(30 * time.Second) }()
+	select {
+	case err := <-schluss:
+		t.Errorf("%s: späteres Schliessen(30 s) kehrte mit laufendem Request zurück: %v", name, err)
+	case <-time.After(200 * time.Millisecond):
+		route.gibFrei()
+		select {
+		case err := <-schluss:
+			if err != nil {
+				t.Errorf("%s: späteres Schliessen(30 s) = %v, erwartet nil", name, err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Errorf("%s: späteres Schliessen kehrte nach der Freigabe nicht zurück", name)
+		}
+	}
+	route.gibFrei()
+	if x := erwarte(t, antwort, name+": Antwort des laufenden Requests"); x.err != nil || x.status != 200 {
+		t.Errorf("%s: laufender Request: %+v, erwartet 200", name, x)
+	}
 }
 
 // TestSchliessenFristen hält S8 (SPEC-136 Nr. 14): Schliessen wartet höchstens frist (0: nicht) und kehrt früher
