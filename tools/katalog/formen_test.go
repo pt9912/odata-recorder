@@ -67,6 +67,7 @@ func TestKatUeberschriftFormen(t *testing.T) {
 	}
 	for _, f := range handbuch {
 		m := grund(codes, nil)
+		m[dHandbuch] = handbuchVorn(codes) // die Abschnitte Einstellungen und Kommandos stehen davor: Ebene 1 trägt sie sonst mit
 		kuerze(m, dHandbuch, "## Fehlercodes\n", f.zeile+"\n")
 		if f.gilt {
 			erwarteOk(t, strconv.Quote(f.zeile), m)
@@ -119,20 +120,30 @@ func TestKatKAbschnittEnde(t *testing.T) {
 }
 
 // TestKatPfadKomponenteDatei: eine Komponente des Pfads, die eine Datei ist, gilt wie ein fehlender Eintrag
-// (`<Datei> fehlt`). Menge 4 Quellen.
+// (`<Datei> fehlt`). Menge 4 Wurzeln, die als Datei im Baum stehen; unter `src` liegen drei Quellen (fehler.go,
+// konfig*.go, cli.go), die dann alle drei fehlen.
 func TestKatPfadKomponenteDatei(t *testing.T) {
-	quellen := []struct{ pfad, wurzel, text string }{
-		{dFehler, "src", "fehler.go fehlt: src/hexagon/model/fehler.go"},
-		{dSpez, "spec", "spezifikation.md fehlt: spec/spezifikation.md"},
-		{dAusnahmen, "harness", "Ausnahmen fehlt: harness/katalog-ausnahmen.txt"},
-		{dHandbuch, "docs", "Handbuch fehlt: docs/user/benutzerhandbuch.md"},
+	quellen := []struct{ pfad, text string }{
+		{dFehler, "fehler.go fehlt: src/hexagon/model/fehler.go"},
+		{dSpez, "spezifikation.md fehlt: spec/spezifikation.md"},
+		{dAusnahmen, "Ausnahmen fehlt: harness/katalog-ausnahmen.txt"},
+		{dKonfig, "konfig*.go fehlt: src/bootstrap"},
+		{dCli, "cli.go fehlt: src/adapters/driving/cli/cli.go"},
+		{dHandbuch, "Handbuch fehlt: docs/user/benutzerhandbuch.md"},
 	}
-	zaehle(t, "Quellen", len(quellen), 4)
-	for _, q := range quellen {
+	wurzeln := []string{"src", "spec", "harness", "docs"}
+	zaehle(t, "Wurzeln", len(wurzeln), 4)
+	for _, w := range wurzeln {
 		m := grund(codeListe()[:3], nil)
-		delete(m, q.pfad)
-		m[q.wurzel] = "eine Datei statt eines Verzeichnisses"
-		erwarteEingabe(t, q.pfad, m, q.text)
+		var soll []string
+		for _, q := range quellen {
+			if strings.HasPrefix(q.pfad, w+"/") {
+				delete(m, q.pfad)
+				soll = append(soll, q.text)
+			}
+		}
+		m[w] = "eine Datei statt eines Verzeichnisses"
+		erwarteEingabe(t, w, m, soll...)
 	}
 }
 

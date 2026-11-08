@@ -70,7 +70,7 @@ func zeilenK(codes []string) string {
 }
 
 func spezText(codes []string) string {
-	return "# Spezifikation\n\n## 3. Davor\n\nText.\n\n## 4. Fehler-Codes und Logging-Felder\n\n" +
+	return "# Spezifikation\n\n## 3. Davor\n\nText.\n\n" + spec110(schluesselBasis()) + "\n## 4. Fehler-Codes und Logging-Felder\n\n" +
 		kopfK + zeilenK(codes) + "\nText danach.\n\n## 5. Metriken\n\nText.\n"
 }
 
@@ -93,7 +93,8 @@ func zeilenH(codes []string) string {
 }
 
 func handbuchText(codes []string) string {
-	return "# Benutzerhandbuch\n\nSoftware-Version: dev\n\n## Fehlercodes\n\nText.\n\n" + kopfH + zeilenH(codes) + "\n## Ende\n\nText.\n"
+	return "# Benutzerhandbuch\n\nSoftware-Version: dev\n\n## Fehlercodes\n\nText.\n\n" + kopfH + zeilenH(codes) +
+		"\n" + sektionen() + "\n## Ende\n\nText.\n"
 }
 
 // grund ist ein grüner Baum: alle Codes in fehler.go und in §4, die Ausnahmen mit Grund, jeder Code aus H mit Zeile.
@@ -103,6 +104,8 @@ func grund(codes, ausnahmen []string) map[string]string {
 		dSpez:      spezText(codes),
 		dAusnahmen: ausnahmenText(ausnahmen),
 		dHandbuch:  handbuchText(ohne(codes, ausnahmen...)),
+		dKonfig:    konfigGo(schluesselBasis()),
+		dCli:       cliGo(kommandoBasis()),
 	}
 }
 
