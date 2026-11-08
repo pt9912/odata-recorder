@@ -141,6 +141,36 @@ func TestKonfigPublicBaseURLZeichen(t *testing.T) {
 	}
 }
 
+// TestKonfigPublicBaseURLPunktSegment fängt A04 für die Klasse "Segment, dessen dekodierter Text `.` oder `..` ist" (SPEC-168 Nr. 2):
+// jedes Zeichen als `.`, `%2E` oder `%2e` gibt für `.` 3 und für `..` 9 Schreibweisen, zusammen 12, je an erster und an zweiter
+// Stelle der Segmente (24 Prüfungen); der Schreiber nimmt keine an, die Konfiguration ebenso.
+func TestKonfigPublicBaseURLPunktSegment(t *testing.T) {
+	zeichen := []string{".", "%2E", "%2e"}
+	var formen []string
+	formen = append(formen, zeichen...)
+	for _, a := range zeichen {
+		for _, b := range zeichen {
+			formen = append(formen, a+b)
+		}
+	}
+	n := 0
+	for _, vor := range []string{"http://h/", "http://h/a/"} {
+		for _, f := range formen {
+			w := vor + f
+			n++
+			if schreiberNimmtAn(w) {
+				t.Fatalf("Orakel nimmt %q an", w)
+			}
+			if _, zeilen := lade(t, append(basis(t), "MODE=mock", "PUBLIC_BASE_URL="+w)...); len(zeilen) != 1 {
+				t.Errorf("%q: Zeilen %v, erwartet ein Verstoß", w, zeilen)
+			}
+		}
+	}
+	if len(formen) != 12 || n != 24 {
+		t.Errorf("%d Schreibweisen, %d Prüfungen; erwartet 12 und 24", len(formen), n)
+	}
+}
+
 // TestKonfigPublicBaseURLProzent fängt A04 für die Klasse der Prozent-Kodierung als Generator: beide Stellen von `%XY` über alle
 // 256 × 256 Bytewerte (65536 Elemente), Orakel ist der Schreiber; angenommen sind genau die 484 Paare aus Hex-Ziffern ohne die zwei,
 // die `.` ergeben (`%2e`, `%2E`).
