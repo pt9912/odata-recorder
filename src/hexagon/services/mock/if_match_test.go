@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
@@ -114,11 +115,11 @@ func erwarte412(t *testing.T, kontext string, err error) {
 }
 
 // TestIfMatchPasst (F1): ein erfüllter Header lässt PATCH, PUT und DELETE zu (204); PATCH und PUT tragen den ETag der Version v + 1,
-// DELETE keinen; Put und Advance je 1, die Revision steigt um 1. Methode 3 × Version 6 × Form 2 × Header 2 = 72 Läufe.
+// DELETE keinen; Put und Advance je 1, die Revision steigt um 1. Methode 3 × Version 10 (0 bis 100 und die großen Versionen 2^32, 2^32+1, 2^62, 2^63-2; v + 1 muss darstellbar bleiben) × Form 2 × Header 2 = 120 Läufe.
 func TestIfMatchPasst(t *testing.T) {
 	n := 0
 	for _, m := range bedingteMethoden() {
-		for _, v := range []int64{0, 1, 9, 10, 99, 100} {
+		for _, v := range append([]int64{0, 1, 9, 10, 99, 100}, versionenGross()[:4]...) {
 			for _, schwach := range []bool{true, false} {
 				for _, k := range beideKoepfe() {
 					n++
@@ -149,18 +150,24 @@ func TestIfMatchPasst(t *testing.T) {
 			}
 		}
 	}
-	if n != 72 {
-		t.Errorf("Menge %d, erwartet 72", n)
+	if n != 3*10*2*2 {
+		t.Errorf("Menge %d, erwartet %d", n, 3*10*2*2)
 	}
+}
+
+// versionenGross sind die großen Versionen aus dem Wortlaut der Zusage (Versionen 0 bis 2^63-1): 2^32, 2^32+1, 2^62, 2^63-2, 2^63-1; die Fakes
+// beginnen mit ihnen. Der Dienst reicht den Zähler als int64 weiter, ohne Kürzung der Breite, des Vorzeichens oder der Genauigkeit.
+func versionenGross() []int64 {
+	return []int64{1 << 32, 1<<32 + 1, 1 << 62, 1<<63 - 2, 1<<63 - 1}
 }
 
 // TestIfMatchVeraltet (F2, F21): ein Tag, der die Bedingung bricht (v - 1, v + 1, 0, "x", W/"x"; für If-None-Match der eigene Tag), ist
 // ODR-E6010: Zustand, Revision und Zähler bleiben, nur Transaktion, Workspaces.Get und Entities.Get je einmal. Der Wert trägt eine
-// Marke, die in keinem Text stehen darf. Methode 3 × Version 4 (0, 1, 7, 10) × Tag je Header 5 = 120 Läufe.
+// Marke, die in keinem Text stehen darf. Methode 3 × Version 9 (0, 1, 7, 10 und die großen Versionen) × Tag je Header 5 × Header 2 = 270 Läufe.
 func TestIfMatchVeraltet(t *testing.T) {
 	n := 0
 	for _, m := range bedingteMethoden() {
-		for _, v := range []int64{0, 1, 7, 10} {
+		for _, v := range append([]int64{0, 1, 7, 10}, versionenGross()...) {
 			for _, k := range beideKoepfe() {
 				var tags []string
 				if k == ifMatch {
@@ -184,8 +191,8 @@ func TestIfMatchVeraltet(t *testing.T) {
 			}
 		}
 	}
-	if n != 120 {
-		t.Errorf("Menge %d, erwartet 120", n)
+	if n != 3*9*2*5 {
+		t.Errorf("Menge %d, erwartet %d", n, 3*9*2*5)
 	}
 }
 
@@ -780,5 +787,53 @@ func TestIfMatchAbbruchEntitiesGet(t *testing.T) {
 	}
 	if n != 18 {
 		t.Errorf("Menge %d, erwartet 18", n)
+	}
+}
+
+// TestIfMatchBeendeterKontext (SPEC-283 Nr. 9 d zweite Hälfte "prüft keinen Kontext"): bei einem vor dem Aufruf beendeten ctx (abgebrochen, abgelaufen)
+// und Ports, die ihn nicht beachten, wertet der Dienst die Vorbedingung wie sonst aus: ein erfüllter Header lässt die Mutation zu (204, Put einmal),
+// ein nicht erfüllter ist ODR-E6010 und nicht der Kontextfehler. Methode 3 × Header 2 × Kontext 2 × Header erfüllt oder nicht 2 = 24 Läufe.
+func TestIfMatchBeendeterKontext(t *testing.T) {
+	kontexte := map[string]func() (context.Context, context.CancelFunc){
+		"abgebrochen": func() (context.Context, context.CancelFunc) {
+			c, cancel := context.WithCancel(context.Background())
+			cancel()
+			return c, cancel
+		},
+		"abgelaufen": func() (context.Context, context.CancelFunc) {
+			return context.WithDeadline(context.Background(), time.Unix(0, 0))
+		},
+	}
+	n := 0
+	for name, neu := range kontexte {
+		for _, m := range bedingteMethoden() {
+			for _, k := range beideKoepfe() {
+				for _, erfuellt := range []bool{true, false} {
+					n++
+					kontext := fmt.Sprintf("%s %s %s erfüllt=%v", name, m, k, erfuellt)
+					u := etagUmg(t, true, 5, 5, 5)
+					c, cancel := neu()
+					u.ctx = c
+					wert := k.verletzt(5)
+					if erfuellt {
+						wert = k.erfuellt(5)
+					}
+					a, err := u.mutiereMit(m, "2", k.mit(wert))
+					cancel()
+					if erfuellt {
+						erwarteStatus(t, kontext, a, err, 204)
+						if u.p.anzahl("Entities.Put") != 1 {
+							t.Errorf("%s: Put %d Mal, erwartet 1", kontext, u.p.anzahl("Entities.Put"))
+						}
+						continue
+					}
+					erwarte412(t, kontext, err)
+					u.ohneSchreiben(kontext)
+				}
+			}
+		}
+	}
+	if n != 24 {
+		t.Errorf("Menge %d, erwartet 24", n)
 	}
 }
