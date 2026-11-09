@@ -13,12 +13,12 @@ import (
 
 const modulPfad = "github.com/pt9912/odata-recorder/src/"
 
-// importErlaubt sagt, ob das Paket hybrid den Pfad importieren darf: die Standardbibliothek, das Modell, die Inbound
-// Ports und das Paket policy; kein Adapter, kein anderer Dienst (SPEC-284 Kopf).
+// importErlaubt sagt, ob das Paket hybrid den Pfad importieren darf: nur die Standardpakete der Zulassungsliste, das
+// Modell, die Inbound Ports und das Paket policy; kein anderes Standardpaket, kein Adapter, kein anderer Dienst
+// (SPEC-284 Kopf). Grenze: cgo, unsafe, Reflexion und Aufrufe über bereits importierte Pakete erkennt die Liste nicht.
 func importErlaubt(pfad string) bool {
 	if !strings.HasPrefix(pfad, modulPfad) {
-		erstes, _, _ := strings.Cut(pfad, "/")
-		return !strings.Contains(erstes, ".")
+		return slices.Contains([]string{"bytes", "context", "errors", "io", "math", "slices"}, pfad)
 	}
 	rest := strings.TrimPrefix(pfad, modulPfad)
 	return rest == "hexagon/model" || rest == "hexagon/ports/inbound" || rest == "hexagon/services/hybrid/policy"
@@ -53,7 +53,7 @@ func TestQuelltext(t *testing.T) {
 				t.Fatal(err)
 			}
 			importe++
-			if !importErlaubt(pfad) || slices.Contains([]string{"sync", "sync/atomic", "os", "net/http", "time", "unsafe"}, pfad) {
+			if !importErlaubt(pfad) {
 				t.Errorf("%s importiert %q", name, pfad)
 			}
 		}
@@ -109,12 +109,14 @@ func empfaenger(x ast.Expr) string {
 // TestImportErlaubt fängt die Liste der Importe selbst.
 func TestImportErlaubt(t *testing.T) {
 	gut := []string{
-		"errors", "io", "slices", "math", "bytes",
+		"errors", "io", "slices", "math", "bytes", "context",
 		modulPfad + "hexagon/model", modulPfad + "hexagon/ports/inbound", modulPfad + "hexagon/services/hybrid/policy",
 	}
 	schlecht := []string{
 		modulPfad + "hexagon/services/mock", modulPfad + "hexagon/services/replay", modulPfad + "hexagon/ports/outbound",
 		modulPfad + "adapters/driven/sqlite", modulPfad + "adapters/driving/httpodata", "modernc.org/sqlite",
+		"net", "net/http", "net/url", "os", "os/exec", "syscall", "sync", "sync/atomic", "time", "unsafe", "fmt", "strings",
+		"log", "reflect", "runtime", "plugin",
 	}
 	for _, p := range gut {
 		if !importErlaubt(p) {
