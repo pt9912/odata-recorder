@@ -1,7 +1,7 @@
 # Verifikation slice-if-match (If-Match und If-None-Match, `ODR-E6010`)
 
 **Rolle:** Verifier (einmal). **Datum:** 2026-11-09. **Stand:** Zweig `slice-if-match`, HEAD `e1a41ccc` (Fix-Runde nach dem [Review](2026-11-08-slice-if-match-review.md)). **Bezug:** [LH-FA-15](../../spec/lastenheft.md) (`LH-FA-15.a`), [LH-FA-07](../../spec/lastenheft.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
-**Plan:** [slice-if-match](../plan/planning/in-progress/slice-if-match.md); Block `basis` `89f4747d`, `marke` 3400.
+**Plan:** [slice-if-match](../plan/planning/done/slice-if-match.md); Block `basis` `89f4747d`, `marke` 3400.
 
 ## Urteil
 
