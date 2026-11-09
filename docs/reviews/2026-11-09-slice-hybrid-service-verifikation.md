@@ -1,7 +1,7 @@
 # Verifikation slice-hybrid-service, Teil 1 (Mock zuerst und Replay-Fallback)
 
 **Rolle:** Verifier (einmal). **Datum:** 2026-11-09. **Stand:** Zweig `slice-hybrid-service`, HEAD `e8345367` (Fix-Runde nach dem [Review](2026-11-09-slice-hybrid-service-review.md)). **Bezug:** [LH-FA-12](../../spec/lastenheft.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), `SPEC-284`, `SPEC-261`.
-**Plan:** [slice-hybrid-service](../plan/planning/in-progress/slice-hybrid-service.md).
+**Plan:** [slice-hybrid-service](../plan/planning/done/slice-hybrid-service.md).
 
 ## Urteil
 
