@@ -53,12 +53,12 @@ func name(e policy.Entscheidung) string {
 	return "?"
 }
 
-// codesC ist die Menge C des Plans: jeder Code aus §4 (N = 40), dazu der Nullwert, -1 und N + 1.
+// codesC ist die Menge C des Plans: jeder Code aus §4 (N = 41), dazu der Nullwert, -1 und N + 1.
 func codesC(t *testing.T) []model.Code {
 	t.Helper()
 	alle := model.AlleCodes()
-	if len(alle) != 40 {
-		t.Fatalf("model.AlleCodes() liefert %d Codes, erwartet 40", len(alle))
+	if len(alle) != 41 {
+		t.Fatalf("model.AlleCodes() liefert %d Codes, erwartet 41", len(alle))
 	}
 	c := append([]model.Code{0, -1, model.Code(len(alle) + 1)}, alle...)
 	if len(c) != len(alle)+3 {
@@ -155,7 +155,7 @@ func TestNullwerte(t *testing.T) {
 			}
 		}
 	}
-	if faelle != 2*13*43 {
+	if faelle != 2*13*44 {
 		t.Fatalf("%d Fälle", faelle)
 	}
 }
@@ -264,8 +264,8 @@ func TestAusloeser(t *testing.T) {
 			upstream++
 		}
 	}
-	if len(codes) != 43 || replay != 3 || upstream != 4 {
-		t.Fatalf("Menge: %d Codes, %d Replay, %d Upstream; erwartet 43, 3, 4", len(codes), replay, upstream)
+	if len(codes) != 44 || replay != 3 || upstream != 4 {
+		t.Fatalf("Menge: %d Codes, %d Replay, %d Upstream; erwartet 44, 3, 4", len(codes), replay, upstream)
 	}
 }
 
@@ -385,8 +385,9 @@ func orakel(c model.Code, m string, z zustand) policy.Entscheidung {
 	return policy.Bleiben
 }
 
-// TestMatrix (P06): C x M x Z = 43 x 13 x 112 Fälle gegen die Tabelle von LH-FA-12.b. Die Zählung
-// der Ergebnisse steht als Zahl von Hand (1176 Replay, 110 Upstream).
+// TestMatrix (P06): C x M x Z = 44 x 13 x 112 Fälle gegen die Tabelle von LH-FA-12.b. Die Zählung
+// der Ergebnisse steht als Zahl von Hand (1176 Replay, 110 Upstream): nur ODR-E6001, ODR-E6002, ODR-E6003 und ODR-E5001 sind Auslöser, jeder
+// andere Code, auch ODR-E6010 (die fachliche 412 des Mock), liefert Bleiben, so dass der 44. Wert von C keine Zahl der Ergebnisse ändert.
 func TestMatrix(t *testing.T) {
 	codes := codesC(t)
 	zust := zustaendeZ(t)
@@ -408,8 +409,8 @@ func TestMatrix(t *testing.T) {
 			}
 		}
 	}
-	if faelle != 62608 {
-		t.Fatalf("%d Fälle, erwartet 62608", faelle)
+	if faelle != 64064 {
+		t.Fatalf("%d Fälle, erwartet 64064", faelle)
 	}
 	if orakelReplay != 1176 || orakelUpstream != 110 {
 		t.Fatalf("Orakel zählt %d Replay und %d Upstream, erwartet 1176 und 110", orakelReplay, orakelUpstream)
