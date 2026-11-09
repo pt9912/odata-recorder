@@ -265,6 +265,7 @@ Unbekannte Operationen im Mock dürfen nicht in einen unkontrollierten Upstream-
 Die Fallback-Policy wird vor dem Senden an den Upstream geprüft.
 Sie ist eine reine Entscheidung über Methode, Pfad, Ziel und den `ODR`-Code des letzten Ergebnisses (Paket `src/hexagon/services/hybrid/policy`, `SPEC-261`), ruft keinen Port und lässt ohne ausdrückliche Freigabe die Antwort des Zweigs stehen.
 `HybridUseCase` ruft `MockUseCase` und `ReplayUseCase` über deren Inbound Ports auf, nie über deren Pakete.
+Der Upstream-Fallback läuft über den Port `UpstreamClient`; eine Antwort aus einem Fallback trägt den Header `X-Recorder-Fallback` (`SPEC-284`).
 
 ---
 
