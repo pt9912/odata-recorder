@@ -1,0 +1,2 @@
+**Vorgang:** slice-hybrid-service
+**Fund:** Verifier V-2 und V-3. V-2: die Zusage „in Teil 1 kein Upstream-Zugriff“ hing für die Standardbibliothek an einer Sperrliste von sechs Paketen; ein Import von `net` blieb grün (Fix: Zulassungsliste, `TestQuelltext` und `TestImportErlaubt`). V-3: `SPEC-284` Nr. 3 b („`errors.As` findet den ersten `*Fehler`“) hatte für einen `errors.Join` mit zwei Fehlern mit Code keinen Fänger (Fix: `TestJoinZweiFehler`, n × n über `AlleCodes()`). Beleg: Plan §3 (Nachbesserung), Report `2026-11-09-slice-hybrid-service-verifikation` (V-2, V-3).
