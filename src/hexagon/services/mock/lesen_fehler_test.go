@@ -106,10 +106,10 @@ func TestFehlerWertLesen(t *testing.T) {
 	}
 }
 
-// codeListen sind die Aufteilung von model.AlleCodes() in die 15 erreichbaren Codes (SPEC-195 Nr. 10) und die übrigen.
+// codeListen sind die Aufteilung von model.AlleCodes() in die 16 erreichbaren Codes (SPEC-195 Nr. 10) und die übrigen.
 func codeListen() (erreichbar, uebrige []model.Code) {
 	e := []string{"ODR-E3001", "ODR-E5003", "ODR-E5004", "ODR-E5005", "ODR-E6001", "ODR-E6002", "ODR-E6003", "ODR-E6004", "ODR-E6005", "ODR-E6006",
-		"ODR-E6007", "ODR-E6008", "ODR-E6009", "ODR-E7001", "ODR-E9001"}
+		"ODR-E6007", "ODR-E6008", "ODR-E6009", "ODR-E6010", "ODR-E7001", "ODR-E9001"}
 	u := []string{"ODR-E2001", "ODR-E2101", "ODR-E2102", "ODR-E2401", "ODR-E4001", "ODR-E5001", "ODR-E5002", "ODR-E5006", "ODR-E5007", "ODR-E5008", "ODR-E5009", "ODR-E5010",
 		"ODR-E6101", "ODR-E6102", "ODR-E7002", "ODR-E7003", "ODR-E7004", "ODR-E7005", "ODR-E7006", "ODR-E7007", "ODR-E7008", "ODR-E7009",
 		"ODR-E7010", "ODR-E7011", "ODR-E7012"}
@@ -124,7 +124,7 @@ func codeListen() (erreichbar, uebrige []model.Code) {
 	return erreichbar, uebrige
 }
 
-// TestRueckgabenMenge hält L37 und M5 (SPEC-196 Nr. 9) und W63: die 15 erreichbaren Codes und die übrigen sind eine Aufteilung von
+// TestRueckgabenMenge hält L37 und M5 (SPEC-196 Nr. 9) und W63: die 16 erreichbaren Codes und die übrigen sind eine Aufteilung von
 // model.AlleCodes() (jeder Code des Modells steht in genau einer der beiden Listen, die Längen ergeben die Länge der Quelle);
 // ein neuer Code im Modell macht den Zähler rot. Die erreichbaren Codes kommen je mindestens einmal in den Läufen vor und kein
 // anderer; die Mengen der Arten und Zustände im Test haben die Größe der Modell-Mengen.

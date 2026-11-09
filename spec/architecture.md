@@ -613,6 +613,7 @@ sequenceDiagram
 | Nicht lesbare OData-URL (Pfad, Schlüssel, Systemoption) | `ARC-011` → `ARC-002` | `ODR-E6005`, HTTP 400, kein Zugriff auf den Bestand |
 | Nicht lesbarer Request-Body (POST, PATCH, PUT) | `ARC-011` → `ARC-002` | `ODR-E6007`, HTTP 400, kein Zustandswechsel |
 | Schlüssel schon vorhanden (POST) | `ARC-002` | `ODR-E6009`, HTTP 409, kein Zustandswechsel |
+| Vorbedingung nicht erfüllt (`If-Match`, `If-None-Match` bei PATCH, PUT, DELETE) | `ARC-002` | `ODR-E6010`, HTTP 412, kein Zustandswechsel |
 | Ungenügende Coverage | `ARC-002` | `ODR-E6003`, keine irreführende leere Collection |
 | Concurrency-Konflikt | `ARC-002`/`ARC-009` | Atomarer Rollback, 409 oder 412 je Vertragsfall |
 | Redaction-Fehler | `ARC-002` (Record-Service, Capture-Pipeline) | Keine unredigierte Ablage; Capture-Fehler |

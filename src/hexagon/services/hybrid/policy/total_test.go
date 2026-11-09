@@ -174,7 +174,7 @@ func zufallsEingaben(n int) []eingabe {
 	return aus
 }
 
-// TestTotalitaet (P22): 3 Policies (nil, Policy{}, voll offen) x 6000 Eingaben x C (43 Codes):
+// TestTotalitaet (P22): 3 Policies (nil, Policy{}, voll offen) x 6000 Eingaben x C (44 Codes):
 // keine Panik, nil und Policy{} stets Bleiben; jede Eingabe zweimal, dazwischen 1000 andere Aufrufe,
 // mit gleicher Entscheidung. Die 10000 Segmente und der Pfad von 1 MiB laufen in der Zeitgrenze von
 // go test.
@@ -210,7 +210,7 @@ func TestTotalitaet(t *testing.T) {
 		return aus
 	}
 	erste := lauf()
-	if len(erste) != 3*6000*43 {
+	if len(erste) != 3*6000*44 {
 		t.Fatalf("%d Entscheidungen", len(erste))
 	}
 	var anzahl [3]int

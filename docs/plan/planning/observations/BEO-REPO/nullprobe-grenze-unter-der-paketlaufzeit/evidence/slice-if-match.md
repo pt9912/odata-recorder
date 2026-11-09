@@ -1,0 +1,2 @@
+**Vorgang:** slice-if-match
+**Fund:** Vierter Vorgang. Der Ende-zu-Ende-Test über die echte SQLite-Transaktion (`TestIfMatchWettlaufSQLite`, Paket `src/bootstrap`) liegt hinter der Zeitgrenze der Nullprobe von `tools/harness/mutationslauf.sh`; der Implementer (Auftrag des Planner), Reviewer und Verifier fuhren die Mutationen f15 und f15b mit einem eigenen Treiber (Test-Binary einmal gebaut, ein Prozess je Lauf, 20 bis 40 Prozesse), nicht mit dem Werkzeug. Beleg: Plan §3 *Raten*, Verifikation Abschnitt *Nebenläufigkeit F15 bis F18*.

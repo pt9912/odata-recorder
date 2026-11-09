@@ -15,7 +15,8 @@ import (
 )
 
 // mutationsCodes sind die Codes der Läufe der Mutationen, die TestRueckgabenMenge zu den Läufen des Lesens zählt (W63): ein
-// Fehler des Eingabe-Lesers (ODR-E6007, ODR-E6002), ein Duplicate Key (ODR-E6009), ein abgesichert fehlender Eintrag (ODR-E6008).
+// Fehler des Eingabe-Lesers (ODR-E6007, ODR-E6002), ein Duplicate Key (ODR-E6009), ein abgesichert fehlender Eintrag (ODR-E6008),
+// eine nicht erfüllte Vorbedingung (ODR-E6010).
 func mutationsCodes(t *testing.T) map[model.Code]bool {
 	t.Helper()
 	r := map[model.Code]bool{}
@@ -28,6 +29,9 @@ func mutationsCodes(t *testing.T) map[model.Code]bool {
 	r[fehlercode(err)] = true
 	u = schreibUmg(t)
 	_, err = u.mutiere("DELETE", "99", eingabeIDName("99", "x"))
+	r[fehlercode(err)] = true
+	u = etagUmg(t, true, 1, 1, 1)
+	_, err = u.mutiereMit("DELETE", "2", map[string][]string{"If-Match": {`W/"0"`}})
 	r[fehlercode(err)] = true
 	return r
 }

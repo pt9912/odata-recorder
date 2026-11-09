@@ -158,11 +158,11 @@ func fehlerFaelle() []fall {
 	return r
 }
 
-// spec195Nr10 ist eine Handkopie der Liste der erreichbaren Codes in SPEC-195 Nr. 10 (15 Codes); kein Lauf liest die
+// spec195Nr10 ist eine Handkopie der Liste der erreichbaren Codes in SPEC-195 Nr. 10 (16 Codes); kein Lauf liest die
 // Spezifikation, eine Änderung der Liste dort fängt dieser Test nicht.
 func spec195Nr10() []string {
 	return []string{"ODR-E3001", "ODR-E5003", "ODR-E5004", "ODR-E5005", "ODR-E6001", "ODR-E6002", "ODR-E6003", "ODR-E6004",
-		"ODR-E6005", "ODR-E6006", "ODR-E6007", "ODR-E6008", "ODR-E6009", "ODR-E7001", "ODR-E9001"}
+		"ODR-E6005", "ODR-E6006", "ODR-E6007", "ODR-E6008", "ODR-E6009", "ODR-E6010", "ODR-E7001", "ODR-E9001"}
 }
 
 // laufeFall baut einen Aufbau, verletzt ihn nach dem Fall und ruft den Dienst; Request und Fehler der Ports tragen den
@@ -183,12 +183,12 @@ func laufeFall(t *testing.T, f fall) (*umg, error) {
 func TestFehlerWert(t *testing.T) {
 	erwartet := map[string]bool{}
 	for _, c := range spec195Nr10() {
-		if c != "ODR-E6003" && c != "ODR-E6008" && c != "ODR-E6007" && c != "ODR-E6009" {
+		if c != "ODR-E6003" && c != "ODR-E6008" && c != "ODR-E6007" && c != "ODR-E6009" && c != "ODR-E6010" {
 			erwartet[c] = true
 		}
 	}
-	if len(spec195Nr10()) != 15 || len(erwartet) != 11 {
-		t.Fatalf("Liste: %d Codes, davon %d in diesem Teil; erwartet 15 und 11", len(spec195Nr10()), len(erwartet))
+	if len(spec195Nr10()) != 16 || len(erwartet) != 11 {
+		t.Fatalf("Liste: %d Codes, davon %d in diesem Teil; erwartet 16 und 11", len(spec195Nr10()), len(erwartet))
 	}
 	alle := model.AlleCodes()
 	for c := range erwartet {
