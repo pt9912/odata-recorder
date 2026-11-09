@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"net"
+	"slices"
 	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
@@ -92,8 +96,19 @@ func (z *zaehlendeIDs) letzte() string {
 	return z.vergeben[len(z.vergeben)-1]
 }
 
+// haengModus sagt, wie die Route eines routeFake auf einen Aufruf wartet.
+type haengModus int
+
+const (
+	sofort     haengModus = iota // kehrt nach endeVerz zurück
+	wartetFrei                   // wartet auf gibFrei
+	wartetCtx                    // wartet auf das Ende von ctx oder auf gibFrei
+)
+
 // routeFake ist der Handler einer Route: er zählt, hält Anfrage und ctx jedes Aufrufs und liefert Antwort und Fehler
-// wie eingestellt. aendere läuft im Aufruf mit der Anfrage, die die Route erhält.
+// wie eingestellt. aendere läuft im Aufruf mit der Anfrage, die die Route erhält. Mit begonnen ungleich nil blockiert
+// der Aufruf nach modus (für den Pfad nurPfad, wenn gesetzt, sonst für jeden), zählt die laufenden Aufrufe und hält den
+// Fehler von ctx nach dem Warten.
 type routeFake struct {
 	mu       sync.Mutex
 	anfragen []admin.Anfrage
@@ -101,9 +116,31 @@ type routeFake struct {
 	antwort  admin.Antwort
 	err      error
 	aendere  func(a admin.Anfrage)
+
+	modus     haengModus
+	nurPfad   string
+	endeVerz  time.Duration
+	frei      chan struct{}
+	begonnen  chan struct{}
+	einmal    sync.Once
+	laufend   atomic.Int64
+	ctxFehler []error
+	ctxEnden  []time.Time
 }
 
 func neueRoute() *routeFake { return &routeFake{antwort: admin.Antwort{Status: 200}} }
+
+// neueHaengRoute liefert eine Route, die nach modus blockiert; der Test gibt sie am Ende frei.
+func neueHaengRoute(t *testing.T, modus haengModus) *routeFake {
+	t.Helper()
+	f := neueRoute()
+	f.modus, f.frei, f.begonnen = modus, make(chan struct{}), make(chan struct{}, 4096)
+	f.antwort = admin.Antwort{Status: 200, Body: []byte("ok")}
+	t.Cleanup(f.gibFrei)
+	return f
+}
+
+func (f *routeFake) gibFrei() { f.einmal.Do(func() { close(f.frei) }) }
 
 func (f *routeFake) handle(ctx context.Context, a admin.Anfrage) (admin.Antwort, error) {
 	f.mu.Lock()
@@ -114,7 +151,63 @@ func (f *routeFake) handle(ctx context.Context, a admin.Anfrage) (admin.Antwort,
 	if aendere != nil {
 		aendere(a)
 	}
+	if f.begonnen != nil {
+		f.halte(ctx, a.Pfad)
+	}
 	return antwort, err
+}
+
+// halte meldet den Beginn des Aufrufs, wartet nach modus und hält den Fehler von ctx; der Aufruf zählt als laufend, bis
+// er zurückkehrt.
+func (f *routeFake) halte(ctx context.Context, pfad string) {
+	f.laufend.Add(1)
+	defer f.laufend.Add(-1)
+	f.begonnen <- struct{}{}
+	modus := f.modus
+	if f.nurPfad != "" && pfad != f.nurPfad {
+		modus = sofort
+	}
+	switch modus {
+	case wartetFrei:
+		<-f.frei
+	case wartetCtx:
+		select {
+		case <-ctx.Done():
+		case <-f.frei:
+		}
+	case sofort:
+	}
+	f.mu.Lock()
+	f.ctxFehler = append(f.ctxFehler, ctx.Err())
+	f.ctxEnden = append(f.ctxEnden, time.Now())
+	f.mu.Unlock()
+	time.Sleep(f.endeVerz)
+}
+
+// ctxEndenListe liefert die Zeitpunkte, zu denen die Aufrufe das Warten beendeten.
+func (f *routeFake) ctxEndenListe() []time.Time {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.ctxEnden)
+}
+
+// ctxFehlerListe liefert die Fehler von ctx, die die Aufrufe nach dem Warten sahen.
+func (f *routeFake) ctxFehlerListe() []error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.ctxFehler)
+}
+
+// warteBegonnen wartet, bis n Aufrufe der Route begonnen haben.
+func (f *routeFake) warteBegonnen(t *testing.T, n int) {
+	t.Helper()
+	for range n {
+		select {
+		case <-f.begonnen:
+		case <-time.After(5 * time.Second):
+			t.Fatal("Frist von 5 s abgelaufen: der Request erreichte die Route nicht")
+		}
+	}
 }
 
 func (f *routeFake) aufrufe() int {
@@ -133,13 +226,16 @@ func (f *routeFake) einzige() (admin.Anfrage, bool) {
 	return f.anfragen[0], true
 }
 
-// listenerFake zählt Accept, Close und Addr; der Fehler von Accept ist einstellbar, kein Aufruf blockiert oder gerät in Panik.
+// listenerFake zählt Accept, Close und Addr; der Fehler von Accept ist einstellbar, kein Aufruf gerät in Panik. Close
+// wartet closeVerz, nachdem es gezählt hat, und liefert closeErr.
 type listenerFake struct {
 	mu        sync.Mutex
 	accepts   int
 	closes    int
 	addrs     int
 	acceptErr error
+	closeVerz time.Duration
+	closeErr  error
 }
 
 func neuerListener() *listenerFake {
@@ -155,9 +251,11 @@ func (l *listenerFake) Accept() (net.Conn, error) {
 
 func (l *listenerFake) Close() error {
 	l.mu.Lock()
-	defer l.mu.Unlock()
 	l.closes++
-	return nil
+	verz, err := l.closeVerz, l.closeErr
+	l.mu.Unlock()
+	time.Sleep(verz)
+	return err
 }
 
 func (l *listenerFake) Addr() net.Addr {
