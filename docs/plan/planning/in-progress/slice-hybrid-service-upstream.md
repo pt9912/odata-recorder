@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-12.a` · `LH-FA-12.b` (Entscheidungsmatrix, Upstream-Fallback) · `LH-FA-04.b`, `LH-FA-04.c` (`X-Recorder-*`-Header) · `SPEC-120` (`UpstreamClient`, Fehler) · `SPEC-121` Nr. 4 und 7 (Header-Listen) · `SPEC-092` (`LINK_REWRITE`) · `SPEC-261` Nr. 4, 5 c, 10 (Policy und Pflichten des Aufrufers) · `SPEC-284` Nr. 1, 3 c bis f, 4, 5 c, 8, 9, 10, 11, 12 (Vertrag des Dienstes, Teile U und H6) · `ARC-002`, `ARC-003` · `architecture.md` §2.2, §4.6.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-hybrid-service-upstream)
 
 **Autor:** pt9912. **Datum:** 2026-11-08.
 
