@@ -9,11 +9,11 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** ohne Welle — kein Produkt-Slice. Er gehört nicht zu [welle-sensoren](../welle-sensoren.md), weil deren Closure-Trigger (Backfill und Schwelle der Abdeckung) von seiner DoD verschieden ist und er keinen Slice dieser Welle voraussetzt oder blockiert; eine Zugehörigkeit würde die Closure dieser Welle an die Laufzeit zweier Tests binden (Baseline-Regelwerk `modul-06-roadmap.md` §Wann Arbeit eine Welle braucht). Linie C der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln): er ändert `harness/mk/`, `harness/README.md` und eventuell das `Dockerfile` und die Gegenproben, damit gilt Nr. 7 (ein Besitzer der Gate-Kette zugleich).
+**Welle:** ohne Welle — kein Produkt-Slice. Er gehört nicht zu [welle-sensoren](../welle-sensoren.md), weil deren Closure-Trigger (Backfill und Schwelle der Abdeckung) von seiner DoD verschieden ist und er keinen Slice dieser Welle voraussetzt oder blockiert; eine Zugehörigkeit würde die Closure dieser Welle an die Laufzeit zweier Tests binden (Baseline-Regelwerk `modul-06-roadmap.md` §Wann Arbeit eine Welle braucht). Linie C der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln): er ändert `harness/mk/` und `harness/README.md`; `Dockerfile`, Treiber und Gegenproben ändert er nach dem Architect nicht (§3). Er hält die Gate-Kette, damit gilt Nr. 7 (ein Besitzer der Gate-Kette zugleich).
 
 **Bezug:** `LH-QA-06` (Reproduzierbarkeit der Prüfläufe; das Lastenheft führt keine Anforderung an die Gate-Kette, der Bezug ist der nächste, den es gibt), `LH-FA-01`, `LH-FA-02`, `LH-FA-03`, `LH-FA-04`, `LH-FA-05`, `LH-FA-14`, `LH-RB-03` (Kriterien, die `make test-integration` am Binary belegt, [rückverfolgung](../rueckverfolgung.md)), `LH-QA-02` (Determinismus, `make test-determinism`), `LH-QA-05` und `LH-RB-01` (Referenzanfragen und Negativfälle, `make test-contract`), [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Muster *Ziel neben der Kette*; Aufnahme in die Kette ist eine Verschärfung, keine Lockerung, `AGENTS.md` §3.6), Register-Eintrag `BEO-REPO/pflichtlauf-neben-der-gate-kette-ohne-traeger` (2×, Ausgang `geplant` in diesem Slice).
 
-**Berührte Spec-Stellen:** `SPEC-037`, `SPEC-038` und `SPEC-042` (Bindung, Zeitbudget, *Ungeprüft* Treiber und Verdrahtung; Nachzug durch den Architect) · `SPEC-102` (Fälle der Verdrahtung, falls der Architect sie wählt) · `harness/README.md` §Sensors (zwei Zeilen wechseln von *Werkzeuge* in die Gate-Tabelle, Spalte Vertrag höchstens 200 Zeichen) und *Nicht behauptet*.
+**Berührte Spec-Stellen:** `SPEC-211` (neu, Architect: Bindung, gleichzeitige Läufe, Zeitbudget, Randformen der Kette) · `SPEC-037`, `SPEC-038` und `SPEC-042` (Stand, Treiber, *Ungeprüft* Verdrahtung; Nachzug durch den Architect) · `harness/vertraege/README.md` (Zeile von `SPEC-211`) · `harness/README.md` §Sensors (drei Zeilen wechseln von *Werkzeuge* in die Gate-Tabelle, Spalte Vertrag höchstens 200 Zeichen) und *Nicht behauptet*. `SPEC-102` bleibt unberührt (Auftrag 4: kein Fall der Gegenproben).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie
 (Baseline-Regelwerk `grundlagen-referenz-richtung.md`
 §Referenz-Richtung (SDP), `grundlagen-source-precedence.md` §ID-Schema als Klammer).
@@ -38,7 +38,7 @@ ist einzeln lieferbar.
 
 - Neue Stufen oder Szenarien von `make test-integration` (die Szenarien von `slice-bootstrap-m3`, `-m4` und `-m6`) und neue Fixtures oder Negativfälle von `make test-contract` — sie gehören den Slices, die ihr Verhalten liefern; dieser Slice ändert nur die Bindung.
 - Eine Änderung der Fristen von 120 s je Stufe (`SPEC-037`, `SPEC-038`) — die Fristen sind Grenzen der Tests, nicht der Kette; der Architect nennt nur das Zeitbudget der Kette.
-- Die Gegenproben zu den Treibern `tools/harness/test-integration.sh` und `tools/harness/test-determinism.sh` — `SPEC-037` und `SPEC-038` führen die Verdrahtung als akzeptiertes Negativ (Nr. 10 f); ob der Architect das mit der Aufnahme ändert, entscheidet er in Auftrag 4, ein Fall der Gegenproben ist kein Muss.
+- Die Gegenproben zu den Treibern `tools/harness/test-integration.sh` und `tools/harness/test-determinism.sh` — `SPEC-037` und `SPEC-038` führen die Verdrahtung als akzeptiertes Negativ (Nr. 10 f); der Architect hat in Auftrag 4 entschieden, dass es bleibt (`SPEC-211` Nr. 5 a), ein Fall der Gegenproben ist kein Muss.
 - Der Fänger der Markierung `capture_status` am Binary (`SPEC-037` Nr. 10 h) — Adresse `slice-bootstrap-m6`, dessen DoD sie führt.
 - Eine Aufnahme von `make gegenproben` in die Kette — [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) hält sie draußen (Laufzeit); die Aufnahme dieses Slice ändert das nicht.
 - Änderungen an `AGENTS.md`, Commands, Rollen-Typen und Skills — nur als Diff-Vorschlag in der Closure; `close-welle.md` trägt den Pflichtlauf bis zu diesem Slice, sein Wegfall ist ein Diff-Vorschlag an den User.
@@ -75,11 +75,11 @@ Der Planner schneidet; der Architect entscheidet (Aufträge unten), der Implemen
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | `harness/mk/test-integration.mk`, `harness/mk/test-determinism.mk`, `harness/mk/test-contract.mk` | update | je `GATE_CHECKS += …`, Kopf und Hilfetext |
-| `Dockerfile` | update (falls der Architect es verlangt) | Stufen `integration` und `contract` und die Tags der Images, wenn drei Checks zugleich bauen |
-| `tools/harness/test-integration.sh`, `tools/harness/test-determinism.sh`, `tools/harness/test-contract.sh` | update (falls nötig) | Image-Tag je Lauf, Aufräumen, Umgang mit `--memory` in der Kette |
-| `harness/vertraege/SPEC-037-test-integration.md`, `harness/vertraege/SPEC-038-test-determinism.md`, `harness/vertraege/SPEC-042-test-contract.md` | update (Architect) | Bindung, Zeitbudget, *Ungeprüft* der Verdrahtung |
-| `harness/README.md` | update | drei Zeilen in die Gate-Tabelle, *Nicht behauptet*; Zellen höchstens 200 Zeichen |
-| `tools/gegenproben/`, `harness/mk/gegenproben.mk`, `tools/harness/gegenproben-eingabe.sh` | update (falls der Architect Fälle wählt) | Verdrahtung der Aufnahme; Stempel nach dem letzten Eingabe-Commit |
+| `harness/README.md` | update | drei Zeilen aus *Werkzeuge* in die Gate-Tabelle (Wortlaut von Bindung und Vertrag unten), *Nicht behauptet*; Zellen höchstens 200 Zeichen |
+| `harness/vertraege/SPEC-211-container-tests-in-der-kette.md`, `harness/vertraege/README.md` | neu bzw. update (Architect, vor dem Code) | Bindung, gleichzeitige Läufe, Zeitbudget, Randformen der Kette; Index-Zeile |
+| `harness/vertraege/SPEC-037-test-integration.md`, `harness/vertraege/SPEC-038-test-determinism.md`, `harness/vertraege/SPEC-042-test-contract.md` | update (Architect, vor dem Code) | *Stand*, Zeile zur Bindung in Nr. 2, *Ungeprüft* Verdrahtung |
+| `Dockerfile`, `tools/harness/test-integration.sh`, `tools/harness/test-determinism.sh`, `tools/harness/test-contract.sh` | keine Änderung | Auftrag 2: derselbe Tag trägt denselben Inhalt (`SPEC-211` Nr. 2 a); kein fester Container-Name, `--rm` |
+| `tools/gegenproben/`, `harness/mk/gegenproben.mk`, `tools/harness/gegenproben-eingabe.sh`, Stempel | keine Änderung | Auftrag 4: kein Fall der Gegenproben (`SPEC-211` Nr. 5 a) |
 
 **Reihenfolge der Rollen nach dem Start**, jede in frischem Kontext: Architect (Aufträge 1 bis 5, Tabelle *Zusage · Fänger*, Raster, erwartete Produktcode-Größe) → Planner (Marke mit `make groessenmarke`, eigener Commit, vor dem ersten Code-Commit) → Implementer → Reviewer → Fixes (Klasse, `AGENTS.md` §3.17) → Verifier → Planner (Closure).
 
@@ -93,7 +93,32 @@ Der Planner schneidet; der Architect entscheidet (Aufträge unten), der Implemen
 4. **Verdrahtung und Gegenproben.** Ob ein Fall der Gegenproben die Aufnahme fängt (Kette ruft alle drei Ziele) oder `SPEC-037` Nr. 10 f, `SPEC-038` Nr. 10 f und die entsprechende Stelle von `SPEC-042` als akzeptiertes Negativ mit Grund und Folge bleiben; die Gegenprobe darf das Produkt nicht mitfahren (`BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts`).
 5. **Randformen** vor dem ersten Code-Commit im Vertrag (Raster in §6): Docker nicht erreichbar, Image fehlt, Stufe scheitert beim Bau, Frist von 120 s überschritten, Lauf unter dem Speicherlimit, Abbruch durch INT oder TERM mitten in der Kette; die Tabelle *Zusage · Fänger* (§3), die erwartete Produktcode-Größe für die Marke des Planners.
 
-**Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; füllt der Architect): folgt.
+**Ausgang des Architect** (2026-11-17; Vertrag `SPEC-211`, Nachzug in `SPEC-037`, `SPEC-038`, `SPEC-042`):
+
+1. **Bindung — keine ADR.** `SPEC-211` Nr. 1 trägt die Entscheidung mit Alternativen und Gründen: [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) betrifft die Gegenproben, die Aufnahme verschärft die Kette und senkt keine Schwelle; die Herausnahme eines Ziels wäre eine Lockerung und bräuchte dann eine ADR, die das ablöst. Wortlaut der Spalte *Bindung* für alle drei Zeilen der Gate-Tabelle: `Reproduzierbarkeit (LH-QA-06), Zeitbudget SPEC-211 Nr. 4`. Vorschlag der Spalte *Vertrag* (je höchstens 200 Zeichen, der Implementer zählt nach): `make test-integration`: „Binary im Container ohne Netz: Record, Upstream stoppen, Replay in neun Stufen (SPEC-037)“; `make test-determinism`: „100 Läufe des Replay nach Reset: gleiche normalisierte Antworten und Cursor-Stände (SPEC-038)“; `make test-contract`: „36 Fixtures ODV4-* über HTTP und je Fehlerklasse von LH-QA-05 ein Negativfall (SPEC-042)“.
+2. **Gleichzeitige Läufe — Tag bleibt, nichts ändert sich.** `make gates` fährt die Checks nacheinander, erst `make -j gates` zugleich. Zwei Bauten von `odata-recorder:integration` aus demselben Quellstand liefern denselben Inhalt; kein fester Container-Name, `--rm` (`SPEC-211` Nr. 2 a und b). Gemessen (Architect): `make -j3 test-integration test-determinism test-contract` zweimal grün (8,7 s und 8,2 s). Abbruch und SIGKILL: `SPEC-211` Nr. 2 c und d. Der Fänger der Zusage ist der Nachweislauf von Nr. 2 e (zehn Läufe, Mutation *fester `--name`*), mit Rate; nicht in jedem Lauf rot heißt akzeptiertes Negativ mit dieser Rate.
+3. **Zeitbudget — Soll mit Messvorschrift, Trigger 120 s.** Gemessen (2026-11-17, Last 3 bis 8 auf 20 Kernen): Zuwachs rund 12 s bei vorhandenen Images, rund 54 s nach geändertem Quelltext (Bau der Stufen `integration` 20,6 s und `contract` 21,8 s). Trigger: Zuwachs über 120 s bei gültiger Messung; Folge: der Planner legt dem User Beschleunigung, Anhebung mit Messung oder Herausnahme (ADR) vor (`SPEC-211` Nr. 4). Offen bleibt ein Lauf auf einem Host ohne Fremdlast; ein kalter Bau von `source` und `build` gehört zu `build`, `test` und `test-race`.
+4. **Verdrahtung — kein Fall der Gegenproben.** Akzeptiertes Negativ in `SPEC-211` Nr. 5 a (dieselbe Klasse wie `test-race`, `zeichen-check`, `katalog-check`, `handbuch-check`); `make docs-check` unterscheidet nicht, ob ein Ziel an `GATE_CHECKS` hängt (Probe des Architect: die Zeile allein ändert die Befunde nicht). `make -n gates` nennt die drei Rezepte; der Verifier prüft es einmal.
+5. **Randformen** stehen in `SPEC-211` Nr. 3; das Raster steht in §6.
+
+**Erwartete Größe** (für die Marke des Planner, `SPEC-128` Nr. 1): Produktcode ohne Verträge etwa 70 Zeilen (drei Fragmente je rund 11 Zeilen Einfügungen und Löschungen, `harness/README.md` rund 8, dieser Plan rund 30 mit Nachweis und Closure); die Verträge des Architect (`SPEC-211` 44 Zeilen, drei Nachzüge je 3 bis 5, Index 1) liegen vor der Basis, wenn der Planner die Basis nach dem Commit des Architect setzt, sonst kommen rund 60 Zeilen dazu. Zeilen der Tabelle unten nach Klasse: *a* (nebenläufig) 2, *b* (andere) 11, *f* 0, *p* rund 70.
+
+**Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15). Der Fänger ist eine Mutation, die der Implementer selbst rot sieht, oder ein benanntes Negativ nach `SPEC-211`.
+
+| Zusage | Mutation | Fänger |
+|---|---|---|
+| Jedes der drei Ziele hängt an `GATE_CHECKS` und `make gates` fährt es (Menge: drei Ziele, Schleife) | die Zeile `GATE_CHECKS += <Ziel>` fehlt, je Ziel | kein automatischer Fall: Negativ `SPEC-211` Nr. 5 a (Grund und Folge dort); Handprobe `make -n gates` nennt je Ziel den Treiber, mit der Mutation fehlt er (der Bericht nennt die Zahl der Treffer, drei gegen zwei) |
+| Ein rotes Ziel macht `make gates` rot, und `record-gates` stempelt nicht | je Ziel ein `t.Fatal` im Test (`TestE2EProzess`, `TestE2EDeterminismus`, `TestVertragFehlerklassen`) | ein Lauf `make -k gates` mit den drei Mutationen zugleich: alle drei Ziele rot in der Ausgabe, `.harness/state/gates-passed.head` unverändert (Bericht: Zeitstempel vor und nach) |
+| Die Läufe zugleich überschreiben einander nicht und kollidieren nicht (`SPEC-211` Nr. 2 a, b) — Klasse *nebenläufig* | fester `--name` in `laufe` von `test-integration.sh` und `test-determinism.sh` | `make -j3 test-integration test-determinism test-contract` zehnmal; ohne Mutation zehnmal grün, mit Mutation rot in *k* von 10 (Rate im Bericht, mit Last des Hosts und Messendem); unter 10 von 10 steht die Zusage als Negativ mit der Rate (`SPEC-211` Nr. 2 e) |
+| Der Abbruch durch INT oder TERM endet jeden Treiber und entfernt den Container; es gibt keinen Nachweis (`SPEC-211` Nr. 2 c) — Klasse *nebenläufig* | `trap abbruch INT TERM` entfernt, je Treiber | Handlauf: `make -j3 …`, nach 3 s `kill -TERM` an `make`; ohne Mutation `docker ps` binnen 5 s leer und Exit ungleich 0, mit Mutation bleibt der Container; ein Fänger in einer Schleife über die drei Treiber; kein automatischer Fall (`SPEC-211` Nr. 5 a, d) |
+| Ohne `docker` oder Daemon endet jedes Ziel mit Exit 2 und der Meldung `Aufbau der Stufe … gescheitert` (`SPEC-211` Nr. 3, Zeile 1) | die Prüfung des Baus (`if !` um `docker build`) entfernt | Handlauf je Ziel: `DOCKER=/bin/false make <Ziel>`, erwartet Exit 2 und die Meldung; Schleife über drei Ziele; kein automatischer Fall (kein Fall prüft Docker, `SPEC-037` Nr. 10 f) |
+| Ein Bau, der scheitert (`go test -c` übersetzt nicht), ist Exit 2 (`SPEC-211` Nr. 3, Zeile 2) | ein Syntaxfehler in `tests/e2e` (nicht committet) | Handlauf `make test-integration`: Exit 2, Meldung `Aufbau der Stufe integration gescheitert`; `make test-determinism` ebenso; `make test-contract` mit `src/bootstrap` entsprechend |
+| Image fehlt nach dem Bau: Exit 2 bzw. rot mit `Exit 125` (`SPEC-211` Nr. 3, Zeile 3) | — | akzeptiertes Negativ: Grund: nur ein `docker rmi` zwischen Bau und Lauf erzeugt die Form; Folge: Exit 1 oder 2, die Kette ist in beiden Fällen rot |
+| Die Frist von 120 s macht die Stufe rot (`SPEC-211` Nr. 3, Zeile 4) | `-test.timeout` entfernt | kein Fänger (`SPEC-037` Nr. 10 f: kein Szenario braucht die Frist); Negativ in `SPEC-211` Nr. 3 |
+| Das Limit von 2 GiB gilt (`SPEC-211` Nr. 3, Zeile 5) | `--memory 2g` entfernt | kein Fänger (`SPEC-037` Nr. 10 f); Negativ in `SPEC-211` Nr. 3 |
+| Zeitbudget: Zuwachs gemessen, Trigger 120 s (`SPEC-211` Nr. 4) | — | kein Prüfer (Soll mit Messvorschrift, Negativ `SPEC-211` Nr. 5 c); der Implementer misst in der Closure neu und trägt den Wert unten ein |
+| Die drei Ziele stehen in der Gate-Tabelle von `harness/README.md`, mit Bindung, Vertrag-Zelle höchstens 200 Zeichen, *Nicht behauptet* nennt nur noch den Rest | die Zeile eines Ziels fehlt, die Zelle hat 201 Zeichen | `make docs-check` (`gate-undocumented`, Größengrenze der Zellen); der Ort Gate- oder Werkzeug-Tabelle ist nur durch den Leser gefangen (Negativ `SPEC-211` Nr. 5 b) |
+| Kein Text sagt mehr „KEIN Gate“ oder „hängt nicht an `GATE_CHECKS`“ für die drei Ziele | der Satz bleibt in einer Datei | Handprobe `grep -rn 'hängt nicht an .GATE_CHECKS\|KEIN Gate\|KEIN GATE' harness tools/harness` ohne Treffer zu den drei Zielen; kein automatischer Fall (Text, `AGENTS.md` §3.11) |
 
 ## 4. Trigger
 
@@ -126,11 +151,40 @@ DoD vollständig, Review und Verifikation bestanden, `make gates` grün im Haupt
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Offene Risiken werden bei Closure aufgelöst.
 
-- Die Kette wird durch zwei Container-Läufe merklich langsamer, und die Fristen der Gegenproben und von `pruefung` (für einen ruhigen Host bemessen) reißen unter Last — **Ausgang:** weiter offen: Zeitbudget und Trigger entscheidet der Architect (Auftrag 3).
-- Zwei Checks bauen dieselbe Stufe `integration` zugleich und überschreiben ein Image-Tag — **Ausgang:** weiter offen: der Architect entscheidet (Auftrag 2), der Fänger oder das Negativ steht vor dem ersten Code-Commit.
-- Größe: die Marke steht als Prosa in §4 (vorläufig *S* = 1120, *M* = 1600, keine Schnittfrage) — **Ausgang:** offen; Adresse: Planner (neu rechnen mit der Tabelle des Architect, endgültige Marke vor dem ersten Code-Commit).
-- Berührung mit `slice-bootstrap-m3` und `slice-bootstrap-m3-e2e-mock` (dieser ändert den Treiber in Stufe 8 und 9, siehe *Zurückgestellt* in §4) am Treiber `tools/harness/test-integration.sh` und an der Stufe `integration` des `Dockerfile` (Stand der Bedingungen in §4) — **Ausgang:** offen; Adresse: Architect (Auftrag 2 hält die Änderung klein) und Planner (Meldung des Implementers vor einem Commit am `Dockerfile`).
-- Die Aufnahme verdeckt einen Rest, den die Tests nicht prüfen (`SPEC-037` Nr. 10, `SPEC-038` Nr. 10): „Gate grün“ wird als „Binary fehlerfrei“ gelesen — **Ausgang:** weiter offen: *Nicht behauptet* in `harness/README.md` nennt den Rest (DoD).
+- Die Kette wird durch drei Container-Läufe merklich langsamer, und die Fristen der Gegenproben und von `pruefung` (für einen ruhigen Host bemessen) reißen unter Last — **Ausgang:** weiter offen: gemessen sind rund 12 s (Images vorhanden) und rund 54 s (nach geändertem Quelltext) Zuwachs, Trigger 120 s in `SPEC-211` Nr. 4; der Implementer misst in der Closure neu.
+- Zwei Checks bauen dieselbe Stufe `integration` zugleich und überschreiben ein Image-Tag — **Ausgang:** weiter offen: entschieden in `SPEC-211` Nr. 2 (derselbe Inhalt, keine Änderung); der Nachweislauf (Nr. 2 e) und seine Rate schließen es in der Closure.
+- Größe: die Marke steht als Prosa in §4 (vorläufig *S* = 1120, *M* = 1600, keine Schnittfrage) — **Ausgang:** offen; Adresse: Planner (neu rechnen mit der Tabelle des Architect in §3, die Zahlen *a* = 2, *b* = 11, *f* = 0, *p* = 70 stehen dort; endgültige Marke vor dem ersten Code-Commit).
+- Berührung mit `slice-bootstrap-m3` und `slice-bootstrap-m3-e2e-mock` am Treiber `tools/harness/test-integration.sh` und an der Stufe `integration` des `Dockerfile` — **Ausgang:** entfallen: beide liegen in `done/` (Archiv von `welle-mock`), ihre Stufen 8 und 9 stehen im Treiber und in `SPEC-037`; dieser Slice ändert weder Treiber noch `Dockerfile` (Auftrag 2).
+- Die Aufnahme verdeckt einen Rest, den die Tests nicht prüfen (`SPEC-037` Nr. 10, `SPEC-038` Nr. 10, `SPEC-042` Nr. 9): „Gate grün“ wird als „Binary fehlerfrei“ gelesen — **Ausgang:** weiter offen: *Nicht behauptet* in `harness/README.md` nennt den Rest (DoD).
+- Ein Ziel, das an der Kette hängt, steht in der falschen Tabelle von `harness/README.md`, und die Verdrahtung `GATE_CHECKS` fängt kein Fall (`SPEC-211` Nr. 5 a, b) — **Ausgang:** weiter offen: akzeptiertes Negativ mit Grund und Folge im Vertrag; `make -n gates` prüft der Verifier einmal.
+- `.claude/commands/close-welle.md` trägt den Pflichtlauf vor der Closure einer Welle, dessen Wegfall der Slice nicht selbst ändern darf — **Ausgang:** offen; Adresse: Planner (Diff-Vorschlag an den User in der Closure, DoD Punkt 6). Eine ADR und ein ADR-Index-Eintrag entstehen nicht (Auftrag 1); die Roadmap nennt den Slice bereits.
+
+**Raster *Operation × Argumentart*** (`AGENTS.md` §3.16). Die Operation ist der Lauf eines der drei Ziele; die Zelle nennt den Ort der Entscheidung. `SPEC-211` Nr. 3 ist die Tabelle der Randformen (Zeile = Form).
+
+| Argumentart | `make test-integration` | `make test-determinism` | `make test-contract` |
+|---|---|---|---|
+| `docker` fehlt oder Daemon nicht erreichbar | `SPEC-211` Nr. 3 Zeile 1, `SPEC-037` Nr. 2 (Exit 2) | `SPEC-211` Nr. 3 Zeile 1, `SPEC-038` Nr. 2 | `SPEC-211` Nr. 3 Zeile 1, `SPEC-042` Nr. 2 |
+| Stufe scheitert beim Bau | `SPEC-211` Nr. 3 Zeile 2, `SPEC-037` Nr. 2 | `SPEC-211` Nr. 3 Zeile 2, `SPEC-038` Nr. 2 | `SPEC-211` Nr. 3 Zeile 2, `SPEC-042` Nr. 2 |
+| Image fehlt nach dem Bau | `SPEC-211` Nr. 3 Zeile 3 (`-test.list`, Exit 2) | `SPEC-211` Nr. 3 Zeile 3 (`Exit 125`, Exit 1) | `SPEC-211` Nr. 3 Zeile 3 (`-test.list`, Exit 2) |
+| Frist von 120 s überschritten | `SPEC-211` Nr. 3 Zeile 4, `SPEC-037` Nr. 2 | `SPEC-211` Nr. 3 Zeile 4, `SPEC-038` Nr. 8 d | `SPEC-211` Nr. 3 Zeile 4, `SPEC-042` Nr. 2 |
+| Limit von 2 GiB überschritten | `SPEC-211` Nr. 3 Zeile 5 | `SPEC-211` Nr. 3 Zeile 5 | `SPEC-211` Nr. 3 Zeile 5 |
+| Abbruch durch INT oder TERM | `SPEC-211` Nr. 2 c, `SPEC-037` Nr. 2 | `SPEC-211` Nr. 2 c, `SPEC-038` Nr. 8 c | `SPEC-211` Nr. 2 c, `SPEC-042` Nr. 8 c |
+| SIGKILL des Treibers | `SPEC-211` Nr. 2 d (Negativ) | `SPEC-211` Nr. 2 d (Negativ) | `SPEC-211` Nr. 2 d (Negativ) |
+| Argument (auch leer) | `SPEC-037` Nr. 2 | `SPEC-038` Nr. 2 | `SPEC-042` Nr. 2 |
+| zwei Läufe zugleich (`-j`), Wiederholung | `SPEC-211` Nr. 2 a, b | `SPEC-211` Nr. 2 a, b | `SPEC-211` Nr. 2 a, b; `SPEC-042` Nr. 8 f |
+| `docker` antwortet nicht | `SPEC-211` Nr. 3 Zeile 9, `SPEC-037` Nr. 2 | `SPEC-211` Nr. 3 Zeile 9 | `SPEC-211` Nr. 3 Zeile 9 |
+| Host unter Last, Frist reißt | `SPEC-211` Nr. 3 Zeile 10, Nr. 4 | `SPEC-211` Nr. 3 Zeile 10, Nr. 4 | `SPEC-211` Nr. 3 Zeile 10, Nr. 4 |
+| Test-Binary fehlt oder leer (`E2E_BINARY`) | gilt nicht in der Kette: das Image trägt das Binary; Fall `SKIP` `SPEC-037` Nr. 10 g | `SPEC-038` Nr. 8 e | gilt nicht: der Treiber prüft Namen gegen `-test.list` (`SPEC-042` Nr. 2) |
+
+Die Zeilen von `SPEC-211` Nr. 3 sind in der Reihenfolge der Tabelle gezählt: 1 `docker` fehlt, 2 Stufe scheitert, 3 Image fehlt, 4 Frist, 5 Speicher, 6 INT oder TERM, 7 Argument, 8 zwei Läufe zugleich, 9 `docker` antwortet nicht, 10 Host unter Last.
+
+**Zusatztabelle** (die Zusage hängt vom Modus ab: seriell oder zugleich):
+
+| Modus | Verhalten | Fänger |
+|---|---|---|
+| `make gates` (nacheinander) | kein gemeinsamer Zustand zwischen den Zielen außer dem Tag `odata-recorder:integration` von `test-integration` und `test-determinism` | `make gates` grün (DoD); die Gleichzeitigkeit fängt dieser Modus nicht |
+| `make -j gates` oder `make -j3 <drei Ziele>` | höchstens drei Container zugleich (6 GiB), kein Namenskonflikt, dasselbe Image | Nachweislauf zehnmal mit Rate; Mutation *fester `--name`* (`SPEC-211` Nr. 2 e) |
+| Abbruch im Modus zugleich | alle drei Treiber enden mit Exit 2, kein Container bleibt | Handlauf mit Mutation *`trap` entfernt* je Treiber (Tabelle in §3) |
 
 ## 7. Closure-Notiz
 

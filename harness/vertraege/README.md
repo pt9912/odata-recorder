@@ -34,4 +34,5 @@ Die Reihe der Kennungen zählt über beide Orte fortlaufend: Die nächste freie 
 | `SPEC-200` | `make handbuch-check` | [`SPEC-200-handbuch.md`](SPEC-200-handbuch.md) |
 | `SPEC-201` | `make katalog-check` | [`SPEC-201-handbuch-katalog.md`](SPEC-201-handbuch-katalog.md) |
 | `SPEC-210` | `tools/harness/mutationslauf.sh` (kein `make`-Ziel) | [`SPEC-210-mutationslauf.md`](SPEC-210-mutationslauf.md) |
+| `SPEC-211` | `make test-integration`, `make test-determinism`, `make test-contract` in der Gate-Kette | [`SPEC-211-container-tests-in-der-kette.md`](SPEC-211-container-tests-in-der-kette.md) |
 | `SPEC-233` | `make zeichen-check` | [`SPEC-233-unsichtbare-zeichen.md`](SPEC-233-unsichtbare-zeichen.md) |
