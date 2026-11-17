@@ -572,6 +572,8 @@ func fehlerTabelle() []fehlerFall {
 		{"Zeit", outbound.ErrUpstreamZeit, model.CodeE4001, 504},
 		{"Zeit verpackt", fmt.Errorf("x: %w", outbound.ErrUpstreamZeit), model.CodeE4001, 504},
 		{"NichtErreichbar", outbound.ErrUpstreamNichtErreichbar, model.CodeE4001, 502},
+		{"Join Zeit, NichtErreichbar", errors.Join(outbound.ErrUpstreamZeit, outbound.ErrUpstreamNichtErreichbar), model.CodeE4001, 504},
+		{"Join NichtErreichbar, Zeit", errors.Join(outbound.ErrUpstreamNichtErreichbar, outbound.ErrUpstreamZeit), model.CodeE4001, 504},
 		{"ErrUngueltig", model.ErrUngueltig, model.CodeE9001, 500},
 		{"sonst", errors.New("boom"), model.CodeE9001, 500},
 	}
@@ -596,6 +598,9 @@ func TestUpstreamFehler(t *testing.T) {
 			if want := f.code.String() + ": " + f.code.Message(); err.Error() != want || strings.Contains(err.Error(), "boom") {
 				t.Errorf("%s %s: Text %q", weg, f.name, err.Error())
 			}
+			if strings.HasPrefix(f.name, "Join") && (!errors.Is(err, outbound.ErrUpstreamZeit) || !errors.Is(err, outbound.ErrUpstreamNichtErreichbar)) {
+				t.Errorf("%s %s: die Ursache trägt nicht beide Fehler des Ports", weg, f.name)
+			}
 			wantR := 0
 			if weg == "nach R" {
 				wantR = 1
@@ -605,7 +610,7 @@ func TestUpstreamFehler(t *testing.T) {
 			}
 		}
 	}
-	if n != 10 {
+	if n != 14 {
 		t.Errorf("Zählprüfung: %d Fälle", n)
 	}
 }
