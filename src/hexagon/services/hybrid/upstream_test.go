@@ -104,7 +104,7 @@ func TestUpstreamNachMock(t *testing.T) {
 // erreichen R nicht.
 func TestUpstreamNachReplayMiss(t *testing.T) {
 	for _, m := range alleMethoden() {
-		routen :=[]string(nil)
+		routen := []string(nil)
 		if mutierendOrakel(m) {
 			routen = []string{m + " " + standardP}
 		}
