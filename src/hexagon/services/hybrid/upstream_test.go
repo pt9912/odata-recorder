@@ -13,6 +13,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
 )
 
 // lesendOrakel und mutierendOrakel sind die Klassen der Methoden nach SPEC-261 Nr. 2, unabhängig vom Code.
@@ -127,29 +128,36 @@ func TestUpstreamNachReplayMiss(t *testing.T) {
 	}
 }
 
-// TestUpstreamNurNachE5001 hält Z09 (U): jeder Code von model.AlleCodes() als Fehler von R unter der offensten Policy
-// und mit GET kehrt als derselbe Wert zurück und lässt U ungerufen, außer ODR-E5001.
+// TestUpstreamNurNachE5001 hält Z09 (U): jeder Code von model.AlleCodes() als Fehler von R, unter der offensten Policy
+// und unter einer, die nur coverage_insufficient führt (dort würde Entscheide für ODR-E6001 und ODR-E6002 den Upstream
+// freigeben), mit GET kehrt als derselbe Wert zurück und lässt U ungerufen, außer ODR-E5001.
 func TestUpstreamNurNachE5001(t *testing.T) {
 	n, mitU := 0, 0
-	for _, c := range model.AlleCodes() {
-		n++
-		g := neuesRigZiel(t, offenste(t), standardMax, zielH)
-		g.mockE6003(t)
-		fehler := code(c)
-		g.replayFehler(fehler)
-		_, err := g.v.Hybrid(context.Background(), anfrage("GET"))
-		if c.String() == missCode {
-			mitU++
-			if err != nil || g.u.zahl() != 1 {
-				t.Errorf("%s: Fehler %v, U %d", c, err, g.u.zahl())
+	policies := map[string]func() *policy.Policy{
+		"offenste":     func() *policy.Policy { return offenste(t) },
+		"nur coverage": func() *policy.Policy { return uPolicy(t, []string{"h"}, nil, katCoverage) },
+	}
+	for pname, pol := range policies {
+		for _, c := range model.AlleCodes() {
+			n++
+			g := neuesRigZiel(t, pol(), standardMax, zielH)
+			g.mockE6003(t)
+			fehler := code(c)
+			g.replayFehler(fehler)
+			_, err := g.v.Hybrid(context.Background(), anfrage("GET"))
+			if c.String() == missCode {
+				mitU++
+				if err != nil || g.u.zahl() != 1 {
+					t.Errorf("%s %s: Fehler %v, U %d", pname, c, err, g.u.zahl())
+				}
+				continue
 			}
-			continue
-		}
-		if err != error(fehler) || g.u.zahl() != 0 {
-			t.Errorf("%s: Fehler %v, U %d; erwartet derselbe Wert ohne U", c, err, g.u.zahl())
+			if err != error(fehler) || g.u.zahl() != 0 {
+				t.Errorf("%s %s: Fehler %v, U %d; erwartet derselbe Wert ohne U", pname, c, err, g.u.zahl())
+			}
 		}
 	}
-	if n != len(model.AlleCodes()) || n < 40 || mitU != 1 {
+	if n != 2*len(model.AlleCodes()) || len(model.AlleCodes()) < 40 || mitU != 2 {
 		t.Errorf("Zählprüfung: %d Codes, %d mit U", n, mitU)
 	}
 }
