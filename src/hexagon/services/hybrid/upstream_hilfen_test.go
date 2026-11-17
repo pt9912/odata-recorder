@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
@@ -81,12 +80,10 @@ const (
 	standardP = "/odata/svc/Products"
 )
 
-// ausMockZuU lässt M mit ODR-E6003 scheitern; unter einer Policy ohne Replay-Kategorie folgt der Upstream.
-func (g *rig) mockE6003(t *testing.T) *inbound.Fehler {
+// mockE6003 lässt M mit ODR-E6003 scheitern; unter einer Policy ohne Replay-Kategorie folgt der Upstream.
+func (g *rig) mockE6003(t *testing.T) {
 	t.Helper()
-	f := code(codeNamed(t, mockCode))
-	g.mockFehler(f)
-	return f
+	g.mockFehler(code(codeNamed(t, mockCode)))
 }
 
 // referenz ist ein Referenzdienst: er zählt Verbindungen und hält jeden Request fest.

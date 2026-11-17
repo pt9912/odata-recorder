@@ -22,7 +22,9 @@ func mutierendOrakel(m string) bool {
 	return m == "POST" || m == "PUT" || m == "PATCH" || m == "DELETE" || m == "MERGE"
 }
 
-var alleMethoden = []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "MERGE", "OPTIONS", "TRACE", "get"}
+func alleMethoden() []string {
+	return []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "MERGE", "OPTIONS", "TRACE", "get"}
+}
 
 // TestZ01DienstwahlBleibt hält Z01 (D): New hält keine Referenz auf Dienste; ändert der Aufrufer jedes Element der Liste
 // und kürzt sie danach, wählt der Dienst nach der Liste, die er bekam (Ziel und OData-Pfad am Fake U).
@@ -64,7 +66,7 @@ func TestZ01DienstwahlBleibt(t *testing.T) {
 // M als derselbe Wert zurück.
 func TestUpstreamNachMock(t *testing.T) {
 	zaehler, upstreams := 0, 0
-	for _, m := range alleMethoden {
+	for _, m := range alleMethoden() {
 		for _, route := range []bool{false, true} {
 			for _, c := range model.AlleCodes() {
 				var routen []string
@@ -92,7 +94,7 @@ func TestUpstreamNachMock(t *testing.T) {
 			}
 		}
 	}
-	if zaehler != 2*len(alleMethoden)*len(model.AlleCodes()) || upstreams != 3*(2+7)+2*2 {
+	if zaehler != 2*len(alleMethoden())*len(model.AlleCodes()) || upstreams != 3*(2+7)+2*2 {
 		t.Errorf("Zählprüfung: %d Fälle, %d mit U", zaehler, upstreams)
 	}
 }
@@ -101,8 +103,8 @@ func TestUpstreamNachMock(t *testing.T) {
 // jede mutierende Methode (auch mit Route) lässt ODR-E5001 unverändert zurückkehren, U 0; nie freigegebene Methoden
 // erreichen R nicht.
 func TestUpstreamNachReplayMiss(t *testing.T) {
-	for _, m := range alleMethoden {
-		routen := []string(nil)
+	for _, m := range alleMethoden() {
+		routen :=[]string(nil)
 		if mutierendOrakel(m) {
 			routen = []string{m + " " + standardP}
 		}
@@ -341,18 +343,22 @@ func TestDienstwahl(t *testing.T) {
 }
 
 // ziel-Formen: die Zeichenkette der Konfig, die Einträge der Policy, die den Host freigeben, und ob die Policy sie liest.
-var zielFormen = []struct {
+type zielForm struct {
 	ziel   string
 	hosts  []string
 	lesbar bool
-}{
-	{"http://h", []string{"h"}, true},
-	{"HTTP://H:8080", []string{"h:8080"}, true},
-	{"https://h:0443", []string{"h"}, true},
-	{"http://h/", []string{"h"}, true},
-	{"http://h/p", []string{"h"}, true},
-	{"http://[::1]:80", []string{"[::1]"}, true},
-	{"http://h ", []string{"h"}, false},
+}
+
+func zielFormen() []zielForm {
+	return []zielForm{
+		{"http://h", []string{"h"}, true},
+		{"HTTP://H:8080", []string{"h:8080"}, true},
+		{"https://h:0443", []string{"h"}, true},
+		{"http://h/", []string{"h"}, true},
+		{"http://h/p", []string{"h"}, true},
+		{"http://[::1]:80", []string{"[::1]"}, true},
+		{"http://h ", []string{"h"}, false},
+	}
 }
 
 // TestZielAnStellen hält Z19 (Ziel): dieselbe Zeichenkette, byte-gleich, geht an Entscheide und an Senden; je Form an
@@ -360,7 +366,7 @@ var zielFormen = []struct {
 // verlorenes Ziel an der Stelle ändert die Entscheidung.
 func TestZielAnStellen(t *testing.T) {
 	n := 0
-	for _, f := range zielFormen {
+	for _, f := range zielFormen() {
 		erwartetU := 0
 		if f.lesbar {
 			erwartetU = 1
@@ -402,7 +408,7 @@ func TestZielAnStellen(t *testing.T) {
 		_, err = g.v.Hybrid(context.Background(), anfrage("GET"))
 		pruefe("H5", g, err)
 	}
-	if n != 3*len(zielFormen) {
+	if n != 3*len(zielFormen()) {
 		t.Errorf("Zählprüfung: %d Fälle", n)
 	}
 }
@@ -554,17 +560,21 @@ func TestUpstreamArgumente(t *testing.T) {
 }
 
 // fehlerTabelle ist das Orakel der Abbildung von Senden (SPEC-284 Nr. 11).
-var fehlerTabelle = []struct {
+type fehlerFall struct {
 	name   string
 	err    error
 	code   model.Code
 	status int
-}{
-	{"Zeit", outbound.ErrUpstreamZeit, model.CodeE4001, 504},
-	{"Zeit verpackt", fmt.Errorf("x: %w", outbound.ErrUpstreamZeit), model.CodeE4001, 504},
-	{"NichtErreichbar", outbound.ErrUpstreamNichtErreichbar, model.CodeE4001, 502},
-	{"ErrUngueltig", model.ErrUngueltig, model.CodeE9001, 500},
-	{"sonst", errors.New("boom"), model.CodeE9001, 500},
+}
+
+func fehlerTabelle() []fehlerFall {
+	return []fehlerFall{
+		{"Zeit", outbound.ErrUpstreamZeit, model.CodeE4001, 504},
+		{"Zeit verpackt", fmt.Errorf("x: %w", outbound.ErrUpstreamZeit), model.CodeE4001, 504},
+		{"NichtErreichbar", outbound.ErrUpstreamNichtErreichbar, model.CodeE4001, 502},
+		{"ErrUngueltig", model.ErrUngueltig, model.CodeE9001, 500},
+		{"sonst", errors.New("boom"), model.CodeE9001, 500},
+	}
 }
 
 // TestUpstreamFehler hält Z25: jeder Fehler von Senden ergibt den Code und den Status der Tabelle, die Ursache bleibt
@@ -573,7 +583,7 @@ var fehlerTabelle = []struct {
 func TestUpstreamFehler(t *testing.T) {
 	n := 0
 	for weg, neu := range wege(t) {
-		for _, f := range fehlerTabelle {
+		for _, f := range fehlerTabelle() {
 			n++
 			g := neu()
 			g.u.liefert(outbound.UpstreamAntwort{}, f.err)
@@ -685,7 +695,7 @@ const headerFallbackName = "X-Recorder-Fallback"
 // er nie.
 func TestUpstreamBodySchliessen(t *testing.T) {
 	fehler := []error{context.Canceled, fmt.Errorf("x: %w", context.DeadlineExceeded)}
-	for _, f := range fehlerTabelle {
+	for _, f := range fehlerTabelle() {
 		fehler = append(fehler, f.err)
 	}
 	n := 0
@@ -710,7 +720,7 @@ func TestUpstreamBodySchliessen(t *testing.T) {
 			t.Errorf("%s: Erfolg: Fehler %v, Closes %d", weg, err, s.closes.Load())
 		}
 	}
-	if n != 2*(2+len(fehlerTabelle)) {
+	if n != 2*(2+len(fehlerTabelle())) {
 		t.Errorf("Zählprüfung: %d Fälle", n)
 	}
 }
