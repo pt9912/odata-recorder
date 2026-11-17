@@ -18,10 +18,11 @@ const modulPfad = "github.com/pt9912/odata-recorder/src/"
 // (SPEC-284 Kopf). Grenze: cgo, unsafe, Reflexion und Aufrufe über bereits importierte Pakete erkennt die Liste nicht.
 func importErlaubt(pfad string) bool {
 	if !strings.HasPrefix(pfad, modulPfad) {
-		return slices.Contains([]string{"bytes", "context", "errors", "io", "math", "slices"}, pfad)
+		return slices.Contains([]string{"bytes", "context", "errors", "io", "math", "slices", "strings"}, pfad)
 	}
 	rest := strings.TrimPrefix(pfad, modulPfad)
-	return rest == "hexagon/model" || rest == "hexagon/ports/inbound" || rest == "hexagon/services/hybrid/policy"
+	return rest == "hexagon/model" || rest == "hexagon/ports/inbound" || rest == "hexagon/ports/outbound" ||
+		rest == "hexagon/services/hybrid/policy"
 }
 
 // TestQuelltext liest die Dateien des Pakets (ohne Tests) und prüft Importe, go-Statements, Variablen auf Paketebene
@@ -109,13 +110,14 @@ func empfaenger(x ast.Expr) string {
 // TestImportErlaubt fängt die Liste der Importe selbst.
 func TestImportErlaubt(t *testing.T) {
 	gut := []string{
-		"errors", "io", "slices", "math", "bytes", "context",
-		modulPfad + "hexagon/model", modulPfad + "hexagon/ports/inbound", modulPfad + "hexagon/services/hybrid/policy",
+		"errors", "io", "slices", "math", "bytes", "context", "strings",
+		modulPfad + "hexagon/model", modulPfad + "hexagon/ports/inbound", modulPfad + "hexagon/ports/outbound",
+		modulPfad + "hexagon/services/hybrid/policy",
 	}
 	schlecht := []string{
-		modulPfad + "hexagon/services/mock", modulPfad + "hexagon/services/replay", modulPfad + "hexagon/ports/outbound",
+		modulPfad + "hexagon/services/mock", modulPfad + "hexagon/services/replay", modulPfad + "hexagon/ports/outbound/outboundtest",
 		modulPfad + "adapters/driven/sqlite", modulPfad + "adapters/driving/httpodata", "modernc.org/sqlite",
-		"net", "net/http", "net/url", "os", "os/exec", "syscall", "sync", "sync/atomic", "time", "unsafe", "fmt", "strings",
+		"net", "net/http", "net/url", "os", "os/exec", "syscall", "sync", "sync/atomic", "time", "unsafe", "fmt", "regexp",
 		"log", "reflect", "runtime", "plugin",
 	}
 	for _, p := range gut {

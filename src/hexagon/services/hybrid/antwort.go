@@ -6,10 +6,11 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 )
 
-// Kennzeichnung der Antwort (SPEC-284 Nr. 9): der Header und sein Wert für den Replay-Fallback.
+// Kennzeichnung der Antwort (SPEC-284 Nr. 9): der Header und sein Wert für den Replay- und den Upstream-Fallback.
 const (
 	headerFallback = "X-Recorder-Fallback"
 	wertReplay     = "replay"
+	wertUpstream   = "upstream"
 )
 
 // asciiKlein setzt allein ASCII-Großbuchstaben herab: Header-Namen vergleicht der Dienst ohne Beachtung der

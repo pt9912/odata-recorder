@@ -12,6 +12,7 @@ import (
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
 )
@@ -223,18 +224,41 @@ func mitKategorien(t *testing.T, ks ...string) *policy.Policy {
 // rig bündelt den Dienst und seine Fakes.
 type rig struct {
 	m, r *stufe
+	u    *stufeU
 	v    *hybrid.Verteiler
 }
 
 const standardMax = 8
 
+// neuesRig baut den Dienst mit einem Dienst ohne UpstreamURL: das leere Ziel gibt die Policy nie frei.
 func neuesRig(t *testing.T, pol *policy.Policy, grenze int64) *rig {
 	t.Helper()
-	g := &rig{m: &stufe{}, r: &stufe{}}
+	return neuesRigMit(t, pol, grenze, []hybrid.Dienst{{Root: "/odata/svc"}})
+}
+
+// neuesRigZiel baut den Dienst mit einem Dienst unter /odata/svc, dessen UpstreamURL ziel ist.
+func neuesRigZiel(t *testing.T, pol *policy.Policy, grenze int64, ziel string) *rig {
+	t.Helper()
+	return neuesRigMit(t, pol, grenze, []hybrid.Dienst{{Root: "/odata/svc", UpstreamURL: ziel}})
+}
+
+func neuesRigMit(t *testing.T, pol *policy.Policy, grenze int64, dienste []hybrid.Dienst) *rig {
+	t.Helper()
+	return neuesRigUp(t, pol, grenze, dienste, nil)
+}
+
+// neuesRigUp baut den Dienst mit dem Upstream up; nil heißt der Fake g.u.
+func neuesRigUp(t *testing.T, pol *policy.Policy, grenze int64, dienste []hybrid.Dienst, up outbound.UpstreamClient) *rig {
+	t.Helper()
+	g := &rig{m: &stufe{}, r: &stufe{}, u: &stufeU{}}
+	if up == nil {
+		up = g.u
+	}
 	v, err := hybrid.New(hybrid.Konfig{
-		Dienste:  []hybrid.Dienst{{Root: "/odata/svc"}},
+		Dienste:  dienste,
 		Mock:     fakeMock{g.m},
 		Replay:   fakeReplay{g.r},
+		Upstream: up,
 		Policy:   pol,
 		MaxBytes: grenze,
 	})

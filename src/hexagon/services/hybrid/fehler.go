@@ -14,10 +14,16 @@ func ungueltig(text string) error {
 	return errors.Join(model.ErrUngueltig, errors.New(text))
 }
 
+// kontextFehler sagt, ob der Fehler context.Canceled oder context.DeadlineExceeded enthält, verpackt oder in einem
+// errors.Join (SPEC-284 Nr. 2).
+func kontextFehler(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+}
+
 // codeVon liefert den Code eines Fehlers der Stufe: den eines *inbound.Fehler, der nicht der Nullwert ist und neben
 // dem kein Kontextfehler steht (SPEC-284 Nr. 3 b).
 func codeVon(err error) (model.Code, bool) {
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+	if kontextFehler(err) {
 		return 0, false
 	}
 	var f *inbound.Fehler
