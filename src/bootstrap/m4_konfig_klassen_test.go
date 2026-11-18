@@ -205,7 +205,9 @@ type listenSchluessel struct {
 
 func listenSchluesselMenge() []listenSchluessel {
 	kopf := func(f func(bootstrap.Konfiguration) []string) func(bootstrap.Konfiguration, string) bool {
-		return func(k bootstrap.Konfiguration, e string) bool { return slices.Contains(f(k), http.CanonicalHeaderKey(e)) }
+		return func(k bootstrap.Konfiguration, e string) bool {
+			return slices.Contains(f(k), http.CanonicalHeaderKey(e))
+		}
 	}
 	roh := func(f func(bootstrap.Konfiguration) []string) func(bootstrap.Konfiguration, string) bool {
 		return func(k bootstrap.Konfiguration, e string) bool { return slices.Contains(f(k), e) }
