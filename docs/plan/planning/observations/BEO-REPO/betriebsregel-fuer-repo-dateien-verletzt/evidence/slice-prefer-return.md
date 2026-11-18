@@ -1,0 +1,2 @@
+**Vorgang:** slice-prefer-return
+**Fund:** Der Reviewer schrieb eine Probe-Datei mit einem Heredoc und korrigierte zwei Stellen seines Reports mit `sed -i`, obwohl §3 des Plans (Betriebsregeln) beides für Repo-Dateien verbietet; die Probe-Datei war nie eingecheckt. Dieselbe Form meldet die Orchestrierung der Closure für den Implementer; ein Report belegt sie nicht. Beleg: Report `2026-11-18-slice-prefer-return-review-4` (INFO-6); Plan §3 *Betriebsregeln*, §7.
