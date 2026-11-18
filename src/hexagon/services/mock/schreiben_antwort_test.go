@@ -206,11 +206,12 @@ func TestDarstellungLeerMutation(t *testing.T) {
 	}
 }
 
-// TestPreferIgnoriert (W55, M27): Prefer und If-Match werden nie gelesen: gleiche Antwort wie ohne Header. Wert 5 × Methode 3 = 15.
+// TestPreferIgnoriert (W55, M27): Prefer ohne Wahl (SPEC-285 Nr. 3) und If-Match bei Etag aus ändern die Antwort nicht: gleiche Antwort wie ohne Header.
+// Die Wahlen `return=minimal` und `return=representation` fängt prefer_test.go. Wert 5 × Methode 3 = 15.
 func TestPreferIgnoriert(t *testing.T) {
 	werte := []map[string][]string{
-		{"Prefer": {"return=minimal"}}, {"Prefer": {"return=representation"}}, {"Prefer": {"gibt es nicht"}},
-		{"Prefer": {"return=minimal", "return=representation"}}, {"If-Match": {"*"}},
+		{"Prefer": {"respond-async"}}, {"Prefer": {"return=foo, return=minimal"}}, {"Prefer": {"gibt es nicht"}},
+		{"Prefer": {"return", "return=representation"}}, {"If-Match": {"*"}},
 	}
 	n := 0
 	for _, m := range dreiMethoden() {
