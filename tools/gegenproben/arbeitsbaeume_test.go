@@ -8,9 +8,11 @@ import (
 	"testing"
 )
 
-// gdBeispielWt ist gdBeispiel mit scan.roots und der Ausnahme `.wt/**` in scan.ignore, wie die echte
+// gdBeispielWt liefert gdBeispiel mit scan.roots und der Ausnahme `.wt/**` in scan.ignore, wie die echte
 // .d-check.yml sie führt (ohne roots liest das Modul links keine Datei).
-var gdBeispielWt = strings.Replace(gdBeispiel, `ignore: [".harness/**"]`, "roots: [\".\"]\n  ignore: [\".harness/**\", \".wt/**\"]", 1)
+func gdBeispielWt() string {
+	return strings.Replace(gdBeispiel, `ignore: [".harness/**"]`, "roots: [\".\"]\n  ignore: [\".harness/**\", \".wt/**\"]", 1)
+}
 
 // Die vier Fälle 205 bis 208 zu a-check und die fünf Fälle 209 bis 213 zu docs-check tragen die Namen aus
 // SPEC-102, jeder genau einmal, am Ende von faelle() und in dieser Folge; die Fälle zu a-check lesen die
@@ -94,7 +96,7 @@ func TestACheckArbeitsbaumFaelleTragenDieselbeVerletzung(t *testing.T) {
 // .wt/w/ an, AGENTS.md dort mit dem Abschnitt ### 3.1.
 func TestArbeitsbaumFaelleBauenDieDateienAusDerEchtenKonfiguration(t *testing.T) {
 	pfad := filepath.Join(t.TempDir(), "d-check.yml")
-	if err := os.WriteFile(pfad, []byte(gdBeispielWt), 0o644); err != nil {
+	if err := os.WriteFile(pfad, []byte(gdBeispielWt()), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	fs := arbeitsbaumFaellePfad(pfad)
@@ -140,20 +142,20 @@ func TestArbeitsbaumFaelleBauenDieDateienAusDerEchtenKonfiguration(t *testing.T)
 
 // gdBloecke nimmt nur die genannten Blöcke und setzt den Kopf davor.
 func TestGdBloeckeNimmtNurDieGenanntenBloecke(t *testing.T) {
-	k := gdBloecke(gdBeispielWt, "modules: [links]\n", "scan")
+	k := gdBloecke(gdBeispielWt(), "modules: [links]\n", "scan")
 	if k != "modules: [links]\nscan:\n  roots: [\".\"]\n  ignore: [\".harness/**\", \".wt/**\"]\n" {
 		t.Errorf("Konfiguration: %q", k)
 	}
 }
 
 // Die fünf Fälle 209 bis 213 gegen das echte d-check, soweit es im PATH liegt (Stufe gegenproben): sie
-// sind grün. Die Konfiguration kommt aus gdBeispielWt.
+// sind grün. Die Konfiguration kommt aus gdBeispielWt().
 func TestArbeitsbaumFaelleLaufenGegenDCheck(t *testing.T) {
 	if _, err := exec.LookPath("d-check"); err != nil {
 		t.Skip("d-check nicht im PATH")
 	}
 	pfad := filepath.Join(t.TempDir(), "d-check.yml")
-	if err := os.WriteFile(pfad, []byte(gdBeispielWt), 0o644); err != nil {
+	if err := os.WriteFile(pfad, []byte(gdBeispielWt()), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	erg, err := fahre(standard(), arbeitsbaumFaellePfad(pfad), ".")
