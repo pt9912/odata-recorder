@@ -260,6 +260,11 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 
 *Wird bei der Closure gefüllt.*
 
+**Stand des Implementers (WIP, 2026-11-18, Operator-Anweisung: Sessions enden).**
+Fertig und grün gefahren (`go test` im Container, ohne `make gates`): Root bindet `hybrid` (`src/bootstrap/wurzel.go`, `start.go`), Tests `m4_wurzel_test.go`, `wurzel_test.go`, `tests/integration/m4_test.go` (TestM4), Zähler nach Methode in beiden Referenzdiensten mit Selbsttests, `tests/e2e/stufe_hybrid_test.go`, Stufe 10 im Treiber (`make test-integration`: alle zehn Stufen grün), `e2e-abdeckung.md` neu erzeugt, `harness/README.md`, Handbuch-Kapitel `Modus hybrid`. Mutationen rot gesehen: Listen `liste-m4s-boot*.json` (22+2), `liste-m4s-int*.json` (32), `liste-m4s-e2eref.json` (3); Stufe 10: `vorbereiten` lehnt `hybrid` ab rot, Treiber-Name falsch `nicht gefunden`.
+Offen: (1) `make gates` und `make test-race` im Worktree nicht gefahren; (2) Raten `liste-m4s-rate2.json` (Datenrennen auf einfachen Zählern, N = 20) und Stufe-10-Mutation `LadeOderMelde` liefert Exit 0 (`start.go`, Zeile `return code` zu `return exitOK`) nicht ausgewertet; Platzhalter `<RATEN-P>`, `<E2E-ERGEBNISSE>`, `<HANDBUCH-ERGEBNISSE>` in §3 sind zu füllen (Befund aus dem Lauf: die Mutation „Build-Fehler mit Exit 0“ lässt Stufe 10 grün, Stufe 4 rot); (3) Handbuch-Mutationen (`FALLBACK_WRITE_ALLOW` gestrichen, Wort der Menge A) nicht gefahren; (4) Größenmarke nicht gemessen (`make groessenmarke`, Schätzung rund 1800 von 2500); (5) Lint (`make lint`) nicht gefahren.
+Aufrufe: Ordner `docs/plan/planning/slice-bootstrap-m4-mutationen/`: `sh r2drv.sh <Liste> <Paket>` (Treiber `r2drv/`, Image `odata-recorder:test`, nach `make test`), `sh ratedrv.sh <Liste> <Paket> <N>` (Treiber `ratedrv/`, Image `odata-recorder:race`); beide unter `flock .wt/heavy.lock`, Pfade `S` und `W` im Kopf der Skripte anpassen; Stufe 10 an einer Kopie des Baums: Datei ändern, `make test-integration`.
+
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
