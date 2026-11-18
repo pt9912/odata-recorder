@@ -44,7 +44,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - `make gates` ist grün; `make gegenproben` ist grün.
 - Ein Test im Modus `mock` liest eine Entity zweimal mit gleichem ETag, ändert sie mit aktuellem `If-Match` (neues ETag sichtbar), weist dieselbe Änderung mit dem alten ETag mit `412` ab (Zustand unverändert) und führt `Prefer: return=minimal` und `return=representation` für POST, PATCH und PUT aus; die als Soll geführten Zeilen der Matrix `SPEC-049` (Header und Fehler) sind grün.
 - Liegt `welle-hybrid` in `done/`, deckt der Test auch den Fall, dass ein `412` im Modus `hybrid` keinen Fallback auslöst (`LH-FA-12.b`).
-- Das Handbuch deckt alles ab, was das Binary dieser Welle kann (ETag, `If-Match`, `Prefer`, Fehlercode für `412`); das Kataloge-Gate aus `slice-handbuch-meldungskatalog` ist grün.
+- Das Handbuch deckt ab, was das Binary dieser Welle als Einstellung und Fehlercode zeigt (Schlüssel `ETAG_ENABLED`, Fehlercode für `412`); ETag, `If-Match` und `Prefer` als HTTP-Verhalten haben kein Kapitel, weil `SPEC-200` Nr. 1 Verhalten nur als gebundenes Beispiel zulässt und ein HTTP-Request darin nicht ausdrückbar ist; dieses Verhalten tragen `SPEC-280` bis `SPEC-289` und die Tests der Slices. Das Kataloge-Gate aus `slice-handbuch-meldungskatalog` ist grün.
 - Die Closure-Notiz liegt als `welle-etag-results.md` im Ruheort `done/`.
 
 ## 4. Slices in dieser Welle
@@ -61,7 +61,7 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 
 Die Slice-Dateien liegen seit 2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten (alle drei starten nach `welle-mock`), und `plan-welle` gleicht sie beim Start gegen den Ist-Stand ab. Marken und Betriebsregeln setzt der Planner beim Start (`SPEC-128`).
 
-**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. In dieser Welle betrifft er alle drei Slices (ETag-Header, `412`, `Prefer`).
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. In dieser Welle betrifft er die Slices mit Schlüssel oder Fehlercode (ETag-Header: Zeile `ETAG_ENABLED`, `412`: Zeile `ODR-E6010`); `slice-prefer-return` liefert weder Schlüssel noch Kommando noch Fehlercode, und ein Kapitel zu `Prefer` entfällt (Entscheidung des Architect, `SPEC-200` Nr. 1 unverändert). Ein gebundenes Beispiel zu HTTP-Verhalten ist in dieser Welle nicht zu liefern.
 
 ## 5. Abhängigkeiten
 
