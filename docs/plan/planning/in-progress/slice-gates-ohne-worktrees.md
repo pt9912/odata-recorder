@@ -11,7 +11,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Welle:** ohne Welle — kein Produkt-Slice (Baseline-Regelwerk `modul-06-roadmap.md` §Wann Arbeit eine Welle braucht). Linie C der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln): berührt voraussichtlich `.a-check.yml`, `.d-check.yml`, `.golangci.yml` oder `harness/mk/`, also Nr. 7 (ein Besitzer der Gate-Kette zugleich).
 
-**Bezug:** `LH-QA-06` (Reproduzierbarkeit der Prüfläufe; das Lastenheft führt keine Anforderung an den Zuschnitt der Gates, der Bezug ist der nächste, den es gibt), [ADR-0002](../../adr/0002-architektur-gate-a-check.md) (Architektur-Gate `a-check`), [ADR-0010](../../adr/0010-groesse-der-guide-dateien-als-gate.md) (Doku-Gate). Geber: `slice-gate-integration-determinism` (Befund aus dem Parallelbetrieb, Risiko in dessen §6 mit Ausgang *weiter offen*).
+**Bezug:** `LH-QA-06` (Reproduzierbarkeit der Prüfläufe; das Lastenheft führt keine Anforderung an den Zuschnitt der Gates, der Bezug ist der nächste, den es gibt), [ADR-0002](../../adr/0002-architektur-gate-a-check.md) (Architektur-Gate `a-check`), [ADR-0010](../../adr/0010-groesse-der-guide-dateien-als-gate.md) (Doku-Gate), [ADR-0009](../../adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md) (Größenmarke). Geber: `slice-gate-integration-determinism` (Befund aus dem Parallelbetrieb, Risiko in dessen §6 mit Ausgang *weiter offen*).
 
 **Berührte Spec-Stellen:** [`SPEC-212`](../../../../harness/vertraege/SPEC-212-arbeitsbaeume-ausserhalb-der-pruefmenge.md) (neu, Architect: Bestand, Bindung ohne ADR, Ausnahme je Gate, Randformen, Fänger) · `SPEC-039` (Gate `make a-check`) · `SPEC-040` (Gate `make docs-check`) · `SPEC-102` (Gegenproben: neue Fälle nach der Folge des Vertrags).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie
@@ -77,7 +77,7 @@ Der Planner schneidet; der Architect hat entschieden (`SPEC-212`), der Implement
 | `harness/README.md` | update (Implementer) | Absatz *Nicht behauptet*: Verdrahtung der Zeilen (`SPEC-212` Nr. 6 g), ungelesene Gates (Nr. 6 f) |
 | `.golangci.yml`, `harness/mk/`, `.dockerignore`, `tools/harness/*.sh` | keine Änderung | die Messung zeigt kein weiteres Gate (`SPEC-212` Nr. 1) |
 
-**Erwartete Produktcode-Größe (für die Marke des Planners, `SPEC-128` Nr. 1):** Summe aus Einfügungen und Löschungen über `.a-check.yml`, `.d-check.yml`, `tools/gegenproben/` (Tests eingeschlossen) und `harness/README.md`, geschätzt 150 bis 220 Zeilen: Konfigurationen rund 15 (Zeile und Kommentar je Datei), a-check-Fälle rund 50, d-check-Fälle samt Konfigurationsbau rund 90, Tests der Fall-Folge rund 20, `harness/README.md` rund 2. `harness/vertraege/` zählt die Messung nicht mit (`SPEC-128`). Kleiner Slice, kein Schnitt erwartet.
+**Erwartete Produktcode-Größe (für die Marke des Planners, `SPEC-128` Nr. 1):** Summe aus Einfügungen und Löschungen über `.a-check.yml`, `.d-check.yml`, `tools/gegenproben/` (Tests eingeschlossen) und `harness/README.md`, geschätzt 150 bis 220 Zeilen: Konfigurationen rund 15 (Zeile und Kommentar je Datei), a-check-Fälle rund 50, d-check-Fälle samt Konfigurationsbau rund 90, Tests der Fall-Folge rund 20, `harness/README.md` rund 2. `harness/vertraege/` zählt die Messung nicht mit (`SPEC-128`). Kleiner Slice, kein Schnitt erwartet; die Marke steht in §4 (*p* = 185).
 
 **Reihenfolge der Rollen nach dem Start**, jede in frischem Kontext: Architect (`SPEC-212`, dieser Abschnitt, Raster in §6; erledigt) → Planner (Marke mit `make groessenmarke`, eigener Commit, vor dem ersten Code-Commit) → Implementer → Reviewer → Fixes (Klasse, `AGENTS.md` §3.17) → Verifier → Planner (Closure).
 
@@ -85,20 +85,22 @@ Der Planner schneidet; der Architect hat entschieden (`SPEC-212`), der Implement
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Quelle `SPEC-212` Nr. 5, die Mutation sieht der Implementer selbst rot und trägt Rate und Messenden hier ein):
 
-| Nr. | Zusage | Fänger (Fall der Gegenproben) | Mutation, die ihn rot macht |
-|---|---|---|---|
-| 1 | `a-check`: Verletzung unter `.wt/w/…` bleibt ungemeldet | Datei außerhalb jeder Schicht, die ein Paket des Modells importiert, unter `.wt/w/x/x.go`: Exit 0 | `exclude` entfernt; Muster `.wt/*` |
-| 2 | `a-check`: dieselbe Datei im Hauptbaum wird gemeldet | `x/x.go`: Exit 1, `wrong-direction` | Muster `**` |
-| 3 | `a-check`: ein Verzeichnis `.wt` im Quellbaum bleibt geprüft | `src/hexagon/model/.wt/x.go` importiert einen Dienst: Exit 1, `core-impurity` | Muster `**/.wt/**` |
-| 4 | `a-check`: Arbeitsbaum in einem Arbeitsbaum bleibt ungemeldet | `.wt/a/.wt/b/x/x.go`: Exit 0 | Muster, das nur die erste Ebene trifft |
-| 5 | `docs-check`: fehlendes Linkziel unter `.wt/w/` bleibt ungemeldet | Exit 0, `0 Befund(e)` | `".wt/**"` aus `scan.ignore` entfernt |
-| 6 | `docs-check`: derselbe Verweis in `x/a.md` wird gemeldet | Exit 1, `target-missing` | Muster `**` |
-| 7 | `docs-check`: `x/.wt/b.md` bleibt geprüft | Exit 1, `target-missing` | Muster `**/.wt/**` |
-| 8 | `docs-check`: `.wt/a/.wt/b/c.md` bleibt ungemeldet | Exit 0 | Muster, das nur die erste Ebene trifft |
-| 9 | `docs-check`: `file` und `structure` lesen `.wt/` nicht | echte Blöcke `scan`, `structure`, `file`, `.wt/w/AGENTS.md` mit 50 000 Zeilen: Exit 0 | Glob `AGENTS.md` zu `**/AGENTS.md` |
-| 10 | Zeile und Eintrag stehen in den Konfigurationen | Fall 1 und 5 (Mutation: Zeile weg) | wie Zeilen 1 und 5 |
-| 11 | die übrigen Gates lesen `.wt/` nicht | kein Fänger: akzeptiertes Negativ, `SPEC-212` Nr. 6 e und f (Grund und Folge dort); Beleg des Verifiers: `make gates` im Hauptbaum mit einem Arbeitsbaum unter `.wt/` | — |
-| 12 | getrackter Pfad unter `.wt/`, Kopie ohne `.git`, `mutationslauf.sh` | kein Fänger: akzeptierte Negative, `SPEC-212` Nr. 6 a, b, c | — |
+| Nr. | Zusage | Fänger | Mutation | Klasse |
+|---|---|---|---|---|
+| 1 | `a-check`: Verletzung unter `.wt/w/…` bleibt ungemeldet | Fall der Gegenproben: Datei außerhalb jeder Schicht, die ein Paket des Modells importiert, unter `.wt/w/x/x.go`: Exit 0 | `exclude` entfernt; Muster `.wt/*` | andere |
+| 2 | `a-check`: dieselbe Datei im Hauptbaum wird gemeldet | `x/x.go`: Exit 1, `wrong-direction` | Muster `**` | andere |
+| 3 | `a-check`: ein Verzeichnis `.wt` im Quellbaum bleibt geprüft | `src/hexagon/model/.wt/x.go` importiert einen Dienst: Exit 1, `core-impurity` | Muster `**/.wt/**` | andere |
+| 4 | `a-check`: Arbeitsbaum in einem Arbeitsbaum bleibt ungemeldet | `.wt/a/.wt/b/x/x.go`: Exit 0 | Muster, das nur die erste Ebene trifft | andere |
+| 5 | `docs-check`: fehlendes Linkziel unter `.wt/w/` bleibt ungemeldet | Exit 0, `0 Befund(e)` | `".wt/**"` aus `scan.ignore` entfernt | andere |
+| 6 | `docs-check`: derselbe Verweis in `x/a.md` wird gemeldet | Exit 1, `target-missing` | Muster `**` | andere |
+| 7 | `docs-check`: `x/.wt/b.md` bleibt geprüft | Exit 1, `target-missing` | Muster `**/.wt/**` | andere |
+| 8 | `docs-check`: `.wt/a/.wt/b/c.md` bleibt ungemeldet | Exit 0 | Muster, das nur die erste Ebene trifft | andere |
+| 9 | `docs-check`: `file` und `structure` lesen `.wt/` nicht | echte Blöcke `scan`, `structure`, `file`, `.wt/w/AGENTS.md` mit 50 000 Zeilen: Exit 0 | Glob `AGENTS.md` zu `**/AGENTS.md` | andere |
+| 10 | Zeile und Eintrag stehen in den Konfigurationen | Fall 1 und 5 (Mutation: Zeile weg) | wie Zeilen 1 und 5 | andere |
+| 11 | die übrigen Gates lesen `.wt/` nicht | kein Fänger: akzeptiertes Negativ, `SPEC-212` Nr. 6 e und f (Grund und Folge dort); Beleg des Verifiers: `make gates` im Hauptbaum mit einem Arbeitsbaum unter `.wt/` | — | andere |
+| 12 | getrackter Pfad unter `.wt/`, Kopie ohne `.git`, `mutationslauf.sh` | kein Fänger: akzeptierte Negative, `SPEC-212` Nr. 6 a, b, c | — | andere |
+
+Zwölf Datenzeilen, keine nebenläufig (*a* = 0, *b* = 12; ein akzeptiertes Negativ zählt als `andere`, `SPEC-128` Nr. 3 e).
 
 Beide Seiten jeder Grenze führt ein Paar: Zeilen 1 und 2, 5 und 6; die Grenze „Wurzel gegen tieferer Pfad“ führen Zeilen 3 und 7.
 
@@ -109,7 +111,24 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): kein anderer Slice der Gate-Kette liegt in `in-progress/` (Nr. 7 der Übergangsregeln: ein Besitzer zugleich). Die Reihenfolge zu den Kettenslices `slice-guard-schreibwege`, `slice-regeln-verkoerpern`, `slice-groessenformel-neu` und `slice-gegenproben-zeitbudget` legt der User beim Start fest; der Slice ist klein und kann vor ihnen laufen, weil er den Parallelbetrieb selbst entlastet.
 
-**Größenmarke:** Prosa, kein Block, vorläufig. Die Marke setzt der Planner vor dem ersten Code-Commit mit `make groessenmarke` nach `SPEC-128` Nr. 1 und `AGENTS.md` §3.14; die Schätzung des Architect steht in §3 (150 bis 220 Zeilen). Erwartet ist ein kleiner Slice.
+**Größenmarke** (Summe aus Einfügungen und Löschungen von `git diff --numstat <basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; `harness/vertraege/` zählt nie, `SPEC-128` Nr. 4 a): vom Planner vor dem ersten Code-Commit nach `SPEC-128` Nr. 1 gesetzt. *a* = 0, *b* = 12, *f* = 0, *p* = 185 (Mitte der Erwartung des Architect, 150 bis 220), also *S* = 80·12 + 185 = 1145 und *M* = 1600; 135·1145 = 154575 liegt unter 300000, keine Schnittfrage. Die Pfade nennen zusätzlich `Dockerfile`, `.dockerignore`, `.golangci.yml`, `harness/mk/` und `tools/harness/`, die der Plan ausschließt (§3, keine Änderung): eine Änderung dort zählt mit und ist eine Abweichung vom Plan.
+
+```groessenmarke
+pfad: .a-check.yml
+pfad: .d-check.yml
+pfad: tools/gegenproben/
+pfad: harness/README.md
+pfad: Dockerfile
+pfad: .dockerignore
+pfad: .golangci.yml
+pfad: harness/mk/
+pfad: tools/harness/
+produktcode: 185
+fakes: 0
+basis: 9520072414786e3746593a1d70600968c237e63a
+schaetzung: 1145
+marke: 1600
+```
 
 **Rückführungen — vorab benannt:**
 
@@ -126,6 +145,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Offene Risiken werden bei Closure aufgelöst.
 
 - Die Messung zeigt, dass nur `make a-check` den Pfad liest, und die Abhilfe ist eine Zeile — **Ausgang:** eingetreten in der Form, dass zwei Gates ihn lesen (`make a-check`, `make docs-check`) und je eine Zeile genügt; die Marke folgt der Tabelle in §3.
+- Größe: Marke 1600 aus der Tabelle (zwölf Zeilen, alle `andere`) und *p* = 185 nach `SPEC-128` Nr. 1, keine Schnittfrage — **Ausgang:** weiter offen; Messung am Handoff und am Ende (`SPEC-128` Nr. 9), Adresse: Planner (Closure).
 - Ein Gate liest `.wt/` und die Ausnahme verdeckt einen echten Befund an einem Pfad gleichen Namens im Hauptbaum — **Ausgang:** entfallen durch die Entscheidung: das Muster ist an der Wurzel verankert (`.wt/**`), nicht `**/.wt/**`; ein Verzeichnis `.wt` im Quellbaum bleibt geprüft (`SPEC-212` Nr. 3, Nr. 4 Zeile 3; Fänger Zeilen 3 und 7). Offen bleibt ein getrackter Pfad unter `.wt/` (Negativ, `SPEC-212` Nr. 6 a).
 - Raster der Randformen — **Ausgang:** entfallen: unten gefüllt, jede Zelle nennt eine Zeile von `SPEC-212` Nr. 4.
 - Der Slice berührt Konfiguration der Gate-Kette und kollidiert mit einem anderen Kettenslice — **Ausgang:** weiter offen: Nr. 7, einer zugleich, Start laut §4.
