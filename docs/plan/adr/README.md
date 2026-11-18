@@ -18,6 +18,7 @@
 | [ADR-0011](0011-versionierter-adapter-fuer-odata-v2.md) | Versionierter Adapter für OData V2: versionsneutrale Ports, Implementierung je Version, ein Satz je Service | Accepted | `LH-FA-17`, `LH-RB-01`, `LH-QA-05` |
 | [ADR-0012](0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md) | Prüfpakete unter tests/ als eigene Schicht des Architektur-Gates | Accepted | `LH-QA-06` |
 | [ADR-0013](0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) | Zeitbudget der Gegenproben als Soll mit Messvorschrift, Frist je Fall bleibt die Schwelle | Accepted | `LH-QA-06` |
+| [ADR-0030](0030-eingecheckte-gate-staempel-mit-voller-gegenprobe.md) | Je Gate ein eingecheckter Stempel über seine Eingaben, `make gates-voll` als Gegenprobe | Proposed | `LH-QA-06` |
 
 ## Konventionen
 

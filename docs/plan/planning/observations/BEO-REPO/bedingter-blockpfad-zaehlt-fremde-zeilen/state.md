@@ -1,1 +1,1 @@
-**Stand:** offen; ein Vorgang (`slice-if-match`, Evidenz), unter der Schwelle 3x.
+**Stand:** offen; zwei Vorgänge (`slice-if-match`, `slice-bootstrap-m4-konfig`, Evidenz), unter der Schwelle 3x.

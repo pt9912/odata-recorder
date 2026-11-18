@@ -15,12 +15,12 @@ import (
 
 // nichtGelieferte sind die Präfixe der Schlüssel, die diese Version nicht liefert (SPEC-110 Nr. 2).
 func nichtGelieferte() []string {
-	return []string{"ADMIN_", "HYBRID_", "FALLBACK_", "LISTEN_TLS_"}
+	return []string{"ADMIN_", "LISTEN_TLS_"}
 }
 
 func (p *pruefer) nichtGeliefert() {
 	for k, v := range p.env {
-		if strings.TrimSpace(v) == "" {
+		if kappe(v) == "" {
 			continue
 		}
 		if slices.ContainsFunc(nichtGelieferte(), func(pre string) bool { return strings.HasPrefix(k, pre) }) {
@@ -29,16 +29,13 @@ func (p *pruefer) nichtGeliefert() {
 	}
 }
 
-// liesModus liest MODE (SPEC-110 Nr. 8): ungesetzt ist mock, hybrid ist ein gültiger, nicht gelieferter Wert.
+// liesModus liest MODE (SPEC-110 Nr. 8): ungesetzt ist mock, lieferbar sind record, replay, mock und hybrid.
 // Ein ungültiger Wert lässt den Modus leer, damit die Pflichten, die am gültigen Modus hängen, entfallen.
 func (p *pruefer) liesModus(k *Konfiguration) {
 	vorher := len(p.verstoesse)
 	k.Modus = p.aufzaehlung("MODE", modusMock, modusRecord, modusReplay, modusMock, modusHybrid)
-	switch {
-	case len(p.verstoesse) > vorher:
+	if len(p.verstoesse) > vorher {
 		k.Modus = ""
-	case k.Modus == modusHybrid:
-		p.melde("MODE", "Modus nicht unterstützt; lieferbar sind record, replay und mock")
 	}
 }
 
@@ -197,7 +194,7 @@ func (p *pruefer) liste(schluessel string) (eintraege []string, gesetzt bool) {
 		return nil, false
 	}
 	for _, e := range strings.Split(w, ",") {
-		e = strings.TrimSpace(e)
+		e = kappe(e)
 		if e == "" {
 			p.melde(schluessel, "Liste enthält einen leeren Eintrag")
 			return nil, true
@@ -285,8 +282,19 @@ func istHeaderToken(s string) bool {
 	return s != "" && zeichenAus(s, "!#$%&'*+-.^_`|~")
 }
 
+// istQueryName verlangt ein oder mehr der 89 ASCII-Zeichen U+0021 bis U+007E außer `=`, `&`, `#`, `,` und `%` (SPEC-110 Nr. 6).
+// Der Vergleich der Redaction ist exakt nach der Dekodierung des Schlüssels (SPEC-115 Nr. 4): ein Name mit einem anderen Zeichen
+// oder mit einer Kodierung (`%`) träfe nie einen Parameter (LH-FA-14).
 func istQueryName(s string) bool {
-	return s != "" && !strings.ContainsAny(s, " \t\r\n=&#,")
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; c < 0x21 || c > 0x7e || strings.IndexByte("=&#,%", c) >= 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // istJSONPfad prüft mit dem Parser des Modells (SPEC-115 Nr. 6, SPEC-110 Nr. 6).

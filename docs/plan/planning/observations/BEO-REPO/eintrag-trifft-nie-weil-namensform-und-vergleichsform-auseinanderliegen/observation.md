@@ -1,0 +1,5 @@
+# Ein konfigurierter Eintrag gilt als gültig, trifft aber nie, weil die Form des Namens und die Form des Vergleichs auseinanderliegen
+
+**Sub-Area:** `*` (gesamtes Repo, Kürzel `REPO`)
+
+Eine Konfiguration prüft die Form eines Eintrags (Name eines Query-Parameters, Host, Header), und eine andere Stelle vergleicht ihn später mit einer anderen Form (Schlüssel der Anfrage nach der Dekodierung, ASCII-Host der Allowlist). Ein Eintrag, der die Formprüfung besteht und die Vergleichsform nie trifft, startet ohne Meldung und wirkt nie: bei einer Schwärzung geht der Wert unredigiert in die Aufzeichnung (fail-open, `LH-FA-14`), bei einer Freigabe bleibt sie aus (fail-closed). Eine Korrektur der Formprüfung verschiebt die Lücke an ein anderes Zeichen, wenn sie die Vergleichsform nicht als Orakel führt. Nahe an `fix-deckt-die-genannte-mutation-nicht-die-klasse` und `spezifikation-widerspricht-sich-innerhalb-einer-nummer`; hier ist die Klasse die Beziehung zweier Formen, nicht ein Element der Eingabe.

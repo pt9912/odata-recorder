@@ -1,1 +1,1 @@
-**Stand:** offen
+**Stand:** offen; Schwelle 3x erreicht (`slice-mutationslauf-werkzeug`, `slice-gates-ohne-worktrees`, `slice-gegenproben-zeitbudget`, Evidenz), Zuweisung (verkörpert oder geplant) beim User, Diff-Vorschlag im Bericht der Closure von `slice-gegenproben-zeitbudget`; für die Laufzeit von `make gegenproben` trägt `harness/vertraege/SPEC-102-gegenproben.md` *Zeitbudget* Nr. 1 bis 7 eine Messvorschrift, ohne Herkunfts-Anker (`seit slice-gegenproben-zeitbudget` steht dort nicht), also keine Verkörperung im Sinn der Anker-Paarung

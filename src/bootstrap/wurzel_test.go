@@ -31,6 +31,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/maintenance"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/replay"
@@ -365,7 +366,7 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		MaxCaptureBody: 12345, UpstreamTimeout: 7 * time.Second, UpstreamCAFile: caDatei, UpstreamTLSVerify: true,
 		ShutdownTimeout: 11 * time.Second, RetentionMaxAge: 13 * time.Hour, SQLiteBusyTimeout: 17 * time.Second,
 		VolatileHeaders: []string{"x-vol"}, LinkRewrite: "off", StrictCoverage: true, PublicBaseURL: "http://pub.test:1/api",
-		EtagEnabled: true,
+		EtagEnabled: true, Fallback: policy.Werte{Upstream: true},
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	lauf2 := func(modus string) *haken {
@@ -419,7 +420,7 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		"PublicBaseURL":        len(mh.mock) == 1 && mh.mock[0].PublicBaseURL == k.PublicBaseURL,
 		"EtagEnabled":          len(mh.mock) == 1 && len(mh.mock[0].Dienste) == 2 && mh.mock[0].Dienste[0].Etag && mh.mock[0].Dienste[1].Etag,
 	}
-	ohneVerbraucher := []string{"ReplayAssignment", "LinkRewrite"}
+	ohneVerbraucher := []string{"ReplayAssignment", "LinkRewrite", "Fallback"}
 	typ, wert := reflect.TypeOf(k), reflect.ValueOf(k)
 	for i := range typ.NumField() {
 		name := typ.Field(i).Name

@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m4-konfig
+**Fund:** Messung 1872 gegen Marke 900 (Auslastung 2,08; 143 Zeilen fremd aus `main`, 1729 eigene; Produktcode 175 gegen 150 geschätzt, der Rest sind Fänger der Review-Runden nach `AGENTS.md` §3.17). Eintrag `ueberschreitung: 1872` mit Grund, keine Rückführung nach `next/` (Entscheidung des Planners, §6: Konstante, Funktion und Fänger teilen einen Mechanismus, ein vorab benannter Teil nach §3.14 fehlt). Beleg: Plan §4 (Block und Messpunkte), §6; Verifikation *Größenmarke*.

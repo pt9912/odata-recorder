@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m4-konfig
+**Fund:** Der Implementer schrieb eine Repo-Datei mit einem Heredoc, obwohl §3 des Plans (*Betriebsregeln für alle Rollen dieses Slice*) Heredoc, `sed -i`, `>>`, `awk` und Python für Repo-Dateien verbietet. Die Meldung kam mit dem Auftrag der Closure; ein Report der Prüfrunden belegt sie nicht, und kein Gate und kein Wächter erzwingt die Regel (`slice-guard-schreibwege` ist `open/`). Dieselbe Form wie `slice-prefer-return`. Beleg: Plan §3 *Betriebsregeln*.
