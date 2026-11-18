@@ -97,10 +97,10 @@ func TestExpandBesondereSegmente(t *testing.T) {
 			n++
 		}
 		allein := exWert()
-		switch {
-		case seg == "Nav":
+		switch seg {
+		case "Nav":
 			allein = exErg("Nav")
-		case seg == "*":
+		case "*":
 			allein = exNichtUnterstuetzt()
 		}
 		exPruefe(t, p, exQ(seg), allein)
@@ -260,7 +260,7 @@ func TestExpandRangImWert(t *testing.T) {
 					switch {
 					case a.klammer || b.klammer:
 						soll = exNichtUnterstuetzt()
-					case a.klasse501 && b.klasse501 && !(a.element == "*" && b.element == "*"):
+					case a.klasse501 && b.klasse501 && (a.element != "*" || b.element != "*"):
 						soll = exNichtUnterstuetzt()
 					}
 					exPruefe(t, p, exQ(strings.Join(elemente, ",")), soll)

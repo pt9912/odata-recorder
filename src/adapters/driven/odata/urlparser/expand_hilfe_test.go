@@ -15,20 +15,20 @@ import (
 
 func exParser() *urlparser.Parser { return urlparser.New(urlparser.WithExpand()) }
 
-// Zeichen jenseits von ASCII, aus Bytewerten.
-var (
-	exE     = string([]byte{0xC3, 0xA9})       // é: Buchstabe (Lu/Ll)
-	exNBSP  = string([]byte{0xC2, 0xA0})       // NBSP: kein Buchstabe, keine Ziffer
-	exBOM   = string([]byte{0xEF, 0xBB, 0xBF}) // BOM: weder noch
-	exShe   = string([]byte{0xD0, 0x96})       // Ж: Buchstabe
-	exHan   = string([]byte{0xE4, 0xB8, 0xAD}) // 中: Buchstabe (Lo)
-	exArab3 = string([]byte{0xD9, 0xA3})       // ٣: Ziffer (Nd)
-	exHoch2 = string([]byte{0xC2, 0xB2})       // ²: kein Nd (No)
+// Zeichen jenseits von ASCII, als Bytewerte in der Schreibweise `\x`.
+const (
+	exE     = "\xc3\xa9"     // é: Buchstabe (Lu/Ll)
+	exNBSP  = "\xc2\xa0"     // NBSP: kein Buchstabe, keine Ziffer
+	exBOM   = "\xef\xbb\xbf" // BOM: weder noch
+	exShe   = "\xd0\x96"     // Ж: Buchstabe
+	exHan   = "\xe4\xb8\xad" // 中: Buchstabe (Lo)
+	exArab3 = "\xd9\xa3"     // ٣: Ziffer (Nd)
+	exHoch2 = "\xc2\xb2"     // ²: kein Nd (No)
 )
 
 // exBuchstaben und exZiffern sind die Zeichenklassen des Orakels (SPEC-125 Nr. 8 b), als endliche Tabelle der Zeichen, die die
 // Generatoren verwenden.
-var (
+const (
 	exBuchstaben = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_" + exE + exShe + exHan
 	exZiffern    = "0123456789" + exArab3
 )

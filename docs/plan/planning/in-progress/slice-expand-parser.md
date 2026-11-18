@@ -139,7 +139,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 
 **Abweichungen der Umsetzung vom Entwurf der Tabelle** (Ort: die Zeilen oben tragen den Ist-Stand): die Zeilen 2, 3, 8, 11, 14, 22 und 23 führen größere Mengen als der Entwurf (Elementzahl in der Mengen-Tabelle unten); Zeile 28 bekommt einen Test, weil die Tabelle der Abnahme ihren Dienst selbst aufbaut und die Zeile des Aufbaus nicht sieht (Mutation grün gesehen, siehe unten); `TestParserOhneZustand` (`zustand_test.go`) führt zwei Felder (`filter` als Interface, `expand` als Bool) statt eines (`SPEC-262` Nr. 8), und `textsumme` (`grenzen_test.go`) zählt die Namen von `Expand` mit. Weitere Tests: `src/bootstrap/expand_wurzel_test.go` (neu, außerhalb der Pfade der Größenmarke).
 
-**Mengen** (`AGENTS.md` §3.17; Orakel ist eine eigene Tabelle im Test, `exOrakel` in `expand_hilfe_test.go`, ohne Code des Lesers; Zeichen jenseits von ASCII aus `[]byte{…}`, Datei `expand_hilfe_test.go` auf Rohbytes gegengelesen):
+**Mengen** (`AGENTS.md` §3.17; Orakel ist eine eigene Tabelle im Test, `exOrakel` in `expand_hilfe_test.go`, ohne Code des Lesers; Zeichen jenseits von ASCII als Konstanten aus Bytewerten in `\x`-Schreibweise, die Dateien der Änderung mit `LC_ALL=C grep -P` auf BOM, NBSP und Backslash-u-Folgen gegengelesen: keine Fundstelle):
 
 | Nr. | Menge | Generator · Achsen | Orakel | Elemente |
 |---|---|---|---|---|
