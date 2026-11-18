@@ -3406,6 +3406,7 @@ model.LiesRueckgabe(zeilen []string) Rueckgabe                                  
 
 Ungeprüft bleibt, je mit Grund und Folge im Betrieb:
 - Die Länge einer Zeile über das hinaus, was der HTTP-Adapter begrenzt (`SPEC-136`). Grund: die Menge der Zeichenfolgen ist unbeschränkt; geprüft wird eine Klasse (`SPEC-289` Nr. 3). Folge: eine sehr lange Zeile kostet lineare Zeit je Mutation.
+- Das lineare Wachstum der Zeit (Nr. 1) für jede Form langer Zeilen außer sieben: der Fänger misst Elemente, Zeilen, einen langen Namen, Leerraum, ein Paar mit Backslash, ein offenes Paar und Kommas, je bei zwei Längen (Verhältnis 32, Grenze das 128-fache der kleineren Zeit); er ist ein Zufallsfänger, denn er misst Zeit. Grund: die Menge der Formen ist unbeschränkt, und ein Zähler dafür verlangte einen Haken im Produktcode. Folge: eine andere Form, die quadratisch liest, bleibt ungefangen und kostet bei der Länge, die der HTTP-Adapter zulässt, mehr als lineare Zeit je Mutation.
 - Die Reihenfolge von `Prefer` gegen andere Header: sie hat keine Wirkung.
 
 ### SPEC-286 — Prefer: Antwort der Mutationen je Wahl
