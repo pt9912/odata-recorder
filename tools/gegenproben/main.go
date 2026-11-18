@@ -246,8 +246,8 @@ func fuehreFall(u Umgebung, f Fall, dir, tmp string) Ergebnis {
 	if f.Bau != nil {
 		name, args := u.Bauen(dir, *f.Bau)
 		code, out, abgelaufen := starte(fallFrist, dir, env, name, args...)
-		if abgelaufen || code != 0 {
-			return Ergebnis{Name: f.Name, Rot: "Bau des Binary scheitert\n" + letzte(out)}
+		if rot := bewerteBau(code, out, abgelaufen); rot != "" {
+			return Ergebnis{Name: f.Name, Rot: rot}
 		}
 	}
 	name, args, wd := u.Befehl(dir, f)
@@ -257,6 +257,19 @@ func fuehreFall(u Umgebung, f Fall, dir, tmp string) Ergebnis {
 		rot = f.Nachher(Lauf{U: u, Dir: dir, Tmp: tmp, Env: env, Out: out, Err: errOut})
 	}
 	return Ergebnis{Name: f.Name, Rot: rot}
+}
+
+// bewerteBau gibt den Grund zurück, aus dem der Bau des Binary rot ist, oder "" (SPEC-102
+// Randform 2a und 6): ein Bau über der Frist meldet "Zeit überschritten", einer mit Exit ungleich 0
+// "Bau des Binary scheitert" mit den letzten Zeilen der Ausgabe, einer mit Exit 0 ist nicht rot.
+func bewerteBau(code int, out string, abgelaufen bool) string {
+	switch {
+	case abgelaufen:
+		return "Zeit überschritten"
+	case code != 0:
+		return "Bau des Binary scheitert\n" + letzte(out)
+	}
+	return ""
 }
 
 // bewerte gibt den Grund zurück, aus dem ein Fall rot ist, oder "". Bei einem Fall mit getrennten
