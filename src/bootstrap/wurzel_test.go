@@ -366,7 +366,9 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		MaxCaptureBody: 12345, UpstreamTimeout: 7 * time.Second, UpstreamCAFile: caDatei, UpstreamTLSVerify: true,
 		ShutdownTimeout: 11 * time.Second, RetentionMaxAge: 13 * time.Hour, SQLiteBusyTimeout: 17 * time.Second,
 		VolatileHeaders: []string{"x-vol"}, LinkRewrite: "off", StrictCoverage: true, PublicBaseURL: "http://pub.test:1/api",
-		EtagEnabled: true, Fallback: policy.Werte{Upstream: true},
+		EtagEnabled: true, Fallback: policy.Werte{
+			Upstream: true, Hosts: []string{"u1.test"}, Schreibfreigaben: []string{"POST /r1/Orders"}, ReplayKategorien: []string{"coverage_insufficient"},
+		},
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	lauf2 := func(modus string) *haken {
@@ -389,6 +391,14 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := lauf(ctx, t, km, log, mh.bauteile()); err != nil {
+		t.Fatal(err)
+	}
+	hh, kh := neuM4Haken(), k
+	kh.Modus, kh.DataDir = modusHybrid, filepath.Join(dir, modusHybrid)
+	if err := os.MkdirAll(kh.DataDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := lauf(ctx, t, kh, log, hh.bauteile()); err != nil {
 		t.Fatal(err)
 	}
 	pfade := []model.JSONPfad{mustPfad(t, "$..geheim")}
@@ -420,7 +430,8 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		"PublicBaseURL":        len(mh.mock) == 1 && mh.mock[0].PublicBaseURL == k.PublicBaseURL,
 		"EtagEnabled":          len(mh.mock) == 1 && len(mh.mock[0].Dienste) == 2 && mh.mock[0].Dienste[0].Etag && mh.mock[0].Dienste[1].Etag,
 	}
-	ohneVerbraucher := []string{"ReplayAssignment", "LinkRewrite", "Fallback"}
+	pruefungen["Fallback"] = len(hh.hybrid) == 1 && policyEntscheidet(hh.hybrid[0].Policy)
+	ohneVerbraucher := []string{"ReplayAssignment", "LinkRewrite"}
 	typ, wert := reflect.TypeOf(k), reflect.ValueOf(k)
 	for i := range typ.NumField() {
 		name := typ.Field(i).Name
@@ -464,6 +475,19 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 			t.Errorf("%s trägt nicht den übergebenen Logger", name)
 		}
 	}
+}
+
+// policyEntscheidet ist wahr, wenn die Policy die vier Werte von Fallback trägt, die TestWerteErreichenVerbraucher setzt: Hauptschalter und
+// Host (Upstream für ODR-E6001), Routenfreigabe (Upstream für POST und ODR-E6002) und Replay-Kategorie (Replay für ODR-E6003), und
+// sonst bleibt es beim Bleiben.
+func policyEntscheidet(p *policy.Policy) bool {
+	ziel := "http://u1.test/o"
+	return p != nil &&
+		p.Entscheide(policy.Anfrage{Methode: "GET", Pfad: "/r1/x", Ziel: ziel, Code: model.CodeE6001}) == policy.Upstream &&
+		p.Entscheide(policy.Anfrage{Methode: "POST", Pfad: "/r1/Orders", Ziel: ziel, Code: model.CodeE6002}) == policy.Upstream &&
+		p.Entscheide(policy.Anfrage{Methode: "GET", Pfad: "/r1/x", Ziel: ziel, Code: model.CodeE6003}) == policy.Replay &&
+		p.Entscheide(policy.Anfrage{Methode: "GET", Pfad: "/r1/x", Ziel: "http://u2.test/o", Code: model.CodeE6001}) == policy.Bleiben &&
+		p.Entscheide(policy.Anfrage{Methode: "POST", Pfad: "/r1/Other", Ziel: ziel, Code: model.CodeE6002}) == policy.Bleiben
 }
 
 // stelleUhr ist ein Verbraucher der einen Uhr mit der Uhr, die er erhielt.
@@ -535,7 +559,7 @@ func TestModus(t *testing.T) {
 		offen   bool
 	}{
 		{"mock ohne PublicBaseURL", func(k *bootstrap.Konfiguration) { k.Modus = "mock" }, istUngueltig, false},
-		{"hybrid", func(k *bootstrap.Konfiguration) { k.Modus = "hybrid" }, istUngueltig, false},
+		{"hybrid ohne PublicBaseURL", func(k *bootstrap.Konfiguration) { k.Modus = "hybrid" }, istUngueltig, false},
 		{"leer", func(k *bootstrap.Konfiguration) { k.Modus = "" }, istUngueltig, false},
 		{"ohne Dienste", func(k *bootstrap.Konfiguration) { k.Dienste = nil }, istUngueltig, false},
 		{"DATA_DIR leer", func(k *bootstrap.Konfiguration) { k.DataDir = "" }, func(e error) bool { return errors.Is(e, outbound.ErrPfad) }, false},

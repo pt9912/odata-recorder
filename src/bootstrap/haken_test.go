@@ -42,6 +42,7 @@ const (
 	modusRecord  = "record"
 	modusReplay  = "replay"
 	modusMock    = "mock"
+	modusHybrid  = "hybrid"
 )
 
 func modi() []string { return []string{modusRecord, modusReplay} }

@@ -6,7 +6,9 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -64,6 +66,24 @@ type referenz struct {
 	zaehlerRequests atomic.Int64
 	// felderErreicht zählt die POST, deren Body jeden sensiblen Wert der Anfrage trug.
 	felderErreicht atomic.Int64
+	// methoden zählt die Requests je Methode, wie der Request sie trägt (byte-gleich); der Wert je Methode ist ein *atomic.Int64.
+	methoden sync.Map
+	// jedeVerbindungNeu lässt den Dienst nach jeder Antwort die Verbindung schließen: Verbindungen und Requests sind dann gleich.
+	jedeVerbindungNeu atomic.Bool
+}
+
+// nachMethode ist die Zahl der Requests mit genau dieser Methode.
+func (r *referenz) nachMethode(methode string) int64 {
+	if z, ok := r.methoden.Load(methode); ok {
+		return z.(*atomic.Int64).Load()
+	}
+	return 0
+}
+
+// zaehleMethode zählt einen Request der Methode.
+func (r *referenz) zaehleMethode(methode string) {
+	z, _ := r.methoden.LoadOrStore(methode, new(atomic.Int64))
+	z.(*atomic.Int64).Add(1)
 }
 
 func neueReferenz(t *testing.T) *referenz {
@@ -71,6 +91,10 @@ func neueReferenz(t *testing.T) *referenz {
 	r := &referenz{}
 	r.srv = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		r.requests.Add(1)
+		r.zaehleMethode(req.Method)
+		if r.jedeVerbindungNeu.Load() {
+			w.Header().Set("Connection", "close")
+		}
 		if strings.Contains(req.Header.Get("Authorization"), geheimA) {
 			r.mitGeheimnis.Add(1)
 		}
@@ -150,4 +174,65 @@ func (r *referenz) bediene(w http.ResponseWriter, req *http.Request) {
 	default:
 		schreibe(http.StatusNotFound, "application/json", "", `{"error":{"code":"404","message":"nicht gefunden"}}`)
 	}
+}
+
+// TestReferenzNachMethode fängt M11 für den Referenzdienst von tests/e2e (SPEC-037 Nr. 4): zehn Methoden, die Methode i wird (i+1)-mal gesendet;
+// der Zähler je Methode, die Summe der Requests und die Verbindungen stimmen mit der Zahl der gesendeten Requests überein, einmal mit neuer
+// Verbindung je Request (Verbindungen gleich Requests), einmal mit Keep-Alive (weniger Verbindungen als Requests); die Schreibweise zählt.
+func TestReferenzNachMethode(t *testing.T) {
+	methoden := []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "MERGE", "OPTIONS", "TRACE", "CONNECT"}
+	for _, keepAlive := range []bool{false, true} {
+		t.Run(fmt.Sprintf("keepAlive=%v", keepAlive), func(t *testing.T) {
+			r := neueReferenz(t)
+			tr := &http.Transport{DisableKeepAlives: !keepAlive}
+			t.Cleanup(tr.CloseIdleConnections)
+			c := &http.Client{Transport: tr}
+			summe := int64(0)
+			for i, m := range append(slices.Clone(methoden), "get") {
+				for range i + 1 {
+					req, err := http.NewRequest(m, r.url()+"/odata/Nichts", nil)
+					if err != nil {
+						t.Fatal(err)
+					}
+					resp, err := c.Do(req)
+					if err != nil {
+						t.Fatalf("%s: %v", m, err)
+					}
+					_, _ = io.Copy(io.Discard, resp.Body)
+					_ = resp.Body.Close()
+					summe++
+				}
+			}
+			for i, m := range methoden {
+				if got := r.nachMethode(m); got != int64(i+1) {
+					t.Errorf("Zähler von %s: %d, erwartet %d", m, got, i+1)
+				}
+			}
+			if got := r.nachMethode("get"); got != int64(len(methoden)+1) || r.nachMethode("Get") != 0 {
+				t.Errorf("Zähler von get: %d, von Get: %d; die Schreibweise zählt", got, r.nachMethode("Get"))
+			}
+			z := r.zaehler()
+			if z[1] != summe || keepAlive && (z[0] < 1 || z[0] >= summe) || !keepAlive && z[0] != summe {
+				t.Errorf("Verbindungen %d, Requests %d bei %d gesendeten mit keepAlive=%v", z[0], z[1], summe, keepAlive)
+			}
+		})
+	}
+	t.Run("jedeVerbindungNeu", func(t *testing.T) {
+		r := neueReferenz(t)
+		r.jedeVerbindungNeu.Store(true)
+		tr := &http.Transport{}
+		t.Cleanup(tr.CloseIdleConnections)
+		c := &http.Client{Transport: tr}
+		for range 5 {
+			resp, err := c.Get(r.url() + "/odata/Nichts")
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}
+		if z := r.zaehler(); z != [2]int64{5, 5} {
+			t.Errorf("Verbindungen und Requests %v, erwartet 5 und 5", z)
+		}
+	})
 }

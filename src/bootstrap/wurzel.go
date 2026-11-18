@@ -27,6 +27,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/baselineimport"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/maintenance"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/mock"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record"
@@ -74,6 +75,7 @@ type bauteile struct {
 	NeueWorkspaces func(workspace.Konfig) (inbound.WorkspaceUseCase, error)
 	NeuerSnapshot  func(snapshot.Konfig) (inbound.SnapshotUseCase, error)
 	NeuerMock      func(mock.Konfig) (inbound.MockUseCase, error)
+	NeuerHybrid    func(hybrid.Konfig) (inbound.HybridUseCase, error)
 	Listen         func(ctx context.Context, network, addr string) (net.Listener, error)
 	NeuerServer    func(httpodata.Konfig) (server, error)
 }
@@ -108,6 +110,7 @@ func standardBauteile() bauteile {
 		NeueWorkspaces: als[inbound.WorkspaceUseCase](workspace.New),
 		NeuerSnapshot:  als[inbound.SnapshotUseCase](snapshot.New),
 		NeuerMock:      als[inbound.MockUseCase](mock.New),
+		NeuerHybrid:    als[inbound.HybridUseCase](hybrid.New),
 		Listen: func(ctx context.Context, network, addr string) (net.Listener, error) {
 			var lc net.ListenConfig
 			return lc.Listen(ctx, network, addr)
@@ -182,14 +185,14 @@ type vorlaeufig struct {
 func vorbereiten(k Konfiguration) (vorlaeufig, error) {
 	var v vorlaeufig
 	switch {
-	case k.Modus != modusRecord && k.Modus != modusReplay && k.Modus != modusMock:
+	case k.Modus != modusRecord && k.Modus != modusReplay && k.Modus != modusMock && k.Modus != modusHybrid:
 		return v, ungueltig("Betriebsmodus nicht lieferbar")
 	case len(k.Dienste) == 0:
 		return v, ungueltig("keine Dienste")
 	case k.DataDir == "":
 		return v, fmt.Errorf("%w: DATA_DIR leer", outbound.ErrPfad)
-	case k.Modus == modusMock && k.PublicBaseURL == "":
-		return v, ungueltig("PublicBaseURL fehlt im Modus mock")
+	case (k.Modus == modusMock || k.Modus == modusHybrid) && k.PublicBaseURL == "":
+		return v, ungueltig("PublicBaseURL fehlt in den Modi mock und hybrid")
 	}
 	for _, text := range k.RedactJSONPaths {
 		p, err := model.ParseJSONPfad(text)
@@ -198,7 +201,7 @@ func vorbereiten(k Konfiguration) (vorlaeufig, error) {
 		}
 		v.pfade = append(v.pfade, p)
 	}
-	if k.Modus == modusRecord && k.UpstreamCAFile != "" {
+	if (k.Modus == modusRecord || k.Modus == modusHybrid) && k.UpstreamCAFile != "" {
 		pem, err := os.ReadFile(k.UpstreamCAFile)
 		if err != nil {
 			return v, &KonfigFehler{Zeilen: []string{fmt.Sprintf("%s UPSTREAM_CA_FILE: Datei nicht lesbar", model.CodeE2001)}}
@@ -284,6 +287,8 @@ func (h *Handle) verdrahte(db *sqlite.DB, v vorlaeufig) error {
 		return h.verdrahteReplay(db, waechter, v)
 	case modusMock:
 		return h.verdrahteMock(db, r, waechter)
+	case modusHybrid:
+		return h.verdrahteHybrid(db, r, waechter, v)
 	}
 	return h.verdrahteRecord(db, waechter, v)
 }
@@ -311,22 +316,67 @@ func etagFuerSatz(satz outbound.CodecSatz, an bool) bool {
 }
 
 func (h *Handle) verdrahteMock(db *sqlite.DB, r ablageRepos, waechter *maintenance.BlobWaechter) error {
+	m, err := h.baueMock(db, r, waechter)
+	if err != nil {
+		return err
+	}
+	h.verarbeiten = m.Mock
+	return nil
+}
+
+// verdrahteHybrid baut Mock, Replay, Upstream-Client und Policy und bindet den Hybrid-Dienst (SPEC-139 Nr. 12 a): kein
+// Recorder, keine Pipeline, kein SessionUseCase, kein Import. Der Upstream-Client entsteht auch bei disabled.
+func (h *Handle) verdrahteHybrid(db *sqlite.DB, r ablageRepos, waechter *maintenance.BlobWaechter, v vorlaeufig) error {
+	k := h.k
+	m, err := h.baueMock(db, r, waechter)
+	if err != nil {
+		return err
+	}
+	rep, err := h.baueReplay(db, waechter, v)
+	if err != nil {
+		return err
+	}
+	upstream, err := h.baueUpstream(v)
+	if err != nil {
+		return err
+	}
+	pol, err := k.NeuePolicy()
+	if err != nil {
+		return err
+	}
+	dienste := make([]hybrid.Dienst, len(k.Dienste))
+	for i, d := range k.Dienste {
+		dienste[i] = hybrid.Dienst{Root: d.Root, UpstreamURL: d.UpstreamURL}
+	}
+	hy, err := h.b.NeuerHybrid(hybrid.Konfig{
+		Dienste: dienste, Mock: m, Replay: rep, Upstream: upstream, Policy: pol, MaxBytes: k.MaxCaptureBody,
+	})
+	if err != nil {
+		return err
+	}
+	h.verarbeiten = hy.Hybrid
+	return nil
+}
+
+// baueUpstream baut den Upstream-Client mit den Werten von UPSTREAM_TIMEOUT, UPSTREAM_TLS_VERIFY und UPSTREAM_CA_FILE
+// (SPEC-139 Nr. 4), in den Modi record und hybrid.
+func (h *Handle) baueUpstream(v vorlaeufig) (outbound.UpstreamClient, error) {
+	k := h.k
+	return h.b.NeuerUpstream(httpupstream.Konfig{Frist: k.UpstreamTimeout, Pruefen: k.UpstreamTLSVerify, CAPEM: v.caPEM})
+}
+
+func (h *Handle) baueMock(db *sqlite.DB, r ablageRepos, waechter *maintenance.BlobWaechter) (inbound.MockUseCase, error) {
 	k := h.k
 	satz := satzVersion4()
 	dienste := make([]mock.Dienst, len(k.Dienste))
 	for i, d := range k.Dienste {
 		dienste[i] = mock.Dienst{ID: d.ID, Root: d.Root, Codecs: &satz, Etag: etagFuerSatz(satz, k.EtagEnabled)}
 	}
-	m, err := h.b.NeuerMock(mock.Konfig{
+	return h.b.NeuerMock(mock.Konfig{
 		Dienste: dienste, Metadaten: h.dienste, Workspaces: r.workspaces, Entities: r.entities, Coverage: db.Coverage(),
 		Blobs: waechter, MetadatenCodec: satz.Metadaten, URLCodec: satz.URL, Schreiber: satz.Schreiber,
 		PublicBaseURL: k.PublicBaseURL, StrictCoverage: k.StrictCoverage, MaxBytes: k.MaxCaptureBody, Transaktion: db,
 	})
-	if err != nil {
-		return err
-	}
-	h.verarbeiten = m.Mock
-	return nil
 }
 
 func (h *Handle) verdrahteRecord(db *sqlite.DB, waechter *maintenance.BlobWaechter, v vorlaeufig) error {
@@ -335,7 +385,7 @@ func (h *Handle) verdrahteRecord(db *sqlite.DB, waechter *maintenance.BlobWaecht
 	if err != nil {
 		return err
 	}
-	upstream, err := b.NeuerUpstream(httpupstream.Konfig{Frist: k.UpstreamTimeout, Pruefen: k.UpstreamTLSVerify, CAPEM: v.caPEM})
+	upstream, err := h.baueUpstream(v)
 	if err != nil {
 		return err
 	}
@@ -378,25 +428,29 @@ func importDienste(ds []Dienst) []baselineimport.Dienst {
 }
 
 func (h *Handle) verdrahteReplay(db *sqlite.DB, waechter *maintenance.BlobWaechter, v vorlaeufig) error {
-	k := h.k
-	tel, err := h.b.NeueTelemetrie(telemetry.Config{Writer: io.Discard, Clock: h.uhr})
-	if err != nil {
-		return err
-	}
-	dienste := make([]replay.Dienst, len(k.Dienste))
-	for i, d := range k.Dienste {
-		dienste[i] = replay.Dienst{ID: d.ID, Root: d.Root}
-	}
-	rep, err := h.b.NeuerReplay(replay.Konfig{
-		Dienste: dienste, Sessions: db.Sessions(), Exchanges: db.Recording(), Blobs: waechter, Transaktion: db,
-		Regeln: h.regeln(), Pfade: v.pfade, MaxBytes: k.MaxCaptureBody, Strategie: model.ReplayStrategy(k.ReplayStrategy),
-		RedigierteBodies: k.ReplayRedactedBodies, Telemetrie: tel,
-	})
+	rep, err := h.baueReplay(db, waechter, v)
 	if err != nil {
 		return err
 	}
 	h.verarbeiten = rep.Replay
 	return nil
+}
+
+func (h *Handle) baueReplay(db *sqlite.DB, waechter *maintenance.BlobWaechter, v vorlaeufig) (inbound.ReplayUseCase, error) {
+	k := h.k
+	tel, err := h.b.NeueTelemetrie(telemetry.Config{Writer: io.Discard, Clock: h.uhr})
+	if err != nil {
+		return nil, err
+	}
+	dienste := make([]replay.Dienst, len(k.Dienste))
+	for i, d := range k.Dienste {
+		dienste[i] = replay.Dienst{ID: d.ID, Root: d.Root}
+	}
+	return h.b.NeuerReplay(replay.Konfig{
+		Dienste: dienste, Sessions: db.Sessions(), Exchanges: db.Recording(), Blobs: waechter, Transaktion: db,
+		Regeln: h.regeln(), Pfade: v.pfade, MaxBytes: k.MaxCaptureBody, Strategie: model.ReplayStrategy(k.ReplayStrategy),
+		RedigierteBodies: k.ReplayRedactedBodies, Telemetrie: tel,
+	})
 }
 
 // Wartung liefert den Use Case der Wartung.

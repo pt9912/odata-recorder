@@ -56,6 +56,8 @@ type m3Welt struct {
 	ref         *referenzdienst
 	ws, wsTeil  model.Workspace
 	nachDemEnde [2]int64
+	// sessionID ist die Aufnahme-Session der ersten Baseline.
+	sessionID string
 }
 
 // m3Aufbau nimmt auf, importiert zweimal, legt je einen Workspace an, fährt den Recorder herunter und beendet den Referenzdienst.
@@ -95,7 +97,7 @@ func m3Aufbau(t *testing.T) *m3Welt {
 		t.Fatalf("Herunterfahren(record): %v", err)
 	}
 	d.ref.srv.Close()
-	return &m3Welt{t: t, dir: d.dir, ref: d.ref, ws: d.ws, wsTeil: teil,
+	return &m3Welt{t: t, dir: d.dir, ref: d.ref, ws: d.ws, wsTeil: teil, sessionID: d.sessionID,
 		nachDemEnde: [2]int64{d.ref.verbindungen.Load(), d.ref.requests.Load()}}
 }
 

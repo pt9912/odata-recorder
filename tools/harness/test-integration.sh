@@ -134,5 +134,9 @@ echo "integration: Modus mock, Neustart auf demselben DATA_DIR ..."
 e2e_abdeckung "LH-FA-03 LH-QA-03" "Mutationen nach SIGTERM und Neustart lesbar, zweiter Neustart, fehlendes DATA_DIR wird angelegt (Happy Path, Boundary)" "TestE2EMockNeustart"
 stufe 9 TestE2EMockNeustart
 
+echo "integration: Modus hybrid, Fallback zum laufenden Referenzdienst, Zähler nach Methode ..."
+e2e_abdeckung "LH-FA-12 LH-FA-04" "Treffer des Mock ohne Verbindung, Upstream-Fallback bei ODR-E6003, POST mit und ohne Eintrag, Replay-Miss, ungültige Konfiguration (Happy Path, Boundary, Negative)" "TestE2EHybrid"
+stufe 10 TestE2EHybrid
+
 rm -rf "$tmp"
 exit "$rot"
