@@ -587,13 +587,9 @@ type m4Wert struct {
 	zellen [4]m4Zelle
 }
 
-// TestM4WerteJeModus fängt M02 und M03 für die Werte, die der Root an Replay-Dienst, Pipeline, Mock und Hybrid-Dienst reicht (SPEC-139 Nr. 4, 11 a,
-// 12 a): Schleife über jeden dieser Werte × die vier Modi, je Wert zwei Varianten, die sich in jedem Wert unterscheiden (ein Wahrheitswert hat
-// in einer Variante true, in der anderen false, ein fester Wert im Root gleicht höchstens einer). Die Zählprüfung hält die Zellen gegen die Menge
-// der Werte, die Felder von Konfiguration sind, und gegen die Zahl der Zellen mit Verbraucher.
-func TestM4WerteJeModus(t *testing.T) {
-	ctx := context.Background()
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+// m4Varianten sind zwei Konfigurationen, die sich in jedem Wert unterscheiden: ein Wahrheitswert hat in der einen true, in der anderen false, ein
+// fester Wert im Root gleicht höchstens einer von ihnen.
+func m4Varianten() []bootstrap.Konfiguration {
 	dienste := func(s string) []bootstrap.Dienst {
 		return []bootstrap.Dienst{
 			{ID: "x1" + s, Root: "/r1" + s, UpstreamURL: "http://u1" + s + ".test/o"},
@@ -608,32 +604,65 @@ func TestM4WerteJeModus(t *testing.T) {
 	b.ReplayStrategy, b.ReplayRedactedBodies, b.MatchInvalidEncoding, b.MatchBodyMode = "sequential", false, "literal", "bytes"
 	b.MatchVaryHeaders, b.RedactHeaders, b.RedactQueryParams, b.VolatileHeaders = []string{"x-vary-b"}, []string{"x-red-b"}, []string{"qred-b"}, []string{"x-vol-b"}
 	b.RedactJSONPaths, b.MaxCaptureBody, b.StrictCoverage, b.EtagEnabled, b.PublicBaseURL = []string{"$..anders"}, 23456, false, false, "http://pub.test:2/api"
-	varianten := []bootstrap.Konfiguration{a, b}
+	return []bootstrap.Konfiguration{a, b}
+}
 
-	rp := func(m *m4Haken) replay.Konfig {
-		if m.replay == nil {
-			return replay.Konfig{}
-		}
-		return *m.replay
+// rp, mk, hy und rc sind die Konfiguration, die der Root dem Replay-Dienst, dem Mock, dem Hybrid-Dienst und dem Recorder übergab; der Nullwert,
+// wenn der Modus den Verbraucher nicht baut.
+func rp(m *m4Haken) replay.Konfig {
+	if m.replay == nil {
+		return replay.Konfig{}
 	}
-	mk := func(m *m4Haken) mock.Konfig {
-		if len(m.mock) == 0 {
-			return mock.Konfig{}
-		}
-		return m.mock[0]
+	return *m.replay
+}
+
+func mk(m *m4Haken) mock.Konfig {
+	if len(m.mock) == 0 {
+		return mock.Konfig{}
 	}
-	hy := func(m *m4Haken) hybrid.Konfig {
-		if len(m.hybrid) == 0 {
-			return hybrid.Konfig{}
-		}
-		return m.hybrid[0]
+	return m.mock[0]
+}
+
+func hy(m *m4Haken) hybrid.Konfig {
+	if len(m.hybrid) == 0 {
+		return hybrid.Konfig{}
 	}
-	rc := func(m *m4Haken) record.Konfig {
-		if m.recorder == nil {
-			return record.Konfig{}
-		}
-		return *m.recorder
+	return m.hybrid[0]
+}
+
+func rc(m *m4Haken) record.Konfig {
+	if m.recorder == nil {
+		return record.Konfig{}
 	}
+	return *m.recorder
+}
+
+// regeln erzeugt die Zellen für record, replay und hybrid aus einem Vergleich der Regelmenge; im Modus mock gibt es keinen Verbraucher.
+func regeln(name string, gleich func(r model.SchluesselRegeln, k bootstrap.Konfiguration) bool) m4Wert {
+	return m4Wert{name, [4]m4Zelle{
+		func(m *m4Haken, k bootstrap.Konfiguration) bool { return gleich(rc(m).Regeln, k) },
+		func(m *m4Haken, k bootstrap.Konfiguration) bool { return gleich(rp(m).Regeln, k) },
+		nil,
+		func(m *m4Haken, k bootstrap.Konfiguration) bool { return gleich(rp(m).Regeln, k) },
+	}}
+}
+
+// mockDienste ist wahr, wenn der Mock so viele Dienste trägt wie k und f für jeden gilt.
+func mockDienste(m *m4Haken, k bootstrap.Konfiguration, f func(d mock.Dienst, i int) bool) bool {
+	ds := mk(m).Dienste
+	if len(ds) != len(k.Dienste) {
+		return false
+	}
+	for i, d := range ds {
+		if !f(d, i) {
+			return false
+		}
+	}
+	return true
+}
+
+// m4WerteReplay sind die Werte von Pfaden, Strategie, Redaktion und Größe, die Pipeline und Replay-Dienst erhalten.
+func m4WerteReplay(t *testing.T) []m4Wert {
 	pfade := func(k bootstrap.Konfiguration) []model.JSONPfad {
 		var out []model.JSONPfad
 		for _, p := range k.RedactJSONPaths {
@@ -641,28 +670,7 @@ func TestM4WerteJeModus(t *testing.T) {
 		}
 		return out
 	}
-	// regeln erzeugt die Zellen für record, replay und hybrid aus einem Vergleich der Regelmenge; im Modus mock gibt es keinen Verbraucher.
-	regeln := func(name string, gleich func(r model.SchluesselRegeln, k bootstrap.Konfiguration) bool) m4Wert {
-		return m4Wert{name, [4]m4Zelle{
-			func(m *m4Haken, k bootstrap.Konfiguration) bool { return gleich(rc(m).Regeln, k) },
-			func(m *m4Haken, k bootstrap.Konfiguration) bool { return gleich(rp(m).Regeln, k) },
-			nil,
-			func(m *m4Haken, k bootstrap.Konfiguration) bool { return gleich(rp(m).Regeln, k) },
-		}}
-	}
-	mockDienste := func(m *m4Haken, k bootstrap.Konfiguration, f func(d mock.Dienst, i int) bool) bool {
-		ds := mk(m).Dienste
-		if len(ds) != len(k.Dienste) {
-			return false
-		}
-		for i, d := range ds {
-			if !f(d, i) {
-				return false
-			}
-		}
-		return true
-	}
-	werte := []m4Wert{
+	return []m4Wert{
 		{"RedactJSONPaths", [4]m4Zelle{
 			func(m *m4Haken, k bootstrap.Konfiguration) bool { return reflect.DeepEqual(m.pipeline.Pfade, pfade(k)) },
 			func(m *m4Haken, k bootstrap.Konfiguration) bool { return reflect.DeepEqual(rp(m).Pfade, pfade(k)) },
@@ -693,6 +701,12 @@ func TestM4WerteJeModus(t *testing.T) {
 				return rp(m).MaxBytes == k.MaxCaptureBody && mk(m).MaxBytes == k.MaxCaptureBody && hy(m).MaxBytes == k.MaxCaptureBody
 			},
 		}},
+	}
+}
+
+// m4WerteMock sind die Werte, die der Mock erhält (im Modus mock und im Modus hybrid).
+func m4WerteMock() []m4Wert {
+	return []m4Wert{
 		{"StrictCoverage", [4]m4Zelle{nil, nil,
 			func(m *m4Haken, k bootstrap.Konfiguration) bool {
 				return len(m.mock) == 1 && mk(m).StrictCoverage == k.StrictCoverage
@@ -713,6 +727,12 @@ func TestM4WerteJeModus(t *testing.T) {
 				return mockDienste(m, k, func(d mock.Dienst, _ int) bool { return d.Etag == k.EtagEnabled })
 			},
 		}},
+	}
+}
+
+// m4WerteRegeln sind die sechs Werte der Regelmenge des Match-Keys, die Recorder und Replay-Dienst erhalten.
+func m4WerteRegeln() []m4Wert {
+	return []m4Wert{
 		regeln("MatchVaryHeaders", func(r model.SchluesselRegeln, k bootstrap.Konfiguration) bool {
 			return reflect.DeepEqual(r.VaryHeaders, k.MatchVaryHeaders)
 		}),
@@ -731,6 +751,12 @@ func TestM4WerteJeModus(t *testing.T) {
 		regeln("VolatileHeaders", func(r model.SchluesselRegeln, k bootstrap.Konfiguration) bool {
 			return reflect.DeepEqual(r.VolatileHeaders, k.VolatileHeaders)
 		}),
+	}
+}
+
+// m4WerteDienste ist die Menge der Dienste, die jeder Verbraucher trägt.
+func m4WerteDienste() []m4Wert {
+	return []m4Wert{
 		{"Dienste", [4]m4Zelle{
 			func(m *m4Haken, k bootstrap.Konfiguration) bool {
 				var soll []record.Dienst
@@ -757,6 +783,16 @@ func TestM4WerteJeModus(t *testing.T) {
 			},
 		}},
 	}
+}
+
+// TestM4WerteJeModus fängt M02 und M03 für die Werte, die der Root an Replay-Dienst, Pipeline, Mock und Hybrid-Dienst reicht (SPEC-139 Nr. 4, 11 a,
+// 12 a): Schleife über jeden dieser Werte × die vier Modi × die zwei Varianten von m4Varianten. Die Zählprüfung hält die Werte gegen die Felder
+// von Konfiguration und gegen die Zahl der Zellen mit Verbraucher.
+func TestM4WerteJeModus(t *testing.T) {
+	ctx := context.Background()
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	varianten := m4Varianten()
+	werte := slices.Concat(m4WerteReplay(t), m4WerteMock(), m4WerteRegeln(), m4WerteDienste())
 	felder := map[string]bool{}
 	for i := range reflect.TypeOf(bootstrap.Konfiguration{}).NumField() {
 		felder[reflect.TypeOf(bootstrap.Konfiguration{}).Field(i).Name] = true
