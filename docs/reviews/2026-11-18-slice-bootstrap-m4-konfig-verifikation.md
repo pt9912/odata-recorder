@@ -2,7 +2,7 @@
 
 **Art:** Verifikation (Modul 11: gegen DoD, Spezifikation und Entscheidungen; `AGENTS.md` §3.15, §3.17), in frischem Kontext, ohne Änderung am Produktcode
 
-**Gegenstand:** Slice `docs/plan/planning/in-progress/slice-bootstrap-m4-konfig.md` (Teil 1 von `slice-bootstrap-m4`), Zweig `slice-bootstrap-m4`, Stand `77915118` (Fix-Commits Runde 4: `49c29b8a`, `77915118`); Reports Runde 1 bis 4 unter `docs/reviews/2026-11-18-slice-bootstrap-m4-konfig-review*.md`
+**Gegenstand:** Slice `docs/plan/planning/done/slice-bootstrap-m4-konfig.md` (Teil 1 von `slice-bootstrap-m4`), Zweig `slice-bootstrap-m4`, Stand `77915118` (Fix-Commits Runde 4: `49c29b8a`, `77915118`); Reports Runde 1 bis 4 unter `docs/reviews/2026-11-18-slice-bootstrap-m4-konfig-review*.md`
 
 **Maßstab:** [LH-FA-12](../../spec/lastenheft.md), [LH-FA-14](../../spec/lastenheft.md), [LH-QA-02](../../spec/lastenheft.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md); `SPEC-110` Nr. 1, 2, 6, 8, 9, 12, 14, 15, 16, `SPEC-261` Nr. 4 e, 8, 10 b, `SPEC-139`, `SPEC-037`, `SPEC-115`, `SPEC-128` Nr. 1, 4, 5; `AGENTS.md` §3.7, §3.9 bis §3.18
 
@@ -79,7 +79,7 @@ Gegen die Prüfgrenzen des Plans: Listen über 17 Einträge und mehrbytige ungü
 
 | ID | Kategorie | Befund | Quelle | Pfad |
 |---|---|---|---|---|
-| V-1 | INFO | Closure-Formalien stehen noch aus: die Häkchen in §2, §7 (Closure-Notiz, Lerneintrag, Register-Antwort), die drei Paarungen. Die Reihenfolge verlangt sie nach der Verifikation. | DoD Punkte 7, 8, 10 | `docs/plan/planning/in-progress/slice-bootstrap-m4-konfig.md` · `*Wird bei der Closure gefüllt.*` |
+| V-1 | INFO | Closure-Formalien stehen noch aus: die Häkchen in §2, §7 (Closure-Notiz, Lerneintrag, Register-Antwort), die drei Paarungen. Die Reihenfolge verlangt sie nach der Verifikation. | DoD Punkte 7, 8, 10 | `docs/plan/planning/done/slice-bootstrap-m4-konfig.md` · `*Wird bei der Closure gefüllt.*` |
 | V-2 | INFO | `SPEC-037` Nr. 5 sagt „`MODE=hybrid` startet“ und Nr. 7 führt `TestE2EHybrid` als vereinbart, ohne Test; das Binary lehnt `hybrid` bis Teil 2 ab (§6 (f), akzeptiertes Negativ, dort nur für `SPEC-110` und `SPEC-139` benannt). Kein Fänger fängt die Abweichung zwischen den Teilen, bis `slice-bootstrap-m4` (Zeile M01, M4-Test) sie schließt; beide Slices gehen nacheinander in denselben Zweig. | `SPEC-037` Nr. 5, 7; §6 (f) | `harness/vertraege/SPEC-037-test-integration.md` · `MODE=hybrid` startet |
 | V-3 | INFO | Mit der Mutation „`ADMIN_` nicht abgelehnt“ startet ein Test der Familie `TestKonfig*` einen echten Listener und hält den Lauf bis zur Zeitgrenze von `go test` (601,6 s). Der Fänger der Zusage (`TestKonfigNichtGeliefert`) wird vorher rot, der Lauf ist nur langsam. Keine Wirkung auf das Gate (`make test` fährt den unveränderten Code). | `AGENTS.md` §3.10 | `src/bootstrap/konfig_test.go` · `TestKonfigNichtGeliefert` |
 

@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-12.a` · `LH-FA-12.b` · `LH-FA-04.c` (Pflicht der `X-Recorder-*`-Header im Modus `hybrid`) · `SPEC-110` Nr. 8, 16 (Start im Modus `hybrid`, Schlüssel) · `SPEC-139` Nr. 9, 12 (Bau, Start, Herunterfahren) · `SPEC-075`, `SPEC-076` · `SPEC-055` (`PUBLIC_BASE_URL` in `hybrid`) · `SPEC-037` Nr. 2, 3, 4, 5, 7, 10 n (Stufe 10) · `ARC-005`, `ARC-012` · `architecture.md` §2.5 (Modus-Routing).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Teil 2 eines vor dem Code geschnittenen Plans:** Teil 1 ist [slice-bootstrap-m4-konfig](../in-progress/slice-bootstrap-m4-konfig.md) (Lesen und Prüfen der Schlüssel `HYBRID_*` und `FALLBACK_*`, Nachzug von `SPEC-110` Nr. 2 und 8). Dieser Slice braucht ihn in `done/` (*Code-Abhängigkeit*, §4).
+**Teil 2 eines vor dem Code geschnittenen Plans:** Teil 1 ist [slice-bootstrap-m4-konfig](../done/slice-bootstrap-m4-konfig.md) (Lesen und Prüfen der Schlüssel `HYBRID_*` und `FALLBACK_*`, Nachzug von `SPEC-110` Nr. 2 und 8). Dieser Slice braucht ihn in `done/` (*Code-Abhängigkeit*, §4).
 
 **Verantwortlich:** pt9912 (Zweig slice-bootstrap-m4)
 
