@@ -5,6 +5,11 @@ version: 1
 languages:
   go: ["**/*.go"]
 
+# Abgrenzung: Arbeitsbäume (git worktree) unter .wt/ an der Wurzel sind nie Teil eines Commits; jeder
+# wird an seinem Ort geprüft. Das Muster ist an der Wurzel verankert, ein Verzeichnis .wt im
+# Quellbaum bleibt geprüft (SPEC-212 Nr. 3 a).
+exclude: [".wt/**"]
+
 layers:
   model:
     globs: ["src/hexagon/model/**"]

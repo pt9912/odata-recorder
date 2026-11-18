@@ -1,0 +1,2 @@
+**Vorgang:** slice-gates-ohne-worktrees
+**Fund:** Marke 1600 (*b* = 12, *p* = 185) stand vor dem ersten Code-Commit; die Fix-Runde des Architect nach Review 1 hob die Tabelle auf 16 Zeilen und *p* auf 375, der Planner ersetzte die Marke danach durch 2300 (`ersetzt: 1600` im Block von §4). Die Messung (1057) lag unter beiden; Review 2 (G-1, LOW) und Verifikation (V-7, INFO) rechneten nach, die Rechnung stimmt, und die Ersetzung war für den Lauf nicht nötig. Beleg: Plan §4 und §6, Review-Report `2026-11-18-slice-gates-ohne-worktrees-review-2` (G-1), Verifikations-Report (V-7).
