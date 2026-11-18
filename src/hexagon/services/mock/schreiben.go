@@ -36,6 +36,8 @@ type mutation struct {
 	vorbedingung bool
 	ifMatch      []string
 	ifNoneMatch  []string
+	// kopf ist die Header-Map der Anfrage, unverändert; der Dienst liest `Prefer` erst in der Antwort (SPEC-287 Nr. 1).
+	kopf map[string][]string
 }
 
 // schreibe führt POST, PATCH, PUT und DELETE aus (SPEC-192 Nr. 2): Methode und Ressource, Workspace und Service, Modell und Set,
@@ -67,6 +69,7 @@ func (m *Mocker) schreibe(ctx context.Context, a inbound.Anfrage, d Dienst, wsID
 	mu := mutation{
 		lauf:    lauf{d: d, w: w, u: u, modell: modell, set: set.Name, typ: typ, accept: werteVon(a.Header, "accept")},
 		methode: a.Methode,
+		kopf:    a.Header,
 	}
 	if a.Methode != methodePost {
 		schluessel, ok := bildeSchluessel(typ, u.Ressource.Schluessel)
@@ -263,57 +266,6 @@ func (m *Mocker) entscheide(ctx context.Context, mu mutation, es model.EntitySta
 // treffen (SPEC-283 Nr. 6); sie ruft keinen Port.
 func vorbedingungVerletzt(mu mutation, zaehler int64) bool {
 	return mu.vorbedingung && !model.VorbedingungErfuellt(mu.ifMatch, mu.ifNoneMatch, zaehler)
-}
-
-// antwort bildet die Antwort in der Transaktion (SPEC-194): `201` mit Entity und Location bei POST, sonst `204` mit dem
-// Kennzeichen des Satzes; ein leeres Kennzeichen oder ein leerer Content-Type ist ODR-E9001. Bei einem Dienst mit Etag
-// trägt die Antwort außer bei DELETE den ETag des Zählers von neu, des Eintrags, den die Transaktion mit Put schrieb
-// (SPEC-281 Nr. 2); sie liest den Eintrag nicht erneut.
-func (m *Mocker) antwort(ctx context.Context, mu mutation, neu model.EntityState) (inbound.Antwort, error) {
-	sch := mu.d.Codecs.Schreiber
-	var buf bytes.Buffer
-	if mu.methode != methodePost {
-		dar, err := sch.SchreibeAnzahl(ctx, io.Discard, 0)
-		if err != nil {
-			return inbound.Antwort{}, abbilden(err, outbound.GegenstandSonstiges)
-		}
-		if darstellungLeer(dar) {
-			return inbound.Antwort{}, mitCode(model.CodeE9001, nil)
-		}
-		return inbound.Antwort{Status: 204, Header: kopf204(mu, dar, neu), Body: io.NopCloser(bytes.NewReader(nil))}, nil
-	}
-	e, ok := deute(mu.modell, mu.typ, neu)
-	if !ok {
-		return inbound.Antwort{}, mitCode(model.CodeE9001, nil)
-	}
-	e.Etag = etagVon(mu.d, neu)
-	wurzel := m.wurzel(mu.d)
-	dar, err := sch.SchreibeEntity(ctx, &buf, mu.modell, model.EntityAntwort{Wurzel: wurzel, Set: mu.set, Entity: e, Accept: mu.accept})
-	if err != nil {
-		return inbound.Antwort{}, abbilden(err, outbound.GegenstandSonstiges)
-	}
-	if darstellungLeer(dar) {
-		return inbound.Antwort{}, mitCode(model.CodeE9001, nil)
-	}
-	ort, err := sch.Adresse(mu.modell, wurzel, mu.set, neu.EntityKey)
-	if err != nil {
-		return inbound.Antwort{}, abbilden(err, outbound.GegenstandSonstiges)
-	}
-	h := map[string][]string{"Content-Type": {dar.ContentType}, dar.Kennzeichen.Name: {dar.Kennzeichen.Wert}, "Location": {ort}}
-	if e.Etag != "" {
-		h[headerEtag] = []string{e.Etag}
-	}
-	return inbound.Antwort{Status: 201, Header: h, Body: io.NopCloser(bytes.NewReader(buf.Bytes()))}, nil
-}
-
-// kopf204 ist der Header einer 204: das Kennzeichen der Darstellung und, bei PATCH und PUT eines Dienstes mit Etag, der ETag von neu
-// (SPEC-281 Nr. 2); DELETE trägt keinen.
-func kopf204(mu mutation, dar model.Darstellung, neu model.EntityState) map[string][]string {
-	h := map[string][]string{dar.Kennzeichen.Name: {dar.Kennzeichen.Wert}}
-	if etag := etagVon(mu.d, neu); etag != "" && mu.methode != methodeDelete {
-		h[headerEtag] = []string{etag}
-	}
-	return h
 }
 
 // darstellungLeer sagt, ob die Darstellung des Schreibers unbrauchbar ist (SPEC-198 Nr. 8).
