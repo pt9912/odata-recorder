@@ -122,12 +122,15 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Reihenfolge zu `slice-bootstrap-m6`:** beide ändern `src/bootstrap/` und `SPEC-110` Nr. 2; sie laufen nacheinander und nicht parallel, welcher zuerst, ist Priorisierung, und der zweite zieht den Stand des ersten nach (`AGENTS.md` §3.9).
 
-**Größenmarke** (Planner, 2026-11-18, vor dem ersten Code-Commit; Tabelle *Zusage · Fänger* in §3 mit 6 Zeilen): *a* = 0, *b* = 6, *f* = 0, Produktcode rund 150 (Vorschlag des Planners, der Architect bestätigt oder ändert ihn: Lesen und Prüfen der vier Schlüssel mit Zusammenhängen und die Funktion der Policy). *S* = 85·0 + 80·6 + 200·0 + 150 = **630**, *M* = 100 · ⌈135·630 / 10000⌉ = **900**. Keine Schnittfrage (135·630 = 85050 ≤ 300000, `SPEC-128` Nr. 1). **Basis** ist der Commit vor dem ersten Code-Commit; der Block trägt sie, sobald der Planner sie setzt. Ein Merge von `main` in den Zweig, der diese Pfade ändert, zählt in die Messung (`SPEC-128` Nr. 4 g); der Merge steht dann als `ueberschreitung` mit Grund oder als neue Basis mit `ersetzt`.
+**Größenmarke** (Planner, 2026-11-18, vor dem ersten Code-Commit; Tabelle *Zusage · Fänger* in §3 mit 6 Zeilen): *a* = 0, *b* = 6, *f* = 0, Produktcode rund 150 (Vorschlag des Planners, der Architect bestätigt oder ändert ihn: Lesen und Prüfen der vier Schlüssel mit Zusammenhängen und die Funktion der Policy). *S* = 85·0 + 80·6 + 200·0 + 150 = **630**, *M* = 100 · ⌈135·630 / 10000⌉ = **900**. Keine Schnittfrage (135·630 = 85050 ≤ 300000, `SPEC-128` Nr. 1). **Basis** ist der Commit vor dem ersten Code-Commit: `7a5170d9` (reiner Move von `slice-bootstrap-m4` nach `open/`, Planner, 2026-11-18); die Pfade des Blocks sind bis dahin unberührt. Ein Merge von `main` in den Zweig, der diese Pfade ändert, zählt in die Messung (`SPEC-128` Nr. 4 g); der Merge steht dann als `ueberschreitung` mit Grund oder als neue Basis mit `ersetzt`.
 
 ```groessenmarke
 pfad: src/bootstrap/
 produktcode: 150
 fakes: 0
+basis: 7a5170d9da222d9f13bd2106554e196a85114455
+schaetzung: 630
+marke: 900
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
