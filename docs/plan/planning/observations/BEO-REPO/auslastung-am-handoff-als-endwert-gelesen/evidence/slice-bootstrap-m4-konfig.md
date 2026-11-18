@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m4-konfig
+**Fund:** Die Messung stieg vom Handoff (671, Auslastung 0,75) über vier Review-Runden auf 1729 eigene Zeilen (mit den 143 fremden 1872, Auslastung 2,08): Ende ÷ Handoff = 2,58 (mit den fremden Zeilen 2,79), vorher 2,55 nach drei Runden; `SPEC-128` Nr. 2 nennt 1,19 bis 1,33. Der Handoff-Wert war kein Endwert, und die Spanne der Nr. 2 deckt einen Slice nicht, dessen Review über Fänger der Klassen (`AGENTS.md` §3.17) vier Runden läuft. Beleg: Plan §4 *Messpunkt Handoff* und *Messpunkt nach dem Review der Runde 4*, §6.
