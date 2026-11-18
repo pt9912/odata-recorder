@@ -288,11 +288,10 @@ func TestLiesRueckgabeAnfuehrung(t *testing.T) {
 // bs ist eine Folge von k Backslashes.
 func bs(k int) string { return strings.Repeat(`\`, k) }
 
-// TestLiesRueckgabeBackslashFremd (Z6b, SPEC-285 Nr. 2): die Klasse „Backslash in einem fremden Element“, an den beiden Stellen der Grammatik, die ihn nennen.
-// Im Paar schützt ein Backslash das folgende Zeichen, eine Folge von k Backslashes vor dem Schlusszeichen schützt es bei ungeradem k und lässt es bei geradem k
-// schließen: Stelle des Paares (Wert, Rest, Rest eines anderen Elements, Name) 4 × Inhalt vor der Folge 3 × k 0 bis 7 × Zeichen hinter der Folge (`"`, `,`, `a`, Ende
-// der Zeile) 4 = 384 Fälle. Außerhalb eines Paares hat ein Backslash keine Wirkung, auch nicht vor `,` oder `"`: Stelle der Folge (Name, Wert, Rest, Rest eines anderen
-// Elements) 4 × Zeichen hinter der Folge (`,`, Paar) 2 × k 0 bis 7 = 64 Fälle. Das Orakel ist die Parität von k und der Orakel-Leser aus Z9.
+// TestLiesRueckgabeBackslashFremd (Z6b, SPEC-285 Nr. 2): ein Backslash im Paar eines fremden Elements schützt das folgende Zeichen; eine Folge von k Backslashes vor
+// dem Schlusszeichen schützt es bei ungeradem k und lässt es bei geradem k schließen: Stelle des Paares (Wert, Rest, Rest eines anderen Elements, Name) 4 × Inhalt vor
+// der Folge 3 × k 0 bis 7 × Zeichen hinter der Folge (`"`, `,`, `a`, Ende der Zeile) 4 = 384 Fälle; das Orakel ist die Parität von k und der Orakel-Leser aus Z9.
+// Der Backslash außerhalb eines Paares und an den übrigen Stellen der Grammatik steht in TestLiesRueckgabeBackslashStellen.
 func TestLiesRueckgabeBackslashFremd(t *testing.T) {
 	n := 0
 	stellen := []string{`x=`, `x=1;p=`, `respond-async; p=`, `x`}
@@ -334,24 +333,99 @@ func TestLiesRueckgabeBackslashFremd(t *testing.T) {
 	if n != 4*3*8*4 {
 		t.Errorf("Menge im Paar %d, erwartet %d", n, 4*3*8*4)
 	}
-	n = 0
-	for _, st := range []string{`x`, `x=1`, `x=1;p=a`, `respond-async; p=`} {
-		for _, hinter := range []string{`, return=minimal`, `"a", return=minimal`} {
+}
+
+// backslashStellen sind die Stellen einer Kopfzeile, an denen ein Backslash stehen kann (SPEC-285 Nr. 1 bis 3), je Positionsklasse der Grammatik; `@` ist die
+// Stelle, an die der Test die Folge von Backslashes samt dem Zeichen dahinter setzt. Die Klassen: Zeilenanfang, Elementanfang (hinter `,`, hinter Leerraum),
+// im Namen, hinter dem Namen, vor und hinter `=`, im Wert als Token, im Wort in Anführungszeichen (Anfang, Mitte, Ende, unmittelbar hinter dem Schlusszeichen,
+// offen am Zeilenende), im Paar im Namen, hinter `;` und im Rest (auch im Paar des Rests), hinter `,`, Zeilenende; dazu dieselben Stellen im Element `return` selbst.
+func backslashStellen() []string {
+	return []string{
+		// Zeilenanfang und Elementanfang
+		`@`, `@x=1`, `x=1,@y=2`, `x=1, @y=2`, "x=1,\t@y=2", `x=1,@`, `x=1,@,y`,
+		// Elementanfang unmittelbar vor `return`: hinter `,`, hinter Leerraum, hinter dem Paar, hinter dem Rest
+		`x=1,@return=minimal`, `x=1, @return=minimal`, "x=1,\t@return=minimal", `x="a",@return=minimal`, `x=1;p=a,@return=minimal`, `x=1;p="a",@return=minimal`,
+		// Name, hinter dem Namen, vor und hinter `=`
+		`x@y=1`, `x@=1`, `x@`, `x @=1`, `x=@1`, `x= @1`, `x=@`,
+		// Wert als Token
+		`x=1@2`, `x=1@`, `x=1@;p=a`, `x=1@,y`, `x=1 @`, `x=1 @;p=a`, `x=1@,@y`,
+		// Wort in Anführungszeichen: Anfang, Mitte, Ende, unmittelbar hinter dem Schlusszeichen, offen
+		`x="@"`, `x="@a"`, `x="a@b"`, `x="a@"`, `x="a"@`, `x="a"@;p=1`, `x="a" @`, `x=""@`, `x="a"@"b"`, `x="@`, `x="a@`,
+		// Paar im Namen
+		`x"a@b"=1`, `x"a"@=1`, `x"@`,
+		// hinter `;` und im Rest, auch im Paar des Rests
+		`x=1;@`, `x=1;@p=a`, `x=1;p@a`, `x=1;p=@a`, `x=1;p=@`, `x=1; @`, `x=1;p=a,@y`, `respond-async;@`, `respond-async; p=@`,
+		`x=1;p="a@b"`, `x=1;p="a"@`, `x=1;p="@`,
+		// das Element `return` selbst
+		`@return=minimal`, `re@turn=minimal`, `return@=minimal`, `return@`, `return=@`, `return =@minimal`, `return=@minimal`, `return=@"minimal"`,
+		`return="@minimal"`, `return="min@imal"`, `return="minimal@"`, `return="minimal"@`, `return=minimal@`, `return=minimal @`, `return=minimal@;x`,
+		`return=minimal;@`, `return=minimal;p="a@b"`, `return=minimal,@`,
+	}
+}
+
+// backslashLagen setzen eine Stelle in die Zeilen einer Anfrage: das Element mit der Stelle vor dem Element `return`, nach ihm, in der Mitte, hinter einer
+// Zeilengrenze, vor einer Zeile mit `return=representation` und allein.
+func backslashLagen() []func(f string) []string {
+	return []func(f string) []string{
+		func(f string) []string { return []string{f + ", return=minimal"} },
+		func(f string) []string { return []string{"return=minimal, " + f} },
+		func(f string) []string { return []string{"y, " + f + ", return=minimal"} },
+		func(f string) []string { return []string{f, "return=minimal"} },
+		func(f string) []string { return []string{"return=representation", f} },
+		func(f string) []string { return []string{f} },
+	}
+}
+
+// TestLiesRueckgabeBackslashStellen (Z6c, SPEC-285 Nr. 1 bis 3): ein Backslash an jeder Stelle der Grammatik: 71 Stellen aus backslashStellen (die Positionsklassen
+// dort) × 6 Lagen (Element vor, nach, in der Mitte, über eine Zeilengrenze, vor `return=representation`, allein) × Folgenlänge 0 bis 7 × Zeichen hinter der Folge
+// (`"`, `,`, `;`, `=`, `a`, Leerzeichen, Ende der Stelle) 7 = 23856 Zeilen; je Zeile gleich dem Orakel aus Z9, das keinen Code mit dem Leser teilt. Ungeprüft bleibt, was
+// nicht in diesen Mengen steht: ein Zeichen hinter der Folge außer den sieben, mehr als ein Element zwischen Stelle und `return`.
+func TestLiesRueckgabeBackslashStellen(t *testing.T) {
+	stellen := backslashStellen()
+	if len(stellen) != 71 {
+		t.Fatalf("Stellen %d, erwartet 71", len(stellen))
+	}
+	lagen := backslashLagen()
+	n := 0
+	ergebnisse := map[model.Rueckgabe]int{}
+	for _, st := range stellen {
+		for _, lage := range lagen {
 			for k := 0; k <= 7; k++ {
-				n++
-				zeile := st + bs(k) + hinter
-				if got := model.LiesRueckgabe([]string{zeile}); got != minimal {
-					t.Errorf("%q: %d, erwartet Minimal (ein Backslash außerhalb eines Paares schützt nichts, k=%d)", zeile, got, k)
-				}
-				if orakel := preferOrakel(zeile); orakel != minimal {
-					t.Errorf("%q: Orakel %d, erwartet Minimal", zeile, orakel)
+				for _, c := range []string{`"`, `,`, `;`, `=`, `a`, ` `, ``} {
+					zeilen := lage(strings.ReplaceAll(st, "@", bs(k)+c))
+					vorher := slices.Clone(zeilen)
+					soll := orakelZeilen(zeilen)
+					got := model.LiesRueckgabe(zeilen)
+					n++
+					ergebnisse[got]++
+					if got != soll {
+						t.Errorf("%q: %d, Orakel %d (Stelle %q, k=%d, Zeichen dahinter %q)", zeilen, got, soll, st, k, c)
+					}
+					if !slices.Equal(zeilen, vorher) {
+						t.Fatalf("Eingabe verändert: %q", zeilen)
+					}
 				}
 			}
 		}
 	}
-	if n != 4*2*8 {
-		t.Errorf("Menge außerhalb des Paares %d, erwartet %d", n, 4*2*8)
+	if n != 71*6*8*7 {
+		t.Errorf("Menge %d, erwartet %d", n, 71*6*8*7)
 	}
+	for _, r := range []model.Rueckgabe{keine, minimal, entity} {
+		if ergebnisse[r] == 0 {
+			t.Errorf("kein Fall mit dem Ergebnis %d: die Menge trennt die Ergebnisse nicht", r)
+		}
+	}
+}
+
+// orakelZeilen ist das Orakel über mehrere Kopfzeilen: die erste Zeile mit einem lesbaren Element `return` entscheidet; eine Zeile reicht nie in die nächste.
+func orakelZeilen(zeilen []string) model.Rueckgabe {
+	for _, z := range zeilen {
+		if r, entschieden := preferOrakelZeile(z); entschieden {
+			return r
+		}
+	}
+	return keine
 }
 
 // TestLiesRueckgabeRest (Z7, SPEC-285 Nr. 2): `Rest` hinter dem ersten `;` hat keine Wirkung, auch ein Komma darin außerhalb eines Paares beginnt nur
@@ -439,6 +513,12 @@ var (
 )
 
 func preferOrakel(zeile string) model.Rueckgabe {
+	r, _ := preferOrakelZeile(zeile)
+	return r
+}
+
+// preferOrakelZeile ist die Wahl einer Zeile und die Aussage, ob ein lesbares Element `return` darin stand.
+func preferOrakelZeile(zeile string) (model.Rueckgabe, bool) {
 	for _, m := range preferElement.FindAllStringSubmatch(alsRunen(zeile), -1) {
 		e := strings.TrimLeft(m[1], " \t")
 		if !preferReturn.MatchString(e) {
@@ -446,7 +526,7 @@ func preferOrakel(zeile string) model.Rueckgabe {
 		}
 		w := preferWert.FindStringSubmatch(e)
 		if w == nil {
-			return keine
+			return keine, true
 		}
 		wort := w[1]
 		if w[2] != "" {
@@ -454,13 +534,13 @@ func preferOrakel(zeile string) model.Rueckgabe {
 		}
 		switch {
 		case strings.EqualFold(wort, "minimal"):
-			return minimal
+			return minimal, true
 		case strings.EqualFold(wort, "representation"):
-			return entity
+			return entity, true
 		}
-		return keine
+		return keine, true
 	}
-	return keine
+	return keine, false
 }
 
 // TestLiesRueckgabeFolgen (Z9, SPEC-285 Nr. 1): die Funktion ändert die Eingabe nie, löst keine Panik aus und liefert für jede Folge der Länge 0 bis 6 über
