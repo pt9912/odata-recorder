@@ -95,7 +95,7 @@ func TestKonfigLeer(t *testing.T) {
 		"REDACT_JSON_PATHS", "MAX_CAPTURE_BODY", "UPSTREAM_TIMEOUT", "UPSTREAM_CA_FILE", "UPSTREAM_TLS_VERIFY",
 		"UPSTREAM_TLS_INSECURE_SKIP_VERIFY", "SHUTDOWN_TIMEOUT", "RETENTION_MAX_AGE", "SQLITE_BUSY_TIMEOUT",
 		"VOLATILE_HEADERS", "LINK_REWRITE", "SERVICES_FILE", "STRICT_COVERAGE", "PUBLIC_BASE_URL", "ADMIN_TOKEN_FILE",
-		"ETAG_ENABLED",
+		"ETAG_ENABLED", "HYBRID_FALLBACK", "HYBRID_REPLAY_FALLBACK", "FALLBACK_ALLOW_HOSTS", "FALLBACK_WRITE_ALLOW",
 	} {
 		for _, leer := range []string{"", "  ", "\t"} {
 			k := erwarteGueltig(t, append(basis(t), key+"="+leer)...)
@@ -218,10 +218,9 @@ func TestKonfigHeaderSchreibweise(t *testing.T) {
 }
 
 // TestKonfigNichtGeliefert fängt A06: jeder nicht gelieferte Schlüssel und jedes Präfix × die Modi record, replay und mock;
-// STRICT_COVERAGE und PUBLIC_BASE_URL gehören nicht mehr dazu (SPEC-110 Nr. 2).
+// STRICT_COVERAGE, PUBLIC_BASE_URL und die vier Schlüssel des Modus hybrid gehören nicht mehr dazu (SPEC-110 Nr. 2).
 func TestKonfigNichtGeliefert(t *testing.T) {
-	namen := []string{"ADMIN_LISTEN", "ADMIN_TOKEN_FILE", "HYBRID_FALLBACK", "HYBRID_REPLAY_FALLBACK", "FALLBACK_ALLOW_HOSTS",
-		"FALLBACK_WRITE_ALLOW", "LISTEN_TLS_CERT", "LISTEN_TLS_KEY", "ADMIN_X", "HYBRID_X", "FALLBACK_X", "LISTEN_TLS_X"}
+	namen := []string{"ADMIN_LISTEN", "ADMIN_TOKEN_FILE", "LISTEN_TLS_CERT", "LISTEN_TLS_KEY", "ADMIN_X", "LISTEN_TLS_X"}
 	for _, modus := range []string{"record", "replay", "mock"} {
 		for _, key := range namen {
 			env := append(basis(t), "MODE="+modus)
@@ -381,9 +380,8 @@ func TestKonfigURL(t *testing.T) {
 
 func TestKonfigModus(t *testing.T) {
 	d := "DATA_DIR=" + filepath.Join(t.TempDir(), "m")
-	const hybrid = "ODR-E2001 MODE: Modus nicht unterstützt; lieferbar sind record, replay und mock"
 	const form = "ODR-E2001 MODE: Wert nicht in der Aufzählung: record, replay, mock, hybrid"
-	// A01: ungesetzt, leer und die drei lieferbaren Modi laden ohne Verstoß; hybrid und die Schreibweisen melden genau ihre Zeile.
+	// A01: ungesetzt, leer und die vier lieferbaren Modi laden ohne Verstoß; die Schreibweisen melden genau ihre Zeile.
 	for _, tc := range []struct {
 		mode  []string
 		modus string
@@ -391,8 +389,7 @@ func TestKonfigModus(t *testing.T) {
 	}{
 		{nil, "mock", nil}, {[]string{"MODE="}, "mock", nil}, {[]string{"MODE=mock"}, "mock", nil},
 		{[]string{"MODE=record"}, "record", nil}, {[]string{"MODE=replay"}, "replay", nil},
-		{[]string{"MODE=hybrid"}, "", []string{hybrid}},
-		{[]string{"MODE=hybrid", "HYBRID_FALLBACK=x"}, "", []string{"ODR-E2001 HYBRID_FALLBACK: wird von dieser Version nicht unterstützt", hybrid}},
+		{[]string{"MODE=hybrid"}, "hybrid", nil},
 		{[]string{"MODE=Mock"}, "", []string{form}}, {[]string{"MODE=MOCK"}, "", []string{form}},
 	} {
 		k, zeilen := lade(t, append(tc.mode, d, "UPSTREAM_URL=https://h")...)
@@ -402,16 +399,16 @@ func TestKonfigModus(t *testing.T) {
 	}
 	// Die Syntax der übrigen Schlüssel wird trotzdem geprüft und mitgemeldet.
 	_, zeilen := lade(t, "MODE=hybrid", d, "LISTEN=kaputt")
-	if s := schluessel(t, zeilen); !slices.Equal(s, []string{"LISTEN", "MODE"}) {
+	if s := schluessel(t, zeilen); !slices.Equal(s, []string{"LISTEN"}) {
 		t.Errorf("Schlüssel %v", s)
 	}
 	_, zeilen = lade(t, "MODE=mock", d, "LISTEN=kaputt")
 	if s := schluessel(t, zeilen); !slices.Equal(s, []string{"LISTEN"}) {
 		t.Errorf("mock mit kaputtem LISTEN: Schlüssel %v", s)
 	}
-	// bei einem Verstoß, hier MODE=hybrid, wird kein DATA_DIR angelegt
+	// bei einem Verstoß, hier ADMIN_LISTEN, wird kein DATA_DIR angelegt
 	frisch := filepath.Join(t.TempDir(), "frisch")
-	lade(t, "MODE=hybrid", "DATA_DIR="+frisch)
+	lade(t, "ADMIN_LISTEN=127.0.0.1:1", "DATA_DIR="+frisch)
 	if _, err := os.Stat(frisch); err == nil {
 		t.Error("DATA_DIR bei Start-Verstoß angelegt")
 	}
@@ -721,7 +718,7 @@ func TestKonfigWiederholung(t *testing.T) {
 	if !reflect.DeepEqual(a, b) {
 		t.Error("zweimal geladen, Werte verschieden")
 	}
-	bad := []string{"MODE=hybrid", "LISTEN=x", "UPSTREAM_TIMEOUT=y", "DATA_DIR=" + filepath.Join(t.TempDir(), "d")}
+	bad := []string{"ADMIN_LISTEN=127.0.0.1:1", "LISTEN=x", "UPSTREAM_TIMEOUT=y", "DATA_DIR=" + filepath.Join(t.TempDir(), "d")}
 	_, z1 := lade(t, bad...)
 	_, z2 := lade(t, bad...)
 	if !reflect.DeepEqual(z1, z2) || len(z1) == 0 {
@@ -729,7 +726,7 @@ func TestKonfigWiederholung(t *testing.T) {
 	}
 }
 
-// TestKonfigModusUngueltig: ein ungültiger Wert wird einmal gemeldet, nicht zusätzlich als „Modus nicht unterstützt“.
+// TestKonfigModusUngueltig: ein ungültiger Wert wird mit genau einer Zeile gemeldet.
 func TestKonfigModusUngueltig(t *testing.T) {
 	_, zeilen := lade(t, "MODE=Record", "DATA_DIR="+filepath.Join(t.TempDir(), "d"))
 	if s := schluessel(t, zeilen); !slices.Equal(s, []string{"MODE"}) {

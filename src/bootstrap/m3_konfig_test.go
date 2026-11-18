@@ -270,14 +270,14 @@ func TestKonfigPublicBaseURLLaenge(t *testing.T) {
 	}
 }
 
-// TestKonfigPublicBaseURLAbleitung fängt A05: Host × Port × Modus; im Modus mock leitet die Konfiguration die Basis aus LISTEN ab,
-// wenn der Host Loopback ist (Port ohne führende Nullen), sonst ist es ein Verstoß; in den anderen Modi und bei ungültigem MODE
-// gibt es keinen Verstoß und der Wert ist leer (SPEC-110 Nr. 14 c).
+// TestKonfigPublicBaseURLAbleitung fängt A05: Host × Port × Modus; in den Modi mock und hybrid leitet die Konfiguration die Basis aus
+// LISTEN ab, wenn der Host Loopback ist (Port ohne führende Nullen), sonst ist es ein Verstoß; in den Modi record und replay und
+// bei ungültigem MODE gibt es keinen Verstoß und der Wert ist leer (SPEC-110 Nr. 14 c).
 func TestKonfigPublicBaseURLAbleitung(t *testing.T) {
 	hosts := map[string]bool{"127.0.0.1": true, "[::1]": true, "localhost": true, "0.0.0.0": false, "[::]": false, "LOCALHOST": false,
 		"127.0.0.2": false, "example.org": false, "[0:0:0:0:0:0:0:1]": false}
 	ports := map[string]string{"8080": "8080", "08080": "8080", "000080": "80"}
-	const pflicht = "ODR-E2001 PUBLIC_BASE_URL: im Modus mock bei diesem Host erforderlich"
+	const pflicht = "ODR-E2001 PUBLIC_BASE_URL: im Modus mock oder hybrid bei diesem Host erforderlich"
 	n := 0
 	for host, loopback := range hosts {
 		for port, ohneNull := range ports {
@@ -285,11 +285,11 @@ func TestKonfigPublicBaseURLAbleitung(t *testing.T) {
 				n++
 				k, zeilen := lade(t, append(basis(t), "MODE="+modus, "LISTEN="+host+":"+port)...)
 				switch {
-				case modus == "mock" && loopback:
+				case (modus == "mock" || modus == "hybrid") && loopback:
 					if len(zeilen) != 0 || k.PublicBaseURL != "http://"+host+":"+ohneNull {
 						t.Errorf("%s %s:%s: %q, %v", modus, host, port, k.PublicBaseURL, zeilen)
 					}
-				case modus == "mock":
+				case modus == "mock" || modus == "hybrid":
 					if !slices.Equal(zeilen, []string{pflicht}) {
 						t.Errorf("%s %s:%s: Zeilen %v", modus, host, port, zeilen)
 					}
@@ -297,7 +297,7 @@ func TestKonfigPublicBaseURLAbleitung(t *testing.T) {
 					if len(zeilen) != 0 || k.PublicBaseURL != "" {
 						t.Errorf("%s %s:%s: %q, %v", modus, host, port, k.PublicBaseURL, zeilen)
 					}
-				default: // hybrid und ungültig: allein die Zeile MODE
+				default: // ungültiger Modus: allein die Zeile MODE
 					if len(zeilen) != 1 || !strings.HasPrefix(zeilen[0], "ODR-E2001 MODE: ") {
 						t.Errorf("%s %s:%s: Zeilen %v", modus, host, port, zeilen)
 					}

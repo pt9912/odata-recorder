@@ -15,7 +15,7 @@ import (
 
 // nichtGelieferte sind die Präfixe der Schlüssel, die diese Version nicht liefert (SPEC-110 Nr. 2).
 func nichtGelieferte() []string {
-	return []string{"ADMIN_", "HYBRID_", "FALLBACK_", "LISTEN_TLS_"}
+	return []string{"ADMIN_", "LISTEN_TLS_"}
 }
 
 func (p *pruefer) nichtGeliefert() {
@@ -29,16 +29,13 @@ func (p *pruefer) nichtGeliefert() {
 	}
 }
 
-// liesModus liest MODE (SPEC-110 Nr. 8): ungesetzt ist mock, hybrid ist ein gültiger, nicht gelieferter Wert.
+// liesModus liest MODE (SPEC-110 Nr. 8): ungesetzt ist mock, lieferbar sind record, replay, mock und hybrid.
 // Ein ungültiger Wert lässt den Modus leer, damit die Pflichten, die am gültigen Modus hängen, entfallen.
 func (p *pruefer) liesModus(k *Konfiguration) {
 	vorher := len(p.verstoesse)
 	k.Modus = p.aufzaehlung("MODE", modusMock, modusRecord, modusReplay, modusMock, modusHybrid)
-	switch {
-	case len(p.verstoesse) > vorher:
+	if len(p.verstoesse) > vorher {
 		k.Modus = ""
-	case k.Modus == modusHybrid:
-		p.melde("MODE", "Modus nicht unterstützt; lieferbar sind record, replay und mock")
 	}
 }
 
