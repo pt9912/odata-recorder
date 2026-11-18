@@ -69,6 +69,6 @@ Alles Übrige bleibt in der Prüfmenge: Schwellen, Regeln und Module sind unver�
    - **f) Die Gates, die nicht gefahren wurden** (Nr. 1): `make lint`, `make build`, `make test`, `make test-race`, `make handbuch-check`, `make katalog-check`, `make migration-check`, `make schema-check`, `make gegenproben`. Grund: Last des Hosts über der Grenze für schwere Läufe; der Mechanismus ist gelesen (Skripte, `Dockerfile`, `.dockerignore`) und für den Kontext gemessen. Folge: eine Abweichung fände erst der Lauf der Gates in einem Hauptbaum mit Arbeitsbaum; `make gates` im Hauptbaum mit einem Arbeitsbaum unter `.wt/` ist der Beleg, den der Verifier fährt.
    - **g) Verdrahtung.** Dass die Zeile in `.a-check.yml` und der Eintrag in `.d-check.yml` im Repo stehen, fängt nur Fall 1 und 5 der Nr. 5 (Mutation: Zeile weg). Dass `.a-check.yml` und `.d-check.yml` in den Eingaben der Prüfsumme der Gegenproben stehen, ist Bestand (`SPEC-040` Nr. 10 h).
 
-**Stand:** vorgesehen; Vertrag vor dem Code. Geliefert wird mit den Zeilen von Nr. 3 und den Fällen von Nr. 5.
+**Stand:** vorhanden: die Zeilen von Nr. 3 in `.a-check.yml` und `.d-check.yml` und die Fälle 205 bis 213 von `SPEC-102`, je Zeile von Nr. 5 einer (a-check 205 bis 208 für die Zeilen 1 bis 4, docs-check 209 bis 213 für die Zeilen 5 bis 9).
 
 **Grenze:** Nimmt einen Pfad aus, der kein Stand ist; prüft nicht, ob ein anderer Pfad künftig zu einem Arbeitsbaum wird, und nicht, ob jemand etwas unter `.wt/` committet (Nr. 6 a).

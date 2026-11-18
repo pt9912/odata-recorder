@@ -8,12 +8,14 @@ scan:
   # aufloesen. Der Bootstrap legt seine Vorlagen unter .harness/baseline/ ab; das Muster nimmt
   # eine Vorlage in jedem anderen Baum ebenso aus.
   # .tmp/**: Arbeitsablage der Laeufe, kein Artefakt.
+  # .wt/**: Arbeitsbaeume (git worktree), nie Teil eines Commits; jeder wird an seinem Ort geprueft.
+  # An der Wurzel verankert, ein Verzeichnis .wt im Quellbaum bleibt geprueft (SPEC-212 Nr. 3 b).
   # .harness/**: was der Bootstrap unter .harness/ ablegt. Markdown liegt dort in zwei Baeumen:
   # .harness/baseline/ (der vendored Kurs-Stand, Regelwerk und Vorlagen — fremder Text, den
   # dieses Repo nicht schreibt) und .harness/skills/ (die Reviewer-Skills; sie gehoeren nach dem
   # Bootstrap dem Repo und bleiben trotzdem ungeprueft, ein Verweis darin faellt keinem Modul
   # auf). Daneben liegen dort das Sprachskelett-Staging und der Zustands-Bereich .harness/state/.
-  ignore: ["**/*.template.md", ".tmp/**", ".harness/**"]
+  ignore: ["**/*.template.md", ".tmp/**", ".wt/**", ".harness/**"]
 modules: [links, anchors, ids, matrix, codepaths, spans, planning, structure, targets, file]
 ids:
   patterns:

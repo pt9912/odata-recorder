@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -349,8 +350,14 @@ func gdSchreibe(dir string, dateien map[string]string) error {
 // mit der Zeile `modules: [structure, file]` davor. Fehlt ein Block in der Datei, fehlt er auch in der
 // Konfiguration des Falls; die Fälle 167 bis 169 melden es als fehlenden Befund.
 func gdEchtKonfig(quelle string) string {
+	return gdBloecke(quelle, "modules: [structure, file]\n", "scan", "structure", "file")
+}
+
+// gdBloecke setzt kopf vor die Top-Level-Blöcke namen der echten Konfiguration, samt Einrückung und
+// ohne Kommentarzeilen und Leerzeilen.
+func gdBloecke(quelle, kopf string, namen ...string) string {
 	var b strings.Builder
-	b.WriteString("modules: [structure, file]\n")
+	b.WriteString(kopf)
 	aktuell := ""
 	for _, z := range strings.Split(quelle, "\n") {
 		if strings.TrimSpace(z) == "" || strings.HasPrefix(strings.TrimSpace(z), "#") {
@@ -359,8 +366,7 @@ func gdEchtKonfig(quelle string) string {
 		if z[0] != ' ' && z[0] != '\t' && z[0] != '-' {
 			aktuell, _, _ = strings.Cut(z, ":")
 		}
-		switch aktuell {
-		case "scan", "structure", "file":
+		if slices.Contains(namen, aktuell) {
 			b.WriteString(z + "\n")
 		}
 	}
