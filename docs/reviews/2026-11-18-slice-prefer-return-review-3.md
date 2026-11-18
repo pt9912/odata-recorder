@@ -2,7 +2,7 @@
 
 * Rolle: Reviewer, frischer Kontext. Gegenstand: `git show 1c2379b9` (Fix-Runde 2) gegen die Klasse (`AGENTS.md` §3.17), §3.11, §3.9.
 * Vorrunden: `2026-11-18-slice-prefer-return-review.md`, `-review-2.md`.
-* Bezug: LH-FA-07, ADR-0001.
+* Bezug: LH-FA-07, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md).
 * Messung: `sh tools/harness/mutationslauf.sh` (Image `odata-recorder:race`, netzlos, unter `flock` auf `.wt/heavy.lock`), 25 Mutationen, je ein Prozess je Stufe, ohne Detektor; Last des Hosts 34,3 bis 5,0 von 4 CPUs (Spalte `last`); Messender: der Reviewer. Die Liste liegt nicht im Repo.
 
 ## Findings
