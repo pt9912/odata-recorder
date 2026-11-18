@@ -63,7 +63,7 @@ gehört zurück zur Zerlegung.
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag (§7).
 - [x] Beobachtungs-Register (`../observations/`) fortgeschrieben (§7).
 - [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen.
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen: kein Feld `liegt in`, nichts zu paaren; der Nehmer der Sendung ruht in `open/` und trägt sie; das Register trägt die sieben Belege (`../observations/BEO-REPO/`).
 
 ## 3. Plan (vor Code)
 
