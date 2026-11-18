@@ -31,10 +31,9 @@ func abBefund(pfad string) string {
 
 // abLesend sind die Module von d-check, die scan.ignore lesen; abNichtLesend die, die es nicht lesen
 // (SPEC-212 Nr. 3 b).
-var (
-	abLesend      = []string{"links", "anchors", "ids", "matrix", "codepaths", "spans"}
-	abNichtLesend = []string{"file", "structure", "targets", "planning"}
-)
+func abLesend() []string { return []string{"links", "anchors", "ids", "matrix", "codepaths", "spans"} }
+
+func abNichtLesend() []string { return []string{"file", "structure", "targets", "planning"} }
 
 // abModule liefert die Wörter der Zeile `modules:` der Konfiguration quelle.
 func abModule(quelle string) ([]string, error) {
@@ -66,11 +65,11 @@ func abPruefeModule(quelle string) error {
 		return err
 	}
 	for _, w := range m {
-		if n := btoi(slices.Contains(abLesend, w)) + btoi(slices.Contains(abNichtLesend, w)); n != 1 {
+		if n := btoi(slices.Contains(abLesend(), w)) + btoi(slices.Contains(abNichtLesend(), w)); n != 1 {
 			return fmt.Errorf("modules: %q steht in %d der zwei Listen von SPEC-212 Nr. 3 b statt in einer", w, n)
 		}
 	}
-	for _, w := range slices.Concat(abLesend, abNichtLesend) {
+	for _, w := range slices.Concat(abLesend(), abNichtLesend()) {
 		if !slices.Contains(m, w) {
 			return fmt.Errorf("modules: nennt %q nicht, die Listen von SPEC-212 Nr. 3 b führen es", w)
 		}
@@ -112,94 +111,138 @@ func abWert(v string) string {
 func abRegeln(quelle string) ([]abRegel, error) {
 	var regeln []abRegel
 	for _, block := range []string{"structure", "file"} {
-		zeilen := strings.Split(strings.TrimRight(gdBloecke(quelle, "", block), "\n"), "\n")
-		if zeilen[0] != block+":" {
-			return nil, fmt.Errorf("Block %s fehlt", block)
+		r, err := abBlock(quelle, block)
+		if err != nil {
+			return nil, err
 		}
-		ri := -1
-		for _, z := range zeilen[1:] {
-			k, v, ok := strings.Cut(strings.TrimPrefix(strings.TrimSpace(z), "- "), ":")
-			if !ok {
-				return nil, fmt.Errorf("Block %s: Zeile ohne Schlüssel: %q", block, z)
-			}
-			v = abWert(v)
-			if k == "files" {
-				regeln = append(regeln, abRegel{block: block, glob: v})
-				ri = len(regeln) - 1
-				continue
-			}
-			if ri < 0 {
-				return nil, fmt.Errorf("Block %s: Schlüssel %q vor der ersten Regel", block, k)
-			}
-			r := &regeln[ri]
-			var err error
-			switch k {
-			case "section":
-				r.section = v
-			case "section-pattern":
-				r.muster = v
-			case "sections":
-				if v != "each" {
-					err = fmt.Errorf("sections: %q", v)
-				}
-			case "max-lines":
-				r.zeilen, err = strconv.Atoi(v)
-			case "max-bytes":
-				r.bytes, err = strconv.Atoi(v)
-			case "table", "column":
-				if v != "" {
-					err = fmt.Errorf("%s: Wert %q", k, v)
-				}
-			case "name":
-				r.spalten = append(r.spalten, abSpalte{name: v})
-			case "cell-max-chars":
-				if len(r.spalten) == 0 {
-					err = fmt.Errorf("cell-max-chars ohne Spalte")
-				} else {
-					r.spalten[len(r.spalten)-1].max, err = strconv.Atoi(v)
-				}
-			default:
-				err = fmt.Errorf("unbekannter Schlüssel")
-			}
-			if err != nil {
-				return nil, fmt.Errorf("Block %s, Regel %q, Schlüssel %q: %w", block, r.glob, k, err)
-			}
+		regeln = append(regeln, r...)
+	}
+	return regeln, nil
+}
+
+// abBlock liest die Regeln des Blocks block.
+func abBlock(quelle, block string) ([]abRegel, error) {
+	zeilen := strings.Split(strings.TrimRight(gdBloecke(quelle, "", block), "\n"), "\n")
+	if zeilen[0] != block+":" {
+		return nil, fmt.Errorf("Block %s fehlt", block)
+	}
+	var regeln []abRegel
+	for _, z := range zeilen[1:] {
+		k, v, ok := strings.Cut(strings.TrimPrefix(strings.TrimSpace(z), "- "), ":")
+		if !ok {
+			return nil, fmt.Errorf("Block %s: Zeile ohne Schlüssel: %q", block, z)
+		}
+		v = abWert(v)
+		if k == "files" {
+			regeln = append(regeln, abRegel{block: block, glob: v})
+			continue
+		}
+		if len(regeln) == 0 {
+			return nil, fmt.Errorf("Block %s: Schlüssel %q vor der ersten Regel", block, k)
+		}
+		r := &regeln[len(regeln)-1]
+		if err := r.setze(k, v); err != nil {
+			return nil, fmt.Errorf("Block %s, Regel %q, Schlüssel %q: %w", block, r.glob, k, err)
 		}
 	}
 	return regeln, nil
 }
 
-// abUeberschriften sind die Überschriften, die ein section-pattern der Konfiguration trifft.
-var abUeberschriften = map[string]string{`^### 3\.\d+ `: "### 3.1 x\n"}
+// setze trägt den Schlüssel k mit dem Wert v in die Regel ein; ein Schlüssel außerhalb der Form der echten
+// Datei ist ein Fehler.
+func (r *abRegel) setze(k, v string) error {
+	switch k {
+	case "section":
+		r.section = v
+	case "section-pattern":
+		r.muster = v
+	case "sections":
+		if v != "each" {
+			return fmt.Errorf("sections: %q", v)
+		}
+	case "max-lines":
+		return abZahl(&r.zeilen, v)
+	case "max-bytes":
+		return abZahl(&r.bytes, v)
+	case "table", "column":
+		if v != "" {
+			return fmt.Errorf("%s: Wert %q", k, v)
+		}
+	case "name":
+		r.spalten = append(r.spalten, abSpalte{name: v})
+	case "cell-max-chars":
+		if len(r.spalten) == 0 {
+			return fmt.Errorf("cell-max-chars ohne Spalte")
+		}
+		return abZahl(&r.spalten[len(r.spalten)-1].max, v)
+	default:
+		return fmt.Errorf("unbekannter Schlüssel")
+	}
+	return nil
+}
+
+func abZahl(ziel *int, v string) error {
+	n, err := strconv.Atoi(v)
+	*ziel = n
+	return err
+}
+
+// abUeberschrift ist die Überschrift, die das section-pattern der Konfiguration trifft.
+func abUeberschrift(muster string) (string, bool) {
+	if muster == `^### 3\.\d+ ` {
+		return "### 3.1 x\n", true
+	}
+	return "", false
+}
+
+// form ist die Form der Regel: der Block und je eine Marke für section-pattern, section, Spalten, max-lines
+// und max-bytes (T gesetzt, F nicht).
+func (r abRegel) form() string {
+	m := func(b bool) string {
+		if b {
+			return "T"
+		}
+		return "F"
+	}
+	return r.block + ":" + m(r.muster != "") + m(r.section != "") + m(len(r.spalten) > 0) + m(r.zeilen > 0) + m(r.bytes > 0)
+}
 
 // eingabe ist der Inhalt, der diese Regel an ihrem Pfad an der Wurzel verletzte: bei file 50 000 Zeilen zu
 // 16 Bytes, bei section-pattern ein Abschnitt dieser Länge, bei section und table eine Tabelle unter der
 // Überschrift mit Zellen von cell-max-chars + 1 Zeichen in den Spalten der Regel. Jede andere Form und jede
 // Grenze, die die Eingabe nicht überschreitet, ist ein Fehler.
 func (r abRegel) eingabe() (string, error) {
-	gross := strings.Repeat(gdZeile16, gdGross)
-	switch {
-	case r.block == "file" && r.muster == "" && r.section == "" && (r.zeilen > 0 || r.bytes > 0):
-		if r.zeilen >= gdGross || r.bytes >= len(gross) {
-			return "", fmt.Errorf("Regel %q: Grenze %d Zeilen, %d Bytes liegt nicht unter der Eingabe", r.glob, r.zeilen, r.bytes)
-		}
-		return gross, nil
-	case r.block == "structure" && r.muster != "" && r.section == "" && r.zeilen > 0 && len(r.spalten) == 0:
-		h, ok := abUeberschriften[r.muster]
-		if !ok {
-			return "", fmt.Errorf("Regel %q: section-pattern %q ist dem Aufbau unbekannt", r.glob, r.muster)
-		}
-		if re, err := regexp.Compile(r.muster); err != nil || !re.MatchString(h) {
-			return "", fmt.Errorf("Regel %q: die Überschrift %q trifft %q nicht", r.glob, h, r.muster)
-		}
-		if r.zeilen >= gdGross {
-			return "", fmt.Errorf("Regel %q: max-lines %d liegt nicht unter der Eingabe", r.glob, r.zeilen)
-		}
-		return h + gross, nil
-	case r.block == "structure" && r.muster == "" && r.section != "" && len(r.spalten) > 0 && r.zeilen == 0 && r.bytes == 0:
+	switch r.form() {
+	case "file:FFFTT", "file:FFFTF", "file:FFFFT":
+		return r.eingabeDatei()
+	case "structure:TFFTF":
+		return r.eingabeAbschnitt()
+	case "structure:FTTFF":
 		return r.tabelle()
 	}
 	return "", fmt.Errorf("Regel %q des Blocks %s hat eine dem Aufbau unbekannte Form", r.glob, r.block)
+}
+
+func (r abRegel) eingabeDatei() (string, error) {
+	gross := strings.Repeat(gdZeile16, gdGross)
+	if r.zeilen >= gdGross || r.bytes >= len(gross) {
+		return "", fmt.Errorf("Regel %q: Grenze %d Zeilen, %d Bytes liegt nicht unter der Eingabe", r.glob, r.zeilen, r.bytes)
+	}
+	return gross, nil
+}
+
+func (r abRegel) eingabeAbschnitt() (string, error) {
+	h, ok := abUeberschrift(r.muster)
+	if !ok {
+		return "", fmt.Errorf("Regel %q: section-pattern %q ist dem Aufbau unbekannt", r.glob, r.muster)
+	}
+	if re, err := regexp.Compile(r.muster); err != nil || !re.MatchString(h) {
+		return "", fmt.Errorf("Regel %q: die Überschrift %q trifft %q nicht", r.glob, h, r.muster)
+	}
+	if r.zeilen >= gdGross {
+		return "", fmt.Errorf("Regel %q: max-lines %d liegt nicht unter der Eingabe", r.glob, r.zeilen)
+	}
+	return h + strings.Repeat(gdZeile16, gdGross), nil
 }
 
 // tabelle ist die Tabelle unter der Überschrift der Regel mit Zellen von cell-max-chars + 1 Zeichen.
@@ -409,7 +452,7 @@ func abDefektVon(m string) (abDefekt, bool) {
 // fehlenden Befund (abBefundeJeModul).
 func abModuleDateien(prefix string) map[string]string {
 	d := map[string]string{abAdr: "# T\n\n**Status:** Superseded\n"}
-	for _, m := range abLesend {
+	for _, m := range abLesend() {
 		x, ok := abDefektVon(m)
 		if !ok {
 			continue
@@ -423,7 +466,7 @@ func abModuleDateien(prefix string) map[string]string {
 }
 
 // abModuleKonfig ist die Zeile modules: der Fälle 214 und 215, die sechs lesenden Module.
-func abModuleKonfig() string { return "modules: [" + strings.Join(abLesend, ", ") + "]\n" }
+func abModuleKonfig() string { return "modules: [" + strings.Join(abLesend(), ", ") + "]\n" }
 
 // abModuleFall baut Fall 214 (prefix `.wt/w/`) und Fall 215 (prefix `x/`): die Blöcke scan, ids, codepaths
 // und matrix der echten Konfiguration und je lesendes Modul sein Defekt unter prefix. Steht der Defekt
@@ -442,7 +485,7 @@ func abModuleFall(pfad, name, prefix string, exit int, want ...string) Fall {
 func abBefundeJeModul(prefix string) func(Lauf) string {
 	return func(l Lauf) string {
 		zeilen := strings.Split(strings.TrimRight(l.Out, "\n"), "\n")
-		for _, m := range abLesend {
+		for _, m := range abLesend() {
 			x, ok := abDefektVon(m)
 			if !ok {
 				return "kein Defekt für " + m
@@ -457,8 +500,8 @@ func abBefundeJeModul(prefix string) func(Lauf) string {
 				return fmt.Sprintf("%s: %d Zeilen %s statt 1", prefix+x.datei, n, x.code)
 			}
 		}
-		if len(zeilen) != len(abLesend) {
-			return fmt.Sprintf("%d Zeilen auf stdout statt %d", len(zeilen), len(abLesend))
+		if len(zeilen) != len(abLesend()) {
+			return fmt.Sprintf("%d Zeilen auf stdout statt %d", len(zeilen), len(abLesend()))
 		}
 		return ""
 	}

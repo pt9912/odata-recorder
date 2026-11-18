@@ -258,7 +258,7 @@ func TestAbPaareLoestDenGlobVonDerWurzel(t *testing.T) {
 	regeln, _ := abRegeln(abBeispiel())
 	for _, r := range regeln {
 		for _, vor := range []string{"**/", "*/*/"} {
-			k := strings.Replace(abBeispiel(), "files: \""+r.glob+"\"", "files: \""+vor+r.glob+"\"", -1)
+			k := strings.ReplaceAll(abBeispiel(), "files: \""+r.glob+"\"", "files: \""+vor+r.glob+"\"")
 			paare, err := abPaare(k)
 			if err != nil || len(paare) != len(grund) {
 				t.Errorf("%s%s: %d Paare statt %d, Fehler %v", vor, r.glob, len(paare), len(grund), err)
@@ -280,7 +280,7 @@ func TestModuleFaelleLegenJedenDefektAn(t *testing.T) {
 		if !strings.Contains(lies(t, dir, abAdr), "**Status:** Superseded") {
 			t.Errorf("Fall %d: ADR-Datei ohne Status Superseded", 209+i)
 		}
-		for _, m := range abLesend {
+		for _, m := range abLesend() {
 			x, ok := abDefektVon(m)
 			if !ok {
 				t.Fatalf("kein Defekt für %s", m)
@@ -295,8 +295,8 @@ func TestModuleFaelleLegenJedenDefektAn(t *testing.T) {
 			}
 		}
 	}
-	if len(abDefekte()) != len(abLesend) {
-		t.Errorf("%d Defekte für %d Module", len(abDefekte()), len(abLesend))
+	if len(abDefekte()) != len(abLesend()) {
+		t.Errorf("%d Defekte für %d Module", len(abDefekte()), len(abLesend()))
 	}
 	if fs[5].WantExit != 0 || fs[6].WantExit != 1 || fs[5].Nachher != nil || fs[6].Nachher == nil {
 		t.Error("Erwartung der Fälle 214 und 215 weicht ab")
@@ -307,8 +307,8 @@ func TestModuleFaelleLegenJedenDefektAn(t *testing.T) {
 // der Listen steht in der Zeile; ein Modul außerhalb beider Listen, in einer Liste ohne Zeile oder eine
 // Zeile ohne Liste ist ein Fehler.
 func TestKlassifikationDerModule(t *testing.T) {
-	if len(abLesend) != 6 || len(abNichtLesend) != 4 {
-		t.Fatalf("%d lesende und %d nicht lesende Module statt 6 und 4", len(abLesend), len(abNichtLesend))
+	if len(abLesend()) != 6 || len(abNichtLesend()) != 4 {
+		t.Fatalf("%d lesende und %d nicht lesende Module statt 6 und 4", len(abLesend()), len(abNichtLesend()))
 	}
 	if err := abPruefeModule(abBeispiel()); err != nil {
 		t.Fatalf("Beispiel: %v", err)
@@ -333,8 +333,8 @@ func TestKlassifikationDerModule(t *testing.T) {
 			t.Errorf("%s: kein Fehler", name)
 		}
 	}
-	for _, m := range abLesend {
-		if slices.Contains(abNichtLesend, m) {
+	for _, m := range abLesend() {
+		if slices.Contains(abNichtLesend(), m) {
 			t.Errorf("%s steht in beiden Listen", m)
 		}
 	}
@@ -369,7 +369,7 @@ func TestFall216LegtDieTabelleImHauptbauAn(t *testing.T) {
 // Datei, oder steht eine zu viel da, meldet sie es.
 func TestBefundeJeModulFaengtJedesElement(t *testing.T) {
 	var zeilen []string
-	for _, m := range abLesend {
+	for _, m := range abLesend() {
 		x, _ := abDefektVon(m)
 		zeilen = append(zeilen, "x/"+x.datei+":1\tziel\t"+x.code+"\tmeldung\n")
 	}
