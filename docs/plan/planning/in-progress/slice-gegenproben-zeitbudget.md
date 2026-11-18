@@ -120,7 +120,7 @@ Der Planner schneidet; der Architect entscheidet (unten), der Implementer erweit
 | Eine kurze Last-Spitze zwischen den Lesungen bleibt unsichtbar | das Mittel über 1 Minute am Ende deckt die letzten 60 s eines Laufs, der meist länger als 60 s dauert; mehr Lesungen verlangt kein Beleg | ein Fall mit `Zeit überschritten` kann als Befund erscheinen, den ein Lauf auf ruhigem Host entkräftet; der Planner wiederholt dort |
 | Treiber-Aufruf und `git` in der Nachprüfung über der Frist melden nicht `Zeit überschritten` | der Aufruf wirft den Ablauf weg (`code, out, _ := starte(…)`); die Nachprüfung wertet den Exit -1 | ein solcher Fall zählt nach Nr. 5 f als Befund statt als durch Last entschuldigt, also Richtung Planner und nie Richtung Wiederholung |
 
-**Erwartete Größe** für die Marke des Planners (Messung nach `SPEC-128`, Pfade dieses Plans, Tests eingeschlossen): Produktcode Go rund 15 Zeilen (`main.go`: `bewerteBau` mit drei Zweigen und sein Aufruf in `fuehreFall`), Tests Go rund 100 Zeilen (`main_test.go` rund 50, `frist_test.go` rund 50), ein Fake-Paar (`Bauen`, `Befehl`) in Zeile 6 von je rund 5 Zeilen; Vertrag `SPEC-102` 23 Zeilen (16 neu, 7 ersetzt, gemessen mit `git diff --numstat` am Stand des Architect), Plan eigene Zeilen. Die Tabelle hat 7 Zeilen *andere*, 0 *nebenläufig*; erwartet ist ein kleiner Slice weit unter der Schnittgrenze von `SPEC-128` Nr. 1, der Planner rechnet nach der Formel.
+**Erwartete Größe** für die Marke des Planners (Messung nach `SPEC-128`, Pfade dieses Plans, Tests eingeschlossen): Produktcode Go rund 15 Zeilen (`main.go`: `bewerteBau` mit drei Zweigen und sein Aufruf in `fuehreFall`), Tests Go rund 100 Zeilen (`main_test.go` rund 50, `frist_test.go` rund 50), ein Fake-Paar (`Bauen`, `Befehl`) in Zeile 6 von je rund 5 Zeilen; Vertrag `SPEC-102` 23 Zeilen (16 neu, 7 ersetzt, gemessen mit `git diff --numstat` am Stand des Architect), Plan eigene Zeilen. Die Tabelle hat 7 Zeilen *andere*, 0 *nebenläufig*; erwartet ist ein kleiner Slice weit unter der Schnittgrenze von `SPEC-128` Nr. 1. Der Planner hat nach der Formel gerechnet: *S* 975, Marke 1400, keine Schnittfrage (Block und Rechnung in §4); die erwartete Messung liegt bei rund 125 Zeilen (15 Produktcode, 100 Tests, 10 Fakes), also weit unter der Marke.
 
 ## 4. Trigger
 
@@ -129,7 +129,28 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): kein anderer Slice der Gate-Kette liegt in `in-progress/` (Nr. 7 der Übergangsregeln: ein Besitzer zugleich). Reihenfolge der Kette seit 2026-11-08: `slice-gate-integration-determinism`, `slice-guard-schreibwege`, `slice-regeln-verkoerpern`, `slice-groessenformel-neu`, dann dieser Slice; der Start legt fest, ob er vor `slice-groessenformel-neu` rückt, solange dessen Beschluss des Users aussteht. Höchstens drei Slice-Worktrees zugleich. [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) ist `Accepted`.
 
-**Größenmarke:** Prosa, kein Block, vorläufig. Die Marke setzt der Planner vor dem ersten Code-Commit mit `make groessenmarke` nach `SPEC-128` Nr. 1 und `AGENTS.md` §3.14; die Schätzung kommt aus der Tabelle des Architect in §3 (7 Zeilen *andere*, Größe unten in §3). Erwartet ist ein kleiner Slice (wenig Go, kein neuer Fall); der Planner rechnet und schneidet vor dem Code, wenn *S* die Schnittgrenze von `SPEC-128` Nr. 1 erreicht.
+**Größenmarke:** Marke 1400 Zeilen (Summe aus Einfügungen und Löschungen von `git diff --numstat <basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; `harness/vertraege/` zählt nicht, `SPEC-128` Nr. 4 a), vom Planner vor dem ersten Code-Commit nach `SPEC-128` Nr. 1 gesetzt.
+Rechnung: 7 Zeilen *andere*, 0 *nebenläufig* (Tabelle in §3), `fakes` 2 (das Paar `Bauen` und `Befehl` der Zeile 6, vom Architect als Fake-Paar genannt; der Faktor 200 ist die Obergrenze der Messung, die Fakes hier sind Funktionswerte von rund 5 Zeilen), `produktcode` 15 (Mitte der Erwartung „rund 15“ des Architect: `bewerteBau` mit drei Zweigen und sein Aufruf in `fuehreFall`). *S* = 80·7 + 200·2 + 15 = 975, *M* = 100·⌈135·975/10000⌉ = 1400. Schnittfrage: nein (135·975 = 131625, nicht über 300000).
+Die Pfade des Plans sind die drei Dateien von `tools/gegenproben/`; dazu stehen die Pfade im Block, die dieser Plan ausschließt (§1, §3: `harness/README.md`, `Dockerfile`, `.a-check.yml`, `.d-check.yml`, `.golangci.yml`, `harness/mk/`, `tools/harness/`), damit eine Änderung dort mitzählt statt unbemerkt zu bleiben.
+Der Block trägt keinen Eintrag `ersetzt` (eine ältere Marke stand nicht im Plan, nur Prosa ohne Zahl).
+
+```groessenmarke
+pfad: tools/gegenproben/main.go
+pfad: tools/gegenproben/main_test.go
+pfad: tools/gegenproben/frist_test.go
+pfad: harness/README.md
+pfad: Dockerfile
+pfad: .a-check.yml
+pfad: .d-check.yml
+pfad: .golangci.yml
+pfad: harness/mk/
+pfad: tools/harness/
+produktcode: 15
+fakes: 2
+basis: a8c40949dd557c67561f980fb4ec94878b927e48
+schaetzung: 975
+marke: 1400
+```
 
 **Rückführungen — vorab benannt:**
 
@@ -149,6 +170,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - Folgepflicht aus `slice-gates-ohne-worktrees` (Geber, Plan §6; die Eichung ist hier ausgeschlossen, §1): (a) `time make gegenproben` auf ruhigem Host mit den Fällen 205 bis 216 ist nie gemessen (der Lauf schreibt den Stempel, Übergangsregeln Nr. 2, also im Integrationsschritt) — **Ausgang:** weiter offen; Adresse: Planner (mit der Eichung der ersten Zeile dieser Liste); (b) die neun Fälle `lint/*` mit „Zeit überschritten“ unter Last 16 bis 222 sind Beleg für das Ziel dieses Slice, kein Rot der Fälle — **Ausgang:** entfallen; der Beleg steht in `SPEC-102` (Messreihen, Fälle 205 bis 216) und der Lauf ist nach Nr. 3 ungültig; (c) `build/ohne-trimpath` („Bau des Binary scheitert“) war im zweiten Lauf des Implementers bei Last 175 bis 222 rot, bei Last 10 zweimal grün; mit `bewerteBau` meldet ein Bau über der Frist künftig `Zeit überschritten`, ein Bau mit Exit ungleich 0 die letzten Zeilen von `go build`; die Ursache des alten Rot bleibt unbekannt, im Lauf der Eichung wird der Fall wiederholt, ein Rot dort ist ein Befund an den Planner — **Ausgang:** weiter offen; Adresse: Planner (Termin der Eichung); Register `BEO-REPO/laufzeitmessung-widerspricht-sich-unter-last` (schreibt der Integrationsschritt, Nr. 4 der Übergangsregeln). Der Geber `slice-gates-ohne-worktrees` liegt in `done/`; der Nehmer ist der Planner, kein Slice, und trägt die Sendung hier und in §1 *Ausdrücklich NICHT*.
 - Auf einem Host mit Dauerlast gibt es keinen gültigen Lauf (Negativ der ADR) — **Ausgang:** weiter offen; Folge: Meldungen nennen den Lauf als ungültig statt als Bruch, nach drei ungültigen Läufen in Folge geht der Befund an den Planner (`SPEC-102` *Zeitbudget* Nr. 4), die Closures führen die Frage nicht mehr als offen.
 - Das Programm wird um eine Last-Messung erweitert, die [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) nicht verlangt, und die Gegenproben bekommen eine Host-Abhängigkeit — **Ausgang:** entfallen; der Architect hat entschieden, dass das Programm weder Last noch Fallzeiten ausgibt (§3, Entscheidung 2).
+- Größe: Marke 1400 bei erwarteter Messung von rund 125 Zeilen (Auslastung rund 0,09, unter 0,60): die Formel schätzt nach 80 je Zeile der Tabelle und 200 je Fake, was ein Slice mit sieben Zeilen für wenig Code und zwei Funktionswerte als Fakes überschätzt — **Ausgang:** weiter offen; Adresse: Planner (Closure: Messpunkt nach `SPEC-128` Nr. 9 eintragen; liegt die Auslastung am Ende unter 0,60, meldet der Planner sie dem Architect, der die Faktoren neu rechnet; keine Rückführung).
 - Raster der Randformen — **Ausgang:** entfallen; gefüllt, siehe unten.
 - Der Slice berührt `tools/gegenproben/` und den Stempel, kollidiert mit einem anderen Kettenslice — **Ausgang:** weiter offen: Nr. 7, einer zugleich, Start laut §4.
 - Die Lesung am Ende enthält die Last des Laufs selbst; auf ruhigem Host kann sie die Kernzahl erreichen, und kein gültiger Lauf entsteht — **Ausgang:** weiter offen; Adresse: Planner (Eichung, Nr. 7: eine Messung am Ende über der Kernzahl bei ruhigem Host setzt die Grenze am Ende neu, per Änderung von Nr. 3).
