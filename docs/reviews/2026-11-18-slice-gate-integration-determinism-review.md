@@ -10,7 +10,7 @@
 **Eingangs-Kontext** (die Vertraege, gegen die geprueft wurde):
 
 - Slice-Plan `slice-gate-integration-determinism` (DoD §2, §3 Tabelle Zusage und Faenger Nr. 1 bis 12 mit Nachweis, Raster §6)
-- `SPEC-211`, `SPEC-037` Nr. 2 und 10 f, `SPEC-038` Nr. 2 und 8, `SPEC-042` Nr. 2 und 9 f; ADR-0005
+- `SPEC-211`, `SPEC-037` Nr. 2 und 10 f, `SPEC-038` Nr. 2 und 8, `SPEC-042` Nr. 2 und 9 f; [ADR-0005](../plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md)
 - `LH-QA-06`
 - `AGENTS.md` §3.6, §3.7, §3.9 bis §3.18; Uebergangsregeln `docs/plan/planning/README.md` Nr. 1 bis 8
 
