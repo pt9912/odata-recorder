@@ -1,0 +1,2 @@
+**Vorgang:** slice-gate-integration-determinism
+**Fund:** Meldung der Linie von `w3` im Parallelbetrieb: `make a-check` im Hauptbaum meldete 1414 Befunde `wrong-direction` aus den Worktrees unter `.wt/`. Der Planner hat es nicht nachgefahren; die Gates `make docs-check`, `make lint` und `make zeichen-check` sind ungeprüft. Der Slice ändert kein Gate außer der Kette; die Abhilfe hat `slice-gates-ohne-worktrees` übernommen (Plan §6, Roadmap). Beleg: Plan §6 und Register-Eintrag.
