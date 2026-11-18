@@ -1,0 +1,2 @@
+**Vorgang:** slice-gegenproben-zeitbudget
+**Fund:** Der Plan nannte die Sperre `/tmp/odata-recorder-heavy.lock` (Nr. 1 der Übergangsregeln), der Auftrag der Prüfrunde `/home/builder/work/odata-recorder/.wt/heavy.lock`; Review F-5 meldete es, der Plan nennt seither den zweiten Pfad und führt die Regel als offen mit Adresse User. Beleg: Review-Report `2026-11-18-slice-gegenproben-zeitbudget-review` (F-5), Plan §3 und §6.

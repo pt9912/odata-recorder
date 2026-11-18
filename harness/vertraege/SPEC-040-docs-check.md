@@ -4,6 +4,7 @@
 Das Ziel hängt an `GATE_CHECKS`; `make gates` fährt es.
 
 **Festlegung:** Kennungen, Links und Dokumentkonventionen prüfen, dazu die Größe der Guide-Dateien (Nr. 1 bis 9).
+Arbeitsbäume unter `.wt/` liegen außerhalb der Prüfmenge: `scan.ignore` nimmt `.wt/**` an der Wurzel aus; Entscheidung, Muster, Randformen und Fänger stehen in `SPEC-212`.
 Rot ist das Ziel für die Größe, wenn eine Datei der Prüfmenge (Nr. 2) mehr Zeilen oder mehr Bytes trägt, als ihre Regel erlaubt (Nr. 5), wenn eine Regel keine Datei trifft (Nr. 6 a) oder wenn ein Abschnitt `### 3.<n>` von `AGENTS.md` mehr Zeilen trägt, als erlaubt sind (Nr. 9).
 
 1. **Ort und Aufbau.**
@@ -53,7 +54,8 @@ Rot ist das Ziel für die Größe, wenn eine Datei der Prüfmenge (Nr. 2) mehr Z
     - **g) Verhalten von d-check am Pin außerhalb der Fälle:** Exit 2 bei Konfigurationsfehlern (Nr. 7), Determinismus eines zweiten Laufs. Grund: Eigenschaft des Werkzeugs, nicht Zusage dieses Repos. Folge: ein Pin-Wechsel kann sie ändern; er ändert die Prüfsumme der Gegenproben (Pin in den Eingaben), und die Fälle 156 bis 165 fangen die Randformen, die sie führen.
     - **h) Verdrahtung der Gegenprobe.** Dass die Stufe `gegenproben` das Binary aus dem Image des Pins kopiert und `.d-check.yml` in den Eingaben der Prüfsumme steht, fängt kein Fall; fehlt das Binary, sind alle Fälle rot. Folge: Fehlte `.d-check.yml` in `EINGABEN`, liefe die Gegenprobe nach einer Änderung der Grenzen nicht neu. Beleg: der Implementer ändert `.d-check.yml` und zeigt, dass `bash tools/harness/gegenproben-eingabe.sh` eine andere Prüfsumme ausgibt.
 11. **Gegenprobe.** Die Fälle 156 bis 170 von `SPEC-102` rufen das Binary `d-check` im Wegwerfverzeichnis: die Fälle 156 bis 165 mit einer Konfiguration des Falls (die Wirkung des Moduls am Pin, mit kleinen Grenzen), die Fälle 166 bis 170 mit den Blöcken `scan`, `structure` und `file` der echten `.d-check.yml` und kleinen Dateien unter den Pfaden der Menge (die Konfiguration bindet jede Datei).
+    Die Fälle 209 bis 216 fahren die Ausnahme `.wt/**` aus `scan.ignore` (`SPEC-212` Nr. 5): 209 bis 212 mit dem Block `scan` der echten Konfiguration und `modules: [links]`, 213 mit den Blöcken `scan`, `structure` und `file` und je Regel beider Blöcke und je Datei ihres Globs einer Verletzung unter `.wt/w/`, 214 und 215 mit je einem Defekt der sechs lesenden Module unter `.wt/w/` und unter `x/`, 216 mit der Zellgrenze von `harness/README.md` im Hauptbaum.
 
-**Stand:** geliefert sind die Module `file` und `structure` in `.d-check.yml` für die Prüfmenge nach Nr. 2, die Zeile von `make docs-check` in `harness/README.md` und die Fälle 156 bis 170 von `SPEC-102`.
+**Stand:** geliefert sind die Module `file` und `structure` in `.d-check.yml` für die Prüfmenge nach Nr. 2, die Zeile von `make docs-check` in `harness/README.md` und die Fälle 156 bis 170 von `SPEC-102`; zu `.wt/**` die Fälle 209 bis 216.
 
 **Grenze:** Prüft Verweise, die Richtung der Spec-Straten und die Größe der Guide-Dateien, nicht die inhaltliche Richtigkeit einer Aussage und nicht den Inhalt der Guide-Dateien (Duplikate zwischen Briefing, Commands und Skills). Was die Größenprüfung nicht sieht, steht in Nr. 10.

@@ -1,0 +1,1 @@
+**Stand:** offen; ein Vorgang (`slice-gates-ohne-worktrees`, Evidenz); kein Zielort, Schwelle 3x nicht erreicht; der Fix dort liest die Mengen aus der echten Konfiguration und bricht bei einem Element außerhalb der Listen ab (`SPEC-212` Nr. 5 Zeile 13)

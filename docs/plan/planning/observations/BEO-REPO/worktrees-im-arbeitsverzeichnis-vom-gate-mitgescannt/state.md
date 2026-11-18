@@ -1,1 +1,1 @@
-**Stand:** offen; die Abhilfe liegt als `slice-gates-ohne-worktrees` in `open/` (Linie C)
+**Stand:** verkörpert in `.a-check.yml` (`exclude`) und `.d-check.yml` (`scan.ignore`), Vertrag `SPEC-212`, seit slice-gates-ohne-worktrees; geprüft: `make a-check` und `make docs-check` (die übrigen Gates lesen `.wt/` nicht, `SPEC-212` Nr. 1); `make gates` im Hauptbaum mit einem Arbeitsbaum steht aus bis zum Integrationsschritt

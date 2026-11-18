@@ -10,10 +10,11 @@
    `tech` gilt für `tests/` wie überall: `modernc.org/sqlite` und `encoding/xml` außerhalb ihres Adapters sind ein `tech-leak`.
    Die Kante auf `adapters-driven` gilt für alle Driven Adapter, nicht für einen namentlich; die Bibliotheksgrenze hält `tech`.
    Eine weitere Kante der Schicht entscheidet eine neue ADR.
+3. **Arbeitsbäume.** `.a-check.yml` nimmt `.wt/**` an der Wurzel aus (`exclude`); Entscheidung, Muster, Randformen und Fänger stehen in `SPEC-212`.
 
 **Stand:** vorhanden.
 
-**Gegenprobe:** Die Fälle 171 bis 173 von `SPEC-102`: Bibliothek in `tests/` (`tech-leak`), Import eines Dienstes aus `tests/` (`wrong-direction`), der erlaubte Weg über `bootstrap`, Inbound-Port und Driven Adapter (Exit 0).
+**Gegenprobe:** Die Fälle 171 bis 173 von `SPEC-102`: Bibliothek in `tests/` (`tech-leak`), Import eines Dienstes aus `tests/` (`wrong-direction`), der erlaubte Weg über `bootstrap`, Inbound-Port und Driven Adapter (Exit 0); zu Nr. 3 die Fälle 205 bis 208.
 Offen bleibt der Import von `tests/` aus `src/`: er ist gemessen ein `wrong-direction`, hat aber keinen eigenen Fall, weil keine Zeile der Datei ihn trägt, die jemand entfernen könnte; er entstünde nur durch eine neue Kante.
 
 **Grenze:** Prüft Importrichtungen, nicht Verhalten.

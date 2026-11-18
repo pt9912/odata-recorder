@@ -234,6 +234,51 @@ func aCheckTestsFaelle() []Fall {
 	}
 }
 
+// aCheckArbeitsbaeumeFaelle sind die Fälle 205 bis 208 (SPEC-102, SPEC-212 Nr. 5 Zeilen 1 bis 4): die
+// Ausnahme `.wt/**` der echten .a-check.yml. Die Verletzung ist in den Fällen 205, 206 und 208 dieselbe
+// Datei x.go, die ein Paket des Modells importiert und in keiner Schicht liegt; sie lesen beide Ströme
+// gemeinsam wie die Fälle 171 bis 173. Ohne Fall bleiben Symlinks, ein fehlendes `.wt/` und ein
+// getrackter Pfad unter `.wt/` (SPEC-212 Nr. 6 a, d).
+func aCheckArbeitsbaeumeFaelle() []Fall {
+	kern := map[string]string{"src/hexagon/model/kern/kern.go": goDatei("kern")}
+	mit := func(zusatz map[string]string) map[string]string {
+		m := map[string]string{}
+		for k, v := range kern {
+			m[k] = v
+		}
+		for k, v := range zusatz {
+			m[k] = v
+		}
+		return m
+	}
+	verletzung := goDatei("x", "src/hexagon/model/kern")
+	return []Fall{
+		{
+			Name: "a-check/arbeitsbaum-ungemeldet", Gate: gateACheck,
+			Neu:      mit(map[string]string{".wt/w/x/x.go": verletzung}),
+			Verboten: []string{"wrong-direction"},
+		},
+		{
+			Name: "a-check/arbeitsbaum-verletzung-im-hauptbaum", Gate: gateACheck,
+			Neu:      mit(map[string]string{"x/x.go": verletzung}),
+			WantExit: 1, WantText: []string{"wrong-direction"},
+		},
+		{
+			Name: "a-check/wt-im-quellbaum-bleibt-geprueft", Gate: gateACheck,
+			Neu: map[string]string{
+				"src/hexagon/services/ziel/ziel.go": goDatei("ziel"),
+				"src/hexagon/model/.wt/x.go":        goDatei("x", "src/hexagon/services/ziel"),
+			},
+			WantExit: 1, WantText: []string{"core-impurity"},
+		},
+		{
+			Name: "a-check/arbeitsbaum-im-arbeitsbaum", Gate: gateACheck,
+			Neu:      mit(map[string]string{".wt/a/.wt/b/x/x.go": verletzung}),
+			Verboten: []string{"wrong-direction"},
+		},
+	}
+}
+
 func lintFaelle() []Fall {
 	return []Fall{
 		{Name: "lint/basis", Gate: gateLint, WantText: []string{"0 issues"}},
@@ -532,5 +577,7 @@ func faelle() []Fall {
 	alle = append(alle, zeichenFaelle()...)
 	alle = append(alle, guideFaelle()...)
 	alle = append(alle, aCheckTestsFaelle()...)
-	return append(alle, katalogFaelle()...)
+	alle = append(alle, katalogFaelle()...)
+	alle = append(alle, aCheckArbeitsbaeumeFaelle()...)
+	return append(alle, arbeitsbaumFaelle()...)
 }
