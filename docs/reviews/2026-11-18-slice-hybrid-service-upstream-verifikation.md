@@ -1,7 +1,7 @@
 # Verifikation slice-hybrid-service-upstream, Teil 2 (Upstream-Fallback)
 
 **Rolle:** Verifier (einmal). **Datum:** 2026-11-18. **Stand:** Zweig `slice-hybrid-service-upstream`, HEAD `7eff3500`. **Bezug:** [LH-FA-12](../../spec/lastenheft.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), `SPEC-284`, `SPEC-261`, `SPEC-120`, `SPEC-121`.
-**Plan:** [slice-hybrid-service-upstream](../plan/planning/in-progress/slice-hybrid-service-upstream.md). **Modell:** claude-sonnet-5-5.
+**Plan:** [slice-hybrid-service-upstream](../plan/planning/done/slice-hybrid-service-upstream.md). **Modell:** claude-sonnet-5-5.
 Die beiden Review-Reports (Runde 1 und 2) sind nicht als Beleg gelesen worden; alles unten ist selbst gefahren.
 
 ## Urteil
