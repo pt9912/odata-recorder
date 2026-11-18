@@ -1,1 +1,1 @@
-**Stand:** offen; zweiter Vorgang mit `slice-mock-schreiben` (Evidenz; Positionen im Set nicht vom Verifier gefahren), erster mit `slice-mock-lesen` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht
+**Stand:** offen; dritter Vorgang mit `slice-hybrid-service-upstream` (Evidenz; Achse Weg zu U, nahe am Kern), zweiter mit `slice-mock-schreiben` (Evidenz; Positionen im Set nicht vom Verifier gefahren), erster mit `slice-mock-lesen` (Evidenz); kein Zielort, Schwelle 3x erreicht, Ausgang steht aus

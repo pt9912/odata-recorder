@@ -96,12 +96,21 @@ func TestOhneAntwort(t *testing.T) {
 			}
 		}
 	}
-	z := neu(t)
-	z.upstream.plane(&plan{lies: -1, fehler: errors.Join(outbound.ErrUpstreamNichtErreichbar, outbound.ErrUpstreamZeit)})
-	_, err := z.record(context.Background(), anfrage("GET", "/a/x"))
-	pruefeCode(t, err, model.CodeE4001, 504)
-	pruefeEintraege(t, "Zeit und nicht erreichbar", z.log.alle(),
-		[]map[string]string{{"ereignis": "upstream", "error_code": "ODR-E4001", "grund": "zeit"}})
+	// Beide Fehler des Ports zugleich (SPEC-121 Nr. 11): ErrUpstreamZeit gilt, in beiden Reihenfolgen des Join.
+	for _, beide := range []error{
+		errors.Join(outbound.ErrUpstreamNichtErreichbar, outbound.ErrUpstreamZeit),
+		errors.Join(outbound.ErrUpstreamZeit, outbound.ErrUpstreamNichtErreichbar),
+	} {
+		z := neu(t)
+		z.upstream.plane(&plan{lies: -1, fehler: beide})
+		_, err := z.record(context.Background(), anfrage("GET", "/a/x"))
+		pruefeCode(t, err, model.CodeE4001, 504)
+		if !errors.Is(err, outbound.ErrUpstreamZeit) || !errors.Is(err, outbound.ErrUpstreamNichtErreichbar) {
+			t.Errorf("Ursache trägt nicht beide Fehler: %v", err)
+		}
+		pruefeEintraege(t, "Zeit und nicht erreichbar", z.log.alle(),
+			[]map[string]string{{"ereignis": "upstream", "error_code": "ODR-E4001", "grund": "zeit"}})
+	}
 
 	u := neu(t)
 	u.upstream.plane(&plan{lies: -1, warteAufCtx: true})
