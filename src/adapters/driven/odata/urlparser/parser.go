@@ -21,6 +21,7 @@ const (
 	maxName          = 128
 	maxSelect        = 256
 	maxOrderBy       = 32
+	maxExpand        = 32
 )
 
 // FilterLeser liest den dekodierten Wert von `$filter` (SPEC-160 Nr. 8). Er muss zustandslos und nebenläufig aufrufbar sein.
@@ -36,12 +37,19 @@ func WithFilter(l FilterLeser) Option {
 	return func(p *Parser) { p.filter = l }
 }
 
+// WithExpand hängt das Lesen von `$expand` ein (SPEC-262 Nr. 1).
+func WithExpand() Option {
+	return func(p *Parser) { p.expand = true }
+}
+
 // Parser setzt outbound.URLCodec um. Nach New hat er keinen veränderlichen Zustand (SPEC-160 Nr. 7).
 type Parser struct {
 	filter FilterLeser
+	expand bool
 }
 
-// New bildet einen Parser; ohne WithFilter ist `$filter` die Ursache `filter`.
+// New bildet einen Parser; ohne WithFilter ist `$filter` die Ursache `filter`, ohne WithExpand `$expand` die Ursache
+// `option_nicht_unterstuetzt`.
 func New(opts ...Option) *Parser {
 	p := &Parser{}
 	for _, o := range opts {

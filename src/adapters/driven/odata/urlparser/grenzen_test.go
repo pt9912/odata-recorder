@@ -168,6 +168,11 @@ func textsumme(u model.ODataURL) int {
 	if u.Optionen.Filter != nil {
 		n += len(u.Optionen.Filter.Text)
 	}
+	if u.Optionen.Expand != nil {
+		for _, e := range u.Optionen.Expand.Elemente {
+			n += len(e.Name)
+		}
+	}
 	return n
 }
 

@@ -9,7 +9,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// Die sieben behandelten Systemoptionen (SPEC-162 Nr. 3 a), als Stelle im Feld der gesehenen.
+// Die behandelten Systemoptionen (SPEC-162 Nr. 3 a), als Stelle im Feld der gesehenen.
 const (
 	optSelect = iota
 	optOrderBy
@@ -18,7 +18,8 @@ const (
 	optCount
 	optFilter
 	optFormat
-	optKeine = -1
+	optExpand // behandelt nur mit WithExpand (SPEC-262 Nr. 1)
+	optKeine  = -1
 )
 
 func behandelt(name string) int {
@@ -71,7 +72,7 @@ func sonstigerName(name string) bool {
 // leseQuery liest die Optionen von links nach rechts (SPEC-162 Nr. 2 und 3). Die Folge je Option: Kodierung des Namens,
 // Klasse, Wiederholung, Kodierung des Werts, Grammatik des Werts.
 func (l *lauf) leseQuery(segs []model.QuerySegment, o *model.Optionen) error {
-	var gesehen [optFormat + 1]bool
+	var gesehen [optExpand + 1]bool
 	for i, seg := range segs {
 		ort := ortNr("query", i+1)
 		name, ok := dekodiere(seg.Name)
@@ -79,10 +80,13 @@ func (l *lauf) leseQuery(segs []model.QuerySegment, o *model.Optionen) error {
 			return fehler(model.URLKodierung, ort)
 		}
 		idx := behandelt(name)
+		if idx == optKeine && name == "$expand" && l.p.expand {
+			idx = optExpand
+		}
 		switch {
 		case idx != optKeine && gesehen[idx]:
 			return fehler(model.URLOptionDoppelt, ort)
-		case nichtUnterstuetzteOption(name):
+		case idx == optKeine && nichtUnterstuetzteOption(name):
 			l.nichtUnterstuetzt(model.URLOptionNichtUnterstuetzt, ort)
 			continue
 		case idx == optKeine && !sonstigerName(name):
@@ -125,6 +129,8 @@ func (l *lauf) leseOption(idx int, wert, ort string, o *model.Optionen) error {
 		return l.leseFilter(wert, ort, o)
 	case optFormat:
 		return l.leseFormat(wert, ort)
+	case optExpand:
+		return l.leseExpand(wert, ort, o)
 	}
 	return nil
 }

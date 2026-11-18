@@ -9,22 +9,29 @@ import (
 	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/urlparser"
 )
 
-// TestParserOhneZustand (Zeile 14, SPEC-160 Nr. 7): der Parser hat genau ein Feld, den Leser `filter` vom Kind Interface. Jedes
-// weitere Feld wäre Zustand der Instanz, den ein Aufruf nach der Rückkehr des FilterLeser schreiben und am Ende lesen könnte;
-// dieses Fenster hat keinen Haltepunkt, den ein Test erzwingen kann, die Gestalt des Typs ist deshalb der Fänger. Zustand in einer
-// Variable des Pakets fängt `make lint` (`gochecknoglobals`); Zustand in einem Objekt hinter dem Feld fängt
-// TestGleichzeitigMitFilter, mit der Grenze „ein Kern“; der Rest ist das akzeptierte Negativ (3) des Plans.
+// TestParserOhneZustand (Zeile 14, SPEC-160 Nr. 7, SPEC-262 Nr. 8): der Parser hat genau zwei Felder, den Leser `filter` vom Kind
+// Interface und das Merkmal `expand` vom Kind Bool. Jedes weitere Feld wäre Zustand der Instanz, den ein Aufruf nach der Rückkehr
+// des FilterLeser schreiben und am Ende lesen könnte; dieses Fenster hat keinen Haltepunkt, den ein Test erzwingen kann, die
+// Gestalt des Typs ist deshalb der Fänger. Zustand in einer Variable des Pakets fängt `make lint` (`gochecknoglobals`); Zustand
+// in einem Objekt hinter dem Feld fängt TestGleichzeitigMitFilter, mit der Grenze „ein Kern“; der Rest ist das akzeptierte Negativ
+// (3) des Plans.
 func TestParserOhneZustand(t *testing.T) {
 	typ := reflect.TypeFor[urlparser.Parser]()
-	if typ.NumField() != 1 {
+	soll := []struct {
+		name string
+		kind reflect.Kind
+	}{{"filter", reflect.Interface}, {"expand", reflect.Bool}}
+	if typ.NumField() != len(soll) {
 		names := make([]string, typ.NumField())
 		for i := range names {
 			names[i] = typ.Field(i).Name
 		}
-		t.Fatalf("Parser hat %d Felder %v, erwartet genau eines (`filter`); SPEC-160 Nr. 7: kein veränderlicher Zustand", typ.NumField(), names)
+		t.Fatalf("Parser hat %d Felder %v, erwartet `filter` und `expand`; SPEC-160 Nr. 7: kein veränderlicher Zustand", typ.NumField(), names)
 	}
-	if f := typ.Field(0); f.Name != "filter" || f.Type.Kind() != reflect.Interface {
-		t.Errorf("Feld %s vom Kind %v, erwartet `filter` vom Kind Interface; SPEC-160 Nr. 7: kein veränderlicher Zustand", f.Name, f.Type.Kind())
+	for i, s := range soll {
+		if f := typ.Field(i); f.Name != s.name || f.Type.Kind() != s.kind {
+			t.Errorf("Feld %s vom Kind %v, erwartet `%s` vom Kind %v; SPEC-160 Nr. 7: kein veränderlicher Zustand", f.Name, f.Type.Kind(), s.name, s.kind)
+		}
 	}
 }
 

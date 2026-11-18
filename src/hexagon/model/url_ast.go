@@ -94,6 +94,7 @@ type Optionen struct {
 	Count    WahrOption
 	Filter   *FilterOption
 	Sonstige []SonstigeOption
+	Expand   *ExpandOption
 }
 
 // ODataURL ist das Ergebnis des Lesens einer OData-URL (SPEC-160): ein Wert aus Texten und Zahlen.
