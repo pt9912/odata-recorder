@@ -2,7 +2,7 @@
 
 **Rolle:** Verifier (Modul 11, `.harness/skills/closure-note-reviewer.md`): gegen DoD und Vertrag, nicht gegen den Diff (das ist das Review) und nicht gegen den Bedarf (das ist die Validierung).
 
-**Gegenstand:** Zweig `slice-gegenproben-zeitbudget`, HEAD `ec4b6365`, Basis `a9287eb9`; Plan `docs/plan/planning/in-progress/slice-gegenproben-zeitbudget.md`, [SPEC-102](../../harness/vertraege/SPEC-102-gegenproben.md) *Zeitbudget* Nr. 1 bis 7, [ADR-0013](../plan/adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) (`Accepted`), `AGENTS.md` §3.5 bis §3.18.
+**Gegenstand:** Zweig `slice-gegenproben-zeitbudget`, HEAD `ec4b6365`, Basis `a9287eb9`; Plan `docs/plan/planning/done/slice-gegenproben-zeitbudget.md`, [SPEC-102](../../harness/vertraege/SPEC-102-gegenproben.md) *Zeitbudget* Nr. 1 bis 7, [ADR-0013](../plan/adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) (`Accepted`), `AGENTS.md` §3.5 bis §3.18.
 
 **Messender:** der Verifier. Host mit 20 Kernen (`nproc --all` = 20), Last = erstes Feld von `/proc/loadavg`. Ein Detektor fehlt: Zahlen sind Größenordnungen. Der Host war während der Läufe stark fremdbelastet (Last 10 bis 280 innerhalb einer Stunde); schwere Läufe liefen nur unter `flock …/.wt/heavy.lock` und, mit der einen genannten Ausnahme (Stufenbau, Beginn 17,84), bei Last unter 20.
 
@@ -42,7 +42,7 @@ Meine Wertung, ehrlich:
 
 ## Prüfung (c): Sendung aus slice-gates-ohne-worktrees
 
-- Der Geber `done/slice-gates-ohne-worktrees.md` §6 zeigt auf `in-progress/slice-gegenproben-zeitbudget.md` §1 und §6; der Pfad ist mit diesem Slice nachgezogen (Diff der Datei: eine Zeile, `open/` zu `in-progress/`), der Link löst auf (`make docs-check` ohne Befund).
+- Der Geber `done/slice-gates-ohne-worktrees.md` §6 zeigt auf `done/slice-gegenproben-zeitbudget.md` §1 und §6; der Pfad ist mit diesem Slice nachgezogen (Diff der Datei: eine Zeile, `open/` zu `in-progress/`), der Link löst auf (`make docs-check` ohne Befund).
 - Der Nehmer führt die Sendung in §1 *Ausdrücklich NICHT* (Eichung, Messung `time make gegenproben` mit den Fällen 205 bis 216, `build/ohne-trimpath`) und in §6 mit Ausgang *weiter offen*, Adresse Planner, mit der Kennung `slice-gates-ohne-worktrees`. Der Geber liegt in `done/`, der Nehmer ist der Planner und kein Slice; das entspricht §3.13 („liegt der Nehmer in `done/`, ist er keine Adresse; der Punkt geht an den Planner"). Geführt wie verlangt.
 - **Slice-Zweck belegt (Lesart nach Vorschrift):** Mein Stufenbau hat die Beobachtung reproduziert (unten): dieselben neun Fälle `lint/*` mit `Zeit überschritten`, kein anderer Fall rot. Nach Nr. 3 ist der Lauf ungültig (Lesung am Ende 280,35 über 20), nach Nr. 5 e wird wiederholt. Das Rot des Programms bleibt unverändert (Randform 6: „der Fall ist in jedem Lauf rot"); der Slice liefert die Wertung, nicht eine Änderung des Falls. `build/ohne-trimpath` war bei mir grün; die Ursache des früheren Rot bleibt, wie der Plan sagt, offen.
 
@@ -94,12 +94,12 @@ Eine erste Fassung der Mutation zu Zeile 2 baute nicht (`undefined: time`, mein 
 
 **MEDIUM**
 
-- **F-1: Das Verhältnis von `SPEC-102` Nr. 4 und 5 d zum Entscheidungssatz von [ADR-0013](../plan/adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) hat keine Adresse.** `docs/plan/planning/in-progress/slice-gegenproben-zeitbudget.md:100` (Entscheidung 6 d des Architect) setzt die Lesart; §6 (`:198` bis `:208`) führt sie nicht als offene Entscheidung mit Ausgang und Adresse (`AGENTS.md` §3.13: „ein Bericht allein ist keine Adresse"). Der Review-Report 2 nennt sie als INFO G-2; der Plan hat sie nicht übernommen. Vor der Closure: Zeile in §6, Ausgang *offen*, Adresse User; bestätigt er die Lesart, schließt sie mit der Closure, sonst folgt eine neue ADR mit `Supersedes` (§3.5). Meine Wertung: zulässige Schärfung, kein Zwang zur Folge-ADR (siehe (b)).
+- **F-1: Das Verhältnis von `SPEC-102` Nr. 4 und 5 d zum Entscheidungssatz von [ADR-0013](../plan/adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) hat keine Adresse.** `docs/plan/planning/done/slice-gegenproben-zeitbudget.md:100` (Entscheidung 6 d des Architect) setzt die Lesart; §6 (`:198` bis `:208`) führt sie nicht als offene Entscheidung mit Ausgang und Adresse (`AGENTS.md` §3.13: „ein Bericht allein ist keine Adresse"). Der Review-Report 2 nennt sie als INFO G-2; der Plan hat sie nicht übernommen. Vor der Closure: Zeile in §6, Ausgang *offen*, Adresse User; bestätigt er die Lesart, schließt sie mit der Closure, sonst folgt eine neue ADR mit `Supersedes` (§3.5). Meine Wertung: zulässige Schärfung, kein Zwang zur Folge-ADR (siehe (b)).
 
 **LOW**
 
 - **F-2: Zustandsfeld der Roadmap trägt `open/` für einen Slice in `in-progress/`.** `docs/plan/planning/in-progress/roadmap.md:30`. Ausgang offen, Adresse Planner (§6), Berichtigung bei der Closure; keine DoD-Verletzung, aber ein falsches Zustandsfeld bis dahin (§3.7).
-- **F-3: Die Marke ist im Plan nicht neu gerechnet, obwohl der Gate-Hinweis „Tabelle ergibt 1135, Schätzung 975" läuft.** `docs/plan/planning/in-progress/slice-gegenproben-zeitbudget.md:166` bis `:182` (Block: `schaetzung: 975`, `marke: 1400`). Der Plan benennt es in §6 ehrlich und lässt die Entscheidung beim Planner; die Auslastung (0,19) liegt unter 0,60 und löst nach §6 eine Meldung an den Architect aus. Offene Entscheidung des Planners, kein Mangel an Wahrheit.
+- **F-3: Die Marke ist im Plan nicht neu gerechnet, obwohl der Gate-Hinweis „Tabelle ergibt 1135, Schätzung 975" läuft.** `docs/plan/planning/done/slice-gegenproben-zeitbudget.md:166` bis `:182` (Block: `schaetzung: 975`, `marke: 1400`). Der Plan benennt es in §6 ehrlich und lässt die Entscheidung beim Planner; die Auslastung (0,19) liegt unter 0,60 und löst nach §6 eine Meldung an den Architect aus. Offene Entscheidung des Planners, kein Mangel an Wahrheit.
 
 **INFO**
 
