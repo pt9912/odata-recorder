@@ -2633,25 +2633,28 @@ Ab hier legen die Nummern 1 bis 10 fest, was die Abnahme des Mock gegen die Muss
 Er ist der Teil „OData-URL“ der Codec-Ports (je Darstellung eine Schnittstelle, `SPEC-125`, `SPEC-126`); `MetadataCodec` und `ODataCodec` ändern sich nicht.
 Der Parser ist handgeschrieben über der Standardbibliothek (keine Fremdbibliothek, keine ADR nötig); kein Typ einer Bibliothek steht in einer Signatur oder im AST.
 Er kennt das Modell des Dienstes nicht: Namen von Entity-Sets und Properties, Zahl, Namen und Typ der Schlüsselteile prüft der Dienst, der die Query ausführt (Nr. 9).
-Die Grammatik des Pfads und der Schlüsselliterale steht in `SPEC-161`, die der Systemoptionen und die Zerlegung der Query in `SPEC-162`, der Code `ODR-E6005` in `SPEC-163`. Die Grammatik von `$filter` steht in `SPEC-164`, der Baum in `SPEC-165`.
+Die Grammatik des Pfads und der Schlüsselliterale steht in `SPEC-161`, die der Systemoptionen und die Zerlegung der Query in `SPEC-162`, der Code `ODR-E6005` in `SPEC-163`. Die Grammatik von `$filter` steht in `SPEC-164`, der Baum in `SPEC-165`, die von `$expand` in `SPEC-262`, ihre Prüfung gegen das Modell in `SPEC-263`.
 
 ```text
 URLCodec.ParseURL(pfad, rawQuery string) (model.ODataURL, error)
 urlparser.New(opts ...Option) *Parser            // *Parser erfüllt URLCodec
 urlparser.WithFilter(l FilterLeser) Option       // die letzte Option gilt; l == nil: kein Leser
+urlparser.WithExpand() Option                    // SPEC-262
 urlparser.FilterLeser.LeseFilter(text string) (model.FilterAusdruck, error)
 urlparser.NewFilterLeser() *FilterGrammatik       // SPEC-164
 model.ODataURL{Ressource Ressource; Optionen Optionen}
 model.Ressource{Art RessourcenArt; EntitySet string; Schluessel []SchluesselTeil}
 model.SchluesselTeil{Name string; Literal Literal}
 model.Literal{Art LiteralArt; Text string}
-model.Optionen{Select *SelectOption; OrderBy []Sortierung; Top, Skip ZahlOption; Count WahrOption; Filter *FilterOption; Sonstige []SonstigeOption}
+model.Optionen{Select *SelectOption; OrderBy []Sortierung; Top, Skip ZahlOption; Count WahrOption; Filter *FilterOption; Sonstige []SonstigeOption; Expand *ExpandOption}
 model.SelectOption{Alle bool; Namen []string}
 model.Sortierung{Name string; Absteigend bool}
 model.ZahlOption{Gesetzt bool; Wert int}
 model.WahrOption{Gesetzt bool; Wert bool}
 model.FilterOption{Text string; Ausdruck FilterAusdruck}
 model.SonstigeOption{Name, Wert string}
+model.ExpandOption{Elemente []ExpandElement}       // SPEC-262
+model.ExpandElement{Name string}
 model.FilterAusdruck interface{ IstFilterAusdruck() }                  // Knoten: SPEC-165
 model.QuerySegmente(raw string) []QuerySegment   // SPEC-162 Nr. 1
 model.QuerySegment{Name, Wert string}
@@ -2663,9 +2666,10 @@ model.ErrURLUngueltig, model.ErrURLNichtUnterstuetzt
 2. **Ergebnis.** `ODataURL` ist ein Wert aus Texten und Zahlen, ohne Verweis auf die Eingabe.
    - `Ressource.Art` ist genau eine von `RessourceMetadaten` (`/$metadata`), `RessourceMenge` (`/Set`), `RessourceEntity` (`/Set(Schlüssel)`), `RessourceAnzahl` (`/Set/$count`). `EntitySet` ist der Name wie geschrieben und dekodiert (die Schreibweise zählt), bei `RessourceMetadaten` leer. `Schluessel` hat bei `RessourceEntity` mindestens einen Teil in der Reihenfolge der URL, sonst ist es `nil`. Ein Teil trägt `Name` (leer bei dem einen unbenannten Teil) und `Literal`.
    - `Literal.Art` ist eine von `LiteralZeichenkette`, `LiteralWahrheitswert`, `LiteralZahl`, `LiteralGUID`, `LiteralDatum`, `LiteralZeitpunkt`; `Literal.Text` ist die **Literalform** des Schlüssels nach `SPEC-126` Nr. 11 und die kanonische Schreibweise nach `SPEC-161` Nr. 6: zwei Schreibweisen desselben Wertes ergeben denselben Text.
-   - `Optionen` trägt je Systemoption ein Feld; was die URL nicht nennt, ist der Nullwert des Feldes: `Select` und `Filter` sind `nil`, `OrderBy` und `Sonstige` sind `nil`, `Top`, `Skip` und `Count` haben `Gesetzt` falsch. `$top=0` ist `Top{Gesetzt: true, Wert: 0}`: gesetzt auf Null und nicht gesetzt sind unterscheidbar. `Top.Wert` und `Skip.Wert` sind nie negativ. `OrderBy` hat, wenn gesetzt, mindestens ein Element in der Reihenfolge der URL; `Absteigend` falsch heißt aufsteigend (ob `asc` geschrieben wurde, ist nicht erkennbar). `Sonstige` führt die Optionen ohne `$` (herstellerspezifische Optionen und Parameter-Aliase) in der Reihenfolge der Query mit dekodiertem Namen und Wert. Die Reihenfolge der Systemoptionen in der Query ist nicht Teil des Ergebnisses.
+   - `Optionen` trägt je Systemoption ein Feld; was die URL nicht nennt, ist der Nullwert des Feldes: `Select`, `Filter` und `Expand` sind `nil`, `OrderBy` und `Sonstige` sind `nil`, `Top`, `Skip` und `Count` haben `Gesetzt` falsch. `$top=0` ist `Top{Gesetzt: true, Wert: 0}`: gesetzt auf Null und nicht gesetzt sind unterscheidbar. `Top.Wert` und `Skip.Wert` sind nie negativ. `OrderBy` hat, wenn gesetzt, mindestens ein Element in der Reihenfolge der URL; `Absteigend` falsch heißt aufsteigend (ob `asc` geschrieben wurde, ist nicht erkennbar). `Sonstige` führt die Optionen ohne `$` (herstellerspezifische Optionen und Parameter-Aliase) in der Reihenfolge der Query mit dekodiertem Namen und Wert. Die Reihenfolge der Systemoptionen in der Query ist nicht Teil des Ergebnisses.
    - `Filter.Text` ist der dekodierte Wert von `$filter` (Nr. 8); `Filter.Ausdruck` ist `nil`, solange kein `FilterLeser` eingehängt ist.
-3. **Wiederholung und Veränderlichkeit.** Gleiche Eingabe ergibt ein gleiches Ergebnis (tiefe Gleichheit) und den gleichen Fehler. Das Ergebnis gehört dem Aufrufer: er darf jedes Element von `Schluessel`, `Select.Namen`, `OrderBy` und `Sonstige` ändern, ohne dass das Ergebnis eines früheren oder späteren Aufrufs sich ändert; der Parser behält keinen Verweis auf ein Ergebnis und teilt kein Slice zwischen zwei Ergebnissen.
+   - `Expand` ist ohne die Einhängestelle `WithExpand` immer `nil`; mit ihr gilt `SPEC-262` Nr. 5.
+3. **Wiederholung und Veränderlichkeit.** Gleiche Eingabe ergibt ein gleiches Ergebnis (tiefe Gleichheit) und den gleichen Fehler. Das Ergebnis gehört dem Aufrufer: er darf jedes Element von `Schluessel`, `Select.Namen`, `OrderBy`, `Sonstige` und `Expand.Elemente` ändern, ohne dass das Ergebnis eines früheren oder späteren Aufrufs sich ändert; der Parser behält keinen Verweis auf ein Ergebnis und teilt kein Slice zwischen zwei Ergebnissen.
 4. **Fehler.** Jeder Verstoß gegen den Inhalt von `pfad` oder `rawQuery` ist ein `*model.URLFehler` und kein anderer Fehler; das Ergebnis ist dann der Nullwert `ODataURL{}`. `Ursache` ist genau eine von sechzehn:
    - **Klasse `ungueltig`** (`errors.Is(err, model.ErrURLUngueltig)`, `Code()` `ODR-E6005`, HTTP 400, `SPEC-163`): `zu_lang`, `zu_viele`, `kodierung`, `segment`, `pfad_form`, `key`, `literal`, `option_name`, `option_doppelt`, `wert`.
    - **Klasse `nicht_unterstuetzt`** (`errors.Is(err, model.ErrURLNichtUnterstuetzt)`, `Code()` `ODR-E6001`, HTTP 501): `service_dokument`, `pfad_nicht_unterstuetzt`, `literal_typ`, `option_nicht_unterstuetzt`, `filter`, `wert_nicht_unterstuetzt`.
@@ -2688,11 +2692,13 @@ model.ErrURLUngueltig, model.ErrURLNichtUnterstuetzt
    | Länge eines Namens (Zeichen) | 128 | `segment`, `key`, `option_name` bzw. `wert` | je nach Stelle |
    | Elemente von `$select` | 256 | `zu_viele` | `query/<n>` |
    | Elemente von `$orderby` | 32 | `zu_viele` | `query/<n>` |
+   | Elemente von `$expand` | 32 | `zu_viele` | `query/<n>` |
 
    **Wächter als zählbare Größe, nicht als Zeit:** (a) der Parser liest jedes Byte der Eingabe in einer festen Zahl von Durchläufen (Zerlegung mit Dekodierung, dann Grammatik), nie in einer Schleife über eine Schleife; (b) die Summe der Längen aller Texte im Ergebnis ist höchstens die Summe der Längen von `pfad` und `rawQuery` plus 48: ein dekodierter Text ist nie länger als seine Schreibweise, und von den kanonischen Texten der Literale (`SPEC-161` Nr. 6) wird nur der Zeitpunkt ohne Sekunden (`JJJJ-MM-TTThh:mmZ`, 17 Zeichen) länger, um genau 3 Bytes (`:00`); ein Schlüssel hat höchstens 16 Teile, also wachsen die Texte höchstens um 48 Bytes (der schlechteste Fall sind 16 benannte Teile mit einem Namen von einem Zeichen: 323 Bytes Eingabe, 337 Bytes Texte, Zuwachs 14, weil `=` und `,` nicht im Ergebnis stehen); das Ergebnis wächst damit linear in der Eingabe; (c) die Gesamtzuteilung eines Aufrufs (`runtime.MemStats.TotalAlloc`, Differenz vor und nach dem Aufruf) ist höchstens 64 · (Länge von `pfad` + Länge von `rawQuery`) + 65536 Bytes, für jede Eingabe bis zur Grenze, auch für eine, die aus lauter `'`, `%`, `,`, `(`, `&` oder `/` besteht; eine Verkettung in einer Schleife (quadratische Zuteilung) überschritte sie. Eine Eingabe über der Grenze endet nach der Prüfung von Nr. 1 mit `zu_lang`, ohne dass der Parser sie weiter liest.
 7. **Nebenläufigkeit.** Der `*Parser` hat nach `New` keinen veränderlichen Zustand; Variablen des Pakets sind nach der Initialisierung unveränderlich (kein Cache, kein Pool, keine Map, in die ein Aufruf schreibt). Gleichzeitige Aufrufe auf einer Instanz und auf mehreren sind erlaubt und beeinflussen sich nicht: jedes Ergebnis ist gleich dem eines einzelnen Aufrufs. Ein eingehängter `FilterLeser` muss zustandslos und nebenläufig aufrufbar sein; der Parser ruft ihn aus mehreren Goroutinen.
-8. **Einhängestelle für `$filter`.** `New(WithFilter(l))` hängt einen `FilterLeser` ein; ohne ihn (oder mit `nil`) ist `$filter` mit lesbarem Wert die Ursache `filter` (`nicht_unterstuetzt`): nie eine ungefilterte Antwort (`LH-FA-08`, Negative). Den Leser der Grammatik liefert `NewFilterLeser` (`SPEC-164`); `New()` hängt ihn nicht ein. Mit einem `FilterLeser` gilt: (a) er wird höchstens einmal je `ParseURL` gerufen, mit dem **dekodierten** Wert von `$filter` (nichtleer, gültiges UTF-8, ohne U+0000), an der Stelle von `$filter` in der Lesefolge und **nicht mehr**, sobald vor ihr ein Verstoß der Klasse `ungueltig` feststeht; (b) liefert er einen `FilterAusdruck` ungleich `nil` und `error == nil`, steht der Ausdruck in `Optionen.Filter.Ausdruck` und der Text in `Filter.Text`; (c) liefert er einen Fehler, in dessen Kette `errors.As` auf `*model.URLFehler` einen Zeiger ungleich `nil` findet (der erste Treffer zählt), gilt dessen `Ursache` (eine der sechzehn), der Ort ist `query/<n>` der Option `$filter`, nicht sein eigener; (d) ist das ein Fehler des Aufrufers (`model.ErrUngueltig` ohne `URLFehler`, Ergebnis `ODataURL{}`), wenn er einen Fehler liefert, in dessen Kette kein `*URLFehler` steht, ein `*URLFehler`, der `nil` ist (auch als typisierter nil-Zeiger im `error`, auch verpackt), oder einen `*URLFehler` mit einer anderen Ursache als den sechzehn, oder wenn er weder Ausdruck noch Fehler liefert. (e) Ein Fehler gilt immer: liefert er zugleich einen Ausdruck, wird der Ausdruck verworfen, und (c) oder (d) entscheidet nach der Art des Fehlers. `$expand` hat keine Einhängestelle: es ist `option_nicht_unterstuetzt`; wer es lesbar macht, ergänzt `Optionen` um ein Feld und `New` um eine Option, ohne die Signatur von `ParseURL` und die Felder dieses Vertrags zu ändern.
+8. **Einhängestelle für `$filter` und `$expand`.** `New(WithFilter(l))` hängt einen `FilterLeser` ein; ohne ihn (oder mit `nil`) ist `$filter` mit lesbarem Wert die Ursache `filter` (`nicht_unterstuetzt`): nie eine ungefilterte Antwort (`LH-FA-08`, Negative). Den Leser der Grammatik liefert `NewFilterLeser` (`SPEC-164`); `New()` hängt ihn nicht ein. Mit einem `FilterLeser` gilt: (a) er wird höchstens einmal je `ParseURL` gerufen, mit dem **dekodierten** Wert von `$filter` (nichtleer, gültiges UTF-8, ohne U+0000), an der Stelle von `$filter` in der Lesefolge und **nicht mehr**, sobald vor ihr ein Verstoß der Klasse `ungueltig` feststeht; (b) liefert er einen `FilterAusdruck` ungleich `nil` und `error == nil`, steht der Ausdruck in `Optionen.Filter.Ausdruck` und der Text in `Filter.Text`; (c) liefert er einen Fehler, in dessen Kette `errors.As` auf `*model.URLFehler` einen Zeiger ungleich `nil` findet (der erste Treffer zählt), gilt dessen `Ursache` (eine der sechzehn), der Ort ist `query/<n>` der Option `$filter`, nicht sein eigener; (d) ist das ein Fehler des Aufrufers (`model.ErrUngueltig` ohne `URLFehler`, Ergebnis `ODataURL{}`), wenn er einen Fehler liefert, in dessen Kette kein `*URLFehler` steht, ein `*URLFehler`, der `nil` ist (auch als typisierter nil-Zeiger im `error`, auch verpackt), oder einen `*URLFehler` mit einer anderen Ursache als den sechzehn, oder wenn er weder Ausdruck noch Fehler liefert. (e) Ein Fehler gilt immer: liefert er zugleich einen Ausdruck, wird der Ausdruck verworfen, und (c) oder (d) entscheidet nach der Art des Fehlers. `$expand` hat die Einhängestelle `New(WithExpand())` (`SPEC-262` Nr. 1): ohne sie ist es `option_nicht_unterstuetzt`, mit ihr gilt `SPEC-262`; `ParseURL` und die Felder von `ODataURL` ohne `Expand` bleiben gleich.
 9. **Was der Dienst prüft, nicht der Parser.** Der Parser liefert Syntax; der Dienst, der die Query ausführt, prüft gegen das Modell des Dienstes (`SPEC-125` Nr. 11): (a) `EntitySet` ist der Name eines Entity-Sets, bytegleich (`products` ist nicht `Products`); (b) bei `RessourceEntity`: die Namen der Schlüsselteile sind genau die `Keys` des Typs (jeder einmal; ein unbenannter Teil nur bei einem Schlüsselteil), das `Literal` jedes Teils passt zum `EdmType` seiner Property (`LiteralZeichenkette` zu `Edm.String`, `LiteralWahrheitswert` zu `Edm.Boolean`, `LiteralZahl` zu `Edm.Int32` und `Edm.Int64` nur mit ganzzahligem Text im Bereich des Typs, zu `Edm.Decimal` mit jedem Text, `LiteralGUID`, `LiteralDatum`, `LiteralZeitpunkt` zu `Edm.Guid`, `Edm.Date`, `Edm.DateTimeOffset`), und der Schlüssel `Entity.Schluessel` entsteht aus den Texten in der Reihenfolge des Modells; (c) jeder Name in `Select.Namen` und `OrderBy` ist eine Property des Typs; (d) welche Optionen für welche Art der Ressource gelten (`/$metadata?$top=1`, `/Set(1)?$orderby=Id`): der Parser lässt jede Option zu jeder Art zu (*Ungeprüft*). Ein Verstoß von (b) und (c) ist `400` mit `ODR-E6005`, ein Entity-Set, das das Modell nicht nennt (a), `404` mit `ODR-E6008` (`SPEC-196` Nr. 2), eine nicht beobachtete Property `ODR-E6003`; welche Optionen je Art der Ressource wirken (d), legt `SPEC-196` Nr. 1 fest.
+   Hinzu kommt: (e) jeder Name in `Expand.Elemente` ist eine Navigation-Property des Typs (`SPEC-263`); ein Verstoß ist `400` oder `501` nach `SPEC-263` Nr. 3.
 
 Ungeprüft bleibt:
 - das Modell, die Namen und die Typen (Nr. 9). Grund: der Parser ist eine reine Funktion auf zwei Texten und kennt das Modell nicht (`ARC-011`: der Adapter importiert Modell und Ports, keinen Dienst). Folge: `/Unbekannt` und `/Products(Foo=1)` sind lesbar; der Dienst antwortet 404 bzw. `ODR-E6005`.
@@ -2745,10 +2751,10 @@ Ungeprüft bleibt: die Typen, Namen und die Reihenfolge der Teile gegen das Mode
 Gilt für `rawQuery` von `URLCodec.ParseURL` (`SPEC-160`). Alle Verstöße haben die Ursachen und Orte von `SPEC-160` Nr. 4.
 
 1. **Zerlegung: eine Regel für Import und Parser.** `model.QuerySegmente(raw)` zerlegt den Text ohne Dekodierung: an `&` in Segmente (`;` trennt nichts), leere Segmente (Anfang, Ende, `&&`, der leere Text) entfallen, der Name ist der Text bis zum ersten `=` (das ganze Segment ohne `=`), der Wert der Rest hinter diesem `=` (`a=b=c` hat den Wert `b=c`, `=v` den leeren Namen); die Folge bleibt in der Reihenfolge des Textes; das Ergebnis für einen Text ohne nichtleeres Segment ist `nil`. Es ist **die** Regel für Segment, Name und Wert der Query: der Import (`SPEC-127` Nr. 8 i) und der Parser rufen diese Funktion und haben keine eigene. Die Dekodierung des Namens und des Werts ist je Zweck verschieden und deshalb benannt: der **Import liest nachsichtig** (ein Name mit ungültiger Kodierung bleibt unverändert; er ordnet nur zu, ob eine Antwort verwendbar ist, und scheitert nie), der **Parser liest streng** (Nr. 2). Die Redaktion (`SPEC-115` Nr. 4) und der Match-Key (`SPEC-116` Nr. 4) bauen aus den Segmenten wieder Text bzw. Paare und behalten deshalb leere Segmente; Segment, Name und Wert bestimmen sie nach derselben Regel (erstes `=`, nur `&`), nicht aus dieser Funktion.
-2. **Dekodierung der Query (Parser).** Name und Wert einer Option werden je für sich **genau einmal** dekodiert, mit den Regeln von `SPEC-161` Nr. 2 (`%XX` in jeder Schreibweise, ungültige Folge, kein gültiges UTF-8 und U+0000 sind `kodierung`); **`+` bleibt `+`** (kein Leerzeichen; Folge: ein Client, der Leerzeichen als `+` schreibt, bekommt für `$orderby=Name+desc` den Verstoß `wert`). Die Folge der Prüfungen einer Option: Kodierung des Namens, Klasse des Namens (Nr. 3), Wiederholung (Nr. 3), Kodierung des Werts, Grammatik des Werts (Nr. 4 bis 8). Der Wert einer nicht unterstützten Option (Nr. 3 b) wird nicht gelesen, auch nicht dekodiert.
+2. **Dekodierung der Query (Parser).** Name und Wert einer Option werden je für sich **genau einmal** dekodiert, mit den Regeln von `SPEC-161` Nr. 2 (`%XX` in jeder Schreibweise, ungültige Folge, kein gültiges UTF-8 und U+0000 sind `kodierung`); **`+` bleibt `+`** (kein Leerzeichen; Folge: ein Client, der Leerzeichen als `+` schreibt, bekommt für `$orderby=Name+desc` den Verstoß `wert`). Die Folge der Prüfungen einer Option: Kodierung des Namens, Klasse des Namens (Nr. 3), Wiederholung (Nr. 3), Kodierung des Werts, Grammatik des Werts (Nr. 4 bis 8, für `$expand` `SPEC-262`). Der Wert einer nicht unterstützten Option (Nr. 3 b) wird nicht gelesen, auch nicht dekodiert.
 3. **Klassen der Namen.** Der dekodierte Name ist, die Schreibweise zählt (`$Top` ist nicht `$top`):
-   - (a) **behandelt**: `$select`, `$orderby`, `$top`, `$skip`, `$count`, `$filter`, `$format`. Ein zweites Vorkommen desselben Namens (auch in anderer Schreibweise des Escapes: `$top=1&%24top=2`) ist `option_doppelt`, gleich wie sein Wert lautet.
-   - (b) **nicht unterstützt**: `$expand`, `$search`, `$apply`, `$compute`, `$levels`, `$schemaversion`, `$deltatoken`, `$skiptoken`, `$index`, `$id`: `option_nicht_unterstuetzt`, mit jedem Wert (auch leer) und beliebig oft.
+   - (a) **behandelt**: `$select`, `$orderby`, `$top`, `$skip`, `$count`, `$filter`, `$format` und, mit der Einhängestelle `WithExpand`, `$expand` (`SPEC-262` Nr. 1). Ein zweites Vorkommen desselben Namens (auch in anderer Schreibweise des Escapes: `$top=1&%24top=2`) ist `option_doppelt`, gleich wie sein Wert lautet.
+   - (b) **nicht unterstützt**: `$expand` (ohne die Einhängestelle `WithExpand`, `SPEC-262` Nr. 1), `$search`, `$apply`, `$compute`, `$levels`, `$schemaversion`, `$deltatoken`, `$skiptoken`, `$index`, `$id`: `option_nicht_unterstuetzt`, mit jedem Wert (auch leer) und beliebig oft.
    - (c) jeder andere Name mit `$` am Anfang (`$Top`, `$foo`, `$` allein): `option_name`.
    - (d) ein **Parameter-Alias**: `@` und ein einfacher Name (`SPEC-125` Nr. 8 b), und (e) eine **herstellerspezifische Option**: 1 bis 128 Zeichen aus ASCII-Buchstaben, Ziffern, `_`, `-`, `.`, das erste ein Buchstabe oder `_` (`sap-client`, `api-version`): beide stehen in `Sonstige` mit dekodiertem Namen und Wert (ein Segment ohne `=` hat den leeren Wert, `x` und `x=` sind gleich), beliebig oft, und ohne Wirkung auf die Antwort (OData: Server ignorieren sie).
    - (f) jeder andere Name, auch der leere (`=v`), mit `?` am Anfang (ein führendes `?` der Query), mit Zeichen jenseits von ASCII oder über 128 Zeichen: `option_name`.
@@ -2758,9 +2764,9 @@ Gilt für `rawQuery` von `URLCodec.ParseURL` (`SPEC-160`). Alle Verstöße haben
 6. **`$select`.** Der Wert ist eine nichtleere Liste, durch `,` getrennt, ohne Leerraum; mehr als 256 Elemente: `zu_viele` (vor der Prüfung der Elemente). Ein Element ist `*` (`Select.Alle`), ein einfacher Name (`Select.Namen`, in der Reihenfolge der URL; Schreibweise und Länge wie Nr. 3 d) oder ein Pfad aus mindestens zwei einfachen Namen, durch `/` getrennt (Property einer komplexen Property, Navigation): `wert_nicht_unterstuetzt`. Jedes andere Element ist `wert`: leer (`Id,,Name`, `,Id`, `Id,`, die leere Liste), mit Leerraum (`Id, Name`), mit `(`, ein Name über 128 Zeichen; ein doppeltes Element (derselbe Name zweimal, `*` zweimal) ist `wert`. `*` neben Namen (`*,Name`) ist gültig und setzt `Alle` und führt die Namen.
 7. **`$orderby`.** Der Wert enthält ein `(`: ein Ausdruck (Funktion), `wert_nicht_unterstuetzt`, der Wert wird nicht weiter gelesen. Sonst eine nichtleere Liste, durch `,` getrennt; mehr als 32 Elemente: `zu_viele`. Ein Element ist ein einfacher Name oder ein Pfad wie in Nr. 6 (`wert_nicht_unterstuetzt`), gefolgt von nichts oder von **genau einem** Leerzeichen und `asc` oder `desc` ohne Beachtung der ASCII-Schreibweise (`Name%20desc`; `Name DESC` ist absteigend). Jede andere Form ist `wert`: leer, ein leeres Element, zwei Leerzeichen, eine andere Richtung (`up`), eine Richtung zweimal (`Name asc desc`), ein Wort hinter dem Namen, das keine Richtung ist (`Price mul 2`: Ausdrücke sind unlesbar, nicht unterstützt wird nur, was die Form einer Funktion oder eines Pfads hat), ein doppelter Name (`Name,Name desc`, gleich welche Richtung).
 8. **`$filter` und `$format`.** `$filter`: der dekodierte Wert ist nichtleer (leer ist `wert`) und wird nicht weiter gelesen; die Grammatik des Lesers steht in `SPEC-164`; ohne `FilterLeser` ist es `filter` (`SPEC-160` Nr. 8), mit ihm entscheidet er. `$format`: der dekodierte Wert ist ohne Beachtung der ASCII-Schreibweise `json`, `application/json` oder `application/json;` mit beliebigem Rest; das ist lesbar und ohne Eintrag im Ergebnis (die Stufe der Metadaten liest dieser Vertrag nicht; sie handelt der Schreiber aus `Accept` aus, `SPEC-169` Nr. 3); ein anderer nichtleerer Wert (`xml`, `atom`, `application/jsonx`) ist `option_nicht_unterstuetzt`; leer ist `wert`.
-9. **Gleichwertigkeit.** Die Reihenfolge der Systemoptionen, die Schreibweise der Hex-Ziffern, ein Escape gegen das rohe Zeichen (`%24top` gegen `$top`), die Schreibweise von `true`/`false` und von `asc`/`desc`, leere Segmente (`&&`) und führende Nullen ändern das Ergebnis nicht; die Schreibweise von Namen (`$Top`), die Reihenfolge der Elemente von `$select` und `$orderby`, `+` gegen `%20` und die Reihenfolge von `Sonstige` tun es.
+9. **Gleichwertigkeit.** Die Reihenfolge der Systemoptionen, die Schreibweise der Hex-Ziffern, ein Escape gegen das rohe Zeichen (`%24top` gegen `$top`), die Schreibweise von `true`/`false` und von `asc`/`desc`, leere Segmente (`&&`) und führende Nullen ändern das Ergebnis nicht; die Schreibweise von Namen (`$Top`), die Reihenfolge der Elemente von `$select`, `$orderby` und `$expand`, `+` gegen `%20` und die Reihenfolge von `Sonstige` tun es.
 
-Ungeprüft bleibt: die Namen in `$select` und `$orderby` gegen das Modell (`SPEC-160` Nr. 9); der Inhalt von `$filter` über „nichtleer und gültig kodiert“ hinaus (`SPEC-164`); die Abgrenzung der Optionen je Ressourcenart (`SPEC-160` *Ungeprüft*); die Zahl der Segmente, die der Import zerlegt (er lässt die Länge der Query durch den Aufruf begrenzen, nicht durch diese Funktion, und `QuerySegmente` hat keine Grenze: ihre Zuteilung ist linear in der Länge des Textes).
+Ungeprüft bleibt: die Namen in `$select`, `$orderby` und `$expand` gegen das Modell (`SPEC-160` Nr. 9, `SPEC-263`); der Inhalt von `$filter` über „nichtleer und gültig kodiert“ hinaus (`SPEC-164`); die Abgrenzung der Optionen je Ressourcenart (`SPEC-160` *Ungeprüft*); die Zahl der Segmente, die der Import zerlegt (er lässt die Länge der Query durch den Aufruf begrenzen, nicht durch diese Funktion, und `QuerySegmente` hat keine Grenze: ihre Zuteilung ist linear in der Länge des Textes).
 
 ### SPEC-164 — `$filter` lesen: Vertrag des Lesers und Grammatik
 
@@ -2929,6 +2935,106 @@ Ungeprüft bleibt:
 - die Stelle des Verstoßes (Nr. 6). Grund: `SPEC-164` Nr. 6 trägt nichts von der Eingabe in einen Fehler. Folge: ein Client mit langem Filter sieht Ursache, nicht Name oder Position.
 - ob `beobachtet` für gleiche Namen gleich antwortet; die Prüfung fragt je Vorkommen.
 - die Eindeutigkeit des Namens in `typ.Properties`: der Metadatenleser liefert jeden Namen einmal (`SPEC-125` Nr. 11).
+- ein Datenrennen, das kein Lauf auslöst (`make test-race`, `SPEC-122` Nr. 8 und 9).
+
+### SPEC-262 — `$expand` lesen: Grammatik, Knoten und Einhängestelle
+
+Gilt für die Option `$expand` in `rawQuery` von `URLCodec.ParseURL` (`SPEC-160`). Alle Verstöße haben die Ursachen und Orte von `SPEC-160` Nr. 4; es gibt keine neue Ursache und keinen neuen Code. Der Parser liest nur Text und kennt das Modell nicht: ob ein Name eine Navigation des Typs ist, prüft `SPEC-263`.
+
+```text
+urlparser.WithExpand() Option          // hängt das Lesen von $expand ein, ohne Parameter
+model.Optionen{…; Expand *ExpandOption}
+model.ExpandOption{Elemente []ExpandElement}
+model.ExpandElement{Name string}
+```
+
+1. **Einhängestelle.** `New(WithExpand())` macht `$expand` lesbar. Ohne sie (`New()`, `New(WithFilter(l))`) ist `$expand` mit jedem Wert (auch leer, auch ungültig kodiert) und beliebig oft `option_nicht_unterstuetzt` (`SPEC-162` Nr. 3 b), der Wert wird nicht gelesen, und `Expand` ist `nil`. Das Einhängen ändert kein anderes Feld des Ergebnisses und keine Antwort auf eine Query ohne `$expand`; `ParseURL` und die Felder von `SPEC-160` bleiben bis auf `Expand` gleich. Wer die Option einhängt, ruft `model.PruefeExpand` (`SPEC-263`) vor der Ausführung und liefert nie eine Antwort ohne die verlangte Expansion (`LH-RB-01`).
+2. **Name und Wiederholung.** Mit der Einhängestelle gehört `$expand` zur Klasse (a) von `SPEC-162` Nr. 3: ein zweites Vorkommen (auch in anderer Schreibweise des Escapes, `%24expand`) ist `option_doppelt`, gleich wie sein Wert lautet; der Wert des zweiten wird nicht gelesen, der des ersten schon. `$Expand` ist `option_name` (`SPEC-162` Nr. 3 c).
+3. **Wert.** Der Wert wird nach `SPEC-162` Nr. 2 genau einmal dekodiert (`%2C` ist danach ein Trenner, `%252C` der Text `%2C`). Die Prüfungen laufen in dieser Folge, die erste, die zutrifft, entscheidet; der Ort jedes Verstoßes ist `query/<n>` der Option:
+   - (a) der Wert ist leer (`$expand=`, `$expand`): `wert`.
+   - (b) der Wert enthält ein `(`: `wert_nicht_unterstuetzt`, der Wert wird nicht weiter gelesen (Optionen in Klammern, wie `$orderby` in `SPEC-162` Nr. 7). Grund: die Optionen in der Klammer haben eine eigene Grammatik, und ein `,` darin ist kein Trenner des Werts. Folge: ein Wert mit `(` ist `501` auch dann, wenn er sonst ungültig wäre (`,(`, `a,,b(x)`) oder mehr als 32 Elemente hätte.
+   - (c) mehr als 32 Elemente (die Zahl der `,` plus eins): `zu_viele`, vor der Prüfung der Elemente.
+   - (d) die Elemente nach Nr. 4 von links nach rechts: ein Verstoß der Klasse `ungueltig` (`wert`) geht jedem der Klasse `nicht_unterstuetzt` vor, gleich wo er steht; innerhalb der Klasse gewinnt das erste Element (`SPEC-160` Nr. 5). Ein Element der Klasse `nicht_unterstuetzt` beendet das Lesen nicht.
+4. **Element.** Der Wert wird an `,` in Elemente zerlegt (der Text zwischen zwei Trennern, wie geschrieben; Leerraum wird nicht entfernt, ein `;` trennt nichts). Ein Element ist genau eines von:
+   - (a) ein **Name**: ein einfacher Name nach `SPEC-125` Nr. 8 b (Buchstabe oder `_`, dann Buchstaben, Ziffern, `_`, 1 bis 128 Zeichen, nicht Bytes; ein Buchstabe ist ein Zeichen der Unicode-Kategorie `L`, eine Ziffer eines der Kategorie `Nd`). Er ist die Navigation, die das Ergebnis führt; die Schreibweise zählt.
+   - (b) genau `*` (alle Navigationen): `wert_nicht_unterstuetzt`.
+   - (c) ein **Pfad**: ein Element mit mindestens einem `/`, dessen durch `/` getrennte Segmente alle ein Name, ein qualifizierter Name (mindestens zwei Namen, durch `.` getrennt: ein Typ-Cast) oder `$ref`, `$count` oder `$value` sind: `wert_nicht_unterstuetzt` (Navigation durch einen Pfad, Typ-Cast, Referenz). Ein leeres Segment (`/a`, `a/`, `a//b`) oder ein anderes Segment (`*`, `$levels`, `$`, `a.`, ein Name über 128 Zeichen) macht das Element zu `wert`.
+   - (d) jede andere Form ist `wert`: das leere Element (`,a`, `a,`, `a,,b`, `,`); Leerraum und jedes Zeichen außerhalb der Form eines Namens an jeder Stelle, auch jenseits von ASCII, wenn es kein Buchstabe und keine Ziffer ist (NBSP, BOM); ein Name über 128 Zeichen; eine Ziffer am Anfang; `*` mit weiteren Zeichen (`*a`, `**`); ein qualifizierter Name oder `$ref` allein; ein `)`.
+   - (e) ein Element, das einem früheren Element desselben Werts bytegleich ist (`a,a`, `a,b,a`, `*,*`, `a/b,a/b`): `wert`; `a,A` sind zwei Elemente.
+5. **Ergebnis.** `Optionen.Expand` ist `nil`, wenn die URL `$expand` nicht nennt oder die Option nicht eingehängt ist; sonst `&ExpandOption{Elemente}` mit mindestens einem Element, je Name ein `ExpandElement{Name}` in der Reihenfolge der URL, ohne doppelte, `Name` dekodiert und wie geschrieben. Ein Wert mit `*`, Pfad oder `(` hat nie ein Ergebnis (er ist ein Fehler). `SPEC-160` Nr. 3 gilt: die Elemente gehören dem Aufrufer.
+6. **Grenzen und Wächter.** Ein Wert hat höchstens 32 Elemente (`SPEC-160` Nr. 6), ein Name höchstens 128 Zeichen; die Länge des Werts ist allein durch `rawQuery` (8192 Bytes) begrenzt. Grund der 32: jedes Element ist eine Navigation, die der Dienst gegen Daten auflöst, und `$orderby` hat dieselbe Grenze. Folge im Betrieb: ein Client mit mehr als 32 Navigationen bekommt `400` und teilt die Anfrage. Die Namen sind Teile des dekodierten Werts: die Wächter von `SPEC-160` Nr. 6 a bis c gelten unverändert (der Wert wird einmal dekodiert und einmal zerlegt; die Prüfung auf doppelte Elemente vergleicht höchstens 32 Elemente).
+7. **Anwendbarkeit je Ressourcenart.** Der Parser liest `$expand` an jeder Ressource (`/$metadata`, `/Set`, `/Set(Schlüssel)`, `/Set/$count`); was die Option dort bewirkt, entscheidet der Dienst (`SPEC-160` *Ungeprüft*).
+8. **Rangfolge, Gleichwertigkeit, Wiederholung, Nebenläufigkeit.** Ein Verstoß in `$expand` reiht sich an der Stelle der Option in die Lesefolge von `SPEC-160` Nr. 5 ein, nach seiner Klasse; die Stufe 0 geht ihm vor. Die Schreibweise der Hex-Ziffern, ein Escape gegen das rohe Zeichen, leere Segmente (`&&`) und die Reihenfolge der Optionen ändern das Ergebnis nicht; die Schreibweise der Namen und die Reihenfolge der Elemente tun es. `SPEC-160` Nr. 3 (Wiederholung, Veränderlichkeit) und Nr. 7 (Nebenläufigkeit) gelten; `WithExpand` setzt beim Aufbau ein Merkmal des `*Parser`, das danach unveränderlich ist.
+9. **Beispiele** (mit eingehängter Option; `rawQuery` links, rechts die Namen von `Expand.Elemente` oder die Ursache; der Ort ist `query/1`, wo nichts anderes steht):
+
+   | `rawQuery` | Ergebnis |
+   |---|---|
+   | `$expand=Category` | `Category` |
+   | `$expand=Category,Supplier` | `Category`, `Supplier` |
+   | `$expand=Supplier,Category` | `Supplier`, `Category` |
+   | `$expand=Category%2CSupplier` | `Category`, `Supplier` |
+   | `%24expand=Category` | `Category` |
+   | `$expand=Category,category` | `Category`, `category` |
+   | `$expand=` | `wert` |
+   | `$expand=Category,,Supplier` | `wert` |
+   | `$expand=Category,Category` | `wert` |
+   | `$expand=Category, Supplier` | `wert` |
+   | `$expand=1a` | `wert` |
+   | `$expand=Category%252CSupplier` | `wert` |
+   | `$expand=Category)` | `wert` |
+   | `$expand=Category/` | `wert` |
+   | `$expand=*,,` | `wert` |
+   | `$expand=*,*` | `wert` |
+   | `$expand=*` | `wert_nicht_unterstuetzt` |
+   | `$expand=Category/Products` | `wert_nicht_unterstuetzt` |
+   | `$expand=Ns.Sub/Category` | `wert_nicht_unterstuetzt` |
+   | `$expand=Category/$ref` | `wert_nicht_unterstuetzt` |
+   | `$expand=Category($select=Id,Name)` | `wert_nicht_unterstuetzt` |
+   | `$expand=,(` | `wert_nicht_unterstuetzt` |
+   | 32 verschiedene Namen in `$expand` | 32 Elemente |
+   | 33 verschiedene Namen in `$expand` | `zu_viele` |
+   | `$expand=Category&$expand=Supplier` | `option_doppelt`, Ort `query/2` |
+   | `$Expand=Category` | `option_name` |
+   | `$expand=Category` ohne `WithExpand` | `option_nicht_unterstuetzt` |
+
+Ungeprüft bleibt:
+- die Namen gegen das Modell (`SPEC-263`, `SPEC-160` Nr. 9 e). Grund: der Parser kennt das Modell nicht. Folge: `$expand=Foo` ist lesbar; der Dienst antwortet `400`.
+- der Inhalt einer Klammer (Nr. 3 b). Grund: eine eigene Grammatik, die dieser Vertrag nicht liest. Folge: `$expand=Category($top=-1)` ist `501`, nicht `400`.
+- die Anwendbarkeit je Ressourcenart (Nr. 7), wie bei den anderen Optionen.
+- jede Zeichenfolge: die Menge der Optionstexte ist unbeschränkt, und der Fänger ist ein Generator über das Alphabet der Grammatik bis Länge 4 sowie benannte Familien (Grenzen, Wiederholung). Folge: eine Regel, die erst ab Länge 5 greift und keine Familie trifft, bleibt ungefangen.
+- ein Datenrennen, das kein Lauf auslöst (`make test-race`, `SPEC-122` Nr. 8 und 9).
+
+### SPEC-263 — `$expand` prüfen: Navigationen gegen den Typ des Modells
+
+Reine Funktion im Paket `src/hexagon/model` (`ARC-001`, Schicht Domain, Muster von `SPEC-167`); sie prüft den Knoten `Optionen.Expand` (`SPEC-262`) gegen die Navigation-Properties des Entity-Typs, bevor der Dienst ausführt (`SPEC-160` Nr. 9 e). Sie liest nur ihre beiden Argumente: kein Modell außer dem Typ, kein Port, kein `ctx`, kein Zugriff auf Daten.
+
+```text
+model.PruefeExpand(typ EntityType, o *ExpandOption) error
+model.ExpandFehler{Ursache ExpandUrsache}      // Code() Code; Error() string; Is(target error) bool
+```
+
+1. **Eingabe.** `typ` ist der Entity-Typ des Sets mit den wirksamen `Properties` und `NavigationProperties`, den geerbten eingeschlossen (`SPEC-125` Nr. 11); `o` ist `Optionen.Expand`. Ein Name wird bytegleich gesucht (Groß- und Kleinschreibung zählt, keine Normalisierung). Die Zieltypen der Navigationen sind beim Lesen des Modells aufgelöst (`SPEC-125` Nr. 9 d); die Funktion braucht sie nicht. Ergebnis: `nil` oder ein Fehler; die Funktion ändert `typ` und `o` nicht.
+2. **Prüfung.** Die Namen von `o.Elemente` in der Reihenfolge der URL; der **erste Verstoß entscheidet, gleich welcher Klasse** (wie `SPEC-167` Nr. 3), und die Prüfung endet dort. Für einen Namen gilt der erste zutreffende Fall:
+   - (a) er steht in `typ.NavigationProperties` (eine Navigation auf eine Entity oder auf eine Collection, auch eine geerbte): gültig.
+   - (b) er steht in `typ.Properties` (jede Property, auch eine mit nicht unterstütztem Typ): `keine_navigation`.
+   - (c) er steht in keiner der beiden Listen und der Typ ist offen (`EntityType.Open`): `navigation_nicht_unterstuetzt` (ein Name im offenen Typ hat keinen Typ im Modell; wie `SPEC-167` Nr. 5).
+   - (d) er steht in keiner der beiden Listen und der Typ ist nicht offen: `navigation_unbekannt`. Darunter fällt eine Navigation, die nur ein abgeleiteter Typ trägt (`typ` ist der Typ des Sets; ein Typ-Cast ist schon im Parser `501`), und jeder Name eines anderen Typs. Ein abstrakter Typ verhält sich wie jeder andere.
+3. **Fehler.** Jeder Verstoß ist ein `*model.ExpandFehler` mit genau einer Ursache, und kein anderer Fehler:
+
+   | Ursache | Klasse (`errors.Is`) | Code | Status |
+   |---|---|---|---|
+   | `navigation_unbekannt`, `keine_navigation` | `model.ErrURLUngueltig` | `ODR-E6005` | 400 |
+   | `navigation_nicht_unterstuetzt` | `model.ErrURLNichtUnterstuetzt` | `ODR-E6001` | 501 |
+
+   `Code()` liefert den Code der Zeile, `errors.Is` trifft genau die Sentinel seiner Klasse. `Error()` ist `ODR-E6005: Expand ungültig: <Ursache>` bzw. `ODR-E6001: Expand nicht unterstützt: <Ursache>`. **Kein Teil der Eingabe steht im Fehler** (kein Name, keine Stelle in der Liste). Die Abbildung (`SPEC-109` Nr. 5) kennt beide Sentinel schon und ändert sich nicht. Eine Ursache außerhalb der drei (nur ein von Hand gebauter `ExpandFehler`) hat die Klasse der ersten Zeile: `errors.Is` trifft `model.ErrURLUngueltig`, `Code()` ist `ODR-E6005`, `Error()` ist `ODR-E6005: Expand ungültig: <Ursache>`.
+4. **Programmfehler.** `o` gleich `nil`, `o.Elemente` leer, ein leerer `Name`, der Name `*` und zwei Elemente mit bytegleichem `Name` sind `model.ErrUngueltig` (ohne Code, `SPEC-109` Nr. 5), nicht `ExpandFehler`; der Parser liefert sie nie (`SPEC-262` Nr. 4, 5). Sie werden für den ganzen Knoten **vor** der Prüfung von Nr. 2 festgestellt: ein Programmfehler geht jedem Verstoß vor, auch einem früheren. Ein Aufrufer ohne `$expand` (`Expand == nil`) ruft die Funktion nicht.
+5. **Bindings und Daten.** Eine Navigation, zu der das Set kein `NavigationBinding` trägt, ist gültig: die Funktion kennt Sets und Bindings nicht (`Path` ist nicht aufgelöst, `SPEC-125` *Ungeprüft*). Wie die Ausführung eine Navigation ohne Binding oder ohne Daten behandelt, entscheidet ihr Vertrag; sie liefert nie eine Antwort ohne die verlangte Expansion (`LH-RB-01`).
+6. **Grenzen, Wiederholung, Nebenläufigkeit.** Die Funktion hat keine eigene Grenze: der Parser liefert höchstens 32 Elemente (`SPEC-262` Nr. 6), und der Aufwand ist linear in der Zahl der Elemente und der Navigationen des Typs. Gleiche Eingabe ergibt gleiches Ergebnis; die Funktion ändert keine Variable des Pakets, gleichzeitige Aufrufe auf einem Typ und einem Knoten beeinflussen sich nicht.
+
+Ungeprüft bleibt:
+- die Stelle des Verstoßes (Nr. 3). Grund: kein Teil der Eingabe steht im Fehler (wie `SPEC-167`). Folge: ein Client sieht die Ursache, nicht den Namen.
+- die Eindeutigkeit der Namen in `typ.Properties` und `typ.NavigationProperties`: der Metadatenleser liefert jeden Namen einmal (`SPEC-125` Nr. 8 und 9 c).
+- die Bindings und die Daten (Nr. 5).
 - ein Datenrennen, das kein Lauf auslöst (`make test-race`, `SPEC-122` Nr. 8 und 9).
 
 ### SPEC-190 — Query ausführen: Vertrag des Interpreters
@@ -4277,6 +4383,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-18 | `$expand` vor dem Code (`SPEC-262`: Einhängestelle `WithExpand`, Liste einfacher Namen, ein `(` im Wert ist `501`, 32 Elemente, doppeltes Element `wert`; `SPEC-263`: `PruefeExpand` gegen die Navigationen des Typs; Architect, keine bestehende Entscheidung geändert): Nachzug in `SPEC-160` (Typen, Nr. 2, 3, 6, 8, 9) und `SPEC-162` (Nr. 2, 3, 9, *Ungeprüft*); `SPEC-049` und `ODV4-E-03` c bleiben, solange der Dienst `$expand` nicht ausführt |
 | 2026-11-17 | `Prefer` vor dem Code (`SPEC-285` bis `SPEC-289`, Architect, keine bestehende Entscheidung geändert): Grammatik und Wahl (`model.LiesRueckgabe`, erste Instanz zählt, Schreibweise und Leerraum tolerant), Antwort je Methode und Wahl (`201`, `200`, `204`, `Location`, `OData-EntityId`, `Preference-Applied`, kein `Vary`), `GET`, `HEAD`, `DELETE` und Fehler ohne Wirkung, Entity der Antwort aus dem geschriebenen Eintrag mit unverändertem Schreiber, Aufrufe des Schreibers je Antwort; Nachzug in `SPEC-194` Nr. 4 (gilt nur noch ohne Wahl), `SPEC-192`, `SPEC-195`, `SPEC-049` Nr. 10 f und im Absatz zu `LH-FA-07.b` |
 | 2026-11-08 | Bedingte Mutation vor dem Code (`SPEC-283`, Architect, keine bestehende Entscheidung geändert): `If-Match` und `If-None-Match` bei `PATCH`, `PUT` und `DELETE` mit schwachem Vergleich, Grammatik, Rangfolge (die Vorbedingung ist der letzte Verstoß), Atomarität und neuer Code `ODR-E6010` (HTTP 412, Ziel `mock`; Nachzüge in `SPEC-109` Nr. 2 und 5, `SPEC-195` Nr. 10 (16 erreichbare Codes), `SPEC-192` Nr. 2, 6 und 8, `SPEC-230` Nr. 8 (41 Reihen), `SPEC-282`, `SPEC-049`, §4 und `SPEC-201` Nr. 3 e); `SPEC-280` Nr. 3 gilt nur noch für aus (bestätigt), die Sätze zu `If-Match` in `SPEC-192`, `SPEC-280` und `SPEC-281` *Ungeprüft* entfallen; `If-None-Match` bei `GET` (`304`) ist benannte Lücke (`SPEC-283` Nr. 10) |
 | 2026-11-09 | `SPEC-284` *Ungeprüft* um den typisierten nil-Zeiger `*inbound.Fehler` als Fehler einer Stufe ergänzt (Architect, keine bestehende Entscheidung geändert): der Dienst schließt die Form aus, `Fehler.Unwrap` bleibt unverändert |

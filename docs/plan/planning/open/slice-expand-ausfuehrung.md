@@ -37,6 +37,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Verdrahtung, Sendung von `slice-expand-parser` und `slice-expand-validator`, `AGENTS.md` §3.13):** das Einschalten der Option `$expand` im Parser beim Aufbau des Dienstes (`urlparser.New` mit der Option des Parsers, `slice-expand-parser`), den Aufruf von `model.PruefeExpand` (`slice-expand-validator`) vor der Ausführung, die Abbildung seiner Fehler auf die Antwort (`ODR-E6005` `400`, `ODR-E6001` `501`) und die Änderung der Fixture `ODV4-E-03` c (`GET /Products?$expand=Foo`: heute `501`, mit eingeschalteter Option und Validator ein `400` für die unbekannte Navigation; `SPEC-042`, `src/bootstrap/abnahme_matrix_test.go`). Bis zur Verdrahtung antwortet das Binary auf `$expand` mit `501`.
 
+**Übernimmt (Sendung von `slice-expand-validator`, `AGENTS.md` §3.13):** die Behandlung einer Navigation ohne `NavigationBinding` am Set. `model.PruefeExpand` (`SPEC-263` Nr. 5) lässt sie gültig, weil es nur den Typ prüft; die Ausführung liefert nie eine Antwort ohne die verlangte Expansion (`LH-RB-01`), die Ausprägung entscheidet der Architect mit der Datenbasis (§3 Auftrag 2).
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Parser von `$expand` — `slice-expand-parser`, Validator gegen das Modell — `slice-expand-validator`; dieser Slice liest den geprüften AST und prüft keinen Text.
@@ -97,7 +99,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 **Auftrag an den Architect** (vor dem Start der Welle; Ergebnis in der Spezifikation, Neues unter einer künftigen Nummer, die der Architect vergibt):
 
 1. **Datenbasis der Navigationen.** Der Import liest eingebettete Navigationen nicht (`SPEC-126` Nr. 9), der Metadatenleser wertet `ReferentialConstraint` nicht aus (Fund `konstrukt`, `SPEC-125` Nr. 7), und der Entity-State (`SPEC-003`) hält Properties, keine Beziehungen. Der Architect nennt die Quelle der Beziehungen (etwa Fremdschlüssel-Properties aus `ReferentialConstraint`, beobachtete Navigationsantworten, eine eigene Ablage) und den Weg dorthin: welche Verträge in `done/` sich dafür ändern und ob dafür ein vorgelagerter Slice nötig ist (Adresse: Planner, `AGENTS.md` §3.13). Nennt er keine Quelle, hat `LH-FA-16` im Mock keine Datenbasis, und die Welle geht an den User zurück.
-2. Verhalten bei fehlendem Ziel, Tombstone, Selbstbezug und Tiefe; Reihenfolge der Elemente; abgeleitete Typen im Ziel.
+2. Verhalten bei einer Navigation ohne Binding (Sendung von `slice-expand-validator`), bei fehlendem Ziel, Tombstone, Selbstbezug und Tiefe; Reihenfolge der Elemente; abgeleitete Typen im Ziel.
 3. Coverage des Ziels: derselbe Maßstab wie für die Abfrage oder ein eigener; Verhalten bei `partial` und `unknown` mit und ohne `STRICT_COVERAGE`.
 4. Darstellung: `@odata.context`, `@odata.count` der eingebetteten Collection, Property-Maske der eingebetteten Entities (nur beobachtete Properties), Leerform (`[]`, `null`).
 5. Wechselwirkung mit Mutationen: ändert eine Mutation die Beziehung (etwa die Fremdschlüssel-Property per PATCH), und wo steht die Regel.

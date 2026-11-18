@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-FA-16`, `LH-RB-01`, `LH-QA-05`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `LH-FA-16.a` (eigener Validator-Contract-Test, unbekannte Operationen `501`) · `SPEC-002`, `SPEC-125` Nr. 9 d und Nr. 11 (Navigation-Properties des Modells, wirksam einschließlich geerbter; `Target` aufgelöst) · `SPEC-160` Nr. 9 (was der Dienst prüft, nicht der Parser) · `SPEC-167` (Muster: reine Funktion in `model`, eigener Fehlertyp) · `SPEC-022` (`ODR-E6001`), `SPEC-163` (`ODR-E6005`) · `SPEC-049` (Zeile GET: Navigation-Expand) · `ARC-004`.
+**Berührte Spec-Stellen:** `LH-FA-16.a` (eigener Validator-Contract-Test, unbekannte Operationen `501`) · `SPEC-002`, `SPEC-125` Nr. 9 d und Nr. 11 (Navigation-Properties des Modells, wirksam einschließlich geerbter; `Target` aufgelöst) · `SPEC-160` Nr. 9 (was der Dienst prüft, nicht der Parser) · `SPEC-263` (Vertrag von `PruefeExpand`) · `SPEC-167` (Muster: reine Funktion in `model`, eigener Fehlertyp) · `SPEC-022` (`ODR-E6001`), `SPEC-163` (`ODR-E6005`) · `SPEC-049` (Zeile GET: Navigation-Expand) · `ARC-004`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -31,7 +31,7 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Eine reine Funktion im Paket `src/hexagon/model` (Muster `PruefeFilter`, `SPEC-167`) prüft jede Navigation des Knotens `$expand` (geliefert von `slice-expand-parser`) gegen die Navigation-Properties des Entity-Typs im Modell des Dienstes, die geerbten eingeschlossen: eine vorhandene Navigation ist gültig, ein unbekannter Name oder eine Property ohne Navigation ist `400` (`ODR-E6005`), eine gültige, aber nicht unterstützte Form `501` (`ODR-E6001`), je nach Entscheidung des Architect (§6 V1 bis V6). Die Funktion liest nur den Knoten und das Modell, sie greift auf keine Daten zu und kennt weder Kontext noch Port (`LH-FA-16.a`: Validator-Contract-Test).
+**Ziel:** Eine reine Funktion im Paket `src/hexagon/model` (Muster `PruefeFilter`, `SPEC-167`) prüft jede Navigation des Knotens `$expand` (geliefert von `slice-expand-parser`) gegen die Navigation-Properties des Entity-Typs im Modell des Dienstes, die geerbten eingeschlossen: eine vorhandene Navigation ist gültig, ein unbekannter Name oder eine Property ohne Navigation ist `400` (`ODR-E6005`), eine gültige, aber nicht unterstützte Form `501` (`ODR-E6001`), nach `SPEC-263` (§6 V1 bis V7). Die Funktion liest nur den Knoten und das Modell, sie greift auf keine Daten zu und kennt weder Kontext noch Port (`LH-FA-16.a`: Validator-Contract-Test).
 
 **Übernimmt (Schnitt von `slice-expand-parser`, Geber `slice-expand-parser`, `AGENTS.md` §3.13):** den Validator gegen das Modell samt Fehlertyp, Raster und Validator-Contract-Test, die der frühere Plan von `slice-expand-parser` führte (Navigation vorhanden, auch geerbt; Property ist eine Navigation; Zieltyp aufgelöst; unbekannt oder keine Navigation `400`, gültig, aber nicht unterstützt `501`; kein Zugriff auf Daten).
 
@@ -40,6 +40,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Parser, Grammatik, Knoten und Einhängestelle von `$expand` — `slice-expand-parser`; dieser Slice liest den Knoten und ändert ihn nicht (`SPEC-160` Nr. 3 gilt für den Parser).
 - Der Aufruf des Validators im Dienst und die Verdrahtung — `slice-expand-ausfuehrung` (dessen §1 trägt die Sendung); dieser Slice liefert die Funktion, nicht ihren Aufrufer.
 - Auflösen gegen Daten, Datenbasis der Navigationen, Ausgabe — `slice-expand-ausfuehrung`.
+- Navigation ohne `NavigationBinding` am Set und fehlende Daten der Navigation — `slice-expand-ausfuehrung` (dessen §1 trägt die Sendung, `AGENTS.md` §3.13); die Funktion prüft den Typ, nicht die Bindings (`SPEC-263` Nr. 5).
 - Änderungen am Metadatenleser und am Modell (`SPEC-125`): `Path` der `NavigationPropertyBinding` wird nicht aufgelöst (`SPEC-125` *Ungeprüft*), und die Funktion liest, was das Modell liefert; eine Änderung des Modells ist ein Vertrag in `done/` und keine Adresse für eine Sendung (`AGENTS.md` §3.13).
 - Herstellerspezifische Navigations-Erweiterungen — Out-of-Scope von `LH-FA-16`.
 
@@ -65,7 +66,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist (die Zeile der Abbildung in `SPEC-109`, falls der Architect einen neuen Fehlertyp einführt).
+- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist (entschieden: `SPEC-109` bleibt, `ExpandFehler` trägt die Sentinel der URL-Klassen, `SPEC-263` Nr. 3).
 - [ ] Bringt der Slice einen Fehlercode, Schlüssel oder ein Kommando in den Katalog des Binary: Handbuch-Kapitel im selben Slice nachgezogen; das Kataloge-Gate ist grün. Sonst steht in §7, dass das Binary unverändert blieb (die Funktion hat keinen Aufrufer vor `slice-expand-ausfuehrung`).
 - [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
 - [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
@@ -82,11 +83,11 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | `src/hexagon/model/` | neu | `PruefeExpand` und der Fehlertyp (Muster `filter_typ.go`, `filter_typ_fehler.go`), technologieunabhängig |
-| `src/hexagon/ports/outbound/abbildung.go` | update, falls der Architect einen eigenen Fehlertyp wählt | Zeile der Abbildung auf `ODR-E6005`/`ODR-E6001` (`SPEC-109` Nr. 5); die Sentinel der URL-Klassen sind schon abgebildet |
-| `spec/spezifikation.md` | update | Vertrag mit Randformen (Architect), neue Nummer aus dem Bereich der Linie B |
+| `src/hexagon/ports/outbound/abbildung.go` | unverändert | `ExpandFehler` trägt die Sentinel der URL-Klassen, die `SPEC-109` Nr. 5 schon abbildet (`SPEC-263` Nr. 3); keine Zeile neu |
+| `spec/spezifikation.md` | update | Vertrag `SPEC-263` mit Randformen (Architect, geschrieben) |
 | Tests | neu | Fälle je Navigation und je Fehlerklasse; Schleife über alle Navigationen und Properties des Fixture-Modells |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer. Die Größenmarke setzt der Planner beim Start nach `SPEC-128` aus dieser Tabelle und der Erwartung des Architect.
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer. Die Größenmarke setzt der Planner beim Start nach `SPEC-128` aus dieser Tabelle und der Erwartung des Architect: `produktcode` rund 120 (die Funktion rund 50 Zeilen, der Fehlertyp rund 70 nach dem Muster von `filter_typ_fehler.go`, 76 Zeilen). Die Tabelle *Zusage · Fänger* füllt der Planner aus `SPEC-263` Nr. 1 bis 6 vor dem Start.
 
 **Tabelle *Zusage · Fänger*** (füllt der Architect mit dem Vertrag, bevor der Slice an den Reviewer übergeht):
 
@@ -133,24 +134,34 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Die Menge der Fälle ist die Menge der Navigationen und Properties aller Typen eines Modells (unbeschränkt) — **Ausgang:** offen; Schleife über die Menge des Fixture-Modells mit Subtypen, Ketten und offenem Typ, Prüfgrenze und Folge als akzeptiertes Negativ (`AGENTS.md` §3.17).
-- Fakes der Ports: die Funktion hat keinen Port — **Ausgang:** offen bis zum Start.
-- Randformen (`AGENTS.md` §3.12, §3.16): das Raster entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
+- Fakes der Ports: die Funktion hat keinen Port — **Ausgang:** entfallen (`PruefeExpand` hat keinen Port, `SPEC-263`).
+- Randformen (`AGENTS.md` §3.12, §3.16): das Raster entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** entschieden (Raster unten, `SPEC-263`); die Tabelle *Zusage · Fänger* füllt der Planner.
 
-**Offene Entscheidungen — Ausgang *offen*, Adresse Architect** (`AGENTS.md` §3.13; Vorschläge des Planner bei der Teilung von `slice-expand-parser`, nicht entschieden):
+**Entscheidungen des Architect — Ausgang *entschieden*, Ort `SPEC-263`** (`AGENTS.md` §3.13). Keine ADR: die Entscheidungen schärfen die Spezifikation (`AGENTS.md` §3.8) und ändern keine angenommene ADR.
 
-- **V1 Signatur.** Vorschlag: `PruefeExpand(m ServiceModel, typ EntityType, o ExpandOption) error`; `typ` ist der Typ des Entity-Sets (wirksame Navigation-Properties einschließlich geerbter), das Modell wird nur gebraucht, wenn der Zieltyp aufgelöst wird.
-- **V2 Fehlerwerte.** Vorschlag: ein eigener Fehlertyp wie `FilterTypFehler` mit Ursachen für „unbekannte Navigation“ und „Property ohne Navigation“ (Klasse `ungueltig`, `ODR-E6005`, 400) und für die nicht unterstützte Form (Klasse `nicht_unterstuetzt`, `ODR-E6001`, 501); kein Teil der Eingabe im Fehler (`SPEC-160` Nr. 4, `SPEC-167` Nr. 6).
-- **V3 Reihenfolge.** Erster Verstoß von links, gleich welcher Klasse (wie `SPEC-167` Nr. 3), oder `ungueltig` vor `nicht_unterstuetzt` (wie `SPEC-160` Nr. 5).
-- **V4 Subtyp und Typ-Cast.** Navigation, die nur ein abgeleiteter Typ trägt (der Typ des Sets ist die Basis): unbekannt oder nicht unterstützt; Verhalten bei abstraktem Typ des Sets.
-- **V5 Navigation ohne Binding.** Hat das Set kein `NavigationBinding` für den Namen, ist die Navigation gültig, `501` oder unbekannt? (`Path` wird nicht aufgelöst, `SPEC-125` *Ungeprüft*.)
-- **V6 Property ohne Navigation.** Jede Property des Typs (acht unterstützte, nicht unterstützte Typen, Name im offenen Typ `EntityType.Open`): `400` oder `501`; vergleiche `SPEC-167` Nr. 3 a (dort ist ein Name im offenen Typ `501`).
-- **V7 Programmfehler.** Ein nil-Knoten, eine leere Liste, ein leerer Name, ein Name `*` oder ein doppelter Name im Knoten (der Parser liefert sie nie): `model.ErrUngueltig` ohne Code, wie `SPEC-167` Nr. 7.
+- **V1 Signatur.** Entschieden (`SPEC-263` Kopf, Nr. 1): `PruefeExpand(typ EntityType, o *ExpandOption) error`; `typ` ist der Typ des Entity-Sets mit den wirksamen Properties und Navigation-Properties, den geerbten eingeschlossen; das Modell wird nicht gebraucht (die Zieltypen sind beim Lesen aufgelöst, `SPEC-125` Nr. 9 d); `o` ist `Optionen.Expand`, ein Aufrufer ohne `$expand` ruft nicht.
+- **V2 Fehlerwerte.** Entschieden (`SPEC-263` Nr. 3): `model.ExpandFehler{Ursache}` mit `navigation_unbekannt` und `keine_navigation` (`ODR-E6005`, 400) und `navigation_nicht_unterstuetzt` (`ODR-E6001`, 501), Sentinel `ErrURLUngueltig` bzw. `ErrURLNichtUnterstuetzt`; kein Teil der Eingabe im Fehler; `abbildung.go` und `SPEC-109` bleiben.
+- **V3 Reihenfolge.** Entschieden (`SPEC-263` Nr. 2): der erste Verstoß von links entscheidet, gleich welcher Klasse (wie `SPEC-167` Nr. 3); Programmfehler gehen allem vor (Nr. 4).
+- **V4 Subtyp und Typ-Cast.** Entschieden (`SPEC-263` Nr. 2 d): eine Navigation, die nur ein abgeleiteter Typ trägt, ist `navigation_unbekannt` (`typ` ist der Typ des Sets); der Typ-Cast im Pfad ist schon im Parser `501`; ein abstrakter Typ des Sets verhält sich wie jeder andere.
+- **V5 Navigation ohne Binding.** Entschieden (`SPEC-263` Nr. 5): gültig, die Funktion kennt Sets und Bindings nicht. Die Behandlung in der Ausführung trägt `slice-expand-ausfuehrung` (dessen §1, Sendung von `slice-expand-validator`).
+- **V6 Property ohne Navigation.** Entschieden (`SPEC-263` Nr. 2 b, c): jede Property des Typs, auch mit nicht unterstütztem Typ, ist `keine_navigation` (400); ein Name im offenen Typ, der in keiner der beiden Listen steht, ist `navigation_nicht_unterstuetzt` (501, wie `SPEC-167` Nr. 5).
+- **V7 Programmfehler.** Entschieden (`SPEC-263` Nr. 4): `o` nil, leere Liste, leerer Name, `*` und doppelter Name sind `model.ErrUngueltig` ohne Code, für den ganzen Knoten vor der Prüfung der Namen.
 
-**Raster *Operation × Argumentart*** (Zellen füllt der Architect; Stand: alle `(Vertrag, offen)`; Adresse Architect):
+**Raster *Operation × Argumentart*** (Zellen gefüllt vom Architect; der Ort steht in `SPEC-263`):
 
 | Operation | Knoten fehlt oder leer | unbekannte Navigation | fremder Wert (Property ohne Navigation, anderer Typ, Subtyp) | geerbte Navigation | Wiederholung (Aufruf, Name) | Nebenläufigkeit |
 |---|---|---|---|---|---|---|
-| `PruefeExpand` | (Vertrag, offen: V7) | (Vertrag, offen: V2) | (Vertrag, offen: V4, V6) | (Vertrag, offen: V1) | (Vertrag, offen: V7) | (Vertrag, offen) |
+| `PruefeExpand` | `SPEC-263` Nr. 4 | `SPEC-263` Nr. 2 d und Nr. 3 | `SPEC-263` Nr. 2 b, c, d (Property des Typs, Name im offenen Typ, Navigation eines Subtyps, Name eines anderen Typs) | `SPEC-263` Nr. 1 und Nr. 2 a (wirksame Navigationen, geerbte eingeschlossen) | `SPEC-263` Nr. 6 (Aufruf) und Nr. 4 (doppelter Name) | `SPEC-263` Nr. 6 |
+
+**Zusatztabelle: mehrere Verstöße in einem Aufruf** (je Paar das Ergebnis nach `SPEC-263` Nr. 2 und 4; die Spalte *Fänger* nennt die Zeile der Tabelle in §3, die der Planner aus `SPEC-263` Nr. 1 bis 6 füllt):
+
+| Paar (links, rechts im Knoten) | Ergebnis | Fänger |
+|---|---|---|
+| unbekannte Navigation, Property ohne Navigation | `navigation_unbekannt` (der erste von links, Nr. 2) | Zeile der Tabelle in §3 (Planner) |
+| Property ohne Navigation, unbekannte Navigation | `keine_navigation` (der erste von links, Nr. 2) | Zeile der Tabelle in §3 (Planner) |
+| Name im offenen Typ, Property ohne Navigation | `navigation_nicht_unterstuetzt` (der erste von links, gleich welcher Klasse) | Zeile der Tabelle in §3 (Planner) |
+| Property ohne Navigation, Name im offenen Typ | `keine_navigation` (der erste von links) | Zeile der Tabelle in §3 (Planner) |
+| Verstoß, danach doppelter Name oder `*` | `model.ErrUngueltig` (Programmfehler vor jedem Verstoß, Nr. 4) | Zeile der Tabelle in §3 (Planner) |
 
 ## 7. Closure-Notiz
 
