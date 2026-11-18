@@ -9,25 +9,26 @@ import (
 const maxWurzel = 2048
 
 // liesPublicBaseURL liest PUBLIC_BASE_URL (SPEC-110 Nr. 14): die Form in jedem Modus, die Pflicht, die Ableitung
-// aus LISTEN und die Länge der Wurzel nur im Modus mock; ein Schlüssel meldet höchstens einen Grund.
+// aus LISTEN und die Länge der Wurzel nur in den Modi mock und hybrid; ein Schlüssel meldet höchstens einen Grund.
 func (p *pruefer) liesPublicBaseURL(k *Konfiguration) {
 	w, gesetzt := p.wert("PUBLIC_BASE_URL")
+	mock := k.Modus == modusMock || k.Modus == modusHybrid
 	switch {
 	case gesetzt && !istBasisURL(w):
 		p.melde("PUBLIC_BASE_URL", "Form ungültig: http oder https, Host, optional Port, Segmente ohne abschließenden Schrägstrich")
 		return
-	case !gesetzt && k.Modus != modusMock:
+	case !gesetzt && !mock:
 		return
 	case !gesetzt:
 		abgeleitet, ok := basisAusListen(k.Listen)
 		if !ok {
-			p.melde("PUBLIC_BASE_URL", "im Modus mock bei diesem Host erforderlich")
+			p.melde("PUBLIC_BASE_URL", "im Modus mock oder hybrid bei diesem Host erforderlich")
 			return
 		}
 		w = abgeleitet
 	}
 	k.PublicBaseURL = w
-	if k.Modus == modusMock && laengsteWurzel(w, k.Dienste) > maxWurzel {
+	if mock && laengsteWurzel(w, k.Dienste) > maxWurzel {
 		p.melde("PUBLIC_BASE_URL", "mit dem Root eines Service länger als 2048 Bytes")
 	}
 }
