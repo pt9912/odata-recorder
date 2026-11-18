@@ -353,6 +353,8 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 
 *Wird bei der Closure gefüllt.*
 
+Stand der Übergabe: Review Runde 1, Verifikation und Nachverifikation liegen unter `docs/reviews/` (`2026-11-18-slice-expand-parser-1.md`, `-verifikation.md`, `-nachverifikation.md`). Die Fix-Runde nach der Nachverifikation (N-1 bis N-4, Commits `7327ba0f`, `4ec1aba2`) hat noch keine Nachverifikation in frischem Kontext. Es fehlen: diese Nachverifikation, die Closure (Steering-Loop-Eintrag, Risiko-Ausgänge, Register-Evidenz einschließlich der Betriebsregel-Verstöße der Subagenten, DoD-Häkchen), `make slice-mv SLICE=slice-expand-parser TO=done` und der Integrationsschritt (origin/main einmergen, Roadmap, `welle-expand-batch` und Rückverfolgung, `make gates` im frischen Worktree, ff-only-Push).
+
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
