@@ -41,7 +41,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- `HYBRID_*`, `FALLBACK_*` und der Modus `hybrid` — `slice-bootstrap-m4`; die Schlüssel bleiben `ODR-E2001`, solange dieser Slice zuerst liegt (`SPEC-110` Nr. 2).
+- `HYBRID_*`, `FALLBACK_*` und der Modus `hybrid` — `slice-bootstrap-m4-konfig` (Schlüssel, Wert `hybrid` von `MODE`) und `slice-bootstrap-m4` (Bindung des Modus); die Schlüssel bleiben `ODR-E2001`, solange dieser Slice zuerst liegt (`SPEC-110` Nr. 2).
 - `LISTEN_TLS_*` (TLS des OData-Listeners) — `slice-listener-tls` (`welle-betrieb`).
 - Neue Endpunkte oder Fachlogik — der Slice verdrahtet, was die Slices der Welle liefern.
 - Das Umschalten des Modus zur Laufzeit — `LH-FA-13` schließt es aus; der Rundlauf wechselt den Modus durch Neustart (§6).
@@ -127,7 +127,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Warum:** der Root verdrahtet alle Adapter-Slices der Welle (*Code-Abhängigkeit*), die Ports `AuditLog` und `Telemetry` (*Code-Abhängigkeit*), den Record-Pfad (`slice-bootstrap-m2`) und den Mock-Pfad (`slice-bootstrap-m3`); der Rundlauf braucht beide Modi. `slice-test-security` liegt zuletzt vor diesem Slice (`welle-admin-api` §5; *Reihenfolge*, keine Typ-Abhängigkeit).
 
-**Nicht gebraucht:** `welle-hybrid` und `slice-bootstrap-m4` (keine Kante). Beide ändern `src/bootstrap/` und `SPEC-110` Nr. 2 und laufen nacheinander; welcher zuerst, ist Priorisierung, und der zweite zieht den Stand des ersten nach (`AGENTS.md` §3.9).
+**Nicht gebraucht:** `welle-hybrid`, `slice-bootstrap-m4-konfig` und `slice-bootstrap-m4` (keine Kante). Alle ändern `src/bootstrap/` und `SPEC-110` Nr. 2 und laufen nacheinander; welcher zuerst, ist Priorisierung, und der zweite zieht den Stand des ersten nach (`AGENTS.md` §3.9).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -164,7 +164,7 @@ dasteht.
 - Die Reihenfolge Startwartung, Token-Datei, Listener und das Herunterfahren beider Listener (Auftrag 3): ein Fehler der Token-Datei öffnet keinen Listener — **Ausgang:** offen; Adresse: Architect.
 - Der M6-Test läuft mit Referenzdienst, Recorder, Admin-Client und OData-Client im selben Prozess unter dem Detektor (`make test-race`) — **Ausgang:** offen; Muster und Ordnung der Fänger wie in `slice-m2-referenzdienst` (Kanäle statt Schlaf).
 - `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` (1×): der Admin-Pfad im Composition Root erweitert die Pakete, deren Laufzeit Fälle der Gegenproben mitfahren — **Ausgang:** weiter offen → `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` im Register.
-- Gleichzeitige Änderung von `src/bootstrap/` und `SPEC-110` Nr. 2 durch `slice-bootstrap-m4` — **Ausgang:** offen; Adresse: Planner (Reihenfolge beim Start, keine parallelen Arbeitsbäume auf diesen Dateien).
+- Gleichzeitige Änderung von `src/bootstrap/` und `SPEC-110` Nr. 2 durch `slice-bootstrap-m4-konfig` und `slice-bootstrap-m4` — **Ausgang:** offen; Adresse: Planner (Reihenfolge beim Start, keine parallelen Arbeitsbäume auf diesen Dateien).
 - Stufennummern im Treiber `tools/harness/test-integration.sh`: `slice-bootstrap-m3-e2e-mock` (Geber, `done/`) nimmt die Stufen 8 und 9; die Stufe dieses Slice nummeriert hinter die vorhandenen und `docs/plan/planning/e2e-abdeckung.md` wird aus `make e2e-abdeckung` neu erzeugt, ohne Konflikt von Hand (`SPEC-037` Nr. 2, 3) — **Ausgang:** offen; Adresse: dieser Slice beim Start, Reihenfolge der Merges mit `slice-bootstrap-m4` ordnet der Planner.
 - Größe: die Marke steht nicht, bevor die Tabelle *Zusage · Fänger* vorliegt — **Ausgang:** offen; Adresse: Planner beim Start (§4).
 

@@ -116,7 +116,7 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `LH-FA-09` | `slice-mock-lesen` `slice-mock-schreiben` `slice-mock-zuordnung` `slice-workspace-use-case` | `slice-replay-service` | `slice-admin-workspaces` `slice-bootstrap-m3` `slice-bootstrap-m6` `slice-snapshot-use-case` |
 | `LH-FA-10` | — | — | `slice-admin-workspaces` `slice-bootstrap-m3` `slice-bootstrap-m6` `slice-snapshot-use-case` |
 | `LH-FA-11` | `slice-baseline-import` `slice-inspection-coverage-diagnose` `slice-mock-lesen` `slice-odata-codec-json` `slice-query-interpreter` | — | `slice-admin-sessions` `slice-bootstrap-m3` `slice-expand-ausfuehrung` `slice-hybrid-service` |
-| `LH-FA-12` | `slice-fehlermodell-konfiguration` | — | `slice-bootstrap-m2` `slice-bootstrap-m3` `slice-bootstrap-m4` `slice-fallback-policy` `slice-hybrid-service` `slice-v2-bootstrap` |
+| `LH-FA-12` | `slice-fehlermodell-konfiguration` | — | `slice-bootstrap-m2` `slice-bootstrap-m3` `slice-bootstrap-m4` `slice-bootstrap-m4-konfig` `slice-fallback-policy` `slice-hybrid-service` `slice-v2-bootstrap` |
 | `LH-FA-13` | `slice-admin-listener-token` `slice-audit-dienste` `slice-audit-log` `slice-audit-verdrahtung` `slice-clock-idgenerator` `slice-inspection-coverage-diagnose` `slice-inspection-use-case` `slice-record-service` `slice-session-beenden` `slice-session-use-case` `slice-session-wartung` | — | `slice-admin-abweisen-audit` `slice-admin-authentisierung` `slice-admin-fehlerabbildung` `slice-admin-imports` `slice-admin-lebenszyklus` `slice-admin-rahmen` `slice-admin-sessions` `slice-admin-tls` `slice-admin-workspaces` `slice-bootstrap-m6` |
 | `LH-FA-14` | `slice-baseline-import` `slice-capture-pipeline` `slice-redaction-match-key` `slice-streaming-redaction` | `slice-replay-service` | `slice-handbuch-record-replay` `slice-test-integration` `slice-test-security` |
 | `LH-FA-15` | — | — | `slice-etag-versionen` `slice-if-match` |
@@ -150,8 +150,8 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `SPEC-007` | Tabellenzeile | LISTEN / 127.0.0.1:8080 | - | `slice-fehlermodell-konfiguration` | — | nein |
 | `SPEC-008` | Tabellenzeile | ADMIN_LISTEN / 127.0.0.1:8081 | - | — | `slice-admin-listener-token` `slice-admin-tls` `slice-bootstrap-m6` | — |
 | `SPEC-009` | Tabellenzeile | REPLAY_STRATEGY / sequential | - | — | `slice-replay-service` | — |
-| `SPEC-010` | Tabellenzeile | HYBRID_FALLBACK / disabled | - | — | `slice-bootstrap-m4` `slice-fallback-policy` `slice-hybrid-service` | — |
-| `SPEC-011` | Tabellenzeile | STRICT_COVERAGE / true | - | `slice-mock-lesen` | `slice-bootstrap-m3` `slice-bootstrap-m4` | — |
+| `SPEC-010` | Tabellenzeile | HYBRID_FALLBACK / disabled | - | — | `slice-bootstrap-m4` `slice-bootstrap-m4-konfig` `slice-fallback-policy` `slice-hybrid-service` | — |
+| `SPEC-011` | Tabellenzeile | STRICT_COVERAGE / true | - | `slice-mock-lesen` | `slice-bootstrap-m3` `slice-bootstrap-m4` `slice-bootstrap-m4-konfig` | — |
 | `SPEC-012` | Tabellenzeile | UPSTREAM_TIMEOUT / 30s | - | `slice-record-service` `slice-upstream-adapter` | — | nein |
 | `SPEC-013` | Tabellenzeile | MAX_CAPTURE_BODY / 8 MiB | - | `slice-baseline-import` `slice-capture-pipeline` `slice-odata-codec-csdl` `slice-odata-codec-json` `slice-streaming-redaction` | — | nein |
 | `SPEC-014` | Tabellenzeile | SQLITE_BUSY_TIMEOUT / 5000ms | - | — | — | — |
@@ -195,14 +195,14 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `SPEC-052` | Abschnitt | Replay-HTTP-Identität und Lebenszyklus | 0 | `slice-workspace-use-case` | `slice-replay-service` `slice-bootstrap-m3` `slice-handbuch-record-replay` | nein |
 | `SPEC-053` | Abschnitt | Capture-Bedrohungsmodell und Testvertrag | 0 | `slice-capture-pipeline` `slice-record-service` `slice-streaming-redaction` | `slice-test-security` | ja |
 | `SPEC-054` | Tabellenzeile | SERVICE_ROOT_PATH / / bei genau einem Service, sonst Pflichtangabe je  | - | `slice-handbuch-meldungskatalog` `slice-record-service` | `slice-v2-bootstrap` | nein |
-| `SPEC-055` | Tabellenzeile | PUBLIC_BASE_URL / abgeleitet aus LISTEN nur bei Loopback-Host; in mock | - | `slice-odata-json-schreiben` | `slice-bootstrap-m3` `slice-bootstrap-m4` `slice-listener-tls` | — |
+| `SPEC-055` | Tabellenzeile | PUBLIC_BASE_URL / abgeleitet aus LISTEN nur bei Loopback-Host; in mock | - | `slice-odata-json-schreiben` | `slice-bootstrap-m3` `slice-bootstrap-m4` `slice-bootstrap-m4-konfig` `slice-listener-tls` | — |
 | `SPEC-056` | Tabellenzeile | ADMIN_TOKEN_FILE / <DATA_DIR>/admin.token | - | `slice-admin-listener-token` | `slice-bootstrap-m6` `slice-coverage-gate` | — |
 | `SPEC-057` | Tabellenzeile | UPSTREAM_TLS_VERIFY / true | - | `slice-upstream-adapter` | — | nein |
 | `SPEC-058` | Tabellenzeile | RETENTION_MAX_AGE / 0 (aus) | - | `slice-session-wartung` | — | nein |
 | `SPEC-059` | Tabellenzeile | SHUTDOWN_TIMEOUT / 10s | - | `slice-session-beenden` | `slice-cli-adapter` `slice-container-image` `slice-http-lebenszyklus` `slice-listener-tls` | nein |
 | `SPEC-060` | Tabellenzeile | REDACT_HEADERS / leer (ergänzt die Default-Liste) | - | `slice-redaction-match-key` | `slice-test-security` | nein |
 | `SPEC-061` | Tabellenzeile | MATCH_VARY_HEADERS / Accept, OData-Version, Content-Type, If-Match, Pr | - | `slice-redaction-match-key` | `slice-prefer-return` | nein |
-| `SPEC-062` | Tabellenzeile | FALLBACK_ALLOW_HOSTS / leer | - | — | `slice-bootstrap-m4` `slice-fallback-policy` `slice-hybrid-service` | — |
+| `SPEC-062` | Tabellenzeile | FALLBACK_ALLOW_HOSTS / leer | - | — | `slice-bootstrap-m4` `slice-bootstrap-m4-konfig` `slice-fallback-policy` `slice-hybrid-service` | — |
 | `SPEC-063` | Tabellenzeile | VOLATILE_HEADERS / Date, Server, Via, Age, X-Request-Id, X-Correlation | - | `slice-redaction-match-key` | `slice-protokolltreue` | nein |
 | `SPEC-064` | Tabellenzeile | ODR-E2101 / Admin-Authentisierung fehlt oder ungültig | - | — | `slice-admin-authentisierung` `slice-admin-imports` `slice-admin-listener-token` `slice-test-security` | — |
 | `SPEC-065` | Tabellenzeile | ODR-E5004 / Zuordnung gehört zu einem anderen Service (auch: die Quel | - | `slice-baseline-import` `slice-record-service` | `slice-replay-service` `slice-admin-imports` `slice-snapshot-use-case` | nein |
@@ -215,12 +215,12 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `SPEC-072` | Tabellenzeile | ODR-E7004 / Session von einer Baseline referenziert, Löschen abgewies | - | `slice-session-use-case` `slice-session-wartung` | `slice-admin-sessions` | nein |
 | `SPEC-073` | Tabellenzeile | ODR-E7005 / Import unbekannt | - | — | `slice-admin-imports` | — |
 | `SPEC-074` | Tabellenzeile | ODR-E5007 / Strict-Replay: nächste erwartete Exchange hat anderen Mat | - | — | `slice-replay-service` | — |
-| `SPEC-075` | Tabellenzeile | MODE / mock | - | — | `slice-bootstrap-m3` `slice-bootstrap-m4` | — |
-| `SPEC-076` | Tabellenzeile | UPSTREAM_URL / keiner (Pflicht in record und bei Upstream-Fallback) | - | — | `slice-bootstrap-m4` | — |
+| `SPEC-075` | Tabellenzeile | MODE / mock | - | — | `slice-bootstrap-m3` `slice-bootstrap-m4` `slice-bootstrap-m4-konfig` | — |
+| `SPEC-076` | Tabellenzeile | UPSTREAM_URL / keiner (Pflicht in record und bei Upstream-Fallback) | - | — | `slice-bootstrap-m4` `slice-bootstrap-m4-konfig` | — |
 | `SPEC-077` | Tabellenzeile | DATA_DIR / data (relativ zum Arbeitsverzeichnis) | - | `slice-audit-verdrahtung` | `slice-bootstrap-m6` `slice-container-image` | — |
 | `SPEC-078` | Tabellenzeile | REPLAY_ASSIGNMENT / explicit | - | — | `slice-replay-service` | — |
-| `SPEC-079` | Tabellenzeile | HYBRID_REPLAY_FALLBACK / leer | - | — | `slice-bootstrap-m4` `slice-fallback-policy` `slice-hybrid-service` | — |
-| `SPEC-080` | Tabellenzeile | FALLBACK_WRITE_ALLOW / leer | - | — | `slice-bootstrap-m4` `slice-fallback-policy` `slice-hybrid-service` | — |
+| `SPEC-079` | Tabellenzeile | HYBRID_REPLAY_FALLBACK / leer | - | — | `slice-bootstrap-m4` `slice-bootstrap-m4-konfig` `slice-fallback-policy` `slice-hybrid-service` | — |
+| `SPEC-080` | Tabellenzeile | FALLBACK_WRITE_ALLOW / leer | - | — | `slice-bootstrap-m4` `slice-bootstrap-m4-konfig` `slice-fallback-policy` `slice-hybrid-service` | — |
 | `SPEC-081` | Tabellenzeile | MATCH_INVALID_ENCODING / literal | - | `slice-redaction-match-key` | — | nein |
 | `SPEC-082` | Tabellenzeile | MATCH_BODY_MODE / bytes | - | — | — | — |
 | `SPEC-083` | Tabellenzeile | REPLAY_REDACTED_BODIES / false | - | — | `slice-replay-service` | — |
@@ -250,7 +250,7 @@ Die Spalte *E2E-Szenario* nennt den Slice, dessen DoD das Szenario trägt; *Eing
 | `SPEC-107` | Abschnitt | Service, Baseline und Import: Vertrag der Repositories | 15 | `slice-baseline-import` `slice-odata-codec-csdl` `slice-inspection-coverage-diagnose` `slice-inspection-use-case` `slice-odata-codec-json` `slice-session-use-case` `slice-session-wartung` `slice-workspace-use-case` | `slice-bootstrap-m2` `slice-m2-referenzdienst` `slice-v2-bootstrap` `slice-v2-metadaten` | ja |
 | `SPEC-108` | Abschnitt | Workspace, Entity, Cursor und Workspace-Snapshot: Vertrag der Reposito | 17 | `slice-mock-schreiben` `slice-session-wartung` `slice-workspace-use-case` | `slice-replay-service` `slice-admin-workspaces` `slice-batch-changesets` `slice-etag-versionen` `slice-if-match` `slice-snapshot-use-case` | nein |
 | `SPEC-109` | Abschnitt | Fehlermodell: Codes, Fehlerobjekt und Abbildung der Port-Fehler | 8 | `slice-audit-dienste` `slice-baseline-import` `slice-capture-pipeline` `slice-clock-idgenerator` `slice-fehlermodell-konfiguration` `slice-handbuch-meldungskatalog` `slice-inspection-coverage-diagnose` `slice-inspection-use-case` `slice-odata-codec-csdl` `slice-odata-codec-json` `slice-odata-url-pfad` `slice-record-service` `slice-session-beenden` `slice-session-use-case` `slice-session-wartung` `slice-telemetry-port` `slice-upstream-adapter` `slice-upstream-tls` `slice-workspace-use-case` | `slice-admin-fehlerabbildung` `slice-admin-imports` `slice-admin-listener-token` `slice-admin-rahmen` `slice-admin-sessions` `slice-admin-workspaces` `slice-batch-parser` `slice-http-adapter` `slice-http-lebenszyklus` `slice-hybrid-service` `slice-if-match` `slice-telemetry-einbau-gateway` `slice-test-contract` | ja |
-| `SPEC-110` | Abschnitt | Startkonfiguration: Syntax der Werte und Prüfung | 13 | `slice-admin-listener-token` `slice-baseline-import` `slice-fehlermodell-konfiguration` `slice-handbuch-geruest` `slice-handbuch-meldungskatalog` `slice-redaction-match-key` `slice-telemetry-port` `slice-upstream-adapter` `slice-upstream-tls` | `slice-admin-tls` `slice-bootstrap-m2` `slice-bootstrap-m3` `slice-bootstrap-m4` `slice-bootstrap-m6` `slice-cli-adapter` `slice-fallback-policy` `slice-handbuch-record-replay` `slice-listener-tls` `slice-telemetry-log` `slice-v2-bootstrap` | ja |
+| `SPEC-110` | Abschnitt | Startkonfiguration: Syntax der Werte und Prüfung | 13 | `slice-admin-listener-token` `slice-baseline-import` `slice-fehlermodell-konfiguration` `slice-handbuch-geruest` `slice-handbuch-meldungskatalog` `slice-redaction-match-key` `slice-telemetry-port` `slice-upstream-adapter` `slice-upstream-tls` | `slice-admin-tls` `slice-bootstrap-m2` `slice-bootstrap-m3` `slice-bootstrap-m4` `slice-bootstrap-m4-konfig` `slice-bootstrap-m6` `slice-cli-adapter` `slice-fallback-policy` `slice-handbuch-record-replay` `slice-listener-tls` `slice-telemetry-log` `slice-v2-bootstrap` | ja |
 | `SPEC-111` | Tabellenzeile | ODR-E7011 / Session ist nicht open: Beenden abgewiesen (Übergang aus  | - | `slice-fehlermodell-konfiguration` `slice-record-service` `slice-session-beenden` | `slice-admin-sessions` | nein |
 | `SPEC-112` | Tabellenzeile | ODR-E7012 / Exchange unbekannt | - | `slice-inspection-coverage-diagnose` | `slice-admin-sessions` | — |
 | `SPEC-113` | Tabellenzeile | ODR-E9001 / Interner Fehler (ein Fehler, den die Abbildung keinem Code | - | `slice-fehlermodell-konfiguration` `slice-handbuch-meldungskatalog` `slice-telemetry-port` | `slice-telemetry-einbau-gateway` | nein |
