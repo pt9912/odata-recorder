@@ -17,6 +17,9 @@ func EtagFuerSatz(satz outbound.CodecSatz, an bool) bool { return etagFuerSatz(s
 // Leerraum sind die Zeichen, die die Konfiguration am Rand entfernt (SPEC-110 Nr. 1).
 const Leerraum = leerraum
 
+// Kappe entfernt Leerraum an beiden Rändern, wie die Konfiguration es an jeder Stelle tut (SPEC-110 Nr. 1).
+func Kappe(s string) string { return kappe(s) }
+
 // IstQueryName ist die Prüfung eines Eintrags von REDACT_QUERY_PARAMS (SPEC-110 Nr. 6).
 func IstQueryName(s string) bool { return istQueryName(s) }
 

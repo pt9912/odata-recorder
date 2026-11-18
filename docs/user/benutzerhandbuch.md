@@ -80,7 +80,7 @@ Dieser Abschnitt führt die Einstellungen, die der Dienst aus den Umgebungsvaria
 | `MATCH_INVALID_ENCODING` | Umgang mit einer ungültigen Kodierung der Anfrage beim Zuordnen: `literal` oder `reject`. Ohne Angabe gilt `literal`. |
 | `MATCH_BODY_MODE` | Wie der Body einer Anfrage in den Match-Key eingeht: `bytes` oder `json-canonical`. Ohne Angabe gilt `bytes`. |
 | `REDACT_HEADERS` | Zusätzliche Header-Namen, deren Werte der Dienst bei der Aufnahme schwärzt, durch Komma getrennt. Die Liste ergänzt die eingebaute Liste. |
-| `REDACT_QUERY_PARAMS` | Zusätzliche Namen von Query-Parametern, deren Werte der Dienst schwärzt, durch Komma getrennt. Die Liste ergänzt die eingebaute Liste. |
+| `REDACT_QUERY_PARAMS` | Zusätzliche Namen von Query-Parametern, deren Werte der Dienst schwärzt, durch Komma getrennt. Die Liste ergänzt die eingebaute Liste. Ein Name besteht aus den druckbaren ASCII-Zeichen ohne Leerzeichen und ohne `=`, `&`, `#`, `,` und `%`, also kein `%`; ein Name mit einem anderen Zeichen beendet den Start mit einem Fehler. |
 | `REDACT_JSON_PATHS` | Zusätzliche JSON-Pfade der Form `$..name`, deren Werte der Dienst schwärzt, durch Komma getrennt. Die Liste ergänzt die eingebaute Liste. |
 | `MAX_CAPTURE_BODY` | Größte Länge eines Bodys, die der Dienst aufnimmt: eine Zahl, optional mit `B`, `KiB`, `MiB` oder `GiB`, von 1 Byte bis 1 GiB. Ohne Angabe gilt `8 MiB`. |
 | `UPSTREAM_TIMEOUT` | Wartezeit bis zum Kopf der Antwort des Upstreams: eine Zahl mit der Einheit `ms`, `s`, `m`, `h` oder `d`. Ohne Angabe gilt `30s`. |

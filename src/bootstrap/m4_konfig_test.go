@@ -926,14 +926,14 @@ func zeichenMengeZ() (ascii, weissraum, weitere []string) {
 	return ascii, weissraumNichtASCII(), []string{string(rune(0xfeff)), string(rune(0x200b)), string(rune(0xfc)), string([]byte{0xff})}
 }
 
-// queryNameErlaubt ist das Orakel für ein Zeichen aus Z: eines der 90 ASCII-Zeichen von U+0021 bis U+007E außer `=`, `&`, `#`, `,` (SPEC-110 Nr. 6).
+// queryNameErlaubt ist das Orakel für ein Zeichen aus Z: eines der 89 ASCII-Zeichen von U+0021 bis U+007E außer `=`, `&`, `#`, `,`, `%` (SPEC-110 Nr. 6).
 func queryNameErlaubt(z string) bool {
-	return len(z) == 1 && z[0] >= 0x21 && z[0] <= 0x7e && !strings.Contains("=&#,", z)
+	return len(z) == 1 && z[0] >= 0x21 && z[0] <= 0x7e && !strings.Contains("=&#,%", z)
 }
 
 // TestKonfigQueryNameZeichen fängt F-1 und F-3 auf der Ebene der Prüfung (SPEC-110 Nr. 6): jedes der 151 Zeichen von Z allein und als `a<Zeichen>b`; erlaubt sind
-// genau die 90, die 61 anderen (38 in ASCII, 19 mit White_Space, 4 weitere) machen den Namen ungültig; dazu die Grenzen U+0020/U+0021 und U+007E/U+007F
-// und der leere Name.
+// genau die 89, die 62 anderen (39 in ASCII, 19 mit White_Space, 4 weitere) machen den Namen ungültig; dazu die Grenzen U+0020/U+0021 und U+007E/U+007F,
+// der leere Name und Namen mit Kodierung (`a%41`, `my%20token`, `tok%2Ben`, `a%zz`: ein `%` macht den Namen ungültig, ob die Kodierung gültig ist oder nicht).
 func TestKonfigQueryNameZeichen(t *testing.T) {
 	ascii, weissraum, weitere := zeichenMengeZ()
 	alle := slices.Concat(ascii, weissraum, weitere)
@@ -958,10 +958,11 @@ func TestKonfigQueryNameZeichen(t *testing.T) {
 			}
 		}
 	}
-	if erlaubt != 90 || asciiVerboten != 38 || erlaubt+asciiVerboten != 128 || andere != 61 {
-		t.Errorf("erlaubt %d, in ASCII verboten %d, andere %d; erwartet 90, 38 (90 + 38 = 128) und 61", erlaubt, asciiVerboten, andere)
+	if erlaubt != 89 || asciiVerboten != 39 || erlaubt+asciiVerboten != 128 || andere != 62 {
+		t.Errorf("erlaubt %d, in ASCII verboten %d, andere %d; erwartet 89, 39 (89 + 39 = 128) und 62", erlaubt, asciiVerboten, andere)
 	}
-	for s, soll := range map[string]bool{"": false, "\x20": false, "\x21": true, "\x7e": true, "\x7f": false, "a b": false, "access_token": true} {
+	for s, soll := range map[string]bool{"": false, "\x20": false, "\x21": true, "\x7e": true, "\x7f": false, "a b": false, "access_token": true,
+		"a%41": false, "my%20token": false, "tok%2Ben": false, "a%zz": false, "%": false, "a%": false} {
 		if got := bootstrap.IstQueryName(s); got != soll {
 			t.Errorf("Name %q: gültig %v, erwartet %v", s, got, soll)
 		}
@@ -1019,7 +1020,7 @@ func TestKonfigQueryNameInListe(t *testing.T) {
 			}
 		}
 	}
-	if gueltig != 4*2+1+90*3 || verstoss != 150*3-gueltig || gueltig+verstoss != 450 {
-		t.Errorf("gültig %d, Verstoß %d; erwartet 279 (8 am Rand, 1 Komma in der Mitte, 270 erlaubte) und 171 von 450", gueltig, verstoss)
+	if gueltig != 4*2+1+89*3 || verstoss != 150*3-gueltig || gueltig+verstoss != 450 {
+		t.Errorf("gültig %d, Verstoß %d; erwartet 276 (8 am Rand, 1 Komma in der Mitte, 267 erlaubte) und 174 von 450", gueltig, verstoss)
 	}
 }
