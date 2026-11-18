@@ -160,6 +160,9 @@ pfad: tests/e2e/
 pfad: tools/harness/test-integration.sh
 produktcode: 130
 fakes: 2
+basis: 020b3941588070771fb1e6a4cf1432bfd4428045
+schaetzung: 1820
+marke: 2500
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
