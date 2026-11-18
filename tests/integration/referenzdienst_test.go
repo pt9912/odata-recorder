@@ -101,6 +101,17 @@ func (r *referenzdienst) zaehleMethode(methode string) {
 	z.(*atomic.Int64).Add(1)
 }
 
+// zaehleRequest zählt einen Request, zaehleVerbindung eine neue Verbindung; beide sind die einzigen Stellen, die die Zähler erhöhen.
+func (r *referenzdienst) zaehleRequest()    { r.requests.Add(1) }
+func (r *referenzdienst) zaehleVerbindung() { r.verbindungen.Add(1) }
+
+// merke hält einen Request fest; es ist die einzige Stelle, die gesehen schreibt.
+func (r *referenzdienst) merke(g gesehenerRequest) {
+	r.mu.Lock()
+	r.gesehen = append(r.gesehen, g)
+	r.mu.Unlock()
+}
+
 // gesehenSeit liefert die Requests ab dem n-ten.
 func (r *referenzdienst) gesehenSeit(n int) []gesehenerRequest {
 	r.mu.Lock()
@@ -112,12 +123,10 @@ func neuerReferenzdienst(t *testing.T) *referenzdienst {
 	t.Helper()
 	r := &referenzdienst{}
 	r.srv = httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		r.requests.Add(1)
+		r.zaehleRequest()
 		r.zaehleMethode(req.Method)
 		b, _ := io.ReadAll(req.Body)
-		r.mu.Lock()
-		r.gesehen = append(r.gesehen, gesehenerRequest{Methode: req.Method, Pfad: req.URL.Path, Query: req.URL.RawQuery, Body: b})
-		r.mu.Unlock()
+		r.merke(gesehenerRequest{Methode: req.Method, Pfad: req.URL.Path, Query: req.URL.RawQuery, Body: b})
 		if r.jedeVerbindungNeu.Load() {
 			w.Header().Set("Connection", "close")
 		}
@@ -128,7 +137,7 @@ func neuerReferenzdienst(t *testing.T) *referenzdienst {
 	}))
 	r.srv.Config.ConnState = func(_ net.Conn, s http.ConnState) {
 		if s == http.StateNew {
-			r.verbindungen.Add(1)
+			r.zaehleVerbindung()
 		}
 	}
 	r.srv.Start()
@@ -239,6 +248,53 @@ func TestReferenzdienstSelbst(t *testing.T) {
 	}
 	if r.verbindungen.Load() < 1 {
 		t.Error("Verbindungen zählen nichts")
+	}
+}
+
+// TestReferenzdienstZaehlerGleichzeitig fängt die Zusage „Zähler atomar“ (M11, M19) an der Wirkung, in jedem Lauf: 64 Goroutinen rufen nach einem
+// gemeinsamen Start je 2000-mal die drei Zählstellen (Request, Verbindung, Methode) und die Stelle `merke` der Liste der Requests; ein Lost Update
+// oder ein Datenrennen auf einer der vier Stellen verfehlt die Summe, ohne dass es auf ein Fenster zwischen zwei Requests ankommt. Die Methode der Goroutine g ist die (g mod 10)-te.
+func TestReferenzdienstZaehlerGleichzeitig(t *testing.T) {
+	const goroutinen, runden = 64, 2000
+	methoden := []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "MERGE", "OPTIONS", "TRACE", "CONNECT"}
+	r := &referenzdienst{}
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for g := range goroutinen {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for range runden {
+				r.zaehleRequest()
+				r.zaehleVerbindung()
+				r.zaehleMethode(methoden[g%len(methoden)])
+				r.merke(gesehenerRequest{Methode: methoden[g%len(methoden)], Pfad: "/odata/Nichts"})
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	const alle = int64(goroutinen * runden)
+	if r.requests.Load() != alle || r.verbindungen.Load() != alle {
+		t.Errorf("Requests %d, Verbindungen %d; erwartet je %d", r.requests.Load(), r.verbindungen.Load(), alle)
+	}
+	if got := r.gesehenSeit(0); int64(len(got)) != alle {
+		t.Errorf("%d festgehaltene Requests, erwartet %d", len(got), alle)
+	}
+	summe := int64(0)
+	for i, m := range methoden {
+		soll := int64(goroutinen / len(methoden) * runden)
+		if i < goroutinen%len(methoden) {
+			soll += runden
+		}
+		if got := r.nachMethode(m); got != soll {
+			t.Errorf("Zähler von %s: %d, erwartet %d", m, got, soll)
+		}
+		summe += r.nachMethode(m)
+	}
+	if summe != alle {
+		t.Errorf("Summe je Methode %d, erwartet %d", summe, alle)
 	}
 }
 

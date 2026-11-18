@@ -3,7 +3,7 @@
 **Werkzeug:** `make test-integration`; Treiber `tools/harness/test-integration.sh` (POSIX-`sh`, Aufrufe von `docker`), Fragment `test-integration.mk` unter `harness/mk/`, Stufe `integration` des `Dockerfile`, Tests und Hilfsprogramm unter `tests/e2e/`.
 
 **Festlegung:** Das gebaute Binary läuft als Prozess in einem Container ohne Netz; die Szenarien sind die Akzeptanzkriterien des Lastenhefts von `LH-FA-01`, `LH-FA-02`, `LH-FA-03`, `LH-FA-04`, `LH-FA-05` und `LH-FA-14` (Happy Path, Boundary, Negative): Record → Upstream stoppen → Replay.
-Der Teil *Mock CRUD → Reset* ist als Stufe geliefert; die Szenarien über Admin-Listener und Verbindungszähler kommen als weitere Stufen, sobald der Code existiert, den sie fahren (Nr. 3 nennt die Form der Stufe).
+Der Teil *Mock CRUD → Reset* und der Teil *Verbindungszähler* (`TestE2EHybrid`, Nr. 7) sind als Stufen geliefert; die Szenarien über den Admin-Listener kommen als weitere Stufe, sobald der Code existiert, den sie fahren (Nr. 3 nennt die Form der Stufe).
 
 **Stand:** geliefert sind der Treiber, die Stufe `integration` des `Dockerfile`, das Fragment `test-integration.mk` und die zehn Stufen von Nr. 7 (darunter `TestE2EMock`, `TestE2EMockNeustart` und `TestE2EHybrid`) mit Referenzdienst, Prozess-Helfer, Datensuche und Übergang samt Befehl `reset` (Nr. 6); das Ziel hängt an `GATE_CHECKS` (`SPEC-211` Nr. 1). Der Admin-Listener fehlt (Nr. 3 nennt die Form einer weiteren Stufe).
 
