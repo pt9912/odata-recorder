@@ -254,7 +254,7 @@ structure:
 # nachher 329/23648, 145/8110, 220/17081). Senken ist frei, Anheben nur als Verschiebung zwischen Regeln
 # oder per ADR (SPEC-040 Nr. 8, ADR-0010); eine Regel traegt kein hint (SPEC-040 Nr. 4 d).
 # Messung je Regel:
-#   AGENTS.md              329 Zeilen, 23648 Bytes
+#   AGENTS.md              326 Zeilen, 23633 Bytes
 #   .claude/commands/*.md  Maximum implement-slice.md 220 Zeilen, 17081 Bytes
 #                          (close-welle.md 146/11731, plan-welle.md 99/6554)
 #   .claude/agents/*.md    Maximum architect.md 53 Zeilen, 3759 Bytes
@@ -265,8 +265,8 @@ structure:
 #   harness/conventions.md 228 Zeilen, 16065 Bytes
 file:
   - files: "AGENTS.md"
-    max-lines: 329
-    max-bytes: 23648
+    max-lines: 326
+    max-bytes: 23633
   - files: ".claude/commands/*.md"
     max-lines: 221
     max-bytes: 17081

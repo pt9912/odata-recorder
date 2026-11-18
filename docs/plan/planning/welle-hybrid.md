@@ -45,6 +45,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - Alle Slices der Welle liegen in `done/`.
 - `make gates` ist grün; `make gegenproben` ist grün.
 - Der M4-Test aus `slice-bootstrap-m4` ist grün und Teil von `make test`; der Referenzdienst zählt seine Verbindungen und Methoden: ein Treffer des Mock ergibt 0 Verbindungen; eine lesende Anfrage bei unvollständiger Coverage mit `HYBRID_FALLBACK=enabled` und freigegebenem Host genau eine lesende Verbindung, dieselbe Anfrage ohne Freigabe `ODR-E6003` und 0; ein POST auf eine nicht unterstützte Operation ohne Eintrag in `FALLBACK_WRITE_ALLOW` 0, mit passendem Eintrag eine; ein Replay-Miss `ODR-E5001` mit Opt-in nur für GET und HEAD zum freigegebenen Host, ein erschöpfter Key `ODR-E5002` und fachliche `404` und `409` 0.
+- Der M4-Test deckt auch den Fall, dass ein `412` (`ODR-E6010`, `If-Match` mit veraltetem ETag bei `ETAG_ENABLED=true`) im Modus `hybrid` keinen Fallback auslöst: 0 Verbindungen zum Referenzdienst, Zustand unverändert (`LH-FA-12.b`; Sendung von `welle-etag`, die vor dieser Welle schloss; die Zeile trägt `slice-bootstrap-m4`).
 - Das Handbuch deckt alles ab, was das Binary dieser Welle kann (Modus `hybrid`, Schlüssel, Fehlercodes); das Kataloge-Gate aus `slice-handbuch-meldungskatalog` ist grün.
 - Die Closure-Notiz liegt als `welle-hybrid-results.md` im Ruheort `done/`; ihre *Steering-Loop-Einträge* tragen je verkörperter Regel mit dem Anker `seit welle-hybrid` das Feld `liegt in`.
 
