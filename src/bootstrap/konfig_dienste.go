@@ -67,14 +67,11 @@ func (p *pruefer) liesDienste(k *Konfiguration) {
 	k.Dienste = []Dienst{p.einzelDienst(pflicht)}
 }
 
-// upstreamPflicht ist der Grund, den ein fehlender Upstream meldet: im Modus record und im Modus hybrid bei
-// HYBRID_FALLBACK=enabled (SPEC-110 Nr. 9, 16 f); leer heißt, die URL ist keine Pflicht. Ein ungültiger MODE hat keinen Modus
-// und ein ungültiges HYBRID_FALLBACK kein Upstream, also keine Pflicht.
+// upstreamPflicht ist der Grund, den ein fehlender Upstream meldet: derselbe Text `Pflichtfeld fehlt` im Modus record und im
+// Modus hybrid bei HYBRID_FALLBACK=enabled (SPEC-110 Nr. 9, 16 f); leer heißt, die URL ist keine Pflicht. Ein ungültiger MODE
+// hat keinen Modus und ein ungültiges HYBRID_FALLBACK kein Upstream, also keine Pflicht.
 func upstreamPflicht(k *Konfiguration) string {
-	switch {
-	case k.Modus == modusRecord:
-		return "im Modus record erforderlich"
-	case k.Modus == modusHybrid && k.Fallback.Upstream:
+	if k.Modus == modusRecord || k.Modus == modusHybrid && k.Fallback.Upstream {
 		return "Pflichtfeld fehlt"
 	}
 	return ""

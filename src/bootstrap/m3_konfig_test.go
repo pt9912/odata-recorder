@@ -39,7 +39,7 @@ func TestKonfigUpstreamNurImRecordPflicht(t *testing.T) {
 				case art == "ungültig":
 					soll = []string{"ODR-E2001 " + key + ": keine absolute http- oder https-URL ohne Zugangsdaten, Query und Fragment"}
 				case art == "fehlt" && modus == "record":
-					soll = []string{"ODR-E2001 " + key + ": im Modus record erforderlich"}
+					soll = []string{"ODR-E2001 " + key + ": Pflichtfeld fehlt"}
 				}
 				if _, zeilen := lade(t, env...); !slices.Equal(zeilen, soll) {
 					t.Errorf("%s/%s/%s: Zeilen %v, erwartet %v", modus, art, quelle, zeilen, soll)

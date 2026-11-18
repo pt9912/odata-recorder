@@ -1,6 +1,6 @@
 # Review-Report: slice-bootstrap-m4-konfig — 2026-11-18
 
-**Review-Art:** Code (gegen Plan, `SPEC-110` Nr. 16, `SPEC-261`, `SPEC-139`, `SPEC-037`, ADR-0001 und `AGENTS.md` §3)
+**Review-Art:** Code (gegen Plan, `SPEC-110` Nr. 16, `SPEC-261`, `SPEC-139`, `SPEC-037`, [ADR-0001](../plan/adr/0001-implementierungssprache-go.md) und `AGENTS.md` §3)
 
 **Gegenstand:** Diff `ca7925ea..82875b8f` (Zweig `slice-bootstrap-m4`; Code, Tests, Handbuch, Plan; Teil 1 des Plans `slice-bootstrap-m4`, Zeilen M04 bis M09)
 
@@ -10,7 +10,7 @@
 **Eingangs-Kontext:**
 
 - Slice-Plan `slice-bootstrap-m4-konfig` (§1, §3 mit Tabelle *Zusage · Fänger*, §4 Größenmarke, §6 Raster und Entscheidungen (a) bis (g))
-- ADR-0001; `LH-FA-12`
+- [ADR-0001](../plan/adr/0001-implementierungssprache-go.md); `LH-FA-12`
 - `SPEC-110` Nr. 1, 2, 8, 9, 12, 14, 15, 16; `SPEC-261` Nr. 8, 10 b; `SPEC-139` Nr. 12; `SPEC-037`; `SPEC-128`
 - `AGENTS.md` (Hard Rules); vorherige Reports am Modul `src/bootstrap` wurden nicht neu gelesen
 

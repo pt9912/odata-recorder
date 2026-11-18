@@ -515,7 +515,7 @@ func TestKonfigServicesFile(t *testing.T) {
 	t.Run("upstream_url null, leer und Leerraum", func(t *testing.T) {
 		for _, w := range []string{`null`, `""`, `" "`} {
 			inhalt := `[{"id":"a","service_root":"/a","upstream_url":` + w + `}]`
-			erwarteGrund(t, "SERVICES_FILE[0].upstream_url", "im Modus record erforderlich",
+			erwarteGrund(t, "SERVICES_FILE[0].upstream_url", "Pflichtfeld fehlt",
 				"MODE=record", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, inhalt))
 			erwarteGueltig(t, dienstenv(inhalt)...) // replay: kein Verstoß
 		}
@@ -739,7 +739,7 @@ func TestKonfigUpstreamModus(t *testing.T) {
 	d := func() string { return "DATA_DIR=" + filepath.Join(t.TempDir(), "d") }
 	erwarteGueltig(t, "MODE=replay", d())
 	erwarteGrund(t, "UPSTREAM_URL", "keine absolute http- oder https-URL", "MODE=replay", "UPSTREAM_URL=ftp://x", d())
-	erwarteGrund(t, "UPSTREAM_URL", "im Modus record erforderlich", "MODE=record", d())
+	erwarteGrund(t, "UPSTREAM_URL", "Pflichtfeld fehlt", "MODE=record", d())
 	_, zeilen := lade(t, "MODE=Record", d())
 	if len(zeilen) != 1 || !strings.HasPrefix(zeilen[0], "ODR-E2001 MODE: ") {
 		t.Errorf("MODE=Record ohne URL: %v", zeilen)
@@ -786,7 +786,7 @@ func TestKonfigMeldungSortierung(t *testing.T) {
 	}
 }
 
-// TestKonfigDienstefeldTyp: ein Feld falschen Typs meldet nur den Typ, weder „Pflichtfeld fehlt“ noch die Form noch „im Modus record erforderlich“ (SPEC-110 Nr. 9, Nr. 12).
+// TestKonfigDienstefeldTyp: ein Feld falschen Typs meldet nur den Typ, weder „Pflichtfeld fehlt“ noch die Form (SPEC-110 Nr. 9, Nr. 12).
 // Geprüft sind id, service_root und upstream_url in record sowie upstream_url in replay und mock; hybrid ist nicht geprüft.
 func TestKonfigDienstefeldTyp(t *testing.T) {
 	for name, tc := range map[string]struct{ inhalt, zeile string }{

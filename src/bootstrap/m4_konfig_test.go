@@ -36,6 +36,7 @@ const (
 	grundKategorie = "Kategorie unbekannt; erlaubt sind unsupported und coverage_insufficient"
 	grundOhneHosts = "enabled verlangt mindestens einen Eintrag in FALLBACK_ALLOW_HOSTS"
 	grundFormFB    = "Wert nicht in der Aufzählung: disabled, enabled"
+	grundPflicht   = "Pflichtfeld fehlt" // SPEC-110 Nr. 9, 16 f: derselbe Text in den Modi record und hybrid
 )
 
 const (
@@ -223,11 +224,8 @@ func TestHybridUpstreamPflichtModus(t *testing.T) {
 			if modus == "Hybrid" {
 				soll = append(soll, zeile("MODE", "Wert nicht in der Aufzählung: record, replay, mock, hybrid"))
 			}
-			switch {
-			case modus == "record":
-				soll = append(soll, zeile("UPSTREAM_URL", "im Modus record erforderlich"))
-			case modus == "hybrid" && schalter == "enabled":
-				soll = append(soll, zeile("UPSTREAM_URL", "Pflichtfeld fehlt"))
+			if modus == "record" || modus == "hybrid" && schalter == "enabled" {
+				soll = append(soll, zeile("UPSTREAM_URL", grundPflicht))
 			}
 			env := []string{"MODE=" + modus, "DATA_DIR=" + filepath.Join(t.TempDir(), "d"), kHosts + "=a.example", kUpstr + "=" + schalter}
 			if _, zeilen := lade(t, env...); !slices.Equal(zeilen, soll) {
@@ -473,5 +471,161 @@ func TestHybridNeuePolicyFehler(t *testing.T) {
 	soll := []string{zeile(kWrite, "Eintrag 1: "+grundTrenner), zeile(kUpstr, grundOhneHosts), zeile(kReplay, "Eintrag 1: "+grundKategorie)}
 	if !slices.Equal(kf.Zeilen, soll) {
 		t.Errorf("Zeilen %q, erwartet %q", kf.Zeilen, soll)
+	}
+}
+
+// TestUpstreamPflichtGrundGleich fängt M05: fehlt die UPSTREAM_URL, ist der Grund in den Modi record und hybrid (bei gültigem enabled) derselbe Text
+// `Pflichtfeld fehlt` an demselben Schlüssel, ohne Modus im Text (SPEC-110 Nr. 9, 16 f); 2 Modi × 5 Aufbauten (einzeln, Datei mit [0], [1],
+// beiden und `null` ohne URL), die Zeilen beider Modi sind gleich.
+func TestUpstreamPflichtGrundGleich(t *testing.T) {
+	const url = `"upstream_url":"https://h.test"`
+	aufbauten := []struct {
+		datei  string
+		fehlen []string
+	}{
+		{"", []string{"UPSTREAM_URL"}},
+		{`[{"id":"a","service_root":"/a"},{"id":"b","service_root":"/b",` + url + `}]`, []string{"SERVICES_FILE[0].upstream_url"}},
+		{`[{"id":"a","service_root":"/a",` + url + `},{"id":"b","service_root":"/b"}]`, []string{"SERVICES_FILE[1].upstream_url"}},
+		{`[{"id":"a","service_root":"/a"},{"id":"b","service_root":"/b"}]`, []string{"SERVICES_FILE[0].upstream_url", "SERVICES_FILE[1].upstream_url"}},
+		{`[{"id":"a","service_root":"/a","upstream_url":null},{"id":"b","service_root":"/b",` + url + `}]`, []string{"SERVICES_FILE[0].upstream_url"}},
+	}
+	n := 0
+	for _, a := range aufbauten {
+		var je [2][]string
+		for i, modus := range []string{"record", "hybrid"} {
+			n++
+			env := []string{"MODE=" + modus, "DATA_DIR=" + filepath.Join(t.TempDir(), "d"), kHosts + "=a.example", kUpstr + "=enabled"}
+			if a.datei != "" {
+				env = append(env, "SERVICES_FILE="+schreibe(t, a.datei))
+			}
+			_, je[i] = lade(t, env...)
+			var soll []string
+			for _, s := range a.fehlen {
+				soll = append(soll, zeile(s, grundPflicht))
+			}
+			if !slices.Equal(je[i], soll) {
+				t.Errorf("%s, Aufbau %q: Zeilen %q, erwartet %q", modus, a.fehlen, je[i], soll)
+			}
+		}
+		if !slices.Equal(je[0], je[1]) {
+			t.Errorf("Aufbau %q: record meldet %q, hybrid %q", a.fehlen, je[0], je[1])
+		}
+	}
+	if n != 10 {
+		t.Errorf("Menge hat %d Elemente, erwartet 10", n)
+	}
+}
+
+// TestHybridUngueltigerSchalterOhneFolgen fängt M04 und M05: ein ungültiges HYBRID_FALLBACK gilt weder als enabled noch als disabled; es meldet allein
+// seine Form, `ohne-hosts` und die Pflicht von UPSTREAM_URL entfallen (SPEC-110 Nr. 16 e). 4 Modi × 8 ungültige Werte × 3 Belegungen der
+// Allowlist (nicht gesetzt, leer, nur Leerraum), ohne UPSTREAM_URL außer im Modus record, dessen eigene Pflicht gilt.
+func TestHybridUngueltigerSchalterOhneFolgen(t *testing.T) {
+	werte := []string{"Enabled", "ENABLED", "eNabled", "true", "1", "none", "yes", "enabled,disabled"}
+	hosts := [][]string{nil, {kHosts + "="}, {kHosts + "=  "}}
+	n := 0
+	for _, modus := range vierModi() {
+		for _, w := range werte {
+			for _, h := range hosts {
+				n++
+				env := append([]string{"MODE=" + modus, "DATA_DIR=" + filepath.Join(t.TempDir(), "d"), kUpstr + "=" + w}, h...)
+				if modus == "record" {
+					env = append(env, "UPSTREAM_URL=https://h.test/odata")
+				}
+				if _, zeilen := lade(t, env...); !slices.Equal(zeilen, []string{zeile(kUpstr, grundFormFB)}) {
+					t.Errorf("%s/%s/%q: Zeilen %q", modus, w, h, zeilen)
+				}
+			}
+		}
+	}
+	if n != 96 {
+		t.Errorf("Menge hat %d Elemente, erwartet 96", n)
+	}
+}
+
+// TestHybridDisabledOhneHostKeinVerstoss fängt M04: bei disabled (gesetzt und als Default) ist eine Freigabe oder eine Kategorie ohne Host in FALLBACK_ALLOW_HOSTS
+// kein Verstoß, und die Konfiguration trägt die Werte (SPEC-110 Nr. 16 e). 4 Modi × 2 Schalter × 4 Belegungen von Freigabe und Kategorie × 2 Belegungen der
+// Allowlist (nicht gesetzt, leer); der Fall mit enabled und leerer Allowlist meldet dagegen `ohne-hosts` (TestHybridKonfigFehlerReihenfolge).
+func TestHybridDisabledOhneHostKeinVerstoss(t *testing.T) {
+	schalter := [][]string{{kUpstr + "=disabled"}, nil}
+	belegungen := [][]string{nil, {kWrite + "=POST /a"}, {kReplay + "=unsupported"}, {kWrite + "=POST /a", kReplay + "=coverage_insufficient"}}
+	hosts := [][]string{nil, {kHosts + "="}}
+	n := 0
+	for _, modus := range vierModi() {
+		for _, s := range schalter {
+			for _, b := range belegungen {
+				for _, h := range hosts {
+					n++
+					env := append(append(append([]string{"MODE=" + modus, "DATA_DIR=" + filepath.Join(t.TempDir(), "d")}, s...), b...), h...)
+					if modus == "record" {
+						env = append(env, "UPSTREAM_URL=https://h.test/odata")
+					}
+					k, zeilen := lade(t, env...)
+					if len(zeilen) != 0 {
+						t.Errorf("%s/%q/%q/%q: Zeilen %q, erwartet keine", modus, s, b, h, zeilen)
+						continue
+					}
+					if len(k.Fallback.Hosts) != 0 || k.Fallback.Upstream || len(k.Fallback.Schreibfreigaben) != countPrefix(b, kWrite) ||
+						len(k.Fallback.ReplayKategorien) != countPrefix(b, kReplay) {
+						t.Errorf("%s/%q/%q: Konfiguration trägt %+v", modus, s, b, k.Fallback)
+					}
+				}
+			}
+		}
+	}
+	if n != 64 {
+		t.Errorf("Menge hat %d Elemente, erwartet 64", n)
+	}
+}
+
+// countPrefix zählt die Zuweisungen in env, die mit dem Schlüssel schluessel beginnen.
+func countPrefix(env []string, schluessel string) int {
+	n := 0
+	for _, e := range env {
+		if strings.HasPrefix(e, schluessel+"=") {
+			n++
+		}
+	}
+	return n
+}
+
+// TestHybridListeLeerraumUmEintrag fängt M06: Leerraum um einen Eintrag der drei Listen wird entfernt (SPEC-110 Nr. 6, 16 b). Die Menge: Zeichen {Leerzeichen,
+// Tabulator, LF, CR} × Seite {vor jedem Eintrag, nach jedem Eintrag, beide} × drei Listen = 36 Fälle mit je drei Einträgen; die Seiten stehen
+// auch an der Grenze der Liste, die Nr. 1 für den ganzen Wert schon entfernt, und zwischen den Kommas, wo allein Nr. 6 entfernt. Offen
+// bleibt, welche Zeichen die Spezifikation mit Leerraum meint (Plan, Abschnitt 6): U+000B, U+000C, U+0085, U+00A0 und weitere sind hier nicht geprüft.
+func TestHybridListeLeerraumUmEintrag(t *testing.T) {
+	listen := []struct {
+		schluessel string
+		eintraege  []string
+		trage      func(k bootstrap.Konfiguration) []string
+	}{
+		{kHosts, []string{"a.example", "b.example", "c.example"}, func(k bootstrap.Konfiguration) []string { return k.Fallback.Hosts }},
+		{kWrite, []string{"POST /a", "PUT /b", "DELETE /c"}, func(k bootstrap.Konfiguration) []string { return k.Fallback.Schreibfreigaben }},
+		{kReplay, []string{"unsupported", "coverage_insufficient", "unsupported"}, func(k bootstrap.Konfiguration) []string { return k.Fallback.ReplayKategorien }},
+	}
+	seiten := []struct{ vor, nach bool }{{true, false}, {false, true}, {true, true}}
+	n := 0
+	for _, l := range listen {
+		for _, w := range []string{" ", "\t", "\n", "\r"} {
+			for _, s := range seiten {
+				n++
+				teile := make([]string, len(l.eintraege))
+				for i, e := range l.eintraege {
+					if s.vor {
+						e = w + e
+					}
+					if s.nach {
+						e += w
+					}
+					teile[i] = e
+				}
+				k, zeilen := lade(t, hybridBasis(t, "hybrid", l.schluessel+"="+strings.Join(teile, ","))...)
+				if len(zeilen) != 0 || !slices.Equal(l.trage(k), l.eintraege) {
+					t.Errorf("%s mit %q, Seiten %+v: Zeilen %q, Konfiguration trägt %q", l.schluessel, w, s, zeilen, l.trage(k))
+				}
+			}
+		}
+	}
+	if n != 36 {
+		t.Errorf("Menge hat %d Elemente, erwartet 36", n)
 	}
 }
