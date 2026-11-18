@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-QA-06` (Reproduzierbarkeit der Prüfläufe; das Lastenheft führt keine Anforderung an die Laufzeit der Gegenproben, der Bezug ist der nächste, den es gibt), [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) (Entscheidung, `Accepted`), [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Re-Evaluierungs-Trigger „über 30 s“, dessen Ausgang [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) ist), [ADR-0009](../../adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md) (Messung durch den Host).
 
-**Berührte Spec-Stellen:** `SPEC-102` (Absatz *Zeitbudget* und Nr. 6) · gegebenenfalls ein weiterer Fall der Gegenproben in `SPEC-102`; die Nummer vergibt der Architect.
+**Berührte Spec-Stellen:** `SPEC-102` (Randform 2a und 6, Absatz *Zeitbudget* mit der Messvorschrift Nr. 1 bis 7, *Stand* und *Grenze*); keine neue Nummer.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie
 (Baseline-Regelwerk `grundlagen-referenz-richtung.md`
 §Referenz-Richtung (SDP), `grundlagen-source-precedence.md` §ID-Schema als Klammer).
@@ -32,22 +32,23 @@ ist einzeln lieferbar.
 
 **Ziel:** Das Soll „höchstens 120 s“ für `time make gegenproben` (geänderte Eingabe, kalter Cache) hat in `SPEC-102` eine Messvorschrift: Es gilt nur für einen Lauf bei Load Average (1 Minute) höchstens der Kernzahl, zu Beginn und am Ende; ein Lauf darüber ist *ungültig*, kein Bruch, und wird wiederholt. Die Frist je Fall (`fallFrist`, 120 s) bleibt unverändert die einzige maschinell geprüfte Schwelle.
 
-**Hintergrund:** [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) wählt Option B. Die Einzelheiten (Messgröße, Lastgrenze, Zahl der Wiederholungen, Ausgang bei Bruch) stehen laut ADR in `SPEC-102`. Ein Entwurf des Architect liegt vor (Messvorschrift Nr. 1 bis 4 und ein Zusatz am Ende von Nr. 6); der Architect prüft ihn gegen den Vertrag und übernimmt ihn nicht blind.
+**Hintergrund:** [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) wählt Option B. Die Einzelheiten (Messgröße, Lastgrenze, Zahl der Wiederholungen, Ausgang bei Bruch) stehen laut ADR in `SPEC-102`: dort als *Zeitbudget* Nr. 1 bis 7, in der Form von `SPEC-211` Nr. 4. Die Entscheidungen des Architect stehen in §3.
 
-**Beleg aus `slice-gates-ohne-worktrees`:** Der Lauf der Stufe `gegenproben` mit den Fällen 205 bis 216 färbte unter Last (Load Average 16 und 20 zu Beginn, 175 bis 222 am Ende) neun Fälle `lint/*` mit „Zeit überschritten“ (`SPEC-102` Randform 6); die Fälle 205 bis 216 selbst brauchen kein Produkt und dauern 0,4 bis 0,84 s. Das Ziel dieses Slice (ein Lauf über der Lastgrenze ist ungültig) deckt diese neun Fälle; die Messung und die Ursache von `build/ohne-trimpath` stehen als Folgepflicht in §6.
+**Beleg aus `slice-gates-ohne-worktrees`:** Der Lauf der Stufe `gegenproben` mit den Fällen 205 bis 216 färbte unter Last (Load Average 16 und 20 zu Beginn, 175 bis 222 am Ende) neun Fälle `lint/*` mit „Zeit überschritten“ (`SPEC-102` Randform 6); die Fälle 205 bis 216 selbst brauchen kein Produkt und dauern 0,4 bis 0,84 s. Das Ziel dieses Slice (ein Lauf über der Lastgrenze ist ungültig) deckt diese neun Fälle; der Beleg steht in `SPEC-102` (Messreihen). Die Messung auf ruhigem Host und die Ursache von `build/ohne-trimpath` stehen als Folgepflicht in §6.
 
 **Umfang:**
 
-1. `SPEC-102`: Messvorschrift Nr. 1 bis 4 und Zusatz zu Nr. 6 (ein Lauf mit gerissener Frist bei Last über der Kernzahl ist ungültig; in einem gültigen Lauf ist das ein Befund an den Planner); der Stand-Satz „Das Budget liegt rund 28 % über …“ entfällt, die Messreihen bleiben als Belege.
-2. `tools/gegenproben`: nur so weit, wie [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) es trägt. Die ADR überlässt dem Slice, **ob** das Programm die Fallzeiten ausgibt (ein Weg, Last und Aufwand zu trennen). Ob das Programm Load Average und Kernzahl misst und einen Lauf über der Grenze als *ungültig* meldet (statt nur die Frist zu reißen), steht in der ADR nicht; der Architect entscheidet es mit Begründung, oder die Messvorschrift bleibt reine Prosa für den Implementer.
-3. Gegenproben-Fälle, falls der Architect Programmverhalten (Ausgabe der Fallzeiten, Meldung der Last) zusagt: ein Fall je Zusage, Stempel `harness/gegenproben.stempel` nachgezogen (Eingabe ändert sich).
+1. `SPEC-102`: Messvorschrift Nr. 1 bis 7 im Absatz *Zeitbudget*, Randform 2a und 6 (Frist je Prozess, Bau über der Frist), *Stand* und *Grenze*; der Stand-Satz „Das Budget liegt rund 28 % über …“ entfällt, die Messreihen bleiben als Belege. Geschrieben vom Architect, vom Implementer nur bei einer Abweichung des Codes zu berichtigen.
+2. `tools/gegenproben`: **kein** Programmverhalten für Last oder Fallzeiten (Entscheidung in §3). Geliefert wird allein, was der Vertrag zusagt: `bewerteBau` (ein Bau über der Frist meldet `Zeit überschritten` statt `Bau des Binary scheitert`) und zwei Tests, die `fallFrist` und ihre Aufrufstellen halten.
+3. Keine neuen Fälle der Gegenproben (die Fälle prüfen Gates; die Zusagen dieses Slice liegen im Programm und sind Tests des Programms), kein Stempel im Zweig (Nr. 2 der Übergangsregeln).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Eine Anhebung der Frist je Fall oder des Soll von 120 s — Lockerung (`AGENTS.md` §3.6), von [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) ausgeschlossen; eine Anhebung ist eine eigene ADR mit gültigen Messwerten (Re-Evaluierungs-Trigger der ADR).
-- Ein Prüfer, Gate oder Hook für das Gesamtbudget — [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) benennt das Soll ausdrücklich als nicht maschinell geprüft.
+- Ein Prüfer, Gate oder Hook für das Gesamtbudget und eine Messung der Last durch das Programm — [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) benennt das Soll ausdrücklich als nicht maschinell geprüft; Gründe der Entscheidung in §3.
+- Eine Ausgabe der Fallzeiten — nicht nötig, solange kein gültiger Lauf über 120 s liegt; verlangt ein Befund nach `SPEC-102` *Zeitbudget* Nr. 5 b oder c die Aufteilung der Zeit, legt der Planner sie als eigenen Slice an.
 - Eine Aufteilung der Fälle auf Stufen (Option C der ADR) — eigener Slice, nur nach einer Messung, dass die Fälle und nicht die Last die Zeit bestimmen.
-- Die Eichung auf ruhigem Host — Folgepflicht, kein Liefer-Punkt: sie braucht einen Zeitpunkt, an dem andere Läufe von `make` pausieren; erst messen, dann Zahl (§6, Ausgang *weiter offen*, Adresse: Planner). Dazu gehört die Messung `time make gegenproben` mit den Fällen 205 bis 216 und die Ursache von `build/ohne-trimpath` (Geber `slice-gates-ohne-worktrees`, §6).
+- Die Eichung auf ruhigem Host — Folgepflicht, kein Liefer-Punkt: sie braucht einen Zeitpunkt, an dem andere Läufe von `make` pausieren; erst messen, dann Zahl (§6, Ausgang *weiter offen*, Adresse: Planner; Form in `SPEC-102` *Zeitbudget* Nr. 7). Dazu gehört die Messung `time make gegenproben` mit den Fällen 205 bis 216 und die Wiederholung von `build/ohne-trimpath` (Geber `slice-gates-ohne-worktrees`, §6).
 - Änderungen am Format der Messreihen der Fälle außer dem Kopf der Vorschrift.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
@@ -59,9 +60,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Ziel-Form: Slice — **≤ 3 Liefer-Punkte**; mehr heißt: der Slice ist zu groß und
 gehört zurück zur Zerlegung.
 
-- [ ] `SPEC-102` trägt die Messvorschrift (Gültigkeit eines Laufs, Lastgrenze, Wiederholung, Ausgang bei Bruch, Zusatz zu Nr. 6) und benennt das Soll als nicht maschinell geprüft; die Frist je Fall ist unverändert.
-- [ ] Programmverhalten und Gegenproben-Fälle nur nach der Entscheidung des Architect; jede Zusage hat eine Zeile in der Tabelle *Zusage · Fänger* (§3) mit einer vom Implementer rot gesehenen Mutation, die Frist je Fall bleibt von einem Fall gefangen.
-- [ ] Doku-Update: `harness/README.md` (Zeile `make gegenproben`, falls die Beschreibung sich ändert), `SPEC-102` *Stand*; `make gates` grün.
+- [ ] `SPEC-102` trägt die Messvorschrift (Gültigkeit eines Laufs, Lastgrenze, Wiederholung, Ausgang bei Bruch, Frist je Prozess) und benennt das Soll als nicht maschinell geprüft; die Frist je Fall ist unverändert und von `TestFallFristIst120Sekunden` und `TestJederAufrufNenntDieFallFrist` gehalten.
+- [ ] Jede Zeile der Tabelle *Zusage · Fänger* (§3) hat eine vom Implementer rot gesehene Mutation; `bewerteBau` und die drei Tests liegen in `tools/gegenproben`.
+- [ ] Doku-Update: `SPEC-102` *Stand* und *Grenze* (geschrieben); `harness/README.md` bleibt unverändert, die Beschreibung von `make gegenproben` ändert sich nicht; `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
@@ -75,28 +76,51 @@ gehört zurück zur Zerlegung.
 Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-bootstrap.md`
 §Was ist eine Sub-Area? — diese Liste liefert die **Pfad-Kandidaten** für §8.
 
-Der Planner schneidet; der Architect entscheidet (Aufträge unten), der Implementer erweitert diese Liste in seinem ersten Lauf. Die Zeilen sind Kandidaten.
+Der Planner schneidet; der Architect entscheidet (unten), der Implementer erweitert diese Liste in seinem ersten Lauf.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `harness/vertraege/SPEC-102-gegenproben.md` | update | Messvorschrift, Zusatz zu Nr. 6, Stand-Satz entfällt |
-| `tools/gegenproben/` | update (nur nach Entscheidung des Architect) | Ausgabe der Fallzeiten, Meldung eines Laufs über der Lastgrenze; keine Änderung von `fallFrist` |
-| `harness/gegenproben.stempel` | update (falls das Programm sich ändert) | Eingabe der Gegenproben ändert sich; Nr. 7 der Übergangsregeln |
-| `harness/README.md` | update (falls nötig) | Beschreibung des Ziels |
+| `harness/vertraege/SPEC-102-gegenproben.md` | update, vom Architect geschrieben | Randform 2a und 6, *Zeitbudget* Nr. 1 bis 7, *Stand*, *Grenze*; Stand-Satz entfällt |
+| `tools/gegenproben/main.go` | update | `bewerteBau`, von `fuehreFall` gerufen; `fallFrist` bleibt 120 s |
+| `tools/gegenproben/main_test.go` | update | `TestBewerteBau`, `TestFuehreFallBauScheitertRuftKeinGate` |
+| `tools/gegenproben/frist_test.go` | neu | `TestFallFristIst120Sekunden`, `TestJederAufrufNenntDieFallFrist` |
+| `harness/gegenproben.stempel` | kein Eintrag im Zweig | Nr. 2 der Übergangsregeln; der Integrationsschritt fährt `make gegenproben` und committet den Stempel allein (Eingabe `tools/gegenproben/` ändert sich) |
 
 **Reihenfolge der Rollen nach dem Start**, jede in frischem Kontext: Architect (Vertrag, Entscheidungen, Tabelle *Zusage · Fänger*, Raster, erwartete Produktcode-Größe) → Planner (Marke mit `make groessenmarke`, eigener Commit, vor dem ersten Code-Commit) → Implementer → Reviewer → Fixes (Klasse, `AGENTS.md` §3.17) → Verifier → Planner (Closure).
 
 **Betriebsregeln für alle Rollen:** `Edit` und `Write` auf Repo-Dateien (kein `sed -i`, kein Heredoc, kein `>>`); Commit-Messages per `git commit -F <datei>`; schwere Läufe unter `flock /tmp/odata-recorder-heavy.lock`; Zeichen jenseits von ASCII aus Bytewerten und auf Rohbytes gegengelesen (`AGENTS.md` §3.18).
 
-**Aufträge an den Architect:**
+**Entscheidungen des Architect** (Aufträge 1 bis 5, Stand vor dem ersten Code-Commit):
 
-1. **Entwurf prüfen.** Die Messvorschrift Nr. 1 bis 4 und der Zusatz zu Nr. 6 aus dem Entwurf des Architect gegen den Vertrag und [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md): Messgröße (Load Average 1 Minute, Kernzahl des Hosts, Messzeitpunkte), Wiederholungsregel, Ausgang bei Bruch; keine Zahl ohne Messung, keine Anhebung einer Frist.
-2. **Programmverhalten.** Ob das Programm die Fallzeiten ausgibt und ob es die Last misst und einen Lauf darüber als ungültig meldet; wenn ja: die Zusagen, der Ausgang (Exit-Code, Text), das Verhalten der Fälle 1 bis 37 und aller weiteren unter dem Programm, das Verhältnis zu `Zeit überschritten` (Nr. 6). Wenn nein: das als Entscheidung mit Grund in `SPEC-102`.
-3. **Randformen** vor dem ersten Code-Commit im Vertrag (Raster in §6, `AGENTS.md` §3.16): Load Average nicht lesbar, Kernzahl nicht lesbar, Last genau gleich der Kernzahl (beide Seiten der Grenze), Last zu Beginn niedrig und am Ende hoch (und umgekehrt), Lauf bei unveränderter Eingabe (kein Lauf, 1 s), Abbruch des Laufs.
-4. **Tabelle *Zusage · Fänger*** (§3), **erwartete Produktcode-Größe** für die Marke (Zeilen Go und Vertrag getrennt).
-5. **Eichung.** Wie der erste gültige Lauf auf ruhigem Host seine Werte einträgt (Ort in `SPEC-102`, Form der Messung nach Nr. 1); der Slice führt sie nicht aus (§1).
+1. **Entwurf geprüft.** Ein Entwurf der Messvorschrift liegt im Repo nicht vor (gesucht in `docs/`, `harness/` und im Scratchpad; vorhanden ist die Form von `SPEC-211` Nr. 4); die Vorschrift ist aus §1 und [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) geschrieben und gegen den Code gelesen (`tools/gegenproben/main.go`). Gegen den Ansatz in §1 geändert: (a) die Kernzahl ist `nproc --all`, nicht `nproc`: in einer Umgebung mit Quote zählt `nproc` die Kerne des Prozesses (hier 3, der Host hat 20); (b) ein Container mit `--cpus=4` ändert weder `/proc/loadavg` noch `nproc --all` (belegt am 2026-11-18), die Messung ist die des Hosts; (c) die Lesung am Ende enthält die Last des Laufs selbst und kann die Kernzahl auf ruhigem Host erreichen, der Fehler geht nur Richtung *ungültig* (Wiederholung), nie Richtung Befund, und die Eichung prüft ihn; (d) eine Lesung, die der Eintrag nicht nennt, entschuldigt nichts (der Lauf gilt als gültig); (e) die Wiederholung endet nach drei ungültigen Läufen in Folge mit einem Befund an den Planner; (f) Last entschuldigt nur den Text `Zeit überschritten`, nie einen anderen Grund.
+2. **Programmverhalten: keines für Last und Fallzeiten, die Messvorschrift ist Prosa.** Gründe: (a) das Soll misst `time make gegenproben`, also auch den Bau des Images und seinen Export (7 bis 36 s), die das Programm nicht sieht; ein Urteil des Programms über die Gültigkeit stünde neben dem des Messenden und könnte ihm widersprechen; (b) jede Zusage des Programms braucht einen Fall je Zeile, einen Ersatz für `/proc/loadavg`, die Randformen *nicht lesbar*, *gleich der Kernzahl* und *Kernzahl im Container*, und macht den Host zur Eingabe des Programms; (c) der Stempel hängt am grünen Lauf, und ein grüner Lauf unter Last ist der stärkere Beleg, nicht der schwächere: ein *ungültiger grüner* Lauf bleibt grün und schreibt den Stempel wie jeder grüne Lauf (`SPEC-102` *Zeitbudget* Nr. 5 d), ein roter schreibt ihn nie; (d) die Fälle brauchen einzeln Hundertstel- bis Zehntelsekunden, die Zeit bestimmt der Host, eine Ausgabe der Fallzeiten trennt Last und Aufwand erst, wenn ein gültiger Lauf über 120 s liegt (dann Befund nach Nr. 5 b oder c, Folge-Slice des Planners). Die Rückführung `in-progress` → `open` (§4) tritt nicht ein. Was das Programm doch ändert: `bewerteBau`, weil Randform 6 „Zeit überschritten“ zusagt und der Bau nach altem Code `Bau des Binary scheitert` meldete, ohne Zeit und Fehler zu trennen (`build/ohne-trimpath`, §6).
+3. **Randformen** vor dem Code im Vertrag: Raster in §6, Orte in `SPEC-102` Randform 2a und 6 und *Zeitbudget* Nr. 1 bis 7. Die Frist gilt je Prozess (Bau, Gate, Treiber, `git`), nicht je Fall; der Vertrag beschreibt es jetzt so, das Verhalten ist unverändert.
+4. **Tabelle und Größe** unten; **ADR:** keine (die Entscheidung trägt [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md), die Einzelheiten stehen laut ADR in `SPEC-102`); keine ADR-Nummer aus 0030 bis 0039 und keine neue `SPEC`-Nummer vergeben.
+5. **Eichung:** `SPEC-102` *Zeitbudget* Nr. 7 (Absatz *Eichung* hinter den Messreihen, Eintrag nach Nr. 6); der Slice führt sie nicht aus (§1, §6).
 
-**Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; füllt der Architect): folgt.
+**Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; füllt der Architect, der Implementer trägt Raten und Läufe nach `AGENTS.md` §3.10 ein): jede Zeile eine Mutation, alle Klasse `andere` (keine Zusage über Nebenläufigkeit).
+
+| Nr. | Zusage | Fänger | Mutation | Klasse |
+|---|---|---|---|---|
+| 1 | `fallFrist` hat den Wert 120 s (Randform 6, Fitness Function von [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md)) | `TestFallFristIst120Sekunden`: Gleichheit mit `120 * time.Second` (fängt 119 s und 121 s) | `fallFrist = 121 * time.Second` | andere |
+| 2 | Jeder Aufruf von `starte` und `starteStroeme` nennt `fallFrist` (Allaussage über die Aufrufstellen, am Stand 7: `main.go` 2, `faelle.go` 3, `groessenmarke_treiber.go` 1, `zeichen_treiber.go` 1) | `TestJederAufrufNenntDieFallFrist`: Schleife über die Quelldateien des Pakets ohne `_test.go`, findet mindestens 7 Aufrufstellen (eine Prüfung, die nichts findet, ist rot) | in `zeichen_treiber.go` den Aufruf mit `10 * time.Minute` statt `fallFrist` (ein Element, das ein Befund nicht nennen muss) | andere |
+| 3 | Ein Bau, der die Frist reißt, ist rot mit `Zeit überschritten`, nicht mit `Bau des Binary scheitert` (Randform 6 und 2a) | `TestBewerteBau`, Zeile Ablauf (Code -1, abgelaufen) | der Zweig `abgelaufen` in `bewerteBau` entfällt | andere |
+| 4 | Ein Bau mit Exit ungleich 0 ist rot mit `Bau des Binary scheitert` und den letzten Zeilen der Ausgabe (Randform 2a) | `TestBewerteBau`, Zeile Exit 1 mit Ausgabe aus mehreren Zeilen (Text und letzte Zeile genannt, erste Zeile nicht) | `letzte(out)` fällt aus dem Text | andere |
+| 5 | Ein Bau mit Exit 0 ist nicht rot (beide Seiten der Grenze: Exit 0 und Exit 1) | `TestBewerteBau`, Zeile Exit 0 | `code != 0` wird `code >= 0` | andere |
+| 6 | Scheitert der Bau, wird das Gate nicht gerufen (Randform 2a) | `TestFuehreFallBauScheitertRuftKeinGate`: Ersatz für `Bauen` endet mit Exit 1, der Ersatz für `Befehl` zählt jeden Aufruf; erwartet: Rot beginnt mit `Bau des Binary scheitert`, Zahl der Aufrufe 0 (gibt es schon einen Test mit diesem Gegenstand, ist er der Fänger) | `fuehreFall` kehrt nach dem Rot des Baus nicht zurück | andere |
+| 7 | Ein Gate-Aufruf über der Frist ist rot mit `Zeit überschritten`; die Prozessgruppe endet (Randform 6, unverändert) | Zeile `Frist` in `TestBewerte` und der Test der Hülle in `strom_test.go` (je `getrennt` wahr und falsch) | `case abgelaufen` in `bewerte` entfällt | andere |
+
+**Akzeptierte Negative** (Grund und Folge, `AGENTS.md` §3.15):
+
+| Negativ | Grund | Folge |
+|---|---|---|
+| *Zeitbudget* Nr. 1 bis 7 (Gültigkeit, Wiederholung, Ausgang, Eintrag) hat keinen Fänger | der Messende liest die Last und die Wanduhr selbst; das Programm sieht Bau und Export des Images nicht (Entscheidung 2) | ein Lauf kann falsch als gültig oder ungültig geführt werden; der Eintrag trägt beide Lesungen, Reviewer und Verifier lesen sie nach, und eine Lesung, die fehlt, entschuldigt nichts (Nr. 3) |
+| `fuehreFall` reicht `abgelaufen` des Baus an `bewerteBau` weiter | ein Lauf bis zur Frist dauert 120 s, `fallFrist` ist eine Konstante und kein Argument | ein verlorenes Argument zeigt sich erst beim ersten gerissenen Bau; die Zeilen 3 bis 5 fangen die Wertung |
+| Die Lesung am Ende enthält die Last des Laufs selbst | der Lauf startet bis zu so viele Fälle wie Kerne; die Größe des Eigenanteils ist nicht gemessen | ein gültiger Lauf kann als ungültig zählen und wird wiederholt, nie als Befund; drei Läufe in Folge gehen an den Planner, die Eichung prüft den Eigenanteil (Nr. 7) |
+| Eine kurze Last-Spitze zwischen den Lesungen bleibt unsichtbar | das Mittel über 1 Minute am Ende deckt die letzten 60 s eines Laufs, der meist länger als 60 s dauert; mehr Lesungen verlangt kein Beleg | ein Fall mit `Zeit überschritten` kann als Befund erscheinen, den ein Lauf auf ruhigem Host entkräftet; der Planner wiederholt dort |
+| Treiber-Aufruf und `git` in der Nachprüfung über der Frist melden nicht `Zeit überschritten` | der Aufruf wirft den Ablauf weg (`code, out, _ := starte(…)`); die Nachprüfung wertet den Exit -1 | ein solcher Fall zählt nach Nr. 5 f als Befund statt als durch Last entschuldigt, also Richtung Planner und nie Richtung Wiederholung |
+
+**Erwartete Größe** für die Marke des Planners (Messung nach `SPEC-128`, Pfade dieses Plans, Tests eingeschlossen): Produktcode Go rund 15 Zeilen (`main.go`: `bewerteBau` mit drei Zweigen und sein Aufruf in `fuehreFall`), Tests Go rund 100 Zeilen (`main_test.go` rund 50, `frist_test.go` rund 50), ein Fake-Paar (`Bauen`, `Befehl`) in Zeile 6 von je rund 5 Zeilen; Vertrag `SPEC-102` 23 Zeilen (16 neu, 7 ersetzt, gemessen mit `git diff --numstat` am Stand des Architect), Plan eigene Zeilen. Die Tabelle hat 7 Zeilen *andere*, 0 *nebenläufig*; erwartet ist ein kleiner Slice weit unter der Schnittgrenze von `SPEC-128` Nr. 1, der Planner rechnet nach der Formel.
 
 ## 4. Trigger
 
@@ -105,12 +129,12 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): kein anderer Slice der Gate-Kette liegt in `in-progress/` (Nr. 7 der Übergangsregeln: ein Besitzer zugleich). Reihenfolge der Kette seit 2026-11-08: `slice-gate-integration-determinism`, `slice-guard-schreibwege`, `slice-regeln-verkoerpern`, `slice-groessenformel-neu`, dann dieser Slice; der Start legt fest, ob er vor `slice-groessenformel-neu` rückt, solange dessen Beschluss des Users aussteht. Höchstens drei Slice-Worktrees zugleich. [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) ist `Accepted`.
 
-**Größenmarke:** Prosa, kein Block, vorläufig. Die Marke setzt der Planner vor dem ersten Code-Commit mit `make groessenmarke` nach `SPEC-128` Nr. 1 und `AGENTS.md` §3.14; die Schätzung kommt aus der Tabelle des Architect. Erwartet ist ein kleiner Slice (Vertragstext, wenig Go, wenige Fälle); die Tabelle zur Formel fehlt noch, der Planner rechnet nach dem Architect neu und schneidet vor dem Code, wenn *S* die Schnittgrenze von `SPEC-128` Nr. 1 erreicht.
+**Größenmarke:** Prosa, kein Block, vorläufig. Die Marke setzt der Planner vor dem ersten Code-Commit mit `make groessenmarke` nach `SPEC-128` Nr. 1 und `AGENTS.md` §3.14; die Schätzung kommt aus der Tabelle des Architect in §3 (7 Zeilen *andere*, Größe unten in §3). Erwartet ist ein kleiner Slice (wenig Go, kein neuer Fall); der Planner rechnet und schneidet vor dem Code, wenn *S* die Schnittgrenze von `SPEC-128` Nr. 1 erreicht.
 
 **Rückführungen — vorab benannt:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): die Marke liegt nach `SPEC-128` über der Schnittgrenze.
-- `in-progress` → `open` (blockiert): der Architect entscheidet, dass die Last des Hosts im Programm nicht ohne eine ADR zu lesen ist (Fremdabhängigkeit, Mount), oder ein Slice der Gate-Kette hält Nr. 7.
+- `in-progress` → `open` (blockiert): ein Slice der Gate-Kette hält Nr. 7. (Der frühere Grund, die Last des Hosts im Programm zu lesen, ist mit der Entscheidung in §3 entfallen: das Programm liest sie nicht.)
 
 ## 5. Closure-Trigger
 
@@ -121,12 +145,36 @@ DoD vollständig, Review und Verifikation bestanden, `make gates` grün im Haupt
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Offene Risiken werden bei Closure aufgelöst.
 
-- Die Eichung auf ruhigem Host steht aus; ohne sie bleibt unbekannt, ob 120 s tragen — **Ausgang:** weiter offen; Adresse: Planner (Termin bei ruhigem Host, andere Läufe von `make` pausiert; liegt der gültige Lauf über 120 s, gilt der Re-Evaluierungs-Trigger von [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md)).
-- Folgepflicht aus `slice-gates-ohne-worktrees` (Geber, Plan §6; die Eichung ist hier ausgeschlossen, §1): (a) `time make gegenproben` auf ruhigem Host mit den Fällen 205 bis 216 ist nie gemessen (der Lauf schreibt den Stempel, Übergangsregeln Nr. 2, also im Integrationsschritt); (b) die neun Fälle `lint/*` mit „Zeit überschritten“ unter Last 16 bis 222 sind Beleg für das Ziel dieses Slice, kein Rot der Fälle; (c) `build/ohne-trimpath` („Bau des Binary scheitert“) war im zweiten Lauf des Implementers bei Last 175 bis 222 rot, in Runde 2 des Reviews bei Last 10 zweimal grün; ein Log fehlt, die Ursache ist nicht untersucht; im Lauf der Eichung (a) wird sie wiederholt, ein Rot dort ist ein Befund an den Planner — **Ausgang:** weiter offen; Adresse: Planner (Termin bei ruhigem Host, mit der Eichung der ersten Zeile dieser Liste); Register `BEO-REPO/laufzeitmessung-widerspricht-sich-unter-last`.
-- Auf einem Host mit Dauerlast gibt es keinen gültigen Lauf (Negativ der ADR) — **Ausgang:** weiter offen; Folge: Meldungen nennen den Lauf als ungültig statt als Bruch, die Closures führen die Frage nicht mehr als offen.
-- Das Programm wird um eine Last-Messung erweitert, die [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) nicht verlangt, und die Gegenproben bekommen eine Host-Abhängigkeit — **Ausgang:** weiter offen; Adresse: Architect (Auftrag 2).
-- Raster der Randformen (Auftrag 3) ist noch leer — **Ausgang:** weiter offen: der Architect füllt es vor dem ersten Code-Commit (`AGENTS.md` §3.16).
+- Die Eichung auf ruhigem Host steht aus; ohne sie bleibt unbekannt, ob 120 s tragen und wie groß der Eigenanteil des Laufs an der Lesung am Ende ist — **Ausgang:** weiter offen; Adresse: Planner (Termin bei ruhigem Host, andere Läufe von `make` pausiert; Form `SPEC-102` *Zeitbudget* Nr. 7; liegt der gültige Lauf über 120 s, gilt der Re-Evaluierungs-Trigger von [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md)).
+- Folgepflicht aus `slice-gates-ohne-worktrees` (Geber, Plan §6; die Eichung ist hier ausgeschlossen, §1): (a) `time make gegenproben` auf ruhigem Host mit den Fällen 205 bis 216 ist nie gemessen (der Lauf schreibt den Stempel, Übergangsregeln Nr. 2, also im Integrationsschritt) — **Ausgang:** weiter offen; Adresse: Planner (mit der Eichung der ersten Zeile dieser Liste); (b) die neun Fälle `lint/*` mit „Zeit überschritten“ unter Last 16 bis 222 sind Beleg für das Ziel dieses Slice, kein Rot der Fälle — **Ausgang:** entfallen; der Beleg steht in `SPEC-102` (Messreihen, Fälle 205 bis 216) und der Lauf ist nach Nr. 3 ungültig; (c) `build/ohne-trimpath` („Bau des Binary scheitert“) war im zweiten Lauf des Implementers bei Last 175 bis 222 rot, bei Last 10 zweimal grün; mit `bewerteBau` meldet ein Bau über der Frist künftig `Zeit überschritten`, ein Bau mit Exit ungleich 0 die letzten Zeilen von `go build`; die Ursache des alten Rot bleibt unbekannt, im Lauf der Eichung wird der Fall wiederholt, ein Rot dort ist ein Befund an den Planner — **Ausgang:** weiter offen; Adresse: Planner (Termin der Eichung); Register `BEO-REPO/laufzeitmessung-widerspricht-sich-unter-last` (schreibt der Integrationsschritt, Nr. 4 der Übergangsregeln). Der Geber `slice-gates-ohne-worktrees` liegt in `done/`; der Nehmer ist der Planner, kein Slice, und trägt die Sendung hier und in §1 *Ausdrücklich NICHT*.
+- Auf einem Host mit Dauerlast gibt es keinen gültigen Lauf (Negativ der ADR) — **Ausgang:** weiter offen; Folge: Meldungen nennen den Lauf als ungültig statt als Bruch, nach drei ungültigen Läufen in Folge geht der Befund an den Planner (`SPEC-102` *Zeitbudget* Nr. 4), die Closures führen die Frage nicht mehr als offen.
+- Das Programm wird um eine Last-Messung erweitert, die [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) nicht verlangt, und die Gegenproben bekommen eine Host-Abhängigkeit — **Ausgang:** entfallen; der Architect hat entschieden, dass das Programm weder Last noch Fallzeiten ausgibt (§3, Entscheidung 2).
+- Raster der Randformen — **Ausgang:** entfallen; gefüllt, siehe unten.
 - Der Slice berührt `tools/gegenproben/` und den Stempel, kollidiert mit einem anderen Kettenslice — **Ausgang:** weiter offen: Nr. 7, einer zugleich, Start laut §4.
+- Die Lesung am Ende enthält die Last des Laufs selbst; auf ruhigem Host kann sie die Kernzahl erreichen, und kein gültiger Lauf entsteht — **Ausgang:** weiter offen; Adresse: Planner (Eichung, Nr. 7: eine Messung am Ende über der Kernzahl bei ruhigem Host setzt die Grenze am Ende neu, per Änderung von Nr. 3).
+- Die Vorschrift hat keinen Fänger außer der Prüfung durch Reviewer und Verifier (Negativ in §3) — **Ausgang:** weiter offen; Folge: ein Lauf kann falsch geführt werden, die Einträge nennen beide Lesungen.
+
+**Raster der Randformen** (`AGENTS.md` §3.16): Operation × Argumentart, jede Zelle mit Ort in `SPEC-102` (Randform *R*, *Zeitbudget* Nr. *Z*) oder „gilt nicht“ mit Grund.
+
+| Operation | fehlend oder nicht lesbar | Grenze (gleich, darüber, darunter) | Beginn und Ende verschieden | Abbruch | Wiederholung | Cache und Images |
+|---|---|---|---|---|---|---|
+| Messung des Aufrufs (Wanduhr) | Z 1: Eingaben unverändert, der Aufruf misst nur 1 s | Z 5 a und b: höchstens 120 s hält, darüber ist ein Bruch (gültiger Lauf) | gilt nicht: die Wanduhr ist ein Wert | Z 5: kein Ergebnis, kein Eintrag | Z 4 | Z 1: Images lokal, die Stufe baut immer ohne Cache; ein Lauf, der Images zieht, zählt nicht |
+| Lesung von Last und Kernzahl | Z 3: nicht lesbar oder nicht genannt, der Lauf gilt als gültig; Z 2: Kernzahl `nproc --all` | Z 3: gleich der Kernzahl ist gültig, darüber ungültig | Z 3: je Lesung allein; Beginn gültig und Ende ungültig ist ungültig, ebenso umgekehrt | Z 5: ohne Ergebnis | Z 4: jede Wiederholung liest neu | gilt nicht: die Last hängt nicht am Cache; Z 2: Container mit `--cpus` ändert die Lesung nicht |
+| Wertung des Laufs | Z 3 | Z 3 | Z 3 | Z 5 | Z 4: nach drei ungültigen Läufen in Folge Befund an den Planner | gilt nicht: die Wertung kennt den Cache nicht |
+| Bau des Binary und Frist im Programm | R 2a: Exit ungleich 0 mit den letzten Zeilen; R 1: Eingabe fehlt | R 6: 120 s, Bau und Gate je Prozess; R 2a und 6 trennen Exit und Ablauf | gilt nicht: das Programm misst keine Last (R 6) | R 8: Wegwerfverzeichnisse und Container | R 7: ohne Zustand zwischen den Läufen | R 6: ein kalter `GOCACHE` verlängert den Bau, die Frist ist dieselbe |
+
+Zusatztabelle (der Ausgang hängt vom Modus des Laufs ab, `AGENTS.md` §3.16): je Lauf eine Zeile.
+
+| Lauf | Last | Ausgang | Ort | Fänger |
+|---|---|---|---|---|
+| grün, höchstens 120 s | gültig | das Soll hält | Z 5 a | kein Fänger (Negativ in §3) |
+| grün, über 120 s | gültig | Bruch des Soll, Befund an den Planner, Lauf grün | Z 5 b | kein Fänger (Negativ in §3) |
+| ein Fall `Zeit überschritten` | gültig | Befund an den Planner, nicht wiederholen bis grün | Z 5 c | Frist: Tabelle Zeile 7; Wertung: Negativ in §3 |
+| grün | ungültig | bleibt grün, Zeit ohne Wertung | Z 5 d | kein Fänger (Negativ in §3) |
+| rot, jeder rote Fall `Zeit überschritten` | ungültig | wiederholen | Z 5 e, Z 4 | kein Fänger (Negativ in §3) |
+| rot, ein Fall mit anderem Grund | ungültig | Befund wie sonst | Z 5 f | die Fälle der Gegenproben melden ihren Grund; die Allaussage „Last entschuldigt nur `Zeit überschritten`“ hat kein Programm (Negativ in §3) |
+| drei ungültige Läufe in Folge | ungültig | Befund an den Planner | Z 4 | kein Fänger (Negativ in §3) |
+| Bau über der Frist | beliebig | rot mit `Zeit überschritten` | R 6 | Tabelle Zeilen 3 bis 5 |
 
 ## 7. Closure-Notiz
 
@@ -142,4 +190,4 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** eine Sub-Area, `*` (Kürzel `REPO`); alle berührten Sub-Areas GF.
 
-**Vorgelagert — offene Beobachtungen sichten:** keine Beobachtung des Registers betrifft das Zeitbudget der Gegenproben unmittelbar; der Architect sichtet das Register beim Start.
+**Vorgelagert — offene Beobachtungen sichten:** das Register trägt `laufzeitmessung-widerspricht-sich-unter-last` (offen, Laufzeitmessung unter Last); sie betrifft das Zeitbudget unmittelbar und ist mit *Zeitbudget* Nr. 1 bis 7 und der Eichung (§6) adressiert; andere Beobachtungen betreffen das Zeitbudget der Gegenproben nicht.
