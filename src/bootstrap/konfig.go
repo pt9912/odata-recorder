@@ -85,9 +85,16 @@ func (p *pruefer) melde(schluessel, grund string) {
 	p.verstoesse = append(p.verstoesse, verstoss{schluessel, grund})
 }
 
+// leerraum sind die Zeichen, die die Konfiguration am Rand eines Wertes, eines Listeneintrags und eines Feldes der Services-Datei
+// entfernt: Leerzeichen, Tabulator, LF und CR, kein anderes Zeichen (SPEC-110 Nr. 1, 6).
+const leerraum = " \t\n\r"
+
+// kappe entfernt leerraum an beiden Rändern von s.
+func kappe(s string) string { return strings.Trim(s, leerraum) }
+
 // wert liefert den Wert ohne Leerraum am Rand; leer gilt als ungesetzt (SPEC-110 Nr. 1).
 func (p *pruefer) wert(schluessel string) (string, bool) {
-	w := strings.TrimSpace(p.env[schluessel])
+	w := kappe(p.env[schluessel])
 	return w, w != ""
 }
 

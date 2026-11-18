@@ -99,7 +99,7 @@ func (p *pruefer) einzelDienst(pflicht string) Dienst {
 
 // upstreamURL prüft eine URL; fehlt sie und ist pflicht nicht leer, meldet sie pflicht als Grund.
 func (p *pruefer) upstreamURL(schluessel, wert, pflicht string) string {
-	wert = strings.TrimSpace(wert)
+	wert = kappe(wert)
 	if wert == "" {
 		if pflicht != "" {
 			p.melde(schluessel, pflicht)
@@ -188,7 +188,7 @@ func (p *pruefer) dateiEintrag(i int, roh json.RawMessage, pflicht string) Diens
 		if s == nil {
 			return "", true
 		}
-		return strings.TrimSpace(*s), true
+		return kappe(*s), true
 	}
 	var d Dienst
 	if w, ok := text("id"); ok {

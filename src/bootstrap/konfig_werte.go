@@ -20,7 +20,7 @@ func nichtGelieferte() []string {
 
 func (p *pruefer) nichtGeliefert() {
 	for k, v := range p.env {
-		if strings.TrimSpace(v) == "" {
+		if kappe(v) == "" {
 			continue
 		}
 		if slices.ContainsFunc(nichtGelieferte(), func(pre string) bool { return strings.HasPrefix(k, pre) }) {
@@ -194,7 +194,7 @@ func (p *pruefer) liste(schluessel string) (eintraege []string, gesetzt bool) {
 		return nil, false
 	}
 	for _, e := range strings.Split(w, ",") {
-		e = strings.TrimSpace(e)
+		e = kappe(e)
 		if e == "" {
 			p.melde(schluessel, "Liste enthält einen leeren Eintrag")
 			return nil, true

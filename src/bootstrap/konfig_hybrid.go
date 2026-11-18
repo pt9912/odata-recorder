@@ -44,7 +44,7 @@ func (p *pruefer) eintraege(schluessel string) []string {
 	}
 	e := strings.Split(w, ",")
 	for i := range e {
-		e[i] = strings.TrimSpace(e[i])
+		e[i] = kappe(e[i])
 	}
 	return e
 }

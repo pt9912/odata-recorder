@@ -14,6 +14,9 @@ import (
 // EtagFuerSatz ist die Entscheidung des Composition Root, ob ein Dienst mit diesem Satz ETags liefert (SPEC-280 Nr. 2).
 func EtagFuerSatz(satz outbound.CodecSatz, an bool) bool { return etagFuerSatz(satz, an) }
 
+// Leerraum sind die Zeichen, die die Konfiguration am Rand entfernt (SPEC-110 Nr. 1).
+const Leerraum = leerraum
+
 // SatzVersion4 ist der Satz der Codecs der Version 4.0 des Mock.
 func SatzVersion4() outbound.CodecSatz { return satzVersion4() }
 
