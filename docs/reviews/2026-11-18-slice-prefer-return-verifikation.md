@@ -1,7 +1,7 @@
 # Verifikation slice-prefer-return
 
 **Rolle:** Verifier (einmal). **Datum:** 2026-11-18. **Stand:** Zweig `slice-prefer-return`, HEAD `9a6ee7dc`, Basis `5a98ef2a`. **Bezug:** `LH-FA-07` (`LH-FA-07.b`), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), `SPEC-285` bis `SPEC-289`.
-**Plan:** [slice-prefer-return](../plan/planning/in-progress/slice-prefer-return.md). **Modell:** claude-sonnet-5-5.
+**Plan:** [slice-prefer-return](../plan/planning/done/slice-prefer-return.md). **Modell:** claude-sonnet-5-5.
 Die Reviews (Runde 1 und 2) sind nicht als Beleg gelesen; alles unten ist selbst gefahren oder gelesen. Der Lauf teilt den Host mit Reviewer-Runde 2 (Load average 4,7 bis 14 von 4 CPUs).
 
 ## Urteil

@@ -38,7 +38,7 @@
 - `src/hexagon/services/mock/prefer_test.go` (Kommentar N-1): geprüft, ohne Befund.
 - `spec/spezifikation.md` SPEC-285 *Ungeprüft*: geprüft, ohne Befund (Aufzählung gleich der Liste in `zeitFormen`).
 - `src/hexagon/model/rueckgabe.go` (Kopfkommentar): geprüft, ohne Befund.
-- `docs/plan/planning/in-progress/slice-prefer-return.md` §3: geprüft, ohne Befund außer Zuordnung Zeile 6b (LOW).
+- `docs/plan/planning/done/slice-prefer-return.md` §3: geprüft, ohne Befund außer Zuordnung Zeile 6b (LOW).
 
 ## Verdikt
 

@@ -28,14 +28,14 @@
 
 - kategorie: LOW
 - quelle: `AGENTS.md` §3.9 (der Slice-Plan folgt jeder Korrektur)
-- pfad: `docs/plan/planning/in-progress/slice-prefer-return.md` · „Zeile 6c nennt die Zusage und den Fänger; EA2 und EA8 rot in `TestLiesRueckgabeBackslashStellen`" (N-6) und „Zeile 6b, 6c, die Mengentabelle und die Mutationstabelle nennen je den Test, der rot wird"
+- pfad: `docs/plan/planning/done/slice-prefer-return.md` · „Zeile 6c nennt die Zusage und den Fänger; EA2 und EA8 rot in `TestLiesRueckgabeBackslashStellen`" (N-6) und „Zeile 6b, 6c, die Mengentabelle und die Mutationstabelle nennen je den Test, der rot wird"
 - befund: Die Tabelle *Zusage · Fänger* in §3 hat die Zeilen 6a und 6b, aber keine Zeile 6c; Zeile 6b trägt beide Tests und die Mutationen von 6c. Mengentabelle und Mutationstabelle führen 6b und 6c getrennt. N-6 und die Fix-Runde-3-Tabelle verweisen auf eine „Zeile 6c" der Zusage-Tabelle, die es dort nicht gibt.
 - verifizierbar: ja (Suche nach `| 6c` in §3 der Zusage-Tabelle)
 - klasse: Zeilenkennung im Plan an einer Tabelle nachgezogen, an der anderen nicht
 
 - kategorie: LOW
 - quelle: `AGENTS.md` §3.9, §3.7 (Zustandsfeld nennt den Zustand)
-- pfad: `docs/plan/planning/in-progress/slice-prefer-return.md` · „Messpunkt (`SPEC-128` Nr. 9, Stand Handoff, nach der Fix-Runde 2)"
+- pfad: `docs/plan/planning/done/slice-prefer-return.md` · „Messpunkt (`SPEC-128` Nr. 9, Stand Handoff, nach der Fix-Runde 2)"
 - befund: Der Wert `messung=2298` ist nach dem Commit der Fix-Runde 3 gesetzt (`make groessenmarke` meldet auf `HEAD` 2298 von Marke 3500, gleich dem Plan), die Beschriftung nennt weiter die Fix-Runde 2. Die Zahl stimmt, der Zustand, den sie beschreibt, nicht.
 - verifizierbar: ja (`make groessenmarke`)
 - klasse: Beschriftung eines Zustandsfeldes beim Nachziehen der Zahl nicht mitgezogen
@@ -53,7 +53,7 @@
 
 - `src/hexagon/model/rueckgabe.go` (Kopfkommentar von `LiesRueckgabe`, `elementEnde`, `liesAnfuehrung`): geprüft, ohne Befund am Kommentar; die Mutationen oben betreffen den Test, nicht den Code.
 - `src/hexagon/model/rueckgabe_test.go` (`orakelZeilen`, `backslashLagen`, Zählung): geprüft, ohne Befund außer den beiden Befunden oben.
-- `docs/plan/planning/in-progress/slice-prefer-return.md` (Mengentabelle Zeile 6b/6c, Mutationstabelle, Fix-Runde 3, Messpunkt): geprüft; Befunde LOW oben, im Übrigen ohne Befund.
+- `docs/plan/planning/done/slice-prefer-return.md` (Mengentabelle Zeile 6b/6c, Mutationstabelle, Fix-Runde 3, Messpunkt): geprüft; Befunde LOW oben, im Übrigen ohne Befund.
 - `make groessenmarke`: grün, Messung 2298 von Marke 3500, gleich dem Plan.
 
 ## Verdikt

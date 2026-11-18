@@ -1,7 +1,7 @@
 # Nachverifikation slice-prefer-return
 
 **Rolle:** Verifier (Nachverifikation nach Fix-Runden 2 bis 4). **Datum:** 2026-11-18. **Stand:** Zweig `slice-prefer-return`, HEAD `9e1d1126`, Basis der ersten Verifikation `9a6ee7dc`. **Bezug:** `LH-FA-07` (`LH-FA-07.b`), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), `SPEC-285` bis `SPEC-289`.
-**Plan:** [slice-prefer-return](../plan/planning/in-progress/slice-prefer-return.md). **Vorberichte:** [Verifikation](2026-11-18-slice-prefer-return-verifikation.md), [Review](2026-11-18-slice-prefer-return-review.md), [Runde 2](2026-11-18-slice-prefer-return-review-2.md), [Runde 3](2026-11-18-slice-prefer-return-review-3.md), [Runde 4](2026-11-18-slice-prefer-return-review-4.md). **Modell:** claude-sonnet-5-5.
+**Plan:** [slice-prefer-return](../plan/planning/done/slice-prefer-return.md). **Vorberichte:** [Verifikation](2026-11-18-slice-prefer-return-verifikation.md), [Review](2026-11-18-slice-prefer-return-review.md), [Runde 2](2026-11-18-slice-prefer-return-review-2.md), [Runde 3](2026-11-18-slice-prefer-return-review-3.md), [Runde 4](2026-11-18-slice-prefer-return-review-4.md). **Modell:** claude-sonnet-5-5.
 Die Reviews sind nicht als Beleg gelesen, nur als Liste der offenen Punkte. `make gates` ist nicht neu gefahren (Auftrag: grün auf `9e1d1126`, Ausgang 0); gefahren sind `make docs-check`, `make groessenmarke`, eigene Mutationen und eigene Zeitmessungen. Host geteilt mit anderen Läufen (Load average 10 bis 23, 20 Kerne).
 
 ## Urteil
