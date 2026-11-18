@@ -182,17 +182,25 @@ type vorlaeufig struct {
 	caPEM []byte
 }
 
-func vorbereiten(k Konfiguration) (vorlaeufig, error) {
-	var v vorlaeufig
+// pruefeGrundwerte prüft Modus, Dienste, Datenverzeichnis und PublicBaseURL vor allem Öffnen.
+func pruefeGrundwerte(k Konfiguration) error {
 	switch {
 	case k.Modus != modusRecord && k.Modus != modusReplay && k.Modus != modusMock && k.Modus != modusHybrid:
-		return v, ungueltig("Betriebsmodus nicht lieferbar")
+		return ungueltig("Betriebsmodus nicht lieferbar")
 	case len(k.Dienste) == 0:
-		return v, ungueltig("keine Dienste")
+		return ungueltig("keine Dienste")
 	case k.DataDir == "":
-		return v, fmt.Errorf("%w: DATA_DIR leer", outbound.ErrPfad)
+		return fmt.Errorf("%w: DATA_DIR leer", outbound.ErrPfad)
 	case (k.Modus == modusMock || k.Modus == modusHybrid) && k.PublicBaseURL == "":
-		return v, ungueltig("PublicBaseURL fehlt in den Modi mock und hybrid")
+		return ungueltig("PublicBaseURL fehlt in den Modi mock und hybrid")
+	}
+	return nil
+}
+
+func vorbereiten(k Konfiguration) (vorlaeufig, error) {
+	var v vorlaeufig
+	if err := pruefeGrundwerte(k); err != nil {
+		return v, err
 	}
 	for _, text := range k.RedactJSONPaths {
 		p, err := model.ParseJSONPfad(text)

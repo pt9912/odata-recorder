@@ -385,22 +385,9 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		return h
 	}
 	r, p := lauf2(modusRecord), lauf2(modusReplay)
-	mh, km := neuM3Haken(), k
-	km.Modus, km.DataDir = modusMock, filepath.Join(dir, modusMock)
-	if err := os.MkdirAll(km.DataDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := lauf(ctx, t, km, log, mh.bauteile()); err != nil {
-		t.Fatal(err)
-	}
-	hh, kh := neuM4Haken(), k
-	kh.Modus, kh.DataDir = modusHybrid, filepath.Join(dir, modusHybrid)
-	if err := os.MkdirAll(kh.DataDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := lauf(ctx, t, kh, log, hh.bauteile()); err != nil {
-		t.Fatal(err)
-	}
+	mh, hh := neuM3Haken(), neuM4Haken()
+	laufImModus(ctx, t, k, dir, modusMock, log, mh.bauteile())
+	laufImModus(ctx, t, k, dir, modusHybrid, log, hh.bauteile())
 	pfade := []model.JSONPfad{mustPfad(t, "$..geheim")}
 	dr := []record.Dienst{{ID: "x1", Root: "/r1", UpstreamURL: "http://u1.test/o"}, {ID: "x2", Root: "/r2", UpstreamURL: "http://u2.test/o"}}
 	dp := []replay.Dienst{{ID: "x1", Root: "/r1"}, {ID: "x2", Root: "/r2"}}
@@ -474,6 +461,18 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		if l != log {
 			t.Errorf("%s trägt nicht den übergebenen Logger", name)
 		}
+	}
+}
+
+// laufImModus baut und startet k im Modus modus mit eigenem DATA_DIR unter dir.
+func laufImModus(ctx context.Context, t *testing.T, k bootstrap.Konfiguration, dir, modus string, log *slog.Logger, b bootstrap.Bauteile) {
+	t.Helper()
+	k.Modus, k.DataDir = modus, filepath.Join(dir, modus)
+	if err := os.MkdirAll(k.DataDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := lauf(ctx, t, k, log, b); err != nil {
+		t.Fatal(err)
 	}
 }
 
