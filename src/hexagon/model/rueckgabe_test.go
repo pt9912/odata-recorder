@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unicode"
@@ -376,10 +378,11 @@ func backslashLagen() []func(f string) []string {
 	}
 }
 
-// TestLiesRueckgabeBackslashStellen (Z6c, SPEC-285 Nr. 1 bis 3): ein Backslash an jeder Stelle der Grammatik: 71 Stellen aus backslashStellen (die Positionsklassen
-// dort) × 6 Lagen (Element vor, nach, in der Mitte, über eine Zeilengrenze, vor `return=representation`, allein) × Folgenlänge 0 bis 7 × Zeichen hinter der Folge
-// (`"`, `,`, `;`, `=`, `a`, Leerzeichen, Ende der Stelle) 7 = 23856 Zeilen; je Zeile gleich dem Orakel aus Z9, das keinen Code mit dem Leser teilt. Ungeprüft bleibt, was
-// nicht in diesen Mengen steht: ein Zeichen hinter der Folge außer den sieben, mehr als ein Element zwischen Stelle und `return`.
+// TestLiesRueckgabeBackslashStellen (Z6c, SPEC-285 Nr. 1 bis 3): ein Backslash an den Stellen aus backslashStellen (die Positionsklassen dort, von Hand gewählt, kein
+// Anspruch auf jede Stelle): 71 Stellen × 6 Lagen (Element vor, nach, in der Mitte, über eine Zeilengrenze, vor `return=representation`, allein) × Folgenlänge 0 bis 7 ×
+// Zeichen hinter der Folge (`"`, `,`, `;`, `=`, `a`, Leerzeichen, Ende der Stelle) 7 = 23856 Zeilen; je Zeile gleich dem Orakel aus Z9, das keinen Code mit dem Leser
+// teilt. Die Menge ist der Gegenstand der Lage und der Folge; die Zeichen vor der Folge und der Kontext eines Paares führt TestLiesRueckgabeErschoepfend. Ungeprüft
+// bleibt hier: ein Zeichen hinter der Folge außer den sieben, mehr als ein Element zwischen Stelle und `return`.
 func TestLiesRueckgabeBackslashStellen(t *testing.T) {
 	stellen := backslashStellen()
 	if len(stellen) != 71 {
@@ -414,6 +417,104 @@ func TestLiesRueckgabeBackslashStellen(t *testing.T) {
 	for _, r := range []model.Rueckgabe{keine, minimal, entity} {
 		if ergebnisse[r] == 0 {
 			t.Errorf("kein Fall mit dem Ergebnis %d: die Menge trennt die Ergebnisse nicht", r)
+		}
+	}
+}
+
+// folgenParallel ruft f mit jeder Folge der Länge 0 bis n über den Symbolen (die Folge als Text, ihre Symbole aneinandergehängt), je erstes Symbol in einer
+// Goroutine, und liefert die Zahl der Folgen; f ist nebenläufig aufrufbar.
+func folgenParallel(symbole []string, n int, f func(s string)) int64 {
+	var gezaehlt atomic.Int64
+	f("")
+	gezaehlt.Add(1)
+	var wg sync.WaitGroup
+	for _, erstes := range symbole {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var c int64
+			var rek func(buf []byte, tiefe int)
+			rek = func(buf []byte, tiefe int) {
+				f(string(buf))
+				c++
+				if tiefe == n {
+					return
+				}
+				for _, s := range symbole {
+					rek(append(buf, s...), tiefe+1)
+				}
+			}
+			rek([]byte(erstes), 1)
+			gezaehlt.Add(c)
+		}()
+	}
+	wg.Wait()
+	return gezaehlt.Load()
+}
+
+// summeHoch ist 1 + k + k² + … + kⁿ, die Zahl der Folgen der Länge 0 bis n über k Symbolen.
+func summeHoch(k, n int) int64 {
+	var s, p int64 = 0, 1
+	for i := 0; i <= n; i++ {
+		s += p
+		p *= int64(k)
+	}
+	return s
+}
+
+// erschoepfend vergleicht die Funktion mit dem Orakel für jede Folge von rahmen(s), s aus folgenParallel; meldet höchstens zehn Abweichungen und zählt die Ergebnisse.
+func erschoepfend(t *testing.T, symbole []string, n int, rahmen func(s string) []string) (int64, [3]int64) {
+	t.Helper()
+	var fehler atomic.Int64
+	var ergebnisse [3]atomic.Int64
+	gezaehlt := folgenParallel(symbole, n, func(s string) {
+		zeilen := rahmen(s)
+		got := model.LiesRueckgabe(zeilen)
+		soll := orakelZeilen(zeilen)
+		ergebnisse[soll].Add(1)
+		if got != soll && fehler.Add(1) <= 10 {
+			t.Errorf("%q: %d, Orakel %d", zeilen, got, soll)
+		}
+	})
+	return gezaehlt, [3]int64{ergebnisse[0].Load(), ergebnisse[1].Load(), ergebnisse[2].Load()}
+}
+
+// TestLiesRueckgabeErschoepfend (Z6d, SPEC-285 Nr. 1 bis 3): drei erschöpfende Mengen, je Zeile gleich dem Orakel aus Z9, das keinen Code mit dem Leser teilt.
+// Die Symbolmenge: jede Folge von 0 bis 6 Symbolen über {Backslash, `"`, `,`, `;`, `=`, Leerzeichen, Tabulator, `a`, `return`, `minimal`, `representation`}
+// als eine Zeile, 1.948.717 Zeilen. Die Zeichenmenge: jede Folge von 0 bis 7 Zeichen über {Backslash, `"`, `,`, `;`, `=`, Leerzeichen, Tabulator, `a`} vor
+// `,return=minimal`, 2.396.745 Zeilen. Die Strukturmenge: jede Folge von 0 bis 7 Symbolen über {Backslash, `"`, `,`, `;`, `=`, Leerzeichen, `return`, `minimal`}
+// als eine Zeile, 2.396.745 Zeilen; sie lässt Tabulator, `a` und `representation` weg, weil der Leser sie wie Leerzeichen, ein Tokenzeichen und `minimal`
+// behandelt (die Symbolmenge führt sie). Die Mengen führen jede Lage des Backslash zu den Zeichen davor und dahinter und zu den Paaren (am Elementanfang, hinter `;`,
+// hinter einem Paar, späteres Paar) bis zu ihrer Länge; die Zählung steht im Test.
+// Ungeprüft bleibt, was länger ist: mehr als sechs, sieben und sieben Symbole; dazu mehr als eine Zeile, ein anderer Buchstabe als `a` und in der Zeichenmenge ein
+// Element `return` vor dem festen.
+func TestLiesRueckgabeErschoepfend(t *testing.T) {
+	symbole := []string{`\`, `"`, ",", ";", "=", " ", "\t", "a", "return", "minimal", "representation"}
+	n, erg := erschoepfend(t, symbole, 6, func(s string) []string { return []string{s} })
+	if want := summeHoch(len(symbole), 6); n != want || want != 1948717 {
+		t.Errorf("Menge der Symbolfolgen %d, erwartet %d", n, want)
+	}
+	for r, c := range erg {
+		if c == 0 {
+			t.Errorf("Symbolmenge: kein Fall mit dem Ergebnis %d", r)
+		}
+	}
+	zeichen := []string{`\`, `"`, ",", ";", "=", " ", "\t", "a"}
+	n, erg = erschoepfend(t, zeichen, 7, func(s string) []string { return []string{s + ",return=minimal"} })
+	if want := summeHoch(len(zeichen), 7); n != want || want != 2396745 {
+		t.Errorf("Menge der Zeichenfolgen %d, erwartet %d", n, want)
+	}
+	if erg[keine] == 0 || erg[minimal] == 0 {
+		t.Errorf("Zeichenmenge: Ergebnisse %v trennen Keine und Minimal nicht", erg)
+	}
+	struktur := []string{`\`, `"`, ",", ";", "=", " ", "return", "minimal"}
+	n, erg = erschoepfend(t, struktur, 7, func(s string) []string { return []string{s} })
+	if want := summeHoch(len(struktur), 7); n != want || want != 2396745 {
+		t.Errorf("Menge der Strukturfolgen %d, erwartet %d", n, want)
+	}
+	for r, c := range erg[:2] {
+		if c == 0 {
+			t.Errorf("Strukturmenge: kein Fall mit dem Ergebnis %d", r)
 		}
 	}
 }
