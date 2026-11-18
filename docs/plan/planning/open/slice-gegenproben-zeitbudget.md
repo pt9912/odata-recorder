@@ -34,6 +34,8 @@ ist einzeln lieferbar.
 
 **Hintergrund:** [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) wählt Option B. Die Einzelheiten (Messgröße, Lastgrenze, Zahl der Wiederholungen, Ausgang bei Bruch) stehen laut ADR in `SPEC-102`. Ein Entwurf des Architect liegt vor (Messvorschrift Nr. 1 bis 4 und ein Zusatz am Ende von Nr. 6); der Architect prüft ihn gegen den Vertrag und übernimmt ihn nicht blind.
 
+**Beleg aus `slice-gates-ohne-worktrees`:** Der Lauf der Stufe `gegenproben` mit den Fällen 205 bis 216 färbte unter Last (Load Average 16 und 20 zu Beginn, 175 bis 222 am Ende) neun Fälle `lint/*` mit „Zeit überschritten“ (`SPEC-102` Randform 6); die Fälle 205 bis 216 selbst brauchen kein Produkt und dauern 0,4 bis 0,84 s. Das Ziel dieses Slice (ein Lauf über der Lastgrenze ist ungültig) deckt diese neun Fälle; die Messung und die Ursache von `build/ohne-trimpath` stehen als Folgepflicht in §6.
+
 **Umfang:**
 
 1. `SPEC-102`: Messvorschrift Nr. 1 bis 4 und Zusatz zu Nr. 6 (ein Lauf mit gerissener Frist bei Last über der Kernzahl ist ungültig; in einem gültigen Lauf ist das ein Befund an den Planner); der Stand-Satz „Das Budget liegt rund 28 % über …“ entfällt, die Messreihen bleiben als Belege.
@@ -45,7 +47,7 @@ ist einzeln lieferbar.
 - Eine Anhebung der Frist je Fall oder des Soll von 120 s — Lockerung (`AGENTS.md` §3.6), von [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) ausgeschlossen; eine Anhebung ist eine eigene ADR mit gültigen Messwerten (Re-Evaluierungs-Trigger der ADR).
 - Ein Prüfer, Gate oder Hook für das Gesamtbudget — [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) benennt das Soll ausdrücklich als nicht maschinell geprüft.
 - Eine Aufteilung der Fälle auf Stufen (Option C der ADR) — eigener Slice, nur nach einer Messung, dass die Fälle und nicht die Last die Zeit bestimmen.
-- Die Eichung auf ruhigem Host — Folgepflicht, kein Liefer-Punkt: sie braucht einen Zeitpunkt, an dem andere Läufe von `make` pausieren; erst messen, dann Zahl (§6, Ausgang *weiter offen*, Adresse: Planner).
+- Die Eichung auf ruhigem Host — Folgepflicht, kein Liefer-Punkt: sie braucht einen Zeitpunkt, an dem andere Läufe von `make` pausieren; erst messen, dann Zahl (§6, Ausgang *weiter offen*, Adresse: Planner). Dazu gehört die Messung `time make gegenproben` mit den Fällen 205 bis 216 und die Ursache von `build/ohne-trimpath` (Geber `slice-gates-ohne-worktrees`, §6).
 - Änderungen am Format der Messreihen der Fälle außer dem Kopf der Vorschrift.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
@@ -120,6 +122,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Offene Risiken werden bei Closure aufgelöst.
 
 - Die Eichung auf ruhigem Host steht aus; ohne sie bleibt unbekannt, ob 120 s tragen — **Ausgang:** weiter offen; Adresse: Planner (Termin bei ruhigem Host, andere Läufe von `make` pausiert; liegt der gültige Lauf über 120 s, gilt der Re-Evaluierungs-Trigger von [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md)).
+- Folgepflicht aus `slice-gates-ohne-worktrees` (Geber, Plan §6; die Eichung ist hier ausgeschlossen, §1): (a) `time make gegenproben` auf ruhigem Host mit den Fällen 205 bis 216 ist nie gemessen (der Lauf schreibt den Stempel, Übergangsregeln Nr. 2, also im Integrationsschritt); (b) die neun Fälle `lint/*` mit „Zeit überschritten“ unter Last 16 bis 222 sind Beleg für das Ziel dieses Slice, kein Rot der Fälle; (c) `build/ohne-trimpath` („Bau des Binary scheitert“) war im zweiten Lauf des Implementers bei Last 175 bis 222 rot, in Runde 2 des Reviews bei Last 10 zweimal grün; ein Log fehlt, die Ursache ist nicht untersucht; im Lauf der Eichung (a) wird sie wiederholt, ein Rot dort ist ein Befund an den Planner — **Ausgang:** weiter offen; Adresse: Planner (Termin bei ruhigem Host, mit der Eichung der ersten Zeile dieser Liste); Register `BEO-REPO/laufzeitmessung-widerspricht-sich-unter-last`.
 - Auf einem Host mit Dauerlast gibt es keinen gültigen Lauf (Negativ der ADR) — **Ausgang:** weiter offen; Folge: Meldungen nennen den Lauf als ungültig statt als Bruch, die Closures führen die Frage nicht mehr als offen.
 - Das Programm wird um eine Last-Messung erweitert, die [ADR-0013](../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) nicht verlangt, und die Gegenproben bekommen eine Host-Abhängigkeit — **Ausgang:** weiter offen; Adresse: Architect (Auftrag 2).
 - Raster der Randformen (Auftrag 3) ist noch leer — **Ausgang:** weiter offen: der Architect füllt es vor dem ersten Code-Commit (`AGENTS.md` §3.16).
