@@ -3,8 +3,8 @@
 # Der Aufrufer hält den flock. Der Treiber ersetzt die Nullprobe von tools/harness/mutationslauf.sh (Zeitgrenze 2 Minuten je Prozess
 # reicht für das Paket src/bootstrap nicht).
 set -u
-S=/tmp/claude-1000/-home-builder-work-odata-recorder/52cdc2d3-3257-4d8f-945b-ac70d33f302c/scratchpad
-W=/home/builder/work/odata-recorder/.wt/m4
+S=$(cd "$(dirname "$0")" && pwd)
+W=$(cd "$S/../../../.." && pwd)
 liste=$1
 paket=${2:-./src/bootstrap/}
 c=$(docker create --network none --memory=4g --memory-swap=4g --cpus=4 --pids-limit=1024 -e GOFLAGS=-mod=readonly -e CGO_ENABLED=0 -e GOMEMLIMIT=3000MiB \

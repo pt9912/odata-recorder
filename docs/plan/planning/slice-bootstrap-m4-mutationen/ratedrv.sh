@@ -1,8 +1,8 @@
 #!/bin/sh
 # ratedrv.sh <Liste> <Paket> <N>: Raten je Mutation, ein Container ohne Netz auf dem Race-Image (--memory=4g --cpus=4); der Aufrufer hält den flock.
 set -u
-S=/tmp/claude-1000/-home-builder-work-odata-recorder/52cdc2d3-3257-4d8f-945b-ac70d33f302c/scratchpad
-W=/home/builder/work/odata-recorder/.wt/m4
+S=$(cd "$(dirname "$0")" && pwd)
+W=$(cd "$S/../../../.." && pwd)
 liste=$1
 paket=$2
 n=$3
