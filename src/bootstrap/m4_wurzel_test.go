@@ -5,12 +5,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -24,6 +26,8 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/mock"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/record"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/replay"
 )
 
 // fehlerMock ist der MockUseCase der Fälle des Modus hybrid: er antwortet jede Anfrage mit demselben Fehler und zählt seine Aufrufe.
@@ -572,4 +576,238 @@ func TestM4SatzImModusHybrid(t *testing.T) {
 			t.Errorf("Dienst %d des Mock: %+v", i, d)
 		}
 	}
+}
+
+// m4Zelle prüft, dass der Wert einer Konfiguration seinen Verbraucher im Modus erreicht; nil heißt: der Modus baut keinen Verbraucher des Werts.
+type m4Zelle func(m *m4Haken, k bootstrap.Konfiguration) bool
+
+// m4Wert ist ein Wert der Konfiguration mit seinen Verbrauchern je Modus in der Reihenfolge record, replay, mock, hybrid.
+type m4Wert struct {
+	name   string
+	zellen [4]m4Zelle
+}
+
+// TestM4WerteJeModus fängt M02 und M03 für die Werte, die der Root an Replay-Dienst, Pipeline, Mock und Hybrid-Dienst reicht (SPEC-139 Nr. 4, 11 a,
+// 12 a): Schleife über jeden dieser Werte × die vier Modi, je Wert zwei Varianten, die sich in jedem Wert unterscheiden (ein Wahrheitswert hat
+// in einer Variante true, in der anderen false, ein fester Wert im Root gleicht höchstens einer). Die Zählprüfung hält die Zellen gegen die Menge
+// der Werte, die Felder von Konfiguration sind, und gegen die Zahl der Zellen mit Verbraucher.
+func TestM4WerteJeModus(t *testing.T) {
+	ctx := context.Background()
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	dienste := func(s string) []bootstrap.Dienst {
+		return []bootstrap.Dienst{
+			{ID: "x1" + s, Root: "/r1" + s, UpstreamURL: "http://u1" + s + ".test/o"},
+			{ID: "x2" + s, Root: "/r2" + s, UpstreamURL: "http://u2" + s + ".test/o"},
+		}
+	}
+	a := basisKonfig("", "", dienste("a")...)
+	a.ReplayStrategy, a.ReplayRedactedBodies, a.MatchInvalidEncoding, a.MatchBodyMode = "last", true, "reject", "json-canonical"
+	a.MatchVaryHeaders, a.RedactHeaders, a.RedactQueryParams, a.VolatileHeaders = []string{"x-vary-a"}, []string{"x-red-a"}, []string{"qred-a"}, []string{"x-vol-a"}
+	a.RedactJSONPaths, a.MaxCaptureBody, a.StrictCoverage, a.EtagEnabled, a.PublicBaseURL = []string{"$..geheim"}, 12345, true, true, "http://pub.test:1/api"
+	b := basisKonfig("", "", dienste("b")...)
+	b.ReplayStrategy, b.ReplayRedactedBodies, b.MatchInvalidEncoding, b.MatchBodyMode = "sequential", false, "literal", "bytes"
+	b.MatchVaryHeaders, b.RedactHeaders, b.RedactQueryParams, b.VolatileHeaders = []string{"x-vary-b"}, []string{"x-red-b"}, []string{"qred-b"}, []string{"x-vol-b"}
+	b.RedactJSONPaths, b.MaxCaptureBody, b.StrictCoverage, b.EtagEnabled, b.PublicBaseURL = []string{"$..anders"}, 23456, false, false, "http://pub.test:2/api"
+	varianten := []bootstrap.Konfiguration{a, b}
+
+	rp := func(m *m4Haken) replay.Konfig {
+		if m.replay == nil {
+			return replay.Konfig{}
+		}
+		return *m.replay
+	}
+	mk := func(m *m4Haken) mock.Konfig {
+		if len(m.mock) == 0 {
+			return mock.Konfig{}
+		}
+		return m.mock[0]
+	}
+	hy := func(m *m4Haken) hybrid.Konfig {
+		if len(m.hybrid) == 0 {
+			return hybrid.Konfig{}
+		}
+		return m.hybrid[0]
+	}
+	rc := func(m *m4Haken) record.Konfig {
+		if m.recorder == nil {
+			return record.Konfig{}
+		}
+		return *m.recorder
+	}
+	pfade := func(k bootstrap.Konfiguration) []model.JSONPfad {
+		var out []model.JSONPfad
+		for _, p := range k.RedactJSONPaths {
+			out = append(out, mustPfad(t, p))
+		}
+		return out
+	}
+	// regeln erzeugt die Zellen für record, replay und hybrid aus einem Vergleich der Regelmenge; im Modus mock gibt es keinen Verbraucher.
+	regeln := func(name string, gleich func(r model.SchluesselRegeln, k bootstrap.Konfiguration) bool) m4Wert {
+		return m4Wert{name, [4]m4Zelle{
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return gleich(rc(m).Regeln, k) },
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return gleich(rp(m).Regeln, k) },
+			nil,
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return gleich(rp(m).Regeln, k) },
+		}}
+	}
+	mockDienste := func(m *m4Haken, k bootstrap.Konfiguration, f func(d mock.Dienst, i int) bool) bool {
+		ds := mk(m).Dienste
+		if len(ds) != len(k.Dienste) {
+			return false
+		}
+		for i, d := range ds {
+			if !f(d, i) {
+				return false
+			}
+		}
+		return true
+	}
+	werte := []m4Wert{
+		{"RedactJSONPaths", [4]m4Zelle{
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return reflect.DeepEqual(m.pipeline.Pfade, pfade(k)) },
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return reflect.DeepEqual(rp(m).Pfade, pfade(k)) },
+			nil,
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return reflect.DeepEqual(rp(m).Pfade, pfade(k)) },
+		}},
+		{"ReplayRedactedBodies", [4]m4Zelle{nil,
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				return rp(m).RedigierteBodies == k.ReplayRedactedBodies
+			}, nil,
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				return rp(m).RedigierteBodies == k.ReplayRedactedBodies
+			},
+		}},
+		{"ReplayStrategy", [4]m4Zelle{nil,
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				return rp(m).Strategie == model.ReplayStrategy(k.ReplayStrategy)
+			}, nil,
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				return rp(m).Strategie == model.ReplayStrategy(k.ReplayStrategy)
+			},
+		}},
+		{"MaxCaptureBody", [4]m4Zelle{
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return m.pipeline.MaxBytes == k.MaxCaptureBody },
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return rp(m).MaxBytes == k.MaxCaptureBody },
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return mk(m).MaxBytes == k.MaxCaptureBody },
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				return rp(m).MaxBytes == k.MaxCaptureBody && mk(m).MaxBytes == k.MaxCaptureBody && hy(m).MaxBytes == k.MaxCaptureBody
+			},
+		}},
+		{"StrictCoverage", [4]m4Zelle{nil, nil,
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				return len(m.mock) == 1 && mk(m).StrictCoverage == k.StrictCoverage
+			},
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				return len(m.mock) == 1 && mk(m).StrictCoverage == k.StrictCoverage
+			},
+		}},
+		{"PublicBaseURL", [4]m4Zelle{nil, nil,
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return mk(m).PublicBaseURL == k.PublicBaseURL },
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return mk(m).PublicBaseURL == k.PublicBaseURL },
+		}},
+		{"EtagEnabled", [4]m4Zelle{nil, nil,
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				return mockDienste(m, k, func(d mock.Dienst, _ int) bool { return d.Etag == k.EtagEnabled })
+			},
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				return mockDienste(m, k, func(d mock.Dienst, _ int) bool { return d.Etag == k.EtagEnabled })
+			},
+		}},
+		regeln("MatchVaryHeaders", func(r model.SchluesselRegeln, k bootstrap.Konfiguration) bool {
+			return reflect.DeepEqual(r.VaryHeaders, k.MatchVaryHeaders)
+		}),
+		regeln("MatchInvalidEncoding", func(r model.SchluesselRegeln, k bootstrap.Konfiguration) bool {
+			return r.InvalidEncoding == model.KodierungsModus(k.MatchInvalidEncoding)
+		}),
+		regeln("MatchBodyMode", func(r model.SchluesselRegeln, k bootstrap.Konfiguration) bool {
+			return r.BodyMode == model.BodyModus(k.MatchBodyMode)
+		}),
+		regeln("RedactHeaders", func(r model.SchluesselRegeln, k bootstrap.Konfiguration) bool {
+			return reflect.DeepEqual(r.RedactHeaders, k.RedactHeaders)
+		}),
+		regeln("RedactQueryParams", func(r model.SchluesselRegeln, k bootstrap.Konfiguration) bool {
+			return reflect.DeepEqual(r.RedactQueryParams, k.RedactQueryParams)
+		}),
+		regeln("VolatileHeaders", func(r model.SchluesselRegeln, k bootstrap.Konfiguration) bool {
+			return reflect.DeepEqual(r.VolatileHeaders, k.VolatileHeaders)
+		}),
+		{"Dienste", [4]m4Zelle{
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				var soll []record.Dienst
+				for _, d := range k.Dienste {
+					soll = append(soll, record.Dienst{ID: d.ID, Root: d.Root, UpstreamURL: d.UpstreamURL})
+				}
+				return reflect.DeepEqual(rc(m).Dienste, soll)
+			},
+			func(m *m4Haken, k bootstrap.Konfiguration) bool { return m4ReplayDienste(rp(m), k) },
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				return mockDienste(m, k, func(d mock.Dienst, i int) bool { return d.ID == k.Dienste[i].ID && d.Root == k.Dienste[i].Root })
+			},
+			func(m *m4Haken, k bootstrap.Konfiguration) bool {
+				hd := hy(m).Dienste
+				if len(hd) != len(k.Dienste) {
+					return false
+				}
+				for i, d := range hd {
+					if d.Root != k.Dienste[i].Root || d.UpstreamURL != k.Dienste[i].UpstreamURL {
+						return false
+					}
+				}
+				return m4ReplayDienste(rp(m), k) && mockDienste(m, k, func(d mock.Dienst, i int) bool { return d.ID == k.Dienste[i].ID && d.Root == k.Dienste[i].Root })
+			},
+		}},
+	}
+	felder := map[string]bool{}
+	for i := range reflect.TypeOf(bootstrap.Konfiguration{}).NumField() {
+		felder[reflect.TypeOf(bootstrap.Konfiguration{}).Field(i).Name] = true
+	}
+	soll := 0
+	for _, w := range werte {
+		if !felder[w.name] {
+			t.Errorf("%s ist kein Feld von Konfiguration", w.name)
+		}
+		for _, z := range w.zellen {
+			if z != nil {
+				soll++
+			}
+		}
+	}
+	if len(werte) != 14 || soll != 3+2+2+4+2+2+2+6*3+4 {
+		t.Fatalf("%d Werte und %d Zellen mit Verbraucher, erwartet 14 und 39", len(werte), soll)
+	}
+	modi := []string{modusRecord, modusReplay, modusMock, modusHybrid}
+	geprueft := 0
+	for vi, v := range varianten {
+		for mi, modus := range modi {
+			m := neuM4Haken()
+			k := v
+			k.Modus, k.DataDir = modus, filepath.Join(t.TempDir(), "d")
+			if err := os.MkdirAll(k.DataDir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := lauf(ctx, t, k, log, m.bauteile()); err != nil {
+				t.Fatalf("Variante %d, Modus %s: %v", vi, modus, err)
+			}
+			for _, w := range werte {
+				if z := w.zellen[mi]; z != nil {
+					geprueft++
+					if !z(m, k) {
+						t.Errorf("Variante %d, Modus %s: der Wert von %s erreicht seinen Verbraucher nicht", vi, modus, w.name)
+					}
+				}
+			}
+		}
+	}
+	if geprueft != 2*soll {
+		t.Errorf("%d Zellen geprüft, erwartet %d", geprueft, 2*soll)
+	}
+}
+
+// m4ReplayDienste ist wahr, wenn der Replay-Dienst die Dienste von k mit Kennung und Root trägt.
+func m4ReplayDienste(r replay.Konfig, k bootstrap.Konfiguration) bool {
+	var soll []replay.Dienst
+	for _, d := range k.Dienste {
+		soll = append(soll, replay.Dienst{ID: d.ID, Root: d.Root})
+	}
+	return reflect.DeepEqual(r.Dienste, soll)
 }

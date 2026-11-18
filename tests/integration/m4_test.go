@@ -216,6 +216,7 @@ func TestM4(t *testing.T) {
 	t.Run("Ohne Auslöser kein Upstream", w.ohneAusloeser)
 	t.Run("Lesender Fallback", w.lesenderFallback)
 	t.Run("Ohne Freigabe", w.ohneFreigabe)
+	t.Run("Strikte Abdeckung", w.strikteAbdeckung)
 	t.Run("Mutierender Fallback", w.mutierend)
 	t.Run("Replay-Miss", w.replayMiss)
 	t.Run("Erschöpfter Key", w.erschoepft)
@@ -341,6 +342,38 @@ func (w *m4Welt) ohneFreigabe(t *testing.T) {
 			up.keinKontakt(t, name, vor)
 			anderer.keinKontakt(t, name+" (anderer Referenzdienst)", vorAnderer)
 		}
+	}
+}
+
+// strikteAbdeckung fängt M03 für STRICT_COVERAGE im Modus hybrid (Handbuch, SPEC-139 Nr. 12 a): eine Collection-Abfrage über einen nicht vollständigen
+// Bestand mit freigegebenem Host und STRICT_COVERAGE=true ist ODR-E6003 und geht in den Upstream-Fallback (eine Verbindung, Kennzeichnung upstream);
+// mit false beantwortet der Mock sie aus den bekannten Entities, es gibt keine Verbindung und keine Kennzeichnung, und die Antwort ist byte-gleich der
+// des Modus mock mit demselben Wert. Beide Werte laufen, damit weder fest true noch fest false in einer Seite unbemerkt bleibt.
+func (w *m4Welt) strikteAbdeckung(t *testing.T) {
+	n := 0
+	for _, strikt := range []string{"true", "false"} {
+		n++
+		mc := neuerClient(t, hochgefahren(context.Background(), t, konfig(t, "mock", w.kopie(t), "", "ETAG_ENABLED=true", "STRICT_COVERAGE="+strikt)).Adresse())
+		up := neuerReferenzdienst(t)
+		c := w.startHybrid(t, up, append(offen(up, true), "STRICT_COVERAGE="+strikt)...)
+		name := "STRICT_COVERAGE=" + strikt
+		vor := up.stand()
+		soll := mc.sende("GET", m3Pfad, "", "", kopf(w.wsTeil))
+		r := c.sende("GET", m3Pfad, "", "", kopf(w.wsTeil))
+		if strikt == "true" {
+			if r.status != 200 || fallback(r) != "upstream" || soll.status != 422 {
+				t.Errorf("%s: %d %q, Modus mock %d, erwartet 200 und upstream, Modus mock 422", name, r.status, fallback(r), soll.status)
+			}
+			up.erwarte(t, name, vor, 1, map[string]int64{"GET": 1})
+			continue
+		}
+		if r.status != 200 || fallback(r) != "" || r.status != soll.status || !bytes.Equal(r.body, soll.body) {
+			t.Errorf("%s: %d %q %q, Modus mock %d %q, erwartet die Antwort des Modus mock ohne Kennzeichnung", name, r.status, fallback(r), r.body, soll.status, soll.body)
+		}
+		up.keinKontakt(t, name, vor)
+	}
+	if n != 2 {
+		t.Errorf("%d Fälle, erwartet {true, false}", n)
 	}
 }
 
