@@ -36,11 +36,11 @@ Die technische DoD (Punkte 1 bis 4 und der Teil „Doku-Update“) ist belegt; `
 | 7 | Closure-Notiz mit Steering-Loop-Lerneintrag | offen | §7 trägt „Wird bei der Closure gefüllt“; Folge der Reihenfolge Review, Verifikation, Closure, kein Fehler des Standes (Übergabe 1) |
 | 8 | Beobachtungs-Register fortgeschrieben | offen | kein Eintrag unter `docs/plan/planning/observations/` nennt diesen Slice; auch „keine Beobachtung“ steht noch nicht in §7 (Übergabe 1) |
 | 9 | Jedes Risiko aus §6 trägt einen Ausgang | erfüllt mit vier *offen*-Zeilen | jede Zeile trägt einen Ausgang; *offen*/*weiter offen* mit Adresse tragen vier (Reihenfolge zu `slice-bootstrap-m6`, Nullprobe `BEO-REPO/nullprobe-grenze-unter-der-paketlaufzeit`, Datenpunkt `SPEC-128` Nr. 2, `policy.parseMuster`), siehe Übergabe 2 |
-| 10 | Drei Paarungen (Anker, Folge-Slice, Register) | offen | Anker: keine Regel mit `liegt in` im Slice; Folge-Slice: `slice-bootstrap-m4` trägt alle Sendungen mit Kennung des Gebers (`open/slice-bootstrap-m4.md` Zeilen 38, 42, 67, 69, 95, gelesen); Register: siehe Nr. 8 |
+| 10 | Drei Paarungen (Anker, Folge-Slice, Register) | offen | Anker: keine Regel mit `liegt in` im Slice; Folge-Slice: `slice-bootstrap-m4` trägt alle Sendungen mit Kennung des Gebers (`in-progress/slice-bootstrap-m4.md` Zeilen 38, 42, 67, 69, 95, gelesen); Register: siehe Nr. 8 |
 
 ## Zusage · Fänger gegen den Vertrag (§3.15, §3.16)
 
-Tabelle M04 bis M09 und die Zusatztabelle (§6) gegen `SPEC-110` Nr. 1, 2, 6, 8, 9, 12, 14 bis 16 und `SPEC-261` Nr. 8, 10 b gelesen: Jede Zusage hat eine Zeile mit Fänger und Mutation; jede Zelle des Rasters (3 Operationen × 5 Argumentarten, 15 Zellen) nennt einen Ort oder „gilt nicht“ mit Grund; keine Zelle ist im Code entschieden. Die Rückgaben des Implementers (Handbuch-Zeilen, Feld `Fallback`, `NeuePolicy`, Nicht-ASCII-Host) stehen mit Ausgang und Adresse in §6 und sind in `open/slice-bootstrap-m4.md` angenommen (`AGENTS.md` §3.13). Eine Zeile ohne Fänger fand ich nicht.
+Tabelle M04 bis M09 und die Zusatztabelle (§6) gegen `SPEC-110` Nr. 1, 2, 6, 8, 9, 12, 14 bis 16 und `SPEC-261` Nr. 8, 10 b gelesen: Jede Zusage hat eine Zeile mit Fänger und Mutation; jede Zelle des Rasters (3 Operationen × 5 Argumentarten, 15 Zellen) nennt einen Ort oder „gilt nicht“ mit Grund; keine Zelle ist im Code entschieden. Die Rückgaben des Implementers (Handbuch-Zeilen, Feld `Fallback`, `NeuePolicy`, Nicht-ASCII-Host) stehen mit Ausgang und Adresse in §6 und sind in `in-progress/slice-bootstrap-m4.md` angenommen (`AGENTS.md` §3.13). Eine Zeile ohne Fänger fand ich nicht.
 
 ## Fixes der Runde 4 gegen die Klasse (§3.17)
 
@@ -94,4 +94,4 @@ Keine HIGH-, keine MEDIUM-, keine LOW-Befunde.
 
 ## Negativbefunde (geprüft, ohne Befund)
 
-`src/bootstrap/konfig.go`, `konfig_basis.go`, `konfig_dienste.go`, `konfig_hybrid.go`, `konfig_werte.go` (Produktcode, 175 Zeilen); `src/bootstrap/export_test.go`; Handbuch (`MODE` und die vier Zeilen, `REDACT_QUERY_PARAMS`); Plan §1, §3, §4, §6 (Kopf, Tabellen, Raster, Entscheidungen (a) bis (g), Sendungen); `open/slice-bootstrap-m4.md` (Annahme der Sendungen); Rohbytes der Tests und des Plans; keine Direktive `//nolint`.
+`src/bootstrap/konfig.go`, `konfig_basis.go`, `konfig_dienste.go`, `konfig_hybrid.go`, `konfig_werte.go` (Produktcode, 175 Zeilen); `src/bootstrap/export_test.go`; Handbuch (`MODE` und die vier Zeilen, `REDACT_QUERY_PARAMS`); Plan §1, §3, §4, §6 (Kopf, Tabellen, Raster, Entscheidungen (a) bis (g), Sendungen); `in-progress/slice-bootstrap-m4.md` (Annahme der Sendungen); Rohbytes der Tests und des Plans; keine Direktive `//nolint`.

@@ -68,7 +68,7 @@ Die Rate je Mutation ist 1 von 1 (ein Prozess, deterministisch, kein Detektor n�
 | `src/bootstrap/m4_konfig_test.go` | geprüft; Köpfe nennen ihre Menge und die Zählung (279 gültig und 171 Verstoß von 450; 151 Zeichen, 90 und 38 und 61; 76 und 19), die Mengen stimmen mit der Rechnung; Werte aus Bytewerten und Zahlenwerten, keine Folge Backslash-u im Quelltext; Befunde F-2 bis F-5 |
 | `spec/spezifikation.md` (`SPEC-110` Nr. 1, 6, 9, 16 f, Historie) | geprüft gegen Code und Plan: 90 Zeichen, vier Zeichen des Leerraums und derselbe Grund der Pflicht stimmen; die 25 White_Space-Zeichen und die 21 außerhalb stimmen mit `SPEC-201` Nr. 2 e; Historienzeile für Nr. 1 und 6 liegt vor; Lücke F-1 (Escape-Folge) |
 | Plan `slice-bootstrap-m4-konfig` (Kopf, §1, §3, §4, §6) | geprüft: Kopf, §1 und §3 tragen die Nachzüge der Runde 2; Raster §6 ohne leere Zelle, Zusatztabelle führt die Zeile für den Query-Namen; Befunde F-1 (Zelle fehlt), F-4, F-5, F-6 |
-| `docs/plan/planning/open/slice-bootstrap-m4.md` (Teil 2), Adressen §3.13 | geprüft, ohne Befund: Sendungen mit Kennung des Gebers, Nehmer liegt in `open/`, §1 *Ausdrücklich NICHT* trifft sie nicht |
+| `docs/plan/planning/in-progress/slice-bootstrap-m4.md` (Teil 2), Adressen §3.13 | geprüft, ohne Befund: Sendungen mit Kennung des Gebers, Nehmer liegt in `open/`, §1 *Ausdrücklich NICHT* trifft sie nicht |
 | Größenmarke | Marke 900 gleich Formel (`SPEC-128` Nr. 1); Messung 1402 reproduziert (1259 eigene, 143 aus `prefer_ende_zu_ende_test.go`); Eintrag 1500 deckt; Befund F-6 nur zu Prosa und Artefakt |
 | `harness/`, `.harness/skills/`, Hooks | nicht im Diff; keine Unterdrückung (`//nolint`) im Diff gefunden |
 | Gate `make gates` | nicht Gegenstand dieses Reviews (Verifier) |

@@ -69,7 +69,7 @@
 | `spec/spezifikation.md` (`SPEC-110` Nr. 6, Historie) | geprüft gegen Code und Plan: 89 Zeichen, Begründung stimmt mit `RedigiereQuery` (Dekodierung, `+` bleibt); Historienzeile liegt vor; keine weitere Stelle im Repo trägt „90 Zeichen“ (Suche über Spezifikation, Pläne, Code und Handbuch) |
 | `docs/user/benutzerhandbuch.md` | geprüft: die Zeile nennt Menge und Fehler beim Start (`SPEC-200` Nr. 1); der Halbsatz „und `%`, also kein `%`“ sagt dasselbe zweimal, ohne Anker kein Befund |
 | Plan `slice-bootstrap-m4-konfig` (Kopf, §1, §3, §6) | geprüft: Kopf (89 Zeichen), Raster und Mengen der Schleifen tragen die Nachzüge der Runde 3; 34 Mutationen (33 rot, eine benannte Prüfgrenze grün) stimmen mit der Tabelle; Befunde F-1, F-4 |
-| `harness/`, `.harness/skills/`, Hooks, `docs/plan/planning/open/slice-bootstrap-m4.md` | nicht im Diff; keine Unterdrückung (`//nolint`) im Diff gefunden; Adressen aus Runde 3 unverändert |
+| `harness/`, `.harness/skills/`, Hooks, `docs/plan/planning/in-progress/slice-bootstrap-m4.md` | nicht im Diff; keine Unterdrückung (`//nolint`) im Diff gefunden; Adressen aus Runde 3 unverändert |
 | Gate `make gates` | nicht Gegenstand dieses Reviews (Verifier) |
 
 ## Summary
