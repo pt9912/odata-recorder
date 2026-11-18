@@ -353,7 +353,8 @@ func TestExpandOptionenFolgen(t *testing.T) {
 // TestExpandParserUnveraendert (Zeile 23, SPEC-262 Nr. 8, SPEC-160 Nr. 7): ein Aufruf von `ParseURL` schreibt kein Feld des
 // Parsers, gleich welche Einhängung er trägt und welche Eingabe er liest. Menge: 4 Parser (ohne, mit Leser, mit `WithExpand`, mit
 // beidem) × (die Eingaben von `korpus()`, 490 Eingaben von `exQueries`, 5219 Folgen der Länge 1 bis 3 über dem Alphabet, je mit und
-// ohne vorangestelltes `$top=1`, Queries von 8191, 8192 und 8193 Bytes und eine Liste von 32 Namen aus 120 `N` und der Nummer); der Zustand des
+// ohne vorangestelltes `$top=1`, Queries von 8191, 8192 und 8193 Bytes, eine Liste von 32 Namen aus 120 `N` und der Nummer und die
+// gültigen Listen von 1 bis 32 Namen, je mit und ohne `$top=1`); der Zustand des
 // Parsers wird nach jedem Aufruf gegen eine Kopie vor dem ersten gehalten. Prüfgrenze: ein Schreiben, das nur bei einer Eingabe
 // außerhalb dieser Menge greift, bleibt ungefangen; die Menge der Eingaben ist unbeschränkt.
 func TestExpandParserUnveraendert(t *testing.T) {
@@ -374,6 +375,9 @@ func TestExpandParserUnveraendert(t *testing.T) {
 		eingaben = append(eingaben, [2]string{"/S", "x=" + strings.Repeat("v", laenge-2)})
 	}
 	eingaben = append(eingaben, [2]string{"/S", exQ(strings.Join(exNamen(strings.Repeat("N", 120), 32), ","))})
+	for l := 1; l <= 32; l++ {
+		eingaben = append(eingaben, [2]string{"/S", exQ(strings.Join(exNamen("n", l), ","))}, [2]string{"/S", "$top=1&" + exQ(strings.Join(exNamen("n", l), ","))})
+	}
 	n := 0
 	for i, p := range parser {
 		vorher := *p
