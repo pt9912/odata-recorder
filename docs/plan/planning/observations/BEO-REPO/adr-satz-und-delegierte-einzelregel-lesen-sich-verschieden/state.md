@@ -1,0 +1,1 @@
+**Stand:** offen; ein Vorgang (`slice-gegenproben-zeitbudget`, Evidenz); kein Zielort, Schwelle 3x nicht erreicht; die Entscheidung des Users (Schärfung in `SPEC-102` bestätigen oder neue ADR mit `Supersedes` auf [ADR-0013](../../../../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md)) steht in §6 des Plans
