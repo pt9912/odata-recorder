@@ -11,15 +11,17 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid"
 )
 
-// TestNew hält Z01: New weist jedes Feld der Konfig ab (kein Dienst, leerer Root an erster und an späterer Stelle,
-// nil in Mock, Replay, Policy, MaxBytes 0 und -1) und nimmt MaxBytes 1 an; es ruft keinen Port.
+// TestNew hält Z01 und Z01 (U): New weist jedes Feld der Konfig ab (kein Dienst, leerer Root an erster und an späterer
+// Stelle, nil in Mock, Replay, Upstream, Policy, MaxBytes 0 und -1) und nimmt MaxBytes 1 und eine leere wie eine
+// gesetzte UpstreamURL an; es ruft keinen Port.
 func TestNew(t *testing.T) {
-	m, r := &stufe{}, &stufe{}
+	m, r, u := &stufe{}, &stufe{}, &stufeU{}
 	gut := func() hybrid.Konfig {
 		return hybrid.Konfig{
 			Dienste:  []hybrid.Dienst{{Root: "/a"}},
 			Mock:     fakeMock{m},
 			Replay:   fakeReplay{r},
+			Upstream: u,
 			Policy:   mitKategorien(t),
 			MaxBytes: 1,
 		}
@@ -37,6 +39,9 @@ func TestNew(t *testing.T) {
 		{"Root später leer", func(k *hybrid.Konfig) { k.Dienste = []hybrid.Dienst{{Root: "/a"}, {Root: "/b"}, {}} }, true},
 		{"Mock nil", func(k *hybrid.Konfig) { k.Mock = nil }, true},
 		{"Replay nil", func(k *hybrid.Konfig) { k.Replay = nil }, true},
+		{"Upstream nil", func(k *hybrid.Konfig) { k.Upstream = nil }, true},
+		{"UpstreamURL leer ist gültig", func(k *hybrid.Konfig) { k.Dienste = []hybrid.Dienst{{Root: "/a", UpstreamURL: ""}} }, false},
+		{"UpstreamURL gesetzt", func(k *hybrid.Konfig) { k.Dienste = []hybrid.Dienst{{Root: "/a", UpstreamURL: "http://h"}} }, false},
 		{"Policy nil", func(k *hybrid.Konfig) { k.Policy = nil }, true},
 		{"MaxBytes 0", func(k *hybrid.Konfig) { k.MaxBytes = 0 }, true},
 		{"MaxBytes -1", func(k *hybrid.Konfig) { k.MaxBytes = -1 }, true},
@@ -55,8 +60,8 @@ func TestNew(t *testing.T) {
 			t.Errorf("%s: Fehler %v", f.name, err)
 		}
 	}
-	if m.zahl() != 0 || r.zahl() != 0 {
-		t.Errorf("New rief einen Port: Mock %d, Replay %d", m.zahl(), r.zahl())
+	if m.zahl() != 0 || r.zahl() != 0 || u.zahl() != 0 {
+		t.Errorf("New rief einen Port: Mock %d, Replay %d, Upstream %d", m.zahl(), r.zahl(), u.zahl())
 	}
 }
 

@@ -21,27 +21,36 @@ func probeCodes() [4]model.Code {
 }
 
 // fallbackFaehig sagt, ob die Policy für die Anfrage bei mindestens einem der Codes einen Fallback erlaubt; das Ziel
-// ist leer, die Policy gibt es nie frei (SPEC-284 Nr. 5 a).
-func (v *Verteiler) fallbackFaehig(a inbound.Anfrage) bool {
+// ist das der Anfrage (SPEC-284 Nr. 5 a).
+func (v *Verteiler) fallbackFaehig(a inbound.Anfrage, ziel string) bool {
 	for _, c := range probeCodes() {
-		if v.policy.Entscheide(policy.Anfrage{Methode: a.Methode, Pfad: a.Pfad, Code: c}) != policy.Bleiben {
+		if v.policy.Entscheide(policy.Anfrage{Methode: a.Methode, Pfad: a.Pfad, Ziel: ziel, Code: c}) != policy.Bleiben {
 			return true
 		}
 	}
 	return false
 }
 
-// vorbereiten liefert die Anfragen für M und R und sagt, ob ein Fallback erlaubt bleibt (SPEC-284 Nr. 5). Ohne Body,
+// stufen sind die Anfragen für M, R und U und die Aussage, ob ein Fallback erlaubt bleibt.
+type stufen struct {
+	mock, replay, upstream inbound.Anfrage
+	fallback               bool
+}
+
+// vorbereiten liefert die Anfragen für M, R und U und sagt, ob ein Fallback erlaubt bleibt (SPEC-284 Nr. 5). Ohne Body,
 // bei einer nicht fallback-fähigen Anfrage und über der Grenze geht die Anfrage unverändert an beide Stufen und ohne
-// Pufferung an M; gepuffert erhält jede Stufe einen eigenen Leser über die vollständigen Bytes.
-func (v *Verteiler) vorbereiten(a inbound.Anfrage) (m, r inbound.Anfrage, fallback bool) {
+// Pufferung an M; gepuffert erhält jede Stufe einen eigenen Leser über die vollständigen Bytes. U erhält ohne Body
+// weder Leser noch Länge (nil und 0).
+func (v *Verteiler) vorbereiten(a inbound.Anfrage, ziel string) stufen {
+	ohneBody := a
+	ohneBody.Body, ohneBody.Laenge = nil, 0
 	switch {
 	case a.Body == nil || a.Laenge == 0:
-		return a, a, true
+		return stufen{mock: a, replay: a, upstream: ohneBody, fallback: true}
 	case a.Laenge > v.maxBytes:
-		return a, a, false
-	case !v.fallbackFaehig(a):
-		return a, a, true
+		return stufen{mock: a, replay: a, upstream: a}
+	case !v.fallbackFaehig(a, ziel):
+		return stufen{mock: a, replay: a, upstream: a, fallback: true}
 	}
 	grenze := v.maxBytes
 	if grenze < math.MaxInt64 {
@@ -50,16 +59,17 @@ func (v *Verteiler) vorbereiten(a inbound.Anfrage) (m, r inbound.Anfrage, fallba
 	puffer, err := io.ReadAll(io.LimitReader(a.Body, grenze))
 	switch {
 	case err != nil:
-		m = a
+		m := a
 		m.Body = io.MultiReader(bytes.NewReader(puffer), fehlerLeser{err: err})
-		return m, a, false
+		return stufen{mock: m, replay: a, upstream: a}
 	case int64(len(puffer)) > v.maxBytes:
-		m = a
+		m := a
 		m.Body = io.MultiReader(bytes.NewReader(puffer), a.Body)
-		return m, a, false
+		return stufen{mock: m, replay: a, upstream: a}
 	}
-	m, r = a, a
+	m, r, u := a, a, a
 	m.Body, m.Laenge = bytes.NewReader(puffer), int64(len(puffer))
 	r.Body, r.Laenge = bytes.NewReader(puffer), int64(len(puffer))
-	return m, r, true
+	u.Body, u.Laenge = bytes.NewReader(puffer), int64(len(puffer))
+	return stufen{mock: m, replay: r, upstream: u, fallback: true}
 }
