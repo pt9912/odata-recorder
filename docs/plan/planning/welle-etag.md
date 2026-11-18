@@ -95,3 +95,5 @@ nicht vom Schreibort.
 
 Ergebnis: `welle-etag-results.md` (Geschwister im Ruheort `done/`).
 Zähler: das Beobachtungs-Register eine Ebene über dem Ruheort (das Verzeichnis observations/).
+
+Stand der Kriterien aus §3 bei der Closure (Belege in der Ergebnis-Notiz, Abschnitt *Verifikation*): alle Slices in `done/`, `make gates` grün, Rundlauf im Modus `mock` und Handbuch belegt; `make gegenproben` nicht belegt (zwei Läufe mit 9 von 216 Fällen rot, „Zeit überschritten“, Lastgrenze nicht definiert); der Fall `412` im Modus `hybrid` ist nicht anwendbar, weil `welle-hybrid` nicht in `done/` liegt, und liegt als Sendung bei `slice-bootstrap-m4`.
