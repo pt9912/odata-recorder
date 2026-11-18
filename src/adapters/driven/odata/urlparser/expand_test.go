@@ -256,3 +256,134 @@ func TestExpandNamenform(t *testing.T) {
 	}
 	exZaehlt(t, "Namensform", n, 270+744+63)
 }
+
+// exOptSeg ist ein Segment der Query mit der Art der Option: `filter`, `expand` oder `andere`.
+type exOptSeg struct{ text, art string }
+
+// TestExpandOptionenFolgen (Zeile 3, SPEC-262 Nr. 1, SPEC-160 Nr. 8): die Einhängestellen von `New` ändern einander nicht, in jeder
+// Folge. Die Folge bestimmt allein, ob `$filter` lesbar ist (die letzte `WithFilter` trägt einen Leser) und ob `$expand` lesbar
+// ist (irgendeine `WithExpand`); ein nicht lesbares `$filter` ist `filter`, ein nicht lesbares `$expand`
+// `option_nicht_unterstuetzt`, der erste Verstoß in der Lesefolge gilt. Menge: alle Folgen der Länge 0 bis 3 über {`WithFilter(Leser)`,
+// `WithFilter(nil)`, `WithExpand()`} (1 + 3 + 9 + 27 = 40) × 7 Queries (`$filter` und `$expand` allein, in beiden Reihenfolgen, mit
+// fremden Optionen dazwischen, und ohne beide) = 280 Fälle. Prüfgrenze: Länge 3 (es gibt drei Einhängungen; ein Zustand, der erst
+// die vierte Option verlangt, bleibt ungefangen).
+func TestExpandOptionenFolgen(t *testing.T) {
+	const (
+		opFilter = iota
+		opFilterNil
+		opExpand
+	)
+	leser := &zaehlLeser{ausdruck: testAusdruck{"ok"}}
+	folgen := [][]int{{}}
+	vorige := [][]int{{}}
+	for range 3 {
+		var naechste [][]int
+		for _, v := range vorige {
+			for _, o := range []int{opFilter, opFilterNil, opExpand} {
+				naechste = append(naechste, append(append([]int{}, v...), o))
+			}
+		}
+		folgen = append(folgen, naechste...)
+		vorige = naechste
+	}
+	exZaehlt(t, "Folgen", len(folgen), 40)
+	queries := [][]exOptSeg{
+		{{"$filter=a", "filter"}},
+		{{"$expand=Cat,Sup", "expand"}},
+		{{"$filter=a", "filter"}, {"$expand=Cat", "expand"}},
+		{{"$expand=Cat", "expand"}, {"$filter=a", "filter"}},
+		{{"x=1", "andere"}, {"$expand=Cat", "expand"}, {"$top=1", "andere"}, {"$filter=a", "filter"}},
+		{{"$filter=a", "filter"}, {"x=1", "andere"}, {"$expand=Cat", "expand"}},
+		{{"$top=1", "andere"}, {"$skip=2", "andere"}, {"$count=true", "andere"}, {"$select=a,b", "andere"}, {"$orderby=a", "andere"}, {"x=1", "andere"}},
+	}
+	n := 0
+	for _, folge := range folgen {
+		var opts []urlparser.Option
+		filterAn, expandAn := false, false
+		for _, o := range folge {
+			switch o {
+			case opFilter:
+				opts, filterAn = append(opts, urlparser.WithFilter(leser)), true
+			case opFilterNil:
+				opts, filterAn = append(opts, urlparser.WithFilter(nil)), false
+			case opExpand:
+				opts, expandAn = append(opts, urlparser.WithExpand()), true
+			}
+		}
+		p := urlparser.New(opts...)
+		for _, q := range queries {
+			var texte, andere []string
+			var verstoss *model.URLFehler
+			for i, s := range q {
+				texte = append(texte, s.text)
+				switch {
+				case s.art == "andere":
+					andere = append(andere, s.text)
+				case s.art == "filter" && !filterAn && verstoss == nil:
+					verstoss = &model.URLFehler{Ursache: model.URLFilter, Ort: "query/" + strconv.Itoa(i+1)}
+				case s.art == "expand" && !expandAn && verstoss == nil:
+					verstoss = &model.URLFehler{Ursache: model.URLOptionNichtUnterstuetzt, Ort: "query/" + strconv.Itoa(i+1)}
+				}
+			}
+			f := fall{pfad: "/S", query: strings.Join(texte, "&")}
+			if verstoss != nil {
+				f.u, f.ort = verstoss.Ursache, verstoss.Ort
+			} else {
+				ref, err := urlparser.New().ParseURL("/S", strings.Join(andere, "&"))
+				if err != nil {
+					t.Fatalf("Bezug %q: %v", andere, err)
+				}
+				for _, s := range q {
+					switch s.art {
+					case "filter":
+						ref.Optionen.Filter = &model.FilterOption{Text: "a", Ausdruck: testAusdruck{"ok"}}
+					case "expand":
+						ref.Optionen.Expand = exKnoten(strings.Split(strings.TrimPrefix(s.text, "$expand="), ",")...).Optionen.Expand
+					}
+				}
+				f.want = &ref
+			}
+			pruefeFall(t, p, f)
+			n++
+		}
+	}
+	exZaehlt(t, "Folgen × Queries", n, 40*7)
+}
+
+// TestExpandParserUnveraendert (Zeile 23, SPEC-262 Nr. 8, SPEC-160 Nr. 7): ein Aufruf von `ParseURL` schreibt kein Feld des
+// Parsers, gleich welche Einhängung er trägt und welche Eingabe er liest. Menge: 4 Parser (ohne, mit Leser, mit `WithExpand`, mit
+// beidem) × (die Eingaben von `korpus()`, 490 Eingaben von `exQueries`, 5219 Folgen der Länge 1 bis 3 über dem Alphabet, je mit und
+// ohne vorangestelltes `$top=1`, Queries von 8191, 8192 und 8193 Bytes und eine Liste von 32 Namen aus 120 `N` und der Nummer); der Zustand des
+// Parsers wird nach jedem Aufruf gegen eine Kopie vor dem ersten gehalten. Prüfgrenze: ein Schreiben, das nur bei einer Eingabe
+// außerhalb dieser Menge greift, bleibt ungefangen; die Menge der Eingaben ist unbeschränkt.
+func TestExpandParserUnveraendert(t *testing.T) {
+	leser := &zaehlLeser{ausdruck: testAusdruck{"ok"}}
+	parser := []*urlparser.Parser{
+		urlparser.New(), urlparser.New(urlparser.WithFilter(leser)), exParser(), urlparser.New(urlparser.WithFilter(leser), urlparser.WithExpand()),
+	}
+	var eingaben [][2]string
+	eingaben = append(eingaben, korpus()...)
+	for _, q := range exQueries() {
+		eingaben = append(eingaben, [2]string{"/S", q})
+	}
+	for _, f := range exFolgen(3) {
+		eingaben = append(eingaben, [2]string{"/S", exQ(f.roh)}, [2]string{"/S", "$top=1&" + exQ(f.roh)})
+	}
+	exZaehlt(t, "Alphabet bis Länge 3", len(exFolgen(3)), 17+17*17+17*17*17)
+	for _, laenge := range []int{8191, 8192, 8193} {
+		eingaben = append(eingaben, [2]string{"/S", "x=" + strings.Repeat("v", laenge-2)})
+	}
+	eingaben = append(eingaben, [2]string{"/S", exQ(strings.Join(exNamen(strings.Repeat("N", 120), 32), ","))})
+	n := 0
+	for i, p := range parser {
+		vorher := *p
+		for _, e := range eingaben {
+			_, _ = p.ParseURL(e[0], e[1])
+			if *p != vorher {
+				t.Fatalf("Parser %d nach %q %q: %+v statt %+v", i, e[0], e[1], *p, vorher)
+			}
+			n++
+		}
+	}
+	exZaehlt(t, "Parser × Eingaben", n, 4*len(eingaben))
+}

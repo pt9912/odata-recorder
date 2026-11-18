@@ -237,22 +237,69 @@ func exVerstoesse() []exVerstoss {
 	}
 }
 
+// TestExpandDoppeltesElementAbstand (Zeile 15, SPEC-262 Nr. 4 e): ein Element, das einem früheren bytegleich ist, ist `wert`, gleich wie weit die
+// Vorkommen auseinanderliegen; die Schreibweise zählt. Menge: alle Paare von Stellen (i < j) in Listen der Länge 2 bis 32 (5456
+// Paare, Abstand 1 bis 31) × Form {Name, `*`, Pfad} = 16 368 gleiche Elemente, dazu je Paar mit geänderter Schreibweise für Name und
+// Pfad = 10 912 Fälle. Eine Liste der Länge 32 ist die größte lesbare (Nr. 6), die Menge ist damit nicht unbeschränkt.
+func TestExpandDoppeltesElementAbstand(t *testing.T) {
+	p := exParser()
+	n := 0
+	formen := []struct {
+		a, b   string
+		anders func(namen []string) exSoll // nil: für `*` gibt es keine andere Schreibweise
+	}{
+		{"Nx", "nx", func(namen []string) exSoll { return exErg(namen...) }},
+		{"*", "*", nil},
+		{"p/q", "P/q", func([]string) exSoll { return exNichtUnterstuetzt() }},
+	}
+	for laenge := 2; laenge <= 32; laenge++ {
+		for i := range laenge {
+			for j := i + 1; j < laenge; j++ {
+				for _, f := range formen {
+					elemente := exNamen("f", laenge)
+					elemente[i], elemente[j] = f.a, f.a
+					exPruefe(t, p, exQ(strings.Join(elemente, ",")), exWert())
+					n++
+					if f.anders != nil {
+						elemente[j] = f.b
+						exPruefe(t, p, exQ(strings.Join(elemente, ",")), f.anders(elemente))
+						n++
+					}
+				}
+			}
+		}
+	}
+	exZaehlt(t, "Abstand", n, 5456*3+5456*2)
+}
+
 // TestExpandRangImWert (Zeile 16, SPEC-262 Nr. 3, 8): ein `(` geht allem vor, sonst geht ein Verstoß der Klasse `ungueltig` jedem
-// der anderen Klasse vor, gleich an welcher Stelle. Menge: 6 × 6 Paare × 12 Stellenpaare (i ≠ j aus 1 bis 4) = 432; zweimal `*`
-// ist ein doppeltes Element und damit `wert`.
+// der anderen Klasse vor, gleich an welcher Stelle. Menge: 6 × 6 Paare von Arten × 30 Stellenpaare (i ≠ j aus 0 bis 5, die erste
+// und die letzte Stelle eingeschlossen) = 1080; die Liste hat sechs Elemente `f0` bis `f5`, der Verstoß `doppelt` ist ein Element
+// gleich dem ersten Element, das kein Verstoß ist; zweimal `*` ist ein doppeltes Element und damit `wert`.
 func TestExpandRangImWert(t *testing.T) {
 	p := exParser()
 	art := exVerstoesse()
 	n := 0
 	for _, a := range art {
 		for _, b := range art {
-			for i := 1; i <= 4; i++ {
-				for j := 1; j <= 4; j++ {
+			for i := range 6 {
+				for j := range 6 {
 					if i == j {
 						continue
 					}
-					elemente := []string{"n1", "f2", "f3", "f4", "f5"}
-					elemente[i], elemente[j] = a.element, b.element
+					elemente := exNamen("f", 6)
+					frei := 0
+					for frei == i || frei == j {
+						frei++
+					}
+					el := func(v exVerstoss) string {
+						if v.name == "doppelt" {
+							return elemente[frei]
+						}
+						return v.element
+					}
+					ea, eb := el(a), el(b)
+					elemente[i], elemente[j] = ea, eb
 					if a.element == "p/q" && b.element == "p/q" {
 						elemente[j] = "p/r"
 					}
@@ -269,11 +316,13 @@ func TestExpandRangImWert(t *testing.T) {
 			}
 		}
 	}
-	exZaehlt(t, "Rang im Wert", n, 432)
+	exZaehlt(t, "Rang im Wert", n, 6*6*30)
 }
 
 // TestExpandRangQuery (Zeile 17, SPEC-160 Nr. 5): ein Verstoß von `$expand` und einer einer anderen Option folgen der Rangfolge,
-// in beiden Reihenfolgen. Menge: 4 Verstöße von `$expand` × 4 anderer Optionen × 2 Seiten = 32; das Orakel ist `rang`.
+// in beiden Reihenfolgen. Menge: 8 Verstöße von `$expand` (die sechs Arten im Wert: leeres Element, ungültiger Name, doppeltes
+// Element, `*`, Pfad, Klammer; dazu `zu_viele` und `kodierung`) × 4 anderer Optionen × 2 Seiten × 2 Stellen (ohne und mit einer
+// fremden Option davor) = 128; das Orakel ist `rang`.
 func TestExpandRangQuery(t *testing.T) {
 	type option struct {
 		query string
@@ -282,6 +331,8 @@ func TestExpandRangQuery(t *testing.T) {
 	ex := []option{
 		{"$expand=1a", model.URLWert}, {"$expand=" + strings.Join(exNamen("N", 33), ","), model.URLZuViele},
 		{"$expand=a%G1", model.URLKodierung}, {"$expand=*", model.URLWertNichtUnterstuetzt},
+		{"$expand=a,,b", model.URLWert}, {"$expand=a,a", model.URLWert}, {"$expand=a/b", model.URLWertNichtUnterstuetzt},
+		{"$expand=a(x)", model.URLWertNichtUnterstuetzt},
 	}
 	andere := []option{
 		{"$top=-1", model.URLWert}, {"$foo=1", model.URLOptionName}, {"$select=a,,b", model.URLWert}, {"$filter=a", model.URLFilter},
@@ -291,15 +342,17 @@ func TestExpandRangQuery(t *testing.T) {
 	for _, e := range ex {
 		for _, a := range andere {
 			for seite := 0; seite < 2; seite++ {
-				l, r := e, a
-				if seite == 1 {
-					l, r = a, e
+				for vor := 0; vor < 2; vor++ {
+					l, r := e, a
+					if seite == 1 {
+						l, r = a, e
+					}
+					soll := rang(nil, []verstoss{{l.u, "query/" + strconv.Itoa(1+vor)}, {r.u, "query/" + strconv.Itoa(2+vor)}})
+					exPruefe(t, p, strings.Repeat("v=1&", vor)+l.query+"&"+r.query, exFehl(soll.u, soll.ort))
+					n++
 				}
-				soll := rang(nil, []verstoss{{l.u, "query/1"}, {r.u, "query/2"}})
-				exPruefe(t, p, l.query+"&"+r.query, exFehl(soll.u, soll.ort))
-				n++
 			}
 		}
 	}
-	exZaehlt(t, "Rang der Query", n, 32)
+	exZaehlt(t, "Rang der Query", n, 128)
 }
