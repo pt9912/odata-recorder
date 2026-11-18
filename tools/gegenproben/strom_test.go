@@ -97,7 +97,7 @@ func TestFuehreFallStartetMitDerHuelleDesFalls(t *testing.T) {
 	}
 }
 
-// Die Fälle 38 bis 170, 174 bis 204 und 209 bis 213 lesen die Ströme getrennt, die Fälle 1 bis 37, 171 bis 173 und
+// Die Fälle 38 bis 170, 174 bis 204 und 209 bis 216 lesen die Ströme getrennt, die Fälle 1 bis 37, 171 bis 173 und
 // 205 bis 208 gemeinsam (Randform 13), und kein getrennter Fall nennt einen Text ohne Strom.
 func TestStroemeJeNachFall(t *testing.T) {
 	alt, neu := 0, 0
@@ -118,8 +118,8 @@ func TestStroemeJeNachFall(t *testing.T) {
 			}
 		}
 	}
-	if alt != 44 || neu != 169 {
-		t.Errorf("%d Fälle mit gemeinsamer und %d mit getrennter Hülle statt 44 und 169", alt, neu)
+	if alt != 44 || neu != 172 {
+		t.Errorf("%d Fälle mit gemeinsamer und %d mit getrennter Hülle statt 44 und 172", alt, neu)
 	}
 }
 
