@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -478,7 +477,7 @@ func TestHybridNeuePolicyFehler(t *testing.T) {
 
 // TestUpstreamPflichtGrundGleich fängt M05: fehlt die UPSTREAM_URL, ist der Grund in den Modi record und hybrid (bei gültigem enabled) derselbe Text
 // `Pflichtfeld fehlt` an demselben Schlüssel, ohne Modus im Text (SPEC-110 Nr. 9, 16 f); 2 Modi × 5 Aufbauten (einzeln, Datei mit [0], [1],
-// beiden und `null` ohne URL), die Zeilen beider Modi sind gleich.
+// beiden und `null` ohne URL); beide Modi gleichen derselben erwarteten Zeile, also einander.
 func TestUpstreamPflichtGrundGleich(t *testing.T) {
 	const url = `"upstream_url":"https://h.test"`
 	aufbauten := []struct {
@@ -493,24 +492,20 @@ func TestUpstreamPflichtGrundGleich(t *testing.T) {
 	}
 	n := 0
 	for _, a := range aufbauten {
-		var je [2][]string
-		for i, modus := range []string{"record", "hybrid"} {
+		for _, modus := range []string{"record", "hybrid"} {
 			n++
 			env := []string{"MODE=" + modus, "DATA_DIR=" + filepath.Join(t.TempDir(), "d"), kHosts + "=a.example", kUpstr + "=enabled"}
 			if a.datei != "" {
 				env = append(env, "SERVICES_FILE="+schreibe(t, a.datei))
 			}
-			_, je[i] = lade(t, env...)
+			_, zeilen := lade(t, env...)
 			var soll []string
 			for _, s := range a.fehlen {
 				soll = append(soll, zeile(s, grundPflicht))
 			}
-			if !slices.Equal(je[i], soll) {
-				t.Errorf("%s, Aufbau %q: Zeilen %q, erwartet %q", modus, a.fehlen, je[i], soll)
+			if !slices.Equal(zeilen, soll) {
+				t.Errorf("%s, Aufbau %q: Zeilen %q, erwartet %q", modus, a.fehlen, zeilen, soll)
 			}
-		}
-		if !slices.Equal(je[0], je[1]) {
-			t.Errorf("Aufbau %q: record meldet %q, hybrid %q", a.fehlen, je[0], je[1])
 		}
 	}
 	if n != 10 {
@@ -607,22 +602,12 @@ func TestHybridListeLeerraumUmEintrag(t *testing.T) {
 		{kWrite, []string{"POST /a", "PUT /b", "DELETE /c"}, func(k bootstrap.Konfiguration) []string { return k.Fallback.Schreibfreigaben }},
 		{kReplay, []string{"unsupported", "coverage_insufficient", "unsupported"}, func(k bootstrap.Konfiguration) []string { return k.Fallback.ReplayKategorien }},
 	}
-	seiten := []struct{ vor, nach bool }{{true, false}, {false, true}, {true, true}}
 	n := 0
 	for _, l := range listen {
 		for _, w := range []string{" ", "\t", "\n", "\r"} {
-			for _, s := range seiten {
+			for _, s := range seitenPaare() {
 				n++
-				teile := make([]string, len(l.eintraege))
-				for i, e := range l.eintraege {
-					if s.vor {
-						e = w + e
-					}
-					if s.nach {
-						e += w
-					}
-					teile[i] = e
-				}
+				teile := mitRand(l.eintraege, w, s.vor, s.nach)
 				k, zeilen := lade(t, hybridBasis(t, "hybrid", l.schluessel+"="+strings.Join(teile, ","))...)
 				if len(zeilen) != 0 || !slices.Equal(l.trage(k), l.eintraege) {
 					t.Errorf("%s mit %q, Seiten %+v: Zeilen %q, Konfiguration trägt %q", l.schluessel, w, s, zeilen, l.trage(k))
@@ -636,11 +621,34 @@ func TestHybridListeLeerraumUmEintrag(t *testing.T) {
 }
 
 // TestKonfigListenFremderLeerraum fängt M06 an den fünf Listen außerhalb des Modus hybrid (SPEC-110 Nr. 6): ein Zeichen außerhalb des Leerraums am Rand
-// eines Eintrags bleibt im Eintrag. Die Menge: fünf Listen × sechs Zeichen × Seite {vor, nach, beide} = 90 Fälle mit je drei Einträgen. Erwartet ist je Fall
-// ein Verstoß am Schlüssel (Header-Namen und JSON-Pfade lassen das Zeichen nicht zu) oder eine Konfiguration, die jeden Eintrag mit dem Zeichen trägt und
-// keine bereinigte Fassung (Query-Parameter-Namen schließen nur den Leerraum der Nr. 1 aus).
+// eines Eintrags bleibt im Eintrag und macht ihn ungültig. Die Menge: fünf Listen × sechs Zeichen × Seite {vor, nach, beide} = 90 Fälle mit je drei Einträgen;
+// erwartet ist je Fall genau ein Verstoß am Schlüssel der Liste (Header-Namen, Query-Parameter-Namen und JSON-Pfade lassen das Zeichen nicht zu).
 func TestKonfigListenFremderLeerraum(t *testing.T) {
-	listen := []struct {
+	n := 0
+	for _, l := range listenAusserHybrid() {
+		for _, w := range fremdeZeichen() {
+			for _, s := range seitenPaare() {
+				n++
+				teile := mitRand(l.eintraege, w, s.vor, s.nach)
+				_, zeilen := lade(t, hybridBasis(t, "record", l.schluessel+"="+strings.Join(teile, ","))...)
+				if got := schluessel(t, zeilen); !slices.Equal(got, []string{l.schluessel}) {
+					t.Errorf("%s mit %q, Seiten %+v: Verstöße %q, erwartet einen am Schlüssel", l.schluessel, w, s, zeilen)
+				}
+			}
+		}
+	}
+	if n != 90 {
+		t.Errorf("Menge hat %d Elemente, erwartet 90", n)
+	}
+}
+
+// listenAusserHybrid sind die fünf Listen, die in jedem Modus gelten und im Modus hybrid keine Policy haben, je mit drei gültigen Einträgen.
+func listenAusserHybrid() []struct {
+	schluessel string
+	eintraege  []string
+	trage      func(k bootstrap.Konfiguration) []string
+} {
+	return []struct {
 		schluessel string
 		eintraege  []string
 		trage      func(k bootstrap.Konfiguration) []string
@@ -651,44 +659,51 @@ func TestKonfigListenFremderLeerraum(t *testing.T) {
 		{"REDACT_QUERY_PARAMS", []string{"p_a", "p_b", "p_c"}, func(k bootstrap.Konfiguration) []string { return k.RedactQueryParams }},
 		{"REDACT_JSON_PATHS", []string{"$..a", "$..b", "$..c"}, func(k bootstrap.Konfiguration) []string { return k.RedactJSONPaths }},
 	}
-	seiten := []struct{ vor, nach bool }{{true, false}, {false, true}, {true, true}}
-	n := 0
-	for _, l := range listen {
-		for _, w := range fremdeZeichen() {
-			for _, s := range seiten {
-				n++
-				teile := make([]string, len(l.eintraege))
-				for i, e := range l.eintraege {
-					if s.vor {
-						e = w + e
-					}
-					if s.nach {
-						e += w
-					}
-					teile[i] = e
-				}
-				k, zeilen := lade(t, hybridBasis(t, "record", l.schluessel+"="+strings.Join(teile, ","))...)
-				if len(zeilen) > 0 {
-					if got := schluessel(t, zeilen); !slices.Equal(got, []string{l.schluessel}) {
-						t.Errorf("%s mit %q, Seiten %+v: Verstöße %q", l.schluessel, w, s, zeilen)
-					}
-					continue
-				}
-				for i, e := range teile {
-					if !slices.Contains(l.trage(k), e) || slices.Contains(l.trage(k), l.eintraege[i]) {
-						t.Errorf("%s mit %q, Seiten %+v: Konfiguration trägt %q, erwartet den Eintrag %q ohne Bereinigung", l.schluessel, w, s, l.trage(k), e)
-					}
-				}
-			}
+}
+
+// sauberDienst sind die Felder eines gültigen Dienstes der Services-Datei.
+func sauberDienst() map[string]string {
+	return map[string]string{"id": "x", "service_root": "/a", "upstream_url": "https://h.test/o"}
+}
+
+// dienstMitRand lädt eine Services-Datei mit einem Dienst, dessen Feld feld auf der Seite seite (vor oder nach) das Zeichen w trägt.
+func dienstMitRand(t *testing.T, feld, seite, w string) (bootstrap.Konfiguration, []string) {
+	t.Helper()
+	werte := sauberDienst()
+	if seite == "vor" {
+		werte[feld] = w + werte[feld]
+	} else {
+		werte[feld] += w
+	}
+	roh, err := json.Marshal([]map[string]string{werte})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return lade(t, "MODE=record", "DATA_DIR="+filepath.Join(t.TempDir(), "d"), "SERVICES_FILE="+schreibe(t, string(roh)))
+}
+
+// seitenPaare sind die Seiten, auf denen ein Zeichen an einem Eintrag steht: vor, nach, beide.
+func seitenPaare() []struct{ vor, nach bool } {
+	return []struct{ vor, nach bool }{{true, false}, {false, true}, {true, true}}
+}
+
+// mitRand setzt w vor und oder nach jeden Eintrag.
+func mitRand(eintraege []string, w string, vor, nach bool) []string {
+	out := make([]string, len(eintraege))
+	for i, e := range eintraege {
+		if vor {
+			e = w + e
 		}
+		if nach {
+			e += w
+		}
+		out[i] = e
 	}
-	if n != 90 {
-		t.Errorf("Menge hat %d Elemente, erwartet 90", n)
-	}
+	return out
 }
 
 // fremdeZeichen sind Zeichen außerhalb des Leerraums von SPEC-110 Nr. 1, aus Bytewerten gebaut (AGENTS.md §3.18): VT, FF, NEL, NBSP,
-// Figure Space und BOM. Sie bleiben im Wert; die Menge der übrigen Unicode-Leerraum-Zeichen ist unbeschränkt (Plan, Abschnitt 3).
+// Figure Space und BOM. Sie bleiben im Wert; die 19 Zeichen mit White_Space außerhalb von ASCII führt weissraumNichtASCII.
 func fremdeZeichen() []string {
 	return []string{"\x0b", "\x0c", "\xc2\x85", "\xc2\xa0", "\xe2\x80\x87", "\xef\xbb\xbf"}
 }
@@ -714,22 +729,12 @@ func TestHybridListeFremderLeerraum(t *testing.T) {
 		{kReplay, []string{"unsupported", "coverage_insufficient", "unsupported"}, func(bool) string { return grundKategorie },
 			func(k bootstrap.Konfiguration) []string { return k.Fallback.ReplayKategorien }},
 	}
-	seiten := []struct{ vor, nach bool }{{true, false}, {false, true}, {true, true}}
 	n := 0
 	for _, l := range listen {
 		for _, w := range fremdeZeichen() {
-			for _, s := range seiten {
+			for _, s := range seitenPaare() {
 				n++
-				teile := make([]string, len(l.eintraege))
-				for i, e := range l.eintraege {
-					if s.vor {
-						e = w + e
-					}
-					if s.nach {
-						e += w
-					}
-					teile[i] = e
-				}
+				teile := mitRand(l.eintraege, w, s.vor, s.nach)
 				k, zeilen := lade(t, hybridBasis(t, "hybrid", l.schluessel+"="+strings.Join(teile, ","))...)
 				if soll := []string{zeile(l.schluessel, "Eintrag 1: "+l.grund(s.vor))}; !slices.Equal(zeilen, soll) {
 					t.Errorf("%s mit %q, Seiten %+v: Zeilen %q, erwartet %q", l.schluessel, w, s, zeilen, soll)
@@ -789,19 +794,8 @@ func TestKonfigFremderLeerraumAnderenStellen(t *testing.T) {
 		for _, feld := range []string{"id", "service_root", "upstream_url"} {
 			for _, seite := range []string{"vor", "nach"} {
 				n++
-				sauber := map[string]string{"id": "x", "service_root": "/a", "upstream_url": "https://h.test/o"}
-				werte := maps.Clone(sauber)
-				if seite == "vor" {
-					werte[feld] = w + werte[feld]
-				} else {
-					werte[feld] += w
-				}
-				roh, err := json.Marshal([]map[string]string{werte})
-				if err != nil {
-					t.Fatal(err)
-				}
-				env := []string{"MODE=record", "DATA_DIR=" + filepath.Join(t.TempDir(), "d"), "SERVICES_FILE=" + schreibe(t, string(roh))}
-				k, zeilen := lade(t, env...)
+				sauber := sauberDienst()
+				k, zeilen := dienstMitRand(t, feld, seite, w)
 				// Das Zeichen bleibt im Feld: entweder ist das Feld ungültig, oder der Wert trägt das Zeichen (ein Pfad der URL darf es führen).
 				if len(zeilen) > 0 {
 					if got := schluessel(t, zeilen); !slices.Equal(got, []string{"SERVICES_FILE[0]." + feld}) {
@@ -827,5 +821,205 @@ func TestKonfigFremderLeerraumAnderenStellen(t *testing.T) {
 	}
 	if _, zeilen := lade(t, hybridBasis(t, "record", "MODE=\t record\r\n")...); len(zeilen) != 0 {
 		t.Errorf("MODE mit Leerraum am Rand: Zeilen %q, erwartet keine", zeilen)
+	}
+}
+
+// TestKonfigLeerraumJedeStelle fängt M06 an jeder Stelle, die kappt (SPEC-110 Nr. 1, 6): jedes der vier Zeichen des Leerraums wird auf jeder Seite entfernt.
+// Die Menge: Zeichen {Leerzeichen, Tabulator, LF, CR} × Stelle {Wert (MODE) vor und nach, ADMIN_X allein, fünf Listen außerhalb von hybrid je vor und nach,
+// UPSTREAM_URL vor und nach, drei Felder der Services-Datei je vor und nach} = 4 × 21 = 84 Fälle; die Einträge der drei Listen von hybrid führt
+// TestHybridListeLeerraumUmEintrag (36). Erwartet ist je Fall kein Verstoß und der Wert ohne das Zeichen.
+func TestKonfigLeerraumJedeStelle(t *testing.T) {
+	const url = "https://h.test/odata"
+	n := 0
+	for _, w := range []string{" ", "\t", "\n", "\r"} {
+		for _, wert := range []string{w + "record", "record" + w} {
+			n++
+			if k, zeilen := lade(t, hybridBasis(t, "record", "MODE="+wert)...); len(zeilen) != 0 || k.Modus != "record" {
+				t.Errorf("MODE=%q: Zeilen %q, Modus %q", wert, zeilen, k.Modus)
+			}
+		}
+		n++
+		if _, zeilen := lade(t, hybridBasis(t, "record", "ADMIN_X="+w)...); len(zeilen) != 0 {
+			t.Errorf("ADMIN_X=%q: Zeilen %q, erwartet keine", w, zeilen)
+		}
+		for _, l := range listenAusserHybrid() {
+			for _, s := range seitenPaare()[:2] {
+				n++
+				teile := mitRand(l.eintraege, w, s.vor, s.nach)
+				k, zeilen := lade(t, hybridBasis(t, "record", l.schluessel+"="+strings.Join(teile, ","))...)
+				if len(zeilen) != 0 {
+					t.Errorf("%s mit %q, Seiten %+v: Zeilen %q, erwartet keine", l.schluessel, w, s, zeilen)
+				}
+				for _, e := range l.eintraege {
+					if !slices.Contains(l.trage(k), e) {
+						t.Errorf("%s mit %q, Seiten %+v: Konfiguration trägt %q, erwartet %q", l.schluessel, w, s, l.trage(k), e)
+					}
+				}
+			}
+		}
+		for _, wert := range []string{w + url, url + w} {
+			n++
+			if k, zeilen := lade(t, hybridBasis(t, "record", "UPSTREAM_URL="+wert)...); len(zeilen) != 0 || len(k.Dienste) != 1 || k.Dienste[0].UpstreamURL != url {
+				t.Errorf("UPSTREAM_URL=%q: Zeilen %q, Dienste %+v, erwartet %q", wert, zeilen, k.Dienste, url)
+			}
+		}
+		for _, feld := range []string{"id", "service_root", "upstream_url"} {
+			for _, seite := range []string{"vor", "nach"} {
+				n++
+				k, zeilen := dienstMitRand(t, feld, seite, w)
+				sauber := sauberDienst()
+				if len(zeilen) != 0 || len(k.Dienste) != 1 || k.Dienste[0].ID != sauber["id"] || k.Dienste[0].Root != sauber["service_root"] || k.Dienste[0].UpstreamURL != sauber["upstream_url"] {
+					t.Errorf("Feld %s, %s, Zeichen %q: Zeilen %q, Dienste %+v, erwartet %v", feld, seite, w, zeilen, k.Dienste, sauber)
+				}
+			}
+		}
+	}
+	if n != 84 {
+		t.Errorf("Menge hat %d Elemente, erwartet 84", n)
+	}
+}
+
+// weissraumNichtASCII sind die 19 Zeichen mit der Eigenschaft White_Space außerhalb von ASCII (U+0085, U+00A0, U+1680, U+2000 bis U+200A, U+2028, U+2029,
+// U+202F, U+205F, U+3000), aus Zahlenwerten gebaut (AGENTS.md §3.18). Mit den sechs in ASCII sind es 25 (SPEC-201 Nr. 2 e); 21 liegen außerhalb des Leerraums.
+func weissraumNichtASCII() []string {
+	var out []string
+	for _, r := range []rune{0x85, 0xa0, 0x1680, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000} {
+		out = append(out, string(r))
+	}
+	for r := rune(0x2000); r <= 0x200a; r++ {
+		out = append(out, string(r))
+	}
+	return out
+}
+
+// TestKonfigWeissraumAusserhalbBleibt fängt M06 für jedes der 19 Zeichen von weissraumNichtASCII: es bleibt am Rand eines Wertes im Wert und macht ihn
+// ungültig (SPEC-110 Nr. 1, 6). Die Menge: 19 Zeichen × Stelle {MODE, REDACT_HEADERS} × Seite {vor, nach} = 76 Fälle; erwartet ist je Fall genau ein Verstoß
+// am Schlüssel. Das fängt jede Erweiterung von kappe um eines dieser Zeichen, auch bei unveränderter Konstante leerraum.
+func TestKonfigWeissraumAusserhalbBleibt(t *testing.T) {
+	if got := len(weissraumNichtASCII()); got != 19 {
+		t.Fatalf("Menge hat %d Zeichen, erwartet 19 (25 White_Space abzüglich 6 in ASCII)", got)
+	}
+	n := 0
+	for _, w := range weissraumNichtASCII() {
+		for _, c := range []struct{ schluessel, wert string }{{"MODE", "record"}, {"REDACT_HEADERS", "X-A"}} {
+			for _, wert := range []string{w + c.wert, c.wert + w} {
+				n++
+				_, zeilen := lade(t, hybridBasis(t, "record", c.schluessel+"="+wert)...)
+				if got := schluessel(t, zeilen); !slices.Equal(got, []string{c.schluessel}) {
+					t.Errorf("%s=%q: Verstöße %q, erwartet einen am Schlüssel", c.schluessel, wert, zeilen)
+				}
+			}
+		}
+	}
+	if n != 76 {
+		t.Errorf("Menge hat %d Elemente, erwartet 76", n)
+	}
+}
+
+// zeichenMengeZ ist die Menge Z der Zeichen, die ein Eintrag von REDACT_QUERY_PARAMS tragen könnte (SPEC-110 Nr. 6), aus Bytewerten gebaut
+// (AGENTS.md §3.18): die 128 ASCII-Bytes, die 19 Zeichen von weissraumNichtASCII und vier weitere (BOM, Nullbreitenzeichen, der Buchstabe U+00FC
+// und das Byte 0xFF, das kein UTF-8 ist).
+func zeichenMengeZ() (ascii, weissraum, weitere []string) {
+	for b := byte(0); b < 128; b++ {
+		ascii = append(ascii, string([]byte{b}))
+	}
+	return ascii, weissraumNichtASCII(), []string{string(rune(0xfeff)), string(rune(0x200b)), string(rune(0xfc)), string([]byte{0xff})}
+}
+
+// queryNameErlaubt ist das Orakel für ein Zeichen aus Z: eines der 90 ASCII-Zeichen von U+0021 bis U+007E außer `=`, `&`, `#`, `,` (SPEC-110 Nr. 6).
+func queryNameErlaubt(z string) bool {
+	return len(z) == 1 && z[0] >= 0x21 && z[0] <= 0x7e && !strings.Contains("=&#,", z)
+}
+
+// TestKonfigQueryNameZeichen fängt F-1 und F-3 auf der Ebene der Prüfung (SPEC-110 Nr. 6): jedes der 151 Zeichen von Z allein und als `a<Zeichen>b`; erlaubt sind
+// genau die 90, die 61 anderen (38 in ASCII, 19 mit White_Space, 4 weitere) machen den Namen ungültig; dazu die Grenzen U+0020/U+0021 und U+007E/U+007F
+// und der leere Name.
+func TestKonfigQueryNameZeichen(t *testing.T) {
+	ascii, weissraum, weitere := zeichenMengeZ()
+	alle := slices.Concat(ascii, weissraum, weitere)
+	if len(ascii) != 128 || len(weissraum) != 19 || len(weitere) != 4 || len(alle) != 151 {
+		t.Fatalf("Z hat %d + %d + %d = %d Zeichen, erwartet 128 + 19 + 4 = 151", len(ascii), len(weissraum), len(weitere), len(alle))
+	}
+	erlaubt, asciiVerboten, andere := 0, 0, 0
+	for _, z := range alle {
+		soll := queryNameErlaubt(z)
+		switch {
+		case soll:
+			erlaubt++
+		case len(z) == 1 && z[0] < 128:
+			asciiVerboten++
+			andere++
+		default:
+			andere++
+		}
+		for _, s := range []string{z, "a" + z + "b"} {
+			if got := bootstrap.IstQueryName(s); got != soll {
+				t.Errorf("Name %q: gültig %v, erwartet %v", s, got, soll)
+			}
+		}
+	}
+	if erlaubt != 90 || asciiVerboten != 38 || erlaubt+asciiVerboten != 128 || andere != 61 {
+		t.Errorf("erlaubt %d, in ASCII verboten %d, andere %d; erwartet 90, 38 (90 + 38 = 128) und 61", erlaubt, asciiVerboten, andere)
+	}
+	for s, soll := range map[string]bool{"": false, "\x20": false, "\x21": true, "\x7e": true, "\x7f": false, "a b": false, "access_token": true} {
+		if got := bootstrap.IstQueryName(s); got != soll {
+			t.Errorf("Name %q: gültig %v, erwartet %v", s, got, soll)
+		}
+	}
+}
+
+// TestKonfigQueryNameInListe fängt F-1 und F-3 über die Umgebung (REDACT_QUERY_PARAMS, SPEC-110 Nr. 1, 6): die 150 Zeichen von Z ohne U+0000 (die Umgebung trägt kein
+// NUL) × Stelle im Namen {Anfang, Mitte, Ende} mit je drei Einträgen = 450 Fälle. Erwartet: ein Zeichen des Leerraums an Anfang und Ende wird entfernt; ein Komma
+// in der Mitte trennt zwei Einträge; ein erlaubtes Zeichen steht im Namen; jedes andere Zeichen ist genau ein Verstoß am Schlüssel und nie ein Eintrag der Konfiguration.
+func TestKonfigQueryNameInListe(t *testing.T) {
+	ascii, weissraum, weitere := zeichenMengeZ()
+	z150 := slices.Concat(ascii[1:], weissraum, weitere)
+	if len(z150) != 150 {
+		t.Fatalf("Z ohne U+0000 hat %d Zeichen, erwartet 150", len(z150))
+	}
+	basis := hybridBasis(t, "record")
+	standard := erwarteGueltig(t, basis...).RedactQueryParams
+	namen := []string{"p_a", "p_b", "p_c"}
+	gueltig, verstoss := 0, 0
+	for _, z := range z150 {
+		for _, pos := range []string{"anfang", "mitte", "ende"} {
+			teile := make([]string, len(namen))
+			for i, n := range namen {
+				switch pos {
+				case "anfang":
+					teile[i] = z + n
+				case "mitte":
+					teile[i] = n[:1] + z + n[1:]
+				default:
+					teile[i] = n + z
+				}
+			}
+			var soll []string
+			switch {
+			case strings.Contains(" \t\n\r", z) && pos != "mitte":
+				soll = namen
+			case z == "," && pos == "mitte":
+				soll = []string{"p", "_a", "_b", "_c"}
+			case queryNameErlaubt(z):
+				soll = teile
+			}
+			k, zeilen := lade(t, append(slices.Clone(basis), "REDACT_QUERY_PARAMS="+strings.Join(teile, ","))...)
+			if soll == nil {
+				verstoss++
+				if got := schluessel(t, zeilen); !slices.Equal(got, []string{"REDACT_QUERY_PARAMS"}) {
+					t.Errorf("Zeichen %q, Stelle %s: Zeilen %q, erwartet einen Verstoß am Schlüssel", z, pos, zeilen)
+				}
+				continue
+			}
+			gueltig++
+			eigene := slices.DeleteFunc(slices.Clone(k.RedactQueryParams), func(x string) bool { return slices.Contains(standard, x) })
+			soll = slices.Compact(slices.Sorted(slices.Values(soll)))
+			if len(zeilen) != 0 || !slices.Equal(eigene, soll) {
+				t.Errorf("Zeichen %q, Stelle %s: Zeilen %q, eigene Namen %q, erwartet %q", z, pos, zeilen, eigene, soll)
+			}
+		}
+	}
+	if gueltig != 4*2+1+90*3 || verstoss != 150*3-gueltig || gueltig+verstoss != 450 {
+		t.Errorf("gültig %d, Verstoß %d; erwartet 279 (8 am Rand, 1 Komma in der Mitte, 270 erlaubte) und 171 von 450", gueltig, verstoss)
 	}
 }

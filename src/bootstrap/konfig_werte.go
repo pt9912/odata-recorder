@@ -282,8 +282,18 @@ func istHeaderToken(s string) bool {
 	return s != "" && zeichenAus(s, "!#$%&'*+-.^_`|~")
 }
 
+// istQueryName verlangt ein oder mehr der 90 ASCII-Zeichen U+0021 bis U+007E außer `=`, `&`, `#` und `,` (SPEC-110 Nr. 6).
+// Der Vergleich der Redaction ist exakt (SPEC-115 Nr. 4): ein Name mit einem anderen Zeichen träfe nie einen Parameter (LH-FA-14).
 func istQueryName(s string) bool {
-	return s != "" && !strings.ContainsAny(s, " \t\r\n=&#,")
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if c := s[i]; c < 0x21 || c > 0x7e || strings.IndexByte("=&#,", c) >= 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // istJSONPfad prüft mit dem Parser des Modells (SPEC-115 Nr. 6, SPEC-110 Nr. 6).

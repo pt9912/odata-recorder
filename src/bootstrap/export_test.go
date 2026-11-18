@@ -17,6 +17,9 @@ func EtagFuerSatz(satz outbound.CodecSatz, an bool) bool { return etagFuerSatz(s
 // Leerraum sind die Zeichen, die die Konfiguration am Rand entfernt (SPEC-110 Nr. 1).
 const Leerraum = leerraum
 
+// IstQueryName ist die Prüfung eines Eintrags von REDACT_QUERY_PARAMS (SPEC-110 Nr. 6).
+func IstQueryName(s string) bool { return istQueryName(s) }
+
 // SatzVersion4 ist der Satz der Codecs der Version 4.0 des Mock.
 func SatzVersion4() outbound.CodecSatz { return satzVersion4() }
 
