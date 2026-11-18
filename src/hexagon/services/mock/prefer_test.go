@@ -782,7 +782,7 @@ func TestPreferSchreiberFehler(t *testing.T) {
 		{"verpackt", fmt.Errorf("Port: %w", context.DeadlineExceeded), true}, {"Join", errors.Join(outbound.ErrNichtGefunden, context.Canceled), true},
 		{"ErrNichtGefunden", outbound.ErrNichtGefunden, false}, {"ErrBereitsVorhanden", outbound.ErrBereitsVorhanden, false},
 	}
-	// Die Fehler trennen jeden Gegenstand außer `Sonstiges` von `Sonstiges`: sonst bliebe ein Gegenstand je Stelle ungefangen.
+	// Jeder Gegenstand außer `Sonstiges` wird von mindestens einem Fehler der Liste von `Sonstiges` getrennt; die Schleife prüft es je Gegenstand.
 	for g := outbound.GegenstandSonstiges + 1; g <= outbound.GegenstandDienst; g++ {
 		getrennt := false
 		for _, f := range fehler {

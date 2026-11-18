@@ -285,6 +285,75 @@ func TestLiesRueckgabeAnfuehrung(t *testing.T) {
 	}
 }
 
+// bs ist eine Folge von k Backslashes.
+func bs(k int) string { return strings.Repeat(`\`, k) }
+
+// TestLiesRueckgabeBackslashFremd (Z6b, SPEC-285 Nr. 2): die Klasse „Backslash in einem fremden Element“, an den beiden Stellen der Grammatik, die ihn nennen.
+// Im Paar schützt ein Backslash das folgende Zeichen, eine Folge von k Backslashes vor dem Schlusszeichen schützt es bei ungeradem k und lässt es bei geradem k
+// schließen: Stelle des Paares (Wert, Rest, Rest eines anderen Elements, Name) 4 × Inhalt vor der Folge 3 × k 0 bis 7 × Zeichen hinter der Folge (`"`, `,`, `a`, Ende
+// der Zeile) 4 = 384 Fälle. Außerhalb eines Paares hat ein Backslash keine Wirkung, auch nicht vor `,` oder `"`: Stelle der Folge (Name, Wert, Rest, Rest eines anderen
+// Elements) 4 × Zeichen hinter der Folge (`,`, Paar) 2 × k 0 bis 7 = 64 Fälle. Das Orakel ist die Parität von k und der Orakel-Leser aus Z9.
+func TestLiesRueckgabeBackslashFremd(t *testing.T) {
+	n := 0
+	stellen := []string{`x=`, `x=1;p=`, `respond-async; p=`, `x`}
+	vorher := []string{``, `a`, `, return=representation`}
+	for _, st := range stellen {
+		for _, pre := range vorher {
+			for k := 0; k <= 7; k++ {
+				for _, c := range []string{`"`, `,`, `a`, ``} {
+					n++
+					kopf := st + `"` + pre + bs(k) + c
+					soll := minimal
+					if c == `"` && k%2 == 1 {
+						soll = keine // der Backslash schützt das Schlusszeichen, das Paar reicht bis zum Ende der Zeile
+					}
+					zeile := kopf + `", return=minimal`
+					if c == `` {
+						// das Paar ist am Ende der Zeile offen und reicht nicht in die nächste
+						if got := model.LiesRueckgabe([]string{kopf}); got != keine {
+							t.Errorf("%q: %d, erwartet Keine", kopf, got)
+						}
+						if got := model.LiesRueckgabe([]string{kopf, "return=minimal"}); got != minimal {
+							t.Errorf("%q, dann return=minimal: %d, erwartet Minimal", kopf, got)
+						}
+						continue
+					}
+					if c == `"` {
+						zeile = kopf + `, return=minimal`
+					}
+					if got := model.LiesRueckgabe([]string{zeile}); got != soll {
+						t.Errorf("%q: %d, erwartet %d (k=%d)", zeile, got, soll, k)
+					}
+					if orakel := preferOrakel(zeile); orakel != soll {
+						t.Errorf("%q: Orakel %d, erwartet %d", zeile, orakel, soll)
+					}
+				}
+			}
+		}
+	}
+	if n != 4*3*8*4 {
+		t.Errorf("Menge im Paar %d, erwartet %d", n, 4*3*8*4)
+	}
+	n = 0
+	for _, st := range []string{`x`, `x=1`, `x=1;p=a`, `respond-async; p=`} {
+		for _, hinter := range []string{`, return=minimal`, `"a", return=minimal`} {
+			for k := 0; k <= 7; k++ {
+				n++
+				zeile := st + bs(k) + hinter
+				if got := model.LiesRueckgabe([]string{zeile}); got != minimal {
+					t.Errorf("%q: %d, erwartet Minimal (ein Backslash außerhalb eines Paares schützt nichts, k=%d)", zeile, got, k)
+				}
+				if orakel := preferOrakel(zeile); orakel != minimal {
+					t.Errorf("%q: Orakel %d, erwartet Minimal", zeile, orakel)
+				}
+			}
+		}
+	}
+	if n != 4*2*8 {
+		t.Errorf("Menge außerhalb des Paares %d, erwartet %d", n, 4*2*8)
+	}
+}
+
 // TestLiesRueckgabeRest (Z7, SPEC-285 Nr. 2): `Rest` hinter dem ersten `;` hat keine Wirkung, auch ein Komma darin außerhalb eines Paares beginnt nur
 // ein neues Element; sieben Formen des Rests × beide Werte, ohne und mit einem späteren Element `return`.
 func TestLiesRueckgabeRest(t *testing.T) {
@@ -546,16 +615,27 @@ func TestLiesRueckgabeBackslashWort(t *testing.T) {
 	}
 }
 
-// zeitFormen sind die Formen langer Zeilen, die TestLiesRueckgabeZeit prüft; n zählt die Wiederholungen des Bausteins.
-func zeitFormen() []struct {
+// zeitForm ist eine Stelle der Grammatik von SPEC-285 Nr. 2, an der ein Lauf beliebig lang sein kann; n zählt die Wiederholungen des Bausteins (zwei Zeichen je Baustein,
+// Zeilen und Elemente je einen).
+type zeitForm struct {
 	name string
 	bau  func(n int) []string
-} {
-	return []struct {
-		name string
-		bau  func(n int) []string
-	}{
-		{"Elemente", func(n int) []string { return []string{strings.Repeat("x,", n)} }},
+}
+
+// zeitFormen sind die Stellen des langen Laufs, die TestLiesRueckgabeZeit prüft: die Stellen der Grammatik, an denen ein Lauf von Zeichen steht, je Zeile (Zeilen),
+// je Element (Elemente, Kommas), im Leerraum (vor dem Namen, hinter dem Namen, hinter `=`, hinter dem Wort), im Namen, im Wort als Token, im Wort in Anführungszeichen
+// (ohne Backslash, mit Backslash, offen), im Rest hinter dem Wert, in einem fremden Element (Wert, Rest, Paar ohne Backslash, Paar mit Backslash, offenes Paar) und als
+// Backslash außerhalb eines Paares.
+func zeitFormen() []zeitForm {
+	wdh := func(s string) func(n int) string { return func(n int) string { return strings.Repeat(s, n) } }
+	a2, bsa, bs2, leer, komma := wdh("aa"), wdh(`\a`), wdh(`\\`), wdh("  "), wdh("a,")
+	eine := func(f func(n int) string) func(n int) []string {
+		return func(n int) []string { return []string{f(n)} }
+	}
+	rund := func(vor string, f func(n int) string, nach string) func(n int) []string {
+		return eine(func(n int) string { return vor + f(n) + nach })
+	}
+	return []zeitForm{
 		{"Zeilen", func(n int) []string {
 			z := make([]string, n)
 			for i := range z {
@@ -563,11 +643,25 @@ func zeitFormen() []struct {
 			}
 			return z
 		}},
-		{"Name", func(n int) []string { return []string{strings.Repeat("a", 2*n)} }},
-		{"Leerraum", func(n int) []string { return []string{strings.Repeat(" ", 2*n) + "return=minimal"} }},
-		{"Paar mit Backslash", func(n int) []string { return []string{`return="` + strings.Repeat(`\a`, n) + `"`} }},
-		{"offenes Paar", func(n int) []string { return []string{`x="` + strings.Repeat("a,", n)} }},
-		{"Kommas", func(n int) []string { return []string{strings.Repeat(", ", n)} }},
+		{"Elemente", rund("", wdh("x,"), "")},
+		{"Kommas", rund("", wdh(", "), "")},
+		{"Leerraum vor dem Namen", rund("", leer, "return=minimal")},
+		{"Leerraum hinter dem Namen", rund("return", leer, "=minimal")},
+		{"Leerraum hinter =", rund("return=", leer, "minimal")},
+		{"Leerraum hinter dem Wort", rund("return=minimal", leer, "")},
+		{"Name", rund("", a2, "")},
+		{"Wert als Token", rund("return=", a2, "")},
+		{"Wort ohne Backslash", rund(`return="`, a2, `"`)},
+		{"Wort mit Backslash", rund(`return="`, bsa, `"`)},
+		{"offenes Wort", rund(`return="`, a2, "")},
+		{"Rest hinter dem Wert", rund("return=minimal;", a2, "")},
+		{"fremder Wert", rund("x=", a2, "")},
+		{"fremder Rest", rund("x;", a2, "")},
+		{"fremdes Paar ohne Backslash", rund(`x="`, a2, `"`)},
+		{"fremdes Paar mit Backslash", rund(`x="`, bsa, `"`)},
+		{"fremdes Paar mit Folge von Backslashes", rund(`x="`, bs2, `"`)},
+		{"offenes fremdes Paar", rund(`x="`, komma, "")},
+		{"Backslash außerhalb eines Paares", rund("x", bs2, "")},
 	}
 }
 
@@ -582,10 +676,10 @@ func besteZeit(k int, f func()) time.Duration {
 	return best
 }
 
-// TestLiesRueckgabeZeit (Z9a, SPEC-285 Nr. 1): die Zeit wächst nicht schneller als linear mit der Länge der Zeilen; sieben Formen langer Zeilen (Elemente, Zeilen, Name, Leerraum,
-// Paar mit Backslash, offenes Paar, Kommas) mit 2000 und mit 64000 Wiederholungen. Bei linearem Wachstum wächst die Zeit um das 32-fache, bei quadratischem um das 1024-fache;
+// TestLiesRueckgabeZeit (Z9a, SPEC-285 Nr. 1): die Zeit wächst nicht schneller als linear mit der Länge der Zeilen; die 20 Stellen des langen Laufs aus zeitFormen mit 2000
+// und mit 64000 Wiederholungen. Bei linearem Wachstum wächst die Zeit um das 32-fache, bei quadratischem um das 1024-fache;
 // die Grenze liegt beim 128-fachen der besten Zeit der kleinen Länge, und der Lauf mit der großen Länge zählt als bestanden, sobald einer von fünf Versuchen darunter liegt.
-// Der Fänger misst Zeit: unter Last des Hosts kann er ohne Fehler im Code rot werden, und er fängt nur die sieben Formen; die Raten stehen im Plan (§3).
+// Der Fänger misst Zeit: unter Last des Hosts kann er ohne Fehler im Code rot werden, und er fängt nur die Stellen der Liste mit je einem Baustein; die Raten stehen im Plan (§3).
 func TestLiesRueckgabeZeit(t *testing.T) {
 	const klein, gross = 2000, 64000
 	n := 0
@@ -607,7 +701,7 @@ func TestLiesRueckgabeZeit(t *testing.T) {
 			t.Errorf("%s: %v für %d Wiederholungen, %v für %d; Grenze das 128-fache", f.name, letzte, gross, t1, klein)
 		}
 	}
-	if n != 7 {
-		t.Errorf("Menge %d, erwartet 7", n)
+	if n != 20 {
+		t.Errorf("Menge %d, erwartet 20", n)
 	}
 }

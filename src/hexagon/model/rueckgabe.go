@@ -15,7 +15,8 @@ const (
 // LiesRueckgabe liest die Wahl aus den Zeilen der Kopfzeilen `Prefer` (SPEC-285): ein Element je Kopfzeile, nil heißt kein Header. Das
 // erste lesbare Element namens `return` entscheidet, auch wenn sein Wert keine Wahl ist; spätere Elemente haben keine Wirkung, eine Zeile
 // reicht nie in die nächste. Die Funktion liest nichts außer zeilen, ändert nichts und liefert nie einen Fehler; `TestLiesRueckgabeZeit`
-// hält ihre Zeit für sieben Formen langer Zeilen gegen lineares Wachstum, andere Formen bleiben ungeprüft (SPEC-285 Nr. 1).
+// hält ihre Zeit an 20 Stellen des langen Laufs der Grammatik gegen lineares Wachstum, je mit einem Baustein; andere Läufe an diesen Stellen bleiben
+// ungeprüft (SPEC-285 Nr. 1).
 func LiesRueckgabe(zeilen []string) Rueckgabe {
 	for _, z := range zeilen {
 		if r, entschieden := liesPreferZeile(z); entschieden {
