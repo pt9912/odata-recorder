@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-07.b` (CRUD-Vertragsmatrix: `Prefer` für POST, PATCH, PUT; ohne `Prefer` gilt das Muss-Verhalten; ein nicht unterstützter Wert ergibt keinen Fehler) · `SPEC-285` bis `SPEC-289` (der Vertrag dieses Slice) · `SPEC-194` Nr. 4 (gilt nur noch ohne Wahl), `SPEC-192`, `SPEC-049` (Zeile Header, Spalte Soll: `Prefer: return=…`) · `SPEC-006` · `ARC-002`, `ARC-004`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-prefer-return)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
