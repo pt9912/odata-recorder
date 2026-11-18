@@ -70,6 +70,7 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | slice-handbuch-katalog-schluessel-kommandos | Kataloge der Konfigurationsschlüssel und der Kommandos im Abgleich, Abschnitte *Einstellungen* und *Kommandos* des Handbuchs | `LH-QA-05`, `LH-RB-01` |
 | slice-handbuch-record-replay | Kapitel Aufzeichnen und Wiedergeben mit belegten Beispielen | `LH-FA-02`, `LH-FA-04`, `LH-FA-14`, `LH-RB-04` |
 | slice-handbuch-mock | Kapitel zum Modus `mock` mit gebundenem Beispiel, Zeilen `STRICT_COVERAGE` und `PUBLIC_BASE_URL` der Tabelle *Einstellungen* (geliefert von `slice-bootstrap-m3`), gebundenes Beispiel zu `ETAG_ENABLED` (Sendung von `slice-etag-versionen`, braucht es in `done/`), Erweiterung von `SPEC-200` um Umgebung und Lauf mit Signal (Sendung von `slice-bootstrap-m3`, aus `welle-mock` hierher verlegt, Entscheidung des Users 2026-11-08; Kettenslice, Nr. 7 der Übergangsregeln) | `LH-QA-05`, `LH-FA-06`; `SPEC-200`, `SPEC-110` |
+| slice-handbuch-etag-zeile | Zeile `ETAG_ENABLED` der Tabelle *Einstellungen* auf die Einstellung kürzen (Sendung von `slice-prefer-return`) | `LH-FA-15`, `LH-QA-06` |
 | slice-handbuch-abnahme | Probelauf durch eine Rolle ohne Vorwissen, Befunde, Abgleich von Kopf und gebautem Binary | `LH-QA-05` |
 
 Kein Slice „Standard“: Der Standard liegt als `docs/user/benutzerhandbuch-standard.md` auf `main`. Was er für dieses Repo anpasst, ist ein Auftrag an den Architect in `slice-handbuch-geruest` (Begründung dort in §1).
