@@ -926,11 +926,6 @@ func zeichenMengeZ() (ascii, weissraum, weitere []string) {
 	return ascii, weissraumNichtASCII(), []string{string(rune(0xfeff)), string(rune(0x200b)), string(rune(0xfc)), string([]byte{0xff})}
 }
 
-// queryNameErlaubt ist das Orakel für ein Zeichen aus Z: eines der 89 ASCII-Zeichen von U+0021 bis U+007E außer `=`, `&`, `#`, `,`, `%` (SPEC-110 Nr. 6).
-func queryNameErlaubt(z string) bool {
-	return len(z) == 1 && z[0] >= 0x21 && z[0] <= 0x7e && !strings.Contains("=&#,%", z)
-}
-
 // TestKonfigQueryNameZeichen fängt F-1 und F-3 auf der Ebene der Prüfung (SPEC-110 Nr. 6): jedes der 151 Zeichen von Z allein und als `a<Zeichen>b`; erlaubt sind
 // genau die 89, die 62 anderen (39 in ASCII, 19 mit White_Space, 4 weitere) machen den Namen ungültig; dazu die Grenzen U+0020/U+0021 und U+007E/U+007F,
 // der leere Name und Namen mit Kodierung (`a%41`, `my%20token`, `tok%2Ben`, `a%zz`: ein `%` macht den Namen ungültig, ob die Kodierung gültig ist oder nicht).
