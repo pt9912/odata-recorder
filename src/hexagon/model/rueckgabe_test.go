@@ -2,10 +2,12 @@ package model_test
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 	"unicode"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -432,5 +434,180 @@ func TestLiesRueckgabeFolgen(t *testing.T) {
 	})
 	if want := 1 + 12 + 144 + 1728 + 20736 + 248832; verglichen != want {
 		t.Errorf("Menge des Orakels %d, erwartet %d", verglichen, want)
+	}
+}
+
+// backslashWorte sind die Wörter, deren Auflösen Z6a prüft: zwei Wörter der Wahl und ein Wort in anderer Schreibweise.
+func backslashWorte() []string { return []string{"minimal", "representation", "MiNiMaL"} }
+
+// backslashFall ist der Inhalt eines Wortes in Anführungszeichen mit Backslash, der Wert nach dem Auflösen und die Aussage, ob das Paar schließt.
+type backslashFall struct {
+	inhalt, aufgeloest string
+	schliesst          bool
+}
+
+// loeseAuf ist das Orakel des Auflösens (SPEC-285 Nr. 2): ein Backslash ersetzt sich durch das folgende Zeichen; ok ist falsch, wenn er am Ende steht.
+func loeseAuf(s string) (string, bool) {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' {
+			b.WriteByte(s[i])
+			continue
+		}
+		if i+1 == len(s) {
+			return "", false
+		}
+		i++
+		b.WriteByte(s[i])
+	}
+	return b.String(), true
+}
+
+// backslashFaelle erzeugt je Wort v die Klasse „Backslash im Wort“: jede Stelle von v mit einem Backslash vor dem eigenen Zeichen (L), alle Zeichen so
+// geschützt (1), ein geschütztes Zeichen aus sieben vor jeder Stelle eingefügt (7·(L+1)), jede Stelle durch eines von drei geschützten Zeichen ersetzt (3·L),
+// der Backslash vor dem Schlusszeichen und am Ende der Zeile (2).
+func backslashFaelle(v string) []backslashFall {
+	var r []backslashFall
+	add := func(inhalt, aufgeloest string, schliesst bool) {
+		r = append(r, backslashFall{inhalt, aufgeloest, schliesst})
+	}
+	for p := 0; p < len(v); p++ {
+		add(v[:p]+"\\"+v[p:p+1]+v[p+1:], v, true)
+	}
+	var alle strings.Builder
+	for p := 0; p < len(v); p++ {
+		alle.WriteString("\\" + v[p:p+1])
+	}
+	add(alle.String(), v, true)
+	for p := 0; p <= len(v); p++ {
+		for _, c := range []string{`"`, `\`, ",", ";", "=", " ", "x"} {
+			add(v[:p]+"\\"+c+v[p:], v[:p]+c+v[p:], true)
+		}
+	}
+	for p := 0; p < len(v); p++ {
+		for _, c := range []string{"x", `"`, `\`} {
+			add(v[:p]+"\\"+c+v[p+1:], v[:p]+c+v[p+1:], true)
+		}
+	}
+	add(v+"\\", "", true)  // `\"` schützt das Schlusszeichen: das Paar bleibt offen
+	add(v+"\\", "", false) // der Backslash steht am Ende der Zeile
+	return r
+}
+
+// TestLiesRueckgabeBackslashWort (Z6a, SPEC-285 Nr. 2, 3): ein Backslash im Wort in Anführungszeichen ersetzt sich durch das folgende Zeichen, und der Wert gilt
+// nach dem Auflösen; die Klasse „Backslash im Wort“ von drei Wörtern in drei Zusammenhängen (allein, mit Rest, mit folgendem Element `return`), 3 · 338 = 1014 Fälle;
+// das Orakel ist das Auflösen selbst, und der Orakel-Leser aus Z9 stimmt zu.
+func TestLiesRueckgabeBackslashWort(t *testing.T) {
+	zusammenhaenge := []struct {
+		name string
+		bau  func(wort string) string
+	}{
+		{"allein", func(w string) string { return `return=` + w }},
+		{"mit Rest", func(w string) string { return ` return = ` + w + ` ; x=1` }},
+		{"mit folgendem Element", func(w string) string { return `x=1, return=` + w + `, return=minimal` }},
+	}
+	n := 0
+	for _, v := range backslashWorte() {
+		faelle := backslashFaelle(v)
+		if len(faelle) != 11*len(v)+10 {
+			t.Fatalf("%s: %d Fälle, erwartet %d", v, len(faelle), 11*len(v)+10)
+		}
+		for _, f := range faelle {
+			if a, ok := loeseAuf(f.inhalt); f.aufgeloest != "" && (!ok || a != f.aufgeloest) {
+				t.Fatalf("Erzeuger: %q löst zu %q auf, erwartet %q", f.inhalt, a, f.aufgeloest)
+			}
+			soll := keine
+			switch {
+			case !f.schliesst, f.aufgeloest == "":
+			case strings.EqualFold(f.aufgeloest, "minimal"):
+				soll = minimal
+			case strings.EqualFold(f.aufgeloest, "representation"):
+				soll = entity
+			}
+			wort := `"` + f.inhalt
+			if f.schliesst {
+				wort += `"`
+			}
+			for _, z := range zusammenhaenge {
+				n++
+				zeile := z.bau(wort)
+				got := model.LiesRueckgabe([]string{zeile})
+				if got != soll {
+					t.Errorf("%s %q: %d, erwartet %d", z.name, zeile, got, soll)
+				}
+				if orakel := preferOrakel(zeile); got != orakel {
+					t.Errorf("%s %q: %d, Orakel %d", z.name, zeile, got, orakel)
+				}
+			}
+		}
+	}
+	if n != 3*(87+164+87) {
+		t.Errorf("Menge %d, erwartet %d", n, 3*(87+164+87))
+	}
+}
+
+// zeitFormen sind die Formen langer Zeilen, die TestLiesRueckgabeZeit prüft; n zählt die Wiederholungen des Bausteins.
+func zeitFormen() []struct {
+	name string
+	bau  func(n int) []string
+} {
+	return []struct {
+		name string
+		bau  func(n int) []string
+	}{
+		{"Elemente", func(n int) []string { return []string{strings.Repeat("x,", n)} }},
+		{"Zeilen", func(n int) []string {
+			z := make([]string, n)
+			for i := range z {
+				z[i] = "x"
+			}
+			return z
+		}},
+		{"Name", func(n int) []string { return []string{strings.Repeat("a", 2*n)} }},
+		{"Leerraum", func(n int) []string { return []string{strings.Repeat(" ", 2*n) + "return=minimal"} }},
+		{"Paar mit Backslash", func(n int) []string { return []string{`return="` + strings.Repeat(`\a`, n) + `"`} }},
+		{"offenes Paar", func(n int) []string { return []string{`x="` + strings.Repeat("a,", n)} }},
+		{"Kommas", func(n int) []string { return []string{strings.Repeat(", ", n)} }},
+	}
+}
+
+// besteZeit ist die kleinste Dauer von k Läufen von f.
+func besteZeit(k int, f func()) time.Duration {
+	best := time.Duration(math.MaxInt64)
+	for i := 0; i < k; i++ {
+		t0 := time.Now()
+		f()
+		best = min(best, time.Since(t0))
+	}
+	return best
+}
+
+// TestLiesRueckgabeZeit (Z9a, SPEC-285 Nr. 1): die Zeit wächst nicht schneller als linear mit der Länge der Zeilen; sieben Formen langer Zeilen (Elemente, Zeilen, Name, Leerraum,
+// Paar mit Backslash, offenes Paar, Kommas) mit 2000 und mit 64000 Wiederholungen. Bei linearem Wachstum wächst die Zeit um das 32-fache, bei quadratischem um das 1024-fache;
+// die Grenze liegt beim 128-fachen der besten Zeit der kleinen Länge, und der Lauf mit der großen Länge zählt als bestanden, sobald einer von fünf Versuchen darunter liegt.
+// Der Fänger misst Zeit: unter Last des Hosts kann er ohne Fehler im Code rot werden, und er fängt nur die sieben Formen; die Raten stehen im Plan (§3).
+func TestLiesRueckgabeZeit(t *testing.T) {
+	const klein, gross = 2000, 64000
+	n := 0
+	for _, f := range zeitFormen() {
+		n++
+		zk, zg := f.bau(klein), f.bau(gross)
+		var wahl model.Rueckgabe // hält das Ergebnis, damit der Aufruf nicht entfällt
+		t1 := max(besteZeit(20, func() { wahl = model.LiesRueckgabe(zk) }), time.Microsecond)
+		grenze := 128 * t1
+		ok, letzte := false, time.Duration(0)
+		for versuch := 0; versuch < 5 && !ok; versuch++ {
+			letzte = besteZeit(1, func() { wahl = model.LiesRueckgabe(zg) })
+			ok = letzte <= grenze
+		}
+		if wahl < keine || wahl > entity {
+			t.Errorf("%s: Wahl %d außerhalb der drei Werte", f.name, wahl)
+		}
+		if !ok {
+			t.Errorf("%s: %v für %d Wiederholungen, %v für %d; Grenze das 128-fache", f.name, letzte, gross, t1, klein)
+		}
+	}
+	if n != 7 {
+		t.Errorf("Menge %d, erwartet 7", n)
 	}
 }

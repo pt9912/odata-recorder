@@ -49,8 +49,9 @@ func TestPreferHeaderUnveraendert(t *testing.T) {
 	}
 }
 
-// TestPreferAntwortUnveraendert (Z25, SPEC-136 Nr. 5): Status 200, 201 und 204 und die Header `Preference-Applied`, `OData-EntityId` und `Location` des Dienstes gehen
-// byte-gleich aus; ein `204` hat keinen Body. Methode (POST, PATCH, PUT) × Bindung × Status 3 × Wert von `Preference-Applied` 2.
+// TestPreferAntwortUnveraendert (Z25, SPEC-136 Nr. 5): Status 200, 201 und 204 und die Werte der Header `Preference-Applied`, `OData-EntityId` und `Location` des Dienstes
+// gehen byte-gleich aus, unter dem kanonischen Namen des Clients (`Odata-Entityid`); die Schreibweise des Namens prüft der Test nicht. Ein `204` hat keinen Body.
+// Methode (POST, PATCH, PUT) × Bindung × Status 3 × Wert von `Preference-Applied` 2.
 func TestPreferAntwortUnveraendert(t *testing.T) {
 	n := 0
 	for _, b := range bindungen() {

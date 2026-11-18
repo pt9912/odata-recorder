@@ -14,8 +14,8 @@ const (
 
 // LiesRueckgabe liest die Wahl aus den Zeilen der Kopfzeilen `Prefer` (SPEC-285): ein Element je Kopfzeile, nil heißt kein Header. Das
 // erste lesbare Element namens `return` entscheidet, auch wenn sein Wert keine Wahl ist; spätere Elemente haben keine Wirkung, eine Zeile
-// reicht nie in die nächste. Die Funktion liest nichts außer zeilen, ändert nichts, liefert nie einen Fehler und braucht Zeit linear in
-// der Gesamtlänge.
+// reicht nie in die nächste. Die Funktion liest nichts außer zeilen, ändert nichts und liefert nie einen Fehler; `TestLiesRueckgabeZeit`
+// hält ihre Zeit für sieben Formen langer Zeilen gegen lineares Wachstum, andere Formen bleiben ungeprüft (SPEC-285 Nr. 1).
 func LiesRueckgabe(zeilen []string) Rueckgabe {
 	for _, z := range zeilen {
 		if r, entschieden := liesPreferZeile(z); entschieden {
@@ -37,7 +37,7 @@ func liesPreferZeile(z string) (r Rueckgabe, entschieden bool) {
 			continue
 		}
 		name := i
-		for i < len(z) && tokenZeichen(z[i]) {
+		for i < len(z) && istTokenByte(z[i]) {
 			i++
 		}
 		if i > name && endeDesNamens(z, i) && asciiKlein(z[name:i]) == "return" {
@@ -70,7 +70,7 @@ func liesReturnWert(z string, i int) Rueckgabe {
 		wort, i = w, naechste
 	} else {
 		start := i
-		for i < len(z) && tokenZeichen(z[i]) {
+		for i < len(z) && istTokenByte(z[i]) {
 			i++
 		}
 		wort = z[start:i]
@@ -128,17 +128,4 @@ func elementEnde(z string, i int) int {
 		}
 	}
 	return len(z)
-}
-
-// tokenZeichen sagt, ob b ein `tchar` nach RFC 9110 §5.6.2 ist: Ziffer, ASCII-Buchstabe oder eines der Zeichen ! # $ % & ' * + - . ^ _ | ~ und des Gravis.
-func tokenZeichen(b byte) bool {
-	switch {
-	case b >= '0' && b <= '9', b >= 'a' && b <= 'z', b >= 'A' && b <= 'Z':
-		return true
-	}
-	switch b {
-	case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~':
-		return true
-	}
-	return false
 }

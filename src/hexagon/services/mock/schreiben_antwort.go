@@ -108,8 +108,8 @@ func (m *Mocker) adresse(mu mutation, neu model.EntityState) (string, error) {
 	return ort, nil
 }
 
-// kopf204 ist der Header einer 204 ohne Wahl: das Kennzeichen der Darstellung und, außer bei DELETE eines Dienstes mit Etag, der ETag
-// von neu (SPEC-281 Nr. 2).
+// kopf204 ist der Header jeder 204, ohne und mit der Wahl `Minimal` (antwortOhneBody ergänzt auf ihm): das Kennzeichen der Darstellung und,
+// außer bei DELETE eines Dienstes mit Etag, der ETag von neu (SPEC-281 Nr. 2).
 func kopf204(mu mutation, dar model.Darstellung, neu model.EntityState) map[string][]string {
 	h := map[string][]string{dar.Kennzeichen.Name: {dar.Kennzeichen.Wert}}
 	if etag := etagVon(mu.d, neu); etag != "" && mu.methode != methodeDelete {

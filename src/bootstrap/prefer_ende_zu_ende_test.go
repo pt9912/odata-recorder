@@ -92,6 +92,9 @@ func TestPreferMinimalEntityId(t *testing.T) {
 			ist := abSende(context.Background(), m, "ws-1", abAnfrage{Methode: f.methode, Pfad: f.pfad, Body: f.body, Header: map[string][]string{"Prefer": {"return=minimal"}}})
 			get := abSende(context.Background(), m, "ws-1", abAnfrage{Methode: "GET", Pfad: f.id, Header: map[string][]string{"Accept": {"application/json;odata.metadata=minimal"}}})
 			want := "http://recorder.test/odata" + f.id
+			if ist.Err == nil && ist.Antwort.Body == nil {
+				t.Errorf("%s: Body nil, der leere Strom ist der Body der 204 (SPEC-286 Nr. 1)", f.methode)
+			}
 			if ist.Err != nil || ist.Status != 204 || ist.Body != "" || !strings.Contains(get.Body, `"@odata.id":"`+want+`"`) {
 				t.Errorf("%s: %d %q %v; GET %q", f.methode, ist.Status, ist.Body, ist.Err, get.Body)
 			}
@@ -108,5 +111,33 @@ func TestPreferMinimalEntityId(t *testing.T) {
 	}
 	if n != 6 {
 		t.Errorf("Menge %d, erwartet 6", n)
+	}
+}
+
+// TestPreferWiederholungGleichGet (SPEC-287 Nr. 7, SPEC-289 Nr. 1): dieselbe Mutation zweimal sind zwei Mutationen, und die Antwort mit Entity zeigt je den Eintrag ihrer Mutation:
+// der Body ist byte-gleich dem GET unmittelbar danach und trägt den Namen der eigenen, nicht der vorigen Mutation. Methode (PATCH, PUT) × Etag 2 × Mutation 2 = 8 mit echtem Schreiber.
+func TestPreferWiederholungGleichGet(t *testing.T) {
+	n := 0
+	for _, etag := range []bool{false, true} {
+		u := abFrisch(t)
+		m := preferMock(t, u, etag)
+		for _, methode := range []string{"PATCH", "PUT"} {
+			for _, name := range []string{"erste", "zweite"} {
+				n++
+				body := `{"Name":"` + name + `"}`
+				if methode == "PUT" {
+					body = `{"Id":1,"Name":"` + name + `"}`
+				}
+				kontext := methode + " " + name + " Etag " + map[bool]string{false: "aus", true: "an"}[etag]
+				ist := abSende(context.Background(), m, "ws-1", abAnfrage{Methode: methode, Pfad: "/Products(1)", Body: body, Header: map[string][]string{"Prefer": {"return=representation"}}})
+				get := abSende(context.Background(), m, "ws-1", abAnfrage{Methode: "GET", Pfad: "/Products(1)"})
+				if ist.Err != nil || get.Err != nil || ist.Status != 200 || ist.Body != get.Body || !strings.Contains(ist.Body, `"Name":"`+name+`"`) {
+					t.Errorf("%s: %d %q %v; GET %q", kontext, ist.Status, ist.Body, ist.Err, get.Body)
+				}
+			}
+		}
+	}
+	if n != 8 {
+		t.Errorf("Menge %d, erwartet 8", n)
 	}
 }

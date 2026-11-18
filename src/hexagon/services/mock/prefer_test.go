@@ -91,7 +91,8 @@ type preferErgebnis struct {
 }
 
 // preferSende ruft die Methode auf den Eintrag id; kopf trägt weitere Header der Anfrage, bau ändert den Aufbau nach der Ressource.
-// POST, PATCH, PUT und DELETE tragen einen Body und eine Ressource der Mutation, GET und HEAD die Entity.
+// POST, PATCH, PUT und DELETE tragen einen Body und eine Ressource der Mutation, GET und HEAD die Entity. Eine Antwort ohne Fehler mit `Body` nil
+// ist ein Fehler des Aufrufs, für jede Methode und jede Wahl (SPEC-286 Nr. 1, SPEC-194 Nr. 3).
 func (u *umg) preferSende(methode, id string, kopf map[string][]string, bau func(u *umg, m string)) preferErgebnis {
 	u.t.Helper()
 	var a inbound.Anfrage
@@ -112,6 +113,9 @@ func (u *umg) preferSende(methode, id string, kopf map[string][]string, bau func
 	}
 	ant, err := u.rufe(a)
 	r := preferErgebnis{ant: ant, err: err}
+	if err == nil && ant.Body == nil {
+		u.t.Errorf("%s %v: Body nil, der leere Strom ist der Body der Antwort ohne Entity (SPEC-286 Nr. 1)", methode, kopf)
+	}
 	if err == nil && ant.Body != nil {
 		r.body = lies(u.t, ant)
 	}
@@ -761,7 +765,9 @@ func preferStellen() (r []struct{ m, wahl, op string }) {
 }
 
 // TestPreferSchreiberFehler (Z21, SPEC-288 Nr. 3, SPEC-287 Nr. 5): ein Fehler eines Aufrufs des Schreibers ist `ODR-E9001` mit Rollback, ein Kontextfehler
-// (nackt, verpackt, in einem Join) bleibt ohne Code; danach läuft kein weiterer Port, der Zustand bleibt. Stelle 13 × Fehler 5.
+// (nackt, verpackt, in einem Join) bleibt ohne Code; danach läuft kein weiterer Port, der Zustand bleibt. Der Gegenstand der Abbildung ist je Stelle
+// `Sonstiges` (SPEC-195 Nr. 11): `ErrNichtGefunden` und `ErrBereitsVorhanden` sind nur dort `ODR-E9001`, bei jedem der sieben anderen Gegenstände ein anderer Code.
+// Stelle 14 × Fehler 7.
 func TestPreferSchreiberFehler(t *testing.T) {
 	stellen := preferStellen()
 	if len(stellen) != 14 {
@@ -774,6 +780,19 @@ func TestPreferSchreiberFehler(t *testing.T) {
 	}{
 		{"ErrUngueltig", model.ErrUngueltig, false}, {"roh", errors.New("roh " + kanarienwert), false}, {"Kontext", context.Canceled, true},
 		{"verpackt", fmt.Errorf("Port: %w", context.DeadlineExceeded), true}, {"Join", errors.Join(outbound.ErrNichtGefunden, context.Canceled), true},
+		{"ErrNichtGefunden", outbound.ErrNichtGefunden, false}, {"ErrBereitsVorhanden", outbound.ErrBereitsVorhanden, false},
+	}
+	// Die Fehler trennen jeden Gegenstand außer `Sonstiges` von `Sonstiges`: sonst bliebe ein Gegenstand je Stelle ungefangen.
+	for g := outbound.GegenstandSonstiges + 1; g <= outbound.GegenstandDienst; g++ {
+		getrennt := false
+		for _, f := range fehler {
+			if c, _ := outbound.Abbilden(f.err, g); !f.kontext && c != model.CodeE9001 {
+				getrennt = true
+			}
+		}
+		if !getrennt {
+			t.Errorf("Gegenstand %d wird von keinem Fehler der Liste von Sonstiges getrennt", g)
+		}
 	}
 	n := 0
 	for _, s := range stellen {
@@ -806,7 +825,7 @@ func TestPreferSchreiberFehler(t *testing.T) {
 			u.unveraendert(vorher, rev, kontext)
 		}
 	}
-	if n != 14*5 {
+	if n != 14*7 {
 		t.Errorf("Menge %d", n)
 	}
 }
