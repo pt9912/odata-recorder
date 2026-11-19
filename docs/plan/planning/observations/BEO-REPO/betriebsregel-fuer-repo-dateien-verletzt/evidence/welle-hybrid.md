@@ -1,0 +1,2 @@
+**Vorgang:** welle-hybrid
+**Fund:** Der Planner der Closure zog eine Evidence-Datei des Registers mit `sed -i` auf die Kennung ohne Endung, statt `Edit` zu nehmen; der Command-Guard sperrte den Aufruf nicht (`sed -i` ist dort noch nicht gesperrt), die Folge war am Diff zu prüfen (eine Zeile, Inhalt wie beabsichtigt). Die übrigen Dateien der Closure schrieb der Planner mit `Edit` und `Write`. Beleg: Abschnitt *Was ging anders als geplant* der Closure-Notiz `welle-hybrid-results`.
