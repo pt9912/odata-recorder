@@ -13,10 +13,14 @@
 # Hook-JSON; bei Parse-Zweifel, fehlendem awk, Tiefe > 3 und Laenge > 32768 blockt der Guard.
 #
 # Zerlegung: quote-BLIND an ; & && || | $( ` ( und Zeilenenden (ein Trenner in einem Argument
-# startet ein neues Segment: `git commit -m "a; b > f"` meldet S; Abhilfe `git commit -F <datei>`).
+# startet ein neues Segment: `git commit -m "a; b > f"` meldet S; Abhilfe `git commit -F <datei>`;
+# die Gegenseite `echo "a; b" > f` meldet nichts: das Zitat bleibt im zweiten Segment offen und
+# verbirgt die Umleitung, SPEC-214 Nr. 11 f, Fall 50).
 # Ausnahme: &> >& >| gehoeren zur Umleitung. Je Segment gilt Zitat- und Backslash-Zustand fuer
 # Umleitungen; ein Heredoc-Rumpf wird nur geprueft, wenn eine Shell ohne -c ihn lesen kann oder
 # die Endezeile fehlt. Sub-Shell-Strings (`bash -c "..."`, auch -lc/-ec/-cx) rekursiv bis Tiefe 3.
+# tee und rm lesen ein Umleitungswort und das Wort hinter einem reinen Operator nicht als Operand
+# oder Flag (SPEC-214 Nr. 4 f).
 # Rang: erster Verstoss in der Reihenfolge der Segmente; im Segment Sperrliste, Kopfpruefung,
 # Umleitung, Rekursion.
 #
@@ -61,6 +65,10 @@ if [ -d "$blocked_dir" ]; then
 fi
 PREFIXES="sudo env command exec nice time xargs eval"
 SHELLS="bash sh zsh dash ksh"
+# Umleitungswort und reiner Operator (SPEC-214 Nr. 4 f); als Variablen, weil < > & | im Ausdruck
+# nicht im [[ =~ ]] stehen duerfen.
+RE_RWORT='^([0-9]*[<>]|&>)'
+RE_ROP='^([0-9]*(>|>>|>[|]|>&|<|<<|<<-|<<<|<&)|&>|&>>)$'
 
 set -f   # Wortzerlegung ohne Pfadnamen-Expansion (nach der Glob-Schleife oben)
 
@@ -79,13 +87,14 @@ FULLTEXT=""
 HDBODY=0
 UNTERM=0
 PH=0
+RW=0              # Ergebnis von redir_word: 0 Operand oder Flag, 1 Umleitungswort, 2 reiner Operator
 HW=()
 HD=()
 HEAD=""
 HI=-1
 
-# Ergebnis in der globalen STRIPPED (kein Subshell-Fork je Token; der Guard laeuft vor JEDEM
-# Bash-Call, Latenz zaehlt).
+# Ergebnis in der globalen STRIPPED; der Guard laeuft vor jedem Bash-Call, Latenz zaehlt
+# (SPEC-214 Nr. 10 c).
 strip_quotes() {  # fuehrende/abschliessende " und ' entfernen
   local s=$1
   while [ -n "$s" ]; do case $s in \"*|\'*) s=${s#?};; *) break;; esac; done
@@ -246,10 +255,21 @@ pgrep_check() {  # return 0 = ein Wort -...f... oder --f...
   return 1
 }
 
-rm_check() {  # return 0 = L (SPEC-214 Nr. 7 c)
-  local i x w flag=0 dd=0
+redir_word() {  # redir_word <Wort wie geschrieben> -> RW (SPEC-214 Nr. 4 f)
+  RW=0
+  if [[ $1 =~ $RE_RWORT ]]; then
+    RW=1
+    if [[ $1 =~ $RE_ROP ]]; then RW=2; fi
+  fi
+}
+
+rm_check() {  # return 0 = L (SPEC-214 Nr. 7 c); Umleitungswoerter sind weder Operand noch Flag (Nr. 4 f)
+  local i x w flag=0 dd=0 skip=0
   local -a ops=()
   for ((i=HI+1; i<nt; i++)); do
+    if [ "$skip" -eq 1 ]; then skip=0; continue; fi
+    redir_word "${toks[i]}"
+    case $RW in 1) continue;; 2) skip=1; continue;; esac
     strip_quotes "${toks[i]}"; x=$STRIPPED
     if [ "$dd" -eq 0 ]; then
       if [ "$x" = -- ]; then dd=1; continue; fi
@@ -275,10 +295,13 @@ rm_check() {  # return 0 = L (SPEC-214 Nr. 7 c)
   return 1
 }
 
-tee_check() {  # return 0 = ein Operand hat das Ziel Repo (SPEC-214 Nr. 6 a)
-  local i x w dd=0
+tee_check() {  # return 0 = ein Operand hat das Ziel Repo (SPEC-214 Nr. 6 a); Umleitungswoerter sind keine Operanden (Nr. 4 f)
+  local i x w dd=0 skip=0
   for ((i=HI+1; i<nt; i++)); do
+    if [ "$skip" -eq 1 ]; then skip=0; continue; fi
     x=${toks[i]}
+    redir_word "$x"
+    case $RW in 1) continue;; 2) skip=1; continue;; esac
     if [ "$dd" -eq 0 ]; then
       if [ "$x" = -- ]; then dd=1; continue; fi
       strip_quotes "$x"

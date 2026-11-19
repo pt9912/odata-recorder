@@ -232,12 +232,16 @@ echo "unclosed > docs/a.md
 echo "a\" > docs/a.md"
 ENDE
 
-# 13 S, Zitat vor der Umleitung
-fall 13 S 4 <<'ENDE'
+# 13 S, Zitat vor der Umleitung und im Zielwort
+fall 13 S 8 <<'ENDE'
 echo "a" > docs/a.md
 echo 'a' >docs/a.md
 echo "a" "b" > docs/a.md
 echo '"' > docs/a.md
+echo x > "docs/a.md
+echo x > docs/a.md"
+echo x > 'docs/a.md
+echo x > "docs/a (1).md"
 ENDE
 
 # 14 S, Heredoc mit Schreibweg
@@ -259,13 +263,14 @@ cat > <SP>/a.txt <<'EOF'\ntext\nEOF
 ENDE
 
 # 16 durch, Rumpf nicht geprueft
-fall 16 durch 6 <<'ENDE'
+fall 16 durch 7 <<'ENDE'
 git commit -F - <<'EOF'\nsed -i x y\n> z\npip install q\ntee docs/a\nEOF
 cat <<"EOF"\n> z\nEOF
 cat <<\EOF\n> z\nEOF
 cat << EOF\n> z\nEOF
 cat <<A <<B\nsed -i x\nA\n> z\nB
 cat <<EOF\n  EOF\nsed -i x y\nEOF
+cat <<-EOF\n\tsed -i x y\n\tEOF
 ENDE
 
 # 17 S, Rest der Zeile, Zeilen danach, nicht terminiert, mehrere Operatoren, <<-, Zitat
@@ -290,7 +295,7 @@ bash <<'EOF'\npip install q\nEOF
 ENDE
 
 # 20 S, tee
-fall 20 S 7 <<'ENDE'
+fall 20 S 13 <<'ENDE'
 echo x | tee docs/a.md
 echo x | tee -a docs/a.md
 echo x | tee --append docs/a.md
@@ -298,14 +303,28 @@ echo x | tee <SP>/a.txt docs/a.md
 echo x | tee -- docs/a.md
 echo x | sudo tee docs/a.md
 echo x | /usr/bin/tee docs/a.md
+echo x | tee -- -a
+echo x | tee 2>/dev/null docs/a.md
+echo x | tee > /dev/null docs/a.md
+echo x | tee 2
+echo x | tee ">"
+echo x | tee \>
 ENDE
 
 # 21 durch, tee
-fall 21 durch 4 <<'ENDE'
+fall 21 durch 12 <<'ENDE'
 echo x | tee <SP>/a.txt
 echo x | tee
 echo x | tee -a "$F"
 echo tee docs/a.md
+echo x | tee <SP>/a.txt > /dev/null
+echo x | tee <SP>/a.txt 2>/dev/null
+echo x | tee <SP>/a.txt 2>&1
+echo x | tee <SP>/a.txt &> /dev/null
+echo x | tee -a <SP>/a.txt >> <SP>/b.txt
+echo x | tee <SP>/a.txt < in.txt
+tee <SP>/a.txt << EOF\nx\nEOF
+echo x | tee <SP>/a.txt 10>/dev/null
 ENDE
 
 # 22 S, sed -i
@@ -390,7 +409,7 @@ cmd28="${cmd27}a"
 json_command "$cmd28"; fall_roh 28 G "echo mit 32769 Zeichen (${#cmd28})" "$JSON"
 
 # 29 S, Segmente, Zeilenenden, Fortsetzung
-fall 29 S 8 <<'ENDE'
+fall 29 S 9 <<'ENDE'
 echo a; echo b > docs/a.md
 echo a && sed -i x f
 true || echo x > docs/a.md
@@ -399,6 +418,7 @@ echo a\r\necho b > docs/a.md
 echo x \L> docs/a.md
 echo a & echo b > docs/a.md
 echo a |& cat > docs/a.md
+echo a\rsed -i x y
 ENDE
 
 # 30 durch, Segmente
@@ -434,13 +454,14 @@ pip install x; pkill y
 ENDE
 
 # 35 S, Rang: der erste Verstoss ist S
-fall 35 S 6 <<'ENDE'
+fall 35 S 7 <<'ENDE'
 echo y > docs/a.md; pip install x
 sed -i x f > docs/a.md
 tee docs/a > docs/b
 bash -c "pip install x" > docs/a.md
 bash -c "echo x > docs/a.md; pip install y"
 echo y > docs/a.md; pkill y
+rm -rf <SP>/a > docs/a.md
 ENDE
 
 # 36 P und L, Rang im Segment
@@ -540,7 +561,7 @@ git commit -m "pkill"
 ENDE
 
 # 44 L, rekursives rm
-fall 44 L 22 <<'ENDE'
+fall 44 L 28 <<'ENDE'
 rm -rf docs/x
 rm -r docs
 rm -R docs
@@ -563,10 +584,16 @@ rm -rf <SP>/*
 rm -rf <SP>/mut-*
 rm -rf <SP>/../x
 rm -rf <SP>/a docs/x
+rm -rf -- -x
+rm -rf 2>/dev/null docs/x
+rm -rf > /dev/null docs/x
+rm -rf 2
+rm -rf <SP>/a 2>/dev/null docs/x
+rm -rf ">"
 ENDE
 
 # 45 durch, rm
-fall 45 durch 11 <<'ENDE'
+fall 45 durch 20 <<'ENDE'
 rm -rf <SP>/mut-guard
 rm -rf <SP>/a/b
 rm -rf <SP>/a <SP>/b
@@ -578,6 +605,15 @@ rm -f docs/x
 rm docs/x
 git rm -r docs/x
 docker rm -f c
+rm -rf <SP>/a 2>/dev/null
+rm -rf <SP>/a >/dev/null 2>&1
+rm -rf <SP>/a > /dev/null
+rm -rf <SP>/a &>/dev/null
+rm -rf <SP>/a &> /dev/null
+rm -rf <SP>/a 2>> <SP>/log
+rm -rf <SP>/a >& /dev/null
+rm -rf <SP>/a 10>/dev/null
+rm -rf > /dev/null <SP>/a
 ENDE
 
 # 46 L, Muster vor Zweifel
@@ -635,7 +671,7 @@ for c in "echo x > $TMP/link/docs/a.md" "echo x > $W/docs/a.md"; do
 done
 
 # 50 durch, die Negative von Nr. 11
-fall 50 durch 14 <<'ENDE'
+fall 50 durch 16 <<'ENDE'
 cp <SP>/a docs/a.md
 mv <SP>/a docs/a.md
 dd if=<SP>/a of=docs/a.md
@@ -650,6 +686,8 @@ echo x <> docs/a.md
 echo x > <W>-nachbar/docs/a.md
 ps aux
 rm docs/a.md
+echo "a; b" > docs/a.md
+rm -rf docs/x>$LOG
 ENDE
 
 # 51 S, die bekannten Falschmeldungen
@@ -667,8 +705,8 @@ for arg in "" x; do
 done
 
 # Zusatz zu den 52 Faellen: Klassen, die der Vertrag als Menge zusagt, als Schleifen ueber alle
-# Elemente (Generator je Klasse, das Orakel steht in den Tabellen der Schleife, nicht im Guard),
-# und Einzelfaelle, die die 52 Faelle mit ihren Elementen nicht trennen.
+# Elemente (Generator je Klasse, das Orakel steht in den Tabellen der Schleife, nicht im Guard)
+# und der Einzelfall Z5.
 zusatz() {  # zusatz <label> <erwartung> <befehl>
   expand "$3"
   json_command "$EXP"
@@ -678,11 +716,7 @@ zahl() {  # zahl <label> <ist> <soll>
   if [ "$2" -ne "$3" ]; then total=$((total+1)); fails=$((fails+1)); echo "FAIL $1 Zahl der Elemente $2 statt $3"; fi
 }
 
-# Z1 bis Z5: Einzelfaelle
-zusatz Z1 durch 'cat <<-EOF\n\tsed -i x y\n\tEOF'
-zusatz Z2 S 'echo x | tee -- -a'
-zusatz Z3 L 'rm -rf -- -x'
-zusatz Z4 S 'echo a\rsed -i x y'
+# Z5: Einzelfall, kein Element der 52 Faelle
 mkdir "$TMP/bin"
 ln -s "$(command -v cat)" "$TMP/bin/cat"
 total=$((total+1))
@@ -757,6 +791,70 @@ for r in --check --stat --numstat --summary; do
 done
 for c in '<SP>/r|durch' '$R|durch' '<W>/r|S' 'docs|S' '.|S'; do zusatz Z12 "${c##*|}" "git -C ${c%|*} apply p.patch"; n=$((n+1)); done
 zahl Z12 "$n" 22
+
+# Z13 Umleitungswoerter x Anbindung x Befehl (12 x 2 x 6 = 144; SPEC-214 Nr. 4 f): bei tee und rm ist
+# weder das Umleitungswort noch das Wort hinter einem reinen Operator ein Operand; ein Operand dahinter
+# zaehlt. Das Ziel ist /dev/null, bei >& und 2>& die Ziffer 2 (ein Dup, kein Schreibweg).
+n=0
+for o in '>' '>>' '>|' '>&' '&>' '&>>' '<' '<<<' '2>' '2>>' '10>' '2>&'; do
+  t=/dev/null
+  case $o in '>&'|'2>&') t=2;; esac
+  for u in "$o $t" "$o$t"; do
+    zusatz Z13 durch "echo x | tee <SP>/a.txt $u"
+    zusatz Z13 durch "echo x | tee $u <SP>/a.txt"
+    zusatz Z13 S "echo x | tee $u docs/a.md"
+    zusatz Z13 durch "rm -rf <SP>/a $u"
+    zusatz Z13 durch "rm -rf $u <SP>/a"
+    zusatz Z13 L "rm -rf $u docs/x"
+    n=$((n+6))
+  done
+done
+zahl Z13 "$n" 144
+
+# Z15 die reinen Operatoren von SPEC-214 Nr. 4 f, die Z13 nicht fuehrt (<<, <<-) und zwei Formen mit
+# fuehrender Ziffer (0<, 2>|): 4 x 2 x 6 = 48, dieselben sechs Befehle und dasselbe Orakel wie Z13.
+# Die Form <& fehlt: die Zerlegung trennt am & (SPEC-214 Nr. 2 d), das Wort erreicht tee und rm nicht.
+n=0
+for o in '<<' '<<-' '0<' '2>|'; do
+  t=/dev/null
+  for u in "$o $t" "$o$t"; do
+    zusatz Z15 durch "echo x | tee <SP>/a.txt $u"
+    zusatz Z15 durch "echo x | tee $u <SP>/a.txt"
+    zusatz Z15 S "echo x | tee $u docs/a.md"
+    zusatz Z15 durch "rm -rf <SP>/a $u"
+    zusatz Z15 durch "rm -rf $u <SP>/a"
+    zusatz Z15 L "rm -rf $u docs/x"
+    n=$((n+6))
+  done
+done
+zahl Z15 "$n" 48
+
+# Z16 Zitat im Zielwort, das nicht schliesst (SPEC-214 Nr. 2 e, 9 b): Zitat 2 x Stelle im Zielwort 3
+# (Anfang, Mitte, Ende) x Operator 2 = 12 sperren (S); sechs Ziele, die das Zitat nicht in die Wurzel
+# legt (ausserhalb je Operator, Variable), gehen durch: 12 + 6 = 18.
+n=0
+for q in '"' "'"; do
+  for o in '>' '2>>'; do
+    for t in "${q}docs/a.md" "docs/${q}a.md" "docs/a.md${q}"; do zusatz Z16 S "echo x $o $t"; n=$((n+1)); done
+    zusatz Z16 durch "echo x $o ${q}<SP>/a.md"; n=$((n+1))
+  done
+  zusatz Z16 durch "echo x > ${q}\$OUT/a.md"; n=$((n+1))
+done
+zahl Z16 "$n" 18
+
+# Z14 (SPEC-214 Nr. 4 f): bei rm ist das Wort hinter einem reinen Operator auch kein Flag (der Rang
+# bleibt: ein Ziel Repo hinter > meldet S, nicht L; hinter < ist es Eingabe und der Befehl geht
+# durch); hinter -- sind Umleitungswoerter bei tee und rm ebenfalls keine Operanden.
+n=0
+zusatz Z14 S 'rm docs/x > -rf'; n=$((n+1))
+zusatz Z14 durch 'rm docs/x < -rf'; n=$((n+1))
+zusatz Z14 durch 'rm docs/x <<< -rf'; n=$((n+1))
+zusatz Z14 S 'rm docs/x >& -rf'; n=$((n+1))
+zusatz Z14 durch 'echo x | tee -- <SP>/a.txt > /dev/null'; n=$((n+1))
+zusatz Z14 durch 'echo x | tee -- <SP>/a.txt 2>/dev/null'; n=$((n+1))
+zusatz Z14 durch 'rm -rf -- <SP>/a > /dev/null'; n=$((n+1))
+zusatz Z14 durch 'rm -rf -- <SP>/a 2>/dev/null'; n=$((n+1))
+zahl Z14 "$n" 8
 
 echo "guard-faelle: $total Pruefungen, $fails Abweichungen in ${SECONDS} s ($LATENZ)" >&2
 if [ "$fails" -ne 0 ]; then exit 1; fi
