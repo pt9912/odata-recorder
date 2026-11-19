@@ -29,3 +29,4 @@ Waisen-Urteil fällt nicht hier.
 | `LH-FA-14` | Geheimnisse, Nutzlast ohne sensible Felder, nicht redigierbarer Body, Speicher voll (Happy Path, Boundary, Negative) | Stufe 7 | `tools/harness/test-integration.sh:127` |
 | `LH-FA-07`, `LH-FA-11`, `LH-FA-12` | Mock CRUD und Reset ohne Upstream, Header der Zuordnung, nicht unterstützter Filter (Happy Path, Boundary, Negative) | Stufe 8 | `tools/harness/test-integration.sh:131` |
 | `LH-FA-03`, `LH-QA-03` | Mutationen nach SIGTERM und Neustart lesbar, zweiter Neustart, fehlendes DATA_DIR wird angelegt (Happy Path, Boundary) | Stufe 9 | `tools/harness/test-integration.sh:135` |
+| `LH-FA-12`, `LH-FA-04` | Treffer des Mock ohne Verbindung, Upstream-Fallback bei ODR-E6003, POST mit und ohne Eintrag, Replay-Miss, ungültige Konfiguration (Happy Path, Boundary, Negative) | Stufe 10 | `tools/harness/test-integration.sh:139` |

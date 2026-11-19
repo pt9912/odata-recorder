@@ -1,0 +1,4 @@
+{"mutationen": [
+{"name":"M13-ziel-falscher-port","datei":"src/hexagon/services/hybrid/upstream.go","alt":"\t\tZiel:     ziel,","neu":"\t\tZiel:     strings.Replace(ziel, \"127.0.0.1:\", \"127.0.0.1:1\", 1),","test":"^TestM4$","klasse":"andere"},
+{"name":"M13-ziel-anderer-host","datei":"src/hexagon/services/hybrid/upstream.go","alt":"\t\tZiel:     ziel,","neu":"\t\tZiel:     strings.Replace(ziel, \"127.0.0.1\", \"127.0.0.2\", 1),","test":"^TestM4$","klasse":"andere"}
+]}

@@ -2,7 +2,7 @@
 
 Software-Version: dev
 Gültigkeitsbereich: das Binary, das `make build` erzeugt
-Stand: 2026-11-08
+Stand: 2026-11-18
 
 ## Einleitung
 
@@ -66,12 +66,12 @@ Dieser Abschnitt führt die Einstellungen, die der Dienst aus den Umgebungsvaria
 
 | Schlüssel | Bedeutung |
 |---|---|
-| `MODE` | Betriebsart des Dienstes: `record` nimmt Austausche mit dem Upstream auf, `replay` spielt aufgezeichnete Austausche ab. `mock` beantwortet Anfragen allein aus dem Bestand, ohne Upstream. `hybrid` ist ein gültiger Wert der Prüfung (die vier Schlüssel `HYBRID_FALLBACK`, `HYBRID_REPLAY_FALLBACK`, `FALLBACK_ALLOW_HOSTS` und `FALLBACK_WRITE_ALLOW` gehören zu ihm), der Dienst startet in diesem Modus aber nicht. Ohne Angabe gilt `mock`. |
+| `MODE` | Betriebsart des Dienstes: `record` nimmt Austausche mit dem Upstream auf, `replay` spielt aufgezeichnete Austausche ab. `mock` beantwortet Anfragen allein aus dem Bestand, ohne Upstream. `hybrid` beantwortet Anfragen zuerst aus dem Bestand wie `mock` und wendet sich nur dann an die aufgezeichneten Austausche oder an den Upstream, wenn der Mock mit einem freigegebenen Fehlercode scheitert; die vier Schlüssel `HYBRID_FALLBACK`, `HYBRID_REPLAY_FALLBACK`, `FALLBACK_ALLOW_HOSTS` und `FALLBACK_WRITE_ALLOW` gehören zu ihm (Abschnitt `Modus hybrid`). Ohne Angabe gilt `mock`. |
 | `LISTEN` | Host und Port, an dem der Dienst Anfragen annimmt, in der Form `host:port`. Ohne Angabe gilt `127.0.0.1:8080`. |
 | `DATA_DIR` | Verzeichnis, in dem der Dienst seine Daten ablegt, absolut oder relativ zum Arbeitsverzeichnis. Ohne Angabe gilt `data`. |
 | `SERVICE_ID` | Kennung des einzigen Services, 1 bis 64 Zeichen aus Buchstaben, Ziffern, `.`, `_` und `-`. Ohne Angabe gilt `default`. |
 | `SERVICE_ROOT_PATH` | Pfad, unter dem der einzige Service Anfragen annimmt: `/` oder Segmente wie `/a/b` ohne abschließenden Schrägstrich. Ohne Angabe gilt `/`. |
-| `UPSTREAM_URL` | URL des Upstreams, absolut mit `http` oder `https`, ohne Zugangsdaten, Query und Fragment. Der Modus `record` verlangt sie. |
+| `UPSTREAM_URL` | URL des Upstreams, absolut mit `http` oder `https`, ohne Zugangsdaten, Query und Fragment. Der Modus `record` verlangt sie, ebenso der Modus `hybrid` bei `HYBRID_FALLBACK=enabled`; im Modus `hybrid` ist sie das Ziel des Upstream-Fallbacks. |
 | `SERVICES_FILE` | Pfad einer JSON-Datei, die mehrere Services beschreibt. Zugleich gesetzte `SERVICE_ID`, `SERVICE_ROOT_PATH` oder `UPSTREAM_URL` verhindern den Start. |
 | `REPLAY_STRATEGY` | Strategie, mit der das Abspielen wiederholte gleiche Anfragen beantwortet: `sequential`, `strict`, `first` oder `last`. Ohne Angabe gilt `sequential`. |
 | `REPLAY_ASSIGNMENT` | Wie eine Anfrage einem Workspace und einem Replay zugeordnet wird: `explicit` oder `ordered`. Ohne Angabe gilt `explicit`. |
@@ -92,13 +92,44 @@ Dieser Abschnitt führt die Einstellungen, die der Dienst aus den Umgebungsvaria
 | `SQLITE_BUSY_TIMEOUT` | Wartezeit der Datenbank bei gleichzeitigem Zugriff: eine Dauer wie bei `UPSTREAM_TIMEOUT`, höchstens 2147483647 ms. Ohne Angabe gilt `5000ms`. |
 | `VOLATILE_HEADERS` | Header-Namen, die der Vergleich der Antworten übergeht, durch Komma getrennt; `none` steht für keinen Header. Ohne Angabe gilt `Date, Server, Via, Age, X-Request-Id, X-Correlation-Id, Traceparent`. |
 | `LINK_REWRITE` | Umschreiben absoluter Links; der Dienst nimmt nur `off` an, und `off` gilt ohne Angabe. |
-| `STRICT_COVERAGE` | Wahrheitswert; wirkt im Modus `mock`: `true` weist eine Collection-Abfrage über einen nicht vollständigen Bestand ab, `false` beantwortet sie aus den bekannten Entities. Ohne Angabe gilt `true`. |
-| `ETAG_ENABLED` | Wahrheitswert; wirkt im Modus `mock` für Services der OData-Version 4.0: `true` liefert zu jeder Entity einen ETag der Form `W/"<n>"`, dessen Zahl allein der Zähler der Entity bestimmt. Er steht in der Kopfzeile `ETag` und, in der Stufe `odata.metadata=minimal`, als Mitglied `@odata.etag` der Entity. `true` wertet außerdem bei `PATCH`, `PUT` und `DELETE` die Kopfzeilen `If-Match` und `If-None-Match` gegen den ETag der Entity aus (der Vergleich ist schwach, `W/` zählt nicht) und weist eine nicht erfüllte Bedingung mit `412` ab, ohne den Zustand zu ändern (der Fehlercode steht in der Tabelle der Fehlercodes). `false` liefert keinen ETag und liest beide Kopfzeilen nie. Ohne Angabe gilt `false`. |
-| `PUBLIC_BASE_URL` | Öffentliche Basis der Links, die der Dienst im Modus `mock` erzeugt: `http://` oder `https://`, Host, optional Port und Segmente, ohne abschließenden Schrägstrich, höchstens 2048 Bytes. Ohne Angabe leitet der Dienst sie aus `LISTEN` ab, wenn dessen Host `127.0.0.1`, `[::1]` oder `localhost` ist; bei jedem anderen Host verlangt der Modus `mock` sie. |
-| `HYBRID_FALLBACK` | Hauptschalter des Upstream-Fallbacks im Modus `hybrid`: `disabled` oder `enabled`, in dieser Schreibweise. Mit `enabled` verlangt die Prüfung mindestens einen Eintrag in `FALLBACK_ALLOW_HOSTS` und je Service eine `UPSTREAM_URL`. Ohne Angabe gilt `disabled`. Der Modus `hybrid` startet nicht; der Dienst prüft den Wert und verwendet ihn sonst nicht. |
-| `HYBRID_REPLAY_FALLBACK` | Kategorien, für die im Modus `hybrid` der Replay-Fallback gilt, durch Komma getrennt: `unsupported` und `coverage_insufficient`, in dieser Schreibweise. Ein anderer Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Der Dienst prüft die Liste und verwendet sie sonst nicht. |
-| `FALLBACK_ALLOW_HOSTS` | Hosts, zu denen im Modus `hybrid` der Upstream-Fallback gehen darf, durch Komma getrennt: ein Name oder eine IPv6-Adresse in eckigen Klammern, optional mit `:` und Port, ohne Schema und Pfad. Ein ungültiger Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Der Dienst prüft die Liste und verwendet sie sonst nicht. |
-| `FALLBACK_WRITE_ALLOW` | Routen, für die im Modus `hybrid` ein schreibender Upstream-Fallback gilt, durch Komma getrennt: eine Methode (`POST`, `PUT`, `PATCH`, `DELETE` oder `MERGE`), ein Leerzeichen und ein Pfadmuster, das mit `/` beginnt, je Segment höchstens ein `*` trägt und am Ende `**` tragen darf. Ein ungültiger Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Der Dienst prüft die Liste und verwendet sie sonst nicht. |
+| `STRICT_COVERAGE` | Wahrheitswert; wirkt in den Modi `mock` und `hybrid`: `true` weist eine Collection-Abfrage über einen nicht vollständigen Bestand ab, `false` beantwortet sie aus den bekannten Entities; im Modus `hybrid` gibt es mit `false` für diese Abfrage keinen Fallback, weil der Mock sie ohne Fehler beantwortet. Ohne Angabe gilt `true`. |
+| `ETAG_ENABLED` | Wahrheitswert; wirkt in den Modi `mock` und `hybrid` für Services der OData-Version 4.0: `true` liefert zu jeder Entity einen ETag der Form `W/"<n>"`, dessen Zahl allein der Zähler der Entity bestimmt. Er steht in der Kopfzeile `ETag` und, in der Stufe `odata.metadata=minimal`, als Mitglied `@odata.etag` der Entity. `true` wertet außerdem bei `PATCH`, `PUT` und `DELETE` die Kopfzeilen `If-Match` und `If-None-Match` gegen den ETag der Entity aus (der Vergleich ist schwach, `W/` zählt nicht) und weist eine nicht erfüllte Bedingung mit `412` ab, ohne den Zustand zu ändern (der Fehlercode steht in der Tabelle der Fehlercodes). `false` liefert keinen ETag und liest beide Kopfzeilen nie. Ohne Angabe gilt `false`. |
+| `PUBLIC_BASE_URL` | Öffentliche Basis der Links, die der Dienst in den Modi `mock` und `hybrid` erzeugt: `http://` oder `https://`, Host, optional Port und Segmente, ohne abschließenden Schrägstrich, höchstens 2048 Bytes. Ohne Angabe leitet der Dienst sie aus `LISTEN` ab, wenn dessen Host `127.0.0.1`, `[::1]` oder `localhost` ist; bei jedem anderen Host verlangen beide Modi sie. |
+| `HYBRID_FALLBACK` | Hauptschalter des Upstream-Fallbacks im Modus `hybrid`: `disabled` oder `enabled`, in dieser Schreibweise. Mit `enabled` verlangt die Prüfung mindestens einen Eintrag in `FALLBACK_ALLOW_HOSTS` und je Service eine `UPSTREAM_URL`. Ohne Angabe gilt `disabled`: dann geht keine Anfrage an den Upstream, auch wenn die übrigen Schlüssel gesetzt sind. |
+| `HYBRID_REPLAY_FALLBACK` | Kategorien, für die im Modus `hybrid` der Replay-Fallback gilt, durch Komma getrennt: `unsupported` und `coverage_insufficient`, in dieser Schreibweise. Ein anderer Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Eine Anfrage, die der Mock nicht beantwortet, erhält für die Kategorie dann die Antwort aus den aufgezeichneten Austauschen. |
+| `FALLBACK_ALLOW_HOSTS` | Hosts, zu denen im Modus `hybrid` der Upstream-Fallback gehen darf, durch Komma getrennt: ein Name oder eine IPv6-Adresse in eckigen Klammern, optional mit `:` und Port, ohne Schema und Pfad. Ein ungültiger Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Ein Eintrag gilt nur für den Host der `UPSTREAM_URL` des Services der Anfrage, mit dem Port, den die URL nennt oder ihr Schema voraussetzt. |
+| `FALLBACK_WRITE_ALLOW` | Routen, für die im Modus `hybrid` ein schreibender Upstream-Fallback gilt, durch Komma getrennt: eine Methode (`POST`, `PUT`, `PATCH`, `DELETE` oder `MERGE`), ein Leerzeichen und ein Pfadmuster, das mit `/` beginnt, je Segment höchstens ein `*` trägt und am Ende `**` tragen darf. Ein ungültiger Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Ein Eintrag gilt nur für eine Anfrage, deren Methode und Pfad er deckt, und nur zu einem Host, den `FALLBACK_ALLOW_HOSTS` freigibt. |
+
+## Modus hybrid
+
+Aufgabe: Anfragen aus dem Bestand beantworten und nur dort auf aufgezeichnete Austausche oder den Upstream zurückgreifen, wo der Mock sie nicht beantwortet.
+
+Voraussetzung: `MODE=hybrid`. Der Start verlangt weder eine Session noch einen Workspace. Jede Anfrage nennt den Workspace im Header `X-Recorder-Workspace`; fehlt er, antwortet der Dienst mit `ODR-E5003`, ist er unbekannt, mit `ODR-E7001`.
+
+Ablauf einer Anfrage:
+
+1. Der Mock antwortet zuerst. Ist seine Antwort kein Fehler, geht sie unverändert an den Client, ohne Kennzeichnung.
+2. Scheitert der Mock mit `ODR-E6001` (nicht unterstützte Abfrage), `ODR-E6002` (nicht unterstützte Änderung) oder `ODR-E6003` (Bestand nicht vollständig), entscheiden `HYBRID_REPLAY_FALLBACK`, `HYBRID_FALLBACK`, `FALLBACK_ALLOW_HOSTS` und `FALLBACK_WRITE_ALLOW`, ob ein Fallback stattfindet. Entschieden wird am Fehlercode, nie am HTTP-Status.
+3. Jeder andere Fehler kehrt unverändert zurück und löst nie einen Fallback aus: die fachlichen Fehler `ODR-E6008` (404), `ODR-E6009` (409) und `ODR-E6010` (412), die ungültigen Anfragen `ODR-E6005` und `ODR-E6007` sowie jeder Fehler des Replays außer `ODR-E5001`, darunter `ODR-E5002`.
+
+Replay-Fallback: Steht die Kategorie des Fehlercodes in `HYBRID_REPLAY_FALLBACK` (`unsupported` für `ODR-E6001` und `ODR-E6002`, `coverage_insufficient` für `ODR-E6003`), antwortet der Dienst aus den aufgezeichneten Austauschen, für lesende und für ändernde Methoden, und sendet nichts an den Upstream. Der Client nennt dafür die Header `X-Recorder-Recording-Session` und `X-Recorder-Replay-Session`; fehlt einer, ist die Antwort `ODR-E5003`. Diese Prüfung geschieht erst im Replay-Fallback: eine Anfrage, die der Mock beantwortet, braucht die beiden Header nie.
+
+Upstream-Fallback: Nur mit `HYBRID_FALLBACK=enabled` und nur zum Host der `UPSTREAM_URL` des Services, den `FALLBACK_ALLOW_HOSTS` nennt.
+
+- Lesende Anfragen (`GET`, `HEAD`) gehen bei `ODR-E6001` und `ODR-E6003` an den Upstream, ebenso nach einem Replay-Fallback ohne Treffer (`ODR-E5001`).
+- Ändernde Anfragen (`POST`, `PUT`, `PATCH`, `DELETE`, `MERGE`) gehen bei `ODR-E6001`, `ODR-E6002` und `ODR-E6003` nur an den Upstream, wenn ein Eintrag von `FALLBACK_WRITE_ALLOW` ihre Methode und ihren Pfad deckt. Nach einem Replay-Fallback ohne Treffer erreicht eine ändernde Anfrage den Upstream nie.
+- Jede andere Methode (etwa `OPTIONS`) erreicht weder den Replay noch den Upstream.
+- Sind für eine Kategorie beide Wege offen, gilt der Replay-Fallback. Wer für eine Kategorie den Replay-Fallback setzt, schaltet damit den schreibenden Upstream-Fallback für deren Codes ab, weil die Zeile des Replay-Misses nur `GET` und `HEAD` kennt.
+- Ein `UPSTREAM_URL` mit einem Byte ab `0x80` im Host oder mit der Zone einer IPv6-Adresse gibt nie einen Fallback frei. Der Betreiber setzt die ASCII-Form, den Punycode des Hosts.
+- Die Antwort des Upstreams geht mit ihrem Status und ihren Headern an den Client, auch mit Status 3xx, 4xx oder 5xx. Ist der Upstream nicht erreichbar, ist die Antwort `ODR-E4001` mit 502, läuft `UPSTREAM_TIMEOUT` ab, mit 504.
+
+Kennzeichnung: Jede Antwort aus einem Fallback trägt den Header `X-Recorder-Fallback` mit dem Wert `replay` oder `upstream`. Eine Antwort des Mock trägt ihn nie. Absolute Links in einer Fallback-Antwort bleiben, wie der Upstream oder die Aufzeichnung sie lieferte, denn `LINK_REWRITE` steht auf `off`.
+
+Body: Eine Anfrage mit Body, für die ein Fallback möglich ist, liest der Dienst bis `MAX_CAPTURE_BODY` vollständig, bevor der Mock antwortet. Ein Body über dieser Grenze erhält nie einen Fallback; der Client sieht die Antwort des Mock.
+
+Herunterfahren: Eine Anfrage, die auf den Upstream wartet, ist eine laufende Anfrage. Der Dienst wartet höchstens `SHUTDOWN_TIMEOUT` auf sie; danach endet sie ohne Antwort, und eine vom Upstream angenommene Änderung kann ausgeführt sein, ohne dass der Client die Antwort sieht. Setze `SHUTDOWN_TIMEOUT` über die Antwortzeit des Upstreams.
+
+Beim Start im Modus `hybrid` mit `HYBRID_FALLBACK=enabled` und `UPSTREAM_TLS_INSECURE_SKIP_VERIFY=true` schreibt der Dienst genau eine Warnung, dass die Prüfung des Zertifikats abgeschaltet ist.
 
 ## Fehlercodes
 

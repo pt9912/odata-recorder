@@ -32,7 +32,7 @@ func start(ctx context.Context, environ []string, stderr io.Writer, b bauteile) 
 		return exitOK
 	}
 	log := slog.New(slog.NewTextHandler(stderr, nil))
-	if k.Modus == modusRecord && !k.UpstreamTLSVerify {
+	if (k.Modus == modusRecord || k.Modus == modusHybrid && k.Fallback.Upstream) && !k.UpstreamTLSVerify {
 		log.Warn("start: Zertifikatsprüfung zum Upstream abgeschaltet", "ereignis", "tls_pruefung_aus")
 	}
 	h, err := build(ctx, k, log, b)

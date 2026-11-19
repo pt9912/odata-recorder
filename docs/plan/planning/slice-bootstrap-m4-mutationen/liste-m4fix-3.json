@@ -1,0 +1,3 @@
+{"mutationen": [
+{"name":"R10b-hybrid-replay-strategie-strict","datei":"src/bootstrap/wurzel.go","alt":"func (h *Handle) baueReplay(db *sqlite.DB, waechter *maintenance.BlobWaechter, v vorlaeufig) (inbound.ReplayUseCase, error) {\n\tk := h.k\n","neu":"func (h *Handle) baueReplay(db *sqlite.DB, waechter *maintenance.BlobWaechter, v vorlaeufig) (inbound.ReplayUseCase, error) {\n\tk := h.k\n\tif k.Modus == modusHybrid {\n\t\tk.ReplayStrategy = \"strict\"\n\t}\n","test":"^TestM4WerteJeModus$","klasse":"andere"}
+]}

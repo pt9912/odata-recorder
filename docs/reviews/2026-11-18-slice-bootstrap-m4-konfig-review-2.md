@@ -70,7 +70,7 @@ Die Rate je Mutation ist 1 von 1 (ein Prozess, deterministisch, kein Detektor n�
 | `src/bootstrap/m4_konfig_test.go` | geprüft; Köpfe nennen ihre Menge und die Zählung, Werte aus Bytewerten (`fremdeZeichen`), Datei mit `LC_ALL=C grep -P` auf Rohbytes VT, FF, U+0085, U+00A0, U+2007 und U+FEFF gegengelesen, keine Folge Backslash-u im Quelltext (`AGENTS.md` §3.18); Befunde F-1, F-2, F-3, F-6, F-7 |
 | `spec/spezifikation.md` (`SPEC-110` Nr. 1, 6, 9, 16 f) | geprüft gegen Code und Plan: Nr. 9 und 16 f nennen denselben Grund; Nr. 6 gegen den Code für Query-Namen im Widerspruch (F-1); Historie F-5 |
 | Plan `slice-bootstrap-m4-konfig` (Kopf, §1, §3, §4, §6) | geprüft: Kopf, §1 und §3 tragen die Nachzüge von F-1 bis F-4; Mengen 36, 54, 60, 90, 96, 64, 10 stimmen mit den Zählprüfungen überein; Befunde F-2, F-4, F-6 |
-| `docs/plan/planning/open/slice-bootstrap-m4.md`, Report Runde 1 | geprüft, ohne Befund (Zeilen von Teil 2 und Verweise nachgezogen) |
+| `docs/plan/planning/done/slice-bootstrap-m4.md`, Report Runde 1 | geprüft, ohne Befund (Zeilen von Teil 2 und Verweise nachgezogen) |
 | Größenmarke | Marke 900 gleich Formel; Messung 1050 reproduziert (`git diff --numstat 7a5170d9..HEAD -- src/bootstrap/`); Eintrag `ueberschreitung: 1050` deckt; ein Schnitt beim Handoff ist nach `AGENTS.md` §3.14 nicht erlaubt (kein vorab benannter Teil), die Konstante und ihre Fänger teilen den Mechanismus; Befund F-4 nur zur Adresse |
 | `harness/`, `.harness/skills/`, Hooks, `docs/user/` | nicht im Diff; keine Unterdrückung (`//nolint`) im Diff gefunden |
 | Gate `make gates` | nicht Gegenstand dieses Reviews (Verifier) |
