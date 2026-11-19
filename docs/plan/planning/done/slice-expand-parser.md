@@ -70,7 +70,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 - [x] Grammatik, AST und Einhängestelle: `$expand` (Liste im Umfang des Architect, Dekodierung, Trennzeichen, Grenzen, Rangfolge der Verstöße) wird zu einem Knoten in `model.Optionen`; die Option ist zuschaltbar, ohne sie bleibt `$expand` `option_nicht_unterstuetzt`; jedes bestehende Feld und jedes Ergebnis ohne `$expand` bleibt gleich.
 - [x] Randformen des Optionstextes — bis auf die zwei akzeptierten Negative R-1 und R-2 (§3), die der User am 2026-11-19 als solche entschied — (leer, leeres Element, doppelte Option, doppeltes Element, `*`, Pfad, `$ref`, Typ-Cast, Klammer, Zahl der Elemente, Länge des Namens, Dekodierung, Groß- und Kleinschreibung): je Zelle des Rasters (§6) ein Ort in der Spezifikation und ein Fänger der Tabelle (§3), als Generator über das Alphabet der Grammatik mit einem Orakel ohne Code des Lesers.
 - [x] Parser-Contract-Test (`LH-FA-16.a`): ein eigener Test fährt den Parser gegen die Beispiele der Spezifikation (Tabelle als Fixture); `make a-check` hält die Richtung (Parser importiert kein Modell des Dienstes, keinen Dienst).
-- [ ] `make gates` grün.
+- [x] `make gates` grün.
 - [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
@@ -79,7 +79,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
 - [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
 
 ## 3. Plan (vor Code)
 
