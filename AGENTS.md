@@ -28,10 +28,7 @@ nachschlagbare Vertiefung** zu diesem Briefing: ein self-navigierbares
 self-contained Release-ZIP
 (<https://github.com/pt9912/ai-harness-course/releases/download/v6.18.1/lab-regelwerk.zip>)
 **committet vendored** unter `.harness/baseline/<tag>/{regelwerk,templates}/`
-(Regelwerk *und* Templates parallel, netzlos materialisiert samt `SHA256SUMS`
-— Vorgehen siehe
-Baseline-Regelwerk `modul-02-harness-bootstrap.md`;
-Quelle/Stand in [`harness/conventions.md`](harness/conventions.md) §Baseline).
+(Quelle/Stand in [`harness/conventions.md`](harness/conventions.md) §Baseline).
 
 Die verkörperte Form (dieses Briefing, die Konventionen, deine
 ausgefüllten Artefakte) **führt**; das Regelwerk wird **pro Entscheidung
@@ -44,13 +41,12 @@ Bootstrap, Änderung an [`harness/conventions.md`](harness/conventions.md)
 (Adaptionen `MR-<NNN>`, Source-Precedence, ID-Schema), Drift-Audit gegen die
 Baseline (Baseline-Regelwerk `modul-02-harness-bootstrap.md`
 §Freshness-Audit der vendored Baseline — darunter die Stichprobe gegen
-den Bestand, die auch bei aktuellem Pin läuft). Derivativ: bei Konflikt gelten die kanonischen Quellen.
+den Bestand, die auch bei aktuellem Pin läuft).
 
 Die **Skelett-Vorlagen** der Baseline liegen **vendored** unter
 `.harness/baseline/<tag>/templates/` (aus demselben Baseline-Bundle) und
 tragen zwei Rollen: als **Referenz-Form**, auf die das Regelwerk mit
-`../templates/…` als „Ziel-Form" verweist (netzlos, weil parallel zu
-`regelwerk/` vendored), und als Vorlage, die beim Anlegen neuer Artefakte
+`../templates/…` als „Ziel-Form" verweist, und als Vorlage, die beim Anlegen neuer Artefakte
 (ADR, Slice, Welle, Carveout, Review-Report) **kopiert und ausgefüllt** wird
 statt frei zu formulieren.
 
@@ -267,12 +263,13 @@ Der Implementer hält an einer Zelle ohne Ort an (§3.12); der Reviewer löst da
 **Falsch:** Der Vertrag nennt die leere ID für `Get`; für `Delete` und `Advance` entscheidet der Code.
 **Richtig:** Das Raster hat für jede Operation eine Zeile, und jede Zelle verweist auf eine Nummer des Vertrags.
 
-### 3.17 Ein Fix deckt die Klasse der Zusage, nicht die genannte Mutation   (seit welle-record-replay)
+### 3.17 Ein Fix deckt die Klasse der Zusage, nicht die genannte Mutation   (seit welle-record-replay, geschärft seit welle-etag)
 
 Schärft §3.15 für Fixes: Ein Befund nennt Mutationen als Belege; der Fix zählt erst, wenn er die Klasse deckt, zu der sie gehören — die Menge, die die Zusage meint (jede Referenzart, jede Position, jeder Rest hinter der Klammer, jede Aufrufstelle), nicht die Elemente, die der Befund nannte.
 Der Implementer bildet die Menge aus dem Wortlaut der Zusage in der Spezifikation oder im Plan, nicht aus dem Befund, und schreibt den Fänger als Schleife über alle ihre Elemente (§3.15).
 Sein Bericht nennt je Befund die Menge, die Zahl ihrer Elemente und mindestens eine Mutation an einem Element, das der Befund nicht nannte, rot gesehen.
 Ist die Menge unbeschränkt, nennt der Bericht die Prüfgrenze mit Grund und Folge im Betrieb (akzeptiertes Negativ, §3.15), nicht eine Auswahl, die dem Fix einfiel.
+Bei einer unbeschränkten Klasse ist die Menge das Alphabet der Grammatik bis zur Prüfgrenze (Länge): das zu prüfende Zeichen als Symbol, Zeichen- und Strukturmenge getrennt, das Orakel ohne Code des Lesers.
 Reviewer und Verifier lösen den Fix gegen die Klasse auf, nicht gegen die genannten Mutationen; ein Probe-Paket aus Generatoren über die Klasse ist dafür ein zulässiges Mittel.
 
 **Falsch:** Der Befund nennt `Collection(Edm.String` ohne Klammer; der Fix macht die Mutation „Suffix `)` nicht geprüft“ rot und führt dafür genau diese Form. `Collection(Edm.StringX`, `…)X` und `…))` bleiben ungefangen, die nächste Runde findet sie.

@@ -52,7 +52,7 @@ func (p *pruefer) pruefeCADatei(k *Konfiguration) {
 
 // liesDienste bildet die Services aus SERVICES_FILE oder den Einzelschlüsseln (SPEC-110 Nr. 9).
 func (p *pruefer) liesDienste(k *Konfiguration) {
-	record := k.Modus == modusRecord
+	pflicht := upstreamPflicht(k)
 	datei, hatDatei := p.wert("SERVICES_FILE")
 	if hatDatei {
 		for _, schluessel := range []string{"SERVICE_ID", "SERVICE_ROOT_PATH", "UPSTREAM_URL"} {
@@ -60,14 +60,24 @@ func (p *pruefer) liesDienste(k *Konfiguration) {
 				p.melde(schluessel, "zugleich mit SERVICES_FILE gesetzt")
 			}
 		}
-		k.Dienste = p.dateiDienste(datei, record)
+		k.Dienste = p.dateiDienste(datei, pflicht)
 		p.pruefeDienste(k.Dienste)
 		return
 	}
-	k.Dienste = []Dienst{p.einzelDienst(record)}
+	k.Dienste = []Dienst{p.einzelDienst(pflicht)}
 }
 
-func (p *pruefer) einzelDienst(record bool) Dienst {
+// upstreamPflicht ist der Grund, den ein fehlender Upstream meldet: derselbe Text `Pflichtfeld fehlt` im Modus record und im
+// Modus hybrid bei HYBRID_FALLBACK=enabled (SPEC-110 Nr. 9, 16 f); leer heißt, die URL ist keine Pflicht. Ein ungültiger MODE
+// hat keinen Modus und ein ungültiges HYBRID_FALLBACK kein Upstream, also keine Pflicht.
+func upstreamPflicht(k *Konfiguration) string {
+	if k.Modus == modusRecord || k.Modus == modusHybrid && k.Fallback.Upstream {
+		return "Pflichtfeld fehlt"
+	}
+	return ""
+}
+
+func (p *pruefer) einzelDienst(pflicht string) Dienst {
 	d := Dienst{ID: "default", Root: "/"}
 	if w, ok := p.wert("SERVICE_ID"); ok {
 		if !istDienstID(w) {
@@ -83,16 +93,16 @@ func (p *pruefer) einzelDienst(record bool) Dienst {
 			d.Root = w
 		}
 	}
-	d.UpstreamURL = p.upstreamURL("UPSTREAM_URL", p.env["UPSTREAM_URL"], record)
+	d.UpstreamURL = p.upstreamURL("UPSTREAM_URL", p.env["UPSTREAM_URL"], pflicht)
 	return d
 }
 
-// upstreamURL prüft eine URL; fehlt sie, ist das im Modus record ein Verstoß.
-func (p *pruefer) upstreamURL(schluessel, wert string, record bool) string {
-	wert = strings.TrimSpace(wert)
+// upstreamURL prüft eine URL; fehlt sie und ist pflicht nicht leer, meldet sie pflicht als Grund.
+func (p *pruefer) upstreamURL(schluessel, wert, pflicht string) string {
+	wert = kappe(wert)
 	if wert == "" {
-		if record {
-			p.melde(schluessel, "im Modus record erforderlich")
+		if pflicht != "" {
+			p.melde(schluessel, pflicht)
 		}
 		return ""
 	}
@@ -105,7 +115,7 @@ func (p *pruefer) upstreamURL(schluessel, wert string, record bool) string {
 }
 
 // dateiDienste liest SERVICES_FILE; jede Verletzung ist ein Verstoß, nie der Wert.
-func (p *pruefer) dateiDienste(pfad string, record bool) []Dienst {
+func (p *pruefer) dateiDienste(pfad, pflicht string) []Dienst {
 	roh, grund := leseBegrenzt(pfad)
 	if grund != "" {
 		p.melde("SERVICES_FILE", grund)
@@ -127,7 +137,7 @@ func (p *pruefer) dateiDienste(pfad string, record bool) []Dienst {
 	}
 	dienste := make([]Dienst, len(eintraege))
 	for i, e := range eintraege {
-		dienste[i] = p.dateiEintrag(i, e, record)
+		dienste[i] = p.dateiEintrag(i, e, pflicht)
 	}
 	return dienste
 }
@@ -152,7 +162,7 @@ func leseBegrenzt(pfad string) ([]byte, string) {
 
 // dateiEintrag prüft ein Objekt der Datei; ein fehlerhaftes Feld bleibt leer und ist gemeldet,
 // ein Feld falschen Typs mit genau einer Zeile (SPEC-110 Nr. 9).
-func (p *pruefer) dateiEintrag(i int, roh json.RawMessage, record bool) Dienst {
+func (p *pruefer) dateiEintrag(i int, roh json.RawMessage, pflicht string) Dienst {
 	eintrag := fmt.Sprintf("SERVICES_FILE[%d]", i)
 	var felder map[string]json.RawMessage
 	if err := json.Unmarshal(roh, &felder); err != nil || felder == nil {
@@ -178,7 +188,7 @@ func (p *pruefer) dateiEintrag(i int, roh json.RawMessage, record bool) Dienst {
 		if s == nil {
 			return "", true
 		}
-		return strings.TrimSpace(*s), true
+		return kappe(*s), true
 	}
 	var d Dienst
 	if w, ok := text("id"); ok {
@@ -188,7 +198,7 @@ func (p *pruefer) dateiEintrag(i int, roh json.RawMessage, record bool) Dienst {
 		d.Root = p.pflichtfeld(eintrag+".service_root", w, istRoot, "muss / sein oder Segmente /a/b ohne abschließenden Schrägstrich")
 	}
 	if w, ok := text("upstream_url"); ok {
-		d.UpstreamURL = p.upstreamURL(eintrag+".upstream_url", w, record)
+		d.UpstreamURL = p.upstreamURL(eintrag+".upstream_url", w, pflicht)
 	}
 	return d
 }

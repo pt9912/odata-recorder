@@ -269,6 +269,85 @@ func TestFallMitBauMeldetScheiternDesBaus(t *testing.T) {
 	}
 }
 
+// Randform 2a und 6 für den Bau: Ablauf geht vor Exit-Code, Exit ungleich 0 nennt die letzten
+// Zeilen (nicht die ersten), Exit 0 ist nicht rot. Jede Zeile gilt für beide Seiten der Grenze.
+func TestBewerteBau(t *testing.T) {
+	lang := "z1\nz2\nz3\nz4\nz5\nz6\nz7\nz8\nz9\nz10"
+	tests := []struct {
+		name       string
+		code       int
+		out        string
+		abgelaufen bool
+		want       []string // Teiltexte, die der Grund nennt
+		nicht      []string // Teiltexte, die er nicht nennt
+		gruen      bool
+	}{
+		{"Ablauf", -1, "z1", true, []string{"Zeit überschritten"}, []string{"scheitert"}, false},
+		{"Ablauf mit Exit 0", 0, "", true, []string{"Zeit überschritten"}, []string{"scheitert"}, false},
+		{"Exit 1 mit langer Ausgabe", 1, lang, false, []string{"Bau des Binary scheitert", "z10", "z3"}, []string{"z1\n", "z2\n", "Zeit"}, false},
+		{"Exit 2", 2, "boese", false, []string{"Bau des Binary scheitert", "boese"}, []string{"Zeit"}, false},
+		{"nicht startbar (Exit -1, kein Ablauf)", -1, "fork/exec: nein", false, []string{"Bau des Binary scheitert", "nein"}, []string{"Zeit"}, false},
+		{"Exit 0", 0, "alles gut", false, nil, nil, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := bewerteBau(tc.code, tc.out, tc.abgelaufen)
+			if tc.gruen {
+				if got != "" {
+					t.Fatalf("bewerteBau = %q, erwartet grün", got)
+				}
+				return
+			}
+			for _, w := range tc.want {
+				if !strings.Contains(got, w) {
+					t.Errorf("bewerteBau = %q nennt %q nicht", got, w)
+				}
+			}
+			for _, n := range tc.nicht {
+				if strings.Contains(got, n) {
+					t.Errorf("bewerteBau = %q nennt %q", got, n)
+				}
+			}
+		})
+	}
+}
+
+// Randform 2a: scheitert der Bau, ruft fuehreFall das Gate nicht. Der Ersatz für Bauen und der für
+// Befehl halten jedes Argument fest und zählen jede Operation, auch Aufraeumen, das fuehreFall nie
+// rufen darf.
+func TestFuehreFallBauScheitertRuftKeinGate(t *testing.T) {
+	var bauen, befehl, aufraeumen int
+	var bauDir string
+	var bauBau Bau
+	u := Umgebung{
+		Aufraeumen: func(string) error { aufraeumen++; return nil },
+		Befehl: func(string, Fall) (string, []string, string) {
+			befehl++
+			return "sh", []string{"-c", "echo gate-lief"}, ""
+		},
+		Bauen: func(dir string, b Bau) (string, []string) {
+			bauen++
+			bauDir, bauBau = dir, b
+			return "sh", []string{"-c", "echo erste; echo z2; echo z3; echo z4; echo z5; echo z6; echo z7; echo z8; echo z9; echo letzte; exit 1"}
+		},
+	}
+	dir := t.TempDir()
+	f := Fall{Name: "b", Bau: &Bau{Version: "v"}}
+	erg := fuehreFall(u, f, dir, t.TempDir())
+	if !strings.HasPrefix(erg.Rot, "Bau des Binary scheitert") || !strings.Contains(erg.Rot, "letzte") || strings.Contains(erg.Rot, "erste") {
+		t.Errorf("Rot = %q", erg.Rot)
+	}
+	if erg.Name != "b" {
+		t.Errorf("Name = %q", erg.Name)
+	}
+	if befehl != 0 || aufraeumen != 0 {
+		t.Errorf("Befehl %d-mal und Aufraeumen %d-mal gerufen, erwartet 0", befehl, aufraeumen)
+	}
+	if bauen != 1 || bauDir != dir || bauBau != *f.Bau {
+		t.Errorf("Bauen %d-mal mit %q und %+v", bauen, bauDir, bauBau)
+	}
+}
+
 func TestFaelleDerPruefungHabenDieNamenAusDemVertrag(t *testing.T) {
 	want := []string{
 		"test/basis", "test/nicht-formatiert", "test/vet-befund", "test/roter-test",

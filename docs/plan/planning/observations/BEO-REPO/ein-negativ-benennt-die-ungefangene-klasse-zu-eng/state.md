@@ -1,1 +1,1 @@
-**Stand:** offen
+**Stand:** offen; Schwelle 3x erreicht (`slice-odata-url-pfad`, `slice-gates-ohne-worktrees`, `slice-gegenproben-zeitbudget`, Evidenz), Zuweisung (verkörpert oder geplant) beim User, Diff-Vorschlag im Bericht der Closure von `slice-gegenproben-zeitbudget`; kein Zielort

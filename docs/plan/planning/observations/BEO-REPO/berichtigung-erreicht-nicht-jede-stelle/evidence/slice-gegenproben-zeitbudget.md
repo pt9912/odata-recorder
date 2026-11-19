@@ -1,0 +1,2 @@
+**Vorgang:** slice-gegenproben-zeitbudget
+**Fund:** Der Start-Commit zog in der Roadmap den Link des Slice auf `in-progress/` und den Ruhe-Marker nach, nicht den Zustand in der Klammer derselben Zeile (`open/`); die Zeile blieb durch alle drei Prüfrunden ein falsches Zustandsfeld (Review F-4, G-4, Verifikation F-2). Berichtigt mit der Closure. Beleg: Review-Report `2026-11-18-slice-gegenproben-zeitbudget-review` (F-4), Verifikations-Report (F-2), Plan §6.

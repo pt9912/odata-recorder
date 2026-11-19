@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
 )
 
 // ExitKonfiguration ist der Exit-Code, wenn die Startkonfiguration ungültig ist (SPEC-110 Nr. 12).
@@ -47,13 +48,17 @@ type Konfiguration struct {
 	SQLiteBusyTimeout    time.Duration
 	VolatileHeaders      []string
 	LinkRewrite          string
-	// StrictCoverage und PublicBaseURL wirken im Modus mock (SPEC-110 Nr. 14); PublicBaseURL ist in den
+	// StrictCoverage und PublicBaseURL wirken in den Modi mock und hybrid (SPEC-110 Nr. 14); PublicBaseURL ist in den
 	// anderen Modi leer, wenn der Schlüssel fehlt.
 	StrictCoverage bool
 	PublicBaseURL  string
-	// EtagEnabled ist ETAG_ENABLED (SPEC-110 Nr. 15, SPEC-282): in jedem Modus geprüft, im Modus mock nur für Dienste der
-	// Version 4.0 wirksam (SPEC-280 Nr. 2).
+	// EtagEnabled ist ETAG_ENABLED (SPEC-110 Nr. 15, SPEC-282): in jedem Modus geprüft, in den Modi mock und hybrid nur für
+	// Dienste der Version 4.0 wirksam (SPEC-280 Nr. 2).
 	EtagEnabled bool
+	// Fallback sind die Werte von HYBRID_FALLBACK und der drei Listen (SPEC-110 Nr. 16, SPEC-261), in jedem Modus gelesen; die
+	// Listen stehen in der Folge der Eingabe, mit Doppelten (der Eintrag der Meldung zählt sie mit), und NeuePolicy baut daraus
+	// die Policy.
+	Fallback policy.Werte
 }
 
 // KonfigFehler sammelt alle Verstöße der Startkonfiguration, je Zeile
@@ -80,9 +85,16 @@ func (p *pruefer) melde(schluessel, grund string) {
 	p.verstoesse = append(p.verstoesse, verstoss{schluessel, grund})
 }
 
+// leerraum sind die Zeichen, die die Konfiguration am Rand eines Wertes, eines Listeneintrags und eines Feldes der Services-Datei
+// entfernt: Leerzeichen, Tabulator, LF und CR, kein anderes Zeichen (SPEC-110 Nr. 1, 6).
+const leerraum = " \t\n\r"
+
+// kappe entfernt leerraum an beiden Rändern von s.
+func kappe(s string) string { return strings.Trim(s, leerraum) }
+
 // wert liefert den Wert ohne Leerraum am Rand; leer gilt als ungesetzt (SPEC-110 Nr. 1).
 func (p *pruefer) wert(schluessel string) (string, bool) {
-	w := strings.TrimSpace(p.env[schluessel])
+	w := kappe(p.env[schluessel])
 	return w, w != ""
 }
 
@@ -123,6 +135,7 @@ func LadeKonfiguration(environ []string) (Konfiguration, error) {
 	p.liesEinfache(&k)
 	p.liesMengen(&k)
 	p.liesTLS(&k)
+	p.liesHybrid(&k)
 	p.liesDienste(&k)
 	p.liesPublicBaseURL(&k)
 	p.pruefeCADatei(&k)

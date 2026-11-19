@@ -36,7 +36,7 @@ ist einzeln lieferbar.
 
 **Wer legt was fest.** Der Architect legt vor dem Code fest: den Ort und den Wortlaut jeder der drei Regeln, die Kürzungen (welche Zeilen oder Bytes in `reviewer.md`, `implement-slice.md`, `AGENTS.md` und `verifier.md` entfallen oder in welchen Vertrag sie ziehen) und die Messung der Größen vor und nach dem Diff. Der Planner entscheidet nichts davon; die Texte der Vorlagen sind Eingabe, nicht Beschluss.
 
-**Ausgangsmaße** (Messung der Closure von `welle-mock`, Grenzen in `.d-check.yml`; sie stehen auf ihren Grenzen, also verlängert jede Zeile): `.harness/skills/reviewer.md` 145 von 145 Zeilen und 8110 von 8110 Bytes; `.claude/commands/implement-slice.md` 17081 von 17081 Bytes; `AGENTS.md` 329 von 329 Zeilen und 23648 von 23648 Bytes; `.claude/agents/architect.md` 3759 von 3759 Bytes; `.claude/agents/verifier.md` Platz bis 53 Zeilen und 3759 Bytes. Der Implementer misst vor dem ersten Edit neu.
+**Ausgangsmaße** (Messung der Closure von `welle-mock`, Grenzen in `.d-check.yml`; sie stehen auf ihren Grenzen, also verlängert jede Zeile): `.harness/skills/reviewer.md` 145 von 145 Zeilen und 8110 von 8110 Bytes; `.claude/commands/implement-slice.md` 17081 von 17081 Bytes; `AGENTS.md` 326 von 326 Zeilen und 23633 von 23633 Bytes (nach der Closure von `welle-etag`: §3.17 trägt einen Satz mehr, §1 Duplikate zu `harness/conventions.md` entfielen, die Grenzen stehen auf dem neuen Ist); `.claude/agents/architect.md` 3759 von 3759 Bytes; `.claude/agents/verifier.md` Platz bis 53 Zeilen und 3759 Bytes. Der Implementer misst vor dem ersten Edit neu.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
