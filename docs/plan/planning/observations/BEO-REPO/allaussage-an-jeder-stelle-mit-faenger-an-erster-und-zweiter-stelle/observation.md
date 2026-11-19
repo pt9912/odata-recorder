@@ -1,0 +1,5 @@
+# Eine Allaussage „an jeder Stelle“ oder „ein Operand genügt“ hat Fänger an der ersten und zweiten Stelle
+
+**Sub-Area:** `*` (gesamtes Repo, Kürzel `REPO`)
+
+Der Wortlaut eines Vertrags sagt „an jeder Stelle“, „ein Operand genügt“ oder „jedes Musterzeichen“ zu; die Fänger führen Flag und Operand an der ersten oder zweiten Stelle, Paare statt Tripel und ein Musterzeichen von dreien. Eine Mutation, die nur die ersten zwei Elemente prüft, bleibt grün. Die Regel steht in `AGENTS.md` §3.15 (eine Allaussage über Stellen und Arten schreibt der Test als Schleife über beide Mengen); hier fehlt die Achse Zahl und die dritte Stelle in einer sonst vollständigen Schleife, und der Implementer hatte die Schleife an anderer Stelle (`sed`, Z9) richtig gebaut. Nahe an `menge-ohne-ihre-positionen` (dort eine Position der Menge, hier die Zahl und die Stelle ab der dritten), an `universalaussage-im-vertrag-ungeprueft` (dort fehlt jede Prüfung der Allaussage) und an `fix-deckt-die-genannte-mutation-nicht-die-klasse`.
