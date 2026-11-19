@@ -77,7 +77,7 @@ gehört zurück zur Zerlegung.
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
 - [x] Beobachtungs-Register (`../observations/`) fortgeschrieben; keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen.
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen: Anker `docs/plan/planning/README.md` trägt `seit slice-guard-schreibwege`; kein Folge-Slice genannt, nichts zu paaren; jede im Slice genannte Kennung `BEO-REPO/<slug>` (acht) liegt mit nicht leerem `evidence/` im Register (nach dem Move geprüft, 2026-11-19).
 
 ## 3. Plan (vor Code)
 
