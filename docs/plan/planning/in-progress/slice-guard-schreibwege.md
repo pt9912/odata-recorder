@@ -139,7 +139,7 @@ Der Planner schneidet; der Architect entscheidet (Aufträge unten), der Implemen
 | 19 | Die akzeptierten Negative sind festgehalten (Nr. 11); wer eines behebt, ändert den Vertrag (Nr. 11 a bis h) | Fälle 50 und 51 | `cp` oder `patch` sperren: Fall 50 rot; `<>` als Operator lesen: Fall 50 Element 11 rot; die Quote-Blindheit beheben: Fall 51 rot (Nachzug im Vertrag) | andere |
 | 20 | Akzeptiertes Negativ: die Scratchpad-Namen sind Anweisung, der Guard prüft sie nicht (Nr. 8, 11 i). Grund: ein „generischer“ Name ist kein Wortmuster. Folge: eine Kollision bei vergessener Regel fällt am überschriebenen Lauf auf | keiner; der Reviewer liest den Wortlaut in den Übergangsregeln Nr. 8 gegen `SPEC-214` Nr. 8 | keine Mutation möglich | andere |
 
-**Erwartete Produktcode-Größe** (Auftrag 6; Skript, kein Go): *p* = 300 Zeilen für den Guard (heute 133, danach rund 400: Länge und Fortsetzung 10, Zitat-, Heredoc- und Verzeichnis-Zustand 90, Ziel-Klassen und Normalisierung 45, Umleitung 40, `tee`, `sed -i`, `git apply` 55, `pkill`, `pgrep`, `rm` 40, Meldungen und Rang 20). *a* = 0 (der Guard ist einfädig und zustandslos), *b* = 20 Zeilen der Tabelle, *f* = 0 (kein Port-Fake). *S* = 85·0 + 80·20 + 200·0 + 300 = 1900, Marke 2600 nach `SPEC-128` Nr. 1; die Schnittfrage (*S* ≥ 2223) stellt sich nicht, Abstand 323. Zur Einordnung: Gruppe 1 allein (Zeilen 1 bis 14, 17 bis 19, *p* = 210) wäre *S* = 1570, Marke 2200; Gruppen 2 und 3 (Zeilen 15, 16, 20, *p* = 90) *S* = 330. Die Formel ist an Go-Tests geeicht; die Messung dieses Slice (Guard rund 300 Zeilen, Skript rund 400, Doku 20) liegt erwartet bei 700 bis 800 Zeilen und damit weit unter der Marke. Ob die Marke gesenkt wird, entscheidet der Planner nach `SPEC-128` Nr. 1 und mit Grund in §4.
+**Erwartete Produktcode-Größe** (Auftrag 6; Skript, kein Go): *p* = 300 Zeilen für den Guard (heute 133, danach rund 400: Länge und Fortsetzung 10, Zitat-, Heredoc- und Verzeichnis-Zustand 90, Ziel-Klassen und Normalisierung 45, Umleitung 40, `tee`, `sed -i`, `git apply` 55, `pkill`, `pgrep`, `rm` 40, Meldungen und Rang 20). *a* = 0 (der Guard ist einfädig und zustandslos), *b* = 20 Zeilen der Tabelle, *f* = 0 (kein Port-Fake). *S* = 85·0 + 80·20 + 200·0 + 300 = 1900, Marke 2600 nach `SPEC-128` Nr. 1; die Schnittfrage (*S* ≥ 2223) stellt sich nicht, Abstand 323. Zur Einordnung: Gruppe 1 allein (Zeilen 1 bis 14, 17 bis 19, *p* = 210) wäre *S* = 1570, Marke 2200; Gruppen 2 und 3 (Zeilen 15, 16, 20, *p* = 90) *S* = 330. Die Formel ist an Go-Tests geeicht; die Messung dieses Slice (Guard rund 300 Zeilen, Skript rund 400, Doku 20) liegt erwartet bei 700 bis 800 Zeilen und damit weit unter der Marke. Der Planner hat die Marke nach `SPEC-128` Nr. 1 auf 2600 gesetzt und nicht gesenkt (Grund in §4).
 
 ## 4. Trigger
 
@@ -150,13 +150,19 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start belegt (2026-11-19, Planner):** `welle-record-replay-results` liegt in `done/`; `in-progress/` enthielt nur `roadmap.md`, kein anderer Slice der Kette lief (`slice-gate-integration-determinism` und `slice-gates-ohne-worktrees` liegen in `done/`); Worktree neben dem Repo (Verzeichnis `odata-recorder-wt-guard`), Zweig `slice-guard-schreibwege`. Der Slice führt die Sendung aus `welle-mock` in §1 *Übernimmt*; ein Nehmer für Gruppen 2 und 3 existiert nicht, ein Slice dafür entsteht erst bei einem Schnitt (§3.13 trägt dann der Planner nach).
 
-**Größenmarke:** Der Architect-Teil des Blocks steht (Pfade, `produktcode`, `fakes`, Schätzung in §3: *S* = 1900, Marke 2600, keine Schnittfrage); die Marke setzt der Planner in eigenem Commit vor dem ersten Code-Commit mit `make groessenmarke` nach `SPEC-128` Nr. 1 und `AGENTS.md` §3.14 (`basis`, `schaetzung`, `marke`).
+**Größenmarke (Planner, 2026-11-19, vor dem ersten Code-Commit):** *S* = 85·0 + 80·20 + 200·0 + 300 = 1900, Marke *M* = 100 · ⌈135·1900 / 10000⌉ = 2600 nach `SPEC-128` Nr. 1; Schnittgrenze *S* ≥ 2223, Abstand 323, keine Schnittfrage. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <basis>..HEAD` über die Pfade des Blocks, Tests eingeschlossen (`SPEC-128` Nr. 4 a, `AGENTS.md` §3.14); `harness/vertraege/` zählt nicht, `docs/` und `spec/` nennt kein Pfad.
+Die Marke bleibt die Formel und wird nicht niedriger angesetzt: Die erwartete Messung (700 bis 800 Zeilen) ist eine Schätzung des Architect für Skripte ohne Go-Tests, die Formel ist an Go-Slices geeicht und an Skripten nicht geprüft; eine niedrigere Marke bräuchte den Eintrag `ersetzt` samt Grund und ein belegtes Maß, das ein einzelner Erwartungswert nicht ist. Liegt die Messung weit unter der Marke, ist das ein Befund für `slice-groessenformel-neu`, keine Rückführung.
+**Schnittfrage vor dem Code beantwortet:** Gruppe 1 allein (Zeilen 1 bis 14, 17 bis 19, *p* = 210) ergäbe *S* = 1570, Marke 2200; Gruppen 2 und 3 (Zeilen 15, 16, 20, *p* = 90) *S* = 330. Die Marke des Ganzen liegt unter der Schnittgrenze, und die Gruppen teilen den Mechanismus (Segmentzerlegung, Zitat-Zustand, Zielklassen, Rang und Meldungen in einem Skript, `SPEC-214` Nr. 1 b, 9 c): ein Schnitt ergäbe zwei Änderungen am selben Skript und zwei Läufe des Prüflaufs. Kein Schnitt; ein vorab benannter Teil für den Handoff (`AGENTS.md` §3.14) entfällt aus demselben Grund.
+`basis` ist der Architect-Vertrag `d83a12e1`; der erste Code-Commit folgt dem Marken-Commit.
 
 ```groessenmarke
 pfad: .claude/hooks/pretooluse-command-guard.sh
 pfad: tools/harness/guard-faelle.sh
 produktcode: 300
 fakes: 0
+basis: d83a12e1
+schaetzung: 1900
+marke: 2600
 ```
 
 **Rückführungen — vorab benannt:**
@@ -177,7 +183,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - Die Erkennung des Ziels einer Umleitung ist wegen der Quote-Blindheit unvollständig — **Ausgang:** weiter offen: die ungefangenen und die falsch gemeldeten Formen stehen als akzeptiertes Negativ mit Grund und Folge in `SPEC-214` Nr. 11 a bis h (Fälle 50 und 51 halten sie fest); die Falschmeldungen sperren eine Rolle ohne Anlass, die Abhilfe `git commit -F <Datei>` steht in der Meldung S.
 - Raster der Randformen (Auftrag 5) ist noch leer — **Ausgang:** entfallen: das Raster steht unten, jede Zelle trägt eine Nummer von `SPEC-214` oder „gilt nicht“ mit Grund; die Zeilen für `git apply`, `pgrep`/`kill`/`rm -rf` und Scratchpad-Namen sind darin.
 - Eine Sperre von `git apply` nimmt den Architects ohne `Edit` ihre einzige Schreibform — **Ausgang:** weiter offen; Adresse: User (Rückgabe 2), der Architect schreibt bis dahin ganze Dateien mit `Write` (`SPEC-214` Nr. 12).
-- Der Umfang mit Gruppen 2 und 3 überschreitet die Schnittgrenze — **Ausgang:** weiter offen bis zur Marke des Planners: *S* = 1900 liegt unter der Schnittgrenze 2223 (§3, Abschnitt *Erwartete Produktcode-Größe*).
+- Der Umfang mit Gruppen 2 und 3 überschreitet die Schnittgrenze — **Ausgang:** entfallen: *S* = 1900 liegt unter der Schnittgrenze 2223, Marke 2600 gesetzt (§4).
 - Der Prüflauf ist kein Gate; eine Regression am Guard fängt nur ein Lauf des Skripts — **Ausgang:** weiter offen; Grund, Folge und Auslöser für ein Gate: `SPEC-214` Nr. 10 d; Reviewer und Verifier fahren das Skript selbst.
 - Die Latenz des Guards wächst mit der Zerlegung (der Guard läuft vor jedem Bash-Aufruf) — **Ausgang:** weiter offen; Messung vor der Änderung 12 ms je Lauf (`SPEC-214` Nr. 10 c), Grenzen Median 100 ms und 3 s für 32768 Zeichen; der Implementer misst und berichtet in §7.
 
@@ -185,7 +191,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 | Nr. | Gegenstand | Adresse | Ausgang |
 |---|---|---|---|
-| 1 | Die Marke nach `SPEC-128` Nr. 1 aus Tabelle (*b* = 20) und Block (*p* = 300); der Planner entscheidet, ob er sie wegen der erwarteten Messung (700 bis 800 Zeilen) niedriger ansetzt | Planner | offen |
+| 1 | Die Marke nach `SPEC-128` Nr. 1 aus Tabelle (*b* = 20) und Block (*p* = 300); der Planner entscheidet, ob er sie wegen der erwarteten Messung (700 bis 800 Zeilen) niedriger ansetzt | Planner | entschieden: 2600 gleich der Formel, nicht gesenkt, Grund in §4 |
 | 2 | Werkzeugliste des Typs `architect`: Diff-Vorschlag für `.claude/agents/architect.md`, Zeile `tools: Read, Write, Bash` wird `tools: Read, Write, Edit, Bash` (gleiche Zeilenzahl, die Datei steht auf ihrer Größengrenze); ohne die Änderung schreibt der Architect Dateien ganz mit `Write` | User (Closure legt den Diff bei) | offen |
 | 3 | Rollen-Anweisung zu den Scratchpad-Namen (`SPEC-214` Nr. 8) in `.claude/commands/` und `.claude/agents/`: Diff-Vorschlag in der Closure; bis dahin trägt sie nur die Übergangsregel Nr. 8 und der Plan jedes Slice | User (Closure legt den Diff bei) | offen |
 | 4 | Wortlaut der Übergangsregeln Nr. 8 (Wächter statt Disziplin, Namensregel aus `SPEC-214` Nr. 8) | Implementer (§3, Zeile `docs/plan/planning/README.md`) | offen |
