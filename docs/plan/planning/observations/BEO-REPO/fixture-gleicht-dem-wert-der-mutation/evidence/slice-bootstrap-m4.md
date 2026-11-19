@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m4
+**Fund:** Jede Fixture setzte `STRICT_COVERAGE` im Modus `hybrid` auf `true`; die Mutation `StrictCoverage` fest wahr (`k.StrictCoverage || k.Modus == modusHybrid`) blieb grün (Review F2, MEDIUM), obwohl das Handbuch für `false` zusagt, es gebe keinen Fallback über unvollständigen Bestand. Behoben mit beiden Werten in `M4WerteJeModus` und `M4/Strikte Abdeckung` (Wirkung am Referenzdienst); fest wahr und fest falsch beide rot. Beleg: Report `2026-11-18-slice-bootstrap-m4-review` (F2); Plan §3 *Nacharbeit F1 und F2*.
