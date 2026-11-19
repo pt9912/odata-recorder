@@ -1,0 +1,2 @@
+**Vorgang:** slice-expand-parser
+**Fund:** Die Achse Stelle fehlte in drei Befunden: Review F-2 (Abstand eines doppelten Elements nur bis 3, `teile[max(0, i-4):i]` blieb grün), Review F-4 (Verstöße nur an den Stellen 1 bis 4 von 6) und Nachverifikation N-1 (Verstoß an Stelle 8 bis 23 und `*` ab Stelle 12 einer Liste von 32 blieben grün, behoben mit jeder Stelle der Listenlängen 2, 3, 7, 12, 25, 32, Listenlängen dazwischen als akzeptiertes Negativ). Beleg: Plan §3 (Fix-Runden F-2, F-4, N-1); Reports `2026-11-18-slice-expand-parser-1` und `-nachverifikation`.

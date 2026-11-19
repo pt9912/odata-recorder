@@ -37,7 +37,8 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 **Trigger je Slice (Code-Abhängigkeit, Zusatz zum Trigger):** Der Trigger der Welle bleibt formal und gilt für den Abschluss.
 - `slice-batch-parser` hängt an keinem Code aus `welle-mock` (der Leser braucht Fehlermodell, Konvention der Codec-Ports und Modell, alle in `done/`); der Welle-Trigger ist für ihn Priorisierung, ein Start davor ist eine Entscheidung des Users.
 - `slice-expand-parser` braucht `slice-odata-url-pfad` aus `welle-mock` (Teil 1, reine Funktion), nicht `welle-mock` ganz; nennt der Architect `$filter` in verschachtelten Optionen, auch `slice-odata-url-filter` und `slice-edm-ausdruecke`.
-- `slice-expand-ausfuehrung` braucht `welle-mock` und `slice-expand-parser`, dazu die Entscheidung des Architect zur Datenbasis der Navigationen (§6) in der Spezifikation und, falls sie Verträge in `done/` ändert (Reader, Import, Schema), den Slice dafür; ihn legt der Planner dann vor diesem an.
+- `slice-expand-validator` braucht `slice-expand-parser` (Knoten `$expand`) und das Modell der Metadaten, nicht `welle-mock` ganz.
+- `slice-expand-ausfuehrung` braucht `welle-mock`, `slice-expand-parser` und `slice-expand-validator`, dazu die Entscheidung des Architect zur Datenbasis der Navigationen (§6) in der Spezifikation und, falls sie Verträge in `done/` ändert (Reader, Import, Schema), den Slice dafür; ihn legt der Planner dann vor diesem an.
 - `slice-batch-changesets` braucht `welle-mock` (Workspace-Transaktion) und `slice-batch-parser`.
 
 ## 3. Closure-Trigger (Welle schließt)
@@ -61,7 +62,8 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 
 | Slice | Titel | Bezug |
 |---|---|---|
-| slice-expand-parser | `$expand` in der OData-URL: Parser und Validator gegen die Navigationen des Modells | `LH-FA-16`; `LH-FA-16.a`, `SPEC-049` |
+| slice-expand-parser | `$expand` in der OData-URL: Parser und AST | `LH-FA-16`; `LH-FA-16.a`, `SPEC-049` |
+| slice-expand-validator | Validator von `$expand` gegen die Navigationen des Modells (Schnitt von `slice-expand-parser`) | `LH-FA-16`; `LH-FA-16.a` |
 | slice-expand-ausfuehrung | Auflösen der Navigation im Query-Interpreter und Ausgabe im OData-JSON; Datenbasis der Navigationen nach Entscheidung des Architect | `LH-FA-16`, `LH-FA-11`; `LH-FA-16.a`, `SPEC-044` |
 | slice-batch-parser | Parser für `$batch`-Requests (Leser fremder Bytes), leerer Batch | `LH-FA-16`; `LH-FA-16.a` |
 | slice-batch-changesets | Ausführung der Einzelrequests und atomare Changesets in einer Workspace-Transaktion, Antwort des Batch | `LH-FA-16`, `LH-QA-03`; `LH-FA-16.a`, `LH-FA-07.a` |
@@ -78,7 +80,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 - Blockiert: keine Welle. Eine Berührung ohne Kante: ein `PATCH` mit `If-Match` in einem Changeset (`welle-etag`); wer von beiden später liegt, ergänzt den Fall in seinem Test.
 - Wird blockiert von: `welle-mock` (Query-Interpreter, Workspace-Transaktion, Codec zum Schreiben); die beiden Parser-Slices hängen nur an Teil 1 beziehungsweise an keinem Code daraus (Trigger je Slice in §2).
 - Unabhängig: `welle-hybrid`, `welle-betrieb`, `welle-admin-api`, `welle-etag`, `welle-odata-v2`.
-- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-expand-parser` → `slice-expand-ausfuehrung`; `slice-batch-parser` → `slice-batch-changesets`; die beiden Äste sind unabhängig.
+- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-expand-parser` → `slice-expand-validator` → `slice-expand-ausfuehrung`; `slice-batch-parser` → `slice-batch-changesets`; die beiden Äste sind unabhängig.
 - **Register-Sichtung (Eröffnung Schritt 2):** `observations/` gesichtet, Stand dieses Plans. Treffer, beim Start in den Slice-Plänen (§8) mit dem dann aktuellen Zähler als Risiko zu führen: `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×) und `BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last` (2×) für die Atomarität der Changesets; `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×); `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×). Kein offener Eintrag erreicht mit dieser Welle 3×.
 
 ## 6. Out-of-Scope für diese Welle
