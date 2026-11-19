@@ -46,7 +46,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Port und Adapter `Telemetry` — `slice-telemetry-port`; dieser Slice ruft ihn nur.
 - Zeile, Stufen, Senke, Sperre der Zeile, `Handler`, Arten von `slog.Attr` und Abbildung der Dienste im Adapter — `slice-telemetry-log` und `slice-telemetry-handler`; die Spans samt Span-Zeile, Verteilung und Ring — `slice-telemetry-spans`. Alle drei liegen beim Start dieses Slice in `done/`; dieser Slice ändert sie nicht.
 - Spans von Mock-Dienst und Workspace-Mutation (`SPEC-029`, `SPEC-030`) — `slice-telemetry-einbau-mock`; der Gesamtspan im HTTP-Adapter ist modusunabhängig und trägt auch den Modus `mock`, sobald dieser existiert (der Adapter kennt den Modus nicht, `architecture.md` §2.5; wie das Attribut `recorder.mode` zu ihm kommt, entscheidet der Architect, Auftrag 2).
-- Spans und Zähler des Hybrid-Fallbacks — kein Slice von `welle-betrieb` nimmt sie an, obwohl [welle-hybrid](../done/welle-hybrid.md) §6 sie `welle-betrieb` zuweist; keine Adresse (siehe §6, Ausgang *offen*, Adresse: Planner).
+- Spans und Zähler des Hybrid-Fallbacks — kein Slice von `welle-betrieb` nimmt sie an, obwohl [welle-hybrid](../done/welle-hybrid/welle-hybrid.md) §6 sie `welle-betrieb` zuweist; keine Adresse (siehe §6, Ausgang *offen*, Adresse: Planner).
 - Der Lasttest und seine Messung — `slice-lasttest`; dieser Slice liefert den Messpunkt.
 - Das Handbuch-Kapitel über Logfelder, soweit der Slice keine neuen sichtbaren Felder einführt (siehe DoD).
 
