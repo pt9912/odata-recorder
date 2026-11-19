@@ -7,8 +7,8 @@
 # Kein Gate, kein make-Ziel (SPEC-214 Nr. 10 d). Das Skript schreibt nichts in den Arbeitsbaum;
 # nur der Fall 49 legt ein Wegwerfverzeichnis ausserhalb der Wurzel an und entfernt es.
 # Notation der Elemente: <W> Wurzel, <SP> Scratchpad-Pfad, \n \r \t Steuerzeichen, \L Backslash
-# vor Zeilenvorschub. Die Escape-Folge des Falls 40 und die Fuellung der Faelle 27, 28 und 47
-# entstehen zur Laufzeit aus Bytewerten.
+# vor Zeilenvorschub. Die Escape-Folge des Falls 40 und die Fuellung der Faelle 27, 28 und 47 und
+# der Menge Z20 entstehen zur Laufzeit aus Bytewerten.
 set -euo pipefail
 export LC_ALL=C
 
@@ -252,7 +252,7 @@ cat <<< "x" > docs/a.md
 ENDE
 
 # 15 durch, Commit-Wege und Scratchpad-Heredoc
-fall 15 durch 7 <<'ENDE'
+fall 15 durch 8 <<'ENDE'
 git commit -F - <<'EOF'\nmsg\nEOF
 cat <<'EOF' | git commit -F -\nmsg\nEOF
 printf msg | git commit -F -
@@ -260,6 +260,7 @@ git commit -F - <<< "msg"
 git commit -F <SP>/m.txt
 git commit -F - <<-'EOF'\n\tmsg\n\tEOF
 cat > <SP>/a.txt <<'EOF'\ntext\nEOF
+git commit -m "$(cat <<'EOF'\nmsg\nEOF\n)"
 ENDE
 
 # 16 durch, Rumpf nicht geprueft
@@ -295,7 +296,7 @@ bash <<'EOF'\npip install q\nEOF
 ENDE
 
 # 20 S, tee
-fall 20 S 13 <<'ENDE'
+fall 20 S 14 <<'ENDE'
 echo x | tee docs/a.md
 echo x | tee -a docs/a.md
 echo x | tee --append docs/a.md
@@ -309,6 +310,7 @@ echo x | tee > /dev/null docs/a.md
 echo x | tee 2
 echo x | tee ">"
 echo x | tee \>
+echo x | tee <SP>/a.txt 2&>/dev/null
 ENDE
 
 # 21 durch, tee
@@ -328,7 +330,7 @@ echo x | tee <SP>/a.txt 10>/dev/null
 ENDE
 
 # 22 S, sed -i
-fall 22 S 17 <<'ENDE'
+fall 22 S 18 <<'ENDE'
 sed -i s/a/b/ docs/a.md
 sed -i.bak s/a/b/ docs/a.md
 sed --in-place s/a/b/ docs/a.md
@@ -346,6 +348,7 @@ env X=1 sed -i s/a/b/ f
 bash -c "sed -i s/a/b/ f"
 sh -lc 'sed -i s/a/b/ f'
 sed \L-i s/a/b/ f
+for f in a; do sudo -n nice -n 5 sed -i s/a/b/ f; done
 ENDE
 
 # 23 durch, sed ohne -i und Namensvettern
@@ -398,7 +401,12 @@ expand '   \t  '; json_command "$EXP"; fall_roh 26 durch "Leerraum" "$JSON"
 expand '\n\n'; json_command "$EXP"; fall_roh 26 durch "Zeilenenden" "$JSON"
 fall_roh 26 durch 'Eingabe {"tool_input":{}}' '{"tool_input":{}}'
 fall_roh 26 durch 'Eingabe {"tool_input":{"command":""}}' '{"tool_input":{"command":""}}'
-if [ $((total-total_26_vorher)) -ne 5 ]; then total=$((total+1)); fails=$((fails+1)); echo "FAIL 26 Zahl der Elemente"; fi
+for e in '{"tool_input":{"command":null}}' '{"tool_input":{"command":true}}' '{"tool_input":{"command":123}}' \
+         '{"tool_input":{"command":[]}}' '{"tool_input":{"command":["sed -i x y"]}}' \
+         '{"tool_input":{"command":{"a":"sed -i x y"}}}' '{"command":"sed -i x y"}' '{"tool_input":"sed -i x y"}'; do
+  fall_roh 26 durch "Eingabe $e" "$e"
+done
+if [ $((total-total_26_vorher)) -ne 13 ]; then total=$((total+1)); fails=$((fails+1)); echo "FAIL 26 Zahl der Elemente"; fi
 
 # 27 durch, Laenge an der Grenze; 28 G, Laenge darueber
 printf -v pad '%*s' 32763 ''
@@ -561,7 +569,7 @@ git commit -m "pkill"
 ENDE
 
 # 44 L, rekursives rm
-fall 44 L 28 <<'ENDE'
+fall 44 L 29 <<'ENDE'
 rm -rf docs/x
 rm -r docs
 rm -R docs
@@ -590,6 +598,7 @@ rm -rf > /dev/null docs/x
 rm -rf 2
 rm -rf <SP>/a 2>/dev/null docs/x
 rm -rf ">"
+rm -rf <SP>/a 2&>/dev/null
 ENDE
 
 # 45 durch, rm
@@ -671,7 +680,7 @@ for c in "echo x > $TMP/link/docs/a.md" "echo x > $W/docs/a.md"; do
 done
 
 # 50 durch, die Negative von Nr. 11
-fall 50 durch 16 <<'ENDE'
+fall 50 durch 28 <<'ENDE'
 cp <SP>/a docs/a.md
 mv <SP>/a docs/a.md
 dd if=<SP>/a of=docs/a.md
@@ -688,12 +697,32 @@ ps aux
 rm docs/a.md
 echo "a; b" > docs/a.md
 rm -rf docs/x>$LOG
+cat <<EOF\n$(sed -i x y)\nEOF
+cat <<EOF\n`sed -i x y`\nEOF
+find docs -delete
+find <SP> -name x -exec rm -rf {} +
+echo docs/x | xargs rm -rf
+busybox rm -rf docs
+printf 'a\nb' > docs/a.md
+ionice -c3 sed -i s/a/b/ f
+sudo --user root sed -i s/a/b/ f
+sudo -nu root sed -i s/a/b/ f
+case x in a) sed -i s/a/b/ f;; esac
+f() { sed -i s/a/b/ f; }
 ENDE
 
-# 51 S, die bekannten Falschmeldungen
-fall 51 S 2 <<'ENDE'
+# 51 die bekannten Falschmeldungen (Heredoc im Zitat: Rumpf mit > oder Sperrliste)
+fall 51 S 4 <<'ENDE'
 git commit -m "a; b > docs/a.md"
 echo $((1 > 2))
+echo x | tee "<SP>/a b"
+git commit -m "$(cat <<'EOF'\nfix: a > b\nEOF\n)"
+ENDE
+fall 51 L 1 <<'ENDE'
+rm -rf "<SP>/a b"
+ENDE
+fall 51 H 1 <<'ENDE'
+git commit -m "$(cat <<'EOF'\npip install q\nEOF\n)"
 ENDE
 
 # 52 Aufruf mit einem Argument, auch einem leeren: Exit 2, Aufruf auf stderr
@@ -811,12 +840,14 @@ for o in '>' '>>' '>|' '>&' '&>' '&>>' '<' '<<<' '2>' '2>>' '10>' '2>&'; do
 done
 zahl Z13 "$n" 144
 
-# Z15 die reinen Operatoren von SPEC-214 Nr. 4 f, die Z13 nicht fuehrt (<<, <<-) und zwei Formen mit
-# fuehrender Ziffer (0<, 2>|): 4 x 2 x 6 = 48, dieselben sechs Befehle und dasselbe Orakel wie Z13.
-# Die Form <& fehlt: die Zerlegung trennt am & (SPEC-214 Nr. 2 d), das Wort erreicht tee und rm nicht.
+# Z15 die reinen Operatoren von SPEC-214 Nr. 4 f, die Z13 nicht fuehrt (<<, <<-, <&) und drei Formen
+# mit fuehrender Ziffer (0<, 2>|, 0<&): 6 x 2 x 6 = 72, dieselben sechs Befehle und dasselbe Orakel
+# wie Z13. Das Ziel ist bei <& und 0<& die Ziffer 2 (ein Dup); die Zerlegung schuetzt das & hinter <
+# (SPEC-214 Nr. 2 d).
 n=0
-for o in '<<' '<<-' '0<' '2>|'; do
+for o in '<<' '<<-' '0<' '2>|' '<&' '0<&'; do
   t=/dev/null
+  case $o in '<&'|'0<&') t=2;; esac
   for u in "$o $t" "$o$t"; do
     zusatz Z15 durch "echo x | tee <SP>/a.txt $u"
     zusatz Z15 durch "echo x | tee $u <SP>/a.txt"
@@ -827,7 +858,7 @@ for o in '<<' '<<-' '0<' '2>|'; do
     n=$((n+6))
   done
 done
-zahl Z15 "$n" 48
+zahl Z15 "$n" 72
 
 # Z16 Zitat im Zielwort, das nicht schliesst (SPEC-214 Nr. 2 e, 9 b): Zitat 2 x Stelle im Zielwort 3
 # (Anfang, Mitte, Ende) x Operator 2 = 12 sperren (S); sechs Ziele, die das Zitat nicht in die Wurzel
@@ -855,6 +886,178 @@ zusatz Z14 durch 'echo x | tee -- <SP>/a.txt 2>/dev/null'; n=$((n+1))
 zusatz Z14 durch 'rm -rf -- <SP>/a > /dev/null'; n=$((n+1))
 zusatz Z14 durch 'rm -rf -- <SP>/a 2>/dev/null'; n=$((n+1))
 zahl Z14 "$n" 8
+
+roh_zusatz() {  # roh_zusatz <label> <erwartung> <befehl>: ohne Notation (ein Backslash vor r oder n bleibt Backslash)
+  json_command "$3"
+  verdict "$1" "$2" "$3" "$JSON" "$HOME_STD"
+}
+
+# Z17 Schluesselwort x Kopf (8 x 7 = 56; SPEC-214 Nr. 2 h): hinter jedem Schluesselwort gilt der Kopf.
+# Die Koepfe tragen ihre Klasse; "echo sed -i x" ist ein Kopf echo und geht durch.
+KOEPFE=('sed -i x f|S' 'tee docs/a|S' 'pkill x|P' 'rm -rf docs|L' 'pip install x|H' 'git apply p|S' 'echo sed -i x|durch')
+n=0
+for k in if then elif else while until do '!'; do
+  for h in "${KOEPFE[@]}"; do zusatz Z17 "${h##*|}" "$k ${h%|*}"; n=$((n+1)); done
+done
+zahl Z17 "$n" 56
+
+# Z18 Praefix-Form x Kopf (40 x 7 = 280, dazu command -v und -V = 284; SPEC-214 Nr. 2 h): je Option mit
+# Argument-Wort der Tabelle, je Praefix eine Option ohne Argument und die Formen ohne Option der
+# Praefixe timeout, flock und nohup.
+formen=()
+for o in u g h p C D R T U r t; do formen+=("sudo -$o x"); done
+for o in u C; do formen+=("env -$o x"); done
+formen+=('nice -n x')
+for o in f o; do formen+=("time -$o x"); done
+for o in n I L P s d E a; do formen+=("xargs -$o x"); done
+formen+=('exec -a x')
+for o in k s; do formen+=("timeout -$o x 5"); done
+for o in w E; do formen+=("flock -$o x f"); done
+formen+=('sudo -n' 'env -i' 'time -p' 'xargs -0' 'timeout --foreground 5' 'flock -n f' 'exec -c' 'command -p')
+formen+=('timeout 5' 'flock f' 'nohup')
+n=0
+for f in "${formen[@]}"; do
+  for h in "${KOEPFE[@]}"; do zusatz Z18 "${h##*|}" "$f ${h%|*}"; n=$((n+1)); done
+done
+for f in -v -V; do
+  zusatz Z18 durch "command $f pip install x"; zusatz Z18 durch "command $f rm -rf docs"; n=$((n+2))
+done
+zahl Z18 "$n" 284
+
+# Z19 Schreibweise des Kopfes x Wort (5 x 6 = 30; SPEC-214 Nr. 2 h): w mit Backslash, mit "" hinter dem
+# ersten Zeichen, in "" und '' und mit Pfad und Backslash; die Praefixe env und xargs in derselben Schreibweise.
+n=0
+for e in 'sed|-i x f|S' 'rm|-rf docs|L' 'pkill|x|P' 'pip|install x|H' 'env|sed -i x f|S' 'xargs|sed -i x f|S'; do
+  w=${e%%|*}; r=${e#*|}; rest=${r%|*}; cl=${r##*|}
+  for form in "$bs$w" "${w:0:1}\"\"${w:1}" "\"$w\"" "'$w'" "/usr/bin/$bs$w"; do
+    roh_zusatz Z19 "$cl" "$form $rest"; n=$((n+1))
+  done
+done
+zahl Z19 "$n" 30
+
+# Z20 Laenge x Verstoss (2 x 5 = 10; SPEC-214 Nr. 2 b, 9 c): "<Verstoss>; echo " mit Fuellung aus a auf die
+# Laenge; bei 32768 gilt die Klasse des Verstosses, bei 32769 G.
+n=0
+for len in 32768 32769; do
+  for v in 'sed -i x f|S' 'pip install x|H' 'pkill x|P' 'rm -rf docs|L' 'echo x > docs/a.md|S'; do
+    pre="${v%|*}; echo "
+    printf -v pd '%*s' $((len - ${#pre})) ''
+    cz="$pre${pd// /a}"
+    erw=${v##*|}; if [ "$len" -eq 32769 ]; then erw=G; fi
+    roh_zusatz Z20 "$erw" "$cz"; n=$((n+1))
+    if [ "${#cz}" -ne "$len" ]; then total=$((total+1)); fails=$((fails+1)); echo "FAIL Z20 Laenge ${#cz} statt $len"; fi
+  done
+done
+zahl Z20 "$n" 10
+
+# Z21 Shell x Buendel (5 x 22 = 110; SPEC-214 Nr. 2 g, 5 c): Buendel mit c lesen den -c-String (S) und
+# lassen einen Heredoc-Rumpf unberuehrt (durch, die Shell liest den Rumpf nicht); Buendel ohne c haben
+# keinen -c-String (durch) und lesen einen Heredoc-Rumpf (S).
+n=0
+for s in bash sh zsh dash ksh; do
+  for b in -c -lc -ec -cx -xc -ic -lec -ecx; do
+    zusatz Z21 S "$s $b \"echo x > docs/a.md\""
+    zusatz Z21 durch "cat <<EOF | $s $b true\nsed -i x y\nEOF"
+    n=$((n+2))
+  done
+  for b in -l -x -lx; do
+    zusatz Z21 durch "$s $b \"echo x > docs/a.md\""
+    zusatz Z21 S "cat <<EOF | $s $b\nsed -i x y\nEOF"
+    n=$((n+2))
+  done
+done
+zahl Z21 "$n" 110
+
+# Z22 rm: Operand x Operand (11 + 11 x 11 = 132; SPEC-214 Nr. 7 c): ein Operand der Klasse L sperrt an
+# jeder Stelle, auch hinter einem Operanden mit Zweifel, im Scratchpad oder mit leerem Wort.
+okc=('<SP>/a' '"$d"' '~guard/x' '""')
+badc=('docs/x' '<SP>/*' '<SP>/' '<SP>' '/tmp/x' '$d/*' '<SP>/.')
+alle=("${okc[@]}" "${badc[@]}")
+n=0
+for a in "${alle[@]}"; do
+  ea=durch; if [[ " ${badc[*]} " == *" $a "* ]]; then ea=L; fi
+  zusatz Z22 "$ea" "rm -rf $a"; n=$((n+1))
+  for b in "${alle[@]}"; do
+    eb=$ea; if [[ " ${badc[*]} " == *" $b "* ]]; then eb=L; fi
+    zusatz Z22 "$eb" "rm -rf $a $b"; n=$((n+1))
+  done
+done
+zahl Z22 "$n" 132
+
+# Z23 Verzeichnis-Zustand: Operand von cd und pushd (2 x 15 = 30; SPEC-214 Nr. 3 c): ein $ an jeder
+# Stelle des Operanden gibt aussen (durch); ohne Operand gilt ~ (mit HOME ausserhalb durch, innerhalb S).
+n=0
+for c in cd pushd; do
+  for o in '$D' 'a$D' 'a$' 'a/$D' '../$D' '/tmp/$D' '~/$D'; do zusatz Z23 durch "$c $o && echo x > a.md"; n=$((n+1)); done
+  for o in '' '-P' '--' '-L -P'; do
+    zusatz Z23 durch "$c${o:+ $o} && echo x > a.md"
+    fall_home Z23 S "$W" "$c${o:+ $o} && echo x > a.md"
+    n=$((n+2))
+  done
+done
+zahl Z23 "$n" 30
+
+# Z24 Heredoc: Operator x Endewort x Einrueckung (2 x 2 x 5 = 20; SPEC-214 Nr. 5 a): nur bei <<- entfernt
+# der Guard Tabulatoren vor dem Endewort; steht das Endewort allein, endet der Rumpf und der Rest ist ein
+# Befehl (S), sonst reicht der Rumpf bis zur letzten Zeile (durch).
+n=0
+for op in '<<' '<<-'; do
+  for w in 'EOF' "'EOF'"; do
+    for ind in '' ' ' '\t' '\t\t' '\t '; do
+      erw=durch
+      case "$op|$ind" in '<<|'|'<<-|'|'<<-|\t'|'<<-|\t\t') erw=S;; esac
+      zusatz Z24 "$erw" "cat $op$w\n${ind}EOF\nsed -i x y\nEOF"; n=$((n+1))
+    done
+  done
+done
+zahl Z24 "$n" 20
+
+# Z25 Ziffernzahl des Umleitungsworts (13 x 4 = 52; SPEC-214 Nr. 4 f): null bis vier Ziffern vor > bei tee
+# und rm, getrennt und angehaengt; das Wort ist weder Operand noch Flag.
+zif=('')
+for z in 0 5 9; do zif+=("$z" "$z$z" "$z$z$z" "$z$z$z$z"); done
+n=0
+for z in "${zif[@]}"; do
+  zusatz Z25 durch "echo x | tee <SP>/a.txt $z> /dev/null"
+  zusatz Z25 durch "echo x | tee <SP>/a.txt $z>/dev/null"
+  zusatz Z25 durch "rm -rf <SP>/a $z> /dev/null"
+  zusatz Z25 durch "rm -rf <SP>/a $z>/dev/null"
+  n=$((n+4))
+done
+zahl Z25 "$n" 52
+
+# Z26 sed: Buendel mit Ziffern (2 x 6 x 4 + 2 x 5 = 58; SPEC-214 Nr. 6 b): Buchstaben und Ziffern in
+# jeder Folge bis zu einem i sperren (S), ohne i geht das Buendel durch.
+n=0
+for p in '' n; do
+  for d in '' 1 12 09 1n n1; do
+    for s in '' n .b 1; do zusatz Z26 S "sed -$p${d}i$s s/a/b/ docs/a.md"; n=$((n+1)); done
+  done
+  for d in 1 12 09 1n n1; do zusatz Z26 durch "sed -$p$d s/a/b/ docs/a.md"; n=$((n+1)); done
+done
+zahl Z26 "$n" 58
+
+# Z27 Klammer x Kopf (2 x 7 = 14) und Ende des Praefix-Kontexts (11 x 2 = 22; SPEC-214 Nr. 2 h): hinter
+# einem Schluesselwort ist ein Wort mit - der Kopf (kein Treffer, durch) und ein Wort ohne - keine
+# Dauer oder Sperrdatei mehr (der Kopf folgt dem Schluesselwort).
+n=0
+for k in '{' '}'; do
+  for h in "${KOEPFE[@]}"; do zusatz Z27 "${h##*|}" "$k ${h%|*}"; n=$((n+1)); done
+done
+for p in sudo env command exec nice time xargs eval nohup timeout flock; do
+  zusatz Z27 durch "$p then -x sed -i x f"
+  zusatz Z27 durch "$p then 5 sed -i x f"
+  n=$((n+2))
+done
+zahl Z27 "$n" 36
+
+# Z28 rm: die Komponente scratchpad (4 + 7 = 11; SPEC-214 Nr. 7 c): unter jeder Komponente scratchpad mit
+# mindestens einer Komponente dahinter geht ein Pfad durch; ohne Name dahinter und bei jedem anderen Namen
+# der Komponente sperrt er (L).
+n=0
+for p in /scratchpad/a /a/scratchpad/b /a/b/c/scratchpad/d/e /tmp/scratchpad/a/b; do zusatz Z28 durch "rm -rf $p"; n=$((n+1)); done
+for p in /scratchpad /a/scratchpad /a/scratchpad/ /xscratchpad/a /scratchpadx/a /a/scratchpad.x/b /a/Scratchpad/b; do zusatz Z28 L "rm -rf $p"; n=$((n+1)); done
+zahl Z28 "$n" 11
 
 echo "guard-faelle: $total Pruefungen, $fails Abweichungen in ${SECONDS} s ($LATENZ)" >&2
 if [ "$fails" -ne 0 ]; then exit 1; fi

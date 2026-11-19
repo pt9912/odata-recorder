@@ -14,13 +14,19 @@
 #
 # Zerlegung: quote-BLIND an ; & && || | $( ` ( und Zeilenenden (ein Trenner in einem Argument
 # startet ein neues Segment: `git commit -m "a; b > f"` meldet S; Abhilfe `git commit -F <datei>`;
-# die Gegenseite `echo "a; b" > f` meldet nichts: das Zitat bleibt im zweiten Segment offen und
-# verbirgt die Umleitung, SPEC-214 Nr. 11 f, Fall 50).
-# Ausnahme: &> >& >| gehoeren zur Umleitung. Je Segment gilt Zitat- und Backslash-Zustand fuer
+# die Gegenseite `echo "a; b" > f` und ein Zeilenende im Zitat vor der Umleitung melden nichts:
+# das Zitat bleibt im zweiten Segment offen und verbirgt die Umleitung, SPEC-214 Nr. 11 f, Fall 50).
+# Ausnahme: &> >& >| <& gehoeren zur Umleitung. Je Segment gilt Zitat- und Backslash-Zustand fuer
 # Umleitungen; ein Heredoc-Rumpf wird nur geprueft, wenn eine Shell ohne -c ihn lesen kann oder
-# die Endezeile fehlt. Sub-Shell-Strings (`bash -c "..."`, auch -lc/-ec/-cx) rekursiv bis Tiefe 3.
+# die Endezeile fehlt; eine Ersetzung $(...) oder Backtick im Rumpf eines Heredoc mit unzitiertem
+# Endewort bleibt ungelesen (SPEC-214 Nr. 11 d, Fall 50). Sub-Shell-Strings (`bash -c "..."`, auch
+# -lc/-ec/-cx) rekursiv bis Tiefe 3.
+# Befehlsposition (SPEC-214 Nr. 2 h): Zuweisung, Schluesselwort, die elf Praefixe mit den Optionen
+# der Tabelle und die Schreibweise des Kopfes (\rm, p""kill, /usr/bin/\rm) fuehren zum Kopf; Wrapper
+# ausserhalb der Tabelle, case-Zweige und Funktionen nicht (SPEC-214 Nr. 11 l, Fall 50).
 # tee und rm lesen ein Umleitungswort und das Wort hinter einem reinen Operator nicht als Operand
-# oder Flag (SPEC-214 Nr. 4 f).
+# oder Flag (SPEC-214 Nr. 4 f) und trennen ihre Operanden an jedem Leerraum, auch im Zitat
+# (`rm -rf "<scratchpad>/a b"` meldet L, SPEC-214 Nr. 11 f, Fall 51).
 # Rang: erster Verstoss in der Reihenfolge der Segmente; im Segment Sperrliste, Kopfpruefung,
 # Umleitung, Rekursion.
 #
@@ -63,7 +69,8 @@ if [ -d "$blocked_dir" ]; then
     [ -f "$bf" ] && BLOCKED="$BLOCKED $(cat "$bf")"
   done
 fi
-PREFIXES="sudo env command exec nice time xargs eval"
+PREFIXES="sudo env command exec nice time xargs eval nohup timeout flock"
+KEYWORDS="if then elif else while until do ! { }"
 SHELLS="bash sh zsh dash ksh"
 # Umleitungswort und reiner Operator (SPEC-214 Nr. 4 f); als Variablen, weil < > & | im Ausdruck
 # nicht im [[ =~ ]] stehen duerfen.
@@ -228,16 +235,42 @@ redir_check() {  # redir_check <segment>: return 0 = eine Umleitung hat das Ziel
   return 1
 }
 
-get_head() {  # get_head: aus toks (Aufrufer) -> HEAD (Basisname) und HI; HI=-1 ohne Kopf
-  local i=0 x
+optarg() {  # optarg <Praefix> <Option>: return 0 = die Option nimmt das naechste Wort als Argument (Tabelle von SPEC-214 Nr. 2 h)
+  case $1 in
+    sudo) case $2 in -[ughpCDRTUrt]) return 0;; esac;;
+    env) case $2 in -[uC]) return 0;; esac;;
+    nice) [ "$2" = -n ] && return 0;;
+    time) case $2 in -[fo]) return 0;; esac;;
+    xargs) case $2 in -[nILPsdEa]) return 0;; esac;;
+    timeout) case $2 in -[ks]) return 0;; esac;;
+    flock) case $2 in -[wE]) return 0;; esac;;
+    exec) [ "$2" = -a ] && return 0;;
+  esac
+  return 1
+}
+
+get_head() {  # get_head: aus toks (Aufrufer) -> HEAD (Basisname) und HI; HI=-1 ohne Kopf (SPEC-214 Nr. 2 h)
+  local i=0 w x pw pfx="" want=0
   HEAD=""; HI=-1
   while [ "$i" -lt "$nt" ]; do
-    strip_quotes "${toks[i]}"; x=$STRIPPED
-    if [[ $x =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then i=$((i+1)); continue; fi
-    if [[ " $PREFIXES " == *" $x "* ]]; then i=$((i+1)); continue; fi
-    # fuehrende Brace-Group-Delimiter ueberspringen: `{ go build; }`
-    case $x in "{"|"}") i=$((i+1)); continue;; esac
-    HEAD=${x##*/}; HI=$i
+    w=${toks[i]//[\"\'\\]/}; x=${w##*/}
+    if [ -n "$pfx" ] && [[ $w == -* ]]; then
+      if [[ $w == -v || $w == -V ]] && [ "$i" -gt 0 ]; then   # command -v: nur Abfrage, kein Kopf
+        pw=${toks[i-1]//[\"\'\\]/}
+        [ "${pw##*/}" = command ] && return 0
+      fi
+      if optarg "$pfx" "$w"; then i=$((i+1)); fi
+      i=$((i+1)); continue
+    fi
+    if [[ $w =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then i=$((i+1)); continue; fi
+    if [[ " $KEYWORDS " == *" $x "* ]]; then pfx=""; want=0; i=$((i+1)); continue; fi
+    if [[ " $PREFIXES " == *" $x "* ]]; then
+      pfx=$x; want=0
+      case $x in timeout|flock) want=1;; esac
+      i=$((i+1)); continue
+    fi
+    if [ "$want" -eq 1 ]; then want=0; i=$((i+1)); continue; fi
+    HEAD=$x; HI=$i
     return 0
   done
 }
@@ -446,6 +479,7 @@ segment_text() {  # segment_text <text> -> SEGTXT: je Zeile ein Segment
   s=${s//'&>'/"${p1}>"}
   s=${s//'>&'/">${p1}"}
   s=${s//'>|'/">${p2}"}
+  s=${s//'<&'/"<${p1}"}
   s=${s//'&&'/$'\n'}; s=${s//'&'/$'\n'}; s=${s//'||'/$'\n'}; s=${s//'|'/$'\n'}
   s=${s//';'/$'\n'};  s=${s//\$\(/$'\n'};  s=${s//'`'/$'\n'}
   s=${s//'('/$'\n'}
