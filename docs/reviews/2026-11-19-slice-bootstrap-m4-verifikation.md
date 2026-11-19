@@ -1,7 +1,7 @@
 # Verifikation slice-bootstrap-m4 (Composition Root im Modus `hybrid`, M4-Test, Stufe 10)
 
 **Rolle:** Verifier (einmal). **Datum:** 2026-11-19. **Stand:** Zweig `slice-bootstrap-m4`, HEAD `a7726090`. **Bezug:** [LH-FA-12](../../spec/lastenheft.md), [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), `SPEC-110` Nr. 2, 8, 12 a, `SPEC-139` Nr. 12, `SPEC-261`, `SPEC-284`, `SPEC-037` Nr. 7, `SPEC-200`.
-**Plan:** [slice-bootstrap-m4](../plan/planning/in-progress/slice-bootstrap-m4.md). **Modell:** claude-sonnet-5-5.
+**Plan:** [slice-bootstrap-m4](../plan/planning/done/slice-bootstrap-m4.md). **Modell:** claude-sonnet-5-5.
 Der Review-Report `2026-11-18-slice-bootstrap-m4-review.md` ist als Liste der Befunde F1 bis F6 gelesen, nicht als Beleg; alles unter *Belege* ist selbst gefahren.
 
 ## Urteil
