@@ -86,7 +86,7 @@ Der Planner schneidet; der Architect entscheidet (Aufträge unten), der Implemen
 | `harness/vertraege/SPEC-102-*.md`, `tools/gegenproben/` | entfällt (Beschluss V0) | die Fälle tragen die Zahlen der Formel, keine ändert sich |
 | `tools/harness/gegenproben-eingabe.sh`, `harness/gegenproben.stempel` | entfällt (Beschluss V0) | keine Eingabe der Gegenproben ändert sich |
 | `docs/plan/planning/` (Pläne mit Marke) | entfällt (Beschluss V0) | keine Marke ändert sich; die Zahl `0,60` steht in Plänen unter `done/` als Zeitdokument |
-| `docs/plan/planning/in-progress/slice-groessenformel-neu.md` | update (Planner) | DoD, §3, §4 und §6 auf den Text-Slice; kein Block (Zuschnitt unten) |
+| `docs/plan/planning/done/slice-groessenformel-neu.md` | update (Planner) | DoD, §3, §4 und §6 auf den Text-Slice; kein Block (Zuschnitt unten) |
 | Roadmap, Register (`state.md` der beiden Einträge) | update im Integrationsschritt, nicht im Zweig (Nr. 4 der Übergangsregeln) | die Zeilen nennen noch Faktoren in Programm und Gegenproben und den ausstehenden Beschluss; §6 trägt sie mit Adresse |
 
 **Reihenfolge der Rollen nach dem Start**, jede in frischem Kontext: Architect (Teil 1: Vorschlag, geliefert) → **User** (Beschluss V0, 2026-11-20) → Architect (Teil 2: Vertragstext, Tabelle *Zusage · Fänger*, Raster, erwartete Produktcode-Größe 0, geliefert) → Planner (Zuschnitt auf den Text-Slice, kein Block; dieser Commit) → **Reviewer direkt, kein Implementer** (Entscheidung unten) → Fixes nur am Text (Klasse, `AGENTS.md` §3.17) → Verifier → Planner (Closure).

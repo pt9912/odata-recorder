@@ -1,6 +1,6 @@
 # Verifikation slice-groessenformel-neu (Text-Slice, Beschluss V0)
 
-Verifier, frischer Kontext, einmal verifiziert. Stand HEAD `4e7d18eb`, Basis `ec1ab4ef`, Worktree `odata-recorder-wt-groessenformel` (vor und nach der Prüfung `git status` leer). Diff: `harness/vertraege/SPEC-128-groessenmarke.md`, `docs/plan/planning/in-progress/slice-groessenformel-neu.md`, `docs/reviews/2026-11-20-slice-groessenformel-neu-review.md`.
+Verifier, frischer Kontext, einmal verifiziert. Stand HEAD `4e7d18eb`, Basis `ec1ab4ef`, Worktree `odata-recorder-wt-groessenformel` (vor und nach der Prüfung `git status` leer). Diff: `harness/vertraege/SPEC-128-groessenmarke.md`, `docs/plan/planning/done/slice-groessenformel-neu.md`, `docs/reviews/2026-11-20-slice-groessenformel-neu-review.md`.
 Gegen: DoD des Plans, Beschluss des Users vom 2026-11-20 (F1 bis F5), `SPEC-128`, `AGENTS.md` §3.6, §3.7, §3.9, §3.13, §3.15, §3.18, [ADR-0009](../plan/adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md), [ADR-0010](../plan/adr/0010-groesse-der-guide-dateien-als-gate.md), [MR-001](../../harness/conventions/MR-001-harness-vertraege-ausserhalb-der-spezifikation.md) und die Anker-Paarung in `.harness/baseline/v6.18.1/regelwerk/grundlagen-traceability.md`.
 Alle Mutationen liefen auf Kopien im Scratchpad (`groessenformel-verifier/m-*`, `clone`); der Worktree ist unverändert.
 

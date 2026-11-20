@@ -1,6 +1,6 @@
 # Review slice-groessenformel-neu (Text-Slice, Beschluss V0)
 
-Reviewer, frischer Kontext. Stand HEAD adb4978d, Basis ec1ab4ef. Diff: `harness/vertraege/SPEC-128-groessenmarke.md` (+13/-4), `docs/plan/planning/in-progress/slice-groessenformel-neu.md` (+204/-43); `git diff --numstat ec1ab4ef..adb4978d`. Keine andere Datei.
+Reviewer, frischer Kontext. Stand HEAD adb4978d, Basis ec1ab4ef. Diff: `harness/vertraege/SPEC-128-groessenmarke.md` (+13/-4), `docs/plan/planning/done/slice-groessenformel-neu.md` (+204/-43); `git diff --numstat ec1ab4ef..adb4978d`. Keine andere Datei.
 Gegen Plan (§1, §3, §4, §6), SPEC-128, AGENTS.md §3.6 bis §3.18, [ADR-0009](../plan/adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md), [ADR-0010](../plan/adr/0010-groesse-der-guide-dateien-als-gate.md), [MR-001](../../harness/conventions/MR-001-harness-vertraege-ausserhalb-der-spezifikation.md) und die Register-Einträge `BEO-REPO/schaetzformel-ueberschaetzt-den-slice`, `BEO-REPO/auslastung-am-handoff-als-endwert-gelesen`.
 
 Alle Mutationen liefen auf Kopien im Scratchpad (`groessenformel-reviewer/arch`, `clone`, `m-*`); der Worktree ist unverändert (`git status` leer, HEAD adb4978d).
@@ -94,7 +94,7 @@ Nr. 3 m: `spec/`, `docs/`, `harness/vertraege/` sind als Pfad unzulässig; Nr. 4
 ## Geprüft, ohne Befund (Negativbefund-Zeilen)
 
 - `harness/vertraege/SPEC-128-groessenmarke.md`: Nr. 1 byte-gleich (Hunks ab Nr. 2); Zahlen von Nr. 2, 9, 10 a, 10 k gegen die Tabelle nachgerechnet; Befunde M1, L1 bis L3, I3, I4.
-- `docs/plan/planning/in-progress/slice-groessenformel-neu.md`: DoD, §1, §3, §4, §6 gegen SPEC-128 und AGENTS.md gelesen; Befunde M1, L4.
+- `docs/plan/planning/done/slice-groessenformel-neu.md`: DoD, §1, §3, §4, §6 gegen SPEC-128 und AGENTS.md gelesen; Befunde M1, L4.
 - `tools/groessenmarke/`, `tools/gegenproben/`, `tools/harness/groessenmarke.sh`, `Dockerfile`, `.dockerignore`, `harness/mk/`, `harness/gegenproben.stempel`: im Diff nicht berührt, `git diff --stat` über `EINGABEN` leer; geprüft, ohne Befund.
 - `spec/`, `AGENTS.md`, `harness/README.md`, `.claude/`, `.harness/skills/`: im Diff nicht berührt, keine Zahl der Schwelle; geprüft, ohne Befund.
 - [ADR-0009](../plan/adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md), [ADR-0010](../plan/adr/0010-groesse-der-guide-dateien-als-gate.md): nicht berührt; [ADR-0009](../plan/adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md) trägt keine Zahl der Formel oder der Schwelle; [ADR-0010](../plan/adr/0010-groesse-der-guide-dateien-als-gate.md) betrifft Guide-Dateien, SPEC-128 gehört nicht dazu; geprüft, ohne Befund.
