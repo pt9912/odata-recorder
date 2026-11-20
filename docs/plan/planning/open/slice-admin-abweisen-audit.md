@@ -35,7 +35,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Jedes Abweisen mit `ODR-E2101` hinterlässt genau einen Audit-Eintrag ohne Tokenwert (`SPEC-238` Nr. 8): die fünfte Art `admin_abgewiesen` in `support.Arten()` (Pflicht allein `error_code`), vom Adapter des Audit angenommen und als Zeile `{"timestamp":"…","correlation_id":"cor-…","art":"admin_abgewiesen","error_code":"ODR-E2101"}` geschrieben, und im Rahmen ein `Append(Eintrag{Art: ArtAdminAbgewiesen, ErrorCode: CodeE2101, KorrelationsID: <ID der Antwort>})` auf der Goroutine des Requests, vor dem Schreiben von Header und Body, ohne Drosselung und Zusammenfassung; ein Fehler von `Append` ändert weder Antwort noch Zählen; bei keiner anderen Antwort ein `Append`. Dazu der Abschluss der Zusagen über den ganzen Rahmen: kein Tokenwert und kein Teilstück auf einem der acht Ausgabewege (Schleife H1) und gleichzeitige Requests teilen nichts (N1). Der Test in `src/bootstrap/audit_betrieb_test.go` führt fünf Arten und nimmt `admin_abgewiesen` ausdrücklich aus (Y6); das Binary bleibt unverändert.
 
-**Übernimmt (Sendungen von `slice-admin-listener-token`, Schnitt vom 2026-11-07, `AGENTS.md` §3.13):** (1) die Änderung der Testdatei `src/bootstrap/audit_betrieb_test.go` — Rückgabe R2 des Architect, vom Planner bestätigt (nur Testdatei, kein Produktcode von `bootstrap`; die Voraussetzung „Binary unverändert“ gilt); (2) den Audit-Eintrag zu `ODR-E2101` aus `LH-FA-13.a`, dessen Fänger `slice-admin-authentisierung` (U1) bis hierher offen lässt.
+**Übernimmt (Sendungen von `slice-admin-listener-token`, Schnitt vom 2026-11-07, `AGENTS.md` §3.13):** (1) die Änderung der Testdatei `src/bootstrap/audit_betrieb_test.go` — Rückgabe R2 des Architect, vom Planner bestätigt (nur Testdatei, kein Produktcode von `bootstrap`; die Voraussetzung „Binary unverändert“ gilt); (2) den Audit-Eintrag zu `ODR-E2101` aus `LH-FA-13.a`, dessen Fänger `slice-admin-authentisierung` (U1) bis hierher offen lässt; (3) den Eintrag auch bei einer Antwort 401, die ein gültiger `*inbound.Fehler` der Route mit `ODR-E2101` auslöst (`SPEC-238` Nr. 8 „bei **jeder** Antwort 401“, Entscheidung des Architect vom 2026-11-20) — Sendung von `slice-admin-fehlerabbildung` (Geber), Fänger D1; `slice-admin-fehlerabbildung` ruft `Audit` nicht.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -87,7 +87,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/adapters/driving/admin/` | update | `Audit.Append` im 401-Zweig, vor dem Schreiben, auf der Goroutine des Requests (`SPEC-238` Nr. 8) |
+| `src/adapters/driving/admin/` | update | `Audit.Append` bei jeder Antwort 401 (auch der eines Fehlers der Route), vor dem Schreiben, auf der Goroutine des Requests (`SPEC-238` Nr. 8) |
 | `src/hexagon/ports/support/audit.go`, `src/hexagon/ports/support/audit_test.go` | update | Art `ArtAdminAbgewiesen` als fünfte Zeile von `Arten()`; Orakel des Tests auf fünf Arten |
 | `src/adapters/driven/audit/audit_test.go` | update (nur Test) | Schleife über Felder × Arten mit der fünften Art und die Zeile des Vertrags |
 | `src/bootstrap/audit_betrieb_test.go` | update (nur Test, Rückgabe R2) | zählt vier Arten und die Zellen Modus × Art: fünf Arten, `admin_abgewiesen` ausdrücklich ausgenommen (kein Use Case, kein Aufruf im Binary); kein Produktcode von `bootstrap` ändert sich |
@@ -97,7 +97,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 
 | Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|
-| D1 | (Nr. 8) Bei jeder Antwort 401 genau ein `Append(Eintrag{Art: ArtAdminAbgewiesen, ErrorCode: CodeE2101, KorrelationsID: ID der Antwort})`, alle übrigen Felder leer | Schleife über die 20 Formen von U1, die Zellen von U7 und `Vergleich` gleich `false`: `FakeAudit.Eintraege()` gleich dem Literal-Eintrag mit der ID, `Aufrufe()` 1 | `ServiceID` gesetzt; Art falsch | andere |
+| D1 | (Nr. 8) Bei jeder Antwort 401 genau ein `Append(Eintrag{Art: ArtAdminAbgewiesen, ErrorCode: CodeE2101, KorrelationsID: ID der Antwort})`, alle übrigen Felder leer | Schleife über die 20 Formen von U1, die Zellen von U7 und `Vergleich` gleich `false`, dazu ein Fehler der Route `Fehler{ODR-E2101, 401}` (direkt und verpackt): `FakeAudit.Eintraege()` gleich dem Literal-Eintrag mit der ID, `Aufrufe()` 1 | `ServiceID` gesetzt; Art falsch; `Append` nur im Zweig der Authentisierung, nicht in der einen Schreibstelle | andere |
 | D2 | (Nr. 8) Bei keiner anderen Antwort ein `Append`, und nie eine der vier Arten von `SPEC-234` | Schleife über 404, 405, 400, 503, 500, healthz, Erfolg, Kontextfehler: `FakeAudit.Aufrufe()` 0 | `Append` auch bei 404 | andere |
 | D3 | (Nr. 8) Der Eintrag trägt keinen Tokenwert, kein Teilstück, keinen Pfad, keine Methode, keine Adresse | Canary im falschen Token, im Pfad, in der Query, in einem Header, in der Methode: der gehaltene `Eintrag` ist als Struktur gleich dem Literal (alle sieben Felder) | der Pfad in `ServiceID` | andere |
 | D4 | (Nr. 8) Bis `Append` zurückkehrt, hat der Adapter weder Header noch Body geschrieben | `FakeAudit.Vor` prüft einen `ResponseRecorder` (`ServeHTTP` direkt): Header leer, Body leer | `Append` nach dem Schreiben | andere |
