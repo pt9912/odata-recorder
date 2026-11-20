@@ -3,6 +3,8 @@ package admin
 import (
 	"context"
 	"net/http"
+	"reflect"
+	"slices"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
@@ -32,27 +34,25 @@ func rufeHandler(ctx context.Context, h Handler, a Anfrage) (e ergebnisRoute) {
 }
 
 // schreibeFehlerDerRoute bildet den Fehler einer Route ab (SPEC-238 Nr. 6 a): ein Kontextfehler bricht die Verbindung ab
-// und schreibt weder Fehlerobjekt noch Antwort (Nr. 9), sonst bestimmt abbilde Code und Status.
-func (s *Server) schreibeFehlerDerRoute(w http.ResponseWriter, err error) {
+// und schreibt weder Fehlerobjekt noch Antwort (Nr. 9), sonst bestimmt abbilde Code und Status. allow ist der Wert des
+// Headers Allow, den ein Fehler mit 405 trägt: die Methoden aller Routen des Pfades (Nr. 5).
+func (s *Server) schreibeFehlerDerRoute(w http.ResponseWriter, err error, allow string) {
 	if finde(err, istKontextfehler) {
 		panic(http.ErrAbortHandler)
 	}
 	code, status := abbilde(err)
-	s.schreibeFehler(w, code, status, "", "")
+	s.schreibeFehler(w, code, status, allow)
 }
 
-// abbilde liefert Code und Status zu einem Fehler ohne Kontextfehler (SPEC-238 Nr. 6 a 2 bis 4): ein gültiger
-// *inbound.Fehler gilt; ein ungültiger (Code außerhalb der Tabelle, Status außerhalb von 400 bis 599, ein Status, den der
-// Code nicht trägt) ist ein Bruch des Vertrags; ohne *inbound.Fehler ist model.ErrUngueltig ODR-E2102 mit 400, jeder
-// andere Fehler ODR-E9001 mit 500.
+// abbilde liefert Code und Status zu einem Fehler ohne Kontextfehler (SPEC-238 Nr. 6 a 2 bis 4): der erste
+// *inbound.Fehler der Suche gilt; ist er ungültig (Code außerhalb der Tabelle, Status außerhalb von 400 bis 599, ein
+// Status, den der Code nicht trägt), ist das ein Bruch des Vertrags; ohne *inbound.Fehler ist model.ErrUngueltig
+// ODR-E2102 mit 400, jeder andere Fehler ODR-E9001 mit 500.
 func abbilde(err error) (model.Code, int) {
 	var f *inbound.Fehler
 	if finde(err, func(e error) bool {
-		z, ok := e.(*inbound.Fehler)
-		if ok {
-			f = z
-		}
-		return ok
+		f = fehlerKnoten(e)
+		return f != nil
 	}) {
 		if f.Status >= http.StatusBadRequest && f.Status <= 599 && f.Code.StatusErlaubt(f.Status) {
 			return f.Code, f.Status
@@ -79,26 +79,63 @@ func gleichOderIs(e, ziel error) bool {
 	return ok && m.Is(ziel)
 }
 
+// fehlerKnoten liefert den *inbound.Fehler, den e selbst darstellt: e ist ein solcher Zeiger, oder die Methode As von e
+// setzt einen (wie errors.As). Ein nil-Zeiger ist kein Fehler: das Ergebnis ist nil.
+func fehlerKnoten(e error) *inbound.Fehler {
+	if z, ok := e.(*inbound.Fehler); ok {
+		return z
+	}
+	if m, ok := e.(interface{ As(target any) bool }); ok {
+		var z *inbound.Fehler
+		if m.As(&z) {
+			return z
+		}
+	}
+	return nil
+}
+
+// zeigerAdresse liefert die Adresse eines Fehlers, der ein Zeiger auf einen Wert mit Größe ist; sonst ist ok falsch.
+func zeigerAdresse(err error) (adresse uintptr, ok bool) {
+	v := reflect.ValueOf(err)
+	if v.Kind() != reflect.Pointer || v.Type().Elem().Size() == 0 {
+		return 0, false
+	}
+	return v.Pointer(), true
+}
+
 // finde sucht im Baum der Fehler von err, die Wurzel zuerst, durch Unwrap() error und Unwrap() []error (auch
-// errors.Join), und meldet, ob f für einen Fehler wahr ist. Ein nil-Zeiger *inbound.Fehler ist kein Fehler des Baums und
-// wird nicht entpackt (SPEC-238 Nr. 6 a 2); errors.Is und errors.As entpacken ihn und greifen dabei auf nil zu, deshalb
-// sucht der Adapter selbst.
+// errors.Join) von vorn nach hinten, und meldet, ob f für einen Fehler wahr ist; der erste Treffer gilt. Ein nil-Zeiger
+// *inbound.Fehler ist kein Fehler des Baums und wird nicht entpackt (SPEC-238 Nr. 6 a 2); errors.Is und errors.As
+// entpacken ihn und greifen dabei auf nil zu, deshalb sucht der Adapter selbst. Ein Zeiger, der auf dem Weg von der
+// Wurzel schon vorkam (sein Unwrap zeigt auf sich oder einen Vorfahren), wird nicht noch einmal betreten. Prüfgrenze:
+// einen Zyklus über Werte, die keine Zeiger sind, erkennt die Suche nicht.
 func finde(err error, f func(error) bool) bool {
+	return findeAuf(err, f, nil)
+}
+
+// findeAuf ist finde mit den Adressen der Fehler auf dem Weg von der Wurzel zu err.
+func findeAuf(err error, f func(error) bool, weg []uintptr) bool {
 	if err == nil {
 		return false
 	}
 	if z, ok := err.(*inbound.Fehler); ok && z == nil {
 		return false
 	}
+	if a, ok := zeigerAdresse(err); ok {
+		if slices.Contains(weg, a) {
+			return false
+		}
+		weg = append(weg, a)
+	}
 	if f(err) {
 		return true
 	}
 	switch u := err.(type) {
 	case interface{ Unwrap() error }:
-		return finde(u.Unwrap(), f)
+		return findeAuf(u.Unwrap(), f, weg)
 	case interface{ Unwrap() []error }:
 		for _, e := range u.Unwrap() {
-			if finde(e, f) {
+			if findeAuf(e, f, weg) {
 				return true
 			}
 		}

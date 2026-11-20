@@ -3,7 +3,6 @@ package admin_test
 import (
 	"bytes"
 	"context"
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,8 +12,6 @@ import (
 	"time"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
-	"github.com/pt9912/odata-recorder/src/hexagon/model"
-	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 )
 
 // kindLauf fährt dieselbe Testbinärdatei mit der Umgebungsvariablen umg (Wert: ein Verzeichnis) und nur dem Test test in
@@ -60,8 +57,9 @@ func ohneTestAusgabe(text string) string {
 }
 
 // TestAusgabeLeer hält H2 (SPEC-238 Nr. 13): der Adapter schreibt kein Log und nichts auf stdout oder stderr, nach jeder
-// der 30 Requestarten R, jedem der neun Schreibstellen W (auch mit Ursache und Panikwert), jeder Panik der Route und jedem
-// Kontextfehler. Der Test fährt das Szenario in einem Kindprozess und liest dessen stdout und stderr; der Standardlogger
+// der 30 Requestarten R, jeder der neun Schreibstellen W (auch mit Ursache und Panikwert), jedem der 7 Panikwerte
+// (M-Panik, auf einem laufenden Server) und jeder der 14 Formen eines Kontextfehlers (2 Fehler × 7 Formen, ebenso). Die
+// 29 Variablen von M-Err und die Formen von B1 bis B5 laufen nicht im Kindprozess. Der Test fährt das Szenario in einem Kindprozess und liest dessen stdout und stderr; der Standardlogger
 // schreibt dort auf stderr. Außer den Zeilen der Testbinärdatei (`PASS`, `coverage: …`) steht dort nichts.
 func TestAusgabeLeer(t *testing.T) {
 	if dir := os.Getenv(kindUmgebungH2); dir != "" {
@@ -103,19 +101,23 @@ func kindH2(t *testing.T, dir string) {
 	for _, s := range schreibstellen() {
 		s.lauf(t, nil)
 	}
-	for _, e := range []error{context.Canceled, errors.Join(model.ErrUngueltig, context.DeadlineExceeded)} {
-		route := neueRoute()
-		route.err = e
-		u := neuLive(t, route)
-		if x := erwarte(t, u.async("GET", "/p"), "Kontextfehler"); x.err == nil {
-			t.Errorf("der Client sah einen Status %d, erwartet einen Transportfehler", x.status)
+	for _, e := range []error{context.Canceled, context.DeadlineExceeded} {
+		for _, f := range kontextFormen() {
+			route := neueRoute()
+			route.err = f.packe(e)
+			u := neuLive(t, route)
+			if x := erwarte(t, u.async("GET", "/p"), "Kontextfehler"); x.err == nil {
+				t.Errorf("%v, %s: der Client sah einen Status %d, erwartet einen Transportfehler", e, f.name, x.status)
+			}
 		}
 	}
-	route := neueRoute()
-	route.aendere = func(admin.Anfrage) { panic(&inbound.Fehler{Code: model.CodeE7003, Status: 404}) }
-	u := neuLive(t, route)
-	if x := erwarte(t, u.async("GET", "/p"), "Panik"); x.err != nil || x.status != 500 {
-		t.Errorf("Panik der Route: Antwort %+v, erwartet 500", x)
+	for _, w := range panikWerte() {
+		route := neueRoute()
+		route.aendere = func(admin.Anfrage) { panic(w.wert) }
+		u := neuLive(t, route)
+		if x := erwarte(t, u.async("GET", "/p"), "Panik"); x.err != nil || x.status != 500 {
+			t.Errorf("Panik der Route mit dem Wert %s: Antwort %+v, erwartet 500", w.name, x)
+		}
 	}
 	kindFertig(t, dir)
 }

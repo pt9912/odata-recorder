@@ -87,8 +87,9 @@ func antwortText(rec *httptest.ResponseRecorder) string {
 	return fmt.Sprintf("%d %v %s", rec.Code, rec.Header(), rec.Body.Bytes())
 }
 
-// pruefeFehlerAntwort prüft Status, Body, Content-Type, Content-Length und Allow einer Fehlerantwort; allow leer heißt:
-// kein Header Allow. Der Canary steht in keinem Byte der Antwort.
+// pruefeFehlerAntwort prüft Status, Body, Content-Type, Content-Length und die Header des Status einer Fehlerantwort
+// (SPEC-238 Nr. 5): WWW-Authenticate: Bearer nur bei 401, Connection: close nur bei 503, Allow nur bei 405; allow leer
+// heißt: kein Header Allow. Der Canary steht in keinem Byte der Antwort.
 func pruefeFehlerAntwort(t *testing.T, name string, rec *httptest.ResponseRecorder, status int, body, allow string) {
 	t.Helper()
 	if rec.Code != status || rec.Body.String() != body {
@@ -102,6 +103,18 @@ func pruefeFehlerAntwort(t *testing.T, name string, rec *httptest.ResponseRecord
 	}
 	if got := rec.Header().Values("Allow"); allow == "" && len(got) != 0 || allow != "" && (len(got) != 1 || got[0] != allow) {
 		t.Errorf("%s: Allow %q, erwartet %q", name, got, allow)
+	}
+	soll := map[string][]string{"WWW-Authenticate": nil, "Connection": nil}
+	if status == 401 {
+		soll["WWW-Authenticate"] = []string{"Bearer"}
+	}
+	if status == 503 {
+		soll["Connection"] = []string{"close"}
+	}
+	for k, v := range soll {
+		if got := rec.Header().Values(k); !slices.Equal(got, v) {
+			t.Errorf("%s: %s %q, erwartet %q", name, k, got, v)
+		}
 	}
 	if strings.Contains(antwortText(rec), canary()) {
 		t.Errorf("%s: der Canary steht in der Antwort", name)

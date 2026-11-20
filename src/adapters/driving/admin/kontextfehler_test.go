@@ -9,7 +9,9 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"path"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -23,23 +25,9 @@ import (
 // in jeder Form: direkt, verpackt, im Join, neben einem *inbound.Fehler, neben ErrUngueltig (M-Verpackung von X1) und als
 // Ursache eines *inbound.Fehler und neben einem nil-Zeiger (zwei weitere Formen); 2 Fehler × 7 Formen.
 func TestKontextfehlerOhneAntwort(t *testing.T) {
-	var nil1 *inbound.Fehler
-	formen := []verpackung{
-		{"direkt", func(e error) error { return e }},
-		{"%w", func(e error) error { return fmt.Errorf("verpackt: %w", e) }},
-		{"Join", func(e error) error { return errors.Join(errors.New("anderer"), e) }},
-		{"neben *inbound.Fehler", func(e error) error {
-			return errors.Join(&inbound.Fehler{Code: model.CodeE7003, Status: 404}, e)
-		}},
-		{"neben ErrUngueltig", func(e error) error { return errors.Join(model.ErrUngueltig, e) }},
-		{"Ursache eines *inbound.Fehler", func(e error) error {
-			return &inbound.Fehler{Code: model.CodeE7003, Status: 404, Ursache: e}
-		}},
-		{"neben nil-Zeiger", func(e error) error { return errors.Join(nil1, e) }},
-	}
 	faelle := 0
 	for _, e := range []error{context.Canceled, context.DeadlineExceeded} {
-		for _, f := range formen {
+		for _, f := range kontextFormen() {
 			faelle++
 			name := e.Error() + ", " + f.name
 			route := neueRoute()
@@ -57,17 +45,62 @@ func TestKontextfehlerOhneAntwort(t *testing.T) {
 	gleichAuf(t, "Zahl der Fälle", faelle, 14)
 }
 
-// zaehleSelektoren zählt in einer Quelle die Ausdrücke `paket.name` (paket leer: jeder Ausdruck mit diesem Namen).
-func zaehleSelektoren(t *testing.T, name string, quelle any, paket, sel string) int {
+// kontextFormen sind die sieben Formen von M-Verpackung für X1: direkt, verpackt, im Join, neben einem *inbound.Fehler,
+// neben ErrUngueltig, als Ursache eines *inbound.Fehler und neben einem nil-Zeiger.
+func kontextFormen() []verpackung {
+	var nil1 *inbound.Fehler
+	return []verpackung{
+		{"direkt", func(e error) error { return e }},
+		{"%w", func(e error) error { return fmt.Errorf("verpackt: %w", e) }},
+		{"Join", func(e error) error { return errors.Join(errors.New("anderer"), e) }},
+		{"neben *inbound.Fehler", func(e error) error {
+			return errors.Join(&inbound.Fehler{Code: model.CodeE7003, Status: 404}, e)
+		}},
+		{"neben ErrUngueltig", func(e error) error { return errors.Join(model.ErrUngueltig, e) }},
+		{"Ursache eines *inbound.Fehler", func(e error) error {
+			return &inbound.Fehler{Code: model.CodeE7003, Status: 404, Ursache: e}
+		}},
+		{"neben nil-Zeiger", func(e error) error { return errors.Join(nil1, e) }},
+	}
+}
+
+// modellPfad ist der Importpfad des Pakets model.
+const modellPfad = "github.com/pt9912/odata-recorder/src/hexagon/model"
+
+// zaehleSelektoren zählt in einer Quelle die Ausdrücke `name.sel`, wobei name jeder Bezeichner ist, unter dem die Quelle
+// das Paket mit dem Importpfad importiert (der letzte Teil des Pfades oder der Name des Imports); bei einem Punktimport
+// zählt jede Nennung von sel ohne Paket. Mit leerem importPfad zählt jeder Ausdruck mit dem Namen sel.
+func zaehleSelektoren(t *testing.T, name string, quelle any, importPfad, sel string) int {
 	t.Helper()
 	f, err := parser.ParseFile(token.NewFileSet(), name, quelle, 0)
 	if err != nil {
 		t.Fatalf("%s: %v", name, err)
 	}
+	namen, punkt := map[string]bool{}, false
+	for _, im := range f.Imports {
+		if p, err := strconv.Unquote(im.Path.Value); err != nil || p != importPfad {
+			continue
+		}
+		switch {
+		case im.Name == nil:
+			namen[path.Base(importPfad)] = true
+		case im.Name.Name == ".":
+			punkt = true
+		case im.Name.Name != "_":
+			namen[im.Name.Name] = true
+		}
+	}
 	n := 0
+	selektoren := map[*ast.Ident]bool{}
 	ast.Inspect(f, func(x ast.Node) bool {
-		if s, ok := x.(*ast.SelectorExpr); ok && s.Sel.Name == sel {
-			if id, ok := s.X.(*ast.Ident); paket == "" || ok && id.Name == paket {
+		switch v := x.(type) {
+		case *ast.SelectorExpr:
+			selektoren[v.Sel] = true
+			if id, ok := v.X.(*ast.Ident); v.Sel.Name == sel && (importPfad == "" || ok && namen[id.Name]) {
+				n++
+			}
+		case *ast.Ident:
+			if punkt && v.Name == sel && !selektoren[v] {
 				n++
 			}
 		}
@@ -77,12 +110,26 @@ func zaehleSelektoren(t *testing.T, name string, quelle any, paket, sel string) 
 }
 
 // TestEineStelleSchreibtUndZaehlt hält C3 (Nr. 7): im Paket ohne _test.go gibt es genau eine Stelle, die
-// `model.NeuesFehlerobjekt` ruft oder nennt, und genau eine, die `CountError` ruft oder nennt. Die Probe hält den Zähler
-// gegen eine Quelle mit zwei Stellen und mit einer Namensgleichheit (`x.CountError` zählt, `model.Anderes` nicht).
+// `model.NeuesFehlerobjekt` ruft oder nennt, und genau eine, die `CountError` ruft oder nennt, unter jedem Namen, unter dem
+// das Paket model importiert ist. Die Probe hält den Zähler gegen Quellen mit zwei Stellen, mit einer Namensgleichheit
+// (`x.CountError` zählt, `model.Anderes` nicht), mit einem Import unter anderem Namen und mit einem Punktimport.
 func TestEineStelleSchreibtUndZaehlt(t *testing.T) {
 	probe := "package x\nfunc f() { model.NeuesFehlerobjekt(1); _ = model.NeuesFehlerobjekt; model.Anderes(); s.CountError(1); t.CountError(2) }"
-	gleichAuf(t, "Probe: Stellen von NeuesFehlerobjekt", zaehleSelektoren(t, "probe.go", probe, "model", "NeuesFehlerobjekt"), 2)
+	gleichAuf(t, "Probe: Stellen von NeuesFehlerobjekt", zaehleSelektoren(t, "probe.go", "package x\nimport \"x/model\"\nfunc f() { model.NeuesFehlerobjekt(1) }", "x/model", "NeuesFehlerobjekt"), 1)
 	gleichAuf(t, "Probe: Stellen von CountError", zaehleSelektoren(t, "probe.go", probe, "", "CountError"), 2)
+	proben := []struct {
+		name, quelle string
+		soll         int
+	}{
+		{"Name des Pakets", "package x\nimport \"p/model\"\nfunc f() { model.N(); _ = model.N; model.A() }", 2},
+		{"Import unter anderem Namen", "package x\nimport m \"p/model\"\nfunc f() { m.N(); model.N() }", 1},
+		{"zwei Namen", "package x\nimport (\n\t\"p/model\"\n\tm \"p/model\"\n)\nfunc f() { m.N(); model.N() }", 2},
+		{"Punktimport", "package x\nimport . \"p/model\"\nfunc f() { N(); _ = N; x.N() }", 2},
+		{"anderes Paket gleichen Namens", "package x\nimport \"q/model\"\nfunc f() { model.N() }", 0},
+	}
+	for _, p := range proben {
+		gleichAuf(t, "Probe "+p.name, zaehleSelektoren(t, "probe.go", p.quelle, "p/model", "N"), p.soll)
+	}
 
 	eintraege, err := os.ReadDir(".")
 	if err != nil {
@@ -96,7 +143,7 @@ func TestEineStelleSchreibtUndZaehlt(t *testing.T) {
 				t.Fatal(err)
 			}
 			dateien++
-			objekte += zaehleSelektoren(t, n, src, "model", "NeuesFehlerobjekt")
+			objekte += zaehleSelektoren(t, n, src, modellPfad, "NeuesFehlerobjekt")
 			zaehler += zaehleSelektoren(t, n, src, "", "CountError")
 		}
 	}

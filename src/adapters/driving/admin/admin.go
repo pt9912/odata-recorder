@@ -189,7 +189,7 @@ func (s *Server) bediene(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 	if !s.authentisiert(r.Header.Values("Authorization")) {
-		s.schreibeFehler(w, model.CodeE2101, http.StatusUnauthorized, "", "Bearer")
+		s.schreibeFehler(w, model.CodeE2101, http.StatusUnauthorized, "")
 		return
 	}
 	t := ordne(s.routen, r.Method, r.URL.EscapedPath())
@@ -197,9 +197,9 @@ func (s *Server) bediene(w http.ResponseWriter, r *http.Request, id string) {
 	case t.route != nil:
 		s.rufe(w, r, id, t)
 	case len(t.allow) == 0:
-		s.schreibeFehler(w, model.CodeE2102, http.StatusNotFound, "", "")
+		s.schreibeFehler(w, model.CodeE2102, http.StatusNotFound, "")
 	default:
-		s.schreibeFehler(w, model.CodeE2102, http.StatusMethodNotAllowed, strings.Join(t.allow, ", "), "")
+		s.schreibeFehler(w, model.CodeE2102, http.StatusMethodNotAllowed, strings.Join(t.allow, ", "))
 	}
 }
 
@@ -257,11 +257,11 @@ func (s *Server) rufe(w http.ResponseWriter, r *http.Request, id string, t treff
 	e := rufeHandler(r.Context(), t.route.handler, anfrage(r, id, t.werte))
 	switch {
 	case e.panik:
-		s.schreibeFehler(w, model.CodeE9001, http.StatusInternalServerError, "", "")
+		s.schreibeFehler(w, model.CodeE9001, http.StatusInternalServerError, "")
 	case e.err != nil:
-		s.schreibeFehlerDerRoute(w, e.err)
+		s.schreibeFehlerDerRoute(w, e.err, strings.Join(t.allow, ", "))
 	case e.antwort.Status < http.StatusOK || e.antwort.Status >= http.StatusMultipleChoices:
-		s.schreibeFehler(w, model.CodeE9001, http.StatusInternalServerError, "", "")
+		s.schreibeFehler(w, model.CodeE9001, http.StatusInternalServerError, "")
 	default:
 		schreibeErfolg(w, e.antwort)
 	}
@@ -282,21 +282,24 @@ func schreibeErfolg(w http.ResponseWriter, a Antwort) {
 }
 
 // schreibeFehler ist die eine Stelle, die das Fehlerobjekt bildet, zählt und schreibt (SPEC-238 Nr. 5, 7): drei Felder,
-// Content-Type, Content-Length, bei 405 Allow (allow nichtleer) und bei 401 WWW-Authenticate (www nichtleer).
-// `CountError` läuft genau einmal, vor dem ersten Schreiben der Antwort. Der Code ist ein gültiger Code der Tabelle, das
-// Marshalling einer Struktur aus Zeichenketten scheitert nicht.
-func (s *Server) schreibeFehler(w http.ResponseWriter, code model.Code, status int, allow, www string) {
+// Content-Type, Content-Length und die Header des Status, nicht des Ursprungs: bei 401 WWW-Authenticate, bei 405 Allow
+// (der Wert allow: die Methoden aller Routen des Pfades) und bei 503 Connection. `CountError` läuft genau einmal, vor dem
+// ersten Schreiben der Antwort. Der Code ist ein gültiger Code der Tabelle, das Marshalling einer Struktur aus
+// Zeichenketten scheitert nicht.
+func (s *Server) schreibeFehler(w http.ResponseWriter, code model.Code, status int, allow string) {
 	obj, _ := model.NeuesFehlerobjekt(code)
 	body, _ := json.Marshal(obj)
 	s.telemetrie.CountError(code)
 	h := w.Header()
 	h.Set("Content-Type", "application/json")
 	h.Set("Content-Length", strconv.Itoa(len(body)))
-	if allow != "" {
+	switch status {
+	case http.StatusUnauthorized:
+		h.Set("WWW-Authenticate", "Bearer")
+	case http.StatusMethodNotAllowed:
 		h.Set("Allow", allow)
-	}
-	if www != "" {
-		h.Set("WWW-Authenticate", www)
+	case http.StatusServiceUnavailable:
+		h.Set("Connection", "close")
 	}
 	w.WriteHeader(status)
 	_, _ = w.Write(body)

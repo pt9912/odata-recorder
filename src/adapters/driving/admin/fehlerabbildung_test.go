@@ -19,21 +19,33 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 )
 
-// einRoute baut einen Server mit der einen Route GET /r und liefert ihn mit dem Fake der Route.
+// allowAmPfad ist der Wert von Allow am Pfad /r von einRoute: die Methoden aller Routen des Pfades, aufsteigend.
+const allowAmPfad = "DELETE, GET, PUT"
+
+// einRoute baut einen Server mit der Route GET /r und liefert ihn mit dem Fake dieser Route; am Pfad /r liegen auch PUT
+// und DELETE (zwei Routen mit eigenen Fakes), damit Allow mehr nennt als die Methode der Route.
 func einRoute(t *testing.T) (*umgebung, *routeFake) {
 	t.Helper()
-	route := neueRoute()
-	return neuMit(t, admin.Route{Methode: "GET", Muster: "/r", Handler: route.handle}), route
+	route, put, del := neueRoute(), neueRoute(), neueRoute()
+	return neuMit(t,
+		admin.Route{Methode: "GET", Muster: "/r", Handler: route.handle},
+		admin.Route{Methode: "PUT", Muster: "/r", Handler: put.handle},
+		admin.Route{Methode: "DELETE", Muster: "/r", Handler: del.handle}), route
 }
 
-// pruefeFehlerDerRoute lässt die Route err liefern und hält die Antwort gegen Status und Body (Literal) und die eine
-// Zählung des Codes; die Route lief genau einmal, und keine Panik verließ ServeHTTP.
+// pruefeFehlerDerRoute lässt die Route err liefern und hält die Antwort gegen Status, Body (Literal), die Header des
+// Status (bei 405 Allow gleich allowAmPfad) und die eine Zählung des Codes; die Route lief genau einmal, und keine Panik
+// verließ ServeHTTP.
 func pruefeFehlerDerRoute(t *testing.T, name string, err error, status int, body, code string) {
 	t.Helper()
 	u, route := einRoute(t)
 	route.err = err
 	rec := u.rufeSicher(t, name, anfrageMit("GET", "/r", nil, nil))
-	pruefeFehlerAntwort(t, name, rec, status, body, "")
+	allow := ""
+	if status == 405 {
+		allow = allowAmPfad
+	}
+	pruefeFehlerAntwort(t, name, rec, status, body, allow)
 	u.nurZaehlung(t, name, code)
 	if route.aufrufe() != 1 {
 		t.Errorf("%s: die Route lief %d-mal, erwartet 1", name, route.aufrufe())
@@ -368,18 +380,26 @@ func TestStatusDerAntwort(t *testing.T) {
 	gleichAuf(t, "Zahl der Status", len(stati), 9)
 }
 
-// TestPanikDerRoute hält B8 (Nr. 6 c) auf einem laufenden Server: eine Panik der Route mit jedem der sieben Werte (string,
-// error, *inbound.Fehler, nil, http.ErrAbortHandler, int, Canary) ergibt ODR-E9001 mit 500, einmal gezählt; der Server
-// bedient weiter (zweiter Request 200), und der Wert erreicht weder Antwort noch Telemetrie noch Audit.
-func TestPanikDerRoute(t *testing.T) {
-	werte := []struct {
-		name string
-		wert any
-	}{
+// panikWert ist ein Wert, mit dem eine Route in Panik gerät (M-Panik).
+type panikWert struct {
+	name string
+	wert any
+}
+
+// panikWerte sind die sieben Werte von M-Panik: string, error, *inbound.Fehler, nil, http.ErrAbortHandler, int, Canary.
+func panikWerte() []panikWert {
+	return []panikWert{
 		{"string", "boom"}, {"error", errors.New("boom")},
 		{"*inbound.Fehler", &inbound.Fehler{Code: model.CodeE7003, Status: 404}},
 		{"nil", nil}, {"http.ErrAbortHandler", http.ErrAbortHandler}, {"int", 42}, {"Canary", canary()},
 	}
+}
+
+// TestPanikDerRoute hält B8 (Nr. 6 c) auf einem laufenden Server: eine Panik der Route mit jedem der sieben Werte (string,
+// error, *inbound.Fehler, nil, http.ErrAbortHandler, int, Canary) ergibt ODR-E9001 mit 500, einmal gezählt; der Server
+// bedient weiter (zweiter Request 200), und der Wert erreicht weder Antwort noch Telemetrie noch Audit.
+func TestPanikDerRoute(t *testing.T) {
+	werte := panikWerte()
 	gleichAuf(t, "Zahl der Panikwerte", len(werte), 7)
 	for _, w := range werte {
 		route := neueRoute()
