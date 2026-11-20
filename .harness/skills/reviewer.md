@@ -82,6 +82,14 @@ bewusst kurz (Ergänzungs-Kanal, nicht Hauptkanal).
 - **Fixture, Hilfe oder Kommentar verdeckt, was der Test prüft** — Felder derselben Referenz
   tragen denselben Wert, eine Hilfe trägt weniger als ihr Original, ein Kommentar oder Plan nennt
   mehr Elemente als der Test (`AGENTS.md` §3.11)  (seit welle-record-replay)
+- **Zweig ohne Lauf unter dem Detektor** — ein Test sagt zu, `make test-race` melde jedes
+  ungeordnete Paar, und die Menge der Zweige stammt aus der Erinnerung des Autors, nicht aus dem
+  Abdeckungsprofil der Detektor-Tests oder aus einer Menge im Modell mit Zählprüfung; ein Zweig
+  ohne Lauf bleibt ungemeldet (`AGENTS.md` §3.10)  (seit welle-mock)
+- **Code erreichbar gemacht, Ausnahmen und Handbuch unverändert** — der Diff macht einen
+  Fehlercode, einen Schlüssel oder ein Kommando erreichbar, ohne ihn aus
+  `harness/katalog-ausnahmen.txt` zu entfernen und im Handbuch zu führen (`SPEC-201` Nr. 11)
+  (seit welle-mock)
 
 **Hinweis:** `panic:` oder Zeitlimit statt `--- FAIL` des benannten Tests heißt rot, aber nicht
 aus ihm; der Befund nennt das  (seit welle-record-replay).
@@ -91,11 +99,6 @@ Tippfehler, unbenutzte Imports.
 
 **INFO** — Hinweis ohne erwartete Aktion (z. B. „diese Stelle hat ein passendes
 ArchUnit-Pendant, das du nicht kennst").
-
-> **Pflicht beim Ausfüllen (Modul 10 §Übungen):** Die HIGH-Liste muss mindestens
-> *zwei* repo-spezifische Regeln nennen, die ein generischer Skill nicht abdeckt.
-> Ist der Skill ohne sie, ist er noch nicht scharf genug — dann kommt bei einem
-> Lauf auf einem realen Diff keines deiner Repo-HIGHs zur Anwendung.
 
 ## Was dieser Skill NICHT macht
 
@@ -131,6 +134,9 @@ Verzeichnis (Negativbefund-Zeile — sonst ist „keine Findings" nicht von „n
 geprüft" unterscheidbar). Report-Gerüst für den ganzen Lauf:
 `.harness/baseline/<tag>/templates/docs/reviews/review-report.template.md`, ein Report pro Lauf, Folgeläufe als
 neue Datei statt Überschreibung.
+Eine `ADR-*`-Kennung steht im Report als auflösender Link, nie nackt; nach dem Schreiben läuft
+`make docs-check`  (seit welle-mock). Den eigenen Report nennt er in Plan und Evidence mit
+Kennung ohne Pfad und Endung  (seit welle-hybrid).
 
 ## Pflege (Steering-Loop)
 

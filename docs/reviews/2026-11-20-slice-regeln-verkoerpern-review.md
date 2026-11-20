@@ -1,0 +1,71 @@
+# Review-Report: slice-regeln-verkoerpern — 2026-11-20
+
+**Review-Art:** Code (Guide-Dateien und Gate-Konfiguration) gegen Plan, Entscheidungen und Hard Rules
+**Gegenstand:** `63d367bc..HEAD` (Implementer-Commits `c3741274`, `0cdbf7f5`; Basis des Architect `8433db48`), Zweig `slice-regeln-verkoerpern`
+**Skill:** `.harness/skills/reviewer.md` @ Stand des Zweigs · **Datum:** 2026-11-20
+
+**Eingangs-Kontext:** Plan `slice-regeln-verkoerpern` (§1 Entscheidung des Users, §3 A bis I, §4, §6); [ADR-0010](../plan/adr/0010-groesse-der-guide-dateien-als-gate.md); `SPEC-040` Nr. 8 b und Nr. 9; `SPEC-201` Nr. 11; `LH-QA-06` (Bezug); `AGENTS.md` (Hard Rules, besonders §3.6, §3.7, §3.9, §3.13, §3.15, §3.17, §3.18).
+
+Kein Review gegen die DoD (Aufgabe des Verifiers). Alle Mutationen liefen auf Kopien im Scratchpad (`git archive HEAD`), nie im Zweig. Läufe: `make docs-check` und `make zeichen-check` auf dem Worktree grün (968 Dateien, 0 Befunde; zeichen: 2003 Dateien ok).
+
+## Findings
+
+| ID | Kategorie | Befund | Quelle | Pfad | Verifizierbar | Klasse |
+|---|---|---|---|---|---|---|
+| F-1 | HIGH | Der Kommentar zur Verschiebung nennt in Klammern „die Zahl 976/68663 des vorigen Kommentars stimmte mit seinen Bloecken nicht ueberein": er beschreibt abwesenden Text. Der Plan (§3 D, letzter Absatz) hat diesen Satz im Kommentar bestellt; der Implementer hat ihn ausgeführt. | `AGENTS.md` §3.7; Reviewer-Skill HIGH *Kommentar trägt keine der Kommentar-Klassen* | `.d-check.yml` · „die Zahl 976/68663 des\n# vorigen Kommentars stimmte mit seinen Bloecken nicht ueberein“ | nein (kein Gate liest Kommentare) | Kommentar beschreibt abwesenden Text (Kommentar ohne Klasse) |
+| F-2 | MEDIUM | Die Überschrift `## 4. Trigger` des Plans fehlt seit `0cdbf7f5`: der Diff ersetzt sie durch `### I. Bericht des Implementers`, der Inhalt von §4 (Start, Größenmarke, Rückführungen) steht jetzt unter I. §4 existiert als Abschnitt nicht mehr; `AGENTS.md` §3.14, §3 Abschnitt G und §6 verweisen auf „§4“, die Überschriften laufen 1, 2, 3, 5, 6, 7, 8. | `AGENTS.md` §3.9 (Plan folgt jeder Korrektur); Slice-Vorlage der Baseline (`## 4. Trigger`) | Plan `slice-regeln-verkoerpern` · „### I. Bericht des Implementers (Handoff an den Reviewer)“ (davor stand „## 4. Trigger“) | ja (`grep -n '^## ' <Plan>`: kein `## 4.`; `make docs-check` meldet es nicht) | Überschrift beim Einfügen eines Abschnitts überschrieben |
+| F-3 | MEDIUM | Die Fänger der Zeilen 4, 5, 6, 7, 10 und 16 zählen ein Wortfragment (`nach dem Schreiben`, `ohne Pfad und`, `ungefangene Klasse mit ihrem Maß`, `<kurz>-<rolle>/`, `lässt ihn rot`); eine Mutation an einem anderen Teil derselben Zusage bleibt grün (Tabelle unten, 9 Mutationen). N1 nennt als ungefangene Klasse nur das Löschen eines ganzen Satzes (10 von 10); die teilweise Umformulierung eines Satzes (Teile je Satz, Mehrteiligkeit der Zusage) steht in keinem Negativ. Zeile 2 sagt zu „ohne den Wortlaut der Pflicht“; ein Satz der Pflicht in der Prüfzeile lässt `grep -c SPEC-201` bei 1. | `AGENTS.md` §3.15 (Fänger je Zusage; Negativ mit Klasse und Maß), §3.17 | Plan §3 F · „Fänger“ der Zeilen 2, 4, 5, 6, 7, 10, 16; „N1 — das Löschen eines Satzes“ | ja (Mutationen unten) | Fänger an einem Wortfragment, Negativ nennt nur die Löschung |
+| F-4 | MEDIUM | Zeile 14 nennt `make docs-check` (`ids`) als Fänger für „Verweise auf `SPEC-201`“. Ein toter Zeiger `SPEC-999` Nr. 11 in Schritt 17 von `implement-slice.md` bleibt grün (`d-check` 0 Befunde): `ids` verlangt Links nur für `LH-`/`ADR-`/`MR-`. N3 benennt als ungeprüften Zeiger nur den im Skill (1 von 2); der Zeiger in Schritt 17 (und die DoD-Zusage, die Pflicht trage den Zeiger auf ihren Vertrag) hat weder Fänger noch Negativ. | `AGENTS.md` §3.15 (Zusage ohne Fänger ist ein MEDIUM) | Plan §3 F · Zeile 14 „Verweise auf `SPEC-201`“; `implement-slice.md` · „(`SPEC-201` Nr. 11; kein Gate fängt die“ | ja (Mutation `SPEC-999`, unten) | Fänger deckt eine Hälfte der Zusage (Pfad, nicht Kennung) |
+| F-5 | LOW | Die Fänger der Zeilen 3 und 8 lauten „die Zeile liegt nach dem Fixture-Eintrag“ und „nach `Eine Rate steht mit Last`“. Die Mutationen der Zeilen (Eintrag in LOW verschoben; Satz ans Ende des Abschnitts) liegen ebenfalls „nach“ diesen Zeilen: wörtlich genommen bleiben beide grün. Der Bericht fährt die engere Probe (Zeile gegen LOW-Überschrift; Zeile gleich Rate plus 1), die die Tabelle nicht nennt. | `AGENTS.md` §3.15; §3.11 (nennt, was die Prüfung fängt) | Plan §3 F · Zeilen 3 und 8, Spalte „Fänger“ | ja | Fänger nennt „nach“, geprüft wird „unmittelbar nach“ |
+| F-6 | LOW | §3 des Plans trägt Entwurfswerte, die der Bericht (Abschnitt I) berichtigt, die Stellen selbst aber nicht: Tabellenzeile `verifier.md` „43/2639 auf 48/3040“ (Ist 48/3046) und Abschnitt D „`verifier.md` 48 / 3040 … `planner.md` 37 / 2306“ (Ist 48/3046 und 38/2306). Die Längen §3.10/§3.15 und Zeilen 5 und 12 sind nachgezogen, diese nicht. | `AGENTS.md` §3.9 (jede Stelle der berichtigten Aussage) | Plan §3 · „43/2639 auf 48/3040“ und „`planner.md` 37 / 2306“ | ja (`wc`) | Berichtigung an einem Teil der Stellen |
+| F-7 | INFO | Schritt 17 und die Prüfzeile sagen, wer „einen Fehlercode, einen Schlüssel oder ein Kommando“ erreichbar macht, entferne *ihn* aus `harness/katalog-ausnahmen.txt`; die Datei führt nur Codes (`SPEC-201` Nr. 3 c). Der Wortlaut folgt `SPEC-201` Nr. 11 und ist vom Architect vorgegeben; Adresse Architect, falls der Vertrag nachgeschärft wird. | Maintainability | `implement-slice.md` · „entfernt er ihn im\n    selben Slice aus `harness/katalog-ausnahmen.txt`“ | nein | Pflichtwortlaut spricht von Schlüssel und Kommando, Ausnahmen führen Codes |
+| F-8 | INFO | Der Wortlaut zu E4 (Negativ, Laufzeit) stammt nicht aus einem Diff-Vorschlag (der Bericht von `slice-gegenproben-zeitbudget` liegt nicht im Repo); der Reviewer kann ihn nur gegen den Plan, nicht gegen die Vorlage prüfen. Plan §6 nennt Einspruch beim User als offen. Der Zeilenzähler des Gates trägt ihn (§3.10: 21, §3.15: 15 von 29, nachgemessen). | Plan §6 (E4, Einspruch möglich) | Plan §6 · „Für E4 liegt kein Diff-Vorschlag im Repo“ | nein | Wortlaut ohne Vorlage |
+| F-9 | INFO | `harness/gegenproben.stempel` ist absichtlich nicht committet (`.d-check.yml` steht in den Eingaben); der Stempel ist am Zweig veraltet, bis der Integrationsschritt nach dem Merge `make gegenproben` fährt (Nr. 2 der Übergangsregeln). Der Reviewer hat `make gates` und `make gegenproben` nicht gefahren; Adresse Planner im Integrationsschritt, Verifier. | Plan §6 (Stempel, Ausgang offen) | `.d-check.yml` · `file:` | ja (`make gegenproben`) | Stempel nach Änderung der Eingabe offen (geplant) |
+
+Hinweise zu F-1: Der Satz steht im Plan als Auftrag (§3 Abschnitt D, „sagt es im Kommentar“) und in der Commit-Nachricht. Die Messung vorher/nachher, Summe und Grund, die `SPEC-040` Nr. 8 b verlangt, sind Zusage-Kommentar und bleiben unberührt; der Befund trifft allein die Klammer über die Zahl des früheren Kommentars. Der Auftrag kam vom Architect, nicht vom Implementer; widerspricht eine Rolle, läuft der Konfliktpfad über den Architect.
+
+## Auflösung der Tabelle *Zusage · Fänger* (16 Zeilen, je eine eigene Mutation)
+
+Probe-Skript und Kopien: `/tmp/claude-1000/-Development-odata-recorder/efb0f904-f3aa-4d9d-a147-ca0b12313d6a/scratchpad/regeln-reviewer/` (`probe.sh`, `dc.sh`). Ausgangslage: Probe auf unverändertem Stand grün (Anker-Zählung aller Dateien, Zeilen 1 bis 10 und 16 inklusive strenger Reihenfolge).
+
+| Nr. | Meine Mutation (Kopie) | Ergebnis |
+|---|---|---|
+| 1 | Anker und Zeiger aus Schritt 17 entfernt; Zeiger allein entfernt | rot (Zählung `seit welle-mock` 0; `SPEC-201. Nr. 11` 0) |
+| 2 | Wortlaut der Pflicht in die Prüfzeile gesetzt (Drift) | **grün**: `SPEC-201` bleibt 1 (F-3); Prüfzeile gelöscht: rot (Implementer) |
+| 3 | Eintrag vor den Fixture-Eintrag; Eintrag in die HIGH-Liste | rot nur mit oberer Grenze und „unmittelbar“; wörtlich „nach Fixture“ für LOW grün (F-5) |
+| 4 | Anker in `verifier.md` gelöscht; Skill-Satz ohne `make docs-check` umformuliert | Anker: rot (Zählung 0); Umformulierung: **grün** (F-3) |
+| 5 | E1 hinter den Fixture-Satz; Achse „Weg zum Aufruf“ aus der Liste gestrichen | Reihenfolge: rot; Achse: **grün** (F-3) |
+| 6 | `mit Pfad` statt `ohne Pfad und ohne Endung` in `implement-slice.md`; `und Endung` in `verifier.md` gestrichen | `implement-slice.md`: rot; `verifier.md`: **grün** (F-3) |
+| 7 | `(n von m)` gestrichen; `Folge` aus dem Satz gestrichen | beide **grün** (F-3) |
+| 8 | Laufzeit-Satz vor den Rate-Satz; in §3.15 verschoben; hinter §3.10 (+8/+9 Zeilen, Grenzprobe) | vor: rot; §3.15: rot nur streng (F-5); +8 grün, +9 `section-lines-exceeded` (Ist 21 bestätigt) |
+| 9 | `Edit` hinter `Bash` verschoben; `Edit` in `reviewer.md` ergänzt | erste: rot; zweite: grün (außerhalb der Zusage, Zeile deckt nur `architect`) |
+| 10 | Token in `implementer.md` durch Umbruch getrennt; Satz in `validator.md` verdoppelt; `löschst nur dort` aus `planner.md` gestrichen | getrennt: rot (Zählung 5); doppelt: rot (7); Halbsatz gestrichen: **grün** (F-3) |
+| 11 | je Regel eine Zeile `x` angehängt (ein Lauf) | 8 Befunde, 4 von 4 Regeln rot (Zeilen und Bytes) |
+| 12 | §3.10 +8/+9 und §3.15 +14/+15 Zeilen | Grenze genau bei 29; +9 und +15 rot, +8 und +14 grün; Ist 21 und 15 bestätigt |
+| 13 | `max-bytes` von `AGENTS.md` 23904; Summe gerechnet | rot; Grenzen gleich Ist (323/23905, 212/16180, 50/3614, 151/8668, 228/16065); Summe 973/68648 auf 964/68432, sinkt je Maß |
+| 14 | `katalog-ausnahmen.txs` in Schritt 17; `fehlerx.go`; `SPEC-999` | Pfad: `codepath-missing`; `fehler.go` wird nicht aufgelöst (grün, bare Name); `SPEC-999`: **grün** (F-4) |
+| 15 | Rohbytes-Suche (`LC_ALL=C grep -P`) auf Backslash-u-vier-Hex, BOM, NBSP, Nullbreite, Steuerzeichen, CR in allen geschriebenen Dateien; `make zeichen-check` | kein Treffer außer dem Beispiel in §3.18 `AGENTS.md` (unverändert); NBSP-Mutation nicht selbst gefahren |
+| 16 | `ohne frischen make gates-Lauf` aus K3 gestrichen | **grün** (F-3); Träger der K1 bis K6 selbst nachgelesen (siehe unten): tragen den Satz |
+
+## Schwerpunkte
+
+1. **Wortlaut der acht Regeln und K1 bis K6 gegen den Plan:** Zeichen für Zeichen mit dem Diff verglichen (Skill 3 Blöcke, `implement-slice.md` Schritt 17, 25, K3, K4, `AGENTS.md` K1, K2, §3.10, §3.15 inklusive beider Überschriften, `architect.md` Zeile `tools:` und Satz, K6, fünf Typen, `verifier.md` Absatz) — keine inhaltliche Abweichung. Die Vorlagen aus `welle-mock-results` und `welle-hybrid-results` stimmen im Kern mit dem Wortlaut des Plans überein (Architect-Änderungen: `nach dem Schreiben` statt `nach dem Schreiben des Reports`, Zusatz E2). Anker: `AGENTS.md` 0/2, `implement-slice.md` 1/1, Skill 3/1, `verifier.md` 1/1, alle anderen 0/0; die Soll-Zählung aus Abschnitt F stimmt.
+   Kürzungen: K1 (URL und Pfad stehen in `harness/conventions.md` §Adoptierte Konventions-Quellen), K2 (`harness/README.md` §Guides, Zeile der Vorlagen), K3 (Kopf von `.claude/hooks/stop-require-gates.sh`: DEFAULT, STRENG, GRENZEN, Stempel), K4 (`.githooks/commit-msg`, `harness/mk/hooks-install.mk`, `tools/harness/commit-msg-traceability.sh`), K5 (Vorlage `reviewer.template.md` der Baseline führt den Block; die HIGH-Liste trägt mehr als zwei Repo-Regeln), K6 (der Absatz *Warum dieser Typ existiert* im Typ `architect`) — jeweils selbst nachgelesen; keine Zusage geht verloren. `git grep` auf die gekürzten Überschriften: keine eingehenden Verweise außerhalb des Plans.
+2. **Tabelle Zusage · Fänger:** siehe oben (F-3, F-4, F-5).
+3. **Grenzen in `.d-check.yml`:** Summe 973/68648 → 964/68432, sinkt je Maß; je Grenze gleich dem Ist (nachgemessen mit `wc`); Hebung (`AGENTS.md` +272 Bytes; Skills +6 Zeilen, +558 Bytes) und Senkung (Commands −9 Zeilen, −901 Bytes; Agenten −3, −145; `AGENTS.md` −3 Zeilen) stehen in **einem** Commit (`c3741274`), jede Hebung liegt unter einer einzelnen Senkung desselben Maßes (`SPEC-040` Nr. 8 b); Messung und Grund stehen im Kommentar und in der Commit-Nachricht. Keine Lockerung, keine ADR nötig. Der Befund zum Kommentar ist F-1.
+4. **§3.9 und §3.13:** Plan §3, §6 und Abschnitt I nachgezogen, bis auf F-2 (Überschrift) und F-6 (Entwurfswerte). Kopf (`Bezug`, `Berührte Spec-Stellen`) bleibt richtig; Folge-Slices: `grep` nach den Größen und nach `slice-regeln-verkoerpern` außerhalb von `done/` findet nichts, das nachzuziehen wäre. §6: neue Zeile trägt Ausgang *entfallen*; die offenen Punkte (Stempel, Negativ N6) tragen Adressen.
+5. **Rohbytes (§3.18):** siehe Zeile 15; der Bericht des Implementers nennt die gegengelesenen Dateien; mein Gegenlesen deckt zusätzlich den Plan.
+6. **Abschnittslängen:** §3.10 hat 21, §3.15 15 von 29 Zeilen (Grenzprobe mit `d-check`: +8/+9 und +14/+15) — die Berichtigung stimmt.
+7. **Anker auflösbar:** `docs/plan/planning/done/welle-mock-results.md` und `welle-hybrid-results.md` liegen; `welle-mock-results` führt die Vorlagen 1 und 2, `welle-hybrid-results` die Punkte E1, E2 und E4.
+
+Messung des Diffs nach §4 und §6 des Plans: `git diff --numstat 8433db48..HEAD` über `AGENTS.md`, `implement-slice.md`, `.claude/agents`, `.harness/skills/reviewer.md`, `.d-check.yml`: 82 Einfügungen und 75 Löschungen, Summe 157 (Erwartung 148, Grenze der Rückführung 400). `make groessenmarke` nicht gefahren (kein Block, laut Plan Hinweis und Exit 0).
+
+## Negativbefunde (geprüft, ohne Befund)
+
+- `AGENTS.md` — geprüft, ohne Befund außer der Zeilenzählung der Abschnitte (bestätigt); Wortlaut §1 (K1, K2), §3.10, §3.15 gleich dem Plan.
+- `.claude/commands/implement-slice.md` — geprüft, ohne Befund außer F-4 (Zeiger) und F-7 (Wortlaut vom Architect).
+- `.claude/agents/` (sechs Typen) — geprüft, ohne Befund; Scratchpad-Satz in allen sechs (`<kurz>-<rolle>/` je Datei 1), `Edit` nur im `architect`.
+- `.harness/skills/reviewer.md` — geprüft, ohne Befund; HIGH-Liste unverändert, zwei MEDIUM-Einträge und die drei Zeilen im Output-Schema am Ort aus dem Plan.
+- `.d-check.yml` — geprüft: Befund F-1; Werte, Summe, Verschiebung ohne Befund.
+- `docs/plan/planning/done/slice-regeln-verkoerpern.md` — geprüft: F-2, F-6; Inhalt von §6 und I ohne weiteren Befund.
+- Kein Produktcode, kein Geheimnis, keine ADR betroffen (HIGH-Listen Capture, Replay, Admin: nicht berührt).

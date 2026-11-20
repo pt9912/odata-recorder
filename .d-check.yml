@@ -248,34 +248,38 @@ structure:
 # Lauf einer Rolle laedt (SPEC-040 Nr. 2); das Modul liest scan.ignore nicht und erreicht
 # .claude/ und .harness/skills/. Jede Grenze ist das Maximum ihrer Dateien am Stand
 # 2026-10-31 (Zeilen wie wc -l, Bytes wie wc -c), kein Spielraum; die Summe der Grenzen ist
-# 976 Zeilen und 68663 Bytes (Verschiebung 2026-11-06 nach SPEC-040 Nr. 8 b: AGENTS.md -8 Zeilen
-# und -1000 Bytes, .harness/skills/*.md +8 Zeilen und +713 Bytes, .claude/commands/*.md +89 Bytes;
-# Messung vorher AGENTS.md 337/24648, reviewer.md 137/7397, implement-slice.md 221/16992,
-# nachher 329/23648, 145/8110, 220/17081). Senken ist frei, Anheben nur als Verschiebung zwischen Regeln
-# oder per ADR (SPEC-040 Nr. 8, ADR-0010); eine Regel traegt kein hint (SPEC-040 Nr. 4 d).
+# 964 Zeilen und 68432 Bytes (Verschiebung 2026-11-20 nach SPEC-040 Nr. 8 b, Grund: acht Regeln
+# aus den Closures in die Guide-Dateien: AGENTS.md +272 Bytes bei -3 Zeilen, .harness/skills/*.md
+# +6 Zeilen und +558 Bytes, dafuer .claude/commands/*.md -9 Zeilen und -901 Bytes und
+# .claude/agents/*.md -3 Zeilen und -145 Bytes; die Summe sinkt je Mass um 9 Zeilen und 216 Bytes.
+# Messung vorher AGENTS.md 326/23633, implement-slice.md 220/17081 (Grenze 221), architect.md
+# 53/3759, reviewer.md 145/8110; nachher 323/23905, 212/16180, 50/3614, 151/8668). Die Summe
+# der Grenzen vorher ist 973 Zeilen und 68648 Bytes. Senken ist frei, Anheben nur
+# als Verschiebung zwischen Regeln oder per ADR (SPEC-040 Nr. 8, ADR-0010); eine Regel traegt
+# kein hint (SPEC-040 Nr. 4 d).
 # Messung je Regel:
-#   AGENTS.md              326 Zeilen, 23633 Bytes
-#   .claude/commands/*.md  Maximum implement-slice.md 220 Zeilen, 17081 Bytes
+#   AGENTS.md              323 Zeilen, 23905 Bytes
+#   .claude/commands/*.md  Maximum implement-slice.md 212 Zeilen, 16180 Bytes
 #                          (close-welle.md 146/11731, plan-welle.md 99/6554)
-#   .claude/agents/*.md    Maximum architect.md 53 Zeilen, 3759 Bytes
-#                          (implementer 48/3069, verifier 43/2639, validator 42/2493,
-#                          reviewer 41/2542, planner 36/2166)
-#   .harness/skills/*.md   Maximum reviewer.md 145 Zeilen, 8110 Bytes
+#   .claude/agents/*.md    Maximum architect.md 50 Zeilen, 3614 Bytes
+#                          (implementer 49/3209, verifier 48/3046, validator 43/2633,
+#                          reviewer 42/2682, planner 38/2306)
+#   .harness/skills/*.md   Maximum reviewer.md 151 Zeilen, 8668 Bytes
 #                          (closure-note-reviewer.md 90/4144)
 #   harness/conventions.md 228 Zeilen, 16065 Bytes
 file:
   - files: "AGENTS.md"
-    max-lines: 326
-    max-bytes: 23633
+    max-lines: 323
+    max-bytes: 23905
   - files: ".claude/commands/*.md"
-    max-lines: 221
-    max-bytes: 17081
+    max-lines: 212
+    max-bytes: 16180
   - files: ".claude/agents/*.md"
-    max-lines: 53
-    max-bytes: 3759
+    max-lines: 50
+    max-bytes: 3614
   - files: ".harness/skills/*.md"
-    max-lines: 145
-    max-bytes: 8110
+    max-lines: 151
+    max-bytes: 8668
   - files: "harness/conventions.md"
     max-lines: 228
     max-bytes: 16065

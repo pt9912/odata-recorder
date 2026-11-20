@@ -23,16 +23,11 @@ emittierten Durchsetzungsschicht):
   Docker-Image; der emittierte PreToolUse-Guard (`.claude/hooks/pretooluse-command-guard.sh`) blockt
   die Host-Toolchain deiner Sprache (und prüft Sub-Shell-Strings). Rufe nie einen Host-Toolchain auf
   — nur die `make`-Targets.
-- **Gate-Nachweis + Stop-Hook.** `make gates` endet mit `record-gates`, das einen Content-Hash des
-  Working Tree und die Commit-SHA von HEAD stempelt. Der Stop-Hook bindet an den Commit: er
-  verweigert das Turn-Ende, sobald HEAD ein anderer ist als beim letzten grünen Lauf **und** der
-  Inhalt nicht gedeckt ist — **ein Commit oder `git mv`-Commit ohne frischen `make gates`-Lauf
-  lässt ihn rot.** Ein Turn-Ende ohne neuen Commit geht frei, auch mit ungedeckter Änderung,
-  sofern ein grüner Lauf HEAD gestempelt hat (Stempel `gates-passed.head` aus `record-gates`); das
-  Netz dort ist CI auf dem Push. Fehlt der Stempel (erster Turn nach dem Update, Klon vor dem
-  ersten grünen Lauf), gilt der strenge Zweig. **Streng** — jedes Turn-Ende mit ungedecktem Inhalt blockiert
-  —, wenn die Datei `.harness/stop-gate-streng` im Repo liegt oder `STOP_GATE_STRENG=1` gesetzt
-  ist.
+- **Gate-Nachweis + Stop-Hook.** `make gates` endet mit `record-gates` (Content-Hash des Working
+  Tree, Commit-SHA von HEAD). Der Stop-Hook verweigert das Turn-Ende, sobald HEAD ein anderer ist
+  als beim letzten grünen Lauf **und** der Inhalt nicht gedeckt ist — **ein Commit oder
+  `git mv`-Commit ohne frischen `make gates`-Lauf lässt ihn rot.** Wann er streng blockiert, steht
+  im Kopf von `.claude/hooks/stop-require-gates.sh`.
 - **Strenges Doc-Gate (d-check).** Jede `LH-`/`ADR-`/`MR-`-Kennung in einer gescannten `.md` muss
   ein klickbarer Anker-Link sein (link-policy: always) — ein bares Kennungs-Token bricht
   `docs-check` (`id-unlinked`). `codepaths` verlangt, dass Pfade in Inline-Code existieren: eine
@@ -46,20 +41,10 @@ emittierten Durchsetzungsschicht):
 - **Commit via Message-Datei** (`git commit -F <datei>`): der Guard scannt den Command-String,
   also nie eine Commit-Message inline, die ein geblocktes Tool-Token enthält.
 - **Commit-Kennung.** Eine Commit-Message ohne Kennung (`ADR-NNNN`, `LH-XX-NN`, `MR-NNN`; die
-  vollständige Menge steht in der Zeile `patterns=` der mitgelieferten Prüfung `tools/harness/commit-msg-traceability.sh`) weist der git-eigene Hook `.githooks/commit-msg` ab, sobald er aktiviert ist. Er liegt
-  versioniert im Repo und **reist mit dem Klon, seine Aktivierung nicht**: `make hooks-install`
-  setzt `core.hooksPath` und ist der eine Schritt dazwischen; `git commit --no-verify` umgeht ihn.
-  **An diesem Pfad ist das Werkzeug ein Gast** — der Name ist von `git` fixiert und das Verzeichnis
-  gehört dem Repo: der Bootstrap legt seinen Träger **nur ab, wo der Pfad frei ist**. Führt dieses
-  Repo dort schon einen eigenen, bleibt er unberührt, und der Bootstrap sagt es; die mitgelieferte
-  Prüfung `tools/harness/commit-msg-traceability.sh` liegt in beiden Fällen daneben (sie wird bei
-  jedem Lauf kanonisch neu geschrieben) und kann aus dem eigenen Träger aufgerufen werden.
-  Geprüft wird die **Anwesenheit** einer Kennung, nicht ihre Wahrheit. Was er **nicht** erreicht:
-  die zweite Hälfte der Traceability-Zusage — ein Doku-Update bei berührtem öffentlichem Vertrag —
-  ist von einem Commit-Wächter nicht mechanisch prüfbar und bleibt deine Arbeit. Er **erreicht**
-  dagegen jede Commit-Klasse, die `git` erzeugt — auch die der Repo-Werkzeuge (`make slice-mv`,
-  `make archive-welle`): trägt eine solche Message keine Kennung aus der Menge — bei einer benannten
-  Kennung trifft kein Muster —, fällt sie.
+  Menge steht in der Zeile `patterns=` von `tools/harness/commit-msg-traceability.sh`) weist
+  `.githooks/commit-msg` ab, auch bei `make slice-mv` und `make archive-welle`; `make hooks-install`
+  aktiviert ihn, `git commit --no-verify` umgeht ihn. Geprüft wird die Anwesenheit einer Kennung,
+  nicht ihre Wahrheit; das Doku-Update bei berührtem öffentlichem Vertrag bleibt deine Arbeit.
 
 ## Kontext lesen (Modul 9, Schritte 1–3)
 
@@ -128,7 +113,11 @@ ist eine Lifecycle-Rücksprungkante (11).
 
 ## Pre-completion-Checkliste (Modul 9, Schritt 8 — letzte Handlung der Implementer-Rolle)
 
-17. Doku, ADR-Index und README aktualisieren, falls ein öffentlicher Vertrag berührt ist.
+17. Doku, ADR-Index und README aktualisieren, falls ein öffentlicher Vertrag berührt ist. Macht der
+    Slice einen Fehlercode, einen Schlüssel oder ein Kommando erreichbar, entfernt er ihn im
+    selben Slice aus `harness/katalog-ausnahmen.txt` und führt ihn im Handbuch; einen neuen Code in
+    `fehler.go` setzt er in die Ausnahmen oder ins Handbuch (`SPEC-201` Nr. 11; kein Gate fängt die
+    Erreichbarkeit)  (seit welle-mock).
 18. Die Pre-completion-Checkliste laufen: die DoD Punkt für Punkt **behaupten** und die
     **Sensor-Belege** anhängen — `make gates` **und die Nicht-Gate-Sensoren, die den Slice
     betreffen** (die dein Repo führt — z. B. ein Mutations-Sensor, wenn Wächter neu/geändert sind;
@@ -207,7 +196,10 @@ Hier endet die Implementation. Die übrigen Rollen laufen in **getrennten Kontex
     Sonst ein neues Verzeichnis `BEO-<KUERZEL>/<slug>/` mit `observation.md` und `state.md` anlegen
     — Kürzel aus der Modus-Deklaration nachschlagen, nicht erfinden; das Register ist zugleich die
     Vergabestelle für den `<slug>`-Teil. Der Beleg ist **formgebunden**: `evidence/slice-<Kennung>.md`,
-    kein Freitext, eine Datei je Auftreten. Geschrieben wird er **vor** dem Move aus Schritt 24 — die
+    kein Freitext, eine Datei je Auftreten. Ein Review-Report steht in Evidence und Plan mit
+    seiner Kennung ohne Pfad und ohne Endung (`2026-11-18-slice-x-review-2`), nie als Dateiname
+    oder Link: `make archive-welle` sperrt mit `[haenger]`, solange eine Datei den Pfad nennt
+    (seit welle-hybrid). Geschrieben wird der Beleg **vor** dem Move aus Schritt 24 — die
     Slice-Datei liegt dann noch nicht in `done/`, und das ist richtig so, weil Move und Inhalt
     getrennt committen (Hard Rule 3.3). Der Zähler wird **nicht gesetzt**, er ist die Zahl der
     Evidence-Dateien und **folgt** aus ihnen. **Bei null Beobachtungen** bleibt die Ablage

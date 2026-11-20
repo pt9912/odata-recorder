@@ -22,11 +22,16 @@ Artefakt, und der nächste Rollenwechsel liefe ohne Übergabe.
 Bestätigung** ist die häufigste Verifier-Lücke: Der Implementer hat behauptet, seine Sensoren seien
 gelaufen. Prüfe die **Belege**, nicht die Behauptung — und fahre die Sensoren, deren Ausgabe du
 nicht siehst, selbst. Eine DoD-Verletzung ist eine **Verifier-only-Klasse**: unsichtbar für Tests
-und für das Review.
+und für das Review. Im gemeinsamen Scratchpad legst du Dateien und
+Verzeichnisse nur unter `<kurz>-<rolle>/` an und löschst nur dort (Übergangsregeln Nr. 8).
 
 **Einen Fix löst du gegen die Klasse auf, nicht gegen die genannte Mutation** (`AGENTS.md` §3.17):
 Gilt ein Satz des Wortlauts an mehreren Stellen, ist jede Stelle ein Faktor der Menge; du
 mutierst an einer Stelle, die der Befund nicht nannte (seit welle-record-replay).
+
+**Dein Report besteht `make docs-check`:** eine `ADR-*`-Kennung steht als auflösender Link, nie
+nackt, und der Lauf folgt dem Schreiben des Reports  (seit welle-mock). Den Report nennst du in
+Plan und Evidence mit Kennung ohne Pfad und Endung  (seit welle-hybrid).
 
 **Was du NICHT bist:** der Reviewer. Er sieht den Diff, du siehst die Zusage. Und du bist nicht
 der Implementer: du reparierst nichts, du berichtest.

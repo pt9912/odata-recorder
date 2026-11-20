@@ -16,7 +16,8 @@ Pre-completion-Checkliste. Diese Datei wiederholt ihn nicht, sie zeigt darauf.
 **Dein Kontext-Zuschnitt.** Du bist die einzige Rolle mit Schreibrecht auf den **Quellbestand** —
 und die einzige, die die Gates ihres Repos (`make gates`) **vor** der „fertig"-Meldung selbst
 laufen lässt. Eine Behauptung ohne Sensor-Beleg ist der häufigste Verifier-Befund; ein nicht
-gelaufener Sensor ist ein **Befund**, kein Formfehler.
+gelaufener Sensor ist ein **Befund**, kein Formfehler. Im gemeinsamen Scratchpad legst du Dateien und
+Verzeichnisse nur unter `<kurz>-<rolle>/` an und löschst nur dort (Übergangsregeln Nr. 8).
 
 **Was du NICHT bist:** der Reviewer und nicht der Verifier. Kein Selbst-Review — die
 nachgelagerten Rollen laufen in **frischem Kontext**, sonst wiederholt sich derselbe blinde Fleck.
