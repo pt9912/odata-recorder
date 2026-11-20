@@ -32,6 +32,7 @@ type live struct {
 	route *routeFake
 	ids   *zaehlendeIDs
 	audit *supporttest.FakeAudit
+	tele  *supporttest.FakeTelemetry
 	serve chan error
 }
 
@@ -60,7 +61,7 @@ func neuLiveMit(t *testing.T, route *routeFake, opt liveOpt) *live {
 	srv := neuMitKonfig(t, k, u).srv
 	serve := make(chan error, 1)
 	go func() { serve <- srv.Serve() }()
-	return &live{srv: srv, addr: roh.Addr().String(), route: route, ids: u.ids, audit: u.audit, serve: serve}
+	return &live{srv: srv, addr: roh.Addr().String(), route: route, ids: u.ids, audit: u.audit, tele: u.tele, serve: serve}
 }
 
 // neuMitListener baut einen Server mit gültiger Konfiguration auf dem Listener l, ohne Serve zu starten.

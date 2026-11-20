@@ -1,7 +1,6 @@
 package admin_test
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,8 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -20,9 +17,10 @@ import (
 	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
 )
 
-// TestAngehaltenJedeRequestart hält A2 (SPEC-238 Nr. 3 b, 5): ein angehaltener Server antwortet jeder der 26 Requestarten
-// aus R mit 503 ODR-E5010 samt Connection: close, mit der einen vergebenen ID und ohne WWW-Authenticate und Allow, vor
-// Authentisierung, Zuordnung, Route und Audit; die 27. Art (503) steht in den Schleifen A1, E2 und E4.
+// TestAngehaltenJedeRequestart hält A2 (SPEC-238 Nr. 3 b, 5, 7): ein angehaltener Server antwortet jeder der 29
+// Requestarten aus R mit 503 ODR-E5010 samt Connection: close, mit der einen vergebenen ID und ohne WWW-Authenticate und
+// Allow, vor Authentisierung, Zuordnung, Route und Audit, und zählt genau einen Fehler ODR-E5010; die 30. Art (503) steht
+// in den Schleifen A1, E2 und E4.
 func TestAngehaltenJedeRequestart(t *testing.T) {
 	n := 0
 	for _, a := range requestArten() {
@@ -45,12 +43,15 @@ func TestAngehaltenJedeRequestart(t *testing.T) {
 		if k, uebrige := l.u.ids.zahlen(); k != 1 || uebrige != 0 {
 			t.Errorf("%s: KorrelationsID %d-mal, andere Operationen %d-mal, erwartet 1 und 0", a.name, k, uebrige)
 		}
-		if l.vf.zahl() != 0 || l.ok.aufrufe() != 0 || l.fehler.aufrufe() != 0 || l.uc.summe() != 0 || l.u.audit.Aufrufe() != 0 {
-			t.Errorf("%s: Vergleich %d, Routen %d und %d, Use-Case %d, Audit %d Aufrufe, erwartet 0",
-				a.name, l.vf.zahl(), l.ok.aufrufe(), l.fehler.aufrufe(), l.uc.summe(), l.u.audit.Aufrufe())
+		if l.vf.zahl() != 0 || l.routenAufrufe() != 0 || l.uc.summe() != 0 || l.u.audit.Aufrufe() != 0 {
+			t.Errorf("%s: Vergleich %d, Routen %d, Use-Case %d, Audit %d Aufrufe, erwartet 0",
+				a.name, l.vf.zahl(), l.routenAufrufe(), l.uc.summe(), l.u.audit.Aufrufe())
+		}
+		if codes, andere := zaehlungenVon(l.u.tele); !slices.Equal(codes, []string{"ODR-E5010"}) || andere != 0 {
+			t.Errorf("%s: CountError %q, andere Aufrufe der Telemetrie %d, erwartet einmal ODR-E5010", a.name, codes, andere)
 		}
 	}
-	gleichAuf(t, "Zahl der Requestarten ohne 503", n, 26)
+	gleichAuf(t, "Zahl der Requestarten ohne 503", n, 29)
 }
 
 // TestZweiServerTeilenNichts hält K5 (SPEC-238 Nr. 1, 11): nach Anhalten von A liefert A 503 und B 200; nach Schliessen
@@ -212,46 +213,31 @@ func TestWerteDesServers(t *testing.T) {
 
 const kindUmgebung = "ODR_G1_KIND"
 
-// TestKeinLogDerBibliothek hält G1 (SPEC-238 Nr. 10, 13 h): der Adapter schreibt kein Log von net/http; die Panik der
-// Route erscheint weder in log.Default() noch auf stderr oder stdout. Der Test fährt das Szenario in einem Kindprozess
-// (dieselbe Testbinärdatei) und liest dessen stderr und stdout, den Standardlogger unverändert (Prüfgrenze N-6).
+// TestKeinLogDerBibliothek hält G1 (SPEC-238 Nr. 10, 13 h): der Adapter schreibt kein Log von net/http; die Panik außerhalb
+// der Route (die Korrelations-ID des Generators gerät in Panik, die Panik einer Route fängt der Adapter, B8) erscheint
+// weder in log.Default() noch auf stderr oder stdout. Der Test fährt das Szenario in einem Kindprozess (dieselbe
+// Testbinärdatei) und liest dessen stderr und stdout, den Standardlogger unverändert (Prüfgrenze N-6).
 func TestKeinLogDerBibliothek(t *testing.T) {
 	if dir := os.Getenv(kindUmgebung); dir != "" {
 		kindG1(t, dir)
 		return
 	}
-	dir := t.TempDir()
-	ctx, abbruch := context.WithTimeout(context.Background(), 60*time.Second)
-	defer abbruch()
-	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestKeinLogDerBibliothek$", "-test.count=1")
-	cmd.Env = append(os.Environ(), kindUmgebung+"="+dir)
-	var aus, fehl bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &aus, &fehl
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Kindprozess: %v\nstdout: %s\nstderr: %s", err, aus.String(), fehl.String())
-	}
-	if _, err := os.Stat(filepath.Join(dir, "lief")); err != nil {
-		t.Fatalf("der Kindprozess hat das Szenario nicht ausgeführt: %v", err)
-	}
-	for senke, text := range map[string]string{"stderr": fehl.String(), "stdout": aus.String()} {
+	aus, fehl := kindLauf(t, "TestKeinLogDerBibliothek", kindUmgebung)
+	for senke, text := range map[string]string{"stderr": fehl, "stdout": aus} {
 		if strings.Contains(text, "geheim-wert-G1") {
 			t.Errorf("%s trägt die Panik: %q", senke, text)
 		}
 	}
 }
 
-// kindG1 ist das Szenario im Kindprozess: die Route gerät in Panik, der Client sieht den Abbruch.
+// kindG1 ist das Szenario im Kindprozess: der Generator der Korrelations-ID gerät in Panik, der Client sieht den Abbruch.
 func kindG1(t *testing.T, dir string) {
 	t.Helper()
-	route := neueRoute()
-	route.aendere = func(admin.Anfrage) { panic("geheim-wert-G1") }
-	u := neuLive(t, route)
+	u := neuLiveMit(t, neueRoute(), liveOpt{vorKorr: func() { panic("geheim-wert-G1") }})
 	if x := erwarte(t, u.async("GET", "/p"), "Antwort"); x.err == nil {
 		t.Fatalf("der Client sah keinen Abbruch, Status %d", x.status)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "lief"), []byte("ok"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	kindFertig(t, dir)
 }
 
 // TestOptionsStern hält G2 (SPEC-238 Nr. 10, 3 d, 2): `OPTIONS *` geht durch die Authentisierung: ohne Token 401, mit

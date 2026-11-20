@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,12 +15,15 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
 )
 
-// Die Fehlerobjekte als Literale des Vertrags (SPEC-109 Nr. 1 bis 3, SPEC-240), nicht aus dem Code.
+// Die Fehlerobjekte als Literale des Vertrags (SPEC-109 Nr. 1 bis 3, SPEC-240), nicht aus dem Code. objekt404 und
+// objekt400 sind dasselbe Fehlerobjekt von ODR-E2102 unter dem Namen des Status, mit dem ein Test es erwartet.
 const (
-	objekt404  = `{"error":{"code":"ODR-E2102","message":"Admin request invalid","target":"admin"}}`
-	objekt500  = `{"error":{"code":"ODR-E9001","message":"Internal error","target":"internal"}}`
-	objekt503  = `{"error":{"code":"ODR-E5010","message":"Service is shutting down","target":"service"}}`
-	healthzObj = `{"status":"ok"}`
+	objekt404   = `{"error":{"code":"ODR-E2102","message":"Admin request invalid","target":"admin"}}`
+	objekt400   = objekt404
+	objekt500   = `{"error":{"code":"ODR-E9001","message":"Internal error","target":"internal"}}`
+	objekt503   = `{"error":{"code":"ODR-E5010","message":"Service is shutting down","target":"service"}}`
+	objektE7003 = `{"error":{"code":"ODR-E7003","message":"Recording session unknown","target":"session"}}`
+	healthzObj  = `{"status":"ok"}`
 )
 
 // umgebung ist ein Server mit allen Fakes seiner Ports.
@@ -83,8 +87,9 @@ func antwortText(rec *httptest.ResponseRecorder) string {
 	return fmt.Sprintf("%d %v %s", rec.Code, rec.Header(), rec.Body.Bytes())
 }
 
-// pruefeFehlerAntwort prüft Status, Body, Content-Type, Content-Length und Allow einer Fehlerantwort; allow leer heißt:
-// kein Header Allow. Der Canary steht in keinem Byte der Antwort.
+// pruefeFehlerAntwort prüft Status, Body, Content-Type, Content-Length und die Header des Status einer Fehlerantwort
+// (SPEC-238 Nr. 5): WWW-Authenticate: Bearer nur bei 401, Connection: close nur bei 503, Allow nur bei 405; allow leer
+// heißt: kein Header Allow. Der Canary steht in keinem Byte der Antwort.
 func pruefeFehlerAntwort(t *testing.T, name string, rec *httptest.ResponseRecorder, status int, body, allow string) {
 	t.Helper()
 	if rec.Code != status || rec.Body.String() != body {
@@ -99,6 +104,18 @@ func pruefeFehlerAntwort(t *testing.T, name string, rec *httptest.ResponseRecord
 	if got := rec.Header().Values("Allow"); allow == "" && len(got) != 0 || allow != "" && (len(got) != 1 || got[0] != allow) {
 		t.Errorf("%s: Allow %q, erwartet %q", name, got, allow)
 	}
+	soll := map[string][]string{"WWW-Authenticate": nil, "Connection": nil}
+	if status == 401 {
+		soll["WWW-Authenticate"] = []string{"Bearer"}
+	}
+	if status == 503 {
+		soll["Connection"] = []string{"close"}
+	}
+	for k, v := range soll {
+		if got := rec.Header().Values(k); !slices.Equal(got, v) {
+			t.Errorf("%s: %s %q, erwartet %q", name, k, got, v)
+		}
+	}
 	if strings.Contains(antwortText(rec), canary()) {
 		t.Errorf("%s: der Canary steht in der Antwort", name)
 	}
@@ -107,8 +124,43 @@ func pruefeFehlerAntwort(t *testing.T, name string, rec *httptest.ResponseRecord
 // keinePortAufrufe meldet, wenn Audit, Telemetrie oder Listener einen Aufruf sahen.
 func (u *umgebung) keinePortAufrufe(t *testing.T, name string) {
 	t.Helper()
-	a, c, ad := u.lst.zahlen()
-	if u.audit.Aufrufe() != 0 || len(u.tele.Aufrufe()) != 0 || a+c+ad != 0 {
-		t.Errorf("%s: Audit %d, Telemetrie %d, Listener %d/%d/%d Aufrufe, erwartet 0", name, u.audit.Aufrufe(), len(u.tele.Aufrufe()), a, c, ad)
+	u.nurZaehlung(t, name)
+}
+
+// zaehlungenVon liefert die Codes der Aufrufe von CountError in der Reihenfolge und die Zahl der Aufrufe jeder anderen
+// Operation (Log, StartSpan, Set, End, Snapshot).
+func zaehlungenVon(f *supporttest.FakeTelemetry) (codes []string, andere int) {
+	for _, a := range f.Aufrufe() {
+		if a.Op == supporttest.OpCountError {
+			codes = append(codes, a.Code.String())
+		} else {
+			andere++
+		}
 	}
+	return codes, andere
+}
+
+// nurZaehlung meldet, wenn die Telemetrie etwas anderes sah als je einen Aufruf von CountError mit den Codes soll (in
+// dieser Reihenfolge), oder wenn Audit oder Listener einen Aufruf sahen.
+func (u *umgebung) nurZaehlung(t *testing.T, name string, soll ...string) {
+	t.Helper()
+	codes, andere := zaehlungenVon(u.tele)
+	a, c, ad := u.lst.zahlen()
+	if !slices.Equal(codes, soll) || andere != 0 || u.audit.Aufrufe() != 0 || a+c+ad != 0 {
+		t.Errorf("%s: CountError %q, andere Aufrufe der Telemetrie %d, Audit %d, Listener %d/%d/%d Aufrufe, erwartet CountError %q und sonst 0",
+			name, codes, andere, u.audit.Aufrufe(), a, c, ad, soll)
+	}
+}
+
+// rufeSicher sendet den Request wie rufe und meldet eine Panik, die ServeHTTP verlässt, als Fehler des Tests.
+func (u *umgebung) rufeSicher(t *testing.T, name string, r *http.Request) (rec *httptest.ResponseRecorder) {
+	t.Helper()
+	rec = httptest.NewRecorder()
+	defer func() {
+		if p := recover(); p != nil {
+			t.Errorf("%s: eine Panik verließ ServeHTTP: %v", name, p)
+		}
+	}()
+	u.srv.ServeHTTP(rec, r)
+	return rec
 }
