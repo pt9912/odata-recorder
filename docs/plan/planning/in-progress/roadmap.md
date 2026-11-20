@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-groessenformel-neu](../done/slice-groessenformel-neu.md) (ohne Welle, Linie C, vierter der Kette).
+Nichts in Arbeit.
 
 - [welle-admin-api](../welle-admin-api.md) (Ausnahme je Slice, siehe *Nächste Wellen*; geliefert: [slice-admin-lebenszyklus](../done/slice-admin-lebenszyklus.md) (Linie D, Teil 4 des Admin-Rahmens; ändert das Binary nicht); startbar: [slice-admin-fehlerabbildung](../open/slice-admin-fehlerabbildung.md) (Teil 5))
 - [welle-expand-batch](../welle-expand-batch.md) (gestartet mit Ausnahme je Slice, siehe *Nächste Wellen*; geliefert: [slice-expand-parser](../done/slice-expand-parser.md) (Parser und AST von `$expand`, Linie B; Beleg Nachverifikation 2 `2026-11-19-slice-expand-parser-nachverifikation-2`, nicht bestanden, auf Entscheidung des Users mit zwei akzeptierten Negativen R-1 und R-2 geschlossen; Messung 2268 von Marke 3500); startbar: [slice-expand-validator](../open/slice-expand-validator.md) (Validator gegen das Modell, Schnitt von `slice-expand-parser`), danach [slice-expand-ausfuehrung](../open/slice-expand-ausfuehrung.md) (Verdrahtung, Executor, Serializer; nach der Entscheidung des Architect zur Datenbasis); `slice-batch-parser` und `slice-batch-changesets` unberührt)

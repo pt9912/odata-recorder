@@ -70,7 +70,7 @@ gehört zurück zur Zerlegung.
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag nach dem Auftrag an die Closure in §3: die Register-Einträge `schaetzformel-ueberschaetzt-den-slice` und `auslastung-am-handoff-als-endwert-gelesen` bekommen den Ausgang *verkörpert* mit dem Feld `liegt in` und dem Zielort `harness/vertraege/SPEC-128-groessenmarke.md` in Backticks (Nr. 2 und 9 tragen den Anker `seit slice-groessenformel-neu`).
 - [x] Beobachtungs-Register (`../observations/`) fortgeschrieben; keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen.
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen (nach dem Move geprüft: der Zielort `harness/vertraege/SPEC-128-groessenmarke.md` existiert und trägt `seit slice-groessenformel-neu` in Nr. 2 und 9, beide Links des Vertrags lösen auf `done/` auf; kein Folge-Slice genannt; die beiden Kennungen des Registers liegen mit nicht leerem `evidence/`, ebenso die neue).
 
 ## 3. Plan (vor Code)
 
