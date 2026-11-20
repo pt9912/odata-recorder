@@ -67,5 +67,5 @@ Messung des Diffs nach §4 und §6 des Plans: `git diff --numstat 8433db48..HEAD
 - `.claude/agents/` (sechs Typen) — geprüft, ohne Befund; Scratchpad-Satz in allen sechs (`<kurz>-<rolle>/` je Datei 1), `Edit` nur im `architect`.
 - `.harness/skills/reviewer.md` — geprüft, ohne Befund; HIGH-Liste unverändert, zwei MEDIUM-Einträge und die drei Zeilen im Output-Schema am Ort aus dem Plan.
 - `.d-check.yml` — geprüft: Befund F-1; Werte, Summe, Verschiebung ohne Befund.
-- `docs/plan/planning/in-progress/slice-regeln-verkoerpern.md` — geprüft: F-2, F-6; Inhalt von §6 und I ohne weiteren Befund.
+- `docs/plan/planning/done/slice-regeln-verkoerpern.md` — geprüft: F-2, F-6; Inhalt von §6 und I ohne weiteren Befund.
 - Kein Produktcode, kein Geheimnis, keine ADR betroffen (HIGH-Listen Capture, Replay, Admin: nicht berührt).
