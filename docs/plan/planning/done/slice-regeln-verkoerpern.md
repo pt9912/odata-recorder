@@ -76,7 +76,7 @@ gehört zurück zur Zerlegung.
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag (Einträge mit `liegt in <Zielort>`).
 - [x] Beobachtungs-Register (`../observations/`) fortgeschrieben; keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen.
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen (nach dem Move geprüft: die Zielorte tragen `seit welle-mock` bzw. `seit welle-hybrid`, kein Folge-Slice genannt, alle sechs Kennungen des Registers liegen mit nicht leerem `evidence/`).
 
 ## 3. Plan (vor Code)
 
