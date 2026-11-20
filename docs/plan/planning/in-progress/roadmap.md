@@ -16,9 +16,9 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-Nichts in Arbeit.
+In Arbeit: [slice-admin-fehlerabbildung](slice-admin-fehlerabbildung.md) ([welle-admin-api](../welle-admin-api.md), Linie D, Teil 5 des Admin-Rahmens).
 
-- [welle-admin-api](../welle-admin-api.md) (Ausnahme je Slice, siehe *Nächste Wellen*; geliefert: [slice-admin-lebenszyklus](../done/slice-admin-lebenszyklus.md) (Linie D, Teil 4 des Admin-Rahmens; ändert das Binary nicht); startbar: [slice-admin-fehlerabbildung](../in-progress/slice-admin-fehlerabbildung.md) (Teil 5))
+- [welle-admin-api](../welle-admin-api.md) (Ausnahme je Slice, siehe *Nächste Wellen*; geliefert: [slice-admin-lebenszyklus](../done/slice-admin-lebenszyklus.md) (Linie D, Teil 4 des Admin-Rahmens; ändert das Binary nicht); in Arbeit: [slice-admin-fehlerabbildung](slice-admin-fehlerabbildung.md) (Teil 5; ändert das Binary nicht))
 - [welle-expand-batch](../welle-expand-batch.md) (gestartet mit Ausnahme je Slice, siehe *Nächste Wellen*; geliefert: [slice-expand-parser](../done/slice-expand-parser.md) (Parser und AST von `$expand`, Linie B; Beleg Nachverifikation 2 `2026-11-19-slice-expand-parser-nachverifikation-2`, nicht bestanden, auf Entscheidung des Users mit zwei akzeptierten Negativen R-1 und R-2 geschlossen; Messung 2268 von Marke 3500); startbar: [slice-expand-validator](../open/slice-expand-validator.md) (Validator gegen das Modell, Schnitt von `slice-expand-parser`), danach [slice-expand-ausfuehrung](../open/slice-expand-ausfuehrung.md) (Verdrahtung, Executor, Serializer; nach der Entscheidung des Architect zur Datenbasis); `slice-batch-parser` und `slice-batch-changesets` unberührt)
 
 - ohne Welle: [slice-mutationslauf-werkzeug](../done/altbestand/slice-mutationslauf-werkzeug.md) (in `done/`, Linie C, nicht produktiv; Vertrag [SPEC-210](../../../../harness/vertraege/SPEC-210-mutationslauf.md); beim User offen: Cache über Läufe, Aufruf durch die Rollen, Gate für das Modul, Formelkonflikt, siehe §7 des Plans)

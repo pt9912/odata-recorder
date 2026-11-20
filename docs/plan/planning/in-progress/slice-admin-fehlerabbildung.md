@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-238` Nr. 5 (Format des Fehlerobjekts), Nr. 6 (Abbildung der Fehler der Routen, `ODR-E2102`), Nr. 7 (Zählen), Nr. 9 (Kontextfehler), Nr. 13 (Geheimnisse, soweit Fehlerobjekt, Telemetrie, Log und Panik), Nr. 15 (Pflichten der Endpunkte) · `SPEC-109` Nr. 1 bis 6 (Fehlerobjekt, Abbildung der Port-Fehler) · `SPEC-006` (Fehlerobjekt) · `SPEC-230` Nr. 8 (Zähler je Fehlercode) · `SPEC-124` *Ungeprüft*, `SPEC-127`, `SPEC-129` (Code der Antwort auf `model.ErrUngueltig`) · `LH-FA-13.a` · `LH-QA-04.a` · `ARC-007`, `ARC-021`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie. `SPEC-238` steht auf `main` (seit dem Merge von `slice-admin-listener-token`).
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-admin-fehlerabbildung`, Worktree `/Development/odata-recorder-wt-admin-fehlerabbildung`; der Zweig entsteht nach dem Start-Commit von `main`)
 
 **Autor:** pt9912 (Planner). **Datum:** 2026-11-07.
 
@@ -162,7 +162,16 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): [slice-admin-lebenszyklus](../done/slice-admin-lebenszyklus.md) liegt in `done/` (Code-Abhängigkeit: das 503 als neunte Schreibstelle und der `http.Server`, gegen den X1 die abgebrochene Verbindung beobachtet; über ihn transitiv `slice-admin-authentisierung` und `slice-admin-rahmen`), dazu `slice-telemetry-port` (`CountError`, `FakeTelemetry`) in `done/` (geprüft am 2026-11-07, Planner, `main` = `aadbef0`). Die Spezifikation trägt den Vertrag samt Randformen (`SPEC-238` Nr. 5 bis 7, 9, 13, 15) seit dem Zweig von `slice-admin-listener-token` (`AGENTS.md` §3.12).
 
-**Größenmarke** (Planner, 2026-11-07, `SPEC-128` Nr. 1; Prosa-Form, der Block folgt beim Start): 18 Zeilen der Tabelle, *a* = 0, *b* = 18, *f* = 0, *p* = 70: *S* = 85·0 + 80·18 + 200·0 + 70 = 1510, *M* = 2100, keine Schnittfrage (*S* < 2223). Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Pfad des Blocks beim Start: `src/adapters/driving/admin/`; `produktcode` 70, `fakes` 0. `basis`, `schaetzung` und `marke` setzt der Planner beim Start in einem Commit vor dem ersten Code-Commit.
+**Größenmarke** (`SPEC-128` Nr. 1; Teil des Architect und des Planner, 2026-11-20, vor dem ersten Code-Commit): 18 Zeilen der Tabelle, *a* = 0, *b* = 18, *f* = 0, *p* = 70: *S* = 85·0 + 80·18 + 200·0 + 70 = 1510 gleich der Tabelle (18 Zeilen, alle `andere`), *M* = 100 · ⌈135·1510 / 10000⌉ = 100 · ⌈20,385⌉ = 2100 gleich der Formel; keine Schnittfrage (135·*S* = 203850 ≤ 300000, *S* < 2223), kein `schnitt-grund`. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Pfad des Blocks: `src/adapters/driving/admin/`; `produktcode` 70, `fakes` 0 (alle Fakes bestehen, §3). Basis der Messung: `5b3233b0` (Stand von `main` nach den Moves des Starts; der Commit mit dem Block folgt ihr und ändert keinen Pfad unter `src/`, Messung 0). **Stand der Bedingungen beim Start** (Planner, 2026-11-20, `main` = `222abb0a` vor dem Start): `slice-admin-lebenszyklus` und `slice-telemetry-port` liegen in `done/`; `SPEC-238` Nr. 5 bis 7, 9, 13 und 15 stehen auf `main`; in `in-progress/` läuft sonst kein Slice, kein Worktree; der Slice ändert keinen Pfad der Gate-Kette (Übergangsregel 7, §6), kein Konflikt. Die Sendungen aus §1 sind bei den Nehmern geführt: H1 bei `slice-admin-abweisen-audit` (Zeile H1 und Tabelle der Ausgabewege), Nr. 15 bei `slice-admin-sessions`, `slice-admin-imports` und `slice-admin-workspaces` (§1, Geber `slice-admin-listener-token`).
+
+```groessenmarke
+pfad: src/adapters/driving/admin/
+produktcode: 70
+fakes: 0
+basis: 5b3233b0
+schaetzung: 1510
+marke: 2100
+```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -207,7 +216,7 @@ dasteht.
 - `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (12×): jeder Zweig der Abbildung, jede Panik und der Kontextfehler haben einen Lauf unter dem Detektor (Z-Liste in §3) — **Ausgang:** weiter offen → `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` im Register.
 - `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×) und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` (4×): `routeFake`, `useCaseFake` und `FakeTelemetry` zählen jede Operation; eine Panik der Route ist Gegenstand des Tests (B8), nicht eines Fakes — **Ausgang:** weiter offen → `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` im Register.
 - `BEO-REPO/fix-deckt-die-genannte-mutation-nicht-die-klasse` (33×) und `BEO-REPO/universalaussage-im-vertrag-ungeprueft` (14×): „jede Antwort“, „jeder Fehler mit Code“ und „keiner doppelt“ sind Schleifen über Schreibstellen × Fehlerarten (C1, E5), nicht Listen — **Ausgang:** weiter offen → `BEO-REPO/fix-deckt-die-genannte-mutation-nicht-die-klasse` und `BEO-REPO/universalaussage-im-vertrag-ungeprueft` im Register.
-- Größe: die Marke steht als Prosa in §4 (*S* = 1510, *M* = 2100) — **Ausgang:** offen; Adresse: Planner beim Start (Block mit `basis`, `schaetzung` und `marke` in einem Commit vor dem ersten Code-Commit).
+- Größe: der Block in §4 trägt den Teil des Architect (18 Zeilen, *S* = 1510, *M* = 2100 nach `SPEC-128` Nr. 1) und den des Planner (`basis` `5b3233b0`, `schaetzung` 1510, `marke` 2100) — **Ausgang:** entfallen: gesetzt in einem Commit vor dem ersten Code-Commit (Planner, 2026-11-20), `make groessenmarke` grün; keine Schnittfrage.
 - Gate-Kette (Nr. 7 der Übergangsregeln von `welle-benutzerhandbuch`): der Teil ändert weder `GATE_CHECKS` noch ein Gate — **Ausgang:** entfallen; kein Pfad der Gate-Kette im Plan (§3).
 
 ## 7. Closure-Notiz
