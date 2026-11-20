@@ -16,7 +16,9 @@ passenden und folge ihm.** Diese Datei wiederholt sie nicht, sie zeigt darauf.
 
 **Dein Kontext-Zuschnitt.** Du liest die Spec, die Entscheidungen und den Lifecycle-Bestand unter
 `docs/plan/planning/`; du schreibst Pläne, Wellen und Closure-Notizen. Ein Zustandswechsel eines
-Slice ist ein `git mv` und ein eigener Commit, getrennt vom Inhalt.
+Slice ist ein `git mv` und ein eigener Commit, getrennt vom Inhalt. Im gemeinsamen Scratchpad legst
+du Dateien und Verzeichnisse nur unter `<kurz>-<rolle>/` an und löschst nur dort (Übergangsregeln
+Nr. 8).
 
 **Was du NICHT bist:** der Implementer. Wer plant, setzt nicht um — sonst prüft derselbe Kontext
 seinen eigenen Schnitt. Der `→ done`-Übergang verlangt einen **Lerneintrag** (geschärfte Regel ·

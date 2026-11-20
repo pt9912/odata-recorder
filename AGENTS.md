@@ -24,11 +24,9 @@ Sensors-Bindung) leben in
 
 Das **Regelwerk der adoptierten Baseline** ist die **präsente,
 nachschlagbare Vertiefung** zu diesem Briefing: ein self-navigierbares
-**Modul-Bundle** (`README.md` = Index). Beim Bootstrap wird das
-self-contained Release-ZIP
-(<https://github.com/pt9912/ai-harness-course/releases/download/v6.18.1/lab-regelwerk.zip>)
-**committet vendored** unter `.harness/baseline/<tag>/{regelwerk,templates}/`
-(Quelle/Stand in [`harness/conventions.md`](harness/conventions.md) §Baseline).
+**Modul-Bundle** (`README.md` = Index). Es liegt **vendored** unter
+`.harness/baseline/<tag>/{regelwerk,templates}/` (Quelle und Stand:
+[`harness/conventions.md`](harness/conventions.md) §Baseline).
 
 Die verkörperte Form (dieses Briefing, die Konventionen, deine
 ausgefüllten Artefakte) **führt**; das Regelwerk wird **pro Entscheidung
@@ -43,12 +41,9 @@ Baseline (Baseline-Regelwerk `modul-02-harness-bootstrap.md`
 §Freshness-Audit der vendored Baseline — darunter die Stichprobe gegen
 den Bestand, die auch bei aktuellem Pin läuft).
 
-Die **Skelett-Vorlagen** der Baseline liegen **vendored** unter
-`.harness/baseline/<tag>/templates/` (aus demselben Baseline-Bundle) und
-tragen zwei Rollen: als **Referenz-Form**, auf die das Regelwerk mit
-`../templates/…` als „Ziel-Form" verweist, und als Vorlage, die beim Anlegen neuer Artefakte
-(ADR, Slice, Welle, Carveout, Review-Report) **kopiert und ausgefüllt** wird
-statt frei zu formulieren.
+Die **Skelett-Vorlagen** der Baseline liegen vendored unter `.harness/baseline/<tag>/templates/`;
+ein neues Artefakt (ADR, Slice, Welle, Carveout, Review-Report) wird aus ihnen **kopiert und
+ausgefüllt**, nicht frei formuliert.
 
 ## 2. Kanonische Quellen (Source Precedence)
 
@@ -177,13 +172,14 @@ Wer eine Aussage berichtigt, sucht alle Stellen, die sie tragen, und zieht jede 
 **Falsch:** Ein Gate bekommt eine zweite Prüfung, und die Sensors-Tabelle und §3 nennen weiter die erste.
 **Richtig:** Dieselbe Änderung trägt die Tabellen- und Plan-Zeile mit.
 
-### 3.10 Jede Zusage eines neuen Vertrags fängt eine Mutation   (geschärft seit welle-record-replay)
+### 3.10 Jede Zusage eines neuen Vertrags fängt eine Mutation   (geschärft seit welle-record-replay und seit welle-hybrid)
 
 Wer einen neuen Vertrag liefert (Format, Fehlercode, Leser, Gate, Option), schreibt zu jeder seiner Zusagen einen Test, der rot wird, wenn der Code die Zusage bricht, und fährt diese Mutation vor der Übergabe selbst.
 Der Bericht nennt je Zusage: Zusage · Mutation · roter Test.
 Ein Test zählt nur, wenn er aus dem benannten Grund rot wird, nicht weil der Aufbau bricht.
 Wird ein Fänger nur mit Wahrscheinlichkeit rot, nennt der Bericht seine Rate je Mutation und je Lauf von `go test`; „hoch“ steht nur mit Zahl.
 Eine Rate steht mit Last des Hosts und Messendem; ohne Detektor schwankt sie mit der Last, und eine Einzelzahl gilt als Größenordnung, nicht als fester Wert.
+Eine Laufzeit steht als Gewinn oder Verlust nur mit mehreren Läufen je Seite und der Last des Hosts vor und nach jedem Lauf, und nur, wenn der Unterschied die Streuung übersteigt; ein Lauf je Seite beweist keinen von beiden.
 Der Implementer trägt dieselbe Tabelle und die Raten mit Zahl der Prozesse und Messendem in einen Absatz von §3 des Plans ein, denn der Bericht allein genügt nicht: Reviewer und Verifier haben ihn nicht, und sie messen weiter selbst.
 Wo ein Vertrag eine Zusage über Nebenläufigkeit macht (Sperre, Zähler, Reihenfolge), gilt sie nur als gefangen, wenn die Mutation in jedem Lauf rot wird.
 Ein Datenrennen zählt der Detektor von `make test-race` je Prozess (`-test.count=1`; er meldet dasselbe Rennen in einem Prozess nur einmal, ein `-count=20` zeigt es nicht), jede andere Wirkung eine Wiederholung (`-count=20`).
@@ -237,16 +233,17 @@ Beim Handoff ist nur ein vorab benannter Schnitt erlaubt: der Teil steht vor dem
 **Falsch:** „über 700 Zeilen", ohne Metrik; eine Marke, die der Planner vor dem Code nicht nach `SPEC-128` Nr. 1 gesetzt hat; eine Marke, die nach dem Code eine Rückführung verspricht; ein Schnitt beim Handoff an einem Teil, den erst die Messung benennt.
 **Richtig:** „über 700 Zeilen (Summe aus `git diff --numstat`, Tests eingeschlossen)", vom Planner vor dem Code nach `SPEC-128` Nr. 1 gesetzt; sonst steht nach dem Code die Messung mit Grund im Plan.
 
-### 3.15 Zusage und Fänger stehen als Paar im Plan   (seit welle-fundament, geschärft seit welle-record-replay)
+### 3.15 Zusage und Fänger stehen als Paar im Plan   (seit welle-fundament, geschärft seit welle-record-replay und seit welle-hybrid)
 
 Ein Slice, der einen Vertrag liefert, führt in §3 seines Plans die Tabelle *Zusage · Fänger*, bevor er an den Reviewer übergeht.
 Jede Zusage, Randform und jeder Fall des Vertrags hat eine Zeile; der Fänger ist ein Test, ein Fall der Gegenprobe oder eine benannte Ausgabe des Gates.
 Ein Fänger führt jede Form der Eingabe, die der Code verschieden behandelt: ein Fall je Element einer Menge, beide Seiten jeder Grenze und der Fall, in dem zwei verglichene Werte gleich sind.
+Eine Menge im Plan nennt ihre Achsen (Stelle des Elements im Wert, Abstand eines Paares, Modus, Weg zum Aufruf); der Fänger führt jede Achse, oder das Negativ nennt die ungeführte.
 Eine Fixture gleicht nie dem Wert der Mutation.
 Die Aufrufstellen der Ports sind eine solche Menge: Was der Vertrag je Aufruf zusagt (der `ctx` des Aufrufs, der Gegenstand der Fehlerabbildung, der Kontextfehler), hat einen Fall je Aufrufstelle und nicht einen am ersten Port der Kette; der Fake eines Ports hält jedes Argument fest und zählt jede seiner Operationen, auch die, die der Dienst nie rufen darf, sonst lässt sich „unverändert weitergereicht“ und „sonst kein Aufruf“ nicht fangen.
 Eine Allaussage über Stellen und Arten (an jeder Stelle, jede Art von Fehler) schreibt der Test als Schleife über beide Mengen, nicht als Liste der Fälle, die einfielen.
 Der Reviewer löst jede Zeile mit einer Mutation auf, der Verifier prüft die Tabelle gegen den Vertrag.
-Jedes akzeptierte Negativ nennt Grund und Folge, sonst ist es eine Zusage ohne Fänger.
+Jedes akzeptierte Negativ nennt Grund und Folge und die ungefangene Klasse mit ihrem Maß (n von m), nicht eine Aufzählung oder ein Fenster als Zahl, das die nächste Messung überholt; sonst ist es eine Zusage ohne Fänger.
 Eine Zusage ohne Fänger ist ein MEDIUM.
 
 **Falsch:** Der Vertrag nennt eine Prüfung, und sie lässt sich entfernen, ohne dass etwas rot wird.

@@ -15,7 +15,8 @@ darauf. Bei Abweichung gilt der Skill.
 
 **Dein Kontext-Zuschnitt.** Du prüfst den Diff gegen **Plan, Entscheidungen und Hard Rules** —
 Maintainability. Du prüfst ihn **nicht** gegen die DoD; das ist die Frage des Verifiers. Zwei
-Fragen, zwei Antworten, zwei Kontexte.
+Fragen, zwei Antworten, zwei Kontexte. Im gemeinsamen Scratchpad legst du Dateien und Verzeichnisse
+nur unter `<kurz>-<rolle>/` an und löschst nur dort (Übergangsregeln Nr. 8).
 
 **Rollen-Trennung ist Kontext-Trennung** (Modul 8). Du prüfst Arbeit, die du nicht geschrieben
 hast, in frischem Kontext. Übernimm keine Einschätzung des Implementers ungeprüft — auch keine, die
