@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,12 +15,15 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
 )
 
-// Die Fehlerobjekte als Literale des Vertrags (SPEC-109 Nr. 1 bis 3, SPEC-240), nicht aus dem Code.
+// Die Fehlerobjekte als Literale des Vertrags (SPEC-109 Nr. 1 bis 3, SPEC-240), nicht aus dem Code. objekt404 und
+// objekt400 sind dasselbe Fehlerobjekt von ODR-E2102 unter dem Namen des Status, mit dem ein Test es erwartet.
 const (
-	objekt404  = `{"error":{"code":"ODR-E2102","message":"Admin request invalid","target":"admin"}}`
-	objekt500  = `{"error":{"code":"ODR-E9001","message":"Internal error","target":"internal"}}`
-	objekt503  = `{"error":{"code":"ODR-E5010","message":"Service is shutting down","target":"service"}}`
-	healthzObj = `{"status":"ok"}`
+	objekt404   = `{"error":{"code":"ODR-E2102","message":"Admin request invalid","target":"admin"}}`
+	objekt400   = objekt404
+	objekt500   = `{"error":{"code":"ODR-E9001","message":"Internal error","target":"internal"}}`
+	objekt503   = `{"error":{"code":"ODR-E5010","message":"Service is shutting down","target":"service"}}`
+	objektE7003 = `{"error":{"code":"ODR-E7003","message":"Recording session unknown","target":"session"}}`
+	healthzObj  = `{"status":"ok"}`
 )
 
 // umgebung ist ein Server mit allen Fakes seiner Ports.
@@ -107,8 +111,43 @@ func pruefeFehlerAntwort(t *testing.T, name string, rec *httptest.ResponseRecord
 // keinePortAufrufe meldet, wenn Audit, Telemetrie oder Listener einen Aufruf sahen.
 func (u *umgebung) keinePortAufrufe(t *testing.T, name string) {
 	t.Helper()
-	a, c, ad := u.lst.zahlen()
-	if u.audit.Aufrufe() != 0 || len(u.tele.Aufrufe()) != 0 || a+c+ad != 0 {
-		t.Errorf("%s: Audit %d, Telemetrie %d, Listener %d/%d/%d Aufrufe, erwartet 0", name, u.audit.Aufrufe(), len(u.tele.Aufrufe()), a, c, ad)
+	u.nurZaehlung(t, name)
+}
+
+// zaehlungenVon liefert die Codes der Aufrufe von CountError in der Reihenfolge und die Zahl der Aufrufe jeder anderen
+// Operation (Log, StartSpan, Set, End, Snapshot).
+func zaehlungenVon(f *supporttest.FakeTelemetry) (codes []string, andere int) {
+	for _, a := range f.Aufrufe() {
+		if a.Op == supporttest.OpCountError {
+			codes = append(codes, a.Code.String())
+		} else {
+			andere++
+		}
 	}
+	return codes, andere
+}
+
+// nurZaehlung meldet, wenn die Telemetrie etwas anderes sah als je einen Aufruf von CountError mit den Codes soll (in
+// dieser Reihenfolge), oder wenn Audit oder Listener einen Aufruf sahen.
+func (u *umgebung) nurZaehlung(t *testing.T, name string, soll ...string) {
+	t.Helper()
+	codes, andere := zaehlungenVon(u.tele)
+	a, c, ad := u.lst.zahlen()
+	if !slices.Equal(codes, soll) || andere != 0 || u.audit.Aufrufe() != 0 || a+c+ad != 0 {
+		t.Errorf("%s: CountError %q, andere Aufrufe der Telemetrie %d, Audit %d, Listener %d/%d/%d Aufrufe, erwartet CountError %q und sonst 0",
+			name, codes, andere, u.audit.Aufrufe(), a, c, ad, soll)
+	}
+}
+
+// rufeSicher sendet den Request wie rufe und meldet eine Panik, die ServeHTTP verlässt, als Fehler des Tests.
+func (u *umgebung) rufeSicher(t *testing.T, name string, r *http.Request) (rec *httptest.ResponseRecorder) {
+	t.Helper()
+	rec = httptest.NewRecorder()
+	defer func() {
+		if p := recover(); p != nil {
+			t.Errorf("%s: eine Panik verließ ServeHTTP: %v", name, p)
+		}
+	}()
+	u.srv.ServeHTTP(rec, r)
+	return rec
 }

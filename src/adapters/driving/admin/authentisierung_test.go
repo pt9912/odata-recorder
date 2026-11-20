@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
+	"github.com/pt9912/odata-recorder/src/hexagon/model"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 )
 
 // u1Form ist eine ungültige Form des Headers Authorization.
@@ -58,8 +60,9 @@ type requestArt struct {
 	angehalten          bool
 }
 
-// requestArten sind die 27 Requestarten R: healthz, die 20 Formen von U1, falsches Token, 404, 405, Route mit 2xx,
-// Route mit Fehler und der Request eines angehaltenen Servers (503). Status und Body stehen als Literale des Vertrags.
+// requestArten sind die 30 Requestarten R: healthz, die 20 Formen von U1, falsches Token, 404, 405, Route mit 2xx,
+// Route mit Fehler ohne Code, Route mit Fehler `ErrUngueltig`, Route mit Fehlercode, Route mit Panik und der Request
+// eines angehaltenen Servers (503). Status und Body stehen als Literale des Vertrags.
 func requestArten() []requestArt {
 	tok := string(tokenGueltig())
 	gueltig := bearer(tok)
@@ -73,40 +76,61 @@ func requestArten() []requestArt {
 		requestArt{"405", "POST", "/a", gueltig, true, 405, objekt404, false},
 		requestArt{"Route 2xx", "GET", "/a", gueltig, true, 200, routeBody, false},
 		requestArt{"Route Fehler", "GET", "/fehler", gueltig, true, 500, objekt500, false},
+		requestArt{"Route 400", "GET", "/ungueltig", gueltig, true, 400, objekt400, false},
+		requestArt{"Route Fehlercode", "GET", "/fehlercode", gueltig, true, 404, objektE7003, false},
+		requestArt{"Route Panik", "GET", "/panik", gueltig, true, 500, objekt500, false},
 		requestArt{"503", "GET", "/a", gueltig, true, 503, objekt503, true},
 	)
 }
 
-// lauf ist ein Server mit den Fakes einer Requestart; die Routen rufen beide den Use-Case-Fake.
+// lauf ist ein Server mit den Fakes einer Requestart; die Routen rufen alle den Use-Case-Fake.
 type lauf struct {
-	u          *umgebung
-	vf         *vergleichFake
-	ok, fehler *routeFake
-	uc         *useCaseFake
+	u         *umgebung
+	vf        *vergleichFake
+	ok        *routeFake
+	fehler    *routeFake
+	ungueltig *routeFake
+	code      *routeFake
+	panik     *routeFake
+	uc        *useCaseFake
 }
 
-// baue baut den Server der Requestart a (Routen GET /a mit Body und GET /fehler mit Fehler) ohne einen Request; bei
-// angehalten hält es ihn an.
+// routenAufrufe liefert die Zahl der Aufrufe aller Routen.
+func (l *lauf) routenAufrufe() int {
+	return l.ok.aufrufe() + l.fehler.aufrufe() + l.ungueltig.aufrufe() + l.code.aufrufe() + l.panik.aufrufe()
+}
+
+// baue baut den Server der Requestart a (Routen GET /a mit Body, GET /fehler mit Fehler ohne Code, GET /ungueltig mit
+// `ErrUngueltig`, GET /fehlercode mit `ODR-E7003` und 404, GET /panik mit Panik) ohne einen Request; bei angehalten
+// hält es ihn an.
 func baue(t *testing.T, a requestArt) *lauf {
 	t.Helper()
 	uc := &useCaseFake{}
-	ok, fehler := routeMitUseCase(uc), routeMitUseCase(uc)
-	ok.antwort = admin.Antwort{Status: 200, Body: []byte(routeBody)}
-	fehler.err = errors.New("Fehler der Route")
-	vf := neuerVergleich(a.vergleich)
-	u := neuMitVergleich(t, nil, vf,
-		admin.Route{Methode: "GET", Muster: "/a", Handler: ok.handle},
-		admin.Route{Methode: "GET", Muster: "/fehler", Handler: fehler.handle})
+	l := &lauf{uc: uc, ok: routeMitUseCase(uc), fehler: routeMitUseCase(uc), ungueltig: routeMitUseCase(uc),
+		code: routeMitUseCase(uc), panik: routeMitUseCase(uc)}
+	l.ok.antwort = admin.Antwort{Status: 200, Body: []byte(routeBody)}
+	l.fehler.err = errors.New("Fehler der Route")
+	l.ungueltig.err = model.ErrUngueltig
+	l.code.err = &inbound.Fehler{Code: model.CodeE7003, Status: 404}
+	aendere := l.panik.aendere
+	l.panik.aendere = func(a admin.Anfrage) { aendere(a); panic("Panik der Route") }
+	l.vf = neuerVergleich(a.vergleich)
+	l.u = neuMitVergleich(t, nil, l.vf,
+		admin.Route{Methode: "GET", Muster: "/a", Handler: l.ok.handle},
+		admin.Route{Methode: "GET", Muster: "/fehler", Handler: l.fehler.handle},
+		admin.Route{Methode: "GET", Muster: "/ungueltig", Handler: l.ungueltig.handle},
+		admin.Route{Methode: "GET", Muster: "/fehlercode", Handler: l.code.handle},
+		admin.Route{Methode: "GET", Muster: "/panik", Handler: l.panik.handle})
 	if a.angehalten {
-		u.srv.Anhalten()
+		l.u.srv.Anhalten()
 	}
-	return &lauf{u: u, vf: vf, ok: ok, fehler: fehler, uc: uc}
+	return l
 }
 
-// TestRequestArtenZahl hält die Mengen R (27) und M-Header (20) gegen die Quelle des Tests.
+// TestRequestArtenZahl hält die Mengen R (30) und M-Header (20) gegen die Quelle des Tests.
 func TestRequestArtenZahl(t *testing.T) {
-	if n, m := len(requestArten()), len(u1Formen("x")); n != 27 || m != 20 {
-		t.Errorf("%d Requestarten und %d Formen von Authorization, erwartet 27 und 20", n, m)
+	if n, m := len(requestArten()), len(u1Formen("x")); n != 30 || m != 20 {
+		t.Errorf("%d Requestarten und %d Formen von Authorization, erwartet 30 und 20", n, m)
 	}
 }
 
@@ -115,18 +139,18 @@ func TestRequestArtenZahl(t *testing.T) {
 func TestKorrelationsIDJeRequestart(t *testing.T) {
 	for _, a := range requestArten() {
 		l := baue(t, a)
-		vorVergleich, vorOk, vorFehler, vorAudit, vorTele := -1, -1, -1, -1, -1
+		vorVergleich, vorRouten, vorAudit, vorTele := -1, -1, -1, -1
 		l.u.ids.vor = func() {
-			vorVergleich, vorOk, vorFehler = l.vf.zahl(), l.ok.aufrufe(), l.fehler.aufrufe()
+			vorVergleich, vorRouten = l.vf.zahl(), l.routenAufrufe()
 			vorAudit, vorTele = l.u.audit.Aufrufe(), len(l.u.tele.Aufrufe())
 		}
 		l.u.rufe(ohneAuth(a.methode, a.ziel, a.kopf))
 		if k, uebrige := l.u.ids.zahlen(); k != 1 || uebrige != 0 {
 			t.Errorf("%s: KorrelationsID %d-mal, andere Operationen %d-mal, erwartet 1 und 0", a.name, k, uebrige)
 		}
-		if vorVergleich != 0 || vorOk != 0 || vorFehler != 0 || vorAudit != 0 || vorTele != 0 {
-			t.Errorf("%s: beim Aufruf von KorrelationsID liefen Vergleich %d, Routen %d und %d, Audit %d, Telemetrie %d",
-				a.name, vorVergleich, vorOk, vorFehler, vorAudit, vorTele)
+		if vorVergleich != 0 || vorRouten != 0 || vorAudit != 0 || vorTele != 0 {
+			t.Errorf("%s: beim Aufruf von KorrelationsID liefen Vergleich %d, Routen %d, Audit %d, Telemetrie %d",
+				a.name, vorVergleich, vorRouten, vorAudit, vorTele)
 		}
 	}
 }
@@ -157,8 +181,9 @@ type e2Zeile struct {
 	www, allow, conn []string
 }
 
-// TestHeaderJeAntwortart hält E2: WWW-Authenticate nur bei 401, Allow nur bei 405, Connection: close nur bei 503: sieben
-// Antwortarten × drei Header = 21 Zellen mit Literalen des Vertrags.
+// TestHeaderJeAntwortart hält E2: WWW-Authenticate nur bei 401, Allow nur bei 405, Connection: close nur bei 503: neun
+// Antwortarten × drei Header = 27 Zellen mit Literalen des Vertrags. Die Route mit Panik (500) ist eine weitere Form der
+// Antwortart 500 und zählt nicht als eigene Zeile.
 func TestHeaderJeAntwortart(t *testing.T) {
 	zeilen := []e2Zeile{
 		{"U1 1 fehlt", []string{"Bearer"}, nil, nil},
@@ -167,6 +192,8 @@ func TestHeaderJeAntwortart(t *testing.T) {
 		{"Route 2xx", nil, nil, nil},
 		{"healthz", nil, nil, nil},
 		{"Route Fehler", nil, nil, nil},
+		{"Route 400", nil, nil, nil},
+		{"Route Fehlercode", nil, nil, nil},
 		{"503", nil, nil, []string{"close"}},
 	}
 	zellen := 0
@@ -187,8 +214,8 @@ func TestHeaderJeAntwortart(t *testing.T) {
 			}
 		}
 	}
-	if zellen != 21 {
-		t.Errorf("%d Zellen geprüft, erwartet 21", zellen)
+	if zellen != 27 || len(zeilen) != 9 {
+		t.Errorf("%d Zellen in %d Antwortarten geprüft, erwartet 27 in 9", zellen, len(zeilen))
 	}
 }
 

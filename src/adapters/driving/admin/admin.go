@@ -174,7 +174,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	id := s.ids.KorrelationsID()
 	w.Header().Set("X-Correlation-Id", id)
 	if !s.zulassen() {
-		abweisen(w)
+		s.abweise(w)
 		return
 	}
 	defer s.verlasse()
@@ -189,17 +189,17 @@ func (s *Server) bediene(w http.ResponseWriter, r *http.Request, id string) {
 		return
 	}
 	if !s.authentisiert(r.Header.Values("Authorization")) {
-		schreibeFehler(w, model.CodeE2101, http.StatusUnauthorized, "", "Bearer")
+		s.schreibeFehler(w, model.CodeE2101, http.StatusUnauthorized, "", "Bearer")
 		return
 	}
 	t := ordne(s.routen, r.Method, r.URL.EscapedPath())
 	switch {
 	case t.route != nil:
-		rufe(w, r, id, t)
+		s.rufe(w, r, id, t)
 	case len(t.allow) == 0:
-		schreibeFehler(w, model.CodeE2102, http.StatusNotFound, "", "")
+		s.schreibeFehler(w, model.CodeE2102, http.StatusNotFound, "", "")
 	default:
-		schreibeFehler(w, model.CodeE2102, http.StatusMethodNotAllowed, strings.Join(t.allow, ", "), "")
+		s.schreibeFehler(w, model.CodeE2102, http.StatusMethodNotAllowed, strings.Join(t.allow, ", "), "")
 	}
 }
 
@@ -248,16 +248,23 @@ func anfrage(r *http.Request, id string, werte map[string]string) Anfrage {
 	}
 }
 
-// rufe ruft den Handler der Route genau einmal; Status und Body gehen durch, ein Fehler ist ODR-E9001 mit 500. Der Body
-// ist auf 1 MiB begrenzt: das 1048577. Byte ergibt *http.MaxBytesError (SPEC-238 Nr. 10).
-func rufe(w http.ResponseWriter, r *http.Request, id string, t treffer) {
+// rufe ruft den Handler der Route genau einmal und bildet sein Ergebnis ab (SPEC-238 Nr. 6): eine Panik ist ODR-E9001
+// mit 500, ein Fehler gilt vor der Antwort, ein Status der Antwort außerhalb von 200 bis 299 ist ODR-E9001 mit 500,
+// sonst gehen Status und Body durch. Der Body ist auf 1 MiB begrenzt: das 1048577. Byte ergibt *http.MaxBytesError
+// (SPEC-238 Nr. 10).
+func (s *Server) rufe(w http.ResponseWriter, r *http.Request, id string, t treffer) {
 	r.Body = http.MaxBytesReader(w, r.Body, bodyBytes)
-	antwort, err := t.route.handler(r.Context(), anfrage(r, id, t.werte))
-	if err != nil {
-		schreibeFehler(w, model.CodeE9001, http.StatusInternalServerError, "", "")
-		return
+	e := rufeHandler(r.Context(), t.route.handler, anfrage(r, id, t.werte))
+	switch {
+	case e.panik:
+		s.schreibeFehler(w, model.CodeE9001, http.StatusInternalServerError, "", "")
+	case e.err != nil:
+		s.schreibeFehlerDerRoute(w, e.err)
+	case e.antwort.Status < http.StatusOK || e.antwort.Status >= http.StatusMultipleChoices:
+		s.schreibeFehler(w, model.CodeE9001, http.StatusInternalServerError, "", "")
+	default:
+		schreibeErfolg(w, e.antwort)
 	}
-	schreibeErfolg(w, antwort)
 }
 
 // schreibeErfolg schreibt die Erfolgsantwort einer Route: den Status der Route und, wenn der Body nicht leer ist,
@@ -274,12 +281,14 @@ func schreibeErfolg(w http.ResponseWriter, a Antwort) {
 	}
 }
 
-// schreibeFehler ist die eine Stelle, die das Fehlerobjekt bildet und schreibt (SPEC-238 Nr. 5): drei Felder,
+// schreibeFehler ist die eine Stelle, die das Fehlerobjekt bildet, zählt und schreibt (SPEC-238 Nr. 5, 7): drei Felder,
 // Content-Type, Content-Length, bei 405 Allow (allow nichtleer) und bei 401 WWW-Authenticate (www nichtleer).
-// Der Code ist eine Konstante der Tabelle, das Marshalling einer Struktur aus Zeichenketten scheitert nicht.
-func schreibeFehler(w http.ResponseWriter, code model.Code, status int, allow, www string) {
+// `CountError` läuft genau einmal, vor dem ersten Schreiben der Antwort. Der Code ist ein gültiger Code der Tabelle, das
+// Marshalling einer Struktur aus Zeichenketten scheitert nicht.
+func (s *Server) schreibeFehler(w http.ResponseWriter, code model.Code, status int, allow, www string) {
 	obj, _ := model.NeuesFehlerobjekt(code)
 	body, _ := json.Marshal(obj)
+	s.telemetrie.CountError(code)
 	h := w.Header()
 	h.Set("Content-Type", "application/json")
 	h.Set("Content-Length", strconv.Itoa(len(body)))

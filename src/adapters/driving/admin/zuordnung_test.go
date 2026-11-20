@@ -207,8 +207,8 @@ func TestZuordnungKopiertRouten(t *testing.T) {
 	}
 }
 
-// TestAntwortDerRoute hält Z4: Status und Body der Route gehen durch, auch ein leerer; ein Fehler der Route ist
-// vorläufig ODR-E9001 mit 500.
+// TestAntwortDerRoute hält Z4: Status und Body der Route gehen durch, auch ein leerer; ein Fehler der Route ohne Code ist
+// ODR-E9001 mit 500 (die Abbildung der übrigen Fehler halten B1 bis B9).
 func TestAntwortDerRoute(t *testing.T) {
 	faelle := []struct {
 		name    string
@@ -345,7 +345,11 @@ func z6Pruefe(t *testing.T, methode, pfad string, soll z6Erwartung) {
 			t.Errorf("%s: %d Aufrufe der Routen, erwartet 0", name, gesamt)
 		}
 	}
-	u.keinePortAufrufe(t, name)
+	if soll.route == "" {
+		u.nurZaehlung(t, name, "ODR-E2102") // 404 und 405 zählen je einmal (C1)
+	} else {
+		u.keinePortAufrufe(t, name)
+	}
 }
 
 // TestMethodeUndPfad hält Z6 (M-Methode × Pfad): 404 ohne passenden Pfad, 405 mit Allow aller Methoden der Routen des

@@ -791,15 +791,27 @@ func TestZaehlerUnterLast(t *testing.T) {
 	}
 }
 
-// TestHandlerPanikZaehltNichtWeiter hält S13: ein Handler in Panik verlässt die Zulassung; Schliessen kehrt zurück.
+// TestHandlerPanikZaehltNichtWeiter hält S13: ein Handler, dessen Request nicht mit einer Antwort endet, verlässt die
+// Zulassung; Schliessen kehrt zurück. Zwei Formen: die Route gerät in Panik (der Adapter fängt sie, der Client sieht 500)
+// und die Route liefert einen Kontextfehler (der Adapter bricht die Verbindung ab, der Client sieht keinen Status).
 func TestHandlerPanikZaehltNichtWeiter(t *testing.T) {
-	route := neueRoute()
-	route.aendere = func(admin.Anfrage) { panic(http.ErrAbortHandler) }
-	u := neuLive(t, route)
-	if x := erwarte(t, u.async("GET", "/p"), "Antwort"); x.err == nil {
-		t.Errorf("der Client sah keinen Abbruch, Status %d", x.status)
+	formen := []struct {
+		name   string
+		route  func(r *routeFake)
+		status int // 0: Abbruch der Verbindung
+	}{
+		{"Panik der Route", func(r *routeFake) { r.aendere = func(admin.Anfrage) { panic(http.ErrAbortHandler) } }, 500},
+		{"Kontextfehler der Route", func(r *routeFake) { r.err = context.Canceled }, 0},
 	}
-	if dauer, err := schliesse(t, u.srv, 30*time.Second); err != nil || dauer >= 5*time.Second {
-		t.Errorf("Schliessen(30 s) nach einer Panik = %v nach %v, erwartet nil in unter 5 s", err, dauer)
+	for _, f := range formen {
+		route := neueRoute()
+		f.route(route)
+		u := neuLive(t, route)
+		if x := erwarte(t, u.async("GET", "/p"), f.name); (x.err == nil) != (f.status != 0) || x.status != f.status {
+			t.Errorf("%s: Antwort %+v, erwartet Status %d", f.name, x, f.status)
+		}
+		if dauer, err := schliesse(t, u.srv, 30*time.Second); err != nil || dauer >= 5*time.Second {
+			t.Errorf("%s: Schliessen(30 s) = %v nach %v, erwartet nil in unter 5 s", f.name, err, dauer)
+		}
 	}
 }
