@@ -254,8 +254,7 @@ structure:
 # .claude/agents/*.md -3 Zeilen und -145 Bytes; die Summe sinkt je Mass um 9 Zeilen und 216 Bytes.
 # Messung vorher AGENTS.md 326/23633, implement-slice.md 220/17081 (Grenze 221), architect.md
 # 53/3759, reviewer.md 145/8110; nachher 323/23905, 212/16180, 50/3614, 151/8668). Die Summe
-# vorher ist 973 Zeilen und 68648 Bytes (Summe der Grenzen vorher; die Zahl 976/68663 des
-# vorigen Kommentars stimmte mit seinen Bloecken nicht ueberein). Senken ist frei, Anheben nur
+# der Grenzen vorher ist 973 Zeilen und 68648 Bytes. Senken ist frei, Anheben nur
 # als Verschiebung zwischen Regeln oder per ADR (SPEC-040 Nr. 8, ADR-0010); eine Regel traegt
 # kein hint (SPEC-040 Nr. 4 d).
 # Messung je Regel:
