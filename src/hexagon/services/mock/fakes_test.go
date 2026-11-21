@@ -49,6 +49,8 @@ type prot struct {
 	// Workspaces.Get); panik lässt den Aufruf der Operation mit einer Panik enden.
 	beiNr map[string]nummerFehler
 	panik map[string]bool
+	// haken ist der Haltepunkt jeder Operation, nach dem Eintrag im Protokoll; ein Test setzt ihn vor dem ersten Aufruf und liest ihn nur.
+	haken func(op string)
 }
 
 type nummerFehler struct {
@@ -77,6 +79,9 @@ func (p *prot) beginn(ctx context.Context, op string, args ...any) error {
 	}
 	panik := p.panik[op]
 	p.mu.Unlock()
+	if p.haken != nil {
+		p.haken(op)
+	}
 	if panik {
 		panic("Panik des Fakes in " + op)
 	}
@@ -651,6 +656,7 @@ type umg struct {
 	c   *codecs
 	tx  *transaktion
 	ei  *eingabeFake
+	tel *telemetrieFake
 	k   mock.Konfig
 	ctx ctxMethoden
 	// fehlerobjektErlaubt nimmt den Test von der Prüfung aus, die den Aufruf von SchreibeFehler verbietet (der Test der
@@ -680,6 +686,7 @@ func neueUmg(t *testing.T) *umg {
 	u.tx = &transaktion{p: p, ws: u.ws, en: u.en, cu: &cursors{p: p}, sn: &snapshots{p: p}}
 	u.ei = &eingabeFake{p: p}
 	u.c.eingabe = u.ei
+	u.tel = neueTelemetrie(p)
 	// Der Dienst ruft SchreibeFehler nie: der Fake prüft den Zähler für jeden Test des Pakets (SPEC-195 Nr. 10, L45).
 	t.Cleanup(func() {
 		if n := p.anzahl("Schreiber.SchreibeFehler"); n != 0 && !u.fehlerobjektErlaubt {
@@ -703,6 +710,7 @@ func neueUmg(t *testing.T) *umg {
 		MaxBytes:       1 << 20,
 		Transaktion:    u.tx,
 		Eingabe:        u.ei,
+		Telemetrie:     u.tel,
 	}
 	return u
 }

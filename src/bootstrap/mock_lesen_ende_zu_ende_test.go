@@ -14,6 +14,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/mock"
 )
 
@@ -80,11 +81,17 @@ func (c mlCoverage) Get(_ context.Context, _, set string) (model.Coverage, error
 // Antworten der Version 4.
 func mlDienst(t *testing.T, xml string, status model.CoverageStatus, es ...model.EntityState) *mock.Mocker {
 	t.Helper()
+	return mlDienstMit(t, xml, status, telemetrieFuerTest(), es...)
+}
+
+// mlDienstMit ist mlDienst mit der gegebenen Telemetrie.
+func mlDienstMit(t *testing.T, xml string, status model.CoverageStatus, tel support.Telemetry, es ...model.EntityState) *mock.Mocker {
+	t.Helper()
 	m, err := mock.New(mock.Konfig{
 		Dienste: []mock.Dienst{{ID: "svc", Root: "/svc"}}, Metadaten: mlMetadaten{}, Workspaces: mlWorkspaces{}, Entities: mlEntities{es: es},
 		Coverage: mlCoverage{status: status}, Blobs: mlBlobs{xml: xml}, MetadatenCodec: csdl.New(),
 		URLCodec: urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser())), Schreiber: jsoncodec.NewSchreiber(),
-		PublicBaseURL: "http://recorder.test", MaxBytes: 1 << 20,
+		PublicBaseURL: "http://recorder.test", MaxBytes: 1 << 20, Telemetrie: tel,
 		// Das Lesen ruft die Transaktion nie; der Nullwert der eingebetteten Schnittstelle verrät jeden Aufruf mit einer Panik.
 		Transaktion: struct{ outbound.WorkspaceTransactor }{},
 	})

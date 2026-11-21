@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-einbau-mock
+**Fund:** Die Menge „Modus × Weg zum Aufruf“ der Verdrahtung führte einen von vier Modi über den Pfad `Start` (`TestStartUebergibtStderrAlsSenke` im Modus `mock`; Q15 und Q17 bauen mit `BuildMitSenke` und umgehen `Start`); `io.Discard` nur in `hybrid` und nur in `record` blieben im ganzen Paket grün, 2 von 2 (Verifier V-1). Beleg: `docs/reviews/2026-11-21-slice-telemetry-einbau-mock-verifikation.md` (V-1) und Plan `slice-telemetry-einbau-mock` §3 (akzeptiertes Negativ (5)).

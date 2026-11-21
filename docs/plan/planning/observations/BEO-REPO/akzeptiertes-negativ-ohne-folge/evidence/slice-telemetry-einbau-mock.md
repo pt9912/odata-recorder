@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-einbau-mock
+**Fund:** Zwei akzeptierte Negative trugen ein Maß, das keines war: Q21 nannte „0 von 3 Operationen liefern einen Wert“, der Typ von `StartSpan` liefert einen (Review F-5), und das Negativ der Fix-Runde zu F-3 nannte „0 von 0 Prozessen mit `sync.Mutex` gemessen“ (Verifier V-2). Beide sind berichtigt (1 von 3 Operationen, 0 von 5 liefern einen Fehler; 5 von 20 Prozessen ohne Detektor grün). Beleg: Plan `slice-telemetry-einbau-mock` §3 (Zeile Q21, Absatz *Fix-Runde nach dem Review*).

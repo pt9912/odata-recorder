@@ -35,7 +35,7 @@ func start(ctx context.Context, environ []string, stderr io.Writer, b bauteile) 
 	if (k.Modus == modusRecord || k.Modus == modusHybrid && k.Fallback.Upstream) && !k.UpstreamTLSVerify {
 		log.Warn("start: Zertifikatsprüfung zum Upstream abgeschaltet", "ereignis", "tls_pruefung_aus")
 	}
-	h, err := build(ctx, k, log, b)
+	h, err := build(ctx, k, log, stderr, b)
 	if err != nil {
 		return abschluss(ctx, stderr, []error{err})
 	}

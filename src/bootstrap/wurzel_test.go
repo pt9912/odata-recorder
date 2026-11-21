@@ -437,12 +437,18 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		t.Errorf("Tabelle hat %d Zeilen, Konfiguration %d Felder", len(pruefungen), typ.NumField())
 	}
 	// Eine Uhr, eine ID-Quelle, ein Logger in allen Verbrauchern.
-	// Menge der Stellen mit einer Uhr (SPEC-139 Nr. 3): record 4, replay 3; replay.Konfig hat keine Uhr.
-	uhren := map[string][]stelleUhr{
-		modusRecord: {{"Wartung", r.wartung.Uhr}, {"Wächter", r.waechter}, {"Session", r.session.Uhr}, {"Recorder", r.recorder.Uhr}},
-		modusReplay: {{"Wartung", p.wartung.Uhr}, {"Wächter", p.waechter}, {"Telemetrie", p.telemetrie.Clock}},
+	// Menge der Stellen mit einer Uhr (SPEC-139 Nr. 3 und 13): record 5 (mit dem Adapter des Prozesses), replay 4 (mit dem Adapter des
+	// Prozesses und dem des Replay-Dienstes); replay.Konfig hat keine Uhr.
+	if len(r.alleTel) != 1 || len(p.alleTel) != 2 {
+		t.Fatalf("Adapter der Telemetrie: record %d, replay %d; erwartet 1 und 2", len(r.alleTel), len(p.alleTel))
 	}
-	if len(uhren[modusRecord]) != 4 || len(uhren[modusReplay]) != 3 {
+	uhren := map[string][]stelleUhr{
+		modusRecord: {{"Wartung", r.wartung.Uhr}, {"Wächter", r.waechter}, {"Session", r.session.Uhr}, {"Recorder", r.recorder.Uhr},
+			{"Telemetrie (Prozess)", r.alleTel[0].Clock}},
+		modusReplay: {{"Wartung", p.wartung.Uhr}, {"Wächter", p.waechter}, {"Telemetrie", p.telemetrie.Clock},
+			{"Telemetrie (Prozess)", p.alleTel[0].Clock}},
+	}
+	if len(uhren[modusRecord]) != 5 || len(uhren[modusReplay]) != 4 {
 		t.Error("die Menge der Stellen mit einer Uhr hat sich geändert")
 	}
 	for modus, stellen := range uhren {
@@ -858,22 +864,26 @@ func TestLogNilVerwirft(t *testing.T) {
 	}
 }
 
-// TestReplayTelemetrieSchreibtNirgendhin fängt SPEC-139 Nr. 3: im Modus replay erhält die Telemetrie des
-// Replay-Dienstes io.Discard, in record wird keine gebaut. Pinnt den festen Wert; ein anderes Ziel
-// (SPEC-232) ändert Zusage und Test zugleich.
+// TestReplayTelemetrieSchreibtNirgendhin fängt SPEC-139 Nr. 3 und 13: im Modus replay erhält die Telemetrie des
+// Replay-Dienstes io.Discard, neben dem Adapter des Prozesses mit der Senke von Build; in record besteht allein der
+// Adapter des Prozesses. Pinnt den festen Wert; ein anderes Ziel (SPEC-232) ändert Zusage und Test zugleich.
 func TestReplayTelemetrieSchreibtNirgendhin(t *testing.T) {
 	for _, modus := range modi() {
 		h := neuHaken()
-		hd, err := bootstrap.BuildMit(context.Background(), basisKonfig(t.TempDir(), modus, dienstA("http://127.0.0.1:9/a")), nil, h.bauteile())
+		senke := &syncPuffer{}
+		hd, err := bootstrap.BuildMitSenke(context.Background(), basisKonfig(t.TempDir(), modus, dienstA("http://127.0.0.1:9/a")), nil, senke, h.bauteile())
 		if err != nil {
 			t.Fatal(err)
 		}
 		_ = hd.Herunterfahren(context.Background())
-		if gebaut := h.telemetrie.Clock != nil; gebaut != (modus == modusReplay) {
-			t.Errorf("%s: Telemetrie gebaut: %v", modus, gebaut)
+		if len(h.alleTel) != map[string]int{modusRecord: 1, modusReplay: 2}[modus] {
+			t.Fatalf("%s: %d Adapter der Telemetrie, erwartet %d", modus, len(h.alleTel), map[string]int{modusRecord: 1, modusReplay: 2}[modus])
 		}
-		if modus == modusReplay && h.telemetrie.Writer != io.Discard {
-			t.Errorf("%s: Writer der Telemetrie %v, erwartet io.Discard", modus, h.telemetrie.Writer)
+		if h.alleTel[0].Writer != io.Writer(senke) {
+			t.Fatalf("%s: erster Adapter mit Writer %v; erwartet die Senke des Prozesses zuerst", modus, h.alleTel[0].Writer)
+		}
+		if modus == modusReplay && h.alleTel[1].Writer != io.Discard {
+			t.Errorf("%s: Writer der Telemetrie des Replay-Dienstes %v, erwartet io.Discard", modus, h.alleTel[1].Writer)
 		}
 	}
 }

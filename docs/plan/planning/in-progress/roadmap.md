@@ -16,8 +16,6 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-telemetry-einbau-mock](slice-telemetry-einbau-mock.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts: Query-Span, Verdrahtung, Einträge des Dienstes `workspace`).
-
 In Arbeit: [slice-listener-tls](slice-listener-tls.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts: TLS-Baustein `ladeTLS` und `tlstest`).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.

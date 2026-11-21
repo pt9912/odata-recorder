@@ -174,7 +174,8 @@ func m4Sende(ctx context.Context, t *testing.T, srv func(context.Context, inboun
 // TestM4WahlJeModus fängt M01: Modus × Anfrage mit Auslöser (der Mock antwortet mit ODR-E6001): im Modus hybrid trägt die Antwort die
 // Kennzeichnung des Upstream-Fallbacks und der Hybrid-Dienst ist der Verarbeiter, in den Modi mock und replay ist die Antwort nie eine
 // Fallback-Antwort und der Hybrid-Dienst wird nie gebaut; im Modus hybrid sind Sessions(), Record() und Import() der Nullwert der
-// Schnittstelle, und Mock, Replay, Upstream-Client und Telemetrie werden je einmal gebaut, Recorder, Pipeline, Session und Import nie
+// Schnittstelle, und Mock, Replay und Upstream-Client werden je einmal gebaut, die Telemetrie zweimal (der Adapter des Prozesses und der des
+// Replay-Dienstes, SPEC-139 Nr. 13 c), Recorder, Pipeline, Session und Import nie
 // (SPEC-139 Nr. 1, 5, 12 a).
 func TestM4WahlJeModus(t *testing.T) {
 	ctx := context.Background()
@@ -221,7 +222,7 @@ func TestM4WahlJeModus(t *testing.T) {
 			if hd.Sessions() != nil || hd.Record() != nil || hd.Import() != nil || hd.Workspaces() == nil || hd.Snapshots() == nil || hd.Wartung() == nil {
 				t.Errorf("Zugänge: Sessions %v, Record %v, Import %v", hd.Sessions(), hd.Record(), hd.Import())
 			}
-			if want := map[string]int{"upstream": 1, "telemetrie": 1, "replay": 1}; !maps.Equal(m.verboten, want) || len(m.mock) != 1 {
+			if want := map[string]int{"upstream": 1, "telemetrie": 2, "replay": 1}; !maps.Equal(m.verboten, want) || len(m.mock) != 1 {
 				t.Errorf("Konstruktoren %v, Mock %d-mal; erwartet %v und einmal", m.verboten, len(m.mock), want)
 			}
 			for _, n := range []string{"pipeline", "session", "recorder", "import"} {

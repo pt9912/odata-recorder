@@ -230,7 +230,7 @@ func (m *Mocker) entscheide(ctx context.Context, mu mutation, es model.EntitySta
 		return model.EntityState{}, mitCode(model.CodeE6008, nil)
 	}
 	if fehlend {
-		status, err := m.coverage(ctx, mu.lauf)
+		status, err := m.liesCoverage(ctx, mu.lauf)
 		switch {
 		case err != nil:
 			return model.EntityState{}, err
