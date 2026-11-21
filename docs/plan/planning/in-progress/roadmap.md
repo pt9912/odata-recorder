@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-Nichts in Arbeit.
+In Arbeit: [slice-listener-tls-verdrahtung](slice-listener-tls-verdrahtung.md) ([welle-betrieb](../welle-betrieb.md), Teil 2 des Schnitts: `LISTEN_TLS_CERT` und `LISTEN_TLS_KEY` in der Startkonfiguration, HTTPS am OData-Listener, Handbuch).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
