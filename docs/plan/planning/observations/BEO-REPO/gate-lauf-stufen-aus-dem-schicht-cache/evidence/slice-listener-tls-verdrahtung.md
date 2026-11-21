@@ -1,0 +1,2 @@
+**Vorgang:** slice-listener-tls-verdrahtung
+**Fund:** Vierter Vorgang. Der Lauf von `make gates` des Verifiers (Stand `187ae717`, 42 s) bezog die Stufen `test`, `build`, `lint` und `race` bei gleicher Eingabe aus dem Docker-Schichten-Cache; der Verifier fuhr `race` frisch nach (296,6 s, Last 21,0 vor dem Warten auf die Sperre, 5,0 danach, `pruefung race: ok`), `katalog` und `handbuch` mit `--no-cache-filter` und die Nullblöcke mit Abdeckungsprofil (0 Blöcke im Diff). Beleg: `docs/reviews/2026-11-21-slice-listener-tls-verdrahtung-verifikation.md` (Sensor-Belege).

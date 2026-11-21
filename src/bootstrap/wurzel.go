@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -148,6 +149,8 @@ type Handle struct {
 	// verarbeiten ist der Dienst des Betriebsmodus am Listener.
 	verarbeiten httpodata.Verarbeiter
 	fehler      chan error
+	// tls ist die Konfiguration der Verbindungen, die Build lud; nil heißt Klartext (SPEC-291 Nr. 8).
+	tls *tls.Config
 
 	// mu schützt die folgenden Felder.
 	mu       sync.Mutex
@@ -179,10 +182,11 @@ func Build(ctx context.Context, k Konfiguration, log *slog.Logger) (*Handle, err
 
 func ungueltig(text string) error { return errors.Join(model.ErrUngueltig, errors.New(text)) }
 
-// vorlaeufig sind die Werte, die Build vor dem Öffnen der Ablage prüft und liest.
+// vorlaeufig sind die Werte, die Build vor dem Öffnen der Ablage prüft und liest; tls ist nil ohne jeden Pfad des TLS des Listeners.
 type vorlaeufig struct {
 	pfade []model.JSONPfad
 	caPEM []byte
+	tls   *tls.Config
 }
 
 // pruefeGrundwerte prüft Modus, Dienste, Datenverzeichnis und PublicBaseURL vor allem Öffnen.
@@ -200,8 +204,14 @@ func pruefeGrundwerte(k Konfiguration) error {
 	return nil
 }
 
-func vorbereiten(k Konfiguration) (vorlaeufig, error) {
+// vorbereiten lädt als ersten Schritt das Paar des TLS des Listeners zur Zeit der Uhr des Prozesses (SPEC-291 Nr. 8), in jedem
+// Modus; danach prüft es die Grundwerte, die Pfade der Schwärzung und die Datei der CA.
+func vorbereiten(k Konfiguration, uhr support.Clock) (vorlaeufig, error) {
 	var v vorlaeufig
+	var err error
+	if v.tls, err = ladeListenTLS(k, uhr.Now()); err != nil {
+		return v, err
+	}
 	if err := pruefeGrundwerte(k); err != nil {
 		return v, err
 	}
@@ -226,7 +236,8 @@ func build(ctx context.Context, k Konfiguration, log *slog.Logger, senke io.Writ
 	if log == nil {
 		log = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	v, err := vorbereiten(k)
+	uhr := clock.NewSystemuhr()
+	v, err := vorbereiten(k, uhr)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +245,7 @@ func build(ctx context.Context, k Konfiguration, log *slog.Logger, senke io.Writ
 	if err != nil {
 		return nil, err
 	}
-	h := &Handle{k: k, log: log, senke: senke, uhr: clock.NewSystemuhr(), ids: clock.NewZufallsIDs(), ablage: b.Schliesser(db), b: b}
+	h := &Handle{k: k, log: log, senke: senke, uhr: uhr, ids: clock.NewZufallsIDs(), ablage: b.Schliesser(db), b: b, tls: v.tls}
 	h.dienste = b.Dienste(db.Metadata())
 	if err := h.verdrahte(db, v); err != nil {
 		_ = h.ablage.Close()

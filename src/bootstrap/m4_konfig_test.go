@@ -386,15 +386,15 @@ func TestHybridKonfigMockSchluessel(t *testing.T) {
 	}
 }
 
-// TestHybridKonfigFamilien fängt M08: Modus {record, replay, mock, hybrid} × Familie (ADMIN_*, LISTEN_TLS_*, die vier Schlüssel des
-// Modus hybrid) = 24 Zellen; `ADMIN_*` und `LISTEN_TLS_*` bleiben in jedem Modus `nicht unterstützt` ohne den Wert, die vier Schlüssel
-// sind es nicht mehr (SPEC-110 Nr. 2).
+// TestHybridKonfigFamilien fängt M08 und B05: Modus {record, replay, mock, hybrid} × Familie (ADMIN_*, LISTEN_TLS_X, die vier Schlüssel des
+// Modus hybrid) = 24 Zellen; `ADMIN_*` und jeder Schlüssel `LISTEN_TLS_*` außer den zwei gelieferten bleiben in jedem Modus `nicht
+// unterstützt` ohne den Wert, die vier Schlüssel sind es nicht mehr (SPEC-110 Nr. 2).
 func TestHybridKonfigFamilien(t *testing.T) {
 	familien := []struct {
 		schluessel, wert string
 		abgelehnt        bool
 	}{
-		{"ADMIN_LISTEN", geheimes, true}, {"LISTEN_TLS_CERT", geheimes, true}, {kUpstr, "disabled", false}, {kHosts, "a.example", false},
+		{"ADMIN_LISTEN", geheimes, true}, {"LISTEN_TLS_X", geheimes, true}, {kUpstr, "disabled", false}, {kHosts, "a.example", false},
 		{kWrite, "POST /a", false}, {kReplay, "unsupported", false},
 	}
 	n := 0

@@ -357,8 +357,10 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 	if err := os.WriteFile(caDatei, caPEM, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	tlsCert, tlsKey, tlsBedientVon := tlsVerbraucher(t, dir)
 	k := bootstrap.Konfiguration{
 		Modus: modusRecord, Listen: "127.0.0.1:7777", DataDir: filepath.Join(dir, "d"),
+		ListenTLSCert: tlsCert, ListenTLSKey: tlsKey,
 		Dienste:        []bootstrap.Dienst{{ID: "x1", Root: "/r1", UpstreamURL: "http://u1.test/o"}, {ID: "x2", Root: "/r2", UpstreamURL: "http://u2.test/o"}},
 		ReplayStrategy: "last", ReplayAssignment: "ordered", ReplayRedactedBodies: true,
 		MatchVaryHeaders: []string{"x-vary"}, MatchInvalidEncoding: "reject", MatchBodyMode: "json-canonical",
@@ -392,9 +394,12 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 	dr := []record.Dienst{{ID: "x1", Root: "/r1", UpstreamURL: "http://u1.test/o"}, {ID: "x2", Root: "/r2", UpstreamURL: "http://u2.test/o"}}
 	dp := []replay.Dienst{{ID: "x1", Root: "/r1"}, {ID: "x2", Root: "/r2"}}
 	gl := reflect.DeepEqual
+	tlsGezeigt := tlsBedientVon(r.server.Listener, p.server.Listener)
 	pruefungen := map[string]bool{
 		"Modus":                r.recorder != nil && r.replay == nil && p.replay != nil && p.recorder == nil && p.session == nil && p.upstream == nil,
 		"Listen":               r.listenAdr == k.Listen && p.listenAdr == k.Listen,
+		"ListenTLSCert":        tlsGezeigt,
+		"ListenTLSKey":         tlsGezeigt,
 		"DataDir":              fileExists(filepath.Join(dir, modusRecord, dateiDB)) && fileExists(filepath.Join(dir, modusReplay, verzeichnisB)),
 		"Dienste":              gl(r.recorder.Dienste, dr) && gl(p.replay.Dienste, dp),
 		"ReplayStrategy":       p.replay.Strategie == model.StrategyLast,
@@ -436,9 +441,14 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 	if len(pruefungen) != typ.NumField()-len(ohneVerbraucher) {
 		t.Errorf("Tabelle hat %d Zeilen, Konfiguration %d Felder", len(pruefungen), typ.NumField())
 	}
-	// Eine Uhr, eine ID-Quelle, ein Logger in allen Verbrauchern.
-	// Menge der Stellen mit einer Uhr (SPEC-139 Nr. 3 und 13): record 5 (mit dem Adapter des Prozesses), replay 4 (mit dem Adapter des
-	// Prozesses und dem des Replay-Dienstes); replay.Konfig hat keine Uhr.
+	pruefeEineInstanz(t, r, p, log)
+}
+
+// pruefeEineInstanz fängt B7 für die Instanzen je Prozess: eine Uhr, eine ID-Quelle, ein Logger in allen Verbrauchern.
+// Menge der Stellen mit einer Uhr (SPEC-139 Nr. 3 und 13): record 5 (mit dem Adapter des Prozesses), replay 4 (mit dem Adapter des
+// Prozesses und dem des Replay-Dienstes); replay.Konfig hat keine Uhr.
+func pruefeEineInstanz(t *testing.T, r, p *haken, log *slog.Logger) {
+	t.Helper()
 	if len(r.alleTel) != 1 || len(p.alleTel) != 2 {
 		t.Fatalf("Adapter der Telemetrie: record %d, replay %d; erwartet 1 und 2", len(r.alleTel), len(p.alleTel))
 	}
