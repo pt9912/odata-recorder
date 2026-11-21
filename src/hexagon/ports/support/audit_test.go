@@ -15,6 +15,7 @@ func orakelArten() map[string][5]bool {
 		"session_aufbewahrung":  {true, true, false, false, false},
 		"workspace_geloescht":   {false, false, true, false, false},
 		"import_fehlgeschlagen": {true, false, false, true, true},
+		"admin_abgewiesen":      {false, false, false, false, true},
 	}
 }
 
@@ -22,12 +23,16 @@ func orakelSpalten() [5]support.Feld {
 	return [5]support.Feld{"service_id", "session_id", "workspace_id", "import_id", "error_code"}
 }
 
-// A01: Schleife über 4 Arten × 5 Felder gegen das Orakel, Zählprüfung 4 und 20.
+// A01 und Y5: Schleife über 5 Arten × 5 Felder gegen das Orakel (die vier Zeilen von SPEC-234 Nr. 2 und die fünfte,
+// `admin_abgewiesen`, mit allein `error_code` als Pflicht), Zählprüfung 5 und 25; die fünfte Art steht an fünfter Stelle.
 func TestArtenGleichTabelle(t *testing.T) {
 	orakel := orakelArten()
 	arten := support.Arten()
-	if len(arten) != 4 || len(orakel) != 4 {
-		t.Fatalf("Arten() hat %d Einträge, das Orakel %d, erwartet je 4", len(arten), len(orakel))
+	if len(arten) != 5 || len(orakel) != 5 {
+		t.Fatalf("Arten() hat %d Einträge, das Orakel %d, erwartet je 5", len(arten), len(orakel))
+	}
+	if arten[4].Art != "admin_abgewiesen" {
+		t.Errorf("die fünfte Zeile ist %q, erwartet admin_abgewiesen", arten[4].Art)
 	}
 	zellen := 0
 	for _, s := range arten {
@@ -53,21 +58,22 @@ func TestArtenGleichTabelle(t *testing.T) {
 			t.Errorf("Art %q: Pflicht %v, erwartet in der Folge der Spalten %v", s.Art, s.Pflicht, folge)
 		}
 	}
-	if zellen != 20 {
-		t.Errorf("geprüfte Zellen: %d, erwartet 20", zellen)
+	if zellen != 25 {
+		t.Errorf("geprüfte Zellen: %d, erwartet 25", zellen)
 	}
 }
 
-// Der Text jeder Art ist der der Tabelle, Byte für Byte, und Arten() führt genau diese vier.
+// Der Text jeder Art ist der der Tabelle, Byte für Byte, und Arten() führt genau diese fünf.
 func TestArtTexte(t *testing.T) {
 	soll := map[support.AuditArt]string{
 		support.ArtSessionGeloescht:     "session_geloescht",
 		support.ArtSessionAufbewahrung:  "session_aufbewahrung",
 		support.ArtWorkspaceGeloescht:   "workspace_geloescht",
 		support.ArtImportFehlgeschlagen: "import_fehlgeschlagen",
+		support.ArtAdminAbgewiesen:      "admin_abgewiesen",
 	}
-	if len(soll) != 4 {
-		t.Fatalf("Orakel hat %d Arten, erwartet 4", len(soll))
+	if len(soll) != 5 {
+		t.Fatalf("Orakel hat %d Arten, erwartet 5", len(soll))
 	}
 	for art, text := range soll {
 		if string(art) != text {
@@ -90,8 +96,8 @@ func TestArtenLiefertKopie(t *testing.T) {
 			pflichtfelder++
 		}
 	}
-	if len(a) != 4 || pflichtfelder != 2+2+1+3 {
-		t.Fatalf("%d Arten, %d Pflichtfelder, erwartet 4 und 8", len(a), pflichtfelder)
+	if len(a) != 5 || pflichtfelder != 2+2+1+3+1 {
+		t.Fatalf("%d Arten, %d Pflichtfelder, erwartet 5 und 9", len(a), pflichtfelder)
 	}
 	b := support.Arten()
 	for i, s := range b {

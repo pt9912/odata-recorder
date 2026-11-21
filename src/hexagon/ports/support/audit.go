@@ -14,12 +14,13 @@ type AuditLog interface {
 // Paket den Typ der Attribute von Telemetry (SPEC-230).
 type AuditArt string
 
-// Die vier Arten (SPEC-234 Nr. 2).
+// Die vier Arten, die der Use Case schreibt, und die Art des Admin-Adapters (SPEC-234 Nr. 2, 7; SPEC-238 Nr. 8).
 const (
 	ArtSessionGeloescht     AuditArt = "session_geloescht"
 	ArtSessionAufbewahrung  AuditArt = "session_aufbewahrung"
 	ArtWorkspaceGeloescht   AuditArt = "workspace_geloescht"
 	ArtImportFehlgeschlagen AuditArt = "import_fehlgeschlagen"
+	ArtAdminAbgewiesen      AuditArt = "admin_abgewiesen"
 )
 
 // Eintrag ist ein Audit-Eintrag. Je Art ist jedes Feld außer KorrelationsID Pflicht (nichtleer)
@@ -59,5 +60,6 @@ func Arten() []ArtSpec {
 		{ArtSessionAufbewahrung, []Feld{FeldServiceID, FeldSessionID}},
 		{ArtWorkspaceGeloescht, []Feld{FeldWorkspaceID}},
 		{ArtImportFehlgeschlagen, []Feld{FeldServiceID, FeldImportID, FeldErrorCode}},
+		{ArtAdminAbgewiesen, []Feld{FeldErrorCode}},
 	}
 }

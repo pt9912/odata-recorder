@@ -140,15 +140,26 @@ func zaehlungenVon(f *supporttest.FakeTelemetry) (codes []string, andere int) {
 	return codes, andere
 }
 
+// codeAbgewiesen ist der Code, den allein die Antwort 401 trägt (SPEC-109 Nr. 2): jede Zählung dieses Codes ist ein
+// Abweisen mit genau einem Eintrag im Audit (SPEC-238 Nr. 8).
+const codeAbgewiesen = "ODR-E2101"
+
 // nurZaehlung meldet, wenn die Telemetrie etwas anderes sah als je einen Aufruf von CountError mit den Codes soll (in
-// dieser Reihenfolge), oder wenn Audit oder Listener einen Aufruf sahen.
+// dieser Reihenfolge), wenn Audit nicht genau so viele Aufrufe sah, wie soll den Code ODR-E2101 der Antwort 401 nennt
+// (bei jedem anderen Code 0), oder wenn der Listener einen Aufruf sah.
 func (u *umgebung) nurZaehlung(t *testing.T, name string, soll ...string) {
 	t.Helper()
 	codes, andere := zaehlungenVon(u.tele)
 	a, c, ad := u.lst.zahlen()
-	if !slices.Equal(codes, soll) || andere != 0 || u.audit.Aufrufe() != 0 || a+c+ad != 0 {
-		t.Errorf("%s: CountError %q, andere Aufrufe der Telemetrie %d, Audit %d, Listener %d/%d/%d Aufrufe, erwartet CountError %q und sonst 0",
-			name, codes, andere, u.audit.Aufrufe(), a, c, ad, soll)
+	abweisungen := 0
+	for _, code := range soll {
+		if code == codeAbgewiesen {
+			abweisungen++
+		}
+	}
+	if !slices.Equal(codes, soll) || andere != 0 || u.audit.Aufrufe() != abweisungen || a+c+ad != 0 {
+		t.Errorf("%s: CountError %q, andere Aufrufe der Telemetrie %d, Audit %d, Listener %d/%d/%d Aufrufe, erwartet CountError %q, Audit %d und sonst 0",
+			name, codes, andere, u.audit.Aufrufe(), a, c, ad, soll, abweisungen)
 	}
 }
 

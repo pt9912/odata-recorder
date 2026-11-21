@@ -35,13 +35,14 @@ func rufeHandler(ctx context.Context, h Handler, a Anfrage) (e ergebnisRoute) {
 
 // schreibeFehlerDerRoute bildet den Fehler einer Route ab (SPEC-238 Nr. 6 a): ein Kontextfehler bricht die Verbindung ab
 // und schreibt weder Fehlerobjekt noch Antwort (Nr. 9), sonst bestimmt abbilde Code und Status. allow ist der Wert des
-// Headers Allow, den ein Fehler mit 405 trägt: die Methoden aller Routen des Pfades (Nr. 5).
-func (s *Server) schreibeFehlerDerRoute(w http.ResponseWriter, err error, allow string) {
+// Headers Allow, den ein Fehler mit 405 trägt: die Methoden aller Routen des Pfades (Nr. 5); id ist die Korrelations-ID
+// der Antwort.
+func (s *Server) schreibeFehlerDerRoute(w http.ResponseWriter, id string, err error, allow string) {
 	if finde(err, istKontextfehler) {
 		panic(http.ErrAbortHandler)
 	}
 	code, status := abbilde(err)
-	s.schreibeFehler(w, code, status, allow)
+	s.schreibeFehler(w, id, code, status, allow)
 }
 
 // abbilde liefert Code und Status zu einem Fehler ohne Kontextfehler (SPEC-238 Nr. 6 a 2 bis 4): der erste
