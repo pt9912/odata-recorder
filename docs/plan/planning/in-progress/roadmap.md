@@ -18,6 +18,8 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-expand-validator](slice-expand-validator.md) ([welle-expand-batch](../welle-expand-batch.md), Validator von `$expand` gegen die Navigationen des Modells: `model.PruefeExpand` und `ExpandFehler`).
 
+In Arbeit: [slice-telemetry-einbau-gateway](slice-telemetry-einbau-gateway.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts: Gesamtspan `odata.gateway.request` und Zähler je Fehlercode im HTTP-Adapter, Übergabe des Adapters des Prozesses im Root).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
