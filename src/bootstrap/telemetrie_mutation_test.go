@@ -302,8 +302,10 @@ func TestKeinRequestWertInDerSenkeMutation(t *testing.T) {
 }
 
 // TestKanarienNameDerLaenge hält M9 (SPEC-290 Nr. 8, SPEC-180 Nr. 3; Sendung R2 von slice-mock-schreiben): der Name einer unbekannten Property von
-// `grenze` Bytes durch POST, PATCH und PUT erreicht weder eine Zeile der Senke noch ein Attribut eines Spans: weder die ersten 8 Bytes des Namens
-// noch ein Teil davon; die Antwort ist ODR-E6007. Die Namen entstehen aus Bytewerten (AGENTS.md §3.18). Modus 2 × Methode 3 × Länge 4 = 24.
+// `grenze` Bytes durch POST, PATCH und PUT erreicht weder eine Zeile der Senke noch ein Attribut eines Spans: kein Stück von 8 Bytes aus dem
+// Anfang des Namens (die fünf Fenster von Byte 0 bis 4, der Name besteht aus `Kq7f` und lauter `x`, die fünf Fenster sind verschieden); ein
+// kürzeres Stück sucht der Test nicht. Die Antwort ist ODR-E6007. Die Namen entstehen aus Bytewerten (AGENTS.md §3.18). Modus 2 × Methode 3 ×
+// Länge 4 = 24.
 func TestKanarienNameDerLaenge(t *testing.T) {
 	laengen := []int{255, 256, 257, 4096}
 	pfad := map[string]string{"POST": "/Products", "PATCH": "/Products(1)", "PUT": "/Products(1)"}
@@ -321,13 +323,16 @@ func TestKanarienNameDerLaenge(t *testing.T) {
 				if f, ok := err.(*inbound.Fehler); !ok || f.Code != model.CodeE6007 {
 					t.Errorf("%s: Fehler %v, erwartet ODR-E6007", kontext, err)
 				}
-				if strings.Contains(w.senke.String(), name[:8]) {
-					t.Errorf("%s: die Senke trägt den Anfang des Namens", kontext)
-				}
-				for _, r := range w.adapter[0].Snapshot().Spans {
-					for _, a := range r.Attrs {
-						if strings.Contains(a.Text, name[:8]) {
-							t.Errorf("%s: Attribut %s trägt den Anfang des Namens", kontext, a.Key)
+				for i := range 5 {
+					fenster := name[i : i+8]
+					if strings.Contains(w.senke.String(), fenster) {
+						t.Errorf("%s: die Senke trägt das Stück %q des Namens", kontext, fenster)
+					}
+					for _, r := range w.adapter[0].Snapshot().Spans {
+						for _, a := range r.Attrs {
+							if strings.Contains(a.Text, fenster) {
+								t.Errorf("%s: Attribut %s trägt das Stück %q des Namens", kontext, a.Key, fenster)
+							}
 						}
 					}
 				}

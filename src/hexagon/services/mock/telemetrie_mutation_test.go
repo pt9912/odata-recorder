@@ -3,6 +3,7 @@ package mock_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -260,6 +261,167 @@ func TestMutationEndeJederRueckweg(t *testing.T) {
 	}
 }
 
+// kette ist der Text eines Aufrufs als Kette der Namen (`m.k.Metadaten.Get`); ein anderer Ausdruck ergibt `?`.
+func kette(e ast.Expr) string {
+	switch x := e.(type) {
+	case *ast.Ident:
+		return x.Name
+	case *ast.SelectorExpr:
+		return kette(x.X) + "." + x.Sel.Name
+	}
+	return "?"
+}
+
+// mutMethoden sind die Methoden, die die Stelle erreichen: der Leser (S17) liest keinen Body bei DELETE, die Coverage in f (S21) und die
+// Antwort `204` (S26) gibt es nicht bei POST, und die Antwort von POST (S24, S25) allein bei POST.
+func mutMethoden(stelle string) []string {
+	switch stelle {
+	case "S17":
+		return []string{"POST", "PATCH", "PUT"}
+	case "S21", "S26":
+		return []string{"PATCH", "PUT", "DELETE"}
+	case "S24", "S25":
+		return []string{"POST"}
+	}
+	return []string{"POST", "PATCH", "PUT", "DELETE"}
+}
+
+// rueckwegFall ruft die Mutation der Methode an der Stelle s, speist fehler an ihrer Operation ein (bau bereitet einen Ausgang ohne Fehler
+// eines Ports vor) und prüft: Ergebnis der Code, 0 für den Kontextfehler ohne Code; keine Antwort; Entity-State und Revision wie vorher; ein
+// Span mit Art und Kennung, einem End, ohne Zähler.
+func rueckwegFall(t *testing.T, kontext string, s mutRueckweg, methode string, fehler error, bau func(u *umg), code model.Code) {
+	t.Helper()
+	id := "2"
+	switch {
+	case methode == "POST":
+		id = "7"
+	case s.stelle == "S21":
+		id = "99"
+	}
+	u := schreibUmg(t)
+	if bau != nil {
+		bau(u)
+	}
+	switch {
+	case fehler == nil:
+	case s.nr > 0:
+		u.p.setzeFehlerBeiNr(s.op, s.nr, fehler)
+	default:
+		u.p.setzeFehler(s.op, fehler)
+	}
+	vorher, rev := u.en.inhalt(), u.ws.revision(wsID)
+	a, err := u.mutiere(methode, id, eingabeIDName(id, "x"))
+	if code != 0 {
+		_ = erwarteFehler(t, kontext, err, code)
+	} else if !errors.Is(err, context.Canceled) || fehlercode(err) != 0 {
+		t.Errorf("%s: Fehler %v, erwartet Canceled ohne Code", kontext, err)
+	}
+	if a.Body != nil || a.Status != 0 {
+		t.Errorf("%s: Antwort %d trotz Fehler", kontext, a.Status)
+	}
+	erwarteMutationsSpan(t, kontext, u, wsID, strings.ToLower(methode))
+	u.unveraendert(vorher, rev, kontext)
+}
+
+// mutCode ist ein Fehler an einer Stelle hinter dem Beginn und der Code, den die Spezifikation für ihn an dieser Stelle nennt: der Gegenstand
+// je Stelle steht in SPEC-195 Nr. 11, die Abbildung in SPEC-109 Nr. 5 (als Handkopie, nie aus dem Code). Ein Eintrag mit bau und ohne fehler
+// ist ein Ausgang ohne Fehler eines Ports (der Service ohne Metadaten, SPEC-195 Nr. 9).
+type mutCode struct {
+	stelle string
+	fehler error
+	code   model.Code
+	bau    func(u *umg)
+}
+
+func mutCodes() []mutCode {
+	roh, nichtGefunden, beschaedigt := errors.New("roh"), outbound.ErrNichtGefunden, outbound.ErrBeschaedigt
+	e3001, e5005, e6004, e6007, e6002, e7001, e9001 := model.CodeE3001, model.CodeE5005, model.CodeE6004, model.CodeE6007, model.CodeE6002,
+		model.CodeE7001, model.CodeE9001
+	c := func(stelle string, err error, code model.Code) mutCode {
+		return mutCode{stelle: stelle, fehler: err, code: code}
+	}
+	eingabe := &model.EingabeFehler{Ursache: model.EingabeSyntax, Ort: kanarienwert}
+	return []mutCode{
+		c("S3", nichtGefunden, e5005), c("S3", beschaedigt, e3001), c("S3", roh, e9001),
+		{stelle: "S3", code: e6004, bau: func(u *umg) { u.md.setze(model.Service{ID: dienstID}) }},
+		c("S4", outbound.ErrBlobFehlt, e3001), c("S4", outbound.ErrBlobBeschaedigt, e3001), c("S4", nichtGefunden, e9001), c("S4", roh, e9001),
+		c("S5", model.ErrMetadatenUngueltig, e6004), c("S5", roh, e9001),
+		c("S17", eingabe, e6007), c("S17", model.ErrEingabeNichtUnterstuetzt, e6002), c("S17", roh, e9001),
+		c("S18", beschaedigt, e3001), c("S18", roh, e9001),
+		c("S19", nichtGefunden, e7001), c("S19", beschaedigt, e3001), c("S19", roh, e9001),
+		c("S20", beschaedigt, e3001), c("S20", roh, e9001),
+		c("S21", beschaedigt, e3001), c("S21", roh, e9001),
+		c("S22", nichtGefunden, e7001), c("S22", beschaedigt, e3001), c("S22", roh, e9001),
+		c("S23", outbound.ErrRevisionVeraltet, e9001), c("S23", nichtGefunden, e7001), c("S23", beschaedigt, e3001), c("S23", roh, e9001),
+		c("S24", model.ErrUngueltig, e9001), c("S24", beschaedigt, e3001), c("S24", roh, e9001),
+		c("S25", model.ErrUngueltig, e9001), c("S25", beschaedigt, e3001), c("S25", roh, e9001),
+		c("S26", model.ErrUngueltig, e9001), c("S26", beschaedigt, e3001), c("S26", roh, e9001),
+	}
+}
+
+// TestMutationCodeJederRueckweg hält M3 für die Codes (SPEC-290 Nr. 7 b, SPEC-195 Nr. 10 und 11): an jeder der 13 Stellen hinter dem Beginn
+// endet der Span genau einmal mit jedem Code, den die Spezifikation für einen Fehler dieser Stelle nennt (ODR-E5005 aus S3, ODR-E6004 aus S3
+// und S5, ODR-E3001 aus S3, S4 und den Stellen mit Zustand, ODR-E6007 und ODR-E6002 aus dem Leser, ODR-E7001 aus dem Workspace, ODR-E9001),
+// bei jeder Methode, die die Stelle erreicht. Menge Fehler × Methode: 38 Fehler an 13 Stellen in 126 Fällen, 7 verschiedene Codes, alle
+// unter den 16 von SPEC-195 Nr. 10; jede Stelle der Tabelle der Rückwege trägt Fälle.
+func TestMutationCodeJederRueckweg(t *testing.T) {
+	stellen := map[string]mutRueckweg{}
+	for _, s := range mutRueckwege() {
+		stellen[s.stelle] = s
+	}
+	codes := map[string]bool{}
+	gesehen := map[string]bool{}
+	faelle, n := mutCodes(), 0
+	for _, c := range faelle {
+		s, da := stellen[c.stelle]
+		if !da {
+			t.Fatalf("Stelle %s steht nicht in der Tabelle der Rückwege", c.stelle)
+		}
+		gesehen[c.stelle] = true
+		codes[c.code.String()] = true
+		for _, methode := range mutMethoden(c.stelle) {
+			n++
+			var err error
+			if c.fehler != nil {
+				err = fmt.Errorf("%s: %w", kanarienwert, c.fehler)
+			}
+			rueckwegFall(t, c.stelle+" "+methode+" "+c.code.String(), s, methode, err, c.bau, c.code)
+		}
+	}
+	for code := range codes {
+		if !slices.Contains(spec195Nr10(), code) {
+			t.Errorf("%s gehört nicht zu den 16 erreichbaren Codes", code)
+		}
+	}
+	if len(faelle) != 38 || n != 126 || len(gesehen) != len(mutRueckwege()) || len(codes) != 7 {
+		t.Errorf("%d Fehler, %d Fälle, %d Stellen, %d Codes; erwartet 38, 126, 13 und 7", len(faelle), n, len(gesehen), len(codes))
+	}
+}
+
+// TestMutationKontextJederRueckwegJedeMethode hält M3 für den Kontextfehler und das Paar bei jeder Methode, die die Stelle erreicht: die 12
+// Stellen mit ctx (alle außer S25), Methoden je Stelle wie bei den Codes: 42 Fälle je Form, 84 Fälle.
+func TestMutationKontextJederRueckwegJedeMethode(t *testing.T) {
+	formen := []struct {
+		name string
+		err  error
+	}{{"Kontextfehler", context.Canceled}, {"Kontextfehler und Fehler der Tabelle", errors.Join(context.Canceled, outbound.ErrBeschaedigt)}}
+	n := 0
+	for _, s := range mutRueckwege() {
+		if s.ohneCtx {
+			continue
+		}
+		for _, f := range formen {
+			for _, methode := range mutMethoden(s.stelle) {
+				n++
+				rueckwegFall(t, s.stelle+" "+methode+" mit "+f.name, s, methode, f.err, nil, 0)
+			}
+		}
+	}
+	if n != 84 {
+		t.Errorf("%d Fälle, erwartet 84", n)
+	}
+}
+
 // entscheidung ist ein Ausgang, den der Dienst hinter dem Beginn ohne Fehler eines Ports bildet (SPEC-290 Nr. 7 b): die Operation, der
 // Aufbau und der Code.
 type entscheidung struct {
@@ -381,6 +543,26 @@ func TestMutationPortAufrufeImQuelltext(t *testing.T) {
 	}
 	if summe != 9 || summe+4 != len(mutRueckwege()) {
 		t.Errorf("%d Aufrufe in den Dateien der Mutation, %d Stellen der Tabelle; erwartet 9 und 13", summe, len(mutRueckwege()))
+	}
+	// Die vier geteilten Stellen S3, S4, S5 und S21 stehen je einmal in mock.go und lesen.go (Kette des Aufrufs als Text).
+	ketten := map[string]int{}
+	for _, d := range []string{"mock.go", "lesen.go"} {
+		f, err := parser.ParseFile(token.NewFileSet(), d, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			if ce, ok := n.(*ast.CallExpr); ok {
+				ketten[kette(ce.Fun)]++
+			}
+			return true
+		})
+	}
+	geteilt := map[string]string{"S3": "m.k.Metadaten.Get", "S4": "m.k.Blobs.Open", "S5": "d.Codecs.Metadaten.ParseMetadata", "S21": "m.k.Coverage.Get"}
+	for stelle, k := range geteilt {
+		if ketten[k] != 1 {
+			t.Errorf("%s: %s im Quelltext %d-mal, erwartet 1", stelle, k, ketten[k])
+		}
 	}
 }
 
@@ -821,7 +1003,7 @@ func (a *abbrueche) hole(ws string) context.CancelFunc {
 // TestMutationAbbruchGleichzeitig hält M6 als Wirkungs-Fänger (SPEC-290 Nr. 3 f, 9 b; AGENTS.md §3.10): 16 Goroutinen × 4 Methoden × 4 Runden,
 // in jeder zweiten Goroutine (acht) bricht jede Mutation in S22 ab. Je Aufruf endet der Span genau einmal mit seiner Art und Kennung; der
 // Entity-State und die Revision der abgebrochenen Workspaces sind unverändert, die der übrigen um 4 je Runde (Revision) und 2 je Runde
-// (Version des Eintrags 10) gewachsen. Eine Schranke an jedem Port vor der Transaktion hält alle 16 Spans zugleich offen.
+// (Version des Eintrags 10) gewachsen. Die Schranke von fahreMutationen hält alle 16 Spans zugleich offen.
 func TestMutationAbbruchGleichzeitig(t *testing.T) {
 	const laeufe = 4
 	u := gleichzeitigUmg(t, laeufe)
@@ -909,9 +1091,10 @@ func erwarteBuchProAufruf(t *testing.T, u *umg, laeufe int) {
 }
 
 // TestMutationSpanGleichzeitig hält M10 (SPEC-290 Nr. 9 a; AGENTS.md §3.10): n gleichzeitige Mutationen ergeben n Spans, jeder mit Art und
-// Kennung seiner Anfrage und genau einem End. 16 Goroutinen × 4 Methoden × 8 Runden = 512 Spans in 16 Workspaces; eine Schranke an jedem
-// Port vor der Transaktion hält alle 16 Spans zugleich offen, und weil die Folge der Methoden je Goroutine rotiert, sind dabei alle vier Arten
-// offen (Wirkungs-Fänger: das Buch je Span, kein Datenrennen nötig). Jede Mutation gelingt.
+// Kennung seiner Anfrage und genau einem End. 16 Goroutinen × 4 Methoden × 8 Runden = 512 Spans in 16 Workspaces; die Schranke von
+// fahreMutationen (Stufen: Workspaces.Get, Metadaten.Get, Blobs.Open, ParseMetadata, Eingang der Transaktion; der Leser S17 ist keine Stufe)
+// hält alle 16 Spans zugleich offen, und weil die Folge der Methoden je Goroutine rotiert, sind dabei alle vier Arten offen
+// (Wirkungs-Fänger: das Buch je Span, kein Datenrennen nötig). Jede Mutation gelingt.
 func TestMutationSpanGleichzeitig(t *testing.T) {
 	const laeufe = 8
 	u := gleichzeitigUmg(t, laeufe)
