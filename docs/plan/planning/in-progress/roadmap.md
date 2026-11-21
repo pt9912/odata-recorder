@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-admin-sessions](slice-admin-sessions.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `GET` und `POST /__admin/sessions`, Audit `session_angelegt`, Zeit und `SessionRouten`).
+In Arbeit: [slice-admin-sessions](../done/slice-admin-sessions.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `GET` und `POST /__admin/sessions`, Audit `session_angelegt`, Zeit und `SessionRouten`).
 
 In Arbeit: [slice-expand-validator](slice-expand-validator.md) ([welle-expand-batch](../welle-expand-batch.md), Validator von `$expand` gegen die Navigationen des Modells: `model.PruefeExpand` und `ExpandFehler`).
 
