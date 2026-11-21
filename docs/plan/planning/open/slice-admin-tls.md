@@ -33,12 +33,12 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der Admin-Listener bedient mit `ADMIN_TLS_CERT` und `ADMIN_TLS_KEY` HTTPS; bei nicht-loopback `ADMIN_LISTEN` verlangt die Start-Prüfung TLS und verhindert sonst die Ausführung (`ODR-E2001`), nur `ADMIN_ALLOW_PLAINTEXT=true` erlaubt Klartext, mit einer Warnung im Log; nur einer der beiden Schlüssel des Zertifikatspaars ist `ODR-E2001`.
 
-**Übernimmt:** den wiederverwendbaren TLS-Baustein des Listeners aus `slice-listener-tls` (`welle-betrieb` §4 nennt ihn als Grundlage des Admin-Listeners); der Slice nutzt ihn, statt das Laden und Prüfen des Zertifikatspaars ein zweites Mal zu schreiben.
+**Übernimmt:** den wiederverwendbaren TLS-Baustein des Listeners aus `slice-listener-tls` (Teil 1 des Schnitts vom 2026-11-21: `ladeTLS` in `src/bootstrap/tlsdatei.go` und das Test-Hilfspaket `tlstest`, `SPEC-291`; `welle-betrieb` §4 nennt ihn als Grundlage des Admin-Listeners); der Slice nutzt ihn, statt das Laden und Prüfen des Zertifikatspaars ein zweites Mal zu schreiben.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Der Listener und die Authentisierung selbst — `slice-admin-listener-token`; TLS umhüllt ihn.
-- TLS des OData-Listeners (`LISTEN_TLS_*`) — `slice-listener-tls` (`welle-betrieb`).
+- TLS des OData-Listeners (`LISTEN_TLS_*`) — `slice-listener-tls-verdrahtung` (`welle-betrieb`, Teil 2 des Schnitts von `slice-listener-tls`); diesen Teil braucht der Slice nicht.
 - Erzeugen oder Erneuern von Zertifikaten, Client-Zertifikate (mTLS) und Neuladen zur Laufzeit — `SPEC-089` verlangt sie nicht; der Betreiber stellt das Paar bereit.
 - Das Lesen der `ADMIN_*`-Schlüssel aus der Umgebung und das Aufheben von `SPEC-110` Nr. 2 — `slice-bootstrap-m6` (Grund wie in `slice-admin-listener-token`).
 - Der Netzwerknachweis von außen — `slice-test-security`; hier prüfen Tests die Start-Prüfung und den Handshake.
@@ -85,7 +85,7 @@ Aussagen-Berührung steht hier gar nicht.
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
 | `src/adapters/driving/admin/` | update | TLS-Konfiguration des Listeners, Start-Prüfung, Warnung bei Klartext |
-| Baustein aus `slice-listener-tls` | nutzen | Laden und Prüfen des Zertifikatspaars; Ort und Namen nennt dessen Plan |
+| Baustein aus `slice-listener-tls` (`src/bootstrap/tlsdatei.go`, `ladeTLS`) | nutzen | Laden und Prüfen des Zertifikatspaars mit den Namen `ADMIN_TLS_CERT` und `ADMIN_TLS_KEY` (Zeile A17 dort belegt die zweite Verwendung); Ort und Signatur: `SPEC-291` Nr. 1 |
 | `spec/spezifikation.md` | update (Architect) | Vertrag der Start-Prüfung: Loopback-Definition, Zusammenhänge, Reihenfolge der Verstöße; Nachzug `LH-FA-13.a`, `SPEC-089`, `SPEC-090` |
 | Tests | neu | Zertifikatspaare im Test erzeugt (`crypto/x509`; kein Schlüssel im Repo); Matrix Loopback × TLS × Plaintext-Flag; Handshake mit bekannter und unbekannter CA |
 
@@ -114,18 +114,18 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 5. **Ort der Prüfung:** im Adapter oder im Composition Root; `slice-bootstrap-m6` ruft sie.
 6. Tabelle *Zusage · Fänger*, Raster in §6, Nachzug der Stellen aus der Tabelle oben.
 
-**Prüfung der Sendungen durch den Planner** (`AGENTS.md` §3.13, am 2026-10-30 gelesen: §1 *Ausdrücklich NICHT*, DoD und §4 der Gegenstellen): *an diesen Slice* der Baustein aus `slice-listener-tls`: `welle-betrieb` §4 nennt ihn als wiederverwendbar für den Admin-Listener, die Datei von `slice-listener-tls` liegt noch nicht vor, ihr Plan trägt die Lieferung (§6, Ausgang *offen*, Adresse Planner von `welle-betrieb`). *Von diesem Slice an:* das Lesen der `ADMIN_*`-Schlüssel an `slice-bootstrap-m6` (dessen §1 *Übernimmt* trägt es).
+**Prüfung der Sendungen durch den Planner** (`AGENTS.md` §3.13, am 2026-10-30 gelesen: §1 *Ausdrücklich NICHT*, DoD und §4 der Gegenstellen): *an diesen Slice* der Baustein aus `slice-listener-tls`: `welle-betrieb` §4 nennt ihn als wiederverwendbar für den Admin-Listener; die Datei von `slice-listener-tls` liegt seit dem 2026-11-21 vor und trägt die Lieferung (Teil 1 des Schnitts, §1, DoD und Zeile A17 dort; der Planner hat sie am 2026-11-21 gelesen, kein Ausschluss trifft die Sendung). *Von diesem Slice an:* das Lesen der `ADMIN_*`-Schlüssel an `slice-bootstrap-m6` (dessen §1 *Übernimmt* trägt es).
 
 ## 4. Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-admin-listener-token` samt seinen Teilen `slice-admin-rahmen`, `slice-admin-authentisierung`, `slice-admin-lebenszyklus`, `slice-admin-fehlerabbildung` und `slice-admin-abweisen-audit` (Schnitt vor dem Code, 2026-11-07; TLS umhüllt den Listener, den `Serve` aus `slice-admin-lebenszyklus` bedient) und `slice-listener-tls` (`welle-betrieb`) liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): `slice-admin-listener-token` samt seinen Teilen `slice-admin-rahmen`, `slice-admin-authentisierung`, `slice-admin-lebenszyklus`, `slice-admin-fehlerabbildung` und `slice-admin-abweisen-audit` (Schnitt vor dem Code, 2026-11-07; TLS umhüllt den Listener, den `Serve` aus `slice-admin-lebenszyklus` bedient) und `slice-listener-tls` (`welle-betrieb`, Teil 1 des Schnitts vom 2026-11-21: der Baustein `ladeTLS`; `slice-listener-tls-verdrahtung` ist keine Bedingung) liegen in `done/`. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
-**Warum:** der Listener, den TLS umhüllt, kommt aus `slice-admin-listener-token` (*Code-Abhängigkeit*); den wiederverwendbaren Baustein zum Laden und Prüfen des Zertifikatspaars liefert `slice-listener-tls` (*Code-Abhängigkeit*, soweit er so geliefert wird; liefert er ihn nicht, geht der Punkt an den Planner, §6).
+**Warum:** der Listener, den TLS umhüllt, kommt aus `slice-admin-listener-token` (*Code-Abhängigkeit*); den wiederverwendbaren Baustein zum Laden und Prüfen des Zertifikatspaars liefert `slice-listener-tls` (*Code-Abhängigkeit*; er ist als wiederverwendbarer Baustein geschnitten, §6).
 
-**Unabhängig von `welle-mock`, M2 und `slice-bootstrap-m6`** — bis auf das, was `slice-listener-tls` selbst voraussetzt; dessen Plan liegt noch nicht vor und nennt es. Der Slice braucht den Audit-Port nicht (die Warnung geht ins Log, nicht ins Audit).
+**Unabhängig von `welle-mock`, M2 und `slice-bootstrap-m6`** — bis auf das, was `slice-listener-tls` selbst voraussetzt; sein Plan nennt es (der Baustein braucht nur die Standardbibliothek). Der Slice braucht den Audit-Port nicht (die Warnung geht ins Log, nicht ins Audit).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -158,7 +158,7 @@ dasteht.
 
 - Die Definition von Loopback und der Umgang mit Namen, die nicht aufgelöst werden, haben keinen Ort (Auftrag 1) — **Ausgang:** offen; Adresse: Architect.
 - Mindestversion und Cipher von TLS nennt `SPEC-089` nicht (Auftrag 3) — **Ausgang:** offen; Adresse: Architect.
-- Der Baustein aus `slice-listener-tls` hat noch keinen Plan; sein Plan muss die Wiederverwendung tragen, sonst ist die Übernahme keine Adresse (`AGENTS.md` §3.13) — **Ausgang:** offen; Adresse: Planner von `welle-betrieb`.
+- Der Baustein aus `slice-listener-tls` muss die Wiederverwendung tragen, sonst ist die Übernahme keine Adresse (`AGENTS.md` §3.13) — **Ausgang:** entschieden (Planner, 2026-11-21): der Plan von `slice-listener-tls` (Teil 1 des Schnitts) trägt sie (§1 Ziel, DoD, Zeile A17 mit `ADMIN_TLS_CERT` und `ADMIN_TLS_KEY`, `SPEC-291` Kopf); die Bedingung dieses Slice nennt Teil 1 und nicht die Verdrahtung des OData-Listeners.
 - Zertifikate und Schlüssel der Tests dürfen nicht im Repo liegen (`harness/README.md` §Safety and scope boundaries) — **Ausgang:** entfallen: Die Tests erzeugen das Paar zur Laufzeit.
 - `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×): die Zweige der Start-Prüfung sind eine Matrix; jede Zelle hat einen Lauf — **Ausgang:** weiter offen → `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` im Register.
 - Größe: die Marke steht nicht, bevor die Tabelle *Zusage · Fänger* vorliegt — **Ausgang:** offen; Adresse: Planner beim Start (§4).
