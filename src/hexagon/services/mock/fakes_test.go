@@ -293,11 +293,16 @@ type blobs struct {
 	mu      sync.Mutex
 	inhalt  map[string][]byte
 	stroeme []*strom
+	// vor ist der Haltepunkt am Eingang von Open, nach dem Eintrag im Protokoll und vor dem Lesen.
+	vor func()
 }
 
 func (b *blobs) Open(ctx context.Context, ref string) (io.ReadCloser, error) {
 	if err := b.p.beginn(ctx, "Blobs.Open", ref); err != nil {
 		return nil, err
+	}
+	if b.vor != nil {
+		b.vor()
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -651,6 +656,7 @@ type umg struct {
 	c   *codecs
 	tx  *transaktion
 	ei  *eingabeFake
+	tel *telemetrieFake
 	k   mock.Konfig
 	ctx ctxMethoden
 	// fehlerobjektErlaubt nimmt den Test von der Prüfung aus, die den Aufruf von SchreibeFehler verbietet (der Test der
@@ -680,6 +686,7 @@ func neueUmg(t *testing.T) *umg {
 	u.tx = &transaktion{p: p, ws: u.ws, en: u.en, cu: &cursors{p: p}, sn: &snapshots{p: p}}
 	u.ei = &eingabeFake{p: p}
 	u.c.eingabe = u.ei
+	u.tel = neueTelemetrie(p)
 	// Der Dienst ruft SchreibeFehler nie: der Fake prüft den Zähler für jeden Test des Pakets (SPEC-195 Nr. 10, L45).
 	t.Cleanup(func() {
 		if n := p.anzahl("Schreiber.SchreibeFehler"); n != 0 && !u.fehlerobjektErlaubt {
@@ -703,6 +710,7 @@ func neueUmg(t *testing.T) *umg {
 		MaxBytes:       1 << 20,
 		Transaktion:    u.tx,
 		Eingabe:        u.ei,
+		Telemetrie:     u.tel,
 	}
 	return u
 }

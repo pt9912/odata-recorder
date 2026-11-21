@@ -130,6 +130,8 @@ func standardBauteile() bauteile {
 type Handle struct {
 	k        Konfiguration
 	log      *slog.Logger
+	senke    io.Writer
+	tel      *telemetry.Adapter
 	uhr      support.Clock
 	ids      support.IDGenerator
 	audit    support.AuditLog
@@ -169,9 +171,10 @@ const (
 )
 
 // Build öffnet die Ablage und verdrahtet Adapter und Dienste nach SPEC-139 Nr. 2 bis 5; es öffnet
-// keinen Listener und ruft weder Wartung noch Services noch Sessions.
+// keinen Listener und ruft weder Wartung noch Services noch Sessions. Die Zeilen des Adapters des Prozesses gehen
+// verloren (io.Discard); Start übergibt seinen Fehlerstrom (SPEC-139 Nr. 13).
 func Build(ctx context.Context, k Konfiguration, log *slog.Logger) (*Handle, error) {
-	return build(ctx, k, log, standardBauteile())
+	return build(ctx, k, log, io.Discard, standardBauteile())
 }
 
 func ungueltig(text string) error { return errors.Join(model.ErrUngueltig, errors.New(text)) }
@@ -219,7 +222,7 @@ func vorbereiten(k Konfiguration) (vorlaeufig, error) {
 	return v, nil
 }
 
-func build(ctx context.Context, k Konfiguration, log *slog.Logger, b bauteile) (*Handle, error) {
+func build(ctx context.Context, k Konfiguration, log *slog.Logger, senke io.Writer, b bauteile) (*Handle, error) {
 	if log == nil {
 		log = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
@@ -231,7 +234,7 @@ func build(ctx context.Context, k Konfiguration, log *slog.Logger, b bauteile) (
 	if err != nil {
 		return nil, err
 	}
-	h := &Handle{k: k, log: log, uhr: clock.NewSystemuhr(), ids: clock.NewZufallsIDs(), ablage: b.Schliesser(db), b: b}
+	h := &Handle{k: k, log: log, senke: senke, uhr: clock.NewSystemuhr(), ids: clock.NewZufallsIDs(), ablage: b.Schliesser(db), b: b}
 	h.dienste = b.Dienste(db.Metadata())
 	if err := h.verdrahte(db, v); err != nil {
 		_ = h.ablage.Close()
@@ -265,6 +268,11 @@ func (h *Handle) verdrahte(db *sqlite.DB, v vorlaeufig) error {
 	if err != nil {
 		return err
 	}
+	// Der Adapter des Prozesses (SPEC-139 Nr. 13): Senke, Uhr und Stufe INFO; der Mock erhält ihn als Telemetrie, der Workspace-Dienst seinen Handler als Log.
+	h.tel, err = b.NeueTelemetrie(telemetry.Config{Writer: h.senke, Clock: h.uhr, MinLevel: slog.LevelInfo})
+	if err != nil {
+		return err
+	}
 	h.audit, err = audit.New(audit.Config{Pfad: filepath.Join(k.DataDir, audit.DateiName), Uhr: h.uhr, IDs: h.ids, Log: h.log})
 	if err != nil {
 		return err
@@ -279,7 +287,7 @@ func (h *Handle) verdrahte(db *sqlite.DB, v vorlaeufig) error {
 	r := ablageRepos{workspaces: db.Workspaces(), entities: db.Entities(), snapshots: db.Snapshots()}
 	h.workspaces, err = b.NeueWorkspaces(workspace.Konfig{
 		Workspaces: r.workspaces, Transaktion: db, Snapshots: r.snapshots, Blobs: waechter, Dienste: h.dienste,
-		Wartung: h.wartung, Uhr: h.uhr, IDs: h.ids, Log: h.log, Audit: h.audit,
+		Wartung: h.wartung, Uhr: h.uhr, IDs: h.ids, Log: slog.New(h.tel.Handler()), Audit: h.audit,
 	})
 	if err != nil {
 		return err
@@ -383,7 +391,7 @@ func (h *Handle) baueMock(db *sqlite.DB, r ablageRepos, waechter *maintenance.Bl
 	return h.b.NeuerMock(mock.Konfig{
 		Dienste: dienste, Metadaten: h.dienste, Workspaces: r.workspaces, Entities: r.entities, Coverage: db.Coverage(),
 		Blobs: waechter, MetadatenCodec: satz.Metadaten, URLCodec: satz.URL, Schreiber: satz.Schreiber,
-		PublicBaseURL: k.PublicBaseURL, StrictCoverage: k.StrictCoverage, MaxBytes: k.MaxCaptureBody, Transaktion: db,
+		PublicBaseURL: k.PublicBaseURL, StrictCoverage: k.StrictCoverage, MaxBytes: k.MaxCaptureBody, Transaktion: db, Telemetrie: h.tel,
 	})
 }
 

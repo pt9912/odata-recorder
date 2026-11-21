@@ -9,6 +9,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
 var _ inbound.MockUseCase = (*Mocker)(nil)
@@ -41,6 +42,8 @@ type Konfig struct {
 	Transaktion outbound.WorkspaceTransactor
 	// Eingabe ist der Leser der Client-Bodies für einen Dienst ohne Satz; nil ist erlaubt (SPEC-192 Nr. 1).
 	Eingabe outbound.ODataEingabe
+	// Telemetrie nimmt den Span der Query auf; nil ist ungültig. Der Dienst ruft von ihr allein StartSpan und am Span Set und End (SPEC-290 Nr. 1).
+	Telemetrie support.Telemetry
 }
 
 // Mocker setzt MockUseCase um. Er hält nach New nur seine Konfig, die er nicht ändert, keine Sperre und keine
@@ -86,10 +89,10 @@ func pruefeKonfig(k Konfig) error {
 	return nil
 }
 
-// portFehlt sagt, ob eines der neun Felder mit einem Port nil ist (SPEC-195 Nr. 1, SPEC-192 Nr. 1); Eingabe darf nil sein.
+// portFehlt sagt, ob eines der zehn Felder mit einem Port nil ist (SPEC-195 Nr. 1, SPEC-192 Nr. 1, SPEC-290 Nr. 1); Eingabe darf nil sein.
 func portFehlt(k Konfig) bool {
 	return k.Metadaten == nil || k.Workspaces == nil || k.Entities == nil || k.Coverage == nil || k.Blobs == nil ||
-		k.MetadatenCodec == nil || k.URLCodec == nil || k.Schreiber == nil || k.Transaktion == nil
+		k.MetadatenCodec == nil || k.URLCodec == nil || k.Schreiber == nil || k.Transaktion == nil || k.Telemetrie == nil
 }
 
 // Mock prüft den Request in der Reihenfolge von SPEC-195 Nr. 3 (der erste Verstoß entscheidet) und liefert die
@@ -124,12 +127,12 @@ func (m *Mocker) Mock(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, 
 	if err != nil {
 		return inbound.Antwort{}, err
 	}
+	if u.Ressource.Art != model.RessourceMetadaten {
+		return m.frage(ctx, a, d, w, u)
+	}
 	s, err := m.holeService(ctx, d)
 	if err != nil {
 		return inbound.Antwort{}, err
-	}
-	if u.Ressource.Art != model.RessourceMetadaten {
-		return m.lese(ctx, a, d, w, s, u)
 	}
 	return m.metadaten(ctx, a.Methode == "HEAD", d, s)
 }

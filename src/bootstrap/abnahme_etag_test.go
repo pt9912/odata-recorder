@@ -21,7 +21,7 @@ func abEtagMocks(t *testing.T, u *abUmgebung) (lax, strikt *mock.Mocker) {
 			Dienste: []mock.Dienst{{ID: "svc", Root: "/odata", Etag: true}}, Metadaten: u.db.Metadata(), Workspaces: u.db.Workspaces(), Entities: u.db.Entities(),
 			Coverage: u.db.Coverage(), Blobs: u.store, MetadatenCodec: csdl.New(), URLCodec: urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser())),
 			Schreiber: jsoncodec.NewSchreiber(), Eingabe: jsoncodec.NewEingabe(), Transaktion: u.db, PublicBaseURL: "http://recorder.test",
-			StrictCoverage: strikt, MaxBytes: 8388608,
+			StrictCoverage: strikt, MaxBytes: 8388608, Telemetrie: telemetrieFuerTest(),
 		})
 		abMust(t, err)
 		return m

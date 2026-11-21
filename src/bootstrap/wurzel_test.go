@@ -858,22 +858,23 @@ func TestLogNilVerwirft(t *testing.T) {
 	}
 }
 
-// TestReplayTelemetrieSchreibtNirgendhin fängt SPEC-139 Nr. 3: im Modus replay erhält die Telemetrie des
-// Replay-Dienstes io.Discard, in record wird keine gebaut. Pinnt den festen Wert; ein anderes Ziel
-// (SPEC-232) ändert Zusage und Test zugleich.
+// TestReplayTelemetrieSchreibtNirgendhin fängt SPEC-139 Nr. 3 und 13: im Modus replay erhält die Telemetrie des
+// Replay-Dienstes io.Discard, neben dem Adapter des Prozesses mit der Senke von Build; in record besteht allein der
+// Adapter des Prozesses. Pinnt den festen Wert; ein anderes Ziel (SPEC-232) ändert Zusage und Test zugleich.
 func TestReplayTelemetrieSchreibtNirgendhin(t *testing.T) {
 	for _, modus := range modi() {
 		h := neuHaken()
-		hd, err := bootstrap.BuildMit(context.Background(), basisKonfig(t.TempDir(), modus, dienstA("http://127.0.0.1:9/a")), nil, h.bauteile())
+		senke := &syncPuffer{}
+		hd, err := bootstrap.BuildMitSenke(context.Background(), basisKonfig(t.TempDir(), modus, dienstA("http://127.0.0.1:9/a")), nil, senke, h.bauteile())
 		if err != nil {
 			t.Fatal(err)
 		}
 		_ = hd.Herunterfahren(context.Background())
-		if gebaut := h.telemetrie.Clock != nil; gebaut != (modus == modusReplay) {
-			t.Errorf("%s: Telemetrie gebaut: %v", modus, gebaut)
+		if len(h.alleTel) != map[string]int{modusRecord: 1, modusReplay: 2}[modus] || h.alleTel[0].Writer != io.Writer(senke) {
+			t.Fatalf("%s: %d Adapter, erster mit Writer %v; erwartet die Senke des Prozesses zuerst", modus, len(h.alleTel), h.alleTel[0].Writer)
 		}
-		if modus == modusReplay && h.telemetrie.Writer != io.Discard {
-			t.Errorf("%s: Writer der Telemetrie %v, erwartet io.Discard", modus, h.telemetrie.Writer)
+		if modus == modusReplay && h.alleTel[1].Writer != io.Discard {
+			t.Errorf("%s: Writer der Telemetrie des Replay-Dienstes %v, erwartet io.Discard", modus, h.alleTel[1].Writer)
 		}
 	}
 }

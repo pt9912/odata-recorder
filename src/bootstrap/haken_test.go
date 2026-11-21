@@ -137,6 +137,7 @@ type haken struct {
 	wartung    maintenance.Konfig
 	waechter   support.Clock
 	telemetrie telemetry.Config
+	alleTel    []telemetry.Config
 	pipeline   capture.Konfig
 	upstream   *httpupstream.Konfig
 	recorder   *record.Konfig
@@ -259,6 +260,7 @@ func (h *haken) bauteile() bootstrap.Bauteile {
 	b.NeueTelemetrie = func(k telemetry.Config) (*telemetry.Adapter, error) {
 		h.mu.Lock()
 		h.telemetrie = k
+		h.alleTel = append(h.alleTel, k)
 		h.mu.Unlock()
 		return echt.NeueTelemetrie(k)
 	}
