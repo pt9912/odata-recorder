@@ -122,8 +122,8 @@ func TestBuildTLSVerstoss(t *testing.T) {
 	}
 }
 
-// TestBuildTLSNurEinPfad: Build mit genau einem Pfad (eine Konfiguration als Literal; die Startkonfiguration liefert sie nie) meldet den
-// fehlenden Schlüssel wie das Laden (SPEC-291 Nr. 2 Rang 1) und startet nicht ohne TLS; die Randform steht in §6 des Plans offen.
+// TestBuildTLSNurEinPfad: Build mit genau einem Pfad (nur als Literal der Konfiguration möglich) meldet den fehlenden Schlüssel wie das
+// Laden (SPEC-291 Nr. 2 Rang 1) und öffnet nichts (SPEC-291 Nr. 8).
 func TestBuildTLSNurEinPfad(t *testing.T) {
 	w := neueWerkstatt(t)
 	cert, key, _ := w.tlsPaar(w.wurzel, tlstest.Optionen{})
@@ -303,21 +303,38 @@ func TestHerunterfahrenMitTLS(t *testing.T) {
 	}
 }
 
-// TestKeinNeuladen (B20): nach Build überschriebene Dateien ändern das gelieferte Zertifikat nicht (SPEC-291 Nr. 10, 12): ein neuer Handshake
-// zeigt die Seriennummer des ersten Blatts, der Client mit der Wurzel des zweiten scheitert; ein Neustart (zweiter Build) liefert das zweite.
+// TestKeinNeuladen (B20): nach Build überschriebene Dateien ändern das gelieferte Zertifikat nicht (SPEC-291 Nr. 10, 12), weder im Fenster zwischen
+// Build und Hochfahren noch danach: ein neuer Handshake zeigt die Seriennummer des ersten Blatts, der Client mit der Wurzel des zweiten und des dritten
+// scheitert; ein Neustart (zweiter Build) liefert das dritte.
 func TestKeinNeuladen(t *testing.T) {
 	w := neueWerkstatt(t)
 	cert, key, erstes := w.tlsPaar(w.wurzel, tlstest.Optionen{})
-	zweiteWurzel := tlstest.NeueWurzel(t)
-	zweites := zweiteWurzel.Blatt(t, tlstest.Optionen{})
+	zweiteWurzel, dritteWurzel := tlstest.NeueWurzel(t), tlstest.NeueWurzel(t)
+	zweites, drittes := zweiteWurzel.Blatt(t, tlstest.Optionen{}), dritteWurzel.Blatt(t, tlstest.Optionen{})
+	ueberschreibe := func(b *tlstest.Blatt) {
+		t.Helper()
+		if err := os.WriteFile(cert, b.ZertifikatPEM(), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(key, w.schluessel(b), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	dir := filepath.Join(t.TempDir(), "d")
-	h := hochgefahren(t, tlsKonfig(modusReplay, dir, cert, key))
-	if err := os.WriteFile(cert, zweites.ZertifikatPEM(), 0o600); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(key, w.schluessel(zweites), 0o600); err != nil {
-		t.Fatal(err)
+	ctx := context.Background()
+	h, err := bootstrap.Build(ctx, tlsKonfig(modusReplay, dir, cert, key), nil)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
 	}
+	t.Cleanup(func() { _ = h.Herunterfahren(ctx) })
+	ueberschreibe(zweites)
+	if err := h.Hochfahren(ctx); err != nil {
+		t.Fatalf("Hochfahren: %v", err)
+	}
+	ueberschreibe(drittes)
 	gezeigt := func(a string, cfg *tls.Config) (*big.Int, error) {
 		c, err := tls.Dial("tcp", a, cfg)
 		if err != nil {
@@ -329,15 +346,17 @@ func TestKeinNeuladen(t *testing.T) {
 	if got, err := gezeigt(h.Adresse(), w.wurzel.Klient("localhost")); err != nil || got.Cmp(erstes.Zertifikat.SerialNumber) != 0 {
 		t.Errorf("neuer Handshake: Seriennummer %v, Fehler %v; erwartet die des ersten Blatts %v", got, err, erstes.Zertifikat.SerialNumber)
 	}
-	if _, err := gezeigt(h.Adresse(), zweiteWurzel.Klient("localhost")); err == nil {
-		t.Error("der Client mit der Wurzel des zweiten Blatts nahm das Zertifikat an")
+	for name, a := range map[string]*tlstest.Aussteller{"zweiten": zweiteWurzel, "dritten": dritteWurzel} {
+		if _, err := gezeigt(h.Adresse(), a.Klient("localhost")); err == nil {
+			t.Errorf("der Client mit der Wurzel des %s Blatts nahm das Zertifikat an", name)
+		}
 	}
 	if err := h.Herunterfahren(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	h2 := hochgefahren(t, tlsKonfig(modusReplay, dir, cert, key))
-	if got, err := gezeigt(h2.Adresse(), zweiteWurzel.Klient("localhost")); err != nil || got.Cmp(zweites.Zertifikat.SerialNumber) != 0 {
-		t.Errorf("nach dem Neustart: Seriennummer %v, Fehler %v; erwartet die des zweiten Blatts", got, err)
+	if got, err := gezeigt(h2.Adresse(), dritteWurzel.Klient("localhost")); err != nil || got.Cmp(drittes.Zertifikat.SerialNumber) != 0 {
+		t.Errorf("nach dem Neustart: Seriennummer %v, Fehler %v; erwartet die des dritten Blatts", got, err)
 	}
 }
 

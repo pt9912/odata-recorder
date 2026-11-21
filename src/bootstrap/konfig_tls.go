@@ -51,8 +51,8 @@ func (p *pruefer) pruefeListenTLS(k *Konfiguration, jetzt time.Time) {
 	}
 }
 
-// ladeListenTLS lädt das Paar von Build (SPEC-291 Nr. 8): nil ohne beide Pfade, sonst die Konfiguration der Verbindungen
-// oder ein *KonfigFehler mit einer Zeile je Verstoß, nach Schlüssel sortiert.
+// ladeListenTLS lädt das Paar von Build (SPEC-291 Nr. 8): nil ohne jeden Pfad, sonst die Konfiguration der Verbindungen
+// oder ein *KonfigFehler mit einer Zeile je Verstoß, nach Schlüssel sortiert; bei genau einem Pfad ist es der Fehler.
 func ladeListenTLS(k Konfiguration, jetzt time.Time) (*tls.Config, error) {
 	cfg, verstoesse := ladeTLS(k.listenTLSDateien(), jetzt)
 	if len(verstoesse) == 0 {

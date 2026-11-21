@@ -182,7 +182,7 @@ func Build(ctx context.Context, k Konfiguration, log *slog.Logger) (*Handle, err
 
 func ungueltig(text string) error { return errors.Join(model.ErrUngueltig, errors.New(text)) }
 
-// vorlaeufig sind die Werte, die Build vor dem Öffnen der Ablage prüft und liest; tls ist nil ohne die zwei Pfade des TLS des Listeners.
+// vorlaeufig sind die Werte, die Build vor dem Öffnen der Ablage prüft und liest; tls ist nil ohne jeden Pfad des TLS des Listeners.
 type vorlaeufig struct {
 	pfade []model.JSONPfad
 	caPEM []byte
@@ -204,15 +204,15 @@ func pruefeGrundwerte(k Konfiguration) error {
 	return nil
 }
 
-// vorbereiten lädt als ersten Schritt nach den Grundwerten das Paar des TLS des Listeners zur Zeit der Uhr des Prozesses
-// (SPEC-291 Nr. 8), in jedem Modus.
+// vorbereiten lädt als ersten Schritt das Paar des TLS des Listeners zur Zeit der Uhr des Prozesses (SPEC-291 Nr. 8), in jedem
+// Modus; danach prüft es die Grundwerte, die Pfade der Schwärzung und die Datei der CA.
 func vorbereiten(k Konfiguration, uhr support.Clock) (vorlaeufig, error) {
 	var v vorlaeufig
-	if err := pruefeGrundwerte(k); err != nil {
-		return v, err
-	}
 	var err error
 	if v.tls, err = ladeListenTLS(k, uhr.Now()); err != nil {
+		return v, err
+	}
+	if err := pruefeGrundwerte(k); err != nil {
 		return v, err
 	}
 	for _, text := range k.RedactJSONPaths {

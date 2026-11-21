@@ -34,7 +34,7 @@ func pem2(pem []byte) string { return strings.Split(string(pem), "\n")[1][:24] }
 
 // TestKonfigListenTLSWerte (B01): die Konfiguration trägt die Pfade, nie den Inhalt der Dateien (SPEC-291 Nr. 7 a, SPEC-110 Nr. 1).
 // Menge W, 6 Elemente; dazu die Klassen „Leerraum am Rand“ (2 Schlüssel × 4 Zeichen × 3 Seiten = 24) und „Zeichen außerhalb des Leerraums am
-// Rand“ (2 × 6 × 3 = 36, bleiben im Pfad und machen die Datei unlesbar).
+// Rand“ (2 × 6 × 3 = 36, bleiben im Pfad und machen die Datei unlesbar), je in den 5 Modi (120 und 180).
 func TestKonfigListenTLSWerte(t *testing.T) {
 	w := neueWerkstatt(t)
 	cert, key := w.datei(w.gut.ZertifikatPEM()), w.datei(w.schluessel(w.gut))
@@ -71,33 +71,41 @@ func TestKonfigListenTLSWerte(t *testing.T) {
 	paare := func(zeichen string, vor, nach bool) (cs, ks [2]string) {
 		return [2]string{mitRand([]string{cert}, zeichen, vor, nach)[0], key}, [2]string{cert, mitRand([]string{key}, zeichen, vor, nach)[0]}
 	}
+	// Beide Klassen laufen in jedem der fünf Modi (Menge Modi, auch bei ungültigem MODE, dessen Zeile dazukommt).
 	rand, fremd := 0, 0
-	for _, zeichen := range []string{" ", "\t", "\n", "\r"} {
-		for _, s := range seitenPaare() {
-			c, k := paare(zeichen, s.vor, s.nach)
-			for _, p := range [][2]string{c, k} {
-				rand++
-				got := erwarteGueltig(t, tlsUmgebung(t, "record", p[0], p[1])...)
-				if got.ListenTLSCert != cert || got.ListenTLSKey != key {
-					t.Errorf("Rand %q, Seiten %+v: Pfade %q und %q; erwartet die Pfade ohne Leerraum", zeichen, s, got.ListenTLSCert, got.ListenTLSKey)
+	for _, modus := range vierPlusEins() {
+		modusZeilen := []string(nil)
+		if modus == "Record" {
+			modusZeilen = []string{zeile("MODE", "Wert nicht in der Aufzählung: record, replay, mock, hybrid")}
+		}
+		for _, zeichen := range []string{" ", "\t", "\n", "\r"} {
+			for _, s := range seitenPaare() {
+				c, k := paare(zeichen, s.vor, s.nach)
+				for _, p := range [][2]string{c, k} {
+					rand++
+					got, zeilen := lade(t, tlsUmgebung(t, modus, p[0], p[1])...)
+					if !slices.Equal(zeilen, modusZeilen) || (modus != "Record" && (got.ListenTLSCert != cert || got.ListenTLSKey != key)) {
+						t.Errorf("Modus %s, Rand %q, Seiten %+v: Zeilen %q, Pfade %q und %q; erwartet die Pfade ohne Leerraum", modus, zeichen, s, zeilen, got.ListenTLSCert, got.ListenTLSKey)
+					}
+				}
+			}
+		}
+		for _, zeichen := range fremdeZeichen() {
+			for _, s := range seitenPaare() {
+				c, k := paare(zeichen, s.vor, s.nach)
+				for i, p := range [][2]string{c, k} {
+					fremd++
+					name := []string{listenCert, listenKey}[i]
+					soll := append([]string{zeile(name, gNichtLesbar)}, modusZeilen...)
+					if _, zeilen := lade(t, tlsUmgebung(t, modus, p[0], p[1])...); !slices.Equal(zeilen, soll) {
+						t.Errorf("Modus %s, Zeichen %q an %s, Seiten %+v: Zeilen %q, erwartet %q", modus, zeichen, name, s, zeilen, soll)
+					}
 				}
 			}
 		}
 	}
-	for _, zeichen := range fremdeZeichen() {
-		for _, s := range seitenPaare() {
-			c, k := paare(zeichen, s.vor, s.nach)
-			for i, p := range [][2]string{c, k} {
-				fremd++
-				name := []string{listenCert, listenKey}[i]
-				if _, zeilen := lade(t, tlsUmgebung(t, "record", p[0], p[1])...); !slices.Equal(zeilen, []string{zeile(name, gNichtLesbar)}) {
-					t.Errorf("Zeichen %q an %s, Seiten %+v: Zeilen %q, erwartet %q", zeichen, name, s, zeilen, gNichtLesbar)
-				}
-			}
-		}
-	}
-	if rand != 24 || fremd != 36 {
-		t.Errorf("Klassen haben %d und %d Elemente, erwartet 24 und 36", rand, fremd)
+	if rand != 5*24 || fremd != 5*36 {
+		t.Errorf("Klassen haben %d und %d Elemente, erwartet 120 und 180 (je 5 Modi)", rand, fremd)
 	}
 	k := erwarteGueltig(t, tlsUmgebung(t, "record", cert, key)...)
 	for _, s := range []string{fmt.Sprintf("%+v", k), fmt.Sprintf("%#v", k)} {
@@ -228,8 +236,8 @@ func TestKonfigListenTLSKombinationen(t *testing.T) {
 
 // TestKonfigListenTLSRest (B04): jeder andere gesetzte Schlüssel mit dem Anfang `LISTEN_TLS_` ist `ODR-E2001` („nicht unterstützt“); die
 // Schreibweise zählt, ein leerer Wert zählt nicht (SPEC-110 Nr. 2). Menge R: 5 abgelehnte und 3 ignorierte Namen, je in den vier Modi; dazu
-// die Klasse jedes Schlüssels aus Anfang und einem Rest von ein oder zwei Zeichen aus A bis Z, 0 bis 9 und `_` (37 + 37² = 1406) und
-// zehn Namen in der Nähe der zwei gelieferten Schlüssel.
+// die Klasse jedes Schlüssels aus Anfang und Rest (7298 Namen: jedes Byte als Rest und an jeder Stelle von Resten bis Länge 3, alle Reste bis Länge 3 aus
+// 16 Zeichen jeder Klasse, alle Reste bis Länge 2 aus `A-Z0-9_`, zehn Namen in der Nähe der zwei gelieferten Schlüssel); die Prüfgrenze steht im Plan.
 func TestKonfigListenTLSRest(t *testing.T) {
 	const anfang = "LISTEN_TLS_"
 	if got := bootstrap.ListenTLSPraefix(); got != anfang || !strings.HasPrefix(listenKey, got) {
@@ -256,16 +264,44 @@ func TestKonfigListenTLSRest(t *testing.T) {
 	for _, name := range []string{"LISTEN_TLS", "LISTEN_TLSX", "LISTEN_TL", "LISTEN_", "LISTEN_X"} {
 		erwarteGueltig(t, append(slices.Clone(env), name+"=x")...)
 	}
-	alphabet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
-	namen := []string{"CER", "CERTS", "CERT_", "KE", "KEYS", "KEY_", "CERTKEY", "_CERT", "TLS_CERT", "KEY\x00"}
-	for i := range len(alphabet) {
-		namen = append(namen, alphabet[i:i+1])
-		for j := range len(alphabet) {
-			namen = append(namen, alphabet[i:i+1]+alphabet[j:j+1])
+	// Die Klasse des Namensraums: jedes Byte außer `=` (das trennt Namen und Wert) als Rest von einem Zeichen (255), jedes dieser Bytes an jeder Stelle eines Rests
+	// der Länge 2 und 3 mit `A` an den anderen Stellen (255 × 5 = 1275), alle Reste der Länge 2 und 3 aus einem Alphabet, das jede Zeichenklasse trägt (16² + 16³ = 4352):
+	// Großbuchstabe, Kleinbuchstabe, Ziffer, `_`, `-`, `.`, Sonderzeichen, Leerzeichen, NUL, DEL und Bytes ab 0x80; dazu die 1406 Namen aus `A-Z0-9_` und die zehn Nachbarn.
+	var bytewerte []byte
+	for b := range 256 {
+		if b != '=' {
+			bytewerte = append(bytewerte, byte(b))
 		}
 	}
-	if len(namen) != 10+1406 {
-		t.Fatalf("Klasse hat %d Elemente, erwartet 1416", len(namen))
+	klassen := []byte{'A', 'a', 'Z', 'z', '0', '9', '_', '-', '.', '!', '~', ' ', 0x00, 0x7f, 0x80, 0xff}
+	namen := []string{"CER", "CERTS", "CERT_", "KE", "KEYS", "KEY_", "CERTKEY", "_CERT", "TLS_CERT", "KEY\x00"}
+	alt := "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+	for i := range len(alt) {
+		namen = append(namen, alt[i:i+1])
+		for j := range len(alt) {
+			namen = append(namen, alt[i:i+1]+alt[j:j+1])
+		}
+	}
+	for _, b := range bytewerte {
+		namen = append(namen, string([]byte{b}))
+		for _, laenge := range []int{2, 3} {
+			for stelle := range laenge {
+				rest := []byte(strings.Repeat("A", laenge))
+				rest[stelle] = b
+				namen = append(namen, string(rest))
+			}
+		}
+	}
+	for _, a := range klassen {
+		for _, b := range klassen {
+			namen = append(namen, string([]byte{a, b}))
+			for _, c := range klassen {
+				namen = append(namen, string([]byte{a, b, c}))
+			}
+		}
+	}
+	if len(namen) != 10+1406+255+255*5+16*16+16*16*16 {
+		t.Fatalf("Klasse hat %d Elemente, erwartet %d", len(namen), 10+1406+255+255*5+16*16+16*16*16)
 	}
 	for _, rest := range namen {
 		name := anfang + rest
