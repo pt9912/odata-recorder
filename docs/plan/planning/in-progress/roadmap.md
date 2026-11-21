@@ -20,6 +20,8 @@ In Arbeit: [slice-admin-abweisen-audit](slice-admin-abweisen-audit.md) ([welle-a
 
 In Arbeit: [slice-telemetry-einbau-mock](slice-telemetry-einbau-mock.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts: Query-Span, Verdrahtung, Einträge des Dienstes `workspace`).
 
+In Arbeit: [slice-listener-tls](slice-listener-tls.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts: TLS-Baustein `ladeTLS` und `tlstest`).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
