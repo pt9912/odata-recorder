@@ -20,6 +20,8 @@ In Arbeit: [slice-expand-validator](slice-expand-validator.md) ([welle-expand-ba
 
 In Arbeit: [slice-telemetry-einbau-gateway](slice-telemetry-einbau-gateway.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts: Gesamtspan `odata.gateway.request` und Zähler je Fehlercode im HTTP-Adapter, Übergabe des Adapters des Prozesses im Root).
 
+In Arbeit: [slice-admin-sessions-beenden](slice-admin-sessions-beenden.md) ([welle-admin-api](../welle-admin-api.md), Teil 2 des Schnitts: `POST /__admin/sessions/{id}/close` und `DELETE /__admin/sessions/{id}`, Audit `session_beendet`).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
