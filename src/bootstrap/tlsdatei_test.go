@@ -838,7 +838,9 @@ func TestLadeTLSZustandslos(t *testing.T) {
 }
 
 // TestLadeTLSGleichzeitig (A16): 16 Goroutinen laden dieselben Dateien, eine Hälfte ein gültiges Paar, die andere ein ungültiges; alle Ergebnisse
-// einer Hälfte sind gleich. Ein geteilter Zwischenspeicher ist ein Datenrennen, das `make test-race` je Prozess meldet.
+// einer Hälfte sind gleich. Fänger: ein Zwischenspeicher ohne Sperre meldet `make test-race` je Prozess als Datenrennen; ein Zwischenspeicher unter
+// einer Sperre liefert einer Hälfte das Ergebnis der anderen und färbt die Gleichheit rot; ein nur gelesener, geteilter Zustand ist Gegenstand von
+// `TestLadeTLSTeiltNichts`.
 func TestLadeTLSGleichzeitig(t *testing.T) {
 	w := neueWerkstatt(t)
 	n := tlsNamen{listenCert, listenKey}
@@ -907,5 +909,187 @@ func TestLadeTLSSortiert(t *testing.T) {
 	_, vs := bootstrap.LadeTLS("Z_CERT", "A_KEY", w.fehlt(), w.fehlt(), w.jetzt)
 	if want := []bootstrap.TLSVerstoss{tv("A_KEY", gNichtLesbar), tv("Z_CERT", gNichtLesbar)}; !slices.Equal(vs, want) {
 		t.Errorf("Meldung %v, erwartet %v", vs, want)
+	}
+}
+
+// TestLadeTLSSortiertJeNamenpaar: die Reihenfolge ist die Bytefolge der Namen für jedes Paar verschiedener Namen aus einer Menge, die Groß- und
+// Kleinschreibung, Ziffer, Unterstrich und Präfix mischt (Menge O, 8 Namen, 8 × 7 Paare); das Orakel ist die Ordnung von `slices.Sort`.
+func TestLadeTLSSortiertJeNamenpaar(t *testing.T) {
+	w := neueWerkstatt(t)
+	namen := []string{"0", "A", "AB", "Z", "_", "a", "ab", "z"}
+	zahl := 0
+	for _, c := range namen {
+		for _, k := range namen {
+			if c == k {
+				continue
+			}
+			zahl++
+			soll := []string{c, k}
+			slices.Sort(soll)
+			_, vs := bootstrap.LadeTLS(c, k, w.fehlt(), w.fehlt(), w.jetzt)
+			if want := []bootstrap.TLSVerstoss{tv(soll[0], gNichtLesbar), tv(soll[1], gNichtLesbar)}; !slices.Equal(vs, want) {
+				t.Errorf("Namen %q und %q: Meldung %v, erwartet %v", c, k, vs, want)
+			}
+		}
+	}
+	if zahl != len(namen)*(len(namen)-1) {
+		t.Fatalf("Menge O hat %d Paare, erwartet %d", zahl, len(namen)*(len(namen)-1))
+	}
+}
+
+// TestLadeTLSBloeckeDavor: Blöcke anderen Typs überspringt das Lesen an jeder Stelle (SPEC-291 Nr. 4): der gesuchte Block steht hinter 0 bis 10
+// fremden Blöcken, in der Zertifikatsdatei, in der Schlüsseldatei und in einer Datei für beide (Schlüssel vor Zertifikat, Zertifikat vor
+// Schlüssel, Kette vor Schlüssel), je Art des fremden Blocks (ein Schlüssel, ein Zertifikat, `EC PARAMETERS`, `X509 CRL`, ein unbekannter Typ,
+// `PUBLIC KEY`) und gemischt. Menge D: das Produkt der Achsen Dateiform × Art × Zahl, die der Test zählt; das Orakel ist „gültig“.
+func TestLadeTLSBloeckeDavor(t *testing.T) {
+	w := neueWerkstatt(t)
+	n := tlsNamen{listenCert, listenKey}
+	zw := w.wurzel.Zwischen(t, tlstest.Optionen{})
+	b := zw.Blatt(t, tlstest.Optionen{})
+	blatt, zwischen, schl := b.ZertifikatPEM(), tlstest.Block("CERTIFICATE", b.Kette[0]), b.SchluesselPEM(t, tlstest.SEC1)
+	fremd := map[string][]byte{
+		"PRIVATE KEY":   w.fremd.SchluesselPEM(t, tlstest.PKCS8),
+		"CERTIFICATE":   w.fremd.ZertifikatPEM(),
+		"EC PARAMETERS": tlstest.Block("EC PARAMETERS", []byte{0x06, 0x08, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07}),
+		"X509 CRL":      tlstest.Block("X509 CRL", []byte{1, 2, 3}),
+		"FOO BAR":       tlstest.Block("FOO BAR", []byte("unbekannt")),
+		"PUBLIC KEY":    tlstest.Block("PUBLIC KEY", []byte("oeffentlich")),
+	}
+	// Eine Dateiform bildet aus dem fremden Vorspann die Inhalte der Zertifikats- und der Schlüsseldatei; gleiche Inhalte heißen: eine Datei.
+	formen := []struct {
+		name  string
+		arten []string
+		bau   func(vor []byte) (cert, key []byte)
+	}{
+		{"Zertifikatsdatei", []string{"PRIVATE KEY", "EC PARAMETERS", "X509 CRL", "FOO BAR"}, func(v []byte) ([]byte, []byte) { return slices.Concat(v, blatt), schl }},
+		{"Schlüsseldatei", []string{"CERTIFICATE", "EC PARAMETERS", "X509 CRL", "FOO BAR"}, func(v []byte) ([]byte, []byte) { return blatt, slices.Concat(v, schl) }},
+		{"Schlüssel vor Zertifikat", []string{"EC PARAMETERS", "X509 CRL", "FOO BAR", "PUBLIC KEY"}, func(v []byte) ([]byte, []byte) {
+			d := slices.Concat(v, schl, blatt)
+			return d, d
+		}},
+		{"Zertifikat vor Schlüssel", []string{"EC PARAMETERS", "X509 CRL", "FOO BAR", "PUBLIC KEY"}, func(v []byte) ([]byte, []byte) {
+			d := slices.Concat(v, blatt, schl)
+			return d, d
+		}},
+		{"Kette vor Schlüssel", []string{"EC PARAMETERS", "X509 CRL", "FOO BAR", "PUBLIC KEY"}, func(v []byte) ([]byte, []byte) {
+			d := slices.Concat(v, blatt, zwischen, schl)
+			return d, d
+		}},
+	}
+	const hoechstens = 10
+	var faelle []tlsFall
+	soll := 0
+	for _, f := range formen {
+		soll += (len(f.arten) + 1) * (hoechstens + 1)
+		for _, art := range append(slices.Clone(f.arten), "gemischt") {
+			for zahl := 0; zahl <= hoechstens; zahl++ {
+				var vor []byte
+				for i := range zahl {
+					a := art
+					if art == "gemischt" {
+						a = f.arten[i%len(f.arten)]
+					}
+					vor = append(vor, fremd[a]...)
+				}
+				cert, key := f.bau(vor)
+				certPfad := w.datei(cert)
+				keyPfad := certPfad
+				if !bytes.Equal(cert, key) {
+					keyPfad = w.datei(key)
+				}
+				faelle = append(faelle, w.fall(n, fmt.Sprintf("%s, %s, %d davor", f.name, art, zahl), certPfad, keyPfad))
+			}
+		}
+	}
+	w.pruefe("D", soll, faelle)
+}
+
+// TestLadeTLSRechte: ladeTLS prüft die Rechte nie und ändert weder Rechte noch Inhalt noch Änderungszeit einer Datei (SPEC-291 Nr. 10, Nr. 12):
+// jedes Rechtemuster der Menge (14 Muster mit Leserecht des Eigentümers) für die Zertifikats- und für die Schlüsseldatei, bei einem gültigen Paar
+// und bei einem Zertifikat außerhalb der Gültigkeit (Menge M, 14 × 2 × 2 Elemente); das Ergebnis ist vom Muster unabhängig.
+func TestLadeTLSRechte(t *testing.T) {
+	w := neueWerkstatt(t)
+	n := tlsNamen{listenCert, listenKey}
+	modi := []os.FileMode{0o400, 0o440, 0o444, 0o600, 0o640, 0o644, 0o660, 0o664, 0o666, 0o700, 0o750, 0o755, 0o770, 0o777}
+	alt := time.Now().Add(-2 * time.Hour)
+	zahl := 0
+	for _, abgelaufen := range []bool{false, true} {
+		blatt := w.gut
+		var erwartet []bootstrap.TLSVerstoss
+		if abgelaufen {
+			blatt, erwartet = w.abgelaufen, []bootstrap.TLSVerstoss{tv(n.cert, gAusserhalb)}
+		}
+		for _, datei := range []string{"Zertifikat", "Schlüssel"} {
+			for _, modus := range modi {
+				zahl++
+				mc, mk := os.FileMode(0o600), os.FileMode(0o600)
+				if datei == "Zertifikat" {
+					mc = modus
+				} else {
+					mk = modus
+				}
+				f := w.fall(n, fmt.Sprintf("%s %v abgelaufen=%v", datei, modus, abgelaufen),
+					w.dateiModus(blatt.ZertifikatPEM(), mc), w.dateiModus(w.schluessel(blatt), mk), erwartet...)
+				for _, p := range []string{f.cert, f.key} {
+					if err := os.Chtimes(p, alt, alt); err != nil {
+						t.Fatal(err)
+					}
+				}
+				vorher := w.momentaufnahme(f.cert, f.key)
+				w.pruefe("M", 1, []tlsFall{f})
+				if nachher := w.momentaufnahme(f.cert, f.key); nachher != vorher {
+					t.Errorf("%s: Dateien geändert:\n%s\nvorher:\n%s", f.name, nachher, vorher)
+				}
+			}
+		}
+	}
+	if zahl != len(modi)*2*2 {
+		t.Fatalf("Menge M hat %d Elemente, erwartet %d", zahl, len(modi)*2*2)
+	}
+}
+
+// TestLadeTLSFelder: das gelieferte `*tls.Config` setzt allein `Certificates`, `MinVersion` und `NextProtos`; jedes andere Feld des Typs, auch ein
+// künftiges, ist der Nullwert (SPEC-291 Nr. 5, Nr. 11). Menge C: jedes Feld des Typs `tls.Config`, per Reflexion gezählt.
+func TestLadeTLSFelder(t *testing.T) {
+	w := neueWerkstatt(t)
+	cfg := w.ladeGueltig(w.gut.ZertifikatPEM(), w.schluessel(w.gut))
+	typ := reflect.TypeFor[tls.Config]()
+	werte := reflect.ValueOf(cfg).Elem()
+	zugesagt := map[string]bool{"Certificates": true, "MinVersion": true, "NextProtos": true}
+	gesehen := 0
+	for i := range typ.NumField() {
+		gesehen++
+		name := typ.Field(i).Name
+		if zugesagt[name] == werte.Field(i).IsZero() {
+			t.Errorf("Feld %s: Nullwert %v, zugesagt %v", name, werte.Field(i).IsZero(), zugesagt[name])
+		}
+	}
+	for name := range zugesagt {
+		if _, da := typ.FieldByName(name); !da {
+			t.Errorf("Feld %s gibt es nicht im Typ", name)
+		}
+	}
+	if gesehen != typ.NumField() || gesehen < len(zugesagt) {
+		t.Fatalf("Menge C hat %d Felder, der Typ %d", gesehen, typ.NumField())
+	}
+}
+
+// TestLadeTLSTeiltNichts: zwei Aufrufe teilen keine Liste und keinen Wert (SPEC-291 Nr. 12): ändert ein Aufrufer das gelieferte Config (Eintrag
+// von `NextProtos`, Paar, Bytes des Zertifikats), bleiben das Ergebnis eines früheren und eines späteren Aufrufs gleich dem ersten.
+func TestLadeTLSTeiltNichts(t *testing.T) {
+	w := neueWerkstatt(t)
+	n := tlsNamen{listenCert, listenKey}
+	f := w.fall(n, "gültig", w.datei(w.gut.ZertifikatPEM()), w.datei(w.schluessel(w.gut)))
+	frueher, _ := tlsLade(f)
+	soll := beschreibe(frueher)
+	geaendert, _ := tlsLade(f)
+	geaendert.NextProtos[0] = "veraendert"
+	geaendert.Certificates[0].Certificate[0][0] ^= 0xff
+	geaendert.Certificates[0] = tls.Certificate{}
+	spaeter, _ := tlsLade(f)
+	for name, cfg := range map[string]*tls.Config{"früherer Aufruf": frueher, "späterer Aufruf": spaeter} {
+		if got := beschreibe(cfg); got != soll {
+			t.Errorf("%s: %s, erwartet %s", name, got, soll)
+		}
 	}
 }
