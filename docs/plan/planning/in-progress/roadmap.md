@@ -18,6 +18,8 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-admin-abweisen-audit](slice-admin-abweisen-audit.md) ([welle-admin-api](../welle-admin-api.md), Linie D, Teil 6 des Admin-Rahmens).
 
+In Arbeit: [slice-telemetry-einbau-mock](slice-telemetry-einbau-mock.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts: Query-Span, Verdrahtung, Einträge des Dienstes `workspace`).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
