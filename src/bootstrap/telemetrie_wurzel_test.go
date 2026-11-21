@@ -8,6 +8,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -206,6 +207,55 @@ func TestBuildTelemetrieFehler(t *testing.T) {
 		if !errors.Is(err, errPhase) || h.p.zaehle(pAblageZu) != 1 {
 			t.Errorf("%s: Fehler %v, Ablage %d-mal geschlossen; erwartet den Fehler der Telemetrie und 1", modus, err, h.p.zaehle(pAblageZu))
 		}
+	}
+}
+
+// TestAdapterDesProzessesUhrUndStufe hält SPEC-139 Nr. 13: der Adapter des Prozesses trägt die eine Uhr des Prozesses (dieselbe Instanz
+// wie Wartung und Workspace-Dienst) und `MinLevel` `slog.LevelInfo`; der Handler lässt Stufen unter `INFO` nicht durch und `INFO`
+// und höher durch, beide Seiten der Grenze. Modus 4 × Stufe 6 = 24 Fragen an `Enabled`, dazu je Modus Uhr und `MinLevel` der Config.
+func TestAdapterDesProzessesUhrUndStufe(t *testing.T) {
+	stufen := []struct {
+		level slog.Level
+		an    bool
+	}{
+		{slog.LevelDebug, false}, {slog.LevelInfo - 1, false}, {slog.LevelInfo, true}, {slog.LevelInfo + 1, true}, {slog.LevelWarn, true},
+		{slog.LevelError, true},
+	}
+	n := 0
+	for _, modus := range []string{modusRecord, modusReplay, modusMock, modusHybrid} {
+		h := neuHaken()
+		b := h.bauteile()
+		var adapter []*telemetry.Adapter
+		tel := b.NeueTelemetrie
+		b.NeueTelemetrie = func(k telemetry.Config) (*telemetry.Adapter, error) {
+			a, err := tel(k)
+			adapter = append(adapter, a)
+			return a, err
+		}
+		hd, err := bootstrap.BuildMit(context.Background(), wurzelKonfig(modus, t.TempDir()), nil, b)
+		if err != nil {
+			t.Fatalf("%s: Build: %v", modus, err)
+		}
+		_ = hd.Herunterfahren(context.Background())
+		if len(h.alleTel) == 0 || len(adapter) == 0 || h.workspace == nil {
+			t.Fatalf("%s: kein Adapter der Telemetrie oder kein Workspace-Dienst gebaut", modus)
+		}
+		erster := h.alleTel[0]
+		if erster.Clock == nil || erster.Clock != h.workspace.Uhr || erster.Clock != h.wartung.Uhr {
+			t.Errorf("%s: der Adapter des Prozesses trägt nicht die eine Uhr des Prozesses", modus)
+		}
+		if erster.MinLevel != slog.LevelInfo {
+			t.Errorf("%s: MinLevel %v, erwartet INFO", modus, erster.MinLevel)
+		}
+		for _, s := range stufen {
+			n++
+			if got := adapter[0].Handler().Enabled(context.Background(), s.level); got != s.an {
+				t.Errorf("%s: Enabled(%v) = %v, erwartet %v", modus, s.level, got, s.an)
+			}
+		}
+	}
+	if n != 24 {
+		t.Errorf("%d Fragen, erwartet 24", n)
 	}
 }
 

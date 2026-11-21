@@ -49,6 +49,8 @@ type prot struct {
 	// Workspaces.Get); panik lässt den Aufruf der Operation mit einer Panik enden.
 	beiNr map[string]nummerFehler
 	panik map[string]bool
+	// haken ist der Haltepunkt jeder Operation, nach dem Eintrag im Protokoll; ein Test setzt ihn vor dem ersten Aufruf und liest ihn nur.
+	haken func(op string)
 }
 
 type nummerFehler struct {
@@ -77,6 +79,9 @@ func (p *prot) beginn(ctx context.Context, op string, args ...any) error {
 	}
 	panik := p.panik[op]
 	p.mu.Unlock()
+	if p.haken != nil {
+		p.haken(op)
+	}
 	if panik {
 		panic("Panik des Fakes in " + op)
 	}
@@ -293,16 +298,11 @@ type blobs struct {
 	mu      sync.Mutex
 	inhalt  map[string][]byte
 	stroeme []*strom
-	// vor ist der Haltepunkt am Eingang von Open, nach dem Eintrag im Protokoll und vor dem Lesen.
-	vor func()
 }
 
 func (b *blobs) Open(ctx context.Context, ref string) (io.ReadCloser, error) {
 	if err := b.p.beginn(ctx, "Blobs.Open", ref); err != nil {
 		return nil, err
-	}
-	if b.vor != nil {
-		b.vor()
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()

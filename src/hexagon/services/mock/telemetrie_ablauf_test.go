@@ -126,7 +126,19 @@ func rueckwege() []rueckweg {
 
 // TestSpanEndeJederRueckweg hält Q6 (SPEC-290 Nr. 3 b): genau ein End auf jedem Rückweg der Query, mit Fehler mit Code (12 Stellen) und
 // mit Kontextfehler (9 Stellen, S3 bis S11, die Stellen mit ctx); das Ergebnis bleibt der Code bzw. der Kontextfehler ohne Code.
+//
+// Der Span trägt am Ende die Werte, die an der Stelle feststehen (SPEC-290 Nr. 4 a und b; Orakel je Stelle als Literal): vor der Prüfung
+// des Sets (S3 bis S5) `_.` und `nicht_gelesen`, danach der Name des Sets aus dem Modell, und der Status, sobald die Coverage gelesen ist
+// (S7, S10, S11, S14, S16 bei Collection und Anzahl), sonst `nicht_gelesen`. Dazu das Paar „Kontextfehler und Fehler der Tabelle zugleich“
+// (`errors.Join`, SPEC-109 Nr. 6) an den 9 Stellen mit ctx: Kontextfehler ohne Code, ein End. Fälle: 12 + 9 + 9 = 30.
 func TestSpanEndeJederRueckweg(t *testing.T) {
+	// endwerte: Name des Sets und Status am Ende, je Stelle.
+	endwerte := map[string][2]string{
+		"S3": {"_.", "nicht_gelesen"}, "S4": {"_.", "nicht_gelesen"}, "S5": {"_.", "nicht_gelesen"}, "S6": {setProducts, "nicht_gelesen"},
+		"S7": {setProducts, "complete"}, "S8": {setProducts, "nicht_gelesen"}, "S9": {setProducts, "nicht_gelesen"},
+		"S10": {setProducts, "complete"}, "S11": {setProducts, "complete"}, "S14": {setProducts, "complete"},
+		"S15": {setProducts, "nicht_gelesen"}, "S16": {setProducts, "complete"},
+	}
 	stellen := rueckwege()
 	n, mitCtx := 0, 0
 	for _, s := range stellen {
@@ -139,22 +151,44 @@ func TestSpanEndeJederRueckweg(t *testing.T) {
 		_, err := u.leseGET()
 		_ = erwarteFehler(t, s.stelle+" mit Code", err, s.code)
 		erwarteEinEnde(t, s.stelle+" mit Code", u)
+		erwarteEndwerte(t, s.stelle+" mit Code", u, endwerte[s.stelle])
 		if s.op == "" {
 			continue
 		}
 		mitCtx++
-		n++
-		u = leseUmg(t)
-		s.bau(u)
-		u.p.setzeFehler(s.op, context.Canceled)
-		_, err = u.leseGET()
-		if !errors.Is(err, context.Canceled) || fehlercode(err) != 0 {
-			t.Errorf("%s mit Kontextfehler: Fehler %v, erwartet Canceled ohne Code", s.stelle, err)
+		for _, form := range []struct {
+			name string
+			err  error
+		}{{"Kontextfehler", context.Canceled}, {"Kontextfehler und Fehler der Tabelle", errors.Join(context.Canceled, outbound.ErrBeschaedigt)}} {
+			n++
+			u = leseUmg(t)
+			s.bau(u)
+			u.p.setzeFehler(s.op, form.err)
+			_, err = u.leseGET()
+			if !errors.Is(err, context.Canceled) || fehlercode(err) != 0 {
+				t.Errorf("%s mit %s: Fehler %v, erwartet Canceled ohne Code", s.stelle, form.name, err)
+			}
+			erwarteEinEnde(t, s.stelle+" mit "+form.name, u)
+			erwarteEndwerte(t, s.stelle+" mit "+form.name, u, endwerte[s.stelle])
 		}
-		erwarteEinEnde(t, s.stelle+" mit Kontextfehler", u)
 	}
-	if len(stellen) != 12 || mitCtx != 9 || n != 21 {
-		t.Errorf("%d Stellen, %d mit ctx, %d Fälle; erwartet 12, 9 und 21 (SPEC-195 Nr. 11)", len(stellen), mitCtx, n)
+	if len(stellen) != 12 || len(endwerte) != 12 || mitCtx != 9 || n != 30 {
+		t.Errorf("%d Stellen, %d Orakel, %d mit ctx, %d Fälle; erwartet 12, 12, 9 und 30 (SPEC-195 Nr. 11)", len(stellen), len(endwerte), mitCtx, n)
+	}
+}
+
+// erwarteEndwerte prüft Name des Sets und Status am Ende des einen Spans.
+func erwarteEndwerte(t *testing.T, kontext string, u *umg, soll [2]string) {
+	t.Helper()
+	b := buecher(u.tel.FakeTelemetry)
+	if len(b) != 1 {
+		return
+	}
+	if set, _ := b[0].wert(attrSet); set != soll[0] {
+		t.Errorf("%s: %s %q, erwartet %q", kontext, attrSet, set, soll[0])
+	}
+	if st, _ := b[0].wert(attrCov); st != soll[1] {
+		t.Errorf("%s: %s %q, erwartet %q", kontext, attrCov, st, soll[1])
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -201,10 +202,13 @@ func modell16() model.ServiceModel {
 
 // TestSpanGleichzeitig hält Q13 (SPEC-290 Nr. 9 a): n gleichzeitige Anfragen ergeben je Span-Name n StartSpan und n End, jeder Span
 // endet genau einmal und trägt die Attribute seiner Anfrage. 16 Goroutinen × 6 Operationen (GET und HEAD an Collection, Entity,
-// Anzahl), je Goroutine ein eigenes Set und ein eigener Workspace mit eigenem Status; eine Schranke an Blobs.Open lässt in jeder Runde
-// alle 16 Spans zugleich offen sein, bevor einer endet (Wirkungs-Fänger: das Buch je Span, kein Datenrennen nötig).
+// Anzahl) × 8 Läufe = 768 Spans, je Goroutine ein eigenes Set und ein eigener Workspace mit eigenem Status; eine Schranke an jedem Aufruf
+// eines Ports hinter dem Beginn des Spans (4 bis 5 je Anfrage) lässt alle 16 Spans zugleich offen sein, bevor einer endet, und führt die
+// Goroutinen je Stufe zusammen (Wirkungs-Fänger: das Buch je Span, kein Datenrennen nötig; auch ein Attribut aus einer geteilten Stelle
+// unter einer Sperre zeigt die Werte anderer Anfragen).
 func TestSpanGleichzeitig(t *testing.T) {
-	const goroutinen, runden = 16, 6
+	const goroutinen, laeufe = 16, 8
+	const runden = 6 * laeufe
 	u := leseUmg(t)
 	u.c.mc.modell = modell16()
 	status := model.AlleCoverageStatus()
@@ -225,11 +229,18 @@ func TestSpanGleichzeitig(t *testing.T) {
 		art := map[string]model.RessourcenArt{"c": model.RessourceMenge, "e": model.RessourceEntity, "a": model.RessourceAnzahl}[teile[2]]
 		return model.ODataURL{Ressource: model.Ressource{Art: art, EntitySet: teile[1], Schluessel: []model.SchluesselTeil{zahl("", "1")}}}, nil
 	}
+	// Die Schranke steht an jedem Aufruf eines Ports hinter dem Beginn des Spans: alle 16 Goroutinen führen dieselbe Folge von Anfragen
+	// und rufen je Anfrage dieselben Ports, so dass sie in jeder Stufe zugleich ankommen und jeder Wert, den ein Span zwischen zwei
+	// Stufen aus einer geteilten Stelle liest, die Werte aller 16 Anfragen sah.
 	schranke := neuerZyklus(goroutinen)
 	var verpasst sync.Map
-	u.bl.vor = func() {
-		if !schranke.warte(10 * time.Second) {
-			verpasst.Store("Schranke", true)
+	var gescheitert atomic.Bool
+	hinterBeginn := []string{"Blobs.Open", "MetadatenCodec.ParseMetadata", "Coverage.Get", "Entities.ListSet", "Entities.Get",
+		"Schreiber.SchreibeCollection", "Schreiber.SchreibeEntity", "Schreiber.SchreibeAnzahl"}
+	u.p.haken = func(op string) {
+		if slices.Contains(hinterBeginn, op) && !gescheitert.Load() && !schranke.warte(10*time.Second) {
+			gescheitert.Store(true)
+			verpasst.Store("Schranke nicht erreicht", true)
 		}
 	}
 	m := u.mocker()
@@ -238,14 +249,16 @@ func TestSpanGleichzeitig(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for _, methode := range []string{"GET", "HEAD"} {
-				for _, art := range []string{"c", "e", "a"} {
-					a := anfrage(methode, dienstRoot+"/S"+strconv.Itoa(i)+"/"+art)
-					a.Header[headerName] = []string{"w" + strconv.Itoa(i)}
-					if antwort, err := m.Mock(u.ctx, a); err != nil {
-						verpasst.Store(fmt.Sprintf("Goroutine %d %s %s: %v", i, methode, art, err), true)
-					} else {
-						_ = antwort.Body.Close()
+			for range laeufe {
+				for _, methode := range []string{"GET", "HEAD"} {
+					for _, art := range []string{"c", "e", "a"} {
+						a := anfrage(methode, dienstRoot+"/S"+strconv.Itoa(i)+"/"+art)
+						a.Header[headerName] = []string{"w" + strconv.Itoa(i)}
+						if antwort, err := m.Mock(u.ctx, a); err != nil {
+							verpasst.Store(fmt.Sprintf("Goroutine %d %s %s: %v", i, methode, art, err), true)
+						} else {
+							_ = antwort.Body.Close()
+						}
 					}
 				}
 			}
@@ -275,8 +288,8 @@ func TestSpanGleichzeitig(t *testing.T) {
 				t.Errorf("Set %s: Status %q", set, st)
 			}
 		}
-		if len(jeSet[set]) != runden || gelesen != 4 {
-			t.Errorf("Set %s: %d Spans, davon %d mit gelesenem Status; erwartet 6 und 4", set, len(jeSet[set]), gelesen)
+		if len(jeSet[set]) != runden || gelesen != 4*laeufe {
+			t.Errorf("Set %s: %d Spans, davon %d mit gelesenem Status; erwartet %d und %d", set, len(jeSet[set]), gelesen, runden, 4*laeufe)
 		}
 	}
 	if len(jeSet) != goroutinen || !slices.Equal(status, model.AlleCoverageStatus()) {

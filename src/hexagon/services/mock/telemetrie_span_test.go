@@ -227,6 +227,21 @@ func TestSpanEntitySet(t *testing.T) {
 	}
 }
 
+// TestSpanSetOhneTyp hält Q9 und Q12 (SPEC-290 Nr. 4 a, Nr. 6 T2): nennt das Modell das Set, steht sein Name im Span, auch wenn der Typ des
+// Sets sich nicht auflöst (`Waise` mit dem Typ `N.GibtEsNicht`, ODR-E9001): `Set(entity_set)` folgt der Prüfung des Sets, nicht der des Typs;
+// die Coverage ist dann nicht gelesen. Art 3 = 3 Fälle. Die Fälle hinter dem Namen des Sets (S6 bis S16) führt TestSpanEndeJederRueckweg.
+func TestSpanSetOhneTyp(t *testing.T) {
+	n := 0
+	for _, art := range []model.RessourcenArt{model.RessourceMenge, model.RessourceEntity, model.RessourceAnzahl} {
+		n++
+		queryFall{name: "Waise Art " + string(rune('0'+int(art))), code: model.CodeE9001, set: "Waise", status: "nicht_gelesen", sets: 1,
+			bau: func(u *umg) { u.ressource(art, "Waise", model.Optionen{}, zahl("", "1")) }}.laufe(t)
+	}
+	if n != 3 {
+		t.Errorf("%d Fälle, erwartet 3", n)
+	}
+}
+
 // TestSpanCoverage hält Q10 (SPEC-290 Nr. 4 b, 7 f): bei Collection und Anzahl ist recorder.coverage_status der gelesene Status, auch bei
 // ODR-E6003 des strikten Modus. Art 2 × Status 3 × STRICT_COVERAGE 2 = 12, dazu der Rang `ODR-E6003` vor `ODR-E6005` im strikten Modus.
 func TestSpanCoverage(t *testing.T) {
