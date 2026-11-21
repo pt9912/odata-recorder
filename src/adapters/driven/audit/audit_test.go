@@ -198,12 +198,29 @@ func leerraumZeichen() []string {
 	return out
 }
 
+// orakelAlle ist die Tabelle von SPEC-234 Nr. 2 mit der fünften Zeile `admin_abgewiesen` (nur error_code ist Pflicht,
+// SPEC-238 Nr. 8): orakelPflicht trägt die vier Arten des Use Case, die Zeile des Admin-Adapters kommt aus dem Wortlaut hinzu.
+func orakelAlle() map[support.AuditArt][5]bool {
+	m := orakelPflicht()
+	m[support.ArtAdminAbgewiesen] = [5]bool{false, false, false, false, true}
+	return m
+}
+
+// gueltigAlle bildet den Eintrag der Art mit genau ihren Pflichtfeldern; die fünfte Art trägt den Code, den der
+// Admin-Adapter schreibt (ODR-E2101).
+func gueltigAlle(art support.AuditArt) support.Eintrag {
+	if art == support.ArtAdminAbgewiesen {
+		return support.Eintrag{Art: art, ErrorCode: model.CodeE2101}
+	}
+	return gueltig(art)
+}
+
 func TestArtAusserhalbDerMenge(t *testing.T) {
 	if n := len(leerraumZeichen()); n != 26 {
 		t.Fatalf("%d Leerraumzeichen, erwartet 26", n)
 	}
 	gesamt := 0
-	for art := range orakelPflicht() {
+	for art := range orakelAlle() {
 		formen := verformungen(string(art))
 		einmalig := map[string]bool{}
 		for _, f := range formen {
@@ -213,10 +230,10 @@ func TestArtAusserhalbDerMenge(t *testing.T) {
 			t.Fatalf("Art %s: %d Formen (%d verschieden), erwartet %d", art, len(formen), len(einmalig), 57+2*len(art))
 		}
 		for _, f := range formen {
-			if _, bekannt := orakelPflicht()[support.AuditArt(f)]; bekannt {
+			if _, bekannt := orakelAlle()[support.AuditArt(f)]; bekannt {
 				t.Fatalf("Verformung %q gleicht einer Art", f)
 			}
-			mitFeldern := gueltig(art)
+			mitFeldern := gueltigAlle(art)
 			mitFeldern.Art = support.AuditArt(f)
 			ohneFelder := support.Eintrag{Art: support.AuditArt(f)}
 			for name, e := range map[string]support.Eintrag{"mit den Feldern der Art": mitFeldern, "ohne Felder": ohneFelder} {
@@ -229,24 +246,25 @@ func TestArtAusserhalbDerMenge(t *testing.T) {
 			}
 		}
 	}
-	if want := 2 * (4*57 + 2*(17+20+19+21)); gesamt != want {
+	if want := 2 * (5*57 + 2*(17+20+19+21+16)); gesamt != want {
 		t.Errorf("%d Aufrufe geprüft, erwartet %d", gesamt, want)
 	}
 }
 
-// A07: 4 Arten × 5 Felder = 20 Zellen, je Zelle ein Fall je Richtung: ein fehlendes Pflichtfeld
-// und ein gesetztes verbotenes Feld sind ErrUngueltig, die erlaubte Belegung schreibt.
+// A07 und Y5: 5 Arten × 5 Felder = 25 Zellen, je Zelle ein Fall je Richtung: ein fehlendes Pflichtfeld
+// und ein gesetztes verbotenes Feld sind ErrUngueltig, die erlaubte Belegung schreibt. Bei `admin_abgewiesen` sind
+// service_id, session_id, workspace_id und import_id verboten und error_code Pflicht.
 func TestFeldBelegung(t *testing.T) {
 	zellen := 0
-	for art, soll := range orakelPflicht() {
+	for art, soll := range orakelAlle() {
 		for i, f := range orakelFelder() {
 			zellen++
 			a := neu(t, festeZeit)
-			erlaubt := gueltig(art)
+			erlaubt := gueltigAlle(art)
 			if err := a.d.Append(erlaubt); err != nil {
 				t.Errorf("%s: erlaubte Belegung abgewiesen: %v", art, err)
 			}
-			verstoss := gueltig(art)
+			verstoss := gueltigAlle(art)
 			setze(&verstoss, f, !soll[i])
 			zuvor := a.inhalt(t)
 			if err := a.d.Append(verstoss); !errors.Is(err, model.ErrUngueltig) {
@@ -261,8 +279,61 @@ func TestFeldBelegung(t *testing.T) {
 			}
 		}
 	}
-	if zellen != 20 {
-		t.Errorf("%d Zellen, erwartet 20", zellen)
+	if zellen != 25 {
+		t.Errorf("%d Zellen, erwartet 25", zellen)
+	}
+}
+
+// Y5: die Zeile von `admin_abgewiesen` ist Byte für Byte die des Vertrags (SPEC-238 Nr. 8, SPEC-235 Nr. 3): timestamp,
+// correlation_id, art, error_code, nichts sonst; die Korrelations-ID des Admin-Adapters gilt unverändert, ohne sie vergibt
+// der Generator eine; jeder gültige Code der Tabelle ist schreibbar, jeder Wert außerhalb ein Verstoß ohne Zeile.
+func TestZeileAdminAbgewiesen(t *testing.T) {
+	zeit := `{"timestamp":"2026-11-06T10:00:00.000000000Z","correlation_id":"`
+	a := neu(t, festeZeit)
+	mit := support.Eintrag{Art: support.ArtAdminAbgewiesen, ErrorCode: model.CodeE2101, KorrelationsID: "cor-admin-1"}
+	ohne := support.Eintrag{Art: support.ArtAdminAbgewiesen, ErrorCode: model.CodeE2101}
+	for _, e := range []support.Eintrag{mit, ohne} {
+		if err := a.d.Append(e); err != nil {
+			t.Fatalf("Append %+v: %v", e, err)
+		}
+	}
+	soll := zeit + `cor-admin-1","art":"admin_abgewiesen","error_code":"ODR-E2101"}` + "\n" +
+		zeit + corID(1) + `","art":"admin_abgewiesen","error_code":"ODR-E2101"}` + "\n"
+	if got := a.inhalt(t); got != soll {
+		t.Errorf("Datei:\n%q\nerwartet:\n%q", got, soll)
+	}
+	if a.ids.Korrelation() != 1 || a.ids.Gesamt() != 1 {
+		t.Errorf("Generator: %d Aufrufe von KorrelationsID, %d insgesamt, erwartet 1 und 1", a.ids.Korrelation(), a.ids.Gesamt())
+	}
+	b := neu(t, festeZeit)
+	gueltigeWerte := map[model.Code]bool{}
+	for _, text := range codeTexte() {
+		c, ok := model.ParseCode(text)
+		if !ok {
+			t.Fatalf("Orakel nennt einen Code, den das Modell nicht kennt: %q", text)
+		}
+		gueltigeWerte[c] = true
+	}
+	gueltigeCodes, verworfen := 0, 0
+	for v := -5; v <= 60; v++ {
+		e := support.Eintrag{Art: support.ArtAdminAbgewiesen, ErrorCode: model.Code(v)}
+		err := b.d.Append(e)
+		switch {
+		case gueltigeWerte[model.Code(v)] && err != nil:
+			t.Errorf("Code %d abgewiesen: %v", v, err)
+		case gueltigeWerte[model.Code(v)]:
+			gueltigeCodes++
+		case !errors.Is(err, model.ErrUngueltig):
+			t.Errorf("Wert %d: %v, erwartet ErrUngueltig", v, err)
+		default:
+			verworfen++
+		}
+	}
+	if n := len(codeTexte()); gueltigeCodes != n || verworfen != 66-n {
+		t.Errorf("%d gültige und %d verworfene Werte, erwartet %d und %d", gueltigeCodes, verworfen, n, 66-n)
+	}
+	if n := strings.Count(b.inhalt(t), "\n"); n != gueltigeCodes {
+		t.Errorf("%d Zeilen in der Datei, erwartet %d", n, gueltigeCodes)
 	}
 }
 

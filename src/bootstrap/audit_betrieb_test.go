@@ -777,8 +777,9 @@ func TestAuditSchreibfehlerAendertNichts(t *testing.T) {
 }
 
 // TestAuditAufrufstellen fängt V07: die Aufrufstellen von Audit.Append im Code der Dienste sind die vier Zeilen
-// V01a bis V01d (per Syntaxbaum gegen das Literal W), die Arten sind vier, und die Zellen (Modus, Art) der Fälle sind
-// Modus × Arten ohne (replay, session_geloescht) und (replay, import_fehlgeschlagen).
+// V01a bis V01d (per Syntaxbaum gegen das Literal W), die Arten sind fünf, und die Zellen (Modus, Art) der Fälle sind
+// Modus × Arten ohne `admin_abgewiesen` (kein Use Case, kein Aufruf von `admin` im Binary) und ohne (replay,
+// session_geloescht) und (replay, import_fehlgeschlagen).
 func TestAuditAufrufstellen(t *testing.T) {
 	soll := []string{
 		"baselineimport/importer.go ArtImportFehlgeschlagen",
@@ -834,8 +835,8 @@ func TestAuditAufrufstellen(t *testing.T) {
 	if len(sonst) != 0 {
 		t.Errorf("Verwendungen des Feldes Audit, die kein Aufruf von Append und kein Vergleich mit nil sind: %v", sonst)
 	}
-	if n := len(support.Arten()); n != 4 {
-		t.Errorf("%d Arten, erwartet 4", n)
+	if n := len(support.Arten()); n != 5 {
+		t.Errorf("%d Arten, erwartet 5", n)
 	}
 	var zellen, erwartet []string
 	for _, f := range auditFaelle() {
@@ -843,6 +844,11 @@ func TestAuditAufrufstellen(t *testing.T) {
 	}
 	for _, modus := range modi() {
 		for _, s := range support.Arten() {
+			// Die fünfte Art schreibt der Admin-Adapter beim Abweisen (SPEC-238 Nr. 8); kein Use Case schreibt sie, und das
+			// Binary ruft `admin` nicht auf: die Zelle `admin_abgewiesen` kommt mit der Verdrahtung des Listeners.
+			if s.Art == support.ArtAdminAbgewiesen {
+				continue
+			}
 			if modus == modusReplay && (s.Art == support.ArtSessionGeloescht || s.Art == support.ArtImportFehlgeschlagen) {
 				continue
 			}

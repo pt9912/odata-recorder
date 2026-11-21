@@ -227,6 +227,6 @@ func (s *Server) verlasse() {
 }
 
 // abweise schreibt die Antwort eines angehaltenen Servers: 503 ODR-E5010 mit Connection: close (SPEC-238 Nr. 3 b, 5).
-func (s *Server) abweise(w http.ResponseWriter) {
-	s.schreibeFehler(w, model.CodeE5010, http.StatusServiceUnavailable, "")
+func (s *Server) abweise(w http.ResponseWriter, id string) {
+	s.schreibeFehler(w, id, model.CodeE5010, http.StatusServiceUnavailable, "")
 }
