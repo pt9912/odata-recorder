@@ -18,7 +18,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
 
-**Autor:** pt9912 (Planner; Schnitt vor dem Code aus [slice-listener-tls](../in-progress/slice-listener-tls.md), Vorschlag des Architect vom 2026-11-21). **Datum:** 2026-11-21.
+**Autor:** pt9912 (Planner; Schnitt vor dem Code aus [slice-listener-tls](../done/slice-listener-tls.md), Vorschlag des Architect vom 2026-11-21). **Datum:** 2026-11-21.
 
 ---
 
@@ -31,11 +31,11 @@ des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
 Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
-**Ziel:** Der OData-Listener spricht HTTPS, wenn `LISTEN_TLS_CERT` und `LISTEN_TLS_KEY` beide gesetzt sind, und HTTP, wenn keiner gesetzt ist; ein Start mit genau einem der beiden Schlüssel oder mit unlesbarem, unpassendem oder abgelaufenem Zertifikat scheitert mit `ODR-E2001` vor dem Öffnen des Listeners; die Startkonfiguration nimmt `LISTEN_TLS_*` an (der Nachzug von `SPEC-110` Nr. 2 durch den Architect). Der Slice verdrahtet den Baustein `ladeTLS` aus [slice-listener-tls](../in-progress/slice-listener-tls.md) (Teil 1, `src/bootstrap/tlsdatei.go`), den er nicht ändert: `Build` lädt das Paar vor dem Öffnen der Ablage, `Hochfahren` umhüllt den Listener. Der HTTPS-Test am Listener zeigt: gültiges Zertifikat wird bedient, ein Client mit unbekannter CA lehnt ab (`LH-RB-02.a`).
+**Ziel:** Der OData-Listener spricht HTTPS, wenn `LISTEN_TLS_CERT` und `LISTEN_TLS_KEY` beide gesetzt sind, und HTTP, wenn keiner gesetzt ist; ein Start mit genau einem der beiden Schlüssel oder mit unlesbarem, unpassendem oder abgelaufenem Zertifikat scheitert mit `ODR-E2001` vor dem Öffnen des Listeners; die Startkonfiguration nimmt `LISTEN_TLS_*` an (der Nachzug von `SPEC-110` Nr. 2 durch den Architect). Der Slice verdrahtet den Baustein `ladeTLS` aus [slice-listener-tls](../done/slice-listener-tls.md) (Teil 1, `src/bootstrap/tlsdatei.go`), den er nicht ändert: `Build` lädt das Paar vor dem Öffnen der Ablage, `Hochfahren` umhüllt den Listener. Der HTTPS-Test am Listener zeigt: gültiges Zertifikat wird bedient, ein Client mit unbekannter CA lehnt ab (`LH-RB-02.a`).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Der Baustein `ladeTLS` (Laden, Prüfen, `*tls.Config`, ALPN, Mindestversion) und das Test-Hilfspaket `tlstest` — [slice-listener-tls](../in-progress/slice-listener-tls.md) (Teil 1, liegt bei diesem Start in `done/`); dieser Teil ruft ihn und ändert ihn nicht.
+- Der Baustein `ladeTLS` (Laden, Prüfen, `*tls.Config`, ALPN, Mindestversion) und das Test-Hilfspaket `tlstest` — [slice-listener-tls](../done/slice-listener-tls.md) (Teil 1, liegt bei diesem Start in `done/`); dieser Teil ruft ihn und ändert ihn nicht.
 - TLS des Admin-Listeners, `ADMIN_TLS_*`, `ADMIN_ALLOW_PLAINTEXT` und die Start-Prüfung bei nicht-loopback `ADMIN_LISTEN` — `welle-admin-api` (`slice-admin-tls`); der Nehmer ruft den Baustein aus Teil 1 und braucht diesen Teil nicht (Bedingung dort: `slice-listener-tls`).
 - TLS zum Upstream (`UPSTREAM_TLS_VERIFY`, `UPSTREAM_CA_FILE`) — Bestand, `slice-upstream-tls` in `done/`; Gegenstand ist die Clientseite, hier die Serverseite.
 - Neuladen von Zertifikat oder Schlüssel im Betrieb, Client-Zertifikate (mTLS), Zertifikatsverwaltung — kein Anker im Lastenheft (`LH-RB-02` verlangt HTTPS und Zertifikatsprüfung, nicht Betriebsverfahren); der Start liest die Dateien einmal (`SPEC-291` Nr. 10).
@@ -93,7 +93,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer. Beide liegen vor (Architect, 2026-11-21).
 
-**Entscheidungen des Architect für diesen Teil** (2026-11-21, Ort in der Spezifikation; die übrigen Aufträge 1, 2 und 6 — Ort und Schnitt des Bausteins, Prüfung beim Start, Fixtures — stehen in §3 von [slice-listener-tls](../in-progress/slice-listener-tls.md)):
+**Entscheidungen des Architect für diesen Teil** (2026-11-21, Ort in der Spezifikation; die übrigen Aufträge 1, 2 und 6 — Ort und Schnitt des Bausteins, Prüfung beim Start, Fixtures — stehen in §3 von [slice-listener-tls](../done/slice-listener-tls.md)):
 
 - **Nachzug `SPEC-110`** — *entschieden*, `SPEC-110` Nr. 2, 7, 11, 13, 14 c und e: `LISTEN_TLS_CERT` und `LISTEN_TLS_KEY` sind geliefert, jeder andere `LISTEN_TLS_*` bleibt `ODR-E2001`; Reihenfolge: reine Prüfungen, dann die Dateien (vor `DATA_DIR`); `PUBLIC_BASE_URL` abgeleitet trägt `https`, wenn beide Schlüssel gesetzt sind, eine gesetzte wird nicht abgeglichen (`SPEC-291` Nr. 7 d); Grenze der Länge 2025 Bytes bei TLS.
 - **Protokolle** — *entschieden*, `SPEC-291` Nr. 5 und 6: ALPN nennt allein `http/1.1`; HTTP/2 wird nicht angeboten, weil die Zusagen von `SPEC-136` Nr. 4 h, 9, 13 und 14 an HTTP/1.1 gemessen sind; ein Client, der allein `h2` anbietet, scheitert im Handshake (Folge im Betrieb dort). Der Baustein liefert das (Teil 1, A11, A12), dieser Teil belegt es am Listener (B11).
@@ -107,7 +107,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Architect, 2026-11-21, Zeilen `B01` bis `B22` des ungeschnittenen Plans, vom Planner beim Schnitt unverändert übernommen; der Implementer trägt die Mutationen und Raten mit Zahl der Prozesse und Messendem in einen Absatz darunter ein, `AGENTS.md` §3.10):
 
-Die Nummern tragen den Teil des Schnitts: `A` ist der Baustein ([slice-listener-tls](../in-progress/slice-listener-tls.md), Teil 1), `B` Konfiguration und Verdrahtung (dieser Teil). *Mengen* sind benannt (Zählprüfung unter der Tabelle); jeder Fänger einer Menge ist eine Schleife über alle ihre Elemente mit einem Orakel, das den Code des Bausteins nicht benutzt (`AGENTS.md` §3.15, §3.17). Der Fänger ist ein Test, ein Fall der Gegenprobe oder eine Ausgabe des Gates. Klassen: `nebenläufig` heißt, der Fänger zählt eine Wirkung über Prozesse oder Goroutinen; alles andere ist `andere`.
+Die Nummern tragen den Teil des Schnitts: `A` ist der Baustein ([slice-listener-tls](../done/slice-listener-tls.md), Teil 1), `B` Konfiguration und Verdrahtung (dieser Teil). *Mengen* sind benannt (Zählprüfung unter der Tabelle); jeder Fänger einer Menge ist eine Schleife über alle ihre Elemente mit einem Orakel, das den Code des Bausteins nicht benutzt (`AGENTS.md` §3.15, §3.17). Der Fänger ist ein Test, ein Fall der Gegenprobe oder eine Ausgabe des Gates. Klassen: `nebenläufig` heißt, der Fänger zählt eine Wirkung über Prozesse oder Goroutinen; alles andere ist `andere`.
 
 | Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|
@@ -155,7 +155,7 @@ Zeilen dieses Teils: 22 (B01 bis B22): *a* = 1 (B15), *b* = 21. Die Zeilen A01 b
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): [slice-listener-tls](../in-progress/slice-listener-tls.md) (Teil 1, der Baustein) liegt in `done/`, dazu `slice-http-adapter`, `slice-bootstrap-m2` und `slice-handbuch-meldungskatalog`; `slice-telemetry-einbau-mock` liegt in `done/` (Reihenfolge, siehe unten). Die Spezifikation trägt den Vertrag samt Randformen und den Nachzug von `SPEC-110`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12): `SPEC-291` und der Nachzug liegen vor (Architect, 2026-11-21).
+**Start** (`next` → `in-progress`): [slice-listener-tls](../done/slice-listener-tls.md) (Teil 1, der Baustein) liegt in `done/`, dazu `slice-http-adapter`, `slice-bootstrap-m2` und `slice-handbuch-meldungskatalog`; `slice-telemetry-einbau-mock` liegt in `done/` (Reihenfolge, siehe unten). Die Spezifikation trägt den Vertrag samt Randformen und den Nachzug von `SPEC-110`, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12): `SPEC-291` und der Nachzug liegen vor (Architect, 2026-11-21).
 
 **Abhängigkeiten — Grund je Eintrag:**
 
@@ -205,7 +205,7 @@ dasteht.
 - Gleiche Dateien in `src/bootstrap/` wie `slice-telemetry-einbau-mock` (`wurzel.go`) — **Ausgang:** entschieden (Planner, 2026-11-21): dieser Teil startet nach `slice-telemetry-einbau-mock` (§4, *Reihenfolge und Konflikte*).
 - Der Schlüssel `LISTEN_TLS_*` wird erst mit diesem Teil angenommen: bis dahin liefert Teil 1 den Baustein und nichts am Binary (`ladeTLS` ruft nur der Test) — **Ausgang:** entschieden (Architect, 2026-11-21): ein Schnitt „Konfiguration ohne Verdrahtung“ scheidet aus, der Start nähme `LISTEN_TLS_*` an und der Listener bliebe bei HTTP, eine Sicherheitseinstellung ohne Wirkung (`SPEC-110` Nr. 2); der Schnitt liegt vor der Annahme der Schlüssel.
 - Handbuch: die Schlüssel kommen in den Katalog, ein Kapitel TLS mit gebundenem Beispiel (Zeile `B22`) ist der Handbuch-Punkt dieses Teils (Teil 1 ändert das Binary nicht) — **Ausgang:** entschieden (Planner, 2026-11-21): der Handbuch-Punkt der DoD gehört diesem Teil; `slice-handbuch-mock` und die Kette von `welle-benutzerhandbuch` ändern das Handbuch in anderen Abschnitten, kein Konflikt vorgesehen; der Planner prüft beim Start den Stand von `docs/user/benutzerhandbuch.md`.
-- Mutationslauf an `src/bootstrap` (Hinweis aus [slice-listener-tls](../in-progress/slice-listener-tls.md) §6 und §7, Planner, 2026-11-21): die Nullprobe von `tools/mutationslauf` fährt das ganze Paket ohne Mutation mit fester Frist von 2 Minuten (`SPEC-210` Nr. 5 a und c), das Paket braucht unter Last 120 bis 250 Sekunden, die Liste endet mit `Ausgangsstand rot: src/bootstrap`; dieser Teil ändert Code und Tests in `src/bootstrap/` und trifft dasselbe — **Ausgang:** weiter offen → `BEO-REPO/nullprobe-grenze-unter-der-paketlaufzeit` im Register (achter Vorgang mit `slice-listener-tls`); Adresse Planner mit dem Architect, Entscheidung beim User, ein neuer Slice entsteht nicht. Bis dahin fahren die Rollen ihre Mutationen mit einer Kopie des Werkzeugs, die allein `testZeit` auf 10 Minuten setzt, oder mit eigenem Treiber im Scratchpad; Raten stehen mit Last und Messendem (`AGENTS.md` §3.10).
+- Mutationslauf an `src/bootstrap` (Hinweis aus [slice-listener-tls](../done/slice-listener-tls.md) §6 und §7, Planner, 2026-11-21): die Nullprobe von `tools/mutationslauf` fährt das ganze Paket ohne Mutation mit fester Frist von 2 Minuten (`SPEC-210` Nr. 5 a und c), das Paket braucht unter Last 120 bis 250 Sekunden, die Liste endet mit `Ausgangsstand rot: src/bootstrap`; dieser Teil ändert Code und Tests in `src/bootstrap/` und trifft dasselbe — **Ausgang:** weiter offen → `BEO-REPO/nullprobe-grenze-unter-der-paketlaufzeit` im Register (achter Vorgang mit `slice-listener-tls`); Adresse Planner mit dem Architect, Entscheidung beim User, ein neuer Slice entsteht nicht. Bis dahin fahren die Rollen ihre Mutationen mit einer Kopie des Werkzeugs, die allein `testZeit` auf 10 Minuten setzt, oder mit eigenem Treiber im Scratchpad; Raten stehen mit Last und Messendem (`AGENTS.md` §3.10).
 
 **Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; Zeilen *Startkonfiguration*, *Listener* und *Handshake* des ungeschnittenen Plans, vom Planner beim Schnitt unverändert übernommen; jede Zelle nennt ihren Ort in der Spezifikation oder `gilt nicht` mit Grund; die Zeilen *Zertifikat und Schlüssel laden* und *Zweite Verwendung des Bausteins* stehen in Teil 1):
 
@@ -258,7 +258,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register am Tag des Schnitts gesichtet (2026-11-21, Zähler wie im Plan von [slice-listener-tls](../in-progress/slice-listener-tls.md) §8; der Planner zieht Treffer und Zähler beim Start nach). Der Teil liest die Konfiguration des Betreibers und fährt Listener und Handshake: `BEO-REPO/randform-erst-im-review-entschieden` (20×, verkörpert in `AGENTS.md` §3.16) für das Raster; offen: `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) für Testhilfen, die Verbindungen und Ströme umhüllen (B13 bis B18), `BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last` (2×) für die Rate von B15 und `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×); keiner erreicht mit diesem Slice 3×.
+**Vorgelagert — offene Beobachtungen sichten:** Register am Tag des Schnitts gesichtet (2026-11-21, Zähler wie im Plan von [slice-listener-tls](../done/slice-listener-tls.md) §8; der Planner zieht Treffer und Zähler beim Start nach). Der Teil liest die Konfiguration des Betreibers und fährt Listener und Handshake: `BEO-REPO/randform-erst-im-review-entschieden` (20×, verkörpert in `AGENTS.md` §3.16) für das Raster; offen: `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) für Testhilfen, die Verbindungen und Ströme umhüllen (B13 bis B18), `BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last` (2×) für die Rate von B15 und `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×); keiner erreicht mit diesem Slice 3×.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der
