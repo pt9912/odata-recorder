@@ -1,4 +1,0 @@
-{"mutationen": [
-{"name":"R8-hybrid-mock-strict-fest-wahr","datei":"src/bootstrap/wurzel.go","alt":"StrictCoverage: k.StrictCoverage,","neu":"StrictCoverage: k.StrictCoverage || k.Modus == modusHybrid,","test":"^TestM4$/^Strikte_Abdeckung$","klasse":"andere"},
-{"name":"R8b-hybrid-mock-strict-fest-falsch","datei":"src/bootstrap/wurzel.go","alt":"StrictCoverage: k.StrictCoverage,","neu":"StrictCoverage: k.StrictCoverage && k.Modus != modusHybrid,","test":"^TestM4$/^Strikte_Abdeckung$","klasse":"andere"}
-]}

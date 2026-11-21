@@ -1,4 +1,0 @@
-{"mutationen": [
-{"name":"M01-hybrid-bindet-mock","datei":"src/bootstrap/wurzel.go","alt":"h.verarbeiten = hy.Hybrid","neu":"_ = hy\n\th.verarbeiten = m.Mock","test":"^(TestM4WahlJeModus|TestM4Lebenszyklus|TestM4WerteDerPolicy|TestM4KonfigDesHybrid)$","klasse":"andere"},
-{"name":"M01-hybrid-bindet-replay","datei":"src/bootstrap/wurzel.go","alt":"h.verarbeiten = hy.Hybrid","neu":"_ = hy\n\th.verarbeiten = rep.Replay","test":"^(TestM4WahlJeModus|TestM4WerteDerPolicy)$","klasse":"andere"}
-]}
