@@ -1,0 +1,2 @@
+**Vorgang:** slice-listener-tls
+**Fund:** Dritter Vorgang. Der Lauf von `make gates` des Verifiers (Stand `3e7ce69b`, 56 s) bezog die Stufen `test`, `build`, `lint` und `race` bei gleicher Eingabe aus dem Docker-Schichten-Cache; der Verifier fuhr `race` frisch nach (316 s, Last 12,8 bis 19,6 von 4 CPUs, `pruefung race: ok`) und die Nullblöcke mit Abdeckungsprofil (0 von 80). Beleg: `docs/reviews/2026-11-21-slice-listener-tls-verifikation.md` (Sensor-Belege, *Nicht geprüft*).
