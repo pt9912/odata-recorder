@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"time"
@@ -118,6 +119,9 @@ func (h *Handle) starteListener(ctx context.Context) error {
 			return err
 		}
 		return konfigFehler("LISTEN", "Adresse nicht bindbar")
+	}
+	if h.tls != nil {
+		l = tls.NewListener(l, h.tls)
 	}
 	srv, err := h.b.NeuerServer(httpodata.Konfig{Verarbeiten: h.verarbeiten, IDs: h.ids, Listener: l})
 	if err != nil {

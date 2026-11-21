@@ -13,9 +13,13 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// nichtGelieferte sind die Präfixe der Schlüssel, die diese Version nicht liefert (SPEC-110 Nr. 2).
+// grundNichtUnterstuetzt ist der Grund eines gesetzten Schlüssels, den diese Version nicht liefert (SPEC-110 Nr. 2).
+const grundNichtUnterstuetzt = "wird von dieser Version nicht unterstützt"
+
+// nichtGelieferte sind die Präfixe der Schlüssel, die diese Version nicht liefert (SPEC-110 Nr. 2); die Schlüssel `LISTEN_TLS_*`
+// außer den zwei gelieferten lehnt liesListenTLS ab.
 func nichtGelieferte() []string {
-	return []string{"ADMIN_", "LISTEN_TLS_"}
+	return []string{"ADMIN_"}
 }
 
 func (p *pruefer) nichtGeliefert() {
@@ -24,7 +28,7 @@ func (p *pruefer) nichtGeliefert() {
 			continue
 		}
 		if slices.ContainsFunc(nichtGelieferte(), func(pre string) bool { return strings.HasPrefix(k, pre) }) {
-			p.melde(k, "wird von dieser Version nicht unterstützt")
+			p.melde(k, grundNichtUnterstuetzt)
 		}
 	}
 }
