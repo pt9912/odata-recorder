@@ -18,7 +18,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
 
-**Autor:** pt9912 (Planner; Schnitt vor dem Code aus [slice-telemetry-einbau-mock](../in-progress/slice-telemetry-einbau-mock.md), Vorschlag des Architect vom 2026-11-21). **Datum:** 2026-11-21.
+**Autor:** pt9912 (Planner; Schnitt vor dem Code aus [slice-telemetry-einbau-mock](../done/slice-telemetry-einbau-mock.md), Vorschlag des Architect vom 2026-11-21). **Datum:** 2026-11-21.
 
 ---
 
@@ -33,7 +33,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** `MockUseCase` setzt den Span `odata.workspace.mutation` (`SPEC-030`, `SPEC-290`, Attribute `recorder.workspace_id`, `recorder.mutation_type`) um jede der vier Mutationen `POST`, `PATCH`, `PUT` und `DELETE` des Mock-Dienstes, samt Transaktion (`WithWorkspaceTransaction`; der Span liegt im Dienst um die Transaktion, nie in `f`, `SPEC-290` Nr. 3); eine abgewiesene Mutation (Constraint, Coverage, Abbruch) trägt den Span mit ihrem Ergebnis; der Dienst zählt keinen Fehler, den Zähler je Fehlercode führt der Adapter, der das Fehlerobjekt schreibt (`SPEC-290` Nr. 5). Kein Body, kein Name oder Wert einer Property und kein Key-Wert wird Attribut. Der Slice setzt den Teil 1 voraus: das Feld `Telemetrie` der `Konfig` des Mock-Dienstes, die nil-Prüfung, den Journal-Fake der Telemetrie und die Verdrahtung des Adapters des Prozesses in den Modi `mock` und `hybrid`; er ändert die Verdrahtung nicht.
 
-**Übernimmt (Sendung von `slice-telemetry-port`, Teil Mutation; Geber: `slice-telemetry-port`; Schnitt des Planners vom 2026-11-21):** der Einbau in die Pfade Workspace-Mutation. Der Einbau in den Pfad `mock` (Query) liegt in [slice-telemetry-einbau-mock](../in-progress/slice-telemetry-einbau-mock.md).
+**Übernimmt (Sendung von `slice-telemetry-port`, Teil Mutation; Geber: `slice-telemetry-port`; Schnitt des Planners vom 2026-11-21):** der Einbau in die Pfade Workspace-Mutation. Der Einbau in den Pfad `mock` (Query) liegt in [slice-telemetry-einbau-mock](../done/slice-telemetry-einbau-mock.md).
 
 **Übernimmt (Sendung von `slice-telemetry-log`, akzeptiertes Negativ L15, Teil Mutation; Geber: `slice-telemetry-log`; Eintrag des Planners vom 2026-11-07, geteilt am 2026-11-21):** der Fänger je Stelle der Mutation: ein wohlgeformter Wert in einem zulässigen Schlüssel geht durch die Form des Adapters (`SPEC-232` Nr. 2, *Ungeprüft*), der Schutz ist ein Test je Stelle des Mutations-Pfads (`POST`, `PATCH`, `PUT`, `DELETE`), dass kein Wert aus dem Request (Name und Wert einer Property im Body, `Content-Type`, `Prefer`, `If-Match`, `If-None-Match`, dazu Set, Schlüssel, Header `X-Recorder-Workspace`, `Accept`) in einem Attribut oder in `msg` einer Zeile landet, außer nach Prüfung gegen das Modell. Der Fänger der Stellen der Query liegt in Teil 1.
 
@@ -43,7 +43,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Feld `Telemetrie` der `Konfig`, nil-Prüfung, Query-Span `odata.mock.query`, Verdrahtung im Composition Root und Einträge des Dienstes `workspace` — [slice-telemetry-einbau-mock](../in-progress/slice-telemetry-einbau-mock.md) (Teil 1, liegt bei diesem Start in `done/`); dieser Teil baut darauf auf und ändert sie nicht.
+- Feld `Telemetrie` der `Konfig`, nil-Prüfung, Query-Span `odata.mock.query`, Verdrahtung im Composition Root und Einträge des Dienstes `workspace` — [slice-telemetry-einbau-mock](../done/slice-telemetry-einbau-mock.md) (Teil 1, liegt bei diesem Start in `done/`); dieser Teil baut darauf auf und ändert sie nicht.
 - Port und Adapter `Telemetry` — `slice-telemetry-port`.
 - Zeile, Stufen, Senke, `Handler`, Spans, Verteilung, Ring und Span-Zeile im Adapter — `slice-telemetry-log`, `slice-telemetry-handler` und `slice-telemetry-spans`; alle drei liegen beim Start in `done/`, dieser Slice ändert sie nicht.
 - Der Eintrag `audit_fehlgeschlagen` und die Abbildung des Adapters `audit` (`SPEC-231` Nr. 4 und 7, Sendung von `slice-audit-log`) — `slice-telemetry-einbau-gateway`; die Löschung eines Workspace ist kein Mutations-Span.
@@ -99,7 +99,7 @@ Aussagen-Berührung steht hier gar nicht.
 | `spec/spezifikation.md` | geliefert (Architect) | `SPEC-290` und Nachzüge; dieser Teil schreibt sie nicht |
 | Tests | update, neu | Fakes der Ports und der Journal-Fake der Telemetrie aus Teil 1; der Test durch die Mutation, der Test durch den Composition Root mit dem echten Adapter |
 
-Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stehen seit dem 2026-11-21 (Architect) mit dem Vertrag in der Spezifikation (`SPEC-290`) vor dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen sind entschieden, der Implementer entscheidet keine im Code. Die Entscheidungen des Architect (Aufträge 1 bis 7, je mit Ort in `spec/spezifikation.md`) stehen in §3 von [slice-telemetry-einbau-mock](../in-progress/slice-telemetry-einbau-mock.md); für diesen Teil gelten Nr. 1 (Mutation und ihre Art), Nr. 2 (Grenzen der Spans), Nr. 3 (Attribute `workspace_id`, `mutation_type`), Nr. 4 (Fehlerzähler) und Nr. 5 (Aufrufstellen T5 und T6, Rückwege der Mutation).
+Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stehen seit dem 2026-11-21 (Architect) mit dem Vertrag in der Spezifikation (`SPEC-290`) vor dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen sind entschieden, der Implementer entscheidet keine im Code. Die Entscheidungen des Architect (Aufträge 1 bis 7, je mit Ort in `spec/spezifikation.md`) stehen in §3 von [slice-telemetry-einbau-mock](../done/slice-telemetry-einbau-mock.md); für diesen Teil gelten Nr. 1 (Mutation und ihre Art), Nr. 2 (Grenzen der Spans), Nr. 3 (Attribute `workspace_id`, `mutation_type`), Nr. 4 (Fehlerzähler) und Nr. 5 (Aufrufstellen T5 und T6, Rückwege der Mutation).
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Architect, 2026-11-21, Zeilen M1 bis M10 des ungeschnittenen Plans, vom Planner beim Schnitt unverändert übernommen; der Implementer trägt die Mutationen und Raten mit Zahl der Prozesse und Messendem in einen Absatz darunter ein, `AGENTS.md` §3.10). `Nr.` ist die Kennung des ungeschnittenen Plans; die Tabelle trägt die Spalten, die `SPEC-128` Nr. 3 a liest.
 
@@ -159,7 +159,7 @@ Zeilen gesamt 10: *a* = 2 (M6, M10), *b* = 8.
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): [slice-telemetry-einbau-mock](../in-progress/slice-telemetry-einbau-mock.md) (Teil 1) liegt in `done/`; mit ihm liegen die Bedingungen von Teil 1 in `done/` (`slice-telemetry-port`, `slice-telemetry-log`, `slice-telemetry-handler`, `slice-telemetry-spans`, `slice-mock-lesen`, `slice-mock-schreiben`, `slice-snapshot-use-case`, `slice-bootstrap-m3`). Die Spezifikation trägt den Vertrag samt Randformen (`SPEC-290`), bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
+**Start** (`next` → `in-progress`): [slice-telemetry-einbau-mock](../done/slice-telemetry-einbau-mock.md) (Teil 1) liegt in `done/`; mit ihm liegen die Bedingungen von Teil 1 in `done/` (`slice-telemetry-port`, `slice-telemetry-log`, `slice-telemetry-handler`, `slice-telemetry-spans`, `slice-mock-lesen`, `slice-mock-schreiben`, `slice-snapshot-use-case`, `slice-bootstrap-m3`). Die Spezifikation trägt den Vertrag samt Randformen (`SPEC-290`), bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 **Abhängigkeiten — Grund je Eintrag:**
 
@@ -216,7 +216,7 @@ dasteht.
 | Mutations-Span: `POST`, `PATCH`, `PUT`, `DELETE` | Nr. 7 a: Header fehlt `ODR-E5003`, ohne Span; ein Set fehlt im Pfad: die Paarung ist `ODR-E6002` (Schritt (e)), ohne Span | Nr. 7 a: leerer Header `ODR-E5003`; ein leerer Body ist `ODR-E6007` nach dem Beginn, Nr. 7 b, mit Span | Nr. 4 c und 7 d: unbekannter oder fremder Workspace ohne Span; ein unbekanntes Set `ODR-E6008` mit Span (Nr. 7 b, kein `entity_set` an diesem Span) | Nr. 3 f: Abbruch auch in `f`, `End` genau einmal, Rollback (`SPEC-192` Nr. 7) | Nr. 7 e | gilt nicht: der Span trägt kein Coverage-Attribut (Nr. 4); die Coverage entscheidet den Code (`SPEC-193` Nr. 2), nicht den Span |
 | Zähler je Fehlercode des Mock-Pfads (Mutation) | gilt nicht: der Dienst ruft `CountError` nie, Nr. 5 | gilt nicht: Nr. 5 | gilt nicht: Nr. 5 (die 16 Codes zählt der Adapter, `SPEC-230` Nr. 8) | gilt nicht: Nr. 5 (ein Kontextfehler ohne Code zählt auch beim Adapter nicht) | gilt nicht: Nr. 5 | gilt nicht: Nr. 5 |
 
-Die Zeilen zur Query, zu `$metadata`, zu den Operationen `Reset`, `Restore`, `Create`, `Delete` des Workspace und Snapshot, zu den Einträgen `bereinigung_*` und zur Verdrahtung des Adapters stehen in §6 von [slice-telemetry-einbau-mock](../in-progress/slice-telemetry-einbau-mock.md); die Zeilen der Admin-Operationen (`gilt nicht`, Nr. 2) gelten für beide Teile.
+Die Zeilen zur Query, zu `$metadata`, zu den Operationen `Reset`, `Restore`, `Create`, `Delete` des Workspace und Snapshot, zu den Einträgen `bereinigung_*` und zur Verdrahtung des Adapters stehen in §6 von [slice-telemetry-einbau-mock](../done/slice-telemetry-einbau-mock.md); die Zeilen der Admin-Operationen (`gilt nicht`, Nr. 2) gelten für beide Teile.
 
 ## 7. Closure-Notiz
 
@@ -250,7 +250,7 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register am Tag des Schnitts gesichtet (2026-11-21, Zähler wie im Plan von [slice-telemetry-einbau-mock](../in-progress/slice-telemetry-einbau-mock.md) §8; der Planner zieht Treffer und Zähler beim Start nach). Der Einbau trifft nebenläufige Pfade und Fakes, die `ctx` umhüllen: `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×), `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` (2×) sind offen; `BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last` (2×) gilt für jede Wirkung, die der Detektor nicht meldet; offen außerdem `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×). Verkörpert und mit dem Slice zu beachten: `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (25×, `AGENTS.md` §3.15) und `BEO-REPO/randform-erst-im-review-entschieden` (20×, `AGENTS.md` §3.16). Keiner der offenen erreicht mit diesem Slice 3×.
+**Vorgelagert — offene Beobachtungen sichten:** Register am Tag des Schnitts gesichtet (2026-11-21, Zähler wie im Plan von [slice-telemetry-einbau-mock](../done/slice-telemetry-einbau-mock.md) §8; der Planner zieht Treffer und Zähler beim Start nach). Der Einbau trifft nebenläufige Pfade und Fakes, die `ctx` umhüllen: `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×), `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) und `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` (2×) sind offen; `BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last` (2×) gilt für jede Wirkung, die der Detektor nicht meldet; offen außerdem `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×). Verkörpert und mit dem Slice zu beachten: `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (25×, `AGENTS.md` §3.15) und `BEO-REPO/randform-erst-im-review-entschieden` (20×, `AGENTS.md` §3.16). Keiner der offenen erreicht mit diesem Slice 3×.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der

@@ -1,7 +1,7 @@
 # Verifikation slice-telemetry-einbau-mock, Teil 1 (Query-Span, Verdrahtung, Einträge des Dienstes `workspace`; Zeilen Q1 bis Q22)
 
 Verifier, frischer Kontext, einmal verifiziert. Stand HEAD `1f29cad6` (Fix-Runde nach dem Review), Messbasis `ebd0a25c`, Basis des Zweigs `main` `6add6959`; Worktree `odata-recorder-wt-telemetry-einbau-mock`, vor und nach der Prüfung `git status` leer.
-Gegen: DoD des [Plans](../plan/planning/in-progress/slice-telemetry-einbau-mock.md) (§2), Tabelle, Mengen, Raten und Negative (§3), Block der Marke (§4), Risiken und Raster (§6), `SPEC-290`, `SPEC-231` Nr. 4 und 7, `SPEC-139` Nr. 3, 11 und 13, `SPEC-195`, `SPEC-029`, `SPEC-030`, `AGENTS.md` §3.7 und §3.9 bis §3.18; der Review-Report `2026-11-21-slice-telemetry-einbau-mock-review` (0 HIGH, 3 MEDIUM, 2 LOW, 3 INFO) ist Eingang, nicht Ersatz.
+Gegen: DoD des [Plans](../plan/planning/done/slice-telemetry-einbau-mock.md) (§2), Tabelle, Mengen, Raten und Negative (§3), Block der Marke (§4), Risiken und Raster (§6), `SPEC-290`, `SPEC-231` Nr. 4 und 7, `SPEC-139` Nr. 3, 11 und 13, `SPEC-195`, `SPEC-029`, `SPEC-030`, `AGENTS.md` §3.7 und §3.9 bis §3.18; der Review-Report `2026-11-21-slice-telemetry-einbau-mock-review` (0 HIGH, 3 MEDIUM, 2 LOW, 3 INFO) ist Eingang, nicht Ersatz.
 Alle Mutationen liefen auf Wegwerfkopien im Container (Image `odata-recorder:race`, ohne Netz und ohne Mount, `--memory=4g --memory-swap=4g --cpus=4`, unter `flock /tmp/odata-recorder-heavy.lock`, ein Container zugleich); der Worktree ist unverändert. Treiber, Listen und Ergebnisse liegen im Scratchpad unter `telemetry-einbau-mock-verifier/` (eigener Treiber mit mehreren Ersetzungen je Mutation, Quelle: der des Reviewers, erweitert).
 
 ## Urteil
