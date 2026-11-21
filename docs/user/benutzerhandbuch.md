@@ -2,7 +2,7 @@
 
 Software-Version: dev
 Gültigkeitsbereich: das Binary, das `make build` erzeugt
-Stand: 2026-11-18
+Stand: 2026-11-21
 
 ## Einleitung
 
@@ -68,6 +68,8 @@ Dieser Abschnitt führt die Einstellungen, die der Dienst aus den Umgebungsvaria
 |---|---|
 | `MODE` | Betriebsart des Dienstes: `record` nimmt Austausche mit dem Upstream auf, `replay` spielt aufgezeichnete Austausche ab. `mock` beantwortet Anfragen allein aus dem Bestand, ohne Upstream. `hybrid` beantwortet Anfragen zuerst aus dem Bestand wie `mock` und wendet sich nur dann an die aufgezeichneten Austausche oder an den Upstream, wenn der Mock mit einem freigegebenen Fehlercode scheitert; die vier Schlüssel `HYBRID_FALLBACK`, `HYBRID_REPLAY_FALLBACK`, `FALLBACK_ALLOW_HOSTS` und `FALLBACK_WRITE_ALLOW` gehören zu ihm (Abschnitt `Modus hybrid`). Ohne Angabe gilt `mock`. |
 | `LISTEN` | Host und Port, an dem der Dienst Anfragen annimmt, in der Form `host:port`. Ohne Angabe gilt `127.0.0.1:8080`. |
+| `LISTEN_TLS_CERT` | Pfad einer PEM-Datei mit dem Zertifikat des Dienstes; zuerst steht das Zertifikat des Dienstes, danach stehen die Zwischenzertifikate. Mit `LISTEN_TLS_CERT` und `LISTEN_TLS_KEY` nimmt der Dienst Anfragen über HTTPS an; beide oder keiner (Abschnitt `TLS`). Ohne Angabe nimmt der Dienst Anfragen über HTTP an. |
+| `LISTEN_TLS_KEY` | Pfad einer PEM-Datei mit dem privaten Schlüssel zum Zertifikat. Beide Pfade dürfen auf dieselbe Datei zeigen. Ohne Angabe nimmt der Dienst Anfragen über HTTP an. |
 | `DATA_DIR` | Verzeichnis, in dem der Dienst seine Daten ablegt, absolut oder relativ zum Arbeitsverzeichnis. Ohne Angabe gilt `data`. |
 | `SERVICE_ID` | Kennung des einzigen Services, 1 bis 64 Zeichen aus Buchstaben, Ziffern, `.`, `_` und `-`. Ohne Angabe gilt `default`. |
 | `SERVICE_ROOT_PATH` | Pfad, unter dem der einzige Service Anfragen annimmt: `/` oder Segmente wie `/a/b` ohne abschließenden Schrägstrich. Ohne Angabe gilt `/`. |
@@ -94,7 +96,7 @@ Dieser Abschnitt führt die Einstellungen, die der Dienst aus den Umgebungsvaria
 | `LINK_REWRITE` | Umschreiben absoluter Links; der Dienst nimmt nur `off` an, und `off` gilt ohne Angabe. |
 | `STRICT_COVERAGE` | Wahrheitswert; wirkt in den Modi `mock` und `hybrid`: `true` weist eine Collection-Abfrage über einen nicht vollständigen Bestand ab, `false` beantwortet sie aus den bekannten Entities; im Modus `hybrid` gibt es mit `false` für diese Abfrage keinen Fallback, weil der Mock sie ohne Fehler beantwortet. Ohne Angabe gilt `true`. |
 | `ETAG_ENABLED` | Wahrheitswert; wirkt in den Modi `mock` und `hybrid` für Services der OData-Version 4.0: `true` liefert zu jeder Entity einen ETag der Form `W/"<n>"`, dessen Zahl allein der Zähler der Entity bestimmt. Er steht in der Kopfzeile `ETag` und, in der Stufe `odata.metadata=minimal`, als Mitglied `@odata.etag` der Entity. `true` wertet außerdem bei `PATCH`, `PUT` und `DELETE` die Kopfzeilen `If-Match` und `If-None-Match` gegen den ETag der Entity aus (der Vergleich ist schwach, `W/` zählt nicht) und weist eine nicht erfüllte Bedingung mit `412` ab, ohne den Zustand zu ändern (der Fehlercode steht in der Tabelle der Fehlercodes). `false` liefert keinen ETag und liest beide Kopfzeilen nie. Ohne Angabe gilt `false`. |
-| `PUBLIC_BASE_URL` | Öffentliche Basis der Links, die der Dienst in den Modi `mock` und `hybrid` erzeugt: `http://` oder `https://`, Host, optional Port und Segmente, ohne abschließenden Schrägstrich, höchstens 2048 Bytes. Ohne Angabe leitet der Dienst sie aus `LISTEN` ab, wenn dessen Host `127.0.0.1`, `[::1]` oder `localhost` ist; bei jedem anderen Host verlangen beide Modi sie. |
+| `PUBLIC_BASE_URL` | Öffentliche Basis der Links, die der Dienst in den Modi `mock` und `hybrid` erzeugt: `http://` oder `https://`, Host, optional Port und Segmente, ohne abschließenden Schrägstrich, höchstens 2048 Bytes. Ohne Angabe leitet der Dienst sie aus `LISTEN` ab, wenn dessen Host `127.0.0.1`, `[::1]` oder `localhost` ist, mit dem Schema `https`, wenn `LISTEN_TLS_CERT` und `LISTEN_TLS_KEY` gesetzt sind, sonst mit `http`; bei jedem anderen Host verlangen beide Modi sie. Eine gesetzte Basis gleicht der Dienst nicht mit TLS ab: Setze sie auf die Adresse, die der Client sieht. |
 | `HYBRID_FALLBACK` | Hauptschalter des Upstream-Fallbacks im Modus `hybrid`: `disabled` oder `enabled`, in dieser Schreibweise. Mit `enabled` verlangt die Prüfung mindestens einen Eintrag in `FALLBACK_ALLOW_HOSTS` und je Service eine `UPSTREAM_URL`. Ohne Angabe gilt `disabled`: dann geht keine Anfrage an den Upstream, auch wenn die übrigen Schlüssel gesetzt sind. |
 | `HYBRID_REPLAY_FALLBACK` | Kategorien, für die im Modus `hybrid` der Replay-Fallback gilt, durch Komma getrennt: `unsupported` und `coverage_insufficient`, in dieser Schreibweise. Ein anderer Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Eine Anfrage, die der Mock nicht beantwortet, erhält für die Kategorie dann die Antwort aus den aufgezeichneten Austauschen. |
 | `FALLBACK_ALLOW_HOSTS` | Hosts, zu denen im Modus `hybrid` der Upstream-Fallback gehen darf, durch Komma getrennt: ein Name oder eine IPv6-Adresse in eckigen Klammern, optional mit `:` und Port, ohne Schema und Pfad. Ein ungültiger Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Ein Eintrag gilt nur für den Host der `UPSTREAM_URL` des Services der Anfrage, mit dem Port, den die URL nennt oder ihr Schema voraussetzt. |
@@ -130,6 +132,38 @@ Body: Eine Anfrage mit Body, für die ein Fallback möglich ist, liest der Diens
 Herunterfahren: Eine Anfrage, die auf den Upstream wartet, ist eine laufende Anfrage. Der Dienst wartet höchstens `SHUTDOWN_TIMEOUT` auf sie; danach endet sie ohne Antwort, und eine vom Upstream angenommene Änderung kann ausgeführt sein, ohne dass der Client die Antwort sieht. Setze `SHUTDOWN_TIMEOUT` über die Antwortzeit des Upstreams.
 
 Beim Start im Modus `hybrid` mit `HYBRID_FALLBACK=enabled` und `UPSTREAM_TLS_INSECURE_SKIP_VERIFY=true` schreibt der Dienst genau eine Warnung, dass die Prüfung des Zertifikats abgeschaltet ist.
+
+## TLS
+
+Aufgabe: den Dienst Anfragen über HTTPS annehmen lassen.
+
+Voraussetzung: eine PEM-Datei mit dem Zertifikat des Dienstes (zuerst das Zertifikat des Dienstes, danach die Zwischenzertifikate) und eine PEM-Datei mit dem privaten Schlüssel, den der Dienst lesen darf. Beide Inhalte dürfen in derselben Datei stehen; dann zeigen beide Schlüssel auf diese Datei. Ein verschlüsselter Schlüssel ist ungültig, der Dienst kennt keine Passphrase.
+
+Vorgehen:
+
+1. Setze `LISTEN_TLS_CERT` auf den Pfad der Zertifikatsdatei und `LISTEN_TLS_KEY` auf den Pfad der Schlüsseldatei. Setze beide oder keinen; ein Pfad ist absolut oder relativ zum Arbeitsverzeichnis.
+2. Starte den Dienst mit `start`.
+3. Setze in den Modi `mock` und `hybrid` die Schlüssel `LISTEN` und `PUBLIC_BASE_URL` so, dass die Links die Adresse tragen, die der Client erreicht.
+
+Ergebnis: Der Dienst nimmt unter `LISTEN` Anfragen über HTTPS an, in jedem Modus. Ohne beide Schlüssel nimmt er Anfragen über HTTP an. Er bedient TLS 1.2 und TLS 1.3 und spricht HTTP/1.1; ein Client, der allein HTTP/2 anbietet, kommt über den Handshake nicht hinaus. Die Dateien liest der Dienst einmal beim Start: ein neues Zertifikat oder ein neuer Schlüssel gilt ab dem nächsten Start. Läuft das Zertifikat im Betrieb ab, bedient der Dienst es weiter und meldet nichts; der Client lehnt es ab.
+
+Prüfung beim Start: Der Dienst prüft, dass beide Dateien lesbar sind, dass die Zertifikatsdatei ein PEM-Zertifikat und die Schlüsseldatei einen PEM-Schlüssel enthält, dass der Schlüssel zum Zertifikat passt und dass das Zertifikat des Dienstes zur Zeit des Starts gilt. Bei einem Verstoß endet der Start mit der Meldung `ODR-E2001`, bevor der Dienst das Datenverzeichnis anlegt und bevor er eine Adresse öffnet. Der Dienst prüft nicht, ob die Zwischenzertifikate gelten, ob die Kette zu einer Wurzel führt, ob der Name im Zertifikat zum Host passt und ob das Zertifikat widerrufen ist; einen solchen Fehler zeigt der Client.
+
+Die Meldung nennt den Schlüssel und einen der folgenden Gründe, nie den Pfad, den Inhalt der Dateien oder eine Eigenschaft des Zertifikats:
+
+| Grund | Bedeutung |
+|---|---|
+| `erforderlich, wenn LISTEN_TLS_CERT gesetzt ist` | `LISTEN_TLS_KEY` fehlt, `LISTEN_TLS_CERT` ist gesetzt. |
+| `erforderlich, wenn LISTEN_TLS_KEY gesetzt ist` | `LISTEN_TLS_CERT` fehlt, `LISTEN_TLS_KEY` ist gesetzt. |
+| `Datei nicht lesbar` | Die Datei fehlt, ist ein Verzeichnis oder nicht lesbar. |
+| `Datei enthält kein PEM-Zertifikat` | Die Datei enthält kein PEM-Zertifikat, das der Dienst lesen kann. |
+| `Datei enthält keinen PEM-Schlüssel` | Die Datei enthält keinen PEM-Block `PRIVATE KEY` und keinen Block, dessen Typ auf ` PRIVATE KEY` endet. |
+| `Zertifikat außerhalb seiner Gültigkeit` | Das Zertifikat ist abgelaufen, oder seine Gültigkeit beginnt nach dem Start. |
+| `Schlüssel ungültig oder passt nicht zum Zertifikat` | Der Schlüssel ist ungültig oder gehört nicht zum ersten Zertifikat der Datei. |
+
+Ein Client, dessen Handshake scheitert, etwa weil er das Zertifikat ablehnt, erreicht den Dienst nicht. Der Dienst schreibt dazu keine Zeile; den Fehler sieht der Betreiber am Client.
+
+Rechte: Lege die Schlüsseldatei mit den Rechten `0400` oder `0600` an. Der Dienst prüft die Rechte nicht und startet auch mit einer Datei, die jeder lesen darf.
 
 ## Fehlercodes
 
