@@ -72,8 +72,9 @@ func nichtASCII() (ae, euro, smiley, ss string) {
 		string([]byte{0xC3, 0x9F})
 }
 
-// bGueltig sind die 11 gültigen Formen von M-Body (SPEC-292 Nr. 5 a bis f): 8 Formen mit `Content-Type: application/json`
-// und die erste Form mit keinem und zwei fremden `Content-Type`; das Orakel sind die Argumente von Create als Literale.
+// bGueltig sind die 17 gültigen Formen von M-Body (SPEC-292 Nr. 5 a bis f): 8 Formen mit `Content-Type: application/json`,
+// die erste Form mit keinem und zwei fremden `Content-Type` und die 6 Formen der Achse *Zeichen im Wert*; das Orakel sind
+// die Argumente von Create als Literale.
 func bGueltig() []bForm {
 	json := map[string][]string{"Content-Type": {"application/json"}}
 	ae, euro, smiley, ss := nichtASCII()
@@ -104,7 +105,26 @@ func bGueltig() []bForm {
 		}
 		formen = append(formen, f)
 	}
-	return formen
+	return append(formen, bZeichenImWert()...)
+}
+
+// bZeichenImWert ist die Achse *Zeichen im Wert* (SPEC-292 Nr. 5 b, d): 3 Zeichen (U+FEFF roh, der Escape eines einzelnen
+// hohen und der eines einzelnen tiefen Surrogats) mal 2 Schlüssel (`service_id`, `id`) = 6 Formen; das BOM gilt nur am
+// Anfang des Bodys, ein Surrogat-Escape liest sich als U+FFFD; beide Werte gehen unverändert an Create.
+func bZeichenImWert() []bForm {
+	bomZeichen, ersatz := string([]byte{0xEF, 0xBB, 0xBF}), string([]byte{0xEF, 0xBF, 0xBD})
+	zeichen := []struct{ name, roh, soll string }{
+		{"U+FEFF", "s" + bomZeichen + "x", "s" + bomZeichen + "x"},
+		{"hohes Surrogat", "s" + esc("d800") + "x", "s" + ersatz + "x"},
+		{"tiefes Surrogat", "s" + esc("dc00") + "x", "s" + ersatz + "x"},
+	}
+	var out []bForm
+	for _, z := range zeichen {
+		out = append(out,
+			bForm{achse: "Zeichen im Wert", name: z.name + " in service_id", body: []byte(`{"service_id":"` + z.roh + `"}`), svc: z.soll},
+			bForm{achse: "Zeichen im Wert", name: z.name + " in id", body: []byte(`{"service_id":"svc","id":"` + z.roh + `"}`), svc: "svc", id: z.soll})
+	}
+	return out
 }
 
 // bUngueltig sind die 48 ungültigen Formen von M-Body (SPEC-292 Nr. 5 a bis d, g) in sieben Achsen; s steht anstelle von
@@ -193,11 +213,12 @@ func zaehleAchsen(formen []bForm) map[string]int {
 	return out
 }
 
-// TestS567Zahlen hält M-Body gegen die Quelle des Tests (SPEC-292 Nr. 5): 11 gültige und 48 ungültige Formen, je Achse die
+// TestS567Zahlen hält M-Body gegen die Quelle des Tests (SPEC-292 Nr. 5): 17 gültige und 48 ungültige Formen, je Achse die
 // Zahl des Plans; die Namen einer Achse sind verschieden, die Bodies der Paare auch.
 func TestS567Zahlen(t *testing.T) {
-	gleichAuf(t, "gültige Formen", len(bGueltig()), 11)
-	gleichAuf(t, "Achsen der gültigen Formen", zaehleAchsen(bGueltig()), map[string]int{"gültig": 8, "Content-Type": 3})
+	gleichAuf(t, "gültige Formen", len(bGueltig()), 17)
+	gleichAuf(t, "Achsen der gültigen Formen", zaehleAchsen(bGueltig()), map[string]int{"gültig": 8, "Content-Type": 3, "Zeichen im Wert": 6})
+	gleichAuf(t, "M-Body gesamt", len(bGueltig())+len(bUngueltig("x")), 65)
 	u := bUngueltig("x")
 	gleichAuf(t, "ungültige Formen", len(u), 48)
 	gleichAuf(t, "Achsen der ungültigen Formen", zaehleAchsen(u),
@@ -211,7 +232,7 @@ func TestS567Zahlen(t *testing.T) {
 	gleichAuf(t, "verschiedene Bodies", len(bodies), 48)
 }
 
-// TestS5GueltigerBody hält S5 (SPEC-292 Nr. 5 a bis f): jede der 11 gültigen Formen ergibt 201 und genau einen Aufruf von
+// TestS5GueltigerBody hält S5 (SPEC-292 Nr. 5 a bis f): jede der 17 gültigen Formen ergibt 201 und genau einen Aufruf von
 // Create mit den Literalen des Orakels.
 func TestS5GueltigerBody(t *testing.T) {
 	for _, f := range bGueltig() {
