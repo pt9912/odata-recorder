@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -56,34 +57,84 @@ func TestS8FelderDerSession(t *testing.T) {
 	}
 }
 
-// TestS8ZeichenDerWerte hält SPEC-292 Nr. 7 a: der dekodierte Wert gilt, ob ein Zeichen als Escape oder roh steht, ist offen;
-// jedes ASCII-Zeichen und die Zeichen `<`, `>`, `&`, `"`, Backslash, U+2028, U+2029 und die Mehrbytefolgen erscheinen
-// dekodiert unverändert, jedes ungültige Byte als U+FFFD. Orakel: `encoding/json` liest die Antwort.
+// zeichenAntwort lässt den Dienst eine Session mit den drei Zeichenketten liefern und liest die Antwort von `POST` mit
+// `encoding/json` (das Orakel kennt den Code der Route nicht): die dekodierten Werte von id, service_id und status.
+func zeichenAntwort(t *testing.T, id, svc, status string) map[string]any {
+	t.Helper()
+	u, fake, _ := sessionsUmgebung(t)
+	fake.session = model.Session{ID: id, ServiceID: svc, CreatedAt: zeitA(), Status: model.SessionStatus(status)}
+	rec := u.rufe(postReq([]byte(postGut)))
+	var got map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || rec.Code != 201 {
+		t.Fatalf("Status %d, die Antwort ist kein JSON: %v", rec.Code, err)
+	}
+	return got
+}
+
+// TestS8ZeichenDerWerte hält SPEC-292 Nr. 7 a: der dekodierte Wert gilt, ob ein Zeichen als Escape oder roh steht, ist offen.
+// Menge: jedes Byte 0x00 bis 0xFF in einem Wert von id, service_id und status (256 Fälle; ein Byte ab 0x80 ist allein kein
+// UTF-8 und wird U+FFFD), jeder Codepunkt außer den Surrogaten (1112064, in einem Wert von service_id; das sind alle
+// Zeichen aus einem, zwei, drei und vier Bytes), dazu `<`, `>`, `&`, Anführungszeichen und Backslash und fünf ungültige
+// Folgen, je Byte ein U+FFFD. Zählprüfung gegen utf8.RuneCount.
 func TestS8ZeichenDerWerte(t *testing.T) {
-	ungueltig, ersatz := string([]byte{0xFF}), string([]byte{0xEF, 0xBF, 0xBD})
-	zeilentrenner := string([]byte{0xE2, 0x80, 0xA8, 0xE2, 0x80, 0xA9})
-	sonder := "s<>&\"" + rueck() + "z"
-	werte := map[string]string{
-		sonder: sonder, zeilentrenner: zeilentrenner, "a" + ungueltig + "b" + ungueltig + ungueltig: "a" + ersatz + "b" + ersatz + ersatz,
-	}
-	for c := range byte(0x20) {
-		werte["c"+string([]byte{c})] = "c" + string([]byte{c})
-	}
-	for roh, soll := range werte {
-		u, fake, _ := sessionsUmgebung(t)
-		fake.session = model.Session{ID: roh, ServiceID: roh, CreatedAt: zeitA(), Status: model.SessionStatus(roh)}
-		rec := u.rufe(postReq([]byte(postGut)))
-		var got map[string]any
-		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
-			t.Fatalf("Wert %q: die Antwort ist kein JSON: %v (%q)", roh, err, rec.Body.String())
+	ersatz := string([]byte{0xEF, 0xBF, 0xBD})
+	for b := range 256 {
+		roh := "a" + string([]byte{byte(b)}) + "z"
+		soll := roh
+		if b >= 0x80 {
+			soll = "a" + ersatz + "z"
 		}
+		got := zeichenAntwort(t, roh, roh, roh)
 		for _, feld := range []string{"id", "service_id", "status"} {
 			if got[feld] != soll {
-				t.Errorf("Wert %q Feld %s: dekodiert %q, erwartet %q", roh, feld, got[feld], soll)
+				t.Errorf("Byte 0x%02x Feld %s: dekodiert %q, erwartet %q", b, feld, got[feld], soll)
 			}
 		}
 	}
-	gleichAuf(t, "Zahl der Werte", len(werte), 3+32)
+	var alle []byte
+	for r := rune(0); r <= utf8.MaxRune; r++ {
+		if r < 0xD800 || r > 0xDFFF {
+			alle = utf8.AppendRune(alle, r)
+		}
+	}
+	gleichAuf(t, "Zahl der Codepunkte", utf8.RuneCount(alle), 0x110000-0x800)
+	if got := zeichenAntwort(t, "x", string(alle), "x"); got["service_id"] != string(alle) {
+		t.Error("die Codepunkte kamen nicht unverändert in service_id an")
+	}
+	sonder := "s<>&\"" + rueck() + "z"
+	if got := zeichenAntwort(t, sonder, sonder, sonder); got["id"] != sonder || got["service_id"] != sonder || got["status"] != sonder {
+		t.Errorf("Sonderzeichen: %v", got)
+	}
+	folgen := [][]byte{{0xC0, 0x80}, {0xE2, 0x82}, {0xED, 0xA0, 0x80}, {0xF4, 0x90, 0x80, 0x80}, {0xFF, 0x62, 0xFF, 0xFF}}
+	for _, f := range folgen {
+		got := zeichenAntwort(t, string(f), string(f), string(f))
+		soll := strings.Repeat(ersatz, len(f))
+		if len(f) == 4 && f[0] == 0xFF {
+			soll = ersatz + "b" + ersatz + ersatz
+		}
+		if got["id"] != soll {
+			t.Errorf("ungültige Folge % x: dekodiert %q, erwartet %q", f, got["id"], soll)
+		}
+	}
+	gleichAuf(t, "Zahl der Folgen", len(folgen), 5)
+}
+
+// leereFelder sind die Felder der Session, die ein Dienst leer lassen kann (Wertform „leer“): jedes Feld der Antwort steht
+// auch dann, mit dem leeren Wert (SPEC-292 Nr. 7 a: kein Feld fehlt).
+const leereFelder = `{"id":"","service_id":"","created_at":null,"status":""}`
+
+// TestS8LeereFelder hält SPEC-292 Nr. 7 a: eine Session ohne Kennung, Service, Zeit und Status steht mit allen vier Feldern in
+// der Antwort von `POST` und in der von `GET`; Zählprüfung gegen die Felder von model.Session (4).
+func TestS8LeereFelder(t *testing.T) {
+	gleichAuf(t, "Felder von model.Session", reflect.TypeOf(model.Session{}).NumField(), 4)
+	u, fake, _ := sessionsUmgebung(t)
+	fake.session, fake.sessionen = model.Session{}, []model.Session{{}}
+	if rec := u.rufe(postReq([]byte(postGut))); rec.Code != 201 || rec.Body.String() != leereFelder {
+		t.Errorf("POST: %d %q, erwartet %q", rec.Code, rec.Body.String(), leereFelder)
+	}
+	if rec := u.rufe(sessionsReq("GET", "", nil, nil)); rec.Code != 200 || rec.Body.String() != `{"sessions":[`+leereFelder+`]}` {
+		t.Errorf("GET: %d %q", rec.Code, rec.Body.String())
+	}
 }
 
 // zeitFaelle ist M-Zeit (SPEC-292 Nr. 7 c): 7 Werte mit der Zeichenkette des Vertrags als Literal, `null` für die Nullzeit.
@@ -163,6 +214,92 @@ func TestS10Liste(t *testing.T) {
 		pruefeErfolgsHeader(t, f.name, rec)
 	}
 	gleichAuf(t, "Fälle", len(faelle), 4)
+}
+
+// fx ist eine Session des Fixtures mit der Zeit als Zeichenkette des Vertrags (Literal); das Orakel baut den Eintrag aus den
+// Feldern, nicht aus dem Code der Route.
+type fx struct {
+	id, svc string
+	zeit    time.Time
+	zs      string
+	status  string
+}
+
+func (f fx) session() model.Session {
+	return model.Session{ID: f.id, ServiceID: f.svc, CreatedAt: f.zeit, Status: model.SessionStatus(f.status)}
+}
+
+func (f fx) json() string {
+	return `{"id":"` + f.id + `","service_id":"` + f.svc + `","created_at":` + f.zs + `,"status":"` + f.status + `"}`
+}
+
+// reihenfolgeFaelle ist die Menge von S10 (SPEC-292 Nr. 2, 6): je Feld von model.Session eine Liste, in der sich genau dieses
+// Feld unterscheidet und seine Werte in der Folge der Liste weder auf- noch absteigen (die Mitte ist größer oder kleiner als
+// beide Ränder), mit einem leeren Wert und einem doppelten Element; dazu eine Liste, in der jedes Feld gegen die anderen und
+// gegen die Folge läuft. Jeder Wert von status kommt vor (Filter), auch der leere und ein unbekannter.
+func reihenfolgeFaelle() map[string][]fx {
+	t1, t2, t3 := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
+	const z1, z2, z3 = `"2025-01-01T00:00:00.000000000Z"`, `"2026-06-01T00:00:00.000000000Z"`, `"2027-01-01T00:00:00.000000000Z"`
+	gleich := fx{id: "s", svc: "svc", zeit: t2, zs: z2, status: "open"}
+	mit := func(f func(*fx)) fx { x := gleich; f(&x); return x }
+	return map[string][]fx{
+		"ID": {
+			mit(func(x *fx) { x.id = "m" }), mit(func(x *fx) { x.id = "z" }), mit(func(x *fx) { x.id = "" }),
+			mit(func(x *fx) { x.id = "a" }), mit(func(x *fx) { x.id = "m" }),
+		},
+		"ServiceID": {
+			mit(func(x *fx) { x.svc = "m" }), mit(func(x *fx) { x.svc = "z" }), mit(func(x *fx) { x.svc = "" }),
+			mit(func(x *fx) { x.svc = "a" }), mit(func(x *fx) { x.svc = "m" }),
+		},
+		"CreatedAt": {
+			mit(func(x *fx) { x.zeit, x.zs = t2, z2 }), mit(func(x *fx) { x.zeit, x.zs = t3, z3 }),
+			mit(func(x *fx) { x.zeit, x.zs = t1, z1 }), mit(func(x *fx) { x.zeit, x.zs = time.Time{}, "null" }),
+			mit(func(x *fx) { x.zeit, x.zs = t2, z2 }),
+		},
+		"Status": {
+			mit(func(x *fx) { x.status = "open" }), mit(func(x *fx) { x.status = "x" }), mit(func(x *fx) { x.status = "complete" }),
+			mit(func(x *fx) { x.status = "" }), mit(func(x *fx) { x.status = "incomplete" }), mit(func(x *fx) { x.status = "open" }),
+		},
+		"alle Felder": {
+			{id: "c", svc: "m", zeit: t2, zs: z2, status: "open"}, {id: "a", svc: "z", zeit: t3, zs: z3, status: "x"},
+			{id: "b", svc: "a", zeit: t1, zs: z1, status: "complete"},
+		},
+	}
+}
+
+// TestS10Reihenfolge hält SPEC-292 Nr. 2 und 6: die Route sortiert, filtert und ergänzt nichts: die Liste kommt in der Folge
+// des Dienstes, Element für Element mit allen Feldern (Orakel: Literale aus den Feldern der Fixture). Zählprüfung gegen die
+// Felder von model.Session im Quelltext: jedes Feld hat seine Liste.
+func TestS10Reihenfolge(t *testing.T) {
+	var felder []string
+	for i := range reflect.TypeOf(model.Session{}).NumField() {
+		felder = append(felder, reflect.TypeOf(model.Session{}).Field(i).Name)
+	}
+	faelle := reihenfolgeFaelle()
+	var namen []string
+	for name := range faelle {
+		if name != "alle Felder" {
+			namen = append(namen, name)
+		}
+	}
+	slices.Sort(felder)
+	slices.Sort(namen)
+	gleichAuf(t, "Felder von model.Session und Listen je Feld", namen, felder)
+	gleichAuf(t, "Zahl der Listen", len(faelle), 5)
+	for name, liste := range faelle {
+		var sessionen []model.Session
+		var eintraege []string
+		for _, f := range liste {
+			sessionen = append(sessionen, f.session())
+			eintraege = append(eintraege, f.json())
+		}
+		u, fake, _ := sessionsUmgebung(t)
+		fake.sessionen = sessionen
+		rec := u.rufe(sessionsReq("GET", "", nil, nil))
+		if soll := `{"sessions":[` + strings.Join(eintraege, ",") + `]}`; rec.Code != 200 || rec.Body.String() != soll {
+			t.Errorf("%s: %d %q, erwartet %q", name, rec.Code, rec.Body.String(), soll)
+		}
+	}
 }
 
 // fehlerFall ist eine Zelle von M-Fehler (SPEC-292 Nr. 8): der Fehler des Dienstes, ob zugleich ein Wert kommt, und die

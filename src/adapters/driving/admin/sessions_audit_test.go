@@ -195,12 +195,13 @@ func TestN2KeineSperreUeberDemAufruf(t *testing.T) {
 	gleichAuf(t, "Zahl der Stellen", len(stellen), 3)
 }
 
-// TestN1GleichzeitigeRequests hält N1 (SPEC-292 Nr. 12): 16 gleichzeitige Requests je Route, jeder mit eigener Kennung, die
-// der Fake in der Session zurückgibt; jede Antwort und jeder Eintrag gehört zum eigenen Request (der Eintrag trägt die
+// TestN1GleichzeitigeRequests hält N1 (SPEC-292 Nr. 12): in 40 Runden je 16 gleichzeitige Requests je Route (das Fenster
+// zwischen zwei Sperren eines Zustands der Route trifft in einer Runde nur selten, in 40 Runden bei jedem Lauf), jeder mit
+// eigener Kennung, die der Fake in der Session zurückgibt; jede Antwort und jeder Eintrag gehört zum eigenen Request (der Eintrag trägt die
 // Korrelations-ID der Antwort mit derselben Session). Alle 16 Requests einer Route sind zugleich im Aufruf des Dienstes
 // (Treffpunkt); der Detektor von `make test-race` fängt den Zustand zwischen den Requests.
 func TestN1GleichzeitigeRequests(t *testing.T) {
-	const n = 16
+	const n, runden = 16, 40
 	wert := func(ctx context.Context) string { return "g" + strconv.Itoa(ctx.Value(ctxSchluessel{}).(int)) }
 	u, fake, _ := sessionsUmgebung(t)
 	fake.liste = func(ctx context.Context) ([]model.Session, error) {
@@ -219,28 +220,30 @@ func TestN1GleichzeitigeRequests(t *testing.T) {
 		fake.vor[op] = func(context.Context) { p.halt() }
 		return p
 	}
-	pGet := treffen(opList)
-	gets := gleichzeitig(u, n, func(i int) *http.Request { return mitKennung(sessionsReq("GET", "", nil, nil), i) })
-	pPost := treffen(opCreate)
-	posts := gleichzeitig(u, n, func(i int) *http.Request {
-		return sessionsReq("POST", "", nil, strings.NewReader(`{"service_id":"x","id":"g`+strconv.Itoa(i)+`"}`))
-	})
-	for name, p := range map[string]*treffpunkt{"GET": pGet, "POST": pPost} {
-		if p.verpasst.Load() || p.n.Load() != n {
-			t.Errorf("%s: nicht alle %d Requests waren zugleich im Aufruf des Dienstes (%d Aufrufe)", name, n, p.n.Load())
-		}
-	}
 	korrZuID := map[string]string{}
-	for i := range n {
-		id := "g" + strconv.Itoa(i)
-		soll := `{"id":"` + id + `","service_id":"s-` + id + `","created_at":"2026-11-06T10:00:00.123456789Z","status":"open"}`
-		if gets[i].Code != 200 || gets[i].Body.String() != `{"sessions":[`+soll+`]}` {
-			t.Errorf("GET %d: %d %q", i, gets[i].Code, gets[i].Body.String())
+	for r := range runden {
+		pGet := treffen(opList)
+		gets := gleichzeitig(u, n, func(i int) *http.Request { return mitKennung(sessionsReq("GET", "", nil, nil), r*n+i) })
+		pPost := treffen(opCreate)
+		posts := gleichzeitig(u, n, func(i int) *http.Request {
+			return sessionsReq("POST", "", nil, strings.NewReader(`{"service_id":"x","id":"g`+strconv.Itoa(r*n+i)+`"}`))
+		})
+		for name, p := range map[string]*treffpunkt{"GET": pGet, "POST": pPost} {
+			if p.verpasst.Load() || p.n.Load() != n {
+				t.Errorf("Runde %d %s: nicht alle %d Requests waren zugleich im Aufruf des Dienstes (%d Aufrufe)", r, name, n, p.n.Load())
+			}
 		}
-		if posts[i].Code != 201 || posts[i].Body.String() != soll {
-			t.Errorf("POST %d: %d %q", i, posts[i].Code, posts[i].Body.String())
+		for i := range n {
+			id := "g" + strconv.Itoa(r*n+i)
+			soll := `{"id":"` + id + `","service_id":"s-` + id + `","created_at":"2026-11-06T10:00:00.123456789Z","status":"open"}`
+			if gets[i].Code != 200 || gets[i].Body.String() != `{"sessions":[`+soll+`]}` {
+				t.Errorf("Runde %d GET %d: %d %q", r, i, gets[i].Code, gets[i].Body.String())
+			}
+			if posts[i].Code != 201 || posts[i].Body.String() != soll {
+				t.Errorf("Runde %d POST %d: %d %q", r, i, posts[i].Code, posts[i].Body.String())
+			}
+			korrZuID[posts[i].Header().Get("X-Correlation-Id")] = id
 		}
-		korrZuID[posts[i].Header().Get("X-Correlation-Id")] = id
 	}
 	eintraege := u.audit.Eintraege()
 	gesehen := map[string]bool{}
@@ -250,5 +253,6 @@ func TestN1GleichzeitigeRequests(t *testing.T) {
 		}
 		gesehen[e.SessionID] = true
 	}
-	gleichAuf(t, "Einträge, verschiedene Kennungen, Korrelations-IDs", []int{len(eintraege), len(gesehen), len(korrZuID)}, []int{n, n, n})
+	gleichAuf(t, "Einträge, verschiedene Kennungen, Korrelations-IDs", []int{len(eintraege), len(gesehen), len(korrZuID)},
+		[]int{runden * n, runden * n, runden * n})
 }

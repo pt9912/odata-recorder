@@ -249,7 +249,7 @@ func TestS5GueltigerBody(t *testing.T) {
 
 // TestS5Leerraum hält S5 und S6 für die Klasse des Leerraums vor und hinter dem Objekt (SPEC-292 Nr. 5 b): Schleife über
 // alle 256 Bytewerte an beiden Stellen; gültig sind genau Leerzeichen, Tabulator, LF und CR (4 × 2 Fälle), jedes andere Byte
-// (248 × 2) ist 400 ohne Aufruf von Create.
+// (252 × 2) ist 400 ohne Aufruf von Create.
 func TestS5Leerraum(t *testing.T) {
 	obj := []byte(`{"service_id":"svc"}`)
 	gueltig, ungueltig := 0, 0
@@ -280,43 +280,141 @@ func TestS5Leerraum(t *testing.T) {
 // zeichenWert ist ein Wert von service_id aus einem Zeichen: `s` + Zeichen + `x`.
 func zeichenWert(c byte) string { return "s" + string([]byte{c}) + "x" }
 
-// TestS5ZeichenImWert hält S5 und S6 für die Klasse des Zeichens in einer Zeichenkette (SPEC-292 Nr. 5 b, d): jedes
-// Steuerzeichen unter 0x20 roh ist 400 (32 Fälle), jedes Byte von 0x20 bis 0x7f außer `"` und Backslash kommt unverändert
-// an Create (94 Fälle), jede der 7 Folgen für ein Zeichen außerhalb von ASCII ebenso (Orakel: die Bytes), jede der 6 ungültigen
-// UTF-8-Folgen ist 400.
+// mitWert bildet den Body mit dem Wert im Schlüssel und liefert dazu das Orakel der Argumente von Create: `service_id`
+// trägt den Wert (id leer), `id` trägt ihn neben `service_id` gleich `svc`.
+func mitWert(schluessel string, wert []byte) (body []byte, svc, id string) {
+	if schluessel == "id" {
+		return []byte(`{"service_id":"svc","id":"` + string(wert) + `"}`), "svc", string(wert)
+	}
+	return []byte(`{"service_id":"` + string(wert) + `"}`), string(wert), ""
+}
+
+// schluesselDerWerte sind die zwei Schlüssel des Bodys, die einen Wert tragen.
+func schluesselDerWerte() []string { return []string{"service_id", "id"} }
+
+// TestS5ZeichenImWert hält S5 und S6 für die Klasse des Zeichens in einer Zeichenkette (SPEC-292 Nr. 5 b, d), je Schlüssel
+// (`service_id`, `id`): jedes Steuerzeichen unter 0x20 roh ist 400 (32 Fälle), jedes Byte von 0x20 bis 0x7f außer `"` und
+// Backslash kommt unverändert an Create (94 Fälle), jede der 7 Folgen für ein Zeichen außerhalb von ASCII ebenso (Orakel:
+// die Bytes), jede der 6 ungültigen UTF-8-Folgen ist 400.
 func TestS5ZeichenImWert(t *testing.T) {
-	versuche := func(wert []byte) (int, [][2]string) {
+	versuche := func(schluessel string, wert []byte) (int, [][2]string, [][2]string) {
 		u, fake, _ := sessionsUmgebung(t)
 		fake.session = sessionA()
-		rec := u.rufe(postReq([]byte(`{"service_id":"` + string(wert) + `"}`)))
-		return rec.Code, fake.argumente()
+		body, svc, id := mitWert(schluessel, wert)
+		rec := u.rufe(postReq(body))
+		return rec.Code, fake.argumente(), [][2]string{{svc, id}}
 	}
 	steuer, ascii, gueltig, kaputt := 0, 0, 0, 0
-	for c := range byte(0x80) {
-		code, args := versuche([]byte(zeichenWert(c)))
-		switch {
-		case c < 0x20 && code == 400 && len(args) == 0:
-			steuer++
-		case c >= 0x20 && c != '"' && c != 0x5c && code == 201 && slices.Equal(args, [][2]string{{zeichenWert(c), ""}}):
-			ascii++
-		case c == '"' || c == 0x5c:
-		default:
-			t.Errorf("Zeichen 0x%02x: Status %d, Argumente %q", c, code, args)
+	for _, k := range schluesselDerWerte() {
+		for c := range byte(0x80) {
+			code, args, soll := versuche(k, []byte(zeichenWert(c)))
+			switch {
+			case c < 0x20 && code == 400 && len(args) == 0:
+				steuer++
+			case c >= 0x20 && c != '"' && c != 0x5c && code == 201 && slices.Equal(args, soll):
+				ascii++
+			case c == '"' || c == 0x5c:
+			default:
+				t.Errorf("%s Zeichen 0x%02x: Status %d, Argumente %q", k, c, code, args)
+			}
+		}
+		for _, rohe := range [][]byte{{0xC2, 0x80}, {0xDF, 0xBF}, {0xE0, 0xA0, 0x80}, {0xEF, 0xBF, 0xBD}, {0xEF, 0xBF, 0xBF}, {0xF0, 0x90, 0x80, 0x80}, {0xF4, 0x8F, 0xBF, 0xBF}} {
+			if code, args, soll := versuche(k, rohe); code != 201 || !slices.Equal(args, soll) {
+				t.Errorf("%s Zeichenfolge % x: Status %d, Argumente %q", k, rohe, code, args)
+			}
+			gueltig++
+		}
+		for _, rohe := range [][]byte{{0xFF}, {0xC0, 0x80}, {0xED, 0xA0, 0x80}, {0xF4, 0x90, 0x80, 0x80}, {0x80}, {0xE2, 0x82}} {
+			if code, args, _ := versuche(k, rohe); code != 400 || len(args) != 0 {
+				t.Errorf("%s ungültige Folge % x: Status %d, Argumente %q", k, rohe, code, args)
+			}
+			kaputt++
 		}
 	}
-	for _, rohe := range [][]byte{{0xC2, 0x80}, {0xDF, 0xBF}, {0xE0, 0xA0, 0x80}, {0xEF, 0xBF, 0xBD}, {0xEF, 0xBF, 0xBF}, {0xF0, 0x90, 0x80, 0x80}, {0xF4, 0x8F, 0xBF, 0xBF}} {
-		if code, args := versuche(rohe); code != 201 || !slices.Equal(args, [][2]string{{string(rohe), ""}}) {
-			t.Errorf("Zeichenfolge % x: Status %d, Argumente %q", rohe, code, args)
-		}
-		gueltig++
+	gleichAuf(t, "Steuerzeichen, ASCII, gültige und ungültige Folgen", []int{steuer, ascii, gueltig, kaputt}, []int{2 * 32, 2 * 94, 2 * 7, 2 * 6})
+}
+
+// wertDerLaenge bildet einen Wert von genau n Bytes aus der Zeichenklasse: ein Alphabet, das reihum wiederholt wird (damit
+// ein Abschneiden oder Verschieben die Folge ändert); die Mehrbyteklasse reiht Zeichen aus zwei, drei und vier Bytes und füllt
+// den Rest mit `x`.
+func wertDerLaenge(klasse string, n int) string {
+	alphabet := map[string]string{
+		"klein": "abcdefghijklmnopqrstuvwxyz", "gross": "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "ziffer": "0123456789",
+		"punkt": ".", "unterstrich": "_", "bindestrich": "-",
 	}
-	for _, rohe := range [][]byte{{0xFF}, {0xC0, 0x80}, {0xED, 0xA0, 0x80}, {0xF4, 0x90, 0x80, 0x80}, {0x80}, {0xE2, 0x82}} {
-		if code, args := versuche(rohe); code != 400 || len(args) != 0 {
-			t.Errorf("ungültige Folge % x: Status %d, Argumente %q", rohe, code, args)
-		}
-		kaputt++
+	if a, ok := alphabet[klasse]; ok {
+		return strings.Repeat(a, n/len(a)+1)[:n]
 	}
-	gleichAuf(t, "Steuerzeichen, ASCII, gültige und ungültige Folgen", []int{steuer, ascii, gueltig, kaputt}, []int{32, 94, 7, 6})
+	ae, euro, smiley, ss := nichtASCII()
+	var b strings.Builder
+	for i := 0; ; i++ {
+		z := []string{ae, euro, smiley, ss}[i%4]
+		if b.Len()+len(z) > n {
+			break
+		}
+		b.WriteString(z)
+	}
+	return b.String() + strings.Repeat("x", n-b.Len())
+}
+
+// laengenDerWerte sind die Längen von `TestS5Laenge`: um jede Zehnerpotenz und Zweierpotenz der Grenzen, die ein Leser setzen
+// könnte, beide Seiten, dazu eine Länge nahe der Grenze des Bodys (1048576 Bytes).
+func laengenDerWerte() []int {
+	return []int{1, 9, 10, 16, 17, 64, 65, 256, 257, 4096, 4097, 1048000}
+}
+
+// klassenDerWerte sind die Zeichenklassen von `TestS5Laenge`.
+func klassenDerWerte() []string {
+	return []string{"klein", "gross", "ziffer", "punkt", "unterstrich", "bindestrich", "mehrbyte"}
+}
+
+// TestS5Laenge hält SPEC-292 Nr. 5 d („unverändert und ungekürzt, keine Änderung der Schreibweise“) für die Menge Länge ×
+// Schlüssel × Zeichenklasse: 12 Längen (1 bis nahe der Grenze des Bodys) × 2 Schlüssel × 7 Klassen (klein, groß, Ziffer, `.`,
+// `_`, `-`, Mehrbytezeichen) = 168 Fälle, je 201 und der Wert byte-gleich an Create. Prüfgrenze (akzeptiertes Negativ im
+// Plan): die Längen dazwischen und die Mischungen der Klassen in einem Wert sind nicht einzeln geführt.
+func TestS5Laenge(t *testing.T) {
+	faelle := 0
+	for _, k := range schluesselDerWerte() {
+		for _, klasse := range klassenDerWerte() {
+			for _, n := range laengenDerWerte() {
+				wert := wertDerLaenge(klasse, n)
+				if len(wert) != n {
+					t.Fatalf("Orakel: Klasse %s Länge %d liefert %d Bytes", klasse, n, len(wert))
+				}
+				u, fake, _ := sessionsUmgebung(t)
+				fake.session = sessionA()
+				body, svc, id := mitWert(k, []byte(wert))
+				rec := u.rufe(postReq(body))
+				faelle++
+				if args := fake.argumente(); rec.Code != 201 || !slices.Equal(args, [][2]string{{svc, id}}) {
+					t.Errorf("%s %s %d Bytes: Status %d, Argumente gleich: %v", k, klasse, n, rec.Code, slices.Equal(args, [][2]string{{svc, id}}))
+				}
+			}
+		}
+	}
+	gleichAuf(t, "Fälle", faelle, len(laengenDerWerte())*len(schluesselDerWerte())*len(klassenDerWerte()))
+	gleichAuf(t, "Fälle laut Plan", faelle, 12*2*7)
+}
+
+// TestS5StelleDerUngueltigenFolge hält SPEC-292 Nr. 5 b für die Stelle des ungültigen Bytes im Body: ein Byte 0xFF an
+// jeder Stelle p von 0, 1, 8, 9, 10, 63, 64, 65, 4095, 4096, 4097 und 1048000 des Wertes, in beiden Schlüsseln (24 Fälle), ist
+// 400 ohne Aufruf von Create.
+func TestS5StelleDerUngueltigenFolge(t *testing.T) {
+	stellen := []int{0, 1, 8, 9, 10, 63, 64, 65, 4095, 4096, 4097, 1048000}
+	faelle := 0
+	for _, k := range schluesselDerWerte() {
+		for _, p := range stellen {
+			wert := strings.Repeat("a", p) + string([]byte{0xFF}) + "bb"
+			u, fake, _ := sessionsUmgebung(t)
+			body, _, _ := mitWert(k, []byte(wert))
+			rec := u.rufe(postReq(body))
+			faelle++
+			if rec.Code != 400 || fake.gesamt() != 0 {
+				t.Errorf("%s Stelle %d: Status %d, %d Aufrufe des Dienstes, erwartet 400 und 0", k, p, rec.Code, fake.gesamt())
+			}
+		}
+	}
+	gleichAuf(t, "Fälle", faelle, 24)
 }
 
 // pruefeUngueltig hält eine ungültige Form gegen S6 und S7: 400 mit dem Fehlerobjekt von ODR-E2102, genau ein Zählen,

@@ -6,14 +6,50 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 )
 
-// sessionsDateien sind die Dateien der Routen der Sessions ohne _test.go (SPEC-292): die Teile des Schnitts ergänzen die
-// Liste um ihre Dateien.
-func sessionsDateien() []string { return []string{"json.go", "sessions.go", "sessions_body.go"} }
+// rahmenDateien sind die Dateien des Rahmens (SPEC-238) und der Token-Datei (SPEC-239) ohne _test.go; jede andere Datei
+// ohne _test.go im Paket gehört den Routen.
+func rahmenDateien() []string {
+	return []string{"admin.go", "fehler.go", "lebenszyklus.go", "route.go", "tokendatei.go"}
+}
+
+// sessionsDateien liefert die Dateien der Routen: jede Datei `.go` ohne `_test.go` im Verzeichnis außer denen des Rahmens
+// (eine neue Datei eines Teils des Schnitts gehört dazu, ohne dass dieser Test sie nennt). Die Zählprüfung hält die Menge
+// gegen das Verzeichnis: jede Datei des Rahmens besteht, die Dateien der Routen sind mindestens json.go, sessions.go und
+// sessions_body.go, und Rahmen plus Routen sind alle Dateien ohne _test.go.
+func sessionsDateien(t *testing.T) []string {
+	t.Helper()
+	eintraege, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var alle, routen []string
+	for _, e := range eintraege {
+		if n := e.Name(); strings.HasSuffix(n, ".go") && !strings.HasSuffix(n, "_test.go") {
+			alle = append(alle, n)
+			if !slices.Contains(rahmenDateien(), n) {
+				routen = append(routen, n)
+			}
+		}
+	}
+	for _, r := range rahmenDateien() {
+		if !slices.Contains(alle, r) {
+			t.Errorf("die Datei %s des Rahmens fehlt im Verzeichnis", r)
+		}
+	}
+	for _, r := range []string{"json.go", "sessions.go", "sessions_body.go"} {
+		if !slices.Contains(routen, r) {
+			t.Errorf("die Datei %s der Routen fehlt", r)
+		}
+	}
+	gleichAuf(t, "Rahmen plus Routen gleich alle Dateien", len(rahmenDateien())+len(routen), len(alle))
+	return routen
+}
 
 // zaehleGoAnweisungen zählt die Anweisungen `go` in einer Quelle.
 func zaehleGoAnweisungen(t *testing.T, name string, quelle any) int {
@@ -51,7 +87,7 @@ func TestS1S16QuelleDerRouten(t *testing.T) {
 	gleichAuf(t, "Probe: Anweisungen go", zaehleGoAnweisungen(t, "probe.go", probe), 2)
 
 	geprueft := 0
-	for _, d := range sessionsDateien() {
+	for _, d := range sessionsDateien(t) {
 		src, err := os.ReadFile(d)
 		if err != nil {
 			t.Fatal(err)
@@ -71,7 +107,7 @@ func TestS1S16QuelleDerRouten(t *testing.T) {
 			t.Errorf("%s: %d Anweisungen go", d, z)
 		}
 	}
-	gleichAuf(t, "Zahl der geprüften Dateien", geprueft, 3)
+	gleichAuf(t, "Zahl der geprüften Dateien gleich der der Dateien der Routen", geprueft, len(sessionsDateien(t)))
 }
 
 // TestS17BinaryUnveraendert hält S17 (SPEC-292 Nr. 14) am Quelltext: keine Datei des Pakets bootstrap (auch keine _test.go)
