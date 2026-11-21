@@ -124,7 +124,9 @@ func TestImportErhaeltWerte(t *testing.T) {
 	}
 }
 
-// TestWorkspaceErhaeltWerte fängt die Zeile M6 von slice-m2-referenzdienst (Workspace-Dienst) in beiden Modi: Feld für Feld.
+// TestWorkspaceErhaeltWerte fängt die Zeile M6 von slice-m2-referenzdienst (Workspace-Dienst) in beiden Modi: Feld für Feld. Der Logger
+// des Dienstes ist der des Adapters des Prozesses, nicht der übergebene (SPEC-139 Nr. 13 b); die Zeile in der Senke fängt
+// TestWurzelEintraegeWorkspace.
 func TestWorkspaceErhaeltWerte(t *testing.T) {
 	ctx := context.Background()
 	for _, modus := range modi() {
@@ -152,7 +154,7 @@ func TestWorkspaceErhaeltWerte(t *testing.T) {
 				"Wartung":     got.Wartung != nil && got.Wartung == hd.Wartung(),
 				"Uhr":         got.Uhr != nil && got.Uhr == h.wartung.Uhr,
 				"IDs":         got.IDs != nil && got.IDs == bootstrap.IDsVon(hd),
-				"Log":         got.Log != nil && got.Log == log,
+				"Log":         got.Log != nil && got.Log != log,
 				"Audit":       got.Audit != nil && got.Audit == h.wartung.Audit,
 			}
 			typ := reflect.TypeOf(*got)

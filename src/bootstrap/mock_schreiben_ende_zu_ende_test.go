@@ -124,7 +124,7 @@ func msDienst(t *testing.T, xml, root string, status model.CoverageStatus, sch o
 		Dienste: []mock.Dienst{{ID: "svc", Root: root}}, Metadaten: mlMetadaten{}, Workspaces: msWorkspaces{s: s}, Entities: msEntities{s: s},
 		Coverage: mlCoverage{status: status}, Blobs: mlBlobs{xml: xml}, MetadatenCodec: csdl.New(),
 		URLCodec: urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser())), Schreiber: sch, Eingabe: jsoncodec.NewEingabe(),
-		Transaktion: msTransaktion{s: s}, PublicBaseURL: "http://recorder.test", MaxBytes: 8 << 20,
+		Transaktion: msTransaktion{s: s}, PublicBaseURL: "http://recorder.test", MaxBytes: 8 << 20, Telemetrie: telemetrieFuerTest(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -401,6 +401,7 @@ func msSqliteDienst(t *testing.T, sch outbound.ODataSchreiber) (*mock.Mocker, *w
 		Dienste: []mock.Dienst{{ID: "svc", Root: "/svc"}}, Metadaten: d.db.Metadata(), Workspaces: d.db.Workspaces(), Entities: d.db.Entities(),
 		Coverage: d.db.Coverage(), Blobs: d.store, MetadatenCodec: csdl.New(), URLCodec: urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser())),
 		Schreiber: sch, Eingabe: jsoncodec.NewEingabe(), Transaktion: d.db, PublicBaseURL: "http://recorder.test", MaxBytes: 1 << 20,
+		Telemetrie: telemetrieFuerTest(),
 	})
 	if err != nil {
 		t.Fatal(err)

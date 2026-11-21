@@ -59,7 +59,12 @@ func StartMit(ctx context.Context, environ []string, stderr io.Writer, b Bauteil
 
 // BuildMit ist Build mit gegebenen Bauteilen.
 func BuildMit(ctx context.Context, k Konfiguration, log *slog.Logger, b Bauteile) (*Handle, error) {
-	return build(ctx, k, log, b)
+	return build(ctx, k, log, io.Discard, b)
+}
+
+// BuildMitSenke ist Build mit gegebenen Bauteilen und der Senke des Adapters des Prozesses (SPEC-139 Nr. 13).
+func BuildMitSenke(ctx context.Context, k Konfiguration, log *slog.Logger, senke io.Writer, b Bauteile) (*Handle, error) {
+	return build(ctx, k, log, senke, b)
 }
 
 // IDsVon liefert den IDGenerator des Handle.

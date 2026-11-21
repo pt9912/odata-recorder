@@ -11,10 +11,20 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
 // headerCoverage ist der Header der Coverage auf Collection und Anzahl (SPEC-197 Nr. 4).
 const headerCoverage = "X-Recorder-Coverage"
+
+// Attribute und Anfangswerte des Spans der Query (SPEC-290 Nr. 4): der Platzhalter `_.` ist nie der Name eines Sets, weil ein einfacher
+// Name kein `.` enthält; `nicht_gelesen` steht, bis die Coverage gelesen ist.
+const (
+	attrEntitySet        = "recorder.entity_set"
+	attrCoverageStatus   = "recorder.coverage_status"
+	platzhalterSet       = "_."
+	coverageNichtGelesen = "nicht_gelesen"
+)
 
 // headerEtag ist die Kopfzeile des ETag (SPEC-281 Nr. 1).
 const headerEtag = "ETag"
@@ -29,11 +39,26 @@ type lauf struct {
 	set    string
 	typ    model.EntityType
 	accept []string
+	// span ist der Span der Query (SPEC-290); die Mutation führt ihn nicht und liest die Coverage über liesCoverage.
+	span support.Span
+}
+
+// frage führt Collection, Entity und Anzahl unter dem Span `odata.mock.query` aus (SPEC-290): der Span beginnt nach dem Lesen des
+// Workspace und endet mit der Rückkehr, auf jedem Weg; das `ctx` des Spans verwirft der Dienst.
+func (m *Mocker) frage(ctx context.Context, a inbound.Anfrage, d Dienst, w model.Workspace, u model.ODataURL) (inbound.Antwort, error) {
+	_, span := m.k.Telemetrie.StartSpan(ctx, support.SpanMockQuery,
+		support.Str(attrEntitySet, platzhalterSet), support.Str(attrCoverageStatus, coverageNichtGelesen))
+	defer span.End()
+	s, err := m.holeService(ctx, d)
+	if err != nil {
+		return inbound.Antwort{}, err
+	}
+	return m.lese(ctx, a, d, w, s, u, span)
 }
 
 // lese beantwortet Collection, Entity und Anzahl (SPEC-196, SPEC-197, SPEC-198): das Modell, das Entity-Set, dann der
-// Ablauf der Art. Das Modell lebt nur für den Aufruf.
-func (m *Mocker) lese(ctx context.Context, a inbound.Anfrage, d Dienst, w model.Workspace, s model.Service, u model.ODataURL) (inbound.Antwort, error) {
+// Ablauf der Art. Das Modell lebt nur für den Aufruf. Der Name des Sets aus dem Modell, nicht der des Requests, ist das Attribut des Spans.
+func (m *Mocker) lese(ctx context.Context, a inbound.Anfrage, d Dienst, w model.Workspace, s model.Service, u model.ODataURL, span support.Span) (inbound.Antwort, error) {
 	modell, err := m.ladeModell(ctx, d, s)
 	if err != nil {
 		return inbound.Antwort{}, err
@@ -42,11 +67,12 @@ func (m *Mocker) lese(ctx context.Context, a inbound.Anfrage, d Dienst, w model.
 	if !ok {
 		return inbound.Antwort{}, mitCode(model.CodeE6008, nil)
 	}
+	span.Set(support.Str(attrEntitySet, set.Name))
 	typ, ok := modell.EntityType(set.EntityType)
 	if !ok {
 		return inbound.Antwort{}, mitCode(model.CodeE9001, nil)
 	}
-	l := lauf{kopf: a.Methode == "HEAD", d: d, w: w, u: u, modell: modell, set: set.Name, typ: typ, accept: werteVon(a.Header, "accept")}
+	l := lauf{kopf: a.Methode == "HEAD", d: d, w: w, u: u, modell: modell, set: set.Name, typ: typ, accept: werteVon(a.Header, "accept"), span: span}
 	switch u.Ressource.Art {
 	case model.RessourceMenge:
 		return m.collection(ctx, l)
@@ -80,8 +106,18 @@ func nichtGefunden(err error) bool {
 	return errors.Is(err, outbound.ErrNichtGefunden) && !kontextFehler(err)
 }
 
-// coverage liest den Zustand des Sets an der Baseline des Workspace (SPEC-197 Nr. 1); kein Eintrag ist `unknown`.
+// coverage liest den Zustand des Sets an der Baseline des Workspace und setzt ihn als Attribut des Spans (SPEC-290 Nr. 4 b), vor der
+// Entscheidung des strikten Modus; ein Lesefehler und ein Status außerhalb der drei lassen `nicht_gelesen` stehen.
 func (m *Mocker) coverage(ctx context.Context, l lauf) (model.CoverageStatus, error) {
+	status, err := m.liesCoverage(ctx, l)
+	if err == nil {
+		l.span.Set(support.Str(attrCoverageStatus, string(status)))
+	}
+	return status, err
+}
+
+// liesCoverage liest den Zustand des Sets an der Baseline des Workspace (SPEC-197 Nr. 1); kein Eintrag ist `unknown`.
+func (m *Mocker) liesCoverage(ctx context.Context, l lauf) (model.CoverageStatus, error) {
 	c, err := m.k.Coverage.Get(ctx, l.w.BaselineSnapshotID, l.set)
 	switch {
 	case nichtGefunden(err):

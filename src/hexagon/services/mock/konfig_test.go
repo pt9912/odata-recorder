@@ -38,8 +38,8 @@ func TestNewKonfig(t *testing.T) {
 		}
 		faelle = append(faelle, fall{"nil in " + name, func(k *mock.Konfig) { reflect.ValueOf(k).Elem().FieldByName(name).SetZero() }})
 	}
-	if felder != 10 {
-		t.Fatalf("Konfig hat %d Felder mit einer Schnittstelle, die Menge M1 nennt 10 (neun Ports und Eingabe); Z01 ist nachzuziehen", felder)
+	if felder != 11 {
+		t.Fatalf("Konfig hat %d Felder mit einer Schnittstelle, die Menge M1 nennt 11 (zehn Ports, davon Telemetrie, und Eingabe); Z01 ist nachzuziehen", felder)
 	}
 	satzOhne := func(name string, aendere func(s *outbound.CodecSatz)) fall {
 		return fall{"Satz mit nil in " + name, func(k *mock.Konfig) {
@@ -59,8 +59,8 @@ func TestNewKonfig(t *testing.T) {
 		satzOhne("URL", func(s *outbound.CodecSatz) { s.URL = nil }),
 		satzOhne("Schreiber", func(s *outbound.CodecSatz) { s.Schreiber = nil }),
 	)
-	if len(faelle) != 18 {
-		t.Fatalf("%d Fälle, die Menge M1 nennt 18", len(faelle))
+	if len(faelle) != 19 {
+		t.Fatalf("%d Fälle, die Menge M1 nennt 19", len(faelle))
 	}
 	for _, f := range faelle {
 		t.Run(f.name, func(t *testing.T) {
@@ -81,8 +81,8 @@ func TestNewKonfig(t *testing.T) {
 			if strings.Contains(err.Error(), kanarienwert) {
 				t.Errorf("Text nennt einen Wert: %q", err.Error())
 			}
-			if ops := u.p.ops(); len(ops) != 0 {
-				t.Errorf("New rief Ports: %v", ops)
+			if ops := u.p.ops(); len(ops) != 0 || len(u.tel.Aufrufe()) != 0 {
+				t.Errorf("New rief Ports %v oder Telemetrie %d-mal", ops, len(u.tel.Aufrufe()))
 			}
 		})
 	}
@@ -100,8 +100,8 @@ func TestNewAkzeptiert(t *testing.T) {
 	if m, err := mock.New(u.k); m == nil || err != nil {
 		t.Fatalf("New = %v, %v", m, err)
 	}
-	if ops := u.p.ops(); len(ops) != 0 {
-		t.Errorf("New rief Ports: %v", ops)
+	if ops := u.p.ops(); len(ops) != 0 || len(u.tel.Aufrufe()) != 0 {
+		t.Errorf("New rief Ports %v oder Telemetrie %d-mal", ops, len(u.tel.Aufrufe()))
 	}
 }
 

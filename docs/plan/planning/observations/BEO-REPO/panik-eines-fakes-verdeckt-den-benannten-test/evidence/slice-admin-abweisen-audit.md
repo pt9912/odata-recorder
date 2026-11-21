@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-abweisen-audit
+**Fund:** Die Mutation `D5-kontextfehler-bricht-ab` (Abbruch bei `context.Canceled` aus `Append`) beendete das Testprogramm durch eine Panik außerhalb von `ServeHTTP`, ohne `--- FAIL` des benannten Tests `TestAuditFehlerAendertNichts`; die Panik kam aus dem mutierten Code des Adapters, nicht aus einem Fake. Der Implementer fing sie vor dem Handoff mit `rufeSicher` als Fehler des Tests ab, die Mutation ist seitdem aus dem benannten Grund rot. Beleg: Plan `slice-admin-abweisen-audit` §3 (Umsetzung, Mutationen, Mengen und Raten).

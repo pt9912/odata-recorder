@@ -200,15 +200,20 @@ func TestSchreibstellenZahl(t *testing.T) {
 	gleichAuf(t, "Zahl der Schreibstellen", len(namen), 9)
 }
 
-// TestZaehlenJedeSchreibstelle hält C1 (Nr. 7): an jeder der neun Schreibstellen ruft der Adapter `CountError` genau einmal
-// mit dem Code der Antwort und sonst keine Operation der Telemetrie und kein Audit.
+// TestZaehlenJedeSchreibstelle hält C1 (Nr. 7) und D2 (Nr. 8): an jeder der neun Schreibstellen ruft der Adapter
+// `CountError` genau einmal mit dem Code der Antwort und sonst keine Operation der Telemetrie, und `Append` genau einmal an
+// der Stelle 401 und an keiner anderen.
 func TestZaehlenJedeSchreibstelle(t *testing.T) {
 	for _, s := range schreibstellen() {
 		u, rec, _ := s.lauf(t, nil)
 		pruefeFehlerAntwort(t, s.name, rec, s.status, s.body, s.allow)
-		if codes, andere := zaehlungenVon(u.tele); !slices.Equal(codes, []string{s.code}) || andere != 0 || u.audit.Aufrufe() != 0 {
-			t.Errorf("%s: CountError %q, andere Aufrufe der Telemetrie %d, Audit %d, erwartet einmal %s und sonst 0",
-				s.name, codes, andere, u.audit.Aufrufe(), s.code)
+		audit := 0
+		if s.status == 401 {
+			audit = 1
+		}
+		if codes, andere := zaehlungenVon(u.tele); !slices.Equal(codes, []string{s.code}) || andere != 0 || u.audit.Aufrufe() != audit {
+			t.Errorf("%s: CountError %q, andere Aufrufe der Telemetrie %d, Audit %d, erwartet einmal %s, Audit %d und sonst 0",
+				s.name, codes, andere, u.audit.Aufrufe(), s.code, audit)
 		}
 	}
 }

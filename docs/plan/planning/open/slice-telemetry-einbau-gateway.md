@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-QA-01`, `LH-FA-01`, `LH-QA-05`, `LH-QA-04`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
 
-**Berührte Spec-Stellen:** `SPEC-026`, `SPEC-027`, `SPEC-028` (spezifikation.md §5) · `LH-QA-01.a` (Messpunkt: Gesamtspan `odata.gateway.request`) · `SPEC-121` Nr. 12 (Protokoll des Record-Dienstes) · `SPEC-121` Nr. 13 (Capture-Status) · `SPEC-109`, `SPEC-113` (Fehlercodes für den Zähler) · `ARC-002`, `ARC-005`, `ARC-012`, `ARC-021`.
+**Berührte Spec-Stellen:** `SPEC-026`, `SPEC-027`, `SPEC-028` (spezifikation.md §5) · `LH-QA-01.a` (Messpunkt: Gesamtspan `odata.gateway.request`) · `SPEC-121` Nr. 12 (Protokoll des Record-Dienstes) · `SPEC-121` Nr. 13 (Capture-Status) · `SPEC-139` Nr. 3 und 13 c (Adapter des Prozesses, zwei Adapter in `replay` und `hybrid`) · `SPEC-109`, `SPEC-113` (Fehlercodes für den Zähler) · `ARC-002`, `ARC-005`, `ARC-012`, `ARC-021`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -41,6 +41,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-telemetry-handler` §6, Spec-Lücke; Geber: `slice-telemetry-handler`; Eintrag des Planners vom 2026-11-07):** (d) der Wortlaut der Texte der Ereignisse `upstream` und `ablage` des Record-Dienstes. `SPEC-121` Nr. 12 sagt „festem Text“, nennt ihn aber für diese beiden nicht; die Tests des Handlers (Menge M13, `TestDienstEintraege`) nehmen die Texte des Codes (`record: Upstream ohne Antwort`, `record: Exchange nicht angehängt`, Quelle `src/hexagon/services/record/protokoll.go`), also ein Orakel aus dem Code. Der Architect legt den Wortlaut beim Vertrag dieses Slice fest (Auftrag 8, zusammen mit (b)); der Fänger je Stelle aus (c) und die Fixture von `TestDienstEintraege` nehmen danach den Text aus der Spezifikation. Der Handler ändert den Code der Dienste nicht (`slice-telemetry-handler` §1), der Text ist hier zu berichtigen, falls die Spezifikation einen anderen festlegt.
 
+**Übernimmt (Sendung von [slice-telemetry-einbau-mock](../done/slice-telemetry-einbau-mock.md) (Teil 1), Verdrahtung des Adapters; Geber: `slice-telemetry-einbau-mock`; Eintrag des Planners vom 2026-11-21 bei der Closure von Teil 1, §1 *Ausdrücklich NICHT* und DoD dieses Slice vorher gelesen, kein Ausschluss trifft die Sendung):** (e) Teil 1 hat den Adapter des Prozesses angelegt (`SPEC-139` Nr. 13: ein `telemetry.New` je Prozess in `verdrahte` am Haken `NeueTelemetrie`, `Writer` der Fehlerstrom von `Start`, `Clock` die eine Uhr, `MinLevel` `INFO`; der Mock erhält ihn in `mock` und `hybrid`, `slog.New(Handler())` dieses Adapters ist das `Log` des Dienstes `workspace` in jedem Modus). Dieser Slice verwendet ihn, statt einen weiteren zu erzeugen: der Adapter des Replay-Dienstes (`SPEC-139` Nr. 3, `telemetry.New` mit `io.Discard`, in `replay` und `hybrid` der zweite Adapter) wird durch den Adapter des Prozesses ersetzt, und `slog.New(Handler())` dieses Adapters ist das `Log` der Dienste `record`, `session` und `maintenance` (Punkt (a) oben, Adapter und Senke sind dann der eine des Prozesses); `SPEC-139` Nr. 3 und Nr. 13 c (*Die Übrigen*: zwei Adapter in `replay` und `hybrid`) sind im selben Zug nachzuziehen (Architect, beim Vertrag dieses Slice, vor dem ersten Code-Commit). Die Tests, die die Zahl der Adapter je Modus festhalten (`m3_wurzel_test.go`, `m4_wurzel_test.go`, `wurzel_test.go` über `alleTel`), ändern sich dabei von zwei auf einen Adapter in `replay` und `hybrid`.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Port und Adapter `Telemetry` — `slice-telemetry-port`; dieser Slice ruft ihn nur.
@@ -48,7 +50,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Spans von Mock-Dienst und Workspace-Mutation (`SPEC-029`, `SPEC-030`) — `slice-telemetry-einbau-mock` (Query-Span) und `slice-telemetry-einbau-mock-mutation` (Mutations-Span); der Gesamtspan im HTTP-Adapter ist modusunabhängig und trägt auch den Modus `mock`, sobald dieser existiert (der Adapter kennt den Modus nicht, `architecture.md` §2.5; wie das Attribut `recorder.mode` zu ihm kommt, entscheidet der Architect, Auftrag 2).
 - Spans und Zähler des Hybrid-Fallbacks — kein Slice von `welle-betrieb` nimmt sie an, obwohl [welle-hybrid](../done/welle-hybrid/welle-hybrid.md) §6 sie `welle-betrieb` zuweist; keine Adresse (siehe §6, Ausgang *offen*, Adresse: Planner).
 - Der Lasttest und seine Messung — `slice-lasttest`; dieser Slice liefert den Messpunkt.
-- Das Handbuch-Kapitel über Logfelder, soweit der Slice keine neuen sichtbaren Felder einführt (siehe DoD).
+- Das Handbuch-Kapitel über die Logzeilen des Prozesses (Gesamtspan, Einträge der Dienste als JSON-Zeile) — `slice-handbuch-telemetrie` (Entscheidung des Users vom 2026-11-21: eigener Slice, Start nach diesem Slice, §4 dort); der Slice schreibt kein Kapitel und führt keinen Fehlercode, Schlüssel oder Kommando ein (siehe DoD).
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
 einer mit vier erfundenen; die vier Klassen sind ein Suchraster, keine
@@ -70,13 +72,13 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Gesamtspan im HTTP-Adapter: Messpunkt Request-Eingang bis erstes Response-Byte, Attribute `http.request.method`, `http.response.status_code`, `recorder.mode`; auch bei Fehlerobjekt, ohne Antwort und bei Abbruch des Clients wird der Span beendet (`SPEC-026`, `LH-QA-01.a`).
 - [ ] Capture-Span im Record-Dienst und Match-Span im Replay-Dienst mit ihren Pflicht-Attributen; der Protokolleintrag des Record-Dienstes läuft über den Port, Attribute und Text unverändert (`SPEC-027`, `SPEC-028`, `SPEC-121` Nr. 12); der Zähler je Fehlercode steigt für jeden Code, den der Test auslöst.
-- [ ] Verdrahtung im Composition Root und Test durch Record und Replay: die Spans `SPEC-026` bis `SPEC-028` mit ihren Pflicht-Attributen, ohne Query-Literal und Body (Canary), der Gesamtspan umfasst den Match-Span; die Dienste `record`, `session` und `maintenance` loggen über `slog.New(Handler())` (`SPEC-231` Nr. 7), mit einem Fänger je Stelle der zehn Einträge, dass kein Request-Wert in `session_id` oder `msg` landet (Sendung L15 von `slice-telemetry-log`).
+- [ ] Verdrahtung im Composition Root und Test durch Record und Replay: die Spans `SPEC-026` bis `SPEC-028` mit ihren Pflicht-Attributen, ohne Query-Literal und Body (Canary), der Gesamtspan umfasst den Match-Span; die Dienste `record`, `session` und `maintenance` loggen über `slog.New(Handler())` (`SPEC-231` Nr. 7), mit einem Fänger je Stelle der zehn Einträge, dass kein Request-Wert in `session_id` oder `msg` landet (Sendung L15 von `slice-telemetry-log`); der Adapter des Prozesses aus `slice-telemetry-einbau-mock` ersetzt den des Replay-Dienstes, `SPEC-139` Nr. 3 und 13 c sind nachgezogen (Sendung von `slice-telemetry-einbau-mock`).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
 - [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Macht der Slice Logfelder, einen Fehlercode oder Schlüssel am Binary sichtbar (die Logzeilen des laufenden Prozesses): Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün. Sonst steht in §7, dass das Binary unverändert blieb.
+- [ ] Handbuch: der Slice führt keinen Fehlercode, keinen Schlüssel und kein Kommando ein; die Logzeilen des laufenden Prozesses (Gesamtspan, Einträge der Dienste als JSON-Zeile) beschreibt das Kapitel von `slice-handbuch-telemetrie` (Entscheidung des Users vom 2026-11-21, §6); das Kataloge-Gate ist grün, und §7 sagt, dass kein Fehlercode, Schlüssel oder Kommando des Binary dazukam.
 - [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
 - [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
@@ -94,15 +96,15 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/adapters/driving/httpodata/` | update | Gesamtspan, Zähler für geschriebene Fehlerobjekte |
 | `src/hexagon/services/record/` | update | Capture-Span; Protokoll über den Port statt `*slog.Logger` (Konstruktor, Konfiguration) |
 | `src/hexagon/services/replay/` | update | Match-Span |
-| `src/bootstrap/` | update | Verdrahtung des Adapters `Telemetry` |
-| `spec/spezifikation.md` | update | `SPEC-121` Nr. 12 (kein Port `Telemetry` mehr „noch nicht“), Aufrufstellen und Randformen (Architect) |
+| `src/bootstrap/` | update | Verdrahtung des Adapters `Telemetry`: der Adapter des Prozesses aus `slice-telemetry-einbau-mock` (`SPEC-139` Nr. 13) statt eines zweiten für den Replay-Dienst, und als `Log` von `record`, `session` und `maintenance` |
+| `spec/spezifikation.md` | update | `SPEC-121` Nr. 12 (kein Port `Telemetry` mehr „noch nicht“), `SPEC-139` Nr. 3 und 13 c (ein Adapter je Prozess), Aufrufstellen und Randformen (Architect) |
 | Tests | update, neu | Fakes der Ports; der Test durch Record und Replay |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer.
 
 **Aufträge an den Architect:**
 
-1. **Messpunkt.** Wo der Gesamtspan beginnt (nach dem Lesen der Request-Zeile, vor der Abbildung auf `inbound.Anfrage`) und endet (erstes Response-Byte: `WriteHeader`, erster `Write`, oder Fehlerobjekt); Verhalten bei Antwort ohne Body, bei Abbruch vor dem ersten Byte, bei `Flush`; was „im Prozess“ gegen `LH-QA-01.a` heißt.
+1. **Messpunkt.** Wo der Gesamtspan beginnt (nach dem Lesen der Request-Zeile, vor der Abbildung auf `inbound.Anfrage`) und endet (erstes Response-Byte: `WriteHeader`, erster `Write`, oder Fehlerobjekt); Verhalten bei Antwort ohne Body, bei Abbruch vor dem ersten Byte, bei `Flush`; ob jede abgewiesene Anfrage (ohne oder mit unbekanntem Workspace-Header, `ODR-E5003`, `ODR-E7001`) den Gesamtspan und seine Zeile trägt (das Beispiel von `slice-handbuch-telemetrie` setzt es voraus); was „im Prozess“ gegen `LH-QA-01.a` heißt.
 2. **Attribute.** Woher `recorder.mode` kommt (der Adapter kennt den Modus nicht); wann `recorder.capture_status`, `recorder.match_strategy` und `recorder.match_result` feststehen (nach dem Ende des Exchange, bei Abbruch, bei `Drain`); Wertemengen, auch für den Fehlerfall.
 3. **Eltern-Kind.** Der Match-Span liegt im Gesamtspan (Weitergabe über `ctx`); die Reihenfolge, wenn der Capture-Span den Gesamtspan überlebt (der Exchange wird nach dem letzten Byte angehängt).
 4. **Ersatz des Loggers.** Der feste Eintrag des Record-Dienstes (`SPEC-121` Nr. 12) geht über den Port, Text und Attribute bleiben; der Konstruktor verliert das Feld `Log` oder behält es nicht; wie die Fänger der bisherigen Einträge (Stufe, Attribute) unverändert bleiben.
@@ -142,7 +144,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - `slice-http-adapter` (`welle-record-replay`): der Ort des Gesamtspans, `src/adapters/driving/httpodata` besteht heute nicht.
 - `slice-replay-service` (`welle-record-replay`): der Ort des Match-Spans, `src/hexagon/services/replay` besteht heute nicht. Der Record-Dienst (`slice-record-service`) liegt in `done/`.
 - `slice-bootstrap-m2` (`welle-record-replay`): der Composition Root, der Adapter und Dienste je Modus verdrahtet, und der Handle, über den der Test Record und Replay durchläuft (kein CLI, keine Admin-API).
-- Handbuch-Punkt der DoD (nur wenn er greift): `slice-handbuch-geruest` und `slice-handbuch-meldungskatalog` aus `welle-benutzerhandbuch` liegen dann in `done/` (das Gate liest Binary erst nach `slice-bootstrap-m2`).
+- Handbuch-Punkt der DoD: `slice-handbuch-geruest` und `slice-handbuch-meldungskatalog` aus `welle-benutzerhandbuch` liegen in `done/` (das Gate liest Binary erst nach `slice-bootstrap-m2`); das Kapitel zu den Logzeilen startet erst nach diesem Slice (`slice-handbuch-telemetrie` §4), und sein Beispiel zum Gesamtspan setzt voraus, dass dieser Slice ihn auch für eine abgewiesene Anfrage schreibt (Auftrag 1).
 
 **Unabhängig von `welle-mock` / M3, weil** der Slice nur die Pfade `record` und `replay` einbaut; `MockUseCase`, `WorkspaceUseCase`-Mutation und der Modus `mock` im Composition Root (`slice-bootstrap-m3`) sind nicht seine Orte (`slice-telemetry-einbau-mock`). **Nicht unabhängig von M2:** der Einbau braucht den HTTP-Adapter und den Replay-Dienst aus Linie A und den Composition Root von `slice-bootstrap-m2`; ohne sie gibt es keinen Ort für den Gesamtspan. Der letzte Slice von `welle-record-replay`, `slice-protokolltreue`, ist keine Bedingung.
 
@@ -171,6 +173,7 @@ dasteht.
 - Der Einbau ändert den Konstruktor des Record-Dienstes (Feld `Log`); Fänger und Tests der Vorgänger, die das Feld setzen, brechen — **Ausgang:** offen; Auftrag 4, die Fänger der bisherigen Einträge bleiben unverändert grün.
 - Messpunkt „erstes Response-Byte“ im Adapter einer HTTP-Bibliothek, die `WriteHeader` und erstes `Write` trennt; ein Span, der den Abbruch des Clients nicht überlebt — **Ausgang:** offen; Adresse: Architect (Auftrag 1), nebenläufige Fänger ordnen mit Kanälen und laufen unter `make test-race`.
 - Pfad ohne Lauf unter dem Detektor (Abbruch, Ausfall der Senke) — **Ausgang:** offen; `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×): Wirkungs-Fänger oder akzeptiertes Negativ mit Grund und Folge (`AGENTS.md` §3.10).
+- Handbuch: Mit der Verdrahtung schreibt das Binary den Gesamtspan je Anfrage und die Einträge der Dienste `record`, `session` und `maintenance` als JSON-Zeile (`SPEC-231` Nr. 7), sichtbare Logzeilen des Prozesses; ein Kapitel dazu ist nur als gebundenes Beispiel zulässig (`SPEC-200` Nr. 1), und das Beispiel-Format kennt keine Anfrage an den Listener (`SPEC-200` Nr. 6 d, 7 b) — **Ausgang:** eingetreten → Folge-Slice `slice-handbuch-telemetrie` (Entscheidung des Users vom 2026-11-21, `welle-betrieb` §5, Punkt c): dieser Slice schreibt kein Kapitel; der Nehmer trägt das Kapitel in §1 (*Übernimmt*, Geber dieser Slice, gelesen am 2026-11-21, kein *Ausdrücklich NICHT* dort trifft die Sendung, `AGENTS.md` §3.13) und startet nach diesem Slice (§4 dort); der Messpunkt des Gesamtspans (Auftrag 1) nennt, ob eine abgewiesene Anfrage ihn trägt, denn davon hängt das Beispiel des Kapitels ab.
 - Sendung ohne Nehmer: Spans und Zähler des Hybrid-Fallbacks. `welle-hybrid` §6 weist sie `welle-betrieb` zu, die Tabelle von [welle-betrieb](../welle-betrieb.md) §4 führt sie in keinem Slice — **Ausgang:** offen; Adresse: Planner (Frage an den User: eigener Slice in `welle-betrieb` oder Teil von `slice-telemetry-einbau-mock`, oder in `welle-hybrid`).
 - Randformen (`AGENTS.md` §3.12, §3.16): Das Raster entsteht vor dem ersten Code-Commit; eine Zelle ohne Ort geht an den Architect — **Ausgang:** offen.
 - Das Ziel (Protokolleintrag „über den Port `Telemetry` statt über einen `*slog.Logger`“) widerspricht `SPEC-231` Nr. 7 (die Dienste behalten das `*slog.Logger`-Feld und erhalten `slog.New(Handler())`); die Spezifikation gewinnt, der Wortlaut des Ziels und der DoD ist zu berichtigen — **Ausgang:** offen; Adresse: Architect (beim Vertrag dieses Slice, vor dem ersten Code-Commit).

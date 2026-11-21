@@ -257,7 +257,7 @@ func (u *abUmgebung) baueMock(wsDek func(outbound.WorkspaceRepository) outbound.
 			Dienste: []mock.Dienst{{ID: "svc", Root: "/odata"}}, Metadaten: u.db.Metadata(), Workspaces: wr, Entities: er, Coverage: u.db.Coverage(),
 			Blobs: u.store, MetadatenCodec: csdl.New(), URLCodec: urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser())),
 			Schreiber: jsoncodec.NewSchreiber(), Eingabe: jsoncodec.NewEingabe(), Transaktion: u.db, PublicBaseURL: "http://recorder.test",
-			StrictCoverage: strikt, MaxBytes: 8388608,
+			StrictCoverage: strikt, MaxBytes: 8388608, Telemetrie: telemetrieFuerTest(),
 		})
 		abMust(u.t, err)
 		return m
