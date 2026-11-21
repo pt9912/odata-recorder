@@ -215,15 +215,16 @@ func TestAuditBeiBeendetemKontext(t *testing.T) {
 	gleichAuf(t, "Zahl der Fälle", faelle, 2*110)
 }
 
-// TestAppendEineAufrufstelle hält die Aufrufstelle von D1 (Nr. 8): im Paket ohne _test.go ruft und nennt genau eine Stelle
-// `Append`, die eine Schreibstelle des Fehlerobjekts (wie C3 für `CountError`); der Zähler ist der von C3, die Probe
-// dort hält ihn gegen Namensgleichheit und Importformen.
+// TestAppendEineAufrufstelle hält die Aufrufstellen von D1 (Nr. 8) und S12: im Paket ohne _test.go ruft und nennt `Append`
+// je eine Stelle in `admin.go` (die Schreibstelle des Fehlerobjekts, wie C3 für `CountError`) und in `sessions.go` (der
+// Eintrag nach dem Anlegen, SPEC-292 Nr. 11), sonst keine Datei; der Zähler ist der von C3, die Probe dort hält ihn gegen
+// Namensgleichheit und Importformen.
 func TestAppendEineAufrufstelle(t *testing.T) {
 	eintraege, err := os.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
 	}
-	dateien, stellen := 0, 0
+	dateien, stellen := 0, map[string]int{}
 	for _, e := range eintraege {
 		if n := e.Name(); strings.HasSuffix(n, ".go") && !strings.HasSuffix(n, "_test.go") {
 			src, err := os.ReadFile(n)
@@ -231,12 +232,15 @@ func TestAppendEineAufrufstelle(t *testing.T) {
 				t.Fatal(err)
 			}
 			dateien++
-			stellen += zaehleSelektoren(t, n, src, "", "Append")
+			if z := zaehleSelektoren(t, n, src, "", "Append"); z > 0 {
+				stellen[n] = z
+			}
 		}
 	}
-	if dateien < 4 || stellen != 1 {
-		t.Errorf("%d Dateien ohne _test.go: %d Stellen von Append, erwartet mindestens 4 Dateien und 1 Stelle", dateien, stellen)
+	if dateien < 4 {
+		t.Errorf("%d Dateien ohne _test.go, erwartet mindestens 4", dateien)
 	}
+	gleichAuf(t, "Stellen von Append je Datei", stellen, map[string]int{"admin.go": 1, "sessions.go": 1})
 }
 
 // TestEintragHatSiebenFelder hält die Voraussetzung von D1 und D3: der Eintrag hat sieben Felder, und der Vergleich mit dem
