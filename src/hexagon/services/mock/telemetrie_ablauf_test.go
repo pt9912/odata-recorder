@@ -256,8 +256,8 @@ func TestSpanCtxUnveraendert(t *testing.T) {
 	}
 }
 
-// codeSzenario ist ein Lauf mit einem Code der Menge von SPEC-195 Nr. 10; span ist die Zahl der StartSpan in diesem Stand: 1 für die
-// Query, 0 für die Mutation (sie trägt in diesem Stand keinen Span) und für jeden Weg, der vor dem Beginn endet.
+// codeSzenario ist ein Lauf mit einem Code der Menge von SPEC-195 Nr. 10; span ist die Zahl der StartSpan: 1 für die Query und für die
+// Mutation hinter dem Beginn (SPEC-290 Nr. 7 b), 0 für jeden Weg, der vor dem Beginn endet.
 type codeSzenario struct {
 	name string
 	code model.Code
@@ -280,7 +280,7 @@ func codeSzenarien() []codeSzenario {
 		}}
 	}
 	mutation := func(c model.Code, name, methode, id string, bau func(u *umg)) codeSzenario {
-		return codeSzenario{name, c, 0, func(t *testing.T) (*umg, error) {
+		return codeSzenario{name, c, 1, func(t *testing.T) (*umg, error) {
 			u := schreibUmg(t)
 			bau(u)
 			_, err := u.mutiere(methode, id, eingabeIDName(id, "x"))
@@ -322,7 +322,7 @@ func codeSzenarien() []codeSzenario {
 		}),
 		mitSpan(model.CodeE6008, "E6008", func(u *umg) { u.ressource(model.RessourceMenge, kanarienwert+"Set", model.Optionen{}) }),
 		mutation(model.CodeE6009, "E6009", "POST", "2", nichts),
-		{"E6010", model.CodeE6010, 0, func(t *testing.T) (*umg, error) {
+		{"E6010", model.CodeE6010, 1, func(t *testing.T) (*umg, error) {
 			u := etagUmg(t, true, 1, 1, 1)
 			_, err := u.mutiereMit("DELETE", "2", map[string][]string{"If-Match": {`W/"0"`}})
 			return u, err
@@ -401,7 +401,7 @@ func TestKeinZaehlerBeiKontextfehler(t *testing.T) {
 		u := schreibUmg(t)
 		u.p.setzeFehler("Entities.Get", context.Canceled)
 		_, err := u.mutiere(methode, "2", eingabeIDName("2", "x"))
-		pruefeKontextfehler(t, methode, u, err, 0)
+		pruefeKontextfehler(t, methode, u, err, 1)
 	}
 	if n != 10 {
 		t.Errorf("%d Operationen, erwartet 10 (6 Lesezugriffe und 4 Mutationen)", n)

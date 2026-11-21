@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-einbau-mock-mutation
+**Fund:** Der Lauf von `make gates` im Worktree (Stand `71d77853`, unter zwei Minuten, 97 Zeilen `CACHED`) bezog `build`, `test`, `race`, `lint`, `handbuch` und `katalog` aus dem Schichten-Cache über denselben Inhalt von `src/`; der Verifier fuhr `race` frisch (14 min 15 s einschließlich der Wartezeit auf die Sperre) und `mock` und `bootstrap` mit Abdeckungsprofil (Verifikation V-3, `docs/reviews/2026-11-21-slice-telemetry-einbau-mock-mutation-verifikation.md`).

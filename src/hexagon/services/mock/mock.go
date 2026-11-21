@@ -42,7 +42,7 @@ type Konfig struct {
 	Transaktion outbound.WorkspaceTransactor
 	// Eingabe ist der Leser der Client-Bodies für einen Dienst ohne Satz; nil ist erlaubt (SPEC-192 Nr. 1).
 	Eingabe outbound.ODataEingabe
-	// Telemetrie nimmt den Span der Query auf; nil ist ungültig. Der Dienst ruft von ihr allein StartSpan und am Span Set und End (SPEC-290 Nr. 1).
+	// Telemetrie nimmt die Spans der Query und der Mutation auf; nil ist ungültig. Der Dienst ruft von ihr allein StartSpan und am Span Set und End (SPEC-290 Nr. 1).
 	Telemetrie support.Telemetry
 }
 

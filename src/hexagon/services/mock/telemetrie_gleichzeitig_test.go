@@ -21,8 +21,8 @@ import (
 )
 
 // TestTelemetrieImQuelltext hält Q2 und Q12 (SPEC-290 Nr. 1, 6): im Quelltext des Pakets ohne _test.go ruft der Dienst von Telemetrie und
-// Span allein StartSpan (einmal: T1), Set (zweimal: T2 und T3) und End (einmal: T4); nie Log, CountError oder Snapshot. Die Zählung
-// trägt die Stellen der Query; T5 und T6 (die Mutation) stehen in SPEC-290 Nr. 6 und gehören nicht zu ihr.
+// Span allein StartSpan (zweimal: T1 und T5), Set (zweimal: T2 und T3) und End (zweimal: T4 und T6); nie Log, CountError oder
+// Snapshot (SPEC-290 Nr. 6).
 func TestTelemetrieImQuelltext(t *testing.T) {
 	dateien, err := filepath.Glob("*.go")
 	if err != nil {
@@ -46,7 +46,7 @@ func TestTelemetrieImQuelltext(t *testing.T) {
 			return true
 		})
 	}
-	soll := map[string]int{"StartSpan": 1, "Set": 2, "End": 1, "Log": 0, "CountError": 0, "Snapshot": 0}
+	soll := map[string]int{"StartSpan": 2, "Set": 2, "End": 2, "Log": 0, "CountError": 0, "Snapshot": 0}
 	for name, n := range soll {
 		if zaehler[name] != n {
 			t.Errorf("%s im Quelltext %d-mal, erwartet %d", name, zaehler[name], n)

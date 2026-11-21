@@ -10,6 +10,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
 // Die vier Methoden, die der Dienst ausführt (SPEC-192); jede andere Schreibweise und jede andere Methode ist keine Mutation.
@@ -23,6 +24,26 @@ const (
 // istMutation sagt, ob die Methode eine der vier Mutationen ist (SPEC-192 Nr. 2); die Schreibweise zählt.
 func istMutation(methode string) bool {
 	return methode == methodePost || methode == methodePatch || methode == methodePut || methode == methodeDelete
+}
+
+// Die Attribute des Spans der Mutation (SPEC-290 Nr. 4 c und d); beide stehen schon in StartSpan.
+const (
+	attrWorkspaceID  = "recorder.workspace_id"
+	attrMutationType = "recorder.mutation_type"
+)
+
+// mutationsArt bildet die Methode einer Mutation auf den Wert von `recorder.mutation_type` ab (SPEC-290 Nr. 4 d): die Methode in
+// Kleinschreibung, nie der Text des Requests. schreibe ruft sie nach Schritt (e), so dass die Methode eine der vier ist.
+func mutationsArt(methode string) string {
+	switch methode {
+	case methodePost:
+		return "post"
+	case methodePatch:
+		return "patch"
+	case methodePut:
+		return "put"
+	}
+	return "delete"
 }
 
 // mutation trägt, was die Schritte nach dem Lesen des Modells brauchen: nur Werte (SPEC-195 Nr. 12). schluessel ist der
@@ -41,7 +62,9 @@ type mutation struct {
 }
 
 // schreibe führt POST, PATCH, PUT und DELETE aus (SPEC-192 Nr. 2): Methode und Ressource, Workspace und Service, Modell und Set,
-// Schlüssel der URL, Body, dann die Transaktion. Bis zur Transaktion wird nichts geschrieben.
+// Schlüssel der URL, Body, dann die Transaktion. Bis zur Transaktion wird nichts geschrieben. Der Span `odata.workspace.mutation`
+// (SPEC-290) beginnt nach dem Lesen des Workspace und endet mit der Rückkehr, also nach der Transaktion, auf jedem Weg; er liegt um die
+// Transaktion, nie in f, und das `ctx` des Spans verwirft der Dienst.
 func (m *Mocker) schreibe(ctx context.Context, a inbound.Anfrage, d Dienst, wsID string, u model.ODataURL) (inbound.Antwort, error) {
 	if err := pruefeMethodeUndRessource(a.Methode, d, u); err != nil {
 		return inbound.Antwort{}, err
@@ -50,6 +73,9 @@ func (m *Mocker) schreibe(ctx context.Context, a inbound.Anfrage, d Dienst, wsID
 	if err != nil {
 		return inbound.Antwort{}, err
 	}
+	_, span := m.k.Telemetrie.StartSpan(ctx, support.SpanWorkspaceMutation,
+		support.Str(attrWorkspaceID, w.ID), support.Str(attrMutationType, mutationsArt(a.Methode)))
+	defer span.End()
 	s, err := m.holeService(ctx, d)
 	if err != nil {
 		return inbound.Antwort{}, err
