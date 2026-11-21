@@ -16,8 +16,6 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-listener-tls-verdrahtung](../done/slice-listener-tls-verdrahtung.md) ([welle-betrieb](../welle-betrieb.md), Teil 2 des Schnitts: `LISTEN_TLS_CERT` und `LISTEN_TLS_KEY` in der Startkonfiguration, HTTPS am OData-Listener, Handbuch).
-
 In Arbeit: [slice-admin-sessions](slice-admin-sessions.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `GET` und `POST /__admin/sessions`, Audit `session_angelegt`, Zeit und `SessionRouten`).
 
 In Arbeit: [slice-telemetry-einbau-mock-mutation](slice-telemetry-einbau-mock-mutation.md) ([welle-betrieb](../welle-betrieb.md), Teil 2 des Schnitts: Mutations-Span `odata.workspace.mutation` um die Transaktion, Canary der Länge des Ortes).
