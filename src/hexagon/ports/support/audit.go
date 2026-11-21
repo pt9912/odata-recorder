@@ -4,7 +4,8 @@ import "github.com/pt9912/odata-recorder/src/hexagon/model"
 
 // AuditLog hält fest, was ein Dienst gelöscht hat und welcher Import scheiterte (die vier Arten
 // des Use Case, SPEC-234), und was der Admin-Adapter mit ODR-E2101 abwies (die Art
-// admin_abgewiesen, SPEC-238 Nr. 8; LH-RB-04, LH-FA-13). Append hat keinen ctx, ist für
+// admin_abgewiesen, SPEC-238 Nr. 8, und die Art session_angelegt, SPEC-292 Nr. 11; LH-RB-04,
+// LH-FA-13). Append hat keinen ctx, ist für
 // gleichzeitigen Aufruf sicher und gerät nie in Panik; es liefert model.ErrUngueltig bei einem
 // Verstoß gegen Art, Feld oder Wertform (nichts geschrieben) oder den Fehler der Ablage.
 type AuditLog interface {
@@ -15,13 +16,15 @@ type AuditLog interface {
 // Paket den Typ der Attribute von Telemetry (SPEC-230).
 type AuditArt string
 
-// Die vier Arten, die der Use Case schreibt, und die Art des Admin-Adapters (SPEC-234 Nr. 2, 7; SPEC-238 Nr. 8).
+// Die vier Arten, die der Use Case schreibt, und die Arten des Admin-Adapters (SPEC-234 Nr. 2, 7; SPEC-238 Nr. 8;
+// SPEC-292 Nr. 11).
 const (
 	ArtSessionGeloescht     AuditArt = "session_geloescht"
 	ArtSessionAufbewahrung  AuditArt = "session_aufbewahrung"
 	ArtWorkspaceGeloescht   AuditArt = "workspace_geloescht"
 	ArtImportFehlgeschlagen AuditArt = "import_fehlgeschlagen"
 	ArtAdminAbgewiesen      AuditArt = "admin_abgewiesen"
+	ArtSessionAngelegt      AuditArt = "session_angelegt"
 )
 
 // Eintrag ist ein Audit-Eintrag. Je Art ist jedes Feld außer KorrelationsID Pflicht (nichtleer)
@@ -62,5 +65,6 @@ func Arten() []ArtSpec {
 		{ArtWorkspaceGeloescht, []Feld{FeldWorkspaceID}},
 		{ArtImportFehlgeschlagen, []Feld{FeldServiceID, FeldImportID, FeldErrorCode}},
 		{ArtAdminAbgewiesen, []Feld{FeldErrorCode}},
+		{ArtSessionAngelegt, []Feld{FeldServiceID, FeldSessionID}},
 	}
 }
