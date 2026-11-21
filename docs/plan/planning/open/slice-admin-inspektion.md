@@ -18,7 +18,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
 
-**Autor:** pt9912 (Planner; Schnitt vor dem Code aus [slice-admin-sessions](slice-admin-sessions.md), Vorschlag des Architect vom 2026-11-21). **Datum:** 2026-11-21.
+**Autor:** pt9912 (Planner; Schnitt vor dem Code aus [slice-admin-sessions](../next/slice-admin-sessions.md), Vorschlag des Architect vom 2026-11-21). **Datum:** 2026-11-21.
 
 ---
 
@@ -45,7 +45,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Die Endpunkte für Sessions (`GET`, `POST`, `close`, `DELETE`) — [slice-admin-sessions](slice-admin-sessions.md) (Teil 1) und [slice-admin-sessions-beenden](slice-admin-sessions-beenden.md) (Teil 2); dieser Teil teilt mit ihnen das Paket und die Zeit, nicht den Gegenstand.
+- Die Endpunkte für Sessions (`GET`, `POST`, `close`, `DELETE`) — [slice-admin-sessions](../next/slice-admin-sessions.md) (Teil 1) und [slice-admin-sessions-beenden](slice-admin-sessions-beenden.md) (Teil 2); dieser Teil teilt mit ihnen das Paket und die Zeit, nicht den Gegenstand.
 - Imports, Workspaces und Snapshots — `slice-admin-imports` und `slice-admin-workspaces`.
 - Der Rahmen (Listener, Token, Fehlerobjekt, Abbildung der Port-Fehler) — `slice-admin-listener-token`; dieser Teil trägt die Routen und ihre Abbildung.
 - Bildung der Seite (Zeiger `sequence_no`), Coverage einer Baseline, Allowlist der Einstellungen und Zähler je Fehlercode — `InspectionUseCase` (`slice-inspection-use-case`, `slice-inspection-coverage-diagnose`, beide in `done/`); der Adapter bildet ab und liest nie aus der Datenbank (Architektur §2).
@@ -99,7 +99,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stehen seit dem 2026-11-21 (Architect) mit dem Vertrag in der Spezifikation (`SPEC-293`) vor dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer. `Nr.` ist die Kennung des ungeschnittenen Plans: **I** gehört zu diesem Teil (Exchanges, Coverage, Diagnose), **N5** ist seine nebenläufige Zeile; die Zeilen **S**, **N1**, **N2** stehen in Teil 1, **B**, **N3**, **N4** in Teil 2. Die Tabelle trägt die Spalten, die `SPEC-128` Nr. 3 a liest.
 
-**Entscheidungen des Architect für diesen Teil** (2026-11-21, vor dem ersten Code-Commit, `AGENTS.md` §3.12; Ort in der Spezifikation; die übrigen Aufträge stehen in §3 von [slice-admin-sessions](slice-admin-sessions.md)):
+**Entscheidungen des Architect für diesen Teil** (2026-11-21, vor dem ersten Code-Commit, `AGENTS.md` §3.12; Ort in der Spezifikation; die übrigen Aufträge stehen in §3 von [slice-admin-sessions](../next/slice-admin-sessions.md)):
 
 1. **Statuscodes, JSON-Form, Fehlerabbildung:** `SPEC-293` Nr. 6 bis 9. Erfolg 200; Form der Zeile, der Coverage (`evidence` mit denselben Bytes) und der Diagnose nach dem Vertrag; eine ungültige Evidenz ist `ODR-E9001` (500), keine Teilantwort.
 2. **Parameter:** `SPEC-293` Nr. 3 bis 5. Ungültig sind (alle `ODR-E2102`, 400, ohne Aufruf des Dienstes): eine nicht zerlegbare Query, ein doppelter oder leerer bekannter Parameter, eine Zahl außer ASCII-Ziffern, ein Wert über dem größten `int`, ein fehlendes `baseline_id`. `{id}` geht byte-gleich an den Dienst (`SPEC-292` Nr. 4). Ein neuer Code entsteht nicht.
@@ -131,7 +131,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 
 Zeilen: I1 bis I18, N5 gleich 19 (*a* = 1, *b* = 18).
 
-**Verteilung beim Schnitt** (Planner, 2026-11-21): Die Zeilen sind im Wortlaut des Architect übernommen. Wo eine Zeile auf eine Zeile eines anderen Teils verweist (I1 auf S1, I4 auf B3, I16 auf S11, I17 auf S16 und die Gesamtzählung, I18 auf S17), gilt deren Wortlaut in den Plänen von Teil 1 ([slice-admin-sessions](slice-admin-sessions.md)) und Teil 2 ([slice-admin-sessions-beenden](slice-admin-sessions-beenden.md)). I3 und I17 nennen Gesamtzahlen über alle drei Teile: §1 (*Übernimmt*, Punkt (d)) regelt, welcher Stand sie trägt, wenn dieser Teil vor Teil 2 läuft. Die Fänger der Parameter (I5 bis I9) und der Evidenz (I12, I13) gehören diesem Teil allein.
+**Verteilung beim Schnitt** (Planner, 2026-11-21): Die Zeilen sind im Wortlaut des Architect übernommen. Wo eine Zeile auf eine Zeile eines anderen Teils verweist (I1 auf S1, I4 auf B3, I16 auf S11, I17 auf S16 und die Gesamtzählung, I18 auf S17), gilt deren Wortlaut in den Plänen von Teil 1 ([slice-admin-sessions](../next/slice-admin-sessions.md)) und Teil 2 ([slice-admin-sessions-beenden](slice-admin-sessions-beenden.md)). I3 und I17 nennen Gesamtzahlen über alle drei Teile: §1 (*Übernimmt*, Punkt (d)) regelt, welcher Stand sie trägt, wenn dieser Teil vor Teil 2 läuft. Die Fänger der Parameter (I5 bis I9) und der Evidenz (I12, I13) gehören diesem Teil allein.
 
 **Mengen mit Zählprüfung** (Generator oder Schleife, Orakel als Literal im Test, nie aus dem Code; jede Menge nennt ihre Achsen, `AGENTS.md` §3.15; Architect, 2026-11-21, je Teil getrennt; das Orakel trägt Statuscodes, Codes, Namen und Bytes als Literale aus dem Vertrag, nie als Konstanten des Codes und nie als Aufruf des Lesers):
 
@@ -175,7 +175,7 @@ Der Fake `inspektionFake` ist test-lokal (*f* = 1); `FakeAudit`, `FakeTelemetry`
 
 **Bindung an die Ports** (Lerneintrag V-2): `src/adapters/driving/admin/bindung_test.go` ergänzt `var _ inbound.InspectionUseCase = (*inspektionFake)(nil)`; `InspektionRouten` nimmt den Schnittstellentyp des Ports als Parameter (nicht eine Funktion), so übersetzt eine Mutation einer Signatur das Paket nicht mehr.
 
-**Größe und Schnitt:** steht in §3 von [slice-admin-sessions](slice-admin-sessions.md) (Architect, 2026-11-21; Zahlen des Planner in §4 dort und hier). Dieser Teil: *a* = 1, *b* = 18, *f* = 1, *p* = 300 (Konstruktor 25, Handler 90, Leser der Query 80, Schreiber 105), *S* = 2025, *M* = 2800. Die Teile teilen einen Mechanismus (Zeit, Paket) und laufen nacheinander (§4, *Reihenfolge und Konflikte*).
+**Größe und Schnitt:** steht in §3 von [slice-admin-sessions](../next/slice-admin-sessions.md) (Architect, 2026-11-21; Zahlen des Planner in §4 dort und hier). Dieser Teil: *a* = 1, *b* = 18, *f* = 1, *p* = 300 (Konstruktor 25, Handler 90, Leser der Query 80, Schreiber 105), *S* = 2025, *M* = 2800. Die Teile teilen einen Mechanismus (Zeit, Paket) und laufen nacheinander (§4, *Reihenfolge und Konflikte*).
 
 **Betriebsregeln für alle Rollen dieses Slice** (Lehren der Läufe vom 2026-10-24; sie stehen im Plan, damit ein Lauf sie am Arbeitsort liest):
 
@@ -192,7 +192,7 @@ Der Fake `inspektionFake` ist test-lokal (*f* = 1); `FakeAudit`, `FakeTelemetry`
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): [slice-admin-sessions](slice-admin-sessions.md) (Teil 1) liegt in `done/`; mit ihm liegen die Bedingungen von Teil 1 in `done/` (`slice-admin-listener-token` samt seinen Teilen `slice-admin-rahmen`, `slice-admin-authentisierung`, `slice-admin-lebenszyklus`, `slice-admin-fehlerabbildung` und `slice-admin-abweisen-audit`, `slice-audit-log` und `slice-audit-dienste`); dazu `slice-inspection-use-case` und `slice-inspection-coverage-diagnose` (der Schnitt des Architect vom 2026-11-07: Exchanges, dann Coverage und Diagnose). Teil 2 ([slice-admin-sessions-beenden](slice-admin-sessions-beenden.md)) ist keine Bedingung. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12): `SPEC-293` liegt vor (Architect, 2026-11-21).
+**Start** (`next` → `in-progress`): [slice-admin-sessions](../next/slice-admin-sessions.md) (Teil 1) liegt in `done/`; mit ihm liegen die Bedingungen von Teil 1 in `done/` (`slice-admin-listener-token` samt seinen Teilen `slice-admin-rahmen`, `slice-admin-authentisierung`, `slice-admin-lebenszyklus`, `slice-admin-fehlerabbildung` und `slice-admin-abweisen-audit`, `slice-audit-log` und `slice-audit-dienste`); dazu `slice-inspection-use-case` und `slice-inspection-coverage-diagnose` (der Schnitt des Architect vom 2026-11-07: Exchanges, dann Coverage und Diagnose). Teil 2 ([slice-admin-sessions-beenden](slice-admin-sessions-beenden.md)) ist keine Bedingung. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12): `SPEC-293` liegt vor (Architect, 2026-11-21).
 
 **Abhängigkeiten — Grund je Eintrag:**
 
@@ -243,7 +243,7 @@ dasteht.
 | `GET /__admin/coverage`, `baseline_id` | Nr. 5 (Pflicht: 400) | Nr. 5 (leer: 400) | Nr. 3, 5 (doppelt: 400; sonst byte-gleich; unbekannte Baseline und Snapshot anderer Art: `ODR-E7002`, 404) | Nr. 10 | Nr. 10 (liest neu) |
 | `GET /__admin/diagnostics` | gilt nicht: kein Argument; die Query ist ohne Wirkung (Nr. 2) | Nr. 2 | Nr. 2 (jede Query ohne Wirkung); fremde Methode: `SPEC-238` Nr. 2 | Nr. 10 und `SPEC-236` Nr. 7 (der Dienst prüft `ctx`) | Nr. 10, `SPEC-236` Nr. 7 (jeder Aufruf liest neu) |
 
-Ohne Nummer steht in den Zellen `SPEC-293`. Die Zeilen zu den Sessions stehen in §6 von [slice-admin-sessions](slice-admin-sessions.md) und [slice-admin-sessions-beenden](slice-admin-sessions-beenden.md).
+Ohne Nummer steht in den Zellen `SPEC-293`. Die Zeilen zu den Sessions stehen in §6 von [slice-admin-sessions](../next/slice-admin-sessions.md) und [slice-admin-sessions-beenden](slice-admin-sessions-beenden.md).
 
 **Zusatztabelle: Paare von Verstößen und Modi** (`AGENTS.md` §3.16; der Adapter kennt den Modus nicht, `Diagnose` liefert `mode` als Text, der Fänger führt alle vier Modi, I14):
 

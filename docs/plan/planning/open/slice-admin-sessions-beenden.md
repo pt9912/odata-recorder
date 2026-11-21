@@ -18,7 +18,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
 
-**Autor:** pt9912 (Planner; Schnitt vor dem Code aus [slice-admin-sessions](slice-admin-sessions.md), Vorschlag des Architect vom 2026-11-21). **Datum:** 2026-11-21.
+**Autor:** pt9912 (Planner; Schnitt vor dem Code aus [slice-admin-sessions](../next/slice-admin-sessions.md), Vorschlag des Architect vom 2026-11-21). **Datum:** 2026-11-21.
 
 ---
 
@@ -37,7 +37,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-session-use-case` und `slice-session-beenden`, Teil des Schnitts von `slice-admin-sessions`, `AGENTS.md` §3.13):** die Endpunkte `close` und `DELETE` für Sessions; beide Slices liegen in `done/` ([slice-session-use-case](../done/welle-record-replay/slice-session-use-case.md), [slice-session-beenden](../done/welle-record-replay/slice-session-beenden.md)), und ihr §1 *Ausdrücklich NICHT* weist die Endpunkte der Folgewelle zu. Die Endpunkte `POST` und `GET` liegen in Teil 1.
 
-**Übernimmt (Sendung von `slice-admin-sessions`, Teil 1; Geber: `slice-admin-sessions`; Eintrag des Planners vom 2026-11-21 beim Schnitt, `AGENTS.md` §3.13):** (a) die Mittel aus Teil 1, die dieser Teil erweitert: die Funktion der Zeit (RFC 3339, neun Nachkommastellen, S9), `sessionsFake` (alle sieben Operationen gezählt; dieser Teil ergänzt den Zustand mit eigener Sperre für N3 und die Haltepunkte für B6, B7 und N4) und den Konstruktor `SessionRouten` (vier Routen in der Reihenfolge von `SPEC-292` Nr. 1); (b) die Zählstelle der Arten: `len(support.Arten())` gleich 7 in `audit_test.go` des Ports, in `audit_test.go` des Adapters und in `audit_betrieb_test.go` (B14); (c) der Fänger S16 (AST-Test: kein Aufruf von `NeuesFehlerobjekt`, `CountError` und `ArtAdminAbgewiesen`) liest die Dateien der Routen: die Dateien dieses Teils gehören in seine Dateimenge, mit Zählprüfung der Dateien; (d) die Zeilen B4, B5, B9 und B14 verweisen auf S4, S8, S11 und S15 und lesen deren Wortlaut im Plan von Teil 1 ([slice-admin-sessions](slice-admin-sessions.md)); (e) die Gesamtzahlen über alle drei Teile, die zwei Zeilen von Teil 3 als Literal tragen (I3: 42 Fälle mit 7 Treffern, I17: 84 Zellen mit genau 2 Einträgen): wer von Teil 2 und Teil 3 als zweiter in `done/` geht, hebt die Literale auf den Endwert; läuft dieser Teil zuerst (Reihenfolge 1, 2, 3), hebt Teil 3 sie (dessen §1), läuft Teil 3 zuerst, zählen seine Tests 28 Fälle mit 5 Treffern (4 Pfadformen) und 57 Zellen mit einem Eintrag, und dieser Teil hebt sie auf 42 mit 7 und 84 mit 2.
+**Übernimmt (Sendung von `slice-admin-sessions`, Teil 1; Geber: `slice-admin-sessions`; Eintrag des Planners vom 2026-11-21 beim Schnitt, `AGENTS.md` §3.13):** (a) die Mittel aus Teil 1, die dieser Teil erweitert: die Funktion der Zeit (RFC 3339, neun Nachkommastellen, S9), `sessionsFake` (alle sieben Operationen gezählt; dieser Teil ergänzt den Zustand mit eigener Sperre für N3 und die Haltepunkte für B6, B7 und N4) und den Konstruktor `SessionRouten` (vier Routen in der Reihenfolge von `SPEC-292` Nr. 1); (b) die Zählstelle der Arten: `len(support.Arten())` gleich 7 in `audit_test.go` des Ports, in `audit_test.go` des Adapters und in `audit_betrieb_test.go` (B14); (c) der Fänger S16 (AST-Test: kein Aufruf von `NeuesFehlerobjekt`, `CountError` und `ArtAdminAbgewiesen`) liest die Dateien der Routen: die Dateien dieses Teils gehören in seine Dateimenge, mit Zählprüfung der Dateien; (d) die Zeilen B4, B5, B9 und B14 verweisen auf S4, S8, S11 und S15 und lesen deren Wortlaut im Plan von Teil 1 ([slice-admin-sessions](../next/slice-admin-sessions.md)); (e) die Gesamtzahlen über alle drei Teile, die zwei Zeilen von Teil 3 als Literal tragen (I3: 42 Fälle mit 7 Treffern, I17: 84 Zellen mit genau 2 Einträgen): wer von Teil 2 und Teil 3 als zweiter in `done/` geht, hebt die Literale auf den Endwert; läuft dieser Teil zuerst (Reihenfolge 1, 2, 3), hebt Teil 3 sie (dessen §1), läuft Teil 3 zuerst, zählen seine Tests 28 Fälle mit 5 Treffern (4 Pfadformen) und 57 Zellen mit einem Eintrag, und dieser Teil hebt sie auf 42 mit 7 und 84 mit 2.
 
 **Übernimmt (Sendung von `slice-admin-listener-token`, Pflichten der Endpunkte nach `SPEC-238` Nr. 15, Schnitt vom 2026-11-07, `AGENTS.md` §3.13; Teil des Schnitts von `slice-admin-sessions`):** (a) was ein Dienst als `model.ErrUngueltig` ohne Code liefert, gibt die Route als Fehler zurück (die Abbildung auf `ODR-E2102` mit 400 gehört dem Rahmen); die Route liest weder Query noch Body (B4) und prüft die Form von `{id}` nicht (B3); (b) sie ruft `CountError` nie und `Audit.Append` nie für `ODR-E2101` und schreibt kein Fehlerobjekt selbst; (c) die vier Arten von `SPEC-234` Nr. 2 schreibt der Dienst, nie die Route; die Art für Beenden ist eine Zeile im Vertrag dieses Endpunkts (`SPEC-292` Nr. 11, B11); (d) eine Erfolgsantwort hat einen Status von 200 bis 299 und trägt Daten als `Antwort.Body`. Der Fänger liegt in diesem Slice (die Routen und ihre Tests); der Rahmen hat keine Route (`slice-admin-abweisen-audit`, Zeile P1, akzeptiertes Negativ). Der Reviewer löst jede Zeile von Nr. 15 mit einer Mutation auf.
 
@@ -45,7 +45,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- `GET` und `POST /__admin/sessions`, die Funktion der Zeit, der Leser des Bodys, die Art `session_angelegt` — [slice-admin-sessions](slice-admin-sessions.md) (Teil 1, liegt bei diesem Start in `done/`); dieser Teil erweitert und ändert sie nicht.
+- `GET` und `POST /__admin/sessions`, die Funktion der Zeit, der Leser des Bodys, die Art `session_angelegt` — [slice-admin-sessions](../next/slice-admin-sessions.md) (Teil 1, liegt bei diesem Start in `done/`); dieser Teil erweitert und ändert sie nicht.
 - Exchanges, Coverage und Diagnose — `slice-admin-inspektion` (Teil 3, [slice-admin-inspektion](slice-admin-inspektion.md)); er teilt mit diesem Teil das Paket und die Zeit, nicht den Gegenstand.
 - Imports, Workspaces und Snapshots — `slice-admin-imports` und `slice-admin-workspaces`.
 - Der Rahmen (Listener, Token, Fehlerobjekt, Abbildung der Port-Fehler) — `slice-admin-listener-token`; dieser Teil trägt die Routen und ihre Abbildung.
@@ -103,7 +103,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) stehen seit dem 2026-11-21 (Architect) mit dem Vertrag in der Spezifikation (`SPEC-292`) vor dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer. `Nr.` ist die Kennung des ungeschnittenen Plans: **B** gehört zu diesem Teil (`close`, `DELETE`, Audit `session_beendet`), **N3** und **N4** sind seine nebenläufigen Zeilen; die Zeilen **S** und **N1**, **N2** stehen in Teil 1, **I** und **N5** in Teil 3. Die Tabelle trägt die Spalten, die `SPEC-128` Nr. 3 a liest.
 
-**Entscheidungen des Architect für diesen Teil** (2026-11-21, vor dem ersten Code-Commit, `AGENTS.md` §3.12; Ort in der Spezifikation; die übrigen Aufträge stehen in §3 von [slice-admin-sessions](slice-admin-sessions.md)):
+**Entscheidungen des Architect für diesen Teil** (2026-11-21, vor dem ersten Code-Commit, `AGENTS.md` §3.12; Ort in der Spezifikation; die übrigen Aufträge stehen in §3 von [slice-admin-sessions](../next/slice-admin-sessions.md)):
 
 1. **Statuscodes, JSON-Form, Fehlerabbildung:** `SPEC-292` Nr. 6 bis 8. Erfolg: 200 für `close` und `DELETE`; `DELETE` antwortet 200 mit dem Bericht der Bereinigung (kein 204: der Client sähe sonst nirgends, dass Blobs zurückgestellt sind).
 2. **`close`:** `SPEC-292` Nr. 9. Die Antwort kommt erst nach `Beenden`, ohne Frist und ohne Goroutine; der Kontext bleibt der des Requests (keine Ablösung, `SPEC-124` Nr. 11 e genügt); die Dauer ist unbegrenzt, weil der Rahmen kein `WriteTimeout` setzt (`SPEC-238` Nr. 10). Folge im Betrieb: ein Client mit Timeout unter `SHUTDOWN_TIMEOUT`, der trennt, macht die Session `incomplete`.
@@ -135,7 +135,7 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 
 Zeilen: B1 bis B16, N3, N4 gleich 18 (*a* = 2, *b* = 16).
 
-**Verteilung beim Schnitt** (Planner, 2026-11-21): Die Zeilen sind im Wortlaut des Architect übernommen. Wo eine Zeile auf eine Zeile eines anderen Teils verweist (B4 auf S4, B5 auf S8, B9 auf S11, B14 auf S15), gilt deren Wortlaut im Plan von Teil 1 ([slice-admin-sessions](slice-admin-sessions.md), bei diesem Start in `done/`). B1 setzt Teil 1 voraus (die Muster von `GET` und `POST /__admin/sessions` liefert er) und zählt 3 Pfadformen. B12 zählt über die vier Routen 51 Zellen: Teil 3 hat keine Zelle mit Eintrag, die Zahl gilt unabhängig davon, ob Teil 3 vor diesem Teil lief. Die Gesamtzahlen aller drei Teile (Zeilen I3 und I17 in Teil 3) stehen in §1 (*Übernimmt*, Punkt (e)).
+**Verteilung beim Schnitt** (Planner, 2026-11-21): Die Zeilen sind im Wortlaut des Architect übernommen. Wo eine Zeile auf eine Zeile eines anderen Teils verweist (B4 auf S4, B5 auf S8, B9 auf S11, B14 auf S15), gilt deren Wortlaut im Plan von Teil 1 ([slice-admin-sessions](../next/slice-admin-sessions.md), bei diesem Start in `done/`). B1 setzt Teil 1 voraus (die Muster von `GET` und `POST /__admin/sessions` liefert er) und zählt 3 Pfadformen. B12 zählt über die vier Routen 51 Zellen: Teil 3 hat keine Zelle mit Eintrag, die Zahl gilt unabhängig davon, ob Teil 3 vor diesem Teil lief. Die Gesamtzahlen aller drei Teile (Zeilen I3 und I17 in Teil 3) stehen in §1 (*Übernimmt*, Punkt (e)).
 
 **Mengen mit Zählprüfung** (Generator oder Schleife, Orakel als Literal im Test, nie aus dem Code; jede Menge nennt ihre Achsen, `AGENTS.md` §3.15; Architect, 2026-11-21, je Teil getrennt; das Orakel trägt Statuscodes, Codes, Namen und Bytes als Literale aus dem Vertrag, nie als Konstanten des Codes und nie als Aufruf des Lesers):
 
@@ -174,7 +174,7 @@ Der Fake `sessionsFake` stammt aus Teil 1 (*f* = 0 für diesen Teil: er wird erw
 
 **Bindung an die Ports** (Lerneintrag V-2): `src/adapters/driving/admin/bindung_test.go` bindet `sessionsFake` an `inbound.SessionUseCase` (aus Teil 1); `SessionRouten` nimmt die Schnittstellentypen der Ports als Parameter (nicht Funktionen), so übersetzt eine Mutation einer Signatur das Paket nicht mehr.
 
-**Größe und Schnitt:** steht in §3 von [slice-admin-sessions](slice-admin-sessions.md) (Architect, 2026-11-21; Zahlen des Planner in §4 dort und hier). Dieser Teil: *a* = 2, *b* = 16, *f* = 0, *p* = 130 (Handler 70, Bericht 15, Art des Audit 10, Konstruktor 35), *S* = 1580, *M* = 2200. Die Teile teilen einen Mechanismus (Zeit, `sessionsFake`, `SessionRouten`) und laufen nacheinander (§4, *Reihenfolge und Konflikte*).
+**Größe und Schnitt:** steht in §3 von [slice-admin-sessions](../next/slice-admin-sessions.md) (Architect, 2026-11-21; Zahlen des Planner in §4 dort und hier). Dieser Teil: *a* = 2, *b* = 16, *f* = 0, *p* = 130 (Handler 70, Bericht 15, Art des Audit 10, Konstruktor 35), *S* = 1580, *M* = 2200. Die Teile teilen einen Mechanismus (Zeit, `sessionsFake`, `SessionRouten`) und laufen nacheinander (§4, *Reihenfolge und Konflikte*).
 
 **Betriebsregeln für alle Rollen dieses Slice** (Lehren der Läufe vom 2026-10-24; sie stehen im Plan, damit ein Lauf sie am Arbeitsort liest):
 
@@ -191,7 +191,7 @@ Der Fake `sessionsFake` stammt aus Teil 1 (*f* = 0 für diesen Teil: er wird erw
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): [slice-admin-sessions](slice-admin-sessions.md) (Teil 1) liegt in `done/`; mit ihm liegen die Bedingungen von Teil 1 in `done/` (`slice-admin-listener-token` samt seinen Teilen `slice-admin-rahmen`, `slice-admin-authentisierung`, `slice-admin-lebenszyklus`, `slice-admin-fehlerabbildung` und `slice-admin-abweisen-audit`, `slice-audit-log` und `slice-audit-dienste`). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12): `SPEC-292` liegt vor (Architect, 2026-11-21).
+**Start** (`next` → `in-progress`): [slice-admin-sessions](../next/slice-admin-sessions.md) (Teil 1) liegt in `done/`; mit ihm liegen die Bedingungen von Teil 1 in `done/` (`slice-admin-listener-token` samt seinen Teilen `slice-admin-rahmen`, `slice-admin-authentisierung`, `slice-admin-lebenszyklus`, `slice-admin-fehlerabbildung` und `slice-admin-abweisen-audit`, `slice-audit-log` und `slice-audit-dienste`). Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12): `SPEC-292` liegt vor (Architect, 2026-11-21).
 
 **Abhängigkeiten — Grund je Eintrag:**
 
@@ -245,7 +245,7 @@ dasteht.
 | `DELETE /__admin/sessions/{id}`, `{id}` | gilt nicht: wie `close` | gilt nicht: wie `close` | Nr. 4 und 10 (`ODR-E7003`, `ODR-E7009`, `ODR-E7004`) | Nr. 2, 10 (ein Kontextfehler bricht ab; die Bereinigung ruft der Dienst auch bei beendetem Kontext, `SPEC-124` Nr. 2) | Nr. 12 (zweites `DELETE`: `ODR-E7003`) |
 | Audit-Eintrag von `POST` und `close` (in diesem Teil: `close`) | `SPEC-292` Nr. 11 b (jedes Feld je Art gesetzt nach `SPEC-234` Nr. 2) | Nr. 11 e (eine leere Kennung weist `Append` ab, ohne Wirkung auf die Antwort) | Nr. 11 e und *Ungeprüft* (Kennung außerhalb der Form: der Adapter des Ports weist ab) | Nr. 11 a, d (`Append` ohne `ctx`: ein beendeter Kontext ändert den Eintrag nicht, `SPEC-234` Nr. 5 c) | Nr. 12 (je Erfolg genau ein Eintrag, keiner bei `ODR-E7010` und `ODR-E7011`) |
 
-Die Zeilen zu `GET` und `POST /__admin/sessions` stehen in §6 von [slice-admin-sessions](slice-admin-sessions.md), die der Inspektion in [slice-admin-inspektion](slice-admin-inspektion.md). Ohne Nummer steht in den Zellen `SPEC-292`.
+Die Zeilen zu `GET` und `POST /__admin/sessions` stehen in §6 von [slice-admin-sessions](../next/slice-admin-sessions.md), die der Inspektion in [slice-admin-inspektion](slice-admin-inspektion.md). Ohne Nummer steht in den Zellen `SPEC-292`.
 
 **Zusatztabelle: Paare von Verstößen und Modi** (`AGENTS.md` §3.16; der Adapter kennt den Modus nicht, `SPEC-124` Nr. 3):
 
