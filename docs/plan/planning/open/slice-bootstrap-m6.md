@@ -42,7 +42,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - `HYBRID_*`, `FALLBACK_*` und der Modus `hybrid` — `slice-bootstrap-m4-konfig` (Schlüssel, Wert `hybrid` von `MODE`) und `slice-bootstrap-m4` (Bindung des Modus); die Schlüssel bleiben `ODR-E2001`, solange dieser Slice zuerst liegt (`SPEC-110` Nr. 2).
-- `LISTEN_TLS_*` (TLS des OData-Listeners) — `slice-listener-tls` (`welle-betrieb`).
+- `LISTEN_TLS_*` (TLS des OData-Listeners) — `slice-listener-tls-verdrahtung` (`welle-betrieb`, Teil 2 des Schnitts von `slice-listener-tls`).
 - Neue Endpunkte oder Fachlogik — der Slice verdrahtet, was die Slices der Welle liefern.
 - Das Umschalten des Modus zur Laufzeit — `LH-FA-13` schließt es aus; der Rundlauf wechselt den Modus durch Neustart (§6).
 

@@ -41,7 +41,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Orchestrierung des Betreibers (Compose-Dateien, Kubernetes), Registry, Veröffentlichung des Images — Out-of-Scope der Welle ([welle-betrieb](../welle-betrieb.md) §6): das Image und sein Start sind Gegenstand, nicht seine Umgebung.
 - Lesen von Workspaces und Snapshots über die Prozessgrenze nach dem Neustart — bis `welle-admin-api` gibt es weder Kommando noch Endpunkt, die Workspace oder Import im Container anlegen (die CLI-Kommandos entfallen, Entscheidung des Users, 2026-10-30); Recordings entstehen über den Listener im Modus `record`. Der Test deckt Recordings; die Zusage für Workspaces und Snapshots in `LH-QA-06.a` hat in diesem Slice keinen Fänger (akzeptiertes Negativ mit Folge, siehe §6, Adresse: Planner für `slice-bootstrap-m6`).
 - Healthcheck über `GET /healthz` — der Endpunkt gehört dem Admin-Listener, `welle-admin-api`; ein Healthcheck des Images über den OData-Listener wäre ein Vertrag ohne Grundlage.
-- TLS im Image (`LISTEN_TLS_*`) — `slice-listener-tls`; das Image reicht Konfiguration durch, es setzt kein Zertifikat.
+- TLS im Image (`LISTEN_TLS_*`) — `slice-listener-tls-verdrahtung` (Teil 2 des Schnitts von `slice-listener-tls`); das Image reicht Konfiguration durch, es setzt kein Zertifikat.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
 einer mit vier erfundenen; die vier Klassen sind ein Suchraster, keine

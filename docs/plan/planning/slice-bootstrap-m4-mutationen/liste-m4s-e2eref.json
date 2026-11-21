@@ -1,5 +1,0 @@
-{"mutationen": [
-{"name":"M11e-jede-methode-get","datei":"tests/e2e/referenz_test.go","alt":"\t\tr.zaehleMethode(req.Method)","neu":"\t\tr.zaehleMethode(\"GET\")","test":"^TestReferenzNachMethode$","klasse":"andere"},
-{"name":"M11e-verbindungen-gleich-requests","datei":"tests/e2e/referenz_test.go","alt":"\t\tif s == http.StateNew {","neu":"\t\tif s == http.StateActive {","test":"^TestReferenzNachMethode$","klasse":"andere"},
-{"name":"M11e-connection-close-entfaellt","datei":"tests/e2e/referenz_test.go","alt":"\t\t\tw.Header().Set(\"Connection\", \"close\")","neu":"\t\t\t_ = w","test":"^TestReferenzNachMethode$","klasse":"andere"}
-]}
