@@ -5,8 +5,12 @@ package admin_test
 import (
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -192,15 +196,14 @@ func h1Anlaesse() []h1Anlass {
 			}
 			a.antworten++
 		}, 4, 0},
-		{"Fehler von New, Serve und Schliessen", []string{tok, string(tokenGueltig())}, func(t *testing.T, a *ausgabe) {
-			k, _ := konfigMit()
-			k.Token = tokenVielfalt()[:31]
-			_, err := admin.New(k)
-			a.fehlerText(err)
-			k, _ = konfigMit()
-			k.Token, k.Listener = tokenVielfalt(), nil
-			_, err = admin.New(k)
-			a.fehlerText(err)
+		{"Fehler von New, Serve und Schliessen", []string{tok, string(tokenGueltig()), canary()}, func(t *testing.T, a *ausgabe) {
+			for _, f := range newFehlerFaelle() {
+				_, err := admin.New(f.konfig())
+				if err == nil {
+					t.Errorf("New %s: kein Fehler, der Zweig wird nicht erreicht", f.name)
+				}
+				a.fehlerText(err)
+			}
 			srv := neuMitListener(t, neuerListener())
 			a.fehlerText(srv.Serve())
 			route := neueHaengRoute(t, wartetCtx)
@@ -208,7 +211,7 @@ func h1Anlaesse() []h1Anlass {
 			r := lv.async("GET", "/haengt")
 			route.warteBegonnen(t, 1)
 			lv.srv.Anhalten()
-			_, err = schliesse(t, lv.srv, 20*time.Millisecond)
+			_, err := schliesse(t, lv.srv, 20*time.Millisecond)
 			a.fehlerText(err)
 			_, err = schliesse(t, lv.srv, -time.Second)
 			a.fehlerText(err)
@@ -216,7 +219,7 @@ func h1Anlaesse() []h1Anlass {
 			erwarte(t, r, "Antwort nach Schliessen")
 			a.fehlerText(serveEnde(t, lv.serve, "Serve nach Schliessen"))
 			a.portsLive(lv)
-		}, 0, 4},
+		}, 0, len(newFehlerFaelle()) + 2},
 		{"richtiges Token in den 20 ungültigen Formen", []string{tok}, func(t *testing.T, a *ausgabe) {
 			for _, f := range u1Formen(tok) {
 				u := h1Server(t, neueRoute())
@@ -224,6 +227,105 @@ func h1Anlaesse() []h1Anlass {
 				a.ports(u)
 			}
 		}, 20, 0},
+	}
+}
+
+// newFehlerFall ist eine Konfiguration, die genau einen der Zweige von New mit Fehler auslöst; Token und Werte der Routen
+// tragen Werte, die im Text des Fehlers nicht stehen dürfen (das Token von tokenVielfalt, den Canary als Methode und Muster).
+type newFehlerFall struct {
+	name   string
+	konfig func() admin.Konfig
+}
+
+// newFehlerFaelle sind die neun Zweige von New, die einen Fehler mit einem Text bilden (SPEC-238 Nr. 1, 2): Listener, IDs,
+// Audit, Telemetrie fehlt, Token zu kurz (31 Bytes) und die vier Verstöße einer Route (Methode, Muster, Handler, Überlappung).
+func newFehlerFaelle() []newFehlerFall {
+	basis := func(routen ...admin.Route) admin.Konfig {
+		k, _ := konfigMit(routen...)
+		k.Token = tokenVielfalt()
+		return k
+	}
+	handler := neueRoute().handle
+	muster := "/" + canary()
+	return []newFehlerFall{
+		{"Listener fehlt", func() admin.Konfig { k := basis(); k.Listener = nil; return k }},
+		{"IDs fehlt", func() admin.Konfig { k := basis(); k.IDs = nil; return k }},
+		{"Audit fehlt", func() admin.Konfig { k := basis(); k.Audit = nil; return k }},
+		{"Telemetrie fehlt", func() admin.Konfig { k := basis(); k.Telemetrie = nil; return k }},
+		{"Token zu kurz", func() admin.Konfig { k := basis(); k.Token = tokenVielfalt()[:31]; return k }},
+		{"Route mit ungültiger Methode", func() admin.Konfig {
+			return basis(admin.Route{Methode: canary(), Muster: muster, Handler: handler})
+		}},
+		{"Route mit ungültigem Muster", func() admin.Konfig {
+			return basis(admin.Route{Methode: "GET", Muster: canary() + "/x", Handler: handler})
+		}},
+		{"Route ohne Handler", func() admin.Konfig {
+			return basis(admin.Route{Methode: "GET", Muster: muster})
+		}},
+		{"Routen überlappen", func() admin.Konfig {
+			return basis(admin.Route{Methode: "GET", Muster: muster, Handler: handler}, admin.Route{Methode: "GET", Muster: muster, Handler: handler})
+		}},
+	}
+}
+
+// zaehleUngueltig zählt die Aufrufe von `ungueltig(…)` in den Quellen des Pakets ohne _test.go, getrennt nach Datei, und
+// ohne die Definition der Funktion.
+func zaehleUngueltig(t *testing.T) map[string]int {
+	t.Helper()
+	eintraege, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]int{}
+	for _, e := range eintraege {
+		n := e.Name()
+		if !strings.HasSuffix(n, ".go") || strings.HasSuffix(n, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(token.NewFileSet(), n, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(f, func(x ast.Node) bool {
+			if c, ok := x.(*ast.CallExpr); ok {
+				if id, ok := c.Fun.(*ast.Ident); ok && id.Name == "ungueltig" {
+					out[n]++
+				}
+			}
+			return true
+		})
+	}
+	return out
+}
+
+// TestNewFehlerFaelleGegenQuelle hält die Menge von H1 Weg e (jeder Fehlertext von New) gegen den Quelltext: jeder Aufruf von
+// `ungueltig(…)` außer dem in `Schliessen` (den der Anlass mit negativer Frist fährt) hat einen Fall, jeder Fall löst einen Fehler aus,
+// und die Texte der Fälle sind paarweise verschieden (jeder Fall erreicht seinen eigenen Zweig). Keine feste Zahl.
+func TestNewFehlerFaelleGegenQuelle(t *testing.T) {
+	quelle := zaehleUngueltig(t)
+	gesamt := 0
+	for _, n := range quelle {
+		gesamt += n
+	}
+	if quelle["lebenszyklus.go"] != 1 {
+		t.Errorf("Aufrufe von ungueltig in lebenszyklus.go: %d, erwartet 1 (Schliessen, negative Frist)", quelle["lebenszyklus.go"])
+	}
+	faelle := newFehlerFaelle()
+	gleichAuf(t, "Aufrufe von ungueltig im Quelltext ohne Schliessen und Fälle von New", len(faelle), gesamt-quelle["lebenszyklus.go"])
+	texte := map[string]string{}
+	for _, f := range faelle {
+		_, err := admin.New(f.konfig())
+		if err == nil {
+			t.Errorf("%s: New liefert keinen Fehler", f.name)
+			continue
+		}
+		if !errors.Is(err, model.ErrUngueltig) {
+			t.Errorf("%s: %v, erwartet model.ErrUngueltig", f.name, err)
+		}
+		if vorher, da := texte[err.Error()]; da {
+			t.Errorf("%s und %s liefern denselben Text %q", f.name, vorher, err)
+		}
+		texte[err.Error()] = f.name
 	}
 }
 

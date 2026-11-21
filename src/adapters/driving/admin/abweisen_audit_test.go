@@ -554,47 +554,52 @@ func abweisungsServer(t *testing.T) *umgebung {
 }
 
 // TestJedeAbweisungEinEintrag hält D7 (Nr. 8, 12): jede Abweisung schreibt einen Eintrag, ohne Drosselung und ohne
-// Zusammenfassung: 64 Requests nacheinander und 8 Goroutinen × 8 Requests zugleich (unter dem Detektor) ergeben je 64
-// Einträge mit je einer anderen Korrelations-ID, die Menge der IDs der Einträge ist die der Antworten, jeder Eintrag
-// gleicht dem Literal, und CountError lief 64-mal mit ODR-E2101.
+// Zusammenfassung: 1100 Requests nacheinander und 8 Goroutinen × 150 Requests zugleich (unter dem Detektor) ergeben je so
+// viele Einträge mit je einer anderen Korrelations-ID, die Menge der IDs der Einträge ist die der Antworten, jeder Eintrag
+// gleicht dem Literal, und CountError lief je Abweisung mit ODR-E2101. Die Zahl der Abweisungen ist unbeschränkt; die
+// Prüfgrenze liegt bei 1100 und 1200: eine Schwelle der Drosselung darunter fängt der Test, eine darüber nicht (Plan §3).
 func TestJedeAbweisungEinEintrag(t *testing.T) {
-	const goroutinen, jeGoroutine = 8, 8
-	pruefe := func(name string, u *umgebung, ids []string) {
+	const goroutinen, jeGoroutine, nacheinander = 8, 150, 1100
+	pruefe := func(name string, u *umgebung, ids []string, erwartet int) {
 		t.Helper()
-		gleichAuf(t, name+": Zahl der Antworten", len(ids), goroutinen*jeGoroutine)
-		if n := u.audit.Aufrufe(); n != goroutinen*jeGoroutine {
-			t.Errorf("%s: %d Aufrufe von Audit, erwartet %d", name, n, goroutinen*jeGoroutine)
+		gleichAuf(t, name+": Zahl der Antworten", len(ids), erwartet)
+		if n := u.audit.Aufrufe(); n != erwartet {
+			t.Errorf("%s: %d Aufrufe von Audit, erwartet %d", name, n, erwartet)
 			return
 		}
 		eintraege := u.audit.Eintraege()
 		var vonEintraegen []string
+		abweichend := 0
 		for _, e := range eintraege {
 			vonEintraegen = append(vonEintraegen, e.KorrelationsID)
 			if e != eintragSoll(t, e.KorrelationsID) {
-				t.Errorf("%s: Eintrag %+v, erwartet %+v", name, e, eintragSoll(t, e.KorrelationsID))
+				abweichend++
 			}
+		}
+		if abweichend != 0 {
+			t.Errorf("%s: %d Einträge sind nicht das Literal mit ihrer ID", name, abweichend)
 		}
 		slices.Sort(vonEintraegen)
 		antworten := slices.Clone(ids)
 		slices.Sort(antworten)
-		if !slices.Equal(vonEintraegen, antworten) || len(slices.Compact(slices.Clone(vonEintraegen))) != goroutinen*jeGoroutine {
-			t.Errorf("%s: die IDs der Einträge %q sind nicht die der Antworten %q oder nicht paarweise verschieden", name, vonEintraegen, antworten)
+		if !slices.Equal(vonEintraegen, antworten) || len(slices.Compact(slices.Clone(vonEintraegen))) != erwartet {
+			t.Errorf("%s: die %d IDs der Einträge sind nicht die der %d Antworten oder nicht paarweise verschieden", name, len(vonEintraegen), len(antworten))
 		}
 		codes, andere := zaehlungenVon(u.tele)
-		if andere != 0 || len(codes) != goroutinen*jeGoroutine || slices.ContainsFunc(codes, func(c string) bool { return c != codeAbgewiesen }) {
-			t.Errorf("%s: CountError %q, andere Aufrufe %d, erwartet 64-mal %s", name, codes, andere, codeAbgewiesen)
+		if andere != 0 || len(codes) != erwartet || slices.ContainsFunc(codes, func(c string) bool { return c != codeAbgewiesen }) {
+			t.Errorf("%s: %d Aufrufe von CountError, andere Aufrufe %d, erwartet %d-mal %s", name, len(codes), andere, erwartet, codeAbgewiesen)
 		}
 	}
 	u := abweisungsServer(t)
 	var ids []string
-	for i := range goroutinen * jeGoroutine {
+	for i := range nacheinander {
 		rec := u.rufe(abweisungsRequest(i))
 		if rec.Code != 401 {
 			t.Fatalf("Request %d: Status %d, erwartet 401", i, rec.Code)
 		}
 		ids = append(ids, rec.Header().Get("X-Correlation-Id"))
 	}
-	pruefe("nacheinander", u, ids)
+	pruefe("nacheinander", u, ids, nacheinander)
 	u = abweisungsServer(t)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -615,5 +620,5 @@ func TestJedeAbweisungEinEintrag(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	pruefe("gleichzeitig", u, ids)
+	pruefe("gleichzeitig", u, ids, goroutinen*jeGoroutine)
 }
