@@ -83,6 +83,9 @@ type transaktion struct {
 	// vor ist der Haltepunkt am Eingang: er läuft nach dem Aufruf und vor der Sperre, also zwischen allem, was der Dienst vor der
 	// Transaktion liest, und dem Schreiben in ihr.
 	vor func()
+	// ende schreibt nach der Rückkehr von f den Eintrag `Transaktion.Ende` in das Protokoll: zwischen dem Eintrag der Transaktion und
+	// diesem steht f, dahinter die Bestätigung oder der Rollback.
+	ende bool
 }
 
 func (t *transaktion) WithWorkspaceTransaction(ctx context.Context, f func(outbound.WorkspaceStores) error) (err error) {
@@ -116,6 +119,9 @@ func (t *transaktion) WithWorkspaceTransaction(ctx context.Context, f func(outbo
 		err = t.nachF
 	}
 	fertig = err == nil
+	if t.ende {
+		_ = t.p.beginn(ctx, "Transaktion.Ende")
+	}
 	return err
 }
 

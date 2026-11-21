@@ -100,6 +100,12 @@ func (f *bereinigungFake) aufrufe() int {
 // baueWurzel baut den Prozess im Modus über frischen Daten; wartung ersetzt die Wartung, wenn nicht nil.
 func baueWurzel(t *testing.T, modus string, wartung inbound.MaintenanceUseCase) *wurzel {
 	t.Helper()
+	return baueWurzelMit(t, modus, wartung, mockDaten(t), nil)
+}
+
+// baueWurzelMit baut den Prozess im Modus über den Daten in dir; aendere setzt, wenn nicht nil, Werte der Konfiguration vor dem Bau.
+func baueWurzelMit(t *testing.T, modus string, wartung inbound.MaintenanceUseCase, dir string, aendere func(*bootstrap.Konfiguration)) *wurzel {
+	t.Helper()
 	w := &wurzel{senke: &syncPuffer{}}
 	b := bootstrap.StandardBauteile()
 	tel, neuerMock := b.NeueTelemetrie, b.NeuerMock
@@ -117,7 +123,11 @@ func baueWurzel(t *testing.T, modus string, wartung inbound.MaintenanceUseCase) 
 	if wartung != nil {
 		b.NeueWartung = func(maintenance.Konfig) (inbound.MaintenanceUseCase, error) { return wartung, nil }
 	}
-	h, err := bootstrap.BuildMitSenke(context.Background(), wurzelKonfig(modus, mockDaten(t)), nil, w.senke, b)
+	k := wurzelKonfig(modus, dir)
+	if aendere != nil {
+		aendere(&k)
+	}
+	h, err := bootstrap.BuildMitSenke(context.Background(), k, nil, w.senke, b)
 	if err != nil {
 		t.Fatalf("Build im Modus %s: %v", modus, err)
 	}

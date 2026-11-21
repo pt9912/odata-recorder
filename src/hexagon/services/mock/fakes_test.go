@@ -13,6 +13,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/mock"
 )
 
@@ -691,6 +692,14 @@ func neueUmg(t *testing.T) *umg {
 	t.Cleanup(func() {
 		if n := p.anzahl("Schreiber.SchreibeFehler"); n != 0 && !u.fehlerobjektErlaubt {
 			t.Errorf("SchreibeFehler %d Mal gerufen, der Dienst ruft es nie", n)
+		}
+	})
+	// Jeder Span, den ein Test des Pakets öffnet, endet genau einmal und trägt einen der zwei Namen des Dienstes (SPEC-290 Nr. 3 b, Nr. 2).
+	t.Cleanup(func() {
+		for _, b := range buecher(u.tel.FakeTelemetry) {
+			if b.enden != 1 || b.name != support.SpanMockQuery && b.name != support.SpanWorkspaceMutation {
+				t.Errorf("Span %q: %d End, erwartet 1 und einen der zwei Namen des Dienstes", b.name, b.enden)
+			}
 		}
 	})
 	u.ws.setze(model.Workspace{ID: wsID, ServiceID: dienstID, BaselineSnapshotID: "b1"})
