@@ -217,17 +217,23 @@ func TestKonfigHeaderSchreibweise(t *testing.T) {
 	}
 }
 
-// TestKonfigNichtGeliefert fängt A06: jeder nicht gelieferte Schlüssel und jedes Präfix × die Modi record, replay und mock;
-// STRICT_COVERAGE, PUBLIC_BASE_URL und die vier Schlüssel des Modus hybrid gehören nicht mehr dazu (SPEC-110 Nr. 2).
+// TestKonfigNichtGeliefert fängt A06 und B05: jeder nicht gelieferte Schlüssel `ADMIN_*` (sechs Namen, darunter ADMIN_TLS_CERT und ADMIN_TLS_KEY)
+// × die vier Modi = 24; STRICT_COVERAGE, PUBLIC_BASE_URL, die vier Schlüssel des Modus hybrid sowie LISTEN_TLS_CERT und LISTEN_TLS_KEY gehören nicht
+// mehr dazu (SPEC-110 Nr. 2); die übrigen Schlüssel `LISTEN_TLS_*` fängt TestKonfigListenTLSRest.
 func TestKonfigNichtGeliefert(t *testing.T) {
-	namen := []string{"ADMIN_LISTEN", "ADMIN_TOKEN_FILE", "LISTEN_TLS_CERT", "LISTEN_TLS_KEY", "ADMIN_X", "LISTEN_TLS_X"}
-	for _, modus := range []string{"record", "replay", "mock"} {
+	namen := []string{"ADMIN_LISTEN", "ADMIN_TOKEN_FILE", "ADMIN_TLS_CERT", "ADMIN_TLS_KEY", "ADMIN_ALLOW_PLAINTEXT", "ADMIN_X"}
+	n := 0
+	for _, modus := range vierModi() {
 		for _, key := range namen {
+			n++
 			env := append(basis(t), "MODE="+modus)
 			erwarteGrund(t, key, "wird von dieser Version nicht unterstützt", append(env, key+"=irgendwas")...)
 			erwarteGueltig(t, append(env, key+"=")...)
 		}
 		erwarteGueltig(t, append(basis(t), "MODE="+modus, "STRICT_COVERAGE=false", "PUBLIC_BASE_URL=http://h:1")...)
+	}
+	if n != 24 {
+		t.Errorf("Menge hat %d Elemente, erwartet 24 (4 Modi × 6 Namen)", n)
 	}
 }
 

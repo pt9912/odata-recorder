@@ -37,6 +37,14 @@ func LadeTLS(certSchluessel, keySchluessel, certPfad, keyPfad string, jetzt time
 	return cfg, aus
 }
 
+// LadeKonfigurationZu ist LadeKonfiguration zu einer festen Zeit des Starts (SPEC-291 Nr. 3).
+func LadeKonfigurationZu(environ []string, jetzt time.Time) (Konfiguration, error) {
+	return ladeKonfigurationZu(environ, jetzt)
+}
+
+// ListenTLSPraefix ist der Anfang der Schlüssel `LISTEN_TLS_*`, den die Konfiguration aus den zwei Namen bildet.
+func ListenTLSPraefix() string { return listenTLSPraefix() }
+
 // SatzVersion4 ist der Satz der Codecs der Version 4.0 des Mock.
 func SatzVersion4() outbound.CodecSatz { return satzVersion4() }
 

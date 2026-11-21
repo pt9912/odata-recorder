@@ -20,7 +20,7 @@ func (p *pruefer) liesPublicBaseURL(k *Konfiguration) {
 	case !gesetzt && !mock:
 		return
 	case !gesetzt:
-		abgeleitet, ok := basisAusListen(k.Listen)
+		abgeleitet, ok := basisAusListen(k.Listen, k.mitListenTLS())
 		if !ok {
 			p.melde("PUBLIC_BASE_URL", "im Modus mock oder hybrid bei diesem Host erforderlich")
 			return
@@ -44,9 +44,9 @@ func laengsteWurzel(basis string, dienste []Dienst) int {
 	return n
 }
 
-// basisAusListen bildet `http://<Host>:<Port>` für einen Loopback-Host (SPEC-110 Nr. 14 c); die Schreibweise des Hosts
-// zählt, der Port steht als Dezimalzahl ohne führende Nullen.
-func basisAusListen(listen string) (string, bool) {
+// basisAusListen bildet `http://<Host>:<Port>` für einen Loopback-Host, bei mitTLS `https://<Host>:<Port>` (SPEC-110 Nr. 14 c,
+// SPEC-291 Nr. 7 d); die Schreibweise des Hosts zählt, der Port steht als Dezimalzahl ohne führende Nullen.
+func basisAusListen(listen string, mitTLS bool) (string, bool) {
 	i := strings.LastIndexByte(listen, ':')
 	if i < 0 {
 		return "", false
@@ -59,7 +59,11 @@ func basisAusListen(listen string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	return "http://" + host + ":" + strconv.Itoa(n), true
+	schema := "http://"
+	if mitTLS {
+		schema = "https://"
+	}
+	return schema + host + ":" + strconv.Itoa(n), true
 }
 
 // istBasisURL prüft die Form der Wurzel, die der Schreiber der Version 4 annimmt (SPEC-110 Nr. 14 b): Schema, Host,

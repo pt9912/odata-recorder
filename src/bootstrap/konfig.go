@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pt9912/odata-recorder/src/adapters/driven/clock"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
 )
@@ -26,8 +27,12 @@ type Dienst struct {
 // Konfiguration trägt die typisierten Werte der Startkonfiguration (SPEC-110); die Services
 // erhalten sie über ihre Konstruktoren, nie die Umgebung. Listen sind Mengen: sortiert, ohne Doppelte.
 type Konfiguration struct {
-	Modus                string
-	Listen               string
+	Modus  string
+	Listen string
+	// ListenTLSCert und ListenTLSKey sind die Pfade von LISTEN_TLS_CERT und LISTEN_TLS_KEY, leer heißt ungesetzt; die Konfiguration
+	// trägt nie den Inhalt der Dateien (SPEC-291 Nr. 7 a, 8).
+	ListenTLSCert        string
+	ListenTLSKey         string
 	DataDir              string
 	Dienste              []Dienst
 	ReplayStrategy       string
@@ -126,8 +131,14 @@ func (p *pruefer) fehler() error {
 
 // LadeKonfiguration liest die Startkonfiguration aus environ (Einträge `NAME=Wert`) und aus
 // SERVICES_FILE, prüft sie nach SPEC-110 und legt DATA_DIR an, wenn alles andere besteht. Der
-// Fehler ist ein *KonfigFehler mit allen Verstößen. Dieselbe Eingabe ergibt dasselbe Ergebnis.
+// Fehler ist ein *KonfigFehler mit allen Verstößen. Dieselbe Eingabe ergibt dasselbe Ergebnis, außer
+// bei einem Zertifikat von LISTEN_TLS_CERT, dessen Gültigkeit an der Zeit des Aufrufs hängt (SPEC-291 Nr. 3).
 func LadeKonfiguration(environ []string) (Konfiguration, error) {
+	return ladeKonfigurationZu(environ, clock.NewSystemuhr().Now())
+}
+
+// ladeKonfigurationZu ist LadeKonfiguration mit der Zeit des Starts jetzt.
+func ladeKonfigurationZu(environ []string, jetzt time.Time) (Konfiguration, error) {
 	p := &pruefer{env: umgebung(environ)}
 	var k Konfiguration
 	p.nichtGeliefert()
@@ -135,10 +146,12 @@ func LadeKonfiguration(environ []string) (Konfiguration, error) {
 	p.liesEinfache(&k)
 	p.liesMengen(&k)
 	p.liesTLS(&k)
+	p.liesListenTLS(&k)
 	p.liesHybrid(&k)
 	p.liesDienste(&k)
 	p.liesPublicBaseURL(&k)
 	p.pruefeCADatei(&k)
+	p.pruefeListenTLS(&k, jetzt)
 	if len(p.verstoesse) == 0 {
 		p.legeDatenverzeichnisAn(k.DataDir)
 	}
