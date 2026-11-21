@@ -127,7 +127,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Warum:** Rahmen, Authentisierung und Fehlerabbildung kommen aus `slice-admin-listener-token`, der Port `AuditLog` für den Schreibendpunkt aus `slice-audit-log` (beide *Code-Abhängigkeit*). `ImportUseCase` liegt seit `slice-baseline-import` in `done/` (`src/hexagon/ports/inbound/import.go`, Port vorhanden).
 
-**Nicht gebraucht:** `slice-inspection-use-case` (der Endpunkt liest keine Exchanges), `slice-admin-sessions`, `welle-mock`, M2, `slice-http-adapter` und `slice-bootstrap-m6`. Der Slice hängt damit nur am Rahmen und am Audit; die Reihenfolge der drei Endpunkt-Slices ist frei.
+**Nicht gebraucht:** `slice-inspection-use-case` (der Endpunkt liest keine Exchanges), `slice-admin-sessions` (auch nicht seine Teile `slice-admin-sessions-beenden` und `slice-admin-inspektion`), `welle-mock`, M2, `slice-http-adapter` und `slice-bootstrap-m6`. Der Slice hängt damit nur am Rahmen und am Audit; die Reihenfolge der Endpunkt-Slices ist frei (die Teile von `slice-admin-sessions` schreiben im selben Paket und laufen untereinander nacheinander).
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
