@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"crypto/tls"
 	"io"
 	"log/slog"
 	"time"
@@ -22,6 +23,19 @@ func Kappe(s string) string { return kappe(s) }
 
 // IstQueryName ist die Prüfung eines Eintrags von REDACT_QUERY_PARAMS (SPEC-110 Nr. 6).
 func IstQueryName(s string) bool { return istQueryName(s) }
+
+// TLSVerstoss ist ein Verstoß von ladeTLS: der Schlüssel, unter dem der Aufrufer meldet, und der Grund (SPEC-291 Nr. 2).
+type TLSVerstoss struct{ Schluessel, Grund string }
+
+// LadeTLS ist ladeTLS mit den Namen und Pfaden des Aufrufers (SPEC-291 Nr. 2); es kennt keinen Namen von sich aus.
+func LadeTLS(certSchluessel, keySchluessel, certPfad, keyPfad string, jetzt time.Time) (*tls.Config, []TLSVerstoss) {
+	cfg, vs := ladeTLS(tlsDateien{certSchluessel, keySchluessel, certPfad, keyPfad}, jetzt)
+	var aus []TLSVerstoss
+	for _, v := range vs {
+		aus = append(aus, TLSVerstoss{v.schluessel, v.grund})
+	}
+	return cfg, aus
+}
 
 // SatzVersion4 ist der Satz der Codecs der Version 4.0 des Mock.
 func SatzVersion4() outbound.CodecSatz { return satzVersion4() }
