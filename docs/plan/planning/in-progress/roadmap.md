@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-admin-imports](slice-admin-imports.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `POST /__admin/imports` und `GET /__admin/imports/{id}`, Body, Antworten, Fehlerabbildung und Import-Autorisierung).
+In Arbeit: [slice-admin-imports](../done/slice-admin-imports.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `POST /__admin/imports` und `GET /__admin/imports/{id}`, Body, Antworten, Fehlerabbildung und Import-Autorisierung).
 
 In Arbeit: [slice-admin-workspaces](slice-admin-workspaces.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `WorkspaceRouten` mit acht Routen für Workspaces und Snapshots, die drei Bodys, Antworten, JSON, Fehlerabbildung und Authentisierung).
 
