@@ -80,7 +80,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag. (Beleg: §7.)
 - [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert. (Beleg: §7 *Register*: Evidenz `slice-admin-imports` zu acht vorhandenen Beobachtungen, kein neues Verzeichnis.)
 - [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen). (Beleg: §6, jede Zeile nennt genau einen der drei Ausgänge.)
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit). (Beleg nach dem Move: Anker: kein Eintrag trägt ein Zielort-Feld; Folge-Slice: [slice-admin-imports-audit](../open/slice-admin-imports-audit.md) trägt die Sendung (e) in §1, DoD und *Prüfung der Sendungen* und zeigt auf `done/slice-admin-imports.md`; Register: acht Verzeichnisse unter `observations/BEO-REPO/` tragen `evidence/slice-admin-imports.md`.)
 
 ## 3. Plan (vor Code)
 
