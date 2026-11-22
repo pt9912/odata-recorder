@@ -81,7 +81,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag. (Beleg: §7, acht Einträge.)
 - [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert. (Beleg: §7 *Register*, acht Dateien `evidence/slice-admin-inspektion.md`.)
 - [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen). (Beleg: §6, jeder Punkt genau einen; §7 *Risiko-Ausgänge*.)
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit). (Beleg: §7 *Drei Paarungen*, nach dem Move an den Dateien geprüft: kein Zielort-Feld, nichts zu paaren; `slice-admin-imports.md` liegt in `in-progress/` und trägt die Regel zu den fremden Zeilen in `bindung_test.go` in §4 und §6; die acht Dateien `evidence/slice-admin-inspektion.md` liegen unter `observations/BEO-REPO/`.)
 
 ## 3. Plan (vor Code)
 
