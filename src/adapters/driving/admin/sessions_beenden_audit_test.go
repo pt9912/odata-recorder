@@ -89,14 +89,17 @@ func TestB13AppendFehler(t *testing.T) {
 	}
 }
 
-// TestN3GleichzeitigeRequests hält N3 (SPEC-292 Nr. 12): in 40 Runden je 16 `close` und 16 `DELETE` zugleich, jeder Request mit
+// TestN3GleichzeitigeRequests hält N3 (SPEC-292 Nr. 12): in 150 Runden je 16 `close` und 16 `DELETE` zugleich, jeder Request mit
 // eigener Kennung, die der Fake in der Antwort zurückgibt (`DELETE`: im Bericht); jede Antwort und jeder Eintrag gehört zum
 // eigenen Request (der Eintrag trägt die Korrelations-ID der Antwort derselben Session), und kein `DELETE` schreibt einen
-// Eintrag. Alle 32 Requests einer Runde sind zugleich im Aufruf des Dienstes (Treffpunkt): der Detektor von `make test-race`
-// sieht die Zugriffe nach dem Treffpunkt ungeordnet, und ein Zustand unter einer Sperre ohne Datenrennen trifft in 40 Runden
-// bei jedem Lauf (ein Wirkungs-Fänger, nicht die Hoffnung auf ein Datenrennen).
+// Eintrag. Alle Requests einer Runde sind zugleich in jedem Fenster zwischen einem Aufruf eines Ports und dem nächsten Schritt
+// der Route (Treffpunkt je Fenster): im Aufruf von Beenden und Delete, nach ihrer Rückkehr und nach der Rückkehr von Append.
+// Der Detektor von `make test-race` sieht die Zugriffe nach dem Treffpunkt ungeordnet; ein Zustand unter einer Sperre ohne
+// Datenrennen, der in einem dieser Fenster schreibt und zurückliest, trifft die Antwort eines anderen Requests. Ein Fenster
+// innerhalb der Route ohne Fuge (Schreiben und Zurücklesen hintereinander vor dem Aufruf) hält kein Treffpunkt: Plan §3,
+// akzeptiertes Negativ (5) (die 150 Runden sind sein Fänger). Hält eine Sperre die Requests auseinander, endet der Test nach der ersten Frist mit Fatalf.
 func TestN3GleichzeitigeRequests(t *testing.T) {
-	const n, runden = 16, 40
+	const n, runden = 16, 150
 	nummer := func(id string) int { v, _ := strconv.Atoi(id[1:]); return v }
 	u, fake, _ := sessionsUmgebung(t)
 	fake.beende = func(_ context.Context, id string) (model.Session, error) {
@@ -107,17 +110,27 @@ func TestN3GleichzeitigeRequests(t *testing.T) {
 	}
 	korrZuID := map[string]string{}
 	for r := range runden {
-		p := neuerTreffpunkt(2 * n)
-		fake.vor[opBeenden] = func(context.Context) { p.halt() }
-		fake.vor[opDelete] = func(context.Context) { p.halt() }
+		// Drei Fenster je Runde, in jedem alle Requests zugleich: im Aufruf des Dienstes (32), nach der Rückkehr des Dienstes
+		// (32, vor dem nächsten Schritt der Route) und nach der Rückkehr von Append (16, vor dem Schreiben der Antwort).
+		vor, nach, nachAppend := neuerTreffpunkt(2*n), neuerTreffpunkt(2*n), neuerTreffpunkt(n)
+		fake.vor[opBeenden] = func(context.Context) { vor.halt() }
+		fake.vor[opDelete] = func(context.Context) { vor.halt() }
+		fake.nach[opBeenden] = func(context.Context) { nach.halt() }
+		fake.nach[opDelete] = func(context.Context) { nach.halt() }
+		u.nachAudit.nach = nachAppend.halt
 		antworten := gleichzeitig(u, 2*n, func(i int) *http.Request {
 			if i < n {
 				return closeReq("k" + strconv.Itoa(r*n+i))
 			}
 			return deleteReq("d" + strconv.Itoa(r*n+i-n))
 		})
-		if p.verpasst.Load() || p.n.Load() != 2*n {
-			t.Errorf("Runde %d: nicht alle %d Requests waren zugleich im Aufruf des Dienstes (%d Aufrufe)", r, 2*n, p.n.Load())
+		for name, f := range map[string]struct {
+			p    *treffpunkt
+			soll int64
+		}{"im Aufruf": {vor, 2 * n}, "nach der Rückkehr des Dienstes": {nach, 2 * n}, "nach der Rückkehr von Append": {nachAppend, n}} {
+			if f.p.verpasst.Load() || f.p.n.Load() != f.soll {
+				t.Fatalf("Runde %d: nicht alle %d Requests waren zugleich im Fenster %s (%d eingetreten): eine Sperre hält sie auseinander", r, f.soll, name, f.p.n.Load())
+			}
 		}
 		for i := range n {
 			id := "k" + strconv.Itoa(r*n+i)
@@ -192,7 +205,7 @@ func TestN3ZweiGleichzeitigeAufDieselbeSession(t *testing.T) {
 			fake.vor[f.op] = func(context.Context) { p.halt() }
 			antworten := gleichzeitig(u, 2, func(int) *http.Request { return f.req(id) })
 			if p.verpasst.Load() || p.n.Load() != 2 {
-				t.Errorf("%s Runde %d: beide Requests waren nicht zugleich im Dienst (%d Aufrufe)", f.name, r, p.n.Load())
+				t.Fatalf("%s Runde %d: beide Requests waren nicht zugleich im Dienst (%d Aufrufe): eine Sperre hält sie auseinander", f.name, r, p.n.Load())
 			}
 			erfolge, fehler := 0, 0
 			for _, rec := range antworten {

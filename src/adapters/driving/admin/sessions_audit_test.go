@@ -137,7 +137,13 @@ func neuerTreffpunkt(ziel int) *treffpunkt {
 	return &treffpunkt{ziel: int64(ziel), zu: make(chan struct{})}
 }
 
+// halt wartet höchstens 10 s auf den Treffpunkt; ist er einmal verpasst, kehrt jeder weitere Aufruf sofort zurück, damit eine
+// Sperre über dem Aufruf nicht je Request eine eigene Frist kostet (der Test prüft verpasst nach der Runde und endet dann mit
+// Fatalf).
 func (p *treffpunkt) halt() {
+	if p.verpasst.Load() {
+		return
+	}
 	if p.n.Add(1) == p.ziel {
 		p.einmal.Do(func() { close(p.zu) })
 	}
@@ -234,7 +240,7 @@ func TestN1GleichzeitigeRequests(t *testing.T) {
 		})
 		for name, p := range map[string]*treffpunkt{"GET": pGet, "POST": pPost} {
 			if p.verpasst.Load() || p.n.Load() != n {
-				t.Errorf("Runde %d %s: nicht alle %d Requests waren zugleich im Aufruf des Dienstes (%d Aufrufe)", r, name, n, p.n.Load())
+				t.Fatalf("Runde %d %s: nicht alle %d Requests waren zugleich im Aufruf des Dienstes (%d Aufrufe): eine Sperre hält sie auseinander", r, name, n, p.n.Load())
 			}
 		}
 		for i := range n {

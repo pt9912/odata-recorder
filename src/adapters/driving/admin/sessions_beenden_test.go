@@ -18,6 +18,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
 // berichtNull ist der Body von `DELETE` bei einem Bericht ohne Blobs und ohne Zurückstellen.
@@ -163,9 +164,67 @@ func TestB3JedesByte(t *testing.T) {
 	gleichAuf(t, "Fälle laut Plan", faelle, 1024)
 }
 
+// TestB3Prozentfolgen hält B3 für die Struktur im dekodierten Wert (SPEC-292 Nr. 4: die Route dekodiert nichts nach): das
+// Zeichen `%` an jeder Stelle des Wertes (am Anfang, nach einem Buchstaben, am Ende, vor einem Buchstaben, 4 Formen) vor 0, 1,
+// 2 und 3 weiteren Zeichen. Folgen: 0 Zeichen (1), 1 Zeichen aus 25 (Hexziffern beider Schreibweisen, `g`, `Z`, `%`: 25), 2
+// Zeichen (alle 625 Paare, darunter die 256 Hexpaare `00` bis `FF`), 3 Zeichen aus 6 (`0`, `4`, `A`, `a`, `%`, `g`: 216) = 867
+// Folgen; jedes Byte des dekodierten Wertes ist als `%XX` kodiert, die Route sieht also ein `%` im Wert, das nur eine zweite
+// Dekodierung auflöst. Orakel: der Wert aus der Zählschleife, byte-gleich am Dienst, bei `close` und `DELETE`.
+// Zählprüfung: 867 × 4 × 2 = 6936 Fälle.
+func TestB3Prozentfolgen(t *testing.T) {
+	zeichen, klein := "0123456789ABCDEFabcdefgZ%", "04Aa%g"
+	folgen := []string{""}
+	for _, a := range zeichen {
+		folgen = append(folgen, string(a))
+		for _, b := range zeichen {
+			folgen = append(folgen, string(a)+string(b))
+		}
+	}
+	for _, a := range klein {
+		for _, b := range klein {
+			for _, c := range klein {
+				folgen = append(folgen, string(a)+string(b)+string(c))
+			}
+		}
+	}
+	gleichAuf(t, "Folgen", len(folgen), 1+25+625+216)
+	faelle := 0
+	for _, f := range routenMitPfad() {
+		u, fake, _ := sessionsUmgebung(t)
+		fake.session = sessionA()
+		je := 0
+		for _, folge := range folgen {
+			for _, vor := range []string{"", "a"} {
+				for _, nach := range []string{"", "z"} {
+					wert := vor + "%" + folge + nach
+					var kodiert strings.Builder
+					for _, b := range []byte(wert) {
+						fmt.Fprintf(&kodiert, "%%%02X", b)
+					}
+					rec := u.rufe(f.req(kodiert.String()))
+					faelle++
+					args := fake.argumente()
+					var letztes [2]string
+					if len(args) > 0 {
+						letztes = args[len(args)-1]
+					}
+					je++
+					if rec.Code != 200 || len(args) != je || letztes != [2]string{wert, ""} {
+						t.Fatalf("%s Wert %q: Antwort %d, Argumente des letzten Aufrufs %q; erwartet 200 und den Wert unverändert", f.name, wert, rec.Code, letztes)
+					}
+				}
+			}
+		}
+	}
+	gleichAuf(t, "Fälle", faelle, 867*4*len(routenMitPfad()))
+	gleichAuf(t, "Fälle laut Plan", faelle, 6936)
+}
+
 // TestB4QueryUndBody hält B4 (SPEC-292 Nr. 3): weder `close` noch `DELETE` liest die Query, jede Form (6 Queries × 2 Routen =
 // 12 Fälle) ist ohne Wirkung (Status 200, Antwort und Argumente wie ohne Query); beide lesen den Body nie (3 ungültige Bodies
-// × 2 Routen = 6 Fälle, 0 Lesezugriffe). Zählprüfung: 18.
+// × 2 Routen = 6 Fälle, 0 Lesezugriffe) und prüfen weder `Content-Type` noch `Laenge`: jeder der 36 Werte von 20 Headern
+// (`Content-Type` mit 7 Werten) und jeder der 7 Werte von `Laenge` ist ohne Wirkung, bei beiden Routen (72 und 14 Fälle).
+// Zählprüfung: 104.
 func TestB4QueryUndBody(t *testing.T) {
 	queries := []string{"", "limit=x", "a=1&a=2", "%zz", "%", "a=1;b=2"}
 	bodies := [][]byte{[]byte("{"), []byte("[1,2"), {0xFF, 0xFE, 0x00}}
@@ -199,9 +258,74 @@ func TestB4QueryUndBody(t *testing.T) {
 			}
 			faelle++
 		}
+		for _, k := range kopfFaelle() {
+			for _, wert := range k.werte {
+				u, fake, _ := sessionsUmgebung(t)
+				fake.session = sessionA()
+				rec := u.rufe(anfrageMit(methode, pfad, map[string][]string{k.name: {wert}}, nil))
+				if rec.Code != 200 || rec.Body.String() != f.erfolg {
+					t.Errorf("%s mit Header %s: %q: %d %q, erwartet 200 %q", f.name, k.name, wert, rec.Code, rec.Body.String(), f.erfolg)
+				}
+				gleichAuf(t, f.name+" mit Header "+k.name+": Argumente", fake.argumente(), [][2]string{{"ses-pfad", ""}})
+				fake.nurDiagonale(t, f.name+" mit Header "+k.name, f.op)
+				faelle++
+			}
+		}
+		for _, laenge := range laengen() {
+			u, fake, _ := sessionsUmgebung(t)
+			fake.session = sessionA()
+			r := anfrageMit(methode, pfad, nil, nil)
+			r.ContentLength = laenge
+			if rec := u.rufe(r); rec.Code != 200 || rec.Body.String() != f.erfolg {
+				t.Errorf("%s mit Länge %d: %d %q, erwartet 200 %q", f.name, laenge, rec.Code, rec.Body.String(), f.erfolg)
+			}
+			fake.nurDiagonale(t, fmt.Sprintf("%s mit Länge %d", f.name, laenge), f.op)
+			faelle++
+		}
 	}
-	gleichAuf(t, "Fälle", faelle, len(routenMitPfad())*(len(queries)+len(bodies)))
-	gleichAuf(t, "Fälle laut Plan", faelle, 18)
+	kopfWerte := 0
+	for _, k := range kopfFaelle() {
+		kopfWerte += len(k.werte)
+	}
+	gleichAuf(t, "Fälle", faelle, len(routenMitPfad())*(len(queries)+len(bodies)+kopfWerte+len(laengen())))
+	gleichAuf(t, "Fälle laut Plan (Query 12, Body 6, Header 72, Länge 14)", faelle, 104)
+}
+
+// laengen sind die Werte von Anfrage.Laenge (der Request trägt sie als ContentLength): unbekannt, keine, kurz, 1 MiB und das
+// 1048577. Byte (die Grenze des Rahmens, SPEC-238 Nr. 10) und der größte Wert (SPEC-292 Nr. 3: die Route prüft die Länge nie).
+func laengen() []int64 { return []int64{-1, 0, 1, 20, 1 << 20, 1<<20 + 1, math.MaxInt64} }
+
+// kopfFaelle sind die Header, die SPEC-292 Nr. 3 ohne Wirkung nennt (`Content-Type` jeder Wert, `Content-Length`) und die
+// übrigen Header eines Requests, die eine Route der Sessions lesen könnte; 20 Namen, 36 Werte.
+func kopfFaelle() []struct {
+	name  string
+	werte []string
+} {
+	return []struct {
+		name  string
+		werte []string
+	}{
+		{"Content-Type", []string{"application/json", "text/plain", "application/x-www-form-urlencoded", "multipart/form-data; boundary=x", "application/json; charset=latin1", "", "x"}},
+		{"Content-Encoding", []string{"gzip", "identity", "br"}},
+		{"Content-Language", []string{"de"}},
+		{"Content-Length", []string{"0", "5", "99999999"}},
+		{"Accept", []string{"application/json", "*/*", "text/html", "application/xml;q=0.1"}},
+		{"Accept-Encoding", []string{"gzip", "identity"}},
+		{"Accept-Language", []string{"de"}},
+		{"Transfer-Encoding", []string{"chunked", "identity"}},
+		{"Expect", []string{"100-continue"}},
+		{"If-Match", []string{"*", `"x"`}},
+		{"If-None-Match", []string{"*"}},
+		{"If-Modified-Since", []string{"Mon, 02 Jan 2006 15:04:05 GMT"}},
+		{"Origin", []string{"http://x"}},
+		{"Cookie", []string{"a=b"}},
+		{"User-Agent", []string{"x"}},
+		{"X-Correlation-Id", []string{"vom-client"}},
+		{"X-Http-Method-Override", []string{"GET"}},
+		{"Prefer", []string{"return=minimal"}},
+		{"Connection", []string{"close"}},
+		{"Range", []string{"bytes=0-1"}},
+	}
 }
 
 // setzeFeld setzt das Feld i des Wertes v auf einen Wert ungleich dem Nullwert: eine Zeichenkette, eine Zeit, eine Zahl oder
@@ -358,8 +482,8 @@ func TestB7KontextEndetWaehrendBeenden(t *testing.T) {
 }
 
 // TestB8Loeschbericht hält B8 (SPEC-292 Nr. 6, 10): `DELETE` antwortet 200 mit `{"blobs_removed":<Entfernt>,
-// "cleanup_deferred":<Zurueckgestellt>}` in dieser Folge: M-Bericht, 6 Werte als Literale (der größte `int` darunter), mit den
-// Headern der Erfolgsantwort; dazu M-Felder: je Feld von inbound.Loeschbericht ein Lauf, in dem allein dieses Feld belegt ist
+// "cleanup_deferred":<Zurueckgestellt>}` in dieser Folge: M-Bericht, 8 Werte als Literale (der größte und der kleinste `int` und
+// ein negativer Wert darunter: die Route urteilt nicht über den Wert), mit den Headern der Erfolgsantwort; dazu M-Felder: je Feld von inbound.Loeschbericht ein Lauf, in dem allein dieses Feld belegt ist
 // (fängt vertauschte Felder). Zählprüfung gegen reflect: 2 Felder.
 func TestB8Loeschbericht(t *testing.T) {
 	gleichAuf(t, "Felder von inbound.Loeschbericht", reflect.TypeOf(inbound.Loeschbericht{}).NumField(), 2)
@@ -374,6 +498,8 @@ func TestB8Loeschbericht(t *testing.T) {
 		{inbound.Loeschbericht{Entfernt: 7, Zurueckgestellt: true}, `{"blobs_removed":7,"cleanup_deferred":true}`},
 		{inbound.Loeschbericht{Entfernt: math.MaxInt}, `{"blobs_removed":` + groesst + `,"cleanup_deferred":false}`},
 		{inbound.Loeschbericht{Entfernt: 1, Zurueckgestellt: true}, `{"blobs_removed":1,"cleanup_deferred":true}`},
+		{inbound.Loeschbericht{Entfernt: -1}, `{"blobs_removed":-1,"cleanup_deferred":false}`},
+		{inbound.Loeschbericht{Entfernt: math.MinInt, Zurueckgestellt: true}, `{"blobs_removed":` + strconv.Itoa(math.MinInt) + `,"cleanup_deferred":true}`},
 	}
 	for _, w := range werte {
 		u, fake, _ := sessionsUmgebung(t)
@@ -384,7 +510,7 @@ func TestB8Loeschbericht(t *testing.T) {
 		}
 		pruefeErfolgsHeader(t, "Bericht", rec)
 	}
-	gleichAuf(t, "Zahl der Werte", len(werte), 6)
+	gleichAuf(t, "Zahl der Werte", len(werte), 8)
 	soll := map[string]string{
 		"Entfernt":        `{"blobs_removed":7,"cleanup_deferred":false}`,
 		"Zurueckgestellt": `{"blobs_removed":0,"cleanup_deferred":true}`,
@@ -398,5 +524,112 @@ func TestB8Loeschbericht(t *testing.T) {
 		if rec := u.rufe(deleteReq("ses-pfad")); rec.Code != 200 || rec.Body.String() != soll[name] {
 			t.Errorf("Feld %s: %d %q, erwartet 200 %q", name, rec.Code, rec.Body.String(), soll[name])
 		}
+	}
+}
+
+// TestB7KontextMatrix hält SPEC-292 Nr. 9 c und Nr. 11 a als Menge: Route (`close` mit 3 Status der Session, `DELETE`) ×
+// Ende des ctx (vor dem Aufruf durch `cancel`, vor dem Aufruf durch eine abgelaufene Frist, im Aufruf, nach der Rückkehr des
+// Dienstes und vor `Append`: 4 Stellen) × Ausgang des Dienstes (die Session oder der Bericht; ein Kontextfehler, `Canceled`
+// oder `DeadlineExceeded`, je allein und mit einem Wert zugleich: 5). Orakel: liefert der Dienst Wert und `nil`, läuft die
+// Route zu Ende, antwortet 200 mit dem Wert des Dienstes (Status `open`, `incomplete` und `complete` unverändert) und schreibt
+// bei `close` genau einen Eintrag mit den Feldern des Ergebnisses, bei `DELETE` keinen; liefert er einen Kontextfehler, bricht
+// die Verbindung ab, ohne Antwort und ohne Eintrag. In jeder Zelle ruft die Route den Dienst genau einmal (auch bei einem
+// ctx, das beim Eintritt schon endete) und zählt nichts. Zählprüfung: 3 × 4 × 5 + 4 × 5 = 80 Zellen.
+func TestB7KontextMatrix(t *testing.T) {
+	enden := []string{"cancel vor dem Aufruf", "Frist vor dem Aufruf", "im Aufruf", "nach der Rückkehr, vor Append"}
+	ausgaenge := []struct {
+		name    string
+		err     error
+		mitWert bool
+	}{
+		{"Erfolg", nil, true},
+		{"Canceled", context.Canceled, false}, {"Canceled mit Wert", context.Canceled, true},
+		{"DeadlineExceeded", context.DeadlineExceeded, false}, {"DeadlineExceeded mit Wert", context.DeadlineExceeded, true},
+	}
+	zellen := 0
+	for _, f := range routenMitPfad() {
+		stati := []model.SessionStatus{model.SessionOpen, model.SessionIncomplete, model.SessionComplete}
+		if f.name == "DELETE" {
+			stati = []model.SessionStatus{""}
+		}
+		for _, status := range stati {
+			for ende := range enden {
+				for _, a := range ausgaenge {
+					zellen++
+					name := fmt.Sprintf("%s Status %q, Ende %s, Ausgang %s", f.name, status, enden[ende], a.name)
+					u, fake, _ := sessionsUmgebung(t)
+					fake.err = a.err
+					soll := f.erfolg
+					if a.mitWert {
+						fake.session, fake.bericht = sessionA(), inbound.Loeschbericht{Entfernt: 3, Zurueckgestellt: true}
+						soll = `{"blobs_removed":3,"cleanup_deferred":true}`
+						if f.name == "close" {
+							fake.session.Status = status
+							soll = strings.Replace(sessionAJSON, `"status":"open"`, `"status":"`+string(status)+`"`, 1)
+						}
+					}
+					ctx, cancel := context.WithCancel(context.WithValue(context.Background(), ctxSchluessel{}, "wert"))
+					switch ende {
+					case 0:
+						cancel()
+					case 1:
+						ctx, cancel = context.WithDeadline(ctx, time.Now().Add(-time.Hour))
+					case 2:
+						fake.vor[f.op] = func(context.Context) { cancel() }
+					case 3:
+						fake.nach[f.op] = func(context.Context) { cancel() }
+					}
+					rec := httptest.NewRecorder()
+					r := f.req("ses-pfad").WithContext(ctx)
+					abbruch := abbruchVon(func() { u.srv.ServeHTTP(rec, r) })
+					cancel()
+					fake.nurDiagonale(t, name, f.op)
+					if codes, andere := zaehlungenVon(u.tele); len(codes) != 0 || andere != 0 {
+						t.Errorf("%s: Zählungen %q, andere Aufrufe %d", name, codes, andere)
+					}
+					if a.err != nil {
+						if abbruch != http.ErrAbortHandler || rec.Body.Len() != 0 || u.audit.Aufrufe() != 0 {
+							t.Errorf("%s: Panik %v, Body %q, %d Einträge; erwartet den Abbruch ohne Antwort und ohne Eintrag", name, abbruch, rec.Body.String(), u.audit.Aufrufe())
+						}
+						continue
+					}
+					if abbruch != nil || rec.Code != 200 || rec.Body.String() != soll {
+						t.Errorf("%s: Panik %v, Antwort %d %q, erwartet 200 %q", name, abbruch, rec.Code, rec.Body.String(), soll)
+					}
+					wollen := []support.Eintrag{}
+					if f.name == "close" {
+						wollen = append(wollen, support.Eintrag{
+							Art: "session_beendet", ServiceID: "svc", SessionID: "ses-1", KorrelationsID: rec.Header().Get("X-Correlation-Id"),
+						})
+					}
+					gleichAuf(t, name+": Einträge", append([]support.Eintrag{}, u.audit.Eintraege()...), wollen)
+				}
+			}
+		}
+	}
+	gleichAuf(t, "Zellen", zellen, 3*len(enden)*len(ausgaenge)+len(enden)*len(ausgaenge))
+	gleichAuf(t, "Zellen laut Plan", zellen, 80)
+}
+
+// TestB11LeereKorrelationsID hält SPEC-234 Nr. 7 am Handler (die Randform „leerer Wert“ der Argumentart `KorrelationsID`):
+// ruft der Rahmen den Handler von `close` oder `POST` ohne Korrelations-ID, schreibt die Route den Eintrag trotzdem, mit leerer
+// Korrelations-ID (den Wert vergibt der Adapter des Ports). Der Rahmen vergibt immer eine; der Fall liegt am Handler.
+func TestB11LeereKorrelationsID(t *testing.T) {
+	faelle := []struct {
+		name  string
+		index int
+		art   support.AuditArt
+		body  string
+	}{{"POST", 1, "session_angelegt", postGut}, {"close", 2, "session_beendet", ""}}
+	for _, f := range faelle {
+		u, fake, routen := sessionsUmgebung(t)
+		fake.session = sessionA()
+		_, err := routen[f.index].Handler(context.Background(), admin.Anfrage{
+			Body: strings.NewReader(f.body), Pfadwerte: map[string]string{"id": "ses-pfad"}, KorrelationsID: "",
+		})
+		if err != nil {
+			t.Fatalf("%s: Fehler %v", f.name, err)
+		}
+		gleichAuf(t, f.name+": Einträge", u.audit.Eintraege(), []support.Eintrag{{Art: f.art, ServiceID: "svc", SessionID: "ses-1"}})
 	}
 }

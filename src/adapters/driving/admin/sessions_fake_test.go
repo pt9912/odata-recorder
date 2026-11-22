@@ -13,6 +13,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
 // sessionsZiel ist der Pfad der Routen für Sessions (SPEC-292 Nr. 1).
@@ -35,8 +36,9 @@ const (
 // sessionsFake erfüllt inbound.SessionUseCase: jede der sieben Operationen zählt ihren Aufruf und hält ctx und jedes
 // Argument fest (Operation, ctx und die zwei Zeichenketten je Aufruf, in der Folge der Aufrufe); Ergebnis und Fehler sind
 // einstellbar (session, sessionen, bericht, err; erzeuge, liste, beende und loesche ersetzen sie für Create, List, Beenden und
-// Delete), vor ist je Operation ein Haltepunkt, der nach dem Zählen ohne die Sperre des Fakes läuft. Der Fake gerät nie in
-// Panik und ist für gleichzeitigen Aufruf sicher; die Einstellungen setzt der Test vor dem ersten Aufruf.
+// Delete), vor ist je Operation ein Haltepunkt, der nach dem Zählen ohne die Sperre des Fakes läuft, nach ein Haltepunkt, der
+// bei Beenden und Delete nach dem Ergebnis und vor der Rückkehr läuft. Der Fake gerät nie in Panik und ist für gleichzeitigen
+// Aufruf sicher; die Einstellungen setzt der Test vor dem ersten Aufruf.
 type sessionsFake struct {
 	mu      sync.Mutex
 	ops     []sessionsOp
@@ -53,6 +55,7 @@ type sessionsFake struct {
 	beende    func(ctx context.Context, id string) (model.Session, error)
 	loesche   func(ctx context.Context, id string) (inbound.Loeschbericht, error)
 	vor       [opAnzahl]func(ctx context.Context)
+	nach      [opAnzahl]func(ctx context.Context)
 }
 
 func (f *sessionsFake) rufe(ctx context.Context, op sessionsOp, a, b string) {
@@ -96,18 +99,45 @@ func (f *sessionsFake) List(ctx context.Context) ([]model.Session, error) {
 
 func (f *sessionsFake) Delete(ctx context.Context, id string) (inbound.Loeschbericht, error) {
 	f.rufe(ctx, opDelete, id, "")
+	b, err := f.bericht, f.err
 	if f.loesche != nil {
-		return f.loesche(ctx, id)
+		b, err = f.loesche(ctx, id)
 	}
-	return f.bericht, f.err
+	f.nachRueckkehr(ctx, opDelete)
+	return b, err
 }
 
 func (f *sessionsFake) Beenden(ctx context.Context, id string) (model.Session, error) {
 	f.rufe(ctx, opBeenden, id, "")
+	s, err := f.session, f.err
 	if f.beende != nil {
-		return f.beende(ctx, id)
+		s, err = f.beende(ctx, id)
 	}
-	return f.session, f.err
+	f.nachRueckkehr(ctx, opBeenden)
+	return s, err
+}
+
+// nachRueckkehr ruft den Haltepunkt nach, wenn der Fake sein Ergebnis hat und bevor die Operation zurückkehrt: der Aufrufer
+// setzt erst danach fort (das Fenster zwischen der Rückkehr des Dienstes und dem nächsten Schritt der Route).
+func (f *sessionsFake) nachRueckkehr(ctx context.Context, op sessionsOp) {
+	if nach := f.nach[op]; nach != nil {
+		nach(ctx)
+	}
+}
+
+// auditNach ist der Audit der Routen der Sessions: er reicht Append an den FakeAudit der Umgebung und ruft danach den
+// Haltepunkt nach (das Fenster zwischen der Rückkehr von Append und dem Schreiben der Antwort).
+type auditNach struct {
+	support.AuditLog
+	nach func()
+}
+
+func (a *auditNach) Append(e support.Eintrag) error {
+	err := a.AuditLog.Append(e)
+	if a.nach != nil {
+		a.nach()
+	}
+	return err
 }
 
 func (f *sessionsFake) CloseAll(ctx context.Context) (inbound.CloseBericht, error) {
@@ -168,7 +198,8 @@ func sessionsUmgebung(t *testing.T) (*umgebung, *sessionsFake, []admin.Route) {
 	t.Helper()
 	k, u := konfigMit()
 	f := &sessionsFake{}
-	routen, err := admin.SessionRouten(f, u.audit)
+	u.nachAudit = &auditNach{AuditLog: u.audit}
+	routen, err := admin.SessionRouten(f, u.nachAudit)
 	if err != nil || len(routen) != 4 {
 		t.Fatalf("SessionRouten: %d Routen, %v", len(routen), err)
 	}

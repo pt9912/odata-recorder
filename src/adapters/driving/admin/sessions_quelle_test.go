@@ -70,14 +70,17 @@ func zaehleGoAnweisungen(t *testing.T, name string, quelle any) int {
 
 // TestS1S16QuelleDerRouten hält S1, S2 und S16 am Quelltext (SPEC-292 Nr. 1, 2; SPEC-238 Nr. 15 b): in den Dateien der Routen
 // ruft und nennt keine Stelle `NeuesFehlerobjekt`, `CountError` oder `ArtAdminAbgewiesen`, keine startet eine Goroutine, und
-// keine leitet den Kontext ab oder ersetzt ihn (`WithTimeout`, `WithDeadline`, `WithCancel`, `WithoutCancel`, `WithValue`).
+// keine leitet den Kontext ab oder ersetzt ihn (`WithTimeout`, `WithDeadline`, `WithCancel`, `WithoutCancel`, `WithValue`, die
+// drei `…Cause` und `AfterFunc`; das Verhalten der Ableitung fängt außerdem die Identität des `ctx` in `TestB2AufrufeUndKontext`).
 // Die Proben halten die Zähler gegen eine Quelle mit je einer Stelle.
 func TestS1S16QuelleDerRouten(t *testing.T) {
 	namen := []string{"NeuesFehlerobjekt", "CountError", "ArtAdminAbgewiesen"}
-	ableitungen := []string{"WithTimeout", "WithDeadline", "WithCancel", "WithoutCancel", "WithValue"}
-	gleichAuf(t, "Zahl der Namen", []int{len(namen), len(ableitungen)}, []int{3, 5})
+	ableitungen := []string{"WithTimeout", "WithDeadline", "WithCancel", "WithoutCancel", "WithValue",
+		"WithCancelCause", "WithTimeoutCause", "WithDeadlineCause", "AfterFunc"}
+	gleichAuf(t, "Zahl der Namen", []int{len(namen), len(ableitungen)}, []int{3, 9})
 	probe := "package x\nimport \"context\"\nfunc f() { model.NeuesFehlerobjekt(1); s.CountError(1); support.ArtAdminAbgewiesen; go g(); go func() {}(); " +
-		"context.WithTimeout(); context.WithDeadline(); context.WithCancel(); context.WithoutCancel(); context.WithValue() }"
+		"context.WithTimeout(); context.WithDeadline(); context.WithCancel(); context.WithoutCancel(); context.WithValue(); " +
+		"context.WithCancelCause(); context.WithTimeoutCause(); context.WithDeadlineCause(); context.AfterFunc() }"
 	for _, n := range namen {
 		gleichAuf(t, "Probe "+n, zaehleSelektoren(t, "probe.go", probe, "", n), 1)
 	}

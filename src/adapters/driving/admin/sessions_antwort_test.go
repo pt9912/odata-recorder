@@ -373,7 +373,8 @@ func erfolge() map[string]fehlerFall {
 // Tabelle je Route, 47 Zellen: 22 für `GET` und `POST`, 25 für `close` und `DELETE`) mit Status, Code und Body als Literale,
 // genau einem Zählen je Fehlerantwort und keinem bei einem Kontextfehler (Verbindung abgebrochen, nichts geschrieben);
 // M-Audit (51 Zellen: die 47 und je ein Erfolg): genau zwei Zellen, `POST` und `close` mit Erfolg, schreiben einen Eintrag,
-// `DELETE` nie (14 Zellen ohne Eintrag).
+// `DELETE` nie (14 Zellen ohne Eintrag). In jeder der 51 Zellen ruft die Route ihre Operation genau einmal und keine andere
+// (der Dienst sieht auf keinem Fehlerpfad, auch bei einem Kontextfehler, eine Wiederholung).
 func TestS11S13Fehler(t *testing.T) {
 	zellen, mitEintrag, ohneEintragDelete := 0, 0, 0
 	for _, vr := range vierRouten() {
@@ -418,6 +419,7 @@ func TestS11S13Fehler(t *testing.T) {
 			if n := u.audit.Aufrufe(); n != wollen {
 				t.Errorf("%s: %d Aufrufe von Audit, erwartet %d", name, n, wollen)
 			}
+			fake.nurDiagonale(t, name, vr.op) // genau ein Aufruf der Operation der Route, auf jedem Ausgang (SPEC-292 Nr. 2)
 			if route == "DELETE" {
 				ohneEintragDelete++
 			}
