@@ -20,6 +20,8 @@ In Arbeit: [slice-admin-inspektion](slice-admin-inspektion.md) ([welle-admin-api
 
 In Arbeit: [slice-v2-bootstrap](slice-v2-bootstrap.md) ([welle-odata-v2](../welle-odata-v2.md), Teil A des Schnitts: Konfiguration, Anlage und Wahl des Satzes je Service-Version im Composition Root, Zeilen der Kataloge).
 
+In Arbeit: [slice-admin-imports](slice-admin-imports.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `POST /__admin/imports` und `GET /__admin/imports/{id}`, Body, Antworten, Fehlerabbildung und Import-Autorisierung).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
