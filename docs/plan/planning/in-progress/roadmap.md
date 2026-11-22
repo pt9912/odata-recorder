@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-admin-inspektion](slice-admin-inspektion.md) ([welle-admin-api](../welle-admin-api.md), Teil 3 des Schnitts: `GET /__admin/sessions/{id}/exchanges`, `GET /__admin/coverage` und `GET /__admin/diagnostics`).
+In Arbeit: [slice-admin-inspektion](../done/slice-admin-inspektion.md) ([welle-admin-api](../welle-admin-api.md), Teil 3 des Schnitts: `GET /__admin/sessions/{id}/exchanges`, `GET /__admin/coverage` und `GET /__admin/diagnostics`).
 
 In Arbeit: [slice-v2-bootstrap](slice-v2-bootstrap.md) ([welle-odata-v2](../welle-odata-v2.md), Teil A des Schnitts: Konfiguration, Anlage und Wahl des Satzes je Service-Version im Composition Root, Zeilen der Kataloge).
 
