@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-telemetry-einbau-gateway](slice-telemetry-einbau-gateway.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts: Gesamtspan `odata.gateway.request` und Zähler je Fehlercode im HTTP-Adapter, Übergabe des Adapters des Prozesses im Root).
+In Arbeit: [slice-telemetry-einbau-gateway](../done/slice-telemetry-einbau-gateway.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts: Gesamtspan `odata.gateway.request` und Zähler je Fehlercode im HTTP-Adapter, Übergabe des Adapters des Prozesses im Root).
 
 In Arbeit: [slice-admin-inspektion](slice-admin-inspektion.md) ([welle-admin-api](../welle-admin-api.md), Teil 3 des Schnitts: `GET /__admin/sessions/{id}/exchanges`, `GET /__admin/coverage` und `GET /__admin/diagnostics`).
 
