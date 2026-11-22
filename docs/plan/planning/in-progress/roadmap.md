@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-expand-validator](slice-expand-validator.md) ([welle-expand-batch](../welle-expand-batch.md), Validator von `$expand` gegen die Navigationen des Modells: `model.PruefeExpand` und `ExpandFehler`).
+In Arbeit: [slice-expand-validator](../done/slice-expand-validator.md) ([welle-expand-batch](../welle-expand-batch.md), Validator von `$expand` gegen die Navigationen des Modells: `model.PruefeExpand` und `ExpandFehler`).
 
 In Arbeit: [slice-telemetry-einbau-gateway](slice-telemetry-einbau-gateway.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts: Gesamtspan `odata.gateway.request` und Zähler je Fehlercode im HTTP-Adapter, Übergabe des Adapters des Prozesses im Root).
 
