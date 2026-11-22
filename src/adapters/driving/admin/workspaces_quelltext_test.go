@@ -164,6 +164,7 @@ func TestWS15Quelltext(t *testing.T) {
 // importiert admin oder nennt WorkspaceRouten; die Prüfung des Verzeichnisses `src/bootstrap` gegen die Basis (leer in diesem
 // Teil) ist Handarbeit des Handoffs (`git diff --stat`), kein Test.
 func TestWS15BinaryUnveraendert(t *testing.T) {
+	wsFrist(t)
 	dateien, err := filepath.Glob(filepath.Join("..", "..", "..", "bootstrap", "*.go"))
 	if err != nil || len(dateien) < 10 {
 		t.Fatalf("%d Dateien von bootstrap, Fehler %v", len(dateien), err)

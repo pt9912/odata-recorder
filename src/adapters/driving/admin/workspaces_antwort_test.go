@@ -24,6 +24,7 @@ import (
 // nicht leer, und der Status hängt allein von der Route ab: M-Status sind 8 Zellen (je Route) und `DELETE` mit
 // `cleanup_deferred` wahr, je Zelle mit zwei Ergebnissen, die sich in `revision` (0 und 7) und `Entfernt` (0 und 3) unterscheiden.
 func TestWS10Status(t *testing.T) {
+	wsFrist(t)
 	zellen := 0
 	for _, r := range wsRouten() {
 		for _, deferred := range []bool{false, true} {
@@ -108,6 +109,7 @@ func wsRoutenMitWorkspace() []wsRoute {
 // Formen, `revision` mit 5 Werten, `created_at` mit 7 Formen) und der Nullwert; die Felder stehen in der Folge des Vertrags,
 // keines fehlt und keines kommt hinzu, die dekodierten Werte sind die des Dienstes, `revision` steht als Ziffernfolge.
 func TestWS11Workspace(t *testing.T) {
+	wsFrist(t)
 	gleichAuf(t, "Felder von model.Workspace", reflect.TypeFor[model.Workspace]().NumField(), 5)
 	folge := []string{"id", "service_id", "baseline_snapshot_id", "revision", "created_at"}
 	faelle := 0
@@ -169,6 +171,7 @@ func TestWS11Workspace(t *testing.T) {
 // Formen und der Nullwert (32 Fälle); `service_id`, `state_blob`, `state_hash` und `metadata_hash` stehen in keiner Antwort
 // (4 Canary, je einer in einem der vier Felder).
 func TestWS11Snapshot(t *testing.T) {
+	wsFrist(t)
 	gleichAuf(t, "Felder von model.WorkspaceSnapshot", reflect.TypeFor[model.WorkspaceSnapshot]().NumField(), 8)
 	r := wsRouten()[rSnCreate]
 	folge := []string{"id", "workspace_id", "name", "created_at"}
@@ -229,6 +232,7 @@ func TestWS11Snapshot(t *testing.T) {
 // TestWS11Bericht hält WS11 (SPEC-298 Nr. 7, 10) für den Bericht von `DELETE`: `Entfernt` mit 6 Werten (darunter der größte
 // `int` und -1, ohne Kappen) × `Zurueckgestellt` mit 2 = 12 Fälle, die Felder in der Folge des Vertrags.
 func TestWS11Bericht(t *testing.T) {
+	wsFrist(t)
 	gleichAuf(t, "Felder von inbound.Loeschbericht", reflect.TypeFor[inbound.Loeschbericht]().NumField(), 2)
 	faelle := 0
 	for _, n := range []int{0, 1, 3, 7, math.MaxInt, -1} {
@@ -262,6 +266,7 @@ func wsSnapshotLit(s model.WorkspaceSnapshot) string {
 // Neuordnung, Entdoppelung und Kappung, und sind nie `null`: M-Liste, 7 Formen (`nil`, leer, 1, 2, 3 und 100 Elemente in
 // absteigender Folge von Kennung und Zeit, zwei gleiche) × 2 Routen = 14.
 func TestWS12Listen(t *testing.T) {
+	wsFrist(t)
 	absteigend := func(n int) []int {
 		out := make([]int, n)
 		for i := range out {
@@ -319,6 +324,7 @@ func wsRahmenAntwort(e *wsEnv, r *http.Request) (*httptest.ResponseRecorder, any
 // Kontextfehler (Verbindung abgebrochen, nichts geschrieben), `FakeAudit.Aufrufe()` gleich 0 und genau einem Aufruf der
 // Operation der Route (bei der Achse Lesen keinem).
 func TestWS13Fehler(t *testing.T) {
+	wsFrist(t)
 	zellen := wsFehlerZellen()
 	gruppen := map[string]int{}
 	for _, z := range zellen {
@@ -370,6 +376,7 @@ func TestWS13Fehler(t *testing.T) {
 // TestWS13Zahlen hält M-Fehler gegen die Quelle: jede Zeile der Tabelle von SPEC-298 Nr. 8 hat ihre Zellen (2, 4, 3, 3, 3, 3,
 // 4 und 6), jeder Code steht in model.AlleCodes() mit dem Status des Literals, und das Literal trägt die message des Codes.
 func TestWS13Zahlen(t *testing.T) {
+	wsFrist(t)
 	je := []int{2, 4, 3, 3, 3, 3, 4, 6}
 	alle := model.AlleCodes()
 	for r := range 8 {
@@ -392,6 +399,7 @@ func TestWS13Zahlen(t *testing.T) {
 // (dasselbe Objekt, nicht verpackt) und keine Antwort daneben, auch wenn der Dienst einen Wert und den Fehler liefert; ein
 // Kontextfehler beim Lesen des Bodys kommt ebenso unverändert zurück, ohne Aufruf eines Dienstes.
 func TestWS13Unveraendert(t *testing.T) {
+	wsFrist(t)
 	zellen := 0
 	for _, z := range wsFehlerZellen() {
 		r := wsRouten()[z.route]

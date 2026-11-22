@@ -36,6 +36,7 @@ func wsPruefeErfolg(t *testing.T, name string, e *wsEnv, r wsRoute, status int) 
 // zusammen an (4 + 3 + 8 = 15, keine Überlappung); die Zahl der Goroutinen fängt eine, die bleibt, eine kurzlebige fängt allein
 // die Quelle (TestWS15Quelltext).
 func TestWS1Konstruktor(t *testing.T) {
+	wsFrist(t)
 	audit := supporttest.NewFakeAudit()
 	p := &wsProtokoll{}
 	wf, sf := &workspaceFake{p: p}, &snapshotFake{p: p}
@@ -110,6 +111,7 @@ func TestWS1Konstruktor(t *testing.T) {
 // TestWS2Zuordnung hält WS2 (SPEC-298 Nr. 1, SPEC-238 Nr. 2): M-Route, fünf Pfadformen mal sieben Methoden, 35 Fälle: die
 // acht Routen treffen, die 27 anderen sind 405 mit dem `Allow` der Pfadform (als Literale) und rufen keinen Dienst.
 func TestWS2Zuordnung(t *testing.T) {
+	wsFrist(t)
 	methoden := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
 	formen := []struct{ pfad, allow string }{
 		{"/__admin/workspaces", "GET, POST"}, {"/__admin/workspaces/wsp-1", "DELETE, GET"}, {"/__admin/workspaces/wsp-1/reset", "POST"},
@@ -157,6 +159,7 @@ func TestWS2Zuordnung(t *testing.T) {
 // Zellen, 1 auf der Diagonale, sonst 0) mit den Argumenten als Literalen; der Wert im ctx des Requests kommt an, der Handler
 // gibt ctx ohne Ableitung weiter (Gleichheit der Identität), und in diesem Teil ruft keine Route Audit.
 func TestWS3AufrufeUndKontext(t *testing.T) {
+	wsFrist(t)
 	gleichAuf(t, "Operationen von WorkspaceUseCase", reflect.TypeFor[inbound.WorkspaceUseCase]().NumMethod(), 6)
 	gleichAuf(t, "Operationen von SnapshotUseCase", reflect.TypeFor[inbound.SnapshotUseCase]().NumMethod(), 2)
 	gleichAuf(t, "Zähler gleich 6 + 2", int(wsOpAnzahl), 8)
@@ -210,6 +213,7 @@ func wsKoepfe() [][2]string {
 // `DELETE` und `reset` lesen den Body nie. M-Query 6 × 8 = 48, M-Body 3 × 5 = 15 (0 Lesezugriffe), M-Header (26 Paare + 7
 // Längen) × 8 = 264; Summe 327. Die Antwort und die Argumente sind die des Requests ohne die Eigenschaft.
 func TestWS4QueryHeaderBody(t *testing.T) {
+	wsFrist(t)
 	faelle := 0
 	for _, r := range wsRouten() {
 		for _, q := range []string{"", "limit=x", "a=1&a=2", "%zz", "%", "a=1;b=2"} {
@@ -300,6 +304,7 @@ func wsPfadWerte() [][2]string {
 // sechs Routen mit Pfadwert je 3993 Werte (23958 Fälle); die Route setzt den Wert in keine Antwort (ein Canary als Pfadwert
 // steht in keinem Byte der Antwort, auch nicht in der eines Fehlers des Dienstes).
 func TestWS5Pfadwert(t *testing.T) {
+	wsFrist(t)
 	werte := wsPfadWerte()
 	gleichAuf(t, "Werte je Route", len(werte), 13+512+3468)
 	kodiert := map[string]bool{}

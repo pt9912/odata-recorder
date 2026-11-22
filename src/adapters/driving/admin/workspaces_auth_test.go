@@ -10,10 +10,10 @@ import (
 
 // wsFrist setzt dem Test eine harte Frist: läuft sie ab, beendet ein Zeitgeber den Prozess mit einer Panik, die den Test
 // nennt (ein Handler, der nicht zurückkehrt, ließe sich aus dem Test heraus nicht beenden). Die Tests dieser Dateien warten auf
-// nichts; die Frist liegt weit über ihrer Laufzeit unter -race und Last.
+// nichts; die Frist von einer Minute liegt weit über ihrer Laufzeit unter -race und Last (unter 10 s).
 func wsFrist(t *testing.T) {
 	t.Helper()
-	z := time.AfterFunc(2*time.Minute, func() { panic("Frist von 2 Minuten abgelaufen: " + t.Name()) })
+	z := time.AfterFunc(time.Minute, func() { panic("Frist von 1 Minute abgelaufen: " + t.Name()) })
 	t.Cleanup(func() { z.Stop() })
 }
 
