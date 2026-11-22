@@ -10,10 +10,12 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// Das Fixture-Modell von PruefeExpand (SPEC-263): fünfzehn Typen mit Basis-Ketten bis zur dritten Stufe, einem
-// abstrakten, zwei offenen Typen, Typen ohne Navigation und ohne Member, einer Property mit nicht unterstütztem Typ in
-// jedem Zweig und je einem Typ mit 32 Navigationen. Die Listen eines Typs stehen mit den geerbten Membern zuerst und
-// in einer Folge, die nie aufsteigend nach Namen sortiert ist.
+// Das Fixture-Modell von PruefeExpand (SPEC-263): achtzehn Typen mit Basis-Ketten bis zur dritten Stufe, mindestens einem
+// Typ zu jeder der acht Kombinationen aus offen, abstrakt und abgeleitet, Typen ohne Navigation und ohne Member, einer
+// Property mit nicht unterstütztem Typ in jedem Zweig, je einem Typ mit 32 Navigationen (offen und nicht offen) und dem
+// Zeichen `é` in einer Navigation und in einer Property. Die Listen eines Typs stehen mit den geerbten Membern zuerst und
+// in einer Folge, die nie aufsteigend nach Namen sortiert ist; `Keys` nennt die erste Property und einen Namen, den keine
+// Liste führt.
 
 // Rohbytes (AGENTS.md §3.18): `é` in der Form NFC und NFD entsteht aus Bytewerten.
 func exvEAkut() string    { return string([]byte{0xc3, 0xa9}) }
@@ -65,8 +67,17 @@ func exvSpezen() []exvSpez {
 		{name: "Ns.Kategorie",
 			props: []model.Property{exvP("KatTitel", "Edm.String"), exvP("KatId", "Edm.Int32")},
 			navs:  []model.NavigationProperty{exvN("Produkte", "Ns.Basis", true)}},
+		{name: "Ns.AbstraktKind", basis: "Ns.Abstrakt", abstrakt: true,
+			props: []model.Property{exvP("AKProp", "Edm.Int32")},
+			navs:  []model.NavigationProperty{exvN("AKNav2", "Ns.Kategorie", false)}},
+		{name: "Ns.OffenAbstrakt", abstrakt: true, offen: true,
+			props: []model.Property{exvP("XText", "Edm.String"), exvP("XId", "Edm.Int32")},
+			navs:  []model.NavigationProperty{exvN("XNav", "Ns.Kategorie", false), exvN("XMehr", "Ns.Position", true)}},
+		{name: "Ns.OffenAbstraktKind", basis: "Ns.OffenAbstrakt", abstrakt: true, offen: true,
+			props: []model.Property{exvP("XKind", "Edm.Int32")},
+			navs:  []model.NavigationProperty{exvN("XKindNav", "Ns.Basis", false)}},
 		{name: "Ns.Lieferant",
-			props: []model.Property{exvP("LId", "Edm.Int32"), exvP("Firma", "Edm.String")},
+			props: []model.Property{exvP("LId", "Edm.Int32"), exvP("Firma", "Edm.String"), exvP("Pr"+exvEAkut()+"fer", "Edm.String")},
 			navs:  []model.NavigationProperty{exvN("Lieferungen", "Ns.Position", true)}},
 		{name: "Ns.Position",
 			props: []model.Property{exvP("PosId", "Edm.Int32"), exvP("Menge", "Edm.Decimal")},
@@ -102,7 +113,7 @@ func exvModell() []exvT {
 			kette = append([]exvSpez{c}, kette...)
 		}
 		t := exvT{name: s.name, basis: s.basis, abstrakt: s.abstrakt, offen: s.offen}
-		t.typ = model.EntityType{Name: s.name, BaseType: s.basis, Abstract: s.abstrakt, Open: s.offen, Keys: []string{"Schluessel"}}
+		t.typ = model.EntityType{Name: s.name, BaseType: s.basis, Abstract: s.abstrakt, Open: s.offen}
 		for _, c := range kette {
 			for _, p := range c.props {
 				t.typ.Properties = append(t.typ.Properties, p)
@@ -113,10 +124,17 @@ func exvModell() []exvT {
 				t.navs = append(t.navs, n.Name)
 			}
 		}
+		t.typ.Keys = []string{exvSchluessel}
+		if len(t.props) > 0 {
+			t.typ.Keys = []string{t.props[0], exvSchluessel}
+		}
 		out = append(out, t)
 	}
 	return out
 }
+
+// exvSchluessel steht in `Keys` jedes Typs und in keiner Liste von Navigationen oder Properties.
+const exvSchluessel = "Schluessel"
 
 // exvUmgekehrt dreht die Listen eines Typs um (zweite Folge der Achse Reihenfolge der Listen).
 func exvUmgekehrt(t exvT) exvT {
@@ -166,7 +184,7 @@ func exvZaehlen() map[string]exvZahl {
 // exvNamen ist die Menge aller Namen, die die Tests als fremden Namen verwenden: jedes Member jedes Typs, der qualifizierte
 // und der einfache Name jedes Typs und zwei Namen, die kein Typ führt.
 func exvNamen(m []exvT) []string {
-	namen := []string{"Unbekannt", "Fremd"}
+	namen := []string{"Unbekannt", "Fremd", exvSchluessel}
 	for _, t := range m {
 		namen = append(namen, t.name, t.name[strings.LastIndex(t.name, ".")+1:])
 		namen = append(namen, t.navs...)
@@ -347,5 +365,39 @@ func TestPruefeExpandFixture(t *testing.T) {
 	}
 	if len(exvSpezen())*2 != len(m) {
 		t.Errorf("%d Typen in beiden Folgen, %d Spezifikationen", len(m), len(exvSpezen()))
+	}
+	// die Achsen offen × abstrakt × abgeleitet: jede Kombination hat mindestens einen Typ
+	achse := []bool{false, true}
+	kombinationen := map[[3]bool]int{}
+	for _, tt := range exvModell() {
+		kombinationen[[3]bool{tt.offen, tt.abstrakt, tt.basis != ""}]++
+	}
+	n := 0
+	for _, o := range achse {
+		for _, a := range achse {
+			for _, d := range achse {
+				if kombinationen[[3]bool{o, a, d}] == 0 {
+					t.Errorf("kein Typ mit offen=%v, abstrakt=%v, abgeleitet=%v", o, a, d)
+				}
+				n++
+			}
+		}
+	}
+	if n != len(achse)*len(achse)*len(achse) || len(kombinationen) != n {
+		t.Errorf("%d Kombinationen der Achsen, %d im Fixture-Modell", n, len(kombinationen))
+	}
+	for _, tt := range exvModell() {
+		if !slices.Contains(tt.typ.Keys, exvSchluessel) || (len(tt.props) > 0 && !slices.Contains(tt.typ.Keys, tt.props[0])) {
+			t.Errorf("%s: Keys %v", tt.name, tt.typ.Keys)
+		}
+	}
+	// `é` steht in einer Navigation und in einer Property
+	nav, prop := 0, 0
+	for _, tt := range exvModell() {
+		nav += exvEAkutNamen(tt.navs)
+		prop += exvEAkutNamen(tt.props)
+	}
+	if nav == 0 || prop == 0 {
+		t.Errorf("é in %d Navigationen und %d Properties", nav, prop)
 	}
 }

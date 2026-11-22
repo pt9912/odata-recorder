@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -65,6 +66,25 @@ func exvSentinels() []error {
 	return []error{model.ErrURLUngueltig, model.ErrURLNichtUnterstuetzt, model.ErrFilterNichtBeobachtet, model.ErrUngueltig}
 }
 
+// exvPruefeWert prüft den Inhalt des Fehlerwerts: nur die zugesagten Felder (Ursache) sind belegt, jedes andere Feld des
+// Typs, auch ein nicht exportiertes, ist der Nullwert (Negativliste über alle Felder, Zählung gegen NumField), und die Formen
+// `%#v` und `%T` nennen genau den Typ und die Ursache.
+func exvPruefeWert(t *testing.T, was string, ef *model.ExpandFehler) {
+	t.Helper()
+	v := reflect.ValueOf(*ef)
+	for i := range v.NumField() {
+		if name := v.Type().Field(i).Name; name != "Ursache" && !v.Field(i).IsZero() {
+			t.Errorf("%s: Feld %s ist belegt", was, name)
+		}
+	}
+	if soll := fmt.Sprintf("&model.ExpandFehler{Ursache:%q}", string(ef.Ursache)); fmt.Sprintf("%#v", ef) != soll {
+		t.Errorf("%s: %%#v ist %s, erwartet %s", was, fmt.Sprintf("%#v", ef), soll)
+	}
+	if got := fmt.Sprintf("%T", ef); got != "*model.ExpandFehler" {
+		t.Errorf("%s: %%T ist %s", was, got)
+	}
+}
+
 // exvPruefeFehler prüft einen Fehler gegen eine Zeile der Tabelle: errors.Is trifft genau die Sentinel der Klasse (auch
 // verpackt und verbunden), Code und Text stehen fest, errors.As findet den ExpandFehler.
 func exvPruefeFehler(t *testing.T, was string, err error, z exvZeile) {
@@ -77,6 +97,7 @@ func exvPruefeFehler(t *testing.T, was string, err error, z exvZeile) {
 	if ef.Code() != z.code || err.Error() != z.praefix+string(z.ursache) {
 		t.Errorf("%s: %v %q", was, ef.Code(), err.Error())
 	}
+	exvPruefeWert(t, was, ef)
 	for _, s := range exvSentinels() {
 		for form, e := range map[string]error{"roh": err, "verpackt": fmt.Errorf("x: %w", err), "verbunden": errors.Join(errors.New("x"), err)} {
 			if errors.Is(e, s) != (s == z.sentinel) {
@@ -112,6 +133,11 @@ func TestExpandFehler(t *testing.T) {
 	slices.Sort(ist)
 	if !slices.Equal(ist, soll) {
 		t.Errorf("Ursachen der Quelle %v, der Tabelle %v", ist, soll)
+	}
+	// der Fehlerwert trägt genau die zugesagten Felder: ein Feld Ursache vom Typ ExpandUrsache und sonst nichts
+	typ := reflect.TypeFor[model.ExpandFehler]()
+	if typ.NumField() != 1 || typ.Field(0).Name != "Ursache" || typ.Field(0).Type != reflect.TypeFor[model.ExpandUrsache]() {
+		t.Errorf("ExpandFehler hat %d Felder, das erste ist %s", typ.NumField(), typ.Field(0).Name)
 	}
 	for _, z := range tabelle {
 		exvPruefeFehler(t, "von Hand "+string(z.ursache), &model.ExpandFehler{Ursache: z.ursache}, z)

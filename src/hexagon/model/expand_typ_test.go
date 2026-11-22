@@ -431,7 +431,8 @@ func TestPruefeExpandRang(t *testing.T) {
 
 // TestPruefeExpandProgrammfehler (Zeile 8): o nil, leere Liste, leerer Name, `*` und ein doppelter Name sind ErrUngueltig und
 // kein ExpandFehler, in jedem Typ; `a` und `A` sind zwei Namen, und das Paar ist so wenig ein Programmfehler wie ein
-// Paar fremder Namen in anderer Schreibweise.
+// Paar fremder Namen in anderer Schreibweise. Namen mit `*`, aus Leerraum oder mit Leerraum an einem Namen sind keiner,
+// auch nicht als Member eines Typs.
 func TestPruefeExpandProgrammfehler(t *testing.T) {
 	m := exvBeide()
 	faelle := exvFaelleProgrammfehler(m)
@@ -449,6 +450,13 @@ func TestPruefeExpandProgrammfehler(t *testing.T) {
 	}
 	exvZaehlt(t, "doppelter Name in Listen von 32 Elementen", len(abstand), soll)
 	exvLaufe(t, abstand)
+	fast, soll := exvFaelleFastProgrammfehler(m), 2*(4+5+4)
+	for _, tt := range m {
+		z := exvZaehlen()[tt.name]
+		soll += 9 + 4*(1+exvEins(z.navs > 0)+exvEins(z.props > 0))
+	}
+	exvZaehlt(t, "Namen, die kein Programmfehler sind", len(fast), soll)
+	exvLaufe(t, fast)
 
 	klein := model.EntityType{Name: "Ns.Klein", Properties: []model.Property{exvP("b", "Edm.String"), exvP("B", "Edm.String")},
 		NavigationProperties: []model.NavigationProperty{exvN("a", "Ns.Klein", false), exvN("A", "Ns.Klein", false)}}

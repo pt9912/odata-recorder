@@ -1,7 +1,6 @@
 package model_test
 
 import (
-	"fmt"
 	"reflect"
 	"slices"
 	"sync"
@@ -10,13 +9,13 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// exvAlleFaelle sind die Eingaben der Zeilen 1 bis 9 und 12 der Tabelle: jeder Generator über beide Folgen der Listen und
-// die drei Verstöße der Zeile 12 ohne Zusammenhang zu einem Typ des Fixture-Modells.
+// exvAlleFaelle sind die Eingaben der Zeilen 1 bis 9 und 12 der Tabelle: jeder Generator über beide Folgen der Listen, die
+// Typachsen und die drei Verstöße der Zeile 12 ohne Zusammenhang zu einem Typ des Fixture-Modells.
 func exvAlleFaelle() []exvFall {
 	m := exvBeide()
 	var out []exvFall
 	for _, g := range []func([]exvT) []exvFall{exvFaelleGueltig, exvFaelleSchreibweise, exvFaelleProperty, exvFaelleOffen, exvFaelleUnbekannt,
-		exvFaelleSubtyp, exvFaelleRang, exvFaelleProgrammfehler, exvFaelleProgrammfehlerVor} {
+		exvFaelleSubtyp, exvFaelleRang, exvFaelleProgrammfehler, exvFaelleProgrammfehlerVor, exvFaelleTypachsen} {
 		out = append(out, g(m)...)
 	}
 	for _, z := range exvTabelle() {
@@ -57,43 +56,10 @@ func TestPruefeExpandOhneAenderung(t *testing.T) {
 	}
 }
 
-// exvLaengen sind die Fälle der Zeile 15 für die Typen mit 32 Navigationen: Listen der Länge 1 bis 32 gültig und mit einem
-// Verstoß (fremd, Property) an Stelle 0, 15 und 31.
-func exvLaengen() []exvFall {
-	var out []exvFall
-	m := exvModell()
-	for _, name := range []string{"Ns.Viele", "Ns.VieleOffen"} {
-		tt := exvTyp(m, name)
-		for n := 1; n <= len(tt.navs); n++ {
-			out = append(out, exvFall{fmt.Sprintf("%s Länge %d", name, n), tt.typ, exvO(tt.navs[:n]...), "gueltig"})
-			for _, stelle := range []int{0, 15, 31} {
-				if stelle >= n {
-					continue
-				}
-				for art, verstoss := range map[string][2]string{"fremd": {exvUnbekannt(1), exvFehlt(tt)}, "Property": {tt.props[0], string(model.ExpandKeineNavigation)}} {
-					namen := slices.Clone(tt.navs[:n])
-					namen[stelle] = verstoss[0]
-					out = append(out, exvFall{fmt.Sprintf("%s Länge %d, %s an Stelle %d", name, n, art, stelle), tt.typ, exvO(namen...), verstoss[1]})
-				}
-			}
-		}
-	}
-	return out
-}
-
 // TestPruefeExpandWiederholung (Zeile 15): gleiche Eingabe ergibt gleiches Ergebnis, dreimal in Folge, in allen Fällen der
-// Zeilen 1 bis 9; die Funktion hat keine eigene Grenze, Listen bis 32 Elemente sind gültig.
+// Zeilen 1 bis 9 und der Listen bis 70 Elemente; die Grenzen der Längen fährt TestPruefeExpandLaenge.
 func TestPruefeExpandWiederholung(t *testing.T) {
-	laengen := exvLaengen()
-	soll := 0
-	for n := 1; n <= 32; n++ {
-		soll++
-		for _, stelle := range []int{0, 15, 31} {
-			soll += 2 * exvEins(stelle < n)
-		}
-	}
-	exvZaehlt(t, "Längen", len(laengen), 2*soll)
-	for _, f := range slices.Concat(exvAlleFaelle(), laengen) {
+	for _, f := range slices.Concat(exvAlleFaelle(), exvFaelleLaengen(70)) {
 		erste := model.PruefeExpand(f.typ, f.o)
 		if got := exvKlasse(erste); got != f.soll {
 			t.Errorf("%s: %s, erwartet %s", f.art, got, f.soll)
