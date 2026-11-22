@@ -44,30 +44,54 @@ func importsRoutenDateien(t *testing.T) []string {
 	return routen
 }
 
+// zaehleImporte zählt in einer Quelle die Importe des Pfades pfad.
+func zaehleImporte(t *testing.T, name string, quelle any, pfad string) int {
+	t.Helper()
+	f, err := parser.ParseFile(token.NewFileSet(), name, quelle, parser.ImportsOnly)
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	n := 0
+	for _, im := range f.Imports {
+		if p, _ := strconv.Unquote(im.Path.Value); p == pfad {
+			n++
+		}
+	}
+	return n
+}
+
 // TestIM15QuelleDerRouten hält IM15 (SPEC-297 Nr. 2, 9 a; SPEC-238 Nr. 15 b, c) am Quelltext: in den Dateien der Routen ruft
 // und nennt keine Stelle `NeuesFehlerobjekt` oder `CountError` (2 Namen) oder eine der Arten `ArtAdminAbgewiesen`,
 // `ArtImportFehlgeschlagen`, `ArtSessionGeloescht`, `ArtSessionAufbewahrung`, `ArtWorkspaceGeloescht` (5 Namen), keine startet
 // eine Goroutine, keine leitet den Kontext ab oder löst ihn ab (`WithCancel`, `WithTimeout`, `WithDeadline`, `WithoutCancel`,
 // `WithCancelCause`, `WithTimeoutCause`, `WithDeadlineCause`, `AfterFunc`: 8 Namen); in den Dateien `imports*.go` liest keine
-// Stelle `Header`, `RawQuery` oder `Laenge` (3 Namen). Die Proben halten jeden Zähler gegen eine Quelle mit je einer Stelle.
+// Stelle `Header`, `RawQuery` oder `Laenge` (3 Namen), keine ruft `Err`, `Done` oder `Deadline` auf einem Kontext oder
+// `context.Cause` (4 Namen) und keine importiert `sync` oder `sync/atomic` (2 Pfade). Der Quelltext sagt dazu nur, was diese
+// Dateien nicht schreiben; was ein Kontext nach dem Erfolg oder ein Zustand zwischen Requests bewirkt, fangen Tests mit Wirkung.
+// Die Proben halten jeden Zähler gegen eine Quelle mit je einer Stelle.
 func TestIM15QuelleDerRouten(t *testing.T) {
 	zaehler := []string{"NeuesFehlerobjekt", "CountError"}
 	arten := []string{"ArtAdminAbgewiesen", "ArtImportFehlgeschlagen", "ArtSessionGeloescht", "ArtSessionAufbewahrung", "ArtWorkspaceGeloescht"}
 	ableitungen := []string{"WithCancel", "WithTimeout", "WithDeadline", "WithoutCancel", "WithCancelCause", "WithTimeoutCause", "WithDeadlineCause", "AfterFunc"}
-	felder := []string{"Header", "RawQuery", "Laenge"}
-	gleichAuf(t, "Zahl der Namen", []int{len(zaehler), len(arten), len(ableitungen), len(felder)}, []int{2, 5, 8, 3})
+	felder := []string{"Header", "RawQuery", "Laenge", "Err", "Done", "Deadline"}
+	gleichAuf(t, "Zahl der Namen", []int{len(zaehler), len(arten), len(ableitungen), len(felder)}, []int{2, 5, 8, 6})
 
 	probe := "package x\nimport \"context\"\nfunc f() { model.NeuesFehlerobjekt(1); s.CountError(1); support.ArtAdminAbgewiesen; support.ArtImportFehlgeschlagen; " +
 		"support.ArtSessionGeloescht; support.ArtSessionAufbewahrung; support.ArtWorkspaceGeloescht; go g(); go func() {}(); " +
 		"context.WithCancel(); context.WithTimeout(); context.WithDeadline(); context.WithoutCancel(); context.WithCancelCause(); " +
-		"context.WithTimeoutCause(); context.WithDeadlineCause(); context.AfterFunc(); a.Header; a.RawQuery; a.Laenge }"
+		"context.WithTimeoutCause(); context.WithDeadlineCause(); context.AfterFunc(); a.Header; a.RawQuery; a.Laenge; " +
+		"ctx.Err(); ctx.Done(); ctx.Deadline(); context.Cause(ctx) }"
 	for _, n := range slices.Concat(zaehler, arten, felder) {
 		gleichAuf(t, "Probe "+n, zaehleSelektoren(t, "probe.go", probe, "", n), 1)
 	}
-	for _, n := range ableitungen {
+	for _, n := range append(ableitungen, "Cause") {
 		gleichAuf(t, "Probe "+n, zaehleSelektoren(t, "probe.go", probe, "context", n), 1)
 	}
 	gleichAuf(t, "Probe: Anweisungen go", zaehleGoAnweisungen(t, "probe.go", probe), 2)
+	zustand := []string{"sync", "sync/atomic"}
+	for _, p := range zustand {
+		gleichAuf(t, "Probe: Import "+p, zaehleImporte(t, "probe.go", "package x\nimport (\n\"sync\"\n\"sync/atomic\"\n\"syncx\"\n)\n", p), 1)
+	}
 
 	geprueft := 0
 	for _, d := range importsRoutenDateien(t) {
@@ -95,6 +119,14 @@ func TestIM15QuelleDerRouten(t *testing.T) {
 		for _, n := range felder {
 			if z := zaehleSelektoren(t, d, src, "", n); z != 0 {
 				t.Errorf("%s: %d Zugriffe auf %s", d, z, n)
+			}
+		}
+		if z := zaehleSelektoren(t, d, src, "context", "Cause"); z != 0 {
+			t.Errorf("%s: %d Aufrufe von context.Cause", d, z)
+		}
+		for _, p := range zustand {
+			if z := zaehleImporte(t, d, src, p); z != 0 {
+				t.Errorf("%s: %d Importe von %s", d, z, p)
 			}
 		}
 	}

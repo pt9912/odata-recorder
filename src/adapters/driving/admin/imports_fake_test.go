@@ -51,8 +51,8 @@ func importA() model.Import {
 
 // importsFake erfüllt inbound.ImportUseCase: jede der zwei Operationen zählt ihren Aufruf und hält ctx und jedes Argument
 // fest (die Anfrage mit einer Kopie der Liste, die Kennung), in der Folge der Aufrufe; Ergebnis und Fehler sind einstellbar
-// (ergebnis, imp, err; importiere und liest ersetzen sie). Der Fake gerät nie in Panik und ist für gleichzeitigen Aufruf
-// sicher; die Einstellungen setzt der Test vor dem ersten Aufruf.
+// (ergebnis, imp, err; importiere und liest ersetzen sie). Der Fake gerät nie in Panik; Zähler und Listen liegen hinter einer
+// Sperre, ein Test, der ihn gleichzeitig ruft, besteht nicht; die Einstellungen setzt der Test vor dem ersten Aufruf.
 type importsFake struct {
 	mu       sync.Mutex
 	ops      []impOp
@@ -270,6 +270,63 @@ func importRand() []bForm {
 	return out
 }
 
+// importElementeUngueltig liefert die 305 Formen von TestIM8ElementStelle: ein Element von `source_session_ids`, das keine
+// Zeichenkette ist (`null`, `1`, `true`, `[]`, `{}`), an jeder Stelle von importLaengen(0, 100000) hinter lauter Zeichenketten
+// und vor einer weiteren; s steht als Wert von `import_id`.
+func importElementeUngueltig(s string) []bForm {
+	var out []bForm
+	for _, schlecht := range []string{"null", "1", "true", "[]", "{}"} {
+		for _, p := range importLaengen(0, 100000) {
+			body := bodyMitGlied(s, "source_session_ids", "["+strings.Repeat(`"a",`, p)+schlecht+`,"a"]`)
+			out = append(out, bForm{achse: "Element", name: schlecht + " an Stelle " + strconv.Itoa(p), body: []byte(body)})
+		}
+	}
+	return out
+}
+
+// importRandUnicode liefert den Rand von IM7 über Einzelbytes hinaus: 12 Zeichen, die Unicode als Leerraum kennt oder die so
+// aussehen, vor und hinter einem gültigen Objekt (24 Formen); jede ist ungültig, denn als Leerraum gelten allein die vier Zeichen
+// von importRand. Die Bytes stehen als Literale, nicht aus dem Code der Route.
+func importRandUnicode() []bForm {
+	var out []bForm
+	for _, z := range []struct{ name, bytes string }{
+		{"NBSP", "\xc2\xa0"}, {"U+0085", "\xc2\x85"}, {"U+1680", "\xe1\x9a\x80"}, {"U+2000", "\xe2\x80\x80"}, {"U+200B", "\xe2\x80\x8b"},
+		{"U+2028", "\xe2\x80\xa8"}, {"U+2029", "\xe2\x80\xa9"}, {"U+202F", "\xe2\x80\xaf"}, {"U+205F", "\xe2\x81\x9f"},
+		{"U+3000", "\xe3\x80\x80"}, {"U+FEFF", "\xef\xbb\xbf"}, {"U+FFFD", "\xef\xbf\xbd"},
+	} {
+		out = append(out,
+			bForm{achse: "Rand Unicode", name: z.name + " davor", body: []byte(z.bytes + gutBody)},
+			bForm{achse: "Rand Unicode", name: z.name + " dahinter", body: []byte(gutBody + z.bytes)})
+	}
+	return out
+}
+
+// importLaengen liefert die Längen von M-Länge zwischen von und bis: jede Länge, die eine Zweier- oder Zehnerpotenz um höchstens 1
+// verfehlt (davor, auf ihr, dahinter), dazu die Längen von laengenDerWerte und bis, aufsteigend und ohne Doppelte; die Menge
+// bildet den Test, nicht der Code der Route.
+func importLaengen(von, bis int) []int {
+	menge := map[int]bool{bis: true}
+	for _, n := range laengenDerWerte() {
+		menge[n] = true
+	}
+	for _, basis := range []int{2, 10} {
+		for p := 1; p <= 2*bis; p *= basis {
+			menge[p-1], menge[p], menge[p+1] = true, true, true
+		}
+	}
+	var out []int
+	for n := range menge {
+		if n >= von && n <= bis {
+			out = append(out, n)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// importLaengenZahl ist die Zahl der Längen von importLaengen(1, bodyGrenze+1).
+const importLaengenZahl = 77
+
 // bodyMitGlied liefert ein Objekt aus den drei Pflichtgliedern (s als `import_id`), in dem das Glied des Schlüssels den
 // Wert literal trägt; ein optionaler Schlüssel wird angehängt.
 func bodyMitGlied(s, schluessel, literal string) string {
@@ -391,6 +448,32 @@ func reportsLaengen() []int { return []int{2, 1000, 65535, 65536, 1048576, 10485
 
 // reportDerLaenge liefert eine Zeichenkette als JSON-Wert von genau n Bytes, reihum aus einem Alphabet gebildet.
 func reportDerLaenge(n int) []byte { return []byte(`"` + wertDerLaenge("klein", n-2) + `"`) }
+
+// reportFormenZahl ist die Zahl der Formen von reportMitNutzlast.
+const reportFormenZahl = 4
+
+// reportMitNutzlast liefert die Form form (0 bis 3) von M-Report-Form mit nutz im Text einer Zeichenkette: die
+// Zeichenkette allein, ein Objekt mit Leerraum am Rand und zwischen den Token und Mitgliedern in absteigender Folge, eine
+// Liste mit `1.0`, `-0` und `1e400` und ein verschachteltes Objekt mit Leerraum am Rand.
+func reportMitNutzlast(form int, nutz string) reportForm {
+	switch form {
+	case 0:
+		return reportForm{"Zeichenkette", []byte(`"` + nutz + `"`)}
+	case 1:
+		return reportForm{"Objekt", []byte(" \n{ \"z\" : \"" + nutz + "\" ,\n\"a\":1.0,\"m\":[1e400,-0] }\r\n ")}
+	case 2:
+		return reportForm{"Liste", []byte(`["` + nutz + `",1.0,-0,1e400]`)}
+	}
+	return reportForm{"verschachtelt", []byte("\t" + `{"z":[{"a":["` + nutz + `"]}],"b":null}` + " ")}
+}
+
+// reportDerForm liefert die Form form als Report von genau n Bytes: am Anfang des Textes `<`, `>`, `&`, U+2028 roh und die
+// Escapes für `<` und `/` (Folgen, die ein Neuserialisieren ändert), danach Buchstaben.
+func reportDerForm(form, n int) []byte {
+	sonder := "<>&\xe2\x80\xa8" + esc("003c") + rueck() + "/"
+	rahmen := len(reportMitNutzlast(form, sonder).roh)
+	return reportMitNutzlast(form, sonder+wertDerLaenge("klein", n-rahmen)).roh
+}
 
 // reportsUngueltig sind die 7 ungültigen Formen von M-Report (SPEC-297 Nr. 6); s steht in jeder Form, die einen Wert nennt.
 func reportsUngueltig(s string) []reportForm {

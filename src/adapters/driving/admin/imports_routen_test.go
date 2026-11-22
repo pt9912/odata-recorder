@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"reflect"
 	"runtime"
 	"slices"
@@ -127,8 +128,9 @@ func TestIM2Zuordnung(t *testing.T) {
 }
 
 // TestIM3AufrufeUndKontext hält IM3 (SPEC-297 Nr. 2): jede der zwei Routen ruft genau eine Operation von imports (2 Routen ×
-// 2 Zähler = 4 Zellen, 1 auf der Diagonale, sonst 0) mit den Argumenten unverändert; der Wert im ctx des Requests kommt an,
-// und der Handler gibt ctx ohne Ableitung weiter (Gleichheit der Identität); von audit läuft in diesem Teil nichts.
+// 2 Werte von `Neu` × 2 Zähler = 8 Zellen, 1 auf der Diagonale, sonst 0) mit den Argumenten unverändert; der Wert im ctx des
+// Requests kommt an, und der Handler gibt ctx ohne Ableitung weiter (Gleichheit der Identität); von audit läuft in diesem Teil
+// nichts. Die Aufrufzahl jedes Erfolgs und jedes Fehlers zählen außerdem `impZustand.sende` (IM10 bis IM12) und TestIM13Fehler.
 func TestIM3AufrufeUndKontext(t *testing.T) {
 	gleichAuf(t, "Zähler gleich Zahl der Operationen des Ports", []int{int(impAnzahl), reflect.TypeFor[inbound.ImportUseCase]().NumMethod()}, []int{2, 2})
 	faelle := []struct {
@@ -142,33 +144,37 @@ func TestIM3AufrufeUndKontext(t *testing.T) {
 	}
 	zellen := 0
 	for i, f := range faelle {
-		u, fake, routen := importsUmgebung(t)
-		r := anfrageMit(f.methode, f.ziel, nil, strings.NewReader(f.body))
-		r = r.WithContext(context.WithValue(r.Context(), ctxSchluessel{}, "wert-"+f.name))
-		if rec := u.rufe(r); rec.Code/100 != 2 {
-			t.Fatalf("%s: Status %d", f.name, rec.Code)
-		}
-		zellen += len(fake.zahlen())
-		fake.nurDiagonale(t, f.name, f.op)
-		if !gleicheAnfragen(fake.anfrageListe(), f.anfrage) || !slices.Equal(fake.kennungen(), f.ids) {
-			t.Errorf("%s: Argumente %+v und %q, erwartet %+v und %q", f.name, fake.anfrageListe(), fake.kennungen(), f.anfrage, f.ids)
-		}
-		if got := fake.ctxListe()[0].Value(ctxSchluessel{}); got != "wert-"+f.name {
-			t.Errorf("%s: der Wert im ctx des Requests kam als %v an", f.name, got)
-		}
-		if n := u.audit.Aufrufe(); n != 0 {
-			t.Errorf("%s: %d Aufrufe von Audit, erwartet 0", f.name, n)
-		}
+		for _, neu := range []bool{true, false} {
+			name := fmt.Sprintf("%s mit Neu %v", f.name, neu)
+			u, fake, routen := importsUmgebung(t)
+			fake.ergebnis.Neu = neu
+			r := anfrageMit(f.methode, f.ziel, nil, strings.NewReader(f.body))
+			r = r.WithContext(context.WithValue(r.Context(), ctxSchluessel{}, "wert-"+f.name))
+			if rec := u.rufe(r); rec.Code/100 != 2 {
+				t.Fatalf("%s: Status %d", name, rec.Code)
+			}
+			zellen += len(fake.zahlen())
+			fake.nurDiagonale(t, name, f.op)
+			if !gleicheAnfragen(fake.anfrageListe(), f.anfrage) || !slices.Equal(fake.kennungen(), f.ids) {
+				t.Errorf("%s: Argumente %+v und %q, erwartet %+v und %q", name, fake.anfrageListe(), fake.kennungen(), f.anfrage, f.ids)
+			}
+			if got := fake.ctxListe()[0].Value(ctxSchluessel{}); got != "wert-"+f.name {
+				t.Errorf("%s: der Wert im ctx des Requests kam als %v an", name, got)
+			}
+			if n := u.audit.Aufrufe(); n != 0 {
+				t.Errorf("%s: %d Aufrufe von Audit, erwartet 0", name, n)
+			}
 
-		ctx := context.WithValue(context.Background(), ctxSchluessel{}, "direkt")
-		_, _ = routen[i].Handler(ctx, admin.Anfrage{
-			Methode: f.methode, Body: strings.NewReader(f.body), KorrelationsID: "cor-1", Pfadwerte: map[string]string{"id": "imp-pfad"},
-		})
-		if got := fake.ctxListe(); len(got) != 2 || got[1] != ctx {
-			t.Errorf("%s: der Handler reichte einen anderen ctx weiter als den, den er erhielt", f.name)
+			ctx := context.WithValue(context.Background(), ctxSchluessel{}, "direkt")
+			_, _ = routen[i].Handler(ctx, admin.Anfrage{
+				Methode: f.methode, Body: strings.NewReader(f.body), KorrelationsID: "cor-1", Pfadwerte: map[string]string{"id": "imp-pfad"},
+			})
+			if got := fake.ctxListe(); len(got) != 2 || got[1] != ctx {
+				t.Errorf("%s: der Handler reichte einen anderen ctx weiter als den, den er erhielt", name)
+			}
 		}
 	}
-	gleichAuf(t, "Zellen (Routen × Zähler)", zellen, 4)
+	gleichAuf(t, "Zellen (Routen × Neu × Zähler)", zellen, 2*2*2)
 }
 
 // importQueries sind die sechs Queries von M-Query: leer, ein Parameter, doppelte Parameter, zwei ungültige Prozentfolgen und
@@ -284,7 +290,7 @@ func importPfadwerte() []struct{ kodiert, soll string } {
 // TestIM5Pfadwert hält IM5 (SPEC-297 Nr. 4): jeder der 13 Werte (Form, Länge, Schreibweise, `.`, `..`, Prozentfolgen, `+`) geht
 // byte-gleich an `Get`, die Antwort ist der Report ohne den Wert, und der Fehler `ODR-E7005` steht ohne den Wert (jedes Byte
 // der Antwort ist das Literal); ein Canary als Wert steht in keinem Byte von Status, Header und Body. Zählprüfung: 13 Werte.
-// Prüfgrenze (akzeptiertes Negativ (1)): 65 Bytes.
+// Die Länge des Wertes führt TestIM5Laenge.
 func TestIM5Pfadwert(t *testing.T) {
 	faelle := 0
 	for _, w := range importPfadwerte() {
@@ -385,6 +391,30 @@ func TestIM5Prozentfolgen(t *testing.T) {
 	}
 	gleichAuf(t, "Fälle laut Plan", faelle, 867*4)
 	gleichAuf(t, "Fälle gleich 13 + 512 + 3468 mit den zwei anderen Tests", 13+512+faelle, 3993)
+}
+
+// TestIM5Laenge hält IM5 für die Länge des Pfadwertes (SPEC-297 Nr. 4, „ohne Prüfung von Form, Länge oder Schreibweise“): jede
+// Länge von importLaengen(1, bodyGrenze+1) (Zweier- und Zehnerpotenzen um 1, bis 1 MiB + 1 Bytes) × 7 Zeichenklassen des Wertes
+// (die Bytes der Mehrbyteklasse als `%XX` kodiert) geht byte-gleich an Get; Orakel ist wertDerLaenge, nicht der Code der Route.
+// Zählprüfung: Längen × 7 Klassen. Prüfgrenze (akzeptiertes Negativ (1)): die Längen dazwischen und die Mischung der Klassen.
+func TestIM5Laenge(t *testing.T) {
+	laengen := importLaengen(1, bodyGrenze+1)
+	faelle := 0
+	for _, klasse := range klassenDerWerte() {
+		for _, n := range laengen {
+			wert := wertDerLaenge(klasse, n)
+			if len(wert) != n {
+				t.Fatalf("Orakel: Klasse %s Länge %d liefert %d Bytes", klasse, n, len(wert))
+			}
+			u, fake, _ := importsUmgebung(t)
+			rec := u.rufe(importGet(url.PathEscape(wert)))
+			faelle++
+			if rec.Code != 200 || !slices.Equal(fake.kennungen(), []string{wert}) {
+				t.Errorf("Klasse %s, %d Bytes: Status %d, Argumente gleich: %v", klasse, n, rec.Code, slices.Equal(fake.kennungen(), []string{wert}))
+			}
+		}
+	}
+	gleichAuf(t, "Fälle", faelle, len(laengen)*len(klassenDerWerte()))
 }
 
 // impFolgeSchritt ist ein Request von M-Folge und das, was der Dienst ihm liefert, mit der Antwort als Literal des Vertrags.

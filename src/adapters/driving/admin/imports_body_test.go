@@ -3,8 +3,10 @@ package admin_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -30,17 +32,18 @@ func importFelder() []string {
 	return []string{"import_id", "service_id", "source_session_ids", "metadata_hash", "conflict_policy", "target"}
 }
 
-// importFeld liefert zu einem Feld und einem Wert das Literal des Gliedes im Body und die Anfrage, die der Dienst erhalten
-// soll: gutAnfrage mit dem Wert im Feld (bei `source_session_ids` als einziger Eintrag).
-func importFeld(feld, wert string) (literal string, soll inbound.ImportAnfrage) {
-	soll, literal = gutAnfrage(), `"`+wert+`"`
+// importFeld liefert zu einem Feld, dem Text einer Zeichenkette im Body (text, wie er im JSON steht) und dem dekodierten Wert das
+// Literal des Gliedes im Body und die Anfrage, die der Dienst erhalten soll: gutAnfrage mit dem Wert im Feld (bei
+// `source_session_ids` als einziger Eintrag).
+func importFeld(feld, text, wert string) (literal string, soll inbound.ImportAnfrage) {
+	soll, literal = gutAnfrage(), `"`+text+`"`
 	switch feld {
 	case "import_id":
 		soll.ImportID = wert
 	case "service_id":
 		soll.ServiceID = wert
 	case "source_session_ids":
-		soll.SourceSessionIDs, literal = []string{wert}, `["`+wert+`"]`
+		soll.SourceSessionIDs, literal = []string{wert}, `["`+text+`"]`
 	case "metadata_hash":
 		soll.MetadataHash = wert
 	case "conflict_policy":
@@ -51,9 +54,10 @@ func importFeld(feld, wert string) (literal string, soll inbound.ImportAnfrage) 
 	return literal, soll
 }
 
-// importFeldBody bildet den Body, in dem das Feld den Wert trägt, und die Anfrage, die der Dienst erhalten soll.
-func importFeldBody(feld string, wert []byte) (body []byte, soll inbound.ImportAnfrage) {
-	literal, soll := importFeld(feld, string(wert))
+// importFeldBody bildet den Body, in dem das Feld den Text einer Zeichenkette trägt, und die Anfrage, die der Dienst mit dem
+// dekodierten Wert erhalten soll.
+func importFeldBody(feld string, text, wert []byte) (body []byte, soll inbound.ImportAnfrage) {
+	literal, soll := importFeld(feld, string(text), string(wert))
 	return []byte(bodyMitGlied("imp-1", feld, literal)), soll
 }
 
@@ -150,8 +154,8 @@ func TestIM6ZeichenImWert(t *testing.T) {
 		for _, feld := range importFelder() {
 			faelle++
 			u, fake, _ := importsUmgebung(t)
-			literal, soll := importFeld(feld, z.soll)
-			roh, _ := importFeld(feld, z.roh)
+			literal, soll := importFeld(feld, z.soll, z.soll)
+			roh, _ := importFeld(feld, z.roh, z.soll)
 			rec := u.rufe(importPost("", nil, strings.NewReader(bodyMitGlied("imp-1", feld, roh))))
 			if rec.Code != 201 || !gleicheAnfragen(fake.anfrageListe(), []inbound.ImportAnfrage{soll}) {
 				t.Errorf("%s in %s: Status %d, Argumente %+v, erwartet 201 und %s", z.name, feld, rec.Code, fake.anfrageListe(), literal)
@@ -159,7 +163,7 @@ func TestIM6ZeichenImWert(t *testing.T) {
 		}
 	}
 	gleichAuf(t, "Fälle", faelle, 3*len(importFelder()))
-	gleichAuf(t, "Felder gleich 5 Zeichenketten und 1 Liste", len(importFelder()), 5+1)
+	gleichAuf(t, "Felder gleich den Feldern von ImportAnfrage", len(importFelder()), reflect.TypeFor[inbound.ImportAnfrage]().NumField())
 	gleichAuf(t, "Fälle gültiger Bodys laut Plan", faelle+len(importGueltig()), 31)
 }
 
@@ -262,13 +266,13 @@ func TestIM7IM8Zahlen(t *testing.T) {
 	gleichAuf(t, "verschiedene Namen und Bodies", []int{len(namen), len(bodies)}, []int{86, 86})
 }
 
-// wertFeldFaelle prüft einen Wert in jedem der sechs Felder gegen den Dienst: gueltig heißt 201 und die Anfrage unverändert,
-// sonst 400 ohne Aufruf.
-func wertFeldFaelle(t *testing.T, name string, wert []byte, gueltig bool) {
+// wertFeldFaelle prüft einen Wert in jedem der sechs Felder gegen den Dienst: text ist der Text der Zeichenkette im Body, wert
+// der dekodierte Wert; gueltig heißt 201 und die Anfrage mit dem Wert unverändert, sonst 400 ohne Aufruf.
+func wertFeldFaelle(t *testing.T, name string, text, wert []byte, gueltig bool) {
 	t.Helper()
 	for _, feld := range importFelder() {
 		u, fake, _ := importsUmgebung(t)
-		body, soll := importFeldBody(feld, wert)
+		body, soll := importFeldBody(feld, text, wert)
 		rec := u.rufe(importPost("", nil, bytesLeser(body)))
 		if gueltig && (rec.Code != 201 || !gleicheAnfragen(fake.anfrageListe(), []inbound.ImportAnfrage{soll})) {
 			t.Errorf("%s in %s: Status %d, Argumente gleich dem Wert: %v", name, feld, rec.Code, gleicheAnfragen(fake.anfrageListe(), []inbound.ImportAnfrage{soll}))
@@ -282,96 +286,208 @@ func wertFeldFaelle(t *testing.T, name string, wert []byte, gueltig bool) {
 // bytesLeser liefert einen Body aus den Bytes.
 func bytesLeser(b []byte) io.Reader { return strings.NewReader(string(b)) }
 
-// TestIM9Laenge hält IM9 (SPEC-297 Nr. 5 e, „unverändert und ungekürzt“) für die Menge Länge × Feld × Zeichenklasse: 12 Längen
-// × 6 Felder × 7 Klassen = 504 Fälle, je 201 und der Wert byte-gleich am Dienst. Prüfgrenze (akzeptiertes Negativ (1)): die
-// Längen dazwischen und die Mischungen der Klassen in einem Wert.
+// TestIM9Laenge hält IM9 (SPEC-297 Nr. 5 e, „unverändert und ungekürzt“) für die Menge Länge × Feld × Zeichenklasse: die
+// Klassen klein und Mehrbyte mit jeder Länge von importLaengen(1, 1048000) (Zweier- und Zehnerpotenzen um 1 bis nahe der Grenze
+// des Bodys), die fünf anderen Klassen mit den 12 Längen von laengenDerWerte, je × 6 Felder, je 201 und der Wert byte-gleich am
+// Dienst. Prüfgrenze (akzeptiertes Negativ (1)): die Längen dazwischen und die Mischungen der Klassen in einem Wert.
 func TestIM9Laenge(t *testing.T) {
-	faelle := 0
+	faelle, soll := 0, 0
 	for _, klasse := range klassenDerWerte() {
-		for _, n := range laengenDerWerte() {
+		laengen := laengenDerWerte()
+		if klasse == "klein" || klasse == "mehrbyte" {
+			laengen = importLaengen(1, 1048000)
+		}
+		soll += len(laengen) * len(importFelder())
+		for _, n := range laengen {
 			wert := wertDerLaenge(klasse, n)
 			if len(wert) != n {
 				t.Fatalf("Orakel: Klasse %s Länge %d liefert %d Bytes", klasse, n, len(wert))
 			}
-			wertFeldFaelle(t, klasse+" "+strconv.Itoa(n), []byte(wert), true)
+			wertFeldFaelle(t, klasse+" "+strconv.Itoa(n), []byte(wert), []byte(wert), true)
 			faelle += len(importFelder())
 		}
 	}
-	gleichAuf(t, "Fälle", faelle, len(laengenDerWerte())*len(importFelder())*len(klassenDerWerte()))
-	gleichAuf(t, "Fälle laut Plan", faelle, 12*6*7)
+	gleichAuf(t, "Fälle", faelle, soll)
+	gleichAuf(t, "Fälle laut Plan", faelle, (2*74+5*12)*6)
 }
 
-// importZeichenMenge sind die 139 Zeichen und Folgen von M-Zeichen (IM9): 32 Steuerzeichen unter 0x20 roh (ungültig), 94
-// ASCII-Zeichen von 0x20 bis 0x7F außer Anführungszeichen und Backslash, 7 gültige Folgen und 6 ungültige Folgen; die Folge
-// steht in `s<Folge>x`, die Folge 0xC3 vor dem Ende des Wertes in `s<0xC3>`.
-func importZeichenMenge() (gueltig, ungueltig [][]byte) {
-	umhuellt := func(folge ...byte) []byte { return append(append([]byte("s"), folge...), 'x') }
-	for c := range byte(0x20) {
-		ungueltig = append(ungueltig, umhuellt(c))
+// zeichenFolge ist ein Element von M-Zeichen: text steht im Text einer Zeichenkette des Bodys, wert ist der dekodierte Wert (das
+// Orakel, als Literal); gueltig sagt, ob der Body gilt.
+type zeichenFolge struct {
+	name, text, wert string
+	gueltig          bool
+}
+
+// importZeichenMenge sind die 303 Elemente von M-Zeichen (IM9, IM12): jedes der 128 Zeichen U+0000 bis U+007F als `\u`-Escape (128),
+// roh die 94 ohne Anführungszeichen und Backslash (94, gültig) und die 32 unter 0x20 (ungültig), die 8 Kurz-Escapes (`\"`,
+// `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`), 12 Zeichen jenseits von ASCII roh und als Escape (bei Zeichen jenseits der
+// Grundebene als Paar von Surrogaten; 24), 5 Escapes einzelner Surrogate (als U+FFFD), 6 ungültige rohe Folgen und 6
+// ungültige Escapes; alle Bytes aus Bytewerten oder `\x`-Folgen.
+func importZeichenMenge() []zeichenFolge {
+	var out []zeichenFolge
+	add := func(name, text, wert string, gueltig bool) {
+		out = append(out, zeichenFolge{name, text, wert, gueltig})
 	}
-	for c := byte(0x20); c <= 0x7F; c++ {
-		if c != '"' && c != 0x5c {
-			gueltig = append(gueltig, umhuellt(c))
+	for c := range 0x80 {
+		b, hex := string([]byte{byte(c)}), fmt.Sprintf("%04x", c)
+		switch {
+		case c < 0x20:
+			add("roh "+hex, b, "", false)
+		case c != '"' && c != 0x5c:
+			add("roh "+hex, b, b, true)
 		}
+		add("Escape "+hex, esc(hex), b, true)
 	}
-	for _, f := range [][]byte{{0xC2, 0x80}, {0xDF, 0xBF}, {0xE0, 0xA0, 0x80}, {0xEF, 0xBF, 0xBF}, {0xF0, 0x90, 0x80, 0x80}, {0xF4, 0x8F, 0xBF, 0xBF}, {0xEF, 0xBB, 0xBF}} {
-		gueltig = append(gueltig, umhuellt(f...))
+	for _, k := range [][2]string{{`"`, `"`}, {rueck(), rueck()}, {"/", "/"}, {"b", "\b"}, {"f", "\f"}, {"n", "\n"}, {"r", "\r"}, {"t", "\t"}} {
+		add("Kurz-Escape "+k[0], rueck()+k[0], k[1], true)
 	}
-	for _, f := range [][]byte{{0x80}, {0xC0, 0x80}, {0xED, 0xA0, 0x80}, {0xF4, 0x90, 0x80, 0x80}, {0xFF}} {
-		ungueltig = append(ungueltig, umhuellt(f...))
+	for _, z := range []struct{ name, utf8, escape string }{
+		{"U+0080", "\xc2\x80", esc("0080")}, {"NBSP", "\xc2\xa0", esc("00a0")}, {"U+07FF", "\xdf\xbf", esc("07ff")},
+		{"U+0800", "\xe0\xa0\x80", esc("0800")}, {"U+2028", "\xe2\x80\xa8", esc("2028")}, {"U+2029", "\xe2\x80\xa9", esc("2029")},
+		{"U+FEFF", "\xef\xbb\xbf", esc("feff")}, {"U+FFFD", "\xef\xbf\xbd", esc("fffd")}, {"U+FFFF", "\xef\xbf\xbf", esc("ffff")},
+		{"U+10000", "\xf0\x90\x80\x80", esc("d800") + esc("dc00")}, {"U+1F600", "\xf0\x9f\x98\x80", esc("d83d") + esc("de00")},
+		{"U+10FFFF", "\xf4\x8f\xbf\xbf", esc("dbff") + esc("dfff")},
+	} {
+		add("roh "+z.name, z.utf8, z.utf8, true)
+		add("Escape "+z.name, z.escape, z.utf8, true)
 	}
-	return gueltig, append(ungueltig, []byte{'s', 0xC3})
+	ersatz := "\xef\xbf\xbd"
+	for _, e := range [][2]string{{esc("d800"), ersatz}, {esc("dbff"), ersatz}, {esc("dc00"), ersatz}, {esc("dfff"), ersatz}, {esc("dc00") + esc("d800"), ersatz + ersatz}} {
+		add("einzelnes Surrogat "+e[0], e[0], e[1], true)
+	}
+	for _, f := range []string{"\x80", "\xc0\x80", "\xed\xa0\x80", "\xf4\x90\x80\x80", "\xff", "\xc3"} {
+		add("ungültige Folge "+strconv.Quote(f), f, "", false)
+	}
+	for _, e := range []string{rueck() + "a", rueck() + "x41", esc("12"), esc("12g4"), rueck() + "U0041", rueck() + "0"} {
+		add("ungültiger Escape "+e, e, "", false)
+	}
+	return out
 }
 
-// TestIM9Zeichen hält IM9 für die Menge Zeichen × Feld: 139 Zeichen und Folgen roh in einer Zeichenkette × 6 Felder = 834
-// Fälle; die 101 gültigen (94 + 7) gehen unverändert an den Dienst, die 38 ungültigen (32 + 6) sind 400 ohne Aufruf.
+// importZeichenStellen sind die drei Stellen von M-Zeichen: das Element am Anfang, in der Mitte und am Ende eines Wertes `s`.
+func importZeichenStellen() [][2]string { return [][2]string{{"", "s"}, {"s", "s"}, {"s", ""}} }
+
+// TestIM9Zeichen hält IM9 für die Menge Zeichen × Darstellung × Stelle × Feld: die 303 Elemente von importZeichenMenge (roh,
+// als `\u`-Escape, als Kurz-Escape) × 3 Stellen (Anfang, Mitte, Ende des Wertes) × 6 Felder = 5454 Fälle; die 259 gültigen
+// gehen als der Wert des Orakels (dekodiert, unverändert) an den Dienst, die 44 ungültigen sind 400 ohne Aufruf.
 func TestIM9Zeichen(t *testing.T) {
-	gueltig, ungueltig := importZeichenMenge()
-	gleichAuf(t, "Zeichen und Folgen", []int{len(gueltig), len(ungueltig), len(gueltig) + len(ungueltig)}, []int{101, 38, 139})
-	for _, w := range gueltig {
-		wertFeldFaelle(t, "gültige Folge "+strconv.Quote(string(w)), w, true)
+	menge, gueltig := importZeichenMenge(), 0
+	for _, z := range menge {
+		if z.gueltig {
+			gueltig++
+		}
+		for _, st := range importZeichenStellen() {
+			wertFeldFaelle(t, z.name+" an Stelle "+st[0]+"|"+st[1], []byte(st[0]+z.text+st[1]), []byte(st[0]+z.wert+st[1]), z.gueltig)
+		}
 	}
-	for _, w := range ungueltig {
-		wertFeldFaelle(t, "ungültige Folge "+strconv.Quote(string(w)), w, false)
-	}
-	gleichAuf(t, "Fälle laut Plan", (len(gueltig)+len(ungueltig))*len(importFelder()), 834)
+	gleichAuf(t, "gültige und ungültige Elemente", []int{gueltig, len(menge) - gueltig, len(menge)}, []int{259, 44, 303})
+	gleichAuf(t, "Fälle laut Plan", len(menge)*len(importZeichenStellen())*len(importFelder()), 5454)
 }
 
-// TestIM9Stelle hält IM9 für die Stelle eines ungültigen Bytes: 0xFF an jeder Stelle p von 0, 1, 63, 64, 65, 255, 256, 4095,
-// 4096, 65535, 65536 und 1048000 des Wertes, in jedem der 6 Felder (72 Fälle), ist 400 ohne Aufruf des Dienstes.
-func TestIM9Stelle(t *testing.T) {
-	stellen := []int{0, 1, 63, 64, 65, 255, 256, 4095, 4096, 65535, 65536, 1048000}
-	for _, p := range stellen {
-		wertFeldFaelle(t, "0xFF an Stelle "+strconv.Itoa(p), []byte(strings.Repeat("a", p)+string([]byte{0xFF})+"bb"), false)
+// TestIM6Wertformen hält IM6 und IM8 für die Raster-Zelle *leerer Wert* und ihre Nachbarn (SPEC-297 Nr. 5 d, e), je Feld der
+// sechs: die Wertformen fehlend, leer, Leerzeichen, vier Zeichen Leerraum, Randleerraum, NBSP und NBSP am Rand gehen unverändert
+// an den Dienst (201), außer dem fehlenden Pflichtschlüssel (400 ohne Aufruf; ein fehlender optionaler ist leer); `null` ist
+// bei jedem Feld 400. Die Route prüft keinen Wert: auch die leere `import_id` geht an den Dienst. 8 Formen × 6 Felder = 48.
+func TestIM6Wertformen(t *testing.T) {
+	nbsp := "\xc2\xa0"
+	formen := []struct{ name, text, wert string }{
+		{"leer", "", ""}, {"Leerzeichen", " ", " "}, {"vier Zeichen Leerraum", " " + rueck() + "t" + rueck() + "r" + rueck() + "n", " \t\r\n"},
+		{"Randleerraum", " x ", " x "}, {"NBSP", nbsp, nbsp}, {"NBSP am Rand", nbsp + "x" + nbsp, nbsp + "x" + nbsp},
 	}
-	gleichAuf(t, "Fälle laut Plan", len(stellen)*len(importFelder()), 72)
-}
-
-// TestIM9Liste hält IM9 für die Zahl der Einträge von `source_session_ids` (SPEC-297 Nr. 5 e): 0, 1, 2, 3, 100 und 40000
-// Einträge gehen mit allen Einträgen in ihrer Folge an den Dienst (6 Fälle). Prüfgrenze (akzeptiertes Negativ (1)): 40000.
-func TestIM9Liste(t *testing.T) {
-	zahlen := []int{0, 1, 2, 3, 100, 40000}
-	for _, n := range zahlen {
-		liste := make([]string, n)
-		var literal strings.Builder
-		literal.WriteString("[")
-		for i := range liste {
-			liste[i] = "e-" + strconv.Itoa(i)
-			if i > 0 {
-				literal.WriteString(",")
+	for _, f := range formen {
+		wertFeldFaelle(t, f.name, []byte(f.text), []byte(f.wert), true)
+	}
+	faelle := len(formen) * len(importFelder())
+	for _, feld := range importFelder() {
+		var ohne []string
+		for _, g := range pflichtGlieder("imp-1") {
+			if !strings.HasPrefix(g, `"`+feld+`"`) {
+				ohne = append(ohne, g)
 			}
-			literal.WriteString(`"` + liste[i] + `"`)
 		}
-		literal.WriteString("]")
-		u, fake, _ := importsUmgebung(t)
-		rec := u.rufe(importPost("", nil, strings.NewReader(bodyMitGlied("imp-1", "source_session_ids", literal.String()))))
-		soll := gutAnfrage()
-		soll.SourceSessionIDs = liste
-		if rec.Code != 201 || !gleicheAnfragen(fake.anfrageListe(), []inbound.ImportAnfrage{soll}) {
-			t.Errorf("%d Einträge: Status %d, Argumente gleich: %v", n, rec.Code, gleicheAnfragen(fake.anfrageListe(), []inbound.ImportAnfrage{soll}))
+		pflicht := len(ohne) < 3
+		for _, f := range []struct{ name, body string }{{"fehlend", objektAus(ohne...)}, {"null", bodyMitGlied("imp-1", feld, "null")}} {
+			u, fake, _ := importsUmgebung(t)
+			rec := u.rufe(importPost("", nil, strings.NewReader(f.body)))
+			faelle++
+			ok := rec.Code == 400 && fake.gesamt() == 0
+			if f.name == "fehlend" && !pflicht {
+				ok = rec.Code == 201 && gleicheAnfragen(fake.anfrageListe(), []inbound.ImportAnfrage{gutAnfrage()})
+			}
+			if !ok {
+				t.Errorf("%s %s: Status %d, %d Aufrufe, Argumente %+v", f.name, feld, rec.Code, fake.gesamt(), fake.anfrageListe())
+			}
 		}
 	}
-	gleichAuf(t, "Fälle", len(zahlen), 6)
+	gleichAuf(t, "Fälle laut Plan", faelle, 8*6)
+}
+
+// TestIM9Stelle hält IM9 für die Stelle eines ungültigen Bytes: 0xFF an jeder Stelle p von importLaengen(0, 1048000) (Abstand
+// vom Anfang des Wertes: 0 und jede Zweier- und Zehnerpotenz um 1 bis 1048000), in jedem der 6 Felder, ist 400 ohne Aufruf des
+// Dienstes. Zählprüfung: Stellen × 6 Felder.
+func TestIM9Stelle(t *testing.T) {
+	stellen := importLaengen(0, 1048000)
+	for _, p := range stellen {
+		w := []byte(strings.Repeat("a", p) + string([]byte{0xFF}) + "bb")
+		wertFeldFaelle(t, "0xFF an Stelle "+strconv.Itoa(p), w, w, false)
+	}
+	gleichAuf(t, "Fälle laut Plan", len(stellen)*len(importFelder()), 75*6)
+}
+
+// TestIM9Liste hält IM9 für die Zahl der Einträge von `source_session_ids` (SPEC-297 Nr. 5 e): jede Zahl von
+// importLaengen(0, bis) (0 und jede Zweier- und Zehnerpotenz um 1 bis zur größten Zahl, die in einen Body von 1 MiB passt) geht
+// mit allen Einträgen in ihrer Folge an den Dienst; zwei Muster der Einträge, `"", "b", "a"` (leere, gleiche, absteigend
+// geordnete: kürzen, entdoppeln, sortieren und Auslassen ändern die Liste) und lauter `""` (das Muster mit den meisten
+// Einträgen je Byte). Zählprüfung: Zahlen × 2 Muster. Prüfgrenze (akzeptiertes Negativ (1)): die Zahlen dazwischen.
+func TestIM9Liste(t *testing.T) {
+	faelle := 0
+	for _, muster := range [][]string{{"", "b", "a"}, {""}} {
+		bytesJeMuster := 0
+		for _, e := range muster {
+			bytesJeMuster += len(e) + 3
+		}
+		for _, n := range importLaengen(0, (bodyGrenze-200)*len(muster)/bytesJeMuster) {
+			liste := make([]string, n)
+			var literal strings.Builder
+			literal.WriteString("[")
+			for i := range liste {
+				liste[i] = muster[i%len(muster)]
+				if i > 0 {
+					literal.WriteString(",")
+				}
+				literal.WriteString(`"` + liste[i] + `"`)
+			}
+			literal.WriteString("]")
+			u, fake, _ := importsUmgebung(t)
+			rec := u.rufe(importPost("", nil, strings.NewReader(bodyMitGlied("imp-1", "source_session_ids", literal.String()))))
+			soll := gutAnfrage()
+			soll.SourceSessionIDs = liste
+			faelle++
+			if rec.Code != 201 || !gleicheAnfragen(fake.anfrageListe(), []inbound.ImportAnfrage{soll}) {
+				t.Errorf("Muster %q, %d Einträge: Status %d, Argumente gleich: %v", muster, n, rec.Code, gleicheAnfragen(fake.anfrageListe(), []inbound.ImportAnfrage{soll}))
+			}
+		}
+	}
+	gleichAuf(t, "Fälle laut Plan", faelle, 69*2)
+}
+
+// TestIM8ElementStelle hält SPEC-297 Nr. 5 d für die Stelle eines Elements von `source_session_ids`, das keine Zeichenkette ist:
+// jede der 5 Arten (`null`, `1`, `true`, `[]`, `{}`) an jeder Stelle p von importLaengen(0, 100000), hinter p und vor einem
+// weiteren Eintrag, ist 400 ohne Aufruf des Dienstes. Zählprüfung: Stellen × 5 Arten.
+func TestIM8ElementStelle(t *testing.T) {
+	for _, f := range importElementeUngueltig(canary()) {
+		pruefeImportUngueltig(t, f)
+	}
+	gleichAuf(t, "Stellen und Formen", []int{len(importLaengen(0, 100000)), len(importElementeUngueltig("x"))}, []int{61, 5 * 61})
+}
+
+// TestIM7RandUnicode hält IM7 für den Rand des Objekts über Einzelbytes hinaus: jede der 24 Formen von importRandUnicode
+// (12 Zeichen, die wie Leerraum aussehen, vor und hinter dem Objekt) ist 400 ohne Aufruf des Dienstes.
+func TestIM7RandUnicode(t *testing.T) {
+	for _, f := range importRandUnicode() {
+		pruefeImportUngueltig(t, f)
+	}
+	gleichAuf(t, "Formen", len(importRandUnicode()), 24)
 }
 
 // TestIM9Dienst hält IM9 für `ErrUngueltig` des Dienstes (SPEC-297 Nr. 5 e, 7): der Fake liefert model.ErrUngueltig für 10
@@ -410,10 +526,23 @@ func TestIM9Dienst(t *testing.T) {
 	gleichAuf(t, "Fälle laut Plan", len(faelle), 10)
 }
 
-// TestIM9Zahlen hält M-Wert gegen die Quelle: 504 + 834 + 72 + 6 + 10 = 1426 Fälle, die Längen und Klassen sind die des Plans.
+// TestIM9Zahlen hält M-Länge und M-Wert gegen die Quelle des Tests: die Längen von importLaengen steigen echt, enden an der
+// Grenze und führen zu jeder Schwelle, die ein Leser setzen könnte (Zweier- und Zehnerpotenzen und die 255 unter 256), die Länge
+// davor, auf ihr und dahinter; die Klassen sind 7, die Felder gleich denen von ImportAnfrage.
 func TestIM9Zahlen(t *testing.T) {
-	g, u := importZeichenMenge()
-	gleichAuf(t, "Längen, Klassen, Felder", []int{len(laengenDerWerte()), len(klassenDerWerte()), len(importFelder())}, []int{12, 7, 6})
-	gesamt := len(laengenDerWerte())*len(klassenDerWerte())*len(importFelder()) + (len(g)+len(u))*len(importFelder()) + 12*len(importFelder()) + 6 + 10
-	gleichAuf(t, "Fälle von M-Wert", gesamt, 1426)
+	laengen := importLaengen(1, bodyGrenze+1)
+	for i := 1; i < len(laengen); i++ {
+		if laengen[i] <= laengen[i-1] {
+			t.Errorf("die Längen steigen nicht echt an Stelle %d: %d nach %d", i, laengen[i], laengen[i-1])
+		}
+	}
+	for _, schwelle := range []int{64, 128, 256, 1000, 1024, 4096, 8192, 10000, 65536, 100000, 262144, 1000000, bodyGrenze} {
+		for _, n := range []int{schwelle - 1, schwelle, schwelle + 1} {
+			if !slices.Contains(laengen, n) {
+				t.Errorf("die Längen führen %d nicht (Schwelle %d)", n, schwelle)
+			}
+		}
+	}
+	gleichAuf(t, "Längen, Ende, Klassen, Felder", []int{len(laengen), laengen[len(laengen)-1], len(klassenDerWerte()), len(importFelder())},
+		[]int{importLaengenZahl, bodyGrenze + 1, 7, reflect.TypeFor[inbound.ImportAnfrage]().NumField()})
 }

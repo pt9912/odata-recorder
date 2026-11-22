@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"slices"
 	"strconv"
@@ -31,13 +34,31 @@ func impZustaende() []impZustand {
 	return []impZustand{{"POST neu", true, true, 201}, {"POST wiederholt", true, false, 200}, {"GET", false, false, 200}}
 }
 
-// sende stellt den Dienst auf den Import und sendet den Request des Zustands.
-func (z impZustand) sende(u *umgebung, fake *importsFake, imp model.Import) *httptest.ResponseRecorder {
+// sende stellt den Dienst auf den Import und sendet den Request des Zustands; der Aufruf ändert die Zähler des Fakes genau um
+// einen Aufruf der Operation der Route (je Operation des Ports, auch die, die die Route nie rufen darf) und ruft Audit nicht
+// (Aufrufzahl je Route × `Neu` × Ausgang).
+func (z impZustand) sende(t *testing.T, u *umgebung, fake *importsFake, imp model.Import) *httptest.ResponseRecorder {
+	t.Helper()
+	vorher := fake.zahlen()
 	fake.ergebnis, fake.imp = inbound.ImportErgebnis{Import: imp, Neu: z.neu}, imp
+	op, r := impGet, importGet("imp-pfad")
 	if z.post {
-		return u.rufe(importPost("", nil, strings.NewReader(gutBody)))
+		op, r = impImport, importPost("", nil, strings.NewReader(gutBody))
 	}
-	return u.rufe(importGet("imp-pfad"))
+	rec := u.rufe(r)
+	for o, n := range fake.zahlen() {
+		soll := 0
+		if impOp(o) == op {
+			soll = 1
+		}
+		if n-vorher[o] != soll {
+			t.Errorf("%s: Operation %d wurde %d-mal gerufen, erwartet %d", z.name, o, n-vorher[o], soll)
+		}
+	}
+	if n := u.audit.Aufrufe(); n != 0 {
+		t.Errorf("%s: %d Aufrufe von Audit, erwartet 0", z.name, n)
+	}
+	return rec
 }
 
 // TestIM10Status hält IM10 (SPEC-297 Nr. 6, SPEC-238 Nr. 5): `POST` antwortet 201, wenn `Neu` wahr ist, sonst 200, `GET` 200;
@@ -47,7 +68,7 @@ func (z impZustand) sende(u *umgebung, fake *importsFake, imp model.Import) *htt
 func TestIM10Status(t *testing.T) {
 	for _, z := range impZustaende() {
 		u, fake, _ := importsUmgebung(t)
-		rec := z.sende(u, fake, importA())
+		rec := z.sende(t, u, fake, importA())
 		if rec.Code != z.status || rec.Body.String() != reportA {
 			t.Errorf("%s: Antwort %d %q, erwartet %d %q", z.name, rec.Code, rec.Body.String(), z.status, reportA)
 		}
@@ -65,7 +86,7 @@ func TestIM10Status(t *testing.T) {
 				imp.ReportJSON, soll = `{"anders":`+strconv.Itoa(i)+`}`, `{"anders":`+strconv.Itoa(i)+`}`
 			}
 			u, fake, _ := importsUmgebung(t)
-			rec := z.sende(u, fake, imp)
+			rec := z.sende(t, u, fake, imp)
 			if rec.Code != z.status || rec.Body.String() != soll {
 				t.Errorf("Feld %d, %s: Antwort %d %q, erwartet %d %q", i, z.name, rec.Code, rec.Body.String(), z.status, soll)
 			}
@@ -84,7 +105,7 @@ func TestIM10Status(t *testing.T) {
 			imp := importA()
 			reflect.ValueOf(&imp).Elem().Field(i).SetZero()
 			u, fake, _ := importsUmgebung(t)
-			if rec := z.sende(u, fake, imp); rec.Code != z.status || rec.Body.String() != reportA {
+			if rec := z.sende(t, u, fake, imp); rec.Code != z.status || rec.Body.String() != reportA {
 				t.Errorf("Feld %d leer, %s: Antwort %d %q, erwartet %d %q", i, z.name, rec.Code, rec.Body.String(), z.status, reportA)
 			}
 		}
@@ -109,7 +130,7 @@ func TestIM11Report(t *testing.T) {
 			imp := importA()
 			imp.ReportJSON = string(f.roh)
 			u, fake, _ := importsUmgebung(t)
-			rec := z.sende(u, fake, imp)
+			rec := z.sende(t, u, fake, imp)
 			name := f.name + " " + z.name
 			if rec.Code != z.status || !bytes.Equal(rec.Body.Bytes(), f.roh) {
 				t.Errorf("%s: Status %d, Body gleich dem Report: %v (%d von %d Bytes)", name, rec.Code, bytes.Equal(rec.Body.Bytes(), f.roh), rec.Body.Len(), len(f.roh))
@@ -130,8 +151,8 @@ func TestIM11ZweiAufrufe(t *testing.T) {
 			imp := importA()
 			imp.ReportJSON = string(f.roh)
 			u, fake, _ := importsUmgebung(t)
-			erster := impZustaende()[0].sende(u, fake, imp)
-			zweite := zweiter.sende(u, fake, imp)
+			erster := impZustaende()[0].sende(t, u, fake, imp)
+			zweite := zweiter.sende(t, u, fake, imp)
 			if !bytes.Equal(erster.Body.Bytes(), f.roh) || !bytes.Equal(zweite.Body.Bytes(), erster.Body.Bytes()) {
 				t.Errorf("%s, POST dann %s: die Bodys sind nicht gleich dem Report", f.name, zweiter.name)
 			}
@@ -154,7 +175,7 @@ func TestIM12UngueltigerReport(t *testing.T) {
 			imp := importA()
 			imp.ReportJSON = string(f.roh)
 			u, fake, routen := importsUmgebung(t)
-			rec := z.sende(u, fake, imp)
+			rec := z.sende(t, u, fake, imp)
 			pruefeFehlerAntwort(t, name, rec, 500, objekt500, "")
 			if codes, andere := zaehlungenVon(u.tele); !slices.Equal(codes, []string{"ODR-E9001"}) || andere != 0 {
 				t.Errorf("%s: CountError %q, andere Aufrufe %d, erwartet genau einmal ODR-E9001", name, codes, andere)
@@ -183,6 +204,85 @@ func TestIM12UngueltigerReport(t *testing.T) {
 	gleichAuf(t, "Fälle", faelle, 21)
 }
 
+// pruefeReport sendet den Report roh im Zustand z: gültig heißt der Status des Zustands, der Body Byte für Byte der Report und
+// `Content-Length` seine Länge, sonst 500 mit dem Fehlerobjekt `ODR-E9001`; der Zustand zählt die Aufrufe (sende).
+func pruefeReport(t *testing.T, name string, z impZustand, roh []byte, gueltig bool) {
+	t.Helper()
+	imp := importA()
+	imp.ReportJSON = string(roh)
+	u, fake, _ := importsUmgebung(t)
+	rec := z.sende(t, u, fake, imp)
+	switch {
+	case gueltig && (rec.Code != z.status || !bytes.Equal(rec.Body.Bytes(), roh) || rec.Header().Get("Content-Length") != strconv.Itoa(len(roh))):
+		t.Errorf("%s, %s: Status %d, Body gleich dem Report: %v (%d von %d Bytes)", name, z.name, rec.Code, bytes.Equal(rec.Body.Bytes(), roh), rec.Body.Len(), len(roh))
+	case !gueltig && (rec.Code != 500 || rec.Body.String() != objekt500):
+		t.Errorf("%s, %s: Status %d, erwartet 500 und das Fehlerobjekt von ODR-E9001", name, z.name, rec.Code)
+	}
+}
+
+// TestIM11Zeichen hält IM11 und IM12 für die Menge Zeichen × Form × Stelle × Zustand (SPEC-297 Nr. 6): jedes der 303
+// Elemente von importZeichenMenge im Text einer Zeichenkette des Reports, am Anfang, in der Mitte und am Ende, in jeder der 4
+// Formen von reportMitNutzlast und in jedem der 3 Zustände = 10908 Fälle; die 259 gültigen kommen Byte für Byte an (auch rohes
+// U+FFFD, NBSP und U+FEFF und der Escape eines einzelnen Surrogats, die ein Dienst schreiben kann), die 44 ungültigen (rohes
+// Steuerzeichen, ungültiges UTF-8, ungültiger Escape) sind 500 `ODR-E9001`.
+func TestIM11Zeichen(t *testing.T) {
+	faelle := 0
+	for _, z := range importZeichenMenge() {
+		for _, st := range importZeichenStellen() {
+			for form := range reportFormenZahl {
+				f := reportMitNutzlast(form, st[0]+z.text+st[1])
+				for _, zu := range impZustaende() {
+					faelle++
+					pruefeReport(t, z.name+" in "+f.name, zu, f.roh, z.gueltig)
+				}
+			}
+		}
+	}
+	gleichAuf(t, "Fälle laut Plan", faelle, 303*3*reportFormenZahl*3)
+}
+
+// TestIM11LaengeForm hält IM11 für die Menge Länge × Form × Zustand (SPEC-297 Nr. 6): jede Länge von importLaengen(100,
+// 4194305) (Zweier- und Zehnerpotenzen um 1 bis 4 MiB + 1 Bytes) in jeder der 4 Formen von reportDerForm (Leerraum am Rand und
+// zwischen den Token, `<`, `>`, `&`, U+2028 roh, Escapes, Mitglieder in absteigender Folge, `1.0`, `-0`, `1e400`) und in jedem
+// der 3 Zustände kommt Byte für Byte an; ein Neuserialisieren, Trimmen oder Kappen ab einer Länge ändert Bytes. Zählprüfung:
+// Längen × 4 Formen × 3 Zustände. Prüfgrenze (akzeptiertes Negativ (1)): die Längen dazwischen.
+func TestIM11LaengeForm(t *testing.T) {
+	faelle, laengen := 0, importLaengen(100, 4194305)
+	for form := range reportFormenZahl {
+		for _, n := range laengen {
+			roh := reportDerForm(form, n)
+			if len(roh) != n {
+				t.Fatalf("Orakel: Form %d, Länge %d liefert %d Bytes", form, n, len(roh))
+			}
+			for _, zu := range impZustaende() {
+				faelle++
+				pruefeReport(t, fmt.Sprintf("Form %d, %d Bytes", form, n), zu, roh, true)
+			}
+		}
+	}
+	gleichAuf(t, "Längen und Fälle", []int{len(laengen), faelle}, []int{63, 63 * reportFormenZahl * 3})
+}
+
+// TestIM12Stelle hält IM12 für die Stelle des ungültigen Bytes (SPEC-297 Nr. 6): drei Folgen (rohes NUL, 0xFF, die
+// Folge 0xED 0xA0 0x80 eines Surrogats) hinter p Buchstaben in einer Zeichenkette, für jedes p von importLaengen(0, 1 MiB + 1)
+// (bis hinter 64 KiB und hinter 1 MiB), in der Zeichenkette allein und im verschachtelten Objekt, in jedem der 3 Zustände, ist
+// 500 `ODR-E9001` ohne Teilantwort; eine Prüfung der ersten N Bytes lässt den Report mit dem Byte hinter N durch.
+func TestIM12Stelle(t *testing.T) {
+	faelle, stellen := 0, importLaengen(0, bodyGrenze+1)
+	for _, folge := range []string{"\x00", "\xff", "\xed\xa0\x80"} {
+		for _, p := range stellen {
+			for _, form := range []int{0, 3} {
+				f := reportMitNutzlast(form, strings.Repeat("a", p)+folge+"b")
+				for _, zu := range impZustaende() {
+					faelle++
+					pruefeReport(t, fmt.Sprintf("%q an Stelle %d, %s", folge, p, f.name), zu, f.roh, false)
+				}
+			}
+		}
+	}
+	gleichAuf(t, "Stellen und Fälle", []int{len(stellen), faelle}, []int{78, 3 * 78 * 2 * 3})
+}
+
 // importFehlerZellen liefert die Zellen von M-Fehler je Route: die 8 allgemeinen Ausgänge und die Codes der Tabelle von
 // SPEC-297 Nr. 7 (`POST` 9, `GET` 3) als Literale.
 func importFehlerZellen() map[string][]fehlerFall {
@@ -197,10 +297,41 @@ func importFehlerZellen() map[string][]fehlerFall {
 	return map[string][]fehlerFall{"POST": append(allgemeineAusgaenge(), post...), "GET": append(allgemeineAusgaenge(), get...)}
 }
 
-// importLesefehler sind die 3 Zellen der Achse *Lesen* von M-Fehler (nur `POST`): der Reader des Bodys liefert den Kontextfehler.
-func importLesefehler() []error {
-	return []error{context.Canceled, context.DeadlineExceeded, errors.Join(context.Canceled, io.ErrUnexpectedEOF)}
+// lesefehler ist eine Art von M-Lesen: der Fehler, den der Reader des Bodys hinter den Bytes liefert, und was SPEC-297 Nr. 5 a
+// aus ihm macht: `ende` (das Ende des Bodys, kein Fehler), `lese` (ein Lesefehler, der kein Kontextfehler ist: 400) oder
+// `kontext` (ein Kontextfehler, auch verpackt: die Verbindung bricht ab).
+type lesefehler struct {
+	name string
+	err  error
+	art  string
 }
+
+// importLesefehler sind die 13 Arten von M-Lesen: das Ende, 7 Lesefehler und 5 Kontextfehler (auch in `errors.Join` und mit
+// `%w` verpackt, in beiden Folgen).
+func importLesefehler() []lesefehler {
+	return []lesefehler{
+		{"EOF", io.EOF, "ende"},
+		{"ErrUnexpectedEOF", io.ErrUnexpectedEOF, "lese"}, {"ErrClosedPipe", io.ErrClosedPipe, "lese"}, {"beliebiger Fehler", errors.New("boom"), "lese"},
+		{"Fehler des Netzes", &net.OpError{Op: "read", Net: "tcp", Err: errors.New("connection reset by peer")}, "lese"},
+		{"Frist des Netzes", os.ErrDeadlineExceeded, "lese"}, {"MaxBytesError", &http.MaxBytesError{Limit: bodyGrenze}, "lese"},
+		{"verpackter Lesefehler", fmt.Errorf("x: %w", io.ErrUnexpectedEOF), "lese"},
+		{"Canceled", context.Canceled, "kontext"}, {"DeadlineExceeded", context.DeadlineExceeded, "kontext"},
+		{"Canceled und Lesefehler", errors.Join(context.Canceled, io.ErrUnexpectedEOF), "kontext"},
+		{"Lesefehler und DeadlineExceeded", errors.Join(io.ErrUnexpectedEOF, context.DeadlineExceeded), "kontext"},
+		{"verpacktes Canceled", fmt.Errorf("x: %w", context.Canceled), "kontext"},
+	}
+}
+
+// lesenDaten liefert die Bytes vor dem Fehler an einer der vier Stellen von M-Lesen: keine, das Objekt ohne sein letztes Byte,
+// das vollständige Objekt, das Objekt und ein Leerzeichen; das Objekt hat n Bytes (Leerraum vor der schließenden Klammer).
+func lesenDaten(stelle, n int) []byte {
+	obj := auffuellen(gutBody[:len(gutBody)-1], n-1)
+	obj = append(obj, '}')
+	return [][]byte{nil, obj[:n-1], obj, append(slices.Clone(obj), ' ')}[stelle]
+}
+
+// lesenLaengen sind die vier Längen von M-Lesen: das Objekt klein, 1 MiB - 1, 1 MiB und 1 MiB + 1 Bytes.
+func lesenLaengen() []int { return []int{len(gutBody), bodyGrenze - 1, bodyGrenze, bodyGrenze + 1} }
 
 // importRequestFuer bildet den Request der Route name: `POST` mit gültigem Body, `GET` mit einem Pfadwert.
 func importRequestFuer(name string) *http.Request {
@@ -213,72 +344,104 @@ func importRequestFuer(name string) *http.Request {
 // TestIM13Fehler hält IM13 (SPEC-297 Nr. 5 a, 7; SPEC-238 Nr. 6, 15 a): M-Fehler (8 allgemeine Ausgänge je Route und die Codes
 // der Tabelle: `POST` 9, `GET` 3; 28 Zellen) mit Status, Code und Body als Literale, genau einem Zählen je Fehlerantwort und
 // keinem bei einem Kontextfehler (Verbindung abgebrochen, nichts geschrieben); in jeder Zelle neben einem Wert des Dienstes
-// (der Fehler gilt), mit genau einem Aufruf der Operation der Route und keinem von Audit.
+// (der Fehler gilt), mit genau einem Aufruf der Operation der Route und keinem von Audit, bei `Neu` wahr und falsch (je
+// Zelle zwei Läufe: der Fehler hängt nicht von `Neu` ab, und der Fake zählt jede Operation, auch die, die die Route nie ruft).
 func TestIM13Fehler(t *testing.T) {
 	zellen := 0
 	for _, route := range []string{"POST", "GET"} {
 		op := map[string]impOp{"POST": impImport, "GET": impGet}[route]
 		for _, f := range importFehlerZellen()[route] {
-			zellen++
-			name := route + " " + f.name
-			u, fake, _ := importsUmgebung(t)
-			fake.err = f.err
-			rec := httptest.NewRecorder()
-			r := importRequestFuer(route)
-			abbruch := abbruchVon(func() { u.srv.ServeHTTP(rec, r) })
-			codes, andere := zaehlungenVon(u.tele)
-			var soll []string
-			if f.abbruch {
-				if abbruch != http.ErrAbortHandler || rec.Body.Len() != 0 || rec.Result().StatusCode != 200 {
-					t.Errorf("%s: Panik %v, Body %q: erwartet den Abbruch der Verbindung ohne Antwort", name, abbruch, rec.Body.String())
+			for _, neu := range []bool{true, false} {
+				zellen++
+				name := fmt.Sprintf("%s %s mit Neu %v", route, f.name, neu)
+				u, fake, _ := importsUmgebung(t)
+				fake.err, fake.ergebnis.Neu = f.err, neu
+				rec := httptest.NewRecorder()
+				r := importRequestFuer(route)
+				abbruch := abbruchVon(func() { u.srv.ServeHTTP(rec, r) })
+				codes, andere := zaehlungenVon(u.tele)
+				var soll []string
+				if f.abbruch {
+					if abbruch != http.ErrAbortHandler || rec.Body.Len() != 0 || rec.Result().StatusCode != 200 {
+						t.Errorf("%s: Panik %v, Body %q: erwartet den Abbruch der Verbindung ohne Antwort", name, abbruch, rec.Body.String())
+					}
+				} else {
+					soll = []string{f.code}
+					if abbruch != nil {
+						t.Errorf("%s: Panik %v", name, abbruch)
+					}
+					pruefeFehlerAntwort(t, name, rec, f.status, f.objekt, "")
 				}
-			} else {
-				soll = []string{f.code}
-				if abbruch != nil {
-					t.Errorf("%s: Panik %v", name, abbruch)
+				if !slices.Equal(codes, soll) || andere != 0 || u.audit.Aufrufe() != 0 {
+					t.Errorf("%s: CountError %q, andere Aufrufe %d, Audit %d, erwartet %q, 0 und 0", name, codes, andere, u.audit.Aufrufe(), soll)
 				}
-				pruefeFehlerAntwort(t, name, rec, f.status, f.objekt, "")
+				fake.nurDiagonale(t, name, op)
 			}
-			if !slices.Equal(codes, soll) || andere != 0 || u.audit.Aufrufe() != 0 {
-				t.Errorf("%s: CountError %q, andere Aufrufe %d, Audit %d, erwartet %q, 0 und 0", name, codes, andere, u.audit.Aufrufe(), soll)
-			}
-			fake.nurDiagonale(t, name, op)
 		}
 	}
-	gleichAuf(t, "Zellen ohne die Achse Lesen", zellen, 2*8+9+3)
+	gleichAuf(t, "Zellen ohne die Achse Lesen × Neu", zellen, 2*(2*8+9+3))
 }
 
-// TestIM13Lesen hält IM13 für die Achse *Lesen* (SPEC-297 Nr. 5 a): ein Kontextfehler des Readers (3 Zellen) bricht die
-// Verbindung ab, ohne Fehlerobjekt, ohne Zählen, ohne Aufruf von Import und ohne Eintrag; der Handler liefert den Fehler
-// unverändert und nicht model.ErrUngueltig.
+// TestIM13Lesen hält IM13 für die Achse *Lesen* (SPEC-297 Nr. 5 a, M-Lesen): jede der 13 Arten von importLesefehler (das Ende,
+// 7 Lesefehler, 5 Kontextfehler) × 4 Stellen, an denen der Fehler hinter den Bytes kommt (vor dem ersten Byte, vor dem letzten
+// Byte des Objekts, hinter dem vollständigen Objekt, hinter einem Leerzeichen dahinter) × 4 Längen des Objekts (klein, 1 MiB - 1,
+// 1 MiB, 1 MiB + 1) = 208 Zellen. Orakel: wer mehr als 1 MiB Bytes liefert, ist 400 (die Grenze des Rahmens, welche Art auch
+// folgt); sonst bricht ein Kontextfehler die Verbindung ab (kein Fehlerobjekt, kein Zählen, Import nicht gerufen, der Handler
+// liefert den Fehler unverändert und nicht model.ErrUngueltig), ein Lesefehler ist 400 (auch hinter einem vollständigen Objekt),
+// und das Ende gilt: 201 mit dem Objekt, wenn es vollständig ist, sonst 400.
 func TestIM13Lesen(t *testing.T) {
-	gleichAuf(t, "Zellen der Achse Lesen", len(importLesefehler()), 3)
-	for _, ce := range importLesefehler() {
-		u, fake, routen := importsUmgebung(t)
-		leser := &bodyLeser{daten: []byte(`{"import_id":"imp-1"`), rest: ce}
-		_, err := routen[0].Handler(context.Background(), admin.Anfrage{Methode: "POST", Body: leser})
-		if err != ce || errors.Is(err, model.ErrUngueltig) {
-			t.Errorf("Handler liefert %v, erwartet %v unverändert und nicht model.ErrUngueltig", err, ce)
-		}
-		rec := httptest.NewRecorder()
-		leser = &bodyLeser{daten: []byte(`{"import_id":"imp-1"`), rest: ce}
-		if p := abbruchVon(func() { u.srv.ServeHTTP(rec, importPost("", nil, leser)) }); p != http.ErrAbortHandler {
-			t.Errorf("%v: ServeHTTP endete mit %v, erwartet den Abbruch der Verbindung", ce, p)
-		}
-		codes, andere := zaehlungenVon(u.tele)
-		if fake.gesamt() != 0 || u.audit.Aufrufe() != 0 || len(codes) != 0 || andere != 0 || rec.Body.Len() != 0 {
-			t.Errorf("%v: %d Aufrufe des Dienstes, %d von Audit, Zählungen %q, Body %q", ce, fake.gesamt(), u.audit.Aufrufe(), codes, rec.Body.String())
+	zellen := 0
+	for _, lf := range importLesefehler() {
+		for stelle := range 4 {
+			for _, n := range lesenLaengen() {
+				zellen++
+				daten, name := lesenDaten(stelle, n), fmt.Sprintf("%s, Stelle %d, Länge %d", lf.name, stelle, n)
+				u, fake, routen := importsUmgebung(t)
+				rec := httptest.NewRecorder()
+				p := abbruchVon(func() { u.srv.ServeHTTP(rec, importPost("", nil, &bodyLeser{daten: daten, rest: lf.err})) })
+				codes, andere := zaehlungenVon(u.tele)
+				switch {
+				case len(daten) <= bodyGrenze && lf.art == "kontext":
+					if p != http.ErrAbortHandler || rec.Body.Len() != 0 || len(codes) != 0 || andere != 0 || fake.gesamt() != 0 {
+						t.Errorf("%s: Panik %v, Body %q, Zählungen %q, %d Aufrufe: erwartet den Abbruch ohne Antwort", name, p, rec.Body.String(), codes, fake.gesamt())
+					}
+					if _, err := routen[0].Handler(context.Background(), admin.Anfrage{Methode: "POST", Body: &bodyLeser{daten: daten, rest: lf.err}}); err != lf.err {
+						t.Errorf("%s: Handler liefert %v, erwartet den Fehler unverändert", name, err)
+					}
+				case len(daten) <= bodyGrenze && lf.art == "ende" && stelle >= 2:
+					if p != nil || rec.Code != 201 || fake.zahlen() != [impAnzahl]int{1, 0} || !gleicheAnfragen(fake.anfrageListe(), []inbound.ImportAnfrage{gutAnfrage()}) {
+						t.Errorf("%s: Panik %v, Status %d, Zähler %v: erwartet 201 und einen Aufruf von Import", name, p, rec.Code, fake.zahlen())
+					}
+				default:
+					pruefeFehlerAntwort(t, name, rec, 400, objekt400, "")
+					if p != nil || !slices.Equal(codes, []string{"ODR-E2102"}) || andere != 0 || fake.gesamt() != 0 {
+						t.Errorf("%s: Panik %v, Zählungen %q, %d Aufrufe: erwartet 400 ohne Aufruf", name, p, codes, fake.gesamt())
+					}
+					if _, err := routen[0].Handler(context.Background(), admin.Anfrage{Methode: "POST", Body: &bodyLeser{daten: daten, rest: lf.err}}); len(daten) <= bodyGrenze && !errors.Is(err, model.ErrUngueltig) {
+						t.Errorf("%s: Handler liefert %v, erwartet model.ErrUngueltig", name, err)
+					}
+				}
+				if u.audit.Aufrufe() != 0 {
+					t.Errorf("%s: %d Aufrufe von Audit, erwartet 0", name, u.audit.Aufrufe())
+				}
+			}
 		}
 	}
+	gleichAuf(t, "Zellen", zellen, 13*4*4)
 }
 
-// TestIM13Zahlen hält M-Fehler gegen die Quelle: 31 Zellen gleich 2 × 8 + 9 + 3 + 3; jede der 10 Codezeilen der Tabelle von
-// SPEC-297 Nr. 7, die ein Dienst liefert, hat eine Zelle (die Zeilen 1 und 2 stehen in IM7 bis IM9, die Zeile 3 in IM14), jeder
-// Code steht in model.AlleCodes() mit dem Status des Literals, und die Literale tragen die Message der Tabelle der Codes.
+// TestIM13Zahlen hält M-Fehler und M-Lesen gegen die Quelle: 28 Zellen gleich 2 × 8 + 9 + 3 und 13 Arten des Lesens (das
+// Ende, 7 Lesefehler, 5 Kontextfehler); jede der 10 Codezeilen der Tabelle von SPEC-297 Nr. 7, die ein Dienst liefert, hat eine
+// Zelle (die Zeilen 1 und 2 stehen in IM7 bis IM9, die Zeile 3 in IM14), jeder Code steht in model.AlleCodes() mit dem Status
+// des Literals, und die Literale tragen die Message der Tabelle der Codes.
 func TestIM13Zahlen(t *testing.T) {
 	z := importFehlerZellen()
-	gleichAuf(t, "Zellen", len(z["POST"])+len(z["GET"])+len(importLesefehler()), 31)
-	gleichAuf(t, "Zellen gleich 2 × 8 + 9 + 3 + 3", len(z["POST"])+len(z["GET"])+len(importLesefehler()), 2*8+9+3+3)
+	gleichAuf(t, "Zellen", len(z["POST"])+len(z["GET"]), 2*8+9+3)
+	arten := map[string]int{}
+	for _, lf := range importLesefehler() {
+		arten[lf.art]++
+	}
+	gleichAuf(t, "Arten des Lesens", arten, map[string]int{"ende": 1, "lese": 7, "kontext": 5})
 	alle := model.AlleCodes()
 	gesehen := map[string]bool{}
 	for route, fs := range z {
