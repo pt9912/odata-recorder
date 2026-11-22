@@ -271,13 +271,7 @@ func TestVersionDateiFremd(t *testing.T) {
 // TestDoppelkonfiguration fängt A06: jeder der vier Einzelschlüssel zugleich mit SERVICES_FILE ist allein die Zeile der
 // Doppelkonfiguration, auch SERVICE_ODATA_VERSION mit fremdem Wert (SPEC-110 Nr. 9, 17 a). 4 Schlüssel × {gültig, fremd}.
 func TestDoppelkonfiguration(t *testing.T) {
-	schluessel := []string{"SERVICE_ID", "SERVICE_ROOT_PATH", "UPSTREAM_URL", "SERVICE_ODATA_VERSION"}
-	werte := map[string][2]string{
-		"SERVICE_ID":            {"x", "a b"},
-		"SERVICE_ROOT_PATH":     {"/x", "x"},
-		"UPSTREAM_URL":          {"https://h.test/odata", "ftp://h"},
-		"SERVICE_ODATA_VERSION": {"2.0", "v2.0"},
-	}
+	schluessel, werte := doppelSchluessel(), doppelWerte()
 	zaehle(t, "Einzelschlüssel", len(schluessel), 4)
 	zellen := 0
 	for _, key := range schluessel {
@@ -292,6 +286,149 @@ func TestDoppelkonfiguration(t *testing.T) {
 		}
 	}
 	zaehle(t, "Zellen", zellen, 8)
+}
+
+// doppelSchluessel sind die vier Einzelschlüssel des einen Services (SPEC-110 Nr. 9, 17 a).
+func doppelSchluessel() []string {
+	return []string{"SERVICE_ID", "SERVICE_ROOT_PATH", "UPSTREAM_URL", "SERVICE_ODATA_VERSION"}
+}
+
+// doppelWerte sind je Einzelschlüssel ein gültiger und ein fremder Wert.
+func doppelWerte() map[string][2]string {
+	return map[string][2]string{
+		"SERVICE_ID":            {"x", "a b"},
+		"SERVICE_ROOT_PATH":     {"/x", "x"},
+		"UPSTREAM_URL":          {"https://h.test/odata", "ftp://h"},
+		"SERVICE_ODATA_VERSION": {"2.0", "v2.0"},
+	}
+}
+
+// leerraumZeichen sind die vier Zeichen des Leerraums (SPEC-110 Nr. 1).
+func leerraumZeichen() []string { return []string{" ", "\t", "\n", "\r"} }
+
+// keinLeerraum sind Zeichen, die dem Leerraum gleichen und im Wert bleiben (SPEC-110 Nr. 1): U+00A0 und U+0085 aus ihren Bytes, VT und FF.
+func keinLeerraum() []string {
+	return []string{nbsp(), string([]byte{0xC2, 0x85}), string([]byte{0x0B}), string([]byte{0x0C})}
+}
+
+// versionFremd ist das erwartete Ergebnis einer Wertform, die ein Verstoß am Schlüssel ist.
+const versionFremd = "fremd"
+
+// versionWertform ist eine Form des Werts einer Version (roh) und die wirksame Version, die SPEC-110 Nr. 1 und 17 a dazu nennen.
+type versionWertform struct{ name, roh, soll string }
+
+// versionWertformen ist die Menge der Formen eines Werts: W (2), R (24), leer (1), nur Leerraum je Zeichen (4), ein Zeichen, das kein
+// Leerraum ist (4), ein solches Zeichen zwischen Leerraum (4) und der Text null (1) = 40. Die Erwartung steht je Form in der Menge.
+func versionWertformen() []versionWertform {
+	var f []versionWertform
+	for _, w := range versionW() {
+		f = append(f, versionWertform{"W", w, w})
+	}
+	for _, r := range versionR() {
+		f = append(f, versionWertform{"R", r.eingabe, r.soll})
+	}
+	f = append(f, versionWertform{"leer", "", "4.0"})
+	for _, z := range leerraumZeichen() {
+		f = append(f, versionWertform{"nur Leerraum", z, "4.0"})
+	}
+	for _, z := range keinLeerraum() {
+		f = append(f, versionWertform{"kein Leerraum", z, versionFremd})
+	}
+	for _, z := range keinLeerraum() {
+		f = append(f, versionWertform{"kein Leerraum zwischen Leerraum", " " + z + "\t", versionFremd})
+	}
+	return append(f, versionWertform{"Text null", "null", versionFremd})
+}
+
+// pruefeWertform verlangt zu einer Wertform das Ergebnis der Konfiguration: die wirksame Version ohne Zeile oder allein die Zeile des
+// Verstoßes am Schlüssel.
+func pruefeWertform(t *testing.T, quelle string, f versionWertform, schluessel string, k bootstrap.Konfiguration, zeilen []string) {
+	t.Helper()
+	if f.soll == versionFremd {
+		if want := []string{zeile(schluessel, grundVersionAufzaehlung)}; !slices.Equal(zeilen, want) {
+			t.Errorf("%s, Form %s (%q): Zeilen %q, erwartet %q", quelle, f.name, f.roh, zeilen, want)
+		}
+		return
+	}
+	if len(zeilen) != 0 || len(k.Dienste) != 1 || k.Dienste[0].Version != f.soll {
+		t.Errorf("%s, Form %s (%q): Zeilen %q, Dienste %+v, erwartet Version %q", quelle, f.name, f.roh, zeilen, k.Dienste, f.soll)
+	}
+}
+
+// TestVersionWertformen fängt die Formen eines Werts an jeder Quelle (A01 bis A05, A09; SPEC-110 Nr. 1, 9, 17 a): der Rand wird nur um
+// die vier Zeichen des Leerraums entfernt, ein Wert aus Leerraum gilt als ungesetzt, jedes andere Zeichen bleibt, auch eines, das dem
+// Leerraum gleicht, und der Text null ist fremd. Menge: die 40 Formen × die Quellen Einzelschlüssel, Feld der Datei und Einzelschlüssel
+// im Modus hybrid (120), dazu in der Datei das fehlende Feld und das JSON-null (2), die 4.0 gelten.
+func TestVersionWertformen(t *testing.T) {
+	formen := versionWertformen()
+	zaehle(t, "Wertformen", len(formen), 40)
+	dir := func() string { return "DATA_DIR=" + filepath.Join(t.TempDir(), "d") }
+	zellen := 0
+	for _, f := range formen {
+		zellen++
+		k, zeilen := lade(t, versionEinzel(t, "SERVICE_ODATA_VERSION="+f.roh)...)
+		pruefeWertform(t, "Einzelschlüssel", f, "SERVICE_ODATA_VERSION", k, zeilen)
+		zellen++
+		k, zeilen = lade(t, "MODE=replay", dir(), "SERVICES_FILE="+versionDatei(t, []string{versionJSON(t, f.roh)}))
+		pruefeWertform(t, "Datei", f, "SERVICES_FILE[0].odata_version", k, zeilen)
+		zellen++
+		_, zeilen = lade(t, "MODE=hybrid", dir(), "SERVICE_ODATA_VERSION="+f.roh)
+		var want []string
+		switch f.soll {
+		case "2.0":
+			want = []string{zeile("MODE", grundVersionHybrid)}
+		case versionFremd:
+			want = []string{zeile("SERVICE_ODATA_VERSION", grundVersionAufzaehlung)}
+		}
+		if !slices.Equal(zeilen, want) {
+			t.Errorf("hybrid, Form %s (%q): Zeilen %q, erwartet %q", f.name, f.roh, zeilen, want)
+		}
+	}
+	zaehle(t, "Zellen", zellen, 3*40)
+	for _, e := range []versionWertform{{"Feld fehlt", "", "4.0"}, {"JSON-null", "null", "4.0"}} {
+		zellen++
+		k, zeilen := lade(t, "MODE=replay", dir(), "SERVICES_FILE="+versionDatei(t, []string{e.roh}))
+		pruefeWertform(t, "Datei", e, "SERVICES_FILE[0].odata_version", k, zeilen)
+	}
+	zaehle(t, "Zellen mit den zwei Formen der Datei", zellen, 3*40+2)
+}
+
+// TestDoppelkonfigurationWertformen fängt A06 für jede Form eines Werts: ein Einzelschlüssel zugleich mit SERVICES_FILE ist allein die
+// Zeile der Doppelkonfiguration, sobald sein Wert nach dem Entfernen des Rands nicht leer ist; ein leerer Wert und ein Wert aus Leerraum
+// gelten als ungesetzt und nehmen die Datei an (SPEC-110 Nr. 1, 9, 17 a). Menge: 4 Schlüssel × 20 Formen (leer, nur Leerraum je Zeichen,
+// ein Zeichen, das kein Leerraum ist, ein solches zwischen Leerraum, der Text null, ein gültiger Wert, der gültige Wert mit Rand aus je
+// einem Leerraumzeichen, ein fremder Wert) = 80.
+func TestDoppelkonfigurationWertformen(t *testing.T) {
+	werte := doppelWerte()
+	zellen := 0
+	for _, key := range doppelSchluessel() {
+		type form struct {
+			name, roh string
+			gesetzt   bool
+		}
+		formen := []form{{"leer", "", false}}
+		for _, z := range leerraumZeichen() {
+			formen = append(formen, form{"nur Leerraum", z, false}, form{"gültig mit Rand", z + werte[key][0] + z, true})
+		}
+		for _, z := range keinLeerraum() {
+			formen = append(formen, form{"kein Leerraum", z, true}, form{"kein Leerraum zwischen Leerraum", " " + z + "\t", true})
+		}
+		formen = append(formen, form{"Text null", "null", true}, form{"gültig", werte[key][0], true}, form{"fremd", werte[key][1], true})
+		zaehle(t, "Formen von "+key, len(formen), 20)
+		for _, f := range formen {
+			zellen++
+			env := []string{"MODE=replay", "DATA_DIR=" + filepath.Join(t.TempDir(), "d"), "SERVICES_FILE=" + versionDatei(t, []string{""}), key + "=" + f.roh}
+			_, zeilen := lade(t, env...)
+			var want []string
+			if f.gesetzt {
+				want = []string{zeile(key, grundDoppeltGesetzt)}
+			}
+			if !slices.Equal(zeilen, want) {
+				t.Errorf("%s=%q (%s): Zeilen %q, erwartet %q", key, f.roh, f.name, zeilen, want)
+			}
+		}
+	}
+	zaehle(t, "Zellen", zellen, 80)
 }
 
 // TestHybridMitV2 fängt A07: hybrid mit mindestens einem Service 2.0 ist genau eine Zeile am Schlüssel MODE, gleich wie viele und an

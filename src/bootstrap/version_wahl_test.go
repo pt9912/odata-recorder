@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -126,20 +128,38 @@ func vergleicheSatz(t *testing.T, was string, s outbound.CodecSatz, version stri
 	}
 }
 
-// TestBuildVersionLeer fängt A11: eine leere Version gilt 4.0; Create erhält 4.0, der Dienst trägt den Satz 4.0, und der Aufrufer behält
-// seine Konfiguration (SPEC-139 Nr. 2, 6). Menge 12: die Folgen der Länge 1 und 2 aus {leer, 4.0, 2.0}.
+// hoch ist b hoch n.
+func hoch(b, n int) int {
+	r := 1
+	for i := 0; i < n; i++ {
+		r *= b
+	}
+	return r
+}
+
+// folgenAus sind alle Folgen der Länge 1 bis nMax aus den Symbolen, die erste Stelle am langsamsten.
+func folgenAus(symbole []string, nMax int) [][]string {
+	var aus [][]string
+	for n := 1; n <= nMax; n++ {
+		for k := 0; k < hoch(len(symbole), n); k++ {
+			f := make([]string, n)
+			for i := range f {
+				f[i] = symbole[(k/hoch(len(symbole), n-1-i))%len(symbole)]
+			}
+			aus = append(aus, f)
+		}
+	}
+	return aus
+}
+
+// TestBuildVersionLeer fängt A11: eine leere Version gilt 4.0, an jeder Stelle der Liste; Create erhält 4.0, der Dienst trägt den Satz
+// 4.0, und der Aufrufer behält seine Konfiguration (SPEC-139 Nr. 2, 6). Menge 39: die Folgen der Länge 1, 2 und 3 aus {leer, 4.0, 2.0}
+// (3 + 9 + 27), im Modus mock mit Hochfahren; in den Modi record, replay und hybrid (ohne Dienst 2.0) baut Build jede Folge.
 func TestBuildVersionLeer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	werte := []string{"", "4.0", "2.0"}
-	var folgen [][]string
-	for _, a := range werte {
-		folgen = append(folgen, []string{a})
-		for _, b := range werte {
-			folgen = append(folgen, []string{a, b})
-		}
-	}
-	zaehle(t, "Folgen", len(folgen), 12)
+	folgen := folgenAus([]string{"", "4.0", "2.0"}, 3)
+	zaehle(t, "Folgen", len(folgen), 3+9+27)
 	for _, b := range folgen {
 		soll := make([]string, len(b))
 		for i, v := range b {
@@ -173,6 +193,17 @@ func TestBuildVersionLeer(t *testing.T) {
 			vergleicheSatz(t, fmt.Sprintf("Folge %q, Dienst %d", b, i), *d.Codecs, soll[i])
 		}
 		_ = h.Herunterfahren(ctx)
+		for _, modus := range []string{"record", "replay", "hybrid"} {
+			if modus == "hybrid" && mitV2(b) {
+				continue
+			}
+			hm, err := bootstrap.BuildMit(ctx, versionKonfig(t.TempDir(), modus, b), nil, neuVersionHaken().bauteile())
+			if err != nil {
+				t.Errorf("Modus %s, Folge %q: Build: %v", modus, b, err)
+				continue
+			}
+			_ = hm.Herunterfahren(ctx)
+		}
 	}
 }
 
@@ -227,6 +258,69 @@ func TestBuildVersionUngueltig(t *testing.T) {
 			t.Errorf("Modus %s, Version %q: %s ist angelegt", fl.modus, fl.version, verzeichnisB)
 		}
 	}
+}
+
+// TestBuildVersionStellen fängt A12 an jeder Stelle der Liste (SPEC-139 Nr. 2: die Version jedes Dienstes): Build weist jeden Dienst mit
+// unbekannter Version und im Modus hybrid jeden Dienst 2.0 ab, gleich an welcher Stelle er steht, gleich wie viele Dienste die Liste
+// führt und ob eine der beiden Verletzungen oder beide in verschiedenen Diensten vorliegen; alle anderen Konfigurationen baut es.
+// Menge: die Folgen der Länge 1 bis 3 aus {4.0, 2.0, unbekannt} (39) × die vier Modi (156), davon 45 gültig; Orakel: abgewiesen genau
+// bei einem unbekannten Dienst oder bei hybrid mit einem Dienst 2.0 (ein Wert ist nie beides, die Art „beides“ sind zwei Dienste).
+func TestBuildVersionStellen(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	const unbekannt = "v2.0"
+	symbole := []string{"4.0", "2.0", unbekannt}
+	modi := []string{"record", "replay", "mock", "hybrid"}
+	folgen := folgenAus(symbole, 3)
+	gesamt, gueltig := 0, 0
+	for n := 1; n <= 3; n++ {
+		gesamt += hoch(len(symbole), n) * len(modi)
+		gueltig += hoch(len(versionW()), n)*(len(modi)-1) + 1
+	}
+	zaehle(t, "Folgen", len(folgen), 3+9+27)
+	faelle, gebaut := 0, 0
+	for _, b := range folgen {
+		for _, modus := range modi {
+			faelle++
+			mitUnbekannt, mitHybridV2 := slices.Contains(b, unbekannt), modus == "hybrid" && slices.Contains(b, "2.0")
+			dir := t.TempDir()
+			v := neuVersionHaken()
+			h, err := bootstrap.BuildMit(ctx, versionKonfig(dir, modus, b), nil, v.bauteile())
+			if !mitUnbekannt && !mitHybridV2 {
+				gebaut++
+				if err != nil || h == nil {
+					t.Errorf("Modus %s, Dienste %v: Build liefert %v, erwartet einen Handle", modus, b, err)
+				}
+				if h != nil {
+					_ = h.Herunterfahren(ctx)
+				}
+				continue
+			}
+			art := "hybrid mit 2.0"
+			switch {
+			case mitUnbekannt && mitHybridV2:
+				art = "beides in zwei Diensten"
+			case mitUnbekannt:
+				art = "unbekannte Version"
+			}
+			if h != nil {
+				_ = h.Herunterfahren(ctx)
+			}
+			if err == nil || !errors.Is(err, model.ErrUngueltig) || h != nil {
+				t.Errorf("Modus %s, Dienste %v (%s): Build liefert %v, erwartet model.ErrUngueltig und keinen Handle", modus, b, art, err)
+			}
+			if v.oeffnen != 0 || v.p.zaehle(pAblage) != 0 || v.p.zaehle(pAblageZu) != 0 {
+				t.Errorf("Modus %s, Dienste %v (%s): die Ablage wurde berührt", modus, b, art)
+			}
+			for _, name := range []string{dateiDB, verzeichnisB} {
+				if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+					t.Errorf("Modus %s, Dienste %v (%s): %s ist angelegt", modus, b, art, name)
+				}
+			}
+		}
+	}
+	zaehle(t, "Konfigurationen", faelle, gesamt)
+	zaehle(t, "gebaute Konfigurationen", gebaut, gueltig)
 }
 
 // TestWahlSatz fängt A16: der Satz jedes Dienstes des Mock ist der seiner Version, in jedem der sieben Felder; kein Dienst trägt den
@@ -439,33 +533,77 @@ func TestWahlEtag(t *testing.T) {
 	zaehle(t, "Zellen", zellen, (14+3)*2)
 }
 
-// TestVersionLiteraleAnEinerStelle fängt A21: im Quelltext des Pakets nennt allein version.go und die Prüfung der Konfiguration
-// (konfig_version.go) eine Version, als Literal `4.0` oder `2.0` oder als Name der Konstante, die ein Literal trägt; kein Dienst
-// verzweigt nach der Version (SPEC-139 Nr. 11 b, SPEC-175 Nr. 3).
-func TestVersionLiteraleAnEinerStelle(t *testing.T) {
-	alle, err := filepath.Glob("*.go")
+// stelleVersion ist eine Funktion einer Quelldatei, in der das Feld Version oder ODataVersion gelesen oder geschrieben wird.
+type stelleVersion struct{ datei, funktion string }
+
+// versionStellen sind die Funktionen des Pakets, die die Version eines Dienstes oder Services lesen oder schreiben, mit der Zahl der
+// Zugriffe: die Prüfung der Konfiguration, die Wahl in version.go und die Anlage mit dem Vergleich in lebenszyklus.go (SPEC-139 Nr. 6,
+// 11 b, SPEC-175 Nr. 3). Ein Zugriff an einer anderen Stelle oder ein weiterer in einer dieser Funktionen ändert die Tabelle.
+func versionStellen() map[stelleVersion]int {
+	return map[stelleVersion]int{
+		{"konfig_version.go", "pruefeVersionModus"}: 1,
+		{"konfig_dienste.go", "einzelDienst"}:       1,
+		{"konfig_dienste.go", "dateiEintrag"}:       1,
+		{"version.go", "etagFuerSatz"}:              1,
+		{"version.go", "wirksameDienste"}:           2,
+		{"version.go", "waehle"}:                    2,
+		{"lebenszyklus.go", "legeDiensteAn"}:        1,
+		{"lebenszyklus.go", "abweichungen"}:         2,
+	}
+}
+
+// quellDateien sind die Quelldateien des Pakets ohne Tests, wie der Compiler sie sieht (go/build); das Verzeichnis führt keine weitere.
+func quellDateien(t *testing.T) []string {
+	t.Helper()
+	pkg, err := build.ImportDir(".", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var dateien []string
-	for _, d := range alle {
-		if !strings.HasSuffix(d, "_test.go") {
-			dateien = append(dateien, d)
-		}
-	}
+	dateien := append(slices.Clone(pkg.GoFiles), pkg.IgnoredGoFiles...)
 	eintraege, err := os.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
 	}
-	quellen := 0
+	im := 0
 	for _, e := range eintraege {
 		if strings.HasSuffix(e.Name(), ".go") && !strings.HasSuffix(e.Name(), "_test.go") {
-			quellen++
+			im++
 		}
 	}
-	if len(dateien) < 10 || len(dateien) != quellen {
-		t.Fatalf("%d Dateien des Pakets gelesen, das Verzeichnis führt %d", len(dateien), quellen)
+	if len(dateien) == 0 || len(dateien) != im {
+		t.Fatalf("der Compiler führt %d Quelldateien (%v), das Verzeichnis %d", len(dateien), dateien, im)
 	}
+	return dateien
+}
+
+// zaehleVersionStellen zählt je Funktion die Selektoren Version und ODataVersion der geparsten Dateien.
+func zaehleVersionStellen(asts map[string]*ast.File) map[stelleVersion]int {
+	ist := map[stelleVersion]int{}
+	for d, f := range asts {
+		for _, decl := range f.Decls {
+			name := ""
+			if fd, ok := decl.(*ast.FuncDecl); ok {
+				name = fd.Name.Name
+			}
+			ast.Inspect(decl, func(n ast.Node) bool {
+				if sel, ok := n.(*ast.SelectorExpr); ok && (sel.Sel.Name == "Version" || sel.Sel.Name == "ODataVersion") {
+					ist[stelleVersion{d, name}]++
+				}
+				return true
+			})
+		}
+	}
+	return ist
+}
+
+// TestVersionLiteraleAnEinerStelle fängt A21 in zwei Prüfungen über jede Quelldatei des Pakets (die Menge ist die des Compilers, gegen
+// das Verzeichnis gezählt): (1) allein version.go und konfig_version.go nennen eine Version, als Literal 4.0 oder 2.0 oder als Name
+// der zwei Konstanten, die ein Literal tragen; (2) jede Lesung und jede Zuweisung der Felder Version und ODataVersion steht in einer
+// Funktion der Tabelle versionStellen, mit genau ihrer Zahl, so dass ein Zweig über die Version an einer anderen Stelle (if, switch,
+// case, Index, Schlüssel einer Map) eine neue Zeile der Tabelle braucht (SPEC-139 Nr. 11 b, SPEC-175 Nr. 3). Nicht gefangen: ein Zweig
+// über eine Kopie des Werts innerhalb einer Funktion der Tabelle und ein Zugriff über reflect.
+func TestVersionLiteraleAnEinerStelle(t *testing.T) {
+	dateien := quellDateien(t)
 	istVersion := func(l *ast.BasicLit) bool {
 		s, err := strconv.Unquote(l.Value)
 		return l.Kind == token.STRING && err == nil && (s == "4.0" || s == "2.0")
@@ -511,5 +649,18 @@ func TestVersionLiteraleAnEinerStelle(t *testing.T) {
 	slices.Sort(nennen)
 	if want := []string{"konfig_version.go", "version.go"}; !slices.Equal(nennen, want) {
 		t.Errorf("Dateien, die eine Version nennen: %v, erwartet %v", nennen, want)
+	}
+	soll, ist := versionStellen(), zaehleVersionStellen(asts)
+	if !maps.Equal(ist, soll) {
+		for stelle, n := range ist {
+			if soll[stelle] != n {
+				t.Errorf("%s, Funktion %q: %d Zugriffe auf Version oder ODataVersion, die Tabelle nennt %d", stelle.datei, stelle.funktion, n, soll[stelle])
+			}
+		}
+		for stelle, n := range soll {
+			if _, da := ist[stelle]; !da {
+				t.Errorf("%s, Funktion %q: kein Zugriff, die Tabelle nennt %d", stelle.datei, stelle.funktion, n)
+			}
+		}
 	}
 }
