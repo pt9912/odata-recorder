@@ -20,6 +20,8 @@ In Arbeit: [slice-admin-workspaces](slice-admin-workspaces.md) ([welle-admin-api
 
 In Arbeit: [slice-telemetry-einbau-replay](slice-telemetry-einbau-replay.md) ([welle-betrieb](../welle-betrieb.md), Teil 2 des Schnitts von [slice-telemetry-einbau-gateway](../done/slice-telemetry-einbau-gateway.md): Match-Span `odata.replay.match` im Replay-Dienst und ein Adapter der Telemetrie je Prozess in `replay` und `hybrid`).
 
+In Arbeit: [slice-admin-imports-audit](slice-admin-imports-audit.md) ([welle-admin-api](../welle-admin-api.md), Teil 2 des Schnitts von [slice-admin-imports](../done/slice-admin-imports.md): Eintrag `import_veroeffentlicht` nach einem gelungenen `POST`, Warten und Abbruch, Nebenläufigkeit).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
