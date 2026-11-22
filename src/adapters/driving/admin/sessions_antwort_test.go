@@ -343,33 +343,52 @@ func fehlerZellen() map[string][]fehlerFall {
 	post := append([]fehlerFall{
 		codeFall(model.CodeE7010, 409, "ODR-E7010", objektE7010), codeFall(model.CodeE5005, 404, "ODR-E5005", objektE5005),
 	}, gemeinsam...)
+	beenden := append([]fehlerFall{
+		codeFall(model.CodeE7003, 404, "ODR-E7003", objektE7003), codeFall(model.CodeE7011, 409, "ODR-E7011", objektE7011),
+	}, gemeinsam...)
+	loeschen := append([]fehlerFall{
+		codeFall(model.CodeE7003, 404, "ODR-E7003", objektE7003), codeFall(model.CodeE7009, 409, "ODR-E7009", objektE7009),
+		codeFall(model.CodeE7004, 409, "ODR-E7004", objektE7004),
+	}, gemeinsam...)
 	return map[string][]fehlerFall{
-		"GET":  append(allgemeineAusgaenge(), gemeinsam...),
-		"POST": append(allgemeineAusgaenge(), post...),
+		"GET":    append(allgemeineAusgaenge(), gemeinsam...),
+		"POST":   append(allgemeineAusgaenge(), post...),
+		"close":  append(allgemeineAusgaenge(), beenden...),
+		"DELETE": append(allgemeineAusgaenge(), loeschen...),
 	}
 }
 
-// TestS11S13Fehler hält S11 und S13 (SPEC-292 Nr. 8, 11 c): M-Fehler (8 allgemeine Ausgänge und die Codes der Tabelle je
-// Route, 22 Zellen) mit Status, Code und Body als Literale, genau einem Zählen je Fehlerantwort und keinem bei einem
-// Kontextfehler (Verbindung abgebrochen, nichts geschrieben); M-Audit (24 Zellen: die 22 und je ein Erfolg): genau eine
-// Zelle, `POST` mit Erfolg, schreibt einen Eintrag.
+// erfolge sind die Erfolgsantworten der vier Routen als Literale bei einem Dienst, der sessionA und den Bericht
+// (3 entfernt, zurückgestellt) liefert.
+func erfolge() map[string]fehlerFall {
+	return map[string]fehlerFall{
+		"GET":    {name: "Erfolg", status: 200, objekt: `{"sessions":[` + sessionAJSON + `]}`},
+		"POST":   {name: "Erfolg", status: 201, objekt: sessionAJSON},
+		"close":  {name: "Erfolg", status: 200, objekt: sessionAJSON},
+		"DELETE": {name: "Erfolg", status: 200, objekt: `{"blobs_removed":3,"cleanup_deferred":true}`},
+	}
+}
+
+// TestS11S13Fehler hält S11, S13, B9, B10 und B12 (SPEC-292 Nr. 8, 11 c): M-Fehler (8 allgemeine Ausgänge und die Codes der
+// Tabelle je Route, 47 Zellen: 22 für `GET` und `POST`, 25 für `close` und `DELETE`) mit Status, Code und Body als Literale,
+// genau einem Zählen je Fehlerantwort und keinem bei einem Kontextfehler (Verbindung abgebrochen, nichts geschrieben);
+// M-Audit (51 Zellen: die 47 und je ein Erfolg): genau zwei Zellen, `POST` und `close` mit Erfolg, schreiben einen Eintrag,
+// `DELETE` nie (14 Zellen ohne Eintrag).
 func TestS11S13Fehler(t *testing.T) {
-	zellen, mitEintrag := 0, 0
-	for _, route := range []string{"GET", "POST"} {
-		erfolg := fehlerFall{name: "Erfolg", status: 200, objekt: `{"sessions":[` + sessionAJSON + `]}`}
-		if route == "POST" {
-			erfolg.status, erfolg.objekt = 201, sessionAJSON
-		}
-		for _, f := range slices.Concat(fehlerZellen()[route], []fehlerFall{erfolg}) {
+	zellen, mitEintrag, ohneEintragDelete := 0, 0, 0
+	for _, vr := range vierRouten() {
+		route := vr.name
+		for _, f := range slices.Concat(fehlerZellen()[route], []fehlerFall{erfolge()[route]}) {
 			zellen++
 			name := route + " " + f.name
 			u, fake, _ := sessionsUmgebung(t)
 			fake.err = f.err
+			fake.bericht = inbound.Loeschbericht{Entfernt: 3, Zurueckgestellt: true}
 			if f.mitWert || f.err == nil {
 				fake.session, fake.sessionen = sessionA(), []model.Session{sessionA()}
 			}
 			rec := httptest.NewRecorder()
-			r := sessionsReq(route, "", nil, strings.NewReader(postGut))
+			r := reqFuer(route, postGut)
 			abbruch := abbruchVon(func() { u.srv.ServeHTTP(rec, r) })
 			codes, andere := zaehlungenVon(u.tele)
 			var soll []string
@@ -393,23 +412,30 @@ func TestS11S13Fehler(t *testing.T) {
 				t.Errorf("%s: CountError %q, andere Aufrufe %d, erwartet %q", name, codes, andere, soll)
 			}
 			wollen := 0
-			if f.err == nil && route == "POST" {
+			if f.err == nil && (route == "POST" || route == "close") {
 				wollen, mitEintrag = 1, mitEintrag+1
 			}
 			if n := u.audit.Aufrufe(); n != wollen {
 				t.Errorf("%s: %d Aufrufe von Audit, erwartet %d", name, n, wollen)
 			}
+			if route == "DELETE" {
+				ohneEintragDelete++
+			}
 		}
 	}
-	gleichAuf(t, "Zellen von M-Audit und Zellen mit Eintrag", []int{zellen, mitEintrag}, []int{24, 1})
+	gleichAuf(t, "Zellen von M-Audit und Zellen mit Eintrag", []int{zellen, mitEintrag}, []int{51, 2})
+	gleichAuf(t, "Zellen von DELETE", ohneEintragDelete, 14)
+	gleichAuf(t, "Zellen gleich 4 × 9 + 15 (Erfolge und Codes)", zellen, 4*9+15)
 }
 
-// TestS11Zahlen hält M-Fehler gegen die Quelle: 22 Zellen gleich 2 × 8 + 6, jeder Code der Tabelle von SPEC-292 Nr. 8 steht
-// in model.AlleCodes() mit dem Status des Literals, und die Fehlerobjekte der Literale gleichen denen der Tabelle der Codes.
+// TestS11Zahlen hält M-Fehler gegen die Quelle: 47 Zellen gleich 4 × 8 + 15 (die Codes der Tabelle von SPEC-292 Nr. 8: 6 für
+// `GET` und `POST`, 4 für `close`, 5 für `DELETE`), jeder Code der Tabelle steht in model.AlleCodes() mit dem Status des
+// Literals, und die Fehlerobjekte der Literale gleichen denen der Tabelle der Codes.
 func TestS11Zahlen(t *testing.T) {
 	z := fehlerZellen()
-	gleichAuf(t, "Zellen", len(z["GET"])+len(z["POST"]), 22)
-	gleichAuf(t, "Zellen gleich 2 × 8 + 6", len(z["GET"])+len(z["POST"]), 2*8+(2+4))
+	gleichAuf(t, "Zellen", len(z["GET"])+len(z["POST"])+len(z["close"])+len(z["DELETE"]), 47)
+	gleichAuf(t, "Zellen gleich 4 × 8 + 15", len(z["GET"])+len(z["POST"])+len(z["close"])+len(z["DELETE"]), 4*8+(2+4+4+5))
+	gleichAuf(t, "Zellen von close und DELETE gleich 2 × 8 + 9", len(z["close"])+len(z["DELETE"]), 2*8+(4+5))
 	alle := model.AlleCodes()
 	for route, fs := range z {
 		for _, f := range fs {
@@ -432,17 +458,21 @@ func TestS11Zahlen(t *testing.T) {
 // (dasselbe Objekt, nicht verpackt) und keine Antwort daneben, auch wenn der Dienst einen Wert und den Fehler liefert.
 func TestS11Unveraendert(t *testing.T) {
 	zellen := 0
-	for i, route := range []string{"GET", "POST"} {
+	for i, vr := range vierRouten() {
+		route := vr.name
 		for _, f := range fehlerZellen()[route] {
 			zellen++
 			_, fake, routen := sessionsUmgebung(t)
 			fake.err = f.err
 			fake.session, fake.sessionen = sessionA(), []model.Session{sessionA()}
-			ant, err := routen[i].Handler(context.Background(), admin.Anfrage{Methode: route, Body: strings.NewReader(postGut)})
+			fake.bericht = inbound.Loeschbericht{Entfernt: 3, Zurueckgestellt: true}
+			ant, err := routen[i].Handler(context.Background(), admin.Anfrage{
+				Methode: route, Body: strings.NewReader(postGut), Pfadwerte: map[string]string{"id": "ses-pfad"},
+			})
 			if err != f.err || ant.Status != 0 || len(ant.Body) != 0 {
 				t.Errorf("%s %s: Handler liefert %v und Antwort %d %q, erwartet denselben Fehler und keine Antwort", route, f.name, err, ant.Status, ant.Body)
 			}
 		}
 	}
-	gleichAuf(t, "Zellen", zellen, 22)
+	gleichAuf(t, "Zellen", zellen, 47)
 }

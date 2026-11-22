@@ -20,8 +20,8 @@ func rahmenDateien() []string {
 
 // sessionsDateien liefert die Dateien der Routen: jede Datei `.go` ohne `_test.go` im Verzeichnis außer denen des Rahmens
 // (eine neue Datei eines Teils des Schnitts gehört dazu, ohne dass dieser Test sie nennt). Die Zählprüfung hält die Menge
-// gegen das Verzeichnis: jede Datei des Rahmens besteht, die Dateien der Routen sind mindestens json.go, sessions.go und
-// sessions_body.go, und Rahmen plus Routen sind alle Dateien ohne _test.go.
+// gegen das Verzeichnis: jede Datei des Rahmens besteht, die Dateien der Routen sind mindestens json.go, sessions.go,
+// sessions_body.go, sessions_beenden.go und sessions_loeschen.go, und Rahmen plus Routen sind alle Dateien ohne _test.go.
 func sessionsDateien(t *testing.T) []string {
 	t.Helper()
 	eintraege, err := os.ReadDir(".")
@@ -42,7 +42,7 @@ func sessionsDateien(t *testing.T) []string {
 			t.Errorf("die Datei %s des Rahmens fehlt im Verzeichnis", r)
 		}
 	}
-	for _, r := range []string{"json.go", "sessions.go", "sessions_body.go"} {
+	for _, r := range []string{"json.go", "sessions.go", "sessions_body.go", "sessions_beenden.go", "sessions_loeschen.go"} {
 		if !slices.Contains(routen, r) {
 			t.Errorf("die Datei %s der Routen fehlt", r)
 		}
