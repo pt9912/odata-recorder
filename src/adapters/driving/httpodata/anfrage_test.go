@@ -31,7 +31,7 @@ func TestNewUngueltig(t *testing.T) {
 	ids := supporttest.NewFestIDs()
 	for _, f := range []string{"Verarbeiten", "IDs", "Listener"} {
 		lis := &zaehlListener{}
-		k := httpodata.Konfig{Verarbeiten: d.Record, IDs: ids, Listener: lis}
+		k := httpodata.Konfig{Verarbeiten: d.Record, IDs: ids, Listener: lis, Telemetrie: supporttest.NewFakeTelemetry(), Modus: "record"}
 		switch f {
 		case "Verarbeiten":
 			k.Verarbeiten = nil
@@ -52,7 +52,7 @@ func TestNewUngueltig(t *testing.T) {
 		}
 	}
 	lis := &zaehlListener{}
-	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: d.Record, IDs: ids, Listener: lis})
+	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: d.Record, IDs: ids, Listener: lis, Telemetrie: supporttest.NewFakeTelemetry(), Modus: "record"})
 	if err != nil || srv == nil || lis.aufrufe != 0 {
 		t.Errorf("alle gesetzt: srv=%v err=%v aufrufe=%d", srv, err, lis.aufrufe)
 	}
@@ -66,7 +66,7 @@ func TestServeEndet(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: d.Record, IDs: supporttest.NewFestIDs(), Listener: lis})
+		srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: d.Record, IDs: supporttest.NewFestIDs(), Listener: lis, Telemetrie: supporttest.NewFakeTelemetry(), Modus: "record"})
 		if err != nil {
 			t.Fatal(err)
 		}

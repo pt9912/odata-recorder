@@ -123,7 +123,9 @@ func (h *Handle) starteListener(ctx context.Context) error {
 	if h.tls != nil {
 		l = tls.NewListener(l, h.tls)
 	}
-	srv, err := h.b.NeuerServer(httpodata.Konfig{Verarbeiten: h.verarbeiten, IDs: h.ids, Listener: l})
+	srv, err := h.b.NeuerServer(httpodata.Konfig{
+		Verarbeiten: h.verarbeiten, IDs: h.ids, Listener: l, Telemetrie: h.tel, Modus: h.k.Modus,
+	})
 	if err != nil {
 		_ = l.Close()
 		return err
