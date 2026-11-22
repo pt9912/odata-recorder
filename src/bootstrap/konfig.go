@@ -17,11 +17,14 @@ import (
 // ExitKonfiguration ist der Exit-Code, wenn die Startkonfiguration ungültig ist (SPEC-110 Nr. 12).
 const ExitKonfiguration = 1
 
-// Dienst ist ein konfigurierter Service (LH-FA-04.c). UpstreamURL ist leer, wenn keine gesetzt ist.
+// Dienst ist ein konfigurierter Service (LH-FA-04.c). UpstreamURL ist leer, wenn keine gesetzt ist. Version ist die OData-Version
+// des Services, 4.0 oder 2.0 (LH-FA-17.a); die geladene Konfiguration trägt den wirksamen Wert, nie einen leeren (SPEC-110 Nr. 17 a),
+// und Build liest in einer von Hand gebauten Konfiguration eine leere Version als 4.0 (SPEC-139 Nr. 2).
 type Dienst struct {
 	ID          string
 	Root        string
 	UpstreamURL string
+	Version     string
 }
 
 // Konfiguration trägt die typisierten Werte der Startkonfiguration (SPEC-110); die Services
@@ -149,6 +152,7 @@ func ladeKonfigurationZu(environ []string, jetzt time.Time) (Konfiguration, erro
 	p.liesListenTLS(&k)
 	p.liesHybrid(&k)
 	p.liesDienste(&k)
+	p.pruefeVersionModus(&k)
 	p.liesPublicBaseURL(&k)
 	p.pruefeCADatei(&k)
 	p.pruefeListenTLS(&k, jetzt)

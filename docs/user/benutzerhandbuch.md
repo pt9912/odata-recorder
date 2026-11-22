@@ -74,7 +74,8 @@ Dieser Abschnitt führt die Einstellungen, die der Dienst aus den Umgebungsvaria
 | `SERVICE_ID` | Kennung des einzigen Services, 1 bis 64 Zeichen aus Buchstaben, Ziffern, `.`, `_` und `-`. Ohne Angabe gilt `default`. |
 | `SERVICE_ROOT_PATH` | Pfad, unter dem der einzige Service Anfragen annimmt: `/` oder Segmente wie `/a/b` ohne abschließenden Schrägstrich. Ohne Angabe gilt `/`. |
 | `UPSTREAM_URL` | URL des Upstreams, absolut mit `http` oder `https`, ohne Zugangsdaten, Query und Fragment. Der Modus `record` verlangt sie, ebenso der Modus `hybrid` bei `HYBRID_FALLBACK=enabled`; im Modus `hybrid` ist sie das Ziel des Upstream-Fallbacks. |
-| `SERVICES_FILE` | Pfad einer JSON-Datei, die mehrere Services beschreibt. Zugleich gesetzte `SERVICE_ID`, `SERVICE_ROOT_PATH` oder `UPSTREAM_URL` verhindern den Start. |
+| `SERVICE_ODATA_VERSION` | OData-Version des einzigen Services: `4.0` oder `2.0`, genau in dieser Schreibweise. Ohne Angabe gilt `4.0`. Der Modus `hybrid` startet nicht mit einem Service der Version `2.0`. |
+| `SERVICES_FILE` | Pfad einer JSON-Datei, die mehrere Services beschreibt, ein Objekt je Service mit den Feldern `id`, `service_root`, `upstream_url` und `odata_version`; `odata_version` ist wie `SERVICE_ODATA_VERSION` `4.0` oder `2.0`, ohne Angabe gilt `4.0`. Zugleich gesetzte `SERVICE_ID`, `SERVICE_ROOT_PATH`, `UPSTREAM_URL` oder `SERVICE_ODATA_VERSION` verhindern den Start. |
 | `REPLAY_STRATEGY` | Strategie, mit der das Abspielen wiederholte gleiche Anfragen beantwortet: `sequential`, `strict`, `first` oder `last`. Ohne Angabe gilt `sequential`. |
 | `REPLAY_ASSIGNMENT` | Wie eine Anfrage einem Workspace und einem Replay zugeordnet wird: `explicit` oder `ordered`. Ohne Angabe gilt `explicit`. |
 | `REPLAY_REDACTED_BODIES` | Wahrheitswert `true` oder `false`: ob das Abspielen auch Austausche liefert, deren Antwort-Body geschwärzt ist. Ohne Angabe gilt `false`. |
@@ -190,6 +191,7 @@ Dieser Abschnitt führt die Fehlercodes, die das Binary dem Anwender zeigt. Ein 
 | `ODR-E6003` | Die aufgezeichneten Daten decken das Entity-Set nicht vollständig ab, und der strikte Modus weist die Abfrage ab. |
 | `ODR-E6004` | Die Metadaten des Services fehlen oder sind ungültig. |
 | `ODR-E6005` | Die OData-URL der Anfrage ist ungültig. |
+| `ODR-E6006` | Der Service hat die Version `2.0`, und die Anfrage nutzt eine Eigenschaft von OData V2 außerhalb des Umfangs (HTTP 501). |
 | `ODR-E6007` | Der Request-Body ist nicht lesbar oder verstößt gegen das Modell. |
 | `ODR-E6008` | Die Entity oder das Entity-Set ist unbekannt. |
 | `ODR-E6009` | Der Schlüssel der Entity ist bereits vergeben. |

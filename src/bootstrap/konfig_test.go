@@ -121,7 +121,7 @@ func TestKonfigDefaults(t *testing.T) {
 	k := erwarteGueltig(t, basis(t)...)
 	soll := bootstrap.Konfiguration{
 		Modus: "record", Listen: "127.0.0.1:8080", DataDir: k.DataDir,
-		Dienste:        []bootstrap.Dienst{{ID: "default", Root: "/", UpstreamURL: "https://example.test/odata"}},
+		Dienste:        []bootstrap.Dienst{{ID: "default", Root: "/", UpstreamURL: "https://example.test/odata", Version: "4.0"}},
 		ReplayStrategy: "sequential", ReplayAssignment: "explicit", ReplayRedactedBodies: false,
 		MatchVaryHeaders:     []string{"Accept", "Content-Type", "If-Match", "Odata-Version", "Prefer"},
 		MatchInvalidEncoding: "literal", MatchBodyMode: "bytes",
@@ -433,7 +433,7 @@ func TestKonfigServicesFile(t *testing.T) {
 	gut := `[{"id":"a","service_root":"/a","upstream_url":"https://a.test/x/"},{"id":"b","service_root":"/b"}] ` + "\n"
 	env := []string{"MODE=replay", "DATA_DIR=" + filepath.Join(t.TempDir(), "d")}
 	k := erwarteGueltig(t, append(slices.Clone(env), "SERVICES_FILE="+schreibe(t, gut))...)
-	if !reflect.DeepEqual(k.Dienste, []bootstrap.Dienst{{ID: "a", Root: "/a", UpstreamURL: "https://a.test/x"}, {ID: "b", Root: "/b"}}) {
+	if !reflect.DeepEqual(k.Dienste, []bootstrap.Dienst{{ID: "a", Root: "/a", UpstreamURL: "https://a.test/x", Version: "4.0"}, {ID: "b", Root: "/b", Version: "4.0"}}) {
 		t.Errorf("Dienste %+v", k.Dienste)
 	}
 	fehlerfaelle := map[string]string{
@@ -506,7 +506,7 @@ func TestKonfigServicesFile(t *testing.T) {
 	}
 	t.Run("Feld doppelt: der letzte Wert gilt", func(t *testing.T) {
 		k := erwarteGueltig(t, dienstenv(`[{"id":"a","id":"b","service_root":"/x","service_root":"/a"}]`)...)
-		if !reflect.DeepEqual(k.Dienste, []bootstrap.Dienst{{ID: "b", Root: "/a"}}) {
+		if !reflect.DeepEqual(k.Dienste, []bootstrap.Dienst{{ID: "b", Root: "/a", Version: "4.0"}}) {
 			t.Errorf("Dienste %+v", k.Dienste)
 		}
 		erwarteGrund(t, "SERVICES_FILE[0].id", "Pflichtfeld fehlt", dienstenv(`[{"id":"a","id":null,"service_root":"/a"}]`)...)
@@ -528,7 +528,7 @@ func TestKonfigServicesFile(t *testing.T) {
 	})
 	t.Run("Leerraum am Rand wird entfernt", func(t *testing.T) {
 		k := erwarteGueltig(t, dienstenv(`[{"id":" x ","service_root":" /a ","upstream_url":" https://h/ "}]`)...)
-		if !reflect.DeepEqual(k.Dienste, []bootstrap.Dienst{{ID: "x", Root: "/a", UpstreamURL: "https://h"}}) {
+		if !reflect.DeepEqual(k.Dienste, []bootstrap.Dienst{{ID: "x", Root: "/a", UpstreamURL: "https://h", Version: "4.0"}}) {
 			t.Errorf("Dienste %+v", k.Dienste)
 		}
 	})
