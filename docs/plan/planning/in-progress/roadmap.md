@@ -20,6 +20,8 @@ In Arbeit: [slice-telemetry-einbau-gateway](slice-telemetry-einbau-gateway.md) (
 
 In Arbeit: [slice-admin-sessions-beenden](slice-admin-sessions-beenden.md) ([welle-admin-api](../welle-admin-api.md), Teil 2 des Schnitts: `POST /__admin/sessions/{id}/close` und `DELETE /__admin/sessions/{id}`, Audit `session_beendet`).
 
+In Arbeit: [slice-admin-inspektion](slice-admin-inspektion.md) ([welle-admin-api](../welle-admin-api.md), Teil 3 des Schnitts: `GET /__admin/sessions/{id}/exchanges`, `GET /__admin/coverage` und `GET /__admin/diagnostics`).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
