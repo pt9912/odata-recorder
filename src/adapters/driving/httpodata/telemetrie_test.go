@@ -499,6 +499,88 @@ func TestFehlerbaumFolgtIsUndAs(t *testing.T) {
 	}
 }
 
+// TestFehlerMitAntwort hält SPEC-136 Nr. 7 b mit SPEC-294 Nr. 3 b und 5: liefert der Dienst zugleich einen Fehler und eine Antwort mit Body
+// (nicht nil), gilt der Fehler; der Adapter schließt den Body genau einmal und liest ihn nie, auch wenn Close einen Fehler meldet; der Span
+// endet genau einmal (beim Fehlerobjekt in der Folge CountError, Set, End, WriteHeader, beim Abbruch ohne Set und ohne WriteHeader), und
+// gezählt wird allein das Fehlerobjekt, nie der Body. 8 Fehlerarten × 6 Formen der Antwort (Status 0, 200 und 600, je mit Close ohne und
+// mit Fehler) × 14 Methoden gleich 672 Fälle.
+func TestFehlerMitAntwort(t *testing.T) {
+	var nz *inbound.Fehler
+	gueltig := &inbound.Fehler{Code: model.CodeE6008, Status: 404}
+	arten := []struct {
+		name    string
+		err     error
+		abbruch bool
+		code    model.Code
+		status  int
+	}{
+		{"Fehlerobjekt", gueltig, false, model.CodeE6008, 404},
+		{"Fehler ohne Code", errors.New("roh"), false, model.CodeE9001, 500},
+		{"ErrUngueltig", model.ErrUngueltig, false, model.CodeE9001, 500},
+		{"nil-Zeiger", nz, false, model.CodeE9001, 500},
+		{"Bruch Status 0", &inbound.Fehler{Code: model.CodeE6008, Status: 0}, false, model.CodeE9001, 500},
+		{"Canceled", context.Canceled, true, 0, 0},
+		{"DeadlineExceeded", context.DeadlineExceeded, true, 0, 0},
+		{"Canceled neben Fehler", errors.Join(gueltig, context.Canceled), true, 0, 0},
+	}
+	stati := []int{0, 200, 600}
+	closeFehler := []error{nil, errors.New("Close")}
+	if len(arten) != 8 || len(stati)*len(closeFehler) != 6 {
+		t.Fatalf("%d Fehlerarten und %d Formen der Antwort, erwartet 8 und 6", len(arten), len(stati)*len(closeFehler))
+	}
+	n := 0
+	for _, a := range arten {
+		for _, s := range stati {
+			for _, ce := range closeFehler {
+				for _, m := range methodenSatz() {
+					n++
+					k := ausBytes([]byte("abc"))
+					k.closeErr = ce
+					p := neuProbe(t, "record", func(context.Context, inbound.Anfrage) (inbound.Antwort, error) {
+						return inbound.Antwort{Status: s, Body: k}, a.err
+					})
+					k.beiClose = func() { p.j.add("Close") }
+					jw := neuJWriter(p.j)
+					abbruch := p.ruf(jw, jRequest(context.Background(), m, "/p"))
+					name := fmt.Sprintf("%s mit Antwort %d, Close %v, %s", a.name, s, ce, m)
+					if closes, nachClose, _, reads := k.stand(); closes != 1 || nachClose != 0 || reads != 0 {
+						t.Errorf("%s: Close %d-mal, Read nach Close %d, Read %d; erwartet 1, 0, 0", name, closes, nachClose, reads)
+					}
+					var folge, soll []string
+					for _, e := range p.j.folge() {
+						if e != "Close" {
+							folge = append(folge, e)
+						}
+					}
+					soll = []string{"KorrelationsID", "StartSpan", "Verarbeiten", "End"}
+					var codes []model.Code
+					if !a.abbruch {
+						soll = []string{"KorrelationsID", "StartSpan", "Verarbeiten", "CountError:" + a.code.String(), "Set", "End", "WriteHeader:" + strconv.Itoa(a.status), "Write"}
+						if m == "HEAD" {
+							soll = soll[:len(soll)-1]
+						}
+						codes = []model.Code{a.code}
+					}
+					gleich(t, name+": Folge", folge, soll)
+					gleich(t, name+": Zähler", zaehlerFolge(p.tel.FakeTelemetry), codes)
+					if i, v := slices.Index(p.j.folge(), "Close"), slices.Index(p.j.folge(), "Verarbeiten"); i < v || v < 0 {
+						t.Errorf("%s: Close steht bei %d, Verarbeiten bei %d; erwartet Close nach Verarbeiten", name, i, v)
+					}
+					if abbruch != a.abbruch || jw.status != a.status {
+						t.Errorf("%s: Abbruch %v, Status %d; erwartet %v und %d", name, abbruch, jw.status, a.abbruch, a.status)
+					}
+					if b := buecher(p.tel.FakeTelemetry); len(b) != 1 || b[0].ends != 1 {
+						t.Errorf("%s: Buch %+v, erwartet 1 Span mit 1 End", name, b)
+					}
+				}
+			}
+		}
+	}
+	if n != 8*6*14 {
+		t.Errorf("%d Fälle, erwartet 672", n)
+	}
+}
+
 // TestPaketNenntOperationenJeEinmal hält G11 (SPEC-294 Nr. 5, 6): im Quelltext des Pakets (ohne _test.go) steht je ein Aufruf von
 // NeuesFehlerobjekt, CountError, StartSpan, Set (am Span) und End, keiner von Log; das Set mit einem Namen als erstem Argument ist der Header.
 func TestPaketNenntOperationenJeEinmal(t *testing.T) {
@@ -606,35 +688,56 @@ func firstArg(ce *ast.CallExpr) ast.Expr {
 }
 
 // TestVerarbeitenErhaeltDasCtxDesSpans hält G12 (SPEC-294 Nr. 3 d, e): StartSpan erhält r.Context(); der Dienst erhält das gelieferte ctx,
-// das r.Context() ableitet (Wert bleibt, Span des Gesamtspans darin); der Gesamtspan hat keine Eltern, ein Span des Dienstes hat ihn als Eltern.
+// das r.Context() ableitet (Wert bleibt, Span des Gesamtspans darin, keine eigene Frist: ohne Frist des Requests hat das ctx keine, mit einer
+// ist es dieselbe); der Gesamtspan hat keine Eltern, ein Span des Dienstes hat ihn als Eltern. Beide Formen des Requests (ohne und mit Frist).
 func TestVerarbeitenErhaeltDasCtxDesSpans(t *testing.T) {
 	type schluessel struct{}
-	eltern := context.WithValue(context.Background(), schluessel{}, "wert")
-	var p *probe
-	gesehen := false
-	p = neuProbe(t, "record", func(ctx context.Context, _ inbound.Anfrage) (inbound.Antwort, error) {
-		gesehen = ctx.Value(schluessel{}) == "wert"
-		_, kind := p.tel.StartSpan(ctx, support.SpanMockQuery)
-		kind.End()
-		return inbound.Antwort{Status: 200, Body: leer()}, nil
-	})
-	r := jRequest(eltern, "GET", "/p")
-	p.ruf(neuJWriter(p.j), r)
-	aufrufe := p.tel.Aufrufe()
-	var start []supporttest.Aufruf
-	for _, a := range aufrufe {
-		if a.Op == supporttest.OpStartSpan {
-			start = append(start, a)
+	frist := time.Now().Add(3 * time.Hour)
+	ohne := context.WithValue(context.Background(), schluessel{}, "wert")
+	mit, aufheben := context.WithDeadline(ohne, frist)
+	defer aufheben()
+	for _, f := range []struct {
+		name  string
+		mit   bool
+		frist time.Time
+		da    bool
+	}{{"ohne Frist", false, time.Time{}, false}, {"mit Frist", true, frist, true}} {
+		eltern := ohne
+		if f.mit {
+			eltern = mit
 		}
-	}
-	if len(start) != 2 {
-		t.Fatalf("%d StartSpan, erwartet 2", len(start))
-	}
-	if start[0].Ctx() != eltern || start[0].Eltern != nil {
-		t.Errorf("StartSpan des Gesamtspans erhielt nicht r.Context() oder trägt Eltern")
-	}
-	if !gesehen || start[1].Eltern != start[0].Span || start[1].Eltern == nil {
-		t.Errorf("Dienst: Wert aus r.Context() da %v, Eltern des Kindes %v, erwartet das ctx des Gesamtspans", gesehen, start[1].Eltern)
+		var p *probe
+		gesehen := false
+		var dl time.Time
+		var dlDa bool
+		p = neuProbe(t, "record", func(ctx context.Context, _ inbound.Anfrage) (inbound.Antwort, error) {
+			gesehen = ctx.Value(schluessel{}) == "wert"
+			dl, dlDa = ctx.Deadline()
+			_, kind := p.tel.StartSpan(ctx, support.SpanMockQuery)
+			kind.End()
+			return inbound.Antwort{Status: 200, Body: leer()}, nil
+		})
+		r := jRequest(eltern, "GET", "/p")
+		p.ruf(neuJWriter(p.j), r)
+		aufrufe := p.tel.Aufrufe()
+		var start []supporttest.Aufruf
+		for _, a := range aufrufe {
+			if a.Op == supporttest.OpStartSpan {
+				start = append(start, a)
+			}
+		}
+		if len(start) != 2 {
+			t.Fatalf("%s: %d StartSpan, erwartet 2", f.name, len(start))
+		}
+		if start[0].Ctx() != eltern || start[0].Eltern != nil {
+			t.Errorf("%s: StartSpan des Gesamtspans erhielt nicht r.Context() oder trägt Eltern", f.name)
+		}
+		if !gesehen || start[1].Eltern != start[0].Span || start[1].Eltern == nil {
+			t.Errorf("%s: Dienst: Wert aus r.Context() da %v, Eltern des Kindes %v, erwartet das ctx des Gesamtspans", f.name, gesehen, start[1].Eltern)
+		}
+		if dlDa != f.da || !dl.Equal(f.frist) {
+			t.Errorf("%s: Frist des ctx des Dienstes %v (da %v), erwartet %v (da %v)", f.name, dl, dlDa, f.frist, f.da)
+		}
 	}
 }
 

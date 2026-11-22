@@ -64,7 +64,8 @@ func fehlerKnoten(e error) *inbound.Fehler {
 // errors.Join) von vorn nach hinten, und meldet, ob f für einen Fehler wahr ist; der erste Treffer gilt. Ein nil-Zeiger
 // *inbound.Fehler ist kein Fehler des Baums und wird nicht entpackt (SPEC-136 Nr. 7 a): errors.Is und errors.As rufen
 // sein Unwrap und greifen auf nil zu, deshalb sucht der Adapter selbst. Ein Zyklus im Fehlerbaum ist ein Programmfehler
-// des Dienstes, den die Suche wie errors.Is nicht erkennt.
+// des Dienstes, den die Suche nicht erkennt: der Prozess endet mit `fatal error: stack overflow`, wo errors.Is endlos
+// läuft (SPEC-136 *Ungeprüft*; kein Test fängt es).
 func finde(err error, f func(error) bool) bool {
 	if err == nil {
 		return false

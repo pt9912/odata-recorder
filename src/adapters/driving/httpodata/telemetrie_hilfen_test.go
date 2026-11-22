@@ -36,12 +36,14 @@ func (j *journal) folge() []string {
 }
 
 // jTel ist der Journal-Fake der Telemetrie: ein FakeTelemetry, dessen Operationen zusätzlich ins Protokoll schreiben; der Haltepunkt
-// (setzeBei) läuft je Operation vor ihr und vor der Aufzeichnung des Fakes.
+// (setzeBei) läuft je Operation vor ihr und vor der Aufzeichnung des Fakes, der Haltepunkt danach (setzeNach) nach der Aufzeichnung, außerhalb
+// jeder Sperre des Fakes, mit dem Namen der Operation ohne Code (`StartSpan`, `CountError`, `Set`, `End`).
 type jTel struct {
 	*supporttest.FakeTelemetry
 	j    *journal
 	mu   sync.Mutex
 	hook func(op string)
+	nach func(op string)
 }
 
 func neuJTel(j *journal) *jTel { return &jTel{FakeTelemetry: supporttest.NewFakeTelemetry(), j: j} }
@@ -50,6 +52,12 @@ func (t *jTel) setzeBei(f func(op string)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.hook = f
+}
+
+func (t *jTel) setzeNach(f func(op string)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.nach = f
 }
 
 func (t *jTel) halte(op string) {
@@ -62,15 +70,26 @@ func (t *jTel) halte(op string) {
 	}
 }
 
+func (t *jTel) danach(op string) {
+	t.mu.Lock()
+	f := t.nach
+	t.mu.Unlock()
+	if f != nil {
+		f(op)
+	}
+}
+
 func (t *jTel) StartSpan(ctx context.Context, name support.SpanName, attrs ...support.Attr) (context.Context, support.Span) {
 	t.halte("StartSpan")
 	ctx, sp := t.FakeTelemetry.StartSpan(ctx, name, attrs...)
+	t.danach("StartSpan")
 	return ctx, &jSpan{Span: sp, t: t}
 }
 
 func (t *jTel) CountError(code model.Code) {
 	t.halte("CountError:" + code.String())
 	t.FakeTelemetry.CountError(code)
+	t.danach("CountError")
 }
 
 // jSpan ist der Span des Journal-Fakes.
@@ -82,11 +101,13 @@ type jSpan struct {
 func (s *jSpan) Set(attrs ...support.Attr) {
 	s.t.halte("Set")
 	s.Span.Set(attrs...)
+	s.t.danach("Set")
 }
 
 func (s *jSpan) End() {
 	s.t.halte("End")
 	s.Span.End()
+	s.t.danach("End")
 }
 
 // jIDs schreibt jeden Aufruf von KorrelationsID ins Protokoll.
