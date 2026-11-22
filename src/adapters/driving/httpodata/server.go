@@ -33,11 +33,14 @@ var ErrFristAbgelaufen = errors.New("httpodata: Frist von Schliessen abgelaufen"
 // (SPEC-136 Nr. 2).
 type Verarbeiter = func(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, error)
 
-// Konfig trägt die Abhängigkeiten des Servers; alle drei Felder sind Pflicht (SPEC-136 Nr. 1).
+// Konfig trägt die Abhängigkeiten des Servers; alle fünf Felder sind Pflicht (SPEC-136 Nr. 1,
+// SPEC-294 Nr. 1). Modus ist der Wert von recorder.mode; der Adapter wertet ihn nicht aus.
 type Konfig struct {
 	Verarbeiten Verarbeiter
 	IDs         support.IDGenerator
 	Listener    net.Listener
+	Telemetrie  support.Telemetry
+	Modus       string
 }
 
 // verbindung hält, was Schliessen von einer Verbindung wissen muss: ob für die laufende Anfrage ein
@@ -55,6 +58,8 @@ type Server struct {
 	verarbeiten Verarbeiter
 	ids         support.IDGenerator
 	listener    net.Listener
+	telemetrie  support.Telemetry
+	modus       string
 	http        *http.Server
 	abbruch     context.CancelFunc
 
@@ -72,7 +77,7 @@ type Server struct {
 }
 
 // New prüft die Konfiguration; es ruft keinen Port, keine Methode des Listeners und startet
-// keine Goroutine (SPEC-136 Nr. 1).
+// keine Goroutine (SPEC-136 Nr. 1, SPEC-294 Nr. 1).
 func New(k Konfig) (*Server, error) {
 	if k.Verarbeiten == nil {
 		return nil, errors.Join(model.ErrUngueltig, errors.New("httpodata: Verarbeiten fehlt"))
@@ -83,9 +88,15 @@ func New(k Konfig) (*Server, error) {
 	if k.Listener == nil {
 		return nil, errors.Join(model.ErrUngueltig, errors.New("httpodata: Listener fehlt"))
 	}
+	if k.Telemetrie == nil {
+		return nil, errors.Join(model.ErrUngueltig, errors.New("httpodata: Telemetrie fehlt"))
+	}
+	if k.Modus == "" {
+		return nil, errors.Join(model.ErrUngueltig, errors.New("httpodata: Modus fehlt"))
+	}
 	basis, abbruch := context.WithCancel(context.Background())
 	s := &Server{
-		verarbeiten: k.Verarbeiten, ids: k.IDs, listener: k.Listener,
+		verarbeiten: k.Verarbeiten, ids: k.IDs, listener: k.Listener, telemetrie: k.Telemetrie, modus: k.Modus,
 		abbruch: abbruch,
 		leer:    make(chan struct{}),
 		verb:    map[net.Conn]*verbindung{},
@@ -282,24 +293,28 @@ func (s *Server) verlasse() {
 	s.meldeLeerLocked()
 }
 
-// bearbeite ist der Ablauf je Request (SPEC-136 Nr. 3): Korrelations-ID, Zulassung, Anfrage, Dienst,
-// Antwort oder Fehler.
+// bearbeite ist der Ablauf je Request (SPEC-136 Nr. 3): Korrelations-ID, Beginn des Gesamtspans,
+// Zulassung, Anfrage, Dienst, Antwort oder Fehler; der Span endet vor WriteHeader, ohne Antwort
+// beim Verlassen des Handlers (SPEC-294 Nr. 3), und zwar vor dem Abzug aus dem Zähler der laufenden
+// Handler (SPEC-294 Nr. 7 f).
 func (s *Server) bearbeite(w http.ResponseWriter, r *http.Request) {
 	// Der Request-Body bleibt auf jedem Pfad bis Close lesbar (SPEC-136 Nr. 3, 4h); mit Vollduplex
 	// verwirft net/http den ungelesenen Rest beim ersten Schreiben nicht. HTTP/1 kennt keinen Fehlerfall.
 	_ = http.NewResponseController(w).EnableFullDuplex()
 	s.markiereHandler(r)
 	id := s.ids.KorrelationsID()
+	ctx, sp := s.beginneSpan(r.Context(), r)
 	if !s.zulassen() {
 		w.Header().Set("Connection", "close")
-		schreibeFehlerobjekt(w, r, id, model.CodeE5010, http.StatusServiceUnavailable)
+		schreibeFehlerobjekt(w, r, id, sp, model.CodeE5010, http.StatusServiceUnavailable)
 		return
 	}
 	defer s.verlasse()
-	antwort, err := s.verarbeiten(r.Context(), anfrageAus(r, id))
+	defer sp.ende()
+	antwort, err := s.verarbeiten(ctx, anfrageAus(r, id))
 	if err != nil {
-		schreibeFehler(w, r, id, antwort, err)
+		schreibeFehler(w, r, id, sp, antwort, err)
 		return
 	}
-	schreibeAntwort(w, r, id, antwort)
+	schreibeAntwort(w, r, id, sp, antwort)
 }

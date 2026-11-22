@@ -390,8 +390,8 @@ func holeGET(t *testing.T, adr, pfad string) int {
 }
 
 // TestStartUebergibtStderrAlsSenke hält Q16 (SPEC-139 Nr. 13): Start übergibt seinen Fehlerstrom als Senke des Adapters des Prozesses;
-// nach einer Anfrage im Modus mock steht die Zeile des Spans im Puffer, als JSON auf einer Zeile mit beiden Attributen. `start` erhält
-// keinen Strom für stdout und schreibt nie dorthin.
+// nach einer Anfrage im Modus mock stehen die Zeile des Spans der Query (als JSON auf einer Zeile mit beiden Attributen) und danach die
+// Zeile des Gesamtspans im Puffer, deren `span_id` das `parent_id` der ersten ist. `start` erhält keinen Strom für stdout und schreibt nie dorthin.
 func TestStartUebergibtStderrAlsSenke(t *testing.T) {
 	dir := mockDaten(t)
 	env := []string{"MODE=mock", "LISTEN=127.0.0.1:8080", "DATA_DIR=" + dir, "SERVICE_ID=svc", "SHUTDOWN_TIMEOUT=2s"}
@@ -433,9 +433,13 @@ func TestStartUebergibtStderrAlsSenke(t *testing.T) {
 			spanZeilen = append(spanZeilen, zeilen(t, z)...)
 		}
 	}
-	if len(spanZeilen) != 1 || spanZeilen[0]["ereignis"] != "span" || spanZeilen[0]["msg"] != "odata.mock.query" ||
+	if len(spanZeilen) != 2 || spanZeilen[0]["ereignis"] != "span" || spanZeilen[0]["msg"] != "odata.mock.query" ||
 		spanZeilen[0]["recorder.entity_set"] != "Products" || spanZeilen[0]["recorder.coverage_status"] != "complete" {
-		t.Errorf("Zeilen des Spans in stderr: %v\n%s", spanZeilen, stderr.String())
+		t.Fatalf("Zeilen des Spans in stderr: %v\n%s", spanZeilen, stderr.String())
+	}
+	if g := spanZeilen[1]; g["ereignis"] != "span" || g["msg"] != "odata.gateway.request" || g["http.request.method"] != "GET" ||
+		g["http.response.status_code"] != float64(200) || g["recorder.mode"] != "mock" || spanZeilen[0]["parent_id"] != g["span_id"] {
+		t.Errorf("Zeile des Gesamtspans in stderr: %v\n%s", g, stderr.String())
 	}
 }
 

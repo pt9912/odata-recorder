@@ -228,7 +228,7 @@ func TestAnhaltenWiederholt(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = raw.Close() })
 	zl := &langsamListener{Listener: raw, verz: 10 * time.Millisecond}
-	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: zl})
+	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: zl, Telemetrie: supporttest.NewFakeTelemetry(), Modus: "record"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func TestServeEndetMitNil(t *testing.T) {
 			t.Fatal(err)
 		}
 		lis := neuMeldeListener(raw)
-		srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: lis})
+		srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: lis, Telemetrie: supporttest.NewFakeTelemetry(), Modus: "record"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -424,7 +424,7 @@ func TestSchliessenNull(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { _ = raw.Close() })
-		srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: raw})
+		srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: raw, Telemetrie: supporttest.NewFakeTelemetry(), Modus: "record"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -521,7 +521,7 @@ func TestSchliessenOhneAnhalten(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = raw.Close() })
-	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: raw})
+	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: raw, Telemetrie: supporttest.NewFakeTelemetry(), Modus: "record"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -218,6 +218,8 @@ type umgebung struct {
 	lis   net.Listener
 	srv   *httpodata.Server
 	serve chan error
+	tel   *supporttest.FakeTelemetry
+	jtel  *jTel
 }
 
 func neuUmgebung(t *testing.T, b bindung, tu func(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, error)) *umgebung {
@@ -240,14 +242,15 @@ func neuUmgebungMit(t *testing.T, b bindung, tu func(ctx context.Context, a inbo
 	if umhuelle != nil {
 		lis = umhuelle(roh)
 	}
-	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: d.binde(b), IDs: ids, Listener: lis})
+	jt := neuJTel(&journal{})
+	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: d.binde(b), IDs: ids, Listener: lis, Telemetrie: jt, Modus: "record"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	serve := make(chan error, 1)
 	go func() { serve <- srv.Serve() }()
 	t.Cleanup(func() { _ = roh.Close() })
-	return &umgebung{addr: roh.Addr().String(), d: d, ids: ids, lis: lis, srv: srv, serve: serve}
+	return &umgebung{addr: roh.Addr().String(), d: d, ids: ids, lis: lis, srv: srv, serve: serve, tel: jt.FakeTelemetry, jtel: jt}
 }
 
 func (u *umgebung) client() *http.Client {

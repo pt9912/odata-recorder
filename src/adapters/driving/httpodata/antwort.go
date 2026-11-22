@@ -24,12 +24,12 @@ func hopByHop() []string {
 // schreibeAntwort liefert die Antwort des Dienstes aus (SPEC-136 Nr. 5, 6): ein Bruch des
 // Vertrags ist ODR-E9001, sonst gehen Status, Header und Bytes unverändert aus; Close läuft genau
 // einmal, auch beim Abbruch, und vor der Rückkehr des Handlers.
-func schreibeAntwort(w http.ResponseWriter, r *http.Request, id string, a inbound.Antwort) {
+func schreibeAntwort(w http.ResponseWriter, r *http.Request, id string, sp *anfrageSpan, a inbound.Antwort) {
 	if a.Body != nil {
 		defer func() { _ = a.Body.Close() }()
 	}
 	if a.Body == nil || a.Status < 200 || a.Status > 599 {
-		schreibeFehlerobjekt(w, r, id, model.CodeE9001, http.StatusInternalServerError)
+		schreibeFehlerobjekt(w, r, id, sp, model.CodeE9001, http.StatusInternalServerError)
 		return
 	}
 	h := w.Header()
@@ -38,6 +38,7 @@ func schreibeAntwort(w http.ResponseWriter, r *http.Request, id string, a inboun
 		h["Content-Type"] = nil
 	}
 	_, mitLaenge := h["Content-Length"]
+	sp.vorKopf(a.Status)
 	w.WriteHeader(a.Status)
 	kopiere(w, a.Body, !mitLaenge)
 }
