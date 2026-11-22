@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-einbau-gateway
+**Fund:** Der Block nennt das Verzeichnis `src/bootstrap/`; der Merge von `main` bei der Closure brachte 18 Zeilen aus `audit_betrieb_test.go` (`slice-admin-sessions-beenden`, 9 Einfügungen und 9 Löschungen) in die Messung: 2696 vor, 2714 nach dem Merge, über der Obergrenze 2700 des Eintrags `ueberschreitung`; der Planner setzte *N* = 2800. Die Messung der Verifikation trug vor dem Merge keine fremde Zeile.

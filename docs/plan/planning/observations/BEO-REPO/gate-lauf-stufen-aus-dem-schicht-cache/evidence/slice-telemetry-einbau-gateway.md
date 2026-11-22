@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-einbau-gateway
+**Fund:** Der Lauf von `make gates` des Verifiers im Worktree (Stand `fff347b5`, 66 s, Last 18,2) bezog die Stufen `build`, `test`, `race`, `lint` und `handbuch` aus dem Schichten-Cache; der Verifier fuhr `pruefung test` (315 s) und `lint` (58 s, 0 issues) ungecacht und `go test -race -coverprofile` über `httpodata` (99,2 Prozent) und `bootstrap` (97,3 Prozent) frisch nach (Verifikation V-5).
