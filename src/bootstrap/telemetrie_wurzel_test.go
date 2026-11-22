@@ -27,6 +27,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/maintenance"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/mock"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/replay"
 )
 
 // telemetrieFuerTest ist die Telemetrie der Tests, die den Mock ohne den Adapter des Prozesses bauen.
@@ -73,6 +74,8 @@ type wurzel struct {
 	mock    inbound.MockUseCase
 	adapter []*telemetry.Adapter
 	senke   *syncPuffer
+	// replay ist die Konfiguration, die der Root dem Replay-Dienst übergab; nil in den Modi ohne Replay-Dienst.
+	replay *replay.Konfig
 }
 
 // bereinigungFake ist die Wartung des Tests: CleanupBlobs liefert das eingestellte Ergebnis und zählt.
@@ -108,7 +111,11 @@ func baueWurzelMit(t *testing.T, modus string, wartung inbound.MaintenanceUseCas
 	t.Helper()
 	w := &wurzel{senke: &syncPuffer{}}
 	b := bootstrap.StandardBauteile()
-	tel, neuerMock := b.NeueTelemetrie, b.NeuerMock
+	tel, neuerMock, neuerReplay := b.NeueTelemetrie, b.NeuerMock, b.NeuerReplay
+	b.NeuerReplay = func(k replay.Konfig) (inbound.ReplayUseCase, error) {
+		w.replay = &k
+		return neuerReplay(k)
+	}
 	b.NeueTelemetrie = func(k telemetry.Config) (*telemetry.Adapter, error) {
 		k.Clock = supporttest.NewFestUhr(wsT0())
 		a, err := tel(k)
@@ -182,11 +189,11 @@ func keinVerwurf(t *testing.T, kontext string, a *telemetry.Adapter) {
 
 // TestWurzelSpanZeile hält Q15 (SPEC-139 Nr. 13 a, d): in den Modi mock und hybrid erhält der Mock den Adapter des Prozesses; eine Anfrage
 // schreibt die Zeile mit `ereignis` `span` und beiden Attributen in die Senke, Felder und Reihenfolge nach SPEC-231 Nr. 6 (Literal), und
-// kein Attribut wird verworfen. Im Modus hybrid besteht daneben der Adapter des Replay-Dienstes; die Zeile steht nur in der Senke des Prozesses.
+// kein Attribut wird verworfen. In beiden Modi besteht allein der Adapter des Prozesses; die Zeile steht in seiner Senke.
 func TestWurzelSpanZeile(t *testing.T) {
 	soll := `{"timestamp":"2026-10-20T10:00:00.000000000Z","level":"INFO","msg":"odata.mock.query","ereignis":"span",` +
 		`"span_id":"spn-0000000000000001","duration_ms":0.000,"recorder.entity_set":"Products","recorder.coverage_status":"complete"}` + "\n"
-	for modus, adapter := range map[string]int{modusMock: 1, modusHybrid: 2} {
+	for modus, adapter := range map[string]int{modusMock: 1, modusHybrid: 1} {
 		w := baueWurzel(t, modus, nil)
 		if err := w.frage(context.Background(), t, queryAnfrage("/Products", "")); err != nil {
 			t.Fatalf("%s: %v", modus, err)

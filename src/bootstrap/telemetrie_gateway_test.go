@@ -390,7 +390,7 @@ func TestWurzelGesamtspanJedeAnfrage(t *testing.T) {
 				t.Errorf("%s %s: Zeile\n%s\nerwartet\n%s", modus, a.pfad, letzte, soll)
 			}
 			keinVerwurf(t, modus, w.adapter[0])
-			if soll := map[string]int{modusRecord: 1, modusReplay: 2, modusMock: 1, modusHybrid: 2}[modus]; len(w.adapter) != soll {
+			if soll := map[string]int{modusRecord: 1, modusReplay: 1, modusMock: 1, modusHybrid: 1}[modus]; len(w.adapter) != soll {
 				t.Errorf("%s: %d Adapter der Telemetrie, erwartet %d (der Server erhält den des Prozesses, keinen eigenen)", modus, len(w.adapter), soll)
 			}
 		}

@@ -42,7 +42,8 @@ func erfolgsLauf(u *umg) inbound.Anfrage {
 	return anf()
 }
 
-// TestKontextJederStelle hält Z4: Menge 8 (S1, S3 bis S8, S10); jeder Aufruf erhält den ctx des Aufrufs.
+// TestKontextJederStelle hält Z4 und W9 (SPEC-296 Nr. 3 d): Menge 8 (S1, S3 bis S8, S10) und StartSpan; jeder Aufruf erhält den ctx des
+// Aufrufs, nie den, den StartSpan liefert.
 func TestKontextJederStelle(t *testing.T) {
 	u := neu(t)
 	k := neuerKontext(context.Background())
@@ -59,9 +60,23 @@ func TestKontextJederStelle(t *testing.T) {
 			t.Errorf("%s: %s erhielt einen anderen ctx", s.name, s.op)
 		}
 	}
-	logs := u.tel.Aufrufe()
+	var logs, starts []supporttest.Aufruf
+	for _, a := range u.tel.Aufrufe() {
+		switch a.Op {
+		case supporttest.OpLog:
+			logs = append(logs, a)
+		case supporttest.OpStartSpan:
+			starts = append(starts, a)
+		}
+	}
 	if len(logs) != 1 || logs[0].Ctx() != context.Context(k) {
 		t.Errorf("S10: Telemetrie.Log erhielt einen anderen ctx (%d Aufrufe)", len(logs))
+	}
+	if len(starts) != 1 || starts[0].Ctx() != context.Context(k) {
+		t.Errorf("StartSpan erhielt einen anderen ctx (%d Aufrufe)", len(starts))
+	}
+	if n := len(stellen()) + 1; n != 8 {
+		t.Errorf("Menge: %d Stellen mit ctx, erwartet 8 (S1, S3 bis S8, S10)", n)
 	}
 }
 

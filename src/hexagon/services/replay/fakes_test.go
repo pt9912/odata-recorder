@@ -387,6 +387,9 @@ type store struct {
 	commit error
 	// nachCommit läuft, nachdem die Transaktion bestätigt ist und bevor WithWorkspaceTransaction zurückkehrt.
 	nachCommit func()
+	// nachTransaktion läuft nach jeder Transaktion, bestätigt oder zurückgerollt, außerhalb der Schlange und bevor
+	// WithWorkspaceTransaction zurückkehrt: der Treffpunkt der gleichzeitigen Aufrufe.
+	nachTransaktion func()
 }
 
 func (s *store) einreihen() *karte {
@@ -445,6 +448,9 @@ func (s *store) WithWorkspaceTransaction(ctx context.Context, f func(outbound.Wo
 	err := s.laufe(ctx, s.einreihen(), f)
 	if err == nil && s.nachCommit != nil {
 		s.nachCommit()
+	}
+	if s.nachTransaktion != nil {
+		s.nachTransaktion()
 	}
 	return err
 }

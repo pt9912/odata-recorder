@@ -34,7 +34,9 @@ type Konfig struct {
 	MaxBytes         int64
 	Strategie        model.ReplayStrategy
 	RedigierteBodies bool
-	Telemetrie       support.Telemetry
+	// Telemetrie ist der Adapter des Prozesses; nil ist ungültig. Der Dienst ruft von ihr StartSpan und am Span Set und End
+	// (SPEC-296 Nr. 1) und Log (SPEC-135 Nr. 16), nie CountError.
+	Telemetrie support.Telemetry
 }
 
 // Replayer setzt ReplayUseCase um. Er hält nach New nur seine Konfig, die er nicht ändert, keine Sperre
@@ -83,7 +85,8 @@ func pruefeWerte(k Konfig) error {
 }
 
 // Replay prüft den Request in der Reihenfolge von SPEC-135 Nr. 3, wählt den Exchange, schreibt den
-// Cursor in derselben Transaktion fort und liefert Status, Header und Body der Aufzeichnung.
+// Cursor in derselben Transaktion fort und liefert Status, Header und Body der Aufzeichnung. Jeder Aufruf, der die
+// Zuordnung bestand, trägt den Span `odata.replay.match`; er endet mit der Rückkehr (SPEC-296 Nr. 3).
 func (r *Replayer) Replay(ctx context.Context, a inbound.Anfrage) (inbound.Antwort, error) {
 	if ctx == nil || a.Methode == "" || a.Laenge < -1 || a.Body == nil && a.Laenge > 0 {
 		return inbound.Antwort{}, ungueltig("Anfrage, die kein HTTP-Adapter liefert")
@@ -96,6 +99,15 @@ func (r *Replayer) Replay(ctx context.Context, a inbound.Anfrage) (inbound.Antwo
 	if !ok {
 		return inbound.Antwort{}, mitCode(model.CodeE5003, nil)
 	}
+	// Das ctx von StartSpan verwirft der Dienst: jeder Port und Log erhalten das des Aufrufs (SPEC-296 Nr. 3 d).
+	_, span := r.k.Telemetrie.StartSpan(ctx, support.SpanReplayMatch,
+		support.Str(attrMatchStrategy, strategieNichtGelesen), support.Str(attrMatchResult, ergebnisNichtGewaehlt))
+	defer span.End()
+	return r.liefere(ctx, span, a, d, pfad, ws, rec, rep)
+}
+
+// liefere ist der Teil von Replay nach dem Beginn des Spans: Session, Key, Exchanges, Transaktion, Eintrag und Antwort.
+func (r *Replayer) liefere(ctx context.Context, span support.Span, a inbound.Anfrage, d Dienst, pfad, ws, rec, rep string) (inbound.Antwort, error) {
 	if err := r.pruefeSession(ctx, d, rec); err != nil {
 		return inbound.Antwort{}, err
 	}
@@ -107,7 +119,7 @@ func (r *Replayer) Replay(ctx context.Context, a inbound.Anfrage) (inbound.Antwo
 	if err != nil {
 		return inbound.Antwort{}, abbilden(err, outbound.GegenstandSession)
 	}
-	e, strom, err := r.fortschreiben(ctx, d, ws, rep, rec, key, liste)
+	e, strom, err := r.fortschreiben(ctx, span, d, ws, rep, rec, key, liste)
 	if err != nil {
 		return inbound.Antwort{}, err
 	}
@@ -130,19 +142,23 @@ func (r *Replayer) pruefeSession(ctx context.Context, d Dienst, id string) error
 }
 
 // fortschreiben führt Lesen, Auswahl, Öffnen des Blobs und Schreiben des Cursors in einer Transaktion
-// aus (SPEC-135 Nr. 11). Bei einem Fehler nach dem Öffnen schließt es den Strom genau einmal (Nr. 12).
-func (r *Replayer) fortschreiben(ctx context.Context, d Dienst, ws, rep, rec, key string, liste []model.Exchange) (model.Exchange, io.ReadCloser, error) {
+// aus (SPEC-135 Nr. 11). Bei einem Fehler nach dem Öffnen schließt es den Strom genau einmal (Nr. 12). Nach der Rückkehr der
+// Transaktion setzt es Strategie und Ergebnis des Spans (SPEC-296 Nr. 4 d), auch wenn f nie lief.
+func (r *Replayer) fortschreiben(ctx context.Context, span support.Span, d Dienst, ws, rep, rec, key string, liste []model.Exchange) (model.Exchange, io.ReadCloser, error) {
 	var (
 		gewaehlt model.Exchange
 		strom    io.ReadCloser
 		fehlerF  error
+		// Strategie und Ergebnis des Spans: f schreibt sie, nach der Rückkehr der Transaktion folgt das Set.
+		strategie, ergebnis = strategieNichtGelesen, ergebnisNichtGewaehlt
 	)
 	err := r.k.Transaktion.WithWorkspaceTransaction(ctx, func(st outbound.WorkspaceStores) error {
 		var err error
-		gewaehlt, strom, err = r.imSchreiber(ctx, st, d, ws, rep, rec, key, liste)
+		gewaehlt, strom, err = r.imSchreiber(ctx, st, d, ws, rep, rec, key, liste, &strategie, &ergebnis)
 		fehlerF = err
 		return err
 	})
+	span.Set(support.Str(attrMatchStrategy, strategie), support.Str(attrMatchResult, ergebnis))
 	if err != nil {
 		if strom != nil {
 			_ = strom.Close()
@@ -156,8 +172,9 @@ func (r *Replayer) fortschreiben(ctx context.Context, d Dienst, ws, rep, rec, ke
 }
 
 // imSchreiber ist f der Transaktion (SPEC-135 Nr. 11): Workspace lesen, Cursor lesen, wählen, Blob öffnen,
-// Cursor schreiben, in dieser Reihenfolge und je höchstens einmal.
-func (r *Replayer) imSchreiber(ctx context.Context, st outbound.WorkspaceStores, d Dienst, ws, rep, rec, key string, liste []model.Exchange) (model.Exchange, io.ReadCloser, error) {
+// Cursor schreiben, in dieser Reihenfolge und je höchstens einmal. Es schreibt Strategie und Ergebnis des Spans nach
+// *spanStrategie und *spanErgebnis und ruft keine Telemetrie (SPEC-296 Nr. 3 c).
+func (r *Replayer) imSchreiber(ctx context.Context, st outbound.WorkspaceStores, d Dienst, ws, rep, rec, key string, liste []model.Exchange, spanStrategie, spanErgebnis *string) (model.Exchange, io.ReadCloser, error) {
 	w, err := st.Workspaces.Get(ctx, ws)
 	switch {
 	case err != nil:
@@ -173,7 +190,9 @@ func (r *Replayer) imSchreiber(ctx context.Context, st outbound.WorkspaceStores,
 	if vorhanden {
 		strategie = c.Strategy
 	}
+	*spanStrategie = string(strategie)
 	e, err := waehle(strategie, key, liste, r.k.RedigierteBodies, c.Consumed, c.Position)
+	*spanErgebnis = ergebnisVon(err)
 	if err != nil {
 		return model.Exchange{}, nil, err
 	}
