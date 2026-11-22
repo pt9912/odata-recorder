@@ -79,7 +79,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag. (Beleg: §7.)
 - [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert. (Beleg: §7 *Register*, zehn Dateien `evidence/slice-telemetry-einbau-gateway.md`, kein neues Verzeichnis.)
 - [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen). (Beleg: §6, jeder Punkt genau einen; §7 *Risiko-Ausgänge*.)
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit). (Beleg: Anker: kein Zielort-Feld, nichts zu paaren; Folge-Slice: `slice-telemetry-einbau-replay` und `slice-telemetry-einbau-record` in `open/` tragen die Sendungen aus §1, `slice-handbuch-telemetrie` in `open/` das Kapitel, die Aufträge zur Grammatik des Fehlerbaums und zur Prozessorzahl, die Frage A/B und der Hybrid-Fallback tragen keinen Folge-Slice (§6, §7 *Sendungen*); Register: zehn Dateien `evidence/slice-telemetry-einbau-gateway.md` in Verzeichnissen mit `observation.md`, nach dem Move geprüft, §7 *Drei Paarungen*.)
 
 ## 3. Plan (vor Code)
 
