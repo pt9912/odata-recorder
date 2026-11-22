@@ -5,8 +5,8 @@ flach unter `docs/plan/planning/`; bei Closure wandert sie per `git mv` nach
 `done/` (neben ihre `welle-<Kennung>-results.md`). Der Zustand ist die
 Verzeichnis-Position — kein Status-Feld. Diese Welle ist vor ihrem Start angelegt
 (Entscheidung des Users vom 2026-10-30); bis ihr Trigger eintritt steht sie in der
-Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien liegen seit
-2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten.
+Roadmap unter *Nächste Wellen*. Der Zustand eines Slice ist das Verzeichnis, in
+dem seine Datei liegt; die Links der Slice-Liste (§4) nennen es.
 
 **Zielmeilenstein:** kein Meilenstein-Bezug (Soll-Umfang, nicht Teil der Erstabnahme nach dem Lastenheft).
 
@@ -35,7 +35,7 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 - Die Reihenfolge nach den Muss-Wellen ist Priorisierung, keine Abhängigkeit; sie steht deshalb nicht im Trigger.
 
 **Trigger je Slice (Code-Abhängigkeit, Zusatz zum Trigger):** Der Trigger der Welle bleibt formal und gilt für den Abschluss.
-- [`slice-batch-parser`](open/slice-batch-parser.md) hängt an keinem Code aus `welle-mock` (der Leser braucht Fehlermodell, Konvention der Codec-Ports und Modell, alle in `done/`); der Welle-Trigger ist für ihn Priorisierung, ein Start davor ist eine Entscheidung des Users.
+- [`slice-batch-parser`](open/slice-batch-parser.md) hängt an keinem Code aus `welle-mock` (der Leser braucht Fehlermodell, Konvention der Codec-Ports und Modell); der Welle-Trigger ist für ihn Priorisierung, ein Start davor ist eine Entscheidung des Users.
 - [`slice-expand-parser`](done/slice-expand-parser.md) braucht [`slice-odata-url-pfad`](done/welle-mock/slice-odata-url-pfad.md) aus `welle-mock` (Teil 1, reine Funktion), nicht `welle-mock` ganz; nennt der Architect `$filter` in verschachtelten Optionen, auch [`slice-odata-url-filter`](done/welle-mock/slice-odata-url-filter.md) und [`slice-edm-ausdruecke`](done/welle-mock/slice-edm-ausdruecke.md).
 - [`slice-expand-validator`](done/slice-expand-validator.md) braucht [`slice-expand-parser`](done/slice-expand-parser.md) (Knoten `$expand`) und das Modell der Metadaten, nicht `welle-mock` ganz.
 - [`slice-expand-ausfuehrung`](open/slice-expand-ausfuehrung.md) braucht `welle-mock`, [`slice-expand-parser`](done/slice-expand-parser.md) und [`slice-expand-validator`](done/slice-expand-validator.md), dazu die Entscheidung des Architect zur Datenbasis der Navigationen (§6) in der Spezifikation und, falls sie Verträge in `done/` ändert (Reader, Import, Schema), den Slice dafür; ihn legt der Planner dann vor diesem an.
@@ -68,7 +68,7 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | [slice-batch-parser](open/slice-batch-parser.md) | Parser für `$batch`-Requests (Leser fremder Bytes), leerer Batch | `LH-FA-16`; `LH-FA-16.a` |
 | [slice-batch-changesets](open/slice-batch-changesets.md) | Ausführung der Einzelrequests und atomare Changesets in einer Workspace-Transaktion, Antwort des Batch | `LH-FA-16`, `LH-QA-03`; `LH-FA-16.a`, `LH-FA-07.a` |
 
-Die Slice-Dateien liegen seit 2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten, und `plan-welle` gleicht sie beim Start gegen den Ist-Stand ab. Marken und Betriebsregeln setzt der Planner beim Start (`SPEC-128`).
+Der Zustand eines Slice ist das Verzeichnis, in dem seine Datei liegt; die Links der Tabelle nennen es. Die Pläne tragen ihre Start-Trigger mit Abhängigkeiten, und `plan-welle` gleicht sie beim Start gegen den Ist-Stand ab. Marken und Betriebsregeln setzt der Planner beim Start (`SPEC-128`).
 
 **Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. In dieser Welle betrifft er [`slice-expand-ausfuehrung`](open/slice-expand-ausfuehrung.md) und [`slice-batch-changesets`](open/slice-batch-changesets.md) (sichtbar am Binary), die Parser-Slices nur, soweit sie einen Fehlercode einführen.
 

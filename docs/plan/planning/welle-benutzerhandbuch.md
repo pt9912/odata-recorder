@@ -37,11 +37,11 @@ werden, aber nie Trigger sein. Und der **Start**-Trigger ist **kein Ergebnis
 dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 - [`slice-groessenmarke-werkzeug`](done/welle-record-replay/slice-groessenmarke-werkzeug.md) liegt in `done/`: Die Marken der Slices dieser Welle setzt der Planner mit `make groessenmarke` (`SPEC-128`), nicht mit der Prosa-Formel.
-- `docs/user/benutzerhandbuch-standard.md` liegt auf `main` (vom User bereitgestellt; im Worktree als eigener Commit vor diesem Plan).
+- `docs/user/benutzerhandbuch-standard.md` liegt auf `main` (vom User bereitgestellt).
 
-[`slice-handbuch-geruest`](done/slice-handbuch-geruest.md) liegt in [done/](done/slice-handbuch-geruest.md) (Linie der Gate-Kette; das Gate `make handbuch-check` läuft in `make gates`).
+[`slice-handbuch-geruest`](done/slice-handbuch-geruest.md) gehört zur Linie der Gate-Kette (das Gate `make handbuch-check` läuft in `make gates`).
 
-Der Start der Slices ist gestuft: [`slice-handbuch-geruest`](done/slice-handbuch-geruest.md) braucht nur den Start der Welle und liegt nach Teil 1 von [welle-sensoren](welle-sensoren.md) ([`slice-unsichtbare-zeichen`](done/slice-unsichtbare-zeichen.md), [`slice-guide-groessen-gate`](done/slice-guide-groessen-gate.md); Reihenfolge, kein Blocker, ein Start davor ist zulässig: das Gerüst schreibt neue Dokumente, die der Sensor für unsichtbare Zeichen dann schon schützt (§3.18); eine Code-Abhängigkeit gibt es nicht); [`slice-handbuch-meldungskatalog`](done/slice-handbuch-meldungskatalog.md) und [`slice-handbuch-record-replay`](open/slice-handbuch-record-replay.md) warten auf [`slice-bootstrap-m2`](done/welle-record-replay/slice-bootstrap-m2.md) in `done/`, weil das Binary vorher weder Schlüssel liest noch Fehlercodes erzeugt (Trigger dort in §4).
+Der Start der Slices ist gestuft: [`slice-handbuch-geruest`](done/slice-handbuch-geruest.md) braucht nur den Start der Welle und liegt nach Teil 1 von [welle-sensoren](welle-sensoren.md) ([`slice-unsichtbare-zeichen`](done/slice-unsichtbare-zeichen.md), [`slice-guide-groessen-gate`](done/slice-guide-groessen-gate.md); Reihenfolge, kein Blocker, ein Start davor ist zulässig: das Gerüst schreibt neue Dokumente, die der Sensor für unsichtbare Zeichen dann schon schützt (§3.18); eine Code-Abhängigkeit gibt es nicht); [`slice-handbuch-meldungskatalog`](done/slice-handbuch-meldungskatalog.md) und [`slice-handbuch-record-replay`](open/slice-handbuch-record-replay.md) brauchen [`slice-bootstrap-m2`](done/welle-record-replay/slice-bootstrap-m2.md), weil das Binary vorher weder Schlüssel liest noch Fehlercodes erzeugt (Trigger dort in §4).
 
 ## 3. Closure-Trigger (Welle schließt)
 
