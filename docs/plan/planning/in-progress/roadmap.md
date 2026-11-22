@@ -20,6 +20,8 @@ In Arbeit: [slice-admin-imports](slice-admin-imports.md) ([welle-admin-api](../w
 
 In Arbeit: [slice-admin-workspaces](slice-admin-workspaces.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `WorkspaceRouten` mit acht Routen für Workspaces und Snapshots, die drei Bodys, Antworten, JSON, Fehlerabbildung und Authentisierung).
 
+In Arbeit: [slice-telemetry-einbau-replay](slice-telemetry-einbau-replay.md) ([welle-betrieb](../welle-betrieb.md), Teil 2 des Schnitts von [slice-telemetry-einbau-gateway](../done/slice-telemetry-einbau-gateway.md): Match-Span `odata.replay.match` im Replay-Dienst und ein Adapter der Telemetrie je Prozess in `replay` und `hybrid`).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
