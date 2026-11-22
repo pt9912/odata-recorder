@@ -59,9 +59,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Funktion und Fehlertyp: jede Navigation des Knotens gegen die wirksamen Navigation-Properties des Typs (auch geerbt); Property ohne Navigation, unbekannter Name und die nicht unterstützte Form mit Ursache, Klasse, Code und Status nach dem Vertrag des Architect; kein Teil der Eingabe im Fehler; kein Zugriff auf Daten.
-- [ ] Randformen (Programmfehler des Aufrufers, Wiederholung, Nebenläufigkeit, Reihenfolge mehrerer Verstöße, Subtyp, Navigation ohne Binding): je Zelle des Rasters (§6) ein Ort in der Spezifikation und ein Fänger der Tabelle (§3), als Schleife über alle Navigationen und alle Properties des Fixture-Modells.
-- [ ] Validator-Contract-Test (`LH-FA-16.a`): ein eigener Test fährt die Funktion gegen die Fälle von `SPEC-263` Nr. 2 a bis d, 3 und 4 (die Spezifikation führt keine eigene Beispieltabelle, §6; Zeile 18 der Tabelle); `make a-check` hält die Richtung (`model` importiert keinen Port und keinen Dienst).
+- [x] Funktion und Fehlertyp: jede Navigation des Knotens gegen die wirksamen Navigation-Properties des Typs (auch geerbt); Property ohne Navigation, unbekannter Name und die nicht unterstützte Form mit Ursache, Klasse, Code und Status nach dem Vertrag des Architect; kein Teil der Eingabe im Fehler; kein Zugriff auf Daten. (Beleg: `src/hexagon/model/expand_typ.go`, `src/hexagon/model/expand_typ_fehler.go`; Zeilen 1 bis 12 der Tabelle in §3, Mutationen dort.)
+- [x] Randformen (Programmfehler des Aufrufers, Wiederholung, Nebenläufigkeit, Reihenfolge mehrerer Verstöße, Subtyp, Navigation ohne Binding): je Zelle des Rasters (§6) ein Ort in der Spezifikation und ein Fänger der Tabelle (§3), als Schleife über alle Navigationen und alle Properties des Fixture-Modells. (Beleg: Zeilen 6 bis 9 und 13 bis 16 der Tabelle, Mengen und Raten in §3.)
+- [x] Validator-Contract-Test (`LH-FA-16.a`): ein eigener Test fährt die Funktion gegen die Fälle von `SPEC-263` Nr. 2 a bis d, 3 und 4 (die Spezifikation führt keine eigene Beispieltabelle, §6; Zeile 18 der Tabelle); `make a-check` hält die Richtung (`model` importiert keinen Port und keinen Dienst). (Beleg: `TestPruefeExpandContract` in `src/hexagon/model/expand_typ_contract_test.go`; `make a-check` ohne Befund, mit einem Import von `ports/outbound` ein Befund `core-impurity`, §3 Zeile 17.)
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -82,10 +82,10 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/model/` | neu | `PruefeExpand` und der Fehlertyp (Muster `filter_typ.go`, `filter_typ_fehler.go`), technologieunabhängig |
+| `src/hexagon/model/expand_typ.go`, `src/hexagon/model/expand_typ_fehler.go` | neu | `PruefeExpand` (102 Zeilen Produktcode mit dem Fehlertyp) und `ExpandFehler` mit `ExpandUrsache` (Muster `filter_typ.go`, `filter_typ_fehler.go`), technologieunabhängig |
 | `src/hexagon/ports/outbound/abbildung.go` | unverändert | `ExpandFehler` trägt die Sentinel der URL-Klassen, die `SPEC-109` Nr. 5 schon abbildet (`SPEC-263` Nr. 3); keine Zeile neu |
 | `spec/spezifikation.md` | update | Vertrag `SPEC-263` mit Randformen (Architect, geschrieben) |
-| Tests | neu | Fälle je Navigation und je Fehlerklasse; Schleife über alle Navigationen und Properties des Fixture-Modells |
+| `src/hexagon/model/expand_typ_fixture_test.go` (Fixture-Modell, Orakel, Zählung), `expand_typ_test.go` (Zeilen 1 bis 9 und 13), `expand_typ_fehler_test.go` (Zeilen 10 bis 12), `expand_typ_eigenschaft_test.go` (Zeilen 14 bis 16), `expand_typ_contract_test.go` (Zeile 18) | neu | Fälle je Navigation und je Fehlerklasse; Schleife über alle Navigationen und Properties des Fixture-Modells |
 
 Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation × Argumentart* in §6 (`AGENTS.md` §3.16) entstehen mit dem Vertrag in der Spezifikation **vor** dem Übergang `next` → `in-progress` und vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen entscheidet der Architect, nicht der Implementer. Die Größenmarke hat der Planner beim Start nach `SPEC-128` aus dieser Tabelle und der Erwartung des Architect gesetzt (§4): `produktcode` rund 120 (die Funktion rund 50 Zeilen, der Fehlertyp rund 70 nach dem Muster von `filter_typ_fehler.go`, 76 Zeilen). Die Tabelle *Zusage · Fänger* hat der Planner aus `SPEC-263` Nr. 1 bis 6 vor dem Start gefüllt (Auftrag des Plans; der Architect hat Vertrag, Entscheidungen V1 bis V7 und Raster geliefert, §6).
 
@@ -114,6 +114,84 @@ Die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und das Raster *Operation �
 | 19 | Akzeptiertes Negativ: die Abbildung von `ExpandFehler` auf Code und Status ändert sich nicht und wird in diesem Slice nicht geprüft (`SPEC-109` Nr. 5, `SPEC-263` Nr. 3) | kein Fänger hier, der die Abbildung fährt; Grund: `model` darf `ports/outbound` nicht importieren; die Kette Fehler zu Sentinel trägt Zeile 10, die Zeilen von `abbildung_test.go` (Sentinel zu Code) bleiben unverändert grün; Folge: eine Änderung der Abbildung, die einen `ExpandFehler` anders behandelt, wird erst im Test des Aufrufers rot (`slice-expand-ausfuehrung`, dessen DoD trägt die Abbildung); Maß: 1 von 3 Gliedern der Kette (Fehler, Sentinel, Code) liegt außerhalb dieses Slice | — | andere |
 | 20 | Akzeptiertes Negativ: die Namen in `typ.Properties` und `typ.NavigationProperties` sind eindeutig; die Funktion prüft es nicht (`SPEC-263` *Ungeprüft*) | kein Fänger; Grund: der Metadatenleser liefert jeden Namen einmal (`SPEC-125` Nr. 8 und 9 c); Folge: steht ein Name in beiden Listen, gilt Nr. 2 a (Navigation zuerst) und der Name ist gültig; Maß: 1 Fall von 1 (Name in beiden Listen) ohne Fänger | — | andere |
 | 21 | Akzeptiertes Negativ: ein Datenrennen, das kein Lauf auslöst (`SPEC-263` *Ungeprüft*, `SPEC-122` Nr. 8 und 9) | kein Fänger über Zeile 16 hinaus; Grund: die Funktion hat heute keine Variable des Pakets; Folge: eine später eingeführte Paketvariable, die nur ein Zweig schreibt, den Zeile 16 nicht trifft, bleibt vom Detektor ungemeldet; Maß: Zeile 16 führt die vier Fälle (a) bis (d) von Nr. 2 und die fünf Arten des Programmfehlers von Nr. 4 je mindestens einmal, 0 von 9 Zweigen der Prüfung ohne Lauf | — | andere |
+
+**Abweichungen der Umsetzung vom Entwurf der Tabelle** (Ort: die Zeilen oben tragen den Entwurf, dieser Absatz den Ist-Stand; keine Abweichung ändert eine Zusage oder braucht eine Entscheidung des Architect):
+
+- Zeilen 1, 5, 6: `PruefeExpand` sieht nur den wirksamen Typ, nicht das Modell und nicht die Subtypen; die Mutationen „Geerbte Navigationen werden nicht gesucht“, „die Namen aller Typen des Modells werden gesucht“ und „die Prüfung sucht auch in den Subtypen“ lassen sich im Code der Funktion nicht schreiben. An ihre Stelle treten Mutationen, die dieselbe Zusage brechen (Suche ohne die erste, letzte oder alle bis auf die ersten acht Navigationen; abstrakter und abgeleiteter Typ lassen fremde Namen zu; ein Name gleich dem `Target` einer Navigation ist gültig; ein Typ ohne Basis lässt fremde Namen zu), Tabelle unten.
+- Zeile 18: eine Signatur mit `ctx` ist in jedem Test ein Übersetzungsfehler und kein Rot (`SPEC-210` Nr. 5 d); die Mutation ist die variadische Form `_ ...any`, die sich übersetzt und die der Vergleich über `reflect` fängt.
+- Zeile 9: `o` gleich `nil` und eine leere Liste haben keine Stelle für einen Verstoß davor oder danach; die Schleife läuft über die drei Arten mit Element (leerer Name, `*`, doppelter Name) × Lage × Verstoß (fremd, im offenen Typ nicht unterstützt, Property, wo der Typ eine hat); die zwei anderen Arten führt Zeile 8.
+- Zeilen 7 und 8 sind über den Entwurf hinaus verbreitert, weil die Klasse der Zusage größer ist als die Auswahl des Entwurfs (`AGENTS.md` §3.17): der erste Verstoß von links gilt in Listen bis 32 Elementen (jede Stelle 0 bis 31 und jedes Paar von Stellen, Zählung unten), der doppelte Name gilt für jeden Abstand 0 bis 30 und nicht nur 0 bis 2.
+- Zeile 10: die Zählprüfung gegen die Quelle liest `expand_typ_fehler.go` mit `go/parser` und vergleicht die Werte aller Konstanten vom Typ `ExpandUrsache` mit den Zeilen der Tabelle von `SPEC-263` Nr. 3 (Mutation `z10e` fügt eine vierte hinzu); die Spezifikation liegt im Container der Tests nicht vor, die Zahl der Zeilen der Tabelle steht im Test als Tabelle.
+- Zeilen 14 bis 16: die Eingaben sind die 6827 Fälle der Zeilen 1 bis 9 und 12 (`exvAlleFaelle`); Zeile 13 hat eigene Typen, die Zeilen 7 und 8 in Listen bis 32 Elementen laufen nur in ihren Tests.
+
+**Mengen** (Generator · Orakel · Zahl, die der Test zählt; Fixture-Modell: 15 Typen in beiden Folgen der Listen, also 30 Fälle des Typs: Basis, abgeleiteter Typ, dritte Stufe, abstrakter Typ mit Konkret, offener Typ mit abgeleitetem offenem Typ, drei Typen mit Entity-Navigationen, Typ ohne Navigation, leerer und leerer offener Typ, je ein Typ mit 32 Navigationen offen und nicht offen; Orakel: die eigenen Listen jedes Typs und die Kette der Basistypen, in `TestPruefeExpandFixture` gegeneinander geprüft, kein Code der Funktion; wo eine Zählung Member zählt, folgt sie aus den eigenen Listen der Kette (`exvZaehlen`), nicht aus den wirksamen Listen):
+
+| Nr. | Menge | Achsen | Fälle |
+|---|---|---|---|
+| 1 | jede wirksame Navigation (einzeln), dazu jede Liste aller Navigationen aufsteigend und absteigend | Typ (30) × Navigation × Folge der Listen des Typs (2) × Form (einzeln, aufsteigend, absteigend) | 206 |
+| 2 | jede Navigation und jede Property in 4 Abwandlungen (erster Buchstabe umgeschaltet, klein, groß, Leerzeichen angehängt) und, bei `é` (NFC), in NFD | Typ × Name × Abwandlung | 1036 |
+| 3 | jede wirksame Property, auch geerbt und mit nicht unterstütztem Typ | Typ (offen und nicht offen) × Property | 84 |
+| 4 | im offenen Typ jeder Name des Fixture-Modells außerhalb beider Listen (fremder Name, Typname, Name eines anderen Typs, eines Subtyps), dazu die Abwandlungen der Navigationen | offener Typ (4 × 2 Folgen) × Name | 1014 |
+| 5 | im nicht offenen Typ, auch im abstrakten, jeder Name des Fixture-Modells außerhalb beider Listen | nicht offener Typ (11 × 2 Folgen) × Name | 2062 |
+| 6 | jedes Paar (Typ, abgeleiteter Typ) bis zur dritten Stufe × jede Navigation und Property, die nur der abgeleitete Typ führt, am Typ und am abgeleiteten Typ | Paar × Member × Seite | 136 |
+| 7 | jede Folge der Länge 1 bis 4 aus gültig, fremd, Property (Stelle 0 bis 3) in den fünf Typen mit mindestens 4 Navigationen und 4 Properties, in beiden Folgen | Länge × Folge × Typ | 1200 |
+| 7 (lang) | in den Typen mit 32 Navigationen jede Stelle 0 bis 31 mit fremd oder Property und jedes Paar von Stellen (i < j) mit jedem Paar der zwei Klassen | Typ (4) × (64 + 496 × 4) | 8192 |
+| 8 | `nil`, `Elemente` nil und leer, leerer Name und `*` an Stelle 0 bis 2, doppelter Name (Navigation, Property, fremd) an sechs Stellenpaaren in Listen der Länge 4 | Typ (30) × Art | 750 |
+| 8 (lang) | doppelter Name an jedem Paar von Stellen (i < j) in Listen der Länge 32, als Navigation, Property und fremder Name | Typ (30) × 496 × Klasse (bis 3) | 39 680 |
+| 9 | leerer Name, `*`, doppelter Name × Verstoß davor oder danach × fremd oder Property | Typ × Art (3) × Lage (2) × Verstoß | 336 |
+| 13 | Ziel leer, Ziel außerhalb des Modells, Ziel im Modell, kurzer Name des Ziels × Collection (2), einzeln und alle zusammen | Typ (offen, nicht offen) × Navigation | 18 |
+| 15 | Listen der Länge 1 bis 32 (gültig und mit Verstoß an Stelle 0, 15, 31 als fremd und Property) in den zwei Typen mit 32 Navigationen | Länge (32) × Stelle (3) × Art (2) × Typ (2) | 264, dazu die 6827 Fälle dreimal |
+| 16 | alle 6827 Eingaben, 8 Goroutinen × 50 Runden, jede ab einer anderen Stelle | Eingabe × Goroutine × Runde | 2 730 800 Aufrufe |
+
+Zeile 10 führt die drei Ursachen auf zwei Wegen (von Hand, aus `PruefeExpand`), Zeile 11 zählt 12 fremde Ursachen (3 leer oder fremd, 3 Ursachen × 3 Schreibweisen), Zeile 12 zählt 12 Fälle (4 Paare aus Ursache und Modus × Stelle 0 bis 2, Zählung im Test); Zeile 18 führt 31 Fälle der Spezifikation, die drei Ursachen der Tabelle von Nr. 3 und die Signatur.
+
+**Mutationen, vom Implementer gefahren** (`sh tools/harness/mutationslauf.sh`, Image `odata-recorder:race`, Klasse `andere`, ein Prozess je Stufe; zwei Läufe zusammen mit 59 Mutationen, Ergebnis 58 `rot`, 0 `rot-paket`, 1 `gruen` (`z20`, akzeptiertes Negativ der Zeile 20), 0 Übersetzungsfehler; Host-Last der Ergebniszeilen 4,3 bis 4,9 bei 4 CPUs im Lauf der fertigen Tests, 8,1 bis 30,6 im ersten Lauf (dasselbe Ergebnis), Messender der Lauf; die Namen tragen die Nr. der Zeile; jeder Test wird aus dem Grund seiner Zeile rot, die Mutation verändert nur die benannte Stelle):
+
+| Nr. | Mutationen (alle `rot`, wo nichts anderes steht) | roter Test |
+|---|---|---|
+| 1 | `z01a` Suche ohne die erste, `z01b` ohne die letzte, `z01e` nur die ersten acht Navigationen, `z01c` nur Navigationen auf eine Entity, `z01d` nur auf eine Collection | `TestPruefeExpandGueltig` |
+| 2 | `z02a` `strings.EqualFold` bei Navigationen, `z02c` ASCII-Faltung bei Properties, `z02b` NFD zu NFC vor dem Vergleich | `TestPruefeExpandSchreibweise` |
+| 3 | `z03a` Property mit nicht unterstütztem Typ ist unbekannt, `z03b` `Open` vor den Properties | `TestPruefeExpandProperty` |
+| 4 | `z04a` `Open` nicht gelesen, `z04b` offener Typ macht jeden Namen gültig | `TestPruefeExpandOffen` |
+| 5 | `z05a` abstrakter Typ lässt fremde Namen zu, `z05b` abgeleiteter Typ, `z05c` unbekannt als 501, `z05d` Name gleich dem `Target` einer Navigation ist gültig | `TestPruefeExpandUnbekannt` |
+| 6 | `z06a` Typ ohne Basis lässt fremde Namen zu, `z06b` abgeleiteter Typ | `TestPruefeExpandSubtyp` |
+| 7 | `z07a` 501 nach 400, `z07c` unbekannt nach Property, `z07b` letzter Verstoß, `z07d` nur das erste Element, `z07e` die ersten drei, `z07f` die ersten 31, `z07g` ab Stelle 20 entscheidet der letzte Verstoß | `TestPruefeExpandRang` |
+| 8 | `z08a` leere Liste gültig, `z08g` nur `nil` ist leer, `z08f` `o` nil gültig, `z08b` `*` gesucht, `z08c` leerer Name gesucht, `z08h` und `z08i` leerer Name bzw. `*` nur an Stelle 0, `z08d` doppelter Name nur neben dem ersten, `z08e` ASCII-gefaltet verglichen, `z08j` Fenster von 8 Elementen, `z08k` von 31 | `TestPruefeExpandProgrammfehler` |
+| 9 | `z09a` Programmfehler in der Schleife über die Namen | `TestPruefeExpandProgrammfehlerVor` |
+| 10 | `z10a` Ursachen der Klassen vertauscht, `z10b` Codes vertauscht, `z10c` und `z10d` Text ohne Ursache (400, 501), `z10e` vierte Ursache, `z10f` `Is` trifft `ErrUngueltig`, `z10g` `Is` trifft beide Klassen | `TestExpandFehler` |
+| 11 | `z11a` Standardzweig wählt `nicht_unterstuetzt` | `TestExpandFehlerFremdeUrsache` |
+| 12 | `z12a` Name, `z12b` Stelle, `z12c` Name des Typs im Fehler | `TestPruefeExpandFehlertext` |
+| 13 | `z13a` die Prüfung verlangt ein nichtleeres Ziel | `TestPruefeExpandOhneBinding` |
+| 14 | `z14a`, `z14b`, `z14c` sortiert die Navigationen des Typs, die Properties des Typs, die Elemente des Knotens | `TestPruefeExpandOhneAenderung` |
+| 15 | `z15a` Zähler im Paket färbt das zweite Ergebnis, `z15b` Grenze 16 Elemente, `z15c` Grenze 31 | `TestPruefeExpandWiederholung` |
+| 16 | siehe Raten | `TestPruefeExpandGleichzeitig` (und `make test-race`) |
+| 17 | Import von `ports/outbound` in `expand_typ.go`: `make a-check` meldet `core-impurity` (`src/hexagon/model/expand_typ.go:6: Kern importiert …/ports/outbound`, 1 Befund), ohne den Import 0 Befunde; von Hand gefahren, danach zurückgenommen | `make a-check` |
+| 18 | `z18a` Property als unbekannt, `z18b` variadische Signatur, `z18c` offener Typ als Property | `TestPruefeExpandContract` |
+| 20 | `z20` Reihenfolge der Prüfung von Navigation und Property vertauscht: `gruen` (2 Prozesse, beide Stufen), wie die Zeile es zusagt | kein Fänger |
+
+**Raten der Nebenläufigkeit** (Zeile 16, `TestPruefeExpandGleichzeitig`, je Mutation 50 Prozesse mit Detektor und 50 ohne, `-test.count=1`, 8 Goroutinen je Prozess, höchstens 4 Prozesse zugleich; Host-Last 3,3 bis 7,8 bei 4 CPUs vor, zwischen und nach den Armen, zwei andere Linien teilen den Host; Messender: ein Skript des Implementers, das dasselbe fährt wie `SPEC-210` Nr. 7 b (zwei Test-Binaries aus einer Kopie des Baums, `-test.run '^TestPruefeExpandGleichzeitig$' -test.timeout=2m`, Container ohne Netz mit `--memory=4g --cpus=4`, unter `flock`); jede Zahl ist eine Größenordnung unter Last). **Grenze des Werkzeugs:** `mutationslauf` bricht die Klasse `nebenläufig` im Paket `model` in der Nullprobe ab (`Ausgangsstand rot: src/hexagon/model`): das Paket läuft unter dem Detektor 131 bis 182 s (der Bestandstest `TestLiesRueckgabeErschoepfend` allein 86 s bei Host-Last 11), die Grenze je Prozess ist 2 Minuten (`SPEC-210` Nr. 5 c, 9 c); die Klasse `andere` läuft ohne Detektor meist in 1,5 bis 2,9 s je Mutation. §6 trägt die Rückgabe. Unveränderter Stand: 50/50 grün mit und 50/50 grün ohne Detektor.
+
+| Mutation (Zeile 16 und 21) | mit Detektor | ohne Detektor | Fänger |
+|---|---|---|---|
+| `z16d` gemeinsamer Zustand mit Fenster zwischen Prüfen und Handeln (Paketvariable `letzte` wird vor der Schleife auf nil gesetzt, in der Schleife belegt, am Ende gelesen) | 50/50 | 50/50 | Wirkung, in jedem Lauf; `make test-race` ebenso |
+| `z16b` gemeinsamer Puffer der Elemente (Paketvariable, jeder Aufruf überschreibt ihn und liest ihn in der Schleife) | 50/50 | 50/50 | Wirkung, in jedem Lauf; `make test-race` ebenso |
+| `z16a` Paketvariable, die das Ergebnis der letzten Suche hält (`letzte = f(); return letzte`, ein Zugriff unmittelbar hinter dem anderen) | 50/50 | 0/50 | nur `make test-race`: der Übersetzer reicht den geschriebenen Wert weiter, es gibt ein Rennen ohne Wirkung |
+| `z16c` Zähler ohne Wirkung | 50/50 | 0/50 | nur `make test-race` |
+| `z21` Zähler in einem Zweig, den kein Lauf trifft (Liste mit mehr als 32 Elementen) | 0/50 | 0/50 | keiner (Zeile 21) |
+
+**Akzeptierte Negative** (`AGENTS.md` §3.15, §3.17; Zeilen 19 bis 21 stehen in der Tabelle oben mit Grund, Folge und Maß; gesehen: `z20` grün, `z21` 0/50 und 0/50). Dazu die Prüfgrenzen der Mengen, deren Klasse unbeschränkt ist:
+
+| Zusage | Menge der Zusage | Prüfgrenze (geführt bis) | Grund | Folge im Betrieb | Maß |
+|---|---|---|---|---|---|
+| Zeile 2: Namen werden bytegleich gesucht | jede Abwandlung eines Namens (unbeschränkt) | 5 Abwandlungen: erster Buchstabe, klein, groß, Leerzeichen, `é` in NFD | die Menge der Normalformen und Foldings ist nicht abzählbar | ein Vergleich, der nur eine andere Normalform (NFKC, andere kombinierende Zeichen) oder ein anderes Zeichen als `é` angleicht, bleibt ungefangen; der Parser liefert nach `SPEC-262` Nr. 4 a nur Buchstaben und Ziffern, ein kombinierendes Zeichen kommt nie an | von 3 gefahrenen Angleichungen (ASCII-Faltung, `strings.EqualFold`, NFD zu NFC) 3 rot; 0 von 3 ungefangen, die Menge darüber ist ungeführt |
+| Zeilen 1, 4, 5: jeder Name jedes Typs | Namen und Typen aller Modelle (unbeschränkt) | 15 Typen, 32 Navigationen je Typ, 4 Properties je Typ mit 32 Navigationen | Laufzeit und kein Anhaltspunkt für eine Schwelle (`SPEC-263` Nr. 6 nennt keine) | eine Regel, die erst ab 33 Navigationen oder 5 Properties greift (und ohne Familie, die sie trifft), bleibt ungefangen; der Parser liefert höchstens 32 Elemente, mehr Navigationen eines Typs sind möglich | von 2 gefahrenen Schwellen (8 und 16 Elemente, Zeilen 1 und 15) beide rot |
+| Zeile 7: erster Verstoß von links | Folgen von Klassen in Listen bis 32 (3 Klassen) | alle Folgen bis Länge 4, in Listen von 32 jeder Verstoß und jedes Paar | die Menge der Folgen wächst mit 3^Länge | eine Regel, die erst bei drei oder mehr Verstößen in einer Liste von mehr als 4 Elementen greift, bleibt ungefangen | von 7 gefahrenen Regeln (`z07a` bis `z07g`) 7 rot |
+| Zeile 8: doppelter Name | Paare von Stellen in Listen bis 32 | jedes Paar (i < j) in Listen von 32 | der Parser liefert höchstens 32 | eine Regel, die erst bei mehr als 32 Elementen greift, ist nach `SPEC-262` Nr. 6 nicht erreichbar | von 4 gefahrenen Regeln (`z08d`, `z08e`, `z08j`, `z08k`) 4 rot |
+| Zeile 16: Nebenläufigkeit | Zahl der Goroutinen und Runden | 8 × 50 | Laufzeit unter dem Detektor (rund 2 s je Prozess ohne Last; unter `-coverprofile` mit Detektor 585 s für das Paket) | ein Zustand, der erst bei mehr als 8 gleichzeitigen Aufrufen auf dem Fenster wirkt, bleibt ohne Wirkungs-Fänger; der Detektor meldet das Rennen | von 4 Mutationen mit Zustand im Paket sind 2 (`z16b`, `z16d`) mit Wirkung gefangen, in jedem Lauf; 2 (`z16a`, `z16c`) fängt nur der Detektor (50/50, ohne 0/50); `z21` fängt keiner |
+
+**Nullblöcke:** `go test -race -coverprofile` über das Paket `model` (Image `odata-recorder:race`, 584,8 s, Host-Last 5 bis 10 bei 4 CPUs): in `expand_typ.go` und `expand_typ_fehler.go` null Blöcke mit Zähler 0, jede Funktion 100,0 %. Die 36 Blöcke mit Zähler 0 im Paket liegen im Bestand: `abfrage_filter.go` (3), `baseline.go` (5), `exchange.go` (1), `filter_ast.go` (6, leere Blöcke ohne Anweisung), `redaktor.go` (2), `redaktor_text.go` (2), `schluessel_json.go` (17). Der Lauf entstand vor dem Nachtrag der Generatoren „7 (lang)“ und „8 (lang)“; der Produktcode ist seither unverändert, die Tests sind nur gewachsen.
+
+**Gegengelesen** (`AGENTS.md` §3.18): `src/hexagon/model/expand_typ_fixture_test.go` auf Rohbytes (`LC_ALL=C grep -P`): `é` NFC (`\xc3\xa9`) und NFD (`e\xcc\x81`) entstehen aus Bytewerten in `exvEAkut` und `exvEAkutNFD`, im Quelltext steht kein `\u`; `expand_typ_fehler_test.go`: `ä` in `geheim` aus den Bytes `\xc3\xa4`; die Mutation `z02b` trägt die Bytes als `\xcc\x81` und `\xc3\xa9` in der Liste.
 
 **Betriebsregeln** (gelten für jede Rolle dieses Slice):
 
@@ -145,6 +223,8 @@ schaetzung: 1805
 marke: 2500
 ```
 
+**Messung nach dem Code** (Implementer, `git diff --numstat a8d8f720` über `src/hexagon/model/`, Tests eingeschlossen, vor dem Handoff-Commit): 1403 Zeilen in sieben neuen Dateien (Produktcode 102: `expand_typ.go` 56, `expand_typ_fehler.go` 46; Tests 1301), also 1097 unter der Marke 2500; kein Pfad außerhalb des Blocks berührt (außer diesem Plan), kein `merge` von `main` bis zur Messung.
+
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
 - `in-progress` → `next` (zu groß, zurück zur Zerlegung): nur vor dem Code und nur über der Schnittgrenze (`SPEC-128` Nr. 1); die Schätzung liegt darunter, ein weiterer Schnitt ist nicht vorgesehen: Fehlertyp und Funktion teilen den Katalog der Ursachen. Eine Messung über der Marke (2500) nach dem Code führt nicht zurück (`AGENTS.md` §3.14): der Slice schließt mit der Messung und dem Grund im Eintrag `ueberschreitung`.
@@ -165,7 +245,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Die Menge der Fälle ist die Menge der Navigationen und Properties aller Typen eines Modells (unbeschränkt) — **Ausgang:** offen; Schleife über die Menge des Fixture-Modells mit Subtypen, Ketten und offenem Typ, Prüfgrenze und Folge als akzeptiertes Negativ (`AGENTS.md` §3.17).
+- Die Menge der Fälle ist die Menge der Navigationen und Properties aller Typen eines Modells (unbeschränkt) — **Ausgang:** offen; Schleife über die Menge des Fixture-Modells mit Subtypen, Ketten und offenem Typ, Prüfgrenze und Folge als akzeptiertes Negativ (`AGENTS.md` §3.17); Umsetzung: Mengen, Prüfgrenzen und Maß stehen in §3 (Absätze *Mengen* und *Akzeptierte Negative*).
+- Umsetzung: `mutationslauf` fährt die Klasse `nebenläufig` im Paket `model` nicht: die Nullprobe bricht mit `Ausgangsstand rot: src/hexagon/model` ab, weil das Paket unter dem Detektor 131 bis 182 s läuft gegen die Grenze von 2 Minuten je Prozess (`SPEC-210` Nr. 5 a, 5 c, 9 c; der Bestandstest `TestLiesRueckgabeErschoepfend` braucht allein 86 s bei Host-Last 11, die neuen Tests rund 3 s). Die Raten der Zeile 16 stehen in §3 aus einem Skript des Implementers, das dasselbe fährt (zwei Test-Binaries, 50 Prozesse je Arm). **Ausgang:** offen. **Adresse:** Planner (Beobachtungs-Register, Klasse *Mutationswerkzeug scheitert an der Laufzeit des Pakets unter dem Detektor*, erste Evidenz dieser Slice) und Architect (`SPEC-210` Nr. 5 c und 9 c: die Grenze je Prozess gilt dem ganzen Paket der Nullprobe); `make test-race` und `make gates` sind nicht betroffen.
 - Fakes der Ports: die Funktion hat keinen Port — **Ausgang:** entfallen (`PruefeExpand` hat keinen Port, `SPEC-263`).
 - Randformen (`AGENTS.md` §3.12, §3.16): das Raster entsteht vor dem ersten Code-Commit; jede Zelle nennt ihren Ort in der Spezifikation oder „gilt nicht“ mit Grund, und eine Zelle ohne Ort geht an den Architect — **Ausgang:** entschieden (Raster unten, `SPEC-263`); die Tabelle *Zusage · Fänger* hat der Planner beim Start gefüllt (21 Zeilen, §3).
 - Der Validator-Contract-Test (`LH-FA-16.a`) soll nach der DoD gegen „die Beispiele der Spezifikation“ fahren; `SPEC-263` führt keine Beispieltabelle, nur die Fälle von Nr. 2 a bis d, 3 und 4 — **Ausgang:** entschieden (Planner, beim Start): die Tabelle des Tests (Zeile 18) nimmt die Fälle aus dem Wortlaut dieser Nummern, die DoD ist berichtigt; will der Architect eine Beispieltabelle in `SPEC-263`, trägt er sie vor dem ersten Code-Commit nach und der Test nimmt sie auf (Frage im Bericht des Planners an den Orchestrator).
