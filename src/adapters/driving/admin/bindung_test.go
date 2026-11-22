@@ -20,3 +20,5 @@ var (
 	_ admin.Handler          = (*routeFake)(nil).handle
 	_ http.Handler           = (*admin.Server)(nil)
 )
+
+var _ inbound.InspectionUseCase = (*inspektionFake)(nil)
