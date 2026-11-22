@@ -85,8 +85,8 @@ func TestI17QuelleDerInspektion(t *testing.T) {
 
 // TestI17GesamtzaehlungAllerTeile hält die Zählprüfung von M-Audit über alle Teile gegen die Quelle: die 33 Zellen der Inspektion
 // und die Zellen der Routen der Sessions (die Zahl der Zellen von `fehlerZellen` mit je einem Erfolg), mit Eintrag allein die Zellen
-// einer Route `POST` von SessionRouten (jede schreibt bei Erfolg einen Eintrag), alle anderen ohne. Stand mit den Routen von Teil 1
-// und 3: 24 + 33 = 57 Zellen, genau 1 mit Eintrag.
+// einer Route `POST` von SessionRouten (jede schreibt bei Erfolg einen Eintrag), alle anderen ohne. Stand mit den Routen aller
+// drei Teile: 51 + 33 = 84 Zellen, genau 2 mit Eintrag.
 func TestI17GesamtzaehlungAllerTeile(t *testing.T) {
 	eigene, andere := 0, 0
 	for _, fs := range inspFehlerZellen() {
@@ -106,8 +106,8 @@ func TestI17GesamtzaehlungAllerTeile(t *testing.T) {
 			mitEintrag++
 		}
 	}
-	gleichAuf(t, "Zellen der Inspektion, der Sessions, gesamt", []int{eigene, andere, eigene + andere}, []int{33, 24, 57})
-	gleichAuf(t, "Zellen mit Eintrag und ohne", []int{mitEintrag, eigene + andere - mitEintrag}, []int{1, 56})
+	gleichAuf(t, "Zellen der Inspektion, der Sessions, gesamt", []int{eigene, andere, eigene + andere}, []int{33, 51, 84})
+	gleichAuf(t, "Zellen mit Eintrag und ohne", []int{mitEintrag, eigene + andere - mitEintrag}, []int{2, 82})
 }
 
 // TestI18BinaryUnveraendert hält I18 (SPEC-293 Nr. 12) am Quelltext: keine Datei des Pakets bootstrap (auch keine `_test.go`)

@@ -177,7 +177,7 @@ func TestI3Zuordnung(t *testing.T) {
 // TestI3GesamtzahlDerPfadformen hält die Zählprüfung von M-Route gegen die Muster der beiden Konstruktoren: die Routen von
 // SessionRouten und InspektionRouten überlappen einander nicht (New nimmt sie zusammen an, SPEC-238 Nr. 2 d), und die
 // Pfadformen mal sieben Methoden sind die Fälle von I3 über alle Teile, die Treffer die Paare aus Methode und Muster. Stand mit
-// den Routen von Teil 1 und 3: 4 Pfadformen, 28 Fälle, 5 Treffer, 5 Routen.
+// den Routen aller drei Teile: 6 Pfadformen, 42 Fälle, 7 Treffer, 7 Routen.
 func TestI3GesamtzahlDerPfadformen(t *testing.T) {
 	k, u := konfigMit()
 	sessionen, err := admin.SessionRouten(&sessionsFake{}, u.audit)
@@ -196,7 +196,7 @@ func TestI3GesamtzahlDerPfadformen(t *testing.T) {
 		muster[r.Muster] = true
 		paare[[2]string{r.Methode, r.Muster}] = true
 	}
-	gleichAuf(t, "Fälle, Treffer, Pfadformen, Routen", []int{len(muster) * 7, len(paare), len(muster), len(alle)}, []int{28, 5, 4, 5})
+	gleichAuf(t, "Fälle, Treffer, Pfadformen, Routen", []int{len(muster) * 7, len(paare), len(muster), len(alle)}, []int{42, 7, 6, 7})
 }
 
 // inspPfadwerte ist M-Pfadwert (SPEC-293 Nr. 5, SPEC-292 Nr. 4): 13 kodierte Werte mit den dekodierten Bytes als Literale aus

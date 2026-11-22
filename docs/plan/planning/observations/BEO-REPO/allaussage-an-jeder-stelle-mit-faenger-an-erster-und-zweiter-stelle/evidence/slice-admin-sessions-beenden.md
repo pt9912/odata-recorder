@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-sessions-beenden
+**Fund:** Der Kopf von `TestB3Prozentfolgen` sagt „an jeder Stelle des Wertes“ und führt `%` allein, nach einem Buchstaben, vor einem und zwischen zweien, also bis Stelle 2. Eine zweite Dekodierung ab Stelle 2 ist rot (bei `close` und bei `DELETE`), eine ab Stelle 3 und ab Stelle 4 bleibt grün (V-3 der Verifikation). Kennungen der Form `ses-…` tragen `%` ab Stelle 5. Beleg: `docs/reviews/2026-11-22-slice-admin-sessions-beenden-verifikation.md` (V-3) und Plan `slice-admin-sessions-beenden` §3 (Negativ (8)).
