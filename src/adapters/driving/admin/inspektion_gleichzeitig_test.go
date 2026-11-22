@@ -70,14 +70,17 @@ func inspGleichzeitig(t *testing.T, u *umgebung, n int, bau func(i int) *http.Re
 	return out
 }
 
-// TestN5GleichzeitigeRequests hält N5 (SPEC-293 Nr. 10): in 150 Runden je 16 gleichzeitige Requests je Route (das Fenster eines
+// TestN5GleichzeitigeRequests hält N5 (SPEC-293 Nr. 10): in 1000 Runden je 16 gleichzeitige Requests je Route (das Fenster eines
 // Zustands zwischen Requests trifft in einer Runde nur selten), jeder mit eigener Eingabe, deren Antwort aus dem Argument des Dienstes
 // entsteht; `exchanges` trägt je vier Requests dieselbe Session mit verschiedenen Seiten. Jede Antwort ist die zu ihrem Request
 // (Orakel: das Literal aus der eigenen Eingabe). Wirkungs-Fänger: alle 16 Requests einer Route sind zugleich im Aufruf des Dienstes
-// (Treffpunkt), keine Sperre liegt über dem Aufruf; der Zustand zwischen den Requests (vor und nach dem Aufruf) zeigt sich als
-// fremde Antwort und, nach dem Treffpunkt ungeordnet, dem Detektor von `make test-race`. Der Test hat eine eigene Frist.
+// (Treffpunkt), keine Sperre liegt über dem Aufruf. Der Treffpunkt erzwingt die Verzahnung für die Fenster, die den Aufruf umschließen:
+// ein Zustand, der vor dem Aufruf geschrieben und nach ihm gelesen wird (mit oder ohne Sperre), und eine Sperre über dem Aufruf. Ein
+// Zustand, der allein vor oder allein nach dem Aufruf geschrieben und gelesen wird, hat in der Route keinen Haltepunkt: ohne Sperre
+// zeigt ihn der Detektor von `make test-race`, mit einer Sperre und einer Lücke zwischen zwei Abschnitten allein die Zahl der Runden
+// (Wahrscheinlichkeit) und die Quelle (TestN5KeinZustandInDerQuelle). Der Test hat eine eigene Frist.
 func TestN5GleichzeitigeRequests(t *testing.T) {
-	const n, runden = 16, 150
+	const n, runden = 16, 1000
 	u, fake, _ := inspUmgebung(t)
 	wert := func(ctx context.Context) int { return ctx.Value(ctxSchluessel{}).(int) }
 	fake.exchangesFn = func(_ context.Context, id string, s inbound.Seite) (inbound.ExchangeSeite, error) {

@@ -1,6 +1,7 @@
 package admin_test
 
 import (
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
@@ -81,6 +82,65 @@ func TestI17QuelleDerInspektion(t *testing.T) {
 			}
 		}
 	}
+}
+
+// zustandsStellen zählt in der Quelle die Stellen, an denen eine Route Zustand über Requests hinweg halten könnte: Variablen auf Paketebene
+// (je Name), Funktionsliterale (Closures), Kanäle (Typ chan), Importe von sync und sync/atomic und die Felder des Typs inspektionHandler.
+func zustandsStellen(t *testing.T, name string, quelle any) (vars, closures, kanaele, syncs, felder int) {
+	t.Helper()
+	f, err := parser.ParseFile(token.NewFileSet(), name, quelle, 0)
+	if err != nil {
+		t.Fatalf("%s: %v", name, err)
+	}
+	for _, d := range f.Decls {
+		if g, ok := d.(*ast.GenDecl); ok && g.Tok == token.VAR {
+			for _, s := range g.Specs {
+				vars += len(s.(*ast.ValueSpec).Names)
+			}
+		}
+	}
+	for _, im := range f.Imports {
+		if p, _ := strconv.Unquote(im.Path.Value); p == "sync" || p == "sync/atomic" {
+			syncs++
+		}
+	}
+	ast.Inspect(f, func(x ast.Node) bool {
+		switch n := x.(type) {
+		case *ast.FuncLit:
+			closures++
+		case *ast.ChanType:
+			kanaele++
+		case *ast.TypeSpec:
+			if s, ok := n.Type.(*ast.StructType); ok && n.Name.Name == "inspektionHandler" {
+				felder += s.Fields.NumFields()
+			}
+		}
+		return true
+	})
+	return
+}
+
+// TestN5KeinZustandInDerQuelle hält N5 (SPEC-293 Nr. 10: die Routen halten keinen Zustand und keine Sperre) am Quelltext für jede Form von
+// Zustand, die die Quelle zeigt: in den drei Dateien der Inspektion steht keine Variable auf Paketebene, kein Funktionsliteral, kein
+// Kanal, kein Import von `sync` oder `sync/atomic`, und `inspektionHandler` hat genau ein Feld (den Port). Das trifft einen Zustand
+// unter einer Sperre mit Lücke zwischen zwei Abschnitten, den der Wirkungs-Fänger von TestN5GleichzeitigeRequests nur mit
+// Wahrscheinlichkeit sieht, in jedem Prozess; die Probe hält die Zähler gegen eine Quelle mit je einer Stelle.
+func TestN5KeinZustandInDerQuelle(t *testing.T) {
+	probe := "package x\nimport (\n\"sync\"\n\"sync/atomic\"\n)\nvar a, b int\nvar (\nc int\n)\ntype inspektionHandler struct {\nx int\ny, z string\n}\n" +
+		"func f() { _ = func() {}; _ = make(chan int); var l int; _ = l }"
+	v, c, k, s, f := zustandsStellen(t, "probe.go", probe)
+	gleichAuf(t, "Probe: Variablen, Closures, Kanäle, Importe, Felder", []int{v, c, k, s, f}, []int{3, 1, 1, 2, 3})
+	felder := 0
+	for _, d := range inspDateien(t) {
+		src, err := os.ReadFile(d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		v, c, k, s, f := zustandsStellen(t, d, src)
+		gleichAuf(t, d+": Variablen, Closures, Kanäle, Importe", []int{v, c, k, s}, []int{0, 0, 0, 0})
+		felder += f
+	}
+	gleichAuf(t, "Felder von inspektionHandler", felder, 1)
 }
 
 // TestI17GesamtzaehlungAllerTeile hält die Zählprüfung von M-Audit über alle Teile gegen die Quelle: die 33 Zellen der Inspektion

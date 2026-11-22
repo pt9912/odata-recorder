@@ -3,6 +3,7 @@ package admin
 import (
 	"encoding/json"
 	"errors"
+	"unicode/utf8"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 )
@@ -87,20 +88,22 @@ func diagnoseAus(d inbound.Diagnose) diagnoseJSON {
 	return diagnoseJSON{Mode: d.Modus, Settings: einstellungen, Errors: fehler}
 }
 
-// errEvidenzUngueltig ist der Fehler einer Evidenz, die kein gültiges JSON ist; der Text nennt keinen Wert. Er trägt keinen
-// Code: die Antwort ist ODR-E9001 (SPEC-293 Nr. 7).
+// errEvidenzUngueltig ist der Fehler einer Evidenz, die kein gültiges JSON in gültigem UTF-8 ist; der Text nennt keinen Wert.
+// Er trägt keinen Code: die Antwort ist ODR-E9001 (SPEC-293 Nr. 7).
 func errEvidenzUngueltig() error {
-	return errors.New("admin: Evidenz der Coverage ist kein gültiges JSON")
+	return errors.New("admin: Evidenz der Coverage ist kein gültiges JSON in gültigem UTF-8")
 }
 
 // schreibeCoverage schreibt den Body von `GET /__admin/coverage`: `{"entries":[…]}` mit `entity_set`, `status` und `evidence`
 // je Eintrag. Die Evidenz steht mit denselben Bytes im Body, ohne Umformatieren und ohne Maskierung (SPEC-293 Nr. 7);
 // encoding/json maskiert `<`, `>`, `&` und U+2028 auch in einem eingesetzten Wert, deshalb setzt die Funktion die Bytes
-// selbst ein. Ist eine Evidenz kein gültiges JSON, ist das Ergebnis der Fehler und kein Teil des Bodys.
+// selbst ein. Ist eine Evidenz kein gültiges JSON in gültigem UTF-8 (json.Valid nimmt ein Byte außerhalb von UTF-8 in einer
+// Zeichenkette an), ist das Ergebnis der Fehler und kein Teil des Bodys; die Prüfung läuft für jeden Eintrag vor dem ersten
+// Schreiben in den Body.
 func schreibeCoverage(es []inbound.CoverageEintrag) ([]byte, error) {
 	body := []byte(`{"entries":[`)
 	for i, e := range es {
-		if !json.Valid([]byte(e.Evidenz)) {
+		if !json.Valid([]byte(e.Evidenz)) || !utf8.ValidString(e.Evidenz) {
 			return nil, errEvidenzUngueltig()
 		}
 		if i > 0 {

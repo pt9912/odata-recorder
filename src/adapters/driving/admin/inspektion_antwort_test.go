@@ -261,6 +261,213 @@ func TestI10ZeichenInJedemTextfeld(t *testing.T) {
 	}
 }
 
+// inspTextZustaende sind die Zustände eines Textwertes, die ein Feld unscheinbar machen: leer, nur Leerraum (Leerzeichen; Tab, CR und
+// LF), Leerraum am Anfang, am Ende und an beiden Rändern.
+func inspTextZustaende() []string { return []string{"", " ", "\t\r\n", " x", "x ", " x "} }
+
+// inspZustandsZahl ist die Zahl der Zustände, die ein Feld der Art k kennt: Text 6, eine Zahl 0 und ein Wahrheitswert false je einen;
+// jede andere Art (Zeit, Liste, Abbildung) hat andere Fänger.
+func inspZustandsZahl(k reflect.Kind) int {
+	switch k {
+	case reflect.String:
+		return len(inspTextZustaende())
+	case reflect.Int, reflect.Bool:
+		return 1
+	}
+	return 0
+}
+
+// inspSetzeZustand setzt das Feld v auf den Zustand z (Text: der z-te, Zahl: 0, Wahrheitswert: false).
+func inspSetzeZustand(v reflect.Value, z int) {
+	switch v.Kind() {
+	case reflect.String:
+		v.SetString(inspTextZustaende()[z])
+	case reflect.Int:
+		v.SetInt(0)
+	case reflect.Bool:
+		v.SetBool(false)
+	}
+}
+
+// inspPruefeZustand prüft, dass das Objekt m das Mitglied key trägt und sein Wert der Zustand z des Feldes der Art k ist: ein Text
+// dekodiert gleich dem Zustand (ob ein Zeichen als Escape oder roh steht, ist nicht zugesagt), eine Zahl das Literal `0` (nullbar: `null`),
+// ein Wahrheitswert `false`.
+func inspPruefeZustand(t *testing.T, name string, m map[string]json.RawMessage, key string, k reflect.Kind, z int, nullbar bool) {
+	t.Helper()
+	roh, da := m[key]
+	if !da {
+		t.Errorf("%s: das Mitglied %s fehlt", name, key)
+		return
+	}
+	switch k {
+	case reflect.String:
+		var s string
+		if err := json.Unmarshal(roh, &s); err != nil || s != inspTextZustaende()[z] {
+			t.Errorf("%s: %s ist %s (%v), erwartet den Text %q", name, key, roh, err, inspTextZustaende()[z])
+		}
+	case reflect.Int:
+		if soll := map[bool]string{false: "0", true: "null"}[nullbar]; string(roh) != soll {
+			t.Errorf("%s: %s ist %s, erwartet %s", name, key, roh, soll)
+		}
+	case reflect.Bool:
+		if string(roh) != "false" {
+			t.Errorf("%s: %s ist %s, erwartet false", name, key, roh)
+		}
+	}
+}
+
+// inspRohVon zerlegt den Body eines Objekts in die Rohwerte seiner Mitglieder.
+func inspRohVon(t *testing.T, name, body string) map[string]json.RawMessage {
+	t.Helper()
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(body), &m); err != nil {
+		t.Errorf("%s: der Body %q ist kein Objekt: %v", name, body, err)
+	}
+	return m
+}
+
+// inspZaehleArten liefert, wie viele Felder des Typs Text, Zahl, Wahrheitswert und eine andere Art haben (Zählprüfung gegen die
+// Quelle, ohne feste Zahl der Felder).
+func inspZaehleArten(typ reflect.Type) (text, zahl, wahr, andere int) {
+	for i := range typ.NumField() {
+		switch typ.Field(i).Type.Kind() {
+		case reflect.String:
+			text++
+		case reflect.Int:
+			zahl++
+		case reflect.Bool:
+			wahr++
+		default:
+			andere++
+		}
+	}
+	return
+}
+
+// TestI10LeerUndNullInJedemFeld hält „kein Feld fehlt“ (SPEC-292 Nr. 7 a) und „Werte unverändert“ (SPEC-293 Nr. 6 bis 8) für den leeren
+// Wert, die Zahl 0, false und Leerraum. Menge: jedes Feld der Typen `ExchangeZeile` (15), `ExchangeSeite` (4), `CoverageEintrag` (3) und
+// `Diagnose` (3) aus dem Typ (reflect) mal die Zustände seiner Art: Text 6 (leer, nur Leerraum, Leerraum am Anfang, am Ende, an
+// beiden Rändern), Zahl 0, Wahrheitswert false; dazu die Einträge von `settings` mit jedem der 6 Zustände im Wert und im Schlüssel.
+// Jede Antwort trägt das Feld mit dem Zustand (Orakel: Literale `0`, `null` für `response_status` und `next`, `false`, der dekodierte
+// Text) und keine anderen Felder. Zählprüfung gegen den Typ: Fälle gleich Textfelder mal 6 plus Zahlen plus Wahrheitswerte (ohne
+// `evidence`, dessen Leerraum TestI12LeerraumAmRand führt), die übrigen Felder sind Zeiten, Listen und Abbildungen mit eigenem Fänger.
+func TestI10LeerUndNullInJedemFeld(t *testing.T) {
+	schluessel := map[string]string{}
+	for _, m := range inspMitglieder() {
+		schluessel[m.feld] = m.schluessel
+	}
+	schluesselSeite := map[string]string{"Eintraege": "exchanges", "Limit": "limit", "Gesamt": "total", "Weiter": "next"}
+	schluesselCov := map[string]string{"EntitySet": "entity_set", "Status": "status", "Evidenz": "evidence"}
+	nullbar := map[string]bool{"ResponseStatus": true, "Weiter": true}
+	zustaende := len(inspTextZustaende())
+
+	// ExchangeZeile: 15 Felder, ein Fall je Feld und Zustand.
+	typ, faelle := reflect.TypeFor[inbound.ExchangeZeile](), 0
+	for i := range typ.NumField() {
+		f := typ.Field(i)
+		if schluessel[f.Name] == "" {
+			t.Errorf("ExchangeZeile.%s hat keinen Schlüssel im Vertrag", f.Name)
+		}
+		for z := range inspZustandsZahl(f.Type.Kind()) {
+			faelle++
+			zeile, _ := inspZeile(1, nil)
+			inspSetzeZustand(reflect.ValueOf(&zeile).Elem().Field(i), z)
+			got := inspHole(t, "ExchangeZeile."+f.Name, exchangesZiel("s"), "", func(fk *inspektionFake) {
+				fk.seite = inbound.ExchangeSeite{Eintraege: []inbound.ExchangeZeile{zeile}, Limit: 1, Gesamt: 1}
+			})
+			var seite struct{ Exchanges []map[string]json.RawMessage }
+			if err := json.Unmarshal([]byte(got), &seite); err != nil || len(seite.Exchanges) != 1 || len(seite.Exchanges[0]) != 15 {
+				t.Errorf("ExchangeZeile.%s: Body %q (%v)", f.Name, got, err)
+				continue
+			}
+			inspPruefeZustand(t, "ExchangeZeile."+f.Name, seite.Exchanges[0], schluessel[f.Name], f.Type.Kind(), z, nullbar[f.Name])
+		}
+	}
+	text, zahl, wahr, andere := inspZaehleArten(typ)
+	gleichAuf(t, "ExchangeZeile: Fälle", faelle, text*zustaende+zahl+wahr)
+	gleichAuf(t, "ExchangeZeile: Zeitfelder", andere, 2)
+
+	// ExchangeSeite: die Zahlen Limit, Gesamt und Weiter auf 0, die anderen mit eigenem Wert.
+	typ, faelle = reflect.TypeFor[inbound.ExchangeSeite](), 0
+	for i := range typ.NumField() {
+		f := typ.Field(i)
+		for z := range inspZustandsZahl(f.Type.Kind()) {
+			faelle++
+			seite := inbound.ExchangeSeite{Limit: 25, Gesamt: 99, Weiter: 7}
+			inspSetzeZustand(reflect.ValueOf(&seite).Elem().Field(i), z)
+			got := inspHole(t, "ExchangeSeite."+f.Name, exchangesZiel("s"), "", func(fk *inspektionFake) { fk.seite = seite })
+			m := inspRohVon(t, "ExchangeSeite."+f.Name, got)
+			if len(m) != 4 {
+				t.Errorf("ExchangeSeite.%s: %d Mitglieder, erwartet 4", f.Name, len(m))
+			}
+			inspPruefeZustand(t, "ExchangeSeite."+f.Name, m, schluesselSeite[f.Name], f.Type.Kind(), z, nullbar[f.Name])
+		}
+	}
+	text, zahl, wahr, andere = inspZaehleArten(typ)
+	gleichAuf(t, "ExchangeSeite: Fälle", faelle, text*zustaende+zahl+wahr)
+	gleichAuf(t, "ExchangeSeite: Liste", andere, 1)
+
+	// CoverageEintrag: die Textfelder entity_set und status; evidence führt TestI12LeerraumAmRand.
+	typ, faelle = reflect.TypeFor[inbound.CoverageEintrag](), 0
+	for i := range typ.NumField() {
+		f := typ.Field(i)
+		if f.Name == "Evidenz" {
+			continue
+		}
+		for z := range inspZustandsZahl(f.Type.Kind()) {
+			faelle++
+			e, _ := inspEintrag(1, `{}`)
+			inspSetzeZustand(reflect.ValueOf(&e).Elem().Field(i), z)
+			got := inspHole(t, "CoverageEintrag."+f.Name, inspCoverage, "baseline_id=b", func(fk *inspektionFake) { fk.eintraege = []inbound.CoverageEintrag{e} })
+			var d struct{ Entries []map[string]json.RawMessage }
+			if err := json.Unmarshal([]byte(got), &d); err != nil || len(d.Entries) != 1 || len(d.Entries[0]) != 3 {
+				t.Errorf("CoverageEintrag.%s: Body %q (%v)", f.Name, got, err)
+				continue
+			}
+			inspPruefeZustand(t, "CoverageEintrag."+f.Name, d.Entries[0], schluesselCov[f.Name], f.Type.Kind(), z, false)
+		}
+	}
+	text, _, _, andere = inspZaehleArten(typ)
+	gleichAuf(t, "CoverageEintrag: Fälle und andere Felder", []int{faelle, andere}, []int{(text - 1) * zustaende, 0})
+
+	// Diagnose: mode (Text), settings (Abbildung: jeder Zustand im Wert und im Schlüssel) und die Liste errors (TestI14ZeichenInDiagnose
+	// führt count 0).
+	typ, faelle = reflect.TypeFor[inbound.Diagnose](), 0
+	for i := range typ.NumField() {
+		f := typ.Field(i)
+		switch f.Type.Kind() {
+		case reflect.String:
+			for z := range zustaende {
+				faelle++
+				d := inbound.Diagnose{}
+				inspSetzeZustand(reflect.ValueOf(&d).Elem().Field(i), z)
+				got := inspHole(t, "Diagnose."+f.Name, inspDiagnostics, "", func(fk *inspektionFake) { fk.diagnose = d })
+				m := inspRohVon(t, "Diagnose."+f.Name, got)
+				if len(m) != 3 {
+					t.Errorf("Diagnose.%s: %d Mitglieder, erwartet 3", f.Name, len(m))
+				}
+				inspPruefeZustand(t, "Diagnose."+f.Name, m, "mode", reflect.String, z, false)
+			}
+		case reflect.Map:
+			for _, z := range inspTextZustaende() {
+				for _, kv := range [][2]string{{"k", z}, {z, "v"}} {
+					faelle++
+					got := inspHole(t, "Diagnose.Einstellungen", inspDiagnostics, "", func(fk *inspektionFake) {
+						fk.diagnose = inbound.Diagnose{Einstellungen: map[string]string{kv[0]: kv[1]}}
+					})
+					var d struct{ Settings map[string]string }
+					if err := json.Unmarshal([]byte(got), &d); err != nil || len(d.Settings) != 1 {
+						t.Errorf("settings %q: Body %q (%v)", kv, got, err)
+					} else if v, da := d.Settings[kv[0]]; !da || v != kv[1] {
+						t.Errorf("settings %q: Body %q, erwartet den Eintrag unverändert", kv, got)
+					}
+				}
+			}
+		}
+	}
+	gleichAuf(t, "Diagnose: Fälle", faelle, zustaende+zustaende*2)
+}
+
 // inspEintrag ist ein Eintrag der Coverage und sein JSON als Literal des Vertrags.
 func inspEintrag(n int, evidenz string) (inbound.CoverageEintrag, string) {
 	s := strconv.Itoa(n)
@@ -279,21 +486,83 @@ func inspEvidenzen() []string {
 	}
 }
 
+// inspEvidenzImBody sendet einen Eintrag je Evidenz in der Folge der Liste und prüft den Body gegen das Literal des Vertrags: jede
+// Evidenz steht mit denselben Bytes darin (der Body gleich dem Literal und bytes.Contains).
+func inspEvidenzImBody(t *testing.T, name string, evidenzen ...string) {
+	t.Helper()
+	var es []inbound.CoverageEintrag
+	var js []string
+	for i, ev := range evidenzen {
+		e, j := inspEintrag(i+1, ev)
+		es, js = append(es, e), append(js, j)
+	}
+	got := inspHole(t, name, inspCoverage, "baseline_id=b", func(f *inspektionFake) { f.eintraege = es })
+	if soll := `{"entries":[` + strings.Join(js, ",") + `]}`; got != soll {
+		t.Errorf("%s: der Body trägt die Evidenz nicht mit denselben Bytes (Länge %d, erwartet %d)", name, len(got), len(soll))
+	}
+	for _, ev := range evidenzen {
+		if !strings.Contains(got, ev) {
+			t.Errorf("%s: der Body enthält die Evidenz der Länge %d nicht", name, len(ev))
+		}
+	}
+}
+
+// utfOrte sind die vier Orte, an denen eine Zeichenkette im JSON steht (Achse *Ort im JSON*, SPEC-293 Nr. 7): Wert eines Mitglieds,
+// Schlüssel eines Mitglieds, Element eines Arrays, Wurzel-Zeichenkette; die Funktion setzt die Zeichenkette (ohne Anführungszeichen)
+// ein.
+func utfOrte() []func(s string) string {
+	return []func(string) string{
+		func(s string) string { return `{"a":"` + s + `"}` }, func(s string) string { return `{"` + s + `":1}` },
+		func(s string) string { return `["` + s + `"]` }, func(s string) string { return `"` + s + `"` },
+	}
+}
+
+// utfStellen sind die Stellen der Folge in der Zeichenkette (Achse *Stelle in der Zeichenkette*): Anfang, Mitte, Ende, jeweils mit
+// dem Canary als Nachbarn (ASCII).
+func utfStellen() []func(b string) string {
+	return []func(string) string{
+		func(b string) string { return b + canary() }, func(b string) string { return canary() + b + canary() },
+		func(b string) string { return canary() + b },
+	}
+}
+
+// utfGueltigeFolgen sind die gültigen Folgen der Menge *UTF-8 der Evidenz* (Achse *Folge*): die kleinste und die größte je Länge 2, 3
+// und 4, aus Bytewerten.
+func utfGueltigeFolgen() [][]byte {
+	return [][]byte{{0xC2, 0x80}, {0xDF, 0xBF}, {0xE0, 0xA0, 0x80}, {0xED, 0x9F, 0xBF}, {0xEE, 0x80, 0x80}, {0xEF, 0xBF, 0xBF}, {0xF0, 0x90, 0x80, 0x80}, {0xF4, 0x8F, 0xBF, 0xBF}}
+}
+
+// utfUngueltigeFolgen sind die ungültigen Folgen: jedes der 128 Bytes 0x80 bis 0xFF allein und 6 Folgen jenseits der Grenze (überlang
+// `C0 80`, `C1 BF`, `E0 9F BF`, `F0 8F BF BF`, Ersatzzeichen `ED A0 80`, über U+10FFFF `F4 90 80 80`), die gültige Nachbarn haben.
+func utfUngueltigeFolgen() [][]byte {
+	out := [][]byte{{0xC0, 0x80}, {0xC1, 0xBF}, {0xE0, 0x9F, 0xBF}, {0xED, 0xA0, 0x80}, {0xF0, 0x8F, 0xBF, 0xBF}, {0xF4, 0x90, 0x80, 0x80}}
+	for b := 0x80; b <= 0xFF; b++ {
+		out = append(out, []byte{byte(b)})
+	}
+	return out
+}
+
 // TestI12Coverage hält I12 (SPEC-293 Nr. 7): `coverage` antwortet 200 mit `{"entries":[…]}`, je Eintrag die drei Felder `entity_set`,
 // `status`, `evidence` in dieser Folge, in der Folge des Dienstes; 0 (nil und leer), 1 und 3 Einträge. M-Evidenz gültig: jede der
-// 17 Formen steht mit denselben Bytes im Body (Orakel: der Body gleich dem Literal und bytes.Contains). Zählprüfung: NumField
-// von CoverageEintrag gleich 3.
+// 17 Formen steht mit denselben Bytes im Body (Orakel: der Body gleich dem Literal und bytes.Contains). M-UTF-8 gültig: 8 Folgen
+// (Achse *Folge*) mal 4 Orte im JSON in der Mitte der Zeichenkette gleich 32 Fälle, dasselbe Orakel. Zählprüfung: NumField von
+// CoverageEintrag gleich 3.
 func TestI12Coverage(t *testing.T) {
 	gleichAuf(t, "Felder von CoverageEintrag", reflect.TypeFor[inbound.CoverageEintrag]().NumField(), 3)
 	evidenzen := inspEvidenzen()
 	gleichAuf(t, "Zahl der Evidenzen", len(evidenzen), 17)
 	for _, ev := range evidenzen {
-		e, js := inspEintrag(1, ev)
-		got := inspHole(t, "Evidenz", inspCoverage, "baseline_id=b", func(f *inspektionFake) { f.eintraege = []inbound.CoverageEintrag{e} })
-		if soll := `{"entries":[` + js + `]}`; got != soll || !strings.Contains(got, ev) {
-			t.Errorf("Evidenz der Länge %d: der Body trägt die Bytes nicht unverändert (Länge %d)", len(ev), len(got))
+		inspEvidenzImBody(t, "Evidenz", ev)
+	}
+	gueltig, utfFaelle := utfGueltigeFolgen(), 0
+	gleichAuf(t, "Zahl der gültigen Folgen und der Orte", []int{len(gueltig), len(utfOrte())}, []int{8, 4})
+	for _, b := range gueltig {
+		for _, ort := range utfOrte() {
+			utfFaelle++
+			inspEvidenzImBody(t, "UTF-8 gültig", ort(utfStellen()[1](string(b))))
 		}
 	}
+	gleichAuf(t, "Fälle von M-UTF-8 gültig", utfFaelle, 32)
 	var es []inbound.CoverageEintrag
 	var js []string
 	for n := 1; n <= 3; n++ {
@@ -336,6 +605,29 @@ func TestI12Coverage(t *testing.T) {
 	}
 }
 
+// TestI12LeerraumAmRand hält „mit denselben Bytes“ (SPEC-293 Nr. 7) für Leerraum am Rand der Evidenz, den json.Valid zulässt. M-Rand:
+// jede der 17 gültigen Formen von inspEvidenzen mal 3 Positionen (am Anfang, am Ende, an beiden Rändern) mal 5 Folgen von Leerraum
+// (Leerzeichen, Tab, LF, CR und `CR LF Tab Leerzeichen`) gleich 255 Evidenzen, je an 4 Stellen der Liste (allein, erster, mittlerer,
+// letzter von drei Einträgen) gleich 1020 Requests; Orakel: der Body gleich dem Literal mit dem Leerraum darin.
+func TestI12LeerraumAmRand(t *testing.T) {
+	formen, raender := inspEvidenzen(), []string{" ", "\t", "\n", "\r", "\r\n\t "}
+	gleichAuf(t, "Zahl der Formen und Ränder", []int{len(formen), len(raender)}, []int{17, 5})
+	evidenzen, faelle := 0, 0
+	for _, ev := range formen {
+		for _, r := range raender {
+			for _, mit := range []string{r + ev, ev + r, r + ev + r} {
+				evidenzen++
+				g1, g3 := `{"n":1}`, `{"n":3}`
+				for _, liste := range [][]string{{mit}, {mit, g1, g3}, {g1, mit, g3}, {g1, g3, mit}} {
+					faelle++
+					inspEvidenzImBody(t, "Leerraum am Rand", liste...)
+				}
+			}
+		}
+	}
+	gleichAuf(t, "Evidenzen und Requests", []int{evidenzen, faelle}, []int{255, 1020})
+}
+
 // inspUngueltigeEvidenzen sind die Formen von M-Evidenz ungültig (SPEC-293 Nr. 7): die 4 des Plans (leer, `{`, `{} {}`, `x`) und
 // die Klasse „kein gültiges JSON“ aus der Grammatik: jedes echte Anfangsstück eines Dokuments (abgeschnitten), das Dokument
 // zweimal (mit und ohne Leerraum dazwischen), mit Text dahinter und mit einem BOM davor.
@@ -346,6 +638,27 @@ func inspUngueltigeEvidenzen() []string {
 		out = append(out, dok[:i])
 	}
 	return append(out, dok+dok, dok+" "+dok, dok+" x", dok+"x", string([]byte{0xEF, 0xBB, 0xBF})+dok, " ", `{"a":1,}`, `[1,]`)
+}
+
+// inspUngueltigerEintrag prüft die Liste es, die einen Eintrag mit ungültiger Evidenz trägt (ein Canary steht in ihm): 500
+// `ODR-E9001` ohne einen Teil der Antwort, genau ein Zählen, kein Audit, der Fehler des Handlers nennt UTF-8 und keinen Wert, zwei Aufrufe
+// von Coverage (Request und Handler).
+func inspUngueltigerEintrag(t *testing.T, name string, es []inbound.CoverageEintrag) {
+	t.Helper()
+	u, f, routen := inspUmgebung(t)
+	f.eintraege = es
+	rec := u.rufe(inspReq(inspCoverage, "baseline_id=b"))
+	pruefeFehlerAntwort(t, name, rec, 500, objekt500, "")
+	if codes, _ := zaehlungenVon(u.tele); !slices.Equal(codes, []string{"ODR-E9001"}) || u.audit.Aufrufe() != 0 {
+		t.Errorf("%s: CountError %q, %d Aufrufe von Audit", name, codes, u.audit.Aufrufe())
+	}
+	ant, err := routen[1].Handler(context.Background(), admin.Anfrage{RawQuery: "baseline_id=b"})
+	if err == nil || ant.Status != 0 || len(ant.Body) != 0 || strings.Contains(err.Error(), canary()) || !strings.Contains(err.Error(), "UTF-8") {
+		t.Errorf("%s: Handler liefert Fehler %v und Antwort %d %q (der Text nennt UTF-8 und keinen Wert)", name, err, ant.Status, ant.Body)
+	}
+	if n := f.zahlen(); n[inspOpCoverage] != 2 || n[inspOpExchanges] != 0 || n[inspOpDiagnose] != 0 {
+		t.Errorf("%s: Zähler %v, erwartet 2 Aufrufe von Coverage", name, n)
+	}
 }
 
 // TestI13UngueltigeEvidenz hält I13 (SPEC-293 Nr. 7): jede ungültige Evidenz ist 500 `ODR-E9001` ohne einen Teil der Antwort, an
@@ -361,23 +674,44 @@ func TestI13UngueltigeEvidenz(t *testing.T) {
 		schlecht, _ := inspEintrag(2, ev)
 		for i, es := range [][]inbound.CoverageEintrag{{schlecht}, {schlecht, gut1, gut3}, {gut1, schlecht, gut3}, {gut1, gut3, schlecht}} {
 			faelle++
-			u, f, routen := inspUmgebung(t)
-			f.eintraege = es
-			rec := u.rufe(inspReq(inspCoverage, "baseline_id=b"))
-			pruefeFehlerAntwort(t, "Evidenz Nr. "+strconv.Itoa(i), rec, 500, objekt500, "")
-			if codes, _ := zaehlungenVon(u.tele); !slices.Equal(codes, []string{"ODR-E9001"}) || u.audit.Aufrufe() != 0 {
-				t.Errorf("Evidenz Nr. %d: CountError %q, %d Aufrufe von Audit", i, codes, u.audit.Aufrufe())
-			}
-			ant, err := routen[1].Handler(context.Background(), admin.Anfrage{RawQuery: "baseline_id=b"})
-			if err == nil || ant.Status != 0 || len(ant.Body) != 0 || strings.Contains(err.Error(), canary()) {
-				t.Errorf("Evidenz Nr. %d: Handler liefert Fehler %v und Antwort %d %q", i, err, ant.Status, ant.Body)
-			}
-			if n := f.zahlen(); n[inspOpCoverage] != 2 || n[inspOpExchanges] != 0 || n[inspOpDiagnose] != 0 {
-				t.Errorf("Evidenz Nr. %d: Zähler %v, erwartet 2 Aufrufe von Coverage", i, n)
-			}
+			inspUngueltigerEintrag(t, "Evidenz Nr. "+strconv.Itoa(i), es)
 		}
 	}
 	gleichAuf(t, "Fälle", faelle, (4+21+8+1)*4)
+}
+
+// TestI13UngueltigesUTF8 hält I13 für die Menge *UTF-8 der Evidenz* (SPEC-293 Nr. 7): gültiges JSON mit einem Byte oder einer Folge, die
+// kein UTF-8 ist, ist 500 `ODR-E9001` wie jede ungültige Evidenz. Achsen: *Folge* (jedes der 128 Bytes 0x80 bis 0xFF allein und 6 Folgen
+// jenseits der Grenze, 134) mal *Stelle in der Zeichenkette* (Anfang, Mitte, Ende, 3) mal *Ort im JSON* (Wert, Schlüssel, Element
+// eines Arrays, Wurzel, 4) gleich 1608 Einträge allein in der Liste; *Stelle in der Liste*: die Vertreter `0x80`, `0xFF`, `C0 80`,
+// `ED A0 80`, `F4 90 80 80` je als erster, mittlerer, letzter von drei Einträgen gleich 15. Die Bytes entstehen aus Bytewerten; das Orakel
+// sind Status, Code und Body als Literale, nie eine Prüfung auf UTF-8.
+func TestI13UngueltigesUTF8(t *testing.T) {
+	folgen := utfUngueltigeFolgen()
+	gleichAuf(t, "Zahl der Folgen, Stellen und Orte", []int{len(folgen), len(utfStellen()), len(utfOrte())}, []int{128 + 6, 3, 4})
+	faelle := 0
+	for _, b := range folgen {
+		for _, stelle := range utfStellen() {
+			for _, ort := range utfOrte() {
+				faelle++
+				schlecht, _ := inspEintrag(2, ort(stelle(string(b))))
+				inspUngueltigerEintrag(t, "UTF-8 ungültig", []inbound.CoverageEintrag{schlecht})
+			}
+		}
+	}
+	gleichAuf(t, "Fälle allein in der Liste", faelle, 1608)
+	gut1, _ := inspEintrag(1, `{"n":1}`)
+	gut3, _ := inspEintrag(3, `{"n":3}`)
+	vertreter := [][]byte{{0x80}, {0xFF}, {0xC0, 0x80}, {0xED, 0xA0, 0x80}, {0xF4, 0x90, 0x80, 0x80}}
+	faelle = 0
+	for _, b := range vertreter {
+		schlecht, _ := inspEintrag(2, utfOrte()[0](utfStellen()[1](string(b))))
+		for _, es := range [][]inbound.CoverageEintrag{{schlecht, gut1, gut3}, {gut1, schlecht, gut3}, {gut1, gut3, schlecht}} {
+			faelle++
+			inspUngueltigerEintrag(t, "UTF-8 ungültig in der Liste", es)
+		}
+	}
+	gleichAuf(t, "Fälle in der Liste", faelle, 15)
 }
 
 // TestI14Diagnose hält I14 (SPEC-293 Nr. 8): `diagnostics` antwortet 200 mit `mode`, `settings` (Schlüssel aufsteigend nach den

@@ -1,6 +1,8 @@
 package admin_test
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -12,6 +14,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
+	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 )
 
@@ -460,4 +464,30 @@ func TestI9Baseline(t *testing.T) {
 		t.Errorf("Schlüssel in Prozentschreibweise: Aufruf mit %q", a.id)
 	}
 	gleichAuf(t, "Werte, Fälle je Byte", []int{len(werte), faelle}, []int{9, 1024})
+}
+
+// TestI5FehlertextOhneWert hält „der Text nennt keinen Wert“ (SPEC-292 Nr. 8) für den Fehler jedes Verstoßes der Query: der Handler liefert
+// model.ErrUngueltig, und kein Text des Fehlers (`%v`, `%+v`, `%#v`) enthält den Wert der Query, den Teil, den die Zerlegung oder die
+// Zahl in ihrem Text nennen würde (`%zz`, die Ziffernfolge eines Überlaufs), oder den Canary. Menge: die Formen des Verstoßes
+// (unzerlegbar, Zahl ungültig, Überlauf, doppelt) mit dem Wert an jeder Stelle der Form: 9 bei `exchanges`, 5 bei `coverage`.
+func TestI5FehlertextOhneWert(t *testing.T) {
+	c, ueber := canary(), strings.Repeat("9", 25)
+	faelle := []struct {
+		route       int
+		query, wert string
+	}{
+		{0, "limit=" + c, c}, {0, "after=" + c, c}, {0, "limit=1&limit=" + c, c}, {0, "after=" + c + "&after=1", c}, {0, "%zz" + c, "%zz"},
+		{0, c + "=%", c}, {0, "limit=" + ueber, ueber}, {0, "after=" + ueber, ueber}, {0, "limit=-" + c, c},
+		{1, "baseline_id=" + c + "&baseline_id=" + c, c}, {1, "baseline_id=" + c + "&%zz", "%zz"}, {1, "%zz" + c, "%zz"}, {1, "x=" + c + ";y", c},
+		{1, "baseline_id=" + c + "&baseline_id", c},
+	}
+	_, _, routen := inspUmgebung(t)
+	for _, f := range faelle {
+		_, err := routen[f.route].Handler(context.Background(), admin.Anfrage{RawQuery: f.query, Pfadwerte: map[string]string{"id": "s"}})
+		text := fmt.Sprintf("%v %+v %#v", err, err, err)
+		if err == nil || !errors.Is(err, model.ErrUngueltig) || strings.Contains(text, c) || strings.Contains(text, f.wert) {
+			t.Errorf("Query %q: Fehler %q, erwartet model.ErrUngueltig ohne den Wert %q", f.query, text, f.wert)
+		}
+	}
+	gleichAuf(t, "Fälle", len(faelle), 14)
 }

@@ -53,7 +53,7 @@ func (h inspektionHandler) exchanges(ctx context.Context, a Anfrage) (Antwort, e
 }
 
 // coverage liest baseline_id (SPEC-293 Nr. 3, 5), ruft Coverage mit dem ctx des Handlers und schreibt die Einträge (Nr. 7);
-// eine Evidenz, die kein gültiges JSON ist, ist ein Fehler ohne Code und keine Teilantwort.
+// eine Evidenz, die kein gültiges JSON in gültigem UTF-8 ist, ist ein Fehler ohne Code und keine Teilantwort.
 func (h inspektionHandler) coverage(ctx context.Context, a Anfrage) (Antwort, error) {
 	baselineID, err := leseBaselineID(a.RawQuery)
 	if err != nil {
