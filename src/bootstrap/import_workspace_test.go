@@ -90,8 +90,9 @@ func TestImportErhaeltWerte(t *testing.T) {
 	_, istCsdl := got.MetadatenCodec.(*csdl.Leser)
 	_, istJSON := got.DatenCodec.(*jsoncodec.Leser)
 	dieselbe := map[string]bool{
-		"Dienste": reflect.DeepEqual(got.Dienste, []baselineimport.Dienst{
-			{ID: "x1", UpstreamURL: "http://u1.test/o"}, {ID: "x2", UpstreamURL: "http://u2.test/o"}}),
+		"Dienste": len(got.Dienste) == 2 &&
+			got.Dienste[0].ID == "x1" && got.Dienste[0].UpstreamURL == "http://u1.test/o" && got.Dienste[0].Codecs != nil && got.Dienste[0].Codecs.Version == "4.0" &&
+			got.Dienste[1].ID == "x2" && got.Dienste[1].UpstreamURL == "http://u2.test/o" && got.Dienste[1].Codecs != nil && got.Dienste[1].Codecs.Version == "4.0",
 		"Sessions":       istSessions,
 		"Exchanges":      istRecording,
 		"Blobs":          istWaechter && got.Blobs == h.pipeline.Blobs && got.Blobs == h.wartung.Blobs,

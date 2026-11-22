@@ -1,6 +1,5 @@
 ODR-E2101 | Admin-Authentisierung: das Binary startet keinen Admin-Listener
 ODR-E2102 | Admin-Anfrage ungültig: das Binary startet keinen Admin-Listener
-ODR-E6006 | nur ein Dienst mit odata_version 2.0 erreicht den Code, das Binary legt keinen solchen Dienst an
 ODR-E6101 | Baseline-Import: das Binary hat keinen Aufruf dafür, ihn stößt nur die Admin-API an
 ODR-E6102 | Baseline-Import: das Binary hat keinen Aufruf dafür, ihn stößt nur die Admin-API an
 ODR-E7002 | Snapshots verwaltet nur die Admin-API, das Binary hat sie nicht

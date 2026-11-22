@@ -48,6 +48,9 @@ func ListenTLSPraefix() string { return listenTLSPraefix() }
 // SatzVersion4 ist der Satz der Codecs der Version 4.0 des Mock.
 func SatzVersion4() outbound.CodecSatz { return satzVersion4() }
 
+// SatzTabelle ist die Tabelle Version → Satz des Root (SPEC-139 Nr. 11 b).
+func SatzTabelle() map[string]outbound.CodecSatz { return satzTabelle() }
+
 // Die Naht der Tests: Das Testpaket bootstrap_test setzt die Haken von Bauteile und ruft Start und
 // Build mit ihnen; der Betrieb nutzt standardBauteile.
 

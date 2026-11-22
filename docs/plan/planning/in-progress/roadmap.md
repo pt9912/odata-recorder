@@ -16,11 +16,11 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-v2-bootstrap](slice-v2-bootstrap.md) ([welle-odata-v2](../welle-odata-v2.md), Teil A des Schnitts: Konfiguration, Anlage und Wahl des Satzes je Service-Version im Composition Root, Zeilen der Kataloge).
-
 In Arbeit: [slice-admin-imports](slice-admin-imports.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `POST /__admin/imports` und `GET /__admin/imports/{id}`, Body, Antworten, Fehlerabbildung und Import-Autorisierung).
 
 In Arbeit: [slice-admin-workspaces](slice-admin-workspaces.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `WorkspaceRouten` mit acht Routen für Workspaces und Snapshots, die drei Bodys, Antworten, JSON, Fehlerabbildung und Authentisierung).
+
+In Arbeit: [slice-telemetry-einbau-replay](slice-telemetry-einbau-replay.md) ([welle-betrieb](../welle-betrieb.md), Teil 2 des Schnitts von [slice-telemetry-einbau-gateway](../done/slice-telemetry-einbau-gateway.md): Match-Span `odata.replay.match` im Replay-Dienst und ein Adapter der Telemetrie je Prozess in `replay` und `hybrid`).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.

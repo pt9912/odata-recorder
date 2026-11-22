@@ -17,7 +17,7 @@ import (
 const maxServicesFile = 1 << 20
 
 // felderDienst sind die Felder eines Eintrags der SERVICES_FILE.
-func felderDienst() []string { return []string{"id", "service_root", "upstream_url"} }
+func felderDienst() []string { return []string{"id", "service_root", "upstream_url", feldVersion} }
 
 // liesTLS prüft die Widersprüche der Zertifikatsprüfung (SPEC-110 Nr. 10); ein formal ungültiger
 // Wert meldet nur seine Form und nimmt am Zusammenhang nicht teil.
@@ -55,7 +55,7 @@ func (p *pruefer) liesDienste(k *Konfiguration) {
 	pflicht := upstreamPflicht(k)
 	datei, hatDatei := p.wert("SERVICES_FILE")
 	if hatDatei {
-		for _, schluessel := range []string{"SERVICE_ID", "SERVICE_ROOT_PATH", "UPSTREAM_URL"} {
+		for _, schluessel := range []string{"SERVICE_ID", "SERVICE_ROOT_PATH", "UPSTREAM_URL", schluesselVersion} {
 			if _, gesetzt := p.wert(schluessel); gesetzt {
 				p.melde(schluessel, "zugleich mit SERVICES_FILE gesetzt")
 			}
@@ -94,6 +94,8 @@ func (p *pruefer) einzelDienst(pflicht string) Dienst {
 		}
 	}
 	d.UpstreamURL = p.upstreamURL("UPSTREAM_URL", p.env["UPSTREAM_URL"], pflicht)
+	w, _ := p.wert(schluesselVersion)
+	d.Version = p.liesVersion(schluesselVersion, w)
 	return d
 }
 
@@ -199,6 +201,9 @@ func (p *pruefer) dateiEintrag(i int, roh json.RawMessage, pflicht string) Diens
 	}
 	if w, ok := text("upstream_url"); ok {
 		d.UpstreamURL = p.upstreamURL(eintrag+".upstream_url", w, pflicht)
+	}
+	if w, ok := text(feldVersion); ok {
+		d.Version = p.liesVersion(eintrag+"."+feldVersion, w)
 	}
 	return d
 }
