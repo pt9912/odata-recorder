@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -339,7 +340,17 @@ func fehlerFaelle() []fehlerFall {
 	e9001 := func(name string, tu httpodata.Verarbeiter) fehlerFall {
 		return fehlerFall{name: name, tu: tu, code: model.CodeE9001, status: 500}
 	}
+	// Die Achse „Stelle des typisierten nil-Zeigers im Baum“ (SPEC-136 Nr. 7 a): der nil-Zeiger gilt nicht und wird nicht entpackt; was neben
+	// ihm steht, gilt wie ohne ihn (ein gültiger Fehler gilt, sonst ODR-E9001).
+	var nz *inbound.Fehler
+	gueltig := &inbound.Fehler{Code: model.CodeE6010, Status: 412}
 	fs = append(fs,
+		e9001("nil-Zeiger allein", fehlerMit(nz)),
+		e9001("nil-Zeiger verpackt", fehlerMit(fmt.Errorf("Dienst: %w", nz))),
+		fehlerFall{name: "nil-Zeiger als Ursache", tu: fehlerMit(&inbound.Fehler{Code: model.CodeE6010, Status: 412, Ursache: nz}), code: model.CodeE6010, status: 412},
+		fehlerFall{name: "Join nil-Zeiger vor gültigem", tu: fehlerMit(errors.Join(nz, gueltig)), code: model.CodeE6010, status: 412},
+		fehlerFall{name: "Join gültiger vor nil-Zeiger", tu: fehlerMit(errors.Join(gueltig, nz)), code: model.CodeE6010, status: 412},
+		e9001("Join nil-Zeiger und anderer Fehler", fehlerMit(errors.Join(nz, errors.New("roh")))),
 		e9001("ODR-E2001 ohne Status", fehlerMit(&inbound.Fehler{Code: model.CodeE2001, Status: 500})),
 		e9001("ODR-E2401 ohne Status", fehlerMit(&inbound.Fehler{Code: model.CodeE2401, Status: 500})),
 		e9001("Code 0", fehlerMit(&inbound.Fehler{Code: 0, Status: 500})),
@@ -358,16 +369,16 @@ func fehlerFaelle() []fehlerFall {
 }
 
 // TestFehlerzaehlerJederFall hält G9 (SPEC-294 Nr. 5): jedes Fehlerobjekt zählt genau einmal, mit dem Code des geschriebenen Objekts, in der
-// Folge CountError, Set, End, WriteHeader. 42 Paare aus Code und Status und 15 weitere Fälle gleich 57, je mit jeder der 14 Methoden (798
-// Läufe; bei HEAD entfällt der Body); die 41 Codes zählt der Test gegen model.AlleCodes(), die 42 Paare sind Handkopie von SPEC-109 Nr. 2. Der Fall eines typisierten nil-Zeigers `*inbound.Fehler` fehlt: der
-// Adapter kommt nicht zu ihm, `errors.Is` ruft `Unwrap` am nil-Empfänger und gerät in Panik (§6 des Plans, Adresse Architect).
+// Folge CountError, Set, End, WriteHeader. 42 Paare aus Code und Status und 21 weitere Fälle gleich 63 (darunter 6 Stellen eines typisierten
+// nil-Zeigers `*inbound.Fehler` im Fehlerbaum), je mit jeder der 14 Methoden (882 Läufe; bei HEAD entfällt der Body); die 41 Codes zählt der Test
+// gegen model.AlleCodes(), die 42 Paare sind Handkopie von SPEC-109 Nr. 2.
 func TestFehlerzaehlerJederFall(t *testing.T) {
 	fs := fehlerFaelle()
 	if n := len(model.AlleCodes()); n != 41 {
 		t.Fatalf("%d Codes, erwartet 41", n)
 	}
-	if len(fs) != 57 {
-		t.Fatalf("%d Fälle, erwartet 57 (42 Paare und 15 weitere)", len(fs))
+	if len(fs) != 63 {
+		t.Fatalf("%d Fälle, erwartet 63 (42 Paare und 21 weitere)", len(fs))
 	}
 	for _, f := range fs {
 		for _, m := range methodenSatz() {
@@ -397,24 +408,93 @@ func TestFehlerzaehlerJederFall(t *testing.T) {
 }
 
 // TestKeinZaehlerFuerKeinFehlerobjekt hält G10 (SPEC-294 Nr. 5, 7 e): was kein Fehlerobjekt des Adapters ist, zählt nicht: der Kontextfehler
-// ohne Code (3), der Lesefehler und der Schreibfehler nach dem Kopf (2) und die Antwort des Dienstes mit Status 404, 500 und 599 (3), 8 Fälle.
+// ohne Code (3), daneben ein nil-Zeiger `*inbound.Fehler` vor und hinter dem Kontextfehler im Join (2; der nil-Zeiger ändert die Wertung nicht,
+// SPEC-136 Nr. 7 a), der Lesefehler und der Schreibfehler nach dem Kopf (2) und die Antwort des Dienstes mit Status 404, 500 und 599 (3), 10
+// Fälle mit jeder der 14 Methoden (140 Läufe): kein Zähler, bei den fünf Kontextfällen auch kein Fehlerobjekt (kein WriteHeader).
 func TestKeinZaehlerFuerKeinFehlerobjekt(t *testing.T) {
 	var faelle []weg
 	for _, i := range []int{9, 10, 11, 12, 13} {
 		faelle = append(faelle, wegMitMethoden(i)...)
+	}
+	var nz *inbound.Fehler
+	for _, m := range methodenSatz() {
+		faelle = append(faelle,
+			weg{name: "Join nil-Zeiger vor Canceled", methode: m, tu: fehlerMit(errors.Join(nz, context.Canceled)), abbruch: true},
+			weg{name: "Join Canceled vor nil-Zeiger", methode: m, tu: fehlerMit(errors.Join(context.Canceled, nz)), abbruch: true})
 	}
 	for _, s := range []int{404, 500, 599} {
 		for _, m := range methodenSatz() {
 			faelle = append(faelle, weg{name: "Antwort " + strconv.Itoa(s), methode: m, tu: antwortMit(s, leer()), status: s})
 		}
 	}
-	if len(faelle) != 8*14 {
-		t.Fatalf("%d Fälle, erwartet 112 (8 × 14 Methoden)", len(faelle))
+	if len(faelle) != 10*14 {
+		t.Fatalf("%d Fälle, erwartet 140 (10 × 14 Methoden)", len(faelle))
 	}
 	for _, f := range faelle {
-		p, _, _ := lauf(t, "record", f)
+		p, jw, abbruch := lauf(t, "record", f)
 		if got := zaehlerFolge(p.tel.FakeTelemetry); len(got) != 0 {
 			t.Errorf("%s %s: CountError %v, erwartet keinen Aufruf", f.name, f.methode, got)
+		}
+		if abbruch != f.abbruch || jw.status != f.status {
+			t.Errorf("%s %s: Abbruch %v, Status %d; erwartet %v und %d", f.name, f.methode, abbruch, jw.status, f.abbruch, f.status)
+		}
+	}
+}
+
+// isFehler ist ein Fehler, der nach seiner Methode Is der Kontextfehler context.DeadlineExceeded ist.
+type isFehler struct{}
+
+func (isFehler) Error() string { return "Is" }
+
+func (isFehler) Is(ziel error) bool { return ziel == context.DeadlineExceeded }
+
+// asFehler ist ein Fehler, dessen Methode As den *inbound.Fehler f setzt (ein nil-Zeiger gilt nicht) oder, mit nein, nichts setzt.
+type asFehler struct {
+	f    *inbound.Fehler
+	nein bool
+}
+
+func (asFehler) Error() string { return "As" }
+
+func (a asFehler) As(ziel any) bool {
+	p, ok := ziel.(**inbound.Fehler)
+	if !ok || a.nein {
+		return false
+	}
+	*p = a.f
+	return true
+}
+
+// TestFehlerbaumFolgtIsUndAs hält SPEC-136 Nr. 7 a (die Suche folgt errors.Is und errors.As): die Methode Is eines Fehlers macht ihn zum
+// Kontextfehler (Abbruch, kein Zähler), die Methode As liefert den *inbound.Fehler (gilt), liefert einen nil-Zeiger oder verneint (dann gilt
+// der Fall ohne ihn: ODR-E9001); je mit jeder der 14 Methoden.
+func TestFehlerbaumFolgtIsUndAs(t *testing.T) {
+	gueltig := &inbound.Fehler{Code: model.CodeE6010, Status: 412}
+	faelle := []struct {
+		name    string
+		err     error
+		abbruch bool
+		code    model.Code
+		status  int
+	}{
+		{"Is liefert den Kontextfehler", fmt.Errorf("Dienst: %w", isFehler{}), true, 0, 0},
+		{"As liefert den gültigen Fehler", asFehler{f: gueltig}, false, model.CodeE6010, 412},
+		{"As liefert einen nil-Zeiger", asFehler{f: nil}, false, model.CodeE9001, 500},
+		{"As verneint", asFehler{nein: true}, false, model.CodeE9001, 500},
+	}
+	for _, f := range faelle {
+		for _, m := range methodenSatz() {
+			p := neuProbe(t, "record", fehlerMit(f.err))
+			jw := neuJWriter(p.j)
+			abbruch := p.ruf(jw, jRequest(context.Background(), m, "/p"))
+			var soll []model.Code
+			if f.code != 0 {
+				soll = []model.Code{f.code}
+			}
+			gleich(t, f.name+" "+m+": Zähler", zaehlerFolge(p.tel.FakeTelemetry), soll)
+			if abbruch != f.abbruch || jw.status != f.status {
+				t.Errorf("%s %s: Abbruch %v, Status %d; erwartet %v und %d", f.name, m, abbruch, jw.status, f.abbruch, f.status)
+			}
 		}
 	}
 }
