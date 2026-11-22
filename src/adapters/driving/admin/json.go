@@ -37,6 +37,13 @@ type sessionListeJSON struct {
 	Sessions []sessionJSON `json:"sessions"`
 }
 
+// loeschberichtJSON ist der Body von `DELETE /__admin/sessions/{id}`: die zwei Felder von inbound.Loeschbericht in der Folge
+// des Vertrags (SPEC-292 Nr. 10).
+type loeschberichtJSON struct {
+	BlobsRemoved    int  `json:"blobs_removed"`
+	CleanupDeferred bool `json:"cleanup_deferred"`
+}
+
 // sessionAus bildet die Session des Dienstes ab, ohne ein Feld zu prüfen oder zu ändern.
 func sessionAus(s model.Session) sessionJSON {
 	return sessionJSON{ID: s.ID, ServiceID: s.ServiceID, CreatedAt: zeitJSON(s.CreatedAt), Status: string(s.Status)}

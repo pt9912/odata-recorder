@@ -24,9 +24,12 @@ func portFehlt(was string) error {
 	return errors.Join(model.ErrUngueltig, errors.New("admin: SessionRouten: "+was+" fehlt"))
 }
 
-// SessionRouten liefert die Routen der Sessions in der Folge von SPEC-292 Nr. 1: `GET` und `POST /__admin/sessions`.
-// Die Funktion ruft keinen Port und startet keine Goroutine; sie liefert model.ErrUngueltig und keine Routen bei einem
-// nil-Wert.
+// pfadID ist der Name des Parameters `{id}` der Muster von `close` und `DELETE` (SPEC-292 Nr. 4).
+const pfadID = "id"
+
+// SessionRouten liefert die vier Routen der Sessions in der Folge von SPEC-292 Nr. 1: `GET` und `POST /__admin/sessions`,
+// `POST /__admin/sessions/{id}/close` und `DELETE /__admin/sessions/{id}`. Die Funktion ruft keinen Port und startet keine
+// Goroutine; sie liefert model.ErrUngueltig und keine Routen bei einem nil-Wert.
 func SessionRouten(sessions inbound.SessionUseCase, audit support.AuditLog) ([]Route, error) {
 	switch {
 	case sessions == nil:
@@ -38,6 +41,8 @@ func SessionRouten(sessions inbound.SessionUseCase, audit support.AuditLog) ([]R
 	return []Route{
 		{Methode: http.MethodGet, Muster: sessionsPfad, Handler: h.liste},
 		{Methode: http.MethodPost, Muster: sessionsPfad, Handler: h.anlege},
+		{Methode: http.MethodPost, Muster: sessionsPfad + "/{" + pfadID + "}/close", Handler: h.beende},
+		{Methode: http.MethodDelete, Muster: sessionsPfad + "/{" + pfadID + "}", Handler: h.loesche},
 	}, nil
 }
 

@@ -31,14 +31,18 @@ func scheiternde(t *testing.T) map[string]*aufbau {
 
 // A16: je Stelle des Scheiterns × Art genau ein Log-Eintrag mit festem Text und den Schlüsseln der
 // Spezifikation (Soll-Objekt exakt), ohne Fehlertext, Pfad und die Felder import_id, error_code
-// und KorrelationsID des Eintrags.
+// und KorrelationsID des Eintrags. Die Arten sind die von support.Arten() (7), nicht eine Liste des Tests: jede Art trägt
+// in ihrer Zeile des Logs genau die Kennungen, die ihr Eintrag trägt.
 func TestLogBeiFehler(t *testing.T) {
-	arten := []support.AuditArt{support.ArtSessionGeloescht, support.ArtSessionAufbewahrung, support.ArtWorkspaceGeloescht, support.ArtImportFehlgeschlagen}
+	var arten []support.AuditArt
+	for _, s := range support.Arten() {
+		arten = append(arten, s.Art)
+	}
 	paare := 0
 	for stelle := range scheiternde(t) {
 		for _, art := range arten {
 			a := scheiternde(t)[stelle]
-			e := gueltig(art)
+			e := gueltigAlle(art)
 			e.KorrelationsID = "korr-canary"
 			err := a.d.Append(e)
 			if err == nil {
@@ -67,8 +71,8 @@ func TestLogBeiFehler(t *testing.T) {
 			}
 		}
 	}
-	if paare != 3*4 {
-		t.Errorf("%d Paare, erwartet 12", paare)
+	if paare != 3*7 || len(arten) != 7 {
+		t.Errorf("%d Paare aus %d Arten, erwartet 21 aus 7", paare, len(arten))
 	}
 }
 

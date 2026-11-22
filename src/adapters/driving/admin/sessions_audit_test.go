@@ -90,12 +90,14 @@ func TestS14AppendFehler(t *testing.T) {
 
 // TestS16RahmenSchreibtDasAbweisen hält S16 am Verhalten (SPEC-238 Nr. 15 b): liefert der Dienst einen `*inbound.Fehler` mit
 // `ODR-E2101` und 401, schreibt der Rahmen genau einen Eintrag `admin_abgewiesen` und zählt genau einmal; die Route fügt
-// weder einen zweiten Eintrag noch eine zweite Zählung noch einen Eintrag `session_angelegt` hinzu (beide Routen).
+// weder einen zweiten Eintrag noch eine zweite Zählung noch einen Eintrag `session_angelegt` oder `session_beendet` hinzu
+// (alle vier Routen, Pflicht b von SPEC-238 Nr. 15).
 func TestS16RahmenSchreibtDasAbweisen(t *testing.T) {
-	for _, route := range []string{"GET", "POST"} {
+	for _, vr := range vierRouten() {
+		route := vr.name
 		u, fake, _ := sessionsUmgebung(t)
 		fake.err = &inbound.Fehler{Code: model.CodeE2101, Status: 401}
-		rec := u.rufe(sessionsReq(route, "", nil, strings.NewReader(postGut)))
+		rec := u.rufe(reqFuer(route, postGut))
 		pruefeFehlerAntwort(t, route, rec, 401, objekt401, "")
 		korr := rec.Header().Get("X-Correlation-Id")
 		gleichAuf(t, route+": Einträge", u.audit.Eintraege(),
@@ -107,12 +109,14 @@ func TestS16RahmenSchreibtDasAbweisen(t *testing.T) {
 }
 
 // TestS16ErfolgsstatusUndBody hält SPEC-238 Nr. 15 d am Handler: der Status einer Erfolgsantwort liegt von 200 bis 299, das
-// JSON steht als `Antwort.Body`.
+// JSON steht als `Antwort.Body`, bei allen vier Routen.
 func TestS16ErfolgsstatusUndBody(t *testing.T) {
-	for i, soll := range []int{200, 201} {
+	for i, soll := range []int{200, 201, 200, 200} {
 		_, fake, routen := sessionsUmgebung(t)
 		fake.session, fake.sessionen = sessionA(), []model.Session{sessionA()}
-		ant, err := routen[i].Handler(context.Background(), admin.Anfrage{Body: strings.NewReader(postGut), KorrelationsID: "cor-1"})
+		ant, err := routen[i].Handler(context.Background(), admin.Anfrage{
+			Body: strings.NewReader(postGut), KorrelationsID: "cor-1", Pfadwerte: map[string]string{"id": "ses-pfad"},
+		})
 		if err != nil || ant.Status != soll || len(ant.Body) == 0 {
 			t.Errorf("Route %d: Status %d, Body %q, Fehler %v, erwartet %d und einen Body", i, ant.Status, ant.Body, err, soll)
 		}
@@ -133,7 +137,13 @@ func neuerTreffpunkt(ziel int) *treffpunkt {
 	return &treffpunkt{ziel: int64(ziel), zu: make(chan struct{})}
 }
 
+// halt wartet höchstens 10 s auf den Treffpunkt; ist er einmal verpasst, kehrt jeder weitere Aufruf sofort zurück, damit eine
+// Sperre über dem Aufruf nicht je Request eine eigene Frist kostet (der Test prüft verpasst nach der Runde und endet dann mit
+// Fatalf).
 func (p *treffpunkt) halt() {
+	if p.verpasst.Load() {
+		return
+	}
 	if p.n.Add(1) == p.ziel {
 		p.einmal.Do(func() { close(p.zu) })
 	}
@@ -230,7 +240,7 @@ func TestN1GleichzeitigeRequests(t *testing.T) {
 		})
 		for name, p := range map[string]*treffpunkt{"GET": pGet, "POST": pPost} {
 			if p.verpasst.Load() || p.n.Load() != n {
-				t.Errorf("Runde %d %s: nicht alle %d Requests waren zugleich im Aufruf des Dienstes (%d Aufrufe)", r, name, n, p.n.Load())
+				t.Fatalf("Runde %d %s: nicht alle %d Requests waren zugleich im Aufruf des Dienstes (%d Aufrufe): eine Sperre hält sie auseinander", r, name, n, p.n.Load())
 			}
 		}
 		for i := range n {

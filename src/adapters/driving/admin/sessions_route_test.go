@@ -19,7 +19,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
 )
 
-// TestS1Konstruktor hält S1 (SPEC-292 Nr. 1): der Gutfall liefert genau die zwei Routen in der Folge des Vertrags, ein
+// TestS1Konstruktor hält S1 und B1 (SPEC-292 Nr. 1): der Gutfall liefert genau die vier Routen in der Folge des Vertrags, ein
 // nil-Port ist model.ErrUngueltig ohne Routen und ohne Wert im Text (der andere Port trägt einen Canary, den ein
 // Formatieren des Arguments in den Text brächte), und die Funktion ruft keinen Port; die Zahl der Goroutinen fängt eine
 // Goroutine, die bleibt, eine kurzlebige fängt allein die Quelle (TestS1S16QuelleDerRouten).
@@ -42,7 +42,10 @@ func TestS1Konstruktor(t *testing.T) {
 		}
 		got = append(got, [2]string{r.Methode, r.Muster})
 	}
-	gleichAuf(t, "Routen in der Folge des Vertrags", got, [][2]string{{"GET", "/__admin/sessions"}, {"POST", "/__admin/sessions"}})
+	gleichAuf(t, "Routen in der Folge des Vertrags", got, [][2]string{
+		{"GET", "/__admin/sessions"}, {"POST", "/__admin/sessions"},
+		{"POST", "/__admin/sessions/{id}/close"}, {"DELETE", "/__admin/sessions/{id}"},
+	})
 	if fake.gesamt() != 0 || audit.Aufrufe() != 0 {
 		t.Errorf("SessionRouten rief %d-mal den Dienst und %d-mal Audit, erwartet 0 und 0", fake.gesamt(), audit.Aufrufe())
 	}
@@ -114,26 +117,38 @@ func TestS2AufrufeUndKontext(t *testing.T) {
 	gleichAuf(t, "Zähler gleich Zahl der Operationen des Ports", int(opAnzahl), 7)
 }
 
-// TestS3Zuordnung hält S3 (SPEC-292 Nr. 1, SPEC-238 Nr. 2): M-Route, die eine Pfadform mal sieben Methoden: `GET` und `POST`
-// treffen, die fünf anderen sind 405 mit `Allow: GET, POST` und rufen den Dienst nie. Zählprüfung: die Pfadformen sind
-// die verschiedenen Muster der gelieferten Routen.
+// TestS3Zuordnung hält S3 und B1 (SPEC-292 Nr. 1, SPEC-238 Nr. 2): M-Route, drei Pfadformen mal sieben Methoden, 21 Fälle:
+// `GET` und `POST /__admin/sessions`, `POST …/{id}/close` und `DELETE …/{id}` treffen (4), die 17 anderen sind 405 mit dem
+// `Allow` der Pfadform (`GET, POST`; `DELETE`; `POST`, als Literale) und rufen den Dienst nie. Zählprüfung: die Pfadformen
+// sind die verschiedenen Muster der gelieferten Routen (3) und die Routen die vier der Liste.
 func TestS3Zuordnung(t *testing.T) {
 	methoden := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
-	treffer := 0
-	for _, m := range methoden {
-		u, fake, _ := sessionsUmgebung(t)
-		fake.session = sessionA()
-		rec := u.rufe(sessionsReq(m, "", nil, strings.NewReader(`{"service_id":"svc"}`)))
-		switch m {
-		case "GET", "POST":
-			treffer++
-			if rec.Code/100 != 2 || fake.gesamt() != 1 {
-				t.Errorf("%s: Status %d, %d Aufrufe des Dienstes", m, rec.Code, fake.gesamt())
+	formen := []struct {
+		pfad, allow string
+		treffer     map[string]sessionsOp
+	}{
+		{"/__admin/sessions", "GET, POST", map[string]sessionsOp{"GET": opList, "POST": opCreate}},
+		{"/__admin/sessions/ses-pfad", "DELETE", map[string]sessionsOp{"DELETE": opDelete}},
+		{"/__admin/sessions/ses-pfad/close", "POST", map[string]sessionsOp{"POST": opBeenden}},
+	}
+	faelle, treffer := 0, 0
+	for _, f := range formen {
+		for _, m := range methoden {
+			faelle++
+			u, fake, _ := sessionsUmgebung(t)
+			fake.session = sessionA()
+			rec := u.rufe(anfrageMit(m, f.pfad, nil, strings.NewReader(`{"service_id":"svc"}`)))
+			if op, ok := f.treffer[m]; ok {
+				treffer++
+				if rec.Code/100 != 2 {
+					t.Errorf("%s %s: Status %d", m, f.pfad, rec.Code)
+				}
+				fake.nurDiagonale(t, m+" "+f.pfad, op)
+				continue
 			}
-		default:
-			pruefeFehlerAntwort(t, m, rec, 405, objekt404, "GET, POST")
+			pruefeFehlerAntwort(t, m+" "+f.pfad, rec, 405, objekt404, f.allow)
 			if codes, _ := zaehlungenVon(u.tele); !slices.Equal(codes, []string{"ODR-E2102"}) || fake.gesamt() != 0 || u.audit.Aufrufe() != 0 {
-				t.Errorf("%s: CountError %q, %d Aufrufe des Dienstes, %d von Audit", m, codes, fake.gesamt(), u.audit.Aufrufe())
+				t.Errorf("%s %s: CountError %q, %d Aufrufe des Dienstes, %d von Audit", m, f.pfad, codes, fake.gesamt(), u.audit.Aufrufe())
 			}
 		}
 	}
@@ -142,7 +157,8 @@ func TestS3Zuordnung(t *testing.T) {
 	for _, r := range routen {
 		muster[r.Muster] = true
 	}
-	gleichAuf(t, "Fälle, Treffer, Pfadformen, Routen", []int{len(methoden), treffer, len(muster), len(routen)}, []int{7, 2, 1, 2})
+	gleichAuf(t, "Fälle, Treffer, Pfadformen, Routen", []int{faelle, treffer, len(muster), len(routen)}, []int{21, 4, len(formen), 4})
+	gleichAuf(t, "Pfadformen", len(muster), 3)
 }
 
 // zaehlLeser liest aus Bytes und zählt jeden Aufruf von Read.
