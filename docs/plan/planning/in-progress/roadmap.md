@@ -20,6 +20,8 @@ In Arbeit: [slice-v2-bootstrap](slice-v2-bootstrap.md) ([welle-odata-v2](../well
 
 In Arbeit: [slice-admin-imports](slice-admin-imports.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `POST /__admin/imports` und `GET /__admin/imports/{id}`, Body, Antworten, Fehlerabbildung und Import-Autorisierung).
 
+In Arbeit: [slice-admin-workspaces](slice-admin-workspaces.md) ([welle-admin-api](../welle-admin-api.md), Teil 1 des Schnitts: `WorkspaceRouten` mit acht Routen für Workspaces und Snapshots, die drei Bodys, Antworten, JSON, Fehlerabbildung und Authentisierung).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
