@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-einbau-gateway
+**Fund:** `tools/harness/mutationslauf.sh` fährt keine Mutation mit Test in `src/bootstrap` (die Nullprobe über das ganze Paket überschreitet die Zeitgrenze) und kennt je Mutation eine Ersetzung; der Implementer fuhr die 86 Einträge der Klasse `andere` (davon die Fänger der Zeilen G5, G6, G8, G12, G13 und G17 im Root) mit einem eigenen Einzellauf-Treiber außerhalb des Repos, Reviewer und Verifier bauten je einen eigenen Treiber (Plan `slice-telemetry-einbau-gateway` §3, Absatz *Zusagen, Mutationen und Raten*; Verifikation, Kopf).

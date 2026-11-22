@@ -1,8 +1,14 @@
 package httpodata
 
-import "time"
+import (
+	"net/http"
+	"time"
+)
 
 // GrenzenFuerTest liefert die Felder des http.Server, die SPEC-136 Nr. 11 festlegt.
 func (s *Server) GrenzenFuerTest() (kopf, leerlauf time.Duration, kopfGroesse int, lesen, schreiben time.Duration) {
 	return s.http.ReadHeaderTimeout, s.http.IdleTimeout, s.http.MaxHeaderBytes, s.http.ReadTimeout, s.http.WriteTimeout
 }
+
+// HandlerFuerTest liefert den Handler, den der Server je Request ruft; der Test ruft ihn ohne Verbindung.
+func (s *Server) HandlerFuerTest() http.Handler { return s.http.Handler }

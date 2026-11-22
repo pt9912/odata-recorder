@@ -23,7 +23,7 @@ func TestServeFehlerVorAnhalten(t *testing.T) {
 		}
 		ml := neuMeldeListener(raw)
 		hl := &haltListener{Listener: ml}
-		srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: hl})
+		srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: hl, Telemetrie: supporttest.NewFakeTelemetry(), Modus: "record"})
 		if err != nil {
 			t.Fatal(err)
 		}

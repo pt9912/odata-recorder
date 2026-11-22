@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-einbau-gateway
+**Fund:** Teil 1 des Schnitts überschreitet seine Marke 2600 nach dem Code: Messung 1877 am Handoff, 2023 am Nachtrag zum nil-Zeiger, 2696 am Ende der Fix-Runde (Auslastung 1,04, Ende ÷ Handoff 1,44), 2714 nach dem Merge von `main`; den Zuwachs tragen die Tests der Fix-Runde (673 Zeilen), der Produktcode liegt bei 175 Zeilen gegen die Erwartung 100 (66 davon die Suche im Fehlerbaum). Der Block trägt `ueberschreitung` mit *N* = 2800 und Grund, eine Rückführung gibt es nicht (`AGENTS.md` §3.14).
