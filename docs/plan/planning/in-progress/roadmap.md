@@ -16,11 +16,11 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-expand-validator](slice-expand-validator.md) ([welle-expand-batch](../welle-expand-batch.md), Validator von `$expand` gegen die Navigationen des Modells: `model.PruefeExpand` und `ExpandFehler`).
-
 In Arbeit: [slice-telemetry-einbau-gateway](slice-telemetry-einbau-gateway.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts: Gesamtspan `odata.gateway.request` und Zähler je Fehlercode im HTTP-Adapter, Übergabe des Adapters des Prozesses im Root).
 
 In Arbeit: [slice-admin-sessions-beenden](slice-admin-sessions-beenden.md) ([welle-admin-api](../welle-admin-api.md), Teil 2 des Schnitts: `POST /__admin/sessions/{id}/close` und `DELETE /__admin/sessions/{id}`, Audit `session_beendet`).
+
+In Arbeit: [slice-admin-inspektion](slice-admin-inspektion.md) ([welle-admin-api](../welle-admin-api.md), Teil 3 des Schnitts: `GET /__admin/sessions/{id}/exchanges`, `GET /__admin/coverage` und `GET /__admin/diagnostics`).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.

@@ -5,8 +5,8 @@ flach unter `docs/plan/planning/`; bei Closure wandert sie per `git mv` nach
 `done/` (neben ihre `welle-<Kennung>-results.md`). Der Zustand ist die
 Verzeichnis-Position — kein Status-Feld. Diese Welle ist vor ihrem Start angelegt
 (Entscheidung des Users vom 2026-10-30); bis ihr Trigger eintritt steht sie in der
-Roadmap unter *Nächste Wellen*. Ihre Slice-Dateien liegen seit
-2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten.
+Roadmap unter *Nächste Wellen*. Der Zustand eines Slice ist das Verzeichnis, in
+dem seine Datei liegt; die Links der Slice-Liste (§4) nennen es.
 
 **Zielmeilenstein:** kein Meilenstein-Bezug (Soll-Umfang, nicht Teil der Erstabnahme nach dem Lastenheft).
 
@@ -35,11 +35,11 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 - Die Reihenfolge nach den Muss-Wellen ist Priorisierung, keine Abhängigkeit; sie steht deshalb nicht im Trigger.
 
 **Trigger je Slice (Code-Abhängigkeit, Zusatz zum Trigger):** Der Trigger der Welle bleibt formal und gilt für den Abschluss.
-- `slice-batch-parser` hängt an keinem Code aus `welle-mock` (der Leser braucht Fehlermodell, Konvention der Codec-Ports und Modell, alle in `done/`); der Welle-Trigger ist für ihn Priorisierung, ein Start davor ist eine Entscheidung des Users.
-- `slice-expand-parser` braucht `slice-odata-url-pfad` aus `welle-mock` (Teil 1, reine Funktion), nicht `welle-mock` ganz; nennt der Architect `$filter` in verschachtelten Optionen, auch `slice-odata-url-filter` und `slice-edm-ausdruecke`.
-- `slice-expand-validator` braucht `slice-expand-parser` (Knoten `$expand`) und das Modell der Metadaten, nicht `welle-mock` ganz.
-- `slice-expand-ausfuehrung` braucht `welle-mock`, `slice-expand-parser` und `slice-expand-validator`, dazu die Entscheidung des Architect zur Datenbasis der Navigationen (§6) in der Spezifikation und, falls sie Verträge in `done/` ändert (Reader, Import, Schema), den Slice dafür; ihn legt der Planner dann vor diesem an.
-- `slice-batch-changesets` braucht `welle-mock` (Workspace-Transaktion) und `slice-batch-parser`.
+- [`slice-batch-parser`](open/slice-batch-parser.md) hängt an keinem Code aus `welle-mock` (der Leser braucht Fehlermodell, Konvention der Codec-Ports und Modell); der Welle-Trigger ist für ihn Priorisierung, ein Start davor ist eine Entscheidung des Users.
+- [`slice-expand-parser`](done/slice-expand-parser.md) braucht [`slice-odata-url-pfad`](done/welle-mock/slice-odata-url-pfad.md) aus `welle-mock` (Teil 1, reine Funktion), nicht `welle-mock` ganz; nennt der Architect `$filter` in verschachtelten Optionen, auch [`slice-odata-url-filter`](done/welle-mock/slice-odata-url-filter.md) und [`slice-edm-ausdruecke`](done/welle-mock/slice-edm-ausdruecke.md).
+- [`slice-expand-validator`](done/slice-expand-validator.md) braucht [`slice-expand-parser`](done/slice-expand-parser.md) (Knoten `$expand`) und das Modell der Metadaten, nicht `welle-mock` ganz.
+- [`slice-expand-ausfuehrung`](open/slice-expand-ausfuehrung.md) braucht `welle-mock`, [`slice-expand-parser`](done/slice-expand-parser.md) und [`slice-expand-validator`](done/slice-expand-validator.md), dazu die Entscheidung des Architect zur Datenbasis der Navigationen (§6) in der Spezifikation und, falls sie Verträge in `done/` ändert (Reader, Import, Schema), den Slice dafür; ihn legt der Planner dann vor diesem an.
+- [`slice-batch-changesets`](open/slice-batch-changesets.md) braucht `welle-mock` (Workspace-Transaktion) und [`slice-batch-parser`](open/slice-batch-parser.md).
 
 ## 3. Closure-Trigger (Welle schließt)
 
@@ -51,7 +51,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - `make gates` ist grün; `make gegenproben` ist grün.
 - Ein Test im Modus `mock` liest eine Entity mit `$expand` über eine Navigation (verknüpfte Daten sichtbar, leere Navigation leer), führt einen gültigen Batch mit Einzelergebnissen aus, beantwortet einen leeren Batch gültig und übernimmt aus einem fehlerhaften Changeset keine Teiländerung (Zustand vor und nach dem Changeset gleich).
 - Je Funktion (`$expand`, `$batch`) liegt ein Parser-, Validator-, Executor- und Serializer-Contract-Test vor (`LH-FA-16.a`); `$apply`, Actions und Functions ergeben weiter `501`.
-- Das Handbuch deckt alles ab, was das Binary dieser Welle kann (`$expand`, `$batch`, Fehlercodes); das Kataloge-Gate aus `slice-handbuch-meldungskatalog` ist grün.
+- Das Handbuch deckt alles ab, was das Binary dieser Welle kann (`$expand`, `$batch`, Fehlercodes); das Kataloge-Gate aus [`slice-handbuch-meldungskatalog`](done/slice-handbuch-meldungskatalog.md) ist grün.
 - Die Closure-Notiz liegt als `welle-expand-batch-results.md` im Ruheort `done/`.
 
 ## 4. Slices in dieser Welle
@@ -62,15 +62,15 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 
 | Slice | Titel | Bezug |
 |---|---|---|
-| slice-expand-parser | `$expand` in der OData-URL: Parser und AST | `LH-FA-16`; `LH-FA-16.a`, `SPEC-049` |
-| slice-expand-validator | Validator von `$expand` gegen die Navigationen des Modells (Schnitt von `slice-expand-parser`) | `LH-FA-16`; `LH-FA-16.a` |
-| slice-expand-ausfuehrung | Auflösen der Navigation im Query-Interpreter und Ausgabe im OData-JSON; Datenbasis der Navigationen nach Entscheidung des Architect | `LH-FA-16`, `LH-FA-11`; `LH-FA-16.a`, `SPEC-044` |
-| slice-batch-parser | Parser für `$batch`-Requests (Leser fremder Bytes), leerer Batch | `LH-FA-16`; `LH-FA-16.a` |
-| slice-batch-changesets | Ausführung der Einzelrequests und atomare Changesets in einer Workspace-Transaktion, Antwort des Batch | `LH-FA-16`, `LH-QA-03`; `LH-FA-16.a`, `LH-FA-07.a` |
+| [slice-expand-parser](done/slice-expand-parser.md) | `$expand` in der OData-URL: Parser und AST | `LH-FA-16`; `LH-FA-16.a`, `SPEC-049` |
+| [slice-expand-validator](done/slice-expand-validator.md) | Validator von `$expand` gegen die Navigationen des Modells (Schnitt von [`slice-expand-parser`](done/slice-expand-parser.md)) | `LH-FA-16`; `LH-FA-16.a` |
+| [slice-expand-ausfuehrung](open/slice-expand-ausfuehrung.md) | Auflösen der Navigation im Query-Interpreter und Ausgabe im OData-JSON; Datenbasis der Navigationen nach Entscheidung des Architect | `LH-FA-16`, `LH-FA-11`; `LH-FA-16.a`, `SPEC-044` |
+| [slice-batch-parser](open/slice-batch-parser.md) | Parser für `$batch`-Requests (Leser fremder Bytes), leerer Batch | `LH-FA-16`; `LH-FA-16.a` |
+| [slice-batch-changesets](open/slice-batch-changesets.md) | Ausführung der Einzelrequests und atomare Changesets in einer Workspace-Transaktion, Antwort des Batch | `LH-FA-16`, `LH-QA-03`; `LH-FA-16.a`, `LH-FA-07.a` |
 
-Die Slice-Dateien liegen seit 2026-10-30 in `open/`; die Pläne tragen ihre Start-Trigger mit Abhängigkeiten, und `plan-welle` gleicht sie beim Start gegen den Ist-Stand ab. Marken und Betriebsregeln setzt der Planner beim Start (`SPEC-128`).
+Der Zustand eines Slice ist das Verzeichnis, in dem seine Datei liegt; die Links der Tabelle nennen es. Die Pläne tragen ihre Start-Trigger mit Abhängigkeiten, und `plan-welle` gleicht sie beim Start gegen den Ist-Stand ab. Marken und Betriebsregeln setzt der Planner beim Start (`SPEC-128`).
 
-**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. In dieser Welle betrifft er `slice-expand-ausfuehrung` und `slice-batch-changesets` (sichtbar am Binary), die Parser-Slices nur, soweit sie einen Fehlercode einführen.
+**Pflicht Handbuch:** Jeder Slice, dessen Ergebnis ein Anwender am Binary sieht (neues Kommando, Konfigurationsschlüssel, Fehlercode, HTTP-Schnittstelle, Betriebsart), trägt in seiner DoD den Punkt „Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün“. In dieser Welle betrifft er [`slice-expand-ausfuehrung`](open/slice-expand-ausfuehrung.md) und [`slice-batch-changesets`](open/slice-batch-changesets.md) (sichtbar am Binary), die Parser-Slices nur, soweit sie einen Fehlercode einführen.
 
 ## 5. Abhängigkeiten
 
@@ -80,7 +80,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 - Blockiert: keine Welle. Eine Berührung ohne Kante: ein `PATCH` mit `If-Match` in einem Changeset (`welle-etag`); wer von beiden später liegt, ergänzt den Fall in seinem Test.
 - Wird blockiert von: `welle-mock` (Query-Interpreter, Workspace-Transaktion, Codec zum Schreiben); die beiden Parser-Slices hängen nur an Teil 1 beziehungsweise an keinem Code daraus (Trigger je Slice in §2).
 - Unabhängig: `welle-hybrid`, `welle-betrieb`, `welle-admin-api`, `welle-etag`, `welle-odata-v2`.
-- Reihenfolge der Slices (Pfeil heißt: braucht): `slice-expand-parser` → `slice-expand-validator` → `slice-expand-ausfuehrung`; `slice-batch-parser` → `slice-batch-changesets`; die beiden Äste sind unabhängig.
+- Reihenfolge der Slices (Pfeil heißt: braucht): [`slice-expand-parser`](done/slice-expand-parser.md) → [`slice-expand-validator`](done/slice-expand-validator.md) → [`slice-expand-ausfuehrung`](open/slice-expand-ausfuehrung.md); [`slice-batch-parser`](open/slice-batch-parser.md) → [`slice-batch-changesets`](open/slice-batch-changesets.md); die beiden Äste sind unabhängig.
 - **Register-Sichtung (Eröffnung Schritt 2):** `observations/` gesichtet, Stand dieses Plans. Treffer, beim Start in den Slice-Plänen (§8) mit dem dann aktuellen Zähler als Risiko zu führen: `BEO-REPO/zweig-ohne-lauf-unter-dem-detektor` (1×) und `BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last` (2×) für die Atomarität der Changesets; `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×); `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×). Kein offener Eintrag erreicht mit dieser Welle 3×.
 
 ## 6. Out-of-Scope für diese Welle
