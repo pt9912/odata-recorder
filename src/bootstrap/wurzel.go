@@ -17,9 +17,6 @@ import (
 	"github.com/pt9912/odata-recorder/src/adapters/driven/blobs"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/clock"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/httpupstream"
-	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/csdl"
-	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/jsoncodec"
-	"github.com/pt9912/odata-recorder/src/adapters/driven/odata/urlparser"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/sqlite"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/telemetry"
 	"github.com/pt9912/odata-recorder/src/adapters/driving/httpodata"
@@ -39,11 +36,10 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/services/workspace"
 )
 
-// Namen der Ablage in DATA_DIR (SPEC-139 Nr. 2) und die odata_version neu angelegter Services (SPEC-107 Nr. 14).
+// Namen der Ablage in DATA_DIR (SPEC-139 Nr. 2) und die Modi.
 const (
 	dateiDB      = "odata-recorder.db"
 	verzeichnisB = "blobs"
-	odataVersion = "4.0"
 	modusRecord  = "record"
 	modusReplay  = "replay"
 	modusMock    = "mock"
@@ -138,6 +134,7 @@ type Handle struct {
 	audit    support.AuditLog
 	ablage   io.Closer
 	b        bauteile
+	wahl     wahl
 	dienste  outbound.MetadataRepository
 	wartung  inbound.MaintenanceUseCase
 	record   inbound.RecordUseCase
@@ -187,6 +184,7 @@ type vorlaeufig struct {
 	pfade []model.JSONPfad
 	caPEM []byte
 	tls   *tls.Config
+	wahl  wahl
 }
 
 // pruefeGrundwerte prüft Modus, Dienste, Datenverzeichnis und PublicBaseURL vor allem Öffnen.
@@ -215,6 +213,9 @@ func vorbereiten(k Konfiguration, uhr support.Clock) (vorlaeufig, error) {
 	if err := pruefeGrundwerte(k); err != nil {
 		return v, err
 	}
+	if v.wahl, err = waehle(k); err != nil {
+		return v, err
+	}
 	for _, text := range k.RedactJSONPaths {
 		p, err := model.ParseJSONPfad(text)
 		if err != nil {
@@ -237,6 +238,7 @@ func build(ctx context.Context, k Konfiguration, log *slog.Logger, senke io.Writ
 		log = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 	uhr := clock.NewSystemuhr()
+	k.Dienste = wirksameDienste(k.Dienste)
 	v, err := vorbereiten(k, uhr)
 	if err != nil {
 		return nil, err
@@ -245,7 +247,7 @@ func build(ctx context.Context, k Konfiguration, log *slog.Logger, senke io.Writ
 	if err != nil {
 		return nil, err
 	}
-	h := &Handle{k: k, log: log, senke: senke, uhr: uhr, ids: clock.NewZufallsIDs(), ablage: b.Schliesser(db), b: b, tls: v.tls}
+	h := &Handle{k: k, log: log, senke: senke, uhr: uhr, ids: clock.NewZufallsIDs(), ablage: b.Schliesser(db), b: b, tls: v.tls, wahl: v.wahl}
 	h.dienste = b.Dienste(db.Metadata())
 	if err := h.verdrahte(db, v); err != nil {
 		_ = h.ablage.Close()
@@ -327,21 +329,6 @@ type ablageRepos struct {
 	snapshots  *sqlite.SnapshotRepository
 }
 
-// satzVersion4 ist der Satz der Codecs der Version 4.0, den jeder Dienst des Mock trägt (SPEC-139 Nr. 11 b).
-func satzVersion4() outbound.CodecSatz {
-	return outbound.CodecSatz{
-		Version: odataVersion, Metadaten: csdl.New(), Daten: jsoncodec.New(),
-		URL:       urlparser.New(urlparser.WithFilter(urlparser.NewFilterLeser())),
-		Schreiber: jsoncodec.NewSchreiber(), Eingabe: jsoncodec.NewEingabe(),
-	}
-}
-
-// etagFuerSatz ist `Dienst.Etag`: ETAG_ENABLED gilt nur für einen Dienst, dessen Satz die Version 4.0 hat; ein Dienst der
-// Version 2.0 liefert keinen ETag (SPEC-280 Nr. 2).
-func etagFuerSatz(satz outbound.CodecSatz, an bool) bool {
-	return an && satz.Version == odataVersion
-}
-
 func (h *Handle) verdrahteMock(db *sqlite.DB, r ablageRepos, waechter *maintenance.BlobWaechter) error {
 	m, err := h.baueMock(db, r, waechter)
 	if err != nil {
@@ -394,14 +381,15 @@ func (h *Handle) baueUpstream(v vorlaeufig) (outbound.UpstreamClient, error) {
 
 func (h *Handle) baueMock(db *sqlite.DB, r ablageRepos, waechter *maintenance.BlobWaechter) (inbound.MockUseCase, error) {
 	k := h.k
-	satz := satzVersion4()
 	dienste := make([]mock.Dienst, len(k.Dienste))
 	for i, d := range k.Dienste {
+		satz := h.wahl.Dienste[i]
 		dienste[i] = mock.Dienst{ID: d.ID, Root: d.Root, Codecs: &satz, Etag: etagFuerSatz(satz, k.EtagEnabled)}
 	}
+	rueckfall := h.wahl.Rueckfall
 	return h.b.NeuerMock(mock.Konfig{
 		Dienste: dienste, Metadaten: h.dienste, Workspaces: r.workspaces, Entities: r.entities, Coverage: db.Coverage(),
-		Blobs: waechter, MetadatenCodec: satz.Metadaten, URLCodec: satz.URL, Schreiber: satz.Schreiber,
+		Blobs: waechter, MetadatenCodec: rueckfall.Metadaten, URLCodec: rueckfall.URL, Schreiber: rueckfall.Schreiber,
 		PublicBaseURL: k.PublicBaseURL, StrictCoverage: k.StrictCoverage, MaxBytes: k.MaxCaptureBody, Transaktion: db, Telemetrie: h.tel,
 	})
 }
@@ -435,9 +423,9 @@ func (h *Handle) verdrahteRecord(db *sqlite.DB, waechter *maintenance.BlobWaecht
 		return err
 	}
 	h.importer, err = b.NeuerImport(baselineimport.Konfig{
-		Dienste: importDienste(k.Dienste), Sessions: db.Sessions(), Exchanges: db.Recording(), Blobs: waechter,
-		Metadaten: h.dienste, Snapshots: db.Snapshots(), Imports: db.Imports(), MetadatenCodec: csdl.New(),
-		DatenCodec: jsoncodec.New(), Regeln: h.regeln(), MaxCaptureBody: k.MaxCaptureBody, Uhr: h.uhr, IDs: h.ids, Audit: h.audit,
+		Dienste: importDienste(k.Dienste, h.wahl.Dienste), Sessions: db.Sessions(), Exchanges: db.Recording(), Blobs: waechter,
+		Metadaten: h.dienste, Snapshots: db.Snapshots(), Imports: db.Imports(), MetadatenCodec: h.wahl.Rueckfall.Metadaten,
+		DatenCodec: h.wahl.Rueckfall.Daten, Regeln: h.regeln(), MaxCaptureBody: k.MaxCaptureBody, Uhr: h.uhr, IDs: h.ids, Audit: h.audit,
 	})
 	if err != nil {
 		return err
@@ -446,10 +434,12 @@ func (h *Handle) verdrahteRecord(db *sqlite.DB, waechter *maintenance.BlobWaecht
 	return nil
 }
 
-func importDienste(ds []Dienst) []baselineimport.Dienst {
+// importDienste bildet die Dienste des Imports; jeder trägt in Codecs den Satz der Version seines Dienstes (SPEC-139 Nr. 4).
+func importDienste(ds []Dienst, saetze []outbound.CodecSatz) []baselineimport.Dienst {
 	out := make([]baselineimport.Dienst, len(ds))
 	for i, d := range ds {
-		out[i] = baselineimport.Dienst{ID: d.ID, UpstreamURL: d.UpstreamURL}
+		satz := saetze[i]
+		out[i] = baselineimport.Dienst{ID: d.ID, UpstreamURL: d.UpstreamURL, Codecs: &satz}
 	}
 	return out
 }

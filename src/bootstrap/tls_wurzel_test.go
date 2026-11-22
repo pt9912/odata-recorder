@@ -22,8 +22,8 @@ import (
 )
 
 // TestBuildTLSErsterSchritt (B10): `Build` lädt das Paar als ersten Schritt (SPEC-291 Nr. 8): ein Verstoß des TLS zusammen mit dem Verstoß jedes anderen Schritts, der
-// einen Fehler liefern kann, meldet allein die Zeile des TLS. Menge: 8 Quellen (die vier Grundwerte, ein Pfad der Schwärzung, die Datei der CA, `Oeffne`, ein Schritt der
-// Verdrahtung nach `Oeffne`) × 1 Verstoß des TLS; die Zählprüfung zählt die Rückgaben eines Fehlers in `pruefeGrundwerte`, `vorbereiten` und `build` (11).
+// einen Fehler liefern kann, meldet allein die Zeile des TLS. Menge: 9 Quellen (die vier Grundwerte, die Version eines Dienstes, ein Pfad der Schwärzung, die Datei der CA, `Oeffne`,
+// ein Schritt der Verdrahtung nach `Oeffne`) × 1 Verstoß des TLS; die Zählprüfung zählt die Rückgaben eines Fehlers in `pruefeGrundwerte`, `vorbereiten` und `build` (12).
 func TestBuildTLSErsterSchritt(t *testing.T) {
 	w := neueWerkstatt(t)
 	cert, key, _ := w.tlsPaar(w.wurzel, tlstest.Optionen{})
@@ -37,6 +37,7 @@ func TestBuildTLSErsterSchritt(t *testing.T) {
 		{"keine Dienste", modusRecord, func(k *bootstrap.Konfiguration, _ string) { k.Dienste = nil }},
 		{"DATA_DIR leer", modusRecord, func(k *bootstrap.Konfiguration, _ string) { k.DataDir = "" }},
 		{"PublicBaseURL fehlt", modusMock, func(k *bootstrap.Konfiguration, _ string) { k.PublicBaseURL = "" }},
+		{"Version eines Dienstes unbekannt", modusRecord, func(k *bootstrap.Konfiguration, _ string) { k.Dienste[0].Version = "3.0" }},
 		{"Pfad der Schwärzung ungültig", modusRecord, func(k *bootstrap.Konfiguration, _ string) { k.RedactJSONPaths = []string{"kein Pfad"} }},
 		{"Datei der CA nicht lesbar", modusRecord, func(k *bootstrap.Konfiguration, dir string) { k.UpstreamCAFile = filepath.Join(dir, "fehlt-ca.pem") }},
 		{"Ablage nicht zu öffnen", modusRecord, func(k *bootstrap.Konfiguration, dir string) { k.DataDir = filepath.Join(dir, "gibt-es-nicht", "d") }},
@@ -46,8 +47,8 @@ func TestBuildTLSErsterSchritt(t *testing.T) {
 			}
 		}},
 	}
-	if len(faelle) != 8 {
-		t.Fatalf("Menge hat %d Quellen, erwartet 8", len(faelle))
+	if len(faelle) != 9 {
+		t.Fatalf("Menge hat %d Quellen, erwartet 9", len(faelle))
 	}
 	for _, f := range faelle {
 		dir := t.TempDir()
@@ -71,8 +72,8 @@ func TestBuildTLSErsterSchritt(t *testing.T) {
 			t.Errorf("%s ohne Verstoß des TLS: Handle %v, Fehler %v; erwartet den eigenen Fehler", f.name, h != nil, err)
 		}
 	}
-	if n := rueckgabenMitFehler(t, "wurzel.go", "pruefeGrundwerte", "vorbereiten", "build"); n != 11 {
-		t.Errorf("pruefeGrundwerte, vorbereiten und build geben %d Fehler zurück, erwartet 11 (4 Grundwerte, TLS, Grundwerte, Pfad der Schwärzung, CA, `Oeffne`, `vorbereiten`, `verdrahte`)", n)
+	if n := rueckgabenMitFehler(t, "wurzel.go", "pruefeGrundwerte", "vorbereiten", "build"); n != 12 {
+		t.Errorf("pruefeGrundwerte, vorbereiten und build geben %d Fehler zurück, erwartet 12 (4 Grundwerte, TLS, Grundwerte, Version, Pfad der Schwärzung, CA, `Oeffne`, `vorbereiten`, `verdrahte`)", n)
 	}
 }
 

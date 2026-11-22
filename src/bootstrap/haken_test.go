@@ -153,6 +153,11 @@ type haken struct {
 	listenAdr  string
 	listenNetz string
 	aufrufe    map[string]aufruf
+	// dienstAnlagen hält jeden model.Service fest, den ein Create des MetadataRepository der Anlage erhielt, dienstGets die Kennung jedes
+	// Get, dienstOps zählt jede Operation (Create, Get, List, SetMetadata).
+	dienstAnlagen []model.Service
+	dienstGets    []string
+	dienstOps     map[string]int
 }
 
 // aufruf hält fest, was ein Aufruf vom ctx der Stelle sah: den Wert unter ctxMarke und das Ende
@@ -377,7 +382,41 @@ type protDienste struct {
 	h *haken
 }
 
+// dienstOp zählt eine Operation des MetadataRepository der Anlage; anlage und id halten ihr Argument fest.
+func (h *haken) dienstOp(name string, anlage *model.Service, id string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.dienstOps == nil {
+		h.dienstOps = map[string]int{}
+	}
+	h.dienstOps[name]++
+	if anlage != nil {
+		h.dienstAnlagen = append(h.dienstAnlagen, *anlage)
+	}
+	if name == "Get" {
+		h.dienstGets = append(h.dienstGets, id)
+	}
+}
+
+// dienstZaehler liefert die Zahl der Aufrufe der Operation des MetadataRepository der Anlage.
+func (h *haken) dienstZaehler(name string) int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.dienstOps[name]
+}
+
+func (d *protDienste) List(ctx context.Context) ([]model.Service, error) {
+	d.h.dienstOp("List", nil, "")
+	return d.MetadataRepository.List(ctx)
+}
+
+func (d *protDienste) SetMetadata(ctx context.Context, id, blob, hash string) error {
+	d.h.dienstOp("SetMetadata", nil, "")
+	return d.MetadataRepository.SetMetadata(ctx, id, blob, hash)
+}
+
 func (d *protDienste) Create(ctx context.Context, s model.Service) error {
+	d.h.dienstOp("Create", &s, "")
 	d.h.merke(ctx, pDienst)
 	d.h.p.add("%s:%s", pDienst, s.ID)
 	// brecheAb wirkt nach dem Anlegen: ein abgebrochener Kontext legt nichts an.
@@ -394,6 +433,7 @@ func (d *protDienste) Create(ctx context.Context, s model.Service) error {
 }
 
 func (d *protDienste) Get(ctx context.Context, id string) (model.Service, error) {
+	d.h.dienstOp("Get", nil, id)
 	d.h.merke(ctx, pDienstGet)
 	if d.h.phase == pDienstGet {
 		return model.Service{}, errPhase

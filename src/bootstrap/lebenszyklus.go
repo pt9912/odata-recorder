@@ -44,11 +44,11 @@ func (h *Handle) startWartung(ctx context.Context) error {
 	return err
 }
 
-// legeDiensteAn legt jeden Service an, den die Ablage nicht kennt; ein gespeicherter mit anderem
-// service_root oder anderer odata_version verhindert den Start (SPEC-107 Nr. 14).
+// legeDiensteAn legt jeden Service mit der Version seines Dienstes an, den die Ablage nicht kennt; ein gespeicherter mit anderem
+// service_root oder anderer odata_version als die des Dienstes verhindert den Start (SPEC-107 Nr. 14).
 func (h *Handle) legeDiensteAn(ctx context.Context) error {
 	for _, d := range h.k.Dienste {
-		err := h.dienste.Create(ctx, model.Service{ID: d.ID, ServiceRoot: d.Root, ODataVersion: odataVersion})
+		err := h.dienste.Create(ctx, model.Service{ID: d.ID, ServiceRoot: d.Root, ODataVersion: d.Version})
 		if err == nil {
 			continue
 		}
@@ -72,14 +72,14 @@ func (h *Handle) legeDiensteAn(ctx context.Context) error {
 	return nil
 }
 
-// abweichungen nennt die Schlüssel, in denen der gespeicherte Service von der Konfiguration abweicht,
-// service_root vor odata_version (SPEC-139 Nr. 6).
+// abweichungen nennt die Schlüssel, in denen der gespeicherte Service von dem des Dienstes abweicht,
+// service_root vor odata_version; die Version geht gegen die des Dienstes (SPEC-139 Nr. 6).
 func abweichungen(gespeichert model.Service, d Dienst) []string {
 	var schluessel []string
 	if gespeichert.ServiceRoot != d.Root {
 		schluessel = append(schluessel, "service_root")
 	}
-	if gespeichert.ODataVersion != odataVersion {
+	if gespeichert.ODataVersion != d.Version {
 		schluessel = append(schluessel, "odata_version")
 	}
 	return schluessel
