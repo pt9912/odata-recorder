@@ -199,10 +199,12 @@ func leerraumZeichen() []string {
 }
 
 // orakelAlle ist die Tabelle von SPEC-234 Nr. 2 mit der fünften Zeile `admin_abgewiesen` (nur error_code ist Pflicht,
-// SPEC-238 Nr. 8): orakelPflicht trägt die vier Arten des Use Case, die Zeile des Admin-Adapters kommt aus dem Wortlaut hinzu.
+// SPEC-238 Nr. 8) und der sechsten `session_angelegt` (service_id und session_id sind Pflicht, SPEC-292 Nr. 11):
+// orakelPflicht trägt die vier Arten des Use Case, die Zeilen des Admin-Adapters kommen aus dem Wortlaut hinzu.
 func orakelAlle() map[support.AuditArt][5]bool {
 	m := orakelPflicht()
 	m[support.ArtAdminAbgewiesen] = [5]bool{false, false, false, false, true}
+	m[support.ArtSessionAngelegt] = [5]bool{true, true, false, false, false}
 	return m
 }
 
@@ -212,7 +214,12 @@ func gueltigAlle(art support.AuditArt) support.Eintrag {
 	if art == support.ArtAdminAbgewiesen {
 		return support.Eintrag{Art: art, ErrorCode: model.CodeE2101}
 	}
-	return gueltig(art)
+	e := support.Eintrag{Art: art}
+	soll := orakelAlle()[art]
+	for i, f := range orakelFelder() {
+		setze(&e, f, soll[i])
+	}
+	return e
 }
 
 func TestArtAusserhalbDerMenge(t *testing.T) {
@@ -246,14 +253,15 @@ func TestArtAusserhalbDerMenge(t *testing.T) {
 			}
 		}
 	}
-	if want := 2 * (5*57 + 2*(17+20+19+21+16)); gesamt != want {
+	if want := 2 * (6*57 + 2*(17+20+19+21+16+16)); gesamt != want {
 		t.Errorf("%d Aufrufe geprüft, erwartet %d", gesamt, want)
 	}
 }
 
-// A07 und Y5: 5 Arten × 5 Felder = 25 Zellen, je Zelle ein Fall je Richtung: ein fehlendes Pflichtfeld
+// A07, Y5 und S15: 6 Arten × 5 Felder = 30 Zellen, je Zelle ein Fall je Richtung: ein fehlendes Pflichtfeld
 // und ein gesetztes verbotenes Feld sind ErrUngueltig, die erlaubte Belegung schreibt. Bei `admin_abgewiesen` sind
-// service_id, session_id, workspace_id und import_id verboten und error_code Pflicht.
+// service_id, session_id, workspace_id und import_id verboten und error_code Pflicht, bei `session_angelegt` sind
+// service_id und session_id Pflicht und die übrigen drei Felder verboten.
 func TestFeldBelegung(t *testing.T) {
 	zellen := 0
 	for art, soll := range orakelAlle() {
@@ -279,8 +287,22 @@ func TestFeldBelegung(t *testing.T) {
 			}
 		}
 	}
-	if zellen != 25 {
-		t.Errorf("%d Zellen, erwartet 25", zellen)
+	if zellen != 30 {
+		t.Errorf("%d Zellen, erwartet 30", zellen)
+	}
+}
+
+// S15: die Zeile von `session_angelegt` ist Byte für Byte die des Vertrags (SPEC-292 Nr. 11, SPEC-235 Nr. 3): timestamp,
+// correlation_id, art, service_id, session_id, nichts sonst; die Korrelations-ID des Admin-Adapters gilt unverändert.
+func TestZeileSessionAngelegt(t *testing.T) {
+	a := neu(t, festeZeit)
+	e := support.Eintrag{Art: support.ArtSessionAngelegt, ServiceID: "svc-1", SessionID: "ses-1", KorrelationsID: "cor-admin-1"}
+	if err := a.d.Append(e); err != nil {
+		t.Fatalf("Append %+v: %v", e, err)
+	}
+	soll := `{"timestamp":"2026-11-06T10:00:00.000000000Z","correlation_id":"cor-admin-1","art":"session_angelegt","service_id":"svc-1","session_id":"ses-1"}` + "\n"
+	if got := a.inhalt(t); got != soll {
+		t.Errorf("Datei:\n%q\nerwartet:\n%q", got, soll)
 	}
 }
 

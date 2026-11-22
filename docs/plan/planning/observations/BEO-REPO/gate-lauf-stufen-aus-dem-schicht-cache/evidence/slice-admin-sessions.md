@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-sessions
+**Fund:** Der Lauf von `make gates` des Verifiers im Worktree (Stand `25461225`, 69 s) bezog die Stufen `test`, `build`, `lint` und `race` bei gleicher Eingabe aus dem Schichten-Cache; der Verifier fuhr `race` frisch nach (`docker build --no-cache-filter race`, 346,7 s, `pruefung race: ok`). Beleg: `docs/reviews/2026-11-21-slice-admin-sessions-verifikation.md` (*Sensor-Belege*, erste und zweite Zeile).
