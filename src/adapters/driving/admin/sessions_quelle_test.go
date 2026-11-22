@@ -20,8 +20,8 @@ func rahmenDateien() []string {
 
 // sessionsDateien liefert die Dateien der Routen: jede Datei `.go` ohne `_test.go` im Verzeichnis außer denen des Rahmens
 // (eine neue Datei eines Teils des Schnitts gehört dazu, ohne dass dieser Test sie nennt). Die Zählprüfung hält die Menge
-// gegen das Verzeichnis: jede Datei des Rahmens besteht, die Dateien der Routen sind mindestens json.go, sessions.go und
-// sessions_body.go, und Rahmen plus Routen sind alle Dateien ohne _test.go.
+// gegen das Verzeichnis: jede Datei des Rahmens besteht, die Dateien der Routen sind mindestens json.go, sessions.go,
+// sessions_body.go, sessions_beenden.go und sessions_loeschen.go, und Rahmen plus Routen sind alle Dateien ohne _test.go.
 func sessionsDateien(t *testing.T) []string {
 	t.Helper()
 	eintraege, err := os.ReadDir(".")
@@ -42,7 +42,7 @@ func sessionsDateien(t *testing.T) []string {
 			t.Errorf("die Datei %s des Rahmens fehlt im Verzeichnis", r)
 		}
 	}
-	for _, r := range []string{"json.go", "sessions.go", "sessions_body.go"} {
+	for _, r := range []string{"json.go", "sessions.go", "sessions_body.go", "sessions_beenden.go", "sessions_loeschen.go"} {
 		if !slices.Contains(routen, r) {
 			t.Errorf("die Datei %s der Routen fehlt", r)
 		}
@@ -70,14 +70,17 @@ func zaehleGoAnweisungen(t *testing.T, name string, quelle any) int {
 
 // TestS1S16QuelleDerRouten hält S1, S2 und S16 am Quelltext (SPEC-292 Nr. 1, 2; SPEC-238 Nr. 15 b): in den Dateien der Routen
 // ruft und nennt keine Stelle `NeuesFehlerobjekt`, `CountError` oder `ArtAdminAbgewiesen`, keine startet eine Goroutine, und
-// keine leitet den Kontext ab oder ersetzt ihn (`WithTimeout`, `WithDeadline`, `WithCancel`, `WithoutCancel`, `WithValue`).
+// keine leitet den Kontext ab oder ersetzt ihn (`WithTimeout`, `WithDeadline`, `WithCancel`, `WithoutCancel`, `WithValue`, die
+// drei `…Cause` und `AfterFunc`; das Verhalten der Ableitung fängt außerdem die Identität des `ctx` in `TestB2AufrufeUndKontext`).
 // Die Proben halten die Zähler gegen eine Quelle mit je einer Stelle.
 func TestS1S16QuelleDerRouten(t *testing.T) {
 	namen := []string{"NeuesFehlerobjekt", "CountError", "ArtAdminAbgewiesen"}
-	ableitungen := []string{"WithTimeout", "WithDeadline", "WithCancel", "WithoutCancel", "WithValue"}
-	gleichAuf(t, "Zahl der Namen", []int{len(namen), len(ableitungen)}, []int{3, 5})
+	ableitungen := []string{"WithTimeout", "WithDeadline", "WithCancel", "WithoutCancel", "WithValue",
+		"WithCancelCause", "WithTimeoutCause", "WithDeadlineCause", "AfterFunc"}
+	gleichAuf(t, "Zahl der Namen", []int{len(namen), len(ableitungen)}, []int{3, 9})
 	probe := "package x\nimport \"context\"\nfunc f() { model.NeuesFehlerobjekt(1); s.CountError(1); support.ArtAdminAbgewiesen; go g(); go func() {}(); " +
-		"context.WithTimeout(); context.WithDeadline(); context.WithCancel(); context.WithoutCancel(); context.WithValue() }"
+		"context.WithTimeout(); context.WithDeadline(); context.WithCancel(); context.WithoutCancel(); context.WithValue(); " +
+		"context.WithCancelCause(); context.WithTimeoutCause(); context.WithDeadlineCause(); context.AfterFunc() }"
 	for _, n := range namen {
 		gleichAuf(t, "Probe "+n, zaehleSelektoren(t, "probe.go", probe, "", n), 1)
 	}

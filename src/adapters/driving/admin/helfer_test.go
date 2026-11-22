@@ -33,6 +33,9 @@ type umgebung struct {
 	audit *supporttest.FakeAudit
 	tele  *supporttest.FakeTelemetry
 	lst   *listenerFake
+	// nachAudit ist der Audit der Routen der Sessions (sessionsUmgebung): er ruft nach der Rückkehr von Append seinen
+	// Haltepunkt nach.
+	nachAudit *auditNach
 }
 
 // canary liefert einen Wert, der in keiner Ausgabe stehen darf; er entsteht aus Bytewerten und besteht nur aus

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -199,12 +200,14 @@ func leerraumZeichen() []string {
 }
 
 // orakelAlle ist die Tabelle von SPEC-234 Nr. 2 mit der fünften Zeile `admin_abgewiesen` (nur error_code ist Pflicht,
-// SPEC-238 Nr. 8) und der sechsten `session_angelegt` (service_id und session_id sind Pflicht, SPEC-292 Nr. 11):
-// orakelPflicht trägt die vier Arten des Use Case, die Zeilen des Admin-Adapters kommen aus dem Wortlaut hinzu.
+// SPEC-238 Nr. 8), der sechsten `session_angelegt` und der siebenten `session_beendet` (service_id und session_id sind
+// Pflicht, SPEC-292 Nr. 11): orakelPflicht trägt die vier Arten des Use Case, die Zeilen des Admin-Adapters kommen aus dem
+// Wortlaut hinzu.
 func orakelAlle() map[support.AuditArt][5]bool {
 	m := orakelPflicht()
 	m[support.ArtAdminAbgewiesen] = [5]bool{false, false, false, false, true}
 	m[support.ArtSessionAngelegt] = [5]bool{true, true, false, false, false}
+	m[support.ArtSessionBeendet] = [5]bool{true, true, false, false, false}
 	return m
 }
 
@@ -253,15 +256,15 @@ func TestArtAusserhalbDerMenge(t *testing.T) {
 			}
 		}
 	}
-	if want := 2 * (6*57 + 2*(17+20+19+21+16+16)); gesamt != want {
+	if want := 2 * (7*57 + 2*(17+20+19+21+16+16+15)); gesamt != want {
 		t.Errorf("%d Aufrufe geprüft, erwartet %d", gesamt, want)
 	}
 }
 
-// A07, Y5 und S15: 6 Arten × 5 Felder = 30 Zellen, je Zelle ein Fall je Richtung: ein fehlendes Pflichtfeld
+// A07, Y5, S15 und B14: 7 Arten × 5 Felder = 35 Zellen, je Zelle ein Fall je Richtung: ein fehlendes Pflichtfeld
 // und ein gesetztes verbotenes Feld sind ErrUngueltig, die erlaubte Belegung schreibt. Bei `admin_abgewiesen` sind
-// service_id, session_id, workspace_id und import_id verboten und error_code Pflicht, bei `session_angelegt` sind
-// service_id und session_id Pflicht und die übrigen drei Felder verboten.
+// service_id, session_id, workspace_id und import_id verboten und error_code Pflicht, bei `session_angelegt` und
+// `session_beendet` sind service_id und session_id Pflicht und die übrigen drei Felder verboten.
 func TestFeldBelegung(t *testing.T) {
 	zellen := 0
 	for art, soll := range orakelAlle() {
@@ -287,22 +290,25 @@ func TestFeldBelegung(t *testing.T) {
 			}
 		}
 	}
-	if zellen != 30 {
-		t.Errorf("%d Zellen, erwartet 30", zellen)
+	if zellen != 35 {
+		t.Errorf("%d Zellen, erwartet 35", zellen)
 	}
 }
 
-// S15: die Zeile von `session_angelegt` ist Byte für Byte die des Vertrags (SPEC-292 Nr. 11, SPEC-235 Nr. 3): timestamp,
-// correlation_id, art, service_id, session_id, nichts sonst; die Korrelations-ID des Admin-Adapters gilt unverändert.
+// S15 und B14: die Zeile von `session_angelegt` und die von `session_beendet` sind Byte für Byte die des Vertrags
+// (SPEC-292 Nr. 11, SPEC-235 Nr. 3): timestamp, correlation_id, art, service_id, session_id, nichts sonst; die
+// Korrelations-ID des Admin-Adapters gilt unverändert.
 func TestZeileSessionAngelegt(t *testing.T) {
-	a := neu(t, festeZeit)
-	e := support.Eintrag{Art: support.ArtSessionAngelegt, ServiceID: "svc-1", SessionID: "ses-1", KorrelationsID: "cor-admin-1"}
-	if err := a.d.Append(e); err != nil {
-		t.Fatalf("Append %+v: %v", e, err)
-	}
-	soll := `{"timestamp":"2026-11-06T10:00:00.000000000Z","correlation_id":"cor-admin-1","art":"session_angelegt","service_id":"svc-1","session_id":"ses-1"}` + "\n"
-	if got := a.inhalt(t); got != soll {
-		t.Errorf("Datei:\n%q\nerwartet:\n%q", got, soll)
+	for _, art := range []string{"session_angelegt", "session_beendet"} {
+		a := neu(t, festeZeit)
+		e := support.Eintrag{Art: support.AuditArt(art), ServiceID: "svc-1", SessionID: "ses-1", KorrelationsID: "cor-admin-1"}
+		if err := a.d.Append(e); err != nil {
+			t.Fatalf("Append %+v: %v", e, err)
+		}
+		soll := `{"timestamp":"2026-11-06T10:00:00.000000000Z","correlation_id":"cor-admin-1","art":"` + art + `","service_id":"svc-1","session_id":"ses-1"}` + "\n"
+		if got := a.inhalt(t); got != soll {
+			t.Errorf("Datei:\n%q\nerwartet:\n%q", got, soll)
+		}
 	}
 }
 
@@ -380,22 +386,53 @@ func kennungsFelder() []struct {
 	}
 }
 
+// kennungsFaelle sind die Paare aus Feld und Art, in denen die Kennungsform gilt: jede Art von support.Arten() mit jedem
+// Feld der Kennungsform, das für sie Pflicht ist (service_id, session_id, workspace_id, import_id), dazu die
+// Korrelations-ID bei jeder Art (SPEC-234 Nr. 3, 7); die Arten kommen aus dem Port, nicht aus einer Liste des Tests.
+func kennungsFaelle() []struct {
+	name string
+	art  support.AuditArt
+	key  string
+	set  func(*support.Eintrag, string)
+} {
+	var out []struct {
+		name string
+		art  support.AuditArt
+		key  string
+		set  func(*support.Eintrag, string)
+	}
+	for _, f := range kennungsFelder() {
+		for _, s := range support.Arten() {
+			if f.name == "KorrelationsID" || slices.Contains(s.Pflicht, support.Feld(f.key)) {
+				f.art = s.Art
+				out = append(out, f)
+			}
+		}
+	}
+	return out
+}
+
 func inKlasse(b byte) bool {
 	return strings.IndexByte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-", b) >= 0
 }
 
-// A08: 5 Felder × 256 Bytewerte an 3 Stellen (65 gültig je Stelle), dazu die Längen 0, 1, 64, 65
-// und Mehrbyte-UTF-8; die Datei trägt genau die gültigen Zeilen.
+// A08: 18 Paare aus Feld und Art (kennungsFaelle: jedes Feld der Form bei jeder Art von support.Arten(), die es trägt) × 256
+// Bytewerte an 3 Stellen (65 gültig je Stelle), dazu die Längen 0, 1, 64, 65 und Mehrbyte-UTF-8; die Datei trägt genau die
+// gültigen Zeilen.
 func TestKennungsform(t *testing.T) {
-	for _, f := range kennungsFelder() {
+	faelle := kennungsFaelle()
+	if len(faelle) != 5+4+1+1+7 {
+		t.Fatalf("%d Paare aus Feld und Art, erwartet 18 (service_id 5, session_id 4, workspace_id 1, import_id 1, Korrelations-ID 7)", len(faelle))
+	}
+	for _, f := range faelle {
 		a := neuAn(t, filepath.Join(schnellVerz(t), audit.DateiName), festeZeit)
 		gueltigeZeilen := 0
 		pruefe := func(wert string, soll bool, was string) {
-			e := gueltig(f.art)
+			e := gueltigAlle(f.art)
 			f.set(&e, wert)
 			err := a.d.Append(e)
 			if soll && err != nil || !soll && !errors.Is(err, model.ErrUngueltig) {
-				t.Errorf("%s %s = %q: %v, erwartet gültig=%v", f.name, was, wert, err, soll)
+				t.Errorf("%s/%s %s = %q: %v, erwartet gültig=%v", f.art, f.name, was, wert, err, soll)
 			}
 			if soll && err == nil {
 				gueltigeZeilen++
