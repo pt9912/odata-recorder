@@ -15,6 +15,7 @@ var (
 	_ support.AuditLog       = (*supporttest.FakeAudit)(nil)
 	_ support.Telemetry      = (*supporttest.FakeTelemetry)(nil)
 	_ inbound.SessionUseCase = (*sessionsFake)(nil)
+	_ inbound.ImportUseCase  = (*importsFake)(nil)
 	_ support.IDGenerator    = (*zaehlendeIDs)(nil)
 	_ net.Listener           = (*listenerFake)(nil)
 	_ admin.Handler          = (*routeFake)(nil).handle
