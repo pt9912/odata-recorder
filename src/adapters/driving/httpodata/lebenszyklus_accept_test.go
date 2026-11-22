@@ -74,7 +74,7 @@ func (l *kippListener) Addr() net.Addr { return &net.TCPAddr{} }
 func TestServeFehlerKlasse(t *testing.T) {
 	neu := func(t *testing.T) (*httpodata.Server, *kippListener) {
 		l := neuKippListener()
-		srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: l})
+		srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: (&dienst{}).Record, IDs: supporttest.NewFestIDs(), Listener: l, Telemetrie: supporttest.NewFakeTelemetry(), Modus: "record"})
 		if err != nil {
 			t.Fatal(err)
 		}

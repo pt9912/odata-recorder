@@ -155,7 +155,7 @@ func vertragServer(t *testing.T, id string, sp *vertragSpiegel, m *mock.Mocker) 
 	if err != nil {
 		t.Fatalf("%s: Listener: %v", id, err)
 	}
-	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: sp.verarbeiten(m), IDs: supporttest.NewFestIDs(), Listener: l})
+	srv, err := httpodata.New(httpodata.Konfig{Verarbeiten: sp.verarbeiten(m), IDs: supporttest.NewFestIDs(), Listener: l, Telemetrie: supporttest.NewFakeTelemetry(), Modus: "record"})
 	if err != nil {
 		t.Fatalf("%s: Server: %v", id, err)
 	}
