@@ -15,6 +15,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/replay"
 )
 
 // TestPflichtSchluesselMatch hält, dass die Literale des Tests die Pflicht-Attribute von odata.replay.match sind (SPEC-028).
@@ -323,54 +324,241 @@ func TestSpanPlatzhalter(t *testing.T) {
 	}
 }
 
-// TestSpanCursorStrategie hält W6 (SPEC-296 Nr. 4 a, 7 d): die Strategie des bestehenden Cursors gilt im Span, in jedem Zustand des Cursors und
-// für jedes Ergebnis, sonst die der Konfig; Menge M-Cursor mit 72 Elementen: Strategie am Cursor 4 × Strategie der Konfig 4 (die gleiche und
-// drei abweichende) × Zustand des Cursors 2 (neu: consumed leer, position 0; nach Verbrauch: consumed {1}, position 1, SPEC-108 Nr. 10) ×
-// Ergebnis 2 (treffer, kein_treffer) gleich 64, dazu ohne Cursor 4 Strategien der Konfig × 2 Ergebnisse gleich 8. Der Store trägt zwei Exchanges
-// mit dem Key des Requests (SequenceNo 1 und 2), so dass treffer in jedem Zustand und jeder Strategie erreichbar ist; kein_treffer fragt einen Key
-// ohne Exchange. Zählprüfung 4, 4, 2, 2 und 8.
-func TestSpanCursorStrategie(t *testing.T) {
-	alle := []model.ReplayStrategy{model.StrategySequential, model.StrategyStrict, model.StrategyFirst, model.StrategyLast}
-	zustaende := []struct {
-		name     string
-		consumed []int64
-	}{{"neu", nil}, {"nach Verbrauch", []int64{1}}}
-	ergebnisse := []struct {
-		name  string
-		frage func() inbound.Anfrage
-		soll  soll
-	}{{ergTreffer, anf, soll{}}, {ergKeinTreffer, anfC, soll{code: model.CodeE5001}}}
-	legeZwei := func(u *umg) { u.lege(u.austausch(1, u.keyA(), true), u.austausch(2, u.keyA(), true)) }
-	n, gleich, abweichend := 0, 0, 0
-	for _, amCursor := range alle {
-		for _, inKonfig := range alle {
-			if amCursor == inKonfig {
-				gleich++
-			} else {
-				abweichend++
+// cursorStrategien und cursorErgebnisse sind die Strategien und die Ergebnisse der Auswahl (SPEC-296 Nr. 4 a, b).
+func cursorStrategien() []model.ReplayStrategy {
+	return []model.ReplayStrategy{model.StrategySequential, model.StrategyStrict, model.StrategyFirst, model.StrategyLast}
+}
+
+func cursorErgebnisse() []string {
+	return []string{ergTreffer, ergKeinTreffer, ergErschoepft, ergAndererKey, ergNichtReplayf}
+}
+
+// cursorZustaende ist die Zahl der Zustände des Cursors: k gleich 0, 1 und 2 Verbräuche, das ist consumed {1..k} mit position k (SPEC-108 Nr. 10).
+const cursorZustaende = 3
+
+// cursorErreichbar ist das Literal der 43 Tripel aus Strategie, Zustand k und Ergebnis, die waehle erreicht (SPEC-296 Nr. 7 d): je Strategie
+// die Ergebnisse für k gleich 0, 1 und 2. Nicht erreichbar sind 17 der 60 Tripel: anderer_key bei sequential, first und last (9), erschoepft
+// bei first und last (6), erschoepft im Zustand neu bei sequential und strict (2).
+func cursorErreichbar() map[model.ReplayStrategy][cursorZustaende][]string {
+	drei := []string{ergTreffer, ergKeinTreffer, ergNichtReplayf}
+	mitErschoepft := []string{ergTreffer, ergKeinTreffer, ergErschoepft, ergNichtReplayf}
+	strictNeu := []string{ergTreffer, ergKeinTreffer, ergAndererKey, ergNichtReplayf}
+	strictVerbraucht := []string{ergTreffer, ergKeinTreffer, ergErschoepft, ergAndererKey, ergNichtReplayf}
+	return map[model.ReplayStrategy][cursorZustaende][]string{
+		model.StrategySequential: {drei, mitErschoepft, mitErschoepft},
+		model.StrategyStrict:     {strictNeu, strictVerbraucht, strictVerbraucht},
+		model.StrategyFirst:      {drei, drei, drei},
+		model.StrategyLast:       {drei, drei, drei},
+	}
+}
+
+// cursorLage legt die Exchanges für das Ergebnis erg im Zustand k des Cursors und liefert den Request: treffer, kein_treffer und
+// nicht_replayfaehig tragen drei Exchanges (SequenceNo 1 bis 3, Key A; replayfähig bei treffer und kein_treffer, bei nicht_replayfaehig
+// keiner; kein_treffer fragt Key C); erschoepft trägt k replayfähige Exchanges (1 bis k, Key A); anderer_key trägt drei, der mit SequenceNo k+1
+// den Key B, die anderen den Key A.
+func cursorLage(u *umg, erg string, k int) inbound.Anfrage {
+	var es []model.Exchange
+	switch erg {
+	case ergTreffer, ergKeinTreffer, ergNichtReplayf:
+		for seq := 1; seq <= 3; seq++ {
+			es = append(es, u.austausch(seq, u.keyA(), erg != ergNichtReplayf))
+		}
+	case ergErschoepft:
+		for seq := 1; seq <= k; seq++ {
+			es = append(es, u.austausch(seq, u.keyA(), true))
+		}
+	case ergAndererKey:
+		for seq := 1; seq <= 3; seq++ {
+			key := u.keyA()
+			if seq == k+1 {
+				key = u.keyB()
 			}
-			for _, z := range zustaende {
-				for _, e := range ergebnisse {
+			es = append(es, u.austausch(seq, key, true))
+		}
+	}
+	u.lege(es...)
+	if erg == ergKeinTreffer {
+		return anfC()
+	}
+	return anf()
+}
+
+// verbraucht ist consumed des Cursors nach k Verbräuchen: {1..k}, leer für k gleich 0.
+func verbraucht(k int) []int64 {
+	var c []int64
+	for seq := 1; seq <= k; seq++ {
+		c = append(c, int64(seq))
+	}
+	return c
+}
+
+// TestSpanCursorStrategie hält W6 (SPEC-296 Nr. 4 a, 7 d): die Strategie des bestehenden Cursors gilt im Span, in jedem Zustand des Cursors
+// und für jedes Ergebnis, die der Konfig nur ohne Cursor. Menge M-Cursor mit 185 Elementen: die 43 erreichbaren Tripel aus Strategie am Cursor,
+// Zustand (k gleich 0, 1, 2 Verbräuche) und Ergebnis (Literal cursorErreichbar) × Strategie der Konfig 4 (die gleiche und drei abweichende)
+// gleich 172, dazu ohne Cursor 4 Strategien der Konfig × die Ergebnisse, die die Strategie im Zustand neu erreicht (3, 4, 3, 3), gleich 13.
+// Zählprüfung als Literal: 4, 4, 3, 5, 60 Tripel, 43 (11, 14, 9, 9), 17 nicht erreichbar (9, 6, 2), 172, 13 und 185; dass die 43 die Tripel sind,
+// die waehle erreicht, hält TestCursorTripelErreichbar. Nicht geführt: ein Zustand des Cursors ab drei Verbräuchen.
+func TestSpanCursorStrategie(t *testing.T) {
+	erreichbar, strategien, ergebnisse := cursorErreichbar(), cursorStrategien(), cursorErgebnisse()
+	n, mitCursor, ohneCursor, tripel := 0, 0, 0, 0
+	je := map[model.ReplayStrategy]int{}
+	for _, amCursor := range strategien {
+		for k := range cursorZustaende {
+			for _, erg := range erreichbar[amCursor][k] {
+				tripel++
+				je[amCursor]++
+				for _, inKonfig := range strategien {
 					n++
-					spanFall{name: fmt.Sprintf("Cursor %s, Konfig %s, %s, %s", amCursor, inKonfig, z.name, e.name), strat: inKonfig,
-						strategie: string(amCursor), ergebnis: e.name, set: true, soll: e.soll,
-						baue: func(u *umg) inbound.Anfrage { legeZwei(u); u.cursor(amCursor, z.consumed...); return e.frage() }}.lauf(t)
+					mitCursor++
+					cursorFall(inKonfig, amCursor, k, erg, true).lauf(t)
 				}
 			}
 		}
 	}
-	ohneCursor := 0
-	for _, inKonfig := range alle {
-		for _, e := range ergebnisse {
+	jeOhne := map[model.ReplayStrategy]int{}
+	for _, inKonfig := range strategien {
+		for _, erg := range erreichbar[inKonfig][0] {
 			n++
 			ohneCursor++
-			spanFall{name: fmt.Sprintf("ohne Cursor, Konfig %s, %s", inKonfig, e.name), strat: inKonfig, strategie: string(inKonfig), ergebnis: e.name,
-				set: true, soll: e.soll, baue: func(u *umg) inbound.Anfrage { legeZwei(u); return e.frage() }}.lauf(t)
+			jeOhne[inKonfig]++
+			cursorFall(inKonfig, inKonfig, 0, erg, false).lauf(t)
 		}
 	}
-	if len(alle) != 4 || gleich != 4 || abweichend != 12 || len(zustaende) != 2 || len(ergebnisse) != 2 || ohneCursor != 8 || n != 72 {
-		t.Errorf("Menge: %d Strategien, %d gleiche und %d abweichende Paare, %d Zustände, %d Ergebnisse, %d ohne Cursor, %d Elemente; erwartet 4, 4, 12, 2, 2, 8 und 72",
-			len(alle), gleich, abweichend, len(zustaende), len(ergebnisse), ohneCursor, n)
+	if len(strategien) != 4 || cursorZustaende != 3 || len(ergebnisse) != 5 || len(strategien)*cursorZustaende*len(ergebnisse) != 60 ||
+		tripel != 43 || je[model.StrategySequential] != 11 || je[model.StrategyStrict] != 14 || je[model.StrategyFirst] != 9 || je[model.StrategyLast] != 9 ||
+		mitCursor != 172 || ohneCursor != 13 || jeOhne[model.StrategySequential] != 3 || jeOhne[model.StrategyStrict] != 4 || jeOhne[model.StrategyFirst] != 3 ||
+		jeOhne[model.StrategyLast] != 3 || n != 185 {
+		t.Errorf("Menge: %d Tripel (je Strategie %v), %d mit Cursor, %d ohne Cursor (je Strategie %v), %d Elemente; erwartet 43 (11, 14, 9, 9), 172, 13 (3, 4, 3, 3) und 185",
+			tripel, je, mitCursor, ohneCursor, jeOhne, n)
+	}
+	nicht := map[string]int{}
+	for _, s := range strategien {
+		for k := range cursorZustaende {
+			for _, erg := range ergebnisse {
+				if slices.Contains(erreichbar[s][k], erg) {
+					continue
+				}
+				switch {
+				case erg == ergAndererKey && s != model.StrategyStrict:
+					nicht["anderer_key"]++
+				case erg == ergErschoepft && (s == model.StrategyFirst || s == model.StrategyLast):
+					nicht["erschoepft bei first und last"]++
+				case erg == ergErschoepft && k == 0:
+					nicht["erschoepft im Zustand neu"]++
+				default:
+					nicht["sonst"]++
+				}
+			}
+		}
+	}
+	if len(nicht) != 3 || nicht["anderer_key"] != 9 || nicht["erschoepft bei first und last"] != 6 || nicht["erschoepft im Zustand neu"] != 2 {
+		t.Errorf("nicht erreichbar: %v, erwartet 9 anderer_key, 6 erschoepft bei first und last, 2 erschoepft im Zustand neu und sonst keins", nicht)
+	}
+}
+
+// cursorFall ist ein Element von M-Cursor: Strategie der Konfig inKonfig, mit Cursor der Strategie amCursor im Zustand k (sonst ohne Cursor),
+// das Ergebnis erg; erwartet ist die Strategie des Cursors, ohne Cursor die der Konfig, das Ergebnis und ein Set.
+func cursorFall(inKonfig, amCursor model.ReplayStrategy, k int, erg string, mitCursor bool) spanFall {
+	name := fmt.Sprintf("Cursor %s, Konfig %s, k %d, %s", amCursor, inKonfig, k, erg)
+	if !mitCursor {
+		name = fmt.Sprintf("ohne Cursor, Konfig %s, %s", inKonfig, erg)
+	}
+	s := soll{}
+	if erg != ergTreffer {
+		s.code = codeZu(erg)
+	}
+	return spanFall{name: name, strat: inKonfig, strategie: string(amCursor), ergebnis: erg, set: true, soll: s, baue: func(u *umg) inbound.Anfrage {
+		a := cursorLage(u, erg, k)
+		if mitCursor {
+			u.cursor(amCursor, verbraucht(k)...)
+		}
+		return a
+	}}
+}
+
+// TestCursorTripelErreichbar hält die Zählprüfung von M-Cursor gegen die Quelle: waehle über alle Bestände mit 1 bis 3 Exchanges (SequenceNo 1 bis
+// n lückenlos, je Exchange Key A oder Key B und replayfähig oder nicht: 4 + 16 + 64 gleich 84), alle 4 Strategien, alle k von 0 bis n
+// (consumed {1..k}, position k) und den Key A des Requests erreicht in den Zuständen k gleich 0, 1 und 2 genau die Tripel von
+// cursorErreichbar, 43 an der Zahl; der Zustand k gleich 3, den die Menge nicht führt (Prüfgrenze), erreicht 10 weitere. Das Ergebnis ist
+// das des Codes des Fehlers, nicht ergebnisVon. Bestände mit mehr als drei Exchanges sind nicht geführt.
+func TestCursorTripelErreichbar(t *testing.T) {
+	type tripel struct {
+		strat model.ReplayStrategy
+		k     int
+		erg   string
+	}
+	u := neu(t)
+	keyA := u.keyA()
+	erreicht, jenseits := map[tripel]bool{}, map[tripel]bool{}
+	bestaende := 0
+	for n := 1; n <= 3; n++ {
+		for kodiert := range 1 << (2 * n) {
+			var liste []model.Exchange
+			for i := range n {
+				v := kodiert >> (2 * i) & 3
+				key := keyA
+				if v&1 == 1 {
+					key = u.keyB()
+				}
+				liste = append(liste, u.austausch(i+1, key, v&2 == 0))
+			}
+			bestaende++
+			for _, s := range cursorStrategien() {
+				for k := 0; k <= n; k++ {
+					_, err := replay.Waehle(s, keyA, liste, false, verbraucht(k), int64(k))
+					erg := ergTreffer
+					if err != nil {
+						var f *inbound.Fehler
+						if !errors.As(err, &f) {
+							t.Fatalf("Fehler der Auswahl ohne Code: %v", err)
+						}
+						erg = ""
+						for _, e := range cursorErgebnisse()[1:] {
+							if codeZu(e) == f.Code {
+								erg = e
+							}
+						}
+						if erg == "" {
+							t.Fatalf("Code %s der Auswahl ist keinem Ergebnis zugeordnet", f.Code)
+						}
+					}
+					if k >= cursorZustaende {
+						jenseits[tripel{s, k, erg}] = true
+						continue
+					}
+					erreicht[tripel{s, k, erg}] = true
+				}
+			}
+		}
+	}
+	literal := map[tripel]bool{}
+	imZustandNeu, erreichtImZustandNeu := 0, 0
+	for s, je := range cursorErreichbar() {
+		for k, ergebnisse := range je {
+			for _, e := range ergebnisse {
+				literal[tripel{s, k, e}] = true
+				if k == 0 {
+					imZustandNeu++
+				}
+			}
+		}
+	}
+	for tr := range erreicht {
+		if !literal[tr] {
+			t.Errorf("Tripel %+v erreicht, steht nicht im Literal", tr)
+		}
+		if tr.k == 0 {
+			erreichtImZustandNeu++
+		}
+	}
+	for tr := range literal {
+		if !erreicht[tr] {
+			t.Errorf("Tripel %+v steht im Literal, wird nicht erreicht", tr)
+		}
+	}
+	if bestaende != 84 || len(erreicht) != 43 || len(literal) != 43 || imZustandNeu != 13 || erreichtImZustandNeu != 13 || len(jenseits) != 10 {
+		t.Errorf("Menge: %d Bestände, %d erreichte und %d im Literal, %d im Zustand neu (erreicht %d), %d bei drei Verbräuchen; erwartet 84, 43, 43, 13, 13 und 10",
+			bestaende, len(erreicht), len(literal), imZustandNeu, erreichtImZustandNeu, len(jenseits))
 	}
 }
 
