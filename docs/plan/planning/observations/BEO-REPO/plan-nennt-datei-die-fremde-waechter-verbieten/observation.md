@@ -1,0 +1,5 @@
+# Ein Plan nennt eine Testdatei im Paket `bootstrap`, deren Import von `admin` vier Wächter fertiger Slices verbieten
+
+**Sub-Area:** `*` (gesamtes Repo, Kürzel `REPO`)
+
+Ein Plan sieht in §3 eine Datei vor, die in `src/bootstrap/` (auch eine `_test.go`) den Adapter `admin` importiert, hier den Test-Server der Zeilen AT11 bis AT17 (`admin.New` über `umhuelle`). Vier Tests im Paket `admin` (`TestIM16BinaryUnveraendert`, `TestI18BinaryUnveraendert`, `TestS17BinaryUnveraendert`, `TestWS15BinaryUnveraendert`) lesen alle Dateien von `src/bootstrap/` und melden jeden Import von `admin`; sie tragen die Zusage „das Binary bleibt unverändert“ vier fertiger Slices. Der Plan nannte die Wand nicht, `make test` war mit der Datei rot, und eine Ausnahme der Datei in den Wächtern lockerte vier Fänger (`AGENTS.md` §3.6), was der User entscheidet. Der Implementer hielt an; der Teil musste als eigener Slice ausgegliedert werden und startet erst, wenn der Slice, der die Wächter durch Fänger der Verdrahtung ersetzt, in `done/` liegt. Nahe an `test-export-in-eigener-datei-verletzt-testpackage` (dort verbietet ein Lint-Profil den Ort, hier ein Quelltest fremder Slices).
