@@ -167,33 +167,78 @@ func adminUnicode() []rune {
 // TestAdminLoopback (AT01, M-Host): adminLoopback ist wahr genau für `127.0.0.1`, `[::1]` und `localhost`, bytegleich, bei jedem Port; jeder andere
 // Host, auch ohne Host und ohne `:`, ist falsch (SPEC-299 Nr. 2). Menge: 3 + 17 Hosts × 3 Ports = 60, dazu 3 Eingaben ohne `:` = 63.
 func TestAdminLoopback(t *testing.T) {
-	loopback := []string{"127.0.0.1", "[::1]", "localhost"}
+	zellen := adminMengeHost()
+	for _, z := range zellen {
+		if got := bootstrap.AdminLoopback(z.listen); got != z.loopback {
+			t.Errorf("AdminLoopback(%q) = %v, erwartet %v", z.listen, got, z.loopback)
+		}
+	}
+	if len(zellen) != 63 {
+		t.Fatalf("Menge M-Host hat %d Zellen, erwartet 63 (3 + 17 Hosts × 3 Ports und 3 Eingaben ohne `:`)", len(zellen))
+	}
+}
+
+// adminZelle ist eine Eingabe `listen` mit der Antwort, die SPEC-299 Nr. 2 für sie verlangt (Literal, nie aus dem Code).
+type adminZelle struct {
+	listen   string
+	loopback bool
+}
+
+// adminMengeHost ist M-Host (SPEC-299 Nr. 2): 3 Hosts loopback und 17 nicht-loopback bei drei Ports, dazu drei Eingaben ohne `:`.
+func adminMengeHost() []adminZelle {
+	loopback := adminLoopbackHosts()
 	fremd := []string{
 		"0.0.0.0", "[::]", "", "127.0.0.2", "127.255.255.255", "LOCALHOST", "Localhost", "localhost.", "xlocalhost", "localhostx",
 		"[0:0:0:0:0:0:0:1]", "[::ffff:127.0.0.1]", "[::2]", "::1", "10.0.0.1", "recorder.internal", "127.0.0.1.",
 	}
-	zahl := 0
-	pruefe := func(listen string, soll bool) {
-		t.Helper()
-		zahl++
-		if got := bootstrap.AdminLoopback(listen); got != soll {
-			t.Errorf("AdminLoopback(%q) = %v, erwartet %v", listen, got, soll)
-		}
-	}
+	var aus []adminZelle
 	for _, port := range []string{"1", "8081", "65535"} {
 		for _, h := range loopback {
-			pruefe(h+":"+port, true)
+			aus = append(aus, adminZelle{h + ":" + port, true})
 		}
 		for _, h := range fremd {
-			pruefe(h+":"+port, false)
+			aus = append(aus, adminZelle{h + ":" + port, false})
 		}
 	}
 	for _, ohneDoppelpunkt := range []string{"127.0.0.1", "localhost", ""} {
-		pruefe(ohneDoppelpunkt, false)
+		aus = append(aus, adminZelle{ohneDoppelpunkt, false})
 	}
-	if len(loopback) != 3 || len(fremd) != 17 || zahl != 63 {
-		t.Fatalf("Menge M-Host hat %d Zellen (%d + %d Hosts), erwartet 63 (3 + 17)", zahl, len(loopback), len(fremd))
+	return aus
+}
+
+// adminMengeStruktur ist M-Struktur (SPEC-299 Nr. 2): Port-Teil und Klammern der drei Hosts, Schreibweisen derselben Adressen und Namen mit und ohne Port
+// und 31 Unicode-Zeichen vor dem Host, hinter dem Host und im Port: 3 × 12 + 16 + 17 × 2 + 3 × 31 × 3 = 36 + 16 + 34 + 279 = 365 Zellen.
+func adminMengeStruktur() []adminZelle {
+	var aus []adminZelle
+	formen := []struct {
+		muster string
+		wahr   bool
+	}{
+		{"%s", false}, {"%s:", true}, {"%s:8081", true}, {"%s:x", true}, {"%s:8081 ", true}, {"%s:8081]", true},
+		{"%s:8081:8081", false}, {"%s::", false}, {"%s::8081", false}, {":%s:8081", false}, {" %s:8081", false}, {"%s :8081", false},
 	}
+	for _, h := range adminLoopbackHosts() {
+		for _, f := range formen {
+			aus = append(aus, adminZelle{fmt.Sprintf(f.muster, h), f.wahr})
+		}
+	}
+	aus = append(aus, []adminZelle{
+		{"[::1]:8081", true}, {"[::1]", false}, {"::1", false}, {"::1:8081", false}, {"::1]:8081", false}, {"[::1:8081", false}, {"[::1:8081]", false},
+		{"[[::1]]:8081", false}, {"[[::1]:8081", false}, {"[::1]]:8081", false}, {"[::1]:[::1]:8081", false}, {"[ ::1]:8081", false}, {"[::1 ]:8081", false},
+		{"[::1]%lo:8081", false}, {"[::1%lo]:8081", false}, {":[::1]:8081", false},
+	}...)
+	for _, h := range []string{
+		"127.1", "127.0.1", "0177.0.0.1", "0x7f.0.0.1", "0x7f000001", "2130706433", "127.000.000.001", "[::0001]", "[0::1]", "[::ffff:7f00:1]",
+		"[::1%lo]", "localhost6", "ip6-localhost", "localhost.localdomain", "LocalHost", "127.0.0.1%lo", "localho" + string(rune(0x17F)) + "t",
+	} {
+		aus = append(aus, adminZelle{h + ":8081", false}, adminZelle{h, false})
+	}
+	for _, h := range adminLoopbackHosts() {
+		for _, c := range adminUnicode() {
+			aus = append(aus, adminZelle{string(c) + h + ":8081", false}, adminZelle{h + string(c) + ":8081", false}, adminZelle{h + ":80" + string(c) + "81", true})
+		}
+	}
+	return aus
 }
 
 // TestAdminLoopbackNachbarn (AT01, M-Nachbar, Zeichenmenge): jede Zeichenkette im Abstand 1 von einer der sechs Eingaben (drei Hosts, je mit `:8081` und
@@ -258,50 +303,14 @@ func TestAdminLoopbackNachbarn(t *testing.T) {
 // mit Antwort als Literal, die Schreibweisen derselben Adressen und Namen mit und ohne Port (alle falsch) und 31 Unicode-Zeichen (Leerzeichen und Formatzeichen) vor dem Host,
 // hinter dem Host und im Port. Menge: 3 × 12 Formen + 16 Klammern + 17 × 2 Schreibweisen + 3 × 31 × 3 Stellen = 36 + 16 + 34 + 279 = 365.
 func TestAdminLoopbackStruktur(t *testing.T) {
-	zahl := 0
-	pruefe := func(listen string, soll bool) {
-		t.Helper()
-		zahl++
-		if got := bootstrap.AdminLoopback(listen); got != soll {
-			t.Errorf("AdminLoopback(%q) = %v, erwartet %v", listen, got, soll)
+	zellen := adminMengeStruktur()
+	for _, z := range zellen {
+		if got := bootstrap.AdminLoopback(z.listen); got != z.loopback {
+			t.Errorf("AdminLoopback(%q) = %v, erwartet %v", z.listen, got, z.loopback)
 		}
 	}
-	formen := []struct {
-		muster string
-		wahr   bool
-	}{
-		{"%s", false}, {"%s:", true}, {"%s:8081", true}, {"%s:x", true}, {"%s:8081 ", true}, {"%s:8081]", true},
-		{"%s:8081:8081", false}, {"%s::", false}, {"%s::8081", false}, {":%s:8081", false}, {" %s:8081", false}, {"%s :8081", false},
-	}
-	for _, h := range adminLoopbackHosts() {
-		for _, f := range formen {
-			pruefe(fmt.Sprintf(f.muster, h), f.wahr)
-		}
-	}
-	for listen, soll := range map[string]bool{
-		"[::1]:8081": true, "[::1]": false, "::1": false, "::1:8081": false, "::1]:8081": false, "[::1:8081": false, "[::1:8081]": false,
-		"[[::1]]:8081": false, "[[::1]:8081": false, "[::1]]:8081": false, "[::1]:[::1]:8081": false, "[ ::1]:8081": false, "[::1 ]:8081": false,
-		"[::1]%lo:8081": false, "[::1%lo]:8081": false, ":[::1]:8081": false,
-	} {
-		pruefe(listen, soll)
-	}
-	schreibweisen := []string{
-		"127.1", "127.0.1", "0177.0.0.1", "0x7f.0.0.1", "0x7f000001", "2130706433", "127.000.000.001", "[::0001]", "[0::1]", "[::ffff:7f00:1]",
-		"[::1%lo]", "localhost6", "ip6-localhost", "localhost.localdomain", "LocalHost", "127.0.0.1%lo", "localho" + string(rune(0x17F)) + "t",
-	}
-	for _, h := range schreibweisen {
-		pruefe(h+":8081", false)
-		pruefe(h, false)
-	}
-	for _, h := range adminLoopbackHosts() {
-		for _, c := range adminUnicode() {
-			pruefe(string(c)+h+":8081", false)
-			pruefe(h+string(c)+":8081", false)
-			pruefe(h+":80"+string(c)+"81", true)
-		}
-	}
-	if len(adminUnicode()) != 31 || len(schreibweisen) != 17 || zahl != 365 {
-		t.Fatalf("%d Zellen, %d Zeichen, %d Schreibweisen; erwartet 365, 31 und 17", zahl, len(adminUnicode()), len(schreibweisen))
+	if len(adminUnicode()) != 31 || len(zellen) != 365 {
+		t.Fatalf("%d Zellen und %d Zeichen; erwartet 365 und 31", len(zellen), len(adminUnicode()))
 	}
 }
 
@@ -370,6 +379,96 @@ func TestAdminWeg(t *testing.T) {
 	}
 	if zahl != 32 {
 		t.Fatalf("Menge M-Weg hat %d Zellen, erwartet 32", zahl)
+	}
+}
+
+// adminMengeNachbarn ist M-Nachbar (SPEC-299 Nr. 2) als Zellen: die Nachbarn der sechs Eingaben und die 2 × 511 anderen Schreibweisen von `localhost`; die
+// Antwort ist das Orakel `adminLoopbackSoll` (33727 Zellen).
+func adminMengeNachbarn() []adminZelle {
+	var aus []adminZelle
+	for _, h := range adminLoopbackHosts() {
+		for _, basis := range []string{h, h + ":8081"} {
+			for n := range adminNachbarn(basis) {
+				aus = append(aus, adminZelle{n, adminLoopbackSoll(n)})
+			}
+		}
+	}
+	for _, s := range adminSchreibweisen("localhost") {
+		aus = append(aus, adminZelle{s + ":8081", false}, adminZelle{s, false})
+	}
+	return aus
+}
+
+// TestAdminWegHosts (AT02, Aufrufstelle von adminLoopback in pruefeAdminTransport): die Hostmengen von AT01 gehen als `Listen` durch pruefeAdminTransport, und
+// der Weg folgt dem Orakel von SPEC-299 Nr. 2 und 3: ohne Paar und ohne Flag ist ein Loopback-Host `wegLoopback`, jeder andere der Verstoß an `ADMIN_LISTEN`;
+// mit Flag ist jeder andere Host `wegKlartext`; mit Paar ist es `wegTLS`. Menge: M-Host (63) und M-Struktur (365) in drei Armen (ohne Paar und Flag, mit Flag,
+// mit Paar) = 1284 Zellen, M-Nachbar (33727) in den zwei Armen ohne Paar = 67454; 68738 Zellen.
+func TestAdminWegHosts(t *testing.T) {
+	w := neueWerkstatt(t)
+	cert, key := w.datei(w.gut.ZertifikatPEM()), w.datei(w.schluessel(w.gut))
+	var falsch []string
+	zahl := 0
+	pruefe := func(z adminZelle, c, k string, flag bool) {
+		zahl++
+		weg, soll := bootstrap.WegKeiner, []bootstrap.TLSVerstoss{tv(adminListenKey, adminZusammenhang)}
+		switch {
+		case c != "":
+			weg, soll = bootstrap.WegTLS, nil
+		case z.loopback:
+			weg, soll = bootstrap.WegLoopback, nil
+		case flag:
+			weg, soll = bootstrap.WegKlartext, nil
+		}
+		tr, vs := bootstrap.PruefeAdminTransport(adminEin(z.listen, c, k, flag), w.jetzt)
+		if tr.Weg != weg || (tr.TLS != nil) != (weg == bootstrap.WegTLS) || !slices.Equal(vs, soll) {
+			falsch = append(falsch, fmt.Sprintf("%q, Paar %v, Flag %v: Weg %d, Verstöße %v; erwartet Weg %d, Verstöße %v", z.listen, c != "", flag, tr.Weg, vs, weg, soll))
+		}
+	}
+	for _, z := range slices.Concat(adminMengeHost(), adminMengeStruktur()) {
+		pruefe(z, "", "", false)
+		pruefe(z, "", "", true)
+		pruefe(z, cert, key, false)
+	}
+	for _, z := range adminMengeNachbarn() {
+		pruefe(z, "", "", false)
+		pruefe(z, "", "", true)
+	}
+	slices.Sort(falsch)
+	if len(falsch) > 0 {
+		t.Errorf("%d von %d Zellen mit falschem Weg, die ersten: %q", len(falsch), zahl, falsch[:min(len(falsch), 3)])
+	}
+	if zahl != 68738 {
+		t.Fatalf("%d Zellen, erwartet 68738", zahl)
+	}
+}
+
+// TestAdminJetzt (AT04, Argument `jetzt` von pruefeAdminTransport): die Gültigkeit des Zertifikats gilt zur Zeit `jetzt`, nicht zur Uhr des Hosts (SPEC-299
+// Nr. 4 und 13). Menge: Fenster des Blatts (Vergangenheit, Gegenwart, Zukunft) × `jetzt` (Mitte der Vergangenheit, Gegenwart, Mitte der Zukunft) = 9
+// Zellen; gültig ist genau die Diagonale (`wegTLS`), jede andere Zelle der Verstoß „außerhalb seiner Gültigkeit“ am Zertifikat; zwei der drei `jetzt` liegen
+// 25 und 75 Jahre von der Uhr des Hosts.
+func TestAdminJetzt(t *testing.T) {
+	w := neueWerkstatt(t)
+	tag := func(jahr int, monat time.Month) time.Time { return time.Date(jahr, monat, 15, 12, 0, 0, 0, time.UTC) }
+	fenster := []struct{ von, bis time.Time }{
+		{tag(2000, 1), tag(2001, 1)}, {w.jetzt.Add(-time.Hour), w.jetzt.Add(time.Hour)}, {tag(2100, 1), tag(2101, 1)},
+	}
+	jetzte := []time.Time{tag(2000, 6), w.jetzt, tag(2100, 6)}
+	zahl := 0
+	for i, f := range fenster {
+		blatt := w.wurzel.Blatt(t, tlstest.Optionen{Von: f.von, Bis: f.bis})
+		cert, key := w.datei(blatt.ZertifikatPEM()), w.datei(w.schluessel(blatt))
+		for j, jetzt := range jetzte {
+			zahl++
+			weg, soll := bootstrap.WegKeiner, []bootstrap.TLSVerstoss{tv(adminCert, gAusserhalb)}
+			if i == j {
+				weg, soll = bootstrap.WegTLS, nil
+			}
+			tr, vs := bootstrap.PruefeAdminTransport(adminEin("0.0.0.0:8081", cert, key, false), jetzt)
+			adminErwartet(t, fmt.Sprintf("Fenster %d, jetzt %d", i, j), tr, vs, weg, soll)
+		}
+	}
+	if zahl != 9 {
+		t.Fatalf("%d Zellen, erwartet 9", zahl)
 	}
 }
 
@@ -670,7 +769,8 @@ type adminFunktion struct {
 func (w *werkstatt) adminFunktionen(cert, key string) []adminFunktion {
 	wege := []bootstrap.AdminWeg{bootstrap.WegKeiner, bootstrap.WegTLS, bootstrap.WegLoopback, bootstrap.WegKlartext}
 	geteilt := w.ladeAdmin(cert, key, w.jetzt)
-	vorher := adminKonfig(geteilt.TLS)
+	// Die Konfiguration, die SPEC-299 Nr. 7 und SPEC-291 Nr. 5 und 6 verlangen: das Blatt der Datei, TLS 1.2 ohne Obergrenze, kein Client-Zertifikat, nur HTTP/1.1.
+	vorher := adminKonfig(&tls.Config{Certificates: []tls.Certificate{{Certificate: [][]byte{w.gut.Zertifikat.Raw}}}, MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}})
 	transport := func(weg bootstrap.AdminWeg) bootstrap.AdminTransport {
 		if weg == bootstrap.WegTLS {
 			return geteilt
