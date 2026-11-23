@@ -1,1 +1,1 @@
-**Stand:** offen: die Randform ist entschieden (`SPEC-239` Nr. 1 a und Nr. 4); Träger des Fixes für `src/adapters/driving/admin/tokendatei.go` ist [slice-token-datei-wettlauf](../../../next/slice-token-datei-wettlauf.md), noch nicht gestartet
+**Stand:** offen: die Randform ist entschieden (`SPEC-239` Nr. 1 a und Nr. 4); Träger des Fixes für `src/adapters/driving/admin/tokendatei.go` ist [slice-token-datei-wettlauf](../../../in-progress/slice-token-datei-wettlauf.md), noch nicht gestartet
