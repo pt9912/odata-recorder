@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-workspaces
+**Fund:** Im Bericht des Implementers: ein Heredoc `gates.sh` landete versehentlich im Wurzelverzeichnis des Worktrees und wurde vor dem Gate-Lauf ins Scratchpad verschoben. Die Verifikation fand keinen Rest (V-12: `git status` und `git ls-files --others --exclude-standard` leer, `gates.sh` in keinem Commit). Beleg: `docs/reviews/2026-11-23-slice-admin-workspaces-verifikation.md` (V-12) und Plan `slice-admin-workspaces` §6.
