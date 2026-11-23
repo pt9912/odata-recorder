@@ -5,11 +5,13 @@ package admin_test
 import (
 	"bytes"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
 )
@@ -102,14 +104,22 @@ func (z zugang) String() string {
 	return [...]string{"vor dem Stat", "zwischen Stat und Lstat", "beim Link"}[z]
 }
 
-// eStand ist der Stand eines Eintrags: Art und Modus, Größe, Bytes einer Datei, Ziel eines Symlinks, Änderungszeit.
+// festeZeit ist die Änderungszeit, auf die jede Fixture vor dem Aufruf gesetzt wird: weit vor der Zeit eines
+// Schreibens im Aufruf, damit jedes Schreiben, auch mit denselben Bytes, die Zeit ändert.
+func festeZeit() time.Time { return time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC) }
+
+// eStand ist der Stand eines Eintrags, jede Zustandsgröße, an der ein Schreiben, Kürzen, Löschen oder Korrigieren
+// (SPEC-239 Nr. 4 Satz 3) sichtbar wird: Art und Rechte (modus), Größe, Bytes einer Datei, Ziel eines Symlinks,
+// Änderungszeit, Identität (dev, ino), Zahl der Verweise (nlink) und Besitzer (uid, gid).
 type eStand struct {
-	fehlt   bool
-	modus   fs.FileMode
-	groesse int64
-	inhalt  string
-	ziel    string
-	zeit    int64
+	fehlt           bool
+	modus           fs.FileMode
+	groesse         int64
+	inhalt          string
+	ziel            string
+	zeit            int64
+	dev, ino, nlink uint64
+	uid, gid        uint32
 }
 
 func standVon(pfad string) eStand {
@@ -118,6 +128,9 @@ func standVon(pfad string) eStand {
 		return eStand{fehlt: true}
 	}
 	s := eStand{modus: fi.Mode(), groesse: fi.Size(), zeit: fi.ModTime().UnixNano()}
+	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
+		s.dev, s.ino, s.nlink, s.uid, s.gid = uint64(st.Dev), uint64(st.Ino), uint64(st.Nlink), st.Uid, st.Gid
+	}
 	switch {
 	case fi.Mode().IsRegular():
 		b, _ := os.ReadFile(pfad)
@@ -126,6 +139,24 @@ func standVon(pfad string) eStand {
 		s.ziel, _ = os.Readlink(pfad)
 	}
 	return s
+}
+
+// legeEintragAn legt den Eintrag an pfad an, setzt die Änderungszeit jeder Datei und jedes Verzeichnisses des Eintrags
+// auf festeZeit (ein Symlink selbst bleibt, sein Ziel steht unter seinem Namen in e.namen) und liefert den Stand.
+func legeEintragAn(e eintrag, pfad string) (map[string]eStand, error) {
+	if err := e.legeAn(pfad); err != nil {
+		return nil, err
+	}
+	dir := filepath.Dir(pfad)
+	for _, n := range e.namen {
+		p := filepath.Join(dir, n)
+		if fi, err := os.Lstat(p); err == nil && fi.Mode()&fs.ModeSymlink == 0 {
+			if err := os.Chtimes(p, festeZeit(), festeZeit()); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return staende(dir, e.namen), nil
 }
 
 func staende(dir string, namen []string) map[string]eStand {
@@ -154,19 +185,19 @@ func laufeZelle(t *testing.T, e eintrag, z zugang) zelle {
 	pfad := filepath.Join(dir, "admin.token")
 	var r zelle
 	lege := func() {
-		if err := e.legeAn(pfad); err != nil {
+		var err error
+		if r.vorher, err = legeEintragAn(e, pfad); err != nil {
 			t.Errorf("%s: Anlegen: %v", e.name, err)
 		}
-		r.vorher = staende(dir, e.namen)
 	}
 	nachStat := func() { r.nachStat++ }
 	vorLink := func(string) { r.vorLink++ }
 	switch z {
 	case vorStat:
-		if err := e.legeAn(pfad); err != nil {
+		var err error
+		if r.vorher, err = legeEintragAn(e, pfad); err != nil {
 			t.Fatalf("%s: Anlegen: %v", e.name, err)
 		}
-		r.vorher = staende(dir, e.namen)
 	case zwischenStatLstat:
 		nachStat = func() { r.nachStat++; lege() }
 	case beimLink:
@@ -234,27 +265,89 @@ func TestFensterMengeEintragZugang(t *testing.T) {
 	}
 }
 
-// TW3 (M-Eintrag x Zugang zwischen Stat und Lstat, beim Link): 11 x 2 gleich 22 Zellen; der Stand jedes Eintrags
-// (Art, Modus, Größe, Bytes, Ziel, Zeit) ist nach dem Aufruf der, den er beim Anlegen hatte.
+// pruefeUnveraendert prüft eine Zelle gegen SPEC-239 Nr. 4 Satz 3: jede Zustandsgröße von eStand jedes Eintrags
+// (Art und Rechte, Größe, Bytes, Ziel, Änderungszeit, Identität, Verweise, Besitzer) ist nach dem Aufruf die, die sie
+// beim Anlegen war, und im Verzeichnis liegen allein die Namen des Eintrags. Die Änderungszeit der Fixture ist vor
+// dem Aufruf auf festeZeit gesetzt, ein Schreiben im Aufruf ändert sie in jedem Lauf.
+func pruefeUnveraendert(t *testing.T, name string, e eintrag, r zelle) {
+	t.Helper()
+	if len(r.vorher) != len(e.namen) {
+		t.Errorf("%s: %d Stände beim Anlegen, erwartet %d", name, len(r.vorher), len(e.namen))
+	}
+	for _, nm := range e.namen {
+		if r.vorher[nm] != r.nachher[nm] {
+			t.Errorf("%s: %s verändert: %+v -> %+v", name, nm, r.vorher[nm], r.nachher[nm])
+		}
+	}
+	if !gleich(r.namen, e.namen) {
+		t.Errorf("%s: Verzeichnis = %v, erwartet %v", name, r.namen, e.namen)
+	}
+}
+
+// TW3 (M-Eintrag x Zugang zwischen Stat und Lstat, beim Link): 11 x 2 gleich 22 Zellen, je Zelle die Zustandsgrößen
+// von eStand (Existenz, Art und Rechte, Größe, Bytes, Ziel, Zeit, Identität, Verweise, Besitzer: 9) und das
+// Verzeichnis (pruefeUnveraendert).
 func TestFensterAendertNie(t *testing.T) {
 	n := 0
 	for _, e := range eintraege() {
 		for _, z := range []zugang{zwischenStatLstat, beimLink} {
-			name := e.name + "/" + z.String()
-			r := laufeZelle(t, e, z)
+			pruefeUnveraendert(t, e.name+"/"+z.String(), e, laufeZelle(t, e, z))
 			n++
-			if len(r.vorher) != len(e.namen) {
-				t.Errorf("%s: %d Stände beim Anlegen, erwartet %d", name, len(r.vorher), len(e.namen))
-			}
-			for _, nm := range e.namen {
-				if r.vorher[nm] != r.nachher[nm] {
-					t.Errorf("%s: %s verändert: %+v -> %+v", name, nm, r.vorher[nm], r.nachher[nm])
-				}
-			}
 		}
 	}
 	if n != 22 {
 		t.Fatalf("Menge: %d Zellen, erwartet 22", n)
+	}
+}
+
+// zusatzEintraege sind die Arten von SPEC-239 Nr. 1 c, die M-Eintrag nicht führt und die ohne Recht und ohne Blockieren
+// entstehen: ein Socket und ein Symlink auf ein Gerät (/dev/null); eine Gerätedatei an pfad selbst braucht das Recht
+// mknod und fehlt.
+func zusatzEintraege(t *testing.T) []eintrag {
+	nur := []string{"admin.token"}
+	return []eintrag{
+		{"z1 Socket", func(p string) error {
+			l, err := net.Listen("unix", p)
+			if err != nil {
+				return err
+			}
+			t.Cleanup(func() { _ = l.Close() })
+			return nil
+		}, "", gKeineDatei, nur},
+		{"z2 Symlink auf Gerät", func(p string) error { return os.Symlink("/dev/null", p) }, "", gKeineDatei, nur},
+	}
+}
+
+// Zusatzmenge: 2 Arten x 3 Zugänge gleich 6 Zellen; Ausgang `keine reguläre Datei` in jedem Zugang, nichts erzeugt,
+// nichts verändert.
+func TestFensterNichtRegulaerZusatz(t *testing.T) {
+	n := 0
+	zs := []zugang{vorStat, zwischenStatLstat, beimLink}
+	for _, e := range zusatzEintraege(t) {
+		for _, z := range zs {
+			name := e.name + "/" + z.String()
+			r := laufeZelle(t, e, z)
+			n++
+			erwarteGrund(t, name, r.err, e.grund)
+			if r.token != nil {
+				t.Errorf("%s: Token %q trotz Verstoß", name, r.token)
+			}
+			pruefeUnveraendert(t, name, e, r)
+			wantStat, wantErzeugen := 1, 0
+			if z == vorStat {
+				wantStat = 0
+			}
+			if z == beimLink {
+				wantErzeugen = 1
+			}
+			if r.nachStat != wantStat || r.anlegen != wantErzeugen || r.vorLink != wantErzeugen {
+				t.Errorf("%s: nachStat %d, Hilfsdatei %d, Link %d; erwartet %d, %d, %d", name, r.nachStat, r.anlegen, r.vorLink,
+					wantStat, wantErzeugen, wantErzeugen)
+			}
+		}
+	}
+	if n != 2*len(zs) {
+		t.Fatalf("Menge: %d Zellen, erwartet 6", n)
 	}
 }
 
