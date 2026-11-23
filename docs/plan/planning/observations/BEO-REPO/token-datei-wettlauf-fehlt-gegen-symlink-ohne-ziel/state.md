@@ -1,1 +1,1 @@
-**Stand:** offen: benannte Spec-Lücke `SPEC-239` Nr. 1 a und Nr. 3 d (Randform "Datei erscheint zwischen `Stat` und `Lstat`" ohne Ort); Adresse Architect (entscheidet die Randform, `AGENTS.md` §3.12), danach ein Fix-Slice des Planners für `src/adapters/driving/admin/tokendatei.go`; Träger noch kein Slice
+**Stand:** offen: die Randform ist entschieden (`SPEC-239` Nr. 1 a und Nr. 4); Träger des Fixes für `src/adapters/driving/admin/tokendatei.go` ist [slice-token-datei-wettlauf](../../../open/slice-token-datei-wettlauf.md), noch nicht gestartet
