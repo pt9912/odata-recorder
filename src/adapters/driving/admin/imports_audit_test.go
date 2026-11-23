@@ -118,7 +118,7 @@ func appendFehlerMenge() []fehlerFall {
 // TestIM22AppendFehler hält IM22 (SPEC-297 Nr. 10 e) als Schleife über appendFehlerMenge: jeder der 56 Fehler von Append ändert
 // Status, Body und Header der Antwort von `POST` nicht (Byte für Byte gleich der Antwort ohne Fehler) und löst weder eine Panik
 // noch den Abbruch der Verbindung aus, bei 201 und bei 200 (112 Zellen); Append lief je Zelle einmal, und es gab keine Zählung.
-// Prüfgrenze (akzeptiertes Negativ): Arten von Fehlern außerhalb der 14 und Verpackungen außerhalb der 4.
+// Prüfgrenze (akzeptiertes Negativ, Plan §3 (6)): Arten von Fehlern außerhalb der 14 und Verpackungen außerhalb der 4.
 func TestIM22AppendFehler(t *testing.T) {
 	menge := appendFehlerMenge()
 	gleichAuf(t, "Zahl der Fehler", len(menge), 14*4)
