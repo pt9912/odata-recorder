@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"io"
 	"log/slog"
+	"net"
 	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
@@ -36,6 +37,42 @@ func LadeTLS(certSchluessel, keySchluessel, certPfad, keyPfad string, jetzt time
 	}
 	return cfg, aus
 }
+
+// Die Naht der Funktionen des Admin-Listeners (SPEC-299, admintls.go).
+
+// AdminEingabe, AdminTransport und AdminWeg sind die Typen von pruefeAdminTransport.
+type (
+	AdminEingabe   = adminEingabe
+	AdminTransport = adminTransport
+	AdminWeg       = adminWeg
+)
+
+// Die vier Wege des Admin-Listeners (SPEC-299 Nr. 3).
+const (
+	WegKeiner   = wegKeiner
+	WegTLS      = wegTLS
+	WegLoopback = wegLoopback
+	WegKlartext = wegKlartext
+)
+
+// AdminLoopback ist adminLoopback (SPEC-299 Nr. 2).
+func AdminLoopback(listen string) bool { return adminLoopback(listen) }
+
+// PruefeAdminTransport ist pruefeAdminTransport mit den Verstößen als TLSVerstoss (SPEC-299 Nr. 3, 4, 6).
+func PruefeAdminTransport(e AdminEingabe, jetzt time.Time) (AdminTransport, []TLSVerstoss) {
+	t, vs := pruefeAdminTransport(e, jetzt)
+	var aus []TLSVerstoss
+	for _, v := range vs {
+		aus = append(aus, TLSVerstoss{v.schluessel, v.grund})
+	}
+	return t, aus
+}
+
+// AdminUmhuelle ist umhuelle von t (SPEC-299 Nr. 8 c).
+func AdminUmhuelle(t AdminTransport, l net.Listener) net.Listener { return t.umhuelle(l) }
+
+// AdminWarne ist warne von t (SPEC-299 Nr. 9).
+func AdminWarne(t AdminTransport, log *slog.Logger) { t.warne(log) }
 
 // LadeKonfigurationZu ist LadeKonfiguration zu einer festen Zeit des Starts (SPEC-291 Nr. 3).
 func LadeKonfigurationZu(environ []string, jetzt time.Time) (Konfiguration, error) {
