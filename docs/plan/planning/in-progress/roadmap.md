@@ -16,6 +16,8 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
+In Arbeit: [slice-telemetry-einbau-record](slice-telemetry-einbau-record.md) ([welle-betrieb](../welle-betrieb.md), Teil 3 des Schnitts von [slice-telemetry-einbau-gateway](../done/slice-telemetry-einbau-gateway.md): Capture-Span `odata.record.capture` im Record-Dienst, Einträge der Dienste `record`, `session`, `maintenance` und des Audit-Adapters über `slog.New(Handler())`; das Binary schreibt danach diese Zeilen).
+
 In Arbeit: [slice-admin-tls](slice-admin-tls.md) ([welle-admin-api](../welle-admin-api.md), Transportschutz des Admin-Listeners: Start-Prüfung bei nicht-loopback `ADMIN_LISTEN`, Zertifikatspaar `ADMIN_TLS_*`, Klartext mit `ADMIN_ALLOW_PLAINTEXT` und Warnung, Umhüllung des Listeners; das Binary bleibt unverändert).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
