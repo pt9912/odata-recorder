@@ -73,7 +73,7 @@ composition_root:
 tech:
   - {pattern: "modernc.org/sqlite", adapter: "src/adapters/driven/sqlite"}
   - {pattern: "encoding/xml", adapter: "src/adapters/driven/odata"}
-  # Der Importpfad des Composition Root steht nur in Dateien unter src/bootstrap/ und tests/; jede andere Datei und jede Form des Imports ist ein tech-leak (SPEC-039 Nr. 4).
+  # Der Importpfad des Composition Root steht nur in Dateien unter src/bootstrap/ und tests/; jede andere Datei und jede Form des Imports ist ein Befund (SPEC-039 Nr. 4), je nach Quelle als core-impurity (Modell), app-impurity (Dienste), port-impurity (Ports) oder tech-leak (Adapter, Rest).
   - {pattern: "odata-recorder/src/bootstrap", adapter: ["src/bootstrap/", "tests/"]}
 
 markers:

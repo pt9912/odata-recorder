@@ -73,7 +73,7 @@ func pruefeAdminTransport(e adminEingabe, jetzt time.Time) (adminTransport, []ve
 	return adminTransport{}, []verstoss{{adminListen, grundAdminZusammenhang}}
 }
 
-// umhuelle liefert bei wegTLS den Listener mit TLS, sonst l selbst (SPEC-299 Nr. 8 c). Der Handshake läuft in der Verbindung, nicht im Accept.
+// umhuelle liefert bei wegTLS den Listener mit TLS, sonst l selbst (SPEC-299 Nr. 8 c); es ruft keine Operation von l.
 func (t adminTransport) umhuelle(l net.Listener) net.Listener {
 	if t.Weg == wegTLS {
 		return tls.NewListener(l, t.TLS)

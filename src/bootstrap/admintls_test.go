@@ -4,6 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"log"
 	"log/slog"
@@ -13,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -26,9 +30,6 @@ const (
 	adminZusammenhang = "außerhalb von Loopback verlangt TLS: ADMIN_TLS_CERT und ADMIN_TLS_KEY"
 	adminWarnung      = "WARN|start: Admin-Listener ohne TLS erreichbar|ereignis=admin_klartext"
 )
-
-// adminAlphabet sind die 68 Zeichen der Nachbarn von M-Nachbar (SPEC-299 Nr. 2).
-const adminAlphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.:[]-_"
 
 // adminEin bildet die Eingabe von pruefeAdminTransport mit gültiger Form (SPEC-299 Nr. 6).
 func adminEin(listen, cert, key string, klartext bool) bootstrap.AdminEingabe {
@@ -90,14 +91,30 @@ func (w *werkstatt) mengeAdminPaar() []tlsFall {
 	}
 }
 
-// adminNachbarn liefert jede Zeichenkette im Abstand 1 von s (ein Zeichen des Alphabets eingefügt, gelöscht oder ersetzt), ohne s.
+// adminLoopbackHosts sind die drei Schreibweisen, die SPEC-299 Nr. 2 als Loopback nennt.
+func adminLoopbackHosts() []string { return []string{"127.0.0.1", "[::1]", "localhost"} }
+
+// adminLoopbackSoll ist das Orakel von SPEC-299 Nr. 2 ohne den Code von admintls.go: wahr genau dann, wenn s aus einer der drei Schreibweisen, einem `:`
+// und einem Rest ohne `:` besteht (der Host ist der Text vor dem letzten `:`, bytegleich, und der Port ändert nichts).
+func adminLoopbackSoll(s string) bool {
+	for _, h := range adminLoopbackHosts() {
+		if rest, ok := strings.CutPrefix(s, h+":"); ok && !strings.Contains(rest, ":") {
+			return true
+		}
+	}
+	return false
+}
+
+// adminNachbarn liefert jede Zeichenkette im Abstand 1 von s, ohne s: jeder der 256 Bytewerte an jeder Stelle eingefügt oder an die Stelle eines Bytes
+// gesetzt, dazu jedes Byte gelöscht. Die Bytes entstehen aus ihrem Wert, nie aus einem Zeichen des Quelltexts (kein Alphabet, das ein Wert verfehlt).
 func adminNachbarn(s string) map[string]bool {
 	aus := map[string]bool{}
 	for i := 0; i <= len(s); i++ {
-		for _, c := range adminAlphabet {
-			aus[s[:i]+string(c)+s[i:]] = true
+		for c := range 256 {
+			b := string([]byte{byte(c)})
+			aus[s[:i]+b+s[i:]] = true
 			if i < len(s) {
-				aus[s[:i]+string(c)+s[i+1:]] = true
+				aus[s[:i]+b+s[i+1:]] = true
 			}
 		}
 		if i < len(s) {
@@ -108,8 +125,8 @@ func adminNachbarn(s string) map[string]bool {
 	return aus
 }
 
-// adminZaehlformel ist die Zahl der Nachbarn nach einem zweiten Verfahren: Löschen je Lauf gleicher Zeichen, Ersetzen je Zeichen mit den 67 anderen,
-// Einfügen an n+1 Stellen mit 68 Zeichen abzüglich der n Doppelten (dasselbe Zeichen vor und hinter seinem Gleichen).
+// adminZaehlformel ist die Zahl der Nachbarn nach einem zweiten Verfahren, ohne die Menge zu bilden: Löschen je Lauf gleicher Bytes, Ersetzen je Byte mit
+// den 255 anderen, Einfügen an n+1 Stellen mit 256 Werten abzüglich der n Doppelten (dasselbe Byte vor und hinter seinem Gleichen).
 func adminZaehlformel(s string) int {
 	laeufe := 0
 	for i := range s {
@@ -117,8 +134,8 @@ func adminZaehlformel(s string) int {
 			laeufe++
 		}
 	}
-	n, a := len(s), len(adminAlphabet)
-	return laeufe + n*(a-1) + (n+1)*a - n
+	n := len(s)
+	return laeufe + n*255 + (n+1)*256 - n
 }
 
 // adminSchreibweisen liefert jede Groß- und Kleinschreibung der Buchstaben von s (s kleingeschrieben) ohne s selbst: 2^len(s) - 1.
@@ -134,6 +151,17 @@ func adminSchreibweisen(s string) []string {
 		aus = append(aus, string(b))
 	}
 	return aus
+}
+
+// adminUnicode sind 31 Zeichen, die ein Trimmen oder Falten des Hosts treffen könnte: die 25 Leerzeichen von `unicode.IsSpace` (sechs davon in ASCII, die
+// übrigen mit zwei oder drei Bytes) und sechs Formatzeichen (Weicher Trennstrich, Nullbreiten-Zeichen, Wortverbinder, BOM); sie entstehen aus ihrem
+// Wert (`AGENTS.md` §3.18).
+func adminUnicode() []rune {
+	r := []rune{0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0x85, 0xA0, 0x1680, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xAD, 0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF}
+	for c := rune(0x2000); c <= 0x200A; c++ {
+		r = append(r, c)
+	}
+	return r
 }
 
 // TestAdminLoopback (AT01, M-Host): adminLoopback ist wahr genau für `127.0.0.1`, `[::1]` und `localhost`, bytegleich, bei jedem Port; jeder andere
@@ -168,33 +196,112 @@ func TestAdminLoopback(t *testing.T) {
 	}
 }
 
-// TestAdminLoopbackNachbarn (AT01, M-Nachbar): jede Zeichenkette im Abstand 1 von einem der drei Hosts und jede andere Schreibweise von `localhost`
-// ist nicht-loopback. Die Zahl je Host ist ein Literal und stimmt mit der Formel überein (Generator und Formel sind zwei Verfahren).
+// TestAdminLoopbackNachbarn (AT01, M-Nachbar, Zeichenmenge): jede Zeichenkette im Abstand 1 von einer der sechs Eingaben (drei Hosts, je mit `:8081` und
+// ohne Port), jedes Byte von 0 bis 255 an jeder Stelle eingefügt, ersetzt oder gelöscht, und jede andere Schreibweise von `localhost` (mit und ohne Port)
+// hat die Antwort des Orakels von SPEC-299 Nr. 2. Die Zahl der Nachbarn und die der wahren je Eingabe sind Literale und stimmen mit einem zweiten Verfahren
+// überein: Nachbarn nach `adminZaehlformel`; wahre: der Port ändert nichts, also bleibt wahr, wer nur im Port ohne `:` ändert (Einfügen an 5 Stellen mit
+// 255 Bytewerten ohne `:` abzüglich 4 Doppelter = 1271, Ersetzen an 4 Stellen mit 254 = 1016, Löschen 4), und ohne Port allein das angehängte `:`.
 func TestAdminLoopbackNachbarn(t *testing.T) {
-	for _, h := range []struct {
-		host string
-		zahl int
-	}{{"127.0.0.1", 1283}, {"[::1]", 742}, {"localhost", 1785}} {
-		menge := adminNachbarn(h.host)
-		soll := adminZaehlformel(h.host)
-		if h.host == "localhost" {
-			schreibweisen := adminSchreibweisen(h.host)
-			if len(schreibweisen) != 511 {
-				t.Fatalf("%d Schreibweisen von localhost, erwartet 511", len(schreibweisen))
-			}
-			for _, s := range schreibweisen {
-				menge[s] = true
-			}
-			soll += len(schreibweisen) - len(h.host) // die neun Schreibweisen mit einem Großbuchstaben sind Nachbarn zugleich
-		}
-		if len(menge) != h.zahl || soll != h.zahl {
-			t.Fatalf("%s: Generator %d, Formel %d, Literal %d", h.host, len(menge), soll, h.zahl)
-		}
+	const port = ":8081"
+	faelle := []struct {
+		basis      string
+		zahl, wahr int
+	}{
+		{"127.0.0.1", 4855, 1}, {"127.0.0.1" + port, 7410, 2291},
+		{"[::1]", 2810, 1}, {"[::1]" + port, 5365, 2291},
+		{"localhost", 4855, 1}, {"localhost" + port, 7410, 2291},
+	}
+	summe, wahre := 0, 0
+	pruefe := func(was string, menge map[string]bool) (wahr int) {
+		var falsch []string
 		for n := range menge {
-			if bootstrap.AdminLoopback(n + ":8081") {
-				t.Errorf("AdminLoopback(%q) ist wahr, ein Nachbar von %q ist nicht-loopback", n+":8081", h.host)
+			soll := adminLoopbackSoll(n)
+			if soll {
+				wahr++
+			}
+			if got := bootstrap.AdminLoopback(n); got != soll {
+				falsch = append(falsch, n)
 			}
 		}
+		slices.Sort(falsch)
+		if len(falsch) > 0 {
+			t.Errorf("%s: %d von %d Eingaben mit falscher Antwort, die ersten: %q", was, len(falsch), len(menge), falsch[:min(len(falsch), 3)])
+		}
+		return wahr
+	}
+	for _, f := range faelle {
+		menge := adminNachbarn(f.basis)
+		if len(menge) != f.zahl || adminZaehlformel(f.basis) != f.zahl {
+			t.Fatalf("%q: Generator %d, Formel %d, Literal %d", f.basis, len(menge), adminZaehlformel(f.basis), f.zahl)
+		}
+		if got := pruefe("Nachbarn von "+f.basis, menge); got != f.wahr {
+			t.Fatalf("%q: %d wahre Nachbarn nach dem Orakel, erwartet %d", f.basis, got, f.wahr)
+		}
+		summe += len(menge)
+		wahre += f.wahr
+	}
+	schreibweisen := adminSchreibweisen("localhost")
+	if len(schreibweisen) != 511 {
+		t.Fatalf("%d Schreibweisen von localhost, erwartet 511", len(schreibweisen))
+	}
+	for _, s := range schreibweisen {
+		if bootstrap.AdminLoopback(s+port) || bootstrap.AdminLoopback(s) {
+			t.Errorf("AdminLoopback(%q) ist wahr, die Schreibweise zählt", s)
+		}
+	}
+	if summe != 32705 || wahre != 6876 {
+		t.Fatalf("%d Nachbarn, davon %d wahre; erwartet 32705 und 6876", summe, wahre)
+	}
+}
+
+// TestAdminLoopbackStruktur (AT01, M-Nachbar, Strukturmenge): die Form der Eingabe, getrennt vom Zeichen: Port-Teil und Klammern der drei Hosts als Tabelle
+// mit Antwort als Literal, die Schreibweisen derselben Adressen und Namen mit und ohne Port (alle falsch) und 31 Unicode-Zeichen (Leerzeichen und Formatzeichen) vor dem Host,
+// hinter dem Host und im Port. Menge: 3 × 12 Formen + 16 Klammern + 17 × 2 Schreibweisen + 3 × 31 × 3 Stellen = 36 + 16 + 34 + 279 = 365.
+func TestAdminLoopbackStruktur(t *testing.T) {
+	zahl := 0
+	pruefe := func(listen string, soll bool) {
+		t.Helper()
+		zahl++
+		if got := bootstrap.AdminLoopback(listen); got != soll {
+			t.Errorf("AdminLoopback(%q) = %v, erwartet %v", listen, got, soll)
+		}
+	}
+	formen := []struct {
+		muster string
+		wahr   bool
+	}{
+		{"%s", false}, {"%s:", true}, {"%s:8081", true}, {"%s:x", true}, {"%s:8081 ", true}, {"%s:8081]", true},
+		{"%s:8081:8081", false}, {"%s::", false}, {"%s::8081", false}, {":%s:8081", false}, {" %s:8081", false}, {"%s :8081", false},
+	}
+	for _, h := range adminLoopbackHosts() {
+		for _, f := range formen {
+			pruefe(fmt.Sprintf(f.muster, h), f.wahr)
+		}
+	}
+	for listen, soll := range map[string]bool{
+		"[::1]:8081": true, "[::1]": false, "::1": false, "::1:8081": false, "::1]:8081": false, "[::1:8081": false, "[::1:8081]": false,
+		"[[::1]]:8081": false, "[[::1]:8081": false, "[::1]]:8081": false, "[::1]:[::1]:8081": false, "[ ::1]:8081": false, "[::1 ]:8081": false,
+		"[::1]%lo:8081": false, "[::1%lo]:8081": false, ":[::1]:8081": false,
+	} {
+		pruefe(listen, soll)
+	}
+	schreibweisen := []string{
+		"127.1", "127.0.1", "0177.0.0.1", "0x7f.0.0.1", "0x7f000001", "2130706433", "127.000.000.001", "[::0001]", "[0::1]", "[::ffff:7f00:1]",
+		"[::1%lo]", "localhost6", "ip6-localhost", "localhost.localdomain", "LocalHost", "127.0.0.1%lo", "localho" + string(rune(0x17F)) + "t",
+	}
+	for _, h := range schreibweisen {
+		pruefe(h+":8081", false)
+		pruefe(h, false)
+	}
+	for _, h := range adminLoopbackHosts() {
+		for _, c := range adminUnicode() {
+			pruefe(string(c)+h+":8081", false)
+			pruefe(h+string(c)+":8081", false)
+			pruefe(h+":80"+string(c)+"81", true)
+		}
+	}
+	if len(adminUnicode()) != 31 || len(schreibweisen) != 17 || zahl != 365 {
+		t.Fatalf("%d Zellen, %d Zeichen, %d Schreibweisen; erwartet 365, 31 und 17", zahl, len(adminUnicode()), len(schreibweisen))
 	}
 }
 
@@ -476,7 +583,8 @@ func ausgabeErfasst(t *testing.T, f func()) string {
 
 // TestAdminKeinGeheimnis (AT09, M-Geheimnis): weder Pfad noch Inhalt noch Host noch eine Eigenschaft des Zertifikats stehen in einer Zeile oder im Eintrag;
 // die Funktionen schreiben nichts nach stdout, stderr und `log.Default()` und ändern, löschen und verschieben keine Datei (SPEC-299 Nr. 12, 13). Menge:
-// Ausgabeweg (Zeilen der Verstöße, Eintrag der Warnung, übrige Ausgabe) × Canary (Pfad, Inhalt, Host) = 9, dazu der Schnappschuss je Zelle von M-Paar (12).
+// Ausgabeweg (Zeilen der Verstöße, Eintrag der Warnung, übrige Ausgabe) × Canary (Pfad, Inhalt, Host) = 9, dazu der Schnappschuss je Zelle von M-Paar (12);
+// „die Funktionen“ ist die Menge von `adminFunktionen` (5), jede auf allen vier Wegen unter der Erfassung von `stdout`, `stderr` und `log.Default()`.
 func TestAdminKeinGeheimnis(t *testing.T) {
 	w := neueWerkstatt(t) // das Verzeichnis trägt `geheim-pfad-4711`, das Subject `geheim-cn-4711`
 	const text, host = "geheim-text-4711", "geheim-host-4711.example"
@@ -490,7 +598,11 @@ func TestAdminKeinGeheimnis(t *testing.T) {
 	var geaendert []string
 	erfasser := &adminErfasser{}
 	soll := 0
+	funktionen := w.adminFunktionen(w.datei(w.gut.ZertifikatPEM()), w.datei(w.schluessel(w.gut)))
 	uebrig := ausgabeErfasst(t, func() {
+		for _, f := range funktionen { // jede der fünf Funktionen auf jedem Weg: was sie nach stdout, stderr und log.Default() schreiben, steht in `uebrig`
+			f.ruf()
+		}
 		for _, f := range faelle {
 			soll += len(f.erwartet)
 			vorher := w.momentaufnahme(f.cert, f.key)
@@ -525,18 +637,191 @@ func TestAdminKeinGeheimnis(t *testing.T) {
 			}
 		}
 	}
-	if zahl != 9 || len(zeilen) != soll+1 || len(erfasser.liste()) != 1 || uebrig != "" || len(faelle) != 15 {
+	if zahl != 9 || len(zeilen) != soll+1 || len(erfasser.liste()) != 1 || uebrig != "" || len(faelle) != 15 || len(funktionen) != 5 {
 		t.Errorf("Zellen %d, Zeilen %d (erwartet %d), Einträge %d, übrige Ausgabe %q", zahl, len(zeilen), soll+1, len(erfasser.liste()), uebrig)
+	}
+}
+
+// adminAttrappe ist ein net.Listener, der jede seiner Operationen zählt; umhuelle ruft keine.
+type adminAttrappe struct{ n atomic.Int32 }
+
+func (a *adminAttrappe) Accept() (net.Conn, error) { a.n.Add(1); return nil, net.ErrClosed }
+func (a *adminAttrappe) Close() error              { a.n.Add(1); return nil }
+func (a *adminAttrappe) Addr() net.Addr            { a.n.Add(1); return &net.TCPAddr{} }
+
+// adminKonfig nennt die Felder eines `*tls.Config`, die der Betrieb liest und die keine Funktion von SPEC-299 nach dem Laden ändert.
+func adminKonfig(cfg *tls.Config) string {
+	if cfg == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("%x|%d|%d|%d|%q", cfg.Certificates[0].Certificate, cfg.MinVersion, cfg.MaxVersion, cfg.ClientAuth, cfg.NextProtos)
+}
+
+// adminFunktion ist eine der Funktionen von SPEC-299 mit festem Eingang auf jedem Weg; ruf liefert eine Beschreibung des Ergebnisses, die jeder Aufruf
+// gleich hat und die soll aus den Zusagen des Vertrags nennt (nie aus einem Aufruf: ein Aufruf trüge eine Wirkung der Funktion in die Erwartung).
+type adminFunktion struct {
+	name, soll string
+	ruf        func() string
+}
+
+// adminFunktionen führt die Menge, über die die Allaussagen von SPEC-299 Nr. 12 und 13 gehen: `adminLoopback`, `pruefeAdminTransport`, `umhuelle`, `warne`
+// und der Wert `adminTransport`, den `umhuelle` und `warne` gemeinsam lesen. Jede Funktion läuft auf allen vier Wegen; der geteilte Wert des Weges `wegTLS`
+// ist derselbe für alle Aufrufe, `adminTransport` kommt zuletzt und prüft ihn nach den Aufrufen der anderen.
+func (w *werkstatt) adminFunktionen(cert, key string) []adminFunktion {
+	wege := []bootstrap.AdminWeg{bootstrap.WegKeiner, bootstrap.WegTLS, bootstrap.WegLoopback, bootstrap.WegKlartext}
+	geteilt := w.ladeAdmin(cert, key, w.jetzt)
+	vorher := adminKonfig(geteilt.TLS)
+	transport := func(weg bootstrap.AdminWeg) bootstrap.AdminTransport {
+		if weg == bootstrap.WegTLS {
+			return geteilt
+		}
+		return bootstrap.AdminTransport{Weg: weg}
+	}
+	eingaben := []bootstrap.AdminEingabe{
+		adminEin("127.0.0.1:8081", "", "", false), adminEin("0.0.0.0:8081", "", "", false), adminEin("0.0.0.0:8081", "", "", true), adminEin("0.0.0.0:8081", cert, key, false),
+	}
+	var ll, pr, um, wa string // die Beschreibungen, die das Orakel verlangt: aus den Zusagen von SPEC-299, nicht aus einem Aufruf
+	for _, l := range []string{"127.0.0.1:8081", "[::1]:1", "localhost:65535", "0.0.0.0:8081", "LOCALHOST:8081", ""} {
+		ll += fmt.Sprintf("%v;", l == "127.0.0.1:8081" || l == "[::1]:1" || l == "localhost:65535")
+	}
+	for _, p := range []struct {
+		weg bootstrap.AdminWeg
+		vs  []bootstrap.TLSVerstoss
+		cfg string
+	}{
+		{bootstrap.WegLoopback, nil, "nil"}, {bootstrap.WegKeiner, []bootstrap.TLSVerstoss{tv(adminListenKey, adminZusammenhang)}, "nil"},
+		{bootstrap.WegKlartext, nil, "nil"}, {bootstrap.WegTLS, nil, vorher},
+	} {
+		pr += fmt.Sprintf("%d|%v|%s;", p.weg, p.vs, p.cfg)
+	}
+	for _, weg := range wege {
+		um += fmt.Sprintf("%d:%v:0;", weg, weg != bootstrap.WegTLS) // der Listener selbst bis auf wegTLS, keine Operation von ihm gerufen
+		eintraege := []string(nil)
+		if weg == bootstrap.WegKlartext {
+			eintraege = []string{adminWarnung}
+		}
+		wa += fmt.Sprintf("%d:%q;", weg, eintraege)
+	}
+	return []adminFunktion{
+		{name: "adminLoopback", soll: ll, ruf: func() string {
+			var sb strings.Builder
+			for _, l := range []string{"127.0.0.1:8081", "[::1]:1", "localhost:65535", "0.0.0.0:8081", "LOCALHOST:8081", ""} {
+				fmt.Fprintf(&sb, "%v;", bootstrap.AdminLoopback(l))
+			}
+			return sb.String()
+		}},
+		{name: "pruefeAdminTransport", soll: pr, ruf: func() string {
+			var sb strings.Builder
+			for _, e := range eingaben {
+				tr, vs := bootstrap.PruefeAdminTransport(e, w.jetzt)
+				fmt.Fprintf(&sb, "%d|%v|%s;", tr.Weg, vs, adminKonfig(tr.TLS))
+			}
+			return sb.String()
+		}},
+		{name: "umhuelle", soll: um, ruf: func() string {
+			var sb strings.Builder
+			for _, weg := range wege {
+				l := &adminAttrappe{}
+				fmt.Fprintf(&sb, "%d:%v:%d;", weg, bootstrap.AdminUmhuelle(transport(weg), l) == l, l.n.Load())
+			}
+			return sb.String()
+		}},
+		{name: "warne", soll: wa, ruf: func() string {
+			var sb strings.Builder
+			for _, weg := range wege {
+				e := &adminErfasser{}
+				bootstrap.AdminWarne(transport(weg), slog.New(e))
+				bootstrap.AdminWarne(transport(weg), nil)
+				fmt.Fprintf(&sb, "%d:%q;", weg, e.liste())
+			}
+			return sb.String()
+		}},
+		{name: "adminTransport", soll: fmt.Sprint(bootstrap.WegTLS, vorher), ruf: func() string { return fmt.Sprint(geteilt.Weg, adminKonfig(geteilt.TLS)) }},
+	}
+}
+
+// adminQuelleOhneZustand liest `admintls.go` und meldet jede Deklaration `var` und jede Funktion `init` auf der obersten Ebene, jeden Import von `os`,
+// `io/ioutil`, `path/filepath`, `syscall` und `log`, jeden Aufruf von `print` und `println` und jede Funktion außerhalb der vier, die `adminFunktionen`
+// führt (SPEC-299 Nr. 12, 13): Zustand im Paket braucht eine solche Deklaration in der Datei, ein Dateizugriff und jede Ausgabe, die `ausgabeErfasst` nicht
+// sieht, einen dieser Importe oder die eingebauten Funktionen, und die Menge der Funktionen ist die der Quelle. Eine Deklaration `var` in einer anderen
+// Datei des Pakets fängt dieser Test nicht.
+func adminQuelleOhneZustand(t *testing.T) {
+	t.Helper()
+	f, err := parser.ParseFile(token.NewFileSet(), "admintls.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var funktionen []string
+	for _, d := range f.Decls {
+		switch d := d.(type) {
+		case *ast.GenDecl:
+			if d.Tok == token.VAR {
+				t.Errorf("admintls.go: Deklaration `var` auf der obersten Ebene (Zustand im Paket)")
+			}
+		case *ast.FuncDecl:
+			if d.Name.Name == "init" && d.Recv == nil {
+				t.Errorf("admintls.go: Funktion init")
+			}
+			funktionen = append(funktionen, d.Name.Name)
+		}
+	}
+	for _, i := range f.Imports {
+		if slices.Contains([]string{`"os"`, `"io/ioutil"`, `"path/filepath"`, `"syscall"`, `"log"`}, i.Path.Value) {
+			t.Errorf("admintls.go: Import %s (Ausgabe oder Dateizugriff)", i.Path.Value)
+		}
+	}
+	ast.Inspect(f, func(n ast.Node) bool { // die eingebauten print und println schreiben auf fd 2 am Austausch von os.Stderr vorbei
+		if c, ok := n.(*ast.CallExpr); ok {
+			if id, ok := c.Fun.(*ast.Ident); ok && (id.Name == "print" || id.Name == "println") {
+				t.Errorf("admintls.go: Aufruf von %s (Ausgabe auf fd 2)", id.Name)
+			}
+		}
+		return true
+	})
+	slices.Sort(funktionen)
+	if !slices.Equal(funktionen, []string{"adminLoopback", "pruefeAdminTransport", "umhuelle", "warne"}) {
+		t.Errorf("admintls.go: Funktionen %q, erwartet adminLoopback, pruefeAdminTransport, umhuelle und warne (jede Funktion braucht ihren Fänger in adminFunktionen)", funktionen)
 	}
 }
 
 // TestAdminGleichzeitig (AT18, M-Gleichzeitig): die Funktionen halten keinen Zustand, gleichzeitige Aufrufe teilen nichts, jeder Aufruf liefert ein eigenes
 // `*tls.Config`, und zwei Paare auf denselben Dateien sind unabhängig (SPEC-299 Nr. 13). 16 Goroutinen × 20 Läufe = 320 Aufrufe je Art (dasselbe Paar,
 // ein zweites Paar auf denselben Dateien, warne); den Zustand im Paket fängt der Detektor von `make test-race` je Prozess, einen Cache zusätzlich die Zeiger.
+// Dieselben 16 × 20 Läufe gelten je Funktion der Menge von `adminFunktionen` (5 × 320): jeder Lauf liefert die Beschreibung, die das Orakel verlangt,
+// `umhuelle` ruft keine Operation des Listeners, der geteilte Wert bleibt, was er war, und die Quelle trägt keine Deklaration, die Zustand im Paket hielte.
 func TestAdminGleichzeitig(t *testing.T) {
 	w := neueWerkstatt(t)
 	cert, key := w.datei(w.gut.ZertifikatPEM()), w.datei(w.schluessel(w.gut))
 	const goroutinen, laeufe = 16, 20
+	adminQuelleOhneZustand(t)
+	funktionen := w.adminFunktionen(cert, key)
+	for _, f := range funktionen {
+		soll := f.soll
+		ergebnisse := make([]string, goroutinen*laeufe)
+		var gruppe sync.WaitGroup
+		start := make(chan struct{})
+		for g := range goroutinen {
+			gruppe.Add(1)
+			go func() {
+				defer gruppe.Done()
+				<-start
+				for l := range laeufe {
+					ergebnisse[g*laeufe+l] = f.ruf()
+				}
+			}()
+		}
+		close(start)
+		gruppe.Wait()
+		for i, r := range ergebnisse {
+			if r != soll {
+				t.Errorf("%s, Lauf %d von %d: %s, erwartet %s", f.name, i, len(ergebnisse), r, soll)
+				break
+			}
+		}
+	}
+	if len(funktionen) != 5 {
+		t.Fatalf("Menge der Funktionen hat %d Elemente, erwartet 5", len(funktionen))
+	}
 	erfasser := &adminErfasser{}
 	var mu sync.Mutex
 	var konfigs []*tls.Config
