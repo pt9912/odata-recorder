@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang mit `slice-admin-tls` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht. Adresse des Ausgangs: Architect (die Prüfliste für §3 eines Plans fragt, ob eine neue Datei in `src/bootstrap/` einen Import schafft, den ein Quelltest eines anderen Pakets verbietet; Vorschlag steht in der Closure-Notiz des Vorgangs)
