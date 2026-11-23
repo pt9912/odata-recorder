@@ -35,11 +35,12 @@ func impZustaende() []impZustand {
 }
 
 // sende stellt den Dienst auf den Import und sendet den Request des Zustands; der Aufruf ändert die Zähler des Fakes genau um
-// einen Aufruf der Operation der Route (je Operation des Ports, auch die, die die Route nie rufen darf) und ruft Audit nicht
-// (Aufrufzahl je Route × `Neu` × Ausgang).
+// einen Aufruf der Operation der Route (je Operation des Ports, auch die, die die Route nie rufen darf) und ändert die
+// Aufrufzahl von Audit um die des Orakels von SPEC-297 Nr. 10 a: jede 2xx-Antwort auf `POST` hat genau einen Eintrag, jede
+// andere Antwort und jedes `GET` keinen (Aufrufzahl je Route × `Neu` × Ausgang).
 func (z impZustand) sende(t *testing.T, u *umgebung, fake *importsFake, imp model.Import) *httptest.ResponseRecorder {
 	t.Helper()
-	vorher := fake.zahlen()
+	vorher, auditVorher := fake.zahlen(), u.audit.Aufrufe()
 	fake.ergebnis, fake.imp = inbound.ImportErgebnis{Import: imp, Neu: z.neu}, imp
 	op, r := impGet, importGet("imp-pfad")
 	if z.post {
@@ -55,8 +56,12 @@ func (z impZustand) sende(t *testing.T, u *umgebung, fake *importsFake, imp mode
 			t.Errorf("%s: Operation %d wurde %d-mal gerufen, erwartet %d", z.name, o, n-vorher[o], soll)
 		}
 	}
-	if n := u.audit.Aufrufe(); n != 0 {
-		t.Errorf("%s: %d Aufrufe von Audit, erwartet 0", z.name, n)
+	soll := 0
+	if z.post && rec.Code/100 == 2 {
+		soll = 1
+	}
+	if n := u.audit.Aufrufe() - auditVorher; n != soll {
+		t.Errorf("%s: %d Aufrufe von Audit, erwartet %d", z.name, n, soll)
 	}
 	return rec
 }
@@ -388,7 +393,8 @@ func TestIM13Fehler(t *testing.T) {
 // 1 MiB, 1 MiB + 1) = 208 Zellen. Orakel: wer mehr als 1 MiB Bytes liefert, ist 400 (die Grenze des Rahmens, welche Art auch
 // folgt); sonst bricht ein Kontextfehler die Verbindung ab (kein Fehlerobjekt, kein Zählen, Import nicht gerufen, der Handler
 // liefert den Fehler unverändert und nicht model.ErrUngueltig), ein Lesefehler ist 400 (auch hinter einem vollständigen Objekt),
-// und das Ende gilt: 201 mit dem Objekt, wenn es vollständig ist, sonst 400.
+// und das Ende gilt: 201 mit dem Objekt, wenn es vollständig ist, sonst 400. Audit sieht genau einen Aufruf in der Zelle mit
+// 201 und sonst keinen (SPEC-297 Nr. 10 a; die Schleife steht hier, IM21 liest sie nicht).
 func TestIM13Lesen(t *testing.T) {
 	zellen := 0
 	for _, lf := range importLesefehler() {
@@ -400,6 +406,7 @@ func TestIM13Lesen(t *testing.T) {
 				rec := httptest.NewRecorder()
 				p := abbruchVon(func() { u.srv.ServeHTTP(rec, importPost("", nil, &bodyLeser{daten: daten, rest: lf.err})) })
 				codes, andere := zaehlungenVon(u.tele)
+				soll, eintraege := 0, u.audit.Aufrufe() // Einträge laut SPEC-297 Nr. 10 a: allein der Erfolg schreibt einen; die Aufrufe des Handlers unten zählen nicht
 				switch {
 				case len(daten) <= bodyGrenze && lf.art == "kontext":
 					if p != http.ErrAbortHandler || rec.Body.Len() != 0 || len(codes) != 0 || andere != 0 || fake.gesamt() != 0 {
@@ -409,6 +416,7 @@ func TestIM13Lesen(t *testing.T) {
 						t.Errorf("%s: Handler liefert %v, erwartet den Fehler unverändert", name, err)
 					}
 				case len(daten) <= bodyGrenze && lf.art == "ende" && stelle >= 2:
+					soll = 1
 					if p != nil || rec.Code != 201 || fake.zahlen() != [impAnzahl]int{1, 0} || !gleicheAnfragen(fake.anfrageListe(), []inbound.ImportAnfrage{gutAnfrage()}) {
 						t.Errorf("%s: Panik %v, Status %d, Zähler %v: erwartet 201 und einen Aufruf von Import", name, p, rec.Code, fake.zahlen())
 					}
@@ -421,8 +429,8 @@ func TestIM13Lesen(t *testing.T) {
 						t.Errorf("%s: Handler liefert %v, erwartet model.ErrUngueltig", name, err)
 					}
 				}
-				if u.audit.Aufrufe() != 0 {
-					t.Errorf("%s: %d Aufrufe von Audit, erwartet 0", name, u.audit.Aufrufe())
+				if eintraege != soll {
+					t.Errorf("%s: %d Aufrufe von Audit, erwartet %d", name, eintraege, soll)
 				}
 			}
 		}

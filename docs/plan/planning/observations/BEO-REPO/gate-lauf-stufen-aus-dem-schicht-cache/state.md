@@ -1,1 +1,1 @@
-**Stand:** offen; zwei Vorgänge (`slice-admin-abweisen-audit`, `slice-telemetry-einbau-mock`, Evidenz), Schwelle 3x nicht erreicht, kein Zielort. In beiden Vorgängen fuhr der Verifier die betroffenen Pakete oder die Stufe `race` frisch nach und nannte die Stufen aus dem Cache im Bericht.
+**Stand:** offen; 14 Belege unter `evidence/` (der Zähler folgt den Dateien), Schwelle 3x überschritten, kein Zielort und kein `geplant`. Zuletzt (`slice-admin-imports-audit`) fuhr der Verifier `pruefung test` und `pruefung race` frisch nach und nannte die Stufen aus dem Cache im Bericht.
