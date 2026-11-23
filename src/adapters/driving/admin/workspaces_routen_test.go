@@ -347,3 +347,44 @@ func TestWS5Pfadwert(t *testing.T) {
 	}
 	gleichAuf(t, "Routen mit Pfadwert und Fälle", []int{routen, faelle}, []int{6, 23958})
 }
+
+// TestWS5Laenge hält WS5 (SPEC-298 Nr. 4, „ohne Prüfung von Form, Länge und Schreibweise“) für die Länge des Pfadwertes: die
+// Klasse klein mit jeder Länge von wsLaengen(1, 1048000) und die Klasse Mehrbyte (jedes Byte als `%XX` kodiert, der Wert als
+// Literal aus Bytewerten) mit jeder Länge von wsLaengen(1, 65536) × die 6 Routen mit `{id}`: der Wert kommt byte-gleich und
+// ungekürzt an den Dienst. Prüfgrenze (akzeptiertes Negativ (1)): die Längen dazwischen, die Mischungen der Klassen und
+// Mehrbyte über 65536 Bytes (der Pfad trägt 3 Zeichen je Byte).
+func TestWS5Laenge(t *testing.T) {
+	wsFrist(t)
+	zellen, fehler, soll := 0, 0, 0
+	for _, r := range wsRouten() {
+		if !strings.Contains(r.muster, "{id}") {
+			continue
+		}
+		for _, klasse := range []string{"klein", "mehrbyte"} {
+			bis := map[string]int{"klein": 1048000, "mehrbyte": 65536}[klasse]
+			soll += len(wsLaengen(1, bis))
+			for _, n := range wsLaengen(1, bis) {
+				wert := wertDerLaenge(klasse, n)
+				pfad := wert
+				if klasse == "mehrbyte" {
+					var b strings.Builder
+					for _, c := range []byte(wert) {
+						fmt.Fprintf(&b, "%%%02X", c)
+					}
+					pfad = b.String()
+				}
+				e := wsNeu(t)
+				rec := e.rufe(r.request(pfad, "", nil, strings.NewReader(r.body)))
+				got := e.p.liste()
+				zellen++
+				if rec.Code != r.status || len(got) != 1 || got[0].op != r.op || got[0].a != wert || got[0].b != r.args[1] {
+					if fehler++; fehler <= 5 {
+						t.Errorf("%s %s %d Bytes: Status %d, %d Aufrufe, erwartet %d und den Wert byte-gleich", r.name, klasse, n, rec.Code, len(got), r.status)
+					}
+				}
+			}
+		}
+	}
+	gleichAuf(t, "Fälle", zellen, soll)
+	gleichAuf(t, "Fälle laut Plan", zellen, 6*(len(wsLaengen(1, 1048000))+len(wsLaengen(1, 65536))))
+}

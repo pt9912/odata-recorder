@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -178,6 +179,27 @@ func TestWS6Zahlen(t *testing.T) {
 		namen[f.achse+"/"+strconv.Itoa(f.br)+"/"+f.name] = true
 	}
 	gleichAuf(t, "verschiedene Namen", len(namen), 145)
+	for _, feld := range wsFelder() {
+		_, body, _ := wsMitFeld(feld, strings.Repeat("a", wsHoechstwert(feld)), "")
+		gleichAuf(t, "Body mit dem größten Wert in "+feld, len(body), bodyGrenze)
+	}
+	for _, bis := range []int{1048000, wsHoechstwert("name"), 100, 5000} {
+		laengen := wsLaengen(1, bis)
+		enthalten := func(n int) bool { return n < 1 || n > bis || slices.Contains(laengen, n) }
+		gleichAuf(t, "aufsteigend und endet an bis", laengen[len(laengen)-1] == bis && slices.IsSorted(laengen) && laengen[0] >= 1, true)
+		for _, basis := range []int{2, 10} {
+			for p := 1; p <= bis+1; p *= basis {
+				if !enthalten(p-1) || !enthalten(p) || !enthalten(p+1) {
+					t.Errorf("wsLaengen(1, %d) lässt eine Länge um %d aus", bis, p)
+				}
+			}
+		}
+		for _, n := range laengenDerWerte() {
+			if !enthalten(n) {
+				t.Errorf("wsLaengen(1, %d) lässt %d aus", bis, n)
+			}
+		}
+	}
 }
 
 // TestWS6GueltigerBody hält WS6 (SPEC-298 Nr. 5 a bis f): jede der 54 gültigen Formen kommt dekodiert, unverändert und
@@ -244,15 +266,21 @@ func wsWert(feld, wert string) (wsBForm, [2]string) {
 	return wsBForm{br: br, body: body}, args
 }
 
-// TestWS9Laenge hält WS9 (SPEC-298 Nr. 5 d) für die Menge Länge × Feld × Zeichenklasse: 12 Längen × 4 Felder × 7 Klassen = 336
-// Fälle, je der Status der Route und der Wert byte-gleich am Dienst. Prüfgrenze (akzeptiertes Negativ im Plan): die Längen
-// dazwischen sind nicht einzeln geführt.
+// TestWS9Laenge hält WS9 (SPEC-298 Nr. 5 d) für die Menge Länge × Feld × Zeichenklasse: die Klassen klein und Mehrbyte mit
+// jeder Länge von wsLaengen(1, wsHoechstwert(Feld)) (jede Zweier- und Zehnerpotenz um 1 bis zum größten Wert, den der Body
+// von 1 MiB im Feld fasst), die fünf anderen Klassen mit den 12 Längen von laengenDerWerte, je × 4 Felder, je der Status der
+// Route und der Wert byte-gleich am Dienst. Prüfgrenze (akzeptiertes Negativ (1)): die Längen dazwischen und die Mischungen
+// der Klassen in einem Wert.
 func TestWS9Laenge(t *testing.T) {
 	wsFrist(t)
-	laengen := []int{1, 63, 64, 65, 127, 128, 129, 256, 4096, 4097, 65536, 1048000}
-	faelle := 0
+	faelle, soll := 0, 0
 	for _, feld := range wsFelder() {
 		for _, klasse := range klassenDerWerte() {
+			laengen := laengenDerWerte()
+			if klasse == "klein" || klasse == "mehrbyte" {
+				laengen = wsLaengen(1, wsHoechstwert(feld))
+			}
+			soll += len(laengen)
 			for _, n := range laengen {
 				wert := wertDerLaenge(klasse, n)
 				if len(wert) != n {
@@ -266,7 +294,7 @@ func TestWS9Laenge(t *testing.T) {
 			}
 		}
 	}
-	gleichAuf(t, "Fälle", faelle, 12*4*7)
+	gleichAuf(t, "Fälle", faelle, soll)
 }
 
 // TestWS9Zeichen hält WS9 für die Menge Zeichen × Feld: 139 Zeichen und Folgen roh in einer Zeichenkette × 4 Felder = 556:
@@ -303,19 +331,198 @@ func TestWS9Zeichen(t *testing.T) {
 	gleichAuf(t, "Fälle", faelle, (32+94+7+6)*4)
 }
 
-// TestWS9Stelle hält WS9 für die Stelle des Bytes 0xFF im Wert: 12 Stellen × 4 Felder = 48 Fälle, jeder 400 ohne Aufruf.
+// TestWS9Stelle hält WS9 für die Stelle des Bytes 0xFF im Wert: jede Stelle von wsLaengen(0, wsHoechstwert(Feld) - 3) (der
+// Wert mit den zwei Bytes dahinter füllt den Body von 1 MiB) × 4 Felder, jeder Fall 400 ohne Aufruf.
 func TestWS9Stelle(t *testing.T) {
 	wsFrist(t)
-	faelle := 0
+	faelle, soll := 0, 0
 	for _, feld := range wsFelder() {
-		for _, p := range []int{0, 1, 63, 64, 65, 255, 256, 4095, 4096, 65535, 65536, 1048000} {
+		stellen := wsLaengen(0, wsHoechstwert(feld)-3)
+		soll += len(stellen)
+		for _, p := range stellen {
 			f, _ := wsWert(feld, strings.Repeat("a", p)+string([]byte{0xFF})+"bb")
 			f.achse, f.name = "Stelle", feld+" "+strconv.Itoa(p)
 			wsPruefeUngueltig(t, f)
 			faelle++
 		}
 	}
-	gleichAuf(t, "Fälle", faelle, 48)
+	gleichAuf(t, "Fälle", faelle, soll)
+}
+
+// wsEscape ist ein Element von M-Escape: der Text des Escapes in einer Zeichenkette des Bodys und der dekodierte Wert als Bytes.
+type wsEscape struct{ name, roh, dek string }
+
+// wsEscapes sind die Elemente von M-Escape (SPEC-298 Nr. 5 d): jedes der 128 Zeichen U+0000 bis U+007F als Escape mit vier
+// Hexziffern, die 48 mit einem Buchstaben in der Hexfolge zusätzlich in Großschreibung, die 8 Kurz-Escapes, 19 Zeichen jenseits
+// von ASCII (bei Zeichen jenseits der Grundebene als Paar von Surrogaten; an jeder Grenze der Länge in UTF-8 und je eines aus
+// den Klassen C1, Leerzeichen, Zeilentrenner, Privatgebrauch, Nichtzeichen und Ersatzzeichen), die 14 mit einem Buchstaben
+// zusätzlich in Großschreibung (14 + 18 = 19 + 13 Formen). Der dekodierte Wert entsteht aus Bytewerten, nie aus einer Dekodierung; kein
+// Escape steht im Quelltext. Prüfgrenze (akzeptiertes Negativ (1)): die übrigen Zeichen jenseits von ASCII.
+func wsEscapes() []wsEscape {
+	var out []wsEscape
+	gesehen := map[string]bool{}
+	add := func(name, roh, dek string) {
+		if !gesehen[roh] {
+			gesehen[roh] = true
+			out = append(out, wsEscape{name, roh, dek})
+		}
+	}
+	for c := range 128 {
+		h := fmt.Sprintf("%04x", c)
+		add(fmt.Sprintf("U+%04X klein", c), esc(h), string([]byte{byte(c)}))
+		add(fmt.Sprintf("U+%04X groß", c), esc(strings.ToUpper(h)), string([]byte{byte(c)}))
+	}
+	for _, k := range []struct{ name, roh, dek string }{
+		{"Anführungszeichen", rueck() + `"`, `"`}, {"Backslash", rueck() + rueck(), rueck()}, {"Schrägstrich", rueck() + "/", "/"},
+		{"b", rueck() + "b", "\b"}, {"f", rueck() + "f", "\f"}, {"n", rueck() + "n", "\n"}, {"r", rueck() + "r", "\r"}, {"t", rueck() + "t", "\t"},
+	} {
+		add("Kurz-Escape "+k.name, k.roh, k.dek)
+	}
+	for _, z := range []struct {
+		name string
+		hex  []string
+		dek  []byte
+	}{
+		{"U+0080", []string{"0080"}, []byte{0xC2, 0x80}}, {"U+07FF", []string{"07ff"}, []byte{0xDF, 0xBF}},
+		{"U+0800", []string{"0800"}, []byte{0xE0, 0xA0, 0x80}}, {"U+FEFF", []string{"feff"}, []byte{0xEF, 0xBB, 0xBF}},
+		{"U+FFFF", []string{"ffff"}, []byte{0xEF, 0xBF, 0xBF}}, {"U+10000", []string{"d800", "dc00"}, []byte{0xF0, 0x90, 0x80, 0x80}},
+		{"U+10FFFF", []string{"dbff", "dfff"}, []byte{0xF4, 0x8F, 0xBF, 0xBF}}, {"U+1F600", []string{"d83d", "de00"}, []byte{0xF0, 0x9F, 0x98, 0x80}},
+		{"U+0085", []string{"0085"}, []byte{0xC2, 0x85}}, {"U+00A0", []string{"00a0"}, []byte{0xC2, 0xA0}},
+		{"U+2028", []string{"2028"}, []byte{0xE2, 0x80, 0xA8}}, {"U+2029", []string{"2029"}, []byte{0xE2, 0x80, 0xA9}},
+		{"U+3000", []string{"3000"}, []byte{0xE3, 0x80, 0x80}}, {"U+D7FF", []string{"d7ff"}, []byte{0xED, 0x9F, 0xBF}},
+		{"U+E000", []string{"e000"}, []byte{0xEE, 0x80, 0x80}}, {"U+FDD0", []string{"fdd0"}, []byte{0xEF, 0xB7, 0x90}},
+		{"U+FFFD", []string{"fffd"}, []byte{0xEF, 0xBF, 0xBD}}, {"U+E0001", []string{"db40", "dc01"}, []byte{0xF3, 0xA0, 0x80, 0x81}},
+		{"U+F0000", []string{"db80", "dc00"}, []byte{0xF3, 0xB0, 0x80, 0x80}},
+	} {
+		var klein, gross string
+		for _, h := range z.hex {
+			klein, gross = klein+esc(h), gross+esc(strings.ToUpper(h))
+		}
+		add(z.name+" klein", klein, string(z.dek))
+		add(z.name+" groß", gross, string(z.dek))
+	}
+	return out
+}
+
+// TestWS9Escape hält WS9 (SPEC-298 Nr. 5 d, „die Route prüft kein Zeichen eines Wertes“) für die Menge Feld × Zeichen als
+// Escape (M-Escape, 216 je Feld) × Stelle im Wert (der Wert ist das Zeichen allein, am Anfang, in der Mitte oder am Ende
+// zwischen Buchstaben) × 4 Felder = 3456 Fälle: jedes Zeichen, das ein Escape in eine Zeichenkette bringt, kommt dekodiert und
+// unverändert an den Dienst (Orakel: die Bytes als Literale); roh steht dieselbe Menge in TestWS9Zeichen.
+func TestWS9Escape(t *testing.T) {
+	wsFrist(t)
+	gleichAuf(t, "Elemente von M-Escape", len(wsEscapes()), 128+6*8+8+14+18)
+	faelle := 0
+	for _, feld := range wsFelder() {
+		for _, z := range wsEscapes() {
+			for i, stelle := range []string{"allein", "Anfang", "Mitte", "Ende"} {
+				vor, nach := [4]string{"", "", "s", "s"}[i], [4]string{"", "s", "x", ""}[i]
+				br, body, args := wsMitFeld(feld, vor+z.roh+nach, vor+z.dek+nach)
+				wsPruefeGueltig(t, wsBForm{achse: "Escape", name: feld + " " + z.name + " " + stelle, br: br, body: body, args: args, gueltig: true})
+				faelle++
+			}
+		}
+	}
+	gleichAuf(t, "Fälle", faelle, len(wsFelder())*4*(128+6*8+8+14+18))
+}
+
+// TestWS7Fremd hält WS7 (SPEC-298 Nr. 5 c) für die Menge der fremden Schlüssel: jedes Paar aus einer Route mit Body und einem
+// Schlüssel einer anderen Route mit Body (M-Fremd) × jede Stelle des fremden Schlüssels (allein und an jeder der Stellen der
+// erlaubten Schlüssel) × jeder der 7 Werte (Zeichenkette, leer, `null`, Zahl, Wahrheitswert, Array, Objekt) ist 400 `ODR-E2102`
+// ohne Aufruf eines Dienstes. Die Zählprüfung bildet Paare, Stellen und Werte aus den Routen, ihren Schlüsseln und der Liste
+// der Werte, ohne feste Zahl; die Routen mit Body sind die der Liste der Routen mit einem Body.
+func TestWS7Fremd(t *testing.T) {
+	wsFrist(t)
+	mitBody := 0
+	for _, r := range wsRouten() {
+		if r.body != "" {
+			mitBody++
+		}
+	}
+	alle := map[string]bool{}
+	for _, br := range wsBodyRouten() {
+		for _, k := range br.schluessel {
+			alle[k] = true
+		}
+	}
+	gleichAuf(t, "Routen mit Body", len(wsBodyRouten()), mitBody)
+	gleichAuf(t, "Felder gleich Schlüssel der Routen", wsFelder(), slices.Sorted(maps.Keys(alle)))
+	paare, stellen := 0, 0
+	for _, br := range wsBodyRouten() {
+		fremde := len(alle) - len(br.schluessel)
+		paare += fremde
+		stellen += fremde * (1 + len(br.schluessel) + 1) * len(wsFremdeWerte())
+	}
+	formen := wsFremde()
+	gleichAuf(t, "Formen", len(formen), stellen)
+	for _, f := range formen {
+		wsPruefeUngueltig(t, f)
+	}
+	gleichAuf(t, "Paare aus Route und fremdem Schlüssel", paare, 8)
+}
+
+// TestWS8Lesen hält WS8 für die Achse *Lesen* (SPEC-298 Nr. 5 a, M-Lesen): jede der 15 Arten von wsLesefehlerArten (das Ende,
+// 8 Lesefehler, 6 Kontextfehler) × 4 Stellen, an denen der Fehler hinter den Bytes kommt (vor dem ersten Byte, vor dem letzten
+// Byte des Objekts, hinter dem vollständigen Objekt, hinter einem Leerzeichen dahinter) × 4 Längen des Objekts (klein, 1 MiB - 1,
+// 1 MiB, 1 MiB + 1) × 3 Routen mit Body = 720 Zellen. Orakel: wer mehr als 1 MiB Bytes liefert, ist 400 (die Grenze des Rahmens,
+// welche Art auch folgt); sonst bricht ein Kontextfehler die Verbindung ab (kein Fehlerobjekt, kein Zählen, kein Aufruf eines
+// Dienstes, der Handler liefert den Fehler unverändert), ein Lesefehler ist 400 (auch hinter einem vollständigen Objekt), und
+// das Ende gilt: der Erfolg der Route mit einem Aufruf, wenn das Objekt vollständig ist, sonst 400.
+func TestWS8Lesen(t *testing.T) {
+	wsFrist(t)
+	arten := map[string]int{}
+	for _, lf := range wsLesefehlerArten() {
+		arten[lf.art]++
+	}
+	gleichAuf(t, "Arten des Lesens", arten, map[string]int{"ende": 1, "lese": 8, "kontext": 6})
+	zellen := 0
+	for _, br := range wsBodyRouten() {
+		r := wsRouten()[br.route]
+		for stelle := range 4 {
+			for _, n := range wsLesenLaengen(r) {
+				daten := wsLesenDaten(r, stelle, n)
+				for _, lf := range wsLesefehlerArten() {
+					zellen++
+					name := fmt.Sprintf("%s: %s, Stelle %d, Länge %d", r.name, lf.name, stelle, n)
+					e := wsNeu(t)
+					rec, p := wsRahmenAntwort(e, r.request(wsPfadID, "", nil, wsNeuerLeser(daten, lf.err)))
+					codes, andere := zaehlungenVon(e.tele)
+					handler := func() error {
+						_, err := e.routen[br.route].Handler(context.Background(), admin.Anfrage{
+							Methode: r.methode, Body: wsNeuerLeser(daten, lf.err), Pfadwerte: map[string]string{"id": wsPfadID},
+						})
+						return err
+					}
+					switch {
+					case len(daten) <= bodyGrenze && lf.art == "kontext":
+						if p != http.ErrAbortHandler || rec.Body.Len() != 0 || len(codes) != 0 || andere != 0 || e.p.gesamt() != 0 {
+							t.Errorf("%s: Panik %v, Body %q, Zählungen %q, %d Aufrufe: erwartet den Abbruch ohne Antwort", name, p, rec.Body.String(), codes, e.p.gesamt())
+						}
+						if err := handler(); err != lf.err {
+							t.Errorf("%s: Handler liefert %v, erwartet den Fehler unverändert", name, err)
+						}
+					case len(daten) <= bodyGrenze && lf.art == "ende" && stelle >= 2:
+						if got := e.p.liste(); p != nil || rec.Code != r.status || len(got) != 1 || got[0].op != r.op || got[0].a != r.args[0] || got[0].b != r.args[1] {
+							t.Errorf("%s: Panik %v, Status %d, Aufrufe %+v: erwartet %d und einen Aufruf mit %q", name, p, rec.Code, got, r.status, r.args)
+						}
+					default:
+						pruefeFehlerAntwort(t, name, rec, 400, objekt400, "")
+						if p != nil || !slices.Equal(codes, []string{"ODR-E2102"}) || andere != 0 || e.p.gesamt() != 0 {
+							t.Errorf("%s: Panik %v, Zählungen %q, %d Aufrufe: erwartet 400 ohne Aufruf", name, p, codes, e.p.gesamt())
+						}
+						if len(daten) <= bodyGrenze {
+							if err := handler(); !errors.Is(err, model.ErrUngueltig) {
+								t.Errorf("%s: Handler liefert %v, erwartet model.ErrUngueltig", name, err)
+							}
+						}
+					}
+					if n := e.audit.Aufrufe(); n != 0 {
+						t.Errorf("%s: %d Aufrufe von Audit, erwartet 0", name, n)
+					}
+				}
+			}
+		}
+	}
+	gleichAuf(t, "Zellen", zellen, len(wsBodyRouten())*len(wsLesefehlerArten())*4*4)
 }
 
 // TestWS9Dienst hält WS9 für die Werte, die der Dienst abweist: model.ErrUngueltig des Dienstes ist 400 `ODR-E2102` mit genau

@@ -44,14 +44,30 @@ const (
 	snapBJSON = `{"id":"snp-2","workspace_id":"wsp-2","name":"nm-2","created_at":"2026-11-06T11:00:00.123456789Z"}`
 )
 
-// wsSchritte sind die 12 Antworten von M-Folge, je in zwei Fassungen; jede der 8 Routen kommt mit mindestens einem Erfolg oder
-// Fehler vor.
+// wsSchritte sind die 39 Ausgänge von M-Folge, je in zwei Fassungen: je Route der Erfolg (8), jeder Code der Tabelle von
+// SPEC-298 Nr. 8 (wsCodes, 28) und bei den drei Routen mit Body der Verstoß gegen den Body (3). Die Fassungen eines Fehlers
+// sind gleich (ein Code hat ein Literal); die zwei Fassungen eines Erfolgs unterscheiden sich in jedem Wert.
 func wsSchritte() []wsSchritt {
-	fehler := func(c model.Code, status int, lit string) wsVariante {
-		return wsVariante{stelle: func(e *wsEnv) {
-			e.wf.err, e.sf.err = &inbound.Fehler{Code: c, Status: status}, &inbound.Fehler{Code: c, Status: status}
-		}, status: status, lit: lit}
+	erfolge := wsErfolge()
+	var out []wsSchritt
+	for r, rt := range wsRouten() {
+		out = append(out, wsSchritt{rt.name + " Erfolg", r, erfolge[r]})
+		for _, c := range wsCodes(r) {
+			v := wsVariante{stelle: func(e *wsEnv) { e.wf.err, e.sf.err = c.err, c.err }, status: c.status, lit: c.objekt}
+			out = append(out, wsSchritt{rt.name + " " + c.code, r, [2]wsVariante{v, v}})
+		}
+		if rt.body != "" {
+			ungueltig := func(body string) wsVariante {
+				return wsVariante{body: body, stelle: func(*wsEnv) {}, status: 400, lit: objekt400}
+			}
+			out = append(out, wsSchritt{rt.name + " 400", r, [2]wsVariante{ungueltig("{"), ungueltig("x")}})
+		}
 	}
+	return out
+}
+
+// wsErfolge sind die zwei Fassungen des Erfolgs je Route (Index wie wsRouten).
+func wsErfolge() [8][2]wsVariante {
 	ws := func(w model.Workspace, status int, lit string) wsVariante {
 		return wsVariante{stelle: func(e *wsEnv) { e.wf.ws = w }, status: status, lit: lit}
 	}
@@ -67,29 +83,22 @@ func wsSchritte() []wsSchritt {
 	bericht := func(b inbound.Loeschbericht, lit string) wsVariante {
 		return wsVariante{stelle: func(e *wsEnv) { e.wf.bericht = b }, status: 200, lit: lit}
 	}
-	ungueltig := func(body string) wsVariante {
-		return wsVariante{body: body, stelle: func(*wsEnv) {}, status: 400, lit: objekt400}
-	}
 	a4 := wsA()
 	a4.Revision = 4
 	a4JSON := strings.Replace(wsAJSON, `"revision":3`, `"revision":4`, 1)
-	return []wsSchritt{
-		{"GET Liste 200", rList, [2]wsVariante{liste([]model.Workspace{wsA(), wsB()}, wsAJSON+","+wsBJSON), liste([]model.Workspace{wsB(), wsA()}, wsBJSON+","+wsAJSON)}},
-		{"POST Workspace 201", rCreate, [2]wsVariante{ws(wsA(), 201, wsAJSON), ws(wsB(), 201, wsBJSON)}},
-		{"POST Workspace 400", rCreate, [2]wsVariante{ungueltig("{"), ungueltig("x")}},
-		{"POST Workspace 409", rCreate, [2]wsVariante{fehler(model.CodeE7007, 409, wsObjE7007), fehler(model.CodeE7002, 404, wsObjE7002)}},
-		{"GET {id} 200", rGet, [2]wsVariante{ws(wsA(), 200, wsAJSON), ws(wsB(), 200, wsBJSON)}},
-		{"GET {id} 404", rGet, [2]wsVariante{fehler(model.CodeE7001, 404, wsObjE7001), fehler(model.CodeE3001, 500, objektE3001)}},
-		{"DELETE 200", rDelete, [2]wsVariante{
-			bericht(inbound.Loeschbericht{Entfernt: 7, Zurueckgestellt: true}, `{"blobs_removed":7,"cleanup_deferred":true}`),
-			bericht(inbound.Loeschbericht{Entfernt: 2}, `{"blobs_removed":2,"cleanup_deferred":false}`)}},
-		{"reset 200", rReset, [2]wsVariante{ws(wsB(), 200, wsBJSON), ws(a4, 200, a4JSON)}},
-		{"GET snapshots 200", rSnList, [2]wsVariante{
-			snapListe([]model.WorkspaceSnapshot{snapA(), snapB()}, snapAJSON+","+snapBJSON), snapListe([]model.WorkspaceSnapshot{snapB()}, snapBJSON)}},
-		{"POST snapshots 201", rSnCreate, [2]wsVariante{snap(snapB(), 201, snapBJSON), snap(snapA(), 201, snapAJSON)}},
-		{"POST snapshots 409", rSnCreate, [2]wsVariante{fehler(model.CodeE7006, 409, wsObjE7006), fehler(model.CodeE7001, 404, wsObjE7001)}},
-		{"restore 422", rRestore, [2]wsVariante{fehler(model.CodeE7008, 422, wsObjE7008), fehler(model.CodeE5004, 409, wsObjE5004)}},
-	}
+	var e [8][2]wsVariante
+	e[rList] = [2]wsVariante{liste([]model.Workspace{wsA(), wsB()}, wsAJSON+","+wsBJSON), liste([]model.Workspace{wsB(), wsA()}, wsBJSON+","+wsAJSON)}
+	e[rCreate] = [2]wsVariante{ws(wsA(), 201, wsAJSON), ws(wsB(), 201, wsBJSON)}
+	e[rGet] = [2]wsVariante{ws(wsA(), 200, wsAJSON), ws(wsB(), 200, wsBJSON)}
+	e[rDelete] = [2]wsVariante{
+		bericht(inbound.Loeschbericht{Entfernt: 7, Zurueckgestellt: true}, `{"blobs_removed":7,"cleanup_deferred":true}`),
+		bericht(inbound.Loeschbericht{Entfernt: 2}, `{"blobs_removed":2,"cleanup_deferred":false}`)}
+	e[rReset] = [2]wsVariante{ws(wsB(), 200, wsBJSON), ws(a4, 200, a4JSON)}
+	e[rSnList] = [2]wsVariante{
+		snapListe([]model.WorkspaceSnapshot{snapA(), snapB()}, snapAJSON+","+snapBJSON), snapListe([]model.WorkspaceSnapshot{snapB()}, snapBJSON)}
+	e[rSnCreate] = [2]wsVariante{snap(snapB(), 201, snapBJSON), snap(snapA(), 201, snapAJSON)}
+	e[rRestore] = [2]wsVariante{ws(wsA(), 200, wsAJSON), ws(a4, 200, a4JSON)}
+	return e
 }
 
 // wsFuehre stellt die Fakes für die Fassung ein (alles leer außer dem, was sie nennt), sendet den Request des Schrittes und
@@ -113,26 +122,43 @@ func wsFuehre(e *wsEnv, s wsSchritt, fassung int) (int, string) {
 }
 
 // TestWS16FolgeOhneZustand hält WS16 (SPEC-298 Nr. 12: die Routen halten keinen Zustand zwischen Requests) als Wirkung ohne
-// Datenrennen: M-Folge ist jedes geordnete Paar aus den 12 Schritten (144 Paare, auch dieselbe Route zweimal) auf demselben
-// Server, der erste Request mit der Fassung 0 seines Schrittes, der zweite mit der Fassung 1; die Antwort des zweiten Requests
-// ist das Literal des Vertrags und die auf einem frischen Server. Fänger gegen jeden Zwischenspeicher, auch einen unter einer
-// Sperre, der auch ohne Überlappung wirkt, in jeder der 8 Routen.
+// Datenrennen: M-Folge ist jedes geordnete Paar aus den 39 Ausgängen (Route × Erfolg, jeder Code der Tabelle von Nr. 8 oder
+// Verstoß gegen den Body; 1521 Paare, auch dieselbe Route und denselben Ausgang zweimal) auf demselben Server, der erste Request
+// mit der Fassung 0 seines Schrittes, der zweite mit der Fassung 1; die Antwort des zweiten Requests ist das Literal des
+// Vertrags und die auf einem frischen Server. Fänger gegen jeden Zwischenspeicher, auch einen unter einer Sperre, der auch ohne
+// Überlappung wirkt, in jeder der 8 Routen und bei jedem Wechsel des Ausgangs. Die Zählprüfung hält die Schritte gegen die
+// Zellen der Tabelle der Codes (je Route 2, 4, 3, 3, 3, 3, 4 und 6) und gegen die Routen mit Body.
 func TestWS16FolgeOhneZustand(t *testing.T) {
 	wsFrist(t)
 	alle := wsSchritte()
-	gleichAuf(t, "Zahl der Schritte", len(alle), 12)
-	routen := map[int]bool{}
+	routen, codes, erfolge, verstoesse := map[int]bool{}, map[int]int{}, 0, 0
 	for _, s := range alle {
 		routen[s.route] = true
+		switch {
+		case strings.HasSuffix(s.name, " Erfolg"):
+			erfolge++
+			if s.v[0].lit == s.v[1].lit {
+				t.Errorf("%s: beide Fassungen haben dieselbe Antwort", s.name)
+			}
+		case strings.HasSuffix(s.name, " 400"):
+			verstoesse++
+		default:
+			codes[s.route]++
+		}
 		for f := range 2 {
 			if code, body := wsFuehre(wsNeu(t), s, f); code != s.v[f].status || body != s.v[f].lit {
 				t.Errorf("%s Fassung %d auf frischem Server: %d %q, erwartet %d %q", s.name, f, code, body, s.v[f].status, s.v[f].lit)
 			}
 		}
-		if s.v[0].lit == s.v[1].lit && s.v[0].status != 400 {
-			t.Errorf("%s: beide Fassungen haben dieselbe Antwort", s.name)
+	}
+	mitBody := 0
+	for _, r := range wsRouten() {
+		if r.body != "" {
+			mitBody++
 		}
 	}
+	gleichAuf(t, "Erfolge, Verstöße, Schritte", []int{erfolge, verstoesse, len(alle)}, []int{len(wsRouten()), mitBody, len(wsRouten()) + mitBody + 28})
+	gleichAuf(t, "Codes je Route", codes, map[int]int{rList: 2, rCreate: 4, rGet: 3, rDelete: 3, rReset: 3, rSnList: 3, rSnCreate: 4, rRestore: 6})
 	gleichAuf(t, "Routen der Schritte gleich der Länge der Liste des Konstruktors", len(routen), len(wsNeu(t).routen))
 	paare := 0
 	for _, x := range alle {
@@ -158,5 +184,6 @@ func TestWS16FolgeOhneZustand(t *testing.T) {
 			}
 		}
 	}
-	gleichAuf(t, "Zahl der Paare", paare, 12*12)
+	gleichAuf(t, "Zahl der Paare", paare, len(alle)*len(alle))
+	gleichAuf(t, "Zahl der Paare laut Plan", paare, 39*39)
 }

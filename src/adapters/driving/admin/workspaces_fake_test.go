@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -579,4 +581,114 @@ func wsFehlerZellen() []wsFall {
 		out = slices.Concat(out, wsAllgemein(r), wsCodes(r))
 	}
 	return slices.Concat(out, wsLesen())
+}
+
+// wsLaengen liefert die Längen von M-Länge zwischen von und bis: jede Länge, die eine Zweier- oder Zehnerpotenz um höchstens 1
+// verfehlt (davor, auf ihr, dahinter), dazu die Längen von laengenDerWerte und bis, aufsteigend und ohne Doppelte; die Menge
+// bildet der Test, nicht der Code der Route.
+func wsLaengen(von, bis int) []int {
+	menge := map[int]bool{bis: true}
+	for _, n := range laengenDerWerte() {
+		menge[n] = true
+	}
+	for _, basis := range []int{2, 10} {
+		for p := 1; p <= 2*bis; p *= basis {
+			menge[p-1], menge[p], menge[p+1] = true, true, true
+		}
+	}
+	var out []int
+	for n := range menge {
+		if n >= von && n <= bis {
+			out = append(out, n)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// wsHoechstwert ist die größte Länge eines Wertes im Feld, die der Body noch fasst: bodyGrenze minus die Bytes des Bodys mit
+// dem leeren Wert.
+func wsHoechstwert(feld string) int {
+	_, leer, _ := wsMitFeld(feld, "", "")
+	return bodyGrenze - len(leer)
+}
+
+// wsLesefehler ist eine Art von M-Lesen: der Fehler hinter den Bytes des Bodys und was SPEC-298 Nr. 5 a aus ihm macht: `ende`
+// (das Ende des Bodys, kein Fehler), `lese` (ein Lesefehler, der kein Kontextfehler ist: 400) oder `kontext` (ein
+// Kontextfehler, auch verpackt: die Verbindung bricht ab).
+type wsLesefehler struct {
+	name string
+	err  error
+	art  string
+}
+
+// wsIsKontext ist ein Fehler, dessen Methode Is context.Canceled meldet, ohne ihn zu entpacken.
+type wsIsKontext struct{}
+
+func (wsIsKontext) Error() string      { return "Fehler mit Is" }
+func (wsIsKontext) Is(ziel error) bool { return ziel == context.Canceled }
+
+// wsLesenLaengen sind die vier Längen des Objekts von M-Lesen: der gültige Body der Route, 1 MiB - 1, 1 MiB und 1 MiB + 1.
+func wsLesenLaengen(r wsRoute) []int {
+	return []int{len(r.body), bodyGrenze - 1, bodyGrenze, bodyGrenze + 1}
+}
+
+// wsLesefehlerArten sind die 15 Arten von M-Lesen: das Ende, 8 Lesefehler und 6 Kontextfehler (auch in `errors.Join`, mit `%w`
+// verpackt und als Fehler mit der Methode Is).
+func wsLesefehlerArten() []wsLesefehler {
+	lese := func(name string, e error) wsLesefehler { return wsLesefehler{name, e, "lese"} }
+	kontext := func(name string, e error) wsLesefehler { return wsLesefehler{name, e, "kontext"} }
+	return []wsLesefehler{
+		{"EOF", io.EOF, "ende"},
+		lese("ErrUnexpectedEOF", io.ErrUnexpectedEOF), lese("ErrClosedPipe", io.ErrClosedPipe), lese("ErrShortBuffer", io.ErrShortBuffer),
+		lese("beliebiger Fehler", errors.New("boom")), lese("Frist des Netzes", os.ErrDeadlineExceeded),
+		lese("Fehler des Netzes", &net.OpError{Op: "read", Net: "tcp", Err: errors.New("connection reset by peer")}),
+		lese("MaxBytesError", &http.MaxBytesError{Limit: bodyGrenze}), lese("verpackter Lesefehler", fmt.Errorf("x: %w", io.ErrUnexpectedEOF)),
+		kontext("Canceled", context.Canceled), kontext("DeadlineExceeded", context.DeadlineExceeded),
+		kontext("Canceled und Lesefehler", errors.Join(context.Canceled, io.ErrUnexpectedEOF)),
+		kontext("Lesefehler und DeadlineExceeded", errors.Join(io.ErrUnexpectedEOF, context.DeadlineExceeded)),
+		kontext("verpacktes Canceled", fmt.Errorf("x: %w", context.Canceled)), kontext("Fehler mit Is", wsIsKontext{}),
+	}
+}
+
+// wsLesenDaten liefert die Bytes vor dem Fehler an einer der vier Stellen von M-Lesen (0 keine, 1 das Objekt ohne sein letztes
+// Byte, 2 das vollständige Objekt, 3 das Objekt und ein Leerzeichen); das Objekt ist der gültige Body der Route mit Leerraum vor
+// der schließenden Klammer auf n Bytes.
+func wsLesenDaten(r wsRoute, stelle, n int) []byte {
+	obj := append(auffuellen(r.body[:len(r.body)-1], n-1), '}')
+	return [][]byte{nil, obj[:n-1], obj, append(slices.Clone(obj), ' ')}[stelle]
+}
+
+// wsFremdeWerte sind die sieben Werte des fremden Schlüssels von M-Fremd (Literale des JSON): eine Zeichenkette, die leere
+// Zeichenkette, `null`, eine Zahl, ein Wahrheitswert, ein Array und ein Objekt.
+func wsFremdeWerte() []string { return []string{`"x"`, `""`, `null`, `1`, `true`, `[]`, `{}`} }
+
+// wsFremde sind die Formen von M-Fremd (SPEC-298 Nr. 5 c): je Route mit Body und je Schlüssel einer anderen Route mit Body,
+// der keiner dieser Route ist (Paar aus Route und fremdem Schlüssel), ein Body je Stelle des fremden Schlüssels (allein, vor
+// allen erlaubten Schlüsseln der Route, zwischen zwei von ihnen und hinter allen: jede Stelle der Liste der erlaubten
+// Schlüssel plus allein) und je Wert von wsFremdeWerte. Die Mengen entstehen aus wsBodyRouten, nicht aus einer Liste der Paare.
+func wsFremde() []wsBForm {
+	var out []wsBForm
+	for i, br := range wsBodyRouten() {
+		eigene := make([]string, len(br.schluessel))
+		for k, s := range br.schluessel {
+			eigene[k] = `"` + s + `":"x"`
+		}
+		for _, fremd := range wsFelder() {
+			if slices.Contains(br.schluessel, fremd) {
+				continue
+			}
+			for _, wert := range wsFremdeWerte() {
+				f := `"` + fremd + `":` + wert
+				out = append(out, wsBForm{achse: "Fremd", name: fremd + " allein " + wert, br: i, body: []byte("{" + f + "}")})
+				for stelle := range len(eigene) + 1 {
+					glieder := slices.Insert(slices.Clone(eigene), stelle, f)
+					out = append(out, wsBForm{
+						achse: "Fremd", name: fremd + " an Stelle " + strconv.Itoa(stelle) + " " + wert, br: i, body: []byte("{" + strings.Join(glieder, ",") + "}"),
+					})
+				}
+			}
+		}
+	}
+	return out
 }

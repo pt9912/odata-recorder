@@ -263,8 +263,9 @@ func wsSnapshotLit(s model.WorkspaceSnapshot) string {
 }
 
 // TestWS12Listen hält WS12 (SPEC-298 Nr. 7 d): die Listen tragen die Elemente in der Reihenfolge des Dienstes, ohne
-// Neuordnung, Entdoppelung und Kappung, und sind nie `null`: M-Liste, 7 Formen (`nil`, leer, 1, 2, 3 und 100 Elemente in
-// absteigender Folge von Kennung und Zeit, zwei gleiche) × 2 Routen = 14.
+// Neuordnung, Entdoppelung und Kappung, und sind nie `null`: M-Liste, die Formen `nil`, leer, zwei gleiche und jede Länge von
+// wsLaengen(1, 5000) (44: jede Zweier- und Zehnerpotenz um 1, darunter 1, 2, 3, 100) Elemente in absteigender Folge von
+// Kennung und Zeit × 2 Routen. Prüfgrenze (akzeptiertes Negativ (1)): Listen über 5000 Elemente und die Längen dazwischen.
 func TestWS12Listen(t *testing.T) {
 	wsFrist(t)
 	absteigend := func(n int) []int {
@@ -277,7 +278,13 @@ func TestWS12Listen(t *testing.T) {
 	formen := []struct {
 		name string
 		ids  []int
-	}{{"nil", nil}, {"leer", []int{}}, {"1", absteigend(1)}, {"2", absteigend(2)}, {"3", absteigend(3)}, {"100", absteigend(100)}, {"gleiche", []int{5, 5}}}
+	}{{"nil", nil}, {"leer", []int{}}, {"gleiche", []int{5, 5}}}
+	for _, n := range wsLaengen(1, 5000) {
+		formen = append(formen, struct {
+			name string
+			ids  []int
+		}{strconv.Itoa(n), absteigend(n)})
+	}
 	faelle := 0
 	for _, f := range formen {
 		var ws []model.Workspace
@@ -308,7 +315,7 @@ func TestWS12Listen(t *testing.T) {
 			}
 		}
 	}
-	gleichAuf(t, "Fälle", []int{faelle, len(formen)}, []int{14, 7})
+	gleichAuf(t, "Fälle", []int{faelle, len(formen)}, []int{2 * (3 + len(wsLaengen(1, 5000))), 3 + len(wsLaengen(1, 5000))})
 }
 
 // wsRahmenAntwort ruft den Server mit dem Request und liefert die Antwort und den Wert einer Panik (http.ErrAbortHandler: der
@@ -421,4 +428,50 @@ func TestWS13Unveraendert(t *testing.T) {
 		}
 	}
 	gleichAuf(t, "Zellen", zellen, 125)
+}
+
+// TestWS13AlleCodes hält SPEC-298 Nr. 8, „die Route reicht jeden Code unverändert durch“, für die Menge Route × Code: jede der 8
+// Routen (je mit ihrer Methode) × jeder Code von model.AlleCodes() (Zählprüfung gegen die Liste, ohne feste Zahl), je auf zwei
+// Wegen (der Handler gibt den Fehler als dasselbe Objekt ohne Antwort zurück; der Server antwortet mit dem Status des Dienstes,
+// dem Code, der message und dem target des Codes aus SPEC-109 Nr. 1, zählt genau einmal und ruft die Operation genau einmal).
+// Der Status ist der erste von Code.Stati() ungleich 0; die Zellen der Tabelle von Nr. 8 und die weiteren erreichbaren Codes
+// (`ODR-E5004`, `ODR-E5005`, `ODR-E7008` bei `Create`, `ODR-E7002` bei `Reset`) sind Elemente dieser Menge.
+func TestWS13AlleCodes(t *testing.T) {
+	wsFrist(t)
+	alle := model.AlleCodes()
+	zellen := 0
+	for r, rt := range wsRouten() {
+		for _, c := range alle {
+			status := 0
+			for _, s := range c.Stati() {
+				if status == 0 {
+					status = s
+				}
+			}
+			erwartet, erwartetCode := fmt.Sprintf(`{"error":{"code":%q,"message":%q,"target":%q}}`, c.String(), c.Message(), string(c.Zielbereich())), c.String()
+			fe := &inbound.Fehler{Code: c, Status: status}
+			if status == 0 {
+				// Ein Code ohne HTTP-Status (SPEC-109 Nr. 2) ist für den Rahmen ein Bruch des Vertrags: ODR-E9001 mit 500
+				// (SPEC-238 Nr. 6 a 4); die Route reicht ihn trotzdem unverändert durch.
+				fe, status, erwartet, erwartetCode = &inbound.Fehler{Code: c, Status: 500}, 500, objekt500, "ODR-E9001"
+			}
+			zellen++
+			name := fmt.Sprintf("%s %s", rt.name, c)
+			e := wsNeu(t)
+			e.wf.err, e.sf.err = fe, fe
+			ant, err := e.routen[r].Handler(context.Background(), admin.Anfrage{Methode: rt.methode, Body: strings.NewReader(rt.body), Pfadwerte: map[string]string{"id": wsPfadID}})
+			if err != error(fe) || ant.Status != 0 || len(ant.Body) != 0 {
+				t.Errorf("%s: Handler liefert %v und Antwort %d %q, erwartet denselben Fehler und keine Antwort", name, err, ant.Status, ant.Body)
+			}
+			e = wsNeu(t)
+			e.wf.err, e.sf.err = fe, fe
+			rec := e.rufe(rt.gut())
+			pruefeFehlerAntwort(t, name, rec, status, erwartet, "")
+			if codes, andere := zaehlungenVon(e.tele); !slices.Equal(codes, []string{erwartetCode}) || andere != 0 {
+				t.Errorf("%s: CountError %q, andere Aufrufe %d, erwartet genau %q", name, codes, andere, erwartetCode)
+			}
+			e.p.nurDiagonale(t, name, rt.op)
+		}
+	}
+	gleichAuf(t, "Zellen", zellen, len(wsRouten())*len(alle))
 }

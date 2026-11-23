@@ -91,8 +91,8 @@ func wsAufrufstellen(t *testing.T, name string, quelle any) map[string]int {
 // TestWS15Quelltext hält WS15 (SPEC-298 Nr. 2, 9 a, 12; SPEC-238 Nr. 15 b, c) am Quelltext der Routen (`workspaces*.go`): 0
 // Aufrufe von `NeuesFehlerobjekt` und `CountError`, 0 Nennungen von fünf Arten des Audit (`ArtAdminAbgewiesen`,
 // `ArtImportFehlgeschlagen`, `ArtSessionGeloescht`, `ArtSessionAufbewahrung`, `ArtWorkspaceGeloescht`) und von drei fremden
-// (`ArtSessionAngelegt`, `ArtSessionBeendet`, `ArtImportVeroeffentlicht`), 0 Anweisungen `go`, 0 Aufrufe von acht Ableitungen
-// eines Kontextes, 0 Aufrufe von `Err`, `Done`, `Deadline` und `context.Cause`, 0 Importe von `sync` und `sync/atomic`, 0
+// (`ArtSessionAngelegt`, `ArtSessionBeendet`, `ArtImportVeroeffentlicht`), 0 Anweisungen `go`, 0 Aufrufe von `time.AfterFunc`
+// (startet eine Goroutine ohne `go`), 0 Aufrufe von acht Ableitungen eines Kontextes (darunter `context.AfterFunc`), 0 Aufrufe von `Err`, `Done`, `Deadline` und `context.Cause`, 0 Importe von `sync` und `sync/atomic`, 0
 // Zugriffe auf `Header`, `RawQuery` und `Laenge`, und jede der acht Operationen hat genau eine Aufrufstelle. Die Proben halten
 // die Zähler gegen eine Quelle mit je einer Stelle.
 func TestWS15Quelltext(t *testing.T) {
@@ -108,20 +108,21 @@ func TestWS15Quelltext(t *testing.T) {
 	importe := []string{"sync", "sync/atomic"}
 	gleichAuf(t, "Zahl der Namen", []int{len(namen), len(arten), len(ableitungen), len(zustand) + 1, len(anfrage), len(importe)}, []int{2, 8, 8, 4, 3, 2})
 
-	probe := "package x\nimport (\n\"context\"\n\"sync\"\n\"sync/atomic\"\n)\nfunc f() { model.NeuesFehlerobjekt(1); s.CountError(1); go g(); go func() {}(); " +
+	probe := "package x\nimport (\n\"context\"\n\"sync\"\n\"sync/atomic\"\n\"time\"\n)\nfunc f() { model.NeuesFehlerobjekt(1); s.CountError(1); go g(); go func() {}(); " +
 		"support.ArtAdminAbgewiesen; support.ArtImportFehlgeschlagen; support.ArtSessionGeloescht; support.ArtSessionAufbewahrung; " +
 		"support.ArtWorkspaceGeloescht; support.ArtSessionAngelegt; support.ArtSessionBeendet; support.ArtImportVeroeffentlicht; " +
 		"context.WithCancel(); context.WithTimeout(); context.WithDeadline(); context.WithoutCancel(); context.WithCancelCause(); " +
 		"context.WithTimeoutCause(); context.WithDeadlineCause(); context.AfterFunc(); ctx.Err(); ctx.Done(); ctx.Deadline(); " +
-		"context.Cause(ctx); a.Header; a.RawQuery; a.Laenge; h.workspaces.List(ctx); h.snapshots.List(ctx) }"
+		"context.Cause(ctx); time.AfterFunc(0, f); a.Header; a.RawQuery; a.Laenge; h.workspaces.List(ctx); h.snapshots.List(ctx) }"
 	for _, n := range slices.Concat(namen, arten, zustand, anfrage) {
 		gleichAuf(t, "Probe "+n, zaehleSelektoren(t, "probe.go", probe, "", n), 1)
 	}
 	for _, n := range append(slices.Clone(ableitungen), "Cause") {
 		gleichAuf(t, "Probe "+n, zaehleSelektoren(t, "probe.go", probe, "context", n), 1)
 	}
+	gleichAuf(t, "Probe time.AfterFunc", zaehleSelektoren(t, "probe.go", probe, "time", "AfterFunc"), 1)
 	gleichAuf(t, "Probe: Anweisungen go", zaehleGoAnweisungen(t, "probe.go", probe), 2)
-	gleichAuf(t, "Probe: Importe", wsImporte(t, "probe.go", probe), []string{"context", "sync", "sync/atomic"})
+	gleichAuf(t, "Probe: Importe", wsImporte(t, "probe.go", probe), []string{"context", "sync", "sync/atomic", "time"})
 	gleichAuf(t, "Probe: Aufrufstellen", wsAufrufstellen(t, "probe.go", probe), map[string]int{"workspaces.List": 1, "snapshots.List": 1})
 
 	stellen := map[string]int{}
@@ -140,6 +141,9 @@ func TestWS15Quelltext(t *testing.T) {
 			if z := zaehleSelektoren(t, d, src, "context", n); z != 0 {
 				t.Errorf("%s: %d Aufrufe von context.%s", d, z, n)
 			}
+		}
+		if z := zaehleSelektoren(t, d, src, "time", "AfterFunc"); z != 0 {
+			t.Errorf("%s: %d Aufrufe von time.AfterFunc (startet eine Goroutine ohne Anweisung go)", d, z)
 		}
 		if z := zaehleGoAnweisungen(t, d, src); z != 0 {
 			t.Errorf("%s: %d Anweisungen go", d, z)
