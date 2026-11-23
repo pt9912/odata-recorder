@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-einbau-replay
+**Fund:** Der Nachtrag F-1a berichtigte die Menge M-Cursor von 72 auf 185 Elemente in Zeile W6, in der Mengen-Tabelle, im Test und in der Zeile F-1; der Punkt *Befunde des Reviews* in §6 nannte weiter „Mengen M-Cursor 72“ (Verifikation V-2). Die Closure berichtigt die Stelle; die übrigen Stellen der Zahl 72 nennen die Menge vor dem Nachtrag und sagen es. Beleg: `docs/reviews/2026-11-23-slice-telemetry-einbau-replay-verifikation.md` (V-2), Plan `slice-telemetry-einbau-replay` §6.
