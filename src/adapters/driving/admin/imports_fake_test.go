@@ -51,8 +51,10 @@ func importA() model.Import {
 
 // importsFake erfüllt inbound.ImportUseCase: jede der zwei Operationen zählt ihren Aufruf und hält ctx und jedes Argument
 // fest (die Anfrage mit einer Kopie der Liste, die Kennung), in der Folge der Aufrufe; Ergebnis und Fehler sind einstellbar
-// (ergebnis, imp, err; importiere und liest ersetzen sie). Der Fake gerät nie in Panik; Zähler und Listen liegen hinter einer
-// Sperre, ein Test, der ihn gleichzeitig ruft, besteht nicht; die Einstellungen setzt der Test vor dem ersten Aufruf.
+// (ergebnis, imp, err; importiere und liest ersetzen sie); vor ist je Operation ein Haltepunkt, der nach dem Zählen und vor dem
+// Ergebnis läuft, nach einer, der nach dem Ergebnis und vor der Rückkehr läuft, beide ohne die Sperre des Fakes. Der Fake
+// gerät nie in Panik; Zähler und Listen liegen hinter einer Sperre, ein Test, der ihn gleichzeitig ruft, besteht nicht;
+// die Einstellungen setzt der Test vor dem ersten Aufruf.
 type importsFake struct {
 	mu       sync.Mutex
 	ops      []impOp
@@ -66,6 +68,7 @@ type importsFake struct {
 	err        error
 	importiere func(ctx context.Context, a inbound.ImportAnfrage) (inbound.ImportErgebnis, error)
 	liest      func(ctx context.Context, id string) (model.Import, error)
+	vor, nach  [impAnzahl]func(ctx context.Context)
 }
 
 func (f *importsFake) notiere(ctx context.Context, op impOp) {
@@ -80,10 +83,17 @@ func (f *importsFake) Import(ctx context.Context, a inbound.ImportAnfrage) (inbo
 	a.SourceSessionIDs = slices.Clone(a.SourceSessionIDs)
 	f.anfragen = append(f.anfragen, a)
 	f.mu.Unlock()
-	if f.importiere != nil {
-		return f.importiere(ctx, a)
+	if h := f.vor[impImport]; h != nil {
+		h(ctx)
 	}
-	return f.ergebnis, f.err
+	e, err := f.ergebnis, f.err
+	if f.importiere != nil {
+		e, err = f.importiere(ctx, a)
+	}
+	if h := f.nach[impImport]; h != nil {
+		h(ctx)
+	}
+	return e, err
 }
 
 func (f *importsFake) Get(ctx context.Context, id string) (model.Import, error) {
@@ -91,10 +101,17 @@ func (f *importsFake) Get(ctx context.Context, id string) (model.Import, error) 
 	f.notiere(ctx, impGet)
 	f.ids = append(f.ids, id)
 	f.mu.Unlock()
-	if f.liest != nil {
-		return f.liest(ctx, id)
+	if h := f.vor[impGet]; h != nil {
+		h(ctx)
 	}
-	return f.imp, f.err
+	i, err := f.imp, f.err
+	if f.liest != nil {
+		i, err = f.liest(ctx, id)
+	}
+	if h := f.nach[impGet]; h != nil {
+		h(ctx)
+	}
+	return i, err
 }
 
 // zahlen liefert die Zahl der Aufrufe je Operation.
@@ -159,7 +176,8 @@ func importsUmgebung(t *testing.T) (*umgebung, *importsFake, []admin.Route) {
 	t.Helper()
 	k, u := konfigMit()
 	f := &importsFake{ergebnis: inbound.ImportErgebnis{Import: importA(), Neu: true}, imp: importA()}
-	routen, err := admin.ImportRouten(f, u.audit)
+	u.nachAudit = &auditNach{AuditLog: u.audit}
+	routen, err := admin.ImportRouten(f, u.nachAudit)
 	if err != nil || len(routen) != 2 {
 		t.Fatalf("ImportRouten: %d Routen, %v", len(routen), err)
 	}
@@ -187,12 +205,15 @@ func gutAnfrage() inbound.ImportAnfrage {
 	return inbound.ImportAnfrage{ImportID: "imp-1", ServiceID: "svc-1", SourceSessionIDs: []string{"ses-1"}}
 }
 
-// bodyLeser liefert die Bytes und danach den Fehler rest (nil: das Ende) und zählt jeden Lesezugriff.
+// bodyLeser liefert die Bytes und danach den Fehler rest (nil: das Ende) und zählt jeden Lesezugriff; ende ist ein Treffpunkt,
+// der einmal läuft, bevor der Leser nach den Bytes das Ende oder rest meldet.
 type bodyLeser struct {
-	daten []byte
-	rest  error
-	pos   int
-	n     atomic.Int64
+	daten   []byte
+	rest    error
+	pos     int
+	n       atomic.Int64
+	ende    func()
+	geendet bool
 }
 
 func (b *bodyLeser) Read(p []byte) (int, error) {
@@ -201,6 +222,10 @@ func (b *bodyLeser) Read(p []byte) (int, error) {
 		n := copy(p, b.daten[b.pos:])
 		b.pos += n
 		return n, nil
+	}
+	if b.ende != nil && !b.geendet {
+		b.geendet = true
+		b.ende()
 	}
 	if b.rest != nil {
 		return 0, b.rest
