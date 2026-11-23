@@ -73,6 +73,8 @@ composition_root:
 tech:
   - {pattern: "modernc.org/sqlite", adapter: "src/adapters/driven/sqlite"}
   - {pattern: "encoding/xml", adapter: "src/adapters/driven/odata"}
+  # Der Importpfad des Composition Root steht nur in Dateien unter src/bootstrap/ und tests/; jede andere Datei und jede Form des Imports mit Anführungszeichen (ohne Alias, mit Alias, Blank-Import, Punkt-Import) ist ein Befund (SPEC-039 Nr. 4), je nach Quelle als core-impurity (Modell), app-impurity (Dienste), port-impurity (Ports) oder tech-leak (Adapter, Rest). Den Raw-String-Import und die Gruppe in einer Zeile meldet a-check weder als Befund noch als Hinweis; gofmt -l in make test nennt beide Dateien.
+  - {pattern: "odata-recorder/src/bootstrap", adapter: ["src/bootstrap/", "tests/"]}
 
 markers:
   ignore_symbols: []
