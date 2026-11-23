@@ -281,18 +281,19 @@ func (h *Handle) verdrahte(db *sqlite.DB, v vorlaeufig) error {
 	if err != nil {
 		return err
 	}
-	// Der Adapter des Prozesses (SPEC-139 Nr. 13): Senke, Uhr und Stufe INFO; der Mock und der Replay-Dienst erhalten ihn als Telemetrie, der Workspace-Dienst seinen Handler als Log.
+	// Der Adapter des Prozesses (SPEC-139 Nr. 13): Senke, Uhr und Stufe INFO; Mock, Replay- und Record-Dienst erhalten ihn als Telemetrie,
+	// Workspace-, Record-, Session-, Wartungs-Dienst und Audit-Adapter seinen Handler als Log.
 	h.tel, err = b.NeueTelemetrie(telemetry.Config{Writer: h.senke, Clock: h.uhr, MinLevel: slog.LevelInfo})
 	if err != nil {
 		return err
 	}
-	h.audit, err = audit.New(audit.Config{Pfad: filepath.Join(k.DataDir, audit.DateiName), Uhr: h.uhr, IDs: h.ids, Log: h.log})
+	h.audit, err = audit.New(audit.Config{Pfad: filepath.Join(k.DataDir, audit.DateiName), Uhr: h.uhr, IDs: h.ids, Log: slog.New(h.tel.Handler())})
 	if err != nil {
 		return err
 	}
 	h.wartung, err = b.NeueWartung(maintenance.Konfig{
 		Sessions: db.Sessions(), Dienste: h.dienste, Speicher: db.Maintenance(), Blobs: waechter,
-		Uhr: h.uhr, MaxAge: k.RetentionMaxAge, Log: h.log, Audit: h.audit,
+		Uhr: h.uhr, MaxAge: k.RetentionMaxAge, Log: slog.New(h.tel.Handler()), Audit: h.audit,
 	})
 	if err != nil {
 		return err
@@ -410,13 +411,13 @@ func (h *Handle) verdrahteRecord(db *sqlite.DB, waechter *maintenance.BlobWaecht
 	}
 	h.record, err = b.NeuerRecorder(record.Konfig{
 		Dienste: dienste, Sessions: db.Sessions(), Exchanges: db.Recording(), Upstream: upstream,
-		Pipeline: pipeline, Regeln: h.regeln(), Uhr: h.uhr, IDs: h.ids, Log: h.log,
+		Pipeline: pipeline, Regeln: h.regeln(), Uhr: h.uhr, IDs: h.ids, Log: slog.New(h.tel.Handler()), Telemetrie: h.tel,
 	})
 	if err != nil {
 		return err
 	}
 	h.sessions, err = b.NeueSession(session.Konfig{
-		Sessions: db.Sessions(), Dienste: h.dienste, Wartung: h.wartung, Uhr: h.uhr, IDs: h.ids, Log: h.log,
+		Sessions: db.Sessions(), Dienste: h.dienste, Wartung: h.wartung, Uhr: h.uhr, IDs: h.ids, Log: slog.New(h.tel.Handler()),
 		Record: h.record, Exchanges: db.Recording(), Frist: k.ShutdownTimeout, Audit: h.audit,
 	})
 	if err != nil {

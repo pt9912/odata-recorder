@@ -54,7 +54,7 @@ func geheimnisse(t *testing.T) {
 	}
 	ref.stoppe()
 	holen(t, p.adresse, anfrage{pfad: "/odata/Products(1)"})
-	p.warteAufZeile("ereignis=upstream", "service_id="+kontrollDienst)
+	p.warteAufZeile(`"ereignis":"upstream"`, `"service_id":"`+kontrollDienst+`"`)
 	_, vorher := durchsuche(t, l.dir, append(secrets(), werteKontrolle()...))
 	l.beendeAufnahme()
 	dateien, nachher := durchsuche(t, l.dir, append(secrets(), werteKontrolle()...))
@@ -92,7 +92,7 @@ func kontrollwert(t *testing.T) {
 	pflanzeKontrolle(t, l.dir)
 	ref.stoppe()
 	holen(t, p.adresse, anfrage{pfad: "/odata/Products(1)"})
-	p.warteAufZeile("service_id=" + kontrollDienst)
+	p.warteAufZeile(`"service_id":"` + kontrollDienst + `"`)
 	l.beendeAufnahme()
 	dateien, funde := durchsuche(t, l.dir, werteKontrolle())
 	pruefeKontrolle(t, "Kontrollwert", funde, sucheStroeme(p, werteKontrolle()))
@@ -115,7 +115,7 @@ func nutzlast(t *testing.T) {
 }
 
 // unredigierbar: ein ungültiger JSON-Body lässt den Status des Clients unverändert, sein Marker steht
-// nirgends in DATA_DIR, stderr trägt ODR-E2401 mit richtung=request.
+// nirgends in DATA_DIR, stderr trägt ODR-E2401 mit der Richtung `request`.
 func unredigierbar(t *testing.T) {
 	const marker = "MARKER-UNREDIGIERBAR-7e3b"
 	ref := neueReferenz(t)
@@ -124,7 +124,7 @@ func unredigierbar(t *testing.T) {
 	if w := l.frage(postJSON(`{"Name": "` + marker)); w.status != 201 {
 		t.Errorf("Status des Clients %d, erwartet 201 (der Referenzdienst antwortet 201)", w.status)
 	}
-	p.warteAufZeile("ereignis=capture", "error_code=ODR-E2401", "richtung=request")
+	p.warteAufZeile(`"ereignis":"capture"`, `"error_code":"ODR-E2401"`, `"richtung":"request"`)
 	_, vorher := durchsuche(t, l.dir, []string{marker})
 	l.beendeAufnahme()
 	_, nachher := durchsuche(t, l.dir, []string{marker})
@@ -158,7 +158,7 @@ func speicherVollSchutz(t *testing.T) {
 		t.Errorf("Request 2 bei vollem Speicher: %d %q, erwartet 201", w.status, w.body)
 	}
 	geheimnisse := []string{geheimA, geheimD, passwort}
-	p.warteAufZeilen(2, "ereignis=ablage")
+	p.warteAufZeilen(2, `"ereignis":"ablage"`)
 	_, vorher := durchsuche(t, l.dir, append([]string{marker}, geheimnisse...))
 	for _, f := range vorher {
 		if f.wert == marker {

@@ -235,7 +235,8 @@ func s(k, v string) slog.Attr { return slog.String(k, v) }
 
 // dienstFaelle sind die 14 Fälle der Menge M13: die zehn Ereignisse von SPEC-121 Nr. 12, SPEC-124
 // Nr. 9 und SPEC-123 Nr. 11, dazu upstream je Grund (3 weitere) und capture je Richtung (1 weiterer);
-// Text, Stufe und Attribute stehen so, wie die Spezifikation sie nennt.
+// Text, Stufe und Attribute stehen so, wie die Spezifikation sie nennt; die drei Texte des Record-Dienstes sind die Literale
+// aus SPEC-121 Nr. 12, ihr ä entsteht aus Bytewerten (AGENTS.md §3.18).
 func dienstFaelle() []dienstFall {
 	record := func(ereignis, code string, extra ...slog.Attr) []slog.Attr {
 		return append([]slog.Attr{
@@ -252,7 +253,7 @@ func dienstFaelle() []dienstFall {
 		{"upstream zeit", slog.LevelError, upstream, record("upstream", "ODR-E4001", s("grund", "zeit"))},
 		{"upstream nicht_erreichbar", slog.LevelError, upstream, record("upstream", "ODR-E4001", s("grund", "nicht_erreichbar"))},
 		{"upstream intern", slog.LevelError, upstream, record("upstream", "ODR-E9001", s("grund", "intern"))},
-		{"ablage", slog.LevelError, "record: Exchange nicht angehängt", record("ablage", "ODR-E9001")},
+		{"ablage", slog.LevelError, "record: Exchange nicht angeh" + string([]byte{0xc3, 0xa4}) + "ngt", record("ablage", "ODR-E9001")},
 		{"bereinigung_fehlgeschlagen", slog.LevelError, "session: Bereinigung nach dem Löschen fehlgeschlagen",
 			[]slog.Attr{s("service_id", "svc-1"), s("session_id", "ses-1"), s("ereignis", "bereinigung_fehlgeschlagen"), s("error_code", "ODR-E3001")}},
 		{"bereinigung_zurueckgestellt", slog.LevelInfo, "session: Bereinigung nach dem Löschen zurückgestellt",
@@ -272,8 +273,9 @@ func dienstFaelle() []dienstFall {
 
 // H01: Menge M13 (14 Fälle aus 10 Ereignissen) über slog.New(Handler()): Text, Stufe und alle
 // Attribute der Stelle stehen in der Zeile, kein Verwurf. Der Eintrag capture steht bytegleich da wie
-// das Beispiel in SPEC-231 Nr. 4. Die zehn Namen sind dem Wortlaut der drei Stellen entnommen und
-// werden von Hand abgeglichen (die Dienste liegen dem Test nicht als Quelle vor).
+// das Beispiel in SPEC-231 Nr. 4. Die Texte der drei Einträge des Record-Dienstes sind die Literale aus
+// SPEC-121 Nr. 12; die Tests des Pakets record halten sie gegen den Dienst (die Dienste liegen diesem Test
+// nicht als Quelle vor).
 func TestDienstEintraege(t *testing.T) {
 	faelle := dienstFaelle()
 	namen := map[string]bool{}

@@ -60,7 +60,7 @@ func hat(funde []fund, ort, wert string) bool {
 }
 
 // kontrollDienst ist SERVICE_ID der Stufe Schutz und zugleich der Kontrollwert auf stderr: jeder Eintrag
-// eines Fehlers trägt `service_id=<Wert>`.
+// eines Fehlers trägt das Feld `service_id` mit diesem Wert.
 const kontrollDienst = "KONTROLLE-STDERR-6b1d"
 
 // kontrollDateien sind die Kontrollwerte unter DATA_DIR (SPEC-037 Nr. 9): je Ort der Datei ein Marker;

@@ -473,8 +473,8 @@ func pruefeEineInstanz(t *testing.T, r, p *haken, log *slog.Logger) {
 	for name, l := range map[string]*slog.Logger{
 		"Wartung": r.wartung.Log, "Recorder": r.recorder.Log, "Session": r.session.Log, "Wartung replay": p.wartung.Log,
 	} {
-		if l != log {
-			t.Errorf("%s trägt nicht den übergebenen Logger", name)
+		if l == nil || l == log {
+			t.Errorf("%s trägt keinen eigenen Logger oder den übergebenen: er trägt den Handler des Adapters des Prozesses (SPEC-139 Nr. 13 d)", name)
 		}
 	}
 }
@@ -874,7 +874,8 @@ func TestLogNilVerwirft(t *testing.T) {
 }
 
 // TestEinAdapterJeProzessMitDerSenke fängt SPEC-139 Nr. 3 und 13: in den Modi record und replay besteht allein der Adapter des Prozesses,
-// mit der Senke von Build als Writer; im Modus replay erhält der Replay-Dienst ihn (kein zweiter Adapter mit io.Discard).
+// mit der Senke von Build als Writer. Die Übergabe an den Replay-Dienst fängt TestWurzelReplayMatchLiegtImGesamtspan, die an den
+// Record-Dienst TestWurzelCaptureLiegtImGesamtspan; dieser Test prüft allein Zahl der Adapter und Writer.
 func TestEinAdapterJeProzessMitDerSenke(t *testing.T) {
 	for _, modus := range modi() {
 		h := neuHaken()

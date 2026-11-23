@@ -66,9 +66,9 @@ func TestE2EWeiterleitung(t *testing.T) {
 		ref.stoppe()
 		w := holen(t, p.adresse, anfrage{pfad: "/odata/Products(1)"})
 		pruefeFehler(t, "gestoppter Referenzdienst", w, 502, "ODR-E4001")
-		z := p.warteAufZeile("ereignis=upstream", "grund=nicht_erreichbar")
-		if !strings.Contains(z, "error_code=ODR-E4001") {
-			t.Errorf("Eintrag ohne error_code=ODR-E4001: %s", z)
+		z := p.warteAufZeile(`"ereignis":"upstream"`, `"grund":"nicht_erreichbar"`)
+		if !strings.Contains(z, `"error_code":"ODR-E4001"`) {
+			t.Errorf("Eintrag ohne error_code ODR-E4001: %s", z)
 		}
 	})
 }

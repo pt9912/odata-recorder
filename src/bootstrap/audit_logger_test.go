@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/pt9912/odata-recorder/src/bootstrap"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
@@ -29,19 +30,22 @@ func (p *puffer) String() string {
 	return p.b.String()
 }
 
-// TestAuditLoggerDesProzesses (SPEC-139 Nr. 3, SPEC-235 Nr. 5): der Adapter protokolliert einen gescheiterten
-// Append an dem einen Logger des Prozesses, den Build erhielt, in beiden Modi.
+// TestAuditLoggerDesProzesses (SPEC-139 Nr. 13 d, SPEC-235 Nr. 5): der Adapter protokolliert einen gescheiterten Append als Zeile in der Senke
+// des Adapters des Prozesses; der Logger, den Build erhielt, bleibt leer, in beiden Modi.
 func TestAuditLoggerDesProzesses(t *testing.T) {
 	for _, modus := range []string{modusRecord, modusReplay} {
-		p := &puffer{}
-		log := slog.New(slog.NewTextHandler(p, nil))
+		p, senke := &puffer{}, &puffer{}
 		h := neuHaken()
-		baueMitLog(context.Background(), t, konfigMitWerten(t.TempDir(), modus), h, log)
+		hd, err := bootstrap.BuildMitSenke(context.Background(), konfigMitWerten(t.TempDir(), modus), slog.New(slog.NewTextHandler(p, nil)), senke, h.bauteile())
+		if err != nil {
+			t.Fatalf("%s: Build: %v", modus, err)
+		}
+		t.Cleanup(func() { _ = hd.Herunterfahren(context.Background()) })
 		if err := h.wartung.Audit.Append(support.Eintrag{Art: "keine-art"}); err == nil {
 			t.Fatalf("%s: Append eines ungültigen Eintrags ohne Fehler", modus)
 		}
-		if !strings.Contains(p.String(), "audit_fehlgeschlagen") {
-			t.Errorf("%s: der Logger des Prozesses sah den Fehler nicht: %q", modus, p.String())
+		if !strings.Contains(senke.String(), `"ereignis":"audit_fehlgeschlagen"`) || p.String() != "" {
+			t.Errorf("%s: Senke %q, Logger von Build %q; erwartet die Zeile in der Senke und einen leeren Logger", modus, senke.String(), p.String())
 		}
 	}
 }

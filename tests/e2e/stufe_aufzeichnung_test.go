@@ -97,7 +97,7 @@ func volleKonfig(t *testing.T, l *lauf) {
 }
 
 // speicherVollAufzeichnung: bei vollem Speicher erhält der Client die Antwort unverändert, stderr trägt je
-// Request `ereignis=ablage` mit `error_code`, und der Replay dieser Requests ist 404 mit ODR-E5001.
+// Request eine Zeile mit `ereignis` `ablage` und `error_code`, und der Replay dieser Requests ist 404 mit ODR-E5001.
 func speicherVollAufzeichnung(t *testing.T) {
 	ref := neueReferenz(t)
 	l := neuerLauf(t, ref)
@@ -111,7 +111,7 @@ func speicherVollAufzeichnung(t *testing.T) {
 			t.Errorf("%s bei vollem Speicher: %d %q, erwartet 200 %q", a.pfad, w.status, w.body, soll[i])
 		}
 	}
-	p.warteAufZeilen(len(arten), "ereignis=ablage", "error_code=ODR-")
+	p.warteAufZeilen(len(arten), `"ereignis":"ablage"`, `"error_code":"ODR-`)
 	if err := os.Remove(ballast); err != nil {
 		t.Fatal(err)
 	}

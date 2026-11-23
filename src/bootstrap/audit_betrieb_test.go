@@ -751,11 +751,11 @@ func TestAuditSchreibfehlerAendertNichts(t *testing.T) {
 			}
 			n := 0
 			for _, zeile := range strings.Split(a.log, "\n") {
-				if !strings.Contains(zeile, `msg="audit: Eintrag nicht geschrieben"`) {
+				if !strings.Contains(zeile, `"msg":"audit: Eintrag nicht geschrieben"`) {
 					continue
 				}
 				n++
-				for _, teil := range []string{"level=ERROR", "ereignis=audit_fehlgeschlagen", "error_code=ODR-E9001"} {
+				for _, teil := range []string{`"level":"ERROR"`, `"ereignis":"audit_fehlgeschlagen"`, `"error_code":"ODR-E9001"`} {
 					if !strings.Contains(zeile, teil) {
 						t.Errorf("Zeile %q ohne %s", zeile, teil)
 					}
