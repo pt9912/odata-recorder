@@ -1,1 +1,1 @@
-**Stand:** offen; erster Vorgang mit `slice-bootstrap-m3` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht. Adresse des Ausgangs: Planner (ein Slice je Paket, sobald ein dritter Vorgang vorliegt)
+**Stand:** offen; zwei Vorgänge unter `evidence/` (`slice-bootstrap-m3`: `urlparser` und `admin`; `slice-token-datei-wettlauf`: `httpodata` unter `pruefung race`); kein Zielort, Schwelle 3x nicht erreicht. Adresse des Ausgangs: Planner (ein Slice je Paket, sobald ein dritter Vorgang vorliegt)

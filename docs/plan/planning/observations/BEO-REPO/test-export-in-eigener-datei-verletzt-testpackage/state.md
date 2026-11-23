@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang mit `slice-token-datei-wettlauf` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht. Adresse des Ausgangs: Architect (die Prüfliste für §3 eines Plans nennt `export_test.go` als einzigen Ort eines Test-Exports mit `package <paket>`; Vorschlag steht in der Closure-Notiz des Vorgangs)
