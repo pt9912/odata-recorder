@@ -97,6 +97,19 @@ func TestKeineAusgabe(t *testing.T) {
 			gruende[tf.Grund] = true
 		}
 	}
+	// Der Weg im Fenster (SPEC-239 Nr. 1 a): ein Eintrag erscheint zwischen Stat und Lstat, der Aufruf lädt ihn;
+	// das geladene Token (nicht ein erzeugtes) und der Grund des Eintrags zeigen, dass der Aufruf diesen Weg nahm.
+	fenster := func(legeAn func(pfad string), token, grund string) {
+		pfad := filepath.Join(t.TempDir(), "admin.token")
+		got, err := admin.LadeMitStatHalt(pfad, func() { legeAn(pfad) }, nil, nil)
+		zaehle(err)
+		if grund == "" && (err != nil || string(got) != token) {
+			t.Errorf("Fenster: %q, %v; erwartet das Token der Datei %q", got, err, token)
+		}
+		if grund != "" {
+			erwarteGrund(t, "Fenster", err, grund)
+		}
+	}
 	verlierer := func(name string, halt func(pfad string)) {
 		pfad := filepath.Join(t.TempDir(), "admin.token")
 		_, err := admin.LadeMitHaltepunkten(pfad, nil, func(string) { halt(pfad) })
@@ -125,9 +138,12 @@ func TestKeineAusgabe(t *testing.T) {
 		// Der vierte Weg zu Datei nicht anlegbar: Link scheitert mit einem anderen Fehler als fs.ErrExist.
 		_, err := admin.LadeMitHaltepunkten(filepath.Join(t.TempDir(), "admin.token"), nil, func(h string) { _ = os.Remove(h) })
 		zaehle(err)
+		// Der Weg im Fenster: eine gültige Datei und eine Datei mit Rechteverstoß.
+		fenster(func(p string) { schreibe(t, p, hex64(), 0o600) }, hex64(), "")
+		fenster(func(p string) { schreibe(t, p, hex64(), 0o644) }, "", gRechte)
 	})
-	if aufrufe != 3+29+5+3+1 {
-		t.Fatalf("%d Aufrufe, erwartet 41", aufrufe)
+	if aufrufe != 3+29+5+3+1+2 {
+		t.Fatalf("%d Aufrufe, erwartet 43", aufrufe)
 	}
 	sieben := []string{gNichtLesbar, gVerzeichnis, gKeineDatei, gRechte, gMehrZeilen, gZuKurz, gNichtAnlegbar}
 	for _, g := range sieben {

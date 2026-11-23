@@ -45,11 +45,13 @@ func (e *TokenFehler) Error() string { return "ODR-E2001 ADMIN_TOKEN_FILE: " + e
 
 func fehler(grund string) error { return &TokenFehler{Grund: grund} }
 
-// haltepunkte sind die Nähte, an denen ein Test zwischen zwei Schritten des Erzeugens eingreift (SPEC-239 Nr. 3);
-// beide erhalten den Pfad der Hilfsdatei.
+// haltepunkte sind die Nähte, an denen ein Test zwischen zwei Schritten eingreift (SPEC-239 Nr. 3, 4):
+// nachAnlegen und vorLink erhalten den Pfad der Hilfsdatei; nachStat läuft nach dem fehlenden Stat vor dem Lstat,
+// nil heißt: kein Halt.
 type haltepunkte struct {
 	nachAnlegen func(hilfsdatei string)
 	vorLink     func(hilfsdatei string)
+	nachStat    func()
 }
 
 func keinHalt(string) {}
@@ -66,24 +68,24 @@ func lade(pfad string, h haltepunkte) ([]byte, error) {
 	}
 	fi, err := os.Stat(pfad)
 	if err != nil {
-		if istFehlend(pfad, err) {
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, fehler(grundNichtLesbar)
+		}
+		if h.nachStat != nil {
+			h.nachStat()
+		}
+		// Findet Lstat etwas, legte es ein gleichzeitiger Aufruf an oder es ist ein Symlink ohne Ziel: Der Aufruf
+		// erzeugt nichts und lädt den Eintrag wie einen, der beim ersten Stat da war (SPEC-239 Nr. 1 a, Nr. 4).
+		if _, lerr := os.Lstat(pfad); lerr != nil {
 			return erzeuge(pfad, h)
 		}
-		return nil, statFehler(pfad, err)
+		return ladeVorhandene(pfad)
 	}
 	return pruefeUndLies(pfad, fi)
 }
 
-// istFehlend: die Datei fehlt, und es liegt auch kein Symlink ohne Ziel an ihrer Stelle (SPEC-239 Nr. 1 a).
-func istFehlend(pfad string, err error) bool {
-	if !errors.Is(err, fs.ErrNotExist) {
-		return false
-	}
-	_, lerr := os.Lstat(pfad)
-	return lerr != nil
-}
-
-// statFehler bildet einen Fehler von Stat, der nicht „fehlt“ ist, auf seinen Grund ab (SPEC-239 Nr. 1 a).
+// statFehler bildet einen Fehler des Stat in ladeVorhandene auf seinen Grund ab: „fehlt“ bei einem Eintrag an pfad
+// (ein Symlink ohne Ziel) ist keine reguläre Datei, jeder andere Fehler ist nicht lesbar (SPEC-239 Nr. 1 a).
 func statFehler(pfad string, err error) error {
 	if errors.Is(err, fs.ErrNotExist) {
 		if _, lerr := os.Lstat(pfad); lerr == nil {
@@ -142,7 +144,8 @@ func erzeuge(pfad string, h haltepunkte) ([]byte, error) {
 	return nil, fehler(grundNichtAnlegbar)
 }
 
-// ladeVorhandene lädt die Datei, die ein anderer Aufruf angelegt hat (SPEC-239 Nr. 3 d).
+// ladeVorhandene lädt den Eintrag, der nach einem fehlenden Stat an pfad liegt oder den ein anderer Aufruf angelegt
+// hat, mit einem neuen Stat und den Schritten b bis g (SPEC-239 Nr. 1 a, Nr. 3 d).
 func ladeVorhandene(pfad string) ([]byte, error) {
 	fi, err := os.Stat(pfad)
 	if err != nil {
