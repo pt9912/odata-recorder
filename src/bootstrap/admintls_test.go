@@ -587,6 +587,16 @@ func TestAdminGleichzeitig(t *testing.T) {
 	}
 }
 
+// ladeAdmin lädt das Paar wie der Start (nicht-loopback, ohne Flag, `FormGueltig` wahr) und verlangt wegTLS ohne Verstoß.
+func (w *werkstatt) ladeAdmin(cert, key string, jetzt time.Time) bootstrap.AdminTransport {
+	w.t.Helper()
+	tr, vs := bootstrap.PruefeAdminTransport(adminEin("0.0.0.0:8081", cert, key, false), jetzt)
+	if tr.Weg != bootstrap.WegTLS || len(vs) != 0 {
+		w.t.Fatalf("ladeAdmin: Weg %d, Verstöße %v; erwartet wegTLS", tr.Weg, vs)
+	}
+	return tr
+}
+
 // TestAdminUmhuelle (AT10, M-Umhuellung): umhuelle umhüllt nur im Weg wegTLS, sonst liefert sie den übergebenen Listener selbst (SPEC-299 Nr. 8 c).
 // Menge: Weg (4); bei wegTLS spricht ein Client mit der CA TLS und ein Klartext-Client erhält keine Antwort, bei den anderen drei gelingt ein Klartext-Client.
 func TestAdminUmhuelle(t *testing.T) {
