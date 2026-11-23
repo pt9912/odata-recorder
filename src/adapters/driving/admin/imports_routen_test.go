@@ -129,8 +129,9 @@ func TestIM2Zuordnung(t *testing.T) {
 
 // TestIM3AufrufeUndKontext hält IM3 (SPEC-297 Nr. 2): jede der zwei Routen ruft genau eine Operation von imports (2 Routen ×
 // 2 Werte von `Neu` × 2 Zähler = 8 Zellen, 1 auf der Diagonale, sonst 0) mit den Argumenten unverändert; der Wert im ctx des
-// Requests kommt an, und der Handler gibt ctx ohne Ableitung weiter (Gleichheit der Identität); von audit läuft in diesem Teil
-// nichts. Die Aufrufzahl jedes Erfolgs und jedes Fehlers zählen außerdem `impZustand.sende` (IM10 bis IM12) und TestIM13Fehler.
+// Requests kommt an, und der Handler gibt ctx ohne Ableitung weiter (Gleichheit der Identität); von audit läuft allein
+// Append, einmal je `POST` (die 4 Zellen von `POST` zählen 1, die 4 von `GET` 0). Die Aufrufzahl jedes Erfolgs und jedes Fehlers
+// zählen außerdem `impZustand.sende` (IM10 bis IM12) und TestIM13Fehler.
 func TestIM3AufrufeUndKontext(t *testing.T) {
 	gleichAuf(t, "Zähler gleich Zahl der Operationen des Ports", []int{int(impAnzahl), reflect.TypeFor[inbound.ImportUseCase]().NumMethod()}, []int{2, 2})
 	faelle := []struct {
@@ -161,8 +162,8 @@ func TestIM3AufrufeUndKontext(t *testing.T) {
 			if got := fake.ctxListe()[0].Value(ctxSchluessel{}); got != "wert-"+f.name {
 				t.Errorf("%s: der Wert im ctx des Requests kam als %v an", name, got)
 			}
-			if n := u.audit.Aufrufe(); n != 0 {
-				t.Errorf("%s: %d Aufrufe von Audit, erwartet 0", name, n)
+			if n, soll := u.audit.Aufrufe(), map[bool]int{true: 1}[f.op == impImport]; n != soll {
+				t.Errorf("%s: %d Aufrufe von Audit, erwartet %d", name, n, soll)
 			}
 
 			ctx := context.WithValue(context.Background(), ctxSchluessel{}, "direkt")

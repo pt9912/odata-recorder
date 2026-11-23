@@ -217,8 +217,9 @@ func TestAuditBeiBeendetemKontext(t *testing.T) {
 
 // TestAppendEineAufrufstelle hält die Aufrufstellen von D1 (Nr. 8) und S12: im Paket ohne _test.go ruft und nennt `Append`
 // je eine Stelle in `admin.go` (die Schreibstelle des Fehlerobjekts, wie C3 für `CountError`), in `sessions.go` (der
-// Eintrag nach dem Anlegen) und in `sessions_beenden.go` (der Eintrag nach dem Beenden, SPEC-292 Nr. 11), sonst keine Datei;
-// der Zähler ist der von C3, die Probe dort hält ihn gegen Namensgleichheit und Importformen.
+// Eintrag nach dem Anlegen), in `sessions_beenden.go` (der Eintrag nach dem Beenden, SPEC-292 Nr. 11) und in `imports.go`
+// (der Eintrag nach dem Import, SPEC-297 Nr. 10), sonst keine Datei; der Zähler ist der von C3, die Probe dort hält ihn gegen
+// Namensgleichheit und Importformen.
 func TestAppendEineAufrufstelle(t *testing.T) {
 	eintraege, err := os.ReadDir(".")
 	if err != nil {
@@ -240,7 +241,7 @@ func TestAppendEineAufrufstelle(t *testing.T) {
 	if dateien < 4 {
 		t.Errorf("%d Dateien ohne _test.go, erwartet mindestens 4", dateien)
 	}
-	gleichAuf(t, "Stellen von Append je Datei", stellen, map[string]int{"admin.go": 1, "sessions.go": 1, "sessions_beenden.go": 1})
+	gleichAuf(t, "Stellen von Append je Datei", stellen, map[string]int{"admin.go": 1, "sessions.go": 1, "sessions_beenden.go": 1, "imports.go": 1})
 }
 
 // TestEintragHatSiebenFelder hält die Voraussetzung von D1 und D3: der Eintrag hat sieben Felder, und der Vergleich mit dem
