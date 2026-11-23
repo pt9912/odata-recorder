@@ -1,0 +1,2 @@
+**Vorgang:** slice-telemetry-einbau-replay
+**Fund:** Der Lauf von `make gates` des Verifiers im Worktree (Stand `97952a99`, Exit 0, 37 s) bezog die Stufen `build`, `test`, `race`, `lint`, `handbuch` und `katalog` aus dem Schichten-Cache; der Verifier fuhr `pruefung test` (290 s) und `pruefung race` (375 s) frisch mit `--no-cache-filter` und nannte die Stufen aus dem Cache im Bericht (V-8); `lint` lief nicht frisch (gleicher Baum). Beleg: `docs/reviews/2026-11-23-slice-telemetry-einbau-replay-verifikation.md` (V-8, Abschnitt 6).
