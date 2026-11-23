@@ -20,6 +20,8 @@ In Arbeit: [slice-admin-imports-audit](slice-admin-imports-audit.md) ([welle-adm
 
 In Arbeit: [slice-token-datei-wettlauf](slice-token-datei-wettlauf.md) ([welle-admin-api](../welle-admin-api.md), Fix zu [slice-admin-listener-token](../done/slice-admin-listener-token.md): `LadeToken` lädt eine Datei, die ein gleichzeitiger Aufruf zwischen `Stat` und `Lstat` anlegt).
 
+In Arbeit: [slice-admin-tls](slice-admin-tls.md) ([welle-admin-api](../welle-admin-api.md), Transportschutz des Admin-Listeners: Start-Prüfung bei nicht-loopback `ADMIN_LISTEN`, Zertifikatspaar `ADMIN_TLS_*`, Klartext mit `ADMIN_ALLOW_PLAINTEXT` und Warnung, Umhüllung des Listeners; das Binary bleibt unverändert).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
