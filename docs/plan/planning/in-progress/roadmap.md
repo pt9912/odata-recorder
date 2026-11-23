@@ -16,8 +16,6 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-admin-imports-audit](../done/slice-admin-imports-audit.md) ([welle-admin-api](../welle-admin-api.md), Teil 2 des Schnitts von [slice-admin-imports](../done/slice-admin-imports.md): Eintrag `import_veroeffentlicht` nach einem gelungenen `POST`, Warten und Abbruch, Nebenläufigkeit).
-
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
