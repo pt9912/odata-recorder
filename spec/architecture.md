@@ -640,7 +640,7 @@ Verwaiste Blobs sind tolerierbar und werden später bereinigt; fehlende referenz
 **Graceful Shutdown:** Ablauf und Frist legt `LH-FA-02.c` fest; Bootstrap und CLI orchestrieren, die Services finalisieren offene Captures.
 
 **Sicherheit:** Redaction vor Persistenz;
-Admin-Zugriff nur mit Token (`LH-FA-13.a`), Listener standardmäßig loopback;
+Admin-Zugriff nur mit Token (`LH-FA-13.a`), Listener standardmäßig loopback, außerhalb von Loopback nur mit TLS oder ausdrücklich erlaubtem Klartext (`LH-FA-13.a`);
 kein produktiver Auth-Proxy oder generischer Internet-Proxy;
 TLS-Zertifikate werden geprüft.
 Im Hybrid-Modus verhindern Allowlists ungewollte Mutationen.
