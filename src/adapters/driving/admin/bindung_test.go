@@ -23,3 +23,4 @@ var (
 )
 
 var _ inbound.InspectionUseCase = (*inspektionFake)(nil)
+var _, _ = inbound.WorkspaceUseCase((*workspaceFake)(nil)), inbound.SnapshotUseCase((*snapshotFake)(nil))
