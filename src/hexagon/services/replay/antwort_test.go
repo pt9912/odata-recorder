@@ -264,7 +264,7 @@ func TestMatchRedactedHeader(t *testing.T) {
 	if _, da := resp.Header["X-Recorder-Match-Redacted"]; da {
 		t.Error("Feld des Requests setzt den Header")
 	}
-	if len(u.tel.Aufrufe()) != 0 {
+	if u.tel.Anzahl(supporttest.OpLog) != 0 {
 		t.Error("Feld des Requests schreibt einen Eintrag")
 	}
 }
@@ -322,7 +322,12 @@ func TestProtokoll(t *testing.T) {
 		if err == nil {
 			_ = resp.Body.Close()
 		}
-		logs := u.tel.Aufrufe()
+		var logs []supporttest.Aufruf
+		for _, a := range u.tel.Aufrufe() {
+			if a.Op == supporttest.OpLog {
+				logs = append(logs, a)
+			}
+		}
 		if len(logs) != f.eintraege {
 			t.Errorf("%s: %d Einträge, erwartet %d", f.name, len(logs), f.eintraege)
 			continue

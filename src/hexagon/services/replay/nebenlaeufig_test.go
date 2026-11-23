@@ -12,6 +12,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
 )
 
 // res ist das Ergebnis eines Replay in einer Goroutine.
@@ -288,8 +289,9 @@ func TestReplayGegenLoeschen(t *testing.T) {
 	}
 }
 
-// TestNurDieAchtOperationen hält Z57: Menge 155 (31 verbotene Operationen × 5 Läufe: Erfolg je Strategie und
-// ein Fehlerlauf); keine der 27 Operationen der Ports und keine der vier Telemetrie-Operationen außer Log.
+// TestNurDieAchtOperationen hält Z57: Menge 140 (28 verbotene Operationen × 5 Läufe: Erfolg je Strategie und
+// ein Fehlerlauf); keine der 27 Operationen der Ports und kein CountError; von der Telemetrie ruft der Dienst StartSpan, Set,
+// End und Log (SPEC-296 Nr. 6).
 func TestNurDieAchtOperationen(t *testing.T) {
 	erlaubt := []string{"Sessions.Get", "Exchanges.ListBySession", "Transaktion.WithWorkspaceTransaction",
 		"tx Workspaces.Get", "tx Cursors.Get", "tx Cursors.Put", "Blobs.Open"}
@@ -327,15 +329,13 @@ func TestNurDieAchtOperationen(t *testing.T) {
 				t.Errorf("%s: %s gerufen", l.name, op)
 			}
 		}
-		for _, op := range telOps()[1:] {
-			n++
-			if u.tel.Anzahl(op) != 0 {
-				t.Errorf("%s: Telemetrie-Operation %d gerufen", l.name, op)
-			}
+		n++
+		if c := u.tel.Anzahl(supporttest.OpCountError); c != 0 {
+			t.Errorf("%s: CountError %d-mal gerufen", l.name, c)
 		}
 		nurErlaubt(t, l.name, u.p)
 	}
-	if len(verboten) != 27 || n != 155 {
-		t.Errorf("Menge: %d verbotene Ports, %d Prüfungen; erwartet 27 und 155", len(verboten), n)
+	if len(verboten) != 27 || n != 140 {
+		t.Errorf("Menge: %d verbotene Ports, %d Prüfungen; erwartet 27 und 140", len(verboten), n)
 	}
 }

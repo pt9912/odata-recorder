@@ -281,7 +281,7 @@ func (h *Handle) verdrahte(db *sqlite.DB, v vorlaeufig) error {
 	if err != nil {
 		return err
 	}
-	// Der Adapter des Prozesses (SPEC-139 Nr. 13): Senke, Uhr und Stufe INFO; der Mock erhält ihn als Telemetrie, der Workspace-Dienst seinen Handler als Log.
+	// Der Adapter des Prozesses (SPEC-139 Nr. 13): Senke, Uhr und Stufe INFO; der Mock und der Replay-Dienst erhalten ihn als Telemetrie, der Workspace-Dienst seinen Handler als Log.
 	h.tel, err = b.NeueTelemetrie(telemetry.Config{Writer: h.senke, Clock: h.uhr, MinLevel: slog.LevelInfo})
 	if err != nil {
 		return err
@@ -455,10 +455,6 @@ func (h *Handle) verdrahteReplay(db *sqlite.DB, waechter *maintenance.BlobWaecht
 
 func (h *Handle) baueReplay(db *sqlite.DB, waechter *maintenance.BlobWaechter, v vorlaeufig) (inbound.ReplayUseCase, error) {
 	k := h.k
-	tel, err := h.b.NeueTelemetrie(telemetry.Config{Writer: io.Discard, Clock: h.uhr})
-	if err != nil {
-		return nil, err
-	}
 	dienste := make([]replay.Dienst, len(k.Dienste))
 	for i, d := range k.Dienste {
 		dienste[i] = replay.Dienst{ID: d.ID, Root: d.Root}
@@ -466,7 +462,7 @@ func (h *Handle) baueReplay(db *sqlite.DB, waechter *maintenance.BlobWaechter, v
 	return h.b.NeuerReplay(replay.Konfig{
 		Dienste: dienste, Sessions: db.Sessions(), Exchanges: db.Recording(), Blobs: waechter, Transaktion: db,
 		Regeln: h.regeln(), Pfade: v.pfade, MaxBytes: k.MaxCaptureBody, Strategie: model.ReplayStrategy(k.ReplayStrategy),
-		RedigierteBodies: k.ReplayRedactedBodies, Telemetrie: tel,
+		RedigierteBodies: k.ReplayRedactedBodies, Telemetrie: h.tel,
 	})
 }
 

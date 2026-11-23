@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-workspaces
+**Fund:** V-6 der Verifikation: nach der Fix-Runde standen im Plan „(1) 6 von 6 grün“ in §3 und §6 (100 und 1000000 Bytes sind seit `wsLaengen` geführt und rot), „445 Zeilen in den Tests“ im Eintrag `ueberschreitung` (444 in den Testdateien und 1 fremde Zeile) und 144 Paare in der Chronik zu WS16 (seit der Fix-Runde 1521). Die Closure suchte die Stellen per `grep` und zog sie nach. Beleg: `docs/reviews/2026-11-23-slice-admin-workspaces-verifikation.md` (V-6) und Plan `slice-admin-workspaces` §6.
