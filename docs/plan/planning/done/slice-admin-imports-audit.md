@@ -79,7 +79,7 @@ Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 - [x] Closure-Notiz mit Steering-Loop-Lerneintrag. (Beleg: §7.)
 - [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
 - [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen). (Beleg: §6, jeder der 16 Punkte nennt seinen Ausgang; zwei stehen *weiter offen* mit Adresse Architect und User.)
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit). (Beleg nach dem Move: Anker: kein Zielort-Feld, nichts zu paaren; Folge-Slice: [slice-admin-workspaces-audit](../open/slice-admin-workspaces-audit.md) und [slice-bootstrap-m6](../open/slice-bootstrap-m6.md) tragen ihre Sendungen, die Negative (3) bis (11) sind akzeptiert, die zwei offenen Punkte tragen Adresse Architect und User (§6); Register: die acht Dateien `evidence/slice-admin-imports-audit.md` liegen, die Beobachtungen bestehen.)
 
 ## 3. Plan (vor Code)
 
