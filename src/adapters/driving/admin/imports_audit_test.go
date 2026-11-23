@@ -3,13 +3,22 @@ package admin_test
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"maps"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
+	"github.com/pt9912/odata-recorder/src/hexagon/model"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
@@ -66,41 +75,138 @@ func TestIM20Eintrag(t *testing.T) {
 	}
 }
 
-// TestIM22AppendFehler hält IM22 (SPEC-297 Nr. 10 e): jeder der 7 Fehler von Append ändert Status, Body und Header der Antwort
-// von `POST` nicht (Byte für Byte gleich der Antwort ohne Fehler), bei 201 und bei 200 (14 Zellen); Append lief je Zelle
-// einmal, und es gab keine Zählung.
+// jederFehler ist ein Fehler, der jedem Ziel von errors.Is und errors.As gleicht: eine Prüfung der Route auf einen Fehler,
+// den sie nennt (ein Wert von errors.Is, ein Zeiger von errors.As), trifft ihn.
+type jederFehler struct{}
+
+func (jederFehler) Error() string { return "jeder Fehler" }
+func (jederFehler) Is(error) bool { return true }
+func (jederFehler) As(any) bool   { return true }
+
+// appendFehlerMenge sind die Fehler, die Append liefern kann und die nichts ändern dürfen (SPEC-297 Nr. 10 e): 14 Arten
+// (ErrUngueltig, ein Fehler ohne Code, io.ErrShortWrite, io.EOF, Canceled, DeadlineExceeded, os.ErrClosed, ein *fs.PathError, ein
+// *inbound.Fehler mit Code 404 und mit Code 500, ein *inbound.Fehler ohne Code und Status, ein nil-Zeiger *inbound.Fehler,
+// model.ErrKonflikt und ein Fehler, der jedem Ziel von errors.Is und errors.As gleicht) × 4 Verpackungen (bloß, mit `%w`, Join mit
+// ihm zuerst, Join mit ihm zuletzt) = 56 Formen; die Arten der 7 Fehler von auditFehler sind darin enthalten.
+func appendFehlerMenge() []fehlerFall {
+	var out []fehlerFall
+	for _, art := range []struct {
+		name string
+		err  error
+	}{
+		{"ErrUngueltig", model.ErrUngueltig}, {"Fehler ohne Code", errors.New("Ablage")}, {"io.ErrShortWrite", io.ErrShortWrite}, {"io.EOF", io.EOF},
+		{"Canceled", context.Canceled}, {"DeadlineExceeded", context.DeadlineExceeded}, {"os.ErrClosed", os.ErrClosed},
+		{"*fs.PathError", &fs.PathError{Op: "write", Path: "audit.jsonl", Err: syscall.ENOSPC}},
+		{"*inbound.Fehler 404", fehlerE7003()}, {"*inbound.Fehler 500", &inbound.Fehler{Code: model.CodeE9001, Status: 500}},
+		{"*inbound.Fehler ohne Code", &inbound.Fehler{}}, {"nil-Zeiger *inbound.Fehler", (*inbound.Fehler)(nil)},
+		{"model.ErrKonflikt", model.ErrKonflikt}, {"Fehler für jedes Ziel", jederFehler{}},
+	} {
+		andere := errors.New("andere")
+		for _, v := range []struct {
+			name string
+			err  error
+		}{
+			{"bloß", art.err}, {"mit %w", fmt.Errorf("x: %w", art.err)},
+			{"Join, zuerst", errors.Join(art.err, andere)}, {"Join, zuletzt", errors.Join(andere, art.err)},
+		} {
+			out = append(out, fehlerFall{name: art.name + " " + v.name, err: v.err})
+		}
+	}
+	return out
+}
+
+// TestIM22AppendFehler hält IM22 (SPEC-297 Nr. 10 e) als Schleife über appendFehlerMenge: jeder der 56 Fehler von Append ändert
+// Status, Body und Header der Antwort von `POST` nicht (Byte für Byte gleich der Antwort ohne Fehler) und löst weder eine Panik
+// noch den Abbruch der Verbindung aus, bei 201 und bei 200 (112 Zellen); Append lief je Zelle einmal, und es gab keine Zählung.
+// Prüfgrenze (akzeptiertes Negativ): Arten von Fehlern außerhalb der 14 und Verpackungen außerhalb der 4.
 func TestIM22AppendFehler(t *testing.T) {
-	gleichAuf(t, "Zahl der Fehler", len(auditFehler()), 7)
+	menge := appendFehlerMenge()
+	gleichAuf(t, "Zahl der Fehler", len(menge), 14*4)
+	zellen := 0
 	for _, status := range []int{201, 200} {
-		sende := func(fehler error) (*umgebung, *httptest.ResponseRecorder) {
+		sende := func(fehler error) (*umgebung, *httptest.ResponseRecorder, any, bool) {
 			u, fake, _ := importsUmgebung(t)
 			fake.ergebnis.Neu = status == 201
 			u.audit.Fehler = fehler
-			return u, u.rufe(importPost("", nil, strings.NewReader(gutBody)))
+			rec, wert, panikt := u.rufeMitPanik(importPost("", nil, strings.NewReader(gutBody)))
+			return u, rec, wert, panikt
 		}
-		_, ohne := sende(nil)
-		for _, fehler := range auditFehler() {
-			u, rec := sende(fehler)
-			if rec.Code != status || rec.Body.String() != reportA || !reflect.DeepEqual(rec.Result().Header, ohne.Result().Header) {
-				t.Errorf("Status %d, Fehler %v: Antwort %d %q %v, erwartet %d %q %v", status, fehler, rec.Code, rec.Body.String(), rec.Result().Header,
-					status, reportA, ohne.Result().Header)
+		_, ohne, _, _ := sende(nil)
+		for _, f := range menge {
+			zellen++
+			u, rec, wert, panikt := sende(f.err)
+			if panikt || rec.Code != status || rec.Body.String() != reportA || !reflect.DeepEqual(rec.Result().Header, ohne.Result().Header) {
+				t.Errorf("Status %d, Fehler %s: Panik %v (%v), Antwort %d %q %v, erwartet %d %q %v", status, f.name, panikt, wert, rec.Code, rec.Body.String(),
+					rec.Result().Header, status, reportA, ohne.Result().Header)
 			}
 			if n := u.audit.Aufrufe(); n != 1 {
-				t.Errorf("Status %d, Fehler %v: %d Aufrufe von Audit, erwartet 1", status, fehler, n)
+				t.Errorf("Status %d, Fehler %s: %d Aufrufe von Audit, erwartet 1", status, f.name, n)
 			}
 			if codes, andere := zaehlungenVon(u.tele); len(codes) != 0 || andere != 0 {
-				t.Errorf("Status %d, Fehler %v: Zählungen %q, andere Aufrufe %d", status, fehler, codes, andere)
+				t.Errorf("Status %d, Fehler %s: Zählungen %q, andere Aufrufe %d", status, f.name, codes, andere)
 			}
 		}
+	}
+	gleichAuf(t, "Zellen", zellen, 2*14*4)
+}
+
+// kennungLaengen sind die Längen der Menge M-Kennung (IM22): jede Länge 0 bis 300 und die Längen von importLaengen(0, 1 MiB + 1)
+// (um Zweier- und Zehnerpotenzen bis 1 MiB + 1), aufsteigend und ohne Doppelte.
+func kennungLaengen() []int {
+	menge := map[int]bool{}
+	for n := range 301 {
+		menge[n] = true
+	}
+	for _, n := range importLaengen(0, bodyGrenze+1) {
+		menge[n] = true
+	}
+	return slices.Sorted(maps.Keys(menge))
+}
+
+// kennungFolgen sind die Teilfolgen der Menge M-Kennung (IM22): jede Folge xy aus 9 Zeichen (Kleinbuchstabe, Großbuchstabe, Ziffer,
+// `.`, `_`, `-`, Leerzeichen, NUL, 0xFF; 81 Folgen), allein, vor `z`, hinter `a` und zwischen `a` und `z` (4 Stellen) = 324
+// Werte; die Folgen `--` und `..` und jede andere Zweierfolge der Form sind darin.
+func kennungFolgen() []string {
+	zeichen := []string{"a", "Z", "0", ".", "_", "-", " ", "\x00", "\xff"}
+	var out []string
+	for _, x := range zeichen {
+		for _, y := range zeichen {
+			for _, st := range [][2]string{{"", ""}, {"", "z"}, {"a", ""}, {"a", "z"}} {
+				out = append(out, st[0]+x+y+st[1])
+			}
+		}
+	}
+	return out
+}
+
+// kennungZelle lässt den Dienst die Kennungen id und svc liefern und prüft: die Antwort ist 201 mit dem Report, und genau ein
+// Eintrag trägt beide unverändert (Art, Korrelations-ID der Antwort, übrige Felder leer).
+func kennungZelle(t *testing.T, name, id, svc string) {
+	t.Helper()
+	u, fake, _ := importsUmgebung(t)
+	fake.ergebnis.Import.ID, fake.ergebnis.Import.ServiceID = id, svc
+	rec := u.rufe(importPost("", nil, strings.NewReader(gutBody)))
+	soll := support.Eintrag{Art: "import_veroeffentlicht", ServiceID: svc, ImportID: id, KorrelationsID: rec.Header().Get("X-Correlation-Id")}
+	if rec.Code != 201 || rec.Body.String() != reportA {
+		t.Errorf("%s: Antwort %d %q", name, rec.Code, rec.Body.String())
+	}
+	e := u.audit.Eintraege()
+	if len(e) != 1 {
+		t.Errorf("%s: %d Einträge, erwartet 1", name, len(e))
+	} else if e[0] != soll {
+		t.Errorf("%s: Eintrag mit ID der Länge %d (erwartet %d), ServiceID der Länge %d (erwartet %d), Art %q, Korrelations-ID %q", name,
+			len(e[0].ImportID), len(id), len(e[0].ServiceID), len(svc), e[0].Art, e[0].KorrelationsID)
 	}
 }
 
 // TestIM22KennungenUnveraendert hält die Zellen *leerer* und *fremder Wert* des Rasters (SPEC-297 Nr. 10 e, *Ungeprüft*): liefert
-// der Dienst eine `ID` und einen `ServiceID` leer oder außerhalb der Form von `SPEC-234` Nr. 3 (ein Leerzeichen und LF, 65
-// Bytes), 3 × 3 Paare, und jedes Byte 0 bis 255 allein und zwischen zwei Buchstaben in beiden Feldern zugleich (512 Paare),
-// trägt der Eintrag beide unverändert, und die Antwort ist 201 mit dem Report; die Route prüft, ersetzt und kürzt nichts (der
-// Adapter des Ports weist den Eintrag ab, IM22). Prüfgrenze (akzeptiertes Negativ): Längen über 65 Bytes und die Mischung von
-// Bytes in einem Wert.
+// der Dienst eine `ID` und einen `ServiceID` leer, außerhalb der Form von `SPEC-234` Nr. 3 oder in jeder Länge der Menge, trägt
+// der Eintrag beide unverändert, und die Antwort ist 201 mit dem Report; die Route prüft, ersetzt und kürzt nichts (der Adapter des
+// Ports weist den Eintrag ab, IM22). Menge M-Kennung, Orakel die Eingabe selbst: 9 Paare aus leer, Leerzeichen mit LF und 65 Bytes;
+// jedes Byte 0 bis 255 allein und zwischen zwei Buchstaben in beiden Feldern zugleich (512 Paare); jede Länge von kennungLaengen
+// (350: 0 bis 300 und die Längen um Zweier- und Zehnerpotenzen bis 1 MiB + 1) und jede Teilfolge von kennungFolgen (324) in je
+// einem Feld, das andere ist gültig (2 × 350 + 2 × 324 Zellen). Prüfgrenze (akzeptiertes Negativ, Plan §3 (5)): Längen über
+// 1 MiB + 1, Folgen aus drei und mehr Zeichen, die Mischung von Bytes in einem Wert über die Zweierfolgen hinaus.
 func TestIM22KennungenUnveraendert(t *testing.T) {
 	werte := []string{"", "a b\n", strings.Repeat("a", 65)}
 	var paare [][2]string
@@ -116,16 +222,21 @@ func TestIM22KennungenUnveraendert(t *testing.T) {
 		}
 	}
 	for _, p := range paare {
-		u, fake, _ := importsUmgebung(t)
-		fake.ergebnis.Import.ID, fake.ergebnis.Import.ServiceID = p[0], p[1]
-		rec := u.rufe(importPost("", nil, strings.NewReader(gutBody)))
-		soll := []support.Eintrag{{Art: "import_veroeffentlicht", ServiceID: p[1], ImportID: p[0], KorrelationsID: rec.Header().Get("X-Correlation-Id")}}
-		if rec.Code != 201 || rec.Body.String() != reportA {
-			t.Errorf("ID %q, ServiceID %q: Antwort %d %q", p[0], p[1], rec.Code, rec.Body.String())
-		}
-		gleichAuf(t, "Einträge", u.audit.Eintraege(), soll)
+		kennungZelle(t, fmt.Sprintf("ID %q, ServiceID %q", p[0], p[1]), p[0], p[1])
 	}
-	gleichAuf(t, "Paare", len(paare), 9+2*256)
+	laengen, folgen, zellen := kennungLaengen(), kennungFolgen(), 0
+	for _, n := range laengen {
+		kennungZelle(t, fmt.Sprintf("ID der Länge %d", n), strings.Repeat("a", n), "svc-dienst")
+		kennungZelle(t, fmt.Sprintf("ServiceID der Länge %d", n), "imp-dienst", strings.Repeat("a", n))
+		zellen += 2
+	}
+	for _, f := range folgen {
+		kennungZelle(t, fmt.Sprintf("ID %q", f), f, "svc-dienst")
+		kennungZelle(t, fmt.Sprintf("ServiceID %q", f), "imp-dienst", f)
+		zellen += 2
+	}
+	gleichAuf(t, "Paare, Längen, Folgen, Zellen von Längen und Folgen", []int{len(paare), len(laengen), len(folgen), zellen},
+		[]int{9 + 2*256, 350, 4 * 81, 2*350 + 2*324})
 }
 
 // TestIM21KeinEintrag hält IM21 (SPEC-297 Nr. 10 c) als Menge M-Audit: die Zellen Route × Ausgang, `POST` 2 Erfolge (201, 200)

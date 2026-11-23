@@ -3,6 +3,7 @@ package admin_test
 import (
 	"context"
 	"net/http"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,6 +21,23 @@ func importBodyMit(id string) string {
 }
 
 func importReportMit(id string) string { return `{"import_id":"` + id + `"}` }
+
+// haltepunkte zählt die Haltepunkte des Typs t: ein Feld vom Typ func mit höchstens einem Argument und ohne Ergebnis zählt einen,
+// ein Feld vom Typ Array solcher Funktionen so viele, wie das Array lang ist (die Felder `importiere` und `liest` von importsFake
+// haben Ergebnisse und zählen nicht). Die Zählprüfung der Fenster von TestIN1GleichzeitigeRequests liest sie aus den Typen.
+func haltepunkte(t reflect.Type) int {
+	haltepunkt := func(ft reflect.Type) bool { return ft.Kind() == reflect.Func && ft.NumIn() <= 1 && ft.NumOut() == 0 }
+	n := 0
+	for i := range t.NumField() {
+		switch ft := t.Field(i).Type; {
+		case haltepunkt(ft):
+			n++
+		case ft.Kind() == reflect.Array && haltepunkt(ft.Elem()):
+			n += ft.Len()
+		}
+	}
+	return n
+}
 
 // TestIN1GleichzeitigeRequests hält IN1 (SPEC-297 Nr. 11): in 150 Runden je 32 `POST` und 32 `GET` zugleich, jeder Request mit
 // eigener Kennung, die der Fake in `ServiceID`, `ID` und im Report zurückgibt; jede Antwort und jeder Eintrag gehört zum
@@ -59,7 +77,9 @@ func TestIN1GleichzeitigeRequests(t *testing.T) {
 			}
 			return importGet(id)
 		})
-		gleichAuf(t, "Zahl der Fenster", len(fenster), 6)
+		gleichAuf(t, "Zahl der Fenster gleich der Zahl der Haltepunkte von importsFake, auditNach und bodyLeser",
+			[]int{len(fenster), haltepunkte(reflect.TypeFor[importsFake]()) + haltepunkte(reflect.TypeFor[auditNach]()) + haltepunkte(reflect.TypeFor[bodyLeser]())},
+			[]int{6, 6})
 		for name, p := range fenster {
 			if p.verpasst.Load() || p.n.Load() != n {
 				t.Fatalf("Runde %d: nicht alle %d Requests waren zugleich im Fenster %s (%d eingetreten): eine Sperre hält sie auseinander", r, n, name, p.n.Load())
