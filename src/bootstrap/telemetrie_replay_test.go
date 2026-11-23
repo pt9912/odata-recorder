@@ -2,16 +2,21 @@ package bootstrap_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/bootstrap"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/replay"
 )
 
 // replayDaten ergänzt die Daten des Mock (mockDaten: Dienst svc mit Root /, Workspace ws-1) um die abgeschlossene Recording-Session ses-r mit
@@ -117,10 +122,38 @@ func TestWurzelReplayMatchLiegtImGesamtspan(t *testing.T) {
 	}
 }
 
-// TestWurzelReplayKeinRequestWertInDerSenke hält W12 (SPEC-296 Nr. 8) an der Senke des echten Adapters: ein Wert in der Form Token an einer der
-// 7 Stellen des Requests, die ein HTTP-Request tragen kann (Pfad, Name und Wert der Query, Name und Wert eines Headers, Wert des Headers der
-// Replay-Session, Body), erreicht die Senke des Prozesses nicht, weder in der Zeile des Match-Spans noch in der des Gesamtspans. Der Text der
-// Ursache eines Fehlers eines Ports ist hier nicht erreichbar; ihn fängt der Test des Dienstes mit dem Fake.
+// ursacheExchanges ist der Port S3 mit einem Fehler, dessen Text der Canary ist: der echte Port eingebettet, allein ListBySession überschrieben;
+// n zählt die Aufrufe.
+type ursacheExchanges struct {
+	outbound.RecordingRepository
+	ursache error
+	n       atomic.Int32
+}
+
+func (p *ursacheExchanges) ListBySession(context.Context, string) ([]model.Exchange, error) {
+	p.n.Add(1)
+	return nil, p.ursache
+}
+
+// ursacheTransaktion ist der Port S4 mit einem Fehler, dessen Text der Canary ist: der echte Port eingebettet, allein WithWorkspaceTransaction
+// überschrieben (f läuft nie, der Pfad von fortschreiben ist der der Fehler der Transaktion); n zählt die Aufrufe.
+type ursacheTransaktion struct {
+	outbound.WorkspaceTransactor
+	ursache error
+	n       atomic.Int32
+}
+
+func (p *ursacheTransaktion) WithWorkspaceTransaction(context.Context, func(outbound.WorkspaceStores) error) error {
+	p.n.Add(1)
+	return p.ursache
+}
+
+// TestWurzelReplayKeinRequestWertInDerSenke hält W12 (SPEC-296 Nr. 8) an der Senke des echten Adapters: Menge M-Stellen-Senke mit 9 Elementen.
+// Ein Wert in der Form Token an einer der 7 Stellen des Requests, die ein HTTP-Request tragen kann (Pfad, Name und Wert der Query, Name und Wert
+// eines Headers, Wert des Headers der Replay-Session, Body), und der Text der Ursache eines Fehlers an S3 (Exchanges.ListBySession, außerhalb
+// von f) und an S4 (WithWorkspaceTransaction, der Pfad von fortschreiben), den der Haken NeuerReplay über einen eingebetteten Port einsetzt,
+// erreichen die Senke des Prozesses nicht, weder in der Zeile des Match-Spans noch in der des Gesamtspans. Die übrigen sechs Ports (S1, S2
+// über den Body, S5 bis S8) führt der Test des Dienstes mit dem Fake. Zählprüfung 7, 2 und 9.
 func TestWurzelReplayKeinRequestWertInDerSenke(t *testing.T) {
 	k := gwKanarie(false)
 	stellen := map[string]func(*http.Request){
@@ -154,6 +187,45 @@ func TestWurzelReplayKeinRequestWertInDerSenke(t *testing.T) {
 		t.Errorf("Pfad: Senke %q: ohne Match-Span oder mit dem Canary", s)
 	}
 	if n != 7 {
-		t.Errorf("Menge: %d Stellen, erwartet 7", n)
+		t.Errorf("Menge: %d Stellen des Requests, erwartet 7", n)
+	}
+	ursachen := map[string]func(kf *replay.Konfig, ursache error) *atomic.Int32{
+		"Ursache S3": func(kf *replay.Konfig, ursache error) *atomic.Int32 {
+			p := &ursacheExchanges{RecordingRepository: kf.Exchanges, ursache: ursache}
+			kf.Exchanges = p
+			return &p.n
+		},
+		"Ursache S4": func(kf *replay.Konfig, ursache error) *atomic.Int32 {
+			p := &ursacheTransaktion{WorkspaceTransactor: kf.Transaktion, ursache: ursache}
+			kf.Transaktion = p
+			return &p.n
+		},
+	}
+	for name, setze := range ursachen {
+		n++
+		var aufrufe *atomic.Int32
+		w := baueWurzelHaken(t, modusReplay, nil, replayDaten(t), nil, func(b *bootstrap.Bauteile) {
+			vorher := b.NeuerReplay
+			b.NeuerReplay = func(c replay.Konfig) (inbound.ReplayUseCase, error) {
+				aufrufe = setze(&c, errors.New(k))
+				return vorher(c)
+			}
+		})
+		if err := w.h.Hochfahren(context.Background()); err != nil {
+			t.Fatalf("%s: Hochfahren: %v", name, err)
+		}
+		if got := replayRuf(t, w, "/Products", nil); got != 500 {
+			t.Errorf("%s: Status %d, erwartet 500 (der Fehler des Ports erreicht den Aufruf)", name, got)
+		}
+		if aufrufe == nil || aufrufe.Load() != 1 {
+			t.Errorf("%s: der eingesetzte Port ist nicht genau einmal gerufen worden", name)
+		}
+		if s := w.senke.String(); !strings.Contains(s, "odata.replay.match") || strings.Contains(strings.ToLower(s), k) {
+			t.Errorf("%s: Senke %q: ohne Match-Span oder mit dem Canary", name, s)
+		}
+		keinVerwurf(t, name, w.adapter[0])
+	}
+	if len(ursachen) != 2 || n != 9 {
+		t.Errorf("Menge: %d Ports mit Ursache, %d Elemente; erwartet 2 und 9", len(ursachen), n)
 	}
 }

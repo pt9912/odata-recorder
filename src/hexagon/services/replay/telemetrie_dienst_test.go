@@ -106,8 +106,8 @@ func (u *umg) legeFuer(a inbound.Anfrage, body []byte, treffer bool) {
 	u.lege(e)
 }
 
-// stellenKanarie sind die acht Stellen des Requests (SPEC-296 Nr. 8): Pfad, Name und Wert der Query, Name und Wert eines Headers, Body, Wert des
-// Headers X-Recorder-Replay-Session und der Text der Ursache eines Fehlers eines Ports.
+// stellenKanarie sind die sieben Stellen des Requests (SPEC-296 Nr. 8): Pfad, Name und Wert der Query, Name und Wert eines Headers, Body und Wert
+// des Headers X-Recorder-Replay-Session; die achte Stelle, der Text der Ursache eines Fehlers eines Ports, führen ursachePorts und ursacheFormen.
 func stellenKanarie() map[string]func(u *umg, k string, treffer bool) inbound.Anfrage {
 	mit := func(setze func(a *inbound.Anfrage, k string)) func(u *umg, k string, treffer bool) inbound.Anfrage {
 		return func(u *umg, k string, treffer bool) inbound.Anfrage {
@@ -133,69 +133,97 @@ func stellenKanarie() map[string]func(u *umg, k string, treffer bool) inbound.An
 			return a
 		},
 	}
-	// Text der Ursache: je Port mit Fehlerrückgabe (S1 bis S8, S2 über den Body) in zwei Formen, der Fehler mit Code (der Dienst bildet ihn und
-	// hält die Ursache über Unwrap) und der Kontextfehler ohne Code (er kehrt unverändert zurück); die Art Treffer ist der fehlende Cursor,
-	// dessen Fehler den Text trägt und kein Fehler ist.
-	for _, p := range []struct{ name, op string }{{"S1", "Sessions.Get"}, {"S2", ""}, {"S3", "Exchanges.ListBySession"}, {"S4", "Transaktion.WithWorkspaceTransaction"},
-		{"S5", "tx Workspaces.Get"}, {"S6", "tx Cursors.Get"}, {"S7", "Blobs.Open"}, {"S8", "tx Cursors.Put"}} {
-		ursache := error(outbound.ErrBeschaedigt)
-		switch p.op {
-		case "":
-			ursache = io.ErrUnexpectedEOF
-		case "Blobs.Open":
-			ursache = outbound.ErrBlobFehlt
-		}
-		for form, cause := range map[string]error{"Code": ursache, "Kontext": context.Canceled} {
-			stellen["Ursache "+p.name+" "+form] = func(u *umg, k string, treffer bool) inbound.Anfrage {
-				if treffer {
-					a := erfolgsLauf(u)
-					u.p.setzeFehler("tx Cursors.Get", errors.Join(outbound.ErrNichtGefunden, errors.New(k)))
-					return a
-				}
-				return kontextAn(p.op, errors.Join(cause, errors.New(k)))(u)
-			}
-		}
-	}
 	return stellen
 }
 
-// TestKeinRequestWertImSpan hält W12 (SPEC-296 Nr. 8): Menge M-Stellen-Replay, 7 Stellen des Requests und die achte, der Text der Ursache, an
-// jedem der 8 Ports in 2 Formen (16) gleich 23, × 2 Arten (Treffer, Fehler) gleich 46; ein Canary in der Form Token an einer Stelle erreicht
-// keinen Schlüssel und keinen Wert eines Aufrufs des Fakes (StartSpan, Set, Log, Text des Eintrags). Die Senke des echten Adapters prüft der
-// Test des Composition Root. Zählprüfung 8 Stellen der Spezifikation (7 und die achte), 8 Ports.
+// ursachePorts sind die 8 Ports mit Fehlerrückgabe (SPEC-135 Nr. 18; S2 ist der Body des Requests, sein Name im Protokoll ist leer).
+func ursachePorts() []struct{ name, op string } {
+	return []struct{ name, op string }{{"S1", "Sessions.Get"}, {"S2", ""}, {"S3", "Exchanges.ListBySession"}, {"S4", "Transaktion.WithWorkspaceTransaction"},
+		{"S5", "tx Workspaces.Get"}, {"S6", "tx Cursors.Get"}, {"S7", "Blobs.Open"}, {"S8", "tx Cursors.Put"}}
+}
+
+// ursacheFormen sind die zwei Formen des Fehlers eines Ports, der den Text der Ursache trägt: der Fehler mit Code (der Dienst bildet ihn und
+// hält die Ursache über Unwrap) und der Kontextfehler ohne Code (er kehrt unverändert zurück).
+func ursacheFormen(op string) map[string]error {
+	ursache := error(outbound.ErrBeschaedigt)
+	switch op {
+	case "":
+		ursache = io.ErrUnexpectedEOF
+	case "Blobs.Open":
+		ursache = outbound.ErrBlobFehlt
+	}
+	return map[string]error{"Code": ursache, "Kontext": context.Canceled}
+}
+
+// ursacheFehlenderCursor ist die Art Treffer der Ursache: der fehlende Cursor (S6), dessen Fehler den Text trägt und kein Fehler des Aufrufs
+// ist. Nur S6 hat diese Art.
+func ursacheFehlenderCursor(u *umg, k string) inbound.Anfrage {
+	a := erfolgsLauf(u)
+	u.p.setzeFehler("tx Cursors.Get", errors.Join(outbound.ErrNichtGefunden, errors.New(k)))
+	return a
+}
+
+// TestKeinRequestWertImSpan hält W12 (SPEC-296 Nr. 8): Menge M-Stellen-Replay mit 31 verschiedenen Elementen: die 7 Stellen des Requests × 2
+// Arten (Treffer, Fehler) gleich 14, dazu die achte Stelle, der Text der Ursache eines Fehlers eines Ports: an jedem der 8 Ports in 2 Formen in
+// der Art Fehler gleich 16 und am fehlenden Cursor (S6) in der Art Treffer gleich 1; die Art Treffer gibt es für die Ursache nur an S6. Ein
+// Canary in der Form Token an einer Stelle erreicht keinen Schlüssel und keinen Wert eines Aufrufs des Fakes (StartSpan, Set, Log, Text des
+// Eintrags). Die Senke des echten Adapters prüft der Test des Composition Root. Zählprüfung 7 Stellen des Requests, 8 Ports, 2 Formen und 31
+// verschiedene Elemente.
 func TestKeinRequestWertImSpan(t *testing.T) {
 	k := kanarie()
 	stellen := stellenKanarie()
-	n := 0
+	ports := ursachePorts()
+	art := map[bool]string{true: "Treffer", false: "Fehler"}
+	type element struct {
+		name    string
+		treffer bool
+		baue    func(u *umg) inbound.Anfrage
+	}
+	var elemente []element
 	for name, baue := range stellen {
 		for _, treffer := range []bool{true, false} {
-			n++
-			was := name + " treffer=" + map[bool]string{true: "ja", false: "nein"}[treffer]
-			u := neu(t)
-			u.mitJournal()
-			resp, err := u.replay(context.Background(), baue(u, k, treffer))
-			if (err == nil) != treffer {
-				t.Errorf("%s: Fehler %v", was, err)
-			}
-			if err == nil {
-				_ = resp.Body.Close()
-			}
-			if len(buecher(u.tel)) != 1 {
-				t.Errorf("%s: kein Span", was)
-			}
-			for _, a := range u.tel.Aufrufe() {
-				for _, at := range a.Attrs {
-					if strings.Contains(at.Key, k) || strings.Contains(at.Text, k) {
-						t.Errorf("%s: Attribut %+v nennt den Canary", was, at)
-					}
+			elemente = append(elemente, element{name + " " + art[treffer], treffer, func(u *umg) inbound.Anfrage { return baue(u, k, treffer) }})
+		}
+	}
+	formen := 2
+	for _, p := range ports {
+		if len(ursacheFormen(p.op)) != formen {
+			t.Errorf("%s: %d Formen, erwartet %d", p.name, len(ursacheFormen(p.op)), formen)
+		}
+		for form, cause := range ursacheFormen(p.op) {
+			elemente = append(elemente, element{"Ursache " + p.name + " " + form + " Fehler", false,
+				func(u *umg) inbound.Anfrage { return kontextAn(p.op, errors.Join(cause, errors.New(k)))(u) }})
+		}
+	}
+	elemente = append(elemente, element{"Ursache S6 fehlender Cursor Treffer", true, func(u *umg) inbound.Anfrage { return ursacheFehlenderCursor(u, k) }})
+	verschieden := map[string]bool{}
+	for _, e := range elemente {
+		verschieden[e.name] = true
+		u := neu(t)
+		u.mitJournal()
+		resp, err := u.replay(context.Background(), e.baue(u))
+		if (err == nil) != e.treffer {
+			t.Errorf("%s: Fehler %v", e.name, err)
+		}
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		if len(buecher(u.tel)) != 1 {
+			t.Errorf("%s: kein Span", e.name)
+		}
+		for _, a := range u.tel.Aufrufe() {
+			for _, at := range a.Attrs {
+				if strings.Contains(at.Key, k) || strings.Contains(at.Text, k) {
+					t.Errorf("%s: Attribut %+v nennt den Canary", e.name, at)
 				}
-				if strings.Contains(a.Msg, k) {
-					t.Errorf("%s: Text %q nennt den Canary", was, a.Msg)
-				}
+			}
+			if strings.Contains(a.Msg, k) {
+				t.Errorf("%s: Text %q nennt den Canary", e.name, a.Msg)
 			}
 		}
 	}
-	if len(stellen) != 7+8*2 || n != 2*(7+8*2) {
-		t.Errorf("Menge: %d Stellen (7 des Requests und die Ursache an 8 Ports in 2 Formen), %d Elemente, erwartet 23 und 46", len(stellen), n)
+	if len(stellen) != 7 || len(ports) != 8 || formen != 2 || len(elemente) != 31 || len(verschieden) != 31 {
+		t.Errorf("Menge: %d Stellen des Requests, %d Ports, %d Formen, %d Elemente, %d verschieden; erwartet 7, 8, 2, 31 und 31",
+			len(stellen), len(ports), formen, len(elemente), len(verschieden))
 	}
 }

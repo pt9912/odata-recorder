@@ -154,31 +154,42 @@ func pruefeAusgang(t *testing.T, was string, err error, s soll) {
 func pruefeSpan(t *testing.T, was string, f *supporttest.FakeTelemetry, strategie, ergebnis string, set bool) {
 	t.Helper()
 	b := buecher(f)
-	if len(b) != 1 || b[0].name != support.SpanReplayMatch || b[0].enden != 1 {
+	if len(b) != 1 {
 		t.Errorf("%s: Bücher %+v, erwartet ein Span %s mit einem End", was, b, support.SpanReplayMatch)
 		return
 	}
-	if want := []support.Attr{support.Str(attrStrategie, nichtGelesen), support.Str(attrErgebnis, nichtGewaehlt)}; !reflect.DeepEqual(b[0].start, want) {
-		t.Errorf("%s: StartSpan mit %v, erwartet %v", was, b[0].start, want)
+	pruefeBuch(t, was, b[0], strategie, ergebnis, set)
+	for _, op := range []supporttest.Operation{supporttest.OpCountError, supporttest.OpSnapshot} {
+		if n := f.Anzahl(op); n != 0 {
+			t.Errorf("%s: Operation %d %d-mal gerufen", was, op, n)
+		}
+	}
+}
+
+// pruefeBuch prüft das Buch eines Spans: Name, genau ein End, die Platzhalter bei StartSpan, genau ein Set mit genau den zwei Attributen in der
+// Folge Strategie, Ergebnis genau dann, wenn set wahr ist, und die Endwerte strategie und ergebnis.
+func pruefeBuch(t *testing.T, was string, b spanBuch, strategie, ergebnis string, set bool) {
+	t.Helper()
+	if b.name != support.SpanReplayMatch || b.enden != 1 {
+		t.Errorf("%s: Buch %+v, erwartet ein Span %s mit einem End", was, b, support.SpanReplayMatch)
+		return
+	}
+	if want := []support.Attr{support.Str(attrStrategie, nichtGelesen), support.Str(attrErgebnis, nichtGewaehlt)}; !reflect.DeepEqual(b.start, want) {
+		t.Errorf("%s: StartSpan mit %v, erwartet %v", was, b.start, want)
 	}
 	sets := 0
 	if set {
 		sets = 1
 		want := []support.Attr{support.Str(attrStrategie, strategie), support.Str(attrErgebnis, ergebnis)}
-		if len(b[0].setze) != 1 || !reflect.DeepEqual(b[0].setze[0], want) {
-			t.Errorf("%s: Set %v, erwartet genau ein Set mit %v", was, b[0].setze, want)
+		if len(b.setze) != 1 || !reflect.DeepEqual(b.setze[0], want) {
+			t.Errorf("%s: Set %v, erwartet genau ein Set mit %v", was, b.setze, want)
 		}
 	}
-	if len(b[0].setze) != sets {
-		t.Errorf("%s: %d Set, erwartet %d", was, len(b[0].setze), sets)
+	if len(b.setze) != sets {
+		t.Errorf("%s: %d Set, erwartet %d", was, len(b.setze), sets)
 	}
-	if s, e := b[0].endwerte(); s != strategie || e != ergebnis {
+	if s, e := b.endwerte(); s != strategie || e != ergebnis {
 		t.Errorf("%s: Endwerte %s und %s, erwartet %s und %s", was, s, e, strategie, ergebnis)
-	}
-	for _, op := range []supporttest.Operation{supporttest.OpCountError, supporttest.OpSnapshot} {
-		if n := f.Anzahl(op); n != 0 {
-			t.Errorf("%s: Operation %d %d-mal gerufen", was, op, n)
-		}
 	}
 }
 

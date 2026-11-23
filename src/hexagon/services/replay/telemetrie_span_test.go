@@ -3,10 +3,12 @@ package replay_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
@@ -321,21 +323,54 @@ func TestSpanPlatzhalter(t *testing.T) {
 	}
 }
 
-// TestSpanCursorStrategie hält W6 (SPEC-296 Nr. 4 a, 7 d): die Strategie des bestehenden Cursors gilt im Span, sonst die der Konfig; Menge
-// M-Cursor, 4 Strategien am Cursor × eine abweichende der Konfig plus ein fehlender Cursor × 4 Strategien der Konfig gleich 8.
+// TestSpanCursorStrategie hält W6 (SPEC-296 Nr. 4 a, 7 d): die Strategie des bestehenden Cursors gilt im Span, in jedem Zustand des Cursors und
+// für jedes Ergebnis, sonst die der Konfig; Menge M-Cursor mit 72 Elementen: Strategie am Cursor 4 × Strategie der Konfig 4 (die gleiche und
+// drei abweichende) × Zustand des Cursors 2 (neu: consumed leer, position 0; nach Verbrauch: consumed {1}, position 1, SPEC-108 Nr. 10) ×
+// Ergebnis 2 (treffer, kein_treffer) gleich 64, dazu ohne Cursor 4 Strategien der Konfig × 2 Ergebnisse gleich 8. Der Store trägt zwei Exchanges
+// mit dem Key des Requests (SequenceNo 1 und 2), so dass treffer in jedem Zustand und jeder Strategie erreichbar ist; kein_treffer fragt einen Key
+// ohne Exchange. Zählprüfung 4, 4, 2, 2 und 8.
 func TestSpanCursorStrategie(t *testing.T) {
-	abweichend := map[model.ReplayStrategy]model.ReplayStrategy{model.StrategySequential: model.StrategyLast, model.StrategyStrict: model.StrategyFirst,
-		model.StrategyFirst: model.StrategyStrict, model.StrategyLast: model.StrategySequential}
-	n := 0
-	for _, strat := range []model.ReplayStrategy{model.StrategySequential, model.StrategyStrict, model.StrategyFirst, model.StrategyLast} {
-		n += 2
-		spanFall{name: "Cursor " + string(strat), strat: abweichend[strat], strategie: string(strat), ergebnis: ergTreffer, set: true,
-			baue: func(u *umg) inbound.Anfrage { u.lege(u.austausch(1, u.keyA(), true)); u.cursor(strat); return anf() }}.lauf(t)
-		spanFall{name: "ohne Cursor " + string(strat), strat: strat, strategie: string(strat), ergebnis: ergTreffer, set: true,
-			baue: func(u *umg) inbound.Anfrage { u.lege(u.austausch(1, u.keyA(), true)); return anf() }}.lauf(t)
+	alle := []model.ReplayStrategy{model.StrategySequential, model.StrategyStrict, model.StrategyFirst, model.StrategyLast}
+	zustaende := []struct {
+		name     string
+		consumed []int64
+	}{{"neu", nil}, {"nach Verbrauch", []int64{1}}}
+	ergebnisse := []struct {
+		name  string
+		frage func() inbound.Anfrage
+		soll  soll
+	}{{ergTreffer, anf, soll{}}, {ergKeinTreffer, anfC, soll{code: model.CodeE5001}}}
+	legeZwei := func(u *umg) { u.lege(u.austausch(1, u.keyA(), true), u.austausch(2, u.keyA(), true)) }
+	n, gleich, abweichend := 0, 0, 0
+	for _, amCursor := range alle {
+		for _, inKonfig := range alle {
+			if amCursor == inKonfig {
+				gleich++
+			} else {
+				abweichend++
+			}
+			for _, z := range zustaende {
+				for _, e := range ergebnisse {
+					n++
+					spanFall{name: fmt.Sprintf("Cursor %s, Konfig %s, %s, %s", amCursor, inKonfig, z.name, e.name), strat: inKonfig,
+						strategie: string(amCursor), ergebnis: e.name, set: true, soll: e.soll,
+						baue: func(u *umg) inbound.Anfrage { legeZwei(u); u.cursor(amCursor, z.consumed...); return e.frage() }}.lauf(t)
+				}
+			}
+		}
 	}
-	if n != 8 {
-		t.Errorf("Menge: %d, erwartet 8", n)
+	ohneCursor := 0
+	for _, inKonfig := range alle {
+		for _, e := range ergebnisse {
+			n++
+			ohneCursor++
+			spanFall{name: fmt.Sprintf("ohne Cursor, Konfig %s, %s", inKonfig, e.name), strat: inKonfig, strategie: string(inKonfig), ergebnis: e.name,
+				set: true, soll: e.soll, baue: func(u *umg) inbound.Anfrage { legeZwei(u); return e.frage() }}.lauf(t)
+		}
+	}
+	if len(alle) != 4 || gleich != 4 || abweichend != 12 || len(zustaende) != 2 || len(ergebnisse) != 2 || ohneCursor != 8 || n != 72 {
+		t.Errorf("Menge: %d Strategien, %d gleiche und %d abweichende Paare, %d Zustände, %d Ergebnisse, %d ohne Cursor, %d Elemente; erwartet 4, 4, 12, 2, 2, 8 und 72",
+			len(alle), gleich, abweichend, len(zustaende), len(ergebnisse), ohneCursor, n)
 	}
 }
 
@@ -463,5 +498,129 @@ func TestSpanJederRueckweg(t *testing.T) {
 	}
 	if len(stellen8) != 8 || len(kontextfehler()) != 2 || len(entscheidungen) != 11 || len(faelle) != 52 {
 		t.Errorf("Menge: %d Stellen, %d Entscheidungen, %d Fälle; erwartet 8, 11 und 52", len(stellen8), len(entscheidungen), len(faelle))
+	}
+}
+
+// beendetesCtx liefert ein ctx, das vor dem Aufruf beendet ist: Canceled über WithCancel und cancel, DeadlineExceeded über WithDeadline in der
+// Vergangenheit.
+func beendetesCtx(t *testing.T, art error) context.Context {
+	t.Helper()
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+	)
+	if errors.Is(art, context.DeadlineExceeded) {
+		ctx, cancel = context.WithDeadline(context.Background(), time.Now().Add(-time.Hour))
+	} else {
+		ctx, cancel = context.WithCancel(context.Background())
+		cancel()
+	}
+	t.Cleanup(cancel)
+	if ctx.Err() != art {
+		t.Fatalf("ctx.Err() ist %v, erwartet %v", ctx.Err(), art)
+	}
+	return ctx
+}
+
+// spanStand ist der Stand des Spans nach einem Aufruf: Strategie und Ergebnis am Ende und ob ein Set steht.
+type spanStand struct {
+	strategie, ergebnis string
+	set                 bool
+}
+
+// TestSpanAbbruch hält W3 (SPEC-296 Nr. 3 b, f) für den Zustand des ctx des Aufrufs: Menge M-Abbruch-Replay mit 18 Elementen, in der das ctx
+// vor dem Aufruf beendet ist (Canceled über WithCancel und cancel, DeadlineExceeded über WithDeadline in der Vergangenheit) und die Fakes der
+// Ports und der Body den Fehler dieses ctx liefern: die acht Stellen S1 bis S8 (S2 über den Body) × 2 Arten gleich 16, dazu die Rückkehr mit
+// Antwort × 2 Arten gleich 2. Die Fakes prüfen das ctx hier nicht selbst, so dass allein die eingespeiste Stelle scheitert und jede frühere
+// und spätere Operation das beendete ctx unverändert erhält. Je Fall genau ein StartSpan und ein End, ein Set genau dann, wenn S4 gerufen
+// wurde, und der Ausgang unverändert (Kontextfehler ohne Code oder Antwort). Zählprüfung 8, 2 und 18.
+func TestSpanAbbruch(t *testing.T) {
+	stellen8 := []string{"Sessions.Get", "", "Exchanges.ListBySession", "Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get", "tx Cursors.Get",
+		"Blobs.Open", "tx Cursors.Put"}
+	vorS4 := spanStand{nichtGelesen, nichtGewaehlt, false}
+	inS4 := spanStand{nichtGelesen, nichtGewaehlt, true}
+	nachAuswahl := spanStand{"sequential", ergTreffer, true}
+	erwartung := map[string]spanStand{"Sessions.Get": vorS4, "": vorS4, "Exchanges.ListBySession": vorS4, "Transaktion.WithWorkspaceTransaction": inS4,
+		"tx Workspaces.Get": inS4, "tx Cursors.Get": inS4, "Blobs.Open": nachAuswahl, "tx Cursors.Put": nachAuswahl}
+	pruefe := func(u *umg, was string, resp inbound.Antwort, err error, s soll, stand spanStand) {
+		t.Helper()
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		pruefeAusgang(t, was, err, s)
+		pruefeSpan(t, was, u.tel, stand.strategie, stand.ergebnis, stand.set)
+		if u.tel.Anzahl(supporttest.OpStartSpan) != 1 || u.tel.Anzahl(supporttest.OpEnd) != 1 {
+			t.Errorf("%s: %d StartSpan und %d End, erwartet je 1", was, u.tel.Anzahl(supporttest.OpStartSpan), u.tel.Anzahl(supporttest.OpEnd))
+		}
+	}
+	n := 0
+	for _, art := range kontextfehler() {
+		for _, op := range stellen8 {
+			n++
+			u := neu(t)
+			u.mitJournal()
+			ctx := beendetesCtx(t, art)
+			u.p.ctxNichtPruefen()
+			a := kontextAn(op, ctx.Err())(u)
+			resp, err := u.replay(ctx, a)
+			pruefe(u, "beendetes ctx ("+art.Error()+") an "+op, resp, err, soll{kontext: art}, erwartung[op])
+		}
+		n++
+		u := neu(t)
+		u.mitJournal()
+		ctx := beendetesCtx(t, art)
+		u.p.ctxNichtPruefen()
+		resp, err := u.replay(ctx, erfolgsLauf(u))
+		pruefe(u, "beendetes ctx ("+art.Error()+") mit Antwort", resp, err, soll{}, nachAuswahl)
+	}
+	if len(stellen8) != 8 || len(kontextfehler()) != 2 || n != 18 {
+		t.Errorf("Menge: %d Stellen, %d Arten, %d Fälle; erwartet 8, 2 und 18", len(stellen8), len(kontextfehler()), n)
+	}
+}
+
+// TestSpanWiederholung hält W4 (SPEC-296 Nr. 7 c): Menge M-Wiederholung mit 4 Fällen, je Strategie zwei Aufrufe nacheinander am selben Replayer
+// und denselben Stores mit demselben Request und einem Exchange; sequential und strict ergeben treffer, dann erschoepft, first und last zweimal
+// treffer. Je Aufruf ein eigenes Buch mit einem StartSpan, einem Set und einem End. Zählprüfung 4.
+func TestSpanWiederholung(t *testing.T) {
+	faelle := []struct {
+		strat    model.ReplayStrategy
+		zweiter  soll
+		ergebnis string
+	}{
+		{model.StrategySequential, soll{code: model.CodeE5002}, ergErschoepft},
+		{model.StrategyStrict, soll{code: model.CodeE5002}, ergErschoepft},
+		{model.StrategyFirst, soll{}, ergTreffer},
+		{model.StrategyLast, soll{}, ergTreffer},
+	}
+	for _, f := range faelle {
+		u := neu(t)
+		u.mitJournal()
+		u.k.Strategie = f.strat
+		u.lege(u.austausch(1, u.keyA(), true))
+		r := u.replayer()
+		for i, a := range []struct {
+			soll     soll
+			ergebnis string
+		}{{soll{}, ergTreffer}, {f.zweiter, f.ergebnis}} {
+			was := fmt.Sprintf("%s, Aufruf %d", f.strat, i+1)
+			resp, err := r.Replay(context.Background(), anf())
+			if err == nil {
+				_ = resp.Body.Close()
+			}
+			pruefeAusgang(t, was, err, a.soll)
+			b := buecher(u.tel)
+			if len(b) != i+1 {
+				t.Fatalf("%s: %d Bücher, erwartet %d", was, len(b), i+1)
+			}
+			pruefeBuch(t, was, b[i], string(f.strat), a.ergebnis, true)
+		}
+		for op, n := range map[supporttest.Operation]int{supporttest.OpStartSpan: 2, supporttest.OpSet: 2, supporttest.OpEnd: 2} {
+			if got := u.tel.Anzahl(op); got != n {
+				t.Errorf("%s: Operation %d %d-mal, erwartet %d", f.strat, op, got, n)
+			}
+		}
+	}
+	if len(faelle) != 4 {
+		t.Errorf("Menge: %d, erwartet 4", len(faelle))
 	}
 }

@@ -109,6 +109,13 @@ func baueWurzel(t *testing.T, modus string, wartung inbound.MaintenanceUseCase) 
 // baueWurzelMit baut den Prozess im Modus über den Daten in dir; aendere setzt, wenn nicht nil, Werte der Konfiguration vor dem Bau.
 func baueWurzelMit(t *testing.T, modus string, wartung inbound.MaintenanceUseCase, dir string, aendere func(*bootstrap.Konfiguration)) *wurzel {
 	t.Helper()
+	return baueWurzelHaken(t, modus, wartung, dir, aendere, nil)
+}
+
+// baueWurzelHaken ist baueWurzelMit mit Zugriff auf die Bauteile: haken ersetzt, wenn nicht nil, Konstruktoren nach der Aufzeichnung der
+// Konfigurationen; w.replay hält die Konfig, die der ersetzte Konstruktor erhält, nicht die vor dem Haken.
+func baueWurzelHaken(t *testing.T, modus string, wartung inbound.MaintenanceUseCase, dir string, aendere func(*bootstrap.Konfiguration), haken func(*bootstrap.Bauteile)) *wurzel {
+	t.Helper()
 	w := &wurzel{senke: &syncPuffer{}}
 	b := bootstrap.StandardBauteile()
 	tel, neuerMock, neuerReplay := b.NeueTelemetrie, b.NeuerMock, b.NeuerReplay
@@ -129,6 +136,9 @@ func baueWurzelMit(t *testing.T, modus string, wartung inbound.MaintenanceUseCas
 	}
 	if wartung != nil {
 		b.NeueWartung = func(maintenance.Konfig) (inbound.MaintenanceUseCase, error) { return wartung, nil }
+	}
+	if haken != nil {
+		haken(&b)
 	}
 	k := wurzelKonfig(modus, dir)
 	if aendere != nil {

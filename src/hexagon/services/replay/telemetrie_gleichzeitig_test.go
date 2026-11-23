@@ -99,6 +99,11 @@ func gleichzeitigerLauf(t *testing.T, n int) {
 
 // TestSpanGleichzeitig hält W13 (SPEC-296 Nr. 9 a): n gleichzeitige Replay ergeben n StartSpan und n End, und jeder Span trägt Strategie und
 // Ergebnis seines Aufrufs; Menge M-Gleichzeitig, 16 Goroutinen × 4 Strategien × 2 Ergebnisse (Treffer, kein_treffer) in 20 Läufen.
+// Der Treffpunkt fängt Zustand, der von Beginn bis zur Rückkehr von WithWorkspaceTransaction geschrieben und bei Set gelesen wird (Fenster A):
+// in jedem Lauf und bei jeder Prozessorzahl. Zustand zwischen der Rückkehr der Transaktion und dem Aufruf von Set (Fenster B) fängt er nicht in
+// jedem Lauf, weil dort kein Aufruf anzuhalten ist: die Rate hängt dort an der Prozessorzahl, siehe SPEC-296 *Ungeprüft* und Negativ (7) im Plan;
+// ein Datenrennen dort meldet der Detektor, die Gestalt Paketvariable, Feld, sync, sync/atomic, go oder Schreibzugriff auf die Konfig
+// TestPaketOhneZustand. Die Zählung von End je Aufruf (Fenster C) fängt der Test ohne Treffpunkt.
 func TestSpanGleichzeitig(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		gleichzeitigerLauf(t, 16)

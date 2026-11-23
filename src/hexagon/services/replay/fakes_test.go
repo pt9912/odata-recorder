@@ -48,14 +48,16 @@ func (k *kontext) Value(key any) any           { k.value.Add(1); return k.innen.
 // prot ist das gemeinsame Protokoll aller Fakes: jede Operation jedes Ports, auch die der Dienst nie rufen
 // darf, erscheint mit Namen; Operationen innerhalb einer Transaktion tragen das Präfix "tx ". fehler speist
 // an einer Operation einen Fehler ein ("Name" für jeden Aufruf, "Name#n" für den n-ten), panik eine Panik,
-// nach ist der Haltepunkt, der nach jeder Operation gerufen wird.
+// nach ist der Haltepunkt, der nach jeder Operation gerufen wird. ohneCtx schaltet die Prüfung des ctx aus: ein Fake liefert dann
+// den Fehler des ctx nur dort, wo ihn der Test einspeist (M-Abbruch-Replay).
 type prot struct {
-	t      *testing.T
-	mu     sync.Mutex
-	ev     []ereignis
-	fehler map[string]error
-	panik  map[string]any
-	nach   func(op string)
+	t       *testing.T
+	mu      sync.Mutex
+	ev      []ereignis
+	fehler  map[string]error
+	panik   map[string]any
+	nach    func(op string)
+	ohneCtx bool
 }
 
 func neuesProt(t *testing.T) *prot {
@@ -77,8 +79,9 @@ func (p *prot) beginn(op string, ctx ctxMethoden, args ...any) error {
 	if e, da := p.fehler[op+"#"+strconv.Itoa(n)]; da {
 		err = e
 	}
+	ohne := p.ohneCtx
 	p.mu.Unlock()
-	if ctx != nil {
+	if ctx != nil && !ohne {
 		if e := ctx.Err(); e != nil {
 			return e
 		}
@@ -112,6 +115,19 @@ func (p *prot) setzeFehler(op string, err error) {
 		return
 	}
 	p.fehler[op] = err
+}
+
+// ctxNichtPruefen schaltet die Prüfung des ctx in allen Fakes dieses Protokolls und am Ende der Transaktion aus.
+func (p *prot) ctxNichtPruefen() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.ohneCtx = true
+}
+
+func (p *prot) ctxGeprueft() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return !p.ohneCtx
 }
 
 func (p *prot) setzePanik(op string, v any) {
@@ -475,7 +491,7 @@ func (s *store) laufe(ctx context.Context, k *karte, f func(outbound.WorkspaceSt
 	if err == nil && s.commit != nil {
 		err = s.commit
 	}
-	if err == nil && ctx != nil {
+	if err == nil && ctx != nil && s.p.ctxGeprueft() {
 		err = ctx.Err()
 	}
 	if err != nil {
