@@ -166,13 +166,15 @@ func (j *journal) folge(nur ...string) []string {
 	return r
 }
 
-// spanBuch ist das Buch über einen Span des Fakes: das ctx von StartSpan, die Attribute dort, jeder Aufruf von Set und die Zahl der End.
+// spanBuch ist das Buch über einen Span des Fakes: das ctx von StartSpan, die Attribute dort, jeder Aufruf von Set, die Zahl der End und die
+// Folge der Aufrufe an genau diesem Span (`Set`, `End`).
 type spanBuch struct {
 	name  support.SpanName
 	ctx   func() context.Context
 	start []support.Attr
 	setze [][]support.Attr
 	enden int
+	folge []string
 }
 
 // buecher bildet je Span des Fakes ein Buch, in der Folge der StartSpan.
@@ -187,23 +189,28 @@ func buecher(f *supporttest.FakeTelemetry) []spanBuch {
 		case supporttest.OpSet:
 			if i, da := index[a.Span]; da {
 				r[i].setze = append(r[i].setze, slices.Clone(a.Attrs))
+				r[i].folge = append(r[i].folge, "Set")
 			}
 		case supporttest.OpEnd:
 			if i, da := index[a.Span]; da {
 				r[i].enden++
+				r[i].folge = append(r[i].folge, "End")
 			}
 		}
 	}
 	return r
 }
 
-// pruefeBuch prüft das Buch eines Spans: Name, genau ein End, die Platzhalter bei StartSpan und genau ein Set mit genau dem Status.
+// pruefeBuch prüft das Buch eines Spans: Name, die Platzhalter bei StartSpan und am eigenen Span genau ein Set mit genau dem Status, gefolgt von genau
+// einem End (SPEC-295 Nr. 4 b, 3 b; V-1: kein Set hinter dem End, kein End an einem fremden Span). Jeder Test, der einen Exchange führt, ruft es je Span.
 func pruefeBuch(t *testing.T, was string, b spanBuch, sessionID, status string) {
 	t.Helper()
 	wantStart := []support.Attr{support.Str(attrSession, sessionID), support.Str(attrStatus, unbestimmt)}
 	wantSet := [][]support.Attr{{support.Str(attrStatus, status)}}
-	if b.name != support.SpanRecordCapture || b.enden != 1 || !slices.Equal(b.start, wantStart) || len(b.setze) != 1 || !slices.Equal(b.setze[0], wantSet[0]) {
-		t.Errorf("%s: Buch %+v, erwartet %s mit Start %v, Set %v und einem End", was, b, support.SpanRecordCapture, wantStart, wantSet)
+	wantFolge := []string{"Set", "End"}
+	if b.name != support.SpanRecordCapture || b.enden != 1 || !slices.Equal(b.start, wantStart) || len(b.setze) != 1 || !slices.Equal(b.setze[0], wantSet[0]) ||
+		!slices.Equal(b.folge, wantFolge) {
+		t.Errorf("%s: Buch %+v, erwartet %s mit Start %v, Set %v und einem End in der Folge %v", was, b, support.SpanRecordCapture, wantStart, wantSet, wantFolge)
 	}
 }
 

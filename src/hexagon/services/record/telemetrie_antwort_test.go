@@ -18,7 +18,9 @@ type antwortFall struct {
 
 // antwortFaelle ist die Menge M-Antwort aus dem Wortlaut von `SPEC-121` Nr. 5 und `SPEC-295` Nr. 7 a: je Statusklasse 1xx bis 5xx mindestens eine
 // Antwort (101, 200, 204, 301, 304, 404, 500, 503), `HEAD` mit zwei Status, dazu der leere Body ohne Länge, mit `Content-Length` 0 und der Body mit
-// gesetzter Länge: 12 Zellen, davon 5 ohne Body nach HTTP.
+// gesetzter Länge, dazu beide Seiten jeder Grenze von `hatBody` (99 und 100, 199 und 200, 203 bis 206, 303 bis 305; Verifikation V-2): 20 Zellen, davon 7
+// ohne Body nach HTTP. Der Status 99 ist kein gültiger Status eines Exchange (`SPEC-105` Nr. 10): der Exchange ist nicht angehängt, der Span endet
+// wie bei jedem anderen Fehler des Anhängens.
 func antwortFaelle() []antwortFall {
 	json := map[string][]string{"Content-Type": {"application/json"}}
 	mitLaenge := func(l string) map[string][]string {
@@ -27,9 +29,17 @@ func antwortFaelle() []antwortFall {
 	return []antwortFall{
 		{"HEAD 200", "HEAD", 200, mitLaenge("7"), "", false},
 		{"HEAD 404", "HEAD", 404, mitLaenge("7"), "", false},
+		{"99 mit Body, ungültiger Status", "GET", 99, json, `{"a":1}`, true},
+		{"100 ohne Body", "GET", 100, nil, "", false},
 		{"101", "GET", 101, nil, "", false},
+		{"199 ohne Body", "GET", 199, nil, "", false},
+		{"203 mit Body", "GET", 203, json, `{"a":1}`, true},
 		{"204", "GET", 204, nil, "", false},
+		{"205 mit Body", "GET", 205, json, `{"a":1}`, true},
+		{"206 mit Body", "GET", 206, json, `{"a":1}`, true},
+		{"303 mit Body", "GET", 303, json, `{"a":1}`, true},
 		{"304", "GET", 304, nil, "", false},
+		{"305 mit Body", "GET", 305, json, `{"a":1}`, true},
 		{"200 leer ohne Länge", "GET", 200, json, "", true},
 		{"200 leer mit Content-Length 0", "GET", 200, mitLaenge("0"), "", true},
 		{"200 Body mit Content-Length", "GET", 200, mitLaenge("7"), `{"a":1}`, true},
@@ -40,7 +50,7 @@ func antwortFaelle() []antwortFall {
 	}
 }
 
-// TestEndeJedeAntwort hält F-2 und F-12 (SPEC-295 Nr. 3 b, 4 b, 7 a): Menge M-Antwort, 12 Zellen × 2 Wege (Close nach EOF, Close ohne EOF) gleich 24;
+// TestEndeJedeAntwort hält F-2, F-12 und V-2 (SPEC-295 Nr. 3 b, 4 b, 7 a): Menge M-Antwort, 20 Zellen × 2 Wege (Close nach EOF, Close ohne EOF) gleich 40;
 // je Zelle ein Span mit genau einem Set und einem End und dem Status der Aufnahme als Literal (`complete`; ohne EOF `incomplete` nur bei einer Antwort mit
 // Body: eine Antwort ohne Body hat keine Aufnahme, die abbrechen könnte), unabhängig vom Status des Upstreams; der Exchange trägt den Status der Antwort.
 func TestEndeJedeAntwort(t *testing.T) {
@@ -80,15 +90,20 @@ func TestEndeJedeAntwort(t *testing.T) {
 			} else {
 				pruefeBuch(t, was, b[0], "s1", soll)
 			}
-			if got, want := j.folge("Set", "ListBySession", "Append", "End"), []string{"Set", "ListBySession", "Append", "End"}; !slices.Equal(got, want) {
+			want, angehaengt := []string{"Set", "ListBySession", "Append", "End"}, 1
+			if f.status == 99 {
+				want = []string{"Set", "ListBySession", "Append", "Log record: Exchange nicht angeh" + string([]byte{0xc3, 0xa4}) + "ngt", "End"}
+				angehaengt = 0
+			}
+			if got := j.folge("Set", "ListBySession", "Append", want[3], "End"); !slices.Equal(got, want) {
 				t.Errorf("%s: Folge %v, erwartet %v", was, got, want)
 			}
-			if l := u.exchanges.angehaengt(); len(l) != 1 || l[0].ResponseStatus != f.status {
-				t.Errorf("%s: angehängt %d, Status der Antwort im Exchange erwartet %d", was, len(l), f.status)
+			if l := u.exchanges.angehaengt(); len(l) != angehaengt || (angehaengt == 1 && l[0].ResponseStatus != f.status) {
+				t.Errorf("%s: %d angehängt, erwartet %d mit dem Status %d der Antwort", was, len(l), angehaengt, f.status)
 			}
 		}
 	}
-	if len(faelle) != 12 || ohneBody != 5 || n != 24 {
-		t.Errorf("%d Zellen, davon %d ohne Body, %d Läufe; erwartet 12, 5 und 24", len(faelle), ohneBody, n)
+	if len(faelle) != 20 || ohneBody != 7 || n != 40 {
+		t.Errorf("%d Zellen, davon %d ohne Body, %d Läufe; erwartet 20, 7 und 40", len(faelle), ohneBody, n)
 	}
 }
