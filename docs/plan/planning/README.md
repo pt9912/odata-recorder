@@ -87,8 +87,12 @@ Der Grund der Sperre: Die Gates bauen Images mit festen Tags (`odata-recorder:te
    | C: Gate-Kette (`slice-worktree-parallel`, Slices von `welle-sensoren`, `welle-dev-container`) | 200 bis 229 | — | 0030 bis 0039 | 040 bis 059 |
    | D: Port `Telemetry` (`slice-telemetry-port`, Slices von `welle-betrieb` davor und danach) | 230 bis 259 | 040 bis 049 | 0040 bis 0049 | 060 bis 079 |
    | B, zweiter Bereich (`SPEC` erschöpft) | 260 bis 299 | — | — | — |
+   | E: Verträge von `welle-admin-api` (`slice-bootstrap-m6` und die Slices danach) | 300 bis 319 | — | — | — |
+   | F: Verträge von `welle-betrieb` (`slice-telemetry-einbau-hybrid` und die Slices danach) | 320 bis 339 | — | — | — |
 
    Der Bereich 160 bis 199 der Linie B ist vergeben (letzte Kennung `SPEC-199`); die Linie B vergibt weiter aus 260 bis 299 (Setzung des Users vom 2026-11-08: ein freier Bereich). Er überschneidet sich mit keinem Bereich der Linien A bis D und mit keiner belegten Kennung (`SPEC-240` und `SPEC-241` liegen im Bereich der Linie D, dessen letzte Nummer `SPEC-259` ist). `SPEC-260` trägt den Vertrag von `SnapshotUseCase`.
+
+   Der Bereich 260 bis 299 ist erschöpft (letzte Kennung `SPEC-299`, Transportschutz des Admin-Listeners); der nächste Bereich ist 300 bis 339 (Setzung des Users vom 2026-11-23: gleiche Breite wie die bisherigen, unmittelbar anschließend). Er überschneidet sich mit keinem Bereich und mit keiner belegten Kennung (keine `SPEC-3<NN>` steht im Repo, auch nicht im Zweig `slice-admin-tls` und im Zweig `spec-m6-vertrag`). Zwei Architect-Läufe zugleich ziehen aus ihm (Admin-API und Telemetrie), und eine Kennung mit eigener Datei kollidiert still; deshalb teilt der Planner ihn auf: Linie E nimmt 300 bis 319, Linie F 320 bis 339, jede vergibt nur aus ihrem Teil, ein erschöpfter Teil geht als Frage an den Planner. `ARC`, `ADR` und `CO` zählen weiter nach der Tabelle ihrer Linie (Spalten `—`: die nächste freie Kennung des Repos, ohne Bereich).
 
    `MR-*` vergibt nur Linie C; `LH-*` ändert keine Linie (Sache des Owners).
 7. **Die Gate-Kette hat einen Besitzer zugleich.** Slices, die `Makefile`, `harness/mk/`, `Dockerfile`, `harness/README.md`, `tools/gegenproben/` oder den Stempel ändern (Linie C), laufen nacheinander, nie zwei zugleich; ein Slice der Linien A und B ändert sie nicht und meldet es als Rückgabe an den Planner, wenn er es müsste. `slice-worktree-parallel` startet nur, wenn kein anderer Slice der Gate-Kette in `in-progress/` liegt.
