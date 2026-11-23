@@ -101,8 +101,9 @@ func gleichzeitigerLauf(t *testing.T, n int) {
 
 // TestSpanGleichzeitig hält C10 (SPEC-295 Nr. 9 a): n gleichzeitige Exchanges ergeben n StartSpan und n End, jeder Span trägt Kennung und Status seines
 // Exchange, keiner endet zweimal; Menge M-Gleichzeitig, 16 Goroutinen × 2 Sessions × 3 Status in 20 Läufen. Ein Span oder End, den Exchanges teilen,
-// fängt der Test in jedem Lauf; einen geteilten Status zwischen dem Ende von Abschluss und Set fängt er nicht in jedem Lauf (geordnete Zugriffe
-// unter `make test-race` meldet der Detektor als Datenrennen, die Rate steht im Plan).
+// fängt der Test in jedem Lauf. Eine Variable ohne Ordnung, die Status, Kennung oder Zähler eines Spans trägt, fängt er ohne Detektor nicht verlässlich
+// (den Status in keinem Prozess, die Kennung mit weitem Fenster nur bei mehreren Prozessoren); den ungeordneten Zugriff meldet allein der Detektor
+// von `make test-race`, das Maß steht im Negativ (8) des Plans.
 func TestSpanGleichzeitig(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		gleichzeitigerLauf(t, 16)

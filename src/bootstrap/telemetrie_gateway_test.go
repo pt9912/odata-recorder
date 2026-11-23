@@ -388,14 +388,18 @@ func TestWurzelGesamtspanJedeAnfrage(t *testing.T) {
 				}
 			}
 			soll := gwZeile("spn-0000000000000001", "GET", a.status, modus)
-			gesamt, zeilenZahl := "", 0
-			for _, l := range strings.Split(strings.TrimSuffix(w.senke.String(), "\n"), "\n") {
-				if strings.Contains(l, `"msg":"odata.gateway.request"`) {
-					gesamt, zeilenZahl = l+"\n", zeilenZahl+1
+			// Die Zeile des Gesamtspans steht zuletzt; allein im Modus record mit Antwort des Dienstes folgt ihr die Zeile des Capture-Spans, dessen
+			// `parent_id` ihre `span_id` ist (SPEC-295 Nr. 3 e).
+			zl := strings.Split(strings.TrimSuffix(w.senke.String(), "\n"), "\n")
+			gw := len(zl) - 1
+			if modus == modusRecord && a.status == 200 {
+				gw = len(zl) - 2
+				if gw < 0 || !strings.Contains(zl[gw+1], `"msg":"odata.record.capture"`) || !strings.Contains(zl[gw+1], `"parent_id":"spn-0000000000000001"`) {
+					t.Errorf("%s %s: Senke %q, erwartet die Zeile des Capture-Spans mit dem Gesamtspan als Eltern zuletzt", modus, a.pfad, w.senke.String())
 				}
 			}
-			if zeilenZahl != 1 || gesamt != soll {
-				t.Errorf("%s %s: %d Zeilen des Gesamtspans, letzte\n%s\nerwartet eine\n%s\nSenke %q", modus, a.pfad, zeilenZahl, gesamt, soll, w.senke.String())
+			if gw < 0 || zl[gw]+"\n" != soll {
+				t.Errorf("%s %s: Senke %q, erwartet die Zeile des Gesamtspans an der letzten Stelle des Falls:\n%s", modus, a.pfad, w.senke.String(), soll)
 			}
 			keinVerwurf(t, modus, w.adapter[0])
 			if soll := map[string]int{modusRecord: 1, modusReplay: 1, modusMock: 1, modusHybrid: 1}[modus]; len(w.adapter) != soll {

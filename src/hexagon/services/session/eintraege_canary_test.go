@@ -3,6 +3,8 @@ package session_test
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -47,8 +49,8 @@ func TestEintraegeOhneFehlertext(t *testing.T) {
 			_, _ = u.closeAll(bg)
 		}},
 	}
-	if len(stellen) != 3 {
-		t.Fatalf("%d Stellen, erwartet 3", len(stellen))
+	if q := zaehleImQuelltext(t, "LogAttrs("); q != len(stellen) {
+		t.Fatalf("%d Aufrufe von LogAttrs im Quelltext des Pakets, %d Stellen im Test", q, len(stellen))
 	}
 	for _, s := range stellen {
 		for _, e := range ursachen {
@@ -72,4 +74,22 @@ func TestEintraegeOhneFehlertext(t *testing.T) {
 			}
 		}
 	}
+}
+
+// zaehleImQuelltext zählt die Vorkommen von muster im Quelltext des Pakets (ohne Tests): die Zahl der Stellen der Einträge gleicht der Zahl der Aufrufe.
+func zaehleImQuelltext(t *testing.T, muster string) int {
+	t.Helper()
+	dateien, err := filepath.Glob("*.go")
+	if err != nil || len(dateien) == 0 {
+		t.Fatalf("Dateien: %v, %d", err, len(dateien))
+	}
+	n := 0
+	for _, d := range dateien {
+		if b, err := os.ReadFile(d); err != nil {
+			t.Fatal(err)
+		} else if !strings.HasSuffix(d, "_test.go") {
+			n += strings.Count(string(b), muster)
+		}
+	}
+	return n
 }

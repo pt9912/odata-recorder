@@ -183,35 +183,63 @@ func laufeWeg(t *testing.T, u *umgebung, weg string) {
 	}
 }
 
-// TestEndeJeAusgang hält C4 (SPEC-295 Nr. 3 b, 7 a): Menge M-Ausgänge, 3 Wege × 3 Weisen des Anhängens + 1 gleich 10; je Fall ein StartSpan und ein
-// End, das End steht nach dem Anhängen und dem Eintrag ablage; im zehnten Fall kehrt Drain nicht vor dem End zurück (das End braucht Zeit).
+// ausgang ist ein Ausgang des Anhängens: der Fehler eines Ports (nil: gelungen) und der Port, der ihn liefert (SPEC-295 Nr. 7 a).
+type ausgang struct {
+	name  string
+	liste bool
+	err   error
+}
+
+// ausgaenge ist die Menge M-Ausgänge des Anhängens aus dem Wortlaut von `SPEC-105` Nr. 7 bis 13 und `SPEC-121` Nr. 10: gelungen, jeder Fehler von
+// `Append` (`ErrUngueltig`, `ErrNichtGefunden`, `ErrSessionGeschlossen`, `ErrBereitsVorhanden`, `ErrUngueltigeSequenz`, `ErrBeschaedigt`, beide
+// Kontextfehler, ein Fehler ohne Code gleich 9) und jeder von `ListBySession` (`ErrNichtGefunden`, `ErrBeschaedigt`, beide Kontextfehler, ein Fehler
+// ohne Code gleich 5), zusammen 15.
+func ausgaenge() []ausgang {
+	r := []ausgang{{"gelungen", false, nil}}
+	for _, e := range []error{model.ErrUngueltig, outbound.ErrNichtGefunden, outbound.ErrSessionGeschlossen, outbound.ErrBereitsVorhanden,
+		outbound.ErrUngueltigeSequenz, outbound.ErrBeschaedigt, context.Canceled, context.DeadlineExceeded, errDisk} {
+		r = append(r, ausgang{"Append: " + e.Error(), false, e})
+	}
+	for _, e := range []error{outbound.ErrNichtGefunden, outbound.ErrBeschaedigt, context.Canceled, context.DeadlineExceeded, errDisk} {
+		r = append(r, ausgang{"ListBySession: " + e.Error(), true, e})
+	}
+	return r
+}
+
+// TestEndeJeAusgang hält C4 und F-3 (SPEC-295 Nr. 3 b, 4 b, 7 a): Menge M-Ausgänge, 3 Wege × 15 Ausgänge des Anhängens + 1 gleich 46; je Fall ein
+// StartSpan, ein Set mit dem Status der Aufnahme (Literal je Weg, auch wenn der Exchange nicht angehängt ist) und ein End; die Folge ist Set vor dem
+// Anhängen, dann Lesen, Anhängen, der Eintrag ablage (nur bei einem Fehler) und End; im letzten Fall kehrt Drain nicht vor dem End zurück (das End braucht Zeit).
 func TestEndeJeAusgang(t *testing.T) {
 	ablage := "Log record: Exchange nicht angeh" + string([]byte{0xc3, 0xa4}) + "ngt"
-	soll := [][]string{
-		{"ListBySession", "Append", "End"},
-		{"ListBySession", "Append", ablage, "End"},
-		{"ListBySession", ablage, "End"},
-	}
+	status := map[string]string{wegEOF: "complete", wegOhneEOF: "incomplete", wegOhneAntwort: "incomplete"}
 	n := 0
 	for _, weg := range []string{wegEOF, wegOhneEOF, wegOhneAntwort} {
-		for i, anh := range []string{"gelungen", "Append scheitert", "ListBySession scheitert"} {
+		for _, a := range ausgaenge() {
 			n++
 			u, j := neuMitJournal(t)
-			u.exchanges.appendFehler[0], u.exchanges.listFehler = nil, nil
-			switch i {
-			case 1:
-				u.exchanges.appendFehler[0] = errDisk
-			case 2:
-				u.exchanges.listFehler = errDisk
+			soll := []string{"Set", "ListBySession", "Append", "End"}
+			switch {
+			case a.liste:
+				u.exchanges.listFehler = a.err
+				soll = []string{"Set", "ListBySession", ablage, "End"}
+			case a.err != nil:
+				u.exchanges.appendFehler[0] = a.err
+				soll = []string{"Set", "ListBySession", "Append", ablage, "End"}
 			}
 			laufeWeg(t, u, weg)
-			if got := j.folge("ListBySession", "Append", ablage, "End"); !slices.Equal(got, soll[i]) {
-				t.Errorf("%s, %s: Folge %v, erwartet %v", weg, anh, got, soll[i])
+			was := weg + ", " + a.name
+			if got := j.folge("Set", "ListBySession", "Append", ablage, "End"); !slices.Equal(got, soll) {
+				t.Errorf("%s: Folge %v, erwartet %v", was, got, soll)
 			}
-			if s, e := j.Anzahl(supporttest.OpStartSpan), j.Anzahl(supporttest.OpEnd); s != 1 || e != 1 {
-				t.Errorf("%s, %s: %d StartSpan und %d End, erwartet 1 und 1", weg, anh, s, e)
+			if b := buecher(j.FakeTelemetry); len(b) != 1 {
+				t.Errorf("%s: %d Bücher, erwartet 1", was, len(b))
+			} else {
+				pruefeBuch(t, was, b[0], "s1", status[weg])
 			}
 		}
+	}
+	if len(ausgaenge()) != 15 {
+		t.Errorf("%d Ausgänge, erwartet 15", len(ausgaenge()))
 	}
 	n++
 	u, j := neuMitJournal(t)
@@ -225,7 +253,7 @@ func TestEndeJeAusgang(t *testing.T) {
 		t.Errorf("Drain: bei der Rückkehr %d StartSpan und %d End, erwartet 1 und 1", s, e)
 	}
 	empfange(t, "Record", res)
-	if n != 10 {
-		t.Errorf("%d Fälle, erwartet 10", n)
+	if n != 46 {
+		t.Errorf("%d Fälle, erwartet 46", n)
 	}
 }

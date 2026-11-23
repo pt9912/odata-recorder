@@ -225,12 +225,19 @@ func quellen() []quelle {
 // TestEintraegeOhneRequestWert hält E3 für den Record-Dienst (SPEC-231 Nr. 8): Menge M-Quellen-Einträge, 3 Stellen (capture, upstream, ablage) × 9
 // Quellen gleich 27 Paare; an jeder Quelle liegt der Canary, die Stelle löst ihren Eintrag aus (die Antwort ist text/plain: capture; Senden
 // scheitert: upstream; Append scheitert: ablage), und kein Text und kein Attribut eines Eintrags trägt ihn. Der Text der Ursache liegt bei
-// upstream im Fehler von Senden und bei ablage im Fehler von Append.
+// upstream im Fehler von Senden und bei ablage im Fehler von Append. Drei Paare tragen den Canary nicht an die Stelle, weil die Stelle den Wert nicht
+// lesen kann (`leer`: bei capture der Fehler von Senden, bei upstream Header und Body der Antwort, die es dort nicht gibt); sie laufen mit und sind
+// gezählt. Die Zahl der Stellen gleicht der Zahl der Aufrufe von `protokolliere` im Quelltext des Pakets.
 func TestEintraegeOhneRequestWert(t *testing.T) {
-	n := 0
-	for _, stelle := range []string{"capture", "upstream", "ablage"} {
+	stellen := []string{"capture", "upstream", "ablage"}
+	leer := map[string]bool{"capture/Text der Ursache von Senden": true, "upstream/Header der Antwort": true, "upstream/Body der Antwort": true}
+	n, nLeer := 0, 0
+	for _, stelle := range stellen {
 		for _, q := range quellen() {
 			n++
+			if leer[stelle+"/"+q.name] {
+				nLeer++
+			}
 			u := neu(t)
 			l := neueLage()
 			q.setze(&l)
@@ -269,9 +276,40 @@ func TestEintraegeOhneRequestWert(t *testing.T) {
 			}
 		}
 	}
-	if n != 27 {
-		t.Errorf("%d Paare, erwartet 27", n)
+	if n != len(stellen)*len(quellen()) || nLeer != len(leer) {
+		t.Errorf("%d Paare, %d leere; erwartet %d Paare (Stellen × Quellen) und %d leere", n, nLeer, len(stellen)*len(quellen()), len(leer))
 	}
+	if q := zaehleAufrufe(t, ".", func(name string) bool { return name == "protokolliere" }); q != len(stellen) {
+		t.Errorf("%d Aufrufe von protokolliere im Quelltext, %d Stellen im Test", q, len(stellen))
+	}
+}
+
+// zaehleAufrufe zählt im Quelltext des Pakets in verz (ohne Tests) die Aufrufe, deren Selektor passt.
+func zaehleAufrufe(t *testing.T, verz string, passt func(name string) bool) int {
+	t.Helper()
+	dateien, err := filepath.Glob(filepath.Join(verz, "*.go"))
+	if err != nil || len(dateien) == 0 {
+		t.Fatalf("Dateien in %s: %v, %d", verz, err, len(dateien))
+	}
+	n := 0
+	for _, d := range dateien {
+		if strings.HasSuffix(d, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(token.NewFileSet(), d, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(f, func(x ast.Node) bool {
+			if c, ok := x.(*ast.CallExpr); ok {
+				if s, ok := c.Fun.(*ast.SelectorExpr); ok && passt(s.Sel.Name) {
+					n++
+				}
+			}
+			return true
+		})
+	}
+	return n
 }
 
 // rundlaufMit führt den Request mit der gesetzten Antwort aus; liefert Record einen Fehler, bleibt es dabei.

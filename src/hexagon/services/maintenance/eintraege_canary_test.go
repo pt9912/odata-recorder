@@ -3,6 +3,8 @@ package maintenance_test
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -61,7 +63,29 @@ func TestEintraegeOhneFehlertext(t *testing.T) {
 			t.Errorf("%s: %d Einträge, erwartet 1", name, gefunden)
 		}
 	}
-	if n != 4 {
-		t.Errorf("%d Stellen, erwartet 4", n)
+	q := 0
+	for _, muster := range []string{"w.protokolliereIntegritaet(", "w.protokolliereUebersprungen(", "w.protokolliereBlob("} {
+		q += zaehleImQuelltext(t, muster)
 	}
+	if n != len(namen) || q != n {
+		t.Errorf("%d Stellen im Test, %d Aufrufe der Einträge im Quelltext des Pakets, %d Namen", n, q, len(namen))
+	}
+}
+
+// zaehleImQuelltext zählt die Vorkommen von muster im Quelltext des Pakets (ohne Tests): die Zahl der Stellen der Einträge gleicht der Zahl der Aufrufe.
+func zaehleImQuelltext(t *testing.T, muster string) int {
+	t.Helper()
+	dateien, err := filepath.Glob("*.go")
+	if err != nil || len(dateien) == 0 {
+		t.Fatalf("Dateien: %v, %d", err, len(dateien))
+	}
+	n := 0
+	for _, d := range dateien {
+		if b, err := os.ReadFile(d); err != nil {
+			t.Fatal(err)
+		} else if !strings.HasSuffix(d, "_test.go") {
+			n += strings.Count(string(b), muster)
+		}
+	}
+	return n
 }
