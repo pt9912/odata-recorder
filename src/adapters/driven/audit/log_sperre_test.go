@@ -31,7 +31,7 @@ func scheiternde(t *testing.T) map[string]*aufbau {
 
 // A16: je Stelle des Scheiterns × Art genau ein Log-Eintrag mit festem Text und den Schlüsseln der
 // Spezifikation (Soll-Objekt exakt), ohne Fehlertext, Pfad und die Felder import_id, error_code
-// und KorrelationsID des Eintrags. Die Arten sind die von support.Arten() (7), nicht eine Liste des Tests: jede Art trägt
+// und KorrelationsID des Eintrags. Die Arten sind die von support.Arten() (8), nicht eine Liste des Tests: jede Art trägt
 // in ihrer Zeile des Logs genau die Kennungen, die ihr Eintrag trägt.
 func TestLogBeiFehler(t *testing.T) {
 	var arten []support.AuditArt
@@ -71,8 +71,8 @@ func TestLogBeiFehler(t *testing.T) {
 			}
 		}
 	}
-	if paare != 3*7 || len(arten) != 7 {
-		t.Errorf("%d Paare aus %d Arten, erwartet 21 aus 7", paare, len(arten))
+	if paare != 3*8 || len(arten) != 8 {
+		t.Errorf("%d Paare aus %d Arten, erwartet 24 aus 8", paare, len(arten))
 	}
 }
 

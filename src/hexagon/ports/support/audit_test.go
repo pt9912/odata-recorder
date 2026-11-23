@@ -11,13 +11,14 @@ import (
 // service_id, session_id, workspace_id, import_id, error_code, ob es Pflicht ist.
 func orakelArten() map[string][5]bool {
 	return map[string][5]bool{
-		"session_geloescht":     {true, true, false, false, false},
-		"session_aufbewahrung":  {true, true, false, false, false},
-		"workspace_geloescht":   {false, false, true, false, false},
-		"import_fehlgeschlagen": {true, false, false, true, true},
-		"admin_abgewiesen":      {false, false, false, false, true},
-		"session_angelegt":      {true, true, false, false, false},
-		"session_beendet":       {true, true, false, false, false},
+		"session_geloescht":      {true, true, false, false, false},
+		"session_aufbewahrung":   {true, true, false, false, false},
+		"workspace_geloescht":    {false, false, true, false, false},
+		"import_fehlgeschlagen":  {true, false, false, true, true},
+		"admin_abgewiesen":       {false, false, false, false, true},
+		"session_angelegt":       {true, true, false, false, false},
+		"session_beendet":        {true, true, false, false, false},
+		"import_veroeffentlicht": {true, false, false, true, false},
 	}
 }
 
@@ -25,19 +26,19 @@ func orakelSpalten() [5]support.Feld {
 	return [5]support.Feld{"service_id", "session_id", "workspace_id", "import_id", "error_code"}
 }
 
-// A01, Y5, S15 und B14: Schleife über 7 Arten × 5 Felder gegen das Orakel (die vier Zeilen von SPEC-234 Nr. 2, die fünfte,
-// `admin_abgewiesen`, mit allein `error_code` als Pflicht, die sechste und die siebente, `session_angelegt` und
-// `session_beendet`, mit `service_id` und `session_id` als Pflicht), Zählprüfung 7 und 35; die fünfte bis siebente Art stehen
-// an ihrer Stelle.
+// A01, Y5, S15, B14 und IM23: Schleife über 8 Arten × 5 Felder gegen das Orakel (die vier Zeilen von SPEC-234 Nr. 2, die
+// fünfte, `admin_abgewiesen`, mit allein `error_code` als Pflicht, die sechste und die siebente, `session_angelegt` und
+// `session_beendet`, mit `service_id` und `session_id` als Pflicht, die achte, `import_veroeffentlicht`, mit `service_id` und
+// `import_id`), Zählprüfung 8 und 40; die fünfte bis achte Art stehen an ihrer Stelle.
 func TestArtenGleichTabelle(t *testing.T) {
 	orakel := orakelArten()
 	arten := support.Arten()
-	if len(arten) != 7 || len(orakel) != 7 {
-		t.Fatalf("Arten() hat %d Einträge, das Orakel %d, erwartet je 7", len(arten), len(orakel))
+	if len(arten) != 8 || len(orakel) != 8 {
+		t.Fatalf("Arten() hat %d Einträge, das Orakel %d, erwartet je 8", len(arten), len(orakel))
 	}
-	if arten[4].Art != "admin_abgewiesen" || arten[5].Art != "session_angelegt" || arten[6].Art != "session_beendet" {
-		t.Errorf("die fünfte Zeile ist %q, die sechste %q und die siebente %q, erwartet admin_abgewiesen, session_angelegt und session_beendet",
-			arten[4].Art, arten[5].Art, arten[6].Art)
+	if arten[4].Art != "admin_abgewiesen" || arten[5].Art != "session_angelegt" || arten[6].Art != "session_beendet" || arten[7].Art != "import_veroeffentlicht" {
+		t.Errorf("die fünfte Zeile ist %q, die sechste %q, die siebente %q und die achte %q, erwartet admin_abgewiesen, session_angelegt, session_beendet und import_veroeffentlicht",
+			arten[4].Art, arten[5].Art, arten[6].Art, arten[7].Art)
 	}
 	zellen := 0
 	for _, s := range arten {
@@ -63,12 +64,12 @@ func TestArtenGleichTabelle(t *testing.T) {
 			t.Errorf("Art %q: Pflicht %v, erwartet in der Folge der Spalten %v", s.Art, s.Pflicht, folge)
 		}
 	}
-	if zellen != 35 {
-		t.Errorf("geprüfte Zellen: %d, erwartet 35", zellen)
+	if zellen != 40 {
+		t.Errorf("geprüfte Zellen: %d, erwartet 40", zellen)
 	}
 }
 
-// Der Text jeder Art ist der der Tabelle, Byte für Byte, und Arten() führt genau diese sieben.
+// Der Text jeder Art ist der der Tabelle, Byte für Byte, und Arten() führt genau diese acht.
 func TestArtTexte(t *testing.T) {
 	soll := map[support.AuditArt]string{
 		support.ArtSessionGeloescht:     "session_geloescht",
@@ -78,9 +79,11 @@ func TestArtTexte(t *testing.T) {
 		support.ArtAdminAbgewiesen:      "admin_abgewiesen",
 		support.ArtSessionAngelegt:      "session_angelegt",
 		support.ArtSessionBeendet:       "session_beendet",
+
+		support.ArtImportVeroeffentlicht: "import_veroeffentlicht",
 	}
-	if len(soll) != 7 {
-		t.Fatalf("Orakel hat %d Arten, erwartet 7", len(soll))
+	if len(soll) != 8 {
+		t.Fatalf("Orakel hat %d Arten, erwartet 8", len(soll))
 	}
 	for art, text := range soll {
 		if string(art) != text {
@@ -103,8 +106,8 @@ func TestArtenLiefertKopie(t *testing.T) {
 			pflichtfelder++
 		}
 	}
-	if len(a) != 7 || pflichtfelder != 2+2+1+3+1+2+2 {
-		t.Fatalf("%d Arten, %d Pflichtfelder, erwartet 7 und 13", len(a), pflichtfelder)
+	if len(a) != 8 || pflichtfelder != 2+2+1+3+1+2+2+2 {
+		t.Fatalf("%d Arten, %d Pflichtfelder, erwartet 8 und 15", len(a), pflichtfelder)
 	}
 	b := support.Arten()
 	for i, s := range b {

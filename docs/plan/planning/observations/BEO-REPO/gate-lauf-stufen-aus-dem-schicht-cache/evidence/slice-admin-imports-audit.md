@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-imports-audit
+**Fund:** Der Lauf von `make gates` des Verifiers im Worktree (Stand `21bc3f29`, Exit 0, rund 45 s) bezog die Stufen `build`, `test`, `race`, `lint`, `handbuch`, `katalog` und `groessenmarke` aus dem Schicht-Cache; der Verifier fuhr `pruefung test` (362,2 s) und `pruefung race` (401,8 s) frisch mit `--no-cache-filter` und nannte die Stufen aus dem Cache im Bericht (V-8). Beleg: `docs/reviews/2026-11-23-slice-admin-imports-audit-verifikation.md` (V-8, Abschnitt 5).

@@ -15,7 +15,7 @@ import (
 // importsPfad ist das Muster der Routen für Imports (SPEC-297 Nr. 1).
 const importsPfad = "/__admin/imports"
 
-// importHandler hält allein die beiden Ports der Routen (SPEC-297 Nr. 1, 11).
+// importHandler hält allein die beiden Ports der Routen (SPEC-297 Nr. 1, 11); der Handler von POST ruft von audit nur Append.
 type importHandler struct {
 	imports inbound.ImportUseCase
 	audit   support.AuditLog
@@ -44,7 +44,9 @@ func ImportRouten(imports inbound.ImportUseCase, audit support.AuditLog) ([]Rout
 }
 
 // importiere liest den Body (SPEC-297 Nr. 5) und ruft Import mit dem ctx des Handlers; 201, wenn der Aufruf die Baseline
-// veröffentlicht hat, sonst 200 (Nr. 6). Ein Fehler des Dienstes geht unverändert und ohne Antwort zurück (Nr. 7).
+// veröffentlicht hat, sonst 200 (Nr. 6). Ein Fehler des Dienstes geht unverändert und ohne Antwort zurück (Nr. 7). Steht die
+// Antwort fest (der Report ist gültig), schreibt die Route genau einen Eintrag `import_veroeffentlicht` aus dem Ergebnis des
+// Dienstes und der Korrelations-ID der Antwort, auch bei einem beendeten ctx (Nr. 9 d, 10); das Ergebnis von Append ändert nichts.
 func (h importHandler) importiere(ctx context.Context, a Anfrage) (Antwort, error) {
 	anfrage, err := leseImport(a.Body)
 	if err != nil {
@@ -58,7 +60,14 @@ func (h importHandler) importiere(ctx context.Context, a Anfrage) (Antwort, erro
 	if e.Neu {
 		status = http.StatusCreated
 	}
-	return reportAntwort(status, e.Import.ReportJSON)
+	antwort, err := reportAntwort(status, e.Import.ReportJSON)
+	if err != nil {
+		return Antwort{}, err
+	}
+	_ = h.audit.Append(support.Eintrag{
+		Art: support.ArtImportVeroeffentlicht, ServiceID: e.Import.ServiceID, ImportID: e.Import.ID, KorrelationsID: a.KorrelationsID,
+	})
+	return antwort, nil
 }
 
 // lies ruft Get mit dem ctx des Handlers und dem Pfadwert unverändert (SPEC-297 Nr. 2, 4); Query, Header und Body
