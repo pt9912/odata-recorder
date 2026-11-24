@@ -185,7 +185,7 @@ func TestRingKopie(t *testing.T) {
 
 // S13 (M10): jedes End schreibt eine Zeile der Stufe INFO; unter MinLevel über INFO entfällt sie, die
 // Aufzeichnung bleibt; bei defekter Senke zählt senke je Zeile einmal und der Span verhält sich wie ohne
-// Ausfall. 5 Spans × 9 Modi, je ein Span mit einem Kind.
+// Ausfall. 6 Spans × 9 Modi, je ein Span mit einem Kind.
 func TestSpanModi(t *testing.T) {
 	tab := spanTabelle(t)
 	fehler := errors.New("defekt")
@@ -237,14 +237,14 @@ func TestSpanModi(t *testing.T) {
 			}
 		}
 	}
-	if laeufe != 45 {
-		t.Errorf("%d Läufe, erwartet 45", laeufe)
+	if laeufe != 54 {
+		t.Errorf("%d Läufe, erwartet 54", laeufe)
 	}
 }
 
 // S21 (M9): die Span-Zeile trägt die Felder in der Reihenfolge von SPEC-231 Nr. 6, parent_id nur mit
 // Eltern, duration_ms mit drei Nachkommastellen; sie geht in einem Write hinaus, endet auf einem
-// Zeilenende, und der Adapter behält das Argument nicht. 6 Dauern × 5 Spans × Wurzel und Kind = 60 Läufe.
+// Zeilenende, und der Adapter behält das Argument nicht. 6 Dauern × 6 Spans × Wurzel und Kind = 72 Läufe.
 func TestSpanZeileInhalt(t *testing.T) {
 	dauern := []struct {
 		d    time.Duration
@@ -306,8 +306,8 @@ func TestSpanZeileInhalt(t *testing.T) {
 			}
 		}
 	}
-	if laeufe != 60 {
-		t.Errorf("%d Läufe, erwartet 60", laeufe)
+	if laeufe != 72 {
+		t.Errorf("%d Läufe, erwartet 72", laeufe)
 	}
 }
 
@@ -348,9 +348,9 @@ func TestSpanZeileGesamtspan(t *testing.T) {
 }
 
 // S12, S21 (F1): die Attribute stehen in Eintrag und Zeile in der Reihenfolge der Tabelle in §5, nicht in
-// der Folge des Setzens. Menge: jede Anordnung der Pflicht-Attribute jedes Spans (3! + 4 × 2! = 14, aus
+// der Folge des Setzens. Menge: jede Anordnung der Pflicht-Attribute jedes Spans (3! + 5 × 2! = 16, aus
 // der Länge von Pflicht gezählt) × 3 Wege des Setzens (alle in StartSpan, alle in einem Set, je eines in
-// einem Set) = 42 Läufe; je Span ein Adapter, so dass spätere Läufe nicht der erste Span sind. Orakel:
+// einem Set) = 48 Läufe; je Span ein Adapter, so dass spätere Läufe nicht der erste Span sind. Orakel:
 // der Eintrag im Ring, die Folge der Schlüssel der Zeile und die Lage der Schlüssel in den Rohbytes.
 func TestAttributFolge(t *testing.T) {
 	laeufe, erwartet := 0, 0
@@ -407,7 +407,7 @@ func TestAttributFolge(t *testing.T) {
 			}
 		}
 	}
-	if laeufe != erwartet || laeufe != 42 {
-		t.Errorf("%d Läufe, erwartet %d und 42", laeufe, erwartet)
+	if laeufe != erwartet || laeufe != 48 {
+		t.Errorf("%d Läufe, erwartet %d und 48", laeufe, erwartet)
 	}
 }

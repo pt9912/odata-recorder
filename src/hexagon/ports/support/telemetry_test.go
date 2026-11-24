@@ -45,7 +45,8 @@ func TestAttrKonstruktoren(t *testing.T) {
 	}
 }
 
-// Die Spans und ihre Pflicht-Attribute aus §5 der Spezifikation, aus dem Wortlaut der Tabelle.
+// P1: die Spans und ihre Pflicht-Attribute aus §5 der Spezifikation, aus dem Wortlaut der Tabelle
+// (SPEC-230 Nr. 5): sechs Namen, dreizehn Attribute, in der Reihenfolge der Tabelle.
 func TestSpansDaten(t *testing.T) {
 	want := []support.SpanSpec{
 		{Name: "odata.gateway.request", Pflicht: []string{"http.request.method", "http.response.status_code", "recorder.mode"}},
@@ -53,28 +54,32 @@ func TestSpansDaten(t *testing.T) {
 		{Name: "odata.replay.match", Pflicht: []string{"recorder.match_strategy", "recorder.match_result"}},
 		{Name: "odata.mock.query", Pflicht: []string{"recorder.entity_set", "recorder.coverage_status"}},
 		{Name: "odata.workspace.mutation", Pflicht: []string{"recorder.workspace_id", "recorder.mutation_type"}},
+		{Name: "odata.hybrid.fallback", Pflicht: []string{"recorder.fallback_type", "recorder.fallback_result"}},
 	}
 	got := support.Spans()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Spans() = %+v, erwartet %+v", got, want)
 	}
-	elf := 0
+	dreizehn := 0
 	for _, s := range got {
-		elf += len(s.Pflicht)
+		dreizehn += len(s.Pflicht)
 	}
-	if len(got) != 5 || elf != 11 {
-		t.Errorf("%d Spans mit %d Pflicht-Attributen, erwartet 5 und 11", len(got), elf)
+	if len(got) != 6 || dreizehn != 13 {
+		t.Errorf("%d Spans mit %d Pflicht-Attributen, erwartet 6 und 13", len(got), dreizehn)
 	}
 	konstanten := []support.SpanName{
 		support.SpanGatewayRequest, support.SpanRecordCapture, support.SpanReplayMatch,
-		support.SpanMockQuery, support.SpanWorkspaceMutation,
+		support.SpanMockQuery, support.SpanWorkspaceMutation, support.SpanHybridFallback,
+	}
+	if len(konstanten) != 6 {
+		t.Fatalf("%d Konstanten geprüft, erwartet 6", len(konstanten))
 	}
 	for i, k := range konstanten {
 		if k != want[i].Name {
 			t.Errorf("Konstante %d = %q, erwartet %q", i, k, want[i].Name)
 		}
 	}
-	// jeder Aufruf liefert frische Slices: der äußere und die 5 Pflicht-Slices (6); jedes Element des
+	// jeder Aufruf liefert frische Slices: der äußere und die 6 Pflicht-Slices (7); jedes Element des
 	// ersten Ergebnisses wird geändert, das zweite und ein drittes Ergebnis bleiben wie want
 	frisch := 1 + len(got)
 	a, b := support.Spans(), support.Spans()
@@ -84,8 +89,28 @@ func TestSpansDaten(t *testing.T) {
 			a[i].Pflicht[j] = "geändert"
 		}
 	}
-	if frisch != 6 || !reflect.DeepEqual(b, want) || !reflect.DeepEqual(support.Spans(), want) {
-		t.Errorf("Spans() teilt Speicher zwischen Aufrufen (%d Slices geprüft, erwartet 6)", frisch)
+	if frisch != 7 || !reflect.DeepEqual(b, want) || !reflect.DeepEqual(support.Spans(), want) {
+		t.Errorf("Spans() teilt Speicher zwischen Aufrufen (%d Slices geprüft, erwartet 7)", frisch)
+	}
+}
+
+// Die Auslöser der Fallback-Policy, aus dem Wortlaut von SPEC-230 Nr. 11: vier Codes in dieser
+// Reihenfolge, je mit dem Text der Tabelle von SPEC-109; jeder Aufruf liefert einen frischen Slice.
+func TestVerworfeneCodes(t *testing.T) {
+	want := []model.Code{model.CodeE5001, model.CodeE6001, model.CodeE6002, model.CodeE6003}
+	texte := []string{"ODR-E5001", "ODR-E6001", "ODR-E6002", "ODR-E6003"}
+	got := support.VerworfeneCodes()
+	if !slices.Equal(got, want) || len(got) != 4 {
+		t.Errorf("VerworfeneCodes() = %v, erwartet %v", got, want)
+	}
+	for i, c := range got {
+		if i < len(texte) && c.String() != texte[i] {
+			t.Errorf("Code %d heißt %q, erwartet %q", i, c.String(), texte[i])
+		}
+	}
+	got[0] = 0
+	if support.VerworfeneCodes()[0] != model.CodeE5001 {
+		t.Error("VerworfeneCodes() teilt Speicher zwischen Aufrufen")
 	}
 }
 
@@ -112,8 +137,9 @@ func TestVerwuerfe(t *testing.T) {
 	}
 }
 
-// P13: Telemetry hat 3 Methoden, Span 2, TelemetryReader 1; kein Lesen in Telemetry; der Fake
-// erfüllt beide Ports (der Adapter in seinem Paket).
+// P13: Telemetry hat 3 Methoden, FallbackTelemetry 4, Span 2, TelemetryReader 1; kein Lesen in
+// Telemetry, keine Operation CountDiscarded in Telemetry (P7); der Fake erfüllt die Ports (der
+// Adapter in seinem Paket).
 func TestTelemetrySignaturen(t *testing.T) {
 	ctxT := reflect.TypeFor[context.Context]()
 	attrs := reflect.TypeFor[[]support.Attr]()
@@ -125,17 +151,19 @@ func TestTelemetrySignaturen(t *testing.T) {
 		{reflect.TypeFor[support.Telemetry](), "Log", reflect.FuncOf([]reflect.Type{ctxT, reflect.TypeFor[slog.Level](), reflect.TypeFor[string](), attrs}, nil, true)},
 		{reflect.TypeFor[support.Telemetry](), "StartSpan", reflect.FuncOf([]reflect.Type{ctxT, reflect.TypeFor[support.SpanName](), attrs}, []reflect.Type{ctxT, reflect.TypeFor[support.Span]()}, true)},
 		{reflect.TypeFor[support.Telemetry](), "CountError", reflect.TypeFor[func(model.Code)]()},
+		{reflect.TypeFor[support.FallbackTelemetry](), "CountDiscarded", reflect.TypeFor[func(model.Code)]()},
 		{reflect.TypeFor[support.Span](), "Set", reflect.FuncOf([]reflect.Type{attrs}, nil, true)},
 		{reflect.TypeFor[support.Span](), "End", reflect.TypeFor[func()]()},
 		{reflect.TypeFor[support.TelemetryReader](), "Snapshot", reflect.TypeFor[func() support.Snapshot]()},
 	}
 	zahl := map[reflect.Type]int{
-		reflect.TypeFor[support.Telemetry]():       3,
-		reflect.TypeFor[support.Span]():            2,
-		reflect.TypeFor[support.TelemetryReader](): 1,
+		reflect.TypeFor[support.Telemetry]():         3,
+		reflect.TypeFor[support.FallbackTelemetry](): 4,
+		reflect.TypeFor[support.Span]():              2,
+		reflect.TypeFor[support.TelemetryReader]():   1,
 	}
-	if len(zahl) != 3 {
-		t.Fatalf("%d Schnittstellen geprüft, erwartet 3", len(zahl))
+	if len(zahl) != 4 {
+		t.Fatalf("%d Schnittstellen geprüft, erwartet 4", len(zahl))
 	}
 	for typ, n := range zahl {
 		if typ.NumMethod() != n {
@@ -151,10 +179,15 @@ func TestTelemetrySignaturen(t *testing.T) {
 	if _, ok := reflect.TypeFor[support.Telemetry]().MethodByName("Snapshot"); ok {
 		t.Error("Telemetry hat eine Leseoperation")
 	}
+	if _, ok := reflect.TypeFor[support.Telemetry]().MethodByName("CountDiscarded"); ok {
+		t.Error("Telemetry hat die Operation CountDiscarded")
+	}
 	fake := supporttest.NewFakeTelemetry()
 	var (
-		_ support.Telemetry       = fake
-		_ support.TelemetryReader = fake
+		_ support.Telemetry         = fake
+		_ support.FallbackTelemetry = fake
+		_ support.TelemetryReader   = fake
+		_ support.Telemetry         = support.FallbackTelemetry(nil)
 	)
 }
 
@@ -163,6 +196,7 @@ func TestSnapshotKopieBeispiel(t *testing.T) {
 		Errors:    map[model.Code]uint64{model.CodeE2001: 1},
 		Durations: map[support.SpanName]support.Verteilung{support.SpanMockQuery: {Count: 1, Counts: []uint64{1, 0}}},
 		Dropped:   map[support.Verwurf]uint64{support.VerwurfWert: 1},
+		Verworfen: map[model.Code]uint64{model.CodeE6001: 1},
 		Spans:     []support.SpanRecord{{ID: "spn-1", Attrs: []support.Attr{support.Str("k", "v")}}},
 	}
 	k := s.Kopie()
@@ -172,22 +206,24 @@ func TestSnapshotKopieBeispiel(t *testing.T) {
 	k.Errors[model.CodeE2001] = 9
 	k.Durations[support.SpanMockQuery].Counts[0] = 9
 	k.Dropped[support.VerwurfWert] = 9
+	k.Verworfen[model.CodeE6001] = 9
 	k.Spans[0].Attrs[0].Text = "x"
 	k.Spans[0].ID = "x"
 	if s.Errors[model.CodeE2001] != 1 || s.Durations[support.SpanMockQuery].Counts[0] != 1 ||
-		s.Dropped[support.VerwurfWert] != 1 || s.Spans[0].Attrs[0].Text != "v" || s.Spans[0].ID != "spn-1" {
+		s.Dropped[support.VerwurfWert] != 1 || s.Verworfen[model.CodeE6001] != 1 || s.Spans[0].Attrs[0].Text != "v" || s.Spans[0].ID != "spn-1" {
 		t.Errorf("Änderung an der Kopie wirkt auf das Original: %+v", s)
 	}
 	leer := support.Snapshot{
 		Errors:    map[model.Code]uint64{},
 		Durations: map[support.SpanName]support.Verteilung{},
 		Dropped:   map[support.Verwurf]uint64{},
+		Verworfen: map[model.Code]uint64{},
 		Spans:     []support.SpanRecord{},
 	}
-	if z := leer.Kopie(); z.Errors == nil || z.Durations == nil || z.Dropped == nil || z.Spans == nil {
+	if z := leer.Kopie(); z.Errors == nil || z.Durations == nil || z.Dropped == nil || z.Verworfen == nil || z.Spans == nil {
 		t.Errorf("Kopie des leeren Stands hat eine nil-Sammlung: %+v", z)
 	}
-	if z := (support.Snapshot{}).Kopie(); z.Errors != nil || z.Durations != nil || z.Dropped != nil || z.Spans != nil {
+	if z := (support.Snapshot{}).Kopie(); z.Errors != nil || z.Durations != nil || z.Dropped != nil || z.Verworfen != nil || z.Spans != nil {
 		t.Errorf("Kopie des leeren Stands ist nicht leer: %+v", z)
 	}
 }
@@ -223,13 +259,19 @@ func eintragLaenge(i, p, z int) int {
 // kopieStand baut denselben Stand bei jedem Aufruf neu: je Sammlung der obersten Ebene ein Zustand;
 // ist sie gefüllt, hat sie sechs Einträge (Positionen 0 bis 5), deren Counts bzw. Attrs an
 // Position p den Zustand z von eintragLaengen tragen und an jeder anderen einen der übrigen.
-func kopieStand(zErrors, zDurations, zDropped, zSpans, p, z int) support.Snapshot {
+func kopieStand(zErrors, zDurations, zDropped, zVerworfen, zSpans, p, z int) support.Snapshot {
 	var s support.Snapshot
 	switch zErrors {
 	case zLeer:
 		s.Errors = map[model.Code]uint64{}
 	case zGefuellt:
 		s.Errors = map[model.Code]uint64{model.CodeE2001: 1, model.CodeE2101: 2}
+	}
+	switch zVerworfen {
+	case zLeer:
+		s.Verworfen = map[model.Code]uint64{}
+	case zGefuellt:
+		s.Verworfen = map[model.Code]uint64{model.CodeE5001: 1, model.CodeE6003: 2}
 	}
 	switch zDropped {
 	case zLeer:
@@ -284,6 +326,9 @@ func kopieAendern(s *support.Snapshot) {
 	for k := range s.Dropped {
 		s.Dropped[k]++
 	}
+	for k := range s.Verworfen {
+		s.Verworfen[k]++
+	}
 	for k, v := range s.Durations {
 		for j := range v.Counts {
 			v.Counts[j]++
@@ -323,7 +368,7 @@ func kopiePruefen(t *testing.T, name string, bau func() support.Snapshot) {
 }
 
 // Snapshot.Kopie ist tief und erhält nil und leer (SPEC-230 Nr. 9), beide Richtungen. Zwei Mengen:
-// (1) 3 Zustände je Sammlung der obersten Ebene (4 Sammlungen, 81 Stände); (2) das volle Produkt
+// (1) 3 Zustände je Sammlung der obersten Ebene (5 Sammlungen, 243 Stände); (2) das volle Produkt
 // Position × Zustand der Einträge: in den gefüllten Durations die Counts von 6 Positionen, in den
 // gefüllten Spans die Attrs von 6 Positionen, je Position 16 Zustände (nil, leer und 1 bis 14
 // Elemente, darunter die 3 des Rings und die 12 von Counts), 96 Stände, in denen jede Position jeden
@@ -333,18 +378,20 @@ func TestSnapshotKopie(t *testing.T) {
 	for zE := zNil; zE <= zGefuellt; zE++ {
 		for zD := zNil; zD <= zGefuellt; zD++ {
 			for zR := zNil; zR <= zGefuellt; zR++ {
-				for zS := zNil; zS <= zGefuellt; zS++ {
-					staende++
-					kopiePruefen(t, fmt.Sprintf("Zustände %d %d %d %d", zE, zD, zR, zS), func() support.Snapshot {
-						return kopieStand(zE, zD, zR, zS, 0, 3)
-					})
+				for zV := zNil; zV <= zGefuellt; zV++ {
+					for zS := zNil; zS <= zGefuellt; zS++ {
+						staende++
+						kopiePruefen(t, fmt.Sprintf("Zustände %d %d %d %d %d", zE, zD, zR, zV, zS), func() support.Snapshot {
+							return kopieStand(zE, zD, zR, zV, zS, 0, 3)
+						})
+					}
 				}
 			}
 		}
 	}
-	voll := kopieStand(zGefuellt, zGefuellt, zGefuellt, zGefuellt, 0, 3)
-	if staende != 81 || len(voll.Durations) != 6 || len(voll.Spans) != 6 {
-		t.Errorf("Zählprüfung: %d Stände, %d Verteilungen, %d Spans; erwartet 81, 6, 6", staende, len(voll.Durations), len(voll.Spans))
+	voll := kopieStand(zGefuellt, zGefuellt, zGefuellt, zGefuellt, zGefuellt, 0, 3)
+	if staende != 243 || len(voll.Durations) != 6 || len(voll.Spans) != 6 || len(voll.Verworfen) != 2 {
+		t.Errorf("Zählprüfung: %d Stände, %d Verteilungen, %d Spans, %d verworfene Codes; erwartet 243, 6, 6, 2", staende, len(voll.Durations), len(voll.Spans), len(voll.Verworfen))
 	}
 
 	if len(eintragLaengen()) != 16 {
@@ -356,7 +403,7 @@ func TestSnapshotKopie(t *testing.T) {
 	for p := range 6 {
 		for z := range eintragLaengen() {
 			produkt++
-			s := kopieStand(zGefuellt, zGefuellt, zGefuellt, zGefuellt, p, z)
+			s := kopieStand(zGefuellt, zGefuellt, zGefuellt, zGefuellt, zGefuellt, p, z)
 			for i := range 6 {
 				c := s.Durations[support.SpanName(fmt.Sprintf("span.%d", i))].Counts
 				countsGesehen[[2]int{i, laengeVon(c == nil, len(c))}] = true
@@ -364,7 +411,7 @@ func TestSnapshotKopie(t *testing.T) {
 				attrsGesehen[[2]int{i, laengeVon(a == nil, len(a))}] = true
 			}
 			kopiePruefen(t, fmt.Sprintf("Position %d, Zustand %d", p, z), func() support.Snapshot {
-				return kopieStand(zGefuellt, zGefuellt, zGefuellt, zGefuellt, p, z)
+				return kopieStand(zGefuellt, zGefuellt, zGefuellt, zGefuellt, zGefuellt, p, z)
 			})
 		}
 	}

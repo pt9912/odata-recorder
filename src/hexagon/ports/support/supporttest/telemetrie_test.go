@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -20,16 +21,16 @@ import (
 
 type ctxSchluessel struct{}
 
-// leererStand prüft SPEC-230 Nr. 10: vier leere, nicht-nil Sammlungen.
+// leererStand prüft SPEC-230 Nr. 10: fünf leere, nicht-nil Sammlungen.
 func leererStand(t *testing.T, s support.Snapshot) {
 	t.Helper()
-	if s.Errors == nil || s.Durations == nil || s.Dropped == nil || s.Spans == nil ||
-		len(s.Errors)+len(s.Durations)+len(s.Dropped)+len(s.Spans) != 0 {
-		t.Errorf("Stand %+v, erwartet vier leere, nicht-nil Sammlungen", s)
+	if s.Errors == nil || s.Durations == nil || s.Dropped == nil || s.Verworfen == nil || s.Spans == nil ||
+		len(s.Errors)+len(s.Durations)+len(s.Dropped)+len(s.Verworfen)+len(s.Spans) != 0 {
+		t.Errorf("Stand %+v, erwartet fünf leere, nicht-nil Sammlungen", s)
 	}
 }
 
-// P11: der Fake hält jedes Argument ungeprüft fest und zählt jede der sechs Operationen.
+// P11: der Fake hält jedes Argument ungeprüft fest und zählt jede der sieben Operationen.
 func TestFakeAufzeichnung(t *testing.T) {
 	f := supporttest.NewFakeTelemetry()
 	ctx := context.WithValue(context.Background(), ctxSchluessel{}, "wert")
@@ -45,20 +46,22 @@ func TestFakeAufzeichnung(t *testing.T) {
 	span.End()
 	span.Set(support.Str("nach_dem_ende", "x"))
 	f.CountError(model.CodeE4001)
+	f.CountDiscarded(model.CodeE6002)
 	f.CountError(0)
+	f.CountDiscarded(-7)
 	f.Snapshot()
 	fremd[0] = support.Str("geaendert", "x")
 
 	ops := []supporttest.Operation{
 		supporttest.OpLog, supporttest.OpStartSpan, supporttest.OpCountError,
-		supporttest.OpSet, supporttest.OpEnd, supporttest.OpSnapshot,
+		supporttest.OpSet, supporttest.OpEnd, supporttest.OpSnapshot, supporttest.OpCountDiscarded,
 	}
 	want := map[supporttest.Operation]int{
 		supporttest.OpLog: 1, supporttest.OpStartSpan: 1, supporttest.OpCountError: 2,
-		supporttest.OpSet: 2, supporttest.OpEnd: 2, supporttest.OpSnapshot: 1,
+		supporttest.OpSet: 2, supporttest.OpEnd: 2, supporttest.OpSnapshot: 1, supporttest.OpCountDiscarded: 2,
 	}
-	if len(ops) != 6 {
-		t.Fatalf("%d Operationen, erwartet 6", len(ops))
+	if len(ops) != 7 {
+		t.Fatalf("%d Operationen, erwartet 7", len(ops))
 	}
 	for _, op := range ops {
 		if got := f.Anzahl(op); got != want[op] {
@@ -69,7 +72,8 @@ func TestFakeAufzeichnung(t *testing.T) {
 	a := f.Aufrufe()
 	folge := []supporttest.Operation{
 		supporttest.OpLog, supporttest.OpStartSpan, supporttest.OpSet, supporttest.OpEnd, supporttest.OpEnd,
-		supporttest.OpSet, supporttest.OpCountError, supporttest.OpCountError, supporttest.OpSnapshot,
+		supporttest.OpSet, supporttest.OpCountError, supporttest.OpCountDiscarded, supporttest.OpCountError,
+		supporttest.OpCountDiscarded, supporttest.OpSnapshot,
 	}
 	if len(a) != len(folge) {
 		t.Fatalf("%d Aufrufe, erwartet %d", len(a), len(folge))
@@ -100,8 +104,11 @@ func TestFakeAufzeichnung(t *testing.T) {
 	if a[5].Span != span || a[5].Attrs[0].Key != "nach_dem_ende" {
 		t.Errorf("Set nach End nicht aufgezeichnet: %+v", a[5])
 	}
-	if a[6].Code != model.CodeE4001 || a[7].Code != 0 {
-		t.Errorf("CountError: Codes %d und %d, erwartet %d und 0", a[6].Code, a[7].Code, model.CodeE4001)
+	if a[6].Code != model.CodeE4001 || a[8].Code != 0 {
+		t.Errorf("CountError: Codes %d und %d, erwartet %d und 0", a[6].Code, a[8].Code, model.CodeE4001)
+	}
+	if a[7].Code != model.CodeE6002 || a[9].Code != -7 || a[7].Ctx() != nil || a[9].Ctx() != nil {
+		t.Errorf("CountDiscarded: Codes %d und %d, erwartet %d und -7, ohne ctx", a[7].Code, a[9].Code, model.CodeE6002)
 	}
 	a[0].Attrs[0] = support.Str("geaendert", "x")
 	if f.Aufrufe()[0].Attrs[0].Key != "ausserhalb_der_menge" {
@@ -132,9 +139,9 @@ func attrGleich(a, b []support.Attr) bool {
 // NaN, -0, ±Inf), dazu mode und recorder.mode mit "A B" (gültiger Schlüssel, gültige Art, Wertform
 // verletzt) = 35 Attribute. Listen: nil, leer, jedes der 35 Attribute einzeln, dazu je eine Liste
 // mit 2, 3, 5 und 12 Attributen = 41. ctx: der übergebene und nil. Log 8 Stufen × 6 Texte × 2 ctx
-// und 41 Listen × 2 ctx; StartSpan 9 Namen (darunter der leere und vier fremde) × 2 ctx × 41
-// Listen; Set 41 Listen; CountError 9 Codes (darunter Codes mit hohen Bits). Die Zählprüfung liest
-// die Mengen, das Orakel sind die Werte, die der Test übergibt.
+// und 41 Listen × 2 ctx; StartSpan 10 Namen (die sechs der Menge und vier fremde, darunter der leere) × 2 ctx × 41
+// Listen; Set 41 Listen; CountError und CountDiscarded je 9 Codes (darunter Codes mit hohen Bits).
+// Die Zählprüfung liest die Mengen, das Orakel sind die Werte, die der Test übergibt.
 func TestFakeArgumenteUngeprueft(t *testing.T) {
 	stufen := []slog.Level{math.MinInt, slog.LevelDebug - 1, slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError, slog.LevelError + 1, math.MaxInt}
 	texte := []string{"", " ", "a b", "Zeile\nUmbruch", string([]byte{0x80, 0}), "text"}
@@ -180,8 +187,8 @@ func TestFakeArgumenteUngeprueft(t *testing.T) {
 	var kein context.Context
 	ctx := context.WithValue(context.Background(), ctxSchluessel{}, "wert")
 	ctxe := []context.Context{ctx, kein}
-	if len(stufen) != 8 || len(texte) != 6 || len(namen) != 9 || len(attrs) != 35 || len(listen) != 41 || len(codes) != 9 || len(ctxe) != 2 {
-		t.Fatalf("Mengen %d, %d, %d, %d, %d, %d, %d; erwartet 8, 6, 9, 35, 41, 9, 2", len(stufen), len(texte), len(namen), len(attrs), len(listen), len(codes), len(ctxe))
+	if len(stufen) != 8 || len(texte) != 6 || len(namen) != 10 || len(attrs) != 35 || len(listen) != 41 || len(codes) != 9 || len(ctxe) != 2 {
+		t.Fatalf("Mengen %d, %d, %d, %d, %d, %d, %d; erwartet 8, 6, 10, 35, 41, 9, 2", len(stufen), len(texte), len(namen), len(attrs), len(listen), len(codes), len(ctxe))
 	}
 
 	type erwartet struct {
@@ -226,9 +233,13 @@ func TestFakeArgumenteUngeprueft(t *testing.T) {
 		f.CountError(c)
 		folge = append(folge, erwartet{op: supporttest.OpCountError, code: c})
 	}
+	for _, c := range codes {
+		f.CountDiscarded(c)
+		folge = append(folge, erwartet{op: supporttest.OpCountDiscarded, code: c})
+	}
 
 	a := f.Aufrufe()
-	gezaehlt := 1 + 8*6*2 + 41*2 + 9*2*41 + 41 + 9
+	gezaehlt := 1 + 8*6*2 + 41*2 + 10*2*41 + 41 + 9 + 9
 	if len(a) != len(folge) || len(folge) != gezaehlt {
 		t.Fatalf("%d Aufrufe, erwartet %d (gezählt %d)", len(a), len(folge), gezaehlt)
 	}
@@ -254,15 +265,15 @@ func TestFakeArgumenteUngeprueft(t *testing.T) {
 			t.Errorf("Anzahl(%d) = %d, erwartet %d", op, f.Anzahl(op), n)
 		}
 	}
-	if len(je) != 4 {
-		t.Errorf("%d Operationen geprüft, erwartet 4", len(je))
+	if len(je) != 5 {
+		t.Errorf("%d Operationen geprüft, erwartet 5", len(je))
 	}
 }
 
 // P16: Anzahl und Aufrufe() sind für gleichzeitigen Aufruf sicher, auch gegen laufende Schreiber:
-// 8 Schreiber zeichnen je 300 Runden mit allen sechs Operationen auf; zwei Leser rufen Anzahl für
-// jede der sechs Operationen, zwei rufen Aufrufe(), solange die Schreiber laufen. Die Zähler fallen
-// nie, die Aufzeichnung wird nie kürzer, und jeder Eintrag trägt eine der sechs Operationen. Das
+// 8 Schreiber zeichnen je 300 Runden mit allen sieben Operationen auf; zwei Leser rufen Anzahl für
+// jede der sieben Operationen, zwei rufen Aufrufe(), solange die Schreiber laufen. Die Zähler fallen
+// nie, die Aufzeichnung wird nie kürzer, und jeder Eintrag trägt eine der sieben Operationen. Das
 // Fehlen der Sperre in Anzahl oder in Aufrufe() meldet der Detektor; die Wirkung zeigt der Test
 // nicht in jedem Lauf.
 func TestFakeLesenGleichzeitig(t *testing.T) {
@@ -270,7 +281,7 @@ func TestFakeLesenGleichzeitig(t *testing.T) {
 	f := supporttest.NewFakeTelemetry()
 	ops := []supporttest.Operation{
 		supporttest.OpLog, supporttest.OpStartSpan, supporttest.OpCountError,
-		supporttest.OpSet, supporttest.OpEnd, supporttest.OpSnapshot,
+		supporttest.OpSet, supporttest.OpEnd, supporttest.OpSnapshot, supporttest.OpCountDiscarded,
 	}
 	start := make(chan struct{})
 	var fertig atomic.Bool
@@ -288,6 +299,7 @@ func TestFakeLesenGleichzeitig(t *testing.T) {
 				sp.End()
 				f.CountError(model.CodeE2001)
 				f.Snapshot()
+				f.CountDiscarded(model.CodeE6001)
 			}
 		}()
 	}
@@ -296,7 +308,7 @@ func TestFakeLesenGleichzeitig(t *testing.T) {
 		go func() {
 			defer lesend.Done()
 			<-start
-			var zuletzt [6]int
+			var zuletzt [7]int
 			for {
 				for k, op := range ops {
 					n := f.Anzahl(op)
@@ -325,7 +337,7 @@ func TestFakeLesenGleichzeitig(t *testing.T) {
 				}
 				zuletzt = len(a)
 				for _, e := range a {
-					if e.Op < supporttest.OpLog || e.Op > supporttest.OpSnapshot {
+					if e.Op < supporttest.OpLog || e.Op > supporttest.OpCountDiscarded {
 						fehler.Add(1)
 					}
 				}
@@ -351,8 +363,8 @@ func TestFakeLesenGleichzeitig(t *testing.T) {
 			t.Errorf("Anzahl(%d) = %d, erwartet %d", op, f.Anzahl(op), schreiber*runden)
 		}
 	}
-	if n := len(f.Aufrufe()); n != 6*schreiber*runden {
-		t.Errorf("%d Einträge, erwartet %d", n, 6*schreiber*runden)
+	if n := len(f.Aufrufe()); n != 7*schreiber*runden {
+		t.Errorf("%d Einträge, erwartet %d", n, 7*schreiber*runden)
 	}
 }
 
@@ -360,11 +372,11 @@ func TestFakeSnapshotStand(t *testing.T) {
 	f := supporttest.NewFakeTelemetry()
 	leererStand(t, f.Snapshot())
 	f.SetzeStand(support.Snapshot{})
-	if got := f.Snapshot(); got.Errors != nil || got.Durations != nil || got.Dropped != nil || got.Spans != nil {
+	if got := f.Snapshot(); got.Errors != nil || got.Durations != nil || got.Dropped != nil || got.Verworfen != nil || got.Spans != nil {
 		t.Errorf("gesetzter nil-Stand %+v, erwartet nil wie gesetzt", got)
 	}
-	f.SetzeStand(support.Snapshot{Errors: map[model.Code]uint64{}, Spans: []support.SpanRecord{}})
-	if got := f.Snapshot(); got.Errors == nil || got.Spans == nil || got.Dropped != nil {
+	f.SetzeStand(support.Snapshot{Errors: map[model.Code]uint64{}, Verworfen: map[model.Code]uint64{}, Spans: []support.SpanRecord{}})
+	if got := f.Snapshot(); got.Errors == nil || got.Verworfen == nil || got.Spans == nil || got.Dropped != nil {
 		t.Errorf("gesetzter leerer Stand %+v, erwartet leer wie gesetzt", got)
 	}
 	f = supporttest.NewFakeTelemetry()
@@ -540,10 +552,11 @@ func TestFakeCtx(t *testing.T) {
 	}
 }
 
-// vollerStand baut bei jedem Aufruf denselben Stand, in dem alle sechs Sammlungen gefüllt sind.
+// vollerStand baut bei jedem Aufruf denselben Stand, in dem alle sieben Sammlungen gefüllt sind.
 func vollerStand() support.Snapshot {
 	return support.Snapshot{
-		Errors: map[model.Code]uint64{model.CodeE2001: 1, model.CodeE2101: 2},
+		Errors:    map[model.Code]uint64{model.CodeE2001: 1, model.CodeE2101: 2},
+		Verworfen: map[model.Code]uint64{model.CodeE5001: 3, model.CodeE6002: 4},
 		Durations: map[support.SpanName]support.Verteilung{
 			support.SpanMockQuery:   {Count: 3, Sum: 5, Counts: []uint64{1, 2, 0}},
 			support.SpanReplayMatch: {Count: 1, Sum: 2, Counts: []uint64{0, 1, 0}},
@@ -557,7 +570,7 @@ func vollerStand() support.Snapshot {
 }
 
 // aendereSammlung ändert jedes Element der Sammlung Nr. i (Errors, Durations, Dropped, Spans,
-// Counts, Attrs) und keine andere.
+// Counts, Attrs, Verworfen) und keine andere.
 func aendereSammlung(s *support.Snapshot, i int) {
 	switch i {
 	case 0:
@@ -591,16 +604,20 @@ func aendereSammlung(s *support.Snapshot, i int) {
 				s.Spans[j].Attrs[l].Text += "x"
 			}
 		}
+	case 6:
+		for k := range s.Verworfen {
+			s.Verworfen[k]++
+		}
 	}
 }
 
-// P11: SetzeStand und Snapshot kopieren (SPEC-230 Nr. 10). Menge: 6 Sammlungen (Errors, Durations,
-// Dropped, Spans, Counts, Attrs) × 2 Richtungen (die Änderung des Eingabestands nach SetzeStand, die
-// Änderung des gelesenen Stands) = 12 Fälle, je Fall wird nur eine Sammlung geändert; Orakel ist ein
-// frisch gebauter Stand.
+// P11: SetzeStand und Snapshot kopieren (SPEC-230 Nr. 10). Menge: 7 Sammlungen (Errors, Durations,
+// Dropped, Spans, Counts, Attrs, Verworfen) × 2 Richtungen (die Änderung des Eingabestands nach
+// SetzeStand, die Änderung des gelesenen Stands) = 14 Fälle, je Fall wird nur eine Sammlung
+// geändert; Orakel ist ein frisch gebauter Stand.
 func TestFakeStandKopie(t *testing.T) {
 	faelle := 0
-	for i := range 6 {
+	for i := range 7 {
 		for _, richtung := range []string{"nach SetzeStand", "nach Snapshot"} {
 			faelle++
 			f := supporttest.NewFakeTelemetry()
@@ -617,13 +634,13 @@ func TestFakeStandKopie(t *testing.T) {
 			}
 		}
 	}
-	if faelle != 12 {
-		t.Errorf("%d Fälle, erwartet 12", faelle)
+	if faelle != 14 {
+		t.Errorf("%d Fälle, erwartet 14", faelle)
 	}
 	// ohne gesetzten Stand: eine Änderung am gelesenen leeren Stand erreicht weder den nächsten
-	// Snapshot desselben Fakes noch den eines anderen (3 Maps × 2 Leser = 6 Fälle; ein Slice der
+	// Snapshot desselben Fakes noch den eines anderen (4 Maps × 2 Leser = 8 Fälle; ein Slice der
 	// Länge 0 lässt sich nicht beschreiben, Spans ist äquivalent)
-	for i := range 3 {
+	for i := range 4 {
 		f, g := supporttest.NewFakeTelemetry(), supporttest.NewFakeTelemetry()
 		s := f.Snapshot()
 		switch i {
@@ -633,6 +650,8 @@ func TestFakeStandKopie(t *testing.T) {
 			s.Durations[support.SpanMockQuery] = support.Verteilung{Count: 1}
 		case 2:
 			s.Dropped[support.VerwurfWert] = 1
+		case 3:
+			s.Verworfen[model.CodeE6003] = 1
 		}
 		leererStand(t, f.Snapshot())
 		leererStand(t, g.Snapshot())
@@ -704,13 +723,14 @@ func TestFakeStrings(t *testing.T) {
 	}
 }
 
-// P11: Anzahl liefert für jede Operation außerhalb der sechs 0, ohne Panik: die Werte unter 0, 0, die
+// P11: Anzahl liefert für jede Operation außerhalb der sieben 0, ohne Panik: die Werte unter 0, 0, die
 // Werte über der letzten Operation und die Grenzen von int.
 func TestFakeAnzahl(t *testing.T) {
 	f := supporttest.NewFakeTelemetry()
 	f.CountError(model.CodeE2001)
 	f.Snapshot()
-	aussen := []supporttest.Operation{math.MinInt, -100, -2, -1, 0, supporttest.OpSnapshot + 1, supporttest.OpSnapshot + 2, 100, math.MaxInt}
+	f.CountDiscarded(model.CodeE6001)
+	aussen := []supporttest.Operation{math.MinInt, -100, -2, -1, 0, supporttest.OpCountDiscarded + 1, supporttest.OpCountDiscarded + 2, 100, math.MaxInt}
 	for _, op := range aussen {
 		func() {
 			defer func() {
@@ -723,12 +743,12 @@ func TestFakeAnzahl(t *testing.T) {
 			}
 		}()
 	}
-	if f.Anzahl(supporttest.OpCountError) != 1 || f.Anzahl(supporttest.OpSnapshot) != 1 {
+	if f.Anzahl(supporttest.OpCountError) != 1 || f.Anzahl(supporttest.OpSnapshot) != 1 || f.Anzahl(supporttest.OpCountDiscarded) != 1 {
 		t.Error("Anzahl der Operationen innerhalb falsch")
 	}
 }
 
-// P11: jede der sechs Operationen hält den Span fest, den sie betrifft, und nur sie: zwei Spans,
+// P11: jede der sieben Operationen hält den Span fest, den sie betrifft, und nur sie: zwei Spans,
 // deren Enden in umgekehrter Reihenfolge stehen.
 func TestFakeSpanJeOperation(t *testing.T) {
 	f := supporttest.NewFakeTelemetry()
@@ -740,6 +760,7 @@ func TestFakeSpanJeOperation(t *testing.T) {
 	s1.End()
 	s2.Set(support.Str("a", "b"))
 	f.CountError(model.CodeE2001)
+	f.CountDiscarded(model.CodeE6001)
 	f.Snapshot()
 	want := []struct {
 		op   supporttest.Operation
@@ -747,7 +768,7 @@ func TestFakeSpanJeOperation(t *testing.T) {
 	}{
 		{supporttest.OpStartSpan, s1}, {supporttest.OpStartSpan, s2}, {supporttest.OpLog, nil},
 		{supporttest.OpEnd, s2}, {supporttest.OpSet, s1}, {supporttest.OpEnd, s1}, {supporttest.OpSet, s2},
-		{supporttest.OpCountError, nil}, {supporttest.OpSnapshot, nil},
+		{supporttest.OpCountError, nil}, {supporttest.OpCountDiscarded, nil}, {supporttest.OpSnapshot, nil},
 	}
 	a := f.Aufrufe()
 	if len(a) != len(want) {
@@ -767,8 +788,8 @@ func TestFakeSpanJeOperation(t *testing.T) {
 			t.Errorf("Aufruf %d (Operation %d): Span %v, erwartet %v", i, got.Op, got.Span, w.span)
 		}
 	}
-	if len(ops) != 6 {
-		t.Errorf("%d Operationen geprüft, erwartet 6", len(ops))
+	if len(ops) != 7 {
+		t.Errorf("%d Operationen geprüft, erwartet 7", len(ops))
 	}
 }
 
@@ -785,22 +806,28 @@ func TestFakeSpanID(t *testing.T) {
 	}
 }
 
-// Der Nullwert ist nutzbar: jede der sechs Operationen, ohne Panik, und gezählt.
+// Der Nullwert ist nutzbar: jede der sieben Operationen, ohne Panik, und gezählt.
 func TestFakeNullwert(t *testing.T) {
 	f := &supporttest.FakeTelemetry{}
 	ctx, s := f.StartSpan(context.Background(), support.SpanMockQuery)
 	f.Log(ctx, slog.LevelInfo, "m")
 	f.CountError(model.CodeE2001)
+	f.CountDiscarded(model.CodeE6001)
 	s.Set()
 	s.End()
 	leererStand(t, f.Snapshot())
-	for op := supporttest.OpLog; op <= supporttest.OpSnapshot; op++ {
+	n := 0
+	for op := supporttest.OpLog; op <= supporttest.OpCountDiscarded; op++ {
+		n++
 		if f.Anzahl(op) != 1 {
 			t.Errorf("Anzahl(%d) = %d, erwartet 1", op, f.Anzahl(op))
 		}
 	}
-	if f.Anzahl(0) != 0 || f.Anzahl(supporttest.OpSnapshot+1) != 0 {
-		t.Error("Operation außerhalb der sechs gezählt")
+	if n != 7 {
+		t.Errorf("%d Operationen geprüft, erwartet 7", n)
+	}
+	if f.Anzahl(0) != 0 || f.Anzahl(supporttest.OpCountDiscarded+1) != 0 {
+		t.Error("Operation außerhalb der sieben gezählt")
 	}
 }
 
@@ -824,6 +851,7 @@ func TestFakeSnapshotGleichzeitig(t *testing.T) {
 					Errors:    map[model.Code]uint64{model.CodeE2001: n},
 					Durations: map[support.SpanName]support.Verteilung{support.SpanMockQuery: {Count: n, Counts: []uint64{n, n}}},
 					Dropped:   map[support.Verwurf]uint64{support.VerwurfWert: n},
+					Verworfen: map[model.Code]uint64{model.CodeE6001: n},
 					Spans:     []support.SpanRecord{{ID: "x", Attrs: []support.Attr{support.Int("n", int64(n))}}},
 				})
 			}
@@ -841,7 +869,7 @@ func TestFakeSnapshotGleichzeitig(t *testing.T) {
 				}
 				n := s.Errors[model.CodeE2001]
 				d := s.Durations[support.SpanMockQuery]
-				if s.Dropped[support.VerwurfWert] != n || d.Count != n || len(d.Counts) != 2 || d.Counts[0] != n ||
+				if s.Dropped[support.VerwurfWert] != n || s.Verworfen[model.CodeE6001] != n || d.Count != n || len(d.Counts) != 2 || d.Counts[0] != n ||
 					len(s.Spans) != 1 || len(s.Spans[0].Attrs) != 1 || s.Spans[0].Attrs[0].Ganz != int64(n) {
 					fehler <- "ein Stand ist nicht ganz"
 				}
@@ -859,7 +887,48 @@ func TestFakeSnapshotGleichzeitig(t *testing.T) {
 	}
 }
 
-// P16: gleichzeitiger Aufruf; 64 Goroutinen mit je 500 Aufrufen, reihum über die sechs Operationen.
+// P6: CountDiscarded hält jeden Aufruf unverändert fest und zählt ihn, getrennt von CountError.
+// Menge: die 41 Codes der Tabelle von SPEC-109 und 5 Randwerte (0, -1, 42, MaxInt, MinInt) gleich 46
+// Codes; jeder wird abwechselnd mit CountError gerufen (CountError mit dem Code + 1000, so dass
+// kein Aufruf den Wert des anderen trägt). Orakel: die Folge der Aufrufe und die Zähler der beiden
+// Operationen (je 46); die Aufzeichnung ist eine Kopie. Die Zählprüfung liest die Menge selbst.
+func TestFakeCountDiscarded(t *testing.T) {
+	codes := slices.Clone(model.AlleCodes())
+	codes = append(codes, 0, -1, 42, math.MaxInt, math.MinInt)
+	if len(codes) != 46 {
+		t.Fatalf("%d Codes, erwartet 46", len(codes))
+	}
+	f := supporttest.NewFakeTelemetry()
+	for _, c := range codes {
+		f.CountDiscarded(c)
+		f.CountError(c + 1000)
+	}
+	a := f.Aufrufe()
+	if len(a) != 2*len(codes) {
+		t.Fatalf("%d Aufrufe, erwartet %d", len(a), 2*len(codes))
+	}
+	for i, c := range codes {
+		d, e := a[2*i], a[2*i+1]
+		if d.Op != supporttest.OpCountDiscarded || d.Code != c || d.Ctx() != nil || d.Span != nil || len(d.Attrs) != 0 {
+			t.Errorf("Aufruf %d: %+v, erwartet CountDiscarded mit Code %d", 2*i, d, c)
+		}
+		if e.Op != supporttest.OpCountError || e.Code != c+1000 {
+			t.Errorf("Aufruf %d: %+v, erwartet CountError mit Code %d", 2*i+1, e, c+1000)
+		}
+	}
+	if f.Anzahl(supporttest.OpCountDiscarded) != 46 || f.Anzahl(supporttest.OpCountError) != 46 {
+		t.Errorf("Anzahl: CountDiscarded %d, CountError %d, erwartet je 46", f.Anzahl(supporttest.OpCountDiscarded), f.Anzahl(supporttest.OpCountError))
+	}
+	a[0].Code = 12345
+	if f.Aufrufe()[0].Code != codes[0] {
+		t.Error("Aufrufe() teilt Speicher mit der Aufzeichnung")
+	}
+	if f.Anzahl(supporttest.OpSnapshot) != 0 || f.Anzahl(supporttest.OpLog) != 0 {
+		t.Error("CountDiscarded zählt eine andere Operation")
+	}
+}
+
+// P16: gleichzeitiger Aufruf; 64 Goroutinen mit je 500 Aufrufen, reihum über die sieben Operationen.
 func TestFakeGleichzeitig(t *testing.T) {
 	const goroutinen, aufrufe = 64, 500
 	f := supporttest.NewFakeTelemetry()
@@ -870,7 +939,7 @@ func TestFakeGleichzeitig(t *testing.T) {
 			defer wg.Done()
 			var sp support.Span
 			for i := range aufrufe {
-				switch i % 6 {
+				switch i % 7 {
 				case 0:
 					f.Log(context.Background(), slog.LevelInfo, "m")
 				case 1:
@@ -881,6 +950,8 @@ func TestFakeGleichzeitig(t *testing.T) {
 					sp.End()
 				case 4:
 					f.CountError(model.CodeE2001)
+				case 5:
+					f.CountDiscarded(model.CodeE6001)
 				default:
 					f.Snapshot()
 				}
@@ -891,13 +962,13 @@ func TestFakeGleichzeitig(t *testing.T) {
 	if n := len(f.Aufrufe()); n != goroutinen*aufrufe {
 		t.Errorf("%d Einträge, erwartet %d", n, goroutinen*aufrufe)
 	}
-	je := [6]int{}
+	je := [7]int{}
 	for i := range aufrufe {
-		je[i%6]++
+		je[i%7]++
 	}
 	ops := []supporttest.Operation{
 		supporttest.OpLog, supporttest.OpStartSpan, supporttest.OpSet,
-		supporttest.OpEnd, supporttest.OpCountError, supporttest.OpSnapshot,
+		supporttest.OpEnd, supporttest.OpCountError, supporttest.OpCountDiscarded, supporttest.OpSnapshot,
 	}
 	for k, op := range ops {
 		if got, want := f.Anzahl(op), je[k]*goroutinen; got != want {

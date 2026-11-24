@@ -18,6 +18,15 @@ type Telemetry interface {
 	CountError(code model.Code)
 }
 
+// FallbackTelemetry ist Telemetry mit der Operation CountDiscarded; allein der Hybrid-Dienst
+// erhält ihn (SPEC-230 Nr. 11, SPEC-321). CountDiscarded zählt einen verworfenen Versuch je Code
+// aus VerworfeneCodes; jeder andere Code erhöht keinen Zähler. Die Operation hat kein ctx und
+// liefert nichts.
+type FallbackTelemetry interface {
+	Telemetry
+	CountDiscarded(code model.Code)
+}
+
 // Span ist ein gestarteter Span (SPEC-230 Nr. 5 bis 7).
 type Span interface {
 	Set(attrs ...Attr)
@@ -69,13 +78,14 @@ func ErrorCode(key string, c model.Code) Attr {
 // SpanName ist der Name eines Spans; die Menge der Namen ist geschlossen (SPEC-230 Nr. 5).
 type SpanName string
 
-// Die fünf Spans aus §5 der Spezifikation.
+// Die sechs Spans aus §5 der Spezifikation.
 const (
 	SpanGatewayRequest    SpanName = "odata.gateway.request"
 	SpanRecordCapture     SpanName = "odata.record.capture"
 	SpanReplayMatch       SpanName = "odata.replay.match"
 	SpanMockQuery         SpanName = "odata.mock.query"
 	SpanWorkspaceMutation SpanName = "odata.workspace.mutation"
+	SpanHybridFallback    SpanName = "odata.hybrid.fallback"
 )
 
 // SpanSpec ist ein Span mit seinen Pflicht-Attributen in der Reihenfolge der Tabelle in §5.
@@ -84,8 +94,8 @@ type SpanSpec struct {
 	Pflicht []string
 }
 
-// Spans liefert die fünf Spans mit zusammen elf Pflicht-Attributen; jeder Aufruf liefert frische
-// Slices.
+// Spans liefert die sechs Spans mit zusammen dreizehn Pflicht-Attributen; jeder Aufruf liefert
+// frische Slices.
 func Spans() []SpanSpec {
 	return []SpanSpec{
 		{SpanGatewayRequest, []string{"http.request.method", "http.response.status_code", "recorder.mode"}},
@@ -93,7 +103,14 @@ func Spans() []SpanSpec {
 		{SpanReplayMatch, []string{"recorder.match_strategy", "recorder.match_result"}},
 		{SpanMockQuery, []string{"recorder.entity_set", "recorder.coverage_status"}},
 		{SpanWorkspaceMutation, []string{"recorder.workspace_id", "recorder.mutation_type"}},
+		{SpanHybridFallback, []string{"recorder.fallback_type", "recorder.fallback_result"}},
 	}
+}
+
+// VerworfeneCodes liefert die vier Codes, die CountDiscarded zählt, in dieser Reihenfolge: die
+// Auslöser der Fallback-Policy (SPEC-230 Nr. 11). Jeder Aufruf liefert einen frischen Slice.
+func VerworfeneCodes() []model.Code {
+	return []model.Code{model.CodeE5001, model.CodeE6001, model.CodeE6002, model.CodeE6003}
 }
 
 // Eimer liefert die elf oberen Grenzen der Verteilung (1, 2, 5, 10, 20, 50, 100, 200, 500, 1000 und
@@ -151,6 +168,7 @@ type Snapshot struct {
 	Errors    map[model.Code]uint64
 	Durations map[SpanName]Verteilung
 	Dropped   map[Verwurf]uint64
+	Verworfen map[model.Code]uint64
 	Spans     []SpanRecord
 }
 
@@ -158,9 +176,10 @@ type Snapshot struct {
 // bleibt nil.
 func (s Snapshot) Kopie() Snapshot {
 	k := Snapshot{
-		Errors:  maps.Clone(s.Errors),
-		Dropped: maps.Clone(s.Dropped),
-		Spans:   slices.Clone(s.Spans),
+		Errors:    maps.Clone(s.Errors),
+		Dropped:   maps.Clone(s.Dropped),
+		Verworfen: maps.Clone(s.Verworfen),
+		Spans:     slices.Clone(s.Spans),
 	}
 	if s.Durations != nil {
 		k.Durations = make(map[SpanName]Verteilung, len(s.Durations))

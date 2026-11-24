@@ -11,15 +11,17 @@ import (
 )
 
 var (
-	_ support.Telemetry       = (*FakeTelemetry)(nil)
-	_ support.TelemetryReader = (*FakeTelemetry)(nil)
-	_ support.Span            = (*FakeSpan)(nil)
+	_ support.Telemetry         = (*FakeTelemetry)(nil)
+	_ support.FallbackTelemetry = (*FakeTelemetry)(nil)
+	_ support.TelemetryReader   = (*FakeTelemetry)(nil)
+	_ support.Span              = (*FakeSpan)(nil)
 )
 
-// Operation benennt eine der sechs Operationen der Ports Telemetry, Span und TelemetryReader.
+// Operation benennt eine der sieben Operationen der Ports FallbackTelemetry, Span und
+// TelemetryReader.
 type Operation int
 
-// Die sechs Operationen.
+// Die sieben Operationen.
 const (
 	OpLog Operation = iota + 1
 	OpStartSpan
@@ -27,6 +29,7 @@ const (
 	OpSet
 	OpEnd
 	OpSnapshot
+	OpCountDiscarded
 )
 
 // Aufruf ist ein aufgezeichneter Aufruf mit jedem Argument unverändert und ungeprüft. Ctx()
@@ -45,7 +48,8 @@ type Aufruf struct {
 	Eltern *FakeSpan
 }
 
-// Ctx liefert den ctx des Aufrufs; ohne ctx im Aufruf (CountError, Set, End, Snapshot) nil.
+// Ctx liefert den ctx des Aufrufs; ohne ctx im Aufruf (CountError, CountDiscarded, Set, End,
+// Snapshot) nil.
 func (a Aufruf) Ctx() context.Context {
 	if a.ctx == nil {
 		return nil
@@ -64,7 +68,7 @@ func halten(ctx context.Context) func() context.Context {
 type FakeTelemetry struct {
 	mu       sync.Mutex
 	aufrufe  []Aufruf
-	zaehler  [OpSnapshot + 1]int
+	zaehler  [OpCountDiscarded + 1]int
 	stand    support.Snapshot
 	gesetzt  bool
 	naechste int
@@ -110,8 +114,13 @@ func (f *FakeTelemetry) CountError(code model.Code) {
 	f.aufzeichnen(Aufruf{Op: OpCountError, Code: code})
 }
 
+// CountDiscarded zeichnet den Aufruf mit dem Code auf.
+func (f *FakeTelemetry) CountDiscarded(code model.Code) {
+	f.aufzeichnen(Aufruf{Op: OpCountDiscarded, Code: code})
+}
+
 // Snapshot zählt den Aufruf und liefert eine Kopie des gesetzten Stands (nil oder leer, wie
-// gesetzt), sonst den leeren Stand mit vier nicht-nil Sammlungen (SPEC-230 Nr. 10).
+// gesetzt), sonst den leeren Stand mit fünf nicht-nil Sammlungen (SPEC-230 Nr. 10).
 func (f *FakeTelemetry) Snapshot() support.Snapshot {
 	f.aufzeichnen(Aufruf{Op: OpSnapshot})
 	f.mu.Lock()
@@ -121,6 +130,7 @@ func (f *FakeTelemetry) Snapshot() support.Snapshot {
 			Errors:    map[model.Code]uint64{},
 			Durations: map[support.SpanName]support.Verteilung{},
 			Dropped:   map[support.Verwurf]uint64{},
+			Verworfen: map[model.Code]uint64{},
 			Spans:     []support.SpanRecord{},
 		}
 	}

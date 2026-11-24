@@ -20,7 +20,7 @@ type zeile struct {
 	form  string
 }
 
-// katalog ist die Tabelle in SPEC-230 Nr. 3, Zeile für Zeile aus dem Wortlaut (24 Schlüssel).
+// katalog ist die Tabelle in SPEC-230 Nr. 3, Zeile für Zeile aus dem Wortlaut (26 Schlüssel).
 func katalog() []zeile {
 	s, i, f := support.ArtString, support.ArtInt, support.ArtFloat
 	return []zeile{
@@ -39,13 +39,15 @@ func katalog() []zeile {
 		{"recorder.coverage_status", "odata.mock.query", s, "token"},
 		{"recorder.workspace_id", "odata.workspace.mutation", s, "kennung"},
 		{"recorder.mutation_type", "odata.workspace.mutation", s, "token"},
+		{"recorder.fallback_type", "odata.hybrid.fallback", s, "token"},
+		{"recorder.fallback_result", "odata.hybrid.fallback", s, "token"},
 	}
 }
 
 func spanNamen() []string {
 	return []string{
 		"odata.gateway.request", "odata.record.capture", "odata.replay.match",
-		"odata.mock.query", "odata.workspace.mutation",
+		"odata.mock.query", "odata.workspace.mutation", "odata.hybrid.fallback",
 	}
 }
 
@@ -172,8 +174,8 @@ func TestSchluesselmengen(t *testing.T) {
 			}
 		}
 	}
-	if len(katalog()) != 24 || paare != 24+24*5 || logIn != 13 || spanIn != 11 {
-		t.Errorf("Zählprüfung: %d Schlüssel, %d Paare, %d in Log, %d in Spans; erwartet 24, 144, 13, 11", len(katalog()), paare, logIn, spanIn)
+	if len(katalog()) != 26 || len(spanNamen()) != 6 || paare != 26+26*6 || logIn != 13 || spanIn != 13 {
+		t.Errorf("Zählprüfung: %d Schlüssel, %d Paare, %d in Log, %d in Spans; erwartet 26, 182, 13, 13", len(katalog()), paare, logIn, spanIn)
 	}
 	fremd := []string{"timestamp", "level", "msg", "Mode", "", "mode "}
 	for _, k := range fremd {
