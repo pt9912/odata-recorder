@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"testing"
@@ -98,34 +100,34 @@ func (u *fakeUhr) Vorstellen(d time.Duration) {
 	}
 }
 
-// wache beendet den Prozess mit panic, wenn der Test nach d der wirklichen Uhr nicht fertig ist; jeder Test ruft sie zuerst.
+// wache beendet den Prozess mit panic, wenn der Test nach d der wirklichen Zeit nicht fertig ist; jeder Test ruft sie zuerst. Sie und warteAuf
+// lesen die Zeit des Prozesses ohne die Schnittstelle Uhr, damit ein Fehler in systemuhr sie nicht mitnimmt; diese Datei ist von TestPaketOhneZeit
+// ausgenommen.
 func wache(t *testing.T, d time.Duration) {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	fertig := make(chan struct{})
+	t.Cleanup(func() { close(fertig) })
 	name := t.Name()
 	go func() {
-		if (systemuhr{}).WarteBis(ctx, (systemuhr{}).Jetzt().Add(d)) == nil {
+		z := time.NewTimer(d)
+		defer z.Stop()
+		select {
+		case <-z.C:
 			panic("Frist des Tests " + name + " überschritten")
+		case <-fertig:
 		}
 	}()
 }
 
-// warteAuf liefert den Wert aus ch und beendet den Test, wenn nach d der wirklichen Uhr keiner da ist.
+// warteAuf liefert den Wert aus ch und beendet den Test, wenn nach d der wirklichen Zeit keiner da ist.
 func warteAuf[T any](t *testing.T, ch <-chan T, d time.Duration) T {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	abgelaufen := make(chan struct{})
-	go func() {
-		if (systemuhr{}).WarteBis(ctx, (systemuhr{}).Jetzt().Add(d)) == nil {
-			close(abgelaufen)
-		}
-	}()
+	z := time.NewTimer(d)
+	defer z.Stop()
 	select {
 	case v := <-ch:
 		return v
-	case <-abgelaufen:
+	case <-z.C:
 		t.Fatalf("nach %v kein Wert", d)
 	}
 	var null T
@@ -176,42 +178,69 @@ func TestFakeUhr(t *testing.T) {
 	}
 	fctx, fcancel := mitFrist(context.Background(), u, time.Minute)
 	defer fcancel()
+	for u.wartende() < 1 {
+		runtime.Gosched()
+	}
 	u.Vorstellen(time.Minute - time.Second)
-	if fctx.Err() != nil {
-		t.Fatal("mitFrist beendete den Kontext vor der Frist")
+	if u.wartende() != 1 {
+		t.Fatal("mitFrist ließ den Wartenden vor der Frist frei")
 	}
 	u.Vorstellen(time.Second)
-	<-fctx.Done()
+	warteAuf(t, fctx.Done(), 5*time.Second)
 	if !errors.Is(context.Cause(fctx), errFrist) {
 		t.Errorf("Ursache %v, erwartet errFrist", context.Cause(fctx))
 	}
 	ctx2, cancel2 := mitFrist(context.Background(), u, time.Hour)
 	cancel2()
-	<-ctx2.Done()
+	warteAuf(t, ctx2.Done(), 5*time.Second)
 	if errors.Is(context.Cause(ctx2), errFrist) {
 		t.Error("mitFrist: die Funktion zum Beenden gibt errFrist als Ursache an")
 	}
 }
 
-// TestSystemuhr: die Uhr des Prozesses läuft vor, kehrt für eine vergangene Zeit sofort zurück, wartet bis zur Zeit, endet mit dem
-// Kontext und tickt bis zu ihrem Ende.
+// TestSystemuhr: die Uhr des Prozesses zeigt die Zeit des Dateisystems (innerhalb von 5 s), kehrt für eine vergangene Zeit sofort zurück,
+// wartet bis zur Zeit, endet mit dem Kontext und tickt bis zum Aufruf der Funktion, die ihren Ticker beendet; jeder Aufruf von WarteBis läuft
+// in einer Goroutine, deren Rückkehr der Test innerhalb von 2 s verlangt.
 func TestSystemuhr(t *testing.T) {
 	wache(t, 30*time.Second)
 	u := systemuhr{}
+	anker := filepath.Join(t.TempDir(), "anker")
+	if err := os.WriteFile(anker, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Stat(anker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if abstand := u.Jetzt().Sub(fi.ModTime()); abstand < -5*time.Second || abstand > 5*time.Second {
+		t.Errorf("Jetzt weicht um %v von der Zeit des Dateisystems ab", abstand)
+	}
+	warte := func(ctx context.Context, bis time.Time) error {
+		c := make(chan error, 1)
+		go func() { c <- u.WarteBis(ctx, bis) }()
+		return warteAuf(t, c, 2*time.Second)
+	}
 	a := u.Jetzt()
-	if err := u.WarteBis(context.Background(), a.Add(-time.Hour)); err != nil {
+	if err := warte(context.Background(), a.Add(-time.Hour)); err != nil {
 		t.Errorf("WarteBis für eine vergangene Zeit: %v", err)
 	}
-	if err := u.WarteBis(context.Background(), a.Add(20*time.Millisecond)); err != nil || u.Jetzt().Sub(a) < 20*time.Millisecond {
+	if err := warte(context.Background(), a.Add(20*time.Millisecond)); err != nil || u.Jetzt().Sub(a) < 20*time.Millisecond {
 		t.Errorf("WarteBis: %v, vergangen %v, erwartet mindestens 20ms", err, u.Jetzt().Sub(a))
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := u.WarteBis(ctx, u.Jetzt().Add(time.Hour)); !errors.Is(err, context.Canceled) {
+	if err := warte(ctx, u.Jetzt().Add(time.Hour)); !errors.Is(err, context.Canceled) {
 		t.Errorf("WarteBis mit beendetem Kontext: %v", err)
 	}
 	ch, stop := u.Ticker(5 * time.Millisecond)
 	defer stop()
 	warteAuf(t, ch, 2*time.Second)
 	warteAuf(t, ch, 2*time.Second)
+	stop()
+	_ = warte(context.Background(), u.Jetzt().Add(40*time.Millisecond))
+	select {
+	case <-ch:
+		t.Error("der Ticker tickt nach dem Aufruf der Funktion, die ihn beendet")
+	default:
+	}
 }

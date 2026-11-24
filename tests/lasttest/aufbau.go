@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -74,8 +75,39 @@ type handle struct {
 	Workspaces     func() inbound.WorkspaceUseCase
 }
 
-// aufbauEingabe sind die Werte des Aufbaus. Adresse ist die des Referenzdienstes (leer: ein freier Port von 127.0.0.1), Baue ersetzt
-// bootstrap.Build (nil: bootstrap.Build), Umhuellen den Handler des Referenzdienstes (nil: keine Ersetzung); die letzten drei dienen dem Test.
+// ablage ist die lesende Sicht auf die Datenbank des Aufbaus als Funktionen; oeffneAblage füllt sie aus dem Adapter sqlite, der Test ersetzt einzelne.
+type ablage struct {
+	Session   func(ctx context.Context, id string) (model.Session, error)
+	Exchanges func(ctx context.Context, sessionID string) (int, error)
+	Coverage  func(ctx context.Context, baselineID string) ([]model.Coverage, error)
+	Entities  func(ctx context.Context, workspaceID, set string) (int, error)
+	Close     func() error
+}
+
+// oeffneAblage öffnet die Datenbank in dir.
+func oeffneAblage(ctx context.Context, dir string) (*ablage, error) {
+	db, err := sqlite.Open(ctx, filepath.Join(dir, dateiDB), sqlite.Options{})
+	if err != nil {
+		return nil, err
+	}
+	return &ablage{
+		Session:  func(ctx context.Context, id string) (model.Session, error) { return db.Sessions().Get(ctx, id) },
+		Coverage: func(ctx context.Context, id string) ([]model.Coverage, error) { return db.Coverage().List(ctx, id) },
+		Exchanges: func(ctx context.Context, id string) (int, error) {
+			ex, err := db.Recording().ListBySession(ctx, id)
+			return len(ex), err
+		},
+		Entities: func(ctx context.Context, workspaceID, set string) (int, error) {
+			es, err := db.Entities().ListSet(ctx, workspaceID, set)
+			return len(es), err
+		},
+		Close: db.Close,
+	}, nil
+}
+
+// aufbauEingabe sind die Werte des Aufbaus. Adresse ist die des Referenzdienstes (leer: ein freier Port von 127.0.0.1); Baue ersetzt
+// bootstrap.Build, Oeffne die Datenbank, Umhuellen den Handler des Referenzdienstes (je nil: keine Ersetzung), Dial den Verbindungsaufbau
+// des Clients (nil: der des Prozesses); die letzten vier dienen dem Test.
 type aufbauEingabe struct {
 	Profil    Profil
 	Startwert uint64
@@ -83,7 +115,9 @@ type aufbauEingabe struct {
 	DataDir   string
 	Adresse   string
 	Baue      func(ctx context.Context, k bootstrap.Konfiguration) (*handle, error)
+	Oeffne    func(ctx context.Context, dir string) (*ablage, error)
 	Umhuellen func(http.Handler) http.Handler
+	Dial      func(ctx context.Context, netz, adresse string) (net.Conn, error)
 }
 
 // aufbauErgebnis nennt, was der Aufbau angelegt hat.
@@ -197,7 +231,7 @@ type anfrage struct {
 // sende sendet die Anfragen von SPEC-216 Nr. 6 d nacheinander auf einer Verbindung an basis: `$metadata`, je Set die Seiten über den
 // `@odata.nextLink` bis zur letzten, danach die ersten Paare der Permutation als Lookups.
 func (e aufbauEingabe) sende(ctx context.Context, basis string) error {
-	c := &http.Client{Transport: &http.Transport{}}
+	c := &http.Client{Transport: &http.Transport{DialContext: e.Dial}}
 	defer c.CloseIdleConnections()
 	todo := []anfrage{{ziel: wurzel + "/$metadata"}}
 	for set := 1; set <= e.Profil.Sets; set++ {
@@ -282,31 +316,35 @@ func importiere(ctx context.Context, baue func(context.Context, bootstrap.Konfig
 // der Baseline ist je Set complete, und der Workspace trägt je Set so viele Entities, wie das Profil nennt. Es liefert die Zahlen.
 func (e aufbauEingabe) pruefe(ctx context.Context, a aufbauErgebnis) (exchanges, entities int, err error) {
 	p := e.Profil
-	db, err := sqlite.Open(ctx, filepath.Join(e.DataDir, dateiDB), sqlite.Options{})
+	oeffne := e.Oeffne
+	if oeffne == nil {
+		oeffne = oeffneAblage
+	}
+	db, err := oeffne(ctx, e.DataDir)
 	if err != nil {
 		return 0, 0, an(stelleSession, err)
 	}
 	defer func() { err = errors.Join(err, db.Close()) }()
-	s, err := db.Sessions().Get(ctx, a.Session)
+	s, err := db.Session(ctx, a.Session)
 	if err != nil || s.Status != model.SessionComplete {
 		return 0, 0, an(stelleSession, errors.Join(errors.New("Session nicht complete"), err))
 	}
-	ex, err := db.Recording().ListBySession(ctx, a.Session)
-	if err != nil || len(ex) != p.Exchanges {
-		return 0, 0, an(stelleZahl, errors.Join(fmt.Errorf("Exchanges %d, erwartet %d", len(ex), p.Exchanges), err))
+	ex, err := db.Exchanges(ctx, a.Session)
+	if err != nil || ex != p.Exchanges {
+		return 0, 0, an(stelleZahl, errors.Join(fmt.Errorf("Exchanges %d, erwartet %d", ex, p.Exchanges), err))
 	}
-	cov, err := db.Coverage().List(ctx, a.Baseline)
+	cov, err := db.Coverage(ctx, a.Baseline)
 	if err != nil || len(cov) != p.Sets || unvollstaendig(cov) {
 		return 0, 0, an(stelleCoverage, errors.Join(errors.New("Coverage nicht complete"), err))
 	}
 	for set := 1; set <= p.Sets; set++ {
-		es, err := db.Entities().ListSet(ctx, a.Workspace, fmt.Sprintf("Set%d", set))
-		if err != nil || len(es) != p.Entities {
-			return 0, 0, an(stelleEntities, errors.Join(fmt.Errorf("Set%d: Entities %d, erwartet %d", set, len(es), p.Entities), err))
+		n, err := db.Entities(ctx, a.Workspace, fmt.Sprintf("Set%d", set))
+		if err != nil || n != p.Entities {
+			return 0, 0, an(stelleEntities, errors.Join(fmt.Errorf("Set%d: Entities %d, erwartet %d", set, n, p.Entities), err))
 		}
-		entities += len(es)
+		entities += n
 	}
-	return len(ex), entities, nil
+	return ex, entities, nil
 }
 
 // unvollstaendig meldet, ob ein Eintrag der Coverage nicht complete ist.

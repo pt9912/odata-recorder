@@ -9,46 +9,48 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 )
 
-// importe liefert zu jedem Namen, unter dem eine Datei einen Import nennt, dessen Pfad; ein Punkt-Import steht unter ".".
-func importe(f *ast.File) map[string]string {
-	m := map[string]string{}
+// importe liefert zu jedem Namen, unter dem eine Datei einen Import nennt, dessen Pfad, und die Pfade ihrer Punkt-Importe.
+func importe(f *ast.File) (namen map[string]string, punkt []string) {
+	namen = map[string]string{}
 	for _, s := range f.Imports {
 		p, _ := strconv.Unquote(s.Path.Value)
 		name := path.Base(p)
-		if s.Name != nil {
+		switch {
+		case s.Name != nil && s.Name.Name == ".":
+			punkt = append(punkt, p)
+			continue
+		case s.Name != nil:
 			name = s.Name.Name
-		}
-		if p == "math/rand/v2" && s.Name == nil {
+		case p == "math/rand/v2":
 			name = "rand"
 		}
-		m[name] = p
+		namen[name] = p
 	}
-	return m
+	return namen, punkt
 }
 
-// stellen liefert zu jedem Selektor `<Paket>.<Name>`, dessen Paket eines der Pfade nennt und dessen Name pruefe verwirft, den Namen mit
-// Pfad und Zeile, zu jedem Punkt-Import eines dieser Pfade den Pfad.
+// stellen liefert zu jedem Selektor `<Paket>.<Name>`, dessen Paket eines der Pfade nennt und dessen Name verwirf verwirft, den Namen mit
+// Pfad und Zeile, und zu jedem Punkt-Import eines dieser Pfade den Pfad.
 func stellen(name, quelle string, pfade []string, verwirf func(pfad, sel string) bool) ([]string, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, name, quelle, 0)
 	if err != nil {
 		return nil, err
 	}
-	im := importe(f)
+	im, punkt := importe(f)
 	var out []string
-	for n, p := range im {
-		if n == "." && slices.Contains(pfade, p) {
+	for _, p := range punkt {
+		if slices.Contains(pfade, p) {
 			out = append(out, name+": Punkt-Import "+p)
 		}
 	}
 	ast.Inspect(f, func(n ast.Node) bool {
 		if s, ok := n.(*ast.SelectorExpr); ok {
-			if x, ok := s.X.(*ast.Ident); ok && im[x.Name] != "" && slices.Contains(pfade, im[x.Name]) && verwirf(im[x.Name], s.Sel.Name) {
+			if x, ok := s.X.(*ast.Ident); ok && slices.Contains(pfade, im[x.Name]) && verwirf(im[x.Name], s.Sel.Name) {
 				out = append(out, name+":"+strconv.Itoa(fset.Position(s.Pos()).Line)+": "+im[x.Name]+"."+s.Sel.Name)
 			}
 		}
@@ -57,14 +59,67 @@ func stellen(name, quelle string, pfade []string, verwirf func(pfad, sel string)
 	return out, nil
 }
 
-// zeitStellen nennt die Stellen, an denen eine Datei eine der sieben Funktionen der Zeit ruft oder nennt (SPEC-216 Nr. 14 a).
+// zeitKlasse ist die Menge der Namen der Standardbibliothek, die ein Paket ohne Zugriff auf die Uhr erreicht und die die Zeit des Prozesses
+// lesen oder auf sie warten: Funktionen je Paket, Felder je Typ (in einem Literal des Typs) und Methoden jedes Empfängers.
+func zeitKlasse() (funktionen, felder map[string][]string, methoden []string) {
+	funktionen = map[string][]string{
+		"time":     {"Now", "Since", "Until", "Sleep", "After", "AfterFunc", "NewTimer", "NewTicker", "Tick"},
+		"context":  {"WithTimeout", "WithDeadline", "WithTimeoutCause", "WithDeadlineCause"},
+		"net/http": {"TimeoutHandler"},
+	}
+	felder = map[string][]string{
+		"net/http.Client":    {"Timeout"},
+		"net/http.Server":    {"ReadTimeout", "WriteTimeout", "IdleTimeout", "ReadHeaderTimeout"},
+		"net/http.Transport": {"ResponseHeaderTimeout", "TLSHandshakeTimeout", "IdleConnTimeout", "ExpectContinueTimeout"},
+		"net.Dialer":         {"Timeout", "Deadline"},
+	}
+	return funktionen, felder, []string{"SetDeadline", "SetReadDeadline", "SetWriteDeadline"}
+}
+
+// zeitStellen nennt die Stellen, an denen eine Datei ein Element von zeitKlasse nennt: eine Funktion (auch als Wert, unter einem anderen Namen
+// des Imports und als Punkt-Import), ein Feld im Literal seines Typs oder eine Methode SetDeadline, SetReadDeadline, SetWriteDeadline.
 func zeitStellen(name, quelle string) ([]string, error) {
-	return stellen(name, quelle, []string{"time", "context"}, func(pfad, sel string) bool {
-		return slices.Contains(map[string][]string{
-			"time":    {"Now", "Sleep", "After", "NewTimer", "NewTicker", "AfterFunc"},
-			"context": {"WithTimeout"},
-		}[pfad], sel)
+	funktionen, felder, methoden := zeitKlasse()
+	pfade := []string{"net"}
+	for p := range funktionen {
+		pfade = append(pfade, p)
+	}
+	out, err := stellen(name, quelle, pfade, func(pfad, sel string) bool { return slices.Contains(funktionen[pfad], sel) })
+	if err != nil {
+		return nil, err
+	}
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, name, quelle, 0)
+	if err != nil {
+		return nil, err
+	}
+	im, _ := importe(f)
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.CompositeLit:
+			typ, ok := x.Type.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			paket, ok := typ.X.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			for _, e := range x.Elts {
+				if kv, ok := e.(*ast.KeyValueExpr); ok {
+					if k, ok := kv.Key.(*ast.Ident); ok && slices.Contains(felder[im[paket.Name]+"."+typ.Sel.Name], k.Name) {
+						out = append(out, name+":"+strconv.Itoa(fset.Position(k.Pos()).Line)+": "+typ.Sel.Name+"{"+k.Name+"}")
+					}
+				}
+			}
+		case *ast.SelectorExpr:
+			if slices.Contains(methoden, x.Sel.Name) {
+				out = append(out, name+":"+strconv.Itoa(fset.Position(x.Pos()).Line)+": "+x.Sel.Name)
+			}
+		}
+		return true
 	})
+	return out, nil
 }
 
 // zufallStellen nennt die Stellen, an denen eine Datei `math/rand` importiert oder den globalen Generator von `math/rand/v2` ruft; erlaubt
@@ -80,10 +135,12 @@ func zufallStellen(name, quelle string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, p := range importe(f) {
-		if p == "math/rand" {
-			st = append(st, name+": Import math/rand")
-		}
+	im, alle := importe(f)
+	for _, p := range im {
+		alle = append(alle, p)
+	}
+	if slices.Contains(alle, "math/rand") {
+		st = append(st, name+": Import math/rand")
 	}
 	return st, nil
 }
@@ -106,72 +163,90 @@ func quellen(t *testing.T) map[string]string {
 	return m
 }
 
-// TestPaketOhneZeit: keine Datei des Pakets außer uhr.go nennt eine der sieben Funktionen der Zeit (time.Now, time.Sleep, time.After,
-// time.NewTimer, time.NewTicker, time.AfterFunc, context.WithTimeout), auch nicht unter einem anderen Namen des Imports und nicht als
-// Punkt-Import; die Datei der Uhr trägt sie (Kontrolle), und der Fänger erkennt jede der sieben in jeder der drei Formen.
+// TestPaketOhneZeit: keine Datei des Pakets außer uhr.go und uhr_test.go nennt ein Element der Klasse der Namen, die die Zeit des Prozesses lesen
+// oder auf sie warten: 14 Funktionen (9 von time, 4 von context, TimeoutHandler von net/http), auch als Wert, unter einem anderen Namen des
+// Imports und als Punkt-Import, 11 Felder von Literalen (Client, Server, Transport, Dialer) und 3 Methoden SetDeadline; die Datei der Uhr trägt
+// Funktionen der Klasse (Kontrolle), und der Fänger erkennt jedes Element der Klasse in jeder Form (Orakel: die Literale dieses Tests).
 func TestPaketOhneZeit(t *testing.T) {
 	wache(t, 30*time.Second)
-	namen := []struct{ paket, name string }{
-		{"time", "Now"}, {"time", "Sleep"}, {"time", "After"}, {"time", "NewTimer"}, {"time", "NewTicker"}, {"time", "AfterFunc"},
-		{"context", "WithTimeout"},
+	funktionen := []struct{ paket, name string }{
+		{"time", "Now"}, {"time", "Since"}, {"time", "Until"}, {"time", "Sleep"}, {"time", "After"}, {"time", "AfterFunc"},
+		{"time", "NewTimer"}, {"time", "NewTicker"}, {"time", "Tick"},
+		{"context", "WithTimeout"}, {"context", "WithDeadline"}, {"context", "WithTimeoutCause"}, {"context", "WithDeadlineCause"},
+		{"net/http", "TimeoutHandler"},
 	}
-	formen := []struct{ name, importZeile, aufruf string }{
-		{"direkt", `"%s"`, "%s.%s"}, {"mit Namen", `x "%s"`, "x.%s"}, {"Punkt-Import", `. "%s"`, "%s"},
+	felder := []struct{ paket, typ, feld string }{
+		{"net/http", "Client", "Timeout"},
+		{"net/http", "Server", "ReadTimeout"}, {"net/http", "Server", "WriteTimeout"}, {"net/http", "Server", "IdleTimeout"},
+		{"net/http", "Server", "ReadHeaderTimeout"},
+		{"net/http", "Transport", "ResponseHeaderTimeout"}, {"net/http", "Transport", "TLSHandshakeTimeout"},
+		{"net/http", "Transport", "IdleConnTimeout"}, {"net/http", "Transport", "ExpectContinueTimeout"},
+		{"net", "Dialer", "Timeout"}, {"net", "Dialer", "Deadline"},
 	}
+	gesehen := map[string]string{}
 	n := 0
-	for _, z := range namen {
-		for _, f := range formen {
-			n++
-			imp := strings.Replace(f.importZeile, "%s", z.paket, 1)
-			var ruf string
-			switch f.name {
-			case "direkt":
-				ruf = z.paket + "." + z.name
-			case "mit Namen":
-				ruf = "x." + z.name
-			default:
-				ruf = z.name
-			}
-			quelle := "package p\nimport " + imp + "\nvar _ = " + ruf + "\n"
-			st, err := zeitStellen("p.go", quelle)
-			if err != nil || len(st) == 0 {
-				t.Errorf("%s.%s (%s): Stellen %v, %v, erwartet mindestens eine", z.paket, z.name, f.name, st, err)
-			}
+	pruefe := func(was, kopf, aufruf string) {
+		n++
+		if st, err := zeitStellen("p.go", "package p\n"+kopf+"\nvar _ = "+aufruf+"\n"); err != nil || len(st) == 0 {
+			t.Errorf("%s: Stellen %v, %v, erwartet mindestens eine", was, st, err)
 		}
+		gesehen[was] = aufruf
 	}
-	if n != 21 {
-		t.Errorf("%d Fälle, erwartet 7 Namen mal 3 Formen", n)
+	for _, f := range funktionen {
+		pruefe(f.paket+"."+f.name+" direkt", `import "`+f.paket+`"`, path.Base(f.paket)+"."+f.name)
+		pruefe(f.paket+"."+f.name+" mit Namen", `import x "`+f.paket+`"`, "x."+f.name)
+		pruefe(f.paket+"."+f.name+" Punkt-Import", `import . "`+f.paket+`"`, f.name)
 	}
-	for _, ok := range []string{"var _ time.Duration = time.Second", "var _ = time.Until(time.Time{})", "var _ = context.Background"} {
-		if st, err := zeitStellen("p.go", "package p\nimport (\"time\"; \"context\")\n"+ok+"\n"); err != nil || len(st) != 0 {
+	for _, f := range felder {
+		pruefe(f.typ+"{"+f.feld+"} direkt", `import "`+f.paket+`"`, path.Base(f.paket)+"."+f.typ+"{"+f.feld+": 1}")
+		pruefe(f.typ+"{"+f.feld+"} mit Namen", `import x "`+f.paket+`"`, "x."+f.typ+"{"+f.feld+": 1}")
+	}
+	for _, m := range []string{"SetDeadline", "SetReadDeadline", "SetWriteDeadline"} {
+		pruefe(m, `import "net"`, "c."+m)
+	}
+	if n != 14*3+11*2+3 || len(gesehen) != n {
+		t.Errorf("%d Fälle, erwartet 14 mal 3, 11 mal 2 und 3", n)
+	}
+	for _, ok := range []string{
+		"var _ time.Duration = time.Second", "var _ = time.Time{}", "var _ = context.Background", "var _ = http.Client{Transport: nil}",
+		"var _ = http.Server{Handler: nil}", "var _ = net.Dialer{KeepAlive: 0}", "var _ = c.SetDeadlineX",
+	} {
+		quelle := "package p\nimport (\"time\"; \"context\"; \"net\"; \"net/http\")\n" + ok + "\n"
+		if st, err := zeitStellen("p.go", quelle); err != nil || len(st) != 0 {
 			t.Errorf("%s: Stellen %v, %v, erwartet keine", ok, st, err)
 		}
 	}
+	for _, kopf := range []string{`import (. "errors"; . "time")`, `import (. "time"; . "errors")`} {
+		if st, err := zeitStellen("p.go", "package p\n"+kopf+"\nvar _ = Now\n"); err != nil || len(st) != 1 {
+			t.Errorf("%s: Stellen %v, %v, erwartet eine", kopf, st, err)
+		}
+	}
 	files := quellen(t)
-	if _, ok := files["uhr.go"]; !ok {
-		t.Fatal("die Datei der Uhr uhr.go fehlt")
+	for _, d := range []string{"uhr.go", "uhr_test.go", "paket_test.go"} {
+		if _, ok := files[d]; !ok {
+			t.Fatalf("die Datei %s fehlt", d)
+		}
 	}
 	for name, quelle := range files {
 		st, err := zeitStellen(name, quelle)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if name == "uhr.go" {
-			if len(st) < 3 {
-				t.Errorf("die Datei der Uhr trägt %v, erwartet time.Now, time.NewTimer und time.NewTicker", st)
-			}
-		} else if len(st) > 0 {
+		switch {
+		case name == "uhr.go" && len(st) < 4:
+			t.Errorf("die Datei der Uhr trägt %v, erwartet time.Now, time.Until, time.NewTimer und time.NewTicker", st)
+		case name != "uhr.go" && name != "uhr_test.go" && len(st) > 0:
 			t.Errorf("außerhalb der Uhr: %v", st)
 		}
 	}
-	if _, ok := files["paket_test.go"]; !ok || len(files) < 10 {
-		t.Errorf("die Prüfung liest %d Dateien, darunter Tests: %v", len(files), ok)
+	if len(files) < 10 {
+		t.Errorf("die Prüfung liest %d Dateien", len(files))
 	}
 }
 
 // TestPaketOhneGlobalenGenerator: keine Datei des Pakets importiert `math/rand` oder ruft den globalen Generator von `math/rand/v2` (SPEC-216
-// Nr. 6 c); der Fänger erkennt jede der 19 Funktionen des globalen Generators, auch unter einem anderen Namen des Imports, und lässt die
-// Konstruktoren und Typen eines eigenen Generators zu.
+// Nr. 6 c); der Fänger erkennt jede der 19 Funktionen des globalen Generators direkt, unter einem anderen Namen des Imports und als
+// Punkt-Import (auch hinter einem anderen Punkt-Import) und lässt die Konstruktoren und Typen eines eigenen Generators zu.
 func TestPaketOhneGlobalenGenerator(t *testing.T) {
 	wache(t, 30*time.Second)
 	global := []string{"Float32", "Float64", "ExpFloat64", "Int", "Int32", "Int32N", "Int64", "Int64N", "IntN", "N", "NormFloat64", "Perm",
@@ -180,11 +255,10 @@ func TestPaketOhneGlobalenGenerator(t *testing.T) {
 		t.Fatalf("%d Namen, erwartet 19", len(global))
 	}
 	for _, g := range global {
-		for _, kopf := range []string{`import "math/rand/v2"`, `import r "math/rand/v2"`} {
-			ruf := "rand." + g
-			if strings.Contains(kopf, " r ") {
-				ruf = "r." + g
-			}
+		for kopf, ruf := range map[string]string{
+			`import "math/rand/v2"`: "rand." + g, `import r "math/rand/v2"`: "r." + g, `import . "math/rand/v2"`: g,
+			`import (. "errors"; . "math/rand/v2")`: g,
+		} {
 			if st, err := zufallStellen("p.go", "package p\n"+kopf+"\nvar _ = "+ruf+"\n"); err != nil || len(st) != 1 {
 				t.Errorf("%s %s: Stellen %v, %v, erwartet eine", kopf, ruf, st, err)
 			}
@@ -195,8 +269,10 @@ func TestPaketOhneGlobalenGenerator(t *testing.T) {
 			t.Errorf("%s: Stellen %v, %v, erwartet keine", ok, st, err)
 		}
 	}
-	if st, err := zufallStellen("p.go", "package p\nimport \"math/rand\"\n"); err != nil || len(st) != 1 {
-		t.Errorf("Import math/rand: Stellen %v, %v, erwartet eine", st, err)
+	for _, kopf := range []string{`import "math/rand"`, `import . "math/rand"`} {
+		if st, err := zufallStellen("p.go", "package p\n"+kopf+"\n"); err != nil || len(st) != 1 {
+			t.Errorf("%s: Stellen %v, %v, erwartet eine", kopf, st, err)
+		}
 	}
 	for name, quelle := range quellen(t) {
 		if st, err := zufallStellen(name, quelle); err != nil || len(st) != 0 {

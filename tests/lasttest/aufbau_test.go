@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -315,14 +316,33 @@ func halte(gehalten chan<- struct{}, frei <-chan struct{}) func(http.Handler) ht
 	})
 }
 
-// TestAufbauFrist: die Fake-Uhr geht über die Frist des Profils, während der Referenzdienst eine Antwort hält: der Aufbau endet mit dem Grund
-// frist, und sein Handle ist genau einmal heruntergefahren. Eine Minute unter der Frist endet er nicht. Beide Profile tragen ihre Frist
-// (30 min und 5 min), keines die des anderen.
+// TestAufbauFrist: die Fake-Uhr geht um die Frist des Profils plus einen Versatz, während der Referenzdienst eine Antwort hält: bei der Frist
+// selbst (Gleichheit, SPEC-216 Nr. 4 c) und eine Minute darüber endet der Aufbau mit dem Grund frist, und sein Handle ist genau einmal
+// heruntergefahren; eine Nanosekunde und eine Minute darunter endet er nicht. Beide Profile tragen ihre Frist (30 min und 5 min), keines
+// die des anderen: je Profil zwei Fälle an der Frist des anderen (eine Nanosekunde davor und gleich), 12 Fälle.
 func TestAufbauFrist(t *testing.T) {
 	wache(t, 180*time.Second)
-	for _, p := range []Profil{abnahme(), rauch()} {
-		for _, ueber := range []bool{false, true} {
-			t.Run(fmt.Sprintf("%s ueber=%v", p.Name, ueber), func(t *testing.T) {
+	type fall struct {
+		p     Profil
+		bis   time.Duration // Stand der Uhr nach dem Beginn
+		ueber bool          // die Frist des Profils ist abgelaufen
+		name  string
+	}
+	var faelle []fall
+	profile := []Profil{abnahme(), rauch()}
+	for i, p := range profile {
+		for _, versatz := range []time.Duration{-time.Minute, -time.Nanosecond, 0, time.Minute} {
+			faelle = append(faelle, fall{p, p.FristAufbau + versatz, versatz >= 0, fmt.Sprintf("%s %v", p.Name, versatz)})
+		}
+		fremd := profile[1-i].FristAufbau
+		for _, versatz := range []time.Duration{-time.Nanosecond, 0} {
+			faelle = append(faelle, fall{p, fremd + versatz, fremd+versatz >= p.FristAufbau, fmt.Sprintf("%s bei der Frist von %s %v", p.Name, profile[1-i].Name, versatz)})
+		}
+	}
+	for _, f := range faelle {
+		p, ueber := f.p, f.ueber
+		{
+			t.Run(f.name, func(t *testing.T) {
 				k := kleinesProfil()
 				k.FristAufbau = p.FristAufbau
 				uhr := neueFakeUhr()
@@ -338,10 +358,8 @@ func TestAufbauFrist(t *testing.T) {
 					ergebnis <- err
 				}()
 				warteAuf(t, gehalten, 15*time.Second)
-				if ueber {
-					uhr.Vorstellen(p.FristAufbau + time.Minute)
-				} else {
-					uhr.Vorstellen(p.FristAufbau - time.Minute)
+				uhr.Vorstellen(f.bis)
+				if !ueber {
 					freigeben()
 				}
 				err := warteAuf(t, ergebnis, 15*time.Second)
@@ -356,7 +374,7 @@ func TestAufbauFrist(t *testing.T) {
 					return
 				}
 				if err != nil {
-					t.Fatalf("Aufbau eine Minute unter der Frist: %v", err)
+					t.Fatalf("Aufbau %s unter der Frist: %v", f.name, err)
 				}
 				for i, h := range b.handles {
 					if h.herunter.Load() != 1 {
@@ -421,7 +439,7 @@ func TestAufbauZweimal(t *testing.T) {
 	}
 }
 
-// TestAufbauRauch: der Aufbau des Profils rauch trägt echte Größen (Nutzlast bis 60 KiB, 5 Sets zu 60 Entities): 300 Exchanges, 300 Entities,
+// TestAufbauRauch: der Aufbau des Profils rauch trägt die Klassen der Nutzlast (bis 6 KiB, 5 Sets zu 60 Entities): 300 Exchanges, 300 Entities,
 // Coverage complete je Set, die Exchanges der Aufnahme sind genau die Menge von aufbauAnfragen mit dem Header Accept (Orakel: die Ziele
 // aus erwarteteMenge), und die Listen replay und mock treffen in einem Handle der Betriebsart (listenTreffen).
 func TestAufbauRauch(t *testing.T) {
@@ -634,6 +652,55 @@ func TestPruefe(t *testing.T) {
 			}
 			if !errors.As(err, &af) || af.stelle != f.stelle || exchanges != 0 || entities != 0 {
 				t.Errorf("Fehler %v, Zahlen %d und %d, erwartet die Stelle %s", err, exchanges, entities, f.stelle)
+			}
+		})
+	}
+}
+
+// TestAufbauStartwert: der Aufbau nimmt seine Anfragen in der Folge von SPEC-216 Nr. 6 d auf (`$metadata`, je Set die Seiten über den Link, danach
+// die Lookups der Permutation des Startwerts), über genau eine Verbindung zu einer Adresse von 127.0.0.1, und der Referenzdienst antwortet jede
+// Anfrage mit den Bytes seines Startwerts; je Startwert des Randes (0, 1, 2 und 10 hoch 17).
+func TestAufbauStartwert(t *testing.T) {
+	wache(t, 180*time.Second)
+	for _, sw := range startwerte() {
+		t.Run(fmt.Sprint(sw), func(t *testing.T) {
+			var mu sync.Mutex
+			var folge, adressen []string
+			abweichungen := 0
+			umhuellen := aendere(func(w http.ResponseWriter, r *http.Request, inner http.Handler) {
+				rec, erwartet := httptest.NewRecorder(), httptest.NewRecorder()
+				inner.ServeHTTP(rec, r)
+				referenz{p: kleinesProfil(), startwert: sw, basis: "http://" + r.Host}.ServeHTTP(erwartet, r)
+				mu.Lock()
+				folge = append(folge, r.URL.RequestURI())
+				if rec.Body.String() != erwartet.Body.String() {
+					abweichungen++
+				}
+				mu.Unlock()
+				w.Header().Set("Content-Type", rec.Header().Get("Content-Type"))
+				_, _ = w.Write(rec.Body.Bytes())
+			})
+			dial := func(ctx context.Context, netz, adresse string) (net.Conn, error) {
+				mu.Lock()
+				adressen = append(adressen, adresse)
+				mu.Unlock()
+				var d net.Dialer
+				return d.DialContext(ctx, netz, adresse)
+			}
+			e := aufbauEingabe{Profil: kleinesProfil(), Startwert: sw, Uhr: systemuhr{}, DataDir: t.TempDir(), Umhuellen: umhuellen, Dial: dial}
+			if _, err := e.aufbauen(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			var erwartet []string
+			for _, a := range aufbauAnfragen(kleinesProfil(), sw) {
+				erwartet = append(erwartet, a.Ziel())
+			}
+			kopf := "[/odata/$metadata /odata/Set1 /odata/Set1?$skiptoken=10 /odata/Set2 /odata/Set2?$skiptoken=10]"
+			if len(folge) != 17 || fmt.Sprint(folge) != fmt.Sprint(erwartet) || fmt.Sprint(folge[:5]) != kopf {
+				t.Errorf("Folge %v, erwartet %v", folge, erwartet)
+			}
+			if len(adressen) != 1 || !strings.HasPrefix(adressen[0], "127.0.0.1:") || abweichungen != 0 {
+				t.Errorf("Verbindungen zu %v, Antworten mit anderen Bytes des Startwerts: %d, erwartet eine Verbindung zu 127.0.0.1 und 0", adressen, abweichungen)
 			}
 		})
 	}

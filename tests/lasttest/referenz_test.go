@@ -78,18 +78,20 @@ func keinStandardname(t *testing.T, ziel string, header http.Header, body []byte
 	}
 }
 
-// TestReferenzdienst: 5 Sets zu 2000 Entities, Gruppe gleich Id modulo 20, Nutzlast zu 7000 Entities 200 B, zu 2000 8 KiB und zu 1000 60 KiB
-// (Zeichen a-z), jede Entity höchstens 64 KiB, Seiten zu 50 mit absolutem `@odata.nextLink` bis zur letzten, die keinen trägt, und kein Name aus
-// den Defaults von REDACT_* und kein ETag (SPEC-216 Nr. 6 b).
+// TestReferenzdienst: 5 Sets zu 2000 Entities, Gruppe gleich Id modulo 20, Nutzlast zu 7000 Entities 200 B, zu 2000 2 KiB und zu 1000 6 KiB
+// (Zeichen a-z), jede Einzel-Entity höchstens 64 KiB (65536 Bytes), in jeder der 100 Zellen (Set, Gruppe) die Summe der Nutzlast der ersten
+// 10 Entities höchstens 61.440 Bytes (die Collection des Mock mit `$top=10`), und kein Name aus den Defaults von REDACT_* und kein ETag
+// (SPEC-216 Nr. 6 b).
 func TestReferenzdienst(t *testing.T) {
 	wache(t, 180*time.Second)
 	if len(standardHeader()) != 7 || len(standardQuery()) != 9 || len(standardJSON()) != 7 {
 		t.Fatalf("Defaults: %d, %d, %d Namen, erwartet 7, 9 und 7", len(standardHeader()), len(standardQuery()), len(standardJSON()))
 	}
 	r := referenz{p: abnahme(), startwert: 1, basis: testBasis}
-	laengen := [10]int{200, 200, 200, 200, 200, 200, 200, 8192, 8192, 61440}
+	laengen := [10]int{200, 200, 200, 200, 200, 200, 200, 2048, 2048, 6144}
 	klassen := map[int]int{}
 	var gruppeJeSet [5][gruppen]int
+	var zelle [5][gruppen][]int
 	entities := 0
 	for set := 1; set <= 5; set++ {
 		for id := 1; id <= 2000; id++ {
@@ -118,17 +120,22 @@ func TestReferenzdienst(t *testing.T) {
 			entities++
 			klassen[len(e.Nutzlast)]++
 			gruppeJeSet[set-1][e.Gruppe]++
+			zelle[set-1][e.Gruppe] = append(zelle[set-1][e.Gruppe], len(e.Nutzlast))
 		}
 	}
-	if entities != 10000 || fmt.Sprint(klassen) != "map[200:7000 8192:2000 61440:1000]" {
+	if entities != 10000 || fmt.Sprint(klassen) != "map[200:7000 2048:2000 6144:1000]" {
 		t.Errorf("Entities %d, Klassen %v, erwartet 10000 und 7000, 2000, 1000", entities, klassen)
 	}
 	zellen := 0
 	for set, je := range gruppeJeSet {
 		for g, n := range je {
 			zellen++
-			if n != 100 {
-				t.Errorf("Set%d, Gruppe %d: %d Entities, erwartet 100", set+1, g, n)
+			summe := 0
+			for _, l := range zelle[set][g][:10] {
+				summe += l
+			}
+			if n != 100 || summe > 61440 {
+				t.Errorf("Set%d, Gruppe %d: %d Entities, Summe der ersten 10 Nutzlasten %d, erwartet 100 und höchstens 61440", set+1, g, n, summe)
 			}
 		}
 	}
@@ -138,7 +145,8 @@ func TestReferenzdienst(t *testing.T) {
 }
 
 // TestReferenzSeiten: je Set 40 Seiten zu 50 Entities mit den Ids der Folge, jede außer der letzten mit dem `@odata.nextLink` der nächsten (als
-// Literal gebildet), die letzte ohne; 200 Seiten, die Links tragen keinen Namen aus den Defaults der Parameter.
+// Literal gebildet), die letzte ohne; 200 Seiten, jede höchstens 64 KiB (65536 Bytes) und mit 58.200 Bytes Nutzlast (5 zu 6 KiB, 10 zu 2 KiB,
+// 35 zu 200 B), die Links tragen keinen Namen aus den Defaults der Parameter.
 func TestReferenzSeiten(t *testing.T) {
 	wache(t, 180*time.Second)
 	r := referenz{p: abnahme(), startwert: 1, basis: testBasis}
@@ -151,11 +159,19 @@ func TestReferenzSeiten(t *testing.T) {
 				Context string `json:"@odata.context"`
 				Weiter  string `json:"@odata.nextLink"`
 				Value   []struct {
-					ID int `json:"Id"`
+					ID       int `json:"Id"`
+					Nutzlast string
 				}
 			}
 			if err := json.Unmarshal(body, &s); err != nil || status != 200 || j > 39 {
 				t.Fatalf("%s: Status %d, Seite %d, %v", ziel, status, j, err)
+			}
+			nutzlast := 0
+			for _, v := range s.Value {
+				nutzlast += len(v.Nutzlast)
+			}
+			if len(body) > 65536 || nutzlast != 58200 {
+				t.Fatalf("%s: Body %d Bytes, Nutzlast %d Bytes, erwartet höchstens 65536 und 58200", ziel, len(body), nutzlast)
 			}
 			keinStandardname(t, ziel, header, body, j == 0)
 			weiter := ""
@@ -242,6 +258,13 @@ func TestReferenzUnbekannt(t *testing.T) {
 	for _, ziel := range []string{"/odata/Set1", "/odata/Set5", "/odata/Set1(1)", "/odata/Set5(60)", "/odata/Set1?$skiptoken=50", "/odata/$metadata"} {
 		if status, _, _ := bediene(r, http.MethodGet, ziel); status != 200 {
 			t.Errorf("GET %s: Status %d, erwartet 200", ziel, status)
+		}
+	}
+	// Im kleinen Profil (20 Entities, Seite 10) liegt die Zahl der Entities auf einem Vielfachen der Seitengröße: dahinter steht keine Seite.
+	klein := referenz{p: kleinesProfil(), startwert: 1, basis: testBasis}
+	for ziel, erwartet := range map[string]int{"/odata/Set1?$skiptoken=10": 200, "/odata/Set1?$skiptoken=20": 404, "/odata/Set1?$skiptoken=30": 404} {
+		if status, _, _ := bediene(klein, http.MethodGet, ziel); status != erwartet {
+			t.Errorf("GET %s: Status %d, erwartet %d", ziel, status, erwartet)
 		}
 	}
 }

@@ -34,7 +34,7 @@ func starteBinaryUmgebung(t *testing.T, b Betriebsart, dir string) string {
 }
 
 // listenTreffen prüft, dass jede Anfrage der Listen replay und mock des Profils rauch in einem Handle der Betriebsart über die Daten des Aufbaus
-// und mit der Umgebung des Binary Status 200 trifft (SPEC-216 Nr. 7 und 9 a); die Listen sind damit gegen den Dienst geprüft, nicht gegen
+// und mit der Umgebung des Binary Status 200 trifft und ein Body höchstens 64 KiB trägt (SPEC-216 Nr. 6 b, 7 und 9 a); die Listen sind damit gegen den Dienst geprüft, nicht gegen
 // ein Abbild. Der Aufruf gehört zu TestAufbauRauch, der den Aufbau liefert.
 func listenTreffen(t *testing.T, dir string, erg aufbauErgebnis) {
 	t.Helper()
@@ -58,11 +58,11 @@ func listenTreffen(t *testing.T, dir string, erg aufbauErgebnis) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				_, _ = io.Copy(io.Discard, resp.Body)
+				laenge, _ := io.Copy(io.Discard, resp.Body)
 				_ = resp.Body.Close()
-				if resp.StatusCode != http.StatusOK {
+				if resp.StatusCode != http.StatusOK || laenge > 65536 {
 					if falsch++; falsch <= 5 {
-						t.Errorf("Anfrage %d %s: Status %d, erwartet 200", i, a.Ziel(), resp.StatusCode)
+						t.Errorf("Anfrage %d %s: Status %d, %d Bytes, erwartet 200 und höchstens 65536", i, a.Ziel(), resp.StatusCode, laenge)
 					}
 				}
 			}

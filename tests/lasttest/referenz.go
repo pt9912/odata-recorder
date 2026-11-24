@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const (
@@ -152,7 +151,7 @@ func starteReferenz(ctx context.Context, adresse string, p Profil, startwert uin
 	if umhuellen != nil {
 		h = umhuellen(h)
 	}
-	srv := &http.Server{Handler: h, ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{Handler: h}
 	go func() { _ = srv.Serve(l) }()
 	return r, func() { _ = srv.Close() }, nil
 }

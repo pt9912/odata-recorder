@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 )
@@ -74,25 +75,24 @@ func gesamthash(t *testing.T, p Profil, startwert uint64) string {
 
 // goldenAbnahme ist der Hash von gesamthash am Profil abnahme und Startwert 1 (200 Seiten, 10000 Entities, beide Listen), einmal gebildet und
 // hier als Literal festgehalten: jede Änderung an Antworten oder Listen ändert ihn, eine absichtliche Änderung setzt ihn neu.
-const goldenAbnahme = "55aa9ca80f437b6c1573b173aca86e410860de6b8cc69d8a29cc652f88cee77f"
+const goldenAbnahme = "bd7ba70845248a136782f0b2a0a425f9222f0e110d137bfea27040ec92d53bd5"
 
 // TestDeterminismus: gleicher Startwert ergibt byte-gleiche Antworten des Referenzdienstes und gleiche Listen (SPEC-216 Nr. 6 c): am Profil
-// abnahme gleicht der Hash für den Startwert 1 dem Literal goldenAbnahme, das ein anderer Prozess bildete; am Profil rauch ist der Hash für die
-// Startwerte 0, 1, 2 und 10 hoch 17 zweimal gebildet gleich, und die vier sind paarweise verschieden. Kein Wert hängt von Zeit, Prozess oder
-// Reihenfolge einer Map ab: jeder Hash entsteht in einem neuen Aufruf. Am Profil abnahme läuft allein ein Hash, weil seine Menge den Lauf
-// unter dem Detektor dominiert; das Literal ersetzt den zweiten.
+// abnahme ist der Hash für die Startwerte 0, 1 und 10 hoch 17 zweimal gebildet gleich, der für den Startwert 1 gleicht dem Literal
+// goldenAbnahme, das ein anderer Prozess bildete, und die Startwerte 0, 1, 2 und 10 hoch 17 ergeben paarweise verschiedene Hashes. Kein Wert
+// hängt von Zeit, Prozess oder Reihenfolge einer Map ab: jeder Hash entsteht in einem neuen Aufruf.
 func TestDeterminismus(t *testing.T) {
 	wache(t, 400*time.Second)
-	if got := gesamthash(t, abnahme(), 1); got != goldenAbnahme {
-		t.Errorf("Profil abnahme, Startwert 1: Hash %s, erwartet %s", got, goldenAbnahme)
-	}
-	hashes := map[uint64]string{}
-	for _, startwert := range []uint64{0, 1, 2, 100000000000000000} {
-		a, b := gesamthash(t, rauch(), startwert), gesamthash(t, rauch(), startwert)
+	hashes := map[uint64]string{2: gesamthash(t, abnahme(), 2)}
+	for _, startwert := range []uint64{0, 1, 100000000000000000} {
+		a, b := gesamthash(t, abnahme(), startwert), gesamthash(t, abnahme(), startwert)
 		if a != b {
-			t.Errorf("Profil rauch, Startwert %d: zwei Hashes %s und %s", startwert, a, b)
+			t.Errorf("Startwert %d: zwei Hashes %s und %s", startwert, a, b)
 		}
 		hashes[startwert] = a
+	}
+	if hashes[1] != goldenAbnahme {
+		t.Errorf("Startwert 1: Hash %s, erwartet %s", hashes[1], goldenAbnahme)
 	}
 	werte := make([]string, 0, len(hashes))
 	for _, h := range hashes {
@@ -106,6 +106,68 @@ func TestDeterminismus(t *testing.T) {
 	}
 	if len(werte) != 4 {
 		t.Errorf("%d Hashes, erwartet 4", len(werte))
+	}
+}
+
+// startwerte sind die Startwerte der Komponenten-Prüfungen: der Rand 0, zwei kleine und ein achtzehnstelliger.
+func startwerte() []uint64 { return []uint64{0, 1, 2, 100000000000000000} }
+
+// wiederholungen ist die Zahl der Ausgaben je Komponente und Startwert, die einander gleichen müssen: die Reihenfolge einer Map in einer
+// Komponente weicht bei einem Aufruf nur mit Wahrscheinlichkeit ab, bei vielen Aufrufen fast sicher.
+const wiederholungen = 10
+
+// TestStartwertKomponenten: jede Komponente der Fixture, die der Startwert bestimmt (SPEC-216 Nr. 6 c und 7: die Zeichen der Nutzlast, die
+// Permutation der Lookups, die Permutation der Liste replay, die Parameter der Liste mock), liefert für gleichen Startwert dieselbe Ausgabe
+// und für die vier Startwerte paarweise verschiedene. Die Permutation von replay ist die Folge der Anfragen als Index in der Menge des Aufbaus
+// (ein Profil, dessen Lookups alle Paare nennen: die Menge ist dann bis auf die Folge unabhängig vom Startwert).
+func TestStartwertKomponenten(t *testing.T) {
+	wache(t, 60*time.Second)
+	alle := Profil{Sets: 2, Entities: 20, SeitenGroesse: 10, Lookups: 40, Exchanges: 45, Rate: 20, Warmup: 3 * time.Second, Messphase: 10 * time.Second}
+	komponenten := []struct {
+		name string
+		aus  func(sw uint64) string
+	}{
+		{"Nutzlast", func(sw uint64) string {
+			_, _, body := bediene(referenz{p: abnahme(), startwert: sw, basis: testBasis}, http.MethodGet, "/odata/Set3(9)")
+			return string(body)
+		}},
+		{"Permutation der Lookups", func(sw uint64) string { return fmt.Sprint(paare(abnahme(), sw)[:100]) }},
+		{"Permutation von replay", func(sw uint64) string {
+			menge, index := aufbauAnfragen(alle, sw), map[string]int{}
+			for i, a := range menge {
+				index[a.Ziel()] = i
+			}
+			var folge []int
+			for _, a := range listeReplay(alle, sw, 1, "ws", "rec")[:len(menge)] {
+				folge = append(folge, index[a.Ziel()])
+			}
+			return fmt.Sprint(folge)
+		}},
+		{"Parameter von mock", func(sw uint64) string {
+			var ziele []string
+			for _, a := range listeMock(rauch(), sw, "ws") {
+				ziele = append(ziele, a.Ziel())
+			}
+			return strings.Join(ziele, " ")
+		}},
+	}
+	for _, k := range komponenten {
+		von := map[string]uint64{}
+		for _, sw := range startwerte() {
+			a := k.aus(sw)
+			for i := 1; i < wiederholungen; i++ {
+				if b := k.aus(sw); a != b {
+					t.Errorf("%s, Startwert %d: Ausgabe %d weicht von der ersten ab", k.name, sw, i+1)
+				}
+			}
+			if frueher, ok := von[a]; ok {
+				t.Errorf("%s: die Startwerte %d und %d ergeben dieselbe Ausgabe", k.name, frueher, sw)
+			}
+			von[a] = sw
+		}
+	}
+	if len(komponenten) != 4 || len(startwerte()) != 4 {
+		t.Errorf("%d Komponenten, %d Startwerte, erwartet 4 und 4", len(komponenten), len(startwerte()))
 	}
 }
 

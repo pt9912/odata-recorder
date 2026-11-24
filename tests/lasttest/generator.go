@@ -12,8 +12,8 @@ const (
 const (
 	gruppen        = 20
 	nutzlastKlein  = 200
-	nutzlastMittel = 8 << 10
-	nutzlastGross  = 60 << 10
+	nutzlastMittel = 2 << 10
+	nutzlastGross  = 6 << 10
 	// nutzlastZeichen ist die Zahl der Zeichen a-z, die ein gezogener Wert trägt (26 hoch 13 liegt unter 2 hoch 64).
 	nutzlastZeichen = 13
 )
@@ -36,7 +36,7 @@ func permutation(startwert, zweck uint64, n int) []int {
 	return p
 }
 
-// nutzlastLaenge ist die Länge der Nutzlast der Entity id: 200 Bytes für 0 bis 6 modulo 10, 8 KiB für 7 und 8, 60 KiB für 9.
+// nutzlastLaenge ist die Länge der Nutzlast der Entity id: 200 Bytes für 0 bis 6 modulo 10, 2 KiB für 7 und 8, 6 KiB für 9.
 func nutzlastLaenge(id int) int {
 	switch id % 10 {
 	case 7, 8:
