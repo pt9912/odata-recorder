@@ -11,7 +11,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Welle:** [welle-dev-container](../welle-dev-container.md).
 
-**Bezug:** `LH-RB-04` (Schutz von Daten und Zugangsdaten: kein Geheimnis im Repo oder Image), `LH-RB-03` (Entwicklung in Docker-Umgebungen), [ADR-0004](../../adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md) (Vertrag unter `harness/vertraege/`). Eine neue ADR zur Schlüsselverwaltung kommt vom Architect (Auftrag 1): geliefert als [ADR-0032](../../adr/0032-schluesselverwaltung-des-arbeitscontainers.md) (`Proposed`, Entscheidung beim User); die Erweiterung der Probe um eine Bedingung steht in `SPEC-215` Nr. 6 c (Planner, 2026-11-24, `AGENTS.md` §3.13).
+**Bezug:** `LH-RB-04` (Schutz von Daten und Zugangsdaten: kein Geheimnis im Repo oder Image), `LH-RB-03` (Entwicklung in Docker-Umgebungen), [ADR-0004](../../adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md) (Vertrag unter `harness/vertraege/`). Eine neue ADR zur Schlüsselverwaltung kommt vom Architect (Auftrag 1): geliefert als [ADR-0032](../../adr/0032-schluesselverwaltung-des-arbeitscontainers.md) (`Accepted`, Entscheidung des User vom 2026-11-24); die Erweiterung der Probe um die Bedingung 6 steht in `SPEC-215` Nr. 6 c (Planner, 2026-11-24, `AGENTS.md` §3.13).
 
 **Berührte Spec-Stellen:** der Vertrag des Gerüsts aus `slice-dev-container-geruest` (Bereitschaftsprobe, erweitert) · ein neuer Vertrag oder ein neuer Abschnitt dort für den Zugang (Nummer vergibt der Architect) · `harness/README.md` (Werkzeuge, „Nicht behauptet“).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie
@@ -34,6 +34,8 @@ Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
 zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der laufende Arbeitscontainer nimmt SSH-Verbindungen an, die sich mit einem hinterlegten Schlüssel ausweisen, und weist jede andere Anmeldung ab; kein privater Schlüssel liegt im Repo, im Image oder im Build-Kontext, und die Bereitschaftsprobe des Gerüsts umfasst den SSH-Dienst.
+
+**Entschieden in [ADR-0032](../../adr/0032-schluesselverwaltung-des-arbeitscontainers.md)** (`Accepted`, User, 2026-11-24; die Aufträge 1 und 2 unten sind damit beantwortet, soweit die ADR sie trägt): der Entwickler erzeugt das Paar (`ed25519`), der private Teil verlässt ihn nie; der öffentliche Teil kommt beim Start als Wert in den Container (kein Mount, nicht im Image), Ersetzen heißt Stopp und neuer Start; der Host-Schlüssel entsteht beim ersten Start des Zustands, liegt im Volume und überlebt Stopp und Neustart, `make dev-start` und `make dev-probe` geben seinen Fingerabdruck auf dem Host aus, ohne Umgehung der Prüfung; der Dienst lauscht allein auf `127.0.0.1` des Hosts, ein Port je Container, ein belegter Port macht den Start rot; Anmeldung nur mit Schlüssel, kein Passwort, kein Root. **Dem Vertrag des Zugangs bleiben** (ADR Entscheidung 5 und Frage 4 des Users: ein Entwickler oder mehrere je Container, die ADR legt keine Zahl fest): Benutzer, Shell oder nur Git-Befehle, die Formen der Schlüsselzeile (leer, mehrere, mit Optionen), Nummer, Name und Grund der Verletzung der Bedingung 6 und die Ausgabe des Fingerabdrucks.
 
 **Auftrag an den Architect** (Entscheidungen vor dem ersten Code-Commit, `AGENTS.md` §3.12; der Planner entscheidet sie nicht):
 
@@ -70,7 +72,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Die Entscheidungen 1 und 2 des Architect stehen vor dem Code in einer ADR (Schlüsselverwaltung) mit Status `Accepted` und im Vertrag.
+- [ ] Die Entscheidungen 1 und 2 des Architect stehen vor dem Code in einer ADR (Schlüsselverwaltung) mit Status `Accepted` ([ADR-0032](../../adr/0032-schluesselverwaltung-des-arbeitscontainers.md), User, 2026-11-24, erfüllt) und im Vertrag (Benutzer, Form der Schlüsselzeile, Bedingung 6).
 - [ ] Anmeldung mit dem hinterlegten Schlüssel gelingt; jede andere Art (kein Schlüssel, fremder Schlüssel, Passwort, Root, leerer Schlüssel) wird abgewiesen — ein Fall je Element, als Schleife (`AGENTS.md` §3.15).
 - [ ] Kein privater Schlüssel in Repo, Image-Schichten oder Build-Kontext (Fänger nach Auftrag 5); die Probe des Gerüsts umfasst den SSH-Dienst; zu jeder Zusage ein Fänger in §3, `make gegenproben` gefahren.
 - [ ] `make gates` grün.
@@ -92,7 +94,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `docs/plan/adr/` (ADR zur Schlüsselverwaltung) und ADR-Index | neu / update | Entscheidung 1, Status `Accepted` vor dem Code |
+| `docs/plan/adr/` (ADR zur Schlüsselverwaltung) und ADR-Index | neu / update (Architect, geliefert) | Entscheidung 1, Status `Accepted` (User, 2026-11-24) |
 | `harness/vertraege/` (Vertrag des Gerüsts, Zugang) | update / neu | Zusagen des Zugangs, Probe um den SSH-Dienst erweitert |
 | Image, Konfiguration des SSH-Dienstes, Start-Skript (Orte nach dem Gerüst) | update / neu | Dienst, Schlüssel-Aufnahme, Host-Schlüssel |
 | `tools/gegenproben/` und `SPEC-102` | update | Fälle zu den Zusagen, die ein Gate fängt (Auftrag 5) |
@@ -108,7 +110,7 @@ Betriebsregeln für alle Rollen dieses Slice: Repo-Dateien nur mit `Edit` und `W
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-dev-container-geruest` liegt in `done/` (der letzte der drei Teile des Schnitts vom 2026-11-24 nach `slice-dev-container-bau` und `slice-dev-container-start`: alle drei liegen dann in `done/`); die ADR zur Schlüsselverwaltung ([ADR-0032](../../adr/0032-schluesselverwaltung-des-arbeitscontainers.md), `Proposed`) hat den Status `Accepted`; Vertrag, Tabelle *Zusage · Fänger* und Raster aus §6 stehen vor dem ersten Code-Commit (Architect, `AGENTS.md` §3.12). Danach setzt der Planner die Marke.
+**Start** (`next` → `in-progress`): `slice-dev-container-geruest` liegt in `done/` (der letzte der drei Teile des Schnitts vom 2026-11-24 nach `slice-dev-container-bau` und `slice-dev-container-start`: alle drei liegen dann in `done/`); die ADR zur Schlüsselverwaltung ([ADR-0032](../../adr/0032-schluesselverwaltung-des-arbeitscontainers.md)) hat den Status `Accepted` (Entscheidung des User vom 2026-11-24, erfüllt); Vertrag, Tabelle *Zusage · Fänger* und Raster aus §6 stehen vor dem ersten Code-Commit (Architect, `AGENTS.md` §3.12). Danach setzt der Planner die Marke.
 
 **Größenmarke** (`AGENTS.md` §3.14): noch nicht gesetzt. Der Planner setzt sie nach dem Architect auf die Schätzung × 1,25, aufgerundet auf volle Hundert, mit `make groessenmarke` (`SPEC-128`), falls `slice-groessenmarke-werkzeug` dann in `done/` liegt, sonst nach der Form von `AGENTS.md` §3.14; die Metrik zählt die Pfade aus §3, Tests und Fälle eingeschlossen.
 
@@ -134,7 +136,8 @@ dasteht.
 
 - Schlüsselleck: ein privater Schlüssel gerät in eine Image-Schicht, den Build-Kontext oder das Repo — **Ausgang:** offen; Fänger nach Auftrag 5 (Suche in Schichten und Kontext), ein Treffer färbt das Gate rot.
 - Warnung des Host-Schlüssels führt zum Umgehen der Prüfung beim Entwickler — **Ausgang:** offen; die ADR nennt den Weg ohne Umgehung (Auftrag 1), das Dokument des letzten Slice wiederholt ihn.
-- Der Zugang erweitert die Angriffsfläche des Containers (Port am Host) — **Ausgang:** offen; Bindung und Rechte nach Auftrag 2, Wirkung in der ADR.
+- Der Zugang erweitert die Angriffsfläche des Containers (Port am Host) — **Ausgang:** offen; Bindung nach der ADR (Schleife des Hosts, ein Port je Container, Entscheidung 4), Rechte nach Auftrag 2, Wirkung in der ADR.
+- Die ADR lässt offen, ob ein Entwickler oder mehrere einen Container bedienen (Frage 4 des Users; mehr als einer ist ein Re-Evaluierungs-Trigger der ADR) — **Ausgang:** offen; Adresse: Architect (Form der Schlüsselzeile im Vertrag des Zugangs, ADR Entscheidung 5); die Zellen *Schlüssel hinterlegen* (mehrere Schlüssel, Zeile mit Optionen) des Rasters bleiben bis dahin ohne Ort.
 - Erweiterung der Probe bricht den Vertrag des Gerüsts (in `done/`): zulässig nur, weil das Gerüst die Probe als erweiterbar festlegt (Auftrag 3 dort) — **Ausgang:** offen; hat das Gerüst es nicht so entschieden, ist es ein Befund an den Planner (`AGENTS.md` §3.13).
 - Zwei Container auf einem Host kollidieren am Port — **Ausgang:** offen; Zeile im Raster.
 - Randformen (`AGENTS.md` §3.12, §3.16): Raster *Operation × Argumentart* als Gerüst; jede Zelle nennt die Frage, der Ort ist der Vertrag des Architect; eine Zelle ohne Ort hält den Implementer an — **Ausgang:** offen.

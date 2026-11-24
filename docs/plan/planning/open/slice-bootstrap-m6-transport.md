@@ -44,7 +44,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Der M6-Test (Rundlauf, Abweisung ohne Zustandsänderung, die Zellen Modus × Art, Stufe 11 `TestE2EAdmin`) — [slice-bootstrap-m6](slice-bootstrap-m6.md) (Teil D, Zeilen D01 bis D06).
 - Der Handshake des Admin-Adapters über TLS (Zeilen AT11 bis AT17 von `slice-admin-tls`) — [slice-admin-tls-betrieb](slice-admin-tls-betrieb.md), startet nach allen vier Teilen. Dieser Teil belegt allein, dass der Root umhüllt (C05); die Zusagen des Handshakes trägt der Folge-Slice.
 - `LISTEN_TLS_*` (Lesen, Binden und Umhüllen des OData-Listeners) — geliefert von `slice-listener-tls-verdrahtung` (`done/`); dieser Teil vereinigt allein die Verstöße beider TLS-Paare in `Build`. `HYBRID_*` und `FALLBACK_*` — geliefert von `slice-bootstrap-m4-konfig` und `slice-bootstrap-m4` (`done/`).
-- Die Begrenzung der Fehlversuche (`LH-FA-13.a` nennt keine) — Entscheidung des User, Vorlage in §6 von [slice-bootstrap-m6](slice-bootstrap-m6.md). Neue Endpunkte oder Fachlogik und das Umschalten des Modus zur Laufzeit — nicht Gegenstand des Schnitts.
+- Die Begrenzung der Fehlversuche (`LH-FA-13.a` nannte keine) — entschieden (User, 2026-11-24, Variante A, `SPEC-301`); Träger ist der Folge-Slice [slice-admin-abweisen-begrenzen](slice-admin-abweisen-begrenzen.md), Vorlage in §6 von [slice-bootstrap-m6](slice-bootstrap-m6.md). Neue Endpunkte oder Fachlogik und das Umschalten des Modus zur Laufzeit — nicht Gegenstand des Schnitts.
 
 **Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
 einer mit vier erfundenen; die vier Klassen sind ein Suchraster, keine
