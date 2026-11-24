@@ -9,6 +9,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record/capture"
 )
 
@@ -29,6 +30,8 @@ type austausch struct {
 	// res ist die Response-Aufnahme; nil bei einer Antwort ohne Body nach HTTP.
 	res    *capture.Aufnahme
 	upBody io.ReadCloser
+	// span ist der Span des Exchange von der Annahme bis schliesseAb (SPEC-295).
+	span support.Span
 }
 
 // eofLeser merkt sich, ob ein Read io.EOF lieferte, auch zusammen mit n > 0 (SPEC-121 Nr. 8).
@@ -218,7 +221,8 @@ func (x *austausch) ohneTee(actx context.Context, err error) error {
 }
 
 // schliesseAb bildet den Match-Key und hängt an, ist err nil; sonst und bei jedem Fehler dabei ist
-// der Exchange nicht angehängt (SPEC-121 Nr. 6, 10). Danach läuft er nicht mehr. Die Tests erreichen
+// der Exchange nicht angehängt (SPEC-121 Nr. 6, 10). Danach endet der Span genau einmal (SPEC-295
+// Nr. 3 b), und danach läuft der Exchange nicht mehr. Die Tests erreichen
 // von diesen Fehlern die des Anhängens; ein err aus Abschluss ist nicht erreichbar (SPEC-121 Nr. 8),
 // ein Fehler des zweiten BildeSchluessel ebenso nicht (SPEC-121 Nr. 6).
 func (x *austausch) schliesseAb(actx context.Context, z capture.Zustand, redigiert []byte, err error) {
@@ -232,10 +236,13 @@ func (x *austausch) schliesseAb(actx context.Context, z capture.Zustand, redigie
 	if err != nil {
 		x.protokolliereAblage(actx, err)
 	}
+	x.span.End()
 	x.r.endeLauf(x.sz, x.l, err != nil)
 }
 
+// setzeZustand übernimmt den Zustand der Aufnahme in den Exchange und in den Span (SPEC-295 Nr. 4 b).
 func (x *austausch) setzeZustand(z capture.Zustand) {
+	x.span.Set(support.Str(attrCaptureStatus, string(z.Capture)))
 	x.e.Capture, x.e.Integrity, x.e.Equivalence = z.Capture, z.Integrity, z.Equivalence
 	x.e.RequestBody, x.e.RequestBlob, x.e.RequestRedact = z.RequestBody, z.RequestBlob, z.RequestRedact
 	x.e.ResponseBody, x.e.ResponseBlob, x.e.ResponseRedact = z.ResponseBody, z.ResponseBlob, z.ResponseRedact

@@ -1,0 +1,5 @@
+# Der Wechsel des Formats einer Ausgabe zieht Tests außerhalb der genannten Pakete mit, und der Block der Größenmarke nennt sie nicht
+
+**Sub-Area:** `*` (gesamtes Repo, Kürzel `REPO`)
+
+Ein Plan nennt die Pakete, die er ändert; er ändert aber das Format einer Ausgabe des Prozesses (hier: die Einträge der Dienste auf `stderr` von der Textzeile zur JSON-Zeile, `SPEC-231` Nr. 7), und jeder Test, der diese Ausgabe als Text sucht, zieht mit: die Stufen des Binary unter `tests/e2e/` und ein Test im Paket `bootstrap`, der die Zeilen der Senke liest. Der Implementer darf den Block nicht ändern; der Planner trägt die Dateien nach dem Handoff ein (`SPEC-128` Nr. 10 g, Dateien einzeln statt des Verzeichnisses), und der Werkzeug-Vertrag, der die Suchterme der Stufen nennt (`SPEC-037` Nr. 7), bleibt in der Textform stehen, bis ihn die Verifikation findet. Nahe an `plan-nennt-datei-die-fremde-waechter-verbieten` (dort nennt der Plan eine Datei, die ein fremder Wächter verbietet) und `erreichbarkeit-ohne-nachzug-der-ausnahmen`.

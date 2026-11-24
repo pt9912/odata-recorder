@@ -381,13 +381,25 @@ func TestWurzelGesamtspanJedeAnfrage(t *testing.T) {
 			if resp.StatusCode != a.status {
 				t.Errorf("%s %s: Status %d, erwartet %d", modus, a.pfad, resp.StatusCode, a.status)
 			}
-			z := zeilen(t, w.senke.String())
-			if len(z) == 0 || z[len(z)-1]["msg"] != "odata.gateway.request" {
-				t.Fatalf("%s %s: Senke %q, erwartet die Zeile des Gesamtspans zuletzt", modus, a.pfad, w.senke.String())
+			if modus == modusRecord && a.status == 200 {
+				// Der Capture-Span des Record-Dienstes endet nach dem Gesamtspan, mit dem Close des Body (SPEC-295 Nr. 3 e); Herunterfahren wartet darauf.
+				if err := w.h.Herunterfahren(context.Background()); err != nil {
+					t.Fatalf("%s: Herunterfahren: %v", modus, err)
+				}
 			}
 			soll := gwZeile("spn-0000000000000001", "GET", a.status, modus)
-			if letzte := w.senke.String()[strings.LastIndex(strings.TrimSuffix(w.senke.String(), "\n"), "\n")+1:]; letzte != soll {
-				t.Errorf("%s %s: Zeile\n%s\nerwartet\n%s", modus, a.pfad, letzte, soll)
+			// Die Zeile des Gesamtspans steht zuletzt; allein im Modus record mit Antwort des Dienstes folgt ihr die Zeile des Capture-Spans, dessen
+			// `parent_id` ihre `span_id` ist (SPEC-295 Nr. 3 e).
+			zl := strings.Split(strings.TrimSuffix(w.senke.String(), "\n"), "\n")
+			gw := len(zl) - 1
+			if modus == modusRecord && a.status == 200 {
+				gw = len(zl) - 2
+				if gw < 0 || !strings.Contains(zl[gw+1], `"msg":"odata.record.capture"`) || !strings.Contains(zl[gw+1], `"parent_id":"spn-0000000000000001"`) {
+					t.Errorf("%s %s: Senke %q, erwartet die Zeile des Capture-Spans mit dem Gesamtspan als Eltern zuletzt", modus, a.pfad, w.senke.String())
+				}
+			}
+			if gw < 0 || zl[gw]+"\n" != soll {
+				t.Errorf("%s %s: Senke %q, erwartet die Zeile des Gesamtspans an der letzten Stelle des Falls:\n%s", modus, a.pfad, w.senke.String(), soll)
 			}
 			keinVerwurf(t, modus, w.adapter[0])
 			if soll := map[string]int{modusRecord: 1, modusReplay: 1, modusMock: 1, modusHybrid: 1}[modus]; len(w.adapter) != soll {

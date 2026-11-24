@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -284,10 +283,11 @@ func (b *betrieb) bauteile() bootstrap.Bauteile {
 	return bt
 }
 
-// baue ruft Build mit dem Logger des Betriebs; der Handle fährt am Ende des Tests herunter.
+// baue ruft Build mit der Senke des Adapters des Prozesses (b.log); der Logger von Build bleibt leer, denn die Einträge des Audit-Adapters und der
+// Dienste stehen als Zeile in der Senke (SPEC-139 Nr. 13 d). Der Handle fährt am Ende des Tests herunter.
 func (b *betrieb) baue() error {
 	b.t.Helper()
-	h, err := bootstrap.BuildMit(context.Background(), canaryKonfig(b.dir, b.modus, b.maxAge), slog.New(slog.NewTextHandler(b.log, nil)), b.bauteile())
+	h, err := bootstrap.BuildMitSenke(context.Background(), canaryKonfig(b.dir, b.modus, b.maxAge), nil, b.log, b.bauteile())
 	if err != nil {
 		return err
 	}

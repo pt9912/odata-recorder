@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang mit `slice-telemetry-einbau-record` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht. Die Fix-Runde stellte die Prüfung „zuletzt“ für alle Fälle außer `record` mit Status 200 wieder her (8 von 8 Mutationen „Zeile hinter dem Gesamtspan“ rot, Verifikation 3.4).

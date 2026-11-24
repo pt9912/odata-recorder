@@ -27,15 +27,16 @@ type Dienst struct {
 
 // Konfig ist die Konfiguration des Dienstes (SPEC-121 Nr. 1).
 type Konfig struct {
-	Dienste   []Dienst
-	Sessions  outbound.SessionRepository
-	Exchanges outbound.RecordingRepository
-	Upstream  outbound.UpstreamClient
-	Pipeline  *capture.Pipeline
-	Regeln    model.SchluesselRegeln
-	Uhr       support.Clock
-	IDs       support.IDGenerator
-	Log       *slog.Logger
+	Dienste    []Dienst
+	Sessions   outbound.SessionRepository
+	Exchanges  outbound.RecordingRepository
+	Upstream   outbound.UpstreamClient
+	Pipeline   *capture.Pipeline
+	Regeln     model.SchluesselRegeln
+	Uhr        support.Clock
+	IDs        support.IDGenerator
+	Log        *slog.Logger
+	Telemetrie support.Telemetry // trägt den Span odata.record.capture (SPEC-295)
 }
 
 // Recorder setzt RecordUseCase um. Der Zustand je Session (Annahme, Drain, Zahl, Bericht) bleibt
@@ -68,8 +69,8 @@ func pruefeKonfig(k Konfig) error {
 		return ungueltig("Dienst ohne Kennung, Root oder Upstream")
 	case k.Sessions == nil || k.Exchanges == nil || k.Upstream == nil || k.Pipeline == nil:
 		return ungueltig("Port oder Pipeline fehlt")
-	case k.Uhr == nil || k.IDs == nil || k.Log == nil:
-		return ungueltig("Uhr, Kennungen oder Log fehlt")
+	case k.Uhr == nil || k.IDs == nil || k.Log == nil || k.Telemetrie == nil:
+		return ungueltig("Uhr, Kennungen, Log oder Telemetrie fehlt")
 	}
 	return pruefeRegeln(k.Regeln)
 }
@@ -113,8 +114,18 @@ func (r *Recorder) Record(ctx context.Context, a inbound.Anfrage) (inbound.Antwo
 			StartedAt:      r.k.Uhr.Now(),
 		},
 	}
+	// Das ctx von StartSpan verwirft der Dienst: jeder Port erhält das des Aufrufs (SPEC-295 Nr. 3 d).
+	_, x.span = r.k.Telemetrie.StartSpan(ctx, support.SpanRecordCapture,
+		support.Str(attrSessionID, x.e.SessionID), support.Str(attrCaptureStatus, statusUnbestimmt))
 	return x.leite(lctx, context.WithoutCancel(ctx))
 }
+
+// Schlüssel und Platzhalter der Pflicht-Attribute von odata.record.capture (SPEC-027, SPEC-295 Nr. 4).
+const (
+	attrSessionID     = "recorder.session_id"
+	attrCaptureStatus = "recorder.capture_status"
+	statusUnbestimmt  = "unbestimmt"
+)
 
 // mitCode bildet den Fehlerwert eines Codes mit seinem einen Status (SPEC-121 Nr. 14).
 func mitCode(c model.Code, ursache error) *inbound.Fehler {

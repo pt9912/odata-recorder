@@ -70,6 +70,8 @@ type fakeBlobs struct {
 	begins     int
 	commits    chan string
 	haltCommit chan struct{}
+	// ctxs sind die ctx der Aufrufe von Begin in der Folge der Aufrufe (SPEC-295 Nr. 3 d).
+	ctxs []context.Context
 }
 
 type fakeWriter struct {
@@ -88,6 +90,7 @@ func (b *fakeBlobs) Begin(ctx context.Context, grenze int64) (outbound.CaptureWr
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.begins++
+	b.ctxs = append(b.ctxs, ctx)
 	return &fakeWriter{b: b, cerr: ctx.Err, grenze: grenze}, nil
 }
 
@@ -266,6 +269,8 @@ type fakeExchanges struct {
 	haltAppend chan struct{}
 	imAppend   chan struct{}
 	haltNur    string
+	// listCtx und appendCtx sind die ctx der Aufrufe von ListBySession und Append (SPEC-295 Nr. 3 d).
+	listCtx, appendCtx []context.Context
 }
 
 func (f *fakeExchanges) Append(ctx context.Context, e model.Exchange) error {
@@ -274,6 +279,7 @@ func (f *fakeExchanges) Append(ctx context.Context, e model.Exchange) error {
 	f.appends++
 	fehler := f.appendFehler[nr]
 	f.ctxFehler = append(f.ctxFehler, ctx.Err())
+	f.appendCtx = append(f.appendCtx, ctx)
 	f.aktiv++
 	f.hoch = max(f.hoch, f.aktiv)
 	pause, halt := f.pause, f.haltAppend
@@ -340,6 +346,7 @@ func (f *fakeExchanges) ListBySession(ctx context.Context, id string) ([]model.E
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.listAufrufe++
+	f.listCtx = append(f.listCtx, ctx)
 	if f.listFehler != nil {
 		return nil, f.listFehler
 	}
@@ -454,6 +461,8 @@ type gesehen struct {
 	a    outbound.UpstreamAnfrage
 	body string
 	done <-chan struct{}
+	// ctx liefert das ctx des Aufrufs (SPEC-295 Nr. 3 d), ohne es in einem Feld vom Typ context.Context abzulegen.
+	ctx func() context.Context
 }
 
 type fakeUpstream struct {
@@ -473,7 +482,7 @@ func (u *fakeUpstream) Senden(ctx context.Context, a outbound.UpstreamAnfrage) (
 	}
 	i := len(u.aufrufe)
 	a.Header = maps.Clone(a.Header)
-	u.aufrufe = append(u.aufrufe, gesehen{a: a, done: ctx.Done()})
+	u.aufrufe = append(u.aufrufe, gesehen{a: a, done: ctx.Done(), ctx: func() context.Context { return ctx }})
 	u.mu.Unlock()
 	u.imSenden <- struct{}{}
 	gelesen, err := liesBody(a, p.lies)
@@ -588,6 +597,7 @@ type umgebung struct {
 	exchanges *fakeExchanges
 	upstream  *fakeUpstream
 	log       *fang
+	tel       *supporttest.FakeTelemetry
 	konfig    record.Konfig
 	r         *record.Recorder
 }
@@ -617,6 +627,7 @@ func neu(t *testing.T, aendere ...func(*record.Konfig)) *umgebung {
 		sessions: &fakeSessions{sessions: map[string]model.Session{}, imList: make(chan struct{}, 8), freiList: make(chan struct{})},
 		upstream: &fakeUpstream{imSenden: make(chan struct{}, 64), ctxEnde: make(chan struct{}, 64)},
 		log:      &fang{},
+		tel:      supporttest.NewFakeTelemetry(),
 	}
 	u.exchanges = &fakeExchanges{prot: prot, sessions: u.sessions, vorhanden: map[string][]model.Exchange{},
 		appendFehler: map[int]error{}}
@@ -633,7 +644,7 @@ func neu(t *testing.T, aendere ...func(*record.Konfig)) *umgebung {
 	u.konfig = record.Konfig{
 		Dienste:  []record.Dienst{{ID: "svc-a", Root: "/a", UpstreamURL: "http://a.example"}, {ID: "svc-b", Root: "/b", UpstreamURL: "http://b.example"}},
 		Sessions: u.sessions, Exchanges: u.exchanges, Upstream: u.upstream, Pipeline: p, Regeln: regeln(),
-		Uhr: u.uhr, IDs: u.ids, Log: slog.New(u.log),
+		Uhr: u.uhr, IDs: u.ids, Log: slog.New(u.log), Telemetrie: u.tel,
 	}
 	for _, f := range aendere {
 		f(&u.konfig)
