@@ -78,7 +78,7 @@ Die Tabelle *Zusage · Fänger* entfällt: der Slice liefert keinen Vertrag, er 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`open` → `next` → `in-progress`): `slice-gegenproben-zeitbudget` liegt in `done/` und in `main`; der User hat einen Termin gesetzt, an dem w1, w2 und w3 schwere Läufe pausieren (§1); kein anderer Slice der Gate-Kette liegt in `in-progress/` (Nr. 7 der Übergangsregeln); Reihenfolge der Kette (Planner, 2026-11-24, Drift-Log der Roadmap): als letzter, nach `slice-worktree-parallel` in `done/` (das Auslassen eines Vorgängers regelt Nr. 7 der Übergangsregeln).
+**Start** (`open` → `next` → `in-progress`): `slice-gegenproben-zeitbudget` liegt in `done/` und in `main`; der User hat einen Termin gesetzt, an dem w1, w2 und w3 schwere Läufe pausieren (§1); kein anderer Slice der Gate-Kette liegt in `in-progress/` (Nr. 7 der Übergangsregeln); Reihenfolge der Kette (Planner, 2026-11-24, Drift-Log der Roadmap): als letzter (Position 17), nach [slice-groessenmarke-blockpfad](slice-groessenmarke-blockpfad.md) (Position 16, vor der Eichung, weil sie `time make gegenproben` mit der Zahl der Fälle misst und der Sensor Fälle hinzufügt) in `done/` (das Auslassen eines Vorgängers regelt Nr. 7 der Übergangsregeln).
 
 **Größenmarke:** keine. Der Slice ändert keinen Code in den Pfaden eines Blocks; die Zeilen in `harness/vertraege/` zählen nach `SPEC-128` Nr. 4 a nicht. Ein Plan ohne Block wird von `make groessenmarke` nicht gemessen.
 

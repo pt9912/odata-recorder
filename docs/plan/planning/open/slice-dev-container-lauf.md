@@ -73,7 +73,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Die Entscheidungen 1 bis 5 des Architect stehen vor dem Code im Vertrag unter `harness/vertraege/`.
-- [ ] Auf einem eingelieferten Stand bestehen `make gates` und `make gegenproben` im Container; der Daemon des Hosts trägt danach kein Image, keinen Container und kein Volume des Laufs (Listen vor und nach dem Lauf im Bericht); ein Lauf über dem Speicherlimit beendet den Container, nicht den Host.
+- [ ] Auf einem eingelieferten Stand bestehen `make gates` und `make gegenproben` im Container; der Daemon des Hosts trägt danach kein Image, keinen Container und kein Volume des Laufs (Listen vor und nach dem Lauf im Bericht); ein Lauf über dem Speicherlimit trifft den Container, nicht den Host (der Kernel wählt den Prozess und beendet ihn; der Container endet nur, wenn es der erste ist, `SPEC-215` Nr. 9 b).
 - [ ] Zwei Container mit verschiedenen Zweigen bestehen zugleich; Zeit je Fall der Gegenproben, Zeit von `make test-race` und Spitze des Speichers stehen mit Zahl der Läufe, Last und Messendem im Plan (§3), neben dem Einzellauf; keine Frist wurde verlängert; zu jeder Zusage ein Fänger in §3.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
@@ -138,14 +138,14 @@ dasteht.
 - Eine Messung nennt eine Rate oder Zeit als Einzelzahl — **Ausgang:** offen; Zahl der Läufe, Last und Messender stehen dabei (`BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last`, 2×); erreicht ein Fund mit dieser Welle 3×, braucht der Eintrag in der Closure einen Ausgang.
 - Der Stempel gilt am Host und gilt nicht im Container (Prüfsumme weicht ab) oder umgekehrt — **Ausgang:** offen; Entscheidung 4, Fänger: dieselbe Prüfsumme für denselben Commit an beiden Orten, eine Mutation ändert eine Eingabedatei.
 - Der innere Daemon fällt auf den Daemon des Hosts zurück (Socket durchgereicht, Umgebungsvariable) und verfälscht „Host unberührt“ — **Ausgang:** offen; Fänger: Listen des Hosts vor und nach dem Lauf, eine Mutation lässt den Lauf den Host-Daemon rufen.
-- Ein Lauf am Limit (Speicher) beendet den Container mitten im Gate, und der Stempel oder der Nachweis bleibt halb — **Ausgang:** offen; Zusage: ein roter Lauf lässt den Stempel unverändert (`SPEC-102`), Fänger im Raster.
+- Ein Lauf am Limit (Speicher) lässt den Kernel einen Prozess im Container beenden (der Container endet nur, wenn es der erste ist, `SPEC-215` Nr. 9 b), mitten im Gate, und der Stempel oder der Nachweis bleibt halb — **Ausgang:** offen; Adresse: Architect (der Vertrag des Laufs führt je Fall, was der Lauf bei einem beendeten Prozess und bei einem beendeten Container tut); Zusage: ein roter Lauf lässt den Stempel unverändert (`SPEC-102`), Fänger im Raster.
 - Nebenläufigkeit: zwei Container teilen Host-Ressourcen (Platte, CPU) und stören sich doch — **Ausgang:** offen; Messung zu zweit, nicht Zusicherung; ein akzeptiertes Negativ nennt Grund und Folge (`AGENTS.md` §3.15).
 - Randformen (`AGENTS.md` §3.12, §3.16): Raster *Operation × Argumentart* als Gerüst; jede Zelle nennt die Frage, der Ort ist der Vertrag des Architect; eine Zelle ohne Ort hält den Implementer an — **Ausgang:** offen.
 
 | Operation | fehlender Wert | leerer Wert | unbekannter oder fremder Wert | Abbruch | Wiederholung |
 |---|---|---|---|---|---|
 | Lauf auslösen | Zweig nicht angegeben: (Vertrag, offen) | leerer Zweigname: (Vertrag, offen) | Zweig nicht eingeliefert, Zweig mit anderem Stand als der Klon: (Vertrag, offen) | Signal, Verbindung bricht: Lauf endet oder läuft weiter? Stempel? (Vertrag, offen) | Lauf auf demselben Commit: Stempel entscheidet (Vertrag, offen) |
-| Lauf im Arbeitsstand | Daemon nicht bereit: Probe rot, Lauf verweigert (Vertrag, offen) | Arbeitsstand leer: (Vertrag, offen) | Arbeitsstand schmutzig (ungetrackte Dateien): (Vertrag, offen) | Limit überschritten, Container endet: (Vertrag, offen) | zweiter Lauf im selben Container zugleich: (Vertrag, offen) |
+| Lauf im Arbeitsstand | Daemon nicht bereit: Probe rot, Lauf verweigert (Vertrag, offen) | Arbeitsstand leer: (Vertrag, offen) | Arbeitsstand schmutzig (ungetrackte Dateien): (Vertrag, offen) | Limit überschritten, Prozess oder Container endet (der Kernel wählt, `SPEC-215` Nr. 9 b): (Vertrag, offen) | zweiter Lauf im selben Container zugleich: (Vertrag, offen) |
 | Stempel behandeln | Stempel fehlt: Lauf erzwungen (`SPEC-102`) | leerer Stempel: (Vertrag, offen) | Stempel eines anderen Standes: Lauf erzwungen (`SPEC-102`) | roter Lauf: Stempel unverändert (`SPEC-102`) | grüner Lauf zweimal: zweiter entfällt (`SPEC-102`) |
 
 Zusatztabelle (`AGENTS.md` §3.16), Paare von Ursachen:
