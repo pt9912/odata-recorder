@@ -19,6 +19,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
 // wsZiel ist der Pfad der Routen für Workspaces (SPEC-298 Nr. 1), wsPfadID der Pfadwert, den die Tests der Routen mit `{id}`
@@ -113,73 +114,140 @@ func (p *wsProtokoll) nurDiagonale(t *testing.T, name string, op wsOp) {
 	}
 }
 
-// workspaceFake erfüllt inbound.WorkspaceUseCase: jede der sechs Operationen zählt ihren Aufruf und hält ctx und beide
-// Argumente fest; Ergebnis und Fehler sind einstellbar (ws, liste, bericht, err) und kommen zugleich zurück. Der Fake gerät nie
-// in Panik; die Einstellungen setzt der Test vor dem ersten Aufruf.
-type workspaceFake struct {
-	p       *wsProtokoll
+// wsErgebnis ist, was eine Operation von workspaceFake liefert: je Operation zählt der Teil, den ihr Port zurückgibt.
+type wsErgebnis struct {
 	ws      model.Workspace
 	liste   []model.Workspace
 	bericht inbound.Loeschbericht
 	err     error
 }
 
+// workspaceFake erfüllt inbound.WorkspaceUseCase: jede der sechs Operationen zählt ihren Aufruf und hält ctx und beide
+// Argumente fest; Ergebnis und Fehler sind einstellbar (ws, liste, bericht, err) und kommen zugleich zurück, ergebnis ersetzt sie
+// je Aufruf (der Zustand mit eigener Sperre liegt im Test). vor und nach sind je Operation Haltepunkte ohne Sperre des Fakes: vor
+// läuft nach dem Zählen und vor dem Ergebnis, nach dahinter und vor der Rückkehr. Der Fake gerät nie in Panik.
+type workspaceFake struct {
+	p         *wsProtokoll
+	ws        model.Workspace
+	liste     []model.Workspace
+	bericht   inbound.Loeschbericht
+	err       error
+	ergebnis  func(ctx context.Context, op wsOp, a, b string) wsErgebnis
+	vor, nach [wsOpAnzahl]func(ctx context.Context)
+}
+
+func (f *workspaceFake) lauf(ctx context.Context, op wsOp, a, b string) wsErgebnis {
+	f.p.rufe(ctx, op, a, b)
+	if h := f.vor[op]; h != nil {
+		h(ctx)
+	}
+	r := wsErgebnis{f.ws, f.liste, f.bericht, f.err}
+	if f.ergebnis != nil {
+		r = f.ergebnis(ctx, op, a, b)
+	}
+	if h := f.nach[op]; h != nil {
+		h(ctx)
+	}
+	return r
+}
+
 func (f *workspaceFake) Create(ctx context.Context, baselineID, id string) (model.Workspace, error) {
-	f.p.rufe(ctx, wsCreate, baselineID, id)
-	return f.ws, f.err
+	r := f.lauf(ctx, wsCreate, baselineID, id)
+	return r.ws, r.err
 }
 
 func (f *workspaceFake) Get(ctx context.Context, id string) (model.Workspace, error) {
-	f.p.rufe(ctx, wsGet, id, "")
-	return f.ws, f.err
+	r := f.lauf(ctx, wsGet, id, "")
+	return r.ws, r.err
 }
 
 func (f *workspaceFake) List(ctx context.Context) ([]model.Workspace, error) {
-	f.p.rufe(ctx, wsList, "", "")
-	return f.liste, f.err
+	r := f.lauf(ctx, wsList, "", "")
+	return r.liste, r.err
 }
 
 func (f *workspaceFake) Delete(ctx context.Context, id string) (inbound.Loeschbericht, error) {
-	f.p.rufe(ctx, wsDelete, id, "")
-	return f.bericht, f.err
+	r := f.lauf(ctx, wsDelete, id, "")
+	return r.bericht, r.err
 }
 
 func (f *workspaceFake) Reset(ctx context.Context, id string) (model.Workspace, error) {
-	f.p.rufe(ctx, wsReset, id, "")
-	return f.ws, f.err
+	r := f.lauf(ctx, wsReset, id, "")
+	return r.ws, r.err
 }
 
 func (f *workspaceFake) Restore(ctx context.Context, workspaceID, snapshotID string) (model.Workspace, error) {
-	f.p.rufe(ctx, wsRestore, workspaceID, snapshotID)
-	return f.ws, f.err
+	r := f.lauf(ctx, wsRestore, workspaceID, snapshotID)
+	return r.ws, r.err
 }
 
-// snapshotFake erfüllt inbound.SnapshotUseCase wie workspaceFake für die zwei Operationen des Ports.
-type snapshotFake struct {
-	p     *wsProtokoll
+// snErgebnis ist, was eine Operation von snapshotFake liefert.
+type snErgebnis struct {
 	snap  model.WorkspaceSnapshot
 	liste []model.WorkspaceSnapshot
 	err   error
 }
 
+// snapshotFake erfüllt inbound.SnapshotUseCase wie workspaceFake für die zwei Operationen des Ports (ergebnis, vor und nach
+// wie dort, indiziert mit snList und snCreate).
+type snapshotFake struct {
+	p         *wsProtokoll
+	snap      model.WorkspaceSnapshot
+	liste     []model.WorkspaceSnapshot
+	err       error
+	ergebnis  func(ctx context.Context, op wsOp, a, b string) snErgebnis
+	vor, nach [wsOpAnzahl]func(ctx context.Context)
+}
+
+func (f *snapshotFake) lauf(ctx context.Context, op wsOp, a, b string) snErgebnis {
+	f.p.rufe(ctx, op, a, b)
+	if h := f.vor[op]; h != nil {
+		h(ctx)
+	}
+	r := snErgebnis{f.snap, f.liste, f.err}
+	if f.ergebnis != nil {
+		r = f.ergebnis(ctx, op, a, b)
+	}
+	if h := f.nach[op]; h != nil {
+		h(ctx)
+	}
+	return r
+}
+
 func (f *snapshotFake) Create(ctx context.Context, workspaceID, name string) (model.WorkspaceSnapshot, error) {
-	f.p.rufe(ctx, snCreate, workspaceID, name)
-	return f.snap, f.err
+	r := f.lauf(ctx, snCreate, workspaceID, name)
+	return r.snap, r.err
 }
 
 func (f *snapshotFake) List(ctx context.Context, workspaceID string) ([]model.WorkspaceSnapshot, error) {
-	f.p.rufe(ctx, snList, workspaceID, "")
-	return f.liste, f.err
+	r := f.lauf(ctx, snList, workspaceID, "")
+	return r.liste, r.err
 }
 
-// wsEnv ist ein Server mit den Routen über beiden Fakes und dem FakeAudit der Umgebung; der Dienst liefert einen Workspace,
-// einen Snapshot und einen Bericht (3 entfernt, zurückgestellt).
+// wsAuditNach ist der Audit der Routen: er reicht Append an den FakeAudit der Umgebung und ruft danach den Haltepunkt nach mit
+// dem Eintrag (das Fenster zwischen der Rückkehr von Append und dem Schreiben der Antwort, je Art des Eintrags).
+type wsAuditNach struct {
+	support.AuditLog
+	nach func(support.Eintrag)
+}
+
+func (a *wsAuditNach) Append(e support.Eintrag) error {
+	err := a.AuditLog.Append(e)
+	if a.nach != nil {
+		a.nach(e)
+	}
+	return err
+}
+
+// wsEnv ist ein Server mit den Routen über beiden Fakes und dem FakeAudit der Umgebung (hinter nachAppend); der Dienst liefert
+// einen Workspace, einen Snapshot und einen Bericht (3 entfernt, zurückgestellt).
 type wsEnv struct {
 	*umgebung
-	p      *wsProtokoll
-	wf     *workspaceFake
-	sf     *snapshotFake
-	routen []admin.Route
+	p          *wsProtokoll
+	wf         *workspaceFake
+	sf         *snapshotFake
+	nachAppend *wsAuditNach
+	routen     []admin.Route
 }
 
 // wsNeu baut die Umgebung; ein Fehler von WorkspaceRouten oder New bricht den Test ab.
@@ -192,7 +260,8 @@ func wsNeu(t *testing.T) *wsEnv {
 		wf: &workspaceFake{p: p, ws: wsA(), bericht: inbound.Loeschbericht{Entfernt: 3, Zurueckgestellt: true}},
 		sf: &snapshotFake{p: p, snap: snapA()},
 	}
-	routen, err := admin.WorkspaceRouten(e.wf, e.sf, u.audit)
+	e.nachAppend = &wsAuditNach{AuditLog: u.audit}
+	routen, err := admin.WorkspaceRouten(e.wf, e.sf, e.nachAppend)
 	if err != nil || len(routen) != 8 {
 		t.Fatalf("WorkspaceRouten: %d Routen, %v", len(routen), err)
 	}
@@ -285,11 +354,14 @@ func (r wsRoute) gut() *http.Request {
 	return r.request(wsPfadID, "", nil, b)
 }
 
-// wsLeser liest aus Bytes, zählt jeden Aufruf von Read und liefert hinter den Bytes den Fehler rest (nil: das Ende).
+// wsLeser liest aus Bytes, zählt jeden Aufruf von Read und liefert hinter den Bytes den Fehler rest (nil: das Ende); ende ist
+// ein Treffpunkt, der einmal läuft, bevor der Leser nach den Bytes das Ende oder rest meldet.
 type wsLeser struct {
-	r    *bytes.Reader
-	rest error
-	n    atomic.Int64
+	r       *bytes.Reader
+	rest    error
+	n       atomic.Int64
+	ende    func()
+	geendet bool
 }
 
 func wsNeuerLeser(b []byte, rest error) *wsLeser { return &wsLeser{r: bytes.NewReader(b), rest: rest} }
@@ -297,8 +369,14 @@ func wsNeuerLeser(b []byte, rest error) *wsLeser { return &wsLeser{r: bytes.NewR
 func (l *wsLeser) Read(p []byte) (int, error) {
 	l.n.Add(1)
 	n, err := l.r.Read(p)
-	if err == io.EOF && l.rest != nil {
-		err = l.rest
+	if err == io.EOF {
+		if l.ende != nil && !l.geendet {
+			l.geendet = true
+			l.ende()
+		}
+		if l.rest != nil {
+			err = l.rest
+		}
 	}
 	return n, err
 }
