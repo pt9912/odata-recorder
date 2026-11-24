@@ -11,7 +11,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Welle:** [welle-dev-container](../welle-dev-container.md).
 
-**Bezug:** `LH-RB-04` (Schutz von Daten und Zugangsdaten: kein Geheimnis im Repo oder Image), `LH-RB-03` (Entwicklung in Docker-Umgebungen), [ADR-0004](../../adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md) (Vertrag unter `harness/vertraege/`). Eine neue ADR zur Schlüsselverwaltung kommt vom Architect (Auftrag 1).
+**Bezug:** `LH-RB-04` (Schutz von Daten und Zugangsdaten: kein Geheimnis im Repo oder Image), `LH-RB-03` (Entwicklung in Docker-Umgebungen), [ADR-0004](../../adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md) (Vertrag unter `harness/vertraege/`). Eine neue ADR zur Schlüsselverwaltung kommt vom Architect (Auftrag 1): geliefert als [ADR-0032](../../adr/0032-schluesselverwaltung-des-arbeitscontainers.md) (`Proposed`, Entscheidung beim User); die Erweiterung der Probe um eine Bedingung steht in `SPEC-215` Nr. 6 c (Planner, 2026-11-24, `AGENTS.md` §3.13).
 
 **Berührte Spec-Stellen:** der Vertrag des Gerüsts aus `slice-dev-container-geruest` (Bereitschaftsprobe, erweitert) · ein neuer Vertrag oder ein neuer Abschnitt dort für den Zugang (Nummer vergibt der Architect) · `harness/README.md` (Werkzeuge, „Nicht behauptet“).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie
@@ -108,7 +108,7 @@ Betriebsregeln für alle Rollen dieses Slice: Repo-Dateien nur mit `Edit` und `W
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): `slice-dev-container-geruest` liegt in `done/`; die ADR zur Schlüsselverwaltung hat den Status `Accepted`; Vertrag, Tabelle *Zusage · Fänger* und Raster aus §6 stehen vor dem ersten Code-Commit (Architect, `AGENTS.md` §3.12). Danach setzt der Planner die Marke.
+**Start** (`next` → `in-progress`): `slice-dev-container-geruest` liegt in `done/` (der letzte der drei Teile des Schnitts vom 2026-11-24 nach `slice-dev-container-bau` und `slice-dev-container-start`: alle drei liegen dann in `done/`); die ADR zur Schlüsselverwaltung ([ADR-0032](../../adr/0032-schluesselverwaltung-des-arbeitscontainers.md), `Proposed`) hat den Status `Accepted`; Vertrag, Tabelle *Zusage · Fänger* und Raster aus §6 stehen vor dem ersten Code-Commit (Architect, `AGENTS.md` §3.12). Danach setzt der Planner die Marke.
 
 **Größenmarke** (`AGENTS.md` §3.14): noch nicht gesetzt. Der Planner setzt sie nach dem Architect auf die Schätzung × 1,25, aufgerundet auf volle Hundert, mit `make groessenmarke` (`SPEC-128`), falls `slice-groessenmarke-werkzeug` dann in `done/` liegt, sonst nach der Form von `AGENTS.md` §3.14; die Metrik zählt die Pfade aus §3, Tests und Fälle eingeschlossen.
 
