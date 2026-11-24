@@ -1,1 +1,1 @@
-**Stand:** offen; zwei Vorgänge (`slice-if-match`, `slice-bootstrap-m4-konfig`, Evidenz), unter der Schwelle 3x.
+**Stand:** offen; 6 Belege unter `evidence/` (der Zähler folgt den Dateien), Schwelle 3x überschritten, kein Zielort und kein `geplant`. Zuletzt (`slice-telemetry-einbau-gateway`, `slice-v2-bootstrap`) zählte der Merge von `main` 18 und 4 fremde Zeilen mit; `slice-telemetry-einbau-record` ist kein Vorgang (fremde Zeilen 0 nach dem Merge von `main`, der Block nennt die Dateien einzeln).
