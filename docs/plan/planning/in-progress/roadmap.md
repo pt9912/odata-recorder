@@ -18,6 +18,8 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-lasttest-fixtures](slice-lasttest-fixtures.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts von [slice-lasttest](../open/slice-lasttest.md): Profile, Referenzdienst, Aufbau über `bootstrap.Build`, Listen und Umgebung des Binary, Uhr; schreibt nur unter `tests/lasttest/`).
 
+In Arbeit: [slice-telemetry-einbau-hybrid-port](slice-telemetry-einbau-hybrid-port.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts von [slice-telemetry-einbau-hybrid](../open/slice-telemetry-einbau-hybrid.md): Port `FallbackTelemetry`, Zeile des Spans `odata.hybrid.fallback` und Reihe `odr_hybrid_discarded_total` im Port und im Adapter von `Telemetry`; das Binary ändert sich nicht).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
