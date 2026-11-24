@@ -20,6 +20,8 @@ In Arbeit: [slice-lasttest-fixtures](slice-lasttest-fixtures.md) ([welle-betrieb
 
 In Arbeit: [slice-telemetry-einbau-hybrid-port](slice-telemetry-einbau-hybrid-port.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts von [slice-telemetry-einbau-hybrid](../open/slice-telemetry-einbau-hybrid.md): Port `FallbackTelemetry`, Zeile des Spans `odata.hybrid.fallback` und Reihe `odr_hybrid_discarded_total` im Port und im Adapter von `Telemetry`; das Binary ändert sich nicht).
 
+In Arbeit: [slice-admin-workspaces-audit](slice-admin-workspaces-audit.md) ([welle-admin-api](../welle-admin-api.md), Teil 2 des Schnitts von [slice-admin-workspaces](../done/slice-admin-workspaces.md): Einträge der Arten `workspace_angelegt`, `workspace_zurueckgesetzt`, `snapshot_erzeugt` und `workspace_wiederhergestellt` nach den vier `POST`-Routen, Warten und Abbruch, Nebenläufigkeit; das Binary ändert sich nicht).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
