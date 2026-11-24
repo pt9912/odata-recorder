@@ -53,13 +53,9 @@ func verworfenGleich(t *testing.T, wo string, m map[model.Code]uint64, schluesse
 	}
 }
 
-// P4: CountDiscarded(c) erhöht den Zähler von c aus der Menge der vier Codes um 1; jeder andere Code
-// erhöht keinen Zähler und zählt fehlercode; Errors bleibt unverändert. Menge M-Codes: die 4 Codes der
-// Menge (je 1, dann 2), die 37 Codes der Tabelle von SPEC-109 außerhalb und die Randwerte 0, -1 und 42
-// gleich 44 Eingaben. Orakel: Literale (die Texte der Tabelle, `Verworfen` und `Dropped[fehlercode]`
-// als erwartete Zahlen), nicht der Code des Adapters. Zählprüfung: 41 gleich 4 + 37.
-func TestCountDiscardedJeCode(t *testing.T) {
-	menge := verworfeneOrakel(t)
+// aussenCodes sind die Codes der Tabelle von SPEC-109 (die Texte aus alleCodes) außerhalb von menge.
+func aussenCodes(t *testing.T, menge []model.Code) []model.Code {
+	t.Helper()
 	var aussen []model.Code
 	for _, text := range alleCodes() {
 		c, ok := model.ParseCode(text)
@@ -70,6 +66,17 @@ func TestCountDiscardedJeCode(t *testing.T) {
 			aussen = append(aussen, c)
 		}
 	}
+	return aussen
+}
+
+// P4: CountDiscarded(c) erhöht den Zähler von c aus der Menge der vier Codes um 1; jeder andere Code
+// erhöht keinen Zähler und zählt fehlercode; Errors bleibt unverändert. Menge M-Codes: die 4 Codes der
+// Menge (je 1, dann 2), die 37 Codes der Tabelle von SPEC-109 außerhalb und die Randwerte 0, -1 und 42
+// gleich 44 Eingaben. Orakel: Literale (die Texte der Tabelle, `Verworfen` und `Dropped[fehlercode]`
+// als erwartete Zahlen), nicht der Code des Adapters. Zählprüfung: 41 gleich 4 + 37.
+func TestCountDiscardedJeCode(t *testing.T) {
+	menge := verworfeneOrakel(t)
+	aussen := aussenCodes(t, menge)
 	randwerte := []model.Code{0, -1, 42}
 	for _, c := range randwerte {
 		if c.Gueltig() {
@@ -356,17 +363,24 @@ func TestHybridSchluesselMatrix(t *testing.T) {
 	}
 }
 
-// P8: CountDiscarded verliert keinen Zuwachs unter gleichzeitigem Aufruf. Menge M-Zuwachs: 16
-// Goroutinen × 4 Codes × 1000 Zählungen, Summe je Code 16000 (Orakel: das Produkt der Konstanten, nicht
-// die Zahl der Aufrufe im Code), mit 2 Lesern, die Snapshot rufen, solange die Schreiber laufen: kein
-// Zähler fällt, keiner übersteigt 16000, und jeder Stand liest die Codes als einen Zeitpunkt (jeder
-// Schreiber zählt sie in der Folge der Menge: Nachbarn liegen um höchstens 16 auseinander, der spätere
-// nie darüber). Der Detektor von make test-race meldet das Fehlen der Sperre an der Zählung und am
-// Lesen mit einer Schleife; die Summe zeigt den Verlust eines Zuwachses nicht in jedem Lauf (die Raten
-// stehen im Plan).
+// P8: CountDiscarded verliert keinen Zuwachs unter gleichzeitigem Aufruf, in jedem Zweig und gemischt
+// (SPEC-232 Nr. 5 a, SPEC-230 Nr. 11). Menge M-Zuwachs: 16 Goroutinen × 250 Runden × (4 Codes der
+// Menge, je gefolgt von 10 der 40 Codes außerhalb: die 37 der Tabelle und 0, -1, 42, und einem Aufruf
+// CountError(0)), Summe je Code der Menge 4000, fehlercode 176000 (160000 aus CountDiscarded und 16000
+// aus CountError; Orakel: das Produkt der Konstanten, nicht die Zahl der Aufrufe im Code),
+// mit 2 Lesern, die Snapshot rufen, solange die Schreiber laufen: kein Zähler fällt, keiner übersteigt
+// seine Summe, und jeder Stand liest die Codes der Menge als einen Zeitpunkt (jeder Schreiber zählt sie
+// in der Folge der Menge: Nachbarn liegen um höchstens 16 auseinander, der spätere nie darüber). Der
+// Detektor von make test-race meldet das Fehlen der Sperre an der Zählung beider Zweige und am Lesen mit
+// einer Schleife; die Summe zeigt den Verlust eines Zuwachses nicht in jedem Lauf (die Raten stehen im
+// Plan).
 func TestCountDiscardedGleichzeitig(t *testing.T) {
-	const goroutinen, runden, leser = 16, 1000, 2
+	const goroutinen, runden, leser, jeCode, ungueltig = 16, 250, 2, 4000, 176000
 	menge := verworfeneOrakel(t)
+	aussen := append(aussenCodes(t, menge), 0, -1, 42)
+	if len(aussen) != 40 || goroutinen*runden != jeCode || goroutinen*runden*(len(aussen)+4) != ungueltig {
+		t.Fatalf("%d Codes außerhalb, %d und %d Zählungen; erwartet 40, %d und %d", len(aussen), goroutinen*runden, goroutinen*runden*(len(aussen)+4), jeCode, ungueltig)
+	}
 	a, _ := neu(t)
 	if !binnen(t, 60*time.Second, "TestCountDiscardedGleichzeitig", func() {
 		start := make(chan struct{})
@@ -379,11 +393,19 @@ func TestCountDiscardedGleichzeitig(t *testing.T) {
 				defer schreibend.Done()
 				<-start
 				for r := range runden {
-					for _, c := range menge {
+					gib := r%8 == 0 // die Abgabe lässt Schreiber und Leser auch bei einem Prozessor ineinander laufen
+					for i, c := range menge {
 						a.CountDiscarded(c)
-					}
-					if r%8 == 0 {
-						runtime.Gosched() // lässt Schreiber und Leser auch bei einem Prozessor ineinander laufen
+						if gib {
+							runtime.Gosched()
+						}
+						for k, u := range aussen[10*i : 10*i+10] {
+							a.CountDiscarded(u)
+							if gib && k == 4 {
+								runtime.Gosched()
+							}
+						}
+						a.CountError(0) // zählt fehlercode unter mu: ein zweiter Schreiber derselben Karte für den Detektor
 					}
 				}
 			}()
@@ -393,16 +415,21 @@ func TestCountDiscardedGleichzeitig(t *testing.T) {
 			go func() {
 				defer lesend.Done()
 				<-start
-				zuletzt := map[model.Code]uint64{}
+				zuletzt, zuletztF := map[model.Code]uint64{}, uint64(0)
 				for {
 					s := a.Snapshot()
 					var kette []uint64
 					for _, c := range menge {
 						n, ok := s.Verworfen[c]
-						if !ok || n < zuletzt[c] || n > goroutinen*runden {
+						if !ok || n < zuletzt[c] || n > jeCode {
 							fehler.Add(1)
 						}
 						zuletzt[c], kette = n, append(kette, n)
+					}
+					if f := s.Dropped[support.VerwurfFehlercode]; f < zuletztF || f > ungueltig {
+						fehler.Add(1)
+					} else {
+						zuletztF = f
 					}
 					for i := 0; i+1 < len(kette); i++ {
 						if kette[i+1] > kette[i] || kette[i] > kette[i+1]+goroutinen {
@@ -422,7 +449,7 @@ func TestCountDiscardedGleichzeitig(t *testing.T) {
 		fertig.Store(true)
 		lesend.Wait()
 		if n := fehler.Load(); n != 0 {
-			t.Errorf("%d Lesungen mit fallendem Zähler, fehlendem Eintrag oder Zähler über %d", n, goroutinen*runden)
+			t.Errorf("%d Lesungen mit fallendem Zähler, fehlendem Eintrag oder Zähler über der Summe", n)
 		}
 		if gelesen.Load() < leser {
 			t.Errorf("%d Lesungen, erwartet mindestens %d", gelesen.Load(), leser)
@@ -431,10 +458,10 @@ func TestCountDiscardedGleichzeitig(t *testing.T) {
 		t.Fatal("TestCountDiscardedGleichzeitig endet nicht innerhalb von 60 s")
 	}
 	s := a.Snapshot()
-	pruefeVektor(t, "gleichzeitig", s, nil)
-	verworfenGleich(t, "gleichzeitig", s.Verworfen, menge, map[model.Code]uint64{menge[0]: 16000, menge[1]: 16000, menge[2]: 16000, menge[3]: 16000})
-	if n := summe(s.Errors); n != 0 || len(menge) != 4 || goroutinen*runden != 16000 {
-		t.Errorf("Errors zählt %d, %d Codes, %d Zählungen je Code; erwartet 0, 4 und 16000", n, len(menge), goroutinen*runden)
+	pruefeVektor(t, "gleichzeitig", s, map[support.Verwurf]uint64{support.VerwurfFehlercode: ungueltig})
+	verworfenGleich(t, "gleichzeitig", s.Verworfen, menge, map[model.Code]uint64{menge[0]: jeCode, menge[1]: jeCode, menge[2]: jeCode, menge[3]: jeCode})
+	if n := summe(s.Errors); n != 0 || len(menge) != 4 {
+		t.Errorf("Errors zählt %d bei %d Codes; erwartet 0 und 4", n, len(menge))
 	}
 }
 

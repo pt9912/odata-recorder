@@ -35,8 +35,8 @@ type Config struct {
 	MaxSpans int
 }
 
-// Adapter erfüllt Telemetry und TelemetryReader; er ist für gleichzeitigen Aufruf sicher
-// (SPEC-232 Nr. 5): jeder Zugriff auf den Zustand liegt unter mu, jedes Write unter zeilenMu. Die
+// Adapter erfüllt Telemetry, FallbackTelemetry und TelemetryReader; er ist für gleichzeitigen Aufruf
+// sicher (SPEC-232 Nr. 5): jeder Zugriff auf den Zustand liegt unter mu, jedes Write unter zeilenMu. Die
 // beiden Sperren werden nie ineinander gehalten (SPEC-232 Nr. 5 g), und keine Sperre liegt über
 // Clock.Now() (Nr. 5 f). pflicht und grenzen sind nach New unveränderlich.
 type Adapter struct {
