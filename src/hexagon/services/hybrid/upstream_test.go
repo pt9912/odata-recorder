@@ -12,6 +12,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
 )
@@ -33,7 +34,7 @@ func TestZ01DienstwahlBleibt(t *testing.T) {
 	g := &rig{m: &stufe{}, r: &stufe{}, u: &stufeU{}}
 	v, err := hybrid.New(hybrid.Konfig{
 		Dienste: liste, Mock: fakeMock{g.m}, Replay: fakeReplay{g.r}, Upstream: g.u,
-		Policy: uPolicy(t, []string{"a", "ab", "zzz", "changed"}, nil), MaxBytes: standardMax,
+		Policy: uPolicy(t, []string{"a", "ab", "zzz", "changed"}, nil), MaxBytes: standardMax, Telemetrie: supporttest.NewFakeTelemetry(),
 	})
 	if err != nil {
 		t.Fatal(err)
