@@ -5,7 +5,8 @@ import "github.com/pt9912/odata-recorder/src/hexagon/model"
 // AuditLog hält fest, was ein Dienst gelöscht hat und welcher Import scheiterte (die vier Arten
 // des Use Case, SPEC-234), und was der Admin-Adapter mit ODR-E2101 abwies (die Art
 // admin_abgewiesen, SPEC-238 Nr. 8, und die Arten session_angelegt und session_beendet,
-// SPEC-292 Nr. 11, und die Art import_veroeffentlicht, SPEC-297 Nr. 10; LH-RB-04, LH-FA-13). Append hat keinen ctx, ist für
+// SPEC-292 Nr. 11, die Art import_veroeffentlicht, SPEC-297 Nr. 10, und die Arten workspace_angelegt, workspace_zurueckgesetzt,
+// snapshot_erzeugt und workspace_wiederhergestellt, SPEC-298 Nr. 11; LH-RB-04, LH-FA-13). Append hat keinen ctx, ist für
 // gleichzeitigen Aufruf sicher und gerät nie in Panik; es liefert model.ErrUngueltig bei einem
 // Verstoß gegen Art, Feld oder Wertform (nichts geschrieben) oder den Fehler der Ablage.
 type AuditLog interface {
@@ -17,7 +18,7 @@ type AuditLog interface {
 type AuditArt string
 
 // Die vier Arten, die der Use Case schreibt, und die Arten des Admin-Adapters (SPEC-234 Nr. 2, 7; SPEC-238 Nr. 8;
-// SPEC-292 Nr. 11; SPEC-297 Nr. 10).
+// SPEC-292 Nr. 11; SPEC-297 Nr. 10; SPEC-298 Nr. 11).
 const (
 	ArtSessionGeloescht     AuditArt = "session_geloescht"
 	ArtSessionAufbewahrung  AuditArt = "session_aufbewahrung"
@@ -28,6 +29,11 @@ const (
 	ArtSessionBeendet       AuditArt = "session_beendet"
 
 	ArtImportVeroeffentlicht AuditArt = "import_veroeffentlicht"
+
+	ArtWorkspaceAngelegt          AuditArt = "workspace_angelegt"
+	ArtWorkspaceZurueckgesetzt    AuditArt = "workspace_zurueckgesetzt"
+	ArtSnapshotErzeugt            AuditArt = "snapshot_erzeugt"
+	ArtWorkspaceWiederhergestellt AuditArt = "workspace_wiederhergestellt"
 )
 
 // Eintrag ist ein Audit-Eintrag. Je Art ist jedes Feld außer KorrelationsID Pflicht (nichtleer)
@@ -71,5 +77,9 @@ func Arten() []ArtSpec {
 		{ArtSessionAngelegt, []Feld{FeldServiceID, FeldSessionID}},
 		{ArtSessionBeendet, []Feld{FeldServiceID, FeldSessionID}},
 		{ArtImportVeroeffentlicht, []Feld{FeldServiceID, FeldImportID}},
+		{ArtWorkspaceAngelegt, []Feld{FeldServiceID, FeldWorkspaceID}},
+		{ArtWorkspaceZurueckgesetzt, []Feld{FeldServiceID, FeldWorkspaceID}},
+		{ArtSnapshotErzeugt, []Feld{FeldServiceID, FeldWorkspaceID}},
+		{ArtWorkspaceWiederhergestellt, []Feld{FeldServiceID, FeldWorkspaceID}},
 	}
 }

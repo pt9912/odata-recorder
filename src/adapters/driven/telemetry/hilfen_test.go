@@ -284,7 +284,7 @@ func andererWert(z zeile) support.Attr {
 }
 
 // logSchluessel liefert die Orakel-Liste der Felder der Zeile und prüft ihre Zahl gegen die Quelle:
-// aus den Kandidaten (die Liste, die elf Pflicht-Attribute der Spans, zwölf fremde Schlüssel) nimmt
+// aus den Kandidaten (die Liste, die dreizehn Pflicht-Attribute der Spans, zwölf fremde Schlüssel) nimmt
 // der Filter mit einem gültigen Wert genau die Liste an.
 func logSchluessel(t *testing.T) []string {
 	t.Helper()
@@ -305,8 +305,8 @@ func logSchluessel(t *testing.T) []string {
 			t.Errorf("der Filter weist %q ab, die Orakel-Liste nennt ihn", k)
 		}
 	}
-	if angenommen != len(folge) || len(kandidaten) != len(folge)+11+12 {
-		t.Fatalf("%d angenommen, %d Kandidaten; erwartet %d und %d", angenommen, len(kandidaten), len(folge), len(folge)+11+12)
+	if angenommen != len(folge) || len(kandidaten) != len(folge)+13+12 {
+		t.Fatalf("%d angenommen, %d Kandidaten; erwartet %d und %d", angenommen, len(kandidaten), len(folge), len(folge)+13+12)
 	}
 	return folge
 }

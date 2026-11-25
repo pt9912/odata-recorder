@@ -515,8 +515,12 @@ func TestWS8Lesen(t *testing.T) {
 							}
 						}
 					}
-					if n := e.audit.Aufrufe(); n != 0 {
-						t.Errorf("%s: %d Aufrufe von Audit, erwartet 0", name, n)
+					soll := 0 // der Erfolg der Route schreibt genau einen Eintrag (SPEC-298 Nr. 11 a), jeder andere Ausgang keinen
+					if len(daten) <= bodyGrenze && lf.art == "ende" && stelle >= 2 {
+						soll = 1
+					}
+					if n := e.audit.Aufrufe(); n != soll {
+						t.Errorf("%s: %d Aufrufe von Audit, erwartet %d", name, n, soll)
 					}
 				}
 			}

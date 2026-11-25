@@ -11,9 +11,9 @@ import (
 )
 
 // S22 (M11): ein Canary erreicht über keinen Weg der Spans eine Zeile, ein Attribut oder eine Metrik.
-// 4 Einbringungswege (Header, Body-Fragment, Query-Literal, Konfigurationswert) × 49 Stellen (24
-// Schlüssel an 2 Aufrufstellen und der Name des Spans) × 5 Ausgabewege = 980 Prüfungen. Schlüssel: 13
-// von Log (Schlüssel i am Span i reihum) und 11 Pflicht-Attribute (an ihrem Span). Ausgabewege: Bytes der
+// 4 Einbringungswege (Header, Body-Fragment, Query-Literal, Konfigurationswert) × 53 Stellen (26
+// Schlüssel an 2 Aufrufstellen und der Name des Spans) × 5 Ausgabewege = 1060 Prüfungen. Schlüssel: 13
+// von Log (Schlüssel i am Span i reihum) und 13 Pflicht-Attribute (an ihrem Span). Ausgabewege: Bytes der
 // Senke aus dem End, aus einem Log danach, aus einem Eintrag über Handler() danach, %+v von Spans samt Attrs
 // und %+v von Errors, Durations und Dropped. Die Eingabe über den Handler ist H09.
 func TestCanarySpans(t *testing.T) {
@@ -47,8 +47,8 @@ func TestCanarySpans(t *testing.T) {
 		}
 	}
 	stellen = append(stellen, stelle{istName: true, aufruf: "StartSpan"})
-	if len(stellen) != 2*(13+pflichtZahl)+1 || len(stellen) != 49 || pflichtZahl != 11 {
-		t.Fatalf("%d Stellen, %d Pflicht-Attribute; erwartet 49 und 11", len(stellen), pflichtZahl)
+	if len(stellen) != 2*(13+pflichtZahl)+1 || len(stellen) != 53 || pflichtZahl != 13 {
+		t.Fatalf("%d Stellen, %d Pflicht-Attribute; erwartet 53 und 13", len(stellen), pflichtZahl)
 	}
 	leckt := func(out []byte, wert string) bool {
 		return bytes.Contains(out, []byte(wert)) || bytes.Contains(out, []byte(token))
@@ -88,8 +88,8 @@ func TestCanarySpans(t *testing.T) {
 			}
 		}
 	}
-	if pruefungen != len(wege)*49*5 || pruefungen != 980 {
-		t.Errorf("%d Prüfungen, erwartet 980", pruefungen)
+	if pruefungen != len(wege)*53*5 || pruefungen != 1060 {
+		t.Errorf("%d Prüfungen, erwartet 1060", pruefungen)
 	}
 	// Kontrolle (a): ein gültiger Wert eines Pflicht-Attributs steht in der Span-Zeile und in Attrs
 	for _, z := range tab {

@@ -22,7 +22,8 @@ type spanZeile struct {
 }
 
 // spanTabelle ist das Orakel der Namen und Pflicht-Attribute als Literal aus dem Vertrag; die
-// Zählprüfung vergleicht es mit support.Spans() (gleiche Namen, Schlüssel und Reihenfolge, zusammen elf).
+// Zählprüfung vergleicht es mit support.Spans() (gleiche Namen, Schlüssel und Reihenfolge, zusammen
+// dreizehn).
 func spanTabelle(t *testing.T) []spanZeile {
 	t.Helper()
 	tab := []spanZeile{
@@ -31,6 +32,7 @@ func spanTabelle(t *testing.T) []spanZeile {
 		{"odata.replay.match", []string{"recorder.match_strategy", "recorder.match_result"}},
 		{"odata.mock.query", []string{"recorder.entity_set", "recorder.coverage_status"}},
 		{"odata.workspace.mutation", []string{"recorder.workspace_id", "recorder.mutation_type"}},
+		{"odata.hybrid.fallback", []string{"recorder.fallback_type", "recorder.fallback_result"}},
 	}
 	quelle, summe := support.Spans(), 0
 	if len(quelle) != len(tab) {
@@ -42,8 +44,8 @@ func spanTabelle(t *testing.T) []spanZeile {
 			t.Fatalf("support.Spans()[%d] = %s %v, die Tabelle %s %v", i, q.Name, q.Pflicht, tab[i].name, tab[i].pflicht)
 		}
 	}
-	if summe != 11 {
-		t.Fatalf("%d Pflicht-Attribute, erwartet 11", summe)
+	if len(tab) != 6 || summe != 13 {
+		t.Fatalf("%d Namen und %d Pflicht-Attribute, erwartet 6 und 13", len(tab), summe)
 	}
 	return tab
 }
@@ -112,7 +114,7 @@ func werteVon(keys []string, f func(string) support.Attr) []support.Attr {
 	return out
 }
 
-// alleSpanKeys sind die elf Pflicht-Attribute aller Spans.
+// alleSpanKeys sind die dreizehn Pflicht-Attribute aller Spans.
 func alleSpanKeys(t *testing.T) []string {
 	var out []string
 	for _, z := range spanTabelle(t) {

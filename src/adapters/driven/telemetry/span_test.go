@@ -30,7 +30,7 @@ func nachID(s support.Snapshot) map[string]support.SpanRecord {
 }
 
 // S01 (M3): ein Name außerhalb der Menge liefert den übergebenen ctx und einen Span ohne Wirkung und
-// zählt genau einen spanname; 8 Namen × 2 Attributlisten × 2 ctx = 32 Läufe, dazu die 5 Namen der
+// zählt genau einen spanname; 8 Namen × 2 Attributlisten × 2 ctx = 32 Läufe, dazu die 6 Namen der
 // Quelle als Gegenprobe.
 func TestSpanNamen(t *testing.T) {
 	tab := spanTabelle(t)
@@ -151,21 +151,21 @@ func TestPflichtAttribute(t *testing.T) {
 			}
 		}
 	}
-	if teil != erwartetTeil || ungueltig != 2*len(alleSpanKeys(t)) || teil != 48 {
-		t.Errorf("%d Teilmengen-Läufe (erwartet %d, 48), %d ungültige Läufe", teil, erwartetTeil, ungueltig)
+	if teil != erwartetTeil || ungueltig != 2*len(alleSpanKeys(t)) || teil != 56 || ungueltig != 26 {
+		t.Errorf("%d Teilmengen-Läufe (erwartet %d, 56), %d ungültige Läufe (erwartet 26)", teil, erwartetTeil, ungueltig)
 	}
 }
 
 // S03 (M2): an einem Span sind allein seine Pflicht-Attribute zulässig; alles andere zählt genau
-// ein schluessel, auch mit leerem Wert. 5 Spans × 32 Schlüssel = 160 Paare (11 zulässige, 149 fremde)
+// ein schluessel, auch mit leerem Wert. 6 Spans × 34 Schlüssel = 204 Paare (13 zulässige, 191 fremde)
 // × 2 Aufrufstellen; die fremden zusätzlich mit leerem Wert.
 func TestSpanSchluessel(t *testing.T) {
 	tab := spanTabelle(t)
 	keys := slices.Clone(alleSpanKeys(t))
 	keys = append(keys, logSchluessel(t)...)
 	keys = append(keys, "timestamp", "level", "span_id", "parent_id", "", "x", "Recorder.mode", "recorder.mode ")
-	if len(keys) != 11+13+4+4 || len(tab)*len(keys) != 160 {
-		t.Fatalf("%d Schlüssel, %d Paare; erwartet 32 und 160", len(keys), len(tab)*len(keys))
+	if len(keys) != 13+13+4+4 || len(tab)*len(keys) != 204 {
+		t.Fatalf("%d Schlüssel, %d Paare; erwartet 34 und 204", len(keys), len(tab)*len(keys))
 	}
 	zulaessig, fremd, pruefungen := 0, 0, 0
 	for _, z := range tab {
@@ -205,8 +205,8 @@ func TestSpanSchluessel(t *testing.T) {
 			}
 		}
 	}
-	if zulaessig != 11 || fremd != 149 || pruefungen != 2*(160+149) {
-		t.Errorf("%d zulässige, %d fremde Paare, %d Prüfungen; erwartet 11, 149 und %d", zulaessig, fremd, pruefungen, 2*(160+149))
+	if zulaessig != 13 || fremd != 191 || pruefungen != 2*(204+191) {
+		t.Errorf("%d zulässige, %d fremde Paare, %d Prüfungen; erwartet 13, 191 und %d", zulaessig, fremd, pruefungen, 2*(204+191))
 	}
 	for _, k := range []string{"span_id", "parent_id"} {
 		u := neuUmgebung(t, slog.LevelInfo, 0)
@@ -219,7 +219,7 @@ func TestSpanSchluessel(t *testing.T) {
 }
 
 // S04: Set ersetzt einen gültigen Wert; ein ungültiger lässt den früheren stehen; derselbe Schlüssel
-// zweimal im selben Aufruf: der erste gilt; Set ohne Attribut ändert und zählt nichts. 11 Schlüssel
+// zweimal im selben Aufruf: der erste gilt; Set ohne Attribut ändert und zählt nichts. 13 Schlüssel
 // × 5 Fälle.
 func TestSetErsetzt(t *testing.T) {
 	läufe := 0
@@ -276,8 +276,8 @@ func TestSetErsetzt(t *testing.T) {
 			}
 		}
 	}
-	if läufe != 11*5 {
-		t.Errorf("%d Läufe, erwartet 55", läufe)
+	if läufe != 13*5 {
+		t.Errorf("%d Läufe, erwartet 65", läufe)
 	}
 }
 
@@ -483,7 +483,7 @@ func TestElternKind(t *testing.T) {
 }
 
 // S09: ein zweites End und jedes Set nach dem End sind ohne Wirkung und zählen zustand einmal je
-// Aufruf; sie lesen die Uhr nicht und schreiben keine Zeile. 5 Spans × 5 Fälle.
+// Aufruf; sie lesen die Uhr nicht und schreiben keine Zeile. 6 Spans × 5 Fälle.
 func TestEndDoppelt(t *testing.T) {
 	läufe := 0
 	for _, z := range spanTabelle(t) {
@@ -514,13 +514,13 @@ func TestEndDoppelt(t *testing.T) {
 			}
 		}
 	}
-	if läufe != 25 {
-		t.Errorf("%d Läufe, erwartet 25", läufe)
+	if läufe != 30 {
+		t.Errorf("%d Läufe, erwartet 30", läufe)
 	}
 }
 
 // S10: End zeichnet auch bei beendetem ctx und nach dem Ende des Eltern-Span auf; Set nimmt Attribute
-// am Span eines abgebrochenen ctx an; StartSpan zeichnet bei abgebrochenem ctx auf. 5 Fälle × 5 Spans.
+// am Span eines abgebrochenen ctx an; StartSpan zeichnet bei abgebrochenem ctx auf. 5 Fälle × 6 Spans.
 func TestEndNachAbbruch(t *testing.T) {
 	läufe := 0
 	for _, z := range spanTabelle(t) {
@@ -578,8 +578,8 @@ func TestEndNachAbbruch(t *testing.T) {
 			pruefeVektor(t, z.name+" / "+f.name, s, nil)
 		}
 	}
-	if läufe != 25 {
-		t.Errorf("%d Läufe, erwartet 25", läufe)
+	if läufe != 30 {
+		t.Errorf("%d Läufe, erwartet 30", läufe)
 	}
 }
 
@@ -710,7 +710,7 @@ func TestAdapterEigen(t *testing.T) {
 
 // S20 (M15): die Uhr wird je Span zweimal gelesen (StartSpan und erstes End, auch wenn die Zeile
 // entfällt), nie von Set, vom zweiten End, von Snapshot oder von einem Span ohne Wirkung; der timestamp
-// der Zeile ist die Ablesung des Endes. 5 Spans × 3 Modi × 5 Aufrufstellen.
+// der Zeile ist die Ablesung des Endes. 6 Spans × 3 Modi × 5 Aufrufstellen.
 func TestUhrAblesungen(t *testing.T) {
 	modi := []struct {
 		name    string
@@ -767,7 +767,7 @@ func TestUhrAblesungen(t *testing.T) {
 			}
 		}
 	}
-	if laeufe != 15 {
-		t.Errorf("%d Läufe, erwartet 15", laeufe)
+	if laeufe != 18 {
+		t.Errorf("%d Läufe, erwartet 18", laeufe)
 	}
 }

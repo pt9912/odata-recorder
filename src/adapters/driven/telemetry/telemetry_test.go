@@ -43,12 +43,21 @@ func summe(m map[model.Code]uint64) (n uint64) {
 
 // reihenFest prüft SPEC-230 Nr. 8 an einem Stand nach Aufrufen: die Zahl der Reihen ist fest (die
 // Codes von model.AlleCodes(), die Gründe von support.Verwuerfe(), die Namen von support.Spans() mit je
-// einem Eimer mehr als support.Eimer()), kein Wert eines Aufrufers bildet einen Schlüssel.
+// einem Eimer mehr als support.Eimer(), die Codes von support.VerworfeneCodes() mit der Zahl 4 aus
+// SPEC-230 Nr. 8), kein Wert eines Aufrufers bildet einen Schlüssel.
 func reihenFest(t *testing.T, wo string, s support.Snapshot) {
 	t.Helper()
 	codes, gruende, namen, eimer := len(model.AlleCodes()), len(support.Verwuerfe()), len(support.Spans()), len(support.Eimer())+1
 	if len(s.Errors) != codes || len(s.Dropped) != gruende || len(s.Durations) != namen {
 		t.Errorf("%s: Errors %d, Dropped %d, Durations %d; erwartet %d, %d, %d", wo, len(s.Errors), len(s.Dropped), len(s.Durations), codes, gruende, namen)
+	}
+	if len(s.Verworfen) != 4 || len(support.VerworfeneCodes()) != 4 {
+		t.Errorf("%s: Verworfen %d Einträge, erwartet 4", wo, len(s.Verworfen))
+	}
+	for _, c := range support.VerworfeneCodes() {
+		if _, ok := s.Verworfen[c]; !ok {
+			t.Errorf("%s: Verworfen[%s] fehlt", wo, c)
+		}
 	}
 	for n, v := range s.Durations {
 		if len(v.Counts) != eimer {
@@ -58,10 +67,10 @@ func reihenFest(t *testing.T, wo string, s support.Snapshot) {
 }
 
 // P07, P17: nach Aufrufen mit Werten, die kein Schlüssel sein dürfen, bleibt die Zahl der Reihen
-// fest, geprüft nach jedem Aufruf. Menge: Aufrufstelle × Wert: CountError mit 7 Codes außerhalb der
-// Tabelle und jedem Code von -50 bis 3050, Log mit den 12 fremden und den 13 gültigen
-// Schlüsseln × 4 Werten (darunter ungültige) in den Arten String, Int und Float, und
-// StartSpan mit 8 Namen (die 5 gültigen, der leere, ein fremder, einer mit Leerzeichen), danach Set
+// fest, geprüft nach jedem Aufruf. Menge: Aufrufstelle × Wert: CountError und CountDiscarded mit je 7
+// Codes außerhalb der Tabelle und jedem Code von -50 bis 3050, Log mit den 12 fremden und den 13
+// gültigen Schlüsseln × 4 Werten (darunter ungültige) in den Arten String, Int und Float, und
+// StartSpan mit 9 Namen (die 6 gültigen, der leere, ein fremder, einer mit Leerzeichen), danach Set
 // und End. Die Zählprüfung rechnet die Menge aus den Listen und Grenzen der Schleifen.
 func TestReihenFest(t *testing.T) {
 	const von, bis = -50, 3050
@@ -76,6 +85,8 @@ func TestReihenFest(t *testing.T) {
 	for _, c := range fremdeCodes {
 		a.CountError(c)
 		pruefe("CountError " + strconv.Itoa(int(c)))
+		a.CountDiscarded(c)
+		pruefe("CountDiscarded " + strconv.Itoa(int(c)))
 	}
 	schluessel := []string{"", "x", "timestamp", "level", "msg", "Mode", "mode ", "a b", "ODR-E2001", "senke", "wert", "fehlercode"}
 	fremde := len(schluessel)
@@ -87,6 +98,8 @@ func TestReihenFest(t *testing.T) {
 	for c := model.Code(von); c <= bis; c++ {
 		a.CountError(c)
 		pruefe("CountError " + strconv.Itoa(int(c)))
+		a.CountDiscarded(c)
+		pruefe("CountDiscarded " + strconv.Itoa(int(c)))
 	}
 	werte := []string{"", "a b", "ok", "x=y"}
 	for _, k := range schluessel {
@@ -102,7 +115,7 @@ func TestReihenFest(t *testing.T) {
 		sp.End()
 		pruefe("StartSpan " + n)
 	}
-	erwartet := len(fremdeCodes) + (bis - von + 1) + len(schluessel)*len(werte) + len(namen)
+	erwartet := 2*(len(fremdeCodes)+(bis-von+1)) + len(schluessel)*len(werte) + len(namen)
 	if aufrufe != erwartet || len(namen) != len(support.Spans())+3 || fremde != 12 || len(schluessel) != fremde+13 {
 		t.Errorf("%d Prüfungen, %d Namen, %d Schlüssel; erwartet %d, %d und %d", aufrufe, len(namen), len(schluessel), erwartet, len(support.Spans())+3, fremde+13)
 	}
@@ -152,15 +165,18 @@ func TestVerwurfJeAttribut(t *testing.T) {
 	}
 }
 
-// P13 (Seite des Adapters): Adapter und Fake erfüllen beide Ports.
+// P13 (Seite des Adapters), P6: Adapter und Fake erfüllen die Ports Telemetry, FallbackTelemetry und
+// TelemetryReader.
 func TestAdapterErfuelltPorts(t *testing.T) {
 	a, _ := neu(t)
 	f := supporttest.NewFakeTelemetry()
 	var (
-		_ support.Telemetry       = a
-		_ support.TelemetryReader = a
-		_ support.Telemetry       = f
-		_ support.TelemetryReader = f
+		_ support.Telemetry         = a
+		_ support.FallbackTelemetry = a
+		_ support.TelemetryReader   = a
+		_ support.Telemetry         = f
+		_ support.FallbackTelemetry = f
+		_ support.TelemetryReader   = f
 	)
 }
 
