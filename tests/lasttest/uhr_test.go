@@ -101,8 +101,8 @@ func (u *fakeUhr) Vorstellen(d time.Duration) {
 }
 
 // wache beendet den Prozess mit panic, wenn der Test nach d der wirklichen Zeit nicht fertig ist; jeder Test ruft sie zuerst. Sie und warteAuf
-// lesen die Zeit des Prozesses ohne die Schnittstelle Uhr, damit ein Fehler in systemuhr sie nicht mitnimmt; diese Datei ist von TestPaketOhneZeit
-// ausgenommen.
+// lesen die Zeit des Prozesses ohne die Schnittstelle Uhr, damit ein Fehler in systemuhr sie nicht mitnimmt; diese Datei darf allein
+// time.NewTimer nennen (TestPaketOhneZeit); kein Test führt das panic von wache und die Grenze von warteAuf (Plan, Negativ (4)).
 func wache(t *testing.T, d time.Duration) {
 	t.Helper()
 	fertig := make(chan struct{})
@@ -200,7 +200,7 @@ func TestFakeUhr(t *testing.T) {
 
 // TestSystemuhr: die Uhr des Prozesses zeigt die Zeit des Dateisystems (innerhalb von 5 s), kehrt für eine vergangene Zeit sofort zurück,
 // wartet bis zur Zeit, endet mit dem Kontext und tickt bis zum Aufruf der Funktion, die ihren Ticker beendet; jeder Aufruf von WarteBis läuft
-// in einer Goroutine, deren Rückkehr der Test innerhalb von 2 s verlangt.
+// in einer Goroutine, deren Rückkehr der Test innerhalb von 1 s verlangt (kein Warten dieses Tests dauert länger als eine Sekunde).
 func TestSystemuhr(t *testing.T) {
 	wache(t, 30*time.Second)
 	u := systemuhr{}
@@ -218,7 +218,7 @@ func TestSystemuhr(t *testing.T) {
 	warte := func(ctx context.Context, bis time.Time) error {
 		c := make(chan error, 1)
 		go func() { c <- u.WarteBis(ctx, bis) }()
-		return warteAuf(t, c, 2*time.Second)
+		return warteAuf(t, c, time.Second)
 	}
 	a := u.Jetzt()
 	if err := warte(context.Background(), a.Add(-time.Hour)); err != nil {
@@ -234,8 +234,8 @@ func TestSystemuhr(t *testing.T) {
 	}
 	ch, stop := u.Ticker(5 * time.Millisecond)
 	defer stop()
-	warteAuf(t, ch, 2*time.Second)
-	warteAuf(t, ch, 2*time.Second)
+	warteAuf(t, ch, time.Second)
+	warteAuf(t, ch, time.Second)
 	stop()
 	_ = warte(context.Background(), u.Jetzt().Add(40*time.Millisecond))
 	select {

@@ -60,8 +60,8 @@ func stellen(name, quelle string, pfade []string, verwirf func(pfad, sel string)
 	return out, nil
 }
 
-// zeitKlasse ist die Menge der Namen der Standardbibliothek, die ein Paket ohne Zugriff auf die Uhr erreicht und die die Zeit des Prozesses
-// lesen oder auf sie warten: Funktionen je Paket, Felder je Typ (in einem Literal des Typs) und Methoden jedes Empfängers.
+// zeitKlasse ist eine Auswahl von 28 Namen der Standardbibliothek, die die Zeit des Prozesses lesen oder auf sie warten (Funktionen je Paket,
+// Felder je Typ in einem Literal des Typs, Methoden jedes Empfängers); die Menge aller solchen Namen ist größer (Plan, Negativ (3)).
 func zeitKlasse() (funktionen, felder map[string][]string, methoden []string) {
 	funktionen = map[string][]string{
 		"time":     {"Now", "Since", "Until", "Sleep", "After", "AfterFunc", "NewTimer", "NewTicker", "Tick"},
@@ -180,8 +180,8 @@ func zeitBefunde(name string, stellen []string) []string {
 	return out
 }
 
-// TestPaketOhneZeit: keine Datei des Pakets außer uhr.go nennt ein Element der Klasse der Namen, die die Zeit des Prozesses lesen oder auf sie
-// warten, und uhr_test.go allein time.NewTimer: 14 Funktionen (9 von time, 4 von context, TimeoutHandler von net/http), auch als Wert, unter
+// TestPaketOhneZeit: keine Datei des Pakets außer uhr.go nennt einen der 28 Namen von zeitKlasse (eine Auswahl, Plan Negativ (3)), und
+// uhr_test.go allein time.NewTimer: 14 Funktionen (9 von time, 4 von context, TimeoutHandler von net/http), auch als Wert, unter
 // einem anderen Namen des Imports und als Punkt-Import, 11 Felder von Literalen (Client, Server, Transport, Dialer) und 3 Methoden SetDeadline;
 // die Datei der Uhr trägt Funktionen der Klasse (Kontrolle), und der Fänger erkennt jedes Element der Klasse in jeder Form (Orakel: die Literale
 // dieses Tests) und wertet es je Datei: uhr.go lässt alle zu, uhr_test.go allein time.NewTimer, jede andere Datei keines.

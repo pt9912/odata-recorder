@@ -130,8 +130,8 @@ type aufbauErgebnis struct {
 }
 
 // aufbauen baut die Fixtures (SPEC-216 Nr. 6 a): Aufnahme der Anfragen des Referenzdienstes über bootstrap.Build im Modus record, Import
-// der Session und Workspace aus der Baseline, danach die Zählprüfung; alles innerhalb der Frist des Profils. Jeder Fehler ist ein
-// *aufbauFehler, bei Überschreitung der Frist mit dem Grund frist, und liefert keinen Workspace.
+// der Session und Workspace aus der Baseline, danach die Zählprüfung; alles innerhalb der Frist des Profils. Jeder Fehler trägt
+// einen *aufbauFehler (errors.As; bei der Frist mit dem Grund frist), mit einem Fehler von Herunterfahren ist er ein errors.Join.
 func (e aufbauEingabe) aufbauen(ctx context.Context) (aufbauErgebnis, error) {
 	if err := datenLeer(e.DataDir); err != nil {
 		return aufbauErgebnis{}, &aufbauFehler{grund: grundAufbau, stelle: stelleDaten, ursache: err}
