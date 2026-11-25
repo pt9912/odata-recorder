@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"runtime"
 	"slices"
 	"strings"
@@ -114,6 +115,40 @@ func TestCountDiscardedJeCode(t *testing.T) {
 			}
 		}
 	}
+}
+
+// P4 (anderer Code): jeder Code, der nicht zur Menge gehört, zählt fehlercode genau einmal je Aufruf
+// und ändert weder Verworfen noch Errors (SPEC-230 Nr. 11: `0`, negativ, größer als der letzte, auch
+// ein Code der Tabelle). Die Klasse ist unbeschränkt (int); Menge bis zur Prüfgrenze: jeder Wert von
+// -1000 bis 1000 außer den 41 Codes der Tabelle (1960), dazu je Vorzeichen für e von 10 bis 62
+// 2^e-1, 2^e und 2^e+1 (318) und MinInt, MinInt+1, MaxInt (3), zusammen 2281. Orakel: Literal je
+// Aufruf (fehlercode gleich der Zahl der Aufrufe, Verworfen 4 Nullen, Errors 41 Nullen).
+func TestCountDiscardedAndererCode(t *testing.T) {
+	var codes []model.Code
+	for c := -1000; c <= 1000; c++ {
+		if !model.Code(c).Gueltig() {
+			codes = append(codes, model.Code(c))
+		}
+	}
+	for e := 10; e <= 62; e++ {
+		for _, d := range []int{-1, 0, 1} {
+			codes = append(codes, model.Code(1<<e+d), model.Code(-(1<<e + d)))
+		}
+	}
+	codes = append(codes, math.MinInt, math.MinInt+1, math.MaxInt)
+	if len(codes) != 2281 || len(model.AlleCodes()) != 41 {
+		t.Fatalf("%d Codes, %d Codes der Tabelle; erwartet 2281 und 41", len(codes), len(model.AlleCodes()))
+	}
+	a, _ := neu(t)
+	menge := verworfeneOrakel(t)
+	for i, c := range codes {
+		a.CountDiscarded(c)
+		s := a.Snapshot()
+		if n := s.Dropped[support.VerwurfFehlercode]; n != uint64(i+1) || summe(s.Errors) != 0 || summe(s.Verworfen) != 0 {
+			t.Fatalf("Code %d (Aufruf %d): fehlercode %d, Errors %d, Verworfen %d; erwartet %d, 0 und 0", int(c), i+1, n, summe(s.Errors), summe(s.Verworfen), i+1)
+		}
+	}
+	verworfenGleich(t, "anderer Code", a.Snapshot().Verworfen, menge, nil)
 }
 
 // P4 (Uhr): CountDiscarded liest die Uhr nicht (SPEC-230 Nr. 11). Menge: die 4 Codes der Menge und 3
@@ -405,7 +440,7 @@ func TestCountDiscardedGleichzeitig(t *testing.T) {
 								runtime.Gosched()
 							}
 						}
-						a.CountError(0) // zählt fehlercode unter mu: ein zweiter Schreiber derselben Karte für den Detektor
+						a.CountError(0) // zählt fehlercode neben CountDiscarded (SPEC-230 Nr. 8); die Summe hält es fest
 					}
 				}
 			}()
