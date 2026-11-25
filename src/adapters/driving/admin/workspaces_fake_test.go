@@ -239,15 +239,15 @@ func (a *wsAuditNach) Append(e support.Eintrag) error {
 	return err
 }
 
-// wsEnv ist ein Server mit den Routen über beiden Fakes und dem FakeAudit der Umgebung (hinter nachAppend); der Dienst liefert
+// wsEnv ist ein Server mit den Routen über beiden Fakes und dem FakeAudit der Umgebung (in der Hülle huelle); der Dienst liefert
 // einen Workspace, einen Snapshot und einen Bericht (3 entfernt, zurückgestellt).
 type wsEnv struct {
 	*umgebung
-	p          *wsProtokoll
-	wf         *workspaceFake
-	sf         *snapshotFake
-	nachAppend *wsAuditNach
-	routen     []admin.Route
+	p      *wsProtokoll
+	wf     *workspaceFake
+	sf     *snapshotFake
+	huelle *wsAuditNach
+	routen []admin.Route
 }
 
 // wsNeu baut die Umgebung; ein Fehler von WorkspaceRouten oder New bricht den Test ab.
@@ -260,8 +260,8 @@ func wsNeu(t *testing.T) *wsEnv {
 		wf: &workspaceFake{p: p, ws: wsA(), bericht: inbound.Loeschbericht{Entfernt: 3, Zurueckgestellt: true}},
 		sf: &snapshotFake{p: p, snap: snapA()},
 	}
-	e.nachAppend = &wsAuditNach{AuditLog: u.audit}
-	routen, err := admin.WorkspaceRouten(e.wf, e.sf, e.nachAppend)
+	e.huelle = &wsAuditNach{AuditLog: u.audit}
+	routen, err := admin.WorkspaceRouten(e.wf, e.sf, e.huelle)
 	if err != nil || len(routen) != 8 {
 		t.Fatalf("WorkspaceRouten: %d Routen, %v", len(routen), err)
 	}

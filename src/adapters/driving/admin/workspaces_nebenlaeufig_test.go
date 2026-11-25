@@ -106,7 +106,7 @@ func TestWN1GleichzeitigeRequests(t *testing.T) {
 			fenster[name] = neuerTreffpunkt(n)
 			return fenster[name]
 		}
-		lesen, nachAppend := map[int]*treffpunkt{}, map[string]*treffpunkt{}
+		lesen, inAppend := map[int]*treffpunkt{}, map[string]*treffpunkt{}
 		for k, rt := range routen {
 			if rt.body != "" {
 				lesen[k] = nimm(rt.name + " nach dem Lesen des Bodys")
@@ -115,10 +115,10 @@ func TestWN1GleichzeitigeRequests(t *testing.T) {
 			e.halt(rt.op, false, func(context.Context) { vor.halt() })
 			e.halt(rt.op, true, func(context.Context) { nach.halt() })
 			if art := wsEintragArt(k); art != "" {
-				nachAppend[art] = nimm(rt.name + " in Append, bis zur Rückkehr der Hülle")
+				inAppend[art] = nimm(rt.name + " in Append, bis zur Rückkehr der Hülle")
 			}
 		}
-		e.nachAppend.nach = func(es support.Eintrag) { nachAppend[string(es.Art)].halt() }
+		e.huelle.nach = func(es support.Eintrag) { inAppend[string(es.Art)].halt() }
 		antworten := gleichzeitig(e.umgebung, len(routen)*n, func(i int) *http.Request {
 			k := i / n
 			var ende func()
@@ -127,7 +127,7 @@ func TestWN1GleichzeitigeRequests(t *testing.T) {
 			}
 			return wsWnRequest(k, "g"+strconv.Itoa(r*n+i%n), ende)
 		})
-		gleichAuf(t, "Fenster, Fenster des Lesens, Fenster nach Append", []int{len(fenster), len(lesen), len(nachAppend)}, []int{23, 3, 4})
+		gleichAuf(t, "Fenster, Fenster des Lesens, Fenster in Append", []int{len(fenster), len(lesen), len(inAppend)}, []int{23, 3, 4})
 		for name, p := range fenster {
 			if p.verpasst.Load() || p.n.Load() != n {
 				t.Fatalf("Runde %d: nicht alle %d Requests waren zugleich im Fenster %s (%d eingetreten): eine Sperre hält sie auseinander", r, n, name, p.n.Load())

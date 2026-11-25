@@ -227,7 +227,7 @@ func wsKennungPaare() [][2]string {
 // TestWS19KennungenUnveraendert hält SPEC-298 Nr. 11 b (*Ungeprüft*) für die Zellen *leerer* und *fremder Wert*: liefert der
 // Dienst Kennungen leer, außerhalb der Form von `SPEC-234` Nr. 3 oder in jeder Länge der Menge, trägt der Eintrag der vier Routen
 // beide unverändert, und die Antwort ist 201 bzw. 200 (wsKennungPaare, 1869 Paare × 4 Routen = 7476 Zellen). Prüfgrenze
-// (akzeptiertes Negativ): Längen über 1 MiB + 1, Folgen aus drei und mehr Zeichen.
+// (Negativ in §3 des Plans): Längen zwischen den Stützstellen und über 1 MiB + 1, Folgen aus drei und mehr Zeichen.
 func TestWS19KennungenUnveraendert(t *testing.T) {
 	wsFrist(t)
 	paare := wsKennungPaare()
