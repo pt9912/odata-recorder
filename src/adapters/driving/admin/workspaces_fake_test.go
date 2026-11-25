@@ -225,7 +225,7 @@ func (f *snapshotFake) List(ctx context.Context, workspaceID string) ([]model.Wo
 }
 
 // wsAuditNach ist der Audit der Routen: er reicht Append an den FakeAudit der Umgebung und ruft danach den Haltepunkt nach mit
-// dem Eintrag (das Fenster zwischen der Rückkehr von Append und dem Schreiben der Antwort, je Art des Eintrags).
+// dem Eintrag (je Art ein Treffpunkt; er läuft in der Hülle, bevor Append zum Handler zurückkehrt, und umschließt nichts dahinter).
 type wsAuditNach struct {
 	support.AuditLog
 	nach func(support.Eintrag)

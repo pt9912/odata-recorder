@@ -91,7 +91,7 @@ func wsWnRequest(k int, id string, ende func()) *http.Request {
 // (Kennungen des Dienstes, Korrelations-ID der Antwort) gehört zum eigenen Request, die vier Routen ohne Eintrag schreiben keinen.
 // Alle 16 Requests einer Route sind zugleich in jedem Fenster zwischen einem Aufruf eines Ports und dem nächsten Schritt der Route
 // (Treffpunkt je Fenster, M-Fenster 23): am Ende des Lesens des Bodys (3), im Aufruf und nach der Rückkehr der Operation (16) und
-// nach der Rückkehr von Append (4). Ein Zustand unter einer Sperre ohne Datenrennen, der ein Fenster umschließt, trifft die
+// in Append bis zur Rückkehr der Hülle (4). Ein Zustand unter einer Sperre ohne Datenrennen, der ein Fenster umschließt, trifft die
 // Antwort eines anderen Requests; ein Fenster ohne Fuge hält kein Treffpunkt (Plan §3, akzeptiertes Negativ (4)). Hält eine Sperre
 // die Requests auseinander, endet der Test nach der ersten Frist mit Fatalf.
 func TestWN1GleichzeitigeRequests(t *testing.T) {
@@ -115,7 +115,7 @@ func TestWN1GleichzeitigeRequests(t *testing.T) {
 			e.halt(rt.op, false, func(context.Context) { vor.halt() })
 			e.halt(rt.op, true, func(context.Context) { nach.halt() })
 			if art := wsEintragArt(k); art != "" {
-				nachAppend[art] = nimm(rt.name + " nach der Rückkehr von Append")
+				nachAppend[art] = nimm(rt.name + " in Append, bis zur Rückkehr der Hülle")
 			}
 		}
 		e.nachAppend.nach = func(es support.Eintrag) { nachAppend[string(es.Art)].halt() }
