@@ -201,14 +201,21 @@ func leerraumZeichen() []string {
 
 // orakelAlle ist die Tabelle von SPEC-234 Nr. 2 mit der fünften Zeile `admin_abgewiesen` (nur error_code ist Pflicht,
 // SPEC-238 Nr. 8), der sechsten `session_angelegt` und der siebenten `session_beendet` (service_id und session_id sind
-// Pflicht, SPEC-292 Nr. 11) und der achten `import_veroeffentlicht` (service_id und import_id sind Pflicht, SPEC-297 Nr. 10):
-// orakelPflicht trägt die vier Arten des Use Case, die Zeilen des Admin-Adapters kommen aus dem Wortlaut hinzu.
+// Pflicht, SPEC-292 Nr. 11), der achten `import_veroeffentlicht` (service_id und import_id sind Pflicht, SPEC-297 Nr. 10) und
+// der neunten bis zwölften `workspace_angelegt`, `workspace_zurueckgesetzt`, `snapshot_erzeugt` und `workspace_wiederhergestellt`
+// (service_id und workspace_id sind Pflicht, SPEC-298 Nr. 11): orakelPflicht trägt die vier Arten des Use Case, die Zeilen des
+// Admin-Adapters kommen aus dem Wortlaut hinzu.
 func orakelAlle() map[support.AuditArt][5]bool {
 	m := orakelPflicht()
 	m[support.ArtAdminAbgewiesen] = [5]bool{false, false, false, false, true}
 	m[support.ArtSessionAngelegt] = [5]bool{true, true, false, false, false}
 	m[support.ArtSessionBeendet] = [5]bool{true, true, false, false, false}
 	m[support.ArtImportVeroeffentlicht] = [5]bool{true, false, false, true, false}
+	for _, art := range []support.AuditArt{
+		support.ArtWorkspaceAngelegt, support.ArtWorkspaceZurueckgesetzt, support.ArtSnapshotErzeugt, support.ArtWorkspaceWiederhergestellt,
+	} {
+		m[art] = [5]bool{true, false, true, false, false}
+	}
 	return m
 }
 
@@ -257,16 +264,18 @@ func TestArtAusserhalbDerMenge(t *testing.T) {
 			}
 		}
 	}
-	if want := 2 * (8*57 + 2*(17+20+19+21+16+16+15+22)); gesamt != want {
+	if want := 2 * (12*57 + 2*(17+20+19+21+16+16+15+22+18+24+16+27)); gesamt != want {
 		t.Errorf("%d Aufrufe geprüft, erwartet %d", gesamt, want)
 	}
 }
 
-// A07, Y5, S15, B14 und IM23: 8 Arten × 5 Felder = 40 Zellen, je Zelle ein Fall je Richtung: ein fehlendes Pflichtfeld
+// A07, Y5, S15, B14, IM23 und WS22: 12 Arten × 5 Felder = 60 Zellen, je Zelle ein Fall je Richtung: ein fehlendes Pflichtfeld
 // und ein gesetztes verbotenes Feld sind ErrUngueltig, die erlaubte Belegung schreibt. Bei `admin_abgewiesen` sind
 // service_id, session_id, workspace_id und import_id verboten und error_code Pflicht, bei `session_angelegt` und
 // `session_beendet` sind service_id und session_id Pflicht und die übrigen drei Felder verboten, bei `import_veroeffentlicht`
-// sind service_id und import_id Pflicht und session_id, workspace_id und error_code verboten.
+// sind service_id und import_id Pflicht und session_id, workspace_id und error_code verboten, bei den vier Arten der
+// Workspaces (`workspace_angelegt`, `workspace_zurueckgesetzt`, `snapshot_erzeugt`, `workspace_wiederhergestellt`) sind
+// service_id und workspace_id Pflicht und session_id, import_id und error_code verboten.
 func TestFeldBelegung(t *testing.T) {
 	zellen := 0
 	for art, soll := range orakelAlle() {
@@ -292,8 +301,29 @@ func TestFeldBelegung(t *testing.T) {
 			}
 		}
 	}
-	if zellen != 40 {
-		t.Errorf("%d Zellen, erwartet 40", zellen)
+	if zellen != 60 {
+		t.Errorf("%d Zellen, erwartet 60", zellen)
+	}
+}
+
+// WS22: die Zeile jeder der vier Arten der Workspaces ist Byte für Byte die des Vertrags (SPEC-298 Nr. 11, SPEC-235 Nr. 3):
+// timestamp, correlation_id, art, service_id, workspace_id, nichts sonst; die Korrelations-ID des Admin-Adapters gilt unverändert.
+func TestZeilenWorkspaces(t *testing.T) {
+	n := 0
+	for _, art := range []string{"workspace_angelegt", "workspace_zurueckgesetzt", "snapshot_erzeugt", "workspace_wiederhergestellt"} {
+		a := neu(t, festeZeit)
+		e := support.Eintrag{Art: support.AuditArt(art), ServiceID: "svc-1", WorkspaceID: "wsp-1", KorrelationsID: "cor-admin-1"}
+		if err := a.d.Append(e); err != nil {
+			t.Fatalf("Append %+v: %v", e, err)
+		}
+		soll := `{"timestamp":"2026-11-06T10:00:00.000000000Z","correlation_id":"cor-admin-1","art":"` + art + `","service_id":"svc-1","workspace_id":"wsp-1"}` + "\n"
+		if got := a.inhalt(t); got != soll {
+			t.Errorf("Datei:\n%q\nerwartet:\n%q", got, soll)
+		}
+		n++
+	}
+	if n != 4 {
+		t.Errorf("%d Arten, erwartet 4", n)
 	}
 }
 
@@ -432,13 +462,13 @@ func inKlasse(b byte) bool {
 	return strings.IndexByte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-", b) >= 0
 }
 
-// A08: 21 Paare aus Feld und Art (kennungsFaelle: jedes Feld der Form bei jeder Art von support.Arten(), die es trägt) × 256
+// A08: 33 Paare aus Feld und Art (kennungsFaelle: jedes Feld der Form bei jeder Art von support.Arten(), die es trägt) × 256
 // Bytewerte an 3 Stellen (65 gültig je Stelle), dazu die Längen 0, 1, 64, 65 und Mehrbyte-UTF-8; die Datei trägt genau die
 // gültigen Zeilen.
 func TestKennungsform(t *testing.T) {
 	faelle := kennungsFaelle()
-	if len(faelle) != 6+4+1+2+8 {
-		t.Fatalf("%d Paare aus Feld und Art, erwartet 21 (service_id 6, session_id 4, workspace_id 1, import_id 2, Korrelations-ID 8)", len(faelle))
+	if len(faelle) != 10+4+5+2+12 {
+		t.Fatalf("%d Paare aus Feld und Art, erwartet 33 (service_id 10, session_id 4, workspace_id 5, import_id 2, Korrelations-ID 12)", len(faelle))
 	}
 	for _, f := range faelle {
 		a := neuAn(t, filepath.Join(schnellVerz(t), audit.DateiName), festeZeit)

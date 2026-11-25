@@ -777,9 +777,9 @@ func TestAuditSchreibfehlerAendertNichts(t *testing.T) {
 }
 
 // TestAuditAufrufstellen fängt V07: die Aufrufstellen von Audit.Append im Code der Dienste sind die vier Zeilen
-// V01a bis V01d (per Syntaxbaum gegen das Literal W), die Arten sind acht, und die Zellen (Modus, Art) der Fälle sind
-// Modus × Arten ohne `admin_abgewiesen`, `session_angelegt`, `session_beendet` und `import_veroeffentlicht` (kein Use Case,
-// kein Aufruf von `admin` im Binary) und ohne (replay, session_geloescht) und (replay, import_fehlgeschlagen).
+// V01a bis V01d (per Syntaxbaum gegen das Literal W), die Arten sind zwölf, und die Zellen (Modus, Art) der Fälle sind
+// Modus × Arten ohne die acht des Admin-Adapters (kein Use Case, kein Aufruf von `admin` im Binary) und ohne (replay,
+// session_geloescht) und (replay, import_fehlgeschlagen).
 func TestAuditAufrufstellen(t *testing.T) {
 	soll := []string{
 		"baselineimport/importer.go ArtImportFehlgeschlagen",
@@ -835,8 +835,16 @@ func TestAuditAufrufstellen(t *testing.T) {
 	if len(sonst) != 0 {
 		t.Errorf("Verwendungen des Feldes Audit, die kein Aufruf von Append und kein Vergleich mit nil sind: %v", sonst)
 	}
-	if n := len(support.Arten()); n != 8 {
-		t.Errorf("%d Arten, erwartet 8", n)
+	if n := len(support.Arten()); n != 12 {
+		t.Errorf("%d Arten, erwartet 12", n)
+	}
+	// Die fünfte bis zwölfte Art schreibt der Admin-Adapter beim Abweisen (SPEC-238 Nr. 8), beim Anlegen und beim Beenden einer
+	// Session (SPEC-292 Nr. 11), nach einem gelungenen Import (SPEC-297 Nr. 10) und nach dem Anlegen, Zurücksetzen,
+	// Wiederherstellen eines Workspace und dem Erzeugen eines Snapshots (SPEC-298 Nr. 11); kein Use Case schreibt sie, und das
+	// Binary ruft `admin` nicht auf: für diese acht Arten hat es keine Zelle.
+	adapterArten := []support.AuditArt{
+		support.ArtAdminAbgewiesen, support.ArtSessionAngelegt, support.ArtSessionBeendet, support.ArtImportVeroeffentlicht,
+		support.ArtWorkspaceAngelegt, support.ArtWorkspaceZurueckgesetzt, support.ArtSnapshotErzeugt, support.ArtWorkspaceWiederhergestellt,
 	}
 	var zellen, erwartet []string
 	for _, f := range auditFaelle() {
@@ -844,10 +852,7 @@ func TestAuditAufrufstellen(t *testing.T) {
 	}
 	for _, modus := range modi() {
 		for _, s := range support.Arten() {
-			// Die fünfte bis achte Art schreibt der Admin-Adapter beim Abweisen (SPEC-238 Nr. 8), beim Anlegen und beim
-			// Beenden einer Session (SPEC-292 Nr. 11) und nach einem gelungenen Import (SPEC-297 Nr. 10); kein Use Case schreibt
-			// sie, und das Binary ruft `admin` nicht auf: für diese vier Arten hat es keine Zelle.
-			if s.Art == support.ArtAdminAbgewiesen || s.Art == support.ArtSessionAngelegt || s.Art == support.ArtSessionBeendet || s.Art == support.ArtImportVeroeffentlicht {
+			if slices.Contains(adapterArten, s.Art) {
 				continue
 			}
 			if modus == modusReplay && (s.Art == support.ArtSessionGeloescht || s.Art == support.ArtImportFehlgeschlagen) {
