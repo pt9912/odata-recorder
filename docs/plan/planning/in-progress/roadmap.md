@@ -20,6 +20,8 @@ In Arbeit: [slice-lasttest-fixtures](slice-lasttest-fixtures.md) ([welle-betrieb
 
 In Arbeit: [slice-telemetry-einbau-hybrid](slice-telemetry-einbau-hybrid.md) ([welle-betrieb](../welle-betrieb.md), Teil 2 des Schnitts von `slice-telemetry-einbau-hybrid` nach [slice-telemetry-einbau-hybrid-port](../done/slice-telemetry-einbau-hybrid-port.md): Span `odata.hybrid.fallback` und Zähler `odr_hybrid_discarded_total` im Hybrid-Dienst, `verdrahteHybrid` gibt dem Dienst den Adapter des Prozesses; das Binary schreibt im Modus `hybrid` eine weitere Span-Zeile).
 
+In Arbeit: [slice-test-security](slice-test-security.md) ([welle-admin-api](../welle-admin-api.md), Position 1 der Gate-Kette: Canary-Test am Binary im Modus `record` und Netzwerkzugriffstest am Admin-Adapter, `make test-security` mit Stufe `security`, Fragment und Treiber).
+
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
