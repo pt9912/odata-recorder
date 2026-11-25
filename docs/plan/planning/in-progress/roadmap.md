@@ -18,8 +18,6 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-lasttest-fixtures](slice-lasttest-fixtures.md) ([welle-betrieb](../welle-betrieb.md), Teil 1 des Schnitts von [slice-lasttest](../open/slice-lasttest.md): Profile, Referenzdienst, Aufbau über `bootstrap.Build`, Listen und Umgebung des Binary, Uhr; schreibt nur unter `tests/lasttest/`).
 
-In Arbeit: [slice-admin-workspaces-audit](../done/slice-admin-workspaces-audit.md) ([welle-admin-api](../welle-admin-api.md), Teil 2 des Schnitts von [slice-admin-workspaces](../done/slice-admin-workspaces.md): Einträge der Arten `workspace_angelegt`, `workspace_zurueckgesetzt`, `snapshot_erzeugt` und `workspace_wiederhergestellt` nach den vier `POST`-Routen, Warten und Abbruch, Nebenläufigkeit; das Binary ändert sich nicht).
-
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
