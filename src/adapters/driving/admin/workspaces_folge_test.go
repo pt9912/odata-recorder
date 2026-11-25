@@ -179,8 +179,15 @@ func TestWS16FolgeOhneZustand(t *testing.T) {
 			if n := e.p.gesamt(); n != soll {
 				t.Errorf("%s dann %s: %d Aufrufe der Dienste, erwartet %d", x.name, y.name, n, soll)
 			}
-			if n := e.audit.Aufrufe(); n != 0 {
-				t.Errorf("%s dann %s: %d Aufrufe von Audit, erwartet 0", x.name, y.name, n)
+			auditSoll := 0 // Orakel von SPEC-298 Nr. 11 a: ein Eintrag je Erfolg einer der vier Routen mit Eintrag
+			if x.v[0].status/100 == 2 && wsEintragArt(x.route) != "" {
+				auditSoll++
+			}
+			if y.v[1].status/100 == 2 && wsEintragArt(y.route) != "" {
+				auditSoll++
+			}
+			if n := e.audit.Aufrufe(); n != auditSoll {
+				t.Errorf("%s dann %s: %d Aufrufe von Audit, erwartet %d", x.name, y.name, n, auditSoll)
 			}
 		}
 	}

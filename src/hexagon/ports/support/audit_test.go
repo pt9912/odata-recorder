@@ -19,6 +19,11 @@ func orakelArten() map[string][5]bool {
 		"session_angelegt":       {true, true, false, false, false},
 		"session_beendet":        {true, true, false, false, false},
 		"import_veroeffentlicht": {true, false, false, true, false},
+
+		"workspace_angelegt":          {true, false, true, false, false},
+		"workspace_zurueckgesetzt":    {true, false, true, false, false},
+		"snapshot_erzeugt":            {true, false, true, false, false},
+		"workspace_wiederhergestellt": {true, false, true, false, false},
 	}
 }
 
@@ -26,19 +31,26 @@ func orakelSpalten() [5]support.Feld {
 	return [5]support.Feld{"service_id", "session_id", "workspace_id", "import_id", "error_code"}
 }
 
-// A01, Y5, S15, B14 und IM23: Schleife über 8 Arten × 5 Felder gegen das Orakel (die vier Zeilen von SPEC-234 Nr. 2, die
-// fünfte, `admin_abgewiesen`, mit allein `error_code` als Pflicht, die sechste und die siebente, `session_angelegt` und
+// A01, Y5, S15, B14, IM23 und WS22: Schleife über 12 Arten × 5 Felder gegen das Orakel (die vier Zeilen von SPEC-234 Nr. 2,
+// die fünfte, `admin_abgewiesen`, mit allein `error_code` als Pflicht, die sechste und die siebente, `session_angelegt` und
 // `session_beendet`, mit `service_id` und `session_id` als Pflicht, die achte, `import_veroeffentlicht`, mit `service_id` und
-// `import_id`), Zählprüfung 8 und 40; die fünfte bis achte Art stehen an ihrer Stelle.
+// `import_id`, die neunte bis zwölfte, `workspace_angelegt`, `workspace_zurueckgesetzt`, `snapshot_erzeugt` und
+// `workspace_wiederhergestellt`, mit `service_id` und `workspace_id`), Zählprüfung 12 und 60; die fünfte bis zwölfte Art stehen
+// an ihrer Stelle.
 func TestArtenGleichTabelle(t *testing.T) {
 	orakel := orakelArten()
 	arten := support.Arten()
-	if len(arten) != 8 || len(orakel) != 8 {
-		t.Fatalf("Arten() hat %d Einträge, das Orakel %d, erwartet je 8", len(arten), len(orakel))
+	if len(arten) != 12 || len(orakel) != 12 {
+		t.Fatalf("Arten() hat %d Einträge, das Orakel %d, erwartet je 12", len(arten), len(orakel))
 	}
-	if arten[4].Art != "admin_abgewiesen" || arten[5].Art != "session_angelegt" || arten[6].Art != "session_beendet" || arten[7].Art != "import_veroeffentlicht" {
-		t.Errorf("die fünfte Zeile ist %q, die sechste %q, die siebente %q und die achte %q, erwartet admin_abgewiesen, session_angelegt, session_beendet und import_veroeffentlicht",
-			arten[4].Art, arten[5].Art, arten[6].Art, arten[7].Art)
+	stellen := []string{
+		"admin_abgewiesen", "session_angelegt", "session_beendet", "import_veroeffentlicht",
+		"workspace_angelegt", "workspace_zurueckgesetzt", "snapshot_erzeugt", "workspace_wiederhergestellt",
+	}
+	for i, soll := range stellen {
+		if got := arten[4+i].Art; string(got) != soll {
+			t.Errorf("Zeile %d ist %q, erwartet %q", 5+i, got, soll)
+		}
 	}
 	zellen := 0
 	for _, s := range arten {
@@ -64,12 +76,12 @@ func TestArtenGleichTabelle(t *testing.T) {
 			t.Errorf("Art %q: Pflicht %v, erwartet in der Folge der Spalten %v", s.Art, s.Pflicht, folge)
 		}
 	}
-	if zellen != 40 {
-		t.Errorf("geprüfte Zellen: %d, erwartet 40", zellen)
+	if zellen != 60 {
+		t.Errorf("geprüfte Zellen: %d, erwartet 60", zellen)
 	}
 }
 
-// Der Text jeder Art ist der der Tabelle, Byte für Byte, und Arten() führt genau diese acht.
+// Der Text jeder Art ist der der Tabelle, Byte für Byte, und Arten() führt genau diese zwölf.
 func TestArtTexte(t *testing.T) {
 	soll := map[support.AuditArt]string{
 		support.ArtSessionGeloescht:     "session_geloescht",
@@ -81,9 +93,14 @@ func TestArtTexte(t *testing.T) {
 		support.ArtSessionBeendet:       "session_beendet",
 
 		support.ArtImportVeroeffentlicht: "import_veroeffentlicht",
+
+		support.ArtWorkspaceAngelegt:          "workspace_angelegt",
+		support.ArtWorkspaceZurueckgesetzt:    "workspace_zurueckgesetzt",
+		support.ArtSnapshotErzeugt:            "snapshot_erzeugt",
+		support.ArtWorkspaceWiederhergestellt: "workspace_wiederhergestellt",
 	}
-	if len(soll) != 8 {
-		t.Fatalf("Orakel hat %d Arten, erwartet 8", len(soll))
+	if len(soll) != 12 {
+		t.Fatalf("Orakel hat %d Arten, erwartet 12", len(soll))
 	}
 	for art, text := range soll {
 		if string(art) != text {
@@ -106,8 +123,8 @@ func TestArtenLiefertKopie(t *testing.T) {
 			pflichtfelder++
 		}
 	}
-	if len(a) != 8 || pflichtfelder != 2+2+1+3+1+2+2+2 {
-		t.Fatalf("%d Arten, %d Pflichtfelder, erwartet 8 und 15", len(a), pflichtfelder)
+	if len(a) != 12 || pflichtfelder != 2+2+1+3+1+2+2+2+4*2 {
+		t.Fatalf("%d Arten, %d Pflichtfelder, erwartet 12 und 23", len(a), pflichtfelder)
 	}
 	b := support.Arten()
 	for i, s := range b {

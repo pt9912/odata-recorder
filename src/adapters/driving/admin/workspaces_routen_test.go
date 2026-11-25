@@ -157,7 +157,8 @@ func TestWS2Zuordnung(t *testing.T) {
 
 // TestWS3AufrufeUndKontext hält WS3 (SPEC-298 Nr. 2): jede Route ruft genau eine Operation (8 Routen × 8 Operationen = 64
 // Zellen, 1 auf der Diagonale, sonst 0) mit den Argumenten als Literalen; der Wert im ctx des Requests kommt an, der Handler
-// gibt ctx ohne Ableitung weiter (Gleichheit der Identität), und in diesem Teil ruft keine Route Audit.
+// gibt ctx ohne Ableitung weiter (Gleichheit der Identität), und Audit sieht genau einen Aufruf bei den vier Routen mit Eintrag
+// (`POST` anlegen, `reset`, `POST` snapshots, `restore`) und keinen bei den anderen vier (Zellen von WS19, WS20).
 func TestWS3AufrufeUndKontext(t *testing.T) {
 	wsFrist(t)
 	gleichAuf(t, "Operationen von WorkspaceUseCase", reflect.TypeFor[inbound.WorkspaceUseCase]().NumMethod(), 6)
@@ -174,8 +175,8 @@ func TestWS3AufrufeUndKontext(t *testing.T) {
 		if got := e.p.ctxListe()[0].Value(ctxSchluessel{}); got != "wert-"+r.name {
 			t.Errorf("%s: der Wert im ctx des Requests kam als %v an", r.name, got)
 		}
-		if n := e.audit.Aufrufe(); n != 0 {
-			t.Errorf("%s: %d Aufrufe von Audit, erwartet 0 in diesem Teil", r.name, n)
+		if n, soll := e.audit.Aufrufe(), map[bool]int{true: 1}[wsEintragArt(i) != ""]; n != soll {
+			t.Errorf("%s: %d Aufrufe von Audit, erwartet %d", r.name, n, soll)
 		}
 
 		ctx := context.WithValue(context.Background(), ctxSchluessel{}, "direkt")
