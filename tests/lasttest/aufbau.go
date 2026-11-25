@@ -201,14 +201,14 @@ func baueEcht(ctx context.Context, k bootstrap.Konfiguration) (*handle, error) {
 }
 
 // nimmAuf sendet die Anfragen des Aufbaus an ein Handle im Modus record und fährt es herunter, wobei Herunterfahren die Session beendet; es
-// liefert die Session.
+// liefert die Session. Herunterfahren läuft unter context.WithoutCancel, und sein Fehler tritt zum Fehler des Schritts (SPEC-216 Nr. 6 f).
 func (e aufbauEingabe) nimmAuf(ctx context.Context, baue func(context.Context, bootstrap.Konfiguration) (*handle, error),
 	k bootstrap.Konfiguration) (session string, err error) {
 	h, err := baue(ctx, k)
 	if err != nil {
 		return "", err
 	}
-	defer func() { err = errors.Join(err, h.Herunterfahren(ctx)) }()
+	defer func() { err = errors.Join(err, h.Herunterfahren(context.WithoutCancel(ctx))) }()
 	if err = h.Hochfahren(ctx); err != nil {
 		return "", err
 	}
@@ -301,7 +301,7 @@ func importiere(ctx context.Context, baue func(context.Context, bootstrap.Konfig
 	if err != nil {
 		return "", "", err
 	}
-	defer func() { err = errors.Join(err, h.Herunterfahren(ctx)) }()
+	defer func() { err = errors.Join(err, h.Herunterfahren(context.WithoutCancel(ctx))) }()
 	erg, err := h.Import().Import(ctx, inbound.ImportAnfrage{
 		ImportID: dienstID, ServiceID: dienstID, SourceSessionIDs: []string{session}, MetadataHash: metadataHash,
 	})

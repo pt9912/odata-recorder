@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -163,10 +164,27 @@ func quellen(t *testing.T) map[string]string {
 	return m
 }
 
-// TestPaketOhneZeit: keine Datei des Pakets außer uhr.go und uhr_test.go nennt ein Element der Klasse der Namen, die die Zeit des Prozesses lesen
-// oder auf sie warten: 14 Funktionen (9 von time, 4 von context, TimeoutHandler von net/http), auch als Wert, unter einem anderen Namen des
-// Imports und als Punkt-Import, 11 Felder von Literalen (Client, Server, Transport, Dialer) und 3 Methoden SetDeadline; die Datei der Uhr trägt
-// Funktionen der Klasse (Kontrolle), und der Fänger erkennt jedes Element der Klasse in jeder Form (Orakel: die Literale dieses Tests).
+// zeitBefunde nennt von den Stellen einer Datei (zeitStellen) die, die SPEC-216 Nr. 14 a nicht zulässt: in uhr.go ist jede zulässig, in
+// uhr_test.go allein time.NewTimer (nach dem aufgelösten Paket und Namen, nicht nach der Schreibweise des Imports; ein Punkt-Import ist kein
+// time.NewTimer), in jeder anderen Datei keine.
+func zeitBefunde(name string, stellen []string) []string {
+	var out []string
+	for _, s := range stellen {
+		switch {
+		case name == "uhr.go":
+		case name == "uhr_test.go" && strings.HasSuffix(s, ": time.NewTimer"):
+		default:
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// TestPaketOhneZeit: keine Datei des Pakets außer uhr.go nennt ein Element der Klasse der Namen, die die Zeit des Prozesses lesen oder auf sie
+// warten, und uhr_test.go allein time.NewTimer: 14 Funktionen (9 von time, 4 von context, TimeoutHandler von net/http), auch als Wert, unter
+// einem anderen Namen des Imports und als Punkt-Import, 11 Felder von Literalen (Client, Server, Transport, Dialer) und 3 Methoden SetDeadline;
+// die Datei der Uhr trägt Funktionen der Klasse (Kontrolle), und der Fänger erkennt jedes Element der Klasse in jeder Form (Orakel: die Literale
+// dieses Tests) und wertet es je Datei: uhr.go lässt alle zu, uhr_test.go allein time.NewTimer, jede andere Datei keines.
 func TestPaketOhneZeit(t *testing.T) {
 	wache(t, 30*time.Second)
 	funktionen := []struct{ paket, name string }{
@@ -185,24 +203,37 @@ func TestPaketOhneZeit(t *testing.T) {
 	}
 	gesehen := map[string]string{}
 	n := 0
-	pruefe := func(was, kopf, aufruf string) {
+	// pruefe führt ein Element in einer Form des Quelltexts: der Fänger nennt mindestens eine Stelle; uhr.go lässt jede zu, jede andere Datei
+	// keine, uhr_test.go keine außer einem time.NewTimer in der Schreibweise eines Selektors (erlaubtInTest).
+	pruefe := func(was, kopf, aufruf string, erlaubtInTest bool) {
 		n++
-		if st, err := zeitStellen("p.go", "package p\n"+kopf+"\nvar _ = "+aufruf+"\n"); err != nil || len(st) == 0 {
+		st, err := zeitStellen("p.go", "package p\n"+kopf+"\nvar _ = "+aufruf+"\n")
+		if err != nil || len(st) == 0 {
 			t.Errorf("%s: Stellen %v, %v, erwartet mindestens eine", was, st, err)
+		}
+		erwartet := map[string]int{"uhr.go": 0, "uhr_test.go": len(st), "profil.go": len(st), "aufbau_test.go": len(st)}
+		if erlaubtInTest {
+			erwartet["uhr_test.go"] = 0
+		}
+		for datei, nBefunde := range erwartet {
+			if b := zeitBefunde(datei, st); len(b) != nBefunde {
+				t.Errorf("%s in %s: Befunde %v, erwartet %d", was, datei, b, nBefunde)
+			}
 		}
 		gesehen[was] = aufruf
 	}
 	for _, f := range funktionen {
-		pruefe(f.paket+"."+f.name+" direkt", `import "`+f.paket+`"`, path.Base(f.paket)+"."+f.name)
-		pruefe(f.paket+"."+f.name+" mit Namen", `import x "`+f.paket+`"`, "x."+f.name)
-		pruefe(f.paket+"."+f.name+" Punkt-Import", `import . "`+f.paket+`"`, f.name)
+		neuerTimer := f.paket == "time" && f.name == "NewTimer"
+		pruefe(f.paket+"."+f.name+" direkt", `import "`+f.paket+`"`, path.Base(f.paket)+"."+f.name, neuerTimer)
+		pruefe(f.paket+"."+f.name+" mit Namen", `import x "`+f.paket+`"`, "x."+f.name, neuerTimer)
+		pruefe(f.paket+"."+f.name+" Punkt-Import", `import . "`+f.paket+`"`, f.name, false)
 	}
 	for _, f := range felder {
-		pruefe(f.typ+"{"+f.feld+"} direkt", `import "`+f.paket+`"`, path.Base(f.paket)+"."+f.typ+"{"+f.feld+": 1}")
-		pruefe(f.typ+"{"+f.feld+"} mit Namen", `import x "`+f.paket+`"`, "x."+f.typ+"{"+f.feld+": 1}")
+		pruefe(f.typ+"{"+f.feld+"} direkt", `import "`+f.paket+`"`, path.Base(f.paket)+"."+f.typ+"{"+f.feld+": 1}", false)
+		pruefe(f.typ+"{"+f.feld+"} mit Namen", `import x "`+f.paket+`"`, "x."+f.typ+"{"+f.feld+": 1}", false)
 	}
 	for _, m := range []string{"SetDeadline", "SetReadDeadline", "SetWriteDeadline"} {
-		pruefe(m, `import "net"`, "c."+m)
+		pruefe(m, `import "net"`, "c."+m, false)
 	}
 	if n != 14*3+11*2+3 || len(gesehen) != n {
 		t.Errorf("%d Fälle, erwartet 14 mal 3, 11 mal 2 und 3", n)
@@ -221,6 +252,10 @@ func TestPaketOhneZeit(t *testing.T) {
 			t.Errorf("%s: Stellen %v, %v, erwartet eine", kopf, st, err)
 		}
 	}
+	gemischt := "package p\nimport \"time\"\nvar _ = time.NewTimer\nvar _ = time.Sleep\nvar _ = time.NewTimer\n"
+	if st, err := zeitStellen("uhr_test.go", gemischt); err != nil || len(zeitBefunde("uhr_test.go", st)) != 1 || len(zeitBefunde("uhr.go", st)) != 0 || len(zeitBefunde("profil.go", st)) != 3 {
+		t.Errorf("zwei time.NewTimer und ein time.Sleep: Stellen %v, %v, erwartet je Datei 1, 0 und 3 Befunde", st, err)
+	}
 	files := quellen(t)
 	for _, d := range []string{"uhr.go", "uhr_test.go", "paket_test.go"} {
 		if _, ok := files[d]; !ok {
@@ -232,11 +267,11 @@ func TestPaketOhneZeit(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		switch {
-		case name == "uhr.go" && len(st) < 4:
+		if name == "uhr.go" && len(st) < 4 {
 			t.Errorf("die Datei der Uhr trägt %v, erwartet time.Now, time.Until, time.NewTimer und time.NewTicker", st)
-		case name != "uhr.go" && name != "uhr_test.go" && len(st) > 0:
-			t.Errorf("außerhalb der Uhr: %v", st)
+		}
+		if b := zeitBefunde(name, st); len(b) > 0 {
+			t.Errorf("außerhalb der Uhr: %v", b)
 		}
 	}
 	if len(files) < 10 {

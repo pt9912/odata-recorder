@@ -138,9 +138,10 @@ func (s *spur) oeffne(ctx context.Context, dir string) (*ablage, error) {
 // TestCtxJeAufrufstelle: jede der 14 Aufrufstellen des Aufbaus (Bauen, Hochfahren, Lesen der Sessions, Herunterfahren, zweites Bauen, Import,
 // Anlegen des Workspace, zweites Herunterfahren, Öffnen der Ablage, Session, Exchanges, Coverage, Entities je Set) bekommt den Kontext des
 // Aufrufs unverändert weitergereicht: er trägt den Wert des Aufrufers, keine Frist des Kontexts (die Frist des Aufbaus läuft über die Uhr) und
-// ist der Kontext der Frist (nach dem Aufbau beendet, der des Aufrufers nicht). Endet eine der 12 Stellen außer Herunterfahren mit dem
-// Kontextfehler, ist der Aufbau ein Fehler mit dieser Ursache und ohne den Grund frist, keine spätere Stelle läuft, und jedes gebaute Handle
-// ist genau einmal heruntergefahren; ein Fehler von Herunterfahren bleibt unentschieden (§6 des Plans).
+// ist der Kontext der Frist (nach dem Aufbau beendet, der des Aufrufers nicht); Herunterfahren bekommt ihn ohne den Abbruch
+// (context.WithoutCancel, SPEC-216 Nr. 6 f): mit dem Wert, und auch nach dem Aufbau nicht beendet. Endet eine der 12 Stellen außer
+// Herunterfahren mit dem Kontextfehler, ist der Aufbau ein Fehler mit dieser Ursache und ohne den Grund frist, keine spätere Stelle läuft, und
+// jedes gebaute Handle ist genau einmal heruntergefahren; den Fehler von Herunterfahren führt TestAufbauHerunterfahrenFehler.
 func TestCtxJeAufrufstelle(t *testing.T) {
 	wache(t, 180*time.Second)
 	erwartet := []string{
@@ -161,9 +162,10 @@ func TestCtxJeAufrufstelle(t *testing.T) {
 	}
 	for i, ctx := range s.ctxs {
 		_, hatFrist := ctx.Deadline()
-		if ctx.Value(ctxSchluessel{}) != "wert" || hatFrist || ctx.Err() == nil || parent.Err() != nil {
-			t.Errorf("Stelle %d (%s): Wert %v, Frist des Kontexts %v, beendet nach dem Aufbau: %v, Kontext des Aufrufers beendet: %v; erwartet den Wert, keine Frist, beendet, nicht beendet",
-				i, s.namen[i], ctx.Value(ctxSchluessel{}), hatFrist, ctx.Err() != nil, parent.Err() != nil)
+		beendet := s.namen[i] != "Herunterfahren"
+		if ctx.Value(ctxSchluessel{}) != "wert" || hatFrist || (ctx.Err() != nil) != beendet || parent.Err() != nil {
+			t.Errorf("Stelle %d (%s): Wert %v, Frist des Kontexts %v, beendet nach dem Aufbau: %v, Kontext des Aufrufers beendet: %v; erwartet den Wert, keine Frist, beendet: %v, nicht beendet",
+				i, s.namen[i], ctx.Value(ctxSchluessel{}), hatFrist, ctx.Err() != nil, parent.Err() != nil, beendet)
 		}
 	}
 	for k := range erwartet {

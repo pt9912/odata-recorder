@@ -554,6 +554,143 @@ func TestAufbauFehlerJeSchritt(t *testing.T) {
 	}
 }
 
+// importHaelt lässt Import warten, bis sein Kontext endet, nachdem die Uhr auf die Frist gestellt ist.
+type importHaelt struct {
+	inbound.ImportUseCase
+	vorstellen func()
+}
+
+func (i importHaelt) Import(ctx context.Context, _ inbound.ImportAnfrage) (inbound.ImportErgebnis, error) {
+	i.vorstellen()
+	<-ctx.Done()
+	return inbound.ImportErgebnis{}, ctx.Err()
+}
+
+// TestAufbauHerunterfahrenFehler: ein Fehler von Herunterfahren ist ein Fehler des Aufbaus (SPEC-216 Nr. 6 f): je Handle (das der Aufnahme und
+// das des Imports) bei gelungenem Schritt der Grund aufbau an der Stelle des Schritts, bei einem Fehler des Schritts dessen Grund und Stelle
+// mit beiden Fehlern (errors.Is), bei der Frist der Grund frist; je Fall ein Aufruf von Herunterfahren je gebautes Handle, ohne Abbruch
+// (context.WithoutCancel: auch bei der Frist weder beendet noch ohne den Wert des Aufrufers), und nach dem Fehler des ersten Handle weder ein
+// zweites Build noch Import, nach dem des zweiten keine Zählprüfung und kein Ergebnis.
+func TestAufbauHerunterfahrenFehler(t *testing.T) {
+	wache(t, 120*time.Second)
+	fehlerH := errors.New("Fehler beim Herunterfahren")
+	eigen := errors.New("Fehler des Schritts")
+	frist := kleinesProfil().FristAufbau
+	faelle := []struct {
+		name            string
+		handle          int    // das Handle, dessen Herunterfahren scheitert (0 Aufnahme, 1 Import)
+		art             string // gelungen, status, workspace, frist-seite, frist-import
+		grund, stelle   string
+		gebaut          int
+		ursacheEnthaelt string
+	}{
+		{"Handle 1, Schritt gelungen", 0, "gelungen", grundAufbau, stelleAufnahme, 1, ""},
+		{"Handle 2, Schritt gelungen", 1, "gelungen", grundAufbau, stelleImport, 2, ""},
+		{"Handle 1, Status 500 der Aufnahme", 0, "status", grundAufbau, stelleStatus, 1, "Status 500"},
+		{"Handle 2, Workspace scheitert", 1, "workspace", grundAufbau, stelleImport, 2, "Fehler des Schritts"},
+		{"Frist bei Handle 1", 0, "frist-seite", grundFrist, stelleFrist, 1, ""},
+		{"Frist bei Handle 2", 1, "frist-import", grundFrist, stelleFrist, 2, ""},
+	}
+	for _, f := range faelle {
+		t.Run(f.name, func(t *testing.T) {
+			parent := context.WithValue(context.Background(), ctxSchluessel{}, "wert")
+			uhr := neueFakeUhr()
+			var mu sync.Mutex
+			var ctxs []context.Context
+			zeichne := func(ctx context.Context) {
+				mu.Lock()
+				defer mu.Unlock()
+				ctxs = append(ctxs, ctx)
+			}
+			b := &bauer{ausruesten: func(n int, h *handle) {
+				echt := h.Herunterfahren
+				h.Herunterfahren = func(ctx context.Context) error {
+					zeichne(ctx)
+					if n == f.handle {
+						return errors.Join(echt(ctx), fehlerH)
+					}
+					return echt(ctx)
+				}
+				switch {
+				case f.art == "workspace" && n == 1:
+					ws := h.Workspaces
+					h.Workspaces = func() inbound.WorkspaceUseCase { return workspacesErsatz{WorkspaceUseCase: ws(), fehler: eigen} }
+				case f.art == "frist-import" && n == 1:
+					imp := h.Import
+					h.Import = func() inbound.ImportUseCase {
+						return importHaelt{ImportUseCase: imp(), vorstellen: func() { uhr.Vorstellen(frist) }}
+					}
+				}
+			}}
+			var geoeffnet atomic.Int32
+			gehalten, frei := make(chan struct{}, 1), make(chan struct{})
+			t.Cleanup(func() { close(frei) })
+			e := aufbauEingabe{
+				Profil: kleinesProfil(), Startwert: 1, Uhr: uhr, DataDir: t.TempDir(), Baue: b.baue,
+				Oeffne: func(ctx context.Context, dir string) (*ablage, error) {
+					geoeffnet.Add(1)
+					return oeffneAblage(ctx, dir)
+				},
+			}
+			switch f.art {
+			case "status":
+				e.Umhuellen = aendere(func(w http.ResponseWriter, r *http.Request, inner http.Handler) {
+					if r.URL.Path == "/odata/Set1" && r.URL.RawQuery == "$skiptoken=10" {
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					inner.ServeHTTP(w, r)
+				})
+			case "frist-seite":
+				e.Umhuellen = halte(gehalten, frei)
+			}
+			type ausgang struct {
+				erg aufbauErgebnis
+				err error
+			}
+			ergebnis := make(chan ausgang, 1)
+			go func() {
+				erg, err := e.aufbauen(parent)
+				ergebnis <- ausgang{erg, err}
+			}()
+			if f.art == "frist-seite" {
+				warteAuf(t, gehalten, 15*time.Second)
+				uhr.Vorstellen(frist)
+			}
+			a := warteAuf(t, ergebnis, 15*time.Second)
+			var af *aufbauFehler
+			if !errors.As(a.err, &af) || af.grund != f.grund || af.stelle != f.stelle || a.erg != (aufbauErgebnis{}) {
+				t.Fatalf("Fehler %v, Ergebnis %+v, erwartet Grund %s an der Stelle %s ohne Ergebnis", a.err, a.erg, f.grund, f.stelle)
+			}
+			if !errors.Is(a.err, fehlerH) || (f.art == "workspace") != errors.Is(a.err, eigen) {
+				t.Errorf("Fehler %v: Fehler von Herunterfahren gefunden %v, Fehler des Schritts gefunden %v; erwartet true und %v",
+					a.err, errors.Is(a.err, fehlerH), errors.Is(a.err, eigen), f.art == "workspace")
+			}
+			if f.ursacheEnthaelt != "" && !strings.Contains(a.err.Error()+af.ursache.Error(), f.ursacheEnthaelt) {
+				t.Errorf("Fehler %v enthält %q nicht", a.err, f.ursacheEnthaelt)
+			}
+			if b.aufrufe != f.gebaut || len(b.handles) != f.gebaut || geoeffnet.Load() != 0 {
+				t.Errorf("Build %d, gebaute Handles %d, Öffnen der Ablage %d; erwartet %d, %d und 0", b.aufrufe, len(b.handles), geoeffnet.Load(), f.gebaut, f.gebaut)
+			}
+			for i, g := range b.handles {
+				if g.herunter.Load() != 1 {
+					t.Errorf("Handle %d: Herunterfahren %d, erwartet 1", i, g.herunter.Load())
+				}
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if len(ctxs) != f.gebaut {
+				t.Fatalf("%d Aufrufe von Herunterfahren, erwartet %d", len(ctxs), f.gebaut)
+			}
+			for i, ctx := range ctxs {
+				if ctx.Err() != nil || ctx.Value(ctxSchluessel{}) != "wert" {
+					t.Errorf("Herunterfahren %d: Kontext beendet %v, Wert %v; erwartet nicht beendet und den Wert des Aufrufers", i, ctx.Err(), ctx.Value(ctxSchluessel{}))
+				}
+			}
+		})
+	}
+}
+
 // TestAufbauSeiteUnlesbar: eine Seite, die kein JSON ist, und ein `@odata.nextLink`, der keine Adresse ist, sind je ein Fehler an der Stelle
 // der Aufnahme.
 func TestAufbauSeiteUnlesbar(t *testing.T) {
