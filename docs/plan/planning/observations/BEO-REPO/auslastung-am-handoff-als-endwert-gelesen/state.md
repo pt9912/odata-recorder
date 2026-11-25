@@ -1,1 +1,1 @@
-**Stand:** verkörpert in `harness/vertraege/SPEC-128-groessenmarke.md` (Nr. 9: Auslastung ist die Messung am Ende, die Spanne Handoff zu Ende steht im Vertrag ohne Auslöser beim Handoff, die untere Schwelle der Meldung ist 0,45) seit slice-groessenformel-neu; 5 Dateien unter `evidence/`
+**Stand:** verkörpert in `harness/vertraege/SPEC-128-groessenmarke.md` (Nr. 9: Auslastung ist die Messung am Ende, die Spanne Handoff zu Ende steht im Vertrag ohne Auslöser beim Handoff, die untere Schwelle der Meldung ist 0,45) seit slice-groessenformel-neu; 6 Dateien unter `evidence/`
