@@ -294,7 +294,7 @@ func TestNichtGezaehlt(t *testing.T) {
 			r: verhalten{err: code(codeNamed(t, n)), body: true}, gezaehlt: "ODR-E6003"})
 	}
 	for _, w := range faelle {
-		w.ausfuehren(t)
+		_, _, _ = w.ausfuehren(t)
 	}
 	if len(faelle) != 20 || len(codesR) != 12 {
 		t.Errorf("Zählprüfung: %d Fälle und %d Codes von R, erwartet 20 und 12", len(faelle), len(codesR))
