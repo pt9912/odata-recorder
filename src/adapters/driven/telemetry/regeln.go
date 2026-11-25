@@ -53,7 +53,7 @@ func logRegel(key string) (regel, bool) {
 	return regel{}, false
 }
 
-// spanRegel liefert die Regel der elf Pflicht-Attribute der fünf Spans (SPEC-230 Nr. 3).
+// spanRegel liefert die Regel der dreizehn Pflicht-Attribute der sechs Spans (SPEC-230 Nr. 3).
 func spanRegel(key string) (regel, bool) {
 	switch key {
 	case "http.request.method":
@@ -61,7 +61,8 @@ func spanRegel(key string) (regel, bool) {
 	case "http.response.status_code":
 		return regel{support.ArtInt, formStatus}, true
 	case "recorder.mode", "recorder.capture_status", "recorder.match_strategy",
-		"recorder.match_result", "recorder.coverage_status", "recorder.mutation_type":
+		"recorder.match_result", "recorder.coverage_status", "recorder.mutation_type",
+		"recorder.fallback_type", "recorder.fallback_result":
 		return regel{support.ArtString, formToken}, true
 	case "recorder.session_id", "recorder.workspace_id":
 		return regel{support.ArtString, formKennung}, true

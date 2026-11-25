@@ -1,8 +1,8 @@
-// Package telemetry ist der Driven Adapter der Ports Telemetry und TelemetryReader (SPEC-230 bis
-// SPEC-232, ARC-020): Regeln der Attribute, Zähler je Fehlercode, der Stand zum Lesen und die
-// Logzeile. Er nutzt nur die Standardbibliothek. Log schreibt eine Zeile (SPEC-231); StartSpan,
-// Set und End führen die Spans von SPEC-026 bis SPEC-030 und schreiben je End eine Zeile
-// (SPEC-231 Nr. 6).
+// Package telemetry ist der Driven Adapter der Ports Telemetry, FallbackTelemetry und
+// TelemetryReader (SPEC-230 bis SPEC-232, ARC-020): Regeln der Attribute, Zähler je Fehlercode und
+// je verworfenem Code, der Stand zum Lesen und die Logzeile. Er nutzt nur die Standardbibliothek.
+// Log schreibt eine Zeile (SPEC-231); StartSpan, Set und End führen die Spans von SPEC-026 bis
+// SPEC-030 und SPEC-320 und schreiben je End eine Zeile (SPEC-231 Nr. 6).
 package telemetry
 
 import (
@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	_ support.Telemetry       = (*Adapter)(nil)
-	_ support.TelemetryReader = (*Adapter)(nil)
+	_ support.Telemetry         = (*Adapter)(nil)
+	_ support.FallbackTelemetry = (*Adapter)(nil)
+	_ support.TelemetryReader   = (*Adapter)(nil)
 )
 
 const (
@@ -34,8 +35,8 @@ type Config struct {
 	MaxSpans int
 }
 
-// Adapter erfüllt Telemetry und TelemetryReader; er ist für gleichzeitigen Aufruf sicher
-// (SPEC-232 Nr. 5): jeder Zugriff auf den Zustand liegt unter mu, jedes Write unter zeilenMu. Die
+// Adapter erfüllt Telemetry, FallbackTelemetry und TelemetryReader; er ist für gleichzeitigen Aufruf
+// sicher (SPEC-232 Nr. 5): jeder Zugriff auf den Zustand liegt unter mu, jedes Write unter zeilenMu. Die
 // beiden Sperren werden nie ineinander gehalten (SPEC-232 Nr. 5 g), und keine Sperre liegt über
 // Clock.Now() (Nr. 5 f). pflicht und grenzen sind nach New unveränderlich.
 type Adapter struct {
@@ -55,6 +56,7 @@ type Adapter struct {
 	errors        map[model.Code]uint64
 	durations     map[support.SpanName]support.Verteilung
 	dropped       map[support.Verwurf]uint64
+	verworfen     map[model.Code]uint64
 	ring          []support.SpanRecord
 	ringNaechster int
 }
@@ -79,9 +81,13 @@ func New(cfg Config) (*Adapter, error) {
 		errors:    map[model.Code]uint64{},
 		durations: map[support.SpanName]support.Verteilung{},
 		dropped:   map[support.Verwurf]uint64{},
+		verworfen: map[model.Code]uint64{},
 	}
 	for _, c := range model.AlleCodes() {
 		a.errors[c] = 0
+	}
+	for _, c := range support.VerworfeneCodes() {
+		a.verworfen[c] = 0
 	}
 	for _, s := range support.Spans() {
 		a.pflicht[s.Name] = s.Pflicht
@@ -111,6 +117,19 @@ func (a *Adapter) CountError(code model.Code) {
 	a.dropped[support.VerwurfFehlercode]++
 }
 
+// CountDiscarded erhöht den Zähler von code um 1, wenn code zu support.VerworfeneCodes gehört; jeder
+// andere Code erhöht keinen Zähler und zählt fehlercode (SPEC-230 Nr. 11). Sie hat keine Uhr und
+// nimmt die Sperre der Zeile nicht (SPEC-232 Nr. 5 g).
+func (a *Adapter) CountDiscarded(code model.Code) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if _, ok := a.verworfen[code]; ok {
+		a.verworfen[code]++
+		return
+	}
+	a.dropped[support.VerwurfFehlercode]++
+}
+
 // Snapshot liefert eine Kopie des Stands, die ältesten Spans zuerst; jeder Schlüssel steht darin,
 // auch mit 0 (SPEC-230 Nr. 9). Die Kopie liegt in einem Abschnitt unter der Sperre (SPEC-232 Nr. 5 b).
 func (a *Adapter) Snapshot() support.Snapshot {
@@ -123,6 +142,7 @@ func (a *Adapter) Snapshot() support.Snapshot {
 		Errors:    a.errors,
 		Durations: a.durations,
 		Dropped:   a.dropped,
+		Verworfen: a.verworfen,
 		Spans:     spans,
 	}.Kopie()
 }
