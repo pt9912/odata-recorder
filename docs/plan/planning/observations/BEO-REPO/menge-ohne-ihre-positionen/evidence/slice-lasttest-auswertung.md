@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest-auswertung
+**Fund:** Mengen führten ihre Elemente an einer Position. Eine Probe über der Schwelle war allein in der Mitte und am ersten Tick geführt, nie vor dem Warm-up und nie nach dem Nachlauf, die `SPEC-216` Nr. 11 beide nennt (V-1); `recorder.mode` allein an Gesamtspans ohne Kind (V-4); ein Gesamtspan ohne Kind nie hinter Warm-up und Messphase (V-6). Mutationen an der anderen Position blieben grün. Beleg: Verifikation `2026-11-26-slice-lasttest-auswertung-verifikation` (V-1, V-4, V-6).

@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest-auswertung
+**Fund:** Die Mutation `a4-nachlauf-ohne-frist` wurde allein durch das Zeitlimit rot: eine Warteschleife des Tests ohne eigene Grenze lief, bis das Test-Binary nach 31 s mit `panic:` endete und die übrigen Tests des Pakets mitnahm; der Plan zählte sie als rot aus dem benannten Grund (F-8 des Reviews). Die Fix-Runde gab der Schleife eine Grenze mit Aussage. Beleg: Review F-8 (`2026-11-26-slice-lasttest-auswertung-review`).
