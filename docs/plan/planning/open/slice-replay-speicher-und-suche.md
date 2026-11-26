@@ -18,7 +18,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
 
-**Autor:** pt9912 (Planner, Closure von [slice-lasttest](../in-progress/slice-lasttest.md)). **Datum:** 2026-11-26.
+**Autor:** pt9912 (Planner, Closure von [slice-lasttest](../done/slice-lasttest.md)). **Datum:** 2026-11-26.
 
 ---
 
@@ -72,7 +72,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-bootstrap.md`
 §Was ist eine Sub-Area? — diese Liste liefert die **Pfad-Kandidaten** für §8,
 nicht die Antwort.
 
-Pfad-Kandidaten, nicht entschieden: `src/hexagon/services/replay/`, `src/hexagon/ports/outbound/`, `src/adapters/driven/sqlite/`, die Fakes des Ports, `spec/spezifikation.md` (Architect). Den Index `(session_id, match_key)` führt das Schema schon (Fänger `make schema-check`, [slice-lasttest](../in-progress/slice-lasttest.md) §3).
+Pfad-Kandidaten, nicht entschieden: `src/hexagon/services/replay/`, `src/hexagon/ports/outbound/`, `src/adapters/driven/sqlite/`, die Fakes des Ports, `spec/spezifikation.md` (Architect). Den Index `(session_id, match_key)` führt das Schema schon (Fänger `make schema-check`, [slice-lasttest](../done/slice-lasttest.md) §3).
 
 **Auftrag an den Architect** (vor dem Übergang `next` → `in-progress`; der Plan trägt bis dahin keine Tabelle, kein Raster, keinen Block der Größenmarke und keine Marke):
 

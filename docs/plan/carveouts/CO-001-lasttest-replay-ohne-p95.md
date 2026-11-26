@@ -37,7 +37,7 @@ Die Zeile `Abnahme` ist `ziel_ms=100 abnahmewert_ms=100 abnahme=nein grund=ergeb
 
 **Ursache: nicht belegt.** Verdacht ist, dass `SPEC-135` Nr. 8 je Anfrage die ganze Session liest (`ListBySession`); der Lauf trennt den Speicher je Anfrage nicht von der Zahl gleichzeitiger Anfragen. Bei welcher Rate oder Größe der Dienst hält, ist nicht gemessen.
 
-Die Behebung liegt im Produkt (`src/`), nicht im Werkzeug; sie braucht zuerst eine Messung der Ursache und dann einen Vertrag, und beides schließt der Slice aus, der gemessen hat ([slice-lasttest](../planning/in-progress/slice-lasttest.md) §1: Tuning ist ein eigener Slice).
+Die Behebung liegt im Produkt (`src/`), nicht im Werkzeug; sie braucht zuerst eine Messung der Ursache und dann einen Vertrag, und beides schließt der Slice aus, der gemessen hat ([slice-lasttest](../planning/done/slice-lasttest.md) §1: Tuning ist ein eigener Slice).
 
 **Folge im Betrieb:** unter den Bedingungen von `LH-QA-01.a` fällt der Replay-Dienst aus, bis der Folge-Slice geliefert ist. Zielwert und Lastenheft bleiben unverändert (Entscheidung des Users vom 2026-11-24, [welle-betrieb](../planning/welle-betrieb.md) §3); der Owner bestätigt den Zielwert nicht, solange dieser Carveout aktiv ist.
 
@@ -67,4 +67,4 @@ Keine Gate-Konfiguration ist geändert: das Ziel hängt nicht an `GATE_CHECKS`, 
 
 | Datum | Ereignis | Verweis |
 |---|---|---|
-| 2026-11-26 | Angelegt | [slice-lasttest](../planning/in-progress/slice-lasttest.md) |
+| 2026-11-26 | Angelegt | [slice-lasttest](../planning/done/slice-lasttest.md) |
