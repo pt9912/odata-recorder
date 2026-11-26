@@ -34,8 +34,12 @@ type Konfiguration struct {
 	Listen string
 	// ListenTLSCert und ListenTLSKey sind die Pfade von LISTEN_TLS_CERT und LISTEN_TLS_KEY, leer heißt ungesetzt; die Konfiguration
 	// trägt nie den Inhalt der Dateien (SPEC-291 Nr. 7 a, 8).
-	ListenTLSCert        string
-	ListenTLSKey         string
+	ListenTLSCert string
+	ListenTLSKey  string
+	// AdminListen und AdminTokenFile sind ADMIN_LISTEN und ADMIN_TOKEN_FILE, nie der Inhalt der Datei; ein leeres AdminListen in
+	// einem Literal heißt: kein Admin-Listener (SPEC-300 Nr. 2, 11).
+	AdminListen          string
+	AdminTokenFile       string
 	DataDir              string
 	Dienste              []Dienst
 	ReplayStrategy       string
@@ -144,9 +148,9 @@ func LadeKonfiguration(environ []string) (Konfiguration, error) {
 func ladeKonfigurationZu(environ []string, jetzt time.Time) (Konfiguration, error) {
 	p := &pruefer{env: umgebung(environ)}
 	var k Konfiguration
-	p.nichtGeliefert()
 	p.liesModus(&k)
 	p.liesEinfache(&k)
+	p.liesAdmin(&k, jetzt)
 	p.liesMengen(&k)
 	p.liesTLS(&k)
 	p.liesListenTLS(&k)

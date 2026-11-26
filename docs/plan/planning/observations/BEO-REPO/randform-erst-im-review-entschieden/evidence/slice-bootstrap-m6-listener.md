@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-listener
+**Fund:** Der abschließende Trenner an `ADMIN_TOKEN_FILE` stand weder im Vertrag noch im Raster; er fiel in der Fix-Runde zum Review auf und wurde danach entschieden (Verhalten unverändert, Grund nicht zugesagt). Die Rückgaben R1, R2 und R8 desselben Slice fanden ihre Randformen dagegen vor dem Code. Beleg: Review `2026-11-26-slice-bootstrap-m6-listener-review` (F-1), Plan `slice-bootstrap-m6-listener` §6, Commit `12669b38`.

@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-listener
+**Fund:** Das Paar *Bind von `LISTEN` scheitert und `ctx` endet beim zweiten Bind* hatte keinen Fall (Review F-2); ein Satz des Handbuchs zum gleichen Port widersprach dem Binary, und kein Gate hält Sätze über das Verhalten dieses Teils (F-4); der Vertrag nennt das gültige Token auf jeder schreibenden Route als Anlass, Plan und Test führten eine von neun (Verifikation V-3). Beleg: Review `2026-11-26-slice-bootstrap-m6-listener-review` (F-2, F-4), Verifikation `2026-11-26-slice-bootstrap-m6-listener-verifikation` (V-3).

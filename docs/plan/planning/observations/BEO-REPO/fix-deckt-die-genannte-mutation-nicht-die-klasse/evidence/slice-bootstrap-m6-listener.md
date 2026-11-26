@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-listener
+**Fund:** Der Fix zu F-1 des Reviews führte elf Formen des Pfads, aber nicht die zweite Seite des Vergleichs (`DATA_DIR` selbst ein Verweis); die Verifikation fand das mit einer Mutation, die der Befund nicht nannte (V-1), und erst `TestAdminTokenVerweise` führt beide Seiten. Beleg: Verifikation `2026-11-26-slice-bootstrap-m6-listener-verifikation` (V-1, Abschnitt zur Fix-Runde).

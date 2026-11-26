@@ -85,8 +85,8 @@ func meldungsZeilen(stderr string) []string {
 // SPEC-139 Nr. 6; die Services stehen vor den ersten Sessions, je in der Reihenfolge der Konfiguration.
 func TestStartReihenfolge(t *testing.T) {
 	erwartet := map[string][]string{
-		modusRecord: {pAblage, pWartung, "dienst:a", "dienst:b", "session:a", "session:b", pListen, pServe},
-		modusReplay: {pAblage, pWartung, "dienst:a", "dienst:b", pListen, pServe},
+		modusRecord: {pAblage, pWartung, "dienst:a", "dienst:b", "session:a", "session:b", pListen, pListen, pServe},
+		modusReplay: {pAblage, pWartung, "dienst:a", "dienst:b", pListen, pListen, pServe},
 	}
 	for _, modus := range modi() {
 		t.Run(modus, func(t *testing.T) {
@@ -229,10 +229,10 @@ func TestKontextFehlerUmhuellt(t *testing.T) {
 	}
 }
 
-// TestKonfigFehlerBeiAbbruch fängt S3: Kontext {offen, abgebrochen} × Verstoß {ADMIN_LISTEN, ungültiger Schlüssel}.
+// TestKonfigFehlerBeiAbbruch fängt S3: Kontext {offen, abgebrochen} × Verstoß {ADMIN_LISTEN mit Port 0, ungültiger Schlüssel}.
 func TestKonfigFehlerBeiAbbruch(t *testing.T) {
 	for _, abgebrochen := range []bool{false, true} {
-		for _, verstoss := range []string{"ADMIN_LISTEN=127.0.0.1:1", "MAX_CAPTURE_BODY=abc"} {
+		for _, verstoss := range []string{"ADMIN_LISTEN=127.0.0.1:0", "MAX_CAPTURE_BODY=abc"} {
 			t.Run(fmt.Sprintf("abgebrochen=%v/%s", abgebrochen, verstoss), func(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
@@ -288,12 +288,12 @@ func TestStartFehler(t *testing.T) {
 					}
 					code, stderr := fahre(ctx, t, cancel, umgebungFuer(t, modus, 2), h)
 					zeilen := meldungsZeilen(stderr)
-					erwartetZeile := "ODR-E9001: Internal error"
+					erwartet := []string{"ODR-E9001: Internal error"}
 					if phase == pListen {
-						erwartetZeile = "ODR-E2001 LISTEN: Adresse nicht bindbar"
+						erwartet = []string{"ODR-E2001 ADMIN_LISTEN: Adresse nicht bindbar", "ODR-E2001 LISTEN: Adresse nicht bindbar"}
 					}
-					if code != 1 || len(zeilen) != 1 || !zeile.MatchString(zeilen[0]) || zeilen[0] != erwartetZeile {
-						t.Errorf("Rückgabe %d, Meldungen %q, erwartet %q", code, zeilen, erwartetZeile)
+					if code != 1 || !slices.Equal(zeilen, erwartet) || !zeile.MatchString(zeilen[0]) {
+						t.Errorf("Rückgabe %d, Meldungen %q, erwartet %q", code, zeilen, erwartet)
 					}
 					if strings.Contains(stderr, "GEHEIMER-WERT") || strings.Contains(strings.Join(zeilen, "\n"), "127.0.0.1") {
 						t.Errorf("die Meldung trägt einen Wert:\n%s", stderr)
@@ -417,6 +417,21 @@ func TestWarte(t *testing.T) {
 	if err := bootstrap.Warte(abgebrochen(), make(chan error)); err != nil {
 		t.Errorf("ctx abgebrochen, Fehler() offen: %v", err)
 	}
+	// B13: die Rückkehr mit nil als Wert × ctx an beiden Lesestellen (das Warten und das Nachlesen nach dem Abbruch).
+	mitNil := func() <-chan error { c := make(chan error, 1); c <- bootstrap.ErrServeBeendet; return c }
+	for name, lies := range map[string]func(context.Context, <-chan error) error{"warte": bootstrap.Warte, "nachlesen": bootstrap.AusfallDanach} {
+		if err := lies(context.Background(), mitNil()); !errors.Is(err, bootstrap.ErrServeBeendet) {
+			t.Errorf("%s, ctx offen: %v, erwartet den Ausfall", name, err)
+		}
+		for range 200 {
+			if err := lies(abgebrochen(), mitNil()); err != nil {
+				t.Fatalf("%s, ctx beendet: %v, erwartet nil", name, err)
+			}
+		}
+	}
+	if err := bootstrap.AusfallDanach(abgebrochen(), mitWert()); !errors.Is(err, errPhase) {
+		t.Errorf("Nachlesen, ctx beendet, Fehler von Serve: %v, erwartet den Fehler", err)
+	}
 }
 
 // TestStartFehlerPaare fängt SPEC-139 Nr. 7 und 8 (B10): jedes mögliche Paar aus den Quellen {Fehler des
@@ -434,7 +449,7 @@ func TestStartFehlerPaare(t *testing.T) {
 		setze func(h *haken)
 		zeile string
 	}{
-		{"Hochfahren", func(h *haken) { h.fehlerIn[pListen] = errPhase }, "ODR-E2001 LISTEN: Adresse nicht bindbar"},
+		{"Hochfahren", func(h *haken) { h.fehlerIn[pListen] = errPhase }, "ODR-E2001 ADMIN_LISTEN: Adresse nicht bindbar\nODR-E2001 LISTEN: Adresse nicht bindbar"},
 		{"Serve", func(h *haken) { h.fehlerIn[pServe] = errPhase }, "ODR-E9001: Internal error"},
 		{"CloseAll", func(h *haken) { h.fehlerIn[pCloseAll] = mitCode(model.CodeE5005) }, zeileZu(model.CodeE5005)},
 		{"Fehlgeschlagen", func(h *haken) { h.bericht = inbound.CloseBericht{Fehlgeschlagen: 1} }, "ODR-E9001: Internal error"},
@@ -465,6 +480,7 @@ func TestStartFehlerPaare(t *testing.T) {
 					erwartet = []string{b.zeile, a.zeile}
 				}
 				zeilen := meldungsZeilen(stderr)
+				erwartet = strings.Split(strings.Join(erwartet, "\n"), "\n")
 				if code != 1 || !slices.Equal(zeilen, erwartet) {
 					t.Errorf("Rückgabe %d, Meldungen %q, erwartet %q", code, zeilen, erwartet)
 				}

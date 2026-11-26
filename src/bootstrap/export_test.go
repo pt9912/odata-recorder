@@ -135,16 +135,26 @@ var ErrServeBeendet = errServeBeendet
 // Meldung ist die Zeile, die Start zu einem Fehler schreibt.
 func Meldung(err error) string { return meldung(err) }
 
-// LiteralHandle liefert den Handle eines hochgefahrenen Prozesses aus Fakes; srv.Serve läuft in einer
-// eigenen Goroutine, und Herunterfahren wartet auf ihre Rückkehr.
+// LiteralHandle liefert den Handle eines hochgefahrenen Prozesses aus Fakes; bediene ruft Serve jedes Servers wie Hochfahren,
+// und Herunterfahren wartet auf ihre Rückkehr.
 func LiteralHandle(modus string, frist time.Duration, uhr support.Clock, sessions inbound.SessionUseCase, srv Server, ablage io.Closer) *Handle {
+	return LiteralHandleZwei(modus, frist, uhr, sessions, srv, nil, ablage)
+}
+
+// LiteralHandleZwei ist LiteralHandle mit dem Admin-Server adm (nil ohne).
+func LiteralHandleZwei(modus string, frist time.Duration, uhr support.Clock, sessions inbound.SessionUseCase, srv, adm Server, ablage io.Closer) *Handle {
 	h := &Handle{
-		k: Konfiguration{Modus: modus, ShutdownTimeout: frist}, uhr: uhr, sessions: sessions, server: srv, ablage: ablage,
-		serveEnd: make(chan struct{}), fehler: make(chan error, 1), sessionBegonnen: true, zustand: hochgefahren,
+		k: Konfiguration{Modus: modus, ShutdownTimeout: frist}, uhr: uhr, sessions: sessions, ablage: ablage,
+		fehler: neuerFehlerKanal(), sessionBegonnen: true, zustand: hochgefahren,
 	}
-	go func() {
-		_ = srv.Serve()
-		close(h.serveEnd)
-	}()
+	h.bediene(srv, adm)
 	return h
+}
+
+// AuditVon liefert das AuditLog des Prozesses.
+func AuditVon(h *Handle) support.AuditLog { return h.audit }
+
+// AusfallDanach ist das Nachlesen von Start nach dem Abbruch von ctx.
+func AusfallDanach(ctx context.Context, fehler <-chan error) error {
+	return ausfallDanach(ctx, fehler)
 }

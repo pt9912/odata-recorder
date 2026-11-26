@@ -778,7 +778,7 @@ func TestAuditSchreibfehlerAendertNichts(t *testing.T) {
 
 // TestAuditAufrufstellen fängt V07: die Aufrufstellen von Audit.Append im Code der Dienste sind die vier Zeilen
 // V01a bis V01d (per Syntaxbaum gegen das Literal W), die Arten sind zwölf, und die Zellen (Modus, Art) der Fälle sind
-// Modus × Arten ohne die acht des Admin-Adapters (kein Use Case, kein Aufruf von `admin` im Binary) und ohne (replay,
+// Modus × Arten ohne die acht des Admin-Adapters (kein Use Case; ihre Zellen führt dieser Test nicht) und ohne (replay,
 // session_geloescht) und (replay, import_fehlgeschlagen).
 func TestAuditAufrufstellen(t *testing.T) {
 	soll := []string{
@@ -840,8 +840,8 @@ func TestAuditAufrufstellen(t *testing.T) {
 	}
 	// Die fünfte bis zwölfte Art schreibt der Admin-Adapter beim Abweisen (SPEC-238 Nr. 8), beim Anlegen und beim Beenden einer
 	// Session (SPEC-292 Nr. 11), nach einem gelungenen Import (SPEC-297 Nr. 10) und nach dem Anlegen, Zurücksetzen,
-	// Wiederherstellen eines Workspace und dem Erzeugen eines Snapshots (SPEC-298 Nr. 11); kein Use Case schreibt sie, und das
-	// Binary ruft `admin` nicht auf: für diese acht Arten hat es keine Zelle.
+	// Wiederherstellen eines Workspace und dem Erzeugen eines Snapshots (SPEC-298 Nr. 11); kein Use Case schreibt sie, und
+	// dieser Test, der die Use Cases fährt, führt für diese acht Arten keine Zelle.
 	adapterArten := []support.AuditArt{
 		support.ArtAdminAbgewiesen, support.ArtSessionAngelegt, support.ArtSessionBeendet, support.ArtImportVeroeffentlicht,
 		support.ArtWorkspaceAngelegt, support.ArtWorkspaceZurueckgesetzt, support.ArtSnapshotErzeugt, support.ArtWorkspaceWiederhergestellt,
