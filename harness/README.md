@@ -87,7 +87,7 @@ Diese Datei dupliziert sie nicht.
 | `make schema-validate` | prüft `tools/schema/schema.yaml` mit d-migrate (netzlos, ohne Mount) | kein Gate |
 | `make schema-generate` | erzeugt SQLite-DDL und Report aus dem Schema als Tar-Strom auf stdout (netzlos, ohne Mount) | kein Gate |
 | `make a-check-graph` | gibt den Architektur-Graphen (Mermaid) aus `.a-check.yml` aus, prüft nichts (netzlos, schreibgeschützt) | kein Gate |
-| `make gegenproben` | Gegenproben zu `a-check`, `lint.sh`, `migration-check.sh`, `pruefung`, `groessenmarke`, `zeichen`, `katalog`, `docs-check` und dem Treiber von `make lasttest` in Wegwerfverzeichnissen, bei neuer Eingabe (`harness/gegenproben.stempel`) | [ADR-0005](../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) |
+| `make gegenproben` | Gegenproben zu `a-check`, `lint.sh`, `migration-check.sh`, `pruefung`, `groessenmarke`, `zeichen`, `katalog`, `docs-check`, `lasttest.sh` in Wegwerfverzeichnissen, bei neuer Eingabe (Stempel) | [ADR-0005](../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) |
 | `make lasttest` | Lasttest nach `LH-QA-01.a`: p95 des Gesamtspans für Replay und Mock im Container mit 2 CPU, 4 GiB ohne Netz; Profil `abnahme` rund 50 Minuten, `LASTTEST_PROFIL=rauch` als kurzer Handlauf (`SPEC-216`) | kein Gate |
 | `sh tools/harness/mutationslauf.sh <Liste>` | Mutationsliste in einem Container-Lauf ohne Netz und Mount, mit `--memory`, warmer Cache des Images (`SPEC-210`); kein Laufzeitgewinn zugesagt | kein Gate, kein `make`-Ziel, keine Anweisung einer Rolle ruft es ([ADR-0005](../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md)) |
 
