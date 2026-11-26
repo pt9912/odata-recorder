@@ -258,7 +258,9 @@ func (i inhalte) fall(t *testing.T, art string) umgebung {
 
 // TestKeinWertInDerTelemetrie hält D13 (SPEC-321 Nr. 8, LH-QA-04.a): Menge M-Stellen-Hybrid, 14 Stellen mal 4 Arten gleich 56; mit
 // einem Canary an einer Stelle trägt weder ein Attribut noch ein Argument von CountDiscarded noch die Folge der Aufrufe den
-// Canary, und die Spans entstehen (1, 1, 2 und 1 je Art).
+// Canary, und die Spans entstehen (1, 1, 2 und 1 je Art; bei einem Ziel mit Benutzerteil gibt die Policy den Upstream nie frei:
+// 1, 0, 1 und 0, SPEC-321 Nr. 8). An der Stelle „Benutzerteil des Ziels“ tragen so zwei der 56 Fälle keinen Span und prüfen den
+// Canary an der Folge ohne Telemetrie.
 func TestKeinWertInDerTelemetrie(t *testing.T) {
 	arten := []string{"Antwort des Replay", "Antwort des Upstream", "Kette", "Fehler des Upstream"}
 	faelle := 0

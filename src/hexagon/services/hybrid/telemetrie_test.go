@@ -167,6 +167,15 @@ func TestWege(t *testing.T) {
 	if zaehlung["abgebrochen"] != 4 || zaehlung["antwort"] != 4 || zaehlung["fehler"] != 7 {
 		t.Errorf("Ergebnisse %v, erwartet 4 abgebrochen, 4 antwort, 7 fehler", zaehlung)
 	}
+	folge := 0
+	for _, w := range haupt {
+		if w.name == "R1 ctx vor R" || w.name == "R2 Antwort" || w.name == "U2 Antwort" {
+			folge++
+		}
+	}
+	if folge != 3 {
+		t.Errorf("Zählprüfung der Folgen von D3 (ctx beendet, Replay, Upstream): %d, erwartet 3", folge)
+	}
 	arten := 0
 	for _, w := range append(ketten(t), haupt[1], haupt[7], haupt[9]) {
 		w.lauf(t)

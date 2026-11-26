@@ -50,11 +50,19 @@ func TestNew(t *testing.T) {
 		{"MaxBytes 0", func(k *hybrid.Konfig) { k.MaxBytes = 0 }, true},
 		{"MaxBytes -1", func(k *hybrid.Konfig) { k.MaxBytes = -1 }, true},
 	}
+	// Der Grund je abgewiesenem Fall (Literal): die 8 Gründe von SPEC-284 Nr. 1.
+	grund := map[string]string{
+		"kein Dienst nil": "Dienst", "kein Dienst leer": "Dienst", "Root leer": "Root", "Root später leer": "Root", "Mock nil": "Mock",
+		"Replay nil": "Replay", "Upstream nil": "Upstream", "Policy nil": "Policy", "Telemetrie nil": "Telemetrie",
+		"MaxBytes 0": "MaxBytes", "MaxBytes -1": "MaxBytes",
+	}
+	gruende := map[string]bool{}
 	for _, f := range faelle {
 		k := gut()
 		f.aend(&k)
 		v, err := hybrid.New(k)
 		if f.bad {
+			gruende[grund[f.name]] = true
 			if !errors.Is(err, model.ErrUngueltig) || v != nil {
 				t.Errorf("%s: Dienst %v, Fehler %v; erwartet model.ErrUngueltig ohne Dienst", f.name, v, err)
 			}
@@ -64,8 +72,34 @@ func TestNew(t *testing.T) {
 			t.Errorf("%s: Fehler %v", f.name, err)
 		}
 	}
+	if len(gruende) != 8 || gruende[""] {
+		t.Errorf("Zählprüfung: Gründe der Abweisung %v, erwartet die 8 von SPEC-284 Nr. 1", gruende)
+	}
 	if m.zahl() != 0 || r.zahl() != 0 || u.zahl() != 0 || len(tel.Aufrufe()) != 0 {
 		t.Errorf("New rief einen Port: Mock %d, Replay %d, Upstream %d, Telemetrie %d", m.zahl(), r.zahl(), u.zahl(), len(tel.Aufrufe()))
+	}
+	// Der Dienst hält die Telemetrie: der erste Fallback zählt und beginnt einen Span an ihr.
+	k := gut()
+	k.Policy, k.MaxBytes = mitKategorien(t, katCoverage), standardMax
+	v, err := hybrid.New(k)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	m.fn = func(int, context.Context, inbound.Anfrage) (inbound.Antwort, error) {
+		return inbound.Antwort{}, code(codeNamed(t, "ODR-E6003"))
+	}
+	func() {
+		defer func() {
+			if p := recover(); p != nil {
+				t.Errorf("Hybrid paniert, der Dienst hält die Telemetrie der Konfig nicht: %v", p)
+			}
+		}()
+		if _, err := v.Hybrid(context.Background(), anfrage("GET")); err != nil {
+			t.Errorf("Hybrid: %v", err)
+		}
+	}()
+	if tel.Anzahl(supporttest.OpCountDiscarded) != 1 || tel.Anzahl(supporttest.OpStartSpan) != 1 {
+		t.Errorf("Zählungen %d und Spans %d an der Telemetrie der Konfig, erwartet 1 und 1", tel.Anzahl(supporttest.OpCountDiscarded), tel.Anzahl(supporttest.OpStartSpan))
 	}
 }
 
