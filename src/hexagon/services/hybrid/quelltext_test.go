@@ -14,15 +14,16 @@ import (
 const modulPfad = "github.com/pt9912/odata-recorder/src/"
 
 // importErlaubt sagt, ob das Paket hybrid den Pfad importieren darf: nur die Standardpakete der Zulassungsliste, das
-// Modell, die Inbound Ports und das Paket policy; kein anderes Standardpaket, kein Adapter, kein anderer Dienst
-// (SPEC-284 Kopf). Grenze: cgo, unsafe, Reflexion und Aufrufe über bereits importierte Pakete erkennt die Liste nicht.
+// Modell, die Inbound und Outbound Ports, der Querschnitts-Port support und das Paket policy; kein anderes
+// Standardpaket, kein Adapter, kein anderer Dienst (SPEC-284 Kopf, SPEC-321 D9). Grenze: cgo, unsafe, Reflexion und
+// Aufrufe über bereits importierte Pakete erkennt die Liste nicht.
 func importErlaubt(pfad string) bool {
 	if !strings.HasPrefix(pfad, modulPfad) {
 		return slices.Contains([]string{"bytes", "context", "errors", "io", "math", "slices", "strings"}, pfad)
 	}
 	rest := strings.TrimPrefix(pfad, modulPfad)
 	return rest == "hexagon/model" || rest == "hexagon/ports/inbound" || rest == "hexagon/ports/outbound" ||
-		rest == "hexagon/services/hybrid/policy"
+		rest == "hexagon/ports/support" || rest == "hexagon/services/hybrid/policy"
 }
 
 // TestQuelltext liest die Dateien des Pakets (ohne Tests) und prüft Importe, go-Statements, Variablen auf Paketebene
@@ -188,11 +189,11 @@ func TestImportErlaubt(t *testing.T) {
 	gut := []string{
 		"errors", "io", "slices", "math", "bytes", "context", "strings",
 		modulPfad + "hexagon/model", modulPfad + "hexagon/ports/inbound", modulPfad + "hexagon/ports/outbound",
-		modulPfad + "hexagon/services/hybrid/policy",
+		modulPfad + "hexagon/services/hybrid/policy", modulPfad + "hexagon/ports/support",
 	}
 	schlecht := []string{
 		modulPfad + "hexagon/services/mock", modulPfad + "hexagon/services/replay", modulPfad + "hexagon/ports/outbound/outboundtest",
-		modulPfad + "adapters/driven/sqlite", modulPfad + "adapters/driving/httpodata", "modernc.org/sqlite",
+		modulPfad + "hexagon/ports/support/supporttest", modulPfad + "adapters/driven/telemetry", modulPfad + "adapters/driven/sqlite", modulPfad + "adapters/driving/httpodata", "modernc.org/sqlite",
 		"net", "net/http", "net/url", "os", "os/exec", "syscall", "sync", "sync/atomic", "time", "unsafe", "fmt", "regexp",
 		"log", "reflect", "runtime", "plugin",
 	}

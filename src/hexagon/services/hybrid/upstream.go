@@ -45,26 +45,26 @@ func unterRoot(root, pfad string) (string, bool) {
 	return "", false
 }
 
-// upstreamFallback sendet über U und liefert die Antwort mit der Kennzeichnung upstream oder den abgebildeten Fehler
-// (SPEC-284 Nr. 8 bis 11); davor prüft er ctx (Nr. 3 e). Es gibt kein Wiederholen und keinen Rückfall (Nr. 8).
-func (v *Verteiler) upstreamFallback(ctx context.Context, a, u inbound.Anfrage, ziel, odataPfad string) (inbound.Antwort, error) {
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		return inbound.Antwort{}, ctxErr
-	}
-	antwort, err := v.upstream.Senden(ctx, outbound.UpstreamAnfrage{
-		Ziel:     ziel,
-		Methode:  a.Methode,
-		Pfad:     odataPfad,
-		RawQuery: a.RawQuery,
-		Header:   upstreamHeader(a.Header),
-		Body:     u.Body,
-		Laenge:   u.Laenge,
+// upstreamFallback sendet über U im Span der Stufe und liefert die Antwort mit der Kennzeichnung upstream oder den
+// abgebildeten Fehler (SPEC-284 Nr. 8 bis 11, SPEC-321); davor prüft stufe ctx (SPEC-284 Nr. 3 e). Es gibt kein
+// Wiederholen und keinen Rückfall (Nr. 8). verworfen ist der Code des Fehlers, den U ersetzt.
+func (v *Verteiler) upstreamFallback(ctx context.Context, a, u inbound.Anfrage, ziel, odataPfad string, verworfen model.Code) (inbound.Antwort, error) {
+	return v.stufe(ctx, wertUpstream, verworfen, func(ctx context.Context) (inbound.Antwort, error) {
+		antwort, err := v.upstream.Senden(ctx, outbound.UpstreamAnfrage{
+			Ziel:     ziel,
+			Methode:  a.Methode,
+			Pfad:     odataPfad,
+			RawQuery: a.RawQuery,
+			Header:   upstreamHeader(a.Header),
+			Body:     u.Body,
+			Laenge:   u.Laenge,
+		})
+		if err != nil {
+			verwirf(inbound.Antwort{Body: antwort.Body})
+			return inbound.Antwort{}, upstreamFehler(err)
+		}
+		return gekennzeichnet(inbound.Antwort{Status: antwort.Status, Header: ohneHopByHop(antwort.Header), Body: antwort.Body}, wertUpstream), nil
 	})
-	if err != nil {
-		verwirf(inbound.Antwort{Body: antwort.Body})
-		return inbound.Antwort{}, upstreamFehler(err)
-	}
-	return gekennzeichnet(inbound.Antwort{Status: antwort.Status, Header: ohneHopByHop(antwort.Header), Body: antwort.Body}, wertUpstream), nil
 }
 
 // upstreamFehler bildet den Fehler von Senden (SPEC-284 Nr. 11): ein Kontextfehler bleibt ohne Code, ErrUpstreamZeit
