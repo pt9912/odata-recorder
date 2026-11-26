@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest
+**Fund:** DoD, §5 und das Closure-Kriterium von `welle-betrieb` verlangten p95 für Replay und Mock und nannten einen Carveout allein für das Überschreiten des Zielwerts; der Lauf für `replay` war `ungueltig` und ohne Wert. Der Planner nahm den Punkt bei der Closure aus der DoD (Plan §1 *Plan-Änderung*, `CO-001`). Beleg: Verifikation `2026-11-26-slice-lasttest-verifikation` (V-7).

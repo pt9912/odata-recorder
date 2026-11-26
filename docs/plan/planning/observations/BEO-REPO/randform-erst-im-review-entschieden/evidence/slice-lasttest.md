@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest
+**Fund:** Die Meldung zum Binary bei beendetem Kontext entschied allein ein Kommentar im Code (F-6), und ein Takt, der die Rate nicht hielt, hatte keine Grenze (I-1); beides entschied der Architect nach dem Review. Fünf weitere Randformen fielen beim Schreiben des Codes auf und gingen vor dem Review zurück. Beleg: Review `2026-11-26-slice-lasttest-review` (F-6, I-1), Plan §6.
