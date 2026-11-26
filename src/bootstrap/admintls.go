@@ -8,11 +8,11 @@ import (
 	"time"
 )
 
-// Die Namen der Schlüssel, unter denen die Funktionen dieser Datei melden (SPEC-299 Nr. 1, 4, 6); sie stehen hier als Konstanten, nicht in konfig*.go.
+// Die Namen der Schlüssel des Paars, unter denen die Funktionen dieser Datei melden (SPEC-299 Nr. 1, 4); sie stehen hier als
+// Konstanten, nicht in konfig*.go. Den Zusammenhang melden sie unter schluesselAdminListen (Nr. 6).
 const (
 	adminTLSCert = "ADMIN_TLS_CERT"
 	adminTLSKey  = "ADMIN_TLS_KEY"
-	adminListen  = "ADMIN_LISTEN"
 )
 
 // grundAdminZusammenhang ist der feste Grund des Verstoßes am Schlüssel ADMIN_LISTEN, ohne dessen Wert (SPEC-299 Nr. 6).
@@ -70,7 +70,7 @@ func pruefeAdminTransport(e adminEingabe, jetzt time.Time) (adminTransport, []ve
 	case e.Klartext:
 		return adminTransport{Weg: wegKlartext}, nil
 	}
-	return adminTransport{}, []verstoss{{adminListen, grundAdminZusammenhang}}
+	return adminTransport{}, []verstoss{{schluesselAdminListen, grundAdminZusammenhang}}
 }
 
 // umhuelle liefert bei wegTLS den Listener mit TLS, sonst l selbst (SPEC-299 Nr. 8 c); es ruft keine Operation von l.

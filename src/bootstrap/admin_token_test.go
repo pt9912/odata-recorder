@@ -226,6 +226,112 @@ func TestAdminTokenVerstoss(t *testing.T) {
 	}
 }
 
+// TestAdminTokenPfadformen (B05, SPEC-300 Nr. 4): die Formen des Pfads × DATA_DIR {absolut, relativ} × die Namen der Dateien
+// des Dienstes. Die 9 Formen nach DATA_DIR sind abgewiesen; dieselben mit einem anderen Namen und die 2 Formen in ein anderes
+// Verzeichnis (nur der Name bei anderem Arbeitsverzeichnis; `..` hinter einem Verweis aus DATA_DIR hinaus) gelten. Ein
+// abschließender Trenner ist ein Verstoß am Schlüssel, ohne etwas zu schreiben; seinen Grund prüft der Test nicht.
+func TestAdminTokenPfadformen(t *testing.T) {
+	// cwd ist relativ zur Wurzel; darin liegen d (DATA_DIR), neben und der Verweis verweis auf d/unter.
+	type form struct {
+		name, cwd string
+		pfad      func(data, datei string) string
+		inDaten   bool
+	}
+	formen := []form{
+		{"nur Name", "d", func(_, n string) string { return n }, true},
+		{"Punkt", "d", func(_, n string) string { return "./" + n }, true},
+		{"Verzeichnis", ".", func(_, n string) string { return "d/" + n }, true},
+		{"mit ..", ".", func(_, n string) string { return "d/unter/../" + n }, true},
+		{"von daneben", "neben", func(_, n string) string { return "../d/" + n }, true},
+		{"doppelter Trenner", ".", func(_, n string) string { return "d//" + n }, true},
+		{"absolut", "neben", func(d, n string) string { return d + "/" + n }, true},
+		{"absolut doppelt", "neben", func(d, n string) string { return d + "//" + n }, true},
+		{".. hinter Verweis", ".", func(_, n string) string { return "verweis/../" + n }, true},
+		{"nur Name anderswo", "neben", func(_, n string) string { return n }, false},
+		{"Verweis hinaus", ".", func(_, n string) string { return "d/raus/../" + n }, false},
+	}
+	lege := func(t *testing.T, cwd string) (data, wd string) {
+		t.Helper()
+		wurzel := t.TempDir()
+		data = mkdir(t, wurzel+"/d")
+		mkdir(t, data+"/unter")
+		mkdir(t, wurzel+"/neben/tief")
+		for verweis, ziel := range map[string]string{wurzel + "/verweis": data + "/unter", data + "/raus": wurzel + "/neben/tief"} {
+			if err := os.Symlink(ziel, verweis); err != nil {
+				t.Fatal(err)
+			}
+		}
+		wd = filepath.Join(wurzel, cwd)
+		t.Chdir(wd)
+		return data, wd
+	}
+	zellen := 0
+	zelle := func(f form, datei string, relativ, abgewiesen bool) {
+		zellen++
+		t.Run(fmt.Sprintf("%s/%s/relativ=%v", f.name, datei, relativ), func(t *testing.T) {
+			data, wd := lege(t, f.cwd)
+			k := listenerKonfig(data, modusRecord)
+			if relativ {
+				rel, err := filepath.Rel(wd, data)
+				if err != nil {
+					t.Fatal(err)
+				}
+				k.DataDir = rel
+			}
+			k.AdminTokenFile = f.pfad(data, datei)
+			if abgewiesen {
+				erwarteTokenFehler(t, k, "ODR-E2001 ADMIN_TOKEN_FILE: Datei, die der Dienst selbst schreibt")
+				return
+			}
+			erwarteErzeugt(t, k)
+		})
+	}
+	for _, relativ := range []bool{false, true} {
+		for _, f := range formen {
+			for _, datei := range []string{"audit.jsonl", "odata-recorder.db", "odata-recorder.db-wal", "odata-recorder.db-journal", "odata-recorder.dbx"} {
+				zelle(f, datei, relativ, f.inDaten)
+			}
+			if f.inDaten {
+				zelle(f, "xaudit.jsonl", relativ, false)
+			}
+		}
+	}
+	for _, datei := range []string{"audit.jsonl", "odata-recorder.db"} {
+		for _, trenner := range []string{"/", "//"} {
+			zellen++
+			t.Run("abschließend/"+datei+trenner, func(t *testing.T) {
+				data, _ := lege(t, ".")
+				k := listenerKonfig(data, modusRecord)
+				k.AdminTokenFile = "d/" + datei + trenner
+				erwarteTokenSchluessel(t, k, "d/"+datei)
+			})
+		}
+	}
+	if zellen != 132 {
+		t.Errorf("%d Zellen, erwartet 132", zellen)
+	}
+}
+
+// erwarteTokenSchluessel: Hochfahren endet mit genau einer Zeile am Schlüssel ADMIN_TOKEN_FILE, und datei bleibt wie davor.
+func erwarteTokenSchluessel(t *testing.T, k bootstrap.Konfiguration, datei string) {
+	t.Helper()
+	hd, err := bootstrap.BuildMit(context.Background(), k, nil, neuHaken().bauteile())
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	t.Cleanup(func() { _ = hd.Herunterfahren(context.Background()) })
+	davor, davorErr := leseRegulaer(datei)
+	err = hd.Hochfahren(context.Background())
+	danach, danachErr := leseRegulaer(datei)
+	var kf *bootstrap.KonfigFehler
+	if !errors.As(err, &kf) || len(kf.Zeilen) != 1 || !strings.HasPrefix(kf.Zeilen[0], "ODR-E2001 ADMIN_TOKEN_FILE: ") {
+		t.Errorf("%s: %v, erwartet eine Zeile am Schlüssel", k.AdminTokenFile, err)
+	}
+	if davor != danach || (davorErr == nil) != (danachErr == nil) {
+		t.Errorf("%s: die Datei ist angelegt oder geändert", k.AdminTokenFile)
+	}
+}
+
 // erwarteErzeugt: Hochfahren gelingt und legt die Token-Datei an.
 func erwarteErzeugt(t *testing.T, k bootstrap.Konfiguration) {
 	t.Helper()

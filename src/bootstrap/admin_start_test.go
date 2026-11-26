@@ -368,6 +368,80 @@ func TestAdminBindung(t *testing.T) {
 	}
 }
 
+// TestAdminBindPaare (B08, SPEC-300 Nr. 7): jedes Paar der Ausgänge beider Binds {gelingt, Fehler, Kontextfehler Canceled,
+// Kontextfehler DeadlineExceeded} × 4 Modi; nach einem Kontextfehler des ersten Binds läuft der zweite nicht, 10 Paare. Der
+// Kontextfehler geht jedem Bind-Fehler vor und kommt ohne KonfigFehler, und kein Listener bleibt offen.
+func TestAdminBindPaare(t *testing.T) {
+	const gelingt, fehler, abbruch, frist = "gelingt", "Fehler", "Canceled", "DeadlineExceeded"
+	const listen, adm = "ODR-E2001 LISTEN: Adresse nicht bindbar", "ODR-E2001 ADMIN_LISTEN: Adresse nicht bindbar"
+	kontext := map[string]error{abbruch: context.Canceled, frist: context.DeadlineExceeded}
+	paare := []struct {
+		erster, zweiter string
+		zeilen          []string
+		binds, zu       int
+	}{
+		{gelingt, gelingt, nil, 2, 0},
+		{gelingt, fehler, []string{adm}, 2, 1},
+		{gelingt, abbruch, nil, 2, 1},
+		{gelingt, frist, nil, 2, 1},
+		{fehler, gelingt, []string{listen}, 2, 1},
+		{fehler, fehler, []string{adm, listen}, 2, 0},
+		{fehler, abbruch, nil, 2, 0},
+		{fehler, frist, nil, 2, 0},
+		{abbruch, "", nil, 1, 0},
+		{frist, "", nil, 1, 0},
+	}
+	zellen := 0
+	for _, modus := range vierModi() {
+		for _, p := range paare {
+			zellen++
+			t.Run(modus+"/"+p.erster+"/"+p.zweiter, func(t *testing.T) {
+				x := neueBindung()
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				binds, echt := 0, x.b.Listen
+				x.b.Listen = func(c context.Context, network, addr string) (net.Listener, error) {
+					binds++
+					switch ausgang := []string{p.erster, p.zweiter}[binds-1]; ausgang {
+					case fehler:
+						return nil, errPhase
+					case abbruch, frist:
+						if ausgang == abbruch {
+							cancel()
+						}
+						return nil, fmt.Errorf("bind: %w", kontext[ausgang])
+					}
+					return echt(c, network, addr)
+				}
+				_, err := x.hoch(ctx, t, listenerKonfig(t.TempDir(), modus))
+				soll := kontext[p.zweiter]
+				if p.zweiter == "" {
+					soll = kontext[p.erster]
+				}
+				var kf *bootstrap.KonfigFehler
+				switch {
+				case soll != nil:
+					if !errors.Is(err, soll) || errors.As(err, &kf) {
+						t.Errorf("%v, erwartet den Kontextfehler %v", err, soll)
+					}
+				case p.zeilen == nil:
+					if err != nil {
+						t.Errorf("%v, erwartet nil", err)
+					}
+				case !errors.As(err, &kf) || !slices.Equal(kf.Zeilen, p.zeilen):
+					t.Errorf("%v, erwartet %q", err, p.zeilen)
+				}
+				if binds != p.binds || x.zu != p.zu {
+					t.Errorf("%d Bind und %d Close, erwartet %d und %d", binds, x.zu, p.binds, p.zu)
+				}
+			})
+		}
+	}
+	if zellen != 40 {
+		t.Errorf("%d Zellen, erwartet 40", zellen)
+	}
+}
+
 // TestAdminAusfall (B13): {Admin, OData} × {Fehler, nil} × 4 Modi; das Schliessen des OData-Servers meldet eine eigene Zeile,
 // die vor der Zeile des Ausfalls steht.
 func TestAdminAusfall(t *testing.T) {

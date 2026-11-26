@@ -840,8 +840,8 @@ func TestAuditAufrufstellen(t *testing.T) {
 	}
 	// Die fünfte bis zwölfte Art schreibt der Admin-Adapter beim Abweisen (SPEC-238 Nr. 8), beim Anlegen und beim Beenden einer
 	// Session (SPEC-292 Nr. 11), nach einem gelungenen Import (SPEC-297 Nr. 10) und nach dem Anlegen, Zurücksetzen,
-	// Wiederherstellen eines Workspace und dem Erzeugen eines Snapshots (SPEC-298 Nr. 11); kein Use Case schreibt sie, und das
-	// Binary ruft `admin` nicht auf: für diese acht Arten hat es keine Zelle.
+	// Wiederherstellen eines Workspace und dem Erzeugen eines Snapshots (SPEC-298 Nr. 11); kein Use Case schreibt sie, und
+	// dieser Test, der die Use Cases fährt, führt für diese acht Arten keine Zelle.
 	adapterArten := []support.AuditArt{
 		support.ArtAdminAbgewiesen, support.ArtSessionAngelegt, support.ArtSessionBeendet, support.ArtImportVeroeffentlicht,
 		support.ArtWorkspaceAngelegt, support.ArtWorkspaceZurueckgesetzt, support.ArtSnapshotErzeugt, support.ArtWorkspaceWiederhergestellt,
