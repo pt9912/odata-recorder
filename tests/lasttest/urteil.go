@@ -40,8 +40,13 @@ type urteil struct {
 
 // urteilBetriebsart urteilt über die Läufe einer Betriebsart (SPEC-216 Nr. 12 c, d): ein ungültiger Lauf macht das Urteil ungültig mit
 // seinem Grund; zwei gültige Läufe mit einer Differenz der p95 über der Toleranz sind ungültig mit dem Grund streuung; sonst gilt das größere p95.
+// Ohne Lauf ist das Urteil ungültig mit dem Grund zaehlung, nie bestanden.
 func urteilBetriebsart(betriebsart string, laeufe []Messung, zielMs int64) urteil {
 	u := urteil{Betriebsart: betriebsart, Laeufe: len(laeufe), ZielMs: zielMs, Grund: grundOK}
+	if len(laeufe) == 0 {
+		u.Ergebnis, u.Grund = urteilUngueltig, grundZaehlung
+		return u
+	}
 	for _, l := range laeufe {
 		if !l.Gueltig {
 			if u.Ergebnis == urteilKein {

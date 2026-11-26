@@ -21,7 +21,8 @@ func zeileVon(t *testing.T, z zeilenart) string {
 }
 
 // TestAusgabe: Golden-Text je Urteil (3), je Hinweis (2) und je Zeilenart (6: Start, Aufbau, Messung, Last, Urteil, Abnahme, mit allen Schlüsseln
-// in der Folge des Vertrags); Zahlenformen aus ganzen Zahlen (0 gleich 0.000, 1 gleich 0.001, 999999 gleich 999.999, 1000000 gleich 1000.000, dazu
+// in der Folge des Vertrags; 13 Zeilen, `gueltig` und `grund` von einander unabhängig geführt: `Aufbau` mit verschiedenen `exchanges` und `entities` und einer Dauer mit 999.999 ns über der
+// Millisekunde, abgeschnitten statt gerundet, `Messung` mit `gueltig=nein` und `gueltig=ja`, dazu Dauern unter einer Millisekunde); Zahlenformen aus ganzen Zahlen (0 gleich 0.000, 1 gleich 0.001, 999999 gleich 999.999, 1000000 gleich 1000.000, dazu
 // eine Zahl über 2^53); die 13 Tokens und je 5 Werte außerhalb der Menge in den drei Zeilen mit grund (15); schreibe schreibt nichts bei einem Fehler.
 func TestAusgabe(t *testing.T) {
 	wache(t, 30*time.Second)
@@ -39,12 +40,20 @@ func TestAusgabe(t *testing.T) {
 		{hinweis{Betriebsart: "mock", Kill: true}, "lasttest: Hinweis betriebsart=mock binary_kill=ja"},
 		{startZeile{"abnahme", "beide", 100, 999999999999999999, 20},
 			"lasttest: Start profil=abnahme betriebsart=beide ziel_ms=100 startwert=999999999999999999 kerne=20"},
-		{aufbauZeile{10000, 10000, 61, 95*time.Second + 250*time.Millisecond},
-			"lasttest: Aufbau exchanges=10000 entities=10000 daten_mib=61 dauer_s=95.250"},
-		{Messung{"replay", 2, 13200, 13199, 12000, 3, 7, 98765, 123456, 11999, 20001, 805, 4, 5, 6, 3500, 987654321, 1500 * time.Millisecond, false, grundFehler},
+		{aufbauZeile{10000, 9999, 61, 95*time.Second + 250*time.Millisecond + 999999*time.Nanosecond},
+			"lasttest: Aufbau exchanges=10000 entities=9999 daten_mib=61 dauer_s=95.250"},
+		{Messung{"replay", 2, 13200, 13199, 12000, 3, 7, 98765, 123456, 11999, 20001, 805, 4, 5, 6, 3500, 987654321, 1500*time.Millisecond + 999999*time.Nanosecond, false, grundFehler},
 			"lasttest: Messung betriebsart=replay lauf=2 anfragen=13200 spans=13199 messphase=12000 fehler=3 fremde_zeilen=7 p95_ms=98.765 " +
 				"max_ms=123.456 kind=11999 kind_p95_ms=20.001 kind_anteil=80.5 ohne_kind=4 kind_ohne_eltern=5 gleichzeitig_max=6 " +
 				"verspaetung_max_ms=3.500 bytes=987654321 treiber_cpu_s=1.500 gueltig=nein grund=fehler"},
+		{Messung{"mock", 1, 260, 260, 200, 0, 0, 999, 1000, 0, 0, 0, 0, 0, 1, 1, 7, 0, true, grundOK},
+			"lasttest: Messung betriebsart=mock lauf=1 anfragen=260 spans=260 messphase=200 fehler=0 fremde_zeilen=0 p95_ms=0.999 " +
+				"max_ms=1.000 kind=0 kind_p95_ms=0.000 kind_anteil=0.0 ohne_kind=0 kind_ohne_eltern=0 gleichzeitig_max=1 " +
+				"verspaetung_max_ms=0.001 bytes=7 treiber_cpu_s=0.000 gueltig=ja grund=ok"},
+		{Messung{Betriebsart: "mock", Lauf: 2, Gueltig: false, Grund: grundOK},
+			"lasttest: Messung betriebsart=mock lauf=2 anfragen=0 spans=0 messphase=0 fehler=0 fremde_zeilen=0 p95_ms=0.000 " +
+				"max_ms=0.000 kind=0 kind_p95_ms=0.000 kind_anteil=0.0 ohne_kind=0 kind_ohne_eltern=0 gleichzeitig_max=0 " +
+				"verspaetung_max_ms=0.000 bytes=0 treiber_cpu_s=0.000 gueltig=nein grund=ok"},
 		{lastZeile{"mock", 1, lastErgebnis{24, 100, 1200, 1000, false}}, "lasttest: Last betriebsart=mock lauf=1 proben=24 min=1.00 max=12.00 schwelle=10.00"},
 		{abnahmeZeile{100, true, grundOK}, "lasttest: Abnahme ziel_ms=100 abnahmewert_ms=100 abnahme=ja grund=ok"},
 		{abnahmeZeile{80, false, grundZiel}, "lasttest: Abnahme ziel_ms=80 abnahmewert_ms=100 abnahme=nein grund=ziel"},

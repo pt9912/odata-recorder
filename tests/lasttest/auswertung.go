@@ -176,17 +176,19 @@ func (s *sammler) anzahl() int {
 	return len(s.gesamt)
 }
 
-// warteAufSpans wartet, bis erwartet Gesamtspans gelesen sind, höchstens nachlaufFrist der Uhr (SPEC-216 Nr. 10 e) oder bis ctx endet.
-func (s *sammler) warteAufSpans(ctx context.Context, uhr Uhr, erwartet int) {
+// warteAufSpans wartet, bis erwartet Gesamtspans gelesen sind, höchstens nachlaufFrist der Uhr (SPEC-216 Nr. 10 e) oder bis ctx endet, und
+// liefert, ob die Zahl erreicht ist.
+func (s *sammler) warteAufSpans(ctx context.Context, uhr Uhr, erwartet int) bool {
 	ctx, cancel := mitFrist(ctx, uhr, nachlaufFrist)
 	defer cancel()
 	for s.anzahl() < erwartet {
 		select {
 		case <-s.neu:
 		case <-ctx.Done():
-			return
+			return s.anzahl() >= erwartet
 		}
 	}
+	return true
 }
 
 // auswerte teilt die Gesamtspans nach der Reihenfolge in die ersten w (Warm-up) und die nächsten n (Messphase) und rechnet p95, Maximum und

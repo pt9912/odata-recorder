@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -28,8 +29,9 @@ func sammle(betriebsart string, zeilen ...spanZeile) *sammler {
 }
 
 // TestZuordnung: das Kind trägt parent_id gleich der span_id des Gesamtspans und steht vor ihm; ein Gesamtspan ohne Kind zählt ohne_kind, ein
-// Kind ohne Eltern kind_ohne_eltern, ein Kind hinter dem Eltern ist beides; ein Span eines anderen Namens ist kein Kind (alle fünf anderen Namen
-// in beiden Betriebsarten). 17 Fälle (die 5 Formen der Tabelle, „Kind ohne Eltern“ in drei Fällen, dazu 10 Namen), Erwartung je Fall als Literal; die Messphase
+// Kind ohne Eltern kind_ohne_eltern, ein Kind hinter dem Eltern ist beides; ein Span eines anderen Namens ist kein Kind (je Betriebsart sechs andere
+// Namen, darunter der leere). 20 Fälle (die 6 Formen der Tabelle, „Kind ohne Eltern“ in drei Fällen, dazu 12 Namen), Erwartung je
+// Fall als Literal, dazu eine Zeile des Kindes mit leerer parent_id über den Leser; die Messphase
 // ist so gewählt, dass eine Zuordnung nach der Reihenfolge eine andere Dauer des Kindes liefert.
 func TestZuordnung(t *testing.T) {
 	wache(t, 30*time.Second)
@@ -47,6 +49,7 @@ func TestZuordnung(t *testing.T) {
 		{"Kind ohne parent_id, Eltern mit leerer span_id", []spanZeile{{Name: spanReplay, SpanID: "k", Mikros: 300}, gz("", 1000)}, 0, 1, erwartet{1, 1, 0, 0, 0}},
 		{"verschränkt", []spanZeile{kz("a", 300), kz("b", 700), gz("b", 2000), gz("a", 1000)}, 1, 1, erwartet{0, 0, 1, 300, 300}},
 		{"Kind hinter dem Eltern", []spanZeile{gz("a", 1000), kz("a", 300)}, 0, 1, erwartet{1, 1, 0, 0, 0}},
+		{"Gesamtspan ohne Kind im Warm-up", []spanZeile{gz("a", 1000), kz("b", 300), gz("b", 2000)}, 1, 1, erwartet{1, 0, 1, 300, 150}},
 	}
 	for _, f := range formen {
 		m, _ := sammle("replay", f.zeilen...).auswerte(f.w, f.n)
@@ -54,7 +57,16 @@ func TestZuordnung(t *testing.T) {
 			t.Errorf("%s: %+v, erwartet %+v", f.name, got, f.want)
 		}
 	}
-	namen := []string{"odata.record.capture", spanReplay, spanMock, "odata.workspace.mutation", "odata.hybrid.fallback", "x"}
+	kindZeile := `{"ereignis":"span","msg":"odata.replay.match","span_id":"k","parent_id":"","duration_ms":0.300}`
+	gesamtZeile := `{"ereignis":"span","msg":"odata.gateway.request","span_id":"","duration_ms":1.000,"recorder.mode":"replay"}`
+	s := neuerSammler("replay")
+	if fremd, err := lies(strings.NewReader(kindZeile+"\n"+gesamtZeile+"\n"), s.nimm); err != nil || fremd != 0 {
+		t.Fatalf("Zeilen mit leerer parent_id und leerer span_id: fremd %d, Fehler %v", fremd, err)
+	}
+	if m, _ := s.auswerte(0, 1); m.KindOhneEltern != 1 || m.OhneKind != 1 || m.Kind != 0 {
+		t.Errorf("Kind mit leerer parent_id über den Leser: kind_ohne_eltern %d, ohne_kind %d, kind %d; erwartet 1, 1 und 0", m.KindOhneEltern, m.OhneKind, m.Kind)
+	}
+	namen := []string{"odata.record.capture", spanReplay, spanMock, "odata.workspace.mutation", "odata.hybrid.fallback", "x", ""}
 	n := len(formen)
 	for _, betriebsart := range []string{"replay", "mock"} {
 		for _, name := range namen {
@@ -69,8 +81,8 @@ func TestZuordnung(t *testing.T) {
 			n++
 		}
 	}
-	if n != 7+10 {
-		t.Errorf("%d Fälle, erwartet 7 Formen und 10 Namen", n)
+	if n != 8+12 {
+		t.Errorf("%d Fälle, erwartet 8 Formen und 12 Namen", n)
 	}
 	if kindName("beide") != "" || kindName("") != "" {
 		t.Error("eine Betriebsart außer replay und mock hat kein Kind")
@@ -98,10 +110,10 @@ func reihe(anzahl int, modus func(int) string) *sammler {
 
 func richtig(int) string { return "replay" }
 
-// TestPhasen: die ersten w Spans sind Warm-up, die nächsten n die Messphase (Ränder 20 und 21 mit 5.000.000 und 1000 µs, 100 und 101 mit
-// 80.000 und 9.000.000 µs, die p95 und Maximum verschöben); 99 und 101 Spans sind keine passende Zählung, n gleich 0 auch; ein falscher
-// recorder.mode an der ersten, einer mittleren und der letzten Zeile sowie ein fehlender sind modus; Gutfall; der Nachlauf endet mit der
-// Zahl, spätestens nach 10 s der Uhr.
+// TestPhasen: die ersten w Spans sind Warm-up, die nächsten n die Messphase (Ränder 20 und 21 mit 5.000.000 und 8000 µs, 100 und 101 mit
+// 1000 und 9.000.000 µs, die p95 und Maximum verschöben); 99 und 101 Spans sind keine passende Zählung, n gleich 0 auch; ein falscher
+// recorder.mode an der ersten, einer mittleren und der letzten Zeile sowie ein fehlender sind modus; Gutfall; eine Messphase aus lauter
+// Dauern 0.000 gibt p95 und Maximum 0 und bleibt gültig; die Frist des Nachlaufs ist 10 s (den Aufruf führt TestNachlaufWarten).
 func TestPhasen(t *testing.T) {
 	wache(t, 30*time.Second)
 	for _, anzahl := range []int{99, 100, 101} {
@@ -137,61 +149,140 @@ func TestPhasen(t *testing.T) {
 	}).auswerte(20, 80); !v.Modus {
 		t.Error("recorder.mode fehlt an einer Zeile: erwartet modus")
 	}
+	s := neuerSammler("replay")
+	nullen := `{"ereignis":"span","msg":"odata.gateway.request","span_id":"g","duration_ms":0.000,"recorder.mode":"replay"}` + "\n"
+	if fremd, err := lies(strings.NewReader(strings.Repeat(nullen, 7)), s.nimm); err != nil || fremd != 0 {
+		t.Fatalf("Zeilen mit der Dauer 0.000: fremd %d, Fehler %v", fremd, err)
+	}
+	if m, v := s.auswerte(2, 5); m.Messphase != 5 || m.P95 != 0 || m.Max != 0 || v != (verstoesse{}) {
+		t.Errorf("Messphase aus Dauern 0.000: %+v %+v; erwartet 5 Spans, p95 und Maximum 0 und einen gültigen Lauf", m, v)
+	}
 	if nachlaufFrist != 10*time.Second {
 		t.Errorf("Nachlauf %v, erwartet 10 s", nachlaufFrist)
 	}
-	nachlauf(t, 99, true)
-	nachlauf(t, 100, false)
 }
 
-// nachlauf lässt warteAufSpans auf 100 Gesamtspans warten, wenn schon anfangs gelesen sind: mit 99 endet es erst mit dem Vorstellen der
-// Uhr um 10 s; mit 100 sofort, ohne dass die Uhr vorgestellt wird.
-func nachlauf(t *testing.T, anfangs int, ueberUhr bool) {
+// wechsel ist die Zahl der Wechsel zwischen Goroutinen, die ein Test abwartet; er zählt keine Zeit.
+const wechsel = 1000000
+
+// warteBis wartet mit Wechseln der Goroutinen, höchstens wechsel Mal, bis f wahr ist; sonst endet der Test mit der Aussage was.
+func warteBis(t *testing.T, was string, f func() bool) {
 	t.Helper()
-	uhr := neueFakeUhr()
-	s := reihe(anfangs, richtig)
-	fertig := make(chan struct{})
-	go func() {
-		s.warteAufSpans(context.Background(), uhr, 100)
-		close(fertig)
-	}()
-	if !ueberUhr {
-		warteAuf(t, fertig, time.Second)
-		return
-	}
-	for uhr.wartende() < 1 {
+	for i := 0; !f(); i++ {
+		if i == wechsel {
+			t.Fatalf("%s: nicht eingetreten", was)
+		}
 		runtime.Gosched()
-	}
-	uhr.Vorstellen(nachlaufFrist)
-	warteAuf(t, fertig, time.Second)
-	if s.anzahl() != 99 {
-		t.Errorf("%d Spans gelesen, erwartet 99", s.anzahl())
 	}
 }
 
-// TestNachlaufZahl: der Nachlauf endet mit dem hundertsten Span, auch wenn die Uhr nicht vorgestellt wird, und mit dem Kontext.
-func TestNachlaufZahl(t *testing.T) {
-	wache(t, 30*time.Second)
-	uhr := neueFakeUhr()
-	s := reihe(99, richtig)
-	fertig := make(chan struct{})
-	go func() {
-		s.warteAufSpans(context.Background(), uhr, 100)
-		close(fertig)
-	}()
-	for uhr.wartende() < 1 {
-		runtime.Gosched()
+// bleibtOffen verlangt, dass ch auch nach 2000 Wechseln der Goroutinen keinen Wert trägt; eine Rückkehr in dieser Zeit färbt den Test.
+func bleibtOffen[T any](t *testing.T, ch <-chan T, was string) {
+	t.Helper()
+	for range 2000 {
+		select {
+		case <-ch:
+			t.Fatalf("%s: der Aufruf ist zurückgekehrt", was)
+		default:
+			runtime.Gosched()
+		}
 	}
-	s.nimm(gz("g", 1))
-	warteAuf(t, fertig, time.Second)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	ende := make(chan struct{})
-	go func() {
-		reihe(1, richtig).warteAufSpans(ctx, uhr, 100)
-		close(ende)
-	}()
-	warteAuf(t, ende, time.Second)
+}
+
+// wartender startet warteAufSpans auf 100 Gesamtspans mit bisher 100 − fehlend gelesenen und meldet, sobald die Uhr einen Wartenden trägt.
+func wartender(ctx context.Context, t *testing.T, uhr *fakeUhr, fehlend int) (*sammler, <-chan bool) {
+	t.Helper()
+	s := reihe(100-fehlend, richtig)
+	fertig := make(chan bool, 1)
+	go func() { fertig <- s.warteAufSpans(ctx, uhr, 100) }()
+	warteBis(t, "Wartender der Frist", func() bool { return uhr.wartende() == 1 })
+	bleibtOffen(t, fertig, "vor dem ersten Span")
+	return s, fertig
+}
+
+// TestNachlaufWarten: der Nachlauf endet mit der Zahl oder mit der Frist (SPEC-216 Nr. 10 e, Nr. 4 c: bei Beginn + 10 s abgelaufen, eine
+// Nanosekunde davor nicht). Menge: 4 Zahlen fehlender Spans (1, 2, 5 und alle 100) × 3 Folgen des Eintreffens (einzeln, alle zugleich,
+// der letzte erst bei 10 s − 1 ns) gleich 12 Fälle, in jedem hält der Aufruf bis zum letzten Span und meldet wahr, ohne dass die Uhr vor der
+// Frist vorgestellt wird; 4 Fälle der Frist (derselben Zahlen, kein Span kommt): offen bei 5 s, 9 s, 9,999 s und 10 s − 1 ns, zu bei 10 s, Zahl
+// unverändert, falsch; 2 Fälle des Kontexts (Canceled ohne und mit Ursache) gleich 18.
+func TestNachlaufWarten(t *testing.T) {
+	wache(t, 60*time.Second)
+	n := 0
+	for _, fehlend := range []int{1, 2, 5, 100} {
+		for folge := range 3 {
+			uhr := neueFakeUhr()
+			start := uhr.Jetzt()
+			s, fertig := wartender(context.Background(), t, uhr, fehlend)
+			for i := range fehlend {
+				if folge == 2 && i == fehlend-1 {
+					uhr.Vorstellen(nachlaufFrist - time.Nanosecond)
+					bleibtOffen(t, fertig, "bei 10 s − 1 ns")
+				}
+				s.nimm(gz("g", 1))
+				if folge == 0 && i < fehlend-1 {
+					bleibtOffen(t, fertig, "vor dem letzten Span")
+				}
+			}
+			if got := warteAuf(t, fertig, time.Second); !got || s.anzahl() != 100 || (folge != 2 && !uhr.Jetzt().Equal(start)) {
+				t.Errorf("%d fehlend, Folge %d: Ergebnis %v, %d Spans; erwartet wahr und 100", fehlend, folge, got, s.anzahl())
+			}
+			n++
+		}
+		uhr := neueFakeUhr()
+		s, fertig := wartender(context.Background(), t, uhr, fehlend)
+		vorher := uhr.Jetzt()
+		for _, bis := range []time.Duration{5 * time.Second, 9 * time.Second, 9999 * time.Millisecond, nachlaufFrist - time.Nanosecond} {
+			uhr.Vorstellen(bis - uhr.Jetzt().Sub(vorher))
+			bleibtOffen(t, fertig, "vor Ablauf der Frist")
+		}
+		uhr.Vorstellen(time.Nanosecond)
+		if got := warteAuf(t, fertig, time.Second); got || s.anzahl() != 100-fehlend || uhr.Jetzt().Sub(vorher) != 10*time.Second {
+			t.Errorf("%d fehlend, Frist: Ergebnis %v, %d Spans, Uhr %v; erwartet falsch, %d und 10 s", fehlend, got, s.anzahl(), uhr.Jetzt().Sub(vorher), 100-fehlend)
+		}
+		n++
+	}
+	for name, ende := range map[string]func(context.CancelCauseFunc){
+		"Canceled ohne Ursache": func(c context.CancelCauseFunc) { c(nil) },
+		"Canceled mit Ursache":  func(c context.CancelCauseFunc) { c(errFrist) },
+	} {
+		ctx, cancel := context.WithCancelCause(context.Background())
+		_, fertig := wartender(ctx, t, neueFakeUhr(), 1)
+		ende(cancel)
+		if got := warteAuf(t, fertig, time.Second); got {
+			t.Errorf("%s: Ergebnis wahr, erwartet falsch", name)
+		}
+		n++
+	}
+	if n != 18 {
+		t.Errorf("%d Fälle, erwartet 18", n)
+	}
+}
+
+// TestModusJeBetriebsart: recorder.mode muss gleich der Betriebsart des Laufs sein (SPEC-216 Nr. 10 d); jeder andere Wert, ein fehlendes Attribut, null
+// und ein Wert anderer Art sind modus, und die Zeile bleibt eine Span-Zeile. Menge: Betriebsart (replay, mock) × Wert (die vier Modi des
+// Produkts, `Replay`, der Wert `beide`, leer, fehlend, null, Zahl, Wahrheitswert) gleich 22, Zählprüfung gegen die vier Modi (`SPEC-075`).
+func TestModusJeBetriebsart(t *testing.T) {
+	wache(t, 30*time.Second)
+	werte := []string{`"record"`, `"replay"`, `"mock"`, `"hybrid"`, `"Replay"`, `"beide"`, `""`, ``, `null`, `1`, `true`}
+	n := 0
+	for _, betriebsart := range []string{"replay", "mock"} {
+		for _, roh := range werte {
+			zeile := `{"ereignis":"span","msg":"odata.gateway.request","span_id":"g","duration_ms":1.000`
+			if roh != "" {
+				zeile += `,"recorder.mode":` + roh
+			}
+			s := neuerSammler(betriebsart)
+			fremd, err := lies(strings.NewReader(zeile+"}\n"), s.nimm)
+			_, v := s.auswerte(0, 1)
+			if err != nil || fremd != 0 || s.anzahl() != 1 || v.Modus != (roh != `"`+betriebsart+`"`) || v.Zaehlung {
+				t.Errorf("%s mit recorder.mode %q: fremd %d, Spans %d, Verstöße %+v; erwartet modus %v", betriebsart, roh, fremd, s.anzahl(), v, roh != `"`+betriebsart+`"`)
+			}
+			n++
+		}
+	}
+	if n != 2*11 {
+		t.Errorf("%d Fälle, erwartet 22", n)
+	}
 }
 
 // TestSammlerGleichzeitig (nebenläufig, 20 Läufe): vier Goroutinen ordnen je 500 Gesamtspans mit ihrem Kind ein, während eine fünfte die Zahl der
@@ -307,6 +398,14 @@ func TestAnteil(t *testing.T) {
 	}{{8000, 10000, 800}, {1, 3, 333}, {2, 3, 666}, {0, 0, 0}, {0, 5, 0}, {5, 5, 1000}} {
 		if got := anteil(f.kind, f.gesamt); got != f.want {
 			t.Errorf("anteil(%d, %d) = %d, erwartet %d", f.kind, f.gesamt, got, f.want)
+		}
+	}
+	for name, zeilen := range map[string][]spanZeile{
+		"Kind und Gesamtspan 0": {kz("a", 0), gz("a", 0)}, "Summe 0, ein Gesamtspan ohne Kind davor": {gz("a", 0), kz("b", 0), gz("b", 0)},
+		"ohne Kind, Dauern über 0": {gz("a", 1000), gz("b", 2000)}, "ohne Kind, Dauern 0": {gz("a", 0), gz("b", 0)},
+	} {
+		if m, _ := sammle("replay", zeilen...).auswerte(0, 2); m.KindAnteil != 0 || m.KindP95 != 0 {
+			t.Errorf("%s: kind_anteil %d, kind_p95 %d; erwartet 0 und 0", name, m.KindAnteil, m.KindP95)
 		}
 	}
 	m, _ := sammle("replay", kz("a", 500), gz("a", 1000), gz("b", 9000)).auswerte(0, 2)

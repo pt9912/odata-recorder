@@ -47,7 +47,9 @@ func (fehlerLast) Lies() ([]byte, error) { return []byte("1.00 1.00 1.00"), erro
 
 // TestLastProben: zulässig bei 2 × Last ≤ Kerne (gleich zulässig): 9 Grenzen (bei 20 Kernen 10,00 und 10,01, bei 1 Kern 0,50, 0,51 und 0,00,
 // dazu 2 Kerne 1,00 und 1,01 und 19 Kerne 9,50 und 9,51); 14 nicht lesbare Formen (die 5 des Plans: leer, Text, drei Nachkommastellen, -1, 1e1,
-// dazu 8 weitere und der Fehler der Quelle) tragen den kleinsten Wert über der Schwelle und sind nicht zulässig; 6 lesbare Formen mit ihren
+// dazu 8 weitere und der Fehler der Quelle) tragen den kleinsten Wert über der Schwelle und sind nicht zulässig; 17 lesbare Formen (6 mit weiteren
+// Feldern, 2 mit allein der Zahl, 4 mit einem Trennzeichen aus Tab, LF, CR und U+00A0 hinter ihr, 5 mit einem aus Leerzeichen, Tab, LF, CR und
+// U+00A0 davor; die Zeichen jenseits von ASCII aus Bytewerten) mit ihren
 // Hundertsteln; eine Spitze in der Mitte der Messphase (24 Proben, die 12. darüber) macht den Lauf ungültig mit genau dieser Probe als Maximum;
 // die Zeitpunkte der 24 Proben als Literal; vor dem Aufbau darüber läuft der Aufbau 0 mal.
 func TestLastProben(t *testing.T) {
@@ -83,7 +85,18 @@ func TestLastProben(t *testing.T) {
 	if n := len(unlesbar) + 1; n != 14 {
 		t.Errorf("%d nicht lesbare Formen, erwartet 14", n)
 	}
+	nbsp := string([]byte{0xc2, 0xa0})
 	lesbar := map[string]int{"3 1 1": 300, "3.5 1 1": 350, "03.50 1 1": 350, "0.05 1 1": 5, "0 1 1": 0, "0.1 1 1": 10}
+	for _, inhalt := range []string{
+		"2.50", "2.50\n",
+		"2.50\t9", "2.50\n9", "2.50\r9", "2.50" + nbsp + "9",
+		" 2.50", "\t2.50", "\n2.50", "\r2.50", nbsp + "2.50",
+	} {
+		lesbar[inhalt] = 250
+	}
+	if len(lesbar) != 17 {
+		t.Fatalf("%d lesbare Formen, erwartet 17", len(lesbar))
+	}
 	for inhalt, h := range lesbar {
 		if p := nimmProbe(neueFakeLast(inhalt), 20); p.Hundertstel != h || !p.Zulaessig {
 			t.Errorf("%q: %+v; erwartet %d Hundertstel und zulässig", inhalt, p, h)
@@ -210,35 +223,26 @@ func vorDemAufbau(t *testing.T) {
 	}
 }
 
-// TestLastNebenDerLast (Wirkungs-Fänger, 20 Läufe): eine Probe in der Messphase, die in der Quelle hängt, hält die Last nicht an: die Ticks
-// der Last (1 s der Uhr, in einer anderen Goroutine) laufen weiter, während die Probe aussteht; starteProben kehrt zurück, ohne auf den
-// ersten Tick zu warten.
+// TestLastNebenDerLast (Wirkungs-Fänger, 20 Läufe): starteProben kehrt zurück, ohne auf den ersten Tick zu warten (rot wird allein diese
+// Rückkehr, `warteAuf` nach einer Sekunde; ob eine hängende Probe die Last anhält, prüft erst der Slice, der die Last fährt); beende wartet auf
+// die Probe, die in der Quelle hängt: das Ergebnis zählt sie mit (3 Proben, Maximum 12,00), und es liegt erst vor, wenn die Quelle sie freigibt.
 func TestLastNebenDerLast(t *testing.T) {
 	wache(t, 60*time.Second)
 	for lauf := range 20 {
-		uhr, q := neueFakeUhr(), neueFakeLast("1.00 1.00 1.00 1/10 5\n")
+		uhr := neueFakeUhr()
+		q := neueFakeLast("1.00 1.00 1.00 1/10 5\n", "12.00 1.00 1.00 1/10 5\n", "1.00 1.00 1.00 1/10 5\n")
 		q.blockiereAb, q.freigabe = 1, make(chan struct{})
 		gestartet := make(chan *lastProben, 1)
 		go func() { gestartet <- starteProben(context.Background(), uhr, q, 20, 660*time.Second) }()
 		p := warteAuf(t, gestartet, time.Second)
-		takt, stop := uhr.Ticker(time.Second)
-		ticks := make(chan struct{}, 8)
-		go func() {
-			for range takt {
-				ticks <- struct{}{}
-			}
-		}()
 		uhr.Vorstellen(30 * time.Second)
 		warteAuf(t, q.blockiert, time.Second)
-		for range 3 {
-			warteAuf(t, ticks, time.Second)
-			uhr.Vorstellen(time.Second)
-		}
+		ergebnis := make(chan lastErgebnis, 1)
+		go func() { ergebnis <- p.beende() }()
+		bleibtOffen(t, ergebnis, "beende vor der Freigabe der Probe")
 		close(q.freigabe)
-		stop()
-		p.beende()
-		if q.aufrufe < 3 {
-			t.Errorf("Lauf %d: %d Aufrufe der Quelle, erwartet mindestens 3", lauf, q.aufrufe)
+		if e := warteAuf(t, ergebnis, time.Second); e != (lastErgebnis{Proben: 3, Min: 100, Max: 1200, Schwelle: 1000, Zulaessig: false}) {
+			t.Errorf("Lauf %d: Ergebnis %+v; erwartet 3 Proben von 1,00 bis 12,00, Schwelle 10,00, nicht zulässig", lauf, e)
 		}
 	}
 }

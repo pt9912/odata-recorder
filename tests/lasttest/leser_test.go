@@ -60,10 +60,12 @@ func (z *zeitfolge) Now() time.Time {
 	return t
 }
 
-// TestSpanZeilen: Menge der Formen: 3 gültige Zeilen (dazu eine mit Leerraum vor dem Objekt) und 31 fremde (die 13 Formen des Plans, dazu 18 weitere: Feld falscher Art oder null je
-// Pflichtfeld und parent_id, JSON ohne Objekt, Dauer ohne Punkt mit drei Ziffern, mit Exponent, ohne Ziffer vor dem Punkt, mit Buchstaben, mit
-// Vorzeichen, über int64); Dauern als ganze Mikrosekunden
-// aus dem Text (0.001 bis 9223372036854775.807, eins mehr ist fremd); die Zeilen des echten Adapters (telemetry.New mit vorgegebener Uhr,
+// TestSpanZeilen: Menge der Formen: 10 gültige Zeilen (die 3 des Plans, eine mit Leerraum vor dem Objekt, drei Gesamtspans ohne, mit null und mit
+// einer Zahl als recorder.mode, die als Zeile gelesen werden und einen leeren Modus tragen, und je eine mit leerer parent_id, leerer span_id und
+// leerem msg) und 46 fremde (die 13 Formen des Plans, dazu 18 weitere: Feld falscher Art oder null je Pflichtfeld und parent_id, JSON ohne Objekt,
+// Dauer ohne Punkt mit drei Ziffern, mit Exponent, ohne Ziffer vor dem Punkt, mit Buchstaben, mit Vorzeichen, über int64; dazu 14 Formen nahe
+// span: der Großbuchstabe je Stelle, die Anfänge, ein angehängtes und ein vorangestelltes Zeichen, und 01.000); Dauern als ganze Mikrosekunden
+// aus dem Text (0.000 bis 9223372036854775.807, eins mehr ist fremd); die Zeilen des echten Adapters (telemetry.New mit vorgegebener Uhr,
 // Dauer 12,345 ms) stimmen mit Snapshot().Spans überein.
 func TestSpanZeilen(t *testing.T) {
 	wache(t, 30*time.Second)
@@ -77,6 +79,17 @@ func TestSpanZeilen(t *testing.T) {
 			spanZeile{Name: "odata.replay.match", SpanID: "spn-2", ParentID: "spn-1", Mikros: 500}},
 		{`{"ereignis":"span","msg":"x","span_id":"s","duration_ms":7.000}`, spanZeile{Name: "x", SpanID: "s", Mikros: 7000}},
 		{" \t" + `{"ereignis":"span","msg":"x","span_id":"s","duration_ms":7.000}`, spanZeile{Name: "x", SpanID: "s", Mikros: 7000}},
+		{`{"ereignis":"span","msg":"odata.gateway.request","span_id":"s","duration_ms":7.000}`, spanZeile{Name: "odata.gateway.request", SpanID: "s", Mikros: 7000}},
+		{`{"ereignis":"span","msg":"odata.gateway.request","span_id":"s","duration_ms":7.000,"recorder.mode":null}`,
+			spanZeile{Name: "odata.gateway.request", SpanID: "s", Mikros: 7000}},
+		{`{"ereignis":"span","msg":"odata.gateway.request","span_id":"s","duration_ms":7.000,"recorder.mode":1}`,
+			spanZeile{Name: "odata.gateway.request", SpanID: "s", Mikros: 7000}},
+		{`{"ereignis":"span","msg":"odata.replay.match","span_id":"s","parent_id":"","duration_ms":7.000}`, spanZeile{Name: "odata.replay.match", SpanID: "s", Mikros: 7000}},
+		{`{"ereignis":"span","msg":"x","span_id":"","duration_ms":7.000}`, spanZeile{Name: "x", Mikros: 7000}},
+		{`{"ereignis":"span","msg":"","span_id":"s","duration_ms":7.000}`, spanZeile{SpanID: "s", Mikros: 7000}},
+	}
+	if len(gueltig) != 10 {
+		t.Fatalf("%d gültige Formen, erwartet 10", len(gueltig))
 	}
 	for _, g := range gueltig {
 		z, fremd, err := leseAlles(strings.NewReader(g.zeile + "\n"))
@@ -102,8 +115,17 @@ func TestSpanZeilen(t *testing.T) {
 		jsonZeile(jsonSpan, jsonName, jsonID, "", "+1.000"), jsonZeile(jsonSpan, jsonName, jsonID, "", "9223372036854775.808"),
 		jsonZeile(jsonSpan, jsonName, jsonID, "", "99999999999999999999.000"),
 	}
-	if len(plan) != 13 || len(weitere) != 18 {
-		t.Fatalf("%d und %d fremde Formen, erwartet 13 und 18", len(plan), len(weitere))
+	nbsp := string([]byte{0xc2, 0xa0})
+	ereignisse := []string{
+		`"Span"`, `"sPan"`, `"spAn"`, `"spaN"`, `"s"`, `"sp"`, `"spa"`, `""`,
+		`"span "`, `"span\t"`, `"spans"`, `"span` + nbsp + `"`, `" span"`, `"sspan"`,
+	}
+	for _, e := range ereignisse {
+		weitere = append(weitere, jsonZeile(e, jsonName, jsonID, "", "1.000"))
+	}
+	weitere = append(weitere, jsonZeile(jsonSpan, jsonName, jsonID, "", "01.000"))
+	if len(plan) != 13 || len(ereignisse) != 14 || len(weitere) != 33 {
+		t.Fatalf("%d, %d und %d fremde Formen, erwartet 13, 14 und 33 weitere", len(plan), len(ereignisse), len(weitere))
 	}
 	for _, f := range append(plan, weitere...) {
 		z, fremd, err := leseAlles(strings.NewReader(f + "\n"))
@@ -111,7 +133,7 @@ func TestSpanZeilen(t *testing.T) {
 			t.Errorf("%q: Zeilen %+v, fremd %d, Fehler %v; erwartet keine Zeile und fremd 1", f, z, fremd, err)
 		}
 	}
-	for text, mikros := range map[string]int64{"0.001": 1, "0.999": 999, "1.000": 1000, "123456.789": 123456789, "9223372036854775.807": 9223372036854775807} {
+	for text, mikros := range map[string]int64{"0.000": 0, "0.001": 1, "0.999": 999, "1.000": 1000, "123456.789": 123456789, "9223372036854775.807": 9223372036854775807} {
 		z, fremd, err := leseAlles(strings.NewReader(jsonZeile(jsonSpan, jsonName, jsonID, "", text) + "\n"))
 		if err != nil || fremd != 0 || len(z) != 1 || z[0].Mikros != mikros {
 			t.Errorf("Dauer %s: Zeilen %+v, fremd %d, Fehler %v; erwartet %d µs", text, z, fremd, err, mikros)

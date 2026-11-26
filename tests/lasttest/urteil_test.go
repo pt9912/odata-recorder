@@ -118,7 +118,7 @@ func TestStreuung(t *testing.T) {
 			t.Errorf("%d und %d bei Ziel 100: %+v; erwartet %s mit dem größeren p95", f.a, f.b, u, f.want)
 		}
 	}
-	ungueltig := Messung{Gueltig: false, Grund: grundLast, P95: 400}
+	ungueltig := Messung{Gueltig: false, Grund: grundLast, P95: 70000}
 	for _, laeufe := range [][]Messung{{ungueltig, lauf(50000)}, {lauf(50000), ungueltig}} {
 		u := urteilBetriebsart("replay", laeufe, 100)
 		if u.Ergebnis != urteilUngueltig || u.Grund != grundLast || u.P95 != 50000 || u.Laeufe != 2 || u.Streuung != 0 {
@@ -131,12 +131,17 @@ func TestStreuung(t *testing.T) {
 			t.Errorf("zwei ungültige Läufe %s und %s: %+v; erwartet den Grund des ersten", laeufe[0].Grund, laeufe[1].Grund, u)
 		}
 	}
+	for name, laeufe := range map[string][]Messung{"leere Liste": {}, "nil": nil} {
+		if u := urteilBetriebsart("mock", laeufe, 80); u != (urteil{Betriebsart: "mock", ZielMs: 80, Ergebnis: urteilUngueltig, Grund: grundZaehlung}) {
+			t.Errorf("%s ohne Lauf: %+v; erwartet ungueltig mit zaehlung, 0 Läufe und Dauern 0", name, u)
+		}
+	}
 	u := urteilBetriebsart("replay", []Messung{lauf(120000)}, 100)
 	if u.Ergebnis != urteilDurchgefallen || u.Streuung != 0 || u.Toleranz != 0 || u.Laeufe != 1 || u.P95 != 120000 {
 		t.Errorf("ein Lauf allein: %+v; erwartet durchgefallen ohne Streuung", u)
 	}
-	if n := len(faelle)*2 + 3 + 2 + 2 + 1; n != 19*2+8 {
-		t.Errorf("%d Fälle, erwartet 46", n)
+	if n := len(faelle)*2 + 3 + 2 + 2 + 2 + 1; n != 19*2+10 {
+		t.Errorf("%d Fälle, erwartet 48", n)
 	}
 }
 
