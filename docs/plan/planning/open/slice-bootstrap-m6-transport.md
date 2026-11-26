@@ -20,7 +20,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Autor:** pt9912 (Planner; Schnitt vor dem Code aus [slice-bootstrap-m6](slice-bootstrap-m6.md), Vorschlag des Architect vom 2026-11-23). **Datum:** 2026-11-23.
 
-**Stand der Start-Bedingungen** (Planner, 2026-11-26, bei der Closure von Teil B): die Bedingungen von §4 sind erfüllt, sobald der Zweig von Teil B nach `main` gemergt ist; die offenen Punkte von §6 tragen einen Ausgang. Beim Start fehlen allein `basis`, `schaetzung` und `marke` im Block, `Verantwortlich` und die Sichtung des Registers.
+**Stand der Start-Bedingungen** (Planner, 2026-11-26, bei der Closure von Teil B): die Bedingungen von §4 sind erfüllt, sobald der Zweig von Teil B nach `main` gemergt ist; die offenen Punkte von §6 tragen einen Ausgang. Beim Start fehlen `basis`, `schaetzung` und `marke` im Block, `Verantwortlich` und die Sichtung des Registers. Der Trigger von [welle-admin-api](../welle-admin-api.md) ist nicht eingetreten: der Start braucht wie bei Teil B eine Ausnahme je Slice, auch dieser Teil ist am Prozess sichtbar, und die Frage an den User dazu ist unbeantwortet (§3 dort).
 
 ---
 

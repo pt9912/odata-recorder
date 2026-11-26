@@ -18,8 +18,6 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-lasttest](slice-lasttest.md) ([welle-betrieb](../welle-betrieb.md), Teil 3 des Lasttests nach [slice-lasttest-fixtures](../done/slice-lasttest-fixtures.md) und [slice-lasttest-auswertung](../done/slice-lasttest-auswertung.md): Lauf mit Takt, Prozess des Binary, Treiber, Stufe, Ziel `lasttest` außerhalb der Kette, Gegenproben und die Messung; Position 2 der Gate-Kette; schreibt unter `tests/lasttest/`, `tools/` und in `Dockerfile`, `harness/mk/`, `harness/README.md`).
 
-In Arbeit: [slice-bootstrap-m6-listener](../done/slice-bootstrap-m6-listener.md) ([welle-admin-api](../welle-admin-api.md), Teil B des Composition Root: Admin-Listener, `ADMIN_LISTEN` und `ADMIN_TOKEN_FILE`, Token-Datei, Handbuch und Katalog; Zweig `slice-bootstrap-m6-listener`; kein Kettenslice, schreibt unter `src/bootstrap/`, in Tests unter `tests/`, in `harness/katalog-ausnahmen.txt`, Handbuch und `SPEC-201`).
-
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
