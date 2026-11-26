@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-endpunkte
+**Fund:** Zwei akzeptierte Negative des Implementers trugen kein Maß, und eines zählte unter „Folge“ ungefangene Formen auf, ohne eine Folge im Betrieb zu nennen, das andere verwies für sie allein auf `SPEC-300` (Review F-4). Die Fix-Runde trug Maß und Folge nach. Beleg: Review `2026-11-26-slice-bootstrap-m6-endpunkte-review` (F-4), Plan `slice-bootstrap-m6-endpunkte` §3.
