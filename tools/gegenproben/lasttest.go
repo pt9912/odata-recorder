@@ -384,7 +384,7 @@ func llVariablen() []Fall {
 }
 
 // llDockerRun ist Fall 220: die Argumente von docker run mit den Vorgaben und mit anderen Werten, LASTTEST_KERNE aus docker info statt aus der
-// Umgebung, die Ströme des Containers unverändert und nur info, build und run.
+// Umgebung, auch ohne Zahl unverändert, die Ströme des Containers unverändert und nur info, build und run.
 func llDockerRun() Fall {
 	f := llFall("docker-run", []string{"LASTTEST_KERNE=99"}, 0, func(l Lauf) string {
 		basis, err := gmProtokoll(l.Dir, "docker.log")
@@ -411,9 +411,24 @@ func llDockerRun() Fall {
 		if grund == "" && (r.out != llAusgabe || r.errOut != llContainerE) {
 			grund = fmt.Sprintf("Ströme: stdout %q, stderr %q", r.out, r.errOut)
 		}
-		return grund
+		return gmErste(grund, llOhneZahl(l))
 	}, "1>"+strings.TrimSuffix(llAusgabe, "\n"), strings.TrimSuffix(llContainerE, "\n"))
 	return f
+}
+
+// llOhneZahl fährt eine Ausgabe von docker info ohne Zahl, auch eine leere: sie geht unverändert in --env (SPEC-216 Nr. 3 a).
+func llOhneZahl(l Lauf) string {
+	for i, ncpu := range []string{"", "viele"} {
+		name := fmt.Sprintf("ncpu-%d", i)
+		r, grund := llFahre(l, name, []string{"LL_NCPU=" + ncpu})
+		if grund == "" {
+			grund = llGut(r, name, nil, ncpu)
+		}
+		if grund != "" {
+			return grund
+		}
+	}
+	return ""
 }
 
 // llReihenfolge sind die Fälle 221 bis 223: Argument, docker info und Bau.

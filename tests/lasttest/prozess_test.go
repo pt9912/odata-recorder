@@ -124,8 +124,8 @@ func hilfe(modus, vorweg string) func(env []string) (*prozess, error) {
 	return func(env []string) (*prozess, error) { return starteProzess(hilfeBefehl(env, modus, vorweg)) }
 }
 
-// TestProzess (SPEC-216 Nr. 9 b bis d, 13 c): sieben Formen des Binary als eigener Prozess; je Form grund, Meldung, Hinweis, Zahl der
-// Anfragen und die Signale.
+// TestProzess (SPEC-216 Nr. 9 b bis d, 13 c): acht Formen des Binary als eigener Prozess; je Form grund, Meldung, Hinweis, Zahl der
+// Anfragen und die Signale; ein Ende durch ein Signal zählt 128 plus dessen Nummer.
 func TestProzess(t *testing.T) {
 	wache(t, 120*time.Second)
 	term, kill := []os.Signal{syscall.SIGTERM}, []os.Signal{syscall.SIGTERM, syscall.SIGKILL}
@@ -144,6 +144,11 @@ func TestProzess(t *testing.T) {
 		}, 0, false, false, "binary", "lasttest: Binary startet nicht\n", "", "0", nil},
 		{"endet vor der Bereitschaft", hilfe("exit1", ""), 5 * time.Millisecond, false, false, "binary",
 			"lasttest: Binary endete (Exit 1)\n", "", "0", nil},
+		{"endet durch SIGKILL", func(env []string) (*prozess, error) {
+			cmd := hilfeBefehl(env, "", "")
+			cmd.Path, cmd.Args = "/bin/sh", []string{"sh", "-c", "kill -KILL $$"}
+			return starteProzess(cmd)
+		}, 5 * time.Millisecond, false, false, "binary", "lasttest: Binary endete (Exit 137)\n", "", "0", nil},
 		{"lauscht nie", func(env []string) (*prozess, error) {
 			cmd := hilfeBefehl(env, "", "")
 			cmd.Path, cmd.Args = "/bin/sleep", []string{"sleep", "60"}
@@ -188,8 +193,8 @@ func TestProzess(t *testing.T) {
 		}
 		n++
 	}
-	if n != 7 {
-		t.Errorf("%d Formen, erwartet 7", n)
+	if n != 8 {
+		t.Errorf("%d Formen, erwartet 8", n)
 	}
 }
 

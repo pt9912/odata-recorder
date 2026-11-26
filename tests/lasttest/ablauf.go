@@ -101,7 +101,21 @@ type ablaufEingabe struct {
 	Err       io.Writer
 }
 
-// schreibe schreibt eine Zeile der Ausgabe; ein Fehler des Schreibens ändert den Ablauf nicht.
+// bisZumFehler reicht an w weiter, bis w einen Fehler meldet; danach erreicht w kein Schreiben mehr (SPEC-216 Nr. 13 e).
+type bisZumFehler struct {
+	w      io.Writer
+	fehler error
+}
+
+func (b *bisZumFehler) Write(p []byte) (n int, err error) {
+	if b.fehler != nil {
+		return 0, b.fehler
+	}
+	n, b.fehler = b.w.Write(p)
+	return n, b.fehler
+}
+
+// schreibe schreibt eine Zeile der Ausgabe; den Fehler hält der Schreiber, den fahre um Aus legt, und der Ablauf läuft weiter.
 func (e ablaufEingabe) schreibe(z zeilenart) { _ = schreibe(e.Aus, z) }
 
 // melde schreibt eine Meldung nach stderr.
@@ -163,10 +177,23 @@ func (e ablaufEingabe) baueAuf(ctx context.Context) (erg aufbauErgebnis, zeile a
 	return erg, zeile, err
 }
 
-// fahre ist der Ablauf eines Aufrufs (SPEC-216 Nr. 4 b und 13 d) und liefert den Exit: Start, Aufbau, je Betriebsart die Läufe mit ihren
+// fahre fährt den Ablauf und liefert den Exit. Meldet das Schreiben einer Zeile nach Aus einen Fehler, folgt keine Zeile mehr, der Ablauf
+// läuft zu Ende, danach steht einmal `Ausgabe nicht geschrieben` in Err, und der Exit ist 2 (SPEC-216 Nr. 13 e und 12 e).
+func (e ablaufEingabe) fahre(signale context.Context) int {
+	aus := &bisZumFehler{w: e.Aus}
+	e.Aus = aus
+	code := e.ablauf(signale)
+	if aus.fehler != nil {
+		e.melde("Ausgabe nicht geschrieben")
+		return exitAbbruch
+	}
+	return code
+}
+
+// ablauf ist der Ablauf eines Aufrufs (SPEC-216 Nr. 4 b und 13 d) und liefert den Exit: Start, Aufbau, je Betriebsart die Läufe mit ihren
 // Zeilen, danach die Urteile und die Abnahme. Das Ende von signale bricht ab; die Gesamtfrist des Profils beginnt mit dem Aufruf. Beide
 // enden ohne Urteil.
-func (e ablaufEingabe) fahre(signale context.Context) int {
+func (e ablaufEingabe) ablauf(signale context.Context) int {
 	ctx, cancel := mitFrist(signale, e.Uhr, e.Profil.Gesamtfrist)
 	defer cancel()
 	e.schreibe(startZeile{

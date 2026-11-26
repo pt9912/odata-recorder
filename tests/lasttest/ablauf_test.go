@@ -302,7 +302,7 @@ func TestLiesUmgebung(t *testing.T) {
 		varBetriebsart: {"alle", ""}, varProfil: {"voll", ""}, varZielMs: {"0", "x", ""}, varStartwert: {"-1", ""}, varKerne: {"0", "x", ""},
 	} {
 		for _, wert := range falsch {
-			if _, err := liesUmgebung(umgebungMit(name, wert, false)); err == nil || !strings.Contains(err.Error(), name) {
+			if _, err := liesUmgebung(umgebungMit(name, wert, false)); err == nil || err.Error() != "Umgebung: "+name+" fehlt oder ist ungültig" {
 				t.Errorf("%s=%q: %v", name, wert, err)
 			}
 			n++
@@ -341,7 +341,93 @@ func TestStartwertBisZumAufbau(t *testing.T) {
 	}
 }
 
-// TestDatenMiB: die Summe der Dateien unter dem Verzeichnis, auch in Unterverzeichnissen, in ganzen MiB abgeschnitten.
+// kSchreiber meldet allein beim k-ten Aufruf (ab 1; 0: nie) einen Fehler und hält fest, was die übrigen schreiben.
+type kSchreiber struct {
+	k, n int
+	buf  strings.Builder
+}
+
+func (w *kSchreiber) Write(p []byte) (int, error) {
+	w.n++
+	if w.n == w.k {
+		return 0, errors.New("voll")
+	}
+	return w.buf.Write(p)
+}
+
+// arten sind je geschriebener Zeile die Art und der erste Schlüssel mit Wert.
+func (w *kSchreiber) arten() []string {
+	var out []string
+	for z := range strings.Lines(w.buf.String()) {
+		f := strings.Fields(z)
+		out = append(out, f[1]+" "+f[2])
+	}
+	return out
+}
+
+// TestSchreibfehler (SPEC-216 Nr. 13 e): fällt das Schreiben der k-ten Zeile aus, für jede der elf Zeilen eines Laufs beider Betriebsarten
+// mit Hinweis (alle sieben Zeilenarten), stehen genau die Zeilen davor, kein Schreiben folgt, beide Läufe fahren, die Meldung steht einmal
+// und der Exit ist 2; ebenso bei Abläufen, die sonst mit 1 oder 3 endeten; ohne Fehler keine Meldung.
+func TestSchreibfehler(t *testing.T) {
+	wache(t, 60*time.Second)
+	fahre := func(k int, setze func(*probestand)) (int, *kSchreiber, *probestand) {
+		s := neuerProbestand(t, kurzesProfil("klein", 1), "beide")
+		s.dienst.termExit = 1
+		if setze != nil {
+			setze(s)
+		}
+		w := &kSchreiber{k: k}
+		s.ein.Aus = w
+		return warteAuf(t, s.fahre(context.Background()), 30*time.Second), w, s
+	}
+	want := []string{"Start profil=klein", "Aufbau exchanges=17", "Messung betriebsart=replay", "Last betriebsart=replay",
+		"Hinweis betriebsart=replay", "Messung betriebsart=mock", "Last betriebsart=mock", "Hinweis betriebsart=mock",
+		"Urteil betriebsart=replay", "Urteil betriebsart=mock", "Abnahme ziel_ms=100"}
+	if code, w, s := fahre(0, nil); code != 0 || !slices.Equal(w.arten(), want) || s.fehler.Len() != 0 {
+		t.Fatalf("ohne Fehler: Exit %d, Zeilen %q, Meldungen %q", code, w.arten(), s.fehler.String())
+	}
+	const meldung = "lasttest: Ausgabe nicht geschrieben\n"
+	n := 0
+	for k := 1; k <= len(want); k++ {
+		code, w, s := fahre(k, nil)
+		if code != 2 || w.n != k || !slices.Equal(w.arten(), want[:k-1]) || s.fehler.String() != meldung || s.dienst.zahl() != 2 {
+			t.Errorf("Fehler bei Zeile %d: Exit %d, %d Aufrufe, Zeilen %q, Meldungen %q, %d Läufe", k, code, w.n, w.arten(), s.fehler.String(),
+				s.dienst.zahl())
+		}
+		n++
+	}
+	if n != 11 {
+		t.Errorf("%d Zeilen, erwartet 11", n)
+	}
+	for _, f := range []struct {
+		name     string
+		sonst, k int
+		meldung  string
+		setze    func(*probestand)
+	}{
+		{"durchgefallen", 1, 11, "", func(s *probestand) { s.dienst.dauer = func(int, int) (int, int) { return 100001, 100 } }},
+		{"ungültiger Lauf", 3, 3, "", func(s *probestand) {
+			s.dienst.status = func(_, k int) int {
+				if k == 3 {
+					return http.StatusInternalServerError
+				}
+				return http.StatusOK
+			}
+		}},
+		{"gescheiterter Aufbau", 3, 1, "lasttest: Aufbau gescheitert: aufbau\n", func(s *probestand) {
+			s.ein.Aufbau = func(context.Context, aufbauEingabe) (aufbauErgebnis, error) { return aufbauErgebnis{}, errors.New("x") }
+		}},
+	} {
+		ohne, _, ohneS := fahre(0, f.setze)
+		mit, w, mitS := fahre(f.k, f.setze)
+		if ohne != f.sonst || ohneS.fehler.String() != f.meldung || mit != 2 || w.n != f.k || mitS.fehler.String() != f.meldung+meldung {
+			t.Errorf("%s: Exit ohne Fehler %d, mit %d, %d Aufrufe, Meldungen %q", f.name, ohne, mit, w.n, mitS.fehler.String())
+		}
+	}
+}
+
+// TestDatenMiB (SPEC-216 Nr. 4 a): die Summe der Dateien unter dem Verzeichnis, auch in Unterverzeichnissen, in ganzen MiB abgeschnitten;
+// ein Symlink zählt nicht.
 func TestDatenMiB(t *testing.T) {
 	wache(t, 30*time.Second)
 	dir := t.TempDir()
@@ -355,6 +441,9 @@ func TestDatenMiB(t *testing.T) {
 	}
 	schreibe("a", 3<<19)
 	schreibe("u/b", 3<<19-1)
+	if err := os.Symlink("a", filepath.Join(dir, "l")); err != nil {
+		t.Fatal(err)
+	}
 	if got := datenMiB(dir); got != 2 {
 		t.Errorf("%d MiB, erwartet 2", got)
 	}
