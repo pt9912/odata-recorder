@@ -199,11 +199,13 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-**Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; Architect, 2026-11-23; die Zeile dieses Teils; die Zeilen der Teile B, C und D stehen in deren Plänen; jede Zelle nennt ihren Ort in `SPEC-300`, den Verträgen davor oder „gilt nicht“ mit Grund; der Implementer hält an einer Zelle ohne Ort an, `AGENTS.md` §3.12):
+**Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; Architect, 2026-11-23; die Zeilen dieses Teils, die zweite und dritte vom Planner am 2026-11-26 nach den Entscheidungen des Architect nachgezogen; die Zeilen der Teile B, C und D stehen in deren Plänen; jede Zelle nennt ihren Ort in `SPEC-300`, den Verträgen davor oder „gilt nicht“ mit Grund; der Implementer hält an einer Zelle ohne Ort an, `AGENTS.md` §3.12):
 
 | Operation | fehlender Wert | leerer Wert | unbekannter oder fremder Wert | Abbruch | Wiederholung |
 |---|---|---|---|---|---|
 | Bilden der Einstellungen der Diagnose | jeder der 18 Schlüssel hat einen Eintrag, aus dem wirksamen Wert (`SPEC-300` Nr. 6) | die leere Menge einer Liste ist `none` (`SPEC-300` Nr. 6) | ein Schlüssel außerhalb der Allowlist nie (`SPEC-300` Nr. 6, `SPEC-236` Nr. 7) | gilt nicht: synchron in `Build`, ohne Kontext (`SPEC-139` Nr. 2) | der Dienst liefert je Aufruf eine Kopie (`SPEC-236` Nr. 7) |
+| Verdrahten in `Build` | leerer `AdminListen`: die Dienste und Routen entstehen (`SPEC-300` Nr. 5, 11) | ein Konstruktor liefert `nil` ohne Fehler: der Routen-Konstruktor meldet `model.ErrUngueltig`, die Ablage ist geschlossen (`SPEC-300` Nr. 5 c; A08) | ein Fehler eines Konstruktors ist der Fehler von `Build` (`SPEC-300` Nr. 5 c; A08); ein Modus außer den vier ist `model.ErrUngueltig` (`SPEC-139` Nr. 2) | gilt nicht: kein Konstruktor von `SPEC-300` Nr. 5 nimmt einen `ctx` | je `Build` jeder Routen-Konstruktor genau einmal (`SPEC-300` Nr. 5 c; A07); ein zweiter `Build` nacheinander ist unabhängig (`SPEC-300` Nr. 16) |
+| Ersatz für `Record` und `Drain` | `Record()` bleibt `nil` (`SPEC-300` Nr. 5 a; A06) | `Drain` liefert den leeren Bericht und `nil` (`SPEC-300` Nr. 5 a; A06) | wie leer für jedes Argument: der Ersatz nimmt nichts auf, `Record` ist `model.ErrUngueltig` (`SPEC-300` Nr. 5 a; A06) | gilt nicht: der Ersatz wartet nicht und liest keinen `ctx` | jeder Aufruf gleich, er nimmt nichts auf (`SPEC-300` Nr. 5 a) |
 
 **Zusatztabelle** (`AGENTS.md` §3.16: die Operationen hängen vom Modus ab; je Modus eine Zeile; die Paare von Verstößen stehen in den Plänen der Teile B und C):
 
