@@ -33,7 +33,8 @@ func einstellungenDefault() map[string]string {
 	}
 }
 
-// einstellungenAbweichend sind die Einträge zu abweichendeKonfig: 30 Tage sind 2592000000 ms, der Rest unter 1 ms entfällt.
+// einstellungenAbweichend sind die Einträge zu abweichendeKonfig: 30 Tage sind 2592000000 ms, die Frist der Ablage steht an der
+// Grenze des Ladens (2147483647 ms); der Rest unter 1 ms entfällt.
 func einstellungenAbweichend() map[string]string {
 	return map[string]string{
 		"REPLAY_STRATEGY": "strict", "REPLAY_ASSIGNMENT": "ordered", "REPLAY_REDACTED_BODIES": "true",
@@ -41,7 +42,7 @@ func einstellungenAbweichend() map[string]string {
 		"REDACT_HEADERS": "X-E,X-F", "REDACT_QUERY_PARAMS": "q1,q2", "REDACT_JSON_PATHS": "$..g1,$..g2",
 		"MAX_CAPTURE_BODY": "1073741824", "UPSTREAM_TIMEOUT": "2592000000ms", "UPSTREAM_TLS_VERIFY": "false",
 		"UPSTREAM_TLS_INSECURE_SKIP_VERIFY": "true", "SHUTDOWN_TIMEOUT": "2592000000ms", "RETENTION_MAX_AGE": "2592000000ms",
-		"SQLITE_BUSY_TIMEOUT": "2592000000ms", "VOLATILE_HEADERS": "X-C,X-D", "LINK_REWRITE": "anders",
+		"SQLITE_BUSY_TIMEOUT": "2147483647ms", "VOLATILE_HEADERS": "X-C,X-D", "LINK_REWRITE": "anders",
 	}
 }
 
@@ -75,7 +76,8 @@ func abweichendeKonfig(t *testing.T, modus string) bootstrap.Konfiguration {
 	k.Listen, k.LinkRewrite, k.MaxCaptureBody = canaryListen, "anders", 1<<30
 	k.ReplayStrategy, k.ReplayAssignment, k.ReplayRedactedBodies = "strict", "ordered", true
 	k.MatchInvalidEncoding, k.MatchBodyMode, k.UpstreamTLSVerify = "reject", "json-canonical", false
-	k.UpstreamTimeout, k.ShutdownTimeout, k.RetentionMaxAge, k.SQLiteBusyTimeout = dauer, dauer, dauer, dauer
+	k.UpstreamTimeout, k.ShutdownTimeout, k.RetentionMaxAge = dauer, dauer, dauer
+	k.SQLiteBusyTimeout = 2147483647*time.Millisecond + 999999*time.Nanosecond
 	k.MatchVaryHeaders, k.VolatileHeaders = []string{"X-A", "X-B"}, []string{"X-C", "X-D"}
 	k.RedactHeaders, k.RedactQueryParams, k.RedactJSONPaths = []string{"X-E", "X-F"}, []string{"q1", "q2"}, []string{"$..g1", "$..g2"}
 	return k
@@ -125,7 +127,8 @@ func inspektionGebaut(t *testing.T, k bootstrap.Konfiguration) (*bootstrap.Handl
 }
 
 // TestAdminInspektionVerdrahtet fängt A03: je Modus und Konfiguration die Konfig am Haken, Inspektion() am Handle und die Diagnose
-// (18 Schlüssel x 2 Konfigurationen), den Zähler des einen Adapters, die leeren Listen und im Modus record Exchanges und Coverage.
+// (18 Schlüssel x 2 Konfigurationen), den Zähler des einen Adapters, jede Liste ohne und mit 1 bis 3 Einträgen und im Modus record
+// Exchanges und Coverage.
 func TestAdminInspektionVerdrahtet(t *testing.T) {
 	konfigurationen := map[string]struct {
 		konfig func(*testing.T, string) bootstrap.Konfiguration
@@ -171,16 +174,33 @@ func TestAdminInspektionVerdrahtet(t *testing.T) {
 	if zellen != 36 || len(inspection.Erlaubt()) != 18 {
 		t.Errorf("%d Zellen, %d erlaubte Schlüssel", zellen, len(inspection.Erlaubt()))
 	}
-	listen := []string{"MATCH_VARY_HEADERS", "VOLATILE_HEADERS", "REDACT_HEADERS", "REDACT_QUERY_PARAMS", "REDACT_JSON_PATHS"}
-	for _, leer := range [][]string{nil, {}} {
-		k := routenKonfig(t.TempDir(), modusReplay, "")
-		k.MatchVaryHeaders, k.VolatileHeaders, k.RedactHeaders, k.RedactQueryParams, k.RedactJSONPaths = leer, leer, leer, leer, leer
-		_, got := inspektionGebaut(t, k)
-		for _, schluessel := range listen {
-			if got.Einstellungen[schluessel] != "none" {
-				t.Errorf("leere Liste %v: %s ist %q", leer, schluessel, got.Einstellungen[schluessel])
+	// Jede Liste je Länge, mit eigenem Anfang je Liste: nil (-1), leer, ein Eintrag, zwei, drei (5 x 5 Zellen).
+	listen := [5][2]string{
+		{"MATCH_VARY_HEADERS", "X-V"}, {"VOLATILE_HEADERS", "X-O"}, {"REDACT_HEADERS", "X-R"},
+		{"REDACT_QUERY_PARAMS", "q"}, {"REDACT_JSON_PATHS", "$..j"},
+	}
+	laengen := 0
+	for _, n := range []int{-1, 0, 1, 2, 3} {
+		var werte [5][]string
+		for i, l := range listen {
+			if n >= 0 {
+				werte[i] = []string{l[1] + "1", l[1] + "2", l[1] + "3"}[:n]
 			}
 		}
+		k := routenKonfig(t.TempDir(), modusReplay, "")
+		k.MatchVaryHeaders, k.VolatileHeaders, k.RedactHeaders, k.RedactQueryParams, k.RedactJSONPaths = werte[0], werte[1], werte[2], werte[3], werte[4]
+		_, got := inspektionGebaut(t, k)
+		for _, l := range listen {
+			schluessel, a := l[0], l[1]
+			soll := map[int]string{-1: "none", 0: "none", 1: a + "1", 2: a + "1," + a + "2", 3: a + "1," + a + "2," + a + "3"}[n]
+			if got.Einstellungen[schluessel] != soll {
+				t.Errorf("Länge %d: %s ist %q, erwartet %q", n, schluessel, got.Einstellungen[schluessel], soll)
+			}
+			laengen++
+		}
+	}
+	if laengen != 25 {
+		t.Errorf("%d Zellen der Listen", laengen)
 	}
 
 	h, db, _, quelle := adminAufnahme(t)

@@ -86,8 +86,8 @@ func (z *adminZaehlung) haken(b *bootstrap.Bauteile) {
 }
 
 // TestAdminSessionsAlleModi fängt A06: je Modus fünf Beobachtungen am Handle (Zugänge, List, Create, Beenden, Delete) und in den
-// Modi ohne Recorder sieben an der session.Konfig (4 x 5 + 3 x 7 Zellen); dazu jedes Feld der Konfig und die Zahl der Bauten
-// von Recorder, Pipeline und Upstream.
+// Modi ohne Recorder sieben an der session.Konfig (4 x 5 + 3 x 7 Zellen); dazu jedes Feld der Konfig, im Modus record der
+// Recorder an ihr und die Zahl der Bauten von Recorder, Pipeline und Upstream.
 func TestAdminSessionsAlleModi(t *testing.T) {
 	ctx := context.Background()
 	abgebrochen, abbrechen := context.WithCancel(ctx)
@@ -136,6 +136,9 @@ func TestAdminSessionsAlleModi(t *testing.T) {
 		}
 		zellen += 5
 		if modus == modusRecord {
+			if z.session.Record != h.Record() {
+				t.Errorf("record: session.Konfig.Record ist %T, nicht der Recorder", z.session.Record)
+			}
 			continue
 		}
 		got := z.session

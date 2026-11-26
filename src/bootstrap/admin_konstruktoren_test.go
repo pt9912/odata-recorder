@@ -167,7 +167,12 @@ func TestAdminBuildFehler(t *testing.T) {
 		geschlossen := 0
 		b.Schliesser = func(c io.Closer) io.Closer { return zaehlSchliesser{c, &geschlossen} }
 		f.setze(&b)
-		h, err := bootstrap.BuildMit(context.Background(), routenKonfig(t.TempDir(), f.modus, "http://u1.test/o"), nil, b)
+		var h *bootstrap.Handle
+		// Eine Panik in Build ist der Fehler dieses Falls, nicht das Ende des Prozesses.
+		err := ohnePanik(func() (e error) {
+			h, e = bootstrap.BuildMit(context.Background(), routenKonfig(t.TempDir(), f.modus, "http://u1.test/o"), nil, b)
+			return e
+		})
 		if h != nil || !errors.Is(err, f.soll) || geschlossen != 1 {
 			t.Errorf("%s/%s: Handle %v, Fehler %v, %d-mal geschlossen", f.name, f.modus, h != nil, err, geschlossen)
 		}
