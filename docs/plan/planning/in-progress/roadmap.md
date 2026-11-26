@@ -16,8 +16,6 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-telemetry-einbau-hybrid](../done/slice-telemetry-einbau-hybrid.md) ([welle-betrieb](../welle-betrieb.md), Teil 2 des Schnitts von `slice-telemetry-einbau-hybrid` nach [slice-telemetry-einbau-hybrid-port](../done/slice-telemetry-einbau-hybrid-port.md): Span `odata.hybrid.fallback` und Zähler `odr_hybrid_discarded_total` im Hybrid-Dienst, `verdrahteHybrid` gibt dem Dienst den Adapter des Prozesses; das Binary schreibt im Modus `hybrid` eine weitere Span-Zeile).
-
 In Arbeit: [slice-test-security](slice-test-security.md) ([welle-admin-api](../welle-admin-api.md), Position 1 der Gate-Kette: Canary-Test am Binary im Modus `record` und Netzwerkzugriffstest am Admin-Adapter, `make test-security` mit Stufe `security`, Fragment und Treiber).
 
 In Arbeit: [slice-lasttest-auswertung](slice-lasttest-auswertung.md) ([welle-betrieb](../welle-betrieb.md), Teil 2 des Schnitts von [slice-lasttest](../open/slice-lasttest.md) nach [slice-lasttest-fixtures](../done/slice-lasttest-fixtures.md): Leser der Span-Zeilen, Phasen, p95, Anteil, Proben der Last, Urteil, Exit und Ausgabe; schreibt nur unter `tests/lasttest/`).
