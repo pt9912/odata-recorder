@@ -19,6 +19,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/adapters/driven/httpupstream"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/sqlite"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/telemetry"
+	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
 	"github.com/pt9912/odata-recorder/src/adapters/driving/httpodata"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
@@ -26,6 +27,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/baselineimport"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid"
+	"github.com/pt9912/odata-recorder/src/hexagon/services/inspection"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/maintenance"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/mock"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/record"
@@ -73,6 +75,7 @@ type bauteile struct {
 	NeuerSnapshot  func(snapshot.Konfig) (inbound.SnapshotUseCase, error)
 	NeuerMock      func(mock.Konfig) (inbound.MockUseCase, error)
 	NeuerHybrid    func(hybrid.Konfig) (inbound.HybridUseCase, error)
+	NeueInspektion func(inspection.Konfig) (inbound.InspectionUseCase, error)
 	Listen         func(ctx context.Context, network, addr string) (net.Listener, error)
 	NeuerServer    func(httpodata.Konfig) (server, error)
 }
@@ -108,6 +111,7 @@ func standardBauteile() bauteile {
 		NeuerSnapshot:  als[inbound.SnapshotUseCase](snapshot.New),
 		NeuerMock:      als[inbound.MockUseCase](mock.New),
 		NeuerHybrid:    als[inbound.HybridUseCase](hybrid.New),
+		NeueInspektion: als[inbound.InspectionUseCase](inspection.New),
 		Listen: func(ctx context.Context, network, addr string) (net.Listener, error) {
 			var lc net.ListenConfig
 			return lc.Listen(ctx, network, addr)
@@ -139,10 +143,13 @@ type Handle struct {
 	wartung  inbound.MaintenanceUseCase
 	record   inbound.RecordUseCase
 	sessions inbound.SessionUseCase
-	// importer ist nur im Modus record gesetzt, workspaces und snapshots in jedem Modus (SPEC-139 Nr. 1).
+	// importer ist nur im Modus record gesetzt; sessions, inspektion, workspaces und snapshots in jedem Modus (SPEC-139 Nr. 1).
 	importer   inbound.ImportUseCase
 	workspaces inbound.WorkspaceUseCase
 	snapshots  inbound.SnapshotUseCase
+	inspektion inbound.InspectionUseCase
+	// routen sind die Routen des Admin-Adapters in der Folge von SPEC-300 Nr. 5 c.
+	routen []admin.Route
 	// verarbeiten ist der Dienst des Betriebsmodus am Listener.
 	verarbeiten httpodata.Verarbeiter
 	fehler      chan error
@@ -170,8 +177,8 @@ const (
 	beendet
 )
 
-// Build öffnet die Ablage und verdrahtet Adapter und Dienste nach SPEC-139 Nr. 2 bis 5; es öffnet
-// keinen Listener und ruft weder Wartung noch Services noch Sessions. Die Zeilen des Adapters des Prozesses gehen
+// Build öffnet die Ablage und verdrahtet Adapter, Dienste und die Routen des Admin-Adapters nach SPEC-139 Nr. 2 bis 5 und
+// SPEC-300 Nr. 5 a bis c; es öffnet keinen Listener und ruft weder Wartung noch Services noch Sessions. Die Zeilen des Adapters des Prozesses gehen
 // verloren (io.Discard); Start übergibt seinen Fehlerstrom (SPEC-139 Nr. 13).
 func Build(ctx context.Context, k Konfiguration, log *slog.Logger) (*Handle, error) {
 	return build(ctx, k, log, io.Discard, standardBauteile())
@@ -282,7 +289,7 @@ func (h *Handle) verdrahte(db *sqlite.DB, v vorlaeufig) error {
 		return err
 	}
 	// Der Adapter des Prozesses (SPEC-139 Nr. 13): Senke, Uhr und Stufe INFO; Mock, Replay- und Record-Dienst erhalten ihn als Telemetrie,
-	// Workspace-, Record-, Session-, Wartungs-Dienst und Audit-Adapter seinen Handler als Log.
+	// die Inspektion als Zaehler (SPEC-300 Nr. 5 e), Workspace-, Record-, Session-, Wartungs-Dienst und Audit-Adapter seinen Handler als Log.
 	h.tel, err = b.NeueTelemetrie(telemetry.Config{Writer: h.senke, Clock: h.uhr, MinLevel: slog.LevelInfo})
 	if err != nil {
 		return err
@@ -312,7 +319,15 @@ func (h *Handle) verdrahte(db *sqlite.DB, v vorlaeufig) error {
 	if err != nil {
 		return err
 	}
-	switch k.Modus {
+	if err := h.verdrahteModus(db, r, waechter, v); err != nil {
+		return err
+	}
+	return h.verdrahteAdmin(db)
+}
+
+// verdrahteModus baut die Dienste des Betriebsmodus (SPEC-139 Nr. 5, 11, 12).
+func (h *Handle) verdrahteModus(db *sqlite.DB, r ablageRepos, waechter *maintenance.BlobWaechter, v vorlaeufig) error {
+	switch h.k.Modus {
 	case modusReplay:
 		return h.verdrahteReplay(db, waechter, v)
 	case modusMock:
@@ -340,7 +355,7 @@ func (h *Handle) verdrahteMock(db *sqlite.DB, r ablageRepos, waechter *maintenan
 }
 
 // verdrahteHybrid baut Mock, Replay, Upstream-Client und Policy und bindet den Hybrid-Dienst mit dem Adapter des Prozesses
-// als Telemetrie (SPEC-139 Nr. 12 a, 13 g): kein Recorder, keine Pipeline, kein SessionUseCase, kein Import. Der
+// als Telemetrie (SPEC-139 Nr. 12 a, 13 g): kein Recorder, keine Pipeline, kein Import. Der
 // Upstream-Client entsteht auch bei disabled.
 func (h *Handle) verdrahteHybrid(db *sqlite.DB, r ablageRepos, waechter *maintenance.BlobWaechter, v vorlaeufig) error {
 	k := h.k
@@ -417,11 +432,7 @@ func (h *Handle) verdrahteRecord(db *sqlite.DB, waechter *maintenance.BlobWaecht
 	if err != nil {
 		return err
 	}
-	h.sessions, err = b.NeueSession(session.Konfig{
-		Sessions: db.Sessions(), Dienste: h.dienste, Wartung: h.wartung, Uhr: h.uhr, IDs: h.ids, Log: slog.New(h.tel.Handler()),
-		Record: h.record, Exchanges: db.Recording(), Frist: k.ShutdownTimeout, Audit: h.audit,
-	})
-	if err != nil {
+	if err := h.baueSessions(db, h.record); err != nil {
 		return err
 	}
 	h.importer, err = b.NeuerImport(baselineimport.Konfig{
@@ -474,8 +485,11 @@ func (h *Handle) Wartung() inbound.MaintenanceUseCase { return h.wartung }
 // Record liefert den Use Case der Aufnahme; außer im Modus record nil.
 func (h *Handle) Record() inbound.RecordUseCase { return h.record }
 
-// Sessions liefert den Use Case der Sessions; außer im Modus record nil.
+// Sessions liefert den Use Case der Sessions, in jedem Modus.
 func (h *Handle) Sessions() inbound.SessionUseCase { return h.sessions }
+
+// Inspektion liefert den Use Case der Inspektion, in jedem Modus.
+func (h *Handle) Inspektion() inbound.InspectionUseCase { return h.inspektion }
 
 // Import liefert den Use Case des Imports; außer im Modus record nil.
 func (h *Handle) Import() inbound.ImportUseCase { return h.importer }

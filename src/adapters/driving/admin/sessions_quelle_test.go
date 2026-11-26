@@ -5,9 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -111,31 +109,4 @@ func TestS1S16QuelleDerRouten(t *testing.T) {
 		}
 	}
 	gleichAuf(t, "Zahl der geprüften Dateien gleich der der Dateien der Routen", geprueft, len(sessionsDateien(t)))
-}
-
-// TestS17BinaryUnveraendert hält S17 (SPEC-292 Nr. 14) am Quelltext: keine Datei des Pakets bootstrap (auch keine _test.go)
-// importiert admin oder nennt SessionRouten. Die Zahl der geprüften Dateien ist die der Dateien des Pakets.
-func TestS17BinaryUnveraendert(t *testing.T) {
-	dateien, err := filepath.Glob(filepath.Join("..", "..", "..", "bootstrap", "*.go"))
-	if err != nil || len(dateien) < 10 {
-		t.Fatalf("%d Dateien von bootstrap, Fehler %v", len(dateien), err)
-	}
-	for _, d := range dateien {
-		f, err := parser.ParseFile(token.NewFileSet(), d, nil, parser.ImportsOnly)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, im := range f.Imports {
-			if p, _ := strconv.Unquote(im.Path.Value); strings.HasSuffix(p, "/driving/admin") {
-				t.Errorf("%s importiert %s", d, p)
-			}
-		}
-		src, err := os.ReadFile(d)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if z := zaehleSelektoren(t, d, src, "", "SessionRouten"); z != 0 {
-			t.Errorf("%s: %d Nennungen von SessionRouten", d, z)
-		}
-	}
 }

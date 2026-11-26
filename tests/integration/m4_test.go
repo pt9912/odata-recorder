@@ -125,8 +125,8 @@ func (w *m4Welt) startHybrid(t *testing.T, up *referenzdienst, extra ...string) 
 	t.Helper()
 	k := konfig(t, "hybrid", w.kopie(t), up.URL()+"/odata", extra...)
 	h := hochgefahren(context.Background(), t, k)
-	if h.Sessions() != nil || h.Record() != nil || h.Import() != nil {
-		t.Fatal("Sessions(), Record() oder Import() im Modus hybrid ist nicht nil")
+	if h.Sessions() == nil || h.Record() != nil || h.Import() != nil {
+		t.Fatal("Sessions() ist nil, oder Record() oder Import() ist im Modus hybrid nicht nil")
 	}
 	return neuerClient(t, h.Adresse())
 }

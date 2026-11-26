@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-endpunkte
+**Fund:** Die geänderte Aussage zu `Sessions()` änderte auch die Zählungen der Konstruktoren in zwei Bestandstests; §6 des Plans nannte sie, die Dateitabelle in §3 nannte allein die Zeilen zu `Sessions()` und die Prüfung *Modus* (Verifikation V-5), nachgezogen bei der Closure. Beleg: Verifikation `2026-11-26-slice-bootstrap-m6-endpunkte-verifikation` (V-5), Plan `slice-bootstrap-m6-endpunkte` §3, §6.
