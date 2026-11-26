@@ -111,6 +111,13 @@ FROM source AS contract
 RUN --network=none go test -c -trimpath -o /out/bootstrap.test ./src/bootstrap \
  && go test -c -trimpath -o /out/integration.test ./tests/integration
 
+# --- security: die Test-Binaries von src/adapters/driving/admin und src/bootstrap (go test -c) über der Stufe integration,
+# die das Binary und e2e.test trägt (SPEC-041 Nr. 1). Der Treiber tools/harness/test-security.sh führt je Binary einen
+# Container ohne Netz aus diesem Image, im Arbeitsverzeichnis des Pakets; jeder RUN läuft ohne Netz.
+FROM integration AS security
+RUN --network=none go test -c -trimpath -o /out/admin.test ./src/adapters/driving/admin \
+ && go test -c -trimpath -o /out/bootstrap.test ./src/bootstrap
+
 # --- handbuch: das Benutzerhandbuch und seine Beispiel-Dateien gegen das gebaute Binary der Stufe
 # build, gefahren von pruefung (SPEC-200); jeder RUN ohne Netz. Die Wurzel trägt docs/user, die
 # Makefiles, das Dockerfile und harness/mk.
