@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest-auswertung
+**Fund:** Die Zusage „`ereignis` gleich `span`“ meint unbeschränkt viele andere Texte; der Test führte `log`, eine Zahl und `null`, und weder Plan noch Test nannten eine Prüfgrenze: Vergleich als Anfang, ohne Schreibweise und als Teil blieben grün (F-7 des Reviews, MEDIUM). Die Fix-Runde führt seither 14 Formen nahe `span` nach vier Achsen. Beleg: Review F-7 (`2026-11-26-slice-lasttest-auswertung-review`).

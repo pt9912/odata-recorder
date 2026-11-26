@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest-auswertung
+**Fund:** Zweimal trug eine zweite Stelle die berichtigte Aussage weiter. Die Aussage zu `math.Ceil(0.95·n)` stand im Negativ (5) berichtigt und in der Zeile A5 der Tabelle falsch (F-10 des Reviews). Nach der Fix-Runde war „eine hängende Probe hält die Last nicht an“ im Testkopf und in *Treffpunkt* berichtigt, in der Zeile A8, im Kommentar von `starteProben` nicht, und der Kopf nannte Nr. 16 o und p nicht (V-9 der Verifikation). Beleg: Review F-10 (`2026-11-26-slice-lasttest-auswertung-review`), Verifikation V-9.
