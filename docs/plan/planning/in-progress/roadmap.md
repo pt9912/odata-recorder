@@ -16,6 +16,8 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
+In Arbeit: [slice-bootstrap-m6-endpunkte](slice-bootstrap-m6-endpunkte.md) ([welle-admin-api](../welle-admin-api.md), Teil A des Schnitts von [slice-bootstrap-m6](../open/slice-bootstrap-m6.md): Dienste in jedem Modus, Routen der vier Konstruktoren, Einstellungen der Diagnose und Ersatz der vier Wächter im Composition Root; schreibt unter `src/bootstrap/` und in vier Testdateien von `src/adapters/driving/admin/`).
+
 In Arbeit: [slice-lasttest-auswertung](slice-lasttest-auswertung.md) ([welle-betrieb](../welle-betrieb.md), Teil 2 des Schnitts von [slice-lasttest](../open/slice-lasttest.md) nach [slice-lasttest-fixtures](../done/slice-lasttest-fixtures.md): Leser der Span-Zeilen, Phasen, p95, Anteil, Proben der Last, Urteil, Exit und Ausgabe; schreibt nur unter `tests/lasttest/`).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
