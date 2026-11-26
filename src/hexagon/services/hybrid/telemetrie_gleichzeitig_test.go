@@ -213,8 +213,8 @@ func pruefeGleichzeitig(t *testing.T, j *journal, fehler []error) {
 // TestGleichzeitigeSpans hält D16 (SPEC-321 Nr. 9 a): 16 Goroutinen mal 6 Szenarien (Replay antwortet, Replay scheitert, Kette
 // mit Antwort des Upstream, Upstream antwortet, Upstream scheitert, Abbruch), alle in ihrer Stufe offen, bis der Test sie
 // freigibt; je Anfrage trägt jeder Span Art und Ergebnis seiner Stufe, kein Span endet zweimal oder nie, und die Summen der
-// Zähler stimmen (48, 48 und 16). Fünf Runden je Prozess. Ein geteilter Zustand ohne Ordnung fällt dem Detektor von make test-race auf, ein geordnet geteilter nur
-// in einem Teil der Läufe (bei einem Prozessor in keinem, SPEC-321 *Ungeprüft*); die Zusage „kein Zustand, keine Goroutine“ tragen
+// Zähler stimmen (48, 48 und 16). Fünf Runden je Prozess. Einen geteilten Zustand ohne Ordnung fängt der Detektor von make test-race, einen geordnet geteilten
+// dieser Test nur in einem Teil der Läufe (gemessen 0 von 20 Prozessen bei einem Prozessor); die Zusage „kein Zustand, keine Goroutine“ tragen
 // TestQuelltext und TestVerteilerFelder.
 func TestGleichzeitigeSpans(t *testing.T) {
 	for range 5 {

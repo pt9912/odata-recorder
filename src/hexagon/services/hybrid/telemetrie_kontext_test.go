@@ -36,8 +36,8 @@ func formen(e, x error) []form {
 }
 
 // TestKontextfehlerKlasse hält D5 und D11 gegen die Klasse (SPEC-321 Nr. 4 b, SPEC-284 Nr. 2): die Menge ist Ort der Stufe (M, R, Senden)
-// × Kontextfehler (Canceled, DeadlineExceeded) × Fehler daneben (keiner, ohne Code, mit Code) × Verpackung. Ein Kontextfehler in jeder
-// Form endet den Span von R und von Senden mit abgebrochen, kehrt als derselbe Wert zurück, löst weder den Miss noch den Upstream
+// × Kontextfehler (Canceled, DeadlineExceeded) × Fehler daneben (keiner, ohne Code, mit Code) × Verpackung (höchstens zwei Schritte,
+// ein Join trägt einen Kontextfehler) endet den Span von R und von Senden mit abgebrochen, kehrt als derselbe Wert zurück, löst weder den Miss noch den Upstream
 // aus, und bei M entsteht kein Span und keine Zählung. Zählprüfung: M 26, R 26, Senden 22 und als Gegenprobe 15 Verpackungen ohne
 // Kontextfehler (R 6, Senden 9), die fehler ergeben und bei Senden den Code der Abbildung tragen.
 func TestKontextfehlerKlasse(t *testing.T) {
