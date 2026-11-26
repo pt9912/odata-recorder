@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid"
 )
 
@@ -83,7 +84,7 @@ func TestRootJederPosition(t *testing.T) {
 			}
 			_, err := hybrid.New(hybrid.Konfig{
 				Dienste: dienste, Mock: fakeMock{&stufe{}}, Replay: fakeReplay{&stufe{}}, Upstream: &stufeU{},
-				Policy: mitKategorien(t), MaxBytes: 1,
+				Policy: mitKategorien(t), MaxBytes: 1, Telemetrie: supporttest.NewFakeTelemetry(),
 			})
 			if (pos >= 0) != errors.Is(err, model.ErrUngueltig) || (pos < 0 && err != nil) {
 				t.Errorf("Länge %d, leer an %d: Fehler %v", laenge, pos, err)
@@ -239,7 +240,7 @@ func TestVerteilerFelder(t *testing.T) {
 	}
 	want := []string{
 		"dienste []Dienst", "mock inbound.MockUseCase", "replay inbound.ReplayUseCase",
-		"upstream outbound.UpstreamClient", "policy *policy.Policy", "maxBytes int64",
+		"upstream outbound.UpstreamClient", "policy *policy.Policy", "maxBytes int64", "telemetrie support.FallbackTelemetry",
 	}
 	slices.Sort(felder)
 	slices.Sort(want)

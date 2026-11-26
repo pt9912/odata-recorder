@@ -13,6 +13,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid/policy"
 )
@@ -255,12 +256,13 @@ func neuesRigUp(t *testing.T, pol *policy.Policy, grenze int64, dienste []hybrid
 		up = g.u
 	}
 	v, err := hybrid.New(hybrid.Konfig{
-		Dienste:  dienste,
-		Mock:     fakeMock{g.m},
-		Replay:   fakeReplay{g.r},
-		Upstream: up,
-		Policy:   pol,
-		MaxBytes: grenze,
+		Dienste:    dienste,
+		Mock:       fakeMock{g.m},
+		Replay:     fakeReplay{g.r},
+		Upstream:   up,
+		Policy:     pol,
+		MaxBytes:   grenze,
+		Telemetrie: supporttest.NewFakeTelemetry(),
 	})
 	if err != nil {
 		t.Fatalf("hybrid.New: %v", err)

@@ -339,8 +339,9 @@ func (h *Handle) verdrahteMock(db *sqlite.DB, r ablageRepos, waechter *maintenan
 	return nil
 }
 
-// verdrahteHybrid baut Mock, Replay, Upstream-Client und Policy und bindet den Hybrid-Dienst (SPEC-139 Nr. 12 a): kein
-// Recorder, keine Pipeline, kein SessionUseCase, kein Import. Der Upstream-Client entsteht auch bei disabled.
+// verdrahteHybrid baut Mock, Replay, Upstream-Client und Policy und bindet den Hybrid-Dienst mit dem Adapter des Prozesses
+// als Telemetrie (SPEC-139 Nr. 12 a, 13 g): kein Recorder, keine Pipeline, kein SessionUseCase, kein Import. Der
+// Upstream-Client entsteht auch bei disabled.
 func (h *Handle) verdrahteHybrid(db *sqlite.DB, r ablageRepos, waechter *maintenance.BlobWaechter, v vorlaeufig) error {
 	k := h.k
 	m, err := h.baueMock(db, r, waechter)
@@ -364,7 +365,7 @@ func (h *Handle) verdrahteHybrid(db *sqlite.DB, r ablageRepos, waechter *mainten
 		dienste[i] = hybrid.Dienst{Root: d.Root, UpstreamURL: d.UpstreamURL}
 	}
 	hy, err := h.b.NeuerHybrid(hybrid.Konfig{
-		Dienste: dienste, Mock: m, Replay: rep, Upstream: upstream, Policy: pol, MaxBytes: k.MaxCaptureBody,
+		Dienste: dienste, Mock: m, Replay: rep, Upstream: upstream, Policy: pol, MaxBytes: k.MaxCaptureBody, Telemetrie: h.tel,
 	})
 	if err != nil {
 		return err
