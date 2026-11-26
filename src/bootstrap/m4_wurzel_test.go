@@ -173,9 +173,9 @@ func m4Sende(ctx context.Context, t *testing.T, srv func(context.Context, inboun
 
 // TestM4WahlJeModus fängt M01: Modus × Anfrage mit Auslöser (der Mock antwortet mit ODR-E6001): im Modus hybrid trägt die Antwort die
 // Kennzeichnung des Upstream-Fallbacks und der Hybrid-Dienst ist der Verarbeiter, in den Modi mock und replay ist die Antwort nie eine
-// Fallback-Antwort und der Hybrid-Dienst wird nie gebaut; im Modus hybrid sind Sessions(), Record() und Import() der Nullwert der
-// Schnittstelle, und Mock, Replay, Upstream-Client und Telemetrie (der Adapter des Prozesses, SPEC-139 Nr. 13 c) werden je einmal gebaut,
-// Recorder, Pipeline, Session und Import nie (SPEC-139 Nr. 1, 5, 12 a).
+// Fallback-Antwort und der Hybrid-Dienst wird nie gebaut; im Modus hybrid sind Record() und Import() der Nullwert der Schnittstelle
+// und Sessions() nicht, und Mock, Replay, Upstream-Client, SessionUseCase und Telemetrie (der Adapter des Prozesses, SPEC-139
+// Nr. 13 c) werden je einmal gebaut, Recorder, Pipeline und Import nie (SPEC-139 Nr. 1, 3, 5, 12 a).
 func TestM4WahlJeModus(t *testing.T) {
 	ctx := context.Background()
 	up := neuerZaehlUpstream(t)
@@ -218,13 +218,13 @@ func TestM4WahlJeModus(t *testing.T) {
 			if modus != "hybrid" {
 				return
 			}
-			if hd.Sessions() != nil || hd.Record() != nil || hd.Import() != nil || hd.Workspaces() == nil || hd.Snapshots() == nil || hd.Wartung() == nil {
+			if hd.Sessions() == nil || hd.Record() != nil || hd.Import() != nil || hd.Workspaces() == nil || hd.Snapshots() == nil || hd.Wartung() == nil {
 				t.Errorf("Zugänge: Sessions %v, Record %v, Import %v", hd.Sessions(), hd.Record(), hd.Import())
 			}
-			if want := map[string]int{"upstream": 1, "telemetrie": 1, "replay": 1}; !maps.Equal(m.verboten, want) || len(m.mock) != 1 {
+			if want := map[string]int{"upstream": 1, "telemetrie": 1, "replay": 1, "session": 1}; !maps.Equal(m.verboten, want) || len(m.mock) != 1 {
 				t.Errorf("Konstruktoren %v, Mock %d-mal; erwartet %v und einmal", m.verboten, len(m.mock), want)
 			}
-			for _, n := range []string{"pipeline", "session", "recorder", "import"} {
+			for _, n := range []string{"pipeline", "recorder", "import"} {
 				if m.verboten[n] != 0 {
 					t.Errorf("Modus hybrid ruft den Konstruktor %s", n)
 				}

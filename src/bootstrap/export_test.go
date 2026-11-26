@@ -8,6 +8,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/pt9912/odata-recorder/src/adapters/driven/telemetry"
+	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
@@ -109,6 +111,12 @@ func StartMit(ctx context.Context, environ []string, stderr io.Writer, b Bauteil
 func BuildMit(ctx context.Context, k Konfiguration, log *slog.Logger, b Bauteile) (*Handle, error) {
 	return build(ctx, k, log, io.Discard, b)
 }
+
+// AdminRouten liefert die Routen des Admin-Adapters, die Build im Handle ablegt (SPEC-300 Nr. 13 a).
+func AdminRouten(h *Handle) []admin.Route { return h.routen }
+
+// TelemetrieVon liefert den Adapter des Prozesses (SPEC-139 Nr. 13).
+func TelemetrieVon(h *Handle) *telemetry.Adapter { return h.tel }
 
 // BuildMitSenke ist Build mit gegebenen Bauteilen und der Senke des Adapters des Prozesses (SPEC-139 Nr. 13).
 func BuildMitSenke(ctx context.Context, k Konfiguration, log *slog.Logger, senke io.Writer, b Bauteile) (*Handle, error) {

@@ -5,7 +5,6 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -162,29 +161,4 @@ func TestWS15Quelltext(t *testing.T) {
 		"snapshots.List": 1, "snapshots.Create": 1,
 	})
 	gleichAuf(t, "Zahl der Aufrufstellen", len(stellen), 8)
-}
-
-// TestWS15BinaryUnveraendert hält SPEC-298 Nr. 14 am Quelltext: keine Datei des Pakets bootstrap (auch keine _test.go)
-// importiert admin oder nennt WorkspaceRouten; die Prüfung des Verzeichnisses `src/bootstrap` gegen die Basis (leer in diesem
-// Teil) ist Handarbeit des Handoffs (`git diff --stat`), kein Test.
-func TestWS15BinaryUnveraendert(t *testing.T) {
-	wsFrist(t)
-	dateien, err := filepath.Glob(filepath.Join("..", "..", "..", "bootstrap", "*.go"))
-	if err != nil || len(dateien) < 10 {
-		t.Fatalf("%d Dateien von bootstrap, Fehler %v", len(dateien), err)
-	}
-	for _, d := range dateien {
-		src, err := os.ReadFile(d)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, p := range wsImporte(t, d, src) {
-			if strings.HasSuffix(p, "/driving/admin") {
-				t.Errorf("%s importiert %s", d, p)
-			}
-		}
-		if z := zaehleSelektoren(t, d, src, "", "WorkspaceRouten"); z != 0 {
-			t.Errorf("%s: %d Nennungen von WorkspaceRouten", d, z)
-		}
-	}
 }
