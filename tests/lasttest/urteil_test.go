@@ -99,8 +99,10 @@ func TestStreuung(t *testing.T) {
 		{20009, 22009, 2000, true}, {20009, 22010, 2000, false}, {20019, 22020, 2001, true}, {20019, 22021, 2001, false},
 		{20020, 22022, 2002, true}, {20020, 22023, 2002, false}, {123456, 135801, 12345, true}, {123456, 135802, 12345, false},
 	}
+	n := 0
 	for _, f := range faelle {
 		for _, lauefe := range [][]Messung{{lauf(f.klein), lauf(f.gross)}, {lauf(f.gross), lauf(f.klein)}} {
+			n++
 			u := urteilBetriebsart("mock", lauefe, 1000)
 			if u.Streuung != f.gross-f.klein || u.Toleranz != f.tol || u.P95 != f.gross {
 				t.Errorf("%d und %d: d %d, Toleranz %d, p95 %d; erwartet %d, %d und %d", f.klein, f.gross, u.Streuung, u.Toleranz, u.P95, f.gross-f.klein, f.tol, f.gross)
@@ -111,36 +113,43 @@ func TestStreuung(t *testing.T) {
 		}
 	}
 	for _, f := range []struct {
-		a, b int64
-		want string
-	}{{98000, 101000, urteilDurchgefallen}, {90000, 95000, urteilBestanden}, {100000, 100000, urteilBestanden}} {
-		if u := urteilBetriebsart("replay", []Messung{lauf(f.a), lauf(f.b)}, 100); u.Ergebnis != f.want || u.Grund != grundOK || u.P95 != f.b {
-			t.Errorf("%d und %d bei Ziel 100: %+v; erwartet %s mit dem größeren p95", f.a, f.b, u, f.want)
+		a, b, d, tol int64
+		want         string
+	}{{98000, 101000, 3000, 9800, urteilDurchgefallen}, {90000, 95000, 5000, 9000, urteilBestanden}, {100000, 100000, 0, 10000, urteilBestanden}} {
+		u := urteilBetriebsart("replay", []Messung{lauf(f.a), lauf(f.b)}, 100)
+		if u.Ergebnis != f.want || u.Grund != grundOK || u.P95 != f.b || u.Streuung != f.d || u.Toleranz != f.tol {
+			t.Errorf("%d und %d bei Ziel 100: %+v; erwartet %s mit dem größeren p95, d %d und Toleranz %d", f.a, f.b, u, f.want, f.d, f.tol)
 		}
+		n++
 	}
 	ungueltig := Messung{Gueltig: false, Grund: grundLast, P95: 70000}
 	for _, laeufe := range [][]Messung{{ungueltig, lauf(50000)}, {lauf(50000), ungueltig}} {
 		u := urteilBetriebsart("replay", laeufe, 100)
-		if u.Ergebnis != urteilUngueltig || u.Grund != grundLast || u.P95 != 50000 || u.Laeufe != 2 || u.Streuung != 0 {
-			t.Errorf("ein ungültiger Lauf: %+v; erwartet ungueltig, last und das p95 des gültigen Laufs", u)
+		if u != (urteil{Betriebsart: "replay", Laeufe: 2, ZielMs: 100, P95: 50000, Ergebnis: urteilUngueltig, Grund: grundLast}) {
+			t.Errorf("ein ungültiger Lauf: %+v; erwartet ungueltig, last, das p95 des gültigen Laufs, Streuung und Toleranz 0", u)
 		}
+		n++
 	}
-	zwei := []Messung{{Gueltig: false, Grund: grundLast}, {Gueltig: false, Grund: grundBinary}}
+	zwei := []Messung{{Gueltig: false, Grund: grundLast, P95: 40000}, {Gueltig: false, Grund: grundBinary, P95: 90000}}
 	for _, laeufe := range [][]Messung{zwei, {zwei[1], zwei[0]}} {
-		if u := urteilBetriebsart("replay", laeufe, 100); u.Ergebnis != urteilUngueltig || u.Grund != laeufe[0].Grund || u.P95 != 0 {
-			t.Errorf("zwei ungültige Läufe %s und %s: %+v; erwartet den Grund des ersten", laeufe[0].Grund, laeufe[1].Grund, u)
+		u := urteilBetriebsart("replay", laeufe, 100)
+		if u != (urteil{Betriebsart: "replay", Laeufe: 2, ZielMs: 100, Ergebnis: urteilUngueltig, Grund: laeufe[0].Grund}) {
+			t.Errorf("zwei ungültige Läufe %s und %s: %+v; erwartet den Grund des ersten, p95, Streuung und Toleranz 0", laeufe[0].Grund, laeufe[1].Grund, u)
 		}
+		n++
 	}
 	for name, laeufe := range map[string][]Messung{"leere Liste": {}, "nil": nil} {
 		if u := urteilBetriebsart("mock", laeufe, 80); u != (urteil{Betriebsart: "mock", ZielMs: 80, Ergebnis: urteilUngueltig, Grund: grundZaehlung}) {
 			t.Errorf("%s ohne Lauf: %+v; erwartet ungueltig mit zaehlung, 0 Läufe und Dauern 0", name, u)
 		}
+		n++
 	}
 	u := urteilBetriebsart("replay", []Messung{lauf(120000)}, 100)
-	if u.Ergebnis != urteilDurchgefallen || u.Streuung != 0 || u.Toleranz != 0 || u.Laeufe != 1 || u.P95 != 120000 {
+	if u != (urteil{Betriebsart: "replay", Laeufe: 1, ZielMs: 100, P95: 120000, Ergebnis: urteilDurchgefallen, Grund: grundOK}) {
 		t.Errorf("ein Lauf allein: %+v; erwartet durchgefallen ohne Streuung", u)
 	}
-	if n := len(faelle)*2 + 3 + 2 + 2 + 2 + 1; n != 19*2+10 {
+	n++
+	if n != 48 {
 		t.Errorf("%d Fälle, erwartet 48", n)
 	}
 }

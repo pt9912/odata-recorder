@@ -104,7 +104,7 @@ func (p *lastProben) nimm(zeit time.Time) {
 }
 
 // starteProben nimmt die Probe vor dem Warm-up und startet in einer eigenen Goroutine je probenIntervall der Uhr eine weitere, bis dauer
-// seit dem Start vergangen ist (Gleichheit eingeschlossen); die Proben laufen neben der Last und halten sie nicht an (SPEC-216 Nr. 11).
+// seit dem Start vergangen ist (Gleichheit eingeschlossen), und kehrt zurück, ohne auf diese zu warten (SPEC-216 Nr. 11).
 func starteProben(ctx context.Context, uhr Uhr, q lastQuelle, kerne int, dauer time.Duration) *lastProben {
 	ctx, cancel := context.WithCancel(ctx)
 	p := &lastProben{q: q, kerne: kerne, uhr: uhr, start: uhr.Jetzt(), cancel: cancel, fertig: make(chan struct{})}

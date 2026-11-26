@@ -62,7 +62,7 @@ func (z *zeitfolge) Now() time.Time {
 
 // TestSpanZeilen: Menge der Formen: 10 gültige Zeilen (die 3 des Plans, eine mit Leerraum vor dem Objekt, drei Gesamtspans ohne, mit null und mit
 // einer Zahl als recorder.mode, die als Zeile gelesen werden und einen leeren Modus tragen, und je eine mit leerer parent_id, leerer span_id und
-// leerem msg) und 46 fremde (die 13 Formen des Plans, dazu 18 weitere: Feld falscher Art oder null je Pflichtfeld und parent_id, JSON ohne Objekt,
+// leerem msg) und 47 fremde (die 13 Formen des Plans, eine ohne ereignis, dazu 18 weitere: Feld falscher Art oder null je Pflichtfeld und parent_id, JSON ohne Objekt,
 // Dauer ohne Punkt mit drei Ziffern, mit Exponent, ohne Ziffer vor dem Punkt, mit Buchstaben, mit Vorzeichen, über int64; dazu 14 Formen nahe
 // span: der Großbuchstabe je Stelle, die Anfänge, ein angehängtes und ein vorangestelltes Zeichen, und 01.000); Dauern als ganze Mikrosekunden
 // aus dem Text (0.000 bis 9223372036854775.807, eins mehr ist fremd); die Zeilen des echten Adapters (telemetry.New mit vorgegebener Uhr,
@@ -123,9 +123,10 @@ func TestSpanZeilen(t *testing.T) {
 	for _, e := range ereignisse {
 		weitere = append(weitere, jsonZeile(e, jsonName, jsonID, "", "1.000"))
 	}
-	weitere = append(weitere, jsonZeile(jsonSpan, jsonName, jsonID, "", "01.000"))
-	if len(plan) != 13 || len(ereignisse) != 14 || len(weitere) != 33 {
-		t.Fatalf("%d, %d und %d fremde Formen, erwartet 13, 14 und 33 weitere", len(plan), len(ereignisse), len(weitere))
+	// jedes Pflichtfeld einzeln fehlend: msg, span_id und duration_ms stehen im Plan, ereignis hier.
+	weitere = append(weitere, jsonZeile(jsonSpan, jsonName, jsonID, "", "01.000"), jsonZeile("", jsonName, jsonID, "", "1.000"))
+	if len(plan) != 13 || len(ereignisse) != 14 || len(weitere) != 34 {
+		t.Fatalf("%d, %d und %d fremde Formen, erwartet 13, 14 und 34 weitere", len(plan), len(ereignisse), len(weitere))
 	}
 	for _, f := range append(plan, weitere...) {
 		z, fremd, err := leseAlles(strings.NewReader(f + "\n"))
@@ -133,7 +134,11 @@ func TestSpanZeilen(t *testing.T) {
 			t.Errorf("%q: Zeilen %+v, fremd %d, Fehler %v; erwartet keine Zeile und fremd 1", f, z, fremd, err)
 		}
 	}
-	for text, mikros := range map[string]int64{"0.000": 0, "0.001": 1, "0.999": 999, "1.000": 1000, "123456.789": 123456789, "9223372036854775.807": 9223372036854775807} {
+	dauern := map[string]int64{"0.000": 0, "0.001": 1, "0.999": 999, "1.000": 1000, "123456.789": 123456789, "9223372036854775.807": 9223372036854775807}
+	if len(dauern) != 6 {
+		t.Fatalf("%d Dauern, erwartet 6", len(dauern))
+	}
+	for text, mikros := range dauern {
 		z, fremd, err := leseAlles(strings.NewReader(jsonZeile(jsonSpan, jsonName, jsonID, "", text) + "\n"))
 		if err != nil || fremd != 0 || len(z) != 1 || z[0].Mikros != mikros {
 			t.Errorf("Dauer %s: Zeilen %+v, fremd %d, Fehler %v; erwartet %d µs", text, z, fremd, err, mikros)

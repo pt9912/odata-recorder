@@ -20,8 +20,8 @@ func zeileVon(t *testing.T, z zeilenart) string {
 	return s
 }
 
-// TestAusgabe: Golden-Text je Urteil (3), je Hinweis (2) und je Zeilenart (6: Start, Aufbau, Messung, Last, Urteil, Abnahme, mit allen Schlüsseln
-// in der Folge des Vertrags; 13 Zeilen, `gueltig` und `grund` von einander unabhängig geführt: `Aufbau` mit verschiedenen `exchanges` und `entities` und einer Dauer mit 999.999 ns über der
+// TestAusgabe: Golden-Text je Urteil (3), je Hinweis (2, dazu ein zweiter Exit) und je Zeilenart (6: Start, Aufbau, Messung, Last, Urteil, Abnahme, mit allen Schlüsseln
+// in der Folge des Vertrags; 14 Zeilen, `gueltig` und `grund` von einander unabhängig geführt: `Aufbau` mit verschiedenen `exchanges` und `entities` und einer Dauer mit 999.999 ns über der
 // Millisekunde, abgeschnitten statt gerundet, `Messung` mit `gueltig=nein` und `gueltig=ja`, dazu Dauern unter einer Millisekunde); Zahlenformen aus ganzen Zahlen (0 gleich 0.000, 1 gleich 0.001, 999999 gleich 999.999, 1000000 gleich 1000.000, dazu
 // eine Zahl über 2^53); die 13 Tokens und je 5 Werte außerhalb der Menge in den drei Zeilen mit grund (15); schreibe schreibt nichts bei einem Fehler.
 func TestAusgabe(t *testing.T) {
@@ -38,6 +38,7 @@ func TestAusgabe(t *testing.T) {
 			"lasttest: Urteil betriebsart=mock laeufe=2 ziel_ms=100 p95_ms=45.000 streuung_ms=20.001 toleranz_ms=4.500 ergebnis=ungueltig grund=streuung"},
 		{hinweis{Betriebsart: "replay", Exit: 1}, "lasttest: Hinweis betriebsart=replay binary_exit=1"},
 		{hinweis{Betriebsart: "mock", Kill: true}, "lasttest: Hinweis betriebsart=mock binary_kill=ja"},
+		{hinweis{Betriebsart: "mock", Exit: 137}, "lasttest: Hinweis betriebsart=mock binary_exit=137"},
 		{startZeile{"abnahme", "beide", 100, 999999999999999999, 20},
 			"lasttest: Start profil=abnahme betriebsart=beide ziel_ms=100 startwert=999999999999999999 kerne=20"},
 		{aufbauZeile{10000, 9999, 61, 95*time.Second + 250*time.Millisecond + 999999*time.Nanosecond},
@@ -58,12 +59,19 @@ func TestAusgabe(t *testing.T) {
 		{abnahmeZeile{100, true, grundOK}, "lasttest: Abnahme ziel_ms=100 abnahmewert_ms=100 abnahme=ja grund=ok"},
 		{abnahmeZeile{80, false, grundZiel}, "lasttest: Abnahme ziel_ms=80 abnahmewert_ms=100 abnahme=nein grund=ziel"},
 	}
+	if len(golden) != 14 {
+		t.Fatalf("%d Golden-Zeilen, erwartet 14", len(golden))
+	}
 	for _, g := range golden {
 		if got := zeileVon(t, g.z); got != g.want {
 			t.Errorf("Zeile\n%s\nerwartet\n%s", got, g.want)
 		}
 	}
-	for n, want := range map[int64]string{0: "0.000", 1: "0.001", 999: "0.999", 1000: "1.000", 999999: "999.999", 1000000: "1000.000", 9007199254740993: "9007199254740.993"} {
+	zahlen := map[int64]string{0: "0.000", 1: "0.001", 999: "0.999", 1000: "1.000", 999999: "999.999", 1000000: "1000.000", 9007199254740993: "9007199254740.993"}
+	if len(zahlen) != 7 {
+		t.Fatalf("%d Zahlenformen, erwartet 7", len(zahlen))
+	}
+	for n, want := range zahlen {
 		if got := tausendstel(n); got != want {
 			t.Errorf("tausendstel(%d) = %s, erwartet %s", n, got, want)
 		}
@@ -93,13 +101,18 @@ func TestAusgabe(t *testing.T) {
 			}
 		}
 	}
+	fremde := 0
 	for _, g := range []string{"", "OK", "frei text", "ok ", "nein"} {
 		for _, z := range mitGrund(g) {
 			var puffer bytes.Buffer
 			if err := schreibe(&puffer, z); !errors.Is(err, errToken) || puffer.Len() != 0 {
 				t.Errorf("grund %q in %T: Fehler %v, geschrieben %q; erwartet errToken und nichts", g, z, err, puffer.String())
 			}
+			fremde++
 		}
+	}
+	if fremde != 15 {
+		t.Errorf("%d fremde Werte, erwartet 15", fremde)
 	}
 	var puffer bytes.Buffer
 	if err := schreibe(&puffer, hinweis{Betriebsart: "mock", Kill: true}); err != nil || puffer.String() != "lasttest: Hinweis betriebsart=mock binary_kill=ja\n" {

@@ -50,8 +50,9 @@ func (fehlerLast) Lies() ([]byte, error) { return []byte("1.00 1.00 1.00"), erro
 // dazu 8 weitere und der Fehler der Quelle) tragen den kleinsten Wert über der Schwelle und sind nicht zulässig; 17 lesbare Formen (6 mit weiteren
 // Feldern, 2 mit allein der Zahl, 4 mit einem Trennzeichen aus Tab, LF, CR und U+00A0 hinter ihr, 5 mit einem aus Leerzeichen, Tab, LF, CR und
 // U+00A0 davor; die Zeichen jenseits von ASCII aus Bytewerten) mit ihren
-// Hundertsteln; eine Spitze in der Mitte der Messphase (24 Proben, die 12. darüber) macht den Lauf ungültig mit genau dieser Probe als Maximum;
-// die Zeitpunkte der 24 Proben als Literal; vor dem Aufbau darüber läuft der Aufbau 0 mal.
+// Hundertsteln und 25 Zeichen White_Space als Trenner (leerraum); eine Spitze in der Mitte der Messphase (24 Proben, die 12. darüber) macht den
+// Lauf ungültig mit genau dieser Probe als Maximum; die Zeitpunkte der 24 Proben als Literal; eine Probe über der Schwelle und die kleinste an
+// jeder Stelle des Laufs, mit der Schwelle je Kernzahl (probenStellen); vor dem Aufbau darüber läuft der Aufbau 0 mal.
 func TestLastProben(t *testing.T) {
 	wache(t, 30*time.Second)
 	grenzen := []struct {
@@ -64,6 +65,9 @@ func TestLastProben(t *testing.T) {
 		{1, "0.50 0.40 0.30 1/10 5\n", 50, true}, {1, "0.51 0.40 0.30 1/10 5\n", 51, false}, {1, "0.00 0.00 0.00 1/10 5\n", 0, true},
 		{2, "1.00 0.00 0.00 1/10 5\n", 100, true}, {2, "1.01 0.00 0.00 1/10 5\n", 101, false},
 		{19, "9.50 0.00 0.00 1/10 5\n", 950, true}, {19, "9.51 0.00 0.00 1/10 5\n", 951, false},
+	}
+	if len(grenzen) != 9 {
+		t.Fatalf("%d Grenzen, erwartet 9", len(grenzen))
 	}
 	for _, g := range grenzen {
 		if p := nimmProbe(neueFakeLast(g.inhalt), g.kerne); p.Hundertstel != g.hundertstel || p.Zulaessig != g.zulaessig {
@@ -102,9 +106,81 @@ func TestLastProben(t *testing.T) {
 			t.Errorf("%q: %+v; erwartet %d Hundertstel und zulässig", inhalt, p, h)
 		}
 	}
+	leerraum(t)
 	lastKlassen(t)
 	spitze(t)
+	probenStellen(t)
 	vorDemAufbau(t)
+}
+
+// leerraum führt jedes der 25 Zeichen mit der Unicode-Eigenschaft White_Space als Trenner hinter und vor der Zahl (50 Elemente; die Zeichen
+// entstehen aus Zahlwerten, AGENTS.md §3.18).
+func leerraum(t *testing.T) {
+	t.Helper()
+	zeichen := []rune{0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20, 0x85, 0xa0, 0x1680, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000}
+	for r := rune(0x2000); r <= 0x200a; r++ {
+		zeichen = append(zeichen, r)
+	}
+	n := 0
+	for _, r := range zeichen {
+		for _, inhalt := range []string{"2.50" + string(r) + "9", string(r) + "2.50"} {
+			if p := nimmProbe(neueFakeLast(inhalt), 20); p.Hundertstel != 250 || !p.Zulaessig {
+				t.Errorf("%U in %q: %+v; erwartet 250 Hundertstel und zulässig", r, inhalt, p)
+			}
+			n++
+		}
+	}
+	if len(zeichen) != 25 || n != 50 {
+		t.Errorf("%d Zeichen und %d Elemente, erwartet 25 und 50", len(zeichen), n)
+	}
+}
+
+// lauf90 fährt einen Lauf von 90 s mit 5 Proben (vor dem Warm-up, Ticks bei 30, 60 und 90 s, nach dem Nachlauf) und den Inhalten der Reihe nach.
+func lauf90(t *testing.T, kerne int, hundertstel [5]int) lastErgebnis {
+	t.Helper()
+	var inhalte []string
+	for _, h := range hundertstel {
+		inhalte = append(inhalte, fmt.Sprintf("%d.%02d 0.00 0.00 1/10 5\n", h/100, h%100))
+	}
+	uhr, q := neueFakeUhr(), neueFakeLast(inhalte...)
+	p := starteProben(context.Background(), uhr, q, kerne, 90*time.Second)
+	warteAuf(t, q.gelesen, time.Second)
+	for range 3 {
+		uhr.Vorstellen(30 * time.Second)
+		warteAuf(t, q.gelesen, time.Second)
+	}
+	warteAuf(t, p.fertig, time.Second)
+	return p.beende()
+}
+
+// probenStellen: eine Probe über der Schwelle macht den Lauf an jeder Stelle ungültig (vor dem Warm-up, erster, mittlerer, letzter Tick, nach
+// dem Nachlauf) und steht als Maximum in der Zeile Last; die kleinste Probe an jeder Stelle steht als Minimum, die Schwelle ist die Hälfte der
+// Kerne (1, 2, 8 und 64 Kerne × 5 Stellen × {über der Schwelle, kleinste} gleich 40 Läufe).
+func probenStellen(t *testing.T) {
+	t.Helper()
+	n := 0
+	for _, kerne := range []int{1, 2, 8, 64} {
+		s := 50 * kerne
+		for stelle := range 5 {
+			hoch, tief := [5]int{s, s, s, s, s}, [5]int{s, s, s, s, s}
+			hoch[stelle], tief[stelle] = s+1, s-10
+			for _, f := range []struct {
+				proben [5]int
+				want   lastErgebnis
+			}{
+				{hoch, lastErgebnis{Proben: 5, Min: s, Max: s + 1, Schwelle: s, Zulaessig: false}},
+				{tief, lastErgebnis{Proben: 5, Min: s - 10, Max: s, Schwelle: s, Zulaessig: true}},
+			} {
+				if got := lauf90(t, kerne, f.proben); got != f.want {
+					t.Errorf("%d Kerne, Proben %v: %+v; erwartet %+v", kerne, f.proben, got, f.want)
+				}
+				n++
+			}
+		}
+	}
+	if n != 40 {
+		t.Errorf("%d Läufe, erwartet 40", n)
+	}
 }
 
 // lastKlassen führt die Menge der Zahlen `d.dd` als Ziffer × Stelle (30 Elemente: die Ziffern 0 bis 9 an den drei Stellen von `1.11`, Erwartung
