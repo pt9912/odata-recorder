@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang mit `slice-lasttest-fixtures` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht; Frage an den Architect: ob `SPEC-128` Nr. 3 k oder Nr. 5 d den Eintrag `ueberschreitung` dem Planner zuweisen soll (heute weist ihn keine Nummer einem Schreiber zu)
