@@ -301,6 +301,30 @@ func TestLeserHaeltNieAn(t *testing.T) {
 	}
 }
 
+// TestLeerraumUmDasObjekt (SPEC-216 Nr. 10 b): jedes der 255 Bytes außer LF einmal vor dem { und einmal hinter dem }: gelesen ist die
+// Zeile davor genau bei Leerzeichen und Tab, dahinter genau bei Leerzeichen, Tab und CR. Die Bytes entstehen aus Bytewerten.
+func TestLeerraumUmDasObjekt(t *testing.T) {
+	wache(t, 30*time.Second)
+	objekt := []byte(`{"ereignis":"span","msg":"m","span_id":"s","duration_ms":1.000}`)
+	n, davor, danach := 0, []byte{}, []byte{}
+	for i := range 256 {
+		b := byte(i)
+		if b == 0x0A {
+			continue
+		}
+		if _, ok := leseSpan(append([]byte{b}, objekt...)); ok {
+			davor = append(davor, b)
+		}
+		if _, ok := leseSpan(append(append([]byte{}, objekt...), b)); ok {
+			danach = append(danach, b)
+		}
+		n += 2
+	}
+	if n != 510 || !slices.Equal(davor, []byte{0x09, 0x20}) || !slices.Equal(danach, []byte{0x09, 0x0D, 0x20}) {
+		t.Errorf("%d Elemente, gelesen davor %v und dahinter %v; erwartet 510, [9 32] und [9 13 32]", n, davor, danach)
+	}
+}
+
 // endlos liefert rest Bytes `x` ohne Zeilenende.
 type endlos struct{ rest int }
 

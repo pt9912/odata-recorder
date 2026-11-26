@@ -134,6 +134,28 @@ func warteAuf[T any](t *testing.T, ch <-chan T, d time.Duration) T {
 	return null
 }
 
+// pause wartet d der wirklichen Zeit.
+func pause(d time.Duration) {
+	z := time.NewTimer(d)
+	defer z.Stop()
+	<-z.C
+}
+
+// bisWahr gibt anderen Goroutinen den Vortritt, bis f wahr ist, höchstens 5 s der wirklichen Zeit, und liefert, ob f wahr wurde.
+func bisWahr(f func() bool) bool {
+	z := time.NewTimer(5 * time.Second)
+	defer z.Stop()
+	for !f() {
+		select {
+		case <-z.C:
+			return false
+		default:
+			runtime.Gosched()
+		}
+	}
+	return true
+}
+
 // TestFakeUhr: die Uhr des Tests weckt einen Wartenden erst bei Erreichen seiner Zeit, kehrt für eine erreichte Zeit sofort zurück, endet mit
 // dem Kontext und tickt je Intervall; mitFrist beendet den Kontext erst über der Frist, mit der Ursache errFrist.
 func TestFakeUhr(t *testing.T) {

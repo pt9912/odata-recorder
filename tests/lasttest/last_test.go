@@ -273,6 +273,23 @@ func spitze(t *testing.T) {
 	}
 }
 
+// TestProbenVorDemEnde (SPEC-216 Nr. 11): endet ein Lauf von 660 s zwischen dem Tick bei 630 s und dem bei 660 s, sind es 23 Proben: der
+// Tick bei 660 s ist nicht verlangt.
+func TestProbenVorDemEnde(t *testing.T) {
+	wache(t, 30*time.Second)
+	uhr, q := neueFakeUhr(), neueFakeLast("1.00 1.00 1.00 1/10 5\n")
+	p := starteProben(context.Background(), uhr, q, 20, 660*time.Second)
+	warteAuf(t, q.gelesen, time.Second)
+	for range 21 {
+		uhr.Vorstellen(30 * time.Second)
+		warteAuf(t, q.gelesen, time.Second)
+	}
+	uhr.Vorstellen(15 * time.Second)
+	if e := p.beende(); e.Proben != 23 {
+		t.Errorf("%d Proben bei 645 s, erwartet 23", e.Proben)
+	}
+}
+
 // vorDemAufbau: über der Schwelle läuft der Aufbau 0 mal und der Fehler ist errLast; auf der Schwelle läuft er einmal mit dem ctx des Aufrufs
 // und sein Fehler kommt zurück.
 func vorDemAufbau(t *testing.T) {
@@ -286,7 +303,7 @@ func vorDemAufbau(t *testing.T) {
 		err    error
 	}{{"10.01 1 1", 0, errLast}, {"10.00 1 1", 1, boom}} {
 		n := 0
-		_, err := vorAufbau(ctx, neueFakeLast(f.inhalt), 20, func(c context.Context) error {
+		err := vorAufbau(ctx, neueFakeLast(f.inhalt), 20, func(c context.Context) error {
 			n++
 			if c.Value(schluessel{}) != "x" {
 				t.Error("der Aufbau läuft nicht mit dem ctx des Aufrufs")

@@ -48,8 +48,8 @@ func textFeld(obj map[string]json.RawMessage, key string) (string, bool) {
 }
 
 // leseSpan erkennt eine Span-Zeile: ein JSON-Objekt mit ereignis gleich span, msg, span_id und duration_ms; parent_id ist optional, ein Feld
-// falscher Art macht die Zeile fremd. Grenze: vor dem { übergeht die Funktion allein Leerzeichen und Tab; ein CR davor nennt SPEC-216 nicht, und
-// kein Test führt es.
+// falscher Art macht die Zeile fremd. Vor dem { stehen allein Leerzeichen und Tab, hinter dem } der Leerraum von JSON; jedes andere Byte,
+// ein CR davor eingeschlossen, macht die Zeile fremd (SPEC-216 Nr. 10 b).
 func leseSpan(zeile []byte) (spanZeile, bool) {
 	var obj map[string]json.RawMessage
 	if kopf := bytes.TrimLeft(zeile, " \t"); len(kopf) == 0 || kopf[0] != '{' || json.Unmarshal(kopf, &obj) != nil {

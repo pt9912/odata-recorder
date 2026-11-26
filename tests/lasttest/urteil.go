@@ -97,12 +97,14 @@ type ausgang struct {
 	Aufbau, Frist, Abbruch bool
 }
 
-// exitCode ist der Exit des Programms mit dem Vorrang 2 vor 3 vor 1 vor 0 (SPEC-216 Nr. 12 e).
+// exitCode ist der Exit des Programms mit dem Vorrang 2 vor 3 vor 1 vor 0 (SPEC-216 Nr. 12 e); ohne ein Urteil einer Betriebsart ist er
+// ohne Abbruch 3.
 func exitCode(a ausgang) int {
 	switch {
 	case a.Abbruch:
 		return exitAbbruch
-	case a.Aufbau || a.Frist || a.Replay == urteilUngueltig || a.Mock == urteilUngueltig:
+	case a.Aufbau || a.Frist || a.Replay == urteilUngueltig || a.Mock == urteilUngueltig ||
+		a.Replay == urteilKein && a.Mock == urteilKein:
 		return exitUngueltig
 	case a.Replay == urteilDurchgefallen || a.Mock == urteilDurchgefallen:
 		return exitDurchgefallen

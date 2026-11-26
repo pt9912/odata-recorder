@@ -26,8 +26,8 @@ func abBeispiel() string {
 }
 
 // Die vier Fälle 205 bis 208 zu a-check und die acht Fälle 209 bis 216 zu docs-check tragen die Namen aus
-// SPEC-102, jeder genau einmal, am Ende von faelle() und in dieser Folge; die Fälle zu a-check lesen die
-// Ströme gemeinsam, die zu docs-check getrennt.
+// SPEC-102, jeder genau einmal, in faelle() vor den Fällen des Lasttests und in dieser Folge; die Fälle zu
+// a-check lesen die Ströme gemeinsam, die zu docs-check getrennt.
 func TestArbeitsbaumFaelleHabenDieNamenAusDemVertrag(t *testing.T) {
 	want := []struct {
 		name string
@@ -48,10 +48,11 @@ func TestArbeitsbaumFaelleHabenDieNamenAusDemVertrag(t *testing.T) {
 		{"docs-check/zellgrenze-im-hauptbaum", gateDCheck, true},
 	}
 	alle := faelle()
-	if len(want) != 12 || len(alle) < 12 {
+	dahinter := len(lasttestFaelle())
+	if len(want) != 12 || len(alle) < 12+dahinter {
 		t.Fatalf("%d erwartete Namen, %d Fälle", len(want), len(alle))
 	}
-	ende := alle[len(alle)-12:]
+	ende := alle[len(alle)-12-dahinter : len(alle)-dahinter]
 	imGanzen := map[string]int{}
 	for _, f := range alle {
 		imGanzen[f.Name]++

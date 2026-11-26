@@ -214,3 +214,10 @@ linters:
           - forbidigo
         path: ^tests/e2e/uebergang/main\.go$
         text: os\.Std(out|err)
+
+      # Why: Das Programm des Lasttests hat einen eigenen Einstieg und verbindet dort den Prozess mit seinen
+      # Standard-Strömen (SPEC-216 Nr. 14 g); die Ausnahme gilt dieser einen Datei.
+      - linters:
+          - forbidigo
+        path: ^tests/lasttest/main\.go$
+        text: os\.Std(out|err)
