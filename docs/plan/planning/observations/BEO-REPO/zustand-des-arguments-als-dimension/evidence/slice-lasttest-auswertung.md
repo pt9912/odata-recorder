@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest-auswertung
+**Fund:** Ob der Gesamtspan ein Kind trägt, ist eine Achse der Zusage „jede Zeile eines Gesamtspans trägt `recorder.mode`“; Befund F-3 des Reviews und die Fix-Runde führten Betriebsart und Wert, alle Gesamtspans ohne Kind. In `replay` und `mock` trägt er im Regelfall eines, die Mutation „nur ohne Kind geprüft“ blieb grün (V-4 der Verifikation). Die Auflagen führen die Menge als Betriebsart × Wert × mit und ohne Kind. Beleg: Verifikation `2026-11-26-slice-lasttest-auswertung-verifikation` (V-4).

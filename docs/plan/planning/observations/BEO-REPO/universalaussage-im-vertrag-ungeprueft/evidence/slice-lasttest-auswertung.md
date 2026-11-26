@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest-auswertung
+**Fund:** Zwei Allaussagen galten nicht. §6 des Plans sagte zu sieben Randformen, jede habe einen Fall, der bei einer anderen Entscheidung rot wird; für zwei traf das nicht zu (F-4 des Reviews, zwei grüne Mutationen). `SPEC-216` Nr. 13 b nannte als Fänger `TestStreuung` „je Fall Streuung, Toleranz“; der Fall mit einem ungültigen Lauf prüfte die Toleranz nicht (V-6 der Verifikation). Beleg: Review F-4 (`2026-11-26-slice-lasttest-auswertung-review`), Verifikation V-6 (`2026-11-26-slice-lasttest-auswertung-verifikation`).

@@ -1,1 +1,1 @@
-**Stand:** offen
+**Stand:** offen; 3 Belege unter `evidence/` (der Zähler folgt den Dateien), Schwelle 3x erreicht mit `slice-lasttest-auswertung`; der Ausgang (`verkörpert` oder `geplant`) ist Sache des Lese-Schritts der Closure von `welle-betrieb`.

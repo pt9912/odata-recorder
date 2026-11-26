@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest-auswertung
+**Fund:** Die Golden-Zeile `Aufbau` trug `exchanges` und `entities` mit demselben Wert, vertauschte Felder blieben grün (F-5 des Reviews); der ungültige Lauf der Fixture trug ein kleineres p95 als der gültige, sodass das Maximum über beide nichts änderte (F-4); die erste Probe jedes Falls war zugleich die kleinste, und die Schwelle stand nur bei 20 Kernen im Ergebnis (V-1 der Verifikation). Beleg: Review F-4 und F-5 (`2026-11-26-slice-lasttest-auswertung-review`), Verifikation V-1 (`2026-11-26-slice-lasttest-auswertung-verifikation`).
