@@ -8,22 +8,25 @@ import (
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/inbound"
+	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
 	"github.com/pt9912/odata-recorder/src/hexagon/services/hybrid"
 )
 
-// TestNew hält Z01 und Z01 (U): New weist jedes Feld der Konfig ab (kein Dienst, leerer Root an erster und an späterer
-// Stelle, nil in Mock, Replay, Upstream, Policy, MaxBytes 0 und -1) und nimmt MaxBytes 1 und eine leere wie eine
-// gesetzte UpstreamURL an; es ruft keinen Port.
+// TestNew hält Z01 und Z01 (U) und D1 (SPEC-321 Nr. 1): New weist jedes Feld der Konfig ab (kein Dienst, leerer Root an
+// erster und an späterer Stelle, nil in Mock, Replay, Upstream, Policy, Telemetrie, MaxBytes 0 und -1) und nimmt
+// MaxBytes 1 und eine leere wie eine gesetzte UpstreamURL an; es ruft keinen Port, auch nicht Telemetrie. Die Gründe
+// der Abweisung sind die 8 von SPEC-284 Nr. 1.
 func TestNew(t *testing.T) {
-	m, r, u := &stufe{}, &stufe{}, &stufeU{}
+	m, r, u, tel := &stufe{}, &stufe{}, &stufeU{}, supporttest.NewFakeTelemetry()
 	gut := func() hybrid.Konfig {
 		return hybrid.Konfig{
-			Dienste:  []hybrid.Dienst{{Root: "/a"}},
-			Mock:     fakeMock{m},
-			Replay:   fakeReplay{r},
-			Upstream: u,
-			Policy:   mitKategorien(t),
-			MaxBytes: 1,
+			Dienste:    []hybrid.Dienst{{Root: "/a"}},
+			Mock:       fakeMock{m},
+			Replay:     fakeReplay{r},
+			Upstream:   u,
+			Policy:     mitKategorien(t),
+			MaxBytes:   1,
+			Telemetrie: tel,
 		}
 	}
 	faelle := []struct {
@@ -43,14 +46,23 @@ func TestNew(t *testing.T) {
 		{"UpstreamURL leer ist gültig", func(k *hybrid.Konfig) { k.Dienste = []hybrid.Dienst{{Root: "/a", UpstreamURL: ""}} }, false},
 		{"UpstreamURL gesetzt", func(k *hybrid.Konfig) { k.Dienste = []hybrid.Dienst{{Root: "/a", UpstreamURL: "http://h"}} }, false},
 		{"Policy nil", func(k *hybrid.Konfig) { k.Policy = nil }, true},
+		{"Telemetrie nil", func(k *hybrid.Konfig) { k.Telemetrie = nil }, true},
 		{"MaxBytes 0", func(k *hybrid.Konfig) { k.MaxBytes = 0 }, true},
 		{"MaxBytes -1", func(k *hybrid.Konfig) { k.MaxBytes = -1 }, true},
 	}
+	// Der Grund je abgewiesenem Fall (Literal): die 8 Gründe von SPEC-284 Nr. 1.
+	grund := map[string]string{
+		"kein Dienst nil": "Dienst", "kein Dienst leer": "Dienst", "Root leer": "Root", "Root später leer": "Root", "Mock nil": "Mock",
+		"Replay nil": "Replay", "Upstream nil": "Upstream", "Policy nil": "Policy", "Telemetrie nil": "Telemetrie",
+		"MaxBytes 0": "MaxBytes", "MaxBytes -1": "MaxBytes",
+	}
+	gruende := map[string]bool{}
 	for _, f := range faelle {
 		k := gut()
 		f.aend(&k)
 		v, err := hybrid.New(k)
 		if f.bad {
+			gruende[grund[f.name]] = true
 			if !errors.Is(err, model.ErrUngueltig) || v != nil {
 				t.Errorf("%s: Dienst %v, Fehler %v; erwartet model.ErrUngueltig ohne Dienst", f.name, v, err)
 			}
@@ -60,8 +72,34 @@ func TestNew(t *testing.T) {
 			t.Errorf("%s: Fehler %v", f.name, err)
 		}
 	}
-	if m.zahl() != 0 || r.zahl() != 0 || u.zahl() != 0 {
-		t.Errorf("New rief einen Port: Mock %d, Replay %d, Upstream %d", m.zahl(), r.zahl(), u.zahl())
+	if len(gruende) != 8 || gruende[""] {
+		t.Errorf("Zählprüfung: Gründe der Abweisung %v, erwartet die 8 von SPEC-284 Nr. 1", gruende)
+	}
+	if m.zahl() != 0 || r.zahl() != 0 || u.zahl() != 0 || len(tel.Aufrufe()) != 0 {
+		t.Errorf("New rief einen Port: Mock %d, Replay %d, Upstream %d, Telemetrie %d", m.zahl(), r.zahl(), u.zahl(), len(tel.Aufrufe()))
+	}
+	// Der Dienst hält die Telemetrie: der erste Fallback zählt und beginnt einen Span an ihr.
+	k := gut()
+	k.Policy, k.MaxBytes = mitKategorien(t, katCoverage), standardMax
+	v, err := hybrid.New(k)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	m.fn = func(int, context.Context, inbound.Anfrage) (inbound.Antwort, error) {
+		return inbound.Antwort{}, code(codeNamed(t, "ODR-E6003"))
+	}
+	func() {
+		defer func() {
+			if p := recover(); p != nil {
+				t.Errorf("Hybrid paniert, der Dienst hält die Telemetrie der Konfig nicht: %v", p)
+			}
+		}()
+		if _, err := v.Hybrid(context.Background(), anfrage("GET")); err != nil {
+			t.Errorf("Hybrid: %v", err)
+		}
+	}()
+	if tel.Anzahl(supporttest.OpCountDiscarded) != 1 || tel.Anzahl(supporttest.OpStartSpan) != 1 {
+		t.Errorf("Zählungen %d und Spans %d an der Telemetrie der Konfig, erwartet 1 und 1", tel.Anzahl(supporttest.OpCountDiscarded), tel.Anzahl(supporttest.OpStartSpan))
 	}
 }
 

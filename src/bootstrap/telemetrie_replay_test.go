@@ -75,15 +75,15 @@ func replayZeile(spanID, elternID, strategie, ergebnis string) string {
 // `odata.replay.match` als Literal in der Senke des einen Adapters des Prozesses, vor der Zeile des Gesamtspans, deren `span_id` ihr `parent_id`
 // ist, und `Dropped` ist überall 0; im Modus replay trägt sie den Treffer, im Modus hybrid den Versuch mit `kein_treffer` (der Mock scheitert an der
 // Coverage, der Replay findet den Key nicht, der Upstream antwortet). In beiden Modi besteht allein dieser eine Adapter, und der Replay-Dienst
-// hält ihn.
+// hält ihn. Im Modus hybrid stehen dazu die zwei Zeilen des Fallbacks in der Kette (`pruefeHybridKette`, D12).
 func TestWurzelReplayMatchLiegtImGesamtspan(t *testing.T) {
 	up := neuerZaehlUpstream(t)
 	faelle := []struct {
 		modus, pfad, ergebnis string
-		zeilen                int
+		zeilen, match         int
 	}{
-		{modusReplay, "/Products", "treffer", 2},
-		{modusHybrid, "/Orders", "kein_treffer", 3},
+		{modusReplay, "/Products", "treffer", 2, 0},
+		{modusHybrid, "/Orders", "kein_treffer", 5, 1},
 	}
 	for _, f := range faelle {
 		w := baueWurzelMit(t, f.modus, nil, replayDaten(t), func(k *bootstrap.Konfiguration) {
@@ -102,7 +102,7 @@ func TestWurzelReplayMatchLiegtImGesamtspan(t *testing.T) {
 		if len(z) != f.zeilen || z[len(z)-1]["msg"] != "odata.gateway.request" {
 			t.Fatalf("%s: Zeilen %v; erwartet %d, die des Gesamtspans zuletzt", f.modus, z, f.zeilen)
 		}
-		gesamt, match := z[len(z)-1], z[len(z)-2]
+		gesamt, match := z[len(z)-1], z[f.match]
 		soll := replayZeile(match["span_id"].(string), gesamt["span_id"].(string), "sequential", f.ergebnis)
 		if !strings.Contains(w.senke.String(), soll) || match["msg"] != "odata.replay.match" {
 			t.Errorf("%s: Senke\n%s\nenthält nicht\n%s", f.modus, w.senke.String(), soll)
@@ -118,6 +118,7 @@ func TestWurzelReplayMatchLiegtImGesamtspan(t *testing.T) {
 			if n, _ := up.stand(); n != 1 {
 				t.Errorf("hybrid: %d Verbindungen zum Upstream, erwartet 1 (der Fallback)", n)
 			}
+			pruefeHybridKette(t, w, z)
 		}
 	}
 }
