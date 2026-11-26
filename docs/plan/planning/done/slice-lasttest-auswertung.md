@@ -362,6 +362,10 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 
 **Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld, nichts zu paaren) · Folge-Slice (alle Sendungen gehen an [slice-lasttest](../open/slice-lasttest.md), die Datei liegt in `open/` und führt sie; der Punkt *Höhe der Marke* trägt die Rolle *Architect* mit Ausgang *weiter offen*) · Register (die fünfzehn Verzeichnisse tragen `evidence/slice-lasttest-auswertung.md`).
 
+**Gegenlesen** (`AGENTS.md` §3.18): die Dateien dieser Closure (dieser Plan, `slice-lasttest.md`, die fünfzehn Evidenz-Dateien, die zwei Stand-Zeilen, die Änderungen in `roadmap.md` und `welle-betrieb.md`) enthalten weder BOM, NBSP, Nullbreite noch Zeilentrenner und keine Folge aus Backslash, `u` und vier Hex-Ziffern (`LC_ALL=C /usr/bin/grep -P` mit `\x`-Mustern); `make zeichen-check` deckt die unsichtbaren Zeichen im Gate.
+
+**Läufe des Planners** (nach dem Move und den Commits der Closure, am Stand `0fef11f2`; ohne die Sperre der schweren Läufe, auf Anweisung des Orchestrators, Last des Hosts 3,2 bis 4,1): `make docs-check` (1308 Dateien, 0 Befunde), `make zeichen-check` (ok, 2473 Dateien), `make groessenmarke` (Pläne in `in-progress/`: `slice-bootstrap-m6-endpunkte` ok, Messung 0 im Zweig dieses Slice) und mit `GROESSENMARKE_PLAENE` auf einer Kopie dieses Plans (die zwei Zeilen unter *Größe*). Der Planner fuhr weder `make gates` noch `make test` noch `make gegenproben`; der Stempel der Gates deckt die Commits der Closure nicht.
+
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
