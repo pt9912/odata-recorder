@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -164,12 +165,12 @@ func TestGesamtfrist(t *testing.T) {
 	}
 }
 
-// TestProbenImAblauf (SPEC-216 Nr. 11): eine Probe über der Schwelle vor dem Aufbau verhindert ihn; eine allein nach dem Nachlauf macht den
-// Lauf mit grund=last ungültig.
+// TestProbenImAblauf (SPEC-216 Nr. 11): bei 7 Kernen ist die Schwelle 3,50: eine Probe darüber vor dem Aufbau verhindert ihn; eine allein
+// nach dem Nachlauf macht den Lauf mit grund=last ungültig.
 func TestProbenImAblauf(t *testing.T) {
 	wache(t, 60*time.Second)
 	s := neuerProbestand(t, kurzesProfil("klein", 1), "replay")
-	s.last.inhalt = func(int) string { return "10.01 1 1" }
+	s.last.inhalt = func(int) string { return "3.51 1 1" }
 	code := warteAuf(t, s.fahre(context.Background()), 30*time.Second)
 	if code != 3 || len(s.aufbaue) != 0 || s.fehler.String() != "lasttest: Aufbau gescheitert: last\n" || !slices.Equal(s.arten(), []string{"Start"}) {
 		t.Errorf("vor dem Aufbau: Exit %d, %d Aufrufe des Aufbaus, Meldungen %q, Zeilen %v", code, len(s.aufbaue), s.fehler.String(), s.arten())
@@ -178,14 +179,280 @@ func TestProbenImAblauf(t *testing.T) {
 	// Über der Schwelle ist allein eine Probe, die nach der letzten beendeten Anfrage genommen wird.
 	s.last.inhalt = func(int) string {
 		if b := s.dienst.aktuell(); b != nil && b.fertig.Load() == 40 {
-			return "12.00 1 1"
+			return "3.51 1 1"
 		}
-		return "1.00 1 1"
+		return "3.50 1 1"
 	}
 	code = warteAuf(t, s.fahre(context.Background()), 30*time.Second)
 	m, l := s.zeilenVon("Messung"), s.zeilenVon("Last")
-	if code != 3 || feld(m[0], "grund") != "last" || feld(l[0], "proben") != "2" || feld(l[0], "max") != "12.00" {
+	if code != 3 || feld(m[0], "grund") != "last" || feld(l[0], "proben") != "2" || feld(l[0], "max") != "3.51" || feld(l[0], "min") != "3.50" {
 		t.Errorf("nach dem Nachlauf: Exit %d, %q, %q", code, m, l)
+	}
+}
+
+// TestLaeufeImUrteil (SPEC-216 Nr. 12 c): in das Urteil einer Betriebsart gehen alle ihre Läufe und nur ihre: weicht der erste oder der zweite
+// Lauf von replay oder mock durch einen Fehler oder ein p95 über der Toleranz ab, ist allein ihr Urteil ungültig, beide nennen laeufe=2.
+func TestLaeufeImUrteil(t *testing.T) {
+	wache(t, 60*time.Second)
+	const gut = "laeufe=2 ziel_ms=100 p95_ms=1.000 streuung_ms=0.000 toleranz_ms=2.000 ergebnis=bestanden grund=ok"
+	abweichungen := map[string]string{
+		"fehler":   "laeufe=2 ziel_ms=100 p95_ms=1.000 streuung_ms=0.000 toleranz_ms=0.000 ergebnis=ungueltig grund=fehler",
+		"streuung": "laeufe=2 ziel_ms=100 p95_ms=20.000 streuung_ms=19.000 toleranz_ms=2.000 ergebnis=ungueltig grund=streuung",
+	}
+	n := 0
+	for art, betriebsart := range []string{"replay", "mock"} {
+		for lauf := range 2 {
+			for abweichung, zeile := range abweichungen {
+				nr := 2*art + lauf
+				s := neuerProbestand(t, kurzesProfil("abnahme", 2), "beide")
+				s.ein.ZielMs = 100
+				s.dienst.status = func(p, k int) int {
+					if abweichung == "fehler" && p == nr && k == 20 {
+						return http.StatusInternalServerError
+					}
+					return http.StatusOK
+				}
+				s.dienst.dauer = func(p, _ int) (int, int) {
+					if abweichung == "streuung" && p == nr {
+						return 20000, 100
+					}
+					return 1000, 100
+				}
+				code := warteAuf(t, s.fahre(context.Background()), 30*time.Second)
+				want := []string{"lasttest: Urteil betriebsart=replay " + gut, "lasttest: Urteil betriebsart=mock " + gut}
+				want[art] = "lasttest: Urteil betriebsart=" + betriebsart + " " + zeile
+				if u := s.zeilenVon("Urteil"); code != 3 || !slices.Equal(u, want) || feld(s.zeilenVon("Abnahme")[0], "grund") != "ergebnis" {
+					t.Errorf("%s Lauf %d %s: Exit %d, %q", betriebsart, lauf+1, abweichung, code, s.zeilen())
+				}
+				n++
+			}
+		}
+	}
+	if n != 8 {
+		t.Errorf("%d Fälle, erwartet 8", n)
+	}
+}
+
+// TestZielwert (SPEC-216 Nr. 12 a, 13): LASTTEST_ZIEL_MS geht in Start, beide Urteile und Abnahme; p95 gleich dem Zielwert besteht, 1 µs
+// darüber nicht, an den Werten 1, 80, 200 und 9999.
+func TestZielwert(t *testing.T) {
+	wache(t, 120*time.Second)
+	n := 0
+	for _, ziel := range []int{1, 80, 200, 9999} {
+		for ueber, ergebnis := range []string{"bestanden", "durchgefallen"} {
+			w, err := liesUmgebung(umgebungMit(varZielMs, strconv.Itoa(ziel), false))
+			if err != nil {
+				t.Fatal(err)
+			}
+			s := neuerProbestand(t, kurzesProfil("abnahme", 2), "beide")
+			s.ein.ZielMs = w.ZielMs
+			s.dienst.dauer = func(int, int) (int, int) { return ziel*1000 + ueber, 100 }
+			code := warteAuf(t, s.fahre(context.Background()), 30*time.Second)
+			z := " ziel_ms=" + strconv.Itoa(ziel) + " "
+			u := s.zeilenVon("Urteil")
+			if code != ueber || !strings.Contains(s.zeilenVon("Start")[0], z) || len(u) != 2 || !strings.Contains(u[0], z) || !strings.Contains(u[1], z) ||
+				feld(u[0], "ergebnis") != ergebnis || feld(u[1], "ergebnis") != ergebnis ||
+				s.zeilenVon("Abnahme")[0] != "lasttest: Abnahme"+z+"abnahmewert_ms=100 abnahme=nein grund=ziel" {
+				t.Errorf("Ziel %d, +%d µs: Exit %d, %q", ziel, ueber, code, s.zeilen())
+			}
+			n++
+		}
+	}
+	if n != 8 {
+		t.Errorf("%d Fälle, erwartet 8", n)
+	}
+}
+
+// TestVerstoesseDerAuswertung (SPEC-216 Nr. 10 d, e, h): ein zusätzlicher Gesamtspan im Warm-up, in der Messphase oder nach dem Nachlauf macht
+// den Lauf mit zaehlung, ein Gesamtspan der anderen Betriebsart im Warm-up, in der Messphase oder am Ende mit modus ungültig.
+func TestVerstoesseDerAuswertung(t *testing.T) {
+	wache(t, 60*time.Second)
+	n := 0
+	for _, f := range []struct {
+		art, grund string
+		bei        int
+	}{
+		{"replay", "zaehlung", 0}, {"replay", "zaehlung", 20}, {"mock", "zaehlung", -1},
+		{"mock", "modus", 0}, {"replay", "modus", 20}, {"mock", "modus", 39},
+	} {
+		s := neuerProbestand(t, kurzesProfil("klein", 1), f.art)
+		zusatz := func(b *ersatzBinaer) {
+			modus := b.modus
+			if f.grund == "modus" {
+				modus = map[string]string{"replay": "mock", "mock": "replay"}[modus]
+			}
+			b.zeile(gesamtZeile(modus, "x", 1000))
+		}
+		if f.grund == "modus" {
+			s.dienst.stumm = func(_, k int) bool { return k == f.bei }
+		}
+		s.dienst.danach = func(b *ersatzBinaer, k int) {
+			if k == f.bei {
+				zusatz(b)
+			}
+		}
+		if f.bei < 0 {
+			s.dienst.signal = func(b *ersatzBinaer, _ os.Signal) { zusatz(b) }
+		}
+		code := warteAuf(t, s.fahre(context.Background()), 30*time.Second)
+		spans := map[string]string{"zaehlung": "41", "modus": "40"}[f.grund]
+		if m := s.zeilenVon("Messung"); code != 3 || feld(m[0], "grund") != f.grund || feld(m[0], "spans") != spans || feld(m[0], "fehler") != "0" {
+			t.Errorf("%s %s bei %d: Exit %d, %q", f.art, f.grund, f.bei, code, m)
+		}
+		n++
+	}
+	if n != 6 {
+		t.Errorf("%d Fälle, erwartet 6", n)
+	}
+}
+
+// TestTaktGehalten (SPEC-216 Nr. 8 f): weckt die Uhr die Anfrage k (1, 5, 15 im Warm-up; 16 und 39 in der Messphase) genau 1 s oder 1 s und
+// 999 ns nach der Fälligkeit, ist der Lauf gültig; 1 s und 1 µs danach ist er mit grund=last ungültig.
+func TestTaktGehalten(t *testing.T) {
+	wache(t, 120*time.Second)
+	n := 0
+	for _, k := range []int{1, 5, 15, 16, 39} {
+		for _, f := range []struct {
+			spaet         time.Duration
+			zahl, gueltig string
+			grund         string
+			exit          int
+		}{
+			{time.Second, "1000.000", "ja", "ok", 0},
+			{time.Second + 999*time.Nanosecond, "1000.000", "ja", "ok", 0},
+			{time.Second + time.Microsecond, "1000.001", "nein", "last", 3},
+		} {
+			s := neuerProbestand(t, kurzesProfil("klein", 1), "replay")
+			s.uhr.extra = func(ziel time.Time) time.Duration {
+				if b := s.dienst.aktuell(); b != nil && ziel.Sub(b.start) == time.Duration(k)*125*time.Millisecond {
+					return f.spaet
+				}
+				return 0
+			}
+			code := warteAuf(t, s.fahre(context.Background()), 30*time.Second)
+			m := s.zeilenVon("Messung")
+			if code != f.exit || feld(m[0], "verspaetung_max_ms") != f.zahl || feld(m[0], "gueltig") != f.gueltig || feld(m[0], "grund") != f.grund ||
+				feld(m[0], "spans") != "40" {
+				t.Errorf("Anfrage %d, %v spät: Exit %d, %q", k, f.spaet, code, m)
+			}
+			n++
+		}
+	}
+	if n != 15 {
+		t.Errorf("%d Fälle, erwartet 15", n)
+	}
+}
+
+// beenden ist ein Weg, den Ablauf zu beenden: Abbruch (cancel) und das Erreichen der Gesamtfrist, in der genannten Folge.
+func (s *probestand) beenden(folge string, cancel context.CancelFunc, lauf <-chan struct{}) {
+	for _, w := range strings.Fields(folge) {
+		if w == "abbruch" {
+			cancel()
+			continue
+		}
+		s.uhr.Vorstellen(s.ein.Profil.Gesamtfrist)
+		bisWahr(func() bool { return beendet(lauf) })
+	}
+}
+
+// meldungDes ist die Zeile und der Exit einer Folge: ein Abbruch geht vor der Gesamtfrist.
+func meldungDes(folge string) (string, int) {
+	if strings.Contains(folge, "abbruch") {
+		return "lasttest: abgebrochen\n", 2
+	}
+	return "lasttest: Gesamtfrist abgelaufen\n", 3
+}
+
+// TestAbbruchUndFrist (SPEC-216 Nr. 4 c, d, 12 e): im Aufbau und im Lauf endet ein Abbruch allein mit 2, die Gesamtfrist allein mit 3, beide in
+// jeder Folge mit 2; es steht genau die Meldung dazu.
+func TestAbbruchUndFrist(t *testing.T) {
+	wache(t, 60*time.Second)
+	n := 0
+	for _, ort := range []string{"Aufbau", "Lauf"} {
+		for _, folge := range []string{"abbruch", "frist", "abbruch frist", "frist abbruch"} {
+			ctx, cancel := context.WithCancel(context.Background())
+			s := neuerProbestand(t, kurzesProfil("klein", 1), "replay")
+			var lauf <-chan struct{}
+			starte := s.ein.Starte
+			s.ein.Starte = func(c context.Context, env []string) (*prozess, error) {
+				lauf = c.Done()
+				return starte(c, env)
+			}
+			zeilen := []string{"Start", "Aufbau"}
+			if ort == "Aufbau" {
+				zeilen = []string{"Start"}
+				s.ein.Aufbau = func(c context.Context, _ aufbauEingabe) (aufbauErgebnis, error) {
+					s.beenden(folge, cancel, c.Done())
+					return aufbauErgebnis{}, &aufbauFehler{grund: grundAufbau, stelle: stelleAufnahme, ursache: context.Canceled}
+				}
+			}
+			s.dienst.halte = func(_, k int, _ *http.Request) {
+				if k == 20 {
+					s.beenden(folge, cancel, lauf)
+				}
+			}
+			code := warteAuf(t, s.fahre(ctx), 30*time.Second)
+			cancel()
+			meldung, want := meldungDes(folge)
+			if code != want || s.fehler.String() != meldung || !slices.Equal(s.arten(), zeilen) {
+				t.Errorf("%s, %s: Exit %d, Meldungen %q, Zeilen %v", ort, folge, code, s.fehler.String(), s.arten())
+			}
+			n++
+		}
+	}
+	if n != 8 {
+		t.Errorf("%d Fälle, erwartet 8", n)
+	}
+}
+
+// TestMeldungBeiBeendetemKontext (SPEC-216 Nr. 9 c): bei Abbruch und Gesamtfrist steht `Binary endete` vor deren Zeile für ein Binary, das selbst
+// endete (im Lauf oder vor der Bereitschaft); `Binary startet nicht` entfällt für ein lebendes, das nicht bereit ist; ein bereites meldet nichts.
+func TestMeldungBeiBeendetemKontext(t *testing.T) {
+	wache(t, 60*time.Second)
+	n := 0
+	for _, folge := range []string{"abbruch", "frist"} {
+		for _, f := range []struct{ zustand, meldung string }{
+			{"selbst im Lauf", "lasttest: Binary endete (Exit 137)\n"},
+			{"selbst vor Bereitschaft", "lasttest: Binary endete (Exit 5)\n"},
+			{"lebt nicht bereit", ""},
+			{"lebt bereit", ""},
+		} {
+			ctx, cancel := context.WithCancel(context.Background())
+			s := neuerProbestand(t, kurzesProfil("klein", 1), "replay")
+			var lauf <-chan struct{}
+			starte := s.ein.Starte
+			s.ein.Starte = func(c context.Context, env []string) (*prozess, error) {
+				lauf = c.Done()
+				return starte(c, env)
+			}
+			s.dienst.halte = func(_, k int, _ *http.Request) {
+				if k == 20 {
+					s.beenden(folge, cancel, lauf)
+				}
+			}
+			switch f.zustand {
+			case "selbst im Lauf":
+				s.dienst.selbst = s.selbstNachAllen(137, 10)
+			case "selbst vor Bereitschaft", "lebt nicht bereit":
+				s.ein.Verbinde = func(context.Context, string) error {
+					if f.zustand == "selbst vor Bereitschaft" {
+						s.dienst.aktuell().beende(5)
+					}
+					s.beenden(folge, cancel, lauf)
+					return errors.New("noch nicht")
+				}
+			}
+			code := warteAuf(t, s.fahre(ctx), 30*time.Second)
+			cancel()
+			meldung, want := meldungDes(folge)
+			if code != want || s.fehler.String() != f.meldung+meldung {
+				t.Errorf("%s, %s: Exit %d, Meldungen %q", folge, f.zustand, code, s.fehler.String())
+			}
+			n++
+		}
+	}
+	if n != 8 {
+		t.Errorf("%d Fälle, erwartet 8", n)
 	}
 }
 
@@ -382,7 +649,7 @@ func TestSchreibfehler(t *testing.T) {
 	}
 	want := []string{"Start profil=klein", "Aufbau exchanges=17", "Messung betriebsart=replay", "Last betriebsart=replay",
 		"Hinweis betriebsart=replay", "Messung betriebsart=mock", "Last betriebsart=mock", "Hinweis betriebsart=mock",
-		"Urteil betriebsart=replay", "Urteil betriebsart=mock", "Abnahme ziel_ms=100"}
+		"Urteil betriebsart=replay", "Urteil betriebsart=mock", "Abnahme ziel_ms=90"}
 	if code, w, s := fahre(0, nil); code != 0 || !slices.Equal(w.arten(), want) || s.fehler.Len() != 0 {
 		t.Fatalf("ohne Fehler: Exit %d, Zeilen %q, Meldungen %q", code, w.arten(), s.fehler.String())
 	}
@@ -500,7 +767,7 @@ func TestAblaufAusgabeFolge(t *testing.T) {
 			want = []string{f.betriebsart}
 		}
 		abn := s.zeilenVon("Abnahme")
-		if !slices.Equal(urteile, want) || feld(abn[0], "grund") != "profil" || feld(abn[0], "ziel_ms") != "100" {
+		if !slices.Equal(urteile, want) || feld(abn[0], "grund") != "profil" || feld(abn[0], "ziel_ms") != "90" {
 			t.Errorf("%s: Urteile %v, Abnahme %q", f.betriebsart, urteile, abn)
 		}
 		n++
@@ -532,6 +799,7 @@ func TestAbnahmeImAblauf(t *testing.T) {
 		}
 	}
 	s := neuerProbestand(t, kurzesProfil("abnahme", 2), "beide")
+	s.ein.ZielMs = 100
 	s.dienst.dauer = func(int, int) (int, int) { return 100001, 100 }
 	code := warteAuf(t, s.fahre(context.Background()), 30*time.Second)
 	u := s.zeilenVon("Urteil")
@@ -685,13 +953,13 @@ func TestFelderDerMessung(t *testing.T) {
 	s.uhr.vorher = func(d time.Duration, ziel time.Time) {
 		vorher(d, ziel)
 		if b := s.dienst.aktuell(); b != nil && b.nr == 1 {
-			n := int32(min(ziel.Sub(b.start)/(50*time.Millisecond), 35))
+			n := int32(min(ziel.Sub(b.start)/(125*time.Millisecond), 35))
 			bisWahr(func() bool { return b.fertig.Load() >= n })
 			pause(time.Millisecond)
 		}
 	}
 	s.uhr.extra = func(ziel time.Time) time.Duration {
-		if b := s.dienst.aktuell(); b != nil && b.nr == 1 && ziel.Sub(b.start) == 7*50*time.Millisecond {
+		if b := s.dienst.aktuell(); b != nil && b.nr == 1 && ziel.Sub(b.start) == 7*125*time.Millisecond {
 			return 13 * time.Millisecond
 		}
 		return 0
@@ -699,8 +967,8 @@ func TestFelderDerMessung(t *testing.T) {
 	s.dienst.termExit = 1
 	code := warteAuf(t, s.fahre(context.Background()), 30*time.Second)
 	m := s.zeilenVon("Messung")
-	want := "lasttest: Messung betriebsart=mock lauf=2 anfragen=40 spans=41 messphase=20 fehler=3 fremde_zeilen=7 p95_ms=39.000 " +
-		"max_ms=40.000 kind=18 kind_p95_ms=2.000 kind_anteil=6.5 ohne_kind=4 kind_ohne_eltern=6 gleichzeitig_max=5 " +
+	want := "lasttest: Messung betriebsart=mock lauf=2 anfragen=40 spans=41 messphase=24 fehler=3 fremde_zeilen=7 p95_ms=39.000 " +
+		"max_ms=40.000 kind=22 kind_p95_ms=2.000 kind_anteil=7.0 ohne_kind=4 kind_ohne_eltern=6 gleichzeitig_max=5 " +
 		"verspaetung_max_ms=13.000 bytes=4321 treiber_cpu_s=2.500 gueltig=nein grund=fehler"
 	if code != 3 || len(m) != 2 || m[1] != want {
 		t.Errorf("Exit %d, Zeile %q, erwartet %q", code, m, want)
@@ -708,13 +976,13 @@ func TestFelderDerMessung(t *testing.T) {
 	if h := s.zeilenVon("Hinweis"); len(h) != 2 || h[1] != "lasttest: Hinweis betriebsart=mock binary_exit=1" {
 		t.Errorf("Hinweise %q", h)
 	}
-	if l := s.zeilenVon("Last"); len(l) != 2 || l[1] != "lasttest: Last betriebsart=mock lauf=2 proben=2 min=1.00 max=1.00 schwelle=10.00" {
+	if l := s.zeilenVon("Last"); len(l) != 2 || l[1] != "lasttest: Last betriebsart=mock lauf=2 proben=2 min=1.00 max=1.00 schwelle=3.50" {
 		t.Errorf("Last %q", l)
 	}
 	if a := s.zeilenVon("Aufbau"); a[0] != "lasttest: Aufbau exchanges=17 entities=40 daten_mib=0 dauer_s=0.000" {
 		t.Errorf("%q", a)
 	}
-	if z := s.zeilenVon("Start"); z[0] != "lasttest: Start profil=klein betriebsart=mock ziel_ms=100 startwert=7 kerne=20" {
+	if z := s.zeilenVon("Start"); z[0] != "lasttest: Start profil=klein betriebsart=mock ziel_ms=90 startwert=31337 kerne=7" {
 		t.Errorf("%q", z)
 	}
 }

@@ -1,6 +1,6 @@
 # SPEC-216 — Lasttest (`make lasttest`)
 
-**Werkzeug:** das Ziel `lasttest` aus dem Fragment `harness/mk/lasttest.mk`; der Treiber `tools/harness/lasttest.sh` (POSIX-`sh`, Aufrufe von `docker`); die Stufe `lasttest` des `Dockerfile`; das Programm `tests/lasttest/` (ein Go-Paket `main` im Hauptmodul, Schicht `tests` des Architektur-Gates, [ADR-0012](../../docs/plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md)). <!-- d-check:ignore (geplante Datei, entsteht mit dem Code) -->
+**Werkzeug:** das Ziel `lasttest` aus dem Fragment `harness/mk/lasttest.mk`; der Treiber `tools/harness/lasttest.sh` (POSIX-`sh`, Aufrufe von `docker`); die Stufe `lasttest` des `Dockerfile`; das Programm `tests/lasttest/` (ein Go-Paket `main` im Hauptmodul, Schicht `tests` des Architektur-Gates, [ADR-0012](../../docs/plan/adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md)).
 Die Namen der Dateien sind der Vorschlag des Architect; die Zusagen gelten, wie die Dateien heißen.
 
 **Festlegung:** `make lasttest` fährt das gebaute Binary in einem Container mit 2 vCPU, 4 GiB und ohne Netz gegen 10.000 aufgezeichnete Exchanges (Betriebsart `replay`) und gegen einen Workspace aus 10.000 Entities (Betriebsart `mock`), belastet es mit 20 Requests/s über 10 Minuten nach einem Warm-up und gibt p95 des Gesamtspans `odata.gateway.request` je Betriebsart aus, mit dem Anteil von `odata.replay.match` bzw. `odata.mock.query`, der Last des Hosts und dem Zielwert, gegen den gemessen wurde (`LH-QA-01.a`, `SPEC-026`, `SPEC-294`).

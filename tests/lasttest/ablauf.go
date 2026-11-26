@@ -299,8 +299,12 @@ func (e ablaufEingabe) sende(ctx context.Context, adresse string, liste []Anfrag
 	st.nachlauf = s.warteAufSpans(ctx, e.Uhr, st.takt.Gestartet)
 }
 
-// lauf fährt einen Lauf (SPEC-216 Nr. 4 b): Binary starten, Probe, Takt, Nachlauf, Probe, Binary beenden, auswerten. Die Meldungen zum Binary
-// stehen nur, solange ctx nicht beendet ist.
+// maxVerspaetung ist die größte Verspätung eines Starts, bei der der Takt gehalten ist; verglichen wird in ganzen Mikrosekunden,
+// abgeschnitten (SPEC-216 Nr. 8 f).
+const maxVerspaetung = time.Second
+
+// lauf fährt einen Lauf (SPEC-216 Nr. 4 b): Binary starten, Probe, Takt, Nachlauf, Probe, Binary beenden, auswerten. Eine Verspätung über
+// maxVerspaetung ist wie eine Probe über der Schwelle der Verstoß last (Nr. 8 f).
 func (e ablaufEingabe) lauf(ctx context.Context, b Betriebsart, nr int, erg aufbauErgebnis) laufErgebnis {
 	cpu := e.CPU()
 	liste := e.liste(b, nr, erg)
@@ -328,7 +332,7 @@ func (e ablaufEingabe) lauf(ctx context.Context, b Betriebsart, nr int, erg aufb
 	m, v := s.auswerte(je*int(e.Profil.Warmup/time.Second), je*int(e.Profil.Messphase/time.Second))
 	v.Fehler = st.fehler.Load() > 0
 	v.Zaehlung = v.Zaehlung || !st.nachlauf || lesefehler
-	v.Last = !last.Zulaessig
+	v.Last = !last.Zulaessig || st.takt.VerspaetungMax.Microseconds() > maxVerspaetung.Microseconds()
 	if tot {
 		v = verstoesse{Binary: true}
 	}
@@ -342,17 +346,17 @@ func (e ablaufEingabe) lauf(ctx context.Context, b Betriebsart, nr int, erg aufb
 }
 
 // binaryZustand meldet ein Binary, das nicht bereit wurde oder vor dem Ende des Nachlaufs endete (SPEC-216 Nr. 9 c), und liefert, ob der
-// Lauf allein den Verstoß binary trägt.
+// Lauf allein den Verstoß binary trägt. Ein Binary, das vor einem Signal des Programms selbst endete, wird auch bei beendetem ctx
+// gemeldet; `Binary startet nicht` steht nur bei nicht beendetem ctx.
 func (e ablaufEingabe) binaryZustand(ctx context.Context, p *prozess, st *lastStand) bool {
 	selbst := st.gestartet && beendet(p.Ende)
 	if st.bereit == bereit && !selbst {
 		return false
 	}
 	switch {
-	case ctx.Err() != nil:
 	case selbst || st.bereit == vorherBeendet:
 		e.melde("Binary endete (Exit " + strconv.Itoa(p.Exit()) + ")")
-	default:
+	case ctx.Err() == nil:
 		e.melde("Binary startet nicht")
 	}
 	return true

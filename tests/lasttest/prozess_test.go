@@ -59,7 +59,8 @@ func neuerHilfsstand(t *testing.T, p Profil, pauseBereit time.Duration, befehl f
 	}
 	h.ein.Port, h.ein.Verbinde, h.ein.Transport = freierPort, verbindeTCP, h.z
 	h.ein.Starte = func(_ context.Context, env []string) (*prozess, error) {
-		takte.Store(0)
+		// Je Prozess zählen die Schritte des Takts ab den schon beendeten Anfragen.
+		takte.Store(h.z.fertig.Load())
 		pr, err := befehl(env)
 		if err != nil {
 			return nil, err

@@ -128,7 +128,7 @@ func TestTaktEndetMitKontext(t *testing.T) {
 func TestTaktNebenProbe(t *testing.T) {
 	wache(t, 120*time.Second)
 	p := kurzesProfil("klein", 1)
-	p.Warmup, p.Messphase = 40*time.Second, 60*time.Second
+	p.Rate, p.Warmup, p.Messphase = 20, 40*time.Second, 60*time.Second
 	s := neuerProbestand(t, p, "replay")
 	frei := make(chan struct{})
 	var einmal sync.Once
@@ -418,11 +418,11 @@ func TestKeineWiederholung(t *testing.T) {
 }
 
 // TestFehlerJePhase (SPEC-216 Nr. 8 c, 10 h): ein Fehler allein im Warm-up (erste Anfrage), allein in der ersten und allein in der letzten
-// Anfrage der Messphase zählt fehler=1 und macht den Lauf mit grund=fehler ungültig.
+// Anfrage der Messphase zählt fehler=1 und macht den Lauf mit grund=fehler ungültig; die Anfragen starten im Abstand der Rate des Profils.
 func TestFehlerJePhase(t *testing.T) {
 	wache(t, 60*time.Second)
 	n := 0
-	for _, bei := range []int{0, 20, 39} {
+	for _, bei := range []int{0, 16, 39} {
 		s := neuerProbestand(t, kurzesProfil("klein", 1), "mock")
 		s.dienst.status = func(_, k int) int {
 			if k == bei {
@@ -436,6 +436,9 @@ func TestFehlerJePhase(t *testing.T) {
 			len(s.dienst.liste()) != 40 {
 			t.Errorf("Fehler bei %d: Exit %d, Zeilen %q, %d Anfragen am Dienst (eine je Fälligkeit, keine Wiederholung)", bei, code, m,
 				len(s.dienst.liste()))
+		}
+		if d := s.dienst.lauf(0).zeit(39); d != 4875*time.Millisecond {
+			t.Errorf("Anfrage 39 startet bei %v, erwartet 4,875 s (Rate 8)", d)
 		}
 		n++
 	}
@@ -470,9 +473,9 @@ func TestNurDieListe(t *testing.T) {
 			if code := warteAuf(t, s.fahre(context.Background()), 60*time.Second); code > 1 {
 				t.Fatalf("%s %s: Exit %d, %q", p.Name, art, code, s.fehler.String())
 			}
-			liste := listeMock(p, 7, "w-1")
+			liste := listeMock(p, 31337, "w-1")
 			if art == "replay" {
-				liste = listeReplay(p, 7, 1, "w-1", "s-1")
+				liste = listeReplay(p, 31337, 1, "w-1", "s-1")
 			}
 			want, got := erwarteteZeilen(liste), s.dienst.liste()
 			if len(got) != len(want) || len(want) != p.Anfragen() {

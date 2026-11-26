@@ -337,10 +337,11 @@ func (e *ersatz) verbinde(context.Context, string) error {
 	return nil
 }
 
-// kurzesProfil ist ein Profil des Tests: je Lauf 20 Anfragen Warm-up und 20 Messphase (Rate 20), 12 Lookups, 2 Sets zu 20 Entities.
+// kurzesProfil ist ein Profil des Tests: je Lauf 16 Anfragen Warm-up und 24 Messphase (Rate 8), 12 Lookups, 2 Sets zu 20 Entities. Rate,
+// Warm-up und Messphase sind verschieden, keines ist 1 s oder ein Wert der Profile abnahme und rauch.
 func kurzesProfil(name string, laeufe int) Profil {
 	p := kleinesProfil()
-	p.Name, p.Laeufe, p.Warmup, p.Messphase = name, laeufe, time.Second, time.Second
+	p.Name, p.Laeufe, p.Rate, p.Warmup, p.Messphase = name, laeufe, 8, 2*time.Second, 3*time.Second
 	return p
 }
 
@@ -370,8 +371,9 @@ func neuerProbestand(t *testing.T, p Profil, betriebsart string) *probestand {
 		}
 	}
 	n := 0
+	// Zielwert, Startwert und Kerne sind weder die Vorgaben noch die Werte der Profile und des Hosts.
 	s.ein = ablaufEingabe{
-		werte: werte{Profil: p, Betriebsart: betriebsart, ZielMs: 100, Startwert: 7, Kerne: 20},
+		werte: werte{Profil: p, Betriebsart: betriebsart, ZielMs: 90, Startwert: 31337, Kerne: 7},
 		Uhr:   s.uhr, Last: s.last, DataDir: t.TempDir(),
 		Aufbau: func(_ context.Context, a aufbauEingabe) (aufbauErgebnis, error) {
 			s.e.merke("aufbau")
