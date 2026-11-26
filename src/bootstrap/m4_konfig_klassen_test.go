@@ -324,7 +324,7 @@ func TestKonfigNameGegenseiteJedesZeichen(t *testing.T) {
 // ist genau er, bei ungültigem Modus zusätzlich der von MODE. Prüfgrenze: je Gruppe ein Verstoß, nicht jeder Schlüssel der Gruppe.
 func TestKonfigAlleVerstoesseJederModus(t *testing.T) {
 	gruppen := []struct{ gruppe, schluessel, wert string }{
-		{"nichtGeliefert", "ADMIN_LISTEN", "127.0.0.1:1"}, {"liesEinfache", "REPLAY_STRATEGY", "x"}, {"liesMengen", "REDACT_HEADERS", "bad name"},
+		{"nichtGeliefert", "ADMIN_X", "127.0.0.1:1"}, {"liesEinfache", "REPLAY_STRATEGY", "x"}, {"liesMengen", "REDACT_HEADERS", "bad name"},
 		{"liesTLS", "UPSTREAM_TLS_VERIFY", "false"}, {"liesHybrid", kHosts, "http://x"}, {"liesDienste", "SERVICE_ID", "bad id"},
 		{"liesPublicBaseURL", "PUBLIC_BASE_URL", "x"}, {"pruefeCADatei", "UPSTREAM_CA_FILE", filepath.Join(t.TempDir(), "fehlt.pem")},
 	}

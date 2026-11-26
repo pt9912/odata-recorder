@@ -347,6 +347,13 @@ func mustPfad(t *testing.T, text string) model.JSONPfad {
 
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
+// tokenAus meldet, ob token der Inhalt der Datei pfad ohne Leerraum am Rand ist.
+func tokenAus(t *testing.T, token []byte, pfad string) bool {
+	t.Helper()
+	inhalt, err := os.ReadFile(pfad)
+	return err == nil && len(token) >= 32 && string(token) == strings.TrimSpace(string(inhalt))
+}
+
 // TestWerteErreichenVerbraucher fängt B7: Schleife über die Felder von Konfiguration (jedes trägt einen
 // eigenen Wert, die Menge hält reflect gegen die Tabelle) und ihre Verbraucher.
 func TestWerteErreichenVerbraucher(t *testing.T) {
@@ -361,6 +368,7 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 	k := bootstrap.Konfiguration{
 		Modus: modusRecord, Listen: "127.0.0.1:7777", DataDir: filepath.Join(dir, "d"),
 		ListenTLSCert: tlsCert, ListenTLSKey: tlsKey,
+		AdminListen: "127.0.0.1:7778", AdminTokenFile: filepath.Join(dir, "eigen.token"),
 		Dienste:        []bootstrap.Dienst{{ID: "x1", Root: "/r1", UpstreamURL: "http://u1.test/o"}, {ID: "x2", Root: "/r2", UpstreamURL: "http://u2.test/o"}},
 		ReplayStrategy: "last", ReplayAssignment: "ordered", ReplayRedactedBodies: true,
 		MatchVaryHeaders: []string{"x-vary"}, MatchInvalidEncoding: "reject", MatchBodyMode: "json-canonical",
@@ -397,7 +405,9 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 	tlsGezeigt := tlsBedientVon(r.server.Listener, p.server.Listener)
 	pruefungen := map[string]bool{
 		"Modus":                r.recorder != nil && r.replay == nil && p.replay != nil && p.recorder == nil && p.session != nil && p.upstream == nil,
-		"Listen":               r.listenAdr == k.Listen && p.listenAdr == k.Listen,
+		"Listen":               r.listenAdrs[0] == k.Listen && p.listenAdrs[0] == k.Listen,
+		"AdminListen":          slices.Equal(r.listenAdrs[1:], []string{k.AdminListen}) && slices.Equal(p.listenAdrs[1:], []string{k.AdminListen}),
+		"AdminTokenFile":       tokenAus(t, r.adminKfg.Token, k.AdminTokenFile) && tokenAus(t, p.adminKfg.Token, k.AdminTokenFile),
 		"ListenTLSCert":        tlsGezeigt,
 		"ListenTLSKey":         tlsGezeigt,
 		"DataDir":              fileExists(filepath.Join(dir, modusRecord, dateiDB)) && fileExists(filepath.Join(dir, modusReplay, verzeichnisB)),

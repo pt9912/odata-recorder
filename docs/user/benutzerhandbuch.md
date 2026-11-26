@@ -2,7 +2,7 @@
 
 Software-Version: dev
 Gültigkeitsbereich: das Binary, das `make build` erzeugt
-Stand: 2026-11-21
+Stand: 2026-11-26
 
 ## Einleitung
 
@@ -102,6 +102,8 @@ Dieser Abschnitt führt die Einstellungen, die der Dienst aus den Umgebungsvaria
 | `HYBRID_REPLAY_FALLBACK` | Kategorien, für die im Modus `hybrid` der Replay-Fallback gilt, durch Komma getrennt: `unsupported` und `coverage_insufficient`, in dieser Schreibweise. Ein anderer Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Eine Anfrage, die der Mock nicht beantwortet, erhält für die Kategorie dann die Antwort aus den aufgezeichneten Austauschen. |
 | `FALLBACK_ALLOW_HOSTS` | Hosts, zu denen im Modus `hybrid` der Upstream-Fallback gehen darf, durch Komma getrennt: ein Name oder eine IPv6-Adresse in eckigen Klammern, optional mit `:` und Port, ohne Schema und Pfad. Ein ungültiger Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Ein Eintrag gilt nur für den Host der `UPSTREAM_URL` des Services der Anfrage, mit dem Port, den die URL nennt oder ihr Schema voraussetzt. |
 | `FALLBACK_WRITE_ALLOW` | Routen, für die im Modus `hybrid` ein schreibender Upstream-Fallback gilt, durch Komma getrennt: eine Methode (`POST`, `PUT`, `PATCH`, `DELETE` oder `MERGE`), ein Leerzeichen und ein Pfadmuster, das mit `/` beginnt, je Segment höchstens ein `*` trägt und am Ende `**` tragen darf. Ein ungültiger Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Ein Eintrag gilt nur für eine Anfrage, deren Methode und Pfad er deckt, und nur zu einem Host, den `FALLBACK_ALLOW_HOSTS` freigibt. |
+| `ADMIN_LISTEN` | Host und Port, an dem der Dienst die Admin-Schnittstelle annimmt, in der Form `host:port` wie bei `LISTEN`; der Host ist `127.0.0.1`, `[::1]` oder `localhost`, genau in dieser Schreibweise (Abschnitt `Admin-Schnittstelle`). Ohne Angabe gilt `127.0.0.1:8081`. |
+| `ADMIN_TOKEN_FILE` | Pfad der Datei mit dem Token der Admin-Schnittstelle, absolut oder relativ zum Arbeitsverzeichnis (Abschnitt `Admin-Schnittstelle`). Ohne Angabe gilt die Datei `admin.token` im Verzeichnis von `DATA_DIR`. |
 
 ## Modus hybrid
 
@@ -133,6 +135,53 @@ Body: Eine Anfrage mit Body, für die ein Fallback möglich ist, liest der Diens
 Herunterfahren: Eine Anfrage, die auf den Upstream wartet, ist eine laufende Anfrage. Der Dienst wartet höchstens `SHUTDOWN_TIMEOUT` auf sie; danach endet sie ohne Antwort, und eine vom Upstream angenommene Änderung kann ausgeführt sein, ohne dass der Client die Antwort sieht. Setze `SHUTDOWN_TIMEOUT` über die Antwortzeit des Upstreams.
 
 Beim Start im Modus `hybrid` mit `HYBRID_FALLBACK=enabled` und `UPSTREAM_TLS_INSECURE_SKIP_VERIFY=true` schreibt der Dienst genau eine Warnung, dass die Prüfung des Zertifikats abgeschaltet ist.
+
+## Admin-Schnittstelle
+
+Aufgabe: Sessions, Imports, Workspaces und Snapshots verwalten und den Zustand des Dienstes lesen.
+
+Voraussetzung: Zugriff auf denselben Rechner (oder Container) wie der Dienst und auf die Token-Datei. Die Schnittstelle läuft in jedem Modus neben dem Dienst, an der Adresse von `ADMIN_LISTEN`, über HTTP und allein auf Loopback. Ein anderer Host, auch `0.0.0.0`, `[::]` oder `127.0.0.2`, beendet den Start mit `ODR-E2001` am Schlüssel `ADMIN_LISTEN`. Nutzt `LISTEN` denselben Port, scheitert der Start mit `ODR-E2001 ADMIN_LISTEN: Adresse nicht bindbar`; setze `ADMIN_LISTEN` dann auf einen anderen Port. Jede andere Variable, deren Name mit `ADMIN_` beginnt, beendet den Start mit `ODR-E2001`.
+
+Token: Der Dienst liest beim Start die Datei von `ADMIN_TOKEN_FILE`, bevor er eine Adresse öffnet. Fehlt sie, legt er sie mit einem zufälligen Token von 64 Zeichen und den Rechten `0600` an; ein Verzeichnis legt er dafür nicht an. Eine eigene Datei trägt eine Zeile mit mindestens 32 Zeichen, ohne Rechte für Gruppe und andere (`0400` oder `0600`). Wählst du das Token selbst, nimm einen zufälligen Wert: der Dienst begrenzt die Zahl der Versuche nicht. Ein Neustart auf derselben Datei nutzt dasselbe Token. Ein Verstoß beendet den Start mit `ODR-E2001 ADMIN_TOKEN_FILE:` und einem der folgenden Gründe, nie mit dem Pfad oder dem Inhalt:
+
+| Grund | Bedeutung |
+|---|---|
+| `Datei nicht lesbar` | Der Pfad führt über eine Datei, hat eine Schleife von Verweisen oder ist nicht lesbar. |
+| `ist ein Verzeichnis` | An der Stelle liegt ein Verzeichnis. |
+| `keine reguläre Datei` | An der Stelle liegt etwas anderes als eine Datei oder ein Verweis ohne Ziel. |
+| `Gruppen- oder Weltrechte` | Die Datei hat Rechte für Gruppe oder andere. |
+| `mehr als eine Zeile` | Die Datei hat mehr als eine Zeile. |
+| `weniger als 32 Zeichen` | Das Token ist kürzer als 32 Zeichen. |
+| `Datei nicht anlegbar` | Die Datei fehlt, und der Dienst kann sie nicht anlegen. |
+| `Datei, die der Dienst selbst schreibt` | Der Pfad nennt in `DATA_DIR` die Datei `audit.jsonl` oder eine Datei der Datenbank `odata-recorder.db`. |
+
+Vorgehen:
+
+1. Lies das Token aus der Datei.
+2. Sende jede Anfrage mit dem Header `Authorization: Bearer <Token>`. Allein `GET /healthz` verlangt kein Token.
+
+| Methode und Pfad | Aufgabe |
+|---|---|
+| `GET /healthz` | Bereitschaft des Dienstes, ohne Token: `{"status":"ok"}`. |
+| `GET /__admin/sessions` | Sessions auflisten. |
+| `POST /__admin/sessions` | Aufnahme-Session anlegen, Body `{"service_id":"…","id":"…"}`, `id` optional. |
+| `POST /__admin/sessions/{id}/close` | Session beenden; der Dienst wartet auf laufende Austausche. |
+| `GET /__admin/sessions/{id}/exchanges` | Austausche einer Session seitenweise lesen (`limit`, `after`). |
+| `DELETE /__admin/sessions/{id}` | Session mit ihren Austauschen löschen. |
+| `GET /__admin/coverage` | Abdeckung einer Baseline lesen (`baseline_id`). |
+| `POST /__admin/imports` | Session in eine Baseline importieren; nur im Modus `record`. |
+| `GET /__admin/imports/{id}` | Bericht eines Imports lesen; nur im Modus `record`. |
+| `GET /__admin/workspaces` | Workspaces auflisten. |
+| `POST /__admin/workspaces` | Workspace aus einer Baseline anlegen, Body `{"baseline_snapshot_id":"…","id":"…"}`, `id` optional. |
+| `GET /__admin/workspaces/{id}` | Workspace lesen. |
+| `DELETE /__admin/workspaces/{id}` | Workspace entfernen. |
+| `POST /__admin/workspaces/{id}/reset` | Workspace auf die Baseline zurücksetzen. |
+| `GET /__admin/workspaces/{id}/snapshots` | Snapshots auflisten. |
+| `POST /__admin/workspaces/{id}/snapshots` | Snapshot anlegen, Body `{"name":"…"}`. |
+| `POST /__admin/workspaces/{id}/restore` | Snapshot wiederherstellen, Body `{"snapshot_id":"…"}`. |
+| `GET /__admin/diagnostics` | Modus, Einstellungen ohne Geheimnisse und Zähler je Fehlercode lesen. |
+
+Ergebnis: Jede Antwort trägt den Header `X-Correlation-Id`, ein Fehler dazu ein Objekt mit `code`, `message` und `target`. Eine Anfrage ohne gültiges Token ist `401` mit `ODR-E2101`; der Dienst schreibt dazu eine Zeile in die Datei `audit.jsonl` in `DATA_DIR`. Ein unbekannter Pfad, eine falsche Methode oder ein ungültiger Wert ist `ODR-E2102`. In den Modi `replay`, `mock` und `hybrid` gibt es die beiden Pfade des Imports nicht, und eine dort angelegte Session nimmt keinen Austausch an; sie bleibt `open`, bis sie jemand beendet, und der nächste Start setzt sie `incomplete`. Beim Beenden nimmt die Schnittstelle keine Verbindung mehr an, und eine Anfrage auf einer offenen Verbindung ist `503` mit `ODR-E5010`.
 
 ## TLS
 
@@ -173,6 +222,8 @@ Dieser Abschnitt führt die Fehlercodes, die das Binary dem Anwender zeigt. Ein 
 | Code | Bedeutung |
 |---|---|
 | `ODR-E2001` | Die Startkonfiguration ist ungültig. |
+| `ODR-E2101` | Die Anfrage an die Admin-Schnittstelle hat kein gültiges Token (HTTP 401). |
+| `ODR-E2102` | Die Anfrage an die Admin-Schnittstelle ist ungültig (HTTP 400, 404 oder 405). |
 | `ODR-E2401` | Die Aufnahme oder die Schwärzung eines Austauschs ist fehlgeschlagen. |
 | `ODR-E3001` | Gespeicherte Daten sind beschädigt oder nicht ladbar, etwa weil die Datei fremd ist oder von einer neueren Schemaversion stammt. |
 | `ODR-E4001` | Der Upstream ist nicht erreichbar. |
@@ -196,9 +247,19 @@ Dieser Abschnitt führt die Fehlercodes, die das Binary dem Anwender zeigt. Ein 
 | `ODR-E6008` | Die Entity oder das Entity-Set ist unbekannt. |
 | `ODR-E6009` | Der Schlüssel der Entity ist bereits vergeben. |
 | `ODR-E6010` | Die Bedingung von `If-Match` oder `If-None-Match` trifft den ETag der Entity nicht (HTTP 412); die Änderung unterbleibt. |
+| `ODR-E6101` | Der Import einer Session in eine Baseline ist ungültig oder widersprüchlich (HTTP 422). |
+| `ODR-E6102` | Eine Kennung des Imports ist mit anderem Inhalt erneut benutzt (HTTP 409). |
 | `ODR-E7001` | Der Workspace ist unbekannt. |
+| `ODR-E7002` | Der Snapshot ist unbekannt. |
 | `ODR-E7003` | Die Aufnahme-Session ist unbekannt. |
+| `ODR-E7004` | Eine Baseline verweist auf die Session; sie lässt sich nicht löschen (HTTP 409). |
+| `ODR-E7005` | Der Import ist unbekannt. |
+| `ODR-E7006` | Der Name des Snapshots ist im Workspace vergeben (HTTP 409). |
+| `ODR-E7007` | Die Kennung des Workspace ist vergeben (HTTP 409). |
+| `ODR-E7008` | Die Art des Snapshots passt nicht zur Aktion (HTTP 422). |
 | `ODR-E7009` | Die Session ist noch offen. |
+| `ODR-E7010` | Die Kennung der Session ist vergeben (HTTP 409). |
+| `ODR-E7011` | Die Session ist nicht offen (HTTP 409). |
 | `ODR-E9001` | Ein interner Fehler ist aufgetreten. |
 
 ## Fehlerbehebung

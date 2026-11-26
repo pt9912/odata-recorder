@@ -80,9 +80,9 @@ func (c *client) hole(a anfrage, zusatz map[string]string) antwort {
 	return antwort{status: resp.StatusCode, header: resp.Header, body: body}
 }
 
-// konfig lädt die Konfiguration wie im Betrieb; nur Listen ist auf Port 0 überschrieben. Auch der
-// Replay-Lauf nennt den Upstream: so belegt der Zähler, dass der Replay ihn nicht erreicht. extra
-// sind weitere Zeilen der Umgebung.
+// konfig lädt die Konfiguration wie im Betrieb; nur Listen ist auf Port 0 überschrieben und AdminListen leer (kein
+// Admin-Listener, SPEC-300 Nr. 11). Auch der Replay-Lauf nennt den Upstream: so belegt der Zähler, dass der Replay ihn nicht
+// erreicht. extra sind weitere Zeilen der Umgebung.
 func konfig(t *testing.T, modus, dir, upstream string, extra ...string) bootstrap.Konfiguration {
 	t.Helper()
 	env := append([]string{"MODE=" + modus, "LISTEN=127.0.0.1:8080", "DATA_DIR=" + dir, "SERVICE_ID=" + serviceID, "SERVICE_ROOT_PATH=/odata"}, extra...)
@@ -93,7 +93,7 @@ func konfig(t *testing.T, modus, dir, upstream string, extra ...string) bootstra
 	if err != nil {
 		t.Fatalf("Konfiguration: %v", err)
 	}
-	k.Listen = "127.0.0.1:0"
+	k.Listen, k.AdminListen = "127.0.0.1:0", ""
 	return k
 }
 

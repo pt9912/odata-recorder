@@ -778,7 +778,7 @@ func TestAuditSchreibfehlerAendertNichts(t *testing.T) {
 
 // TestAuditAufrufstellen fängt V07: die Aufrufstellen von Audit.Append im Code der Dienste sind die vier Zeilen
 // V01a bis V01d (per Syntaxbaum gegen das Literal W), die Arten sind zwölf, und die Zellen (Modus, Art) der Fälle sind
-// Modus × Arten ohne die acht des Admin-Adapters (kein Use Case, kein Aufruf von `admin` im Binary) und ohne (replay,
+// Modus × Arten ohne die acht des Admin-Adapters (kein Use Case; ihre Zellen führt dieser Test nicht) und ohne (replay,
 // session_geloescht) und (replay, import_fehlgeschlagen).
 func TestAuditAufrufstellen(t *testing.T) {
 	soll := []string{

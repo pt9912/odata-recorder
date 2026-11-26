@@ -46,7 +46,7 @@ func ungueltigeKonfiguration(t *testing.T) {
 		env  func(dir string) []string
 		soll []string
 	}{
-		{"ADMIN_LISTEN", func(string) []string { return []string{"ADMIN_LISTEN=127.0.0.1:1"} }, []string{"ADMIN_LISTEN"}},
+		{"ADMIN_LISTEN", func(string) []string { return []string{"ADMIN_LISTEN=0.0.0.0:%PORT%"} }, []string{"ADMIN_LISTEN"}},
 		{"MODE=Record", func(d string) []string { return append(gueltig(d), "MODE=Record") }, []string{"MODE"}},
 		{"beide Verstöße", func(d string) []string {
 			return append(gueltig(d)[:2:2], "MODE=Record", "SERVICE_ID=ref", "SERVICE_ROOT_PATH=/odata/")

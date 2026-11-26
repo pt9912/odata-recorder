@@ -99,6 +99,9 @@ func TestKonfigLeer(t *testing.T) {
 	} {
 		for _, leer := range []string{"", "  ", "\t"} {
 			k := erwarteGueltig(t, append(basis(t), key+"="+leer)...)
+			if k.AdminTokenFile == filepath.Join(k.DataDir, "admin.token") {
+				k.AdminTokenFile = standard.AdminTokenFile // der Default liegt im DATA_DIR des Falls
+			}
 			k.DataDir = standard.DataDir
 			if !reflect.DeepEqual(k, standard) {
 				t.Errorf("%s=%q weicht vom Ungesetzten ab", key, leer)
@@ -121,6 +124,7 @@ func TestKonfigDefaults(t *testing.T) {
 	k := erwarteGueltig(t, basis(t)...)
 	soll := bootstrap.Konfiguration{
 		Modus: "record", Listen: "127.0.0.1:8080", DataDir: k.DataDir,
+		AdminListen: "127.0.0.1:8081", AdminTokenFile: filepath.Join(k.DataDir, "admin.token"),
 		Dienste:        []bootstrap.Dienst{{ID: "default", Root: "/", UpstreamURL: "https://example.test/odata", Version: "4.0"}},
 		ReplayStrategy: "sequential", ReplayAssignment: "explicit", ReplayRedactedBodies: false,
 		MatchVaryHeaders:     []string{"Accept", "Content-Type", "If-Match", "Odata-Version", "Prefer"},
@@ -217,11 +221,11 @@ func TestKonfigHeaderSchreibweise(t *testing.T) {
 	}
 }
 
-// TestKonfigNichtGeliefert fängt A06 und B05: jeder nicht gelieferte Schlüssel `ADMIN_*` (sechs Namen, darunter ADMIN_TLS_CERT und ADMIN_TLS_KEY)
+// TestKonfigNichtGeliefert fängt A06 und B05: jeder abgelehnte Schlüssel `ADMIN_*` (sechs Namen, darunter ADMIN_TLS_CERT und ADMIN_TLS_KEY)
 // × die vier Modi = 24; STRICT_COVERAGE, PUBLIC_BASE_URL, die vier Schlüssel des Modus hybrid sowie LISTEN_TLS_CERT und LISTEN_TLS_KEY gehören nicht
 // mehr dazu (SPEC-110 Nr. 2); die übrigen Schlüssel `LISTEN_TLS_*` fängt TestKonfigListenTLSRest.
 func TestKonfigNichtGeliefert(t *testing.T) {
-	namen := []string{"ADMIN_LISTEN", "ADMIN_TOKEN_FILE", "ADMIN_TLS_CERT", "ADMIN_TLS_KEY", "ADMIN_ALLOW_PLAINTEXT", "ADMIN_X"}
+	namen := []string{"ADMIN_TOKEN", "ADMIN_TLS_CA", "ADMIN_TLS_CERT", "ADMIN_TLS_KEY", "ADMIN_ALLOW_PLAINTEXT", "ADMIN_X"}
 	n := 0
 	for _, modus := range vierModi() {
 		for _, key := range namen {
@@ -330,13 +334,22 @@ func TestKonfigListe(t *testing.T) {
 	}
 }
 
+// listenGueltig und listenUngueltig sind die Werte, die LISTEN annimmt bzw. ablehnt (SPEC-110 Nr. 7).
+func listenGueltig() []string {
+	return []string{"127.0.0.1:1", "0.0.0.0:65535", "localhost:8080", "[::1]:8080", "host.example:80", "a_b.c-d:80"}
+}
+
+func listenUngueltig() []string {
+	return []string{"127.0.0.1:0", "127.0.0.1:65536", ":8080", "[]:80", "127.0.0.1", "127.0.0.1:", "127.0.0.1:+80", "127.0.0.1:-1", "::1:80", "[abc]:80", "a b:80", "a/b:80", "a_b/c:80", "[::1%eth0]:80", "[a b]:80", "ä:80", "127.0.0.1:80x", "http://h:80", "host:99999999999999999999"}
+}
+
 func TestKonfigLISTEN(t *testing.T) {
-	for _, w := range []string{"127.0.0.1:1", "0.0.0.0:65535", "localhost:8080", "[::1]:8080", "host.example:80", "a_b.c-d:80"} {
+	for _, w := range listenGueltig() {
 		if k := erwarteGueltig(t, append(basis(t), "LISTEN="+w)...); k.Listen != w {
 			t.Errorf("LISTEN=%s: %q", w, k.Listen)
 		}
 	}
-	for _, w := range []string{"127.0.0.1:0", "127.0.0.1:65536", ":8080", "[]:80", "127.0.0.1", "127.0.0.1:", "127.0.0.1:+80", "127.0.0.1:-1", "::1:80", "[abc]:80", "a b:80", "a/b:80", "a_b/c:80", "[::1%eth0]:80", "[a b]:80", "ä:80", "127.0.0.1:80x", "http://h:80", "host:99999999999999999999"} {
+	for _, w := range listenUngueltig() {
 		erwarteVerstoss(t, "LISTEN", append(basis(t), "LISTEN="+w)...)
 	}
 }
@@ -414,7 +427,7 @@ func TestKonfigModus(t *testing.T) {
 	}
 	// bei einem Verstoß, hier ADMIN_LISTEN, wird kein DATA_DIR angelegt
 	frisch := filepath.Join(t.TempDir(), "frisch")
-	lade(t, "ADMIN_LISTEN=127.0.0.1:1", "DATA_DIR="+frisch)
+	lade(t, "ADMIN_LISTEN=127.0.0.1:0", "DATA_DIR="+frisch)
 	if _, err := os.Stat(frisch); err == nil {
 		t.Error("DATA_DIR bei Start-Verstoß angelegt")
 	}
@@ -724,7 +737,7 @@ func TestKonfigWiederholung(t *testing.T) {
 	if !reflect.DeepEqual(a, b) {
 		t.Error("zweimal geladen, Werte verschieden")
 	}
-	bad := []string{"ADMIN_LISTEN=127.0.0.1:1", "LISTEN=x", "UPSTREAM_TIMEOUT=y", "DATA_DIR=" + filepath.Join(t.TempDir(), "d")}
+	bad := []string{"ADMIN_LISTEN=127.0.0.1:0", "LISTEN=x", "UPSTREAM_TIMEOUT=y", "DATA_DIR=" + filepath.Join(t.TempDir(), "d")}
 	_, z1 := lade(t, bad...)
 	_, z2 := lade(t, bad...)
 	if !reflect.DeepEqual(z1, z2) || len(z1) == 0 {

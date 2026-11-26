@@ -16,6 +16,7 @@ import (
 	"github.com/pt9912/odata-recorder/src/adapters/driven/httpupstream"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/sqlite"
 	"github.com/pt9912/odata-recorder/src/adapters/driven/telemetry"
+	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
 	"github.com/pt9912/odata-recorder/src/adapters/driving/httpodata"
 	"github.com/pt9912/odata-recorder/src/bootstrap"
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
@@ -152,6 +153,9 @@ type haken struct {
 	listener   []net.Listener
 	listenAdr  string
 	listenNetz string
+	// listenAdrs hält jede Adresse eines Listen in der Folge der Aufrufe, adminKfg die Konfig des Admin-Adapters.
+	listenAdrs []string
+	adminKfg   admin.Konfig
 	aufrufe    map[string]aufruf
 	// dienstAnlagen hält jeden model.Service fest, den ein Create des MetadataRepository der Anlage erhielt, dienstGets die Kennung jedes
 	// Get, dienstOps zählt jede Operation (Create, Get, List, SetMetadata).
@@ -324,6 +328,7 @@ func (h *haken) bauteile() bootstrap.Bauteile {
 		h.p.add(pListen)
 		h.mu.Lock()
 		h.listenAdr, h.listenNetz = addr, network
+		h.listenAdrs = append(h.listenAdrs, addr)
 		h.mu.Unlock()
 		if h.vorListen != nil {
 			h.vorListen()
@@ -345,6 +350,12 @@ func (h *haken) bauteile() bootstrap.Bauteile {
 		h.server = k
 		h.mu.Unlock()
 		return &fakeServer{h: h, l: k.Listener, stop: make(chan struct{})}, nil
+	}
+	b.NeuerAdmin = func(k admin.Konfig) (bootstrap.Server, error) {
+		h.mu.Lock()
+		h.adminKfg = k
+		h.mu.Unlock()
+		return echt.NeuerAdmin(k)
 	}
 	return b
 }
