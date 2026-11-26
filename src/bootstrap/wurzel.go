@@ -78,6 +78,7 @@ type bauteile struct {
 	NeueInspektion func(inspection.Konfig) (inbound.InspectionUseCase, error)
 	Listen         func(ctx context.Context, network, addr string) (net.Listener, error)
 	NeuerServer    func(httpodata.Konfig) (server, error)
+	NeuerAdmin     func(admin.Konfig) (server, error)
 }
 
 // als macht aus einem Konstruktor einen, der die Schnittstelle I liefert; ein Fehler liefert
@@ -123,6 +124,13 @@ func standardBauteile() bauteile {
 			}
 			return s, nil
 		},
+		NeuerAdmin: func(k admin.Konfig) (server, error) {
+			s, err := admin.New(k)
+			if err != nil {
+				return nil, err
+			}
+			return s, nil
+		},
 	}
 }
 
@@ -156,12 +164,18 @@ type Handle struct {
 	// tls ist die Konfiguration der Verbindungen, die Build lud; nil heißt Klartext (SPEC-291 Nr. 8).
 	tls *tls.Config
 
+	// token ist der Inhalt der Token-Datei; Hochfahren setzt es, allein admin.Konfig liest es (SPEC-300 Nr. 4, 12).
+	token []byte
+
 	// mu schützt die folgenden Felder.
-	mu       sync.Mutex
-	zustand  zustand
-	adresse  string
-	server   server
-	serveEnd chan struct{}
+	mu      sync.Mutex
+	zustand zustand
+	adresse string
+	server  server
+	// adminAdresse und adminServer sind leer und nil ohne Admin-Listener.
+	adminAdresse string
+	adminServer  server
+	serveEnd     chan struct{}
 	// sessionBegonnen heißt: mindestens ein OpenInitialSession wurde begonnen.
 	sessionBegonnen bool
 
@@ -209,12 +223,12 @@ func pruefeGrundwerte(k Konfiguration) error {
 	return nil
 }
 
-// vorbereiten lädt als ersten Schritt das Paar des TLS des Listeners zur Zeit der Uhr des Prozesses (SPEC-291 Nr. 8), in jedem
-// Modus; danach prüft es die Grundwerte, die Pfade der Schwärzung und die Datei der CA.
+// vorbereiten lädt als ersten Schritt das Paar des TLS des Listeners zur Zeit der Uhr des Prozesses (SPEC-291 Nr. 8) und prüft
+// den Transport des Admin-Listeners, in jedem Modus; danach prüft es die Grundwerte, die Pfade der Schwärzung und die Datei der CA.
 func vorbereiten(k Konfiguration, uhr support.Clock) (vorlaeufig, error) {
 	var v vorlaeufig
 	var err error
-	if v.tls, err = ladeListenTLS(k, uhr.Now()); err != nil {
+	if v.tls, err = ladeTransport(k, uhr.Now()); err != nil {
 		return v, err
 	}
 	if err := pruefeGrundwerte(k); err != nil {
@@ -260,7 +274,7 @@ func build(ctx context.Context, k Konfiguration, log *slog.Logger, senke io.Writ
 		_ = h.ablage.Close()
 		return nil, err
 	}
-	h.fehler = make(chan error, 1)
+	h.fehler = neuerFehlerKanal()
 	return h, nil
 }
 
@@ -500,8 +514,16 @@ func (h *Handle) Workspaces() inbound.WorkspaceUseCase { return h.workspaces }
 // Snapshots liefert den Use Case der Snapshots, in jedem Modus.
 func (h *Handle) Snapshots() inbound.SnapshotUseCase { return h.snapshots }
 
-// Fehler liefert höchstens einen Wert, den Fehler von Serve, und ist geschlossen, wenn Serve zurückgekehrt ist.
+// Fehler liefert höchstens einen Wert, den ersten Ausfall eines der Server (SPEC-300 Nr. 9), und ist geschlossen, wenn Serve
+// jedes gebundenen Servers zurückgekehrt ist.
 func (h *Handle) Fehler() <-chan error { return h.fehler }
+
+// AdminAdresse ist die Adresse des gebundenen Admin-Listeners, vor Hochfahren und ohne Admin-Listener leer (SPEC-300 Nr. 1).
+func (h *Handle) AdminAdresse() string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.adminAdresse
+}
 
 // Adresse ist die Adresse des gebundenen Listeners, vor Hochfahren leer.
 func (h *Handle) Adresse() string {

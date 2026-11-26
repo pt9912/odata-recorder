@@ -394,7 +394,7 @@ func TestHybridKonfigFamilien(t *testing.T) {
 		schluessel, wert string
 		abgelehnt        bool
 	}{
-		{"ADMIN_LISTEN", geheimes, true}, {"LISTEN_TLS_X", geheimes, true}, {kUpstr, "disabled", false}, {kHosts, "a.example", false},
+		{"ADMIN_X", geheimes, true}, {"LISTEN_TLS_X", geheimes, true}, {kUpstr, "disabled", false}, {kHosts, "a.example", false},
 		{kWrite, "POST /a", false}, {kReplay, "unsupported", false},
 	}
 	n := 0

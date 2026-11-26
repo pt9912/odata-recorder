@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-listener
+**Fund:** Das akzeptierte Negativ zum Token auf den Ausgaben nannte `println` (den `make lint` fängt) und `os.Stderr` und ließ die Standard-Logger aus, die durch alle Fänger gingen; nach der Auflage nennt es die Klasse (Deskriptoren 1 und 2 an den ersetzten Variablen vorbei, 3 Arten, 2 ungefangen). Beleg: Verifikation `2026-11-26-slice-bootstrap-m6-listener-verifikation` (V-2), Plan `slice-bootstrap-m6-listener` §3, Zeile B16.

@@ -38,7 +38,7 @@ func aufbau(t *testing.T) ablage {
 	if err != nil {
 		t.Fatal(err)
 	}
-	k.Listen = "127.0.0.1:0"
+	k.Listen, k.AdminListen = "127.0.0.1:0", ""
 	h, err := bootstrap.Build(ctx, k, nil)
 	if err != nil {
 		t.Fatal(err)

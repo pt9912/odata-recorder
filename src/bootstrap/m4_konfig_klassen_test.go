@@ -320,11 +320,11 @@ func TestKonfigNameGegenseiteJedesZeichen(t *testing.T) {
 }
 
 // TestKonfigAlleVerstoesseJederModus fängt die Zusage „alle Verstöße werden gemeldet“ je Prüfgruppe und Modus (SPEC-110 Nr. 8, 12). Die Menge: 6 Zustände der Modus-Achse {record, replay, mock, hybrid, ungesetzt,
-// ungültig (`Record`)} × 8 Prüfgruppen des Ladens {nicht gelieferte Schlüssel, einfache Schlüssel, Listen, TLS, Hybrid, Dienste, PUBLIC_BASE_URL, UPSTREAM_CA_FILE} = 48 Zellen, je ein Verstoß der Gruppe; erwartet
+// ungültig (`Record`)} × 8 Prüfgruppen des Ladens {Admin (abgelehnter Schlüssel ADMIN_*), einfache Schlüssel, Listen, TLS, Hybrid, Dienste, PUBLIC_BASE_URL, UPSTREAM_CA_FILE} = 48 Zellen, je ein Verstoß der Gruppe; erwartet
 // ist genau er, bei ungültigem Modus zusätzlich der von MODE. Prüfgrenze: je Gruppe ein Verstoß, nicht jeder Schlüssel der Gruppe.
 func TestKonfigAlleVerstoesseJederModus(t *testing.T) {
 	gruppen := []struct{ gruppe, schluessel, wert string }{
-		{"nichtGeliefert", "ADMIN_LISTEN", "127.0.0.1:1"}, {"liesEinfache", "REPLAY_STRATEGY", "x"}, {"liesMengen", "REDACT_HEADERS", "bad name"},
+		{"liesAdmin", "ADMIN_X", "127.0.0.1:1"}, {"liesEinfache", "REPLAY_STRATEGY", "x"}, {"liesMengen", "REDACT_HEADERS", "bad name"},
 		{"liesTLS", "UPSTREAM_TLS_VERIFY", "false"}, {"liesHybrid", kHosts, "http://x"}, {"liesDienste", "SERVICE_ID", "bad id"},
 		{"liesPublicBaseURL", "PUBLIC_BASE_URL", "x"}, {"pruefeCADatei", "UPSTREAM_CA_FILE", filepath.Join(t.TempDir(), "fehlt.pem")},
 	}

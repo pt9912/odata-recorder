@@ -46,6 +46,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 5a. **Prüfpunkt „Geplantes und Chronik“.** Der Probelauf und die Prüfliste (Nr. 2) lesen das Handbuch auf Ausblick und Verlauf ohne Stichwort, den der Fänger aus `slice-handbuch-geruest` (Auftrag Nr. 10) nicht findet; jeder Fund ist ein Befund, und er geht, wenn er ein Muster zeigt, als Erweiterung der Menge an den Fänger zurück.
 5. Raster *Operation × Argumentart* (§6) und Tabelle *Zusage · Fänger* (§3) füllen, Größe angeben.
 
+**Übernimmt außerdem** (Sendung von [slice-bootstrap-m6-listener](../done/slice-bootstrap-m6-listener.md), Planner bei dessen Closure, 2026-11-26, `AGENTS.md` §3.13; §1 *Ausdrücklich NICHT* und DoD dieses Slice vorher gelesen, kein Ausschluss trifft die Sendung): [`README.md`](../../../../README.md) (Zeile 21, *There is no runnable code yet*) und [`README.de.md`](../../../../README.de.md) (Zeile 22, *Es gibt noch keinen lauffähigen Code*) widersprechen dem Binary; der Abschnitt darunter nennt außerdem allein `baseline-verify` und `docs-check` als Inhalt von `make gates`. Beide Dateien nennen unter *Was kann ich heute tun?* bzw. *What can I do today?* den Ist-Zustand am Stand dieses Slice, ohne Zusage, die das Handbuch nicht trägt. Der Probelauf selbst liest die zwei Dateien nicht (Eingabe nach Auftrag Nr. 1); den Abschnitt prüft der Reviewer gegen Handbuch und `make help`.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Kapitel über Hybrid, Admin-API — Folgewellen; das Kapitel zum Modus `mock` schreibt `slice-handbuch-mock` (Geber: dieser Slice nimmt es nicht an und liegt in der Reihenfolge danach); der Probelauf prüft, was das Handbuch zum Zeitpunkt der Closure sagt.
@@ -72,7 +74,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Probelauf nach Auftrag Nr. 1 gefahren, Bericht je Aufgabe liegt im Repo (Ablage nach Architect); jeder Befund ist im Handbuch behoben oder trägt einen Ausgang in §6 (`LH-QA-05`).
-- [ ] Prüfliste nach Nr. 2 abgearbeitet; Kopf stimmt mit der Ausgabe von `version` überein; kein Fund zu Geplantem oder Chronik (Nr. 5a).
+- [ ] Prüfliste nach Nr. 2 abgearbeitet; Kopf stimmt mit der Ausgabe von `version` überein; kein Fund zu Geplantem oder Chronik (Nr. 5a); `README.md` und `README.de.md` sagen unter *What can I do today?* bzw. *Was kann ich heute tun?* nichts, was dem gebauten Binary oder `make help` widerspricht (Geber: `slice-bootstrap-m6-listener`).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
@@ -94,6 +96,7 @@ Aussagen-Berührung steht hier gar nicht.
 |---|---|---|
 | Bericht des Probelaufs | neu | Ablage und Schema nach Auftrag Nr. 1 |
 | docs/user/benutzerhandbuch.md | update | Behebung der Befunde, Kopf |
+| `README.md`, `README.de.md` | update | Abschnitt *What can I do today?* bzw. *Was kann ich heute tun?* auf den Ist-Zustand (Sendung von `slice-bootstrap-m6-listener`) |
 
 Der Architect füllt die Tabelle *Zusage · Fänger* (`AGENTS.md` §3.15) und ergänzt die Zeilen oben; sie ist beim Start leer.
 

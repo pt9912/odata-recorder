@@ -44,7 +44,7 @@ func start(ctx context.Context, environ []string, stderr io.Writer, b bauteile) 
 		fehler = append(fehler, zerlege(err)...)
 	}
 	if ausfall == nil {
-		ausfall = ausfallDanach(h)
+		ausfall = ausfallDanach(ctx, h.Fehler())
 	}
 	if ausfall != nil {
 		fehler = append(fehler, &inbound.Fehler{Code: model.CodeE9001, Status: 500, Ursache: ausfall})
@@ -52,8 +52,8 @@ func start(ctx context.Context, environ []string, stderr io.Writer, b bauteile) 
 	return abschluss(ctx, stderr, fehler)
 }
 
-// betreibe fährt h hoch und wartet auf den Abbruch von ctx oder den Ausfall des Listeners; es liefert den
-// Fehler des Hochfahrens und den Fehler von Serve, wenn er vor dem Abbruch eintrat.
+// betreibe fährt h hoch und wartet auf den Abbruch von ctx oder den Ausfall eines Listeners; es liefert den
+// Fehler des Hochfahrens und den Ausfall, wenn er vor dem Abbruch eintrat.
 func betreibe(ctx context.Context, h *Handle, log *slog.Logger) (fehler []error, ausfall error) {
 	if err := h.Hochfahren(ctx); err != nil {
 		return []error{err}, nil
@@ -62,37 +62,43 @@ func betreibe(ctx context.Context, h *Handle, log *slog.Logger) (fehler []error,
 	return nil, warte(ctx, h.Fehler())
 }
 
-// errServeBeendet ist der Ausfall, wenn Serve ohne Anhalten und ohne Abbruch von ctx zurückkehrt;
-// start meldet ihn als ODR-E9001 (SPEC-139 Nr. 6, 8).
+// errServeBeendet ist der Ausfall, wenn Serve mit nil zurückkehrt, bevor Herunterfahren begonnen hat; start meldet ihn als
+// ODR-E9001, bei beendetem ctx als Abbruch (SPEC-300 Nr. 9, SPEC-139 Nr. 8).
 var errServeBeendet = errors.New("Serve ist ohne Anhalten zurückgekehrt")
 
-// warte wartet auf den Abbruch von ctx oder das Ende von Serve und liefert den Ausfall: den Wert aus
-// fehler, sonst errServeBeendet, wenn fehler ohne Wert und vor dem Abbruch von ctx geschlossen ist.
+// warte wartet auf den Abbruch von ctx oder den Wert oder das Schließen von fehler und liefert den Ausfall; ein Schließen ohne
+// Wert wertet es wie errServeBeendet.
 func warte(ctx context.Context, fehler <-chan error) error {
 	select {
 	case <-ctx.Done():
 		return nil
 	case e, offen := <-fehler:
-		if offen {
-			return e
+		if !offen {
+			e = errServeBeendet
 		}
-		if ctx.Err() != nil {
-			return nil
-		}
-		return errServeBeendet
+		return ausfall(ctx, e)
 	}
 }
 
-// ausfallDanach liefert den Fehler von Serve, der erst mit oder nach dem Abbruch von ctx eintrat.
-func ausfallDanach(h *Handle) error {
+// ausfallDanach liefert den Ausfall, der erst mit oder nach dem Abbruch von ctx eintrat.
+func ausfallDanach(ctx context.Context, fehler <-chan error) error {
 	select {
-	case e, offen := <-h.Fehler():
+	case e, offen := <-fehler:
 		if offen {
-			return e
+			return ausfall(ctx, e)
 		}
 	default:
 	}
 	return nil
+}
+
+// ausfall wertet e: errServeBeendet bei beendetem ctx ist der Abbruch, denn Rückkehr und Signal lassen sich dann nicht ordnen
+// (SPEC-139 Nr. 8).
+func ausfall(ctx context.Context, e error) error {
+	if errors.Is(e, errServeBeendet) && ctx.Err() != nil {
+		return nil
+	}
+	return e
 }
 
 // zerlege liefert die Fehler, die errors.Join gesammelt hat, einzeln.

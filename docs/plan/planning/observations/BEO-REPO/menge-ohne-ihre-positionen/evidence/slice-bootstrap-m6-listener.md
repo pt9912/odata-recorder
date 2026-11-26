@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-listener
+**Fund:** Die Prüfung der Dateien des Dienstes hatte allein Fälle mit absoluten Pfaden (Review F-1); nach der Fix-Runde führte der Verweis allein die Seite von `ADMIN_TOKEN_FILE`, nicht die Seite `DATA_DIR` desselben Vergleichs, und die Mutation an dieser Seite schrieb am Binary das Token in `audit.jsonl` (Verifikation V-1). Beleg: Review `2026-11-26-slice-bootstrap-m6-listener-review` (F-1), Verifikation `2026-11-26-slice-bootstrap-m6-listener-verifikation` (V-1).
