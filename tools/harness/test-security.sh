@@ -42,8 +42,9 @@ fahre() {
 
 # laufe fährt das Binary $3 im Arbeitsverzeichnis $1 im Image: kein Netz, Speicherlimit, kein Schreibzugriff außer
 # dem tmpfs unter /tmp und den tmpfs, die $2 trägt (für e2e.test /voll), kein Mount (SPEC-041 Nr. 1); $2 sind
-# weitere Flags von docker run (ohne Leerzeichen in einem Wert), leer für keine. Ob der Container netzlos und
-# schreibgeschützt ist, prüft TestSicherheitUmgebung im dritten Binary.
+# weitere Flags von docker run (ohne Leerzeichen in einem Wert), leer für keine. Ob der Container netzlos,
+# schreibgeschützt und ohne schreibbaren Mount ist, beobachtet TestSicherheitUmgebung allein im Container von
+# e2e.test (1 von 3); --tmpfs /tmp fangen bootstrap.test und e2e.test (2 von 3).
 laufe() {
 	wd=$1
 	flags=$2

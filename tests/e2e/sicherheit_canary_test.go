@@ -211,7 +211,7 @@ func sicherheitFaelle() []sicherheitFall {
 }
 
 // sicherheitZaehlung zählt die Suchzellen und die Kontrollzellen über alle Fälle.
-type sicherheitZaehlung struct{ suche, kontrolle int }
+type sicherheitZaehlung struct{ suche, kontrolle, aufbau int }
 
 // sicherheitMomentbild liefert Namen und Größen aller Dateien unter den Verzeichnissen als Text; vor und während der Aufnahme verschwindende Dateien fehlen darin.
 func sicherheitMomentbild(dirs []string) string {
@@ -347,8 +347,8 @@ func TestSicherheitCanary(t *testing.T) {
 		soll += f.zellen
 		t.Run(f.name, func(t *testing.T) { sicherheitLaufe(t, f, stellen, z) })
 	}
-	if !t.Failed() && (z.suche != soll || soll != 2592 || z.kontrolle != 48) {
-		t.Errorf("%d Suchzellen und %d Kontrollzellen gezählt; erwartet 2592 (%d) und 48", z.suche, z.kontrolle, soll)
+	if !t.Failed() && (z.suche != soll || soll != 2592 || z.kontrolle != 48 || z.aufbau != 16) {
+		t.Errorf("%d Suchzellen, %d Kontrollzellen und %d Aufbau-Kontrollen gezählt; erwartet 2592 (%d), 48 und 16", z.suche, z.kontrolle, z.aufbau, soll)
 	}
 }
 
@@ -389,6 +389,9 @@ func sicherheitLaufe(t *testing.T, f sicherheitFall, alle []sicherheitStelle, z 
 	p := startRoh(t, adresse, k.env(adresse))
 	p.modus = "record"
 	p.bereit()
+	sicherheitPruefeAufbau(t, p.cmd.Process.Pid, map[string]string{
+		"TMPDIR": filepath.Join(root, "tmp"), "HOME": filepath.Join(root, "home"), "DATA_DIR": data,
+	}, filepath.Join(root, "cwd"), z)
 	pflanzeKontrolle(t, filepath.Join(root, "tmp"))
 	sicherheitPflanzeMarker(t, root)
 	var ballast string
@@ -445,11 +448,81 @@ func sicherheitLaufe(t *testing.T, f sicherheitFall, alle []sicherheitStelle, z 
 	z.suche += zellen
 }
 
-// TestSicherheitUmgebung (SPEC-041 Nr. 1, *Umgebung*, und Nr. 9 f): der Container, in dem die Tests laufen, ist netzlos und hat ein schreibgeschütztes
-// Wurzeldateisystem: jede Schnittstelle außer `lo` fehlt oder ist nicht aufwärts, das Anlegen einer Datei in `/` scheitert mit EROFS, und das Anlegen unter `/tmp`
-// gelingt (ohne diese Gegenprobe zählte jeder andere Fehler als Schreibschutz). Der Test liest nur den Zustand des Containers und läuft im dritten Binary.
+// sicherheitLaufzeitTypen sind die Dateisystemtypen, die die Laufzeit des Containers selbst einhängt (SPEC-041 Nr. 1, *Mount*); die `--tmpfs` des Treibers
+// tragen den Typ `tmpfs`.
+func sicherheitLaufzeitTypen() []string {
+	return []string{"tmpfs", "proc", "sysfs", "devpts", "mqueue", "cgroup", "cgroup2"}
+}
+
+// sicherheitSchreibbareMounts liest den Inhalt von `/proc/self/mountinfo` und liefert je Einhängepunkt, der ein Verzeichnis ist (istVerz) und `rw` trägt
+// (Feld 6), dessen Typ nicht zu sicherheitLaufzeitTypen gehört, eine Meldung mit Einhängepunkt und Typ. Eine leere Datei und eine Zeile ohne die Felder sind
+// ein Fehler, nie Erfolg; Dateien als Einhängepunkte zählen nicht.
+func sicherheitSchreibbareMounts(info string, istVerz func(string) bool) (rot []string, err error) {
+	zeilen := strings.Split(strings.TrimRight(info, "\n"), "\n")
+	if strings.TrimSpace(info) == "" {
+		return nil, errors.New("mountinfo ist leer")
+	}
+	entmaske := strings.NewReplacer(`\040`, " ", `\011`, "\t", `\012`, "\n", `\134`, `\`)
+	for _, z := range zeilen {
+		vor, nach, ok := strings.Cut(z, " - ")
+		felder, rest := strings.Fields(vor), strings.Fields(nach)
+		if !ok || len(felder) < 6 || len(rest) < 1 {
+			return nil, fmt.Errorf("zeile von mountinfo ohne die Felder: %q", z)
+		}
+		punkt := entmaske.Replace(felder[4])
+		if !slices.Contains(strings.Split(felder[5], ","), "rw") || slices.Contains(sicherheitLaufzeitTypen(), rest[0]) || !istVerz(punkt) {
+			continue
+		}
+		rot = append(rot, fmt.Sprintf("der Einhängepunkt %s ist ein schreibbares Verzeichnis vom Typ %s", punkt, rest[0]))
+	}
+	return rot, nil
+}
+
+// sicherheitMountProben hält die Regel für schreibbare Mounts gegen Zeilen, die kein Container liefert (SPEC-041 Nr. 9 f): eine leere Datei und eine Zeile
+// ohne die Felder sind ein Fehler; ein schreibbares Verzeichnis eines unbekannten Typs ist rot, ein Typ der Laufzeit, `ro` und eine Datei nicht.
+func sicherheitMountProben(t *testing.T) {
+	t.Helper()
+	zeile := func(punkt, optionen, typ string) string {
+		return "36 35 8:1 / " + punkt + " " + optionen + " - " + typ + " /dev/quelle rw"
+	}
+	verz := func(string) bool { return true }
+	datei := func(string) bool { return false }
+	for _, leer := range []string{"", "\n", "kein Eintrag"} {
+		if _, err := sicherheitSchreibbareMounts(leer, verz); err == nil {
+			t.Errorf("mountinfo %q ist kein Fehler", leer)
+		}
+	}
+	faelle := []struct {
+		name  string
+		info  string
+		istV  func(string) bool
+		erwar int
+	}{
+		{"unbekannter Typ", zeile("/mnt", "rw,relatime", "ext4"), verz, 1},
+		{"unbekannter Typ, Leerzeichen im Einhängepunkt", zeile(`/mnt/a\040b`, "rw", "zfs"), verz, 1},
+		{"Datei als Einhängepunkt", zeile("/mnt", "rw", "ext4"), datei, 0},
+		{"nur lesbar", zeile("/mnt", "ro,relatime", "ext4"), verz, 0},
+		{"Typ der Laufzeit", zeile("/dev/shm", "rw", "tmpfs"), verz, 0},
+	}
+	for _, f := range faelle {
+		rot, err := sicherheitSchreibbareMounts(f.info, f.istV)
+		if err != nil || len(rot) != f.erwar {
+			t.Errorf("Probe %s: %d Meldungen (%v), erwartet %d", f.name, len(rot), err, f.erwar)
+		}
+		if f.erwar == 1 && len(rot) == 1 && (!strings.Contains(rot[0], "/mnt") || strings.Contains(rot[0], `\040`)) {
+			t.Errorf("Probe %s: die Meldung %q nennt den Einhängepunkt nicht", f.name, rot[0])
+		}
+	}
+}
+
+// TestSicherheitUmgebung (SPEC-041 Nr. 1, *Umgebung*, und Nr. 9 f): der Container, in dem die Tests laufen, ist netzlos, hat ein schreibgeschütztes
+// Wurzeldateisystem und keinen schreibbaren Mount des Hosts: jede Schnittstelle außer `lo` fehlt oder ist nicht aufwärts, das Anlegen einer Datei in `/` scheitert
+// mit EROFS, das Anlegen unter `/tmp` gelingt (ohne diese Gegenprobe zählte jeder andere Fehler als Schreibschutz), und jeder schreibbare Einhängepunkt, der ein
+// Verzeichnis ist, hat einen Typ der Laufzeit. Der Test liest nur den Zustand des Containers und kennt weder `/tmp` als Mount noch `/voll`. Er beobachtet den
+// Container von `e2e.test`, nicht die von `admin.test` und `bootstrap.test`.
 func TestSicherheitUmgebung(t *testing.T) {
 	binaryPfad(t)
+	sicherheitMountProben(t)
 	schnittstellen, err := net.Interfaces()
 	if err != nil {
 		t.Fatalf("Schnittstellen: %v", err)
@@ -466,13 +539,56 @@ func TestSicherheitUmgebung(t *testing.T) {
 	} else if !errors.Is(err, syscall.EROFS) {
 		t.Errorf("das Anlegen einer Datei in / scheitert mit %v, erwartet EROFS", err)
 	}
-	f, err := os.CreateTemp("/tmp", "sicherheit-umgebung")
-	if err != nil {
+	if f, err := os.CreateTemp("/tmp", "sicherheit-umgebung"); err != nil {
 		t.Errorf("das Anlegen einer Datei unter /tmp scheitert: %v", err)
-		return
+	} else {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
 	}
-	_ = f.Close()
-	_ = os.Remove(f.Name())
+	info, err := os.ReadFile("/proc/self/mountinfo")
+	if err != nil {
+		t.Fatalf("mountinfo: %v", err)
+	}
+	rot, err := sicherheitSchreibbareMounts(string(info), func(p string) bool {
+		fi, err := os.Stat(p)
+		return err == nil && fi.IsDir()
+	})
+	if err != nil {
+		t.Fatalf("mountinfo: %v", err)
+	}
+	for _, r := range rot {
+		t.Errorf("%s", r)
+	}
+}
+
+// sicherheitPruefeAufbau liest `/proc/<pid>/environ` und `/proc/<pid>/cwd` des Prozesses und verlangt, dass `TMPDIR`, `HOME` und `DATA_DIR` die Orte der
+// Arbeitswurzel sind und das Arbeitsverzeichnis das der Wurzel ist (SPEC-041 Nr. 6 d (5)); ein Lesefehler ist Fatal. Es zählt vier Kontrollen je Aufruf.
+func sicherheitPruefeAufbau(t *testing.T, pid int, soll map[string]string, cwd string, z *sicherheitZaehlung) {
+	t.Helper()
+	roh, err := os.ReadFile(fmt.Sprintf("/proc/%d/environ", pid))
+	if err != nil {
+		t.Fatalf("environ des Prozesses: %v", err)
+	}
+	umgebung := map[string]string{}
+	for _, e := range strings.Split(string(roh), "\x00") {
+		if k, v, ok := strings.Cut(e, "="); ok {
+			umgebung[k] = v
+		}
+	}
+	for k, v := range soll {
+		z.aufbau++
+		if umgebung[k] != v {
+			t.Errorf("Aufbau: %s des Prozesses ist %q, erwartet %q", k, umgebung[k], v)
+		}
+	}
+	ist, err := os.Readlink(fmt.Sprintf("/proc/%d/cwd", pid))
+	if err != nil {
+		t.Fatalf("cwd des Prozesses: %v", err)
+	}
+	z.aufbau++
+	if aufgeloest, err := filepath.EvalSymlinks(cwd); err != nil || ist != aufgeloest {
+		t.Errorf("Aufbau: das Arbeitsverzeichnis des Prozesses ist %q, erwartet %q (%v)", ist, aufgeloest, err)
+	}
 }
 
 // headerText ist der Text der Header einer Anfrage, in dem die Werte der Header-Stellen einzeln gezählt werden.
