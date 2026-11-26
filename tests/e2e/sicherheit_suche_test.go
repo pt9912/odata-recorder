@@ -179,9 +179,10 @@ func sicherheitZaehleDateien(t *testing.T, dir string) int {
 	return n
 }
 
-// sicherheitSuche sucht in jeder Datei unter den Wurzeln (rekursiv, auf Rohbytes, ungeachtet der Größe, mit `durchsuche`) und in den Strömen nach den Werten
-// der Stellen in drei Formen und dem Präfix und nach den Kontrollwerten; die Zahl der gelesenen Dateien gleicht der eines zweiten Durchlaufs mit os.ReadDir.
-// Suchzellen sind Stellen mal vier Formen.
+// sicherheitSuche sucht in jeder Datei unter den Wurzeln (rekursiv, auf Rohbytes, ungeachtet der Größe, mit `durchsuche`) und in den Strömen nach dem Präfix
+// (jede der drei Formen beginnt mit ihm) und nach den Kontrollwerten und ordnet jeden Fund einer der drei Formen einer Stelle oder dem Präfix zu; die Zahl der
+// gelesenen Dateien gleicht der eines zweiten Durchlaufs mit os.ReadDir. Die Suchzellen sind die verschiedenen Paare aus Kennung und Form der Menge; welche Form
+// die Suche findet, unterscheidet allein die Zuordnung (`TestSicherheitFormen`).
 func sicherheitSuche(t *testing.T, wurzeln []sicherheitWurzel, strom map[string][]byte, stellen []sicherheitStelle, kontrollwerte []string) sicherheitErgebnis {
 	t.Helper()
 	var e sicherheitErgebnis
@@ -216,9 +217,13 @@ func sicherheitSuche(t *testing.T, wurzeln []sicherheitWurzel, strom map[string]
 			}
 		}
 	}
-	for range stellen {
-		e.zellen += len(sicherheitFormNamen())
+	zellen := map[string]bool{}
+	for _, s := range stellen {
+		for _, form := range sicherheitFormNamen() {
+			zellen[s.kennung+"|"+form] = true
+		}
 	}
+	e.zellen = len(zellen)
 	return e
 }
 

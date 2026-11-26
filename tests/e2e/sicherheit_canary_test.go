@@ -2,14 +2,18 @@ package e2e_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -30,6 +34,34 @@ const (
 
 func sicherheitSpuren() []string {
 	return []string{sicherheitSpurHeader, sicherheitSpurQuery, sicherheitSpurJSON}
+}
+
+// sicherheitMarkerDateien sind die Kontrolldateien unter HOME und unter dem Arbeitsverzeichnis des Prozesses (SPEC-041 Nr. 6 d): je Ort eine Datei mit einem
+// eigenen Marker, relativ zur Arbeitswurzel.
+func sicherheitMarkerDateien() map[string]string {
+	return map[string]string{
+		filepath.Join("home", "marker-home.txt"): "KONTROLLE-HOME-7c3d",
+		filepath.Join("cwd", "marker-cwd.txt"):   "KONTROLLE-CWD-2f9a",
+	}
+}
+
+// sicherheitPflanzeMarker legt die Marker-Dateien unter der Arbeitswurzel ab.
+func sicherheitPflanzeMarker(t *testing.T, root string) {
+	t.Helper()
+	for rel, marker := range sicherheitMarkerDateien() {
+		if err := os.WriteFile(filepath.Join(root, rel), []byte(marker), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// sicherheitMarkerWerte sind die Marker der Dateien unter HOME und dem Arbeitsverzeichnis.
+func sicherheitMarkerWerte() []string {
+	var w []string
+	for _, m := range sicherheitMarkerDateien() {
+		w = append(w, m)
+	}
+	return w
 }
 
 // sicherheitGlieder bildet die Mitglieder `"name":"wert"` der Stellen einer Art in einer Tiefe, die Werte als JSON-Zeichenketten.
@@ -259,7 +291,7 @@ func sicherheitWarteStill(t *testing.T, p *prozess, dirs []string) {
 }
 
 // sicherheitKontrollen prüft die Kontrollen der Suche (SPEC-041 Nr. 6 d) zu einem Zeitpunkt: Verstöße sind rot mit eigener Meldung, nie ein Fund. Gezählt wird
-// beim Zeitpunkt vor dem Herunterfahren, die Kontrolldateien und die Marker prüft auch der zweite.
+// beim Zeitpunkt vor dem Herunterfahren; die Kontrolldateien, die Marker und den leeren stdout prüft auch der zweite.
 func sicherheitKontrollen(t *testing.T, f sicherheitFall, vor bool, e sicherheitErgebnis, strom map[string][]byte, z *sicherheitZaehlung) {
 	t.Helper()
 	zaehle := func(ok bool, was string) {
@@ -274,9 +306,13 @@ func sicherheitKontrollen(t *testing.T, f sicherheitFall, vor bool, e sicherheit
 	for rel, marker := range kontrollDateien() {
 		zaehle(hat(e.kontroll, rel, marker), "Kontrolldatei "+rel)
 	}
+	for rel, marker := range sicherheitMarkerDateien() {
+		zaehle(hat(e.kontroll, rel, marker), "Marker-Datei "+rel)
+	}
 	if f.zeile != nil {
 		zaehle(hat(e.kontroll, "stderr", kontrollDienst), "Marker auf stderr")
 	}
+	zaehle(len(strom["stdout"]) == 0, "leerer stdout")
 	if !vor {
 		return
 	}
@@ -295,7 +331,6 @@ func sicherheitKontrollen(t *testing.T, f sicherheitFall, vor bool, e sicherheit
 			zaehle(hat(e.kontroll, "", s), "Spurwert "+s)
 		}
 	}
-	zaehle(len(strom["stdout"]) == 0, "leerer stdout")
 }
 
 // TestSicherheitCanary (TS10 bis TS14): vier Fälle mit je einem frischen Prozess im Modus record und je einer Anfrage mit allen Stellen der Anfrage; die Suche über
@@ -312,8 +347,8 @@ func TestSicherheitCanary(t *testing.T) {
 		soll += f.zellen
 		t.Run(f.name, func(t *testing.T) { sicherheitLaufe(t, f, stellen, z) })
 	}
-	if !t.Failed() && (z.suche != soll || soll != 2592 || z.kontrolle != 40) {
-		t.Errorf("%d Suchzellen und %d Kontrollzellen gezählt; erwartet 2592 (%d) und 40", z.suche, z.kontrolle, soll)
+	if !t.Failed() && (z.suche != soll || soll != 2592 || z.kontrolle != 48) {
+		t.Errorf("%d Suchzellen und %d Kontrollzellen gezählt; erwartet 2592 (%d) und 48", z.suche, z.kontrolle, soll)
 	}
 }
 
@@ -355,6 +390,7 @@ func sicherheitLaufe(t *testing.T, f sicherheitFall, alle []sicherheitStelle, z 
 	p.modus = "record"
 	p.bereit()
 	pflanzeKontrolle(t, filepath.Join(root, "tmp"))
+	sicherheitPflanzeMarker(t, root)
 	var ballast string
 	switch {
 	case f.upstreamWeg:
@@ -396,7 +432,7 @@ func sicherheitLaufe(t *testing.T, f sicherheitFall, alle []sicherheitStelle, z 
 			}
 		}
 		strom := map[string][]byte{"stdout": p.aus.bytes(), "stderr": p.fehl.bytes()}
-		e := sicherheitSuche(t, wurzeln, strom, stellen, append(werteKontrolle(), sicherheitSpuren()...))
+		e := sicherheitSuche(t, wurzeln, strom, stellen, slices.Concat(werteKontrolle(), sicherheitSpuren(), sicherheitMarkerWerte()))
 		zellen += e.zellen
 		for _, gefunden := range e.funde {
 			t.Errorf("%s, vor dem Herunterfahren: %v: %v", f.name, vor, gefunden)
@@ -407,6 +443,36 @@ func sicherheitLaufe(t *testing.T, f sicherheitFall, alle []sicherheitStelle, z 
 		t.Errorf("%s: %d Suchzellen gezählt, erwartet %d", f.name, zellen, f.zellen)
 	}
 	z.suche += zellen
+}
+
+// TestSicherheitUmgebung (SPEC-041 Nr. 1, *Umgebung*, und Nr. 9 f): der Container, in dem die Tests laufen, ist netzlos und hat ein schreibgeschütztes
+// Wurzeldateisystem: jede Schnittstelle außer `lo` fehlt oder ist nicht aufwärts, das Anlegen einer Datei in `/` scheitert mit EROFS, und das Anlegen unter `/tmp`
+// gelingt (ohne diese Gegenprobe zählte jeder andere Fehler als Schreibschutz). Der Test liest nur den Zustand des Containers und läuft im dritten Binary.
+func TestSicherheitUmgebung(t *testing.T) {
+	binaryPfad(t)
+	schnittstellen, err := net.Interfaces()
+	if err != nil {
+		t.Fatalf("Schnittstellen: %v", err)
+	}
+	for _, s := range schnittstellen {
+		if s.Name != "lo" && s.Flags&net.FlagUp != 0 {
+			t.Errorf("die Schnittstelle %s ist oben: der Container ist nicht netzlos", s.Name)
+		}
+	}
+	ziel := "/sicherheit-umgebung"
+	if err := os.WriteFile(ziel, []byte("x"), 0o600); err == nil {
+		_ = os.Remove(ziel)
+		t.Errorf("das Anlegen einer Datei in / gelingt: das Wurzeldateisystem ist beschreibbar")
+	} else if !errors.Is(err, syscall.EROFS) {
+		t.Errorf("das Anlegen einer Datei in / scheitert mit %v, erwartet EROFS", err)
+	}
+	f, err := os.CreateTemp("/tmp", "sicherheit-umgebung")
+	if err != nil {
+		t.Errorf("das Anlegen einer Datei unter /tmp scheitert: %v", err)
+		return
+	}
+	_ = f.Close()
+	_ = os.Remove(f.Name())
 }
 
 // headerText ist der Text der Header einer Anfrage, in dem die Werte der Header-Stellen einzeln gezählt werden.

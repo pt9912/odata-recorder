@@ -40,9 +40,10 @@ fahre() {
 	return "$rc"
 }
 
-# laufe fährt $3 (Binary) im Arbeitsverzeichnis $1 im Image: kein Netz, Speicherlimit, kein Schreibzugriff außer
-# dem tmpfs unter /tmp, kein Mount (SPEC-041 Nr. 1); $2 sind weitere Flags von docker run (ohne Leerzeichen in
-# einem Wert), leer für keine.
+# laufe fährt das Binary $3 im Arbeitsverzeichnis $1 im Image: kein Netz, Speicherlimit, kein Schreibzugriff außer
+# dem tmpfs unter /tmp und den tmpfs, die $2 trägt (für e2e.test /voll), kein Mount (SPEC-041 Nr. 1); $2 sind
+# weitere Flags von docker run (ohne Leerzeichen in einem Wert), leer für keine. Ob der Container netzlos und
+# schreibgeschützt ist, prüft TestSicherheitUmgebung im dritten Binary.
 laufe() {
 	wd=$1
 	flags=$2
@@ -116,7 +117,7 @@ fi
 
 adapter="TestSicherheitRouten TestSicherheitAbweisung TestSicherheitKeineAenderung TestSicherheitKontrolle TestSicherheitHealthz TestSicherheitToken"
 root="TestSicherheitStartPruefung TestSicherheitErreichbar"
-e2e="TestSicherheitListen TestSicherheitCanary TestSicherheitFormen"
+e2e="TestSicherheitListen TestSicherheitCanary TestSicherheitFormen TestSicherheitUmgebung"
 voll="--tmpfs /voll:rw,size=1m -e E2E_BINARY=/out/odata-recorder"
 # shellcheck disable=SC2086
 pruefe_namen /src/src/adapters/driving/admin "" /out/admin.test $adapter
