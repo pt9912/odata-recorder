@@ -16,8 +16,6 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-lasttest](../done/slice-lasttest.md) ([welle-betrieb](../welle-betrieb.md), Teil 3 des Lasttests nach [slice-lasttest-fixtures](../done/slice-lasttest-fixtures.md) und [slice-lasttest-auswertung](../done/slice-lasttest-auswertung.md): Lauf mit Takt, Prozess des Binary, Treiber, Stufe, Ziel `lasttest` außerhalb der Kette, Gegenproben und die Messung; Position 2 der Gate-Kette; schreibt unter `tests/lasttest/`, `tools/` und in `Dockerfile`, `harness/mk/`, `harness/README.md`).
-
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
