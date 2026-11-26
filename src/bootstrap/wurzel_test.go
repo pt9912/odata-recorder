@@ -207,7 +207,7 @@ func TestHandleRandformen(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if (hd.Record() != nil) != (modus == modusRecord) || (hd.Sessions() != nil) != (modus == modusRecord) || hd.Wartung() == nil {
+			if (hd.Record() != nil) != (modus == modusRecord) || hd.Sessions() == nil || hd.Wartung() == nil {
 				t.Errorf("Zugänge im Modus %s: Record %v, Sessions %v", modus, hd.Record(), hd.Sessions())
 			}
 			select {
@@ -396,7 +396,7 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 	gl := reflect.DeepEqual
 	tlsGezeigt := tlsBedientVon(r.server.Listener, p.server.Listener)
 	pruefungen := map[string]bool{
-		"Modus":                r.recorder != nil && r.replay == nil && p.replay != nil && p.recorder == nil && p.session == nil && p.upstream == nil,
+		"Modus":                r.recorder != nil && r.replay == nil && p.replay != nil && p.recorder == nil && p.session != nil && p.upstream == nil,
 		"Listen":               r.listenAdr == k.Listen && p.listenAdr == k.Listen,
 		"ListenTLSCert":        tlsGezeigt,
 		"ListenTLSKey":         tlsGezeigt,

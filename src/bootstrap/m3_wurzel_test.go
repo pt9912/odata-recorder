@@ -75,10 +75,10 @@ func ohnePanik(f func() error) (err error) {
 
 func neuM3Haken() *m3Haken { return &m3Haken{haken: neuHaken(), verboten: map[string]int{}} }
 
-// verbotene sind die sechs Konstruktoren, die der Modus mock nie ruft (SPEC-139 Nr. 11); die Telemetrie baut er genau einmal, den
-// Adapter des Prozesses (SPEC-139 Nr. 13), keinen für einen Replay-Dienst.
+// verbotene sind die fünf Konstruktoren, die der Modus mock nie ruft (SPEC-139 Nr. 11); den SessionUseCase (Nr. 3) und die
+// Telemetrie, den Adapter des Prozesses (Nr. 13), baut er je genau einmal, keinen für einen Replay-Dienst.
 func verbotene() []string {
-	return []string{"pipeline", "upstream", "session", "recorder", "import", "replay"}
+	return []string{"pipeline", "upstream", "recorder", "import", "replay"}
 }
 
 func (m *m3Haken) bauteile() bootstrap.Bauteile {
@@ -131,12 +131,12 @@ func mockKonfig(dir string) bootstrap.Konfiguration {
 }
 
 // TestM3WahlJeModus fängt A07: Modus × Zugang des Handle mit `== nil` auf der Schnittstelle, im Modus mock kein Aufruf eines
-// Konstruktors für Upstream, Pipeline, Recorder, Session, Import, Replay und Telemetrie, und `Verarbeiten` des Listeners ist der Mock
-// (SPEC-139 Nr. 1, 5, 11).
+// Konstruktors für Upstream, Pipeline, Recorder, Import und Replay, genau einer für Session und Telemetrie, und `Verarbeiten`
+// des Listeners ist der Mock (SPEC-139 Nr. 1, 3, 5, 11).
 func TestM3WahlJeModus(t *testing.T) {
 	ctx := context.Background()
 	type zugaenge struct{ record, sessions, importer bool }
-	for modus, soll := range map[string]zugaenge{"record": {true, true, true}, "replay": {}, "mock": {}} {
+	for modus, soll := range map[string]zugaenge{"record": {true, true, true}, "replay": {sessions: true}, "mock": {sessions: true}} {
 		m := neuM3Haken()
 		k := mockKonfig(t.TempDir())
 		k.Modus = modus
@@ -164,7 +164,7 @@ func TestM3WahlJeModus(t *testing.T) {
 		if len(m.mock) != 1 || m.oeffnen != 1 {
 			t.Errorf("mock: NeuerMock %d-mal, Ablage %d-mal geöffnet", len(m.mock), m.oeffnen)
 		}
-		if want := map[string]int{"telemetrie": 1}; !maps.Equal(m.verboten, want) || len(verbotene()) != 6 {
+		if want := map[string]int{"telemetrie": 1, "session": 1}; !maps.Equal(m.verboten, want) || len(verbotene()) != 5 {
 			t.Errorf("mock: gerufene Konstruktoren %v, erwartet %v", m.verboten, want)
 		}
 		_ = hd.Herunterfahren(ctx)
@@ -321,8 +321,8 @@ func TestM3Lebenszyklus(t *testing.T) {
 	if fr := m.srv.frist(); !slices.Equal(fr, []time.Duration{k.ShutdownTimeout}) {
 		t.Errorf("Frist von Schliessen %v, erwartet [%v]", fr, k.ShutdownTimeout)
 	}
-	if want := map[string]int{"telemetrie": 1}; !maps.Equal(m.verboten, want) {
-		t.Errorf("gerufene Konstruktoren %v, erwartet %v (allein der Adapter des Prozesses)", m.verboten, want)
+	if want := map[string]int{"telemetrie": 1, "session": 1}; !maps.Equal(m.verboten, want) {
+		t.Errorf("gerufene Konstruktoren %v, erwartet %v (der Adapter des Prozesses und der SessionUseCase)", m.verboten, want)
 	}
 }
 

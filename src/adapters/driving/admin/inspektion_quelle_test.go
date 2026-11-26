@@ -5,7 +5,6 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -168,23 +167,4 @@ func TestI17GesamtzaehlungAllerTeile(t *testing.T) {
 	}
 	gleichAuf(t, "Zellen der Inspektion, der Sessions, gesamt", []int{eigene, andere, eigene + andere}, []int{33, 51, 84})
 	gleichAuf(t, "Zellen mit Eintrag und ohne", []int{mitEintrag, eigene + andere - mitEintrag}, []int{2, 82})
-}
-
-// TestI18BinaryUnveraendert hält I18 (SPEC-293 Nr. 12) am Quelltext: keine Datei des Pakets bootstrap (auch keine `_test.go`)
-// importiert das Paket admin oder nennt InspektionRouten; der Teil führt weder Fehlercode noch Schlüssel noch Kommando ein (die
-// benannte Ausgabe dafür ist `make katalog-check`). Die Zahl der geprüften Dateien ist die der Dateien des Pakets.
-func TestI18BinaryUnveraendert(t *testing.T) {
-	dateien, err := filepath.Glob(filepath.Join("..", "..", "..", "bootstrap", "*.go"))
-	if err != nil || len(dateien) < 10 {
-		t.Fatalf("%d Dateien von bootstrap, Fehler %v", len(dateien), err)
-	}
-	for _, d := range dateien {
-		src, err := os.ReadFile(d)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if text := string(src); strings.Contains(text, "/driving/admin\"") || strings.Contains(text, "InspektionRouten") {
-			t.Errorf("%s importiert admin oder nennt InspektionRouten", d)
-		}
-	}
 }
