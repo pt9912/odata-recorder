@@ -1,1 +1,1 @@
-**Stand:** offen; 2 Belege unter `evidence/` (der Zähler folgt den Dateien), unter der Schwelle 3x
+**Stand:** offen; 2 Belege unter `evidence/` (der Zähler folgt den Dateien), unter der Schwelle 3x; die Lücke steht als Negativ ohne Fänger in `SPEC-232` *Ungeprüft* (`spec/spezifikation.md`, Nachzug `spec-hybrid-nachzug`), die Zusage von `SPEC-230` Nr. 9 bleibt
