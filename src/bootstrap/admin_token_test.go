@@ -229,7 +229,7 @@ func TestAdminTokenVerstoss(t *testing.T) {
 // TestAdminTokenPfadformen (B05, SPEC-300 Nr. 4): die Formen des Pfads × DATA_DIR {absolut, relativ} × die Namen der Dateien
 // des Dienstes. Die 9 Formen nach DATA_DIR sind abgewiesen; dieselben mit einem anderen Namen und die 2 Formen in ein anderes
 // Verzeichnis (nur der Name bei anderem Arbeitsverzeichnis; `..` hinter einem Verweis aus DATA_DIR hinaus) gelten. Ein
-// abschließender Trenner ist ein Verstoß am Schlüssel, ohne etwas zu schreiben; seinen Grund prüft der Test nicht.
+// abschließender Trenner ist ein Verstoß am Schlüssel, ohne etwas zu schreiben; sein Grund ist nicht zugesagt.
 func TestAdminTokenPfadformen(t *testing.T) {
 	// cwd ist relativ zur Wurzel; darin liegen d (DATA_DIR), neben und der Verweis verweis auf d/unter.
 	type form struct {
@@ -309,6 +309,66 @@ func TestAdminTokenPfadformen(t *testing.T) {
 	}
 	if zellen != 132 {
 		t.Errorf("%d Zellen, erwartet 132", zellen)
+	}
+}
+
+// TestAdminTokenVerweise (B05, SPEC-300 Nr. 4): Verweise auf beiden Seiten des Vergleichs. DATA_DIR und das Verzeichnis der
+// Token-Datei je {direkt, Verweis, Kette aus zwei Verweisen} × je {absolut, relativ} × {audit.jsonl, odata-recorder.db} = 72
+// abgewiesene Zellen; Kontrollen (gelten): dieselben 9 Paare der Formen mit xaudit.jsonl, und mit audit.jsonl in einem
+// anderen Verzeichnis, direkt oder über Verweise = 18.
+func TestAdminTokenVerweise(t *testing.T) {
+	// Je Form: Name unter der Wurzel für DATA_DIR d und für das andere Verzeichnis anderes.
+	formen := []struct{ name, daten, anderes string }{{"direkt", "d", "anderes"}, {"Verweis", "v1", "a1"}, {"Kette", "v2", "a2"}}
+	lege := func(t *testing.T) string {
+		t.Helper()
+		wurzel := t.TempDir()
+		mkdir(t, wurzel+"/d")
+		mkdir(t, wurzel+"/anderes")
+		// v1 und a1 haben ein absolutes Ziel, v2 und a2 ein relatives auf den ersten Verweis.
+		for _, v := range [][2]string{{"v1", wurzel + "/d"}, {"v2", "v1"}, {"a1", wurzel + "/anderes"}, {"a2", "a1"}} {
+			if err := os.Symlink(v[1], filepath.Join(wurzel, v[0])); err != nil {
+				t.Fatal(err)
+			}
+		}
+		t.Chdir(wurzel)
+		return wurzel
+	}
+	zellen := 0
+	zelle := func(name, daten, token string, datenRel, tokenRel, abgewiesen bool) {
+		zellen++
+		t.Run(fmt.Sprintf("%s/relativ=%v,%v", name, datenRel, tokenRel), func(t *testing.T) {
+			wurzel := lege(t)
+			pfad := func(p string, relativ bool) string {
+				if relativ {
+					return p
+				}
+				return wurzel + "/" + p
+			}
+			k := listenerKonfig(pfad(daten, datenRel), modusRecord)
+			k.AdminTokenFile = pfad(token, tokenRel)
+			if abgewiesen {
+				erwarteTokenFehler(t, k, "ODR-E2001 ADMIN_TOKEN_FILE: Datei, die der Dienst selbst schreibt")
+				return
+			}
+			erwarteErzeugt(t, k)
+		})
+	}
+	for _, daten := range formen {
+		for _, token := range formen {
+			paar := daten.name + "," + token.name
+			for _, datenRel := range []bool{false, true} {
+				for _, tokenRel := range []bool{false, true} {
+					for _, datei := range []string{"audit.jsonl", "odata-recorder.db"} {
+						zelle(paar+"/"+datei, daten.daten, token.daten+"/"+datei, datenRel, tokenRel, true)
+					}
+				}
+			}
+			zelle(paar+"/xaudit.jsonl", daten.daten, token.daten+"/xaudit.jsonl", false, false, false)
+			zelle(paar+"/anderswo", daten.daten, token.anderes+"/audit.jsonl", false, false, false)
+		}
+	}
+	if zellen != 90 {
+		t.Errorf("%d Zellen, erwartet 90", zellen)
 	}
 }
 

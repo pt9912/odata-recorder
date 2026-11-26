@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -156,21 +159,59 @@ func traegt(inhalt, token string) bool {
 	return strings.Contains(inhalt, token[:len(token)/2]) || strings.Contains(inhalt, token[len(token)/2:])
 }
 
-// TestAdminListenerKeinGeheimnis (B16): 5 Wege × 6 Anlässe × 4 Modi = 120 Zellen über Start, dazu je Weg die Kontrolle, dass die
-// Suche einen eingespielten Wert findet.
+// leiteUm ersetzt *ziel durch eine Pipe, deren Inhalt nach puffer geht. zurueck stellt *ziel wieder her und wartet, bis alles
+// Geschriebene in puffer steht; ein zweiter Aufruf wirkt nicht.
+func leiteUm(t *testing.T, ziel **os.File, puffer io.Writer) (zurueck func()) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	alt := *ziel
+	*ziel = w
+	kopiert := make(chan struct{})
+	go func() { _, _ = io.Copy(puffer, r); close(kopiert) }()
+	zurueck = sync.OnceFunc(func() {
+		*ziel = alt
+		_ = w.Close()
+		<-kopiert
+		_ = r.Close()
+	})
+	t.Cleanup(zurueck)
+	return zurueck
+}
+
+// schreibende sind die 9 Routen von SPEC-005, die schreiben, mit einem Body; die Session t1 entsteht, endet und wird gelöscht,
+// die übrigen treffen unbekannte Kennungen.
+func schreibende() []struct{ methode, pfad, body string } {
+	return []struct{ methode, pfad, body string }{
+		{"POST", "/__admin/sessions", `{"service_id":"default","id":"t1"}`},
+		{"POST", "/__admin/sessions/t1/close", ""},
+		{"DELETE", "/__admin/sessions/t1", ""},
+		{"POST", "/__admin/imports", `{"session_id":"x"}`},
+		{"POST", "/__admin/workspaces", `{"baseline_snapshot_id":"x"}`},
+		{"DELETE", "/__admin/workspaces/x", ""},
+		{"POST", "/__admin/workspaces/x/reset", ""},
+		{"POST", "/__admin/workspaces/x/snapshots", `{"name":"n"}`},
+		{"POST", "/__admin/workspaces/x/restore", `{"snapshot_id":"x"}`},
+	}
+}
+
+// TestAdminListenerKeinGeheimnis (B16): 5 Wege × 14 Anlässe (5 Abweisungen und das gültige Token auf jeder der 9 schreibenden
+// Routen) × 4 Modi = 280 Zellen über Start; außerhalb von record hat der Import keine Route. Der Weg stderr ist der Writer von
+// Start, os.Stderr und die Standard-Ausgabe von log und slog; stdout ist os.Stdout. Je Weg und je Quelle die Kontrolle, dass die
+// Suche einen eingespielten Wert findet. Ein Schreiben auf die Deskriptoren 1 und 2 an diesen Variablen vorbei sieht er nicht.
+// Der Test ersetzt Variablen des Prozesses und läuft nicht parallel.
 func TestAdminListenerKeinGeheimnis(t *testing.T) {
 	zellen := 0
 	for m, modus := range vierModi() {
 		dir := filepath.Join(t.TempDir(), "d")
 		a := artefakte{daten: dir, stderr: &syncPuffer{}, stdout: &syncPuffer{}, antworten: &bytes.Buffer{}}
-		r, w, err := os.Pipe()
-		if err != nil {
-			t.Fatal(err)
-		}
-		alt := os.Stdout
-		os.Stdout = w
-		kopiert := make(chan struct{})
-		go func() { _, _ = io.Copy(a.stdout, r); close(kopiert) }()
+		zurueckOut := leiteUm(t, &os.Stdout, a.stdout)
+		zurueckErr := leiteUm(t, &os.Stderr, a.stderr)
+		altLog := log.Writer()
+		log.SetOutput(a.stderr)
+		t.Cleanup(func() { log.SetOutput(altLog) })
 		adresse := make(chan string, 2)
 		b := bootstrap.StandardBauteile()
 		echt := b.Listen
@@ -192,19 +233,28 @@ func TestAdminListenerKeinGeheimnis(t *testing.T) {
 		if token[len(token)-1] == 'x' {
 			letztes = token[:len(token)-1] + "y"
 		}
-		for _, anlass := range []struct{ methode, auth string }{
-			{"GET", ""}, {"GET", "Bearer " + strings.Repeat("f", 64)}, {"GET", "Bearer " + letztes}, {"GET", "Bearer " + token[:32]},
-			{"GET", "Bearer " + token + "0"}, {"POST", "Bearer " + token},
-		} {
-			status, body, kopf := sende(neuerAdminClient(), anlass.methode, url+"/__admin/sessions", anlass.auth, `{"service_id":"default"}`)
-			if soll := map[bool]int{false: 401, true: 201}[anlass.methode == "POST"]; status != soll {
-				t.Errorf("%s %q: %d %s", modus, anlass.methode, status, body)
+		type anlass struct{ methode, pfad, auth, body string }
+		var anlaesse []anlass
+		for _, auth := range []string{"", "Bearer " + strings.Repeat("f", 64), "Bearer " + letztes, "Bearer " + token[:32], "Bearer " + token + "0"} {
+			anlaesse = append(anlaesse, anlass{"GET", "/__admin/sessions", auth, ""})
+		}
+		for _, s := range schreibende() {
+			anlaesse = append(anlaesse, anlass{s.methode, s.pfad, "Bearer " + token, s.body})
+		}
+		for i, an := range anlaesse {
+			status, body, kopf := sende(neuerAdminClient(), an.methode, url+an.pfad, an.auth, an.body)
+			// Die ersten 5 sind abgewiesen; danach entsteht t1 (201), endet und wird gelöscht (200), jede Route besteht.
+			ohneRoute := modus != modusRecord && an.pfad == "/__admin/imports"
+			soll := map[int]int{5: 201, 6: 200, 7: 200}[i]
+			if i < 5 && status != 401 || soll != 0 && status != soll || i >= 5 && (status == 401 || status == 503) ||
+				i >= 5 && (status == 404 && strings.Contains(body, "ODR-E2102")) != ohneRoute {
+				t.Errorf("%s %s %s: %d %s", modus, an.methode, an.pfad, status, body)
 			}
 			fmt.Fprintf(a.antworten, "%s %v\n", body, kopf)
 			for weg, inhalt := range a.lies(t) {
 				zellen++
 				if traegt(inhalt, token) {
-					t.Errorf("%s, %s %s: das Token steht in %s", modus, anlass.methode, anlass.auth[:min(len(anlass.auth), 12)], weg)
+					t.Errorf("%s, %s %s (Anlass %d): das Token steht in %s", modus, an.methode, an.pfad, i, weg)
 				}
 			}
 		}
@@ -225,11 +275,19 @@ func TestAdminListenerKeinGeheimnis(t *testing.T) {
 			schreibeDatei(t, filepath.Join(dir, "andere"), kontrolle, 0o600)
 			_, _ = a.stderr.Write([]byte(kontrolle))
 			_, _ = fmt.Fprint(os.Stdout, kontrolle)
+			_, _ = fmt.Fprint(os.Stderr, "quelle-os.Stderr")
+			log.Print("quelle-log")
+			slog.Info("quelle-slog")
 			a.antworten.WriteString(kontrolle)
 		}
-		os.Stdout = alt
-		_ = w.Close()
-		<-kopiert
+		zurueckOut()
+		zurueckErr()
+		log.SetOutput(altLog)
+		for _, quelle := range []string{"quelle-os.Stderr", "quelle-log", "quelle-slog"} {
+			if m == 0 && !strings.Contains(a.stderr.String(), quelle) {
+				t.Errorf("Kontrolle %s: nicht im Weg stderr", quelle)
+			}
+		}
 		for weg, inhalt := range a.lies(t) {
 			if m == 0 && !traegt(inhalt, kontrolle) {
 				t.Errorf("Kontrolle %s: die Suche findet den eingespielten Wert nicht", weg)
@@ -238,9 +296,8 @@ func TestAdminListenerKeinGeheimnis(t *testing.T) {
 				t.Errorf("%s nach dem Herunterfahren: das Token steht in %s", modus, weg)
 			}
 		}
-		_ = r.Close()
 	}
-	if zellen != 120 {
-		t.Errorf("%d Zellen, erwartet 120", zellen)
+	if zellen != 280 {
+		t.Errorf("%d Zellen, erwartet 280", zellen)
 	}
 }
