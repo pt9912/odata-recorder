@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest
+**Fund:** An der Stelle, an der der Ablauf die Funktionen früherer Teile ruft, ließen sich Verdrahtungen brechen, und das Paket blieb grün (alle Läufe ins Urteil, Zielwert, Verstöße der Auswertung, Paar Abbruch und Gesamtfrist), mehrfach mit der Folge, dass ein ungültiger Lauf als bestanden endete; nach der Fix-Runde blieben das Paar der zwei Ursachen von `last` und der zweite Lauf ohne Fall. Beleg: Review `2026-11-26-slice-lasttest-review` (F-1 bis F-5), Verifikation `2026-11-26-slice-lasttest-verifikation` (V-1, V-2).

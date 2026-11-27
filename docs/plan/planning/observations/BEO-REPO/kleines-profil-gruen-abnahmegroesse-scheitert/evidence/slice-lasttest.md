@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest
+**Fund:** `make lasttest` im Profil `rauch` (300 Exchanges) endete in jedem nicht abgebrochenen Lauf der Rollen mit Exit 0; im Profil `abnahme` (10.000 Exchanges, `LH-QA-01.a`) endet das Binary im Modus `replay` in beiden Läufen an der Grenze von 4 GiB. `SPEC-135` Nr. 8 hatte den Port `ListByMatchKey` mit Verweis auf den Lasttest verworfen. Beleg: Verifikation `2026-11-26-slice-lasttest-verifikation` (V-8); die Ursache ist nicht belegt.

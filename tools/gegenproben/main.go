@@ -1,7 +1,7 @@
 // Command gegenproben weist an a-check, golangci-lint (tools/harness/lint.sh),
-// tools/harness/migration-check.sh und pruefung (test, build, race, handbuch) nach, dass sie einen Verstoß
-// rot und einen erlaubten Fall nicht rot melden (SPEC-102). Die Verdrahtung von pruefung im
-// Dockerfile prüft es nicht.
+// tools/harness/migration-check.sh, pruefung (test, build, race, handbuch) und dem Treiber des Lasttests
+// (tools/harness/lasttest.sh) nach, dass sie einen Verstoß rot und einen erlaubten Fall nicht rot melden
+// (SPEC-102). Die Verdrahtung von pruefung im Dockerfile prüft es nicht.
 package main
 
 import (
@@ -51,6 +51,9 @@ type Umgebung struct {
 	// ZeichenTreiber ist der Pfad von tools/harness/zeichen.sh, den die Fälle 151 bis 155 mit
 	// `bash` rufen.
 	ZeichenTreiber string
+	// LasttestTreiber ist der Pfad von tools/harness/lasttest.sh, den die Fälle 217 bis 225 mit
+	// `sh` rufen.
+	LasttestTreiber string
 }
 
 func absolut(pfad string) string {
@@ -64,24 +67,28 @@ func absolut(pfad string) string {
 func standard() Umgebung {
 	treiber := absolut("tools/harness/groessenmarke.sh")
 	zeichen := absolut("tools/harness/zeichen.sh")
+	lasttest := absolut("tools/harness/lasttest.sh")
 	return Umgebung{
 		Eingaben:   []string{"src", "go.mod", "go.sum", ".a-check.yml", ".d-check.yml", ".golangci.yml", "tools/harness/lint.sh", "tools/harness/migration-check.sh"},
 		Programme:  []string{"a-check", "golangci-lint", "sh", "pruefung", "go", "gofmt", "groessenmarke", "zeichen", "katalog", "git", "tar"},
 		Aufraeumen: os.RemoveAll,
-		Befehl:     befehlMit(treiber, zeichen),
+		Befehl:     befehlMit(treiber, zeichen, lasttest),
 		Bauen:      bauen,
 		Treiber:    treiber,
 
-		ZeichenTreiber: zeichen,
+		ZeichenTreiber:  zeichen,
+		LasttestTreiber: lasttest,
 	}
 }
 
 // befehlMit liefert den Aufruf der Gates; die Fälle zu groessenmarke rufen das Programm bzw. den
 // Treiber unter dem Pfad treiber, die zu zeichen das Programm bzw. den Treiber unter dem Pfad
-// zeichen, die zu katalog das Programm, jeweils im Verzeichnis des Falls.
-func befehlMit(treiber, zeichen string) func(dir string, f Fall) (string, []string, string) {
+// zeichen, die zu katalog das Programm, die zum Lasttest den Treiber unter dem Pfad lasttest, jeweils im Verzeichnis des Falls.
+func befehlMit(treiber, zeichen, lasttest string) func(dir string, f Fall) (string, []string, string) {
 	return func(dir string, f Fall) (string, []string, string) {
 		switch f.Gate {
+		case gateLasttest:
+			return "sh", append([]string{lasttest}, f.ersetzeOrte(dir)...), dir
 		case gateGroessenmarke:
 			return "groessenmarke", f.ersetzeOrte(dir), dir
 		case gateTreiber:

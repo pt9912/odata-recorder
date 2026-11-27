@@ -64,12 +64,11 @@ func nimmProbe(q lastQuelle, kerne int) probe {
 }
 
 // vorAufbau nimmt die Probe vor dem Aufbau; über der Schwelle läuft aufbau nicht und der Fehler ist errLast (SPEC-216 Nr. 11).
-func vorAufbau(ctx context.Context, q lastQuelle, kerne int, aufbau func(context.Context) error) (probe, error) {
-	p := nimmProbe(q, kerne)
-	if !p.Zulaessig {
-		return p, errLast
+func vorAufbau(ctx context.Context, q lastQuelle, kerne int, aufbau func(context.Context) error) error {
+	if !nimmProbe(q, kerne).Zulaessig {
+		return errLast
 	}
-	return p, aufbau(ctx)
+	return aufbau(ctx)
 }
 
 // lastProben sind die Proben eines Laufs mit ihren Zeitpunkten seit dem Start.

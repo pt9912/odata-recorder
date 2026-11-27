@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest
+**Fund:** Schätzung *S* 2153 nach `SPEC-128` Nr. 1 (5 Zeilen `nebenläufig`, 7 `andere`, zwei Fakes, Produktcode 768), Marke 3000, Messung 4316 (4038 beim Handoff; Code außerhalb der Tests 904, Tests 3412); Messung ÷ *S* 2,00. Am stärksten wuchsen die Tests des Laufs mit echtem Hilfsprozess und gesetzter Uhr (2666 Zeilen gegen 865) und die Gegenprobe zum Treiber (746 gegen 440). Der Eintrag `ueberschreitung: 4400` deckt die Messung. Beleg: Plan §4 (Block der Größenmarke) und §7 *Größe*.

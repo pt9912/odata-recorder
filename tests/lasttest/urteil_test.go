@@ -154,9 +154,9 @@ func TestStreuung(t *testing.T) {
 	}
 }
 
-// TestExit: Urteil von replay und mock je aus {bestanden, durchgefallen, ungueltig, nicht gefahren} ohne das Paar „beide nicht gefahren“ (15,
-// Exit als Literal) und die drei Ausgänge Aufbau, Frist und Abbruch mit jedem der 15 Paare (45): 0 alle bestanden, 1 durchgefallen ohne
-// ungültig, 3 ungültig, Aufbau oder Frist, 2 Abbruch; Vorrang 2 vor 3 vor 1 vor 0.
+// TestExit: Urteil von replay und mock je aus {bestanden, durchgefallen, ungueltig, nicht gefahren} (16 Paare, Exit als Literal) und die
+// Ausgänge Aufbau, Frist, Abbruch und Abbruch mit Aufbau mit jedem der 16 Paare (64): 0 alle bestanden, 1 durchgefallen ohne ungültig,
+// 3 ungültig, keine Betriebsart beurteilt, Aufbau oder Frist, 2 Abbruch; Vorrang 2 vor 3 vor 1 vor 0.
 func TestExit(t *testing.T) {
 	wache(t, 30*time.Second)
 	b, d, u, k := urteilBestanden, urteilDurchgefallen, urteilUngueltig, urteilKein
@@ -165,10 +165,10 @@ func TestExit(t *testing.T) {
 		exit         int
 	}{
 		{b, b, 0}, {b, d, 1}, {b, u, 3}, {b, k, 0}, {d, b, 1}, {d, d, 1}, {d, u, 3}, {d, k, 1},
-		{u, b, 3}, {u, d, 3}, {u, u, 3}, {u, k, 3}, {k, b, 0}, {k, d, 1}, {k, u, 3},
+		{u, b, 3}, {u, d, 3}, {u, u, 3}, {u, k, 3}, {k, b, 0}, {k, d, 1}, {k, u, 3}, {k, k, 3},
 	}
-	if len(paare) != 15 {
-		t.Fatalf("%d Paare, erwartet 15", len(paare))
+	if len(paare) != 16 {
+		t.Fatalf("%d Paare, erwartet 16", len(paare))
 	}
 	n := 0
 	for _, p := range paare {
@@ -190,7 +190,7 @@ func TestExit(t *testing.T) {
 			n++
 		}
 	}
-	if n != 15*5 {
-		t.Errorf("%d Fälle, erwartet 75", n)
+	if n != 16*5 {
+		t.Errorf("%d Fälle, erwartet 80", n)
 	}
 }

@@ -111,6 +111,13 @@ FROM source AS contract
 RUN --network=none go test -c -trimpath -o /out/bootstrap.test ./src/bootstrap \
  && go test -c -trimpath -o /out/integration.test ./tests/integration
 
+# --- lasttest: das Programm tests/lasttest und das Binary der Stufe build (SPEC-216). Der Treiber
+# tools/harness/lasttest.sh fährt /out/lasttest in einem Container ohne Netz aus diesem Image; jeder RUN läuft ohne Netz.
+# Die Stufe gehört zu keinem Gate.
+FROM source AS lasttest
+COPY --from=build /out/odata-recorder /out/odata-recorder
+RUN --network=none go build -trimpath -buildvcs=false -o /out/lasttest ./tests/lasttest
+
 # --- security: die Test-Binaries von src/adapters/driving/admin und src/bootstrap (go test -c) über der Stufe integration,
 # die das Binary und e2e.test trägt (SPEC-041 Nr. 1). Der Treiber tools/harness/test-security.sh führt je Binary einen
 # Container ohne Netz aus diesem Image, im Arbeitsverzeichnis des Pakets; jeder RUN läuft ohne Netz.
@@ -168,8 +175,8 @@ FROM ${A_CHECK_IMAGE} AS a-check-bin
 FROM ${D_CHECK_IMAGE} AS d-check-bin
 
 # --- gegenproben: das Programm aus tools/gegenproben prüft, dass a-check, lint.sh,
-# migration-check.sh, pruefung, groessenmarke, zeichen und katalog samt Treibern und die Größengrenzen von docs-check (d-check) einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
-# Eingaben gefahren, die Fälle zu `pruefung race`, zu `groessenmarke`, zu `zeichen`, zu `katalog` und zu `d-check` gegen ein Wegwerfverzeichnis statt der Eingaben.
+# migration-check.sh, pruefung, groessenmarke, zeichen und katalog samt Treibern, die Größengrenzen von docs-check (d-check) und der Treiber des Lasttests einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
+# Eingaben gefahren, die Fälle zu `pruefung race`, zu `groessenmarke`, zu `zeichen`, zu `katalog`, zu `d-check` und zum Lasttest gegen ein Wegwerfverzeichnis statt der Eingaben.
 FROM ${LINT_IMAGE} AS gegenproben
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY --from=a-check-bin /a-check /usr/local/bin/a-check
@@ -186,5 +193,5 @@ WORKDIR /src
 COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY go.mod go.sum* .a-check.yml .d-check.yml .golangci.yml ./
 COPY src ./src
-COPY tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/groessenmarke.sh tools/harness/zeichen.sh tools/harness/
+COPY tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/groessenmarke.sh tools/harness/zeichen.sh tools/harness/lasttest.sh tools/harness/
 RUN --network=none gegenproben

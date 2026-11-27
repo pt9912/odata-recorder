@@ -1,1 +1,1 @@
-**Stand:** offen; 17 Belege unter `evidence/` (der Zähler folgt den Dateien), Schwelle 3x überschritten, kein Zielort und kein `geplant`. Zuletzt (`slice-lasttest-auswertung`) kam `make lint` beim Verifier aus dem Cache; er nannte es und fuhr `lint.sh` mit leeren Caches nach.
+**Stand:** offen; 18 Belege unter `evidence/` (der Zähler folgt den Dateien), Schwelle 3x überschritten, kein Zielort und kein `geplant`. Zuletzt (`slice-lasttest`) kamen die Stufen `test` und `race` beim Verifier aus dem Cache; er nannte es und fuhr beide mit frischem Lauf nach.

@@ -20,6 +20,7 @@ const (
 	gateZeichenTreiber
 	gateDCheck
 	gateKatalog
+	gateLasttest
 )
 
 // Fall ist eine Gegenprobe: ein Eingriff in das Verzeichnis des Falls (die Kopie der Eingaben, bei
@@ -579,5 +580,6 @@ func faelle() []Fall {
 	alle = append(alle, aCheckTestsFaelle()...)
 	alle = append(alle, katalogFaelle()...)
 	alle = append(alle, aCheckArbeitsbaeumeFaelle()...)
-	return append(alle, arbeitsbaumFaelle()...)
+	alle = append(alle, arbeitsbaumFaelle()...)
+	return append(alle, lasttestFaelle()...)
 }
