@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-QA-07.a` (Nachweis für unbekannte Erweiterungen auf dem Record-Pfad, Vergleich Nr. 1 bis 6) · `SPEC-049` Nr. 3 und 4 (`ODV4-Q-11`) · [SPEC-042](../../../../harness/vertraege/SPEC-042-test-contract.md) Nr. 3 e (Zählung) · `SPEC-046` Nr. 3 (unbekannter Medientyp) · `SPEC-053` (Betriebsbedingungen, Betreiberpflicht nach dem Nachzug des Architect) · [SPEC-200](../../../../harness/vertraege/SPEC-200-handbuch.md) Nr. 1 und 14 b (Prosa im Handbuch). In der Spezifikation ändert der Slice allein die Vermerke *Stand* beim Liefern.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** — (bis zur Priorisierung).
+**Verantwortlich:** pt9912 (Zweig `slice-abnahme-belege`, Worktree `/Development/odata-recorder-wt-belege`; der Zweig entsteht von `main` nach dem Start-Commit, der Start liegt auf `main`)
 
 **Autor:** pt9912 (Planner, aus der Bewertung der Beleg-Lücken durch den Architect, `2e289d4d`). **Datum:** 2026-11-27.
 
@@ -133,9 +133,11 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): die Verträge stehen auf `main` (`2e289d4d`, Merge `6c1526bc`), und kein Slice in `in-progress/` ändert eine Datei des Blocks. Kein Kettenslice (Übergangsregeln Nr. 7): kein Pfad unter `Makefile`, `harness/mk/`, `Dockerfile`, `harness/README.md` oder `tools/gegenproben/`.
 
+**Stand beim Start** (Planner, 2026-11-27): Die Bedingung ist erfüllt. In `in-progress/` liegen daneben [slice-bootstrap-m6](slice-bootstrap-m6.md) und [slice-lasttest-leser-zeitgrenze](slice-lasttest-leser-zeitgrenze.md); `git diff --name-only main...slice-bootstrap-m6` nennt beim Start elf Pfade, darunter keinen des Blocks, keinen unter `spec/` und nicht das Handbuch; der Zweig des Lasttest-Lesers ändert allein `tests/lasttest/leser_test.go`. Für die Tests ist keine Frage an den Architect offen; der Nachzug für den Handbuch-Absatz steht aus (unten). Der Slice ist der dritte Worktree.
+
 **Reihenfolge im Slice:** zuerst die Tests (E1 bis E8, Q1, Q2), zuletzt der Handbuch-Absatz (H1, H2). Der Absatz beginnt erst, wenn der Nachzug des Architect zu `SPEC-053` und zum Satz über die Werte im Modus `mock` auf `main` liegt und der Zweig `main` aufgenommen hat (Antwort 7; heute **nicht** geliefert). Er sagt mit H2 ein Verhalten des Binary in Prosa; `SPEC-200` Nr. 1 lässt das allein zu, wenn ein Vertrag des Produkts das Kapitel verlangt. Der Nachzug muss den Absatz deshalb verlangen (Adresse Architect, §6). Er blockiert den Start der Tests nicht. **Vorab benannter Schnitt** (`AGENTS.md` §3.14): liegt der Nachzug bei sonst fertigem Slice nicht auf `main`, geht der Absatz (H1, H2) als eigene Sendung an den Planner; er ist zuletzt, in eigenem Commit, und teilt keinen Mechanismus mit den Tests.
 
-**Größenmarke** (`SPEC-128` Nr. 1, `AGENTS.md` §3.14; Planner): zwölf Zeilen (E1 bis E8, Q1, Q2, H1, H2), *a* = 0, *b* = 12, *f* = 1 (der Referenzdienst), *p* = 0 (nur Test-Code): *S* = 80·12 + 200 = 1160, Marke 1600, keine Schnittfrage. Die Zeilen des Handbuchs zählt die Messung nicht (kein Pfad unter `docs/` im Block, `SPEC-128` Nr. 3 m). Der Teil des Blocks, den sonst der Architect setzt (`pfad`, `produktcode`, `fakes`), ist vom Planner gesetzt; `basis`, `schaetzung` und `marke` kommen beim Start dazu. Ungeschnitten mit dem Absturztest: 31 Zeilen, *f* = 4, *S* = 3280, Marke 4500, über der Schnittgrenze. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; `spec/` und `harness/vertraege/` zählen nicht. Jede weitere Datei nennt der Implementer im selben Commit im Block.
+**Größenmarke** (`SPEC-128` Nr. 1, `AGENTS.md` §3.14; Planner): zwölf Zeilen (E1 bis E8, Q1, Q2, H1, H2), *a* = 0, *b* = 12, *f* = 1 (der Referenzdienst), *p* = 0 (nur Test-Code): *S* = 80·12 + 200 = 1160, Marke 1600, keine Schnittfrage. Die Zeilen des Handbuchs zählt die Messung nicht (kein Pfad unter `docs/` im Block, `SPEC-128` Nr. 3 m). Der Teil des Blocks, den sonst der Architect setzt (`pfad`, `produktcode`, `fakes`), ist vom Planner gesetzt; `basis`, `schaetzung` und `marke` sind beim Start gesetzt, vor dem ersten Code-Commit. Ungeschnitten mit dem Absturztest: 31 Zeilen, *f* = 4, *S* = 3280, Marke 4500, über der Schnittgrenze. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; `spec/` und `harness/vertraege/` zählen nicht. Jede weitere Datei nennt der Implementer im selben Commit im Block.
 
 ```groessenmarke
 pfad: tests/integration/erweiterungen_test.go
@@ -144,6 +146,9 @@ pfad: src/bootstrap/abnahme_etag_test.go
 pfad: src/bootstrap/vertrag_http_test.go
 produktcode: 0
 fakes: 1
+basis: 20728b70
+schaetzung: 1160
+marke: 1600
 ```
 
 **Rückführungen — vorab benannt:**
@@ -204,6 +209,6 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** eine Sub-Area, der Default `*` (Kürzel `REPO`); es gibt keine feinere.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register bei der Anlage gesichtet (2026-11-27; der Zähler ist die Zahl der Dateien unter `evidence/`). Offen und mit dem Slice berührt: `BEO-REPO/gate-lauf-stufen-aus-dem-schicht-cache` (20×; ein grüner Lauf belegt die neuen Tests nur, wenn die Stufe sie wirklich fuhr), `BEO-REPO/nullprobe-grenze-unter-der-paketlaufzeit` (17×; Mutationsläufe über `bootstrap`), `BEO-REPO/allaussage-an-jeder-stelle-mit-faenger-an-erster-und-zweiter-stelle` (5×; E6 läuft als Schleife über alle Fälle), `BEO-REPO/test-fremden-pakets-flackert-unter-last` (3×), `BEO-REPO/ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit` (4×; der Zähler 92 steht an mehreren Stellen), `BEO-REPO/anpassung-eines-bestehenden-tests-lockert-seinen-faenger` (1×; Q2 hält den Zähler als Fänger). Keiner erreicht mit diesem Slice neu 3×.
+**Vorgelagert — offene Beobachtungen sichten:** Register bei der Anlage und beim Start gesichtet (2026-11-27; der Zähler ist die Zahl der Dateien unter `evidence/`). Offen und mit dem Slice berührt: `BEO-REPO/gate-lauf-stufen-aus-dem-schicht-cache` (20×; ein grüner Lauf belegt die neuen Tests nur, wenn die Stufe sie wirklich fuhr), `BEO-REPO/nullprobe-grenze-unter-der-paketlaufzeit` (17×; Mutationsläufe über `bootstrap`), `BEO-REPO/allaussage-an-jeder-stelle-mit-faenger-an-erster-und-zweiter-stelle` (5×; E6 läuft als Schleife über alle Fälle), `BEO-REPO/test-fremden-pakets-flackert-unter-last` (3×), `BEO-REPO/ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit` (4×; der Zähler 92 steht an mehreren Stellen), `BEO-REPO/anpassung-eines-bestehenden-tests-lockert-seinen-faenger` (1×; Q2 hält den Zähler als Fänger). Keiner erreicht mit diesem Slice neu 3×. Verkörpert und zu beachten: `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (`AGENTS.md` §3.15; H1 und H2 sind benannte Negative). Geplant: `BEO-REPO/bedingter-blockpfad-zaehlt-fremde-zeilen` (6×; der Block nennt allein Dateien).
 
 Alle berührten Sub-Areas GF.

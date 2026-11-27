@@ -18,6 +18,7 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-bootstrap-m6](slice-bootstrap-m6.md) ([welle-admin-api](../welle-admin-api.md), Teil D: M6-Test über Admin- und OData-Listener, Zellen Modus × Art, Stufe 11; Zweig `slice-bootstrap-m6`; Kettenslice).
 Daneben [slice-lasttest-leser-zeitgrenze](slice-lasttest-leser-zeitgrenze.md) (ohne Welle: Fänger des Lasttest-Lesers unter Last; Zweig `slice-lasttest-leser-zeitgrenze`; kein Kettenslice).
+Daneben [slice-abnahme-belege](slice-abnahme-belege.md) (ohne Welle: Belege zur Erstabnahme für `LH-QA-07`, `LH-FA-08` und der Handbuch-Absatz zum Schutz der Daten; Zweig `slice-abnahme-belege`; kein Kettenslice).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
