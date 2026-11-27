@@ -394,6 +394,7 @@ Redigiert wird immer durch den festen Marker `[REDACTED]` (Header- und JSON-Stri
 Header-Redaction beschränkt die Replayfähigkeit nicht (`SPEC-045`): redigierte Header werden im Replay nicht ausgeliefert, nie mit Marker. Ausgenommen ist der Query-Wert in `Location` und `Content-Location`, der mit dem Marker ausgeliefert wird (`SPEC-115` Nr. 3, `SPEC-045`); das Geheimnis wird dabei nicht wiederhergestellt.
 Reguläre Logs enthalten weder Query-Strings noch Bodies noch Header-Werte.
 **Geltungsbereich der Redaction:** Sie erfasst Header, `raw_query` und die konfigurierten JSON-Pfade des Bodys.
+Das gilt für aufgezeichnete Austausche; Werte, die ein Client im Mock selbst schreibt, erfasst sie nicht (`SPEC-053`).
 Query-Werte in `Location` und `Content-Location` werden wie `raw_query` behandelt (`REDACT_QUERY_PARAMS`); Link-Annotationen im Body (`@odata.nextLink`, `@odata.id`) nur über `REDACT_JSON_PATHS`.
 Der Pfad (`exchanges.path`) wird nicht redigiert: Geheimnisse im Pfad sind nicht unterstützt und gehören nicht in aufgezeichnete URLs.
 Randformen der Redaction von Headern, Query und `Location` sowie die Syntax der Pfadmuster: `SPEC-115`; die Replayfähigkeit als Funktion: `SPEC-117`; den Redaktor der Bodies: `SPEC-118`.
@@ -3016,7 +3017,17 @@ Keine implizite Ableitung aus Cookies oder Client-IP. Form der Replay-Session-ID
 Geltungsbereich: vom Recorder verwaltete RAM-Puffer, Capture-Queues, Blob-Verzeichnis, temporäre Dateien und Logs.
 Unredigierte Daten dürfen **nicht durch Recorder-Code** persistent geschrieben werden.
 Eine Aussage über OS-Swap, Core-Dumps, Container-Runtime oder externe HTTP-Libraries gilt nur unter expliziten Betriebsbedingungen: Core-Dumps deaktiviert, Swap deaktiviert oder verschlüsselt und vom Betreiber kontrolliert, keine unverschlüsselten Diagnose-Dumps, kein Body-Logging in Middleware.
-Das Betriebsprofil muss diese Voraussetzungen vor Aktivierung von Body-Capture prüfen und dokumentieren.
+Core-Dumps und Swap sind Pflicht des Betreibers (Entscheidung des fachlichen Owners vom 2026-11-27): Der Recorder prüft sie nicht, weder beim Start noch vor dem Erfassen eines Bodys, und er startet und erfasst auch dann, wenn sie nicht erfüllt sind.
+Die beiden anderen Bedingungen (Diagnose-Dumps, Body-Logging in Middleware) muss das Betriebsprofil weiterhin vor Aktivierung von Body-Capture prüfen und dokumentieren; *Stand:* eine Prüfung beim Start gibt es nicht.
+
+**Vom Client geschriebene Werte** (Entscheidung des fachlichen Owners vom 2026-11-27): Die Redaktion erfasst die Werte nicht, die ein Client im Modus `mock` selbst schreibt (`POST`, `PUT`, `PATCH`).
+Der Mock speichert sie unverändert im Entity-State des Workspace (`SPEC-193` Nr. 3) und damit auch in Snapshots dieses Zustands; `REDACT_JSON_PATHS` wirkt dort nicht.
+Der Satz oben zu unredigierten Daten gilt für diese Werte nicht; welche Testdaten zulässig sind, verantwortet der Betreiber (`LH-RB-04`).
+Der Modus `hybrid` führt Änderungen mit demselben Dienst aus und speichert ihre Werte ebenso; nach diesem Modus war der Owner nicht gefragt (offen).
+
+**Handbuch.** Das Handbuch trägt ein Kapitel `Schutz der Daten` aus einem kurzen Absatz mit drei Aussagen: Um Core-Dumps und Swap kümmert sich der Betreiber, der Recorder prüft beides nicht; Werte, die ein Client im Modus `mock` oder `hybrid` schreibt, speichert der Dienst unverändert; welche Testdaten zulässig sind, verantwortet der Betreiber.
+Das Kapitel steht als Prosa; ein gebundenes Beispiel verlangt dieser Vertrag nicht, weil das Format der Beispiel-Datei dieses Verhalten nicht ausdrückt (`SPEC-200` Nr. 1, 6 d).
+*Ungeprüft:* die Sätze des Kapitels. Grund: kein Beispiel. Folge: ein falscher Satz bleibt bei grünen Gates stehen (`SPEC-200` Nr. 14 b).
 
 Bounded memory: maximale Capture-Bodygröße `MAX_CAPTURE_BODY` (`SPEC-013`), maximale entpackte Größe (gleich `MAX_CAPTURE_BODY`), maximale Queue-Größe (16 MiB), Dekompressions-Verhältnis höchstens 20:1 und Deadline 30 s.
 Überlauf, unbekanntes Encoding, fehlerhaftes JSON, ein Fehler der Ablage und die Überschreitung der Frist der Capture-Seite setzen `capture_status=failed`, `replay_equivalence=none`; der Abbruch des Austauschs (Client oder Upstream beenden den Strom, Herunterfahren) setzt `incomplete`, außer im Request-Body (dort fehlt der Match-Key, `SPEC-001`) und wenn in der Rangfolge von `SPEC-119` Nr. 9 eine Verwerfung durch die Capture-Seite vor dem Abbruch liegt: dann ist der Exchange `failed` (`SPEC-119` Nr. 10 und 12); ein Abbruch, nachdem beide Bodies vollständig erfasst sind, lässt ihn `complete` (`SPEC-121` Nr. 13);
@@ -5379,6 +5390,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-27 | Zwei Schutzgrenzen als Betreiberpflicht (Architect, Entscheidung des fachlichen Owners, `LH-RB-04`, `LH-FA-14.a`; Produktverhalten und Lastenheft unverändert): `SPEC-053` verlangt keine Prüfung von Core-Dumps und Swap mehr, benennt die unredigiert gespeicherten, vom Client im Modus `mock` geschriebenen Werte (`hybrid` ebenso, dazu offen) und verlangt das Handbuch-Kapitel `Schutz der Daten`; Nachzug in `LH-FA-14.a` |
 | 2026-11-27 | Messaufbau bestätigt (Architect, Entscheidung des fachlichen Owners, `LH-QA-01`): `LH-QA-01.a` nennt neben dem Zielwert den Messaufbau von `LH-QA-01` als bestätigt; Werte unverändert |
 | 2026-11-27 | Markierung ohne angehängten Exchange (Architect, Entscheidung des fachlichen Owners, `LH-FA-14`; Produktverhalten unverändert): `SPEC-124` Nr. 12 folgt dem Satz in `LH-FA-14` (Negative) statt der auf vollen Speicher begrenzten Anerkennung |
 | 2026-11-27 | Belege zur Erstabnahme vor dem Code (Architect, `LH-QA-07`, `LH-QA-03`, `LH-FA-08`, `LH-RB-03`; Lastenheft und Produktverhalten unverändert, keine Entscheidung geändert): Absturztest (`SPEC-048`), Nachweis für unbekannte Erweiterungen auf dem Record-Pfad und Berichtigung, dass erst der Import `unsupported_features` markiert (`LH-QA-07.a`), Schritt `ODV4-Q-11` b (`SPEC-049` Nr. 4), Binary-Vergleich zweier Bauten (`LH-RB-03.a`, `SPEC-322`); alle nicht geliefert. Dazu `SPEC-300` Nr. 12 a berichtigt (auf `stdout` von `start` gibt es keinen Kontrollwert, neues Negativ) und in Nr. 14 der Träger des Entity-State von `LH-FA-09` Boundary benannt |
