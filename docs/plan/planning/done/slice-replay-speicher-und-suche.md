@@ -334,7 +334,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - Echter asynchroner Abbruch liefert selten den Fehler des Treibers statt des Kontexts (Review F-5, ebenso `ListBySession`); Negativ in §3 — **Ausgang:** weiter offen: → `BEO-REPO/abbruch-des-treibers-statt-kontextfehler` im Register; Adresse: Architect (ob `SPEC-105` Nr. 13 für alle Abfragen des Adapters durchgesetzt wird).
 - CO-001 führte „Ursache: nicht belegt“, §3 belegt sie (Review I-3) — **Ausgang:** entfallen: [CO-001](../../carveouts/done/CO-001-lasttest-replay-ohne-p95.md) ist in der Closure berichtigt.
 - `tools/harness/mutationslauf.sh` meldet für `src/bootstrap` den Ausgangsstand als rot und fährt dann keine Mutation der Liste; `go test` über das Paket war in einer Wegwerfkopie grün; die Ursache ist in diesem Slice nicht untersucht, das Bild gleicht der festen Zeitgrenze der Nullprobe unter der Paketlaufzeit — **Ausgang:** weiter offen: → `BEO-REPO/nullprobe-grenze-unter-der-paketlaufzeit` im Register (Adresse dort: Architect, `SPEC-210`; ob der Auftrag ergeht, entscheidet der User).
-- Ein Lauf von `make gates` in der Fix-Runde war in `make test-race` rot: `TestLeserHaeltNieAn` (`tests/lasttest/leser_test.go`, „nach 1s kein Wert“), bei hoher Last des Hosts (Messender Implementer). Der Test liegt außerhalb des Slice (§1), sein Fänger hängt an einer Zeitgrenze (Verifikation V-6: 15 von 15 grün bei Last um 7) — **Ausgang:** eingetreten: [slice-lasttest-leser-zeitgrenze](../open/slice-lasttest-leser-zeitgrenze.md) (Evidenz zusätzlich in `BEO-REPO/test-fremden-pakets-flackert-unter-last`).
+- Ein Lauf von `make gates` in der Fix-Runde war in `make test-race` rot: `TestLeserHaeltNieAn` (`tests/lasttest/leser_test.go`, „nach 1s kein Wert“), bei hoher Last des Hosts (Messender Implementer). Der Test liegt außerhalb des Slice (§1), sein Fänger hängt an einer Zeitgrenze (Verifikation V-6: 15 von 15 grün bei Last um 7) — **Ausgang:** eingetreten: [slice-lasttest-leser-zeitgrenze](../next/slice-lasttest-leser-zeitgrenze.md) (Evidenz zusätzlich in `BEO-REPO/test-fremden-pakets-flackert-unter-last`).
 
 ## 7. Closure-Notiz
 
@@ -369,9 +369,9 @@ Zeile `Abnahme`: `ziel_ms=100 abnahmewert_ms=100 abnahme=ja grund=ok`. Der Zielw
 
 **Akzeptierte Negative:** in §3, darunter aus der Verifikation V-2 (Fänger liest Konstanten, nicht die ausgeführte Anweisung), V-3 (beschädigte Datei beim Lesen der Zeilen), V-4 (alle Treffer bis 9 geprüft) und V-5 (CPU wächst mit dem Cursor einer langen Replay-Session), dazu Review F-5 (Abbruch des Treibers).
 
-**Risiko-Ausgänge (§6):** 15 Punkte, je ein Ausgang: entfallen 9, weiter offen 5 (Register), eingetreten 1 ([slice-lasttest-leser-zeitgrenze](../open/slice-lasttest-leser-zeitgrenze.md)).
+**Risiko-Ausgänge (§6):** 15 Punkte, je ein Ausgang: entfallen 9, weiter offen 5 (Register), eingetreten 1 ([slice-lasttest-leser-zeitgrenze](../next/slice-lasttest-leser-zeitgrenze.md)).
 
-**Sendungen (`AGENTS.md` §3.13):** *An diesen Slice* aus `slice-lasttest`: Produktbefund V-8 (behoben), p95 für Replay in der Größe `abnahme` samt Anteil des Match-Spans (oben) und die Auflösung von CO-001 (oben). *Von diesem Slice:* an [slice-lasttest-leser-zeitgrenze](../open/slice-lasttest-leser-zeitgrenze.md) der rote Lauf von `TestLeserHaeltNieAn`. *An den Architect:* Meldung der Auslastung; F-5 (`SPEC-105` Nr. 13); die Prüfung der Setzungen (`SPEC-216` Nr. 16 g). *An den User:* Bestätigung des Zielwerts von `LH-QA-01`; Begrenzung gleichzeitiger Requests.
+**Sendungen (`AGENTS.md` §3.13):** *An diesen Slice* aus `slice-lasttest`: Produktbefund V-8 (behoben), p95 für Replay in der Größe `abnahme` samt Anteil des Match-Spans (oben) und die Auflösung von CO-001 (oben). *Von diesem Slice:* an [slice-lasttest-leser-zeitgrenze](../next/slice-lasttest-leser-zeitgrenze.md) der rote Lauf von `TestLeserHaeltNieAn`. *An den Architect:* Meldung der Auslastung; F-5 (`SPEC-105` Nr. 13); die Prüfung der Setzungen (`SPEC-216` Nr. 16 g). *An den User:* Bestätigung des Zielwerts von `LH-QA-01`; Begrenzung gleichzeitiger Requests.
 
 **Reviewer-Skill:** keine Änderung. Die Klassen des Reviews treffen bestehende Regeln (Zusage ohne Fänger, Fixture gleicht dem Wert der Mutation, Randform erst im Review: `AGENTS.md` §3.15, §3.16 und die MEDIUM-Zeilen des Skills); die zwei neuen Klassen (Plan der Abfrage, Abbruch des Treibers) stehen mit einem Beleg im Register, unter der Schwelle.
 
@@ -390,7 +390,7 @@ Zeile `Abnahme`: `ziel_ms=100 abnahmewert_ms=100 abnahme=ja grund=ok`. Der Zielw
 
 **Register** (Übergangsregeln Nr. 4: Evidenz mit der Closure im Zweig; kein Zähler gesetzt): fünf neue Beobachtungen und dreizehn Evidenz-Dateien `slice-replay-speicher-und-suche`; 91 → 96 Einträge, 780 → 793 Evidenz-Dateien.
 
-**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld; die Spec-Lücke hat `LH-QA-01` als Gegenstück) · Folge-Slice ([slice-lasttest-leser-zeitgrenze](../open/slice-lasttest-leser-zeitgrenze.md) liegt in `open/`) · Register (die dreizehn genannten Verzeichnisse tragen `evidence/slice-replay-speicher-und-suche.md`).
+**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld; die Spec-Lücke hat `LH-QA-01` als Gegenstück) · Folge-Slice ([slice-lasttest-leser-zeitgrenze](../next/slice-lasttest-leser-zeitgrenze.md) liegt in `open/`) · Register (die dreizehn genannten Verzeichnisse tragen `evidence/slice-replay-speicher-und-suche.md`).
 
 **Gegenlesen** (`AGENTS.md` §3.18): die Texte dieser Closure sind mit `Edit` und `Write` geschrieben und enthalten keinen Wert, der aus Bytewerten gebaut werden müsste; die geänderten Dateien sind mit `LC_ALL=C grep -P` auf BOM, NBSP, Zeilentrenner und auf eine Folge aus Backslash, `u` und vier Hex-Ziffern gegengelesen.
 
