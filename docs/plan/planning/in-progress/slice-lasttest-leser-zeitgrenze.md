@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-QA-06` (Reproduzierbarkeit der Prüfläufe), `LH-QA-01` (der Test gehört zum Lasttest).
 
-**Berührte Spec-Stellen:** [SPEC-216](../../../../harness/vertraege/SPEC-216-lasttest.md) Nr. 9 e (das Programm entleert die Ströme des Binary ohne Unterbrechung und liest nie langsamer, als das Binary schreibt) und Nr. 10 a (Zeilen bis 1 MiB, letzte Zeile, Fehler des Stroms; nennt `TestLeserHaeltNieAn` als Fänger der zwei letzten); beide Zusagen bleiben, der Vertrag wird nicht geändert.
+**Berührte Spec-Stellen:** [SPEC-216](../../../../harness/vertraege/SPEC-216-lasttest.md) Nr. 9 e (das Programm entleert die Ströme des Binary ohne Unterbrechung und liest nie langsamer, als das Binary schreibt) und Nr. 10 a (Zeilen bis 1 MiB, letzte Zeile, Fehler des Stroms; nennt `TestLeserHaeltNieAn` als Fänger der zwei letzten), dazu Nr. 14 a (der Test liest die Uhr allein über `systemuhr` aus `uhr.go`); die Zusagen bleiben, der Vertrag wird nicht geändert.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** pt9912 (Zweig `slice-lasttest-leser-zeitgrenze`, Worktree `/Development/odata-recorder-wt-leser`; der Zweig entsteht von `main` nach dem Start-Commit, der Start liegt auf `main`)
@@ -30,6 +30,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **Übernimmt:** aus `slice-replay-speicher-und-suche` (Plan §6, Verifikation V-6): `make test-race` war in einem Lauf von `make gates` rot an `TestLeserHaeltNieAn` (`tests/lasttest/leser_test.go`, „nach 1s kein Wert“) bei hoher Last des Hosts.
 
 **Ziel:** `TestLeserHaeltNieAn` fängt weiter, dass der Leser den Schreiber nie anhält, und wird auf einem belasteten Host nicht allein deshalb rot, weil 20 MiB unter dem Detektor nicht binnen 1 s Echtzeit durch die Pipe gehen (`pipeLauf`, `warteAuf(…, time.Second)`).
+
+**Form der Lösung:** `pipeLauf` läuft in einer Blase von `testing/synctest`; an die Stelle der Grenze von 1 s Echtzeit tritt, dass die Uhr der Blase beim Lesen und Auswerten stehen bleibt, dazu, dass kein Write des Schreibers scheitert. „Den Schreiber anhalten“ fängt der Test damit als Warten auf die Uhr und als Ende des Lesens vor dem Strom, nicht als Rechenzeit oder blockierenden Systemaufruf (Negativ in §3, offene Frage in §6).
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
@@ -60,7 +62,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-bootstrap.md`
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `tests/lasttest/leser_test.go` | update | `pipeLauf` und `TestLeserHaeltNieAn` |
+| `tests/lasttest/leser_test.go` | update | `pipeLauf` (Blase von `testing/synctest`, Uhr der Blase statt Grenze von 1 s), `schreibeStrom` (Schreiber mit Fehler des Write) und der Kopftext von `TestLeserHaeltNieAn` |
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Planner beim Start, 2026-11-27; kein Architect-Lauf, weil der Slice keinen neuen Vertrag liefert). Die Zeilen folgen der Zeile A1 des Plans von [`slice-lasttest-auswertung`](../done/slice-lasttest-auswertung.md) und der DoD; die Spalten sind die von `SPEC-128` Nr. 3 a. Der Implementer trägt Mutationen und Raten mit Zahl der Prozesse, Last und Messendem in einen Absatz darunter ein (`AGENTS.md` §3.10).
 
@@ -72,6 +74,54 @@ Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-bootstrap.md`
 | LZ4 | (Nr. 10 a) Eine Zeile über 1 MiB wird verworfen und gezählt, der Speicher wächst nicht mit der Länge | `TestLeserHaeltNieAn` (1 MiB + 1 B, 64 MiB in einer Zeile) | die Grenze von 1 MiB entfällt (`a1-grenze-entfaellt`) | andere |
 | LZ5 | Der Sammler, in den der Leser schreibt, ist unter Nebenläufigkeit sicher | `TestSammlerGleichzeitig` unter `make test-race` (Bestand, `auswertung_test.go`) | Sperre fehlt in `nimm` (`a1-sammler-nimm-ohne-sperre`) | nebenläufig |
 | LZ6 | (Nr. 10 a) Eine letzte Zeile ohne Zeilenende ist eine Zeile, ein Fehler des Stroms geht an den Aufrufer | `TestLeserHaeltNieAn` | die letzte Zeile ohne Zeilenende wird verworfen; der Fehler des Stroms wird verschluckt | andere |
+
+**Messung, Mutationen und Raten** (Implementer, 2026-11-27; `AGENTS.md` §3.10). *Aufbau:* Messender ist der Implementer (ein Agent, Modell Sonnet 5.5), Host mit 20 Kernen; je Reihe ein Container aus dem Image der Stufe `race` (go1.27.1) ohne Netz und Mount mit `--memory=4g --memory-swap=4g --cpus=4`, Test-Binary mit `-race`, je Lauf ein Prozess mit `-test.count=1` (Rate je Prozess gleich Rate je Lauf von `go test`). *Zusatzlast* sind K Endlosschleifen im selben Container; „Last“ ist die 1-Minuten-Last des Hosts, den fremde Prozesse mit belegen (gedrosselte Prozesse zählt sie nur teilweise). *Alt* ist der Stand `3d352b2d`, *neu* der dieses Slice.
+
+*Dauer und Ursache* (DoD 1; je Zelle 10 Prozesse, Sekunden, kleinster bis größter Wert; für diese Messung allein trug der alte Stand 1 min statt 1 s als Grenze):
+
+| Zusatzlast | Last des Hosts | `pipeLauf` 20 MiB alt | `pipeLauf` 20 MiB neu | 19 mal 1 MiB alt | 19 mal 1 MiB neu |
+|---|---|---|---|---|---|
+| 0 | 3,2 bis 4,4 | 0,29 bis 0,40 | 0,28 bis 0,31 | 0,57 bis 0,64 | 0,58 bis 0,62 |
+| 8 | 3,6 bis 7,9 | 0,84 bis 1,19 | 0,81 bis 1,22 | 1,53 bis 2,33 | 1,68 bis 2,40 |
+| 16 | 2,5 bis 9,6 | 1,80 bis 2,12 | 1,60 bis 2,69 | 3,61 bis 4,11 | 3,21 bis 4,21 |
+
+*LZ3, unveränderter Leser* (`TestLeserHaeltNieAn`, je Zelle 20 Prozesse, alt und neu abwechselnd):
+
+| Zusatzlast | Last des Hosts vor und nach der Reihe | alt rot | neu rot | Dauer des ganzen Tests neu, s |
+|---|---|---|---|---|
+| 0 | 3,2 und 3,6 | 0 von 20 | 0 von 20 | 1,35 bis 1,97 |
+| 8 | 7,9 und 3,3 | 15 von 20 („nach 1s kein Wert“) | 0 von 20 | 3,90 bis 4,99 |
+| 16 | 9,6 und 6,3 | 20 von 20 („nach 1s kein Wert“) | 0 von 20 | 8,91 bis 12,60 |
+
+Es bleibt eine Grenze in Echtzeit: `wache` mit 60 s über den ganzen Test, das 4,8-Fache des größten gemessenen Werts; sie ist auf höherer Last nicht gemessen. Eine angehobene Grenze an der alten Form trennt nicht: die Pause der Zeile LZ1 verlängert den Lauf mit 20 MiB um 5,2 s, der unveränderte Lauf braucht bei 16 Schleifen bis 2,1 s und wächst mit der Last.
+
+*Mutationen der Tabelle* (Last des Hosts 3,8 bis 9,4; neu je 20 Prozesse ohne und mit 8 Schleifen, alt je 20 Prozesse ohne Zusatzlast):
+
+| Zeile | Mutation | roter Test und Meldung (neu) | neu, 0 und 8 | alt |
+|---|---|---|---|---|
+| LZ1 | `time.Sleep(time.Millisecond)` am Anfang von `nimm` | `TestLeserHaeltNieAn`: „warteten 5.232s auf die Uhr“ | 20 von 20, 20 von 20 | 20 von 20 |
+| LZ2 | `lies` über `bufio.Scanner` mit 64 KiB | ebenda: Write „closed pipe“, Leser „token too long“, Spans 0 | 20 von 20, 20 von 20 | 20 von 20 |
+| LZ4 | die Grenze von 1 MiB entfällt | ebenda: die Zeile von 1 MiB + 1 B wird gelesen, 383 MB alloziert | 20 von 20, 20 von 20 | 20 von 20 |
+| LZ5 | `nimm` ohne Sperre | `TestSammlerGleichzeitig`: `DATA RACE` | 20 von 20, 20 von 20 | Test unverändert |
+| LZ6 | letzte Zeile ohne Zeilenende verworfen | `TestLeserHaeltNieAn`: Zeilen `s1 l1 s2` | 20 von 20, 20 von 20 | 20 von 20 |
+| LZ6 | Fehler des Stroms verschluckt | ebenda: Fehler `<nil>` statt „Strom gerissen“ | 20 von 20, 20 von 20 | 20 von 20 |
+
+*Weitere Formen derselben Klassen* (Last 2,6 bis 9,1, ohne Zusatzlast; neu 20 Prozesse, alt 5). Achsen der Pause: Stelle (`nimm`, je Zeile in `lies`, hinter der überlangen Zeile), Länge (1 ns, 1 µs, 1 ms), Häufigkeit (je Span-Zeile, je Zeile, einmal), Form (`time.Sleep`, `time.After`). Achsen des frühen Endes: hinter der überlangen Zeile, mitten im Strom; dazu ein Lesen, das nie endet.
+
+| Mutation | neu | alt |
+|---|---|---|
+| 1 µs je Span-Zeile in `nimm` | 20 von 20 | 0 von 5 |
+| einmal 1 ns in `nimm` (beim 101. Gesamtspan) | 20 von 20 | 0 von 5 |
+| `<-time.After(time.Millisecond)` in `nimm` | 20 von 20 | 5 von 5 |
+| 1 µs je Zeile in `lies` | 20 von 20 | 5 von 5 |
+| einmal 1 ms hinter der Zeile über 1 MiB (`haenge`) | 20 von 20 | 0 von 5 |
+| `lies` endet mit `nil` hinter der Zeile über 1 MiB | 20 von 20 | 5 von 5 |
+| `lies` endet mit `nil` mitten im Strom (`fremd` 50000) | 20 von 20 | 5 von 5 |
+| `lies` blockiert mitten im Strom für immer | 20 von 20 (panic von synctest: „deadlock“) | 5 von 5 |
+
+Die Zusicherung über die Uhr trägt LZ1 allein: mit `gewartet < 0` statt `gewartet != 0` und der Mutation LZ1 ist der Test in 5 von 5 Prozessen grün.
+
+**Akzeptiertes Negativ** (`AGENTS.md` §3.15). *Klasse:* eine Verlangsamung von Leser oder Auswertung, die ohne Warten auf die Uhr der Blase vergeht (Rechenzeit, blockierender Systemaufruf). *Maß:* 2 von 2 geprüften Formen bleiben neu grün (`syscall.Nanosleep` mit 1 ms und eine Rechenschleife je Span-Zeile, je 0 von 20 Prozessen rot, Dauer des Tests etwa 14 s und 17 s statt 1,4 s); am alten Stand waren beide in 5 von 5 rot. *Grund:* ohne Maß in Echtzeit unterscheidet nichts im Test diese Verlangsamung von einem belasteten Host, und das Maß von 1 s war am unveränderten Leser bei Zusatzlast 8 in 15 von 20 Prozessen rot. *Folge:* ein Leser, der langsam rechnet oder im Systemaufruf hängt, besteht die Tests; im Lasttest verlängerte er die gemessene Antwortzeit (`SPEC-216` Nr. 9 e), und allein das Review von `leser.go` und `auswertung.go` hält ihn auf.
 
 ## 4. Trigger
 
@@ -110,6 +160,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - Ohne Zeitgrenze fängt der Test die Mutation „Pause beim Auswerten“ nicht mehr — **Ausgang:** weiter offen: die Mutationen der Zeile A1 sind die DoD.
 - Auch eine bloß angehobene Grenze kann diese Mutation durchlassen (gerechnet, nicht gemessen): der Lauf mit 20 MiB schreibt 5232 Span-Zeilen, die Pause von 1 ms verlängert ihn um etwa 5 s, die 19 Läufe zu 1 MiB um je etwa 0,26 s. Eine Grenze von mehr als etwa 5 s macht den Fänger an der heutigen Form blind — **Ausgang:** weiter offen: DoD 2 verlangt die Mutation mit unverändertem Wert rot; gelingt das nicht, greift die erste Rückführung in §4.
 - `SPEC-216` Nr. 14 a lässt allein `uhr.go` die Zeit lesen (`TestPaketOhneZeit`): eine Grenze relativ zu einem Vergleichslauf darf in `leser_test.go` kein `time.Now` nennen — **Ausgang:** entschieden (Vertrag): Wartezeiten laufen über `warteAuf` und `wache`.
+- Der Fänger sieht eine Verlangsamung ohne Warten auf die Uhr nicht (Negativ in §3, 2 von 2 geprüften Formen), die der alte Stand sah, sobald der Lauf mit 20 MiB damit über 1 s lag; ob das Negativ trägt, ob es nach `SPEC-216` Nr. 16 gehört oder ob ein weiterer Fänger nötig ist (etwa eine Grenze über die CPU-Zeit aus `prozessCPU`, nicht gemessen; sie sähe den Systemaufruf nicht), ist nicht entschieden — **Ausgang:** offen; Adresse Architect, Bestätigung durch den Planner bei der Closure.
 - Randformen (`AGENTS.md` §3.12, §3.16): kein Raster, weil der Slice keinen neuen Vertrag liefert und das Verhalten des Lesers unverändert bleibt — **Ausgang:** entfallen; eine Randform, die doch eine Entscheidung braucht, geht an den Architect.
 
 ## 7. Closure-Notiz

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driven/telemetry"
@@ -223,38 +224,56 @@ func adapterZeilen(t *testing.T) {
 	}
 }
 
-// pipeLauf schreibt in eine Pipe zuerst eine Zeile von 3 MiB, dann mib MiB in Zeilen zu 200 Byte, jede zwanzigste eine gültige Zeile, und
-// verlangt, dass der Schreiber nach höchstens einer Sekunde fertig ist, alle gültigen Zeilen vom Sammler eingeordnet und alle anderen als
-// fremd gezählt sind.
-func pipeLauf(t *testing.T, mib int) {
-	t.Helper()
-	pr, pw := io.Pipe()
-	schreiberFertig := make(chan struct{})
-	go func() {
-		defer close(schreiberFertig)
-		_, _ = pw.Write([]byte(strings.Repeat("x", 3<<20) + "\n"))
-		fremdZeile, spanZeilen := strings.Repeat("x", 199)+"\n", gepolstert("spn-1", 199)+"\n"
-		block := strings.Repeat(strings.Repeat(fremdZeile, 19)+spanZeilen, 16)
-		for n := mib << 20 / 200; n >= 320; n -= 320 {
-			_, _ = pw.Write([]byte(block))
-		}
-		_ = pw.Close()
-	}()
-	ergebnis := make(chan [2]int, 1)
-	go func() {
-		s := neuerSammler("replay")
-		fremd, _ := lies(pr, s.nimm)
-		ergebnis <- [2]int{s.anzahl(), fremd}
-	}()
-	warteAuf(t, schreiberFertig, time.Second)
-	zeilen := mib << 20 / 200 / 320 * 320
-	if got := warteAuf(t, ergebnis, time.Second); got != [2]int{zeilen / 20, 1 + zeilen - zeilen/20} {
-		t.Errorf("%d MiB: Spans %d, fremd %d; erwartet %d und %d", mib, got[0], got[1], zeilen/20, 1+zeilen-zeilen/20)
+// schreibeStrom schreibt in pw zuerst eine Zeile von 3 MiB, dann mib MiB in Zeilen zu 200 Byte, jede zwanzigste eine gültige Zeile, schließt
+// pw und liefert den Fehler des ersten gescheiterten Write.
+func schreibeStrom(pw *io.PipeWriter, mib int) error {
+	defer func() { _ = pw.Close() }()
+	if _, err := pw.Write([]byte(strings.Repeat("x", 3<<20) + "\n")); err != nil {
+		return err
 	}
+	fremdZeile, spanZeilen := strings.Repeat("x", 199)+"\n", gepolstert("spn-1", 199)+"\n"
+	block := []byte(strings.Repeat(strings.Repeat(fremdZeile, 19)+spanZeilen, 16))
+	for n := mib << 20 / 200; n >= 320; n -= 320 {
+		if _, err := pw.Write(block); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// TestLeserHaeltNieAn (Wirkungs-Fänger, 20 Läufe): der Leser entleert die Pipe ohne Unterbrechung, auch hinter einer Zeile über 1 MiB und
-// bei einer Span-Zeile in jeder zwanzigsten; ein Schreiber mit 20 MiB endet nach höchstens einer Sekunde. Eine Zeile von 1 MiB wird gelesen,
+// pipeLauf fährt lies mit dem Sammler gegen schreibeStrom durch eine Pipe, in einer Blase von testing/synctest: die Uhr (systemuhr) ist dort
+// die der Blase, geht allein durch ein Warten auf sie vor und hängt nicht an der Last des Hosts. Verlangt ist: die Uhr steht nach dem Lesen,
+// wo sie davor stand; lies endet ohne Fehler; kein Write scheitert (endet lies vor dem Strom, schließt der Test die Pipe, und das nächste Write
+// scheitert); alle gültigen Zeilen sind eingeordnet und alle anderen als fremd gezählt. Grenze: Zeit, die ohne Warten auf diese Uhr vergeht
+// (Rechenzeit, Systemaufruf), sieht der Lauf nicht. Ein Lesen, das nie endet, endet im panic: von synctest, wenn alle Goroutinen der Blase
+// blockiert sind, sonst von wache.
+func pipeLauf(t *testing.T, mib int) {
+	t.Helper()
+	synctest.Test(t, func(t *testing.T) {
+		var uhr Uhr = systemuhr{}
+		pr, pw := io.Pipe()
+		schreiber := make(chan error, 1)
+		go func() { schreiber <- schreibeStrom(pw, mib) }()
+		s := neuerSammler("replay")
+		start := uhr.Jetzt()
+		fremd, err := lies(pr, s.nimm)
+		gewartet := uhr.Jetzt().Sub(start)
+		_ = pr.Close()
+		if werr := <-schreiber; werr != nil || err != nil {
+			t.Errorf("%d MiB: Fehler des Schreibers %v, des Lesers %v; erwartet keinen", mib, werr, err)
+		}
+		if gewartet != 0 {
+			t.Errorf("%d MiB: Leser und Auswertung warteten %v auf die Uhr; erwartet kein Warten", mib, gewartet)
+		}
+		zeilen := mib << 20 / 200 / 320 * 320
+		if got := [2]int{s.anzahl(), fremd}; got != [2]int{zeilen / 20, 1 + zeilen - zeilen/20} {
+			t.Errorf("%d MiB: Spans %d, fremd %d; erwartet %d und %d", mib, got[0], got[1], zeilen/20, 1+zeilen-zeilen/20)
+		}
+	})
+}
+
+// TestLeserHaeltNieAn (Wirkungs-Fänger, 20 Läufe von pipeLauf): der Leser liest die Pipe bis zum Ende des Stroms, auch hinter einer Zeile über
+// 1 MiB und bei einer Span-Zeile in jeder zwanzigsten, und weder er noch der Sammler wartet dabei auf die Uhr. Eine Zeile von 1 MiB wird gelesen,
 // eine von 1 MiB + 1 B zwischen drei Span-Zeilen verworfen und als fremd gezählt; der Speicher wächst nicht mit der Länge (64 MiB in einer
 // Zeile allozieren unter 16 MiB); eine letzte Zeile ohne Zeilenende ist eine Zeile; ein Fehler des Stroms endet das Lesen.
 func TestLeserHaeltNieAn(t *testing.T) {
