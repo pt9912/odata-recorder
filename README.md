@@ -18,15 +18,23 @@ scope is OData V4 with JSON and XML metadata. The requirements are in the
 
 ## What can I do today?
 
-There is no runnable code yet. What exists is the specification and the harness
-that guards it:
+You can build the binary from source with `make build` (image
+`odata-recorder:build`) and start it with the command `start`. It offers:
 
-- The [Lastenheft](spec/lastenheft.md) (draft, version 0.5.0) defines the
-  requirements with acceptance criteria, the [specification](spec/spezifikation.md)
-  the technical details, and the [architecture](spec/architecture.md) the components.
-  All three are written in German.
-- `make gates` runs green: `baseline-verify` checks the vendored baseline,
-  `docs-check` the documentation references. `make help` lists all targets.
+- the modes `record` (forward to the upstream and record), `replay` (answer from
+  the recordings), `mock` (CRUD and query options on imported data) and `hybrid`
+  (the mock first, recordings or upstream only where you allow it);
+- an admin interface for sessions, imports, workspaces and snapshots;
+- HTTPS for the service and for the admin interface.
+
+How to use it is described in the [user manual](docs/user/benutzerhandbuch.md)
+(in German). There is no release yet, and the first acceptance against the
+requirements is still open.
+
+The [Lastenheft](spec/lastenheft.md) (draft) defines the requirements with
+acceptance criteria, the [specification](spec/spezifikation.md) the technical
+details, and the [architecture](spec/architecture.md) the components. All three
+are written in German. `make help` lists all targets.
 
 ## Why odata-recorder?
 
