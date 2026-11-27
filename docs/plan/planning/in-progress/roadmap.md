@@ -18,6 +18,7 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-lasttest-leser-zeitgrenze](slice-lasttest-leser-zeitgrenze.md) (ohne Welle: Fänger des Lasttest-Lesers unter Last; Zweig `slice-lasttest-leser-zeitgrenze`; kein Kettenslice).
 Daneben [slice-abnahme-belege](slice-abnahme-belege.md) (ohne Welle: Belege zur Erstabnahme für `LH-QA-07`, `LH-FA-08` und der Handbuch-Absatz zum Schutz der Daten; Zweig `slice-abnahme-belege`; kein Kettenslice).
+Daneben [slice-admin-abweisen-begrenzen](slice-admin-abweisen-begrenzen.md) ([welle-admin-api](../welle-admin-api.md): höchstens 20 Einträge des Abweisens je 60 s, Bedingung von M6; Zweig `slice-admin-abweisen-begrenzen`; kein Kettenslice).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
