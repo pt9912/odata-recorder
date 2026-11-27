@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-bootstrap-m6-transport](../done/slice-bootstrap-m6-transport.md) ([welle-admin-api](../welle-admin-api.md), Teil C des Composition Root: `ADMIN_TLS_CERT`, `ADMIN_TLS_KEY`, `ADMIN_ALLOW_PLAINTEXT`, die vier Aufrufe von `SPEC-299`, Warnung, Handbuch zum TLS; Zweig `slice-bootstrap-m6-transport`; kein Kettenslice, schreibt unter `src/bootstrap/` und im Handbuch).
+Nichts in Arbeit.
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
