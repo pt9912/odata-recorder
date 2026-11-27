@@ -6,7 +6,7 @@
 
 **Eingang:** Plan slice-replay-speicher-und-suche, Review-Report `2026-11-27-slice-replay-speicher-und-suche-review`, Fix-Runde `4d455997`.
 
-**Berührt:** `LH-QA-01`, `LH-QA-01.a`, `LH-FA-04`, `LH-FA-05`; `SPEC-105` Nr. 13, 14; `SPEC-135` Nr. 6, 8, 9, 18 und *Ungeprüft*; `SPEC-216` Nr. 1, 6 g, 12; [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0006](../plan/adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md); [CO-001](../plan/carveouts/CO-001-lasttest-replay-ohne-p95.md).
+**Berührt:** `LH-QA-01`, `LH-QA-01.a`, `LH-FA-04`, `LH-FA-05`; `SPEC-105` Nr. 13, 14; `SPEC-135` Nr. 6, 8, 9, 18 und *Ungeprüft*; `SPEC-216` Nr. 1, 6 g, 12; [ADR-0001](../plan/adr/0001-implementierungssprache-go.md), [ADR-0006](../plan/adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md); [CO-001](../plan/carveouts/done/CO-001-lasttest-replay-ohne-p95.md).
 
 **Gliederung:** Eine Verifikation in zwei Schritten. Schritt 1 ist alles außer dem Lauf mit Profil `abnahme`, Schritt 2 der eine Aufruf `abnahme` (`SPEC-216` Nr. 1).
 
@@ -14,7 +14,7 @@
 
 ## Verdikt
 
-**Die Behebung verhält sich in den geprüften Punkten wie zugesagt, und der eine Aufruf `abnahme` auf `9c3f5f10` schreibt `abnahme=ja grund=ok`** (Exit 0): `replay` `bestanden` mit p95 10,613 ms, `mock` `bestanden` mit p95 32,648 ms, gegen den Zielwert 100. Kein Befund am Verhalten des Produkts. Die Liefer-Punkte der DoD sind erbracht; offen sind die Punkte der Closure (Closure-Notiz mit diesen Zahlen, [CO-001](../plan/carveouts/CO-001-lasttest-replay-ohne-p95.md), Register, Ausgänge in §6, Paarungen) und der Befund V-2 (LOW).
+**Die Behebung verhält sich in den geprüften Punkten wie zugesagt, und der eine Aufruf `abnahme` auf `9c3f5f10` schreibt `abnahme=ja grund=ok`** (Exit 0): `replay` `bestanden` mit p95 10,613 ms, `mock` `bestanden` mit p95 32,648 ms, gegen den Zielwert 100. Kein Befund am Verhalten des Produkts. Die Liefer-Punkte der DoD sind erbracht; offen sind die Punkte der Closure (Closure-Notiz mit diesen Zahlen, [CO-001](../plan/carveouts/done/CO-001-lasttest-replay-ohne-p95.md), Register, Ausgänge in §6, Paarungen) und der Befund V-2 (LOW).
 
 ---
 
@@ -44,7 +44,7 @@ Abweichung vom Auftrag: `make gates` und der Bau- und Mutationslauf starteten be
 |---|---|---|
 | 1 Ursache gemessen (L, C, s mit Methode, Last, Messendem; derselbe Aufbau nach der Behebung) | **erfüllt**, Stichprobe bestätigt | Plan §3; eigene Messung unten. Die Reihenfolge „vor der Behebung“ ist aus `git` nicht prüfbar (ein Handoff-Commit); die Werte „vorher“ sind auf dem unveränderten Code nachgemessen |
 | 2 Behebung (`SPEC-105` Nr. 14, `SPEC-135` Nr. 8, 9, 18; R01 bis R21 mit Fänger und Mutation) | **erfüllt** | Code gelesen; Verhalten am Binary unten; Tests grün; eigene Mutationen unten (V-2) |
-| 3 Erneuter Abnahmelauf | **Lauf erbracht**, Closure offen | Schritt 2: p95, Last, Messender, Commit. Eintrag in die Closure-Notiz, Bewegung von [CO-001](../plan/carveouts/CO-001-lasttest-replay-ohne-p95.md) nach `done/` und Bindung in `harness/README.md` stehen aus |
+| 3 Erneuter Abnahmelauf | **Lauf erbracht**, Closure offen | Schritt 2: p95, Last, Messender, Commit. Eintrag in die Closure-Notiz, Bewegung von [CO-001](../plan/carveouts/done/CO-001-lasttest-replay-ohne-p95.md) nach `done/` und Bindung in `harness/README.md` stehen aus |
 | `make gates` grün | **erfüllt** | oben, mit dem Vorbehalt zum Cache; ungecachte Testläufe grün |
 | Review mit Report | **erfüllt** | Report liegt vor; Ausgänge unten |
 | Doku-Update (`SPEC-105`, `SPEC-135`) | **erfüllt** | auf `main` seit `a4b79211` |
@@ -97,7 +97,7 @@ Die Größenordnungen und die Folgerung (K1 erklärt Speicher und CPU) sind best
 | F-4 (`SPEC-216` Nr. 6 g) | berichtigt | Wortlaut gleich `tools/schema/check.py` (`SELECT id`, ohne `ORDER BY`) |
 | F-5 (Abbruch des Treibers) | Negativ in §3, §6 offen an den Architect | gelesen |
 | I-1 (Warten auf den Schreiber) | `SPEC-135` *Ungeprüft* | gelesen |
-| I-2 (Einheit), I-3 ([CO-001](../plan/carveouts/CO-001-lasttest-replay-ohne-p95.md) „Ursache“) | berichtigt bzw. §6 offen an den Planner | gelesen |
+| I-2 (Einheit), I-3 ([CO-001](../plan/carveouts/done/CO-001-lasttest-replay-ohne-p95.md) „Ursache“) | berichtigt bzw. §6 offen an den Planner | gelesen |
 | I-4 (beschädigte Datei) | die zwei Abfragen gedeckt, das Lesen der Zeilen nicht | Q7 grün (V-3) |
 
 ### Eigene Mutationen
@@ -126,7 +126,7 @@ Wegwerfkopie von `9c3f5f10`, je Mutation `go test -count=1` über `src/adapters/
 
 | ID | Kategorie | Befund | Adresse |
 |---|---|---|---|
-| V-1 | MEDIUM, **entschieden** | DoD 3 verlangt den Lauf „auf einem Commit, der die Behebung trägt“; der Auflösungs-Trigger von [CO-001](../plan/carveouts/CO-001-lasttest-replay-ohne-p95.md) verlangt ihn „auf einem Commit von `main`“. `9c3f5f10` war beim Lauf kein Commit von `main`. Entscheidung des Auftraggebers vor Schritt 2: gemessen wird auf `9c3f5f10`; der Zweig wird vor slice-bootstrap-m6-transport nach `main` gemergt, ohne dass sich dazwischen `src/` oder `tests/` auf `main` ändern; damit ist der gemessene Commit ein Commit von `main` mit gleichem `src/` und `tests/`. [CO-001](../plan/carveouts/CO-001-lasttest-replay-ohne-p95.md) schließt der Planner nur bei `abnahme=ja` | Auftraggeber (Merge), Planner prüft bei der Closure `git diff 9c3f5f10 <Merge-Commit> -- src tests` (leer) |
+| V-1 | MEDIUM, **entschieden** | DoD 3 verlangt den Lauf „auf einem Commit, der die Behebung trägt“; der Auflösungs-Trigger von [CO-001](../plan/carveouts/done/CO-001-lasttest-replay-ohne-p95.md) verlangt ihn „auf einem Commit von `main`“. `9c3f5f10` war beim Lauf kein Commit von `main`. Entscheidung des Auftraggebers vor Schritt 2: gemessen wird auf `9c3f5f10`; der Zweig wird vor slice-bootstrap-m6-transport nach `main` gemergt, ohne dass sich dazwischen `src/` oder `tests/` auf `main` ändern; damit ist der gemessene Commit ein Commit von `main` mit gleichem `src/` und `tests/`. [CO-001](../plan/carveouts/done/CO-001-lasttest-replay-ohne-p95.md) schließt der Planner nur bei `abnahme=ja` | Auftraggeber (Merge), Planner prüft bei der Closure `git diff 9c3f5f10 <Merge-Commit> -- src tests` (leer) |
 | V-2 | LOW | `SPEC-105` Nr. 14 („keine Abfrage der Operation lässt die Datenbank sortieren“): der Fänger prüft die Texte der zwei Konstanten, nicht die ausgeführten Anweisungen. Ein `ORDER BY` an der Aufrufstelle, auch in genau der Form von F-2, bleibt grün (Q1, Q2). Heute führt die Operation die Konstanten unverändert aus; das Negativ steht nicht im Plan | Implementer oder Planner (Negativ) |
 | V-3 | INFO | Beschädigte Datei beim Lesen der Zeilen (nicht schon bei der Abfrage): kein Test über `ListByMatchKey` (Q7); der Helfer `sammle` ist gemeinsam und vom Slice nicht geändert | Planner |
 | V-4 | INFO | Dass alle Treffer geliefert werden, ist bis 9 Treffer geprüft (Q9). Die Sonden am Binary zählen die Treffer eines Keys nicht und belegen darüber hinaus nichts | Planner |
@@ -194,4 +194,4 @@ stderr trägt allein die Ausgabe des Baus: keine Zeile `lasttest:`, keine Meldun
 
 Für die Closure-Notiz: p95 `replay` 10,613 ms, p95 `mock` 32,648 ms, je zwei Läufe; Messender Verifier; Commit `9c3f5f10`; Last des Hosts 3,39 vor dem Start, Proben 1,33 bis 5,37; 2026-11-27.
 
-Keine Anfrage endete als Fehler; der Hinweis zu `SQLITE_BUSY` und `ODR-E9001` hatte in diesem Aufruf keinen Anlass. Der Auflösungs-Trigger von [CO-001](../plan/carveouts/CO-001-lasttest-replay-ohne-p95.md) ist mit `abnahme=ja` erfüllt, sobald die Bedingung aus V-1 gehalten ist.
+Keine Anfrage endete als Fehler; der Hinweis zu `SQLITE_BUSY` und `ODR-E9001` hatte in diesem Aufruf keinen Anlass. Der Auflösungs-Trigger von [CO-001](../plan/carveouts/done/CO-001-lasttest-replay-ohne-p95.md) ist mit `abnahme=ja` erfüllt, sobald die Bedingung aus V-1 gehalten ist.
