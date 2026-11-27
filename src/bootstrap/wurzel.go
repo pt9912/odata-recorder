@@ -76,9 +76,11 @@ type bauteile struct {
 	NeuerMock      func(mock.Konfig) (inbound.MockUseCase, error)
 	NeuerHybrid    func(hybrid.Konfig) (inbound.HybridUseCase, error)
 	NeueInspektion func(inspection.Konfig) (inbound.InspectionUseCase, error)
-	Listen         func(ctx context.Context, network, addr string) (net.Listener, error)
-	NeuerServer    func(httpodata.Konfig) (server, error)
-	NeuerAdmin     func(admin.Konfig) (server, error)
+	// PruefeAdmin ist die Prüfung des Admin-Transports, die Build ruft (SPEC-299 Nr. 8 b).
+	PruefeAdmin adminPruefung
+	Listen      func(ctx context.Context, network, addr string) (net.Listener, error)
+	NeuerServer func(httpodata.Konfig) (server, error)
+	NeuerAdmin  func(admin.Konfig) (server, error)
 }
 
 // als macht aus einem Konstruktor einen, der die Schnittstelle I liefert; ein Fehler liefert
@@ -113,6 +115,7 @@ func standardBauteile() bauteile {
 		NeuerMock:      als[inbound.MockUseCase](mock.New),
 		NeuerHybrid:    als[inbound.HybridUseCase](hybrid.New),
 		NeueInspektion: als[inbound.InspectionUseCase](inspection.New),
+		PruefeAdmin:    pruefeAdminTransport,
 		Listen: func(ctx context.Context, network, addr string) (net.Listener, error) {
 			var lc net.ListenConfig
 			return lc.Listen(ctx, network, addr)
@@ -163,6 +166,9 @@ type Handle struct {
 	fehler      chan error
 	// tls ist die Konfiguration der Verbindungen, die Build lud; nil heißt Klartext (SPEC-291 Nr. 8).
 	tls *tls.Config
+	// transport ist der Weg des Admin-Listeners, den Build lud; ohne AdminListen der Nullwert wegKeiner (SPEC-299 Nr. 8 b,
+	// SPEC-300 Nr. 11).
+	transport adminTransport
 
 	// token ist der Inhalt der Token-Datei; Hochfahren setzt es, allein admin.Konfig liest es (SPEC-300 Nr. 4, 12).
 	token []byte
@@ -200,12 +206,14 @@ func Build(ctx context.Context, k Konfiguration, log *slog.Logger) (*Handle, err
 
 func ungueltig(text string) error { return errors.Join(model.ErrUngueltig, errors.New(text)) }
 
-// vorlaeufig sind die Werte, die Build vor dem Öffnen der Ablage prüft und liest; tls ist nil ohne jeden Pfad des TLS des Listeners.
+// vorlaeufig sind die Werte, die Build vor dem Öffnen der Ablage prüft und liest; tls ist nil ohne jeden Pfad des TLS des Listeners,
+// transport der Nullwert ohne Admin-Listener.
 type vorlaeufig struct {
-	pfade []model.JSONPfad
-	caPEM []byte
-	tls   *tls.Config
-	wahl  wahl
+	pfade     []model.JSONPfad
+	caPEM     []byte
+	tls       *tls.Config
+	transport adminTransport
+	wahl      wahl
 }
 
 // pruefeGrundwerte prüft Modus, Dienste, Datenverzeichnis und PublicBaseURL vor allem Öffnen.
@@ -223,12 +231,13 @@ func pruefeGrundwerte(k Konfiguration) error {
 	return nil
 }
 
-// vorbereiten lädt als ersten Schritt das Paar des TLS des Listeners zur Zeit der Uhr des Prozesses (SPEC-291 Nr. 8) und prüft
-// den Transport des Admin-Listeners, in jedem Modus; danach prüft es die Grundwerte, die Pfade der Schwärzung und die Datei der CA.
-func vorbereiten(k Konfiguration, uhr support.Clock) (vorlaeufig, error) {
+// vorbereiten lädt als ersten Schritt das Paar des TLS des Listeners zur Zeit der Uhr des Prozesses (SPEC-291 Nr. 8) und den
+// Transport des Admin-Listeners mit pruefe (SPEC-299 Nr. 8 b), in jedem Modus; danach prüft es die Grundwerte, die Pfade der
+// Schwärzung und die Datei der CA.
+func vorbereiten(k Konfiguration, uhr support.Clock, pruefe adminPruefung) (vorlaeufig, error) {
 	var v vorlaeufig
 	var err error
-	if v.tls, err = ladeTransport(k, uhr.Now()); err != nil {
+	if v.tls, v.transport, err = ladeTransport(k, uhr.Now(), pruefe); err != nil {
 		return v, err
 	}
 	if err := pruefeGrundwerte(k); err != nil {
@@ -260,7 +269,7 @@ func build(ctx context.Context, k Konfiguration, log *slog.Logger, senke io.Writ
 	}
 	uhr := clock.NewSystemuhr()
 	k.Dienste = wirksameDienste(k.Dienste)
-	v, err := vorbereiten(k, uhr)
+	v, err := vorbereiten(k, uhr, b.PruefeAdmin)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +277,10 @@ func build(ctx context.Context, k Konfiguration, log *slog.Logger, senke io.Writ
 	if err != nil {
 		return nil, err
 	}
-	h := &Handle{k: k, log: log, senke: senke, uhr: uhr, ids: clock.NewZufallsIDs(), ablage: b.Schliesser(db), b: b, tls: v.tls, wahl: v.wahl}
+	h := &Handle{
+		k: k, log: log, senke: senke, uhr: uhr, ids: clock.NewZufallsIDs(), ablage: b.Schliesser(db), b: b,
+		tls: v.tls, transport: v.transport, wahl: v.wahl,
+	}
 	h.dienste = b.Dienste(db.Metadata())
 	if err := h.verdrahte(db, v); err != nil {
 		_ = h.ablage.Close()

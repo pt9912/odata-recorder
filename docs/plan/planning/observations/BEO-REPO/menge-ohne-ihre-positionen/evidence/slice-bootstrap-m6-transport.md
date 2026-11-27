@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-transport
+**Fund:** Die Verstöße des Transports waren allein neben dem Verstoß geführt, den das Laden danach meldet (`LISTEN_TLS_*`), nicht neben den zwölf Stufen davor; zwei Mutationen, die an einem früheren Verstoß hängen, blieben grün (M4, M5). Behoben mit `TestAdminLadenNebenFrueheren` (144 Zellen). Beleg: Review `2026-11-27-slice-bootstrap-m6-transport-review` (F-3).

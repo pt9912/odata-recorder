@@ -365,10 +365,12 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		t.Fatal(err)
 	}
 	tlsCert, tlsKey, tlsBedientVon := tlsVerbraucher(t, dir)
+	adminCertPfad, adminKeyPfad, _ := tlsVerbraucher(t, filepath.Join(dir, "admin-paar"))
 	k := bootstrap.Konfiguration{
 		Modus: modusRecord, Listen: "127.0.0.1:7777", DataDir: filepath.Join(dir, "d"),
 		ListenTLSCert: tlsCert, ListenTLSKey: tlsKey,
 		AdminListen: "127.0.0.1:7778", AdminTokenFile: filepath.Join(dir, "eigen.token"),
+		AdminTLSCert: adminCertPfad, AdminTLSKey: adminKeyPfad, AdminAllowPlaintext: true,
 		Dienste:        []bootstrap.Dienst{{ID: "x1", Root: "/r1", UpstreamURL: "http://u1.test/o"}, {ID: "x2", Root: "/r2", UpstreamURL: "http://u2.test/o"}},
 		ReplayStrategy: "last", ReplayAssignment: "ordered", ReplayRedactedBodies: true,
 		MatchVaryHeaders: []string{"x-vary"}, MatchInvalidEncoding: "reject", MatchBodyMode: "json-canonical",
@@ -381,6 +383,7 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		},
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	var transporte []bootstrap.AdminEingabe
 	lauf2 := func(modus string) *haken {
 		kk := k
 		kk.Modus = modus
@@ -389,7 +392,13 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 			t.Fatal(err)
 		}
 		h := neuHaken()
-		if _, err := lauf(ctx, t, kk, log, h.bauteile()); err != nil {
+		b := h.bauteile()
+		// Der Verbraucher der drei Werte des Transports ist die Prüfung in Build.
+		bootstrap.SetzePruefung(&b, func(e bootstrap.AdminEingabe, jetzt time.Time) (bootstrap.AdminTransport, []bootstrap.TLSVerstoss) {
+			transporte = append(transporte, e)
+			return bootstrap.PruefeAdminTransport(e, jetzt)
+		})
+		if _, err := lauf(ctx, t, kk, log, b); err != nil {
 			t.Fatal(err)
 		}
 		return h
@@ -403,6 +412,10 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 	dp := []replay.Dienst{{ID: "x1", Root: "/r1"}, {ID: "x2", Root: "/r2"}}
 	gl := reflect.DeepEqual
 	tlsGezeigt := tlsBedientVon(r.server.Listener, p.server.Listener)
+	// beide ist wahr, wenn die Prüfung in beiden Läufen (record und replay) die Bedingung trägt.
+	beide := func(ok func(bootstrap.AdminEingabe) bool) bool {
+		return len(transporte) == 2 && ok(transporte[0]) && ok(transporte[1])
+	}
 	pruefungen := map[string]bool{
 		"Modus":                r.recorder != nil && r.replay == nil && p.replay != nil && p.recorder == nil && p.session != nil && p.upstream == nil,
 		"Listen":               r.listenAdrs[0] == k.Listen && p.listenAdrs[0] == k.Listen,
@@ -410,6 +423,9 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		"AdminTokenFile":       tokenAus(t, r.adminKfg.Token, k.AdminTokenFile) && tokenAus(t, p.adminKfg.Token, k.AdminTokenFile),
 		"ListenTLSCert":        tlsGezeigt,
 		"ListenTLSKey":         tlsGezeigt,
+		"AdminTLSCert":         beide(func(e bootstrap.AdminEingabe) bool { return e.CertPfad == k.AdminTLSCert }),
+		"AdminTLSKey":          beide(func(e bootstrap.AdminEingabe) bool { return e.KeyPfad == k.AdminTLSKey }),
+		"AdminAllowPlaintext":  beide(func(e bootstrap.AdminEingabe) bool { return e.Klartext }),
 		"DataDir":              fileExists(filepath.Join(dir, modusRecord, dateiDB)) && fileExists(filepath.Join(dir, modusReplay, verzeichnisB)),
 		"Dienste":              gl(r.recorder.Dienste, dr) && gl(p.replay.Dienste, dp),
 		"ReplayStrategy":       p.replay.Strategie == model.StrategyLast,

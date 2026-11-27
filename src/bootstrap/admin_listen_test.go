@@ -118,35 +118,33 @@ func TestAdminTokenDateiLesen(t *testing.T) {
 	}
 }
 
-// TestAdminPraefix (B03): jeder andere Schlüssel mit dem Präfix ist abgelehnt, die zwei gelesenen nie, die drei von SPEC-299 im
-// Zwischenstand, andere Schreibweisen werden ignoriert.
+// TestAdminPraefix (B03): jeder andere Schlüssel mit dem Präfix ist abgelehnt, die fünf gelesenen nie (ein Pfad des Paars ohne den
+// anderen meldet die Gründe von SPEC-299 Nr. 4), andere Schreibweisen werden ignoriert.
 func TestAdminPraefix(t *testing.T) {
 	zellen := 0
-	pruefe := func(name, wert string, abgelehnt bool) {
+	pruefe := func(name, wert string, soll ...string) {
 		zellen++
 		t.Run(name+"="+wert, func(t *testing.T) {
 			_, zeilen := lade(t, adminEnv("record", t.TempDir(), name+"="+wert)...)
-			var soll []string
-			if abgelehnt {
-				soll = []string{zeile(name, grundAbgelehnt)}
-			}
 			if !slices.Equal(zeilen, soll) {
 				t.Errorf("%q, erwartet %q", zeilen, soll)
 			}
 		})
 	}
 	for _, name := range []string{"ADMIN_TOKEN", "ADMIN_", "ADMIN_LISTEN2", "ADMIN_TLS", "ADMIN_TLS_CA", "ADMIN_PASSWORD", "ADMIN_TOKEN_FILE_X", "ADMIN_X"} {
-		pruefe(name, "x", true)
-		pruefe(name, "", false)
+		pruefe(name, "x", zeile(name, grundAbgelehnt))
+		pruefe(name, "")
 	}
-	pruefe("ADMIN_LISTEN", "127.0.0.1:1", false)
-	pruefe("ADMIN_TOKEN_FILE", "x", false)
-	pruefe("ADMIN_TLS_CERT", "x", true)
-	pruefe("ADMIN_TLS_KEY", "x", true)
-	pruefe("ADMIN_ALLOW_PLAINTEXT", "true", true)
-	pruefe("admin_listen", "x", false)
-	pruefe("XADMIN_LISTEN", "x", false)
-	pruefe("ADMIN", "x", false)
+	pruefe("ADMIN_LISTEN", "127.0.0.1:1")
+	pruefe("ADMIN_TOKEN_FILE", "x")
+	pruefe("ADMIN_TLS_CERT", "x", zeile("ADMIN_TLS_CERT", "Datei nicht lesbar"),
+		zeile("ADMIN_TLS_KEY", "erforderlich, wenn ADMIN_TLS_CERT gesetzt ist"))
+	pruefe("ADMIN_TLS_KEY", "x", zeile("ADMIN_TLS_CERT", "erforderlich, wenn ADMIN_TLS_KEY gesetzt ist"),
+		zeile("ADMIN_TLS_KEY", "Datei nicht lesbar"))
+	pruefe("ADMIN_ALLOW_PLAINTEXT", "true")
+	pruefe("admin_listen", "x")
+	pruefe("XADMIN_LISTEN", "x")
+	pruefe("ADMIN", "x")
 	if zellen != 24 {
 		t.Errorf("%d Zellen, erwartet 24", zellen)
 	}
@@ -167,9 +165,9 @@ func zaehlendeBauteile(binds, oeffnen *int) bootstrap.Bauteile {
 	return b
 }
 
-// TestAdminLoopbackZwischenstand (B19): 5 Hosts außerhalb von Loopback × {Laden, Build} × 4 Modi; dazu in Build beide Zeilen
-// neben einem Verstoß von LISTEN_TLS_* × 4 Modi.
-func TestAdminLoopbackZwischenstand(t *testing.T) {
+// TestAdminLoopbackOhnePaar (B19): ohne Paar und ohne Flag, 5 Hosts außerhalb von Loopback × {Laden, Build} × 4 Modi; dazu in Build
+// beide Zeilen neben einem Verstoß von LISTEN_TLS_* × 4 Modi.
+func TestAdminLoopbackOhnePaar(t *testing.T) {
 	zellen, binds, oeffnen := 0, 0, 0
 	for _, modus := range vierModi() {
 		for _, host := range []string{"0.0.0.0:8081", "[::]:8081", ":8081", "recorder.internal:8081", "10.0.0.5:8081"} {

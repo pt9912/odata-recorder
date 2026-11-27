@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-transport
+**Fund:** Die Fix-Runde zu F-1 (kein Wert des einen TLS-Paars wirkt auf den anderen Listener) führte Transport und abgeleitete Basis, nicht die Warnung, die Meldungen von `Build` und zwei Paare auf denselben Dateien; drei Mutationen an diesen Elementen blieben im ganzen Paket grün (V1 bis V3). Behoben in `14537673`. Beleg: Verifikation `2026-11-27-slice-bootstrap-m6-transport-verifikation` (V-2).

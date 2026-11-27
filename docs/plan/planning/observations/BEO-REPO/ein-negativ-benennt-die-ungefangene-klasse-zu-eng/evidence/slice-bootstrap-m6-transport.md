@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-transport
+**Fund:** Das Negativ zum Geheimnis auf den Deskriptoren nannte weder Grund noch Maß, und die genannte Absicherung (ein Quelltest) deckte allein `admintls.go`, nicht die vier geänderten Dateien, die Pfade und Flag tragen. Behoben mit `TestAdminKeineAusgabeAmStrom` über sechs Dateien und dem Negativ mit Grund, Folge und Maß. Beleg: Review `2026-11-27-slice-bootstrap-m6-transport-review` (F-4); Plan §3.

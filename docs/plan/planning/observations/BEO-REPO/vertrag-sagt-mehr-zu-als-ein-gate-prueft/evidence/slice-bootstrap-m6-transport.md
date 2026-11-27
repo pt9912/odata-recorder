@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-transport
+**Fund:** Zwei Zusagen des Vertrags hatten im ganzen Paket `bootstrap` keinen Fänger: die Unabhängigkeit der zwei Listener (M1 und M2 grün) und *es gilt, was `Build` las* (M3 grün, kein Test änderte die Dateien zwischen den zwei Lesungen). Behoben in der Fix-Runde mit `TestAdminPaareUnabhaengig` und `TestAdminBuildLiestErneut`. Beleg: Review `2026-11-27-slice-bootstrap-m6-transport-review` (F-1, F-2).

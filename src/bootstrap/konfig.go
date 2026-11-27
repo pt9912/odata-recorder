@@ -36,10 +36,14 @@ type Konfiguration struct {
 	// trägt nie den Inhalt der Dateien (SPEC-291 Nr. 7 a, 8).
 	ListenTLSCert string
 	ListenTLSKey  string
-	// AdminListen und AdminTokenFile sind ADMIN_LISTEN und ADMIN_TOKEN_FILE, nie der Inhalt der Datei; ein leeres AdminListen in
-	// einem Literal heißt: kein Admin-Listener (SPEC-300 Nr. 2, 11).
+	// AdminListen, AdminTokenFile, AdminTLSCert, AdminTLSKey und AdminAllowPlaintext sind die fünf Schlüssel ADMIN_*; die
+	// Pfade tragen nie den Inhalt der Dateien, ein leerer Pfad des Paars heißt ungesetzt, und ein leeres AdminListen in einem
+	// Literal heißt: kein Admin-Listener (SPEC-300 Nr. 1, 2, 11).
 	AdminListen          string
 	AdminTokenFile       string
+	AdminTLSCert         string
+	AdminTLSKey          string
+	AdminAllowPlaintext  bool
 	DataDir              string
 	Dienste              []Dienst
 	ReplayStrategy       string
@@ -139,18 +143,24 @@ func (p *pruefer) fehler() error {
 // LadeKonfiguration liest die Startkonfiguration aus environ (Einträge `NAME=Wert`) und aus
 // SERVICES_FILE, prüft sie nach SPEC-110 und legt DATA_DIR an, wenn alles andere besteht. Der
 // Fehler ist ein *KonfigFehler mit allen Verstößen. Dieselbe Eingabe ergibt dasselbe Ergebnis, außer
-// bei einem Zertifikat von LISTEN_TLS_CERT, dessen Gültigkeit an der Zeit des Aufrufs hängt (SPEC-291 Nr. 3).
+// bei einem Zertifikat von LISTEN_TLS_CERT oder ADMIN_TLS_CERT, dessen Gültigkeit an der Zeit des Aufrufs hängt
+// (SPEC-110 Nr. 13, SPEC-291 Nr. 3, SPEC-299 Nr. 4).
 func LadeKonfiguration(environ []string) (Konfiguration, error) {
 	return ladeKonfigurationZu(environ, clock.NewSystemuhr().Now())
 }
 
 // ladeKonfigurationZu ist LadeKonfiguration mit der Zeit des Starts jetzt.
 func ladeKonfigurationZu(environ []string, jetzt time.Time) (Konfiguration, error) {
+	return ladeKonfigurationMit(environ, jetzt, pruefeAdminTransport)
+}
+
+// ladeKonfigurationMit ist ladeKonfigurationZu mit pruefe als Prüfung des Admin-Transports.
+func ladeKonfigurationMit(environ []string, jetzt time.Time, pruefe adminPruefung) (Konfiguration, error) {
 	p := &pruefer{env: umgebung(environ)}
 	var k Konfiguration
 	p.liesModus(&k)
 	p.liesEinfache(&k)
-	p.liesAdmin(&k, jetzt)
+	adminForm := p.liesAdmin(&k)
 	p.liesMengen(&k)
 	p.liesTLS(&k)
 	p.liesListenTLS(&k)
@@ -160,6 +170,7 @@ func ladeKonfigurationZu(environ []string, jetzt time.Time) (Konfiguration, erro
 	p.liesPublicBaseURL(&k)
 	p.pruefeCADatei(&k)
 	p.pruefeListenTLS(&k, jetzt)
+	p.pruefeAdmin(&k, adminForm, jetzt, pruefe)
 	if len(p.verstoesse) == 0 {
 		p.legeDatenverzeichnisAn(k.DataDir)
 	}

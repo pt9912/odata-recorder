@@ -17,8 +17,9 @@ import (
 const exitFehler = 1
 
 // Start ist der Start-Befehl des Adapters cli (SPEC-139 Nr. 8, SPEC-138 Nr. 8): Konfiguration laden,
-// bauen, hochfahren, auf Abbruch oder Ausfall des Listeners warten, herunterfahren. Meldungen und
-// Log gehen nach stderr, nach stdout nichts; die Rückgabe ist 0 oder 1.
+// bauen, im Weg Klartext des Admin-Listeners einmal warnen (SPEC-299 Nr. 8 d, 9), hochfahren, auf Abbruch oder
+// Ausfall des Listeners warten, herunterfahren. Meldungen und Log gehen nach stderr, nach stdout nichts; die
+// Rückgabe ist 0 oder 1.
 func Start(ctx context.Context, _, stderr io.Writer) int {
 	return start(ctx, os.Environ(), stderr, standardBauteile())
 }
@@ -39,6 +40,7 @@ func start(ctx context.Context, environ []string, stderr io.Writer, b bauteile) 
 	if err != nil {
 		return abschluss(ctx, stderr, []error{err})
 	}
+	h.transport.warne(log)
 	fehler, ausfall := betreibe(ctx, h, log)
 	if err := h.Herunterfahren(ctx); err != nil {
 		fehler = append(fehler, zerlege(err)...)

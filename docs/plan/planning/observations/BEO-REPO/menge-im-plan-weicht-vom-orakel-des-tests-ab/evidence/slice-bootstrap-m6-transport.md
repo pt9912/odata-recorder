@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-transport
+**Fund:** Die Zeilen C03 und C04 der Tabelle nannten je 12 Zellen, die Tests führten 52 und 24 plus 8; C04 nannte `TestAdminBuild` als Fänger für den Transport im `Handle`, den `TestAdminWegJeModus` hält. Der Implementer trug die Abweichung in §6 ein, der Planner zog die Zeilen nach. Beleg: Plan §6; Review `2026-11-27-slice-bootstrap-m6-transport-review` (F-6).
