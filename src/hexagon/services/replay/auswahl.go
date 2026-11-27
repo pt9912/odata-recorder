@@ -4,10 +4,11 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// waehle wählt aus liste den Exchange für key nach der Strategie s (SPEC-135 Nr. 9); verbraucht sind die
-// SequenceNo in consumed, position ist die Position des Cursors. Der Fehler trägt den Code; ohne Fehler
+// waehle wählt aus liste den Exchange für key nach der Strategie s (SPEC-135 Nr. 9); Kandidaten sind allein die Exchanges
+// mit dem Key, eine Ordnung der Liste setzt die Auswahl nicht voraus. hoechste ist die größte SequenceNo der Session,
+// verbraucht sind die SequenceNo in consumed, position ist die Position des Cursors. Der Fehler trägt den Code; ohne Fehler
 // ist der Exchange gewählt.
-func waehle(s model.ReplayStrategy, key string, liste []model.Exchange, redigierteBodies bool, consumed []int64, position int64) (model.Exchange, error) {
+func waehle(s model.ReplayStrategy, key string, liste []model.Exchange, hoechste int, redigierteBodies bool, consumed []int64, position int64) (model.Exchange, error) {
 	var treffer []model.Exchange
 	for _, e := range liste {
 		if gleicherKey(e, key) {
@@ -21,7 +22,7 @@ func waehle(s model.ReplayStrategy, key string, liste []model.Exchange, redigier
 	case model.StrategySequential:
 		return waehleSequential(treffer, redigierteBodies, consumed)
 	case model.StrategyStrict:
-		return waehleStrict(key, liste, redigierteBodies, position)
+		return waehleStrict(treffer, hoechste, redigierteBodies, position)
 	}
 	return waehleErster(s == model.StrategyLast, treffer, redigierteBodies)
 }
@@ -65,21 +66,22 @@ func waehleSequential(treffer []model.Exchange, redigierteBodies bool, consumed 
 	return model.Exchange{}, mitCode(model.CodeE5002, nil)
 }
 
-// waehleStrict wählt allein den Exchange der Session mit SequenceNo gleich position+1.
-func waehleStrict(key string, liste []model.Exchange, redigierteBodies bool, position int64) (model.Exchange, error) {
-	for _, e := range liste {
+// waehleStrict wählt allein den Exchange der Session mit SequenceNo gleich position+1. Über hoechste ist die Session
+// erschöpft; sonst gibt es die Nummer, und ist sie kein Kandidat in treffer, trägt sie einen anderen Key.
+func waehleStrict(treffer []model.Exchange, hoechste int, redigierteBodies bool, position int64) (model.Exchange, error) {
+	if position+1 > int64(hoechste) {
+		return model.Exchange{}, mitCode(model.CodeE5002, nil)
+	}
+	for _, e := range treffer {
 		if int64(e.SequenceNo) != position+1 {
 			continue
 		}
-		switch {
-		case !gleicherKey(e, key):
-			return model.Exchange{}, mitCode(model.CodeE5007, nil)
-		case !model.Replayfaehig(e, redigierteBodies):
+		if !model.Replayfaehig(e, redigierteBodies) {
 			return model.Exchange{}, mitCode(model.CodeE5008, nil)
 		}
 		return e, nil
 	}
-	return model.Exchange{}, mitCode(model.CodeE5002, nil)
+	return model.Exchange{}, mitCode(model.CodeE5007, nil)
 }
 
 // waehleErster wählt unter den replayfähigen Kandidaten den mit der kleinsten, bei letzter die größten SequenceNo.

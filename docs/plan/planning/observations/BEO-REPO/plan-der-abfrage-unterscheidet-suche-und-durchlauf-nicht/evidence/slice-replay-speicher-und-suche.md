@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-speicher-und-suche
+**Fund:** `max(sequence_no + 0)` und `count(*)` statt `max(sequence_no)` blieben grün, bei 10 000 Exchanges 784 und 461 µs statt 16,5 µs. Die Fix-Runde ergänzte `TestListByMatchKeyDurchlaeuftNichtDieSession`; eine weitere Abfrage, die kein erstes Blatt erreicht, bleibt ungefangen (akzeptiertes Negativ). Beleg: Review `2026-11-27-slice-replay-speicher-und-suche-review` (F-1), Plan §3 (R22 und Negative).

@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-speicher-und-suche
+**Fund:** `tools/harness/mutationslauf.sh` meldete für `src/bootstrap` den Ausgangsstand als rot und fuhr keine Mutation der Liste; `go test` über das Paket war in einer Wegwerfkopie grün. Die Mutation der Zeile R21 fuhr der Implementer von Hand, der Reviewer mit `go test`. Die Ursache ist in diesem Slice nicht untersucht; das Bild gleicht dem dieser Beobachtung. Beleg: Plan §3 *Mutationen* und §6; Review `2026-11-27-slice-replay-speicher-und-suche-review` (*Eigene Mutationen und Läufe*).

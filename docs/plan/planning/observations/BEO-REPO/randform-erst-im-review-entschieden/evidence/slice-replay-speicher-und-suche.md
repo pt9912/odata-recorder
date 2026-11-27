@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-speicher-und-suche
+**Fund:** Die Abfrage der Treffer sortierte in SQLite und brauchte ab einer Größe eine temporäre Datei; ohne beschreibbares Temp-Verzeichnis endete die Operation mit einem Ein-/Ausgabefehler. Weder Spezifikation noch Plan oder Raster nannten den Fall; entschieden hat ihn der Architect nach dem Review (`SPEC-105` Nr. 14). Beleg: Review `2026-11-27-slice-replay-speicher-und-suche-review` (F-2), Verifikation `2026-11-27-slice-replay-speicher-und-suche-verifikation` (am Binary nachgestellt).

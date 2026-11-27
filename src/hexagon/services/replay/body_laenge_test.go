@@ -85,7 +85,7 @@ func TestLaengeUndBody(t *testing.T) {
 					_ = resp.Body.Close()
 				default:
 					erwarteCode(t, was, err, model.CodeE5001)
-					if b.name == "nicht lesbar" && u.p.anzahl("Exchanges.ListBySession") != 0 {
+					if b.name == "nicht lesbar" && u.p.anzahl("Exchanges.ListByMatchKey") != 0 {
 						t.Errorf("%s: Port nach dem Lesefehler gerufen", was)
 					}
 					if _, da := u.cursorStand(); da {

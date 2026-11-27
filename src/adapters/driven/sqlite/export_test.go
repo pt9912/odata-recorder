@@ -8,6 +8,9 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
 )
 
+// AbfragenListByMatchKey sind die Texte der Abfragen von ListByMatchKey: die größte Nummer, dann die Treffer.
+func AbfragenListByMatchKey() []string { return []string{abfrageHoechsteSequenz, abfrageTreffer} }
+
 // SQL gibt die Datenbank für die Tests zurück.
 func (d *DB) SQL() *sql.DB { return d.sql }
 

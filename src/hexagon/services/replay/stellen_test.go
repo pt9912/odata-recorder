@@ -24,7 +24,7 @@ type stelle struct {
 func stellen() []stelle {
 	return []stelle{
 		{"S1", "Sessions.Get", outbound.GegenstandSession},
-		{"S3", "Exchanges.ListBySession", outbound.GegenstandSession},
+		{"S3", "Exchanges.ListByMatchKey", outbound.GegenstandSession},
 		{"S4", "Transaktion.WithWorkspaceTransaction", outbound.GegenstandSonstiges},
 		{"S5", "tx Workspaces.Get", outbound.GegenstandWorkspace},
 		{"S6", "tx Cursors.Get", outbound.GegenstandSonstiges},

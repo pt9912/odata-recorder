@@ -190,7 +190,7 @@ func TestReplayGegenReset(t *testing.T) {
 		position int64
 	}{
 		{"Reset nach dem Fortschreiben", "tx Cursors.Get", 2, 0},
-		{"Reset vor dem Fortschreiben", "Exchanges.ListBySession", 1, 1},
+		{"Reset vor dem Fortschreiben", "Exchanges.ListByMatchKey", 1, 1},
 	}
 	for _, f := range faelle {
 		u := neu(t)
@@ -204,7 +204,7 @@ func TestReplayGegenReset(t *testing.T) {
 }
 
 // TestFensterDerTransaktion hält Z49 bis Z52: der Eindringling (Reset) wird an jedem Fenster nach einer
-// Operation eingereiht. Vor der Transaktion (Sessions.Get, ListBySession) liegt der Reset vor dem Replay (position 1),
+// Operation eingereiht. Vor der Transaktion (Sessions.Get, ListByMatchKey) liegt der Reset vor dem Replay (position 1),
 // in der Transaktion (nach Workspaces.Get, Cursors.Get, Blobs.Open) nach ihm (position 0).
 func TestFensterDerTransaktion(t *testing.T) {
 	faelle := []struct {
@@ -215,7 +215,7 @@ func TestFensterDerTransaktion(t *testing.T) {
 		position int64
 	}{
 		{"Z49 nach Sessions.Get", "Sessions.Get", false, 1, 1},
-		{"Z49 nach ListBySession", "Exchanges.ListBySession", false, 1, 1},
+		{"Z49 nach ListByMatchKey", "Exchanges.ListByMatchKey", false, 1, 1},
 		{"Z50 nach Workspaces.Get", "tx Workspaces.Get", false, 2, 0},
 		{"Z51 nach Cursors.Get mit Body", "tx Cursors.Get", false, 2, 0},
 		{"Z51 nach Cursors.Get ohne Body", "tx Cursors.Get", true, 2, 0},
@@ -260,9 +260,9 @@ func TestReplayGegenLoeschen(t *testing.T) {
 		code  model.Code
 	}
 	faelle := []fall{
-		{"Workspace vor", "Exchanges.ListBySession", true, false, model.CodeE7001},
+		{"Workspace vor", "Exchanges.ListByMatchKey", true, false, model.CodeE7001},
 		{"Workspace nach", "tx Cursors.Get", true, true, 0},
-		{"Session vor", "Exchanges.ListBySession", false, false, model.CodeE7003},
+		{"Session vor", "Exchanges.ListByMatchKey", false, false, model.CodeE7003},
 		{"Session nach", "tx Cursors.Get", false, true, 0},
 		{"Workspace nach Workspaces.Get", "tx Workspaces.Get", true, true, 0},
 	}
@@ -289,11 +289,11 @@ func TestReplayGegenLoeschen(t *testing.T) {
 	}
 }
 
-// TestNurDieAchtOperationen hält Z57: Menge 140 (28 verbotene Operationen × 5 Läufe: Erfolg je Strategie und
-// ein Fehlerlauf); keine der 27 Operationen der Ports und kein CountError; von der Telemetrie ruft der Dienst StartSpan, Set,
-// End und Log (SPEC-296 Nr. 6).
+// TestNurDieAchtOperationen hält Z57: Menge 145 (29 verbotene Operationen × 5 Läufe: Erfolg je Strategie und
+// ein Fehlerlauf); keine der 28 Operationen der Ports, ListBySession eingeschlossen (SPEC-135 Nr. 8), und kein CountError; von
+// der Telemetrie ruft der Dienst StartSpan, Set, End und Log (SPEC-296 Nr. 6).
 func TestNurDieAchtOperationen(t *testing.T) {
-	erlaubt := []string{"Sessions.Get", "Exchanges.ListBySession", "Transaktion.WithWorkspaceTransaction",
+	erlaubt := []string{"Sessions.Get", "Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction",
 		"tx Workspaces.Get", "tx Cursors.Get", "tx Cursors.Put", "Blobs.Open"}
 	var verboten []string
 	for _, op := range alleOps() {
@@ -335,7 +335,7 @@ func TestNurDieAchtOperationen(t *testing.T) {
 		}
 		nurErlaubt(t, l.name, u.p)
 	}
-	if len(verboten) != 27 || n != 140 {
-		t.Errorf("Menge: %d verbotene Ports, %d Prüfungen; erwartet 27 und 140", len(verboten), n)
+	if len(verboten) != 28 || n != 145 {
+		t.Errorf("Menge: %d verbotene Ports, %d Prüfungen; erwartet 28 und 145", len(verboten), n)
 	}
 }

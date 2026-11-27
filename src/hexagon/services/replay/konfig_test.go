@@ -19,15 +19,15 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/services/replay"
 )
 
-// alleOps sind die 34 Operationen der Ports Sessions (6), Exchanges (3), Blobs (5), Workspaces (5),
+// alleOps sind die 35 Operationen der Ports Sessions (6), Exchanges (4), Blobs (5), Workspaces (5),
 // Entities (5), Cursors (4), Snapshots (5) und Transaktion (1), wie das Protokoll sie nennt; die Telemetrie
-// zählt der FakeTelemetry (fünf Operationen), zusammen 39.
+// zählt der FakeTelemetry (fünf Operationen), zusammen 40.
 func alleOps() []string {
 	var ops []string
 	for _, n := range []string{"Create", "Get", "SetStatus", "List", "FindOpen", "Delete"} {
 		ops = append(ops, "Sessions."+n)
 	}
-	for _, n := range []string{"Append", "Get", "ListBySession"} {
+	for _, n := range []string{"Append", "Get", "ListBySession", "ListByMatchKey"} {
 		ops = append(ops, "Exchanges."+n)
 	}
 	for _, n := range []string{"Begin", "Open", "Verify", "List", "Remove"} {
@@ -107,13 +107,13 @@ func TestNewKonfig(t *testing.T) {
 	}
 }
 
-// TestNewRuftKeinenPort hält Z2: nach New zählt keine der 39 Operationen.
+// TestNewRuftKeinenPort hält Z2: nach New zählt keine der 40 Operationen.
 func TestNewRuftKeinenPort(t *testing.T) {
 	u := neu(t)
 	u.replayer()
 	ops := alleOps()
-	if len(ops) != 34 {
-		t.Fatalf("%d Protokoll-Operationen, erwartet 34", len(ops))
+	if len(ops) != 35 {
+		t.Fatalf("%d Protokoll-Operationen, erwartet 35", len(ops))
 	}
 	for _, op := range ops {
 		if n := u.p.anzahl(op); n != 0 {

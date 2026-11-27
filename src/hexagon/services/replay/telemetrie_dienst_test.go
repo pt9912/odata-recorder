@@ -65,7 +65,7 @@ func TestKeinZaehlerImDienst(t *testing.T) {
 			t.Errorf("%s: CountError %d-mal gerufen", sz.code, n)
 		}
 	}
-	stellen8 := []string{"Sessions.Get", "", "Exchanges.ListBySession", "Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get", "tx Cursors.Get",
+	stellen8 := []string{"Sessions.Get", "", "Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get", "tx Cursors.Get",
 		"Blobs.Open", "tx Cursors.Put"}
 	for _, k := range kontextfehler() {
 		for _, op := range stellen8 {
@@ -138,7 +138,7 @@ func stellenKanarie() map[string]func(u *umg, k string, treffer bool) inbound.An
 
 // ursachePorts sind die 8 Ports mit Fehlerrückgabe (SPEC-135 Nr. 18; S2 ist der Body des Requests, sein Name im Protokoll ist leer).
 func ursachePorts() []struct{ name, op string } {
-	return []struct{ name, op string }{{"S1", "Sessions.Get"}, {"S2", ""}, {"S3", "Exchanges.ListBySession"}, {"S4", "Transaktion.WithWorkspaceTransaction"},
+	return []struct{ name, op string }{{"S1", "Sessions.Get"}, {"S2", ""}, {"S3", "Exchanges.ListByMatchKey"}, {"S4", "Transaktion.WithWorkspaceTransaction"},
 		{"S5", "tx Workspaces.Get"}, {"S6", "tx Cursors.Get"}, {"S7", "Blobs.Open"}, {"S8", "tx Cursors.Put"}}
 }
 

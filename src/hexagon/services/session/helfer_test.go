@@ -661,7 +661,7 @@ func (r *fakeRecord) aufrufe() []drainArg {
 
 // fakeExchanges bildet RecordingRepository nach: ListBySession liefert die Exchanges einer
 // bekannten Session nach sequence_no, eine leere Liste ohne Exchange und ErrNichtGefunden für eine
-// unbekannte Session; Append und Get melden einen Fehler des Tests (verstoss).
+// unbekannte Session; Append, Get und ListByMatchKey melden einen Fehler des Tests (verstoss).
 type fakeExchanges struct {
 	t        *testing.T
 	st       *steuerung
@@ -691,6 +691,12 @@ func (x *fakeExchanges) Get(context.Context, string) (model.Exchange, error) {
 	x.st.zaehle("Exchanges.Get")
 	verstoss(x.t, "Exchanges.Get gerufen: der Sessiondienst ruft nur ListBySession")
 	return model.Exchange{}, nil
+}
+
+func (x *fakeExchanges) ListByMatchKey(context.Context, string, string) ([]model.Exchange, int, error) {
+	x.st.zaehle("ListByMatchKey")
+	verstoss(x.t, "ListByMatchKey gerufen: der Sessiondienst ruft nur ListBySession")
+	return nil, 0, nil
 }
 
 func (x *fakeExchanges) ListBySession(ctx context.Context, id string) ([]model.Exchange, error) {

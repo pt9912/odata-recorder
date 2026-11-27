@@ -238,12 +238,15 @@ func (s *sessions) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// exchanges ist der Fake von RecordingRepository (F2): ListBySession liefert die Liste in der programmierten
-// Ordnung (eine Kopie), Append und Get zählen.
+// exchanges ist der Fake von RecordingRepository (F2): ListByMatchKey liefert die Exchanges der Session mit byte-gleichem,
+// nichtleerem match_key in der programmierten Ordnung (eine Kopie) und die größte SequenceNo der ganzen Liste (SPEC-105 Nr. 14);
+// mit alles liefert er jede Exchange der Liste, auch fremde und leere Keys. ListBySession ist ein Verstoß, den jeder Test meldet,
+// außer in der Probe des Fakes selbst (darfListBySession). Append und Get zählen.
 type exchanges struct {
-	p     *prot
-	mu    sync.Mutex
-	liste map[string][]model.Exchange
+	p                        *prot
+	mu                       sync.Mutex
+	liste                    map[string][]model.Exchange
+	alles, darfListBySession bool
 }
 
 func (x *exchanges) setze(session string, l []model.Exchange) {
@@ -252,7 +255,28 @@ func (x *exchanges) setze(session string, l []model.Exchange) {
 	x.liste[session] = slices.Clone(l)
 }
 
+func (x *exchanges) ListByMatchKey(ctx context.Context, id, key string) ([]model.Exchange, int, error) {
+	err := x.p.beginn("Exchanges.ListByMatchKey", ctx, id, key)
+	defer x.p.haltepunkt("Exchanges.ListByMatchKey")
+	if err != nil {
+		return nil, 0, err
+	}
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	treffer, hoechste := []model.Exchange{}, 0
+	for _, e := range x.liste[id] {
+		hoechste = max(hoechste, e.SequenceNo)
+		if x.alles || key != "" && e.MatchKey == key {
+			treffer = append(treffer, e)
+		}
+	}
+	return treffer, hoechste, nil
+}
+
 func (x *exchanges) ListBySession(ctx context.Context, id string) ([]model.Exchange, error) {
+	if !x.darfListBySession {
+		x.p.t.Errorf("verbotene Operation Exchanges.ListBySession (SPEC-135 Nr. 8)")
+	}
 	err := x.p.beginn("Exchanges.ListBySession", ctx, id)
 	defer x.p.haltepunkt("Exchanges.ListBySession")
 	if err != nil {

@@ -80,6 +80,14 @@ func (f *fakeRecording) Get(_ context.Context, id string) (model.Exchange, error
 	return model.Exchange{}, fmt.Errorf("Exchange %q: %w", id, outbound.ErrNichtGefunden)
 }
 
+// ListByMatchKey darf die Inspektion nie rufen; der Aufruf wird gezählt.
+func (f *fakeRecording) ListByMatchKey(_ context.Context, id, _ string) ([]model.Exchange, int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.zaehler["ListByMatchKey"]++
+	return nil, 0, fmt.Errorf("Session %q: %w", id, outbound.ErrNichtGefunden)
+}
+
 func (f *fakeRecording) ListBySession(ctx context.Context, id string) ([]model.Exchange, error) {
 	f.mu.Lock()
 	f.zaehler["ListBySession"]++
