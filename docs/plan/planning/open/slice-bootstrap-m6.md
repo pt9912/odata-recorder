@@ -22,6 +22,8 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Stand der Start-Bedingungen** (Planner, 2026-11-27, bei der Closure von Teil C, an den Dateien geprüft): alle in §4 genannten Slices liegen im Zweig von Teil C in `done/`; auf `main` gilt das nach dessen Merge. §6 führt keine offene Frage an den Architect. Vor dem Start fehlen: (1) die Ausnahme vom Trigger von [welle-admin-api](../welle-admin-api.md) (`welle-betrieb` ist nicht abgeschlossen; die Antwort des Users vom 2026-11-27 galt Teil C); (2) die Position in der Gate-Kette, weil §3 `harness/README.md` nennt (§6; §4 *Kollisionen* (4) widerspricht dem und wird mit der Position berichtigt): die Kette ordnet nach [slice-lasttest](../done/slice-lasttest.md) die Slices des Dev-Containers, keiner ist in Arbeit; (3) `Verantwortlich`, `basis`, `schaetzung` (*S* = 686) und `marke` (1000, §4) und die Sichtung des Registers.
 
+**Reihenfolge in der Gate-Kette** (Planner, 2026-11-27): [slice-dev-container-bau](../in-progress/slice-dev-container-bau.md) ist vor diesem Teil gestartet, obwohl der Vorschlag der letzten Closure diesen Teil davor einreihte, weil (1) aussteht. Solange ein Kettenslice in Arbeit ist, startet dieser Teil nicht (Nr. 7 der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln)); seine Position setzt der Planner, wenn die Ausnahme vorliegt.
+
 ---
 
 ## 1. Ziel und Abgrenzung
