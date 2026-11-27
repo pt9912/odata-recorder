@@ -5,7 +5,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -389,6 +393,171 @@ func besteht(ctx context.Context, db *sqlite.DB, id string) bool {
 		_, err = db.Sessions().Get(ctx, id)
 	}
 	return err == nil
+}
+
+// artZelle ist eine Zelle (Modus, Art) der acht Arten, die der Admin-Adapter schreibt; gilt ist falsch, wo es keine Route
+// gibt (SPEC-300 Nr. 5 c).
+type artZelle struct {
+	modus string
+	art   support.AuditArt
+	gilt  bool
+}
+
+// artZellen sind die 8 Arten × 4 Modi, je Modus in der Folge, in der ihre Auslöser aufeinander aufbauen.
+func artZellen() []artZelle {
+	var z []artZelle
+	for _, modus := range vierModi() {
+		for _, art := range []support.AuditArt{support.ArtAdminAbgewiesen, support.ArtSessionAngelegt, support.ArtSessionBeendet,
+			support.ArtImportVeroeffentlicht, support.ArtWorkspaceAngelegt, support.ArtWorkspaceZurueckgesetzt,
+			support.ArtSnapshotErzeugt, support.ArtWorkspaceWiederhergestellt} {
+			z = append(z, artZelle{modus, art, art != support.ArtImportVeroeffentlicht || modus == modusRecord})
+		}
+	}
+	return z
+}
+
+// felder ist die Zahl der gesetzten Felder neben Zeit, Korrelations-ID und Art.
+func (s sollZeile) felder() int {
+	n := 0
+	for _, f := range []string{s.service, s.session, s.workspace, s.importID, s.code} {
+		if f != "" {
+			n++
+		}
+	}
+	return n
+}
+
+// zellenProzess ist ein hochgefahrener Handle mit Admin-Listener über einem Datenverzeichnis mit der Baseline bsl-1.
+type zellenProzess struct {
+	t                         *testing.T
+	h                         *bootstrap.Handle
+	modus, dir, auth          string
+	session, snapshot, quelle string
+}
+
+// zellenAusloeser ist eine Anfrage an den Admin-Listener mit dem Status, den eine Zelle erwartet, die gilt; merke hält die
+// Kennung aus der Antwort fest.
+type zellenAusloeser struct {
+	methode, pfad, auth, body string
+	status                    int
+	merke                     *string
+}
+
+func neuerZellenProzess(t *testing.T, modus string) *zellenProzess {
+	t.Helper()
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/$metadata") {
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = io.WriteString(w, msProductsXML())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"@odata.context":"$metadata#Products","value":[{"Id":1,"Name":"Milk"}]}`)
+	}))
+	t.Cleanup(up.Close)
+	dir := t.TempDir()
+	saeen(t, dir, func(d *wsDatei) { saeeWorkspaces(d) })
+	k := listenerKonfig(dir, modus)
+	k.Dienste[0].UpstreamURL = up.URL + "/o"
+	h := adminHoch(t, k)
+	return &zellenProzess{t: t, h: h, modus: modus, dir: dir, auth: bearer(t, k.AdminTokenFile)}
+}
+
+// aufnahme zeichnet im Modus record $metadata und Products in der ersten Session auf und beendet sie über den Dienst, der
+// dafür keinen Eintrag schreibt.
+func (p *zellenProzess) aufnahme() {
+	p.t.Helper()
+	ctx := context.Background()
+	alle, err := p.h.Sessions().List(ctx)
+	if err != nil {
+		p.t.Fatal(err)
+	}
+	for _, s := range alle {
+		if s.Status == model.SessionOpen {
+			p.quelle = s.ID
+		}
+	}
+	for _, pfad := range []string{"/r1/$metadata", "/r1/Products"} {
+		a, err := p.h.Record().Record(ctx, inbound.Anfrage{Methode: "GET", Pfad: pfad, KorrelationsID: "cor-auf"})
+		if err != nil || a.Status != 200 {
+			p.t.Fatalf("Record %s: %d, %v", pfad, a.Status, err)
+		}
+		_, _ = io.Copy(io.Discard, a.Body)
+		_ = a.Body.Close()
+	}
+	if _, err := p.h.Sessions().Beenden(ctx, p.quelle); err != nil {
+		p.t.Fatal(err)
+	}
+}
+
+// ausloeser bereitet die Zelle vor und liefert ihre Anfrage.
+func (p *zellenProzess) ausloeser(art support.AuditArt) zellenAusloeser {
+	p.t.Helper()
+	const ws = "/__admin/workspaces/ws-d3"
+	switch art {
+	case support.ArtAdminAbgewiesen:
+		return zellenAusloeser{methode: "GET", pfad: "/__admin/sessions", status: 401}
+	case support.ArtSessionAngelegt:
+		return zellenAusloeser{"POST", "/__admin/sessions", p.auth, `{"service_id":"x1"}`, 201, &p.session}
+	case support.ArtSessionBeendet:
+		return zellenAusloeser{"POST", "/__admin/sessions/" + p.session + "/close", p.auth, "", 200, nil}
+	case support.ArtImportVeroeffentlicht:
+		if p.modus == modusRecord {
+			p.aufnahme()
+		}
+		return zellenAusloeser{"POST", "/__admin/imports", p.auth,
+			`{"import_id":"imp-d3","service_id":"x1","source_session_ids":["` + p.quelle + `"]}`, 201, nil}
+	case support.ArtWorkspaceAngelegt:
+		return zellenAusloeser{"POST", "/__admin/workspaces", p.auth, `{"baseline_snapshot_id":"bsl-1","id":"ws-d3"}`, 201, nil}
+	case support.ArtWorkspaceZurueckgesetzt:
+		return zellenAusloeser{"POST", ws + "/reset", p.auth, "", 200, nil}
+	case support.ArtSnapshotErzeugt:
+		return zellenAusloeser{"POST", ws + "/snapshots", p.auth, `{"name":"d3"}`, 201, &p.snapshot}
+	case support.ArtWorkspaceWiederhergestellt:
+		return zellenAusloeser{"POST", ws + "/restore", p.auth, `{"snapshot_id":"` + p.snapshot + `"}`, 200, nil}
+	}
+	p.t.Fatalf("kein Auslöser für %s", art)
+	return zellenAusloeser{}
+}
+
+// rufe stellt die Anfrage an den Admin-Listener und liefert Status und X-Correlation-Id.
+func (p *zellenProzess) rufe(a zellenAusloeser) (int, string) {
+	p.t.Helper()
+	status, body, kopf := sende(neuerAdminClient(), a.methode, "http://"+p.h.AdminAdresse()+a.pfad, a.auth, a.body)
+	if a.merke != nil {
+		var aus struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal([]byte(body), &aus); err != nil || aus.ID == "" {
+			p.t.Errorf("%s %s %s: %d %s", p.modus, a.methode, a.pfad, status, body)
+		}
+		*a.merke = aus.ID
+	}
+	return status, kopf.Get("X-Correlation-Id")
+}
+
+// soll ist die Zeile der Art nach der Tabelle ihres Vertrags (SPEC-238 Nr. 8, SPEC-292 Nr. 11, SPEC-297 Nr. 10, SPEC-298
+// Nr. 11).
+func (p *zellenProzess) soll(art support.AuditArt) sollZeile {
+	switch art {
+	case support.ArtAdminAbgewiesen:
+		return sollZeile{art: "admin_abgewiesen", code: "ODR-E2101"}
+	case support.ArtSessionAngelegt:
+		return sollZeile{art: "session_angelegt", service: "x1", session: p.session}
+	case support.ArtSessionBeendet:
+		return sollZeile{art: "session_beendet", service: "x1", session: p.session}
+	case support.ArtImportVeroeffentlicht:
+		return sollZeile{art: "import_veroeffentlicht", service: "x1", importID: "imp-d3"}
+	case support.ArtWorkspaceAngelegt:
+		return sollZeile{art: "workspace_angelegt", service: "svc", workspace: "ws-d3"}
+	case support.ArtWorkspaceZurueckgesetzt:
+		return sollZeile{art: "workspace_zurueckgesetzt", service: "svc", workspace: "ws-d3"}
+	case support.ArtSnapshotErzeugt:
+		return sollZeile{art: "snapshot_erzeugt", service: "svc", workspace: "ws-d3"}
+	case support.ArtWorkspaceWiederhergestellt:
+		return sollZeile{art: "workspace_wiederhergestellt", service: "svc", workspace: "ws-d3"}
+	}
+	return sollZeile{}
 }
 
 // bestandVon liefert die Kennungen von ids, die nach dem Lauf in der Ablage stehen, sortiert.
