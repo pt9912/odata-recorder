@@ -138,5 +138,9 @@ echo "integration: Modus hybrid, Fallback zum laufenden Referenzdienst, Zähler 
 e2e_abdeckung "LH-FA-12 LH-FA-04" "Treffer des Mock ohne Verbindung, Upstream-Fallback bei ODR-E6003, POST mit und ohne Eintrag, Replay-Miss, ungültige Konfiguration (Happy Path, Boundary, Negative)" "TestE2EHybrid"
 stufe 10 TestE2EHybrid
 
+echo "integration: Admin-Listener am gebauten Binary, Abweisungen, capture_status, Token in keiner Ausgabe ..."
+e2e_abdeckung "LH-FA-13 LH-FA-09 LH-FA-10 LH-FA-18 LH-FA-14" "Aufnahme, Import, Workspace, Snapshot, Reset und Restore über den Admin-Listener, leere Listen, Abweisung ohne Änderung, nicht redigierbarer Body und Speicher voll (Happy Path, Boundary, Negative)" "TestE2EAdmin"
+stufe 11 TestE2EAdmin
+
 rm -rf "$tmp"
 exit "$rot"
