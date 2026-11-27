@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-transport
+**Fund:** Im Lauf der Verifikation kamen die Stufe `katalog` und die Modul-Stufen der Werkzeuge aus dem Schichten-Cache, und der Beleg des Liefer-Punkts zum Handbuch stützt `make katalog-check` darauf; `test` und `race` liefen frisch. Der Verifier nannte beides. Beleg: Verifikation `2026-11-27-slice-bootstrap-m6-transport-verifikation` (DoD und *Sensoren*).

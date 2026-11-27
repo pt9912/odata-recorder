@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-transport
+**Fund:** Die Messung ist am Ende 1199 gegen die Marke 1000 (Auslastung 1,20). Bis zum Handoff lag sie mit 962 darunter; die Fänger zu Review (+213) und Verifikation (+24) sind allein Testcode. Keine Rückführung: nach dem Code ist kein Schnitt erlaubt, benannt war keiner (`AGENTS.md` §3.14). Der Block trägt `ueberschreitung: 1200` mit den Ursachen. Beleg: Plan §4 und §7.

@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6-transport
+**Fund:** Der Absatz *Kollisionen* des Plans verwies seit `2fe5e703` auf `slice-replay-speicher-und-suche` am alten Ort. Der Merge `98eb01a1` (Orchestrator) brachte dessen Move nach `done/`; danach lief vor der Verifikation weder `make docs-check` noch `make gates`. `make gates` war beim Verifier rot (`target-missing`, ein Befund). Behoben in `14537673`. Beleg: Verifikation `2026-11-27-slice-bootstrap-m6-transport-verifikation` (V-1).
