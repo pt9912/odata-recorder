@@ -8,7 +8,7 @@
 
 **Geltungsbereich:** Betriebsart `replay` des Aufrufs im Profil `abnahme`, also der Nachweis von `LH-QA-01.a` für den Replay-Dienst. Nicht darin: `mock` (bestanden), das Profil `rauch`, jedes Gate der Kette.
 
-**Folge-Slice:** [slice-replay-speicher-und-suche](../../planning/in-progress/slice-replay-speicher-und-suche.md).
+**Folge-Slice:** [slice-replay-speicher-und-suche](../../planning/done/slice-replay-speicher-und-suche.md).
 
 **Frist:** vor der Closure von [welle-betrieb](../../planning/welle-betrieb.md) (die Welle schließt nicht ohne p95 für Replay, §3 dort) und damit vor M5; geprüft bei jeder Wellen-Closure.
 
@@ -35,7 +35,7 @@ Der Lasttest ist gefahren und liefert für `replay` keinen Messwert, weil das ge
 
 Die Zeile `Abnahme` ist `ziel_ms=100 abnahmewert_ms=100 abnahme=nein grund=ergebnis`. Das Kernel-Protokoll nennt zu beiden Läufen den OOM-Killer der Speicher-Gruppe des Containers an 4194304 kB (`anon-rss` des Binary 4147816 kB und 4147740 kB).
 
-**Ursache: belegt** (berichtigt am 2026-11-27; beim Anlegen war sie ein Verdacht): der Replay-Dienst las je Anfrage die ganze Session (`ListBySession`). Gemessen am unveränderten Code, 10 000 Exchanges: 15,6 MiB gehaltener Speicher und 106 bis 108 ms CPU je Anfrage, 24 bis 29 MiB je gleichzeitiger Anfrage, nach der Behebung 0,19 bis 0,50 MiB und unter 1 ms ([slice-replay-speicher-und-suche](../../planning/in-progress/slice-replay-speicher-und-suche.md) §3, Messender Implementer, Stichprobe des Verifiers).
+**Ursache: belegt** (berichtigt am 2026-11-27; beim Anlegen war sie ein Verdacht): der Replay-Dienst las je Anfrage die ganze Session (`ListBySession`). Gemessen am unveränderten Code, 10 000 Exchanges: 15,6 MiB gehaltener Speicher und 106 bis 108 ms CPU je Anfrage, 24 bis 29 MiB je gleichzeitiger Anfrage, nach der Behebung 0,19 bis 0,50 MiB und unter 1 ms ([slice-replay-speicher-und-suche](../../planning/done/slice-replay-speicher-und-suche.md) §3, Messender Implementer, Stichprobe des Verifiers).
 
 Die Behebung liegt im Produkt (`src/`), nicht im Werkzeug; sie brauchte zuerst eine Messung der Ursache und dann einen Vertrag, und beides schloss der Slice aus, der gemessen hat ([slice-lasttest](../../planning/done/slice-lasttest.md) §1: Tuning ist ein eigener Slice).
 
@@ -84,4 +84,4 @@ Keine Gate-Konfiguration war geändert: das Ziel hängt nicht an `GATE_CHECKS`, 
 |---|---|---|
 | 2026-11-26 | Angelegt | [slice-lasttest](../../planning/done/slice-lasttest.md) |
 | 2026-11-27 | Der User nimmt die Änderung der DoD an, aus der dieser Carveout entstand (die Bestätigung stand offen); Status, Trigger und Frist bleiben | [slice-lasttest](../../planning/done/slice-lasttest.md) §1, *Zustimmung des Users* |
-| 2026-11-27 | Aufgelöst: Aufruf `abnahme` auf `9c3f5f10` mit `abnahme=ja grund=ok`; Ursache berichtigt auf „belegt“; Bedingung an den Merge unter *Auflösung* | [slice-replay-speicher-und-suche](../../planning/in-progress/slice-replay-speicher-und-suche.md) §7 |
+| 2026-11-27 | Aufgelöst: Aufruf `abnahme` auf `9c3f5f10` mit `abnahme=ja grund=ok`; Ursache berichtigt auf „belegt“; Bedingung an den Merge unter *Auflösung* | [slice-replay-speicher-und-suche](../../planning/done/slice-replay-speicher-und-suche.md) §7 |
