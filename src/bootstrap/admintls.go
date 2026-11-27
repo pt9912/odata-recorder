@@ -8,15 +8,9 @@ import (
 	"time"
 )
 
-// Die Namen der Schlüssel des Paars, unter denen die Funktionen dieser Datei melden (SPEC-299 Nr. 1, 4); sie stehen hier als
-// Konstanten, nicht in konfig*.go. Den Zusammenhang melden sie unter schluesselAdminListen (Nr. 6).
-const (
-	adminTLSCert = "ADMIN_TLS_CERT"
-	adminTLSKey  = "ADMIN_TLS_KEY"
-)
-
 // grundAdminZusammenhang ist der feste Grund des Verstoßes am Schlüssel ADMIN_LISTEN, ohne dessen Wert (SPEC-299 Nr. 6).
-const grundAdminZusammenhang = "außerhalb von Loopback verlangt TLS: " + adminTLSCert + " und " + adminTLSKey
+// Die Namen der Schlüssel kommen aus konfig_admin.go; diese Datei führt keinen als eigenes Literal (SPEC-299 Nr. 1).
+const grundAdminZusammenhang = "außerhalb von Loopback verlangt TLS: " + schluesselAdminCert + " und " + schluesselAdminKey
 
 // adminWeg ist der Weg des Admin-Listeners (SPEC-299 Nr. 3); der Nullwert ist kein Weg.
 type adminWeg int
@@ -59,7 +53,7 @@ func adminLoopback(listen string) bool {
 // Verstoß liefert keinen Weg; bei ungültiger Form entfällt der Zusammenhang, die Dateien eines gesetzten Paares werden dennoch geprüft.
 // Es liest keine Uhr, keinen Kontext und keinen Zustand und schreibt nichts (SPEC-299 Nr. 13).
 func pruefeAdminTransport(e adminEingabe, jetzt time.Time) (adminTransport, []verstoss) {
-	cfg, vs := ladeTLS(tlsDateien{adminTLSCert, adminTLSKey, e.CertPfad, e.KeyPfad}, jetzt)
+	cfg, vs := ladeTLS(tlsDateien{schluesselAdminCert, schluesselAdminKey, e.CertPfad, e.KeyPfad}, jetzt)
 	switch {
 	case vs != nil || !e.FormGueltig:
 		return adminTransport{}, vs

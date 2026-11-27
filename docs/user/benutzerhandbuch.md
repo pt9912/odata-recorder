@@ -102,8 +102,11 @@ Dieser Abschnitt führt die Einstellungen, die der Dienst aus den Umgebungsvaria
 | `HYBRID_REPLAY_FALLBACK` | Kategorien, für die im Modus `hybrid` der Replay-Fallback gilt, durch Komma getrennt: `unsupported` und `coverage_insufficient`, in dieser Schreibweise. Ein anderer Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Eine Anfrage, die der Mock nicht beantwortet, erhält für die Kategorie dann die Antwort aus den aufgezeichneten Austauschen. |
 | `FALLBACK_ALLOW_HOSTS` | Hosts, zu denen im Modus `hybrid` der Upstream-Fallback gehen darf, durch Komma getrennt: ein Name oder eine IPv6-Adresse in eckigen Klammern, optional mit `:` und Port, ohne Schema und Pfad. Ein ungültiger Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Ein Eintrag gilt nur für den Host der `UPSTREAM_URL` des Services der Anfrage, mit dem Port, den die URL nennt oder ihr Schema voraussetzt. |
 | `FALLBACK_WRITE_ALLOW` | Routen, für die im Modus `hybrid` ein schreibender Upstream-Fallback gilt, durch Komma getrennt: eine Methode (`POST`, `PUT`, `PATCH`, `DELETE` oder `MERGE`), ein Leerzeichen und ein Pfadmuster, das mit `/` beginnt, je Segment höchstens ein `*` trägt und am Ende `**` tragen darf. Ein ungültiger Eintrag, auch ein leerer, verhindert den Start. Ohne Angabe ist die Liste leer. Ein Eintrag gilt nur für eine Anfrage, deren Methode und Pfad er deckt, und nur zu einem Host, den `FALLBACK_ALLOW_HOSTS` freigibt. |
-| `ADMIN_LISTEN` | Host und Port, an dem der Dienst die Admin-Schnittstelle annimmt, in der Form `host:port` wie bei `LISTEN`; der Host ist `127.0.0.1`, `[::1]` oder `localhost`, genau in dieser Schreibweise (Abschnitt `Admin-Schnittstelle`). Ohne Angabe gilt `127.0.0.1:8081`. |
+| `ADMIN_LISTEN` | Host und Port, an dem der Dienst die Admin-Schnittstelle annimmt, in der Form `host:port` wie bei `LISTEN`. Loopback sind allein die Hosts `127.0.0.1`, `[::1]` und `localhost`, genau in dieser Schreibweise; jeder andere Host verlangt `ADMIN_TLS_CERT` und `ADMIN_TLS_KEY` oder `ADMIN_ALLOW_PLAINTEXT=true` (Kapitel `TLS`). Ohne Angabe gilt `127.0.0.1:8081`. |
 | `ADMIN_TOKEN_FILE` | Pfad der Datei mit dem Token der Admin-Schnittstelle, absolut oder relativ zum Arbeitsverzeichnis (Abschnitt `Admin-Schnittstelle`). Ohne Angabe gilt die Datei `admin.token` im Verzeichnis von `DATA_DIR`. |
+| `ADMIN_TLS_CERT` | Pfad einer PEM-Datei mit dem Zertifikat der Admin-Schnittstelle; zuerst steht ihr Zertifikat, danach stehen die Zwischenzertifikate. Mit `ADMIN_TLS_CERT` und `ADMIN_TLS_KEY` nimmt die Admin-Schnittstelle Anfragen über HTTPS an; setze beide oder keinen (Kapitel `TLS`). Ohne Angabe nimmt sie Anfragen über HTTP an. |
+| `ADMIN_TLS_KEY` | Pfad einer PEM-Datei mit dem privaten Schlüssel zum Zertifikat von `ADMIN_TLS_CERT`. Beide Pfade dürfen auf dieselbe Datei zeigen. |
+| `ADMIN_ALLOW_PLAINTEXT` | Wahrheitswert `true` oder `false`: ob die Admin-Schnittstelle auf einem Host außerhalb von Loopback ohne TLS laufen darf. Ohne Angabe gilt `false`. Bei Loopback und bei gesetztem Zertifikatspaar bleibt der Wert ohne Wirkung (Kapitel `TLS`). |
 
 ## Modus hybrid
 
@@ -140,7 +143,7 @@ Beim Start im Modus `hybrid` mit `HYBRID_FALLBACK=enabled` und `UPSTREAM_TLS_INS
 
 Aufgabe: Sessions, Imports, Workspaces und Snapshots verwalten und den Zustand des Dienstes lesen.
 
-Voraussetzung: Zugriff auf denselben Rechner (oder Container) wie der Dienst und auf die Token-Datei. Die Schnittstelle läuft in jedem Modus neben dem Dienst, an der Adresse von `ADMIN_LISTEN`, über HTTP und allein auf Loopback. Ein anderer Host, auch `0.0.0.0`, `[::]` oder `127.0.0.2`, beendet den Start mit `ODR-E2001` am Schlüssel `ADMIN_LISTEN`. `LISTEN` und `ADMIN_LISTEN` brauchen verschiedene Adressen. Derselbe Port an derselben Adresse beendet den Start mit `ODR-E2001 ADMIN_LISTEN: Adresse nicht bindbar`, ebenso derselbe Port, wenn `LISTEN` den Host `0.0.0.0` oder `[::]` trägt. `localhost` zählt dabei als die Adresse, zu der der Rechner den Namen auflöst. Derselbe Port an zwei verschiedenen einzelnen Adressen (etwa `127.0.0.2` für `LISTEN` und `127.0.0.1` für `ADMIN_LISTEN`) startet beide. Ein anderer Port für `ADMIN_LISTEN` vermeidet den Konflikt. Jede andere Variable, deren Name mit `ADMIN_` beginnt und die einen Wert trägt, beendet den Start mit `ODR-E2001`; eine leere oder nur aus Leerraum bestehende Variable bleibt ohne Wirkung.
+Voraussetzung: Zugriff auf die Token-Datei und auf die Adresse von `ADMIN_LISTEN`; auf Loopback heißt das Zugriff auf denselben Rechner (oder Container) wie der Dienst. Die Schnittstelle läuft in jedem Modus neben dem Dienst, an der Adresse von `ADMIN_LISTEN`: ohne `ADMIN_TLS_CERT` und `ADMIN_TLS_KEY` über HTTP, mit beiden über HTTPS. Auf einem Host außerhalb von Loopback, auch `0.0.0.0`, `[::]` oder `127.0.0.2`, verlangt sie dieses Zertifikatspaar oder `ADMIN_ALLOW_PLAINTEXT=true` (Kapitel `TLS`); sonst endet der Start mit `ODR-E2001` am Schlüssel `ADMIN_LISTEN`. `LISTEN` und `ADMIN_LISTEN` brauchen verschiedene Adressen. Derselbe Port an derselben Adresse beendet den Start mit `ODR-E2001 ADMIN_LISTEN: Adresse nicht bindbar`, ebenso derselbe Port, wenn `LISTEN` den Host `0.0.0.0` oder `[::]` trägt. `localhost` zählt dabei als die Adresse, zu der der Rechner den Namen auflöst. Derselbe Port an zwei verschiedenen einzelnen Adressen (etwa `127.0.0.2` für `LISTEN` und `127.0.0.1` für `ADMIN_LISTEN`) startet beide. Ein anderer Port für `ADMIN_LISTEN` vermeidet den Konflikt. Jede Variable, deren Name mit `ADMIN_` beginnt, die keiner der Schlüssel der Tabelle `Einstellungen` ist und die einen Wert trägt, beendet den Start mit `ODR-E2001`; eine leere oder nur aus Leerraum bestehende Variable bleibt ohne Wirkung.
 
 Token: Der Dienst liest beim Start die Datei von `ADMIN_TOKEN_FILE`, bevor er eine Adresse öffnet. Fehlt sie, legt er sie mit einem zufälligen Token von 64 Zeichen und den Rechten `0600` an; ein Verzeichnis legt er dafür nicht an. Eine eigene Datei trägt eine Zeile mit mindestens 32 Zeichen, ohne Rechte für Gruppe und andere (`0400` oder `0600`). Wählst du das Token selbst, nimm einen zufälligen Wert: der Dienst begrenzt die Zahl der Versuche nicht. Ein Neustart auf derselben Datei nutzt dasselbe Token. Ein Verstoß beendet den Start mit `ODR-E2001 ADMIN_TOKEN_FILE:` und einem der folgenden Gründe, nie mit dem Pfad oder dem Inhalt:
 
@@ -214,6 +217,40 @@ Die Meldung nennt den Schlüssel und einen der folgenden Gründe, nie den Pfad, 
 Ein Client, dessen Handshake scheitert, etwa weil er das Zertifikat ablehnt, erreicht den Dienst nicht. Der Dienst schreibt dazu keine Zeile; den Fehler sieht der Betreiber am Client.
 
 Rechte: Lege die Schlüsseldatei mit den Rechten `0400` oder `0600` an. Der Dienst prüft die Rechte nicht und startet auch mit einer Datei, die jeder lesen darf.
+
+### TLS der Admin-Schnittstelle
+
+Aufgabe: die Admin-Schnittstelle über HTTPS annehmen lassen oder, auf einem Host außerhalb von Loopback, bewusst ohne TLS betreiben.
+
+Voraussetzung: wie oben eine PEM-Datei mit dem Zertifikat und eine PEM-Datei mit dem privaten Schlüssel, hier für die Admin-Schnittstelle. `ADMIN_TLS_CERT` und `ADMIN_TLS_KEY` dürfen auf dieselben Dateien zeigen wie `LISTEN_TLS_CERT` und `LISTEN_TLS_KEY`; die Schlüssel des Dienstes und der Admin-Schnittstelle wirken unabhängig voneinander.
+
+Vorgehen:
+
+1. Setze `ADMIN_TLS_CERT` auf den Pfad der Zertifikatsdatei und `ADMIN_TLS_KEY` auf den Pfad der Schlüsseldatei, beide oder keinen.
+2. Setze `ADMIN_LISTEN`, wenn die Schnittstelle auf einem Host außerhalb von Loopback erreichbar sein soll.
+3. Nur wenn die Schnittstelle dort ohne TLS laufen soll: setze `ADMIN_ALLOW_PLAINTEXT=true` statt des Zertifikatspaars.
+4. Starte den Dienst mit `start`.
+
+Ergebnis: Mit dem Zertifikatspaar nimmt die Admin-Schnittstelle Anfragen allein über HTTPS an, in jedem Modus und auf jedem Host, mit TLS 1.2 und TLS 1.3 und HTTP/1.1; ein Fehler im Paar lässt den Start scheitern, nie auf HTTP zurückfallen. Ohne das Paar nimmt sie auf Loopback Anfragen über HTTP an. Außerhalb von Loopback verlangt sie ohne das Paar `ADMIN_ALLOW_PLAINTEXT=true`. Die Dateien liest der Dienst beim Start: ein neues Zertifikat oder ein neuer Schlüssel gilt ab dem nächsten Start. Läuft das Zertifikat im Betrieb ab, bedient die Schnittstelle es weiter und meldet nichts; der Client lehnt es ab.
+
+Prüfung beim Start: Der Dienst prüft das Paar wie das des Dienstes. Bei einem Verstoß endet der Start mit der Meldung `ODR-E2001`, bevor der Dienst das Datenverzeichnis anlegt, bevor er die Token-Datei liest oder anlegt und bevor er eine Adresse öffnet; die Verstöße beider Zertifikatspaare stehen in derselben Meldung, nach Schlüssel sortiert. Ein anderer Wert von `ADMIN_ALLOW_PLAINTEXT` als `true` oder `false` ist der Verstoß `ODR-E2001 ADMIN_ALLOW_PLAINTEXT: Wahrheitswert muss true oder false sein`; die Prüfung des Hosts entfällt dann, und die Dateien des Paars prüft der Dienst trotzdem. Die Meldung nennt den Schlüssel und einen der folgenden Gründe, nie den Pfad, den Inhalt der Dateien, eine Eigenschaft des Zertifikats oder den Wert von `ADMIN_LISTEN`:
+
+| Schlüssel und Grund | Bedeutung |
+|---|---|
+| `ADMIN_LISTEN: außerhalb von Loopback verlangt TLS: ADMIN_TLS_CERT und ADMIN_TLS_KEY` | Der Host liegt außerhalb von Loopback, beide Pfade fehlen, und `ADMIN_ALLOW_PLAINTEXT` ist nicht `true`. |
+| `ADMIN_TLS_KEY: erforderlich, wenn ADMIN_TLS_CERT gesetzt ist` | `ADMIN_TLS_KEY` fehlt, `ADMIN_TLS_CERT` ist gesetzt. |
+| `ADMIN_TLS_CERT: erforderlich, wenn ADMIN_TLS_KEY gesetzt ist` | `ADMIN_TLS_CERT` fehlt, `ADMIN_TLS_KEY` ist gesetzt. |
+| `Datei nicht lesbar` | Die Datei fehlt, ist ein Verzeichnis oder nicht lesbar. |
+| `Datei enthält kein PEM-Zertifikat` | Die Datei enthält kein PEM-Zertifikat, das der Dienst lesen kann. |
+| `Datei enthält keinen PEM-Schlüssel` | Die Datei enthält keinen PEM-Block `PRIVATE KEY` und keinen Block, dessen Typ auf ` PRIVATE KEY` endet. |
+| `Zertifikat außerhalb seiner Gültigkeit` | Das Zertifikat ist abgelaufen, oder seine Gültigkeit beginnt nach dem Start. |
+| `Schlüssel ungültig oder passt nicht zum Zertifikat` | Der Schlüssel ist ungültig oder gehört nicht zum ersten Zertifikat der Datei. |
+
+Warnung ohne TLS: Läuft die Schnittstelle außerhalb von Loopback ohne Zertifikatspaar, weil `ADMIN_ALLOW_PLAINTEXT=true` gesetzt ist, schreibt der Start in jedem Modus genau eine Zeile der Stufe `WARN` auf die Fehlerausgabe, mit dem Text `start: Admin-Listener ohne TLS erreichbar` und dem Attribut `ereignis=admin_klartext`. Bei Loopback und mit Zertifikatspaar schreibt er sie nicht.
+
+Verantwortung für den Klartext: Ohne TLS kann jeder auf dem Weg das Token und die Antworten mitlesen, und mit dem Token die Schnittstelle bedienen. Wer `ADMIN_ALLOW_PLAINTEXT=true` setzt, trägt dafür die Verantwortung, etwa durch ein abgeschottetes Netz oder einen Proxy, der TLS beendet.
+
+Ein Client, dessen Handshake scheitert, etwa weil er das Zertifikat ablehnt, erreicht die Schnittstelle nicht. Der Dienst schreibt dazu keine Zeile; den Fehler sieht der Betreiber am Client.
 
 ## Fehlercodes
 

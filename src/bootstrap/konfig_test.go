@@ -221,23 +221,33 @@ func TestKonfigHeaderSchreibweise(t *testing.T) {
 	}
 }
 
-// TestKonfigNichtGeliefert fängt A06 und B05: jeder abgelehnte Schlüssel `ADMIN_*` (sechs Namen, darunter ADMIN_TLS_CERT und ADMIN_TLS_KEY)
-// × die vier Modi = 24; STRICT_COVERAGE, PUBLIC_BASE_URL, die vier Schlüssel des Modus hybrid sowie LISTEN_TLS_CERT und LISTEN_TLS_KEY gehören nicht
-// mehr dazu (SPEC-110 Nr. 2); die übrigen Schlüssel `LISTEN_TLS_*` fängt TestKonfigListenTLSRest.
+// TestKonfigNichtGeliefert fängt A06 und B05: jeder abgelehnte Schlüssel `ADMIN_*` (drei Namen) × die vier Modi = 12; je Modus dazu
+// die drei Schlüssel des Transportschutzes, die die Konfiguration liest: gesetzt stehen sie in ihrem Feld, leer sind sie ungesetzt.
+// STRICT_COVERAGE, PUBLIC_BASE_URL, die vier Schlüssel des Modus hybrid sowie LISTEN_TLS_CERT und LISTEN_TLS_KEY gehören nicht zu
+// den abgelehnten (SPEC-110 Nr. 2); die übrigen Schlüssel `LISTEN_TLS_*` fängt TestKonfigListenTLSRest.
 func TestKonfigNichtGeliefert(t *testing.T) {
-	namen := []string{"ADMIN_TOKEN", "ADMIN_TLS_CA", "ADMIN_TLS_CERT", "ADMIN_TLS_KEY", "ADMIN_ALLOW_PLAINTEXT", "ADMIN_X"}
+	namen := []string{"ADMIN_TOKEN", "ADMIN_TLS_CA", "ADMIN_X"}
+	w := neueWerkstatt(t)
+	cert, key := w.datei(w.gut.ZertifikatPEM()), w.datei(w.schluessel(w.gut))
 	n := 0
 	for _, modus := range vierModi() {
-		for _, key := range namen {
+		for _, name := range namen {
 			n++
 			env := append(basis(t), "MODE="+modus)
-			erwarteGrund(t, key, "wird von dieser Version nicht unterstützt", append(env, key+"=irgendwas")...)
-			erwarteGueltig(t, append(env, key+"=")...)
+			erwarteGrund(t, name, "wird von dieser Version nicht unterstützt", append(env, name+"=irgendwas")...)
+			erwarteGueltig(t, append(env, name+"=")...)
+		}
+		env := append(basis(t), "MODE="+modus, "PUBLIC_BASE_URL=http://h:1")
+		g := erwarteGueltig(t, append(env, "ADMIN_TLS_CERT="+cert, "ADMIN_TLS_KEY="+key, "ADMIN_ALLOW_PLAINTEXT=true")...)
+		l := erwarteGueltig(t, append(env, "ADMIN_TLS_CERT=", "ADMIN_TLS_KEY=", "ADMIN_ALLOW_PLAINTEXT=")...)
+		if g.AdminTLSCert != cert || g.AdminTLSKey != key || !g.AdminAllowPlaintext || l.AdminTLSCert+l.AdminTLSKey != "" || l.AdminAllowPlaintext {
+			t.Errorf("%s: gesetzt %q %q %v, leer %q %q %v", modus, g.AdminTLSCert, g.AdminTLSKey, g.AdminAllowPlaintext,
+				l.AdminTLSCert, l.AdminTLSKey, l.AdminAllowPlaintext)
 		}
 		erwarteGueltig(t, append(basis(t), "MODE="+modus, "STRICT_COVERAGE=false", "PUBLIC_BASE_URL=http://h:1")...)
 	}
-	if n != 24 {
-		t.Errorf("Menge hat %d Elemente, erwartet 24 (4 Modi × 6 Namen)", n)
+	if n != 12 {
+		t.Errorf("Menge hat %d abgelehnte Elemente, erwartet 12 (4 Modi × 3 Namen)", n)
 	}
 }
 

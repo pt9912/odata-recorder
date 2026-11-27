@@ -81,6 +81,33 @@ func LadeKonfigurationZu(environ []string, jetzt time.Time) (Konfiguration, erro
 	return ladeKonfigurationZu(environ, jetzt)
 }
 
+// Die Naht der Aufrufstellen der Prüfung des Admin-Transports am Laden und in Build (SPEC-299 Nr. 8 a, b).
+
+// AdminPruefung ist die Form der Prüfung mit den Verstößen als TLSVerstoss; PruefeAdminTransport hat sie.
+type AdminPruefung = func(AdminEingabe, time.Time) (AdminTransport, []TLSVerstoss)
+
+func intern(p AdminPruefung) adminPruefung {
+	return func(e adminEingabe, jetzt time.Time) (adminTransport, []verstoss) {
+		t, vs := p(e, jetzt)
+		var aus []verstoss
+		for _, v := range vs {
+			aus = append(aus, verstoss{v.Schluessel, v.Grund})
+		}
+		return t, aus
+	}
+}
+
+// LadeKonfigurationMitPruefung ist LadeKonfigurationZu mit p an der Stelle Laden.
+func LadeKonfigurationMitPruefung(environ []string, jetzt time.Time, p AdminPruefung) (Konfiguration, error) {
+	return ladeKonfigurationMit(environ, jetzt, intern(p))
+}
+
+// SetzePruefung setzt p an die Stelle Build von b.
+func SetzePruefung(b *Bauteile, p AdminPruefung) { b.PruefeAdmin = intern(p) }
+
+// AdminTransportVon liefert den Transport des Admin-Listeners, den Build im Handle ablegt (SPEC-299 Nr. 8 b).
+func AdminTransportVon(h *Handle) AdminTransport { return h.transport }
+
 // ListenTLSPraefix ist der Anfang der Schlüssel `LISTEN_TLS_*`, den die Konfiguration aus den zwei Namen bildet.
 func ListenTLSPraefix() string { return listenTLSPraefix() }
 

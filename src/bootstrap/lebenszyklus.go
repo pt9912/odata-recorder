@@ -126,9 +126,10 @@ func (h *Handle) oeffneErsteSessions(ctx context.Context) error {
 	return nil
 }
 
-// starteListener bindet LISTEN und, mit Admin-Listener, ADMIN_LISTEN, baut beide Server und bedient sie erst danach
-// (SPEC-300 Nr. 7). Ein Fehler der Bindung oder eines Konstruktors schließt jeden gebundenen Listener; kein Server steht dann im
-// Handle, und beide Adressen bleiben leer. Zwischen Bindung und Serve prüft es ctx nicht.
+// starteListener bindet LISTEN und, mit Admin-Listener, ADMIN_LISTEN, umhüllt beide, baut beide Server und bedient sie erst
+// danach (SPEC-300 Nr. 7); den Admin-Listener umhüllt allein der Weg TLS, den Build lud (SPEC-299 Nr. 8 c). Ein Fehler der
+// Bindung oder eines Konstruktors schließt jeden gebundenen Listener; kein Server steht dann im Handle, und beide Adressen
+// bleiben leer. Zwischen Bindung und Serve prüft es ctx nicht.
 func (h *Handle) starteListener(ctx context.Context) (err error) {
 	l, al, err := h.binde(ctx)
 	if err != nil {
@@ -142,6 +143,8 @@ func (h *Handle) starteListener(ctx context.Context) (err error) {
 	if h.tls != nil {
 		l = tls.NewListener(l, h.tls)
 	}
+	// Ohne Admin-Listener ist al nil und der Weg wegKeiner: umhuelle gibt nil zurück.
+	al = h.transport.umhuelle(al)
 	srv, err := h.b.NeuerServer(httpodata.Konfig{
 		Verarbeiten: h.verarbeiten, IDs: h.ids, Listener: l, Telemetrie: h.tel, Modus: h.k.Modus,
 	})

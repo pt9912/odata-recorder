@@ -365,10 +365,12 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		t.Fatal(err)
 	}
 	tlsCert, tlsKey, tlsBedientVon := tlsVerbraucher(t, dir)
+	adminCertPfad, adminKeyPfad, _ := tlsVerbraucher(t, filepath.Join(dir, "admin-paar"))
 	k := bootstrap.Konfiguration{
 		Modus: modusRecord, Listen: "127.0.0.1:7777", DataDir: filepath.Join(dir, "d"),
 		ListenTLSCert: tlsCert, ListenTLSKey: tlsKey,
 		AdminListen: "127.0.0.1:7778", AdminTokenFile: filepath.Join(dir, "eigen.token"),
+		AdminTLSCert: adminCertPfad, AdminTLSKey: adminKeyPfad, AdminAllowPlaintext: true,
 		Dienste:        []bootstrap.Dienst{{ID: "x1", Root: "/r1", UpstreamURL: "http://u1.test/o"}, {ID: "x2", Root: "/r2", UpstreamURL: "http://u2.test/o"}},
 		ReplayStrategy: "last", ReplayAssignment: "ordered", ReplayRedactedBodies: true,
 		MatchVaryHeaders: []string{"x-vary"}, MatchInvalidEncoding: "reject", MatchBodyMode: "json-canonical",
@@ -381,6 +383,7 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		},
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	var transport bootstrap.AdminEingabe
 	lauf2 := func(modus string) *haken {
 		kk := k
 		kk.Modus = modus
@@ -389,7 +392,13 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 			t.Fatal(err)
 		}
 		h := neuHaken()
-		if _, err := lauf(ctx, t, kk, log, h.bauteile()); err != nil {
+		b := h.bauteile()
+		// Der Verbraucher der drei Werte des Transports ist die Prüfung in Build.
+		bootstrap.SetzePruefung(&b, func(e bootstrap.AdminEingabe, jetzt time.Time) (bootstrap.AdminTransport, []bootstrap.TLSVerstoss) {
+			transport = e
+			return bootstrap.PruefeAdminTransport(e, jetzt)
+		})
+		if _, err := lauf(ctx, t, kk, log, b); err != nil {
 			t.Fatal(err)
 		}
 		return h
@@ -410,6 +419,9 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		"AdminTokenFile":       tokenAus(t, r.adminKfg.Token, k.AdminTokenFile) && tokenAus(t, p.adminKfg.Token, k.AdminTokenFile),
 		"ListenTLSCert":        tlsGezeigt,
 		"ListenTLSKey":         tlsGezeigt,
+		"AdminTLSCert":         transport.CertPfad == k.AdminTLSCert,
+		"AdminTLSKey":          transport.KeyPfad == k.AdminTLSKey,
+		"AdminAllowPlaintext":  transport.Klartext,
 		"DataDir":              fileExists(filepath.Join(dir, modusRecord, dateiDB)) && fileExists(filepath.Join(dir, modusReplay, verzeichnisB)),
 		"Dienste":              gl(r.recorder.Dienste, dr) && gl(p.replay.Dienste, dp),
 		"ReplayStrategy":       p.replay.Strategie == model.StrategyLast,
