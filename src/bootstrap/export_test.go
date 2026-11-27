@@ -181,6 +181,9 @@ func LiteralHandleZwei(modus string, frist time.Duration, uhr support.Clock, ses
 // AuditVon liefert das AuditLog des Prozesses.
 func AuditVon(h *Handle) support.AuditLog { return h.audit }
 
+// UhrVon liefert die eine Uhr des Prozesses (SPEC-139 Nr. 3).
+func UhrVon(h *Handle) support.Clock { return h.uhr }
+
 // AusfallDanach ist das Nachlesen von Start nach dem Abbruch von ctx.
 func AusfallDanach(ctx context.Context, fehler <-chan error) error {
 	return ausfallDanach(ctx, fehler)

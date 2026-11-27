@@ -2,7 +2,7 @@
 
 Software-Version: dev
 Gültigkeitsbereich: das Binary, das `make build` erzeugt
-Stand: 2026-11-26
+Stand: 2026-11-27
 
 ## Einleitung
 
@@ -145,7 +145,7 @@ Aufgabe: Sessions, Imports, Workspaces und Snapshots verwalten und den Zustand d
 
 Voraussetzung: Zugriff auf die Token-Datei und auf die Adresse von `ADMIN_LISTEN`; auf Loopback heißt das Zugriff auf denselben Rechner (oder Container) wie der Dienst. Die Schnittstelle läuft in jedem Modus neben dem Dienst, an der Adresse von `ADMIN_LISTEN`: ohne `ADMIN_TLS_CERT` und `ADMIN_TLS_KEY` über HTTP, mit beiden über HTTPS. Auf einem Host außerhalb von Loopback, auch `0.0.0.0`, `[::]` oder `127.0.0.2`, verlangt sie dieses Zertifikatspaar oder `ADMIN_ALLOW_PLAINTEXT=true` (Kapitel `TLS`); sonst endet der Start mit `ODR-E2001` am Schlüssel `ADMIN_LISTEN`. `LISTEN` und `ADMIN_LISTEN` brauchen verschiedene Adressen. Derselbe Port an derselben Adresse beendet den Start mit `ODR-E2001 ADMIN_LISTEN: Adresse nicht bindbar`, ebenso derselbe Port, wenn `LISTEN` den Host `0.0.0.0` oder `[::]` trägt. `localhost` zählt dabei als die Adresse, zu der der Rechner den Namen auflöst. Derselbe Port an zwei verschiedenen einzelnen Adressen (etwa `127.0.0.2` für `LISTEN` und `127.0.0.1` für `ADMIN_LISTEN`) startet beide. Ein anderer Port für `ADMIN_LISTEN` vermeidet den Konflikt. Jede Variable, deren Name mit `ADMIN_` beginnt, die keiner der Schlüssel der Tabelle `Einstellungen` ist und die einen Wert trägt, beendet den Start mit `ODR-E2001`; eine leere oder nur aus Leerraum bestehende Variable bleibt ohne Wirkung.
 
-Token: Der Dienst liest beim Start die Datei von `ADMIN_TOKEN_FILE`, bevor er eine Adresse öffnet. Fehlt sie, legt er sie mit einem zufälligen Token von 64 Zeichen und den Rechten `0600` an; ein Verzeichnis legt er dafür nicht an. Eine eigene Datei trägt eine Zeile mit mindestens 32 Zeichen, ohne Rechte für Gruppe und andere (`0400` oder `0600`). Wählst du das Token selbst, nimm einen zufälligen Wert: der Dienst begrenzt die Zahl der Versuche nicht. Ein Neustart auf derselben Datei nutzt dasselbe Token. Ein Verstoß beendet den Start mit `ODR-E2001 ADMIN_TOKEN_FILE:` und einem der folgenden Gründe, nie mit dem Pfad oder dem Inhalt:
+Token: Der Dienst liest beim Start die Datei von `ADMIN_TOKEN_FILE`, bevor er eine Adresse öffnet. Fehlt sie, legt er sie mit einem zufälligen Token von 64 Zeichen und den Rechten `0600` an; ein Verzeichnis legt er dafür nicht an. Eine eigene Datei trägt eine Zeile mit mindestens 32 Zeichen, ohne Rechte für Gruppe und andere (`0400` oder `0600`). Wählst du das Token selbst, nimm einen zufälligen Wert: der Dienst begrenzt die Zahl der Versuche nicht und prüft beim Start nur die Länge, nicht den Zufall. Ein selbst gesetztes Token ab 32 Zeichen ist nur dann gegen Raten geschützt, wenn es ein Zufallswert ist; das Token, das der Dienst selbst erzeugt, hat 256 Bit. Ein Neustart auf derselben Datei nutzt dasselbe Token. Ein Verstoß beendet den Start mit `ODR-E2001 ADMIN_TOKEN_FILE:` und einem der folgenden Gründe, nie mit dem Pfad oder dem Inhalt:
 
 | Grund | Bedeutung |
 |---|---|
@@ -184,7 +184,7 @@ Vorgehen:
 | `POST /__admin/workspaces/{id}/restore` | Snapshot wiederherstellen, Body `{"snapshot_id":"…"}`. |
 | `GET /__admin/diagnostics` | Modus, Einstellungen ohne Geheimnisse und Zähler je Fehlercode lesen. |
 
-Ergebnis: Jede Antwort trägt den Header `X-Correlation-Id`, ein Fehler dazu ein Objekt mit `code`, `message` und `target`. Eine Anfrage ohne gültiges Token ist `401` mit `ODR-E2101`; der Dienst schreibt dazu eine Zeile in die Datei `audit.jsonl` in `DATA_DIR`. Ein unbekannter Pfad, eine falsche Methode oder ein ungültiger Wert ist `ODR-E2102`. In den Modi `replay`, `mock` und `hybrid` gibt es die beiden Pfade des Imports nicht, und eine dort angelegte Session nimmt keinen Austausch an; sie bleibt `open`, bis sie jemand beendet, und der nächste Start setzt sie `incomplete`. Beim Beenden nimmt die Schnittstelle keine Verbindung mehr an, und eine Anfrage auf einer offenen Verbindung ist `503` mit `ODR-E5010`.
+Ergebnis: Jede Antwort trägt den Header `X-Correlation-Id`, ein Fehler dazu ein Objekt mit `code`, `message` und `target`. Eine Anfrage ohne gültiges Token ist `401` mit `ODR-E2101`. In die Datei `audit.jsonl` in `DATA_DIR` schreibt der Dienst dazu höchstens 20 Zeilen `admin_abgewiesen` je 60 Sekunden, gerechnet ab der ersten dieser Zeilen; jede weitere Anfrage in dieser Zeit erhält dieselbe Antwort ohne Zeile. Der Zähler von `ODR-E2101` (`GET /__admin/diagnostics`) zählt jede abgewiesene Anfrage, auch die ohne Zeile. Ein unbekannter Pfad, eine falsche Methode oder ein ungültiger Wert ist `ODR-E2102`. In den Modi `replay`, `mock` und `hybrid` gibt es die beiden Pfade des Imports nicht, und eine dort angelegte Session nimmt keinen Austausch an; sie bleibt `open`, bis sie jemand beendet, und der nächste Start setzt sie `incomplete`. Beim Beenden nimmt die Schnittstelle keine Verbindung mehr an, und eine Anfrage auf einer offenen Verbindung ist `503` mit `ODR-E5010`.
 
 ## TLS
 
