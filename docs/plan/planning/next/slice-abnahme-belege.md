@@ -33,13 +33,13 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Was zur Erstabnahme fehlt, entsteht ohne Produktcode: (1) als Test: unbekannte OData-Erweiterungen verhindern die Aufzeichnung nicht (`LH-QA-07`, zweiter Halbsatz; fünf Fälle nach `LH-QA-07.a`); (2) als Test: Filter, Sortierung und Paging kombiniert auf fünf Datensätzen (`LH-FA-08` Happy Path) als Schritt `ODV4-Q-11` b der Abnahmematrix, die damit 93 statt 92 Schritte zählt; (3) ein kurzer Absatz *Schutz der Daten* im Benutzerhandbuch mit den zwei Betreiberpflichten (`LH-RB-04`; Antwort 7 des Users vom 2026-11-27, Wortlaut in [welle-betrieb](../welle-betrieb.md) §4).
 
-**Schnitt vor dem Code** (Planner, 2026-11-27): Die Bewertung des Architect nennt einen dritten Beleg, den Absturztest (`SPEC-048`, `LH-QA-03`). Er ist [slice-absturztest](slice-absturztest.md): ungeschnitten *S* = 3280 über der Schnittgrenze (§4); die Teile teilen keinen Mechanismus.
+**Schnitt vor dem Code** (Planner, 2026-11-27): Die Bewertung des Architect nennt einen dritten Beleg, den Absturztest (`SPEC-048`, `LH-QA-03`). Er ist [slice-absturztest](../open/slice-absturztest.md): ungeschnitten *S* = 3280 über der Schnittgrenze (§4); die Teile teilen keinen Mechanismus.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Der Absturztest (`SPEC-048`) — [slice-absturztest](slice-absturztest.md), Schnitt oben.
+- Der Absturztest (`SPEC-048`) — [slice-absturztest](../open/slice-absturztest.md), Schnitt oben.
 - Produktcode — die Belege prüfen Verhalten, das die Spezifikation als vorhanden beschreibt; zeigt ein Test eine Abweichung, greift die Rückführung in §4.
-- Das byte-gleiche Binary (`LH-RB-03.a`) — [slice-container-image](slice-container-image.md), Zeile 20 dort.
+- Das byte-gleiche Binary (`LH-RB-03.a`) — [slice-container-image](../open/slice-container-image.md), Zeile 20 dort.
 - Neue Fälle in `make test-integration` (`tests/e2e/`) — der Nachweis läuft im Paket `integration` in `make test` (`LH-QA-07.a`); keine Datei der Gate-Kette.
 - Weitere Handbuch-Kapitel — die Handbuch-Slices sind für M7 nicht nötig (Antwort 6 des Users, 2026-11-27); kein Verhalten am Binary ändert sich.
 - Die Sätze in `spec/` (`SPEC-053`, der Satz zu den Werten im Modus `mock`, der Satz zum vollen Speicher im Lastenheft) und der Satz im README — Architect auf `main` (Antworten 1, 7 und 8).
