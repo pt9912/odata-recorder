@@ -438,7 +438,7 @@ Gemessen wird die Zeit von Request-Eingang bis zum ersten Response-Byte im Proze
 `odata.replay.match`, `SPEC-028`, und `odata.mock.query`, `SPEC-029`, zerlegen ihn und weisen den Anteil der Auswahl bzw. Query-Ausführung aus).
 Für den Mockserver gelten dieselben Ressourcen und Raten mit einem Workspace aus 10.000 Entities über mehrere EntitySets (Payloads bis 64 KiB) und einer Mischung aus Einzel-Lookups und Collection-Abfragen mit `$filter`/`$top`.
 Der Match-Key-Index `(session_id, match_key)` (`SPEC-004`) muss ohne Tabellenscan nutzbar sein.
-Der Zielwert p95 ≤ 100 ms ist vorläufig; die Bestätigung durch den fachlichen Owner steht aus (`LH-QA-01`).
+Der Zielwert p95 ≤ 100 ms ist vom fachlichen Owner bestätigt (`LH-QA-01`).
 
 ### LH-QA-02.a — Determinismus-Randbedingungen
 
@@ -5312,6 +5312,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-27 | Zielwert bestätigt (Architect, Entscheidung des fachlichen Owners, `LH-QA-01`): `LH-QA-01.a` nennt p95 ≤ 100 ms als bestätigt statt vorläufig; Wert und Messaufbau unverändert |
 | 2026-11-27 | Replay-Suche nach dem Review (Architect, `LH-QA-01`, `LH-FA-04.a`): `ListByMatchKey` ordnet im Adapter und lässt die Datenbank nicht sortieren, damit die Operation ohne beschreibbares Temp-Verzeichnis läuft (`SPEC-105` Nr. 14, *Ungeprüft*); `SPEC-135` *Ungeprüft* beschreibt das Warten auf den Schreiber und `ODR-E9001` nach `SQLITE_BUSY_TIMEOUT` (Verhalten unverändert); `SPEC-216` Nr. 6 g auf das berichtigt, was `make schema-check` prüft |
 | 2026-11-27 | Ort der Namen der Schlüssel des Transportschutzes vor dem Code (Architect, `LH-FA-13`, `LH-RB-02.a`, Widerspruch zwischen Ort der Namen und Katalog aufgelöst): `ADMIN_TLS_CERT`, `ADMIN_TLS_KEY` und `ADMIN_ALLOW_PLAINTEXT` stehen als Literal in einer Datei `konfig*.go` statt als Konstanten in `admintls.go` (`SPEC-299` Nr. 1 und 14, `SPEC-300` Nr. 1); die Funktionen bleiben in `admintls.go`; die Zeilen des Handbuchs (`SPEC-300` Nr. 15) und die Katalogprüfung (`SPEC-201`) bleiben unverändert |
 | 2026-11-27 | Replay-Suche vor dem Code (Architect, `LH-QA-01`, `LH-FA-04.a`): `RecordingRepository` bekommt `ListByMatchKey` mit der größten `sequence_no` (`SPEC-105` Nr. 14); `ReplayUseCase` liest allein die Exchanges des Keys statt der ganzen Session (`SPEC-135` Nr. 8, 9, 18); Strategien, Fehlercodes und Rangfolge unverändert, kein neues Schema; die fehlende Grenze gleichzeitiger Requests steht unter *Ungeprüft* |

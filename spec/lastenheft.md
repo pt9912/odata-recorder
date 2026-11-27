@@ -1,9 +1,9 @@
 # Lastenheft — OData Recorder
 
-**Version:** 0.7.0  
+**Version:** 0.8.0  
 **Status:** Draft  
 **Autor:** Projektentwurf  
-**Datum:** 2026-10-18
+**Datum:** 2026-11-27
 
 ---
 
@@ -299,8 +299,7 @@ Ein Import geschieht nicht stillschweigend während des Recordings.
 - **Anforderung:** Bei lokalem Speicher, 2 vCPU, 4 GiB RAM, 10.000 aufgezeichneten Austauschen, Antwort-Bodies bis 64 KiB und 20 Requests/s beträgt die zusätzliche Verarbeitungszeit des Replay-Dienstes p95 höchstens 100 ms.
   Der Wert gilt für Antworten, die der Dienst allein aus lokalem Speicher bildet (Replay und Mockserver);
   im Record- und im Pass-through-Betrieb bestimmt der Upstream die Antwortzeit, dort wird keine Latenz zugesagt.
-  Vorläufiger, nicht freigegebener Abnahmezielwert.
-  Fachlicher Owner muss p95 ≤ 100 ms oder einen alternativen Zielwert vor Status Accepted explizit bestätigen; ohne Entscheidung keine fachliche Freigabe.
+  Der Abnahmezielwert p95 ≤ 100 ms ist vom fachlichen Owner bestätigt.
 - **Messmethode:** Reproduzierbarer Lasttest mit 10 Minuten Messdauer nach Warm-up; Messung zwischen Request-Eingang und Beginn der Response-Ausgabe.
 
 ### LH-QA-02 — Determinismus
@@ -414,3 +413,4 @@ Tatsachenberichtigungen ohne Anforderungsänderung sind ausdrücklich als solche
 | 0.5.0 | 2026-10-17 | Integritätsanforderungen an die Persistenz, Freigabekriterien | — |
 | 0.6.0 | 2026-10-18 | Entwurf vor Accepted: Tatsachenberichtigung der Historie (technische Lösungsdetails gehören in die Spezifikation); keine Änderung des Anforderungsumfangs | — |
 | 0.7.0 | 2026-10-18 | Entwurf vor Accepted: `LH-QA-01` auf Antworten aus lokalem Speicher begrenzt, Upstream-abhängige Betriebsarten ausgenommen; Zielwert und Freigabe durch den Owner unverändert offen | — |
+| 0.8.0 | 2026-11-27 | Entwurf vor Accepted: Zielwert p95 ≤ 100 ms von `LH-QA-01` durch den fachlichen Owner bestätigt; Wert und Messmethode unverändert, Status bleibt `Draft` | — |
