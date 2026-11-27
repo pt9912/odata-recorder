@@ -19,14 +19,23 @@ Abnahmeumfang ist OData V4 mit JSON und XML-Metadaten. Die Anforderungen stehen 
 
 ## Was kann ich heute tun?
 
-Es gibt noch keinen lauffähigen Code. Vorhanden sind die Spezifikation und der
-Harness, der sie absichert:
+Sie können das Binary mit `make build` aus dem Quellstand bauen (Image
+`odata-recorder:build`) und mit dem Kommando `start` starten. Es bietet:
 
-- Das [Lastenheft](spec/lastenheft.md) (Entwurf, Version 0.5.0) legt die
-  Anforderungen mit Akzeptanzkriterien fest, die [Spezifikation](spec/spezifikation.md)
-  die technischen Details und die [Architektur](spec/architecture.md) die Komponenten.
-- `make gates` läuft grün: `baseline-verify` prüft die vendored Baseline, `docs-check`
-  die Doku-Referenzen. `make help` zeigt alle Targets.
+- die Betriebsarten `record` (an den Upstream weiterleiten und aufzeichnen),
+  `replay` (aus den Aufzeichnungen antworten), `mock` (CRUD und Abfrageoptionen
+  auf importierten Daten) und `hybrid` (zuerst der Mock, Aufzeichnungen oder
+  Upstream nur, wo Sie es freigeben);
+- eine Admin-Schnittstelle für Sessions, Imports, Workspaces und Snapshots;
+- HTTPS für den Dienst und für die Admin-Schnittstelle.
+
+Die Bedienung beschreibt das [Benutzerhandbuch](docs/user/benutzerhandbuch.md).
+Es gibt noch kein Release, und die Erstabnahme gegen die Anforderungen ist offen.
+
+Das [Lastenheft](spec/lastenheft.md) (Entwurf) legt die Anforderungen mit
+Akzeptanzkriterien fest, die [Spezifikation](spec/spezifikation.md) die
+technischen Details und die [Architektur](spec/architecture.md) die Komponenten.
+`make help` zeigt alle Targets.
 
 ## Warum odata-recorder?
 
