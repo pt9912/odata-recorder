@@ -18,6 +18,7 @@ Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-abnahme-belege](slice-abnahme-belege.md) (ohne Welle: Belege zur Erstabnahme für `LH-QA-07`, `LH-FA-08` und der Handbuch-Absatz zum Schutz der Daten; Zweig `slice-abnahme-belege`; kein Kettenslice).
 Daneben [slice-admin-abweisen-begrenzen](slice-admin-abweisen-begrenzen.md) ([welle-admin-api](../welle-admin-api.md): höchstens 20 Einträge des Abweisens je 60 s, Bedingung von M6; Zweig `slice-admin-abweisen-begrenzen`; kein Kettenslice).
+Daneben [slice-container-image](slice-container-image.md) ([welle-betrieb](../welle-betrieb.md): Laufzeit-Image und Neustarttest als Gate, Bedingung von M5; Zweig `slice-container-image`; Kettenslice, er hält die Gate-Kette).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
