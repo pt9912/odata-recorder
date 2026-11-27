@@ -1,11 +1,13 @@
 package sqlite
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/outbound"
@@ -149,12 +151,11 @@ func (r *RecordingRepository) ListBySession(ctx context.Context, sessionID strin
 }
 
 // Die Abfragen von ListByMatchKey. abfrageHoechsteSequenz liefert keine Zeile bei unbekannter Session; abfrageTreffer sucht
-// über den Index (session_id, match_key) und trifft bei leerem Key nichts (SPEC-105 Nr. 14, SPEC-004). Ohne INDEXED BY wählt
-// SQLite für das ORDER BY den Index (session_id, sequence_no) und liest jede Zeile der Session.
+// über den Index (session_id, match_key) und trifft bei leerem Key nichts (SPEC-105 Nr. 14, SPEC-004). Keine der beiden nennt
+// eine Ordnung: SQLite sortiert nicht und legt keine temporäre Struktur an, ListByMatchKey ordnet die Treffer nach dem Lesen.
 const (
 	abfrageHoechsteSequenz = "SELECT coalesce((SELECT max(sequence_no) FROM exchanges WHERE session_id = s.id), 0) FROM sessions AS s WHERE s.id = ?"
-	abfrageTreffer         = "SELECT " + exchangeSpalten + " FROM exchanges INDEXED BY idx_exchange_match" +
-		" WHERE session_id = ?1 AND match_key = ?2 AND ?2 <> '' ORDER BY sequence_no"
+	abfrageTreffer         = "SELECT " + exchangeSpalten + " FROM exchanges WHERE session_id = ?1 AND match_key = ?2 AND ?2 <> ''"
 )
 
 // ListByMatchKey liefert die Exchanges der Session mit dem match_key nach sequence_no und die größte sequence_no der Session.
@@ -182,6 +183,7 @@ func (r *RecordingRepository) ListByMatchKey(ctx context.Context, sessionID, mat
 	if err != nil {
 		return nil, 0, err
 	}
+	slices.SortFunc(treffer, func(a, b model.Exchange) int { return cmp.Compare(a.SequenceNo, b.SequenceNo) })
 	return treffer, hoechste, nil
 }
 

@@ -2,8 +2,10 @@ package sqlite_test
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -250,15 +252,50 @@ func TestListByMatchKeyGespeicherterLeererKey(t *testing.T) {
 	}
 }
 
-// TestListByMatchKeyNutztDenIndex hält SPEC-105 Nr. 14 und SPEC-004: die Abfrage der Treffer sucht über idx_exchange_match
-// nach Session und Key, die der größten Nummer über einen Index nach der Session; keine durchläuft die Tabelle exchanges. Ein
-// Index, der ohne die Bedingung durchlaufen wird, heißt im Plan auch SEARCH; deshalb steht je Abfrage die Bedingung als Literal.
+// TestListByMatchKeyOrdnetNachDerNummer hält SPEC-105 Nr. 14: in der Datei weicht die Folge der Zeilen von der Folge der
+// Nummern ab; die Abfrage der Treffer liefert sie dort in anderer Folge, die Operation nach sequence_no.
+func TestListByMatchKeyOrdnetNachDerNummer(t *testing.T) {
+	d, _ := zweiAblagen(t)
+	lmSession(t, d, lmKey, "sha256:fremd", lmKey, lmKey)
+	if _, err := d.SQL().Exec(`UPDATE exchanges SET rowid = 1000 - sequence_no`); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := d.SQL().Query(sqlite.AbfragenListByMatchKey()[1], "s", lmKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spalten, err := rows.Columns()
+	if err != nil || !rows.Next() {
+		t.Fatalf("keine Zeile: %v", errors.Join(err, rows.Err()))
+	}
+	var erste string
+	ziele := make([]any, len(spalten))
+	ziele[0] = &erste
+	for i := 1; i < len(ziele); i++ {
+		ziele[i] = new(any)
+	}
+	if err := errors.Join(rows.Scan(ziele...), rows.Close()); err != nil || erste != "e4" {
+		t.Fatalf("die Abfrage liefert zuerst %q (%v): die Folge der Datei weicht nicht ab", erste, err)
+	}
+	if got := lmLies(context.Background(), t, d); got != (lmStand{ids: "e1,e3,e4", hoechste: 4}) {
+		t.Errorf("Stand %+v, erwartet e1,e3,e4 und 4", got)
+	}
+}
+
+// TestListByMatchKeyNutztDenIndex hält SPEC-105 Nr. 14 und SPEC-004: der Plan jeder Abfrage der Operation steht als Literal.
+// Die Treffer sucht idx_exchange_match nach Session und Key, die größte Nummer ein Index nach der Session, und keine legt eine
+// temporäre Struktur an (kein USE TEMP, kein AUTOMATIC). Ob eine Abfrage den Index nur an einem Ende liest, sagt der Plan
+// nicht; das hält TestListByMatchKeyDurchlaeuftNichtDieSession.
 func TestListByMatchKeyNutztDenIndex(t *testing.T) {
 	d, _ := zweiAblagen(t)
 	lmSession(t, d, lmKey)
 	abfragen := sqlite.AbfragenListByMatchKey()
 	args := [][]any{{"s"}, {"s", lmKey}}
-	soll := []string{"(session_id=?)", "idx_exchange_match (session_id=? AND match_key=?)"}
+	soll := []string{
+		"SEARCH s USING COVERING INDEX sqlite_autoindex_sessions_2 (id=?)\nCORRELATED SCALAR SUBQUERY 1\n" +
+			"SEARCH exchanges USING COVERING INDEX sqlite_autoindex_exchanges_1 (session_id=?)",
+		"SEARCH exchanges USING INDEX idx_exchange_match (session_id=? AND match_key=?)",
+	}
 	if len(abfragen) != 2 {
 		t.Fatalf("%d Abfragen, erwartet 2", len(abfragen))
 	}
@@ -280,9 +317,134 @@ func TestListByMatchKeyNutztDenIndex(t *testing.T) {
 			t.Fatal(err)
 		}
 		ganz := strings.Join(plan, "\n")
-		if strings.Contains(ganz, "SCAN exchanges") || !strings.Contains(ganz, "SEARCH exchanges USING") || !strings.Contains(ganz, soll[i]) {
-			t.Errorf("Abfrage %d sucht nicht über %q:\n%s", i, soll[i], ganz)
+		if strings.Contains(ganz, "USE TEMP") || strings.Contains(ganz, "AUTOMATIC") {
+			t.Errorf("Abfrage %d legt eine temporäre Struktur an:\n%s", i, ganz)
 		}
+		if ganz != soll[i] {
+			t.Errorf("Plan der Abfrage %d:\n%s\nerwartet:\n%s", i, ganz, soll[i])
+		}
+	}
+}
+
+// fuelle legt in der Session s die Exchanges e<von> bis e<bis> als Kopien des Exchange vorlage an, je mit seiner Nummer.
+func fuelle(t *testing.T, d *sqlite.DB, vorlage string, von, bis int) {
+	t.Helper()
+	const spalten = `session_id, method, path, raw_query, match_key, started_at, finished_at, key_redacted, request_headers_json,
+		request_body_state, request_blob, response_status, response_headers_json, response_body_state, response_blob,
+		capture_status, request_redaction_status, response_redaction_status, body_integrity, replay_equivalence`
+	if _, err := d.SQL().Exec(`WITH RECURSIVE n(i) AS (SELECT ? UNION ALL SELECT i + 1 FROM n WHERE i < ?)
+		INSERT INTO exchanges(id, sequence_no, `+spalten+`) SELECT 'e' || i, i, `+spalten+` FROM n, exchanges WHERE id = ?`,
+		von, bis, vorlage); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// seitenDatei ist eine geschlossene Datei, in der die drei B-Bäume von exchanges (Tabelle, Index über Session und Nummer,
+// Index über Session und Key) mehr als eine Seite haben: e1 bis e3000 mit dem Key sha256:aaa, danach e3001 und e3002 mit
+// sha256:zzz. Die Treffer von sha256:zzz und die größte Nummer liegen damit in jedem Baum am Ende, die Session beginnt am
+// Anfang. Die Abbildung nennt je Baum die Seite seiner Wurzel.
+func seitenDatei(t *testing.T) (string, map[string]int) {
+	t.Helper()
+	pfad := filepath.Join(t.TempDir(), "seiten.db")
+	d := open(t, pfad)
+	if _, err := d.SQL().Exec(`INSERT INTO services(id, service_root, odata_version) VALUES ('d', '/', '4.0')`); err != nil {
+		t.Fatal(err)
+	}
+	lmSession(t, d, "sha256:aaa")
+	fuelle(t, d, "e1", 2, 3000)
+	for _, n := range []int{3001, 3002} {
+		if err := d.Recording().Append(context.Background(), lmExchange(fmt.Sprintf("e%d", n), n, "sha256:zzz")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wurzeln := map[string]int{}
+	for _, name := range []string{"exchanges", "sqlite_autoindex_exchanges_1", "idx_exchange_match"} {
+		var seite int
+		if err := d.SQL().QueryRow("SELECT rootpage FROM sqlite_master WHERE name = ?", name).Scan(&seite); err != nil {
+			t.Fatal(err)
+		}
+		wurzeln[name] = seite
+	}
+	if err := d.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Stat(pfad + "-wal"); err == nil && fi.Size() != 0 {
+		t.Fatalf("WAL mit %d Bytes nach dem Schließen", fi.Size())
+	}
+	return pfad, wurzeln
+}
+
+// nulle überschreibt eine Seite des B-Baums mit der Wurzel wurzel mit Nullen: die Wurzel selbst oder, mit blatt, das erste
+// Blatt (Dateiformat von SQLite: Seitengröße ab Byte 16, innere Seiten 0x02 und 0x05, Blätter 0x0a und 0x0d).
+func nulle(t *testing.T, pfad string, wurzel int, blatt bool) {
+	t.Helper()
+	datei, err := os.ReadFile(pfad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	groesse := int(binary.BigEndian.Uint16(datei[16:]))
+	seite := wurzel
+	for blatt {
+		kopf := (seite - 1) * groesse
+		if typ := datei[kopf]; typ == 0x0a || typ == 0x0d {
+			break
+		} else if typ != 0x02 && typ != 0x05 {
+			t.Fatalf("Seite %d: Art %#x", seite, typ)
+		}
+		zelle := int(binary.BigEndian.Uint16(datei[kopf+12:]))
+		seite = int(binary.BigEndian.Uint32(datei[kopf+zelle:]))
+	}
+	if blatt && seite == wurzel {
+		t.Fatalf("der Baum mit der Wurzel %d hat nur eine Seite", wurzel)
+	}
+	clear(datei[(seite-1)*groesse : seite*groesse])
+	if err := os.WriteFile(pfad, datei, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestListByMatchKeyDurchlaeuftNichtDieSession hält SPEC-135 Nr. 8 (der Aufwand wächst nicht mit der Session): in jedem der
+// drei B-Bäume von exchanges ist das erste Blatt genullt, ein Durchlauf der Session scheitert an jedem. Die Operation gelingt:
+// sie liest keinen der Bäume von seinem Anfang. Nicht geführt: eine Abfrage, die einen Teil der Session liest, in dem das erste
+// Blatt nicht liegt.
+func TestListByMatchKeyDurchlaeuftNichtDieSession(t *testing.T) {
+	pfad, wurzeln := seitenDatei(t)
+	for _, wurzel := range wurzeln {
+		nulle(t, pfad, wurzel, true)
+	}
+	d := open(t, pfad)
+	durchlaeufe := []string{
+		"SELECT count(raw_query) FROM exchanges NOT INDEXED",
+		"SELECT count(*) FROM exchanges INDEXED BY sqlite_autoindex_exchanges_1 WHERE session_id = 's'",
+		"SELECT count(*) FROM exchanges INDEXED BY idx_exchange_match WHERE session_id = 's'",
+	}
+	if len(wurzeln) != 3 || len(durchlaeufe) != 3 {
+		t.Fatalf("%d Bäume, %d Durchläufe", len(wurzeln), len(durchlaeufe))
+	}
+	for _, q := range durchlaeufe {
+		var n int
+		if err := d.SQL().QueryRow(q).Scan(&n); err == nil {
+			t.Fatalf("%q gelang mit %d: er liest die genullte Seite nicht", q, n)
+		}
+	}
+	l, n, err := d.Recording().ListByMatchKey(context.Background(), "s", "sha256:zzz")
+	if err != nil || len(l) != 2 || l[0].ID != "e3001" || l[1].ID != "e3002" || n != 3002 {
+		t.Errorf("ListByMatchKey: %d Treffer, größte %d, %v", len(l), n, err)
+	}
+}
+
+// TestListByMatchKeyBeschaedigteDatei hält, dass beide Abfragen eine beschädigte Datei als ErrBeschaedigt melden (SPEC-103
+// Nr. 6): die Wurzel je eines Index ist genullt, des Index der größten Nummer und des Index der Treffer.
+func TestListByMatchKeyBeschaedigteDatei(t *testing.T) {
+	for _, index := range []string{"sqlite_autoindex_exchanges_1", "idx_exchange_match"} {
+		t.Run(index, func(t *testing.T) {
+			pfad, wurzeln := seitenDatei(t)
+			nulle(t, pfad, wurzeln[index], false)
+			l, n, err := open(t, pfad).Recording().ListByMatchKey(context.Background(), "s", "sha256:zzz")
+			if !errors.Is(err, outbound.ErrBeschaedigt) || len(l) != 0 || n != 0 {
+				t.Errorf("ListByMatchKey: %d Treffer, %d, %v; erwartet ErrBeschaedigt", len(l), n, err)
+			}
+		})
 	}
 }
 
@@ -293,14 +455,7 @@ func TestListByMatchKeySpeicher(t *testing.T) {
 	messe := func(groesse int) float64 {
 		d, _ := zweiAblagen(t)
 		lmSession(t, d, lmKey, lmKey, lmKey, "sha256:fremd")
-		spalten := `session_id, method, path, raw_query, match_key, started_at, finished_at, key_redacted, request_headers_json,
-			request_body_state, request_blob, response_status, response_headers_json, response_body_state, response_blob,
-			capture_status, request_redaction_status, response_redaction_status, body_integrity, replay_equivalence`
-		if _, err := d.SQL().Exec(`WITH RECURSIVE n(i) AS (SELECT 5 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
-			INSERT INTO exchanges(id, sequence_no, `+spalten+`) SELECT 'e' || i, i, `+spalten+` FROM n, exchanges WHERE id = 'e4'`,
-			groesse); err != nil {
-			t.Fatal(err)
-		}
+		fuelle(t, d, "e4", 5, groesse)
 		if got := lmLies(context.Background(), t, d); !reflect.DeepEqual(got, lmStand{ids: "e1,e2,e3", hoechste: groesse}) {
 			t.Fatalf("Session mit %d: %+v", groesse, got)
 		}
