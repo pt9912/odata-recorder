@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest-leser-zeitgrenze
+**Fund:** Der Kopf von `pipeLauf` sagte, ein nie endendes Lesen ende im panic von `synctest`, wenn alle Goroutinen der Blase blockiert sind, sonst im panic der Wache; für eine Warteschleife mit `time.Sleep` und für ein Warten auf eine Sperre, deren Halter auf die Uhr der Blase wartet, stimmte die Abgrenzung nicht (F-2, LOW; kein Test führt die Hänger). Die Fix-Runde nennt beide Formen. Beleg: `2026-11-27-slice-lasttest-leser-zeitgrenze-review` (F-2, m4, m6).
