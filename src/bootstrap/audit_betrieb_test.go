@@ -776,10 +776,52 @@ func TestAuditSchreibfehlerAendertNichts(t *testing.T) {
 	}
 }
 
+// TestAuditAdminZellen (D03, SPEC-300 Nr. 13 c) fährt jede Art, die der Admin-Adapter schreibt, je Modus am Admin-Listener
+// eines hochgefahrenen Handle: in einer Zelle, die gilt, genau eine neue Zeile in audit.jsonl mit genau den Feldern ihrer
+// Art und der Korrelations-ID der Antwort; die drei Zellen import_veroeffentlicht außerhalb von record sind 404 ohne Zeile
+// (es gibt keine Route, SPEC-300 Nr. 5 c).
+func TestAuditAdminZellen(t *testing.T) {
+	prozesse := map[string]*zellenProzess{}
+	zellen, gelten := 0, 0
+	for _, z := range artZellen() {
+		p := prozesse[z.modus]
+		if p == nil {
+			p = neuerZellenProzess(t, z.modus)
+			prozesse[z.modus] = p
+		}
+		zellen++
+		name := z.modus + " " + string(z.art)
+		a := p.ausloeser(z.art)
+		vorher := zeilenVon(t, name, liesAudit(t, p.dir))
+		status, korrelation := p.rufe(a)
+		nachher := zeilenVon(t, name, liesAudit(t, p.dir))
+		if !z.gilt {
+			if status != 404 || len(nachher) != len(vorher) {
+				t.Errorf("%s: Status %d, %d neue Zeilen; erwartet 404 ohne Zeile", name, status, len(nachher)-len(vorher))
+			}
+			continue
+		}
+		gelten++
+		if status != a.status || len(nachher) != len(vorher)+1 {
+			t.Errorf("%s: Status %d, %d neue Zeilen; erwartet %d und eine Zeile", name, status, len(nachher)-len(vorher), a.status)
+			continue
+		}
+		m := nachher[len(nachher)-1]
+		ist := sollZeile{m["art"], m["service_id"], m["session_id"], m["workspace_id"], m["import_id"], m["error_code"]}
+		// Neben den fünf Feldern des Vergleichs und art stehen genau timestamp und correlation_id.
+		if soll := p.soll(z.art); ist != soll || len(m) != soll.felder()+3 || m["correlation_id"] != korrelation || korrelation == "" || m["timestamp"] == "" {
+			t.Errorf("%s: Zeile %v, erwartet %+v mit der Korrelations-ID %q", name, m, soll, korrelation)
+		}
+	}
+	if zellen != 32 || gelten != 29 || len(prozesse) != 4 {
+		t.Errorf("%d Zellen, %d mit Eintrag, %d Modi; erwartet 32, 29 und 4", zellen, gelten, len(prozesse))
+	}
+}
+
 // TestAuditAufrufstellen fängt V07: die Aufrufstellen von Audit.Append im Code der Dienste sind die vier Zeilen
-// V01a bis V01d (per Syntaxbaum gegen das Literal W), die Arten sind zwölf, und die Zellen (Modus, Art) der Fälle sind
-// Modus × Arten ohne die acht des Admin-Adapters (kein Use Case; ihre Zellen führt dieser Test nicht) und ohne (replay,
-// session_geloescht) und (replay, import_fehlgeschlagen).
+// V01a bis V01d (per Syntaxbaum gegen das Literal W), die Arten sind zwölf, und die Zellen (Modus, Art) sind die der Fälle
+// (die vier Arten der Dienste in record und replay ohne (replay, session_geloescht) und (replay, import_fehlgeschlagen))
+// und die von TestAuditAdminZellen (die acht Arten des Admin-Adapters in jedem der vier Modi).
 func TestAuditAufrufstellen(t *testing.T) {
 	soll := []string{
 		"baselineimport/importer.go ArtImportFehlgeschlagen",
@@ -840,8 +882,7 @@ func TestAuditAufrufstellen(t *testing.T) {
 	}
 	// Die fünfte bis zwölfte Art schreibt der Admin-Adapter beim Abweisen (SPEC-238 Nr. 8), beim Anlegen und beim Beenden einer
 	// Session (SPEC-292 Nr. 11), nach einem gelungenen Import (SPEC-297 Nr. 10) und nach dem Anlegen, Zurücksetzen,
-	// Wiederherstellen eines Workspace und dem Erzeugen eines Snapshots (SPEC-298 Nr. 11); kein Use Case schreibt sie, und
-	// dieser Test, der die Use Cases fährt, führt für diese acht Arten keine Zelle.
+	// Wiederherstellen eines Workspace und dem Erzeugen eines Snapshots (SPEC-298 Nr. 11); kein Use Case schreibt sie.
 	adapterArten := []support.AuditArt{
 		support.ArtAdminAbgewiesen, support.ArtSessionAngelegt, support.ArtSessionBeendet, support.ArtImportVeroeffentlicht,
 		support.ArtWorkspaceAngelegt, support.ArtWorkspaceZurueckgesetzt, support.ArtSnapshotErzeugt, support.ArtWorkspaceWiederhergestellt,
@@ -850,11 +891,17 @@ func TestAuditAufrufstellen(t *testing.T) {
 	for _, f := range auditFaelle() {
 		zellen = append(zellen, f.modus+" "+string(f.art))
 	}
-	for _, modus := range modi() {
-		for _, s := range support.Arten() {
-			if slices.Contains(adapterArten, s.Art) {
-				continue
+	for _, z := range artZellen() {
+		zellen = append(zellen, z.modus+" "+string(z.art))
+	}
+	for _, s := range support.Arten() {
+		if slices.Contains(adapterArten, s.Art) {
+			for _, modus := range vierModi() {
+				erwartet = append(erwartet, modus+" "+string(s.Art))
 			}
+			continue
+		}
+		for _, modus := range modi() {
 			if modus == modusReplay && (s.Art == support.ArtSessionGeloescht || s.Art == support.ArtImportFehlgeschlagen) {
 				continue
 			}
@@ -863,8 +910,8 @@ func TestAuditAufrufstellen(t *testing.T) {
 	}
 	slices.Sort(zellen)
 	slices.Sort(erwartet)
-	if got := slices.Compact(zellen); !slices.Equal(got, erwartet) || len(erwartet) != 6 {
-		t.Errorf("Zellen der Fälle %v, erwartet Modus × Arten ohne zwei: %v", got, erwartet)
+	if got := slices.Compact(zellen); !slices.Equal(got, erwartet) || len(erwartet) != 6+32 {
+		t.Errorf("Zellen %v, erwartet die Arten der Dienste in 6 und die des Adapters in 32 Zellen: %v", got, erwartet)
 	}
 }
 
