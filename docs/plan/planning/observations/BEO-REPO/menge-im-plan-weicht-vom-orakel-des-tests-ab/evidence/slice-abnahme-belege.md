@@ -1,0 +1,2 @@
+**Vorgang:** slice-abnahme-belege
+**Fund:** Die Zeile E7 des Plans sagte zu, die gelaufenen Fälle seien die fünf des Nachweises; der Test zählte allein die Zahl 5, ein Fall doppelt statt eines anderen blieb grün (F-5, INFO). Seit der Fix-Runde hält er die Namen; die Inhalte unter den Namen bleiben ein benanntes Negativ. Beleg: Plan §3; `2026-11-27-slice-abnahme-belege-review`, `2026-11-27-slice-abnahme-belege-verifikation`.

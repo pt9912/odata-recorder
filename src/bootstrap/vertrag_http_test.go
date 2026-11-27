@@ -370,7 +370,7 @@ func TestVertragMatrix(t *testing.T) {
 	}
 }
 
-// TestVertragMatrixZaehlung (T01): die Tabelle führt 36 IDs mit 92 Schritten; je ein Lauf ohne eine ID, ohne einen Schritt, mit einer ID doppelt und mit
+// TestVertragMatrixZaehlung (T01): die Tabelle führt 36 IDs mit 93 Schritten; je ein Lauf ohne eine ID, ohne einen Schritt, mit einer ID doppelt und mit
 // einem nicht gelaufenen Schritt ist ein Verstoß, und zwar für jede ID und jeden Schritt der Tabelle.
 func TestVertragMatrixZaehlung(t *testing.T) {
 	fixtures := abFixtures()
@@ -403,8 +403,8 @@ func TestVertragMatrixZaehlung(t *testing.T) {
 			}
 		}
 	}
-	if faelle != 2*36+92 {
-		t.Errorf("%d Fälle gelaufen, erwartet %d", faelle, 2*36+92)
+	if faelle != 2*36+93 {
+		t.Errorf("%d Fälle gelaufen, erwartet %d", faelle, 2*36+93)
 	}
 }
 
