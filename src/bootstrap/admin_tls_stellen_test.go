@@ -170,30 +170,42 @@ func TestAdminBuildOhneListener(t *testing.T) {
 	}
 }
 
-// startLauf ist ein Start mit Haken am Bind: jede Adresse geht auf 127.0.0.1:0, die Adresse des zweiten Binds (ADMIN_LISTEN)
-// landet in admin.
+// startLauf ist ein Start mit Haken am Bind: jede Adresse geht auf 127.0.0.1:0; adressen trägt die zwei gebundenen Adressen in der
+// Folge der Binds (LISTEN, dann ADMIN_LISTEN).
 type startLauf struct {
 	stderr   *syncPuffer
-	admin    chan string
+	adressen chan string
 	ergebnis chan int
 	abbruch  context.CancelFunc
 }
 
 func starte(env []string) startLauf {
 	ctx, abbruch := context.WithTimeout(context.Background(), 20*time.Second)
-	l := startLauf{stderr: &syncPuffer{}, admin: make(chan string, 1), ergebnis: make(chan int, 1), abbruch: abbruch}
+	l := startLauf{stderr: &syncPuffer{}, adressen: make(chan string, 2), ergebnis: make(chan int, 1), abbruch: abbruch}
 	b := bootstrap.StandardBauteile()
-	echt := b.Listen
-	binds := 0
-	b.Listen = func(ctx context.Context, network, _ string) (net.Listener, error) {
+	b.Listen = loopbackBind(b.Listen, l.adressen)
+	go func() { l.ergebnis <- bootstrap.StartMit(ctx, env, l.stderr, b) }()
+	return l
+}
+
+// loopbackBind bindet jede Adresse auf 127.0.0.1:0 und legt die gebundene Adresse in adressen, solange dort Platz ist.
+func loopbackBind(echt func(context.Context, string, string) (net.Listener, error), adressen chan string) func(context.Context, string, string) (net.Listener, error) {
+	return func(ctx context.Context, network, _ string) (net.Listener, error) {
 		lis, err := echt(ctx, network, "127.0.0.1:0")
-		if binds++; err == nil && binds == 2 {
-			l.admin <- lis.Addr().String()
+		if err == nil && len(adressen) < cap(adressen) {
+			adressen <- lis.Addr().String()
 		}
 		return lis, err
 	}
-	go func() { l.ergebnis <- bootstrap.StartMit(ctx, env, l.stderr, b) }()
-	return l
+}
+
+// listener liefert die zwei Adressen eines hochgefahrenen Starts.
+func (l startLauf) listener(t *testing.T) (odata, admin string) {
+	t.Helper()
+	if len(l.adressen) != 2 {
+		t.Fatalf("%d Listener, erwartet 2: %s", len(l.adressen), l.stderr.String())
+	}
+	return <-l.adressen, <-l.adressen
 }
 
 // warte wartet auf `start: bereit` oder eine Zeile eines Verstoßes.
@@ -230,12 +242,8 @@ func TestAdminWarnungStart(t *testing.T) {
 			zellen++
 			l := starte(adminEnv(modus, filepath.Join(t.TempDir(), "d"), env...))
 			l.warte()
-			select {
-			case adresse := <-l.admin:
-				pruefeTransportAm(t, fmt.Sprintf("%s Weg %d", modus, weg), adresse, weg == bootstrap.WegTLS, w.wurzel)
-			default:
-				t.Errorf("%s Weg %d: kein Admin-Listener: %s", modus, weg, l.stderr.String())
-			}
+			_, admin := l.listener(t)
+			pruefeTransportAm(t, fmt.Sprintf("%s Weg %d", modus, weg), admin, weg == bootstrap.WegTLS, w.wurzel)
 			code := l.beende()
 			var soll []string
 			if weg == bootstrap.WegKlartext {

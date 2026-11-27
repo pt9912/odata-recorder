@@ -183,3 +183,72 @@ func TestAdminNamenAusKonfig(t *testing.T) {
 		t.Errorf("nur %d Literale in admintls.go gelesen", literale)
 	}
 }
+
+// TestAdminLadenNebenFrueheren (SPEC-299 Nr. 6, 8 a, SPEC-110 Nr. 8, 12): ein Verstoß jeder Stufe, die das Laden vor der Prüfung des
+// Transports meldet (12), × Verstoß des Transports {Zusammenhang, Paar fehlt, Flag ungültig} × 4 Modi = 144 Zellen: eine Meldung
+// trägt die Schlüssel beider, nach Schlüssel sortiert, und die Zeilen des Transports.
+func TestAdminLadenNebenFrueheren(t *testing.T) {
+	fehlt := filepath.Join(t.TempDir(), "fehlt.pem")
+	frueher := []struct{ env, schluessel []string }{
+		{[]string{"MODE=Record"}, []string{"MODE"}}, {[]string{"LISTEN=x"}, []string{"LISTEN"}},
+		{[]string{"ADMIN_X=1"}, []string{"ADMIN_X"}}, {[]string{"REDACT_HEADERS=bad name"}, []string{"REDACT_HEADERS"}},
+		{[]string{"UPSTREAM_TLS_VERIFY=yes"}, []string{"UPSTREAM_TLS_VERIFY"}}, {[]string{"LISTEN_TLS_X=1"}, []string{"LISTEN_TLS_X"}},
+		{[]string{"HYBRID_FALLBACK=x"}, []string{"HYBRID_FALLBACK"}}, {[]string{"SERVICE_ID=a b"}, []string{"SERVICE_ID"}},
+		{[]string{"MODE=hybrid", "SERVICE_ODATA_VERSION=2.0"}, []string{"MODE"}},
+		{[]string{"PUBLIC_BASE_URL=ftp://h"}, []string{"PUBLIC_BASE_URL"}},
+		{[]string{"UPSTREAM_CA_FILE=" + fehlt}, []string{"UPSTREAM_CA_FILE"}},
+		{[]string{"LISTEN_TLS_CERT=" + fehlt, "LISTEN_TLS_KEY=" + fehlt}, []string{"LISTEN_TLS_CERT", "LISTEN_TLS_KEY"}},
+	}
+	transport := []struct{ env, zeilen []string }{
+		{[]string{"ADMIN_LISTEN=0.0.0.0:8081"}, []string{zeileZusammenhang}},
+		{[]string{"ADMIN_TLS_CERT=" + fehlt, "ADMIN_TLS_KEY=" + fehlt}, []string{zeileAdminCertFehlt, zeileAdminKeyFehlt}},
+		{[]string{"ADMIN_ALLOW_PLAINTEXT=yes"}, []string{zeileFlag}},
+	}
+	zellen := 0
+	for _, modus := range vierModi() {
+		for _, f := range frueher {
+			for _, tr := range transport {
+				zellen++
+				_, zeilen := lade(t, adminEnv(modus, filepath.Join(t.TempDir(), "d"), slices.Concat(f.env, tr.env)...)...)
+				soll := slices.Concat(f.schluessel, schluessel(t, tr.zeilen))
+				slices.Sort(soll)
+				fehlen := slices.ContainsFunc(tr.zeilen, func(z string) bool { return !slices.Contains(zeilen, z) })
+				if !slices.Equal(schluessel(t, zeilen), soll) || fehlen {
+					t.Errorf("%s %q %q: %q, erwartet die Schlüssel %q und %q", modus, f.env, tr.env, zeilen, soll, tr.zeilen)
+				}
+			}
+		}
+	}
+	if zellen != 144 {
+		t.Errorf("%d Zellen, erwartet 144", zellen)
+	}
+}
+
+// TestAdminKeineAusgabeAmStrom (SPEC-299 Nr. 12): keine Datei, die die Pfade und das Flag des Transports trägt (6 Dateien), ruft print
+// oder println, nennt os.NewFile oder importiert syscall; so schreibt keine an os.Stdout und os.Stderr vorbei auf die Deskriptoren.
+func TestAdminKeineAusgabeAmStrom(t *testing.T) {
+	for _, datei := range []string{"admintls.go", "konfig.go", "konfig_admin.go", "wurzel.go", "lebenszyklus.go", "start.go"} {
+		f, err := parser.ParseFile(token.NewFileSet(), datei, nil, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, i := range f.Imports {
+			if i.Path.Value == `"syscall"` {
+				t.Errorf("%s importiert syscall", datei)
+			}
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			switch x := n.(type) {
+			case *ast.CallExpr:
+				if id, ok := x.Fun.(*ast.Ident); ok && (id.Name == "print" || id.Name == "println") {
+					t.Errorf("%s ruft %s", datei, id.Name)
+				}
+			case *ast.SelectorExpr:
+				if id, ok := x.X.(*ast.Ident); ok && id.Name == "os" && x.Sel.Name == "NewFile" {
+					t.Errorf("%s nennt os.NewFile", datei)
+				}
+			}
+			return true
+		})
+	}
+}

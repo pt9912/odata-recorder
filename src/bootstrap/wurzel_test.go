@@ -383,7 +383,7 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		},
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	var transport bootstrap.AdminEingabe
+	var transporte []bootstrap.AdminEingabe
 	lauf2 := func(modus string) *haken {
 		kk := k
 		kk.Modus = modus
@@ -395,7 +395,7 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		b := h.bauteile()
 		// Der Verbraucher der drei Werte des Transports ist die Prüfung in Build.
 		bootstrap.SetzePruefung(&b, func(e bootstrap.AdminEingabe, jetzt time.Time) (bootstrap.AdminTransport, []bootstrap.TLSVerstoss) {
-			transport = e
+			transporte = append(transporte, e)
 			return bootstrap.PruefeAdminTransport(e, jetzt)
 		})
 		if _, err := lauf(ctx, t, kk, log, b); err != nil {
@@ -412,6 +412,10 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 	dp := []replay.Dienst{{ID: "x1", Root: "/r1"}, {ID: "x2", Root: "/r2"}}
 	gl := reflect.DeepEqual
 	tlsGezeigt := tlsBedientVon(r.server.Listener, p.server.Listener)
+	// beide ist wahr, wenn die Prüfung in beiden Läufen (record und replay) die Bedingung trägt.
+	beide := func(ok func(bootstrap.AdminEingabe) bool) bool {
+		return len(transporte) == 2 && ok(transporte[0]) && ok(transporte[1])
+	}
 	pruefungen := map[string]bool{
 		"Modus":                r.recorder != nil && r.replay == nil && p.replay != nil && p.recorder == nil && p.session != nil && p.upstream == nil,
 		"Listen":               r.listenAdrs[0] == k.Listen && p.listenAdrs[0] == k.Listen,
@@ -419,9 +423,9 @@ func TestWerteErreichenVerbraucher(t *testing.T) {
 		"AdminTokenFile":       tokenAus(t, r.adminKfg.Token, k.AdminTokenFile) && tokenAus(t, p.adminKfg.Token, k.AdminTokenFile),
 		"ListenTLSCert":        tlsGezeigt,
 		"ListenTLSKey":         tlsGezeigt,
-		"AdminTLSCert":         transport.CertPfad == k.AdminTLSCert,
-		"AdminTLSKey":          transport.KeyPfad == k.AdminTLSKey,
-		"AdminAllowPlaintext":  transport.Klartext,
+		"AdminTLSCert":         beide(func(e bootstrap.AdminEingabe) bool { return e.CertPfad == k.AdminTLSCert }),
+		"AdminTLSKey":          beide(func(e bootstrap.AdminEingabe) bool { return e.KeyPfad == k.AdminTLSKey }),
+		"AdminAllowPlaintext":  beide(func(e bootstrap.AdminEingabe) bool { return e.Klartext }),
 		"DataDir":              fileExists(filepath.Join(dir, modusRecord, dateiDB)) && fileExists(filepath.Join(dir, modusReplay, verzeichnisB)),
 		"Dienste":              gl(r.recorder.Dienste, dr) && gl(p.replay.Dienste, dp),
 		"ReplayStrategy":       p.replay.Strategie == model.StrategyLast,

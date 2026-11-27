@@ -220,7 +220,7 @@ Rechte: Lege die Schlüsseldatei mit den Rechten `0400` oder `0600` an. Der Dien
 
 ### TLS der Admin-Schnittstelle
 
-Aufgabe: die Admin-Schnittstelle über HTTPS annehmen lassen oder, auf einem Host außerhalb von Loopback, bewusst ohne TLS betreiben.
+Aufgabe: die Admin-Schnittstelle Anfragen über HTTPS annehmen lassen oder sie auf einem Host außerhalb von Loopback bewusst ohne TLS betreiben.
 
 Voraussetzung: wie oben eine PEM-Datei mit dem Zertifikat und eine PEM-Datei mit dem privaten Schlüssel, hier für die Admin-Schnittstelle. `ADMIN_TLS_CERT` und `ADMIN_TLS_KEY` dürfen auf dieselben Dateien zeigen wie `LISTEN_TLS_CERT` und `LISTEN_TLS_KEY`; die Schlüssel des Dienstes und der Admin-Schnittstelle wirken unabhängig voneinander.
 
@@ -231,7 +231,7 @@ Vorgehen:
 3. Nur wenn die Schnittstelle dort ohne TLS laufen soll: setze `ADMIN_ALLOW_PLAINTEXT=true` statt des Zertifikatspaars.
 4. Starte den Dienst mit `start`.
 
-Ergebnis: Mit dem Zertifikatspaar nimmt die Admin-Schnittstelle Anfragen allein über HTTPS an, in jedem Modus und auf jedem Host, mit TLS 1.2 und TLS 1.3 und HTTP/1.1; ein Fehler im Paar lässt den Start scheitern, nie auf HTTP zurückfallen. Ohne das Paar nimmt sie auf Loopback Anfragen über HTTP an. Außerhalb von Loopback verlangt sie ohne das Paar `ADMIN_ALLOW_PLAINTEXT=true`. Die Dateien liest der Dienst beim Start: ein neues Zertifikat oder ein neuer Schlüssel gilt ab dem nächsten Start. Läuft das Zertifikat im Betrieb ab, bedient die Schnittstelle es weiter und meldet nichts; der Client lehnt es ab.
+Ergebnis: Mit dem Zertifikatspaar nimmt die Admin-Schnittstelle Anfragen allein über HTTPS an, in jedem Modus und auf jedem Host. Sie bedient TLS 1.2 und TLS 1.3 und spricht HTTP/1.1. Ein Fehler im Paar lässt den Start scheitern; die Schnittstelle fällt nie auf HTTP zurück. Ohne das Paar nimmt sie auf Loopback Anfragen über HTTP an. Außerhalb von Loopback verlangt sie ohne das Paar `ADMIN_ALLOW_PLAINTEXT=true`. Die Dateien liest der Dienst beim Start: ein neues Zertifikat oder ein neuer Schlüssel gilt ab dem nächsten Start. Läuft das Zertifikat im Betrieb ab, bedient die Schnittstelle es weiter und meldet nichts; der Client lehnt es ab.
 
 Prüfung beim Start: Der Dienst prüft das Paar wie das des Dienstes. Bei einem Verstoß endet der Start mit der Meldung `ODR-E2001`, bevor der Dienst das Datenverzeichnis anlegt, bevor er die Token-Datei liest oder anlegt und bevor er eine Adresse öffnet; die Verstöße beider Zertifikatspaare stehen in derselben Meldung, nach Schlüssel sortiert. Ein anderer Wert von `ADMIN_ALLOW_PLAINTEXT` als `true` oder `false` ist der Verstoß `ODR-E2001 ADMIN_ALLOW_PLAINTEXT: Wahrheitswert muss true oder false sein`; die Prüfung des Hosts entfällt dann, und die Dateien des Paars prüft der Dienst trotzdem. Die Meldung nennt den Schlüssel und einen der folgenden Gründe, nie den Pfad, den Inhalt der Dateien, eine Eigenschaft des Zertifikats oder den Wert von `ADMIN_LISTEN`:
 
@@ -248,7 +248,7 @@ Prüfung beim Start: Der Dienst prüft das Paar wie das des Dienstes. Bei einem 
 
 Warnung ohne TLS: Läuft die Schnittstelle außerhalb von Loopback ohne Zertifikatspaar, weil `ADMIN_ALLOW_PLAINTEXT=true` gesetzt ist, schreibt der Start in jedem Modus genau eine Zeile der Stufe `WARN` auf die Fehlerausgabe, mit dem Text `start: Admin-Listener ohne TLS erreichbar` und dem Attribut `ereignis=admin_klartext`. Bei Loopback und mit Zertifikatspaar schreibt er sie nicht.
 
-Verantwortung für den Klartext: Ohne TLS kann jeder auf dem Weg das Token und die Antworten mitlesen, und mit dem Token die Schnittstelle bedienen. Wer `ADMIN_ALLOW_PLAINTEXT=true` setzt, trägt dafür die Verantwortung, etwa durch ein abgeschottetes Netz oder einen Proxy, der TLS beendet.
+Verantwortung für den Klartext: Ohne TLS kann jeder auf dem Weg das Token und die Antworten mitlesen und mit dem Token die Schnittstelle bedienen. Wer `ADMIN_ALLOW_PLAINTEXT=true` setzt, trägt dafür die Verantwortung, etwa durch ein abgeschottetes Netz oder einen Proxy, der TLS beendet.
 
 Ein Client, dessen Handshake scheitert, etwa weil er das Zertifikat ablehnt, erreicht die Schnittstelle nicht. Der Dienst schreibt dazu keine Zeile; den Fehler sieht der Betreiber am Client.
 
