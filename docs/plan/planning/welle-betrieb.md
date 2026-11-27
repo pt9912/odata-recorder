@@ -56,7 +56,7 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 **Offen bis zur Closure der Welle** (Planner, 2026-11-27, nach [`slice-replay-speicher-und-suche`](done/slice-replay-speicher-und-suche.md); der Meilenstein M5 bleibt bis zur Closure der Welle offen):
 
-- [`slice-container-image`](open/slice-container-image.md) ist der letzte Slice der Welle, der nicht in `done/` liegt; an ihm hängen der Neustarttest und das Handbuch zum Image. Seit 2026-11-27 hängt er nicht mehr an `welle-dev-container` (§4); sein Vertrag liegt auf `main` (`SPEC-322`, `SPEC-323`, `082c560c`), vor ihm liegt noch in der Gate-Kette [`slice-bootstrap-m6`](in-progress/slice-bootstrap-m6.md).
+- [`slice-container-image`](open/slice-container-image.md) ist der letzte Slice der Welle, der nicht in `done/` liegt; an ihm hängen der Neustarttest und das Handbuch zum Image. Seit 2026-11-27 hängt er nicht mehr an `welle-dev-container` (§4); sein Vertrag liegt auf `main` (`SPEC-322`, `SPEC-323`, `082c560c`), sein Vorgänger in der Gate-Kette, [`slice-bootstrap-m6`](in-progress/slice-bootstrap-m6.md), liegt in `done/` (auf `main` nach dem Merge seines Zweigs).
 - `make gates` und `make gegenproben` grün auf dem Stand der Closure.
 - Der Test über Record, Replay und Mock mit den Spans `SPEC-026` bis `SPEC-030` und den Zählern (§3) ist als Beleg noch nicht benannt: nicht geprüft; die Closure benennt ihn oder schneidet einen Slice.
 - Audit-Einträge, HTTPS-Test und Handbuch (§3) belegt die Closure am dann aktuellen Stand.
