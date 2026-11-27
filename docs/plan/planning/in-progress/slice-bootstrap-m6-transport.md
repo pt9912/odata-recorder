@@ -16,11 +16,13 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen** (Teil C des Schnitts von [slice-bootstrap-m6](../open/slice-bootstrap-m6.md)): `LH-FA-13.a` · `SPEC-300` Nr. 2 (die drei Schlüssel), 3, 10, 11 (`adminTransport` nur mit `AdminListen`) und 15 zum TLS (Admin-Listener im Composition Root, Architect 2026-11-23 und 2026-11-26) · `SPEC-299` Nr. 3 bis 9 und 14 (TLS des Admin-Listeners; Nr. 8, 9 und 14 sind die Aufrufe, die dieser Teil setzt) · `SPEC-110` Nr. 2, 10 und 11 (Schlüssel dieser Version, Zusammenhang, Dateien) · `SPEC-089`, `SPEC-090` · `SPEC-291` Nr. 8 (die Vereinigung der Verstöße beider Paare) · `SPEC-139` Nr. 6 und 8 (Hochfahren, Start) · `SPEC-200`, `SPEC-201` Nr. 4 (Handbuch und Katalog) · `ARC-007`, `ARC-012` · `architecture.md` §2.5, §4.5.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-bootstrap-m6-transport).
 
 **Autor:** pt9912 (Planner; Schnitt vor dem Code aus [slice-bootstrap-m6](../open/slice-bootstrap-m6.md), Vorschlag des Architect vom 2026-11-23). **Datum:** 2026-11-23.
 
 **Stand der Start-Bedingungen** (Planner, 2026-11-26, bei der Closure von Teil B): die Bedingungen von §4 sind erfüllt, sobald der Zweig von Teil B nach `main` gemergt ist; die offenen Punkte von §6 tragen einen Ausgang. Beim Start fehlen `basis`, `schaetzung` und `marke` im Block, `Verantwortlich` und die Sichtung des Registers. Der Trigger von [welle-admin-api](../welle-admin-api.md) ist nicht eingetreten: der Start braucht wie bei Teil B eine Ausnahme je Slice, auch dieser Teil ist am Prozess sichtbar, und die Frage an den User dazu ist unbeantwortet (§3 dort).
+
+**Stand beim Start** (Planner, 2026-11-27, am Stand `b0bfdcdc`): Teil A, Teil B und [slice-admin-tls](../done/slice-admin-tls.md) liegen in `done/` und sind auf `main` (`47b2622c`); seit dem letzten Commit von Teil B unter `src/bootstrap/` (`4991bb36`) änderte dort nichts. `SPEC-300`, `SPEC-299` und `SPEC-110` stehen auf `main`; §6 führt keine offene Frage an den Architect. **Welle:** der Trigger von [welle-admin-api](../welle-admin-api.md) ist nicht eingetreten (`welle-betrieb` ist nicht abgeschlossen); der User hat am 2026-11-27 erlaubt, dass dieser Teil vorher startet (Wortlaut von Frage und Antwort in §2 dort). Die Antwort galt diesem Teil; die Frage zu Teil B bleibt offen (§3 dort). **Tests, die die drei Schlüssel als abgelehnt führen** (gesucht mit `grep` nach `ADMIN_TLS`, `ADMIN_ALLOW` und `AdminTLS` unter `src/`, `tests/`, `tools/`, `harness/mk/`): `TestKonfigNichtGeliefert` (`src/bootstrap/konfig_test.go`: 6 Namen mal 4 Modi gleich 24 Zellen; ohne die drei Schlüssel 12, dazu die Zellen, die die drei als gelesen führen) und `TestAdminPraefix` (`src/bootstrap/admin_listen_test.go`, drei Zellen); beide stehen im Block. `TestHybridKonfigFamilien` und `TestKonfigAlleVerstoesseJederModus` nehmen `ADMIN_X` und bleiben. `wurzel_test.go` verlangt per `reflect` je Feld von `Konfiguration` Wert und Verbraucher und steht im Block; `m4_wurzel_test.go` prüft allein, dass seine Namen Felder sind, und bleibt.
 
 ---
 
@@ -156,7 +158,12 @@ pfad: src/bootstrap/konfig_test.go
 pfad: src/bootstrap/wurzel_test.go
 produktcode: 90
 fakes: 0
+basis: b0bfdcdc
+schaetzung: 730
+marke: 1000
 ```
+
+**Gesetzt** vom Planner beim Start am 2026-11-27 vor dem ersten Code-Commit: `basis` `b0bfdcdc`, `schaetzung` 730, `marke` 1000; mit `make groessenmarke` am Plan vor dem Eintrag nachgerechnet (`Marke steht aus: Schätzung 730, Marke 1000`). **Geprüft beim Start, Kollisionen:** [slice-replay-speicher-und-suche](slice-replay-speicher-und-suche.md) läuft zugleich; die zwei Blöcke haben keine Datei gemeinsam (aus `src/bootstrap/` ändert er allein `telemetrie_replay_test.go`, die hier nicht im Block steht). Kein Pfad aus `Makefile`, `harness/mk/`, `Dockerfile`, `harness/README.md`, `tools/gegenproben/`. Wer als zweiter merged, nimmt zuvor `main` auf und fährt `make gates` neu (Übergangsregeln Nr. 5). Sein Abnahmelauf hält `flock /tmp/odata-recorder-heavy.lock` rund 50 Minuten; Gate-Läufe dieses Slice warten dann.
 
 **Vier Pfade nachgetragen** (Planner, 2026-11-26, Sendung von Teil B: `konfig.go`, `admin_listen_test.go`, `konfig_test.go`, `wurzel_test.go`): keine neue Zeile der Tabelle, *S* = 730 und Marke 1000 bleiben (Abstand zur Schnittgrenze 2223: 1493); die geänderten Zeilen dieser Dateien zählen in der Messung gegen die Marke. Teil B maß 2309 bei *S* = 2215.
 
@@ -241,6 +248,8 @@ Hälften.
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
 **Vorgelagert — offene Beobachtungen sichten:** Register am Tag des Schnitts gesichtet (2026-11-23; der Planner zieht Treffer und Zähler beim Start nach). Offen und für den Teil einschlägig: `BEO-REPO/bedingter-blockpfad-zaehlt-fremde-zeilen` (6×, `src/bootstrap/`, §4) und `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (22×). Verkörpert und mit dem Slice zu beachten: `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (77×, `AGENTS.md` §3.15; vier Aufrufstellen mal vier Modi), `BEO-REPO/berichtigung-erreicht-nicht-jede-stelle` (43×, `AGENTS.md` §3.9; der Nachzug von `SPEC-110` und das Handbuch sind Stellen), `BEO-REPO/randform-erst-im-review-entschieden` (37×, `AGENTS.md` §3.16) und `BEO-REPO/werkzeug-eingabe-setzt-escape-in-zeichen-um` (`AGENTS.md` §3.18, für die Texte des Handbuchs).
+
+Beim Start erneut gesichtet (Planner, 2026-11-27, Zähler = Dateien unter `evidence/`): `vertrag-sagt-mehr-zu-als-ein-gate-prueft` 86×, `berichtigung-erreicht-nicht-jede-stelle` 53×, `randform-erst-im-review-entschieden` 44×, `menge-ohne-ihre-positionen` 25×, `betriebsregel-fuer-repo-dateien-verletzt` 23×, `fixture-gleicht-dem-wert-der-mutation` 14×, `bedingter-blockpfad-zaehlt-fremde-zeilen` 6×, `werkzeug-eingabe-setzt-escape-in-zeichen-um` 5×; offen und einschlägig `BEO-REPO/ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit` (4×; die Tests des Zwischenstands stehen im Block, Kopf) und `BEO-REPO/anpassung-eines-bestehenden-tests-lockert-seinen-faenger` (1×; §1 Punkt (d)). Keiner der offenen Einträge erreicht mit diesem Slice allein neu 3×.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der

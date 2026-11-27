@@ -17,6 +17,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-replay-speicher-und-suche](slice-replay-speicher-und-suche.md) ([welle-betrieb](../welle-betrieb.md), [CO-001](../../carveouts/CO-001-lasttest-replay-ohne-p95.md): Ursache des Speicherverbrauchs messen, Suche nach dem Match-Key `ListByMatchKey`, erneuter Abnahmelauf; Zweig `slice-replay-speicher-und-suche`; kein Kettenslice, schreibt unter `src/hexagon/`, `src/adapters/driven/sqlite/` und in einer Testdatei in `src/bootstrap/`).
+In Arbeit: [slice-bootstrap-m6-transport](slice-bootstrap-m6-transport.md) ([welle-admin-api](../welle-admin-api.md), Teil C des Composition Root: `ADMIN_TLS_CERT`, `ADMIN_TLS_KEY`, `ADMIN_ALLOW_PLAINTEXT`, die vier Aufrufe von `SPEC-299`, Warnung, Handbuch zum TLS; Zweig `slice-bootstrap-m6-transport`; kein Kettenslice, schreibt unter `src/bootstrap/` und im Handbuch).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
