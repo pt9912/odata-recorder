@@ -330,6 +330,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - Echter asynchroner Abbruch liefert selten den Fehler des Treibers statt des Kontexts (Review F-5, ebenso `ListBySession`) — **Ausgang:** offen; Negativ in §3; Adresse: Architect (ob `SPEC-105` Nr. 13 für alle Abfragen des Adapters durchgesetzt wird).
 - CO-001 führt weiter „Ursache: nicht belegt“, §3 belegt sie (Review I-3) — **Ausgang:** offen; Adresse: Planner (Closure).
 - `tools/harness/mutationslauf.sh` meldet für `src/bootstrap` den Ausgangsstand als rot und fährt dann keine Mutation der Liste; `go test` über das Paket war in einer Wegwerfkopie grün; die Ursache ist nicht untersucht — **Ausgang:** offen; Adresse: Planner.
+- Ein Lauf von `make gates` in der Fix-Runde war in `make test-race` rot: `TestLeserHaeltNieAn` (`tests/lasttest/leser_test.go`, „nach 1s kein Wert“), bei hoher Last des Hosts (Messender Implementer). Der Test liegt außerhalb des Slice (§1), sein Fänger hängt an einer Zeitgrenze — **Ausgang:** offen; Adresse: Planner.
 
 ## 7. Closure-Notiz
 
