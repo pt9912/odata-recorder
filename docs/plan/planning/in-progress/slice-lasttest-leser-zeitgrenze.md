@@ -44,15 +44,15 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Ziel-Form: Slice — **≤ 3 Liefer-Punkte**.
 
-- [ ] Ursache belegt: die Dauer von `pipeLauf` mit 20 MiB unter dem Detektor steht mit Last des Hosts und Messendem im Plan.
-- [ ] Der Fänger hängt nicht mehr an der Grenze von 1 s, oder die Grenze ist aus der Messung begründet; die Mutationen der Zeile A1 des Plans von `slice-lasttest-auswertung` (Scanner mit 64 KiB, Pause beim Auswerten, Grenze entfällt, Sammler ohne Sperre) bleiben je rot, mit Rate (`AGENTS.md` §3.10, §3.15).
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Ursache belegt: die Dauer von `pipeLauf` mit 20 MiB unter dem Detektor steht mit Last des Hosts und Messendem im Plan.
+- [x] Der Fänger hängt nicht mehr an der Grenze von 1 s, oder die Grenze ist aus der Messung begründet; die Mutationen der Zeile A1 des Plans von `slice-lasttest-auswertung` (Scanner mit 64 KiB, Pause beim Auswerten, Grenze entfällt, Sammler ohne Sperre) bleiben je rot, mit Rate (`AGENTS.md` §3.10, §3.15).
+- [x] `make gates` grün (Stand `2170d89a`; die Grenze dieses Belegs steht in §7 *Gate*).
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
 - [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen.
 
 ## 3. Plan (vor Code)
@@ -122,7 +122,7 @@ Es bleibt eine Grenze in Echtzeit: `wache` mit 60 s über den ganzen Test, das 4
 
 Die Zusicherung über die Uhr trägt LZ1 allein: mit `gewartet < 0` statt `gewartet != 0` und der Mutation LZ1 ist der Test in 5 von 5 Prozessen grün.
 
-**Akzeptiertes Negativ** (`AGENTS.md` §3.15; Wortlaut, Grund, Alternativen und Wirkung im Messlauf in `SPEC-216` Nr. 16 s). *Klasse:* eine Verlangsamung von Leser oder Auswertung, während die Uhr der Blase steht: Rechenzeit und jedes Warten, das `synctest` nicht als dauerhaft blockiert zählt (Systemaufruf, Ein- und Ausgabe, eine Sperre, deren Halter nicht auf diese Uhr wartet, ein Kanal oder Ticker von außerhalb der Blase). *Maß:* 3 von 3 geprüften Formen bleiben grün: `syscall.Nanosleep` mit 1 ms und eine Rechenschleife je Span-Zeile, je 0 von 20 Prozessen rot (Implementer; Dauer des Tests etwa 14 s und 17 s statt 1,4 s, am alten Stand beide in 5 von 5 rot), und 1 ms je Gesamtspan auf einen Ticker von außerhalb der Blase, 0 von 5 rot (Review `2026-11-27-slice-lasttest-leser-zeitgrenze-review`, m3; am alten Stand nicht gefahren). Ein- und Ausgabe und eine solche Sperre sind nicht gefahren. Die Achsen der Pause in der Tabelle darüber führen allein das Warten auf die Uhr der Blase. *Folge:* ein solcher Leser besteht die Tests, solange die Wache von 60 s hält.
+**Akzeptiertes Negativ** (`AGENTS.md` §3.15; Wortlaut, Grund, Alternativen und Wirkung im Messlauf in `SPEC-216` Nr. 16 s). *Klasse:* eine Verlangsamung von Leser oder Auswertung, während die Uhr der Blase steht: Rechenzeit und jedes Warten, das `synctest` nicht als dauerhaft blockiert zählt (Systemaufruf, Ein- und Ausgabe, eine Sperre, deren Halter nicht auf diese Uhr wartet, ein Kanal oder Ticker von außerhalb der Blase). *Maß:* 4 von 4 geprüften Formen bleiben grün: `syscall.Nanosleep` mit 1 ms und eine Rechenschleife je Span-Zeile, je 0 von 20 Prozessen rot (Implementer; Dauer des Tests etwa 14 s und 17 s statt 1,4 s, am alten Stand beide in 5 von 5 rot), und 1 ms je Gesamtspan auf einen Ticker von außerhalb der Blase, 0 von 5 rot (Review `2026-11-27-slice-lasttest-leser-zeitgrenze-review`, m3; am alten Stand nicht gefahren), und je Gesamtspan Warten auf eine Sperre, deren Halter 1 ms in `syscall.Nanosleep` steht, 0 von 3 rot bei 13,7 s statt 2,4 s (Verifikation `2026-11-27-slice-lasttest-leser-zeitgrenze-verifikation`; `SPEC-216` Nr. 16 s führt die Sperre noch als nicht gefahren, §7). Ein- und Ausgabe ist nicht gefahren. Die Achsen der Pause in der Tabelle darüber führen allein das Warten auf die Uhr der Blase. *Folge:* ein solcher Leser besteht die Tests, solange die Wache von 60 s hält.
 
 **Ein Hänger endet nicht immer als Fehler des Tests** (Review F-2 und I-1; vom Reviewer gefahren, je 1 oder 3 Prozesse). Ein Senden ohne Empfänger endet in 3 von 3 Läufen als `--- FAIL` mit dem panic „deadlock“ von `synctest`. Eine Warteschleife mit `time.Sleep`, die nie endet (m6), und ein Warten auf eine Sperre, deren Halter 1 ms auf die Uhr der Blase wartet (m4), enden je in 1 von 1 Lauf erst nach 60 s im panic von `wache`: das Test-Binary bricht ab, die Meldung nennt die Frist und nicht den Grund, und die übrigen Tests des Pakets laufen nicht. *Grund:* die Uhr der Blase geht bei der Sperre nicht vor, und die Schleife blockiert nie dauerhaft; eine Grenze je `pipeLauf` in Echtzeit wäre wieder die Grenze, die der Slice entfernt. *Folge:* der Lauf ist rot, der Grund ist aus dem Stapel zu lesen.
 
@@ -160,19 +160,55 @@ DoD vollständig, Review bestanden, `make gates` grün, Closure-Notiz mit Lernei
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Offene Risiken werden bei Closure aufgelöst.
 
-- Ohne Zeitgrenze fängt der Test die Mutation „Pause beim Auswerten“ nicht mehr — **Ausgang:** weiter offen: die Mutationen der Zeile A1 sind die DoD.
-- Auch eine bloß angehobene Grenze kann diese Mutation durchlassen (gerechnet, nicht gemessen): der Lauf mit 20 MiB schreibt 5232 Span-Zeilen, die Pause von 1 ms verlängert ihn um etwa 5 s, die 19 Läufe zu 1 MiB um je etwa 0,26 s. Eine Grenze von mehr als etwa 5 s macht den Fänger an der heutigen Form blind — **Ausgang:** weiter offen: DoD 2 verlangt die Mutation mit unverändertem Wert rot; gelingt das nicht, greift die erste Rückführung in §4.
-- `SPEC-216` Nr. 14 a lässt allein `uhr.go` die Zeit lesen (`TestPaketOhneZeit`): eine Grenze relativ zu einem Vergleichslauf darf in `leser_test.go` kein `time.Now` nennen — **Ausgang:** entschieden (Vertrag): Wartezeiten laufen über `warteAuf` und `wache`.
-- Der Fänger sieht eine Verlangsamung, während die Uhr der Blase steht, nicht (Negativ in §3, 3 von 3 geprüften Formen); der alte Stand sah sie nach Rechnung, sobald der Lauf mit 20 MiB damit über 1 s lag. Die Frage an den Architect (Review F-1 und I-2) betraf auch die Rückführung in §4 — **Ausgang:** entschieden (Architect, 2026-11-27, `SPEC-216` Nr. 16 s): das Negativ trägt, erweitert um jedes Warten, bei dem die Uhr der Blase steht; kein weiterer Fänger, keine Rückführung des Slice.
-- Ein Hänger durch eine Warteschleife auf die Uhr oder durch eine Sperre, deren Halter auf sie wartet, bricht das ganze Test-Binary nach 60 s ab, statt den Test mit seinem Grund rot zu melden (§3; Review `2026-11-27-slice-lasttest-leser-zeitgrenze-review`, I-1 und F-2; der Kopf von `pipeLauf` nennt es) — **Ausgang:** weiter offen: kein Fix im Slice; Planner bei der Closure.
-- Randformen (`AGENTS.md` §3.12, §3.16): kein Raster, weil der Slice keinen neuen Vertrag liefert und das Verhalten des Lesers unverändert bleibt — **Ausgang:** entfallen; eine Randform, die doch eine Entscheidung braucht, geht an den Architect.
+- Ohne Zeitgrenze fängt der Test die Mutation „Pause beim Auswerten“ nicht mehr — **Ausgang:** entfallen: die Mutation LZ1 ist mit unverändertem Wert (1 ms) rot, beim Implementer in 20 von 20 Prozessen ohne und mit 8 Schleifen, beim Verifier in 10 von 10 und 5 von 5.
+- Auch eine bloß angehobene Grenze kann diese Mutation durchlassen (gerechnet, nicht gemessen): der Lauf mit 20 MiB schreibt 5232 Span-Zeilen, die Pause von 1 ms verlängert ihn um etwa 5 s, die 19 Läufe zu 1 MiB um je etwa 0,26 s. Eine Grenze von mehr als etwa 5 s macht den Fänger an der heutigen Form blind — **Ausgang:** entfallen: der Fänger hebt keine Grenze an, er verlangt, dass die Uhr der Blase steht; LZ1 ist rot (Zeile davor), die erste Rückführung in §4 griff nicht.
+- `SPEC-216` Nr. 14 a lässt allein `uhr.go` die Zeit lesen (`TestPaketOhneZeit`): eine Grenze relativ zu einem Vergleichslauf darf in `leser_test.go` kein `time.Now` nennen — **Ausgang:** entfallen: der Slice braucht keinen Vergleichslauf; `pipeLauf` liest die Uhr über `Uhr` mit `systemuhr`, und `TestPaketOhneZeit` läuft in den gestempelten Gates grün (Verifikation).
+- Der Fänger sieht eine Verlangsamung, während die Uhr der Blase steht, nicht (Negativ in §3, 4 von 4 geprüften Formen); der alte Stand sah sie nach Rechnung, sobald der Lauf mit 20 MiB damit über 1 s lag. Entschieden hat der Architect am 2026-11-27 (`SPEC-216` Nr. 16 s): das Negativ trägt, erweitert um jedes Warten, bei dem die Uhr der Blase steht; kein weiterer Fänger, keine Rückführung des Slice — **Ausgang:** weiter offen: → `BEO-REPO/anpassung-eines-bestehenden-tests-lockert-seinen-faenger` im Register (die Lücke bleibt, die Anpassung an einen belasteten Host hat sie geöffnet).
+- Ein Hänger durch eine Warteschleife auf die Uhr oder durch eine Sperre, deren Halter auf sie wartet, bricht das ganze Test-Binary nach 60 s ab, statt den Test mit seinem Grund rot zu melden (§3; Review `2026-11-27-slice-lasttest-leser-zeitgrenze-review`, I-1 und F-2; der Kopf von `pipeLauf` nennt es) — **Ausgang:** weiter offen: → `BEO-REPO/panik-eines-fakes-verdeckt-den-benannten-test` im Register; kein Fix, der Lauf ist rot, und der Grund ist aus dem Stapel zu lesen.
+- Randformen (`AGENTS.md` §3.12, §3.16): kein Raster, weil der Slice keinen neuen Vertrag liefert und das Verhalten des Lesers unverändert bleibt — **Ausgang:** entfallen: keine Randform brauchte eine Entscheidung, das Produktverhalten ist unverändert.
 
 ## 7. Closure-Notiz
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 §Das Beobachtungs-Register.
 
-Beim Anlegen entstanden aus der Closure von `slice-replay-speicher-und-suche`; gestartet am 2026-11-27, noch keine Closure.
+**Closure** (Planner, 2026-11-27; Zweig `slice-lasttest-leser-zeitgrenze`, Messbasis `679059d0`; der Slice entstand aus der Closure von `slice-replay-speicher-und-suche`). Start `3d352b2d`, Code und Plan `a2100d4d`, Review-Report `75fbb584`, Fix-Runde `2170d89a`, Verifikations-Report `fc4b5368`, Merge von `main` vor der Closure `faeefeff`. Review (`2026-11-27-slice-lasttest-leser-zeitgrenze-review`: 0 HIGH, 1 MEDIUM, 1 LOW, 2 INFO) und Verifikation (`2026-11-27-slice-lasttest-leser-zeitgrenze-verifikation`: bestanden, 2 INFO an den Planner) liefen je einmal. Merge nach `main` und `make gates` im Hauptbaum sind der Integrationsschritt (Übergangsregeln Nr. 5).
+
+**Was geliefert ist** (kein Produktcode): `pipeLauf` in `tests/lasttest/leser_test.go` läuft in einer Blase von `testing/synctest`. An die Stelle der Grenze von 1 s Echtzeit tritt, dass die Uhr der Blase beim Lesen und Auswerten stehen bleibt und kein Write scheitert; um den ganzen Test bleibt die Wache von 60 s. Dazu entfiel der Stand-Vermerk von `SPEC-216` Nr. 16 s. Am Binary ändert sich nichts.
+
+**Größe** (`SPEC-128` Nr. 9). Stand *Ende*, Zeile des Programms (`make groessenmarke`, 2026-11-27, Plan in `in-progress/`, nach dem Merge `faeefeff`): `Messpunkt slice-lasttest-leser-zeitgrenze.md: zeilen=6 nebenlaeufig=4 fakes=0 produktcode=0 schaetzung=500 marke=700 messung=76`. Produktcode von Hand: 0; `git diff --numstat 679059d0..faeefeff` über den Pfad des Blocks nennt 49 und 27. Stand *Handoff*: keine Zeile des Programms eingetragen; von Hand `679059d0..a2100d4d` 73. Auslastung 76 ÷ 700 = **0,11**, Ende ÷ *S* (500) = 0,15, Ende ÷ Handoff = 1,04. Fremde Zeilen 0. **Meldung an den Architect** (Auslastung unter 0,45): er rechnet die Faktoren aus allen Messpunkten neu (`SPEC-128` Nr. 2 und 9); der Punkt ist `zeilen=6`, `nebenlaeufig=4`, `fakes=0`, `produktcode=0`, *S* 500, *M* 700, Ende 76. *Ursache:* die sechs Zeilen der Tabelle sind Zusagen eines bestehenden Tests; der Slice baute allein `pipeLauf` um, LZ4 bis LZ6 hatten ihre Fänger schon, und neue Testfälle kamen nicht dazu.
+
+**Mutationen** (§3 und Reports): der Implementer je Zeile LZ1, LZ2, LZ4, LZ5 und LZ6 rot in 20 von 20 Prozessen ohne und mit 8 Schleifen, dazu acht weitere Formen in 20 von 20; das Review sah m3 grün (F-1, benanntes Negativ); der Verifier fuhr die Zeilen erneut und drei eigene Stellen in `lies`, alle rot. LZ3 ist eine Messung: der unveränderte Leser war am neuen Stand in keinem Prozess rot (Implementer 60, Verifier 45), am alten bei 8 und 16 Schleifen in 15 und 20 von 20 (Verifier 4 von 8 und 3 von 3). Last und Messende stehen in §3.
+
+**Akzeptierte Negative:** (1) Verlangsamung von Leser oder Auswertung, während die Uhr der Blase steht (§3; vom Architect als `SPEC-216` Nr. 16 s eingetragen, mit Grund, verworfenen Alternativen und Wirkung im Messlauf); (2) ein Hänger endet nicht immer als Fehler des Tests, sondern erst nach 60 s im panic der Wache (§3); (3) die Wache von 60 s ist oberhalb von 16 Schleifen nicht gemessen (§3); (4) die Zusicherung über die Uhr trägt LZ1 allein (§3).
+
+**Was weder Review noch Verifikation sahen:** (1) der Reviewer sah die Fix-Runde nicht, der Verifier sah sie; (2) die Sätze zum Hänger im Kopf von `pipeLauf` fuhr der Verifier nicht erneut, sie stehen auf m4 und m6 des Reviews; (3) `make lasttest` fuhr niemand (§1: kein Lauf nötig), `make gegenproben` niemand (`tests/` ist keine Eingabe der Gegenproben); (4) die Texte der Closure (Risiko-Ausgänge, Register, Roadmap, Welle-Datei, der Satz zur Sperre in §3) hat niemand geprüft.
+
+**Gate:** `.harness/state/gates-passed.head` im Worktree trägt `2170d89a` (die Verifikation sah den Hash des Arbeitsbaums gleich; welche Stufen aus dem Schichten-Cache kamen, sagt der Stempel nicht). Die Commits danach sind von keinem Lauf der Kette gedeckt, darunter der Merge `faeefeff`, der Testcode und den Treiber von `slice-bootstrap-m6` bringt. Der Planner fuhr `make docs-check` (nach dem Merge grün), `make zeichen-check` und `make groessenmarke`, nicht `make gates` (Vorgabe des Orchestrators). Der Beleg auf dem Stand von `main` ist der Lauf des Integrationsschritts.
+
+**Abweichungen vom Plan:** nach dem Code erweiterte der Architect das Negativ um jedes Warten, bei dem die Uhr der Blase steht (F-1, `SPEC-216` Nr. 16 s), und die Fix-Runde berichtigte den Kopf von `pipeLauf` (F-2). Keine Rückführung aus §4 griff.
+
+**Steering-Loop-Einträge:**
+
+1. **Neuer Sensor:** `TestLeserHaeltNieAn` misst an der Uhr einer Blase von `testing/synctest`; er trennt ein Warten auf diese Uhr von der Last des Hosts.
+2. **Lernsignal:** der Test war unter Last rot, weil er die Zusage *der Leser hält den Schreiber nie an* als Dauer in Echtzeit maß: 20 MiB brauchten unter dem Detektor 0,84 bis 1,19 s bei 8 und 1,80 bis 2,12 s bei 16 Schleifen gegen eine Grenze von 1 s. Eine angehobene Grenze trennt nicht, weil die Mutation den Lauf nur um 5,2 s verlängert und der unveränderte Lauf mit der Last wächst.
+3. **Architektur-Beobachtung:** eine virtuelle Uhr ersetzt eine Echtzeitgrenze nicht gleichwertig. Sie sieht allein das dauerhafte Blockieren in der Blase; Rechenzeit, Systemaufruf, Sperre und Kanal von außen sieht sie nicht (4 von 4 geprüften Formen grün), und ein Warten auf eine Sperre, deren Halter auf die Uhr wartet, wird in ihr zum Hänger. Wer eine Zeitgrenze so ersetzt, entscheidet über ein Negativ am Vertrag, nicht allein über den Test.
+4. **Ein Negativ wurde zuerst zu eng benannt** (F-1: Rechenzeit und Systemaufruf, nicht das Warten, das `synctest` nicht zählt), weil es aus den gefahrenen Formen und nicht aus der Regel des Werkzeugs gebildet war. Evidenz zu `BEO-REPO/ein-negativ-benennt-die-ungefangene-klasse-zu-eng`. Kein neuer Zielort (`AGENTS.md` §3.15 trägt es).
+5. **Kein `liegt in`-Feld:** keine Regel ist mit diesem Slice verkörpert.
+
+**Lerneintrag:** neuer Sensor (Eintrag 1) mit dem Lernsignal und der Architektur-Beobachtung (Einträge 2 und 3).
+
+**Reviewer-Skill:** keine Änderung. F-1 trifft die MEDIUM-Zeile *Fänger schmaler als Zusage, Menge unbeschränkt oder ohne Achsenliste*, F-2 die Zeile *Fixture, Hilfe oder Kommentar verdeckt, was der Test prüft*, I-1 den Hinweis zu `panic:` und Zeitlimit. Keine neue Klasse.
+
+**Register** (Evidenz mit der Closure im Zweig; kein Zähler gesetzt, er folgt aus den Dateien): Evidenz `slice-lasttest-leser-zeitgrenze` zu fünf vorhandenen Einträgen: `ein-negativ-benennt-die-ungefangene-klasse-zu-eng` (27 → 28 Dateien), `kommentar-nennt-mehr-elemente-als-der-test-prueft` (19 → 20), `panik-eines-fakes-verdeckt-den-benannten-test` (11 → 12), `anpassung-eines-bestehenden-tests-lockert-seinen-faenger` (1 → 2) und `schaetzformel-ueberschaetzt-den-slice` (31 → 32). Kein neuer Eintrag; 99 Einträge, 813 → 818 Evidenz-Dateien. `test-fremden-pakets-flackert-unter-last`: keine neue Evidenz (der Vorgang ist die Behebung, kein Auftreten), der Stand ist nachgezogen; der Eintrag bleibt offen für `urlparser`, `admin` und `httpodata`. **Schwellen:** kein neuer Übertritt.
+
+**Risiko-Ausgänge (§6):** 6 Punkte, je ein Ausgang: entfallen 4, eingetreten 0, weiter offen 2 (beide im Register).
+
+**Sendungen (`AGENTS.md` §3.13):** *an diesen Slice* aus `slice-replay-speicher-und-suche` (§1 *Übernimmt*): für `TestLeserHaeltNieAn` geliefert. *Von diesem Slice:* an keinen Slice. *An den Architect:* die Meldung der Auslastung; `SPEC-216` Nr. 16 s führt die Sperre als nicht gefahren und nennt 3 von 3 Formen, die Verifikation fuhr sie (§3, 4 von 4).
+
+**Folge-Slice:** keiner. Kein Befund und kein Risiko verlangt Arbeit, die an einen Slice gebunden ist; die übrigen lastabhängigen Tests haben ihre Adresse beim Lese-Schritt des Registers (§1).
+
+**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld) · Folge-Slice (keiner genannt) · Register (die sechs genannten Verzeichnisse tragen `evidence/`).
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
