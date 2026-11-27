@@ -12,7 +12,7 @@
 | Zusage des Implementers | Eigene Prüfung | Ergebnis |
 |---|---|---|
 | `make gates` grün | selbst gefahren (Log: `/tmp/claude-1000/-Development-odata-recorder/eb0bdee1-0646-479c-9f60-077c8f95bfc6/scratchpad/verif-av/gates.log`, 676 Zeilen, `exit 0`) | grün; `d-check: 747 Datei(en) geprüft, 0 Befund(e)`; `groessenmarke slice-audit-verdrahtung.md: ok, Messung 1288 von Marke 1900`; Race, Lint, Handbuch, Zeichen, Schema, Migration grün |
-| Produktcode 0 | `git diff --name-only 8667f9d..HEAD` | nur `docs/plan/.../slice-audit-verdrahtung.md`, `.../in-progress/slice-bootstrap-m6.md`, die Review-Datei und zwei Testdateien unter `src/bootstrap/`; kein Pfad unter `src/` außer `*_test.go`, `export_test.go` unverändert |
+| Produktcode 0 | `git diff --name-only 8667f9d..HEAD` | nur `docs/plan/.../slice-audit-verdrahtung.md`, `.../done/slice-bootstrap-m6.md`, die Review-Datei und zwei Testdateien unter `src/bootstrap/`; kein Pfad unter `src/` außer `*_test.go`, `export_test.go` unverändert |
 | Größenmarke | `git diff --numstat 8667f9d..HEAD` über die drei Pfade des Blocks | 411 + 877 + 0 = 1288 ≤ 1900 (Gate bestätigt); Schätzung 1360, `fakes: 2` (`AuditAufzeichnung`, `SessionsMitFehlertext`) |
 | Änderung am Review-Report nur die zwei Links | `git diff a269473..HEAD -- docs/reviews/` | bestätigt: eine Zeile (Bezug), die zwei nackten ADR-Kennungen wurden zu Links; sonst nichts geändert |
 | Rohbytes (`AGENTS.md` §3.18) | `LC_ALL=C grep -nP '\\u[0-9A-Fa-f]{4}\|BOM\|NBSP'` über beide Testdateien und den Plan | kein Treffer; Werte des Canary stehen als `[]byte{…}` bzw. Bytefolgen aus ASCII-Literalen |

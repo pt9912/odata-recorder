@@ -164,6 +164,11 @@ func (r *referenzdienst) bediene(w http.ResponseWriter, req *http.Request) {
 	case req.URL.Path == "/odata/$metadata":
 		h.Set("Content-Type", "application/xml")
 		_, _ = w.Write([]byte(csdlText))
+	// Ein POST auf die Collection ist 201 mit der angelegten Entity (SPEC-300 Nr. 14: die Session A trägt einen).
+	case req.URL.Path == "/odata/Products" && req.Method == http.MethodPost:
+		h.Set("Content-Type", "application/json;odata.metadata=minimal")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = fmt.Fprintf(w, `{"@odata.context":%q,"Id":3,"Name":"Cutter"}`, r.srv.URL+"/odata/$metadata#Products/$entity")
 	case req.URL.Path == "/odata/Products" && req.URL.Query().Get("$skiptoken") == "":
 		json(`W/"p1"`, fmt.Sprintf(`{"@odata.context":%q,"@odata.nextLink":%q,"value":[{"Id":1,"Name":"Anvil"}]}`,
 			ctx, r.srv.URL+"/odata/Products?$skiptoken=1"))

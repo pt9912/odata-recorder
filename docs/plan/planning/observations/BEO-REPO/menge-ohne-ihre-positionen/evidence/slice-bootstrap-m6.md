@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6
+**Fund:** Die Suche nach dem Token in den Strömen des Binary lief mit gültigem Token auf 6 der 9 schreibenden Routen und ohne die drei Fast-Treffer, die der Vertrag als Anlässe nennt. Ein Schreiben des Tokens auf den Deskriptor 2 allein bei `DELETE` blieb in der Stufe grün. Behoben in der Fix-Runde (9 Routen, drei Fast-Treffer in zwei Läufen). Beleg: `2026-11-27-slice-bootstrap-m6-review` (F-2).

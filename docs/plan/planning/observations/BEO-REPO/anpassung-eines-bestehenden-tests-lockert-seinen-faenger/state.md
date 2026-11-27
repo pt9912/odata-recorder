@@ -1,1 +1,1 @@
-**Stand:** offen; erster Vorgang mit `slice-telemetry-einbau-record` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht. Die Fix-Runde stellte die Prüfung „zuletzt“ für alle Fälle außer `record` mit Status 200 wieder her (8 von 8 Mutationen „Zeile hinter dem Gesamtspan“ rot, Verifikation 3.4).
+**Stand:** offen; zwei Vorgänge unter `evidence/` (`slice-telemetry-einbau-record`: Prüfung in der Fix-Runde wiederhergestellt; `slice-lasttest-leser-zeitgrenze`: Lockerung als Negativ in `SPEC-216` Nr. 16 s entschieden), kein Zielort, Schwelle 3x nicht erreicht
