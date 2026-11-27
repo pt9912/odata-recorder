@@ -1,0 +1,2 @@
+**Vorgang:** slice-abnahme-belege
+**Fund:** Der Schritt `ODV4-Q-11` b sagt zu, dass Filter, Sortierung und Paging kombiniert wirken. In der ersten Fassung ließ der Filter drei Entities, nach `$skip=1` blieben genau die zwei von `$top=2`: `$top` ohne Wirkung und `$top` um eins erhöht blieben in den drei Läufen der Abnahmematrix grün (F-1, MEDIUM; rot allein in den Tests von `model` und `services/mock`). Der Architect änderte die Query (`SPEC-049` Nr. 4). Beleg: Plan §3 (Fix-Runde); `2026-11-27-slice-abnahme-belege-review`, `2026-11-27-slice-abnahme-belege-verifikation`.

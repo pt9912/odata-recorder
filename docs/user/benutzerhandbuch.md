@@ -252,6 +252,10 @@ Verantwortung für den Klartext: Ohne TLS kann jeder auf dem Weg das Token und d
 
 Ein Client, dessen Handshake scheitert, etwa weil er das Zertifikat ablehnt, erreicht die Schnittstelle nicht. Der Dienst schreibt dazu keine Zeile; den Fehler sieht der Betreiber am Client.
 
+## Schutz der Daten
+
+Um Core-Dumps und Swap kümmert sich der Betreiber, der Recorder prüft beides nicht. Werte, die ein Client im Modus `mock` oder `hybrid` schreibt, speichert der Dienst unverändert. Welche Testdaten zulässig sind, verantwortet der Betreiber.
+
 ## Fehlercodes
 
 Dieser Abschnitt führt die Fehlercodes, die das Binary dem Anwender zeigt. Ein Fehlercode beginnt mit `ODR-E` und trägt vier Ziffern.

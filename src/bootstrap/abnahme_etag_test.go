@@ -129,7 +129,7 @@ func abNone(a abAnfrage) bool {
 	return false
 }
 
-// TestAbnahmeMatrixMitEtag (E23): alle 36 IDs mit 92 Schritten gegen den Mock mit Etag an; vom ETag befreit gleichen die Antworten den Fixtures. Die Zählung ist
+// TestAbnahmeMatrixMitEtag (E23): alle 36 IDs mit 93 Schritten gegen den Mock mit Etag an; vom ETag befreit gleichen die Antworten den Fixtures. Die Zählung ist
 // die der Abnahme.
 func TestAbnahmeMatrixMitEtag(t *testing.T) {
 	gelaufen := map[string]int{}
@@ -141,8 +141,8 @@ func TestAbnahmeMatrixMitEtag(t *testing.T) {
 	for _, f := range fixtures {
 		schritte += gelaufen[f.ID]
 	}
-	if len(fixtures) != 36 || schritte != 92 {
-		t.Errorf("%d IDs und %d Schritte, erwartet 36 und 92", len(fixtures), schritte)
+	if len(fixtures) != 36 || schritte != 93 {
+		t.Errorf("%d IDs und %d Schritte, erwartet 36 und 93", len(fixtures), schritte)
 	}
 	for _, d := range abPruefeZaehlung(fixtures, gelaufen) {
 		t.Error(d)
