@@ -136,6 +136,11 @@ func (e jExchanges) ListBySession(ctx context.Context, id string) ([]model.Excha
 	return e.RecordingRepository.ListBySession(ctx, id)
 }
 
+func (e jExchanges) ListByMatchKey(ctx context.Context, id, key string) ([]model.Exchange, int, error) {
+	e.p.melde("ListByMatchKey")
+	return e.RecordingRepository.ListByMatchKey(ctx, id, key)
+}
+
 func (l jLog) Handle(ctx context.Context, r slog.Record) error {
 	l.p.melde("Log " + r.Message)
 	return l.Handler.Handle(ctx, r)

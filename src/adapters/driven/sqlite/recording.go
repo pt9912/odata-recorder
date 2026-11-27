@@ -148,6 +148,62 @@ func (r *RecordingRepository) ListBySession(ctx context.Context, sessionID strin
 	return out, nil
 }
 
+// Die Abfragen von ListByMatchKey. abfrageHoechsteSequenz liefert keine Zeile bei unbekannter Session; abfrageTreffer sucht
+// über den Index (session_id, match_key) und trifft bei leerem Key nichts (SPEC-105 Nr. 14, SPEC-004). Ohne INDEXED BY wählt
+// SQLite für das ORDER BY den Index (session_id, sequence_no) und liest jede Zeile der Session.
+const (
+	abfrageHoechsteSequenz = "SELECT coalesce((SELECT max(sequence_no) FROM exchanges WHERE session_id = s.id), 0) FROM sessions AS s WHERE s.id = ?"
+	abfrageTreffer         = "SELECT " + exchangeSpalten + " FROM exchanges INDEXED BY idx_exchange_match" +
+		" WHERE session_id = ?1 AND match_key = ?2 AND ?2 <> '' ORDER BY sequence_no"
+)
+
+// ListByMatchKey liefert die Exchanges der Session mit dem match_key nach sequence_no und die größte sequence_no der Session.
+// Beide Abfragen laufen in einer Lesetransaktion und sehen denselben Stand (SPEC-105 Nr. 14).
+func (r *RecordingRepository) ListByMatchKey(ctx context.Context, sessionID, matchKey string) ([]model.Exchange, int, error) {
+	var (
+		treffer  []model.Exchange
+		hoechste int
+	)
+	err := r.db.imLesestand(ctx, func(c *sql.Conn) error {
+		err := c.QueryRowContext(ctx, abfrageHoechsteSequenz, sessionID).Scan(&hoechste)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("%w: Session %s", outbound.ErrNichtGefunden, sessionID)
+		}
+		if err != nil {
+			return klassifiziere(err)
+		}
+		rows, err := c.QueryContext(ctx, abfrageTreffer, sessionID, matchKey)
+		if err != nil {
+			return klassifiziere(err)
+		}
+		treffer, err = sammle(rows, leseExchange)
+		return err
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	return treffer, hoechste, nil
+}
+
+// imLesestand führt f in einer Lesetransaktion auf einer Verbindung aus: im Modus WAL sehen alle Abfragen von f den Stand der
+// ersten, ohne einen Schreiber aufzuhalten. Die Transaktion wird ohne den Abbruch des Kontexts zurückgenommen.
+func (d *DB) imLesestand(ctx context.Context, f func(*sql.Conn) error) (err error) {
+	conn, err := d.sql.Conn(ctx)
+	if err != nil {
+		return klassifiziere(err)
+	}
+	defer func() {
+		_, _ = conn.ExecContext(context.WithoutCancel(ctx), "ROLLBACK")
+		if cerr := conn.Close(); err == nil {
+			err = cerr
+		}
+	}()
+	if _, err = conn.ExecContext(ctx, "BEGIN"); err != nil {
+		return klassifiziere(err)
+	}
+	return f(conn)
+}
+
 func leseExchange(row zeile) (model.Exchange, error) {
 	var e model.Exchange
 	var matchKey, finished, reqBlob, respBlob, respHeaders sql.NullString

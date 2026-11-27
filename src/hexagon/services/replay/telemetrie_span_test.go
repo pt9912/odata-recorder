@@ -90,7 +90,7 @@ func TestKeinSpanOhneZuordnung(t *testing.T) {
 
 // erfolgsFolge ist die Folge der Aufrufe eines Treffers mit Cursor: Span, die sieben Ports, Set, End.
 func erfolgsFolge(mitPut bool, mitLog bool) []string {
-	f := []string{"Telemetrie.StartSpan", "Sessions.Get", "Exchanges.ListBySession", "Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get",
+	f := []string{"Telemetrie.StartSpan", "Sessions.Get", "Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get",
 		"tx Cursors.Get", "Blobs.Open"}
 	if mitPut {
 		f = append(f, "tx Cursors.Put")
@@ -119,7 +119,7 @@ func TestSpanFolge(t *testing.T) {
 			u.lege(e)
 		}, erfolgsFolge(true, true)},
 		{"first ohne Put", model.StrategyFirst, func(u *umg) { u.lege(u.austausch(1, u.keyA(), true)) }, erfolgsFolge(false, false)},
-		{"Fehler in f", model.StrategySequential, func(*umg) {}, []string{"Telemetrie.StartSpan", "Sessions.Get", "Exchanges.ListBySession",
+		{"Fehler in f", model.StrategySequential, func(*umg) {}, []string{"Telemetrie.StartSpan", "Sessions.Get", "Exchanges.ListByMatchKey",
 			"Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get", "tx Cursors.Get", "Span.Set", "Span.End"}},
 	}
 	for _, f := range faelle {
@@ -268,8 +268,8 @@ func platzhalterFaelle() []spanFall {
 		}, soll{code: model.CodeE5006}, false),
 		fall("Key E9001", func(u *umg) inbound.Anfrage { a := erfolgsLauf(u); a.Pfad = root + "/a?b"; return a }, soll{code: model.CodeE9001}, false),
 		// S3: zwei Codes.
-		fall("S3 E7003", stoerung("Exchanges.ListBySession", ng), soll{code: model.CodeE7003}, false),
-		fall("S3 E3001", stoerung("Exchanges.ListBySession", outbound.ErrBeschaedigt), soll{code: model.CodeE3001}, false),
+		fall("S3 E7003", stoerung("Exchanges.ListByMatchKey", ng), soll{code: model.CodeE7003}, false),
+		fall("S3 E3001", stoerung("Exchanges.ListByMatchKey", outbound.ErrBeschaedigt), soll{code: model.CodeE3001}, false),
 		// S4 vor f.
 		fall("S4 vor f", stoerung("Transaktion.WithWorkspaceTransaction", andere), soll{code: model.CodeE9001}, true),
 		// S5: drei Codes.
@@ -288,8 +288,8 @@ func platzhalterFaelle() []spanFall {
 	)
 	// Kontextfehler an S1 bis S6 (S2 im Body des Requests), je Art des Kontextfehlers.
 	for _, k := range kontextfehler() {
-		for _, op := range []string{"Sessions.Get", "", "Exchanges.ListBySession", "Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get", "tx Cursors.Get"} {
-			r = append(r, fall("Kontext "+op+" "+k.Error(), kontextAn(op, k), soll{kontext: k}, op != "" && op != "Sessions.Get" && op != "Exchanges.ListBySession"))
+		for _, op := range []string{"Sessions.Get", "", "Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get", "tx Cursors.Get"} {
+			r = append(r, fall("Kontext "+op+" "+k.Error(), kontextAn(op, k), soll{kontext: k}, op != "" && op != "Sessions.Get" && op != "Exchanges.ListByMatchKey"))
 		}
 	}
 	return r
@@ -505,7 +505,7 @@ func TestCursorTripelErreichbar(t *testing.T) {
 			bestaende++
 			for _, s := range cursorStrategien() {
 				for k := 0; k <= n; k++ {
-					_, err := replay.Waehle(s, keyA, liste, false, verbraucht(k), int64(k))
+					_, err := replay.Waehle(s, keyA, liste, n, false, verbraucht(k), int64(k))
 					erg := ergTreffer
 					if err != nil {
 						var f *inbound.Fehler
@@ -602,7 +602,7 @@ func TestSpanNachDerAuswahl(t *testing.T) {
 // Kontextfehler und Fehler der Tabelle (errors.Join) an den 8 Stellen (16); je Fall genau ein StartSpan und ein End und der Ausgang unverändert
 // (Code, Kontextfehler ohne Code oder Antwort). Zählprüfung 8, 2, 11 als Literal (SPEC-135 Nr. 18, SPEC-296 Nr. 6, SPEC-109 Nr. 6).
 func TestSpanJederRueckweg(t *testing.T) {
-	stellen8 := []string{"Sessions.Get", "", "Exchanges.ListBySession", "Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get", "tx Cursors.Get",
+	stellen8 := []string{"Sessions.Get", "", "Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction","tx Workspaces.Get", "tx Cursors.Get",
 		"Blobs.Open", "tx Cursors.Put"}
 	var faelle []spanFall
 	for _, op := range stellen8 {
@@ -723,12 +723,12 @@ type spanStand struct {
 // und spätere Operation das beendete ctx unverändert erhält. Je Fall genau ein StartSpan und ein End, ein Set genau dann, wenn S4 gerufen
 // wurde, und der Ausgang unverändert (Kontextfehler ohne Code oder Antwort). Zählprüfung 8, 2 und 18.
 func TestSpanAbbruch(t *testing.T) {
-	stellen8 := []string{"Sessions.Get", "", "Exchanges.ListBySession", "Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get", "tx Cursors.Get",
+	stellen8 := []string{"Sessions.Get", "", "Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction","tx Workspaces.Get", "tx Cursors.Get",
 		"Blobs.Open", "tx Cursors.Put"}
 	vorS4 := spanStand{nichtGelesen, nichtGewaehlt, false}
 	inS4 := spanStand{nichtGelesen, nichtGewaehlt, true}
 	nachAuswahl := spanStand{"sequential", ergTreffer, true}
-	erwartung := map[string]spanStand{"Sessions.Get": vorS4, "": vorS4, "Exchanges.ListBySession": vorS4, "Transaktion.WithWorkspaceTransaction": inS4,
+	erwartung := map[string]spanStand{"Sessions.Get": vorS4, "": vorS4, "Exchanges.ListByMatchKey": vorS4, "Transaktion.WithWorkspaceTransaction": inS4,
 		"tx Workspaces.Get": inS4, "tx Cursors.Get": inS4, "Blobs.Open": nachAuswahl, "tx Cursors.Put": nachAuswahl}
 	pruefe := func(u *umg, was string, resp inbound.Antwort, err error, s soll, stand spanStand) {
 		t.Helper()

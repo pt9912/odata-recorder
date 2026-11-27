@@ -121,7 +121,7 @@ func (p *protokoll) setzeHaken(op string, h func(n int)) {
 func verbotene() []string {
 	return []string{
 		"Sessions.Create", "Sessions.SetStatus", "Sessions.List", "Sessions.FindOpen", "Sessions.Delete",
-		"Exchanges.Append", "Exchanges.Get", "Blobs.Verify", "Blobs.List", "Blobs.Remove",
+		"Exchanges.Append", "Exchanges.Get", "Exchanges.ListByMatchKey", "Blobs.Verify", "Blobs.List", "Blobs.Remove",
 		"Imports.BaselinesOf", "Imports.Sources",
 		"Snapshots.List", "Snapshots.CreateWorkspace", "Snapshots.GetWorkspace", "Snapshots.ListWorkspace",
 		"Metadaten.Create", "Metadaten.Get", "Metadaten.List",
@@ -225,6 +225,11 @@ func (f *fakeExchanges) Append(ctx context.Context, e model.Exchange) error {
 func (f *fakeExchanges) Get(ctx context.Context, id string) (model.Exchange, error) {
 	_, err := f.p.betrete("Exchanges.Get", ctx, id)
 	return model.Exchange{}, err
+}
+
+func (f *fakeExchanges) ListByMatchKey(ctx context.Context, id, key string) ([]model.Exchange, int, error) {
+	_, err := f.p.betrete("Exchanges.ListByMatchKey", ctx, id, key)
+	return nil, 0, err
 }
 
 // --- BlobRepository mit CaptureWriter ------------------------------------------------------

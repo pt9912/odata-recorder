@@ -298,7 +298,7 @@ func TestSessionZustaende(t *testing.T) {
 			continue
 		}
 		erwarteCode(t, f.name, err, f.code)
-		for _, op := range []string{"Exchanges.ListBySession", "Transaktion.WithWorkspaceTransaction", "tx Cursors.Put", "Blobs.Open"} {
+		for _, op := range []string{"Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction", "tx Cursors.Put", "Blobs.Open"} {
 			if u.p.anzahl(op) != 0 {
 				t.Errorf("%s: %s gerufen", f.name, op)
 			}

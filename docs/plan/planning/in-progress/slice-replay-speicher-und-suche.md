@@ -85,6 +85,43 @@ nicht die Antwort.
 - **Kandidaten**, keiner belegt: K1 ist das Lesen der ganzen Session je Anfrage (`src/hexagon/services/replay/replay.go:118`; `src/adapters/driven/sqlite/recording.go:121`, mit den Stellen der Dekodierung `:151`, `:179`, `:183`). Die weiteren Stellen der Kandidaten K2 bis K5: `src/adapters/driven/sqlite/tx.go:56` (die Transaktion), `src/adapters/driving/httpodata/server.go:104` (der Server ohne Grenze gleichzeitiger Requests), `src/adapters/driven/sqlite/sqlite.go:81` (der Pool ohne Grenze der Verbindungen) und die fehlende Setzung `GOMEMLIMIT`. Zeilennummern am Stand `0ee80d43`.
 - **Folge:** erklärt K1 den Verbrauch nicht allein, wird die Suche dennoch geliefert; der Rest steht unter [CO-001](../../carveouts/CO-001-lasttest-replay-ohne-p95.md) mit neuem Folge-Slice (§4).
 
+#### Ergebnis am unveränderten Code (vor jeder Behebung)
+
+**Messender:** Implementer, 2026-11-27, Commit `17086a9a`. **Methode:** der Aufbau von `tests/lasttest` (Profil `abnahme`, Startwert 1: Record über `bootstrap.Build`, Import, Workspace; 10 000 Exchanges, 101 MiB in `DATA_DIR`) und ein Messprogramm, das `replay.Replayer.Replay` mit der Konfiguration des Composition Root über `sqlite` und `blobs` ruft (Einzel-Lookups, je Aufruf eine neue Replay-Session, Header `Accept`, `Accept-Encoding`, `User-Agent` wie beim Client des Lasttests); go 1.27.1, `GOMAXPROCS` 2, ohne `GOMEMLIMIT` und `GOGC`. **Container:** netzlos, `--cpus=2 --memory=4g --memory-swap=4g`, ein Container zur Zeit. **Host:** 20 CPU, 31 GB, fremde Datenbank-Container; Last (1 min) während der zwei Durchgänge 7,2 bis 4,9.
+
+| Größe | Wie | Wert |
+|---|---|---|
+| *L* gehaltener Speicher | `HeapAlloc` nach `runtime.GC` beim Eintritt in die Transaktion (der Dienst hält das Gelesene), Zuwachs gegen den Stand vor dem Aufruf; 10 Aufrufe in zwei Prozessen | 15,60 MiB (15,595 bis 15,609) |
+| *L* `TotalAlloc` | je `Replay` | 45,9 MiB in rund 708 000 Allokationen |
+| *C* | `Getrusage` über 50 Aufrufe nacheinander, zwei Prozesse | 107,5 und 106,1 ms CPU je Anfrage (Wand 96,3 und 95,1 ms) |
+| *s*, gemeinsamer Start | `VmHWM` minus `VmRSS` beim Start, geteilt durch *k*; je *k* ein Prozess, zwei Durchgänge | `VmHWM` bei *k* = 1: 42,6 und 42,2 MiB; 8: 226,7 und 219,5; 32: 883,2 und 848,3; 64: 1550,5 und 1770,2 (Start 13,2 bis 13,5); *s* bei *k* = 8 bis 64: 24,0 bis 27,4 MiB |
+| *s*, alle *k* zugleich gehalten (Zusatz: die Transaktion beginnt erst, wenn alle *k* gelesen haben) | wie oben | `VmHWM` 8: 248,3 und 244,0 MiB; 32: 909,1 und 907,5; 64: 1726,4 und 1684,5; gehaltener Heap 125, 500 und 999 MiB; *s* 26,1 bis 29,4 MiB |
+
+**Auswertung.**
+
+- **Speicher:** *s* × 185 = 4,3 bis 5,3 GiB (4,7 bis 5,7 GB) und liegt über den rund 4,15 GB, bei denen der OOM-Killer das Binary beendete. Allein der gehaltene Heap (15,6 MiB × 185 = 2,8 GiB) liegt darunter; der Rest bis `VmHWM` ist die Reserve des GC und der Speicher von SQLite.
+- **CPU:** *C* × 20 je Sekunde = 2,1 CPU-Sekunden je Sekunde, mehr als die zwei vCPU hergeben. Bei der Rate des Lasttests läuft ein Rückstand an Anfragen auf; so entstehen die offenen Anfragen, deren Speicher sich summiert.
+- **K1** (Lesen der ganzen Session je Anfrage) erklärt demnach beide Grenzen. Welcher Anteil je Anfrage auf anderes fällt (K2 bis K5), zeigt derselbe Aufbau nach der Behebung.
+
+#### Ergebnis nach der Behebung (derselbe Aufbau)
+
+**Messender:** Implementer, 2026-11-27, Quellstand des Handoff-Commits (Produktcode), dieselben Daten (Kopie des Stands vor der ersten Messung), dieselben Bedingungen; Last (1 min) 8,6 bis 7,6.
+
+| Größe | vorher | nachher |
+|---|---|---|
+| *L* gehaltener Speicher | 15,60 MiB | unter der Auflösung der Messung (−0,014 bis −0,006 MiB); gehaltener Heap bei 64 zugleich 0,4 und 0,5 MiB |
+| *L* `TotalAlloc` je `Replay` | 45,9 MiB, rund 708 000 Allokationen | 0,055 bis 0,063 MiB, 564 bis 585 Allokationen |
+| *C* CPU je Anfrage | 107,5 und 106,1 ms (Wand 96,3 und 95,1) | 0,76 und 0,78 ms (Wand 10,8 und 12,5) |
+| `VmHWM`, gemeinsamer Start, *k* = 1, 8, 32, 64 | 42, 220 bis 227, 848 bis 883, 1550 bis 1770 MiB | 14,3; 16,9 und 17,0; 23,1 und 23,6; 29,5 und 32,3 MiB |
+| `VmHWM`, alle *k* zugleich gehalten | 42 bis 43, 244 bis 248, 908 bis 909, 1685 bis 1726 MiB | 14,7; 16,8 und 17,0; 20,9 und 21,3; 26,0 und 27,1 MiB |
+| *s* je gleichzeitiger Anfrage (*k* = 8 bis 64) | 24,0 bis 29,4 MiB | 0,20 bis 0,46 MiB |
+| *s* × 185 | 4,3 bis 5,3 GiB | höchstens 85 MiB |
+| *C* × 20 je Sekunde | 2,1 CPU-Sekunden | 0,016 CPU-Sekunden |
+
+**Anteil des Rests:** von *s* und von *C* fällt höchstens ein Fünfzigstel auf anderes als das Lesen der Session (K2 bis K5). K1 erklärt den Verbrauch; ein Rest unter [CO-001](../../carveouts/CO-001-lasttest-replay-ohne-p95.md) aus dem Speicher ist in diesem Aufbau nicht zu sehen. Der Aufbau fährt den Dienst direkt: HTTP-Server, Telemetrie-Adapter und die Rate des Lasttests gehören nicht dazu, ein p95 liefert allein der Aufruf `abnahme`.
+
+**Nebenbefund, außerhalb des Slice** (§6): bei *k* = 64 zugleich freigegebenen Transaktionen enden einzelne Aufrufe mit `ODR-E9001`, Ursache `database is locked (5) (SQLITE_BUSY)` nach rund 5 s; vorher in 2 von 3 Läufen (6 und 4 Aufrufe von 64, ohne Ursache protokolliert), nachher in 1 von 2 Läufen (2 von 64). Auch die Wandzeit bei *k* = 32 (rund 2,2 s bei 0,09 s CPU) stammt aus dem Warten der Schreiber.
+
 ### Dateien
 
 | Datei / Komponente | Änderungs-Art | Begründung |
@@ -92,7 +129,7 @@ nicht die Antwort.
 | `src/hexagon/ports/outbound/recording_repository.go` | update | `ListByMatchKey` (`SPEC-105` Nr. 14) |
 | `src/adapters/driven/sqlite/recording.go` | update | die Operation auf dem Index, beide Werte aus demselben Stand |
 | `src/hexagon/services/replay/` (`replay.go`, `auswahl.go`) | update | Suche nach dem Key, `strict` mit der größten Nummer (`SPEC-135` Nr. 8, 9, 18) |
-| `src/hexagon/ports/outbound/outboundtest/vertrag.go`; `src/adapters/driven/sqlite/` (Tests `repositories_test.go`, `export_test.go`, neu `list_by_match_key_test.go`) | update und neu | Port-Vertrag, Dekodierung, Index, Speicher, Fenster |
+| `src/hexagon/ports/outbound/outboundtest/vertrag.go`; `src/adapters/driven/sqlite/` (Tests `export_test.go`, neu `list_by_match_key_test.go`; `repositories_test.go` bleibt unverändert) | update und neu | Port-Vertrag, Dekodierung, Index, Speicher, Fenster, Abbruch an jedem Schritt |
 | `src/hexagon/services/replay/` (Tests) | update und neu | der Fake `exchanges` liefert echt (Filter nach Key, größte Nummer) und meldet jeden Aufruf von `ListBySession` als Verstoß; die bestehenden Tests, die `Exchanges.ListBySession` nennen, ziehen auf die neue Operation um, keine Zelle und kein Fänger entfällt (`AGENTS.md` §3.6, `BEO-REPO/anpassung-eines-bestehenden-tests-lockert-seinen-faenger`) |
 | `src/hexagon/services/record/`, `session/`, `inspection/`, `baselineimport/` (Tests der Fakes) | update | Stub der neuen Operation; er zählt den Aufruf wie jede andere Operation, auch die, die der Dienst nie rufen darf (`AGENTS.md` §3.15); in `record` auch der Wrapper `jExchanges` |
 | `src/bootstrap/telemetrie_replay_test.go` | update | der Wrapper `ursacheExchanges` setzt den Fehler an der neuen Operation ein |
@@ -129,6 +166,48 @@ Erwartung des Architect: Produktcode grob 80 bis 120 Zeilen, Tests grob 300 bis 
 
 **Messpunkte der Tabelle:** 21 Zeilen, *a* = 2 (R07, R08), *b* = 19.
 
+**Zum Stand der Umsetzung** (Implementer, 2026-11-27):
+
+- **Haltepunkt zu R07 und R08.** `database/sql` und der Treiber fragen einen offenen Kontext allein über `Done` ab, nie über `Err`. Der Haltepunkt zählt deshalb `Done` und `Err`; sein `Done` liefert `nil`, so dass keine Goroutine entsteht und jeder Aufruf zwischen zwei Schritten der Operation liegt. Die Schleife läuft über alle diese Aufrufe und verlangt, dass beide Stände vorkommen. Kein Fenster zwischen den Abfragen bleibt ohne Haltepunkt; ein Negativ zu R07 und R08 entsteht nicht.
+- **R10, Befund beim ersten Testlauf.** Mit `WHERE session_id = ? AND match_key = ? ORDER BY sequence_no` wählte SQLite den Unique-Index `(session_id, sequence_no)` und las jede Zeile der Session. Die Abfrage nennt den Index mit `INDEXED BY idx_exchange_match`. Die Prüfung von `make schema-check` fährt die Abfrage ohne `ORDER BY` und zeigt das nicht (`SPEC-216` Nr. 6 g).
+- **R12** hält `TestListByMatchKey` (der Test hieß `TestListBySession`); R12 und R15 bis R19 stehen in `auswahl_test.go`.
+- **Zusätzliche Fälle über die Tabelle hinaus:** `TestListByMatchKeyAbbruch` (Abbruch an jedem Aufruf des Kontexts: Fehler des Kontexts oder der volle Stand; an den ersten fünf der Fehler) und `TestListByMatchKeyGespeicherterLeererKey` (ein per SQL leer gespeicherter Key).
+
+**Mutationen** (Implementer, 2026-11-27; `tools/harness/mutationslauf.sh` mit `MUTATIONSLAUF_SPEICHER=4g`, 4 CPU, Last des Hosts je Mutation 9 bis 25; R21 von Hand mit `go test` in einer Wegwerfkopie, weil das Werkzeug für `src/bootstrap` den Ausgangsstand als rot meldet). Jede genannte Mutation ist rot gesehen.
+
+| Zeile | Mutationen (je rot) | Roter Test |
+|---|---|---|
+| R01 | ohne Bedingung auf den Key; Ordnung nach der Kennung; Key als Anfang; gespeicherter Key als Anfang des Arguments; `COLLATE NOCASE`; `raw_query` nicht gelesen; `key_redacted` nicht gelesen | `TestRecordingVertrag` |
+| R02 | Maximum der Treffer; Zahl der Treffer; Zahl plus eins | `TestRecordingVertrag` |
+| R03 | keine Prüfung der Existenz; Fehler bei Session ohne Exchanges | `TestRecordingVertrag` |
+| R04 | leerer Key als fehlender Wert; `ErrNichtGefunden` ohne Treffer; ohne `?2 <> ''` | `TestRecordingVertrag`, `TestListByMatchKeyGespeicherterLeererKey` |
+| R05 | Liste ohne Bedingung auf die Session; Maximum ohne Bedingung auf die Session | `TestRecordingVertrag` |
+| R06 | Operation ohne `ctx`; Abfrage der größten Nummer ohne `ctx`; Abfrage der Treffer ohne `ctx`; Abbruch als leere Liste; `ErrNichtGefunden` vor dem Kontext | `TestRecordingVertrag`, `TestListByMatchKeyAbbruch` |
+| R07 | ohne `BEGIN`; Stand zwischen den Abfragen freigegeben (`ROLLBACK`) | `TestListByMatchKeyGegenAppend` |
+| R08 | ohne `BEGIN`; Stand zwischen den Abfragen freigegeben | `TestListByMatchKeyGegenDelete` |
+| R09 | ganze Session gelesen und im Adapter gefiltert | `TestListByMatchKeyDekodiertAlleinDieTreffer` |
+| R10 | ohne `INDEXED BY`; `+match_key`; `+session_id` in der Abfrage des Maximums (erst grün, Test geschärft); Abfrage ohne Bedingung auf den Key | `TestListByMatchKeyNutztDenIndex` |
+| R11 | ganze Session gelesen und verworfen | `TestListByMatchKeySpeicher` |
+| R12 | zusätzlich `ListBySession`; zweiter Aufruf; Aufruf in `f`; Kennung vorn und hinten gekürzt; anderer Key | `TestListByMatchKey` |
+| R13 | `context.Background`; `context.WithoutCancel`; der `ctx` von `StartSpan` | `TestKontextJederStelle` |
+| R14 | Gegenstand `Sonstiges`; Fehler als leere Liste; Blob nach dem Fehler; Transaktion nach dem Fehler (diese fangen `TestKontextfehlerJederStelle`, `TestSpanPlatzhalter` und `TestSpanAbbruch`, nicht `TestAbbildungJederStelle`) | `TestAbbildungJederStelle`, `TestKontextfehlerJederStelle` |
+| R15 | Filter entfällt; `first`, `last` und `sequential` nach der Stelle in der Liste | `TestKandidatenAlleinDerKey` |
+| R16 | Maximum aus den Kandidaten; Grenze um eins nach oben | `TestStrictGroessteNummer` |
+| R17 | Grenze um eins nach unten; `ODR-E5002` ohne Kandidat | `TestStrictGroessteNummer` |
+| R18 | nächster Kandidat statt `ODR-E5008`; `consumed` befragt | `TestStrictGroessteNummer` |
+| R19 | je eine der vier Strategien ohne `ODR-E5001` | `TestOhneKandidatenIstE5001` |
+| R20 | `consumed` nicht befragt; `last` nimmt den ersten | `TestAuswahlSequential`, `TestAuswahlFirstLast` |
+| R21 | der Wrapper überschreibt die neue Operation nicht (Status 200, Zähler 0) | `TestWurzelReplayKeinRequestWertInDerSenke` |
+
+**Raten** (R07 und R08, Messender Implementer, Last des Hosts 16 bis 25): je Mutation mit Detektor 10 von 10 Prozessen rot, ohne Detektor 20 von 20 (vier Mutationen). Die Fänger sind Wirkungs-Fänger ohne Goroutine; der Detektor trägt nichts bei.
+
+**Akzeptierte Negative**, je mit Grund, Folge und Maß:
+
+- *R15, „ein leerer `MatchKey` passt nie“ im Dienst:* die Prüfung auf den leeren Key neben der Byte-Gleichheit ist ohne Wirkung, weil der Key nach `SPEC-135` Nr. 7 nie leer ist; sie zu entfernen fängt kein Test (1 von 1 Mutation dieser Klasse). Folge: keine im Betrieb.
+- *R09 bis R11, eine Abfrage neben den zwei geprüften:* R10 prüft die zwei Texte der Operation, R09 und R11 sehen allein, was Go dekodiert oder alloziert. Eine weitere Abfrage, die die Session in SQLite durchläuft und höchstens eine Zeile liefert (etwa `count(*)`), bleibt ungefangen. Folge: CPU je Anfrage wächst wieder mit der Session; das zeigt allein der Lasttest.
+- *R11, Speicher von SQLite:* `testing.AllocsPerRun` zählt den Go-Heap, nicht den Speicher des Treibers. Folge: ein Wachstum innerhalb von SQLite bei gleichem Plan bleibt ungefangen.
+- *R06, Abbruch während des Lesens der Zeilen:* nach der Abfrage der Treffer sagt der Test „Fehler des Kontexts oder voller Stand“ zu, weil `database/sql` die Zeilen in einer eigenen Goroutine schließt. Folge: keine verkürzte Liste, aber ein spät abgebrochener Aufruf kann gelingen.
+
 **Betriebsregeln für alle Rollen dieses Slice** (Lehren der Läufe vom 2026-10-24):
 
 - Repo-Dateien nur mit `Edit` und `Write`; keine Hilfsdateien im Wurzelverzeichnis (`BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt`).
@@ -164,7 +243,7 @@ pfad: src/hexagon/services/replay/fakes_pruefen_test.go
 pfad: src/hexagon/services/replay/gegenstand_test.go
 pfad: src/hexagon/services/replay/helfer_test.go
 pfad: src/hexagon/services/replay/konfig_test.go
-pfad: src/hexagon/services/replay/match_key_test.go
+pfad: src/hexagon/services/replay/export_test.go
 pfad: src/hexagon/services/replay/nebenlaeufig_test.go
 pfad: src/hexagon/services/replay/stellen_test.go
 pfad: src/hexagon/services/replay/szenarien_test.go
@@ -177,6 +256,7 @@ pfad: src/hexagon/services/record/telemetrie_hilfen_test.go
 pfad: src/hexagon/services/session/helfer_test.go
 pfad: src/hexagon/services/session/beenden_test.go
 pfad: src/hexagon/services/inspection/helfer_test.go
+pfad: src/hexagon/services/inspection/port_test.go
 pfad: src/hexagon/services/baselineimport/helfer_test.go
 pfad: src/hexagon/services/baselineimport/fakes_test.go
 pfad: src/bootstrap/telemetrie_replay_test.go
@@ -189,7 +269,7 @@ marke: 2700
 
 **Gesetzt** vom Planner beim Start am 2026-11-27 vor dem ersten Code-Commit: `basis` `0ee80d43`, `schaetzung` 1990, `marke` 2700; mit `make groessenmarke` am Plan vor dem Eintrag nachgerechnet (`Marke steht aus: Schätzung 1990, Marke 2700`).
 
-Der Block nennt die Dateien einzeln (`SPEC-128` Nr. 10 g, `BEO-REPO/bedingter-blockpfad-zaehlt-fremde-zeilen`). `list_by_match_key_test.go` und `match_key_test.go` gibt es noch nicht (die Namen sind ein Vorschlag des Planners; die Messung zählt dort 0, bis sie entstehen); ein anderer Name ersetzt den Vorschlag im selben Commit, und der Implementer nennt jede weitere Datei, die er ändert oder anlegt, im selben Commit im Block.
+Der Block nennt die Dateien einzeln (`SPEC-128` Nr. 10 g, `BEO-REPO/bedingter-blockpfad-zaehlt-fremde-zeilen`). `list_by_match_key_test.go` ist angelegt; die vorgeschlagene `match_key_test.go` entsteht nicht (die Fälle R12 und R15 bis R19 stehen in `auswahl_test.go`) und ist aus dem Block genommen. Der Implementer hat `replay/export_test.go` (die Auswahl bekommt die größte Nummer) und `inspection/port_test.go` (die Zählung der neuen Operation) in den Block aufgenommen.
 
 **Kollisionen** (Planner, 2026-11-27): [slice-bootstrap-m6-transport](../in-progress/slice-bootstrap-m6-transport.md) läuft zugleich; die zwei Blöcke haben keine Datei gemeinsam (dort `src/bootstrap/` mit `konfig_admin.go`, `konfig.go`, `lebenszyklus.go`, `start.go`, `wurzel.go` und sieben Testdateien, hier allein `telemetrie_replay_test.go`). Keiner von beiden ändert `Makefile`, `harness/mk/`, `Dockerfile`, `harness/README.md` oder `tools/gegenproben/` im Zweig (Übergangsregeln Nr. 7); die Bindung von [CO-001](../../carveouts/CO-001-lasttest-replay-ohne-p95.md) in `harness/README.md` ändert allein die Closure. Wer als zweiter merged, nimmt zuvor `main` auf und fährt `make gates` neu (Nr. 5). Der Aufruf `abnahme` hält die Sperre rund 50 Minuten und hält in dieser Zeit die Gates der anderen Linie an.
 
@@ -229,14 +309,17 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 | Modus `replay` und `hybrid` | derselbe Dienst, dieselbe Auswahl; der Dienst hat keinen Parameter des Modus (Nr. 9) | R12 bis R20; die Tests von `hybrid` bleiben unverändert |
 | Allaussage „der Dienst ruft `ListBySession` nie“ (Nr. 8) | über alle Fälle | R12: der Fake meldet jeden Aufruf in jedem Test des Pakets |
 
-- Die Ursache ist nicht die Suche: der Lauf trennt Speicher je Anfrage nicht von der Zahl gleichzeitiger Anfragen, und das Kernel-Protokoll nennt allein den Prozess — **Ausgang:** offen; Adresse: DoD 1.
+- Die Ursache ist nicht die Suche: der Lauf trennt Speicher je Anfrage nicht von der Zahl gleichzeitiger Anfragen, und das Kernel-Protokoll nennt allein den Prozess — **Ausgang:** offen bis zur Closure; Stand: die Messung (§3) weist Speicher und CPU zu mindestens 98 % dem Lesen der Session zu; Adresse: Planner.
 - Messung und Vertrag der Behebung hängen aneinander — **Ausgang:** entschieden (Architect, 2026-11-27): der Vertrag der Suche steht unabhängig vom Ergebnis der Messung (`91beaf53`), die Messung läuft vor der Behebung (DoD 1).
-- **Frage an den User** (nicht blockierend): soll das Binary die Zahl gleichzeitiger Requests begrenzen (sichtbares Verhalten, `SPEC-135` *Ungeprüft*)? Empfehlung des Architect: nach der Messung entscheiden — **Ausgang:** offen; Adresse: User, vorgelegt vom Planner mit den Zahlen aus DoD 1.
-- Der Port bekommt eine Operation, und viele bestehende Tests nennen `ListBySession`: ein Umzug kann einen Fänger lockern (`BEO-REPO/anpassung-eines-bestehenden-tests-lockert-seinen-faenger`, `BEO-REPO/ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit`) — **Ausgang:** offen; Adresse: Reviewer (Diff der bestehenden Tests).
+- **Frage an den User** (nicht blockierend): soll das Binary die Zahl gleichzeitiger Requests begrenzen (sichtbares Verhalten, `SPEC-135` *Ungeprüft*)? Empfehlung des Architect: nach der Messung entscheiden. Zahlen nach der Behebung (§3): *s* 0,2 bis 0,46 MiB je gleichzeitiger Anfrage (ohne HTTP-Server), *C* unter 1 ms; unter 64 zugleich freigegebenen Transaktionen enden einzelne Aufrufe mit `ODR-E9001` (`SQLITE_BUSY`) — **Ausgang:** offen; Adresse: User, vorgelegt vom Planner mit den Zahlen aus DoD 1.
+- Der Port bekommt eine Operation, und viele bestehende Tests nennen `ListBySession`: ein Umzug kann einen Fänger lockern (`BEO-REPO/anpassung-eines-bestehenden-tests-lockert-seinen-faenger`, `BEO-REPO/ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit`). Stand: der Name der Operation ist in den bestehenden Tests ersetzt, die Zählliterale sind um die neue Operation gewachsen (34 auf 35 Operationen, 27 auf 28 verbotene Ports, 140 auf 145 Prüfungen, 30 auf 31 Methoden), keine Zelle ist entfallen; `TestListBySession` ist in `TestListByMatchKey` aufgegangen (12 auf 24 Elemente) — **Ausgang:** offen; Adresse: Reviewer (Diff der bestehenden Tests).
 - Auch nach der Behebung liegt p95 über 100 ms, oder das Binary erreicht die Grenze aus einem zweiten Grund — **Ausgang:** offen; Folge: [CO-001](../../carveouts/CO-001-lasttest-replay-ohne-p95.md) bleibt aktiv mit neuem Folge-Slice.
 - Der Aufruf `abnahme` hält `flock /tmp/odata-recorder-heavy.lock` rund 50 Minuten (gemessen: 49 Minuten, Aufbau 275,5 s, 69 MiB); die Wurzel von Docker (`/docker`) war beim letzten Lauf zu 96 % belegt (23 GiB frei), und fremde Container liefen — **Ausgang:** offen; Adresse: Verifier (Bedingungen im Bericht), Planner (Zeitfenster).
 - Seit dem letzten Aufruf `abnahme` änderte sich das Binary (Admin-Listener auf `main`) — der erneute Lauf gilt für den neuen Stand und fährt auch `mock`, dessen Ergebnis `bestanden` er nicht voraussetzt — **Ausgang:** offen; Adresse: Verifier.
 - Die Setzungen des Lasttests sind ungemessen; ihre Prüfung nach drei gültigen Läufen je Betriebsart (`SPEC-216` Nr. 16 g) hat bisher zwei Läufe `mock` und keinen `replay` — **Ausgang:** offen; Adresse: Architect nach dem dritten gültigen Lauf.
+- Nebenbefund der Messung (§3), unabhängig von der Suche und schon am unveränderten Code: geben 64 Transaktionen zugleich frei, wartet der Schreiber über den Busy-Handler von SQLite, und einzelne Replay enden nach rund 5 s mit `ODR-E9001`, Ursache `SQLITE_BUSY`. `SPEC-135` Nr. 17 sagt zwei gleichzeitige `Replay` zu, eine Zahl darüber nicht; `ODR-E9001` für eine belegte Datenbank steht in keiner Randform. Der Slice ändert die Transaktion nicht (§1) — **Ausgang:** offen; Adresse: Architect (Vertrag), Planner (Folge-Slice).
+- `SPEC-216` Nr. 6 g nennt `make schema-check` als Beleg des Plans der Abfrage; geprüft wird dort eine Abfrage ohne `ORDER BY`, mit dem `ORDER BY` der Operation wählte SQLite ohne `INDEXED BY` den anderen Index (§3). Den Plan der Operation belegt R10 (`TestListByMatchKeyNutztDenIndex`, `make test`) — **Ausgang:** offen; Adresse: Architect (Wortlaut).
+- `tools/harness/mutationslauf.sh` meldet für `src/bootstrap` den Ausgangsstand als rot und fährt dann keine Mutation der Liste; `go test` über das Paket war in einer Wegwerfkopie grün; die Ursache ist nicht untersucht — **Ausgang:** offen; Adresse: Planner.
 
 ## 7. Closure-Notiz
 
