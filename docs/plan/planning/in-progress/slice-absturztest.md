@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-048` (Absturztest, Nr. 1 bis 5) · `SPEC-049` Nr. 1 (Aufbau) · `LH-QA-03.a`. Geändert wird allein der Vermerk *Stand* beim Liefern.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** — (bis zur Priorisierung).
+**Verantwortlich:** pt9912 (Zweig `slice-absturztest`, Worktree `/Development/odata-recorder-wt-absturz`; der Zweig entsteht von `main` nach dem Start-Commit, der Start liegt auf `main`)
 
 **Autor:** pt9912 (Planner, Schnitt von [slice-abnahme-belege](../done/slice-abnahme-belege.md) vor dem Code). **Datum:** 2026-11-27.
 
@@ -130,12 +130,17 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Größenmarke** (`SPEC-128` Nr. 1, `AGENTS.md` §3.14; Planner): 21 Zeilen (T1 bis T17, N1 bis N4), *a* = 0, *b* = 21, *f* = 3 (Dekoratoren um `WorkspaceTransactor`, `BlobRepository` mit seinem Writer und `SnapshotRepository`), *p* = 0: *S* = 80·21 + 600 = 2280, Marke 3100, **Schnittfrage** (*S* ≥ 2223). Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. `basis`, `schaetzung` und `marke` setzt der Planner beim Start, vor dem ersten Code-Commit. Der Teil des Architect (`pfad`, `produktcode`, `fakes`) ist vom Planner gesetzt.
 
+**Beim Start gesetzt** (Planner, 2026-11-28, vor dem ersten Code-Commit): `basis` `dac6775a` (reiner Move nach `in-progress/`, Vorfahr von `HEAD`), `schaetzung` 2280, `marke` 3100 (135·2280 = 307800, ⌈30,78⌉ = 31). Messbasis nach `SPEC-128` Nr. 10 g: die Datei des Blocks gibt es an der Basis nicht, fremde Zeilen 0. Der Vermerk *Stand* in `spec/spezifikation.md` liegt außerhalb des Blocks und zählt nicht.
+
 **Schnittfrage entschieden** (Planner, 2026-11-28): **kein Schnitt**, auch kein Handoff-Schnitt; der Grund steht als `schnitt-grund` im Block. Geprüft ist die Naht *Transaktion* (T1 bis T6) gegen *Snapshot* (T7 bis T10). Rechnerisch lägen beide Teile unter der Schnittgrenze (erster mit T11 bis T17, N1 bis N4 und dem einen Dekorator rund 1560, zweiter mit zwei Dekoratoren rund 720). Abtrennbar ist trotzdem keiner (`AGENTS.md` §3.14): beide teilen den Mechanismus aus Kindprozess (Rolle und Haltepunkt aus der Umgebung), Aufbau, Orakel *vorher* und *nachher* und Prüfung nach dem Neustart (T12 bis T17); der zweite Teil bestünde allein aus zwei Dekoratoren an diesem Gerüst und wäre ohne den ersten nicht lieferbar. Dazu verlangt der Vertrag eine Testfunktion mit der Zahl 10 als Literal (T11, `SPEC-048` Nr. 1 und 2): ein erster Teil führte 6 und widerspräche ihm, bis der zweite liegt. Ein Handoff-Schnitt ist aus demselben Grund nicht vorab benannt.
 
 ```groessenmarke
 pfad: src/bootstrap/absturz_test.go
 produktcode: 0
 fakes: 3
+basis: dac6775a
+schaetzung: 2280
+marke: 3100
 schnitt-grund: Kein Teil ist ohne geteilten Mechanismus abtrennbar. Die Naht Transaktion gegen Snapshot trennt nur die Haltepunkte; Kindprozess, Aufbau, Orakel vorher und nachher und die Pruefung nach dem Neustart (T12 bis T17) gelten allen 10, und der Vertrag verlangt eine Testfunktion, deren Zaehlpruefung die Zahl 10 als Literal fuehrt (T11). Ein Teil Snapshot allein waere ohne das Geruest des anderen nicht lieferbar.
 ```
 
@@ -195,6 +200,6 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** eine Sub-Area, der Default `*` (Kürzel `REPO`); es gibt keine feinere.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register bei der Anlage gesichtet (2026-11-27; der Planner zieht beim Start nach). Offen und berührt: `BEO-REPO/gate-lauf-stufen-aus-dem-schicht-cache` (20×), `BEO-REPO/nullprobe-grenze-unter-der-paketlaufzeit` (17×), `BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze` (1×), `BEO-REPO/zustand-unveraendert-nach-fehler-ohne-ruecklesen` (1×; T14 liest zurück), `BEO-REPO/orakel-prueft-nur-die-zaehler-des-testaufbaus` (1×; Orakel nach Nr. 3 aus dem Aufbau ohne Absturz).
+**Vorgelagert — offene Beobachtungen sichten:** Register beim Start nachgezogen (Planner, 2026-11-28; Zahl der Dateien unter `evidence/`). Zusätzlich berührt: `BEO-REPO/test-export-in-eigener-datei-verletzt-testpackage` (1×; §3 *Kollision und Namen*), `BEO-REPO/test-nicht-wiederholbar-im-selben-container` (1×; je Lauf und Haltepunkt ein eigenes `t.TempDir`, die Raten je Lauf verlangen `-count`), `BEO-REPO/sqlite-transaktionsvertrag-rot-unter-last` (7×; ein rotes `TestTransaktionVertrag` gehört dem Adapter), `BEO-REPO/schaetzformel-ueberschaetzt-den-slice` (33×; die Zeilen teilen ein Gerüst, die Marke liegt voraussichtlich weit über der Messung). Offen und berührt wie bei der Anlage: `BEO-REPO/gate-lauf-stufen-aus-dem-schicht-cache` (20×), `BEO-REPO/nullprobe-grenze-unter-der-paketlaufzeit` (17×), `BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze` (1×), `BEO-REPO/zustand-unveraendert-nach-fehler-ohne-ruecklesen` (1×; T14 liest zurück), `BEO-REPO/orakel-prueft-nur-die-zaehler-des-testaufbaus` (1×; Orakel nach Nr. 3 aus dem Aufbau ohne Absturz).
 
 Alle berührten Sub-Areas GF.
