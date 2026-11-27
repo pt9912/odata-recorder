@@ -1,0 +1,2 @@
+**Vorgang:** slice-abnahme-belege
+**Fund:** `LH-QA-07` sagt zu, unbekannte Erweiterungen verhinderten die Aufzeichnung nicht; der Nachweis `LH-QA-07.a` verlangt vom abgelegten Exchange allein `capture_status=complete`, und der Test liest davon vier Felder, nicht Header, Query oder Bodies (F-4, INFO; Mutation X5 des Reviews grün). Der Plan führt es als akzeptiertes Negativ E10, das Risiko steht weiter offen (Adresse Architect). Beleg: Plan §3 und §6; `2026-11-27-slice-abnahme-belege-review`.

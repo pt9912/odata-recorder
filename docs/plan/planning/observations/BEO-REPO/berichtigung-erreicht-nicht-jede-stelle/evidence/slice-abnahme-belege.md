@@ -1,0 +1,2 @@
+**Vorgang:** slice-abnahme-belege
+**Fund:** Zweimal blieb eine überholte Aussage stehen. (a) Plan §4 führte den Nachzug des Architect als nicht geliefert, während §3 und §6 ihn als geliefert führten (Review F-3); die Berichtigung erreichte nur eine der zwei Stellen in §4 (Verifikation V-3). (b) Roadmap und Welle-Datei führten die Sätze zu den zwei Betreiberpflichten als offen, nachdem die Spezifikation sie trug (F-6). Beleg: `2026-11-27-slice-abnahme-belege-review`, `2026-11-27-slice-abnahme-belege-verifikation`.

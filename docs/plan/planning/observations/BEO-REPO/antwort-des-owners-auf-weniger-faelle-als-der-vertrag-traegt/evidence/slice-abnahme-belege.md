@@ -1,0 +1,2 @@
+**Vorgang:** slice-abnahme-belege
+**Fund:** `SPEC-053` führt die vom Client geschriebenen Werte für die Modi `mock` und `hybrid` und nennt `hybrid` als nicht gesondert bestätigt; die Antwort des Users vom 2026-11-27 galt der Frage zum Modus `mock`. Das Kapitel `Schutz der Daten` des Handbuchs sagt den Satz für beide Modi. Die Frage an den User steht in der Roadmap (Zeile M7, Frage (c)). Beleg: Plan §6; `2026-11-27-slice-abnahme-belege-review`, `2026-11-27-slice-abnahme-belege-verifikation` (V-4).

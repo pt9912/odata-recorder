@@ -62,17 +62,17 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] `LH-QA-07`: ein Test im Paket `integration` führt die fünf Fälle von `LH-QA-07.a` (Query, Pfad, Header, JSON, Metadaten) im Modus `record` über den Listener gegen einen eigenen Referenzdienst, mit der Zahl der Fälle als Literal (E1 bis E7); die zwei Mutationen des Nachweises sind rot gesehen; der Vermerk *Stand* des Nachweises in `LH-QA-07.a` ist im liefernden Commit nachgezogen.
-- [ ] `LH-FA-08`: der Schritt `ODV4-Q-11` b (`SPEC-049` Nr. 4) läuft in der Abnahme, über HTTP und mit ETag; die Zähler stehen auf 93 (Bereich Q 17) in `abnahme_matrix_test.go`, `abnahme_etag_test.go` und `vertrag_http_test.go` (Q1, Q2); die Vermerke *Stand* in `SPEC-049` Nr. 4 und `SPEC-042` Nr. 3 e sind im liefernden Commit nachgezogen.
-- [ ] `LH-RB-04`: das Benutzerhandbuch trägt den kurzen Absatz *Schutz der Daten* (H1, H2), geschrieben nach dem Nachzug des Architect auf `main` (§4); `make handbuch-check` und `make katalog-check` sind grün.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] `LH-QA-07`: ein Test im Paket `integration` führt die fünf Fälle von `LH-QA-07.a` (Query, Pfad, Header, JSON, Metadaten) im Modus `record` über den Listener gegen einen eigenen Referenzdienst, mit der Zahl der Fälle als Literal (E1 bis E7); die zwei Mutationen des Nachweises sind rot gesehen; der Vermerk *Stand* des Nachweises in `LH-QA-07.a` ist im liefernden Commit nachgezogen.
+- [x] `LH-FA-08`: der Schritt `ODV4-Q-11` b (`SPEC-049` Nr. 4) läuft in der Abnahme, über HTTP und mit ETag; die Zähler stehen auf 93 (Bereich Q 17) in `abnahme_matrix_test.go`, `abnahme_etag_test.go` und `vertrag_http_test.go` (Q1, Q2); die Vermerke *Stand* in `SPEC-049` Nr. 4 und `SPEC-042` Nr. 3 e sind im liefernden Commit nachgezogen.
+- [x] `LH-RB-04`: das Benutzerhandbuch trägt den kurzen Absatz *Schutz der Daten* (H1, H2), geschrieben nach dem Nachzug des Architect auf `main` (§4); `make handbuch-check` und `make katalog-check` sind grün.
+- [x] `make gates` grün (Stand `fa5637fa`; die Grenze dieses Belegs steht in §7 *Gate*).
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
 
 ## 3. Plan (vor Code)
 
@@ -109,7 +109,7 @@ Dateiname und Testnamen sind Vorschlag des Planners; wer sie ändert, zieht Tabe
 | Q1 | `ODV4-Q-11` b (`$filter=Active ne false&$orderby=Stock&$skip=1&$top=2&$count=true&$select=Id`): 200, `KK`, Auswahl `Id`, `@odata.count` 4, Entities 5, 3 in dieser Folge; jede Stufe wirkt (`SPEC-049` Nr. 4) | `TestAbnahmeMatrix`, `TestVertragMatrix`, `TestAbnahmeMatrixMitEtag` | Filter, Sortierung, `$skip` oder `$top` entfällt; Gegenrichtung der Ordnung; Paging vor dem Filter, vor der Ordnung; `$skip` vor dem Filter; `$top` ohne Wirkung oder um eins erhöht bei gesetztem Filter; der Count zählt nach dem Paging oder vor dem Filter | andere |
 | Q2 | Die Matrix führt 36 IDs mit 93 Schritten (Q: 17); ein nicht gelaufener Schritt ist rot (`SPEC-049` Nr. 3 e) | `TestAbnahmeMatrixZaehlung`, `TestVertragMatrixZaehlung`, `TestAbnahmeMatrixMitEtag` | Schritt b entfällt; ein Zähler bleibt auf 92 | andere |
 | H1 | Handbuch, Absatz *Schutz der Daten*: Core-Dumps und Swap sind Pflicht des Betreibers; der Recorder prüft sie nicht (Wortlaut nach dem nachgezogenen `SPEC-053`) | Negativ mit Grund: Prosa wird nicht geprüft (`SPEC-200` Nr. 14 b); Reviewer und Verifier lesen gegen die Spezifikation. Folge: ein falscher Satz bleibt grün. `make handbuch-check` fängt allein Ausblick, Chronik und Kennungen, `make katalog-check` unbekannte Namen | eine Kennung der Spezifikation im Absatz ist rot (`make handbuch-check`) | andere |
-| H2 | Handbuch, derselbe Absatz: Werte, die ein Client im Modus `mock` oder `hybrid` schreibt, speichert der Dienst unverändert; welche Testdaten zulässig sind, verantwortet der Betreiber (`SPEC-053`, *Handbuch*: Kapitel `Schutz der Daten` mit drei Aussagen) | wie H1 | wie H1 | andere |
+| H2 | Handbuch, derselbe Absatz: Werte, die ein Client im Modus `mock` oder `hybrid` schreibt, speichert der Dienst unverändert; welche Testdaten zulässig sind, verantwortet der Betreiber (`SPEC-053`, *Handbuch*: Kapitel `Schutz der Daten` mit drei Aussagen) | wie H1. Akzeptiertes Negativ (Verifikation V-4): für eine Änderung, die im Modus `hybrid` in den Replay- oder den Upstream-Fallback geht, ist der Satz nicht gefahren; nach dem Kapitel `Modus hybrid` führt sie nicht der Mock aus. Grund: der Wortlaut folgt `SPEC-053`, und gesehen ist er für Änderungen, die der Mock ausführt. Folge: der Satz ist dort weiter als das Gesehene und warnt eher zu viel. Maß: 0 von 2 Fallback-Wegen gefahren | wie H1 | andere |
 
 **Bericht der Mutationen** (Implementer, 2026-11-27; `AGENTS.md` §3.10). Je Mutation eine Wegwerfkopie von `src` und `tests` in einem Container ohne Netz (Image der Stufe `source`, `--memory=4g --cpus=4`), ein Prozess `go test -count=1`; kein Fänger hängt an Nebenläufigkeit, darum steht keine Rate. Last des Hosts: Eins-Minuten-Wert 5,8 vor und 3,8 nach der Reihe (29 Mutationen). Alle 29 sind rot; der Grundlauf ohne Mutation ist grün, `TestRecordErweiterungen` mit `-count=20` ebenso.
 
@@ -158,7 +158,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): die Verträge stehen auf `main` (`2e289d4d`, Merge `6c1526bc`), und kein Slice in `in-progress/` ändert eine Datei des Blocks. Kein Kettenslice (Übergangsregeln Nr. 7): kein Pfad unter `Makefile`, `harness/mk/`, `Dockerfile`, `harness/README.md` oder `tools/gegenproben/`.
 
-**Stand beim Start** (Planner, 2026-11-27): Die Bedingung ist erfüllt. In `in-progress/` liegen daneben [slice-bootstrap-m6](../done/slice-bootstrap-m6.md) und [slice-lasttest-leser-zeitgrenze](../done/slice-lasttest-leser-zeitgrenze.md); `git diff --name-only main...slice-bootstrap-m6` nennt beim Start elf Pfade, darunter keinen des Blocks, keinen unter `spec/` und nicht das Handbuch; der Zweig des Lasttest-Lesers ändert allein `tests/lasttest/leser_test.go`. Für die Tests ist keine Frage an den Architect offen; der Nachzug für den Handbuch-Absatz steht aus (unten). Der Slice ist der dritte Worktree.
+**Stand beim Start** (Planner, 2026-11-27): Die Bedingung ist erfüllt. In `in-progress/` liegen daneben [slice-bootstrap-m6](../done/slice-bootstrap-m6.md) und [slice-lasttest-leser-zeitgrenze](../done/slice-lasttest-leser-zeitgrenze.md); `git diff --name-only main...slice-bootstrap-m6` nennt beim Start elf Pfade, darunter keinen des Blocks, keinen unter `spec/` und nicht das Handbuch; der Zweig des Lasttest-Lesers ändert allein `tests/lasttest/leser_test.go`. Für die Tests ist keine Frage an den Architect offen; der Nachzug für den Handbuch-Absatz stand beim Start aus und ist mit `62cfd7f8` geliefert (*Reihenfolge im Slice*, unten). Der Slice ist der dritte Worktree.
 
 **Reihenfolge im Slice:** zuerst die Tests (E1 bis E8, Q1, Q2), zuletzt der Handbuch-Absatz (H1, H2). Der Absatz beginnt erst, wenn der Nachzug des Architect zu `SPEC-053` und zum Satz über die Werte im Modus `mock` auf `main` liegt und der Zweig `main` aufgenommen hat (Antwort 7; geliefert mit `62cfd7f8`, mit `main` aufgenommen). Er sagt mit H2 ein Verhalten des Binary in Prosa; `SPEC-200` Nr. 1 lässt das allein zu, wenn ein Vertrag des Produkts das Kapitel verlangt. Der Nachzug verlangt das Kapitel (`SPEC-053`). Er blockiert den Start der Tests nicht. **Vorab benannter Schnitt** (`AGENTS.md` §3.14): liegt der Nachzug bei sonst fertigem Slice nicht auf `main`, geht der Absatz (H1, H2) als eigene Sendung an den Planner; er ist zuletzt, in eigenem Commit, und teilt keinen Mechanismus mit den Tests.
 
@@ -198,12 +198,12 @@ dasteht.
 
 - Der Nachzug des Architect zu `SPEC-053` und zum Mock-Satz fehlt, oder er verlangt den Absatz nicht, den `SPEC-200` Nr. 1 für Verhalten in Prosa voraussetzt — **Ausgang:** entfallen: der Nachzug liegt auf `main` (`62cfd7f8`) und verlangt das Kapitel `Schutz der Daten` mit drei Aussagen (`SPEC-053`); der vorab benannte Schnitt (§4) greift nicht.
 - Ein Test zeigt, dass das Produkt eine Erweiterung abweist oder verändert, oder dass `ODV4-Q-11` b nicht die erwarteten Entities liefert — **Ausgang:** entfallen: die fünf Fälle und der Schritt b sind ohne Änderung am Produkt grün (§3).
-- Der Absatz *Schutz der Daten* nennt den Modus `hybrid` wie `SPEC-053`; der fachliche Owner hat `hybrid` nicht gesondert bestätigt (`SPEC-053`, *Vom Client geschriebene Werte*: „offen“) — **Ausgang:** offen; Adresse: Planner (Frage an den User; bei anderer Antwort ändern Architect den Vertrag und danach das Handbuch).
+- Der Absatz *Schutz der Daten* nennt den Modus `hybrid` wie `SPEC-053`; der fachliche Owner hat `hybrid` nicht gesondert bestätigt (`SPEC-053`, *Vom Client geschriebene Werte*: „offen“) — **Ausgang:** weiter offen; Adresse: User (Frage (c) der [Roadmap](../in-progress/roadmap.md), Zeile M7; bei anderer Antwort ändern der Architect den Vertrag und danach das Handbuch); Register: `BEO-REPO/antwort-des-owners-auf-weniger-faelle-als-der-vertrag-traegt`.
 - Neue Namen im Paket `integration` kollidieren beim Merge mit den Dateien von [slice-bootstrap-m6](../done/slice-bootstrap-m6.md) (`m6_test.go`, `m6_hilfen_test.go`, `referenzdienst_test.go`); die Datei ist verschieden, der Namensraum nicht — **Ausgang:** entfallen: `main` mit diesen Dateien ist aufgenommen, und das Paket baut und läuft grün (`make gates`).
 - Schritt `ODV4-Q-11` b in der ersten Fassung ließ `$top` ohne Wirkung (Review F-1) — **Ausgang:** entfallen: der Architect hat die Query in `SPEC-049` Nr. 4 geändert (`3fb624d7`), der Test folgt ihr (§3, Fix-Runde).
-- Der Nachweis liest vom abgelegten Exchange weder Header noch Query noch Bodies (Review F-4) — **Ausgang:** weiter offen als akzeptiertes Negativ (E10); Adresse: Architect, wenn `LH-QA-07.a` mehr verlangen soll.
+- Der Nachweis liest vom abgelegten Exchange weder Header noch Query noch Bodies (Review F-4) — **Ausgang:** weiter offen als akzeptiertes Negativ (E10); Adresse: Architect, wenn `LH-QA-07.a` mehr verlangen soll; Register: `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft`.
 - Roadmap und [welle-betrieb](../welle-betrieb.md) führten die Sätze zu den zwei Betreiberpflichten als offen (Review F-6) — **Ausgang:** entfallen: auf `main` berichtigt und mit `34c574b5` aufgenommen.
-- Der eigene Referenzdienst antwortet nicht auf beiden Seiten gleich (Zähler, Zeit-Header), und der Vergleich wird rot ohne Fehler des Proxys — **Ausgang:** entschieden (Vertrag, `LH-QA-07.a` Nr. 6).
+- Der eigene Referenzdienst antwortet nicht auf beiden Seiten gleich (Zähler, Zeit-Header), und der Vergleich wird rot ohne Fehler des Proxys — **Ausgang:** entfallen: der Vertrag regelt die gleiche Antwort auf beiden Seiten (`LH-QA-07.a` Nr. 6), und die fünf Fälle sind mit `-count=20` grün (§3).
 - Eine Mutation an E2 oder E5 ist am Produktcode nicht nachstellbar, weil der Record-Pfad Pfad und Metadaten nicht liest (`LH-QA-07.a`) — **Ausgang:** entfallen: beide sind am Weiterleiten nachgestellt und rot (§3).
 
 ## 7. Closure-Notiz
@@ -220,7 +220,43 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-*Wird bei der Closure gefüllt.*
+**Closure** (Planner, 2026-11-27; Zweig `slice-abnahme-belege`, Messbasis `20728b70`). Start `428e9b85`, Tests `0947bdc1`, Handbuch und Plan `bb18ecd9`, Review-Report `0bfdaaef`, Änderung der Query durch den Architect `3fb624d7`, Fix-Runde `fa5637fa`, Verifikations-Report `382dc643`, Merge von `main` vor der Closure `ab610285` (V-2). Review (`2026-11-27-slice-abnahme-belege-review`: 0 HIGH, 1 MEDIUM, 2 LOW, 3 INFO; *nicht freigegeben bis F-1*) und Verifikation (`2026-11-27-slice-abnahme-belege-verifikation`: bestätigt mit Auflagen V-1 bis V-4, F-1 geschlossen) liefen je einmal. Die Auflagen: V-1 §6 führt allein die drei Ausgänge; V-2 `main` aufgenommen, die Gates auf dem gemergten Stand sind der Integrationsschritt; V-3 der Satz in §4 ist berichtigt; V-4 steht als akzeptiertes Negativ bei H2.
+
+**Was geliefert ist** (kein Produktcode): `LH-QA-07`, zweiter Halbsatz: `TestRecordErweiterungen` mit den fünf Fällen (`tests/integration/erweiterungen_test.go`). `LH-FA-08`, Happy Path: der Schritt `ODV4-Q-11` b in der Abnahmematrix, die damit 93 Schritte zählt. `LH-RB-04`, die zwei Betreiberpflichten und die vom Client geschriebenen Werte: das Kapitel `Schutz der Daten` im Benutzerhandbuch. Am Binary ändert sich nichts.
+
+**Größe** (`SPEC-128` Nr. 9). Stand *Ende*, Zeile des Programms (`make groessenmarke`, 2026-11-27, Plan in `in-progress/`, nach dem Merge `ab610285`): `Messpunkt slice-abnahme-belege.md: zeilen=14 nebenlaeufig=0 fakes=1 produktcode=0 schaetzung=1320 marke=1600 messung=235`. Produktcode von Hand: 0. Stand *Handoff*: keine Zeile des Programms eingetragen; von Hand `20728b70..bb18ecd9` über die Pfade des Blocks 235. Auslastung 235 ÷ 1600 = **0,15**, Ende ÷ *S* der Tabelle (1320) = 0,18, Ende ÷ Handoff = 1,00. Der Block führt *S* = 1160 aus den zwölf Zeilen beim Start; die Zeilen E9 und E10 kamen danach, das Programm gibt dazu einen Hinweis. Fremde Zeilen 0. **Meldung an den Architect** (Auslastung unter 0,45): er rechnet die Faktoren aus allen Messpunkten neu (`SPEC-128` Nr. 2 und 9); der Punkt ist `zeilen=14`, `nebenlaeufig=0`, `fakes=1`, `produktcode=0`, *S* 1320, *M* 1600, Ende 235. *Ursache:* die fünf Fälle laufen als Tabelle durch einen Test mit den vorhandenen Hilfen des Vergleichs, und Q1 und Q2 sind ein Schritt und Zähler in der vorhandenen Matrix; von den vierzehn Zeilen tragen zehn Test-Code (E1 bis E7, E9, Q1, Q2; 207 Zeilen in der neuen Datei, 28 in den drei geänderten), vier tragen keinen (E8, E10 als Negative, H1 und H2 im Handbuch, das die Messung nicht zählt).
+
+**Mutationen** (§3 und Reports): der Implementer 29 in der ersten Runde und 14 in der Fix-Runde (12 zu Q1, 2 zu E7), alle rot; der Reviewer neun eigene, davon vier grün (X1 und X2: F-1; X5: F-4; X9: F-5); der Verifier achtzehn eigene gegen die Klassen der Fix-Runde, alle rot. Kein Fänger hängt an Nebenläufigkeit, darum steht keine Rate. Last und Messende stehen in §3 und in den Reports.
+
+**Akzeptierte Negative:** (1) E7: die Zählung hält Namen, nicht Inhalte der Fälle (§3); (2) E8: ein Body unbekannten Medientyps ist kein Fall des Nachweises; (3) E10: vom abgelegten Exchange liest der Test vier Felder; (4) H1 und H2: die Sätze des Handbuchs prüft kein Gate; (5) H2: die zwei Fallback-Wege im Modus `hybrid` sind nicht gefahren (V-4).
+
+**Was weder Review noch Verifikation sahen:** (1) der Reviewer sah die Fix-Runde nicht, der Verifier sah sie; (2) die Mutationen X1 und X2 des Reviews fuhr nach der Fix-Runde niemand erneut; (3) das Image von `make build` startete niemand, der Verifier fuhr ein im Container gebautes Binary; (4) `make gegenproben` und `make test-race` fuhr der Verifier nicht; (5) die Texte der Closure (Risiko-Ausgänge, Negativ zu V-4, Register, Roadmap, Welle-Datei) hat niemand geprüft.
+
+**Gate:** `.harness/state/gates-passed.head` im Worktree trägt `fa5637fa` (die Verifikation sah den Hash des Arbeitsbaums gleich; welche Stufen aus dem Schichten-Cache kamen, sagt der Stempel nicht, der Verifier fuhr die neuen Tests selbst). Die Commits danach sind von keinem Lauf der Kette gedeckt; `git diff --stat fa5637fa..ab610285` nennt allein Dateien unter `docs/`. Der Planner fuhr `make docs-check`, `make zeichen-check` und `make groessenmarke`, nicht `make gates` (Vorgabe des Orchestrators). Der Beleg auf dem Stand von `main` ist der Lauf des Integrationsschritts.
+
+**Abweichungen vom Plan:** die Query von `ODV4-Q-11` b ist nach dem Review eine andere (F-1, `3fb624d7`); die Tabelle *Zusage · Fänger* bekam E9 und E10; der Implementer berichtigte zwei Zellen des Rasters, die einen Ort ohne die Entscheidung nannten. Keine Rückführung aus §4 griff, der vorab benannte Schnitt auch nicht.
+
+**Steering-Loop-Einträge:**
+
+1. **Neuer Sensor:** `ODV4-Q-11` b hält in der Abnahme (`make test`, über HTTP und mit ETag), dass Filter, Ordnung, `$skip`, `$top`, Auswahl und Count einer kombinierten Abfrage je wirken; `TestRecordErweiterungen` hält, dass unbekannte Erweiterungen aufgezeichnet werden.
+2. **Lernsignal:** die erste Fassung des Schritts war mit wirkungslosem `$top` grün, weil der Filter drei Entities ließ und nach `$skip=1` genau die zwei übrig blieben, die `$top=2` erlaubt. Eine Fixture einer kombinierten Abfrage trägt die Zusage erst, wenn jede Stufe für sich das Ergebnis ändert.
+3. **Architektur-Beobachtung:** die Mutationen X1 und X2 waren in den Tests von `model` und `services/mock` rot und in der Abnahme grün. Der Beleg einer Anforderung ist der Lauf, den die Abnahme führt; dass ein Test einer inneren Schicht die Wirkung fängt, belegt die Anforderung nicht.
+4. **Schwellen-Übertritt:** `BEO-REPO/teil-zusage-ohne-isolierende-mutation` hat mit diesem Slice drei Belege. Der Slice liegt in keiner Welle, das Repo führt Wellen: der Ausgang (verkörpert, geplant oder gestrichen) ist Gegenstand des Lese-Schritts der nächsten Welle-Closure; bis dahin steht der Eintrag offen.
+5. **Kein `liegt in`-Feld:** keine Regel ist mit diesem Slice verkörpert.
+
+**Lerneintrag:** neuer Sensor (Eintrag 1) mit dem Lernsignal und der Architektur-Beobachtung (Einträge 2 und 3).
+
+**Reviewer-Skill:** keine Änderung. F-1 trifft die MEDIUM-Zeile *Fänger schmaler als Zusage, Menge unbeschränkt oder ohne Achsenliste*; F-2 ist an `AGENTS.md` §3.15 gefunden (Maß), F-3 an §3.9; F-4 bis F-6 sind INFO. Zum Eintrag über der Schwelle (Eintrag 4) sind die Fragen der Pflege (Kategorie, Regel, Fitness Function) Teil des Lese-Schritts.
+
+**Register** (Evidenz mit der Closure im Zweig; kein Zähler gesetzt, er folgt aus den Dateien): Evidenz `slice-abnahme-belege` zu sechs vorhandenen Einträgen: `teil-zusage-ohne-isolierende-mutation` (2 → 3 Dateien, F-1), `ein-negativ-benennt-die-ungefangene-klasse-zu-eng` (28 → 29, F-2), `berichtigung-erreicht-nicht-jede-stelle` (56 → 57, F-3, F-6, V-3), `menge-im-plan-weicht-vom-orakel-des-tests-ab` (9 → 10, F-5), `vertrag-sagt-mehr-zu-als-ein-gate-prueft` (89 → 90, F-4) und `schaetzformel-ueberschaetzt-den-slice` (32 → 33). Zwei neue Einträge: `antwort-des-owners-auf-weniger-faelle-als-der-vertrag-traegt` (§6, `hybrid`) und `risiko-ausgang-ausserhalb-der-drei-werte` (V-1). 99 → 101 Einträge, 818 → 826 Evidenz-Dateien. `gate-lauf-stufen-aus-dem-schicht-cache`: keine Evidenz, ein Lauf aus dem Cache ist nicht belegt.
+
+**Risiko-Ausgänge (§6):** 9 Punkte, je ein Ausgang: entfallen 7, eingetreten 0, weiter offen 2 (beide im Register).
+
+**Sendungen (`AGENTS.md` §3.13):** *an diesen Slice:* die Sendung des Handbuch-Absatzes aus [welle-betrieb](../welle-betrieb.md) §4 (Antwort 7), geliefert. *Von diesem Slice:* an keinen Slice. *An den Architect:* die Meldung der Auslastung; E10, wenn `LH-QA-07.a` vom abgelegten Exchange mehr verlangen soll. *An den User:* die Frage (c) zu `hybrid` in der [Roadmap](../in-progress/roadmap.md).
+
+**Folge-Slice:** keiner aus der Closure. [slice-absturztest](../open/slice-absturztest.md) stammt aus dem Schnitt vor dem Code und führt seinen Gegenstand selbst.
+
+**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld) · Folge-Slice (`slice-absturztest` liegt in `open/`) · Register (die acht genannten Verzeichnisse tragen `evidence/`).
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
