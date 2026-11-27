@@ -296,7 +296,9 @@ Ein Import geschieht nicht stillschweigend während des Recordings.
 
 ## 4. Nichtfunktionale Anforderungen und Randbedingungen
 
-### LH-QA-01 — Replay-Performance
+<a id="lh-qa-01--replay-performance"></a>
+
+### LH-QA-01 — Replay-Performance (Muss)
 
 - **Anforderung:** Bei lokalem Speicher, 2 vCPU, 4 GiB RAM, 10.000 aufgezeichneten Austauschen, Antwort-Bodies bis 64 KiB und 20 Requests/s beträgt die zusätzliche Verarbeitungszeit des Replay-Dienstes p95 höchstens 100 ms.
   Der Wert gilt für Antworten, die der Dienst allein aus lokalem Speicher bildet (Replay und Mockserver);
@@ -305,63 +307,83 @@ Ein Import geschieht nicht stillschweigend während des Recordings.
   Auch der Messaufbau (die Randbedingungen dieser Anforderung und die Messmethode) ist vom fachlichen Owner bestätigt.
 - **Messmethode:** Reproduzierbarer Lasttest mit 10 Minuten Messdauer nach Warm-up; Messung zwischen Request-Eingang und Beginn der Response-Ausgabe.
 
-### LH-QA-02 — Determinismus
+<a id="lh-qa-02--determinismus"></a>
+
+### LH-QA-02 — Determinismus (Muss)
 
 - **Anforderung:** Gleiche Recording-Session, Matching-Konfiguration und initialer Workspace-Zustand liefern bei identischer sequenzieller Request-Folge dieselben Statuscodes, fachlichen Bodies und relevanten Header.
   Volatile Header sind explizit zu definieren.
 - **Messmethode:** 100 identische Testläufe nach Reset; Vergleich normalisierter Antworten.
   Die Zahl von 100 Testläufen ist vom fachlichen Owner bestätigt.
 
-### LH-QA-03 — Isolation und Konsistenz
+<a id="lh-qa-03--isolation-und-konsistenz"></a>
+
+### LH-QA-03 — Isolation und Konsistenz (Muss)
 
 - **Anforderung:** Parallele Tests dürfen keine Zustandsänderungen oder Replay-Cursor anderer Workspaces beobachten; abgeschlossene Mutationen und Snapshots bleiben nach regulärem Neustart konsistent.
 - **Messmethode:** Paralleltest mit mindestens 20 Workspaces sowie Neustart- und Fehler-Injektionstests.
   Die Zahl von mindestens 20 Workspaces ist vom fachlichen Owner bestätigt.
 
-### LH-QA-04 — Datensicherheit
+<a id="lh-qa-04--datensicherheit"></a>
+
+### LH-QA-04 — Datensicherheit (Muss)
 
 - **Anforderung:** Konfigurierte Geheimnisse dürfen nicht in persistenten Recordings oder regulären Logs erscheinen; Verwaltungsschnittstellen sind standardmäßig nicht extern ungeschützt erreichbar.
 - **Messmethode:** Canary-Secrets in Headern und Body, anschließend Prüfung aller Speicher- und Log-Artefakte; Netzwerkzugriffstest auf Management-Endpunkte.
 
-### LH-QA-05 — Bedienbarkeit und Fehlerdiagnose
+<a id="lh-qa-05--bedienbarkeit-und-fehlerdiagnose"></a>
+
+### LH-QA-05 — Bedienbarkeit und Fehlerdiagnose (Muss)
 
 - **Anforderung:** Fehlende Replay-Treffer, ungültige Metadaten, nicht unterstützte Query-Optionen und unvollständige Datenabdeckung müssen anhand stabiler Fehlerklassen unterscheidbar sein.
 - **Messmethode:** Automatisierte Negativtests prüfen Fehlerklasse, Status und diagnostischen Kontext ohne Geheimnisoffenlegung.
 
-### LH-QA-06 — Portabilität und Reproduzierbarkeit
+<a id="lh-qa-06--portabilität-und-reproduzierbarkeit"></a>
+
+### LH-QA-06 — Portabilität und Reproduzierbarkeit (Muss)
 
 - **Anforderung:** Der Dienst läuft auf Linux als Container und kann ohne verpflichtende externe Infrastruktur gestartet werden;
   gleiche Konfiguration und gleiche Eingabedaten führen zu gleichem Testverhalten.
 - **Messmethode:** Containerbasierter CI-Test mit frischem Datenverzeichnis und anschließendem Persistenz-/Neustarttest.
   Solange es keine CI gibt, erkennt der fachliche Owner einen Lauf über `make` als Ersatz für den CI-Test an.
 
-### LH-QA-07 — Protokolltreue
+<a id="lh-qa-07--protokolltreue"></a>
+
+### LH-QA-07 — Protokolltreue (Muss)
 
 - **Anforderung:** Der Record-Modus darf gültige unterstützte OData-Austausche nicht fachlich verändern;
   unbekannte OData-Erweiterungen dürfen die reine HTTP-Aufzeichnung nicht grundsätzlich verhindern.
 - **Messmethode:** Vergleich von Direktzugriff und Proxy-Zugriff anhand eines Referenzdienstes, einschließlich Status, Body und relevanter Header.
 
-### LH-RB-01 — OData-Kompatibilität
+<a id="lh-rb-01--odata-kompatibilität"></a>
+
+### LH-RB-01 — OData-Kompatibilität (Muss)
 
 - **Art:** Technisch
 - **Vorgabe:** Der erste Abnahmeumfang orientiert sich an OData V4.0.
   Der konkret unterstützte Teilumfang ist verbindlich zu dokumentieren; nicht unterstützte Funktionen dürfen nicht stillschweigend als unterstützt erscheinen.
 - **Nachweis:** Konformitätsorientierte Tests mit Referenzanfragen und Negativfällen.
 
-### LH-RB-02 — HTTP-Schnittstelle
+<a id="lh-rb-02--http-schnittstelle"></a>
+
+### LH-RB-02 — HTTP-Schnittstelle (Muss)
 
 - **Art:** Technisch
 - **Vorgabe:** Der Recorder kommuniziert mit Clients und Upstream über HTTP(S); Transportverschlüsselung und Zertifikatsprüfung dürfen nicht ohne ausdrückliche Konfiguration abgeschaltet werden.
 - **Nachweis:** Integrationstests für HTTP und HTTPS sowie Zertifikatsfehler.
 
-### LH-RB-03 — Lokale Entwicklungsumgebung
+<a id="lh-rb-03--lokale-entwicklungsumgebung"></a>
+
+### LH-RB-03 — Lokale Entwicklungsumgebung (Muss)
 
 - **Art:** Technisch
 - **Vorgabe:** Entwicklung und Ausführung müssen unter Linux und in Docker-basierten CI-Umgebungen möglich sein.
 - **Nachweis:** Reproduzierbarer Container-Build und automatisierter End-to-End-Test auf Linux.
   Reproduzierbar heißt: Zwei Bauten desselben Standes ergeben ein byte-gleiches Programm; die Kennung des Image darf abweichen.
 
-### LH-RB-04 — Schutz von Daten und Zugangsdaten
+<a id="lh-rb-04--schutz-von-daten-und-zugangsdaten"></a>
+
+### LH-RB-04 — Schutz von Daten und Zugangsdaten (Muss)
 
 - **Art:** Rechtlich / organisatorisch
 - **Vorgabe:** Der Einsatz mit personenbezogenen oder vertraulichen Daten muss durch geeignete Zugriffskontrolle, Redaktionsregeln und Aufbewahrungsvorgaben abgesichert werden;
@@ -422,4 +444,4 @@ Tatsachenberichtigungen ohne Anforderungsänderung sind ausdrücklich als solche
 | 0.7.0 | 2026-10-18 | Entwurf vor Accepted: `LH-QA-01` auf Antworten aus lokalem Speicher begrenzt, Upstream-abhängige Betriebsarten ausgenommen; Zielwert und Freigabe durch den Owner unverändert offen | — |
 | 0.8.0 | 2026-11-27 | Entwurf vor Accepted: Zielwert p95 ≤ 100 ms von `LH-QA-01` durch den fachlichen Owner bestätigt; Wert und Messmethode unverändert, Status bleibt `Draft` | — |
 | 0.9.0 | 2026-11-27 | Entwurf vor Accepted: Messmethode von `LH-QA-06`: ohne CI gilt ein Lauf über `make` als Ersatz für den CI-Test (Entscheidung des fachlichen Owners); Anforderung und übrige Messmethode unverändert, Status bleibt `Draft` | — |
-| 0.10.0 | 2026-11-27 | Entwurf vor Accepted, Entscheidungen des fachlichen Owners, Status bleibt `Draft`: `LH-FA-14` (Negative): bei nicht angehängtem Austausch ist `incomplete` an der Session die Markierung; `LH-FA-02` (Happy Path): „abrufbar“ ist über Wiedergabe und Angaben der Verwaltungsschnittstelle erfüllt; `LH-RB-03` (Nachweis): reproduzierbar heißt byte-gleiches Programm aus zwei Bauten, die Image-Kennung darf abweichen; Messaufbau von `LH-QA-01`, 100 Testläufe (`LH-QA-02`) und 20 Workspaces (`LH-QA-03`) als bestätigt geführt, Werte unverändert | — |
+| 0.10.0 | 2026-11-27 | Entwurf vor Accepted, Entscheidungen des fachlichen Owners, Status bleibt `Draft`: `LH-FA-14` (Negative): bei nicht angehängtem Austausch ist `incomplete` an der Session die Markierung; `LH-FA-02` (Happy Path): „abrufbar“ ist über Wiedergabe und Angaben der Verwaltungsschnittstelle erfüllt; `LH-RB-03` (Nachweis): reproduzierbar heißt byte-gleiches Programm aus zwei Bauten, die Image-Kennung darf abweichen; Messaufbau von `LH-QA-01`, 100 Testläufe (`LH-QA-02`) und 20 Workspaces (`LH-QA-03`) als bestätigt geführt, Werte unverändert; `LH-QA-01` bis `LH-QA-07` und `LH-RB-01` bis `LH-RB-04` als **Muss** gekennzeichnet | — |
