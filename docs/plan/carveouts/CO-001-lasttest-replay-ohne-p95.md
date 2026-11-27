@@ -68,3 +68,4 @@ Keine Gate-Konfiguration ist geändert: das Ziel hängt nicht an `GATE_CHECKS`, 
 | Datum | Ereignis | Verweis |
 |---|---|---|
 | 2026-11-26 | Angelegt | [slice-lasttest](../planning/done/slice-lasttest.md) |
+| 2026-11-27 | Der User nimmt die Änderung der DoD an, aus der dieser Carveout entstand (die Bestätigung stand offen); Status, Trigger und Frist bleiben | [slice-lasttest](../planning/done/slice-lasttest.md) §1, *Zustimmung des Users* |
