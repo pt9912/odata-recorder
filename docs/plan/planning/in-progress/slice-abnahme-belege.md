@@ -103,18 +103,36 @@ Dateiname und Testnamen sind Vorschlag des Planners; wer sie ändert, zieht Tabe
 | E5 | Fall *Metadaten*: `$metadata` mit Annotationen eines fremden Namensraums gleicht der direkten | `…/Metadaten` | der Body der Metadaten wird verändert | andere |
 | E6 | Je Fall trägt die Session den Exchange mit `capture_status=complete` | Schleife über alle Fälle | der Exchange eines Falls wird nicht angehängt; er wird nicht als `complete` angehängt | andere |
 | E7 | Die Zahl der gelaufenen Fälle ist das Literal 5 | `TestRecordErweiterungen` | ein Fall entfällt aus der Tabelle | andere |
+| E9 | Je Fall (alle fünf) erreichen Pfad, Query und die eigenen Header (je Fall `X-Vendor-Fall`) den Referenzdienst unverändert, und die Antwort gleicht der direkten (`LH-QA-07.a`, Satz „Je Fall“) | Schleife über alle Fälle (`erwPruefeGesehen`, `vergleiche`) | der Header `X-Vendor-Fall` entfällt; eine Query-Option wird verworfen | andere |
 | E8 | Akzeptiertes Negativ (`LH-QA-07.a`): ein Body unbekannten Medientyps, auch `multipart/mixed` (`$batch`), wird weitergeleitet, der Exchange mit `capture_status=failed` ohne diesen Body angehängt (`SPEC-046` Nr. 3). Grund: ein unlesbarer Body darf nicht abgelegt werden (`LH-FA-14`). Folge: sichtbar, nicht wiedergebbar | Negativ: kein Fall dieses Nachweises | — | andere |
-| Q1 | `ODV4-Q-11` b: 200, `KK`, Auswahl `Id`, `@odata.count` 3, Entities 3, 1 | `TestAbnahmeMatrix`, `TestVertragMatrix`, `TestAbnahmeMatrixMitEtag` | Paging vor dem Filter; Sortierung entfällt; Filter entfällt | andere |
+| Q1 | `ODV4-Q-11` b: 200, `KK`, Auswahl `Id`, `@odata.count` 3, Entities 3, 1 | `TestAbnahmeMatrix`, `TestVertragMatrix`, `TestAbnahmeMatrixMitEtag` | Paging vor dem Filter; Sortierung entfällt; Filter entfällt; der Count zählt nach dem Paging; der Count zählt vor dem Filter | andere |
 | Q2 | Die Matrix führt 36 IDs mit 93 Schritten (Q: 17); ein nicht gelaufener Schritt ist rot (`SPEC-049` Nr. 3 e) | `TestAbnahmeMatrixZaehlung`, `TestVertragMatrixZaehlung`, `TestAbnahmeMatrixMitEtag` | Schritt b entfällt; ein Zähler bleibt auf 92 | andere |
 | H1 | Handbuch, Absatz *Schutz der Daten*: Core-Dumps und Swap sind Pflicht des Betreibers; der Recorder prüft sie nicht (Wortlaut nach dem nachgezogenen `SPEC-053`) | Negativ mit Grund: Prosa wird nicht geprüft (`SPEC-200` Nr. 14 b); Reviewer und Verifier lesen gegen die Spezifikation. Folge: ein falscher Satz bleibt grün. `make handbuch-check` fängt allein Ausblick, Chronik und Kennungen, `make katalog-check` unbekannte Namen | eine Kennung der Spezifikation im Absatz ist rot (`make handbuch-check`) | andere |
-| H2 | Handbuch, derselbe Absatz: Werte, die ein Client im Modus `mock` schreibt, werden unverändert gespeichert; zulässige Testdaten verantwortet der Betreiber (Wortlaut nach dem nachgezogenen Mock-Satz) | wie H1 | wie H1 | andere |
+| H2 | Handbuch, derselbe Absatz: Werte, die ein Client im Modus `mock` oder `hybrid` schreibt, speichert der Dienst unverändert; welche Testdaten zulässig sind, verantwortet der Betreiber (`SPEC-053`, *Handbuch*: Kapitel `Schutz der Daten` mit drei Aussagen) | wie H1 | wie H1 | andere |
+
+**Bericht der Mutationen** (Implementer, 2026-11-27; `AGENTS.md` §3.10). Je Mutation eine Wegwerfkopie von `src` und `tests` in einem Container ohne Netz (Image der Stufe `source`, `--memory=4g --cpus=4`), ein Prozess `go test -count=1`; kein Fänger hängt an Nebenläufigkeit, darum steht keine Rate. Last des Hosts: Eins-Minuten-Wert 5,8 vor und 3,8 nach der Reihe (29 Mutationen). Alle 29 sind rot; der Grundlauf ohne Mutation ist grün, `TestRecordErweiterungen` mit `-count=20` ebenso.
+
+| Zusage | Mutation | roter Test |
+|---|---|---|
+| E1 | `$apply=` weist der Record-Pfad mit `ODR-E5006` ab; er verwirft `$unbekannt` auf dem Weg zum Upstream | `TestRecordErweiterungen/Query` |
+| E2 | der Pfad zum Upstream verliert `()` | `…/Pfad` |
+| E3 | ein eigener Header der Anfrage entfällt; ein leerer Wert entfällt; die Feldzeilen werden gedreht; ein Header der Antwort entfällt | `…/Header` |
+| E4 | die Antwort auf `/Orders` wird als JSON gelesen und ohne `@com.vendor.Stand` neu geschrieben | `…/JSON` |
+| E5 | der Body der Metadaten wird verändert (gleiche Länge) | `…/Metadaten` |
+| E6 | der Exchange wird nicht angehängt (je einzeln bei `Pfad`, `JSON`, `Metadaten`); er wird `incomplete` angehängt (dieselben drei) | der jeweilige Teilfall |
+| E7 | die Tabelle führt vier Fälle | `TestRecordErweiterungen` |
+| E9 | `X-Vendor-Fall` entfällt zum Upstream (rot in allen fünf Fällen); die Query-Option aus E1 | alle Teilfälle bzw. `…/Query` |
+| Q1 | Paging vor dem Filter; Sortierung entfällt; Filter entfällt; Count nach dem Paging; Count vor dem Filter (am Produktcode `FuehreAus`) | `ODV4-Q-11` b, je Mutation in `TestAbnahmeMatrix`, `TestVertragMatrix` und `TestAbnahmeMatrixMitEtag` |
+| Q2 | Schritt b entfällt; Schritt b läuft nicht; `abPruefeZaehlung` auf 92; Bereich Q auf 16; Zähler in `abnahme_etag_test.go` auf 92; Zähler in `vertrag_http_test.go` auf 92 | je Mutation `TestAbnahmeMatrixZaehlung`, `TestVertragMatrixZaehlung`, `TestAbnahmeMatrix` oder `TestAbnahmeMatrixMitEtag` |
+
+**Prüfung von Tabelle und Raster gegen den Vertrag** (Implementer, erster Schritt): keine Randform ohne Entscheidung und kein Fall, der eine Produktänderung verlangt; deshalb kein Anhalten. Berichtigt: zwei Zellen des Rasters nannten einen Ort, der ihre Entscheidung nicht trägt (*Anfrage aufzeichnen × leer*: `SPEC-121` Nr. 4; *Antworten vergleichen × Abbruch*: `LH-QA-07.a` Nr. 7 a); die Tabelle führte den Satz „Je Fall“ nicht als eigene Zusage (E9) und bei Q1 keine Mutation am Count; H2 folgt dem Nachzug von `SPEC-053` (`mock` oder `hybrid`).
 
 **Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; „Nr.“ ohne Kennung meint `LH-QA-07.a`):
 
 | Operation | fehlend | leer | unbekannt oder fremd | Abbruch | Wiederholung |
 |---|---|---|---|---|---|
-| Anfrage aufzeichnen | `Accept-Encoding` fehlt: Nr. 5 | Header mit leerem Wert: Nr. 1 | die fünf Fälle des Nachweises; Body unbekannten Medientyps: akzeptiertes Negativ dort (E8) | gilt nicht: der Nachweis führt nur vollständige Austausche | gilt nicht: je Fall eine Anfrage |
-| Antworten vergleichen | Header nur auf einer Seite: Nr. 1 | leerer Wert ist ein Wert: Nr. 1 | nicht angefragtes Coding: Nr. 4 | nicht entpackbare Kette: Nr. 3 | gleiche Antwort auf beiden Seiten: Nr. 6 |
+| Anfrage aufzeichnen | `Accept-Encoding` fehlt: Nr. 5 | Header mit leerem Wert: `SPEC-121` Nr. 4 („auch leere Werte“) | die fünf Fälle des Nachweises; Body unbekannten Medientyps: akzeptiertes Negativ dort (E8) | gilt nicht: der Nachweis führt nur vollständige Austausche | gilt nicht: je Fall eine Anfrage |
+| Antworten vergleichen | Header nur auf einer Seite: Nr. 1 | leerer Wert ist ein Wert: Nr. 1 | nicht angefragtes Coding: Nr. 4; nicht entpackbare Kette: Nr. 3 | Abbruch im Body: nicht verglichen, Nr. 7 a | gleiche Antwort auf beiden Seiten: Nr. 6 |
 | Exchange der Session lesen | fehlender Exchange: rot (Satz „Je Fall“ des Nachweises) | wie *fehlend* | `capture_status` ungleich `complete`: rot (ebendort) | gilt nicht: gelesen wird nach der Antwort | gilt nicht: Lesen ändert nichts |
 | Schritt `ODV4-Q-11` b | fehlender Schritt: rot, `SPEC-049` Nr. 3 e | gilt nicht: feste Anfrage | gilt nicht: feste Query; unbekannte Optionen tragen andere Fixtures | gilt nicht: im Prozess ohne Abbruch | je ID frische Umgebung: `SPEC-049` Nr. 3 b; Revision: Nr. 3 d dort |
 
@@ -171,11 +189,12 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Der Nachzug des Architect zu `SPEC-053` und zum Mock-Satz fehlt, oder er verlangt den Absatz nicht, den `SPEC-200` Nr. 1 für Verhalten in Prosa voraussetzt — **Ausgang:** weiter offen; Adresse: Architect (Nachzug auf `main`), danach Planner (vorab benannter Schnitt, §4).
-- Ein Test zeigt, dass das Produkt eine Erweiterung abweist oder verändert, oder dass `ODV4-Q-11` b nicht die erwarteten Entities liefert — **Ausgang:** weiter offen: erste Rückführung in §4, Adresse Planner und Architect.
+- Der Nachzug des Architect zu `SPEC-053` und zum Mock-Satz fehlt, oder er verlangt den Absatz nicht, den `SPEC-200` Nr. 1 für Verhalten in Prosa voraussetzt — **Ausgang:** entfallen: der Nachzug liegt auf `main` (`62cfd7f8`) und verlangt das Kapitel `Schutz der Daten` mit drei Aussagen (`SPEC-053`); der vorab benannte Schnitt (§4) greift nicht.
+- Ein Test zeigt, dass das Produkt eine Erweiterung abweist oder verändert, oder dass `ODV4-Q-11` b nicht die erwarteten Entities liefert — **Ausgang:** entfallen: die fünf Fälle und der Schritt b sind ohne Änderung am Produkt grün (§3).
+- Der Absatz *Schutz der Daten* nennt den Modus `hybrid` wie `SPEC-053`; der fachliche Owner hat `hybrid` nicht gesondert bestätigt (`SPEC-053`, *Vom Client geschriebene Werte*: „offen“) — **Ausgang:** offen; Adresse: Planner (Frage an den User; bei anderer Antwort ändern Architect den Vertrag und danach das Handbuch).
 - Neue Namen im Paket `integration` kollidieren beim Merge mit den Dateien von [slice-bootstrap-m6](../in-progress/slice-bootstrap-m6.md) (`m6_test.go`, `m6_hilfen_test.go`, `referenzdienst_test.go`); die Datei ist verschieden, der Namensraum nicht — **Ausgang:** weiter offen; Adresse: Implementer (nimmt `main` vor dem Handoff auf, Übergangsregeln Nr. 5) und Integrationsschritt.
 - Der eigene Referenzdienst antwortet nicht auf beiden Seiten gleich (Zähler, Zeit-Header), und der Vergleich wird rot ohne Fehler des Proxys — **Ausgang:** entschieden (Vertrag, `LH-QA-07.a` Nr. 6).
-- Eine Mutation an E2 oder E5 ist am Produktcode nicht nachstellbar, weil der Record-Pfad Pfad und Metadaten nicht liest (`LH-QA-07.a`) — **Ausgang:** weiter offen; Adresse: Implementer (baut die Mutation am Weiterleiten, nennt sie im Bericht, `AGENTS.md` §3.10).
+- Eine Mutation an E2 oder E5 ist am Produktcode nicht nachstellbar, weil der Record-Pfad Pfad und Metadaten nicht liest (`LH-QA-07.a`) — **Ausgang:** entfallen: beide sind am Weiterleiten nachgestellt und rot (§3).
 
 ## 7. Closure-Notiz
 

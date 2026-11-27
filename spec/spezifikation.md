@@ -495,7 +495,7 @@ Der Vergleich entscheidet seine Randformen so:
 
 Unbekannte OData-Erweiterungen verhindern die HTTP-Aufzeichnung nicht. Der Record-Pfad liest Pfad, Query und Bodies nicht als OData und markiert nichts; als `unsupported_features` markiert erst der Import, was er nicht auswertet (`LH-FA-06.a`; für die Metadaten sind es die Funde `annotation`, `erweiterung` und `konstrukt` von `SPEC-125` Nr. 7, für die Entities einer JSON-Antwort die übersprungenen Properties und Navigationen von `SPEC-126` Nr. 9).
 
-**Nachweis für unbekannte Erweiterungen auf dem Record-Pfad** (`LH-QA-07`, zweiter Halbsatz). *Stand:* nicht geliefert. Ein Test im Paket `integration` nimmt im Modus `record` über den Listener gegen einen eigenen Referenzdienst auf, je Zeile ein Fall:
+**Nachweis für unbekannte Erweiterungen auf dem Record-Pfad** (`LH-QA-07`, zweiter Halbsatz). *Stand:* geliefert (`TestRecordErweiterungen`, `tests/integration/erweiterungen_test.go`, in `make test` und `make test-race`). Ein Test im Paket `integration` nimmt im Modus `record` über den Listener gegen einen eigenen Referenzdienst auf, je Zeile ein Fall:
 
 | Fall | Anfrage und Antwort |
 |---|---|
@@ -3167,7 +3167,7 @@ Ab hier legen die Nummern 1 bis 10 fest, was die Abnahme des Mock gegen die Muss
    | `ODV4-Q-10` a | `GET /Products?$select=Id,Name&$orderby=Name desc,Id` | 200, `KK`, Auswahl `Id,Name`, Entities in der Folge 5, 3, 2, 1, 4 (`null` ist der kleinste Wert, also bei `desc` zuletzt) |
    | `ODV4-Q-10` b | `GET /Products?$select=Id&$orderby=Active,Id desc` | 200, `KK`, Auswahl `Id`, Entities in der Folge 5, 2, 4, 3, 1 (`null` zuerst, `false` vor `true`; die Produkte 1, 3 und 4 sind im ersten Schlüssel gleich, das zweite Element ordnet sie absteigend, also gegen die Hilfsordnung nach dem Schlüssel, `SPEC-191` Nr. 3 d) |
    | `ODV4-Q-11` a | `GET /Products?$orderby=Id desc&$top=2&$skip=1&$select=Id` | 200, `KK`, Auswahl `Id`, Entities 4, 3 |
-   | `ODV4-Q-11` b | `GET /Products?$filter=Active eq true&$orderby=Id desc&$skip=1&$top=2&$count=true&$select=Id` | 200, `KK`, Auswahl `Id`, `@odata.count` 3 (die gefilterte Menge vor Paging), Entities 3, 1 (`LH-FA-08` Happy Path: Filter, Sortierung und Paging kombiniert auf fünf Datensätzen; Paging vor dem Filter, eine fehlende Sortierung oder ein fehlender Filter ergeben andere Entities). *Stand:* nicht geliefert; mit dem Schritt zählt die Matrix 93 statt 92 Schritte |
+   | `ODV4-Q-11` b | `GET /Products?$filter=Active eq true&$orderby=Id desc&$skip=1&$top=2&$count=true&$select=Id` | 200, `KK`, Auswahl `Id`, `@odata.count` 3 (die gefilterte Menge vor Paging), Entities 3, 1 (`LH-FA-08` Happy Path: Filter, Sortierung und Paging kombiniert auf fünf Datensätzen; Paging vor dem Filter, eine fehlende Sortierung oder ein fehlender Filter ergeben andere Entities). *Stand:* geliefert; mit dem Schritt zählt die Matrix 93 Schritte |
    | `ODV4-Q-12` a | `GET /Products?$count=true&$top=0` | 200, `KK`, `{"@odata.context":"W/$metadata#Products","@odata.count":5,"value":[]}` |
    | `ODV4-Q-12` b | `GET /Products/$count?$filter=Active eq true` | 200, `KZ`, `3` |
    | `ODV4-T-01` | `GET /Products?$filter=Name eq 'Chain'&$select=Id,Name` | 200, `KK`, Auswahl `Id,Name`, Entity 3: `"Name":"Chain"` |

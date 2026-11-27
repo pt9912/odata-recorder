@@ -19,7 +19,7 @@ func abFehlerIst(status int, code model.Code) abIst {
 	return abIst{F: &inbound.Fehler{Code: code, Status: status}}
 }
 
-// Golden-Fixtures der Muss-Zeilen der Abnahmematrix (SPEC-049 Nr. 4): 36 Adressen, 92 Schritte, gegen den Mock mit echten Adaptern.
+// Golden-Fixtures der Muss-Zeilen der Abnahmematrix (SPEC-049 Nr. 4): 36 Adressen, 93 Schritte, gegen den Mock mit echten Adaptern.
 
 // abSoll ist die erwartete Antwort eines Schritts: Status, Header (Namen kanonisch), Body; bei einem Fehler Status und Code.
 type abSoll struct {
@@ -125,7 +125,9 @@ func abFixtures() []abFixture {
 			abS("b", abG("/Products", "$filter=Id eq 3&$select=Name,Id"), abKK(abAuswahl("Name,Id", 3)))}},
 		{ID: "ODV4-Q-10", Schritte: []abSchritt{abS("a", abG("/Products", "$select=Id,Name&$orderby=Name desc,Id"), abKK(abAuswahl("Id,Name", 5, 3, 2, 1, 4))),
 			abS("b", abG("/Products", "$select=Id&$orderby=Active,Id desc"), abKK(abAuswahl("Id", 5, 2, 4, 3, 1)))}},
-		{ID: "ODV4-Q-11", Schritte: []abSchritt{abS("", abG("/Products", "$orderby=Id desc&$top=2&$skip=1&$select=Id"), abKK(abAuswahl("Id", 4, 3)))}},
+		{ID: "ODV4-Q-11", Schritte: []abSchritt{abS("a", abG("/Products", "$orderby=Id desc&$top=2&$skip=1&$select=Id"), abKK(abAuswahl("Id", 4, 3))),
+			abS("b", abG("/Products", "$filter=Active eq true&$orderby=Id desc&$skip=1&$top=2&$count=true&$select=Id"),
+				abKK(strings.Replace(abAuswahl("Id", 3, 1), `"value":`, `"@odata.count":3,"value":`, 1)))}},
 		{ID: "ODV4-Q-12", Schritte: []abSchritt{
 			abS("a", abG("/Products", "$count=true&$top=0"), abKK(`{"@odata.context":"{W}/$metadata#Products","@odata.count":5,"value":[]}`)),
 			abS("b", abG("/Products/$count", "$filter=Active eq true"), abKZ("3"))}},
@@ -321,8 +323,8 @@ func abPruefeZaehlung(fixtures []abFixture, gelaufen map[string]int) []string {
 	if len(fixtures) != 36 || !reflect.DeepEqual(uniq(ids), soll) {
 		d = append(d, fmt.Sprintf("%d IDs in der Tabelle, erwartet genau die 36 aus SPEC-049", len(fixtures)))
 	}
-	if schritte != 92 {
-		d = append(d, fmt.Sprintf("%d Schritte in der Tabelle, erwartet 92", schritte))
+	if schritte != 93 {
+		d = append(d, fmt.Sprintf("%d Schritte in der Tabelle, erwartet 93", schritte))
 	}
 	return d
 }
@@ -386,8 +388,8 @@ func TestAbnahmeMatrix(t *testing.T) {
 	}
 }
 
-// TestAbnahmeMatrixZaehlung (T37): die Tabelle führt genau die 36 IDs mit 92 Schritten; eine fehlende ID, ein fehlender Schritt und eine doppelte ID
-// sind Verstöße, ein nicht gelaufener Schritt ebenso. Die 92 sind die Summe der Bereiche (GET 7, CRUD 29, Q 16, T 9, H 13, E 18).
+// TestAbnahmeMatrixZaehlung (T37): die Tabelle führt genau die 36 IDs mit 93 Schritten; eine fehlende ID, ein fehlender Schritt und eine doppelte ID
+// sind Verstöße, ein nicht gelaufener Schritt ebenso. Die 93 sind die Summe der Bereiche (GET 7, CRUD 29, Q 17, T 9, H 13, E 18).
 func TestAbnahmeMatrixZaehlung(t *testing.T) {
 	fixtures := abFixtures()
 	gelaufen := map[string]int{}
@@ -399,7 +401,7 @@ func TestAbnahmeMatrixZaehlung(t *testing.T) {
 	if d := abPruefeZaehlung(fixtures, gelaufen); len(d) != 0 {
 		t.Errorf("Tabelle: %v", d)
 	}
-	for bereich, soll := range map[string]int{"GET": 7, "CRUD": 29, "Q": 16, "T": 9, "H": 13, "E": 18} {
+	for bereich, soll := range map[string]int{"GET": 7, "CRUD": 29, "Q": 17, "T": 9, "H": 13, "E": 18} {
 		if je[bereich] != soll {
 			t.Errorf("Bereich %s: %d Schritte, erwartet %d", bereich, je[bereich], soll)
 		}
