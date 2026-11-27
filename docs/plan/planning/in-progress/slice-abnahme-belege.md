@@ -39,7 +39,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 - Der Absturztest (`SPEC-048`) — [slice-absturztest](../open/slice-absturztest.md), Schnitt oben.
 - Produktcode — die Belege prüfen Verhalten, das die Spezifikation als vorhanden beschreibt; zeigt ein Test eine Abweichung, greift die Rückführung in §4.
-- Das byte-gleiche Binary (`LH-RB-03.a`) — [slice-container-image](../open/slice-container-image.md), Zeile 20 dort.
+- Das byte-gleiche Binary (`LH-RB-03.a`) — [slice-container-image](../in-progress/slice-container-image.md), Zeile 20 dort.
 - Neue Fälle in `make test-integration` (`tests/e2e/`) — der Nachweis läuft im Paket `integration` in `make test` (`LH-QA-07.a`); keine Datei der Gate-Kette.
 - Weitere Handbuch-Kapitel — die Handbuch-Slices sind für M7 nicht nötig (Antwort 6 des Users, 2026-11-27); kein Verhalten am Binary ändert sich.
 - Die Sätze in `spec/` (`SPEC-053`, der Satz zu den Werten im Modus `mock`, der Satz zum vollen Speicher im Lastenheft) und der Satz im README — Architect auf `main` (Antworten 1, 7 und 8).
