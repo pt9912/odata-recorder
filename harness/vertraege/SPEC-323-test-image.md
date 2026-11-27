@@ -1,0 +1,84 @@
+# SPEC-323 — Neustarttest des Laufzeit-Image (`make test-image`, `make image`)
+
+**Werkzeug:** die Ziele `test-image` (Gate) und `image` (baut das Image, kein Gate) aus dem Fragment `image.mk` unter `harness/mk/`; der Treiber `test-image.sh` unter `tools/harness/` (POSIX-`sh`, Aufrufe von `docker`); die Stufen `image` (`SPEC-322`) und `integration` (`SPEC-037` Nr. 1) des `Dockerfile`; die Client-Phasen als Tests unter `tests/e2e/`.
+Die Namen der Dateien sind der Vorschlag des Architect; die Zusagen gelten, wie die Dateien heißen.
+
+**Festlegung:** `make test-image` baut das Laufzeit-Image, startet es ohne Netz mit einem frischen Datenverzeichnis im Daemon des Hosts, erzeugt über beide Listener Recordings, einen Workspace und einen Snapshot, stoppt und startet denselben Container und prüft alle drei danach (`LH-QA-06`, `LH-QA-06.a`, `LH-RB-03`).
+Es ist der Lauf über `make`, den `LH-QA-06` ohne CI als Ersatz anerkennt.
+
+**Stand:** nicht geliefert (weder Stufe noch Ziele noch Treiber noch Tests).
+
+1. **Bindung.** `test-image` hängt an `GATE_CHECKS`, `image` nicht; `harness/README.md` führt `test-image` in der Tabelle der Gates und `image` in der Tabelle der Werkzeuge.
+   `image` ruft `docker build --target image --build-arg VERSION=<VERSION> -t odata-recorder:image .`.
+   **Entscheidung** (Gate): *Alternativen:* (a) Werkzeug außerhalb der Kette mit Pflichtlauf je Slice, wie `SPEC-216`; (b) Gate. *Gewählt:* (b). *Verworfen:* (a), weil ohne CI nur die Kette den Lauf bei jeder Änderung fährt (`SPEC-211` Nr. 1: ein Pflichtlauf von Hand hatte keinen Träger) und eine Änderung am `Dockerfile` das Image sonst unbemerkt zerbräche. Der Lauf ist netzlos und ohne Mount (`AGENTS.md` §3.1, ohne Ausnahme). Eine Aufnahme in die Kette verschärft und ist frei (`AGENTS.md` §3.6); die Herausnahme ist eine Lockerung und braucht eine ADR. *Folge:* `make gates` wird länger (geschätzt 10 bis 20 s bei vorhandenen Images, nicht gemessen; der Implementer misst nach der Vorschrift von `SPEC-211` Nr. 4, deren Trigger von 120 s diesen Lauf mitzählt); aus vier Container-Tests werden fünf, `SPEC-211` Nr. 2 b zieht der liefernde Commit nach.
+   **Entscheidung** (Daemon des Hosts, ohne eigene ADR): *Alternativen:* (a) ein Lauf im eigenen Daemon des Arbeitscontainers; (b) der Daemon des Hosts. *Gewählt:* (b), Entscheidung des Users vom 2026-11-27: der Slice des Image hängt nicht mehr am Arbeitscontainer, Preis ist ein Lauf ohne dessen Abschottung. Keine ADR, weil keine angenommene sich ändert: [ADR-0005](../../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md) entscheidet über die Gegenproben, ihre Folgepflicht (der Arbeitscontainer fährt `make gegenproben`) bleibt und kommt nur später, bis dahin gilt `SPEC-102`; [ADR-0031](../../docs/plan/adr/0031-arbeitscontainer-mit-eigenem-daemon-privilegiert-unter-festen-limits.md) entscheidet, wie der Arbeitscontainer läuft, und nennt den Neustarttest nur im Kontext. *Folge:* der Lauf teilt den Daemon mit allen Gates; ihn trennen allein eigene Namen, `--network none` und die Speicherlimits.
+2. **Treiber, Reihenfolge.**
+   a) Kein Argument, auch kein leeres (`test-image: Aufruf: …`, Exit 2). Gelesen werden `DOCKER` und `VERSION` (Vorgabe `dev`).
+   b) Lauf-Kennung `<L>` aus Prozessnummer und Sekunde. Alle Namen tragen sie: die Images `odata-recorder:test-image-<L>` (Stufe `image`) und `odata-recorder:test-image-client-<L>` (Stufe `integration`), die Container `odr-test-image-<L>-<rolle>`. Jeder Container trägt `--label odata-recorder.test-image=<L>`. Kein anderer Lauf und kein anderes Ziel teilt einen Namen, auch nicht aus einem zweiten Arbeitsbaum.
+   c) Bau beider Images, dann die Prüfungen am Image (Nr. 3), dann der Ablauf (Nr. 4), dann Aufräumen (Nr. 6).
+   **Entscheidung** (keine Sperre im Treiber): *Alternative:* der Treiber nimmt `flock`. *Verworfen:* die Rollen nehmen die Sperre der schweren Läufe um `make` (Übergangsregeln Nr. 1); eine zweite Sperre derselben Datei im Kind bliebe dagegen für immer stehen, und `flock` wäre eine weitere Voraussetzung am Host. *Folge:* zwei Läufe ohne Sperre kollidieren nicht in Namen, teilen aber die Last.
+   d) *Aufrufe mit Containern.* Server: `create --name … --label … --network none --memory 512m --memory-swap 512m --env MODE=record --env UPSTREAM_URL=http://127.0.0.1:9000 <Image>` (ohne Argument: das Standardargument des Image wirkt), dann `start`. Client: `run --rm -i --name … --label … --network container:<Server> --memory 1g --memory-swap 1g [--env …] <Client-Image> /out/e2e.test -test.run '^<Name>$' -test.v -test.count=1 -test.timeout 120s`.
+   e) *Verbotene Formen* in jedem `create` und `run` (als Liste gelesen): `-v`, `--volume`, `--mount`, `--volumes-from`, `-p`, `--publish`, `-P`, `--privileged`, `--device`, `--pid`, `--ipc`, `--uts`, `--userns`, `--user`, `--entrypoint`; `--network` mit einem anderen Wert als `none` oder `container:<Server dieses Laufs>`. `--user` und `--entrypoint` sind verboten, damit der Lauf die Werte des Image prüft.
+   **Entscheidung** (Netz): *Alternative:* ein eigenes Netz je Lauf mit einem Container für den Referenzdienst. *Verworfen:* der Client tritt in den Netz-Namensraum des Servers ein und erreicht beide Listener und den Referenzdienst über die Schleife; so bleibt der Lauf ohne Netz, die Listener behalten ihre Defaults, und es entsteht kein Netz zum Aufräumen.
+   **Entscheidung** (kein Volume): *Alternative:* ein benanntes Volume je Lauf an `/data`. *Verworfen:* es ist ein schreibbarer Mount (`AGENTS.md` §3.1, `SPEC-216` Nr. 4 a), und die Messmethode von `LH-QA-06` verlangt ein frisches Datenverzeichnis, das der neue Container mitbringt. *Folge:* `SPEC-322` *Ungeprüft* (Eigentümer eines Volumes).
+3. **Prüfungen am Image** (vor dem Start, jede rot mit ihrem Namen):
+   `image inspect`: Nutzer `65532:65532`, Eintrittspunkt `["/odata-recorder"]`, Standardargument `["start"]`, kein Volume, `DATA_DIR=/data` und keine Variable `LISTEN`, `ADMIN_LISTEN` oder `MODE`.
+   `create` und `cp <c>:/data -`: der Eintrag des Verzeichnisses trägt `65532/65532` und `drwx------`; `cp <c>:/etc/ssl/certs/ca-certificates.crt -` liefert eine nichtleere Datei; `cp <c>:/tmp -` liefert ein Verzeichnis mit `1777`.
+   `run --rm --network none <Image> version`: Ausgabe `odata-recorder <VERSION>`, Exit 0.
+4. **Ablauf.**
+   a) *Start.* Server anlegen und starten. Der Treiber holt `docker cp <Server>:/data/admin.token -` in ein eigenes Verzeichnis aus `mktemp -d`, höchstens 30 Versuche im Abstand von 1 s, solange der Container läuft; sonst rot. Das Token steht in keiner Ausgabe, keinem Argument und keiner Variablen; der Client liest es von seiner Standardeingabe.
+   b) *Phase `aufnehmen`* (Client). Er wartet höchstens 30 s auf `GET /healthz` mit 200 und startet den Referenzdienst auf `127.0.0.1:9000`. Er prüft das frische Datenverzeichnis (genau eine Session, `open`; kein Workspace). Er liest über den OData-Listener `$metadata` und eine Collection, beendet die Session, importiert sie (`SPEC-297`), legt aus der Baseline einen Workspace an, setzt ihn zurück (Revision 1) und erzeugt einen Snapshot (`SPEC-298`). Er gibt die Antworten, die Phase B vergleicht, als eine markierte Zeile aus: Exchanges der Session, Import-Report, Liste der Workspaces, Liste der Snapshots.
+   c) *Neustart.* `docker stop --time 30 <Server>`; `State.ExitCode` ist 0 (sonst rot); `docker start <Server>`. Kein neuer Container.
+   d) *Phase `pruefen`* (Client, mit dem Token von vor dem Neustart und den Werten aus b als `--env`). Er wartet wie in b auf `/healthz`; kein Referenzdienst. Die beendete Session ist `complete`, daneben steht genau eine neue `open`. Exchanges, Import-Report, Workspaces und Snapshots sind byte-gleich den Antworten aus b. Ein Import derselben Session unter neuer `import_id` antwortet 201 (er liest die aufgezeichneten Bodies). `restore` des Snapshots antwortet 200 mit der nächsten Revision.
+   e) Je Phase wertet der Treiber wie `SPEC-037` Nr. 2: Exit ungleich 0, `--- SKIP`, `--- FAIL` oder fehlendes `--- PASS` ist rot. Eine rote Prüfung beendet den Ablauf; die späteren laufen nicht.
+5. **Fristen und Speicher.** Server 512 MiB, Client 1 GiB, je ohne Swap. Test je Phase 120 s, Bereitschaft 30 s, Stopp 30 s. Der Aufruf von `docker` selbst hat keine Grenze (wie `SPEC-211` Nr. 3).
+6. **Aufräumen, Abbruch, Exit.**
+   a) Auf jedem Weg hinter dem ersten Bau (grün, rot, Aufbaufehler, INT, HUP, TERM): `rm -f -v` jedes Containers des Laufs, `rmi` der beiden Tags, das temporäre Verzeichnis. Ein Objekt, das nie entstand, ist kein Fehler. Vorher, bei rot: `docker logs <Server>` nach stderr.
+   b) Scheitert das Entfernen eines vorhandenen Objekts: `test-image: Aufräumen gescheitert: <Name>`, die übrigen werden dennoch entfernt, ein grüner Lauf wird Exit 1.
+   c) Exit: 0 grün; 1 rot (eine Prüfung, eine Phase, der Exit des Stopps, das Aufräumen); 2 Aufruf, Bau, Daemon nicht erreichbar oder Abbruch.
+   d) INT, HUP oder TERM: der laufende Aufruf von `docker` wird beendet, dann a), Exit 2. SIGKILL am Treiber lässt Container, Tags und Verzeichnis liegen; `docker ps -a --filter label=odata-recorder.test-image` findet die Container. Kein Lauf entfernt Objekte eines anderen.
+7. **Randformen** (`AGENTS.md` §3.12, §3.16). Die Spalten sind die des Plans; *Vol.* heißt Modus und Bestand des Datenverzeichnisses.
+
+   | Operation | fehlend | leer | unbekannt oder fremd | Abbruch | Wiederholung | Vol. |
+   |---|---|---|---|---|---|---|
+   | Image bauen | Stufe oder Quelle fehlt: Nr. 6 c (Exit 2) | `VERSION` leer oder ungesetzt: `dev` (Nr. 2 a) | Fehler beim Bau: Nr. 6 c; fremder Inhalt der Stufe: Nr. 3 | Nr. 6 d | Cache; Gleichheit nicht zugesagt (`SPEC-322` *Ungeprüft*) | gilt nicht: der Bau liest keinen Bestand |
+   | Start | ohne Volume: `SPEC-322` Nr. 5 | leeres Verzeichnis: `SPEC-322` Nr. 5, Nr. 4 b; `DATA_DIR` leer: `SPEC-322` Nr. 5 | nicht beschreibbar, fremder Eigentümer: `SPEC-322` Nr. 5 (ohne Fänger); Schema: `SPEC-103` Nr. 4, 5; Token endet nicht: Nr. 4 a | `SPEC-138` Nr. 7; im Test Nr. 6 d | Nr. 4 c | `SPEC-139` Nr. 11 f, `SPEC-322` Nr. 5 |
+   | Aufzeichnen | Referenzdienst fehlt: Phase rot (Nr. 4 e) | leere Aufnahme: gilt nicht, `SPEC-037` Nr. 7 | fehlgeschlagener Import oder Aufruf: Phase rot (Nr. 4 e) | `SPEC-139` Nr. 7; erzwungen: `SPEC-322` Nr. 7 (ohne Fänger) | gilt nicht: je Lauf eine Aufnahme auf frischem Bestand | nur `record` (Nr. 2 d) |
+   | Neustart | Server vorher beendet: Stopp liefert dessen Exit, ungleich 0 ist rot (Nr. 4 c) | gilt nicht: kein Wert | Exit ungleich 0 oder erzwungenes Ende (137): rot (Nr. 4 c) | `SIGTERM`: Nr. 4 c; `SIGKILL`: ohne Fänger (Nr. 9) | ein Neustart; ein zweiter ohne Fänger (`SPEC-139` Nr. 10) | derselbe Container, `record` |
+   | Lesen nach dem Neustart | fehlender Wert: rot (Nr. 4 d) | leere Liste: rot (Nr. 4 d) | abweichende Bytes, 401, 404: rot (Nr. 4 d) | Nr. 6 d | gilt nicht: Lesen ändert nichts, `restore` läuft einmal | Modus `mock` und `replay` auf dem Bestand: ohne Fänger am Image (Nr. 9) |
+   | Aufräumen | Objekt nie entstanden: Nr. 6 a | gilt nicht: kein Wert | Objekte anderer Läufe: nie berührt (Nr. 6 d) | Nr. 6 d | Entfernen ist je Objekt einmal | gilt nicht: kein Volume (Nr. 2 e) |
+
+8. **Zusage und Fänger** (Spalten nach `SPEC-128` Nr. 3, zum Übernehmen in den Plan). „GP“ ist ein Fall der Gegenprobe mit Ersatz für `docker` in einem Wegwerfverzeichnis (`SPEC-102`, [ADR-0005](../../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md)); „Lauf“ ist `make test-image`.
+
+   | Nr. | Zusage | Fänger | Mutation | Klasse |
+   |---|---|---|---|---|
+   | 1 | Nutzer `65532:65532` | Lauf, Nr. 3 | `USER` entfernt | andere |
+   | 2 | Eintrittspunkt und Standardargument | Lauf, Nr. 3 und 4 a | `CMD` entfernt | andere |
+   | 3 | `DATA_DIR=/data`, kein `VOLUME`, kein `LISTEN`, `ADMIN_LISTEN`, `MODE` | Lauf, Nr. 3; je Variable ein Fall in GP | `VOLUME /data` | andere |
+   | 4 | `/data` mit Eigentümer und Rechten | Lauf, Nr. 3 | `--chown` entfernt | andere |
+   | 5 | Vertrauensanker und `/tmp` | Lauf, Nr. 3 | `COPY` entfernt | andere |
+   | 6 | Version im Image | Lauf, Nr. 3 | `VERSION` nicht gereicht | andere |
+   | 7 | frisches Datenverzeichnis | Phase `aufnehmen` | `aufnehmen` zweimal gegen denselben Server | andere |
+   | 8 | geordneter Stopp mit Exit 0 | Lauf, Nr. 4 c; GP | `STOPSIGNAL SIGKILL` im Image; Exit nicht gewertet | andere |
+   | 9 | Recordings überstehen den Neustart | Phase `pruefen` (Exchanges, neuer Import) | neuer Container statt `start` | andere |
+   | 10 | Workspace übersteht den Neustart | Phase `pruefen` | wie Nr. 9 | andere |
+   | 11 | Snapshot übersteht den Neustart | Phase `pruefen` (Liste, `restore`) | wie Nr. 9 | andere |
+   | 12 | Token übersteht den Neustart | Phase `pruefen` (Token von vorher) | Treiber reicht `pruefen` ein anderes Token | andere |
+   | 13 | Optionen der Aufrufe und verbotene Formen (Nr. 2 d, e) | GP: Liste der Aufrufe | je eine Option entfernt oder hinzugefügt | andere |
+   | 14 | eigene Namen und Label je Lauf | GP: zwei Läufe, getrennte Namen | feste Namen | andere |
+   | 15 | Aufräumen auf grün, rot und Baufehler | GP je Weg | `rmi` oder `rm` entfernt | andere |
+   | 16 | Aufräumen bei INT, HUP, TERM, Exit 2 | GP je Signal | `trap` entfernt | andere |
+   | 17 | Exit-Codes (Nr. 6 b, c) | GP je Ursache | Aufräumfehler verschluckt | andere |
+   | 18 | Wertung der Phase (`SKIP`, `FAIL`, ohne `PASS`) | GP je Form | `SKIP` nicht gewertet | andere |
+   | 19 | Token in keiner Ausgabe und keinem Argument | GP: Ersatz liefert ein Zeichen-Muster als Token, Ausgabe und Aufrufliste ohne Treffer | Token als `--env` | andere |
+
+9. **Ungeprüft**, je mit Grund und Folge:
+   a) *Erzwungenes Ende des Containers* (`SIGKILL`). Die Wiederherstellung ist am Dienst geprüft (`SPEC-123` Nr. 5, `LH-QA-03` verlangt den regulären Neustart). Folge: keine eigene für das Image.
+   b) *Entity-Zustand über den Listener und Mutationen im Image.* Der Lauf bleibt im Modus `record`, weil die Umgebung eines Containers beim Anlegen feststeht und der zweite Modus ein Volume brauchte. Über den Prozess hinweg prüft `SPEC-037` (`TestE2EMockNeustart`) Mutationen am Binary; `restore` liest hier das Manifest des Snapshots. Folge: ein Fehler, der nur im Image und nur im Modus `mock` aufträte, fiele nicht auf.
+   c) *Ersatz des Containers* (neues Image auf altem Bestand) und *eingehängtes Volume* (`SPEC-322` *Ungeprüft*).
+   d) *Verdrahtung* (`GATE_CHECKS`, Aufruf des Treibers): wie `SPEC-211` Nr. 5 a.
+   e) *Frist, Speicherlimit und hängender Daemon:* kein Lauf erreicht sie. Folge: ein entferntes Limit bliebe ohne die Liste der Aufrufe (Nr. 8 Zeile 13) unbemerkt, die Wirkung selbst bleibt ungesehen.
+   f) *Ob `cp` den Eigentümer so ausgibt, wie Nr. 3 liest,* ist beim Schreiben dieses Vertrags nicht gemessen. Folge: weicht die Ausgabe ab, hält der Implementer an (`AGENTS.md` §3.12).
+
+10. **Größe** (Schätzung des Architect für den Planner, Zeilen nach `git diff --numstat`, nicht gemessen): `Dockerfile` und `.dockerignore` 30, Fragment 20, Treiber 170, Tests der Phasen 250, Gegenprobe samt Ersatz und Eingabeliste 300, `harness/README.md`, `SPEC-102`, `SPEC-211` 30; zusammen rund 800 ohne Handbuch. Für den Block nach `SPEC-128`: `produktcode` 220 (Stufe, Fragment, Treiber), `fakes` 1 (Ersatz für `docker`), 19 Zeilen der Klasse `andere`.
+    Das Kapitel des Handbuchs zum Image beschreibt Bau, Volume an `/data`, `LISTEN`, Stopp-Wartezeit und Rechte; seine Aufrufe von `docker` führt `make handbuch-check` nicht aus (`SPEC-200` Nr. 14 e).

@@ -469,6 +469,7 @@ Jede Antwort trägt Code, HTTP-Status und Korrelations-ID, aber keine Credential
 
 Der Dienst startet ohne externe Infrastruktur aus einem Container-Image mit einem Datenvolumen (`DATA_DIR`); ein frisches, leeres Verzeichnis ist ein gültiger Startzustand.
 Der Neustarttest startet den Container neu und prüft Recordings, Workspaces und Snapshots.
+Das Image legt `SPEC-322` fest, den Neustarttest `SPEC-323`; er läuft über `make` (`LH-QA-06`).
 Gleiche Konfiguration und Eingabedaten ergeben gleiches Verhalten (`LH-QA-02.a`).
 
 ### LH-QA-07.a — Protokolltreue
@@ -2892,6 +2893,27 @@ Ungeprüft bleibt, je mit Grund und Folge:
 - Dass der Client eine gedrosselte Antwort an der Zeit erkennt. Grund: die zugelassene Antwort wartet auf `Sync` von `Append` (`SPEC-235` Nr. 4 h), die gedrosselte nicht. Folge: ein Client, der Antwortzeiten misst, unterscheidet beide; die Antwort verrät nichts über das Token.
 - Ein Datenrennen, das kein Test auslöst (`SPEC-122` Nr. 8 a). Grund: jeder Zugriff auf das Fenster liegt unter der Sperre, der Detektor meldet nichts, wenn die Sperre zwischen Lesen der Zahl und Erhöhen freigegeben wird. Folge: diese Zusage fängt ein Wirkungs-Fänger (eine Uhr, die in `Now()` an einem Treffpunkt hält, und die Zahl der `Append` bei vielen gleichzeitigen Abweisungen), nicht der Detektor; sein Plan nennt die Rate je Mutation.
 
+### SPEC-322 — Laufzeit-Image: Inhalt, Nutzer, Datenverzeichnis, Start und Stopp
+
+Das Laufzeit-Image (`SPEC-035`) ist die Stufe `image` des `Dockerfile` (`LH-QA-06`, `LH-QA-06.a`, `LH-RB-03.a`).
+Den Bau, die Prüfung des Image und den Neustarttest legt `SPEC-323` fest.
+
+1. **Bau.** Die Stufe beginnt leer (`FROM scratch`) und nimmt ihren Inhalt aus den per Digest gepinnten Stufen `build` und `deps`; kein weiteres Eingangs-Image, kein Netz in einem Schritt der Stufe. **Entscheidung** (leere Basis): *Alternativen:* ein distroless-Image; Alpine. *Verworfen:* beide sind ein weiteres Eingangs-Image mit eigenem Digest, das gepflegt wird, und das Binary braucht als statisches Binary keine Laufzeit. *Folge im Betrieb:* das Image hat keine Shell und kein Werkzeug zur Diagnose im Container.
+2. **Inhalt.** Das Image trägt genau: `/odata-recorder` (das Binary der Stufe `build`), `/etc/ssl/certs/ca-certificates.crt` (die Vertrauensanker aus der Stufe `deps`; ohne sie scheiterte ein Upstream über HTTPS ohne `UPSTREAM_CA_FILE`), das leere Verzeichnis `/tmp` (Rechte `1777`, für temporäre Dateien der Datenbank) und das leere Verzeichnis `/data` (Eigentümer `65532:65532`, Rechte `0700`).
+3. **Nutzer.** Der Prozess läuft als `65532:65532` (als Zahlen angegeben; das Image führt keine Nutzerdatenbank), nie als Root.
+4. **Umgebung.** Das Image setzt allein `DATA_DIR=/data`. Alle übrigen Werte sind die Defaults von §3; insbesondere binden `LISTEN` und `ADMIN_LISTEN` an die Schleife des Containers. Wer den Dienst von außen erreicht, setzt `LISTEN=0.0.0.0:8080` (in `mock` und `hybrid` dazu `PUBLIC_BASE_URL`, `SPEC-055`); `ADMIN_LISTEN` außerhalb von Loopback verlangt `SPEC-299`. **Entscheidung** (kein `LISTEN` im Image): *Alternative:* das Image setzt `LISTEN=0.0.0.0:8080`. *Verworfen:* der Default `mock` verlangte dann `PUBLIC_BASE_URL` (`SPEC-110` Nr. 14 c), ein Start ohne jede Angabe scheiterte, und der Dienst wäre ungefragt von außen erreichbar. *Folge im Betrieb:* ein veröffentlichter Port ohne `LISTEN` antwortet nicht.
+5. **Datenverzeichnis.** `/data` ist das Datenvolumen: der Betreiber hängt dort ein Volume oder Verzeichnis ein. Ein leeres Verzeichnis ist ein gültiger Startzustand, ein vorhandener Bestand wird unverändert übernommen (`SPEC-139` Nr. 11 f); ein neueres oder fremdes Schema behandelt `SPEC-103` Nr. 4 und 5. Ein neues, leeres benanntes Volume erhält beim ersten Einhängen den Eigentümer von `/data` (Verhalten der Container-Laufzeit). Ist das eingehängte Verzeichnis für `65532` nicht beschreibbar, scheitert der Start mit Exit-Code 1 und einer Meldung nach `SPEC-139` Nr. 8; welcher Code dort steht, ist nicht zugesagt. Ein leer gesetztes `DATA_DIR` gilt als ungesetzt (`SPEC-110` Nr. 1) und ergibt vom Arbeitsverzeichnis `/` aus denselben Ort. Das Image deklariert kein `VOLUME`. **Entscheidung** (kein `VOLUME`): *Alternative:* `VOLUME /data`. *Verworfen:* jeder Start ohne Angabe legte still ein namenloses Volume an, das liegen bleibt und das niemand wiederfindet. *Folge im Betrieb:* ohne eingehängtes Volume liegen die Daten im Container; sie überstehen Stopp und Neustart desselben Containers und enden mit seinem Entfernen.
+6. **Start.** Der Eintrittspunkt ist `["/odata-recorder"]`, das Standardargument `["start"]` (`SPEC-138` Nr. 2); das Argument `version` gibt die Version aus.
+7. **Stopp.** Der Prozess ist der erste Prozess des Containers und erhält das `SIGTERM` der Laufzeit selbst; er fährt geordnet herunter (`SPEC-138` Nr. 7, `SPEC-139` Nr. 7) und endet mit 0. `SHUTDOWN_TIMEOUT` (`SPEC-059`) und die übliche Wartezeit der Laufzeit bis zum erzwungenen Ende sind beide 10 s: wer laufende Exchanges abwarten will, setzt die Wartezeit der Laufzeit höher. Nach einem erzwungenen Ende setzt der nächste Start offene Sessions auf `incomplete` (`SPEC-123` Nr. 5).
+8. **Nicht enthalten.** Kein `HEALTHCHECK` (das Image trägt kein Werkzeug, das `/healthz` abfragt, und der Admin-Listener bindet an die Schleife), kein `EXPOSE`, keine Compose-Datei: unter Compose ist das Image ohne Anpassung nutzbar (Konfiguration über die Umgebung, Volume an `/data`, `SIGTERM`). Token und TLS-Schlüssel, die der Betreiber einhängt, müssen für `65532` lesbar sein.
+
+Ungeprüft bleibt, je mit Grund und Folge:
+- Der Neustarttest hängt kein Volume ein (`SPEC-323`). Grund: die Prüfläufe laufen ohne Mount. Folge: dass die Laufzeit den Eigentümer von `/data` auf ein neues Volume überträgt, ist nur über Eigentümer und Rechte von `/data` im Image belegt, und ein nicht beschreibbares Verzeichnis (Nr. 5) hat keinen Fänger am Image.
+- Die Byte-Gleichheit zweier gebauter Images. Grund: reproduzierbar ist das Binary (`-trimpath`), nicht der Zeitstempel der Schichten. Folge: zwei Bauten desselben Standes haben verschiedene Kennungen.
+- Ein Upstream über HTTPS mit den Vertrauensankern des Image. Grund: der Test hat kein Netz; geprüft ist, dass die Datei besteht. Folge: eine unvollständige Datei fiele erst beim Betreiber auf (`ODR-E4001`).
+- Ein erzwungenes Ende des Containers (Nr. 7). Grund: die Wiederherstellung ist am Dienst geprüft (`SPEC-123`). Folge: keine eigene für das Image.
+- Eine andere Plattform als die des Bau-Hosts, eine andere Laufzeit als Docker und Compose. Folge: nicht zugesagt.
+
 ### SPEC-043 — Import- und Provenienz-Schema
 
 `ImportManifest{import_id, service_id, metadata_hash (die Blob-Referenz des `$metadata`, `SPEC-107` Nr. 15), source_session_ids[], created_at, entity_count, baseline_snapshot_id, coverage[]}`;
@@ -5299,7 +5321,7 @@ Ungeprüft bleibt, je mit Grund und Folge:
 | `SPEC-179` | OData CSDL | V2 XML | EDMX 1.0 mit CSDL 1.0 bis 2.0; gelesen wird der Teilumfang von `SPEC-171` Nr. 4 |
 | `SPEC-033` | HTTP | HTTP/1.1; HTTP/2 nach Transportfähigkeit | RFC-konforme Request-/Response-Semantik |
 | `SPEC-034` | SQLite | Version mit UPSERT, WAL, FK-Unterstützung | Migrationen + DB-Contract-Tests |
-| `SPEC-035` | Docker/OCI | OCI-kompatibles Runtime-Image | Dockerfile, Compose-Integration |
+| `SPEC-035` | Docker/OCI | OCI-kompatibles Runtime-Image | Dockerfile, Compose-Integration (`SPEC-322`) |
 
 Protokollversionen werden beim Start und pro Service validiert.
 Herstellerspezifische OData-Erweiterungen sind nicht automatisch Bestandteil des Mock-Vertrags.
@@ -5312,6 +5334,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-27 | Laufzeit-Image vor dem Code (neue `SPEC-322`, Architect; keine bestehende Entscheidung geändert, `LH-QA-06`, `LH-RB-03.a`): leere Basis, Binary, Vertrauensanker, `/tmp` und `/data` für den Nutzer `65532`, allein `DATA_DIR=/data`, kein `VOLUME`, Eintrittspunkt mit `start`, Stopp mit `SIGTERM`; Nachzug in `LH-QA-06.a` und `SPEC-035` |
 | 2026-11-27 | Zielwert bestätigt (Architect, Entscheidung des fachlichen Owners, `LH-QA-01`): `LH-QA-01.a` nennt p95 ≤ 100 ms als bestätigt statt vorläufig; Wert und Messaufbau unverändert |
 | 2026-11-27 | Replay-Suche nach dem Review (Architect, `LH-QA-01`, `LH-FA-04.a`): `ListByMatchKey` ordnet im Adapter und lässt die Datenbank nicht sortieren, damit die Operation ohne beschreibbares Temp-Verzeichnis läuft (`SPEC-105` Nr. 14, *Ungeprüft*); `SPEC-135` *Ungeprüft* beschreibt das Warten auf den Schreiber und `ODR-E9001` nach `SQLITE_BUSY_TIMEOUT` (Verhalten unverändert); `SPEC-216` Nr. 6 g auf das berichtigt, was `make schema-check` prüft |
 | 2026-11-27 | Ort der Namen der Schlüssel des Transportschutzes vor dem Code (Architect, `LH-FA-13`, `LH-RB-02.a`, Widerspruch zwischen Ort der Namen und Katalog aufgelöst): `ADMIN_TLS_CERT`, `ADMIN_TLS_KEY` und `ADMIN_ALLOW_PLAINTEXT` stehen als Literal in einer Datei `konfig*.go` statt als Konstanten in `admintls.go` (`SPEC-299` Nr. 1 und 14, `SPEC-300` Nr. 1); die Funktionen bleiben in `admintls.go`; die Zeilen des Handbuchs (`SPEC-300` Nr. 15) und die Katalogprüfung (`SPEC-201`) bleiben unverändert |
