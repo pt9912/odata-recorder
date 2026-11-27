@@ -54,6 +54,7 @@ Der Status `Draft` bedeutet, dass Umfang und Grenzwerte noch abgestimmt werden k
 
 **Akzeptanzkriterien:**
 - **Happy Path:** Given aktiver Record-Modus, when ein GET- und ein POST-Austausch erfolgreich stattfinden, then sind beide mit Request und Response in korrekter Reihenfolge abrufbar.
+  Abrufbar heißt: über die Wiedergabe und über die Angaben zu den Austauschen, die die Verwaltungsschnittstelle liefert; ein eigener Weg, der die gespeicherten Bodies ausgibt, wird nicht verlangt.
 - **Boundary:** Given ein Austausch ohne Request- oder Response-Body, when er erfasst wird, then bleibt die leere Nutzlast eindeutig von einer fehlgeschlagenen Erfassung unterscheidbar.
 - **Negative:** Given ein Speicherfehler, when eine Aufzeichnung geschrieben werden soll, then wird der Fehler sichtbar gemeldet und kein vollständig gespeicherter Austausch vorgetäuscht.
 
@@ -417,4 +418,4 @@ Tatsachenberichtigungen ohne Anforderungsänderung sind ausdrücklich als solche
 | 0.7.0 | 2026-10-18 | Entwurf vor Accepted: `LH-QA-01` auf Antworten aus lokalem Speicher begrenzt, Upstream-abhängige Betriebsarten ausgenommen; Zielwert und Freigabe durch den Owner unverändert offen | — |
 | 0.8.0 | 2026-11-27 | Entwurf vor Accepted: Zielwert p95 ≤ 100 ms von `LH-QA-01` durch den fachlichen Owner bestätigt; Wert und Messmethode unverändert, Status bleibt `Draft` | — |
 | 0.9.0 | 2026-11-27 | Entwurf vor Accepted: Messmethode von `LH-QA-06`: ohne CI gilt ein Lauf über `make` als Ersatz für den CI-Test (Entscheidung des fachlichen Owners); Anforderung und übrige Messmethode unverändert, Status bleibt `Draft` | — |
-| 0.10.0 | 2026-11-27 | Entwurf vor Accepted, Entscheidungen des fachlichen Owners, Status bleibt `Draft`: `LH-FA-14` (Negative): bei nicht angehängtem Austausch ist `incomplete` an der Session die Markierung | — |
+| 0.10.0 | 2026-11-27 | Entwurf vor Accepted, Entscheidungen des fachlichen Owners, Status bleibt `Draft`: `LH-FA-14` (Negative): bei nicht angehängtem Austausch ist `incomplete` an der Session die Markierung; `LH-FA-02` (Happy Path): „abrufbar“ ist über Wiedergabe und Angaben der Verwaltungsschnittstelle erfüllt | — |
