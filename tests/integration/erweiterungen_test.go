@@ -192,16 +192,16 @@ func erwPruefeSession(t *testing.T, rec *bootstrap.Handle, sessionID string, f e
 	}
 }
 
-// TestRecordErweiterungen (E1 bis E7, E9): die fünf Fälle von LH-QA-07.a, die Zahl der gelaufenen Fälle als Literal.
+// TestRecordErweiterungen (E1 bis E7, E9): die fünf Fälle von LH-QA-07.a; die gelaufenen Fälle stehen mit Zahl und Namen als Literal.
 func TestRecordErweiterungen(t *testing.T) {
-	gelaufen := 0
+	var gelaufen []string
 	for _, f := range erwFaelle() {
 		t.Run(f.name, func(t *testing.T) {
-			gelaufen++
+			gelaufen = append(gelaufen, f.name)
 			erwPruefe(t, f)
 		})
 	}
-	if gelaufen != 5 {
-		t.Errorf("%d Fälle gelaufen, erwartet 5", gelaufen)
+	if soll := []string{"Query", "Pfad", "Header", "JSON", "Metadaten"}; len(gelaufen) != 5 || !slices.Equal(gelaufen, soll) {
+		t.Errorf("%d Fälle gelaufen %q, erwartet 5: %q", len(gelaufen), gelaufen, soll)
 	}
 }

@@ -126,8 +126,8 @@ func abFixtures() []abFixture {
 		{ID: "ODV4-Q-10", Schritte: []abSchritt{abS("a", abG("/Products", "$select=Id,Name&$orderby=Name desc,Id"), abKK(abAuswahl("Id,Name", 5, 3, 2, 1, 4))),
 			abS("b", abG("/Products", "$select=Id&$orderby=Active,Id desc"), abKK(abAuswahl("Id", 5, 2, 4, 3, 1)))}},
 		{ID: "ODV4-Q-11", Schritte: []abSchritt{abS("a", abG("/Products", "$orderby=Id desc&$top=2&$skip=1&$select=Id"), abKK(abAuswahl("Id", 4, 3))),
-			abS("b", abG("/Products", "$filter=Active eq true&$orderby=Id desc&$skip=1&$top=2&$count=true&$select=Id"),
-				abKK(strings.Replace(abAuswahl("Id", 3, 1), `"value":`, `"@odata.count":3,"value":`, 1)))}},
+			abS("b", abG("/Products", "$filter=Active ne false&$orderby=Stock&$skip=1&$top=2&$count=true&$select=Id"),
+				abKK(strings.Replace(abAuswahl("Id", 5, 3), `"value":`, `"@odata.count":4,"value":`, 1)))}},
 		{ID: "ODV4-Q-12", Schritte: []abSchritt{
 			abS("a", abG("/Products", "$count=true&$top=0"), abKK(`{"@odata.context":"{W}/$metadata#Products","@odata.count":5,"value":[]}`)),
 			abS("b", abG("/Products/$count", "$filter=Active eq true"), abKZ("3"))}},
