@@ -125,6 +125,10 @@ Dateiname und Testnamen sind Vorschlag des Planners; wer sie ändert, zieht Tabe
 | Q1 | Paging vor dem Filter; Sortierung entfällt; Filter entfällt; Count nach dem Paging; Count vor dem Filter (am Produktcode `FuehreAus`) | `ODV4-Q-11` b, je Mutation in `TestAbnahmeMatrix`, `TestVertragMatrix` und `TestAbnahmeMatrixMitEtag` |
 | Q2 | Schritt b entfällt; Schritt b läuft nicht; `abPruefeZaehlung` auf 92; Bereich Q auf 16; Zähler in `abnahme_etag_test.go` auf 92; Zähler in `vertrag_http_test.go` auf 92 | je Mutation `TestAbnahmeMatrixZaehlung`, `TestVertragMatrixZaehlung`, `TestAbnahmeMatrix` oder `TestAbnahmeMatrixMitEtag` |
 
+**Handbuch** (H1, H2; nach dem Merge von `main` mit dem Nachzug `62cfd7f8`): Kapitel `Schutz der Daten` mit den drei Aussagen von `SPEC-053`, *Stand* im Kopf des Handbuchs nachgezogen. Mutation H1 in einer Wegwerfkopie: eine Kennung der Spezifikation im Absatz ist rot (`make handbuch-check`: `Zeile 257: Kennung C6`); im Worktree sind `make handbuch-check` und `make katalog-check` grün. Die Sätze selbst bleiben ungeprüft (Negativ von H1).
+
+**Messung** (`SPEC-128` Nr. 1): 235 Zeilen (Summe aus `git diff --numstat` von der Basis `20728b70` bis zum Handoff über die Pfade des Blocks), Marke 1600; der vorab benannte Schnitt (§4) greift nicht.
+
 **Prüfung von Tabelle und Raster gegen den Vertrag** (Implementer, erster Schritt): keine Randform ohne Entscheidung und kein Fall, der eine Produktänderung verlangt; deshalb kein Anhalten. Berichtigt: zwei Zellen des Rasters nannten einen Ort, der ihre Entscheidung nicht trägt (*Anfrage aufzeichnen × leer*: `SPEC-121` Nr. 4; *Antworten vergleichen × Abbruch*: `LH-QA-07.a` Nr. 7 a); die Tabelle führte den Satz „Je Fall“ nicht als eigene Zusage (E9) und bei Q1 keine Mutation am Count; H2 folgt dem Nachzug von `SPEC-053` (`mock` oder `hybrid`).
 
 **Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; „Nr.“ ohne Kennung meint `LH-QA-07.a`):

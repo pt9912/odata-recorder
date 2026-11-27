@@ -2,7 +2,7 @@
 
 Software-Version: dev
 Gültigkeitsbereich: das Binary, das `make build` erzeugt
-Stand: 2026-11-26
+Stand: 2026-11-27
 
 ## Einleitung
 
@@ -251,6 +251,10 @@ Warnung ohne TLS: Läuft die Schnittstelle außerhalb von Loopback ohne Zertifik
 Verantwortung für den Klartext: Ohne TLS kann jeder auf dem Weg das Token und die Antworten mitlesen und mit dem Token die Schnittstelle bedienen. Wer `ADMIN_ALLOW_PLAINTEXT=true` setzt, trägt dafür die Verantwortung, etwa durch ein abgeschottetes Netz oder einen Proxy, der TLS beendet.
 
 Ein Client, dessen Handshake scheitert, etwa weil er das Zertifikat ablehnt, erreicht die Schnittstelle nicht. Der Dienst schreibt dazu keine Zeile; den Fehler sieht der Betreiber am Client.
+
+## Schutz der Daten
+
+Um Core-Dumps und Swap kümmert sich der Betreiber, der Recorder prüft beides nicht. Werte, die ein Client im Modus `mock` oder `hybrid` schreibt, speichert der Dienst unverändert. Welche Testdaten zulässig sind, verantwortet der Betreiber.
 
 ## Fehlercodes
 
