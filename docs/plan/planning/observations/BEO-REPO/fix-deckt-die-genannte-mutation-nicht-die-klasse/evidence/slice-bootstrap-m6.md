@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6
+**Fund:** Review F-1 meldete, dass die fehlerhafte Hälfte von `LH-FA-13` Negative über den Admin-Listener keinen Fänger hat, mit einer Mutation an der 405. Der Fix deckt drei Formen (405, 404 des Pfads, unbekanntes Feld), nicht die Klasse „fehlerhafte Anfrage mit Token“: eine doppelte Session-ID, die vor dem 409 die vorhandene Session beendet, blieb in M6-Test und Stufe 11 grün. F-2 und F-3 desselben Reports deckte die Fix-Runde als Klasse. Beleg: `2026-11-27-slice-bootstrap-m6-verifikation` (*Fix-Runde gegen die Klassen*, V-1).

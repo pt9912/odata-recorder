@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6
+**Fund:** Der Fall *Speicher voll* der Stufe 11 legte sein `DATA_DIR` unter `/voll` an und räumte es nicht: in einem Prozess mit `-test.count=30` scheiterten 25 Läufe am Start (`ODR-E9001`). Behoben in der Fix-Runde für die Stufe 11; derselbe Aufbau steht im älteren Helfer `volleKonfig` unverändert, außerhalb des Blocks. Beleg: `2026-11-27-slice-bootstrap-m6-review` (F-7), `2026-11-27-slice-bootstrap-m6-verifikation` (*Fix-Runde gegen die Klassen*).

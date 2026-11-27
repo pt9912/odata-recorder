@@ -1,0 +1,2 @@
+**Vorgang:** slice-bootstrap-m6
+**Fund:** Die Sendung von `slice-bootstrap-m6-listener` nannte die durchsuchten Stellen (`stdout`, `stderr`, `DATA_DIR`) und die Hälften des Tokens und verwies auf `SPEC-300` Nr. 12 a, nicht aber die Anlässe dieser Nummer (gültiges Token auf jeder schreibenden Route, drei Fast-Treffer). Die Zeile D04 und die Stufe folgten der Sendung; die fehlenden Anlässe fand erst das Review. Beleg: `2026-11-27-slice-bootstrap-m6-review` (F-2), Plan `slice-bootstrap-m6` §1.
