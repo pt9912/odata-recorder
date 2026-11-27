@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-322` (Laufzeit-Image) · `SPEC-323` (Neustarttest, `harness/vertraege/`) · `SPEC-102` und `SPEC-211` (`harness/vertraege/`, Nachzug im liefernden Commit) · `SPEC-200` Nr. 14 e (Handbuch) · `LH-QA-06.a` (Container und Neustart) · `LH-RB-03.a` (Linux und CI, Container-Build, End-to-End-Test) · `SPEC-077` (`DATA_DIR`) · `SPEC-035` (OCI-Runtime-Image) · `SPEC-037` (Test, Integration) · `SPEC-123` (Start: Wiederherstellung, Integritätsprüfung) · `SPEC-059` (`SHUTDOWN_TIMEOUT`) · `LH-FA-02.c` (geordneter Shutdown) · `SPEC-124` Nr. 14 · `SPEC-005` (Admin-Endpunkte) · `ARC-012`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-container-image`, Worktree `/Development/odata-recorder-wt-image`; der Zweig entsteht von `main` nach dem Start-Commit, der Start liegt auf `main`)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
@@ -141,7 +141,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): `slice-bootstrap-m2` und `slice-handbuch-meldungskatalog` liegen in `done/` (erfüllt). Der Vertrag samt Randformen liegt vor dem ersten Code-Commit vor (`AGENTS.md` §3.12; erfüllt: `SPEC-322` und `SPEC-323` auf `main`, `082c560c`). **Gate-Kette** (Übergangsregeln Nr. 7; er ändert `Dockerfile`, `harness/mk/`, `harness/README.md`, `tools/gegenproben/` und den Stempel): kein anderer Kettenslice liegt in `in-progress/`; Vorgänger der Kette ist [slice-bootstrap-m6](../done/slice-bootstrap-m6.md) in `done/` (Planner, 2026-11-27, Drift-Log der Roadmap). `welle-dev-container` ist keine Bedingung mehr (§1).
 
-**Stand der Bedingungen** (Planner, 2026-11-27, bei der Closure von Teil D): der Vorgänger [slice-bootstrap-m6](../done/slice-bootstrap-m6.md) liegt in `done/`, und in `in-progress/` liegt kein anderer Kettenslice ([slice-abnahme-belege](../in-progress/slice-abnahme-belege.md) und [slice-lasttest-leser-zeitgrenze](../in-progress/slice-lasttest-leser-zeitgrenze.md) sind keine); **erfüllt, auf `main` nach dem Merge des Zweigs `slice-bootstrap-m6`**. Er ist der nächste Slice der Gate-Kette. Kein Pfad des Blocks steht im Block eines laufenden Slice; das Handbuch (nicht im Block) schreibt auch `slice-abnahme-belege`. `basis`, `schaetzung` und `marke` setzt der Planner beim Start.
+**Stand der Bedingungen** (Planner, 2026-11-27, bei der Closure von Teil D): der Vorgänger [slice-bootstrap-m6](../done/slice-bootstrap-m6.md) liegt in `done/`, und in `in-progress/` liegt kein anderer Kettenslice ([slice-abnahme-belege](../in-progress/slice-abnahme-belege.md) und [slice-lasttest-leser-zeitgrenze](../done/slice-lasttest-leser-zeitgrenze.md) sind keine); **erfüllt, auf `main` nach dem Merge des Zweigs `slice-bootstrap-m6`**. Er ist der nächste Slice der Gate-Kette. Kein Pfad des Blocks steht im Block eines laufenden Slice; das Handbuch (nicht im Block) schreibt auch `slice-abnahme-belege`. `basis`, `schaetzung` und `marke` setzt der Planner beim Start.
+
+**Stand beim Start** (Planner, 2026-11-27, `main` ab `34c574b5`): Jede Bedingung ist erfüllt. (1) [slice-bootstrap-m2](../done/welle-record-replay/slice-bootstrap-m2.md) und [slice-handbuch-meldungskatalog](../done/slice-handbuch-meldungskatalog.md) liegen in `done/`, ebenso die Slices der dritten Abhängigkeit unten. (2) `SPEC-322` und `SPEC-323` stehen auf `main` (`082c560c`, Zeile 20 aus `2e289d4d`); die 20 Zeilen der Tabelle und das Raster aus §3 und §6 sind byte-gleich `SPEC-323` Nr. 8 und 7 und tragen keinen Platzhalter; offene Fragen an den Architect vor dem ersten Code-Commit gibt es nicht. (3) In `in-progress/` liegt daneben kein Kettenslice: [slice-abnahme-belege](slice-abnahme-belege.md) und [slice-admin-abweisen-begrenzen](slice-admin-abweisen-begrenzen.md) ändern keinen Pfad der Nr. 7 der Übergangsregeln. **Zugleich laufende Zweige** (beim Start gelesen: `git diff --name-only main...slice-abnahme-belege`; der Zweig `slice-admin-abweisen-begrenzen` hat noch keinen eigenen Commit, gelesen sind die offenen Änderungen seines Arbeitsbaums und der Block seines Plans): keine Datei des Blocks gemeinsam, `harness/README.md` ändert allein dieser Slice. Gemeinsam ist allein das Benutzerhandbuch (Zeile `Stand:` im Kopf; die Kapitel sind verschieden: Image hier, *Schutz der Daten* und *Admin-Schnittstelle* dort). Unter `harness/vertraege/` ändert [slice-abnahme-belege](slice-abnahme-belege.md) `SPEC-042`, dieser Slice `SPEC-102`, `SPEC-211`, `SPEC-323` und den Index.
 
 **Abhängigkeiten — Grund je Eintrag:**
 
@@ -151,7 +153,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 `slice-listener-tls`, die Telemetrie, `slice-audit-log` und `slice-lasttest` sind nicht Bedingung; die Telemetrie ändert das Image nicht. `slice-bootstrap-m6` (Teil D) liefert dem Test keinen Code; er liegt allein in der Reihenfolge der Gate-Kette davor.
 
-**Größenmarke** (`SPEC-128` Nr. 1; Teil des Architect: `produktcode` 220 und `fakes` 1 aus `SPEC-323` Nr. 10, 20 Zeilen der Klasse `andere` aus §3; Pfade vom Planner nach §3): noch nicht gesetzt. Aus Tabelle und Block ergeben sich *S* = 2020 und die Marke 2800, keine Schnittfrage (203 unter der Schnittgrenze; geprüft vom Planner am 2026-11-27 mit dem Werkzeug an dieser Datei, `Marke steht aus`; vor Zeile 20 waren es *S* = 1940 und 2700). `basis`, `schaetzung` und `marke` setzt der Planner erst beim Start, vor dem ersten Code-Commit (`AGENTS.md` §3.14), und rechnet neu, falls sich die Tabelle geändert hat. Die Schätzung des Architect für den Umfang ohne Handbuch ist rund 800 Zeilen (`SPEC-323` Nr. 10, nicht gemessen). Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; jede weitere Datei, die der Implementer anlegt oder ändert, nennt er im selben Commit im Block.
+**Größenmarke** (`SPEC-128` Nr. 1; Teil des Architect: `produktcode` 220 und `fakes` 1 aus `SPEC-323` Nr. 10, 20 Zeilen der Klasse `andere` aus §3; Pfade vom Planner nach §3; **`basis`, `schaetzung` und `marke` hat der Planner beim Start vor dem ersten Code-Commit gesetzt**, 2026-11-27, `AGENTS.md` §3.14): 20 Zeilen, *a* = 0, *b* = 20, *f* = 1, *p* = 220: *S* = 2020, **Marke 2800**, keine Schnittfrage (203 unter der Schnittgrenze; vor dem Start mit `make groessenmarke` an dieser Datei bestätigt, `Marke steht aus: Schätzung 2020, Marke 2800`). `basis` ist der reine Move nach `in-progress/`. Kein Teil ist vorab als Schnitt beim Handoff benannt: Treiber, Client-Phasen und Gegenproben tragen denselben Vertrag, und das Handbuch zählt die Messung nicht. Die Schätzung des Architect für den Umfang ohne Handbuch ist rund 800 Zeilen (`SPEC-323` Nr. 10, nicht gemessen). Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen; jede weitere Datei, die der Implementer anlegt oder ändert, nennt er im selben Commit im Block.
 
 ```groessenmarke
 pfad: Dockerfile
@@ -166,11 +168,14 @@ pfad: tools/harness/gegenproben-eingabe.sh
 pfad: harness/README.md
 produktcode: 220
 fakes: 1
+basis: 0158092b
+schaetzung: 2020
+marke: 2800
 ```
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
-- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über der Marke, die der Planner beim Start setzt; reicht *S* beim Start über die Schnittgrenze von `SPEC-128` Nr. 1, wird vor dem ersten Code-Commit geschnitten (`AGENTS.md` §3.14), die Naht ist dann Image (Bau) gegen Neustarttest (Treiber und Gate).
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): nur vor dem ersten Code-Commit, wenn sich die Tabelle ändert und *S* die Schnittgrenze von `SPEC-128` Nr. 1 erreicht (`AGENTS.md` §3.14); die Naht ist dann Image (Bau) gegen Neustarttest (Treiber und Gate). Eine Messung über der Marke nach dem Code führt nicht zurück, sie steht mit Grund als `ueberschreitung` im Block.
 - `in-progress` → `open` (blockiert): der Neustarttest lässt sich nicht fahren, ohne eine harte Regel zu lockern (`AGENTS.md` §3.1, §3.6), oder er kann im Daemon des Hosts nicht auf eigene Objekte begrenzt aufräumen.
 
 ## 5. Closure-Trigger
@@ -193,7 +198,9 @@ dasteht.
 - Im Daemon des Hosts kollidiert der Lauf mit Gate-Läufen oder fremden Objekten, oder das Aufräumen löscht Fremdes oder lässt Eigenes stehen — **Ausgang:** entschieden (Architect, `SPEC-323` Nr. 2 b, 5, 6; Fänger Zeilen 14 bis 17 in §3). Benannt bleibt: SIGKILL am Treiber lässt Container, Tags und Verzeichnis liegen (Nr. 6 d dort).
 - `AGENTS.md` §3.1 verlangt netzlose Prüfläufe ohne schreibbaren Mount — **Ausgang:** entschieden (Architect, `SPEC-323` Nr. 2 d und e; User, Antwort 1 der sechs Fragen): `--network none` und kein Mount, ohne Ausnahme von der Regel.
 - Zusage-Lücke: `LH-QA-06.a` nennt Recordings, Workspaces und Snapshots, der Plan prüfte nur Recordings, weil es keinen Weg über die Prozessgrenze gab — **Ausgang:** entschieden (Planner, 2026-11-27): der Admin-Listener ist im Binary geliefert, der Neustarttest dieses Slice prüft alle drei (§1, DoD 2); das akzeptierte Negativ und die Adresse „Planner für `slice-bootstrap-m6`“ entfallen. [slice-bootstrap-m6](../done/slice-bootstrap-m6.md) hatte die Sendung nie angenommen und nennt den Neustarttest im Container als ausgeschlossen (§1 dort); seine zwei Starts im Prozess ersetzen ihn nicht.
-- Der Umfang ist größer als beim ersten Entwurf (drei Datenarten, Admin-Listener im Container, Gegenproben) — **Ausgang:** weiter offen; Adresse: Planner (beim Start `basis`, `schaetzung` und `marke` in den Block, §4; heute *S* = 2020, Marke 2800).
+- Der Umfang ist größer als beim ersten Entwurf (drei Datenarten, Admin-Listener im Container, Gegenproben), und ein Treiber mit echten Prozessen, Ersatz für `docker` und Signal-Fällen liegt nach dem Register über der Schätzung (`BEO-REPO/schaetzformel-unterschaetzt-werkzeug-mit-prozessen`) — **Ausgang:** weiter offen; Adresse: Implementer (misst am Handoff über die Pfade des Blocks, Eintrag `ueberschreitung` mit Grund), Planner bei der Closure (ein dritter Vorgang erreicht die Schwelle).
+- Das Benutzerhandbuch schreiben zugleich [slice-abnahme-belege](slice-abnahme-belege.md) und [slice-admin-abweisen-begrenzen](slice-admin-abweisen-begrenzen.md) (andere Kapitel, gemeinsam die Zeile `Stand:`) — **Ausgang:** weiter offen; Adresse: Implementer (nimmt `main` vor dem Handoff auf, Übergangsregeln Nr. 5) und Integrationsschritt.
+- `SPEC-323` Nr. 4 d nennt in einem Satz das Token von vor dem Neustart und `--env` — **Ausgang:** entschieden (`SPEC-323` Nr. 4 a und Zeile 19 der Tabelle): `--env` trägt allein die Werte aus der Phase `aufnehmen`, das Token geht über die Standardeingabe; wer den Satz anders lesen muss, hält an (`AGENTS.md` §3.12, Adresse Architect).
 - Das Volume gehört einem anderen Nutzer als der Prozess im Image — **Ausgang:** entschieden (Architect, `SPEC-322` Nr. 5). Ohne Fänger am Image bleiben der Eigentümer eines neuen Volumes und ein nicht beschreibbares Verzeichnis (`SPEC-322` *Ungeprüft*; User, Antwort 1 der sechs Fragen).
 - `SIGKILL` während der Aufzeichnung hinterlässt eine `open`-Session — **Ausgang:** entschieden (Architect, `SPEC-323` Nr. 9 a): benanntes Negativ, die Wiederherstellung ist am Dienst geprüft (`SPEC-123` Nr. 5).
 - Randformen (`AGENTS.md` §3.12, §3.16): eine Zelle ohne Ort geht an den Architect — **Ausgang:** entschieden (Architect, `SPEC-323` Nr. 7, Raster unten).
@@ -244,7 +251,20 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-10-30); der Planner zieht Treffer und Zähler beim Start nach. Der Slice bringt einen langen Lauf in die Gate-Kette oder daneben: `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` (1×) und `BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last` (2×, jede Frist und Rate trägt Last und Messenden) sind offen; `BEO-REPO/stempel-gehoert-zu-keinem-committeten-stand` (1×) berührt den Stempel der Gegenproben, den dieser Slice nur im Integrationsschritt setzt; offen außerdem `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×). Verkörpert und mit dem Slice zu beachten: `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (25×, `AGENTS.md` §3.15) und `BEO-REPO/akzeptiertes-negativ-ohne-folge` (10×, `AGENTS.md` §3.15). Keiner der offenen erreicht mit diesem Slice 3×.
+**Vorgelagert — offene Beobachtungen sichten** (Planner, beim Start, 2026-11-27; der Zähler ist die Zahl der Dateien unter `evidence/`).
+
+Offen und mit dem Slice berührt:
+
+- `BEO-REPO/gate-lauf-stufen-aus-dem-schicht-cache` (20×, Schwelle überschritten, ohne Zielort): ein grüner Lauf belegt die neuen Fälle der Gegenprobe und die Prüfungen am Image nur, wenn Stufe und Treiber wirklich liefen; DoD 4 nennt die Ausgabe.
+- `BEO-REPO/schaetzformel-unterschaetzt-werkzeug-mit-prozessen` (2×): §6.
+- `BEO-REPO/image-tag-race-von-allen-worktrees-geteilt` (2×): `make image` setzt das feste Tag `odata-recorder:image`, das alle Arbeitsbäume teilen; `make test-image` nutzt Tags je Lauf (`SPEC-323` Nr. 2 b). Mutationsläufe prüfen nie gegen ein geteiltes Tag fremden Standes.
+- `BEO-REPO/rollen-images-ohne-aufraeumen` (1×): jede Rolle entfernt die Images und Container ihrer eigenen Läufe, nur diese.
+- `BEO-REPO/exit-aussage-ohne-messstelle` (1×): Zeile 17 misst den Exit am Treiber, nicht allein am `make`-Aufruf.
+- `BEO-REPO/sendeseite-der-marker-ohne-faenger` (1×): Zeile 19 hält auch, dass das Muster des Tokens beim Client ankommt, sonst ist die Suche stumm.
+
+Geplant oder verkörpert, weiter zu beachten: `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts` (7×, geplant in `slice-coverage-gate`), `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (89×, `AGENTS.md` §3.15), `BEO-REPO/akzeptiertes-negativ-ohne-folge` (21×, §3.15), `BEO-REPO/rate-ohne-detektor-schwankt-mit-der-last` (15×, §3.10), `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (23×, Übergangsregeln Nr. 8) und `BEO-REPO/stempel-gehoert-zu-keinem-committeten-stand` (4×, Übergangsregeln Nr. 2).
+
+Ein dritter Vorgang der Einträge mit 2× braucht bei der Closure einen Ausgang im Register.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der

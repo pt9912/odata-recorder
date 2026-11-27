@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest-leser-zeitgrenze
+**Fund:** Schätzung *S* 500 (Tabelle, 6 Zeilen, 4 nebenläufig, 0 Fakes, Produktcode 0), Marke 700, Messung 76; Ende ÷ *S* 0,15, Auslastung 0,11, unter 0,45. Die Zeilen der Tabelle sind Zusagen eines bestehenden Tests; der Slice baute allein dessen Hilfsfunktion um, die Fänger von drei Zeilen bestanden schon. Der Messpunkt geht als Meldung an den Architect (`SPEC-128` Nr. 9). Beleg: Plan §7 (Messpunkt-Zeile), Verifikation `2026-11-27-slice-lasttest-leser-zeitgrenze-verifikation`.

@@ -1,0 +1,2 @@
+**Vorgang:** slice-lasttest-leser-zeitgrenze
+**Fund:** Unter `testing/synctest` enden zwei Hänger-Formen (Warteschleife mit `time.Sleep`; Sperre, deren Halter auf die Uhr der Blase wartet) erst nach 60 s im panic der Wache: das Test-Binary bricht ab, die Meldung nennt die Frist und nicht den Grund, die übrigen Tests des Pakets laufen nicht (Review I-1; m4 und m6 je 1 von 1 Lauf). Kein Fix: eine Grenze je Lauf in Echtzeit wäre die Grenze, die der Slice entfernt. Beleg: Plan §3 und §6.

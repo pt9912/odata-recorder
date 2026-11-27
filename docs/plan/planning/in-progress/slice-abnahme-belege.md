@@ -39,7 +39,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 - Der Absturztest (`SPEC-048`) — [slice-absturztest](../open/slice-absturztest.md), Schnitt oben.
 - Produktcode — die Belege prüfen Verhalten, das die Spezifikation als vorhanden beschreibt; zeigt ein Test eine Abweichung, greift die Rückführung in §4.
-- Das byte-gleiche Binary (`LH-RB-03.a`) — [slice-container-image](../open/slice-container-image.md), Zeile 20 dort.
+- Das byte-gleiche Binary (`LH-RB-03.a`) — [slice-container-image](../in-progress/slice-container-image.md), Zeile 20 dort.
 - Neue Fälle in `make test-integration` (`tests/e2e/`) — der Nachweis läuft im Paket `integration` in `make test` (`LH-QA-07.a`); keine Datei der Gate-Kette.
 - Weitere Handbuch-Kapitel — die Handbuch-Slices sind für M7 nicht nötig (Antwort 6 des Users, 2026-11-27); kein Verhalten am Binary ändert sich.
 - Die Sätze in `spec/` (`SPEC-053`, der Satz zu den Werten im Modus `mock`, der Satz zum vollen Speicher im Lastenheft) und der Satz im README — Architect auf `main` (Antworten 1, 7 und 8).
@@ -133,7 +133,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): die Verträge stehen auf `main` (`2e289d4d`, Merge `6c1526bc`), und kein Slice in `in-progress/` ändert eine Datei des Blocks. Kein Kettenslice (Übergangsregeln Nr. 7): kein Pfad unter `Makefile`, `harness/mk/`, `Dockerfile`, `harness/README.md` oder `tools/gegenproben/`.
 
-**Stand beim Start** (Planner, 2026-11-27): Die Bedingung ist erfüllt. In `in-progress/` liegen daneben [slice-bootstrap-m6](../done/slice-bootstrap-m6.md) und [slice-lasttest-leser-zeitgrenze](slice-lasttest-leser-zeitgrenze.md); `git diff --name-only main...slice-bootstrap-m6` nennt beim Start elf Pfade, darunter keinen des Blocks, keinen unter `spec/` und nicht das Handbuch; der Zweig des Lasttest-Lesers ändert allein `tests/lasttest/leser_test.go`. Für die Tests ist keine Frage an den Architect offen; der Nachzug für den Handbuch-Absatz steht aus (unten). Der Slice ist der dritte Worktree.
+**Stand beim Start** (Planner, 2026-11-27): Die Bedingung ist erfüllt. In `in-progress/` liegen daneben [slice-bootstrap-m6](../done/slice-bootstrap-m6.md) und [slice-lasttest-leser-zeitgrenze](../done/slice-lasttest-leser-zeitgrenze.md); `git diff --name-only main...slice-bootstrap-m6` nennt beim Start elf Pfade, darunter keinen des Blocks, keinen unter `spec/` und nicht das Handbuch; der Zweig des Lasttest-Lesers ändert allein `tests/lasttest/leser_test.go`. Für die Tests ist keine Frage an den Architect offen; der Nachzug für den Handbuch-Absatz steht aus (unten). Der Slice ist der dritte Worktree.
 
 **Reihenfolge im Slice:** zuerst die Tests (E1 bis E8, Q1, Q2), zuletzt der Handbuch-Absatz (H1, H2). Der Absatz beginnt erst, wenn der Nachzug des Architect zu `SPEC-053` und zum Satz über die Werte im Modus `mock` auf `main` liegt und der Zweig `main` aufgenommen hat (Antwort 7; heute **nicht** geliefert). Er sagt mit H2 ein Verhalten des Binary in Prosa; `SPEC-200` Nr. 1 lässt das allein zu, wenn ein Vertrag des Produkts das Kapitel verlangt. Der Nachzug muss den Absatz deshalb verlangen (Adresse Architect, §6). Er blockiert den Start der Tests nicht. **Vorab benannter Schnitt** (`AGENTS.md` §3.14): liegt der Nachzug bei sonst fertigem Slice nicht auf `main`, geht der Absatz (H1, H2) als eigene Sendung an den Planner; er ist zuletzt, in eigenem Commit, und teilt keinen Mechanismus mit den Tests.
 
