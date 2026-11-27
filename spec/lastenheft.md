@@ -1,6 +1,6 @@
 # Lastenheft — OData Recorder
 
-**Version:** 0.8.0  
+**Version:** 0.9.0  
 **Status:** Draft  
 **Autor:** Projektentwurf  
 **Datum:** 2026-11-27
@@ -328,6 +328,7 @@ Ein Import geschieht nicht stillschweigend während des Recordings.
 - **Anforderung:** Der Dienst läuft auf Linux als Container und kann ohne verpflichtende externe Infrastruktur gestartet werden;
   gleiche Konfiguration und gleiche Eingabedaten führen zu gleichem Testverhalten.
 - **Messmethode:** Containerbasierter CI-Test mit frischem Datenverzeichnis und anschließendem Persistenz-/Neustarttest.
+  Solange es keine CI gibt, erkennt der fachliche Owner einen Lauf über `make` als Ersatz für den CI-Test an.
 
 ### LH-QA-07 — Protokolltreue
 
@@ -414,3 +415,4 @@ Tatsachenberichtigungen ohne Anforderungsänderung sind ausdrücklich als solche
 | 0.6.0 | 2026-10-18 | Entwurf vor Accepted: Tatsachenberichtigung der Historie (technische Lösungsdetails gehören in die Spezifikation); keine Änderung des Anforderungsumfangs | — |
 | 0.7.0 | 2026-10-18 | Entwurf vor Accepted: `LH-QA-01` auf Antworten aus lokalem Speicher begrenzt, Upstream-abhängige Betriebsarten ausgenommen; Zielwert und Freigabe durch den Owner unverändert offen | — |
 | 0.8.0 | 2026-11-27 | Entwurf vor Accepted: Zielwert p95 ≤ 100 ms von `LH-QA-01` durch den fachlichen Owner bestätigt; Wert und Messmethode unverändert, Status bleibt `Draft` | — |
+| 0.9.0 | 2026-11-27 | Entwurf vor Accepted: Messmethode von `LH-QA-06`: ohne CI gilt ein Lauf über `make` als Ersatz für den CI-Test (Entscheidung des fachlichen Owners); Anforderung und übrige Messmethode unverändert, Status bleibt `Draft` | — |
