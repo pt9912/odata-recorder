@@ -256,7 +256,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 
 **Folge-Slice:** keiner aus der Closure. [slice-absturztest](../open/slice-absturztest.md) stammt aus dem Schnitt vor dem Code und führt seinen Gegenstand selbst.
 
-**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld) · Folge-Slice (`slice-absturztest` liegt in `open/`) · Register (die acht genannten Verzeichnisse tragen `evidence/`).
+**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld) · Folge-Slice (`slice-absturztest` steht unter `open/`) · Register (die in §6 und §7 genannten Verzeichnisse tragen `evidence/`).
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
