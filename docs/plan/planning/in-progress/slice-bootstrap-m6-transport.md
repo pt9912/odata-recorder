@@ -223,7 +223,7 @@ dasteht.
 
 **Randformen** (Implementer, 2026-11-27): zu den vier Aufrufen ist keine gefunden, deren Entscheidung in `SPEC-299`, `SPEC-300`, `SPEC-110` oder `SPEC-139` fehlt; das Raster oben führt allein die Zeile *Lesen*.
 
-**Messung am Prototyp** (Implementer, 2026-11-27; Wegwerfkopie mit minimaler Verdrahtung, kein Code im Zweig; `go test -count=1` im Image der Stufe `source`, netzlos, ohne Detektor, ein Container, ein Lauf, Last des Hosts 3 bis 9): über `./src/...`, `./tests/integration/...` und `./tests/lasttest/...` sind rot allein `TestAdminPraefix` (die drei Zellen der Schlüssel), `TestKonfigNichtGeliefert` und `TestWerteErreichenVerbraucher`; alle drei stehen in Dateien des Blocks. Nicht gefahren: `tests/e2e/`, der Detektor, Lint. `tls_wurzel_test.go` (nicht im Block) zählt die Rückgaben eines Fehlers in `pruefeGrundwerte`, `vorbereiten` und `build` (12); der Prototyp fügt keine hinzu.
+**Messung am Prototyp** (Implementer, 2026-11-27; Wegwerfkopie mit minimaler Verdrahtung, kein Code im Zweig; `go test -count=1` im Image der Stufe `source`, netzlos, ohne Detektor, ein Container, ein Lauf, Last des Hosts 3 bis 9): über alle Pakete unter `src/`, `tests/integration/` und `tests/lasttest/` sind rot allein `TestAdminPraefix` (die drei Zellen der Schlüssel), `TestKonfigNichtGeliefert` und `TestWerteErreichenVerbraucher`; alle drei stehen in Dateien des Blocks. Nicht gefahren: `tests/e2e/`, der Detektor, Lint. `tls_wurzel_test.go` (nicht im Block) zählt die Rückgaben eines Fehlers in `pruefeGrundwerte`, `vorbereiten` und `build` (12); der Prototyp fügt keine hinzu.
 
 ## 7. Closure-Notiz
 
