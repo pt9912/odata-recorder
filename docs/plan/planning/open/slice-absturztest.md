@@ -18,7 +18,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** — (bis zur Priorisierung).
 
-**Autor:** pt9912 (Planner, Schnitt von [slice-abnahme-belege](../next/slice-abnahme-belege.md) vor dem Code). **Datum:** 2026-11-27.
+**Autor:** pt9912 (Planner, Schnitt von [slice-abnahme-belege](../in-progress/slice-abnahme-belege.md) vor dem Code). **Datum:** 2026-11-27.
 
 ---
 
@@ -35,7 +35,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Die Erweiterungen auf dem Record-Pfad und `ODV4-Q-11` b — [slice-abnahme-belege](../next/slice-abnahme-belege.md).
+- Die Erweiterungen auf dem Record-Pfad und `ODV4-Q-11` b — [slice-abnahme-belege](../in-progress/slice-abnahme-belege.md).
 - Produktcode und ein Haken im Produkt, ein Schlaf als Orakel, `t.Skip` — der Vertrag schließt sie aus (`SPEC-048` Nr. 1); zeigt der Test eine Abweichung, greift die Rückführung in §4.
 - Absturz zwischen fsync und Rename, während `COMMIT`, Stromausfall, Anhängen eines Exchange und Import, das gebaute Binary — benannte Negative des Vertrags (`SPEC-048` Nr. 5; Zeilen N1 bis N4).
 
@@ -115,14 +115,14 @@ Aussagen-Berührung steht hier gar nicht.
 | Snapshot erzeugen | wie oben | gilt nicht: der Ausgangsstand ist nicht leer, Nr. 1 | gilt nicht: keine Wahl des Namens im Test | Nr. 2 (vier Haltepunkte) | `Restore` von `vor` gelingt, Nr. 3 |
 | Neustart (`Startup`) | fehlender Blob: rot, Nr. 3 | gilt nicht | beschädigter Blob oder Befund: rot, Nr. 3 | gilt nicht: `Startup` wird nicht abgebrochen (Nr. 5 nennt keinen Fall; ein Abbruch hier ist kein Gegenstand) | gilt nicht: je Haltepunkt ein Neustart |
 
-**Betriebsregeln für alle Rollen:** wie in [slice-abnahme-belege](../next/slice-abnahme-belege.md) §3; im Scratchpad nur unter `absturztest-<rolle>/`.
+**Betriebsregeln für alle Rollen:** wie in [slice-abnahme-belege](../in-progress/slice-abnahme-belege.md) §3; im Scratchpad nur unter `absturztest-<rolle>/`.
 
 ## 4. Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Trigger je Lifecycle-Übergang und WIP-Limit.
 
-**Start** (`next` → `in-progress`): der Vertrag steht auf `main` (`2e289d4d`, erfüllt); ein Worktree-Platz ist frei; der Planner hat die Schnittfrage unten entschieden. Kein Kettenslice (Übergangsregeln Nr. 7). Kein Code-Vorgänger: der Slice teilt keine Datei mit [slice-abnahme-belege](../next/slice-abnahme-belege.md).
+**Start** (`next` → `in-progress`): der Vertrag steht auf `main` (`2e289d4d`, erfüllt); ein Worktree-Platz ist frei; der Planner hat die Schnittfrage unten entschieden. Kein Kettenslice (Übergangsregeln Nr. 7). Kein Code-Vorgänger: der Slice teilt keine Datei mit [slice-abnahme-belege](../in-progress/slice-abnahme-belege.md).
 
 **Größenmarke** (`SPEC-128` Nr. 1, `AGENTS.md` §3.14; Planner): 21 Zeilen (T1 bis T17, N1 bis N4), *a* = 0, *b* = 21, *f* = 3 (Dekoratoren um `WorkspaceTransactor`, `BlobRepository` mit seinem Writer und `SnapshotRepository`), *p* = 0: *S* = 80·21 + 600 = 2280, Marke 3100, **Schnittfrage** (*S* ≥ 2223). `basis`, `schaetzung` und `marke` setzt der Planner beim Start, vor dem ersten Code-Commit. **Offen bis zum Start** (Adresse Planner): ob an der Naht *Transaktion* (T1 bis T6) gegen *Snapshot* (T7 bis T10) geschnitten wird; der zweite Teil riefe allein das Gerüst des ersten (Kindprozess, Aufbau, Prüfung). Wird nicht geschnitten, steht der Grund als `schnitt-grund` im Block. Der Teil des Architect (`pfad`, `produktcode`, `fakes`) ist vom Planner gesetzt.
 
