@@ -267,6 +267,18 @@ func adminRundlauf(t *testing.T) {
 	neu := `{"baseline_snapshot_id":"` + baseline + `"}`
 	rec.weise(lesen, [3]string{"POST", "/__admin/workspaces", neu})
 	ws := rec.feld(rec.rufe(201, "POST", "/__admin/workspaces", neu), "id")
+	// LH-FA-13 Happy Path: Sessions und Workspaces mit Kennung und Status.
+	for pfad, teile := range map[string][]string{
+		"/__admin/sessions":   {`"id":"` + s + `"`, `"status":"complete"`},
+		"/__admin/workspaces": {`"id":"` + ws + `"`, `"baseline_snapshot_id":"` + baseline + `"`, `"revision":0`},
+	} {
+		w := rec.rufe(200, "GET", pfad, "")
+		for _, teil := range teile {
+			if !bytes.Contains(w.body, []byte(teil)) {
+				t.Errorf("%s ohne %s: %s", pfad, teil, w.body)
+			}
+		}
+	}
 	rec.beende()
 	ref.stoppe()
 

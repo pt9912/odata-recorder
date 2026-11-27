@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -120,6 +121,43 @@ func (w *m6Lauf) importiere(rec *m6Handle) {
 	a = rec.rufe(201, "POST", "/__admin/workspaces", `{"baseline_snapshot_id":"`+w.baseline+`"}`)
 	w.merke(a)
 	w.ws = m6Feld(w.t, a, "id")
+	w.listen(rec)
+}
+
+// listen prüft LH-FA-13 Happy Path: die Verwaltungsschnittstelle nennt Sessions und Workspaces mit Kennung und Status; A ist
+// complete, B ist gelöscht, der eine Workspace trägt seine Baseline und die Revision 0.
+func (w *m6Lauf) listen(rec *m6Handle) {
+	t := w.t
+	var sessions struct {
+		Sessions []struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+		} `json:"sessions"`
+	}
+	if a := rec.rufe(200, "GET", "/__admin/sessions", ""); json.Unmarshal(a.body, &sessions) != nil {
+		t.Fatalf("Sessions: %s", a.body)
+	}
+	status := map[string]string{}
+	for _, s := range sessions.Sessions {
+		status[s.ID] = s.Status
+	}
+	if _, da := status[w.b]; status[w.a] != "complete" || da {
+		t.Errorf("Sessions %v: erwartet %s complete und %s nicht", status, w.a, w.b)
+	}
+	var ws struct {
+		Workspaces []struct {
+			ID       string `json:"id"`
+			Baseline string `json:"baseline_snapshot_id"`
+			Revision int    `json:"revision"`
+		} `json:"workspaces"`
+	}
+	a := rec.rufe(200, "GET", "/__admin/workspaces", "")
+	if err := json.Unmarshal(a.body, &ws); err != nil || len(ws.Workspaces) != 1 {
+		t.Fatalf("Workspaces: %s (%v)", a.body, err)
+	}
+	if x := ws.Workspaces[0]; x.ID != w.ws || x.Baseline != w.baseline || x.Revision != 0 {
+		t.Errorf("Workspace %+v, erwartet %s aus %s mit Revision 0", x, w.ws, w.baseline)
+	}
 }
 
 // aendere ist Schritt (4): ändern, Snapshot, weiter ändern, zurücksetzen (Baseline), wiederherstellen (Snapshot).
