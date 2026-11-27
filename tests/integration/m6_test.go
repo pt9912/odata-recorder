@@ -357,13 +357,27 @@ func (v m6Vorlage) schreibende(modus, offen string) []m6Route {
 	)
 }
 
+// m6Fehlerhaft sind die fehlerhaften Anfragen mit gültigem Token zu den schreibenden Routen: je Route eine Methode ohne
+// Route (405), je Route mit Body der gültige Body mit einem unbekannten Feld (400), dazu ein unbekannter Pfad (404).
+func m6Fehlerhaft(routen []m6Route) []m6Route {
+	aus := []m6Route{{"unbekannter Pfad", "POST", "/__admin/unbekannt", "", 404}}
+	for _, r := range routen {
+		aus = append(aus, m6Route{r.name + " als PUT", "PUT", r.pfad, r.body, 405})
+		if r.body != "" {
+			aus = append(aus, m6Route{r.name + " mit unbekanntem Feld", r.methode, r.pfad, strings.TrimSuffix(r.body, "}") + `,"unbekannt":"x"}`, 400})
+		}
+	}
+	return aus
+}
+
 // TestM6AbweisungOhneAenderung (D02, LH-FA-13 Negative): ohne und mit falschem Token ist jede schreibende Route 401
 // ODR-E2101, die Ablage bleibt Zeile für Zeile und Datei für Datei gleich, und audit.jsonl wächst um genau die Zeile der
-// Abweisung; 18 Zellen in record, je 16 in replay, mock und hybrid. Danach ändert jede der Routen mit dem Token die Ablage:
-// das ist der Kontrollwert des Vergleichs.
+// Abweisung; 18 Zellen in record, je 16 in replay, mock und hybrid. Eine fehlerhafte Anfrage mit gültigem Token
+// (m6Fehlerhaft; 15 in record, je 13 sonst) ist ODR-E2102 mit unveränderter Ablage und unverändertem audit.jsonl. Danach
+// ändert jede der Routen mit dem Token die Ablage: das ist der Kontrollwert beider Vergleiche.
 func TestM6AbweisungOhneAenderung(t *testing.T) {
 	v := m6Aufbau(t)
-	zellen := 0
+	zellen, fehlerhaft := 0, 0
 	for _, modus := range []string{"record", "replay", "mock", "hybrid"} {
 		dir := v.kopie(t)
 		upstream := ""
@@ -397,6 +411,16 @@ func TestM6AbweisungOhneAenderung(t *testing.T) {
 				}
 			}
 		}
+		for _, f := range m6Fehlerhaft(routen) {
+			fehlerhaft++
+			vorher := m6Zustand(t, dir)
+			roh, _ := m6Audit(t, dir)
+			a := m.m6Sende(f.methode, f.pfad, "Bearer "+m.token, f.body)
+			danach, _ := m6Audit(t, dir)
+			if d := vorher.unterschiede(m6Zustand(t, dir)); a.status != f.status || odrCode(a.body) != "ODR-E2102" || len(d) != 0 || !bytes.Equal(roh, danach) {
+				t.Errorf("%s fehlerhaft %s: %d %s, geändert %v, audit.jsonl gleich: %v", modus, f.name, a.status, a.body, d, bytes.Equal(roh, danach))
+			}
+		}
 		for _, r := range routen {
 			vorher := m6Zustand(t, dir)
 			a := m.m6Sende(r.methode, r.pfad, "Bearer "+m.token, r.body)
@@ -407,8 +431,8 @@ func TestM6AbweisungOhneAenderung(t *testing.T) {
 		}
 		m.beende()
 	}
-	if zellen != 66 {
-		t.Errorf("%d Zellen, erwartet 66", zellen)
+	if zellen != 66 || fehlerhaft != 54 {
+		t.Errorf("%d Zellen und %d fehlerhafte Anfragen, erwartet 66 und 54", zellen, fehlerhaft)
 	}
 }
 

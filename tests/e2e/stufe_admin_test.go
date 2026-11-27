@@ -138,6 +138,22 @@ func (a *adminProz) weise(lesen []string, routen ...[3]string) {
 	}
 }
 
+// fastTreffer schickt die drei Fast-Treffer des Tokens (SPEC-300 Nr. 12 a) an GET /__admin/sessions: 401 ODR-E2101. Die
+// Meldung nennt allein die Länge des Kandidaten.
+func (a *adminProz) fastTreffer() {
+	a.t.Helper()
+	letztes := "0"
+	if strings.HasSuffix(a.token, letztes) {
+		letztes = "1"
+	}
+	for _, kandidat := range []string{a.token[:len(a.token)-1] + letztes, a.token[:len(a.token)/2], a.token + "0"} {
+		a.abgewiesen++
+		if w := a.sende("GET", "/__admin/sessions", "Bearer "+kandidat, ""); w.status != 401 || !bytes.Contains(w.body, []byte("ODR-E2101")) {
+			a.t.Errorf("Fast-Treffer mit %d Zeichen: Status %d, erwartet 401 ODR-E2101", len(kandidat), w.status)
+		}
+	}
+}
+
 // suche sucht das Token ganz und je Hälfte in stdout, stderr, jeder Datei unter DATA_DIR außer der Token-Datei und in den
 // Antworten (SPEC-300 Nr. 12 a). Gültig ist sie nur mit den Kontrollwerten: der Marke unter DATA_DIR und der Zeile
 // `listen=<LISTEN>` auf stderr.
@@ -258,6 +274,7 @@ func adminRundlauf(t *testing.T) {
 	lesen := []string{"/__admin/sessions", "/__admin/sessions/" + s + "/exchanges", "/__admin/workspaces"}
 	rec.weise(lesen, [3]string{"GET", "/__admin/sessions"}, [3]string{"GET", "/__admin/sessions/" + s + "/exchanges"},
 		[3]string{"POST", "/__admin/sessions/" + s + "/close"})
+	rec.fastTreffer()
 	if w := rec.rufe(200, "POST", "/__admin/sessions/"+s+"/close", ""); rec.feld(w, "status") != "complete" {
 		t.Fatalf("close: %s", w.body)
 	}
@@ -306,6 +323,7 @@ func adminRundlauf(t *testing.T) {
 	snap := `{"name":"e2e"}`
 	mock.weise(lesen, [3]string{"GET", "/__admin/sessions"}, [3]string{"GET", "/__admin/workspaces"},
 		[3]string{"POST", pfadWS + "/snapshots", snap}, [3]string{"GET", pfadWS + "/snapshots"})
+	mock.fastTreffer()
 	if w := mock.sende("POST", "/__admin/imports", "", imp); w.status != 401 {
 		t.Errorf("imports in mock ohne Token: %d %s", w.status, w.body)
 	}
@@ -329,9 +347,18 @@ func adminRundlauf(t *testing.T) {
 	if w := neustart.rufe(200, "GET", pfadWS+"/snapshots", ""); !bytes.Contains(w.body, []byte(`"id":"`+snapshot+`"`)) || !bytes.Contains(w.body, []byte(`"name":"e2e"`)) {
 		t.Errorf("Snapshots nach dem Neustart: %s", w.body)
 	}
+	// Die drei übrigen schreibenden Routen: so trägt jede der neun auch ein gültiges Token (SPEC-300 Nr. 12 a).
+	lesen = []string{"/__admin/sessions", "/__admin/workspaces"}
+	eigene := `{"service_id":"ref","id":"e2e-neu"}`
+	neustart.weise(lesen, [3]string{"POST", "/__admin/sessions", eigene})
+	neustart.rufe(201, "POST", "/__admin/sessions", eigene)
+	neustart.rufe(200, "POST", "/__admin/sessions/e2e-neu/close", "")
+	neustart.weise(lesen, [3]string{"DELETE", "/__admin/sessions/e2e-neu"}, [3]string{"DELETE", pfadWS})
+	neustart.rufe(200, "DELETE", "/__admin/sessions/e2e-neu", "")
+	neustart.rufe(200, "DELETE", pfadWS, "")
 	neustart.beende()
 
-	pruefeAdminAudit(t, dir, rec.abgewiesen+mock.abgewiesen)
+	pruefeAdminAudit(t, dir, rec.abgewiesen+mock.abgewiesen+neustart.abgewiesen)
 	pruefeStdout(t, rec.token)
 }
 
@@ -357,7 +384,8 @@ func pruefeAdminAudit(t *testing.T, dir string, abgewiesen int) {
 		arten = append(arten, m["art"])
 	}
 	soll := []string{"session_beendet", "import_veroeffentlicht", "workspace_angelegt", "snapshot_erzeugt",
-		"workspace_zurueckgesetzt", "workspace_wiederhergestellt"}
+		"workspace_zurueckgesetzt", "workspace_wiederhergestellt", "session_angelegt", "session_beendet", "session_geloescht",
+		"workspace_geloescht"}
 	if !slices.Equal(arten, soll) || n != abgewiesen || abgewiesen == 0 {
 		t.Errorf("audit.jsonl: %v und %d Zeilen admin_abgewiesen, erwartet %v und %d", arten, n, soll, abgewiesen)
 	}
@@ -410,8 +438,9 @@ func adminOhneTLS(t *testing.T) {
 	}
 }
 
-// adminUnredigierbar: der Austausch mit nicht redigierbarem Body steht in der Liste als failed und nie als complete
-// (LH-FA-14 Negative, SPEC-037 Nr. 10 h); der Austausch von $metadata ist der Kontrollwert.
+// adminUnredigierbar: der Austausch mit nicht redigierbarem Body steht in der Liste als failed und nie als complete, und
+// sein Marker steht in keiner Datei unter DATA_DIR, in keinem Strom und in keiner Antwort des Admin-Listeners (LH-FA-14
+// Negative, SPEC-037 Nr. 10 h); der Austausch von $metadata ist der Kontrollwert der Liste, beende führt die der Suche.
 func adminUnredigierbar(t *testing.T) {
 	ref := neueReferenz(t)
 	a := adminStart(t, konfig{modus: "record", dir: t.TempDir(), upstream: ref.url()})
@@ -428,7 +457,18 @@ func adminUnredigierbar(t *testing.T) {
 	if soll := []string{"GET /$metadata complete", "POST /Products failed"}; !slices.Equal(ist, soll) {
 		t.Errorf("Exchanges %v, erwartet %v", ist, soll)
 	}
+	ohneMarker := func(wann string) {
+		t.Helper()
+		marker := []string{"MARKER-ADMIN-UNREDIGIERBAR"}
+		_, funde := durchsuche(t, a.dir, marker)
+		funde = append(append(funde, sucheStroeme(a.p, marker)...), inBytes("Antworten", a.antworten.Bytes(), marker)...)
+		if len(funde) != 0 {
+			t.Errorf("%s: der nicht redigierbare Body steht in %v", wann, funde)
+		}
+	}
+	ohneMarker("vor dem Herunterfahren")
 	a.beende()
+	ohneMarker("nach dem Herunterfahren")
 }
 
 // adminSpeicherVoll: nach dem Entfernen der Ballast-Datei sind die Exchanges mit capture_status complete genau die vor dem
@@ -440,6 +480,8 @@ func adminSpeicherVoll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DATA_DIR unter /voll: %v", err)
 	}
+	// /voll ist 1 MiB groß: Datenverzeichnis und Ballast gehen auch nach einem Fehlschlag.
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	a := adminStart(t, konfig{modus: "record", dir: dir, upstream: ref.url()})
 	s := a.session()
 	if w := holen(t, a.p.adresse, anfrage{pfad: "/odata/Products(1)"}); w.status != 200 {
@@ -464,6 +506,7 @@ func adminSpeicherVoll(t *testing.T) {
 		time.Sleep(25 * time.Millisecond)
 	}
 	ballast := fuelle(t)
+	t.Cleanup(func() { _ = os.Remove(ballast) })
 	arten := []string{"/odata/Products", "/odata/Products/$count"}
 	for _, pfad := range arten {
 		if w := holen(t, a.p.adresse, anfrage{pfad: pfad}); w.status != 200 {
