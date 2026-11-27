@@ -33,9 +33,10 @@ func transportAn(adresse string) string {
 }
 
 // TestAdminPaareUnabhaengig (SPEC-299, kein Wert des einen Paars wirkt auf den anderen Listener): gesetzte Paare {keins, ADMIN_TLS_*,
-// LISTEN_TLS_*, beide} × ADMIN_LISTEN {Loopback, außerhalb mit Flag, außerhalb ohne Flag} × 4 Modi = 48 Zellen über Start. Jeder
-// Listener spricht allein sein eigenes Paar oder HTTP; ohne Admin-Paar außerhalb von Loopback ohne Flag endet der Start, auch mit
-// LISTEN_TLS_*; das Schema der abgeleiteten PUBLIC_BASE_URL (mock, hybrid) folgt allein LISTEN_TLS_*.
+// LISTEN_TLS_*, beide, beide auf denselben Dateien} × ADMIN_LISTEN {Loopback, außerhalb mit Flag, außerhalb ohne Flag} × 4 Modi = 60
+// Zellen über Start. Jeder Listener spricht allein sein eigenes Paar oder HTTP; ohne Admin-Paar außerhalb von Loopback ohne Flag endet
+// der Start, auch mit LISTEN_TLS_*; die Warnung steht allein im Weg Klartext; das Schema der abgeleiteten PUBLIC_BASE_URL (mock,
+// hybrid) folgt allein LISTEN_TLS_*.
 func TestAdminPaareUnabhaengig(t *testing.T) {
 	w := neueWerkstatt(t)
 	adminCert, adminKey, adminBlatt := w.tlsPaar(w.wurzel, tlstest.Optionen{})
@@ -43,15 +44,19 @@ func TestAdminPaareUnabhaengig(t *testing.T) {
 	orte := [][]string{nil, klartext(), {"ADMIN_LISTEN=0.0.0.0:8081"}}
 	zellen := 0
 	for _, modus := range vierModi() {
-		for _, paar := range [][2]bool{{false, false}, {true, false}, {false, true}, {true, true}} {
+		for _, paar := range [][3]bool{{false, false}, {true, false}, {false, true}, {true, true}, {true, true, true}} {
 			for ort, adresse := range orte {
 				zellen++
-				name := fmt.Sprintf("%s, Admin-Paar %v, LISTEN-Paar %v, Ort %d", modus, paar[0], paar[1], ort)
+				name := fmt.Sprintf("%s, Admin-Paar %v, LISTEN-Paar %v, dieselben Dateien %v, Ort %d", modus, paar[0], paar[1], paar[2], ort)
 				env := append([]string{"PUBLIC_BASE_URL="}, adresse...)
 				sollAdmin, sollOData, schema := "klartext", "klartext", "http://"
 				if paar[0] {
-					env = append(env, "ADMIN_TLS_CERT="+adminCert, "ADMIN_TLS_KEY="+adminKey)
-					sollAdmin = adminBlatt.Zertifikat.SerialNumber.String()
+					cert, key, blatt := adminCert, adminKey, adminBlatt
+					if paar[2] {
+						cert, key, blatt = listenCert, listenKey, listenBlatt
+					}
+					env = append(env, "ADMIN_TLS_CERT="+cert, "ADMIN_TLS_KEY="+key)
+					sollAdmin = blatt.Zertifikat.SerialNumber.String()
 				}
 				if paar[1] {
 					env = append(env, "LISTEN_TLS_CERT="+listenCert, "LISTEN_TLS_KEY="+listenKey)
@@ -71,6 +76,10 @@ func TestAdminPaareUnabhaengig(t *testing.T) {
 					t.Errorf("%s: OData %q, Admin %q; erwartet %q und %q", name, o, a, sollOData, sollAdmin)
 				}
 				l.beende()
+				warnung := map[bool][]string{true: {zeileWarnung}}[ort == 1 && !paar[0]]
+				if got := warnungen(l.stderr.String()); !slices.Equal(got, warnung) {
+					t.Errorf("%s: Warnungen %q, erwartet %q", name, got, warnung)
+				}
 				k, zeilen := lade(t, env...)
 				if abgeleitet := modus == modusMock || modus == modusHybrid; zeilen != nil || abgeleitet && !strings.HasPrefix(k.PublicBaseURL, schema) {
 					t.Errorf("%s: PUBLIC_BASE_URL %q (%q), erwartet %s", name, k.PublicBaseURL, zeilen, schema)
@@ -78,8 +87,8 @@ func TestAdminPaareUnabhaengig(t *testing.T) {
 			}
 		}
 	}
-	if zellen != 48 {
-		t.Errorf("%d Zellen, erwartet 48", zellen)
+	if zellen != 60 {
+		t.Errorf("%d Zellen, erwartet 60", zellen)
 	}
 }
 

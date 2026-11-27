@@ -43,8 +43,9 @@ func warnungen(stderr string) []string {
 }
 
 // TestAdminLaden (C03): 6 Verstöße des Transports × {ohne, mit Verstoß von LISTEN_TLS_*} × 4 Modi = 48 Zellen über Start, dazu je
-// Modus einer mit beendetem ctx = 52. Orakel: Rückgabe 1, auf stderr allein die Zeilen als Literal nach Schlüssel sortiert, DATA_DIR
-// nicht angelegt, keine Token-Datei, kein Bind, die Ablage nie geöffnet.
+// Modus einer mit beendetem ctx und je ein gültiges Paar neben dem fehlenden anderen (beide Richtungen) = 60. Orakel: Rückgabe 1,
+// auf stderr allein die Zeilen als Literal nach Schlüssel sortiert, DATA_DIR nicht angelegt, keine Token-Datei, kein Bind, die Ablage
+// nie geöffnet.
 func TestAdminLaden(t *testing.T) {
 	w := neueWerkstatt(t)
 	fehlt := w.fehlt()
@@ -58,8 +59,18 @@ func TestAdminLaden(t *testing.T) {
 		{[]string{"ADMIN_TLS_CERT=" + w.datei(w.abgelaufen.ZertifikatPEM()), "ADMIN_TLS_KEY=" + w.datei(w.schluessel(w.abgelaufen))},
 			[]string{zeileAbgelaufen}},
 	}
+	cert, key := w.datei(w.gut.ZertifikatPEM()), w.datei(w.schluessel(w.gut))
+	listen := []string{"LISTEN_TLS_CERT=" + fehlt, "LISTEN_TLS_KEY=" + fehlt}
+	quer := []struct{ env, zeilen []string }{
+		{append([]string{"ADMIN_TLS_CERT=" + cert, "ADMIN_TLS_KEY=" + key}, listen...), []string{zeileListenCertFehlt, zeileListenKeyFehlt}},
+		{append([]string{"LISTEN_TLS_CERT=" + cert, "LISTEN_TLS_KEY=" + key}, paar...), []string{zeileAdminCertFehlt, zeileAdminKeyFehlt}},
+	}
 	zellen := 0
 	for _, modus := range vierModi() {
+		for i, q := range quer {
+			zellen++
+			pruefeKeinStart(context.Background(), t, fmt.Sprintf("%s quer %d", modus, i), modus, q.env, q.zeilen)
+		}
 		for i, f := range faelle {
 			for _, mitListen := range []bool{false, true} {
 				zellen++
@@ -76,8 +87,8 @@ func TestAdminLaden(t *testing.T) {
 		cancel()
 		pruefeKeinStart(ctx, t, modus+" Paar fehlt, ctx beendet", modus, paar, []string{zeileAdminCertFehlt, zeileAdminKeyFehlt})
 	}
-	if zellen != 52 {
-		t.Errorf("%d Zellen, erwartet 52", zellen)
+	if zellen != 60 {
+		t.Errorf("%d Zellen, erwartet 60", zellen)
 	}
 }
 
@@ -100,12 +111,14 @@ func pruefeKeinStart(ctx context.Context, t *testing.T, name, modus string, env,
 	}
 }
 
-// TestAdminBuild (C04): Literale der Konfiguration. 6 Verstöße {Admin-Paar, LISTEN_TLS_*, beide, Zusammenhang, abgelaufenes
-// Admin-Paar, Host ohne Form} × 4 Modi = 24 Zellen: allein die Zeilen als Literal, weder Datenbank noch Blob-Verzeichnis, kein Bind.
+// TestAdminBuild (C04): Literale der Konfiguration. 8 Verstöße {Admin-Paar, LISTEN_TLS_*, beide, Zusammenhang, abgelaufenes
+// Admin-Paar, Host ohne Form, je ein gültiges Paar neben dem fehlenden anderen} × 4 Modi = 32 Zellen: allein die Zeilen als Literal,
+// weder Datenbank noch Blob-Verzeichnis, kein Bind.
 func TestAdminBuild(t *testing.T) {
 	w := neueWerkstatt(t)
 	fehlt := w.fehlt()
 	altCert, altKey := w.datei(w.abgelaufen.ZertifikatPEM()), w.datei(w.schluessel(w.abgelaufen))
+	cert, key := w.datei(w.gut.ZertifikatPEM()), w.datei(w.schluessel(w.gut))
 	adminPaar := func(k *bootstrap.Konfiguration) { k.AdminTLSCert, k.AdminTLSKey = fehlt, fehlt }
 	listenPaar := func(k *bootstrap.Konfiguration) { k.ListenTLSCert, k.ListenTLSKey = fehlt, fehlt }
 	faelle := []struct {
@@ -119,6 +132,8 @@ func TestAdminBuild(t *testing.T) {
 		{func(k *bootstrap.Konfiguration) { k.AdminListen = "0.0.0.0:0" }, []string{zeileZusammenhang}},
 		{func(k *bootstrap.Konfiguration) { k.AdminTLSCert, k.AdminTLSKey = altCert, altKey }, []string{zeileAbgelaufen}},
 		{func(k *bootstrap.Konfiguration) { k.AdminListen = "keinport" }, []string{zeileZusammenhang}},
+		{func(k *bootstrap.Konfiguration) { listenPaar(k); k.AdminTLSCert, k.AdminTLSKey = cert, key }, []string{zeileListenCertFehlt, zeileListenKeyFehlt}},
+		{func(k *bootstrap.Konfiguration) { adminPaar(k); k.ListenTLSCert, k.ListenTLSKey = cert, key }, []string{zeileAdminCertFehlt, zeileAdminKeyFehlt}},
 	}
 	zellen := 0
 	for _, modus := range vierModi() {
@@ -137,8 +152,8 @@ func TestAdminBuild(t *testing.T) {
 			}
 		}
 	}
-	if zellen != 24 {
-		t.Errorf("%d Zellen, erwartet 24", zellen)
+	if zellen != 32 {
+		t.Errorf("%d Zellen, erwartet 32", zellen)
 	}
 }
 
