@@ -35,6 +35,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt:** den Teil *Betrieb* (Zeilen AT11 bis AT17) aus [slice-admin-tls](../done/slice-admin-tls.md) (Geber; Entscheidung des Architect, 2026-11-23, §6 dort): die Datei `admintls_betrieb_test.go` liegt fertig, gemessen und grün auf dem Zweig `slice-admin-tls-betrieb` (Kopf `3726eda0`, 627 Zeilen) und wird von dort unverändert übernommen, bis auf die Methode `ladeAdmin`, die seither in `admintls_test.go` des Gebers steht (§3).
 
+**Übernimmt außerdem** (Sendung von [slice-bootstrap-m6-transport](../in-progress/slice-bootstrap-m6-transport.md), Planner bei dessen Closure, 2026-11-27, `AGENTS.md` §3.13; §1 *Ausdrücklich NICHT* und DoD dieses Slice vorher gelesen: der dritte Ausschluss nennt das Handbuch als Text, diese Sendung ändert ihn nicht): das Handbuch sagt im Abschnitt *TLS der Admin-Schnittstelle*, zu einem gescheiterten Handshake schreibe der Dienst keine Zeile; beim Geber hält den Satz kein Test. `TestAdminHandshakeScheitert` (Zeile AT13, DoD Punkt 1) ist sein Fänger; weicht das Verhalten ab, geht der Befund an den Planner. Keine neue Zeile der Tabelle.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Die Funktionen `adminLoopback`, `pruefeAdminTransport`, `umhuelle` und `warne`, ihre Tests (Zeilen AT01 bis AT10 und AT18 bis AT23) und die Naht in `export_test.go` — [slice-admin-tls](../done/slice-admin-tls.md); dieser Slice ruft sie und ändert sie nicht.
