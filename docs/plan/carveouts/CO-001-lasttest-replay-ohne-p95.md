@@ -8,7 +8,7 @@
 
 **Geltungsbereich:** Betriebsart `replay` des Aufrufs im Profil `abnahme`, also der Nachweis von `LH-QA-01.a` für den Replay-Dienst. Nicht darin: `mock` (bestanden), das Profil `rauch`, jedes Gate der Kette.
 
-**Folge-Slice:** [slice-replay-speicher-und-suche](../planning/next/slice-replay-speicher-und-suche.md).
+**Folge-Slice:** [slice-replay-speicher-und-suche](../planning/in-progress/slice-replay-speicher-und-suche.md).
 
 **Frist:** vor der Closure von [welle-betrieb](../planning/welle-betrieb.md) (die Welle schließt nicht ohne p95 für Replay, §3 dort) und damit vor M5; geprüft bei jeder Wellen-Closure.
 

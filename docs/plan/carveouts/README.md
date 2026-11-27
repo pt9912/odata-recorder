@@ -8,7 +8,7 @@ Carveout-Dateien.
 
 | ID | Titel | Gate | Trigger | Folge-Slice |
 |---|---|---|---|---|
-| [CO-001](CO-001-lasttest-replay-ohne-p95.md) | Replay ohne p95, das Binary endet an der Speichergrenze | `make lasttest` | Aufruf `abnahme` mit `abnahme=ja` | [slice-replay-speicher-und-suche](../planning/next/slice-replay-speicher-und-suche.md) |
+| [CO-001](CO-001-lasttest-replay-ohne-p95.md) | Replay ohne p95, das Binary endet an der Speichergrenze | `make lasttest` | Aufruf `abnahme` mit `abnahme=ja` | [slice-replay-speicher-und-suche](../planning/in-progress/slice-replay-speicher-und-suche.md) |
 
 ## Aufgelöste Carveouts
 
