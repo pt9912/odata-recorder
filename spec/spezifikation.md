@@ -438,7 +438,7 @@ Gemessen wird die Zeit von Request-Eingang bis zum ersten Response-Byte im Proze
 `odata.replay.match`, `SPEC-028`, und `odata.mock.query`, `SPEC-029`, zerlegen ihn und weisen den Anteil der Auswahl bzw. Query-Ausführung aus).
 Für den Mockserver gelten dieselben Ressourcen und Raten mit einem Workspace aus 10.000 Entities über mehrere EntitySets (Payloads bis 64 KiB) und einer Mischung aus Einzel-Lookups und Collection-Abfragen mit `$filter`/`$top`.
 Der Match-Key-Index `(session_id, match_key)` (`SPEC-004`) muss ohne Tabellenscan nutzbar sein.
-Der Zielwert p95 ≤ 100 ms ist vom fachlichen Owner bestätigt (`LH-QA-01`).
+Der Zielwert p95 ≤ 100 ms und der Messaufbau von `LH-QA-01` sind vom fachlichen Owner bestätigt.
 
 ### LH-QA-02.a — Determinismus-Randbedingungen
 
@@ -5379,6 +5379,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-27 | Messaufbau bestätigt (Architect, Entscheidung des fachlichen Owners, `LH-QA-01`): `LH-QA-01.a` nennt neben dem Zielwert den Messaufbau von `LH-QA-01` als bestätigt; Werte unverändert |
 | 2026-11-27 | Markierung ohne angehängten Exchange (Architect, Entscheidung des fachlichen Owners, `LH-FA-14`; Produktverhalten unverändert): `SPEC-124` Nr. 12 folgt dem Satz in `LH-FA-14` (Negative) statt der auf vollen Speicher begrenzten Anerkennung |
 | 2026-11-27 | Belege zur Erstabnahme vor dem Code (Architect, `LH-QA-07`, `LH-QA-03`, `LH-FA-08`, `LH-RB-03`; Lastenheft und Produktverhalten unverändert, keine Entscheidung geändert): Absturztest (`SPEC-048`), Nachweis für unbekannte Erweiterungen auf dem Record-Pfad und Berichtigung, dass erst der Import `unsupported_features` markiert (`LH-QA-07.a`), Schritt `ODV4-Q-11` b (`SPEC-049` Nr. 4), Binary-Vergleich zweier Bauten (`LH-RB-03.a`, `SPEC-322`); alle nicht geliefert. Dazu `SPEC-300` Nr. 12 a berichtigt (auf `stdout` von `start` gibt es keinen Kontrollwert, neues Negativ) und in Nr. 14 der Träger des Entity-State von `LH-FA-09` Boundary benannt |
 | 2026-11-27 | Antworten des fachlichen Owners eingetragen (Architect, `LH-QA-06`, `LH-FA-14`; Lastenheft, Produktverhalten und Prüfläufe unverändert): der Neustarttest läuft ohne eingehängtes Volume und als Gate in `make gates` (`SPEC-323` Nr. 1, 2 e, 9 c, `harness/vertraege/`; der Betrieb mit Volume ist ein benanntes Negativ); ohne CI gilt `make schema-check` als Ersatz für den CI-Lauf der Migrationsregel, ohne die Migrationskette (`SPEC-004`); bei vollem Speicher genügt für einen nicht angehängten Exchange der Status `incomplete` der Session (`SPEC-124` Nr. 12, `SPEC-037` Nr. 10 o) |

@@ -302,6 +302,7 @@ Ein Import geschieht nicht stillschweigend während des Recordings.
   Der Wert gilt für Antworten, die der Dienst allein aus lokalem Speicher bildet (Replay und Mockserver);
   im Record- und im Pass-through-Betrieb bestimmt der Upstream die Antwortzeit, dort wird keine Latenz zugesagt.
   Der Abnahmezielwert p95 ≤ 100 ms ist vom fachlichen Owner bestätigt.
+  Auch der Messaufbau (die Randbedingungen dieser Anforderung und die Messmethode) ist vom fachlichen Owner bestätigt.
 - **Messmethode:** Reproduzierbarer Lasttest mit 10 Minuten Messdauer nach Warm-up; Messung zwischen Request-Eingang und Beginn der Response-Ausgabe.
 
 ### LH-QA-02 — Determinismus
@@ -309,11 +310,13 @@ Ein Import geschieht nicht stillschweigend während des Recordings.
 - **Anforderung:** Gleiche Recording-Session, Matching-Konfiguration und initialer Workspace-Zustand liefern bei identischer sequenzieller Request-Folge dieselben Statuscodes, fachlichen Bodies und relevanten Header.
   Volatile Header sind explizit zu definieren.
 - **Messmethode:** 100 identische Testläufe nach Reset; Vergleich normalisierter Antworten.
+  Die Zahl von 100 Testläufen ist vom fachlichen Owner bestätigt.
 
 ### LH-QA-03 — Isolation und Konsistenz
 
 - **Anforderung:** Parallele Tests dürfen keine Zustandsänderungen oder Replay-Cursor anderer Workspaces beobachten; abgeschlossene Mutationen und Snapshots bleiben nach regulärem Neustart konsistent.
 - **Messmethode:** Paralleltest mit mindestens 20 Workspaces sowie Neustart- und Fehler-Injektionstests.
+  Die Zahl von mindestens 20 Workspaces ist vom fachlichen Owner bestätigt.
 
 ### LH-QA-04 — Datensicherheit
 
@@ -419,4 +422,4 @@ Tatsachenberichtigungen ohne Anforderungsänderung sind ausdrücklich als solche
 | 0.7.0 | 2026-10-18 | Entwurf vor Accepted: `LH-QA-01` auf Antworten aus lokalem Speicher begrenzt, Upstream-abhängige Betriebsarten ausgenommen; Zielwert und Freigabe durch den Owner unverändert offen | — |
 | 0.8.0 | 2026-11-27 | Entwurf vor Accepted: Zielwert p95 ≤ 100 ms von `LH-QA-01` durch den fachlichen Owner bestätigt; Wert und Messmethode unverändert, Status bleibt `Draft` | — |
 | 0.9.0 | 2026-11-27 | Entwurf vor Accepted: Messmethode von `LH-QA-06`: ohne CI gilt ein Lauf über `make` als Ersatz für den CI-Test (Entscheidung des fachlichen Owners); Anforderung und übrige Messmethode unverändert, Status bleibt `Draft` | — |
-| 0.10.0 | 2026-11-27 | Entwurf vor Accepted, Entscheidungen des fachlichen Owners, Status bleibt `Draft`: `LH-FA-14` (Negative): bei nicht angehängtem Austausch ist `incomplete` an der Session die Markierung; `LH-FA-02` (Happy Path): „abrufbar“ ist über Wiedergabe und Angaben der Verwaltungsschnittstelle erfüllt; `LH-RB-03` (Nachweis): reproduzierbar heißt byte-gleiches Programm aus zwei Bauten, die Image-Kennung darf abweichen | — |
+| 0.10.0 | 2026-11-27 | Entwurf vor Accepted, Entscheidungen des fachlichen Owners, Status bleibt `Draft`: `LH-FA-14` (Negative): bei nicht angehängtem Austausch ist `incomplete` an der Session die Markierung; `LH-FA-02` (Happy Path): „abrufbar“ ist über Wiedergabe und Angaben der Verwaltungsschnittstelle erfüllt; `LH-RB-03` (Nachweis): reproduzierbar heißt byte-gleiches Programm aus zwei Bauten, die Image-Kennung darf abweichen; Messaufbau von `LH-QA-01`, 100 Testläufe (`LH-QA-02`) und 20 Workspaces (`LH-QA-03`) als bestätigt geführt, Werte unverändert | — |
