@@ -602,7 +602,7 @@ func TestSpanNachDerAuswahl(t *testing.T) {
 // Kontextfehler und Fehler der Tabelle (errors.Join) an den 8 Stellen (16); je Fall genau ein StartSpan und ein End und der Ausgang unverändert
 // (Code, Kontextfehler ohne Code oder Antwort). Zählprüfung 8, 2, 11 als Literal (SPEC-135 Nr. 18, SPEC-296 Nr. 6, SPEC-109 Nr. 6).
 func TestSpanJederRueckweg(t *testing.T) {
-	stellen8 := []string{"Sessions.Get", "", "Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction","tx Workspaces.Get", "tx Cursors.Get",
+	stellen8 := []string{"Sessions.Get", "", "Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get", "tx Cursors.Get",
 		"Blobs.Open", "tx Cursors.Put"}
 	var faelle []spanFall
 	for _, op := range stellen8 {
@@ -723,7 +723,7 @@ type spanStand struct {
 // und spätere Operation das beendete ctx unverändert erhält. Je Fall genau ein StartSpan und ein End, ein Set genau dann, wenn S4 gerufen
 // wurde, und der Ausgang unverändert (Kontextfehler ohne Code oder Antwort). Zählprüfung 8, 2 und 18.
 func TestSpanAbbruch(t *testing.T) {
-	stellen8 := []string{"Sessions.Get", "", "Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction","tx Workspaces.Get", "tx Cursors.Get",
+	stellen8 := []string{"Sessions.Get", "", "Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction", "tx Workspaces.Get", "tx Cursors.Get",
 		"Blobs.Open", "tx Cursors.Put"}
 	vorS4 := spanStand{nichtGelesen, nichtGewaehlt, false}
 	inS4 := spanStand{nichtGelesen, nichtGewaehlt, true}
