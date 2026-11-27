@@ -16,7 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-Nichts in Arbeit.
+In Arbeit: [slice-replay-speicher-und-suche](slice-replay-speicher-und-suche.md) ([welle-betrieb](../welle-betrieb.md), [CO-001](../../carveouts/CO-001-lasttest-replay-ohne-p95.md): Ursache des Speicherverbrauchs messen, Suche nach dem Match-Key `ListByMatchKey`, erneuter Abnahmelauf; Zweig `slice-replay-speicher-und-suche`; kein Kettenslice, schreibt unter `src/hexagon/`, `src/adapters/driven/sqlite/` und in einer Testdatei in `src/bootstrap/`).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
