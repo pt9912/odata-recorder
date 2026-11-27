@@ -58,8 +58,8 @@ func portsDerFakes(u *umg, st outbound.WorkspaceStores, tx bool) []struct {
 	}
 }
 
-// TestFakesZaehlenJedeOperation hält Z55: über die Methodenmengen der Ports (Reflexion) zählt jede der 34
-// Operationen, hält ihre Argumente fest und speist einen Fehler ein; mit den fünf der Telemetrie sind es 39.
+// TestFakesZaehlenJedeOperation hält Z55: über die Methodenmengen der Ports (Reflexion) zählt jede der 35
+// Operationen, hält ihre Argumente fest und speist einen Fehler ein; mit den fünf der Telemetrie sind es 40.
 func TestFakesZaehlenJedeOperation(t *testing.T) {
 	ctx := context.Background()
 	gesamt := 0
@@ -86,6 +86,7 @@ func TestFakesZaehlenJedeOperation(t *testing.T) {
 		}
 	}
 	u := neu(t)
+	u.ex.darfListBySession = true
 	pruefe(u, outbound.WorkspaceStores{}, false)
 	if err := u.st.WithWorkspaceTransaction(ctx, func(st outbound.WorkspaceStores) error {
 		if u.p.anzahl("Transaktion.WithWorkspaceTransaction") != 1 {
@@ -96,8 +97,8 @@ func TestFakesZaehlenJedeOperation(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Transaktion: %v", err)
 	}
-	if gesamt+1 != len(alleOps()) || gesamt != 33 {
-		t.Errorf("%d Operationen der Ports, erwartet 33 plus die Transaktion", gesamt)
+	if gesamt+1 != len(alleOps()) || gesamt != 34 {
+		t.Errorf("%d Operationen der Ports, erwartet 34 plus die Transaktion", gesamt)
 	}
 }
 

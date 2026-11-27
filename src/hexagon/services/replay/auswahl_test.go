@@ -315,46 +315,181 @@ func TestLeererKey(t *testing.T) {
 	}
 }
 
-// TestListBySession hält Z25: Menge 12; genau einmal, mit der Kennung unverändert, vor der Transaktion; keine
-// Ordnung der Liste angenommen.
-func TestListBySession(t *testing.T) {
+// TestListByMatchKey hält Z25 (SPEC-135 Nr. 8): Menge 24 (3 Ordnungen × 4 Strategien × 2 Zuordnungen); ListByMatchKey genau
+// einmal, vor der Transaktion, mit der Kennung aus dem Header byte-gleich und dem Key des Requests; keine Ordnung der Liste
+// angenommen. ListBySession meldet der Fake selbst als Verstoß.
+func TestListByMatchKey(t *testing.T) {
 	ordnungen := map[string][]int{"aufsteigend": {1, 2, 3}, "absteigend": {3, 2, 1}, "gemischt": {2, 3, 1}}
 	erwartet := map[model.ReplayStrategy]int{model.StrategySequential: 1, model.StrategyStrict: 1, model.StrategyFirst: 1, model.StrategyLast: 3}
+	zuordnungen := []struct {
+		session string
+		a       inbound.Anfrage
+		odata   string
+	}{
+		{sesID, anf(), "/Products"},
+		// Leerraum am Rand und Großbuchstaben: die Kennung geht ungekürzt und ungefaltet an den Port.
+		{" Ses-B\t", anfB(), "/Orders"},
+	}
 	n := 0
 	for name, ord := range ordnungen {
 		for s, seq := range erwartet {
-			n++
-			u := neu(t)
-			u.k.Strategie = s
-			var es []model.Exchange
-			for _, i := range ord {
-				es = append(es, u.austausch(i, u.keyA(), true))
-			}
-			u.lege(es...)
-			vorTx := -1
-			u.p.setzeNach(func(op string) {
-				if op == "Exchanges.ListBySession" {
-					vorTx = u.p.anzahl("Transaktion.WithWorkspaceTransaction")
-					for _, o := range u.p.ops() {
-						if strings.HasPrefix(o, "tx ") {
-							vorTx = 99
+			for _, z := range zuordnungen {
+				n++
+				was := fmt.Sprintf("%s %s %q", name, s, z.session)
+				u := neu(t)
+				u.k.Strategie = s
+				u.sess.setze(model.Session{ID: z.session, ServiceID: svcID, CreatedAt: zeit(), Status: model.SessionComplete})
+				a := z.a
+				a.Header["X-Recorder-Recording-Session"] = []string{z.session}
+				key := u.keyFuer(a, svcID, z.odata)
+				var es []model.Exchange
+				for _, i := range ord {
+					es = append(es, u.austausch(i, key, true))
+				}
+				u.ex.setze(z.session, es)
+				vorTx := -1
+				u.p.setzeNach(func(op string) {
+					if op == "Exchanges.ListByMatchKey" {
+						vorTx = u.p.anzahl("Transaktion.WithWorkspaceTransaction")
+						for _, o := range u.p.ops() {
+							if strings.HasPrefix(o, "tx ") {
+								vorTx = 99
+							}
 						}
 					}
+				})
+				resp, err := u.replay(context.Background(), a)
+				pruefeErgebnis(t, was, u, resp, err, ergebnis{seq: seq})
+				evs := u.p.von("Exchanges.ListByMatchKey")
+				if len(evs) != 1 || !reflect.DeepEqual(evs[0].args, []any{z.session, key}) {
+					t.Errorf("%s: ListByMatchKey %v, erwartet ein Aufruf mit %q und %q", was, evs, z.session, key)
 				}
-			})
-			resp, err := u.replay(context.Background(), anf())
-			pruefeErgebnis(t, name+" "+string(s), u, resp, err, ergebnis{seq: seq})
-			evs := u.p.von("Exchanges.ListBySession")
-			if len(evs) != 1 || evs[0].args[0] != sesID {
-				t.Errorf("%s %s: ListBySession %v", name, s, evs)
-			}
-			if vorTx != 0 {
-				t.Errorf("%s %s: ListBySession lief nicht vor der Transaktion (%d)", name, s, vorTx)
+				if vorTx != 0 {
+					t.Errorf("%s: ListByMatchKey lief nicht vor der Transaktion (%d)", was, vorTx)
+				}
+				if k := u.p.anzahl("Exchanges.ListBySession"); k != 0 {
+					t.Errorf("%s: ListBySession %d-mal", was, k)
+				}
 			}
 		}
 	}
-	if n != 12 {
-		t.Errorf("Menge: %d, erwartet 12", n)
+	if n != 24 {
+		t.Errorf("Menge: %d, erwartet 24", n)
+	}
+}
+
+// TestKandidatenAlleinDerKey hält SPEC-135 Nr. 8: der Port liefert auch Exchanges mit fremdem und leerem Key, Kandidaten
+// sind allein die mit dem Key des Requests, in jeder Ordnung der Liste. Der Bestand ist fremd(1), leer(2), A(3), A(4),
+// fremd(5), leer(6). Menge 15 (3 Ordnungen × 5 Lagen).
+func TestKandidatenAlleinDerKey(t *testing.T) {
+	ordnungen := map[string][]int{"aufsteigend": {1, 2, 3, 4, 5, 6}, "absteigend": {6, 5, 4, 3, 2, 1}, "gemischt": {5, 2, 4, 6, 1, 3}}
+	lagen := []struct {
+		strat    model.ReplayStrategy
+		consumed []int64
+		want     ergebnis
+	}{
+		{model.StrategySequential, nil, ergebnis{seq: 3}},
+		{model.StrategyFirst, nil, ergebnis{seq: 3}},
+		{model.StrategyLast, nil, ergebnis{seq: 4}},
+		{model.StrategyStrict, nil, ergebnis{code: model.CodeE5007}},
+		{model.StrategyStrict, []int64{1, 2}, ergebnis{seq: 3}},
+	}
+	n := 0
+	for name, ord := range ordnungen {
+		for _, l := range lagen {
+			n++
+			u := neu(t)
+			u.k.Strategie = l.strat
+			u.ex.alles = true
+			var es []model.Exchange
+			for _, seq := range ord {
+				switch seq {
+				case 1, 5:
+					es = append(es, u.austausch(seq, u.keyB(), true))
+				case 2, 6:
+					es = append(es, u.austausch(seq, "", false))
+				default:
+					es = append(es, u.austausch(seq, u.keyA(), true))
+				}
+			}
+			u.lege(es...)
+			if l.consumed != nil {
+				u.cursor(l.strat, l.consumed...)
+			}
+			resp, err := u.replay(context.Background(), anf())
+			pruefeErgebnis(t, fmt.Sprintf("%s %s consumed %v", name, l.strat, l.consumed), u, resp, err, l.want)
+		}
+	}
+	if n != 15 {
+		t.Errorf("Menge: %d, erwartet 15", n)
+	}
+}
+
+// TestStrictGroessteNummer hält SPEC-135 Nr. 9 für strict mit der größten Nummer der Session aus dem Port: p+1 über ihr
+// ist ODR-E5002, p+1 nicht über ihr und kein Kandidat ODR-E5007, ein Kandidat p+1 wird gewählt oder ist ODR-E5008; die
+// größte Nummer liegt auf dem Key A oder auf einem fremden Key. Je Lage steht das Ergebnis als Literal. Menge 13.
+func TestStrictGroessteNummer(t *testing.T) {
+	faelle := []struct {
+		layout   string
+		consumed []int64
+		want     ergebnis
+	}{
+		// über der größten Nummer: um eins und um zwei, die größte Nummer Kandidat und fremd.
+		{"AAA", []int64{1, 2, 3}, ergebnis{code: model.CodeE5002}},
+		{"AAA", []int64{1, 2, 3, 4}, ergebnis{code: model.CodeE5002}},
+		{"AAB", []int64{1, 2, 3}, ergebnis{code: model.CodeE5002}},
+		{"AAB", []int64{1, 2, 3, 4}, ergebnis{code: model.CodeE5002}},
+		// nicht über ihr und kein Kandidat: gleich der größten Nummer und darunter.
+		{"AAB", []int64{1, 2}, ergebnis{code: model.CodeE5007}},
+		{"ABA", []int64{1}, ergebnis{code: model.CodeE5007}},
+		{"BAA", nil, ergebnis{code: model.CodeE5007}},
+		// Kandidat p+1, replayfähig oder nicht, gleich der größten Nummer und darunter; consumed wird nicht befragt.
+		{"AAA", []int64{1, 2}, ergebnis{seq: 3}},
+		{"AAA", []int64{1}, ergebnis{seq: 2}},
+		{"AAa", []int64{1, 2}, ergebnis{code: model.CodeE5008}},
+		{"AaA", []int64{1}, ergebnis{code: model.CodeE5008}},
+		{"aAA", nil, ergebnis{code: model.CodeE5008}},
+		{"AA", []int64{2}, ergebnis{seq: 2}},
+	}
+	for _, f := range faelle {
+		u := neu(t)
+		u.k.Strategie = model.StrategyStrict
+		legeLayout(u, f.layout)
+		if f.consumed != nil {
+			u.cursor(model.StrategyStrict, f.consumed...)
+		}
+		resp, err := u.replay(context.Background(), anf())
+		pruefeErgebnis(t, fmt.Sprintf("Layout %q consumed %v", f.layout, f.consumed), u, resp, err, f.want)
+	}
+	if len(faelle) != 13 {
+		t.Errorf("Menge: %d, erwartet 13", len(faelle))
+	}
+}
+
+// TestOhneKandidatenIstE5001 hält SPEC-135 Nr. 9: ohne Kandidaten ist es in jeder Strategie ODR-E5001, bei position+1
+// unter, gleich und über der größten Nummer 3 und für die Session ohne Exchanges. Menge 20 (4 Strategien × 5 Lagen).
+func TestOhneKandidatenIstE5001(t *testing.T) {
+	strategien := []model.ReplayStrategy{model.StrategySequential, model.StrategyStrict, model.StrategyFirst, model.StrategyLast}
+	lagen := []struct {
+		layout   string
+		consumed []int64
+	}{{"AAB", nil}, {"AAB", []int64{1, 2}}, {"AAB", []int64{1, 2, 3}}, {"", nil}, {"", []int64{1, 2}}}
+	n := 0
+	for _, s := range strategien {
+		for _, l := range lagen {
+			n++
+			u := neu(t)
+			u.k.Strategie = s
+			legeLayout(u, l.layout)
+			if l.consumed != nil {
+				u.cursor(s, l.consumed...)
+			}
+			resp, err := u.replay(context.Background(), anfC())
+			pruefeErgebnis(t, fmt.Sprintf("%s Layout %q consumed %v", s, l.layout, l.consumed), u, resp, err, ergebnis{code: model.CodeE5001})
+		}
+	}
+	if n != 20 {
+		t.Errorf("Menge: %d, erwartet 20", n)
 	}
 }
 

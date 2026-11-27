@@ -48,7 +48,7 @@ func TestFakesZaehlenJedeOperation(t *testing.T) {
 	for i, p := range ports {
 		rufe(reflect.ValueOf(p), ifaces[i])
 	}
-	if methoden != 6+3+5+4+5+4+1+2 {
+	if methoden != 6+4+5+4+5+4+1+2 {
 		t.Errorf("Methoden %d", methoden)
 	}
 	// Writer, Strom, Uhr und Generator.
@@ -129,7 +129,7 @@ func nichtLeer(t *testing.T, w *welt, typ reflect.Type, tag string) reflect.Valu
 }
 
 // TestFakesHaltenJedesArgument: Kontext und jedes Argument jeder Methode der acht Schnittstellen stehen im Protokoll
-// (30 Methoden, die Zahl der Argumente zählt der Test per Reflexion); die Werte sind nirgends der Nullwert.
+// (31 Methoden, die Zahl der Argumente zählt der Test per Reflexion); die Werte sind nirgends der Nullwert.
 func TestFakesHaltenJedesArgument(t *testing.T) {
 	w := neu(t)
 	ports := []struct {
@@ -183,8 +183,8 @@ func TestFakesHaltenJedesArgument(t *testing.T) {
 			}
 		}
 	}
-	if methoden != 30 || argumente != 38 {
-		t.Errorf("Methoden %d, Argumente %d, erwartet 30 und 38", methoden, argumente)
+	if methoden != 31 || argumente != 40 {
+		t.Errorf("Methoden %d, Argumente %d, erwartet 31 und 40", methoden, argumente)
 	}
 	// Die Schreibseite des Blobs: Write hält die Bytes fest, Commit und Abort zählen.
 	wr, err := w.blobs.Begin(context.Background(), 10)

@@ -233,7 +233,7 @@ func sessionFall6(t *testing.T, neu Neu) {
 	erwarte(t, v.Sessions.Delete(ctx, "s"), outbound.ErrNichtGefunden)
 }
 
-// RunRecordingVertrag prüft SPEC-105 Nr. 7 bis 13.
+// RunRecordingVertrag prüft SPEC-105 Nr. 7 bis 14; gleichzeitige Schreiber zu Nr. 14 gehören den Tests des Adapters.
 func RunRecordingVertrag(t *testing.T, neu Neu) {
 	for _, f := range []struct {
 		name string
@@ -249,6 +249,8 @@ func RunRecordingVertrag(t *testing.T, neu Neu) {
 		{"Header-Randformen", recordingFall8},
 		{"abgebrochener Kontext beendet jede Operation ohne Änderung", recordingFall9},
 		{"ListBySession ordnet nach sequence_no, nicht nach Kennung", recordingFall10},
+		{"ListByMatchKey liefert die Treffer des Keys und die größte Nummer", recordingFall11},
+		{"ListByMatchKey bei Unbekanntem, Leerem und ohne Treffer", recordingFall12},
 	} {
 		t.Run(f.name, func(t *testing.T) { f.lauf(t, neu) })
 	}
@@ -525,9 +527,140 @@ func recordingFall9(t *testing.T, neu Neu) {
 	erwarte(t, err, context.Canceled)
 	_, err = v.Recording.ListBySession(ctx, "s")
 	erwarte(t, err, context.Canceled)
+	abgelaufen, ende := context.WithDeadline(bg, t0())
+	defer ende()
+	// Bekannte, unbekannte und leere Session, bekannter und leerer Key: der Fehler des Kontexts geht allem voraus.
+	for beendet, soll := range map[context.Context]error{ctx: context.Canceled, abgelaufen: context.DeadlineExceeded} {
+		for _, session := range []string{"s", "gibt-es-nicht", ""} {
+			for _, key := range []string{"sha256:abc", ""} {
+				l, n, err := v.Recording.ListByMatchKey(beendet, session, key)
+				if !errors.Is(err, soll) || errors.Is(err, outbound.ErrNichtGefunden) || len(l) != 0 || n != 0 {
+					t.Errorf("ListByMatchKey(%q, %q): %v %d %v, erwartet %v", session, key, l, n, err, soll)
+				}
+			}
+		}
+	}
 	if l, err := v.Recording.ListBySession(bg, "s"); err != nil || len(l) != 1 {
 		t.Fatalf("Append trotz Abbruch: %v %v", l, err)
 	}
+}
+
+// gleichWieGeschrieben meldet, wo sich got von der geschriebenen und von der mit Get gelesenen Exchange unterscheidet.
+func gleichWieGeschrieben(t *testing.T, v Verbindung, got, geschrieben model.Exchange) {
+	t.Helper()
+	gelesen, err := v.Recording.Get(context.Background(), geschrieben.ID)
+	ok(t, err)
+	if !reflect.DeepEqual(got, gelesen) {
+		t.Errorf("ListByMatchKey %+v\nGet %+v", got, gelesen)
+	}
+	if !got.StartedAt.Equal(geschrieben.StartedAt) || !got.FinishedAt.Equal(geschrieben.FinishedAt) {
+		t.Errorf("Zeiten: %v %v", got.StartedAt, got.FinishedAt)
+	}
+	got.StartedAt, got.FinishedAt = geschrieben.StartedAt, geschrieben.FinishedAt
+	if !reflect.DeepEqual(got, geschrieben) {
+		t.Errorf("gelesen %+v\ngeschrieben %+v", got, geschrieben)
+	}
+}
+
+// vollerExchange trägt jedes Feld mit einem Wert, der nicht der Nullwert ist.
+func vollerExchange(id string, seq int, key string) model.Exchange {
+	e := exchange("s", id, seq)
+	e.MatchKey, e.Method, e.Path, e.RawQuery = key, "POST", "/p/"+id, "q="+id
+	e.KeyRedacted = true
+	e.RequestHeaders = map[string][]string{"X-Id": {id, "zwei"}}
+	e.RequestBody, e.RequestBlob = model.BodyPresent, "sha256:req-"+id
+	e.ResponseStatus = 201
+	e.ResponseHeaders = map[string][]string{"X-Antwort": {id}}
+	e.ResponseBlob = "sha256:resp-" + id
+	e.RequestRedact, e.ResponseRedact = model.RedactionApplied, model.RedactionApplied
+	e.Integrity, e.Equivalence = model.IntegrityInvalid, model.EquivalenceSemantic
+	return e
+}
+
+// mitKey ist exchange der Session s mit dem match_key key.
+func mitKey(id string, seq int, key string) model.Exchange {
+	e := exchange("s", id, seq)
+	e.MatchKey = key
+	return e
+}
+
+// recordingFall11 (SPEC-105 Nr. 14, 12): drei Treffer zwischen Exchanges anderer Keys, die Kennungen gegen die Folge der
+// Nummern, Nachbar-Keys (Anfang, Verlängerung, andere Schreibweise); die größte Nummer liegt auf einem fremden Key, und eine
+// zweite Session trägt denselben Key mit höheren Nummern.
+func recordingFall11(t *testing.T, neu Neu) {
+	ctx := context.Background()
+	v := offeneSession(t, neu)
+	const key = "sha256:abc"
+	eins := vollerExchange("z", 1, key)
+	drei := exchange("s", "m", 3)
+	drei.RequestHeaders, drei.ResponseHeaders, drei.ResponseStatus = map[string][]string{}, nil, 0
+	drei.ResponseBody, drei.ResponseBlob, drei.Capture = model.BodyAbsent, "", model.CaptureIncomplete
+	sechs := vollerExchange("a", 6, key)
+	for _, e := range []model.Exchange{eins, mitKey("y", 2, key+"d"), drei, mitKey("w", 4, "sha256:ab"), mitKey("v", 5, "sha256:ABC"),
+		sechs, mitKey("q", 7, "sha256:fremd")} {
+		ok(t, v.Recording.Append(ctx, e))
+	}
+	ok(t, v.Sessions.Create(ctx, session("t", "d", 1)))
+	for seq := 1; seq <= 9; seq++ {
+		ok(t, v.Recording.Append(ctx, exchange("t", fmt.Sprintf("t%d", seq), seq)))
+	}
+	l, hoechste, err := v.Recording.ListByMatchKey(ctx, "s", key)
+	ok(t, err)
+	if hoechste != 7 {
+		t.Errorf("größte Nummer %d, erwartet 7", hoechste)
+	}
+	if len(l) != 3 || l[0].ID != "z" || l[1].ID != "m" || l[2].ID != "a" {
+		t.Fatalf("Treffer: %+v, erwartet z, m, a", l)
+	}
+	for i, e := range []model.Exchange{eins, drei, sechs} {
+		gleichWieGeschrieben(t, v, l[i], e)
+	}
+	if fremd, n, err := v.Recording.ListByMatchKey(ctx, "t", key); err != nil || len(fremd) != 9 || n != 9 || fremd[0].ID != "t1" {
+		t.Errorf("zweite Session: %d Treffer, größte %d, %v", len(fremd), n, err)
+	}
+	// Jeder Nachbar-Key findet allein sich selbst; die größte Nummer hängt nicht am Key.
+	nurEiner(t, v, 7, map[string]string{key + "d": "y", "sha256:ab": "w", "sha256:ABC": "v", "sha256:fremd": "q"})
+}
+
+// nurEiner prüft je Key, dass ListByMatchKey der Session s allein den Exchange id und die größte Nummer hoechste liefert.
+func nurEiner(t *testing.T, v Verbindung, hoechste int, keys map[string]string) {
+	t.Helper()
+	for k, id := range keys {
+		l, n, err := v.Recording.ListByMatchKey(context.Background(), "s", k)
+		if err != nil || len(l) != 1 || l[0].ID != id || n != hoechste {
+			t.Errorf("Key %q: %v %d %v, erwartet %s und %d", k, l, n, err, id, hoechste)
+		}
+	}
+}
+
+// recordingFall12 (SPEC-105 Nr. 14): unbekannte und leere Session sind ErrNichtGefunden, auch mit leerem Key; eine Session
+// ohne Exchanges, ein Key ohne Treffer und der leere Key neben Exchanges mit und ohne Key sind eine leere Liste ohne Fehler.
+func recordingFall12(t *testing.T, neu Neu) {
+	ctx := context.Background()
+	v := offeneSession(t, neu)
+	for _, id := range []string{"gibt-es-nicht", ""} {
+		for _, key := range []string{"sha256:abc", ""} {
+			l, n, err := v.Recording.ListByMatchKey(ctx, id, key)
+			if !errors.Is(err, outbound.ErrNichtGefunden) || len(l) != 0 || n != 0 {
+				t.Errorf("ListByMatchKey(%q, %q): %v %d %v, erwartet ErrNichtGefunden", id, key, l, n, err)
+			}
+		}
+	}
+	leer := func(key string, hoechste int) {
+		t.Helper()
+		l, n, err := v.Recording.ListByMatchKey(ctx, "s", key)
+		if err != nil || l == nil || len(l) != 0 || n != hoechste {
+			t.Errorf("Key %q: %#v %d %v, erwartet leere Liste und %d", key, l, n, err, hoechste)
+		}
+	}
+	leer("sha256:abc", 0)
+	leer("", 0)
+	ok(t, v.Recording.Append(ctx, exchange("s", "mit", 1)))
+	ohne := exchange("s", "ohne", 2)
+	ohne.MatchKey, ohne.Capture = "", model.CaptureFailed
+	ok(t, v.Recording.Append(ctx, ohne))
+	leer("", 2)
+	leer("sha256:ohne-treffer", 2)
 }
 
 func recordingFall10(t *testing.T, neu Neu) {

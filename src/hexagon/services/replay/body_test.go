@@ -135,7 +135,7 @@ func TestRequestBodyFormen(t *testing.T) {
 			continue
 		}
 		erwarteCode(t, f.name, err, model.CodeE5001)
-		if u.p.anzahl("Transaktion.WithWorkspaceTransaction") != 0 || u.p.anzahl("Exchanges.ListBySession") != 0 {
+		if u.p.anzahl("Transaktion.WithWorkspaceTransaction") != 0 || u.p.anzahl("Exchanges.ListByMatchKey") != 0 {
 			t.Errorf("%s: Port nach dem Fehler gerufen", f.name)
 		}
 		if _, da := u.cursorStand(); da {
@@ -300,7 +300,7 @@ func TestLesefehlerBody(t *testing.T) {
 				codeN++
 				erwarteCode(t, f.name+" "+wann, err, model.CodeE5001)
 			}
-			if u.p.anzahl("Exchanges.ListBySession") != 0 || u.p.anzahl("Transaktion.WithWorkspaceTransaction") != 0 {
+			if u.p.anzahl("Exchanges.ListByMatchKey") != 0 || u.p.anzahl("Transaktion.WithWorkspaceTransaction") != 0 {
 				t.Errorf("%s %s: Port nach dem Lesefehler", f.name, wann)
 			}
 		}

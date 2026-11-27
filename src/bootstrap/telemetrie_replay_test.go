@@ -123,7 +123,7 @@ func TestWurzelReplayMatchLiegtImGesamtspan(t *testing.T) {
 	}
 }
 
-// ursacheExchanges ist der Port S3 mit einem Fehler, dessen Text der Canary ist: der echte Port eingebettet, allein ListBySession überschrieben;
+// ursacheExchanges ist der Port S3 mit einem Fehler, dessen Text der Canary ist: der echte Port eingebettet, allein ListByMatchKey überschrieben;
 // n zählt die Aufrufe.
 type ursacheExchanges struct {
 	outbound.RecordingRepository
@@ -131,9 +131,9 @@ type ursacheExchanges struct {
 	n       atomic.Int32
 }
 
-func (p *ursacheExchanges) ListBySession(context.Context, string) ([]model.Exchange, error) {
+func (p *ursacheExchanges) ListByMatchKey(context.Context, string, string) ([]model.Exchange, int, error) {
 	p.n.Add(1)
-	return nil, p.ursache
+	return nil, 0, p.ursache
 }
 
 // ursacheTransaktion ist der Port S4 mit einem Fehler, dessen Text der Canary ist: der echte Port eingebettet, allein WithWorkspaceTransaction
@@ -151,7 +151,7 @@ func (p *ursacheTransaktion) WithWorkspaceTransaction(context.Context, func(outb
 
 // TestWurzelReplayKeinRequestWertInDerSenke hält W12 (SPEC-296 Nr. 8) an der Senke des echten Adapters: Menge M-Stellen-Senke mit 9 Elementen.
 // Ein Wert in der Form Token an einer der 7 Stellen des Requests, die ein HTTP-Request tragen kann (Pfad, Name und Wert der Query, Name und Wert
-// eines Headers, Wert des Headers der Replay-Session, Body), und der Text der Ursache eines Fehlers an S3 (Exchanges.ListBySession, außerhalb
+// eines Headers, Wert des Headers der Replay-Session, Body), und der Text der Ursache eines Fehlers an S3 (Exchanges.ListByMatchKey, außerhalb
 // von f) und an S4 (WithWorkspaceTransaction, der Pfad von fortschreiben), den der Haken NeuerReplay über einen eingebetteten Port einsetzt,
 // erreichen die Senke des Prozesses nicht, weder in der Zeile des Match-Spans noch in der des Gesamtspans. Die übrigen sechs Ports (S1, S2
 // über den Body, S5 bis S8) führt der Test des Dienstes mit dem Fake. Zählprüfung 7, 2 und 9.

@@ -6,13 +6,13 @@ Carveout-Dateien.
 
 ## Aktive Carveouts
 
-| ID | Titel | Gate | Trigger | Folge-Slice |
-|---|---|---|---|---|
-| [CO-001](CO-001-lasttest-replay-ohne-p95.md) | Replay ohne p95, das Binary endet an der Speichergrenze | `make lasttest` | Aufruf `abnahme` mit `abnahme=ja` | [slice-replay-speicher-und-suche](../planning/in-progress/slice-replay-speicher-und-suche.md) |
+(keine)
 
 ## Aufgelöste Carveouts
 
-(noch keine)
+| ID | Titel | Gate | Aufgelöst durch | Folge-Slice |
+|---|---|---|---|---|
+| [CO-001](done/CO-001-lasttest-replay-ohne-p95.md) | Replay ohne p95, das Binary endet an der Speichergrenze | `make lasttest` | Aufruf `abnahme` mit `abnahme=ja` auf `9c3f5f10` (2026-11-27) | [slice-replay-speicher-und-suche](../planning/done/slice-replay-speicher-und-suche.md) |
 
 ## Konventionen
 

@@ -360,6 +360,14 @@ func (f *fakeExchanges) Get(_ context.Context, id string) (model.Exchange, error
 	return model.Exchange{}, outbound.ErrNichtGefunden
 }
 
+// ListByMatchKey ruft der Record nie: jeder Aufruf ist unerwartet.
+func (f *fakeExchanges) ListByMatchKey(_ context.Context, id, key string) ([]model.Exchange, int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.unerwartet = append(f.unerwartet, "ListByMatchKey "+id+" "+key)
+	return nil, 0, outbound.ErrNichtGefunden
+}
+
 func (f *fakeExchanges) angehaengt() []model.Exchange {
 	f.mu.Lock()
 	defer f.mu.Unlock()

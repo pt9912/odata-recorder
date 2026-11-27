@@ -191,8 +191,8 @@ func TestLesenSchreibtNichts(t *testing.T) {
 			ctx = nilCtx()
 		}
 		_, _ = neuerDienst(t, f).Exchanges(ctx, sid, c.seite)
-		if f.anzahl("Append") != 0 || f.anzahl("Get") != 0 || f.anzahl("ListBySession") != c.listeGer || !reflect.DeepEqual(davor, f.stand()) {
-			t.Errorf("%s: Append %d Get %d ListBySession %d", c.name, f.anzahl("Append"), f.anzahl("Get"), f.anzahl("ListBySession"))
+		if f.anzahl("Append") != 0 || f.anzahl("Get") != 0 || f.anzahl("ListByMatchKey") != 0 || f.anzahl("ListBySession") != c.listeGer || !reflect.DeepEqual(davor, f.stand()) {
+			t.Errorf("%s: Append %d Get %d ListByMatchKey %d ListBySession %d", c.name, f.anzahl("Append"), f.anzahl("Get"), f.anzahl("ListByMatchKey"), f.anzahl("ListBySession"))
 		}
 	}
 }

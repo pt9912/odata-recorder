@@ -236,7 +236,7 @@ func erwarteOhneCode(t *testing.T, was string, err, cause error) {
 // (SPEC-135 Nr. 11, 18).
 func nurErlaubt(t *testing.T, was string, p *prot) {
 	t.Helper()
-	erlaubt := []string{"Sessions.Get", "Exchanges.ListBySession", "Transaktion.WithWorkspaceTransaction",
+	erlaubt := []string{"Sessions.Get", "Exchanges.ListByMatchKey", "Transaktion.WithWorkspaceTransaction",
 		"tx Workspaces.Get", "tx Cursors.Get", "tx Cursors.Put", "Blobs.Open"}
 	for _, op := range p.ops() {
 		found := false

@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-speicher-und-suche
+**Fund:** Der Trigger von `CO-001` verlangte `abnahme=ja` auf einem Commit von `main`; der Aufruf lief auf `9c3f5f10` im Slice-Zweig. Vor dem Aufruf entschied der Auftraggeber: der Zweig wird vor jeder anderen Änderung an `src/` oder `tests/` nach `main` gemergt, damit ist der gemessene Commit Teil von `main` mit gleichem Stand. Beleg: Verifikation `2026-11-27-slice-replay-speicher-und-suche-verifikation` (V-1).

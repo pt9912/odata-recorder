@@ -21,7 +21,7 @@ const sid = "r1"
 // alleOps nennt jede Operation der Fakes und die Bezüge von Zeit und Kennung unter dem Namen, unter
 // dem sie gezählt werden.
 func alleOps() []string {
-	return append(portsDerFakes(), "Record.Record", "Drain", "Append", "Exchanges.Get", "ListBySession", "Now", "SessionID")
+	return append(portsDerFakes(), "Record.Record", "Drain", "Append", "Exchanges.Get", "ListBySession", "ListByMatchKey", "Now", "SessionID")
 }
 
 // e4001 ist der Fehler von Drain, der einen Code trägt.
