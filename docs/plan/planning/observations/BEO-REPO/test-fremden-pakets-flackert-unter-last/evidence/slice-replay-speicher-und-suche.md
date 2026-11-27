@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-speicher-und-suche
+**Fund:** Ein Lauf von `make gates` in der Fix-Runde war in `make test-race` rot an `TestLeserHaeltNieAn` (`tests/lasttest/leser_test.go`, „nach 1s kein Wert“) bei hoher Last des Hosts (Messender Implementer). Der Slice ändert `tests/lasttest/` nicht. Der Test verlangt, dass 20 MiB unter dem Detektor binnen 1 s Echtzeit geschrieben und gelesen sind; beim Verifier 15 von 15 grün bei Last um 7. Beleg: Plan §6; Verifikation `2026-11-27-slice-replay-speicher-und-suche-verifikation` (V-6).

@@ -1,0 +1,2 @@
+**Vorgang:** slice-replay-speicher-und-suche
+**Fund:** Nach dem Aufruf `abnahme` auf `9c3f5f10` liegen für `mock` vier gültige Läufe vor (zwei aus `slice-lasttest`, zwei hier), für `replay` zwei; die Prüfung der Setzungen ist nicht erfolgt. Streuung und Toleranz hier: `replay` 0,214 gegen 2,000 ms, `mock` 1,139 gegen 3,150 ms; Proben der Last 1,33 bis 5,37 gegen die Schwelle 10,00; größte Verspätung 3,833 ms. Beleg: Plan §6, Verifikation `2026-11-27-slice-replay-speicher-und-suche-verifikation` (Schritt 2).
