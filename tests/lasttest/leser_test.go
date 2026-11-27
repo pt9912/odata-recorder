@@ -244,9 +244,12 @@ func schreibeStrom(pw *io.PipeWriter, mib int) error {
 // pipeLauf fährt lies mit dem Sammler gegen schreibeStrom durch eine Pipe, in einer Blase von testing/synctest: die Uhr (systemuhr) ist dort
 // die der Blase, geht allein durch ein Warten auf sie vor und hängt nicht an der Last des Hosts. Verlangt ist: die Uhr steht nach dem Lesen,
 // wo sie davor stand; lies endet ohne Fehler; kein Write scheitert (endet lies vor dem Strom, schließt der Test die Pipe, und das nächste Write
-// scheitert); alle gültigen Zeilen sind eingeordnet und alle anderen als fremd gezählt. Grenze: Zeit, die ohne Warten auf diese Uhr vergeht
-// (Rechenzeit, Systemaufruf), sieht der Lauf nicht. Ein Lesen, das nie endet, endet im panic: von synctest, wenn alle Goroutinen der Blase
-// blockiert sind, sonst von wache.
+// scheitert); alle gültigen Zeilen sind eingeordnet und alle anderen als fremd gezählt. Grenze (SPEC-216 Nr. 16 s): eine Verlangsamung, während
+// die Uhr der Blase steht, sieht der Lauf nicht: Rechenzeit und ein Warten, das synctest nicht als dauerhaft blockiert zählt (Systemaufruf, Ein-
+// und Ausgabe, eine Sperre, deren Halter nicht auf diese Uhr wartet, ein Kanal oder Ticker von außerhalb der Blase). Ein Hänger endet im panic
+// von synctest allein, wenn alle Goroutinen der Blase dauerhaft blockiert sind und keine auf die Uhr wartet; sonst (etwa eine Warteschleife mit
+// time.Sleep, oder eine Sperre, deren Halter auf die Uhr wartet: die Uhr geht dann nicht vor, auch ein außerhalb der Blase endliches Warten
+// endet nicht) erst im panic der wache des Aufrufers, in Echtzeit.
 func pipeLauf(t *testing.T, mib int) {
 	t.Helper()
 	synctest.Test(t, func(t *testing.T) {
@@ -273,7 +276,7 @@ func pipeLauf(t *testing.T, mib int) {
 }
 
 // TestLeserHaeltNieAn (Wirkungs-Fänger, 20 Läufe von pipeLauf): der Leser liest die Pipe bis zum Ende des Stroms, auch hinter einer Zeile über
-// 1 MiB und bei einer Span-Zeile in jeder zwanzigsten, und weder er noch der Sammler wartet dabei auf die Uhr. Eine Zeile von 1 MiB wird gelesen,
+// 1 MiB und bei einer Span-Zeile in jeder zwanzigsten, und weder er noch der Sammler wartet dabei auf die Uhr der Blase. Eine Zeile von 1 MiB wird gelesen,
 // eine von 1 MiB + 1 B zwischen drei Span-Zeilen verworfen und als fremd gezählt; der Speicher wächst nicht mit der Länge (64 MiB in einer
 // Zeile allozieren unter 16 MiB); eine letzte Zeile ohne Zeilenende ist eine Zeile; ein Fehler des Stroms endet das Lesen.
 func TestLeserHaeltNieAn(t *testing.T) {
