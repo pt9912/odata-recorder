@@ -60,6 +60,8 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 **Zustand, Teil B** (2026-11-26, Planner, Closure): [`slice-bootstrap-m6-listener`](done/slice-bootstrap-m6-listener.md) liegt in `done/` (Beleg: §7 dort). Das Binary hat in jedem Modus einen Admin-Listener auf Loopback mit Token-Datei; die Schlüssel des Transportschutzes liest es noch nicht. Teil C ([slice-bootstrap-m6-transport](open/slice-bootstrap-m6-transport.md)) ist mit dem Merge nach `main` startbar, Teil D ([slice-bootstrap-m6](open/slice-bootstrap-m6.md)) wartet auf C; §6 von C und D führt keine offene Frage an den Architect.
 
+**Start vor dem Welle-Trigger: [`slice-bootstrap-m6-transport`](open/slice-bootstrap-m6-transport.md)** (Entscheidung des Users vom 2026-11-27, eingetragen vom Planner; Ausnahme je Slice): die Frage an den User lautete wörtlich: „1. Nimmst du die DoD-Änderung an? Dann merge ich beide Zweige und starte den Folge-Slice. 2. Darf Teil C schon vor Abschluss von welle-betrieb starten?“ Die Antwort lautete wörtlich: „ja -- ja“. Das zweite *ja* ist diese Ausnahme: Teil C darf starten, obwohl `welle-betrieb` nicht abgeschlossen ist; der Welle-Trigger (§2 oben) ist nicht eingetreten, und die Welle bleibt unter *Nächste Wellen*. Die Antwort galt Teil C. Zu Teil B hat der User nicht gesondert geantwortet (§3, Frage zu [`slice-bootstrap-m6-listener`](done/slice-bootstrap-m6-listener.md)). Für Teil D ([`slice-bootstrap-m6`](open/slice-bootstrap-m6.md)) und die Slices danach sagt die Antwort nichts.
+
 ## 3. Closure-Trigger (Welle schließt)
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
@@ -73,7 +75,7 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - Ein nicht autorisierter Client, der einen Import anfordert, wird ohne Änderung abgewiesen (`LH-FA-18`).
 - Die Einträge des Abweisens sind begrenzt ([`slice-admin-abweisen-begrenzen`](open/slice-admin-abweisen-begrenzen.md) liegt in `done/`): am Handle schreiben 21 Abweisungen im Fenster 20 Zeilen `admin_abgewiesen`, und der Zähler `ODR-E2101` der Diagnose zeigt 21 (`SPEC-301`, Zeile W17 des Plans).
 - Das Handbuch deckt alles ab, was das Binary dieser Welle kann (Admin-Listener, Token, Schlüssel `ADMIN_*`, Endpunkte, Fehlercodes); das Kataloge-Gate aus [`slice-handbuch-meldungskatalog`](done/slice-handbuch-meldungskatalog.md) ist grün.
-- Die Frage an den User, ob die Ausnahme je Slice vom Welle-Trigger auch [`slice-bootstrap-m6-listener`](done/slice-bootstrap-m6-listener.md) deckt, der am Prozess sichtbar ist (Geber: dieser Slice, §6 dort), hat eine ausdrückliche Antwort, oder die Closure stellt sie dem User erneut und die Results-Notiz führt sie als offen; Schweigen gilt nicht als Zustimmung.
+- Die Frage an den User, ob die Ausnahme je Slice vom Welle-Trigger auch [`slice-bootstrap-m6-listener`](done/slice-bootstrap-m6-listener.md) deckt, der am Prozess sichtbar ist (Geber: dieser Slice, §6 dort), hat eine ausdrückliche Antwort, oder die Closure stellt sie dem User erneut und die Results-Notiz führt sie als offen; Schweigen gilt nicht als Zustimmung. **Stand** (Planner, 2026-11-27): weiter offen. Der User hat am 2026-11-27 zu Teil C geantwortet (§2), zu Teil B nicht gesondert; eine frühere Fassung der Frage nannte „wie bei Teil A und B“ als Empfehlung.
 - Die Closure-Notiz liegt als `welle-admin-api-results.md` im Ruheort `done/`; ihre *Steering-Loop-Einträge* tragen je verkörperter Regel mit dem Anker `seit welle-admin-api` das Feld `liegt in`.
 
 ## 4. Slices in dieser Welle
