@@ -16,7 +16,8 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-container-image](slice-container-image.md) ([welle-betrieb](../welle-betrieb.md): Laufzeit-Image und Neustarttest als Gate, Bedingung von M5; Zweig `slice-container-image`; Kettenslice, er hält die Gate-Kette).Daneben [slice-admin-tls-betrieb](slice-admin-tls-betrieb.md) ([welle-admin-api](../welle-admin-api.md): Handshake des Admin-Adapters über TLS, Bedingung von M7; Zweig `slice-admin-tls-betrieb-fang`; kein Kettenslice).
+In Arbeit: [slice-container-image](slice-container-image.md) ([welle-betrieb](../welle-betrieb.md): Laufzeit-Image und Neustarttest als Gate, Bedingung von M5; Zweig `slice-container-image`; Kettenslice, er hält die Gate-Kette).
+Daneben [slice-admin-tls-betrieb](slice-admin-tls-betrieb.md) ([welle-admin-api](../welle-admin-api.md): Handshake des Admin-Adapters über TLS, Bedingung von M7; Zweig `slice-admin-tls-betrieb-fang`; kein Kettenslice).
 
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
