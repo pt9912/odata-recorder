@@ -1,1 +1,1 @@
-**Stand:** offen; ein Vorgang (`slice-prefer-return`, Evidenz); Adresse: Planner beim Sichten vor dem nächsten Slice, der `src/hexagon/model` oder die Mengen von `TestLiesRueckgabeErschoepfend` ändert
+**Stand:** offen; Vorgänge unter `evidence/`; Adresse: Planner beim Sichten vor dem nächsten Slice, der `src/hexagon/model`, die Mengen von `TestLiesRueckgabeErschoepfend` oder Tests im Paket `bootstrap` ändert

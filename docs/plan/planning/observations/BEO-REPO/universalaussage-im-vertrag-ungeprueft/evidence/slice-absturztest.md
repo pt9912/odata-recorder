@@ -1,0 +1,2 @@
+**Vorgang:** slice-absturztest
+**Fund:** `SPEC-048` Nr. 4 sagt für *`Create` des Snapshots vor dem `Commit` des Writers* ohne Einschränkung rot am Haltepunkt *im `Write`*. Das gilt für `Create` vor `Write`; mit `Create` zwischen `Write` und `Commit` bleibt dieser Haltepunkt grün, und zwei andere werden rot (Review F-4, Mutation M5). Offen, Adresse Architect (Plan §6). Beleg: Report `2026-11-28-slice-absturztest-review`.

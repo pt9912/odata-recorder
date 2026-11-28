@@ -1,0 +1,2 @@
+**Vorgang:** slice-absturztest
+**Fund:** Das Negativ zum Zweig *anderes Ende* des Kindprozesses nannte „nicht ohne Eingriff in den Kindprozess herstellbar“; eine unbekannte Operation, ein Argument des Tests, beendet ihn mit Exit 1 und läuft in den Zweig, und ohne die Prüfung des Signals blieb die Suite grün (Review F-1). Die Fix-Runde führt den Fall (`TestAbsturzEndeOhneHaltepunkt`). Beleg: Report `2026-11-28-slice-absturztest-review`, `2026-11-28-slice-absturztest-verifikation` (m05).
