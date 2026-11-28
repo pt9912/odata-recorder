@@ -363,7 +363,7 @@ Nach `6453c3e4` ändern sich allein Dateien unter `docs/` und `spec/` (Report, M
 
 **Sendungen (`AGENTS.md` §3.13):** an [welle-betrieb](../welle-betrieb.md) §2: Messung nach `SPEC-211` Nr. 4, Halbsatz zu V-5, Lauf der Gegenproben mit Stempel; an [slice-gegenproben-eichung](../open/slice-gegenproben-eichung.md) §1: der Befund F-8; an die [Roadmap](../in-progress/roadmap.md), M7: die Frage zu `LH-RB-03` und der Handbuch-Satz zur Betreiberpflicht, mit diesem Merge fällig.
 
-**Folge-Slice:** keiner neu. [slice-gegenproben-eichung](../open/slice-gegenproben-eichung.md) und [slice-ci-github-actions](../open/slice-ci-github-actions.md) liegen in `open/`.
+**Folge-Slice:** keiner neu. [slice-gegenproben-eichung](../open/slice-gegenproben-eichung.md) und [slice-ci-github-actions](../next/slice-ci-github-actions.md) liegen in `open/`.
 
 **Drei Paarungen** (hier geprüft; die Closure der Welle prüft sie erneut): Anker (kein Eintrag trägt ein Zielort-Feld) · Folge-Slice (die zwei genannten liegen in `open/`) · Register (die in §6 bis §8 genannten Verzeichnisse tragen `evidence/`, die neun mit neuer Datei `evidence/slice-container-image.md`).
 
