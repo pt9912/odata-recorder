@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-16.a` (eigener Validator-Contract-Test, unbekannte Operationen `501`) · `SPEC-184` (Vertrag dieses Slice) · `SPEC-182` Nr. 4 und 5 (Fehlerwert, Ursachen, Rangfolge hinter dem Leser) · `SPEC-183` Nr. 4 c (Form der `Content-ID`) und Nr. 8 (Beispiel, Zeilen der Prüfung) · `SPEC-022` (`ODR-E6001`) · `SPEC-180` (`ODR-E6007`) · `ARC-004`.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-batch-validator`, Worktree `/Development/odata-recorder-wt-validator`; der Zweig entsteht von `main` nach den Start-Commits, der Start liegt auf `main`)
 
 **Autor:** pt9912. **Datum:** 2026-11-28.
 
@@ -87,6 +87,10 @@ Aussagen-Berührung steht hier gar nicht.
 
 Die Randformen sind in `SPEC-184` entschieden (`AGENTS.md` §3.12); der Implementer entscheidet keine.
 
+**Stand beim Start** (Planner, 2026-11-28, `main` bei `573c2feb`, durch Lesen und Suchen, ohne Übersetzungslauf): (a) *Vorhanden:* `model.Batch`, `BatchTeil`, `BatchRequest`, der Fehlerwert `BatchFehler` mit den vier Ursachen der Prüfung und beiden Sentinels, `model.ContentIDGueltig`. `PruefeBatch`, `Verweis` und die zwei Dateien dieses Plans gibt es nicht. (b) *Bestehende Tests:* der Slice bringt keinen Sentinel, keinen Code und keine Ursache; die Listen, die `slice-batch-parser` in sechs Testdateien nachzog, ändern sich nicht. Die Leser-Tests (`batchcodec`) bauen Verstöße der Prüfung, ohne `PruefeBatch` zu rufen, und bleiben. (c) *Architect:* keine Frage ist vor dem Code offen, keine Zelle des Rasters leer.
+
+**Beim Start ergänzt** (Planner): die DoD verlangt den Verstoß *mit Ursache und Ort*; die Fänger der Zeilen 37, 38, 40 und 41 vergleichen deshalb den ganzen Fehlerwert, also auch `Ort` nach `SPEC-182` Nr. 4, nicht allein die Ursache. Zeilen und Zahl der Tabelle bleiben.
+
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Zeilen und Testnamen des Architect, aus dem Plan von `slice-batch-parser` mit ihren Nummern übernommen; Dateien unter `src/hexagon/model/`; der Implementer fährt je Zeile die Mutation selbst):
 
 | Nr. | Zusage | Fänger | Mutation | Klasse |
@@ -123,6 +127,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 - **Code-Abhängigkeit, mit Grund:** `slice-batch-parser` liefert die Domain-Werte (`model.Batch`) und den Fehlerwert (`model.BatchFehler` mit Ursachen und Sentinels), die beide Funktionen lesen und liefern, und `model.ContentIDGueltig`, die `Verweis` ruft. Wie für ihn ist der Welle-Trigger (`welle-mock` in `done/`) Reihenfolge-Vorsicht, keine Code-Abhängigkeit: ein Start davor ist eine Entscheidung des Users, nicht dieses Plans.
 - **Was der Slice nicht braucht — und warum:** `MockUseCase`, Workspace, Parser der OData-URL und der Client-Bodies, HTTP-Adapter, Composition Root (die Funktionen sehen Werte, keine Bytes und keinen Zustand).
+- **Gestartet** (Planner, 2026-11-28, `main` bei `573c2feb`): `slice-batch-parser` liegt auf `main` in [`done/`](../done/slice-batch-parser.md), `welle-mock` ebenfalls abgeschlossen; eine Entscheidung des Users für einen früheren Start ist nicht nötig. Kein Teil der Erstabnahme. *Parallel laufen* [slice-ci-github-actions](../in-progress/slice-ci-github-actions.md) (Kettenslice) und [slice-betrieb-spans-nachweis](../in-progress/slice-betrieb-spans-nachweis.md): keine gemeinsame Datei. Dieser Slice ist kein Kettenslice; er ändert weder `Makefile`, `harness/mk/`, `Dockerfile`, `harness/README.md`, `tools/gegenproben/` noch `src/bootstrap` und gibt es als Rückgabe an den Planner, wenn er es müsste (Nr. 7 der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln)). Schwere Läufe stehen unter der Sperre (Nr. 1 dort: höchstens zwei Linien warten oder fahren zugleich auf ihr); der Stempel der Gegenproben gehört dem Integrationsschritt (Nr. 2).
 - **Größenmarke** (`AGENTS.md` §3.14, `SPEC-128` Nr. 1; die Faktoren stehen allein dort; Planner, 2026-11-28, mit dem Schnitt): gezählt ist die Tabelle in §3 mit 7 Zeilen, *a* = 0, *b* = 7, *f* = 0, *p* = 100 (Setzung des Planner aus den 600 Zeilen, die der Architect für Leser und Prüfung zusammen erwartete). *S* = 660, Marke *M* = **900**; keine Schnittfrage. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Der Block trägt `basis`, `schaetzung` und `marke` noch nicht (`make groessenmarke` meldet *Marke steht aus*); der Planner setzt sie beim Start, vor dem ersten Code-Commit.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
@@ -158,12 +163,13 @@ dasteht.
 | Validator: Methoden und Changesets | `SPEC-184` Kopf, `SPEC-183` Nr. 5 (leer ist ohne Verstoß) | gilt nicht: er sieht Werte, keine Bytes | `SPEC-184` Nr. 1 | gilt nicht: er prüft kein Ziel außer dem Verweis (`SPEC-184` Nr. 3) | gilt nicht: die Grenzen prüft der Leser (`SPEC-183` Nr. 7) | `SPEC-184` Kopf (reine Funktion) | gilt nicht: reine Funktion ohne Kontext und Strom (`SPEC-184` Kopf) |
 | Validator: `Content-ID` und Referenzen | `SPEC-182` Nr. 3, `SPEC-183` Nr. 4 c, `SPEC-184` Nr. 2 | gilt nicht: er sieht Werte, keine Bytes | `SPEC-184` Nr. 3, 4 (unbekannter Verweis, reservierte Wörter) | `SPEC-184` Nr. 3 (`/$1`, `%241`) | `SPEC-183` Nr. 4 c (Länge und Zeichenmenge der `Content-ID`) | `SPEC-184` Nr. 2 | gilt nicht: reine Funktion ohne Kontext und Strom (`SPEC-184` Kopf) |
 
-**Zusatztabelle** (je Paar von Verstößen; `AGENTS.md` §3.16). Eine Zeile je Modus gilt nicht: die Prüfung kennt keinen Modus (`SPEC-184`). Das Paar mit einem Verstoß des Lesers führt `slice-batch-parser` §6.
+**Zusatztabelle** (je Paar von Verstößen; `AGENTS.md` §3.16). Eine Zeile je Modus gilt nicht: die Prüfung kennt keinen Modus (`SPEC-184`). Das Paar mit einem Verstoß des Lesers führt `slice-batch-parser` §6. Die dritte Zeile hat der Planner beim Start ergänzt (das dritte Paar der drei Prüfungen; Entscheidung und Fänger bestanden).
 
 | Paar oder Modus | Entscheidung (Ort) | Fänger |
 |---|---|---|
 | doppelte `Content-ID` · unzulässige Methode am selben Request | Methode (`SPEC-184` Nr. 5) | Zeile 41 |
 | doppelte `Content-ID` · nicht auflösbarer Verweis am selben Request | `content_id_doppelt` (`SPEC-184` Nr. 5) | Zeile 41 |
+| unzulässige Methode · nicht auflösbarer Verweis am selben Request | Methode (`SPEC-184` Nr. 5) | Zeile 41 |
 
 ## 7. Closure-Notiz
 
@@ -197,7 +203,12 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-11-28); die Treffer sind verkörpert und gelten als Regel: `BEO-REPO/menge-ohne-ihre-positionen` (`AGENTS.md` §3.15) für die Mengen der Zeilen 37 bis 40 (Ebene, Stelle, Abstand des Paares), `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` für die Betriebsregel „nur `Edit` und `Write`“. Der Code ist nicht nebenläufig und hat keine Fakes. Kein offener Eintrag erreicht mit diesem Slice 3×.
+**Vorgelagert — offene Beobachtungen sichten:** Register beim Start gesichtet (Planner, 2026-11-28; Zähler gleich der Zahl der Dateien unter `evidence/`, alle im Kürzel `BEO-REPO`).
+
+- **Verkörpert und zu beachten:** `menge-ohne-ihre-positionen` (29×, `AGENTS.md` §3.15) für die Mengen der Zeilen 37 bis 40 (Ebene, Stelle, Abstand des Paares); `ziffern-klasse-ohne-schleife` (5×) für `Ort` (Teil und Request auch zweistellig); `unbeschraenkte-menge-ohne-benannte-pruefgrenze` (42×) für Zeile 39 (das Ziel ist unbeschränkt); `vertrag-sagt-mehr-zu-als-ein-gate-prueft` (93×), `fix-deckt-die-genannte-mutation-nicht-die-klasse` (82×, §3.17), `berichtigung-erreicht-nicht-jede-stelle` (60×, §3.9), `ein-negativ-benennt-die-ungefangene-klasse-zu-eng` (31×), `fixture-gleicht-dem-wert-der-mutation` (17×), `menge-im-plan-weicht-vom-orakel-des-tests-ab` (12×), `suite-ohne-generator-fuer-klassen-der-spezifikation` (7×); `betriebsregel-fuer-repo-dateien-verletzt` (25×, „nur `Edit` und `Write`“).
+- **Offen, unter oder an der Schwelle:** `fehlertext-nennt-ort-und-wert-ohne-faenger` (2×) für `Ort` und `Error()`; `tabelle-nennt-test-der-nicht-existiert` (2×) für die Testnamen der Tabelle (vor dem Handoff gegen `src/` halten); `schreiber-und-leser-nicht-als-paar-geprueft` (2×) in verwandter Form: Zeile 43 baut den Batch von Hand, kein Lauf gibt der Prüfung einen Wert des Lesers (der erste Aufrufer beider ist `slice-batch-changesets`).
+
+Der Code ist nicht nebenläufig und hat keine Fakes. Kein offener Eintrag verlangt vor diesem Slice einen eigenen Slice.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der
