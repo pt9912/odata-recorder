@@ -1,0 +1,2 @@
+**Vorgang:** slice-batch-validator
+**Fund:** Die Prüfgrenze sagte „jede Stelle gefahren bis 1000, ungefangen bleibt eine Regel, die erst jenseits greift“; vier Regeln, die ab Stelle 14 oder ab Abstand 3 greifen, blieben grün, weil nicht jede Frage an jeder Stelle gestellt wurde (V-1, MEDIUM). Nach der Verifikation hat der Implementer Fänger ergänzt und die Prüfgrenzen mit ungefangener Klasse und Maß gefasst; diese Runde ist nicht erneut geprüft. Beleg: Report `2026-11-28-slice-batch-validator-verifikation` (V-1), Plan `slice-batch-validator` §3 und §7.

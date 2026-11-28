@@ -17,7 +17,6 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-ci-github-actions](slice-ci-github-actions.md) (ohne Welle, Bedingung von M7: CI mit GitHub Actions fährt `make gates`; Zweig `slice-ci-github-actions`; Kettenslice, hält die Gate-Kette).
-Daneben [slice-batch-validator](slice-batch-validator.md) ([welle-expand-batch](../welle-expand-batch.md): Prüfung der Struktur eines `$batch`, nicht Teil der Erstabnahme; Zweig `slice-batch-validator`; kein Kettenslice).
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.

@@ -43,7 +43,7 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 - [`slice-batch-validator`](in-progress/slice-batch-validator.md) braucht [`slice-batch-parser`](done/slice-batch-parser.md) (Domain-Werte, Fehlerwert und `model.ContentIDGueltig`), nicht `welle-mock`; der Welle-Trigger ist für ihn Priorisierung wie für den Parser.
 - [`slice-batch-changesets`](open/slice-batch-changesets.md) braucht `welle-mock` (Workspace-Transaktion), [`slice-batch-parser`](done/slice-batch-parser.md) und [`slice-batch-validator`](in-progress/slice-batch-validator.md).
 
-**Stand `$batch`:** [`slice-batch-parser`](done/slice-batch-parser.md) liefert Port, Domain-Werte, Fehlerwert und Leser, ohne Aufrufer und ohne Route (Beleg: §7 dort). [`slice-batch-validator`](in-progress/slice-batch-validator.md) (Prüfung der Struktur) ist gestartet (Zweig `slice-batch-validator`, kein Kettenslice, nicht Teil der Erstabnahme; Start-Angaben und Marke in seinem Plan); die Sendungen an ihn und an [`slice-batch-changesets`](open/slice-batch-changesets.md) stehen in deren §1. `LH-FA-16` ist damit nicht erfüllt.
+**Stand `$batch`:** [`slice-batch-parser`](done/slice-batch-parser.md) liefert Port, Domain-Werte, Fehlerwert und Leser, ohne Aufrufer und ohne Route (Beleg: §7 dort). [`slice-batch-validator`](in-progress/slice-batch-validator.md) liefert die Prüfung der Struktur samt Auflösung eines Verweises, ohne Aufrufer (Beleg: §7 dort). Die Sendungen an [`slice-batch-changesets`](open/slice-batch-changesets.md) stehen in dessen §1, darin der Fang des Paars Leser und Prüfung. `LH-FA-16` ist damit nicht erfüllt.
 
 ## 3. Closure-Trigger (Welle schließt)
 

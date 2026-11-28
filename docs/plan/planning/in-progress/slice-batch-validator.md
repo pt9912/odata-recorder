@@ -60,18 +60,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Prüfung (`SPEC-184`): Methoden je Ebene (außerhalb und innerhalb eines Changeset), `Content-ID` je Changeset eindeutig, `Verweis`, Verweise nur rückwärts; Verstoß mit Ursache und Ort, nicht Unterstütztes `501` mit `ODR-E6001`; die Funktionen ändern den Wert nicht.
-- [ ] Randformen: je Zelle des Rasters (§6) ein Ort in der Spezifikation und ein Fänger der Tabelle (§3); Validator-Contract-Test (`LH-FA-16.a`); `make a-check` hält die Richtung (`model` importiert keinen Port und keinen Adapter).
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Prüfung (`SPEC-184`): Methoden je Ebene (außerhalb und innerhalb eines Changeset), `Content-ID` je Changeset eindeutig, `Verweis`, Verweise nur rückwärts; Verstoß mit Ursache und Ort, nicht Unterstütztes `501` mit `ODR-E6001`; die Funktionen ändern den Wert nicht.
+- [x] Randformen: je Zelle des Rasters (§6) ein Ort in der Spezifikation und ein Fänger der Tabelle (§3); Validator-Contract-Test (`LH-FA-16.a`); `make a-check` hält die Richtung (`model` importiert keinen Port und keinen Adapter). Die Auflagen V-1 und V-2 der Verifikation sind nach ihr erledigt und nicht erneut geprüft (§7).
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Bringt der Slice einen Fehlercode, Schlüssel oder ein Kommando in den Katalog des Binary: Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün. Sonst steht in §7, dass das Binary unverändert blieb (die Funktionen haben keinen Aufrufer vor `slice-batch-changesets`).
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist (keiner berührt: der Vertrag steht in `SPEC-184`, der Slice ändert ihn nicht).
+- [x] Bringt der Slice einen Fehlercode, Schlüssel oder ein Kommando in den Katalog des Binary: Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün. Sonst steht in §7, dass das Binary unverändert blieb (die Funktionen haben keinen Aufrufer vor `slice-batch-changesets`).
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
 
 ## 3. Plan (vor Code)
 
@@ -204,10 +204,10 @@ dasteht.
 
 - Die Form einer `Content-ID` braucht der Leser aus `slice-batch-parser` und `Verweis` hier — **Ausgang:** entfallen: entschieden (Architect, 2026-11-28): `Verweis` ruft `model.ContentIDGueltig` (Länge und Zeichenmenge, `SPEC-183` Nr. 4 c, `SPEC-184` Nr. 3), die `slice-batch-parser` liefert; Zeile 39 führt das Alphabet über alle 256 Bytes.
 - Der Vorrang des Lesers vor der Prüfung ist nur über einen Aufruf des Lesers zu sehen, und ein Test in `model` importiert keinen Adapter (`make a-check`) — **Ausgang:** entfallen: entschieden (Architect, 2026-11-28): der Fall liegt in `slice-batch-parser` Zeile 30; er braucht `PruefeBatch` nicht, weil der Leser bei seinem Verstoß keinen Wert liefert (`SPEC-182` Nr. 3), den die Prüfung sehen könnte. Die Pfade des Blocks bleiben.
-- Kleine Schätzung (*S* = 660): ein kleiner Slice mit mehreren Prüfrunden liegt eher über der Marke (`SPEC-128` Nr. 10 a) — **Ausgang:** offen; Eintrag `ueberschreitung` mit Grund.
-- Zusammenspiel mit der Ausführung: Aufruf vor der ersten Ausführung und Auflösung des Verweises — **Ausgang:** offen; `slice-batch-changesets` §1 führt die Sendung.
-- Das Negativ zu Zeile 43 (Leser und Prüfung nie als Paar) verweist auf den ersten Aufrufer; `slice-batch-changesets` §1 führt den Aufruf beider, nennt diesen Fang aber nicht (F-3 aus `2026-11-28-slice-batch-validator-review`, `AGENTS.md` §3.13) — **Ausgang:** offen; Adresse Planner.
-- Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** offen; Raster unten, eine Zelle ohne Ort geht an den Architect.
+- Kleine Schätzung (*S* = 660): ein kleiner Slice mit mehreren Prüfrunden liegt eher über der Marke (`SPEC-128` Nr. 10 a) — **Ausgang:** entfallen: die Messung am Ende ist 900 bei Marke 900; gleich der Marke ist keine Überschreitung (`SPEC-128` Nr. 5 d), ein Eintrag `ueberschreitung` entsteht nicht. Dass zwei Prüfgrenzen in §3 die Marke als Grund nennen, führt §7 (Steering-Loop-Eintrag 3).
+- Zusammenspiel mit der Ausführung: Aufruf vor der ersten Ausführung und Auflösung des Verweises — **Ausgang:** entfallen: beide Funktionen sind geliefert; `slice-batch-changesets` §1 führt den Aufruf (Sendung (a)) und die Auflösung des Verweises (Sendung (c)), bei der Closure gelesen.
+- Das Negativ zu Zeile 43 (Leser und Prüfung nie als Paar) verweist auf den ersten Aufrufer; `slice-batch-changesets` §1 führte den Aufruf beider, nannte diesen Fang aber nicht (F-3 aus `2026-11-28-slice-batch-validator-review`, V-3 der Verifikation, `AGENTS.md` §3.13) — **Ausgang:** eingetreten: Folge-Slice [slice-batch-changesets](../open/slice-batch-changesets.md), dessen §1 den Fang seit dieser Closure führt (Sendung (g)).
+- Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** entfallen: jede Zelle des Rasters trägt Ort oder „gilt nicht“ mit Grund, die drei Paare der Zusatztabelle laufen in `TestPruefeBatchRang` (Verifikation, DoD 2), keine Rückgabe an den Architect; was an Fängern nach Review und Verifikation fehlte, steht in §3 als Fänger oder als Prüfgrenze.
 
 **Raster *Operation × Argumentart*** (Zellen des Architect, aus dem Plan von `slice-batch-parser`; die Spalten sind dieselben wie dort):
 
@@ -238,7 +238,40 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-*Wird bei der Closure gefüllt.*
+**Closure** (Planner, 2026-11-28; Zweig `slice-batch-validator`, Messbasis `e27f718e`, Stand vor der Closure `f9e34253`; `git merge main` (`main` = `a7c8e48d`) meldete „bereits aktuell“ (aufgenommen im Merge `173851be`), unmittelbar danach `make docs-check`: 1499 Dateien, 0 Befunde). Merge nach `main`, `make gates` auf dem gemergten Stand und `make gegenproben` mit dem Stempel sind der Integrationsschritt, nicht Teil dieser Notiz. Der Slice ist nicht Teil der Erstabnahme, und `LH-FA-16` ist mit ihm nicht erfüllt: Ausführung und Antwort liegen bei `slice-batch-changesets`. Review (`2026-11-28-slice-batch-validator-review`: 0 HIGH, 2 MEDIUM, 0 LOW, 1 INFO) und Verifikation (`2026-11-28-slice-batch-validator-verifikation`: bestätigt mit Auflagen, 1 MEDIUM, 1 LOW, 2 INFO) liefen je einmal. Die Fix-Runde zum Review (`ae5a805b`) sah der Verifier, nicht der Reviewer.
+
+**Auflagen der Verifikation:** V-1 und V-2 hat der Implementer in `f9e34253` erledigt (Tests und Plan, §3 *Nach der Verifikation*). **Diese Runde ist nicht erneut geprüft**, weder von Reviewer oder Verifier noch vom Planner: dass die ergänzten Fänger und die neuen Prüfgrenzen die Befunde decken, ruht auf den Angaben des Implementers (17 Mutationen, 14 rot, 3 grün an den neuen Prüfgrenzen). V-3: Sendung (g) in [slice-batch-changesets](../open/slice-batch-changesets.md) §1, Ausgang in §6. V-4 (INFO): §3 *Prüfgrenzen* nennt, was die Zählprüfungen halten und was nicht. Die Closure-Auflage trägt diese Notiz; die Auflage zur Integration bleibt dem Integrationsschritt.
+
+**Was geliefert ist:** `model.PruefeBatch` und `model.BatchRequest.Verweis` (`src/hexagon/model/batch_pruefen.go`, `SPEC-184`) und die Tests dazu: die Zeilen 37 bis 43 der Tabelle in §3, darin der Validator-Contract-Test (`LH-FA-16.a`) und die Weite-Fänger bis Teil und Request 1000. [ADR-0001](../../adr/0001-implementierungssprache-go.md): keine neue Abhängigkeit, die Datei importiert `strconv` und `strings`. Der Produktcode ist seit dem Handoff `f264a2b4` unverändert.
+
+**Was am Binary gleich bleibt:** die Funktionen haben keinen Aufrufer außerhalb ihres Pakets (gesucht über `src/` am Stand `f9e34253`: allein ein Kommentar in `ports/outbound/odata_batch.go` nennt `model.PruefeBatch`); der Aufrufer ist `slice-batch-changesets`. Kein neuer Fehlercode, Schlüssel oder Befehl (`ODR-E6001` und `ODR-E6007` bestanden), kein geändertes Verhalten, kein Handbuch-Kapitel, die Kataloge sind unberührt. Ein Byte-Vergleich des Binary vor und nach dem Slice ist nicht gefahren.
+
+**Mutationen und Messungen:** Implementer beim Handoff 58 Mutationen, 57 rot, eine gleichwertig (§3); nach dem Review 25, 23 rot, 2 grün an der Prüfgrenze. Reviewer: Differenzprobe gegen ein eigenes Orakel ohne Abweichung (157464 Changesets, 20000 Zufalls-Batches, 2000000 Ziele); 16 Mutationen, 9 rot, 6 grün (F-1, F-2), eine grün an einer benannten Prüfgrenze. Verifier: 19 Mutationen, 12 rot, 7 grün (eine gleichwertig, vier V-1, zwei V-2). Die Mutationen des Implementers hat niemand vollständig wiederholt, seine Laufzeiten niemand nachgemessen.
+
+**Gate:** `make gates` grün am Stand `f9e34253` nach dem Stempel (`gates-passed.head` gleich `f9e34253`, `gates-passed.diffsha` gleich dem Hash von `tools/harness/working-tree-hash.sh` vor dem ersten Schreiben der Closure; vom Planner gegengelesen, nicht neu gefahren, die Ausgabe des Laufs hat er nicht gesehen). Danach kommt allein diese Closure (Dokumente). Planner im Zweig nach dem Schreiben der Closure und vor dem Move: `make docs-check` (1507 Dateien, 0 Befunde), `make zeichen-check` (ok, 2743 Dateien) und `make groessenmarke` (ok, Messung 900 von Marke 900). Kein `make gates` und kein `make gegenproben` bei der Closure.
+
+**Größe** (`SPEC-128` Nr. 9): Ende `Messpunkt slice-batch-validator.md: zeilen=7 nebenlaeufig=0 fakes=0 produktcode=100 schaetzung=660 marke=900 messung=900`; von Hand: Produktcode 84 (erwartet 100), Tests 816. Die Messung liegt **auf der Marke** (900 von 900): keine Überschreitung (Nr. 5 d), kein Eintrag `ueberschreitung`. Handoff 713 (Stand `f264a2b4`), Ende ÷ Handoff 1,26: 187 Zeilen Tests kamen mit den zwei Fix-Runden. Auslastung 1,00, Ende ÷ *S* = 1,36: die Auslastung liegt weder über 1,00 noch unter 0,45, **keine Meldung** an den Architect.
+
+**Finding-Klassen** (Review): Fänger schmaler als Zusage, Achse nicht benannt · Prüfgrenze einer unbeschränkten Menge fehlt · Folge eines Negativs ohne Eintrag beim Nehmer; (Verifikation) Prüfgrenze sagt mehr zu, als gefangen ist.
+
+**Steering-Loop-Einträge:**
+
+1. **Neuer Sensor.** Die Tests in `batch_pruefen_test.go` laufen mit `make test` und `make test-race`; `TestPruefeBatchWeiteTeile` und `TestPruefeBatchWeiteRequests` stellen ihre Fragen an jedem Teil und Request 1 bis 1000, also bis zur Zahl der Teile, die der Leser zulässt (`SPEC-183` Nr. 7), und `TestPruefeBatchContract` hält Beispiel und Zeilen der Prüfung aus `SPEC-183` Nr. 8. Grenzen: die Prüfgrenzen in §3; nicht jede Frage läuft an jeder Stelle.
+2. **„Jede Stelle bis 1000“ galt für die Fragen, die gestellt wurden, nicht für jede.** Beim Handoff fehlten die Achse Methode des Trägers einer `Content-ID` (F-1) und die Zahl der Teile und Requests als Prüfgrenze (F-2); die Fix-Runde führte die Stellen bis 1000 und sagte in der Prüfgrenze, ungefangen bleibe allein, was jenseits greift, während vier Regeln ab Stelle 14 grün blieben (V-1): Frage und Stelle sind zwei Achsen, und ihr Produkt war nur zum Teil geführt. Die Regeln stehen (`AGENTS.md` §3.15, §3.17); gezählt, kein neuer Zielort. Im Produktcode lag kein Befund.
+3. **Die Größenmarke steht als Grund in zwei Prüfgrenzen** (§3: nicht unterstützte Methoden ab Stelle 13; Fortsetzung eines Verweises an den Weite-Fängern), und die Messung endet auf der Marke. Die Marke schneidet vor dem Code (`AGENTS.md` §3.14); nach dem Code deckt ein Eintrag `ueberschreitung` eine Überschreitung (`SPEC-128` Nr. 5 d), sie schneidet nicht (Nr. 10 c). Ein Fänger, der der Marke wegen fehlt, hat damit keinen Grund aus dem Vertrag. Der Planner ändert die Negative nicht (verifizierter Code und Plan); neu im Register als `BEO-REPO/groessenmarke-als-grund-fuer-ungefangene-klasse` (1×), mit der offenen Frage an den User in `state.md` dort.
+4. **Ein Negativ wies auf einen Nehmer, der es nicht führte** (F-3, V-3). Die Regel steht (`AGENTS.md` §3.13); die Sendung ist nachgeholt. Dasselbe Negativ ist der dritte Beleg zu `BEO-REPO/schreiber-und-leser-nicht-als-paar-geprueft` (verwandte Form: Leser und Prüfung je für sich geprüft, kein Fehler gefunden).
+
+**Keine benannte Spec-Lücke:** Review und Verifikation fanden keine, der Implementer gab keine Randform zurück. Was `SPEC-184` unter *Ungeprüft* führt, bleibt.
+
+**Kein Zielort-Feld in diesem Slice:** nichts wurde in einer Regel verkörpert; eine Pflicht zur Anker-Paarung entsteht nicht.
+
+**Sendungen (`AGENTS.md` §3.13), bei der Closure gelesen** (§1, DoD, §3 und §4 des Nehmers): `slice-batch-changesets` liegt in `open/`; §1 führt Aufruf (a), Auflösung des Verweises (c) und neu den Fang des Paars (g). Sein *Ausdrücklich NICHT* schließt den Bau von Parser und Prüfung aus, nicht Aufruf und Test. Seine Code-Abhängigkeiten aus §4 auf diesen Slice sind mit dem Move und dem Merge nach `main` erfüllt; vor seinem Code stehen weiter die Aufträge an den Architect (§3 dort), Tabelle, Raster und Marke. [welle-expand-batch](../welle-expand-batch.md) und die Roadmap sind nachgezogen; die Welle schließt nicht (drei Slices in `open/`).
+
+**Register** (Evidenz mit dem Closure-Commit im Zweig, kein Zähler gesetzt, er folgt aus den Dateien): Evidenz `slice-batch-validator` zu `BEO-REPO/menge-ohne-ihre-positionen`, `BEO-REPO/unbeschraenkte-menge-ohne-benannte-pruefgrenze`, `BEO-REPO/ein-negativ-benennt-die-ungefangene-klasse-zu-eng`, `BEO-REPO/fix-deckt-die-genannte-mutation-nicht-die-klasse` und `BEO-REPO/schreiber-und-leser-nicht-als-paar-geprueft`; neues Verzeichnis `BEO-REPO/groessenmarke-als-grund-fuer-ungefangene-klasse`. **Erstmals 3×:** `schreiber-und-leser-nicht-als-paar-geprueft`; den Lese-Schritt trägt die nächste Welle-Closure. Nicht angefallen: `groessenmarke-ueberschritten-ohne-rueckfuehrung` (nicht überschritten), die zwei Beobachtungen zur Schätzformel (Auslastung 1,00), `tabelle-nennt-test-der-nicht-existiert` (Review und Verifikation fanden jeden genannten Test) und `randform-erst-im-review-entschieden`.
+
+**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld, nichts zu paaren) · Folge-Slice (`slice-batch-changesets` liegt als Datei in `open/` und führt die Sendungen) · Register (die sechs genannten Verzeichnisse tragen `evidence/slice-batch-validator.md`, die in §8 genannten ihr `evidence/`). Die Closure von `welle-expand-batch` prüft die Paarungen erneut.
+
+**Gegenlesen** (`AGENTS.md` §3.18): dieser Plan, der Plan von `slice-batch-changesets`, die Welle, die Roadmap und die Register-Dateien sind mit dem Edit- und Write-Werkzeug geschrieben; Rohbytes deckt `make zeichen-check`.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
