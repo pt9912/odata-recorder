@@ -44,16 +44,16 @@ ist einzeln lieferbar.
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 §Ziel-Form: Slice — **≤ 3 Liefer-Punkte**.
 
-- [ ] Ein Test über `record`, `replay` und `mock` findet jeden der fünf Spans mit jedem Pflicht-Attribut; ein Canary als Query-Literal und in Request- und Response-Body steht in keiner Zeile der Senke.
-- [ ] Derselbe Test vergleicht je Modus den Stand der Zähler mit genau den Codes, die sein Client als Fehlerobjekt erhielt; mindestens ein Code je Modus.
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Ein Test über `record`, `replay` und `mock` findet jeden der fünf Spans mit jedem Pflicht-Attribut; ein Canary als Query-Literal und in Request- und Response-Body steht in keiner Zeile der Senke.
+- [x] Derselbe Test vergleicht je Modus den Stand der Zähler mit genau den Codes, die sein Client als Fehlerobjekt erhielt; mindestens ein Code je Modus.
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben; keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen.
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben; keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen.
 
 ## 3. Plan (vor Code)
 
@@ -118,7 +118,7 @@ Läufe der unveränderten zwei Tests: ohne Detektor 30 von 30 in einem Prozess u
 - Gesucht wird allein in der Senke des Adapters des Prozesses, nicht im Stand `Snapshot`, im Logger von `Build` und auf `stdout` und `stderr` neben der Senke. Grund: BS6 bis BS8 sagen die Senke zu. Folge: ein Wert dort bleibt hier ungefangen.
 - Die Orte sind Literal der Query, Request-Body, Antwort-Body (in `mock` auch der gespeicherte Wert) und auf den Fehlerwegen das Literal des Schlüssels im Pfad; übriger Pfad, Namen in der Query außer dem Namen einer Eigenschaft in `$filter` auf einem Weg und Header führt der Test nicht, auf den Erfolgswegen auch den Schlüssel nicht. Grund: die DoD nennt diese Orte nicht; die Tests der Dienste und des Adapters führen sie. Folge: wie dort.
 - `TestBetriebFehlerwegeOhneWerte` fährt 53 der 107 Rückgabestellen eines Fehlers mit Code in den drei Diensten (gemessen mit `-coverpkg` über die drei Pakete): `record` 9 von 12, `replay` 16 von 24, `mock` 28 von 71; ungeführt 54 (3, 8 und 43), dazu in `record` der Grund `drain` und die Abweisung `ODR-E5010` des Adapters beim Herunterfahren. Grund: die offenen Stellen verlangen einen scheiternden Port, einen beschädigten Bestand, einen Dienst ohne Metadaten oder in der Version 2.0 oder einen weiteren eigenen Aufbau; die Wege sind eine Liste, keine erzeugte Menge. Folge: eine Stelle, die allein auf einem ungeführten Weg einen Wert ausgibt, bleibt hier ungefangen; ob die Tests der Dienste sie fangen, ist hier nicht geprüft.
-- Nicht jeder Weg trägt jeden Ort: von den 30 Wegen der Hauptliste von `mock` tragen 24 ein Literal des Schlüssels als eigenen Wert (die Wege auf einer Menge und die mit festem Schlüssel `1` nicht) und 29 einen Wert im Body (der Weg mit dem reservierten Text nicht). Grund: die Anfrage dieses Wegs hat keinen Platz für den Wert. Folge: ein Wert dieses Orts kann auf dem Weg nicht belegt werden; die Stelle fängt allein ein anderer Weg.
+- Nicht jeder Weg trägt jeden Ort: von den 30 Wegen der Hauptliste von `mock` tragen 24 ein Literal des Schlüssels als eigenen Wert, davon 23 im Pfad und der Weg `existiert` allein im Body (die Wege auf einer Menge und die mit festem Schlüssel `1` tragen keines), und 29 einen Wert im Body (der Weg mit dem reservierten Text nicht). Grund: die Anfrage dieses Wegs hat keinen Platz für den Wert. Folge: ein Wert dieses Orts ist auf dem Weg nicht belegt, und nicht für jede Stelle gibt es einen anderen Weg: für 2 der 53 gefahrenen Stellen (`mock/lesen.go:230`, `mock/schreiben.go:275`) führt keiner den Pfad, beide erreicht allein ein Weg mit dem festen Schlüssel `1`, und eine Ausgabe des Pfads dort bleibt grün (Verifikation `2026-11-28-slice-betrieb-spans-nachweis-verifikation`, Auflage 1; berichtigt bei der Closure).
 - Gezählt werden 5 der 41 Codes (`ODR-E4001`, `ODR-E5001`, `ODR-E5003`, `ODR-E6008`, `ODR-E7003`); 36 bleiben ungeführt. Grund: die Zählung läuft für jeden Code durch eine Stelle (`SPEC-294` Nr. 5), die Codes führt `TestFehlerzaehlerJederFall` mit dem Fake. Folge: eine Ausnahme je Code am echten Adapter für einen ungeführten Code bleibt hier ungefangen.
 - Die Attribute führen nicht jeden Wert ihrer Menge. Die endlichen Mengen samt Platzhaltern haben 27 Werte; `TestBetriebSpansUndZaehler` prüft 14, ungeprüft sind 13: `capture_status` 2 von 4 (`failed`, `unbestimmt`), `match_strategy` 4 von 5 (`sequential`, `strict`, `first`, `nicht_gelesen`), `match_result` 4 von 6 (`erschoepft`, `anderer_key`, `nicht_replayfaehig`, `nicht_gewaehlt`), `coverage_status` 2 von 4 (`unknown`, `nicht_gelesen`), der Platzhalter `_.` von `entity_set` 1 von 1; `mutation_type` 4 von 4 und `recorder.mode` 3 von 3 sind geprüft (`hybrid` gehört nicht zum Slice). `TestBetriebFehlerwegeOhneWerte` prüft keine Attribute. Grund: die Zusage ist das Pflicht-Attribut je Span, die Mengen halten die Tests der Dienste. Folge: ein falscher Wert allein auf einem ungeprüften Weg bleibt hier ungefangen.
 
@@ -158,17 +158,50 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 Kein neuer Vertrag; ein Raster der Randformen entfällt (`AGENTS.md` §3.12 gilt für Slices mit neuem Vertrag).
 
-- Raster *Operation × Argumentart*: entfällt, der Slice liefert keine Operation und ändert kein Verhalten; eine Randform ohne Ort in der Spezifikation geht an den Architect (`AGENTS.md` §3.12). Beim Schreiben des Tests ist keine aufgetreten, und kein Verhalten widersprach den Spec-Stellen — **Ausgang:** offen; Adresse: Planner (Closure).
-- Das Paket `bootstrap` liegt unter dem Detektor bei 415,9 s von 600 s (`BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`); die zwei Tests kommen hinzu, mit Detektor 0,83 bis 1,04 s und 2,13 bis 2,45 s, ohne 0,52 bis 0,64 s und 1,34 bis 1,54 s (§3) — **Ausgang:** weiter offen; Adresse: Planner (Closure).
-- Abweichung vom Plan (Review `2026-11-28-slice-betrieb-spans-nachweis-review`, F-3): der Plan nannte für BS6 bis BS8 Mutationen in den Diensten; die neun des ersten Laufs sitzen im HTTP-Adapter (§3). Die 13 Mutationen zu den Fehlerwegen sitzen in den Diensten, und die Spalte *Mutation* nennt beide Stellen — **Ausgang:** offen; Adresse: Planner (Closure).
-- Der Capture-Span endet erst mit dem Schließen des Body; ein Test, der vorher liest, flackert. Der Test fährt je Modus den Prozess herunter, bevor er die Senke liest; 80 von 80 Läufen mit und ohne Detektor grün (§3) — **Ausgang:** weiter offen; Adresse: Planner (Closure).
+- Raster *Operation × Argumentart*: entfällt, der Slice liefert keine Operation und ändert kein Verhalten; eine Randform ohne Ort in der Spezifikation geht an den Architect (`AGENTS.md` §3.12). Beim Schreiben des Tests ist keine aufgetreten, und kein Verhalten widersprach den Spec-Stellen — **Ausgang:** entfallen: keine Randform ohne Ort ist aufgetreten, und die Verifikation fand kein Verhalten, das den Spec-Stellen widerspricht; der Slice endet, ohne dass eine Frage an den Architect ging.
+- Das Paket `bootstrap` liegt unter dem Detektor bei 415,9 s von 600 s (`BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`); die zwei Tests kommen hinzu, mit Detektor 0,83 bis 1,04 s und 2,13 bis 2,45 s, ohne 0,52 bis 0,64 s und 1,34 bis 1,54 s (§3) — **Ausgang:** weiter offen: Beobachtungs-Register, Evidenz `slice-betrieb-spans-nachweis` zu `BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze` (Paket allein 422,4 s; die Vorprobe der CI mit allen Paketen 513,4 s und 519,6 s steht in `state.md` dort).
+- Abweichung vom Plan (Review `2026-11-28-slice-betrieb-spans-nachweis-review`, F-3): der Plan nannte für BS6 bis BS8 Mutationen in den Diensten; die neun des ersten Laufs sitzen im HTTP-Adapter (§3). Die 13 Mutationen zu den Fehlerwegen sitzen in den Diensten, und die Spalte *Mutation* nennt beide Stellen — **Ausgang:** entfallen: die Mutationen in den Diensten sind nachgeholt (13 des Implementers, dazu die des Reviews, §3 und Report), die Spalte nennt beide Stellen, und die Verifikation führt F-3 als gedeckt.
+- Der Capture-Span endet erst mit dem Schließen des Body; ein Test, der vorher liest, flackert. Der Test fährt je Modus den Prozess herunter, bevor er die Senke liest; 80 von 80 Läufen mit und ohne Detektor grün (§3) — **Ausgang:** entfallen: der Test liest die Senke erst nach dem Herunterfahren; neben den 80 Läufen des Implementers fuhr das Review 580 Läufe ohne Fehlschlag und prüfte das Flackern ohne Befund.
 
 ## 7. Closure-Notiz
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
 §Das Beobachtungs-Register · `grundlagen-traceability.md` §Herkunfts-Anker für Steering-Loop-Regeln.
 
-Noch nicht begonnen.
+**Closure** (Planner, 2026-11-28; Zweig `slice-betrieb-spans-nachweis`, Messbasis `a819be8e`, Stand vor der Closure `5efb7716`; `git merge main` (`main` = `24e71305`) meldete „bereits aktuell“, unmittelbar danach `make docs-check`: 1492 Dateien, 0 Befunde). Merge nach `main`, `make gates` auf dem gemergten Stand (§5, *im Hauptbaum*) und `make gegenproben` sind der Integrationsschritt, nicht Teil dieser Notiz. Review (`2026-11-28-slice-betrieb-spans-nachweis-review`: 0 HIGH, 2 MEDIUM, 1 LOW) und Verifikation (`2026-11-28-slice-betrieb-spans-nachweis-verifikation`: bestanden, eine Auflage) liefen je einmal; die Fix-Runde (`ca5e191e`, nur Test und Plan) sah der Reviewer nicht, der Verifier maß sie gegen die Klassen F-1 bis F-3.
+
+**Auflage der Verifikation:** das Negativ *Nicht jeder Weg trägt jeden Ort* in §3 ist berichtigt: für 2 der 53 gefahrenen Stellen gibt es keinen anderen Weg, und 23 der 24 Wege tragen den Schlüssel im Pfad. Der Test zählt 24 Wege, deren Muster einen Schlüssel in Pfad oder Body tragen; diese Zahl und der Code sind unverändert. Die Zeilennummern und das Grün dort sind die Messung der Verifikation; der Planner hat allein gelesen, dass beide Zeilen `ODR-E6003` bilden.
+
+**Was geliefert ist:** `src/bootstrap/telemetrie_betrieb_test.go` mit zwei Testfunktionen; kein Produktcode, keine Änderung an Spezifikation, Gate oder Handbuch ([ADR-0001](../../adr/0001-implementierungssprache-go.md): keine neue Abhängigkeit).
+
+**Beleg des Kriteriums** von [welle-betrieb](../welle-betrieb.md) §3 (Record, Replay und Mock mit den Spans `SPEC-026` bis `SPEC-030` und den Zählern): `TestBetriebSpansUndZaehler` (`LH-QA-05`, `LH-QA-04`), von Review und Verifikation Teil für Teil gegen den Wortlaut gelesen. `TestBetriebFehlerwegeOhneWerte` gehört nicht zu diesem Beleg: er prüft die Senke auf den Fehlerwegen und keine Zähler.
+
+**Mutationen und Messungen:** Implementer 40 Mutationen, jede rot in 5 von 5 Läufen, und 13 zu den Fehlerwegen, jede rot in 3 von 3 (§3). Reviewer: unveränderter Test in 580 Läufen grün; Mutationen vor allem in den Diensten, 4 blieben grün (F-1). Verifier: D1 bis D8, C1 bis C3, E1 und B1 rot; B2 rot allein am Verwurf und kein Beleg zu BS6; an den 53 gefahrenen Stellen Query und Body 53 von 53 rot, Pfad 47 von 53 (4 ohne Schlüssel im Pfad, 2 aus der Auflage). Die 40 und die 13 Mutationen hat niemand einzeln wiederholt, die Raten mit Detektor niemand nachgemessen.
+
+**Laufzeit** (Implementer, ein Lauf, 4 CPU, Last 6,6 vor und 3,8 nach dem Lauf): `src/bootstrap` allein unter `go test -race -count=1` 422,4 s von 600 s. Die Vorprobe von [slice-ci-github-actions](../in-progress/slice-ci-github-actions.md) §3 (4 CPUs, 4 GB, alle Pakete in einem Aufruf, leerer Bau-Cache; Stand ohne die zwei Tests dieses Slice; beim Schreiben dieser Notiz nicht in `main`) misst für dasselbe Paket 519,6 s und nach der Übernahme von `main` 513,4 s. Die zwei Zahlenreihen sind nicht vergleichbar (ein Paket gegen alle zugleich).
+
+**Gate:** `make gates` grün am Stand `e065f5e3` nach dem Stempel (`gates-passed.head` und `gates-passed.diffsha`, vom Verifier gegengelesen, nicht neu gefahren; die Ausgabe des Laufs hat er nicht gesehen). Danach kamen allein die Verifikation und diese Closure (Dokumente). Planner im Zweig nach dem Schreiben der Closure und vor dem Move: `make docs-check` (1497 Dateien, 0 Befunde), `make zeichen-check` (ok, 2731 Dateien) und `make groessenmarke` (ok, Messung 842 von Marke 1200). Kein `make gates` und kein `make gegenproben` bei der Closure.
+
+**Größe** (`SPEC-128` Nr. 9): Ende `Messpunkt slice-betrieb-spans-nachweis.md: zeilen=11 nebenlaeufig=0 fakes=0 produktcode=0 schaetzung=880 marke=1200 messung=842`; von Hand: Produktcode 0 (erwartet 0), Tests 842. Handoff 328 (Stand `4347ffae`), Ende ÷ Handoff 2,57: 514 Zeilen kamen mit der Fix-Runde zu F-1. Auslastung 842 ÷ 1200 = 0,70, Ende ÷ *S* = 0,96: zwischen 0,45 und 1,00, **keine Meldung** an den Architect, kein Eintrag `ueberschreitung`.
+
+**Finding-Klassen des Reviews:** Fänger führt nur den Erfolgsweg, nicht den Fehlerweg · Negativ benennt die ungefangene Klasse zu eng · Abweichung vom Plan ohne Zeile in den Risiken.
+
+**Steering-Loop-Einträge:**
+
+1. **Neuer Sensor.** `TestBetriebSpansUndZaehler` und `TestBetriebFehlerwegeOhneWerte` laufen mit `make test` und `make test-race`: der erste wird rot, wenn in `record`, `replay` oder `mock` ein Span oder ein Pflicht-Attribut fehlt, ein weiteres Attribut dazukommt oder die Zähler von den Fehlerobjekten abweichen; beide werden rot, wenn ein gesuchter Wert in der Senke steht. Grenzen: die Negative in §3. Beim Schnitt der Welle hatte kein Slice diesen Beleg über die drei Modi als seinen; gefunden hat die Lücke die Vorbereitung der Closure (§1).
+2. **Die Tabelle des Planner führte die Menge ohne die Achse Weg.** BS6 bis BS8 sagten „steht in keiner Zeile der Senke“ je Modus zu und nannten Erfolg und Fehlerobjekt nicht als Achse (BS1 nannte sie); in `record` und `mock` trug allein eine erfolgreiche Anfrage einen Wert, vier Mutationen blieben grün (F-1). Die Regel steht (`AGENTS.md` §3.15: eine Menge nennt ihre Achsen, darunter den Weg zum Aufruf); gezählt, kein neuer Zielort. Evidenz zu `BEO-REPO/menge-ohne-ihre-positionen`.
+3. **Zwei Negative sagten über ihre Klasse etwas Falsches.** F-2: vier ungeführte Attributwerte fehlten in der Aufzählung; Auflage der Verifikation: „die Stelle fängt allein ein anderer Weg“ galt für 2 Stellen nicht, und die Zahl 24 galt nicht für den Pfad. Die Regel steht (`AGENTS.md` §3.15); gezählt. Evidenz zu `BEO-REPO/ein-negativ-benennt-die-ungefangene-klasse-zu-eng` und `BEO-REPO/menge-im-plan-weicht-vom-orakel-des-tests-ab`.
+4. **Eine Abweichung stand allein in §3** (F-3). Die Regel steht (`AGENTS.md` §3.13); gezählt. Evidenz zu `BEO-REPO/befund-an-rolle-ohne-artefakt`.
+
+**Keine benannte Spec-Lücke:** Review und Verifikation fanden keine.
+
+**Kein Zielort-Feld in diesem Slice:** nichts wurde in einer Regel verkörpert; eine Pflicht zur Anker-Paarung entsteht nicht.
+
+**Register** (Evidenz mit dem Closure-Commit im Zweig, kein Zähler gesetzt, er folgt aus den Dateien; kein neues Verzeichnis, kein Eintrag erreicht mit diesem Slice erstmals 3×): Evidenz `slice-betrieb-spans-nachweis` zu `BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze` (dazu `state.md`), `BEO-REPO/menge-ohne-ihre-positionen`, `BEO-REPO/ein-negativ-benennt-die-ungefangene-klasse-zu-eng`, `BEO-REPO/menge-im-plan-weicht-vom-orakel-des-tests-ab` und `BEO-REPO/befund-an-rolle-ohne-artefakt`. Nicht angefallen: `fix-deckt-die-genannte-mutation-nicht-die-klasse` (die Fix-Runde deckte die Klassen), `fixture-gleicht-dem-wert-der-mutation` (je Ort ein eigener Wert), `groessenmarke-ueberschritten-ohne-rueckfuehrung` und die zwei Beobachtungen zur Schätzformel (Auslastung 0,70).
+
+**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld, nichts zu paaren) · Folge-Slice (diese Notiz nennt keinen; kein Risiko ist eingetreten) · Register (die fünf genannten Verzeichnisse tragen `evidence/slice-betrieb-spans-nachweis.md`, die in §8 genannten ihr `evidence/`). Die Closure von `welle-betrieb` prüft die Paarungen erneut.
+
+**Gegenlesen** (`AGENTS.md` §3.18): dieser Plan, die Welle, die Roadmap und die Register-Dateien sind mit dem Edit- und Write-Werkzeug geschrieben; Rohbytes deckt `make zeichen-check`.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
