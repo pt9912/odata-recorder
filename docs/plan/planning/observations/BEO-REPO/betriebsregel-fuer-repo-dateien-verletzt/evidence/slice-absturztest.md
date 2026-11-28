@@ -1,0 +1,2 @@
+**Vorgang:** slice-absturztest
+**Fund:** Der Planner änderte in der Closure den Slice-Plan per `awk` in eine Datei im Scratchpad und `cp` zurück und schrieb Dateien des Registers per Heredoc mit relativer Umleitung; beides sperrte der Command-Guard nicht (`cp` steht in `SPEC-214` Nr. 11 als nicht gefangene Form). Erst ein `sed -i` wurde gesperrt; danach liefen die Änderungen über `Edit` und `Write`. Der Diff des Plans wurde auf entfernte Zeilen gelesen: nur die ersetzten Häkchen, Risikozeilen und der Platzhalter. Selbst gemeldet. Beleg: Plan §7 (*Abweichungen vom Plan*).

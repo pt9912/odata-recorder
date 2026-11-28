@@ -1,0 +1,2 @@
+**Vorgang:** slice-absturztest
+**Fund:** Das Review nannte zwei Zweige der Prüfung nach dem Neustart ohne eigenen Fänger (F-7); die Fix-Runde führte genau diese zwei als Negative. Die Verifikation fand einen dritten: der Fehler jedes `Restore` außer dem von `vor` lässt sich verschlucken, und alles bleibt grün (V-1, Mutation m10). Er steht seit der Closure als Negativ im Plan §3. Beleg: Report `2026-11-28-slice-absturztest-verifikation`.
