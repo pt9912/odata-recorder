@@ -60,13 +60,31 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 **Absturztest zu `LH-QA-03`** (Planner, 2026-11-28, Closure): [`slice-absturztest`](done/slice-absturztest.md) liegt in `done/` (ohne Welle; Beleg und Grenzen: §7 dort; der Merge nach `main` folgt im Integrationsschritt). Die Bedingung für M7 aus dem Absatz darüber ist damit für diesen Slice erfüllt; die Frage aus §6 dort zu den beim Prozessende ungeprüften Wegen ist entschieden (Architect): `LH-QA-03` verlangt keinen weiteren Haltepunkt, `SPEC-048` Nr. 5 nennt die Wege mit Grund, Folge und Maß; kein Folge-Slice.
 
-**Offen bis zur Closure der Welle** (Planner, 2026-11-27, nach [`slice-replay-speicher-und-suche`](done/slice-replay-speicher-und-suche.md); der Meilenstein M5 bleibt bis zur Closure der Welle offen):
+**Image und Neustarttest** (Planner, 2026-11-28, Closure): [`slice-container-image`](in-progress/slice-container-image.md), der letzte Slice der Slice-Liste (§4), liegt in `done/` (Beleg und Grenzen: §7 dort; der Merge nach `main` folgt im Integrationsschritt). Geliefert: Laufzeit-Image, `make test-image` als Gate (`make gates` am Stand `6453c3e4` grün, 1170 s), byte-gleiches Programm aus zwei Übersetzungen, Handbuch-Kapitel zum Image. **Die Welle ist nicht geschlossen.**
 
-- [`slice-container-image`](in-progress/slice-container-image.md) ist der letzte Slice der Welle, der nicht in `done/` liegt; an ihm hängen der Neustarttest und das Handbuch zum Image. Seit 2026-11-27 hängt er nicht mehr an `welle-dev-container` (§4); sein Vertrag liegt auf `main` (`SPEC-322`, `SPEC-323`, `082c560c`), sein Vorgänger in der Gate-Kette, [`slice-bootstrap-m6`](done/slice-bootstrap-m6.md), liegt in `done/` (auf `main` nach dem Merge seines Zweigs).
-- `make gates` und `make gegenproben` grün auf dem Stand der Closure.
-- Der Test über Record, Replay und Mock mit den Spans `SPEC-026` bis `SPEC-030` und den Zählern (§3) ist als Beleg noch nicht benannt: nicht geprüft; die Closure benennt ihn oder schneidet einen Slice.
-- Audit-Einträge, HTTPS-Test und Handbuch (§3) belegt die Closure am dann aktuellen Stand.
-- Die Closure selbst: `welle-betrieb-results.md` mit den Zahlen des Lasttests, Trigger-Audit (Carveout, Gate-Stufen, ADR), Lese-Schritt des Registers (darunter `BEO-REPO/test-fremden-pakets-flackert-unter-last` mit 3× und, wenn diese die nächste Welle-Closure ist, `BEO-REPO/teil-zusage-ohne-isolierende-mutation` mit 3×) und die drei Paarungen.
+**Stand der Closure-Trigger (§3) und was zur Closure fehlt** (Planner, 2026-11-28; der Meilenstein M5 bleibt bis dahin offen):
+
+| Kriterium oder Schritt | Stand | Was fehlt, Adresse |
+|---|---|---|
+| Alle Slices in `done/` | erfüllt mit dem Zweig `slice-container-image` | der Merge nach `main` (Integrationsschritt) |
+| `make gates` grün | zuletzt am Stand `6453c3e4` im Worktree | ein Lauf auf `main` am Stand der Closure |
+| `make gegenproben` grün | **nicht erfüllt**: `harness/gegenproben.stempel` seit dem 2026-11-19 nicht fortgeschrieben, an diesem Stand nicht gefahren; die Stufe war im Review unter eigener Last rot (`lint/*`) | Lauf auf ruhigem Host und Stempel (Integrationsschritt). **Offene Frage an den User:** [slice-gegenproben-eichung](open/slice-gegenproben-eichung.md) und die Entscheidung dort (§6) vorziehen, oder wie sonst mit einem roten Lauf umgehen |
+| Test über Record, Replay und Mock mit den Spans `SPEC-026` bis `SPEC-030` und den Zählern | **nicht benannt**, nicht geprüft | die Closure benennt ihn oder schneidet einen Slice |
+| Audit-Einträge der Löschungen und fehlgeschlagenen Importe (`LH-RB-04.a`) | nicht an diesem Stand zusammengestellt | die Closure benennt die Tests |
+| HTTPS-Test am OData-Listener | nicht an diesem Stand zusammengestellt | die Closure benennt die Tests |
+| Neustarttest grün und in der Gate-Kette | erfüllt (§7 von `slice-container-image`, mit Commit und Ausgabe) | – |
+| Lasttest | erfüllt (§3) | die Zahlen in die Closure-Notiz |
+| Handbuch deckt die Welle ab, Kataloge-Gate grün | Kapitel zum Image geliefert; Gate grün im Lauf auf `6453c3e4` | die Closure prüft die Abdeckung (TLS-Schlüssel, Image, Fehlercodes) |
+| `welle-betrieb-results.md` mit Steering-Loop-Einträgen | fehlt | Planner |
+| Trigger-Audit (Carveout, Gate-Stufen, ADR) | fehlt; [CO-001](../carveouts/done/CO-001-lasttest-replay-ohne-p95.md) ist aufgelöst; offen beim User steht §5, Punkt a (Laufzeit der Stufe `race`, Trigger von [ADR-0005](../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)) | Planner |
+| Lese-Schritt des Registers | fehlt; ab 3× ohne Ausgang am 2026-11-28: `gate-lauf-stufen-aus-dem-schicht-cache`, `nullprobe-grenze-unter-der-paketlaufzeit`, `allaussage-an-jeder-stelle-mit-faenger-an-erster-und-zweiter-stelle`, `ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit`, `sendung-nennt-nicht-alle-pflichten-des-vertrags`, `test-fremden-pakets-flackert-unter-last`, `paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`, `sperrfenster-zwischen-sammlungen-ohne-faenger`, `teil-zusage-ohne-isolierende-mutation`, `zusage-ueber-verzweigungen-reicher-als-die-funktionsliste`; dazu mit dem Vermerk „behoben“ statt eines der drei Ausgänge `sqlite-transaktionsvertrag-rot-unter-last` und `token-datei-wettlauf-fehlt-gegen-symlink-ohne-ziel` (alle unter `BEO-REPO/`) | Planner; Regeln und Entscheidungen an den User |
+| Archivierung (`make archive-welle WELLE=welle-betrieb`), Move der Welle-Datei, die drei Paarungen, Zeile in der Roadmap | fehlt | Planner |
+
+**Sendungen von [`slice-container-image`](in-progress/slice-container-image.md) an diese Closure** (`AGENTS.md` §3.13; vor der Closure zu erledigen):
+
+- Messung des Zeitbudgets nach `SPEC-211` Nr. 4: die fünf Container-Tests einzeln nacheinander bei Last nicht über der Kernzahl, mit dem Zuwachs nach geändertem Quelltext; bisher allein eine Rechnung (87 bis 121 s gegen den Trigger von 120 s, §3 dort). Liegt die Messung über 120 s, legt der Planner dem User die drei Wege vor. Adresse: Planner.
+- *Nicht behauptet* in `harness/README.md`: der Halbsatz zum Vergleich der zwei Programme nennt die Reichweite von `SPEC-323` Nr. 9 g (nicht über Hosts, Bau-Dienste, Kernzahlen, Plattformen, nicht aus leerem Cache). Adresse: Implementer, eigener Commit ohne Slice, nach dem Merge.
+- `make gegenproben` und Stempel (Zeile der Tabelle oben). Adresse: Planner, Integrationsschritt.
 
 ## 3. Closure-Trigger (Welle schließt)
 

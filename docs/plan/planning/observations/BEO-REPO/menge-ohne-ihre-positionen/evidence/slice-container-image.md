@@ -1,0 +1,2 @@
+**Vorgang:** slice-container-image
+**Fund:** Die Fänger des zweiten Signals führen die Menge der Signale (INT, HUP, TERM), aber nicht die Stelle im Aufräumen: alle drei treffen das erste Entfernen, 1 von 10 Schritten. Der Mutant, der den Abbruch vor dem Entfernen der Tags wieder scharf stellt, bleibt grün (Verifikation V-3, LOW). Beleg: Report `2026-11-28-slice-container-image-verifikation`, Plan §3.

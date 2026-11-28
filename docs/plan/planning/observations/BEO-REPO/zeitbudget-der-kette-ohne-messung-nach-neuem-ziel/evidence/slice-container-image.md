@@ -1,0 +1,2 @@
+**Vorgang:** slice-container-image
+**Fund:** Mit `make test-image` kam der fünfte Container-Test in die Kette. `SPEC-211` Nr. 4 verlangt die Summe der fünf Ziele; der Plan führte allein die Zeit des neuen Ziels, die Verifikation rechnete 90 bis höchstens 120 s gegen den Trigger von 120 s (V-1, LOW), die Closure mit einem weiteren Wert bis 121 s. Gemessen ist die Summe nicht; Adresse: Closure von `welle-betrieb`. Beleg: Report `2026-11-28-slice-container-image-verifikation`, Plan §3.
