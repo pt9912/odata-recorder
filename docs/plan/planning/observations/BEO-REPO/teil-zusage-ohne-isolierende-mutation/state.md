@@ -1,1 +1,1 @@
-**Stand:** offen; drei Belege unter `evidence/`, Schwelle 3x erreicht mit `slice-abnahme-belege`, kein Zielort und kein `geplant`. Adresse des Ausgangs: Lese-Schritt der nächsten Welle-Closure.
+**Stand:** offen; Schwelle 3x erreicht. Lese-Schritt der Closure von `welle-betrieb`: Vorschlag *verkörpern* in `.claude/agents/implementer.md`, Wortlaut in [welle-betrieb](../../../welle-betrieb.md) §7 (V4); die Antwort des Users steht aus. Zähler: die Dateien unter `evidence/`.

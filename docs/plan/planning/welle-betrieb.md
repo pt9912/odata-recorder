@@ -66,25 +66,22 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 | Kriterium oder Schritt | Stand | Was fehlt, Adresse |
 |---|---|---|
-| Alle Slices in `done/` | erfüllt mit dem Zweig `slice-container-image` | der Merge nach `main` (Integrationsschritt) |
-| `make gates` grün | zuletzt am Stand `6453c3e4` im Worktree | ein Lauf auf `main` am Stand der Closure |
-| `make gegenproben` grün | **nicht erfüllt**: `harness/gegenproben.stempel` seit dem 2026-11-19 nicht fortgeschrieben, an diesem Stand nicht gefahren; die Stufe war im Review unter eigener Last rot (`lint/*`) | Lauf auf ruhigem Host und Stempel (Integrationsschritt). **Offene Frage an den User:** [slice-gegenproben-eichung](open/slice-gegenproben-eichung.md) und die Entscheidung dort (§6) vorziehen, oder wie sonst mit einem roten Lauf umgehen |
-| Test über Record, Replay und Mock mit den Spans `SPEC-026` bis `SPEC-030` und den Zählern | **nicht benannt**, nicht geprüft | die Closure benennt ihn oder schneidet einen Slice |
-| Audit-Einträge der Löschungen und fehlgeschlagenen Importe (`LH-RB-04.a`) | nicht an diesem Stand zusammengestellt | die Closure benennt die Tests |
-| HTTPS-Test am OData-Listener | nicht an diesem Stand zusammengestellt | die Closure benennt die Tests |
+| Alle Slices in `done/` | **nicht erfüllt**: offen ist [slice-betrieb-spans-nachweis](open/slice-betrieb-spans-nachweis.md); die übrigen liegen in `done/` auf `main` | der Slice (oder Frage F1, §7) |
+| `make gates` grün | für den Stand der Closure nicht belegt | Lauf auf `main` am Stand der Closure (Orchestrator); Ausgabe in die Results-Notiz |
+| `make gegenproben` grün | **nicht erfüllt**: `harness/gegenproben.stempel` seit dem 2026-11-19 nicht fortgeschrieben; die Stufe war im Review von `slice-container-image` unter eigener Last rot (`lint/*`) | Lauf auf ruhigem Host und Stempel (Integrationsschritt); Frage F4, §7 |
+| Test über Record, Replay und Mock mit den Spans `SPEC-026` bis `SPEC-030` und den Zählern | **nicht erfüllt**: die Teile sind einzeln belegt (`src/bootstrap/telemetrie_*_test.go`), kein Test führt sie zusammen; für die Codes, die ein Client am OData-Listener in `record`, `replay` und `mock` erhält, liest kein Test den Zähler des echten Adapters | [slice-betrieb-spans-nachweis](open/slice-betrieb-spans-nachweis.md) |
+| Audit-Einträge der Löschungen und fehlgeschlagenen Importe ohne Geheimnisse (`LH-RB-04.a`) | benannt (gelesen; Lauf über `make gates`): `TestAuditEintraegeJeFall` (Session, Aufbewahrung in `record` und `replay`, Workspace in beiden, zwei fehlgeschlagene Importe, an der Datei `audit.jsonl`) und `TestAuditCanary` (kein Zugangswert, kein Fehlertext), `src/bootstrap/audit_betrieb_test.go` | der Gate-Lauf |
+| HTTPS-Test am OData-Listener | benannt (gelesen; Lauf über `make gates`), alle in `src/bootstrap/`: gültiges Zertifikat `TestHTTPSEndeZuEnde`; unbekannte CA `TestHTTPSClientFehler` (`x509.UnknownAuthorityError`); nur ein Schlüssel `TestKonfigListenTLSVerstoesse` (Ausgang 1, `ODR-E2001`) und `TestBuildTLSNurEinPfad` | der Gate-Lauf |
 | Neustarttest grün und in der Gate-Kette | erfüllt (§7 von `slice-container-image`, mit Commit und Ausgabe) | – |
-| Lasttest | erfüllt (§3) | die Zahlen in die Closure-Notiz |
-| Handbuch deckt die Welle ab, Kataloge-Gate grün | Kapitel zum Image geliefert; Gate grün im Lauf auf `6453c3e4` | die Closure prüft die Abdeckung (TLS-Schlüssel, Image, Fehlercodes) |
-| `welle-betrieb-results.md` mit Steering-Loop-Einträgen | fehlt | Planner |
-| Trigger-Audit (Carveout, Gate-Stufen, ADR) | fehlt; [CO-001](../carveouts/done/CO-001-lasttest-replay-ohne-p95.md) ist aufgelöst; offen beim User steht §5, Punkt a (Laufzeit der Stufe `race`, Trigger von [ADR-0005](../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)) | Planner |
-| Lese-Schritt des Registers | fehlt; ab 3× ohne Ausgang am 2026-11-28: `gate-lauf-stufen-aus-dem-schicht-cache`, `nullprobe-grenze-unter-der-paketlaufzeit`, `allaussage-an-jeder-stelle-mit-faenger-an-erster-und-zweiter-stelle`, `ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit`, `sendung-nennt-nicht-alle-pflichten-des-vertrags`, `test-fremden-pakets-flackert-unter-last`, `paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`, `sperrfenster-zwischen-sammlungen-ohne-faenger`, `teil-zusage-ohne-isolierende-mutation`, `zusage-ueber-verzweigungen-reicher-als-die-funktionsliste`; dazu mit dem Vermerk „behoben“ statt eines der drei Ausgänge `sqlite-transaktionsvertrag-rot-unter-last` und `token-datei-wettlauf-fehlt-gegen-symlink-ohne-ziel` (alle unter `BEO-REPO/`) | Planner; Regeln und Entscheidungen an den User |
-| Archivierung (`make archive-welle WELLE=welle-betrieb`), Move der Welle-Datei, die drei Paarungen, Zeile in der Roadmap | fehlt | Planner |
+| Lasttest | erfüllt (§3); Zahlen in §7 | – |
+| Handbuch deckt die Welle ab, Kataloge-Gate grün | die drei benannten Punkte sind gedeckt (gelesen): Schlüssel `LISTEN_TLS_CERT` und `LISTEN_TLS_KEY` (Kapitel *Einstellungen*, *TLS*), Kapitel *Container-Image*, Tabelle *Fehlercodes*; nicht beschrieben ist, welche Vorgänge `audit.jsonl` festhält | `make katalog-check` im Gate-Lauf; Frage F2, §7 |
+| Messung der fünf Container-Tests (`SPEC-211` Nr. 4; Sendung von `slice-container-image`) | nicht gemessen | Messvorschrift in §7 |
+| `welle-betrieb-results.md` mit Steering-Loop-Einträgen | Bausteine in §7; die Datei entsteht bei der Closure | Planner |
+| Trigger-Audit (Carveout, Gate-Stufen, ADR, Hard Rules) | durchgeführt (§7); offen sind die Fragen F1b, F7 und F8 | User |
+| Lese-Schritt des Registers und Bestand in `open/` | Ausgänge vergeben (§7); fünf Einträge warten auf den User (V1 bis V4, F3) | User |
+| Archivierung (`make archive-welle WELLE=welle-betrieb`), Move der Welle-Datei, die drei Paarungen, Zeile in der Roadmap | fehlt; vor der Archivierung nennen 84 Evidence-Dateien Review-Reports von Slices dieser Welle mit Dateinamen (`grep`, Stand 2026-11-28), die Vorprüfung sperrt dafür mit `[haenger]` | Planner |
 
-**Sendungen von [`slice-container-image`](done/slice-container-image.md) an diese Closure** (`AGENTS.md` §3.13; vor der Closure zu erledigen):
-
-- Messung des Zeitbudgets nach `SPEC-211` Nr. 4: die fünf Container-Tests einzeln nacheinander bei Last nicht über der Kernzahl, mit dem Zuwachs nach geändertem Quelltext; bisher allein eine Rechnung (87 bis 121 s gegen den Trigger von 120 s, §3 dort). Liegt die Messung über 120 s, legt der Planner dem User die drei Wege vor. Adresse: Planner.
-- *Nicht behauptet* in `harness/README.md`: der Halbsatz zum Vergleich der zwei Programme nennt die Reichweite von `SPEC-323` Nr. 9 g (nicht über Hosts, Bau-Dienste, Kernzahlen, Plattformen, nicht aus leerem Cache). Adresse: Implementer, eigener Commit ohne Slice, nach dem Merge.
-- `make gegenproben` und Stempel (Zeile der Tabelle oben). Adresse: Planner, Integrationsschritt.
+**Sendungen von [`slice-container-image`](done/slice-container-image.md) an diese Closure** (`AGENTS.md` §3.13): die Messung nach `SPEC-211` Nr. 4 und `make gegenproben` mit Stempel stehen als Zeilen der Tabelle offen; der Halbsatz unter *Nicht behauptet* in `harness/README.md` zur Reichweite des Programm-Vergleichs ist nachgezogen (`5b0591c7`).
 
 ## 3. Closure-Trigger (Welle schließt)
 
@@ -131,6 +128,7 @@ Lifecycle-Verzeichnis und wird hier **nicht** gespiegelt.
 | [slice-lasttest-auswertung](done/slice-lasttest-auswertung.md) | Lasttest, Teil 2: Leser der Span-Zeilen, Phasen, p95, Anteil, Last-Proben, Urteil, Exit und Ausgabe (nach Teil 1) | `LH-QA-01`; `LH-QA-01.a`, `SPEC-026`, `SPEC-231` |
 | [slice-lasttest](done/slice-lasttest.md) | Lasttest nach `LH-QA-01.a` mit Messpunkt am Gesamtspan für Replay und Mock, Teil 3: Takt, Prozess des Binary, Treiber, Gegenproben (nach Teil 2; trägt die Kennung des ungeteilten Slice) | `LH-QA-01`; `LH-QA-01.a`, `SPEC-026` |
 | [slice-replay-speicher-und-suche](done/slice-replay-speicher-und-suche.md) | Replay unter `LH-QA-01.a` messbar machen: Ursache des Speicherverbrauchs messen, Suche nach dem Match-Key, erneuter Abnahmelauf ([CO-001](../carveouts/done/CO-001-lasttest-replay-ohne-p95.md); nach [`slice-lasttest`](done/slice-lasttest.md)) | `LH-QA-01`; `LH-QA-01.a`, `SPEC-135`, `SPEC-105` |
+| [slice-betrieb-spans-nachweis](open/slice-betrieb-spans-nachweis.md) | Ein Test über Record, Replay und Mock mit den fünf Spans und den Zählern je Fehlercode (Kriterium in §3; nur Test) | `LH-QA-05`, `LH-QA-04`, `LH-FA-01`; `SPEC-026` bis `SPEC-030`, `SPEC-230` |
 
 Der Zustand eines Slice ist das Verzeichnis, in dem seine Datei liegt; die Links der Tabelle nennen es. Die Pläne tragen ihre Start-Trigger mit Abhängigkeiten, und `plan-welle` gleicht sie beim Start gegen den Ist-Stand ab. Marken und Betriebsregeln setzt der Planner beim Start (`SPEC-128`).
 
@@ -223,3 +221,74 @@ nicht vom Schreibort.
 
 Ergebnis: `welle-betrieb-results.md` (Geschwister im Ruheort `done/`).
 Zähler: das Beobachtungs-Register eine Ebene über dem Ruheort (das Verzeichnis observations/).
+
+**Bausteine der Results-Notiz** (Planner, 2026-11-28, Stand `32ce4b11`; die Welle ist nicht geschlossen). Sie gehen bei der Closure in die Notiz ein.
+
+**Geliefert:** strukturierte Logs, Metriken, die Spans `SPEC-026` bis `SPEC-030` und des Hybrid-Fallbacks mit Zählern je Fehlercode; Audit-Log für Löschungen und fehlgeschlagene Importe (`LH-RB-04`); TLS am OData-Listener (`LH-RB-02`); Laufzeit-Image mit Neustarttest und byte-gleichem Programm als Gate `make test-image` (`LH-QA-06`, `LH-RB-03`); Lasttest `make lasttest` und die Replay-Suche über den Match-Key (`LH-QA-01`).
+
+**Was anders lief:** Der Lasttest zeigte erst in der Abnahmegröße, dass Replay ausfiel ([CO-001](../carveouts/done/CO-001-lasttest-replay-ohne-p95.md)): der Dienst las je Anfrage die ganze Session; das kleine Profil war grün. Behoben mit [`slice-replay-speicher-und-suche`](done/slice-replay-speicher-und-suche.md). Mehrere Slices der Welle sind vor dem Code geschnitten worden (§2). Für die Messmethode von `LH-QA-06` ersetzt ein Lauf über `make` die CI (Lastenheft 0.9.0).
+
+**Lasttest** (ein Aufruf `abnahme` auf `9c3f5f10`, 2026-11-27, Messender Verifier; Host mit 20 Kernen, Last 3,39 vor und 3,89 nach dem Lauf; 10000 Exchanges und 10000 Entities; Quelle [`slice-replay-speicher-und-suche`](done/slice-replay-speicher-und-suche.md) §7):
+
+| Betriebsart | p95 des Gesamtspans, Läufe 1 und 2 | Urteilswert | Fehler | Ziel 100 ms |
+|---|---|---|---|---|
+| `replay` | 10,613 ms und 10,399 ms | 10,613 ms | 0 und 0 von je 13200 | darunter |
+| `mock` | 31,509 ms und 32,648 ms | 32,648 ms | 0 und 0 von je 13200 | darunter |
+
+Die Zahlen gelten für `9c3f5f10`; `src/` hat sich danach geändert, ein neuer Aufruf ist kein Kriterium der Welle. Die Bedingung der Auflösung von [CO-001](../carveouts/done/CO-001-lasttest-replay-ohne-p95.md) ist geprüft: `git diff 9c3f5f10 ce6736cb -- src tests` ist leer.
+
+**Trigger-Audit** (Planner, 2026-11-28):
+
+- *Carveouts:* 0 offen (nur [CO-001](../carveouts/done/CO-001-lasttest-replay-ohne-p95.md), aufgelöst).
+- *Bootstrap-aware Gates:* kein Gate trägt eine Reifestufe; 0 offen.
+- *Hard Rules:* keine trägt einen Auflösungs-Trigger; 0 offen. In `.claude/commands/close-welle.md` ist der Trigger des Absatzes *Pflichtlauf neben der Gate-Kette* eingetreten (F7).
+- *ADRs*, je Re-Evaluierungs-Trigger:
+  - [ADR-0001](../adr/0001-implementierungssprache-go.md), [ADR-0002](../adr/0002-architektur-gate-a-check.md), [ADR-0003](../adr/0003-lint-profil-golangci.md), [ADR-0004](../adr/0004-vertraege-der-harness-werkzeuge-im-ordner-harness.md): nicht eingetreten (Codec in Go vorhanden, `a-check` und das Lint-Profil tragen, Baseline-Stand unverändert); ob ein Schwesterprojekt Sprache oder Profil wechselte, ist von hier nicht geprüft.
+  - [ADR-0005](../adr/0005-gegenproben-ausserhalb-der-gate-kette.md): der Trigger (Lauf der Gegenproben über 30 s) ist früher eingetreten und mit [ADR-0013](../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md) beantwortet; zur Frage aus §5 siehe F1b.
+  - [ADR-0006](../adr/0006-sqlite-bibliothek-ohne-native-abhaengigkeit.md): nicht eingetreten; der Ausfall im Lasttest lag im Dienst, nicht in der Bibliothek, und p95 liegt unter dem Ziel.
+  - [ADR-0007](../adr/0007-race-detektor-im-gate.md): nicht eingetreten, nahe: `src/bootstrap` 415,9 s von 600 s (F3).
+  - [ADR-0008](../adr/0008-blob-bereinigung-im-betrieb-waechter-und-zurueckstellen.md): nicht eingetreten.
+  - [ADR-0009](../adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md): `Proposed` (F8); nicht eingetreten: `make groessenmarke` lief in 2,8 s (2026-11-28, Last 9,7, Image im Cache; Grenze 10 s); ein zweimaliges Rot ohne Fehler in einem Slice ist nicht erschöpfend gesucht.
+  - [ADR-0010](../adr/0010-groesse-der-guide-dateien-als-gate.md): nicht eingetreten; die letzte Verschiebung (2026-11-20) senkte die Summe.
+  - [ADR-0011](../adr/0011-versionierter-adapter-fuer-odata-v2.md), [ADR-0012](../adr/0012-pruefpakete-unter-tests-als-eigene-schicht-des-architektur-gates.md): nicht eingetreten.
+  - [ADR-0013](../adr/0013-zeitbudget-der-gegenproben-als-soll-mit-messvorschrift.md): nicht eingetreten; seit der ADR gibt es keine drei gültigen Läufe über 120 s.
+  - [ADR-0030](../adr/0030-eingecheckte-gate-staempel-mit-voller-gegenprobe.md): `Proposed`, nicht in Kraft. [ADR-0031](../adr/0031-arbeitscontainer-mit-eigenem-daemon-privilegiert-unter-festen-limits.md), [ADR-0032](../adr/0032-schluesselverwaltung-des-arbeitscontainers.md): der Container ist nicht gebaut, nichts zu bewerten.
+
+**Lese-Schritt des Registers** (alle unter `BEO-REPO/`; je Eintrag ab 3×, der keinen der drei Ausgänge trug; der Stand steht in seiner `state.md`):
+
+| Eintrag | Ausgang |
+|---|---|
+| `nullprobe-grenze-unter-der-paketlaufzeit` | geplant: [slice-mutationslauf-modulwurzel](open/slice-mutationslauf-modulwurzel.md) |
+| `test-fremden-pakets-flackert-unter-last` | geplant: [slice-test-flackern](open/slice-test-flackern.md) |
+| `allaussage-an-jeder-stelle-mit-faenger-an-erster-und-zweiter-stelle` | verkörpert: `AGENTS.md` §3.15, keine neue Regel |
+| `sperrfenster-zwischen-sammlungen-ohne-faenger` | verkörpert: `AGENTS.md` §3.10, keine neue Regel |
+| `zusage-ueber-verzweigungen-reicher-als-die-funktionsliste` | verkörpert: Reviewer-Skill (§3.11), keine neue Regel |
+| `sqlite-transaktionsvertrag-rot-unter-last` | gestrichen: Ursache behoben, Rückfall gefangen |
+| `token-datei-wettlauf-fehlt-gegen-symlink-ohne-ziel` | gestrichen: Ursache behoben, Rückfall gefangen |
+| `gate-lauf-stufen-aus-dem-schicht-cache` | wartet auf V1 |
+| `ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit` | wartet auf V2 |
+| `sendung-nennt-nicht-alle-pflichten-des-vertrags` | wartet auf V3 |
+| `teil-zusage-ohne-isolierende-mutation` | wartet auf V4 |
+| `paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze` | wartet auf F3 |
+
+**Vorschläge an den User** (nicht verkörpert; Ziel-Dateien haben Platz unter ihren Größengrenzen; nach dem Ja trägt jede Regel `seit welle-betrieb`, und die Results-Notiz führt sie unter *Steering-Loop-Einträge* mit `liegt in`):
+
+- V1, `.claude/agents/verifier.md` und Schritt 1 von `.claude/commands/close-welle.md`: „Ein grünes `make gates` belegt Tests nur für Stufen, die frisch liefen. Der Report nennt die Stufen aus dem Cache (`CACHED`); ändert der Slice Code oder Tests, laufen `test` und `race` mit `--no-cache-filter` nach.“
+- V2, `.claude/commands/plan-welle.md`: „Ändert ein Slice eine Ausgabe oder ein Verhalten des Prozesses, sucht der Plan vor dem Block der Größenmarke deren Leser (`grep` nach den Suchtermen unter `tests/`, `src/`, `harness/vertraege/`) und nennt sie in Block und Plan.“
+- V3, `.claude/commands/plan-welle.md`: „Eine Sendung an den Nehmer nennt jede Nummer des Vertrags, die dem Aufrufer eine Pflicht auferlegt, und wird gegen den Vertrag gebildet, nicht aus der Erinnerung.“
+- V4, `.claude/agents/implementer.md`: „Hat eine Zusage Teile, führt je Teil eine Fixture allein diesen Teil, und die Mutation je Teil wird für sich rot.“
+
+**Bestand in `open/`** (Slices, die die Closure von `welle-hybrid` unverändert überstanden haben; Modul 6): bestätigt, je mit Grund: [slice-coverage-gate](open/slice-coverage-gate.md) (Träger eines Register-Ausgangs), [slice-dev-container-dokument](open/slice-dev-container-dokument.md) und [slice-dev-container-einlieferung](open/slice-dev-container-einlieferung.md) (Werkzeug-Welle, vom User als spätere Welle behalten), [slice-handbuch-etag-zeile](open/slice-handbuch-etag-zeile.md) (die Zeile weicht weiter ab), [slice-mutationslauf-modulwurzel](open/slice-mutationslauf-modulwurzel.md) (trägt jetzt zusätzlich die Zeitgrenze). Keiner konsolidiert, keiner entfallen.
+
+**Messung nach `SPEC-211` Nr. 4** (noch nicht gefahren; für den Orchestrator oder eine Rolle ohne parallele Läufe): in einem Klon von `main` außerhalb des Repos `make build`; eine Kommentarzeile an eine `.go`-Datei unter `src/` anhängen und `make build` erneut (Quelle und Stufe `build` im Cache); dann einzeln nacheinander `make test-integration`, `make test-determinism`, `make test-contract`, `make test-security`, `make test-image`, je mit Wanduhr (`date +%s%3N` davor und danach) und `/proc/loadavg` davor. Gültig ist ein Lauf mit Load Average (1 Minute) beim Start nicht über der Kernzahl (`nproc --all`, hier 20). Zuwachs ist die Summe der fünf Zeiten. Über 120 s legt der Planner dem User die drei Wege vor (Beschleunigung, neue Zahl mit Messung, Herausnahme eines Ziels per ADR).
+
+**Fragen an den User** (jede mit Empfehlung):
+
+- F1: Das Kriterium „ein Test durchläuft Record, Replay und Mock“ (§3) ist ohne neuen Test nicht erfüllt. Empfehlung: [slice-betrieb-spans-nachweis](open/slice-betrieb-spans-nachweis.md) fahren (nur Test); die Alternative wäre, das Kriterium auf die vorhandenen Einzeltests zu ändern.
+- F1b (§5, Punkt a, wörtlich dort): „die Zusatzzeit der Stufe `race` durch die Tests des Handlers (Paket 60,4 s bei Last 25, rund 52 s im Gesamtlauf der Abdeckung) und der Spans (Paket +6,7 s ohne und +35,8 s mit Detektor, Paket 14,0 s und 73,9 s) und damit der Trigger von [ADR-0005](../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)“. In Alltagssprache: Die Tests der Telemetrie haben den Lauf mit dem Race-Detektor verlängert; löst das eine Überprüfung der Entscheidung aus, die Gegenproben außerhalb von `make gates` zu halten? Empfehlung: nein, als erledigt schließen. [ADR-0005](../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) misst die Laufzeit der Gegenproben, nicht die der Stufe `race`; für `race` wacht [ADR-0007](../adr/0007-race-detektor-im-gate.md) (10 Minuten je Paket).
+- F2: Gehört zum Kriterium „das Handbuch deckt alles ab“ auch eine Beschreibung, welche Vorgänge `audit.jsonl` festhält? Empfehlung: nein, die drei in §3 genannten Punkte genügen; die Beschreibung braucht nach `SPEC-200` Nr. 1 zuerst einen Vertrag, der ein Kapitel verlangt, und wäre ein eigener Auftrag an `welle-benutzerhandbuch`.
+- F3: Slice vor der Erstabnahme wegen der Paketlaufzeit von `src/bootstrap` unter dem Detektor? Empfehlung: nein; der Gate-Lauf wird an der Grenze rot (nicht still), und ab 500 s schneidet der Planner einen Slice.
+- F4: `make gegenproben` ist offen. Empfehlung: einmal auf ruhigem Host fahren (alle anderen schweren Läufe pausiert). Wird er wieder allein durch `lint/*` mit `Zeit überschritten` rot, [slice-gegenproben-eichung](open/slice-gegenproben-eichung.md) vorziehen und dort die Zahl gleichzeitiger `lint`-Fälle begrenzen, statt Frist oder Soll anzuheben.
+- V1 bis V4 oben: Empfehlung ja.
+- F7: Den Absatz *Pflichtlauf neben der Gate-Kette* in `.claude/commands/close-welle.md` streichen? Empfehlung: ja; die drei Läufe sind Teil von `make gates` (`SPEC-211`).
+- F8: [ADR-0009](../adr/0009-groessenmarke-als-gate-mit-messung-durch-den-host.md) annehmen? Empfehlung: ja; das Gate ist seit mehreren Wellen in Kraft.
