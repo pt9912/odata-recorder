@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-tls-betrieb
+**Fund:** Drei Zeilen der Tabelle *Zusage · Fänger* sagen anderes als die Tests. AT16 nennt als roten Befund der Mutation „`Schliessen` wartet“ `ErrFristAbgelaufen`; gemessen ist `nil` nach rund 4 s, rot an der Dauer (Review F-6, Verifikation). AT12 nennt weder Query und Body der `Anfrage` noch die Zuordnung 404 und 405, AT17 nicht „meldet nichts“; die Tests führen beides. Die Zeilen sind nicht umgeschrieben, der Wortlaut liegt beim Architect. Beleg: Plan §3 und §6, Reports `2026-11-28-slice-admin-tls-betrieb-review` und `-verifikation`.
