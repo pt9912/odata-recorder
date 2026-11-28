@@ -886,6 +886,8 @@ Die Abbildung ordnet den Fehlern der Outbound Ports (`SPEC-105` bis `SPEC-108`, 
    | `ErrKompatibilitaet` (Modell; der Fehler `*KompatFehler` der Leser und des Mock für einen V2-Service, `SPEC-174` Nr. 1) | jeder → `ODR-E6006` |
    | `ErrEingabeUngueltig` (Modell; der Fehler `*EingabeFehler` der Klasse `ungueltig`, `SPEC-180` Nr. 3) | jeder → `ODR-E6007` |
    | `ErrEingabeNichtUnterstuetzt` (Modell; der Fehler `*EingabeFehler` der Klasse `nicht_unterstuetzt`, `SPEC-180` Nr. 3) | jeder → `ODR-E6002` |
+   | `ErrBatchUngueltig` (Modell; der Fehler `*BatchFehler` der Klasse `ungueltig`, `SPEC-182` Nr. 4) | jeder → `ODR-E6007` |
+   | `ErrBatchNichtUnterstuetzt` (Modell; der Fehler `*BatchFehler` der Klasse `nicht_unterstuetzt`, `SPEC-182` Nr. 4) | jeder → `ODR-E6001` |
    | `ErrUngueltigeSequenz`, `ErrAbgeschlossen`, `ErrRevisionVeraltet` | jeder → `ODR-E9001` |
    | jeder andere Fehler | jeder → `ODR-E9001` |
 
@@ -4714,6 +4716,178 @@ Ungeprüft bleibt:
 - ein Typ ohne wirksamen Schlüssel (Nr. 7 b): `Schluessel` bleibt leer; ein gültiges CSDL gibt jedem nicht abstrakten Typ einen Schlüssel (`SPEC-125` Nr. 9 g).
 - die Laufzeit ohne Zuteilung: eine Schleife über eine Schleife, die nichts zuteilt, fängt der Wächter von Nr. 2 c (ii) nicht. Grund: die Länge ist durch `grenze` begrenzt und der Leser liest jedes Byte in einer festen Zahl von Durchläufen. Folge: eine solche Regression bliebe bei grünen Gates unbemerkt; das Review des Diffs fängt sie.
 
+### SPEC-182 — `$batch` lesen: Vertrag von `ODataBatch`
+
+`ODataBatch` (Outbound Port, `ARC-004`) überführt den Body eines `POST /$batch` an den Mock-OData-Dienst eines Service der Version `4.0` in eine Folge von Teilen (`LH-FA-16`, `LH-FA-16.a`, `LH-RB-01`); der Driven Adapter `batchcodec` (`ARC-011`, Paket `src/adapters/driven/odata/batchcodec`) setzt ihn um.
+Er liest Bytes und entscheidet nichts über Zustand, Methode, Ziel oder Body der Einzelrequests: das Format steht in `SPEC-183`, die Prüfung der Struktur (Methoden, Wiederholung der `Content-ID`, Verweise) ist die reine Funktion `model.PruefeBatch` (`SPEC-184`).
+Er legt nichts fest zur Ausführung, zur Antwort des Batch, zur Route und zu den Präferenzen des Hüllen-Requests.
+Der Leser importiert Domain, Ports und die Standardbibliothek, keinen anderen Adapter und weder `mime/multipart` noch `net/http` noch `net/textproto`; kein Typ einer Bibliothek steht in einer Signatur.
+
+**Entscheidung** (eigener Leser): *Alternative:* `mime/multipart` für die Hülle und `net/http.ReadRequest` für die Einzelrequests. *Verworfen:* beide entscheiden still, was dieser Vertrag zusagt (Zeilenenden ohne CR, Dekodieren von `quoted-printable`, Zusammenführen gefalteter Kopfzeilen, eigene Grenzen), und `ReadRequest` verlangt ein Ziel, das mit `/` beginnt oder absolut ist, während OData-Clients `GET Products HTTP/1.1` senden. Eine Fremdbibliothek kommt nicht hinzu. *Folge im Betrieb:* Rahmen und Kopfzeilen sind eigener Code mit eigenen Fängern; ein Client sieht nur die Toleranzen, die `SPEC-183` nennt.
+
+```text
+ODataBatch.LeseBatch(ctx context.Context, src io.Reader, contentType []string, grenze int64) (model.Batch, error)
+model.Batch{Teile []BatchTeil}
+model.BatchTeil{Changeset bool; Requests []BatchRequest}
+model.BatchRequest{ContentID, Methode, Ziel string; Header []BatchKopf; Body []byte}
+model.BatchKopf{Name, Wert string}
+model.BatchFehler{Ursache BatchUrsache; Ort string}        (Error(), Code(), Unwrap())
+model.ErrBatchUngueltig, model.ErrBatchNichtUnterstuetzt
+model.AlleBatchUrsachen() []BatchUrsache
+batchcodec.NewLeser() *Leser                                 (der Leser hat kein Feld)
+```
+
+`src` ist der Body des Hüllen-Requests, `contentType` sind die Werte seiner Kopfzeilen `Content-Type` (ein Element je Kopfzeile in ihrer Reihenfolge; `nil` und leer: keine Kopfzeile), `grenze` ist die Obergrenze der Bytes von `src`; der Aufrufer übergibt `MAX_CAPTURE_BODY` (Nr. 7).
+
+1. **Argumente und Kontext.** `src` wird bis zur Prüfung des Hüllen-`Content-Type` nicht gelesen. (a) **Programmfehler des Aufrufers:** `ctx` nil, `src` nil oder `grenze` kleiner als `1`: `model.ErrUngueltig` ohne `BatchFehler` und ohne Code; welcher von mehreren Verstößen gemeldet wird, ist nicht zugesagt. Ein fehlender Body ist kein Programmfehler: der Aufrufer übergibt einen Strom ohne Byte. `contentType` kennt keinen Programmfehler. (b) `ctx` beendet: der Fehler des Kontexts unverändert (`==`), ohne Code (`SPEC-109` Nr. 6); (a) geht (b) voraus. (c) Der Hüllen-`Content-Type` (`SPEC-183` Nr. 1). Danach prüft der Leser den Kontext vor jedem Lesen aus `src` und einmal nach dem letzten Lesen vor dem Zerlegen und endet bei einem Abbruch in diesen Lücken mit dem Fehler des Kontexts, unverändert und ohne Code; das Zerlegen prüft den Kontext nicht (*Ungeprüft*).
+2. **Strom und Größe.** Für `src` gilt `SPEC-126` Nr. 2: gelesen wird bis `io.EOF`, aber kein `Read` fordert mehr an, als `grenze + 1` abzüglich der bis dahin gelieferten Bytes zulassen, genutzt wird allein `Read` (nie `Close`), Ergebnis und Fehler hängen nicht von der Zerlegung in Reads ab, und ein anderer Fehler als `io.EOF` beendet den Aufruf: er trägt keinen `BatchFehler` und keinen Code des Lesers und bleibt über `errors.Is` erreichbar. Das Byte `grenze + 1` ist `zu_gross`; es geht dem Fehler von `src` aus demselben `Read` vor. `grenze` gleich `math.MaxInt64` ist gültig. Zerlegt wird erst nach dem ganzen Strom: kein Verstoß des Inhalts wird gemeldet, solange `zu_gross` oder ein Fehler von `src` möglich ist.
+3. **Ergebnis.** `Teile` hat je Teil der Hülle einen Eintrag in der Reihenfolge des Bodys. Ein Teil ohne Changeset hat `Changeset` falsch und genau einen Request; ein Changeset hat `Changeset` wahr und seine Requests in der Reihenfolge des Bodys, auch keinen. Ein leerer Batch (`SPEC-183` Nr. 2) ergibt leere `Teile`. `Teile`, `Requests` und `Header` sind bei Erfolg nie `nil`; `Body` ist `nil`, wenn der Request keinen Body-Byte trägt. `Methode`, `Ziel`, `ContentID`, `Header` und `Body` stehen, wie `SPEC-183` Nr. 4 und 6 sie lesen; `ContentID` ist `""`, wenn der Teil keine trägt. Bei jedem Fehler ist das Ergebnis der Nullwert (`Teile` ist `nil`): ein Teilergebnis wäre von einem gültigen Batch nicht zu unterscheiden (`LH-FA-16`, Negative).
+4. **Fehler.** Jeder Verstoß gegen `contentType` oder den Inhalt von `src` ist ein `*model.BatchFehler` und kein anderer Fehler (Ausnahmen: der Kontext, der Fehler von `src`). `Ursache` ist genau eine der folgenden; die vier letzten Zeilen meldet allein `PruefeBatch` (`SPEC-184`):
+
+   | Ursache | Klasse | Meldet | Verstoß |
+   |---|---|---|---|
+   | `content_type` | `ungueltig` | Leser | `Content-Type` der Hülle oder eines Teils |
+   | `boundary` | `ungueltig` | Leser | Grenzzeichenfolge der Hülle oder eines Changeset |
+   | `zu_gross` | `ungueltig` | Leser | Body über `grenze` |
+   | `zu_viele` | `ungueltig` | Leser | Zahl der Teile oder der Kopfzeilen (`SPEC-183` Nr. 7) |
+   | `rahmen` | `ungueltig` | Leser | schließende Grenzzeile fehlt |
+   | `kopfzeile` | `ungueltig` | Leser | Form einer Kopfzeile, doppelte Kopfzeile eines Teils |
+   | `content_id` | `ungueltig` | Leser | Form der `Content-ID` |
+   | `anfragezeile` | `ungueltig` | Leser | Anfragezeile fehlt oder hat nicht die Form |
+   | `format` | `nicht_unterstuetzt` | Leser | JSON-Batch |
+   | `teil_typ` | `nicht_unterstuetzt` | Leser | Medientyp eines Teils |
+   | `verschachtelt` | `nicht_unterstuetzt` | Leser | Changeset im Changeset |
+   | `transfer_kodierung` | `nicht_unterstuetzt` | Leser | Transfer-Kodierung eines Teils oder Requests |
+   | `methode` | `ungueltig` | Prüfung | `GET` in einem Changeset |
+   | `content_id_doppelt` | `ungueltig` | Prüfung | `Content-ID` zweimal im selben Changeset |
+   | `referenz` | `ungueltig` | Prüfung | Verweis ohne früheren Request des Changeset |
+   | `methode_nicht_unterstuetzt` | `nicht_unterstuetzt` | Prüfung | andere Methode |
+
+   - **Klasse `ungueltig`:** `errors.Is(err, model.ErrBatchUngueltig)`, `Code()` `ODR-E6007`, HTTP 400, Zielbereich `mock`.
+   - **Klasse `nicht_unterstuetzt`:** `errors.Is(err, model.ErrBatchNichtUnterstuetzt)`, `Code()` `ODR-E6001`, HTTP 501 (`SPEC-022`).
+   - Der Fehler ist nie beides; `errors.Is` trifft genau den Sentinel seiner Klasse. Die Zeilen von `SPEC-109` Nr. 5 für beide Sentinel stehen dort. Es gibt keinen neuen Code.
+   - `Ort` ist ein Teilpfad aus 1-basierten Dezimalzahlen: `""` für die Hülle (ihr `Content-Type`, `zu_gross`, ihr Rahmen, ihre Zahl der Teile), `3` für den dritten Teil, `3/2` für den zweiten Teil im Changeset an dritter Stelle. Rahmen, Grenzzeichenfolge und Zahl der Teile eines Changeset haben den Ort des Changeset.
+   - `Error()` ist `ODR-E6007: Batch ungültig: <Ursache>` bzw. `ODR-E6001: Batch nicht unterstützt: <Ursache>`, bei nichtleerem `Ort` gefolgt von einem Leerzeichen und ihm. Kein Byte der Eingabe steht in `Error()` oder `Ort`.
+   - **Entscheidung** (Ort ohne Zeilennummer): *Alternative:* zusätzlich die Zeile im Body. *Verworfen:* der Teilpfad benennt den Request, dessen Kopfzeilen auf 100 begrenzt sind, und der Ort erreicht den Client nie (`SPEC-109` Nr. 3). *Folge im Betrieb:* wer das Log liest, sucht die Zeile im genannten Teil selbst.
+5. **Rangfolge.** Entschieden ist, was der Ablauf zuerst trifft, ohne Vorrang einer Klasse:
+   - (a) Programmfehler, (b) Kontext, (c) Hüllen-`Content-Type` (`SPEC-183` Nr. 1), (d) Lesen des Stroms (Nr. 2), (e) Kontext nach dem letzten Lesen.
+   - (f) Je Ebene (Hülle, Changeset) zuerst der Rahmen (`rahmen`), dann die Zahl der Teile (`zu_viele`), dann die Teile in der Reihenfolge des Bodys; ein Changeset wird vollständig gelesen, bevor der nächste Teil der Hülle beginnt.
+   - (g) In einem Teil: die Kopfzeilen des Teils Zeile für Zeile (je Zeile zuerst `zu_viele`, dann Form, dann Wiederholung), `Content-Type` des Teils, `Content-Transfer-Encoding`; bei einem Request dann `Content-ID`, Anfragezeile, Kopfzeilen des Requests Zeile für Zeile, `Transfer-Encoding`; bei einem Changeset dann `boundary` und die Ebene nach (f).
+   - (h) Jeder Verstoß des Lesers geht jedem von `PruefeBatch` vor.
+6. **Wiederholung, Eigentum, Nebenläufigkeit, Speicher.** Gleiche Bytes und gleicher Aufruf ergeben gleiche Werte und den gleichen Fehler. Der Leser hat keinen Zustand zwischen Aufrufen; Variablen des Pakets sind nach der Initialisierung unveränderlich; gleichzeitige Aufrufe auf einer Instanz und auf mehreren sind erlaubt und beeinflussen sich nicht. Das Ergebnis gehört dem Aufrufer: eine Änderung, auch ein `append` an einen `Body`, `Header` oder `Requests`, ändert keinen anderen Wert desselben Ergebnisses und kein anderes Ergebnis. Die Gesamtzuteilung eines Aufrufs (`runtime.MemStats.TotalAlloc`, Differenz) ist höchstens 256 · *n* + 1 MiB Bytes, *n* die Zahl der aus `src` erhaltenen Bytes, für jede Bytefolge bis zur Grenze. Ergibt die Messung des Implementers mehr, hält er an und gibt die Zahl an den Architect zurück.
+7. **Aufrufer, Grenze, Reihenfolge.** Der Aufrufer ist der Dienst, der `$batch` ausführt. Er übergibt als `ctx` den Kontext des Hüllen-Requests, als `src` dessen Body (ungelesen, ohne Body ein Strom ohne Byte), als `contentType` alle seine Kopfzeilen `Content-Type` und als `grenze` `MAX_CAPTURE_BODY` (`SPEC-013`). Er ruft nach `LeseBatch` `model.PruefeBatch` und führt **erst dann** den ersten Request aus: bei einem Fehler eines der beiden wird kein Request ausgeführt, der Zustand bleibt unverändert, und der Fehler wird unverändert weitergereicht (`SPEC-109` Nr. 5 und 6). Für einen Service der Version `2.0` ruft er den Leser nicht (`SPEC-173` Nr. 2).
+   - **Grenze** `grenze`: eine Quelle, `MAX_CAPTURE_BODY`, wie für die Bodies einzelner Requests (`SPEC-180` Nr. 6); der HTTP-Adapter begrenzt den Request-Body nicht (`SPEC-136` Nr. 4 e). Folge: ein Batch ist insgesamt höchstens so groß wie ein einzelner Body (Default 8 MiB), darüber `400` mit `zu_gross`, nicht `413`.
+   - **Entscheidung** (ganzer Batch abgewiesen): *Alternative:* der Verstoß eines Teils wird zu dessen Einzelergebnis, die anderen Teile laufen. *Verworfen:* bei einem Rahmenfehler gibt es keine verlässlichen Teile, und ein zur Hälfte ausgeführter, strukturell fehlerhafter Batch hinterlässt Änderungen, die der Client nicht erwartet (`LH-FA-16`, Negative). *Folge im Betrieb:* eine unbekannte Methode in einem Teil verhindert auch die Teile davor; eine nicht unterstützte URL oder ein ungültiger Body eines Teils ist dagegen ein Fehler der Ausführung dieses Teils, nicht dieses Vertrags.
+
+Ungeprüft bleibt:
+- ein Typed-nil als `src` oder `ctx` und jede Methode außerhalb von `io` am Strom (wie `SPEC-180`).
+- der Abbruch des Kontexts während des Zerlegens (Nr. 1). Grund: es ist durch `grenze` begrenzt und hat keine Wartestelle. Folge: der Aufrufer wartet darauf, linear in der Größe des Bodys.
+- ein `src`, der endlos `0, nil` liefert (wie `SPEC-126`).
+- der Speicher bei der größten zulässigen `grenze` (1 GiB): Strom und Ergebnis wachsen linear; wer begrenzen will, senkt `MAX_CAPTURE_BODY`.
+- ein Datenrennen, das kein Lauf auslöst (`make test-race`, `SPEC-122` Nr. 8 und 9).
+
+### SPEC-183 — `$batch` lesen: `multipart/mixed` der Version 4
+
+Gilt für `batchcodec.NewLeser()` (`SPEC-182`).
+Gelesen wird der Batch im Format `multipart/mixed` von OData V4.0.
+`CRLF` ist das Bytepaar `0D 0A` und das einzige Zeilenende des Rahmens und der Kopfzeilen; `SP` ist `0x20`, `HTAB` ist `0x09`.
+Vergleiche „ohne Beachtung der Schreibweise“ falten allein `A` bis `Z`.
+
+**Entscheidung** (Format): *Alternative:* zusätzlich der JSON-Batch (`application/json`, V4.01) mit `dependsOn`. *Verworfen:* der erste Abnahmeumfang orientiert sich an V4.0 (`LH-RB-01`), und `$batch` ist Soll. *Folge im Betrieb:* ein Client mit JSON-Batch bekommt `501` und kann `multipart/mixed` verwenden.
+**Entscheidung** (nur `CRLF`): *Alternative:* auch ein einzelnes `LF`. *Verworfen:* RFC 2046 und HTTP verlangen `CRLF`, und bei beiden Zeilenenden wäre nicht bestimmt, welche Bytes zum Body gehören. *Folge im Betrieb:* ein von Hand mit `LF` gebauter Batch ist `400` mit `rahmen`.
+
+1. **`Content-Type` der Hülle.** Verstoß `content_type`: keine Kopfzeile, mehr als eine, ein leeres Element oder eines nur aus `SP` und `HTAB`, oder ein anderer Medientyp. Das Element wird an `;` geteilt; der erste Teil ist der Medientyp, `SP` und `HTAB` am Rand entfallen, verglichen ohne Beachtung der Schreibweise: `multipart/mixed` wird gelesen, `application/json` ist `format` (seine Parameter werden nicht gelesen), jeder andere ist `content_type`. **Grenzzeichenfolge:** jeder weitere Teil wird am ersten `=` geteilt, Name und Wert getrimmt; die Teile mit dem Namen `boundary` (ohne Beachtung der Schreibweise) zählen, alle anderen haben keine Wirkung. Verlangt ist genau einer; sein Wert steht ohne oder in einem Paar `"`, das entfernt wird, und hat danach 1 bis 70 Zeichen aus `A-Z a-z 0-9 ' ( ) + _ , - . / : = ?` und `SP`, das letzte kein `SP`. Jeder andere Fall ist `boundary` (fehlt, doppelt, ohne `=`, leer, 71 Zeichen, anderes Zeichen, einzelnes `"`). Bei jedem Verstoß dieser Nummer wird `src` nicht gelesen.
+2. **Rahmen.** Eine **Grenzzeile** beginnt am Anfang der Ebene oder unmittelbar hinter einem `CRLF`, besteht aus `--` und der Grenzzeichenfolge (bytegleich), danach wahlweise `--` (dann **schließend**), beliebig vielen `SP` und `HTAB` und dann `CRLF` oder dem Ende der Ebene. Jede andere Zeile ist Inhalt, auch `--<Grenze>x`, eine Grenzzeile mit führendem Leerzeichen und eine hinter einem einzelnen `LF`. Die Ebene endet an der ersten schließenden Grenzzeile; Bytes vor der ersten Grenzzeile (Präambel) und hinter der schließenden (Epilog, auch mit weiteren Grenzzeilen) haben keine Wirkung. Gibt es keine schließende Grenzzeile, ist es `rahmen` (auch: leerer Body, keine Grenzzeile, Strom endet vor dem Ende). Der **Inhalt eines Teils** reicht vom Byte hinter dem `CRLF` seiner Grenzzeile bis vor das `CRLF`, das der nächsten Grenzzeile vorausgeht; folgt die nächste unmittelbar, ist er leer. Das vorausgehende `CRLF` gehört zur Grenzzeile, nie zum Inhalt. Ein **leerer Batch** ist eine Hülle, deren erste Grenzzeile schließend ist. Ein Body ohne Byte ist kein leerer Batch, sondern `rahmen`: er ist keine Nachricht des Formats.
+3. **Kopfzeilen** (Block des Teils und Block des Requests). Ein Block ist eine Folge von Zeilen und endet an der ersten leeren Zeile oder am Ende des Inhalts; die letzte Zeile braucht dann kein `CRLF`. Eine Zeile ist `Name ":" Wert`: `Name` ist ein nichtleeres Token (`tchar` nach RFC 9110 §5.6.2), unmittelbar gefolgt von `:`; `Wert` ist der Rest ohne `SP` und `HTAB` an den Rändern und besteht aus `HTAB`, `0x20` bis `0x7E` und `0x80` bis `0xFF`. Jede andere Zeile ist `kopfzeile`: ohne `:`, mit Leerraum vor `:`, mit führendem `SP` oder `HTAB` (Fortsetzungszeile), mit einem anderen Steuerzeichen, `0x7F`, einem einzelnen `CR` oder `LF`.
+   **Entscheidung** (Block endet auch am Ende des Inhalts): *Alternative:* die leere Zeile verlangen. *Verworfen:* die Beispiele von OData und viele Clients setzen hinter die letzte Kopfzeile eines Requests ohne Body nur eine leere Zeile, und deren `CRLF` gehört zur Grenzzeile (Nr. 2). *Folge im Betrieb:* ein Request ohne Body wird mit und ohne leere Zeile gleich gelesen.
+4. **Teil.** Der Inhalt eines Teils ist der Block des Teils und dahinter der Rest. Im Block des Teils steht jede der Kopfzeilen `Content-Type`, `Content-Transfer-Encoding` und `Content-ID` höchstens einmal (Namen ohne Beachtung der Schreibweise), sonst `kopfzeile`; andere Kopfzeilen haben keine Wirkung und dürfen sich wiederholen.
+   - (a) `Content-Type` fehlt oder ist leer: `content_type`. Der Medientyp (Teil vor dem ersten `;`, getrimmt, ohne Beachtung der Schreibweise) `application/http` ist ein Request (Parameter ohne Wirkung); `multipart/mixed` ist in der Hülle ein Changeset (Nr. 5) und in einem Changeset `verschachtelt`; jeder andere ist `teil_typ`.
+   - (b) `Content-Transfer-Encoding` fehlt oder ist `binary`, `7bit` oder `8bit` (ohne Beachtung der Schreibweise); jeder andere Wert, auch der leere, ist `transfer_kodierung`.
+   - (c) `Content-ID` zählt allein im Block eines Teils mit `application/http`: 1 bis 128 Zeichen aus `A-Z a-z 0-9 - . _ ~`, sonst `content_id` (auch der leere Wert). Im Block eines Changeset-Teils und in den Kopfzeilen des Requests hat sie keine Wirkung.
+   - **Entscheidung** (Ort der `Content-ID`): *Alternative:* auch die Kopfzeile des Requests lesen. *Verworfen:* V4.0 setzt sie in die Kopfzeilen des Teils, und zwei Orte brauchten eine Regel für den Widerspruch. *Folge im Betrieb:* ein Client, der sie nur in die Kopfzeilen des Requests schreibt, bekommt bei einem Verweis `$<id>` `400` mit `referenz`.
+5. **Changeset.** Der Rest des Teils ist eine Ebene nach Nr. 2 mit der Grenzzeichenfolge aus dem `Content-Type` des Teils (Regeln von Nr. 1, Verstoß `boundary`). Die Hülle wird zuerst zerlegt: eine Zeile, die ihre Grenzzeile ist, beendet den Teil, auch wenn sie als Grenzzeile eines Changeset gemeint war. Die Teile eines Changeset sind Requests; ein Changeset ohne Teil (erste Grenzzeile schließend) ist gültig und hat keinen Request.
+6. **Einzelrequest.** Der Rest eines Teils mit `application/http` beginnt mit der **Anfragezeile** (bis zum ersten `CRLF` oder zum Ende): Methode, `SP`, Ziel, `SP`, `HTTP/1.1`, mit genau diesen zwei `SP`. Die Methode ist ein nichtleeres Token, das Ziel eine nichtleere Folge aus `0x21` bis `0x7E` und `0x80` bis `0xFF`. Fehlt die Zeile (leerer Rest, auch bei einem Teil ohne leere Zeile hinter seinem Block) oder hat sie eine andere Form (andere Version, `LF`, doppeltes `SP`, leere Zeile davor), ist es `anfragezeile`. `Methode` und `Ziel` sind die Bytes wie geschrieben; der Leser dekodiert, löst auf und prüft nichts daran (relativ, mit führendem `/` und absolut mit jedem Host sind gleich lesbar). Es folgt der Block des Requests (Nr. 3): `Header` hält jede Kopfzeile in ihrer Reihenfolge mit dem Namen wie geschrieben und dem getrimmten Wert, auch doppelte; `Host` und `Content-Length` sind Kopfzeilen wie jede andere. Eine Kopfzeile `Transfer-Encoding` (ohne Beachtung der Schreibweise, jeder Wert) ist `transfer_kodierung`, geprüft nach dem ganzen Block. `Body` ist jedes Byte hinter der leeren Zeile bis zum Ende des Inhalts, unverändert; ohne leere Zeile gibt es keinen. Das Ende bestimmt allein die Grenzzeile: `Content-Length` hat keine Wirkung (*Folge:* ein falscher Wert eines Clients bleibt ohne Meldung).
+7. **Grenzen.** Jede Grenze ist erlaubt, die nächste Zahl der Verstoß.
+
+   | Grenze | Wert | Verstoß | Grund und Folge im Betrieb |
+   |---|---|---|---|
+   | Länge des Bodys | `grenze` | `zu_gross` | eine Quelle (`SPEC-182` Nr. 7) |
+   | Teile je Batch: die der Hülle und die aller Changesets zusammen | 1000 | `zu_viele`, Ort der Ebene, mit deren Teilen die Summe in der Folge von `SPEC-182` Nr. 5 f die Grenze überschreitet | begrenzt die Zahl der Ausführungen eines Requests; ein Client mit mehr teilt den Batch |
+   | Zeilen eines Blocks | 100 | `zu_viele`, Ort des Teils | begrenzt den Speicher je Teil; die leere Zeile zählt nicht |
+   | Tiefe | Changeset, nicht darin ein zweites | `verschachtelt` | OData kennt keine geschachtelten Changesets |
+
+   Die Länge einer Zeile hat keine eigene Grenze außer `grenze`; das Ziel eines Requests begrenzt erst sein Leser (`SPEC-160`).
+8. **Beispiel** (Grenze `batch_1` aus `Content-Type: multipart/mixed; boundary=batch_1`; jede Zeile des Blocks endet mit `CRLF`):
+
+   ```text
+   --batch_1
+   Content-Type: application/http
+   Content-Transfer-Encoding: binary
+
+   GET Products(1) HTTP/1.1
+   Host: recorder.test
+
+   --batch_1
+   Content-Type: multipart/mixed; boundary=cs_1
+
+   --cs_1
+   Content-Type: application/http
+   Content-ID: 1
+
+   POST Products HTTP/1.1
+   Content-Type: application/json
+
+   {"Id":9}
+   --cs_1
+   Content-Type: application/http
+   Content-ID: 2
+
+   PATCH $1 HTTP/1.1
+   Content-Type: application/json
+
+   {"Name":"Nail"}
+   --cs_1--
+   --batch_1--
+   ```
+
+   Ergebnis: Teil 1 ist ein Einzelrequest `GET` `Products(1)` mit dem Header `Host` und ohne Body. Teil 2 ist ein Changeset aus `POST` `Products` (`ContentID` `1`, Body `{"Id":9}`) und `PATCH` `$1` (`ContentID` `2`, Body `{"Name":"Nail"}`). `PruefeBatch` ist `nil`. Der Body `--batch_1--` allein ist der leere Batch.
+
+   | Änderung am Beispiel | Ergebnis |
+   |---|---|
+   | `Content-Type: application/json` an der Hülle | `format` |
+   | die letzte Zeile `--batch_1--` fehlt | `rahmen`, Ort leer |
+   | die Zeile `--cs_1--` fehlt | `rahmen`, Ort `2` |
+   | Teil 1 ohne `Content-Type` | `content_type`, Ort `1` |
+   | `GET Products(1) HTTP/1.0` | `anfragezeile`, Ort `1` |
+   | `Content-Type: multipart/mixed; boundary=x` am ersten Teil des Changeset | `verschachtelt`, Ort `2/1` |
+   | `Content-Transfer-Encoding: base64` | `transfer_kodierung`, Ort `1` |
+   | `GET` statt `PATCH` in `2/2` | `methode`, Ort `2/2` |
+   | `MERGE` statt `PATCH` in `2/2` | `methode_nicht_unterstuetzt`, Ort `2/2` |
+   | `Content-ID: 1` auch in `2/2` | `content_id_doppelt`, Ort `2/2` |
+   | `PATCH $3` in `2/2` | `referenz`, Ort `2/2` |
+
+Ungeprüft bleibt:
+- jede Bytefolge: die Menge der Hüllen ist unbeschränkt, und der Fänger ist ein Generator über das Alphabet des Rahmens und der Kopfzeilen bis zu einer Länge sowie benannte Familien. Folge: eine Regel, die erst jenseits greift und keine Familie trifft, bleibt ungefangen.
+- `charset` und andere Parameter der `Content-Type`-Zeilen; ein `;` in einem Parameterwert in Anführungszeichen teilt ihn. Folge: keine, denn `;` ist kein Zeichen der Grenzzeichenfolge, und andere Parameter werden nicht gelesen.
+- ob die Grenzzeichenfolge eines Changeset von der der Hülle verschieden ist (Nr. 5). Folge: ein Client mit gleicher Zeichenfolge bekommt `rahmen`.
+- `MIME-Version`, `Content-Length` und jede andere Kopfzeile des Teils (Nr. 4).
+
+### SPEC-184 — `$batch` prüfen: Methoden, `Content-ID` und Verweise
+
+`model.PruefeBatch(b model.Batch) error` prüft die Struktur eines gelesenen Batch (`SPEC-182`; `LH-FA-16`, `LH-FA-16.a`); `model.BatchRequest.Verweis() string` liefert den Verweis eines Requests auf einen früheren.
+Beide sind reine Funktionen: sie ändern `b` nicht, rufen keinen Port und liefern für gleiche Werte das Gleiche.
+Bei einem Verstoß ist der Fehler ein `*model.BatchFehler` mit Ursache und Ort nach `SPEC-182` Nr. 4, sonst `nil`.
+
+1. **Methoden**, bytegleich verglichen. Außerhalb eines Changeset sind `GET`, `POST`, `PATCH`, `PUT` und `DELETE` erlaubt, in einem Changeset `POST`, `PATCH`, `PUT` und `DELETE`. `GET` in einem Changeset ist `methode`; jede andere Methode (`HEAD`, `OPTIONS`, `MERGE`, `get`) ist an beiden Orten `methode_nicht_unterstuetzt`.
+2. **Eindeutigkeit.** Im selben Changeset trägt jede nichtleere `ContentID` genau ein Request, bytegleich verglichen (`a` und `A` sind zwei), sonst `content_id_doppelt` am zweiten Vorkommen. Gleiche Werte in verschiedenen Changesets und außerhalb eines Changeset sind erlaubt; Requests ohne `Content-ID` stoßen nicht an.
+   **Entscheidung** (je Changeset): *Alternative:* eindeutig im ganzen Batch. *Verworfen:* Verweise reichen nicht über das Changeset hinaus (Nr. 4), und Clients zählen je Changeset von vorn. *Folge im Betrieb:* die Zuordnung einer Antwort über die `Content-ID` gilt je Changeset.
+3. **Verweis.** `Verweis()` liefert `<id>`, wenn `Ziel` mit `$` beginnt und `<id>`, der Text hinter diesem `$` bis vor das erste `/` oder `?` (sonst bis zum Ende), die Form einer `Content-ID` hat (`SPEC-183` Nr. 4 c) und nicht `metadata`, `batch`, `entity`, `all` oder `crossjoin` heißt; sonst `""`. Dekodiert wird nicht (`%241` ist kein Verweis), und `/$1` ist keiner.
+4. **Auflösbarkeit.** Ein Request mit Verweis steht in einem Changeset, und ein **früherer** Request desselben Changeset trägt `<id>` als `ContentID`; sonst `referenz` (außerhalb eines Changeset, auf sich selbst, auf einen späteren, auf ein anderes Changeset). Was der Verweis bei der Ausführung ergibt, und Verweise im Body, regelt dieser Vertrag nicht.
+5. **Rangfolge.** Der erste Verstoß in der Reihenfolge der Teile und Requests entscheidet; an einem Request die Methode, dann die Eindeutigkeit, dann die Auflösbarkeit.
+
+Ungeprüft bleibt:
+- ein von Hand gebauter Batch: die Prüfung beurteilt jeden Request jedes Teils nach `Changeset`, nicht die Zahl der Requests eines Teils ohne Changeset und nicht die Form seiner Werte. Folge: der Leser liefert beides nach `SPEC-182` Nr. 3; im Betrieb gibt es keinen anderen Erzeuger.
+
 ### SPEC-005 — Admin-API (vorläufiger Contract)
 
 | Methode | Pfad | Bedeutung |
@@ -4823,7 +4997,7 @@ Syntax der Werte (Dauern, Größen, Listen, leere Werte), Prüfung und Verhalten
 | `SPEC-020` | `ODR-E5001` | Replay-Mismatch (kein Exchange mit diesem Match-Key); auch ein Request, aus dem sich kein Key bilden lässt (`SPEC-118` Nr. 10, `SPEC-135` Nr. 7) | HTTP 404 |
 | `SPEC-021` | `ODR-E5002` | Replay erschöpft | HTTP 410 |
 | `SPEC-074` | `ODR-E5007` | Strict-Replay: nächste erwartete Exchange hat anderen Match-Key | HTTP 409, kein Cursor-Fortschritt |
-| `SPEC-022` | `ODR-E6001` | Nicht unterstützte OData-Query oder lesender Zugriff auf nicht unterstützte Property/Typ | HTTP 501 |
+| `SPEC-022` | `ODR-E6001` | Nicht unterstützte OData-Query oder lesender Zugriff auf nicht unterstützte Property/Typ; eine gültige, nicht unterstützte Form des `$batch` (`SPEC-182` Nr. 4) | HTTP 501 |
 | `SPEC-023` | `ODR-E6002` | Nicht unterstützte Mutation oder schreibender Zugriff auf nicht unterstützte Property/Typ | HTTP 501 |
 | `SPEC-024` | `ODR-E6003` | Unvollständige Coverage (Collection, partielle Entity, unbeobachtete Property) | HTTP 422 |
 | `SPEC-050` | `ODR-E5003` | Workspace-/Replay-Zuordnung fehlt, leer oder mehrdeutig, oder die Replay-Session-ID hat keine gültige Form (`SPEC-135` Nr. 5) | HTTP 400, kein Cursor-Fortschritt |
@@ -4833,7 +5007,7 @@ Syntax der Werte (Dauern, Größen, Listen, leere Werte), Prüfung und Verhalten
 | `SPEC-068` | `ODR-E6004` | Metadaten ungültig oder nicht unterstützt: eine der Bedingungen von `LH-FA-06.a` Nr. 3, Ursache und Ort im Fehler (`SPEC-125` Nr. 13), oder die Session trägt kein oder kein eindeutiges `$metadata`, oder der `metadata_hash` der Anfrage passt nicht zu ihm (`SPEC-127` Nr. 7) | Start verhindern bzw. Import abweisen (422) |
 | `SPEC-163` | `ODR-E6005` | Ungültige OData-URL des Mock: Pfad, Schlüssel oder Systemoption nicht lesbar (Ursache und Ort im Fehler, `SPEC-160` Nr. 4; Grammatik `SPEC-161`, `SPEC-162`, `SPEC-164`) | HTTP 400, keine Antwort aus dem Bestand, kein Fallback (`LH-FA-12.b`) |
 | `SPEC-177` | `ODR-E6006` | Eine Eigenschaft eines als V2 deklarierten Service liegt außerhalb des dokumentierten V2-Umfangs: Ressource, Option, Filter, Literal, Format oder Methode (Ursache und Ort im Fehler, `SPEC-174`) | HTTP 501, keine Antwort aus dem Bestand |
-| `SPEC-180` | `ODR-E6007` | Request-Body des Mock nicht lesbar oder verstößt gegen das Modell: `Content-Type`, Syntax, Kodierung, Grenze, unbekannte oder falsch typisierte Property, fehlende erforderliche Property (Ursache und Ort im Fehler, `SPEC-180` Nr. 3, `SPEC-181`), oder ein Body, der der URL oder dem Typ der Entity widerspricht oder den reservierten Text `[REDACTED]` in einer String-Property trägt (`SPEC-193` Nr. 1, 2 a, 3 b) | HTTP 400, kein Zustandswechsel |
+| `SPEC-180` | `ODR-E6007` | Request-Body des Mock nicht lesbar oder verstößt gegen das Modell: `Content-Type`, Syntax, Kodierung, Grenze, unbekannte oder falsch typisierte Property, fehlende erforderliche Property (Ursache und Ort im Fehler, `SPEC-180` Nr. 3, `SPEC-181`), oder ein Body, der der URL oder dem Typ der Entity widerspricht oder den reservierten Text `[REDACTED]` in einer String-Property trägt (`SPEC-193` Nr. 1, 2 a, 3 b); auch ein `$batch`, dessen Rahmen, Kopfzeilen oder Struktur nicht lesbar oder nicht zulässig sind (`SPEC-182` Nr. 4) | HTTP 400, kein Zustandswechsel |
 | `SPEC-193` | `ODR-E6009` | Entity mit diesem Schlüssel im Mock schon vorhanden: `POST` auf einen vorhandenen Eintrag, Duplicate Key (`SPEC-193` Nr. 2) | HTTP 409, kein Zustandswechsel |
 | `SPEC-283` | `ODR-E6010` | Vorbedingung im Mock nicht erfüllt: `PATCH`, `PUT` oder `DELETE` mit `If-Match` oder `If-None-Match`, deren Wert den ETag der Entity nicht trifft oder nicht lesbar ist (`SPEC-283` Nr. 3 bis 5), bei `ETAG_ENABLED` an | HTTP 412, kein Zustandswechsel |
 | `SPEC-199` | `ODR-E6008` | Entity-Set oder Entity im Mock nicht vorhanden: ein Set, das das Modell nicht nennt, oder eine Entity, deren Nichtvorhandensein abgesichert ist (Tombstone oder Coverage `complete` der Baseline, `SPEC-196` Nr. 2 und 7, `SPEC-197` Nr. 3) | HTTP 404, kein Zustandswechsel |
@@ -5392,6 +5566,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-28 | Vertrag zum Lesen und Prüfen von `$batch` (Architect, `LH-FA-16`; Soll, Lastenheft und Verhalten des Binary unverändert): `SPEC-182` bis `SPEC-184` neu; `SPEC-109` Nr. 5 und §4 (`ODR-E6001`, `ODR-E6007`) nennen die Batch-Fehler, kein neuer Code |
 | 2026-11-28 | Offene Punkte vor der Erstabnahme (Architect, `LH-QA-03`, `LH-FA-13`; Lastenheft, Produktverhalten und Prüfläufe unverändert): `SPEC-048` Nr. 5 nennt die beim Prozessende nicht gefahrenen Schreibwege mit Entscheidung, Folge und Maß, dazu Inhalt des Wiederherstellens und gleichzeitige Operationen; Nr. 4 nennt den roten Haltepunkt je Lage von `Create`; `SPEC-049` Nr. 10 c folgt dem; `SPEC-301` Nr. 8 verlangt zum Rücksprung der Systemzeit keinen Satz im Handbuch |
 | 2026-11-28 | `SPEC-322` Nr. 4 berichtigt (Architect, `LH-QA-06`; Image und Verhalten unverändert): das `Dockerfile` setzt allein `DATA_DIR=/data`, der Bau-Dienst fügt der leeren Basis `PATH` hinzu |
 | 2026-11-28 | Antworten des fachlichen Owners eingetragen (Architect, `LH-FA-14`, `LH-FA-13`, `LH-RB-04`; Lastenheft, Produktverhalten und Prüfläufe unverändert): die Markierung über die Session gilt für jede Ursache, aus der ein Exchange nicht angehängt ist (`SPEC-124` Nr. 12); Diagnose-Dumps und Body-Logging in Middleware sind wie Core-Dumps und Swap Pflicht des Betreibers, die dafür verlangte Prüfung entfällt, und das Handbuch-Kapitel soll alle vier nennen; die unredigiert gespeicherten, vom Client geschriebenen Werte gelten auch für `hybrid` (`SPEC-053`, `LH-FA-14.a`); `SPEC-300` *Ungeprüft* nennt die fehlerhaften Admin-Anfragen außerhalb von drei Formen |

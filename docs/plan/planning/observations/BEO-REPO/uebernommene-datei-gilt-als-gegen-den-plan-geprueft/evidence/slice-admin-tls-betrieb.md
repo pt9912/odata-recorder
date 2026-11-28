@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-tls-betrieb
+**Fund:** `admintls_betrieb_test.go` kam vom Zweig `slice-admin-tls-betrieb` (`3726eda0`, laut Plan „fertig, gemessen und grün“). Gegen den Plan zählten vier der sieben Mengen ihre Zellen nicht und eine erst ab zwei Zellen vorab, Query und Body in AT12 waren leer, und „meldet nichts“ (AT17) hatte keinen Fänger (Plan §3 *Abweichungen von der Quelle*). Das Review fand danach in derselben Datei die fehlende Zuordnung (F-1) und eine Zählprüfung, die nicht erreichbar war (F-3).
