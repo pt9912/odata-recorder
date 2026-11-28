@@ -155,7 +155,7 @@ func (h *Handle) starteListener(ctx context.Context) (err error) {
 	adresse := ""
 	if al != nil {
 		adm, err = h.b.NeuerAdmin(admin.Konfig{
-			Listener: al, Token: h.token, IDs: h.ids, Audit: h.audit, Telemetrie: h.tel, Routen: h.routen,
+			Listener: al, Token: h.token, IDs: h.ids, Audit: h.audit, Telemetrie: h.tel, Routen: h.routen, Uhr: h.uhr,
 		})
 		if err != nil {
 			return err

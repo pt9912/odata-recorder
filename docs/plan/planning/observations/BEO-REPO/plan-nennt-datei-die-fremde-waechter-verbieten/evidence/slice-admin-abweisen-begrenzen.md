@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-abweisen-begrenzen
+**Fund:** verwandte Form: der Plan sah die neue Produktdatei `abweisen_fenster.go` im Paket `admin` vor; der Quelltest eines früheren Slice (`TestWS15Quelltext`) verlangt jede Datei des Pakets in einer seiner Mengen und war rot, bis `sessions_quelle_test.go` sie führte. Der Plan und der Block der Größenmarke nannten die Datei erst nach dem Code. Beleg: Plan §3 (Tabelle der Dateien) und §7.

@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-abweisen-begrenzen
+**Fund:** F-1 (Review, MEDIUM): alle 20 Zulassungen eines Fensters lagen in jedem Test auf demselben Stand der Uhr; ein Beginn, der mit jeder Zulassung mitwandert, blieb in der ganzen Suite grün. Die Zeitpunkte verschiedener Ereignisse trugen denselben Wert, und die Mutation, die den falschen Zeitpunkt nimmt, änderte nichts. Die Fix-Runde gab jeder Abweisung einen eigenen Stand. Beleg: Plan §3 (Zeile W04) und §7; Review `2026-11-28-slice-admin-abweisen-begrenzen-review`.

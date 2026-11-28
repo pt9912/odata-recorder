@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pt9912/odata-recorder/src/adapters/driving/admin"
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support/supporttest"
@@ -47,11 +48,16 @@ func canary() string {
 // tokenGueltig liefert ein Token von 32 Bytes.
 func tokenGueltig() []byte { return bytes.Repeat([]byte{'t'}, 32) }
 
+// helferUhrStand ist der Stand der festen Uhr jeder Konfiguration aus konfigMit; ohne Advance bleibt jede Abweisung eines
+// Servers im ersten Fenster (SPEC-301).
+func helferUhrStand() time.Time { return time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC) }
+
 // konfigMit liefert eine gültige Konfiguration mit frischen Fakes.
 func konfigMit(routen ...admin.Route) (admin.Konfig, *umgebung) {
 	u := &umgebung{ids: neueIDs(), audit: supporttest.NewFakeAudit(), tele: supporttest.NewFakeTelemetry(), lst: neuerListener()}
 	return admin.Konfig{
 		Listener: u.lst, Token: tokenGueltig(), IDs: u.ids, Audit: u.audit, Telemetrie: u.tele, Routen: routen,
+		Uhr: supporttest.NewFestUhr(helferUhrStand()),
 	}, u
 }
 

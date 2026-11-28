@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-abweisen-begrenzen
+**Fund:** V-1 (Verifikation, LOW): die Zusage „die Uhr wird je Zulassung genau einmal gelesen“ gilt für jeden Abstand zum Beginn; der Zählfänger führt gedrosselte Abweisungen bei Abstand 0 und vor dem Beginn, der Plan nannte die Prüfgrenze nicht, und eine zweite Lesung an späteren gedrosselten blieb grün. Jetzt als akzeptiertes Negativ mit Grund und Folge, nicht behoben. Beleg: Plan §6 Negativ 8; Report `2026-11-28-slice-admin-abweisen-begrenzen-verifikation`.

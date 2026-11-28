@@ -87,10 +87,11 @@ func mitProben(b *bootstrap.Bauteile, odata, adm *probe) {
 	b.NeuerAdmin = func(admin.Konfig) (bootstrap.Server, error) { return adm, nil }
 }
 
-// TestAdminKonfig (B06): jedes der 7 Felder von admin.Konfig × 4 Modi = 28 Zellen.
+// TestAdminKonfig (B06): jedes der 8 Felder von admin.Konfig × 4 Modi = 32 Zellen; Uhr ist die eine Uhr des Prozesses
+// (SPEC-300 Nr. 5 d).
 func TestAdminKonfig(t *testing.T) {
-	if n := len(reflect.VisibleFields(reflect.TypeOf(admin.Konfig{}))); n != 7 {
-		t.Fatalf("admin.Konfig hat %d Felder, erwartet 7", n)
+	if n := len(reflect.VisibleFields(reflect.TypeOf(admin.Konfig{}))); n != 8 {
+		t.Fatalf("admin.Konfig hat %d Felder, erwartet 8", n)
 	}
 	zellen := 0
 	for _, modus := range vierModi() {
@@ -116,6 +117,7 @@ func TestAdminKonfig(t *testing.T) {
 			"Telemetrie": kfg.Telemetrie == support.Telemetry(bootstrap.TelemetrieVon(h)),
 			"Routen":     len(routen) > 0 && len(kfg.Routen) == len(routen) && &kfg.Routen[0] == &routen[0],
 			"Vergleich":  kfg.Vergleich == nil,
+			"Uhr":        kfg.Uhr != nil && kfg.Uhr == bootstrap.UhrVon(h),
 		}
 		for feld, ok := range felder {
 			zellen++
@@ -124,8 +126,8 @@ func TestAdminKonfig(t *testing.T) {
 			}
 		}
 	}
-	if zellen != 28 {
-		t.Errorf("%d Zellen, erwartet 28", zellen)
+	if zellen != 32 {
+		t.Errorf("%d Zellen, erwartet 32", zellen)
 	}
 }
 

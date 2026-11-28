@@ -17,16 +17,18 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/model"
 )
 
-// TestNewNilFelder hält K1: Listener, IDs, Audit und Telemetrie je nil sind model.ErrUngueltig ohne Server; der Gutfall steht daneben.
+// TestNewNilFelder hält K1: Listener, IDs, Audit, Telemetrie und Uhr je nil sind model.ErrUngueltig ohne Server; der
+// Gutfall steht daneben.
 func TestNewNilFelder(t *testing.T) {
 	loescher := map[string]func(k *admin.Konfig){
 		"Listener":   func(k *admin.Konfig) { k.Listener = nil },
 		"IDs":        func(k *admin.Konfig) { k.IDs = nil },
 		"Audit":      func(k *admin.Konfig) { k.Audit = nil },
 		"Telemetrie": func(k *admin.Konfig) { k.Telemetrie = nil },
+		"Uhr":        func(k *admin.Konfig) { k.Uhr = nil },
 	}
-	if len(loescher) != 4 {
-		t.Fatalf("%d Felder, erwartet 4", len(loescher))
+	if len(loescher) != 5 {
+		t.Fatalf("%d Felder, erwartet 5", len(loescher))
 	}
 	for name, loesche := range loescher {
 		k, _ := konfigMit()
