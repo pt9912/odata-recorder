@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -55,13 +56,15 @@ func (l *adminListener) Accept() (net.Conn, error) {
 	return &adminConn{Conn: c, l: l}, nil
 }
 
-// warte wartet, bis insgesamt n Close-Aufrufe angenommener Verbindungen gemeldet sind, höchstens 3 s je Meldung.
-func (l *adminListener) warte(n int) {
+// warte wartet, bis insgesamt n Close-Aufrufe angenommener Verbindungen gemeldet sind; bleibt eine Meldung 3 s aus, ist das ein Fehler des Tests.
+func (l *adminListener) warte(t *testing.T, n int) {
+	t.Helper()
 	for l.gesehen < n {
 		select {
 		case <-l.zu:
 			l.gesehen++
 		case <-time.After(3 * time.Second):
+			t.Errorf("%d von %d erwarteten Close-Aufrufen des Servers, 3 s ohne weitere Meldung", l.gesehen, n)
 			return
 		}
 	}
@@ -119,9 +122,10 @@ type adminServer struct {
 // adminTokenWert ist das Token des Test-Servers (32 Bytes, die Mindestlänge von SPEC-239 Nr. 1 g).
 func adminTokenWert() string { return strings.Repeat("t", 32) }
 
-// neuerAdminServer bedient mit admin.New den Listener, den tr aus einem Listener auf 127.0.0.1 macht; er routet `GET /probe`. Die Uhr steht fest, das
-// Fenster der Einträge `admin_abgewiesen` (SPEC-301) läuft im Test nicht ab. Der Test schließt den Server am Ende.
-func neuerAdminServer(t *testing.T, tr bootstrap.AdminTransport, ca *tlstest.Aussteller) *adminServer {
+// neuerAdminServer bedient mit admin.New den Listener, den tr aus einem Listener auf 127.0.0.1 macht; er routet `GET /probe` und die Methoden und Muster von
+// weitere, alle auf dieselbe Route. Die Uhr steht fest, das Fenster der Einträge `admin_abgewiesen` (SPEC-301) läuft im Test nicht ab. Der Test schließt den
+// Server am Ende.
+func neuerAdminServer(t *testing.T, tr bootstrap.AdminTransport, ca *tlstest.Aussteller, weitere ...admin.Route) *adminServer {
 	t.Helper()
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -131,9 +135,13 @@ func neuerAdminServer(t *testing.T, tr bootstrap.AdminTransport, ca *tlstest.Aus
 		inner: &adminListener{Listener: l, zu: make(chan struct{}, 64)}, ids: &adminIDs{FestIDs: supporttest.NewFestIDs()},
 		audit: supporttest.NewFakeAudit(), tele: supporttest.NewFakeTelemetry(), route: &adminRoute{}, ca: ca, adresse: l.Addr().String(),
 	}
+	routen := append([]admin.Route{{Methode: http.MethodGet, Muster: "/probe"}}, weitere...)
+	for i := range routen {
+		routen[i].Handler = s.route.handle
+	}
 	srv, err := admin.New(admin.Konfig{
 		Listener: bootstrap.AdminUmhuelle(tr, s.inner), Token: []byte(adminTokenWert()), IDs: s.ids, Audit: s.audit, Telemetrie: s.tele,
-		Routen: []admin.Route{{Methode: http.MethodGet, Muster: "/probe", Handler: s.route.handle}},
+		Routen: routen,
 		Uhr:    supporttest.NewFestUhr(time.Date(2026, 11, 28, 12, 0, 0, 0, time.UTC)),
 	})
 	if err != nil {
@@ -165,12 +173,21 @@ func (s *adminServer) dial(cfg *tls.Config) (*tls.Conn, error) {
 	return tls.DialWithDialer(&net.Dialer{Timeout: 5 * time.Second}, "tcp", s.adresse, cfg)
 }
 
-// adminAntwort ist die Antwort einer Anfrage ohne Datum und ohne Wert von `X-Correlation-Id`.
+// adminAntwort ist die Antwort einer Anfrage; kopf sind die Header ohne Datum und ohne `X-Correlation-Id`, id und allow stehen einzeln.
 type adminAntwort struct {
 	status int
 	kopf   string
 	body   string
 	id     string
+	allow  string
+}
+
+// adminAntwortVon bildet aus Status, Headern und Body die adminAntwort.
+func adminAntwortVon(status int, header http.Header, body string) adminAntwort {
+	kopf := header.Clone()
+	kopf.Del("Date")
+	kopf.Del("X-Correlation-Id")
+	return adminAntwort{status: status, kopf: fmt.Sprint(kopf), body: body, id: header.Get("X-Correlation-Id"), allow: header.Get("Allow")}
 }
 
 // hole sendet `GET pfad` (mit Token, wenn token nicht leer ist; inhalt ist der Body der Anfrage) per HTTP oder, mit ca, per HTTPS; ein Fehler beendet den
@@ -198,30 +215,52 @@ func (s *adminServer) hole(t *testing.T, pfad, token string, inhalt ...string) a
 	if err != nil {
 		t.Fatalf("Body von %s: %v", pfad, err)
 	}
-	kopf := resp.Header.Clone()
-	id := kopf.Get("X-Correlation-Id")
-	kopf.Del("Date")
-	kopf.Del("X-Correlation-Id")
-	return adminAntwort{status: resp.StatusCode, kopf: fmt.Sprint(kopf), body: string(body), id: id}
+	return adminAntwortVon(resp.StatusCode, resp.Header, string(body))
 }
 
-// holeRoh schreibt `GET pfad` auf c und liest die Antwort; ein Fehler beendet den Test.
-func holeRoh(t *testing.T, c net.Conn, br *bufio.Reader, pfad string) (*http.Response, string) {
-	t.Helper()
+// frageRoh schreibt `methode ziel` unverändert als Request-Zeile auf c, mit Token, wenn token nicht leer ist, und liest die Antwort; Frist 5 s.
+func frageRoh(c net.Conn, br *bufio.Reader, methode, ziel, token string) (*http.Response, string, error) {
 	_ = c.SetDeadline(time.Now().Add(5 * time.Second))
-	if _, err := io.WriteString(c, "GET "+pfad+" HTTP/1.1\r\nHost: admin\r\nAuthorization: Bearer "+adminTokenWert()+"\r\n\r\n"); err != nil {
-		t.Fatalf("Anfrage %s: %v", pfad, err)
+	kopf := methode + " " + ziel + " HTTP/1.1\r\nHost: admin\r\n"
+	if token != "" {
+		kopf += "Authorization: Bearer " + token + "\r\n"
 	}
-	resp, err := http.ReadResponse(br, nil)
+	if _, err := io.WriteString(c, kopf+"\r\n"); err != nil {
+		return nil, "", fmt.Errorf("Anfrage: %w", err)
+	}
+	resp, err := http.ReadResponse(br, &http.Request{Method: methode})
 	if err != nil {
-		t.Fatalf("Antwort auf %s: %v", pfad, err)
+		return nil, "", fmt.Errorf("Antwort: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		t.Fatalf("Body von %s: %v", pfad, err)
+		return nil, "", fmt.Errorf("Body: %w", err)
 	}
-	return resp, string(body)
+	return resp, string(body), nil
+}
+
+// holeRoh schreibt `GET pfad` mit Token auf c und liest die Antwort; ein Fehler beendet den Test.
+func holeRoh(t *testing.T, c net.Conn, br *bufio.Reader, pfad string) (*http.Response, string) {
+	t.Helper()
+	resp, body, err := frageRoh(c, br, http.MethodGet, pfad, adminTokenWert())
+	if err != nil {
+		t.Fatalf("GET %s: %v", pfad, err)
+	}
+	return resp, body
+}
+
+// bedient fragt `GET /healthz` auf c und meldet jede andere Antwort als HTTP/1.1 200 mit dem Body von /healthz. Unter TLS 1.3 erfährt der Client eine
+// Ablehnung seines Handshakes erst beim Lesen, darum belegt allein die Antwort, dass der Server die Verbindung angenommen hat.
+func bedient(c net.Conn) error {
+	resp, body, err := frageRoh(c, bufio.NewReader(c), http.MethodGet, "/healthz", "")
+	switch {
+	case err != nil:
+		return err
+	case resp.StatusCode != 200 || resp.ProtoMajor != 1 || resp.ProtoMinor != 1 || body != `{"status":"ok"}`:
+		return fmt.Errorf("%s %s, Body %q; erwartet HTTP/1.1 200 mit dem Body von /healthz", resp.Proto, resp.Status, body)
+	}
+	return nil
 }
 
 // TestAdminVerbindung (AT11, M-Verbindung): die Verbindung folgt SPEC-291 Nr. 5 und 6: TLS 1.2 und 1.3 gelingen, 1.1 scheitert; ALPN: allein `h2` scheitert,
@@ -265,15 +304,21 @@ func TestAdminVerbindung(t *testing.T) {
 		if st := c.ConnectionState(); st.Version != f.version || st.NegotiatedProtocol != f.proto {
 			t.Errorf("%s: Version %x und Protokoll %q, erwartet %x und %q", f.name, st.Version, st.NegotiatedProtocol, f.version, f.proto)
 		}
-		if resp, body := holeRoh(t, c, bufio.NewReader(c), "/healthz"); resp.StatusCode != 200 || resp.ProtoMajor != 1 || resp.ProtoMinor != 1 || body != `{"status":"ok"}` {
-			t.Errorf("%s: %s, Body %q; erwartet HTTP/1.1 200 mit dem Body von /healthz", f.name, resp.Proto+" "+resp.Status, body)
+		if err := bedient(c); err != nil {
+			t.Errorf("%s: %v", f.name, err)
 		}
 	}
 	zahl++
 	ohne := w.wurzel.Klient("localhost")
-	if c, err := s.dial(ohne); err != nil || len(ohne.Certificates) != 0 || ohne.GetClientCertificate != nil {
-		t.Errorf("Client ohne Zertifikat: Fehler %v, Zertifikate %d", err, len(ohne.Certificates))
+	if len(ohne.Certificates) != 0 || ohne.GetClientCertificate != nil {
+		t.Errorf("Client ohne Zertifikat: die Konfiguration trägt eines")
+	}
+	if c, err := s.dial(ohne); err != nil {
+		t.Errorf("Client ohne Zertifikat: %v", err)
 	} else {
+		if err := bedient(c); err != nil {
+			t.Errorf("Client ohne Zertifikat: %v", err)
+		}
 		_ = c.Close()
 	}
 	zahl++
@@ -319,6 +364,10 @@ func TestAdminRahmenUeberTLS(t *testing.T) {
 			t.Errorf("%s: die Antwort über TLS weicht ab:\nKlartext %+v\nTLS      %+v", a.name, aus[0], aus[1])
 		}
 	}
+	// Die Zählprüfung steht vor den Zugriffen auf ids nach Index: eine fehlende Zelle ist ihr Befund.
+	if zahl != 8 {
+		t.Fatalf("Menge M-Anfrage hat %d Zellen, erwartet 8", zahl)
+	}
 	for i, s := range server {
 		soll := []support.Eintrag{
 			{Art: support.ArtAdminAbgewiesen, ErrorCode: model.CodeE2101, KorrelationsID: ids[i][2]},
@@ -343,8 +392,135 @@ func TestAdminRahmenUeberTLS(t *testing.T) {
 	if a, b := server[0].route.anfragen, server[1].route.anfragen; len(a) == 1 && len(b) == 1 && a[0] != b[0] {
 		t.Errorf("die Anfrage an die Route weicht über TLS ab:\nKlartext %s\nTLS      %s", a[0], b[0])
 	}
-	if zahl != 8 {
-		t.Fatalf("Menge M-Anfrage hat %d Zellen, erwartet 8", zahl)
+}
+
+// frage sendet `methode ziel` unverändert über eine eigene Verbindung (Klartext oder, mit ca, TLS), mit Token, wenn token nicht leer ist; ein Fehler beendet
+// den Test.
+func (s *adminServer) frage(t *testing.T, methode, ziel, token string) adminAntwort {
+	t.Helper()
+	var c net.Conn
+	var err error
+	if s.ca == nil {
+		c, err = net.DialTimeout("tcp", s.adresse, 5*time.Second)
+	} else {
+		c, err = s.dial(s.ca.Klient("localhost"))
+	}
+	if err != nil {
+		t.Fatalf("%s %s: %v", methode, ziel, err)
+	}
+	defer func() { _ = c.Close() }()
+	resp, body, err := frageRoh(c, bufio.NewReader(c), methode, ziel, token)
+	if err != nil {
+		t.Fatalf("%s %s: %v", methode, ziel, err)
+	}
+	return adminAntwortVon(resp.StatusCode, resp.Header, body)
+}
+
+// adminZuordnung ist eine Anfragezeile mit der Antwort, die sie mit gültigem Token erhält; ohne Token ist jede dieser Antworten 401.
+type adminZuordnung struct {
+	methode, ziel string
+	status        int
+	allow         string
+}
+
+// adminZuordnungen sind die Zeilen von M-Zuordnung, je Antwortklasse der Zuordnung (SPEC-238 Nr. 2): Treffer (Literal, Parameter), 404 (kein Pfad-Treffer) und
+// 405 (Pfad-Treffer ohne die Methode, mit `Allow`).
+func adminZuordnungen() []adminZuordnung {
+	return []adminZuordnung{
+		{"GET", "/probe", 200, ""},
+		{"GET", "/probe/a%2Fb", 200, ""},
+		{"GET", "/unbekannt", 404, ""},
+		{"GET", "/probe/", 404, ""},
+		{"GET", "//probe", 404, ""},
+		{"GET", "/Probe", 404, ""},
+		{"GET", "/probe/x/y", 404, ""},
+		{"OPTIONS", "*", 404, ""},
+		{"GET", "/healthz/", 404, ""},
+		{"DELETE", "/probe", 405, "GET, PUT"},
+		{"get", "/probe", 405, "GET, PUT"},
+		{"HEAD", "/probe", 405, "GET, PUT"},
+		{"POST", "/probe/x", 405, "GET"},
+		{"POST", "/healthz", 405, "GET"},
+	}
+}
+
+// sollZuordnung ist Body und Code der Antwort mit dem Status als Literal; die Antwort auf `HEAD` trägt keinen Body, eine 200 keinen Code.
+func sollZuordnung(methode string, status int) (body string, code model.Code) {
+	switch status {
+	case 200:
+		return `{"ok":true}`, code
+	case 401:
+		body, code = `{"error":{"code":"ODR-E2101","message":"Admin authentication missing or invalid","target":"admin"}}`, model.CodeE2101
+	default:
+		body, code = `{"error":{"code":"ODR-E2102","message":"Admin request invalid","target":"admin"}}`, model.CodeE2102
+	}
+	if methode == http.MethodHead {
+		body = ""
+	}
+	return body, code
+}
+
+// TestAdminZuordnungUeberTLS (AT12, M-Zuordnung): die Zuordnung ist über TLS dieselbe wie im Klartext, samt der Abweisung vor ihr und den Einträgen und Zählern
+// ihrer Antworten (SPEC-299 Nr. 10 d, SPEC-238 Nr. 2, 3 d und e). Der Server routet `GET /probe`, `PUT /probe` und `GET /probe/{id}`. Menge: Anfragezeile (14,
+// adminZuordnungen) × Authorization (gültiges Token, keine) × Transport (Klartext, TLS) = 56 Zellen.
+func TestAdminZuordnungUeberTLS(t *testing.T) {
+	w := neueWerkstatt(t)
+	cert, key, _ := w.tlsPaar(w.wurzel, tlstest.Optionen{})
+	weitere := []admin.Route{{Methode: http.MethodPut, Muster: "/probe"}, {Methode: http.MethodGet, Muster: "/probe/{id}"}}
+	server := []*adminServer{
+		neuerAdminServer(t, bootstrap.AdminTransport{Weg: bootstrap.WegLoopback}, nil, weitere...),
+		neuerAdminServer(t, w.ladeAdmin(cert, key, w.jetzt), w.wurzel, weitere...),
+	}
+	zellen := 0
+	var eintraege [2][]support.Eintrag
+	var codes []model.Code
+	for _, f := range adminZuordnungen() {
+		for _, token := range []string{adminTokenWert(), ""} {
+			status, allow := f.status, f.allow
+			if token == "" {
+				status, allow = 401, ""
+			}
+			body, code := sollZuordnung(f.methode, status)
+			was := fmt.Sprintf("%s %s, Token %v", f.methode, f.ziel, token != "")
+			var aus [2]adminAntwort
+			for i, s := range server {
+				zellen++
+				aus[i] = s.frage(t, f.methode, f.ziel, token)
+				if aus[i].status != status || aus[i].body != body || aus[i].allow != allow || aus[i].id == "" {
+					t.Errorf("%s, Transport %d: Status %d, Body %q, Allow %q, ID %q; erwartet %d, %q und %q", was, i, aus[i].status, aus[i].body, aus[i].allow, aus[i].id, status, body, allow)
+				}
+				if status == 401 {
+					eintraege[i] = append(eintraege[i], support.Eintrag{Art: support.ArtAdminAbgewiesen, ErrorCode: model.CodeE2101, KorrelationsID: aus[i].id})
+				}
+			}
+			if status != 200 {
+				codes = append(codes, code)
+			}
+			if aus[0] != aus[1] {
+				t.Errorf("%s: die Antwort über TLS weicht ab:\nKlartext %+v\nTLS      %+v", was, aus[0], aus[1])
+			}
+		}
+	}
+	if zellen != 56 {
+		t.Fatalf("Menge M-Zuordnung hat %d Zellen, erwartet 56", zellen)
+	}
+	for i, s := range server {
+		var gezaehlt []model.Code
+		for _, a := range s.tele.Aufrufe() {
+			gezaehlt = append(gezaehlt, a.Code)
+		}
+		if got := s.audit.Eintraege(); len(got) != 14 || fmt.Sprint(got) != fmt.Sprint(eintraege[i]) || s.ids.n.Load() != 28 {
+			t.Errorf("Transport %d: Einträge %v (erwartet 14: %v), IDs %d (erwartet 28)", i, got, eintraege[i], s.ids.n.Load())
+		}
+		if s.tele.Anzahl(supporttest.OpCountError) != 26 || !slices.Equal(gezaehlt, codes) {
+			t.Errorf("Transport %d: Codes der Telemetrie %v bei %d CountError; erwartet 26: %v", i, gezaehlt, s.tele.Anzahl(supporttest.OpCountError), codes)
+		}
+		if a := s.route.anfragen; len(a) != 2 || !strings.Contains(a[0], "GET /probe ?") || !strings.Contains(a[1], "GET /probe/a/b ?") || !strings.Contains(a[1], "werte=map[id:a/b]") {
+			t.Errorf("Transport %d: Anfragen an die Route %q; erwartet `GET /probe` und `GET /probe/a/b` mit dem Pfadwert id", i, a)
+		}
+	}
+	if !slices.Equal(server[0].route.anfragen, server[1].route.anfragen) {
+		t.Errorf("die Anfragen an die Route weichen über TLS ab:\nKlartext %q\nTLS      %q", server[0].route.anfragen, server[1].route.anfragen)
 	}
 }
 
@@ -396,7 +572,10 @@ func TestAdminHandshakeScheitert(t *testing.T) {
 				t.Errorf("%s: %v", f.name, err)
 			}
 			erwartet += f.schluss
-			s.inner.warte(erwartet)
+			s.inner.warte(t, erwartet)
+			if got := s.inner.angenomm.Load(); got != int64(zahl) {
+				t.Errorf("%s: %d angenommene Verbindungen, erwartet %d: die Zelle erreicht den Server nicht genau einmal", f.name, got, zahl)
+			}
 			if n, a, e, r := s.ids.n.Load(), s.audit.Aufrufe(), len(s.tele.Aufrufe()), s.route.zahl(); n+int64(a+e+r) != 0 {
 				t.Errorf("%s: IDs %d, Audit %d, Telemetrie %d, Route %d; erwartet 0", f.name, n, a, e, r)
 			}
@@ -635,31 +814,40 @@ func TestAdminKeinNeuladen(t *testing.T) {
 	// Das Blatt ist seit fünf Minuten abgelaufen, die Wurzel gilt noch; der Start lud es vor 30 Minuten.
 	alt := w.wurzel.Blatt(t, tlstest.Optionen{Von: w.jetzt.Add(-50 * time.Minute), Bis: w.jetzt.Add(-5 * time.Minute)})
 	frueher := w.jetzt.Add(-30 * time.Minute)
-	s = neuerAdminServer(t, w.ladeAdmin(w.datei(alt.ZertifikatPEM()), w.datei(w.schluessel(alt)), frueher), w.wurzel)
+	certAlt, keyAlt := w.datei(alt.ZertifikatPEM()), w.datei(w.schluessel(alt))
 	uhrDavor := w.wurzel.Klient("localhost")
 	uhrDavor.Time = func() time.Time { return frueher }
 	zellen++
+	// Erfasst sind der Start (Laden, Umhüllen, admin.New: ein dort an `stdout` oder `stderr` gebundener Melder trifft die Senke) und der Betrieb mit einem
+	// angenommenen und einem vom Client abgelehnten Handshake, je bis zum Close des Servers. Außerhalb der Senke bleiben ein vor der Erfassung gebundener
+	// Melder, ein Schreiben am Paket `os` vorbei und eine Meldung nach dem Ende der Erfassung.
 	senke := ausgabeErfasst(t, func() {
+		s := neuerAdminServer(t, w.ladeAdmin(certAlt, keyAlt, frueher), w.wurzel)
 		c, err := s.dial(uhrDavor)
 		if err != nil {
 			t.Errorf("abgelaufenes Zertifikat, Uhr des Clients davor: %v", err)
 			return
 		}
-		defer func() { _ = c.Close() }()
 		if got := c.ConnectionState().PeerCertificates[0].SerialNumber; got.Cmp(alt.Zertifikat.SerialNumber) != 0 {
 			t.Errorf("abgelaufenes Zertifikat, Uhr des Clients davor: Seriennummer %v, erwartet %v", got, alt.Zertifikat.SerialNumber)
 		}
 		// Die Antwort belegt, dass der Server den Handshake beendet hat und die Verbindung bedient.
-		if resp, body := holeRoh(t, c, bufio.NewReader(c), "/healthz"); resp.StatusCode != 200 || body != `{"status":"ok"}` {
-			t.Errorf("abgelaufenes Zertifikat: Status %d, Body %q; erwartet 200", resp.StatusCode, body)
+		if err := bedient(c); err != nil {
+			t.Errorf("abgelaufenes Zertifikat: %v", err)
+		}
+		_ = c.Close()
+		s.inner.warte(t, 1)
+		var ungueltig x509.CertificateInvalidError
+		if _, err := gezeigt(s, w.wurzel.Klient("localhost")); !errors.As(err, &ungueltig) || ungueltig.Reason != x509.Expired {
+			t.Errorf("Client mit der Uhr des Hosts: Fehler %v, erwartet ein abgelaufenes Zertifikat", err)
+		}
+		s.inner.warte(t, 2)
+		if a, e := s.audit.Aufrufe(), len(s.tele.Aufrufe()); a+e != 0 {
+			t.Errorf("abgelaufenes Zertifikat: Audit %d, Telemetrie %d; erwartet 0", a, e)
 		}
 	})
 	if senke != "" {
 		t.Errorf("abgelaufenes Zertifikat: eine Senke trägt eine Zeile: %q", senke)
-	}
-	var ungueltig x509.CertificateInvalidError
-	if _, err := gezeigt(s, w.wurzel.Klient("localhost")); !errors.As(err, &ungueltig) || ungueltig.Reason != x509.Expired {
-		t.Errorf("Client mit der Uhr des Hosts: Fehler %v, erwartet ein abgelaufenes Zertifikat", err)
 	}
 	if zellen != 3 {
 		t.Fatalf("Menge M-Neuladen hat %d Zellen, erwartet 3", zellen)
