@@ -272,6 +272,7 @@ func tabellenFehlerListe() []tabellenFehler {
 		{"ErrURLNichtUnterstuetzt", model.ErrURLNichtUnterstuetzt}, {"ErrFilterNichtBeobachtet", model.ErrFilterNichtBeobachtet},
 		{"ErrKompatibilitaet", model.ErrKompatibilitaet},
 		{"ErrEingabeUngueltig", model.ErrEingabeUngueltig}, {"ErrEingabeNichtUnterstuetzt", model.ErrEingabeNichtUnterstuetzt},
+		{"ErrBatchUngueltig", model.ErrBatchUngueltig}, {"ErrBatchNichtUnterstuetzt", model.ErrBatchNichtUnterstuetzt},
 		{"ErrUngueltigeSequenz", outbound.ErrUngueltigeSequenz},
 		{"ErrAbgeschlossen", outbound.ErrAbgeschlossen}, {"ErrRevisionVeraltet", outbound.ErrRevisionVeraltet},
 		{"Platte (ohne Zeile)", errPlatte},

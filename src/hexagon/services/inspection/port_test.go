@@ -96,6 +96,8 @@ func tabelleSession() []struct {
 		{"ErrKompatibilitaet", model.ErrKompatibilitaet, model.CodeE6006},
 		{"ErrEingabeUngueltig", model.ErrEingabeUngueltig, model.CodeE6007},
 		{"ErrEingabeNichtUnterstuetzt", model.ErrEingabeNichtUnterstuetzt, model.CodeE6002},
+		{"ErrBatchUngueltig", model.ErrBatchUngueltig, model.CodeE6007},
+		{"ErrBatchNichtUnterstuetzt", model.ErrBatchNichtUnterstuetzt, model.CodeE6001},
 		{"ErrUngueltigeSequenz", outbound.ErrUngueltigeSequenz, model.CodeE9001},
 		{"ErrAbgeschlossen", outbound.ErrAbgeschlossen, model.CodeE9001},
 		{"ErrRevisionVeraltet", outbound.ErrRevisionVeraltet, model.CodeE9001},

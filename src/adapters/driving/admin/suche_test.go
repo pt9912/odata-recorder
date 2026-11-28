@@ -320,9 +320,9 @@ func pfadeMitUnwrapAufZeiger(t *testing.T, verzeichnisse ...string) []string {
 }
 
 // TestTypenMitUnwrapAufZeiger hält das Maß des akzeptierten Negativs „nil-Zeiger anderer Fehlertypen“ gegen die Quelle:
-// im Quelltext von src/hexagon und src/adapters/driven haben 12 Typen eine Methode Unwrap mit Zeiger als Empfänger; die
+// im Quelltext von src/hexagon und src/adapters/driven haben 13 Typen eine Methode Unwrap mit Zeiger als Empfänger; die
 // Suche behandelt einen nil-Zeiger allein bei *inbound.Fehler. Wächst die Zahl, ist das Maß im Plan nachzuziehen.
 func TestTypenMitUnwrapAufZeiger(t *testing.T) {
 	stellen := pfadeMitUnwrapAufZeiger(t, filepath.Join("..", "..", "..", "hexagon"), filepath.Join("..", "..", "driven"))
-	gleichAuf(t, "Zahl der Typen mit Unwrap auf einem Zeiger", len(stellen), 12)
+	gleichAuf(t, "Zahl der Typen mit Unwrap auf einem Zeiger", len(stellen), 13)
 }
