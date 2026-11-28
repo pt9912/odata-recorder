@@ -66,52 +66,137 @@ func TestBatchProgrammfehler(t *testing.T) {
 	wantFehler(t, "grenze 1 ist kein Programmfehler", got, err, model.BatchRahmen, "")
 }
 
-// TestBatchAbbruch hält Zeile 2: der Fehler des Kontexts unverändert (==) und ohne Code, vor dem ersten Read, vor jedem weiteren
-// und nach dem letzten, auch bei ungültigem Inhalt; er geht dem Content-Type vor.
-func TestBatchAbbruch(t *testing.T) {
+// ctxMethoden sind die Methoden eines Kontexts, den ein anderer innen trägt.
+type ctxMethoden interface {
+	Deadline() (time.Time, bool)
+	Done() <-chan struct{}
+	Err() error
+	Value(key any) any
+}
+
+// schaltbar ist ein Kontext, der erst auf Zuruf beendet ist: ist an gesetzt oder wird Err() zum abN-ten Mal gefragt, meldet er den
+// Fehler des inneren, schon beendeten Kontexts, davor nil. context.Cause liefert die Ursache des inneren.
+type schaltbar struct {
+	innen       ctxMethoden
+	an          bool
+	fragen, abN int
+}
+
+func (c *schaltbar) Deadline() (time.Time, bool) { return c.innen.Deadline() }
+
+func (c *schaltbar) Value(key any) any { return c.innen.Value(key) }
+
+func (c *schaltbar) Err() error {
+	c.fragen++
+	if c.abN > 0 && c.fragen >= c.abN {
+		c.an = true
+	}
+	if !c.an {
+		return nil
+	}
+	return c.innen.Err()
+}
+
+func (c *schaltbar) Done() <-chan struct{} {
+	if !c.an {
+		return nil
+	}
+	return c.innen.Done()
+}
+
+// kontextArt ist eine Art, in der ein Kontext endet, mit dem Fehler, den Err() dann liefert.
+type kontextArt struct {
+	name string
+	ctx  ctxMethoden
+	soll error
+}
+
+// kontextArten sind Abbruch und abgelaufene Frist, je ohne und mit eigener Ursache.
+func kontextArten(t *testing.T) []kontextArt {
+	t.Helper()
 	ursache := errors.New("Ursache")
 	ctxUrsache, cancelUrsache := context.WithCancelCause(context.Background())
 	cancelUrsache(ursache)
 	ctxFrist, cancelFrist := context.WithDeadline(context.Background(), time.Unix(0, 0))
-	defer cancelFrist()
-	soll := []error{context.Canceled, context.Canceled, context.DeadlineExceeded}
-	for i, beendeter := range []context.Context{beendet(), ctxUrsache, ctxFrist} {
+	t.Cleanup(cancelFrist)
+	ctxFristUrsache, cancelFristUrsache := context.WithDeadlineCause(context.Background(), time.Unix(0, 0), ursache)
+	t.Cleanup(cancelFristUrsache)
+	return []kontextArt{
+		{"Abbruch", beendet(), context.Canceled},
+		{"Abbruch mit Ursache", ctxUrsache, context.Canceled},
+		{"Frist", ctxFrist, context.DeadlineExceeded},
+		{"Frist mit Ursache", ctxFristUrsache, context.DeadlineExceeded},
+	}
+}
+
+// TestBatchAbbruch hält Zeile 2: der Fehler des Kontexts unverändert (==) und ohne Code an jeder Prüfstelle (vor dem Content-Type,
+// vor dem ersten Read, vor jedem weiteren und nach dem letzten) für jede Art, in der ein Kontext endet, auch bei ungültigem Inhalt;
+// er geht dem Content-Type vor.
+func TestBatchAbbruch(t *testing.T) {
+	arten := kontextArten(t)
+	bodies := []string{huelle(httpTeil("GET x HTTP/1.1")), huelle("kaputt"), "kein Rahmen", ""}
+	n, summe := 0, 0
+	for _, art := range arten {
 		for _, ct := range [][]string{{ctBatch}, {"text/plain"}, {"application/json"}, nil} {
 			q := neueQuelle(huelle())
-			got, err := batchcodec.NewLeser().LeseBatch(beendeter, q, ct, 100)
-			if err != soll[i] || !reflect.DeepEqual(got, model.Batch{}) || q.reads != 0 {
-				t.Errorf("vor dem ersten Read, %v: %v, %d Reads", ct, err, q.reads)
+			got, err := batchcodec.NewLeser().LeseBatch(art.ctx, q, ct, 100)
+			if err != art.soll || !reflect.DeepEqual(got, model.Batch{}) || q.reads != 0 {
+				t.Errorf("%s vor dem Content-Type, %v: %v, %d Reads", art.name, ct, err, q.reads)
 			}
 		}
-	}
-	for _, body := range []string{huelle(httpTeil("GET x HTTP/1.1")), huelle("kaputt"), "kein Rahmen", ""} {
-		for _, mitEOF := range []bool{false, true} {
-			probe := neueQuelle(body)
-			probe.hoechstens, probe.eofMitDaten = 7, mitEOF
-			if _, err := leseMit(probe, []string{ctBatch}, grenzeAll); errors.Is(err, context.Canceled) {
-				t.Fatalf("ohne Abbruch: %v", err)
+		for _, body := range bodies {
+			// Ab der zweiten Abfrage beendet: die erste ist die vor dem Content-Type, vor dem ersten Read folgt eine weitere.
+			q := neueQuelle(body)
+			got, err := batchcodec.NewLeser().LeseBatch(&schaltbar{innen: art.ctx, abN: 2}, q, []string{ctBatch}, grenzeAll)
+			if err != art.soll || !reflect.DeepEqual(got, model.Batch{}) || q.reads != 0 {
+				t.Errorf("%s vor dem ersten Read, %q: %v, %d Reads", art.name, body, err, q.reads)
 			}
-			for k := 1; k <= probe.reads; k++ {
-				ctx, cancel := context.WithCancel(context.Background())
-				q := neueQuelle(body)
-				q.hoechstens, q.eofMitDaten = 7, mitEOF
-				q.beim = func(read int) {
-					if read == k {
-						cancel()
+			for _, mitEOF := range []bool{false, true} {
+				probe := neueQuelle(body)
+				probe.hoechstens, probe.eofMitDaten = 7, mitEOF
+				if _, err := leseMit(probe, []string{ctBatch}, grenzeAll); errors.Is(err, art.soll) {
+					t.Fatalf("ohne Abbruch: %v", err)
+				}
+				summe += probe.reads
+				// k kleiner als probe.reads trifft die Prüfung vor dem nächsten Read, k gleich probe.reads die nach dem letzten.
+				for k := 1; k <= probe.reads; k++ {
+					ctx := &schaltbar{innen: art.ctx}
+					q := neueQuelle(body)
+					q.hoechstens, q.eofMitDaten = 7, mitEOF
+					q.beim = func(read int) {
+						if read == k {
+							ctx.an = true
+						}
 					}
+					got, err := batchcodec.NewLeser().LeseBatch(ctx, q, []string{ctBatch}, grenzeAll)
+					if err != art.soll || !reflect.DeepEqual(got, model.Batch{}) || q.reads != k {
+						t.Errorf("%s %q in Read %d von %d: %v, %d Reads", art.name, body, k, probe.reads, err, q.reads)
+					}
+					n++
 				}
-				got, err := batchcodec.NewLeser().LeseBatch(ctx, q, []string{ctBatch}, grenzeAll)
-				if err != context.Canceled || !reflect.DeepEqual(got, model.Batch{}) || q.reads != k {
-					t.Errorf("%q Abbruch in Read %d von %d: %v, %d Reads", body, k, probe.reads, err, q.reads)
-				}
-				cancel()
 			}
 		}
+		abbruchRang(t, art)
 	}
-	// Das Lesen geht dem Kontext nach dem letzten Lesen vor (SPEC-182 Nr. 5 d, e).
-	ctx, cancel := context.WithCancel(context.Background())
+	if len(arten) != 4 || n != summe || n == 0 {
+		t.Errorf("%d Arten, %d Fälle bei %d Reads", len(arten), n, summe)
+	}
+}
+
+// abbruchRang: das Lesen geht dem Kontext nach dem letzten Lesen vor (SPEC-182 Nr. 5 d, e).
+func abbruchRang(t *testing.T, art kontextArt) {
+	t.Helper()
+	ctx := &schaltbar{innen: art.ctx}
 	q := neueQuelle("zehn Bytes")
-	q.beim = func(int) { cancel() }
+	q.beim = func(int) { ctx.an = true }
 	got, err := batchcodec.NewLeser().LeseBatch(ctx, q, []string{ctBatch}, 3)
-	wantFehler(t, "zu_gross im selben Read", got, err, model.BatchZuGross, "")
+	wantFehler(t, art.name+": zu_gross im selben Read", got, err, model.BatchZuGross, "")
+	eigener := errors.New("Platte")
+	ctx = &schaltbar{innen: art.ctx}
+	q = neueQuelle("zehn Bytes")
+	q.fehler, q.fehlerBei, q.mitDaten = eigener, 10, true
+	q.beim = func(int) { ctx.an = true }
+	if _, err := batchcodec.NewLeser().LeseBatch(ctx, q, []string{ctBatch}, grenzeAll); err != eigener {
+		t.Errorf("%s: Fehler von src im selben Read: %v", art.name, err)
+	}
 }

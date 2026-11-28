@@ -128,11 +128,12 @@ func TestBatchStromfehler(t *testing.T) {
 	}
 }
 
-// groesseFall liest body mit grenze in Stücken von höchstens stueck Bytes und prüft die angeforderten Längen.
-func groesseFall(t *testing.T, body string, grenze int64, stueck int) (model.Batch, error) {
+// groesseFall liest body mit grenze in Stücken von höchstens stueck Bytes, mit eofMitDaten kommt das letzte Stück zusammen mit
+// io.EOF, und prüft die angeforderten Längen.
+func groesseFall(t *testing.T, body string, grenze int64, stueck int, eofMitDaten bool) (model.Batch, error) {
 	t.Helper()
 	q := neueQuelle(body)
-	q.hoechstens = stueck
+	q.hoechstens, q.eofMitDaten = stueck, eofMitDaten
 	got, err := leseMit(q, []string{ctBatch}, grenze)
 	var geliefert int64
 	for i, a := range q.angefordert {
@@ -148,32 +149,36 @@ func groesseFall(t *testing.T, body string, grenze int64, stueck int) (model.Bat
 }
 
 // TestBatchGroesse hält Zeile 8: grenze Bytes sind gültig, das nächste ist zu_gross, vor jedem Verstoß des Inhalts und vor dem
-// Fehler von src im selben Read; kein Read fordert mehr an als grenze+1 abzüglich der gelieferten Bytes.
+// Fehler von src im selben Read, ob das Ende des Stroms im selben oder in einem eigenen Read kommt; kein Read fordert mehr an als
+// grenze+1 abzüglich der gelieferten Bytes.
 func TestBatchGroesse(t *testing.T) {
 	klein := huelle(httpTeil("GET x HTTP/1.1"))
 	gross := huelle(block([]string{zeileCTH}, anfrage("POST x HTTP/1.1", nil, strings.Repeat("y", 70000))))
 	n := 0
 	for _, body := range []string{klein, gross} {
 		l := int64(len(body))
-		for _, grenze := range []int64{1, l - 1, l, l + 1, math.MaxInt64} {
+		for _, grenze := range []int64{1, l - 2, l - 1, l, l + 1, math.MaxInt64} {
 			for _, stueck := range []int{1, 7, len(body), 32768, 32769, 0} {
-				got, err := groesseFall(t, body, grenze, stueck)
-				if grenze < l {
-					wantFehler(t, fmt.Sprintf("grenze %d von %d", grenze, l), got, err, model.BatchZuGross, "")
-				} else if err != nil || len(got.Teile) != 1 {
-					t.Errorf("grenze %d von %d: %v", grenze, l, err)
+				for _, mitEOF := range []bool{false, true} {
+					got, err := groesseFall(t, body, grenze, stueck, mitEOF)
+					if grenze < l {
+						wantFehler(t, fmt.Sprintf("grenze %d von %d, EOF mit Daten %v", grenze, l, mitEOF), got, err, model.BatchZuGross, "")
+					} else if err != nil || len(got.Teile) != 1 {
+						t.Errorf("grenze %d von %d, Stück %d, EOF mit Daten %v: %v", grenze, l, stueck, mitEOF, err)
+					}
+					n++
 				}
-				n++
 			}
 		}
 	}
-	if n != 2*5*6 {
+	if n != 2*6*6*2 {
 		t.Errorf("%d Fälle", n)
 	}
-	got, err := groesseFall(t, "x", 1, 0)
+	groesseEnde(t)
+	got, err := groesseFall(t, "x", 1, 0, false)
 	wantFehler(t, "ein Byte bei grenze 1", got, err, model.BatchRahmen, "")
 	for _, body := range []string{strings.Repeat("x", 11), "--b" + crlf + "kaputt" + crlf + "--b--"} {
-		got, err := groesseFall(t, body, 10, 0)
+		got, err := groesseFall(t, body, 10, 0, false)
 		wantFehler(t, "Inhalt hinter der Grenze", got, err, model.BatchZuGross, "")
 	}
 	eigener := errors.New("Platte")
@@ -190,5 +195,48 @@ func TestBatchGroesse(t *testing.T) {
 		} else if err != eigener {
 			t.Errorf("Fehler bei %d, grenze %d: %v", f.bei, f.grenze, err)
 		}
+	}
+}
+
+// groesseEnde führt beide Seiten der Grenze (Länge grenze-1 bis grenze+2) mit jedem Ende des Stroms (io.EOF oder ein anderer
+// Fehler, mit den letzten Bytes oder in einem eigenen Read) und jeder Stückelung (am Stück, in 1000, in grenze Bytes, sodass das
+// Byte grenze+1 allein kommt), auch an der Länge des Lesepuffers.
+func groesseEnde(t *testing.T) {
+	t.Helper()
+	eigener := errors.New("Platte")
+	n := 0
+	for _, grenze := range []int{1, 2, 32767, 32768, 32769, 65536} {
+		for l := grenze - 1; l <= grenze+2; l++ {
+			for _, ende := range []error{io.EOF, eigener} {
+				for _, mitDaten := range []bool{false, true} {
+					for _, stueck := range []int{0, 1000, grenze} {
+						q := neueQuelle(strings.Repeat("x", l))
+						q.hoechstens = stueck
+						if ende == io.EOF {
+							q.eofMitDaten = mitDaten
+						} else {
+							q.fehler, q.fehlerBei, q.mitDaten = ende, l, mitDaten
+						}
+						got, err := leseMit(q, []string{ctBatch}, int64(grenze))
+						was := fmt.Sprintf("grenze %d, Länge %d, Ende %v mit Daten %v, Stück %d", grenze, l, ende, mitDaten, stueck)
+						switch {
+						case l > grenze:
+							wantFehler(t, was, got, err, model.BatchZuGross, "")
+						case ende == io.EOF:
+							wantFehler(t, was, got, err, model.BatchRahmen, "")
+						case err != eigener || !reflect.DeepEqual(got, model.Batch{}):
+							t.Errorf("%s: %v", was, err)
+						}
+						if q.nachEnde != 0 {
+							t.Errorf("%s: %d Reads nach dem Ende", was, q.nachEnde)
+						}
+						n++
+					}
+				}
+			}
+		}
+	}
+	if n != 6*4*2*2*3 {
+		t.Errorf("%d Fälle am Ende des Stroms", n)
 	}
 }

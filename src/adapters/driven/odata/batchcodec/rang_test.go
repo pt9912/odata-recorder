@@ -45,6 +45,7 @@ func verstoesse() []verstoss {
 	return []verstoss{
 		{1, model.BatchKopfzeile, func(b *bauplan) { b.teilZeilen = []string{"ohne Doppelpunkt"} }},
 		{1, model.BatchZuViele, func(b *bauplan) { b.teilZeilen = zeilen(101) }},
+		{1, model.BatchKopfzeile, func(b *bauplan) { b.teilZeilen = doppelteZeile() }},
 		{2, model.BatchContentType, func(b *bauplan) { b.typ = "" }},
 		{2, model.BatchTeilTyp, func(b *bauplan) { b.typ = "text/plain" }},
 		{3, model.BatchTransferKodierung, func(b *bauplan) { b.kodierung = "base64" }},
@@ -95,9 +96,177 @@ func alleVerstossTeile() []verstossTeil {
 	return out
 }
 
-// TestBatchRang hält Zeile 30: alle Paare von Verstößen an verschiedenen Teilen in beiden Reihenfolgen und an demselben Teil nach
-// der Folge von SPEC-182 Nr. 5, ohne Vorrang einer Klasse; ein Verstoß der Prüfung vor einem Verstoß des Lesers ergibt den des
-// Lesers.
+// doppelteZeile ist die Wiederholung einer Kopfzeile eines Teils mit Wirkung.
+func doppelteZeile() []string { return []string{"Content-ID: 1", "content-id: 1"} }
+
+// csPlan ist ein Teil mit multipart/mixed, den die Verstöße verändern: Zeilen vor dem Content-Type, die Grenzzeichenfolge, die
+// Transfer-Kodierung, der erste Teil seiner Ebene, eine fehlende schließende Grenzzeile und 1000 weitere Teile.
+type csPlan struct {
+	teilZeilen []string
+	grenze     string
+	kodierung  string
+	erster     string
+	offen      bool
+	viele      bool
+}
+
+func gutCS(grenze string) csPlan { return csPlan{grenze: grenze, erster: httpTeil("PUT y HTTP/1.1")} }
+
+func (c csPlan) teil() string {
+	kopf := append([]string{}, c.teilZeilen...)
+	kopf = append(kopf, "Content-Type: multipart/mixed; boundary="+c.grenze)
+	if c.kodierung != "" {
+		kopf = append(kopf, "Content-Transfer-Encoding: "+c.kodierung)
+	}
+	teile := []string{c.erster}
+	if c.viele {
+		for range 1000 {
+			teile = append(teile, httpTeil("PUT y HTTP/1.1"))
+		}
+	}
+	inhalt := ebene(c.grenze, teile...)
+	if c.offen {
+		inhalt = strings.TrimSuffix(inhalt, "--"+c.grenze+"--")
+	}
+	return block(kopf, inhalt)
+}
+
+// csVerstoss ist ein Verstoß an einem Changeset-Teil mit seiner Stufe in der Folge von SPEC-182 Nr. 5 g und f: 1 die Kopfzeilen,
+// 3 Content-Transfer-Encoding, 4 boundary, 5 rahmen, 6 die Zahl der Teile, 7 die Teile. Die Stufe 2 (Content-Type) hat an einem
+// Changeset-Teil der Hülle keinen Verstoß.
+type csVerstoss struct {
+	stufe int
+	u     model.BatchUrsache
+	unter string
+	tu    func(*csPlan)
+}
+
+// csVerstoesse sind die Verstöße eines Changeset-Teils; der Verstoß boundary behält eine zerlegbare Zeichenfolge, damit die
+// Verstöße der Ebene neben ihm stehen.
+func csVerstoesse() []csVerstoss {
+	out := []csVerstoss{
+		{1, model.BatchKopfzeile, "", func(c *csPlan) { c.teilZeilen = []string{"ohne Doppelpunkt"} }},
+		{1, model.BatchZuViele, "", func(c *csPlan) { c.teilZeilen = zeilen(101) }},
+		{1, model.BatchKopfzeile, "", func(c *csPlan) { c.teilZeilen = doppelteZeile() }},
+		{3, model.BatchTransferKodierung, "", func(c *csPlan) { c.kodierung = "base64" }},
+		{4, model.BatchBoundary, "", func(c *csPlan) { c.grenze += "!" }},
+		{5, model.BatchRahmen, "", func(c *csPlan) { c.offen = true }},
+		{6, model.BatchZuViele, "", func(c *csPlan) { c.viele = true }},
+		{7, model.BatchVerschachtelt, "/1", func(c *csPlan) { c.erster = changeset("d") }},
+	}
+	for _, v := range verstoesse() {
+		p := gutPlan()
+		v.tu(&p)
+		teil := p.teil()
+		out = append(out, csVerstoss{7, v.u, "/1", func(c *csPlan) { c.erster = teil }})
+	}
+	return out
+}
+
+// rangChangeset: alle Paare von Verstößen verschiedener Stufen an demselben Changeset-Teil, in beiden Reihenfolgen des Anwendens,
+// als erster und als zweiter Teil der Hülle; jeder Verstoß ist auch allein einer.
+func rangChangeset(t *testing.T) {
+	t.Helper()
+	gut := httpTeil("GET x HTTP/1.1")
+	pruefe := func(was string, p csPlan, u model.BatchUrsache, unter string) {
+		t.Helper()
+		got, err := lese(huelle(p.teil()))
+		wantFehler(t, was, got, err, u, "1"+unter)
+		got, err = lese(huelle(gut, p.teil()))
+		wantFehler(t, was+", als Teil 2", got, err, u, "2"+unter)
+	}
+	got, err := lese(huelle(gutCS("c").teil()))
+	if err != nil || len(got.Teile) != 1 || !got.Teile[0].Changeset {
+		t.Fatalf("Ausgangs-Changeset: %v", err)
+	}
+	vs := csVerstoesse()
+	n := 0
+	for i, a := range vs {
+		p := gutCS("c")
+		a.tu(&p)
+		pruefe("allein "+strconv.Itoa(i), p, a.u, a.unter)
+		for j, b := range vs {
+			if a.stufe >= b.stufe {
+				continue
+			}
+			for _, reihe := range [][]csVerstoss{{a, b}, {b, a}} {
+				p := gutCS("c")
+				reihe[0].tu(&p)
+				reihe[1].tu(&p)
+				pruefe("Changeset-Teil, Verstoß "+strconv.Itoa(i)+" vor "+strconv.Itoa(j), p, a.u, a.unter)
+				n++
+			}
+		}
+	}
+	// 19 Verstöße, 171 Paare, davon auf derselben Stufe 3 (Kopfzeilen) und 66 (12 Verstöße der Teile).
+	if len(vs) != 19 || n != (171-3-66)*2 {
+		t.Errorf("%d Verstöße, %d Paare an demselben Changeset-Teil", len(vs), n)
+	}
+}
+
+// rangGeschachtelt: an einem Changeset-Teil in einem Changeset gehen die Kopfzeilen dem Medientyp vor und der Medientyp
+// (verschachtelt) der Transfer-Kodierung und allem, was seine Grenzzeichenfolge und seine Ebene trügen.
+func rangGeschachtelt(t *testing.T) {
+	t.Helper()
+	kopfzeilen := []csVerstoss{{u: model.BatchVerschachtelt, tu: func(*csPlan) {}}}
+	inhalte := []func(*csPlan){func(*csPlan) {}}
+	for _, v := range csVerstoesse() {
+		switch {
+		case v.stufe == 1:
+			kopfzeilen = append(kopfzeilen, v)
+		case v.stufe >= 4:
+			inhalte = append(inhalte, v.tu)
+		}
+	}
+	n := 0
+	for i, k := range kopfzeilen {
+		for _, kodierung := range []string{"", "binary", "base64"} {
+			for j, inhalt := range inhalte {
+				p := gutCS("d")
+				k.tu(&p)
+				p.kodierung = kodierung
+				inhalt(&p)
+				got, err := lese(huelle(changeset("c", p.teil())))
+				wantFehler(t, "geschachtelt "+strconv.Itoa(i)+" "+kodierung+" "+strconv.Itoa(j), got, err, k.u, "1/1")
+				n++
+			}
+		}
+	}
+	// 4 Zustände der Kopfzeilen, 3 der Transfer-Kodierung, 16 des Inhalts (unverändert, boundary, rahmen, Zahl, 12 Teile).
+	if n != 4*3*16 {
+		t.Errorf("%d Fälle am geschachtelten Teil", n)
+	}
+}
+
+// rangImChangeset: von zwei Verstößen an verschiedenen Teilen eines Changeset gilt der des früheren.
+func rangImChangeset(t *testing.T) {
+	t.Helper()
+	gut := httpTeil("PUT y HTTP/1.1")
+	var teile []verstossTeil
+	for _, v := range verstoesse() {
+		p := gutPlan()
+		v.tu(&p)
+		teile = append(teile, verstossTeil{v.u, "", p.teil()})
+	}
+	teile = append(teile, verstossTeil{model.BatchVerschachtelt, "", changeset("d")})
+	n := 0
+	for _, a := range teile {
+		for _, b := range teile {
+			got, err := lese(huelle(changeset("c", a.teil, b.teil)))
+			wantFehler(t, "im Changeset Teil 1 vor Teil 2", got, err, a.u, "1/1")
+			got, err = lese(huelle(changeset("c", gut, a.teil, gut, b.teil)))
+			wantFehler(t, "im Changeset Teil 2 vor Teil 4", got, err, a.u, "1/2")
+			n++
+		}
+	}
+	if n != 12*12 {
+		t.Errorf("%d Paare an verschiedenen Teilen eines Changeset", n)
+	}
+}
+
+// TestBatchRang hält Zeile 30: alle Paare von Verstößen an verschiedenen Teilen in beiden Reihenfolgen, in der Hülle und in einem
+// Changeset, und an demselben Teil (Request, Changeset, geschachteltes Changeset) nach der Folge von SPEC-182 Nr. 5, ohne Vorrang
+// einer Klasse; ein Verstoß der Prüfung vor einem Verstoß des Lesers ergibt den des Lesers.
 func TestBatchRang(t *testing.T) {
 	gut := httpTeil("GET x HTTP/1.1")
 	teile := alleVerstossTeile()
@@ -111,7 +280,7 @@ func TestBatchRang(t *testing.T) {
 			n++
 		}
 	}
-	if n != 15*15 {
+	if n != 16*16 {
 		t.Errorf("%d Paare an verschiedenen Teilen", n)
 	}
 	n = 0
@@ -133,30 +302,49 @@ func TestBatchRang(t *testing.T) {
 			}
 		}
 	}
-	// 10 Verstöße, 45 Paare, 3 davon auf derselben Stufe, in beiden Reihenfolgen des Anwendens.
-	if n != (45-3)*2 {
+	// 11 Verstöße, 55 Paare, 5 davon auf derselben Stufe (3 in den Kopfzeilen des Teils, 1 beim Medientyp, 1 in den Kopfzeilen
+	// des Requests), in beiden Reihenfolgen des Anwendens.
+	if n != (55-5)*2 {
 		t.Errorf("%d Paare an demselben Teil", n)
 	}
+	rangChangeset(t)
+	rangGeschachtelt(t)
+	rangImChangeset(t)
 	rangZeilen(t)
 	rangEbenen(t)
 	rangPruefung(t)
 }
 
-// rangZeilen: je Zeile des Blocks des Teils zuerst die Zahl, dann die Form, dann die Wiederholung.
+// rangZeilen: je Zeile des Blocks eines Teils zuerst die Zahl, dann die Form, dann die Wiederholung, für jede Art von Teil
+// (Request, Changeset, geschachteltes Changeset).
 func rangZeilen(t *testing.T) {
 	t.Helper()
-	for _, f := range []struct {
-		zeilen []string
-		u      model.BatchUrsache
+	n := 0
+	for _, art := range []struct {
+		typ, rest, ort string
+		body           func(teil string) string
 	}{
-		{[]string{"schlecht", zeileCTH, zeileCTH}, model.BatchKopfzeile},
-		{[]string{zeileCTH, zeileCTH, "schlecht"}, model.BatchKopfzeile},
-		{append(append([]string{zeileCTH}, zeilen(99)...), "schlecht"), model.BatchZuViele},
-		{append(append([]string{zeileCTH}, zeilen(98)...), "schlecht", "x: 1"), model.BatchKopfzeile},
-		{append(append([]string{zeileCTH, zeileCTH}, zeilen(100)...), "x: 1"), model.BatchKopfzeile},
+		{zeileCTH, anfrage("GET x HTTP/1.1", nil, ""), "1", func(teil string) string { return huelle(teil) }},
+		{"Content-Type: multipart/mixed; boundary=c", ebene("c"), "1", func(teil string) string { return huelle(teil) }},
+		{"Content-Type: multipart/mixed; boundary=d", ebene("d"), "1/1", func(teil string) string { return huelle(changeset("c", teil)) }},
 	} {
-		got, err := lese(huelle(block(f.zeilen, anfrage("GET x HTTP/1.1", nil, ""))))
-		wantFehler(t, "Zeilenfolge", got, err, f.u, "1")
+		for i, f := range []struct {
+			zeilen []string
+			u      model.BatchUrsache
+		}{
+			{[]string{"schlecht", art.typ, art.typ}, model.BatchKopfzeile},
+			{[]string{art.typ, art.typ, "schlecht"}, model.BatchKopfzeile},
+			{append(append([]string{art.typ}, zeilen(99)...), "schlecht"), model.BatchZuViele},
+			{append(append([]string{art.typ}, zeilen(98)...), "schlecht", "x: 1"), model.BatchKopfzeile},
+			{append(append([]string{art.typ, art.typ}, zeilen(100)...), "x: 1"), model.BatchKopfzeile},
+		} {
+			got, err := lese(art.body(block(f.zeilen, art.rest)))
+			wantFehler(t, "Zeilenfolge "+strconv.Itoa(i)+" an "+art.typ, got, err, f.u, art.ort)
+			n++
+		}
+	}
+	if n != 3*5 {
+		t.Errorf("%d Zeilenfolgen", n)
 	}
 }
 
