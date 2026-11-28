@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-abweisen-begrenzen
+**Fund:** F-2 (Review, MEDIUM): die Zusage „die Uhr wird je Zulassung genau einmal gelesen“ hatte weder Zeile noch Fänger; zwei Mutationen mit einer zweiten Lesung waren grün. V-2 (Verifikation, LOW): zwei weitere Zusagen des Vertrags (Sperre nie über fremde Aufrufe, Geheimnisse) hatten keine Zeile der Tabelle; die Closure trug sie nach, für den Inhalt des Fensters selbst ohne Fänger. Beleg: Plan §3 (W09, W19, W20), §6 Negativ 11; Reports `2026-11-28-slice-admin-abweisen-begrenzen-review` und `-verifikation`.

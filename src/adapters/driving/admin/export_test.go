@@ -57,3 +57,10 @@ func BildeAnfrage(r *http.Request, id string, werte map[string]string) Anfrage {
 
 // Vergleiche führt vergleiche heraus (SPEC-238 Nr. 4 e).
 func Vergleiche(erwartet, gegeben []byte) bool { return vergleiche(erwartet, gegeben) }
+
+// FensterZahlFuerTest liefert die Zahl des Fensters der Einträge des Abweisens (SPEC-301 Nr. 2 c).
+func (s *Server) FensterZahlFuerTest() int {
+	s.fenster.mu.Lock()
+	defer s.fenster.mu.Unlock()
+	return s.fenster.zahl
+}

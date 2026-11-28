@@ -237,8 +237,9 @@ type newFehlerFall struct {
 	konfig func() admin.Konfig
 }
 
-// newFehlerFaelle sind die neun Zweige von New, die einen Fehler mit einem Text bilden (SPEC-238 Nr. 1, 2): Listener, IDs,
-// Audit, Telemetrie fehlt, Token zu kurz (31 Bytes) und die vier Verstöße einer Route (Methode, Muster, Handler, Überlappung).
+// newFehlerFaelle sind die zehn Zweige von New, die einen Fehler mit einem Text bilden (SPEC-238 Nr. 1, 2): Listener, IDs,
+// Audit, Telemetrie, Uhr fehlt, Token zu kurz (31 Bytes) und die vier Verstöße einer Route (Methode, Muster, Handler,
+// Überlappung).
 func newFehlerFaelle() []newFehlerFall {
 	basis := func(routen ...admin.Route) admin.Konfig {
 		k, _ := konfigMit(routen...)
@@ -252,6 +253,7 @@ func newFehlerFaelle() []newFehlerFall {
 		{"IDs fehlt", func() admin.Konfig { k := basis(); k.IDs = nil; return k }},
 		{"Audit fehlt", func() admin.Konfig { k := basis(); k.Audit = nil; return k }},
 		{"Telemetrie fehlt", func() admin.Konfig { k := basis(); k.Telemetrie = nil; return k }},
+		{"Uhr fehlt", func() admin.Konfig { k := basis(); k.Uhr = nil; return k }},
 		{"Token zu kurz", func() admin.Konfig { k := basis(); k.Token = tokenVielfalt()[:31]; return k }},
 		{"Route mit ungültiger Methode", func() admin.Konfig {
 			return basis(admin.Route{Methode: canary(), Muster: muster, Handler: handler})

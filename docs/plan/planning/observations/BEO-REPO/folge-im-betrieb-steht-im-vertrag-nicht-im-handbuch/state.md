@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang mit `slice-admin-abweisen-begrenzen` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht. Adresse: Architect (ob `SPEC-301` Nr. 8 eine Aussage zum Rücksprung der Systemzeit verlangt)

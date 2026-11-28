@@ -22,7 +22,8 @@ import (
 )
 
 // Der Netzwerkzugriffstest des Admin-Adapters (SPEC-041 Nr. 7, LH-QA-04): ein echter Loopback-Listener, admin.New mit den vier Routen-Konstruktoren und
-// den Fakes des Pakets, ein http.Client gegen die Adresse. Alle Namen dieser Datei tragen das Präfix `sicherheit`.
+// den Fakes des Pakets, ein http.Client gegen die Adresse. Alle Namen dieser Datei tragen das Präfix `sicherheit`. Die Uhr ist eine FestUhr, die vor jeder
+// Abweisung um 60 s vorrückt, sodass jede ein eigenes Fenster eröffnet und ihren Eintrag schreibt (SPEC-301); die Kontrolle ohne Vorrücken hält die Grenze.
 
 // Die Orakel als Literale des Vertrags (SPEC-238 Nr. 3 c, 5; SPEC-109 Nr. 1), nie aus dem Code des Adapters gebildet, und die Zahlen der Mengen.
 const (
@@ -131,6 +132,21 @@ type sicherheitServer struct {
 	falsch      string
 	ende        time.Time
 	konstruktor [4][]admin.Route
+	// uhr ist die Uhr des Servers; stehend heißt: sie rückt vor den Abweisungen nicht vor.
+	uhr     *supporttest.FestUhr
+	stehend bool
+}
+
+// sicherheitUhr liefert die Uhr eines Servers dieser Datei.
+func sicherheitUhr() *supporttest.FestUhr {
+	return supporttest.NewFestUhr(time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC))
+}
+
+// vorAbweisung rückt die Uhr um 60 s vor, außer sie steht.
+func (s *sicherheitServer) vorAbweisung() {
+	if !s.stehend {
+		s.uhr.Advance(60 * time.Second)
+	}
 }
 
 // sicherheitTokenWert bildet ein Token von 64 Zeichen aus Bytewerten; saat verschiebt die Folge.
@@ -153,7 +169,7 @@ func sicherheitFakes(t *testing.T, audit *supporttest.FakeAudit) *sicherheitServ
 		imps: &importsFake{ergebnis: inbound.ImportErgebnis{Import: importA(), Neu: true}, imp: importA()},
 		wf:   &workspaceFake{p: p, ws: wsA(), bericht: inbound.Loeschbericht{Entfernt: 3, Zurueckgestellt: true}},
 		sf:   &snapshotFake{p: p, snap: snapA()}, p: p,
-		token: sicherheitTokenWert(1), falsch: sicherheitTokenWert(2),
+		token: sicherheitTokenWert(1), falsch: sicherheitTokenWert(2), uhr: sicherheitUhr(),
 	}
 	var err [4]error
 	s.konstruktor[0], err[0] = admin.SessionRouten(s.sess, audit)
@@ -180,7 +196,7 @@ func sicherheitStart(t *testing.T) *sicherheitServer {
 		t.Fatalf("der Listener liegt nicht am Loopback: %v", l.Addr())
 	}
 	srv, err := admin.New(admin.Konfig{
-		Listener: l, Token: []byte(s.token), IDs: neueIDs(), Audit: s.audit, Telemetrie: s.tele, Routen: slices.Concat(s.konstruktor[:]...),
+		Listener: l, Token: []byte(s.token), IDs: neueIDs(), Audit: s.audit, Telemetrie: s.tele, Routen: slices.Concat(s.konstruktor[:]...), Uhr: s.uhr,
 	})
 	if err != nil {
 		t.Fatalf("New: %v", err)
@@ -254,13 +270,14 @@ func sicherheitPfade() []string {
 	return pfade
 }
 
-// abweisungen sendet die Menge M-Abweisung einmal in der Folge Pfad, Methode, Anlass.
+// abweisungen sendet die Menge M-Abweisung einmal in der Folge Pfad, Methode, Anlass, jede nach vorAbweisung.
 func (s *sicherheitServer) abweisungen() (ants []sicherheitAntwort, zellen int) {
 	s.t.Helper()
 	for _, pfad := range sicherheitPfade() {
 		for _, m := range sicherheitMethoden() {
 			for a := range sicherheitAnlaesse() {
 				zellen++
+				s.vorAbweisung()
 				ants = append(ants, s.sende(m, pfad, s.anlass(a), ""))
 			}
 		}
@@ -340,7 +357,7 @@ func TestSicherheitRouten(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = l.Close() }()
-	k := admin.Konfig{Listener: l, Token: []byte(s.token), IDs: neueIDs(), Audit: s.audit, Telemetrie: s.tele, Routen: slices.Concat(s.konstruktor[:]...)}
+	k := admin.Konfig{Listener: l, Token: []byte(s.token), IDs: neueIDs(), Audit: s.audit, Telemetrie: s.tele, Routen: slices.Concat(s.konstruktor[:]...), Uhr: s.uhr}
 	if _, err := admin.New(k); err != nil {
 		t.Errorf("New meldet mit den Routen der vier Konstruktoren: %v", err)
 	}
@@ -372,8 +389,9 @@ func TestSicherheitAbweisung(t *testing.T) {
 }
 
 // TestSicherheitKeineAenderung (TS03, M-Port): nach der Menge der Abweisung, zweimal, hat kein Port einen Aufruf, jede Abweisung genau einen Eintrag
-// admin_abgewiesen mit allen übrigen Feldern leer und genau ein CountError(ODR-E2101) und sonst kein Aufruf der Telemetrie. Die Zahl der Operationen je
-// Fake gleicht der Zahl der Methoden seines Ports.
+// admin_abgewiesen mit allen übrigen Feldern leer (1008 Einträge, die Uhr rückt vor) und genau ein CountError(ODR-E2101) und sonst kein Aufruf der
+// Telemetrie. Die Zahl der Operationen je Fake gleicht der Zahl der Methoden seines Ports. Die Kontrolle ohne Vorrücken der Uhr hält dieselbe Menge:
+// 20 Einträge, die der ersten 20 Antworten, und 1008 CountError (SPEC-041 Nr. 7 c, SPEC-301).
 func TestSicherheitKeineAenderung(t *testing.T) {
 	s := sicherheitStart(t)
 	ports := [5]int{
@@ -420,6 +438,35 @@ func TestSicherheitKeineAenderung(t *testing.T) {
 		}
 	}
 	m.schluss("Keine Änderung", len(kennungen))
+	if len(kennungen) != 1008 {
+		t.Errorf("%d Abweisungen, erwartet 1008", len(kennungen))
+	}
+	sicherheitKontrolleOhneVorruecken(t)
+}
+
+// sicherheitKontrolleOhneVorruecken sendet die Menge der Abweisung zweimal an einen Server, dessen Uhr steht.
+func sicherheitKontrolleOhneVorruecken(t *testing.T) {
+	t.Helper()
+	s := sicherheitStart(t)
+	s.stehend = true
+	var kennungen []string
+	for range 2 {
+		ants, _ := s.abweisungen()
+		for _, a := range ants {
+			kennungen = append(kennungen, a.kopf.Get("X-Correlation-Id"))
+		}
+	}
+	eintraege := s.audit.Eintraege()
+	codes, andere := zaehlungenVon(s.tele)
+	if len(kennungen) != 1008 || len(eintraege) != 20 || len(codes) != 1008 || andere != 0 {
+		t.Fatalf("ohne Vorrücken: %d Abweisungen, %d Einträge, %d CountError, %d andere Aufrufe, erwartet 1008, 20, 1008 und 0",
+			len(kennungen), len(eintraege), len(codes), andere)
+	}
+	for i, e := range eintraege {
+		if soll := (support.Eintrag{Art: "admin_abgewiesen", ErrorCode: model.CodeE2101, KorrelationsID: kennungen[i]}); e != soll {
+			t.Errorf("ohne Vorrücken, Eintrag %d: %+v, erwartet %+v", i, e, soll)
+		}
+	}
 }
 
 // sicherheitKontrolle ist die Antwort auf die gültige Anfrage einer Zeile mit dem richtigen Token und die Zähler der Ports davor und danach.
@@ -489,6 +536,7 @@ func TestSicherheitHealthz(t *testing.T) {
 			for _, a := range []int{0, 2} {
 				zellen++
 				audit, tele := len(s.audit.Eintraege()), len(s.tele.Aufrufe())
+				s.vorAbweisung()
 				ant := s.sende(methode, pfad, s.anlass(a), "")
 				audit, tele = len(s.audit.Eintraege())-audit, len(s.tele.Aufrufe())-tele
 				name := fmt.Sprintf("%s %s (%s)", methode, pfad, sicherheitAnlaesse()[a])
