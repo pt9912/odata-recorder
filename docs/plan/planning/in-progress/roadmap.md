@@ -17,6 +17,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-container-image](slice-container-image.md) ([welle-betrieb](../welle-betrieb.md): Laufzeit-Image und Neustarttest als Gate, Bedingung von M5; Zweig `slice-container-image`; Kettenslice, er hält die Gate-Kette).
+Daneben [slice-batch-parser](slice-batch-parser.md) ([welle-expand-batch](../welle-expand-batch.md): Leser des `$batch`-Requests, nicht Teil der Erstabnahme; Zweig `slice-batch-parser`; kein Kettenslice).
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
