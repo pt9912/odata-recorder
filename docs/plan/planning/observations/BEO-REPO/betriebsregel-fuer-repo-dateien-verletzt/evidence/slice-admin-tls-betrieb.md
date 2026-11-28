@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-tls-betrieb
+**Fund:** Der Planner schrieb in der Closure eine Zwischendatei (`admintls-closure-names.txt`) per Umleitung direkt in die Wurzel des gemeinsamen Scratchpads statt unter sein Verzeichnis `admintls-closure/` (Übergangsregeln Nr. 8); der Guard sperrte nicht. Selbst gemeldet; die Datei liegt dort noch, weil die Regel das Löschen außerhalb des eigenen Verzeichnisses ebenfalls verbietet. Keine Repo-Datei betroffen. Beleg: Plan §7 *Abweichungen vom Plan*.
