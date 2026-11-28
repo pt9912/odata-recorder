@@ -43,7 +43,7 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 - [`slice-batch-validator`](open/slice-batch-validator.md) braucht [`slice-batch-parser`](in-progress/slice-batch-parser.md) (Domain-Werte, Fehlerwert und `model.ContentIDGueltig`), nicht `welle-mock`; der Welle-Trigger ist für ihn Priorisierung wie für den Parser.
 - [`slice-batch-changesets`](open/slice-batch-changesets.md) braucht `welle-mock` (Workspace-Transaktion), [`slice-batch-parser`](in-progress/slice-batch-parser.md) und [`slice-batch-validator`](open/slice-batch-validator.md).
 
-**Gestartet: [`slice-batch-parser`](in-progress/slice-batch-parser.md)** (2026-11-28, Planner): `welle-mock` liegt in `done/`, der Trigger der Welle ist eingetreten; Vertrag und Randformen stehen auf `main` bei `2da754f4`. Zweig `slice-batch-parser`, kein Kettenslice, kein Teil der Erstabnahme. Marke 4600 (*S* = 3385). Daneben läuft [slice-container-image](in-progress/slice-container-image.md): keine Datei gemeinsam. Der Slice trägt sechs bestehende Testdateien nach, die die Sentinels und die Zeilen der Fehlerabbildung zählen (§3 dort).
+**Gestartet: [`slice-batch-parser`](in-progress/slice-batch-parser.md)** (2026-11-28, Planner): `welle-mock` liegt in `done/`, der Trigger der Welle ist eingetreten; Vertrag und Randformen stehen auf `main` bei `2da754f4`. Zweig `slice-batch-parser`, kein Kettenslice, kein Teil der Erstabnahme. Marke 4600 (*S* = 3385). Daneben läuft [slice-container-image](done/slice-container-image.md): keine Datei gemeinsam. Der Slice trägt sechs bestehende Testdateien nach, die die Sentinels und die Zeilen der Fehlerabbildung zählen (§3 dort).
 
 ## 3. Closure-Trigger (Welle schließt)
 

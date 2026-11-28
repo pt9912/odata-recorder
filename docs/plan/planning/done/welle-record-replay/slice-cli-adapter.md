@@ -5,4 +5,4 @@
 
 **Welle:** [welle-record-replay](welle-record-replay.md)
 **Archiviert mit:** welle-record-replay · **Geschlossen:** 2026-11-06
-**Hervorgegangen:** [slice-bootstrap-m2](slice-bootstrap-m2.md) · [slice-container-image](../../in-progress/slice-container-image.md) · [slice-listener-tls](../../done/slice-listener-tls.md)
+**Hervorgegangen:** [slice-bootstrap-m2](slice-bootstrap-m2.md) · [slice-container-image](../../done/slice-container-image.md) · [slice-listener-tls](../../done/slice-listener-tls.md)
