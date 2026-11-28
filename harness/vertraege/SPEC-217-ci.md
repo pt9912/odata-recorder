@@ -1,0 +1,93 @@
+# SPEC-217 — CI mit GitHub Actions (`make gates` auf einem frischen Runner, `make workflow-check`)
+
+**Werkzeug:** die Datei `gates.yml` unter `.github/workflows/`, die Datei `.d-check-workflows.yml` an der Wurzel und das Ziel `workflow-check` aus dem Fragment `workflow.mk` unter `harness/mk/`.
+Die Namen der Dateien sind der Vorschlag des Architect; die Zusagen gelten, wie die Dateien heißen.
+
+**Festlegung:** Bei jedem Push eines Zweigs und bei jedem Pull Request fährt GitHub Actions in einem Job `make gates` unverändert auf einem frischen, von GitHub gestellten Linux-Runner; der Job ist genau dann grün, wenn `make gates` mit 0 endet.
+Dieser Lauf ist der containerbasierte CI-Test der Messmethode von `LH-QA-06` und die Docker-basierte CI-Umgebung von `LH-RB-03`.
+Die CI kommt zum lokalen Lauf hinzu und ersetzt ihn nicht: `AGENTS.md` §6, der Stop-Hook und die Übergangsregeln bleiben.
+
+**Stand:** nicht geliefert. Kein Lauf auf einem Runner ist gesehen; jede Aussage über den Runner ist bis zum ersten Lauf eine Annahme (Nr. 11 a). Die Aussagen über `make workflow-check` zum Modul `workflows` sind gemessen (Nr. 8).
+
+1. **Rang.**
+   **Entscheidung** (Vertrag, keine ADR): *Alternativen:* (a) eine ADR für den Dienst, den Runner und die Rechte; (b) dieser Vertrag. *Gewählt:* (b). *Verworfen:* (a), weil Dienst (GitHub Actions) und Zeitpunkt (vor der Erstabnahme) Entscheidungen des Users sind (2026-11-28), keine angenommene ADR sich ändert und die CI nur einen Lauf hinzufügt, also keine Schwelle senkt (`AGENTS.md` §3.6; Verfahren wie `SPEC-211` Nr. 1).
+   Eine ADR wird fällig, bevor die CI ein Gate auslässt oder ersetzt, ihr Ergebnis den lokalen Lauf ersetzt, oder sie Schreibrechte, Geheimnisse, eine Veröffentlichung oder einen selbst betriebenen Runner bekommt.
+   **Verhältnis zu [ADR-0030](../../docs/plan/adr/0030-eingecheckte-gate-staempel-mit-voller-gegenprobe.md)** (`Proposed`): unabhängig. Die CI braucht weder Stempel noch Nachtlauf; ohne Stempel ist jeder ihrer Läufe ein voller Lauf. Sie ist nicht der dort genannte Teil „CI mit Nachtlauf und Hash-Prüfung“, sondern die Grundlage, auf der er später aufsetzt.
+   Führt ein späterer Vorgang Stempel ein, die ein Gate auslassen, fährt die CI weiter jedes Gate ohne Stempel, und derselbe Vorgang ändert diesen Vertrag.
+2. **Der Workflow.** Genau eine Datei unter `.github/workflows/` mit genau einem Job `gates`.
+   a) *Auslöser:* `push` auf jeden Zweig (Tags nicht) und `pull_request` (Vorgabetypen, jeder Zielzweig). Keine Pfadfilter, kein `pull_request_target`, kein `workflow_run`, kein Zeitplan.
+      **Entscheidung** (alle Zweige): *Alternativen:* (a) Push nur auf `main`, sonst Pull Request; (b) jeder Zweig. *Gewählt:* (b), weil dieses Repo ohne Pull Requests arbeitet (Merge im Integrationsschritt) und ein Slice-Zweig sonst vor dem Merge keinen Lauf hätte. *Folge:* Push und Pull Request desselben Standes ergeben zwei Läufe; das ist hingenommen.
+   b) *Rechte:* auf Ebene des Workflows `permissions` mit allein `contents: read`; kein `permissions` am Job; kein Zugriff auf `secrets`.
+   c) *Aktionen:* allein `actions/checkout`, auf die volle Commit-SHA (40 Hex-Zeichen) gepinnt, dahinter der Kommentar mit dem Release-Tag. Die SHA löst der Implementer aus dem Tag auf und nennt im Commit Tag, Datum und Weg (wie `SPEC-122` Nr. 4 für den Digest).
+      Eine Anhebung ist ein bewusster Commit wie bei den Images; Anlass ist eine Abkündigungs-Meldung im Log eines Laufs oder ein Sicherheitshinweis, Adresse Planner. Kein Dienst, der Pins selbst anhebt: er öffnet Pull Requests, die hier kein Ablauf liest.
+      **Entscheidung** (`actions/checkout`): *Alternative:* `git` in einem eigenen Schritt, ganz ohne fremde Aktion. *Verworfen:* der Schritt müsste das Token des Laufs selbst führen und die Randformen des Klons selbst tragen.
+   d) *Runner:* `runs-on: ubuntu-24.04`, nie `latest`.
+   e) *Zeitgrenze:* `timeout-minutes: 90` am Job. Grund: `make gates` dauerte lokal 1147 s und 1170 s (2026-11-28, 20 Kerne); die Dauer auf dem Runner ist nicht gemessen. Dauert ein grüner Lauf länger als 60 Minuten, meldet der Implementer das dem Planner.
+   f) *Schritte*, in dieser Reihenfolge:
+      (1) Checkout (Nr. 3).
+      (2) *Umgebung:* `docker version`, `nproc`, `free -h`, `df -h /`, und der Schritt scheitert, wenn `git rev-parse --is-shallow-repository` nicht `false` ausgibt.
+      (3) `make gates`, ohne Argument, ohne `-j`, ohne `-k`, ohne Umgebungsvariable, die eine Variable von `make` setzt.
+      (4) *Platz danach:* `df -h /` und `docker system df`, mit `if: always()`.
+      Kein `continue-on-error`, kein Wiederholungs-Schritt, kein `if:` außer in (4), keine Installation einer Toolchain (`AGENTS.md` §3.1).
+      Reicht der Platz nicht (Lauf rot mit `no space left on device`), darf ein Schritt vor (3) vorinstallierte Werkzeuge des Runner-Abbilds löschen; er ändert weder das Repo noch ein Gate.
+      **Entscheidung** (ein Job, ein `make gates`): *Alternativen:* (a) ein Job je Gate oder Gruppe; (b) `make -j gates`; (c) ein Job, nacheinander. *Gewählt:* (c). *Verworfen:* (a) braucht eine zweite Liste der Gates im Workflow, aus der eines still fehlen kann; (b) lässt Bauten und Container zugleich laufen und verschärft Speicher und Fristen auf einem kleinen Runner (`SPEC-211` Nr. 2 b). *Folge:* die Laufzeit ist die Summe aller Gates, und nach dem ersten roten Gate laufen die übrigen nicht.
+   g) *Keine Gleichzeitigkeits-Regel* (`concurrency`): kein Lauf wird durch einen späteren abgebrochen, jeder gepushte Spitzenstand bekommt sein Ergebnis. *Folge:* schnelle Pushes laufen nebeneinander und kosten Laufminuten.
+3. **Checkout und geprüfter Stand.**
+   a) `fetch-depth: 0` (volle Historie) und `persist-credentials: false` (kein Token im Arbeitsbaum nach dem Checkout).
+   b) Bei `push` ist der geprüfte Stand der gepushte Commit.
+   c) Bei `pull_request` ist es der Merge-Stand mit dem Zielzweig, die Vorgabe von `actions/checkout`.
+      **Entscheidung** (Merge-Stand): *Alternative:* der Kopf des Zweigs. *Verworfen:* den prüft schon der Lauf zum Push; der Merge-Stand prüft, was in den Zielzweig käme. *Folge:* `make groessenmarke` zählt dort auch Zeilen mit, die der Zielzweig seit `basis` an den Pfaden des Blocks geändert hat (`SPEC-128` Nr. 4 g), wie lokal nach `git merge main`; ein Rot wird ebenso behandelt wie lokal.
+   d) Ein flacher Klon macht den Schritt *Umgebung* rot (Nr. 2 f), auch ohne Plan in Arbeit, bei dem `make groessenmarke` nichts merkte.
+4. **Docker, Netz, Cache.**
+   a) *Voraussetzungen der Rezepte an den Runner:* `bash`, `git`, `tar`, coreutils, GNU `make` und ein Docker-Daemon mit BuildKit (`--platform=$BUILDPLATFORM`, `--no-cache-filter`), Speicher- und Swap-Limit (`--memory-swap`), `--network container:…`, `--tmpfs` und `docker export` in der Form von `SPEC-323` Nr. 3. Fehlt eines, ist das betroffene Gate rot; kein Gate wird angepasst oder übersprungen.
+      Liefert der Daemon des Runners im Neustarttest andere Namen oder Angaben, geht die Frage an den Architect (`SPEC-323` Nr. 9 f). Der Neustarttest läuft im Daemon des Runners, der hier der Host ist (`SPEC-323` Nr. 1).
+   b) *Runner-Abbild und Docker-Version sind nicht pinnbar.* Akzeptiert (Nr. 11 b); das Log nennt beide je Lauf.
+      **Entscheidung** (gehosteter Runner): *Alternativen:* (a) selbst betriebener Runner; (b) ein Job in einem gepinnten Container mit Docker-in-Docker; (c) der gehostete Runner. *Gewählt:* (c). *Verworfen:* (a) ist nicht frisch, führt fremden Code auf eigener Hardware aus und braucht Betrieb; (b) braucht einen privilegierten Container und pinnt den Kern und die Maschine doch nicht.
+   c) *Netz* brauchen allein der Bezug der Images (Docker Hub, `ghcr.io`, alle per Digest) und die Stufe `deps` (Module, gegen `go.sum` geprüft). Die Prüfläufe bleiben netzlos (`AGENTS.md` §3.1).
+      Keine Anmeldung an einer Registry. Ist ein Image ohne Anmeldung nicht beziehbar, ist der Lauf rot und die Frage geht an den User; ein `docker login` kommt nicht ohne Entscheidung (Nr. 1).
+      Bezugsgrenze, Ausfall und Netzfehler machen den Lauf rot; es gibt keinen automatischen zweiten Versuch (Nr. 6).
+   d) *Kein Cache* über Läufe: weder `actions/cache` noch ein Cache der Docker-Schichten oder der Module. Jeder Lauf baut aus leerem Daemon; `make test` und `make test-race` sind darin immer ein neuer Lauf, nie ein Ergebnis aus dem Cache eines früheren.
+      **Entscheidung** (kein Cache): *Alternative:* Schichten halten. *Verworfen:* ein Treffer wäre kein neuer Lauf, und ein Cache-Dienst wäre ein zweiter Zustand mit eigenen Rechten. *Folge:* jeder Lauf bezieht alle Images neu und dauert entsprechend.
+5. **Laufzeit und Größe des Runners.**
+   a) *Knappste Stelle ist `make test-race`:* zehn Minuten je Paket (`SPEC-122` Nr. 5); `src/bootstrap` brauchte lokal zuletzt 415,9 s bei 4 CPUs (ein Lauf des Verifiers, Register `BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`). Ein CPU-Kern des Runners ist vermutlich langsamer als einer des Entwicklungs-Hosts, und im Gate laufen alle Pakete zugleich; beides ist nicht gemessen.
+   b) *Annahme zur Größe* (Wissensstand des Architect bis Mitte 2026, ohne Netz nicht geprüft): Standard-Runner für öffentliche Repos 4 vCPU und 16 GB, für private 2 vCPU und 8 GB, freier Platz zugesagt 14 GB; Laufminuten für private Repos begrenzt oder kostenpflichtig. Das Log des ersten Laufs ersetzt diese Annahme.
+   c) *Vorprobe vor dem ersten Push:* der Implementer fährt lokal den Aufruf der Stufe `race` über alle Pakete in einem Container mit 4 CPUs und 4 GiB (`SPEC-122` Nr. 1) und nennt die Zeit je Paket, das Urteil und die Last. Läuft ein Paket dort über 450 s, geht die Frage nach der Runner-Größe vor dem Push an den User.
+   d) *Ist `test-race` oder eine Frist eines Gates nur auf dem Runner rot,* wird weder die Zeitgrenze angehoben noch ein Paket oder Gate ausgenommen (`AGENTS.md` §3.6; eine Anhebung wäre eine Schwellen-Senkung und braucht eine ADR). Ohne Lockerung offen sind: die Pakete unter dem Detektor nacheinander fahren (Änderung an `SPEC-122` Nr. 1), die Tests des Pakets beschleunigen, ein größerer Runner (Kosten, Entscheidung des Users). Jeder dieser Wege ist ein eigener Vorgang.
+6. **Ergebnis, Rot und Wiederholung.**
+   a) Grün heißt allein: ein beendeter Lauf des Commits mit grünem Job. Kein Lauf, ein wartender, abgebrochener, übersprungener oder an der Zeitgrenze beendeter Lauf ist nicht grün.
+   b) *Jedes Rot ist ein Befund.* Es gibt keinen automatischen Neustart. Von Hand neu starten dürfen der Planner im Integrationsschritt und der User, nachdem die Meldung des roten Laufs gelesen ist.
+   c) Ein grüner zweiter Lauf löscht den roten nicht: der Beleg nennt jeden Lauf des Commits mit Ergebnis. Ein Rot in einem Gate bekommt einen Beleg im Beobachtungs-Register oder eine Behebung; ein Rot vor dem ersten Gate oder durch Bezug eines Images oder Moduls wird als Ausfall der Umgebung mit der Meldung genannt.
+   d) Ein Gate, das nur auf dem Runner rot ist, bekommt einen Carveout mit Trigger oder wird behoben; nie ein stilles Rot.
+7. **Abbruch.** Abbruch durch den Menschen und Ablauf der Zeitgrenze beenden die Prozesse des Schritts und danach den Runner; kein Rezept und kein Treiber wird dafür geändert.
+   Die offene Frage aus `SPEC-211` Nr. 5 e (ein Signal, das allein `make` erreicht, lässt den Treiber weiterlaufen) ist für die CI damit entschieden: ein weiterlaufender Treiber oder Container endet mit der Maschine, die nach dem Job verworfen wird; keine Änderung.
+   *Welche Signale der Dienst sendet* (nach Wissensstand: `SIGINT`, dann `SIGTERM`, dann Beenden des Prozessbaums) ist nicht geprüft und ohne Belang für diese Entscheidung.
+   *Fehler des Checkout oder eines Schritts vor `make gates`* machen den Job rot; die Gates laufen dann nicht.
+8. **Fänger am Workflow: `make workflow-check`.** Das Ziel hängt an `GATE_CHECKS`, `harness/README.md` führt es in der Tabelle der Gates.
+   Es fährt das gepinnte `d-check` (Referenz wie `make docs-check`) netzlos, mit dem Repo als schreibgeschütztem Mount, mit `--config .d-check-workflows.yml`; die Datei trägt allein `modules: [workflows]` und `workflows.dir: .github/workflows`.
+   Rot wird es bei einer Aktion ohne volle SHA (Tag, Zweig, gekürzte SHA, `docker://`), einer SHA ohne Tag-Kommentar, ungültigem YAML und bei leerer Prüfmenge (kein Verzeichnis, keine Datei `.yml`/`.yaml` oder kein `uses:`).
+   *Messung* (2026-11-28, Architect, `d-check` am Pin von `d-check.mk`, je Fall ein Wegwerfverzeichnis): je Form oben Exit 1, die gepinnte und kommentierte Referenz Exit 0; dieselbe Datei mit `contents: write` Exit 0 (Nr. 11 c).
+   Datei und Ziel entstehen im selben Commit wie der Workflow, sonst ist das Gate rot.
+   **Entscheidung** (eigene Konfiguration): *Alternativen:* (a) das Modul in `.d-check.yml`; (b) eine eigene Konfiguration und ein eigenes Ziel; (c) ein Skript, das den Workflow auf Rechte, Auslöser und den Aufruf prüft; (d) kein Fänger. *Gewählt:* (b). *Verworfen:* (a) die Liste der Module in `.d-check.yml` ist eine Menge von `SPEC-212` Nr. 3 b mit Fänger in den Gegenproben, ein elftes Modul zöge Vertrag und Programm mit; (c) eine Prüfung von YAML mit Textsuche braucht eigene Gegenproben und wiederholt eine Datei von wenigen Dutzend Zeilen, die das Review ganz liest; (d) `d-check` bringt die Pin-Prüfung ohne eigenen Code mit.
+   *Trigger für (c):* eine Änderung am Workflow, die Rechte, Auslöser oder den Aufruf bricht und am Review vorbeigeht.
+9. **Beleg.** Alle Läufe auf dem Zweig des Vorgangs, vor dem Merge:
+   a) *Grün:* Commit, Adresse des Laufs, Abbild und Version des Runners, `docker version`, `nproc`, Dauer, Messender; darin `test-race` und der Neustarttest (`test-image`, `SPEC-323`).
+   b) *Rot:* ein Lauf auf einem Wegwerfzweig mit einem absichtlich gebrochenen Gate; er ist rot aus dem benannten Grund (Vorschlag: ein toter Verweis in einem Dokument, `make docs-check`). Der Wegwerfzweig gelangt nicht nach `main` und wird gelöscht; Commit und Adresse bleiben im Beleg.
+   c) *Rechte:* die Zeilen des Logs, die die Rechte des Tokens nennen.
+   d) *Pull Request:* ein Lauf zu einem Pull Request, wenn der User dem Anlegen zustimmt; sonst steht der Auslöser als ungeprüft im Plan.
+   Gepusht wird nur auf Anweisung des Users.
+10. **Nicht Teil der CI.**
+    a) *Gegenproben* (`make gegenproben`): nicht in der CI. Sie gehören nicht zu `make gates` ([ADR-0005](../../docs/plan/adr/0005-gegenproben-ausserhalb-der-gate-kette.md)); ihr Lauf reißt schon auf dem Entwicklungs-Host an der Last, die seine `lint`-Fälle selbst erzeugen (`SPEC-102` Randform 6), auf wenigen Kernen eher mehr. Die CI ersetzt die Eichung nach `SPEC-102` *Zeitbudget* Nr. 7 nicht und setzt sie nicht voraus; ein grüner Lauf der CI sagt nichts über die Gegenproben und ihren Stempel. Gegenproben in der CI wären ein eigener Vorgang nach einem gültigen grünen Lauf.
+    b) *Lasttest, Mutationsläufe:* kein Teil von `make gates`.
+    c) *Registry, Release, Ablage von Artefakten, Branch-Protection, Einstellungen des Repos:* nicht im Repo oder mit Schreibrechten verbunden.
+11. **Ungeprüft und akzeptierte Negative.** Je Punkt Grund und Folge.
+    a) *Alles, was erst ein Push zeigt:* Größe und Tempo des Runners, Dauer, Platz, Bezug der Images ohne Anmeldung, Verhalten seines Docker im Neustarttest, Dateirechte eines frischen Checkout (andere `umask`), Auslöser und Rechte des Tokens. *Grund:* lokal läuft kein Workflow. *Folge:* der erste Lauf kann rot sein, ohne dass sich der Stand geändert hat; je Fund gilt Nr. 5 d oder 6 d.
+    b) *Runner-Abbild und Docker nicht gepinnt.* *Folge:* ein Lauf kann ohne Änderung am Stand rot werden oder anders prüfen; das Log nennt die Versionen, der lokale Lauf bleibt als Vergleich.
+    c) *Kein automatischer Fänger* für die Zusagen aus Nr. 2 und 3 außer der Form der Pins (Nr. 8) und dem flachen Klon (Nr. 2 f): Auslöser, Rechte, Zugriff auf Geheimnisse, die eine erlaubte Aktion (eine weitere, korrekt gepinnte, bleibt grün), `persist-credentials`, Runner-Label, Zeitgrenze, Aufruf `make gates`, Verbot von `continue-on-error`, `if:`, Cache und `concurrency`, die Eindeutigkeit von Datei und Job. *Grund:* Entscheidung in Nr. 8. *Folge:* eine Änderung daran fängt allein das Review; ein Lauf bliebe grün, auch wenn er ein Gate ausließe oder mehr Rechte hätte. Das Review liest bei jeder Änderung unter `.github/` die ganze Datei gegen Nr. 2 und 3.
+    d) *Verdrahtung von `workflow-check`* (`GATE_CHECKS`, Pfad der Konfiguration): wie `SPEC-211` Nr. 5 a. Die Formen von Nr. 8 sind eine Messung am Pin, kein dauerhafter Fall; ein Wechsel des Pins fährt sie nicht neu. *Folge:* ein `d-check`, das eine Form nicht mehr meldet, bleibt unbemerkt.
+    e) *Ein Rot, das niemand liest:* kein Lauf sperrt einen Push auf `main`. *Grund:* ohne Pull Requests würde eine Pflicht-Prüfung den Integrationsschritt blockieren; Einstellungen des Repos gehören dem User. *Folge:* der Integrationsschritt liest nach jedem Push den Lauf zum Spitzencommit; unterbleibt das, bleibt ein Rot stehen.
+    f) *Kein Lauf* (Dienst gestört, Kontingent aufgebraucht, Workflow in den Einstellungen abgeschaltet): kein Wächter. *Folge:* wie e); es gibt dann keinen CI-Beleg (Nr. 6 a).
+    g) *Ob ein Dienstausfall den Ersatz über `make` wieder gelten lässt,* entscheidet nicht dieser Vertrag, sondern der Wortlaut von `LH-QA-06` und sein Owner.
+12. **Randformen** (`AGENTS.md` §3.12, §3.16): das Raster Operation × Argumentart steht im Plan des Vorgangs; seine Zellen verweisen hierher.
+13. **Texte, die der liefernde Commit nachzieht** (`AGENTS.md` §3.9): `harness/README.md` (Lauf-Status, Zeile des Gates `workflow-check`, *Nicht behauptet*), `SPEC-211` Nr. 5 e (der Satz „es gibt keine CI“), `SPEC-323` (Festlegung). `SPEC-004` gilt vor und nach der Lieferung; die Migrationskette bleibt auch mit CI geschuldet. Das Lastenheft ändert dieser Vorgang nicht.
+
+**Grenze:** Der Vertrag sagt, was die CI fährt und woran ihr Ergebnis hängt. Er sagt nicht, dass ein grüner Lauf mehr belegt als die Gates selbst; was sie nicht prüfen, steht in ihren Verträgen und in `harness/README.md`.
