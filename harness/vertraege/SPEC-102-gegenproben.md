@@ -255,7 +255,7 @@ Die Fälle 226 bis 236 rufen `tools/harness/test-image.sh` (`SPEC-323` Nr. 8) im
 226. `testimage/gut` · Treiber · grüner Lauf · Exit 0, die 32 Aufrufe Argument für Argument (`SPEC-323` Nr. 2 bis 6), keine verbotene Form in `create` und `run`, das Token-Muster auf der Standardeingabe beider Phasen und in keiner Ausgabe und keinem Argument.
 227. `testimage/zwei-laeufe` · Treiber · zwei Läufe · verschiedene Kennungen, jeder Name und jedes Label trägt die seines Laufs.
 228. `testimage/aufruf` · Treiber · leeres und nicht leeres Argument; `VERSION=1.2.3` · Exit 2 ohne Aufruf von `docker`; die Version erreicht die drei Bauten und den Vergleich.
-229. `testimage/image` · Treiber · 27 Abweichungen des Image, je Eigenschaft und je Variable `LISTEN`, `ADMIN_LISTEN`, `MODE`; dazu zwei erlaubte Formen · Exit 1 mit dem Namen der Prüfung, ohne Server; erlaubt: Exit 0.
+229. `testimage/image` · Treiber · 29 Abweichungen des Image, je Eigenschaft und je Variable `LISTEN`, `ADMIN_LISTEN`, `MODE`, beim zweiten Binary ungleich, gleich alt und eine Sekunde älter als das erste; dazu zwei erlaubte Formen · Exit 1 mit dem Namen der Prüfung, ohne Server; erlaubt: Exit 0.
 230. `testimage/phasen` · Treiber · sieben Formen der Ausgabe in jeder der zwei Phasen · Exit 1 mit Grund und Log des Servers, die spätere Phase läuft nicht.
 231. `testimage/stopp` · Treiber · Exit des Servers 137, 143, 1, 2 und leer · Exit 1, kein zweiter Start.
 232. `testimage/token` · Treiber · Token nach 2, 29 und 30 Fehlversuchen, nie, Server beendet · höchstens 30 Versuche mit je einer Pause von 1 s; beendet: Exit 1 nach einem Versuch.

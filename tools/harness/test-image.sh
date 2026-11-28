@@ -1,8 +1,9 @@
 #!/bin/sh
 # tools/harness/test-image.sh — Treiber von `make test-image` (SPEC-323): baut die Stufen image und integration des Dockerfile unter
-# Tags dieses Laufs, prüft das Image, baut es ein zweites Mal ohne den Cache der Stufen build und image und vergleicht die beiden Binaries, startet
-# das Image ohne Netz, fährt die Phase aufnehmen, stoppt und startet denselben Container und fährt die Phase pruefen. Jeder Name trägt die
-# Kennung des Laufs; hinter jedem Ende entfernt der Treiber die Container, die Tags und das Verzeichnis seines Laufs und nichts sonst.
+# Tags dieses Laufs, prüft das Image, baut es ein zweites Mal ohne den Cache der Stufen build und image, prüft, dass das zweite Binary
+# jünger ist als das erste, und vergleicht die beiden byte-gleich, startet das Image ohne Netz, fährt die Phase aufnehmen, stoppt und startet
+# denselben Container und fährt die Phase pruefen. Jeder Name trägt die Kennung des Laufs; hinter jedem Ende entfernt der Treiber die
+# Container, die Tags und das Verzeichnis seines Laufs und nichts sonst.
 # Exit am Treiber: 0 grün, 1 rot (eine Prüfung, eine Phase, der Stopp, das Aufräumen), 2 Aufruf, Bau, Daemon nicht erreichbar oder Abbruch
 # durch INT, HUP oder TERM.
 set -u
@@ -156,11 +157,13 @@ rufe run --rm --name "$NAME-version" --label "$LABEL" --network none --memory 51
 echo "test-image: Image geprüft"
 
 # Gleiches Binary aus zwei Bauten desselben Standes (LH-RB-03). --no-cache-filter build übersetzt neu; erst --no-cache-filter image
-# bringt das neue Binary in das zweite Image, sonst liefert der Cache der Stufe image das Binary eines früheren Baus.
+# bringt das neue Binary in das zweite Image, sonst liefert der Cache der Stufe image das Binary eines früheren Baus. Die zweite Datei ist
+# jünger als die erste (COPY und cp erhalten den Zeitstempel, den go build schrieb); gleich alt oder älter ist rot.
 bau --no-cache-filter build --no-cache-filter image --target image -t "$ZWEIT"
 rufe create --name "$NAME-zweit" --label "$LABEL" --network none "$ZWEIT"
 rufe cp "$NAME-pruefung:/odata-recorder" "$tmp/binary-1"
 rufe cp "$NAME-zweit:/odata-recorder" "$tmp/binary-2"
+[ "$tmp/binary-2" -nt "$tmp/binary-1" ] || rot "zweites Binary nicht neu übersetzt"
 cmp "$tmp/binary-1" "$tmp/binary-2" >"$tmp/aus" 2>"$tmp/fehler" || rot "Binary der zwei Bauten ungleich" "$tmp/aus"
 echo "test-image: zwei Bauten, Binary byte-gleich"
 

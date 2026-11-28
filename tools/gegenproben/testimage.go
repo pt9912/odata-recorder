@@ -138,8 +138,12 @@ run-aufnehmen | run-pruefen)
 cp-data) tarraus data d "${TI_DATA_OWNER-65532}" "${TI_DATA_GROUP-65532}" "${TI_DATA_MODE-0700}" ;;
 cp-certs) tarraus ca-certificates.crt f 0 0 0644 "${TI_CERT-PEM}" ;;
 cp-tmp) tarraus tmp d 0 0 "${TI_TMP_MODE-1777}" ;;
-cp-binary-pruefung) echo A >"$3" ;;
-cp-binary-zweit) echo "${TI_BINARY_ZWEIT-A}" >"$3" ;;
+cp-binary-pruefung)
+	echo A >"$3"
+	touch -t 202601010000.00 "$3" ;;
+cp-binary-zweit)
+	echo "${TI_BINARY_ZWEIT-A}" >"$3"
+	touch -t "${TI_ZEIT_ZWEIT-202601010000.01}" "$3" ;;
 cp-token)
 	n=$(zaehle token)
 	[ "${TI_TOKEN_NACH-0}" != nie ] && [ "$n" -gt "${TI_TOKEN_NACH-0}" ] || exit 1
@@ -602,7 +606,8 @@ func tiAufruf() Fall {
 // tiImageBild ist eine Abweichung des Image und der Name der Prüfung, die sie rot meldet.
 type tiImageBild struct{ name, env, pruefung string }
 
-// tiImageBilder führt je Eigenschaft von SPEC-323 Nr. 3 eine Abweichung, je Variable eine.
+// tiImageBilder führt je Eigenschaft von SPEC-323 Nr. 3 eine Abweichung, je Variable eine. Das erste Binary des Ersatzes ist von
+// 202601010000.00, das zweite eine Sekunde jünger; die Formen des Alters setzen das zweite gleich alt oder eine Sekunde älter.
 func tiImageBilder() []tiImageBild {
 	bilder := []tiImageBild{
 		{"nutzer-root", "TI_USER=0", "Nutzer"},
@@ -632,6 +637,8 @@ func tiImageBilder() []tiImageBild {
 		tiImageBild{"tmp-fehlt", "TI_FEHLER=cp-tmp", "docker cp /tmp"},
 		tiImageBild{"version", "TI_VERSION_AUS=odata-recorder 0.0.0", "Version"},
 		tiImageBild{"binary-ungleich", "TI_BINARY_ZWEIT=B", "Binary der zwei Bauten ungleich"},
+		tiImageBild{"binary-gleich-alt", "TI_ZEIT_ZWEIT=202601010000.00", "zweites Binary nicht neu übersetzt"},
+		tiImageBild{"binary-aelter", "TI_ZEIT_ZWEIT=202512312359.59", "zweites Binary nicht neu übersetzt"},
 	)
 }
 
@@ -640,8 +647,8 @@ func tiImageBilder() []tiImageBild {
 func tiImage() Fall {
 	return tiFall("image", func(l Lauf) string {
 		bilder := tiImageBilder()
-		if len(bilder) != 27 {
-			return fmt.Sprintf("%d Abweichungen statt 27", len(bilder))
+		if len(bilder) != 29 {
+			return fmt.Sprintf("%d Abweichungen statt 29", len(bilder))
 		}
 		for _, b := range bilder {
 			if g := tiImageRot(l, b); g != "" {

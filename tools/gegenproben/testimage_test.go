@@ -24,7 +24,7 @@ func TestTestImageFaelleHabenDieNamenAusDemVertrag(t *testing.T) {
 	}
 }
 
-// Die Mengen haben die Größen des Vertrags: 15 verbotene Optionen, sechs Rollen, drei Tags, 27 Abweichungen des Image, sieben Formen je
+// Die Mengen haben die Größen des Vertrags: 15 verbotene Optionen, sechs Rollen, drei Tags, 29 Abweichungen des Image, sieben Formen je
 // Phase, 14 Aufrufe von docker, neun Orte eines Signals, 14 Läufe mit Rest und fünf der Token-Abholung; ein grüner Lauf hat 32 Aufrufe.
 func TestTestImageMengen(t *testing.T) {
 	mengen := []struct {
@@ -32,7 +32,7 @@ func TestTestImageMengen(t *testing.T) {
 		ist, soll int
 	}{
 		{"verbotene", len(tiVerbotene()), 15}, {"rollen", len(tiRollen()), 6}, {"arten", len(tiArten()), 3},
-		{"bilder", len(tiImageBilder()), 27}, {"formen", len(tiPhasenFormen()), 7}, {"orte", len(tiOrte()), 14},
+		{"bilder", len(tiImageBilder()), 29}, {"formen", len(tiPhasenFormen()), 7}, {"orte", len(tiOrte()), 14},
 		{"signalorte", len(tiSignalOrte()), 9}, {"aufrufe", len(tiSoll("1-2")), 32}, {"reste", len(tiReste()), 14},
 		{"token", len(tiTokenLaeufe()), 5},
 	}
