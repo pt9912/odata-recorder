@@ -20,9 +20,9 @@
 Bei unveränderter Eingabe spart nur der Docker-Cache des eigenen Hosts Arbeit, und der reist nicht mit.
 Zwei Mechanismen für den Nachweis liegen vor: der Stempel von `make gegenproben` ([ADR-0005](0005-gegenproben-ausserhalb-der-gate-kette.md)), eingecheckt, nur für dieses eine Ziel; und der Nachweis von `record-gates` (`.harness/state/`), nur lokal, vom Stop-Hook gelesen, kein Beleg für andere Klone.
 Die Beobachtung `BEO-REPO/stempel-gehoert-zu-keinem-committeten-stand` zeigt die Schwäche eines Stempels, der am Arbeitsbaum entsteht: er gehört zu keinem Commit, wenn danach ein Eingabe-Commit folgt oder der Lauf ungetrackte Dateien sah.
-Eine CI gibt es noch nicht. Entschieden und vor dem Code beschrieben ist eine CI, die ohne Stempel und ohne Nachtlauf jedes Gate bei Push und Pull Request fährt (`SPEC-217`, harness/vertraege, 2026-11-28); sie hängt nicht an dieser ADR und nimmt Slice (b) nicht vorweg.
+Eine CI fährt ohne Stempel und ohne Nachtlauf jedes Gate bei Push und Pull Request (`SPEC-217`, harness/vertraege); sie hängt nicht an dieser ADR und nimmt Slice (b) nicht vorweg.
 Slice (b) setzt auf ihr auf. Solange sie jedes Gate fahren muss, darf Slice (a) die Stempel dort kein Gate auslassen lassen: er ändert im selben Vorgang den Aufruf der CI auf den Lauf ohne Stempel.
-Annahmen: Ein Stempel je Gate belegt „dieses Gate war an dieser Eingabe grün", nicht „der Stand ist in Ordnung"; die Eingabemenge eines Gates ist vollständig benennbar; ein Nachtlauf ohne Stempel (voller Lauf auf `main`) ist verfügbar, sobald die CI steht.
+Annahmen: Ein Stempel je Gate belegt „dieses Gate war an dieser Eingabe grün", nicht „der Stand ist in Ordnung"; die Eingabemenge eines Gates ist vollständig benennbar; ein Nachtlauf ohne Stempel (voller Lauf auf `main`) ist in der CI einrichtbar (Slice b).
 Kippt die zweite Annahme, ist ein Stempel ein Gate-Lockerung durch die Hintertür (`AGENTS.md` §3.6).
 
 ## Entscheidung
@@ -62,7 +62,7 @@ Was die Kontrolle abfängt:
 |---|---|---|
 | A0 — nichts tun, Docker-Cache genügt | keine Mechanik, kein Risiko eines falschen Stempels | der Cache reist nicht mit: jeder frische Klon und jeder Container zahlt den vollen Lauf; der Nachweis `record-gates` ist lokal |
 | A — nur `make gates-voll` schreibt Stempel | jeder Stempel stammt aus einem echten vollen Lauf; kein falscher Stempel durch einen Fehler der Eingabemenge | nach jeder Änderung ist der Stempel veraltet, bis jemand den vollen Lauf fährt; der normale Lauf spart nichts, der Nutzen entfällt |
-| C — nur die CI schreibt Stempel | der Stempel stammt aus einer Umgebung, die kein Entwickler fälschen kann | die CI fehlt; Bot-Commits auf `main`; lokal spart nichts, weil der Stempel dem Commit hinterherläuft |
+| C — nur die CI schreibt Stempel | der Stempel stammt aus einer Umgebung, die kein Entwickler fälschen kann | die CI bräuchte Schreibrechte, die sie nicht hat (`SPEC-217`); Bot-Commits auf `main`; lokal spart nichts, weil der Stempel dem Commit hinterherläuft |
 | **B — `make gates` erneuert je Gate nach echtem Lauf, `gates-voll` und Nachtlauf kontrollieren (gewählt)** | ein Lauf spart, sobald ein Stempel passt, auch im frischen Klon; Erneuerung dort, wo der Lauf stattfindet; die Gegenprobe bleibt vorhanden | ein falscher Stempel ist möglich (Fehler in der Eingabemenge, Handarbeit) und wird erst vom vollen Lauf gesehen; Stempel-Dateien im Verlauf; Merge-Konflikte an ihnen |
 | Eingaben zentral (eine Deklaration) | ein Ort für Hash-Prüfung und Fänger; die Prüfung je Push rechnet ohne die Fragmente nach | Eingabe und Rezept driften auseinander, wenn jemand nur eines ändert |
 | Eingaben verteilt (je `harness/mk`-Fragment) | die Eingabe steht beim Rezept | die Prüfung je Push muss jedes Fragment lesen; kein Überblick, ob eine Eingabe fehlt; kein Fänger über die Menge |
@@ -77,7 +77,7 @@ Der Gegenproben-Stempel zieht **nicht** um; eine Alternative der Pfad harness/st
 ## Konsequenzen
 
 - Positiv: Ein Klon mit passenden Stempeln fährt die Gates mit Stempel nicht neu; ein Fehler der Eingabemenge ist an einer Stelle zu finden; die Gegenprobe zu den Stempeln hat einen Namen und einen Lauf.
-- Negativ: Ein Stempel ist eine Behauptung, die ein Mensch fälschen kann; bis die CI steht, fängt das nur der volle Lauf vor Handoff. Der Nutzen gegenüber dem Docker-Cache ist nicht gemessen und liegt in frischen Klonen und Containern; ohne Messung vor Slice (a) ist er eine Annahme. `make test-race` bleibt ohne Stempel und damit der teuerste Teil jedes Laufs: ein Rennen, das nur zufällig auftritt, ließe einen Stempel ein grünes Zufallsergebnis festhalten, und der Detektor ist genau für dieses Gate da ([ADR-0007](0007-race-detektor-im-gate.md), `AGENTS.md` §3.10); der Docker-Cache hält ein solches Ergebnis heute schon lokal, ein Stempel reichte es in jeden Klon.
+- Negativ: Ein Stempel ist eine Behauptung, die ein Mensch fälschen kann; das fängt der volle Lauf, vor Handoff oder in der CI, die ohne Stempel fährt. Der Nutzen gegenüber dem Docker-Cache ist nicht gemessen und liegt in frischen Klonen und Containern; ohne Messung vor Slice (a) ist er eine Annahme. `make test-race` bleibt ohne Stempel und damit der teuerste Teil jedes Laufs: ein Rennen, das nur zufällig auftritt, ließe einen Stempel ein grünes Zufallsergebnis festhalten, und der Detektor ist genau für dieses Gate da ([ADR-0007](0007-race-detektor-im-gate.md), `AGENTS.md` §3.10); der Docker-Cache hält ein solches Ergebnis heute schon lokal, ein Stempel reichte es in jeden Klon.
 - Folgepflicht: Slice (a): `make gates-voll`, Stempel je Gate, Vertrag `SPEC-213` samt Fängern und Gegenproben, Änderung an `tools/harness/working-tree-hash.sh` (Träger des Stop-Hooks; Zustimmung des Nutzers). Slice (b): CI mit Nachtlauf `make gates-voll` und Hash-Prüfung je Push oder PR. Die Übergangsregel Nr. 2 in `docs/plan/planning/README.md` (Stempel allein im Integrationsschritt) und `harness/README.md` §Sensors ziehen mit.
 
 ## Offene Fragen vor `Accepted`
@@ -107,7 +107,7 @@ Diese Entscheidungen stehen beim Nutzer; der Entwurf nimmt keine davon vorweg.
 
 ## Re-Evaluierungs-Trigger
 
-Wenn die Messung vor Slice (a) keinen Nutzen gegenüber dem Docker-Cache zeigt (ein frischer Klon spart weniger als eine Minute), wenn ein falscher Stempel auf `main` auftritt (zweimal), oder wenn die CI steht und einen Cache der Gate-Läufe trägt, der die Stempel ersetzt.
+Wenn die Messung vor Slice (a) keinen Nutzen gegenüber dem Docker-Cache zeigt (ein frischer Klon spart weniger als eine Minute), wenn ein falscher Stempel auf `main` auftritt (zweimal), oder wenn die CI einen Cache der Gate-Läufe trägt, der die Stempel ersetzt.
 
 ## Geschichte
 
@@ -116,6 +116,7 @@ Wenn die Messung vor Slice (a) keinen Nutzen gegenüber dem Docker-Cache zeigt (
 | 2026-11-17 | Proposed | Entwurf des Architect; die Annahme steht beim Nutzer aus |
 | 2026-11-18 | Nummer 0030 aus dem Bereich der Linie C, offene Fragen aufgenommen | Ablage im Repo, kein Slice gestartet |
 | 2026-11-28 | Kontext nachgeführt, weiter `Proposed`: eine CI ohne Stempel kommt vor Slice (a) und (b) (Entscheidung des Users, CI vor der Erstabnahme) | `SPEC-217` |
+| 2026-11-28 | Stellen nachgezogen, die die CI als fehlend führen, weiter `Proposed`; die Entscheidung ist unverändert | `SPEC-217` *Stand* |
 
 Nach `Accepted` wird diese Datei **nicht mehr inhaltlich überschrieben**.
 Spätere Korrekturen oder Schärfungen entstehen als neue ADR mit
