@@ -62,19 +62,19 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
-- [ ] Lesen der Hülle (`SPEC-182`, `SPEC-183`): Grenzzeichenfolge aus dem `Content-Type`, Teile, Changesets, Einzelrequest mit Methode, Ziel, Header, Body und `Content-ID`, Grenzen (Größe, Zahl der Teile und Kopfzeilen, Tiefe); ein leerer Batch ergibt die leere Folge; Ergebnis und Fehler hängen nicht davon ab, wie der Strom in Reads zerlegt ist.
-- [ ] Ergebnis- und Fehlerwert (`SPEC-182`): Port `ODataBatch`, Domain-Werte, `model.ContentIDGueltig`, `BatchFehler` mit allen Ursachen von `SPEC-182` Nr. 4 (auch den vieren, die erst `slice-batch-validator` meldet) und beiden Sentinels, zwei Zeilen der Abbildung (`SPEC-109` Nr. 5).
-- [ ] Randformen: je Zelle des Rasters (§6) ein Ort in der Spezifikation und ein Fänger der Tabelle (§3); Parser-Contract-Test (`LH-FA-16.a`).
-- [ ] `make gates` grün.
-- [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+- [x] Lesen der Hülle (`SPEC-182`, `SPEC-183`): Grenzzeichenfolge aus dem `Content-Type`, Teile, Changesets, Einzelrequest mit Methode, Ziel, Header, Body und `Content-ID`, Grenzen (Größe, Zahl der Teile und Kopfzeilen, Tiefe); ein leerer Batch ergibt die leere Folge; Ergebnis und Fehler hängen nicht davon ab, wie der Strom in Reads zerlegt ist.
+- [x] Ergebnis- und Fehlerwert (`SPEC-182`): Port `ODataBatch`, Domain-Werte, `model.ContentIDGueltig`, `BatchFehler` mit allen Ursachen von `SPEC-182` Nr. 4 (auch den vieren, die erst `slice-batch-validator` meldet) und beiden Sentinels, zwei Zeilen der Abbildung (`SPEC-109` Nr. 5).
+- [x] Randformen: je Zelle des Rasters (§6) ein Ort in der Spezifikation und ein Fänger der Tabelle (§3); Parser-Contract-Test (`LH-FA-16.a`).
+- [x] `make gates` grün (am Stand `46c12249`, Beleg in §7; der gemergte Stand braucht seinen eigenen Lauf im Integrationsschritt).
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
       Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
-- [ ] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
-- [ ] Bringt der Slice einen Fehlercode, Schlüssel oder ein Kommando in den Katalog des Binary: Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün. Sonst steht in §7, dass das Binary unverändert blieb (die Route `/$batch` erreicht es erst mit `slice-batch-changesets`).
-- [ ] Closure-Notiz mit Steering-Loop-Lerneintrag.
-- [ ] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
-- [ ] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
-- [ ] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist.
+- [x] Bringt der Slice einen Fehlercode, Schlüssel oder ein Kommando in den Katalog des Binary: Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün. Sonst steht in §7, dass das Binary unverändert blieb (die Route `/$batch` erreicht es erst mit `slice-batch-changesets`).
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
 
 ## 3. Plan (vor Code)
 
@@ -92,7 +92,8 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/hexagon/ports/outbound/abbildung_test.go` | update (nur Test) | `TestAbbildungVollstaendig` führt die Namen der Modell-Sentinels in der Abbildung von Hand: `ErrBatchUngueltig` und `ErrBatchNichtUnterstuetzt` kommen dazu |
 | `src/hexagon/services/workspace/helfer_test.go`, `src/hexagon/services/session/beenden_test.go`, `src/hexagon/services/inspection/port_test.go` | update (nur Test) | je eine Liste mit genau den Namen von `outbound.EintraegeAbbildung()`: zwei Zeilen mehr (in `inspection` mit dem erwarteten Code nach `SPEC-109` Nr. 5) |
 | `src/adapters/driving/admin/fehlerabbildung_test.go` | update (nur Test) | `modellErrWerte` wird gegen die Variablen `Err…` im Quelltext von `model` gezählt: zwei Werte mehr |
-| `src/adapters/driving/admin/suche_test.go` | update (nur Test) | `TestTypenMitUnwrapAufZeiger` zählt 12 Typen mit `Unwrap` auf einem Zeiger; mit `*BatchFehler` sind es 13, wenn `Unwrap` diese Form hat (wie die übrigen Fehlertypen). Das Maß im Kommentar zieht mit |
+| `src/adapters/driving/admin/suche_test.go` | update (nur Test) | `TestTypenMitUnwrapAufZeiger` zählt 12 Typen mit `Unwrap` auf einem Zeiger; mit `*BatchFehler` sind es 13, wenn `Unwrap` diese Form hat (wie die übrigen Fehlertypen). Das Maß im Kommentar zieht mit; seit der Fix-Runde (F-4) zählt der Test auch, wie viele davon den Empfänger nennen, und die Typen mit `Is` (Absatz *Fix-Runde*) |
+| `src/hexagon/services/workspace/kontext_test.go`, `src/hexagon/services/workspace/reset_test.go` | update (nur Test) | je eine feste Zahl der Fälle über `tabellenFehlerListe` (Zeile oben): `28*28` wird `28*30`, `4*(28+4+1)` wird `4*(30+4+1)`; gefunden durch den Lauf, nicht durch das Suchen beim Start |
 | `spec/spezifikation.md`, `spec/architecture.md` | update | Vertrag mit Randformen, Port `ODataBatch` (Architect, mit diesem Plan geschrieben) |
 
 **Stand beim Start** (Planner, 2026-11-28, `main` bei `2da754f4`, durch Lesen und Suchen, ohne Übersetzungslauf): (a) *Bestehende Tests:* die sechs Dateien der Zeilen oben standen weder in der Tabelle noch im Block; ohne sie wäre `make test` mit den zwei Sentinels und den zwei Zeilen der Abbildung rot. Sie ändern allein die genannten Listen und die genannte Zahl; kein Fänger wird gelockert (keine Prüfung entfällt, keine Zählung wird zu einer Untergrenze). Der Planner hat sie in den Block eingetragen (`SPEC-128` Nr. 10 g, Dateien einzeln); die Formel ändert das nicht. Die Liste ist durch Suchen gebildet, nicht durch einen Lauf: zählt ein weiterer Test mit, nennt der Implementer ihn im selben Commit in dieser Tabelle und im Block. (b) *Gate-Kette und Architektur:* keine Änderung an `.a-check.yml`, `tools/`, `Dockerfile`, `harness/` oder `src/bootstrap/` ist vorgesehen; `src/adapters/driven/odata/batchcodec` fällt in die Schicht `adapters-driven`, und der Importscanner `versionstrennung_test.go` führt das Paket ohne Eintrag als Paket der Version 4. Braucht der Implementer eine dieser Dateien, hält er an (§4 *Rückführungen*). (c) *Fehlerkatalog:* `ODR-E6001` und `ODR-E6007` stehen in `fehler.go`, kein neuer Code.
@@ -108,13 +109,13 @@ Aussagen-Berührung steht hier gar nicht.
 | Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|
 | 1 | `ctx` nil, `src` nil, `grenze` unter 1: `ErrUngueltig` ohne `BatchFehler`, `src` ungelesen, auch bei beendetem Kontext | `TestBatchProgrammfehler`: jede Kombination der drei Verstöße × {Kontext offen, beendet} × `grenze` {0, -1, `MinInt64`}; Gegenprobe `grenze` 1 | `grenze` 0 wird angenommen | andere |
-| 2 | Beendeter Kontext: sein Fehler `==`, ohne Code, vor dem ersten und jedem weiteren Read und nach dem letzten, auch bei ungültigem Inhalt | `TestBatchAbbruch`: Strom, der beim Read k abbricht, Schleife über jedes k bis zum Ende | Keine Prüfung nach dem letzten Read | andere |
+| 2 | Beendeter Kontext: sein Fehler `==`, ohne Code, vor dem ersten und jedem weiteren Read und nach dem letzten, auch bei ungültigem Inhalt | `TestBatchAbbruch`: jede Prüfstelle (vor dem `Content-Type`, vor dem ersten Read, vor jedem weiteren, nach dem letzten) × {Abbruch, Frist} × {ohne, mit Ursache}; Kontext, der beim Read k bzw. ab der zweiten Abfrage beendet ist, Schleife über jedes k bis zum Ende | Keine Prüfung nach dem letzten Read | andere |
 | 3 | Hüllen-`Content-Type`: keine, zwei, leere Zeile, anderer Medientyp sind `content_type`; `multipart/mixed` in jeder ASCII-Schreibweise mit `SP`, `HTAB` am Rand wird gelesen; `src` bei Verstoß ungelesen | `TestBatchHuelle`: Schleife über Zahl der Zeilen (0 bis 3), Medientypen und Schreibweisen; Strom zählt Reads | Nur die erste Kopfzeile zählt | andere |
 | 4 | `application/json` in jeder Schreibweise und mit Parametern ist `format`, `src` ungelesen | `TestBatchJSONFormat` | `application/json` ist `content_type` | andere |
 | 5 | Grenzzeichenfolge: genau ein Parameter `boundary`, mit oder ohne `"`, 1 bis 70 Zeichen der Menge, letztes kein `SP`; sonst `boundary` | `TestBatchBoundary`: alle 256 Bytes an Anfang, Mitte, Ende; Länge 0, 1, 70, 71; fehlt, doppelt (gleich, verschieden), ohne `=`, einzelnes `"`; Schreibweise des Namens; fremde Parameter davor und dahinter | Der erste von zwei Parametern gewinnt | andere |
 | 6 | Gelesen wird allein mit `Read` bis `io.EOF`, nie `Close`; Ergebnis und Fehler hängen nicht von der Zerlegung ab | `TestBatchZerlegung`: jede Zweiteilung, Einzelbytes, `0, nil` dazwischen, `n > 0` mit `io.EOF` über Beispiel und je eine Fixture je Ursache; Strom mit allen Methoden von `io`, jede gezählt | Nach dem ersten Read wird zerlegt | andere |
 | 7 | Ein Fehler von `src` ist kein `BatchFehler`, bleibt über `errors.Is` erreichbar und geht jedem Verstoß des Inhalts vor | `TestBatchStromfehler`: Fehler (auch `ErrUnexpectedEOF`, umhülltes `EOF`) an jeder Stelle, mit und ohne Bytes, bei gültigem und ungültigem Inhalt | Fehler wird wie `EOF` behandelt | andere |
-| 8 | `grenze` Bytes sind gültig, das nächste ist `zu_gross`, vor jedem Inhaltsverstoß und vor dem Fehler von `src` im selben Read; kein Read fordert mehr als `grenze + 1` abzüglich der gelieferten Bytes; `MaxInt64` gültig | `TestBatchGroesse`: beide Seiten, `grenze` {1, Länge-1, Länge, Länge+1, `MaxInt64`} × Blockgrößen, angeforderte Bytes gezählt | `>=` statt `>` | andere |
+| 8 | `grenze` Bytes sind gültig, das nächste ist `zu_gross`, vor jedem Inhaltsverstoß und vor dem Fehler von `src` im selben Read; kein Read fordert mehr als `grenze + 1` abzüglich der gelieferten Bytes; `MaxInt64` gültig | `TestBatchGroesse`: beide Seiten, `grenze` {1, Länge-2, Länge-1, Länge, Länge+1, `MaxInt64`} × Blockgrößen × `io.EOF` mit den letzten Bytes oder in eigenem Read, angeforderte Bytes gezählt; dazu Länge `grenze`-1 bis `grenze`+2 × {`io.EOF`, Fehler von `src`} × {mit Daten, eigener Read} × drei Stückelungen, auch an der Länge des Lesepuffers | `>=` statt `>` | andere |
 | 9 | Grenzzeile nur am Anfang der Ebene oder hinter `CRLF`, `--` und Zeichenfolge bytegleich, optional `--`, `SP`/`HTAB`, dann `CRLF` oder Ende; alles andere ist Inhalt | `TestBatchGrenzzeile`: Fast-Treffer (Suffix, führendes `SP`, hinter `LF`, hinter `CR`, andere Schreibweise, Füllung 0 bis 3) × öffnend und schließend × beide Ebenen | Präfix-Vergleich ohne Zeilenende | andere |
 | 10 | Präambel und Epilog ohne Wirkung; die Ebene endet an der ersten schließenden Grenzzeile | `TestBatchPraeambelEpilog`: Epilog mit weiteren Teilen und Grenzzeilen, beide Ebenen | Grenzzeilen hinter der schließenden werden gelesen | andere |
 | 11 | Ohne schließende Grenzzeile `rahmen`: leerer Body, nur Präambel, abgeschnitten an jeder Stelle, Zeilenenden nur `LF` | `TestBatchRahmen`: jeder echte Anfang des Beispiels vor dem Ende der schließenden Grenzzeile, `LF`-Fassung, beide Ebenen mit Ort | Fehlende schließende Zeile wird angenommen | andere |
@@ -134,15 +135,15 @@ Aussagen-Berührung steht hier gar nicht.
 | 25 | Changeset: Grenzzeichenfolge nach den Regeln der Hülle (`boundary`, `rahmen` mit Ort des Changeset); die Hülle wird zuerst zerlegt | `TestBatchChangeset`: Menge aus Zeile 5 am Changeset; gleiche Zeichenfolge wie die Hülle; Zeichenfolge als Anfang der anderen | Der Changeset-Rahmen darf offen enden | andere |
 | 26 | Ein Changeset ohne Teil ist gültig, `Requests` leer und nicht `nil` | `TestBatchChangesetLeer` | Leeres Changeset ist `rahmen` | andere |
 | 27 | Teile und Requests in Reihenfolge des Bodys, ein Einzelteil mit genau einem Request, Slices bei Erfolg nie `nil`; bei Fehler der Nullwert | `TestBatchErgebnis`: gemischte Folgen der Länge 0 bis 4 aus {Request, leeres Changeset, Changeset mit 1 und 2}; Fehler hinter gültigen Teilen | Teilergebnis bei Fehler | andere |
-| 28 | Jede Ursache trägt ihre Klasse, ihren Code, genau ihren Sentinel; `Error()` und `Ort` nennen kein Byte der Eingabe | `TestBatchFehlerform` (`model`): Schleife über `AlleBatchUrsachen` und Orte; im Leser-Test unverwechselbare Texte in jeder Verstoß-Fixture | Falsche Klasse; Zeile in der Meldung | andere |
-| 29 | `ErrBatchUngueltig` bildet auf `ODR-E6007`, `ErrBatchNichtUnterstuetzt` auf `ODR-E6001` ab, jeder Gegenstand | `TestAbbildungBatch` (`ports/outbound`), `TestAbbildungVollstaendig` | Eine Zeile fehlt | andere |
-| 30 | Rangfolge des Lesers (`SPEC-182` Nr. 5): Ebene vor Teil, Teil vor Teil, Folge im Teil, kein Vorrang der Klasse | `TestBatchRang`: alle Paare von Verstößen an verschiedenen Teilen in beiden Reihenfolgen und an denselben Teil nach der Folge der Nummer; Schleife über die vier Ursachen der Prüfung (`SPEC-182` Nr. 4): ein früherer Teil, der sie trüge, vor einem Verstoß des Lesers ergibt den des Lesers und `Teile` `nil` | Klasse `ungueltig` hat Vorrang; der Leser meldet `methode` selbst | andere |
+| 28 | Jede Ursache trägt ihre Klasse, ihren Code, genau ihren Sentinel; `Error()` und `Ort` nennen kein Byte der Eingabe | `TestBatchFehlerform` (`model`): Schleife über `AlleBatchUrsachen` und Orte; im Leser-Test ein unverwechselbarer Text in den Fixtures je Ursache (`ursachenFaelle`), beim Leser in 10 von 12 (Negativ zu Zeile 28 unten) | Falsche Klasse; Zeile in der Meldung | andere |
+| 29 | `ErrBatchUngueltig` bildet auf `ODR-E6007`, `ErrBatchNichtUnterstuetzt` auf `ODR-E6001` ab, jeder Gegenstand | `TestAbbildungBatch` (`ports/outbound`); `TestAbbildungVollstaendig` fängt allein einen Eintrag der Abbildung ohne bekannten Namen, nicht eine fehlende Zeile eines Modell-Sentinel | Eine Zeile fehlt | andere |
+| 30 | Rangfolge des Lesers (`SPEC-182` Nr. 5): Ebene vor Teil, Teil vor Teil, Folge im Teil, kein Vorrang der Klasse | `TestBatchRang`: alle Paare von Verstößen an verschiedenen Teilen in beiden Reihenfolgen (Hülle und Changeset) und an demselben Teil (Request, Changeset, geschachteltes Changeset) nach der Folge der Nummer, die Zeilenfolge je Art von Teil; Schleife über die vier Ursachen der Prüfung (`SPEC-182` Nr. 4): ein früherer Teil, der sie trüge, vor einem Verstoß des Lesers ergibt den des Lesers und `Teile` `nil` | Klasse `ungueltig` hat Vorrang; der Leser meldet `methode` selbst | andere |
 | 31 | Gleiche Eingabe, gleiches Ergebnis; das Ergebnis gehört dem Aufrufer, kein Wert teilt Speicher mit einem anderen | `TestBatchEigentum`: `append` und Überschreiben an jedem `Body`, `Header`, `Requests`, Vergleich aller übrigen und eines zweiten Aufrufs | `Body` als Teilstück ohne Kapazitätsgrenze | andere |
 | 32 | Gleichzeitige Aufrufe auf einer und auf mehreren Instanzen beeinflussen sich nicht | `TestBatchGleichzeitig`: 4 Goroutinen, Beispiel und Verstöße, Vergleich mit dem Einzelaufruf; `make test-race` | Puffer als Feld des Lesers | nebenläufig |
 | 33 | Zuteilung höchstens 256 · n + 1 MiB | `TestBatchWaechter`: Familien (viele Grenzzeilen, Kopfzeilen, Fast-Treffer, Präambel, langer Body) bis 8 MiB | Verkettung in einer Schleife | andere |
 | 34 | Jede Folge über dem Alphabet des Rahmens hat die Klasse eines Orakels ohne Code des Lesers | `TestBatchAlphabet`: alle Folgen bis Länge 6 über {Grenzzeilen-Anfang `--b`, `--`, `CRLF`, `CR`, `LF`, `SP`, `x`}; Prüfgrenze Länge 6, Folge: eine Regel erst ab Länge 7 bleibt ungefangen | `LF` gilt als Zeilenende | andere |
 | 35 | Das Beispiel von `SPEC-183` Nr. 8 ergibt die genannten Werte des Lesers und die Zeilen des Lesers seiner Tabelle das Genannte (Parser-Contract-Test; das genannte `nil` von `PruefeBatch` steht in `slice-batch-validator` Zeile 43) | `TestBatchContract`: Beispiel als Fixture, je Zeile eine Änderung | Eine Antwort wird vertauscht | andere |
-| 36 | Akzeptiertes Negativ: die Länge einer Zeile hat keine eigene Grenze | kein Fänger; Grund: `grenze` begrenzt den Body, das Ziel begrenzt sein Leser; Folge: eine Kopfzeile bis `grenze` Bytes ist gültig | — | andere |
+| 36 | Akzeptiertes Negativ: die Länge einer Zeile hat keine eigene Grenze | kein eigener Fänger; Grund: `grenze` begrenzt den Body, das Ziel begrenzt sein Leser; Folge: eine Kopfzeile bis `grenze` Bytes ist gültig. Maß: die längsten Zeilen der Fixtures (Familien von `TestBatchWaechter`) sind 1 MiB bei Grenzzeile, Kopfzeile des Teils, Anfragezeile und Kopfzeile des Requests, 4 MiB bei der Präambel und 8 MiB beim Body; eine Zeilengrenze darüber (bis `grenze`) bleibt ungefangen, im Epilog (1 von 7 Zeilenarten) jede ab seiner kurzen Zeilen | — | andere |
 
 **Teilung des Produktcodes** (Planner, 2026-11-28, mit dem Schnitt): von den 600 Zeilen, die der Architect für beide Teile erwartete, stehen 500 hier und 100 in `slice-batch-validator`. Der Architect nannte keine Teilung; die Zahl ist eine Setzung des Planner und er darf sie vor dem ersten Code-Commit ändern.
 
@@ -157,6 +158,8 @@ pfad: src/hexagon/ports/outbound/abbildung.go
 pfad: src/hexagon/ports/outbound/abbildung_batch_test.go
 pfad: src/hexagon/ports/outbound/abbildung_test.go
 pfad: src/hexagon/services/workspace/helfer_test.go
+pfad: src/hexagon/services/workspace/kontext_test.go
+pfad: src/hexagon/services/workspace/reset_test.go
 pfad: src/hexagon/services/session/beenden_test.go
 pfad: src/hexagon/services/inspection/port_test.go
 pfad: src/adapters/driving/admin/fehlerabbildung_test.go
@@ -168,6 +171,75 @@ schaetzung: 3385
 marke: 4600
 schnitt-grund: Die Prüfung ist als slice-batch-validator abgetrennt (liest nur Domain-Werte und Fehlerwert). Der Rest teilt in einem Mechanismus den Ergebniswert des Ports, den Fehlerwert, die Rangfolge und die Zerlegung des Rahmens, der Kopfzeilen und des Einzelrequests; keiner davon liefert allein einen Ergebniswert.
 ```
+
+**Handoff des Implementers** (2026-11-28; Mutationen je Kennung in einem Container-Lauf ohne Netz auf einer Wegwerfkopie, `--memory=4g --cpus=4`, `go test` nur mit dem genannten Test; Nullprobe der Pakete `model`, `ports/outbound`, `batchcodec` davor und danach grün). *Randformen:* vor dem Code gegen `SPEC-182`, `SPEC-183` und das Raster geprüft, keine Rückgabe. Eine Lesart nennt der Bericht dem Review: ein `Content-Type` eines Teils mit leerem Medientyp und nicht leerem Wert (`;x=1`) ist `teil_typ` („jeder andere“, `SPEC-183` Nr. 4 a), nicht `content_type`.
+
+| Zusage (Zeile) | Mutation im Code | roter Test |
+|---|---|---|
+| 1 | `grenze < 1` wird `grenze < 0` | `TestBatchProgrammfehler` |
+| 2 | keine Prüfung nach dem letzten Read; Prüfung nur vor dem ersten Read | `TestBatchAbbruch` (beide) |
+| 3 | nur die erste Kopfzeile zählt; Rand mit `strings.TrimSpace` | `TestBatchHuelle` (beide) |
+| 4 | `application/json` ist `content_type`; Vergleich mit `strings.EqualFold` | `TestBatchJSONFormat` (beide) |
+| 5 | erster `boundary` gewinnt; `*` erlaubt; 71 Zeichen erlaubt | `TestBatchBoundary` (alle drei) |
+| 6 | Zerlegen nach dem ersten Read | `TestBatchZerlegung` |
+| 7 | Fehler wird wie `EOF` behandelt; `errors.Is` statt `==` für `EOF` | `TestBatchStromfehler` (beide) |
+| 8 | `>=` statt `>`; ein Byte mehr angefordert | `TestBatchGroesse` (beide) |
+| 9 | Präfix ohne Zeilenende; Füllung nur `SP` | `TestBatchGrenzzeile` (beide) |
+| 10 | Grenzzeilen hinter der schließenden werden gelesen | `TestBatchPraeambelEpilog` |
+| 11 | fehlende schließende Zeile angenommen | `TestBatchRahmen` |
+| 12 | kein Teil ist `rahmen` | `TestBatchLeer` |
+| 13 | ein `CRLF` zu viel; eines zu wenig | `TestBatchInhalt` (beide) |
+| 14 | Fortsetzungszeile geduldet; `0x7F` im Wert; `{` als `tchar` | `TestBatchKopfzeile` (alle drei) |
+| 15 | ohne leere Zeile `kopfzeile` | `TestBatchBlockEnde` |
+| 16 | Zeilen über Blöcke gezählt; die 100. ist zu viel | `TestBatchZeilenzahl` (beide) |
+| 17 | Grenze je Ebene; 1001 erlaubt | `TestBatchTeilzahl` (beide) |
+| 18 | der letzte Wert gewinnt | `TestBatchDoppelteKopfzeile` |
+| 19 | geschachteltes Changeset wird nicht abgewiesen | `TestBatchTeilTyp` |
+| 20 | `base64` ohne Wirkung | `TestBatchTransferKodierung` |
+| 21 | Form nur beim leeren Wert geprüft; `+` erlaubt; 129 erlaubt | `TestBatchContentID` (alle drei), `TestContentIDGueltig` (die zwei am Modell) |
+| 22 | Zerlegung an beliebigem Leerraum; `0x7F` im Ziel | `TestBatchAnfragezeile` (beide) |
+| 23 | Body an `Content-Length` gekürzt | `TestBatchRequest` |
+| 24 | `Transfer-Encoding` durchgereicht; vor dem Ende des Blocks geprüft | `TestBatchRequestTransferEncoding` (beide) |
+| 25 | Changeset darf offen enden; Ort von `boundary` leer | `TestBatchChangeset` (beide) |
+| 26 | leeres Changeset ist `rahmen` | `TestBatchChangesetLeer` |
+| 27 | Teilergebnis bei Fehler; `Requests` `nil` | `TestBatchErgebnis` (beide) |
+| 28 | `verschachtelt` in der falschen Klasse; falscher Code; Zeile in der Meldung | `TestBatchFehlerform` (die zwei ersten), `TestBatchZerlegung` (die dritte) |
+| 29 | je eine der zwei Zeilen fehlt | `TestAbbildungBatch` (beide) |
+| 30 | Klasse `ungueltig` hat Vorrang; der Leser meldet `methode_nicht_unterstuetzt` selbst; Transfer-Kodierung vor dem Typ; Anfragezeile vor `Content-ID` | `TestBatchRang` (alle vier) |
+| 31 | `Body` Teilstück ohne Kapazitätsgrenze; `Requests` aus einem gemeinsamen Feld | `TestBatchEigentum` (beide) |
+| 32 | Puffer als Feld des Lesers | `TestBatchGleichzeitig` (Raten unten) |
+| 33 | der Strom wird je Read neu kopiert | `TestBatchWaechter` (2436055200 B über 2148534016 B bei n 8388615) |
+| 34 | `LF` gilt als Zeilenende | `TestBatchAlphabet` |
+| 35 | `verschachtelt` wird `teil_typ` | `TestBatchContract` |
+| 36 (Maß) | Zeilengrenze 64 KiB bei Kopfzeile, Anfragezeile, Grenzzeile: rot; 2 MiB bei der Kopfzeile: grün (Negativ) | `TestBatchWaechter` (die drei ersten) |
+
+*Raten zu Zeile 32* (Implementer, je 20 Prozesse von `go test` in einem Container mit 4 CPU; Last des Hosts 6,3 bis 7,9): mit Detektor `-count=1` rot 20 von 20, jeder mit `DATA RACE`; ohne Detektor `-count=1` rot 20 von 20, `-count=20` rot 20 von 20; ohne Mutation mit Detektor rot 0 von 20.
+
+*Zeile 33, Messung:* die größte Zuteilung der 20 Familien ist 52756664 B bei n 8388676 (rund 6,3 · n), bei n 0 sind es 32800 B; die Zusage 256 · n + 1 MiB hält mit Abstand, keine Rückgabe an den Architect.
+
+*Generatoren und Orakel* (Zählprüfung im Test): Zeile 34 alle 137257 Folgen bis Länge 6, Orakel `alphabetOrakel` ohne Code des Lesers · Zeilen 5 und 25 alle Bytes an drei Stellen, ohne und mit Anführungszeichen (1536 und 1344), Orakel die Zeichenliste der Spezifikation · Zeile 14: 3072 · Zeile 21: 768 Werte an drei Orten · Zeile 22: 1792 · Zeile 9: 326 · Zeile 27: 341 Folgen · Zeile 30 (Stand nach der Fix-Runde): 256 Paare an verschiedenen Teilen der Hülle und 144 an verschiedenen Teilen eines Changeset (je zwei Stellungen), 100 an demselben Request-Teil (einzeln und im Changeset), 19 Verstöße und 204 Paare an demselben Changeset-Teil (je zwei Stellungen), 192 Fälle am geschachtelten Changeset-Teil, 15 Zeilenfolgen (5 je Art von Teil), 4 Ursachen der Prüfung vor 16 Verstößen des Lesers · Zeilen 3, 4, 24: jede Schreibweise (2¹⁴, 2¹⁵, 2¹⁶). *Gegengelesen auf Rohbytes* (`AGENTS.md` §3.18): alle neuen und geänderten Go-Dateien tragen kein Steuerzeichen außer Tab und `LF`; `CR`, `LF`, `HTAB`, `NUL` und Bytes ab `0x80` der Fixtures entstehen aus Bytewerten (`helfer_test.go`, `esB`).
+
+*Messpunkt beim Handoff* (`SPEC-128` Nr. 6 b): `zeilen=36 nebenlaeufig=1 fakes=0 produktcode=500 schaetzung=3385 marke=4600 messung=3049`; davon Tests 2408 und Produktcode 641 (erwartet 500). Keine Überschreitung.
+
+**Fix-Runde zum Review** (Implementer, 2026-11-28; Report `2026-11-28-slice-batch-parser-review`). Geändert sind allein Tests und dieser Plan; kein neuer Fänger zeigte einen Fehler im Produktcode. F-5 bleibt ohne Aktion. Mutationen in einem Lauf von `tools/harness/mutationslauf.sh` (ein Container, `--memory` 4g, 4 CPUs, Klasse `andere`, ein Prozess je Mutation, Last des Hosts 7,3 bis 7,5, Messender: Implementer): 18 von 18 rot auf dem Endstand; ein Lauf davor (ein Container, nacheinander, dieselben Mutationen) zeigte je Mutation die Fehlerzeile aus dem benannten Grund. Die mit *(Befund)* bezeichneten Mutationen nannte das Review grün, die übrigen nannte es nicht.
+
+| Befund: Menge (Achsen, Elemente) | Mutation | roter Test |
+|---|---|---|
+| F-1, Zeile 8: beide Seiten der Grenze × Ende des Stroms. Länge `grenze`-1 bis `grenze`+2 (4) × {`io.EOF`, Fehler von `src`} (2) × {mit den letzten Bytes, eigener Read} (2) × Stückelung {am Stück, 1000, `grenze`} (3) × `grenze` {1, 2, 32767, 32768, 32769, 65536} (6) = 288; in der bestehenden Schleife ist `io.EOF` mit Daten eine eigene Achse (2 × 6 × 6 × 2 = 144) | `io.EOF` vor der Größe *(Befund)*; `io.EOF` mit Daten bei genau `grenze` ist `zu_gross`; `io.EOF` mit einem Byte geht der Größe vor | `TestBatchGroesse` (alle drei) |
+| F-2, Zeile 2: Prüfstelle {vor dem `Content-Type`, vor dem ersten Read, vor jedem weiteren, nach dem letzten} (4) × Art {Abbruch, Frist} × {ohne, mit Ursache} (4); dazu je Art der Vorrang des Lesens (`zu_gross`, Fehler von `src`) | vor dem Read bzw. nach dem letzten immer `context.Canceled` *(Befund, zwei)*; nach dem letzten `context.Cause`; keine Prüfung vor dem ersten Read; vor dem Read allein der Abbruch | `TestBatchAbbruch` (alle fünf) |
+| F-3, Zeile 30: Verstöße am Changeset-Teil nach der Folge von `SPEC-182` Nr. 5 g und f: Kopfzeilen (3: Form, Zahl, Wiederholung), Transfer-Kodierung, `boundary`, `rahmen`, Zahl der Teile, Teile (12) = 19 Verstöße, 102 Paare verschiedener Stufen × 2 Reihenfolgen des Anwendens, je als erster und zweiter Teil; geschachtelter Teil: 4 Zustände der Kopfzeilen × 3 der Kodierung × 16 des Inhalts. Die Wiederholung einer Kopfzeile ist auch am Request-Teil ein Verstoß der Paare (11 statt 10); neu sind auch die Paare verschiedener Teile eines Changeset (12 × 12) | Changeset: `boundary` vor der Kodierung *(Befund)*; `rahmen` vor der Kodierung; geschachtelt: Kodierung bzw. `boundary` vor `verschachtelt`; Wiederholung erst nach Typ und Kodierung; Zahl der Teile nach den Teilen; im Changeset gilt der letzte Verstoß | `TestBatchRang` (alle sieben) |
+| F-4: Maß des Negativs „nil-Zeiger anderer Fehlertypen“, gezählt gegen den Quelltext | `Unwrap` ohne Nennung des Empfängers; eines, das ihn neu nennt; `Is` ohne Nennung | `TestTypenMitUnwrapAufZeiger` (alle drei) |
+
+*Maß zu F-4* (das Negativ führt `slice-admin-fehlerabbildung` §3 mit dem Stand seiner Closure): in `src/hexagon` und `src/adapters/driven` haben 13 Typen eine Methode `Unwrap` auf einem Zeiger, 9 nennen darin den Empfänger (mit `*BatchFehler`), 3 Typen haben eine solche Methode `Is`, alle 3 nennen ihn; ungefangen sind 8 der 9 (ohne `inbound.Fehler`) und die 3 mit `Is`.
+
+*Akzeptiertes Negativ zu Zeile 2:* die Prüfung vor dem ersten Read hat zwischen `Content-Type` und Read keinen anderen Haltepunkt als die Abfrage `Err()`; der Fänger beendet den Kontext ab deren zweitem Aufruf. Grund: `contentType` ist ein Slice ohne Rückruf. Folge: ein Leser, der `Err()` schon vor dem `Content-Type` zweimal fragt und vor dem ersten Read nicht mehr, bliebe grün (1 der 4 Prüfstellen, in dieser einen Form).
+
+*Messpunkt nach der Fix-Runde* (`SPEC-128` Nr. 6 b): `messung=3417` (Marke 4600), davon Tests 2776 und Produktcode 641 (unverändert). Keine Überschreitung.
+
+*Akzeptierte Negative aus der Verifikation* (Planner bei der Closure, 2026-11-28; Report `2026-11-28-slice-batch-parser-verifikation`; kein Code geändert):
+
+- **Zu Zeile 28** (V-3): in 2 der 12 Fixtures von `ursachenFaelle` erreicht der unverwechselbare Text den Leser nicht ganz: `zu_viele` trägt allein sein erstes Byte (`geheim[:1]`, Befund der Verifikation), und bei `zu_gross` steht er hinter der Grenze von 20 Bytes (Befund des Planner beim Nachlesen, aus der Länge der Fixture gerechnet, nicht durch einen Lauf). Grund: der Slice ist verifiziert, die Closure ändert keinen Test. Folge: keine für den Fang eines Eingabebytes in der Meldung: `wantFehler` vergleicht `Ursache` und `Ort` genau, und `Error()` entsteht nur aus beiden; die Suche nach dem ganzen Text in `Error()` und `Ort` kann an diesen zwei Fixtures für sich nichts finden. Der Kommentar an `geheim` (`helfer_test.go`) nennt die Verstoß-Fixtures ohne diese Ausnahme.
+- **Zu Zeile 7** (V-4): von den zwei Kontextfehlern, die `src` bei nicht beendetem `ctx` liefern kann (`SPEC-126` Nr. 2), führt `TestBatchStromfehler` allein `context.Canceled`; `context.DeadlineExceeded` von `src` ist ungeführt (1 von 2). Die Mutation „dieser Wert beendet das Lesen nicht“ blieb im Review grün (M4); der Verifier fuhr sie nicht nach. Grund: die Menge der Fehlerwerte ist unbeschränkt, und der Code vergleicht allein `io.EOF` mit `==` und behandelt jeden anderen Wert gleich. Folge im Betrieb: keine am heutigen Code; eine spätere Sonderbehandlung dieses einen Werts bliebe ungefangen.
 
 **Betriebsregeln** (gelten für jede Rolle dieses Slice):
 
@@ -210,16 +282,16 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Die Menge der Hüllen ist unbeschränkt (jede Bytefolge, jede Zerlegung des Stroms in Reads) — **Ausgang:** offen; Generator mit Orakel und Prüfgrenze (Zeilen 6 und 34, `AGENTS.md` §3.17).
-- Das Verhalten einer Bibliothek als Grundlage einer Zusage (Zeilenenden, Falten, doppelte Grenze) — **Ausgang:** offen; entschieden: eigener Leser (`SPEC-182` Kopf), Zeilen 5, 9, 11, 14; der Review prüft die Importe.
-- Größe eines Batch-Bodys: zwei Quellen der Grenze — **Ausgang:** offen; entschieden: `MAX_CAPTURE_BODY`, der HTTP-Adapter begrenzt nicht (`SPEC-182` Nr. 7), Zeile 8.
-- Zusammenspiel mit Prüfung und Ausführung: Form der Domain-Werte und des Fehlerwerts — **Ausgang:** offen; `slice-batch-validator` §1 liest sie, `slice-batch-changesets` §1 führt die Sendung.
+- Die Menge der Hüllen ist unbeschränkt (jede Bytefolge, jede Zerlegung des Stroms in Reads) — **Ausgang:** entfallen: der Fänger mit benannter Prüfgrenze steht (`AGENTS.md` §3.17): Zeile 34 führt alle 137257 Folgen bis Länge 6 gegen ein Orakel ohne Code des Lesers, Zeile 6 die Zerlegungen; was jenseits liegt, ist das benannte Negativ (Zeile 34, `SPEC-183` *Ungeprüft*). Die Differenzprobe und der Fuzz-Lauf des Reviews fanden keine Abweichung (Report des Reviews, *Vorgehen*).
+- Das Verhalten einer Bibliothek als Grundlage einer Zusage (Zeilenenden, Falten, doppelte Grenze) — **Ausgang:** entfallen: der Leser ist eigener Code (`SPEC-182` Kopf) und importiert weder `mime/multipart` noch `net/http` noch `net/textproto` (Review und Verifikation); Fänger Zeilen 5, 9, 11, 14.
+- Größe eines Batch-Bodys: zwei Quellen der Grenze — **Ausgang:** entfallen: eine Quelle ist entschieden (`MAX_CAPTURE_BODY`, `SPEC-182` Nr. 7), der Leser nimmt sie als Argument; Fänger Zeile 8, seit der Fix-Runde auch an beiden Seiten der Grenze mal Ende des Stroms. Die Übergabe des Wertes ist Sache des Aufrufers (`slice-batch-changesets` §1, Sendung (a)).
+- Zusammenspiel mit Prüfung und Ausführung: Form der Domain-Werte und des Fehlerwerts — **Ausgang:** entfallen: Domain-Werte, Fehlerwert mit allen Ursachen und `ContentIDGueltig` sind geliefert; `slice-batch-validator` §1 liest sie, `slice-batch-changesets` §1 führt die Sendung (bei der Closure gelesen, §7).
 - Die Form einer `Content-ID` braucht der Leser (Zeile 21) und `Verweis` in `slice-batch-validator` (Zeile 39) — **Ausgang:** entfallen: entschieden (Architect, 2026-11-28): eine Funktion `model.ContentIDGueltig` (Länge und Zeichenmenge, `SPEC-183` Nr. 4 c), die dieser Slice in `batch.go` liefert und beide rufen; ihre Fänger sind Zeile 21 und Zeile 39, je über alle 256 Bytes. Dass kein zweiter Nachbau entsteht, prüft der Review (kein Test unterscheidet ihn bei gleichem Verhalten).
-- Der Strom des Tests hält jedes Argument fest und zählt jede Operation, auch `Close` und jeden Read (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 2×); Ports ruft der Leser keine — **Ausgang:** offen; Zeilen 3, 6, 8.
-- Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** offen; Raster unten, eine Zelle ohne Ort geht an den Architect.
+- Der Strom des Tests hält jedes Argument fest und zählt jede Operation, auch `Close` und jeden Read (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 2×); Ports ruft der Leser keine — **Ausgang:** entfallen: der Strom führt alle Methoden von `io` und zählt jede (Zeile 6), hält die angeforderten Längen fest (Zeile 8) und zählt die Reads vor einem Verstoß (Zeile 3); Review und Verifikation haben dazu keinen Befund.
+- Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** entfallen: jede der 14 Zellen und jedes der 7 Paare unten hat Ort und Fänger (Verifikation, DoD 3), keine Rückgabe an den Architect; die Paare am Changeset-Teil ohne Fänger (Review F-3) sind seit der Fix-Runde geführt. Die Form `;x=1` (F-5) steht in §7 als benannte Spec-Lücke.
 - Schnittfrage (`AGENTS.md` §3.14): die Formel lag über der Schnittgrenze — **Ausgang:** entfallen: entschieden (Planner, 2026-11-28): geschnitten nach der Empfehlung des Architect, die Prüfung ist `slice-batch-validator`; der Leser bleibt mit `schnitt-grund` (§4).
-- Bestehende Tests zählen die Sentinels und die Zeilen der Abbildung (§3 *Stand beim Start*; `BEO-REPO/ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit`, verwandte Form): die Liste der sechs Dateien ist durch Suchen gebildet, nicht durch einen Lauf, und eine Anpassung kann einen Fänger lockern (`BEO-REPO/anpassung-eines-bestehenden-tests-lockert-seinen-faenger`) — **Ausgang:** weiter offen; Adresse: Implementer (ergänzt nur Listen und Zahl, nennt jede weitere Datei im selben Commit), Review und Verifier lesen den Diff dieser Dateien.
-- Zeile 36 (akzeptiertes Negativ) nennt Grund und Folge, aber nicht das Maß der ungefangenen Klasse (`AGENTS.md` §3.15) — **Ausgang:** offen; Adresse: Implementer (nennt beim Handoff das Maß aus seinen Fixtures; hält er dafür eine Entscheidung für nötig, gibt er die Zeile an den Architect zurück).
+- Bestehende Tests zählen die Sentinels und die Zeilen der Abbildung (§3 *Stand beim Start*; `BEO-REPO/ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit`, verwandte Form): die Liste der sechs Dateien war durch Suchen gebildet; der Lauf des Implementers traf zwei weitere (`workspace/kontext_test.go`, `workspace/reset_test.go`, §3 und Block). Eine Anpassung kann einen Fänger lockern (`BEO-REPO/anpassung-eines-bestehenden-tests-lockert-seinen-faenger`) — **Ausgang:** weiter offen: Beobachtungs-Register, Evidenz `slice-batch-parser` zu `BEO-REPO/ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit` (verwandte Form: die Suche beim Start fand sechs von acht Dateien). Zur Lockerung: der Handoff (`866d90ec`) änderte in den acht Dateien allein Listen und Zahlen; seit der Fix-Runde (`380ac0fd`) trägt `suche_test.go` dazu eine neue Zählfunktion (`methodenAufZeiger` statt `pfadeMitUnwrapAufZeiger`), die Hilfe `nenntEmpfaenger` und drei neue Zusicherungen (§3 *Fix-Runde*, F-4). Review und Verifikation haben beides gelesen: kein Fänger ist gelockert, die Zusicherung „13“ steht weiter.
+- Zeile 36 (akzeptiertes Negativ) nannte nicht das Maß der ungefangenen Klasse (`AGENTS.md` §3.15) — **Ausgang:** entfallen: das Maß steht in Zeile 36 (Implementer beim Handoff), eine Entscheidung des Architect war nicht nötig.
 
 **Raster *Operation × Argumentart*:**
 
@@ -256,7 +328,43 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 (`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
 übernimmt).
 
-*Wird bei der Closure gefüllt.*
+**Closure** (Planner, 2026-11-28; Zweig `slice-batch-parser`, Messbasis `7fb0f523`, Stand vor der Closure `bdb4ee17`, danach `git merge main` (`main` = `7dc8b3e7`) im Merge `9f3562ff` ohne Konflikt, unmittelbar danach `make docs-check`: 1485 Dateien, 0 Befunde). Merge nach `main`, `make gates` auf dem gemergten Stand und der Stempel der Gegenproben sind der Integrationsschritt, nicht Teil dieser Notiz. Der Slice ist nicht Teil der Erstabnahme, und `LH-FA-16` ist mit ihm nicht erfüllt: Prüfung der Struktur, Ausführung und Antwort liegen bei `slice-batch-validator` und `slice-batch-changesets`. Review (`docs/reviews/2026-11-28-slice-batch-parser-review.md`: 0 HIGH, 3 MEDIUM, 1 LOW, 1 INFO) und Verifikation (`docs/reviews/2026-11-28-slice-batch-parser-verifikation.md`: bestätigt mit Auflagen, 0 HIGH, 0 MEDIUM, 1 LOW, 3 INFO) liefen je einmal; die Fix-Runde (`380ac0fd`, nur Tests und Plan) sah der Reviewer nicht, der Verifier maß sie gegen die Klassen F-1 bis F-4 (12 von 12 eigenen Mutationen rot).
+
+**Auflagen der Verifikation:** V-1: §6 berichtigt (Risiko *Bestehende Tests*) und jedes Risiko hat seinen Ausgang. V-2: unten unter *Was am Binary gleich bleibt*. V-3 und V-4: akzeptierte Negative in §3, ohne Adresse an einen anderen Slice (kein Nehmer ändert diese Tests). F-5 des Reviews: benannte Spec-Lücke unten.
+
+**Was geliefert ist:** der Port `ODataBatch` (`ports/outbound/odata_batch.go`), die Domain-Werte `Batch`, `BatchTeil`, `BatchRequest`, `BatchKopf` und `ContentIDGueltig`, der Fehlerwert `BatchFehler` mit 16 Ursachen und zwei Sentinels, zwei Zeilen der Abbildung (`ODR-E6007`, `ODR-E6001`) und der Leser `batchcodec.NewLeser()` für `multipart/mixed` mit leerem Batch, Changesets, Einzelrequests und den Grenzen. Tests: die Zeilen 1 bis 36 der Tabelle in §3, ein Orakel ohne Code des Lesers (Zeile 34) und der Parser-Contract-Test (`LH-FA-16.a`); [ADR-0001](../../adr/0001-implementierungssprache-go.md): keine neue Abhängigkeit.
+
+**Was am Binary gleich bleibt:** kein neuer Fehlercode, Schlüssel oder Befehl (`ODR-E6001` und `ODR-E6007` bestanden), kein geändertes Verhalten, kein Handbuch-Kapitel; kein Produktcode importiert `batchcodec`, eine Route `/$batch` gibt es nicht. Nicht unverändert ist der Inhalt: `ports/outbound/abbildung.go` hat zwei Zeilen mehr und `model` neue Werte, beide Pakete liegen im Binary; die zwei neuen Sentinels erzeugt dort heute niemand.
+
+**Mutationen und Messungen:** Implementer beim Handoff je Zeile (§3), Raten zu Zeile 32 je 20 von 20 Prozessen mit und ohne Detektor; Fix-Runde 18 von 18 rot; Reviewer: M1 bis M3 grün (F-1 bis F-3), M4 grün ohne Befund, Differenzprobe an 1500000 Bodies und Fuzz mit 8,4 Millionen Ausführungen ohne Abweichung, Laufzeit linear bis 16 MiB; Verifier: 12 von 12 rot, dazu je eine Mutation zu Zeile 6 und Zeile 32 rot (Zeile 32: 20 von 20 Prozessen mit und ohne Detektor). Grenze: bei *rot* gibt das Werkzeug des Verifiers keine Ausgabe, der Grund folgt aus dem Zuschnitt der Mutation; die Zuteilung zu Zeile 33 und die Raten des Implementers hat niemand nachgemessen.
+
+**Gate:** `make gates` grün am Stand `46c12249` nach dem Stempel (`gates-passed.head` und `gates-passed.diffsha`, vom Verifier gegengelesen, nicht neu gefahren; die Ausgabe des Laufs hat er nicht gesehen). Planner im Zweig nach dem Schreiben der Closure und vor dem Move: `make docs-check` (1490 Dateien, 0 Befunde), `make zeichen-check` (ok, 2723 Dateien) und `make groessenmarke` (ok, Messung 3417 von Marke 4600). Kein `make gates` und kein `make gegenproben` bei der Closure.
+
+**Größe** (`SPEC-128` Nr. 9): Ende `Messpunkt slice-batch-parser.md: zeilen=36 nebenlaeufig=1 fakes=0 produktcode=500 schaetzung=3385 marke=4600 messung=3417`; von Hand: Produktcode 641 (erwartet 500, 28 % darüber: `teil.go` 193, `contenttype.go` 102, `batch_fehler.go` 90, `leser.go` 80, `kopf.go` 58, `batch.go` 51, `rahmen.go` 48, `odata_batch.go` 17, `abbildung.go` 2), Tests 2776. Handoff 3049, Ende ÷ Handoff 1,12. Auslastung 3417 ÷ 4600 = 0,74, Ende ÷ *S* = 1,01: zwischen 0,45 und 1,00, **keine Meldung** an den Architect, kein Eintrag `ueberschreitung`. Die 500 waren eine Setzung des Planner (600 des Architect, geteilt 500 und 100): der Leser allein liegt über den 600; die 100 im Block von `slice-batch-validator` liest dessen Start neu, geändert sind sie hier nicht.
+
+**Abweichungen vom Plan:** zwei bestehende Testdateien über die sechs beim Start gefundenen hinaus (§3, §6). Keine Zusage des Plans geändert, keine Randform im Code entschieden, keine Rückgabe an den Architect.
+
+**Akzeptierte Negative:** Zeile 36 (keine Grenze je Zeile), die Zeile 34 (Prüfgrenze Länge 6), das Negativ zu Zeile 2, das Maß „nil-Zeiger anderer Fehlertypen“ (§3 *Maß zu F-4*) und die zwei aus der Verifikation zu den Zeilen 28 und 7.
+
+**Sendungen (`AGENTS.md` §3.13), bei der Closure gelesen** (§1, DoD, §4 und Block der Nehmer): (1) *an* `slice-batch-validator` (`open/`): Prüfung der Struktur samt `Verweis`, die Zeilen 37 bis 43, zwei Zeilen des Rasters, zwei Paare und der Validator-Contract-Test stehen in §1 *Übernimmt*, §3, §6 und der ersten DoD; kein *Ausdrücklich NICHT* trifft sie. Der Start-Trigger („`slice-batch-parser` liegt in `done/`“) ist mit dem Move und dem Merge nach `main` erfüllt; die Namen, die er liest (`model.Batch`, `BatchRequest`, `BatchFehler`, die vier Ursachen der Prüfung, `ContentIDGueltig`), liegen vor. (2) *an* `slice-batch-changesets` (`open/`): die Sendung (a) bis (f) steht in §1 *Übernimmt*; ihr *Ausdrücklich NICHT* schließt den Bau des Parsers aus, nicht den Aufruf. Beide Nehmer liegen nicht in `done/`. [welle-expand-batch](../welle-expand-batch.md) ist nachgezogen.
+
+**Steering-Loop-Einträge:**
+
+1. **Drei Fänger führten die Menge nur in einer Achse.** F-1: beide Seiten der Größengrenze, aber nicht mal Ende des Stroms (`io.EOF` mit den letzten Bytes); F-2: vier Prüfstellen des Kontexts, die Art des Endes (Frist, Ursache) allein an der ersten; F-3: Paare von Verstößen am Teil mit `application/http`, keine am Changeset-Teil. Bei grüner Suite ließen sich Größe, Kontextfehler und Rangfolge brechen; im Produktcode lag kein Fehler. Gefunden hat es das Review mit je einer Mutation an der zweiten Achse. Die Regel steht (`AGENTS.md` §3.15: beide Seiten jeder Grenze, ein Fall je Aufrufstelle; eine Menge nennt ihre Achsen); gezählt, kein neuer Zielort. Evidenz zu `BEO-REPO/menge-ohne-ihre-positionen` und `BEO-REPO/zustand-des-arguments-als-dimension`.
+2. **Eine Änderung zog ihre zweite Stelle nicht mit.** F-4: die gezählte Zahl der Typen mit `Unwrap` wurde nachgezogen, das Maß des Negativs nicht; V-1: die Fix-Runde änderte `suche_test.go` und §3, der Satz in §6 blieb. Die Regel steht (`AGENTS.md` §3.9); gezählt. Evidenz zu `BEO-REPO/berichtigung-erreicht-nicht-jede-stelle`.
+3. **Der Plan sagte mehr zu, als der Test führt.** V-3: „in jeder Verstoß-Fixture“; die Zeile ist berichtigt und das Maß steht als Negativ. Gezählt; Evidenz zu `BEO-REPO/menge-im-plan-weicht-vom-orakel-des-tests-ab`.
+4. **Benannte Spec-Lücke, offen** (F-5, ohne Frist, blockiert nichts): ein `Content-Type` mit leerem Medientyp und nicht leerem Wert (`;x=1`) nennt `SPEC-183` weder in Nr. 1 noch in Nr. 4 a; aus „jeder andere“ folgt an der Hülle `content_type` (`400`) und am Teil `teil_typ` (`501`). Der Code folgt dem Wortlaut, `TestBatchTeilTyp` hält den Teil. Gegenstück `LH-FA-16.a`; Adresse Architect, falls die zwei Antworten gleich sein sollen.
+5. **Benannte Spec-Lücken, vor dem Code geschlossen:** nach dem Schnitt waren der Ort der Form einer `Content-ID` und der Ort des Falls „Prüfung vor Leser“ offen; der Architect entschied beide mit `2da754f4` (`SPEC-183` Nr. 4 c, `SPEC-182` Nr. 5 h). Der Implementer musste keine Randform zurückgeben. Gegenstück `LH-FA-16.a`.
+
+**Was getragen hat:** der Schnitt vor dem Code (Ende ÷ *S* = 1,01) und das Orakel ohne Code des Lesers.
+
+**Kein Zielort-Feld in diesem Slice:** nichts wurde in einer Regel oder einem Sensor neu verkörpert; eine Pflicht zur Anker-Paarung entsteht nicht.
+
+**Register** (Evidenz mit dem Closure-Commit im Zweig, kein Zähler gesetzt, er folgt aus den Dateien; kein neues Verzeichnis): Evidenz `slice-batch-parser` zu `BEO-REPO/menge-ohne-ihre-positionen`, `BEO-REPO/zustand-des-arguments-als-dimension`, `BEO-REPO/berichtigung-erreicht-nicht-jede-stelle`, `BEO-REPO/menge-im-plan-weicht-vom-orakel-des-tests-ab` und `BEO-REPO/ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit`. Nicht angefallen: `fix-deckt-die-genannte-mutation-nicht-die-klasse` (die Fix-Runde deckte die Klassen), `anpassung-eines-bestehenden-tests-lockert-seinen-faenger` (keine Lockerung), `groessenmarke-ueberschritten-ohne-rueckfuehrung` und die zwei Beobachtungen zur Schätzformel (Auslastung 0,74).
+
+**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld, nichts zu paaren) · Folge-Slice (`slice-batch-validator` und `slice-batch-changesets` liegen als Dateien in `open/` und führen die Sendungen) · Register (die fünf genannten Verzeichnisse tragen `evidence/slice-batch-parser.md`, ebenso die in §6 und §8 genannten ihr `evidence/`). Die Closure von `welle-expand-batch` prüft die Paarungen erneut.
+
+**Gegenlesen** (`AGENTS.md` §3.18): dieser Plan, die Welle, die Roadmap und die fünf Evidenz-Dateien sind auf Rohbytes gegengelesen; `make zeichen-check` deckt dieselbe Menge im Gate.
 
 ## 8. Sub-Area-Prüfungen und Modus-Begründung
 
