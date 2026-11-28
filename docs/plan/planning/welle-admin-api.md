@@ -76,6 +76,8 @@ dieser Welle**: Steht er in der Slice-Liste unten, ist er falsch platziert.
 
 **Zustand, [slice-admin-abweisen-begrenzen](done/slice-admin-abweisen-begrenzen.md)** (2026-11-28, Planner, Closure): er liegt in `done/` (Beleg: §7 dort, Review und Verifikation in `docs/reviews/`; der Merge nach `main` und der Gate-Lauf dort folgen im Integrationsschritt). Der Admin-Listener schreibt höchstens 20 Einträge des Abweisens je 60 s, und das Handbuch sagt es. **Offen in der Welle ist ein Slice:** [slice-admin-tls-betrieb](in-progress/slice-admin-tls-betrieb.md); er startet mit dem Merge auf `main` (§5). Weiter offen beim Architect: eine Aussage des Handbuchs zum Rücksprung der Systemzeit und eine Textstelle in `SPEC-041` Nr. 7 (§6 dort).
 
+**Gestartet: [slice-admin-tls-betrieb](in-progress/slice-admin-tls-betrieb.md)** (2026-11-28, Planner; unter der Ausnahme je Slice vom Welle-Trigger oben): beide Start-Bedingungen sind auf `main` bei `76cd7f12` erfüllt (§4 dort), `make gates` dort grün. Marke 1100 (*S* = 775), Zweig `slice-admin-tls-betrieb-fang`; die Quelldatei liest er vom Zweig `slice-admin-tls-betrieb`, der unberührt bleibt. Kein Kettenslice. Daneben laufen [slice-container-image](in-progress/slice-container-image.md) und [slice-absturztest](in-progress/slice-absturztest.md): keine Datei der Blöcke gemeinsam; mit dem zweiten das Testpaket `bootstrap_test` (Namen beim Start geprüft).
+
 ## 3. Closure-Trigger (Welle schließt)
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
