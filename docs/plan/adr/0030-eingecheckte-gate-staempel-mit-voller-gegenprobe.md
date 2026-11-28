@@ -20,7 +20,8 @@
 Bei unveränderter Eingabe spart nur der Docker-Cache des eigenen Hosts Arbeit, und der reist nicht mit.
 Zwei Mechanismen für den Nachweis liegen vor: der Stempel von `make gegenproben` ([ADR-0005](0005-gegenproben-ausserhalb-der-gate-kette.md)), eingecheckt, nur für dieses eine Ziel; und der Nachweis von `record-gates` (`.harness/state/`), nur lokal, vom Stop-Hook gelesen, kein Beleg für andere Klone.
 Die Beobachtung `BEO-REPO/stempel-gehoert-zu-keinem-committeten-stand` zeigt die Schwäche eines Stempels, der am Arbeitsbaum entsteht: er gehört zu keinem Commit, wenn danach ein Eingabe-Commit folgt oder der Lauf ungetrackte Dateien sah.
-Eine CI gibt es nicht; sie ist ein eigener Folge-Slice.
+Eine CI gibt es noch nicht. Entschieden und vor dem Code beschrieben ist eine CI, die ohne Stempel und ohne Nachtlauf jedes Gate bei Push und Pull Request fährt (`SPEC-217`, harness/vertraege, 2026-11-28); sie hängt nicht an dieser ADR und nimmt Slice (b) nicht vorweg.
+Slice (b) setzt auf ihr auf. Solange sie jedes Gate fahren muss, darf Slice (a) die Stempel dort kein Gate auslassen lassen: er ändert im selben Vorgang den Aufruf der CI auf den Lauf ohne Stempel.
 Annahmen: Ein Stempel je Gate belegt „dieses Gate war an dieser Eingabe grün", nicht „der Stand ist in Ordnung"; die Eingabemenge eines Gates ist vollständig benennbar; ein Nachtlauf ohne Stempel (voller Lauf auf `main`) ist verfügbar, sobald die CI steht.
 Kippt die zweite Annahme, ist ein Stempel ein Gate-Lockerung durch die Hintertür (`AGENTS.md` §3.6).
 
@@ -114,6 +115,7 @@ Wenn die Messung vor Slice (a) keinen Nutzen gegenüber dem Docker-Cache zeigt (
 |---|---|---|
 | 2026-11-17 | Proposed | Entwurf des Architect; die Annahme steht beim Nutzer aus |
 | 2026-11-18 | Nummer 0030 aus dem Bereich der Linie C, offene Fragen aufgenommen | Ablage im Repo, kein Slice gestartet |
+| 2026-11-28 | Kontext nachgeführt, weiter `Proposed`: eine CI ohne Stempel kommt vor Slice (a) und (b) (Entscheidung des Users, CI vor der Erstabnahme) | `SPEC-217` |
 
 Nach `Accepted` wird diese Datei **nicht mehr inhaltlich überschrieben**.
 Spätere Korrekturen oder Schärfungen entstehen als neue ADR mit
