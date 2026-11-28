@@ -3029,7 +3029,7 @@ Beide Modi führen Änderungen mit demselben Dienst aus; er speichert die Werte 
 Der Satz oben zu unredigierten Daten gilt für diese Werte nicht; welche Testdaten zulässig sind, verantwortet der Betreiber (`LH-RB-04`).
 
 **Handbuch.** Das Handbuch trägt ein Kapitel `Schutz der Daten` aus einem kurzen Absatz mit drei Aussagen: Um Core-Dumps, Swap, Diagnose-Dumps und Body-Logging in Middleware kümmert sich der Betreiber, der Recorder prüft nichts davon; Werte, die ein Client im Modus `mock` oder `hybrid` schreibt, speichert der Dienst unverändert; welche Testdaten zulässig sind, verantwortet der Betreiber.
-*Stand:* die erste Aussage des Kapitels nennt allein Core-Dumps und Swap.
+*Stand:* geliefert; das Kapitel trägt die drei Aussagen.
 Das Kapitel steht als Prosa; ein gebundenes Beispiel verlangt dieser Vertrag nicht, weil das Format der Beispiel-Datei dieses Verhalten nicht ausdrückt (`SPEC-200` Nr. 1, 6 d).
 *Ungeprüft:* die Sätze des Kapitels. Grund: kein Beispiel. Folge: ein falscher Satz bleibt bei grünen Gates stehen (`SPEC-200` Nr. 14 b).
 
