@@ -1,0 +1,2 @@
+**Vorgang:** slice-batch-validator
+**Fund:** Zwei Prüfgrenzen nennen „Grund: Größenmarke (§4)“: nicht unterstützte Methoden außer `MERGE` ab Stelle 13 (5 von 6) und die Fortsetzung eines Verweises an den Weite-Fängern (0 von 2) samt `GET` mit `?` außerhalb eines Changeset; die Mutationen dazu blieben grün gesehen. Die Messung am Ende ist 900 bei Marke 900, ein Eintrag `ueberschreitung` entstand nicht. Die Prüfgrenzen kamen mit den Auflagen der Verifikation und sind nicht erneut geprüft. Beleg: Plan `slice-batch-validator` §3 (*Prüfgrenzen*, *Nach der Verifikation*) und §7.

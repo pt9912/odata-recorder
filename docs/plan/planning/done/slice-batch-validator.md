@@ -1,0 +1,304 @@
+# Slice slice-batch-validator: Prüfung der Struktur eines `$batch` (Methoden, `Content-ID`, Verweise)
+
+**Lifecycle:** Der Zustand dieses Slice ist das Verzeichnis, in dem diese
+Datei liegt — eines von `open/`, `next/`, `in-progress/`, `done/`. Er
+wechselt nur durch `git mv`, siehe
+Baseline-Regelwerk `modul-05-planning-harness.md` §Lifecycle als State Machine.
+Übernimmt ein anderer Slice den Gegenstand oder entfällt er, geht diese Datei
+aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
+Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
+(§Ein Slice, dessen Gegenstand ein anderer übernimmt).
+
+**Welle:** [welle-expand-batch](../welle-expand-batch.md).
+
+**Bezug:** `LH-FA-16`, `LH-RB-01`, `LH-QA-05`, [ADR-0001](../../adr/0001-implementierungssprache-go.md)
+
+**Berührte Spec-Stellen:** `LH-FA-16.a` (eigener Validator-Contract-Test, unbekannte Operationen `501`) · `SPEC-184` (Vertrag dieses Slice) · `SPEC-182` Nr. 4 und 5 (Fehlerwert, Ursachen, Rangfolge hinter dem Leser) · `SPEC-183` Nr. 4 c (Form der `Content-ID`) und Nr. 8 (Beispiel, Zeilen der Prüfung) · `SPEC-022` (`ODR-E6001`) · `SPEC-180` (`ODR-E6007`) · `ARC-004`.
+Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
+
+**Verantwortlich:** pt9912 (Zweig `slice-batch-validator`, Worktree `/Development/odata-recorder-wt-validator`; der Zweig entsteht von `main` nach den Start-Commits, der Start liegt auf `main`)
+
+**Autor:** pt9912. **Datum:** 2026-11-28.
+
+---
+
+## 1. Ziel und Abgrenzung
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
+§Ziel-Form: Slice — Schnitt nach Lieferwert, nicht nach Schichten; jeder Slice
+ist einzeln lieferbar. **§1 nennt Ziel und Abgrenzung** (Out-of-Scope-Disziplin
+des Lastenhefts, auf den Slice-Plan angewandt); die vier Klassen des
+Ausschlusses stehen in **eben diesem Abschnitt** des Baseline-Regelwerks,
+zusammen mit der Begründungs-Pflicht je Punkt.
+
+**Ziel:** Die reinen Funktionen `model.PruefeBatch` und `model.BatchRequest.Verweis` im Paket `src/hexagon/model` prüfen die Struktur eines gelesenen Batch nach `SPEC-184`: erlaubte Methoden je Ebene, `Content-ID` je Changeset eindeutig, Verweise `$<id>` nur auf einen früheren Request desselben Changeset; ein Verstoß ist ein `*model.BatchFehler` mit Ursache und Ort (`ODR-E6007` bzw. `501` mit `ODR-E6001`). Beide Funktionen lesen nur die Domain-Werte und rufen keinen Port (`LH-FA-16.a`: Validator-Contract-Test).
+
+**Übernimmt (Schnitt von `slice-batch-parser`, Geber `slice-batch-parser`, `AGENTS.md` §3.13):** die Prüfung der Struktur samt `Verweis`, die Zeilen 37 bis 43 der Tabelle *Zusage · Fänger*, die zwei Zeilen des Rasters, zwei Paare der Zusatztabelle zur Prüfung und den Validator-Contract-Test, die der frühere Plan von `slice-batch-parser` führte. Das dritte Paar (Verstoß der Prüfung vor einem Verstoß des Lesers) liegt wieder bei `slice-batch-parser` (Zeile 30, dort in §1 eingetragen): nur ein Aufruf des Lesers zeigt es, und `model` ruft keinen Adapter.
+
+**Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
+
+- Leser, Port `ODataBatch`, Domain-Werte, `model.ContentIDGueltig`, Fehlerwert `BatchFehler` mit seinen Ursachen und die Zeilen der Abbildung — `slice-batch-parser`; dieser Slice liest und ruft sie und ändert sie nicht, auch die Ursachen der Prüfung stehen dort schon in der Liste.
+- Der Aufruf von `PruefeBatch` vor der ersten Ausführung, die Auflösung eines Verweises gegen den früheren Request und die Ausführung — `slice-batch-changesets` (dessen §1 trägt die Sendung); dieser Slice liefert die Funktionen, nicht ihren Aufrufer.
+- Parsen von Ziel und Body eines Einzelrequests und Verweise im Body — `slice-batch-changesets`; `SPEC-184` Nr. 4 regelt beides nicht.
+- Die Form der Werte eines von Hand gebauten Batch — nicht Gegenstand der Prüfung (`SPEC-184` *Ungeprüft*); der Leser ist der einzige Erzeuger.
+
+**Keine Mindestzahl.** Ein Slice mit *einem* echten Ausschluss ist besser als
+einer mit vier erfundenen; die vier Klassen sind ein Suchraster, keine
+Ausfüll-Liste. Suchreihenfolge: Was übernimmt ein **Folge-Slice** (mit
+Kennung — und die Kennung muss den Punkt auch annehmen)? Was bleibt als
+**Bestand** bewusst stehen (mit Begründung)? Was wäre ein **anderer Vorgang**?
+Welche **Schicht** rührt der Slice nicht an?
+
+Was hier steht, ist die Grenze, an der ein wachsender Slice sich messen lässt:
+Wer später etwas mitnimmt, das hier ausgeschlossen war, hat den Plan
+**geändert**, nicht nur ergänzt.
+
+## 2. Definition of Done
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
+§Ziel-Form: Slice — **≤ 3 Liefer-Punkte**; mehr heißt: der Slice ist zu groß und
+gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst — die
+Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
+
+- [x] Prüfung (`SPEC-184`): Methoden je Ebene (außerhalb und innerhalb eines Changeset), `Content-ID` je Changeset eindeutig, `Verweis`, Verweise nur rückwärts; Verstoß mit Ursache und Ort, nicht Unterstütztes `501` mit `ODR-E6001`; die Funktionen ändern den Wert nicht.
+- [x] Randformen: je Zelle des Rasters (§6) ein Ort in der Spezifikation und ein Fänger der Tabelle (§3); Validator-Contract-Test (`LH-FA-16.a`); `make a-check` hält die Richtung (`model` importiert keinen Port und keinen Adapter). Die Auflagen V-1 und V-2 der Verifikation sind nach ihr erledigt und nicht erneut geprüft (§7).
+- [x] `make gates` grün.
+- [x] Review durchgeführt, Report unter `docs/reviews/` liegt vor
+      (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
+      Minimal Agent Workflow (`AGENTS.md` §6), kein Self-Review (Modul 8).
+- [x] Doku-Update, falls ein öffentlicher Vertrag berührt ist (keiner berührt: der Vertrag steht in `SPEC-184`, der Slice ändert ihn nicht).
+- [x] Bringt der Slice einen Fehlercode, Schlüssel oder ein Kommando in den Katalog des Binary: Handbuch-Kapitel im selben Slice nachgezogen (Ist-Zustand, belegt durch ein Beispiel als Datei gegen das gebaute Binary); das Kataloge-Gate ist grün. Sonst steht in §7, dass das Binary unverändert blieb (die Funktionen haben keinen Aufrufer vor `slice-batch-changesets`).
+- [x] Closure-Notiz mit Steering-Loop-Lerneintrag.
+- [x] Beobachtungs-Register (`../observations/`) fortgeschrieben — neues Verzeichnis `BEO-<KUERZEL>/<slug>/` oder eine weitere Datei in dessen `evidence/`; **kein Zaehler wird gesetzt**, er folgt aus den Dateien. Keine Beobachtung angefallen ist ebenfalls eine Antwort und wird in §7 notiert.
+- [x] Jedes Risiko aus §6 trägt einen Ausgang (eingetreten / entfallen / weiter offen).
+- [x] Die drei Paarungen (Anker · Folge-Slice · Register) sind getragen — im Repo **ohne** Wellen-Betrieb hier geprüft, im Repo **mit** Wellen von der nächsten Welle-Closure (auch für Slices ohne Wellen-Zugehörigkeit).
+
+## 3. Plan (vor Code)
+
+Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-bootstrap.md`
+§Was ist eine Sub-Area? — diese Liste liefert die **Pfad-Kandidaten** für §8,
+nicht die Antwort: Pfad-Berührung ist nicht hinreichend, und eine
+Aussagen-Berührung steht hier gar nicht.
+
+| Datei / Komponente | Änderungs-Art | Begründung |
+|---|---|---|
+| `src/hexagon/model/batch_pruefen.go` | neu | `PruefeBatch` und `Verweis` (`SPEC-184`); `Verweis` ruft `ContentIDGueltig` |
+| `src/hexagon/model/batch_pruefen_test.go` | neu | Zeilen 37 bis 43, Validator-Contract-Test (`LH-FA-16.a`); nach dem Review: Methode und Gestalt von Träger und zweitem Vorkommen, jede Stelle bis 1000; nach der Verifikation: unbekannte Methode und Verweise vorwärts, auf nichts und auf andere Teile an den Weite-Stellen, Verweise außerhalb eines Changeset mit Fortsetzung |
+
+Die Randformen sind in `SPEC-184` entschieden (`AGENTS.md` §3.12); der Implementer entscheidet keine.
+
+**Stand beim Start** (Planner, 2026-11-28, `main` bei `573c2feb`, durch Lesen und Suchen, ohne Übersetzungslauf): (a) *Vorhanden:* `model.Batch`, `BatchTeil`, `BatchRequest`, der Fehlerwert `BatchFehler` mit den vier Ursachen der Prüfung und beiden Sentinels, `model.ContentIDGueltig`. `PruefeBatch`, `Verweis` und die zwei Dateien dieses Plans gibt es nicht. (b) *Bestehende Tests:* der Slice bringt keinen Sentinel, keinen Code und keine Ursache; die Listen, die `slice-batch-parser` in sechs Testdateien nachzog, ändern sich nicht. Die Leser-Tests (`batchcodec`) bauen Verstöße der Prüfung, ohne `PruefeBatch` zu rufen, und bleiben. (c) *Architect:* keine Frage ist vor dem Code offen, keine Zelle des Rasters leer.
+
+**Beim Start ergänzt** (Planner): die DoD verlangt den Verstoß *mit Ursache und Ort*; die Fänger der Zeilen 37, 38, 40 und 41 vergleichen deshalb den ganzen Fehlerwert, also auch `Ort` nach `SPEC-182` Nr. 4, nicht allein die Ursache. Zeilen und Zahl der Tabelle bleiben.
+
+**Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Zeilen und Testnamen des Architect, aus dem Plan von `slice-batch-parser` mit ihren Nummern übernommen; Dateien unter `src/hexagon/model/`; der Implementer fährt je Zeile die Mutation selbst):
+
+| Nr. | Zusage | Fänger | Mutation | Klasse |
+|---|---|---|---|---|
+| 37 | Methoden: je Ebene die erlaubten; `GET` im Changeset `methode`, jede andere `methode_nicht_unterstuetzt` | `TestPruefeBatchMethode`: Schleife über {die fünf, `HEAD`, `OPTIONS`, `MERGE`, `PROPFIND`, `get`, leer} × beide Ebenen × Stelle; `TestPruefeBatchMethodeNachbarn`: Nachbarn der fünf (bytegleich); `TestPruefeBatchWeiteRequests`: `GET` und `MERGE` mit `Ort` an jedem Request 1 bis 1000 eines Changeset; `TestPruefeBatchWeiteTeile`: `MERGE` außerhalb und im Changeset, `GET` im Changeset an jedem Teil 1 bis 1000 | `GET` im Changeset erlaubt | andere |
+| 38 | `Content-ID` je Changeset eindeutig, bytegleich; verschiedene Changesets, Einzelteile und fehlende stoßen nicht an | `TestPruefeBatchContentID`: alle Paare von Stellen in Changesets der Länge 2 bis 12, bytegleich; `TestPruefeBatchContentIDEbene`: über Teile, ohne `Content-ID`; `TestPruefeBatchContentIDMethode`: je 4 Methoden und 5 Gestalten des ersten und des zweiten Vorkommens; `TestPruefeBatchWeiteTeile`, `TestPruefeBatchWeiteRequests`: bis Teil und Request 1000 | Eindeutigkeit über den ganzen Batch; nur Nachbarn verglichen | andere |
+| 39 | `Verweis` liefert `<id>` genau nach `SPEC-184` Nr. 3 | `TestBatchVerweis`: Ziele über {`$1`, `$1/x`, `$1?a`, `$`, `$/x`, `/$1`, `%241`, `$1(2)`}, alle 256 Bytes an Anfang, Mitte und Ende der `<id>`, Längen 0 bis 130; `TestBatchVerweisWoerter`: die fünf Wörter, jede Schreibweise und jeder Nachbar, verglichen mit der abgeschnittenen `<id>`; `TestBatchVerweisZiele`: jedes Ziel bis Länge 5 über acht Zeichen; Soll ohne Code der Form | `$metadata` ist ein Verweis; `Verweis` prüft nur die Länge | andere |
+| 40 | Verweis nur auf einen früheren Request desselben Changeset, sonst `referenz` | `TestPruefeBatchReferenz`: früher, selbst, später in Changesets bis Länge 12, bytegleich; `TestPruefeBatchReferenzEbene`: anderes Changeset, Einzelteil davor und danach, außerhalb eines Changeset, reservierte Wörter; `TestPruefeBatchContentIDMethode`: je 4 Methoden und 5 Gestalten des Trägers und des Verweisenden, früher, später und außerhalb eines Changeset, Fortsetzung nach Abstand; `TestPruefeBatchWeiteTeile`: an jedem Teil 1 bis 1000 Verweis eines Einzelrequests, Verweis eines Changeset auf einen anderen Teil und auf nichts, und der auflösbare; `TestPruefeBatchWeiteRequests`: an jedem Request 1 bis 1000 auf sich selbst und auf nichts, an den Paaren (erste oder vorige, *n*) rückwärts und vorwärts | Spätere zählen mit | andere |
+| 41 | Rangfolge: erster Teil, erster Request, dann Methode, Eindeutigkeit, Auflösbarkeit (den Vorrang des Lesers fängt `slice-batch-parser` Zeile 30) | `TestPruefeBatchRang`: alle Paare der drei Prüfungen am selben und an zwei Requests; `TestPruefeBatchRangEinzel`: Einzelrequest gegen Changeset in beiden Folgen; `TestPruefeBatchWeiteTeile`, `TestPruefeBatchWeiteRequests`: `Ort` bis Teil und Request 1000 | Eindeutigkeit vor Methode | andere |
+| 42 | `PruefeBatch` ändert `b` nicht und ist wiederholbar; ein leerer Batch und ein leeres Changeset sind `nil` | `TestPruefeBatchRein`: tiefer Vergleich vor und nach, zweimal; `TestPruefeBatchLeer`: leere Formen, untypisiertes `nil` | `b` wird sortiert | andere |
+| 43 | Das unveränderte Beispiel von `SPEC-183` Nr. 8 ergibt `nil`, und die Zeilen der Prüfung in seiner Tabelle ergeben das Genannte (Validator-Contract-Test) | `TestPruefeBatchContract`: der Batch ist von Hand nach dem dort genannten Ergebnis gebaut (`model` ruft den Leser nicht) | Eine Antwort wird vertauscht | andere |
+
+**Bericht des Implementers** (2026-11-28; `AGENTS.md` §3.10; gemessen vom Implementer mit `tools/harness/mutationslauf.sh`, Image `odata-recorder:test`, `--memory=4g --cpus=4`, Last des Hosts 5,7 bis 10,8). Alle Zusagen sind deterministisch (Klasse `andere`, je Mutation ein Lauf, keine Rate). 58 Mutationen: 57 rot im genannten Test, eine gleichwertig (`ende > 0` statt `>= 0` in `Verweis`: eine `<id>`, die mit `/` oder `?` beginnt, hat nie die Form einer `Content-ID`).
+
+| Zeile · Zusage | Mutation | Roter Test |
+|---|---|---|
+| 37 Methoden je Ebene | `GET` im Changeset erlaubt · `MERGE` erlaubt · `DELETE` fehlt · Ebene von `GET` vertauscht · `methode` statt `methode_nicht_unterstuetzt` · außerhalb eines Changeset nur der erste Request | `TestPruefeBatchMethode` |
+| 37 bytegleich | Methode in Großschrift · ohne Leerraum am Rand verglichen | `TestPruefeBatchMethodeNachbarn` |
+| 37 bis 41 `Ort` | Teilnummer einstellig · Requestnummer einstellig · Requestnummer auch außerhalb eines Changeset | `TestPruefeBatchMethode` |
+| 38 je Changeset, bytegleich | nur Nachbarn verglichen · Kleinschrift mitverglichen · führende Nullen entfernt | `TestPruefeBatchContentID` |
+| 38 Ebene, ohne `Content-ID` | eindeutig im ganzen Batch · leere `Content-ID` stößt an · Teil ohne Changeset sammelt | `TestPruefeBatchContentIDEbene` |
+| 39 reservierte Wörter | jedes der fünf Wörter einzeln entfernt · gegen das Ziel statt die `<id>` verglichen · ohne Schreibweise verglichen | `TestBatchVerweisWoerter` |
+| 39 Form | nur die Länge geprüft · am letzten Trennzeichen geschnitten · nur `/` · nur `?` · auch `(` trennt · führendes `/` entfernt · `%24` dekodiert | `TestBatchVerweis` |
+| 39 `$` am Anfang | Ziel ohne `$` zählt | `TestBatchVerweisZiele` |
+| 40 früherer Request | Spätere zählen mit · der Request selbst zählt · Kleinschrift löst auf · bei Länge 128 zählt das letzte Zeichen nicht | `TestPruefeBatchReferenz` |
+| 40 desselben Changeset | außerhalb eines Changeset erlaubt · frühere Teile lösen auf | `TestPruefeBatchReferenzEbene` |
+| 41 Rangfolge | Eindeutigkeit vor Methode · Verweis vor Eindeutigkeit · Verweis vor Methode · Methoden aller Requests zuerst · Teile rückwärts · letzter Request zuerst | `TestPruefeBatchRang` |
+| 41 Einzelrequest gegen Changeset | Changesets zuerst | `TestPruefeBatchRangEinzel` |
+| 42 unverändert, wiederholbar | Requests getauscht · Header, Body, Ziel zurückgeschrieben · `Verweis` schreibt in `Header` · `Verweis` liefert beim zweiten Aufruf anderes | `TestPruefeBatchRein` |
+| 42 leere Formen | `nil` wird leere Liste · leerer Batch ist Fehler · leeres Changeset ist Fehler · typisiertes `nil` | `TestPruefeBatchLeer` |
+| 43 Contract-Test | `content_id_doppelt` und `referenz` je durch die andere Ursache ersetzt | `TestPruefeBatchContract` |
+
+**Raster (§6) zu Tests:** leerer Batch, leeres Changeset, Wiederholung des Aufrufs: Zeile 42; unbekannte Methode: Zeile 37; fehlende und wiederholte `Content-ID`: Zeile 38; unbekannter Verweis, reservierte Wörter, `/$1`, `%241`, Länge: Zeilen 39 und 40; Zusatztabelle: Zeile 41. Die Richtung der Imports hält `make a-check` (nicht mutiert: das Gate ist unverändert).
+
+**Prüfgrenzen** (akzeptierte Negative, `AGENTS.md` §3.17):
+
+- Zeile 37: die Menge der Methoden ist unbeschränkt. Gefahren sind je der fünf Wörter alle Schreibweisen, jede Einfügung und Ersetzung eines der 256 Bytes und jede Auslassung (12181 Zeichenfolgen auf beiden Ebenen) und die elf der Zeile. Ungefangen bleibt eine Regel, die eine Zeichenfolge mit zwei oder mehr Änderungen (außer der Schreibweise) außerhalb der elf annimmt. Folge: eine solche Regression besteht die Gates.
+- Zeile 39: das Ziel ist unbeschränkt. Gefahren sind jedes Ziel bis Länge 5 über `$ / ? a 1 % (` und Leerzeichen (37449), jedes Byte an drei Stellen einer `<id>` aus drei Zeichen und hinter `/` und `?`, die Längen 0 bis 130 mit vier Fortsetzungen und die Nachbarn der fünf Wörter. Ungefangen bleibt eine Regel, die erst bei einem Ziel über Länge 5 außerhalb dieser Familien greift oder zwei Bytes außerhalb der acht Zeichen zugleich verlangt. Folge: wie oben.
+- Zeilen 38 und 40, bytegleich: alle geordneten Paare der 72 Kennungen der Länge 1 und 2 über `a A 0 1 . ~ - _` und je ein gleiches und ungleiches Paar der Länge 128. Ungefangen bleibt eine Angleichung, die erst andere Zeichen oder Längen von 3 bis 127 trifft (außer den Reihen `r1` bis `r12`). Folge: wie oben.
+- Zeile 43: kein Lauf gibt der Prüfung einen Wert des Lesers (`model` ruft keinen Adapter). Folge: eine Abweichung zwischen dem von Hand gebauten Batch und dem Leser fällt erst beim ersten Aufrufer beider auf (`slice-batch-changesets`).
+- Zeilen 37, 38, 40 und 41, Zahl der Teile, Requests und gemerkten `Content-ID`: unbeschränkt; bis 1000 gefahren sind die Fragen der Weite-Fänger (nächster Punkt), nicht jede Methode und jede Gestalt eines Verweises (die zwei Punkte danach). Ungefangen bleibt eine Regel, die erst jenseits 1000 greift (grün gesehen: nur die ersten 1000 Teile geprüft; höchstens 999 `Content-ID` gemerkt). Grund: der Leser lässt zusammen 1000 Teile zu (`SPEC-183` Nr. 7), mehr liefert nur ein von Hand gebauter Batch (`SPEC-184` *Ungeprüft*). Folge: im Betrieb keine.
+- Zeilen 37, 38, 40 und 41, zwei Stellen zugleich (Grenze je 1000): von 499500 Paaren aus Teil- und Requestnummer mit Summe bis 1000 führen die Weite-Fänger 3990 (Teil *n* mit Request 1 und 2, Teil 1 mit Request *n*, Summe genau 1000), dazu das Gitter 12 × 12 der Zeile 37. Nicht jede Frage läuft an jedem dieser Paare: an Teil *n* Request 1 `GET`, `MERGE` und der Verweis auf einen anderen Teil, an Request 2 doppelt, Verweis auf nichts und auflösbar, an der Summe 1000 `GET`; an Teil 1 mit Request *n* `GET`, `MERGE`, Selbstverweis, Verweis auf nichts, doppelt, Verweis rückwärts und der Verweis vorwärts auf ihn. Von 499500 Paaren zweier Stellen eines Changeset sind 2042 gefahren (erste oder vorige gegen *n*, alle bis Länge 12), mit doppelt, Verweis rückwärts und vorwärts. Die Zählprüfungen halten 2994 der 3990 und 1997 der 2042; die übrigen 996 folgen aus der Schleife von `TestPruefeBatchWeiteRequests`, die übrigen 45 tragen `TestPruefeBatchContentID` und `TestPruefeBatchReferenz`; keine Zählprüfung hält 3990 und 2042 selbst. Von 4000 Paaren aus Requestnummer und erlaubter Methode laufen 1000 (reihum eine je Stelle). Ungefangen bleibt eine Regel, die erst an einem anderen Paar greift. Folge: eine solche Regression besteht die Gates.
+- Zeile 37, nicht unterstützte Methode und Stelle: von den sechs Werten der Zeile (`HEAD`, `OPTIONS`, `MERGE`, `PROPFIND`, `get`, leer) läuft allein `MERGE` an jedem Teil und Request bis 1000, die anderen fünf bis Teil und Request 12. Ungefangen bleibt eine Regel, die für eine andere nicht unterstützte Methode erst ab Stelle 13 greift (5 von 6; grün gesehen: `HEAD` im Changeset ab Request 14 angenommen). Grund: Größenmarke (§4). Folge: eine solche Regression besteht die Gates.
+- Zeile 40, Fortsetzung eines Verweises: im Changeset laufen `/x` und `?a` bis Länge 12 (`TestPruefeBatchReferenz`, `POST`) und bis Länge 5 über die 4 Methoden (`TestPruefeBatchContentIDMethode`, Fortsetzung an den Abstand gekoppelt: 3 von 9 Paaren), an keinem Weite-Fänger (0 von 2). Ungefangen bleibt eine Regel, die einen Verweis mit Fortsetzung erst ab Request 13 anders beurteilt (grün gesehen: ab Request 14 nie `referenz`). Außerhalb eines Changeset sind 14 von 15 Paaren aus 5 Methoden und 3 Fortsetzungen geführt; ungefangen `GET` mit `?` (grün gesehen: darf verweisen). Grund: Größenmarke (§4). Folge: wie oben.
+
+**Nach dem Review** (2026-11-28, `2026-11-28-slice-batch-validator-review`; nur Tests und Plan, der Produktcode ist unverändert; gemessen vom Implementer mit `tools/harness/mutationslauf.sh`, Image `odata-recorder:test`, `--memory=4g --cpus=4`, Last des Hosts 5 bis 10,5). 25 Mutationen, Klasse `andere`, je Mutation ein Lauf: 23 rot im genannten Test, 2 grün an der Prüfgrenze. Die drei neuen Tests brauchen zusammen ohne Detektor 0,6 s (drei Läufe), mit Detektor 4,0 s (ein Lauf), Last 5,3 bis 6,8.
+
+| Befund · Menge | Achsen (Elemente) | Mutationen des Reviews, rot | Weitere Mutation je Achse, rot |
+|---|---|---|---|
+| F-1: Träger und zweites Vorkommen einer `Content-ID` (`TestPruefeBatchContentIDMethode`, 1200 Fälle zu je drei Prüfungen) | Methode des Trägers (4), Methode des zweiten bzw. verweisenden Requests (4), Gestalt je Seite (5: nackt, Header, Body, beides, Verweis), Abstand (3), Frage (3: doppelt, Verweis rückwärts, vorwärts) | `DELETE` merkt seine `Content-ID` nicht · `DELETE` nie doppelt | `PUT`-Träger nicht gemerkt · Verweis eines `DELETE` löst nie auf · `DELETE` darf auf spätere verweisen · Träger mit Header nicht gemerkt · zweites mit Body bzw. mit Verweis nie doppelt · nur die letzte `Content-ID` gemerkt |
+| F-2: Zahl und Stelle der Teile und Requests (`TestPruefeBatchWeiteTeile`, `TestPruefeBatchWeiteRequests`) | Teilnummer (1000 × 2 Arten ringsum × 5 Proben), Requestnummer (1000), gemerkte `Content-ID` (bis 999), Abstand zum Träger (erste und vorige), Paar aus Teil und Request (3990), Methode reihum (4) | Teilnummer modulo 20 · Requestnummer modulo 20 · höchstens 20 `Content-ID` · nur 20 Teile | nur 999 Teile · Teil- bzw. Requestnummer modulo 999 · höchstens 998 `Content-ID` · nur 500 Requests · erste `Content-ID` nach 100 vergessen · `DELETE` ab der 20. nicht gemerkt · Changesets ab Teil 300 ungeprüft · Requests ab 22 nur an zweistelligem Teil ungeprüft |
+
+**Nach der Verifikation** (2026-11-28, `2026-11-28-slice-batch-validator-verifikation`; nur Tests und Plan, der Produktcode ist unverändert; gemessen vom Implementer mit `tools/harness/mutationslauf.sh`, Image `odata-recorder:test`, `--memory=4g --cpus=4`, Last des Hosts 3,3 bis 4,9). 17 Mutationen, Klasse `andere`, je Mutation ein Lauf: 14 rot im genannten Test, 3 grün an den neuen Prüfgrenzen (`HEAD` ab Request 14, Fortsetzung ab Request 14, `GET` mit `?` außerhalb). In `TestPruefeBatchWeiteTeile` tragen die Einzelrequests ringsum die `Content-ID` `p` des Verweisziels.
+
+| Befund · Menge | Achsen (Elemente) | Mutationen des Verifiers, rot | Weitere Mutation je Achse, rot |
+|---|---|---|---|
+| V-1: Frage × Stelle der Weite-Fänger | Frage an Teil (7 Verstöße und der auflösbare Verweis), Frage an Request (6 Verstöße und der auflösbare Verweis rückwärts), Richtung (2), Teil des Verweisziels (davor, dahinter), Art ringsum (2), Teil und Request (1 bis 1000) | Verweis auf den folgenden Request ab 14 angenommen · unbekannte Methode im Changeset ab Request 14 · Einzelrequest mit Verweis ab Teil 14 · Verweis gegen ein Changeset drei Teile zurück | vom ersten Request auf einen ab Request 14 · unbekannte Methode im Changeset ab Teil 14 · Verweis auf nichts ab Request 14 · Verweis gegen einen Einzelrequest drei Teile zurück · Verweis gegen ein Changeset drei Teile voraus |
+| V-2: Methode × Fortsetzung × innerhalb und außerhalb eines Changeset | Methode (5), Fortsetzung (3), Ebene (2) | `DELETE` außerhalb darf verweisen · `DELETE` mit Fortsetzung nie `referenz` | `PUT` außerhalb darf verweisen · `PATCH` mit `?` außerhalb darf verweisen · `GET` mit `/x` darf verweisen |
+
+**Messung der Größe** (Metrik wie §4): 900 Zeilen (84 Produktcode, 816 Tests) gegen die Marke 900; auf der Marke, keine Überschreitung.
+
+```groessenmarke
+pfad: src/hexagon/model/batch_pruefen.go
+pfad: src/hexagon/model/batch_pruefen_test.go
+produktcode: 100
+fakes: 0
+basis: e27f718e
+schaetzung: 660
+marke: 900
+```
+
+**Betriebsregeln** (gelten für jede Rolle dieses Slice):
+
+- Auf Repo-Dateien kein `sed -i`, kein Heredoc, kein `>>`, kein `awk` und kein Python, nur `Edit`/`Write`; keine Hilfsdateien im Repo-Wurzelverzeichnis (`BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt`).
+- Werte mit Escape-Folge, BOM oder Zeichen jenseits von ASCII entstehen aus Bytewerten und werden auf Rohbytes gegengelesen (`AGENTS.md` §3.18); der Bericht nennt die gegengelesene Datei.
+- Jeder eigene `docker run` mit `--memory=4g --cpus=4` unter `flock /tmp/odata-recorder-heavy.lock`; Docker sonst nur über `make` (`AGENTS.md` §3.1).
+- Mengen sind Generatoren oder Schleifen aus dem Wortlaut der Zusage (Generator-Pflicht, `.claude/commands/implement-slice.md` Schritt 14; Stellen-Regel, Schritt 19; `AGENTS.md` §3.17), nie eine Liste der Fälle, die einfielen.
+- Eine Abweichung vom Plan oder eine Rückgabe an eine andere Rolle steht im selben Commit in §6 mit Ausgang *offen* und der Adresse (`AGENTS.md` §3.13). Der Handoff ist **ein Commit für Code und Plan** (`AGENTS.md` §3.9); der Stempel `harness/gegenproben.stempel` entsteht nur im Integrationsschritt, nach dem letzten Commit unter den Eingabepfaden (`BEO-REPO/stempel-gehoert-zu-keinem-committeten-stand`).
+
+## 4. Trigger
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
+§Trigger je Lifecycle-Übergang und WIP-Limit.
+
+**Start** (`next` → `in-progress`): `slice-batch-parser` liegt in `done/`.
+
+- **Code-Abhängigkeit, mit Grund:** `slice-batch-parser` liefert die Domain-Werte (`model.Batch`) und den Fehlerwert (`model.BatchFehler` mit Ursachen und Sentinels), die beide Funktionen lesen und liefern, und `model.ContentIDGueltig`, die `Verweis` ruft. Wie für ihn ist der Welle-Trigger (`welle-mock` in `done/`) Reihenfolge-Vorsicht, keine Code-Abhängigkeit: ein Start davor ist eine Entscheidung des Users, nicht dieses Plans.
+- **Was der Slice nicht braucht — und warum:** `MockUseCase`, Workspace, Parser der OData-URL und der Client-Bodies, HTTP-Adapter, Composition Root (die Funktionen sehen Werte, keine Bytes und keinen Zustand).
+- **Gestartet** (Planner, 2026-11-28, `main` bei `573c2feb`): `slice-batch-parser` liegt auf `main` in [`done/`](../done/slice-batch-parser.md), `welle-mock` ebenfalls abgeschlossen; eine Entscheidung des Users für einen früheren Start ist nicht nötig. Kein Teil der Erstabnahme. *Parallel laufen* [slice-ci-github-actions](../in-progress/slice-ci-github-actions.md) (Kettenslice) und [slice-betrieb-spans-nachweis](../done/slice-betrieb-spans-nachweis.md): keine gemeinsame Datei. Dieser Slice ist kein Kettenslice; er ändert weder `Makefile`, `harness/mk/`, `Dockerfile`, `harness/README.md`, `tools/gegenproben/` noch `src/bootstrap` und gibt es als Rückgabe an den Planner, wenn er es müsste (Nr. 7 der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln)). Schwere Läufe stehen unter der Sperre (Nr. 1 dort: höchstens zwei Linien warten oder fahren zugleich auf ihr); der Stempel der Gegenproben gehört dem Integrationsschritt (Nr. 2).
+- **Größenmarke** (`AGENTS.md` §3.14, `SPEC-128` Nr. 1; die Faktoren stehen allein dort; Planner, 2026-11-28, mit dem Schnitt): gezählt ist die Tabelle in §3 mit 7 Zeilen, *a* = 0, *b* = 7, *f* = 0, *p* = 100 (Setzung des Planner aus den 600 Zeilen, die der Architect für Leser und Prüfung zusammen erwartete). *S* = 660, Marke *M* = **900**; keine Schnittfrage. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Der Block in §3 trägt seit dem Start `basis`, `schaetzung` und `marke` (Planner, 2026-11-28, eigener Commit vor dem ersten Code-Commit; `BEO-REPO/marke-beim-start-nicht-gesetzt`). `basis` ist `e27f718e` (letzter Commit von `main` vor diesem Commit); Messbasis nach `SPEC-128` Nr. 10 g: kein laufender Slice ändert einen Pfad des Blocks, beide Pfade gibt es an der Basis nicht, Fremdzeilen beim Start 0. *p* = 100 beim Start neu gelesen (Auftrag aus der Closure von `slice-batch-parser`, dessen Produktcode über der Erwartung lag): es bleibt, denn hier sind es zwei reine Funktionen in einer Datei und kein Leser. Für einen Schnitt beim Handoff ist kein Teil vorab benannt.
+
+**Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
+
+- `in-progress` → `next` (zu groß, zurück zur Zerlegung): über 900 Zeilen (Metrik wie oben). Eine Überschreitung schneidet nicht (`SPEC-128` Nr. 10 c); sie bekommt einen Eintrag `ueberschreitung` mit Grund im Block.
+- `in-progress` → `open` (blockiert — Carveout?): eine Randform fehlt in `SPEC-184`, oder die Prüfung braucht einen anderen Domain-Wert oder Fehlerwert, als `slice-batch-parser` geliefert hat (dann an den Architect; `slice-batch-parser` liegt in `done/` und ist keine Adresse, `AGENTS.md` §3.13).
+
+## 5. Closure-Trigger
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
+§Closure- und Lerneintrag-Regeln — zwei beobachtbare Kriterien **und** ein
+Lerneintrag; ohne ihn ist der Slice nur abgelegt.
+
+Die DoD ist vollständig, `make gates` ist grün, und je Zusage ist eine Mutation rot gesehen (`AGENTS.md` §3.10); die Closure-Notiz mit Lerneintrag liegt vor.
+
+## 6. Risiken und offene Punkte
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
+§Offene Risiken werden bei Closure aufgelöst — **jedes** Risiko bekommt genau
+**einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
+dasteht.
+
+- Die Form einer `Content-ID` braucht der Leser aus `slice-batch-parser` und `Verweis` hier — **Ausgang:** entfallen: entschieden (Architect, 2026-11-28): `Verweis` ruft `model.ContentIDGueltig` (Länge und Zeichenmenge, `SPEC-183` Nr. 4 c, `SPEC-184` Nr. 3), die `slice-batch-parser` liefert; Zeile 39 führt das Alphabet über alle 256 Bytes.
+- Der Vorrang des Lesers vor der Prüfung ist nur über einen Aufruf des Lesers zu sehen, und ein Test in `model` importiert keinen Adapter (`make a-check`) — **Ausgang:** entfallen: entschieden (Architect, 2026-11-28): der Fall liegt in `slice-batch-parser` Zeile 30; er braucht `PruefeBatch` nicht, weil der Leser bei seinem Verstoß keinen Wert liefert (`SPEC-182` Nr. 3), den die Prüfung sehen könnte. Die Pfade des Blocks bleiben.
+- Kleine Schätzung (*S* = 660): ein kleiner Slice mit mehreren Prüfrunden liegt eher über der Marke (`SPEC-128` Nr. 10 a) — **Ausgang:** entfallen: die Messung am Ende ist 900 bei Marke 900; gleich der Marke ist keine Überschreitung (`SPEC-128` Nr. 5 d), ein Eintrag `ueberschreitung` entsteht nicht. Dass zwei Prüfgrenzen in §3 die Marke als Grund nennen, führt §7 (Steering-Loop-Eintrag 3).
+- Zusammenspiel mit der Ausführung: Aufruf vor der ersten Ausführung und Auflösung des Verweises — **Ausgang:** entfallen: beide Funktionen sind geliefert; `slice-batch-changesets` §1 führt den Aufruf (Sendung (a)) und die Auflösung des Verweises (Sendung (c)), bei der Closure gelesen.
+- Das Negativ zu Zeile 43 (Leser und Prüfung nie als Paar) verweist auf den ersten Aufrufer; `slice-batch-changesets` §1 führte den Aufruf beider, nannte diesen Fang aber nicht (F-3 aus `2026-11-28-slice-batch-validator-review`, V-3 der Verifikation, `AGENTS.md` §3.13) — **Ausgang:** eingetreten: Folge-Slice [slice-batch-changesets](../open/slice-batch-changesets.md), dessen §1 den Fang seit dieser Closure führt (Sendung (g)).
+- Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** entfallen: jede Zelle des Rasters trägt Ort oder „gilt nicht“ mit Grund, die drei Paare der Zusatztabelle laufen in `TestPruefeBatchRang` (Verifikation, DoD 2), keine Rückgabe an den Architect; was an Fängern nach Review und Verifikation fehlte, steht in §3 als Fänger oder als Prüfgrenze.
+
+**Raster *Operation × Argumentart*** (Zellen des Architect, aus dem Plan von `slice-batch-parser`; die Spalten sind dieselben wie dort):
+
+| Operation | Body fehlt oder leer | Grenze fehlt, leer oder ungültig | unbekannter Teiltyp oder Methode | fremde Form (JSON, absolute URL, anderer Host) | über Grenze (Größe, Teile, Tiefe) | Wiederholung (`Content-ID`, Changeset) | Abbruch (Kontext, Strom) |
+|---|---|---|---|---|---|---|---|
+| Validator: Methoden und Changesets | `SPEC-184` Kopf, `SPEC-183` Nr. 5 (leer ist ohne Verstoß) | gilt nicht: er sieht Werte, keine Bytes | `SPEC-184` Nr. 1 | gilt nicht: er prüft kein Ziel außer dem Verweis (`SPEC-184` Nr. 3) | gilt nicht: die Grenzen prüft der Leser (`SPEC-183` Nr. 7) | `SPEC-184` Kopf (reine Funktion) | gilt nicht: reine Funktion ohne Kontext und Strom (`SPEC-184` Kopf) |
+| Validator: `Content-ID` und Referenzen | `SPEC-182` Nr. 3, `SPEC-183` Nr. 4 c, `SPEC-184` Nr. 2 | gilt nicht: er sieht Werte, keine Bytes | `SPEC-184` Nr. 3, 4 (unbekannter Verweis, reservierte Wörter) | `SPEC-184` Nr. 3 (`/$1`, `%241`) | `SPEC-183` Nr. 4 c (Länge und Zeichenmenge der `Content-ID`) | `SPEC-184` Nr. 2 | gilt nicht: reine Funktion ohne Kontext und Strom (`SPEC-184` Kopf) |
+
+**Zusatztabelle** (je Paar von Verstößen; `AGENTS.md` §3.16). Eine Zeile je Modus gilt nicht: die Prüfung kennt keinen Modus (`SPEC-184`). Das Paar mit einem Verstoß des Lesers führt `slice-batch-parser` §6. Die dritte Zeile hat der Planner beim Start ergänzt (das dritte Paar der drei Prüfungen; Entscheidung und Fänger bestanden).
+
+| Paar oder Modus | Entscheidung (Ort) | Fänger |
+|---|---|---|
+| doppelte `Content-ID` · unzulässige Methode am selben Request | Methode (`SPEC-184` Nr. 5) | Zeile 41 |
+| doppelte `Content-ID` · nicht auflösbarer Verweis am selben Request | `content_id_doppelt` (`SPEC-184` Nr. 5) | Zeile 41 |
+| unzulässige Methode · nicht auflösbarer Verweis am selben Request | Methode (`SPEC-184` Nr. 5) | Zeile 41 |
+
+## 7. Closure-Notiz
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-06-roadmap.md`
+§Das Beobachtungs-Register (vorhandene `BEO-<KUERZEL>/<slug>` **zitieren** statt neu
+formulieren — sonst zählt das Register zwei Namen getrennt) ·
+`grundlagen-traceability.md` §Herkunfts-Anker für Steering-Loop-Regeln (das
+Feld `liegt in` steht **nur**, wenn mit diesem Slice wirklich etwas verkörpert
+wurde; Feld und Zielort auf **einer** Zeile, Sektionsangabe innerhalb der
+Backticks). Ging der Gegenstand an einen anderen Slice oder entfiel er, trägt
+diese Sektion die Zeile `Gegenstand:` mit Kennung oder Grund und jedes Risiko
+aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
+(`modul-05-planning-harness.md` §Ein Slice, dessen Gegenstand ein anderer
+übernimmt).
+
+**Closure** (Planner, 2026-11-28; Zweig `slice-batch-validator`, Messbasis `e27f718e`, Stand vor der Closure `f9e34253`; `git merge main` (`main` = `a7c8e48d`) meldete „bereits aktuell“ (aufgenommen im Merge `173851be`), unmittelbar danach `make docs-check`: 1499 Dateien, 0 Befunde). Merge nach `main`, `make gates` auf dem gemergten Stand und `make gegenproben` mit dem Stempel sind der Integrationsschritt, nicht Teil dieser Notiz. Der Slice ist nicht Teil der Erstabnahme, und `LH-FA-16` ist mit ihm nicht erfüllt: Ausführung und Antwort liegen bei `slice-batch-changesets`. Review (`2026-11-28-slice-batch-validator-review`: 0 HIGH, 2 MEDIUM, 0 LOW, 1 INFO) und Verifikation (`2026-11-28-slice-batch-validator-verifikation`: bestätigt mit Auflagen, 1 MEDIUM, 1 LOW, 2 INFO) liefen je einmal. Die Fix-Runde zum Review (`ae5a805b`) sah der Verifier, nicht der Reviewer.
+
+**Auflagen der Verifikation:** V-1 und V-2 hat der Implementer in `f9e34253` erledigt (Tests und Plan, §3 *Nach der Verifikation*). **Diese Runde ist nicht erneut geprüft**, weder von Reviewer oder Verifier noch vom Planner: dass die ergänzten Fänger und die neuen Prüfgrenzen die Befunde decken, ruht auf den Angaben des Implementers (17 Mutationen, 14 rot, 3 grün an den neuen Prüfgrenzen). V-3: Sendung (g) in [slice-batch-changesets](../open/slice-batch-changesets.md) §1, Ausgang in §6. V-4 (INFO): §3 *Prüfgrenzen* nennt, was die Zählprüfungen halten und was nicht. Die Closure-Auflage trägt diese Notiz; die Auflage zur Integration bleibt dem Integrationsschritt.
+
+**Was geliefert ist:** `model.PruefeBatch` und `model.BatchRequest.Verweis` (`src/hexagon/model/batch_pruefen.go`, `SPEC-184`) und die Tests dazu: die Zeilen 37 bis 43 der Tabelle in §3, darin der Validator-Contract-Test (`LH-FA-16.a`) und die Weite-Fänger bis Teil und Request 1000. [ADR-0001](../../adr/0001-implementierungssprache-go.md): keine neue Abhängigkeit, die Datei importiert `strconv` und `strings`. Der Produktcode ist seit dem Handoff `f264a2b4` unverändert.
+
+**Was am Binary gleich bleibt:** die Funktionen haben keinen Aufrufer außerhalb ihres Pakets (gesucht über `src/` am Stand `f9e34253`: allein ein Kommentar in `ports/outbound/odata_batch.go` nennt `model.PruefeBatch`); der Aufrufer ist `slice-batch-changesets`. Kein neuer Fehlercode, Schlüssel oder Befehl (`ODR-E6001` und `ODR-E6007` bestanden), kein geändertes Verhalten, kein Handbuch-Kapitel, die Kataloge sind unberührt. Ein Byte-Vergleich des Binary vor und nach dem Slice ist nicht gefahren.
+
+**Mutationen und Messungen:** Implementer beim Handoff 58 Mutationen, 57 rot, eine gleichwertig (§3); nach dem Review 25, 23 rot, 2 grün an der Prüfgrenze. Reviewer: Differenzprobe gegen ein eigenes Orakel ohne Abweichung (157464 Changesets, 20000 Zufalls-Batches, 2000000 Ziele); 16 Mutationen, 9 rot, 6 grün (F-1, F-2), eine grün an einer benannten Prüfgrenze. Verifier: 19 Mutationen, 12 rot, 7 grün (eine gleichwertig, vier V-1, zwei V-2). Die Mutationen des Implementers hat niemand vollständig wiederholt, seine Laufzeiten niemand nachgemessen.
+
+**Gate:** `make gates` grün am Stand `f9e34253` nach dem Stempel (`gates-passed.head` gleich `f9e34253`, `gates-passed.diffsha` gleich dem Hash von `tools/harness/working-tree-hash.sh` vor dem ersten Schreiben der Closure; vom Planner gegengelesen, nicht neu gefahren, die Ausgabe des Laufs hat er nicht gesehen). Danach kommt allein diese Closure (Dokumente). Planner im Zweig nach dem Schreiben der Closure und vor dem Move: `make docs-check` (1507 Dateien, 0 Befunde), `make zeichen-check` (ok, 2743 Dateien) und `make groessenmarke` (ok, Messung 900 von Marke 900). Kein `make gates` und kein `make gegenproben` bei der Closure.
+
+**Größe** (`SPEC-128` Nr. 9): Ende `Messpunkt slice-batch-validator.md: zeilen=7 nebenlaeufig=0 fakes=0 produktcode=100 schaetzung=660 marke=900 messung=900`; von Hand: Produktcode 84 (erwartet 100), Tests 816. Die Messung liegt **auf der Marke** (900 von 900): keine Überschreitung (Nr. 5 d), kein Eintrag `ueberschreitung`. Handoff 713 (Stand `f264a2b4`), Ende ÷ Handoff 1,26: 187 Zeilen Tests kamen mit den zwei Fix-Runden. Auslastung 1,00, Ende ÷ *S* = 1,36: die Auslastung liegt weder über 1,00 noch unter 0,45, **keine Meldung** an den Architect.
+
+**Finding-Klassen** (Review): Fänger schmaler als Zusage, Achse nicht benannt · Prüfgrenze einer unbeschränkten Menge fehlt · Folge eines Negativs ohne Eintrag beim Nehmer; (Verifikation) Prüfgrenze sagt mehr zu, als gefangen ist.
+
+**Steering-Loop-Einträge:**
+
+1. **Neuer Sensor.** Die Tests in `batch_pruefen_test.go` laufen mit `make test` und `make test-race`; `TestPruefeBatchWeiteTeile` und `TestPruefeBatchWeiteRequests` stellen ihre Fragen an jedem Teil und Request 1 bis 1000, also bis zur Zahl der Teile, die der Leser zulässt (`SPEC-183` Nr. 7), und `TestPruefeBatchContract` hält Beispiel und Zeilen der Prüfung aus `SPEC-183` Nr. 8. Grenzen: die Prüfgrenzen in §3; nicht jede Frage läuft an jeder Stelle.
+2. **„Jede Stelle bis 1000“ galt für die Fragen, die gestellt wurden, nicht für jede.** Beim Handoff fehlten die Achse Methode des Trägers einer `Content-ID` (F-1) und die Zahl der Teile und Requests als Prüfgrenze (F-2); die Fix-Runde führte die Stellen bis 1000 und sagte in der Prüfgrenze, ungefangen bleibe allein, was jenseits greift, während vier Regeln ab Stelle 14 grün blieben (V-1): Frage und Stelle sind zwei Achsen, und ihr Produkt war nur zum Teil geführt. Die Regeln stehen (`AGENTS.md` §3.15, §3.17); gezählt, kein neuer Zielort. Im Produktcode lag kein Befund.
+3. **Die Größenmarke steht als Grund in zwei Prüfgrenzen** (§3: nicht unterstützte Methoden ab Stelle 13; Fortsetzung eines Verweises an den Weite-Fängern), und die Messung endet auf der Marke. Die Marke schneidet vor dem Code (`AGENTS.md` §3.14); nach dem Code deckt ein Eintrag `ueberschreitung` eine Überschreitung (`SPEC-128` Nr. 5 d), sie schneidet nicht (Nr. 10 c). Ein Fänger, der der Marke wegen fehlt, hat damit keinen Grund aus dem Vertrag. Der Planner ändert die Negative nicht (verifizierter Code und Plan); neu im Register als `BEO-REPO/groessenmarke-als-grund-fuer-ungefangene-klasse` (1×), mit der offenen Frage an den User in `state.md` dort.
+4. **Ein Negativ wies auf einen Nehmer, der es nicht führte** (F-3, V-3). Die Regel steht (`AGENTS.md` §3.13); die Sendung ist nachgeholt. Dasselbe Negativ ist der dritte Beleg zu `BEO-REPO/schreiber-und-leser-nicht-als-paar-geprueft` (verwandte Form: Leser und Prüfung je für sich geprüft, kein Fehler gefunden).
+
+**Keine benannte Spec-Lücke:** Review und Verifikation fanden keine, der Implementer gab keine Randform zurück. Was `SPEC-184` unter *Ungeprüft* führt, bleibt.
+
+**Kein Zielort-Feld in diesem Slice:** nichts wurde in einer Regel verkörpert; eine Pflicht zur Anker-Paarung entsteht nicht.
+
+**Sendungen (`AGENTS.md` §3.13), bei der Closure gelesen** (§1, DoD, §3 und §4 des Nehmers): `slice-batch-changesets` liegt in `open/`; §1 führt Aufruf (a), Auflösung des Verweises (c) und neu den Fang des Paars (g). Sein *Ausdrücklich NICHT* schließt den Bau von Parser und Prüfung aus, nicht Aufruf und Test. Seine Code-Abhängigkeiten aus §4 auf diesen Slice sind mit dem Move und dem Merge nach `main` erfüllt; vor seinem Code stehen weiter die Aufträge an den Architect (§3 dort), Tabelle, Raster und Marke. [welle-expand-batch](../welle-expand-batch.md) und die Roadmap sind nachgezogen; die Welle schließt nicht (drei Slices in `open/`).
+
+**Register** (Evidenz mit dem Closure-Commit im Zweig, kein Zähler gesetzt, er folgt aus den Dateien): Evidenz `slice-batch-validator` zu `BEO-REPO/menge-ohne-ihre-positionen`, `BEO-REPO/unbeschraenkte-menge-ohne-benannte-pruefgrenze`, `BEO-REPO/ein-negativ-benennt-die-ungefangene-klasse-zu-eng`, `BEO-REPO/fix-deckt-die-genannte-mutation-nicht-die-klasse` und `BEO-REPO/schreiber-und-leser-nicht-als-paar-geprueft`; neues Verzeichnis `BEO-REPO/groessenmarke-als-grund-fuer-ungefangene-klasse`. **Erstmals 3×:** `schreiber-und-leser-nicht-als-paar-geprueft`; den Lese-Schritt trägt die nächste Welle-Closure. Nicht angefallen: `groessenmarke-ueberschritten-ohne-rueckfuehrung` (nicht überschritten), die zwei Beobachtungen zur Schätzformel (Auslastung 1,00), `tabelle-nennt-test-der-nicht-existiert` (Review und Verifikation fanden jeden genannten Test) und `randform-erst-im-review-entschieden`.
+
+**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld, nichts zu paaren) · Folge-Slice (`slice-batch-changesets` liegt als Datei in `open/` und führt die Sendungen) · Register (die sechs genannten Verzeichnisse tragen `evidence/slice-batch-validator.md`, die in §8 genannten ihr `evidence/`). Die Closure von `welle-expand-batch` prüft die Paarungen erneut.
+
+**Gegenlesen** (`AGENTS.md` §3.18): dieser Plan, der Plan von `slice-batch-changesets`, die Welle, die Roadmap und die Register-Dateien sind mit dem Edit- und Write-Werkzeug geschrieben; Rohbytes deckt `make zeichen-check`.
+
+## 8. Sub-Area-Prüfungen und Modus-Begründung
+
+Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
+§Ziel-Form: Sub-Area-Modus-Begründung — dort die **zwei vorgelagerten
+Schritte** (sie stehen in jedem Slice-Plan, unabhängig von Modus und
+Slice-Typ) und die **vier Pflichtkriterien** (Konventionen-Dichte ·
+Phase-Reife · Evidenz-/Diskrepanz-Risiko · Reconciliation-Aufwand), vier und
+nicht mehr.
+
+**Der Abschnitt selbst entfällt nie.** Die zwei vorgelagerten Prüfungen laufen
+in **jedem** Slice-Plan — sie hängen weder am Modus noch am Slice-Typ. Bedingt
+ist allein der Modus-Begründungsblock am Ende; deshalb nennt der Titel beide
+Hälften.
+
+**Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
+
+**Vorgelagert — offene Beobachtungen sichten:** Register beim Start gesichtet (Planner, 2026-11-28; Zähler gleich der Zahl der Dateien unter `evidence/`, alle im Kürzel `BEO-REPO`).
+
+- **Verkörpert und zu beachten:** `menge-ohne-ihre-positionen` (29×, `AGENTS.md` §3.15) für die Mengen der Zeilen 37 bis 40 (Ebene, Stelle, Abstand des Paares); `ziffern-klasse-ohne-schleife` (5×) für `Ort` (Teil und Request auch zweistellig); `unbeschraenkte-menge-ohne-benannte-pruefgrenze` (42×) für Zeile 39 (das Ziel ist unbeschränkt); `vertrag-sagt-mehr-zu-als-ein-gate-prueft` (93×), `fix-deckt-die-genannte-mutation-nicht-die-klasse` (82×, §3.17), `berichtigung-erreicht-nicht-jede-stelle` (60×, §3.9), `ein-negativ-benennt-die-ungefangene-klasse-zu-eng` (31×), `fixture-gleicht-dem-wert-der-mutation` (17×), `menge-im-plan-weicht-vom-orakel-des-tests-ab` (12×), `suite-ohne-generator-fuer-klassen-der-spezifikation` (7×); `betriebsregel-fuer-repo-dateien-verletzt` (25×, „nur `Edit` und `Write`“).
+- **Offen, unter oder an der Schwelle:** `fehlertext-nennt-ort-und-wert-ohne-faenger` (2×) für `Ort` und `Error()`; `tabelle-nennt-test-der-nicht-existiert` (2×) für die Testnamen der Tabelle (vor dem Handoff gegen `src/` halten); `schreiber-und-leser-nicht-als-paar-geprueft` (2×) in verwandter Form: Zeile 43 baut den Batch von Hand, kein Lauf gibt der Prüfung einen Wert des Lesers (der erste Aufrufer beider ist `slice-batch-changesets`).
+
+Der Code ist nicht nebenläufig und hat keine Fakes. Kein offener Eintrag verlangt vor diesem Slice einen eigenen Slice.
+
+**Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
+Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der
+Hinweis *"alle berührten Sub-Areas GF"*; bei reinem Refactor ohne neue
+Sub-Area-Berührung entfällt **er** — nicht der Abschnitt.
+
+Alle berührten Sub-Areas GF.
