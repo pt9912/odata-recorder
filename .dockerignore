@@ -16,6 +16,7 @@
 !tools/zeichen
 !tools/harness/zeichen.sh
 !tools/harness/lasttest.sh
+!tools/harness/test-image.sh
 !tools/katalog
 !spec/spezifikation.md
 !harness/katalog-ausnahmen.txt

@@ -21,6 +21,7 @@ const (
 	gateDCheck
 	gateKatalog
 	gateLasttest
+	gateTestImage
 )
 
 // Fall ist eine Gegenprobe: ein Eingriff in das Verzeichnis des Falls (die Kopie der Eingaben, bei
@@ -581,5 +582,6 @@ func faelle() []Fall {
 	alle = append(alle, katalogFaelle()...)
 	alle = append(alle, aCheckArbeitsbaeumeFaelle()...)
 	alle = append(alle, arbeitsbaumFaelle()...)
-	return append(alle, lasttestFaelle()...)
+	alle = append(alle, lasttestFaelle()...)
+	return append(alle, testImageFaelle()...)
 }

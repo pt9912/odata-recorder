@@ -90,7 +90,8 @@ Aussagen-Berührung steht hier gar nicht.
 | Fragment `image.mk` unter `harness/mk/` | neu | die Ziele `test-image` (an `GATE_CHECKS`) und `image` (`SPEC-323` Nr. 1) |
 | `tools/harness/test-image.sh` | neu | Treiber: Aufruf, Namen (drei Image-Tags, darunter der zweite Bau), Bau, Prüfungen am Image samt Vergleich der zwei Binaries (`cmp`), Ablauf, Fristen, Aufräumen jedes Tags, Exit (`SPEC-323` Nr. 2 bis 6) |
 | `tests/e2e/image_test.go` | neu | die Client-Phasen `aufnehmen` und `pruefen` mit dem Referenzdienst (`SPEC-323` Nr. 4) |
-| `tools/gegenproben/` (neue Fälle mit Ersatz für `docker`), `tools/harness/gegenproben-eingabe.sh` | neu, update | Fälle „GP“ der Tabelle (`SPEC-102`, [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md)); der Stempel erst im Integrationsschritt |
+| `tools/gegenproben/` (neue Fälle mit Ersatz für `docker`: `testimage.go`, `testimage_test.go`; Anschluss in `main.go`, `faelle.go`, `strom_test.go`, `arbeitsbaeume_test.go`), `tools/harness/gegenproben-eingabe.sh` | neu, update | Fälle „GP“ der Tabelle (`SPEC-102`, [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md), Fälle 226 bis 236); der Stempel erst im Integrationsschritt |
+| `harness/vertraege/README.md` | update | Zeilen `SPEC-211` und `SPEC-323` im Index (Nachzug mit dem *Stand*) |
 | `harness/README.md` | update | `test-image` in der Tabelle der Gates, `image` in der Tabelle der Werkzeuge, *Nicht behauptet* |
 | `harness/vertraege/` (`SPEC-102`, `SPEC-211`, `SPEC-323` *Stand*) | update | Nachzug im liefernden Commit (`SPEC-211` Nr. 2 b: fünf statt vier Container-Tests); der Vertrag selbst ist geliefert |
 | Benutzerhandbuch | update | Kapitel zum Image (Pflicht Handbuch, `SPEC-323` Nr. 10) |
@@ -123,6 +124,34 @@ Die Dateinamen sind der Vorschlag von `SPEC-323` (Kopf) und, für Test und Gegen
 | 18 | Wertung der Phase (`SKIP`, `FAIL`, ohne `PASS`) | GP je Form | `SKIP` nicht gewertet | andere |
 | 19 | Token in keiner Ausgabe und keinem Argument | GP: Ersatz liefert ein Zeichen-Muster als Token, Ausgabe und Aufrufliste ohne Treffer | Token als `--env` | andere |
 | 20 | zwei Bauten ergeben ein byte-gleiches Binary | Lauf, Nr. 3; GP: Ersatz liefert zwei verschiedene Dateien | Bauzeit über `-ldflags` in das Binary; Vergleich nicht gewertet | andere |
+
+**Mutationen je Zeile** (`AGENTS.md` §3.10; Implementer, 2026-11-27 und 2026-11-28, Host mit 20 Kernen und fremder Last, Messender: der Implementer; jede Zeile ist Klasse `andere`, je Mutation ein Lauf). *Lauf* ist der Treiber gegen den Daemon des Hosts in einer Wegwerfkopie; *GP* ist ein Mutant des Treibers gegen die Fälle 226 bis 236 (`TestTestImageFaelleLaufenGegenDenTreiber` in einem Container ohne Netz, 49 Mutanten, 49 rot am Stand der Übergabe; die elf Fälle gegen den echten Treiber in 30 von 30 Wiederholungen grün, Last 3,6 bis 7,0, am Stand vor `--no-cache-filter image` und vor der Zerlegung der Fälle für den Lint). Die Läufe zu Nr. 1 bis 12 liegen vor dem Nachzug für den Lint (Werte der Phase `aufnehmen` über `t.Log`); `make test-image` ist danach grün gesehen.
+
+| Nr. | Mutation | Rot gesehen |
+|---|---|---|
+| 1 | `USER` entfernt | Lauf: `rot: Nutzer`; GP: Prüfung entfernt, Fall `image` |
+| 2 | `CMD` entfernt | Lauf: `rot: Standardargument`; GP: Prüfung von `cmd` oder `entrypoint` entfernt, Fall `image` |
+| 3 | `VOLUME /data` | Lauf: `rot: Volume`; GP: je Prüfung (Volume, `LISTEN`, `ADMIN_LISTEN`, `MODE`, `DATA_DIR`) entfernt, Fall `image` |
+| 4 | `--chown` entfernt | Lauf: `rot: /data Eigentümer und Rechte`; GP: Prüfung entfernt, Fall `image` |
+| 5 | `COPY` der Anker, `COPY` von `/tmp` entfernt | Lauf: `rot: docker cp /etc/ssl/certs/ca-certificates.crt`, `rot: docker cp /tmp`; GP: Größe der Anker oder Rechte von `/tmp` nicht geprüft, Fall `image` |
+| 6 | Treiber reicht `VERSION` nicht an den Bau, `VERSION=9.9.9` | Lauf: `rot: Version`; GP: Vergleich entfernt, Fall `image` |
+| 7 | Phase `aufnehmen` zweimal | Lauf: `kein frisches Datenverzeichnis` (Session `complete`) |
+| 8 | `STOPSIGNAL SIGKILL`; Exit nicht gewertet | Lauf: `rot: Stopp: Exit des Servers`; GP: Fälle `stopp`, `aufraeumen` |
+| 9 | neuer Container statt `start`, mit dessen Token | Lauf: `Sessions nach dem Neustart` (allein eine neue `open`) |
+| 10, 11 | hinter dem gemerkten Stand ein weiteres `reset` und ein weiterer Snapshot (Mutation der Phase `aufnehmen`; unter der Mutation von Nr. 9 hält die Phase `pruefen` schon an den Sessions an) | Lauf: `Workspaces nach dem Neustart`, `Snapshots nach dem Neustart` |
+| 12 | Treiber reicht `pruefen` ein anderes Token | Lauf: `GET /__admin/sessions: 401 ODR-E2101` |
+| 13 | `--memory-swap` entfernt; `-p`, `--user`, `--env LISTEN`, ein Argument am Server hinzugefügt; `--network` entfernt, `host` | GP: Fall `gut` (Aufrufe Argument für Argument) |
+| 14 | feste Kennung; Label eines Containers entfernt | GP: Fälle `zwei-laeufe`, `gut` |
+| 15 | `rm`, `rmi`, Entfernen des Verzeichnisses entfernt; Baufehler ohne Aufräumen | GP: Fälle `gut`, `image`, `exit-codes` und weitere |
+| 16 | `trap` entfernt, ohne `HUP`, `kill` des laufenden Aufrufs entfernt | GP: Fall `abbruch` |
+| 17 | Aufräumfehler verschluckt, Baufehler 1, Daemon-Frage 1, roter Lauf 2, Log entfernt, Argument-Prüfung entfernt | GP: Fälle `aufraeumen`, `exit-codes`, `phasen`, `stopp`, `aufruf` |
+| 18 | Exit, `SKIP`, `FAIL`, `PASS` je nicht gewertet | GP: Fall `phasen` |
+| 19 | Token als `--env`, auf stdout, nicht auf der Standardeingabe | GP: Fälle `gut`, `token` |
+| 20 | Zeitstempel über `-ldflags -X` in eine verwendete Variable des Binary; Vergleich nicht gewertet; `--no-cache-filter build` oder `--no-cache-filter image` entfernt | Lauf: `rot: Binary der zwei Bauten ungleich`; GP: Fälle `image` (Vergleich), `gut` (die beiden Optionen) |
+
+Ohne Zeile der Tabelle sind vier weitere Mutanten rot: 31 Versuche, Pause entfernt, Frage nach dem Server entfernt (Fall `token`, `SPEC-323` Nr. 4 a) und die Werte nicht an `pruefen` gereicht (Fall `gut`). Zur Zeile 20: `-ldflags -buildid=<Zeit>` ändert die Bytes des Binary nicht und ist ersetzt; ohne `--no-cache-filter image` blieb die Mutation mit Zeitstempel im Lauf grün (der Befund in §6). Dass die Option ohne Zeitstempel nötig ist, fängt am echten Daemon kein Lauf: ein reproduzierbarer Bau ist mit und ohne sie grün, allein die Aufrufliste der Fälle der Gegenprobe hält sie.
+
+**Messung** (`SPEC-211` Nr. 4; 2026-11-27, 20 Kerne, Wanduhr mit `date`, Messender: der Implementer): `make test-image` mit Quelle und Stufe `build` im Cache 21,4 s, 19,9 s und 19,9 s (Load Average 3,6 bis 4,4); der erste Lauf des Standes, mit neu gebauter Stufe `integration`, 51 s (Load Average 3,6 bis 4,9). Diese drei Läufe liegen vor `--no-cache-filter image`; die Option baut die vier `COPY` der Stufe `image` neu, ein Lauf mit ihr in einer Wegwerfkopie dauerte 25 s (Load Average 1,4 bis 4,7). Nicht gemessen: ein Lauf ohne die Basis-Images und `make -j gates`.
 
 **Betriebsregeln für alle Rollen:**
 
@@ -164,6 +193,9 @@ pfad: tests/e2e/image_test.go
 pfad: tools/gegenproben/testimage.go
 pfad: tools/gegenproben/testimage_test.go
 pfad: tools/gegenproben/main.go
+pfad: tools/gegenproben/faelle.go
+pfad: tools/gegenproben/strom_test.go
+pfad: tools/gegenproben/arbeitsbaeume_test.go
 pfad: tools/harness/gegenproben-eingabe.sh
 pfad: harness/README.md
 produktcode: 220
@@ -193,18 +225,21 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Der Neustarttest verlängert die Gate-Kette um einen daemonabhängigen Lauf, dessen Frist unter Last reißen kann — **Ausgang:** weiter offen; Adresse: Implementer (misst nach `SPEC-211` Nr. 4 mit Last und Messendem; `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts`; der zweite Bau nach `SPEC-323` Nr. 3 übersetzt das Programm einmal mehr, Zeit nicht gemessen). Die Aufnahme in die Kette ist entschieden (User, Antwort 2 der sechs Fragen; `SPEC-323` Nr. 1: Zeit geschätzt 10 bis 20 s bei vorhandenen Images, nicht gemessen).
+- Der Neustarttest verlängert die Gate-Kette um einen daemonabhängigen Lauf, dessen Frist unter Last reißen kann — **Ausgang:** weiter offen; Adresse: Implementer (misst nach `SPEC-211` Nr. 4 mit Last und Messendem; `BEO-REPO/gegenprobe-haengt-an-der-laufzeit-des-produkts`; der zweite Bau nach `SPEC-323` Nr. 3 übersetzt das Programm einmal mehr; gemessen rund 20 s je Lauf bei vorhandenen Images, §3 *Messung*). Die Aufnahme in die Kette ist entschieden (User, Antwort 2 der sechs Fragen; `SPEC-323` Nr. 1: Zeit geschätzt 10 bis 20 s bei vorhandenen Images, nicht gemessen).
 - Ein Werkzeug außerhalb der Kette fährt niemand (`BEO-REPO/pflichtlauf-neben-der-gate-kette-ohne-traeger`) — **Ausgang:** entfallen: der Neustarttest ist ein Gate (`SPEC-323` Nr. 1).
 - Im Daemon des Hosts kollidiert der Lauf mit Gate-Läufen oder fremden Objekten, oder das Aufräumen löscht Fremdes oder lässt Eigenes stehen — **Ausgang:** entschieden (Architect, `SPEC-323` Nr. 2 b, 5, 6; Fänger Zeilen 14 bis 17 in §3). Benannt bleibt: SIGKILL am Treiber lässt Container, Tags und Verzeichnis liegen (Nr. 6 d dort).
 - `AGENTS.md` §3.1 verlangt netzlose Prüfläufe ohne schreibbaren Mount — **Ausgang:** entschieden (Architect, `SPEC-323` Nr. 2 d und e; User, Antwort 1 der sechs Fragen): `--network none` und kein Mount, ohne Ausnahme von der Regel.
 - Zusage-Lücke: `LH-QA-06.a` nennt Recordings, Workspaces und Snapshots, der Plan prüfte nur Recordings, weil es keinen Weg über die Prozessgrenze gab — **Ausgang:** entschieden (Planner, 2026-11-27): der Admin-Listener ist im Binary geliefert, der Neustarttest dieses Slice prüft alle drei (§1, DoD 2); das akzeptierte Negativ und die Adresse „Planner für `slice-bootstrap-m6`“ entfallen. [slice-bootstrap-m6](../done/slice-bootstrap-m6.md) hatte die Sendung nie angenommen und nennt den Neustarttest im Container als ausgeschlossen (§1 dort); seine zwei Starts im Prozess ersetzen ihn nicht.
-- Der Umfang ist größer als beim ersten Entwurf (drei Datenarten, Admin-Listener im Container, Gegenproben), und ein Treiber mit echten Prozessen, Ersatz für `docker` und Signal-Fällen liegt nach dem Register über der Schätzung (`BEO-REPO/schaetzformel-unterschaetzt-werkzeug-mit-prozessen`) — **Ausgang:** weiter offen; Adresse: Implementer (misst am Handoff über die Pfade des Blocks, Eintrag `ueberschreitung` mit Grund), Planner bei der Closure (ein dritter Vorgang erreicht die Schwelle).
+- Der Umfang ist größer als beim ersten Entwurf (drei Datenarten, Admin-Listener im Container, Gegenproben), und ein Treiber mit echten Prozessen, Ersatz für `docker` und Signal-Fällen liegt nach dem Register über der Schätzung (`BEO-REPO/schaetzformel-unterschaetzt-werkzeug-mit-prozessen`) — **Ausgang:** weiter offen; Adresse: Implementer (misst am Handoff über die Pfade des Blocks, Eintrag `ueberschreitung` mit Grund), Planner bei der Closure (ein dritter Vorgang erreicht die Schwelle). Gemessen am Handoff (Implementer, 2026-11-28): 1708 Zeilen über die Pfade des Blocks, unter der Marke 2800, kein Eintrag `ueberschreitung`.
 - Das Benutzerhandbuch schreiben zugleich [slice-abnahme-belege](slice-abnahme-belege.md) und [slice-admin-abweisen-begrenzen](slice-admin-abweisen-begrenzen.md) (andere Kapitel, gemeinsam die Zeile `Stand:`) — **Ausgang:** weiter offen; Adresse: Implementer (nimmt `main` vor dem Handoff auf, Übergangsregeln Nr. 5) und Integrationsschritt.
 - `SPEC-323` Nr. 4 d nennt in einem Satz das Token von vor dem Neustart und `--env` — **Ausgang:** entschieden (`SPEC-323` Nr. 4 a und Zeile 19 der Tabelle): `--env` trägt allein die Werte aus der Phase `aufnehmen`, das Token geht über die Standardeingabe; wer den Satz anders lesen muss, hält an (`AGENTS.md` §3.12, Adresse Architect).
 - Das Volume gehört einem anderen Nutzer als der Prozess im Image — **Ausgang:** entschieden (Architect, `SPEC-322` Nr. 5). Ohne Fänger am Image bleiben der Eigentümer eines neuen Volumes und ein nicht beschreibbares Verzeichnis (`SPEC-322` *Ungeprüft*; User, Antwort 1 der sechs Fragen).
 - `SIGKILL` während der Aufzeichnung hinterlässt eine `open`-Session — **Ausgang:** entschieden (Architect, `SPEC-323` Nr. 9 a): benanntes Negativ, die Wiederherstellung ist am Dienst geprüft (`SPEC-123` Nr. 5).
 - Randformen (`AGENTS.md` §3.12, §3.16): eine Zelle ohne Ort geht an den Architect — **Ausgang:** entschieden (Architect, `SPEC-323` Nr. 7, Raster unten).
-- Ob `docker cp` den Eigentümer so ausgibt, wie `SPEC-323` Nr. 3 liest, ist nicht gemessen (Nr. 9 f dort) — **Ausgang:** weiter offen; Adresse: Implementer (hält bei Abweichung an und gibt an den Architect zurück, `AGENTS.md` §3.12).
+- Ob `docker cp` den Eigentümer so ausgibt, wie `SPEC-323` Nr. 3 liest (Nr. 9 f dort) — **Ausgang:** entfallen: gemessen (2026-11-27, Implementer, Docker 29.10.0): der Eintrag trägt `65532/65532` und `drwx------`; Nr. 9 f nennt die Messung.
+- Docker setzt dem Image zusätzlich die Variable `PATH` (gemessen 2026-11-27 mit `image inspect`), `SPEC-322` Nr. 4 sagt „allein `DATA_DIR=/data`“ — **Ausgang:** offen; Adresse: Architect (Wortlaut von Nr. 4). Der Dienst liest `PATH` nicht, die Prüfung nach `SPEC-323` Nr. 3 ist erfüllt; die Stufe `image` setzt allein `DATA_DIR`.
+- `SPEC-323` Nr. 3 nennt für den zweiten Bau `--no-cache-filter build`; damit übersetzt die Stufe `build` neu, das zweite Image trägt aber das Binary eines früheren Baus, der Vergleich nach Zeile 20 läse zweimal dasselbe (gemessen 2026-11-28, Implementer, Docker 29.10.0: mit Zeitstempel im Binary druckt der Schritt `go build` im zweiten Bau eine neue Prüfsumme, im Image liegt die alte; `COPY --link` und `--provenance=false` ändern das nicht, Messung ohne den Detektor je ein Lauf). Der Treiber gibt deshalb zusätzlich `--no-cache-filter image` — **Ausgang:** offen; Adresse: Architect (Wortlaut von Nr. 3 oder ein anderer Weg, etwa der Vergleich der Binaries aus zwei Bauten der Stufe `build`, ebenfalls gemessen wirksam).
+- `COPY` übernimmt die Rechte der Einträge eines Verzeichnisses, nicht die des kopierten Verzeichnisses selbst (gemessen 2026-11-27: `/data` und `/tmp` standen sonst auf `0755`) — **Ausgang:** entschieden (Implementer, innerhalb von `SPEC-322` Nr. 2): beide Verzeichnisse entstehen in der Hilfsstufe `image-verzeichnisse` unter je einem eigenen Elternverzeichnis; die Prüfungen nach Nr. 3 fangen die Rechte.
 - Die Aufrufe von `docker` im Kapitel des Handbuchs führt kein Gate aus (`SPEC-200` Nr. 14 e) — **Ausgang:** weiter offen; Adresse: Reviewer und Verifier (lesen und fahren sie von Hand).
 - Modus `mock` und `replay` am Image und ein zweiter Neustart haben keinen Fänger (`SPEC-323` Nr. 7, 9 b) — **Ausgang:** entschieden (Architect): benannte Negative.
 
