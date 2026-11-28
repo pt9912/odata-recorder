@@ -1,0 +1,2 @@
+**Vorgang:** slice-admin-abweisen-begrenzen
+**Fund:** F-5 (Review, INFO): nach einem Rücksprung der Systemzeit hält die Uhr des Prozesses ihren Höchstwert (`SPEC-114` Nr. 2); ein volles Fenster bleibt dann bis zum Einholen oder zum Neustart ohne Eintrag einer Abweisung, allein der Zähler steigt. `SPEC-301` Nr. 5 c entscheidet das, Nr. 8 verlangt im Handbuch nur zwei andere Aussagen. Beleg: Plan §6 und §7; Report `2026-11-28-slice-admin-abweisen-begrenzen-review`.

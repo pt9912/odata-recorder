@@ -62,10 +62,12 @@ type Konfig struct {
 	Routen     []Route
 	// Vergleich vergleicht das erwartete Token mit dem Kandidaten; nil heißt vergleiche (SPEC-238 Nr. 1, 4 e).
 	Vergleich func(erwartet, gegeben []byte) bool
+	// Uhr liefert die Zeit des Fensters der Einträge des Abweisens (SPEC-301 Nr. 1).
+	Uhr support.Clock
 }
 
 // Server authentisiert und ordnet Requests den Routen zu (SPEC-238); außer dem Zustand der Zulassung (SPEC-238 Nr. 11)
-// ist sein Zustand nach New schreibgeschützt.
+// und dem Fenster der Einträge des Abweisens (SPEC-301) ist sein Zustand nach New schreibgeschützt.
 type Server struct {
 	listener   net.Listener
 	token      []byte
@@ -74,6 +76,8 @@ type Server struct {
 	telemetrie support.Telemetry
 	routen     []route
 	vergleich  func(erwartet, gegeben []byte) bool
+	uhr        support.Clock
+	fenster    abweisenFenster
 	http       *http.Server
 	abbruch    context.CancelFunc
 
@@ -143,6 +147,8 @@ func New(k Konfig) (*Server, error) {
 		return nil, ungueltig("Audit fehlt")
 	case k.Telemetrie == nil:
 		return nil, ungueltig("Telemetrie fehlt")
+	case k.Uhr == nil:
+		return nil, ungueltig("Uhr fehlt")
 	case len(k.Token) < tokenMinBytes:
 		return nil, ungueltig("Token zu kurz")
 	}
@@ -157,7 +163,7 @@ func New(k Konfig) (*Server, error) {
 	basis, abbruch := context.WithCancel(context.Background())
 	s := &Server{
 		listener: k.Listener, token: slices.Clone(k.Token), ids: k.IDs, audit: k.Audit, telemetrie: k.Telemetrie,
-		routen: routen, vergleich: vergleich, abbruch: abbruch,
+		routen: routen, vergleich: vergleich, uhr: k.Uhr, abbruch: abbruch,
 		leer: make(chan struct{}), verb: map[net.Conn]*verbindung{},
 	}
 	s.http = s.baueHTTP(basis)
@@ -281,18 +287,20 @@ func schreibeErfolg(w http.ResponseWriter, a Antwort) {
 	}
 }
 
-// schreibeFehler ist die eine Stelle, die das Fehlerobjekt bildet, zählt, bei jeder Antwort 401 den Audit-Eintrag schreibt
-// und die Antwort schreibt (SPEC-238 Nr. 5, 7, 8): drei Felder, Content-Type, Content-Length und die Header des Status,
-// nicht des Ursprungs: bei 401 WWW-Authenticate, bei 405 Allow (der Wert allow: die Methoden aller Routen des Pfades) und
-// bei 503 Connection. `CountError` und `Append` laufen genau einmal, auf der Goroutine des Requests und vor dem ersten
-// Schreiben der Antwort; id ist die Korrelations-ID der Antwort, der Eintrag trägt sonst nur Art und Code, und das Ergebnis
-// von `Append` ändert weder Antwort noch Zählen. Der Code ist ein gültiger Code der Tabelle, das Marshalling einer
+// schreibeFehler ist die eine Stelle, die das Fehlerobjekt bildet, zählt, bei einer zugelassenen Antwort 401 den
+// Audit-Eintrag schreibt und die Antwort schreibt (SPEC-238 Nr. 5, 7, 8, SPEC-301): drei Felder, Content-Type,
+// Content-Length und die Header des Status, nicht des Ursprungs: bei 401 WWW-Authenticate, bei 405 Allow (der Wert allow:
+// die Methoden aller Routen des Pfades) und bei 503 Connection. `CountError` läuft genau einmal, `Append` nur, wenn das
+// Fenster die Antwort 401 zulässt, dann genau einmal; beide laufen auf der Goroutine des Requests und vor dem ersten
+// Schreiben der Antwort. Die zugelassene und die gedrosselte Antwort gleichen sich bis auf X-Correlation-Id (SPEC-301
+// Nr. 3). id ist die Korrelations-ID der Antwort, der Eintrag trägt sonst nur Art und Code, und das Ergebnis von `Append`
+// ändert weder Antwort noch Zählen noch Fenster. Der Code ist ein gültiger Code der Tabelle, das Marshalling einer
 // Struktur aus Zeichenketten scheitert nicht.
 func (s *Server) schreibeFehler(w http.ResponseWriter, id string, code model.Code, status int, allow string) {
 	obj, _ := model.NeuesFehlerobjekt(code)
 	body, _ := json.Marshal(obj)
 	s.telemetrie.CountError(code)
-	if status == http.StatusUnauthorized {
+	if status == http.StatusUnauthorized && s.fenster.zulasse(s.uhr) {
 		_ = s.audit.Append(support.Eintrag{Art: support.ArtAdminAbgewiesen, ErrorCode: model.CodeE2101, KorrelationsID: id})
 	}
 	h := w.Header()

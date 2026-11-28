@@ -22,11 +22,12 @@ import (
 	"github.com/pt9912/odata-recorder/src/hexagon/ports/support"
 )
 
-// Dieser Teil hält die Zusagen von SPEC-238 Nr. 8 (Audit des Abweisens): bei jeder Antwort 401 genau ein Eintrag der Art
-// admin_abgewiesen mit der Korrelations-ID der Antwort, bei keiner anderen Antwort einer (D1, D2), ohne Wert des Requests
-// (D3), vor dem Schreiben der Antwort (D4), ohne Einfluss des Ergebnisses von Append (D5), auf der Goroutine des Requests
-// (D6) und ohne Drosselung (D7). Das Orakel trägt Art, Code, Status und Header als Literale des Vertrags, nie als
-// Konstanten des Codes.
+// Dieser Teil hält die Zusagen von SPEC-238 Nr. 8 (Audit des Abweisens): bei jeder zugelassenen Antwort 401 genau ein
+// Eintrag der Art admin_abgewiesen mit der Korrelations-ID der Antwort, bei keiner anderen Antwort einer (D1, D2), ohne Wert
+// des Requests (D3), vor dem Schreiben der Antwort (D4), ohne Einfluss des Ergebnisses von Append (D5), auf der Goroutine
+// des Requests (D6) und ohne Zusammenfassung (D7). Die Grenze je Fenster (SPEC-301) halten die Dateien abweisen_fenster*;
+// jeder Test hier lässt jede Abweisung zu. Das Orakel trägt Art, Code, Status und Header als Literale des Vertrags, nie
+// als Konstanten des Codes.
 
 // textAdminAbgewiesen ist der Text der fünften Art (SPEC-234 Nr. 2, SPEC-238 Nr. 8).
 const textAdminAbgewiesen = "admin_abgewiesen"
@@ -551,19 +552,24 @@ func abweisungsRequest(art int) *http.Request {
 	return anfrageMit("GET", "/e401", nil, nil)
 }
 
-// abweisungsServer baut den Server von D7 mit den Routen GET /ok und GET /e401 (Fehler der Route ODR-E2101 und 401).
+// abweisungsServer baut den Server von D7 mit den Routen GET /ok und GET /e401 (Fehler der Route ODR-E2101 und 401); seine
+// Uhr rückt je Aufruf von Now um 60 s vor, jede Abweisung eröffnet so ein eigenes Fenster und ist zugelassen (SPEC-301
+// Nr. 2).
 func abweisungsServer(t *testing.T) *umgebung {
 	t.Helper()
 	ok, e401 := neueRoute(), neueRoute()
 	e401.err = fehlerE2101(nil)
-	return neuMit(t, admin.Route{Methode: "GET", Muster: "/ok", Handler: ok.handle}, admin.Route{Methode: "GET", Muster: "/e401", Handler: e401.handle})
+	k, u := konfigMit(admin.Route{Methode: "GET", Muster: "/ok", Handler: ok.handle}, admin.Route{Methode: "GET", Muster: "/e401", Handler: e401.handle})
+	k.Uhr = &stellUhr{stand: fensterT0(), schritt: 60 * time.Second}
+	return neuMitKonfig(t, k, u)
 }
 
-// TestJedeAbweisungEinEintrag hält D7 (Nr. 8, 12): jede Abweisung schreibt einen Eintrag, ohne Drosselung und ohne
-// Zusammenfassung: 1100 Requests nacheinander und 8 Goroutinen × 150 Requests zugleich (unter dem Detektor) ergeben je so
-// viele Einträge mit je einer anderen Korrelations-ID, die Menge der IDs der Einträge ist die der Antworten, jeder Eintrag
-// gleicht dem Literal, und CountError lief je Abweisung mit ODR-E2101. Die Zahl der Abweisungen ist unbeschränkt; die
-// Prüfgrenze liegt bei 1100 und 1200: eine Schwelle der Drosselung darunter fängt der Test, eine darüber nicht (Plan §3).
+// TestJedeAbweisungEinEintrag hält D7 (Nr. 8, 12, SPEC-301 Nr. 2): jede zugelassene Abweisung schreibt genau einen Eintrag,
+// ohne Zusammenfassung: 1100 Requests nacheinander und 8 Goroutinen × 150 Requests zugleich (unter dem Detektor), jeder in
+// einem eigenen Fenster, ergeben je so viele Einträge mit je einer anderen Korrelations-ID, die Menge der IDs der Einträge
+// ist die der Antworten, jeder Eintrag gleicht dem Literal, und CountError lief je Abweisung mit ODR-E2101. Die Zahl der
+// Abweisungen ist unbeschränkt; die Prüfgrenze liegt bei 1100 und 1200: eine Schwelle über alle Fenster darunter fängt der
+// Test, eine darüber nicht. Die Grenze je Fenster hält TestFensterZahl.
 func TestJedeAbweisungEinEintrag(t *testing.T) {
 	const goroutinen, jeGoroutine, nacheinander = 8, 150, 1100
 	pruefe := func(name string, u *umgebung, ids []string, erwartet int) {

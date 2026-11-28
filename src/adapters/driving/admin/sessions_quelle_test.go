@@ -10,10 +10,10 @@ import (
 	"testing"
 )
 
-// rahmenDateien sind die Dateien des Rahmens (SPEC-238) und der Token-Datei (SPEC-239) ohne _test.go; jede andere Datei
-// ohne _test.go im Paket gehört den Routen.
+// rahmenDateien sind die Dateien des Rahmens (SPEC-238), des Fensters des Abweisens (SPEC-301) und der Token-Datei
+// (SPEC-239) ohne _test.go; jede andere Datei ohne _test.go im Paket gehört den Routen.
 func rahmenDateien() []string {
-	return []string{"admin.go", "fehler.go", "lebenszyklus.go", "route.go", "tokendatei.go"}
+	return []string{"abweisen_fenster.go", "admin.go", "fehler.go", "lebenszyklus.go", "route.go", "tokendatei.go"}
 }
 
 // sessionsDateien liefert die Dateien der Routen: jede Datei `.go` ohne `_test.go` im Verzeichnis außer denen des Rahmens
