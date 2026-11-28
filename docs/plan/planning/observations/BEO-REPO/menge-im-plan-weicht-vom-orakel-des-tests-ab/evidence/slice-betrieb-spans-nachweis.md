@@ -1,0 +1,2 @@
+**Vorgang:** slice-betrieb-spans-nachweis
+**Fund:** Der Test zählt in `mock` 24 Wege, deren Muster einen Schlüssel in Pfad oder Body tragen; der Absatz des Plans las die Zahl als Beleg dafür, wie viele Wege den Schlüssel im Pfad führen. Im Pfad sind es 23, der Weg `existiert` trägt ihn allein im Body. Fänger und Code waren richtig, der Plan wurde bei der Closure berichtigt. Beleg: Verifikation `2026-11-28-slice-betrieb-spans-nachweis-verifikation` (Auflage 1), Plan `slice-betrieb-spans-nachweis` §3 und §7.
