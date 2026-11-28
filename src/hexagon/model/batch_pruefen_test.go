@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -237,6 +239,181 @@ func TestPruefeBatchContentIDEbene(t *testing.T) {
 	}
 	if n != 12 {
 		t.Errorf("Menge %d", n)
+	}
+}
+
+// batchPruefMethodenChangeset sind die im Changeset erlaubten Methoden (SPEC-184 Nr. 1).
+func batchPruefMethodenChangeset() []string { return []string{"POST", "PATCH", "PUT", "DELETE"} }
+
+// batchPruefGestalten sind die Requests ohne Content-ID aus den 4 Methoden im Changeset und 5 Gestalten: nackt, mit Header, mit Body,
+// mit beidem und mit Verweis auf q (20).
+func batchPruefGestalten() []model.BatchRequest {
+	header, body := []model.BatchKopf{{Name: "n", Wert: "w"}}, []byte{'b'}
+	alle := []model.BatchRequest{}
+	for _, m := range batchPruefMethodenChangeset() {
+		alle = append(alle,
+			model.BatchRequest{Methode: m, Ziel: "a"},
+			model.BatchRequest{Methode: m, Ziel: "a", Header: header},
+			model.BatchRequest{Methode: m, Ziel: "a", Body: body},
+			model.BatchRequest{Methode: m, Ziel: "a", Header: header, Body: body},
+			model.BatchRequest{Methode: m, Ziel: "$q"},
+		)
+	}
+	return alle
+}
+
+// TestPruefeBatchContentIDMethode hält die Zeilen 38 und 40 an Methode und Gestalt: 20 Gestalten des Trägers der Content-ID p ×
+// 20 Gestalten des zweiten bzw. verweisenden Requests × 3 Abstände. Je Fall ist das zweite Vorkommen doppelt, der Verweis auf den
+// früheren Träger löst auf und der auf den späteren nicht. Davor steht der Träger der Content-ID q.
+func TestPruefeBatchContentIDMethode(t *testing.T) {
+	q := batchPruefRequest("POST", "a", "q")
+	n := 0
+	for _, traeger := range batchPruefGestalten() {
+		traeger.ContentID = "p"
+		for _, anderer := range batchPruefGestalten() {
+			for abstand := range 3 {
+				bau := func(erster, letzter model.BatchRequest) model.Batch {
+					requests := append([]model.BatchRequest{q, erster}, batchPruefReihe(abstand)...)
+					return batchPruefBatch(batchPruefChangeset(append(requests, letzter)...))
+				}
+				name := fmt.Sprintf("%s %q, %s %q, Abstand %d", traeger.Methode, traeger.Ziel, anderer.Methode, anderer.Ziel, abstand)
+				doppelt, verweis := anderer, anderer
+				doppelt.ContentID = "p"
+				verweis.Ziel = "$p"
+				batchPruefSoll(t, name, bau(traeger, doppelt), "content_id_doppelt", fmt.Sprintf("1/%d", abstand+3))
+				batchPruefSoll(t, name, bau(traeger, verweis), "", "")
+				batchPruefSoll(t, name, bau(verweis, traeger), "referenz", "1/2")
+				if t.Failed() {
+					return
+				}
+				n++
+			}
+		}
+	}
+	if n != 20*20*3 {
+		t.Errorf("Menge %d", n)
+	}
+}
+
+// batchPruefWeite ist die Zahl der Teile eines Batch und der Requests eines Changeset, bis zu der jede Stelle gefahren wird; der Leser
+// lässt zusammen 1000 Teile zu (SPEC-183 Nr. 7).
+const batchPruefWeite = 1000
+
+// batchPruefPaare zählt die verschiedenen Paare, an denen ein Fänger geprüft hat, und davon die innerhalb von batchPruefWeite.
+type batchPruefPaare map[[2]int]bool
+
+func (p batchPruefPaare) imLeser() (n int) {
+	for paar := range p {
+		if paar[0]+paar[1] <= batchPruefWeite {
+			n++
+		}
+	}
+	return n
+}
+
+// TestPruefeBatchWeiteTeile hält die Zeilen 37, 38, 40 und 41 an der Teilnummer 1 bis 1000, mit Einzelrequests und mit Changesets
+// ringsum: ein Einzelrequest mit Verstoß, ein Changeset mit Verstoß an Request 1 und 2, ein auflösbarer Verweis. Dazu die Kante des
+// Lesers: ein Changeset an Teil n mit dem Verstoß an seinem letzten Request 1000 − n.
+func TestPruefeBatchWeiteTeile(t *testing.T) {
+	traeger := batchPruefRequest("POST", "a", "p")
+	einzel := batchPruefEinzel(batchPruefRequest("GET", "a", "x"))
+	proben := []struct {
+		teil    model.BatchTeil
+		ursache model.BatchUrsache
+		request int
+	}{
+		{batchPruefEinzel(batchPruefRequest("MERGE", "a", "")), "methode_nicht_unterstuetzt", 0},
+		{batchPruefChangeset(batchPruefRequest("GET", "a", "")), "methode", 1},
+		{batchPruefChangeset(traeger, traeger), "content_id_doppelt", 2},
+		{batchPruefChangeset(traeger, batchPruefRequest("PUT", "$fehlt", "")), "referenz", 2},
+		{batchPruefChangeset(traeger, batchPruefRequest("PUT", "$p", "")), "", 2},
+	}
+	paare := batchPruefPaare{}
+	for _, ringsum := range []model.BatchTeil{einzel, batchPruefChangeset(traeger)} {
+		teile := slices.Repeat([]model.BatchTeil{ringsum}, batchPruefWeite)
+		batchPruefSoll(t, "ohne Verstoß", batchPruefBatch(teile...), "", "")
+		for n := 1; n <= batchPruefWeite; n++ {
+			for _, p := range proben {
+				ort := strconv.Itoa(n)
+				if p.teil.Changeset {
+					ort += "/" + strconv.Itoa(p.request)
+					paare[[2]int{n, p.request}] = true
+				}
+				if p.ursache == "" {
+					ort = ""
+				}
+				teile[n-1] = p.teil
+				batchPruefSoll(t, fmt.Sprintf("Teil %d", n), batchPruefBatch(teile...), p.ursache, ort)
+			}
+			teile[n-1] = ringsum
+			if t.Failed() {
+				return
+			}
+		}
+	}
+	for n := 1; n < batchPruefWeite; n++ {
+		requests := batchPruefReihe(batchPruefWeite - n)
+		requests[len(requests)-1].Methode = "GET"
+		teile := append(slices.Repeat([]model.BatchTeil{einzel}, n-1), batchPruefChangeset(requests...))
+		batchPruefSoll(t, "Kante", batchPruefBatch(teile...), "methode", fmt.Sprintf("%d/%d", n, len(requests)))
+		paare[[2]int{n, len(requests)}] = true
+		if t.Failed() {
+			return
+		}
+	}
+	// Teil n mit Request 1 und 2 und die Kante, ohne die Paare in beidem.
+	if n := paare.imLeser(); n != 999+998+997 {
+		t.Errorf("Menge %d", n)
+	}
+}
+
+// TestPruefeBatchWeiteRequests hält die Zeilen 37, 38, 40 und 41 an jedem Request 1 bis 1000 eines Changeset, dessen Methoden reihum
+// wechseln: Verstoß der Methode, Verweis auf sich selbst, und gegen den ersten und den vorigen Request das zweite Vorkommen und der
+// auflösbare Verweis.
+func TestPruefeBatchWeiteRequests(t *testing.T) {
+	requests, methoden := batchPruefReihe(batchPruefWeite), batchPruefMethodenChangeset()
+	for i := range requests {
+		requests[i].Methode = methoden[i%len(methoden)]
+	}
+	b := batchPruefBatch(batchPruefChangeset(requests...))
+	batchPruefSoll(t, "ohne Verstoß", b, "", "")
+	paare := map[[2]int]bool{}
+	for n := 1; n <= batchPruefWeite; n++ {
+		gut := requests[n-1]
+		ort := fmt.Sprintf("1/%d", n)
+		probe := func(r model.BatchRequest, ursache model.BatchUrsache) {
+			t.Helper()
+			requests[n-1] = r
+			soll := ort
+			if ursache == "" {
+				soll = ""
+			}
+			batchPruefSoll(t, fmt.Sprintf("Request %d %q %q", n, r.ContentID, r.Ziel), b, ursache, soll)
+			requests[n-1] = gut
+		}
+		methode, selbst := gut, gut
+		methode.Methode = "GET"
+		selbst.Ziel = "$" + gut.ContentID
+		probe(methode, "methode")
+		probe(selbst, "referenz")
+		for _, von := range []int{1, n - 1} {
+			if von < 1 || von >= n {
+				continue
+			}
+			doppelt, verweis := gut, gut
+			doppelt.ContentID = requests[von-1].ContentID
+			verweis.Ziel = "$" + requests[von-1].ContentID
+			probe(doppelt, "content_id_doppelt")
+			probe(verweis, "")
+			paare[[2]int{von, n}] = true
+		}
+		if t.Failed() {
+			return
+		}
+	}
+	// (1, n) und (n − 1, n) für n bis 1000; (1, 2) ist beides.
+	if len(paare) != 999+998 {
+		t.Errorf("Menge %d", len(paare))
 	}
 }
 
