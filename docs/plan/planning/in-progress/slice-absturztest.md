@@ -78,7 +78,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/bootstrap/absturz_test.go` | neu | Kindprozess, Port-Dekoratoren, 10 Haltepunkte, Lage je Haltepunkt, Prüfung nach dem Neustart samt Gegenproben der Prüfung (`TestAbsturzEndeOhneHaltepunkt`, `TestAbsturzStartBefunde`, `TestAbsturzPruefungErkennt`); Fehler-Injektion nach `LH-QA-03`. Er nutzt den Aufbau von `abnahme_aufbau_test.go`, ohne ihn zu ändern |
+| `src/bootstrap/absturz_test.go` | neu | Kindprozess, Port-Dekoratoren, 10 Haltepunkte, Lage je Haltepunkt, Prüfung nach dem Neustart samt Gegenproben der Prüfung (`TestAbsturzEndeOhneHaltepunkt`, `TestAbsturzEndeAuswertung`, `TestAbsturzStartBefunde`, `TestAbsturzPruefungErkennt`); Fehler-Injektion nach `LH-QA-03`. Er nutzt den Aufbau von `abnahme_aufbau_test.go`, ohne ihn zu ändern |
 | `spec/spezifikation.md` | update | Vermerk *Stand* von `SPEC-048` |
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Planner aus `SPEC-048`, weil der Vertrag dort steht und der Slice nur Test liefert; „Nr.“ meint `SPEC-048`; der Implementer trägt Mutationen und Raten mit Zahl der Prozesse, Last und Messendem in einen Absatz darunter ein, `AGENTS.md` §3.10):
@@ -96,7 +96,7 @@ Aussagen-Berührung steht hier gar nicht.
 | T9 | Snapshot, Ende nach `Commit` des Writers vor `Create`: ohne neuen Snapshot; der verwaiste Blob ist bis zur Wartung zulässig | Haltepunkt | wie T8 | andere |
 | T10 | Snapshot, Ende nach `Create` vor der Rückkehr: mit dem neuen, wiederherstellbaren Snapshot | Haltepunkt | `Create` ohne abgeschlossenen Blob | andere |
 | T11 | Die Zahl der gefahrenen Haltepunkte ist das Literal 10 | Zählprüfung | ein Haltepunkt entfällt | andere |
-| T12 | Der Kindprozess endet durch `SIGKILL`; ein nicht erreichter Haltepunkt ist rot | Prüfung des Exit, Nr. 3 | der Haltepunkt sendet nicht und der Kindprozess endet regulär | andere |
+| T12 | Der Kindprozess endet durch `SIGKILL` mit der Marke seiner Stelle; ein nicht erreichter Haltepunkt ist rot, ebenso eine Race-Meldung in seiner Ausgabe ([ADR-0007](../../adr/0007-race-detektor-im-gate.md)) | Prüfung des Exit, Nr. 3; `TestAbsturzEndeAuswertung`, `TestAbsturzEndeOhneHaltepunkt` | der Haltepunkt sendet nicht und der Kindprozess endet regulär | andere |
 | T13 | `Startup` nach dem Neustart: kein Fehler, kein Befund der Datenbank, `BlobsFehlend` und `BlobsBeschaedigt` leer | nach jedem Haltepunkt | der Bericht von `Startup` wird nicht gewertet | andere |
 | T14 | Entity-State, Revision und Cursors von `ws-1` und die Liste der Snapshots sind genau vorher oder genau nachher; die Orakel stammen aus demselben Aufbau ohne Absturz | Vergleich nach jedem Haltepunkt | der Vergleich lässt einen Teil (Cursors) aus | andere |
 | T15 | `ws-2` ist unverändert | Vergleich | die Operation trifft beide Workspaces | andere |
@@ -131,7 +131,31 @@ Aussagen-Berührung steht hier gar nicht.
 
 Raten (je Lauf von `go test`, ein Prozess samt Kindprozessen): ohne Detektor 300 von 300 Haltepunkt-Läufen grün (`-count=30`, `TestAbsturz` 5,68 bis 6,06 s) und `-count=5` auf der letzten Fassung grün; mit Detektor 100 von 100 (`-count=10`) und 50 von 50 auf der letzten Fassung (`-count=5`), dazu `-count=10 -cpu=1` grün; keine Race-Meldung eines Prozesses (`GORACE=log_path`, keine Datei). Last des Hosts (1 min) vor und nach den Läufen: 7,49 und 3,06 bzw. 2,64 und 3,34.
 
-Negative des Tests, je mit Grund und Folge: dass `absturzLaufe` die Lage und die Prüfung ruft, hat keinen eigenen Fänger (2 von 2 Aufrufen; Grund: Testcode ohne Test darüber; Folge: fiele ein Aufruf weg, blieben die Mutationen oben grün). Die Auswertung des Endes weist in fünf Zweigen ab, eine Kontrolle hat der des regulären Endes (4 von 5 ohne Fänger: Frist, anderes Ende, Marke fehlt, Marke fremd; Grund: nicht ohne Eingriff in den Kindprozess herstellbar; Folge: Frist und Marke sichern einander, der Wegfall eines Zweigs bliebe unbemerkt). Ein Befund der Datenbank wird am Aufruf nicht hergestellt (1 von 3 Befundlisten; Grund: er verlangte rohes SQL im Test; Folge: ihn trägt allein die Auswertung, `TestAbsturzStartBefunde`).
+Negative des Tests, je mit Grund und Folge: dass `absturzLaufe` die Lage und die Prüfung ruft, hat keinen eigenen Fänger (2 von 2 Aufrufen; Grund: Testcode ohne Test darüber; Folge: fiele ein Aufruf weg, blieben die Mutationen oben grün). Ein Befund der Datenbank wird am Aufruf nicht hergestellt (1 von 3 Befundlisten; Grund: er verlangte rohes SQL im Test; Folge: ihn trägt allein die Auswertung, `TestAbsturzStartBefunde`).
+
+Negative der Auswertung des Prozessendes (`absturzWerte`), je mit Grund und Folge:
+
+- In der Prüfung des Signals haben 2 von 3 Teilbedingungen keinen Fänger: `!ok` der Typzusicherung (`Sys()` ist auf Unix immer `syscall.WaitStatus`) und `!status.Signaled()` (gleichwertig: ohne Signal liefert `Signal()` -1, das nicht `SIGKILL` ist; die Mutation blieb grün). Folge: keine.
+- Exit-Codes und fremde Signale sind eine große Menge, der Code vergleicht einen Wert (`SIGKILL`). Der Fänger führt 3 von 255 Exit-Codes (1; 9 als Nummer von `SIGKILL`; 137 als Schreibweise der Shell) und 2 fremde Signale (`SIGTERM`, `SIGUSR1`). Folge: eine Änderung, die genau einen anderen Wert annimmt, bliebe unbemerkt.
+- Die Race-Meldung erkennt der Test am Text `WARNING: DATA RACE` in der Ausgabe (1 Text). Dass der Detektor ihn vor `SIGKILL` dorthin schreibt, hat keinen dauerhaften Fänger (1 von 1 Kette; Grund: er verlangte ein Datenrennen im Testcode, das `make test-race` rot machte); gesehen ist es mit einem eingesetzten Rennen (unten). Folge: ändert eine Go-Version den Wortlaut, oder lenkt `GORACE` des Aufrufers die Meldung mit `log_path` in eine Datei (kein Gate setzt es), bleibt die Prüfung still.
+
+Zwei Teile der Prüfung nach dem Neustart sind doppelt gedeckt und haben keinen eigenen Fänger (Reviewer-Befund F-7; beide Mutationen blieben grün): die Bedingung auf das Verzeichnis `sha256` in `absturzAblage` (1 von 2 Teilbedingungen; Grund: kein temporärer Name gleicht einem Hash; Folge ohne sie: eine Datei außerhalb von `sha256/` unter dem Namen eines referenzierten Hashes bliebe unentdeckt) und der Zweig *der Snapshot `vor` fehlt* in `absturzWiederherstellen` (1 von 3 Meldungen; Grund: der Vergleich der Snapshot-Liste meldet dasselbe; Folge ohne ihn: keine, solange der Vergleich die Liste führt).
+
+Hinweis (F-6): ein Lauf mit Filter auf einen Untertest (`-run '^TestAbsturz$/^mutation-vor-commit$'`) ist ohne Mutation rot, weil die Zählprüfung 10 Haltepunkte verlangt. Mutationsbelege laufen mit `-run '^TestAbsturz'`.
+
+**Auswertung des Prozessendes** (Implementer, Fix-Runde, 2026-11-28; gemessen von ihm in einem Container ohne Netz, `--cpus=4 --memory=4g`). `absturzWerte` weist in 6 Zweigen ab; `TestAbsturzEndeAuswertung` führt 16 Enden (1 angenommen, 15 abgewiesen), die die Shell ohne Eingriff in den Kindprozess erzeugt (beim gescheiterten Start ein fehlendes Programm); `TestAbsturzEndeOhneHaltepunkt` führt dazu den echten Kindprozess mit unbekannter Operation (Exit 1). Je Mutation ein Lauf `go test -run '^TestAbsturz' -count=1`:
+
+| Zweig (Enden) | Mutation | Roter Test |
+|---|---|---|
+| Race-Meldung (stderr, stdout, Exit 66) | Prüfung abgeschaltet; nur eine längere Zeile am Anfang der Ausgabe gilt | `…EndeAuswertung`, je die drei `Race-Meldung_*` |
+| Frist (1) | Prüfung abgeschaltet | `…EndeAuswertung/Frist` |
+| kein Exit-Fehler (Start scheitert, reguläres Ende) | Zweig abgeschaltet; reguläres Ende angenommen; gescheiterter Start angenommen | `TestAbsturzEndeOhneHaltepunkt` (Panik); `TestAbsturzEndeOhneHaltepunkt` und `…/reguläres_Ende`; `…/Start_scheitert` |
+| nicht `SIGKILL` (Exit 1, 9, 137, `SIGTERM`, `SIGUSR1`) | Prüfung entfernt; nur die Signalnummer; nur das Signal ohne Exit; `SIGUSR1` zusätzlich angenommen; Exit 137 zusätzlich angenommen | die Enden des Zweigs; entfernt bzw. ohne Exit auch `TestAbsturzEndeOhneHaltepunkt` (unbekannte Operation); einzeln `…/SIGUSR1` bzw. `…/Exit_137` |
+| Marke fehlt (1) | Fehler beim Lesen übergangen | `…/Marke_fehlt` |
+| Marke nennt nicht die Stelle (ohne Stelle, fremd, längerer Name) | Prüfung entfernt; Präfix ohne Leerzeichen | die drei `…/Marke_*`; `…/Marke_mit_längerem_Namen`, `…/SIGKILL_mit_Marke` und die drei `…-vor-commit` |
+| Race-Meldung am echten Detektor (F-2) | Datenrennen in `absturzKind` eingesetzt, `-race` | 10 von 10 Haltepunkten rot (*Datenrennen im Kindprozess*); ohne die Prüfung bleibt derselbe Lauf grün |
+
+Raten: grün in 3 von 3 Wiederholungen (`-count=3`) ohne und mit Detektor, 5 von 5 mit Detektor (`-count=5 -v`), `TestAbsturzEnde*` 20 von 20 ohne Detektor; `TestAbsturzEndeAuswertung` braucht 1,02 s (die Frist von 1 s). Last des Hosts (1 min) vor und nach dem Container-Lauf: 3,49 und 2,71. Der Fall *Frist* hält den Prozess mit `SIGSTOP` an und enthält keinen Schlaf.
 
 **Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; „Nr.“ meint `SPEC-048`):
 
@@ -139,7 +163,7 @@ Negative des Tests, je mit Grund und Folge: dass `absturzLaufe` die Lage und die
 |---|---|---|---|---|---|
 | Mutation, Reset, Restore | Haltepunkt nicht erreicht: rot, Nr. 3 | gilt nicht: fester Ausgangsstand, Nr. 1 | fremder Workspace `ws-2` unverändert: Nr. 3 | Prozessende an den Haltepunkten, Nr. 2 | nach dem Neustart eine weitere Mutation, Nr. 3 |
 | Snapshot erzeugen | wie oben | gilt nicht: der Ausgangsstand ist nicht leer, Nr. 1 | gilt nicht: keine Wahl des Namens im Test | Nr. 2 (vier Haltepunkte) | `Restore` von `vor` gelingt, Nr. 3 |
-| Neustart (`Startup`) | fehlender Blob: rot, Nr. 3 | gilt nicht | beschädigter Blob oder Befund: rot, Nr. 3 | gilt nicht: `Startup` wird nicht abgebrochen (Nr. 5 nennt keinen Fall; ein Abbruch hier ist kein Gegenstand) | gilt nicht: je Haltepunkt ein Neustart |
+| Neustart (`Startup`) | fehlender Blob: rot, Nr. 3 | gilt nicht: `Startup` nimmt allein den Kontext, und jeder Neustart öffnet den nicht leeren Ausgangsstand, Nr. 1 | beschädigter Blob oder Befund: rot, Nr. 3 | gilt nicht: `Startup` wird nicht abgebrochen (Nr. 5 nennt keinen Fall; ein Abbruch hier ist kein Gegenstand) | gilt nicht: je Haltepunkt ein Neustart |
 
 **Kollision und Namen** (Planner, 2026-11-28, an `main` und den Zweigen `slice-admin-abweisen-begrenzen` und `slice-container-image` samt Arbeitsbaum gelesen): `src/bootstrap/absturz_test.go` gibt es auf keinem der drei Stände. Alle Namen der Datei auf oberster Ebene beginnen mit `absturz`, `Absturz` oder `TestAbsturz` (Paket `bootstrap_test`; auf `main` und den zwei Zweigen steht keiner mit diesem Anfang; `ab` gehört der Abnahme). Der Test braucht keinen Export des Pakets `bootstrap`: er baut die Dienste aus den exportierten Konstruktoren. Braucht er doch einen, ist `export_test.go` der einzige zulässige Ort (eine eigene Datei mit `package bootstrap` weist das Lint-Profil ab, `BEO-REPO/test-export-in-eigener-datei-verletzt-testpackage`), und `slice-admin-abweisen-begrenzen` ändert diese Datei: der Implementer hält an und gibt an den Planner zurück (Block und Kollision). [slice-container-image](../in-progress/slice-container-image.md) ändert das `Dockerfile` und keinen Pfad unter `src/`; keiner der zwei Slices ändert `spec/spezifikation.md`.
 
@@ -191,8 +215,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 dasteht.
 
 - Der Test findet einen echten Fehler (verwaiste Zustände, nicht wiederherstellbarer Snapshot) — **Ausgang:** weiter offen: erste Rückführung in §4, Adresse Planner und Architect. Stand beim Handoff (Implementer): kein Fund an den 10 Haltepunkten.
-- Ein Kindprozess unter `make test-race` verlängert den Lauf von `bootstrap` über eine Zeitgrenze (`BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`) — **Ausgang:** weiter offen; Adresse: Implementer (misst mit Last und Messendem). Messung (Implementer, 2026-11-28, ein Container mit 4 CPUs): die Tests `TestAbsturz*` brauchen unter `-race` zusammen rund 14,7 s (Mittel aus 5 Läufen: 8,29, 1,45 und 4,97 s; Last 2,64 vor und 3,34 nach den Läufen); die Kindprozesse laufen mit `atexit_sleep_ms=0`. Das Paket `bootstrap` unter `-race` brauchte in einem Lauf 405 s (Last 2,98 vor, 3,06 nach dem Lauf; Fassung ohne `atexit_sleep_ms=0`, dort `TestAbsturzEndeOhneHaltepunkt` 5,47 statt 1,45 s) bei einer Grenze von `go test` von 10 min je Paket; ein Lauf, kein Vergleich mit dem Paket ohne den Test.
+- Ein Kindprozess unter `make test-race` verlängert den Lauf von `bootstrap` über eine Zeitgrenze (`BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`) — **Ausgang:** weiter offen; Adresse: Implementer (misst mit Last und Messendem). Stand (Implementer, Fix-Runde, 2026-11-28, ein Container mit 4 CPUs und 4 GiB, ein Lauf `go test -race -count=1`): das Paket `bootstrap` braucht 410 s bei einer Grenze von `go test` von 10 min je Paket (Last 6,87 vor, 4,25 nach dem Lauf); daran haben die Tests `TestAbsturz*` zusammen 16,3 s (8,46, 1,78, 1,02, 0,00 und 5,03 s); die Kindprozesse laufen mit `atexit_sleep_ms=0`. Der Reviewer maß 404 s in einem Lauf auf dem Stand `5a67a1e1` (Last 5,40 vor, 3,08 nach dem Lauf; Report 2026-11-28-slice-absturztest-review). Je ein Lauf, kein Vergleich mit dem Paket ohne den Test.
 - Die Schnittfrage (§4) — **Ausgang:** entfallen (Planner, 2026-11-28: kein Schnitt, `schnitt-grund` im Block).
+- `SPEC-048` Nr. 4 nennt für *`Create` vor dem `Commit` des Writers* rot am Haltepunkt *im `Write`*. Das trifft für `Create` vor `Write` (T8); zwischen `Write` und `Commit` bleibt dieser Haltepunkt grün, rot werden *nach `Commit` des Writers* und *nach `Create`* (T9; Reviewer-Befund F-4 im Report 2026-11-28-slice-absturztest-review) — **Ausgang:** offen; Adresse: Architect (Wortlaut von Nr. 4). Der Test ändert sich dadurch nicht.
 
 ## 7. Closure-Notiz
 

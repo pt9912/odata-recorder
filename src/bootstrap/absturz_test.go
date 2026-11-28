@@ -1,6 +1,8 @@
 package bootstrap_test
 
 import (
+	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -470,8 +472,7 @@ func absturzLage(t *testing.T, stelle, befund, blobPfad string, blobsVorher int,
 	return []string{lage}
 }
 
-// absturzStarte führt den Kindprozess für op und stelle aus. Der Fehlertext ist leer, wenn der Prozess innerhalb der Frist durch SIGKILL
-// endete und die Marke der Stelle hinterließ; befund ist der Rest der Marke.
+// absturzStarte führt den Kindprozess für op und stelle aus und wertet sein Ende mit absturzWerte aus.
 func absturzStarte(t *testing.T, op, stelle, dbPfad, blobPfad string) (befund, fehler string) {
 	t.Helper()
 	marke := filepath.Join(t.TempDir(), "marke")
@@ -482,7 +483,17 @@ func absturzStarte(t *testing.T, op, stelle, dbPfad, blobPfad string) (befund, f
 	cmd.Env = append(os.Environ(), absturzEnvOp+"="+op, absturzEnvStelle+"="+stelle, absturzEnvDB+"="+dbPfad, absturzEnvBlobs+"="+blobPfad,
 		absturzEnvMarke+"="+marke, "GORACE="+os.Getenv("GORACE")+" atexit_sleep_ms=0")
 	cmd.WaitDelay = 10 * time.Second
+	return absturzWerte(ctx, cmd, stelle, marke)
+}
+
+// absturzWerte führt cmd aus (ctx ist der Kontext von cmd). Der Fehlertext ist leer, wenn die Ausgabe keine Meldung des Race-Detektors trägt,
+// der Prozess innerhalb der Frist durch SIGKILL endete und die Datei marke die Stelle nennt; befund ist der Rest der Marke. Die Meldung wird
+// vor dem Ende geprüft: SIGKILL kommt dem Exit-Code des Detektors zuvor.
+func absturzWerte(ctx context.Context, cmd *exec.Cmd, stelle, marke string) (befund, fehler string) {
 	ausgabe, err := cmd.CombinedOutput()
+	if bytes.Contains(ausgabe, []byte("WARNING: DATA RACE")) {
+		return "", fmt.Sprintf("Datenrennen im Kindprozess\n%s", ausgabe)
+	}
 	var ende *exec.ExitError
 	if ctx.Err() != nil {
 		return "", fmt.Sprintf("Haltepunkt nicht erreicht: Kindprozess nach der Frist beendet\n%s", ausgabe)
@@ -560,13 +571,73 @@ func TestAbsturz(t *testing.T) {
 	}
 }
 
-// TestAbsturzEndeOhneHaltepunkt (T12): ein Kindprozess, der seine Stelle nicht erreicht, endet regulär und gilt als nicht erreicht.
+// TestAbsturzEndeOhneHaltepunkt (T12): ein Kindprozess, der seine Stelle nicht erreicht, endet regulär und gilt als nicht erreicht; einer mit
+// unbekannter Operation endet mit Exit 1 und gilt ebenso.
 func TestAbsturzEndeOhneHaltepunkt(t *testing.T) {
-	for _, op := range []string{absturzMutation, absturzReset, absturzRestore, absturzSnapshot} {
+	for op, ende := range map[string]string{absturzMutation: "<nil>", absturzReset: "<nil>", absturzRestore: "<nil>", absturzSnapshot: "<nil>",
+		"unbekannt": "exit status 1"} {
 		dbPfad, blobPfad := absturzAufbau(t)
-		if _, fehler := absturzStarte(t, op, absturzNie, dbPfad, blobPfad); !strings.Contains(fehler, "Haltepunkt nicht erreicht: Ende <nil>") {
+		soll := "Haltepunkt nicht erreicht: Ende " + ende + " ohne SIGKILL"
+		if _, fehler := absturzStarte(t, op, absturzNie, dbPfad, blobPfad); !strings.HasPrefix(fehler, soll) {
 			t.Errorf("%s ohne Haltepunkt: %q", op, fehler)
 		}
+	}
+}
+
+// absturzEnde ist ein Ende eines Prozesses und was absturzWerte dazu liefert: programm (leer: die Shell) führt skript aus, marke ist der Inhalt
+// der Marke (leer: keine Datei), frist ist die Frist (0: absturzFrist), fehler der Anfang des Fehlertexts (leer: angenommen mit Befund b).
+type absturzEnde struct {
+	name, programm, skript, marke, fehler string
+	frist                                 time.Duration
+}
+
+// absturzEnden sind der angenommene Fall und Enden zu jeder Abweisung von absturzWerte. Wo ein Fall nicht die Marke prüft, liegt die Marke der
+// Stelle: das Ende scheitert nicht an ihr.
+func absturzEnden() []absturzEnde {
+	const richtig, kill, rennen = "im-write b", "kill -KILL $$", "echo 'WARNING: DATA RACE'"
+	nicht := "Haltepunkt nicht erreicht: "
+	return []absturzEnde{
+		{name: "SIGKILL mit Marke", skript: kill, marke: richtig},
+		{name: "Start scheitert", programm: "/gibt/es/nicht", marke: richtig, fehler: nicht + "Ende fork/exec"},
+		{name: "reguläres Ende", skript: "exit 0", marke: richtig, fehler: nicht + "Ende <nil> ohne SIGKILL"},
+		{name: "Exit 1", skript: "exit 1", marke: richtig, fehler: nicht + "Ende exit status 1 ohne SIGKILL"},
+		{name: "Exit 9", skript: "exit 9", marke: richtig, fehler: nicht + "Ende exit status 9 ohne SIGKILL"},
+		{name: "Exit 137", skript: "exit 137", marke: richtig, fehler: nicht + "Ende exit status 137 ohne SIGKILL"},
+		{name: "SIGTERM", skript: "kill -TERM $$", marke: richtig, fehler: nicht + "Ende signal: terminated ohne SIGKILL"},
+		{name: "SIGUSR1", skript: "kill -USR1 $$", marke: richtig, fehler: nicht + "Ende signal: user defined signal 1 ohne SIGKILL"},
+		// Der Prozess hält sich an und endet erst, wenn der Ablauf der Frist ihn beendet.
+		{name: "Frist", skript: "kill -STOP $$", marke: richtig, frist: time.Second, fehler: nicht + "Kindprozess nach der Frist"},
+		{name: "Marke fehlt", skript: kill, fehler: "SIGKILL ohne Marke"},
+		{name: "Marke ohne Stelle", skript: kill, marke: " ", fehler: "Marke "},
+		{name: "Marke fremd", skript: kill, marke: "vor-begin b", fehler: "Marke "},
+		{name: "Marke mit längerem Namen", skript: kill, marke: "im-writer b", fehler: "Marke "},
+		{name: "Race-Meldung auf stderr", skript: rennen + " >&2; " + kill, marke: richtig, fehler: "Datenrennen im Kindprozess"},
+		{name: "Race-Meldung auf stdout", skript: rennen + "; " + kill, marke: richtig, fehler: "Datenrennen im Kindprozess"},
+		{name: "Race-Meldung bei Exit 66", skript: rennen + " >&2; exit 66", marke: richtig, fehler: "Datenrennen im Kindprozess"},
+	}
+}
+
+// TestAbsturzEndeAuswertung (T12): absturzWerte nimmt das Ende durch SIGKILL mit der Marke der Stelle und ohne Race-Meldung an und nennt zu
+// jedem Ende aus absturzEnden, das davon abweicht, die Abweisung.
+func TestAbsturzEndeAuswertung(t *testing.T) {
+	for _, e := range absturzEnden() {
+		t.Run(e.name, func(t *testing.T) {
+			marke := filepath.Join(t.TempDir(), "marke")
+			if e.marke != "" {
+				abMust(t, os.WriteFile(marke, []byte(e.marke), 0o600))
+			}
+			ctx, abbruch := context.WithTimeout(context.Background(), cmp.Or(e.frist, absturzFrist))
+			defer abbruch()
+			cmd := exec.CommandContext(ctx, cmp.Or(e.programm, "/bin/sh"), "-c", e.skript)
+			cmd.WaitDelay = 10 * time.Second
+			befund, fehler := absturzWerte(ctx, cmd, absturzImWrite, marke)
+			if e.fehler == "" && (befund != "b" || fehler != "") {
+				t.Errorf("nicht angenommen: Befund %q, Fehler %q", befund, fehler)
+			}
+			if e.fehler != "" && (befund != "" || !strings.HasPrefix(fehler, e.fehler)) {
+				t.Errorf("Befund %q, Fehler %q, erwartet %q", befund, fehler, e.fehler)
+			}
+		})
 	}
 }
 
