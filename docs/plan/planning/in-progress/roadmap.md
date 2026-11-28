@@ -16,8 +16,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 `Welle:`-Feld der Slices in `in-progress/`. Ziel, Trigger und
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
-In Arbeit: [slice-batch-parser](slice-batch-parser.md) ([welle-expand-batch](../welle-expand-batch.md): Leser des `$batch`-Requests, nicht Teil der Erstabnahme; Zweig `slice-batch-parser`; kein Kettenslice).
-Daneben [slice-betrieb-spans-nachweis](slice-betrieb-spans-nachweis.md) ([welle-betrieb](../welle-betrieb.md): ein Test zu den Spans und Zählern in `record`, `replay` und `mock`, nur Test; Zweig `slice-betrieb-spans-nachweis`; kein Kettenslice).
+In Arbeit: [slice-betrieb-spans-nachweis](slice-betrieb-spans-nachweis.md) ([welle-betrieb](../welle-betrieb.md): ein Test zu den Spans und Zählern in `record`, `replay` und `mock`, nur Test; Zweig `slice-betrieb-spans-nachweis`; kein Kettenslice).
 Daneben [slice-ci-github-actions](slice-ci-github-actions.md) (ohne Welle, Bedingung von M7: CI mit GitHub Actions fährt `make gates`; Zweig `slice-ci-github-actions`; Kettenslice, hält die Gate-Kette).
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
