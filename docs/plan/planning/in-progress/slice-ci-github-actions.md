@@ -121,6 +121,29 @@ Die Liste ist beim Start neu gesucht (Planner, 2026-11-28, `main` bei `dfb51e47`
 
 **Maß der Negative:** von 19 Zeilen fängt dauerhaft ein Gate die Zeilen 8 und 10 und die Hälfte von 16, ein Schritt jedes Laufs die Zeile 12; die Zeilen 1, 2, 4, 5, 15, 17 und 18 sind einmal am Beleg gesehen; die Zeilen 3, 6, 7, 9, 11, 13, 14 und 19 hält nach der Lieferung allein das Review.
 
+**Lokal gesehene Mutationen** (Implementer, 2026-11-28; je Fall ein Wegwerfverzeichnis im Scratchpad mit dem echten Rezept, `d-check` am Pin von `d-check.mk`; ohne Detektor und ohne Nebenläufigkeit, je ein Lauf, das Gate ist ein Textleser). Der Exit ist der von `make`.
+
+| Zeile | Mutation | Gesehen |
+|---|---|---|
+| — | unverändert | Exit 0, 0 Befunde |
+| 8 | `@v7`, `@v7.0.1`, `@v4`, `@main` | rot, je `uses-pin-missing` |
+| 8 | SHA mit 39, mit 41 und mit 7 Zeichen; `docker://alpine:3` | rot, je `uses-pin-missing` |
+| 8 | SHA ohne Kommentar | rot, `uses-pin-untagged` |
+| 8 | kaputtes YAML | rot, `workflow-unparsable` (dazu `uses-pin-missing` für die leere Prüfmenge) |
+| 8 | Stelle: ungepinntes `uses:` als zweiter Schritt, in einer zweiten Datei (`.yaml`), am Job (wiederverwendeter Workflow) | rot, je `uses-pin-missing` mit Datei und Zeile |
+| 10 | Datei entfernt (daneben eine `.md`), Verzeichnis `.github` entfernt, Verzeichnis leer, `uses:` entfernt | rot, je `leere Pruefmenge` |
+| 8 | `workflows.dir` der Konfiguration falsch | rot, `leere Pruefmenge` |
+| 12 | `run`-Block des Schritts *Umgebung*, aus der Datei gelesen, mit `bash -e` in einem flachen (`--depth 1`) und in einem vollen Klon | flach Exit 1, voll Exit 0; nicht auf dem Runner gesehen |
+| 16 | Zeile des Ziels im Index von `harness/README.md` entfernt | `make docs-check` rot, `gate-undocumented` |
+| 16 | Zeile `GATE_CHECKS += workflow-check` entfernt | `make docs-check` grün (Negativ Nr. 11 d); das Rezept verschwindet aus `make -n -k gates` (1 Treffer zu 0) |
+| 3, 6, 7, 9, 11, 13, 14 | `paths-ignore`; `contents: write`; `env` mit `secrets`; zweite gepinnte Aktion mit eigener SHA; `persist-credentials` entfernt; `ubuntu-latest`; `concurrency` | `workflow-check` grün, wie im Plan |
+| 1, 2, 4, 5, 12, 15 | `branches: [main]`; `pull_request` entfernt; `make docs-check` statt `make gates`; `continue-on-error`; `fetch-depth` entfernt; Schritt *Umgebung* entfernt | `workflow-check` grün; Fänger ist der Lauf bzw. das Review |
+
+Zwei Grenzen von `workflow-check`, die der Vertrag nicht nennt (§6, *Offene Punkte*): ein Kommentar hinter der SHA, der kein Tag ist (`# irgendwas`), bleibt grün; eine Konfiguration ohne die Zeile `modules:` bleibt grün. Zusätzlich meldet `d-check` zwei verschiedene Kommentare zu derselben SHA (`uses-pin-tag-conflict`); der Vertrag sagt das nicht zu.
+`make -n gates` ohne `-k` endet am Pin dieses Repos mit Exit 2 beim Rezept von `schema-check` (seine Zeilen mit `make` laufen auch im Trockenlauf) und nennt die Rezepte danach nicht; für Zeile 4 und 16 ist `make -n -k gates` zu lesen.
+
+**Pin der Aktion** (Nr. 2 c): `actions/checkout` `v7.0.1`, SHA `3d3c42e5aac5ba805825da76410c181273ba90b1`, aufgelöst am 2026-11-28 mit `git ls-remote --tags` am öffentlichen Repo `actions/checkout` (ohne Anmeldung, ohne Git-Konfiguration des Nutzers); der Tag ist leichtgewichtig und zeigt auf den Commit, `releases/latest` nennt ihn als neuestes Release.
+
 **Größe (Einschätzung des Architect für §4):** ohne die Verträge rund 100 Zeilen (Workflow 40, Konfiguration und Fragment 30, `harness/README.md` und Verweise 30; nicht gemessen), weit unter der Schnittgrenze nach `SPEC-128` Nr. 1. Die Fänger sind überwiegend Läufe, Ausgaben eines Gates und Review; nach der Geltungsgrenze von `SPEC-128` Nr. 2 führt der Slice keinen Block. Der Aufwand liegt nicht in den Zeilen, sondern in den Läufen auf dem Runner und in dem, was sie zeigen.
 
 ## 4. Trigger
@@ -194,6 +217,12 @@ Die Regeln stehen in [SPEC-217](../../../../harness/vertraege/SPEC-217-ci.md); h
 - **Repo und Runner.** Ist das Repo öffentlich, welche Größe hat damit der Runner, und was kosten die Laufminuten oder welches Kontingent gilt (nicht geprüft; Annahme in `SPEC-217` Nr. 5 b)? *Empfehlung des Architect:* Standard-Runner zuerst, ein größerer nur nach gemessenem Bedarf. — **Ausgang:** offen, Adresse User, vor dem ersten Push.
 - **Branch-Protection.** Soll ein roter Lauf das Mergen sperren? *Empfehlung des Architect:* vorerst nein (sie sperrte den Integrationsschritt ohne Pull Requests); stattdessen liest der Integrationsschritt nach jedem Push auf `main` den Lauf (Nr. 5 der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln)). — **Ausgang:** offen, Adresse User.
 - **Images.** Sind die Pakete `d-check`, `a-check` und `d-migrate` auf `ghcr.io` ohne Anmeldung beziehbar (nicht geprüft)? *Empfehlung des Architect:* öffentlich stellen, falls nicht; keine Anmeldung im Workflow. — **Ausgang:** offen, Adresse User, vor dem ersten Push.
+
+### Offene Punkte aus der Umsetzung (Implementer, 2026-11-28)
+
+- **Zwei Grenzen von `workflow-check` fehlen in [SPEC-217](../../../../harness/vertraege/SPEC-217-ci.md) Nr. 11:** der Kommentar hinter der SHA wird nicht gegen den Tag gehalten (ein beliebiger Kommentar genügt), und eine Konfiguration ohne die Zeile `modules:` lässt das Ziel grün (§3, *Lokal gesehene Mutationen*). `harness/README.md` führt beides unter *Nicht behauptet*. Folge: ein falscher Kommentar führt bei der nächsten Anhebung in die Irre; eine geleerte Konfiguration prüft nichts. — **Ausgang:** offen, Adresse Architect.
+- **`make -n gates` bricht ab** (§3): [SPEC-211](../../../../harness/vertraege/SPEC-211-container-tests-in-der-kette.md) Nr. 5 a, Zeile 4 und Nr. 11 d des Vertrags stützen eine Prüfung auf diesen Aufruf, ohne `-k` nennt er die Rezepte hinter `schema-check` nicht. Der Slice ändert `harness/mk/schema.mk` nicht. — **Ausgang:** offen, Adresse Planner; der Verifier liest `make -n -k gates`.
+- **Kontext von [ADR-0030](../../adr/0030-eingecheckte-gate-staempel-mit-voller-gegenprobe.md)** (`Proposed`) beginnt mit „Eine CI gibt es noch nicht“; der Satz überholt sich mit dem ersten Lauf auf einem Runner. — **Ausgang:** offen, Adresse Architect.
 
 ### Randformen (Raster, `AGENTS.md` §3.16)
 

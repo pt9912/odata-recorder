@@ -1,0 +1,48 @@
+# CI nach harness/vertraege/SPEC-217-ci.md (LH-QA-06, LH-RB-03): ein Job fährt `make gates`
+# unverändert auf einem frischen Runner, bei Push auf jeden Zweig und bei jedem Pull Request.
+# Kopplung: `make workflow-check` prüft allein die Form der Pins, gültiges YAML und eine nicht
+# leere Prüfmenge. Auslöser, Rechte, die erlaubte Aktion, Runner, Zeitgrenze und der Aufruf
+# haben keinen automatischen Fänger; das Review liest bei jeder Änderung die ganze Datei gegen
+# den Vertrag (Nr. 2, 3, 11 c).
+name: gates
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      # Volle Historie für `make groessenmarke`; kein Token im Arbeitsbaum.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Abbild und Docker des Runners sind nicht gepinnt, das Log nennt sie; ein flacher Klon
+      # ist hier rot.
+      - name: Umgebung
+        run: |
+          docker version
+          nproc
+          free -h
+          df -h /
+          flach="$(git rev-parse --is-shallow-repository)"
+          echo "is-shallow-repository: $flach"
+          [ "$flach" = false ]
+
+      # Ohne Argument und ohne Umgebungsvariable: die Menge der Gates steht allein im Makefile.
+      - name: make gates
+        run: make gates
+
+      - name: Platz danach
+        if: always()
+        run: |
+          df -h /
+          docker system df

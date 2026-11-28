@@ -1,0 +1,6 @@
+# Konfiguration allein für `make workflow-check` (harness/vertraege/SPEC-217-ci.md Nr. 8).
+# Abgrenzung: .d-check.yml führt das Modul workflows nicht; seine Modul-Liste ist eine Menge
+# von SPEC-212 Nr. 3 b.
+modules: [workflows]
+workflows:
+  dir: .github/workflows
