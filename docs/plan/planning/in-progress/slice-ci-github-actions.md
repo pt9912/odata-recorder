@@ -148,6 +148,8 @@ Zwei Grenzen von `workflow-check`, die der Vertrag nicht nennt (§6, *Offene Pun
 
 **Zweite Vorprobe** (derselbe Aufruf, derselbe Messende, ein Lauf) am Stand `4dbaea61`, nach der Übernahme von `main` mit `slice-batch-parser`: Load Average (1 Minute) 9,2 beim Start und 3,3 am Ende, **grün**, 721 s. `src/bootstrap` **513,4 s**, `hexagon/model` 224,7 s, `driven/odata/csdlv2` 178,7 s, `driving/admin` 162,5 s, `driven/odata/csdl` 128,6 s, `tests/lasttest` 110,2 s; das neue Paket `driven/odata/batchcodec` 15,4 s.
 
+**Gate-Lauf** (Implementer, 2026-11-28): `make gates` Exit 0 am Stand `d3d07f19`, nach der zweiten Übernahme von `main`. Die Stufen `build`, `test`, `race` und `lint` kamen darin aus dem Schicht-Cache, weil `src/` und `tests/` gleich dem Stand von `main` sind (`BEO-REPO/gate-lauf-stufen-aus-dem-schicht-cache`); ein neuer Lauf unter dem Detektor an diesem Quellstand ist die zweite Vorprobe darüber, außerhalb des Gates.
+
 **Größe (Einschätzung des Architect für §4):** ohne die Verträge rund 100 Zeilen (Workflow 40, Konfiguration und Fragment 30, `harness/README.md` und Verweise 30; nicht gemessen), weit unter der Schnittgrenze nach `SPEC-128` Nr. 1. Die Fänger sind überwiegend Läufe, Ausgaben eines Gates und Review; nach der Geltungsgrenze von `SPEC-128` Nr. 2 führt der Slice keinen Block. Der Aufwand liegt nicht in den Zeilen, sondern in den Läufen auf dem Runner und in dem, was sie zeigen.
 
 ## 4. Trigger
