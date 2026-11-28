@@ -17,6 +17,7 @@ Zustand sind die flachen Welle-Dateien; woran gearbeitet wird, sagt das
 Closure-Kriterien stehen in der Welle-Datei, nicht hier.
 
 In Arbeit: [slice-batch-parser](slice-batch-parser.md) ([welle-expand-batch](../welle-expand-batch.md): Leser des `$batch`-Requests, nicht Teil der Erstabnahme; Zweig `slice-batch-parser`; kein Kettenslice).
+Daneben [slice-betrieb-spans-nachweis](slice-betrieb-spans-nachweis.md) ([welle-betrieb](../welle-betrieb.md): ein Test zu den Spans und Zählern in `record`, `replay` und `mock`, nur Test; Zweig `slice-betrieb-spans-nachweis`; kein Kettenslice).
 - [welle-admin-api](../welle-admin-api.md): gestartet über Ausnahmen je Slice; ihr Trigger steht unter *Nächste Wellen*.
 - [welle-benutzerhandbuch](../welle-benutzerhandbuch.md): gestartet.
 - [welle-betrieb](../welle-betrieb.md): Trigger eingetreten, gestartet über Ausnahmen je Slice.
