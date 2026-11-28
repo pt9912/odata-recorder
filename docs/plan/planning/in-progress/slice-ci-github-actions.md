@@ -252,7 +252,7 @@ Hälften.
 **Vorgelagert — offene Beobachtungen sichten** (Planner beim Start, 2026-11-28, `main` bei `dfb51e47`; Zahl der Dateien unter `evidence/`):
 
 - `BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze` (3): Frage 7.
-- `BEO-REPO/test-fremden-pakets-flackert-unter-last` (4, geplant in [slice-test-flackern](../open/slice-test-flackern.md)): Frage 8.
+- `BEO-REPO/test-fremden-pakets-flackert-unter-last` (4, geplant in [slice-test-flackern](../next/slice-test-flackern.md)): Frage 8.
 - `BEO-REPO/gate-lauf-stufen-aus-dem-schicht-cache` (21): Frage 9.
 - `BEO-REPO/gegenproben-erzeugen-die-last-selbst` (2): Frage 6.
 - `BEO-REPO/image-tag-race-von-allen-worktrees-geteilt` (2): die Vorprobe (`SPEC-217` Nr. 5 c) läuft neben zwei Zweigen; sie fährt den eigenen Baum, nicht den zuletzt gebauten Stand des Tags.
