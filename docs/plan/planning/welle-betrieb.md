@@ -265,7 +265,7 @@ Die Zahlen gelten für `9c3f5f10`; `src/` hat sich danach geändert, ein neuer A
 | Eintrag | Ausgang |
 |---|---|
 | `nullprobe-grenze-unter-der-paketlaufzeit` | geplant: [slice-mutationslauf-modulwurzel](open/slice-mutationslauf-modulwurzel.md) |
-| `test-fremden-pakets-flackert-unter-last` | geplant: [slice-test-flackern](open/slice-test-flackern.md) |
+| `test-fremden-pakets-flackert-unter-last` | geplant: [slice-test-flackern](in-progress/slice-test-flackern.md) |
 | `allaussage-an-jeder-stelle-mit-faenger-an-erster-und-zweiter-stelle` | verkörpert: `AGENTS.md` §3.15, keine neue Regel |
 | `sperrfenster-zwischen-sammlungen-ohne-faenger` | verkörpert: `AGENTS.md` §3.10, keine neue Regel |
 | `zusage-ueber-verzweigungen-reicher-als-die-funktionsliste` | verkörpert: Reviewer-Skill (§3.11), keine neue Regel |
