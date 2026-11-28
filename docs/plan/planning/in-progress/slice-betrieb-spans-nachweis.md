@@ -88,6 +88,9 @@ Ein Canary zählt nur, wenn der Test zeigt, dass er den Prozess erreicht hat (be
 pfad: src/bootstrap/telemetrie_betrieb_test.go
 produktcode: 0
 fakes: 0
+basis: a819be8e
+schaetzung: 880
+marke: 1200
 ```
 
 ## 4. Trigger
@@ -99,7 +102,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Stand beim Start** (Planner, 2026-11-28, `main` bei `4c935d28`, durch Lesen und Suchen, ohne Testlauf): Die Bedingung ist erfüllt; die übrigen Slices der Welle liegen in `done/`. Der Vertrag liegt in der Spezifikation, keine Frage an den Architect ist offen; er wird erst mit der Rückführung unten gebraucht. Die Helfer in `src/bootstrap` bestehen (`baueWurzelHaken`, `mockDaten`, `replayDaten`, `fakeUp`, `TelemetrieVon`). *Kollision:* in `in-progress/` liegt daneben allein [slice-batch-parser](../in-progress/slice-batch-parser.md); sein Zweig und sein Worktree ändern keinen Pfad unter `src/bootstrap/`. Der Zweig `vertrag-ci` trägt beim Start keinen Commit über `main`. Der Slice ändert weder `harness/README.md` noch eine Datei der Gate-Kette (Übergangsregeln Nr. 7); der Test läuft in `make test` und `make test-race` mit.
 
-**Größenmarke** (`SPEC-128` Nr. 1, `AGENTS.md` §3.14; Planner beim Start, vor dem ersten Code-Commit): elf Zeilen der Tabelle (BS1 bis BS11), *a* = 0, *b* = 11, *f* = 0 (der Test nutzt den vorhandenen `fakeUp`), *p* = 0: *S* = 880, Marke **1200**, keine Schnittfrage. Den Teil des Blocks, den sonst der Architect setzt (`pfad`, `produktcode`, `fakes`), hat der Planner gesetzt. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Ändert der Implementer eine weitere Datei (etwa `export_test.go` oder eine vorhandene Datei mit Helfern), nennt er sie im selben Commit in §3 und im Block. Für einen Schnitt beim Handoff ist kein Teil vorab benannt; eine Überschreitung steht mit Grund im Block.
+**Größenmarke** (`SPEC-128` Nr. 1, `AGENTS.md` §3.14; Planner beim Start, vor dem ersten Code-Commit): elf Zeilen der Tabelle (BS1 bis BS11), *a* = 0, *b* = 11, *f* = 0 (der Test nutzt den vorhandenen `fakeUp`), *p* = 0: *S* = 880, Marke **1200**, keine Schnittfrage. Den Teil des Blocks, den sonst der Architect setzt (`pfad`, `produktcode`, `fakes`), hat der Planner gesetzt. `basis` ist `a819be8e` (letzter Commit von `main` vor dem Commit des Blocks); Messbasis nach `SPEC-128` Nr. 10 g: der Pfad entsteht erst mit diesem Slice, Fremdzeilen beim Start 0. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Ändert der Implementer eine weitere Datei (etwa `export_test.go` oder eine vorhandene Datei mit Helfern), nennt er sie im selben Commit in §3 und im Block. Für einen Schnitt beim Handoff ist kein Teil vorab benannt; eine Überschreitung steht mit Grund im Block.
 
 **Rückführungen — vorab benannt:**
 
