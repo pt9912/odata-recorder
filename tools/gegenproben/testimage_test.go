@@ -24,21 +24,42 @@ func TestTestImageFaelleHabenDieNamenAusDemVertrag(t *testing.T) {
 	}
 }
 
-// Die Mengen haben die Größen des Vertrags: 15 verbotene Optionen, sechs Rollen, drei Tags, 29 Abweichungen des Image, sieben Formen je
-// Phase, 14 Aufrufe von docker, neun Orte eines Signals, 14 Läufe mit Rest und fünf der Token-Abholung; ein grüner Lauf hat 32 Aufrufe.
+// Die Mengen haben die Größen des Vertrags: 15 verbotene Optionen, sechs Rollen, drei Tags, 111 Abweichungen des Image (darin 18 fremde
+// Variablen, 46 fremde Namen aus den 18 erlaubten und den Orten), vier erlaubte Formen, sieben Formen je Phase, 15 Aufrufe von docker,
+// neun Orte eines Signals und drei zweite Signale, 14 Läufe mit Rest, drei Wege mit geschlossenem Leser und fünf der Token-Abholung; ein
+// grüner Lauf hat 33 Aufrufe.
 func TestTestImageMengen(t *testing.T) {
 	mengen := []struct {
 		name      string
 		ist, soll int
 	}{
 		{"verbotene", len(tiVerbotene()), 15}, {"rollen", len(tiRollen()), 6}, {"arten", len(tiArten()), 3},
-		{"bilder", len(tiImageBilder()), 29}, {"formen", len(tiPhasenFormen()), 7}, {"orte", len(tiOrte()), 14},
-		{"signalorte", len(tiSignalOrte()), 9}, {"aufrufe", len(tiSoll("1-2")), 32}, {"reste", len(tiReste()), 14},
-		{"token", len(tiTokenLaeufe()), 5},
+		{"bilder", len(tiImageBilder()), 111}, {"variablen", len(tiFremdeVariablen()), 18}, {"erlaubte", len(tiErlaubteNamen()), 18},
+		{"fremde Namen", len(tiFremdeNamen()), 46}, {"erlaubte Formen", len(tiErlaubteFormen()), 4},
+		{"formen", len(tiPhasenFormen()), 7}, {"orte", len(tiOrte()), 15},
+		{"signalorte", len(tiSignalOrte()), 9}, {"zweite", len(tiZweiteSignale()), 3}, {"aufrufe", len(tiSoll("1-2")), 33},
+		{"reste", len(tiReste()), 14}, {"wege", len(tiWege()), 3}, {"token", len(tiTokenLaeufe()), 5},
 	}
 	for _, m := range mengen {
 		if m.ist != m.soll {
 			t.Errorf("%s: %d Elemente, erwartet %d", m.name, m.ist, m.soll)
+		}
+	}
+}
+
+// Kein fremder Name steht in der erlaubten Menge, keine fremde Variable ist DATA_DIR oder PATH, und beide Mengen nennen keinen Wert
+// zweimal.
+func TestTestImageFremdeStehenNichtInDenErlaubten(t *testing.T) {
+	for _, m := range []struct{ fremde, erlaubte []string }{
+		{tiFremdeNamen(), tiErlaubteNamen()},
+		{tiFremdeVariablen(), []string{"DATA_DIR", "PATH"}},
+	} {
+		gesehen := map[string]bool{}
+		for _, n := range m.fremde {
+			if slices.Contains(m.erlaubte, n) || gesehen[n] {
+				t.Errorf("%q ist erlaubt oder doppelt", n)
+			}
+			gesehen[n] = true
 		}
 	}
 }

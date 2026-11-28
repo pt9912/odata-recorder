@@ -1,5 +1,5 @@
-# harness/mk/gegenproben.mk — Gegenproben zu a-check, lint, migration-check, pruefung (test, build, race, handbuch), groessenmarke, zeichen, katalog samt Treibern, die Größengrenzen von docs-check und der Treiber von lasttest (SPEC-102). Kein Gate: das Ziel
-# hängt nicht an GATE_CHECKS. Die Verdrahtung von pruefung, groessenmarke, katalog, d-check und lasttest in den Stufen des Dockerfile und der Aufruf von
+# harness/mk/gegenproben.mk — Gegenproben zu a-check, lint, migration-check, pruefung (test, build, race, handbuch), groessenmarke, zeichen, katalog samt Treibern, die Größengrenzen von docs-check und die Treiber von lasttest und test-image (SPEC-102). Kein Gate: das Ziel
+# hängt nicht an GATE_CHECKS. Die Verdrahtung von pruefung, groessenmarke, katalog, d-check, lasttest und test-image (Stufe image, harness/mk/image.mk) und der Aufruf von
 # docker in den Treibern von groessenmarke und zeichen prüfen die Fälle nicht; die zu race laufen auf dem Image der Stufe gegenproben, nicht auf RACE_IMAGE. Eine Prüfsumme der Eingaben (tools/harness/gegenproben-eingabe.sh)
 # entscheidet, ob der Lauf nötig ist; der Stempel ist eine versionierte Datei und reist mit dem Commit, auch
 # in einen anderen Klon oder Container.
@@ -8,7 +8,7 @@ DOCKER ?= docker
 DOCKER_BUILD ?= $(DOCKER) build --progress=plain
 
 .PHONY: gegenproben
-gegenproben: ## Gegenproben zu a-check, lint, migration-check, pruefung (test, build, race, handbuch), groessenmarke, zeichen, katalog, den Größengrenzen von docs-check und dem Treiber von lasttest, nur bei geänderter Eingabe (Dockerfile, Stufe gegenproben; netzlos) — KEIN Gate
+gegenproben: ## Gegenproben zu a-check, lint, migration-check, pruefung (test, build, race, handbuch), groessenmarke, zeichen, katalog, den Größengrenzen von docs-check und den Treibern von lasttest und test-image, nur bei geänderter Eingabe (Dockerfile, Stufe gegenproben; netzlos) — KEIN Gate
 	@h=$$(bash tools/harness/gegenproben-eingabe.sh "$(GOLANGCI_LINT_IMAGE)" "$(A_CHECK_IMAGE)" "$(DCHECK_REF)") && \
 	if [ "$$(cat $(GEGENPROBEN_STEMPEL) 2>/dev/null)" = "$$h" ]; then \
 	  echo "gegenproben: Eingaben unverändert seit dem letzten grünen Lauf ($$h) — nichts läuft neu"; exit 0; fi && \

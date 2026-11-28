@@ -1,14 +1,17 @@
 #!/bin/sh
 # tools/harness/test-image.sh — Treiber von `make test-image` (SPEC-323): baut die Stufen image und integration des Dockerfile unter
-# Tags dieses Laufs, prüft das Image, baut es ein zweites Mal ohne den Cache der Stufen build und image, prüft, dass das zweite Binary
-# jünger ist als das erste, und vergleicht die beiden byte-gleich, startet das Image ohne Netz, fährt die Phase aufnehmen, stoppt und startet
-# denselben Container und fährt die Phase pruefen. Jeder Name trägt die Kennung des Laufs; hinter jedem Ende entfernt der Treiber die
-# Container, die Tags und das Verzeichnis seines Laufs und nichts sonst.
+# Tags dieses Laufs, prüft das Image (Angaben, Variablen, /data, /tmp, Vertrauensanker, Namen des Exports, Version), baut es ein zweites
+# Mal ohne den Cache der Stufen build und image, prüft, dass das zweite Binary jünger ist als das erste, und vergleicht die beiden
+# byte-gleich, startet das Image ohne Netz, fährt die Phase aufnehmen, stoppt und startet denselben Container und fährt die Phase
+# pruefen. Jeder Name trägt die Kennung des Laufs; hinter jedem Ende entfernt der Treiber die Container, die Tags und das Verzeichnis
+# seines Laufs und nichts sonst, nicht den Bau-Cache.
 # Exit am Treiber: 0 grün, 1 rot (eine Prüfung, eine Phase, der Stopp, das Aufräumen), 2 Aufruf, Bau, Daemon nicht erreichbar oder Abbruch
 # durch INT, HUP oder TERM.
 set -u
 LC_ALL=C
 export LC_ALL
+# Ein Leser, der die Standardausgabe oder den Fehlerstrom schließt, ändert weder Ablauf noch Aufräumen noch Exit (SPEC-323 Nr. 6 e).
+trap '' PIPE
 
 if [ $# -ne 0 ]; then
 	echo "test-image: Aufruf: tools/harness/test-image.sh (ohne Argument)" >&2
@@ -125,16 +128,18 @@ bau --target image -t "$IMAGE"
 bau --target integration -t "$CLIENT"
 
 # Die Prüfungen am Image (SPEC-323 Nr. 3).
-rufe image inspect --format 'user={{.Config.User}}{{println}}entrypoint={{json .Config.Entrypoint}}{{println}}cmd={{json .Config.Cmd}}{{println}}volumes={{json .Config.Volumes}}{{range .Config.Env}}{{println}}env={{.}}{{end}}' "$IMAGE"
+rufe image inspect --format 'user={{.Config.User}}{{println}}entrypoint={{json .Config.Entrypoint}}{{println}}cmd={{json .Config.Cmd}}{{println}}volumes={{json .Config.Volumes}}{{println}}exposed={{json .Config.ExposedPorts}}{{println}}healthcheck={{json .Config.Healthcheck}}{{range .Config.Env}}{{println}}env={{.}}{{end}}' "$IMAGE"
 cp "$tmp/aus" "$tmp/inspect"
 grep -qxF 'user=65532:65532' "$tmp/inspect" || rot "Nutzer" "$tmp/inspect"
 grep -qxF 'entrypoint=["/odata-recorder"]' "$tmp/inspect" || rot "Eintrittspunkt" "$tmp/inspect"
 grep -qxF 'cmd=["start"]' "$tmp/inspect" || rot "Standardargument" "$tmp/inspect"
 grep -qx 'volumes=null\|volumes={}' "$tmp/inspect" || rot "Volume" "$tmp/inspect"
+grep -qx 'exposed=null\|exposed={}' "$tmp/inspect" || rot "EXPOSE" "$tmp/inspect"
+grep -qxF 'healthcheck=null' "$tmp/inspect" || rot "HEALTHCHECK" "$tmp/inspect"
 grep -qxF 'env=DATA_DIR=/data' "$tmp/inspect" || rot "DATA_DIR" "$tmp/inspect"
-for variable in LISTEN ADMIN_LISTEN MODE; do
-	! grep -q "^env=$variable=" "$tmp/inspect" || rot "Variable $variable" "$tmp/inspect"
-done
+# Außer DATA_DIR und PATH trägt das Image keine Variable; der Name ist der ganze Text vor dem ersten `=`.
+variable=$(awk '/^env=/ { name = substr($0, 5); sub(/=.*/, "", name); if (name != "DATA_DIR" && name != "PATH") { print name; exit } }' "$tmp/inspect")
+[ -z "$variable" ] || rot "Variable $variable" "$tmp/inspect"
 
 rufe create --name "$NAME-pruefung" --label "$LABEL" --network none "$IMAGE"
 
@@ -151,6 +156,32 @@ eintrag /etc/ssl/certs/ca-certificates.crt
 awk 'NR == 1 && $1 ~ /^-/ && $3 > 0 { ok = 1 } END { exit !ok }' "$tmp/liste" || rot "Vertrauensanker" "$tmp/liste"
 eintrag /tmp
 [ "$(awk 'NR == 1 { print $1, $NF }' "$tmp/liste")" = "drwxrwxrwt tmp/" ] || rot "/tmp Rechte" "$tmp/liste"
+
+# Inhalt: die ersten sieben Namen trägt das Image, die elf weiteren legt die Laufzeit an jedem angelegten Container an. Verglichen wird
+# jeder Name ganz und buchstäblich; grep endet allein ohne fremden Namen mit 1.
+fahre "$tmp/tar" /dev/null $DOCKER export "$NAME-pruefung" || rot "docker export"
+tar -tf "$tmp/tar" >"$tmp/liste" 2>"$tmp/fehler" || rot "Tar-Strom Inhalt"
+grep -vxF -f - "$tmp/liste" >"$tmp/fremd" 2>"$tmp/fehler" <<'EOF'
+odata-recorder
+data/
+tmp/
+etc/
+etc/ssl/
+etc/ssl/certs/
+etc/ssl/certs/ca-certificates.crt
+.dockerenv
+dev/
+dev/console
+dev/pts/
+dev/shm/
+etc/hostname
+etc/hosts
+etc/mtab
+etc/resolv.conf
+proc/
+sys/
+EOF
+[ $? -eq 1 ] || rot "Inhalt" "$tmp/fremd"
 
 rufe run --rm --name "$NAME-version" --label "$LABEL" --network none --memory 512m --memory-swap 512m "$IMAGE" version
 [ "$(cat "$tmp/aus")" = "odata-recorder $VERSION" ] || rot "Version" "$tmp/aus"
@@ -209,7 +240,7 @@ phase() {
 phase aufnehmen TestImageAufnehmen
 werte=$(sed -n 's/^.*NEUSTART-WERTE=//p' "$tmp/phase")
 
-rufe stop --time 30 "$SERVER"
+rufe stop -t 30 "$SERVER"
 rufe inspect --format '{{.State.ExitCode}}' "$SERVER"
 [ "$(cat "$tmp/aus")" = 0 ] || rot "Stopp: Exit des Servers" "$tmp/aus"
 rufe start "$SERVER"

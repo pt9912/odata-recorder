@@ -73,6 +73,7 @@ build) tag=$(wert -t "$@"); ort=bau-$(art "$tag") ;;
 image) ort=image-inspect ;;
 create) name=$(wert --name "$@"); ort=create-${name##*-} ;;
 run) name=$(wert --name "$@"); ort=run-${name##*-} ;;
+export) name=$2; ort=export ;;
 cp)
 	q=${2%%:*}
 	case $2 in
@@ -95,6 +96,11 @@ version) ort=version ;;
 *) ort=fremd ;;
 esac
 signal "$ort"
+# Das zweite Signal: der Aufruf läuft danach zu Ende.
+if [ "${TI_SIG2_BEI:-}" = "$ort" ] && [ ! -e "$l/signal2" ]; then
+	: >"$l/signal2"
+	kill -"$TI_SIG2" "$PPID"
+fi
 case " ${TI_FEHLER:-} " in
 *" $ort "*)
 	echo "ersatz: $ort scheitert" >&2
@@ -108,7 +114,29 @@ image-inspect)
 	eintritt=${TI_ENTRYPOINT-'["/odata-recorder"]'}
 	standard=${TI_CMD-'["start"]'}
 	printf 'user=%s\nentrypoint=%s\ncmd=%s\nvolumes=%s\n' "${TI_USER-65532:65532}" "$eintritt" "$standard" "${TI_VOLUMES-null}"
+	printf 'exposed=%s\nhealthcheck=%s\n' "${TI_EXPOSED-null}" "${TI_HEALTHCHECK-null}"
 	printf '%s\n' "${TI_ENV-DATA_DIR=/data}" | sed 's/^/env=/' ;;
+export)
+	[ -e "$s/c/$name" ] || { echo "No such container: $name" >&2; exit 1; }
+	w=$l/tarbau
+	rm -rf "$w"
+	mkdir -p "$w"
+	vorn=${TI_VORN-}
+	namen='odata-recorder data/ tmp/ etc/ etc/ssl/ etc/ssl/certs/ etc/ssl/certs/ca-certificates.crt .dockerenv dev/ dev/console
+		dev/pts/ dev/shm/ etc/hostname etc/hosts etc/mtab etc/resolv.conf proc/ sys/'
+	ohne=${TI_OHNE-}
+	extra=${TI_EXTRA-}
+	set --
+	for n in $vorn $namen $extra; do
+		[ "$n" != "$ohne" ] || continue
+		case $n in
+		*/) mkdir -p "$w/$n" ;;
+		*) mkdir -p "$w/$(dirname "$n")"; : >"$w/$n" ;;
+		esac
+		set -- "$@" "$n"
+	done
+	tar -C "$w" --no-recursion -cf - "$@"
+	rm -rf "$w" ;;
 create-*)
 	: >"$s/c/$name"
 	echo kennung ;;
@@ -246,7 +274,8 @@ func tiSoll(l string) [][]string {
 		return append(a, client, "/out/e2e.test", "-test.run", "^"+test+"$", "-test.v", "-test.count=1", "-test.timeout", "120s")
 	}
 	format := "user={{.Config.User}}{{println}}entrypoint={{json .Config.Entrypoint}}{{println}}cmd={{json .Config.Cmd}}" +
-		"{{println}}volumes={{json .Config.Volumes}}{{range .Config.Env}}{{println}}env={{.}}{{end}}"
+		"{{println}}volumes={{json .Config.Volumes}}{{println}}exposed={{json .Config.ExposedPorts}}" +
+		"{{println}}healthcheck={{json .Config.Healthcheck}}{{range .Config.Env}}{{println}}env={{.}}{{end}}"
 	soll := [][]string{
 		bau("--target", "image", "-t", image),
 		bau("--target", "integration", "-t", client),
@@ -255,6 +284,7 @@ func tiSoll(l string) [][]string {
 		{"cp", c("pruefung") + ":/data", "-"},
 		{"cp", c("pruefung") + ":/etc/ssl/certs/ca-certificates.crt", "-"},
 		{"cp", c("pruefung") + ":/tmp", "-"},
+		{"export", c("pruefung")},
 		append(kopf([]string{"run", "--rm"}, "version", "none"), "--memory", "512m", "--memory-swap", "512m", image, "version"),
 		bau("--no-cache-filter", "build", "--no-cache-filter", "image", "--target", "image", "-t", zweit),
 		append(kopf([]string{"create"}, "zweit", "none"), zweit),
@@ -265,7 +295,7 @@ func tiSoll(l string) [][]string {
 		{"start", server},
 		{"cp", server + ":/data/admin.token", "-"},
 		phase("aufnehmen", "TestImageAufnehmen"),
-		{"stop", "--time", "30", server},
+		{"stop", "-t", "30", server},
 		{"inspect", "--format", "{{.State.ExitCode}}", server},
 		{"start", server},
 		phase("pruefen", "TestImagePruefen", "--env", "NEUSTART_WERTE="+tiWerte),
@@ -294,6 +324,12 @@ type tiLauf struct {
 
 // tiFahre ruft den Treiber unter dem Protokoll name mit env; das TMPDIR des Laufs ist danach leer.
 func tiFahre(l Lauf, name string, env []string, args ...string) (tiLauf, string) {
+	return tiStarte(l, name, env, append([]string{l.U.TestImageTreiber}, args...)...)
+}
+
+// tiStarte ruft `sh` mit args unter dem Protokoll name mit env; das TMPDIR des Laufs ist danach leer. Das Ergebnis trägt Exit, Ströme
+// und Aufrufe auch dann, wenn der Grund nicht leer ist.
+func tiStarte(l Lauf, name string, env []string, args ...string) (tiLauf, string) {
 	var r tiLauf
 	basis := filepath.Join(l.Tmp, name)
 	r.log = filepath.Join(basis, "log")
@@ -309,7 +345,7 @@ func tiFahre(l Lauf, name string, env []string, args ...string) (tiLauf, string)
 	umgebung := append(slices.Clone(l.Env), "TI_LOG="+r.log, "TMPDIR="+tmp, "TI_TOKEN="+tiToken, "VERSION=", "DOCKER=docker")
 	umgebung = append(umgebung, env...)
 	var abgelaufen bool
-	r.code, r.out, r.errOut, abgelaufen = starteStroeme(fallFrist, l.Dir, umgebung, true, "sh", append([]string{l.U.TestImageTreiber}, args...)...)
+	r.code, r.out, r.errOut, abgelaufen = starteStroeme(fallFrist, l.Dir, umgebung, true, "sh", args...)
 	if abgelaufen {
 		return r, name + ": Zeit überschritten"
 	}
@@ -603,52 +639,114 @@ func tiAufruf() Fall {
 	})
 }
 
-// tiImageBild ist eine Abweichung des Image und der Name der Prüfung, die sie rot meldet.
-type tiImageBild struct{ name, env, pruefung string }
+// tiImageBild ist eine Abweichung des Image und der Name der Prüfung, die sie rot meldet; zeile steht, wenn gesetzt, als eigene Zeile
+// in der Fehlerausgabe.
+type tiImageBild struct{ name, env, pruefung, zeile string }
 
-// tiImageBilder führt je Eigenschaft von SPEC-323 Nr. 3 eine Abweichung, je Variable eine. Das erste Binary des Ersatzes ist von
-// 202601010000.00, das zweite eine Sekunde jünger; die Formen des Alters setzen das zweite gleich alt oder eine Sekunde älter.
-func tiImageBilder() []tiImageBild {
-	bilder := []tiImageBild{
-		{"nutzer-root", "TI_USER=0", "Nutzer"},
-		{"nutzer-leer", "TI_USER=", "Nutzer"},
-		{"nutzer-gruppe", "TI_USER=65532:0", "Nutzer"},
-		{"eintritt", `TI_ENTRYPOINT=["/odata-recorder","start"]`, "Eintrittspunkt"},
-		{"eintritt-fehlt", "TI_ENTRYPOINT=null", "Eintrittspunkt"},
-		{"cmd-fehlt", "TI_CMD=null", "Standardargument"},
-		{"cmd-anders", `TI_CMD=["version"]`, "Standardargument"},
-		{"volume", `TI_VOLUMES={"/data":{}}`, "Volume"},
-		{"data-dir-fehlt", "TI_ENV=PATH=/bin", "DATA_DIR"},
-		{"data-dir-anders", "TI_ENV=DATA_DIR=/data2", "DATA_DIR"},
+// tiAngabenBilder führt je Angabe aus `image inspect` ihre Abweichungen; eine leere Liste ist bei den Ports erlaubt, beim Healthcheck
+// nicht.
+func tiAngabenBilder() []tiImageBild {
+	return []tiImageBild{
+		{name: "nutzer-root", env: "TI_USER=0", pruefung: "Nutzer"},
+		{name: "nutzer-leer", env: "TI_USER=", pruefung: "Nutzer"},
+		{name: "nutzer-gruppe", env: "TI_USER=65532:0", pruefung: "Nutzer"},
+		{name: "eintritt", env: `TI_ENTRYPOINT=["/odata-recorder","start"]`, pruefung: "Eintrittspunkt"},
+		{name: "eintritt-fehlt", env: "TI_ENTRYPOINT=null", pruefung: "Eintrittspunkt"},
+		{name: "cmd-fehlt", env: "TI_CMD=null", pruefung: "Standardargument"},
+		{name: "cmd-anders", env: `TI_CMD=["version"]`, pruefung: "Standardargument"},
+		{name: "volume", env: `TI_VOLUMES={"/data":{}}`, pruefung: "Volume"},
+		{name: "expose", env: `TI_EXPOSED={"8080/tcp":{}}`, pruefung: "EXPOSE"},
+		{name: "healthcheck", env: `TI_HEALTHCHECK={"Test":["CMD","/odata-recorder","version"]}`, pruefung: "HEALTHCHECK"},
+		{name: "healthcheck-none", env: `TI_HEALTHCHECK={"Test":["NONE"]}`, pruefung: "HEALTHCHECK"},
+		{name: "healthcheck-leer", env: `TI_HEALTHCHECK={}`, pruefung: "HEALTHCHECK"},
+		{name: "data-dir-fehlt", env: "TI_ENV=PATH=/bin", pruefung: "DATA_DIR"},
+		{name: "data-dir-anders", env: "TI_ENV=DATA_DIR=/data2", pruefung: "DATA_DIR"},
 	}
-	for _, v := range []string{"LISTEN", "ADMIN_LISTEN", "MODE"} {
-		bilder = append(bilder, tiImageBild{"variable-" + v, "TI_ENV=DATA_DIR=/data\n" + v + "=x", "Variable " + v},
-			tiImageBild{"variable-leer-" + v, "TI_ENV=" + v + "=\nDATA_DIR=/data", "Variable " + v})
-	}
-	return append(bilder,
-		tiImageBild{"data-eigentuemer", "TI_DATA_OWNER=0", "/data Eigentümer und Rechte"},
-		tiImageBild{"data-gruppe", "TI_DATA_GROUP=0", "/data Eigentümer und Rechte"},
-		tiImageBild{"data-rechte", "TI_DATA_MODE=0755", "/data Eigentümer und Rechte"},
-		tiImageBild{"data-fehlt", "TI_FEHLER=cp-data", "docker cp /data"},
-		tiImageBild{"anker-leer", "TI_CERT=", "Vertrauensanker"},
-		tiImageBild{"anker-fehlt", "TI_FEHLER=cp-certs", "docker cp /etc/ssl/certs/ca-certificates.crt"},
-		tiImageBild{"tmp-ohne-sticky", "TI_TMP_MODE=0777", "/tmp Rechte"},
-		tiImageBild{"tmp-rechte", "TI_TMP_MODE=1755", "/tmp Rechte"},
-		tiImageBild{"tmp-fehlt", "TI_FEHLER=cp-tmp", "docker cp /tmp"},
-		tiImageBild{"version", "TI_VERSION_AUS=odata-recorder 0.0.0", "Version"},
-		tiImageBild{"binary-ungleich", "TI_BINARY_ZWEIT=B", "Binary der zwei Bauten ungleich"},
-		tiImageBild{"binary-gleich-alt", "TI_ZEIT_ZWEIT=202601010000.00", "zweites Binary nicht neu übersetzt"},
-		tiImageBild{"binary-aelter", "TI_ZEIT_ZWEIT=202512312359.59", "zweites Binary nicht neu übersetzt"},
-	)
 }
 
-// tiImage ist Fall 229: jede Abweichung ist Exit 1 mit dem Namen ihrer Prüfung, vor dem Server und ohne Log; andere Variablen und eine
-// leere Liste der Volumes sind grün.
+// tiFremdeVariablen sind sechs Namen und je erlaubtem Namen (DATA_DIR, PATH) sechs, die ihm gleichen: länger vorn, hinten und mit `_`,
+// kürzer vorn und hinten, klein geschrieben. Keiner ist DATA_DIR oder PATH.
+func tiFremdeVariablen() []string {
+	namen := []string{"LISTEN", "ADMIN_LISTEN", "MODE", "UPSTREAM_URL", "MODEL", "LISTEN_TLS_CERT"}
+	for _, e := range []string{"DATA_DIR", "PATH"} {
+		namen = append(namen, e+"X", "X"+e, e+"_", e[:len(e)-1], e[1:], strings.ToLower(e))
+	}
+	return namen
+}
+
+// tiVariablenBilder führt je fremdem Namen eine Abweichung mit leerem Wert vor und eine mit Wert hinter den erlaubten Variablen, dazu
+// eine Variable, deren Wert wie eine erlaubte aussieht.
+func tiVariablenBilder() []tiImageBild {
+	var bilder []tiImageBild
+	for _, v := range tiFremdeVariablen() {
+		bilder = append(bilder,
+			tiImageBild{name: "variable-vorn-" + v, env: "TI_ENV=" + v + "=\nDATA_DIR=/data\nPATH=/bin", pruefung: "Variable " + v},
+			tiImageBild{name: "variable-hinten-" + v, env: "TI_ENV=DATA_DIR=/data\nPATH=/bin\n" + v + "=x", pruefung: "Variable " + v})
+	}
+	return append(bilder, tiImageBild{name: "variable-wert", env: "TI_ENV=DATA_DIR=/data\nFOO=PATH=x", pruefung: "Variable FOO"})
+}
+
+// tiErlaubteNamen sind die 18 Namen von SPEC-323 Nr. 3 *Inhalt*: sieben aus dem Image, elf von der Laufzeit.
+func tiErlaubteNamen() []string {
+	return []string{"odata-recorder", "data/", "tmp/", "etc/", "etc/ssl/", "etc/ssl/certs/", "etc/ssl/certs/ca-certificates.crt",
+		".dockerenv", "dev/", "dev/console", "dev/pts/", "dev/shm/", "etc/hostname", "etc/hosts", "etc/mtab", "etc/resolv.conf",
+		"proc/", "sys/"}
+}
+
+// tiFremdeNamen sind je Ort ein zusätzlicher Name, je erlaubtem Namen einer, der ihn als Anfang, und einer, der ihn als Ende trägt, und
+// je erlaubtem Namen mit Punkt einer mit `x` an dessen Stelle.
+func tiFremdeNamen() []string {
+	namen := []string{"bin/sh", "data/seed", "tmp/rest", "etc/passwd", "etc/ssl/certs/anderes.pem", "dev/fuse", "var/"}
+	for _, e := range tiErlaubteNamen() {
+		namen = append(namen, e+"x", "x"+e)
+		if strings.Contains(e, ".") {
+			namen = append(namen, strings.ReplaceAll(e, ".", "x"))
+		}
+	}
+	return namen
+}
+
+// tiInhaltBilder führt je fremdem Namen eine Abweichung am Ende des Exports, dazu eine am Anfang.
+func tiInhaltBilder() []tiImageBild {
+	var bilder []tiImageBild
+	for i, n := range tiFremdeNamen() {
+		bilder = append(bilder, tiImageBild{name: "inhalt-" + strconv.Itoa(i), env: "TI_EXTRA=" + n, pruefung: "Inhalt", zeile: n})
+	}
+	return append(bilder, tiImageBild{name: "inhalt-vorn", env: "TI_VORN=bin/sh", pruefung: "Inhalt", zeile: "bin/sh"})
+}
+
+// tiOrtsBilder führt die Abweichungen an den Dateien, an der Version und an den zwei Binaries. Das erste Binary des Ersatzes ist von
+// 202601010000.00, das zweite eine Sekunde jünger; die Formen des Alters setzen das zweite gleich alt oder eine Sekunde älter.
+func tiOrtsBilder() []tiImageBild {
+	return []tiImageBild{
+		{name: "data-eigentuemer", env: "TI_DATA_OWNER=0", pruefung: "/data Eigentümer und Rechte"},
+		{name: "data-gruppe", env: "TI_DATA_GROUP=0", pruefung: "/data Eigentümer und Rechte"},
+		{name: "data-rechte", env: "TI_DATA_MODE=0755", pruefung: "/data Eigentümer und Rechte"},
+		{name: "data-fehlt", env: "TI_FEHLER=cp-data", pruefung: "docker cp /data"},
+		{name: "anker-leer", env: "TI_CERT=", pruefung: "Vertrauensanker"},
+		{name: "anker-fehlt", env: "TI_FEHLER=cp-certs", pruefung: "docker cp /etc/ssl/certs/ca-certificates.crt"},
+		{name: "tmp-ohne-sticky", env: "TI_TMP_MODE=0777", pruefung: "/tmp Rechte"},
+		{name: "tmp-rechte", env: "TI_TMP_MODE=1755", pruefung: "/tmp Rechte"},
+		{name: "tmp-fehlt", env: "TI_FEHLER=cp-tmp", pruefung: "docker cp /tmp"},
+		{name: "version", env: "TI_VERSION_AUS=odata-recorder 0.0.0", pruefung: "Version"},
+		{name: "binary-ungleich", env: "TI_BINARY_ZWEIT=B", pruefung: "Binary der zwei Bauten ungleich"},
+		{name: "binary-gleich-alt", env: "TI_ZEIT_ZWEIT=202601010000.00", pruefung: "zweites Binary nicht neu übersetzt"},
+		{name: "binary-aelter", env: "TI_ZEIT_ZWEIT=202512312359.59", pruefung: "zweites Binary nicht neu übersetzt"},
+	}
+}
+
+// tiImageBilder sind alle Abweichungen des Image (SPEC-323 Nr. 3).
+func tiImageBilder() []tiImageBild {
+	return slices.Concat(tiAngabenBilder(), tiVariablenBilder(), tiOrtsBilder(), tiInhaltBilder())
+}
+
+// tiImage ist Fall 229: jede Abweichung ist Exit 1 mit dem Namen ihrer Prüfung, vor dem Server und ohne Log; die erlaubten Formen sind
+// grün.
 func tiImage() Fall {
 	return tiFall("image", func(l Lauf) string {
 		bilder := tiImageBilder()
-		if len(bilder) != 29 {
-			return fmt.Sprintf("%d Abweichungen statt 29", len(bilder))
+		if len(bilder) != 111 {
+			return fmt.Sprintf("%d Abweichungen statt 111", len(bilder))
 		}
 		for _, b := range bilder {
 			if g := tiImageRot(l, b); g != "" {
@@ -665,12 +763,21 @@ func tiImageRot(l Lauf, b tiImageBild) string {
 	if g == "" && (r.zahl("create", "--name", tiContainer("server", r.kennung)) != 0 || r.zahl("logs") != 0) {
 		g = b.name + ": Server oder Log trotz roter Prüfung am Image"
 	}
+	if g == "" && b.zeile != "" && !strings.Contains(r.errOut, "\n"+b.zeile+"\n") {
+		g = fmt.Sprintf("%s: %q nicht in der Ausgabe: %q", b.name, b.zeile, r.errOut)
+	}
 	return g
 }
 
-// tiImageErlaubt fährt zwei erlaubte Formen grün: weitere Variablen und eine leere Liste der Volumes.
+// tiErlaubteFormen sind PATH neben DATA_DIR mit einem `=` im Wert, je eine leere Liste der Volumes und der Ports und ein Export ohne
+// einen der Namen.
+func tiErlaubteFormen() []string {
+	return []string{"TI_ENV=PATH=/a=b\nDATA_DIR=/data", "TI_VOLUMES={}", "TI_EXPOSED={}", "TI_OHNE=proc/"}
+}
+
+// tiImageErlaubt fährt jede erlaubte Form grün.
 func tiImageErlaubt(l Lauf) string {
-	for i, env := range []string{"TI_ENV=PATH=/bin\nDATA_DIR=/data\nMODEL=x\nLISTEN_TLS_CERT=x", "TI_VOLUMES={}"} {
+	for i, env := range tiErlaubteFormen() {
 		if _, g := tiErwartet(l, "erlaubt-"+strconv.Itoa(i), []string{env}, 0); g != "" {
 			return g
 		}
@@ -799,7 +906,8 @@ func tiTokenAbholung(l Lauf, t tiTokenLauf) string {
 func tiOrte() [][2]string {
 	return [][2]string{
 		{"image-inspect", "docker image"}, {"create-pruefung", "docker create"}, {"cp-data", "docker cp /data"},
-		{"cp-certs", "docker cp /etc/ssl/certs/ca-certificates.crt"}, {"cp-tmp", "docker cp /tmp"}, {"run-version", "docker run"},
+		{"cp-certs", "docker cp /etc/ssl/certs/ca-certificates.crt"}, {"cp-tmp", "docker cp /tmp"}, {"export", "docker export"},
+		{"run-version", "docker run"},
 		{"create-zweit", "docker create"}, {"cp-binary-pruefung", "docker cp"}, {"cp-binary-zweit", "docker cp"},
 		{"create-server", "docker create"}, {"start", "docker start"}, {"stop", "docker stop"}, {"inspect-exit", "docker inspect"},
 		{"neustart", "docker start"},
@@ -838,8 +946,8 @@ func tiExitCodes() Fall {
 			lauf(o[0]+"-daemon", []string{"TI_FEHLER=" + o[0] + " version"}, 2, "rot: "+o[1], "Daemon nicht erreichbar")
 		}
 		lauf("phase-daemon", []string{"TI_AUFNEHMEN=exit", "TI_FEHLER=version"}, 2, "rot: Phase aufnehmen (Exit 1)", "Daemon nicht erreichbar")
-		if len(laeufe) != 3+2*14+1 {
-			return fmt.Sprintf("%d Läufe statt 32", len(laeufe))
+		if len(laeufe) != 3+2*15+1 {
+			return fmt.Sprintf("%d Läufe statt 34", len(laeufe))
 		}
 		return tiErste(laeufe)
 	})
@@ -896,8 +1004,116 @@ func tiBleibt(l Lauf, x tiRest) string {
 	return ""
 }
 
+// tiGeschlossen ruft `sh "$@"` mit dem Strom $0 (1 oder 2) auf dem Schreibende einer Pipe, deren Leser vorher geschlossen ist. Beendet
+// ein Schreiben darauf eine Sub-Shell nicht mit SIGPIPE (141), endet der Aufruf mit 97, ohne den Treiber zu rufen.
+const tiGeschlossen = `p=$TI_LOG/pipe
+mkfifo "$p" || exit 97
+exec 3<>"$p" 4>"$p" 3<&-
+( echo >&4 ) 2>/dev/null
+[ $? -eq 141 ] || exit 97
+if [ "$0" = 1 ]; then exec sh "$@" 1>&4 4>&-; fi
+exec sh "$@" 2>&4 4>&-`
+
+// tiWeg ist ein Weg des Treibers: grün, rot oder Baufehler.
+type tiWeg struct {
+	name      string
+	env       []string
+	code      int
+	meldungen []string
+}
+
+func tiWege() []tiWeg {
+	return []tiWeg{
+		{"gruen", nil, 0, nil},
+		{"rot", []string{"TI_USER=0"}, 1, []string{"rot: Nutzer"}},
+		{"baufehler", []string{"TI_FEHLER=bau-image"}, 2, nil},
+	}
+}
+
+// ohneKennung ersetzt die Kennung des Laufs in text durch `L`.
+func (r tiLauf) ohneKennung(text string) string {
+	if r.kennung == "" {
+		return text
+	}
+	return strings.ReplaceAll(text, r.kennung, "L")
+}
+
+// gestalt sind die Aufrufe eines Laufs ohne seine Kennung und sein Verzeichnis.
+func (r tiLauf) gestalt() string {
+	return r.ohneKennung(fmt.Sprintf("%q", tiOhneVerzeichnis(r.aufrufe)))
+}
+
+// tiOhnePipe fährt den Weg w mit offenen Strömen und prüft ihn.
+func tiOhnePipe(l Lauf, w tiWeg) (tiLauf, string) {
+	r, g := tiFahre(l, w.name, w.env)
+	if g != "" {
+		return r, g
+	}
+	meldungen := w.meldungen
+	if w.code == 2 {
+		meldungen = r.meldungen()
+		if len(meldungen) != 1 || !strings.HasPrefix(meldungen[0], "Bau gescheitert: ") {
+			return r, fmt.Sprintf("%s: Meldungen %q", w.name, meldungen)
+		}
+	}
+	return r, r.erwarte(w.name, w.code, meldungen...)
+}
+
+// tiMitPipe fährt den Weg w mit dem geschlossenen Strom und hält ihn gegen den Lauf offen mit offenen Strömen: derselbe Exit, dieselben
+// Aufrufe, derselbe Inhalt des offenen Stroms (Meldungen des Treibers bzw. Standardausgabe), nichts bleibt (SPEC-323 Nr. 6 e).
+func tiMitPipe(l Lauf, w tiWeg, strom string, offen tiLauf) string {
+	name := w.name + "-pipe-" + strom
+	r, g := tiStarte(l, name, w.env, "-c", tiGeschlossen, strom, l.U.TestImageTreiber)
+	switch {
+	case r.code != w.code:
+		return fmt.Sprintf("%s: Exit %d statt %d (%s)\n%s", name, r.code, w.code, g, letzte(r.errOut))
+	case g != "":
+		return g
+	case r.gestalt() != offen.gestalt():
+		return fmt.Sprintf("%s: Aufrufe %s statt %s", name, r.gestalt(), offen.gestalt())
+	case strom == "1" && (r.out != "" || !slices.Equal(tiOhneKennungen(r), tiOhneKennungen(offen))):
+		return fmt.Sprintf("%s: stdout %q, Meldungen %q", name, r.out, r.meldungen())
+	case strom == "2" && (r.errOut != "" || r.ohneKennung(r.out) != offen.ohneKennung(offen.out)):
+		return fmt.Sprintf("%s: stderr %q, stdout %q", name, r.errOut, r.out)
+	}
+	if g := r.aufgeraeumt(); g != "" {
+		return name + ": " + g
+	}
+	return ""
+}
+
+// tiOhneKennungen sind die Meldungen des Treibers ohne seine Kennung.
+func tiOhneKennungen(r tiLauf) []string {
+	m := r.meldungen()
+	for i := range m {
+		m[i] = r.ohneKennung(m[i])
+	}
+	return m
+}
+
+// tiPipes fährt jeden Weg mit geschlossenem Leser je Strom.
+func tiPipes(l Lauf) string {
+	wege := tiWege()
+	if len(wege) != 3 {
+		return fmt.Sprintf("%d Wege statt 3", len(wege))
+	}
+	for _, w := range wege {
+		offen, g := tiOhnePipe(l, w)
+		if g != "" {
+			return g
+		}
+		for _, strom := range []string{"1", "2"} {
+			if g := tiMitPipe(l, w, strom, offen); g != "" {
+				return g
+			}
+		}
+	}
+	return ""
+}
+
 // tiAufraeumen ist Fall 234: ein vorhandenes Objekt, das sich nicht entfernen lässt, ist eine Meldung und aus grün Exit 1; die übrigen
 // werden dennoch entfernt. Ein Objekt, das nie entstand, ist kein Fehler (Fall 226), eine Nachfrage, die scheitert, zählt als vorhanden.
+// Ein geschlossener Leser der Standardausgabe oder des Fehlerstroms ändert auf keinem Weg Aufrufe, Exit oder Aufräumen.
 func tiAufraeumen() Fall {
 	return tiFall("aufraeumen", func(l Lauf) string {
 		reste := tiReste()
@@ -909,7 +1125,7 @@ func tiAufraeumen() Fall {
 				return g
 			}
 		}
-		return ""
+		return tiPipes(l)
 	})
 }
 
@@ -918,8 +1134,30 @@ func tiSignalOrte() []string {
 	return []string{"bau-image", "bau-zweit", "create-server", "cp-token", "sleep", "run-aufnehmen", "stop", "run-pruefen", "rm-pruefung"}
 }
 
+// tiZweiteSignale sind die Signale, die während des Aufräumens hinter einem Abbruch eintreffen.
+func tiZweiteSignale() []string { return []string{"INT", "HUP", "TERM"} }
+
+// tiZweites sendet TERM im ersten Bau und sig während des ersten `rm` des Aufräumens, das danach zu Ende läuft: eine Meldung
+// `abgebrochen`, Exit 2, je Container und Tag ein Entfernen, nichts bleibt.
+func tiZweites(l Lauf, sig string) string {
+	name := "zweites-" + sig
+	env := []string{"TI_SIG=TERM", "TI_SIG_BEI=bau-image", "TI_SIG2=" + sig, "TI_SIG2_BEI=rm-pruefung"}
+	r, g := tiErwartet(l, name, env, 2, "abgebrochen")
+	if g != "" {
+		return g
+	}
+	if _, err := os.Stat(filepath.Join(r.log, "signal2")); err != nil {
+		return name + ": kein zweites Signal gesendet: " + err.Error()
+	}
+	if n := r.zahl("rm", "-f", "-v") + r.zahl("rmi"); n != 9 {
+		return fmt.Sprintf("%s: %d Aufrufe rm und rmi statt 9", name, n)
+	}
+	return ""
+}
+
 // tiAbbruch ist Fall 235: INT, HUP und TERM an jeder Stelle enden mit 2 und `abgebrochen`, räumen auf und starten keinen weiteren
-// Schritt; ausserhalb des Aufräumens erreicht TERM den laufenden Aufruf (SPEC-323 Nr. 6 d).
+// Schritt; ausserhalb des Aufräumens erreicht TERM den laufenden Aufruf; ein zweites Signal während des Aufräumens ändert nichts
+// (SPEC-323 Nr. 6 d).
 func tiAbbruch() Fall {
 	return tiFall("abbruch", func(l Lauf) string {
 		orte := tiSignalOrte()
@@ -931,6 +1169,14 @@ func tiAbbruch() Fall {
 				if g := tiSignal(l, sig, ort); g != "" {
 					return g
 				}
+			}
+		}
+		if len(tiZweiteSignale()) != 3 {
+			return fmt.Sprintf("%d zweite Signale statt 3", len(tiZweiteSignale()))
+		}
+		for _, sig := range tiZweiteSignale() {
+			if g := tiZweites(l, sig); g != "" {
+				return g
 			}
 		}
 		return ""

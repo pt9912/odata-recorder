@@ -28,6 +28,8 @@ const (
 	// imageMarke steht vor den Werten der Phase aufnehmen, die der Treiber der Phase pruefen als imageVariable gibt.
 	imageMarke    = "NEUSTART-WERTE="
 	imageVariable = "NEUSTART_WERTE"
+	// imageGelesen steht im Report des Imports nach dem Neustart: er liest die zwei Exchanges der Aufnahme und überspringt keinen.
+	imageGelesen = `"exchanges":{"read":2,"skipped":[],"total":2}`
 )
 
 // imageStand sind die vier Antworten, die beide Phasen byte-gleich vergleichen.
@@ -247,8 +249,8 @@ func pruefeImageStand(t *testing.T, w imageWerte) {
 }
 
 // TestImagePruefen ist die Phase pruefen (SPEC-323 Nr. 4 d): nach Stopp und Start desselben Containers sind die vier Antworten
-// byte-gleich, die Session ist complete neben genau einer neuen open, ein neuer Import liest die Bodies, und restore antwortet mit
-// der nächsten Revision.
+// byte-gleich, die Session ist complete neben genau einer neuen open, ein neuer Import liest die Bodies beider Exchanges
+// (imageGelesen), und restore antwortet mit der nächsten Revision.
 func TestImagePruefen(t *testing.T) {
 	c := imageClient{t: t, token: imageToken(t)}
 	roh, err := base64.StdEncoding.DecodeString(os.Getenv(imageVariable))
@@ -291,7 +293,9 @@ func TestImagePruefen(t *testing.T) {
 		return
 	}
 
-	c.rufe(201, "POST", "/__admin/imports", imageImport("neustart-2", w.Session))
+	if b := c.rufe(201, "POST", "/__admin/imports", imageImport("neustart-2", w.Session)); !strings.Contains(string(b), imageGelesen) {
+		t.Fatalf("Import nach dem Neustart ohne %s: %s", imageGelesen, b)
+	}
 	soll := imageRevision(t, w.Stand.Workspaces, w.Workspace) + 1
 	b := c.rufe(200, "POST", "/__admin/workspaces/"+w.Workspace+"/restore", `{"snapshot_id":"`+w.Snapshot+`"}`)
 	var nach struct {
