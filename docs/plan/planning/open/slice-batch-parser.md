@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-FA-16.a` (Erweiterungspunkt `$batch` mit atomaren Changesets, eigener Parser-Contract-Test, unbekannte Operationen `501`) · `SPEC-049` (Lastenheft §5: `$batch` nicht im ersten Abnahmeumfang) · `SPEC-022` (`ODR-E6001`) · `SPEC-109` (Fehlermodell, Nr. 5 mit den Batch-Fehlern) · `SPEC-180` (`ODR-E6007`) · `SPEC-182`, `SPEC-183` (Vertrag dieses Slice) · `ARC-004`, `ARC-011` · `architecture.md` §7 (Erweiterungspunkte).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-batch-parser`, Worktree `/Development/odata-recorder-wt-batch`; der Zweig entsteht von `main` nach den Start-Commits, der Start liegt auf `main`)
 
 **Autor:** pt9912. **Datum:** 2026-10-30.
 
@@ -89,9 +89,15 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/hexagon/ports/outbound/odata_batch.go` | neu | Port `ODataBatch` (`SPEC-182`) |
 | `src/hexagon/ports/outbound/abbildung.go`, `abbildung_batch_test.go` | update, neu | zwei Zeilen der Abbildung (`SPEC-109` Nr. 5) |
 | `src/adapters/driven/odata/batchcodec/` | neu | Leser (`SPEC-182`, `SPEC-183`) mit Tests |
+| `src/hexagon/ports/outbound/abbildung_test.go` | update (nur Test) | `TestAbbildungVollstaendig` führt die Namen der Modell-Sentinels in der Abbildung von Hand: `ErrBatchUngueltig` und `ErrBatchNichtUnterstuetzt` kommen dazu |
+| `src/hexagon/services/workspace/helfer_test.go`, `src/hexagon/services/session/beenden_test.go`, `src/hexagon/services/inspection/port_test.go` | update (nur Test) | je eine Liste mit genau den Namen von `outbound.EintraegeAbbildung()`: zwei Zeilen mehr (in `inspection` mit dem erwarteten Code nach `SPEC-109` Nr. 5) |
+| `src/adapters/driving/admin/fehlerabbildung_test.go` | update (nur Test) | `modellErrWerte` wird gegen die Variablen `Err…` im Quelltext von `model` gezählt: zwei Werte mehr |
+| `src/adapters/driving/admin/suche_test.go` | update (nur Test) | `TestTypenMitUnwrapAufZeiger` zählt 12 Typen mit `Unwrap` auf einem Zeiger; mit `*BatchFehler` sind es 13, wenn `Unwrap` diese Form hat (wie die übrigen Fehlertypen). Das Maß im Kommentar zieht mit |
 | `spec/spezifikation.md`, `spec/architecture.md` | update | Vertrag mit Randformen, Port `ODataBatch` (Architect, mit diesem Plan geschrieben) |
 
-`outbound.CodecSatz`, HTTP-Adapter und Composition Root bleiben unverändert; die Verdrahtung ist Sache von `slice-batch-changesets`. Die Tabelle *Zusage · Fänger* und das Raster in §6 stehen mit `SPEC-182` und `SPEC-183` vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen sind dort entschieden, der Implementer entscheidet keine.
+**Stand beim Start** (Planner, 2026-11-28, `main` bei `2da754f4`, durch Lesen und Suchen, ohne Übersetzungslauf): (a) *Bestehende Tests:* die sechs Dateien der Zeilen oben standen weder in der Tabelle noch im Block; ohne sie wäre `make test` mit den zwei Sentinels und den zwei Zeilen der Abbildung rot. Sie ändern allein die genannten Listen und die genannte Zahl; kein Fänger wird gelockert (keine Prüfung entfällt, keine Zählung wird zu einer Untergrenze). Der Planner hat sie in den Block eingetragen (`SPEC-128` Nr. 10 g, Dateien einzeln); die Formel ändert das nicht. Die Liste ist durch Suchen gebildet, nicht durch einen Lauf: zählt ein weiterer Test mit, nennt der Implementer ihn im selben Commit in dieser Tabelle und im Block. (b) *Gate-Kette und Architektur:* keine Änderung an `.a-check.yml`, `tools/`, `Dockerfile`, `harness/` oder `src/bootstrap/` ist vorgesehen; `src/adapters/driven/odata/batchcodec` fällt in die Schicht `adapters-driven`, und der Importscanner `versionstrennung_test.go` führt das Paket ohne Eintrag als Paket der Version 4. Braucht der Implementer eine dieser Dateien, hält er an (§4 *Rückführungen*). (c) *Fehlerkatalog:* `ODR-E6001` und `ODR-E6007` stehen in `fehler.go`, kein neuer Code.
+
+`outbound.CodecSatz`, HTTP-Adapter und Composition Root bleiben unverändert (im Admin-Adapter ändern sich nur die zwei Testdateien oben); die Verdrahtung ist Sache von `slice-batch-changesets`. Die Tabelle *Zusage · Fänger* und das Raster in §6 stehen mit `SPEC-182` und `SPEC-183` vor dem ersten Code-Commit (`AGENTS.md` §3.12); die Randformen sind dort entschieden, der Implementer entscheidet keine.
 
 - Der Leser liest fremde Bytes (ein Format, das dieses Repo nicht schreibt): die Produktcode-Erwartung des Architect ist ein fester Anteil der Schätzung (`SPEC-128`); `CRLF`, `LF`, Steuerzeichen und Bytes jenseits von ASCII in Fixtures entstehen aus Bytewerten (`AGENTS.md` §3.18).
 
@@ -149,6 +155,12 @@ pfad: src/hexagon/model/batch_fehler_test.go
 pfad: src/hexagon/ports/outbound/odata_batch.go
 pfad: src/hexagon/ports/outbound/abbildung.go
 pfad: src/hexagon/ports/outbound/abbildung_batch_test.go
+pfad: src/hexagon/ports/outbound/abbildung_test.go
+pfad: src/hexagon/services/workspace/helfer_test.go
+pfad: src/hexagon/services/session/beenden_test.go
+pfad: src/hexagon/services/inspection/port_test.go
+pfad: src/adapters/driving/admin/fehlerabbildung_test.go
+pfad: src/adapters/driving/admin/suche_test.go
 produktcode: 500
 fakes: 0
 schnitt-grund: Die Prüfung ist als slice-batch-validator abgetrennt (liest nur Domain-Werte und Fehlerwert). Der Rest teilt in einem Mechanismus den Ergebniswert des Ports, den Fehlerwert, die Rangfolge und die Zerlegung des Rahmens, der Kopfzeilen und des Einzelrequests; keiner davon liefert allein einen Ergebniswert.
@@ -170,6 +182,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **Start** (`next` → `in-progress`): keine Slice-Abhängigkeit über `done/` hinaus. Die Spezifikation trägt den Vertrag samt Randformen, bevor der erste Code-Commit entsteht (`AGENTS.md` §3.12).
 
 - **Code-Abhängigkeit, mit Grund:** keine auf einen offenen Slice. Der Leser braucht das Fehlermodell (`SPEC-109`, `slice-fehlermodell-konfiguration` in `done/`), die Konvention der Codec-Ports (`SPEC-125`, `SPEC-126` als Vorbild für Zerlegung des Stroms, Grenzen und Fehler, `done/`) und das Domain-Modell; er ruft weder `urlparser` noch Workspace, Repositories, Interpreter oder `MockUseCase`. Der Welle-Trigger (`welle-mock` in `done/`) ist für diesen Slice Reihenfolge-Vorsicht (Priorisierung nach den Muss-Wellen), keine Code-Abhängigkeit: ein Start davor ist eine Entscheidung des Users, nicht dieses Plans.
+- **Gestartet** (Planner, 2026-11-28, `main` bei `2da754f4`; ergänzt den Absatz darüber): der Welle-Trigger ist eingetreten ([welle-mock](../done/welle-mock-results.md) liegt in `done/`), eine Entscheidung des Users für einen früheren Start ist damit nicht nötig. `SPEC-182` und `SPEC-183` stehen auf `main` samt Raster und Zusatztabelle; die zwei Fragen, die nach dem Schnitt offen waren (Ort der Form einer `Content-ID`, Ort des Falls zum Vorrang), hat der Architect mit `2da754f4` entschieden, keine Frage ist vor dem Code offen. Kein Teil der Erstabnahme. *Parallel läuft* [slice-container-image](../in-progress/slice-container-image.md): keine gemeinsame Datei (dessen Zweig ändert `Dockerfile`, `.dockerignore`, `harness/`, `tools/`, `tests/e2e/`, Handbuch und Spezifikation; keiner davon ist ein Pfad dieses Blocks). Dieser Slice ist kein Kettenslice.
 - **Was der Slice nicht braucht — und warum:** `MockUseCase` und `WithWorkspaceTransaction` (die Ausführung liegt in `slice-batch-changesets`), die Parser der OData-URL und der Client-Bodies (Ziele und Bodies bleiben hier Text und Bytes), HTTP-Adapter, Composition Root, M2 und `slice-bootstrap-m3` (das Binary ändert sich erst mit der Route), `slice-expand-parser` und die anderen Wellen. Das heißt: **unabhängig von `welle-mock` und von M2**, soweit der Code betroffen ist.
 - **Größenmarke** (`AGENTS.md` §3.14, `SPEC-128` Nr. 1; die Faktoren stehen allein dort; Planner, 2026-11-28, nach dem Schnitt): gezählt ist die Tabelle in §3 mit 36 Zeilen, *a* = 1 nebenläufige (Zeile 32), *b* = 35 andere (das akzeptierte Negativ zählt als `andere`), *f* = 0, *p* = 500. *S* = 3385, Marke *M* = **4600**. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Der Block in §3 trägt `basis`, `schaetzung` und `marke` noch nicht (`make groessenmarke` meldet *Marke steht aus*); der Planner setzt sie beim Start, vor dem ersten Code-Commit, in eigenem Commit. Ändert der Architect bis dahin Zeilen oder `produktcode`, rechnet der Planner neu.
 - **Schnittfrage** (*S* ≥ 2223): gestellt und vor dem Code beantwortet (Planner, 2026-11-28). Ungeschnitten waren es 43 Zeilen, *p* = 600, *S* = 4045, Marke 5500. (1) Abgetrennt ist `slice-batch-validator` (Zeilen 37 bis 43; *S* = 660, Marke 900): reine Funktionen im Domain-Modell, eigene Tests und eigener Contract-Test, kein gemeinsamer Pfad. Er teilt mit dem Leser die Domain-Werte, den Fehlerwert und die Form einer `Content-ID` (`model.ContentIDGueltig`), die dieser Slice liefert. (2) Der Leser bleibt über der Schnittgrenze und ohne weiteren Schnitt, Grund im Block (`schnitt-grund`): Rahmen, Teile, Kopfzeilen und Einzelrequest liefern erst zusammen den Ergebniswert des Ports. Geprüft ist auch der Vorab-Slice nur für Fehlerwert und Abbildung (Zeilen 28, 29): ohne Erzeuger kein Lieferwert, und der Rest läge weiter über der Schnittgrenze.
@@ -202,6 +215,8 @@ dasteht.
 - Der Strom des Tests hält jedes Argument fest und zählt jede Operation, auch `Close` und jeden Read (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 2×); Ports ruft der Leser keine — **Ausgang:** offen; Zeilen 3, 6, 8.
 - Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** offen; Raster unten, eine Zelle ohne Ort geht an den Architect.
 - Schnittfrage (`AGENTS.md` §3.14): die Formel lag über der Schnittgrenze — **Ausgang:** entfallen: entschieden (Planner, 2026-11-28): geschnitten nach der Empfehlung des Architect, die Prüfung ist `slice-batch-validator`; der Leser bleibt mit `schnitt-grund` (§4).
+- Bestehende Tests zählen die Sentinels und die Zeilen der Abbildung (§3 *Stand beim Start*; `BEO-REPO/ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit`, verwandte Form): die Liste der sechs Dateien ist durch Suchen gebildet, nicht durch einen Lauf, und eine Anpassung kann einen Fänger lockern (`BEO-REPO/anpassung-eines-bestehenden-tests-lockert-seinen-faenger`) — **Ausgang:** weiter offen; Adresse: Implementer (ergänzt nur Listen und Zahl, nennt jede weitere Datei im selben Commit), Review und Verifier lesen den Diff dieser Dateien.
+- Zeile 36 (akzeptiertes Negativ) nennt Grund und Folge, aber nicht das Maß der ungefangenen Klasse (`AGENTS.md` §3.15) — **Ausgang:** offen; Adresse: Implementer (nennt beim Handoff das Maß aus seinen Fixtures; hält er dafür eine Entscheidung für nötig, gibt er die Zeile an den Architect zurück).
 
 **Raster *Operation × Argumentart*:**
 
@@ -256,7 +271,12 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** Berührt ist allein der Default `*` aus der Modus-Deklaration in `harness/conventions.md`; es gibt keine feinere Sub-Area, die zu prüfen wäre.
 
-**Vorgelagert — offene Beobachtungen sichten:** Register am Tag der Anlage gesichtet (2026-10-30); der Planner zieht Treffer und Zähler beim Start nach. `BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften` (2×) gilt für Fakes und Hüllen von Strömen (jede Schnittstelle des Originals, jeder Read gezählt); `BEO-REPO/betriebsregel-fuer-repo-dateien-verletzt` (1×) für die Betriebsregel „nur `Edit` und `Write`“. Der Code des Slice ist nicht nebenläufig; allein Zeile 32 der Tabelle hat einen nebenläufigen Fänger. Keiner der offenen Einträge erreicht mit diesem Slice 3×.
+**Vorgelagert — offene Beobachtungen sichten:** Register beim Start gesichtet (Planner, 2026-11-28; Zähler gleich der Zahl der Dateien unter `evidence/`, alle im Kürzel `BEO-REPO`).
+
+- **Offen und einschlägig:** `ausgabeformat-wechsel-zieht-tests-ausserhalb-des-blocks-mit` (4×, noch ohne Ausgang) in verwandter Form für die sechs bestehenden Tests (§3 *Stand beim Start*); `anpassung-eines-bestehenden-tests-lockert-seinen-faenger` (2×) für dieselben Dateien; `allaussage-an-jeder-stelle-mit-faenger-an-erster-und-zweiter-stelle` (5×) für die Schleifen der Zeilen 9, 14, 21, 22 und 30; `paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze` (3×, noch ohne Ausgang) und `fanger-endet-an-der-speichergrenze-des-containers` (1×) für die Zeilen 6, 33 und 34 (viele Folgen, Bodies bis 8 MiB).
+- **Verkörpert und zu beachten:** `vertrag-sagt-mehr-zu-als-ein-gate-prueft` (92×), `ein-negativ-benennt-die-ungefangene-klasse-zu-eng` (30×) und `menge-ohne-ihre-positionen` (27×, `AGENTS.md` §3.15); `fix-deckt-die-genannte-mutation-nicht-die-klasse` (82×, §3.17); `randform-erst-im-review-entschieden` (45×, §3.16); `berichtigung-erreicht-nicht-jede-stelle` (58×, §3.9); `unbeschraenkte-menge-ohne-benannte-pruefgrenze` (42×), `fixture-gleicht-dem-wert-der-mutation` (17×), `zustand-des-arguments-als-dimension` (10×), `suite-ohne-generator-fuer-klassen-der-spezifikation` (7×), `ziffern-klasse-ohne-schleife` (5×) und `hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×, Fakes und Hüllen von Strömen: jede Schnittstelle des Originals, jeder Read gezählt; `.claude/commands/implement-slice.md` Schritte 14 und 19); `werkzeug-eingabe-setzt-escape-in-zeichen-um` (5×, §3.18); `nebenlaeufiger-lauf-nur-im-glueck-gruen` (27×) und `rate-ohne-detektor-schwankt-mit-der-last` (15×, §3.10) für Zeile 32; `zweig-ohne-lauf-unter-dem-detektor` (19×); `betriebsregel-fuer-repo-dateien-verletzt` (25×, Übergangsregeln Nr. 8).
+
+Der Code des Slice ist nicht nebenläufig; allein Zeile 32 der Tabelle hat einen nebenläufigen Fänger. Kein offener Eintrag verlangt vor diesem Slice einen eigenen Slice.
 
 **Modus-Begründungsblock — Umfang.** Pflicht, sobald mindestens eine berührte
 Sub-Area BF oder Hybrid ist — einer pro Sub-Area. Bei reinem GF genügt der
