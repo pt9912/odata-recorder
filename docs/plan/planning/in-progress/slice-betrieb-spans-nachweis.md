@@ -62,7 +62,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-bootstrap.md`
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/bootstrap/telemetrie_betrieb_test.go` | neu | eine Testfunktion; Helfer der vorhandenen Dateien `telemetrie_*_test.go` (`baueWurzelHaken`, `mockDaten`, `replayDaten`, `fakeUp`) |
+| `src/bootstrap/telemetrie_betrieb_test.go` | neu | eine Testfunktion, `TestBetriebSpansUndZaehler`; Helfer der vorhandenen Testdateien (`baueWurzelMit`, `mockDaten`, `zeilen`, `keinVerwurf`, `gwClient`); der Upstream in `record` ist ein `httptest`-Server, `replay` fährt über der Aufzeichnung dieses `record`-Laufs |
 
 Der Bericht nennt je Zusage der DoD eine Mutation (ein Span fehlt, ein Pflicht-Attribut fehlt, der Canary als Attribut, ein Zähler steigt nicht) und den roten Lauf.
 
@@ -84,6 +84,31 @@ Der Bericht nennt je Zusage der DoD eine Mutation (ein Span fehlt, ein Pflicht-A
 
 Ein Canary zählt nur, wenn der Test zeigt, dass er den Prozess erreicht hat (beim Upstream, in der Antwort an den Client oder im Fehlerfall an der Stelle, die ihn liest); je Ort ein eigener Wert, und der Wert erfüllt die Form `Token`, damit nicht allein die Formprüfung des Adapters ihn fernhält (`BEO-REPO/fixture-gleicht-dem-wert-der-mutation`).
 
+**Mutationen und Raten** (Implementer, 2026-11-28; Wegwerfkopie in einem Container mit 4 CPU und 4 GiB ohne Netz, Last des Hosts 4 bis 7, ohne Detektor, je Mutation ein Prozess von `go test -count=5`). Fänger jeder Zeile ist `TestBetriebSpansUndZaehler`; 40 Mutationen, jede rot in 5 von 5 Läufen, jede aus der Prüfung, die ihre Zusage hält.
+
+| Zusage | Mutation | Zahl | Roter Befund des Tests |
+|---|---|---|---|
+| BS1 | `recorder.mode` fest `record`; Methode fest `GET`; Status nicht gesetzt; Gesamtspan entfällt; Gesamtspan entfällt allein bei Fehlerobjekt | 5 | Attribute des Gesamtspans bzw. Zahl der Gesamtspans |
+| BS2 | Capture-Span entfällt; Status bleibt `unbestimmt`; Status fest `complete`; `recorder.session_id` ist die Kennung des Exchange | 4 | Span unter dem Gesamtspan |
+| BS3 | Match-Span entfällt; `recorder.match_result` entfällt im `Set`; Ergebnis fest `treffer`; Strategie fest `sequential` | 4 | Span unter dem Gesamtspan |
+| BS4 | `Set` des Namens entfällt; `Set` der Coverage entfällt; Name fest `Products`; Coverage fest `complete` | 4 | Span unter dem Gesamtspan |
+| BS5 | Mutations-Span entfällt; Art fest `post`; `recorder.workspace_id` ist die Kennung des Dienstes | 3 | Span unter dem Gesamtspan |
+| BS6, BS7, BS8 | der HTTP-Adapter gibt in genau einem Modus die Query, den Request-Body oder den Antwort-Body als Text eines Eintrags aus (3 Orte × 3 Modi) | 9 | „die Senke trägt" den Wert des Orts im Modus der Mutation |
+| BS9, BS10, BS11 | je Modus: `CountError` entfällt; zählt doppelt (6). Je Code nur das erste Mal (rot in `replay` und `mock`); falscher Code (rot in allen drei Modi) | 8 | Stand der Zähler ungleich den erhaltenen Codes |
+| „keine weitere Zeile, kein Verwurf" (Kopf des Tests) | Eintrag mit unbekanntem Schlüssel; zweiter Span unter dem Gesamtspan; Span ohne Eltern | 3 | Verwurf `schluessel`; Spans unter dem Gesamtspan; Zahl der Zeilen der Dienste |
+
+Die Mutationen zu BS6 bis BS8 sitzen im HTTP-Adapter mit einer Bedingung auf den Modus, nicht in den Diensten; der Fänger durchsucht die Senke und hängt nicht an der Stelle, die schreibt.
+
+**Läufe des unveränderten Tests** (derselbe Container): ohne Detektor 30 von 30 in einem Prozess und 10 von 10 Prozessen, 0,52 bis 0,64 s je Lauf; mit Detektor 30 von 30 und 10 von 10, 0,83 bis 1,04 s je Lauf (Last 6 bis 7). Das Paket `src/bootstrap` allein unter dem Detektor (`go test -race -count=1`, ein Lauf, 4 CPU, Last vorher 6,6, nachher 3,8): 422,4 s von 600 s; der Lauf ist kein Vergleich mit den 415,9 s aus §6.
+
+**Akzeptierte Negative** (`AGENTS.md` §3.15):
+
+- Der Test sucht den ganzen Wert in jeder Groß- und Kleinschreibung, kein Teilstück und keine Kodierung. Grund: die abgeleiteten Formen sind unbeschränkt. Folge: eine Stelle, die einen Wert gekürzt oder kodiert ausgibt, bleibt hier ungefangen.
+- Gesucht wird allein in der Senke des Adapters des Prozesses, nicht im Stand `Snapshot`, im Logger von `Build` und auf `stdout` und `stderr` neben der Senke. Grund: BS6 bis BS8 sagen die Senke zu. Folge: ein Wert dort bleibt hier ungefangen.
+- Die Orte sind Literal der Query, Request-Body und Antwort-Body; Pfad, Namen in der Query und Header führt der Test nicht. Grund: die DoD nennt diese Orte nicht; die Tests der Dienste und des Adapters führen sie. Folge: wie dort.
+- Gezählt werden 5 der 41 Codes (`ODR-E4001`, `ODR-E5001`, `ODR-E5003`, `ODR-E6008`, `ODR-E7003`); 36 bleiben ungeführt. Grund: die Zählung läuft für jeden Code durch eine Stelle (`SPEC-294` Nr. 5), die Codes führt `TestFehlerzaehlerJederFall` mit dem Fake. Folge: eine Ausnahme je Code am echten Adapter für einen ungeführten Code bleibt hier ungefangen.
+- Die Attribute führen nicht jeden Wert ihrer Menge: `capture_status` ohne `failed`, `match_result` ohne `erschoepft`, `anderer_key` und `nicht_replayfaehig`, `match_strategy` allein `last`, `coverage_status` ohne `unknown`. Grund: die Zusage ist das Pflicht-Attribut je Span, die Mengen halten die Tests der Dienste. Folge: ein falscher Wert allein auf einem ungeführten Weg bleibt hier ungefangen.
+
 ```groessenmarke
 pfad: src/bootstrap/telemetrie_betrieb_test.go
 produktcode: 0
@@ -102,7 +127,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Stand beim Start** (Planner, 2026-11-28, `main` bei `4c935d28`, durch Lesen und Suchen, ohne Testlauf): Die Bedingung ist erfüllt; die übrigen Slices der Welle liegen in `done/`. Der Vertrag liegt in der Spezifikation, keine Frage an den Architect ist offen; er wird erst mit der Rückführung unten gebraucht. Die Helfer in `src/bootstrap` bestehen (`baueWurzelHaken`, `mockDaten`, `replayDaten`, `fakeUp`, `TelemetrieVon`). *Kollision:* in `in-progress/` liegt daneben allein [slice-batch-parser](../in-progress/slice-batch-parser.md); sein Zweig und sein Worktree ändern keinen Pfad unter `src/bootstrap/`. Der Zweig `vertrag-ci` trägt beim Start keinen Commit über `main`. Der Slice ändert weder `harness/README.md` noch eine Datei der Gate-Kette (Übergangsregeln Nr. 7); der Test läuft in `make test` und `make test-race` mit.
 
-**Größenmarke** (`SPEC-128` Nr. 1, `AGENTS.md` §3.14; Planner beim Start, vor dem ersten Code-Commit): elf Zeilen der Tabelle (BS1 bis BS11), *a* = 0, *b* = 11, *f* = 0 (der Test nutzt den vorhandenen `fakeUp`), *p* = 0: *S* = 880, Marke **1200**, keine Schnittfrage. Den Teil des Blocks, den sonst der Architect setzt (`pfad`, `produktcode`, `fakes`), hat der Planner gesetzt. `basis` ist `a819be8e` (letzter Commit von `main` vor dem Commit des Blocks); Messbasis nach `SPEC-128` Nr. 10 g: der Pfad entsteht erst mit diesem Slice, Fremdzeilen beim Start 0. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Ändert der Implementer eine weitere Datei (etwa `export_test.go` oder eine vorhandene Datei mit Helfern), nennt er sie im selben Commit in §3 und im Block. Für einen Schnitt beim Handoff ist kein Teil vorab benannt; eine Überschreitung steht mit Grund im Block.
+**Größenmarke** (`SPEC-128` Nr. 1, `AGENTS.md` §3.14; Planner beim Start, vor dem ersten Code-Commit): elf Zeilen der Tabelle (BS1 bis BS11), *a* = 0, *b* = 11, *f* = 0 (der Test schreibt keinen Fake eines Ports), *p* = 0: *S* = 880, Marke **1200**, keine Schnittfrage. Den Teil des Blocks, den sonst der Architect setzt (`pfad`, `produktcode`, `fakes`), hat der Planner gesetzt. `basis` ist `a819be8e` (letzter Commit von `main` vor dem Commit des Blocks); Messbasis nach `SPEC-128` Nr. 10 g: der Pfad entsteht erst mit diesem Slice, Fremdzeilen beim Start 0. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Ändert der Implementer eine weitere Datei (etwa `export_test.go` oder eine vorhandene Datei mit Helfern), nennt er sie im selben Commit in §3 und im Block. Für einen Schnitt beim Handoff ist kein Teil vorab benannt; eine Überschreitung steht mit Grund im Block.
 
 **Rückführungen — vorab benannt:**
 
@@ -120,9 +145,9 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 Kein neuer Vertrag; ein Raster der Randformen entfällt (`AGENTS.md` §3.12 gilt für Slices mit neuem Vertrag).
 
-- Raster *Operation × Argumentart*: entfällt, der Slice liefert keine Operation und ändert kein Verhalten; eine Randform ohne Ort in der Spezifikation geht an den Architect (`AGENTS.md` §3.12) — **Ausgang:** offen; Adresse: Implementer.
-- Das Paket `bootstrap` liegt unter dem Detektor bei 415,9 s von 600 s (`BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`); der Test kommt hinzu — **Ausgang:** weiter offen; der Implementer nennt die Zeit des Tests mit und ohne Detektor.
-- Der Capture-Span endet erst mit dem Schließen des Body; ein Test, der vorher liest, flackert — **Ausgang:** weiter offen; Muster in `TestWurzelGesamtspanJedeAnfrage` (Herunterfahren vor dem Lesen der Senke).
+- Raster *Operation × Argumentart*: entfällt, der Slice liefert keine Operation und ändert kein Verhalten; eine Randform ohne Ort in der Spezifikation geht an den Architect (`AGENTS.md` §3.12). Beim Schreiben des Tests ist keine aufgetreten, und kein Verhalten widersprach den Spec-Stellen — **Ausgang:** offen; Adresse: Planner (Closure).
+- Das Paket `bootstrap` liegt unter dem Detektor bei 415,9 s von 600 s (`BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`); der Test kommt hinzu, mit Detektor 0,83 bis 1,04 s, ohne 0,52 bis 0,64 s (§3) — **Ausgang:** weiter offen; Adresse: Planner (Closure).
+- Der Capture-Span endet erst mit dem Schließen des Body; ein Test, der vorher liest, flackert. Der Test fährt je Modus den Prozess herunter, bevor er die Senke liest; 80 von 80 Läufen mit und ohne Detektor grün (§3) — **Ausgang:** weiter offen; Adresse: Planner (Closure).
 
 ## 7. Closure-Notiz
 
