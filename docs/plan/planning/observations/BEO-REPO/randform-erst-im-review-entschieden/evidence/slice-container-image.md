@@ -1,0 +1,2 @@
+**Vorgang:** slice-container-image
+**Fund:** Vertrag und Raster des Neustarttests nannten `INT`, `HUP`, `TERM` und `SIGKILL`, nicht den geschlossenen Leser der Ausgabe: der Treiber endete an `SIGPIPE` ohne Aufräumen, Container und zwei Tags blieben im Daemon des Hosts (Review F-3, LOW). Der Architect entschied die Randform nach dem Review (`SPEC-323` Nr. 6 e). Beleg: Report `2026-11-28-slice-container-image-review`.

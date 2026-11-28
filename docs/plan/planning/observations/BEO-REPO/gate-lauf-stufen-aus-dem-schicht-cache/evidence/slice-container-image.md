@@ -1,0 +1,2 @@
+**Vorgang:** slice-container-image
+**Fund:** Der Vertrag des Neustarttests verlangte für den zweiten Bau allein `--no-cache-filter build`. Die Stufe `build` übersetzte neu, die Stufe `image` kam aus dem Cache und trug das Programm eines früheren Baus: der Vergleich der zwei Bauten hätte zweimal dasselbe gelesen und wäre grün geblieben. Gefunden vom Implementer mit einem Zeitstempel im Programm (Docker 29.10.0), behoben mit `--no-cache-filter image` und einer Prüfung, dass die zweite Datei jünger ist (`SPEC-323` Nr. 3). Beleg: Plan §6.

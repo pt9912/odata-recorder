@@ -95,6 +95,22 @@ RUN --network=none GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -buildvc
       -o /out/odata-recorder ./src/bootstrap/main
 RUN --network=none pruefung build /out/odata-recorder "$VERSION"
 
+# --- image-verzeichnisse: die zwei leeren Verzeichnisse des Laufzeit-Image mit ihren Rechten (SPEC-322 Nr. 2), je unter einem eigenen
+# Elternverzeichnis: COPY übernimmt die Rechte der Einträge eines Verzeichnisses, nicht die des kopierten Verzeichnisses selbst.
+FROM deps AS image-verzeichnisse
+RUN --network=none mkdir -p /leer/data/data /leer/tmp/tmp && chmod 0700 /leer/data/data && chmod 1777 /leer/tmp/tmp
+
+# --- image: das Laufzeit-Image (SPEC-322): leere Basis, das Binary der Stufe build, die Vertrauensanker aus deps, /tmp und /data für
+# den Nutzer 65532. Die Stufe hat keinen RUN-Schritt. `make image` und `make test-image` bauen sie (SPEC-323).
+FROM scratch AS image
+COPY --from=build /out/odata-recorder /odata-recorder
+COPY --from=deps /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=image-verzeichnisse /leer/tmp/ /
+COPY --from=image-verzeichnisse --chown=65532:65532 /leer/data/ /
+ENV DATA_DIR=/data
+USER 65532:65532
+ENTRYPOINT ["/odata-recorder"]
+CMD ["start"]
 
 # --- integration: das Test-Binary (go test -c über tests/e2e) und das Hilfsprogramm uebergang über dem
 # Binary der Stufe build (SPEC-037 Nr. 1). Der Treiber tools/harness/test-integration.sh führt je Stufe
@@ -175,8 +191,8 @@ FROM ${A_CHECK_IMAGE} AS a-check-bin
 FROM ${D_CHECK_IMAGE} AS d-check-bin
 
 # --- gegenproben: das Programm aus tools/gegenproben prüft, dass a-check, lint.sh,
-# migration-check.sh, pruefung, groessenmarke, zeichen und katalog samt Treibern, die Größengrenzen von docs-check (d-check) und der Treiber des Lasttests einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
-# Eingaben gefahren, die Fälle zu `pruefung race`, zu `groessenmarke`, zu `zeichen`, zu `katalog`, zu `d-check` und zum Lasttest gegen ein Wegwerfverzeichnis statt der Eingaben.
+# migration-check.sh, pruefung, groessenmarke, zeichen und katalog samt Treibern, die Größengrenzen von docs-check (d-check) und die Treiber des Lasttests und des Neustarttests einen Verstoß rot melden (SPEC-102). Es wird geprüft (gofmt, vet, Test), gebaut und gegen die
+# Eingaben gefahren, die Fälle zu `pruefung race`, zu `groessenmarke`, zu `zeichen`, zu `katalog`, zu `d-check`, zum Lasttest und zum Neustarttest gegen ein Wegwerfverzeichnis statt der Eingaben.
 FROM ${LINT_IMAGE} AS gegenproben
 ENV CGO_ENABLED=0 GOTOOLCHAIN=local GOFLAGS=-mod=readonly
 COPY --from=a-check-bin /a-check /usr/local/bin/a-check
@@ -193,5 +209,5 @@ WORKDIR /src
 COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY go.mod go.sum* .a-check.yml .d-check.yml .golangci.yml ./
 COPY src ./src
-COPY tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/groessenmarke.sh tools/harness/zeichen.sh tools/harness/lasttest.sh tools/harness/
+COPY tools/harness/lint.sh tools/harness/migration-check.sh tools/harness/groessenmarke.sh tools/harness/zeichen.sh tools/harness/lasttest.sh tools/harness/test-image.sh tools/harness/
 RUN --network=none gegenproben

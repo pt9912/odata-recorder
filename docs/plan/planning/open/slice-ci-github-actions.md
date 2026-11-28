@@ -13,7 +13,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 
 **Bezug:** `LH-QA-06` (Messmethode: containerbasierter CI-Test), `LH-RB-03` (Entwicklung und Ausführung in Docker-basierten CI-Umgebungen), [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Gegenproben außerhalb der Gate-Kette), [ADR-0007](../../adr/0007-race-detektor-im-gate.md) (`test-race` ist Gate).
 
-**Berührte Spec-Stellen:** `LH-RB-03.a` (Linux und CI) · `SPEC-004` (Migrationsregel: Satz über CI und seinen Ersatz) · `SPEC-122` (`make test-race`) · [SPEC-211](../../../../harness/vertraege/SPEC-211-container-tests-in-der-kette.md) Nr. 5 e (Abbruch durch TERM, offene Sendung mit Trigger „eine CI“) · `SPEC-323` (Neustarttest, kommt mit [slice-container-image](../in-progress/slice-container-image.md)) · neuer Vertrag der CI unter `harness/vertraege/` (Kennung vergibt der Architect aus dem Bereich der Linie C).
+**Berührte Spec-Stellen:** `LH-RB-03.a` (Linux und CI) · `SPEC-004` (Migrationsregel: Satz über CI und seinen Ersatz) · `SPEC-122` (`make test-race`) · [SPEC-211](../../../../harness/vertraege/SPEC-211-container-tests-in-der-kette.md) Nr. 5 e (Abbruch durch TERM, offene Sendung mit Trigger „eine CI“) · `SPEC-323` (Neustarttest, kommt mit [slice-container-image](../done/slice-container-image.md)) · neuer Vertrag der CI unter `harness/vertraege/` (Kennung vergibt der Architect aus dem Bereich der Linie C).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
@@ -101,7 +101,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **Start** (`next` → `in-progress`), alle Bedingungen zugleich:
 
 1. Der Kopf von `spec/lastenheft.md` trägt den Status `Accepted` (Erstabnahme; Auftrag des Users vom 2026-11-28). Heute: `Draft`.
-2. [slice-container-image](../in-progress/slice-container-image.md) liegt in `done/` (Vorgänger in der Gate-Kette: erst mit ihm trägt `make gates` den Neustarttest, den die Messmethode von `LH-QA-06` verlangt).
+2. [slice-container-image](../done/slice-container-image.md) liegt in `done/` (Vorgänger in der Gate-Kette: erst mit ihm trägt `make gates` den Neustarttest, den die Messmethode von `LH-QA-06` verlangt).
 3. Kein anderer Kettenslice liegt in `in-progress/`. Die Stellung zu den übrigen offenen Kettenslices legt der Start fest.
 4. Die Fragen 1 bis 13 in §6 sind beantwortet; eine Antwort, die den Schnitt ändert, ändert den Plan vor dem Start. Vertrag, Raster und Tabelle *Zusage · Fänger* stehen vor dem ersten Code-Commit.
 5. Der User hat zugestimmt, dass Zweige dieses Slice nach GitHub gepusht werden: ohne Push gibt es keinen Lauf und keinen Beleg. Gepusht wird in diesem Repo nur auf Anweisung.

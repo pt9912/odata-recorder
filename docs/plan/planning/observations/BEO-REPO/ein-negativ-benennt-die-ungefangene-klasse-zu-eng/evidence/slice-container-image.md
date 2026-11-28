@@ -1,0 +1,2 @@
+**Vorgang:** slice-container-image
+**Fund:** *Nicht behauptet* in `harness/README.md` nennt zum Vergleich der zwei Programme allein „über verschiedene Hosts“; der Vertrag (`SPEC-323` Nr. 9 g) schließt dazu den Bau aus leerem Cache, andere Bau-Dienste, Kernzahlen und Plattformen aus (Verifikation V-5, INFO). Offen, Adresse Implementer vor der Closure der Welle. Beleg: Report `2026-11-28-slice-container-image-verifikation`.
