@@ -648,6 +648,7 @@ Normative DB-Invarianten:
 CI muss `schema validate`, `schema generate --target sqlite`, DDL-Ausführung, Negativtests und die vollständige Migrationskette auf einer Kopie bestehender Datenbanken durchführen.
 Solange es keine CI gibt, gilt ein Lauf über `make schema-check` als Ersatz für den CI-Lauf (Entscheidung des fachlichen Owners vom 2026-11-27).
 Der Ersatz reicht so weit wie das Ziel: die Migrationskette fährt es nicht, sie bleibt geschuldet.
+Fährt eine CI `make gates`, ist ihr Lauf von `make schema-check` darin der CI-Lauf dieser Regel, mit derselben Reichweite: auch dort bleibt die Migrationskette bis zur zweiten Schemaversion geschuldet.
 Als Gate verdrahtet ist `make schema-check`: `schema validate`, `schema generate --target sqlite`, DDL-Ausführung in SQLite, die Negativtests der Constraints und `foreign_key_check`/`integrity_check`;
 `make schema-validate` und `make schema-generate` sind Werkzeuge ohne Gate-Eigenschaft.
 Nicht belegt ist die Migrationskette auf bestehenden Datenbanken; sie entsteht mit der zweiten Schemaversion.
@@ -5651,6 +5652,7 @@ Abnahmeparameter für Performance und Concurrency stehen in `LH-QA-01.a` und `LH
 
 | Datum | Änderung |
 |---|---|
+| 2026-11-28 | `SPEC-004` zur CI ergänzt (Architect, `LH-QA-06`, `LH-RB-03`; Lastenheft, Produktverhalten und Prüfläufe unverändert): ein CI-Lauf von `make gates` ist mit `make schema-check` der CI-Lauf der Migrationsregel, ohne die Migrationskette, die geschuldet bleibt |
 | 2026-11-28 | Vertrag zur Ausführung von `$expand` vor dem Code (Architect, `LH-FA-16`; Soll, Lastenheft und Verhalten des Binary unverändert, keine bestehende Entscheidung geändert): `SPEC-264` bis `SPEC-266` neu (Beziehungen aus den Referenzbedingungen des `$metadata`, ein Ziel ohne Beleg ist `422`, eingebettete Entities im OData-JSON); Zeiger in `SPEC-002`, `SPEC-125`, `SPEC-168`, `SPEC-169`, `SPEC-192`, `SPEC-193`, `SPEC-195` bis `SPEC-198`, `SPEC-262`, `SPEC-263` und `SPEC-290` |
 | 2026-11-28 | Form der `Content-ID` an einer Stelle (Architect, `LH-FA-16`; vor dem Code): `model.ContentIDGueltig` in `SPEC-182`, `SPEC-183` Nr. 4 c und `SPEC-184` Nr. 3; die reservierten Wörter eines Verweises gelten bytegleich |
 | 2026-11-28 | Vertrag zum Lesen und Prüfen von `$batch` (Architect, `LH-FA-16`; Soll, Lastenheft und Verhalten des Binary unverändert): `SPEC-182` bis `SPEC-184` neu; `SPEC-109` Nr. 5 und §4 (`ODR-E6001`, `ODR-E6007`) nennen die Batch-Fehler, kein neuer Code |
