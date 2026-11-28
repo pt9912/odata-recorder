@@ -1,0 +1,2 @@
+**Vorgang:** slice-container-image
+**Fund:** Der Reviewer baute die Stufe `gegenproben` zweimal (`--no-cache-filter gegenproben`, Host mit 20 Kernen und fremder Last): beide Läufe rot allein durch `lint/*` mit `Zeit überschritten` (9 und 5 von 236 Fällen, wechselnde Menge), die Last stieg während des Laufs von 10 und 6 auf 127 bis 254. Die elf neuen Fälle waren in beiden grün. Ob der Lauf ohne diesen Slice anders endet, ist nicht gemessen; kein Lauf von `make gegenproben` an diesem Stand, der Stempel passt nicht. Beleg: Report `2026-11-28-slice-container-image-review` (F-8).

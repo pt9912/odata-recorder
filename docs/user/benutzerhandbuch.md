@@ -2,7 +2,7 @@
 
 Software-Version: dev
 Gültigkeitsbereich: das Binary, das `make build` erzeugt
-Stand: 2026-11-27
+Stand: 2026-11-28
 
 ## Einleitung
 
@@ -50,6 +50,34 @@ odata-recorder dev
 --- Ausgangswert
 0
 ```
+
+## Container-Image
+
+Aufgabe: den Dienst als Container aus dem Laufzeit-Image betreiben.
+
+Voraussetzung: Docker und GNU `make` sind installiert, und das aktuelle Verzeichnis ist die Wurzel des Repos.
+
+Vorgehen:
+
+1. Rufe `make image` auf, für eine Software-Version zum Beispiel `make image VERSION=1.2.3`. Ohne Angabe ist die Version `dev`.
+2. Starte einen Container mit einem Volume an `/data`: `docker run -d --name recorder -v odata-daten:/data -e MODE=record -e UPSTREAM_URL=http://upstream.example/odata odata-recorder:image`.
+3. Beende ihn mit `docker stop recorder` und starte ihn mit `docker start recorder` wieder.
+
+Ergebnis: Das Image `odata-recorder:image` enthält das Programm unter `/odata-recorder`. Ohne Argument führt der Container das Kommando `start` aus; ein anderes Kommando steht hinter dem Image, zum Beispiel `docker run --rm odata-recorder:image version`. Das Image hat keine Shell und kein Werkzeug zur Diagnose.
+
+Datenverzeichnis: Das Image setzt `DATA_DIR=/data`. Dort liegen die Datenbank, die Blobs, die Token-Datei `admin.token` und das Audit-Log. Hänge an `/data` ein Volume oder ein Verzeichnis ein: Ein leeres Verzeichnis ist ein gültiger Start, ein vorhandener Bestand wird übernommen. Ohne eingehängtes Volume liegen die Daten im Container; sie überstehen Stopp und Start desselben Containers und enden mit seinem Entfernen.
+
+Netz: Ohne Angabe von `LISTEN` und `ADMIN_LISTEN` nimmt der Dienst Anfragen allein auf der Schleife des Containers an; ein veröffentlichter Port antwortet dann nicht.
+
+- Für Anfragen von außen setze `LISTEN=0.0.0.0:8080` und veröffentliche den Port, zum Beispiel mit `-p 127.0.0.1:8080:8080`. In den Modi `mock` und `hybrid` verlangt der Start dann zusätzlich `PUBLIC_BASE_URL`.
+- Für die Admin-Schnittstelle von außen setze `ADMIN_LISTEN` und dazu `ADMIN_TLS_CERT` und `ADMIN_TLS_KEY` oder `ADMIN_ALLOW_PLAINTEXT=true` (Kapitel `TLS`).
+- Das Token der Admin-Schnittstelle liest du aus dem Container mit `docker cp recorder:/data/admin.token .`.
+
+Rechte: Der Dienst läuft im Container als Nutzer und Gruppe `65532`, nie als Root. Ein neues, leeres benanntes Volume erhält beim ersten Einhängen den Eigentümer von `/data`. Ein eingehängtes Verzeichnis des Rechners muss für `65532` beschreibbar sein, sonst endet der Start mit dem Ausgangswert 1. Zertifikats- und Schlüsseldateien, die du einhängst, müssen für `65532` lesbar sein, ebenso eine eigene Token-Datei.
+
+Stopp: Der Dienst erhält beim Stopp `SIGTERM`, beendet sich geordnet und endet mit dem Ausgangswert 0. Docker wartet ohne Angabe 10 Sekunden und beendet den Container danach erzwungen; `SHUTDOWN_TIMEOUT` beträgt ohne Angabe ebenfalls 10 Sekunden. Sollen laufende Austausche abgewartet werden, setze die Wartezeit höher, zum Beispiel mit `docker stop -t 30 recorder`. Nach einem erzwungenen Ende setzt der nächste Start offene Sessions auf `incomplete`.
+
+Unter Docker Compose gelten dieselben Angaben: Einstellungen als Umgebungsvariablen und ein Volume an `/data`. Das Image deklariert weder ein Volume noch einen Port und keine Prüfung des Zustands.
 
 ## Kommandos
 
@@ -254,7 +282,7 @@ Ein Client, dessen Handshake scheitert, etwa weil er das Zertifikat ablehnt, err
 
 ## Schutz der Daten
 
-Um Core-Dumps und Swap kümmert sich der Betreiber, der Recorder prüft beides nicht. Werte, die ein Client im Modus `mock` oder `hybrid` schreibt, speichert der Dienst unverändert. Welche Testdaten zulässig sind, verantwortet der Betreiber.
+Um Core-Dumps, Swap, Diagnose-Dumps und Body-Logging in Middleware kümmert sich der Betreiber, der Recorder prüft nichts davon. Werte, die ein Client im Modus `mock` oder `hybrid` schreibt, speichert der Dienst unverändert. Welche Testdaten zulässig sind, verantwortet der Betreiber.
 
 ## Fehlercodes
 

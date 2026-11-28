@@ -1,0 +1,2 @@
+**Vorgang:** slice-container-image
+**Fund:** Der neue Treiber der Gegenproben stand in Tabelle, `Dockerfile` und `SPEC-102`, nicht im Kopfkommentar und Hilfetext von `make gegenproben` (Review F-4, LOW). Die Berichtigung von `SPEC-322` Nr. 4 änderte die Spezifikation, die Dateitabelle in §3 des Plans nannte die Datei nicht (Verifikation V-2, LOW). Beide behoben. Beleg: Reports `2026-11-28-slice-container-image-review` und `-verifikation`.

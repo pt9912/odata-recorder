@@ -1,1 +1,1 @@
-**Stand:** offen; zweiter Vorgang mit `slice-inspection-use-case` (Evidenz; W1 zählt Aufrufe und Stellen, nicht jede Verzweigung), erster Vorgang mit `slice-v4-schreiber-marker-text` (Evidenz)
+**Stand:** verkörpert in `.harness/skills/reviewer.md` (MEDIUM *Fixture, Hilfe oder Kommentar verdeckt, was der Test prüft*: Kommentar oder Plan nennt mehr als der Test, `AGENTS.md` §3.11) seit welle-record-replay (Lese-Schritt der Closure von `welle-betrieb`; keine neue Regel). Zähler: die Dateien unter `evidence/`.

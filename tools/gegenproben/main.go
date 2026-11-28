@@ -1,7 +1,7 @@
 // Command gegenproben weist an a-check, golangci-lint (tools/harness/lint.sh),
-// tools/harness/migration-check.sh, pruefung (test, build, race, handbuch) und dem Treiber des Lasttests
-// (tools/harness/lasttest.sh) nach, dass sie einen Verstoß rot und einen erlaubten Fall nicht rot melden
-// (SPEC-102). Die Verdrahtung von pruefung im Dockerfile prüft es nicht.
+// tools/harness/migration-check.sh, pruefung (test, build, race, handbuch), dem Treiber des Lasttests
+// (tools/harness/lasttest.sh) und dem des Neustarttests (tools/harness/test-image.sh) nach, dass sie einen Verstoß rot und einen
+// erlaubten Fall nicht rot melden (SPEC-102). Die Verdrahtung von pruefung im Dockerfile prüft es nicht.
 package main
 
 import (
@@ -54,6 +54,9 @@ type Umgebung struct {
 	// LasttestTreiber ist der Pfad von tools/harness/lasttest.sh, den die Fälle 217 bis 225 mit
 	// `sh` rufen.
 	LasttestTreiber string
+	// TestImageTreiber ist der Pfad von tools/harness/test-image.sh, den die Fälle 226 bis 236 mit
+	// `sh` rufen.
+	TestImageTreiber string
 }
 
 func absolut(pfad string) string {
@@ -68,16 +71,18 @@ func standard() Umgebung {
 	treiber := absolut("tools/harness/groessenmarke.sh")
 	zeichen := absolut("tools/harness/zeichen.sh")
 	lasttest := absolut("tools/harness/lasttest.sh")
+	testImage := absolut("tools/harness/test-image.sh")
 	return Umgebung{
 		Eingaben:   []string{"src", "go.mod", "go.sum", ".a-check.yml", ".d-check.yml", ".golangci.yml", "tools/harness/lint.sh", "tools/harness/migration-check.sh"},
 		Programme:  []string{"a-check", "golangci-lint", "sh", "pruefung", "go", "gofmt", "groessenmarke", "zeichen", "katalog", "git", "tar"},
 		Aufraeumen: os.RemoveAll,
-		Befehl:     befehlMit(treiber, zeichen, lasttest),
+		Befehl:     befehlTestImage(befehlMit(treiber, zeichen, lasttest), testImage),
 		Bauen:      bauen,
 		Treiber:    treiber,
 
-		ZeichenTreiber:  zeichen,
-		LasttestTreiber: lasttest,
+		ZeichenTreiber:   zeichen,
+		LasttestTreiber:  lasttest,
+		TestImageTreiber: testImage,
 	}
 }
 

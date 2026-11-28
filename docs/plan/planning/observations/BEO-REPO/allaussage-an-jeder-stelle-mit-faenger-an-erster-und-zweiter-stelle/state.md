@@ -1,1 +1,1 @@
-**Stand:** offen; erster Vorgang `slice-guard-schreibwege` (Evidenz; V-2 und V-3 der Verifikation sind ein Vorgang); Zuweisung bei 3×
+**Stand:** verkörpert in `AGENTS.md` §3.15 (Satz *Eine Allaussage über Stellen und Arten …* und Satz zu den Achsen einer Menge), geschärft seit welle-record-replay und seit welle-hybrid (Lese-Schritt der Closure von `welle-betrieb`; keine neue Regel). Kein Sensor möglich: welche Menge „an jeder Stelle“ meint, steht allein im Wortlaut des jeweiligen Vertrags. Zähler: die Dateien unter `evidence/`.

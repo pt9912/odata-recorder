@@ -1,0 +1,2 @@
+**Vorgang:** slice-container-image
+**Fund:** Der Gate-Lauf auf dem Stand nach der Fix-Runde (Commit, Exit, Laufzeit, Last) stand allein im Scratchpad des Implementers; der Plan führte die Messung des Standes davor, und die Verifikation konnte nur den Nachweis-Stempel lesen, nicht die Ausgabe (Auflage 1). Die Closure hat die Ausgabe aus dem Scratchpad in den Plan übernommen; mit dem Ende der Sitzung wäre sie verloren. Beleg: Report `2026-11-28-slice-container-image-verifikation`, Plan §7.
