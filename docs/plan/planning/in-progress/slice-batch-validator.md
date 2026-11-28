@@ -95,13 +95,44 @@ Die Randformen sind in `SPEC-184` entschieden (`AGENTS.md` §3.12); der Implemen
 
 | Nr. | Zusage | Fänger | Mutation | Klasse |
 |---|---|---|---|---|
-| 37 | Methoden: je Ebene die erlaubten; `GET` im Changeset `methode`, jede andere `methode_nicht_unterstuetzt` | `TestPruefeBatchMethode`: Schleife über {die fünf, `HEAD`, `OPTIONS`, `MERGE`, `PROPFIND`, `get`, leer} × beide Ebenen × Stelle | `GET` im Changeset erlaubt | andere |
-| 38 | `Content-ID` je Changeset eindeutig, bytegleich; verschiedene Changesets, Einzelteile und fehlende stoßen nicht an | `TestPruefeBatchContentID`: alle Paare von Stellen in Changesets der Länge 2 bis 5, Schreibweise, über Changesets | Eindeutigkeit über den ganzen Batch; nur Nachbarn verglichen | andere |
-| 39 | `Verweis` liefert `<id>` genau nach `SPEC-184` Nr. 3 | `TestBatchVerweis`: Ziele über {`$1`, `$1/x`, `$1?a`, `$`, `$/x`, `/$1`, `%241`, `$1(2)`, die fünf Wörter und je eine andere Schreibweise (Verweis), Länge 128 und 129}; alle 256 Bytes an Anfang, Mitte und Ende der `<id>`, Soll ohne Code der Form: Zeichen der Menge aus `SPEC-183` Nr. 4 c gehören zur `<id>`, `/` und `?` beenden sie, jedes andere ergibt `""` | `$metadata` ist ein Verweis; `Verweis` prüft nur die Länge | andere |
-| 40 | Verweis nur auf einen früheren Request desselben Changeset, sonst `referenz` | `TestPruefeBatchReferenz`: früher, selbst, später, anderes Changeset, Einzelteil davor und danach, außerhalb eines Changeset | Spätere zählen mit | andere |
-| 41 | Rangfolge: erster Teil, erster Request, dann Methode, Eindeutigkeit, Auflösbarkeit (den Vorrang des Lesers fängt `slice-batch-parser` Zeile 30) | `TestPruefeBatchRang`: alle Paare der drei Prüfungen am selben und an zwei Requests | Eindeutigkeit vor Methode | andere |
-| 42 | `PruefeBatch` ändert `b` nicht und ist wiederholbar; ein leerer Batch und ein leeres Changeset sind `nil` | `TestPruefeBatchRein`: tiefer Vergleich vor und nach, zweimal; leere Formen | `b` wird sortiert | andere |
+| 37 | Methoden: je Ebene die erlaubten; `GET` im Changeset `methode`, jede andere `methode_nicht_unterstuetzt` | `TestPruefeBatchMethode`: Schleife über {die fünf, `HEAD`, `OPTIONS`, `MERGE`, `PROPFIND`, `get`, leer} × beide Ebenen × Stelle; `TestPruefeBatchMethodeNachbarn`: Nachbarn der fünf (bytegleich) | `GET` im Changeset erlaubt | andere |
+| 38 | `Content-ID` je Changeset eindeutig, bytegleich; verschiedene Changesets, Einzelteile und fehlende stoßen nicht an | `TestPruefeBatchContentID`: alle Paare von Stellen in Changesets der Länge 2 bis 12, bytegleich; `TestPruefeBatchContentIDEbene`: über Teile, ohne `Content-ID` | Eindeutigkeit über den ganzen Batch; nur Nachbarn verglichen | andere |
+| 39 | `Verweis` liefert `<id>` genau nach `SPEC-184` Nr. 3 | `TestBatchVerweis`: Ziele über {`$1`, `$1/x`, `$1?a`, `$`, `$/x`, `/$1`, `%241`, `$1(2)`}, alle 256 Bytes an Anfang, Mitte und Ende der `<id>`, Längen 0 bis 130; `TestBatchVerweisWoerter`: die fünf Wörter, jede Schreibweise und jeder Nachbar, verglichen mit der abgeschnittenen `<id>`; `TestBatchVerweisZiele`: jedes Ziel bis Länge 5 über acht Zeichen; Soll ohne Code der Form | `$metadata` ist ein Verweis; `Verweis` prüft nur die Länge | andere |
+| 40 | Verweis nur auf einen früheren Request desselben Changeset, sonst `referenz` | `TestPruefeBatchReferenz`: früher, selbst, später in Changesets bis Länge 12, bytegleich; `TestPruefeBatchReferenzEbene`: anderes Changeset, Einzelteil davor und danach, außerhalb eines Changeset, reservierte Wörter | Spätere zählen mit | andere |
+| 41 | Rangfolge: erster Teil, erster Request, dann Methode, Eindeutigkeit, Auflösbarkeit (den Vorrang des Lesers fängt `slice-batch-parser` Zeile 30) | `TestPruefeBatchRang`: alle Paare der drei Prüfungen am selben und an zwei Requests; `TestPruefeBatchRangEinzel`: Einzelrequest gegen Changeset in beiden Folgen | Eindeutigkeit vor Methode | andere |
+| 42 | `PruefeBatch` ändert `b` nicht und ist wiederholbar; ein leerer Batch und ein leeres Changeset sind `nil` | `TestPruefeBatchRein`: tiefer Vergleich vor und nach, zweimal; `TestPruefeBatchLeer`: leere Formen, untypisiertes `nil` | `b` wird sortiert | andere |
 | 43 | Das unveränderte Beispiel von `SPEC-183` Nr. 8 ergibt `nil`, und die Zeilen der Prüfung in seiner Tabelle ergeben das Genannte (Validator-Contract-Test) | `TestPruefeBatchContract`: der Batch ist von Hand nach dem dort genannten Ergebnis gebaut (`model` ruft den Leser nicht) | Eine Antwort wird vertauscht | andere |
+
+**Bericht des Implementers** (2026-11-28; `AGENTS.md` §3.10; gemessen vom Implementer mit `tools/harness/mutationslauf.sh`, Image `odata-recorder:test`, `--memory=4g --cpus=4`, Last des Hosts 5,7 bis 10,8). Alle Zusagen sind deterministisch (Klasse `andere`, je Mutation ein Lauf, keine Rate). 58 Mutationen: 57 rot im genannten Test, eine gleichwertig (`ende > 0` statt `>= 0` in `Verweis`: eine `<id>`, die mit `/` oder `?` beginnt, hat nie die Form einer `Content-ID`).
+
+| Zeile · Zusage | Mutation | Roter Test |
+|---|---|---|
+| 37 Methoden je Ebene | `GET` im Changeset erlaubt · `MERGE` erlaubt · `DELETE` fehlt · Ebene von `GET` vertauscht · `methode` statt `methode_nicht_unterstuetzt` · außerhalb eines Changeset nur der erste Request | `TestPruefeBatchMethode` |
+| 37 bytegleich | Methode in Großschrift · ohne Leerraum am Rand verglichen | `TestPruefeBatchMethodeNachbarn` |
+| 37 bis 41 `Ort` | Teilnummer einstellig · Requestnummer einstellig · Requestnummer auch außerhalb eines Changeset | `TestPruefeBatchMethode` |
+| 38 je Changeset, bytegleich | nur Nachbarn verglichen · Kleinschrift mitverglichen · führende Nullen entfernt | `TestPruefeBatchContentID` |
+| 38 Ebene, ohne `Content-ID` | eindeutig im ganzen Batch · leere `Content-ID` stößt an · Teil ohne Changeset sammelt | `TestPruefeBatchContentIDEbene` |
+| 39 reservierte Wörter | jedes der fünf Wörter einzeln entfernt · gegen das Ziel statt die `<id>` verglichen · ohne Schreibweise verglichen | `TestBatchVerweisWoerter` |
+| 39 Form | nur die Länge geprüft · am letzten Trennzeichen geschnitten · nur `/` · nur `?` · auch `(` trennt · führendes `/` entfernt · `%24` dekodiert | `TestBatchVerweis` |
+| 39 `$` am Anfang | Ziel ohne `$` zählt | `TestBatchVerweisZiele` |
+| 40 früherer Request | Spätere zählen mit · der Request selbst zählt · Kleinschrift löst auf · bei Länge 128 zählt das letzte Zeichen nicht | `TestPruefeBatchReferenz` |
+| 40 desselben Changeset | außerhalb eines Changeset erlaubt · frühere Teile lösen auf | `TestPruefeBatchReferenzEbene` |
+| 41 Rangfolge | Eindeutigkeit vor Methode · Verweis vor Eindeutigkeit · Verweis vor Methode · Methoden aller Requests zuerst · Teile rückwärts · letzter Request zuerst | `TestPruefeBatchRang` |
+| 41 Einzelrequest gegen Changeset | Changesets zuerst | `TestPruefeBatchRangEinzel` |
+| 42 unverändert, wiederholbar | Requests getauscht · Header, Body, Ziel zurückgeschrieben · `Verweis` schreibt in `Header` · `Verweis` liefert beim zweiten Aufruf anderes | `TestPruefeBatchRein` |
+| 42 leere Formen | `nil` wird leere Liste · leerer Batch ist Fehler · leeres Changeset ist Fehler · typisiertes `nil` | `TestPruefeBatchLeer` |
+| 43 Contract-Test | `content_id_doppelt` und `referenz` je durch die andere Ursache ersetzt | `TestPruefeBatchContract` |
+
+**Raster (§6) zu Tests:** leerer Batch, leeres Changeset, Wiederholung des Aufrufs: Zeile 42; unbekannte Methode: Zeile 37; fehlende und wiederholte `Content-ID`: Zeile 38; unbekannter Verweis, reservierte Wörter, `/$1`, `%241`, Länge: Zeilen 39 und 40; Zusatztabelle: Zeile 41. Die Richtung der Imports hält `make a-check` (nicht mutiert: das Gate ist unverändert).
+
+**Prüfgrenzen** (akzeptierte Negative, `AGENTS.md` §3.17):
+
+- Zeile 37: die Menge der Methoden ist unbeschränkt. Gefahren sind je der fünf Wörter alle Schreibweisen, jede Einfügung und Ersetzung eines der 256 Bytes und jede Auslassung (12181 Zeichenfolgen auf beiden Ebenen) und die elf der Zeile. Ungefangen bleibt eine Regel, die eine Zeichenfolge mit zwei oder mehr Änderungen (außer der Schreibweise) außerhalb der elf annimmt. Folge: eine solche Regression besteht die Gates.
+- Zeile 39: das Ziel ist unbeschränkt. Gefahren sind jedes Ziel bis Länge 5 über `$ / ? a 1 % (` und Leerzeichen (37449), jedes Byte an drei Stellen einer `<id>` aus drei Zeichen und hinter `/` und `?`, die Längen 0 bis 130 mit vier Fortsetzungen und die Nachbarn der fünf Wörter. Ungefangen bleibt eine Regel, die erst bei einem Ziel über Länge 5 außerhalb dieser Familien greift oder zwei Bytes außerhalb der acht Zeichen zugleich verlangt. Folge: wie oben.
+- Zeilen 38 und 40, bytegleich: alle geordneten Paare der 72 Kennungen der Länge 1 und 2 über `a A 0 1 . ~ - _` und je ein gleiches und ungleiches Paar der Länge 128. Ungefangen bleibt eine Angleichung, die erst andere Zeichen oder Längen von 3 bis 127 trifft (außer den Reihen `r1` bis `r12`). Folge: wie oben.
+- Zeile 43: kein Lauf gibt der Prüfung einen Wert des Lesers (`model` ruft keinen Adapter). Folge: eine Abweichung zwischen dem von Hand gebauten Batch und dem Leser fällt erst beim ersten Aufrufer beider auf (`slice-batch-changesets`).
+
+**Messung der Größe** (Metrik wie §4): 713 Zeilen (84 Produktcode, 629 Tests) gegen die Marke 900; keine Überschreitung.
 
 ```groessenmarke
 pfad: src/hexagon/model/batch_pruefen.go
