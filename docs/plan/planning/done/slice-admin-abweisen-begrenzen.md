@@ -334,7 +334,7 @@ Backticks).
 
 **Folge-Slice:** keiner.
 
-**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld; die Spec-Lücke hat `LH-FA-13` als Gegenstück) · Folge-Slice (keiner genannt; [slice-admin-tls-betrieb](../open/slice-admin-tls-betrieb.md) liegt in `open/`) · Register (die sieben Verzeichnisse tragen `evidence/slice-admin-abweisen-begrenzen.md`).
+**Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld; die Spec-Lücke hat `LH-FA-13` als Gegenstück) · Folge-Slice (keiner genannt; [slice-admin-tls-betrieb](../open/slice-admin-tls-betrieb.md) steht unter `open/`) · Register (die in §6 und §7 genannten Verzeichnisse tragen `evidence/`, die sieben mit neuer Datei `evidence/slice-admin-abweisen-begrenzen.md`).
 
 **Hinweise an den User und den Integrationsschritt (nicht entschieden):** (a) `make gates` und `make gegenproben` im Hauptbaum nach dem Merge; (b) mit dem Merge ist die letzte Bedingung des Meilensteins M6 erfüllt (Roadmap); den Status setzt der Planner nach dem Gate-Lauf auf `main`.
 
