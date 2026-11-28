@@ -33,11 +33,11 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Was zur Erstabnahme fehlt, entsteht ohne Produktcode: (1) als Test: unbekannte OData-Erweiterungen verhindern die Aufzeichnung nicht (`LH-QA-07`, zweiter Halbsatz; fünf Fälle nach `LH-QA-07.a`); (2) als Test: Filter, Sortierung und Paging kombiniert auf fünf Datensätzen (`LH-FA-08` Happy Path) als Schritt `ODV4-Q-11` b der Abnahmematrix, die damit 93 statt 92 Schritte zählt; (3) ein kurzer Absatz *Schutz der Daten* im Benutzerhandbuch mit den zwei Betreiberpflichten (`LH-RB-04`; Antwort 7 des Users vom 2026-11-27, Wortlaut in [welle-betrieb](../welle-betrieb.md) §4).
 
-**Schnitt vor dem Code** (Planner, 2026-11-27): Die Bewertung des Architect nennt einen dritten Beleg, den Absturztest (`SPEC-048`, `LH-QA-03`). Er ist [slice-absturztest](../open/slice-absturztest.md): ungeschnitten *S* = 3280 über der Schnittgrenze (§4); die Teile teilen keinen Mechanismus.
+**Schnitt vor dem Code** (Planner, 2026-11-27): Die Bewertung des Architect nennt einen dritten Beleg, den Absturztest (`SPEC-048`, `LH-QA-03`). Er ist [slice-absturztest](../in-progress/slice-absturztest.md): ungeschnitten *S* = 3280 über der Schnittgrenze (§4); die Teile teilen keinen Mechanismus.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Der Absturztest (`SPEC-048`) — [slice-absturztest](../open/slice-absturztest.md), Schnitt oben.
+- Der Absturztest (`SPEC-048`) — [slice-absturztest](../in-progress/slice-absturztest.md), Schnitt oben.
 - Produktcode — die Belege prüfen Verhalten, das die Spezifikation als vorhanden beschreibt; zeigt ein Test eine Abweichung, greift die Rückführung in §4.
 - Das byte-gleiche Binary (`LH-RB-03.a`) — [slice-container-image](../in-progress/slice-container-image.md), Zeile 20 dort.
 - Neue Fälle in `make test-integration` (`tests/e2e/`) — der Nachweis läuft im Paket `integration` in `make test` (`LH-QA-07.a`); keine Datei der Gate-Kette.
@@ -254,7 +254,7 @@ aus §6 seinen Ausgang; die Liefer-Punkte der DoD bleiben leer
 
 **Sendungen (`AGENTS.md` §3.13):** *an diesen Slice:* die Sendung des Handbuch-Absatzes aus [welle-betrieb](../welle-betrieb.md) §4 (Antwort 7), geliefert. *Von diesem Slice:* an keinen Slice. *An den Architect:* die Meldung der Auslastung; E10, wenn `LH-QA-07.a` vom abgelegten Exchange mehr verlangen soll. *An den User:* die Frage (c) zu `hybrid` in der [Roadmap](../in-progress/roadmap.md).
 
-**Folge-Slice:** keiner aus der Closure. [slice-absturztest](../open/slice-absturztest.md) stammt aus dem Schnitt vor dem Code und führt seinen Gegenstand selbst.
+**Folge-Slice:** keiner aus der Closure. [slice-absturztest](../in-progress/slice-absturztest.md) stammt aus dem Schnitt vor dem Code und führt seinen Gegenstand selbst.
 
 **Drei Paarungen:** Anker (kein Eintrag trägt ein Zielort-Feld) · Folge-Slice (`slice-absturztest` steht unter `open/`) · Register (die in §6 und §7 genannten Verzeichnisse tragen `evidence/`).
 
