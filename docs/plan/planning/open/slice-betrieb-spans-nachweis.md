@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `SPEC-026` bis `SPEC-030` (Spans und Pflicht-Attribute) · `SPEC-230` (Zähler je Fehlercode) · `SPEC-294` Nr. 5 (welche Fehler gezählt werden). Der Slice ändert keine Stelle.
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig `slice-betrieb-spans-nachweis`, Worktree `/Development/odata-recorder-wt-spans`; der Zweig entsteht von `main` nach den Start-Commits, der Start liegt auf `main`)
 
 **Autor:** pt9912 (Planner, Vorbereitung der Closure von `welle-betrieb`). **Datum:** 2026-11-28.
 
@@ -66,6 +66,30 @@ Regeln dieser Sektion: Baseline-Regelwerk `grundlagen-bootstrap.md`
 
 Der Bericht nennt je Zusage der DoD eine Mutation (ein Span fehlt, ein Pflicht-Attribut fehlt, der Canary als Attribut, ein Zähler steigt nicht) und den roten Lauf.
 
+**Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Planner beim Start, 2026-11-28; kein Architect-Lauf, weil der Slice keinen neuen Vertrag liefert: jede Zusage steht schon in `SPEC-026` bis `SPEC-030`, `SPEC-230`, `SPEC-232`, `SPEC-290` und `SPEC-294` bis `SPEC-296`). Die Spalten sind die von `SPEC-128` Nr. 3 a. Fänger ist in jeder Zeile die eine Testfunktion in `src/bootstrap/telemetrie_betrieb_test.go` (Name nach Wahl des Implementers, hier `TestBetriebSpansUndZaehler`); er führt die Anfragen über den OData-Listener. Mutationen am Produktcode laufen nur in einer Kopie im Container, nie als Änderung im Zweig.
+
+| Nr. | Zusage | Fänger | Mutation | Klasse |
+|---|---|---|---|---|
+| BS1 | (`SPEC-026`, `SPEC-294` Nr. 4) In `record`, `replay` und `mock` trägt je Anfrage ein Span `odata.gateway.request` `http.request.method`, `http.response.status_code` und `recorder.mode` mit den Werten der Anfrage und des Modus, bei Erfolg und bei Fehlerobjekt | `TestBetriebSpansUndZaehler` | `recorder.mode` fest auf einen Modus; Status nicht gesetzt | andere |
+| BS2 | (`SPEC-027`, `SPEC-295` Nr. 4) `record` schreibt `odata.record.capture` mit `recorder.session_id` der offenen Session und `recorder.capture_status` `complete` | `TestBetriebSpansUndZaehler` | der Span entfällt; Status bleibt `unbestimmt` | andere |
+| BS3 | (`SPEC-028`, `SPEC-296`) `replay` schreibt `odata.replay.match` mit `recorder.match_strategy` und `recorder.match_result` | `TestBetriebSpansUndZaehler` | der Span entfällt; ein Attribut fehlt | andere |
+| BS4 | (`SPEC-029`, `SPEC-290` Nr. 4 a, b) `mock` schreibt `odata.mock.query` mit `recorder.entity_set` (Name aus dem Modell, nicht der Platzhalter) und `recorder.coverage_status` (nicht `nicht_gelesen`) bei einer Anfrage an eine Menge | `TestBetriebSpansUndZaehler` | `Set` des Namens entfällt; `Set` der Coverage entfällt | andere |
+| BS5 | (`SPEC-030`, `SPEC-290` Nr. 4 c, d) Eine Mutation in `mock` schreibt `odata.workspace.mutation` mit `recorder.workspace_id` und `recorder.mutation_type` | `TestBetriebSpansUndZaehler` | der Span entfällt; falsche Art | andere |
+| BS6 | (`LH-QA-04.a`) Ein Canary als Literal der Query steht in `record`, `replay` und `mock` in keiner Zeile der Senke | `TestBetriebSpansUndZaehler` | der Gesamtspan oder ein Dienst gibt die Query in ein Attribut oder Feld | andere |
+| BS7 | (`LH-QA-04.a`) Ein Canary im Request-Body steht in `record`, `replay` und `mock` in keiner Zeile der Senke | `TestBetriebSpansUndZaehler` | ein Dienst gibt ein Stück des Request-Bodys aus | andere |
+| BS8 | (`LH-QA-04.a`) Ein Canary im Response-Body steht in `record`, `replay` und `mock` in keiner Zeile der Senke | `TestBetriebSpansUndZaehler` | ein Dienst gibt ein Stück des Response-Bodys aus | andere |
+| BS9 | (`SPEC-230` Nr. 8, `SPEC-294` Nr. 5) `record`: der Stand der Zähler über alle Codes ist genau die Menge der Codes der Fehlerobjekte, die der Client erhielt, mit Anzahl; mindestens ein Code | `TestBetriebSpansUndZaehler` | `CountError` entfällt; zählt doppelt | andere |
+| BS10 | (wie BS9) `replay` | `TestBetriebSpansUndZaehler` | wie BS9 | andere |
+| BS11 | (wie BS9) `mock` | `TestBetriebSpansUndZaehler` | wie BS9 | andere |
+
+Ein Canary zählt nur, wenn der Test zeigt, dass er den Prozess erreicht hat (beim Upstream, in der Antwort an den Client oder im Fehlerfall an der Stelle, die ihn liest); je Ort ein eigener Wert, und der Wert erfüllt die Form `Token`, damit nicht allein die Formprüfung des Adapters ihn fernhält (`BEO-REPO/fixture-gleicht-dem-wert-der-mutation`).
+
+```groessenmarke
+pfad: src/bootstrap/telemetrie_betrieb_test.go
+produktcode: 0
+fakes: 0
+```
+
 ## 4. Trigger
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
@@ -73,12 +97,14 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): kein Code-Vorgänger; die Slices der Welle liegen in `done/`. Kein Kettenslice.
 
-**Größenmarke:** Den Block nach `SPEC-128` Nr. 1 setzt der Planner beim Start; erwartet ist eine neue Testdatei und kein Produktcode.
+**Stand beim Start** (Planner, 2026-11-28, `main` bei `4c935d28`, durch Lesen und Suchen, ohne Testlauf): Die Bedingung ist erfüllt; die übrigen Slices der Welle liegen in `done/`. Der Vertrag liegt in der Spezifikation, keine Frage an den Architect ist offen; er wird erst mit der Rückführung unten gebraucht. Die Helfer in `src/bootstrap` bestehen (`baueWurzelHaken`, `mockDaten`, `replayDaten`, `fakeUp`, `TelemetrieVon`). *Kollision:* in `in-progress/` liegt daneben allein [slice-batch-parser](../in-progress/slice-batch-parser.md); sein Zweig und sein Worktree ändern keinen Pfad unter `src/bootstrap/`. Der Zweig `vertrag-ci` trägt beim Start keinen Commit über `main`. Der Slice ändert weder `harness/README.md` noch eine Datei der Gate-Kette (Übergangsregeln Nr. 7); der Test läuft in `make test` und `make test-race` mit.
+
+**Größenmarke** (`SPEC-128` Nr. 1, `AGENTS.md` §3.14; Planner beim Start, vor dem ersten Code-Commit): elf Zeilen der Tabelle (BS1 bis BS11), *a* = 0, *b* = 11, *f* = 0 (der Test nutzt den vorhandenen `fakeUp`), *p* = 0: *S* = 880, Marke **1200**, keine Schnittfrage. Den Teil des Blocks, den sonst der Architect setzt (`pfad`, `produktcode`, `fakes`), hat der Planner gesetzt. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Ändert der Implementer eine weitere Datei (etwa `export_test.go` oder eine vorhandene Datei mit Helfern), nennt er sie im selben Commit in §3 und im Block. Für einen Schnitt beim Handoff ist kein Teil vorab benannt; eine Überschreitung steht mit Grund im Block.
 
 **Rückführungen — vorab benannt:**
 
-- `in-progress` → `next` (zu groß): die Marke liegt nach `SPEC-128` über der Schnittgrenze (nicht zu erwarten).
-- `in-progress` → `open` (blockiert): der Test findet ein Verhalten, das den Spec-Stellen widerspricht; Rückgabe an den Planner.
+- `in-progress` → `next` (zu groß): über 1200 Zeilen (Metrik wie oben). Eine Überschreitung schneidet nicht (`SPEC-128` Nr. 10 c); sie bekommt einen Eintrag `ueberschreitung` mit Grund im Block.
+- `in-progress` → `open` (blockiert): der Test findet ein Verhalten, das den Spec-Stellen widerspricht, oder er ist ohne Änderung am Produktcode nicht zu schreiben; Rückgabe an den Planner.
 
 ## 5. Closure-Trigger
 
@@ -91,6 +117,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 Kein neuer Vertrag; ein Raster der Randformen entfällt (`AGENTS.md` §3.12 gilt für Slices mit neuem Vertrag).
 
+- Raster *Operation × Argumentart*: entfällt, der Slice liefert keine Operation und ändert kein Verhalten; eine Randform ohne Ort in der Spezifikation geht an den Architect (`AGENTS.md` §3.12) — **Ausgang:** offen; Adresse: Implementer.
 - Das Paket `bootstrap` liegt unter dem Detektor bei 415,9 s von 600 s (`BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`); der Test kommt hinzu — **Ausgang:** weiter offen; der Implementer nennt die Zeit des Tests mit und ohne Detektor.
 - Der Capture-Span endet erst mit dem Schließen des Body; ein Test, der vorher liest, flackert — **Ausgang:** weiter offen; Muster in `TestWurzelGesamtspanJedeAnfrage` (Herunterfahren vor dem Lesen der Senke).
 
@@ -108,4 +135,10 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** eine Sub-Area, `*` (Kürzel `REPO`); alle berührten Sub-Areas GF.
 
-**Vorgelagert — offene Beobachtungen sichten** (Anlage, 2026-11-28): `BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze` (Risiko in §6), `BEO-REPO/nullprobe-grenze-unter-der-paketlaufzeit` (Mutationen in `src/bootstrap` laufen mit eigenem Treiber), `BEO-REPO/fixture-gleicht-dem-wert-der-mutation` (je Attribut ein eigener Wert). Der Planner sichtet beim Start erneut.
+**Vorgelagert — offene Beobachtungen sichten** (Planner beim Start, 2026-11-28; Zähler gleich der Zahl der Dateien unter `evidence/`, alle im Kürzel `BEO-REPO`):
+
+- **Einschlägig, offen oder geplant:** `paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze` (3×, offen; Risiko in §6), `nullprobe-grenze-unter-der-paketlaufzeit` (17×, geplant in `slice-mutationslauf-modulwurzel`; Mutationen in `src/bootstrap` laufen mit eigenem Treiber).
+- **Zu beachten:** `fixture-gleicht-dem-wert-der-mutation` (17×; je Attribut und je Ort des Canary ein eigener Wert), `vertrag-sagt-mehr-zu-als-ein-gate-prueft` (93×) und `menge-ohne-ihre-positionen` (28×; die Mengen Spans, Pflicht-Attribute, Orte des Canary und Modi als Schleifen oder je eigene Prüfung, `AGENTS.md` §3.15), `allaussage-an-jeder-stelle-mit-faenger-an-erster-und-zweiter-stelle` (5×), `ein-negativ-benennt-die-ungefangene-klasse-zu-eng` (31×), `hilfe-ersetzt-argument-verdeckt-eigenschaften` (4×), `betriebsregel-fuer-repo-dateien-verletzt` (25×; Übergangsregeln Nr. 8).
+- **Planung:** `marke-beim-start-nicht-gesetzt` (1×; Marke mit diesem Start gesetzt), `schaetzformel-ueberschaetzt-den-slice` (34×; bei einem reinen Test-Slice liegt das Ende eher weit unter der Marke).
+
+Kein Eintrag verlangt vor diesem Slice einen eigenen Slice.
