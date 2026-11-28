@@ -2,7 +2,7 @@
 
 Software-Version: dev
 Gültigkeitsbereich: das Binary, das `make build` erzeugt
-Stand: 2026-11-27
+Stand: 2026-11-28
 
 ## Einleitung
 
@@ -282,7 +282,7 @@ Ein Client, dessen Handshake scheitert, etwa weil er das Zertifikat ablehnt, err
 
 ## Schutz der Daten
 
-Um Core-Dumps und Swap kümmert sich der Betreiber, der Recorder prüft beides nicht. Werte, die ein Client im Modus `mock` oder `hybrid` schreibt, speichert der Dienst unverändert. Welche Testdaten zulässig sind, verantwortet der Betreiber.
+Um Core-Dumps, Swap, Diagnose-Dumps und Body-Logging in Middleware kümmert sich der Betreiber, der Recorder prüft nichts davon. Werte, die ein Client im Modus `mock` oder `hybrid` schreibt, speichert der Dienst unverändert. Welche Testdaten zulässig sind, verantwortet der Betreiber.
 
 ## Fehlercodes
 
