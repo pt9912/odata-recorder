@@ -1,0 +1,1 @@
+**Stand:** offen; erster Vorgang mit `slice-batch-validator` (Evidenz); kein Zielort, Schwelle 3x nicht erreicht. Offene Frage an den User: ob die Größenmarke ein zulässiger Grund eines akzeptierten Negativs ist (`AGENTS.md` §3.14 und §3.15 sagen dazu nichts).

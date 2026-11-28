@@ -1,0 +1,2 @@
+**Vorgang:** slice-batch-validator
+**Fund:** Zahl und Stelle der Teile und Requests eines Batch waren bis etwa 14 geführt, und die Prüfgrenzen nannten sie nicht: sie führten Methodentext, Ziel, Kennungen und den Weg über den Leser (F-2, MEDIUM; vier Mutationen mit Schwelle 20 grün). Der Leser lässt bis 1000 Teile zu. Die Fix-Runde führt Weite-Fänger bis 1000 und benennt die Grenze jenseits. Beleg: Report `2026-11-28-slice-batch-validator-review` (F-2), Plan `slice-batch-validator` §3 und §7.
