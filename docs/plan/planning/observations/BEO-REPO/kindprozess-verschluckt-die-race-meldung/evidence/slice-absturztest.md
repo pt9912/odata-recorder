@@ -1,0 +1,2 @@
+**Vorgang:** slice-absturztest
+**Fund:** Die Ausgabe des mit `SIGKILL` beendeten Kindprozesses stand allein in Fehlermeldungen; ein Rennen nur dort machte `make test-race` nicht rot (Review F-2). Die Fix-Runde wertet die Meldung des Detektors in der Ausgabe als rot; die Verifikation sah mit eingesetztem Rennen 10 von 10 Haltepunkten rot und ohne die Prüfung grün (m06, m07). Offen bleibt als Negativ im Plan §3, dass der Test die Meldung an ihrem Wortlaut erkennt. Beleg: Report `2026-11-28-slice-absturztest-review`, `2026-11-28-slice-absturztest-verifikation`.

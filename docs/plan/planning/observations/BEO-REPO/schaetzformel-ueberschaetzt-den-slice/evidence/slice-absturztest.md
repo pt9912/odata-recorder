@@ -1,0 +1,2 @@
+**Vorgang:** slice-absturztest
+**Fund:** Schätzung *S* 2280 (21 Zeilen, 0 nebenläufig, 3 Fakes, Produktcode 0), Marke 3100, Messung 745; Ende ÷ *S* 0,33, Auslastung 0,24, unter 0,45. Die 10 Haltepunkte sind eine Tabelle an einem Gerüst mit einer Prüfung für alle, die drei Fakes sind schmale Dekoratoren an Ports, vier Zeilen sind Negative ohne Test-Code. Der Messpunkt geht als Meldung an den Architect (`SPEC-128` Nr. 9). Beleg: Plan §7 (Messpunkt-Zeile).
