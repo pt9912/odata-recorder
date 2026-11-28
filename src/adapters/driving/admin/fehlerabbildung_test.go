@@ -290,6 +290,8 @@ func modellErrWerte() []errWert {
 		{"model.ErrDatenUngueltig", model.ErrDatenUngueltig},
 		{"model.ErrEingabeUngueltig", model.ErrEingabeUngueltig},
 		{"model.ErrEingabeNichtUnterstuetzt", model.ErrEingabeNichtUnterstuetzt},
+		{"model.ErrBatchUngueltig", model.ErrBatchUngueltig},
+		{"model.ErrBatchNichtUnterstuetzt", model.ErrBatchNichtUnterstuetzt},
 		{"model.ErrFilterNichtBeobachtet", model.ErrFilterNichtBeobachtet},
 		{"model.ErrMetadatenUngueltig", model.ErrMetadatenUngueltig},
 		{"model.ErrURLUngueltig", model.ErrURLUngueltig},

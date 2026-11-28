@@ -287,11 +287,10 @@ func TestAbbruchMitErrAbortHandler(t *testing.T) {
 	}
 }
 
-// pfadeMitUnwrapAufZeiger liefert die Stellen `paket.Typ` der Methoden Unwrap mit Zeiger als Empfänger im Quelltext der
-// Verzeichnisse (ohne _test.go).
-func pfadeMitUnwrapAufZeiger(t *testing.T, verzeichnisse ...string) []string {
+// methodenAufZeiger zählt im Quelltext der Verzeichnisse (ohne _test.go) die Methoden des Namens mit Zeiger als Empfänger und
+// davon die, deren Rumpf den Empfänger nennt.
+func methodenAufZeiger(t *testing.T, name string, verzeichnisse ...string) (alle, mitEmpfaenger int) {
 	t.Helper()
-	var out []string
 	for _, dir := range verzeichnisse {
 		err := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
@@ -303,11 +302,15 @@ func pfadeMitUnwrapAufZeiger(t *testing.T, verzeichnisse ...string) []string {
 			}
 			for _, decl := range f.Decls {
 				fd, ok := decl.(*ast.FuncDecl)
-				if !ok || fd.Name.Name != "Unwrap" || fd.Recv == nil || len(fd.Recv.List) != 1 {
+				if !ok || fd.Name.Name != name || fd.Recv == nil || len(fd.Recv.List) != 1 {
 					continue
 				}
-				if _, ok := fd.Recv.List[0].Type.(*ast.StarExpr); ok {
-					out = append(out, p)
+				if _, ok := fd.Recv.List[0].Type.(*ast.StarExpr); !ok {
+					continue
+				}
+				alle++
+				if nenntEmpfaenger(fd) {
+					mitEmpfaenger++
 				}
 			}
 			return nil
@@ -316,13 +319,35 @@ func pfadeMitUnwrapAufZeiger(t *testing.T, verzeichnisse ...string) []string {
 			t.Fatal(err)
 		}
 	}
-	return out
+	return alle, mitEmpfaenger
 }
 
-// TestTypenMitUnwrapAufZeiger hält das Maß des akzeptierten Negativs „nil-Zeiger anderer Fehlertypen“ gegen die Quelle:
-// im Quelltext von src/hexagon und src/adapters/driven haben 12 Typen eine Methode Unwrap mit Zeiger als Empfänger; die
-// Suche behandelt einen nil-Zeiger allein bei *inbound.Fehler. Wächst die Zahl, ist das Maß im Plan nachzuziehen.
+// nenntEmpfaenger ist wahr, wenn der Rumpf der Methode den Namen ihres Empfängers nennt.
+func nenntEmpfaenger(fd *ast.FuncDecl) bool {
+	namen := fd.Recv.List[0].Names
+	if len(namen) != 1 || namen[0].Name == "_" {
+		return false
+	}
+	gefunden := false
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		if id, ok := n.(*ast.Ident); ok && id.Name == namen[0].Name {
+			gefunden = true
+		}
+		return !gefunden
+	})
+	return gefunden
+}
+
+// TestTypenMitUnwrapAufZeiger hält das Maß des akzeptierten Negativs „nil-Zeiger anderer Fehlertypen“ gegen die Quelle von
+// src/hexagon und src/adapters/driven: 13 Typen haben eine Methode Unwrap mit Zeiger als Empfänger, 9 davon nennen darin den
+// Empfänger; 3 Typen haben eine solche Methode Is, alle 3 nennen ihn. Die Suche behandelt einen nil-Zeiger allein bei
+// *inbound.Fehler: ungefangen sind 8 der 9 und die 3 mit Is. Ändert sich eine Zahl, zieht dieses Maß mit.
 func TestTypenMitUnwrapAufZeiger(t *testing.T) {
-	stellen := pfadeMitUnwrapAufZeiger(t, filepath.Join("..", "..", "..", "hexagon"), filepath.Join("..", "..", "driven"))
-	gleichAuf(t, "Zahl der Typen mit Unwrap auf einem Zeiger", len(stellen), 12)
+	verzeichnisse := []string{filepath.Join("..", "..", "..", "hexagon"), filepath.Join("..", "..", "driven")}
+	alle, mit := methodenAufZeiger(t, "Unwrap", verzeichnisse...)
+	gleichAuf(t, "Zahl der Typen mit Unwrap auf einem Zeiger", alle, 13)
+	gleichAuf(t, "davon mit Nennung des Empfängers", mit, 9)
+	alle, mit = methodenAufZeiger(t, "Is", verzeichnisse...)
+	gleichAuf(t, "Zahl der Typen mit Is auf einem Zeiger", alle, 3)
+	gleichAuf(t, "davon mit Nennung des Empfängers (Is)", mit, 3)
 }

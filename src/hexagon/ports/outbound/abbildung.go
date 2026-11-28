@@ -66,6 +66,8 @@ func tabelle() []zeile {
 		{fehler: []benannt{{"ErrKompatibilitaet", model.ErrKompatibilitaet}}, jeder: model.CodeE6006},
 		{fehler: []benannt{{"ErrEingabeUngueltig", model.ErrEingabeUngueltig}}, jeder: model.CodeE6007},
 		{fehler: []benannt{{"ErrEingabeNichtUnterstuetzt", model.ErrEingabeNichtUnterstuetzt}}, jeder: model.CodeE6002},
+		{fehler: []benannt{{"ErrBatchUngueltig", model.ErrBatchUngueltig}}, jeder: model.CodeE6007},
+		{fehler: []benannt{{"ErrBatchNichtUnterstuetzt", model.ErrBatchNichtUnterstuetzt}}, jeder: model.CodeE6001},
 		{fehler: []benannt{{"ErrUngueltigeSequenz", ErrUngueltigeSequenz}, {"ErrAbgeschlossen", ErrAbgeschlossen}, {"ErrRevisionVeraltet", ErrRevisionVeraltet}}, jeder: model.CodeE9001},
 	}
 }

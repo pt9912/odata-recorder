@@ -119,7 +119,7 @@ func TestFehlerAbbildungJedeStelle(t *testing.T) {
 			faelle++
 		}
 	}
-	if uebersprungen != 1 || faelle+uebersprungen != 28*28 {
+	if uebersprungen != 1 || faelle+uebersprungen != 28*30 {
 		t.Errorf("Fälle %d", faelle)
 	}
 }
