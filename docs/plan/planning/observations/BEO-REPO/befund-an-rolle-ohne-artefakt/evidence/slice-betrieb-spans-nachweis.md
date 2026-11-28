@@ -1,0 +1,2 @@
+**Vorgang:** slice-betrieb-spans-nachweis
+**Fund:** Die Abweichung, dass die Mutationen zu BS6 bis BS8 im HTTP-Adapter statt in den Diensten saßen, stand beim Handoff in §3 des Plans, nicht in §6 mit Adresse, und die Spalte *Mutation* nannte weiter den Dienst (Review F-3, LOW). Anders als in den früheren Belegen trug ein Artefakt die Abweichung; es fehlte allein die Zeile in den Risiken mit Ausgang und Adresse. Die Fix-Runde trug sie nach. Beleg: Report `2026-11-28-slice-betrieb-spans-nachweis-review` (F-3), Plan `slice-betrieb-spans-nachweis` §6.

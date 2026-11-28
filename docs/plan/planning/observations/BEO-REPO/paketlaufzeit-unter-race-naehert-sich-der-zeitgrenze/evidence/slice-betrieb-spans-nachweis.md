@@ -1,0 +1,2 @@
+**Vorgang:** slice-betrieb-spans-nachweis
+**Fund:** Das Paket `src/bootstrap` braucht unter `go test -race -count=1` allein 422,4 s von 600 s je Paket (Implementer, ein Lauf, Container mit 4 CPUs, Last 6,6 vor und 3,8 nach dem Lauf); die zwei neuen Tests haben mit Detektor daran 0,83 bis 1,04 s und 2,13 bis 2,45 s und sind nicht der Träger. Die Zahl ist kein Vergleich mit den 415,9 s davor (ein Lauf je Seite). Beleg: Plan §3, §6 und §7.
