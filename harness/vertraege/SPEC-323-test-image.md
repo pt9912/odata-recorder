@@ -4,7 +4,7 @@
 Die Namen der Dateien sind der Vorschlag des Architect; die Zusagen gelten, wie die Dateien heißen.
 
 **Festlegung:** `make test-image` baut das Laufzeit-Image, startet es ohne Netz mit einem frischen Datenverzeichnis im Daemon des Hosts, erzeugt über beide Listener Recordings, einen Workspace und einen Snapshot, stoppt und startet denselben Container und prüft alle drei danach (`LH-QA-06`, `LH-QA-06.a`, `LH-RB-03`).
-Die CI (`SPEC-217`) fährt ihn mit `make gates` im Daemon ihres Runners; auf einem Runner ist noch kein Lauf gesehen.
+Die CI (`SPEC-217`) fährt ihn mit `make gates` im Daemon ihres Runners; gesehen ist das in einem grünen Lauf (`SPEC-217` *Stand*).
 Lokal fährt `make` denselben Test; diesen Lauf erkennt `LH-QA-06` ohne CI als Ersatz an.
 
 **Stand:** geliefert: die Stufe `image` mit ihrer Hilfsstufe `image-verzeichnisse`, die Ziele `test-image` (an `GATE_CHECKS`) und `image` in `harness/mk/image.mk`, der Treiber `tools/harness/test-image.sh`, die Phasen `TestImageAufnehmen` und `TestImagePruefen` in `tests/e2e/image_test.go` (ohne Token auf der Standardeingabe `SKIP`) und die Gegenproben 226 bis 236 (`SPEC-102`), darin im Fall `testimage/image` die Formen *gleich alt* und *älter* des zweiten Binary (Nr. 3, *Gleiches Binary*, Prüfung 1). Mit der Fix-Runde nach dem Review (2026-11-28) geliefert: in Nr. 3 `EXPOSE`, `HEALTHCHECK`, die weiteren Variablen und *Inhalt*, Nr. 4 c (`-t`), Nr. 4 d (zwei gelesene Exchanges), Nr. 6 e und in Nr. 8 die Läufe mit geschlossenem Leser (Zeile 15) und mit einem zweiten Signal (Zeile 16).
