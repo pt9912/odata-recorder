@@ -1,9 +1,10 @@
 # CI nach harness/vertraege/SPEC-217-ci.md (LH-QA-06, LH-RB-03): ein Job fährt `make gates`
 # unverändert auf einem frischen Runner, bei Push auf jeden Zweig und bei jedem Pull Request.
-# Kopplung: `make workflow-check` prüft allein die Form der Pins, gültiges YAML und eine nicht
-# leere Prüfmenge. Auslöser, Rechte, die erlaubte Aktion, Runner, Zeitgrenze und der Aufruf
-# haben keinen automatischen Fänger; das Review liest bei jeder Änderung die ganze Datei gegen
-# den Vertrag (Nr. 2, 3, 11 c).
+# Kopplung: `make workflow-check` prüft allein gültiges YAML, eine nicht leere Prüfmenge und die
+# Form der Pins in den Workflow-Dateien selbst (Nr. 8; was es nicht liest, Nr. 11 h). Auslöser,
+# Rechte, die erlaubte Aktion, Runner, Zeitgrenze, der Aufruf und das Verbot von `container:`,
+# `services:` und Ausdrücken in `run` haben keinen automatischen Fänger; das Review liest bei
+# jeder Änderung die ganze Datei gegen den Vertrag (Nr. 2, 3, 11 c).
 name: gates
 
 on:
