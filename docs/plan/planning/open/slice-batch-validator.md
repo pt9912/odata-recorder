@@ -33,11 +33,11 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Die reinen Funktionen `model.PruefeBatch` und `model.BatchRequest.Verweis` im Paket `src/hexagon/model` prüfen die Struktur eines gelesenen Batch nach `SPEC-184`: erlaubte Methoden je Ebene, `Content-ID` je Changeset eindeutig, Verweise `$<id>` nur auf einen früheren Request desselben Changeset; ein Verstoß ist ein `*model.BatchFehler` mit Ursache und Ort (`ODR-E6007` bzw. `501` mit `ODR-E6001`). Beide Funktionen lesen nur die Domain-Werte und rufen keinen Port (`LH-FA-16.a`: Validator-Contract-Test).
 
-**Übernimmt (Schnitt von `slice-batch-parser`, Geber `slice-batch-parser`, `AGENTS.md` §3.13):** die Prüfung der Struktur samt `Verweis`, die Zeilen 37 bis 43 der Tabelle *Zusage · Fänger*, die zwei Zeilen des Rasters und die drei Paare der Zusatztabelle zur Prüfung und den Validator-Contract-Test, die der frühere Plan von `slice-batch-parser` führte.
+**Übernimmt (Schnitt von `slice-batch-parser`, Geber `slice-batch-parser`, `AGENTS.md` §3.13):** die Prüfung der Struktur samt `Verweis`, die Zeilen 37 bis 43 der Tabelle *Zusage · Fänger*, die zwei Zeilen des Rasters, zwei Paare der Zusatztabelle zur Prüfung und den Validator-Contract-Test, die der frühere Plan von `slice-batch-parser` führte. Das dritte Paar (Verstoß der Prüfung vor einem Verstoß des Lesers) liegt wieder bei `slice-batch-parser` (Zeile 30, dort in §1 eingetragen): nur ein Aufruf des Lesers zeigt es, und `model` ruft keinen Adapter.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Leser, Port `ODataBatch`, Domain-Werte, Fehlerwert `BatchFehler` mit seinen Ursachen und die Zeilen der Abbildung — `slice-batch-parser`; dieser Slice liest sie und ändert sie nicht, auch die Ursachen der Prüfung stehen dort schon in der Liste.
+- Leser, Port `ODataBatch`, Domain-Werte, `model.ContentIDGueltig`, Fehlerwert `BatchFehler` mit seinen Ursachen und die Zeilen der Abbildung — `slice-batch-parser`; dieser Slice liest und ruft sie und ändert sie nicht, auch die Ursachen der Prüfung stehen dort schon in der Liste.
 - Der Aufruf von `PruefeBatch` vor der ersten Ausführung, die Auflösung eines Verweises gegen den früheren Request und die Ausführung — `slice-batch-changesets` (dessen §1 trägt die Sendung); dieser Slice liefert die Funktionen, nicht ihren Aufrufer.
 - Parsen von Ziel und Body eines Einzelrequests und Verweise im Body — `slice-batch-changesets`; `SPEC-184` Nr. 4 regelt beides nicht.
 - Die Form der Werte eines von Hand gebauten Batch — nicht Gegenstand der Prüfung (`SPEC-184` *Ungeprüft*); der Leser ist der einzige Erzeuger.
@@ -82,7 +82,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/model/batch_pruefen.go` | neu | `PruefeBatch` und `Verweis` (`SPEC-184`) |
+| `src/hexagon/model/batch_pruefen.go` | neu | `PruefeBatch` und `Verweis` (`SPEC-184`); `Verweis` ruft `ContentIDGueltig` |
 | `src/hexagon/model/batch_pruefen_test.go` | neu | Zeilen 37 bis 43, Validator-Contract-Test (`LH-FA-16.a`) |
 
 Die Randformen sind in `SPEC-184` entschieden (`AGENTS.md` §3.12); der Implementer entscheidet keine.
@@ -93,11 +93,11 @@ Die Randformen sind in `SPEC-184` entschieden (`AGENTS.md` §3.12); der Implemen
 |---|---|---|---|---|
 | 37 | Methoden: je Ebene die erlaubten; `GET` im Changeset `methode`, jede andere `methode_nicht_unterstuetzt` | `TestPruefeBatchMethode`: Schleife über {die fünf, `HEAD`, `OPTIONS`, `MERGE`, `PROPFIND`, `get`, leer} × beide Ebenen × Stelle | `GET` im Changeset erlaubt | andere |
 | 38 | `Content-ID` je Changeset eindeutig, bytegleich; verschiedene Changesets, Einzelteile und fehlende stoßen nicht an | `TestPruefeBatchContentID`: alle Paare von Stellen in Changesets der Länge 2 bis 5, Schreibweise, über Changesets | Eindeutigkeit über den ganzen Batch; nur Nachbarn verglichen | andere |
-| 39 | `Verweis` liefert `<id>` genau nach `SPEC-184` Nr. 3 | `TestBatchVerweis`: Ziele über {`$1`, `$1/x`, `$1?a`, `$`, `/$1`, `%241`, `$1(2)`, die fünf Wörter, Form-Grenzen 128 und 129} | `$metadata` ist ein Verweis | andere |
+| 39 | `Verweis` liefert `<id>` genau nach `SPEC-184` Nr. 3 | `TestBatchVerweis`: Ziele über {`$1`, `$1/x`, `$1?a`, `$`, `$/x`, `/$1`, `%241`, `$1(2)`, die fünf Wörter und je eine andere Schreibweise (Verweis), Länge 128 und 129}; alle 256 Bytes an Anfang, Mitte und Ende der `<id>`, Soll ohne Code der Form: Zeichen der Menge aus `SPEC-183` Nr. 4 c gehören zur `<id>`, `/` und `?` beenden sie, jedes andere ergibt `""` | `$metadata` ist ein Verweis; `Verweis` prüft nur die Länge | andere |
 | 40 | Verweis nur auf einen früheren Request desselben Changeset, sonst `referenz` | `TestPruefeBatchReferenz`: früher, selbst, später, anderes Changeset, Einzelteil davor und danach, außerhalb eines Changeset | Spätere zählen mit | andere |
-| 41 | Rangfolge: erster Teil, erster Request, dann Methode, Eindeutigkeit, Auflösbarkeit; jeder Verstoß des Lesers geht vor | `TestPruefeBatchRang`: alle Paare der drei Prüfungen am selben und an zwei Requests; ein Fall mit Leser-Verstoß hinter einem Prüfverstoß | Eindeutigkeit vor Methode | andere |
+| 41 | Rangfolge: erster Teil, erster Request, dann Methode, Eindeutigkeit, Auflösbarkeit (den Vorrang des Lesers fängt `slice-batch-parser` Zeile 30) | `TestPruefeBatchRang`: alle Paare der drei Prüfungen am selben und an zwei Requests | Eindeutigkeit vor Methode | andere |
 | 42 | `PruefeBatch` ändert `b` nicht und ist wiederholbar; ein leerer Batch und ein leeres Changeset sind `nil` | `TestPruefeBatchRein`: tiefer Vergleich vor und nach, zweimal; leere Formen | `b` wird sortiert | andere |
-| 43 | Das unveränderte Beispiel von `SPEC-183` Nr. 8 ergibt `nil`, und die Zeilen der Prüfung in seiner Tabelle ergeben das Genannte (Validator-Contract-Test) | `TestPruefeBatchContract` | Eine Antwort wird vertauscht | andere |
+| 43 | Das unveränderte Beispiel von `SPEC-183` Nr. 8 ergibt `nil`, und die Zeilen der Prüfung in seiner Tabelle ergeben das Genannte (Validator-Contract-Test) | `TestPruefeBatchContract`: der Batch ist von Hand nach dem dort genannten Ergebnis gebaut (`model` ruft den Leser nicht) | Eine Antwort wird vertauscht | andere |
 
 ```groessenmarke
 pfad: src/hexagon/model/batch_pruefen.go
@@ -121,7 +121,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`): `slice-batch-parser` liegt in `done/`.
 
-- **Code-Abhängigkeit, mit Grund:** `slice-batch-parser` liefert die Domain-Werte (`model.Batch`) und den Fehlerwert (`model.BatchFehler` mit Ursachen und Sentinels), die beide Funktionen lesen und liefern. Wie für ihn ist der Welle-Trigger (`welle-mock` in `done/`) Reihenfolge-Vorsicht, keine Code-Abhängigkeit: ein Start davor ist eine Entscheidung des Users, nicht dieses Plans.
+- **Code-Abhängigkeit, mit Grund:** `slice-batch-parser` liefert die Domain-Werte (`model.Batch`) und den Fehlerwert (`model.BatchFehler` mit Ursachen und Sentinels), die beide Funktionen lesen und liefern, und `model.ContentIDGueltig`, die `Verweis` ruft. Wie für ihn ist der Welle-Trigger (`welle-mock` in `done/`) Reihenfolge-Vorsicht, keine Code-Abhängigkeit: ein Start davor ist eine Entscheidung des Users, nicht dieses Plans.
 - **Was der Slice nicht braucht — und warum:** `MockUseCase`, Workspace, Parser der OData-URL und der Client-Bodies, HTTP-Adapter, Composition Root (die Funktionen sehen Werte, keine Bytes und keinen Zustand).
 - **Größenmarke** (`AGENTS.md` §3.14, `SPEC-128` Nr. 1; die Faktoren stehen allein dort; Planner, 2026-11-28, mit dem Schnitt): gezählt ist die Tabelle in §3 mit 7 Zeilen, *a* = 0, *b* = 7, *f* = 0, *p* = 100 (Setzung des Planner aus den 600 Zeilen, die der Architect für Leser und Prüfung zusammen erwartete). *S* = 660, Marke *M* = **900**; keine Schnittfrage. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Der Block trägt `basis`, `schaetzung` und `marke` noch nicht (`make groessenmarke` meldet *Marke steht aus*); der Planner setzt sie beim Start, vor dem ersten Code-Commit.
 
@@ -145,8 +145,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Die Regel der Form einer `Content-ID` (`SPEC-183` Nr. 4 c) braucht der Leser aus `slice-batch-parser` und `Verweis` hier; ob sie an einem Ort im Domain-Modell steht oder zweimal, sagt der Vertrag nicht, und Zeile 39 führt nur die Längengrenzen, nicht das Alphabet (`AGENTS.md` §3.17) — **Ausgang:** offen; Adresse Architect, vor dem ersten Code-Commit von `slice-batch-parser` (dort derselbe Punkt in §6).
-- Zeile 41 verlangt „ein Fall mit Leser-Verstoß hinter einem Prüfverstoß“: der Fall ruft den Leser, und ein Test in `model` darf keinen Adapter importieren (`make a-check`); die Datei dieses Falls liegt dann außerhalb der Pfade des Blocks — **Ausgang:** offen; Adresse Architect, vor dem ersten Code-Commit (Ort des Fängers und Pfad im Block).
+- Die Form einer `Content-ID` braucht der Leser aus `slice-batch-parser` und `Verweis` hier — **Ausgang:** entfallen: entschieden (Architect, 2026-11-28): `Verweis` ruft `model.ContentIDGueltig` (Länge und Zeichenmenge, `SPEC-183` Nr. 4 c, `SPEC-184` Nr. 3), die `slice-batch-parser` liefert; Zeile 39 führt das Alphabet über alle 256 Bytes.
+- Der Vorrang des Lesers vor der Prüfung ist nur über einen Aufruf des Lesers zu sehen, und ein Test in `model` importiert keinen Adapter (`make a-check`) — **Ausgang:** entfallen: entschieden (Architect, 2026-11-28): der Fall liegt in `slice-batch-parser` Zeile 30; er braucht `PruefeBatch` nicht, weil der Leser bei seinem Verstoß keinen Wert liefert (`SPEC-182` Nr. 3), den die Prüfung sehen könnte. Die Pfade des Blocks bleiben.
 - Kleine Schätzung (*S* = 660): ein kleiner Slice mit mehreren Prüfrunden liegt eher über der Marke (`SPEC-128` Nr. 10 a) — **Ausgang:** offen; Eintrag `ueberschreitung` mit Grund.
 - Zusammenspiel mit der Ausführung: Aufruf vor der ersten Ausführung und Auflösung des Verweises — **Ausgang:** offen; `slice-batch-changesets` §1 führt die Sendung.
 - Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** offen; Raster unten, eine Zelle ohne Ort geht an den Architect.
@@ -156,13 +156,12 @@ dasteht.
 | Operation | Body fehlt oder leer | Grenze fehlt, leer oder ungültig | unbekannter Teiltyp oder Methode | fremde Form (JSON, absolute URL, anderer Host) | über Grenze (Größe, Teile, Tiefe) | Wiederholung (`Content-ID`, Changeset) | Abbruch (Kontext, Strom) |
 |---|---|---|---|---|---|---|---|
 | Validator: Methoden und Changesets | `SPEC-184` Kopf, `SPEC-183` Nr. 5 (leer ist ohne Verstoß) | gilt nicht: er sieht Werte, keine Bytes | `SPEC-184` Nr. 1 | gilt nicht: er prüft kein Ziel außer dem Verweis (`SPEC-184` Nr. 3) | gilt nicht: die Grenzen prüft der Leser (`SPEC-183` Nr. 7) | `SPEC-184` Kopf (reine Funktion) | gilt nicht: reine Funktion ohne Kontext und Strom (`SPEC-184` Kopf) |
-| Validator: `Content-ID` und Referenzen | `SPEC-182` Nr. 3, `SPEC-183` Nr. 4 c, `SPEC-184` Nr. 2 | gilt nicht: er sieht Werte, keine Bytes | `SPEC-184` Nr. 3, 4 (unbekannter Verweis, reservierte Wörter) | `SPEC-184` Nr. 3 (`/$1`, `%241`) | `SPEC-183` Nr. 4 c (Länge der `Content-ID`) | `SPEC-184` Nr. 2 | gilt nicht: reine Funktion ohne Kontext und Strom (`SPEC-184` Kopf) |
+| Validator: `Content-ID` und Referenzen | `SPEC-182` Nr. 3, `SPEC-183` Nr. 4 c, `SPEC-184` Nr. 2 | gilt nicht: er sieht Werte, keine Bytes | `SPEC-184` Nr. 3, 4 (unbekannter Verweis, reservierte Wörter) | `SPEC-184` Nr. 3 (`/$1`, `%241`) | `SPEC-183` Nr. 4 c (Länge und Zeichenmenge der `Content-ID`) | `SPEC-184` Nr. 2 | gilt nicht: reine Funktion ohne Kontext und Strom (`SPEC-184` Kopf) |
 
-**Zusatztabelle** (je Paar von Verstößen; `AGENTS.md` §3.16). Eine Zeile je Modus gilt nicht: die Prüfung kennt keinen Modus (`SPEC-184`).
+**Zusatztabelle** (je Paar von Verstößen; `AGENTS.md` §3.16). Eine Zeile je Modus gilt nicht: die Prüfung kennt keinen Modus (`SPEC-184`). Das Paar mit einem Verstoß des Lesers führt `slice-batch-parser` §6.
 
 | Paar oder Modus | Entscheidung (Ort) | Fänger |
 |---|---|---|
-| unbekannte Methode · Verstoß des Lesers dahinter | der Leser (`SPEC-182` Nr. 5 h) | Zeile 41 |
 | doppelte `Content-ID` · unzulässige Methode am selben Request | Methode (`SPEC-184` Nr. 5) | Zeile 41 |
 | doppelte `Content-ID` · nicht auflösbarer Verweis am selben Request | `content_id_doppelt` (`SPEC-184` Nr. 5) | Zeile 41 |
 

@@ -33,9 +33,11 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Ziel:** Der Port `ODataBatch` der Codec-Gruppe liest den Body eines `$batch`-Requests im Format `multipart/mixed` des OData-V4-Batch (`SPEC-182`, `SPEC-183`) in typisierte Domain-Werte: eine Folge von Teilen, jeder Teil entweder ein Einzelrequest (Methode, Ziel, Header, Body-Bytes, `Content-ID`) oder ein Changeset (Folge von Requests). Ein leerer Batch ergibt eine gültige leere Folge, ein Verstoß einen Fehler mit Ursache (`ODR-E6007`), eine gültige, aber nicht unterstützte Form `501` mit `ODR-E6001`. Der Parser liest Bytes und entscheidet nichts über Zustand, Methode, Ziel oder Body der Einzelrequests (`LH-FA-16.a`: Parser-Contract-Test).
 
+**Übernimmt (Rückgabe von `slice-batch-validator`, `AGENTS.md` §3.13):** den Fall, dass ein Verstoß der Prüfung vor einem Verstoß des Lesers steht (`SPEC-182` Nr. 5 h), in Zeile 30 und der Zusatztabelle (§6). Kein Ausschluss trifft ihn: der Fall ruft den Leser und nicht `PruefeBatch`.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
-- Prüfung der Struktur (`model.PruefeBatch` und `BatchRequest.Verweis`: Methoden je Ebene, `Content-ID` je Changeset eindeutig, Verweise nur rückwärts, `SPEC-184`) und der Validator-Contract-Test von `LH-FA-16.a` — `slice-batch-validator` (Schnitt vor dem Code, §4; dort als Übernahme dieses Slice); er liest die Domain-Werte und den Fehlerwert, die dieser Slice liefert, und ändert den Leser nicht.
+- Prüfung der Struktur (`model.PruefeBatch` und `BatchRequest.Verweis`: Methoden je Ebene, `Content-ID` je Changeset eindeutig, Verweise nur rückwärts, `SPEC-184`) und der Validator-Contract-Test von `LH-FA-16.a` — `slice-batch-validator` (Schnitt vor dem Code, §4; dort als Übernahme dieses Slice); er liest die Domain-Werte, den Fehlerwert und `model.ContentIDGueltig`, die dieser Slice liefert, und ändert den Leser nicht.
 - Ausführung der Einzelrequests, die atomare Workspace-Transaktion eines Changesets, die Antwort des Batch und die Route `POST /$batch` — `slice-batch-changesets` (Executor- und Serializer-Contract-Test von `LH-FA-16.a` liegen dort); dieser Slice liefert die gelesene Struktur.
 - Parsen der URL und des Bodys eines Einzelrequests, Auflösung des Ziels gegen den Service-Root (auch absolute URL und fremder Host) und Auflösung eines Verweises `$<id>` — die Ausführung (`slice-batch-changesets`, dort als Sendung dieses Slice) nutzt dafür `urlparser` und den Leser der Client-Bodies aus `welle-mock`; der Parser hält Ziel und Body als Text und Bytes.
 - JSON-Batch (`application/json`) und OData V2 `$batch` — nicht im Umfang (`SPEC-183` Nr. 1, `SPEC-173` Nr. 2); sie ergeben `501`.
@@ -61,7 +63,7 @@ gehört zurück zur Zerlegung. Gezählt wird nur, was mit dem Umfang wächst —
 Gate-Läufe und die fünf Closure-Pflichten darunter zählen nicht mit.
 
 - [ ] Lesen der Hülle (`SPEC-182`, `SPEC-183`): Grenzzeichenfolge aus dem `Content-Type`, Teile, Changesets, Einzelrequest mit Methode, Ziel, Header, Body und `Content-ID`, Grenzen (Größe, Zahl der Teile und Kopfzeilen, Tiefe); ein leerer Batch ergibt die leere Folge; Ergebnis und Fehler hängen nicht davon ab, wie der Strom in Reads zerlegt ist.
-- [ ] Ergebnis- und Fehlerwert (`SPEC-182`): Port `ODataBatch`, Domain-Werte, `BatchFehler` mit allen Ursachen von `SPEC-182` Nr. 4 (auch den vieren, die erst `slice-batch-validator` meldet) und beiden Sentinels, zwei Zeilen der Abbildung (`SPEC-109` Nr. 5).
+- [ ] Ergebnis- und Fehlerwert (`SPEC-182`): Port `ODataBatch`, Domain-Werte, `model.ContentIDGueltig`, `BatchFehler` mit allen Ursachen von `SPEC-182` Nr. 4 (auch den vieren, die erst `slice-batch-validator` meldet) und beiden Sentinels, zwei Zeilen der Abbildung (`SPEC-109` Nr. 5).
 - [ ] Randformen: je Zelle des Rasters (§6) ein Ort in der Spezifikation und ein Fänger der Tabelle (§3); Parser-Contract-Test (`LH-FA-16.a`).
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
@@ -83,7 +85,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/hexagon/model/batch.go`, `batch_fehler.go` (mit Tests) | neu | Domain-Werte, `BatchFehler` mit den Ursachen und Sentinels (`SPEC-182`) |
+| `src/hexagon/model/batch.go`, `batch_fehler.go` (mit Tests) | neu | Domain-Werte, `ContentIDGueltig` in `batch.go`, `BatchFehler` mit den Ursachen und Sentinels (`SPEC-182`) |
 | `src/hexagon/ports/outbound/odata_batch.go` | neu | Port `ODataBatch` (`SPEC-182`) |
 | `src/hexagon/ports/outbound/abbildung.go`, `abbildung_batch_test.go` | update, neu | zwei Zeilen der Abbildung (`SPEC-109` Nr. 5) |
 | `src/adapters/driven/odata/batchcodec/` | neu | Leser (`SPEC-182`, `SPEC-183`) mit Tests |
@@ -93,7 +95,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 - Der Leser liest fremde Bytes (ein Format, das dieses Repo nicht schreibt): die Produktcode-Erwartung des Architect ist ein fester Anteil der Schätzung (`SPEC-128`); `CRLF`, `LF`, Steuerzeichen und Bytes jenseits von ASCII in Fixtures entstehen aus Bytewerten (`AGENTS.md` §3.18).
 
-**Entscheidungen des Architect** (Ort; keine neue ADR, kein neuer Code, keine offene Owner-Frage): Format nur `multipart/mixed`, JSON-Batch `501` (`SPEC-183` Kopf, Nr. 1) · eigener Leser ohne `mime/multipart` und `net/http`, keine Fremdbibliothek (`SPEC-182` Kopf) · Grenzen: Body `MAX_CAPTURE_BODY`, 1000 Teile, 100 Zeilen je Block, kein Changeset im Changeset (`SPEC-182` Nr. 7, `SPEC-183` Nr. 7) · `respond-async`, `continue-on-error` sind Präferenzen des Hüllen-Requests und gehören zur Ausführung, `dependsOn` gibt es nur im JSON-Batch (`format`) · Ursachen, Codes, Rangfolge, Ort als Teilpfad ohne Zeile (`SPEC-182` Nr. 4, 5) · Domain-Werte (`SPEC-182`, Signaturen).
+**Entscheidungen des Architect** (Ort; keine neue ADR, kein neuer Code, keine offene Owner-Frage): Format nur `multipart/mixed`, JSON-Batch `501` (`SPEC-183` Kopf, Nr. 1) · eigener Leser ohne `mime/multipart` und `net/http`, keine Fremdbibliothek (`SPEC-182` Kopf) · Grenzen: Body `MAX_CAPTURE_BODY`, 1000 Teile, 100 Zeilen je Block, kein Changeset im Changeset (`SPEC-182` Nr. 7, `SPEC-183` Nr. 7) · `respond-async`, `continue-on-error` sind Präferenzen des Hüllen-Requests und gehören zur Ausführung, `dependsOn` gibt es nur im JSON-Batch (`format`) · Ursachen, Codes, Rangfolge, Ort als Teilpfad ohne Zeile (`SPEC-182` Nr. 4, 5) · Domain-Werte (`SPEC-182`, Signaturen) · Form der `Content-ID` allein in `model.ContentIDGueltig`, vom Leser gerufen und nicht nachgebaut (`SPEC-183` Nr. 4 c).
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Dateien unter `src/adapters/driven/odata/batchcodec/`, wo nichts anderes steht; die Zeilen 37 bis 43 der Fassung des Architect, die Prüfung, führt `slice-batch-validator` unter denselben Nummern; die Testnamen sind die des Architect, der Implementer fährt je Zeile die Mutation selbst):
 
@@ -128,7 +130,7 @@ Aussagen-Berührung steht hier gar nicht.
 | 27 | Teile und Requests in Reihenfolge des Bodys, ein Einzelteil mit genau einem Request, Slices bei Erfolg nie `nil`; bei Fehler der Nullwert | `TestBatchErgebnis`: gemischte Folgen der Länge 0 bis 4 aus {Request, leeres Changeset, Changeset mit 1 und 2}; Fehler hinter gültigen Teilen | Teilergebnis bei Fehler | andere |
 | 28 | Jede Ursache trägt ihre Klasse, ihren Code, genau ihren Sentinel; `Error()` und `Ort` nennen kein Byte der Eingabe | `TestBatchFehlerform` (`model`): Schleife über `AlleBatchUrsachen` und Orte; im Leser-Test unverwechselbare Texte in jeder Verstoß-Fixture | Falsche Klasse; Zeile in der Meldung | andere |
 | 29 | `ErrBatchUngueltig` bildet auf `ODR-E6007`, `ErrBatchNichtUnterstuetzt` auf `ODR-E6001` ab, jeder Gegenstand | `TestAbbildungBatch` (`ports/outbound`), `TestAbbildungVollstaendig` | Eine Zeile fehlt | andere |
-| 30 | Rangfolge des Lesers (`SPEC-182` Nr. 5): Ebene vor Teil, Teil vor Teil, Folge im Teil, kein Vorrang der Klasse | `TestBatchRang`: alle Paare von Verstößen an verschiedenen Teilen in beiden Reihenfolgen und an denselben Teil nach der Folge der Nummer | Klasse `ungueltig` hat Vorrang | andere |
+| 30 | Rangfolge des Lesers (`SPEC-182` Nr. 5): Ebene vor Teil, Teil vor Teil, Folge im Teil, kein Vorrang der Klasse | `TestBatchRang`: alle Paare von Verstößen an verschiedenen Teilen in beiden Reihenfolgen und an denselben Teil nach der Folge der Nummer; Schleife über die vier Ursachen der Prüfung (`SPEC-182` Nr. 4): ein früherer Teil, der sie trüge, vor einem Verstoß des Lesers ergibt den des Lesers und `Teile` `nil` | Klasse `ungueltig` hat Vorrang; der Leser meldet `methode` selbst | andere |
 | 31 | Gleiche Eingabe, gleiches Ergebnis; das Ergebnis gehört dem Aufrufer, kein Wert teilt Speicher mit einem anderen | `TestBatchEigentum`: `append` und Überschreiben an jedem `Body`, `Header`, `Requests`, Vergleich aller übrigen und eines zweiten Aufrufs | `Body` als Teilstück ohne Kapazitätsgrenze | andere |
 | 32 | Gleichzeitige Aufrufe auf einer und auf mehreren Instanzen beeinflussen sich nicht | `TestBatchGleichzeitig`: 4 Goroutinen, Beispiel und Verstöße, Vergleich mit dem Einzelaufruf; `make test-race` | Puffer als Feld des Lesers | nebenläufig |
 | 33 | Zuteilung höchstens 256 · n + 1 MiB | `TestBatchWaechter`: Familien (viele Grenzzeilen, Kopfzeilen, Fast-Treffer, Präambel, langer Body) bis 8 MiB | Verkettung in einer Schleife | andere |
@@ -170,7 +172,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 - **Code-Abhängigkeit, mit Grund:** keine auf einen offenen Slice. Der Leser braucht das Fehlermodell (`SPEC-109`, `slice-fehlermodell-konfiguration` in `done/`), die Konvention der Codec-Ports (`SPEC-125`, `SPEC-126` als Vorbild für Zerlegung des Stroms, Grenzen und Fehler, `done/`) und das Domain-Modell; er ruft weder `urlparser` noch Workspace, Repositories, Interpreter oder `MockUseCase`. Der Welle-Trigger (`welle-mock` in `done/`) ist für diesen Slice Reihenfolge-Vorsicht (Priorisierung nach den Muss-Wellen), keine Code-Abhängigkeit: ein Start davor ist eine Entscheidung des Users, nicht dieses Plans.
 - **Was der Slice nicht braucht — und warum:** `MockUseCase` und `WithWorkspaceTransaction` (die Ausführung liegt in `slice-batch-changesets`), die Parser der OData-URL und der Client-Bodies (Ziele und Bodies bleiben hier Text und Bytes), HTTP-Adapter, Composition Root, M2 und `slice-bootstrap-m3` (das Binary ändert sich erst mit der Route), `slice-expand-parser` und die anderen Wellen. Das heißt: **unabhängig von `welle-mock` und von M2**, soweit der Code betroffen ist.
 - **Größenmarke** (`AGENTS.md` §3.14, `SPEC-128` Nr. 1; die Faktoren stehen allein dort; Planner, 2026-11-28, nach dem Schnitt): gezählt ist die Tabelle in §3 mit 36 Zeilen, *a* = 1 nebenläufige (Zeile 32), *b* = 35 andere (das akzeptierte Negativ zählt als `andere`), *f* = 0, *p* = 500. *S* = 3385, Marke *M* = **4600**. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Der Block in §3 trägt `basis`, `schaetzung` und `marke` noch nicht (`make groessenmarke` meldet *Marke steht aus*); der Planner setzt sie beim Start, vor dem ersten Code-Commit, in eigenem Commit. Ändert der Architect bis dahin Zeilen oder `produktcode`, rechnet der Planner neu.
-- **Schnittfrage** (*S* ≥ 2223): gestellt und vor dem Code beantwortet (Planner, 2026-11-28). Ungeschnitten waren es 43 Zeilen, *p* = 600, *S* = 4045, Marke 5500. (1) Abgetrennt ist `slice-batch-validator` (Zeilen 37 bis 43; *S* = 660, Marke 900): reine Funktionen im Domain-Modell, eigene Tests und eigener Contract-Test, kein gemeinsamer Pfad. Er teilt mit dem Leser die Domain-Werte und den Fehlerwert, die dieser Slice liefert, und die Regel der Form einer `Content-ID` (§6). (2) Der Leser bleibt über der Schnittgrenze und ohne weiteren Schnitt, Grund im Block (`schnitt-grund`): Rahmen, Teile, Kopfzeilen und Einzelrequest liefern erst zusammen den Ergebniswert des Ports. Geprüft ist auch der Vorab-Slice nur für Fehlerwert und Abbildung (Zeilen 28, 29): ohne Erzeuger kein Lieferwert, und der Rest läge weiter über der Schnittgrenze.
+- **Schnittfrage** (*S* ≥ 2223): gestellt und vor dem Code beantwortet (Planner, 2026-11-28). Ungeschnitten waren es 43 Zeilen, *p* = 600, *S* = 4045, Marke 5500. (1) Abgetrennt ist `slice-batch-validator` (Zeilen 37 bis 43; *S* = 660, Marke 900): reine Funktionen im Domain-Modell, eigene Tests und eigener Contract-Test, kein gemeinsamer Pfad. Er teilt mit dem Leser die Domain-Werte, den Fehlerwert und die Form einer `Content-ID` (`model.ContentIDGueltig`), die dieser Slice liefert. (2) Der Leser bleibt über der Schnittgrenze und ohne weiteren Schnitt, Grund im Block (`schnitt-grund`): Rahmen, Teile, Kopfzeilen und Einzelrequest liefern erst zusammen den Ergebniswert des Ports. Geprüft ist auch der Vorab-Slice nur für Fehlerwert und Abbildung (Zeilen 28, 29): ohne Erzeuger kein Lieferwert, und der Rest läge weiter über der Schnittgrenze.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -196,7 +198,7 @@ dasteht.
 - Das Verhalten einer Bibliothek als Grundlage einer Zusage (Zeilenenden, Falten, doppelte Grenze) — **Ausgang:** offen; entschieden: eigener Leser (`SPEC-182` Kopf), Zeilen 5, 9, 11, 14; der Review prüft die Importe.
 - Größe eines Batch-Bodys: zwei Quellen der Grenze — **Ausgang:** offen; entschieden: `MAX_CAPTURE_BODY`, der HTTP-Adapter begrenzt nicht (`SPEC-182` Nr. 7), Zeile 8.
 - Zusammenspiel mit Prüfung und Ausführung: Form der Domain-Werte und des Fehlerwerts — **Ausgang:** offen; `slice-batch-validator` §1 liest sie, `slice-batch-changesets` §1 führt die Sendung.
-- Die Regel der Form einer `Content-ID` (`SPEC-183` Nr. 4 c) braucht der Leser (Zeile 21) und `Verweis` in `slice-batch-validator` (Zeile 39); ob sie an einem Ort im Domain-Modell steht oder zweimal, sagt der Vertrag nicht, und Zeile 39 führt nur die Längengrenzen, nicht das Alphabet (`AGENTS.md` §3.17) — **Ausgang:** offen; Adresse Architect, vor dem ersten Code-Commit dieses Slice.
+- Die Form einer `Content-ID` braucht der Leser (Zeile 21) und `Verweis` in `slice-batch-validator` (Zeile 39) — **Ausgang:** entfallen: entschieden (Architect, 2026-11-28): eine Funktion `model.ContentIDGueltig` (Länge und Zeichenmenge, `SPEC-183` Nr. 4 c), die dieser Slice in `batch.go` liefert und beide rufen; ihre Fänger sind Zeile 21 und Zeile 39, je über alle 256 Bytes. Dass kein zweiter Nachbau entsteht, prüft der Review (kein Test unterscheidet ihn bei gleichem Verhalten).
 - Der Strom des Tests hält jedes Argument fest und zählt jede Operation, auch `Close` und jeden Read (`BEO-REPO/hilfe-ersetzt-argument-verdeckt-eigenschaften`, 2×); Ports ruft der Leser keine — **Ausgang:** offen; Zeilen 3, 6, 8.
 - Randformen (`AGENTS.md` §3.12, §3.16) — **Ausgang:** offen; Raster unten, eine Zelle ohne Ort geht an den Architect.
 - Schnittfrage (`AGENTS.md` §3.14): die Formel lag über der Schnittgrenze — **Ausgang:** entfallen: entschieden (Planner, 2026-11-28): geschnitten nach der Empfehlung des Architect, die Prüfung ist `slice-batch-validator`; der Leser bleibt mit `schnitt-grund` (§4).
@@ -210,7 +212,7 @@ dasteht.
 
 Die Zeilen des Rasters zur Prüfung der Struktur führt `slice-batch-validator` §6.
 
-**Zusatztabelle** (je Paar von Verstößen; `AGENTS.md` §3.16). Eine Zeile je Modus gilt nicht: der Leser kennt keinen Modus (`SPEC-182`). Die Paare mit der Prüfung führt `slice-batch-validator` §6.
+**Zusatztabelle** (je Paar von Verstößen; `AGENTS.md` §3.16). Eine Zeile je Modus gilt nicht: der Leser kennt keinen Modus (`SPEC-182`). Die Paare zweier Prüfungen führt `slice-batch-validator` §6.
 
 | Paar oder Modus | Entscheidung (Ort) | Fänger |
 |---|---|---|
@@ -220,6 +222,7 @@ Die Zeilen des Rasters zur Prüfung der Struktur führt `slice-batch-validator` 
 | fehlende schließende Grenzzeile · Verstoß in einem Teil | `rahmen` (`SPEC-182` Nr. 5 f) | Zeile 30 |
 | fehlende schließende Grenzzeile · zu viele Teile | `rahmen` (`SPEC-182` Nr. 5 f) | Zeile 17 |
 | zwei Verstöße in verschiedenen Teilen | der frühere Teil (`SPEC-182` Nr. 5 f) | Zeile 30 |
+| Verstoß der Prüfung · Verstoß des Lesers in einem späteren Teil | der Leser (`SPEC-182` Nr. 5 h) | Zeile 30 |
 
 ## 7. Closure-Notiz
 
