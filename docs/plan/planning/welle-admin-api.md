@@ -96,6 +96,14 @@ einzelnen Slice-DoDs benennen; kann er das nicht, liegt keine Welle vor.
 - Die Frage an den User, ob die Ausnahme je Slice vom Welle-Trigger auch [`slice-bootstrap-m6-listener`](done/slice-bootstrap-m6-listener.md) deckt, der am Prozess sichtbar ist (Geber: dieser Slice, §6 dort), hat eine ausdrückliche Antwort, oder die Closure stellt sie dem User erneut und die Results-Notiz führt sie als offen; Schweigen gilt nicht als Zustimmung. **Stand** (Architect, 2026-11-28): beantwortet, die Ausnahme deckt Teil B rückwirkend. Der User hat auf „Deckt die Ausnahme von der Wellen-Reihenfolge rueckwirkend auch Teil B (Admin-Listener, welle-admin-api §3)?“ mit „alle ja“ auf fünf Fragen geantwortet (alle fünf in [welle-betrieb](welle-betrieb.md) §4).
 - Die Closure-Notiz liegt als `welle-admin-api-results.md` im Ruheort `done/`; ihre *Steering-Loop-Einträge* tragen je verkörperter Regel mit dem Anker `seit welle-admin-api` das Feld `liegt in`.
 
+**Was zur Closure fehlt** (Planner, 2026-11-28, gelesen; ohne `make gegenproben`, siehe oben):
+
+- `make gates` auf dem Stand der Closure.
+- Die Kriterien an diesem Stand belegen: M6-Test (`TestM6Rundlauf`), Sicherheitsnachweis (`make test-security`), `LH-FA-18` ohne Token ohne Änderung (`TestM6AbweisungOhneAenderung`, darin `POST /__admin/imports`, und `TestIM14ImportAutorisierung`), Begrenzung (`TestAdminAbweisenBegrenzt`), `make katalog-check`; alle Läufe sind Teil von `make gates`. Das Handbuch führt Admin-Listener, Token, die Schlüssel `ADMIN_*`, die Endpunkte und die Fehlercodes (Kapitel *Admin-Schnittstelle*, *TLS der Admin-Schnittstelle*, *Fehlercodes*).
+- `welle-admin-api-results.md`, Trigger-Audit, Lese-Schritt des Registers (nach der Closure von [welle-betrieb](welle-betrieb.md) nur, was seither 3× erreicht), Bestand in `open/`, Archivierung, Move, die drei Paarungen, Roadmap.
+- Die Reihenfolge: Der Start-Trigger der Welle (§2, `welle-betrieb` in `done/`) ist nicht eingetreten; Empfehlung des Planners: erst `welle-betrieb` schließen, dann diese Welle.
+- Nicht Bedingung von §3, aber offen: die drei Rückgaben von [slice-admin-tls-betrieb](done/slice-admin-tls-betrieb.md) an den Architect (§6 dort).
+
 ## 4. Slices in dieser Welle
 
 Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`

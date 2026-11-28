@@ -1,1 +1,1 @@
-**Stand:** offen; 3 Belege unter `evidence/` (der Zähler folgt den Dateien), Schwelle 3x erreicht mit `slice-lasttest-auswertung`; der Ausgang (`verkörpert` oder `geplant`) ist Sache des Lese-Schritts der Closure von `welle-betrieb`.
+**Stand:** offen; Schwelle 3x erreicht. Lese-Schritt der Closure von `welle-betrieb`: Vorschlag *verkörpern* in `.claude/commands/plan-welle.md`, Wortlaut in [welle-betrieb](../../../welle-betrieb.md) §7 (V3); die Antwort des Users steht aus. Zähler: die Dateien unter `evidence/`.

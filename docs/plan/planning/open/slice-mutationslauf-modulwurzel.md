@@ -32,6 +32,8 @@ ist einzeln lieferbar.
 
 **Übernimmt:** `slice-handbuch-meldungskatalog` (Rückgabe des Reviewers an den Planner, Review 2026-11-07, bestätigt in der Verifikation; Geber trägt den Punkt in §6 als Zeile mit Ausgang *eingetreten* und dieser Kennung).
 
+**Übernimmt außerdem** (Planner, 2026-11-28, Lese-Schritt der Closure von [welle-betrieb](../welle-betrieb.md), `BEO-REPO/nullprobe-grenze-unter-der-paketlaufzeit`): die feste Zeitgrenze von 2 Minuten je Prozess (`SPEC-210` Nr. 5 c und 9 c), die ein Paket mit längerer Laufzeit (`src/bootstrap`, rund 200 bis 320 s) mit `Ausgangsstand rot` enden lässt. Ob die Grenze ein Feld der Liste wird oder aus der Paketlaufzeit folgt, entscheidet der Architect.
+
 **Ziel:** `tools/mutationslauf` fährt eine Mutationsliste für ein Paket, das **an der Wurzel seines Moduls** liegt (`tools/katalog`, `tools/zeichen`: das Paket ist das Modul). Heute schneidet `relInModul` bei `Paket == Modulwurzel` nichts ab (`TrimPrefix(p, Dir+"/")` auf `p == Dir`), `nullprobe.go` ruft sie statt `paketArg`, und die Nullprobe läuft in einem Verzeichnis, das nicht existiert (`fork/exec … no such file`); jede solche Liste endet mit `Ausgangsstand rot`. Die Mutationen der Pläne von `slice-handbuch-meldungskatalog` fuhr deshalb ein Wegwerfprogramm außerhalb des Repos mit demselben Listenformat.
 
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
@@ -47,6 +49,7 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 - [ ] Eine Liste für ein Paket an der Modulwurzel (mindestens `tools/katalog` und `tools/zeichen` als Elemente der Menge) läuft: Nullprobe im Verzeichnis des Moduls, Mutationen mit dem Ergebnis rot oder grün; jede Zusage des geänderten Vertrags hat eine Zeile in der Tabelle *Zusage · Fänger* (§3) mit einer vom Implementer rot gesehenen Mutation, als Schleife über die Menge der Pfadformen (Wurzel, Unterpaket, Datei an der Wurzel, Datei im Unterpaket) (`AGENTS.md` §3.15, §3.17).
 - [ ] `SPEC-210` nennt die Lesart und die Randformen (Paket gleich Modulwurzel); Entscheidung des Architect vor dem ersten Code-Commit.
+- [ ] Eine Liste für ein Paket, dessen Nullprobe länger als 2 Minuten läuft, endet nicht allein deshalb mit `Ausgangsstand rot`; die Grenze steht in `SPEC-210`, und je Seite der Grenze gibt es einen Fänger.
 - [ ] `make gates` grün.
 - [ ] Review durchgeführt, Report unter `docs/reviews/` liegt vor
       (`.harness/skills/reviewer.md`) — Rollenwechsel nach Schritt 8 des
