@@ -3,6 +3,7 @@ package admin_test
 import (
 	"net/http/httptest"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,7 +40,8 @@ func abweisenZugleich(t *testing.T, u *umgebung, n int) {
 }
 
 // TestFensterGleichzeitig hält W10 (Nr. 5 d): in jedem von 1200 Fenstern ergeben 64 gleichzeitige Abweisungen genau 20
-// Einträge, und CountError läuft je Abweisung. Die Zahl der Fenster hält die Wirkung auch ohne Detektor in jedem Prozess.
+// Einträge, und CountError läuft je Abweisung. Die Wirkung eines geteilten Prüfens und Erhöhens braucht mehrere
+// Prozessoren; die Raten nennt der Plan.
 func TestFensterGleichzeitig(t *testing.T) {
 	const goroutinen, fenster = 64, 1200
 	uhr := &stellUhr{stand: fensterT0()}
@@ -54,6 +56,47 @@ func TestFensterGleichzeitig(t *testing.T) {
 	}
 	if codes, _ := zaehlungenVon(u.tele); len(codes) != goroutinen*fenster {
 		t.Errorf("CountError %d-mal, erwartet %d", len(codes), goroutinen*fenster)
+	}
+}
+
+// TestFensterReihenfolge hält W11 (Nr. 2, 5 d) an der Wirkung: von der Lesung der Uhr bis zur Zählung ist die Zulassung
+// ein Schritt. Die Uhr rückt je Aufruf um 2,9 s vor, so liegen je 21 Lesungen in der Folge der Lesungen in einem Fenster:
+// 20 zugelassen, die 21. 58 s nach dem Beginn gedrosselt, die 22. eröffnet 60,9 s nach ihm das nächste. 42000
+// Abweisungen aus 64 Goroutinen ergeben deshalb genau 2000 · 20 = 40000 Einträge; überholt eine Abweisung zwischen
+// Lesung, Vergleich und Zählung eine andere, weicht die Zahl ab. Mit einem Prozessor überholt selten eine; die Raten
+// nennt der Plan.
+func TestFensterReihenfolge(t *testing.T) {
+	const goroutinen, abweisungen, soll = 64, 42000, 40000
+	u, _ := fensterServer(t, &stellUhr{stand: fensterT0(), schritt: 2900 * time.Millisecond})
+	var offen, abweichend atomic.Int64
+	offen.Store(abweisungen)
+	var wg sync.WaitGroup
+	for range goroutinen {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for offen.Add(-1) >= 0 {
+				rec := httptest.NewRecorder()
+				u.srv.ServeHTTP(rec, ohneAuth("GET", "/ok", nil))
+				if rec.Code != 401 {
+					abweichend.Add(1)
+				}
+			}
+		}()
+	}
+	fertig := make(chan struct{})
+	go func() { wg.Wait(); close(fertig) }()
+	select {
+	case <-fertig:
+	case <-time.After(60 * time.Second):
+		t.Fatalf("Frist von 60 s abgelaufen: %d Abweisungen", abweisungen)
+	}
+	if n := abweichend.Load(); n != 0 {
+		t.Errorf("%d Antworten ohne Status 401", n)
+	}
+	gleichAuf(t, "Einträge", zahlEintraege(u), soll)
+	if codes, _ := zaehlungenVon(u.tele); len(codes) != abweisungen {
+		t.Errorf("CountError %d-mal, erwartet %d", len(codes), abweisungen)
 	}
 }
 

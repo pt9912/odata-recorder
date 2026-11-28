@@ -252,9 +252,78 @@ func TestFensterBeginn(t *testing.T) {
 	}
 }
 
+// TestFensterBeginnBleibt hält W04 (Nr. 2 b, 2 c, 5 c): der Beginn ist allein die Zeit der eröffnenden Abweisung, keine
+// spätere verschiebt ihn. Jede Abweisung eines Fensters liegt auf einem anderen Stand der Uhr: 20 zugelassene bei 0, 2
+// bis 38 s, 5 gedrosselte bei 40 bis 48 s; danach ist 60 s − 1 ns gedrosselt und 60 s zugelassen, in zwei Fenstern
+// nacheinander.
+func TestFensterBeginnBleibt(t *testing.T) {
+	uhr := &stellUhr{stand: fensterT0()}
+	u, _ := fensterServer(t, uhr)
+	beginn, stellen := fensterT0(), 0
+	for fenster := range 2 {
+		for i := range 25 {
+			stellen++
+			uhr.setze(beginn.Add(time.Duration(2*i) * time.Second))
+			if got, soll := zugelassen(t, u), i < 20; got != soll {
+				t.Errorf("Fenster %d, Abweisung %d bei %d s: zugelassen %v, erwartet %v", fenster+1, i+1, 2*i, got, soll)
+			}
+		}
+		uhr.setze(beginn.Add(60*time.Second - time.Nanosecond))
+		if zugelassen(t, u) {
+			t.Errorf("Fenster %d, 60 s − 1 ns nach dem Beginn: zugelassen", fenster+1)
+		}
+		beginn = beginn.Add(60 * time.Second)
+	}
+	uhr.setze(beginn)
+	if !zugelassen(t, u) {
+		t.Error("60 s nach dem Beginn des zweiten Fensters: gedrosselt")
+	}
+	gleichAuf(t, "Zahl der Abweisungen auf eigenem Stand", stellen, 50)
+}
+
+// TestFensterEineLesung hält W09 (Nr. 2 a): jede Antwort 401 ruft Now() genau einmal: die eröffnende, eine zugelassene,
+// eine gedrosselte, die eines neuen Fensters nach 60 s und eine bei einer Uhr vor dem Beginn, je aus der Authentisierung
+// und aus der Route (10 Zellen).
+func TestFensterEineLesung(t *testing.T) {
+	wege := map[string]func() *http.Request{
+		"Authentisierung": func() *http.Request { return ohneAuth("GET", "/ok", nil) },
+		"Route":           func() *http.Request { return anfrageMit("GET", "/e401", nil, nil) },
+	}
+	zellen := 0
+	for name, weg := range wege {
+		uhr := &stellUhr{stand: fensterT0()}
+		u, _ := fensterServer(t, uhr)
+		pruefe := func(fall string, zulassung bool) {
+			t.Helper()
+			zellen++
+			aufrufe, vorher := uhr.zahl(), zahlEintraege(u)
+			if rec := u.rufe(weg()); rec.Code != 401 {
+				t.Fatalf("%s, %s: Status %d, erwartet 401", name, fall, rec.Code)
+			}
+			if n := uhr.zahl() - aufrufe; n != 1 {
+				t.Errorf("%s, %s: %d Aufrufe von Now, erwartet 1", name, fall, n)
+			}
+			if got := zahlEintraege(u) == vorher+1; got != zulassung {
+				t.Errorf("%s, %s: zugelassen %v, erwartet %v", name, fall, got, zulassung)
+			}
+		}
+		pruefe("Eröffnung", true)
+		pruefe("Zulassung im Fenster", true)
+		weiseAb(t, u, 18)
+		pruefe("Drosselung", false)
+		uhr.vorruecken(60 * time.Second)
+		pruefe("neues Fenster", true)
+		weiseAb(t, u, 19)
+		uhr.setze(fensterT0())
+		pruefe("Uhr vor dem Beginn", false)
+	}
+	gleichAuf(t, "Zahl der Zellen", zellen, 10)
+}
+
 // TestFensterUhrWerte hält W05 (Nr. 5 c): ein Wert vor dem Beginn (1 ns, 1 Jahr, die Nullzeit, 10000 Jahre davor und
-// damit außerhalb der Jahre 1 bis 9999) lässt das Fenster offen, ohne Panik; die Nullzeit als erste Zeit eröffnet genau
-// ein Fenster; ein Wert nach dem Beginn (Jahr 9999) eröffnet ein neues.
+// damit außerhalb der Jahre 1 bis 9999) lässt das Fenster offen, ohne Panik, und verschiebt den Beginn nicht (danach ist
+// 60 s − 1 ns nach ihm gedrosselt, 60 s zugelassen); die Nullzeit als erste Zeit eröffnet genau ein Fenster; ein Wert
+// nach dem Beginn (Jahr 9999) eröffnet ein neues.
 func TestFensterUhrWerte(t *testing.T) {
 	b := fensterT0()
 	if y := b.AddDate(-10000, 0, 0).Year(); y >= 1 {
@@ -277,6 +346,14 @@ func TestFensterUhrWerte(t *testing.T) {
 		rec := u.rufeSicher(t, f.name, ohneAuth("GET", "/ok", nil))
 		if rec.Code != 401 || zahlEintraege(u) != 20 {
 			t.Errorf("%s: Status %d, %d Einträge, erwartet 401 und 20", f.name, rec.Code, zahlEintraege(u))
+		}
+		uhr.setze(b.Add(60*time.Second - time.Nanosecond))
+		if zugelassen(t, u) {
+			t.Errorf("%s, dann 60 s − 1 ns nach dem Beginn: zugelassen", f.name)
+		}
+		uhr.setze(b.Add(60 * time.Second))
+		if !zugelassen(t, u) {
+			t.Errorf("%s, dann 60 s nach dem Beginn: gedrosselt", f.name)
 		}
 	}
 	gleichAuf(t, "Zahl der Werte vor dem Beginn", len(faelle), 4)
