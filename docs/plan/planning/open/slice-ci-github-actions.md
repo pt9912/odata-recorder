@@ -16,7 +16,7 @@ Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 **Berührte Spec-Stellen:** `LH-RB-03.a` (Linux und CI) · `SPEC-004` (Migrationsregel: Satz über CI und seinen Ersatz) · `SPEC-122` (`make test-race`) · [SPEC-211](../../../../harness/vertraege/SPEC-211-container-tests-in-der-kette.md) Nr. 5 e (Abbruch durch TERM, offene Sendung mit Trigger „eine CI“) · `SPEC-323` (Neustarttest, kommt mit [slice-container-image](../done/slice-container-image.md)) · [SPEC-217](../../../../harness/vertraege/SPEC-217-ci.md) (Vertrag der CI).
 Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
-**Verantwortlich:** —
+**Verantwortlich:** pt9912 (Zweig slice-ci-github-actions)
 
 **Autor:** pt9912 (Planner, Auftrag des Users vom 2026-11-28; Umsetzung vor der Erstabnahme nach seiner Entscheidung vom selben Tag, §4). **Datum:** 2026-11-28.
 
@@ -91,7 +91,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 Weitere Stellen, die „keine CI“ nennen und nur der Planner im Integrationsschritt ändert (Übergangsregeln Nr. 4): [welle-dev-container](../welle-dev-container.md) §6, [welle-betrieb](../welle-betrieb.md) §2 (historische Bedingung, falls die Welle dann noch offen ist). `docs/plan/planning/rueckverfolgung.md` ist ein datierter Auslesestand. Dateien in `done/` bleiben. [ADR-0030](../../adr/0030-eingecheckte-gate-staempel-mit-voller-gegenprobe.md) ist mit dem Vertrag nachgeführt (Frage 2).
 Die Pflicht, nach jedem Push auf `main` den Lauf zu lesen (Nr. 11 e), steht in Nr. 5 der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln); der Slice ändert sie nicht.
-Die Liste ist der Stand vom 2026-11-28; der Planner sucht beim Start neu.
+Die Liste ist beim Start neu gesucht (Planner, 2026-11-28, `main` bei `dfb51e47`, durch Suchen nach `CI`): der Satz „eine CI gibt es noch nicht“ steht in `harness/README.md` unter *Aktueller Lauf-Status*; `SPEC-211` Nr. 5 e trägt noch „(es gibt keine CI)“; `SPEC-217` (*Stand*), die Zeile des Index unter `harness/vertraege/` und die Festlegung von `SPEC-323` tragen „noch nicht geliefert“ oder „ohne CI“. `SPEC-323` führt „ohne CI“ außerdem im Grund der Entscheidung unter Nr. 1; ob der Satz bleibt, entscheidet die Lieferung mit Blick auf `AGENTS.md` §3.17. Unverändert bleiben: `SPEC-004` (der Satz zum Ersatz bleibt, `SPEC-217` Nr. 13), das Lastenheft und [slice-dev-container-lauf](slice-dev-container-lauf.md) (schließt eine CI aus). Der Kopf von `.claude/hooks/stop-require-gates.sh` nennt heute schon „CI auf dem Push“ als Netz; der Slice ändert den Hook nicht.
 
 **Reihenfolge der Umsetzung:** (1) Vorprobe lokal ([SPEC-217](../../../../harness/vertraege/SPEC-217-ci.md) Nr. 5 c), (2) Workflow, Konfiguration und `workflow-check` in einem Commit, Mutationen der Zeilen 8 und 10 lokal, (3) Texte, (4) die Läufe nach Nr. 9, vor dem ersten Push die Antwort zu den Images (§6): Wegwerfzweig mit den Mutationen der Zeilen 12 und 5, erst nach der Erlaubnis (§6), und der grüne Lauf auf dem Slice-Zweig, dessen Push erlaubt ist (§4 Nr. 5).
 
@@ -136,9 +136,17 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 4. Die Fragen 1 bis 13 in §6 sind beantwortet; eine Antwort, die den Schnitt ändert, ändert den Plan vor dem Start. Vertrag, Raster und Tabelle *Zusage · Fänger* stehen vor dem ersten Code-Commit. **Erfüllt** (Architect, 2026-11-28: [SPEC-217](../../../../harness/vertraege/SPEC-217-ci.md), Raster in §6, Tabelle in §3; keine Antwort ändert den Schnitt). Der Slice-Zweig entsteht aus einem Stand, der den Vertrag trägt.
 5. Der User hat zugestimmt, dass Zweige dieses Slice nach GitHub gepusht werden: ohne Push gibt es keinen Lauf und keinen Beleg. Gepusht wird in diesem Repo nur auf Anweisung. **Erfüllt** (User, 2026-11-28, übermittelt über den Orchestrator: „ja erlaubt“). Die Erlaubnis gilt allein für Zweige dieses Slice. Ein Wegwerfzweig für den roten Lauf und ein Entwurfs-Pull-Request sind nicht erlaubt (offene Frage, §6), Einstellungen des Repos auf GitHub ebenso wenig. Beides ist keine Start-Bedingung: der Wegwerfzweig bindet den roten Lauf (DoD, §5), der Pull Request allein den Beleg des Auslösers.
 
-**Stand** (Planner, 2026-11-28, nach `git merge main` bei `4f2d471f`, durch Lesen, ohne Testlauf; beim Start neu zu prüfen): die Bedingungen 1, 2, 4 und 5 sind erfüllt. Bedingung 3 ist an diesem Stand erfüllt: in `in-progress/` liegen [slice-batch-parser](../in-progress/slice-batch-parser.md) und [slice-betrieb-spans-nachweis](../in-progress/slice-betrieb-spans-nachweis.md), keiner ein Kettenslice. *Kollision:* beide ändern keine Datei aus §3 (der Zweig des ersten Pfade unter `src/`, das Review und seinen Plan; der zweite nennt `src/bootstrap/telemetrie_betrieb_test.go`). Ihre Tests laufen nach dem Merge im CI-Lauf mit; ein weiterer Test in `src/bootstrap` verlängert die knappste Stelle (§6, `test-race`). Der Start ist nicht ausgelöst.
+**Stand beim Start** (Planner, 2026-11-28, `main` bei `dfb51e47`, durch Lesen und Suchen, ohne Testlauf): die Bedingungen 1 bis 5 sind erfüllt.
 
-**Größenmarke:** keine, ohne Block (Planner, 2026-11-28). Grund ist die Geltungsgrenze von `SPEC-128` Nr. 2: die Fänger der Tabelle in §3 sind Läufe auf dem Runner, Ausgaben eines Gates, einmalige Belege und Review; keine der 19 Zeilen trägt einen Test mit Code (Go-Test, Prüflauf-Skript, Fall der Gegenprobe). Der Slice liefert keinen Messpunkt, `make groessenmarke` misst ihn nicht. Kommt Code mit Tests hinzu (etwa ein Skript nach dem Trigger in `SPEC-217` Nr. 8), setzt der Planner vor dessen erstem Commit die Marke. Beim Start prüft er den Stand dieses Plans gegen das Repo (Gates in `GATE_CHECKS`, Laufzeit, Stellen aus §3, Register in §8).
+- *Kette (Bedingung 3, Nr. 7 der Übergangsregeln):* in `in-progress/` liegen [slice-batch-parser](../in-progress/slice-batch-parser.md) und [slice-betrieb-spans-nachweis](../in-progress/slice-betrieb-spans-nachweis.md), keiner ein Kettenslice. Stellung: dieser Slice hält die Gate-Kette ab dem Start und läuft vor den übrigen offenen Kettenslices; keiner von ihnen startet, solange er in `in-progress/` liegt. Geht er blockiert nach `open/` (Rückführung unten), ist die Kette wieder frei.
+- *Kollision:* keiner der beiden ändert eine Datei aus §3. Der Zweig des ersten ändert Pfade unter `src/`, das Review und seinen Plan; der zweite hat im Arbeitsbaum allein `src/bootstrap/telemetrie_betrieb_test.go` (noch nicht committet). Ihre Tests laufen nach dem Merge im CI-Lauf mit; der zweite verlängert mit einem Test in `src/bootstrap` die knappste Stelle (`test-race`, Zeit nicht gemessen). Mergt eine der Linien vor dem Handoff, nimmt der Zweig `main` auf, und der Beleg gilt am Stand danach (Nr. 5 der Übergangsregeln).
+- *Gates:* `GATE_CHECKS` führt 19 Ziele (aus `make` ausgelesen, nicht gefahren), mit `workflow-check` 20; `gates` endet dazu auf `record-gates`.
+- *Laufzeit:* zur Dauer von `make gates` gilt die Angabe in `SPEC-217` Nr. 2 e (1147 s und 1170 s, 20 Kerne); beim Start nicht neu gemessen.
+- *Stempel der Gegenproben:* keine Datei aus §3 steht in den Eingaben von `tools/harness/gegenproben-eingabe.sh`.
+
+**Anhalten vor dem ersten Push:** die Fragen zu *Images* und zu *Repo und Runner* (§6) stehen vor ihm und sind offen. Bis dahin sind die Schritte 1 bis 3 der Reihenfolge (§3) und die Vorprobe Arbeit ohne Antwort.
+
+**Größenmarke:** keine, ohne Block (Planner, 2026-11-28). Grund ist die Geltungsgrenze von `SPEC-128` Nr. 2: die Fänger der Tabelle in §3 sind Läufe auf dem Runner, Ausgaben eines Gates, einmalige Belege und Review; keine der 19 Zeilen trägt einen Test mit Code (Go-Test, Prüflauf-Skript, Fall der Gegenprobe). Der Slice liefert keinen Messpunkt, `make groessenmarke` misst ihn nicht. Kommt Code mit Tests hinzu (etwa ein Skript nach dem Trigger in `SPEC-217` Nr. 8), setzt der Planner vor dessen erstem Commit die Marke.
 
 **Rückführungen — vorab benennen, nicht erst im Nachhinein begründen:**
 
@@ -207,6 +215,7 @@ Jede Nummer meint [SPEC-217](../../../../harness/vertraege/SPEC-217-ci.md).
 - Ein roter Lauf auf `main` bleibt unbemerkt, weil kein Wächter ihn liest und nichts am Merge hängt; die Pflicht des Integrationsschritts (Nr. 5 der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln)) trägt kein Gate (`SPEC-217` Nr. 11 e). — **Ausgang:** offen, Adresse User (Branch-Protection) und Planner.
 - Die CI hängt an einem Dienst außerhalb des Repos; fällt er aus oder ändert er das Runner-Image, ist das Ergebnis ohne Änderung am Stand anders. — **Ausgang:** offen, akzeptiert nach `SPEC-217` Nr. 11 b und f; fachlicher Owner (`LH-QA-06`).
 - Die CI liegt vor der Erstabnahme (Entscheidung des Users vom 2026-11-28): die Abnahme wartet damit auf bezogene Images, die Erlaubnis für den Wegwerfzweig und einen grünen Lauf auf einem Runner, den noch niemand gesehen hat. — **Ausgang:** offen, Adresse Planner und User.
+- Der Slice hält die Gate-Kette (§4), während drei Antworten des Users ausstehen: Images, Repo und Runner (vor dem ersten Push), Wegwerfzweig (vor dem roten Lauf). Bleiben sie aus, stehen alle übrigen Kettenslices. — **Ausgang:** offen, Adresse Planner und User; bleibt keine Arbeit ohne Antwort, gilt die Rückführung nach `open/` (§4).
 
 ## 7. Closure-Notiz
 
@@ -240,12 +249,14 @@ Hälften.
 
 **Vorgelagert — Sub-Area-Wahl prüfen:** eine Sub-Area, `*` (Kürzel `REPO`).
 
-**Vorgelagert — offene Beobachtungen sichten** (Stand 2026-11-28, Zahl der Dateien unter `evidence/`; beim Start neu zu sichten):
+**Vorgelagert — offene Beobachtungen sichten** (Planner beim Start, 2026-11-28, `main` bei `dfb51e47`; Zahl der Dateien unter `evidence/`):
 
 - `BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze` (3): Frage 7.
 - `BEO-REPO/test-fremden-pakets-flackert-unter-last` (4, geplant in [slice-test-flackern](slice-test-flackern.md)): Frage 8.
 - `BEO-REPO/gate-lauf-stufen-aus-dem-schicht-cache` (21): Frage 9.
 - `BEO-REPO/gegenproben-erzeugen-die-last-selbst` (2): Frage 6.
+- `BEO-REPO/image-tag-race-von-allen-worktrees-geteilt` (2): die Vorprobe (`SPEC-217` Nr. 5 c) läuft neben zwei Zweigen; sie fährt den eigenen Baum, nicht den zuletzt gebauten Stand des Tags.
+- `BEO-REPO/vertrag-sagt-mehr-zu-als-ein-gate-prueft` (93, verkörpert in `AGENTS.md` §3.15): die Negative stehen in §3 mit Maß.
 
 Mit der Planung fällt kein Beleg an, kein Eintrag erreicht durch sie 3×; die Einträge ab 3 ohne Zielort liest die Welle-Closure.
 
