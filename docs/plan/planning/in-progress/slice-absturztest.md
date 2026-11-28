@@ -78,7 +78,7 @@ Aussagen-Berührung steht hier gar nicht.
 
 | Datei / Komponente | Änderungs-Art | Begründung |
 |---|---|---|
-| `src/bootstrap/absturz_test.go` | neu | Kindprozess, Port-Dekoratoren, 10 Haltepunkte, Prüfung nach dem Neustart; Fehler-Injektion nach `LH-QA-03`. Er nutzt den Aufbau von `abnahme_aufbau_test.go`, ohne ihn zu ändern |
+| `src/bootstrap/absturz_test.go` | neu | Kindprozess, Port-Dekoratoren, 10 Haltepunkte, Lage je Haltepunkt, Prüfung nach dem Neustart samt Gegenproben der Prüfung (`TestAbsturzEndeOhneHaltepunkt`, `TestAbsturzStartBefunde`, `TestAbsturzPruefungErkennt`); Fehler-Injektion nach `LH-QA-03`. Er nutzt den Aufbau von `abnahme_aufbau_test.go`, ohne ihn zu ändern |
 | `spec/spezifikation.md` | update | Vermerk *Stand* von `SPEC-048` |
 
 **Tabelle *Zusage · Fänger*** (`AGENTS.md` §3.15; Planner aus `SPEC-048`, weil der Vertrag dort steht und der Slice nur Test liefert; „Nr.“ meint `SPEC-048`; der Implementer trägt Mutationen und Raten mit Zahl der Prozesse, Last und Messendem in einen Absatz darunter ein, `AGENTS.md` §3.10):
@@ -106,6 +106,32 @@ Aussagen-Berührung steht hier gar nicht.
 | N2 | Negativ: Stromausfall, Absturz des Betriebssystems (`SIGKILL` lässt den Seiten-Cache). Folge: Dauerhaftigkeit über einen Ausfall des Hosts nicht belegt | Negativ | — | andere |
 | N3 | Negativ: Anhängen eines Exchange und Import (`LH-QA-03` nennt Mutationen und Snapshots). Folge: ein Fehler nur beim Prozessende auf diesen Wegen bliebe ungefangen | Negativ | — | andere |
 | N4 | Negativ: das gebaute Binary (Haltepunkt verlangte einen Haken). Folge: eine Verdrahtung ohne Startwartung fängt der Test nicht | Negativ | — | andere |
+
+**Mutationen und Raten** (Implementer, 2026-11-28; gemessen von ihm in einem Container ohne Netz, `--cpus=4 --memory=4g`). Je Mutation eine Wegwerfkopie und ein Lauf `go test -run '^TestAbsturz' -count=1`, jede aus dem genannten Grund rot, 31 von 31. Die Haltepunkte sind Port-Aufrufe ohne Schlaf, die Mutationen sind keine Nebenläufigkeit.
+
+| Zusage | Mutation | Roter Test (Grund) |
+|---|---|---|
+| T1 | `Advance` des Mock vor der Transaktion | `TestAbsturz/mutation-vor-commit` (Revision) |
+| T2 | `Advance` des Mock in einer zweiten Transaktion | `…/mutation-nach-commit` (Revision), `…/mutation-vor-commit` (Lage) |
+| T3, T5 | `Advance` in Reset bzw. Restore vor der Transaktion | `…/reset-vor-commit` bzw. `…/restore-vor-commit` (Revision) |
+| T4, T6 | Transaktion von Reset bzw. Restore geteilt (`Advance` in der zweiten) | `…/reset-nach-commit` bzw. `…/restore-nach-commit` (Revision), je auch `vor-commit` (Lage) |
+| T7 | `CreateWorkspace` vor `Begin` | `…/snapshot-vor-begin` (`BlobsFehlend`, Snapshot-Liste) und die drei anderen |
+| T8 | `CreateWorkspace` zwischen `Begin` und `Write` | `…/snapshot-im-write` (`BlobsFehlend`) |
+| T9 | `CreateWorkspace` zwischen `Write` und `Commit` | `…/snapshot-nach-writer-commit` (Snapshot-Liste); `im-write` bleibt grün |
+| T10 | `Abort` statt `Commit`, dann `CreateWorkspace` | `…/snapshot-nach-create` (`BlobsFehlend`, Restore); alle anderen Haltepunkte mit, weil `vor` aus demselben Code entsteht |
+| T11 | ein Haltepunkt aus der Tabelle entfernt | `TestAbsturz` (9 statt 10) |
+| T12 | Dekorator sendet nach `COMMIT` nicht; Auswertung nimmt ein reguläres Ende an | die drei `…/…-nach-commit` (nicht erreicht); `TestAbsturzEndeOhneHaltepunkt` |
+| T13 | Bericht von `Startup` nicht gewertet; `Befunde` aus der Auswertung gestrichen | `TestAbsturzPruefungErkennt` (4 Schäden); `TestAbsturzStartBefunde` |
+| T14 | Vergleich ohne Cursors; ohne Snapshot-Liste | `…PruefungErkennt/Cursor_von_ws-1`; die vier `snapshot-*` (Orakel nachher gleich vorher) und `…/Snapshot_von_ws-1` |
+| T15 | `ResetAll` ohne Einschränkung auf den Workspace; Vergleich ohne Stand bzw. Liste von `ws-2` | `…/reset-nach-commit` (`ws-2`); `…/Cursor_von_ws-2` bzw. `…/Snapshot_von_ws-2` |
+| T16 | Abgleich in `Startup` entfernt; Aufräumen von `tmp` in `blobs.New` entfernt; Auflisten der Ablage entfernt | `…/snapshot-nach-writer-commit`; `…/snapshot-im-write`; `…PruefungErkennt/temporäre_Datei` |
+| T17 | `ReferencedBlobs` ohne Workspace-Snapshots; Restore entfernt; weitere Mutation entfernt | alle 10 Haltepunkte (Restore `vor`); `…PruefungErkennt` (Blob fehlt, beschädigt, Metadaten); `…/Metadaten_fehlen` |
+| Lage je Haltepunkt (`SPEC-048` Nr. 2) | Ende vor f statt danach | die drei `…-vor-commit` |
+| Lage je Haltepunkt | im `Write` nichts bzw. alles geschrieben; Ende nach statt vor `Begin`; Ende vor statt nach dem `Commit` des Writers | `…/snapshot-im-write` (beide); `…/snapshot-vor-begin`; `…/snapshot-nach-writer-commit` |
+
+Raten (je Lauf von `go test`, ein Prozess samt Kindprozessen): ohne Detektor 300 von 300 Haltepunkt-Läufen grün (`-count=30`, `TestAbsturz` 5,68 bis 6,06 s) und `-count=5` auf der letzten Fassung grün; mit Detektor 100 von 100 (`-count=10`) und 50 von 50 auf der letzten Fassung (`-count=5`), dazu `-count=10 -cpu=1` grün; keine Race-Meldung eines Prozesses (`GORACE=log_path`, keine Datei). Last des Hosts (1 min) vor und nach den Läufen: 7,49 und 3,06 bzw. 2,64 und 3,34.
+
+Negative des Tests, je mit Grund und Folge: dass `absturzLaufe` die Lage und die Prüfung ruft, hat keinen eigenen Fänger (2 von 2 Aufrufen; Grund: Testcode ohne Test darüber; Folge: fiele ein Aufruf weg, blieben die Mutationen oben grün). Die Auswertung des Endes weist in fünf Zweigen ab, eine Kontrolle hat der des regulären Endes (4 von 5 ohne Fänger: Frist, anderes Ende, Marke fehlt, Marke fremd; Grund: nicht ohne Eingriff in den Kindprozess herstellbar; Folge: Frist und Marke sichern einander, der Wegfall eines Zweigs bliebe unbemerkt). Ein Befund der Datenbank wird am Aufruf nicht hergestellt (1 von 3 Befundlisten; Grund: er verlangte rohes SQL im Test; Folge: ihn trägt allein die Auswertung, `TestAbsturzStartBefunde`).
 
 **Raster *Operation × Argumentart*** (`AGENTS.md` §3.16; „Nr.“ meint `SPEC-048`):
 
@@ -164,8 +190,8 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 **einen** Ausgang, und kein Slice geht nach `done/`, während eines ohne Ausgang
 dasteht.
 
-- Der Test findet einen echten Fehler (verwaiste Zustände, nicht wiederherstellbarer Snapshot) — **Ausgang:** weiter offen: erste Rückführung in §4, Adresse Planner und Architect.
-- Ein Kindprozess unter `make test-race` verlängert den Lauf von `bootstrap` über eine Zeitgrenze (`BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`) — **Ausgang:** weiter offen; Adresse: Implementer (misst mit Last und Messendem).
+- Der Test findet einen echten Fehler (verwaiste Zustände, nicht wiederherstellbarer Snapshot) — **Ausgang:** weiter offen: erste Rückführung in §4, Adresse Planner und Architect. Stand beim Handoff (Implementer): kein Fund an den 10 Haltepunkten.
+- Ein Kindprozess unter `make test-race` verlängert den Lauf von `bootstrap` über eine Zeitgrenze (`BEO-REPO/paketlaufzeit-unter-race-naehert-sich-der-zeitgrenze`) — **Ausgang:** weiter offen; Adresse: Implementer (misst mit Last und Messendem). Messung (Implementer, 2026-11-28, ein Container mit 4 CPUs): die Tests `TestAbsturz*` brauchen unter `-race` zusammen rund 14,7 s (Mittel aus 5 Läufen: 8,29, 1,45 und 4,97 s; Last 2,64 vor und 3,34 nach den Läufen); die Kindprozesse laufen mit `atexit_sleep_ms=0`. Das Paket `bootstrap` unter `-race` brauchte in einem Lauf 405 s (Last 2,98 vor, 3,06 nach dem Lauf; Fassung ohne `atexit_sleep_ms=0`, dort `TestAbsturzEndeOhneHaltepunkt` 5,47 statt 1,45 s) bei einer Grenze von `go test` von 10 min je Paket; ein Lauf, kein Vergleich mit dem Paket ohne den Test.
 - Die Schnittfrage (§4) — **Ausgang:** entfallen (Planner, 2026-11-28: kein Schnitt, `schnitt-grund` im Block).
 
 ## 7. Closure-Notiz
