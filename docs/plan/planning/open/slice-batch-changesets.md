@@ -39,6 +39,8 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 
 **Übernimmt (Sendung von `slice-odata-json-eingabe`, `SPEC-180` Nr. 6):** der Aufruf von `ODataEingabe.LeseEntity` für den Body eines POST, PATCH oder PUT als Teil eines Changeset: drei Aufrufstellen {`POST`, `PATCH`, `PUT`} × Teil eines Changeset (die drei des Request trägt `slice-mock-schreiben`; zusammen die sechs Stellen der Menge). `contentType` ist der des Teils, nicht der Hülle; die übrigen Zusagen a bis h reicht der Dienst je Teil unverändert weiter (`ctx`, `src`, `entitySet`, `art`, `grenze`, Fehlerabbildung `ODR-E6007` mit `400` und `ODR-E6002` mit `501`, Zustand); ein Fehler des Bodys scheitert das Changeset. Kein Ausschluss dieses Slice trifft diesen Punkt (der Ausschluss „Leser der Client-Bodies“ nennt den Leser als vorhanden und den Aufruf je Einzelrequest als Gegenstand dieses Slice).
 
+**Übernimmt (Sendung von `slice-batch-parser`, `SPEC-182` Nr. 7, `SPEC-183`, `SPEC-184`, `AGENTS.md` §3.13):** (a) der Aufruf von `ODataBatch.LeseBatch` mit dem Kontext, dem Body, allen Kopfzeilen `Content-Type` des Hüllen-Requests und `MAX_CAPTURE_BODY`, danach `model.PruefeBatch` **vor** der ersten Ausführung: bei einem Fehler eines der beiden läuft kein Request, der Zustand bleibt, der Fehler geht unverändert weiter; (b) die Verdrahtung des Lesers (Feld in `outbound.CodecSatz` oder Konfig); für einen V2-Service wird er nicht gerufen (`SPEC-173` Nr. 2); (c) die Auflösung eines Ziels gegen den Service-Root (relativ, mit `/`, absolut, fremder Host) und die Auflösung von `BatchRequest.Verweis` gegen den früheren Request, auch wenn er keine Entity angelegt hat; (d) je Request alle Kopfzeilen `Content-Type` aus `BatchRequest.Header` (Name ohne Beachtung der Schreibweise) und `Body` (`nil`: Strom ohne Byte); (e) die Antwort auf einen leeren Batch und auf ein leeres Changeset; (f) die Präferenzen des Hüllen-Requests (`respond-async` darf ohne Wirkung bleiben, `continue-on-error` ist Auftrag 3). Kein Ausschluss dieses Slice trifft diese Punkte: Parser und Prüfung werden gerufen, nicht gebaut.
+
 **Ausdrücklich NICHT in diesem Slice** — je Punkt mit Begründung:
 
 - Parser und Validator des Batch — `slice-batch-parser`; dieser Slice liest die geprüfte Struktur und prüft keine Bytes der Hülle.
@@ -91,7 +93,7 @@ Aussagen-Berührung steht hier gar nicht.
 | `src/hexagon/services/mock/` | update | Ausführung des Batch; die Schreibschritte laufen als Einheiten innerhalb einer Transaktion, die der Aufrufer hält |
 | `src/hexagon/ports/inbound/` | update | Eingang für `$batch`, falls der Architect ihn nicht im Port von `MockUseCase` führt |
 | `src/adapters/driving/httpodata/` | update | Route `POST /$batch`, Antwort als Strom |
-| `src/adapters/driven/odata/` (Paket des Batch-Lesers) | update | Schreiber der Batch-Antwort (Serializer) |
+| `src/adapters/driven/odata/batchcodec/` (Paket des Batch-Lesers) | update | Schreiber der Batch-Antwort (Serializer) |
 | `src/bootstrap/` | update | Verdrahtung der Route im Modus `mock` |
 | `spec/spezifikation.md` | update | Vertrag mit Randformen (Architect) |
 | Tests | neu | Fälle von `LH-FA-16` (Happy Path, Boundary, Negative); Schleife über Stelle und Art des Fehlers im Changeset; Wirkungs-Fänger für die Serialisierung |
