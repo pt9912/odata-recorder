@@ -9,7 +9,7 @@ aus `open/` oder `next/` nach `done/` — §7 nennt in der Zeile `Gegenstand:`
 Kennung oder Grund, die Liefer-Punkte der DoD bleiben leer
 (§Ein Slice, dessen Gegenstand ein anderer übernimmt).
 
-**Welle:** ohne Welle — ein einzelner Slice, dessen Closure-Bedingung seine DoD ist (ein grüner und ein roter Lauf auf dem Runner); kein repo-weiter Beleg geht darüber hinaus (Baseline-Regelwerk `modul-06-roadmap.md` §Wann Arbeit eine Welle braucht). Er trägt keinen Meilenstein: die Erstabnahme (M7) liegt vor seinem Start. Er ist ein **Kettenslice** (Linie C, Nr. 7 der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln)): er ändert mindestens `harness/README.md`.
+**Welle:** ohne Welle — ein einzelner Slice, dessen Closure-Bedingung seine DoD ist (ein grüner und ein roter Lauf auf dem Runner); kein repo-weiter Beleg geht darüber hinaus (Baseline-Regelwerk `modul-06-roadmap.md` §Wann Arbeit eine Welle braucht). Er ist eine Bedingung der Erstabnahme (M7, [Roadmap](../in-progress/roadmap.md)) und wird vor ihr umgesetzt (§4). Er ist ein **Kettenslice** (Linie C, Nr. 7 der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln)): er ändert mindestens `harness/README.md`.
 
 **Bezug:** `LH-QA-06` (Messmethode: containerbasierter CI-Test), `LH-RB-03` (Entwicklung und Ausführung in Docker-basierten CI-Umgebungen), [ADR-0001](../../adr/0001-implementierungssprache-go.md), [ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md) (Gegenproben außerhalb der Gate-Kette), [ADR-0007](../../adr/0007-race-detektor-im-gate.md) (`test-race` ist Gate).
 
@@ -18,7 +18,7 @@ Der Verweis zeigt **aufwärts**: Die Spec nennt diesen Slice nie.
 
 **Verantwortlich:** —
 
-**Autor:** pt9912 (Planner, Auftrag des Users vom 2026-11-28: planen; Umsetzung erst nach der Erstabnahme). **Datum:** 2026-11-28.
+**Autor:** pt9912 (Planner, Auftrag des Users vom 2026-11-28; Umsetzung vor der Erstabnahme nach seiner Entscheidung vom selben Tag, §4). **Datum:** 2026-11-28.
 
 ---
 
@@ -45,7 +45,7 @@ zusammen mit der Begründungs-Pflicht je Punkt.
 - Nachtlauf und Hash-Prüfung je Push (Slice (b) aus [ADR-0030](../../adr/0030-eingecheckte-gate-staempel-mit-voller-gegenprobe.md)) — **vorläufig** außen: die ADR ordnet sie hinter die Stempel. Ob diese CI ohne beides genügt, ob sie einen Teil von (b) vorwegnimmt oder ob (b) hierher gehört, entscheidet Frage 2 in §6; der Planner entscheidet es nicht. Ändert die Antwort diesen Ausschluss, wird der Plan vor dem Start geändert und neu geschnitten.
 - Gegenproben, Lasttest und Mutationsläufe auf dem Runner — **vorläufig** außen: keiner ist Teil von `make gates` ([ADR-0005](../../adr/0005-gegenproben-ausserhalb-der-gate-kette.md), `SPEC-216`); Frage 6 in §6.
 - Änderungen an Gates, Schwellen, Fristen, Tests oder Produktcode, damit der Runner grün wird — eine Lockerung braucht eine ADR (`AGENTS.md` §3.6); ein Fund ist eine Rückführung (§4) oder ein Carveout, kein Beifang.
-- Änderungen am Lastenheft — Sache des fachlichen Owners; nach `Accepted` nur über einen Change Request ([Lastenheft](../../../../spec/lastenheft.md) §Historie). §6 stellt die Frage.
+- Änderungen am Lastenheft — Sache des fachlichen Owners; nach `Accepted` nur über einen Change Request ([Lastenheft](../../../../spec/lastenheft.md) §Historie), davor ohne ihn. §6 stellt die Frage.
 - Registry, Veröffentlichung, Release, Ablage von Artefakten — anderer Vorgang; sie brauchen Schreibrechte und Geheimnisse, die dieser Slice ausschließt.
 - Einstellungen des Repos auf GitHub (Branch-Protection, Pflicht-Status) — liegen nicht im Repo; Entscheidung des Users (§6).
 - Ersatz des lokalen Gate-Laufs vor dem Handoff — `AGENTS.md` §6 und der Stop-Hook bleiben, wie sie sind; die CI kommt hinzu.
@@ -100,11 +100,11 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Start** (`next` → `in-progress`), alle Bedingungen zugleich:
 
-1. Der Kopf von `spec/lastenheft.md` trägt den Status `Accepted` (Erstabnahme; Auftrag des Users vom 2026-11-28). Heute: `Draft`.
+1. Der Slice wird vor der Erstabnahme umgesetzt; ein Status `Accepted` des Lastenhefts ist keine Bedingung. **Erfüllt** (Entscheidung des Users vom 2026-11-28, übermittelt über den Orchestrator: auf „Soll die CI vor Accepted kommen?“ die Antwort „ja“).
 2. [slice-container-image](../done/slice-container-image.md) liegt in `done/` (Vorgänger in der Gate-Kette: erst mit ihm trägt `make gates` den Neustarttest, den die Messmethode von `LH-QA-06` verlangt).
 3. Kein anderer Kettenslice liegt in `in-progress/`. Die Stellung zu den übrigen offenen Kettenslices legt der Start fest.
 4. Die Fragen 1 bis 13 in §6 sind beantwortet; eine Antwort, die den Schnitt ändert, ändert den Plan vor dem Start. Vertrag, Raster und Tabelle *Zusage · Fänger* stehen vor dem ersten Code-Commit.
-5. Der User hat zugestimmt, dass Zweige dieses Slice nach GitHub gepusht werden: ohne Push gibt es keinen Lauf und keinen Beleg. Gepusht wird in diesem Repo nur auf Anweisung.
+5. Der User hat zugestimmt, dass Zweige dieses Slice nach GitHub gepusht werden: ohne Push gibt es keinen Lauf und keinen Beleg. Gepusht wird in diesem Repo nur auf Anweisung. **Erfüllt** (User, 2026-11-28, übermittelt über den Orchestrator: „ja erlaubt“). Die Erlaubnis gilt allein für Zweige dieses Slice; Pull Requests und Einstellungen des Repos auf GitHub sind nicht erlaubt. Belege auf dem Runner kommen deshalb aus Läufen nach einem Push; den Lauf eines Pull Request belegt ohne weitere Erlaubnis niemand (beim Vertrag zu führen, sonst beim User).
 
 **Größenmarke:** noch nicht gesetzt, ohne Block; der Planner setzt sie beim Start, vor dem ersten Code-Commit (`AGENTS.md` §3.14, `SPEC-128` Nr. 1), und prüft dabei den Stand dieses Plans gegen das Repo (Zahl der Gates, Laufzeit, Stellen aus §3).
 
