@@ -102,7 +102,18 @@ Regeln dieser Sektion: Baseline-Regelwerk `modul-05-planning-harness.md`
 
 **Stand beim Start** (Planner, 2026-11-28, `main` bei `7c9014bb`, durch Lesen und Suchen, ohne Testlauf): Die Bedingung ist erfüllt. Keine Frage an den Architect ist offen. *Kollision:* in `in-progress/` liegt daneben allein [slice-ci-github-actions](../in-progress/slice-ci-github-actions.md); sein Zweig ändert gegen `main` den Workflow, `harness/` und seinen Plan, keinen Pfad unter `src/`. Dieser Slice ändert keinen davon. Er ist keine Voraussetzung der CI und sie keine von ihm; wer später mergt, nimmt `main` vorher auf (Nr. 5 der [Übergangsregeln](../README.md#parallelbetrieb-in-worktrees-übergangsregeln)).
 
-**Größenmarke** (`SPEC-128` Nr. 1, `AGENTS.md` §3.14; Planner beim Start, vor dem ersten Code-Commit): acht Zeilen der Tabelle (FK1 bis FK8), *a* = 5 (FK1, FK2, FK3, FK6, FK7), *b* = 3, *f* = 0, *p* = 0 (nur Test-Code): *S* = 665, Marke **900**, keine Schnittfrage. Den Teil des Blocks, den sonst der Architect setzt (`pfad`, `produktcode`, `fakes`), hat der Planner gesetzt. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Ändert der Implementer eine weitere Datei (etwa `fake_test.go`), nennt er sie im selben Commit in §3 und im Block. Für einen Schnitt beim Handoff ist kein Teil vorab benannt; eine Überschreitung steht mit Grund im Block.
+**Größenmarke** (`SPEC-128` Nr. 1, `AGENTS.md` §3.14; Planner beim Start, vor dem ersten Code-Commit): acht Zeilen der Tabelle (FK1 bis FK8), *a* = 5 (FK1, FK2, FK3, FK6, FK7), *b* = 3, *f* = 0, *p* = 0 (nur Test-Code): *S* = 665, Marke **900**, keine Schnittfrage. Den Teil des Blocks, den sonst der Architect setzt (`pfad`, `produktcode`, `fakes`), hat der Planner gesetzt. `basis` ist `b13d85e9` (letzter Commit von `main` vor dem Commit des Blocks); die drei Dateien ändert beim Start kein anderer Zweig, Fremdzeilen 0. Metrik: Summe aus Einfügungen und Löschungen von `git diff --numstat <Basis>..<letzter Commit des Slice>` über die Pfade des Blocks, Tests eingeschlossen. Ändert der Implementer eine weitere Datei (etwa `fake_test.go`), nennt er sie im selben Commit in §3 und im Block. Für einen Schnitt beim Handoff ist kein Teil vorab benannt; eine Überschreitung steht mit Grund im Block.
+
+```groessenmarke
+pfad: src/hexagon/services/hybrid/telemetrie_gleichzeitig_test.go
+pfad: src/adapters/driven/odata/urlparser/grenzen_test.go
+pfad: src/adapters/driving/httpodata/anfrage_test.go
+produktcode: 0
+fakes: 0
+basis: b13d85e9
+schaetzung: 665
+marke: 900
+```
 
 **Rückführungen — vorab benannt:**
 
